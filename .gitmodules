@@ -1,0 +1,9 @@
+[submodule "logpile"]
+	path = logpile
+	url = https://github.com/aornugent/logpile.git
+[submodule "plant"]
+	path = plant
+	url = https://github.com/aornugent/plant.git
+[submodule "odelia"]
+	path = odelia
+	url = https://github.com/aornugent/odelia.git
