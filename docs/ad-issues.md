@@ -125,6 +125,43 @@ on:** —.
 
 ---
 
+## R boundary (see [`ad-r-interface.md`](./ad-r-interface.md))
+
+Governing invariant: only `double` crosses the R boundary; active types are
+C++-internal and ephemeral. These items are the R-facing side of the driver work.
+
+### RIF-1 — odelia `Solver_gradient`/`Solver_jacobian` on the double handle · CP
+Retire the `bool active` flag and the R-visible `ActiveSystemType` XPtr; the driver
+owns the active system internally. **Depends on:** ODELIA-1, ODELIA-2. Removes the
+type-confusion hazard in `Solver_fit_impl`.
+
+### RIF-2 — odelia `rebind` lift (double → active) · CP
+A System contract so the driver constructs the active system generically instead of
+per-example hand-construction. **Depends on:** —. **Blocks:** RIF-1.
+
+### RIF-3 — odelia opaque tape/active-scratch cache on the double Solver · CP-support
+Tape reuse within a Jacobian and across optimizer calls, without R seeing it.
+**Depends on:** RIF-1.
+
+### RIF-4 — odelia policy: no `wrap`/`as` for active types · NTH
+Keep `xad::value`/`xad::derivative` the only extraction; prevent accidental
+derivative loss.
+
+### RIF-5 — plant single `stand_gradient_cpp` entry (RcppR6 handle, C++ dispatch) · CP
+One hand-written export taking the RcppR6 SCM (pointer unwrap only), dispatching
+strategy/feedback in C++. **Depends on:** ODELIA-2, PLANT-4.
+
+### RIF-6 — plant native-pointer harvest; delete `Rcpp::as<*_Environment>` · CP
+The active replay reads the live Patch by pointer; no serialisation round-trip.
+**Depends on:** PLANT-4, PLANT-5. (Same work as the native harvest in those items,
+viewed from the boundary.)
+
+### RIF-7 — plant thin `stand_gradient()` R wrapper · CP-support
+Remove R-side branching across native/impl/resident variants. **Depends on:**
+RIF-5.
+
+---
+
 ## Build order (critical path)
 
 ```

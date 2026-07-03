@@ -7,8 +7,9 @@
 (the AD-aware ODE runtime).
 **Branches:** `claude/ad-infrastructure-design` on the plant and odelia forks;
 this document is on `claude/ad-infrastructure-design-87k3g8` in `plant-dev`.
-**Companion:** [`ad-issues.md`](./ad-issues.md) — tightly-scoped work items,
-dependencies, and build order.
+**Companions:** [`ad-issues.md`](./ad-issues.md) — tightly-scoped work items,
+dependencies, and build order; [`ad-r-interface.md`](./ad-r-interface.md) — the
+R/C++ AD boundary for both packages.
 
 ---
 
