@@ -4,6 +4,7 @@
 [submodule "plant"]
 	path = plant
 	url = https://github.com/aornugent/plant.git
+	branch = develop
 [submodule "odelia"]
 	path = odelia
 	url = https://github.com/aornugent/odelia.git
