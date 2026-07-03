@@ -325,6 +325,11 @@ pinned to the AD-vs-AD fixture plus the existing AD-vs-FD physics tests.
 
 ## 8. Open questions for the maintainers
 
+> **Update:** Part II resolves several of these — #1 (mode/Jacobian) via §9, #2
+> (Strategy concept) and #4 (sequencing) via §12. #3 (the `S` fold) becomes the
+> measured §11 test rather than a judgement call. The remaining live questions
+> are gathered in §13.
+
 1. **Vector-mode vs row-by-row Jacobian.** For metrics×traits, does odelia expose
    XAD's vector/forward-over-reverse mode, or reuse one reverse tape per output
    row? (Affects the `compute_jacobian` API shape in Step 0.)
@@ -344,9 +349,207 @@ pinned to the AD-vs-AD fixture plus the existing AD-vs-FD physics tests.
 
 ---
 
+# Part II — Discovery findings (round 2)
+
+*Added after a close read of XAD's own facilities, the emergent reductions, the
+forward/reverse split already in plant, and the `S` template axis. This round
+resolves several of the §8 open questions and sharpens the recommendation.*
+
+## 9. XAD gives us the Jacobian machinery; the mode choice is settled
+
+`odelia/inst/include/XAD/Jacobian.hpp` ships `xad::computeJacobian` in **both**
+modes:
+
+- **Adjoint (reverse):** register inputs once, one `newRecording()`, then per
+  output row `derivative(y[i]) = 1; computeAdjoints(); read derivative(v[j]);
+  clearDerivatives()`. Cost = **one forward record + one adjoint sweep per output
+  row**.
+- **Forward (tangent):** per input column, seed `derivative(v[i]) = 1`,
+  re-evaluate `foo`, read `derivative(y[j])`. Cost = **one function evaluation per
+  input**.
+
+The plant emergent Jacobian is *metrics × traits* — roughly **4 × 28** (FF16).
+Outputs ≪ inputs, so **reverse mode is optimal** (≈4 adjoint sweeps over one
+recording vs ≈28 forward re-evaluations). odelia's reverse-only tape is the right
+primitive, and `computeJacobian`'s adjoint variant is the **established template**
+for `odelia::compute_jacobian`. The only novelty odelia adds is routing inputs
+through the System `set_params`/`set_initial_state` seam and reusing the
+Solver-owned persistent tape — record once, `clearDerivatives()` between rows
+(**not** `newRecording()`).
+
+**Where forward mode legitimately lives (and should stay).** plant already uses
+`xad::fwd` — but only at the **leaf gas-exchange optimizer**
+(`leaf_model.cpp: dprofit_droot_collar_psi`, `tf24_strategy.cpp`). There it
+computes small *local* analytic sensitivities (A′(ci), C′(ψ)) via forward AD,
+combines them with the implicit-function theorem on the stomatal root-find and the
+envelope theorem at the collar optimum, then **injects the result as a seed
+tangent** into an active `net` that flows onward (`xad::derivative(net_ad) =
+dnet_dvcmax`). This is a textbook two-level scheme: forward for cheap local
+(few-input) Jacobians at the operating point, reverse for the global trait scan.
+It is correct and well-scoped. **Leave leaf-level forward mode exactly where it is
+(plant-local); do not lift it into odelia.** odelia's driver stays reverse-only.
+Second-order / `fwd_adj` Hessian modes exist in XAD but are explicitly **out of
+scope**.
+
+The one generalization this forces on odelia: the driver must accept an
+**injected seed derivative** on an input/intermediate (the IFT/envelope
+contribution), not only unit-vector seeding. A small, honest extension of
+`compute_gradient` — and plant is the design driver for it.
+
+## 10. The emergent reductions: what they are, and the real smell
+
+Three functionals live in `inst/include/plant/gradient/`:
+
+- **`census_trapezium`** (`scm_harvest.h`) — an emergent stand metric (LAI,
+  biomass, basal area…) as a **trapezoidal integral over cohorts sorted by
+  descending height**, `J = Σ ½(h_a−h_b)(φ_a+φ_b)` plus a pending-seed ground
+  tail, with `φ = psi(h, dens, mhw)` the per-metric kernel. The
+  method-of-characteristics quadrature of the size distribution.
+- **`offspring_weights`** (`scm_harvest.h`) — `offspring_production = Σ tw_i ·
+  offspring_i`, a trapezoid over *introduction times*, `tw_i` = node-spacing
+  weight × patch density × survival × birth rate. The seed-rain integral over the
+  demographic axis.
+- **`canopy_comp_at`** (`coupled_canopy.h`) — the Yokozawa light-competition
+  trapezium `Σ geff_i·Q(z/h_i)`, the light field cohorts shade each other with
+  (the resident coupling).
+
+**Purpose:** these *are* the differentiated outputs — the "loss/observation
+functional" in odelia's vocabulary. **Correctness principle:** each must reproduce
+the SCM's own internal quadrature *exactly* — the headers say so ("Bit-for-bit the
+hand-rolled comp_at it replaces"; `canopy_comp_at` "mirrors
+`Species::compute_competition`"). This is not incidental: to get an exact gradient
+of the quantity *the model reports*, you must differentiate *the model's own
+construction*, not an independently "better" integral. So the trapezoid rule is
+**not a free design choice** — a higher-order quadrature would be a more accurate
+integral but would differentiate the *wrong* function. That constraint is real and
+stays.
+
+**The smell is not the quadrature — it is that the gradient layer re-implements
+the model's quadrature instead of differentiating it.** `canopy_comp_at` is a
+hand-verified copy of `Species::compute_competition`; `census_trapezium` mirrors
+the patch census integral. Two copies of one integral, kept "bit-for-bit"
+identical by comment and test. The clean form of "derivative matches construction"
+is not *"write a matching copy"* but *"differentiate the actual construction"* —
+i.e. **scalar-template the SCM's own reduction (`Species::compute_competition`,
+the census integral) on `S` and call it from both the forward model (`S=double`)
+and the gradient replay (`S=active`).** Then the `gradient/` copies disappear and
+exactness becomes structural, not a maintained invariant.
+
+That is the hinge into §11: **the whole point of the `S` axis is to let the
+model's own code run with an active scalar** — which is exactly what would retire
+these duplicated reductions. The spike currently does *both* (threads `S` *and*
+keeps hand-copied reductions), which is why it feels redundant. Pick one, done
+well.
+
+## 11. The `S` template axis: what it is, and how to establish its worth
+
+`Node<T,E,S>` (and `Individual<T,E,S>`, `Species<T,E,S>`) is **not** a uniform
+`value_type` system. `node.h` is explicit: a `Node<...,ad>` is **intentionally
+mixed** — "only the individual's *physiological* state carries the active scalar,"
+while "demographic bookkeeping (log_density, density, fecundity, offspring) stays
+**double**." `FF16_Strategy` is not class-templated on `S` at all; it exposes
+*per-method* `template<typename S>` members (`area_leaf<S>`,
+`update_dependent_aux<S>`) that cast stored double params up (`S(pars.a_l1)`),
+while the active trait is carried in a **separate lifted parameter struct**
+(`TF24ProdPars<AD> p; p.lma = pd.lma; …`, field by field) the replay routes in by
+hand.
+
+So `S` is a **mixed active/frozen scalar**: active on the trait→physiology→metric
+path, frozen `double` on the demographic schedule harvested in pass 1. **Why it
+exists:** to keep the tape small — the frozen demographic arithmetic (densities,
+survival, patch weights over every cohort × every step) is never taped. A genuine
+performance motive.
+
+**But its utility has never been established against the simpler alternative**,
+and that is the spike's core methodological gap. The clean-design alternative is
+odelia's uniform `value_type = S`:
+
+- **Design A — uniform scalar (odelia-native).** The whole cohort/patch is one
+  scalar `S`. Seed only the traits as active; frozen demographic values are
+  active-typed constants with zero derivative. **Correct** (zero-derivative
+  constants propagate correctly), **simpler types** (no third axis, no lifted-param
+  struct, no mixed-member bookkeeping, reductions reuse the model's own code), but
+  a **larger tape** (the frozen arithmetic is recorded).
+- **Design B — mixed scalar (the spike).** Physiology active, demography double.
+  **Smaller tape**, paid for with the `<T,E,S>` sprawl, the dual parameter
+  representation, and the duplicated reductions of §10.
+
+The right way to decide is exactly what the spike skipped: **build Design A,
+measure tape size and wall-clock against Design B on the canonical cases, and keep
+the mixed axis only if the delta justifies the maintenance cost.** "Only clean
+design can establish their utility" — precisely. Concretely this is a small
+discovery spike on the odelia branch: implement the FF16 frozen cohort as a
+uniform-`value_type` odelia System, gradient one metric, and compare
+`tape.getMemory()` / timing to the spike's mixed engine. Three outcomes:
+
+1. **A within a small constant of B** → drop `S`, adopt uniform `value_type`,
+   delete the third axis, the lifted-param lift, and the reduction copies. Largest
+   debt reduction.
+2. **B decisively faster/smaller** → keep a mixed scalar, but **encapsulate** it
+   as an odelia-recognized pattern (a "frozen input" concept: inputs registered
+   with a permanent zero adjoint), *not* a hand-threaded third template parameter
+   across every class. The optimization survives; the sprawl does not.
+3. **Ambiguous** → default to A for maintainability; revisit if profiling later
+   demands it.
+
+Cheap to run, it is the kind of thing the spike should have done first, and it
+converts "S looks like a smell" into a measured decision instead of a taste
+argument.
+
+## 12. Decisions locked in from this round
+
+- **Reverse-only at the SCM level; forward stays leaf-local.** odelia's driver
+  remains reverse; `xad::computeJacobian` (adjoint) is the template for
+  `compute_jacobian`. (§9)
+- **Plant-side `Strategy` concept; odelia stays plant-agnostic.** The
+  differentiable System is parameterized on a **plant-owned `Strategy` concept**
+  (supplying the deriv kernel, the trait seed map, and — per §10 — the
+  scalar-templated emergent reduction). odelia never learns what a "cohort" or
+  "trait" is; it owns tape/record/adjoint/Jacobian over an abstract System. plant
+  is odelia's primary consumer and **leads the upstream API by application** — new
+  odelia surface is proposed from a concrete plant need, not speculatively.
+  (Resolves old open-question #2.)
+- **Do not merge the spike; codesign odelia first.** The spike should **not** land
+  on `develop` as-is. Landing a second tape lifecycle, a third scalar axis, and
+  duplicated reductions — then refactoring them away — is the tail-chasing to
+  avoid. Instead: (1) the §11 measurement decides the scalar model; (2) the odelia
+  generic surface (`compute_jacobian`, injected-seed, native-observation seam)
+  lands as the **foundation slice**; (3) plant's engines are rebuilt onto it
+  strategy-by-strategy, each bit-checked against the spike's own AD-vs-AD fixture.
+  The spike is the **specification and the test oracle** (its validated Jacobians
+  are its durable value), not the merge candidate. (Supersedes the "fold into the
+  spike's stack" leaning in §4b/§6-Step-0.)
+
+## 13. What would sharpen the next round
+
+- **The spike's benchmark/tape numbers** (`scripts/bench_gradient.R`, any
+  `tape.getMemory()` figures) — to pre-inform the §11 A/B before building it. If
+  they don't exist, the §11 spike produces them.
+- **The authoritative metric set and kernels** — which emergent metrics
+  `stand_gradient` must differentiate (LAI, biomass, basal area,
+  offspring_production, census-at-time…) and their `psi` kernels, so the
+  `Strategy` concept's reduction interface covers them in one shape.
+- **TF24/TF24f leaf-optimizer coverage** — the PR notes a "leaf-optimizer
+  cross-sensitivity gap" (TF24 census metrics unavailable). Whether that is a
+  physics limit or a plumbing limit tells us if the `Strategy` concept can cover
+  TF24 census or if it is legitimately out of scope for v1.
+- **Confirmation on second-order** — this design assumes no Hessian/`fwd_adj`
+  requirement. If curvature is ever wanted (e.g. optimizing the emergent
+  gradient), it changes the mode story; flag it now if so.
+
+I have enough XAD documentation (the vendored headers are authoritative) and
+enough of both codebases to draft the odelia API sketch and the §11 measurement
+spike whenever you want to move from discovery to a concrete proposal.
+
+---
+
 ## Appendix: source references
 
 **odelia (AD runtime):**
+- `inst/include/XAD/Jacobian.hpp` — `xad::computeJacobian` (adjoint + forward
+  variants); the template for `odelia::compute_jacobian` (§9)
+- `inst/include/XAD/Interface.hpp` — `xad::adj` / `xad::fwd` (and `fwd_adj`,
+  out of scope) mode structs
 - `inst/include/odelia/ode_fit.hpp` — `compute_gradient`, `sum_of_squares`
 - `inst/include/odelia/ode_solver.hpp` — `Solver`, persistent `tape`,
   `set_target`/`advance_target`
@@ -362,8 +565,13 @@ pinned to the AD-vs-AD fixture plus the existing AD-vs-FD physics tests.
 - `src/{ff16,tf24,tf24f}_emergent.cpp` — the three replay engines
 - `R/{emergent_gradient,tf24_emergent_gradient,tf24f_emergent_gradient}.R` —
   R harvest + `Rcpp::as<>` round-trip
-- `inst/include/plant/gradient/{scm_harvest.h, coupled_canopy.h}` — the
-  already-shared plant-specific reductions (keep)
+- `inst/include/plant/gradient/{scm_harvest.h, coupled_canopy.h}` — the emergent
+  reductions (`census_trapezium`, `offspring_weights`, `canopy_comp_at`); §10
+- `src/leaf_model.cpp` (`dprofit_droot_collar_psi`), `src/tf24_strategy.cpp`,
+  `src/tf24f_strategy.cpp` — leaf-optimizer **forward-mode** AD (IFT + envelope,
+  seed-tangent injection); §9 — stays plant-local
+- `inst/include/plant/models/ff16_strategy.h` — per-method `template<typename S>`
+  members (`area_leaf<S>`, `update_dependent_aux<S>`) and the double `pars`; §11
 - `inst/include/plant/{individual,node,species,patch}.h` — the `<T, E, S>`
   third axis
 - `inst/include/plant/scm.h` — `odelia::ode::Solver<patch_type> solver`
