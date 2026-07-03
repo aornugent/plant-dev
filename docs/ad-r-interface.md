@@ -165,11 +165,125 @@ shape" is a C++ concept that never crosses to R — only its *selection* does.
 
 ---
 
-## 6. Work items (feed `ad-issues.md`)
+## 6. User stories
+
+Each story is the R experience of one persona. The recurring point is what they
+*never* touch — the invariant of §2 paying off. The last column of each traces to
+the design and surfaces any requirement.
+
+### 6.1 Trait sensitivity — forest ecologist (plant, resident/total)
+
+*"I have a calibrated FF16 stand; how do emergent LAI and biomass respond to leaf
+mass per area and wood density?"*
+
+```r
+scm <- run_scm(params, control = control(save_RK45_cache = TRUE))
+g   <- stand_gradient(scm, metrics = c("LAI", "biomass"),
+                      traits = c("lma", "rho"), feedback = "resident")
+g$jacobian     # 2x2 doubles: d(metric)/d(trait), with self-shading feedback
+```
+
+Never touches XAD, an active type, a tape, or a second solver. The only AD-aware
+line is `save_RK45_cache = TRUE`, which belongs to the model run. *Traces to §4,
+§5; requires the native harvest (RIF-6) and C++ functional-by-name (§4.4).*
+
+### 6.2 Selection gradient — evolutionary ecologist (plant, mutant/invasion)
+
+*"Give me the invasion-fitness gradient of a rare mutant against an established
+resident, so I can locate singular strategies."*
+
+```r
+resident <- run_scm(resident_params, control = control(save_RK45_cache = TRUE))
+sel <- offspring_production_gradient(resident, traits = c("lma", "hmat"))
+# named double vector: d(fitness)/d(trait), resident canopy held frozen
+```
+
+The frozen canopy and the `run_mutant` replay are entirely under the hood; the user
+picks the workflow by choosing the function, not by managing state. *Traces to the
+two-workflow model (design §6.1) and §4.3 (C++ dispatch).*
+
+### 6.3 Gradient-based calibration — modeller fitting data (the hot loop)
+
+*"Run L-BFGS over traits to fit observations; call me for value and gradient each
+iteration."*
+
+```r
+solver <- Solver$new(system, control)     # ONE ordinary (double) solver
+solver$set_target(times, obs, obs_idx)
+optim(par,
+      fn = \(p) solver$value_and_gradient(p)$value,     # doubles in/out
+      gr = \(p) solver$value_and_gradient(p)$gradient,
+      method = "L-BFGS-B")
+```
+
+This is the story that most stresses the invariant — a tight loop that would be the
+natural place to "cache the active solver in R." It does not: the tape is reused
+through the opaque cache on the double solver (§3.3), and the user never sees an
+active handle or an `active =` flag. **Requirement surfaced:** expose a single
+`value_and_gradient(p)` that returns both from **one** recording, so `fn`/`gr` don't
+each re-run the tape (a pure `gradient()` and `loss()` would double the work in an
+optimizer). *Traces to §3.1/§3.3, RIF-1/RIF-3; adds `value_and_gradient` to RIF-1.*
+
+### 6.4 A new emergent metric — plant developer
+
+*"Add a 'mean canopy height' metric and have its trait-gradient just work."*
+
+The developer adds one scalar-templated kernel that reuses existing model functions
+and registers its name. Then:
+
+```r
+stand_gradient(scm, metrics = "mean_height", traits = ff16_default_traits())
+```
+
+works immediately — the C++ entry maps the name to the functional; the reverse
+sweep is odelia's. No tape code, no odelia change. *Traces to §4.4 and design §5;
+confirms "adding a metric is one kernel."*
+
+### 6.5 A new ODE model — odelia downstream developer
+
+*"I'm building a hydraulics module on odelia; I want gradients without writing
+marshalling or tape code."*
+
+The developer implements the System contract — `value_type`, `set_params`,
+`set_initial_state`, and `rebind` (§3.2) — and gets `Solver_gradient` /
+`Solver_jacobian` for free, doubles only. odelia never learns what a hydraulic
+segment is. *Traces to §3.2; validates the plant-agnostic odelia surface.*
+
+### 6.6 Trusting a gradient — maintainer (verification)
+
+*"Check the AD gradient against a finite difference before I rely on it."*
+
+```r
+g_ad <- stand_gradient(scm, "offspring_production", "lma")$jacobian
+g_fd <- (op_at(lma + h) - op_at(lma - h)) / (2 * h)   # re-run scm, perturbed lma
+stopifnot(abs(g_ad - g_fd) < tol)
+```
+
+Because the AD path returns doubles in the same shape as the finite-difference path,
+verification is a plain numeric comparison. *Traces to the doubles-only boundary and
+the regression oracle (UX-2).*
+
+### 6.7 Edge case — forgot the cache (fail loud, never confuse)
+
+*"I ran the SCM without `save_RK45_cache` and asked for a gradient."*
+
+```r
+scm <- run_scm(params)                 # no cache
+stand_gradient(scm, "LAI", "lma")
+#> Error: no resident schedule cached; re-run with control(save_RK45_cache = TRUE)
+```
+
+A clear, actionable error — never a crash. This is the deliberate contrast with the
+§1.1 hazard: with active types off the R surface there is no wrong-typed handle to
+reinterpret, so the boundary can only fail loudly. *Traces to §2, §3.1.*
+
+---
+
+## 7. Work items (feed `ad-issues.md`)
 
 | Item | Repo | Class | Note |
 |---|---|---|---|
-| RIF-1 | odelia | CP | `Solver_gradient`/`Solver_jacobian` on the double handle; retire the `active` flag + `ActiveSystemType` XPtr from the R surface |
+| RIF-1 | odelia | CP | `Solver_gradient`/`Solver_jacobian`/`value_and_gradient` on the double handle; retire the `active` flag + `ActiveSystemType` XPtr from the R surface |
 | RIF-2 | odelia | CP | `rebind` lift contract (§3.2) so the driver constructs the active system |
 | RIF-3 | odelia | CP-support | opaque tape/active-scratch cache on the double Solver (§3.3) |
 | RIF-4 | odelia | NTH | policy check: ensure no `wrap`/`as` for active types compiles |

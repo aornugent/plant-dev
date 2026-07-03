@@ -130,10 +130,12 @@ on:** —.
 Governing invariant: only `double` crosses the R boundary; active types are
 C++-internal and ephemeral. These items are the R-facing side of the driver work.
 
-### RIF-1 — odelia `Solver_gradient`/`Solver_jacobian` on the double handle · CP
+### RIF-1 — odelia `Solver_gradient`/`Solver_jacobian`/`value_and_gradient` on the double handle · CP
 Retire the `bool active` flag and the R-visible `ActiveSystemType` XPtr; the driver
-owns the active system internally. **Depends on:** ODELIA-1, ODELIA-2. Removes the
-type-confusion hazard in `Solver_fit_impl`.
+owns the active system internally. Include a combined `value_and_gradient(p)` that
+returns both from one recording (optimizer loops call `fn`/`gr` separately; sharing
+the tape halves the work — see user story §6.3). **Depends on:** ODELIA-1, ODELIA-2.
+Removes the type-confusion hazard in `Solver_fit_impl`.
 
 ### RIF-2 — odelia `rebind` lift (double → active) · CP
 A System contract so the driver constructs the active system generically instead of
