@@ -151,6 +151,20 @@ primitive. **Depends on:** PLANT-5. Folds into PLANT-4/5.
 Once AD runs on odelia's tape/load path, convert the skipped tests to exercise the
 compiled path. **Depends on:** PLANT-4.
 
+### PLANT-10 — Birth-rate gradient + `d R0/d birth_rate` (equilibrium) · CP (FF16)
+`birth_rate_gradient(scm, metrics, species)` on the coupled resident replay (the
+frozen part is the identity `metric/birth_rate`; the resident axis needs a tape and
+can flip signs), plus `d(net_reproduction_ratio)/d(birth_rate)` = dR0/db via the
+mutant framing — the plant-side derivative for the R0 = 1 equilibrium Newton solve
+(design §6.2). FF16 single- then multi-species in v1; TF24f gated like its trait
+gradient. **Depends on:** PLANT-4a. **Blocks:** downstream equilibrium/invasion tools.
+
+### PLANT-11 — Boundary / zero-height cohort fix + test · CP (correctness)
+Establish `birth ≥ N` cohorts at the seed height `h0` so
+`area_leaf = (h/a_l1)^(1/a_l2)` does not differentiate to `0·log(0) = NaN` (design
+§11). Carry the spike's fix; add an explicit AD test at the final-step boundary.
+**Depends on:** PLANT-4. Cheap but load-bearing — the NaN also biased the value.
+
 ---
 
 ## UX / API / workflow
@@ -241,6 +255,8 @@ UX-2 (oracle) ── gates every PLANT-* merge ; UX-3 resolved (input)
 
 ## Not in this release
 - Second-order / Hessian (`fwd_adj`).
-- Full resident-feedback TF24f at long patch lifetime (physics stiffness; may stay
-  gated).
+- **Adaptive sub-stepping in the replay** — the future hardening that would extend the
+  TF24f resident coupled gradient past its stiff long-horizon limit (§7.5). v1 gates it
+  with a clear error driven by the double replay's env error, never a wrong number.
+- Full resident-feedback TF24f at long patch lifetime (the stiffness limit above).
 - Moving plant's leaf-level forward-mode AD into odelia (stays plant-local).

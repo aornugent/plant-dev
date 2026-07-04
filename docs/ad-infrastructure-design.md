@@ -228,8 +228,8 @@ The SCM stays the plant-specific orchestrator; odelia supplies the atoms
   constructions that each break differentiability, and they are frozen
   independently at different depths (the node schedule, the ODE step times, the
   quadrature/interpolator knots, and — for invasion — the resident environment).
-  These are the "replay levels" of §7; the earlier prototype conflated them. Which
-  levels a given gradient needs is what §7 sorts out.
+  These are the "replay levels" of §7, which sets out which levels each gradient
+  needs.
 
 ---
 
@@ -253,7 +253,22 @@ the first — and both are pre-existing SCM capabilities the design differentiat
 |---|---|---|---|
 | Trait, invasion | mutant | 0 (frozen canopy) | the selection gradient; `offspring_production` is always this |
 | Trait, resident | resident | present | species re-shades the stand it lives in |
-| Birth-rate | either | — | density dependence; `dR0/db`; density is linear in birth_rate ⇒ exact |
+| Birth-rate, census metric | resident | present | the frozen part is the trivial identity `metric / birth_rate`; only the resident (canopy-feedback) axis needs a tape — and it is non-trivial, e.g. it **flips the sign of biomass** vs. the identity |
+| Birth-rate, `d R0/d birth_rate` | mutant framing | — | `d(net_reproduction_ratio)/d(birth_rate)`; the density-feedback axis |
+
+**A key application: the demographic-equilibrium solve.** `d R0/d birth_rate` is the
+plant-side derivative for the Newton solve that finds the equilibrium birth rate
+(R0 = 1) — the resident density at which a strategy sustains itself. It is computed on
+the same coupled replay via the mutant framing (mutant traits = resident; the change
+in mutant fitness as resident density moves is the density feedback). This makes the
+birth-rate gradient not just a sensitivity but the enabling piece for equilibrium and
+invasion analyses — worth first-class support even though the trait gradients are the
+headline.
+
+The resident-vs-frozen distinction is therefore not a minor correction anywhere: the
+canopy feedback can dominate and reverse the sign of a response (biomass under
+birth-rate is the worked example). "Which feedback" is a real modelling choice, not a
+tolerance detail.
 
 ### 6.3 Public API (unchanged surface)
 
@@ -301,8 +316,8 @@ and a likelihood.
 "Differentiate the converged construction" applies at four *distinct* depths in the
 SCM. Each freezes a different adaptive construction that would otherwise break
 differentiability; they compose, and a given gradient needs only some of them.
-Keeping them separate is the clarity the prototype lacked (it spoke of one "frozen
-schedule").
+Treating them as one "frozen schedule" hides which a given gradient needs, so they are
+kept distinct here.
 
 | Level | Freezes | Captured by | Removes non-diff from | Owner |
 |---|---|---|---|---|
@@ -406,9 +421,9 @@ cohort values come from the replay itself. The heavy `stand_*_stage_history` /
 `stand_newnode_*` / all-species caches in `patch.h` are not needed under the
 full-scalar re-run.
 
-**And this brings the resident/calibration distinction back to its essence.** Both
-are "run adaptive once, record the nodes, replay fixed with the active scalar." They
-differ in only two things:
+**The resident and calibration workflows share one replay.** Both are "run adaptive
+once, record the nodes, replay fixed with the active scalar." They differ in only two
+things:
 
 1. the **functional** — an emergent metric (no observations) vs. a likelihood over
    observations; and
@@ -420,6 +435,19 @@ The resident canopy is live-active (self-shading) simply because `compute_enviro
 re-runs on active cohorts; the invasion gradient reuses the *recorded double* light
 spline unchanged (frozen). One record-then-replay-fixed primitive, applied at whichever
 levels a gradient needs — no separate reconstruction engine, no third mechanism.
+
+**Boundary of applicability (measured on the spike).** Fixed-node replay assumes the
+recorded nodes stay adequate when the scalar goes active. This holds for FF16 (bounded,
+closed-form light response) and for TF24/TF24f at moderate horizons. It **fails for the
+TF24f resident coupled feedback at long patch lifetimes**: the `log_density`↔canopy loop
+is stiff (a deeply-shaded cohort carries a large leaf `dprofit/dL`), and the live SCM
+tames it with *adaptive* sub-stepping that a fixed schedule cannot reproduce — the double
+frozen-step replay itself drifts (env err ~1e-6 at H4 → ~2e-2 at H5+). The true gradient
+exists (full-SCM finite differences are finite); only the fixed replay diverges. So the
+primitive is the right default, but stiff coupled horizons need **adaptive sub-stepping in
+the replay** (future hardening, §11) — not a universal guarantee. (This is a milder
+relative of the #550 density blow-up: same size-density equation, but a replay artifact
+rather than a genuine caustic.)
 
 ### 7.6 Mechanism and abstraction
 
@@ -514,8 +542,15 @@ cross-sensitivity prototype) → delete the engines, R harvest, and local tapes.
   exists but is unused in plant; needs PROTO-3 to fix its API.
 - **Metric set (§6.3)** — enumerate the required metrics + kernels so the interface
   covers them in one shape.
-- **Resident TF24f at long horizon (§8)** — a physics stiffness limit; may stay
-  gated in v1.
+- **Resident TF24f at long horizon (§7.5, §8)** — the fixed-step replay cannot tame the
+  stiff `log_density`↔canopy feedback that the adaptive SCM does. True horizon extension
+  needs adaptive sub-stepping in the replay; likely stays gated in v1 (clear error, not a
+  wrong number), with the gate driven by the double replay's env error.
+- **Boundary / zero-height cohort trap (correctness).** A cohort introduced on the final
+  step (`birth == N`) can sit at zero height, where `area_leaf = (h/a_l1)^(1/a_l2)`
+  differentiates to `0·log(0) = NaN` (it also biased the *value*). The spike fixes this by
+  establishing `birth ≥ N` cohorts at the seed height `h0`; the port must carry that fix.
+  A known, concrete AD trap — worth an explicit test.
 
 ---
 
