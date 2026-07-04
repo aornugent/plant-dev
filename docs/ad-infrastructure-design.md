@@ -30,8 +30,8 @@ existing plant components so they are AD-compatible, and by adding a small gener
 surface to odelia — not by building a parallel stack.** Two facts make this
 tractable and are the backbone of the design:
 
-- **The Patch is already the odelia System** (`Solver<patch_type>`); it does not
-  need an `SCMSystem` wrapper, only to satisfy odelia's AD contract.
+- **The Patch is already the odelia System** (`Solver<patch_type>`); it needs only
+  to satisfy odelia's AD contract.
 - **`SCM::run_mutant()` is already the frozen-schedule replay** — it pins
   integration to the resident's cached `step_history`, reads the cached
   environment, and suppresses the mutant's self-competition. The gradient is the
@@ -156,15 +156,20 @@ Each change below is a small in-place modification of a type that already exists
 The Patch is already the System (`SCM` holds `odelia::ode::Solver<patch_type>`).
 Changes:
 
-- **Uniform `value_type = S`** across `Patch<T,E,S>` and its members
-  (`Node`, `Species`, `Individual`), replacing the spike's mixed
-  physiology-active/demography-double split (decision 2).
+- **Uniform `value_type = S`**, replacing the spike's mixed
+  physiology-active/demography-double split (decision 2). Prefer **not** to thread a
+  third template parameter: let the strategy and environment carry the scalar
+  (`T = FF16_Strategy<S>`, `E = FF16_Environment<S>`) and have `Individual`/`Node`/
+  `Species`/`Patch` derive `using value_type = typename T::value_type`. That collapses
+  the spike's `<T,E,S>` to the existing `<T,E>` and matches odelia's `value_type`
+  convention — fewer signatures to touch, and the scalar lives with the types that
+  own the parameters.
 - **Add `set_params(tape, it)` / `set_initial_state(tape, it, t0)`** returning the
   registered active inputs — the same contract `leaf_thermal_system.hpp` models.
   This is where traits and birth-rate become active; the map from trait names to
   registered fields is plant's (§5.2).
 
-No `SCMSystem` type is introduced; these are methods on the existing Patch.
+These are methods on the existing Patch, not a new wrapper type.
 
 ### 5.2 Strategy — make traits seedable, keep physiology scalar-templated
 
@@ -210,6 +215,11 @@ Either way the three `*_emergent.cpp` engines are replaced by *differentiating t
 SCM we already have*, not a new engine. The resident canopy is re-computed live by
 re-running `compute_environment` on recorded fixed knots (§7.5) — not reconstructed
 from a stand-state cache — so `stand_stage_history` and its variants are retired.
+
+The spike's paired `*_impl` (R-list) / `*_native` (live-Patch) entry points are a
+migration scaffold — `_impl` was kept only as a finite-difference reference while the
+native path was proven. The design carries only the native path; the `_impl` half is
+not first-class and is dropped once the regression oracle (UX-2) replaces it.
 
 ### 5.5 SCM orchestration over odelia's atomic components
 
@@ -404,12 +414,11 @@ refinement loop runs on the AD pass.
 | light interpolator | knot positions (`AdaptiveInterpolator` → `get_x()`) | `basic_interpolator<S>`, frozen x + active y | odelia primitive exists |
 | crown-depth quadrature | QAG subdivision (or none — a fixed rule) | scalar-templated `QK<S>` on fixed abscissae | `qk.h` exists; recording is the one gap |
 
-**This is what `basic_interpolator<S>` is for — it is the keystone, not extra
-weight.** It is the ordinary interpolator with the value scalar templated, so a
-frozen set of recorded knots carries active values differentiably (via
-`basic_spline<S>`). The stepper (`advance_fixed`) and the quadrature (fixed `QK<S>`)
-are the same shape: record positions on the adaptive pass, replay values on the fixed
-positions. Three instances of one primitive, not three components.
+`basic_interpolator<S>` is the interpolator instance of this: the ordinary
+interpolator with the value scalar templated, so a frozen set of recorded knots
+carries active values differentiably (via `basic_spline<S>`). The stepper
+(`advance_fixed`) and the quadrature (fixed `QK<S>`) are the same shape — record
+positions on the adaptive pass, replay values on the fixed positions.
 
 **This eliminates `stand_stage_history`.** The spike caches the resident stand state
 per RK stage so it can *reconstruct* the light without re-running
@@ -434,7 +443,7 @@ things:
 The resident canopy is live-active (self-shading) simply because `compute_environment`
 re-runs on active cohorts; the invasion gradient reuses the *recorded double* light
 spline unchanged (frozen). One record-then-replay-fixed primitive, applied at whichever
-levels a gradient needs — no separate reconstruction engine, no third mechanism.
+levels a gradient needs.
 
 **Boundary of applicability (measured on the spike).** Fixed-node replay assumes the
 recorded nodes stay adequate when the scalar goes active. This holds for FF16 (bounded,
@@ -451,8 +460,7 @@ rather than a genuine caustic.)
 
 ### 7.6 Mechanism and abstraction
 
-Two complementary mechanisms implement §7.5, and both already exist in odelia in
-part — so this is refinement, not new architecture.
+Two complementary mechanisms implement §7.5, and both already exist in odelia in part.
 
 **Recording is an opt-in System hook, detected at compile time.** odelia's stepper
 already does exactly this for the RK45 cache: a trait (`has_cache` detecting
@@ -460,9 +468,8 @@ already does exactly this for the RK45 cache: a trait (`has_cache` detecting
 stage and `system.cache_ode_step()` per step, compiling to a **zero-cost no-op** for
 systems that don't provide the hook (`ode_interface.hpp`, `ode_step.hpp:77`,
 `ode_solver_internal.hpp:83`). odelia never learns what is cached. The record side of
-§7.5 is therefore *not new machinery* — it reuses these hook points, and the
-simplification is mostly **shrinking what plant records through them** (knot
-positions, not `stand_stage_history`).
+§7.5 reuses these hook points; the simplification is mostly **shrinking what plant
+records through them** (knot positions, not `stand_stage_history`).
 
 Recommendation: keep the opt-in-hook design (the system opts in; odelia stays
 agnostic; an absent hook compiles away), but express new hooks with **C++20 concepts +
@@ -475,19 +482,17 @@ first time (optionally retrofitting the existing traits for consistency).
 nodes.** The abstraction is one idea reused three times, and it is minimal:
 
 - `basic_spline<S>` — the ttk592 spline templated on the *value* scalar (knot
-  positions stay `double`); this *is* the math, not a wrapper over a separate
-  `tk::spline`.
+  positions stay `double`); this is the interpolation math itself.
 - `basic_interpolator<S>` — a thin usage layer over it (domain, extrapolation, eval,
   the R seam). The two-layer split (math vs. usage) is worth keeping.
 - `QK<S>` — the fixed Gauss–Kronrod rule with the integrand scalar templated and the
   abscissae `double`; `advance_fixed` is the stepper instance.
 
-Assessment (the "test before extending" ask): "freeze the nodes, template the
-value/integrand scalar" is the smallest construct that makes a fixed-node numeric
-differentiable, and it is already proven for the interpolator. Extending it to `QK` is
-**endorsed** — the same shape, not a speculative generalization — but `QK<S>` can be a
-single scalar-templated primitive; it does **not** need to mirror the
-spline/interpolator two-layer split. This keeps the odelia numerics surface small.
+"Freeze the nodes, template the value/integrand scalar" is the smallest construct that
+makes a fixed-node numeric differentiable, and it is already proven for the
+interpolator. Extending it to `QK<S>` is endorsed; `QK<S>` can be a single
+scalar-templated primitive — it need not mirror the spline/interpolator two-layer
+split, which keeps the odelia numerics surface small.
 
 ## 8. Strategy coverage and the cross-sensitivity gap
 
