@@ -209,16 +209,18 @@ The SCM stays the plant-specific orchestrator; odelia supplies the atoms
 
 - **Node introductions grow the system; they are not discontinuities.**
   `run_next_impl` introduces cohorts at scheduled times, then integrates to the
-  next event. In the frozen replay the schedule times are *constants*
-  (`d(t_intro)/d(trait) = 0`), so introductions add tape variables (a wider state)
-  but inject no discontinuity into the differentiated output. This is exactly why
-  the schedule must be frozen: an adaptive, trait-dependent schedule *would* be
-  non-differentiable. One recording spans the whole run across introductions.
-- **The RK45 cache is the frozen comb.** A `save_RK45_cache` resident run stores
-  the per-step / per-RK-stage environment (`environment_history`, `step_history`).
-  `run_mutant` replays against it. The AD replay records against the same cache, so
-  the light schedule is a differentiable spline over fixed knot positions (§4.1,
-  and §5.3's reused reduction reconstructs it under resident feedback).
+  next event. When the node schedule is frozen (§7, L0) the introduction times are
+  *constants* (`d(t_intro)/d(trait) = 0`), so introductions add tape variables (a
+  wider state) but inject no discontinuity into the differentiated output. This is
+  exactly why the schedule must be frozen: an adaptive, trait-dependent schedule
+  *would* be non-differentiable. One recording spans the whole run across
+  introductions.
+- **Adaptivity is frozen in layers, not all at once.** The SCM has *four* adaptive
+  constructions that each break differentiability, and they are frozen
+  independently at different depths (the node schedule, the ODE step times, the
+  quadrature/interpolator knots, and — for invasion — the resident environment).
+  These are the "replay levels" of §7; the earlier prototype conflated them. Which
+  levels a given gradient needs is what §7 sorts out.
 
 ---
 
@@ -255,22 +257,57 @@ in plant that reuses model functions; odelia is untouched.
 
 ---
 
-## 7. Quadrature: the fixed comb makes functionals simple
+## 7. Replay levels: four independent freezes
 
-Because the replay is over a **frozen comb** (fixed introduction times, fixed step
-grid), the emergent functionals are simple reductions over a fixed set of cohorts:
+"Differentiate the converged construction" applies at four *distinct* depths in the
+SCM. Each freezes a different adaptive construction that would otherwise break
+differentiability; they compose, and a given gradient needs only some of them.
+Keeping them separate is the clarity the prototype lacked (it spoke of one "frozen
+schedule").
 
-- **Offspring (time comb):** node positions are constants, so the trapezoid weights
-  `tw_i` are constants; `offspring_production = Σ tw_i · offspring_i` — a
-  constant-weighted sum of active per-cohort outputs.
-- **Census (height comb):** heights are active state, so the trapezium
-  `Σ ½(h_a − h_b)(φ_a + φ_b)` carries active spacing — but it is exactly
-  `Species::compute_competition` scalar-templated (§5.3), reused rather than
-  re-derived.
+| Level | Freezes | Captured by | Removes non-diff from | Owner |
+|---|---|---|---|---|
+| **L0 — node schedule** | which cohorts exist and when introduced | `build_schedule`/`refine_schedule`, *before* the adaptive run | adaptive cohort introduction | plant |
+| **L1 — ODE step times** | the adaptive RKCK step selection | `solver.times()` → `advance_target`/`advance_fixed` (pinned replay) | adaptive step-size control | **odelia (exists)** |
+| **L2 — quadrature / interpolator knots** | height-QAG abscissae and the light-spline knots | cached knots (frozen) *or* scalar-templated `QK` (moving nodes) | adaptive quadrature / interpolation refinement | plant (`qk.h`) + odelia spline |
+| **L3 — resident environment** | the whole resident canopy trajectory | `save_RK45_cache` → `run_mutant` | (ecological: a rare mutant reads a fixed resident canopy) | plant |
 
-The quadrature is handled correctly today (the spike's copies are bit-for-bit); the
-design keeps the *same* quadrature and simply differentiates the model's own code.
-No adaptive re-integration, no schedule derivative — the comb is fixed.
+**L1 is the calibration case, and it already works.** odelia's own AD test
+(`test-ad-workflow.R`) runs a Lorenz solve adaptively, captures `times()`, and
+replays pinned via `set_target`/`advance_target` under AD — *no environment cache,
+just the resolved ODE schedule*. This is the workflow behind user story 6.3 and it
+needs L1 alone.
+
+**L2 has two variants, and #472 flags the harder one.** For the resident light
+spline, the knots are frozen (positions) and the values active — odelia's
+differentiable spline (§4.1). For a census integrated over height, the integration
+bound *is* an active plant height, so the Gauss–Kronrod **nodes move**: this needs
+the scalar-templated `QK` (`qk.h`, already written for #472) rather than a
+frozen-node replay, which "would miss" the moving-node sensitivity. Height-QAG is
+therefore a genuinely separate concern from L1, as #472 states.
+
+**L3 is the invasion cache.** `run_mutant` replays a rare mutant against the cached
+resident environment (§5.4). It is an *ecological* freeze (the rare-mutant
+assumption), not a numerical one.
+
+### Which workflow needs which levels
+
+| Gradient | L0 | L1 | L2 | L3 |
+|---|:--:|:--:|:--:|:--:|
+| Calibration (odelia ODE fit) | | ✅ | | |
+| Offspring, invasion | ✅ | ✅ | | ✅ |
+| Census (LAI/biomass/basal area), resident | ✅ | ✅ | ✅ | |
+| Census, invasion | ✅ | ✅ | ✅ | ✅ |
+
+### The fixed comb still makes functionals simple
+
+With L0–L1 frozen, the emergent functionals are simple reductions over a fixed set
+of cohorts. Offspring is a **constant-weighted sum** `Σ tw_i · offspring_i` (fixed
+introduction times ⇒ constant weights). A census reduction is
+`Species::compute_competition` scalar-templated (§5.3) — reused, not re-derived —
+with L2 supplying the (moving or frozen) quadrature nodes. The design keeps the
+*same* quadratures the model already uses and differentiates them; it adds no new
+integration.
 
 ---
 

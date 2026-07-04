@@ -159,9 +159,26 @@ shape" is a C++ concept that never crosses to R — only its *selection* does.
   handle of the wrong type.
 - **plant:** `stand_gradient(scm, metrics, traits, species, feedback)` on the
   ordinary (double) SCM the user already ran; returns a double Jacobian. No AD
-  objects, no cache marshalling, no round-trip. `control(save_RK45_cache = TRUE)`
-  on the resident run is the only AD-specific step the user sees, and it belongs to
-  the model, not the boundary.
+  objects, no cache marshalling, no round-trip. The replay levels (design §7) are
+  internal: the user runs the resident once with the caching their gradient needs,
+  and the call selects L0–L3 accordingly.
+
+### 5.1 What the user must run (replay levels, design §7)
+
+The levels are internal, but they determine the *one* thing the user sets on the
+resident run:
+
+| Gradient | User runs | Levels |
+|---|---|---|
+| odelia ODE calibration | adaptive run, then fit — no cache (§6.3) | L1 |
+| offspring / invasion | `control(save_RK45_cache = TRUE)` | L0·L1·L3 |
+| census resident (LAI, biomass, basal area) | `control(save_RK45_cache = TRUE)` | L0·L1·L2 |
+
+`save_RK45_cache = TRUE` is the single AD-relevant control; it enables the caches
+the plant gradients need. A gradient call validates the cache is present and errors
+clearly if not (§6.7) — it never silently returns a wrong number. (If the flag name
+should read as "prepare for gradients" rather than an implementation detail, that is
+a small rename to settle during RIF-7.)
 
 ---
 
@@ -216,20 +233,22 @@ optim(par,
       method = "L-BFGS-B")
 ```
 
-This is the story that most stresses the invariant — a tight loop that would be the
-natural place to "cache the active solver in R." It does not: the tape is reused
-through the opaque cache on the double solver (§3.3), and the user never sees an
-active handle or an `active =` flag. **Requirement surfaced:** expose a single
-`value_and_gradient(p)` that returns both from **one** recording, so `fn`/`gr` don't
-each re-run the tape (a pure `gradient()` and `loss()` would double the work in an
-optimizer). *Traces to §3.1/§3.3, RIF-1/RIF-3; adds `value_and_gradient` to RIF-1.*
+This is the **L1** replay (design §7): an adaptive run captures the ODE step
+schedule, then AD replays pinned to it — no environment cache. It is the story that
+most stresses the invariant — a tight loop that would be the natural place to "cache
+the active solver in R." It does not: the tape is reused through the opaque cache on
+the double solver (§3.3), and the user never sees an active handle or an `active =`
+flag. **Requirement surfaced:** expose a single `value_and_gradient(p)` that returns
+both from **one** recording, so `fn`/`gr` don't each re-run the tape (a pure
+`gradient()` and `loss()` would double the work in an optimizer). *Traces to
+§3.1/§3.3, RIF-1/RIF-3; adds `value_and_gradient` to RIF-1.*
 
 ### 6.4 A new emergent metric — plant developer
 
-*"Add a 'mean canopy height' metric and have its trait-gradient just work."*
-
-The developer adds one scalar-templated kernel that reuses existing model functions
-and registers its name. Then:
+The shipped metrics are **LAI, biomass, and basal area** (plus
+`offspring_production`). Extensibility is the story: a developer adds "mean canopy
+height" (a tutorial-level example) with one scalar-templated kernel that reuses
+existing model functions and registers its name. Then:
 
 ```r
 stand_gradient(scm, metrics = "mean_height", traits = ff16_default_traits())
@@ -237,7 +256,8 @@ stand_gradient(scm, metrics = "mean_height", traits = ff16_default_traits())
 
 works immediately — the C++ entry maps the name to the functional; the reverse
 sweep is odelia's. No tape code, no odelia change. *Traces to §4.4 and design §5;
-confirms "adding a metric is one kernel."*
+confirms "adding a metric is one kernel." mean-height lives in a tutorial, not the
+shipped set.*
 
 ### 6.5 A new ODE model — odelia downstream developer
 

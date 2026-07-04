@@ -84,6 +84,13 @@ Template the reductions on `S`; delete `gradient/{coupled_canopy.h, scm_harvest.
 Enables the resident/total gradient (active canopy). **Depends on:** PLANT-1.
 **Blocks:** PLANT-7.
 
+### PLANT-5a — L2 replay: moving-node `QK` + frozen light-spline knots · CP
+Wire the census height-integral to the scalar-templated Gauss–Kronrod `QK`
+(`qk.h`, already written for #472) so the active plant-height bound propagates
+through the *moving* quadrature nodes; reconstruct the resident light on odelia's
+frozen-knot differentiable spline (design §7, L2). This is the level a frozen-node
+replay misses. **Depends on:** PLANT-5. **Blocks:** census gradients (UX-3 metrics).
+
 ### PLANT-6 — Leaf-optimizer `AnalyticEdge` for TF24/TF24f · CP
 Route the forward-mode leaf sensitivity through the odelia edge. **Depends on:**
 ODELIA-3, PROTO-2. **Blocks:** PLANT-7 (TF24/TF24f).
@@ -114,10 +121,11 @@ Snapshot the spike's validated Jacobians to `tests/testthat/fixtures/
 gradient-baseline.rds`; two-tier tolerance (bit-identity / noise floor). **Depends
 on:** —. **Gates:** every PLANT-* merge.
 
-### UX-3 — Enumerate the metric set + kernels · CP-input
-List the emergent metrics `stand_gradient` must support (LAI, biomass, basal area,
-offspring_production, census-at-time, …) and their kernels, so the
-`EmergentFunctional` interface covers them in one shape. **Owner:** maintainers.
+### UX-3 — Metric set + kernels · resolved
+Shipped set: **LAI, biomass, basal area** (census, reusing the scalar-templated
+`compute_competition`) and **offspring_production**. Each is one `psi` kernel behind
+the `EmergentFunctional` shape; mean-height and other additions are tutorial-level
+extensions (design R-interface §6.4), not release scope.
 
 ### UX-4 — Gradient benchmark harness · NTH
 `scripts/bench_gradient.R` timing the sub-costs; also feeds PROTO-1. **Depends
