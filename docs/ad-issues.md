@@ -49,9 +49,26 @@ The "differentiate w.r.t. what" bundle (renamed from `Seeds`) and the analytic-e
 injection built on `CheckpointCallback`. **Depends on:** PROTO-3. **Blocks:**
 PLANT-2 (traits), PLANT-6 (leaf edge).
 
-### ODELIA-4 — Test coverage: multi-output `leaf_thermal` · CP-support
-Extend odelia's own example to exercise `compute_jacobian` + an `AnalyticEdge`, so
-the generic surface is covered without plant. **Depends on:** ODELIA-2, ODELIA-3.
+### ODELIA-4 — odelia-native test harness for the AD surface · CP-support
+The spike's Jacobian test harness lives in plant; the machinery moving into odelia
+needs coverage **independent of plant**, on odelia's own example systems (Lorenz,
+leaf_thermal). Scope (implementation may be deferred to another dev, but the tests
+are release-gating):
+- **`compute_gradient` / `compute_jacobian`** — value + gradient against finite
+  differences on a closed-form system; Jacobian shape/row-sweep on a multi-output
+  functional; tape reuse across repeated calls. **Depends on:** ODELIA-1, ODELIA-2.
+- **`AnalyticEdge` (ODELIA-4b)** — an off-tape root-find whose IFT edge is injected
+  via `CheckpointCallback`, checked against the analytic derivative and against
+  differentiating the solve directly. **Depends on:** ODELIA-3.
+- **Functional shape (ODELIA-4b)** — a custom functional (not `sum_of_squares`) plus
+  the `sum_of_squares`/`advance_target` instance, to prove the seam is functional-
+  agnostic. **Depends on:** ODELIA-1.
+- **Record/replay-fixed (ODELIA-4a)** — a system with an adaptive interpolator and a
+  quadrature: assert the fixed-node replay reproduces the adaptive run's value and
+  that gradients match finite differences (design §7.5–7.6). **Depends on:** ODELIA-6.
+
+These are the odelia-side equivalents of the spike's plant Jacobian fixture; plant's
+AD-vs-AD oracle (UX-2) still gates the plant ports separately.
 
 ### ODELIA-5 — Document the AD API contract in `ARCHITECTURE.md` · CP-support
 Extend the existing Tape-linking contract to cover the AD *API* (functional shape,
@@ -60,13 +77,19 @@ on:** ODELIA-1..3.
 
 ### ODELIA-6 — Record-adaptive / replay-fixed numerics (the one replay primitive) · CP
 Make odelia's adaptive numerics support "record node placement on the double pass,
-replay on fixed nodes with the active scalar" uniformly (design §7.5): the stepper
-already does this (`times()`/`advance_fixed`); `basic_interpolator<S>` already
-replays frozen knots with active values (capture from `AdaptiveInterpolator` via
-`get_x()`); the **gap** is a scalar-templated fixed-rule quadrature that consumes a
-recorded QAG subdivision (or shows a single fixed `QK` rule suffices). This is the
-primitive that lets plant re-run its own numerics instead of caching
-`stand_stage_history`. **Depends on:** —. **Blocks:** PLANT-4a, PLANT-5a.
+replay on fixed nodes with the active scalar" uniformly (design §7.5–7.6). Two
+mechanisms, both partly present:
+- **Record via opt-in System hooks.** The stepper already calls `cache_RK45_step` /
+  `cache_ode_step` when a System provides them (`has_cache` trait; zero-cost no-op
+  otherwise). Reuse these hook points; shrink the payload to knot positions (not
+  `stand_stage_history`). Express any *new* hooks with C++20 concepts + `if
+  constexpr` rather than more `enable_if` SFINAE (design §7.6).
+- **Replay-fixed components.** `advance_fixed` (stepper) and `basic_interpolator<S>`
+  (frozen knots, active values) exist; the **gap** is a scalar-templated fixed-rule
+  `QK<S>` that consumes a recorded QAG subdivision — or a prototype showing a single
+  fixed rule suffices. `QK<S>` stays single-layer (no interpolator-style wrapper).
+
+**Depends on:** —. **Blocks:** PLANT-4a, PLANT-5a. **Tested by:** ODELIA-4a.
 
 ---
 
@@ -196,20 +219,24 @@ RIF-5.
 
 ```
 PROTO-3 ─► ODELIA-3 ─┐
-ODELIA-1 ─► ODELIA-2 ─┼─► PLANT-3 ─► PLANT-4 ─► UX-1
-PROTO-1 ─► PLANT-1 ───┘        ▲          │
-PLANT-2 ──────────────────────┘          ├─► PLANT-5 ─► PLANT-7
-UX-3 (input) ─────────────────────────────┤   PROTO-2 ─► PLANT-6 ─┘
-UX-2 (oracle) ── gates every PLANT-* merge ┘
+ODELIA-1 ─► ODELIA-2 ─┼─► PLANT-3 ─► PLANT-4 ─► PLANT-4a ─► PLANT-7
+PROTO-1 ─► PLANT-1 ───┘        ▲          │         ▲
+PLANT-2 ──────────────────────┘          ├─► PLANT-5 ─► PLANT-5a ┘
+ODELIA-6 ─► (PLANT-4a, PLANT-5a) ─────────┤   PROTO-2 ─► PLANT-6 ─► PLANT-7
+UX-1 ◄─ PLANT-4 ; ODELIA-4/4a/4b ◄─ ODELIA-1..3,6 (odelia-native tests)
+UX-2 (oracle) ── gates every PLANT-* merge ; UX-3 resolved (input)
 ```
 
 **Sequencing notes.**
 - The three prototypes are independent and come first; PROTO-2 is the one that can
   rescope the release, so front-load it.
-- odelia's foundation (ODELIA-1..3) and the scalar decision (PROTO-1 → PLANT-1) can
-  proceed in parallel; they converge at PLANT-3.
-- FF16 invasion (PLANT-4) is the first end-to-end proof and should land before any
-  TF24 work.
+- odelia's foundation (ODELIA-1..3), the record/replay primitive (ODELIA-6), and the
+  scalar decision (PROTO-1 → PLANT-1) can proceed in parallel; they converge at
+  PLANT-3/4a.
+- odelia-native tests (ODELIA-4/4a/4b) track their features and gate the odelia
+  release independently of plant; plant's oracle (UX-2) gates the plant ports.
+- FF16 invasion (PLANT-4) is the first end-to-end proof and should land before the
+  resident path (PLANT-4a) and any TF24 work.
 - Nothing merges without UX-2 (the AD-vs-AD oracle) green.
 
 ## Not in this release

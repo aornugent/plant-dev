@@ -266,27 +266,35 @@ in plant that reuses model functions; odelia is untouched.
 
 ---
 
-### 6.4 What each workflow accesses
+### 6.4 What each workflow accesses: two orthogonal axes
 
-The workflows are ordered by how central they are to plant, and they access
-genuinely different data — this is what must drive the plant UX (odelia's ODE-fit
-example does **not**).
+A workflow is a choice on **two independent axes**, and separating them removes most
+of the apparent complexity:
 
-| Priority | Workflow | Reads from the resident run | Levels | Canopy | Extra input |
-|---|---|---|---|---|---|
-| **1 (primary)** | Emergent gradient, resident/total (forest ecologist) | node schedule (L0), `step_history` (L1), recorded light-spline knots + QAG nodes (L2) | L0·L1·L2·L3-re-run | **active** (`compute_environment` re-run on active cohorts) | traits, metrics |
-| **2** | Mutant/invasion fitness (evolutionary ecologist) | node schedule (L0), `step_history` (L1), recorded resident light spline **frozen** (L3); L2 for census metrics | L0·L1·(L2)·L3-frozen | **frozen** | mutant traits |
-| **3 (advanced)** | Calibration / inference (ODE fit) | resolved ODE times (L1) | L1 | n/a | **observations + likelihood** |
+- **Replay** — which adaptive constructions must be recorded and replayed fixed
+  (§7). This is a property of the *system*, not the question: the plant SCM always
+  needs L0·L1·L2; a bare ODE (odelia's Lorenz) needs only L1. Plus the ecological
+  choice of **feedback** — resident (canopy re-run, active) vs. invasion (canopy
+  frozen), which is L3.
+- **Functional** — what scalar is differentiated: an **emergent metric** (no
+  observations) or a **likelihood over observations** (§4.2a). Orthogonal to replay.
 
-Reading across: the **resident** gradient records the light-spline *knot positions*
-and re-runs the canopy on them (§7.5); the **invasion** gradient reuses the *frozen
-recorded light*; **calibration** records only the ODE schedule and adds a
-user-supplied loss over observations. Because calibration additionally requires the
-user to define
-targets and a likelihood, it is an advanced workflow, not the entry point. The two
-emergent-gradient workflows (1 and 2) need **no** observations and are the primary
-plant UX; the design must serve them first and must not inherit odelia's
-`set_target`/`fit` shape (which belongs to workflow 3).
+The workflows are just points in that grid:
+
+| Priority | Workflow | Replay (system) | Feedback | Functional |
+|---|---|---|---|---|
+| **1 (primary)** | Emergent gradient, resident (forest ecologist) | SCM: L0·L1·L2 | resident (re-run) | emergent metric |
+| **2** | Mutant/invasion fitness (evolutionary ecologist) | SCM: L0·L1·L2 | invasion (frozen) | emergent metric |
+| **3 (advanced)** | Calibration / inference | *same replay as the system needs* | resident | **likelihood over observations** |
+
+**Calibration is not a different replay — it is a different functional.** Calibrating
+the plant SCM to data uses the *same* resident replay as workflow 1 (L0·L1·L2) with a
+likelihood functional layered on top: an **addition, not a subtraction**. It looks
+simpler in odelia only because Lorenz is a bare ODE (L1) with no canopy — the ODE-fit
+example is the degenerate case, and its `set_target`/`fit` shape must **not** set the
+plant UX. The emergent workflows (1, 2) are primary because they need no observations;
+calibration is advanced because it additionally requires the user to define targets
+and a likelihood.
 
 ## 7. Replay levels: four independent freezes
 
@@ -337,12 +345,20 @@ canopy.)
 
 ### Which workflow needs which levels
 
+The replay levels are a property of the **system**, not the workflow: any gradient of
+the plant SCM needs L0·L1·L2; a bare ODE needs only L1. Feedback (L3) and the
+functional are the orthogonal choices (§6.4).
+
 | Gradient | L0 | L1 | L2 | L3 |
 |---|:--:|:--:|:--:|:--:|
-| Calibration (odelia ODE fit) | | ✅ | | |
+| Bare-ODE fit (odelia Lorenz — the degenerate case) | | ✅ | | |
 | Offspring, invasion | ✅ | ✅ | | frozen |
-| Census (LAI/biomass/basal area), resident | ✅ | ✅ | ✅ | **reconstructed** |
+| Census (LAI/biomass/basal area), resident | ✅ | ✅ | ✅ | **re-run** |
 | Census, invasion | ✅ | ✅ | ✅ | frozen |
+| SCM calibration to data | ✅ | ✅ | ✅ | re-run |
+
+The last two rows share the L0·L1·L2·L3-re-run replay; they differ only in the
+functional (emergent metric vs. likelihood) — the point of §6.4.
 
 ### The fixed comb still makes functionals simple
 
@@ -404,6 +420,46 @@ The resident canopy is live-active (self-shading) simply because `compute_enviro
 re-runs on active cohorts; the invasion gradient reuses the *recorded double* light
 spline unchanged (frozen). One record-then-replay-fixed primitive, applied at whichever
 levels a gradient needs — no separate reconstruction engine, no third mechanism.
+
+### 7.6 Mechanism and abstraction
+
+Two complementary mechanisms implement §7.5, and both already exist in odelia in
+part — so this is refinement, not new architecture.
+
+**Recording is an opt-in System hook, detected at compile time.** odelia's stepper
+already does exactly this for the RK45 cache: a trait (`has_cache` detecting
+`cache_RK45_step`) makes the generic stepper call `system.cache_RK45_step()` per RK
+stage and `system.cache_ode_step()` per step, compiling to a **zero-cost no-op** for
+systems that don't provide the hook (`ode_interface.hpp`, `ode_step.hpp:77`,
+`ode_solver_internal.hpp:83`). odelia never learns what is cached. The record side of
+§7.5 is therefore *not new machinery* — it reuses these hook points, and the
+simplification is mostly **shrinking what plant records through them** (knot
+positions, not `stand_stage_history`).
+
+Recommendation: keep the opt-in-hook design (the system opts in; odelia stays
+agnostic; an absent hook compiles away), but express new hooks with **C++20 concepts +
+`if constexpr`** rather than more `enable_if` SFINAE. The project is already
+`CXX_STD = CXX20`, and a `requires`-based `Recordable` concept reads far better than
+`std::enable_if<has_cache<System>::value>` for a developer meeting the code for the
+first time (optionally retrofitting the existing traits for consistency).
+
+**Replay-fixed is a component mode, expressed by scalar-templating over frozen
+nodes.** The abstraction is one idea reused three times, and it is minimal:
+
+- `basic_spline<S>` — the ttk592 spline templated on the *value* scalar (knot
+  positions stay `double`); this *is* the math, not a wrapper over a separate
+  `tk::spline`.
+- `basic_interpolator<S>` — a thin usage layer over it (domain, extrapolation, eval,
+  the R seam). The two-layer split (math vs. usage) is worth keeping.
+- `QK<S>` — the fixed Gauss–Kronrod rule with the integrand scalar templated and the
+  abscissae `double`; `advance_fixed` is the stepper instance.
+
+Assessment (the "test before extending" ask): "freeze the nodes, template the
+value/integrand scalar" is the smallest construct that makes a fixed-node numeric
+differentiable, and it is already proven for the interpolator. Extending it to `QK` is
+**endorsed** — the same shape, not a speculative generalization — but `QK<S>` can be a
+single scalar-templated primitive; it does **not** need to mirror the
+spline/interpolator two-layer split. This keeps the odelia numerics surface small.
 
 ## 8. Strategy coverage and the cross-sensitivity gap
 

@@ -185,9 +185,13 @@ cache). A gradient call validates the recording is present and errors clearly if
 to settle during RIF-7.)
 
 The calibration row is deliberately last: it additionally requires the user to
-supply observations and a likelihood, which the emergent workflows do not. odelia's
-`set_target`/`advance_target` fit shape (`test-ad-workflow.R`) serves that advanced
-case; it must **not** set the shape of the primary `stand_gradient()` UX.
+supply observations and a likelihood, which the emergent workflows do not.
+Calibrating the *plant SCM* to data is not a different replay — it is the **resident
+replay (L0·L1·L2) plus a likelihood functional**, an addition over the emergent
+resident gradient, not a subtraction. The `L1`-only row above is the bare-ODE
+(odelia Lorenz) degenerate case; its `set_target`/`advance_target` fit shape
+(`test-ad-workflow.R`) serves that case and must **not** set the shape of the primary
+`stand_gradient()` UX.
 
 ---
 
