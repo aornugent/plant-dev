@@ -48,6 +48,12 @@ terse, template-heavy, and comments the *why*, not the *what*.
   time so an absent hook is a zero-cost no-op. For *new* opt-in hooks prefer C++20
   concepts + `if constexpr` over more `enable_if` SFINAE (the project is `CXX_STD =
   CXX20`).
+- **Use the vendored XAD components; do not re-implement them.** odelia vendors XAD
+  (`inst/include/XAD/`) — `computeJacobian`, `CheckpointCallback`, `computeAdjoints`,
+  the `adj`/`fwd` drivers. Call these directly rather than hand-rolling the tape
+  sweep, the adjoint loop, or the IFT edge. "Mirror the XAD pattern" means *invoke*
+  the XAD facility, not copy its body. New AD code is glue around XAD, not a second
+  AD engine (the whole thesis of the roadmap: one AD runtime, not a parallel stack).
 - **`const` by default**, 2-space indent, header guards `ODELIA_<NAME>_HPP_`.
 - **Surgical, in place.** Modify the type that already exists; do not add a parallel
   abstraction beside it. A header change ripples to everything that `LinkingTo` it, so
