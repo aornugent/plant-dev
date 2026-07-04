@@ -58,6 +58,16 @@ Extend the existing Tape-linking contract to cover the AD *API* (functional shap
 `Independents`, edges) so plant depends on a versioned odelia surface. **Depends
 on:** ODELIA-1..3.
 
+### ODELIA-6 — Record-adaptive / replay-fixed numerics (the one replay primitive) · CP
+Make odelia's adaptive numerics support "record node placement on the double pass,
+replay on fixed nodes with the active scalar" uniformly (design §7.5): the stepper
+already does this (`times()`/`advance_fixed`); `basic_interpolator<S>` already
+replays frozen knots with active values (capture from `AdaptiveInterpolator` via
+`get_x()`); the **gap** is a scalar-templated fixed-rule quadrature that consumes a
+recorded QAG subdivision (or shows a single fixed `QK` rule suffices). This is the
+primitive that lets plant re-run its own numerics instead of caching
+`stand_stage_history`. **Depends on:** —. **Blocks:** PLANT-4a, PLANT-5a.
+
 ---
 
 ## plant layer (surgical changes to existing types)
@@ -80,13 +90,14 @@ with `S=active`: canopy read **frozen** from `environment_history` (derivative
 through it is zero), `is_mutant_run` suppresses self-competition. Retires
 `ff16_emergent.cpp`. **Depends on:** ODELIA-2, PLANT-3. **Blocks:** PLANT-5, PLANT-7.
 
-### PLANT-4a — Resident/total gradient: reconstruct the canopy, do NOT freeze it · CP
-The resident gradient on the same frozen L0/L1 schedule but with the canopy
-reconstructed from the cached resident stand state (`stand_*_stage_history`),
-value-anchored on `environment_history`, so a trait re-shades the stand
-(design §7, L3-reconstructed). **Correctness gate:** reading the frozen env here
-silently yields the invasion gradient (missing self-shading). **Depends on:**
-PLANT-4, PLANT-5, PLANT-5a. **Blocks:** PLANT-7 (census resident).
+### PLANT-4a — Resident/total gradient: re-run the canopy on recorded knots · CP
+The resident gradient on the same frozen L0/L1 schedule with the canopy **re-run
+live**: re-run `compute_environment` on the *recorded* light-spline knots (§7.5)
+with the active cohorts, so a trait re-shades the stand. **Do NOT** read the frozen
+env (that silently yields the invasion gradient, missing self-shading) and **do NOT**
+build `stand_*_stage_history` — record only the knot positions; cohort values come
+from the replay. **Depends on:** PLANT-4, PLANT-5, PLANT-5a, ODELIA-6. **Blocks:**
+PLANT-7 (census resident).
 
 ### PLANT-5 — Scalar-template `Species::compute_competition` + census; reuse · CP
 Template the reductions on `S`; delete `gradient/{coupled_canopy.h, scm_harvest.h}`.

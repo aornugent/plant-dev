@@ -207,9 +207,9 @@ the canopy (L3, §7) is accessed:
   `environment_history` — doing so collapses it to the invasion gradient.
 
 Either way the three `*_emergent.cpp` engines are replaced by *differentiating the
-SCM we already have*, not a new engine. (Whether the resident reconstruction reads
-the cached stand state or re-computes the canopy live on the frozen schedule is an
-implementation choice for PLANT-5/5a; both must keep the canopy active.)
+SCM we already have*, not a new engine. The resident canopy is re-computed live by
+re-running `compute_environment` on recorded fixed knots (§7.5) — not reconstructed
+from a stand-state cache — so `stand_stage_history` and its variants are retired.
 
 ### 5.5 SCM orchestration over odelia's atomic components
 
@@ -274,14 +274,15 @@ example does **not**).
 
 | Priority | Workflow | Reads from the resident run | Levels | Canopy | Extra input |
 |---|---|---|---|---|---|
-| **1 (primary)** | Emergent gradient, resident/total (forest ecologist) | node schedule (L0), `step_history` (L1), `stand_*_stage_history` + light-spline knots (L2), `environment_history` as value anchor (L3) | L0·L1·L2·L3-reconstructed | **active** (reconstructed from cohorts) | traits, metrics |
-| **2** | Mutant/invasion fitness (evolutionary ecologist) | node schedule (L0), `step_history` (L1), `environment_history` **frozen** (L3); L2 for census metrics | L0·L1·(L2)·L3-frozen | **frozen** | mutant traits |
+| **1 (primary)** | Emergent gradient, resident/total (forest ecologist) | node schedule (L0), `step_history` (L1), recorded light-spline knots + QAG nodes (L2) | L0·L1·L2·L3-re-run | **active** (`compute_environment` re-run on active cohorts) | traits, metrics |
+| **2** | Mutant/invasion fitness (evolutionary ecologist) | node schedule (L0), `step_history` (L1), recorded resident light spline **frozen** (L3); L2 for census metrics | L0·L1·(L2)·L3-frozen | **frozen** | mutant traits |
 | **3 (advanced)** | Calibration / inference (ODE fit) | resolved ODE times (L1) | L1 | n/a | **observations + likelihood** |
 
-Reading across: the **resident** gradient accesses the cached *stand state* and
-reconstructs the canopy; the **invasion** gradient accesses the *frozen env values*;
-**calibration** accesses neither — only the ODE schedule plus a user-supplied loss
-over observations. Because calibration additionally requires the user to define
+Reading across: the **resident** gradient records the light-spline *knot positions*
+and re-runs the canopy on them (§7.5); the **invasion** gradient reuses the *frozen
+recorded light*; **calibration** records only the ODE schedule and adds a
+user-supplied loss over observations. Because calibration additionally requires the
+user to define
 targets and a likelihood, it is an advanced workflow, not the entry point. The two
 emergent-gradient workflows (1 and 2) need **no** observations and are the primary
 plant UX; the design must serve them first and must not inherit odelia's
@@ -315,21 +316,24 @@ bound *is* an active plant height, so the Gauss–Kronrod **nodes move**: this n
 the scalar-templated `QK` (`qk.h`, already written for #472) rather than a
 frozen-node replay, which "would miss" the moving-node sensitivity.
 
-**L3 is accessed two *different* ways — and this is the correctness crux.**
-`save_RK45_cache` caches both the frozen resident environment *values*
-(`environment_history`) and the resident *stand state* per RK stage
-(`stand_*_stage_history`). The two gradients use different data:
+**L3 is accessed two *different* ways — and this is the correctness crux.** The
+resident run records the frozen resident environment *values* (`environment_history`)
+and the light-spline knot *positions* (§7.5); the two gradients diverge on which they
+use. (The spike additionally caches full stand state per RK stage,
+`stand_*_stage_history`; §7.5 shows that is unnecessary — record knots, re-run the
+canopy.)
 
 - **Invasion (frozen):** a rare mutant reads the cached `environment_history` as a
   **constant** — the derivative through the canopy is zero by construction. This is
   `run_mutant` (`is_mutant_run` suppresses self-competition). Correct for a rare
   invader.
-- **Resident / total (reconstructed):** the canopy is **rebuilt differentiably**
-  from the cached stand state (heights + competition effects) via the L2 quadrature,
-  so a trait re-shades the stand through `area_leaf`; the frozen env value is used
-  only as a value anchor. **Replaying the frozen environment here would silently
-  give the invasion gradient — the self-shading cross term would be missing.** The
-  resident total gradient therefore does *not* use the frozen-env replay.
+- **Resident / total (re-run):** the canopy is **recomputed live** by re-running
+  `compute_environment` on the *recorded* light-spline knots (§7.5) with the active,
+  re-evolved cohorts, so a trait re-shades the stand through `area_leaf`.
+  **Replaying the frozen environment here would silently give the invasion gradient —
+  the self-shading cross term would be missing.** The resident total gradient
+  therefore does *not* read the frozen env; it re-runs the model's own light on fixed
+  knots. (No `stand_stage_history` — §7.5.)
 
 ### Which workflow needs which levels
 
@@ -351,6 +355,55 @@ with L2 supplying the (moving or frozen) quadrature nodes. The design keeps the
 integration.
 
 ---
+
+### 7.5 One primitive under every level: record the adaptive nodes, replay fixed
+
+The four levels look like four mechanisms but are one idea. Every adaptive numerical
+construction in the SCM — the RKCK stepper, the light interpolator
+(`AdaptiveInterpolator` refining knots over height every step), the crown-depth
+quadrature (`qag.h`) — exists to *discover* where to place nodes to hit an error
+tolerance **without knowing the answer**. On a replay we already know the answer, so
+adaptivity is pure overhead: record where the first (double, adaptive) pass placed
+its nodes, then replay on those nodes held fixed, with the scalar active. No
+refinement loop runs on the AD pass.
+
+| Adaptive construction | Records | Replays as | Status |
+|---|---|---|---|
+| RKCK stepper | step times (`solver.times()`) | `advance_fixed` | odelia — exists |
+| light interpolator | knot positions (`AdaptiveInterpolator` → `get_x()`) | `basic_interpolator<S>`, frozen x + active y | odelia primitive exists |
+| crown-depth quadrature | QAG subdivision (or none — a fixed rule) | scalar-templated `QK<S>` on fixed abscissae | `qk.h` exists; recording is the one gap |
+
+**This is what `basic_interpolator<S>` is for — it is the keystone, not extra
+weight.** It is the ordinary interpolator with the value scalar templated, so a
+frozen set of recorded knots carries active values differentiably (via
+`basic_spline<S>`). The stepper (`advance_fixed`) and the quadrature (fixed `QK<S>`)
+are the same shape: record positions on the adaptive pass, replay values on the fixed
+positions. Three instances of one primitive, not three components.
+
+**This eliminates `stand_stage_history`.** The spike caches the resident stand state
+per RK stage so it can *reconstruct* the light without re-running
+`compute_environment`. But if the replay simply **re-runs the model's own
+`compute_environment` on the recorded knots with the active, re-evolved cohorts**,
+the light is recomputed live and responds to traits — no stand-state cache. What must
+be recorded per step is only the **knot positions** (a short vector of heights); the
+cohort values come from the replay itself. The heavy `stand_*_stage_history` /
+`stand_newnode_*` / all-species caches in `patch.h` are not needed under the
+full-scalar re-run.
+
+**And this brings the resident/calibration distinction back to its essence.** Both
+are "run adaptive once, record the nodes, replay fixed with the active scalar." They
+differ in only two things:
+
+1. the **functional** — an emergent metric (no observations) vs. a likelihood over
+   observations; and
+2. **how many adaptive constructions are in replay mode** — calibration replays only
+   the ODE stepper (L1); the emergent resident gradient also replays the light
+   interpolator and crown quadrature (L2).
+
+The resident canopy is live-active (self-shading) simply because `compute_environment`
+re-runs on active cohorts; the invasion gradient reuses the *recorded double* light
+spline unchanged (frozen). One record-then-replay-fixed primitive, applied at whichever
+levels a gradient needs — no separate reconstruction engine, no third mechanism.
 
 ## 8. Strategy coverage and the cross-sensitivity gap
 

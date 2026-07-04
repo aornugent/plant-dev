@@ -175,12 +175,14 @@ resident run:
 | advanced | ODE calibration | adaptive run, then fit — no cache; needs observations + loss | L1 | n/a |
 
 `save_RK45_cache = TRUE` is the single AD-relevant control for the emergent
-workflows; it caches **both** the frozen resident environment (invasion) **and** the
-resident stand state (the resident/total reconstruction) — the two access *different*
-parts of it (design §7, L3). A gradient call validates the cache is present and
-errors clearly if not (§6.7) — it never silently returns a wrong number. (If the
-flag name should read as "prepare for gradients" rather than an implementation
-detail, that is a small rename to settle during RIF-7.)
+workflows. It records what the replay needs (design §7.5): the resolved ODE step
+times, and the adaptive light-spline knot positions / quadrature nodes. The invasion
+gradient reuses the recorded resident light frozen; the resident gradient re-runs
+`compute_environment` on the recorded knots with active cohorts (no stand-state
+cache). A gradient call validates the recording is present and errors clearly if not
+(§6.7) — it never silently returns a wrong number. (If the flag name should read as
+"prepare for gradients" rather than an implementation detail, that is a small rename
+to settle during RIF-7.)
 
 The calibration row is deliberately last: it additionally requires the user to
 supply observations and a likelihood, which the emergent workflows do not. odelia's
