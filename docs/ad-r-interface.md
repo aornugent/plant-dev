@@ -168,25 +168,36 @@ shape" is a C++ concept that never crosses to R — only its *selection* does.
 The levels are internal, but they determine the *one* thing the user sets on the
 resident run:
 
-| Gradient | User runs | Levels |
-|---|---|---|
-| odelia ODE calibration | adaptive run, then fit — no cache (§6.3) | L1 |
-| offspring / invasion | `control(save_RK45_cache = TRUE)` | L0·L1·L3 |
-| census resident (LAI, biomass, basal area) | `control(save_RK45_cache = TRUE)` | L0·L1·L2 |
+| Priority | Gradient | User runs | Levels | Canopy |
+|---|---|---|---|---|
+| primary | census resident (LAI, biomass, basal area) | `control(save_RK45_cache = TRUE)` | L0·L1·L2·L3 | reconstructed (active) |
+| next | offspring / invasion | `control(save_RK45_cache = TRUE)` | L0·L1·L3 | frozen |
+| advanced | ODE calibration | adaptive run, then fit — no cache; needs observations + loss | L1 | n/a |
 
-`save_RK45_cache = TRUE` is the single AD-relevant control; it enables the caches
-the plant gradients need. A gradient call validates the cache is present and errors
-clearly if not (§6.7) — it never silently returns a wrong number. (If the flag name
-should read as "prepare for gradients" rather than an implementation detail, that is
-a small rename to settle during RIF-7.)
+`save_RK45_cache = TRUE` is the single AD-relevant control for the emergent
+workflows; it caches **both** the frozen resident environment (invasion) **and** the
+resident stand state (the resident/total reconstruction) — the two access *different*
+parts of it (design §7, L3). A gradient call validates the cache is present and
+errors clearly if not (§6.7) — it never silently returns a wrong number. (If the
+flag name should read as "prepare for gradients" rather than an implementation
+detail, that is a small rename to settle during RIF-7.)
+
+The calibration row is deliberately last: it additionally requires the user to
+supply observations and a likelihood, which the emergent workflows do not. odelia's
+`set_target`/`advance_target` fit shape (`test-ad-workflow.R`) serves that advanced
+case; it must **not** set the shape of the primary `stand_gradient()` UX.
 
 ---
 
 ## 6. User stories
 
 Each story is the R experience of one persona. The recurring point is what they
-*never* touch — the invariant of §2 paying off. The last column of each traces to
-the design and surfaces any requirement.
+*never* touch — the invariant of §2 paying off. The last line of each traces to the
+design and surfaces any requirement. Stories are ordered by priority: the emergent
+gradients (6.1 resident, 6.2 invasion) are the **primary** plant workflows and need
+no observations; calibration (6.3) is an **advanced** case that additionally assumes
+targets and a likelihood, and is included to test the invariant under a hot loop —
+not as the entry point.
 
 ### 6.1 Trait sensitivity — forest ecologist (plant, resident/total)
 
@@ -219,10 +230,11 @@ The frozen canopy and the `run_mutant` replay are entirely under the hood; the u
 picks the workflow by choosing the function, not by managing state. *Traces to the
 two-workflow model (design §6.1) and §4.3 (C++ dispatch).*
 
-### 6.3 Gradient-based calibration — modeller fitting data (the hot loop)
+### 6.3 Gradient-based calibration — modeller fitting data (the hot loop) — *advanced*
 
 *"Run L-BFGS over traits to fit observations; call me for value and gradient each
-iteration."*
+iteration."* (Advanced: unlike 6.1/6.2 this assumes the user has defined
+observations and a likelihood.)
 
 ```r
 solver <- Solver$new(system, control)     # ONE ordinary (double) solver

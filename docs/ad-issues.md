@@ -75,9 +75,18 @@ Implement the System contract on Patch; map trait names + birth-rate to register
 active inputs. **Depends on:** PLANT-1, PLANT-2, ODELIA-3. **Blocks:** PLANT-4.
 
 ### PLANT-4 — Differentiate `run_mutant` (invasion gradient) · CP
-The FF16 invasion gradient as `compute_jacobian` through the existing
-`run_mutant` with `S=active`. Retires `ff16_emergent.cpp`. **Depends on:**
-ODELIA-2, PLANT-3. **Blocks:** PLANT-5, PLANT-7.
+The FF16 invasion gradient as `compute_jacobian` through the existing `run_mutant`
+with `S=active`: canopy read **frozen** from `environment_history` (derivative
+through it is zero), `is_mutant_run` suppresses self-competition. Retires
+`ff16_emergent.cpp`. **Depends on:** ODELIA-2, PLANT-3. **Blocks:** PLANT-5, PLANT-7.
+
+### PLANT-4a — Resident/total gradient: reconstruct the canopy, do NOT freeze it · CP
+The resident gradient on the same frozen L0/L1 schedule but with the canopy
+reconstructed from the cached resident stand state (`stand_*_stage_history`),
+value-anchored on `environment_history`, so a trait re-shades the stand
+(design §7, L3-reconstructed). **Correctness gate:** reading the frozen env here
+silently yields the invasion gradient (missing self-shading). **Depends on:**
+PLANT-4, PLANT-5, PLANT-5a. **Blocks:** PLANT-7 (census resident).
 
 ### PLANT-5 — Scalar-template `Species::compute_competition` + census; reuse · CP
 Template the reductions on `S`; delete `gradient/{coupled_canopy.h, scm_harvest.h}`.

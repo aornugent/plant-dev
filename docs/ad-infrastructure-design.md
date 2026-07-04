@@ -193,14 +193,23 @@ retire and exactness is structural, not a maintained bit-for-bit copy.
 
 ### 5.4 The replay is `run_mutant` / `run`, differentiated — not a new engine
 
-The frozen-schedule replay the spike reimplements already exists:
-`SCM::run_mutant(p)` switches the Patch to its cached resident environment
-(`set_mutant()`), pins the schedule to the resident `step_history`
-(`use_ode_times`), and runs — the mutant reads the frozen canopy and does not
-compete with itself (`is_mutant_run` gates `compute_competition`). **The invasion
-gradient is `d(functional)/d(traits)` taken through this existing run with
-`S=active`;** the resident/total gradient is the same through `run()`. The three
-`*_emergent.cpp` engines are replaced by *differentiating the SCM we already have*.
+The two workflows differentiate two existing runs, and they differ precisely in how
+the canopy (L3, §7) is accessed:
+
+- **Invasion** = differentiate `SCM::run_mutant(p)` with `S=active`. It switches the
+  Patch to the cached resident environment (`set_mutant()`), pins the schedule to
+  the resident `step_history` (`use_ode_times`), and runs — the mutant reads the
+  **frozen** canopy and does not compete with itself (`is_mutant_run` gates
+  `compute_competition`). The derivative through the canopy is zero.
+- **Resident / total** = differentiate the resident run on the *same* frozen L0/L1
+  schedule, but with the canopy **reconstructed from the active cohorts** (§7, L3
+  reconstructed) so a trait re-shades the stand. It must **not** read the frozen
+  `environment_history` — doing so collapses it to the invasion gradient.
+
+Either way the three `*_emergent.cpp` engines are replaced by *differentiating the
+SCM we already have*, not a new engine. (Whether the resident reconstruction reads
+the cached stand state or re-computes the canopy live on the frozen schedule is an
+implementation choice for PLANT-5/5a; both must keep the canopy active.)
 
 ### 5.5 SCM orchestration over odelia's atomic components
 
@@ -257,6 +266,27 @@ in plant that reuses model functions; odelia is untouched.
 
 ---
 
+### 6.4 What each workflow accesses
+
+The workflows are ordered by how central they are to plant, and they access
+genuinely different data — this is what must drive the plant UX (odelia's ODE-fit
+example does **not**).
+
+| Priority | Workflow | Reads from the resident run | Levels | Canopy | Extra input |
+|---|---|---|---|---|---|
+| **1 (primary)** | Emergent gradient, resident/total (forest ecologist) | node schedule (L0), `step_history` (L1), `stand_*_stage_history` + light-spline knots (L2), `environment_history` as value anchor (L3) | L0·L1·L2·L3-reconstructed | **active** (reconstructed from cohorts) | traits, metrics |
+| **2** | Mutant/invasion fitness (evolutionary ecologist) | node schedule (L0), `step_history` (L1), `environment_history` **frozen** (L3); L2 for census metrics | L0·L1·(L2)·L3-frozen | **frozen** | mutant traits |
+| **3 (advanced)** | Calibration / inference (ODE fit) | resolved ODE times (L1) | L1 | n/a | **observations + likelihood** |
+
+Reading across: the **resident** gradient accesses the cached *stand state* and
+reconstructs the canopy; the **invasion** gradient accesses the *frozen env values*;
+**calibration** accesses neither — only the ODE schedule plus a user-supplied loss
+over observations. Because calibration additionally requires the user to define
+targets and a likelihood, it is an advanced workflow, not the entry point. The two
+emergent-gradient workflows (1 and 2) need **no** observations and are the primary
+plant UX; the design must serve them first and must not inherit odelia's
+`set_target`/`fit` shape (which belongs to workflow 3).
+
 ## 7. Replay levels: four independent freezes
 
 "Differentiate the converged construction" applies at four *distinct* depths in the
@@ -270,34 +300,45 @@ schedule").
 | **L0 — node schedule** | which cohorts exist and when introduced | `build_schedule`/`refine_schedule`, *before* the adaptive run | adaptive cohort introduction | plant |
 | **L1 — ODE step times** | the adaptive RKCK step selection | `solver.times()` → `advance_target`/`advance_fixed` (pinned replay) | adaptive step-size control | **odelia (exists)** |
 | **L2 — quadrature / interpolator knots** | height-QAG abscissae and the light-spline knots | cached knots (frozen) *or* scalar-templated `QK` (moving nodes) | adaptive quadrature / interpolation refinement | plant (`qk.h`) + odelia spline |
-| **L3 — resident environment** | the whole resident canopy trajectory | `save_RK45_cache` → `run_mutant` | (ecological: a rare mutant reads a fixed resident canopy) | plant |
+| **L3 — resident canopy** | the resident environment the focal cohorts read | `save_RK45_cache` (stores *both* frozen env values *and* resident stand state) | see below — **frozen ≠ reconstructed** | plant |
 
-**L1 is the calibration case, and it already works.** odelia's own AD test
-(`test-ad-workflow.R`) runs a Lorenz solve adaptively, captures `times()`, and
-replays pinned via `set_target`/`advance_target` under AD — *no environment cache,
-just the resolved ODE schedule*. This is the workflow behind user story 6.3 and it
-needs L1 alone.
+**L1 is the ODE-fit case (calibration), and it already works — but it is not the
+plant driver (§6, R-interface).** odelia's own AD test (`test-ad-workflow.R`) runs a
+Lorenz solve adaptively, captures `times()`, and replays pinned via
+`set_target`/`advance_target` — *no environment cache, just the resolved ODE
+schedule*. It needs L1 alone.
 
 **L2 has two variants, and #472 flags the harder one.** For the resident light
 spline, the knots are frozen (positions) and the values active — odelia's
 differentiable spline (§4.1). For a census integrated over height, the integration
 bound *is* an active plant height, so the Gauss–Kronrod **nodes move**: this needs
 the scalar-templated `QK` (`qk.h`, already written for #472) rather than a
-frozen-node replay, which "would miss" the moving-node sensitivity. Height-QAG is
-therefore a genuinely separate concern from L1, as #472 states.
+frozen-node replay, which "would miss" the moving-node sensitivity.
 
-**L3 is the invasion cache.** `run_mutant` replays a rare mutant against the cached
-resident environment (§5.4). It is an *ecological* freeze (the rare-mutant
-assumption), not a numerical one.
+**L3 is accessed two *different* ways — and this is the correctness crux.**
+`save_RK45_cache` caches both the frozen resident environment *values*
+(`environment_history`) and the resident *stand state* per RK stage
+(`stand_*_stage_history`). The two gradients use different data:
+
+- **Invasion (frozen):** a rare mutant reads the cached `environment_history` as a
+  **constant** — the derivative through the canopy is zero by construction. This is
+  `run_mutant` (`is_mutant_run` suppresses self-competition). Correct for a rare
+  invader.
+- **Resident / total (reconstructed):** the canopy is **rebuilt differentiably**
+  from the cached stand state (heights + competition effects) via the L2 quadrature,
+  so a trait re-shades the stand through `area_leaf`; the frozen env value is used
+  only as a value anchor. **Replaying the frozen environment here would silently
+  give the invasion gradient — the self-shading cross term would be missing.** The
+  resident total gradient therefore does *not* use the frozen-env replay.
 
 ### Which workflow needs which levels
 
 | Gradient | L0 | L1 | L2 | L3 |
 |---|:--:|:--:|:--:|:--:|
 | Calibration (odelia ODE fit) | | ✅ | | |
-| Offspring, invasion | ✅ | ✅ | | ✅ |
-| Census (LAI/biomass/basal area), resident | ✅ | ✅ | ✅ | |
-| Census, invasion | ✅ | ✅ | ✅ | ✅ |
+| Offspring, invasion | ✅ | ✅ | | frozen |
+| Census (LAI/biomass/basal area), resident | ✅ | ✅ | ✅ | **reconstructed** |
+| Census, invasion | ✅ | ✅ | ✅ | frozen |
 
 ### The fixed comb still makes functionals simple
 
