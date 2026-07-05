@@ -59,13 +59,25 @@ terse, template-heavy, and comments the *why*, not the *what*.
   abstraction beside it. A header change ripples to everything that `LinkingTo` it, so
   treat it as a compile-time `breaking` / `cross-package` event.
 
-## PR workflow (the odelia AD surface)
+## PR workflow
 
-- **One PR per issue** (ODELIA-1, ODELIA-2, …) — each a small, self-contained change.
-- **Stacked diffs** where the issues depend on each other: branch each on top of the
-  one it builds on (ODELIA-2 off ODELIA-1, …) and target that branch, so reviewers see
-  only the incremental diff and the PRs merge in order down to `master`.
-- **Tests land with the component they cover.** The ODELIA-4/4b test items are not a
-  separate PR; each driver/edge ships its own coverage in the same PR that adds it.
-- Submodule work lives on `claude/odelia-surface` and per-issue children; bump the
-  `plant-dev` submodule pointer as each lands.
+Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
+entry in a planning doc such as [`docs/ad-issues.md`](docs/ad-issues.md). PRs are opened
+against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
+upstream is a separate, user-driven step (see *Workflow for Agents* above).
+
+- **One PR per issue.** Each PR is a small, self-contained change that closes exactly one
+  issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
+  mapping is unambiguous.
+- **Stacked diffs where issues depend on each other.** When working through several
+  interdependent issues at once — the dependency chains in `docs/ad-issues.md` are the
+  common case — branch each PR on top of the one it builds on rather than off the base
+  branch, and target that parent branch. Reviewers then see only the incremental diff and
+  the PRs merge in order down to the submodule's default branch (`master`/`main`).
+  Independent issues branch straight off the default branch and can merge in any order.
+- **Tests land with the component they cover** — not as a separate follow-up PR. Each
+  change ships its own coverage in the same PR that adds it.
+- **Bump the meta-repo pointer as each lands.** Submodule work lives on a feature branch
+  and its per-issue children; after a submodule PR merges, update the `plant-dev`
+  submodule pointer (see *Updating the Meta-Repo* above) so the superproject tracks the
+  new commit.
