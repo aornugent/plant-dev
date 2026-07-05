@@ -29,3 +29,55 @@ git fetch upstream
 git merge upstream/master # (or main)
 git push origin master
 ```
+
+## C++ style (match the odelia/plant core)
+
+New C++ should be indistinguishable from the existing core (Rich FitzJohn's). It is
+terse, template-heavy, and comments the *why*, not the *what*.
+
+- **Template on the scalar; alias the default.** Systems carry a `value_type`; numeric
+  components template on the value scalar `S` with node/abscissa positions left
+  `double`. Pin the production type with a `using` alias
+  (`using Interpolator = basic_interpolator<double>;`) so every existing caller is
+  untouched and only the AD path instantiates `S = active`.
+- **Comments assume an expert reader.** Explain the tricky floating-point choice, the
+  replay/freeze rationale, the issue or source reference (`#472`, GSL, a SO link) —
+  never restate what the code plainly says. Clear names and structure carry the rest.
+- **No boilerplate.** Reach for `util::stop` / `util::check_length` / `util::identical`
+  over raw throws; keep functions small and single-purpose; select behaviour at compile
+  time so an absent hook is a zero-cost no-op. For *new* opt-in hooks prefer C++20
+  concepts + `if constexpr` over more `enable_if` SFINAE (the project is `CXX_STD =
+  CXX20`).
+- **Use the vendored XAD components; do not re-implement them.** odelia vendors XAD
+  (`inst/include/XAD/`) — `computeJacobian`, `CheckpointCallback`, `computeAdjoints`,
+  the `adj`/`fwd` drivers. Call these directly rather than hand-rolling the tape
+  sweep, the adjoint loop, or the IFT edge. "Mirror the XAD pattern" means *invoke*
+  the XAD facility, not copy its body. New AD code is glue around XAD, not a second
+  AD engine (the whole thesis of the roadmap: one AD runtime, not a parallel stack).
+- **`const` by default**, 2-space indent, header guards `ODELIA_<NAME>_HPP_`.
+- **Surgical, in place.** Modify the type that already exists; do not add a parallel
+  abstraction beside it. A header change ripples to everything that `LinkingTo` it, so
+  treat it as a compile-time `breaking` / `cross-package` event.
+
+## PR workflow
+
+Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
+entry in a planning doc such as [`docs/ad-issues.md`](docs/ad-issues.md). PRs are opened
+against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
+upstream is a separate, user-driven step (see *Workflow for Agents* above).
+
+- **One PR per issue.** Each PR is a small, self-contained change that closes exactly one
+  issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
+  mapping is unambiguous.
+- **Stacked diffs where issues depend on each other.** When working through several
+  interdependent issues at once — the dependency chains in `docs/ad-issues.md` are the
+  common case — branch each PR on top of the one it builds on rather than off the base
+  branch, and target that parent branch. Reviewers then see only the incremental diff and
+  the PRs merge in order down to the submodule's default branch (`master`/`main`).
+  Independent issues branch straight off the default branch and can merge in any order.
+- **Tests land with the component they cover** — not as a separate follow-up PR. Each
+  change ships its own coverage in the same PR that adds it.
+- **Bump the meta-repo pointer as each lands.** Submodule work lives on a feature branch
+  and its per-issue children; after a submodule PR merges, update the `plant-dev`
+  submodule pointer (see *Updating the Meta-Repo* above) so the superproject tracks the
+  new commit.
