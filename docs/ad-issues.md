@@ -77,8 +77,11 @@ on:** ODELIA-1..3.
 
 ### ODELIA-6 — Record-adaptive / replay-fixed numerics (the one replay primitive) · CP
 Make odelia's adaptive numerics support "record node placement on the double pass,
-replay on fixed nodes with the active scalar" uniformly (design §7.5–7.6). Two
-mechanisms, both partly present:
+replay on fixed nodes with the active scalar" uniformly (design §7.5–7.6). **Detailed
+design: [`ad-record-replay.md`](./ad-record-replay.md)** — positions-vs-values, one
+`Replayable` concept (runtime frozen/live mode, not a type split), no `Recording` noun,
+and the RIF-3 anchor settled on the `Solver` member. Two mechanisms, both partly
+present:
 - **Record via opt-in System hooks.** The stepper already calls `cache_RK45_step` /
   `cache_ode_step` when a System provides them (`has_cache` trait; zero-cost no-op
   otherwise). Reuse these hook points; shrink the payload to knot positions (not

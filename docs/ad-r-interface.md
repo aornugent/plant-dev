@@ -110,12 +110,21 @@ Two clarifications from the odelia review (odelia #12, PR #17):
   The cache's validity domain is the ICs + params of the double run: those fix the
   schedule, so a replay may vary the mutant / observations / functional, but changing
   ICs or params invalidates the recording and forces a re-record.
-- **Mind the anchor.** The first cut (PR #17) anchors the cache on the odelia
-  `Solver`'s external-pointer `prot` slot. That is only reachable through the odelia
-  `Solver` XPtr — a downstream C++ caller holding a *different* handle (plant's SCM,
-  §4) never sees it, so as written that caller inherits no reuse. "Owned by the double
-  `Solver`" (a C++-level opaque member) would generalise across callers, at the cost
-  of touching core `Solver`; decide deliberately rather than by default.
+- **Mind the anchor — settled: on the `Solver` object.** The first cut (PR #17)
+  anchors the cache on the odelia `Solver`'s external-pointer `prot` slot, reachable
+  only through the odelia `Solver` XPtr. plant's SCM holds the solver as a plain C++
+  **member** (`scm.h:133`), never wrapping it in its own XPtr, so as written plant's
+  `stand_gradient_cpp` (RIF-5) both inherits no reuse *and cannot call* the XPtr-shaped
+  driver at all. That reality forces "owned by the double `Solver`": move the amortized
+  scratch to a `Solver` member — a `mutable std::shared_ptr<void>` populated on the
+  first gradient call (mirroring the raw `tape` member already on `Solver`; no base
+  class, null for non-differentiated Systems). The recording rides the same member for
+  free (it already holds the double System + `times()`). See
+  [`ad-record-replay.md`](./ad-record-replay.md) §5.1.
+
+  Note the two senses of "cache" this settles: the RIF-3 scratch is a *speed* cache;
+  the record/replay recording is *semantic*. Keep the words distinct (odelia#19 /
+  plant#3) so a reader can tell an optimisation from a correctness mechanism.
 
 ### 3.4 No `wrap`/`as` for active types — by policy
 
