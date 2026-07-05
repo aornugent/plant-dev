@@ -123,20 +123,35 @@ Matrix compute_jacobian(Solver<System>&, const Independents&, F&& functional);
 //                read derivative(input_j); clearDerivatives();
 ```
 
+Two implementation notes (found while reviewing the odelia surface, odelia #4):
+pass the **codomain** (output count) to `XAD::computeJacobian` — omitting it costs an
+extra forward evaluation (a full solve, i.e. a full SCM replay for plant) just to size
+the outputs; and the **column order is a contract** — output column `j` is
+`d(output)/d(leaf_j)` for the `j`-th seeded leaf *in the order the System consumes
+them*, so a caller resolving trait names → fields must pack and scatter in the same
+order or the columns transpose silently.
+
 **(c) `Independents` — the "gradients w.r.t. what?" shape.** *(Renamed from the
 earlier `Seeds`: in AD "seed" is a verb, and in plant a "seed" is an offspring — a
 name clash. `Independents` is the standard AD term and is unambiguous.)* It is a
-generic description of which registered inputs are active and any analytic edges;
-it contains no plant vocabulary.
+generic description of which registered inputs are active; it contains no plant
+vocabulary.
 
 ```cpp
 struct Independents {
-  // opaque handles the System registered via set_params / set_initial_state
-  std::vector<double>       params;        // values to seed active
-  std::optional<std::vector<double>> initial_state;
-  std::vector<AnalyticEdge> edges;         // §(d)
+  std::vector<double> values;   // the leaves to seed active; the System routes them
 };
 ```
+
+The right shape is a **single flat vector of leaves**, not named `params` /
+`initial_state` sub-bundles (updated after the odelia review, odelia #6). The
+named split is Lorenz-shaped and forces per-System setter overloads and a
+params/ic/both branch in the driver; more to the point it mis-models the consumers —
+trait-seeds *and* initial-condition-seeds are the same kind of thing (a registered
+leaf), and IC sensitivity is a genuine target (plant's `make_initial_state` /
+`export_patch_state` make an initial size distribution a first-class input). The
+System owns the routing of leaves → its own fields; odelia never learns what a leaf
+means. Analytic edges (§d) are **not** a member here — see below.
 
 **(d) `AnalyticEdge` — accommodating IFT / forward-mode results.** For a value the
 forward pass computes off-tape (a root-find or optimizer result), inject its known
@@ -144,6 +159,13 @@ partials into the reverse tape via `CheckpointCallback::computeAdjoint`. This is
 odelia's compatibility seam for plant's leaf-optimizer forward-mode sensitivity and
 the TF24 stomatal IFT — generic (odelia sees inputs, an output, and partials), and
 it replaces the spike's hand-rolled `inject_h0`.
+
+Realised (odelia #8) as a **free function called from within the forward pass** —
+`analytic_edge(tape, y_value, inputs, partials)` — **not** the `Independents.edges`
+member sketched in (c). An edge can only be constructed mid-computation, where the
+off-tape value actually exists, so it cannot be a pre-declared independent. The
+implementation is the standard XAD checkpoint idiom (`insertCallback` to place the
+edge + `pushCallback` to hand the tape ownership). PROTO-3 pins the final API shape.
 
 ---
 
