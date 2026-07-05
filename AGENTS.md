@@ -75,6 +75,17 @@ upstream is a separate, user-driven step (see *Workflow for Agents* above).
   branch, and target that parent branch. Reviewers then see only the incremental diff and
   the PRs merge in order down to the submodule's default branch (`master`/`main`).
   Independent issues branch straight off the default branch and can merge in any order.
+- **Fix in the branch that owns the issue; don't stack a fix on top.** When review or a
+  later finding changes something already in the stack, land the change on the branch for
+  the issue it belongs to (amend or add a commit there), not as a new branch on top. A
+  fix stacked above the code it corrects breaks the one-PR-per-issue mapping and muddies
+  the incremental upstream PRs. Only branch anew when the change is genuinely new scope.
+- **Rebase the stack with `--update-refs`.** Amending an underlying branch moves the
+  merge-base of everything above it, so those branches must be rebased onto the new tip.
+  `git rebase --update-refs` (Git ≥ 2.38; or `git config rebase.updateRefs true`) advances
+  all the intermediate stacked branch refs in one pass; then force-push each descendant
+  with `--force-with-lease`. The cost is remembering to push *every* descendant and
+  resolving a conflict that can cascade upward — not deep surgery, but do it deliberately.
 - **Tests land with the component they cover** — not as a separate follow-up PR. Each
   change ships its own coverage in the same PR that adds it.
 - **Bump the meta-repo pointer as each lands.** Submodule work lives on a feature branch
