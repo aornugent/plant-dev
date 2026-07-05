@@ -43,6 +43,38 @@ You must never attempt to push directly to `traitecoevo/*` remotes.
 4. **Updating the Meta-Repo**: After pushing commits in a submodule, navigate back to the root of `plant-dev`. You will see that the submodule pointer has changed in `git status`. Add and commit this hash update in `plant-dev`, and push it to `origin` (`aornugent/plant-dev`).
 5. **Propagating Upstream**: To get changes into the official `traitecoevo` repositories, you must instruct the user to create a Pull Request on GitHub from the `aornugent` fork to the `traitecoevo` upstream.
 
+## Landing a stack of PRs
+
+Feature work is often split into a **stack** of dependent PRs (`A ← B ← C`, each
+targeting the branch below it) so each stays small and independently reviewable,
+and they land as incremental PRs to `traitecoevo`. Landing a stack has one sharp
+edge worth stating plainly:
+
+- **Never squash-merge (or rebase-merge) a PR that has other PRs stacked on it,
+  and never squash-merge as a way to "land the stack".** A squash-merge creates a
+  brand-new commit on the base and marks the PR **merged**. That has two
+  irreversible consequences: (1) the merged branch's real commits are no longer
+  ancestors of the base, so every PR stacked above it goes to a conflicted /
+  "dirty" state and must be rebased with the old commits dropped; and (2) **a
+  merged PR cannot be reopened** — if you revert the base branch afterwards, the
+  PR stays closed-as-merged and the work needs a *new* PR. (Learned the hard way:
+  a squash-merge of the base PR, then a revert, orphaned the base PR permanently.)
+
+- **Action reviews in place, keep the stack intact.** Apply review changes on the
+  branch that owns the code (amend the branch's commit, or add a fixup), then
+  cascade with `git rebase --onto <new-base> <old-base> <branch>` (or
+  `git rebase --update-refs` across the whole stack) so each descendant re-parents
+  onto its updated base. Force-push each branch (`git push -u --force-with-lease
+  origin <branch>`); the open PRs recompute their diffs against the moved bases and
+  stay clean. Build/test at each level — a header change in odelia's core ripples
+  to every dependent branch at **compile** time.
+
+- **When it's genuinely time to merge the whole stack to `master`/`develop`**, land
+  bottom-up, one PR at a time, using **merge commits** (or fast-forward) so each
+  merged branch stays an ancestor of the next PR's base. Retarget the next PR's
+  base only after its predecessor is merged. Squash, if wanted, is only safe on the
+  **top** PR of a stack (nothing depends on it).
+
 ## Upstream Synchronization
 To sync a submodule with the official repository, fetch and merge from the `upstream` remote, then push to the `origin` fork:
 ```bash
