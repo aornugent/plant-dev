@@ -100,6 +100,23 @@ Keep it internal: cache the tape (and optionally the active scratch system) as a
 **opaque handle owned by the double Solver**, keyed to nothing R can see. R reuses
 the tape by reusing its double Solver; it never learns the tape exists.
 
+Two clarifications from the odelia review (odelia #12, PR #17):
+
+- **Cache the scratch, not the recording.** Only the tape + active scratch are
+  amortized across calls. The *recording* (resolved ODE step times, and any
+  interpolator/quadrature spacing or saved RK45 state — the replay levels of design
+  §7) is per-run state owned by the immutable double Solver and read by the active
+  replay *per call* — it must not be frozen into the active scratch at first build.
+  The cache's validity domain is the ICs + params of the double run: those fix the
+  schedule, so a replay may vary the mutant / observations / functional, but changing
+  ICs or params invalidates the recording and forces a re-record.
+- **Mind the anchor.** The first cut (PR #17) anchors the cache on the odelia
+  `Solver`'s external-pointer `prot` slot. That is only reachable through the odelia
+  `Solver` XPtr — a downstream C++ caller holding a *different* handle (plant's SCM,
+  §4) never sees it, so as written that caller inherits no reuse. "Owned by the double
+  `Solver`" (a C++-level opaque member) would generalise across callers, at the cost
+  of touching core `Solver`; decide deliberately rather than by default.
+
 ### 3.4 No `wrap`/`as` for active types — by policy
 
 Do **not** add an `Rcpp::wrap`/`Rcpp::as` specialization for XAD active types.
