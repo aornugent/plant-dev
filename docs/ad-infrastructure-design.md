@@ -482,6 +482,14 @@ rather than a genuine caustic.)
 
 ### 7.6 Mechanism and abstraction
 
+> **Refined in [`ad-record-replay.md`](./ad-record-replay.md) (ODELIA-6).** The L1/L2/L3
+> ladder collapses to one axis — recorded **positions** (per ODE step) vs. recorded
+> **values** (per RK stage) — and the resident/mutant split is *not* two levels but two
+> runtime consumers of the same knots (live recompute vs. frozen read). One
+> `Replayable` concept covers `run` / `run_mutant` / active replay; odelia grows no
+> `Recording` noun (the schedule is `times()`, the nodes are System state). See that doc
+> for the settled design.
+
 Two complementary mechanisms implement §7.5, and both already exist in odelia in part.
 
 **Recording is an opt-in System hook, detected at compile time.** odelia's stepper
@@ -496,9 +504,11 @@ records through them** (knot positions, not `stand_stage_history`).
 Recommendation: keep the opt-in-hook design (the system opts in; odelia stays
 agnostic; an absent hook compiles away), but express new hooks with **C++20 concepts +
 `if constexpr`** rather than more `enable_if` SFINAE. The project is already
-`CXX_STD = CXX20`, and a `requires`-based `Recordable` concept reads far better than
-`std::enable_if<has_cache<System>::value>` for a developer meeting the code for the
-first time (optionally retrofitting the existing traits for consistency).
+`CXX_STD = CXX20`, and a `requires`-based `Replayable` concept (ODELIA-6, settled name)
+reads far better than `std::enable_if<has_cache<System>::value>` for a developer
+meeting the code for the first time (optionally retrofitting the existing traits for
+consistency; the `cache_*`/`load_*` hooks rename to `record_*`/`replay_*` — odelia#19 /
+plant#3).
 
 **Replay-fixed is a component mode, expressed by scalar-templating over frozen
 nodes.** The abstraction is one idea reused three times, and it is minimal:
