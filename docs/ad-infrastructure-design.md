@@ -354,9 +354,9 @@ kept distinct here.
 | Level | Freezes | Captured by | Removes non-diff from | Owner |
 |---|---|---|---|---|
 | **L0 — node schedule** | which cohorts exist and when introduced | `build_schedule`/`refine_schedule`, *before* the adaptive run | adaptive cohort introduction | plant |
-| **L1 — ODE step times** | the adaptive RKCK step selection | `solver.times()` → `advance_target`/`advance_fixed` (pinned replay) | adaptive step-size control | **odelia (exists)** |
-| **L2 — quadrature / interpolator knots** | height-QAG abscissae and the light-spline knots | cached knots (frozen) *or* scalar-templated `QK` (moving nodes) | adaptive quadrature / interpolation refinement | plant (`qk.h`) + odelia spline |
-| **L3 — resident canopy** | the resident environment the focal cohorts read | `save_RK45_cache` (stores *both* frozen env values *and* resident stand state) | see below — **frozen ≠ reconstructed** | plant |
+| **L1 — ODE step times** | the adaptive RKCK step selection | `solver.times()` → `advance_fixed` (pinned replay) | adaptive step-size control | **odelia** |
+| **L2 — quadrature / interpolator knots** | height-QAG abscissae and the light-spline knots | recorded knots (frozen) *or* scalar-templated `QK` (moving nodes) | adaptive quadrature / interpolation refinement | plant (`qk.h`) + odelia spline |
+| **L3 — resident canopy** | the resident environment the focal cohorts read | recorded field values (per RK stage), read as `double` background | see below — **frozen ≠ reconstructed** | plant |
 
 **L1 is the ODE-fit case (calibration), and it already works — but it is not the
 plant driver (§6, R-interface).** odelia's own AD test (`test-ad-workflow.R`) runs a
@@ -374,12 +374,13 @@ frozen-node replay, which "would miss" the moving-node sensitivity.
 **L3 is accessed two *different* ways — and this is the correctness crux.** The
 resident run records the frozen resident environment *values* (`environment_history`)
 and the light-spline knot *positions* (§7.5); the two gradients diverge on which they
-use. (The spike additionally caches full stand state per RK stage,
-`stand_*_stage_history`; §7.5 shows that is unnecessary — record knots, re-run the
-canopy.)
+use. Only the knot *positions* are recorded per step; the cohort values come from the
+replay itself, so no per-RK-stage stand-state cache (`stand_*_stage_history`) is
+needed (§7.5 — record knots, re-run the canopy).
 
-- **Invasion (frozen):** a rare mutant reads the cached `environment_history` as a
-  **constant** — the derivative through the canopy is zero by construction. This is
+- **Invasion (frozen):** a rare mutant reads the recorded `environment_history` as
+  **`double` background** — off the tape entirely, so the derivative through the canopy
+  is zero by construction (not an active constant with a zeroed derivative). This is
   `run_mutant` (`is_mutant_run` suppresses self-competition). Correct for a rare
   invader.
 - **Resident / total (re-run):** the canopy is **recomputed live** by re-running
@@ -430,11 +431,11 @@ adaptivity is pure overhead: record where the first (double, adaptive) pass plac
 its nodes, then replay on those nodes held fixed, with the scalar active. No
 refinement loop runs on the AD pass.
 
-| Adaptive construction | Records | Replays as | Status |
+| Adaptive construction | Records | Replays as | Owner |
 |---|---|---|---|
-| RKCK stepper | step times (`solver.times()`) | `advance_fixed` | odelia — exists |
-| light interpolator | knot positions (`AdaptiveInterpolator` → `get_x()`) | `basic_interpolator<S>`, frozen x + active y | odelia primitive exists |
-| crown-depth quadrature | QAG subdivision (or none — a fixed rule) | scalar-templated `QK<S>` on fixed abscissae | `qk.h` exists; recording is the one gap |
+| RKCK stepper | step times (`solver.times()`) | `advance_fixed` | odelia |
+| light interpolator | knot positions (`AdaptiveInterpolator` → `get_x()`) | `basic_interpolator<S>`, frozen x + active y | odelia |
+| crown-depth quadrature | QAG subdivision (or none — a fixed rule) | scalar-templated `QK<S>` on fixed abscissae | plant (`qk.h`) |
 
 `basic_interpolator<S>` is the interpolator instance of this: the ordinary
 interpolator with the value scalar templated, so a frozen set of recorded knots
@@ -490,25 +491,20 @@ rather than a genuine caustic.)
 > `Recording` noun (the schedule is `times()`, the nodes are System state). See that doc
 > for the settled design.
 
-Two complementary mechanisms implement §7.5, and both already exist in odelia in part.
+Two complementary mechanisms implement §7.5.
 
-**Recording is an opt-in System hook, detected at compile time.** odelia's stepper
-already does exactly this for the RK45 cache: a trait (`has_cache` detecting
-`cache_RK45_step`) makes the generic stepper call `system.cache_RK45_step()` per RK
-stage and `system.cache_ode_step()` per step, compiling to a **zero-cost no-op** for
-systems that don't provide the hook (`ode_interface.hpp`, `ode_step.hpp:77`,
-`ode_solver_internal.hpp:83`). odelia never learns what is cached. The record side of
-§7.5 reuses these hook points; the simplification is mostly **shrinking what plant
-records through them** (knot positions, not `stand_stage_history`).
+**Recording is an opt-in System hook, detected at compile time.** The generic stepper
+signals cadence to a `Replayable` System — `record_stage(k)` per RK stage, `record_step()`
+per accepted step, `replay_step()` per step on the active pass — behind
+`if constexpr (Replayable<System>)`, compiling to a **zero-cost no-op** for systems that
+don't provide the hooks (`ode_interface.hpp`, `ode_step.hpp`, `ode_solver_internal.hpp`).
+odelia never learns what is recorded. plant records only knot positions (per step) and
+frozen field values (per stage) through these hooks — not `stand_stage_history`.
 
-Recommendation: keep the opt-in-hook design (the system opts in; odelia stays
-agnostic; an absent hook compiles away), but express new hooks with **C++20 concepts +
-`if constexpr`** rather than more `enable_if` SFINAE. The project is already
-`CXX_STD = CXX20`, and a `requires`-based `Replayable` concept (ODELIA-6, settled name)
-reads far better than `std::enable_if<has_cache<System>::value>` for a developer
-meeting the code for the first time (optionally retrofitting the existing traits for
-consistency; the `cache_*`/`load_*` hooks rename to `record_*`/`replay_*` — odelia#19 /
-plant#3).
+The hooks are a C++20 `requires` concept, not `enable_if` SFINAE: the project is
+`CXX_STD = CXX20`, and `if constexpr (Replayable<System>)` reads as intent where
+`std::enable_if<has_cache<System>::value>` did not. (The code names catch up to
+`record_*`/`replay_*` + `has_recorded_field()` under odelia#19 / plant#3.)
 
 **Replay-fixed is a component mode, expressed by scalar-templating over frozen
 nodes.** The abstraction is one idea reused three times, and it is minimal:

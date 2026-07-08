@@ -96,35 +96,34 @@ The driver calls `rebind_from<active>()`, seeds via the existing `set_params` /
 
 The persistent tape matters *within* a call (a Jacobian records once and sweeps
 per row) and across calls (an optimizer loop calling `Solver_gradient` repeatedly).
-Keep it internal: cache the tape (and optionally the active scratch system) as an
-**opaque handle owned by the double Solver**, keyed to nothing R can see. R reuses
-the tape by reusing its double Solver; it never learns the tape exists.
+It stays internal: the active replay is cached on the double Solver and R reuses it
+by reusing its double Solver, never learning the tape exists. The design (RIF-3,
+odelia#12) rests on three facts:
 
-Two clarifications from the odelia review (odelia #12, PR #17):
+- **The twin is the only cached thing.** The gradient runs on the active replay (the
+  double System lifted to active), and a `Solver` carries its own `tape`, so the twin's
+  tape *is* the reused tape — there is nothing else to cache. The twin is held on the
+  double Solver as a `mutable std::shared_ptr<void> active_replay` (opaque because a
+  double Solver cannot name the active type; the driver `static_cast`s it back), and
+  `Solver::tape` is a `std::unique_ptr`. Reusing the twin is pure speed: it never
+  changes a number.
+- **Anchored on the `Solver` object, not an R handle.** plant's SCM holds the solver as
+  a plain C++ member (`scm.h`: `Solver<patch_type> solver;`) and never wraps it in an
+  XPtr, so a `prot`-slot anchor is invisible to it. The twin lives on the `Solver`
+  object, so `stand_gradient_cpp` (RIF-5) shares the reuse for free.
+- **The recording is read per call, not frozen into the twin.** The *recording*
+  (resolved ODE step times, and any interpolator/quadrature spacing or frozen field
+  values — the replay levels of design §7) is per-run state owned by the immutable
+  double Solver and handed to the twin on every call. It is not snapshotted at first
+  build, not carried through `rebind_from`, not smuggled through `set_target`. Its
+  validity domain is the ICs + params of the double run: a replay may vary the mutant /
+  observations / functional, but changing ICs or params invalidates the recording and
+  forces a re-record — reading it per call makes that pickup automatic. See
+  [`ad-record-replay.md`](./ad-record-replay.md) §7.
 
-- **Cache the scratch, not the recording.** Only the tape + active scratch are
-  amortized across calls. The *recording* (resolved ODE step times, and any
-  interpolator/quadrature spacing or saved RK45 state — the replay levels of design
-  §7) is per-run state owned by the immutable double Solver and read by the active
-  replay *per call* — it must not be frozen into the active scratch at first build.
-  The cache's validity domain is the ICs + params of the double run: those fix the
-  schedule, so a replay may vary the mutant / observations / functional, but changing
-  ICs or params invalidates the recording and forces a re-record.
-- **Mind the anchor — settled: on the `Solver` object.** The first cut (PR #17)
-  anchors the cache on the odelia `Solver`'s external-pointer `prot` slot, reachable
-  only through the odelia `Solver` XPtr. plant's SCM holds the solver as a plain C++
-  **member** (`scm.h:133`), never wrapping it in its own XPtr, so as written plant's
-  `stand_gradient_cpp` (RIF-5) both inherits no reuse *and cannot call* the XPtr-shaped
-  driver at all. That reality forces "owned by the double `Solver`": move the amortized
-  scratch to a `Solver` member — a `mutable std::shared_ptr<void>` populated on the
-  first gradient call (mirroring the raw `tape` member already on `Solver`; no base
-  class, null for non-differentiated Systems). The recording rides the same member for
-  free (it already holds the double System + `times()`). See
-  [`ad-record-replay.md`](./ad-record-replay.md) §5.1.
-
-  Note the two senses of "cache" this settles: the RIF-3 scratch is a *speed* cache;
-  the record/replay recording is *semantic*. Keep the words distinct (odelia#19 /
-  plant#3) so a reader can tell an optimisation from a correctness mechanism.
+Two senses of "cache" stay distinct: the RIF-3 twin/tape is a *speed* cache; the
+record/replay recording is *semantic*. The words are kept apart (odelia#19 / plant#3)
+so a reader can tell an optimisation from a correctness mechanism.
 
 ### 3.4 No `wrap`/`as` for active types — by policy
 
@@ -363,9 +362,10 @@ fully differentiable — only the adaptive *structure* is frozen. The ODE step s
 (`times()`) is universal and odelia already owns it; if *your* system builds an
 interpolator/quadrature, you record its node positions through the `Replayable` hooks.
 This is switched on by *doing reverse-mode AD*, not by any user control — miss it and
-gradients are silently wrong wherever the adaptive component bites. (So the L1/L2
-recording is **not** what a `save_RK45_cache = TRUE`–style flag should gate; §5.1 needs
-revisiting on that point.)
+gradients are silently wrong wherever the adaptive component bites. The L1/L2 recording
+is therefore **not** what a `save_RK45_cache = TRUE`–style flag gates: node positions
+ride the AD call automatically, and only the value freeze (capability 2) is a per-call
+choice.
 
 **2. Value freeze — an optional variant workflow.** Separately, you may want a run that
 holds some *recomputable quantity* **constant** — its derivative zero by construction.
@@ -378,14 +378,15 @@ expresses it by calling the variant entry (a `run_mutant`-style function), **not
 
 odelia stays agnostic to both: it records "some node positions" and "some values" and
 never learns a node is a height or a value an environment. You implement the
-`Replayable` hooks; a driver sets a runtime flag to select frozen-vs-live for capability
-2. The *user* of your system does nothing for capability 1 (it rides the AD call) and
-picks the variant function for capability 2.
+`Replayable` hooks (`record_stage` / `record_step` / `replay_step` / `has_recorded_field`);
+the driver selects capability 2 by setting the `ReplayMode` (`ReplayLive` vs
+`ReplayFrozen`), which the variant entry — `run` vs `run_mutant` — chooses. The *user* of
+your system does nothing for capability 1 (it rides the AD call) and picks the variant
+function for capability 2.
 
 *Traces to ODELIA-6 (record→replay mechanism), §3.2 (rebind), §3.3 (recording read per
-call), and design §7. The hook names and the frozen-variant driver contract are being
-settled in odelia#19 and co-designed with plant's RIF-5 (mocked ahead of the plant
-port) — this story is the spec they must satisfy.*
+call), and design §7. The hook names are applied in the code under odelia#19; the
+frozen-variant driver contract is plant#4 (RIF-5).*
 
 ---
 
