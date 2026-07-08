@@ -341,6 +341,52 @@ A clear, actionable error — never a crash. This is the deliberate contrast wit
 §1.1 hazard: with active types off the R surface there is no wrong-typed handle to
 reinterpret, so the boundary can only fail loudly. *Traces to §2, §3.1.*
 
+### 6.8 Enabling AD on a system with adaptive numerics — odelia downstream developer *(the compile-time twin of 6.5)*
+
+*"My hydraulics module's rates read an adaptively-refined interpolator — a bare ODE
+like Lorenz didn't. What must I implement so reverse-mode gradients are correct, and
+what if I also want a cheap run that holds part of the system fixed?"*
+
+6.5 answered this for a **bare ODE**: implement `value_type` / `set_params` /
+`set_initial_state` / `rebind` and gradients come for free. That is the whole story
+only when the system has no adaptive sub-numerics. The moment it does, there are **two
+further, independent capabilities** — and separating them removes the confusion that
+"cache" and "environment" (plant terms that leaked into the odelia core) currently
+carry.
+
+**1. Node-position replay — required for AD, automatic, not a user flag.** Any adaptive
+construction — the ODE stepper, an interpolator, a quadrature — makes
+*parameter-dependent discrete decisions about where to place nodes*. Differentiating
+through those branches corrupts the tape. So the double (forward) pass records the node
+**positions** and the AD pass replays them **fixed**; the values at those nodes stay
+fully differentiable — only the adaptive *structure* is frozen. The ODE step schedule
+(`times()`) is universal and odelia already owns it; if *your* system builds an
+interpolator/quadrature, you record its node positions through the `Replayable` hooks.
+This is switched on by *doing reverse-mode AD*, not by any user control — miss it and
+gradients are silently wrong wherever the adaptive component bites. (So the L1/L2
+recording is **not** what a `save_RK45_cache = TRUE`–style flag should gate; §5.1 needs
+revisiting on that point.)
+
+**2. Value freeze — an optional variant workflow.** Separately, you may want a run that
+holds some *recomputable quantity* **constant** — its derivative zero by construction.
+plant's rare mutant reading a fixed resident field is one instance, but the quantity
+need not be an "environment" and need not be an interpolator: it could be a held-fixed
+sub-state or frozen state variables. You record that quantity on the double pass and
+read it frozen on a designated replay. This *is* a per-call choice — but the user
+expresses it by calling the variant entry (a `run_mutant`-style function), **not** by a
+`feedback` flag; the workflow function *is* the choice.
+
+odelia stays agnostic to both: it records "some node positions" and "some values" and
+never learns a node is a height or a value an environment. You implement the
+`Replayable` hooks; a driver sets a runtime flag to select frozen-vs-live for capability
+2. The *user* of your system does nothing for capability 1 (it rides the AD call) and
+picks the variant function for capability 2.
+
+*Traces to ODELIA-6 (record→replay mechanism), §3.2 (rebind), §3.3 (recording read per
+call), and design §7. The hook names and the frozen-variant driver contract are being
+settled in odelia#19 and co-designed with plant's RIF-5 (mocked ahead of the plant
+port) — this story is the spec they must satisfy.*
+
 ---
 
 ## 7. Work items (feed `ad-issues.md`)
