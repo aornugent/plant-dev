@@ -78,7 +78,7 @@ per-stage values); each consumer reads its slice:
 | Consumer | Reads | On the active pass | Cross term |
 |---|---|---|---|
 | **Resident / total** (live) | the recorded **positions** | recompute the field on frozen knots with active state → self-feedback flows | present |
-| **Mutant / invasion** (frozen) | the recorded **values** | read them as constants → no recompute (cheap; d/d(field)=0) | zero |
+| **Mutant / invasion** (frozen) | the recorded **values** | read as `double` background — off the tape, no recompute; only the mutant's own state is active | zero |
 
 So it is *not* "each consumer records what it needs" — it is **one pass records the
 union; each consumer reads its slice.** plant already does exactly this
@@ -100,10 +100,12 @@ should *not* grow a fat `Recording` noun that hoards knots (§4).
   `step_history` / `environment_history`; an odelia example System owns its
   interpolator's knots. odelia has no business knowing a knot is a height.
 
-The only thing genuinely missing is a **channel for the active replay System to read
-the double System's recorded nodes** — the native-harvest-by-pointer (RIF-6) expressed
-generically, so the driver wires the active scratch to the immutable double System once
-per call.
+The active replay reads those recorded doubles directly — a **plain-double handoff**,
+since positions and values are always `double`. For a resident gradient the active System
+reads its own recording; for a mutant it reads the **resident's** recording as background
+(the native-pointer harvest, RIF-6 — no R round-trip, no serialisation). No fancy channel
+and no `Recording` noun: the recording is thin System state and the numerics are rebuilt
+from it.
 
 ---
 
@@ -148,23 +150,29 @@ handle on the mode.
 ### 4.1 What odelia grows, and what it does not
 
 **Grows (small):**
-1. `Replayable` + the `if constexpr` dispatch (the concept-gated hook points), including
-   the `replaying_frozen()` mode query.
-2. The fixed-node numerics carrying an active value scalar — `Interpolator<S>` today
-   (frozen `double` knots, active `S` values, via `Spline<S>`); `QK<S>` is the plant
-   instance of the same shape.
-3. **The System→System handoff** — the active replay reads the immutable double System's
-   recording *per call* (`replay_against(resident)`), the native-pointer harvest (RIF-6),
-   not carried through `rebind` (values-only) or smuggled through `set_target`.
-4. **The capability-B mode selector** — `replay_live()` / `replay_frozen()`, set by the
-   driver (the `run_mutant`-style entry), never a `feedback` flag.
+1. `Replayable` + the `if constexpr` dispatch — the concept-gated step/stage/load hooks.
+   These stay **thin**: the System forwards the stepper's cadence signals to its own
+   recording (only the stepper knows the boundaries; only the System knows what it keeps).
+2. **Nothing new for the numeric.** `basic_interpolator<S>` **already** carries active
+   values on fixed `double` knots (odelia#32) — it *is* the AD-compatible replay
+   interpolator, and many systems already share it. The System records the adaptive knots
+   on the double pass and rebuilds it (active values) on replay; `QK<S>` is the plant
+   instance of the identical seam. **We never refine a recorded interpolator** — *refine*
+   is the double/record path, *fixed build* the active/replay path.
+3. **The capability-B mode selector** — `replay_live()` / `replay_frozen()`, set by the
+   driver (`run` vs `run_mutant`), queried via `replaying_frozen()`; never a `feedback`
+   flag. Frozen (L3) loads the recorded field as **`double` background** the active solve
+   reads — off the tape entirely; only the mutant's own state is active. It is *not* an
+   active constant with a zeroed derivative — the field is simply double data, and it
+   generalises past the interpolator to any recorded sub-state.
 
-**Does not grow:** a `Recording` struct that hoards knots, and any "environment"
-vocabulary. The schedule is `times()` (Solver-owned); the nodes/values are System state
-(System-owned); odelia never learns a node is a height or a value an environment. Because
-capability A rides the AD call and the recording travels via `replay_against`, neither is
-welded to `set_target` — the "recording travels independently of the fit objective"
-(odelia#18) is structural, not engineered.
+**Does not grow:** a `Recording` noun, a `ReplayableInterpolator` class, or any
+"environment" vocabulary. The schedule is `times()` (Solver-owned); the nodes/values are
+thin System state; the numeric (`basic_interpolator<S>`, later `QK<S>`) is **stateless**
+and rebuilt from the recording. Retiring the `basic_` name and merging plant's
+`AdaptiveInterpolator` (the refiner) into one replayable interpolator is a *separate*
+cross-package change — the type is RcppR6-bound throughout plant — tracked as its own
+issue, not smuggled into ODELIA-6.
 
 ---
 
@@ -296,18 +304,27 @@ model of §2/§4 is what guarantees that.
   `set_target`; RelaxationSystem's L1/L2/L3 + reuse tests are green vs finite
   differences.
 
-  *Caveat carried forward:* the concept currently detects the three method hooks and
-  `derivs` still reads the magic `use_cached_environment` member. Completing the
-  contract — the `replaying_frozen()` query in the concept, and the
-  `replay_against` / `replay_live` / `replay_frozen` names — is the naming + codesign
-  follow-on below, deliberately not locked before RIF-5.
+  *Corrections still owed on the PR #21 example* (tracked on the PR): it carries the
+  superseded L3 framing (the frozen field cast to an active constant with a zeroed
+  derivative) — it should be **`double` background** the active solve reads (§4.1); the
+  `use_cached_environment` member stays a driver-set flag; and the example wants a
+  concrete reskin so it reads like Lorenz. The `Replayable` concept and the interpolator
+  usage themselves are sound.
 
 **Follow-ons (separate issues, execute against this spec):**
 - **odelia#19 / plant#3** — the hook rename (`cache_*`/`load_*` → `record_*`/`replay_*`),
-  the `use_cached_environment` → mode-query split, the `record_step()` history collision,
-  and the `cache`/`load` free-function overloads.
-- **plant#4** — the RIF-5 frozen-variant driver contract (`replay_against` handoff,
-  `replay_live`/`replay_frozen`, no `feedback` flag), codesigned ahead of the plant port.
+  the `use_cached_environment` → `replaying_frozen()` mode-query split, the `record_step()`
+  history collision, and the `cache`/`load` free-function overloads.
+- **plant#4** — the RIF-5 contract. The two workflows are `run` (live) and `run_mutant`
+  (frozen); there is **no `feedback` flag** and the per-metric `stand_gradient` /
+  `offspring_gradient` C++ entries are spike remnants — one differentiated run, the metric
+  is the functional argument. The mutant reads the resident field as `double` background.
+- **Interpolator unification (new issue)** — merge plant's `AdaptiveInterpolator` (the
+  double refiner) with odelia's `basic_interpolator<S>` (the fixed evaluator) into one
+  replayable interpolator and retire the `basic_` name. Cross-package and RcppR6-bound
+  (the type is used throughout plant); **not** ODELIA-6. `basic_interpolator<S>` already
+  serves the L2 replay today (odelia#32), so this is a naming/packaging cleanup, not a
+  functional gap.
 - **RIF-3 (odelia#12 / PR odelia#17)** — amortized scratch moves to a `Solver` member
   (`shared_ptr<void>`), recording read per call; correct for `Replayable == true`;
   anti-staleness test. `cached_active_replay` clarified.
