@@ -96,12 +96,13 @@ The work separates cleanly. The rest of the document is organised by these layer
 
 ### 4.2 Additions (all generic)
 
-**(a) The functional *shape*.** Today `compute_gradient` hard-codes
-`sum_of_squares` over observations. Generalize so the driver differentiates a
+**(a) The functional *shape*.** `compute_gradient` differentiates a
 caller-supplied functional of the solved system — odelia defines *"a functional
-maps a solved System to output scalar(s)"* and nothing more. `sum_of_squares` /
-`advance_target` become one prebuilt instance; plant supplies its own (§6). odelia
-never learns what the scalars mean.
+maps a solved System to output scalar(s)"* and nothing more. The calibration loss
+is one prebuilt instance, `least_squares`: it owns its measured observations and
+the sampling schedule and drives the solver's generic `advance_observations`
+primitive; the Solver itself stores no fit state. plant supplies its own emergent
+functional (§6). odelia never learns what the scalars mean.
 
 ```cpp
 // odelia: the shape. F is any callable  std::vector<S>  f(const System& solved).

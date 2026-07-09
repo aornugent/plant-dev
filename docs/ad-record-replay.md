@@ -280,9 +280,10 @@ anchor on the R XPtr's `prot` slot is invisible to it. Anchoring the twin on the
 **The recording is read per call, never frozen into the twin.** The schedule and node
 stash live on the immutable double solver/System and are handed to the twin on every
 call — not snapshotted at first build, not carried through `rebind_from` (values-only,
-RIF-2), not smuggled through `set_target`. Each consumer hands over its own slice: the
-calibration entry hands its observations (`set_target`), a record→replay System hands
-its recording (`set_recording`). Reusing the twin is therefore pure speed; the number a
+RIF-2), not smuggled onto the solver as fit state. Each consumer hands over its own
+slice: the calibration entry hands its observations (in the `least_squares` functional),
+a record→replay System hands its recording (`set_recording`). Reusing the twin is
+therefore pure speed; the number a
 gradient returns comes entirely from the per-call recording and seeds.
 
 **Validity domain.** The recording is keyed to the ICs + params of the double run;
@@ -301,13 +302,16 @@ the recording is what does.
 
 ---
 
-## 8. `set_target` is one functional, not the foundation
+## 8. Calibration is one functional, not the foundation
 
 The foundational blocks are **an arbitrary functional** (odelia#1/#2 — a callable that
 drives a seeded solver and returns the scalar(s)) and **replay-fixed** (this doc).
-`sum_of_squares_loss` is the first functional built on them; it reads observations at
-the recorded steps. An emergent functional reads native state at the recorded steps and
-never touches a target. Calibration is one case among many, not the primary one.
+`least_squares` is the first functional built on them; it owns its measured
+observations and sampling schedule and reads the model's predicted observations at the
+recorded steps (via the solver's generic `advance_observations`). An emergent functional
+reads native state at the recorded steps and carries no observations. Calibration is one
+case among many, not the primary one — and its data lives in the functional, not the
+solver.
 
 ---
 
@@ -362,19 +366,23 @@ is what guarantees that.
   stepper dispatches behind `if constexpr`.
 - `Interpolator<S>` (frozen knots, active values) runs on the AD path.
 - The schedule replays via `advance_fixed(recorded_steps())`, read independently of
-  `set_target`.
+  the calibration observations.
 - L3 reads the recorded field as `double` background (not an active constant).
 - RelaxationSystem drives L1/L2/L3 + reuse against finite differences.
 - RIF-3: the twin (tape included) is cached on the double `Solver` object; the
   recording is read per call; `has_recording()` / `recorded_steps()` expose the
   schedule; the anti-staleness reuse test is green.
+- **odelia#19 §3 (calibration decouple)** — the fit data no longer lives on the
+  `Solver`. The `least_squares` functional owns its observations + schedule and drives
+  the solver's generic `advance_observations`; `set_target`/`advance_target`/`targets`
+  are gone. The R6 wrapper's `set_observations` holds the data and passes it to each
+  `value_and_gradient` call.
 
 **Owed, tracked as their own issues.**
-- **odelia#19 / plant#3** — apply the settled names in the code: `cache_*`/`load_*` →
-  `record_stage`/`record_step`/`replay_step`; the frozen-mode member
+- **odelia#19 / plant#3** — apply the remaining settled names in the code:
+  `cache_*`/`load_*` → `record_stage`/`record_step`/`replay_step`; the frozen-mode member
   `use_cached_environment` → the `has_recorded_field()` query + `ReplayMode`;
-  `Independents` → `DifferentiationTargets`; `set_target` → `set_observations`;
-  `AnalyticEdge` → `SuppliedDerivative`.
+  `Independents` → `DifferentiationTargets`; `AnalyticEdge` → `SuppliedDerivative`.
 - **plant#4** — the RIF-5 driver contract: one differentiated `run` (live) and one
   `run_mutant` (frozen); no `feedback` flag; the metric is the functional argument; the
   mutant reads the resident field as `double` background (RIF-6 native harvest).
@@ -382,6 +390,3 @@ is what guarantees that.
   odelia's `basic_interpolator<S>` (the fixed evaluator) into one replayable
   interpolator and retire the `basic_` name. Cross-package, RcppR6-bound; a
   naming/packaging cleanup, not a functional gap.
-- **Calibration decouple** — move `set_observations` / the fit-times / targets cluster
-  off the generic `Solver` onto a calibration functional that samples the trajectory at
-  observation times.
