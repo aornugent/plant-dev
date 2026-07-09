@@ -53,6 +53,41 @@ terse, template-heavy, and comments the *why*, not the *what*.
 - **Comments assume an expert reader.** Explain the tricky floating-point choice, the
   replay/freeze rationale, the issue or source reference (`#472`, GSL, a SO link) —
   never restate what the code plainly says. Clear names and structure carry the rest.
+- **Comment the invariant, not the design's biography.** A comment states what must be
+  true here and why — in one or two lines. It is not a changelog, a defence against a
+  rejected alternative, or a pointer into the design docs. Process references (`RIF-3`,
+  `odelia#19`, "was renamed from…") and internal doc section numbers **drift** the moment
+  the code moves; a stable external anchor (`#472`, a GSL routine, a paper) does not.
+  Rationale that spans more than a couple of lines belongs in the PR description or
+  `docs/`, not the source.
+
+  ```cpp
+  // BAD — narrates the design's history and rejects an alternative the reader can't see:
+  // "Replayable" names the recording contract -- distinct from the RIF-3 "cache", which
+  // is the amortized tape/scratch (a speed optimisation), not this recording (a semantic
+  // one). Completing the concept with the query is deliberate: derivs reads it, so
+  // requiring it here rejects a half-implemented System at the concept boundary rather
+  // than failing deep inside derivs.
+  template <class S> concept Replayable = requires(S s, int stage) { ... };
+
+  // GOOD — states what the concept is and what the query is for:
+  // A System that records its adaptive node positions on the double pass and replays
+  // them fixed on the active pass. has_recorded_field() routes frozen-field replay.
+  template <class S> concept Replayable = requires(S s, int stage) { ... };
+  ```
+
+  ```cpp
+  // BAD — a paragraph of provenance and a section cross-ref that will drift:
+  // `least_squares` is the one prebuilt calibration instance. Unlike an emergent
+  // functional it carries per-run data ... so calibration is just another functional,
+  // not a special mode wired into the solver (ad-record-replay.md sec 8).
+  struct least_squares { ... };
+
+  // GOOD:
+  // A calibration functional: holds measured data, scores the replayed trajectory
+  // against it. The solver stores no fit state.
+  struct least_squares { ... };
+  ```
 - **No boilerplate.** Reach for `util::stop` / `util::check_length` / `util::identical`
   over raw throws; keep functions small and single-purpose; select behaviour at compile
   time so an absent hook is a zero-cost no-op. For *new* opt-in hooks prefer C++20
