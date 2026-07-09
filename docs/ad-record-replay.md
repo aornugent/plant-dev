@@ -142,7 +142,7 @@ differentiable or replayable.
 template <class S>
 concept Replayable = requires(S s, int stage) {
   s.record_stage(stage);                                   // accumulate (per RK stage)
-  s.record_step();                                         // commit    (per accepted step)
+  s.record_ode_step();                                     // commit    (per accepted step)
   s.replay_step();                                         // load      (per step, active pass)
   { s.has_recorded_field() } -> std::convertible_to<bool>; // the mode query
 };
@@ -153,32 +153,39 @@ The three signals are two nested loops of the adaptive stepper, not two recordin
 | Signal | Fires | Job |
 |---|---|---|
 | `record_stage(k)` | per RK stage, record pass | accumulate the union (positions@0, value@k) into scratch |
-| `record_step()` | per **accepted** step, record pass | commit the scratch → recording |
+| `record_ode_step()` | per **accepted** step, record pass | commit the scratch → recording |
 | `replay_step()` | per step, active pass, before the stages | load this step's positions / advance the recording index |
 
-`record_stage` and `record_step` are two because adaptive step **rejection** forces
-commit-on-accept: a rejected step re-runs its stages, harmlessly clobbering the
+`record_stage` and `record_ode_step` are two because adaptive step **rejection**
+forces commit-on-accept: a rejected step re-runs its stages, harmlessly clobbering the
 scratch; only an accepted step commits. Folding the commit into the per-stage hook
 would record rejected steps. `replay_step` is separate because positions must load
 *before* a step's stages run. This is the minimal seam — three signals, one query.
 
-### 5.1 `ReplayMode`: illegal states unrepresentable
+The per-step commit is `record_ode_step`, not `record_step`, because a System already
+uses `record_step()` for something unrelated — serializing one collected state to a
+history row (`get_history_step`). Keeping the `_ode_` infix avoids overloading that
+name across a recording hook and a history serializer (odelia#19; the history
+serializer itself is revisited in odelia#23).
 
-A Replayable System is in exactly one of four states, held as one enum rather than
-three booleans (which admit nonsense combinations like recording-and-replaying):
+### 5.1 The runtime state is two bits, not an enum
 
-```cpp
-enum class ReplayMode { Idle, Recording, ReplayLive, ReplayFrozen };
-```
+A Replayable System needs to know only two things at runtime: **is it recording?**, and
+when replaying, **is the field frozen?** (mutant) or recomputed live (resident). Those
+are the only distinctions the hooks and the query branch on:
 
-- `record_stage` / `record_step` act only in `Recording`.
-- `replay_step` acts in `ReplayLive` and `ReplayFrozen`.
-- `has_recorded_field()` is `mode == ReplayFrozen`.
+- `record_stage` / `record_ode_step` act only while **recording**.
+- `has_recorded_field()` is the **frozen-field** flag, read by `derivs` to route
+  mutant replay.
+- `replay_step` acts whenever replaying — which is *derived*, not stored: a System is
+  replaying exactly when it is **not** recording and **has** a recording to read.
 
-The driver sets the mode: `Recording` on the double pass, `ReplayLive` for `run`,
-`ReplayFrozen` for `run_mutant`. The enum values *are* the runs of §6, and the "one
-bit" `run`/`run_mutant` flips is a named state. The mode is System-internal
-bookkeeping; the core sees only the four concept members.
+So RelaxationSystem holds two flags (`recording`, `frozen_field_`) and computes
+`replaying()` from them. An earlier sketch proposed a four-state `ReplayMode` enum to
+make illegal combinations (recording-and-replaying) unrepresentable, but once the RIF-3
+disambiguation collapsed the overlap the live state is just these two bits — the enum
+formalises a space that no longer exists. The core sees only the four concept members;
+how a System backs them is its own business.
 
 ---
 
@@ -198,7 +205,7 @@ d.advance_adaptive({0, T})                                   [mode = Recording]
         per stage k:  derivs(sys, y, k, t):  set_ode_state(y, t)   ← field on ADAPTIVE positions
                       record_stage(k)                              → accumulate: positions@0, value@k
       accept? ─no─→ shrink h, undo y/t, retry   (scratch clobbered)
-             └yes─→ record_step()                                  → COMMIT scratch → recording[step]
+             └yes─→ record_ode_step()                              → COMMIT scratch → recording[step]
   ⇒ recording = schedule times() (L1) + positions/step (L2) + values/step×stage (L3)
      owned by d, immutable hereafter
 ```
@@ -280,9 +287,10 @@ anchor on the R XPtr's `prot` slot is invisible to it. Anchoring the twin on the
 **The recording is read per call, never frozen into the twin.** The schedule and node
 stash live on the immutable double solver/System and are handed to the twin on every
 call — not snapshotted at first build, not carried through `rebind_from` (values-only,
-RIF-2), not smuggled through `set_target`. Each consumer hands over its own slice: the
-calibration entry hands its observations (`set_target`), a record→replay System hands
-its recording (`set_recording`). Reusing the twin is therefore pure speed; the number a
+RIF-2), not smuggled onto the solver as fit state. Each consumer hands over its own
+slice: the calibration entry hands its observations (in the `least_squares` functional),
+a record→replay System hands its recording (`set_recording`). Reusing the twin is
+therefore pure speed; the number a
 gradient returns comes entirely from the per-call recording and seeds.
 
 **Validity domain.** The recording is keyed to the ICs + params of the double run;
@@ -301,13 +309,16 @@ the recording is what does.
 
 ---
 
-## 8. `set_target` is one functional, not the foundation
+## 8. Calibration is one functional, not the foundation
 
 The foundational blocks are **an arbitrary functional** (odelia#1/#2 — a callable that
 drives a seeded solver and returns the scalar(s)) and **replay-fixed** (this doc).
-`sum_of_squares_loss` is the first functional built on them; it reads observations at
-the recorded steps. An emergent functional reads native state at the recorded steps and
-never touches a target. Calibration is one case among many, not the primary one.
+`least_squares` is the first functional built on them; it owns its measured
+observations and sampling schedule and reads the model's predicted observations at the
+recorded steps (via the solver's generic `advance_observations`). An emergent functional
+reads native state at the recorded steps and carries no observations. Calibration is one
+case among many, not the primary one — and its data lives in the functional, not the
+solver.
 
 ---
 
@@ -316,8 +327,9 @@ never touches a target. Calibration is one case among many, not the primary one.
 Neither Lorenz nor leaf_thermal implements the hooks, so `Replayable` is exercised by
 **RelaxationSystem**: the odelia-native shrink of FF16's resident light — a scalar
 state whose rate reads a field built by an adaptive interpolator over state-dependent
-node positions. It carries one differentiable input (`gain`) and one `ReplayMode`, and
-exercises all three depths against finite differences:
+node positions. It carries one differentiable input (`gain`) and its two replay flags
+(`recording`, `frozen_field_`), and exercises all three depths against finite
+differences:
 
 - **L1 — schedule freeze.** Record `times()` on the double solver; replay
   `advance_fixed` on the twin. Value reproduces to floating point; gradient matches
@@ -362,19 +374,31 @@ is what guarantees that.
   stepper dispatches behind `if constexpr`.
 - `Interpolator<S>` (frozen knots, active values) runs on the AD path.
 - The schedule replays via `advance_fixed(recorded_steps())`, read independently of
-  `set_target`.
+  the calibration observations.
 - L3 reads the recorded field as `double` background (not an active constant).
 - RelaxationSystem drives L1/L2/L3 + reuse against finite differences.
 - RIF-3: the twin (tape included) is cached on the double `Solver` object; the
   recording is read per call; `has_recording()` / `recorded_steps()` expose the
   schedule; the anti-staleness reuse test is green.
+- **odelia#19 §3 (calibration decouple)** — the fit data no longer lives on the
+  `Solver`. The `least_squares` functional owns its observations + schedule and drives
+  the solver's generic `advance_observations`; `set_target`/`advance_target`/`targets`
+  are gone. The R6 wrapper's `set_observations` holds the data and passes it to each
+  `value_and_gradient` call.
+- **odelia#19 (vocabulary)** — the settled names are in the code:
+  `cache_RK45_step`/`cache_ode_step`/`load_ode_step` →
+  `record_stage`/`record_ode_step`/`replay_step` (the `_ode_` infix avoids the
+  history-serializer `record_step()`, odelia#23); the frozen-mode member
+  `use_cached_environment` → a `has_recorded_field()` query now **required by the
+  `Replayable` concept**; `Independents` → `DifferentiationTargets`; `AnalyticEdge` →
+  `SuppliedDerivative`. No `ReplayMode` enum — the live state collapsed to two flags
+  (`recording`, `frozen_field_`) with `replaying` derived.
 
 **Owed, tracked as their own issues.**
-- **odelia#19 / plant#3** — apply the settled names in the code: `cache_*`/`load_*` →
-  `record_stage`/`record_step`/`replay_step`; the frozen-mode member
-  `use_cached_environment` → the `has_recorded_field()` query + `ReplayMode`;
-  `Independents` → `DifferentiationTargets`; `set_target` → `set_observations`;
-  `AnalyticEdge` → `SuppliedDerivative`.
+- **plant#3** — apply the same hook/type renames in plant's `Patch` (the cross-package
+  half; a header rename ripples to everything `LinkingTo` odelia).
+- **odelia#23** — history collection stores full `System` snapshots; store rows and
+  revisit the `record_step()` serializer.
 - **plant#4** — the RIF-5 driver contract: one differentiated `run` (live) and one
   `run_mutant` (frozen); no `feedback` flag; the metric is the functional argument; the
   mutant reads the resident field as `double` background (RIF-6 native harvest).
@@ -382,6 +406,3 @@ is what guarantees that.
   odelia's `basic_interpolator<S>` (the fixed evaluator) into one replayable
   interpolator and retire the `basic_` name. Cross-package, RcppR6-bound; a
   naming/packaging cleanup, not a functional gap.
-- **Calibration decouple** — move `set_observations` / the fit-times / targets cluster
-  off the generic `Solver` onto a calibration functional that samples the trajectory at
-  observation times.

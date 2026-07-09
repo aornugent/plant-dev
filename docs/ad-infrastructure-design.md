@@ -96,18 +96,19 @@ The work separates cleanly. The rest of the document is organised by these layer
 
 ### 4.2 Additions (all generic)
 
-**(a) The functional *shape*.** Today `compute_gradient` hard-codes
-`sum_of_squares` over observations. Generalize so the driver differentiates a
+**(a) The functional *shape*.** `compute_gradient` differentiates a
 caller-supplied functional of the solved system — odelia defines *"a functional
-maps a solved System to output scalar(s)"* and nothing more. `sum_of_squares` /
-`advance_target` become one prebuilt instance; plant supplies its own (§6). odelia
-never learns what the scalars mean.
+maps a solved System to output scalar(s)"* and nothing more. The calibration loss
+is one prebuilt instance, `least_squares`: it owns its measured observations and
+the sampling schedule and drives the solver's generic `advance_observations`
+primitive; the Solver itself stores no fit state. plant supplies its own emergent
+functional (§6). odelia never learns what the scalars mean.
 
 ```cpp
 // odelia: the shape. F is any callable  std::vector<S>  f(const System& solved).
 template <class System, class F>
 std::pair<double, std::vector<double>>
-compute_gradient(Solver<System>&, const Independents&, F&& functional);
+compute_gradient(Solver<System>&, const DifferentiationTargets&, F&& functional);
 ```
 
 **(b) `compute_jacobian` (reverse, generic).** Record once, one adjoint sweep per
@@ -116,7 +117,7 @@ System; no plant knowledge.
 
 ```cpp
 template <class System, class F>          // F -> std::vector<S> (the m outputs)
-Matrix compute_jacobian(Solver<System>&, const Independents&, F&& functional);
+Matrix compute_jacobian(Solver<System>&, const DifferentiationTargets&, F&& functional);
 // seed(independents); newRecording(); y = functional(solved);
 // registerOutputs(y);
 // for i in rows: derivative(y[i]) = 1; computeAdjoints();
@@ -131,14 +132,14 @@ the outputs; and the **column order is a contract** — output column `j` is
 them*, so a caller resolving trait names → fields must pack and scatter in the same
 order or the columns transpose silently.
 
-**(c) `Independents` — the "gradients w.r.t. what?" shape.** *(Renamed from the
-earlier `Seeds`: in AD "seed" is a verb, and in plant a "seed" is an offspring — a
-name clash. `Independents` is the standard AD term and is unambiguous.)* It is a
-generic description of which registered inputs are active; it contains no plant
-vocabulary.
+**(c) `DifferentiationTargets` — the "gradients w.r.t. what?" shape.** *(Named
+`Seeds`, then `Independents`, and renamed again under odelia#19 — "independents" is AD
+jargon for the same idea that "differentiation targets" states plainly: the inputs a
+gradient is taken with respect to.)* It is a generic description of which registered
+inputs are active; it contains no plant vocabulary.
 
 ```cpp
-struct Independents {
+struct DifferentiationTargets {
   std::vector<double> values;   // the leaves to seed active; the System routes them
 };
 ```
@@ -151,21 +152,26 @@ trait-seeds *and* initial-condition-seeds are the same kind of thing (a register
 leaf), and IC sensitivity is a genuine target (plant's `make_initial_state` /
 `export_patch_state` make an initial size distribution a first-class input). The
 System owns the routing of leaves → its own fields; odelia never learns what a leaf
-means. Analytic edges (§d) are **not** a member here — see below.
+means. Supplied derivatives (§d) are **not** a member here — see below.
 
-**(d) `AnalyticEdge` — accommodating IFT / forward-mode results.** For a value the
-forward pass computes off-tape (a root-find or optimizer result), inject its known
-partials into the reverse tape via `CheckpointCallback::computeAdjoint`. This is
-odelia's compatibility seam for plant's leaf-optimizer forward-mode sensitivity and
-the TF24 stomatal IFT — generic (odelia sees inputs, an output, and partials), and
-it replaces the spike's hand-rolled `inject_h0`.
+**(d) `SuppliedDerivative` — accommodating IFT / forward-mode results.** *(Named
+`SuppliedDerivative` earlier and framed as a kept term of art; renamed under odelia#19 —
+"edge" names its implementation, a graph edge, the same jargon problem as
+`DifferentiationTargets`. `SuppliedDerivative` says what it is: a derivative supplied for a
+value the tape didn't record.)* For a value the forward pass computes off-tape (a
+root-find or optimizer result), inject its known partials into the reverse tape via
+`CheckpointCallback::computeAdjoint`. This is odelia's compatibility seam for plant's
+leaf-optimizer forward-mode sensitivity and the TF24 stomatal IFT — generic (odelia
+sees inputs, an output, and partials), and it replaces the spike's hand-rolled
+`inject_h0`.
 
 Realised (odelia #8) as a **free function called from within the forward pass** —
-`analytic_edge(tape, y_value, inputs, partials)` — **not** the `Independents.edges`
-member sketched in (c). An edge can only be constructed mid-computation, where the
-off-tape value actually exists, so it cannot be a pre-declared independent. The
-implementation is the standard XAD checkpoint idiom (`insertCallback` to place the
-edge + `pushCallback` to hand the tape ownership). PROTO-3 pins the final API shape.
+`supplied_derivative(tape, y_value, inputs, partials)` — **not** a
+`DifferentiationTargets.edges` member sketched in (c). It can only be constructed
+mid-computation, where the off-tape value actually exists, so it cannot be a
+pre-declared target. The implementation is the standard XAD checkpoint idiom
+(`insertCallback` to place it + `pushCallback` to hand the tape ownership). PROTO-3
+pins the final API shape.
 
 ---
 
@@ -204,7 +210,7 @@ physiology (`area_leaf<S>`, `update_dependent_aux<S>`). Two minimal changes:
   parameter store so a named trait can be registered active directly (feeding
   §5.1's `set_params`). This removes the dual representation.
 - **Leaf-optimizer edge.** TF24/TF24f keep their forward-mode leaf solve; expose
-  its sensitivity as an `AnalyticEdge` (§4.2d) rather than the spike's active-`h0`
+  its sensitivity as an `SuppliedDerivative` (§4.2d) rather than the spike's active-`h0`
   injection.
 
 The existing FF16 (no optimizer) needs only the parameter-store change.
@@ -536,7 +542,7 @@ it, so a trait shift moves the optimum → growth → census density. The spike'
 zeroes this cross-term through the density.
 
 **Why the full-scalar design plausibly closes it:** with the whole `run_mutant`
-replay on one tape and the leaf IFT delivered as an `AnalyticEdge` (§4.2d) rather
+replay on one tape and the leaf IFT delivered as an `SuppliedDerivative` (§4.2d) rather
 than a frozen-path injection, the reverse sweep traverses density→optimum→trait
 natively. **This is the single highest-risk claim; the §-prototype in `ad-issues.md`
 (PROTO-2) must confirm it** before TF24 census is guaranteed for v1 (decision 7).
@@ -561,7 +567,7 @@ Snapshot the spike's validated Jacobians to a regression fixture and assert
 bit-identity (relocations) or a documented noise floor (FP-reorder paths) at every
 step, plus the existing AD-vs-FD physics tests. Build order and dependencies are in
 [`ad-issues.md`](./ad-issues.md); in brief: odelia foundation (functional shape,
-`compute_jacobian`, `Independents`/`AnalyticEdge`) → scalar-cost spike → FF16
+`compute_jacobian`, `DifferentiationTargets`/`SuppliedDerivative`) → scalar-cost spike → FF16
 invasion via differentiated `run_mutant` → FF16 resident + spline → TF24/TF24f (+
 cross-sensitivity prototype) → delete the engines, R harvest, and local tapes.
 
@@ -571,7 +577,7 @@ cross-sensitivity prototype) → delete the engines, R harvest, and local tapes.
 
 - **TF24 census cross-sensitivity (§8)** — highest risk; gated on PROTO-2.
 - **Scalar cost (§9)** — default unproven; gated on PROTO-1.
-- **`AnalyticEdge`/`CheckpointCallback` ergonomics (§4.2d, §5.2)** — mechanism
+- **`SuppliedDerivative`/`CheckpointCallback` ergonomics (§4.2d, §5.2)** — mechanism
   exists but is unused in plant; needs PROTO-3 to fix its API.
 - **Metric set (§6.3)** — enumerate the required metrics + kernels so the interface
   covers them in one shape.
