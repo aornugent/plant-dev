@@ -25,7 +25,7 @@ IFT delivered as an on-tape `AnalyticEdge`; check against finite differences.
 captures the density→optimum cross-term. **Highest risk in the whole design** — run
 early; a refutation rescopes TF24 census out of v1.
 
-### PROTO-3 — `AnalyticEdge` / `CheckpointCallback` ergonomics · repo: odelia → plant · feeds ODELIA-3
+### PROTO-3 — `SuppliedDerivative` / `CheckpointCallback` ergonomics · repo: odelia → plant · feeds ODELIA-3
 Minimal `CheckpointCallback` that injects a known d(out)/d(in) into a reverse tape;
 reproduce one leaf-optimizer sensitivity from the spike bit-for-bit. **Output:** the
 `AnalyticEdge` API shape. Prerequisite for the clean version of PROTO-2.
@@ -33,6 +33,15 @@ reproduce one leaf-optimizer sensitivity from the spike bit-for-bit. **Output:**
 ---
 
 ## odelia layer (generic, plant-agnostic)
+
+> **Status: this whole layer is implemented** (ODELIA-1..6, RIF-1..3, PROTO-3), on a
+> stack of PRs on the odelia fork. The items below are kept for the dependency map and
+> build order; the settled names are `DifferentiationTargets` (was `Independents`),
+> `SuppliedDerivative` (was `AnalyticEdge`), `record_stage`/`record_ode_step`/`replay_step`
+> + `has_recorded_field()` (was `cache_*`/`has_cache`), and the `Replayable` concept.
+> Follow-ups live in the odelia tracker: **#22** (interpolator unification), **#23**
+> (history rows), **#27** (functional = pure reduction; driver owns the replay), **#28**
+> (pare the demonstrator, retire `live|frozen`), **#25/#26** (comments, tests).
 
 ### ODELIA-1 — Generalize `compute_gradient` to an arbitrary functional · CP
 Replace the hard-coded `sum_of_squares` with a caller-supplied functional
@@ -44,7 +53,7 @@ Record once, one adjoint sweep per output row (adjoint `XAD::computeJacobian`
 pattern), reusing the Solver-owned tape. **Depends on:** ODELIA-1. **Blocks:**
 PLANT-4, UX-1.
 
-### ODELIA-3 — `Independents` + `AnalyticEdge` · CP
+### ODELIA-3 — `DifferentiationTargets` + `SuppliedDerivative` · CP
 The "differentiate w.r.t. what" bundle (renamed from `Seeds`) and the analytic-edge
 injection built on `CheckpointCallback`. **Depends on:** PROTO-3. **Blocks:**
 PLANT-2 (traits), PLANT-6 (leaf edge).

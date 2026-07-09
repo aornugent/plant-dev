@@ -36,15 +36,15 @@ An AD run holds exactly three nouns and one verb; the whole design fits in them.
 
 - **the double solver** (`d`) — the real adaptive run. R holds it. It is immutable
   after its pass, and it **owns the recording**.
-- **the active replay** — the double System lifted to the active scalar (the RIF-2
-  rebind): the differentiable twin the gradient runs on. It holds **no** semantics
+- **the active solver** — the double System lifted to the active scalar (the RIF-2
+  rebind): the differentiable solver the gradient runs on. It holds **no** semantics
   between calls — it is re-seeded and re-fed the recording every call.
 - **the recording** — the schedule plus the node stash the double pass produced,
   read *per call*.
-- **replay** (the verb) — the twin re-running the double's recorded schedule with the
-  active scalar.
+- **replay** (the verb) — the active solver re-running the double's recorded schedule
+  with the active scalar.
 
-Reuse of the twin and its tape (RIF-3, §7) is a *property* of the active replay, not a
+Reuse of the active solver and its tape (RIF-3, §7) is a *property* of it, not a
 concept of its own: it is kept on the double solver and reused so an optimiser loop
 does not rebuild it. It never changes a number.
 
@@ -212,17 +212,17 @@ d.advance_adaptive({0, T})                                   [mode = Recording]
 
 ### 6.2 `run` (active) — resident / live gradient
 
-The twin carries the resident system, reads its **own** recording, and recomputes the
-field so self-feedback flows.
+The active solver carries the resident system, reads its **own** recording, and
+recomputes the field so self-feedback flows.
 
 ```
-twin = active_replay(d)                                      [mode = ReplayLive]
+active = active_solver(d)                                    [mode = ReplayLive]
   schedule  → advance_fixed grid          (L1, Solver→Solver)
-  recording → twin.system  (positions read, values ignored)  (L2, System→System)
+  recording → active.system  (positions read, values ignored) (L2, System→System)
   tape on; computeJacobian(trait/IC seeds, forward):
     forward(x):
-      twin.system.scatter(x, slots); twin.reset()
-      twin.advance_fixed(times):           ← replay schedule, NO adaptivity
+      active.system.scatter(x, slots); active.reset()
+      active.advance_fixed(times):         ← replay schedule, NO adaptivity
         per step step_to:
           replay_step()                    → load THIS step's frozen positions
           stepper.step(): per stage derivs(...,k):
@@ -235,17 +235,17 @@ twin = active_replay(d)                                      [mode = ReplayLive]
 
 ### 6.3 `run_mutant` (active) — mutant gradient only
 
-The twin carries the mutant system, reads the **resident's** recording as fixed
+The active solver carries the mutant system, reads the **resident's** recording as fixed
 background, and the field is read back off-tape (its derivative zero).
 
 ```
-twin = active_replay(d_resident)  (mutant system)            [mode = ReplayFrozen]
+active = active_solver(d_resident)  (mutant system)          [mode = ReplayFrozen]
   schedule           → advance_fixed grid   (L1)
-  RESIDENT recording → twin.system  (values read, positions ignored)  (L3, System→System)
+  RESIDENT recording → active.system  (values read, positions ignored)  (L3, System→System)
   tape on; computeJacobian(MUTANT seeds, forward):
     forward(x):
-      twin.system.scatter(x, slots); twin.reset()   ← background ← recorded value[0]
-      twin.advance_fixed(times):
+      active.system.scatter(x, slots); active.reset()  ← background ← recorded value[0]
+      active.advance_fixed(times):
         per step step_to:
           replay_step()                    → advance index (positions unused)
           stepper.step(): per stage derivs(...,k):
@@ -265,33 +265,34 @@ entirely.
 
 ---
 
-## 7. RIF-3: reuse the twin, read the recording per call
+## 7. RIF-3: reuse the active solver, read the recording per call
 
-A gradient call builds an active replay, records a tape, sweeps it, and reads adjoints.
+A gradient call builds an active solver, records a tape, sweeps it, and reads adjoints.
 An optimiser loop (or a batch of mutants against one recording) calls this repeatedly.
-Rebuilding the twin and reallocating the tape every call is waste; the reuse stays
-invisible to R.
+Rebuilding the active solver and reallocating the tape every call is waste; the reuse
+stays invisible to R.
 
-**The twin is the only cached thing.** The gradient runs on the twin, and a `Solver`
-carries its own `tape`, so `twin.tape` *is* the reused tape — there is nothing else to
-cache. The twin is held on the double solver as a `mutable std::shared_ptr<void>
-active_replay`, built once and reused; it is opaque because a double `Solver` cannot
-name the active type, so the driver `static_cast`s it back. `Solver::tape` is a
-`std::unique_ptr` — ownership is self-evident, no hand-written destructor.
+**The active solver is the only cached thing.** The gradient runs on it, and a `Solver`
+carries its own `tape`, so its `tape` *is* the reused tape — there is nothing else to
+cache. It is held on the double solver as a `mutable std::shared_ptr<Solver<active_system_type>>
+active_solver`, built once and reused. The type is named, not erased: the System supplies
+`rebind` (RIF-2), so `System::rebind<active>` spells the active solver's type from inside
+`Solver<System>` — no `void*`, no `static_cast`. `Solver::tape` is a `std::unique_ptr` —
+ownership is self-evident, no hand-written destructor.
 
 **Anchored on the Solver object, not an R handle.** plant holds the solver as a plain
 C++ member (`scm.h`: `Solver<patch_type> solver;`) and never wraps it in an XPtr, so an
-anchor on the R XPtr's `prot` slot is invisible to it. Anchoring the twin on the
+anchor on the R XPtr's `prot` slot is invisible to it. Anchoring the active solver on the
 `Solver` object gives the SCM the reuse for free.
 
-**The recording is read per call, never frozen into the twin.** The schedule and node
-stash live on the immutable double solver/System and are handed to the twin on every
+**The recording is read per call, never frozen into the active solver.** The schedule and
+node stash live on the immutable double solver/System and are handed over on every
 call — not snapshotted at first build, not carried through `rebind_from` (values-only,
 RIF-2), not smuggled onto the solver as fit state. Each consumer hands over its own
 slice: the calibration entry hands its observations (in the `least_squares` functional),
-a record→replay System hands its recording (`set_recording`). Reusing the twin is
-therefore pure speed; the number a
-gradient returns comes entirely from the per-call recording and seeds.
+a record→replay System hands its recording (`set_recording`). Reusing the active solver
+is therefore pure speed; the number a gradient returns comes entirely from the per-call
+recording and seeds.
 
 **Validity domain.** The recording is keyed to the ICs + params of the double run;
 those fix the schedule and the positions. A cached run may be replayed with a different
@@ -303,7 +304,7 @@ that pickup automatic rather than a stale reuse.
 `recorded_steps()` (that schedule) are the honest guard behind the "forgot to record"
 error (`ad-r-interface.md` §6.7).
 
-Two senses of "cache" stay distinct: **cache = the amortized twin/tape (speed);
+Two senses of "cache" stay distinct: **cache = the amortized active solver + tape (speed);
 record/replay = the recording (semantics).** Reusing the cache never changes a number;
 the recording is what does.
 
@@ -311,14 +312,15 @@ the recording is what does.
 
 ## 8. Calibration is one functional, not the foundation
 
-The foundational blocks are **an arbitrary functional** (odelia#1/#2 — a callable that
-drives a seeded solver and returns the scalar(s)) and **replay-fixed** (this doc).
-`least_squares` is the first functional built on them; it owns its measured
-observations and sampling schedule and reads the model's predicted observations at the
-recorded steps (via the solver's generic `advance_observations`). An emergent functional
-reads native state at the recorded steps and carries no observations. Calibration is one
-case among many, not the primary one — and its data lives in the functional, not the
-solver.
+The foundational blocks are **an arbitrary functional** (odelia#1/#2 — a **pure
+reduction**: reads a replayed System, returns the scalar(s); it does not drive the solver)
+and **replay-fixed** (this doc — the driver replays the recorded schedule). `least_squares`
+is the first functional built on them; it owns only its measured **observations** and which
+recorded steps they attach to, and reads the model's state at those steps. The schedule is
+the recording's, not the functional's. An emergent functional reads native state at the
+recorded steps and carries no observations. Calibration is one case among many, not the
+primary one — its data lives in the functional, not the solver. *(Moving the replay off
+every functional and deleting the Solver's `advance_observations` is odelia#27.)*
 
 ---
 
@@ -377,14 +379,16 @@ is what guarantees that.
   the calibration observations.
 - L3 reads the recorded field as `double` background (not an active constant).
 - RelaxationSystem drives L1/L2/L3 + reuse against finite differences.
-- RIF-3: the twin (tape included) is cached on the double `Solver` object; the
+- RIF-3: the `active_solver` (tape included) is cached on the double `Solver` object,
+  its type **named via `System::rebind<active>`** (no `void*`, no `static_cast`); the
   recording is read per call; `has_recording()` / `recorded_steps()` expose the
   schedule; the anti-staleness reuse test is green.
 - **odelia#19 §3 (calibration decouple)** — the fit data no longer lives on the
-  `Solver`. The `least_squares` functional owns its observations + schedule and drives
-  the solver's generic `advance_observations`; `set_target`/`advance_target`/`targets`
-  are gone. The R6 wrapper's `set_observations` holds the data and passes it to each
-  `value_and_gradient` call.
+  `Solver`. The `least_squares` functional owns its observations; `set_target`/
+  `advance_target`/`targets` are gone. The R6 wrapper's `set_observations` holds the data
+  and passes it to each `value_and_gradient` call. *(The remaining step — making every
+  functional a pure reduction and deleting the Solver's `advance_observations` so the
+  schedule comes only from the recording — is odelia#27.)*
 - **odelia#19 (vocabulary)** — the settled names are in the code:
   `cache_RK45_step`/`cache_ode_step`/`load_ode_step` →
   `record_stage`/`record_ode_step`/`replay_step` (the `_ode_` infix avoids the
@@ -395,14 +399,21 @@ is what guarantees that.
   (`recording`, `frozen_field_`) with `replaying` derived.
 
 **Owed, tracked as their own issues.**
+- **odelia#27** — make every functional a pure reduction and let the driver own the
+  replay on `recorded_steps()`; delete the Solver's `advance_observations` so no
+  functional carries a schedule. Calibration becomes one likelihood holding only data.
+- **odelia#28** — pare the demonstrator to L1/L2/L3 generic caches and retire the
+  `live|frozen|replaying` metaphor for the `has_recorded_field()` data query; rebuild
+  RelaxationSystem on the unified interpolator (collapses the four knot buffers).
+- **odelia#22** — merge plant's `AdaptiveInterpolator` (the refiner) with odelia's
+  `basic_interpolator<S>` (the fixed evaluator) into one replayable interpolator and
+  retire the `basic_` name. Cross-package, RcppR6-bound; a naming/packaging cleanup.
+- **odelia#23** — history collection stores full `System` snapshots; store rows and
+  revisit the `record_step()` serializer (this is what unblocks #27's interior sampling).
+- **odelia#25 / #26** — comment cleanup (retire design-biography comments) and the
+  post-landing test-suite prune.
 - **plant#3** — apply the same hook/type renames in plant's `Patch` (the cross-package
   half; a header rename ripples to everything `LinkingTo` odelia).
-- **odelia#23** — history collection stores full `System` snapshots; store rows and
-  revisit the `record_step()` serializer.
 - **plant#4** — the RIF-5 driver contract: one differentiated `run` (live) and one
   `run_mutant` (frozen); no `feedback` flag; the metric is the functional argument; the
   mutant reads the resident field as `double` background (RIF-6 native harvest).
-- **Interpolator unification** — merge plant's `AdaptiveInterpolator` (the refiner) with
-  odelia's `basic_interpolator<S>` (the fixed evaluator) into one replayable
-  interpolator and retire the `basic_` name. Cross-package, RcppR6-bound; a
-  naming/packaging cleanup, not a functional gap.

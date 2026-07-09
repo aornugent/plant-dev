@@ -1,6 +1,8 @@
 # AD infrastructure design: plant emergent gradients on odelia's AD runtime
 
-**Status:** design proposal (no code changes yet).
+**Status:** the odelia layer (§4) is implemented (ODELIA-1..6, RIF-1..3); the plant
+layer (§5) and UX (§6) are not yet started. Per-item status in
+[`ad-issues.md`](./ad-issues.md).
 **Scope:** `traitecoevo/plant` (SCM emergent-trait gradients — prototype on PR
 [#553](https://github.com/traitecoevo/plant/pull/553), tracking issue
 [#472](https://github.com/traitecoevo/plant/issues/472)) and `traitecoevo/odelia`
@@ -87,9 +89,9 @@ The work separates cleanly. The rest of the document is organised by these layer
 
 - Compiled single-definition `Tape` (`src/Tape.cpp`, `ARCHITECTURE.md`);
   scalar-templated `Solver<System>` on `System::value_type`; Solver-owned
-  persistent tape; `compute_gradient(solver, ic, params)` (`ode_fit.hpp`); the
-  System AD contract `set_params`/`set_initial_state` returning `vector<T*>`
-  (`leaf_thermal_system.hpp`); the differentiable spline (`spline.hpp`).
+  persistent tape; `compute_gradient`/`compute_jacobian(solver, DifferentiationTargets,
+  functional)` (`ode_fit.hpp`); the System AD contract `set_params`/`set_initial_state`
+  plus the `rebind` lift and `scatter` routing; the differentiable spline (`spline.hpp`).
 - Vendored XAD facilities: `computeJacobian` (adjoint + forward, `XAD/Jacobian.hpp`),
   `CheckpointCallback` for analytic-adjoint injection (`XAD/CheckpointCallback.hpp`),
   `xad::adj`/`xad::fwd` (`XAD/Interface.hpp`).
@@ -98,11 +100,15 @@ The work separates cleanly. The rest of the document is organised by these layer
 
 **(a) The functional *shape*.** `compute_gradient` differentiates a
 caller-supplied functional of the solved system — odelia defines *"a functional
-maps a solved System to output scalar(s)"* and nothing more. The calibration loss
-is one prebuilt instance, `least_squares`: it owns its measured observations and
-the sampling schedule and drives the solver's generic `advance_observations`
-primitive; the Solver itself stores no fit state. plant supplies its own emergent
-functional (§6). odelia never learns what the scalars mean.
+maps a replayed System to output scalar(s)"* and nothing more. A functional is a
+**pure reduction**: it reads state and returns a scalar; it does **not** drive the
+solver or carry a schedule — the driver owns the replay on the recorded schedule
+(`advance_fixed(recorded_steps())`), and the Solver stores no fit state. The
+calibration loss is one prebuilt instance, `least_squares`, holding only its measured
+observations and which recorded steps they attach to; plant supplies its own emergent
+functional (§6). odelia never learns what the scalars mean. *(The functional-as-reduction
+split — moving the replay off every functional and out of the Solver's `advance_observations`
+— is odelia#27; the record→replay control flow already assumes it.)*
 
 ```cpp
 // odelia: the shape. F is any callable  std::vector<S>  f(const System& solved).
@@ -367,7 +373,7 @@ kept distinct here.
 **L1 is the ODE-fit case (calibration), and it already works — but it is not the
 plant driver (§6, R-interface).** odelia's own AD test (`test-ad-workflow.R`) runs a
 Lorenz solve adaptively, captures `times()`, and replays pinned via
-`set_target`/`advance_target` — *no environment cache, just the resolved ODE
+`advance_fixed(recorded_steps())` — *no environment cache, just the resolved ODE
 schedule*. It needs L1 alone.
 
 **L2 has two variants, and #472 flags the harder one.** For the resident light
@@ -497,28 +503,23 @@ rather than a genuine caustic.)
 > `Recording` noun (the schedule is `times()`, the nodes are System state). See that doc
 > for the settled design.
 
-Two complementary mechanisms implement §7.5.
+Two complementary mechanisms implement §7.5. The **recording** side — the opt-in
+`Replayable` System hooks (`record_stage`/`record_ode_step`/`replay_step` +
+`has_recorded_field()`) behind `if constexpr`, zero-cost for systems without them — is
+the settled odelia design; see [`ad-record-replay.md`](./ad-record-replay.md) §5 rather
+than restating it here. plant records only knot positions (per step) and frozen field
+values (per stage) through these hooks — not `stand_stage_history`; its Patch adopts the
+names under plant#3.
 
-**Recording is an opt-in System hook, detected at compile time.** The generic stepper
-signals cadence to a `Replayable` System — `record_stage(k)` per RK stage, `record_step()`
-per accepted step, `replay_step()` per step on the active pass — behind
-`if constexpr (Replayable<System>)`, compiling to a **zero-cost no-op** for systems that
-don't provide the hooks (`ode_interface.hpp`, `ode_step.hpp`, `ode_solver_internal.hpp`).
-odelia never learns what is recorded. plant records only knot positions (per step) and
-frozen field values (per stage) through these hooks — not `stand_stage_history`.
-
-The hooks are a C++20 `requires` concept, not `enable_if` SFINAE: the project is
-`CXX_STD = CXX20`, and `if constexpr (Replayable<System>)` reads as intent where
-`std::enable_if<has_cache<System>::value>` did not. (The code names catch up to
-`record_*`/`replay_*` + `has_recorded_field()` under odelia#19 / plant#3.)
-
-**Replay-fixed is a component mode, expressed by scalar-templating over frozen
-nodes.** The abstraction is one idea reused three times, and it is minimal:
+The **replay-fixed** side is the plant-facing numerics, and it is one idea reused three
+times, scalar-templating over frozen nodes:
 
 - `basic_spline<S>` — the ttk592 spline templated on the *value* scalar (knot
   positions stay `double`); this is the interpolation math itself.
 - `basic_interpolator<S>` — a thin usage layer over it (domain, extrapolation, eval,
-  the R seam). The two-layer split (math vs. usage) is worth keeping.
+  the R seam). *(The `basic_` name and the refiner/evaluator packaging are being unified
+  into one replayable `Interpolator` — odelia#22 — a cross-package naming cleanup, not a
+  functional change.)*
 - `QK<S>` — the fixed Gauss–Kronrod rule with the integrand scalar templated and the
   abscissae `double`; `advance_fixed` is the stepper instance.
 

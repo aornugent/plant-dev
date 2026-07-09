@@ -12,9 +12,13 @@ plant machinery that odelia already provides. This roadmap reaches the same grad
 with **surgical changes** to the existing plant components and a **small generic
 surface** added to odelia — smaller, more maintainable, lower technical debt.
 
-**Status.** Design phase — no code changes yet. Branches
-`claude/ad-infrastructure-design` are prepared on the plant and odelia forks for the
-eventual implementation.
+**Status.** The **odelia AD foundation is implemented** — the functional shape,
+`compute_jacobian`, `DifferentiationTargets`, `SuppliedDerivative`, the `rebind` lift,
+gradients on the double handle, the reused active solver + tape, the record→replay
+primitive, and the settled vocabulary all landed as a stack of PRs on the odelia fork
+(ODELIA-1..6, RIF-1..3). The **plant ports** (Patch-as-System, scalar-templated
+reductions, differentiating `run`/`run_mutant`) are **not yet started**. See
+[`ad-issues.md`](./ad-issues.md) for per-item status.
 
 ---
 

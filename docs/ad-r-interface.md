@@ -100,18 +100,19 @@ It stays internal: the active replay is cached on the double Solver and R reuses
 by reusing its double Solver, never learning the tape exists. The design (RIF-3,
 odelia#12) rests on three facts:
 
-- **The twin is the only cached thing.** The gradient runs on the active replay (the
-  double System lifted to active), and a `Solver` carries its own `tape`, so the twin's
-  tape *is* the reused tape — there is nothing else to cache. The twin is held on the
-  double Solver as a `mutable std::shared_ptr<void> active_replay` (opaque because a
-  double Solver cannot name the active type; the driver `static_cast`s it back), and
-  `Solver::tape` is a `std::unique_ptr`. Reusing the twin is pure speed: it never
-  changes a number.
+- **The active solver is the only cached thing.** The gradient runs on it (the
+  double System lifted to active), and a `Solver` carries its own `tape`, so its
+  tape *is* the reused tape — there is nothing else to cache. It is held on the
+  double Solver as a `mutable std::shared_ptr<Solver<active_system_type>> active_solver`.
+  The type is named, not erased: the System supplies `rebind` (RIF-2), so
+  `System::rebind<active>` spells it from inside `Solver<System>` — no `void*`, no
+  `static_cast`. `Solver::tape` is a `std::unique_ptr`. Reusing it is pure speed: it
+  never changes a number.
 - **Anchored on the `Solver` object, not an R handle.** plant's SCM holds the solver as
   a plain C++ member (`scm.h`: `Solver<patch_type> solver;`) and never wraps it in an
-  XPtr, so a `prot`-slot anchor is invisible to it. The twin lives on the `Solver`
-  object, so `stand_gradient_cpp` (RIF-5) shares the reuse for free.
-- **The recording is read per call, not frozen into the twin.** The *recording*
+  XPtr, so a `prot`-slot anchor is invisible to it. The active solver lives on the
+  `Solver` object, so `stand_gradient_cpp` (RIF-5) shares the reuse for free.
+- **The recording is read per call, not frozen into the active solver.** The *recording*
   (resolved ODE step times, and any interpolator/quadrature spacing or frozen field
   values — the replay levels of design §7) is per-run state owned by the immutable
   double Solver and handed to the twin on every call. It is not snapshotted at first
