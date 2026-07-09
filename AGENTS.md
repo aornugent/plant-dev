@@ -2,6 +2,16 @@
 
 This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, and `odelia`.
 
+## Session Start (do this first, every session)
+Before doing anything else, add the sibling package repos to the session's GitHub
+scope so their issues and PRs are readable — `git submodule update --init` clones the
+code, but issue/PR access is a separate grant:
+
+1. Initialize submodules: `git submodule update --init --recursive`
+2. Add each fork to the session scope (via `add_repo`): `aornugent/odelia` and
+   `aornugent/plant`. Work items like `odelia#19` live in these trackers, not in
+   `plant-dev`, so without this step the issues are inaccessible.
+
 ## Workspace Structure
 - `logpile/`: Submodule pointing to `https://github.com/aornugent/logpile.git`
 - `plant/`: Submodule pointing to `https://github.com/aornugent/plant.git`
