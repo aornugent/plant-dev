@@ -64,8 +64,8 @@ Rcpp::List Solver_gradient(SEXP solver_xp,
                            Rcpp::Nullable<Rcpp::NumericVector> ic,
                            Rcpp::Nullable<Rcpp::NumericVector> params) {
   auto solver = get_solver<SystemType>(solver_xp);          // the DOUBLE solver
-  auto [value, grad] = ode::compute_gradient(*solver, independents(ic, params),
-                                             sum_of_squares_functional);
+  auto [value, grad] = ode::compute_gradient(*solver, differentiation_targets(ic, params),
+                                             least_squares_functional);
   return Rcpp::List::create(_["value"] = value, _["gradient"] = wrap(grad));
 }
 ```
@@ -115,7 +115,7 @@ odelia#12) rests on three facts:
   (resolved ODE step times, and any interpolator/quadrature spacing or frozen field
   values — the replay levels of design §7) is per-run state owned by the immutable
   double Solver and handed to the twin on every call. It is not snapshotted at first
-  build, not carried through `rebind_from`, not smuggled through `set_target`. Its
+  build, not carried through `rebind_from`, not smuggled onto the solver as fit state. Its
   validity domain is the ICs + params of the double run: a replay may vary the mutant /
   observations / functional, but changing ICs or params invalidates the recording and
   forces a re-record — reading it per call makes that pickup automatic. See
@@ -214,7 +214,7 @@ supply observations and a likelihood, which the emergent workflows do not.
 Calibrating the *plant SCM* to data is not a different replay — it is the **resident
 replay (L0·L1·L2) plus a likelihood functional**, an addition over the emergent
 resident gradient, not a subtraction. The `L1`-only row above is the bare-ODE
-(odelia Lorenz) degenerate case; its `set_target`/`advance_target` fit shape
+(odelia Lorenz) degenerate case; its `set_observations` / `least_squares` fit shape
 (`test-ad-workflow.R`) serves that case and must **not** set the shape of the primary
 `stand_gradient()` UX.
 
@@ -269,7 +269,7 @@ observations and a likelihood.)
 
 ```r
 solver <- Solver$new(system, control)     # ONE ordinary (double) solver
-solver$set_target(times, obs, obs_idx)
+solver$set_observations(times, obs, obs_idx)
 optim(par,
       fn = \(p) solver$value_and_gradient(p)$value,     # doubles in/out
       gr = \(p) solver$value_and_gradient(p)$gradient,
