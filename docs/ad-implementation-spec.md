@@ -15,8 +15,9 @@ how each step is gated.
 - **Oracle, not base:** the #553 spike (`spike-ff16-scm-emergent`) and PROTO-3
   (`proto3_leaf_edge.cpp`) proved the gradients are reachable and the odelia tape
   links from `plant.so`. Their *code* is reference only — the spike's parallel engine
-  (`gradient/coupled_canopy.h`, `scm_harvest.h`, `*_emergent.cpp`, five local tapes)
-  is exactly the debt this plan deletes rather than ships.
+  (`gradient/coupled_canopy.h`, `scm_harvest.h`, `*_emergent.cpp`, and sixteen local
+  reverse-mode tapes across those three translation units — 9/2/5) is exactly the debt
+  this plan deletes rather than ships.
 - **odelia is done and generic.** `claude/ad-surface` ships the whole reverse-mode
   surface: a Solver-owned tape, the duck-typed `compute_jacobian`/`compute_gradient`
   driver, `DifferentiationTargets`, the pure-reduction functional, the `Replayable`
@@ -46,8 +47,11 @@ carrying one active scalar and satisfying a contract that is already built.
 - `FF16_Strategy` becomes `FF16_Strategy_<S>` with `using FF16_Strategy =
   FF16_Strategy_<double>`, so the double path is *literally the same code* at `S=double`
   — the existing FF16 reference-comparison test guarantees no drift.
-- The only tape is `Solver::tape` (odelia). No `xad::AReal`, `Tape`, `registerInput`, or
-  `computeJacobian` appears in plant source — grep-able as a CI invariant.
+- The only tape is `Solver::tape` (odelia). No reverse-mode tape primitives — the `xad::adj`
+  reverse active type, `Tape`, `registerInput`/`registerOutput`, `computeJacobian` — appear
+  in plant source; grep-able as a CI invariant. (The `xad::value`/`xad::derivative`
+  extraction point and the leaf optimizer's plant-local `xad::fwd` forward-mode are allowed;
+  identical list in Appendix B.)
 - Every reduction is the model's own scalar-templated function (`Species::compute_competition`,
   `QK::integrate`), so gradient exactness is structural, not a maintained bit-copy.
 - The two workflows are `run` (L3 cache empty) vs `run_mutant` (L3 cache populated) — a
@@ -60,9 +64,10 @@ carrying one active scalar and satisfying a contract that is already built.
 - **No** parallel active/frozen physiology axis — one uniform `S`, so `<T,E,S>` collapses
   to the existing `<T,E>`.
 - **No** `coupled_canopy.h`, `scm_harvest.h`, `ff16_emergent.cpp`, `tf24_emergent.cpp`,
-  `tf24f_emergent.cpp`, and no five local tapes — deleted, never ported.
-- **No** separate census kernel — the census reduction *is* `compute_competition` at
-  `S=active`.
+  `tf24f_emergent.cpp`, and none of the sixteen local tapes — deleted, never ported.
+- **No** hand-copied parallel census (the spike's `scm_harvest.h::census_trapezium` is not
+  ported); the census *reuses* `compute_competition` plus a small scalar-templated
+  `QK::integrate_ad` and per-metric `psi` kernels (AD-7).
 - **No** plant-owned adaptive interpolator — `AdaptiveInterpolator`/the adaptive half of
   `ResourceSpline` give way to odelia's replayable interpolator (odelia#22).
 - **No** R-visible active solver, `active` flag, or second solver — the boundary can only
@@ -111,11 +116,13 @@ template<typename Solver, typename Functional>
 std::pair<double, std::vector<double>>
 compute_gradient(Solver& solver, const DifferentiationTargets& targets, Functional&& functional);
 ```
-The forward callback (one per Jacobian row) does exactly: seed the targets through
-`solver.get_system_ref().ad_parameters()/ad_initial_state()`, `solver.reset()`,
-`solver.run()`, `functional(solver)`. The tape is `solver.tape` (a lazy
-`unique_ptr`, created once and reused across rows). The codomain is read off
-`functional.codomain()` (no spare model run to size it).
+The forward callback runs **once** per `compute_jacobian` call — the record pass: seed the
+targets through `solver.get_system_ref().ad_parameters()/ad_initial_state()`,
+`solver.reset()`, `solver.run()`, `functional(solver)`. XAD then does **one adjoint sweep
+per output row** to fill the Jacobian; the expensive `solver.run()` is *not* repeated per row
+(the reverse-mode economy — record once, sweep many). The tape is `solver.tape` (a lazy
+`unique_ptr`, created once and reused). The codomain is read off `functional.codomain()`
+(no spare model run to size it).
 
 **Differentiation targets** — `DifferentiationTargets{ std::vector<int> params;
 std::vector<int> ics; std::vector<double> values; }` with `empty()`/`size()`. Column
@@ -163,9 +170,12 @@ frozen (derivative through the field is zero by construction); empty ⇒ residen
 (self-shading flows). **The one way to get it wrong:** for a resident gradient, populating
 L3 (or otherwise reading recorded values) silently drops the self-shading cross term.
 
-**`SuppliedDerivative`** — a free function called from *within* the forward pass, built on
-`xad::CheckpointCallback` (`inst/examples/supplied_derivative_interface.cpp`). Registers an
-off-tape value (a root-find / optimizer result) as a fresh leaf and hands the reverse sweep
+**`SuppliedDerivative`** — the `xad::CheckpointCallback` subclass; the seam plant calls is
+the free function `odelia::ode::supplied_derivative(tape, y_value, inputs, partials)`
+(`inst/include/odelia/supplied_derivative.hpp`, demonstrated in
+`inst/examples/supplied_derivative_interface.cpp`), invoked from *within* the forward pass.
+It registers an off-tape value (a root-find / optimizer result) as a fresh leaf and hands
+the reverse sweep
 its analytic partials `∂y/∂x_i`. odelia's compatibility seam for plant's forward-mode leaf
 optimizer (AD-9); never used for FF16 physiology, which tapes directly.
 
@@ -200,8 +210,10 @@ each `advance_fixed` segment runs on.
 
 **Active-twin construction & the recording.** The R-held double SCM builds the active SCM
 per gradient call via `rebind_from()` and hands over the recording (schedule =
-`step_history`, frozen field = `environment_history`). Build-per-call in v1; amortized
-reuse is Appendix A.1.
+`step_history`, frozen field = `environment_history`), then passes that active SCM as the
+runnable to `compute_jacobian`. **The SCM path owns its own active twin** — §2's
+`active_solver` caching is the odelia `Solver`'s amortization for *bare-System* runnables and
+does not apply to the SCM. Build-per-call in v1; amortized reuse is Appendix A.1.
 
 ---
 
@@ -298,21 +310,28 @@ central finite difference of the same run. The AD-1/AD-2 checkboxes in epic #7 a
 **AD-5 (#10) — `EmergentFunctional` + the `stand_gradient_cpp` entry + thin R wrapper.**
 - **Change.** New `inst/include/plant/emergent_functional.h`: a pure reduction
   (`codomain()` + `operator()(runnable)`) reading `runnable.get_system_ref()` and the
-  trajectory. Metric kernels selected by name: `offspring` (`Σ tw_i · offspring_i`, fixed
-  weights), `LAI`/`biomass`/`basal_area` (census reductions reusing `compute_competition`,
-  AD-1/AD-7), `R0` (`net_reproduction_ratio`, `scm.h`). New **hand-written** `src/stand_gradient.cpp`
-  (not the generated TUs): one `[[Rcpp::export]]` taking the RcppR6 SCM by pointer-unwrap
-  only (`Rcpp::as<RcppR6<…>>` — no serialisation), resolving `metrics`→functional and
-  `traits`→`DifferentiationTargets` in AD-2 column order, `rebind_from()`, configuring
-  feedback, calling `odelia::ode::compute_jacobian`, returning doubles. Strategy dispatch is
-  a C++ `switch` on a strategy tag off the handle. Thin R wrappers `stand_gradient(scm,
-  metrics, traits, species, feedback)` and `offspring_production_gradient(resident, traits)`.
+  trajectory. Metric kernels selected by name: `offspring_production` (`Σ tw_i · offspring_i`,
+  fixed weights), `LAI`/`biomass`/`basal_area` (census reductions reusing `compute_competition`,
+  AD-1/AD-7). (The `R0` = `net_reproduction_ratio` kernel lands in AD-10, its only consumer —
+  not built here unused.) New **hand-written** `src/stand_gradient.cpp` (not the generated
+  TUs): one `[[Rcpp::export]]` per workflow, taking the RcppR6 SCM by pointer-unwrap only
+  (`Rcpp::as<RcppR6<…>>` — no serialisation), resolving `metrics`→functional and
+  `traits`→`DifferentiationTargets` in AD-2 column order, `rebind_from()`, calling
+  `odelia::ode::compute_jacobian`, returning doubles. Strategy dispatch is a C++ `switch` on
+  a strategy tag off the handle.
+- **No `feedback` argument — the entry function *is* the workflow** (codesign #4; supersedes
+  ad-r-interface §6.1's `feedback=`). `stand_gradient(scm, metrics, traits, species)`
+  differentiates the resident `run` (L3 empty, canopy recomputed); `invasion_gradient(scm,
+  metrics, traits, species)` differentiates `run_mutant` (L3 populated, canopy frozen);
+  `offspring_production_gradient(scm, traits, species)` is the named convenience for
+  `invasion_gradient(scm, "offspring_production", …)`. Resident vs invasion is one bit
+  flipped in C++ (which run; whether L3 is populated), never an R string.
 - **odelia.** `compute_jacobian` + the functional shape. `Rcpp::compileAttributes()`
   regenerates `RcppExports.*`; no `RcppR6_classes.yml` change (free function).
 - **Delete.** This entry replaces the spike's `stand_gradient` R/`*_emergent.cpp` surface
   wholesale — no per-strategy entry points, no R harvest.
 - **Gate.** Compiles and links (tape symbols resolve at load against odelia, proven by
-  PROTO-3); `stand_gradient(scm, "offspring", "lma")` returns a finite double on a cached
+  PROTO-3); `offspring_production_gradient(scm, "lma")` returns a finite double on a cached
   resident. (Numbers are AD-6.)
 
 **AD-6 (#11) — FF16 invasion gradient end-to-end + FD gate + zero-height fix.**
@@ -340,8 +359,8 @@ central finite difference of the same run. The AD-1/AD-2 checkboxes in epic #7 a
   a differentiable height, so it needs moving nodes.
 - **Delete.** The spike's `scm_harvest.h::census_trapezium` — replaced by the templated
   reduction, no hand-copied census.
-- **Gate.** `stand_gradient(scm, c("LAI","biomass","basal_area"), traits,
-  feedback="invasion")` matches central FD per metric (`tol ~1e-4`).
+- **Gate.** `invasion_gradient(scm, c("LAI","biomass","basal_area"), traits)` matches
+  central FD per metric (`tol ~1e-4`).
 
 **AD-8 (#13) — resident/total gradient: `FF16_Environment<S>` + L2-live spline recompute.**
 - **Change.** Template `FF16_Environment` and `ResourceSpline` on `S` (values → `S`, knot
@@ -351,9 +370,13 @@ central finite difference of the same run. The AD-1/AD-2 checkboxes in epic #7 a
   the L2 slice, independent of the L3 field cache). On the active pass `run()` (resident, L3
   cache **empty**) recomputes `compute_environment` on those frozen knots with the active
   cohorts, so a trait re-shades the stand through `area_leaf`.
-- **odelia (the unlock, odelia#22 — done).** Retire plant's `AdaptiveInterpolator`/the
-  adaptive half of `ResourceSpline` in favour of odelia's one replayable `interpolator.hpp`
-  (records its own knots, rebuilds fixed). Net deletion in plant.
+- **odelia (the unlock, odelia#22 — landed on `ad-surface`).** Retire plant's
+  `AdaptiveInterpolator`/the adaptive half of `ResourceSpline` in favour of odelia's one
+  `interpolator.hpp` (`construct` refines and exposes a node-set; `init` rebuilds fixed on
+  given knots). The interpolator holds only the current node-set; the *cross-run* knot
+  recording lives in the Patch via the `Replayable` hooks (positions per step), not in the
+  interpolator. Net deletion in plant. (ad-issues.md/#7 still list #22 as a follow-up —
+  that status is stale; the issue is closed done.)
 - **Trap (the correctness crux).** Do **not** read the frozen `environment_history` on the
   resident path — that silently collapses to the invasion gradient (`ad-r-interface.md` §6.8;
   odelia autodiff "the one way to get it wrong"). Only knot positions are recorded; cohort
@@ -428,9 +451,11 @@ change (§3).
 ## 6. Build order, gating, and PR plan
 
 ```
-AD-1 ─► AD-2 ─► AD-3 ─► AD-4 ─► AD-5 ─► AD-6 ─┬─► AD-7 ─► AD-8 ─► AD-10
-                                              └─► AD-9 (PROTO-2) ─► AD-8/AD-10 (TF24)
+AD-1 ─► AD-2 ─► AD-3 ─► AD-4 ─► AD-5 ─► AD-6 ─► AD-7 ─┬─► AD-8 ─► AD-10
+                                                     └─► AD-9 (PROTO-2) ─► AD-8/AD-10 (TF24)
 UX-2 (FD oracle) gates every AD-* ; .rds baseline lands at AD-11 (after AD-6+AD-8 green)
+(AD-9's TF24 scalar-templating is independent of AD-7; its census gate reuses AD-7's
+ integrate_ad / psi kernels, so the census half of AD-9 waits on AD-7.)
 ```
 - **AD-1..AD-2** are the foundation and are **not yet on any branch** despite the epic
   checkboxes — they land first.
@@ -454,7 +479,7 @@ UX-2 (FD oracle) gates every AD-* ; .rds baseline lands at AD-11 (after AD-6+AD-
   silently zeroes a derived-quantity trait's gradient.
 - **Windows** — the AD tape linkage needs `Makevars.win`; Linux resolves undefined `Tape`
   symbols at load against globally-loaded odelia (proven by PROTO-3). No linkage blocker on
-  Linux.
+  Linux. Scheduled as Appendix A.7 (Linux-only in v1).
 
 ---
 
@@ -479,6 +504,9 @@ their absence never returns a wrong number.
   stiff horizon.
 - **A.6 — Moving plant's leaf-level forward-mode AD into odelia.** Stays plant-local; the
   `SuppliedDerivative` edge (AD-9) is the seam, not absorption.
+- **A.7 — Windows `Makevars.win` for the AD tape linkage.** Linux resolves the undefined
+  `Tape` symbols at load against globally-loaded odelia; Windows needs an explicit
+  `Makevars.win`. v1 is Linux-only for the AD path; attach to AD-11 packaging when scheduled.
 
 ## Appendix B — Notes for implementers
 
@@ -487,5 +515,15 @@ their absence never returns a wrong number.
 - **The `CanopySystem` demonstrator** (`odelia/inst/include/examples/canopy_system.hpp`) is
   the reference the Patch mirrors for the `Replayable` hooks and the two `set_ode_state`
   overloads — read it before AD-4.
-- **Grep-invariant:** no `xad::`, `Tape`, `registerInput`, or `computeJacobian` in plant
-  source outside the odelia include path — the "plant writes no XAD" commitment as a CI check.
+- **Two design-doc statements are stale (code is right, docs lag):** (1) `ad-r-interface.md`
+  §6.1's `feedback=` argument is superseded by codesign #4 — the entry function is the
+  workflow (§4 AD-5). (2) `ad-record-replay.md` §4's "odelia grows no replayable-interpolator
+  class" is superseded by odelia#22 — `interpolator.hpp` *is* that class (refine +
+  fixed rebuild), while the cross-run knot recording still lives in the System via the
+  `Replayable` hooks (consistent with the doc's intent, just not its letter).
+- **Grep-invariant (reverse-mode primitives only):** no `xad::adj` reverse active type,
+  `Tape`, `registerInput`/`registerOutput`, or `computeJacobian` in plant source outside the
+  odelia include path. Explicitly *allowed*: `xad::value`/`xad::derivative` (the sole
+  extraction point, `ad-r-interface.md` §3.4) and the leaf optimizer's plant-local `xad::fwd`
+  forward-mode (design decision 6 / AD-9). Identical list in §1 — the "plant writes no
+  reverse-mode XAD" commitment as a CI check.
