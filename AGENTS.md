@@ -62,69 +62,99 @@ git merge upstream/master # (or main)
 git push origin master
 ```
 
-## C++ style (match the odelia/plant core)
+## Code style
 
-New C++ should be indistinguishable from the existing core (Rich FitzJohn's). It is
-terse, template-heavy, and comments the *why*, not the *what*.
+Match the existing header core exactly: when editing a file, continue it;
+when creating a file, first read the two most similar existing headers and
+write as their continuation. The exemplar below covers the greenfield case.
+What must stay true in this codebase: only `double` crosses the R boundary —
+active (AD) types are C++-internal, created and destroyed inside one call.
 
-- **Template on the scalar; alias the default.** Systems carry a `value_type`; numeric
-  components template on the value scalar `S` with node/abscissa positions left
-  `double`. Pin the production type with a `using` alias
-  (`using Interpolator = basic_interpolator<double>;`) so every existing caller is
-  untouched and only the AD path instantiates `S = active`.
-- **Comments assume an expert reader.** Explain the tricky floating-point choice, the
-  replay/freeze rationale, the issue or source reference (`#472`, GSL, a SO link) —
-  never restate what the code plainly says. Clear names and structure carry the rest.
-- **Comment the invariant, not the design's biography.** A comment states what must be
-  true here and why — in one or two lines. It is not a changelog, a defence against a
-  rejected alternative, or a pointer into the design docs. Process references (`RIF-3`,
-  `odelia#19`, "was renamed from…") and internal doc section numbers **drift** the moment
-  the code moves; a stable external anchor (`#472`, a GSL routine, a paper) does not.
-  Rationale that spans more than a couple of lines belongs in the PR description or
-  `docs/`, not the source.
+### Never (comments)
 
-  ```cpp
-  // BAD — narrates the design's history and rejects an alternative the reader can't see:
-  // "Replayable" names the recording contract -- distinct from the RIF-3 "cache", which
-  // is the amortized tape/scratch (a speed optimisation), not this recording (a semantic
-  // one). Completing the concept with the query is deliberate: derivs reads it, so
-  // requiring it here rejects a half-implemented System at the concept boundary rather
-  // than failing deep inside derivs.
-  template <class S> concept Replayable = requires(S s, int stage) { ... };
+- No process history: issue tags (`RIF-`, `ODELIA-`), "renamed from",
+  "successor to", doc-section references (`§`), or mentions of other repos.
+- No metaphor or borrowed mechanism words: write what happens ("record", not
+  "flush"); never `frozen`/`mutant`/`live`/`resident`. Single words count.
+- No decorative nouns ("contract", "surface", "oracle"). Never define a thing
+  by what it isn't.
+- Never longer than two lines unless spelling out a genuine silent-failure
+  hazard. If a comment exists to decode a name, rename instead.
 
-  // GOOD — states what the concept is and what the query is for:
-  // A System that records its adaptive node positions on the double pass and replays
-  // them fixed on the active pass. has_recorded_field() routes frozen-field replay.
-  template <class S> concept Replayable = requires(S s, int stage) { ... };
-  ```
+### Never (code)
 
-  ```cpp
-  // BAD — a paragraph of provenance and a section cross-ref that will drift:
-  // `least_squares` is the one prebuilt calibration instance. Unlike an emergent
-  // functional it carries per-run data ... so calibration is just another functional,
-  // not a special mode wired into the solver (ad-record-replay.md sec 8).
-  struct least_squares { ... };
+- No parallel near-copy of an existing type or path (`*_active_impl` beside
+  `*_impl`); modify what exists.
+- No per-item switches where the type can hand back its fields; no
+  re-implementing what vendored XAD provides.
+- No runtime capability flags or SFINAE detection structs — a concept +
+  `if constexpr`.
+- No storing what can be derived; no passing a count that can disagree with
+  its source of truth.
+- No dropping a guarantee (bounds check, cleanup path) during a refactor; no
+  demo code compiled into the shipped .so; no dead files after a rename.
 
-  // GOOD:
-  // A calibration functional: holds measured data, scores the replayed trajectory
-  // against it. The solver stores no fit state.
-  struct least_squares { ... };
-  ```
-- **No boilerplate.** Reach for `util::stop` / `util::check_length` / `util::identical`
-  over raw throws; keep functions small and single-purpose; select behaviour at compile
-  time so an absent hook is a zero-cost no-op. For *new* opt-in hooks prefer C++20
-  concepts + `if constexpr` over more `enable_if` SFINAE (the project is `CXX_STD =
-  CXX20`).
-- **Use the vendored XAD components; do not re-implement them.** odelia vendors XAD
-  (`inst/include/XAD/`) — `computeJacobian`, `CheckpointCallback`, `computeAdjoints`,
-  the `adj`/`fwd` drivers. Call these directly rather than hand-rolling the tape
-  sweep, the adjoint loop, or the IFT edge. "Mirror the XAD pattern" means *invoke*
-  the XAD facility, not copy its body. New AD code is glue around XAD, not a second
-  AD engine (the whole thesis of the roadmap: one AD runtime, not a parallel stack).
-- **`const` by default**, 2-space indent, header guards `ODELIA_<NAME>_HPP_`.
-- **Surgical, in place.** Modify the type that already exists; do not add a parallel
-  abstraction beside it. A header change ripples to everything that `LinkingTo` it, so
-  treat it as a compile-time `breaking` / `cross-package` event.
+### Exemplar — write code indistinguishable from this
+
+*(Composite from reviewed code; replace with a real excerpt from the header
+core when landing this.)*
+
+```cpp
+// A one-state canopy that relaxes toward the light it captures -- the
+// demonstrator for record -> replay, which Lorenz and leaf_thermal don't
+// exercise.
+template <typename T>
+class CanopySystem {
+public:
+  // The single differentiable input; this canopy has no seedable initial
+  // state.
+  std::vector<T*> ad_parameters() { return {&gain_}; }
+
+  void derivs(double t, const std::vector<T>& y, std::vector<T>& dydt) {
+    // Plain double, off the tape: the background is fixed on a replay pass,
+    // so d(rate)/d(bg) is structurally zero.
+    const double bg_light = stage_light_.at(stage_);
+    dydt[0] = gain_ * captured(bg_light) - y[0];
+  }
+
+  // On the replay pass, let a Replayable System restore what it recorded for
+  // this step; a no-op otherwise.
+  void replay_step(int step) {
+    if constexpr (Replayable<CanopySystem>) load_recorded(step);
+  }
+
+private:
+  T gain_{0.5};
+  std::vector<double> stage_light_;  // this step's light at each of the six
+                                     // RK stages
+  int stage_{0};
+};
+```
+
+```cpp
+// Value + least-squares gradient on the double handle. Observations are
+// passed per call and owned by the functional; the solver holds no
+// calibration state.
+template <class System>
+Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
+  auto* solver = get_solver<System>(double_solver);
+  solver->tape->activate();
+  tape_guard<Tape> guard{solver->tape.get()};  // deactivates on every exit,
+                                               // exceptions included
+  const std::size_t codomain = functional.codomain();
+  auto jacobian =
+      xad::computeJacobian(inputs, forward, codomain, solver->tape.get());
+  return to_r_list(jacobian);  // only doubles cross the boundary
+}
+```
+
+### For review
+
+Worked good/bad contrast pairs for every ban above live in
+`docs/style/codestyle.md` and `docs/style/commentstyle.md`. Use them when
+judging existing code and cite the numbered example when flagging a
+violation. Do not load them when writing fresh code — imitate the exemplar
+and the neighboring headers instead.
 
 ## PR workflow
 
