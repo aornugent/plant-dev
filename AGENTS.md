@@ -66,9 +66,10 @@ git push origin master
 
 Match the existing header core exactly: when editing a file, continue it;
 when creating a file, first read the two most similar existing headers and
-write as their continuation. The exemplar below covers the greenfield case.
-What must stay true in this codebase: only `double` crosses the R boundary —
-active (AD) types are C++-internal, created and destroyed inside one call.
+write as their continuation. The exemplar at the end covers the greenfield
+case. What must stay true in this codebase: only `double` crosses the R
+boundary — active (AD) types are C++-internal, created and destroyed inside
+one call.
 
 ### Never (comments)
 
@@ -76,17 +77,15 @@ active (AD) types are C++-internal, created and destroyed inside one call.
   "successor to", doc-section references (`§`), or mentions of other repos.
 - No metaphor or borrowed mechanism words: write what happens ("record", not
   "flush"); never `frozen`/`mutant`/`live`/`resident`. Single words count.
-- No decorative nouns ("contract", "surface", "oracle"). Never define a thing
-  by what it isn't.
+- No decorative nouns ("contract", "surface", "oracle"), no section banners.
+  Never define a thing by what it isn't.
 - Never longer than two lines unless spelling out a genuine silent-failure
   hazard. If a comment exists to decode a name, rename instead.
 
 ### Never (code)
 
-- No parallel near-copy of an existing type or path (`*_active_impl` beside
-  `*_impl`); modify what exists.
-- No per-item switches where the type can hand back its fields; no
-  re-implementing what vendored XAD provides.
+- No parallel near-copy of an existing type or path; modify what exists.
+- No re-implementing what vendored XAD provides.
 - No runtime capability flags or SFINAE detection structs — a concept +
   `if constexpr`.
 - No storing what can be derived; no passing a count that can disagree with
@@ -94,7 +93,82 @@ active (AD) types are C++-internal, created and destroyed inside one call.
 - No dropping a guarantee (bounds check, cleanup path) during a refactor; no
   demo code compiled into the shipped .so; no dead files after a rename.
 
-### Exemplar — write code indistinguishable from this
+### Defaults to unlearn
+
+Each BAD below is the habit to suppress; write the GOOD form.
+
+**Narrating rationale.** State the thing; one clause of why at most.
+```cpp
+// BAD
+// The active solver is cached on the double Solver object and reused, so an
+// optimiser loop amortizes it (tape included) rather than rebuilding each
+// call. Reuse is pure speed: values are re-seeded every call and per-call
+// state is handed in by the caller, so a stale cache can never change a
+// number.
+```
+```cpp
+// GOOD
+// R holds only the double Solver; these helpers differentiate on the active
+// solver (the double System lifted via rebind_from) and return doubles.
+```
+
+**Documenting process instead of the thing.**
+```cpp
+// BAD
+// value + least-squares gradient on the double handle (RIF-1): the
+// double-handle successor to the retired LeafSolver_fit ...
+```
+```cpp
+// GOOD
+// Value + least-squares gradient on the double handle. Observations are
+// passed per call and owned by the functional; the solver holds no
+// calibration state.
+```
+
+**Banners and grand nouns.**
+```cpp
+// BAD
+// ---- AD input contract ---------------------------------------------------
+// AD input contract: seed one active parameter or initial-state value by
+// index.
+```
+```cpp
+// GOOD
+// The differentiable inputs, in the order DifferentiationTargets indexes
+// them: parameters (sigma, R, b) then initial state (y0, y1, y2).
+```
+
+**Formalising states that don't exist.**
+```cpp
+// BAD
+enum class ReplayMode { Idle, Recording, ReplayLive, ReplayFrozen };
+ReplayMode mode_;
+```
+```cpp
+// GOOD
+bool recording = false;
+bool replaying() const { return !recording && has_recording(); }
+```
+
+**A per-item special case where a mechanism scales.**
+```cpp
+// BAD
+void set_param(int i, T v) {
+  switch (i) {
+    case 0: sigma = v; break;
+    case 1: R     = v; break;
+    case 2: b     = v; break;
+    default: util::stop("set_param: index out of range");
+  }
+}
+```
+```cpp
+// GOOD
+std::vector<T*> ad_parameters() { return {&sigma, &R, &b}; }
+// (and keep the guarantee: callers bounds-check against .size())
+```
+
+### Exemplar — write new files indistinguishable from this
 
 *(Composite from reviewed code; replace with a real excerpt from the header
 core when landing this.)*
@@ -147,14 +221,6 @@ Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
   return to_r_list(jacobian);  // only doubles cross the boundary
 }
 ```
-
-### For review
-
-Worked good/bad contrast pairs for every ban above live in
-`docs/style/codestyle.md` and `docs/style/commentstyle.md`. Use them when
-judging existing code and cite the numbered example when flagging a
-violation. Do not load them when writing fresh code — imitate the exemplar
-and the neighboring headers instead.
 
 ## PR workflow
 

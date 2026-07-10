@@ -11,8 +11,7 @@ locally. Every line is a maintenance liability; the best outcome of a review
 is often less code, not better code.
 
 For this workspace's C++/comment conventions, judge against the project code
-style: [AGENTS.md → Code style](../../../AGENTS.md#code-style). Cite the
-numbered good/bad pairs in `docs/style/` when flagging a violation.
+style: [AGENTS.md → Code style](../../../AGENTS.md#code-style).
 
 Be exhaustive over *real* findings: report everything that passes the finding
 test below, and nothing that doesn't. Thoroughness means covering every real
