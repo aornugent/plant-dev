@@ -18,6 +18,26 @@ one metric, compare `tape.getMemory()` and wall-clock to the spike's mixed engin
 on the canonical cases. **Output:** a number that chooses uniform scalar vs. an
 encapsulated "frozen input" fallback. Blocks committing to the full-scalar Patch.
 
+> **Decision (resolved — uniform scalar):** the design choice PROTO-1 gates is
+> settled in favour of **uniform `value_type = S`, no frozen-input fallback**, on two
+> pieces of evidence:
+> - XAD records tape entries only for operations **downstream of a registered input**
+>   (`xad-docs.txt`: `registerInput` "starts recording dependents of it";
+>   `shouldRecord()` keys off registration). So with every field typed `S` but only the
+>   chosen traits seeded via `DifferentiationTargets`, the tape grows with the *seeded*
+>   reachable subgraph — **not** with how many fields are typed `S`. Uniform `S` costs
+>   essentially the same tape as the fallback for the same seed set, so the fallback's
+>   "keep demographic variables `double`" complexity buys ~nothing.
+> - PROTO-3 (`plant/proto3_leaf_edge`) demonstrated real FF16 leaf algebra running at
+>   `S=active` and taping cleanly, gradient exact vs finite differences.
+>
+> The **quantitative** `tape.getMemory()` / wall-clock reading is deliberately **not**
+> taken via a synthetic proxy: develop's FF16 physiology is `double` at the method level
+> (~67 methods, member-fn-pointer assimilation dispatch, a `virtual net_mass_production_dt`),
+> so a faithful measurement requires templating the production chain on `S` — which *is*
+> PLANT-1/PLANT-5. The number is therefore taken **in-situ during PLANT-1**, when the first
+> FF16 individual goes active, rather than duplicated in throwaway prototype code.
+
 ### PROTO-2 — TF24 census cross-sensitivity · repo: plant · gates TF24 census, decision 7
 One TF24 cohort; gradient a density-dependent census metric with the leaf-optimizer
 IFT delivered as an on-tape `SuppliedDerivative`; check against finite differences.
