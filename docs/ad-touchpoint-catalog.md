@@ -1232,3 +1232,140 @@ TF24f res/mut). Open questions stand at **Q1–Q25**. The v1 boundary the traces
 FF16/K93/TF24/TF24f mutant are tractable; TF24/TF24f resident defer on replay stiffness** (Q25), and
 the load-bearing unknowns to test first remain the growing-dimension FORWARD replay (A/Q1, on K93
 resident) and the leaf tape-injection (B/Q21).
+
+---
+
+# Part XI — The exhaustive change ledger (every file, a verdict)
+
+Every file in `plant` (45 headers + 26 `src/*.cpp` + 22 `R/*.R`) with a verdict:
+**TEMPLATE** (carry scalar `S`), **CONTRACT** (add odelia System/Replayable members), **STAY**
+(remains `double`; why), **DELETE**, **ADD** (new file), **REGEN** (generated), **CO-DESIGN**
+(odelia). Cluster/Question refs point back. "Stays" is documented as deliberately as "changes."
+
+## XI.1 The scalar skeleton — TEMPLATE (model-agnostic, Cluster 1)
+
+| File | Verdict | What / why | Ref |
+|---|---|---|---|
+| `internals.h` | TEMPLATE | `Internals_<S>`; all four vectors (`states/rates/auxs/consumption_rates`) → `S`. **The `auxs` trap:** it looks like a cache but `height→area_leaf→rate` passes through it (VIII.4) — must be `S`. | C1 |
+| `individual.h` | TEMPLATE | `value_type`; templated ODE iterators; `S` accessors; `set_state(value_type)`. | C1 |
+| `node.h` | TEMPLATE + special | `value_type`; `log_density(_dt)`, `offspring_*`, `weighted_fecundity`, `compute_rates` → `S`. **`growth_rate_gradient` + its `thread_local` scratch must be *active*** (feeds `log_density_dt`; both attempts wrongly froze it). | C1, C6, Q3 |
+| `species.h`, `species_base.h` | TEMPLATE | `value_type`; templated iterators; `net_reproduction_ratio_by_node_weighted`→`S`; `ad_parameters()` forward. `compute_competition` trapezium → `S`. | C1 |
+| `patch.h` | TEMPLATE + CONTRACT | `value_type`; templated iterators; `rebind`/`rebind_from`/`ad_parameters`/`ad_initial_state`; the `Replayable` rename (`cache_*/load_*`→`record_*/replay_*`) + `has_recorded_field`; the frozen `set_ode_state(it,index)`; the `reset` fix (**one** path, not the scalar-branched dual both attempts built). `resource_depletion`→`S` only for resident-TF24 (deferred). | C1, C2, AD-3/4 |
+| `scm.h` | TEMPLATE + CONTRACT | `value_type`; `rebind`/`rebind_from`; `get_system_ref`; a `tape` member (public — co-design F); the `reset` fix; `run_next_impl` active path **without** the `is_same_v` dual-path fork. | C1, AD-3, F |
+| `parameters.h` | CONTRACT (light) | add `rebind_from<S2>` (config-only lift); `initial_state` seeds `S` for IC gradients (deferred, Q19). Otherwise config, crosses R as `double`. | AD-2, Q19 |
+| `strategy.h` | TEMPLATE (light) | base `value_type = double`; contract member declarations. K93/TF24 inherit `double`; FF16/TF24/TF24f shadow with `S`. | C1 |
+| `individual_runner.h` (+ `.cpp`) | TEMPLATE (light) | `value_type`; templated iterators. **The clean fixed-dimension AD target** — no growing dimension; the cheapest de-risk of Q1 before the SCM. | C1, Q1 |
+| `environment.h` (base) | TEMPLATE | templated ODE iterators + `value_type`. FF16/K93 carry no env ODE state; TF24 does (soil). | C1 |
+
+## XI.2 The field & environments — TEMPLATE the *read*, not the construction (Cluster 2/3)
+
+| File | Verdict | What / why | Ref |
+|---|---|---|---|
+| `resource_spline.h` | TEMPLATE (read) + reroute | `get_value_at_height` read templated on `S` (**one body** — active value on frozen `double` knots), *not* Attempt B's parallel `!is_same_v` overloads. Route construction to odelia's replayable interpolator. The `max(0,·)`/`cap→1.0` clamps are kinks (Q11). | C2, C3, Q11 |
+| `adaptive_interpolator.h` (+ `.cpp`) | **DELETE** | duplicate of odelia's `basic_interpolator` `construct`/`init`; retire, route `ResourceSpline` to odelia (odelia#22). Net deletion. | C3 |
+| `models/ff16_environment.h` | TEMPLATE (read) | `get_environment_at_height` read templated (one body); `step_light`/`smooth_floor` templated but identity for the deep-crown default (PPA-only, kinks — Q11). | C2 |
+| `models/k93_environment.h` | TEMPLATE (read, minimal) | `get_environment_at_height` read templated (raw spline, no step). Simplest env. | C2 |
+| `models/tf24_environment.h` | TEMPLATE (read) + defer soil | light read templated. **Soil-water `compute_rates` stays `double` for the mutant (frozen L3); becomes `S` only for resident-TF24 (deferred, X.7).** The `mutable` `psi_soil_cache_`/driver memo are AD hazards (Q8). Many soil kinks (Q11). | C2, VII.2, Q8/Q11 |
+| `canopy_shape.h` | TEMPLATE (evaluators) | `q`/`Q`/`Qp` templated on the scalar (**one body**; `eta_`/`eta_c_` stay `double` shape constants) so the crown integral's active bound flows — not Attempt B's parallel overloads + stored `shading_model_`. Box/softbox steps are kinks (Q11). | C4, Q11 |
+
+## XI.3 The strategies — TEMPLATE per model (Cluster 1/4/5)
+
+| File | Verdict | What / why | Ref |
+|---|---|---|---|
+| `models/k93_strategy.h` (+`.cpp`) | TEMPLATE (trivial) | `K93_Strategy_<S>` + alias; closed-form rates already; two kinks (`growth<0→0`, `mu>0?mu:0`). The free win once the skeleton templates. | C1, Q11 |
+| `models/ff16_strategy.h` (+`.cpp`) | TEMPLATE + CONTRACT | `FF16_Strategy_<S>` (AD-1); `rebind`/`ad_parameters`; `height_seed` via IFT/`supplied_derivative` (**not** the reverse-untested `g-value(g)` trick of Attempt A); crown integral via templated `QK` at active bound; `average_light`/`crown_top` must template their integrands too, or gate (both attempts left them non-differentiable). | C1, C4, C5, VIII.2 |
+| `models/tf24_strategy.h` (+`.cpp`) | TEMPLATE (mixed-scalar) | `TF24_Strategy_<S>` = **`S` pars + `double` `Leaf`** (VIII.4). `net_mass_production_dt` reads `leaf.profit_` (`double`) → `supplied_derivative` injects `∂profit/∂{θ,light,height}` (+`∂profit/∂soil-ψ` for resident). Crown `integrate_vector` at active bound. | C1, C4, C5, B |
+| `models/tf24f_strategy.h` (+`.cpp`) | TEMPLATE (mixed-scalar) | as TF24 + the tracked ψ state active, rate = injected `dprofit_dψ`; optimiser runs only at birth. | C1, C5, B |
+| `models/ff16_production_kernel.h` | PARTIAL **DELETE** | keep the per-piece kernels (single source `FF16_Strategy` delegates to); **delete** the composite spike (`FF16ProdPars`, `ff16_net_from_components`, `..._crown_top`, `deep_crown_replay`) — test-only #540 replica superseded by AD-1. | C4, IV |
+
+## XI.4 The leaf — STAYS `double`, gains analytic partials (Part V / VIII.2)
+
+| File | Verdict | What / why | Ref |
+|---|---|---|---|
+| `leaf_model.h` (+`.cpp`) | **STAY** + ADD partials | the ~1500-line hydraulic solver **never goes active** — it runs `double`, injects analytic partials. **ADD** the missing `∂profit/∂θ` for every seeded trait, plus `∂profit/∂{light,height,soil-ψ}` (only `∂profit/∂{psi,vcmax25}` exist). The 4 interpolators stay fixed-knot `double`, feeding `.deriv()`. | V, VIII.2, C5 |
+| `optimize.h` | **STAY** | `golden_section_max`/`brent_fmin` are the leaf's `double` solvers; leaf stays `double`. | — |
+| `uniroot.h` (+`.cpp`) | **STAY** | `uniroot`/`uniroot_smooth` stay `double`; `height_seed`/`ci`/`psi` solve in `double`, derivative reattached by IFT at the call site. | C5 |
+| `root_uptake.R` | STAY | TF24 root-uptake helper (double). | — |
+
+## XI.5 Quadrature — one templated body (Cluster 4) or STAY
+
+| File | Verdict | What / why | Ref |
+|---|---|---|---|
+| `qk.h` | TEMPLATE (integrate) | template `QK::integrate` on the scalar + bound type (**one body**, the `double` path is `S=double`) — not Attempt B's forked `integrate_ad`. | C4 |
+| `qk_rules.h`, `qk.cpp`, `qk_rules.cpp`, `qk.R` | STAY | fixed abscissae/weight tables and R wrapper — `double`. | — |
+| `qag.h`, `qag_internals.h`, `qag.cpp`, `qag_internals.cpp` | **STAY** | adaptive path dormant (`max_iter=1`); the leaf's QAG is `double` fixed. Not on any AD graph (VII.1). | IV, VII.1 |
+
+## XI.6 STAYS `double` — deliberately unchanged (the "doesn't change" ledger)
+
+| File(s) | Verdict | Why it does NOT change |
+|---|---|---|
+| `control.h`, `control.cpp` | STAY | config (doubles, crosses R); the gradient is defined *relative to* a fixed Control. Optional: rename `save_RK45_cache` at the surface (RIF-7). | 
+| `disturbance_regime.h`, `disturbances/weibull_disturbance.h`, `disturbances/no_disturbance.h` | STAY | `double` functions of patch age; feed fitness via `double` per-node stamps; not differentiated w.r.t. traits (disturbance-param gradients out of scope). |
+| `node_schedule.h`, `node_schedule.cpp`, `scm_utils.h`, `scm_utils.cpp` | STAY | the L0/L1 schedule is `double` times, frozen up front and replayed via `advance_fixed`; `species_index` tags are structural integers. |
+| `extrinsic_drivers.h` | STAY | fixed-knot `double` splines; **scalar `birth_rate` is seeded as an active value at its read sites** (`node.h` density, offspring scaling), not by templating the driver (Q9); climate drivers are fixed data. |
+| `stochastic_node.h`, `stochastic_species.h`, `stochastic_patch.h`, `stochastic_patch_runner.h`, `stochastic_utils.h`, `individual_runner.cpp` | STAY (constraint) | out of AD scope (RNG Bernoulli birth/death). **But they share `Individual`/`SpeciesBase`/`Environment`** — the templating must keep their `S=double` instantiation compiling (Q24). |
+| `gradient.h`, `gradient.cpp` | STAY + active-safe | the FD primitives stay, but `gradient_fd` must accept an active function value (the step is `double`) so `growth_rate_gradient` carries the trait derivative (C6). |
+| `util.h` (+ `util.cpp`, `util_post_rcpp.h`, `util_post_rcpp.cpp`) | MOSTLY STAY | **`trapezium` must template** on the value type (integrates `S` fecundity/census over `double` times); **`is_finite` needs an active-safe form** (reads `value`); `rescale` used by the interpolator; string/logging helpers unchanged. |
+| `strategy_expand.cpp` | STAY | allometry expansion, `double`, R-facing diagnostic. |
+| `proto3_leaf_edge.cpp` | STAY (reference) | the worked `supplied_derivative` boundary exemplar; keep as the pattern, possibly fold to a test. |
+| `logging.R`, `odelia.R`, `utils-pipe.R`, `util.R`, `strategy_support.R`, `benchmark.R` | STAY | load-ordering shim (`odelia.R` forces XAD symbol resolution — keep), logging, pipes, generic helpers. |
+| `tidy_outputs.R`, `tidy_plots.R`, `TF24_plot_diagnostics.R` | STAY | consume trajectories, not gradients; a gradient tidy/plot helper is purely additive. |
+| `stochastic.R` | STAY | stochastic R entry; unchanged. |
+| `individual.R` | STAY (+ opt. `gr=`) | `optimise_individual_rate_*_by_trait` is a gradient *consumer* that could later gain an analytic `gr=` hook; no change required for AD to exist. |
+
+## XI.7 The R boundary — REGEN / ADD (Cluster G, Part IX)
+
+| File | Verdict | What / why |
+|---|---|---|
+| `src/RcppExports.cpp`, `R/RcppExports.R` | REGEN | `Rcpp::compileAttributes()` picks up the new `[[Rcpp::export]]` gradient entry. No hand-edit. |
+| `src/RcppR6.cpp`, `R/RcppR6.R`, `inst/RcppR6_classes.yml` | REGEN / no-change | **no yml change** for a free-function gradient entry (the two attempts' choice); an SCM-*method* entry would add a yml line and gain 4-strategy dispatch (dispatch trade-off, IX.3). |
+| `ff16_node.cpp`, `k93_node.cpp`, `tf24_node.cpp`, `tf24f_node.cpp` | CHANGE (light) | add the active-scalar instantiation + `static_assert(Replayable<Patch>)`; the double registration stays. |
+| **`src/stand_gradient.cpp`** | **ADD** | the hand-written `[[Rcpp::export]]` AD entry: unwrap the RcppR6 SCM by pointer, resolve metrics→functional + traits→`DifferentiationTargets`, `rebind_from`, `compute_jacobian`, return `double`. |
+| **`R/stand_gradient.R`** | **ADD** | thin `stand_gradient`/`invasion_gradient`/`offspring_production_gradient` wrappers; relabel the Jacobian (traits/species/metrics — no dimnames cross the boundary, IX.3). |
+| `scm_support.R` | CHANGE (light) | document `save_RK45_cache=TRUE` as the gradient opt-in; no signature change. |
+
+## XI.8 The `hyperpar` layer — UNRESOLVED (Q18)
+
+| File | Verdict | What / why |
+|---|---|---|
+| `ff16.R`, `tf24.R`, `tf24f.R`, `k93.R` (`make_*_hyperpar`), `solar_model.R` | **UNRESOLVED** | `hyperpar` fans a user trait to many low-level pars (`rho→{d_I,k_s,r_s,r_b}`; `a_p1/a_p2` via a solar integral). Both attempts differentiated **low-level pars** (the partial); the **ecological trait total-derivative** needs the hyperpar Jacobian composed — differentiate the R `hyperpar` and chain, or port it (incl. the solar integral) to differentiable C++. **No verdict until Q18 is decided.** |
+
+## XI.9 odelia — CO-DESIGN (IX.4)
+
+| Need | Verdict | Co-design item |
+|---|---|---|
+| Growing-dimension active replay (A) | **CO-DESIGN (gap)** | active twin/tape must survive mid-replay `resize()`; the run must express `[grow][resize][integrate]` segments, not one flat `advance_fixed`. Load-bearing (Q1/Q20). |
+| Tape reachable from `ode_rates` (B) | **CO-DESIGN (gap)** | a System must reach the Solver-owned tape to inject the leaf partial during replay (Q21). |
+| Multi-partial `supplied_derivative` (C) | CO-DESIGN (verify) | API supports it; verify at N>1, `double`-partial/first-order sufficiency (Q22). |
+| Whole-object L3 snapshot (D) | OK (verify) | concept-agnostic; verify heavy per-stage payload ergonomics. |
+| IC seeding (E) | OK (odelia side) | supported+tested in odelia; plant-side stub to remove (Q19). |
+| SCM-as-runnable (F) | CO-DESIGN (partial) | record-once-around-`run()` with a self-segmenting `run()` (Q1). |
+| Integration fixture (G) | CO-DESIGN (test) | growing-dim × supplied-deriv-in-replay × emergent functional (Q1). |
+| Recorded adaptive sub-stepping | CO-DESIGN (stiff residents) | to lift TF24/TF24f resident off the replay-stiffness wall (Q25). |
+
+## XI.10 Ledger summary
+
+- **TEMPLATE:** the skeleton (`internals`/`individual`/`node`/`species*`/`patch`/`scm`/`parameters`/
+  `strategy`/`individual_runner`/`environment`), the four env/field reads, the four strategies, `qk.h`,
+  and `util::trapezium`/`is_finite`. **One templated body each — never parallel `!is_same_v` overloads.**
+- **STAYS `double`:** the entire leaf hydraulics (+ new analytic partials), `optimize`, `uniroot`,
+  `qag`, the schedule, disturbance, `control`, extrinsic drivers, the stochastic engine (as a
+  compile constraint), and most of R.
+- **DELETE:** `adaptive_interpolator.{h,cpp}` (→ odelia) and the composite half of
+  `ff16_production_kernel.h`.
+- **ADD:** `src/stand_gradient.cpp`, `R/stand_gradient.R`.
+- **REGEN:** `RcppExports.*`, `RcppR6.*`.
+- **UNRESOLVED:** the `hyperpar` R layer (Q18).
+- **CO-DESIGN:** odelia A/B/F/G + recorded sub-stepping (the growing dimension and the leaf
+  tape-injection are the load-bearing two).
+
+Two facts the file-level view makes concrete: (1) the **active surface is small** — the skeleton +
+four one-body-templated reads + four strategies; the expensive, model-defining code (leaf, optimisers,
+quadrature-adaptive, schedule, stochastic) **stays `double`**. (2) The plan is genuinely
+**deletion-heavy net of additions** (delete a duplicate refiner + a spike replica; add two small files)
+— the shape the spec promised and neither attempt delivered.
+
+**Part XI closes the catalog's coverage: every one of the 93 files has a verdict.** Parts I–XI now
+span the mechanisms (I–IV), the System view (V), the wide surface and closure (VI–VIII), the
+workflow/co-design interactions (IX), the control-flow traces (X), and this per-file ledger (XI), with
+open questions Q1–Q25.
