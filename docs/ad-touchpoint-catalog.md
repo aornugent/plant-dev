@@ -635,3 +635,124 @@ at.
 **Not yet clustered — by intent.** These questions must be answered from the running code before
 the Part II clusters are re-drawn; several of them (Q1 especially) could move the boundaries the
 clusters assume.
+
+---
+
+# Part VII — Adaptive-component census, the field-vs-state correction, and the input surface
+
+Following the same discipline (surface, don't solve), this part answers four sharpened
+questions: is the light spline the *only* L2 target; what actually is soil moisture; what
+other adaptive components hide in any system; and what input/coupling surface the earlier
+parts never named. It corrects two more modelling errors.
+
+## VII.0 Correction: "reconstructed active" is L2's job *alone*
+
+The `ad-r-interface.md` §5.1 row "resident … L0·L1·L2·L3 … canopy reconstructed (active)" means
+the resident run *uses* all four levels, **not** that all four reconstruct. Per odelia#28: **L1**
+is the step schedule (Solver-owned, always differentiable), **L2** is the one "record positions →
+**recompute values active** on frozen positions" mechanism (the *only* reconstruction), **L3** is
+frozen `double` values (explicitly *not* reconstructed — read off-tape). Parts IV–VI loosely said
+"L0–L3 reconstruct the canopy active"; that is wrong — reconstruction is L2, and L2 alone.
+
+## VII.1 The adaptive-component census (exhaustive) — the light spline is the only L2 field
+
+Grepping every `construct`/`refine`/adaptive/interpolator/spline across all systems, the
+components that make *parameter-dependent placement decisions* are:
+
+| Component | File | Adaptive placement? | AD class |
+|---|---|---|---|
+| **Light/resource spline** (`ResourceSpline` via `AdaptiveInterpolator`) | `resource_spline.h`, `adaptive_interpolator.h` | **yes** — knots refined to tolerance | **L2** (the one true adaptive field) |
+| ODE step schedule (RKCK adaptive) | odelia Solver | yes | **L1** (Solver-owned) |
+| SCM introduction schedule (`refine_schedule`) | `scm.h:334` | yes | **L0** — frozen up front, differentiated fixed |
+| QAG adaptive subdivision | `qag.h:85` | yes, but **`max_iter=1` everywhere → never fires** | dormant; not on any graph |
+| Leaf 4 interpolators (`transpiration_from_psi`, `psi_from_transpiration`, `root_vuln_from_psi`, `root_vuln_integral_from_psi`) | `leaf_model.cpp:1134–1163` | **no** — `.init()` on a fixed 100-knot grid | fixed-knot; analytic `.deriv()`; off the taped graph |
+| Extrinsic-driver splines | `extrinsic_drivers.h:16` | **no** — `.init()` on given control points | fixed-knot input (VII.3) |
+| Leaf vulnerability grid | `leaf_model.cpp:1116` | **no** — fixed uniform grid | fixed |
+| `CanopyShape` | `canopy_shape.h` | **no** — precomputed at `prepare_strategy` | fixed |
+
+**So the light spline is the only adaptive *field* → the only L2 target.** Everything else is
+L1 (Solver), L0 (frozen schedule), dormant (QAG), or fixed-knot (leaf, drivers, vulnerability).
+The earlier "record adaptive positions" pattern has exactly one live AD instance.
+
+## VII.2 Soil moisture is ODE *state*, not a field — the field-vs-state correction ⭐
+
+Part V called the TF24 soil bucket "a frozen L3 background." That mis-classifies it. **Soil
+moisture is integrated ODE state**, not a recomputed/frozen *field*:
+- `TF24_Environment` contributes `ode_size = vars.state_size` > 0 (soil layers + 4 cumulative-flux
+  diagnostic slots); **FF16/K93 environments carry no ODE state** (`ode_size = 0` — the light
+  spline is a recomputed field, never integrated). This is a first-class structural split the
+  earlier parts missed: *for TF24 the environment is part of the integrated state vector.*
+- The coupling is **bidirectional and inside the ODE** (`patch.h:592–602`): the Patch sums each
+  cohort's `consumption_rate` into `resource_depletion[i]` and calls
+  `environment.compute_rates(resource_depletion)`, which evolves soil moisture; soil → ψ (retention
+  curve) → leaf hydraulics → transpiration → `resource_depletion`. A genuine state↔state feedback.
+- Therefore the AD treatment is **not** L2/L3-field:
+  - **Resident TF24:** soil is *active state* coupled to the plants via `resource_depletion` — on
+    the tape as state, not a recomputed field. (This is exactly the stiff long-horizon coupling the
+    design defers, Appendix A.2.)
+  - **Mutant/invasion TF24:** the rare mutant doesn't perturb resident soil, so soil ψ is read
+    *frozen* — it rides the L3 frozen-environment read (it is part of `environment_history`), but as
+    frozen recorded state, not a reconstructed field.
+
+So: **the light spline is a field (L2/L3); soil moisture is state (active/frozen).** Answering the
+question directly — canopy (light) is the only L2 field target; soil is a *second coupling*, but of
+a different kind, and its resident form is the deferred stiff one.
+
+## VII.3 The input surface the earlier parts never named
+
+Differentiation *targets* and time-varying *couplings* beyond strategy traits:
+- **Extrinsic drivers** (`extrinsic_drivers.h`): named, fixed-knot spline (or constant) functions
+  of patch time — `birth_rate` (demography), and for TF24 `rainfall` (soil input) + `PPFD`,
+  `atm_vpd`, `ca`, `leaf_temp`, `atm_o2_kpa`, `atm_kpa` (leaf climate). They enter rates as `double`
+  backgrounds and are **fixed-knot, hence directly differentiable w.r.t. their control-point values**
+  — a whole input surface (climate sensitivity, `dR0/d(birth_rate)`) the plan never catalogued.
+  `set_extrapolate(false)` clamps beyond the ends (a kink).
+- **The consumable-resource subsystem** (`Internals::consumption_rates`, `Patch::resource_depletion`):
+  the plant→environment depletion channel. **Dormant for FF16/K93** (0 resources), live only for TF24
+  soil. It is extra per-cohort state (`consumption_rate(i)`) and the coupling of VII.2.
+- **Disturbance regime** (`disturbance_regime.h`, Weibull): stamps `patch_density_at_birth` and feeds
+  `pr_patch_survival` per node — per-node `double` weights entering fitness (`node.h:59,152`).
+  Differentiable in principle w.r.t. disturbance parameters; not a current target.
+
+## VII.4 Mutable caches on the const path — a distinct AD hazard class
+
+Several `const` methods memoize into `mutable` members via **exact `double` comparison**, which
+interacts badly with active types (a cache keyed on `value(x)` can go stale or poison the tape):
+- `TF24_Environment::get_soil_water_potential_state()` — `psi_soil_cache_`, invalidated by
+  `psi_soil_cache_state_[i] != vars.state(i)` exact compare (`tf24_environment.h:304–329`).
+- The per-time driver memo `cached_driver_` (`tf24_environment.h:295–300`).
+- The leaf's own inverted-soil / operating-point caches (`leaf_model.cpp`, `set_physiology`).
+These are not on the differentiated-arithmetic path per se, but they gate values that are — a class
+of subtle bug neither attempt nor the design mentions.
+
+## VII.5 `run_mutant` — cataloged as an existing fact (not a prescription)
+
+Recording the fact, per the brief: **`run_mutant` already exists as a hand-rolled replay**
+(`scm.h:293–316` + `patch.h:707–775`, `set_mutant`/`load_ode_step`/`cache_*`). It pins the schedule
+to the resident's `step_history`, swaps mutant strategies, and reads the resident environment frozen
+by stage index — a complete, working, invasion-fitness replay predating the AD `Replayable` concept.
+*Whether* odelia's `Replayable` should subsume it is a design question for later; the catalog's job
+here is only to record that this mechanism exists and works today.
+
+## VII.6 More open questions (continuing to collect — not answering)
+
+7. **Does "the environment stays `double`" survive TF24?** It is an FF16/K93 property (env has no ODE
+   state). For resident TF24 the environment *is* active coupled state (soil). What is the correct
+   model boundary — and is resident-TF24 simply out of v1 (with a clear error), leaving only the
+   frozen-soil mutant?
+8. **How do the `mutable` exact-compare caches (VII.4) behave under active types?** Do they invalidate
+   correctly, silently freeze a derivative, or corrupt the tape?
+9. **Are the climate extrinsic drivers differentiation targets, or only `birth_rate`?** And is seeding
+   a *fixed-knot driver spline's control points* a supported target kind alongside strategy fields?
+10. **Is the plant↔soil `resource_depletion` coupling in v1 scope at all?** It is live only for TF24
+    and only matters for the resident (deferred) path; for the mutant the soil is frozen.
+11. **`step_light`/PPA `smooth_floor` and every soil positivity guard** (`max(0,·)`, the
+    `theta<=residual` reset) — which are piecewise-constant selectors (safe) vs kinks the operating
+    point can sit on? (Extends Cluster 7 to the soil surface.)
+12. **Does the resident light field (L2) recompute correctly across the *growing* dimension?** L2
+    recompute happens per step on frozen knots — but the set of cohorts contributing to the field
+    grows mid-run (VI.1). L2 and the growing dimension interact; neither was tested together.
+
+**Still deliberately unclustered.** The census (VII.1) shrinks L2 to one field; the field-vs-state
+correction (VII.2) moves soil out of the L2/L3 model entirely; and questions 7–12 join 1–6 as the
+set to resolve from running code before Part II's clusters are re-drawn.
