@@ -28,6 +28,13 @@ Two invariants frame everything below:
 > small and nearly model-invariant, while most of the code the two attempts were templating
 > is **off the graph** and should stay `double` or be deleted. Part V is the lens; Parts
 > I–IV are the ground truth it rests on.
+>
+> **Then read Part VI — it is the honest correction.** Parts I–V analysed the SCM as if it
+> were a plain odelia `Solver`. It is not: it is a **growing-dimension** system (cohorts
+> introduced mid-run resize the ODE state), sitting under a workflow layer (equilibrium,
+> assembly) that has moved to a separate package, alongside a whole second (stochastic)
+> engine that shares its hierarchy. Part VI surfaces that wider ground and the open questions
+> it raises — several of which the earlier parts are too clean about.
 
 ---
 
@@ -306,6 +313,14 @@ produced — which is what the implementation spec promised and neither delivere
 
 # Part IV — Pressure test: Chesterton's fences and the pattern behind them
 
+> **Correction (see Part VI).** This part over-weighted QAG. The "record adaptive positions →
+> replay fixed" *pattern* is real, but its one AD-relevant instance is the **adaptive light
+> interpolator** (L2, for the resident self-shading gradient — `ad-record-replay.md` §3). QAG's
+> adaptive path is a dormant fossil, and the ODE schedule is **L1** (Solver-owned), not L2 — so
+> the "three co-equal instances, L2 is the fourth consumer" framing below conflates L1/L2 and
+> inflates QAG. Read Part VI for the corrected model and the much larger surface these fences
+> distracted from.
+
 Two constructs looked like cruft. Investigating *why they exist* (not just whether they're
 used) turned up the general pattern the whole design should rest on.
 
@@ -462,3 +477,161 @@ graph; none should be templated on `S`:
   missed is that **most of plant does not need reverse mode at all** — only a small,
   model-invariant core does, and the hard, model-defining code contributes through injected
   derivatives, not activation.
+
+---
+
+# Part VI — The wide surface: what the shallow passes missed
+
+Parts I–V modelled each plant model as an odelia System and asked what goes active. That was
+necessary but **shallow on the run itself**: they treated the SCM as a plain `Solver<Patch>`
+and over-anchored on QAG. A wide survey (SCM run machinery; the equilibrium/assembly/workflow
+layer; the stochastic and alternative run modes; the R user stories) surfaces a much larger
+ground. This part is corrections + the surface, and it deliberately **stops before solving** —
+it ends in open questions, not clusters.
+
+## VI.0 Two corrections to the earlier parts
+
+- **L2 is the adaptive light interpolator, full stop** (`ad-record-replay.md` §3). Its purpose
+  is the **resident** self-shading gradient: record the knots the adaptive pass placed, then on
+  the active pass rebuild the field *on frozen knots with active values* so a trait re-shades
+  the stand. QAG-adaptive is dormant; the ODE schedule is L1. Part IV's "one pattern in
+  triplicate" over-read a fossil.
+- **Invasion-first was not the villain.** The frozen-`double` background *is* correct for
+  invasion — that is L3, by design. The debt in both attempts was **hand-servicing** the freeze
+  (A's `ad_value`, B's overloads) instead of routing it through the recording. And the *primary*
+  user workflow is the **resident census gradient** (`ad-r-interface.md` §5.1: L0·L1·L2·L3,
+  canopy reconstructed active), not invasion — so the plan must reach the L2 resident path,
+  which is the one Attempt A structurally could not.
+
+## VI.1 The deepest missed fact: the SCM is a growing-dimension system ⭐
+
+Nothing in odelia (Lorenz, leaf_thermal, the RelaxationSystem demonstrator) changes its state
+dimension. **The SCM does, mid-run, repeatedly.** `Patch::ode_size()` (`patch.h:661`) sums over
+a *node count that grows at every introduction*; `run_next_impl` interleaves
+`introduce_new_nodes` → `solver.set_state_from_system()` (**resizes `y/yerr/dydt`**,
+`scm.h:262–263`) → `advance_*` a segment. A run is `[grow][resize][integrate]…`; each segment is
+fixed-dimension, consecutive segments are not.
+
+Consequences a reverse-mode tape must survive, none of which odelia's AD surface was validated
+against:
+- **Introductions are cross-cohort couplings on the tape, not fresh inputs.** A new cohort's
+  initial conditions are an *active function of the already-integrated stand*:
+  `compute_initial_conditions` sets `log_density = log(birth_rate·pr_estab/g)` where `pr_estab`
+  and `g` read the current environment = all existing (active) cohorts (`node.h:163–189`). The
+  design's "introductions add tape variables at fixed times, no discontinuity" is **too clean** —
+  the seed value carries derivatives from the rest of the stand.
+- **Hidden per-node state not in `y`.** `patch_density_at_birth`, `pr_patch_survival_at_birth`,
+  `node_introduction_time` (`node.h:107–116`) are stamped at birth and feed rates and fitness
+  (`node.h:59–61,152–155`) but never enter the ODE vector — extra per-node parameters the tape
+  must treat correctly.
+- **Whether odelia's `active_solver`/tape even supports a mid-run `resize()` is unverified.**
+  The whole "Model A: the SCM is the runnable" rests on the active replay surviving a growing
+  dimension. Neither attempt FD-verified an active multi-introduction run's *introduction
+  coupling* (Attempt A's AD-3 test checked only that `d(height)/d(lma)` is finite/nonzero across
+  98 cohorts — necessary, not sufficient). **This is open question Q1 below and it is the one
+  that could invalidate Model A.**
+
+## VI.2 The schedule is a data-dependent structural choice, frozen before the gradient
+
+`refine_schedule` (`scm.h:334–372`) adaptively **bisects** introduction-time intervals between
+whole runs until per-node error < `schedule_eps` — so the *number and placement of cohorts* is a
+non-smooth function of parameters. The design's "L0 is double-only, up front" means: refine once
+in `double`, **freeze the schedule**, and differentiate the fixed-schedule run. That is the same
+"positions frozen, values active" argument as L2, lifted to the schedule — and it carries the
+same caveat: the frozen-schedule gradient omits `d(schedule)/d(trait)`, argued below tolerance
+but **never measured**. (Open question Q4.)
+
+## VI.3 The workflow layer above a run has moved out of plant
+
+The demographic-equilibrium and community-assembly loops — `equilibrium_birth_rate()`,
+`fitness_landscape()`, `assembly_parameters()`, the R0=1 Newton solve — were **removed from
+plant (#388) and now live in the `regnans` package** (`NEWS.md:80–84`). So:
+- **plant's AD scope is bounded to the single run.** No iteration-over-runs to differentiate
+  here; the Newton R0=1 loop is regnans's, and it *consumes* plant's per-run `dR0/d(birth_rate)`.
+  This narrows the plant work — and makes the per-run birth-rate derivative the load-bearing
+  deliverable for the downstream package.
+- **`birth_rate` is not a trait — it is an `ExtrinsicDrivers` value** (`extrinsic_drivers.h`),
+  entering on the input side (a node's initial density, `node.h:177`) and the output side
+  (offspring scaling, `patch.h:473`); `R0` (`net_reproduction_ratios`, `scalars=1`) is
+  birth-rate-independent by construction. Differentiating w.r.t. it means **seeding a driver**,
+  a different input kind than a strategy parameter — and in the *variable* form it is a spline
+  over patch age, i.e. seeding a driver whose knots are themselves adaptive. (Open question Q5.)
+
+## VI.4 A second engine shares the hierarchy — the stochastic model
+
+`StochasticPatch`/`StochasticSpecies`/`StochasticNode` + `StochasticPatchRunner`
+(`stochastic_*.h`) are a full individual-based engine: discrete individuals, **RNG-driven
+Bernoulli birth and death** (`unif_rand() < pr_germinate`, `stochastic_patch.h:167`;
+`unif_rand() < mortality_probability()`, `stochastic_species.h:227`), integer-dimensional ODE
+that grows *and shrinks* at events. It is **non-differentiable and out of AD scope** — but it
+**shares `Individual`/`Environment`/`SpeciesBase`** with the deterministic path (CRTP). So the
+constraint the earlier parts missed: **templating the shared hierarchy on `S` must not break the
+stochastic engine's `double` path.** `value_type` threading is not free of this second consumer.
+
+## VI.5 `IndividualRunner` — the clean AD target the whole plan skipped
+
+`IndividualRunner<T,E>` (`individual_runner.h`) integrates **one** `Individual` in a *fixed*
+environment: static `ode_size`, no schedule, no introductions, no competition feedback — the one
+plant runner that *is* a plain fixed-dimension odelia System. The R stories use it
+(`grow_individual_*`, `optimise_individual_rate_*`, `R/individual.R`). It is the **smallest,
+cleanest, genuinely-in-scope first differentiable target** — a single-plant trait gradient with
+none of the growing-dimension risk of §VI.1 — and neither attempt nor the design foregrounded
+it. (It is where Q1 could be de-risked before betting on the SCM.)
+
+## VI.6 Six competition modes, not one; TF24's default is not FF16's
+
+`ShadingModel` (`canopy_shape.h:47`) has **six** members. Differentiability and even runnability
+vary, and the earlier parts assumed deep-crown throughout:
+
+| Mode | Smooth? | Runs? | Default for |
+|---|---|---|---|
+| DeepCrown | C1 | yes | **FF16** |
+| MeanLight | C1 | yes | **TF24** |
+| CrownCentre | C1 | yes | — |
+| FlatTopSoftBox | C1 (2nd-deriv kink) | yes (biased) | — |
+| PPA (smoothed) | C1 (`floor` kink at layer joins) | yes | — |
+| FlatTopBox / PPA-hard | **no (hard step)** | **no** | — |
+
+So: the crown-integral treatment (Cluster 4) is mode-dependent; **TF24 defaults to MeanLight**
+(one optimisation at the mean light), not deep-crown; **K93 is single-mode** (no shading model);
+and two modes are non-differentiable *and don't run* (drop them). The `assimilation_fn` /
+`leaf_above_` function pointers are bound once at `prepare_strategy`, so a gradient sees a fixed
+smooth function per mode — but *which* function is a per-strategy, per-config choice the plan
+must enumerate.
+
+## VI.7 The Control surface changes what a gradient sees
+
+`control.h` groups into: **ODE integration** (`ode_tol_*`, `fixed_time_step` — switches RKCK↔Euler),
+**schedule/mesh** (`schedule_eps/nsteps` — changes cohort structure), **environment mode**
+(`shading_model`, `ppa_*`, `function_integration_rule`), **offspring solve**
+(`offspring_production_tol/iterations`), **the existing FD node-gradient** (`node_gradient_*` —
+what AD replaces/compares against), **replay** (`save_RK45_cache`), **TF24 leaf** (`GSS_tol_abs`,
+`ci_*`, `vulnerability_curve_ncontrol`). A gradient is only well-defined *relative to a fixed
+Control*; several knobs silently change the trajectory (hence the gradient), and one
+(`save_RK45_cache`) is the AD enabler itself. The plan must state which Control it differentiates
+at.
+
+## VI.8 Open questions to resolve before designing (not answers)
+
+1. **Does reverse-mode AD survive the SCM's growing dimension?** Does odelia's `active_solver`/
+   tape tolerate `set_state_from_system()` resizing mid-run, and is the introduction coupling
+   (a new cohort's active ICs) captured correctly? **FD-verify a ≥2-introduction active run
+   before committing to Model A.** This is the pivotal risk.
+2. **Is the leaf-as-`supplied_derivative` (Part V) correct for a *trait* gradient, not just
+   `∂profit/∂ψ`?** The envelope-theorem treatment must hold through the full nested solve
+   against FD on one TF24 cohort. (PROTO-3 proved the edge; this is the trait-gradient claim.)
+3. **Do the FD node-gradient (`growth_rate_gradient`) and its `thread_local` scratch carry the
+   trait derivative, or must they be made active?** (Cluster 6, still unmeasured either way.)
+4. **How large is the dropped `d(schedule)/d(trait)` from freezing the refined schedule?**
+   Argued below tolerance; measure it.
+5. **How is `birth_rate` seeded as a differentiation target** given it is an extrinsic driver
+   (constant or adaptive spline), not a strategy field — and does regnans need any AD awareness
+   to consume `dR0/d(birth_rate)`?
+6. **Which (Control, shading-mode, run-mode) configuration is v1's differentiable target?**
+   The clean answer points at IndividualRunner and the fixed-schedule adaptive-RKCK
+   DeepCrown/MeanLight SCM; everything else (Euler, PPA-hard, FlatTopBox, stochastic,
+   refine-during-gradient) is explicitly out.
+
+**Not yet clustered — by intent.** These questions must be answered from the running code before
+the Part II clusters are re-drawn; several of them (Q1 especially) could move the boundaries the
+clusters assume.
