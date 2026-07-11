@@ -888,3 +888,145 @@ not in `y`. That is the complete set — a confidence result: further hunting is
 **Still unclustered — the surface is now believed complete** (VIII.5 closure). The full open set is
 Q1–Q17 across Parts VI–VIII; several (Q1 growing-dimension tape, Q2 leaf trait-gradient, Q14
 mixed-scalar strategy) must be answered from running code before Part II's clusters are re-drawn.
+
+---
+
+# Part IX — ICs, multi-species introductions, the R/UX surface, and the odelia co-design ledger
+
+Four candidate areas the earlier parts under-covered: gradients w.r.t. initial conditions;
+the growing dimension *with multiple species*; how AD touches the R interface / workflow /
+compatibility (understand, don't solve); and — reopening Part II's premature "nearly empty"
+claim — the concrete odelia co-design surface. Still cataloging candidates.
+
+## IX.0 Correction: the co-design ledger is NOT nearly empty
+
+Part II §5 said the runnable seam needs "no structural odelia change." Reading odelia's
+`claude/ad-surface` against plant's real needs, that is **wrong**: three gaps, two
+load-bearing (IX.4). The reversal is because Part II assumed the SCM was a fixed-dimension
+runnable; the growing dimension (VI.1) is exactly what odelia's active path does not model.
+
+## IX.1 Gradients w.r.t. initial conditions (ICs)
+
+- **odelia supports IC targets and tests them.** `DifferentiationTargets.ics` is first-class
+  beside `params`, seeded through `ad_initial_state()` (`gradient.hpp:18-24,69-71,92`), with R
+  plumbing (`solver_interface.hpp:213-219`) and live tests (`test-example-leaf-ad.R:55`,
+  `test-example-lorenz.R:126`; `LeafThermalSystem::ad_initial_state → {&T_LC_init}`).
+- **plant has not wired it.** Both attempts stubbed `Patch::ad_initial_state() { return {}; }`.
+  The real target (design Appendix A.4): the seeded initial size distribution (`initial_state`
+  loaded in `set_initial_state`, `patch.h:294-339`) and, for TF24, initial soil moisture.
+- **The blocking interaction:** the resume-from-state path **forbids ode-time replay**
+  (`scm.h:231-233`: "Resuming from an initial state is not supported for ode-time replay /
+  mutant runs"), but AD replay *requires* the pinned schedule. So an IC gradient (start from a
+  seeded state) and the AD-replay mechanism are mutually exclusive as the code stands.
+- **Two more IC subtleties:** the per-node birth stamps (`patch_density_at_birth`,
+  `pr_patch_survival_at_birth`) are loaded as `double` on resume, so an IC gradient would treat
+  them frozen; and the initial *cohort count* (`n_initial_cohorts`) is a structural integer, not
+  differentiable — IC gradients are w.r.t. continuous initial *values* only.
+
+## IX.2 The growing dimension is multi-stream (multi-species)
+
+- **One merged schedule, each event tagged with a `species_index`** (`node_schedule.h:21,35`).
+  `run_next_impl` collects all events due at `t0` (`ret.push_back(e.species_index)`,
+  `scm.h:253`) and `introduce_new_nodes(ret)` grows **possibly several species at once**
+  (`patch.h:620-631`). So the dimension trajectory is multiple interleaved introduction
+  streams, each growing its own species' cohort block.
+- **Cross-species introduction coupling:** every new cohort's ICs
+  (`compute_initial_conditions`, `node.h:163-189`) read the environment shaped by **all**
+  species' cohorts. So a multi-species trait gradient has cross-species terms *through the
+  shared light field* — seed species-2's trait and it moves species-1's cohorts via shading.
+- **N shared strategies, species-major column order.** Each species has one shared strategy
+  (the AD-2 seeding target); `Patch::ad_parameters()` concatenates across species. A gradient's
+  column layout is (species-major, then the strategy's field order) — and every field is a
+  *low-level* parameter, not a user trait (IX.3, `hyperpar`).
+- **Open:** the growing-dimension active-replay unknown (Q1) is *compounded* by co-timed
+  multi-species introductions — the resize at an introduction step may add several species'
+  blocks at once, and the active twin/tape must absorb that (IX.4-A).
+
+## IX.3 How AD touches the R interface / workflow / compatibility
+
+- **The `hyperpar` translation layer is the headline interaction.** User traits are not the
+  AD targets. `generate_strategy` applies an R `hyperpar()` that fans a user trait out to many
+  low-level `FF16_Pars` fields: `rho → {d_I, k_s, r_s, r_b}` (`ff16.R:179-192`),
+  `lma → {k_l, r_l}` (`:176,247`), and `a_p1/a_p2` from an `approximate_annual_assimilation`
+  integral over the solar model (`:205-247`). **Both attempts exposed the ~32 low-level fields
+  as *independent* targets and differentiated those** — i.e. the *partial* holding other
+  hyperpar-derived parameters fixed. The *ecological* gradient `d(metric)/d(rho)` is the
+  **total** derivative through hyperpar's fan-out. Their AD-vs-FD gate is self-consistent at
+  the low-level layer (FD perturbs the raw field too) but is **not** the trait gradient a user
+  means. Composing the `hyperpar` Jacobian (an R function, including a solar integral) is
+  unresolved — differentiate it in R and chain, or port it to differentiable C++. This is a
+  differentiation-target *semantics* decision neither attempt made consciously.
+- **The recording lifecycle is ephemeral session state.** The AD replay needs the RK-stage
+  environment cache (`step_history`/`environment_history`), which is **C++-internal behind the
+  XPtr, opt-in via `control(save_RK45_cache=TRUE)`, not R-visible, not serialised**
+  (`patch.h:143-145,210,727-745`; absent from the RcppR6 Patch bindings). It is distinct from
+  `collect=TRUE` (the tidy `history`, cleared every run). So `stand_gradient` must be called on
+  a live, just-run, in-session SCM that opted into the cache; a `saveRDS`'d or resumed SCM has
+  lost it (`export_patch_state` does not include it). Two orthogonal opt-ins, one ephemeral.
+- **Dispatch:** a hand-written `[[Rcpp::export]]` gradient (like `src/gradient.cpp`) either
+  commits to a concrete `<T,E>` via manual XPtr unwrap (losing the automatic 4-strategy
+  dispatch `run_scm`/`SCM(T,E)` get from the yml) or becomes a yml SCM *method* (gaining it).
+  `compileAttributes` regenerates the free-function bindings; no yml change for a free function.
+- **Labelling is the R wrapper's job:** RcppR6/`[[Rcpp::export]]` returns carry **no dimnames**,
+  so the metrics×traits×species Jacobian must be relabelled in R (traits from
+  `colnames(trait_matrix)`, species by integer index — there are **no species names**,
+  `tidy_outputs.R:18-20`, metrics from the requested names).
+- **Compatibility:** templating the hierarchy on `S` with `double` aliases changes **no**
+  R-visible signature (the yml binds `plant::FF16_Strategy = <double>`); the reference-comparison
+  test is the faithfulness guard. But the **stochastic engine shares** the strategy/Parameters/
+  Control surface and the same four concrete instantiations (`stochastic.R:74`,
+  `RcppR6_classes.yml:765-879`) — the templating must keep its `double` path compiling. Any
+  R-visible change (new mandatory Control field, changed return shape) needs a `NEWS.md
+  ### Breaking changes` entry (machine-read by the `plant-update-interface` skill).
+- **`stand_gradient`'s "metric" is offspring/R0/census, not fitness** — the fitness/equilibrium
+  layer moved to `regnans` (VI.3), so a stand-*fitness* gradient sits on that package boundary.
+- **A gradient consumer already exists:** `optimise_individual_rate_*_by_trait`
+  (`individual.R:266-379`) optimises a rate over a trait with derivative-free
+  `stats::optimise/optim` and **no `gr=` hook** — the IndividualRunner workflow that AD would
+  accelerate, currently rebuilding strategies through `generate_strategy`/`hyperpar` per call.
+
+## IX.4 The odelia co-design ledger (verdicts against plant's needs)
+
+Read from odelia `claude/ad-surface`. **Supported / Partial / Gap**, with the co-design
+question where it bites.
+
+| # | Plant need | Verdict | Evidence / co-design question |
+|---|---|---|---|
+| **A** | **Growing-dimension *active* replay** | **GAP (load-bearing)** | Double path resizes (`set_state_from_system → resize`, `ode_solver_internal.hpp:146-152`), but the active twin is built **once** and reused, each row is one flat `advance_fixed` over a monotonic grid with no introduction/resize hook (`gradient.hpp:93-94`, `ode_solver.hpp:228-233`), and **no test grows dimension on an active run**. Q: does the active tape survive an in-replay `resize()`, and how does plant's `[grow][resize][integrate]` map onto record-tape-once? |
+| **B** | **Tape reachable from `ode_rates`** for supplied-derivative injection during replay | **GAP** | odelia tolerates mixed-scalar Systems (`LeafThermalSystem`: `T` params + `double` drivers) and `supplied_derivative` works — but only on a **caller-owned standalone tape** (`proto3_leaf_edge.cpp:62`); the System has no handle to the Solver-owned tape (`ode_solver.hpp:246`). Q: how does the leaf inject its partial from inside `ode_rates` during a Solver replay? |
+| **C** | **Multi-partial supplied-derivative** (one value, many trait partials) | **Supported API / untested at N>1** | Signature is one value, many inputs, one `double` partial each (`supplied_derivative.hpp:46-50`) — exactly the leaf edge — but every test passes N=1, and partials are `double` (first-order only). Q: is first-order/`double`-partial sufficient for every plant functional? |
+| **D** | **Whole-object L3 snapshot** (env incl. soil, per stage) | **Supported (concept-agnostic) / untested for heavy payload** | `Replayable` constrains only the 4 hook signatures; `AUTODIFF.md:342` says L3 is "read a recorded double from a container." Only `vector<vector<double>>` is worked; the System owns all (step,stage) bookkeeping and the heavy object's double↔active crossing. |
+| **E** | **IC seeding** | **Supported and tested** | `DifferentiationTargets.ics` + `ad_initial_state()`, tested (`test-example-leaf-ad.R:55`). The gap is plant-side (IX.1). |
+| **F** | **SCM-as-runnable with self-segmenting `run()`** | **Partial** | The duck-typed surface is small (`codomain`, `get_system_ref`+`ad_*`, `tape`, `reset`, `run`, `value_type`) and never calls `advance_fixed` directly — but `tape` is a **public member** the runnable must expose, and it is recorded **once around one `reset()`+`run()`** (`gradient.hpp:74-94`); a `run()` that grows dimension inside that recording is untested (ties to A). Q: can the SCM introduce cohorts inside `run()` under record-once? |
+| **G** | **Integration fixture** (growing dim × supplied-deriv in replay × emergent functional) | **GAP** | No odelia test combines these; it is the empirical form of A+B+F and the missing de-risking test. |
+
+**One-line co-design summary:** odelia's AD is built for a **fixed-dimension, single-scalar,
+single-`advance_fixed`-replay** Solver. Plant fits on the functional / IC / L3 / multi-partial-API /
+mixed-scalar-tolerance axes, but **growing-dimension active replay (A)**, **tape-from-System
+injection (B)**, and **the self-segmenting runnable (F)** are unmodeled and untested (G) — and
+A/F are load-bearing. **odelia co-design is in scope.**
+
+## IX.5 Open questions added (18–24)
+
+18. **How is the `hyperpar` trait→parameter Jacobian composed** so `stand_gradient` returns the
+    *ecological* trait total-derivative, not the low-level-parameter partial both attempts gave?
+    (Differentiate the R `hyperpar` and chain, or port it — including the solar integral — to
+    differentiable C++?)
+19. **Can an IC gradient and the pinned-schedule AD replay coexist**, given the resume path
+    currently forbids ode-time replay (`scm.h:231`)?
+20. **Does the active twin/tape survive a mid-replay `resize()`** (co-design A) — the empirical
+    form of Q1, now also implicating co-timed multi-species introductions?
+21. **How does a plant System reach the Solver-owned tape** to inject the leaf's supplied
+    derivative during replay (co-design B)?
+22. **Is single-value / many-`double`-partial / first-order** the right `supplied_derivative`
+    contract for the leaf at realistic N (co-design C)?
+23. **What is the recording's UX contract** — ephemeral session-only, one opt-in
+    (`save_RK45_cache`), re-run-to-refresh; is that acceptable, or is a persistable recording
+    needed for the calibrator/optimiser loops?
+24. **Does templating-on-`S` keep the stochastic engine's `double` path intact**, and what
+    `NEWS.md` breaking entries (if any) does the AD surface require?
+
+**The catalog now spans Parts I–IX** and the surface is believed complete (VIII.5 closure holds;
+IX adds workflow/co-design *interactions*, not new model mechanisms). Open questions stand at
+**Q1–Q24**, still deliberately unclustered — A/F/Q1/Q18/Q20 are the load-bearing ones to resolve
+from running code before Part II's clusters are re-drawn.
