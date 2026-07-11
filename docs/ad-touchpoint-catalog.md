@@ -21,6 +21,14 @@ Two invariants frame everything below:
   populated ⇒ read recorded `double` background by `(step,stage)` index (derivative zero by
   construction). `has_recorded_field()` is a query, not a state machine.
 
+> **Read Part V first if you want the forest.** Parts I–IV enumerate the trees (every
+> touch point, the clusters, the Chesterton's-fence investigations). **Part V** steps back
+> to the *System* level — what FF16/TF24/TF24f/K93 actually need on their differentiable
+> graph for the forward and backward passes — and finds that the differentiable **core** is
+> small and nearly model-invariant, while most of the code the two attempts were templating
+> is **off the graph** and should stay `double` or be deleted. Part V is the lens; Parts
+> I–IV are the ground truth it rests on.
+
 ---
 
 # Part I — The complete touch-point inventory
@@ -173,29 +181,46 @@ silently-dropped derivative?" audit class — the single largest source of debt 
 attempts. If freezing can only be a recorded read, a dropped derivative is a
 missing-recording error (loud), not a plausible-wrong number (silent).
 
-### Cluster 3 — One replayable interpolator (L2), by deletion
-**Touch points:** plant `AdaptiveInterpolator`, `ResourceSpline` construct/rescale, the
-(dormant) QAG interval machinery.
-**Fundamental fix:** retire plant's `AdaptiveInterpolator` and route `ResourceSpline` through
-odelia's already-S-templated `basic_interpolator` (positions `double`, values `S`, `construct`
-freezes placement, `init` rebuilds fixed) — odelia#22. The cross-run knot recording lives in
-the Patch via the `Replayable` hooks; the interpolator owns its knots.
-**Challenges:** "plant owns its adaptive refiner." It owns a *duplicate* of odelia's.
-**Makes impossible:** two refiners drifting; L2 becoming interpolator-specific (any future
-adaptive component records positions through the same hook).
+### Cluster 3 — One recorded-adaptive-positions / replay-fixed abstraction ⭐ (revised by pressure test — see Part IV)
+**Touch points:** plant `AdaptiveInterpolator` + `ResourceSpline` (spline knots), QAG
+`get_last_intervals`/`integrate_with_intervals`/`rescale_intervals` (quadrature intervals),
+the ODE `ode_times` record + `advance_fixed` replay (time schedule) — **three existing,
+hand-rolled implementations of one pattern**, all sharing `util::rescale`, all predating AD.
+**Fundamental fix:** recognise these as one abstraction — *record adaptive positions once in
+`double`, replay (optionally rescaled) on fixed positions* — of which odelia's already-S-
+templated `basic_interpolator` (positions `double`, values `S`; `construct` freezes placement,
+`init` rebuilds fixed) is the AD member. Retire plant's `AdaptiveInterpolator` and route
+`ResourceSpline` through odelia's (odelia#22); the cross-run knot recording lives in the Patch
+via the `Replayable` hooks. AD's L2 is then not a new mechanism — it is this family's
+S-templated instance.
+**Challenges:** "plant owns its adaptive refiner" (it owns a *duplicate* of odelia's) and,
+deeper, "record/replay is an AD concern" — it is a pattern plant already implements three
+times for non-AD reasons (Part IV). **Makes impossible:** N refiners drifting; L2 becoming
+interpolator-specific; and the false belief that AD introduces record/replay rather than
+reusing it.
 
-### Cluster 4 — Fixed-rule quadrature is one templated body
+### Cluster 4 — Fixed-rule quadrature is one templated body (differentiate *through*) — confirmed + sharpened by pressure test
 **Touch points:** `QK::integrate` (FF16 crown/mean-light), the forked `integrate_ad` (B), the
-`deep_crown_replay` weight-recording kernel.
+`deep_crown_replay` weight-recording kernel (#540 spike, test-only — Part IV).
+**The distinction that resolves it:** *fixed rule vs adaptive rule.* A **fixed** rule (QK — what
+the crown integral actually uses) places nodes as a deterministic function of the bound, so an
+active bound (moving nodes in `[0,height]`) tapes **exactly**, including the half-length Jacobian
+and `dq/dheight` — no branching to corrupt the tape, **no position recording**. An **adaptive**
+rule (adaptive QAG, the spline) makes a data-dependent subdivision decision that must not be
+taped → that is Cluster 3's recorded-positions path. The crown integral is fixed, so it is
+Cluster 4, not L2.
 **Fundamental fix:** template `QK::integrate` on the scalar + bound type; the `double` path is
-the `S=double` instantiation. A fixed rule has no adaptive branching, so an active bound
-(moving nodes in `[0,height]`) tapes cleanly — **no position recording needed** for QK.
-Reconcile the three variants (double `integrate`, B's `integrate_ad`, the replay kernel) into
-one.
-**Challenges:** "the crown integral needs recorded node positions (L2)." It doesn't — it's a
-*fixed* rule; only adaptive constructions need L2. **Makes impossible:** a second copy of the
-GK loop (B's `integrate_ad`) drifting from `integrate()`; the confusion between "fixed rule
-with active bound" and "adaptive placement."
+the `S=double` instantiation. Reconcile the three variants into this one — and **delete
+`deep_crown_replay`**: it freezes the nodes *and* folds `q` into a frozen `double` weight, so it
+silently drops `dA/dheight` (correct only for the restricted fixed-height resident-light partial
+#540 validated, **wrong** for the full trait gradient where height is an active state). It is a
+partial spike, not the general treatment.
+**Challenges:** "the crown integral needs recorded node positions (L2)" (it doesn't — fixed
+rule) *and* "`deep_crown_replay` is the AD design for the crown integral" (it is a partial
+optimisation that drops a real term). **Makes impossible:** a second GK-loop copy drifting from
+`integrate()`; the fixed-vs-adaptive confusion; and a **third silent A-vs-B divergence** — the
+crown integral currently has two in-tree AD treatments (`deep_crown_replay` vs `integrate_ad`)
+computing different derivatives, with the design silent on which is right.
 
 ### Cluster 5 — One iterative-solve seam (`supplied_derivative`)
 **Touch points:** `height_seed` (FF16 + TF24), the leaf optimizer nest, `psi_stem_to_ci`,
@@ -276,3 +301,164 @@ mechanism order removes the boundary before anything is built on it:
 The net: a **deletion-heavy** plan (retire plant's refiner, collapse forked quadrature,
 remove every hand-serviced boundary), not the addition-heavy scaffolding both attempts
 produced — which is what the implementation spec promised and neither delivered.
+
+---
+
+# Part IV — Pressure test: Chesterton's fences and the pattern behind them
+
+Two constructs looked like cruft. Investigating *why they exist* (not just whether they're
+used) turned up the general pattern the whole design should rest on.
+
+### Fence 1 — QAG's adaptive path is set to `max_iterations = 1` everywhere. Is it dead?
+
+**No.** The `1` is only the **default constructor** value (`qag.cpp:10`); the parameterised
+ctor takes any `max_iterations`, and the whole adaptive machinery — `integrate_adaptive`
+(`qag.h:85`), `refine`/worst-interval bisection (`:188`), and crucially the **replay** API
+`get_last_intervals`/`integrate_with_intervals`/`integrate_with_last_intervals` +
+`rescale_intervals` (`qag.h:112–144`, `qag_internals.cpp:93`) — is intact, R-exposed
+(`RcppR6.cpp:991`), and exercised adaptively by `test-qag.R` (`max_iterations=100`,
+line 171). It dates to the **original QAG port** (`fe60adcd`, "Port adaptive quadrature"),
+long before AD. `integrate_with_intervals` even *requires* `adaptive==true`.
+**What it is:** plant's *original* "run the adaptive controller once, **record the
+subdivision**, then replay/rescale that fixed subdivision cheaply on later steps" mechanism —
+built for the light integral before that moved to the spline. The leaf model's `max_iter=1`
+is a deliberate *fixed-rule* choice (`leaf_model.h:276`), not neglect.
+
+### Fence 2 — `ff16_production_kernel.h` / `deep_crown_replay`. Cruft?
+
+**Partly — and instructively.** `#540` ("First slice of end-to-end AD for FF16") added the
+whole kernel as an AD milestone spike. Two halves:
+- **Per-piece kernels** (`ff16_area_leaf`, `_assimilation_leaf`, `_respiration`, `_turnover`,
+  `_net_production_A`) — legitimately delegated to by `FF16_Strategy` (single source of
+  truth). Keep (or inline).
+- **Composite replica** (`FF16ProdPars`, `ff16_net_from_components`,
+  `ff16_net_mass_production_crown_top`, `ff16_assimilation_deep_crown_replay`) — **used only
+  by the three AD test files**, never by production `FF16_Strategy`. A parallel copy of the
+  net-production chain, built to validate AD *before the real class was templated*. Now that
+  AD-1 templates `FF16_Strategy` itself, it is the "parallel near-copy" the code style
+  forbids. **Delete.** And `deep_crown_replay` specifically freezes the crown nodes *and*
+  folds `q` into a frozen `double` weight — so it drops `dA/dheight`; `#540`'s own scope note
+  says it does "not differentiate" the crown schedule. Correct only for the fixed-height
+  resident-light partial it validated; **wrong for a full trait gradient where height is an
+  active state.**
+
+### The pattern behind both fences (the Pólya move)
+
+QAG interval-replay and the spline knot-replay are the **same idea**, and plant implements it
+**three times, all sharing `util::rescale`, all predating AD**:
+
+| Instance | Record | Replay / rescale |
+|---|---|---|
+| QAG adaptive quadrature | `get_last_intervals` | `integrate_with_intervals` / `rescale_intervals` (`qag.h:112`) |
+| Light/resource spline | `AdaptiveInterpolator::construct` knots | `ResourceSpline::rescale_spline` (`resource_spline.h:152`, `util::rescale:157`) |
+| ODE time schedule | `refine_schedule` → `ode_times` | `advance_fixed(ode_times)` (mutant fitness) |
+
+**"Record adaptive positions once in `double`, replay on fixed (rescaled) positions" is not
+an AD requirement — it is a pattern plant already has in triplicate for performance and
+mutant-fitness reasons.** odelia's replayable interpolator is simply the `S`-templated member
+of this family. So AD's L2 is the *fourth* consumer of an existing abstraction, not a new
+mechanism (this is what sharpens Cluster 3). And the fence reward is a deletion list, not a
+port: **QAG's adaptive path, `deep_crown_replay`, and the composite kernel are all off every
+System's differentiable graph (Part V) — none needs to be taped or carried along.**
+
+---
+
+# Part V — The System view: the differentiable core vs the shed
+
+Step past the code to the *System*. Under odelia, each plant model is an ODE System: a state
+vector and a right-hand side. Reverse-mode AD differentiates one reduction of an integrated
+run with respect to seeded traits. The only thing that must be **active (on the tape)** is the
+path from a seeded trait to the emergent metric *that is computed by taped arithmetic*.
+Everything else is off the graph. The two attempts templated by *file*; the System view
+templates by *graph membership* — and the graph is far smaller than the code.
+
+### The activation rule (one principle, replaces "template every `double`")
+
+> A quantity goes **active** iff it lies on the differentiable path from a seeded trait to an
+> emergent metric **and** is produced by taped arithmetic (the ODE state, and the algebra that
+> maps state+background → rates). A quantity produced by **iteration, optimisation, or
+> adaptive refinement** never goes active — it stays `double` and enters the tape, if at all,
+> as (a) a **recorded value** (L2 knots / L3 background) or (b) an **injected analytic
+> derivative** (`supplied_derivative`). Diagnostics, error estimates, schedule control, and R
+> facades are off the graph entirely.
+
+### The universal differentiable core (identical across all four Systems)
+
+The **demographic skeleton** — this is model-agnostic and is the whole of what AD-1 should
+activate:
+- per-cohort ODE state `{height, mortality, fecundity, (+ model extras)}` and the node
+  bookkeeping `{log_density, offspring_produced_survival_weighted}` + their rates
+  (`node.h:131–155`);
+- the pure-arithmetic map `(state, background) → rates`;
+- the **background read** — active value from L2-recompute (resident) or L3-frozen-`double`
+  (mutant); the background *construction* is never active;
+- initial conditions: `establishment_probability` (closed-form, active), `height_seed`
+  (root-find → `supplied_derivative`, Cluster 5);
+- `Node::growth_rate_gradient` = `∂g/∂height`, nested, active (Cluster 6).
+
+### Per-System core delta (the science)
+
+| System | What's ADDED to the skeleton, and its AD treatment | The shed (stays `double` / deleted) |
+|---|---|---|
+| **K93** (`k93_strategy.cpp:80–140`) | closed-form `size_dt`/`fecundity_dt`/`mortality_dt` reading `cumulative_basal_area = -log(light)/k_I` — **pure active arithmetic**, two kinks (`growth<0→0`, `mu>0?mu:0`) | nothing model-specific; light-spline construction is recorded `double` |
+| **FF16** (`ff16_strategy.cpp`) | mass cascade (active arithmetic) + crown integral `∫₀ʰ assim_leaf(light(z))·q dz` — **fixed QK rule, active bound, differentiate through** (Cluster 4) | `deep_crown_replay` + composite kernel **deleted**; light-spline construction recorded `double` |
+| **TF24** (`tf24_strategy.cpp:308–485`) | net production = same algebra, but `assimilation = leaf.profit_ · area_leaf · …` where `profit_` is the **outcome of the leaf optimiser**. By the envelope theorem `d(profit*)/d(input) = ∂profit/∂input` at fixed ψ* → **`profit` is a `supplied_derivative` node**: leaf solved in `double`, inject `∂profit/∂{trait, light, height, soil}`. Crown aggregation is fixed QK (Cluster 4). | **the entire `leaf_model.cpp`** (golden-section + two TOMS748 root-finds + four splines, ~1500 lines) **stays `double`** — never templated on `S`; the four leaf splines use analytic `.deriv()`; the QAG integrator is fixed (`max_iter=1`) |
+| **TF24f** (`tf24f_strategy.cpp:26–114`) | **the cleanest**: the optimum ψ* is a **tracked ODE state** `opt_root_psi_state` with rate `k_acclim · dprofit_dψ` (`:37`) — an analytic derivative (`dprofit_droot_collar_psi`) put **on the tape as a rate**; `profit` at the tracked ψ is a supplied value. The golden-section optimiser runs only at birth (`set_initial_states`). | same leaf internals in `double`; one extra active state |
+
+The pattern: the active core is the **skeleton + a few lines of rate arithmetic per model**;
+each model's expensive, iterative, model-defining machinery (the leaf, the soil bucket) is a
+`double` black box that touches the tape only through an injected derivative.
+
+### The invasion↔resident environment cut (correcting both attempts)
+
+The environment's role is entirely determined by run type, and neither attempt cut it right:
+
+- **Invasion (mutant, v1's first proof):** the mutant reads the resident canopy **frozen as
+  `double`** (L3). The active surface is *only the mutant's own physiology + skeleton*. The
+  environment needs **zero templating** — read a recorded `double`. (This is why A, which
+  froze the environment, reached an invasion entry; it just froze it by hand instead of via
+  the recording.)
+- **Resident (self-shading):** the environment **read** goes active — light *values* on
+  **frozen `double` knots** (L2 recompute), so a trait re-shades the stand. This is a thin
+  `S`-templated accessor over a double-knot spline — **not** the parallel `!is_same_v<double>`
+  overload set B built, and **not** an active environment *construction*.
+- **Always:** the environment *construction* (adaptive knot placement) stays `double` and is
+  recorded (L2). Attempt B templated the construction; that was never needed.
+
+So: A froze too much (couldn't do resident); B activated too much (over-built for invasion).
+The correct cut is one thin active *read* over always-`double` knots, chosen by L3 presence.
+
+### The shed — what does NOT need reverse mode at all
+
+Answering the brief's question directly. Each of these is off every System's differentiable
+graph; none should be templated on `S`:
+
+1. **`leaf_model.cpp` (the whole leaf hydraulics)** — `double` black box + `supplied_derivative`.
+   The single largest shed; the mechanical "template everything" approach would have activated
+   ~1500 lines that never need to be active.
+2. **The TF24 soil-water bucket** (`tf24_environment.h`) — a frozen L3 background in v1
+   (resident soil coupling is deferred as stiff, Appendix A.2). Never active in v1.
+3. **QAG's adaptive path + interval replay** — off every graph (crown = fixed QK, leaf = fixed
+   QAG, light = spline). Legacy of a non-AD light integral; AD never touches it.
+4. **`deep_crown_replay` + the composite production kernel** — an AD spike superseded by AD-1;
+   delete.
+5. **Adaptive spline construction, the ODE stepper, `refine_schedule`** — recorded `double`
+   (L1/L2); the replay is fixed, so no controller is ever taped.
+6. **`resource_compensation_point`** (`individual.h:162`) — an R-facing diagnostic root-find,
+   off the run graph. No AD in v1.
+7. **Refinement-error machinery, `check_finite_ode_state`, all `r_*` facades, `is_finite`
+   guards** — diagnostics and the R boundary; `double`.
+
+### What this shrinks
+
+- **Cluster 1** is smaller than "template the hierarchy": activate the *demographic skeleton*
+  and each model's *rate arithmetic*; leave the leaf, the soil bucket, and every adaptive
+  controller in `double`.
+- **Cluster 5** (the `supplied_derivative` seam) is not a TF24 side-quest — it is *how the
+  entire leaf model participates*, so it is core, and it keeps `leaf_model.cpp` from ever
+  going active.
+- The plan gets **more** deletion-heavy: not only retire the duplicate refiner and the forked
+  quadrature, but keep an entire subsystem (the leaf) off the tape. The forest the attempts
+  missed is that **most of plant does not need reverse mode at all** — only a small,
+  model-invariant core does, and the hard, model-defining code contributes through injected
+  derivatives, not activation.
