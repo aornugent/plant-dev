@@ -1160,3 +1160,75 @@ the growing dimension (co-design A / Q1)? Marked ⚠ where it bites.
 (Q1–Q24); Part X is the integrating view — how a gradient actually flows, per model — and it localises
 the two load-bearing risks (growing-dimension FORWARD replay; leaf tape-injection) to specific stages
 and the cheapest models to test them on.
+
+---
+
+## X.7 TF24 resident & TF24f resident — tracing *why* they defer (owed; not just asserted)
+
+X.4/X.5 traced the TF24/TF24f *mutants* and asserted the residents are deferred. That skipped the
+hard case. Here is the resident trace, so "deferred" is earned at the exact stage it breaks.
+
+### TF24 resident
+
+- **R:** `run_scm(..., save_RK45_cache=TRUE)` (climate drivers set); `stand_gradient(scm, metrics,
+  traits, feedback="resident")`.
+- **SCM · ADAPTIVE:** resident double run. `advance_adaptive` places ODE steps to resolve **two**
+  coupled loops: the `log_density`↔canopy loop (as FF16) **and** the plant↔soil-water loop
+  (`resource_depletion` → soil ODE → soil ψ → leaf hydraulics → transpiration → `resource_depletion`).
+  Records L1 step times + L2 light knots. The soil state is in `y` (env carries ODE state, VII.2).
+- **FORWARD (where it breaks):** active twin at `S=active`. Two things now differ from every prior
+  trace:
+  1. **Soil is active coupled state, not a frozen field.** L3 is empty (resident), so the light field
+     recomputes on frozen knots (L2, fine, as FF16) **and** the soil-water layers integrate *actively*,
+     coupled to the active cohorts through `resource_depletion`. The `double` leaf now reads an
+     **active** soil ψ, so it needs a *new* injected partial `∂profit/∂(soil ψ)` (a `supplied_derivative`
+     input that the mutant trace never needed, because there soil ψ was frozen) — extending co-design
+     B/C to the soil axis.
+  2. **The fixed-schedule replay cannot hold the stiff coupled trajectory.** FORWARD replays
+     `advance_fixed(recorded_steps)` — a *fixed* grid the adaptive pass chose for the *double*
+     trajectory. For the stiff plant↔soil + `log_density`↔canopy coupling at long patch lifetimes, that
+     grid is only adequate under the exact double dynamics; the coupled active replay drifts off it
+     (`advance_fixed` has no error control, `ode_solver_internal.hpp:172-186`). **This is the deferral
+     (design Appendix A.2):** not "we chose not to," but "the fixed-node replay is numerically
+     inadequate for this stiffness."
+- **REVERSE / R:** would sweep to `d(metric)/d(trait)` **with** soil+canopy feedback — the
+  scientifically richest gradient — but only if FORWARD held, which it does not.
+- **Failure discipline:** gate with a **clear error driven by the double replay's environment error**
+  (re-run the recorded fixed schedule in `double`, compare to the adaptive trajectory; if the drift
+  exceeds tolerance, refuse) — never a silently-drifted gradient (design §7, Q11-adjacent).
+- **The co-design escape hatch (Appendix A.5):** *adaptive sub-stepping in the replay* would hold the
+  stiffness — but adaptive sub-steps reintroduce data-dependent branching that corrupts the tape
+  **unless the sub-step positions are themselves recorded** (an L1-refinement: record the adaptive
+  sub-schedule, replay it fixed). That is a genuine odelia co-design item (extends A), not a plant-local
+  fix. **Open (Q25).**
+
+### TF24f resident
+
+- Same as TF24 resident **plus** the acclimation state `opt_root_psi_state` relaxing at rate
+  `k_acclim·dprofit_dψ`. That adds a *third* timescale (the ψ relaxation) to the stiff set, so the
+  fixed-schedule replay is *even less* able to hold it — TF24f resident is the **hardest** point in
+  the whole matrix and the canonical Appendix A.2 boundary. It also compounds the growing dimension
+  (⚠ A) with a stiff extra active state whose rate is itself an injected analytic derivative
+  (⚠⚠ B). Deferred for the same reason, more so.
+
+### What the resident-TF24 trace adds
+
+- The residents are **not** a trivial variant of the mutants — they flip soil from **frozen L3 (a
+  read)** to **active coupled state (an integration)**, which (a) needs a new `∂profit/∂(soil ψ)`
+  injected partial and (b) subjects the fixed-schedule replay to a stiffness it cannot hold.
+- So the real v1 boundary is sharper than "TF24 is hard": **TF24/TF24f *mutant* (invasion) is in
+  scope (soil frozen L3, X.4/X.5); TF24/TF24f *resident* defers on the replay-stiffness wall**, whose
+  only principled lift is recorded adaptive sub-stepping (Q25) — an odelia co-design item.
+
+## X.8 Open question added (25)
+
+25. **Can the fixed-schedule replay be made to hold a stiff coupled resident** (TF24/TF24f) by
+    recording the adaptive sub-schedule and replaying *it* fixed (an L1 refinement), and is that an
+    odelia change or expressible plant-side? Until answered, TF24/TF24f resident gradients defer with
+    a double-replay-error gate.
+
+**Part X now covers all four models × both run types** (FF16 res/mut, K93 res/mut, TF24 res/mut,
+TF24f res/mut). Open questions stand at **Q1–Q25**. The v1 boundary the traces earn: **FF16 resident +
+FF16/K93/TF24/TF24f mutant are tractable; TF24/TF24f resident defer on replay stiffness** (Q25), and
+the load-bearing unknowns to test first remain the growing-dimension FORWARD replay (A/Q1, on K93
+resident) and the leaf tape-injection (B/Q21).
