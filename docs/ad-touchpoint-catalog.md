@@ -1030,3 +1030,133 @@ A/F are load-bearing. **odelia co-design is in scope.**
 IX adds workflow/co-design *interactions*, not new model mechanisms). Open questions stand at
 **Q1–Q24**, still deliberately unclustered — A/F/Q1/Q18/Q20 are the load-bearing ones to resolve
 from running code before Part II's clusters are re-drawn.
+
+---
+
+# Part X — End-to-end control-flow traces (R → SCM → ADAPTIVE → FORWARD → REVERSE → R)
+
+Specialises the doc control-flow summaries (`ad-record-replay.md §6`, AUTODIFF.md "control flow
+of a gradient") onto each plant model and workflow. Five stages:
+
+- **R** — the user call; only `double` crosses (Layer 0).
+- **SCM · ADAPTIVE** — the resident *double* run: `refine_schedule` fixes L0, `advance_adaptive`
+  discovers ODE steps, and (with `save_RK45_cache`) records **L1** step times + **L2** light-spline
+  knots (per step) + **L3** whole-environment snapshots (per RK stage). Immutable after.
+- **FORWARD** — the active record pass: `rebind_from` → active SCM twin; seed target(s); `reset`;
+  `run()` **replays `advance_fixed` on the recorded schedule while *growing* the dimension via
+  introductions**; each stage reads L2 (resident: rebuild light active on frozen knots) or L3
+  (mutant: read frozen `double` env). The tape records once.
+- **REVERSE** — one adjoint sweep per output metric → `d(metric)/d(target)`; `supplied_derivative`
+  leaves distribute their analytic partials (TF24/TF24f).
+- **R** — the `double` Jacobian (metrics × targets), relabelled in R. **Targets are low-level
+  `FF16_Pars` fields, not user traits — the `hyperpar` composition (IX.3/Q18) is unresolved.**
+
+The load-bearing unknown lives in **FORWARD** for every trace: does the active twin/tape survive
+the growing dimension (co-design A / Q1)? Marked ⚠ where it bites.
+
+---
+
+## X.1 FF16 resident (primary workflow — L2, self-shading)
+
+- **R:** `scm <- run_scm(p, control=control(save_RK45_cache=TRUE))`; `stand_gradient(scm,
+  c("LAI","biomass"), traits, feedback="resident")`.
+- **SCM · ADAPTIVE:** resident double `run()` — introduce cohorts on the L0 schedule, `advance_adaptive`
+  each inter-introduction segment (`scm.h:283`); record step times (L1) and the light-spline knots
+  (L2). *L3 snapshots are recorded too but the resident gradient will ignore them.*
+- **FORWARD:** `rebind_from<active>` builds `SCM<FF16_Strategy_<active>, FF16_Environment>`; seed the
+  trait(s) into the one shared strategy (AD-2); `reset()` (re-derives `prepare_strategy` under the
+  seed — `height_seed` via `supplied_derivative`); `run()` replays `advance_fixed(recorded_steps)`,
+  ⚠ **re-introducing cohorts and resizing mid-replay**. Each step: `replay_step()` loads the frozen
+  knots; each stage: `derivs` (L3 empty → recompute) rebuilds the light spline **active on the frozen
+  knots** from the active cohorts → self-shading flows; rates = mass cascade + crown integral (fixed
+  QK, active bound); `growth_rate_gradient` (FD over height, **active in the trait**, Q3) feeds
+  `log_density_dt`.
+- **REVERSE:** sweep per metric (LAI/biomass/basal_area = census reductions over active cohorts) →
+  `d(metric)/d(trait)`, **with** the self-shading cross term.
+- **R:** double Jacobian. This is the hardest/primary path and the one Attempt A could not reach
+  (it never templated the environment for the L2 recompute).
+
+## X.2 FF16 mutant / invasion (L3, frozen canopy)
+
+- **R:** resident `run_scm(..., save_RK45_cache=TRUE)`; `offspring_production_gradient(resident,
+  traits)`.
+- **SCM · ADAPTIVE:** identical resident record pass; the **L3 `environment_history` snapshots** are
+  what this workflow consumes.
+- **FORWARD:** active twin carries the *mutant* strategy; `set_mutant()` (`is_mutant_run` suppresses
+  the mutant's own competition, `patch.h:427,438`); schedule pinned to `step_history`; `run()` replays
+  `advance_fixed`. Each stage: `derivs` (L3 populated → `has_recorded_field()` true) reads the
+  resident's frozen environment `double` by `(step,index)` (`set_ode_state(it,index)`,
+  `patch.h:707-719`) — the mutant neither shades the resident nor itself; only the mutant's own cohort
+  state is active. ⚠ still grows dimension.
+- **REVERSE:** sweep `offspring_production` → `d(fitness)/d(trait)`; the frozen field's contribution is
+  **zero by construction** (read off-tape).
+- **R:** double gradient. Cleanest end-to-end (no active environment); this is roughly where both
+  attempts aimed the first proof.
+
+## X.3 K93 resident & mutant (the minimal clean trace)
+
+- **R:** `run_scm` / gradient exactly as FF16; metrics are density/basal-area census (no carbon).
+- **SCM · ADAPTIVE:** same record pass; the **only** adaptive field is the light spline (L2) — no
+  quadrature, no root-find, no leaf.
+- **FORWARD:** `K93_Strategy_<active>` rates are **closed-form** (`size_dt`/`fecundity_dt`/
+  `mortality_dt` reading `-log(light)/k_I`); resident recomputes light on frozen knots (L2), mutant
+  reads it frozen (L3). Two kinks on the rate path: `growth<0→0`, `mu>0?mu:0` (Q11). ⚠ grows dimension.
+- **REVERSE:** sweep census metric → `d(metric)/d(trait)`.
+- **R:** double Jacobian. **K93 is the reference trace** — it exercises the whole pipeline
+  (growing dimension, L2/L3, census functional, the FD `growth_rate_gradient`) with *none* of the
+  model-specific hard parts. If the FORWARD growing-dimension question (A/Q1) is going to be
+  de-risked cheaply on a full SCM, K93 is where.
+
+## X.4 TF24 mutant / invasion (leaf = double black box + supplied-derivative; soil frozen L3)
+
+- **R:** resident `run_scm(..., save_RK45_cache=TRUE)` (with climate extrinsic drivers set);
+  `offspring_production_gradient(resident, traits)`.
+- **SCM · ADAPTIVE:** resident double run; L3 snapshots capture the **whole `TF24_Environment`**
+  each stage — light spline **and soil-water ODE state** and driver caches (VIII.1).
+- **FORWARD:** active twin = `TF24_Strategy_<active>` but **mixed-scalar** — `S` pars + mass cascade,
+  a `double` `Leaf` sub-model (co-design B). Per crown quadrature node the leaf runs its optimiser in
+  `double` (golden-section + two TOMS748 root-finds), producing `profit_` (`double`); its trait/light
+  sensitivity is injected as `supplied_derivative(tape, profit, {&traits…,&light,&height},
+  {∂profit/∂…})` — ⚠⚠ but the System must reach the Solver-owned tape from inside `ode_rates`
+  (co-design B / Q21), and the analytic partials mostly **don't exist yet** (only `∂profit/∂vcmax25`
+  — VIII.2). Soil ψ is read **frozen** from the L3 snapshot (mutant doesn't perturb resident soil);
+  crown integral is fixed QK at the active bound. ⚠ grows dimension.
+- **REVERSE:** sweep `offspring_production`; each leaf `supplied_derivative` leaf distributes its
+  `double` partials → `d(fitness)/d(trait)`. Frozen soil/light contribute zero.
+- **R:** double gradient. **TF24 *resident* is out of v1** (soil becomes active coupled state — the
+  stiff coupling, VII.2 / Appendix A.2); gate it with a clear error, not a wrong number.
+
+## X.5 TF24f (acclimation — the optimiser becomes a tracked state)
+
+- **R:** as TF24; TF24f adds one ODE state `opt_root_psi_state`.
+- **SCM · ADAPTIVE:** as TF24, plus the extra tracked-ψ state in `y`.
+- **FORWARD:** the leaf optimiser **does not run** except at birth (`set_initial_states`). Instead ψ*
+  is a tracked **active** ODE state whose rate is `k_acclim · dprofit_dψ`, where `dprofit_dψ` =
+  `Leaf::dprofit_droot_collar_psi` — an **analytic derivative put on the tape as a rate**
+  (`tf24f_strategy.cpp:37`). `profit` at the tracked ψ is a supplied `double` value. So TF24f is
+  *structurally cleaner* for AD than TF24 (no nested optimise per step) but still `double`-leaf +
+  injected partials, and still soil-frozen (mutant) / deferred (resident). ⚠ grows dimension; ⚠⚠
+  tape-from-System injection (B).
+- **REVERSE / R:** as TF24.
+
+---
+
+## X.6 What the traces make plain
+
+- **Every trace has the same spine** (R → double record → active replay-while-growing → sweep →
+  double) and differs only in the **rate-evaluation box** inside FORWARD: K93 closed-form, FF16 mass
+  cascade + QK, TF24 `double`-leaf + `supplied_derivative`, TF24f tracked-ψ + injected rate. The
+  demographic skeleton, the L2/L3 field handling, and the growing dimension are **common**.
+- **`resident ⇒ L2, mutant ⇒ L3` holds uniformly**; soil rides L3 for TF24 mutants and is deferred
+  active-state for TF24 residents.
+- **The single de-risking experiment falls out:** the FORWARD growing-dimension replay (⚠, co-design
+  A/Q1) is common to all five and is cheapest to test on **K93 resident** (X.3) — the clean spine with
+  no leaf, no quadrature — then FF16 mutant (X.2). The leaf injection (⚠⚠, B/Q21) is TF24/TF24f-only.
+- **The R-boundary caveat is common:** every trace returns a gradient w.r.t. **low-level parameters**;
+  turning that into the ecological trait gradient needs the `hyperpar` composition (Q18), unresolved
+  in every trace.
+
+**The catalog now spans Parts I–X.** Parts I–IX enumerate the surface and the open questions
+(Q1–Q24); Part X is the integrating view — how a gradient actually flows, per model — and it localises
+the two load-bearing risks (growing-dimension FORWARD replay; leaf tape-injection) to specific stages
+and the cheapest models to test them on.
