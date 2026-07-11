@@ -756,3 +756,135 @@ here is only to record that this mechanism exists and works today.
 **Still deliberately unclustered.** The census (VII.1) shrinks L2 to one field; the field-vs-state
 correction (VII.2) moves soil out of the L2/L3 model entirely; and questions 7–12 join 1–6 as the
 set to resolve from running code before Part II's clusters are re-drawn.
+
+---
+
+# Part VIII — Run-type/level correction, the leaf seam, and the hidden-feature sweep
+
+Answers to four sharpened questions (run-type↔level, TF24 soil under mutant, leaf
+interpolators × supplied-derivative, birth-rate science) plus an exhaustive hidden-feature
+sweep that closes the coupling-channel enumeration. Still surfacing, not solving.
+
+## VIII.0 Correction: a run reads L2 **or** L3, never both
+
+Parts IV–VII loosely said the resident run "uses L0·L1·L2·L3." Per odelia#28 and the code:
+- **Resident gradient run: L0 (schedule frozen up front) + L1 (step schedule) + L2** (light
+  field **recomputed active** on frozen knots; self-shading flows). It does **not** read L3.
+- **Mutant gradient run: L0 + L1 + L3** (the resident's frozen environment read as `double` by
+  `(step,stage)`; the rare invader neither shades the resident nor itself). It does **not**
+  recompute (**no L2**).
+- The resident's *double recording* stores the **union** (positions *and* values) only so that
+  *future mutants* can read the values — the resident's own gradient never reads them. The
+  `ad-r-interface.md §5.1` "resident → L2·L3" row conflates "the recording contains all levels"
+  with "this run reads all levels." That is the doc's misleading bit.
+
+## VIII.1 TF24 soil under a mutant fits the L3 shape (resident soil does not)
+
+`cache_RK45_step` snapshots the **whole `environment` object** per RK stage
+(`environment_cache.push_back(environment)`, `patch.h:743`) — for TF24 that includes the
+soil-water ODE state, the light spline, and the driver caches. The mutant `set_ode_state(it,
+index)` points `environment_ptr` at the frozen snapshot and **skips the environment's slots in
+its own ODE vector** (`patch.h:715–719`), so the resident's soil ψ is read frozen exactly like
+light. **So invasion-TF24 soil rides L3 cleanly.** Two caveats: (a) plant's L3 is a *whole-object*
+snapshot per stage (heavier than odelia's minimal per-stage field-value cache); (b) **resident**
+TF24 soil is *active coupled state* (VII.2), the deferred stiff case — not L3.
+
+## VIII.2 Leaf interpolators × supplied-derivative — and the ∂profit gap
+
+The four leaf interpolators are fixed-knot C2 splines exposing an analytic `.deriv()`. The
+leaf's supplied-derivative (`dprofit_droot_collar_psi`, `leaf_model.cpp:900`) is **hand-assembled
+in `double`**: forward-AD (`xad::fwd`) of the closed-form algebra (`assim_colimited_ad`,
+`hydraulic_cost_ad`) + the implicit-function theorem on the `ci`/`psi` root-finds + the
+interpolators' `.deriv()` as the transport terms + a central-difference fallback at kinks. The
+interpolators never go active — only `.eval()` (value) and `.deriv()` (slope) are read, both
+`double`. **This confirms Part V (the leaf stays `double`) and exposes the gap:** only
+`∂profit/∂psi` and `∂profit/∂vcmax25` exist today. A full TF24 trait gradient needs
+`∂profit/∂θ` for **every** seeded trait plus `∂profit/∂{light, height}` (the crown reads light at
+the active bound) — each a similar hand-assembled analytic partial (envelope theorem + forward-AD
++ IFT + `.deriv()`). Mechanical, but a real body of work — the substance of AD-9.
+
+## VIII.3 Birth-rate science (answering the design question)
+
+`birth_rate` enters twice: **input** — a cohort's initial `log_density = log(birth_rate·pr_estab/g)`
+(`node.h:177`), so it sets seedling arrival density; **output** — `offspring_production` scales
+each node's fecundity by `birth_rate(t)` (`patch.h:473`), while **R0 = `net_reproduction_ratios`
+uses `scalars=1`** (`patch.h:485`), i.e. offspring *per seed*. R0's dependence on `birth_rate` is
+therefore **entirely indirect density dependence**: more `birth_rate` → denser cohorts → more
+canopy shading → lower per-capita fitness → lower R0. So **`dR0/d(birth_rate)` *is* the
+density-dependent regulating feedback** (negative), and it drives the equilibrium solve
+`R0(birth_rate)=1` (the self-sustaining density; the Newton loop lives in `regnans`). It flows
+through the resident self-shading coupling → **it is a resident (L2) gradient**; the frozen/invasion
+version misses the feedback and "can flip the sign" (design AD-10). **Scope to the scalar**
+(`is_variable_birth_rate=false`): then `birth_rate` is a plain leaf input seeded like a trait
+(`d/d(birth_rate)=1` at the input, the rest is the density→R0 chain). The time-varying spline case
+is a *functional* derivative over control points (the spline basis is the analytic factor) —
+representable but awkward; out of scope. Climate drivers are fixed input data, not targets.
+
+## VIII.4 Hidden-feature sweep — the residue (11-category hunt)
+
+New items an ODE-`y`-only view misses, beyond what earlier parts caught:
+
+- **The `aux` vector is a derivative-carrying store that *looks* like a cache.**
+  `Internals::auxs` is `std::vector<double>`; `competition_effect (= area_leaf(height))` and
+  `height_inverse` are recomputed from state in `update_dependent_aux` (`ff16_strategy.h:207`) and
+  **read back inside the rate path** (`ff16_strategy.cpp:90–91`). The chain height→aux→rate passes
+  through this store — template only `y` and not `auxs` and the derivative drops silently. (AD-1
+  correctly templates all four `Internals` vectors; the *trap* is that `aux` reads as a cache.)
+  `collect_all_auxiliary` also changes the aux **layout** at runtime (`aux_size` varies).
+- **The shared strategy object is both the parameter store *and* a per-call scratchpad.** Every
+  cohort of a species aliases one `shared_ptr` strategy; its non-`const` members are shared mutable
+  state: TF24's `Leaf leaf` and `mass_root_prop_` (`tf24_strategy.h:338,376`), the `QK
+  function_integrator`, and TF24f's `tracked_root_psi_`/`dprofit_dpsi_` write/read channel
+  (`tf24f_strategy.h:74`). **Consequence:** a templated `TF24_Strategy_<S>` is a **mixed-scalar
+  object** — `S`-typed pars + mass cascade, but a **`double` `Leaf` sub-model** (Part V's "leaf
+  stays double" is literally this). The trait→leaf coupling passes traits *into* the double leaf as
+  `double` and the derivative comes back via `supplied_derivative`.
+- **`height_max` = `std::max` over cohorts sets the environment spline domain**
+  (`patch.h:424–432,569`). The resident (L2) field's *domain bound* is a non-smooth max over active
+  cohort heights — a structural kink in the self-shading gradient, not just a leaf-level clamp.
+- **Deliberately frozen trait dependencies.** FF16 hard-codes `lma` into `r_l = 39.27/0.1978791`
+  and `r_b = 2·r_s` "so it doesn't change if that trait changes" (`ff16_strategy.h:42–56`). So
+  `d(r_l)/d(lma) = 0` **by construction** — the AD gradient correctly reflects the *model's*
+  parameterisation, which omits this physiological chain by choice. A caveat for interpreting
+  gradients, not a bug.
+- **Non-autonomous time term:** `establishment_probability` reads `environment.time` via
+  `exp(-recruitment_decay·time)` (`ff16_strategy.cpp:488`; inert at the default 0, but user-set),
+  feeding the mortality/log-density IC.
+- **`util::stop`/`is_finite` guards on the hot path** (`species.h:208`, `k93_strategy.cpp:92`,
+  `patch.h:355–421` `check_finite_ode_state` with `log_density_ceiling=50`) trip on the perturbed or
+  NaN intermediates an FD probe or a boundary-adjacent AD sweep produces — a robustness surface.
+- **R-layer gradient *consumers*:** `optimise_individual_rate_*_by_trait` (`individual.R:266`)
+  optimises a growth rate over a trait with `stats::optimise/optim` + an NA→0 remap;
+  `grow_individual_bisect` root-finds a time with `stats::uniroot`. These are IndividualRunner
+  workflows that would *use* AD gradients (today FD) — a use case, not a differentiation target.
+
+## VIII.5 Closure: the coupling channels are now exhaustively enumerated
+
+The sweep found **no** hidden globals/singletons/registries, **no** third resource (only light —
+non-depletable, FF16/K93 — and soil water — depletable state, TF24), and **no** direct
+cohort→cohort or species→species state reads. Every inter-entity coupling routes through exactly
+three channels:
+1. **the light environment** (a recomputed field: L2 resident / L3 mutant);
+2. **the soil environment** (ODE state + the `resource_depletion` plant→soil channel; TF24 only);
+3. **the shared strategy object** (per-species scratchpad: leaf, buffers, tracked-ψ).
+Plus the per-node birth stamps (`patch_density_at_birth`, `pr_patch_survival_at_birth`) that are
+not in `y`. That is the complete set — a confidence result: further hunting is unlikely to add a
+*new kind* of coupling, only more instances within these three.
+
+## VIII.6 Open questions added (13–17)
+
+13. **Is the `aux` store correctly `S` for every read-into-rate path**, and does
+    `collect_all_auxiliary`'s runtime layout change interact with a fixed tape?
+14. **How is the mixed-scalar strategy (`S` pars + `double` leaf) actually expressed** so the
+    trait→leaf→profit path is `double`-in / analytic-partial-out without a hand-serviced boundary
+    (the trap both attempts fell into elsewhere)?
+15. **Does the `height_max` max-over-cohorts kink** (spline domain bound) bite the resident L2
+    gradient at the operating point, or is it a.s. inactive (a strict max)?
+16. **Which frozen-by-design trait dependencies** (like `r_l`↔`lma`) does the shipped gradient
+    silently omit, and is that the scientifically intended gradient?
+17. **Do the hot-path `util::stop`/`is_finite` guards need active-safe forms**, or is the operating
+    point always interior enough that an AD sweep never trips them?
+
+**Still unclustered — the surface is now believed complete** (VIII.5 closure). The full open set is
+Q1–Q17 across Parts VI–VIII; several (Q1 growing-dimension tape, Q2 leaf trait-gradient, Q14
+mixed-scalar strategy) must be answered from running code before Part II's clusters are re-drawn.
