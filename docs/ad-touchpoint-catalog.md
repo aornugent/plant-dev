@@ -1369,3 +1369,134 @@ quadrature-adaptive, schedule, stochastic) **stays `double`**. (2) The plan is g
 span the mechanisms (I–IV), the System view (V), the wide surface and closure (VI–VIII), the
 workflow/co-design interactions (IX), the control-flow traces (X), and this per-file ledger (XI), with
 open questions Q1–Q25.
+
+---
+
+# Part XII — Decisions recorded, investigations deepened, open set narrowed
+
+Resolves the answered questions into scope decisions, deepens the ones flagged for
+investigation (problem + code trace, **no tests, no solutions**), and leaves only the genuinely
+open questions.
+
+## XII.1 Decisions recorded
+
+| Q | Decision | Doc/scope impact |
+|---|---|---|
+| **Euler** | Forward-Euler is a **DGVM-compatibility mode** (`control.h:71-78`), incompatible with the RK-stage replay cache by construction (`scm.h:157`). **Out of the AD path** — a fact, not a choice. | v1 differentiates the adaptive-RKCK path only. |
+| **Q6 (crown types)** | **All *runnable* shading modes are in scope** — DeepCrown, MeanLight, CrownCentre, FlatTopSoftBox, PPA-smoothed. Only FlatTopBox and PPA-hard are out **because they do not run** (hard step, `canopy_shape.h:33`), not by choice. | The templated crown evaluators (XI.2 `canopy_shape.h`) cover all runnable modes; softbox/PPA kinks documented (XII.3). |
+| **Q6/Q7/Q10 (TF24 resident)** | **TF24/TF24f resident is IN scope** — the AD refactor must *accommodate* it (soil as active coupled state, `resource_depletion`, the `∂profit/∂soil-ψ` partial), so the architecture is not FF16-shaped. **Long-timescale stiffness is a documented limitation, not an exclusion.** | Supersedes X.7's "deferred": resident-TF24 is architecturally in; only the stiff long-horizon regime defers (Q25) with a double-replay-error gate. |
+| **Q5/Q9 (birth_rate / drivers)** | **Scalar `birth_rate` is the only driver differentiation target**; all climate drivers are **fixed data**. | `birth_rate` seeded as an active `double` at its read sites (`node.h:177` density, `patch.h:473` offspring), extrinsic-driver machinery stays `double` (XI.6). |
+| **Q23 (recording UX)** | **Ephemeral session-only recording is acceptable, documented.** | `save_RK45_cache` opt-in, lives behind the XPtr, lost on `saveRDS`, re-run to refresh (IX.3). Document in the R help + a fail-loud "no recording" error. |
+| **Q18 (hyperpar)** | **v1 differentiates low-level parameters** (the partial). The ecological-trait total-derivative through `hyperpar` is a **documented future extension**. | `stand_gradient` targets are `FF16_Pars` fields; R help states the gradient holds hyperpar-derived parameters fixed; the composition (differentiate the R `hyperpar` and chain, or port it) is recorded as the extension, not built. |
+| **Q16 (frozen deps)** | **Keep the frozen-by-design trait dependencies fixed** (`r_l` hard-codes `lma`, `ff16_strategy.h:42`). | Document that the gradient reflects the model's parameterisation and omits those chains by construction. |
+| **Q4 (schedule gradient)** | **The introduction schedule is a nuisance variable; `d(schedule)/d(trait)` is out of scope.** | The frozen-schedule gradient is *the* gradient; no measurement of the dropped term needed. Closes Q4. |
+| **Q19 (ICs)** | **IC gradients are IN v1** — deliberately, to exercise the odelia IC-seeding surface (which is supported+tested there). Lift the resume-forbids-replay stub guard (`scm.h:231`). | `Patch::ad_initial_state()` becomes real (the seedable initial size distribution + initial soil); the stub `util::stop` is a remove-as-we-go artifact. |
+| **Q25 (stiff residents)** | **Deferred, with documented potential solutions** (recorded adaptive sub-stepping = an L1 sub-schedule refinement; an odelia extension) and a double-replay-error gate meanwhile. | X.7/X.8 stand as the documented limitation + escape hatch. |
+| **Stochastic / refine-during-gradient** | **Out of scope** (stochastic non-differentiable; refine-during-gradient excluded — the schedule is frozen before the gradient). | Confirmed; the stochastic engine remains a compile-constraint only (Q24). |
+
+## XII.2 Deepened — Q3: the growth-rate gradient is a derivative *inside* the ODE right-hand side
+
+**What it is.** `Node::compute_rates` sets the density-transport rate
+`log_density_dt = -growth_rate_gradient(environment) - individual.rate(MORTALITY_INDEX)`
+(`node.h:138-140`). `growth_rate_gradient` (`node.h:191-220`) computes `∂g/∂h` — the derivative
+of a plant's height-growth rate w.r.t. its own height — **by finite difference**
+(`gradient_fd`/`gradient_richardson`, `gradient.h:16-121`) over a `thread_local`
+`std::optional<Individual>` scratch (`node.h:200`) that is copy-assigned from the node's
+individual and perturbed in height via `growth_rate_given_height(h, env)` (`node.h:207-209`).
+This is not a diagnostic — it is the **McKendrick–von Foerster characteristic term**: `∂g/∂x` is
+how the cohort-density along a characteristic thins as growth varies with size.
+
+**Why it differentiates badly (the problem, precisely).** Under a trait gradient `θ`, the term we
+need on the tape is `d(log_density_dt)/dθ = -d(∂g/∂h)/dθ - dμ/dθ`. The FD approximates
+`∂g/∂h ≈ (g(h+ε,θ) - g(h-ε,θ)) / 2ε`. Its `θ`-derivative is
+`(g_θ(h+ε) - g_θ(h-ε)) / 2ε` — a valid FD of the *mixed* partial `∂²g/∂h∂θ`, **provided each `g`
+evaluation stays active in `θ`**. Three code facts decide whether it does:
+1. **The scratch aliases the seeded strategy.** `*scratch = individual` copies the
+   `strategy_type_ptr` (a `shared_ptr`), so the scratch's strategy *is* the one shared, seeded
+   active strategy — so `growth_rate_given_height` reads the active (seeded) `pars` and its value
+   is active in `θ`. Good — the coupling is present *if nothing discards it*.
+2. **Both attempts discarded it.** Attempt A returns `double` and wraps the inputs/rate in
+   `ad_value(...)` (`node.h` growth_rate_gradient in the AD-5 diff); the FD then runs in `double`
+   and `d(∂g/∂h)/dθ` is **silently dropped** from `log_density_dt`. The stand gradient loses the
+   density-transport cross term — a value-correct, gradient-wrong result (the hardest kind to
+   notice, since the forward trajectory is unaffected).
+3. **To keep it, three things must be active together:** `growth_rate_gradient` must return
+   `value_type` (S), the `thread_local` scratch must be the active `Individual`, and the FD
+   primitive (`gradient_fd`, `gradient.h`) must be templated to combine S-valued function outputs
+   over a `double` step (the perturbation `ε` and the evaluation points stay `double`; only the
+   *values* are active).
+
+**The unresolved sub-hazard (describe, don't solve).** The scratch is `thread_local` and *reused*
+across calls (copy-assigned to avoid reallocation, `node.h:196-203`). Made active, it holds XAD
+values with tape identity; reusing one `thread_local` active `Individual` across every node of a
+growing-dimension replay raises a tape-lifecycle question — whether stale tape nodes from a prior
+call's scratch linger or interfere — that no existing test exercises. **Trace:** `node.h:138-140`
+(the rate), `node.h:191-220` (FD + scratch), `gradient.h:16-121` (`gradient_fd`/`richardson`),
+`Individual::growth_rate_given_height`. **Open as a described problem (Q3-deepened); not tested.**
+
+## XII.3 Deepened — the "differentiates badly" classification (Q11/Q17/Q8/Q13/Q15)
+
+Every component that differentiates badly, classified into four kinds. **Selector** = branch on a
+passive value selecting between smooth pieces (derivative structurally zero at the branch — safe).
+**Kink** = genuine non-differentiable point the operating point *can* sit on (subgradient choice must
+be documented). **Guard** = `throw`/off-domain check that needs an active-safe form (read `value`,
+never throw on an active intermediate). **Store/Cache** = a `double` container on the value path
+that must be `S` or whose invalidation is unsafe under active types.
+
+### Kinks (subgradient — the operating point can sit on them; document the choice)
+| Site | File:line | Nature |
+|---|---|---|
+| K93 growth ReLU `if(growth<0) growth=0` | `k93_strategy.cpp:117` | on the HEIGHT rate; a plant at zero growth sits exactly on the kink |
+| K93 mortality clamp `(mu>0)?mu:0` | `k93_strategy.cpp:139` | on the mortality rate |
+| FF16/TF24 production sign branch `if(net_production>0){…}else{zero all rates}` | `ff16_strategy.cpp:103`, `tf24_strategy.cpp:186` | selects the whole growth/fecundity block vs zero — a plant at the carbon compensation point sits on it |
+| Resource-spline floor + cap `height<=cap ? max(0,spline) : 1.0` | `resource_spline.h:88` | the `max(0,·)` (#253 undershoot) and the hard `1.0` cap; the light read every model uses |
+| CanopyShape box/softbox step | `canopy_shape.h:176-194` | FlatTopSoftBox (C1, 2nd-deriv kink) — in scope; FlatTopBox hard step — doesn't run |
+| PPA `step_light`/`smooth_floor` layer joins | `ff16_environment.h:90-121` | C1 but 2nd-deriv-discontinuous at joins; contains `std::floor` |
+| TF24 soil positivity/infiltration/retention floors | `tf24_environment.h:218,248,267,277` | `max(theta,0)`, the `theta<=residual` drought reset — a drought-stressed layer sits on them |
+| TF24 rooting-depth clamp `min(height, rooting_depth_max)` | `tf24_strategy.cpp:374` | plants above the cap sit on it |
+| Leaf transport `abs(·)<1e-8` special cases | `leaf_model.cpp:460,485` | inside the (double) leaf — a kink in the injected partial, handled by the FD fallback (`dprofit_droot_collar_psi`) |
+
+### Selectors (safe — piecewise-constant selection, derivative zero at the branch)
+| Site | File:line | Why safe |
+|---|---|---|
+| Shading-model dispatch (`switch`/`if` on `ShadingModel`) | `ff16_strategy.cpp:549`, `tf24_strategy.cpp:421` | bound once at `prepare_strategy`; selects a smooth function, not on the value path |
+| PPA layer *index* (`floor(tau/…)`) | `ff16_environment.h` | piecewise-constant layer count; the *smoothstep within* a layer is the differentiable part |
+| Node survival squash `if(!is_finite(survival)) survival=0` | `node.h:144-150` | fires only on the degenerate NaN branch |
+
+### Guards (need active-safe forms — read `value`, don't throw on an active intermediate)
+| Site | File:line | Risk |
+|---|---|---|
+| `Patch::check_finite_ode_state` (`log_density_ceiling=50`) | `patch.h:355-421` | called every `set_ode_state`; an FD probe or boundary-adjacent active step can trip it |
+| `Species::compute_competition` `is_finite` stop | `species.h:208` | hot-path competition integral |
+| K93 interpolator-out-of-bounds stop | `k93_strategy.cpp:92` | `-log(competition)/k_I` non-finite |
+| `check_initial_density_rates` (rate<-100) | `patch.h:342-351` | initial-condition guard (interacts with IC gradients, Q19) |
+| `is_finite`/`stop` in `mortality_dt`, `height_seed`, `load_ode_step`, `trapezium`, `set_mutant` | `ff16_strategy.cpp`, `patch.h:771`, `util.h:148` | each reads a value that may be a perturbed intermediate |
+
+### Stores / caches (must be `S`, or unsafe invalidation under active types)
+| Site | File:line | Issue |
+|---|---|---|
+| `Internals::auxs` (the aux store) | `internals.h:37` | **must be `S`** — `height→area_leaf(competition_effect)→rate` flows through it; looks like a cache but carries the derivative. `collect_all_auxiliary` changes its *layout* at runtime (`aux_size` varies) — must not break a fixed tape (Q13). |
+| `TF24_Environment::psi_soil_cache_` (+ `psi_soil_cache_state_`) | `tf24_environment.h:111,304-329` | `mutable`, invalidated by **exact `double` compare** of soil states — under active types the compare is on values and the cached ψ is `double`, so a resident-TF24 gradient could read a stale/derivative-stripped ψ (Q8) |
+| Per-time driver memo `cached_driver_` | `tf24_environment.h:126-130` | `mutable`, keyed on `time!=cache_time`; drivers are `double` (fixed data) so lower risk, but the same exact-compare pattern |
+| Leaf operating-point caches (`psi_soil_inverted_`, …) | `leaf_model.cpp` `set_physiology` | `double` (leaf stays `double`); safe *because* the leaf never goes active, but the injected partial must be computed at the same cached operating point |
+| `height_max` = `max` over cohorts → L2 spline domain | `patch.h:424-432,569` | not a store, but the resident field's *domain bound* is a max-over-active-heights kink (Q15) — a.s. inactive if the max is strict, but on a tie the domain bound is non-differentiable |
+
+## XII.4 The residual open set
+
+- **Parked (empirical — A):** Q1/Q20 (growing-dimension active replay + mid-replay resize), Q21/B
+  (tape reachable from `ode_rates`), Q2 (leaf-as-`supplied_derivative` for a trait gradient), Q12
+  (L2 recompute across the growing dimension). All require a code experiment; parked at your
+  direction.
+- **TBD (D — design, deferred):** Q14 (how the mixed-scalar strategy is expressed), Q22 (the
+  `supplied_derivative` contract at N>1 / first-order sufficiency).
+- **Described, not solved (this part):** Q3 (growth-rate gradient — XII.2), the differentiate-badly
+  classification (XII.3). These are *understood problems* awaiting the empirical/design phase, not
+  open decisions.
+- **Co-design carried (odelia):** A/B/F/G + recorded sub-stepping (Q25) — the odelia-side items
+  (IX.4), gated by the parked A experiments.
+
+**Everything else (Q4,5,6,7,9,10,16,18,19,23,24, Euler, stochastic, refine-during-gradient) is
+now decided (XII.1).** The catalog's open surface is: **the parked empirical bet (A), two TBD design
+questions (D), and the co-design items that depend on A.** All model-mechanism, workflow, and
+per-file coverage is closed (Parts I–XI); the remaining unknowns are the ones only running code (A)
+or a design decision (D) can close.
