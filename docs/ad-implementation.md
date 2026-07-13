@@ -441,9 +441,44 @@ count, not O(sites):
   The shed keeps `double` signatures; the sole crossing is `supplied_derivative` (§7).
 - **Kind C — on the derivative, on-tape** (rate arithmetic, reductions, quadrature-through, `min/max`
   clamps as documented subgradients). Just `S`; XAD's ADL handles `pow/exp/min/max`/comparisons; no
-  narrowing. `Node::growth_rate_gradient` is **Kind C** — the FD stencil coefficients (±ε, /2ε) are
-  `double` but `g` is evaluated active, so the result carries `value_type` (the §0.5 flag, derived);
-  it must **not** reach for the Kind-B seam.
+  narrowing.
+- **Kind D — the operation *is itself a derivative* [added after Gate 1].** A site that computes a
+  derivative (a finite difference, a spline `.deriv()`, a numerical Jacobian) and lets it flow to an
+  output is **second-order** the moment the outer reverse pass differentiates it. It is NOT Kind C:
+  differentiating the *approximation* (an FD stencil `(g(h)-g(h-ε))/ε`) on the tape amplifies any kink
+  it straddles by `1/ε` (a suppressed cohort's `size_dt` clamp took the K93 two-cohort gradient to
+  ~2.3× FD). Treat the derivative as exact and inject it: **forward-over-reverse** when the underlying
+  code is differentiable (`dg/dh` for K93/FF16 — `odelia::ad::directional_derivative`, plant#39), or
+  **`supplied_derivative`** when it is opaque (TF24's leaf optimiser). `Node::growth_rate_gradient` was
+  first (wrongly) filed as Kind C — the correction is the whole of plant#39.
+
+**Why the site taxonomy missed a class (Gate 1 retrospective).** The catalog enumerated *where an
+active scalar goes* and checked each site **once, statically, first-order** — "is `S` present and
+classified." A reverse gradient is not correct because the scalar arrives; it is correct because the
+**derivative** is right, and that lives on three axes the site axis cannot see:
+- **order** — a site can be a derivative (Kind D); differentiating it is second-order, not arithmetic.
+- **quality** — a value can be *bit-identical* while its derivative is garbage (the two-cohort forward
+  value matched to machine precision while the recorded gradient was ~2.3×). "Value matches" is not
+  "derivative matches".
+- **dynamics** — a per-step derivative error **compounds over the integrator**. The interpolator's
+  active-query tangent was proven "bit-identical, cleanliness not a fix" on a *single* crown eval (§0);
+  on a rate path the query point is an *evolving ODE state*, so the same tangent drifted a single-cohort
+  gradient from exact at `t_end=5` to 17× at `t_end=40`.
+
+The method fix is small: add a **"is this a derivative?"** column (→ Kind D) and a **"query point is an
+evolving state?"** column to the touch-point survey, and make **Gate 0 dynamical** (a multi-step
+trajectory *with resident feedback*, FD-checked) — the single-plant short run was cheaper than every one
+of these bugs but structurally unable to show any of them, which is the same as not having a gate.
+
+**Remaining Kind-D / dynamics suspects the site axis still passes** (audit before their gate): every
+`basic_spline::deriv()` read that feeds an output (FF16 crown, leaf splines); odelia's Rosenbrock
+Jacobian and `dfdt_fd` time-difference if the implicit stepper is ever differentiated (resident TF24
+soil — and `Jacobian::supported` is hard-gated off for nested types, #35, so it fails silent); every
+`min/max`/clamp/`is_finite`-swap as a θ-**kink** (no inner FD may straddle one, and on-tape each needs a
+value-vs-derivative split-check, not just the subgradient note); adaptive-**refinement boundaries** as
+θ-discontinuities (the node set is chosen by `xad::value`, so the gradient is exact only within a
+refinement cell); and stateful carries across `newRecording` (`rescale_usually` knot reuse, TF24's
+`mutable psi_soil_cache_`, Q8).
 
 The kill condition for this split: a barrier whose correct treatment depends on **run-type** (resident
 vs mutant) rather than on its derivative relationship — none is expected, since resident/mutant is
