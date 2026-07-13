@@ -642,6 +642,52 @@ strategies each read the field on their rate path, so each needs the frozen quer
 FF16/TF24 to match — their crown-integral reads, validated bit-identical in `§0`, are a separate site and
 unaffected).
 
+**An FD-independent oracle — use it as the primary check.** Finite differences are a two-sided noisy
+instrument, and where the metric hides an inner solve (leaf, `height_seed`) the double oracle's own
+solver noise (~√ε) contaminates it. Two checks give machine-precision verification with no perturbation:
+- **The adjoint dot-product identity** `⟨J v, u⟩ = ⟨v, Jᵀ u⟩`. `J v` is one **forward** (tangent) pass
+  (seed input direction `v` — `directional_derivative`/`FReal`); `Jᵀ u` is one **reverse** pass (seed
+  output weight `u` — the tape). For random `u,v` the two must agree to machine precision — it is an
+  algebraic identity, needs no external truth, no perturbation, and no leaf re-solve. If forward and
+  reverse disagree, one has a bug. This is the standard AD self-consistency check and it should be the
+  primary gate; FD is kept only for the pieces the identity cannot see.
+- **Complex-step** `Im(f(x+ih))/h` on the *smooth* subgraph (K93 rates, the FF16 mass cascade): no
+  subtractive cancellation, so machine-precision per-parameter derivatives wherever the code is analytic
+  (breaks at the leaf optimiser and `min/max` — use only away from them).
+
+  *Where we use each (enumerated):* (1) **every gate** (Gate 0/1/2) asserts the dot-product identity on a
+  random `(u,v)` over the full run — the cheapest global correctness signal. (2) **`directional_derivative`
+  / `dg/dh`** — forward-vs-reverse consistency is exactly this identity at one input/one output. (3) the
+  **coupling channel** (§below / odelia) — dot-product between the knot *gather* (states→knots) and
+  *scatter* (knots→rates) certifies the injected rank-≤k edge. (4) **complex-step per-parameter** on K93
+  and the FF16 smooth cascade as an independent cross-check of the taped gradient. (5) as the **primary
+  oracle wherever the metric hides an inner solve** (leaf/`height_seed`/equilibrium), replacing the
+  noise-contaminated FD there. **Boundary:** the dot-product identity certifies the *taped map* is
+  self-consistent; it does **not** certify an *injected* partial's value (a wrong `supplied_derivative`
+  envelope value is self-consistent but wrong) — those injected values still need FD/analytic + a tight
+  inner-solve tolerance. Necessary, not sufficient.
+
+**One `implicit_function` seam for every embedded solve [design note].** `height_seed` (a root-find,
+currently hand-IFT'd), the leaf profit optimum (envelope), and TF24f's tracked-ψ are the *same*
+stationarity structure — "differentiate a quantity defined by `∂(·)/∂x = 0`". Rather than N bespoke
+hand-derived partial chains (each a QUALITY liability a static survey cannot catch), a single declarative
+`implicit_function(residual, inputs, y0)` forms `∂r/∂y` and `∂r/∂inputs` by tangent AD and injects
+`−(∂r/∂y)⁻¹(∂r/∂inputs)`. `supplied_derivative` stays the escape hatch for the genuinely opaque leaf
+(Kind B); `implicit_function` is the tested general case built on it. (odelia-side seam.)
+
+**`fwd_adj` is a Kind-D-only tool — do not spread it.** Forward-over-reverse is the right tool for exactly
+a rate term that *is itself a derivative* (Kind D: `dg/dh`). Blanket-nesting *all* ODE rates at the nested
+type buys nothing (ordinary rates are first-order — plain reverse, or single-layer forward for a Jacobian)
+and pays the nested-type tax on every op. It legitimately *recurs* in only one other place: a discrete
+adjoint of the **density** formulation needs `∂²g/∂h²` inside the RHS Jacobian `f_y`, which is again a
+nested/second derivative — one more reason the abundance reformulation (which deletes `dg/dh`, plant#40) is
+attractive. **Named traps** (both out of scope, recorded so they are not reached for): (i) *vector-forward*
+mode ("many θ in one pass") is the wrong axis — with ~28 traits and few metrics it is ~28× the work of
+reverse; (ii) a full **Hessian via `fwd_adj` through the leaf is second-order-wrong** — the envelope
+injection supplies only a *first-order* partial, so a correct second derivative would also need injected
+*second-order* leaf partials. Gauss-Newton curvature `JᵀJ` for a fitter comes free from the residual
+Jacobian (vector-adjoint, below) and needs no Hessian.
+
 ---
 
 ## 16. Kill-condition map
@@ -653,6 +699,39 @@ unaffected).
 - Schedule stops being frozen-on-the-double-pass (adaptive sub-step replay) → fixed-`double` snapshot +
   "mesh not differentiated" both break — the largest future redesign.
 - RAM binds → §5.1 minimal-POD payload.
+
+---
+
+## 17. Known limitations (documented, not yet closed)
+
+Two correctness edges are **outside the trajectory tape** and so are invisible to any FD-vs-tape check
+(both sides seed the same raw slots / replay the same frozen schedule). They are accepted for now and
+recorded here; each needs one measurement to size before it is either bounded or fixed.
+
+- **Frozen-mesh nodes (the R0 quadrature).** R0/fitness is a sum/integral whose integration nodes *are*
+  the cohort introduction times. We freeze the schedule (correctly, for step-*size*), which also freezes
+  those times: `d(node_time)/dθ = 0`. If changing θ would shift *when* cohorts are introduced, we drop
+  that shift at the very points the R0 integral samples. Interpretation: we compute the exact gradient of
+  the **fixed-schedule** metric; the open question is only how far that is from the biological R0 defined
+  on the θ-dependent schedule. This is not primarily an adaptivity problem — defining the model on a fixed
+  introduction schedule makes `d(node_time)/dθ = 0` *true*, so the frozen-mesh gradient is then exact for
+  the metric as computed. **Action:** if R0 is not right first pass, state this assumption explicitly at
+  the R0 surface, and size it once by finite-differencing the R0 trapezoid against a deliberate
+  introduction-schedule perturbation. (The deeper alternative — differentiating the mesh, or an abundance
+  reformulation — lives in plant#40.)
+
+- **θ parameterisation / the input contract.** `gradient.hpp` seeds a flat `DifferentiationTargets` of
+  raw `{params, ics}` — no link function, reparametrisation, or scaling. A bit-perfect tape then reports
+  the correct derivative of a possibly-wrong *coordinate*: (a) if the consumer calibrates in transformed
+  space (log-LMA, logit, positivity links) the raw `dM/dθ` needs a boundary chain-rule; (b) allometrically
+  coupled traits mean a per-slot partial is not the total derivative; (c) traits span orders of magnitude,
+  so raw-gradient conditioning is a fitter-quality issue. **Resolution is a workflow convention, not a code
+  change:** *calibrate in natural ranges* (then nothing is needed), or the R wrapper applies the link
+  chain-rule; and normalise for conditioning. Documented as the standing rule; the AD core reports raw
+  `dM/dθ` in natural trait coordinates.
+
+(Explicitly *not* pursued now, by decision: the patch-age disturbance-expectation outer term, tape-memory /
+checkpointing, and CI enforcement.)
 
 ---
 
