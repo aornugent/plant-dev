@@ -536,6 +536,18 @@ every seeded parameter has a leaf partial.
 a real oracle (validated spike #553 Jacobians); the offspring/R0 axis FD-checked including a case that
 would expose a wrongly-frozen birth stamp or a dropped establishment-at-birth term (§8.5).
 
+**FD verification is a two-sided instrument — sweep the step, don't trust one.** A single small
+`delta` can report a spurious ~1e-3 disagreement that is entirely the *oracle's* error, not the AD's:
+where the metric contains an inner root-find or optimiser (`height_seed`, the leaf), the double oracle
+re-solves it per perturbation to a finite tolerance, and that ~1e-8 noise divided by a small `2·delta`
+blows up as `delta→0`. The AD gradient, being analytic, is **invariant to `delta`** — so the diagnostic
+is to sweep `delta` and watch which side moves: a flat AD value with a U-shaped `|ad−fd|` (roundoff/
+solver-noise as `delta→0`, truncation as `delta→` large) means the AD is right and you were reading the
+oracle's floor. Gate 0's `height_seed` check showed exactly this — `lma`/`a_l1` sat at ~5e-4 at
+`delta=1e-5` but the AD was bit-stable and matched to ~6e-5 in the oracle's clean band (`delta≈1e-4`).
+Pick the comparison `delta` from the sweep's minimum, or tighten the inner solve's tolerance; never gate
+on a single `delta` when the metric hides a solve.
+
 ---
 
 ## 16. Kill-condition map
