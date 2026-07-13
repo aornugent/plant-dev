@@ -642,6 +642,32 @@ strategies each read the field on their rate path, so each needs the frozen quer
 FF16/TF24 to match — their crown-integral reads, validated bit-identical in `§0`, are a separate site and
 unaffected).
 
+**The metric Jacobian is mixed: stage the build by subgraph.** The deliverable is an m-metric × p-trait
+Jacobian, and the rows touch **disjoint subgraphs** (verified in code, not asserted): `weighted_fecundity`
+= `offspring_produced_survival_weighted · patch_density_at_birth · S_D` (`node.h:64`), where
+`patch_density_at_birth` is a **frozen double** (`node.h:125`) and the offspring rate (`node.h:161`) carries
+**no density factor** — so R0 / fitness never touches `log_density_dt` (`node.h:147`), the sole home of the
+fragile `∂g/∂h` (Kind D). Census (biomass / LAI / basal area) and the resident competition field *do* carry
+it (`density * compute_competition`, `node.h:321`; `consumption_rate * density`, `node.h:103`). This yields
+a **delivery ladder** that takes the hardest barrier off the early critical path:
+- **(1) Mutant invasion-fitness gradient** — the demographic skeleton (fecundity / mortality / establishment)
+  + the leaf envelope injection (`supplied_derivative`), reading a **frozen** resident field. **No `∂g/∂h`,
+  no coupling channel, no forward-over-reverse, no resident feedback.** This is the adaptive-dynamics
+  selection gradient — the highest-value early deliverable — and it is exactly Gate 2 (TF24-mutant, field
+  frozen). **`∂g/∂h` (plant#39) is NOT a prerequisite for it**; the two are on disjoint subgraphs and can
+  proceed in parallel. This is the concrete "advance early" lever.
+- **(2) Resident fitness / R0 gradient** — adds the coupling channel (resident feedback). `∂g/∂h` re-enters
+  R0 *only* indirectly (`∂g/∂h → log_density → density → competition → environment → fecundity`), so its
+  contribution here is second-order-ish; **size it with one FD experiment** (dR0/dθ on a two-cohort
+  resident, `∂g/∂h` live vs detached). If negligible, resident fitness ships with a documented bound before
+  `∂g/∂h` is robust; if not, it needs it.
+- **(3) Census rows (biomass / LAI), resident** — genuinely need `∂g/∂h` robust (plant#39 forward-over-
+  reverse, or the abundance reframe plant#40). This is the only tier that *requires* the hardest machinery.
+
+Vector-adjoint gets the structural zeros of the mixed Jacobian for free (adjoints flow only along recorded
+edges); the value of naming the split is the *ordering* — build and verify tier 1, then 2, then 3, and stop
+treating `∂g/∂h` as the pacing item for the whole deliverable.
+
 **An FD-independent oracle — use it as the primary check.** Finite differences are a two-sided noisy
 instrument, and where the metric hides an inner solve (leaf, `height_seed`) the double oracle's own
 solver noise (~√ε) contaminates it. Two checks give machine-precision verification with no perturbation:
