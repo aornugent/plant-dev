@@ -534,10 +534,32 @@ two-cohort forward value is bit-identical to the double replay. The two-cohort *
 a clean, consistent **0.96×** FD across every seeded parameter — the ~4% residual is exactly the dropped
 `∂(∂g/∂h)/∂θ` (the density-transport mixed partial). It is deferred, not miscomputed: differentiating the
 `growth_rate_gradient` FD stencil on the outer tape is unreliable (a suppressed cohort's backward stencil
-straddles the `size_dt` growth clamp, and `/eps` amplifies the kink to ~2.3× FD). Closing it is candidate B —
-compute `∂g/∂h` off-tape in `double` and inject its parameter partials through `supplied_derivative` (the §7.4
-`(slot,partial)`-pair filter), the same Kind-B seam TF24's leaf optimiser needs. This is the remaining Gate 1
-work item.
+straddles the `size_dt` growth clamp, and `/eps` amplifies the kink to ~2.3× FD). See **plant#39** for the
+full write-up.
+
+**The `∂g/∂h` characteristic term and the leaf optimiser are different barrier kinds — different tools.**
+Both are "a derivative that can't be taken naively on the tape", but the reason differs, and so does the fix:
+
+- **`∂g/∂h` for K93/FF16 → forward-over-reverse (`fwd_adj`).** `g` is *differentiable code* (closed-form
+  `size_dt`, the FF16 mass cascade). The only reason `∂g/∂h` is a finite difference is that there is no
+  spatial tape; it is not opaque. The correct fix is a forward (tangent) sweep seeded in the height
+  direction, layered over the reverse (adjoint) type for `θ`: `∂g/∂h` comes out exact (the clamp handled as
+  a clean one-point kink, no `eps`, no straddling), and the outer reverse pass differentiates it to give
+  `∂²g/∂h∂θ` exactly. This is the remaining Gate 1 work item. It scopes `fwd_adj` to the `growth_rate_gradient`
+  evaluation only — the rest of the trajectory stays plain reverse — and retires the earlier plan to route
+  this term through `supplied_derivative` (candidate B), which was a mis-classification: injecting off-tape
+  partials still requires computing `∂²g/∂h∂θ` by some means, and doing that cleanly *is* forward-over-reverse.
+- **`∂g/∂h` for TF24 → `supplied_derivative`.** Here `g` re-runs the leaf optimiser, which AD genuinely
+  cannot differentiate; the partials come from the envelope theorem. This is where the §7.4 `(slot,partial)`
+  pair-filter and the Kind-B seam are actually needed (Gate 2). Do **not** conflate it with the K93/FF16 case.
+
+*odelia co-design (prevention).* Two odelia changes would make this class of bug hard to reintroduce:
+(1) expose the `fwd_adj` composite scalar plus a `directional_derivative(f, wrt_index)` helper returning a
+value still active on the outer reverse tape, so plant computes `∂g/∂h` exactly without ever differentiating
+an FD stencil; (2) make the interpolator's active-query derivative an **explicit** call (a value-only read
+that freezes the query derivative vs. one that carries it), rather than the current silent default that
+records the interpolant's analytic tangent — the tangent of an under-resolved spline w.r.t. an evolving ODE
+state was the *other* Gate 1 bug (query-height finding above). Tracked in **odelia#38**.
 
 **Gate 2:** the §7.4 pair-filter on the TF24-mutant witness (light+ψ frozen) — no `OutOfRange`, FD-match;
 every seeded parameter has a leaf partial.
