@@ -499,6 +499,39 @@ definition** (scalar-generic `is_finite`; `check_finite_*` reads `xad::value`), 
 wrap at each call site — the per-site form grows the allowlist per strategy and a single forgotten wrap
 is a silent throw at exactly the boundary an FD probe lands on.
 
+**Smooth-replacement policy for rate-path kinks (Cluster 7 upgrade) [Gate 1 finding].** Classifying a
+kink and taking its subgradient is enough for AD *correctness* at a single point, but **not** for a kink
+that sits on a **differentiated ODE rate** and whose derivative is itself differentiated or integrated: the
+Gate 1 finding showed the exact `∂g/∂h` at K93's `growth<0→0` clamp both (a) biases the census gradient
+(the derivative is discontinuous across the clamp) and (b) **destabilises the SCM** when analytic `∂g/∂h`
+defines the trajectory (`log_density` runs away, competition out of bounds). The subgradient/FD-stencil was
+silently *regularising* it. So: **replace each rate-path kink with a C¹-or-better smooth surrogate that
+preserves the biological bound**, tunable sharpness, → the kink as sharpness→∞. This makes the analytic
+derivative well-defined *and* the differentiated trajectory stable, and lets the FD-value rebasing
+(plant#39) be dropped. (EBT/abundance — which would delete `∂g/∂h` entirely, plant#40 — is out of scope; we
+smooth the kink instead.)
+
+The surrogate is `util::smooth_positive(x, ε) = ½(x + √(x² + ε²))` → `max(0, x)` as `ε→0` (C∞, monotone,
+no overflow, preserves `≥ 0`); the two-sided/step kinks use the analogous smooth-min / logistic step. `ε`
+is chosen per kink so the transition band is biologically negligible **and** the second derivative stays
+bounded enough for the density transport to be stable (there is a real tension — sharper `ε` shrinks the
+bio change but steepens `d²g/dh²`; pick `ε` from the stability/precision sweep). Per-kink assignment:
+
+| kink | site | smooth surrogate |
+|---|---|---|
+| K93 `growth<0→0` | `k93_strategy.h size_dt` | `smooth_positive(growth, ε_g)` — **the density-transport one; done at K93 finish** |
+| K93 `(mu>0)?mu:0` | `k93_strategy.h mortality_dt` | `smooth_positive(mu, ε_μ)` |
+| FF16 production-sign `if(net_production>0)…else{0}` | `ff16_strategy.cpp:103` | smooth blend on `net_production` (FF16's analogue; needed before FF16 analytic `∂g/∂h`) |
+| `max(0, spline)` resource floor | `resource_spline.h:120` | `smooth_positive` (numerical guard — low-stakes, small `ε`) |
+| CanopyShape FlatTopSoftBox C1 step | `canopy_shape.h:176` | already C1; raise to C∞ logistic if it enters a differentiated rate |
+| TF24 rooting-depth `min(h, rd_max)` | `tf24_strategy.cpp:374` | smooth-min (TF24 scope) |
+| TF24 soil positivity resets | `tf24_environment.h:218,248,267,277` | `smooth_positive` (TF24 soil scope) |
+
+Regenerate any snapshot whose value shifts beyond tolerance (the shift is the intended, bounded
+smoothing); a kept-tight `ε` should leave most within existing tolerances. Kinks *not* on a differentiated
+rate (pure guards/selectors, `is_finite`, field-domain top-knot selector) stay as classified — smoothing
+is only for kinks whose derivative is consumed.
+
 ---
 
 ## 12. What is deleted
