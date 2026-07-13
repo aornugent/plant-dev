@@ -24,15 +24,20 @@ v1 are tagged **[Sn]/[Mn]** and summarised in §0.4. Two prior search results re
 **FF16 and K93 as restrictions of the same code**. Fixed schedule (L0 introductions + L1 RKCK step
 times, recorded on a double pass) and **given initial conditions**; the mesh is not differentiated.
 
-**The commitment (one sentence).** *An `Environment` is a bundle of coupling channels behind one
-concept; the harness is written once against that concept and the physiology never names a channel,
-kind, or run-type; the sole way a value becomes frozen `double` is a read from one recording keyed by
-`(step, stage)` and fingerprinted by the parameters it was recorded at.*
+**The commitment (one sentence).** *`S` lives only on the ODE state/rate storage and the rate
+arithmetic that reads it — plus the seeded parameters and the active background reads; every other
+type is `double`; the sole crossing on the rate path is `supplied_derivative` at the shed edge, and the
+only way a background becomes frozen `double` is a read from the recording.*
 
 **Kept true by structure, not convention:**
-1. `Patch<T,E>` fails to compile unless `E` satisfies `Coupling` **at the scalar it is instantiated
-   with** (§6.1) — and the concept constrains the *templated* ODE-iterator seam and the *used* rebind,
-   so a conforming `E` cannot then fail deep in the active pass **[S4]**.
+1. The shed's function signatures are `double` (`Leaf::*`, the leaf interpolators' `.eval()/.deriv()`,
+   `QAG`, `util::gradient_fd`, `util::uniroot`), so passing an active `S` into the shed is a **compile
+   error** — the one sanctioned narrowing (`supplied_derivative(tape, xad::value(...), {inputs},
+   {partials})`) re-injects the partial in the same call. A model type's scalar is decided by which of
+   its members carry `S`: a `double Leaf` member *cannot* go active, a `Pars_<S>`/`Internals_<S>` member
+   *must* — so a mixed-scalar strategy (active pars + `double` leaf) needs no special type, and the
+   endpoint's active soil is just a `TF24_Environment_<S>` whose `Internals_<S>` state and closed-form
+   rate arithmetic carry `S` like any other core member.
 2. The only producer of a frozen background is `EnvironmentRecording::restore<S>` (§5), yielding
    passive `S`-constants; a **missing** recording is a loud out-of-range read.
 3. The recording carries a **parameter fingerprint**; a gradient call whose seeds do not match it
@@ -41,6 +46,13 @@ kind, or run-type; the sole way a value becomes frozen `double` is a read from o
    marshalling on a `supplied_derivative` argument line (§7); the final `xad::value` in
    `compute_jacobian`; and the enumerated Cluster-7 guards/selectors in the **kink manifest** (§11). CI
    greps `value(`/`xad::value(` and fails on any other hit.
+
+**No `Coupling` concept [v3].** v2 §6.1 proposed a `Coupling` concept `static_assert`ed on `Patch`; it
+was implemented and **removed**. Every clause it required (`get_environment_at_height`, `ode_size`, the
+`<It>` seam, `compute_rates`) is a call `Patch` already makes, so the compiler enforces the identical
+contract at the use site — the concept restated it, and lagged the real `rebind_from`/`ad_parameters`
+surface. A contract-accurate concept over *that* surface is a legitimate later add, once the machinery
+exists and is not yet enforced by use; §6.1 below is superseded.
 
 **Invariants.**
 - **Only `double` crosses R** — RcppR6 `XPtr`; only `double`/`List`/`NumericMatrix` returns marshal.
@@ -61,6 +73,23 @@ domain is a frozen L2 position (§5.5). **M3** MeanLight→`S` scheduled (§4.2/
 at read sites (§8.5). **M5** Gate 1 multi-species (§15). **M6** shared-strategy scratch invariant (§3).
 **M7** IndividualRunner Gate 0 (§15). **M8** kink-manifest completeness, active-safe guards, Control
 surface, extrinsic drivers, recording UX, disturbance/stochastic/NEWS, aux invariant (§8, §11, §5).
+
+### 0.5 Changelog v2→v3 (deep design search, read forward to resident TF24)
+The commitment is reframed onto **scalar placement** (§0): `S` = ODE state/rate storage + the rate
+arithmetic that reads it; everything else `double`; the shed's `double` signatures make activating the
+leaf a **compile error** (the structural enforcement), and a model's scalar is which members carry `S`.
+**V1** the `Coupling` concept is **removed** — it restated what `Patch`'s use compile-enforces and lagged
+the real `rebind_from`/`ad_parameters` surface (§0, §6.1, §12). **V2** the four per-strategy
+`make_strategy_ptr` overloads collapse to one generic in `strategy.h` (§12). **V3** the environment is
+templated because soil is *integrated state + closed-form algebra* (it cannot be a `supplied_derivative`
+of a value the solver evolves) **and** because a resident's self-shading needs active light *values* —
+so R5 holds environment-templating even for the soil-less FF16/K93 resident. Two flags the build order
+must not lose: `Node::growth_rate_gradient` **result** must carry `value_type` (its FD stencil stays a
+`double` primitive, but the result feeds `log_density_dt` and every density-weighted metric — left
+`double` it silently drops the density-transport term, §15 step 3); and this scalar foundation reaches
+the endpoint's **types** but not its **numerics** — the stiff resident replay and the mid-run active
+`resize()` tape-survival are orthogonal odelia items to de-risk on IndividualRunner + K93 resident first
+(§13, §15 Gate 1).
 
 ---
 
@@ -245,30 +274,17 @@ help.
 
 ---
 
-## 6. The `Coupling` concept + the environments (Layer 3)
+## 6. The environment contract + the environments (Layer 3)
 
-### 6.1 The concept [S4]
-```cpp
-template <class E>
-concept Coupling = requires(E e, const E ce, typename E::Query q, typename E::CompetitionFn f,
-                            const std::vector<double>& knots, const std::vector<double>& depletion,
-                            typename std::vector<typename E::value_type>::iterator it,          // ACTIVE-scalar iterator
-                            typename std::vector<typename E::value_type>::const_iterator cit) {
-  typename E::value_type; typename E::Query;
-  { ce.at(q) } -> std::same_as<typename E::value_type>;          // the physiology point-read
-  e.set_field_active(f, knots);
-  { ce.light_knots() } -> std::convertible_to<std::vector<double>>;
-  { ce.ode_size() }    -> std::convertible_to<std::size_t>;
-  { e.set_ode_state(cit) };  { ce.ode_state(it) };  { ce.ode_rates(it) };   // on the value_type iterator, NOT double
-  e.compute_state_rates(depletion);
-  { ce.template rebind_from<typename E::value_type>() };         // the rebind actually used, at THIS scalar
-};
-```
-`static_assert(Coupling<environment_type_<value_type>>)` on `Patch<T,E>` — the **active** instantiation
-checked against the **active** iterator and `rebind_from<active>`; a conforming env cannot then fail deep
-in the `<It>` pass. (v1 checked odelia's double-only iterator and `rebind_from<double>` — theater.) The
-concept spans **two shapes** (field-only; field+soil); if scope collapsed to one it reverts to a plain
-`requires` on `at`/`ode_size`/`compute_state_rates`/`rebind_from` (§16).
+### 6.1 The contract [v3 — no concept]
+There is no `Coupling` concept (§0). `Patch` requires of its environment exactly what it calls, enforced
+by use at the scalar `Patch` is instantiated with: `get_environment_at_height(value_type) -> value_type`,
+`ode_size()`, the `<It>`-templated `set_ode_state`/`ode_state`/`ode_rates` seam, and
+`compute_rates(depletion)`. The environment's scalar is decided by its member types (`Internals_<S> vars`,
+`ResourceSpline_<S> light_availability`): FF16/K93 carry `ode_size()==0` and an active light *read* only;
+`TF24_Environment_<S>` additionally carries active soil ODE state and closed-form soil rate arithmetic.
+`restore<S>`/`rebind_from<S>` are the recording/lift verbs (§5, §8.3); a small concept over *that*
+surface is a legitimate add once it exists and is not yet enforced by use — not before.
 
 ### 6.2 `at(Query)` [RT-A#3]
 `at(Query)` is the physiology **point-read** (light at a height, soil ψ at a layer; active `z` or int
@@ -427,7 +443,9 @@ just a classification.
 freeze-fork; `get_environment_deriv_at_height` + the linearisation; `ff16_production_kernel.h`; AD-11's
 `Patch` `step_history`/`environment_history`/`knot_history`/`environment_cache`/`idx` (→
 `EnvironmentRecording`); the double `psi_soil_cache_` on the active environment (§6.3); the open-coded
-strategy `if`-blocks (→ dispatch table, §8.2).
+strategy `if`-blocks (→ dispatch table, §8.2); **`coupling.h` + the `static_assert` on `Patch`** (v3, §0
+— restated what `Patch`'s use enforces); **the per-strategy `make_strategy_ptr` overloads** (v3 — one
+generic `make_strategy_ptr(Strat)` in `strategy.h`).
 
 ---
 
