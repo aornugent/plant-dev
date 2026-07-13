@@ -548,6 +548,33 @@ oracle's floor. Gate 0's `height_seed` check showed exactly this — `lma`/`a_l1
 Pick the comparison `delta` from the sweep's minimum, or tighten the inner solve's tolerance; never gate
 on a single `delta` when the metric hides a solve.
 
+**The environment query-height derivative is frozen on the ODE rate path (Kind A) [Gate 1 finding].**
+`§0`'s spike proved active-query `eval(S)` and a passive-slope linearisation give the *bit-identical*
+crown gradient — but that spike differentiated the **crown integral**, where the query points are
+quadrature abscissae (fixed `double` fractions of the active bound). On the **ODE rate path** the query
+height is different in kind: it is the cohort's own height, an **evolving tape state**. Recording the
+interpolant's analytic tangent `spline.deriv(uv)` as `∂E/∂h` there injects a spurious `∂g/∂E·∂E/∂h` term
+into the ODE Jacobian that **compounds across the fixed-step replay** — the resident light spline is
+under-resolved at the infinitesimal scale AD probes, so its tangent is a poor estimate of the smooth
+field's slope (the FD oracle, probing over a finite `2·delta` height shift, sees the well-behaved secant
+and never the wild tangent). Measured on the K93 single-cohort resident SCM, `d(height)/d(b_0)` drifts
+from ratio 1.00 at `t_end=5` to **17×** at `t_end=40` (value bit-identical throughout — a tape-only
+error), and collapses to an exact FD match the moment the query-height derivative is frozen. Isolation
+confirmed the interpolator itself is clean (AD=FD to 1e-11 for `d(eval)/d(knot)`), FF16/K93
+`IndividualRunner` with a flat/fixed field is clean to `t_end=80`, and detaching either the knot-value
+derivatives or `growth_rate_gradient` changes nothing — the spurious term is *only* the query-height
+tangent, and *only* when the field carries a real slope at the cohort's height.
+
+So on the rate path the environment is read at the **frozen operating-point height** (`get_value_at_height`
+narrows the query to `xad::value(height)`). This is Kind A: the within-step spline read is a *diagnostic
+sample of the field*, not a differentiation channel. Parameter sensitivity still flows through (a) the
+**active knot values** — the resident self-shading channel, the actual Gate 1 target — and (b) the plant's
+**explicit** height dependence in `compute_rates` (`b_1·log(size)`, the mass cascade); only the interpolant's
+tangent w.r.t. its own evolving query point is dropped. Bit-identical on the `double` path. The four
+strategies each read the field on their rate path, so each needs the frozen query (K93 done at Gate 1;
+FF16/TF24 to match — their crown-integral reads, validated bit-identical in `§0`, are a separate site and
+unaffected).
+
 ---
 
 ## 16. Kill-condition map
