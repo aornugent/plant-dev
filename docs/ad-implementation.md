@@ -529,6 +529,16 @@ cross-species Jacobian columns). A single-species ≥2-introduction run does **n
 Structurally sound (move-ctor preserves `slot_`; new-cohort ICs are taped intermediates) but the claim to
 *execute*.
 
+*Gate 1 status.* Single-cohort resident SCM matches FD **exactly** (all params, machine precision) and the
+two-cohort forward value is bit-identical to the double replay. The two-cohort **gradient** currently lands
+a clean, consistent **0.96×** FD across every seeded parameter — the ~4% residual is exactly the dropped
+`∂(∂g/∂h)/∂θ` (the density-transport mixed partial). It is deferred, not miscomputed: differentiating the
+`growth_rate_gradient` FD stencil on the outer tape is unreliable (a suppressed cohort's backward stencil
+straddles the `size_dt` growth clamp, and `/eps` amplifies the kink to ~2.3× FD). Closing it is candidate B —
+compute `∂g/∂h` off-tape in `double` and inject its parameter partials through `supplied_derivative` (the §7.4
+`(slot,partial)`-pair filter), the same Kind-B seam TF24's leaf optimiser needs. This is the remaining Gate 1
+work item.
+
 **Gate 2:** the §7.4 pair-filter on the TF24-mutant witness (light+ψ frozen) — no `OutOfRange`, FD-match;
 every seeded parameter has a leaf partial.
 
