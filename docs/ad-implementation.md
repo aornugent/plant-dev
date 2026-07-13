@@ -504,12 +504,30 @@ kink and taking its subgradient is enough for AD *correctness* at a single point
 that sits on a **differentiated ODE rate** and whose derivative is itself differentiated or integrated: the
 Gate 1 finding showed the exact `∂g/∂h` at K93's `growth<0→0` clamp both (a) biases the census gradient
 (the derivative is discontinuous across the clamp) and (b) **destabilises the SCM** when analytic `∂g/∂h`
-defines the trajectory (`log_density` runs away, competition out of bounds). The subgradient/FD-stencil was
-silently *regularising* it. So: **replace each rate-path kink with a C¹-or-better smooth surrogate that
-preserves the biological bound**, tunable sharpness, → the kink as sharpness→∞. This makes the analytic
-derivative well-defined *and* the differentiated trajectory stable, and lets the FD-value rebasing
-(plant#39) be dropped. (EBT/abundance — which would delete `∂g/∂h` entirely, plant#40 — is out of scope; we
-smooth the kink instead.)
+defines the trajectory (`log_density` runs away, competition out of bounds). So: **replace each rate-path
+kink with a C¹-or-better smooth surrogate that preserves the biological bound**, tunable sharpness, → the
+kink as sharpness→∞. This makes the analytic derivative well-defined and kink-free, and it is the right
+default policy for AD-visible kinks generally. (EBT/abundance — which would delete `∂g/∂h` entirely,
+plant#40 — is out of scope; we smooth the kink instead.)
+
+**Correction (Gate 1, upwind finding — plant#39).** The original expectation here — that smoothing the
+clamp would let the analytic `∂g/∂h` define a stable trajectory and let the FD-value rebasing be dropped —
+is **only partly right, and does not hold for the multi-cohort census gradient.** Measuring after the
+smooth clamp landed: (i) smoothing *did* fix an interpolator-refinement failure on the growth params and
+*did* improve the two-cohort census residual from ~4% to ~1.5%; but (ii) it did **not** close the residual
+to machine precision, and the analytic trajectory is still unstable at bio-faithful `ε` (it stays bounded
+only at `ε ≈ 5e-2`, a ~6% demography change). The reason: the one-sided FD stencil for `∂g/∂h` is the
+**upwind discretisation** of the advection term `d(log_density)/dt = -∂g/∂h - m`. Upwinding is genuine
+numerical stabilisation for hyperbolic transport on a coarse cohort grid; the exact analytic `∂g/∂h` is the
+**centred** scheme, which is unstable here. So the FD stencil is *not merely a clamp workaround* — it
+defines the production trajectory — and a machine-precise **consistent** gradient must use the *same*
+scheme for value and derivative. Differentiating the upwind stencil on-tape (the true discrete adjoint) is
+consistent but ill-conditioned: it forms `(g_θ(x)−g_θ(x−h))/h` with a tiny fixed `h≈1e-6` and blows up near
+the regularised clamp (`∂²g/∂x∂θ ~ 1/ε_c`), measured `~7e6`. So the interim `∂g/∂h` gradient keeps the FD
+(upwind) value on the trajectory and injects the analytic derivative (a stable but scheme-inconsistent
+~1.5% bias), documented in `node.h` and §17. The general problem — a consistent, well-conditioned
+reverse-mode gradient through a numerically-stabilised transport term — is written up domain-agnostically in
+`docs/oracle-transport-adjoint.md` for outside input.
 
 The surrogate is `util::smooth_positive(x, ε) = ½(x + √(x² + ε²))` → `max(0, x)` as `ε→0` (C∞, monotone,
 no overflow, preserves `≥ 0`); the two-sided/step kinks use the analogous smooth-min / logistic step. `ε`
@@ -519,8 +537,8 @@ bio change but steepens `d²g/dh²`; pick `ε` from the stability/precision swee
 
 | kink | site | smooth surrogate |
 |---|---|---|
-| K93 `growth<0→0` | `k93_strategy.h size_dt` | `smooth_positive(growth, ε_g)` — **the density-transport one; done at K93 finish** |
-| K93 `(mu>0)?mu:0` | `k93_strategy.h mortality_dt` | `smooth_positive(mu, ε_μ)` |
+| K93 `growth<0→0` | `k93_strategy.h size_dt` | `smooth_positive(growth, ε_g=1e-4)` — **done**; improves census residual but does not close it (upwind finding above) |
+| K93 `(mu>0)?mu:0` | `k93_strategy.h mortality_dt` | `smooth_positive(mu, ε_μ=1e-5)` — **done** |
 | FF16 production-sign `if(net_production>0)…else{0}` | `ff16_strategy.cpp:103` | smooth blend on `net_production` (FF16's analogue; needed before FF16 analytic `∂g/∂h`) |
 | `max(0, spline)` resource floor | `resource_spline.h:120` | `smooth_positive` (numerical guard — low-stakes, small `ε`) |
 | CanopyShape FlatTopSoftBox C1 step | `canopy_shape.h:176` | already C1; raise to C∞ logistic if it enters a differentiated rate |
@@ -602,24 +620,31 @@ forward-over-reverse result: `growth_rate_gradient` keeps the FD **value** (so t
 reproduces the double replay bit-for-bit — no fork) and injects the **exact analytic parameter-derivative**
 of `∂g/∂h` by forward-over-reverse (`odelia::ad::directional_derivative`), dispatched on a strategy exposing
 `rebind` (K93 now; FF16/TF24/TF24f fall back to the FD stencil, off their differentiated-metric graph). This
-lands the two-cohort census gradient at **~1–6% of FD** (was 0.96× with the term dropped, or ~2.3× when the
-FD stencil was differentiated on-tape). The residual is a **bounded clamp bias** and it is where progress now
-stops for a hard reason:
+lands the two-cohort census gradient at **~1.5% of FD** with the smooth clamp (was 0.96× / ~4% with the term
+dropped, or ~2.3× when the FD stencil was differentiated on-tape). The residual is a **bounded
+scheme-inconsistency bias** and it is where progress now stops for a hard reason:
 
-> **Analytic `∂g/∂h` in the *trajectory* destabilises the SCM [Gate 1 finding].** Making the production
-> `∂g/∂h` value analytic (so the census gradient would close to machine precision, both trajectory and
-> gradient being one function) was tried and **breaks the K93 SCM** — the exact spatial derivative is steep
-> at the `size_dt` growth clamp, so fed into `log_density_dt` the cohort density runs away and competition
-> goes out of bounds (`"Environmental interpolator has gone out of bounds"`). The FD stencil is a mild,
-> **stabilising regularisation** of the spatial derivative; it defines the production trajectory. So "relax
-> bit-for-bit → analytic everywhere" is **not free**: machine-precision census requires **regularising the
-> clamp** (a smooth `size_dt` floor / softplus) *before* analytic `∂g/∂h` can define the trajectory. Until
-> then the FD value defines the trajectory and the injected analytic derivative carries the ~few-% clamp
-> bias. (Also: making the *production* double path forward-mode would force **every** strategy to compile at
-> `FReal<double>`, which FF16/TF24/TF24f do not yet — a separate port.) Tracked in **plant#39**; the clamp
-> regularisation is the gating follow-up for machine-precision census.
+> **The FD stencil is an upwind scheme, not a clamp workaround [Gate 1 finding, corrected].** Making the
+> production `∂g/∂h` value analytic (so the census gradient would close to machine precision, both trajectory
+> and gradient being one function) **breaks the K93 SCM**: fed into `log_density_dt` the cohort density runs
+> away and competition goes out of bounds. The original diagnosis pinned this on the `size_dt` growth clamp
+> and predicted that smoothing the clamp would let analytic `∂g/∂h` define the trajectory. **That was
+> re-tested after the smooth clamp landed and is only partly right.** Smoothing improved the census residual
+> (~4%→~1.5%) and fixed an interpolator-refinement failure, but analytic `∂g/∂h` in the trajectory is *still*
+> unstable at bio-faithful `ε` — bounded only at `ε≈5e-2` (~6% demography change). The real cause: the
+> one-sided FD stencil is the **upwind discretisation** of the advection term; the analytic `∂g/∂h` is the
+> **centred** scheme, unstable for hyperbolic transport on the coarse cohort grid. The stencil therefore
+> *defines* the trajectory, and a machine-precise **consistent** gradient must use the same scheme for value
+> and derivative. The discrete adjoint (differentiating the upwind stencil on-tape) is consistent but
+> ill-conditioned — `(g_θ(x)−g_θ(x−h))/h` with tiny fixed `h≈1e-6` blows up near the regularised clamp (`~7e6`).
+> So the interim gradient keeps the FD (upwind) value and injects the analytic (centred) derivative: stable,
+> well-conditioned, but scheme-inconsistent at ~1.5%. Options to close it: (A) accept ~1.5% at bio-faithful
+> `ε` (current); (B) analytic trajectory at large `ε` (machine-precise, changes biology, regen refs);
+> (C) a transport scheme that is both stable and cleanly differentiable. Tracked in **plant#39**; the general
+> problem is written up in `docs/oracle-transport-adjoint.md`.
 
-See **plant#39** for the full write-up.
+See **plant#39** for the full write-up and `docs/oracle-transport-adjoint.md` for the domain-agnostic
+statement.
 
 **The `∂g/∂h` characteristic term and the leaf optimiser are different barrier kinds — different tools.**
 Both are "a derivative that can't be taken naively on the tape", but the reason differs, and so does the fix:
