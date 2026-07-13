@@ -564,13 +564,29 @@ cross-species Jacobian columns). A single-species ≥2-introduction run does **n
 Structurally sound (move-ctor preserves `slot_`; new-cohort ICs are taped intermediates) but the claim to
 *execute*.
 
-*Gate 1 status.* Single-cohort resident SCM matches FD **exactly** (all params, machine precision) and the
-two-cohort forward value is bit-identical to the double replay. The two-cohort **gradient** currently lands
-a clean, consistent **0.96×** FD across every seeded parameter — the ~4% residual is exactly the dropped
-`∂(∂g/∂h)/∂θ` (the density-transport mixed partial). It is deferred, not miscomputed: differentiating the
-`growth_rate_gradient` FD stencil on the outer tape is unreliable (a suppressed cohort's backward stencil
-straddles the `size_dt` growth clamp, and `/eps` amplifies the kink to ~2.3× FD). See **plant#39** for the
-full write-up.
+*Gate 1 status.* Single-cohort resident SCM matches FD **exactly**. The two-cohort **gradient** is now the
+forward-over-reverse result: `growth_rate_gradient` keeps the FD **value** (so the active trajectory
+reproduces the double replay bit-for-bit — no fork) and injects the **exact analytic parameter-derivative**
+of `∂g/∂h` by forward-over-reverse (`odelia::ad::directional_derivative`), dispatched on a strategy exposing
+`rebind` (K93 now; FF16/TF24/TF24f fall back to the FD stencil, off their differentiated-metric graph). This
+lands the two-cohort census gradient at **~1–6% of FD** (was 0.96× with the term dropped, or ~2.3× when the
+FD stencil was differentiated on-tape). The residual is a **bounded clamp bias** and it is where progress now
+stops for a hard reason:
+
+> **Analytic `∂g/∂h` in the *trajectory* destabilises the SCM [Gate 1 finding].** Making the production
+> `∂g/∂h` value analytic (so the census gradient would close to machine precision, both trajectory and
+> gradient being one function) was tried and **breaks the K93 SCM** — the exact spatial derivative is steep
+> at the `size_dt` growth clamp, so fed into `log_density_dt` the cohort density runs away and competition
+> goes out of bounds (`"Environmental interpolator has gone out of bounds"`). The FD stencil is a mild,
+> **stabilising regularisation** of the spatial derivative; it defines the production trajectory. So "relax
+> bit-for-bit → analytic everywhere" is **not free**: machine-precision census requires **regularising the
+> clamp** (a smooth `size_dt` floor / softplus) *before* analytic `∂g/∂h` can define the trajectory. Until
+> then the FD value defines the trajectory and the injected analytic derivative carries the ~few-% clamp
+> bias. (Also: making the *production* double path forward-mode would force **every** strategy to compile at
+> `FReal<double>`, which FF16/TF24/TF24f do not yet — a separate port.) Tracked in **plant#39**; the clamp
+> regularisation is the gating follow-up for machine-precision census.
+
+See **plant#39** for the full write-up.
 
 **The `∂g/∂h` characteristic term and the leaf optimiser are different barrier kinds — different tools.**
 Both are "a derivative that can't be taken naively on the tape", but the reason differs, and so does the fix:
