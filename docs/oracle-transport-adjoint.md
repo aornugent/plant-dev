@@ -1,157 +1,116 @@
-# Consistent reverse-mode gradients through a stabilized transport term
+# Consistent, well-conditioned adjoint of a stabilized advection operator
 
-A self-contained, domain-agnostic problem statement for outside input. No
-knowledge of the originating application is assumed. The question is general to
-differentiable programming through numerical schemes.
+A self-contained problem in differentiable numerical methods. No application
+knowledge is assumed or needed.
 
 ## Setup
 
-We integrate a system of ordinary differential equations forward in time with an
-explicit adaptive Runge–Kutta method. The state is a vector that grows over the
-run (new components are appended at known times; think of a discretization whose
-number of sample points increases). Among the equations is one **transport
-term** of the following shape. For each sample point `i` there is a coordinate
-`x_i(t)` and a companion quantity `n_i(t)`, coupled as
+We solve a scalar conservation law of advection type by method of lines: a
+density `n(x, t)` transported along a coordinate `x` with velocity `g`,
 
 ```
-dx_i/dt = g(x_i, θ, S(t))                    (1)  advection velocity
-dn_i/dt = -(∂g/∂x)(x_i, θ, S(t)) - m_i        (2)  transport / conservation
+∂n/∂t + ∂/∂x ( g · n ) = source,        g = g(x, θ, S)
 ```
 
-- `g` is a **smooth, closed-form** function of the coordinate `x`, a vector of
-  scalar **parameters θ**, and a **shared field** `S(t)`.
-- `S(t)` is a coupling field reconstructed at each step from all the sample
-  points (a spline fit through `(x_i, something(n_i))`). Every point sees the
-  same `S`, so the points interact. `∂g/∂x` in (2) is the spatial derivative of
-  the velocity `g` with respect to the coordinate `x`, evaluated at that point.
-- `g` contains a **regularized one-sided clamp**: the raw velocity is passed
-  through `p(u) = ½(u + √(u² + ε_c²))`, a C∞ surrogate for `max(0, u)`. This is
-  a genuine smooth function, but its second derivative has a peak of height
-  `~1/ε_c` at `u = 0`. With `ε_c` small (bio-faithful), points that sit near the
-  clamp corner experience a large but finite `∂²g/∂x²`.
+discretized on a set of points `x_i`. The velocity `g` is a **smooth,
+closed-form** function of the coordinate `x`, a vector of scalar **parameters
+θ**, and a **coupling field** `S` that is reconstructed at each step from the
+whole solution — so the points interact and the system has feedback.
 
-`∂g/∂x` in (2) is **not** computed analytically in production. It is computed by
-a one-sided finite difference in the coordinate direction with a small fixed
-step `h ≈ 1e-6`:
+The transport requires the spatial derivative of the velocity,
+`D = ∂g/∂x`, evaluated at each point. In the solver `D` is **not** the analytic
+derivative; it is a **one-sided (upwind) finite difference** in `x` with a small
+fixed step `h`:
 
 ```
-(∂g/∂x)_stencil = ( g(x) − g(x − h) ) / h                (3)
+D = ( g(x) − g(x − h) ) / h .
 ```
+
+This one-sided form is a deliberate **stabilization**: using the exact analytic
+`∂g/∂x` in this term makes the forward integration **unstable** (the coupled
+solution blows up) on the grids we run. The upwind stencil is the stable
+discretization and it *defines* the solution we compute.
+
+`g` may contain a smooth but sharply-varying nonlinearity (a regularized
+one-sided limiter, `p(u) = ½(u + √(u² + ε²))`, whose second derivative peaks at
+`~1/ε`). This is not the source of the problem below — the trilemma is present
+for smooth `g` — but it sharpens option 1.
 
 ## Goal
 
-We want the gradient of a scalar functional `M` of the final state (e.g. a
-weighted sum of the `n_i` and `x_i` at the end of the run) with respect to the
-parameters θ, using **reverse-mode automatic differentiation** (a discrete
-adjoint of the whole time integration). We run the solver with an AD scalar
-type substituted for `double`; the forward pass tapes every operation and the
-reverse pass returns `dM/dθ` for all parameters at once.
+The reverse-mode AD gradient `dM/dθ` of a scalar functional `M` of the final
+solution, i.e. a discrete adjoint of the whole solve. `g` is cheaply
+differentiable by AD to any order (forward, reverse, nested).
 
-## The core difficulty
+## The trilemma
 
-The finite-difference form (3) is **not** merely a lazy stand-in for the
-analytic `∂g/∂x`. It is doing numerical-stabilization work: it is effectively
-the **upwind** discretization of the advection term (2). We have verified that
-substituting the **exact analytic** `∂g/∂x` into (2) makes the forward
-integration **unstable** — the coupling field `S` runs out of bounds once the
-points interact — unless the clamp is smoothed so aggressively (`ε_c` ~ 500×
-larger) that the model's behaviour changes by several percent. The exact
-(centred) spatial derivative is the wrong discretization for this hyperbolic
-transport on a coarse, moving point set; the one-sided stencil is the stable
-one. So **the stencil defines the solution we actually care about.**
+Every natural way to record the θ-sensitivity of the transport term fails:
 
-Now consider the three ways to get the θ-gradient of `M`, and how each fails:
+1. **Discrete adjoint — differentiate the stencil on the tape.** Exact and
+   *consistent* with the computed solution, but the recorded derivative is
+   `(g_θ(x) − g_θ(x − h)) / h`: a finite difference of the parameter-sensitivity
+   over the tiny fixed step `h`. It is ill-conditioned and, near the regularized
+   nonlinearity (`g_θx ~ 1/ε`), explodes — observed `~10⁶`–`10⁷` where the true
+   gradient is `~10²`.
 
-**Option 1 — differentiate the stencil on the tape (the true discrete adjoint).**
-Let the AD type flow through (3). The reverse pass then differentiates (3) w.r.t.
-θ, which is
-```
-d/dθ [ (g(x) − g(x−h)) / h ] = ( ∂g/∂θ(x) − ∂g/∂θ(x−h) ) / h .
-```
-This is the *consistent* gradient of the stencil-defined solution. But it is a
-finite difference of `∂g/∂θ` over the tiny step `h ≈ 1e-6`, and near the
-regularized clamp `∂²g/∂x∂θ` is `O(1/ε_c)`. The two effects together make this
-quantity explode (observed ~`1e6`–`1e7` where the true gradient is `~10²`).
-Empirically unusable.
+2. **Inject the analytic derivative.** Keep the stencil *value* on the
+   trajectory (stable) but record the exact analytic `∂g/∂x` and its exact
+   θ-sensitivity (available, well-conditioned, kink-free, one extra tangent
+   sweep). This is stable and well-conditioned, but the value comes from the
+   **upwind** scheme and the derivative from the **centred** scheme: on the
+   coupled/feedback solve the two disagree, so the gradient is **inconsistent** —
+   a bounded systematic bias (~1.5%). Exact only in the uncoupled limit (a single
+   point, where the term never feeds back).
 
-**Option 2 — keep the stencil *value*, inject the exact analytic *derivative*.**
-Compute `∂g/∂x` on the tape by forward-over-reverse (a tangent/forward-mode
-seed in the `x` direction, carried on the outer reverse tape), which gives the
-exact analytic spatial derivative and its exact θ-sensitivity, well-conditioned
-and kink-free. Then *rebase* it onto the stencil value: return
-`analytic − value(analytic) + stencil_value`, so the forward value equals the
-stencil (stable trajectory) while the recorded derivative is the analytic one.
-This is stable and well-conditioned, and it is **exact for a single point**
-(where the transport term never feeds back into `M`). But for interacting
-points it injects the derivative of the **centred** scheme onto a trajectory
-produced by the **upwind** scheme: value and derivative come from *different*
-discretizations, so the gradient is biased (observed ~1.5% consistent
-under-estimate across all parameters — a real, bounded error, not noise).
-
-**Option 3 — use the analytic term in the trajectory too.**
-Consistent (value and derivative from the same scheme) and machine-precise, but
-requires the analytic trajectory, which is unstable unless the clamp is
-over-smoothed — i.e. it changes the modelled system.
+3. **Use the analytic operator throughout.** Consistent and machine-precise,
+   but it is exactly the forward-unstable choice — usable only if the
+   regularization `ε` is loosened enough to change the modelled solution by
+   several percent.
 
 ## The question
 
-Is there a way to obtain a **consistent** and **well-conditioned** reverse-mode
-gradient of a functional of the **upwind-stabilized** solution — without
-(a) destabilizing the forward integration, (b) forming an ill-conditioned
-finite difference of the parameter-sensitivity, or (c) hand-writing second
-derivatives per model?
+How to obtain a gradient that is **consistent** with the stabilized (upwind)
+solution AND **well-conditioned**, without destabilizing the forward solve?
 
-Concretely, we are looking for guidance on any of:
+Specific angles we'd value a verdict on:
 
-1. **Adjoint/dual consistency of stabilized schemes.** Option 1 is the exact
-   discrete adjoint, and the "blow-up" is a *conditioning* problem, not a
-   correctness one. Is there a standard reformulation of the discrete adjoint of
-   a one-sided/upwind stencil that avoids dividing a parameter-difference by the
-   tiny step `h` — e.g. differentiating the stencil *symbolically* so the `1/h`
-   cancels analytically, leaving a well-conditioned expression that still equals
-   the discrete adjoint? (The stencil is `(g(x)−g(x−h))/h`; its exact θ-adjoint
-   is `(g_θ(x)−g_θ(x−h))/h`, which *is* representable without a numerical
-   difference if `g_θ` is available analytically via AD at both abscissae.)
-   Does evaluating the stencil’s adjoint as *two exact tangent evaluations* (at
-   `x` and `x−h`) rather than one finite difference of tangents fix the
-   conditioning while preserving consistency?
+1. **Well-conditioned discrete adjoint.** Option 1 is the *correct* discrete
+   adjoint; the blow-up is conditioning, not correctness. Its exact value is
+   `(g_θ(x) − g_θ(x − h)) / h`, where both `g_θ(x)` and `g_θ(x − h)` are
+   available **exactly** by AD (no differencing of `g` needed). Does evaluating
+   the stencil's adjoint as the difference of **two exact tangent evaluations**,
+   rather than as one finite-difference-of-tangents, remove the catastrophic
+   cancellation while remaining the exact discrete adjoint? Or is the `1/h`
+   amplification of a genuinely `O(h)` numerator fundamental here?
 
-2. **Choosing the differentiation step to match the scheme.** The step `h` in
-   (3) is a *numerical-derivative* step (`1e-6`), decoupled from any physical
-   grid spacing. Should the "upwind" character instead be expressed as a
-   difference over the actual inter-point spacing (an `O(Δx)` grid stencil), so
-   that its adjoint is naturally well-scaled? What is the right relationship
-   between the stabilization step and the AD?
+2. **Step scale.** `h` is a numerical-derivative step decoupled from the grid.
+   Should the upwind difference instead be taken over the actual inter-point
+   spacing `Δx` (a true grid stencil), so its adjoint is naturally `O(1)`-scaled?
+   What is the right coupling between the stabilization step and the AD?
 
-3. **Differentiable limiters / regularization that preserves the adjoint.**
-   Is there a smoothing of the transport term (not the clamp — the *upwind
-   difference itself*) that is simultaneously (i) stabilizing for the forward
-   advection and (ii) has a bounded, well-conditioned adjoint at bio-faithful
-   regularization? (Flux-limiter literature, entropy-stable schemes, etc.)
+3. **Continuous vs discrete adjoint.** Would deriving the continuous adjoint of
+   the advection equation and then discretizing it give a better-conditioned,
+   consistent gradient — and what is the adjoint-consistency caveat (adjoint of
+   the upwind scheme vs upwind of the adjoint)?
 
-4. **Continuous vs discrete adjoint.** Would deriving the *continuous* adjoint
-   PDE of the transport equation and then discretizing it (rather than
-   differentiating the discrete scheme) give a better-conditioned, consistent
-   gradient here? What are the consistency caveats (adjoint of the upwind scheme
-   vs upwind of the adjoint)?
+4. **Differentiable stabilization.** Is there a discretization of the transport
+   operator that is simultaneously forward-stable and has a bounded,
+   well-conditioned adjoint (flux limiters, entropy-stable / dual-consistent
+   schemes)?
 
-5. **Any established technique** for "differentiate through a numerically
-   stabilized scheme" where naïve discrete adjoint is well-defined but
-   ill-conditioned, and the continuous/analytic operator is unstable in the
-   forward direction.
+5. Any established technique for the general shape: *a stabilized discrete
+   operator whose exact adjoint is well-defined but ill-conditioned, while the
+   analytic operator it approximates is forward-unstable.*
 
 ## Facts an answer can rely on
 
-- `g` is closed-form and cheaply differentiable to any order by AD (forward,
-  reverse, and nested forward-over-reverse are all available).
-- The exact analytic `∂g/∂x` and its exact θ-sensitivity are available,
-  well-conditioned, and kink-free (they cost one extra tangent sweep).
-- Forward-pass values are bit-identical between the plain and AD runs; the issue
-  is purely in the recorded derivative.
-- The single-point case is exact under Option 2; the error appears only when
-  points couple through the shared field `S`, and scales with that coupling.
-- The step `h` in the stencil is fixed (`~1e-6`) and independent of the moving
-  point spacing. The clamp regularization `ε_c` is a separate, tunable smoothing
-  whose second derivative peaks at `1/ε_c`.
-- Stability of the forward solve is non-negotiable; changing the modelled
-  behaviour (over-smoothing) to buy differentiability is a last resort.
+- `g` is closed-form; exact `∂g/∂x` and `∂²g/∂x∂θ` are available and
+  well-conditioned by AD.
+- Forward values are identical between the plain and AD runs; the error is
+  purely in the recorded derivative.
+- The bias in option 2 vanishes without coupling and grows with the coupling
+  strength — it is a scheme-consistency error, not noise.
+- Forward stability is non-negotiable; loosening the regularization to buy
+  differentiability changes the modelled solution and is a last resort.
+- `h` is small and fixed, independent of the (possibly non-uniform, moving)
+  point spacing.
