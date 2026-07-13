@@ -41,6 +41,73 @@ pkgload::load_all("logpile")
 
 If a rebuild throws `undefined symbol` on load, clear stale build artifacts first: `rm -f src/*.o src/*.so` in the package dir, then reinstall.
 
+## Testing plant — a short feedback loop
+
+`plant` carries ~2000 testthat assertions across 42 files, but running all of
+them per edit is wasteful. The cost is dominated by the **C++ rebuild** and by
+**three slow files**; scope every run to what you changed. (Build / `load_all` /
+odelia-reinstall mechanics are under *Local Development* above; paths below are
+from the `plant-dev` root.)
+
+**The per-iteration tax is the rebuild, not the tests.** An R-only change under
+`pkgload::load_all("plant")` skips compilation; a C++ change recompiles
+incrementally — but the strategy/environment core is header-inline, so editing a
+header in `plant/inst/include/` invalidates every translation unit that includes
+it and triggers a near-full `plant/src` recompile. Build optimised once
+(`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
+`load_all()` without `make` builds unoptimised and makes every slow test several
+times slower (the difference between a ~3 min suite and the ">8 min" quoted in
+`docs/ad-handover.md`).
+
+**Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
+`Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`
+in fresh subprocesses, which fails under `load_all()` (`attempt to use
+zero-length variable name`). So set `Sys.setenv(TESTTHAT_PARALLEL = "false")` (as
+the AD handover already does). File-parallelism only works from an *installed*
+package (`cd plant && make test`, or CI) — it is not a lever for interactive
+work. That leaves **test selection** as the real lever, and the runtime is
+heavily skewed (serial, `-O2`):
+
+| Files | Serial cost | What |
+|---|---|---|
+| 3 heavy | **~143 s (76%)** | `test-mutant.R` (82 s, several full `run_scm`), `test-strategy-tf24.R` (43 s, TF24 hydraulics), `test-strategy-tf24f.R` (19 s) |
+| ~6 medium | ~28 s | `test-patch.R` 10 s, `test-initial-state.R` 6 s, `test-individual.R` 4 s, `test-strategy-ff16.R` 4 s, `test-canopy-methods.R` 4 s, `test-stochastic-patch-runner.R` 2 s |
+| ~33 rest | ~17 s | each **< 1 s** |
+
+Tiers of the loop, cheapest first:
+
+1. **Per edit — the one file for the component you touched.** Tests map 1:1 to
+   components by filename, so this is unambiguous; almost every file is < 2 s.
+   ```r
+   testthat::test_file("plant/tests/testthat/test-scm.R")
+   ```
+2. **Cross-cutting change — a filtered family.** `filter` matches the file-name
+   stem after stripping `test-`/`.R` (a case-sensitive regex):
+   ```r
+   testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
+                      stop_on_failure = FALSE)
+   ```
+3. **Fast pre-commit sweep — everything except the 3 heavies (~45 s, 39/42 files):**
+   ```r
+   d <- "plant/tests/testthat"
+   f <- setdiff(list.files(d, "^test-.*\\.[Rr]$"),
+                c("test-mutant.R", "test-strategy-tf24.R", "test-strategy-tf24f.R"))
+   for (x in f) testthat::test_file(file.path(d, x))
+   ```
+4. **Full serial sweep before you push — ~3 min on an `-O2` build.** The heavy
+   files exist for a reason; never let a branch land without them. Or run the
+   installed parallel path — `cd plant && make test` — which is what CI does.
+
+**Always cheap, run it when numerics move:** the FF16 bit-identity guard
+(`test-strategy-ff16.R` ~4 s, plus `test-strategy-ff16-reference-comparison.R`)
+is the tripwire for the scalar-templating AD work — a changed reference number
+means bit-identity broke. Include it in tiers 1–2 whenever you touch a strategy,
+environment, the ODE path, or anything the active scalar `S` threads through.
+
+**Only pay for the heavy files when you touched what they cover:** `test-mutant.R`
+for resident/mutant density machinery, and the two TF24 files for TF24/leaf
+hydraulics. Editing K93 or FF16 plumbing does not require paying their ~143 s.
+
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 
 

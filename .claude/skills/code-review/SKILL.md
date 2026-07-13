@@ -1,148 +1,152 @@
 ---
 name: code-review
-description: Structured code review that prioritizes long-term comprehensibility over local polish. Use whenever reviewing a diff, PR, branch, or proposed change — including when the user says "review this", "look over my changes", "check this PR", "any feedback on this code", or asks whether an implementation is good. Also use to review design proposals, plans, RFCs, and plan-mode output before implementation, and when self-reviewing code or plans you just produced at the user's request.
+description: Structured code review that reopens the decisions a diff made and makes the diff justify them. Use whenever reviewing a diff, PR, branch, or proposed change — including "review this", "look over my changes", "check this PR", "any feedback", or asking whether an implementation is good — and before merging or when self-reviewing code just written.
 ---
 
 # Code Review
 
-The goal of review is to reduce the amount a future developer must hold in
-their head to change this code correctly. It is not to improve this diff
-locally. Every line is a maintenance liability; the best outcome of a review
-is often less code, not better code.
+A diff presents decisions as facts. The review's job is to reopen them as
+choices. The ideals — code that fits in working memory, that is hard to
+hold wrong, that is the least needed — are asserted by every reviewer and
+checked by almost none; here each is checked by a mechanism, not a claim:
+comprehensibility by prediction misses, durability by simulated changes,
+sparingness by per-decision defaults. The diff is a proposal, not a fact;
+every choice is open until a requirement closes it. A review that cannot
+fail the diff is not a review.
 
-For this workspace's C++/comment conventions, judge against the project code
-style: [AGENTS.md → Code style](../../../AGENTS.md#code-style).
+For this workspace's C++/comment conventions — the "never" comment rules,
+the exemplar, and the invariant that only `double` crosses the R boundary —
+judge against the project code style:
+[AGENTS.md → Code style](../../../AGENTS.md#code-style). It is admissible
+evidence under Lens 1, not a source of opinions.
 
-Be exhaustive over *real* findings: report everything that passes the finding
-test below, and nothing that doesn't. Thoroughness means covering every real
-problem, not producing volume.
+## Files in this skill
 
-## The finding test
+- `lenses.md` — the four lens procedures. Read before your first review
+  under this skill and whenever running Tier 2+.
 
-Something is a finding only if you can fill in this sentence concretely:
+## The finding test (unchanged, load-bearing)
 
-> "This makes <specific future change or debugging task> harder/riskier
-> because <mechanism>."
+A finding must complete: "This makes <specific future change or debugging
+task> harder/riskier because <mechanism>." Can't fill it in → not a
+finding. Style, naming, and formatting are inadmissible as opinions and
+admissible only as evidence: a name is a finding solely when it caused a
+prediction miss in Lens 1.
 
-If you cannot name the future task and the mechanism, it is not a finding —
-drop it. This test is what separates exhaustive from noisy.
+## Step 0 — Triage
 
-The subject may be a design proposal or plan rather than code. The procedure
-is unchanged; in Step 3 read "function" as "component", "side effect" as
-"hidden coupling", and treat every claim the document makes (a number, a hit
-rate, an assumption) as knowledge written down — it needs a source or it is
-a finding. One addition for proposals: check each claimed property against
-what is true in the problem domain, not just against the document's own
-logic — the most expensive design flaws are internally consistent.
+- **Tier 1** — typo fixes, doc edits, version bumps, mechanical renames:
+  invariant slot ("none — <reason>" is expected), a one-pass scan,
+  verdict. No lenses.
+- **Tier 2** — ordinary feature/fix diffs: full sequence below.
+- **Tier 3** — diffs touching persisted formats, wire protocols, public
+  APIs, or module boundaries: full sequence, and produce the clean sheet
+  in a fresh subagent that receives only the requirement, never the diff
+  — uncontaminated is the one thing a single context cannot fake.
 
-## Procedure
+## Step 1 — Sources of truth
 
-Work through all steps in order. Earlier steps produce higher-priority
-findings; later findings that only matter if the current approach is kept are
-marked **[conditional]**.
+Assemble the ledger the diff will be judged against, in priority order:
+1. **A design doc under the system-design skill, if one exists.** Then
+   this review has two extra duties: verify the commitment's "kept true
+   by" claim against the actual code (structure, or did it decay to
+   convention?), and diff the diff's new nouns against the doc's "what
+   survives deletion" — any noun not on that list must justify itself.
+2. **The PR description / linked issue**, restated as outcomes with
+   quantities where given.
+3. **Reconstruction**: if neither exists, write the 2–4 line ledger the
+   diff appears to serve, and say you reconstructed it. Decisions no
+   ledger line pays for are challenged upward, not assumed correct.
 
-**Step 1 — Should this code exist?**
-Check, in order: (a) can the requirement be met by deleting code? (b) does an
-existing abstraction in the codebase already solve this? (c) is any of this
-handling requirements that don't exist yet? A yes here is your lead finding
-and the verdict is "rethink approach" — but still complete Steps 2–3 so the
-author has the full picture if they keep the approach. Do not spend detail
-effort on code you've recommended deleting; one line per conditional finding
-is enough.
+## Step 2 — Clean sheet
 
-**Step 2 — Name what must always be true.**
-State in one sentence the thing that must stay true for this code to be
-correct — there is almost always one: "a job runs at most once", "these two
-caches never disagree", "config never changes after startup". Then say how
-the code keeps it true:
-- **structure** — the code makes breaking it impossible
-- **convention** — developers must remember to keep it true
-- **nothing** — nothing keeps it true at all
-If the answer is convention or nothing, and the code could be shaped so that
-breaking the rule is impossible, that is a structural finding — it removes a
-whole class of bugs, which outweighs any local issue.
-For trivial diffs (typo fixes, doc edits, version bumps) there may be no such
-property. Write "none — <reason>" rather than inventing one; a made-up
-property teaches readers to skip this section.
+From the ledger alone, sketch the least-code solution: parts, rough
+size, new names (≤5 lines). Tier 3: subagent, blind to the diff. The
+sketch is a yardstick, not the answer — where the diff knows something
+the ledger didn't say, that is a finding against the ledger's wording,
+and worth sending upward.
 
-**Step 3 — Comprehension cost.**
-Now review the implementation exhaustively. Common sources of real findings:
-- Understanding one function requires reading more than ~2 other functions
-  (boundary is in the wrong place).
-- The same fact is written down in more than one place (the copies will
-  drift apart).
-- A side effect a caller couldn't predict from the name and signature.
-- Control flow nested deeper than 3 levels, or interacting mutable state that
-  forces the reader to simulate execution.
-- Error paths that quietly behave differently from the happy path.
-This list is illustrative, not exhaustive — anything passing the finding test
-belongs in the review.
+## Step 3 — Run the lenses, in this order
+
+Order is load-bearing. See `lenses.md` for each procedure.
+
+1. **Cold Reader** (predict-then-verify) — must be first contact with
+   the bodies: predictions from the public surface, then verification.
+   Misses become findings verbatim.
+2. **Alternative Implementer** (decision reopening) — extract the ≤5
+   largest decisions as "chose X over <simplest live alternative Y>".
+   Per decision the null hypothesis is Y; a ledger line settles it for X,
+   or it becomes a question with a default.
+3. **Time Traveler** (change simulation) — walk 1–2 plausible next
+   changes through the code; list every edit site; classify one-place /
+   leaky / shotgun.
+4. **Keeper** (what must always be true) — one sentence; kept true by
+   structure | convention | nothing; convention-or-nothing with a
+   structural option available is a structural finding. Trivial diffs:
+   "none — <reason>".
+
+Each lens must report either results or its explicit empty state
+("no misses — checked N signatures"). An omitted lens is an unrun lens.
+
+## Step 4 — Assemble
+
+Shape verdict first (clean-sheet gap + time-over question: knowing what
+this diff taught us, would we build differently? "It's already written"
+is never a reason). Then findings, then questions. Detail findings under
+a rethink verdict are one line each, marked [conditional].
 
 ## Hard rules
 
-- Every finding must pass the finding test and state its cost sentence.
-- Order findings by maintenance cost, highest first, and tier them:
-  **Structural** (changes the design, or changes how a must-stay-true rule
-  is protected) before **Minor** (real but local).
-- Never suggest an abstraction that would have exactly one call site or one
-  implementation. Deduplication that adds a concept is a net loss; name the
-  second concrete use or don't suggest it.
-- If you suggest adding code, first state why deleting or reusing doesn't
-  work.
-- Style, naming, and formatting comments are excluded unless they actively
-  mislead a reader (e.g., a name that says something false) — in which case
-  they pass the finding test and belong under Minor. Omitting them is
-  approval, not oversight.
-- Every finding shows a simpler alternative. A finding without an alternative
-  is a complaint.
+- Per reopened decision, the simpler alternative is the default winner;
+  the diff's choice must cite the ledger line that pays for the
+  difference. No citation → question with a default, not silence.
+- Every question states its default and the conversion rule: unanswered,
+  the default becomes a finding in the next review of this code.
+- Predictions are written before bodies are read — reordering this is
+  falsifying the experiment.
+- Never suggest an abstraction with one call site; name the second
+  witnessed use or don't suggest it. If you suggest adding code, first
+  state why deleting or reusing fails.
+- Every finding passes the finding test and shows a simpler alternative;
+  every lens reports or declares empty; silence on style is approval.
 
-## Output format
-
-Use exactly this structure. Sections marked (omit if empty) may be dropped;
-all others are required and appear even when a lead finding recommends
-rethinking the approach.
+## Output contract
 
 ```
 ## Verdict: approve | approve with changes | rethink approach
+## Triage: 1 | 2 | 3 — <why>
+
+## Ledger
+<R-lines, with source: design doc | PR | reconstructed>
+Design doc check (if doc exists): commitment kept true by <structure as
+claimed | decayed to convention — finding>; nouns not on the doc's
+survives-deletion list: <list | none>
+
+## Clean sheet
+<sketch> — Gap: <concepts the diff has that the sketch didn't — each
+settled by a ledger line, or listed below>
+
+## Prediction record
+<misses only: "<surface element>: predicted <X>, actual <Y>">
+| "no misses — checked <N>"
+
+## Decisions reopened
+D1: chose <X> over <Y> — settled by R<n> | UNSETTLED → Q1
+...
+
+## Change simulation
+<next change> → edit sites: <list> → one-place | leaky | shotgun
 
 ## What must always be true
-<one sentence, or "none — <reason>" for trivial diffs>
-Kept true by: structure | convention | nothing
+<one sentence, or "none — <reason>">   Kept true by: structure |
+convention | nothing
 
 ## Structural findings
 1. <what> — makes <future task> harder because <mechanism> — <simpler
-   alternative>. [conditional] if moot under an earlier finding.
+   alternative> [conditional if moot]
 
 ## Minor findings (omit if empty)
-- <same shape, one line each>
+
+## Questions with defaults (omit if empty)
+Q1: why <X> over <Y>? Default if unanswered: <Y>.
 ```
-
-## Example
-
-Diff adds an `OrderStatus` string field updated in three handlers, plus a
-`RetryPolicy` class configurable via four constructor flags used once.
-
-**Bad review** (violates this skill):
-> 1. Rename `s` to `status` 2. Add docstring to `handle_cancel` 3. Extract the
-> three update calls into `update_status()` helper 4. `RetryPolicy` could use
-> a builder pattern 5. Consider adding type hints... *(eight more)*
-
-Volume without findings: none of these can name the future task they protect.
-
-**Good review** (follows this skill):
-> Verdict: rethink approach.
-> What must always be true: an order's status matches the last event applied.
-> Kept true by: convention — three handlers each remember to write the field.
-> Structural findings:
-> 1. Status is stored separately from the events, so the two can disagree —
->    makes debugging any status mismatch harder because there are three write
->    sites to audit. Compute status from the events instead; then a mismatch
->    is impossible.
-> 2. `RetryPolicy` has one call site and four flags nothing uses — makes
->    reading the retry path harder because the reader must rule out three
->    dead behaviors. Inline the two live lines; bring back a policy object
->    when a second caller exists.
-> Minor findings:
-> - [conditional] `handle_cancel` also changes `updated_at` — a side effect
->   callers can't predict from the signature. Move it to the caller or
->   rename.
