@@ -423,6 +423,33 @@ One tape, recorded once, m sweeps, `xad::value` at the boundary, `tape_guard` on
 
 ## 11. Freeze rule + kink manifest (Cluster 2 + 7)
 
+**The barrier taxonomy [v3.1].** "AD-hostile primitives" (catalog Part I) are not a category to
+patch per site. Every value a barrier touches falls into exactly one kind by its relationship to the
+derivative, and each kind's treatment lives at the operation's **definition**, never the call site —
+so no call site narrows and the sanctioned-`value(` allowlist (§0.4 pt 4) stays O(1) in strategy
+count, not O(sites):
+- **Kind A — off the derivative** (finiteness/NaN guards, `stop` text, indices, PPA layer selectors).
+  The guard reads the value, never the tape. Make the *utility* scalar-generic at its definition: keep
+  `is_finite(double)` (bit-identity — double keeps selecting the non-template overload) and add
+  `template<class T> bool is_finite(const T& x){ using std::isfinite; return isfinite(x); }`. ADL
+  resolves `isfinite` to `xad::isfinite` for an active `S` and `std::isfinite` for `double`, so the
+  guard needs **no `xad::value` and no XAD include in the foundational `util.h`** — nothing reaches the
+  CI `value(` grep, and a raw double guard no longer exists for a call site to misuse on an `S`.
+  (Verified: active finite/inf classify correctly; `numeric_limits<AReal>` at `StdCompatibility.hpp:184`
+  lets `numeric_limits<double>`/`M_PI` promote untouched.)
+- **Kind B — on the derivative, computed off-tape** (root-finds, optimisers, all of `leaf_model.cpp`).
+  The shed keeps `double` signatures; the sole crossing is `supplied_derivative` (§7).
+- **Kind C — on the derivative, on-tape** (rate arithmetic, reductions, quadrature-through, `min/max`
+  clamps as documented subgradients). Just `S`; XAD's ADL handles `pow/exp/min/max`/comparisons; no
+  narrowing. `Node::growth_rate_gradient` is **Kind C** — the FD stencil coefficients (±ε, /2ε) are
+  `double` but `g` is evaluated active, so the result carries `value_type` (the §0.5 flag, derived);
+  it must **not** reach for the Kind-B seam.
+
+The kill condition for this split: a barrier whose correct treatment depends on **run-type** (resident
+vs mutant) rather than on its derivative relationship — none is expected, since resident/mutant is
+data-presence *at the Patch seam* and physiology below is oblivious (§0); if one appears, hoist that
+decision to the Patch seam, do not give the guard two forms.
+
 Freeze rule — §0.4 point 4. **Kink manifest** (checked-in, each entry classified selector/kink/guard +
 tested) now including, on the differentiated rate path **[M8]**: the **production sign branch**
 `if(net_production>0){…}else{zero rates}` (`ff16_strategy.cpp:103`, `tf24_strategy.cpp:186` — compensation
@@ -430,10 +457,12 @@ point sits on it); **FlatTopSoftBox** C1 2nd-deriv step (`canopy_shape.h:176`); 
 `min(height, rooting_depth_max)` (`tf24_strategy.cpp:374`); the **field-domain top knot** (§5.5); soil
 positivity resets **`tf24_environment.h:218,248,267,277`** (v1 listed only `:248`); PPA `floor`
 (`ff16_environment.h:133`); `max(0,spline)` (`resource_spline.h:120`); K93 `growth<0→0`/`mu>0?mu:0`.
-**Guards need an active-safe form [M8]:** `is_finite`/`util::stop`/`check_finite_ode_state`
-(`species.h:208`, `k93_strategy.cpp:92`, `patch.h:355`) must **read `value(...)` and never throw on an
-active intermediate**, else a boundary-adjacent AD/FD probe crashes verification — a required form, not
-just a classification.
+**Guards need an active-safe form [M8]:** `is_finite`/`util::stop`/`check_finite_ode_state` (8
+`is_finite` sites incl. `ff16_strategy.h:617`, `node.h:147,185`, `species.h:208`, `patch.h:386,422`)
+must **never throw on an active intermediate**. This is Kind A above: fix it **once at the utility
+definition** (scalar-generic `is_finite`; `check_finite_*` reads `xad::value`), not with a `value(...)`
+wrap at each call site — the per-site form grows the allowlist per strategy and a single forgotten wrap
+is a silent throw at exactly the boundary an FD probe lands on.
 
 ---
 
@@ -474,6 +503,10 @@ Whole-object snapshots ≈ 2–3 KB × 6 stages × ~1–3 k steps ≈ ~30 MB/pat
 ## 15. Build order + gates
 
 0. Skeleton `value_type=S`; delete `ad_value.h`; kink manifest + CI grep; guards → active-safe.
+0.5 **Scalar-generic guard layer (§11 Kind A), before Gate 0.** One `util.h` change makes the finiteness
+   guards active-safe *at the definition* for all four strategies at once — so Gate 0 does not fix
+   `ff16_strategy.h:617` at its call site and TF24's soil-reset guards need no new narrowing later. Cheap
+   (one header), and the barrier the per-gate order would otherwise rediscover per strategy.
 1. `EnvironmentRecording` (fingerprint §5.4) + `Coupling` (§6.1) + two overloads; `ResourceSpline` →
    odelia interpolator. FF16 env.
 2. `QK::integrate<S>` + templated `CanopyShape`; **re-body MeanLight to `S`**; delete
