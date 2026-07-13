@@ -510,6 +510,12 @@ kink as sharpness→∞. This makes the analytic derivative well-defined and kin
 default policy for AD-visible kinks generally. (EBT/abundance — which would delete `∂g/∂h` entirely,
 plant#40 — is out of scope; we smooth the kink instead.)
 
+**SUPERSEDED — see the second correction below.** The "upwind" account in this paragraph was itself
+overturned by a control experiment (production `∂g/∂h` through the live path is stable down to a 1e-10 step,
+one-sided *and* centred → the analytic operator is **not** forward-unstable; the earlier instability was a
+frozen-environment artifact that dropped the `dE/dh` coupling term). Retained for the reasoning trail; the
+corrected account is in the §15 Gate 1 status block and plant#39.
+
 **Correction (Gate 1, upwind finding — plant#39).** The original expectation here — that smoothing the
 clamp would let the analytic `∂g/∂h` define a stable trajectory and let the FD-value rebasing be dropped —
 is **only partly right, and does not hold for the multi-cohort census gradient.** Measuring after the
@@ -624,24 +630,24 @@ lands the two-cohort census gradient at **~1.5% of FD** with the smooth clamp (w
 dropped, or ~2.3× when the FD stencil was differentiated on-tape). The residual is a **bounded
 scheme-inconsistency bias** and it is where progress now stops for a hard reason:
 
-> **The FD stencil is an upwind scheme, not a clamp workaround [Gate 1 finding, corrected].** Making the
-> production `∂g/∂h` value analytic (so the census gradient would close to machine precision, both trajectory
-> and gradient being one function) **breaks the K93 SCM**: fed into `log_density_dt` the cohort density runs
-> away and competition goes out of bounds. The original diagnosis pinned this on the `size_dt` growth clamp
-> and predicted that smoothing the clamp would let analytic `∂g/∂h` define the trajectory. **That was
-> re-tested after the smooth clamp landed and is only partly right.** Smoothing improved the census residual
-> (~4%→~1.5%) and fixed an interpolator-refinement failure, but analytic `∂g/∂h` in the trajectory is *still*
-> unstable at bio-faithful `ε` — bounded only at `ε≈5e-2` (~6% demography change). The real cause: the
-> one-sided FD stencil is the **upwind discretisation** of the advection term; the analytic `∂g/∂h` is the
-> **centred** scheme, unstable for hyperbolic transport on the coarse cohort grid. The stencil therefore
-> *defines* the trajectory, and a machine-precise **consistent** gradient must use the same scheme for value
-> and derivative. The discrete adjoint (differentiating the upwind stencil on-tape) is consistent but
-> ill-conditioned — `(g_θ(x)−g_θ(x−h))/h` with tiny fixed `h≈1e-6` blows up near the regularised clamp (`~7e6`).
-> So the interim gradient keeps the FD (upwind) value and injects the analytic (centred) derivative: stable,
-> well-conditioned, but scheme-inconsistent at ~1.5%. Options to close it: (A) accept ~1.5% at bio-faithful
-> `ε` (current); (B) analytic trajectory at large `ε` (machine-precise, changes biology, regen refs);
-> (C) a transport scheme that is both stable and cleanly differentiable. Tracked in **plant#39**; the general
-> problem is written up in `docs/oracle-transport-adjoint.md`.
+> **The trajectory is stable under the analytic operator; the earlier "unstable" result was an artifact
+> [Gate 1 finding, twice-corrected].** Sequence of understanding: (1) analytic `∂g/∂h` in the trajectory
+> appeared to break the K93 SCM (competition out of bounds); (2) that was attributed to the `size_dt` clamp,
+> then to the FD stencil being an "upwind" stabiliser. **(3) A control experiment overturned both:** running
+> the *production* `∂g/∂h` through the live path with a vanishing step (backward AND centred, down to
+> `eps=1e-10` → the exact analytic derivative) is stable and gives `op≈0.0753254` unchanged. So the analytic
+> operator is **not** forward-unstable and one-sidedness is not the stabiliser. The earlier instability came
+> from the forward-over-reverse scratch calling `set_fixed_environment_scalar` — it **froze the competition
+> field**, computing `∂g/∂h` at fixed environment and dropping the `∂g/∂E·dE/dh` term that the production
+> stencil captures via the environment *secant* `(E(x)−E(x−h))/h`. Dropping that coupling term is what
+> destabilised, and it is the likely source of the residual ~1.5% census bias (which grows with inter-cohort
+> coupling). The on-tape blow-up when differentiating the raw stencil (`~7e6`) is real and the Oracle's
+> conditioning analysis of it stands, but it concerns how to record the θ-derivative, not trajectory
+> stability. **Next experiment:** compute analytic `∂g/∂h` *including* `dE/dh` via the environment secant
+> (matching production, not the frozen scalar and not the raw spline tangent) for value and θ-sensitivity;
+> predicted to match production and close the census gradient. This ties into the interpolator/coupling
+> redesign (odelia#39/#40): the `dg/dh` path needs `dE/dh` from a secant/consistent channel. Tracked in
+> **plant#39**; `docs/oracle-transport-adjoint.md` carries a correction note.
 
 See **plant#39** for the full write-up and `docs/oracle-transport-adjoint.md` for the domain-agnostic
 statement.

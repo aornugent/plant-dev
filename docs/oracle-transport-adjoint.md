@@ -3,6 +3,22 @@
 A self-contained problem in differentiable numerical methods. No application
 knowledge is assumed or needed.
 
+> **CORRECTION (post-consultation).** A control experiment overturned this
+> document's premise that "using the exact analytic operator makes the forward
+> integration unstable" (Setup, option 3). It does **not**: computing the
+> transport term through the live path with a vanishing step (down to 1e-10,
+> one-sided *and* centred) is stable and matches production. The instability I
+> had attributed to the analytic operator came from an implementation that
+> **froze the coupling field `S`**, thereby dropping the `∂g/∂S · dS/dx` term —
+> a different, incomplete derivative. So option 3 is **not** blocked by
+> stability, and the true issue is narrower: how to record the θ-derivative of
+> the transport term *including* the `dS/dx` coupling, where `dS/dx` must come
+> from a consistent (secant-like) channel rather than the reconstruction's
+> analytic tangent. The Oracle's conditioning analysis of the on-tape stencil
+> derivative (options 1–2 below) remains valid and useful; the stability claim
+> in option 3 does not. Kept for the record; see plant#39 for the corrected
+> account.
+
 ## Setup
 
 We solve a scalar conservation law of advection type by method of lines: a
