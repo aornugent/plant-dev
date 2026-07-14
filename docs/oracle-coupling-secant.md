@@ -1,9 +1,13 @@
 # The coupling-slope derivative: a no-simple-secant tradeoff
 
+> **SUPERSEDED by `oracle-coupling-firstprinciples.md`** — that doc is the clean,
+> requirements-first recount to send to the Oracle. This file is kept as the
+> running log of the accreted candidate mechanisms and their falsifications
+> (the "Falsified" section here is folded, condensed, into the recount's Part 3).
+
 A sharpened statement of the open residual from component 1 of
 `oracle-transport-adjoint.md`. Domain-agnostic; no application knowledge needed.
-This is the live problem to take to the Oracle. (The earlier
-`oracle-growing-state-adjoint.md` was a misdiagnosis and is retracted.)
+(The earlier `oracle-growing-state-adjoint.md` was a misdiagnosis and is retracted.)
 
 ## Setup (recap of the resolved part)
 
