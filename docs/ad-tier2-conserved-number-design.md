@@ -264,3 +264,46 @@ migration (state variable → mass; field assembly → mass-weighted deposit at 
 birth map → influx mass; splitting → linear partition; serialization/resume/RcppR6;
 reference re-baseline) with the verification battery as its acceptance gate — its own
 planning pass, not undertaken here.
+
+---
+
+## Addendum — continuous-adjoint-lite probe (negative result)
+
+**Question tested (user):** is there an advance that improves on Tier 1 *without*
+reparameterising the model — specifically, can we keep the production forward pass
+bit-exact (fd-stencil compression value) and still recover correct reverse-mode
+gradients by injecting a well-conditioned derivative?
+
+**Probe (`g_geom_seam`).** Keep the compression VALUE on the trajectory but tape the
+geometric neighbour-difference DERIVATIVE `[g(x_{i-1})−g(x_{i+1})]/(x_{i-1}−x_{i+1})`
+via a value/derivative seam `dgdh = geo − value(geo) + fd_value`. Idea: forward value =
+production, taped derivative = Tier-1's ∂ₓg-cancelling operator.
+
+**Result.** Reverse pass is machine-exact and cosine 1.0 — but against a *shifted*
+finite-difference reference:
+
+| param | baseline (production) FD | geom-seam FD |
+|-------|--------------------------|--------------|
+| b_0   | 319.38                   | 317.88       |
+| k_I   | 0.144                    | 1.58e-6      |
+
+The FD reference *moved* (b_0 −1.5; k_I collapsed five orders to Tier-1's value). A truly
+pristine forward would leave the FD-of-model-as-run unchanged. It did not, for two
+reasons that compound into one conclusion:
+
+1. The substituted value (a cruder one-sided stencil) is not production's
+   `gradient_fd`/Richardson value, so the trajectory forked immediately.
+2. More fundamentally, the injected geometric derivative is Tier-1's mechanism, so the
+   reverse is self-consistent with a **Tier-1 forward**, not production. The seam
+   *reproduces Tier-1* while discarding production's exact value.
+
+**Why it cannot be rescued.** Production's fd-stencil model genuinely has k_I sensitivity
+≈0.144; Tier-1's geometric-compression model genuinely has ≈1.6e-6. These are *different
+dynamical systems*. Correct AD *of production* must differentiate the fd stencil itself —
+the ill-conditioned object the Oracle statement isolates, still unsolved. Any
+well-conditioned derivative injected onto a pristine value yields the gradient of a
+*different* model. There is no free lunch: forward-pristine-plus-gradients requires
+faithfully differentiating the stencil (unsolved); well-conditioned gradients require the
+model change (Tier 1). This confirms the "Land Tier 1" decision — Tier 1 is the minimal
+correct model change, and nothing short of a model change delivers well-conditioned
+gradients here.
