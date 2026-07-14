@@ -201,3 +201,66 @@ one representation for all four strategies and both resource fields.
   physically-equivalent (indeed more canonical) discretization, against the benefit of
   correct gradients for all four strategies and both resource fields plus a large code
   deletion.
+
+---
+
+## Addendum: converged review + refinements
+
+Two independent domain-agnostic expert reviews of a neutrally-framed statement of this
+problem *both* reproduced this design (conserved per-characteristic mass; loss-only mass
+ODE; mass-weighted moments/fields; boring transpose reverse), reaching it with no domain
+knowledge. Together with the derivation above and the Tier-1 experiment (which confirmed
+the conservation-pair mechanism), that is four independent routes to the same method: the
+method is settled; the open risk is implementation and re-baseline validation, not
+correctness. Refinements to adopt:
+
+- **Empirical-measure exactness (answers "which map is differentiated").** `n̂ = Σᵢ mᵢ
+  δ(x−xᵢ)` is an *exact* weak/distributional solution of the transport law for the
+  velocity field reconstructed each step; the moment weak form `dM/dt = Σ(φ'g − φr)mᵢ +
+  boundary` holds as a discrete algebraic identity. The only approximations in the whole
+  scheme are the field closure (knot aggregation + interpolation) and the time stepper —
+  the same places the forward error already lives. The reverse gradient is the exact
+  derivative of that frozen-schedule weighted-particle map; FD of it is the reference;
+  the continuum limit is the parts-integrated moment law in which `∂ₓg` never appears.
+
+- **Node placement: pre-ψ aggregate.** Deposit the aggregate `A(z_m) = Σⱼ mⱼ κ(z_m,xⱼ)`
+  at the knots, reconstruct, apply `ψ = exp` per reader *after* reconstruction
+  (`S(x) = ψ(B(x)·c_A)`). Source→node is then linear (exact rank-1 deposit, exact
+  leave-one-out downdate if ever wanted), positivity/monotone attenuation are automatic,
+  and `C¹` reconstruction suffices (the deepest field derivative anywhere is `S′` as an
+  adjoint coefficient).
+
+- **The one-sided edge seam is benign here (domain-confirmed).** A source crossing a knot
+  would jump the deposit by `κ(z,z)·m` — but the crown kernel `Q(z,H) = (1−(z/H)^η)²`
+  vanishes on its diagonal (`Q(H,H)=0`), so the value jump is zero. Only a
+  deposit-*derivative* kink survives if `∂ₓκ(z,z)≠0`: `O(k/N)`, countable (near-knot
+  source counter), erasable with a sub-knot `C¹` ramp if it ever fires.
+
+- **Refinement/splitting is linear and moment-exact.** `(x,m) → (x⁻, αm), (x⁺, (1−α)m)`
+  with smooth placement preserves every moment exactly through insertion and is
+  tape-transparent; the trigger stays in the recorded pass, frozen.
+
+- **Second / memory field composes.** Keep the memory linear in the mass deposits
+  (`ċ_A = −c_A/τ + Σⱼ mⱼ κ(·,xⱼ)`), apply `ψ` per reader; one node, one transpose per
+  field, nothing new to prove. (TF24/TF24f soil-water is exactly this case.)
+
+- **Verification battery** (to run during implementation): JVP=VJP per primitive; FD of
+  the *new* forward vs reverse, both parameter classes at the FD floor (now an unhedged
+  prediction — no contested term remains); null-channel probe matching finite-N FD with
+  **no cavity/mask anywhere**; a **reference twin** (exact pairwise one-sided sums over
+  the frozen membership, reconstruction-free) diffed against the knot-node production
+  gradient to isolate reconstruction bias; standing assertions on the recorded pass
+  (order invariance, bitwise replay, near-knot-crossing counter); and an exact-mass
+  conservation audit (`Σmᵢ` vs integrated loss + influx) as a free forward canary.
+
+- **Claim to verify, not assume.** Both reviews assert the forward is *strictly better*
+  (exact discrete conservation; a deleted secant/stiffness source; `m` bounded where
+  `ℓ → ∞` under strong compression). Treat as a hypothesis: a parity run (both
+  representations, moments + knot values over time, conservation, step-size behaviour) is
+  part of acceptance, per the "never act on an Oracle claim without a test" discipline.
+
+**Next phase:** this closes the *design* question. Implementation is a phased core
+migration (state variable → mass; field assembly → mass-weighted deposit at a pre-ψ node;
+birth map → influx mass; splitting → linear partition; serialization/resume/RcppR6;
+reference re-baseline) with the verification battery as its acceptance gate — its own
+planning pass, not undertaken here.
