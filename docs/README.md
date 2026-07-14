@@ -26,8 +26,17 @@ and `run_mutant` is already the frozen-schedule replay.
    are awkward through Rcpp, the "only doubles cross" invariant, and **user stories**
    for each persona.
 
+[`ad-census-gradients.md`](./ad-census-gradients.md) is the standalone design for
+**correct reverse-mode census gradients through the growing SCM** — the conservation-pair
+diagnosis and the geometric-compression solution (`control$node_geometric_compression`).
+Read it for the transport-term (`∂ₓg`) gradient specifically.
+
 [`ad-issues.md`](./ad-issues.md) is the separate work breakdown — scoped items,
 dependencies, and build order — not part of the design proper.
+
+[`oracle-consultation-guide.md`](./oracle-consultation-guide.md) is general practice for
+framing a hard problem to an external expert reasoner so it surfaces structure you cannot
+see — distilled from this project, applicable to any.
 
 ---
 

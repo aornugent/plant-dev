@@ -470,7 +470,8 @@ existing primitives plus one relocation, and second-order (Hessian) is not a cur
 triggers** that would justify the heavier mechanism: (1) Hessians of a metric become required (the injection
 primitive must then nest — `directional_derivative`/`slope` already do, `supplied_derivative` does not, #35);
 (2) a third genuinely-distinct rule-plumbing appears with a witness (e.g. an event/saltation seam, catalog §5.3).
-See `docs/oracle-transport-adjoint.md` for the domain-agnostic catalog this kit discharges.
+The census-gradient member of this class — the transport term `∂g/∂h` — is resolved by
+geometric compression; see [`ad-census-gradients.md`](./ad-census-gradients.md) and §15.
 
 **Why the site taxonomy missed a class (Gate 1 retrospective).** The catalog enumerated *where an
 active scalar goes* and checked each site **once, statically, first-order** — "is `S` present and
@@ -551,8 +552,11 @@ scheme for value and derivative. Differentiating the upwind stencil on-tape (the
 consistent but ill-conditioned: it forms `(g_θ(x)−g_θ(x−h))/h` with a tiny fixed `h≈1e-6` and blows up near
 the regularised clamp (`∂²g/∂x∂θ ~ 1/ε_c`), measured `~7e6`. So the interim `∂g/∂h` gradient keeps the FD
 (upwind) value on the trajectory and injects the analytic derivative (a stable but scheme-inconsistent
-~1.5% bias), documented in `node.h` and §17. The general problem — a consistent, well-conditioned
-reverse-mode gradient through a numerically-stabilised transport term — is component 1 of the domain-agnostic catalog `docs/oracle-transport-adjoint.md`.
+~1.5% bias), documented in `node.h` and §17. **This interim injection is superseded:** the consistent,
+well-conditioned gradient is obtained by discretising the transport term with the
+quadrature's own neighbour-difference operator (geometric compression), which makes the
+two copies of `∂ₓg` cancel exactly on the tape. See
+[`ad-census-gradients.md`](./ad-census-gradients.md).
 
 The surrogate is `util::smooth_positive(x, ε) = ½(x + √(x² + ε²))` → `max(0, x)` as `ε→0` (C∞, monotone,
 no overflow, preserves `≥ 0`); the two-sided/step kinks use the analogous smooth-min / logistic step. `ε`
@@ -640,7 +644,15 @@ cross-species Jacobian columns). A single-species ≥2-introduction run does **n
 Structurally sound (move-ctor preserves `slot_`; new-cohort ICs are taped intermediates) but the claim to
 *execute*.
 
-*Gate 1 status.* Single-cohort resident SCM matches FD **exactly**. The two-cohort **gradient** is now the
+> **SUPERSEDED — resolved by geometric compression.** The forward-over-reverse injection
+> below (and its ~1.5% / ~0.45% residual bias) was the *interim* Gate-1 result. The final
+> solution replaces the transport-term discretisation with the competition quadrature's own
+> neighbour-difference operator so the two copies of `∂ₓg` cancel exactly on the tape,
+> giving **machine-exact** census gradients (cosine 1.0). It ships as the opt-in
+> `control$node_geometric_compression`. The account below is retained as the reasoning trail;
+> the shipped design is [`ad-census-gradients.md`](./ad-census-gradients.md).
+
+*Gate 1 status (interim, superseded).* Single-cohort resident SCM matches FD **exactly**. The two-cohort **gradient** is the
 forward-over-reverse result: `growth_rate_gradient` keeps the FD **value** (so the active trajectory
 reproduces the double replay bit-for-bit — no fork) and injects the **exact analytic parameter-derivative**
 of `∂g/∂h` by forward-over-reverse (`odelia::ad::directional_derivative`), dispatched on a strategy exposing
@@ -675,7 +687,8 @@ scheme-inconsistency bias** and it is where progress now stops for a hard reason
 > and accurate. Two-cohort growth-parameter census vs FD: **b_0 within 0.45%, b_1 within 0.026%** (was 1.5%
 > low with the coupling dropped, 2.3× high with the secant θ-derivative taped); SCM stable, `op 0.0753254`
 > unchanged. `height_0` ~3.5% and the tiny-magnitude mortality-channel `c_0` remain as smaller residuals.
-> Tracked in **plant#39**; `docs/oracle-transport-adjoint.md` (component 1) carries the resolved account.
+> Tracked in **plant#39**. (This coupling-injection recipe is itself superseded by
+> geometric compression — see [`ad-census-gradients.md`](./ad-census-gradients.md).)
 >
 > **Ownership refactor [design B].** The `dE/dh` secant moved out of `node.h` into
 > `odelia::interpolator::basic_interpolator::slope(u, step, direction)`, reached through
@@ -685,8 +698,8 @@ scheme-inconsistency bias** and it is where progress now stops for a hard reason
 > review's triplication finding (§11 seam kit + ownership); FF16's future forward-mode port reuses the same
 > read rather than re-authoring a secant.
 
-See **plant#39** for the full write-up and `docs/oracle-transport-adjoint.md` for the domain-agnostic
-catalog (component 1 is this term; 2–6 are the other hard-to-differentiate components).
+See **plant#39** for the interim write-up, and [`ad-census-gradients.md`](./ad-census-gradients.md)
+for the shipped resolution (geometric compression).
 
 **The `∂g/∂h` characteristic term and the leaf optimiser are different barrier kinds — different tools.**
 Both are "a derivative that can't be taken naively on the tape", but the reason differs, and so does the fix:
