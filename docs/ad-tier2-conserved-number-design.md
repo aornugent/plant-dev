@@ -307,3 +307,33 @@ faithfully differentiating the stencil (unsolved); well-conditioned gradients re
 model change (Tier 1). This confirms the "Land Tier 1" decision — Tier 1 is the minimal
 correct model change, and nothing short of a model change delivers well-conditioned
 gradients here.
+
+---
+
+## Landing note — Tier 1 shipped (opt-in)
+
+Tier 1 landed in `plant` (`claude/ad-gate1-scm`, commit `abbf253a`) as an opt-in
+Control flag, `node_geometric_compression` (default `FALSE`):
+
+- **On:** the log-density transport `-∂ₓg` is the geometric neighbour difference of
+  the growth rate across adjacent cohorts — the same discrete operator as the
+  competition-quadrature spacings — so both copies of `∂ₓg` cancel on the reverse
+  tape. Census gradients are machine-exact (`cosine(ad, fd) = 1.0`; `b_0` 317.883
+  vs FD 317.883; `k_I` 2.04e-6 vs FD 2.04e-6). Compression moved from
+  `Node::compute_rates` to `Species::compute_rates` (needs the neighbour list).
+- **Off (default):** the upwind finite-difference stencil, bit-for-bit the
+  published model. Full test suite green with the flag off (the K93
+  "offspring production is unchanged" snapshots pass untouched).
+
+**Why gated rather than unconditional.** Enabling it moves the K93 forward
+trajectory ~0.2% off the upwind stencil (offspring production 0.075325 →
+0.075453). That is a change to a *published* model's output, so it is opt-in:
+ordinary simulations reproduce the paper, and differentiable runs enable the flag
+(their forward is then self-consistent with the gradient). Scope is K93 (the only
+forward-mode-instantiable strategy today); FF16/TF24/TF24f are unaffected. Flip
+the default to `TRUE` if the geometric forward is later adopted as the canonical
+K93 numerics.
+
+This is the production endpoint for the census-gradient work; Tier 2
+(conserved-number reparameterisation, above) remains the design-optimal but
+higher-cost alternative, not required for correct gradients.
