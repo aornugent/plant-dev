@@ -452,6 +452,26 @@ count, not O(sites):
   **`supplied_derivative`** when it is opaque (TF24's leaf optimiser). `Node::growth_rate_gradient` was
   first (wrongly) filed as Kind C — the correction is the whole of plant#39.
 
+**The seam kit + ownership [design B, locked — supersedes any "one unifying mechanism" idea].** The four
+kinds are served by a **three-primitive kit already in odelia**, not a new grand abstraction: `supplied_derivative`
+(Kind B injection — root-finds via IFT, optima via the envelope/stop-gradient), `directional_derivative`
+(Kind D forward-over-reverse), and `util::smooth_positive` (Kind-C kinks on a differentiated rate). The only
+missing piece is a single owned read for the **coupling / reconstruction-slope channel** `dS/dx` — added as
+`odelia::interpolator::basic_interpolator::slope(u, step, direction)` (a robust **secant**, nesting-safe, query
+values frozen), which serves both the transport-coupling term and any future field-slope consumer. **Ownership
+rule:** each derivative rule is authored **once, on the operation that owns the quantity** — `dS/dx` on the
+interpolator (step+direction taken from the same `Control` the production stencil reads, so the active and
+double paths are consistent *by construction*, not by coincidence). This retires the plant `dg/dh`-coupling
+**triplication** the code review found (the hand-rolled secant in `node.h`, the tangent smuggled through
+`set_fixed_environment_scalar`, and the hard-coded backward direction): `node.h` now reads the environment's
+slope and injects it, with the "freeze the secant's θ-sensitivity" bias-ledger note at that one seam.
+*No unifying `custom_adjoint` block is built* — that is the inventor's-paradox trap; the witnesses are two
+existing primitives plus one relocation, and second-order (Hessian) is not a current requirement. **Retrofit
+triggers** that would justify the heavier mechanism: (1) Hessians of a metric become required (the injection
+primitive must then nest — `directional_derivative`/`slope` already do, `supplied_derivative` does not, #35);
+(2) a third genuinely-distinct rule-plumbing appears with a witness (e.g. an event/saltation seam, catalog §5.3).
+See `docs/oracle-transport-adjoint.md` for the domain-agnostic catalog this kit discharges.
+
 **Why the site taxonomy missed a class (Gate 1 retrospective).** The catalog enumerated *where an
 active scalar goes* and checked each site **once, statically, first-order** — "is `S` present and
 classified." A reverse gradient is not correct because the scalar arrives; it is correct because the
@@ -656,6 +676,14 @@ scheme-inconsistency bias** and it is where progress now stops for a hard reason
 > low with the coupling dropped, 2.3× high with the secant θ-derivative taped); SCM stable, `op 0.0753254`
 > unchanged. `height_0` ~3.5% and the tiny-magnitude mortality-channel `c_0` remain as smaller residuals.
 > Tracked in **plant#39**; `docs/oracle-transport-adjoint.md` (component 1) carries the resolved account.
+>
+> **Ownership refactor [design B].** The `dE/dh` secant moved out of `node.h` into
+> `odelia::interpolator::basic_interpolator::slope(u, step, direction)`, reached through
+> `ResourceSpline::slope_at_height` / `K93_Environment::get_environment_slope_at_height`. `node.h`'s seam now
+> reads that one definition (step+direction from `Control`, consistent with the production stencil by
+> construction) and injects it with the θ-freeze bias-ledger note at the seam. This discharges the code
+> review's triplication finding (§11 seam kit + ownership); FF16's future forward-mode port reuses the same
+> read rather than re-authoring a secant.
 
 See **plant#39** for the full write-up and `docs/oracle-transport-adjoint.md` for the domain-agnostic
 catalog (component 1 is this term; 2–6 are the other hard-to-differentiate components).
