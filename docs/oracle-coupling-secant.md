@@ -162,6 +162,68 @@ tangent-carrying scalar. So angle 3 is not merely *an* option — it is the
 **required realization** of the channel split; angles 1–2 improve the value but
 cannot fix the double-count.
 
+## Falsified: the curvature-cancellation fix (measured, this round)
+
+The Oracle's final resolution proposed that `d(dS/dx)/dθ` is a **material
+(Lagrangian) derivative** whose two legs form an advective cancelling pair, and
+that keeping the query-motion leg with the *analytic spline curvature* `S″` as a
+frozen per-step coefficient would cancel the data-leg overshoot for direct-effect
+parameters:
+
+```
+d(dS/dx)/dθ  =  Σᵢ wᵢ′(x̄)·dcᵢ/dθ   [data, live knots, frozen query]
+             +  S″(x̄)·dx/dθ          [query-motion, S″ frozen, dx/dθ live]
+```
+
+This was implemented (odelia `basic_spline::deriv2`, an interpolator
+`slope_with_query_motion` returning `deriv(x̄) + deriv2(x̄)·(u−x̄)`, wired through
+ResourceSpline/K93_Environment, injected LIVE in `node.h`) and **measured
+directly on a single cohort**. It does not work, and the leg measurement says why.
+
+At the cohort's own height after seg1 (`h=4.925`, the cohort is the tallest so it
+sits at the canopy top, `E=1.0`, `dE/dθ≈0` — unshaded):
+
+| param | dh/dθ | slope value | data leg `Σwᵢ′·dcᵢ/dθ` | query-motion `S″·dh/dθ` |
+|---|---|---|---|---|
+| b_0 (direct) | 87.6 | 0.368 | **326.9** | **2.5e-7 ≈ 0** |
+| k_I (coupling-only) | ~0 | 0.368 | 37.0 | ~0 |
+
+The query-motion leg is **nine orders of magnitude too small** to cancel the data
+leg: `S″(x̄) ≈ 2.8e-9`, whereas cancellation needs `S″ ≈ 326.9/87.6 ≈ 3.7`. The
+light field is locally **near-piecewise-linear** at the read point (small
+curvature), yet its *slope* is strongly parameter-sensitive (the self-shading
+transition just below the cohort moves sharply with a growth trait). A near-linear
+segment has `S″≈0` but a large `Σwᵢ′·dcᵢ/dθ`; the two are not tied, so the
+advective identity `data = −S″·dx/dθ` simply does not hold for this field.
+
+Census consequence (single cohort, forward-tangent AD vs central FD, confirming
+this is a per-step property, not an emergent multi-cohort one):
+
+| metric | b_0 | b_1 | k_I | 
+|---|---|---|---|
+| **height** (no dg/dh) | ✓ exact (6e-9) | ✓ exact (3e-9) | ✓ ~0 |
+| **log_density** (reads dg/dh) | ✗ **−557 vs −48 (10.7×)** | ✗ **617 vs 62 (8.9×)** | ✓ −0.322 vs −0.320 |
+
+Height (which integrates `g`, not `dg/dh`) is machine-exact for the direct params,
+localising the entire error to `dg/dh`'s θ-sensitivity. Keeping the slope channel
+live (data + query-motion) overshoots direct params ~10× on log_density; detaching
+it (the committed state) is exact for direct params and drops the coupling-only
+signal. **The tradeoff is intact and the curvature fix does not resolve it.**
+
+The real discriminant is confirmed to be **dx/dθ** (does the parameter move the
+query through the field): for k_I the data leg is genuine (dx/dθ≈0, nothing to
+cancel), for b_0 it is spurious (dx/dθ large, but no curvature to cancel against).
+The correct cancelling partner — if one exists — is **not** the analytic field
+curvature. A plausible next hypothesis: the spurious data leg is the cohort's OWN
+contribution to the field slope at its own height (self-shading read on the kink),
+which a Lagrangian read that excludes the query cohort's self-contribution would
+remove — but that is field-reconstruction surgery, not a per-step coefficient.
+
+**Status: reverted to the committed detach.** deriv2 and the query-motion machinery
+were removed (measured non-cancelling; would be dead code). Direct-effect census
+params remain exact; coupling-only params (k_I, b_2, height_0) remain
+bounded-wrong on coupling-integrating metrics — the documented interim.
+
 ## Facts an answer can rely on
 
 - The fixed-field partial `∂g/∂x|_S` and the coupling *value* `dS/dx` (secant) are
