@@ -423,6 +423,89 @@ One tape, recorded once, m sweeps, `xad::value` at the boundary, `tape_guard` on
 
 ## 11. Freeze rule + kink manifest (Cluster 2 + 7)
 
+**The barrier taxonomy [v3.1].** "AD-hostile primitives" (catalog Part I) are not a category to
+patch per site. Every value a barrier touches falls into exactly one kind by its relationship to the
+derivative, and each kind's treatment lives at the operation's **definition**, never the call site —
+so no call site narrows and the sanctioned-`value(` allowlist (§0.4 pt 4) stays O(1) in strategy
+count, not O(sites):
+- **Kind A — off the derivative** (finiteness/NaN guards, `stop` text, indices, PPA layer selectors).
+  The guard reads the value, never the tape. Make the *utility* scalar-generic at its definition: keep
+  `is_finite(double)` (bit-identity — double keeps selecting the non-template overload) and add
+  `template<class T> bool is_finite(const T& x){ using std::isfinite; return isfinite(x); }`. ADL
+  resolves `isfinite` to `xad::isfinite` for an active `S` and `std::isfinite` for `double`, so the
+  guard needs **no `xad::value` and no XAD include in the foundational `util.h`** — nothing reaches the
+  CI `value(` grep, and a raw double guard no longer exists for a call site to misuse on an `S`.
+  (Verified: active finite/inf classify correctly; `numeric_limits<AReal>` at `StdCompatibility.hpp:184`
+  lets `numeric_limits<double>`/`M_PI` promote untouched.)
+- **Kind B — on the derivative, computed off-tape** (root-finds, optimisers, all of `leaf_model.cpp`).
+  The shed keeps `double` signatures; the sole crossing is `supplied_derivative` (§7).
+- **Kind C — on the derivative, on-tape** (rate arithmetic, reductions, quadrature-through, `min/max`
+  clamps as documented subgradients). Just `S`; XAD's ADL handles `pow/exp/min/max`/comparisons; no
+  narrowing.
+- **Kind D — the operation *is itself a derivative* [added after Gate 1].** A site that computes a
+  derivative (a finite difference, a spline `.deriv()`, a numerical Jacobian) and lets it flow to an
+  output is **second-order** the moment the outer reverse pass differentiates it. It is NOT Kind C:
+  differentiating the *approximation* (an FD stencil `(g(h)-g(h-ε))/ε`) on the tape amplifies any kink
+  it straddles by `1/ε` (a suppressed cohort's `size_dt` clamp took the K93 two-cohort gradient to
+  ~2.3× FD). Treat the derivative as exact and inject it: **forward-over-reverse** when the underlying
+  code is differentiable (`dg/dh` for K93/FF16 — `odelia::ad::directional_derivative`, plant#39), or
+  **`supplied_derivative`** when it is opaque (TF24's leaf optimiser). `Node::growth_rate_gradient` was
+  first (wrongly) filed as Kind C — the correction is the whole of plant#39.
+
+**The seam kit + ownership [design B, locked — supersedes any "one unifying mechanism" idea].** The four
+kinds are served by a **three-primitive kit already in odelia**, not a new grand abstraction: `supplied_derivative`
+(Kind B injection — root-finds via IFT, optima via the envelope/stop-gradient), `directional_derivative`
+(Kind D forward-over-reverse), and `util::smooth_positive` (Kind-C kinks on a differentiated rate). The only
+missing piece is a single owned read for the **coupling / reconstruction-slope channel** `dS/dx` — added as
+`odelia::interpolator::basic_interpolator::slope(u, step, direction)` (a robust **secant**, nesting-safe, query
+values frozen), which serves both the transport-coupling term and any future field-slope consumer. **Ownership
+rule:** each derivative rule is authored **once, on the operation that owns the quantity** — `dS/dx` on the
+interpolator (step+direction taken from the same `Control` the production stencil reads, so the active and
+double paths are consistent *by construction*, not by coincidence). This retires the plant `dg/dh`-coupling
+**triplication** the code review found (the hand-rolled secant in `node.h`, the tangent smuggled through
+`set_fixed_environment_scalar`, and the hard-coded backward direction): `node.h` now reads the environment's
+slope and injects it, with the "freeze the secant's θ-sensitivity" bias-ledger note at that one seam.
+*No unifying `custom_adjoint` block is built* — that is the inventor's-paradox trap; the witnesses are two
+existing primitives plus one relocation, and second-order (Hessian) is not a current requirement. **Retrofit
+triggers** that would justify the heavier mechanism: (1) Hessians of a metric become required (the injection
+primitive must then nest — `directional_derivative`/`slope` already do, `supplied_derivative` does not, #35);
+(2) a third genuinely-distinct rule-plumbing appears with a witness (e.g. an event/saltation seam, catalog §5.3).
+The census-gradient member of this class — the transport term `∂g/∂h` — is resolved by
+geometric compression; see [`ad-census-gradients.md`](./ad-census-gradients.md) and §15.
+
+**Why the site taxonomy missed a class (Gate 1 retrospective).** The catalog enumerated *where an
+active scalar goes* and checked each site **once, statically, first-order** — "is `S` present and
+classified." A reverse gradient is not correct because the scalar arrives; it is correct because the
+**derivative** is right, and that lives on three axes the site axis cannot see:
+- **order** — a site can be a derivative (Kind D); differentiating it is second-order, not arithmetic.
+- **quality** — a value can be *bit-identical* while its derivative is garbage (the two-cohort forward
+  value matched to machine precision while the recorded gradient was ~2.3×). "Value matches" is not
+  "derivative matches".
+- **dynamics** — a per-step derivative error **compounds over the integrator**. The interpolator's
+  active-query tangent was proven "bit-identical, cleanliness not a fix" on a *single* crown eval (§0);
+  on a rate path the query point is an *evolving ODE state*, so the same tangent drifted a single-cohort
+  gradient from exact at `t_end=5` to 17× at `t_end=40`.
+
+The method fix is small: add a **"is this a derivative?"** column (→ Kind D) and a **"query point is an
+evolving state?"** column to the touch-point survey, and make **Gate 0 dynamical** (a multi-step
+trajectory *with resident feedback*, FD-checked) — the single-plant short run was cheaper than every one
+of these bugs but structurally unable to show any of them, which is the same as not having a gate.
+
+**Remaining Kind-D / dynamics suspects the site axis still passes** (audit before their gate): every
+`basic_spline::deriv()` read that feeds an output (FF16 crown, leaf splines); odelia's Rosenbrock
+Jacobian and `dfdt_fd` time-difference if the implicit stepper is ever differentiated (resident TF24
+soil — and `Jacobian::supported` is hard-gated off for nested types, #35, so it fails silent); every
+`min/max`/clamp/`is_finite`-swap as a θ-**kink** (no inner FD may straddle one, and on-tape each needs a
+value-vs-derivative split-check, not just the subgradient note); adaptive-**refinement boundaries** as
+θ-discontinuities (the node set is chosen by `xad::value`, so the gradient is exact only within a
+refinement cell); and stateful carries across `newRecording` (`rescale_usually` knot reuse, TF24's
+`mutable psi_soil_cache_`, Q8).
+
+The kill condition for this split: a barrier whose correct treatment depends on **run-type** (resident
+vs mutant) rather than on its derivative relationship — none is expected, since resident/mutant is
+data-presence *at the Patch seam* and physiology below is oblivious (§0); if one appears, hoist that
+decision to the Patch seam, do not give the guard two forms.
+
 Freeze rule — §0.4 point 4. **Kink manifest** (checked-in, each entry classified selector/kink/guard +
 tested) now including, on the differentiated rate path **[M8]**: the **production sign branch**
 `if(net_production>0){…}else{zero rates}` (`ff16_strategy.cpp:103`, `tf24_strategy.cpp:186` — compensation
@@ -430,10 +513,71 @@ point sits on it); **FlatTopSoftBox** C1 2nd-deriv step (`canopy_shape.h:176`); 
 `min(height, rooting_depth_max)` (`tf24_strategy.cpp:374`); the **field-domain top knot** (§5.5); soil
 positivity resets **`tf24_environment.h:218,248,267,277`** (v1 listed only `:248`); PPA `floor`
 (`ff16_environment.h:133`); `max(0,spline)` (`resource_spline.h:120`); K93 `growth<0→0`/`mu>0?mu:0`.
-**Guards need an active-safe form [M8]:** `is_finite`/`util::stop`/`check_finite_ode_state`
-(`species.h:208`, `k93_strategy.cpp:92`, `patch.h:355`) must **read `value(...)` and never throw on an
-active intermediate**, else a boundary-adjacent AD/FD probe crashes verification — a required form, not
-just a classification.
+**Guards need an active-safe form [M8]:** `is_finite`/`util::stop`/`check_finite_ode_state` (8
+`is_finite` sites incl. `ff16_strategy.h:617`, `node.h:147,185`, `species.h:208`, `patch.h:386,422`)
+must **never throw on an active intermediate**. This is Kind A above: fix it **once at the utility
+definition** (scalar-generic `is_finite`; `check_finite_*` reads `xad::value`), not with a `value(...)`
+wrap at each call site — the per-site form grows the allowlist per strategy and a single forgotten wrap
+is a silent throw at exactly the boundary an FD probe lands on.
+
+**Smooth-replacement policy for rate-path kinks (Cluster 7 upgrade) [Gate 1 finding].** Classifying a
+kink and taking its subgradient is enough for AD *correctness* at a single point, but **not** for a kink
+that sits on a **differentiated ODE rate** and whose derivative is itself differentiated or integrated: the
+Gate 1 finding showed the exact `∂g/∂h` at K93's `growth<0→0` clamp both (a) biases the census gradient
+(the derivative is discontinuous across the clamp) and (b) **destabilises the SCM** when analytic `∂g/∂h`
+defines the trajectory (`log_density` runs away, competition out of bounds). So: **replace each rate-path
+kink with a C¹-or-better smooth surrogate that preserves the biological bound**, tunable sharpness, → the
+kink as sharpness→∞. This makes the analytic derivative well-defined and kink-free, and it is the right
+default policy for AD-visible kinks generally. (EBT/abundance — which would delete `∂g/∂h` entirely,
+plant#40 — is out of scope; we smooth the kink instead.)
+
+**SUPERSEDED — see the second correction below.** The "upwind" account in this paragraph was itself
+overturned by a control experiment (production `∂g/∂h` through the live path is stable down to a 1e-10 step,
+one-sided *and* centred → the analytic operator is **not** forward-unstable; the earlier instability was a
+frozen-environment artifact that dropped the `dE/dh` coupling term). Retained for the reasoning trail; the
+corrected account is in the §15 Gate 1 status block and plant#39.
+
+**Correction (Gate 1, upwind finding — plant#39).** The original expectation here — that smoothing the
+clamp would let the analytic `∂g/∂h` define a stable trajectory and let the FD-value rebasing be dropped —
+is **only partly right, and does not hold for the multi-cohort census gradient.** Measuring after the
+smooth clamp landed: (i) smoothing *did* fix an interpolator-refinement failure on the growth params and
+*did* improve the two-cohort census residual from ~4% to ~1.5%; but (ii) it did **not** close the residual
+to machine precision, and the analytic trajectory is still unstable at bio-faithful `ε` (it stays bounded
+only at `ε ≈ 5e-2`, a ~6% demography change). The reason: the one-sided FD stencil for `∂g/∂h` is the
+**upwind discretisation** of the advection term `d(log_density)/dt = -∂g/∂h - m`. Upwinding is genuine
+numerical stabilisation for hyperbolic transport on a coarse cohort grid; the exact analytic `∂g/∂h` is the
+**centred** scheme, which is unstable here. So the FD stencil is *not merely a clamp workaround* — it
+defines the production trajectory — and a machine-precise **consistent** gradient must use the *same*
+scheme for value and derivative. Differentiating the upwind stencil on-tape (the true discrete adjoint) is
+consistent but ill-conditioned: it forms `(g_θ(x)−g_θ(x−h))/h` with a tiny fixed `h≈1e-6` and blows up near
+the regularised clamp (`∂²g/∂x∂θ ~ 1/ε_c`), measured `~7e6`. So the interim `∂g/∂h` gradient keeps the FD
+(upwind) value on the trajectory and injects the analytic derivative (a stable but scheme-inconsistent
+~1.5% bias), documented in `node.h` and §17. **This interim injection is superseded:** the consistent,
+well-conditioned gradient is obtained by discretising the transport term with the
+quadrature's own neighbour-difference operator (geometric compression), which makes the
+two copies of `∂ₓg` cancel exactly on the tape. See
+[`ad-census-gradients.md`](./ad-census-gradients.md).
+
+The surrogate is `util::smooth_positive(x, ε) = ½(x + √(x² + ε²))` → `max(0, x)` as `ε→0` (C∞, monotone,
+no overflow, preserves `≥ 0`); the two-sided/step kinks use the analogous smooth-min / logistic step. `ε`
+is chosen per kink so the transition band is biologically negligible **and** the second derivative stays
+bounded enough for the density transport to be stable (there is a real tension — sharper `ε` shrinks the
+bio change but steepens `d²g/dh²`; pick `ε` from the stability/precision sweep). Per-kink assignment:
+
+| kink | site | smooth surrogate |
+|---|---|---|
+| K93 `growth<0→0` | `k93_strategy.h size_dt` | `smooth_positive(growth, ε_g=1e-4)` — **done**; improves census residual but does not close it (upwind finding above) |
+| K93 `(mu>0)?mu:0` | `k93_strategy.h mortality_dt` | `smooth_positive(mu, ε_μ=1e-5)` — **done** |
+| FF16 production-sign `if(net_production>0)…else{0}` | `ff16_strategy.cpp:103` | smooth blend on `net_production` (FF16's analogue; needed before FF16 analytic `∂g/∂h`) |
+| `max(0, spline)` resource floor | `resource_spline.h:120` | `smooth_positive` (numerical guard — low-stakes, small `ε`) |
+| CanopyShape FlatTopSoftBox C1 step | `canopy_shape.h:176` | already C1; raise to C∞ logistic if it enters a differentiated rate |
+| TF24 rooting-depth `min(h, rd_max)` | `tf24_strategy.cpp:374` | smooth-min (TF24 scope) |
+| TF24 soil positivity resets | `tf24_environment.h:218,248,267,277` | `smooth_positive` (TF24 soil scope) |
+
+Regenerate any snapshot whose value shifts beyond tolerance (the shift is the intended, bounded
+smoothing); a kept-tight `ε` should leave most within existing tolerances. Kinks *not* on a differentiated
+rate (pure guards/selectors, `is_finite`, field-domain top-knot selector) stay as classified — smoothing
+is only for kinks whose derivative is consumed.
 
 ---
 
@@ -474,6 +618,10 @@ Whole-object snapshots ≈ 2–3 KB × 6 stages × ~1–3 k steps ≈ ~30 MB/pat
 ## 15. Build order + gates
 
 0. Skeleton `value_type=S`; delete `ad_value.h`; kink manifest + CI grep; guards → active-safe.
+0.5 **Scalar-generic guard layer (§11 Kind A), before Gate 0.** One `util.h` change makes the finiteness
+   guards active-safe *at the definition* for all four strategies at once — so Gate 0 does not fix
+   `ff16_strategy.h:617` at its call site and TF24's soil-reset guards need no new narrowing later. Cheap
+   (one header), and the barrier the per-gate order would otherwise rediscover per strategy.
 1. `EnvironmentRecording` (fingerprint §5.4) + `Coupling` (§6.1) + two overloads; `ResourceSpline` →
    odelia interpolator. FF16 env.
 2. `QK::integrate<S>` + templated `CanopyShape`; **re-body MeanLight to `S`**; delete
@@ -496,12 +644,204 @@ cross-species Jacobian columns). A single-species ≥2-introduction run does **n
 Structurally sound (move-ctor preserves `slot_`; new-cohort ICs are taped intermediates) but the claim to
 *execute*.
 
+> **SUPERSEDED — resolved by geometric compression.** The forward-over-reverse injection
+> below (and its ~1.5% / ~0.45% residual bias) was the *interim* Gate-1 result. The final
+> solution replaces the transport-term discretisation with the competition quadrature's own
+> neighbour-difference operator so the two copies of `∂ₓg` cancel exactly on the tape,
+> giving **machine-exact** census gradients (cosine 1.0). It ships as the opt-in
+> `control$node_geometric_compression`. The account below is retained as the reasoning trail;
+> the shipped design is [`ad-census-gradients.md`](./ad-census-gradients.md).
+
+*Gate 1 status (interim, superseded).* Single-cohort resident SCM matches FD **exactly**. The two-cohort **gradient** is the
+forward-over-reverse result: `growth_rate_gradient` keeps the FD **value** (so the active trajectory
+reproduces the double replay bit-for-bit — no fork) and injects the **exact analytic parameter-derivative**
+of `∂g/∂h` by forward-over-reverse (`odelia::ad::directional_derivative`), dispatched on a strategy exposing
+`rebind` (K93 now; FF16/TF24/TF24f fall back to the FD stencil, off their differentiated-metric graph). This
+lands the two-cohort census gradient at **~1.5% of FD** with the smooth clamp (was 0.96× / ~4% with the term
+dropped, or ~2.3× when the FD stencil was differentiated on-tape). The residual is a **bounded
+scheme-inconsistency bias** and it is where progress now stops for a hard reason:
+
+> **The trajectory is stable under the analytic operator; the earlier "unstable" result was an artifact
+> [Gate 1 finding, twice-corrected].** Sequence of understanding: (1) analytic `∂g/∂h` in the trajectory
+> appeared to break the K93 SCM (competition out of bounds); (2) that was attributed to the `size_dt` clamp,
+> then to the FD stencil being an "upwind" stabiliser. **(3) A control experiment overturned both:** running
+> the *production* `∂g/∂h` through the live path with a vanishing step (backward AND centred, down to
+> `eps=1e-10` → the exact analytic derivative) is stable and gives `op≈0.0753254` unchanged. So the analytic
+> operator is **not** forward-unstable and one-sidedness is not the stabiliser. The earlier instability came
+> from the forward-over-reverse scratch calling `set_fixed_environment_scalar` — it **froze the competition
+> field**, computing `∂g/∂h` at fixed environment and dropping the `∂g/∂E·dE/dh` term that the production
+> stencil captures via the environment *secant* `(E(x)−E(x−h))/h`. Dropping that coupling term is what
+> destabilised, and it is the likely source of the residual ~1.5% census bias (which grows with inter-cohort
+> coupling). The on-tape blow-up when differentiating the raw stencil (`~7e6`) is real and the Oracle's
+> conditioning analysis of it stands, but it concerns how to record the θ-derivative, not trajectory
+> stability.
+>
+> **RESOLVED [dE/dh experiment].** Injecting the coupling term `∂g/∂E·(dE/dh)` into the analytic dg/dh
+> closes the growth-parameter census gradient. Recipe: give the forward (tangent) sweep a competition scalar
+> whose *value* is `E(h0)` and whose *tangent* is `dE/dh` from the environment **secant**
+> `(E(h0)−E(h0−eps))/eps` (the robust channel matching the production stencil; not the analytic query
+> tangent). Inject the secant **value** but **detach its θ-sensitivity**: taping
+> `d(dE/dh)/dθ = (E_θ(h0)−E_θ(h0−eps))/eps` is an ill-conditioned difference over a step ≪ cohort spacing
+> and blows the census gradient up ~2.3× (the Oracle's eps≪Δx staircase, on the environment channel); its
+> true contribution is <0.5%, so freezing it and differentiating the tamer surrogate is both well-conditioned
+> and accurate. Two-cohort growth-parameter census vs FD: **b_0 within 0.45%, b_1 within 0.026%** (was 1.5%
+> low with the coupling dropped, 2.3× high with the secant θ-derivative taped); SCM stable, `op 0.0753254`
+> unchanged. `height_0` ~3.5% and the tiny-magnitude mortality-channel `c_0` remain as smaller residuals.
+> Tracked in **plant#39**. (This coupling-injection recipe is itself superseded by
+> geometric compression — see [`ad-census-gradients.md`](./ad-census-gradients.md).)
+>
+> **Ownership refactor [design B].** The `dE/dh` secant moved out of `node.h` into
+> `odelia::interpolator::basic_interpolator::slope(u, step, direction)`, reached through
+> `ResourceSpline::slope_at_height` / `K93_Environment::get_environment_slope_at_height`. `node.h`'s seam now
+> reads that one definition (step+direction from `Control`, consistent with the production stencil by
+> construction) and injects it with the θ-freeze bias-ledger note at the seam. This discharges the code
+> review's triplication finding (§11 seam kit + ownership); FF16's future forward-mode port reuses the same
+> read rather than re-authoring a secant.
+
+See **plant#39** for the interim write-up, and [`ad-census-gradients.md`](./ad-census-gradients.md)
+for the shipped resolution (geometric compression).
+
+**The `∂g/∂h` characteristic term and the leaf optimiser are different barrier kinds — different tools.**
+Both are "a derivative that can't be taken naively on the tape", but the reason differs, and so does the fix:
+
+- **`∂g/∂h` for K93/FF16 → forward-over-reverse (`fwd_adj`).** `g` is *differentiable code* (closed-form
+  `size_dt`, the FF16 mass cascade). The only reason `∂g/∂h` is a finite difference is that there is no
+  spatial tape; it is not opaque. The correct fix is a forward (tangent) sweep seeded in the height
+  direction, layered over the reverse (adjoint) type for `θ`: `∂g/∂h` comes out exact (the clamp handled as
+  a clean one-point kink, no `eps`, no straddling), and the outer reverse pass differentiates it to give
+  `∂²g/∂h∂θ` exactly. This is the remaining Gate 1 work item. It scopes `fwd_adj` to the `growth_rate_gradient`
+  evaluation only — the rest of the trajectory stays plain reverse — and retires the earlier plan to route
+  this term through `supplied_derivative` (candidate B), which was a mis-classification: injecting off-tape
+  partials still requires computing `∂²g/∂h∂θ` by some means, and doing that cleanly *is* forward-over-reverse.
+- **`∂g/∂h` for TF24 → `supplied_derivative`.** Here `g` re-runs the leaf optimiser, which AD genuinely
+  cannot differentiate; the partials come from the envelope theorem. This is where the §7.4 `(slot,partial)`
+  pair-filter and the Kind-B seam are actually needed (Gate 2). Do **not** conflate it with the K93/FF16 case.
+
+*odelia co-design (prevention).* Two odelia changes would make this class of bug hard to reintroduce:
+(1) expose the `fwd_adj` composite scalar plus a `directional_derivative(f, wrt_index)` helper returning a
+value still active on the outer reverse tape, so plant computes `∂g/∂h` exactly without ever differentiating
+an FD stencil; (2) make the interpolator's active-query derivative an **explicit** call (a value-only read
+that freezes the query derivative vs. one that carries it), rather than the current silent default that
+records the interpolant's analytic tangent — the tangent of an under-resolved spline w.r.t. an evolving ODE
+state was the *other* Gate 1 bug (query-height finding above). Tracked in **odelia#38**.
+
 **Gate 2:** the §7.4 pair-filter on the TF24-mutant witness (light+ψ frozen) — no `OutOfRange`, FD-match;
 every seeded parameter has a leaf partial.
 
 **Verification.** Resident + mutant FD-verified **at the fixed mesh** to ~1e-4 across all inputs, against
 a real oracle (validated spike #553 Jacobians); the offspring/R0 axis FD-checked including a case that
 would expose a wrongly-frozen birth stamp or a dropped establishment-at-birth term (§8.5).
+
+**FD verification is a two-sided instrument — sweep the step, don't trust one.** A single small
+`delta` can report a spurious ~1e-3 disagreement that is entirely the *oracle's* error, not the AD's:
+where the metric contains an inner root-find or optimiser (`height_seed`, the leaf), the double oracle
+re-solves it per perturbation to a finite tolerance, and that ~1e-8 noise divided by a small `2·delta`
+blows up as `delta→0`. The AD gradient, being analytic, is **invariant to `delta`** — so the diagnostic
+is to sweep `delta` and watch which side moves: a flat AD value with a U-shaped `|ad−fd|` (roundoff/
+solver-noise as `delta→0`, truncation as `delta→` large) means the AD is right and you were reading the
+oracle's floor. Gate 0's `height_seed` check showed exactly this — `lma`/`a_l1` sat at ~5e-4 at
+`delta=1e-5` but the AD was bit-stable and matched to ~6e-5 in the oracle's clean band (`delta≈1e-4`).
+Pick the comparison `delta` from the sweep's minimum, or tighten the inner solve's tolerance; never gate
+on a single `delta` when the metric hides a solve.
+
+**The environment query-height derivative is frozen on the ODE rate path (Kind A) [Gate 1 finding].**
+`§0`'s spike proved active-query `eval(S)` and a passive-slope linearisation give the *bit-identical*
+crown gradient — but that spike differentiated the **crown integral**, where the query points are
+quadrature abscissae (fixed `double` fractions of the active bound). On the **ODE rate path** the query
+height is different in kind: it is the cohort's own height, an **evolving tape state**. Recording the
+interpolant's analytic tangent `spline.deriv(uv)` as `∂E/∂h` there injects a spurious `∂g/∂E·∂E/∂h` term
+into the ODE Jacobian that **compounds across the fixed-step replay** — the resident light spline is
+under-resolved at the infinitesimal scale AD probes, so its tangent is a poor estimate of the smooth
+field's slope (the FD oracle, probing over a finite `2·delta` height shift, sees the well-behaved secant
+and never the wild tangent). Measured on the K93 single-cohort resident SCM, `d(height)/d(b_0)` drifts
+from ratio 1.00 at `t_end=5` to **17×** at `t_end=40` (value bit-identical throughout — a tape-only
+error), and collapses to an exact FD match the moment the query-height derivative is frozen. Isolation
+confirmed the interpolator itself is clean (AD=FD to 1e-11 for `d(eval)/d(knot)`), FF16/K93
+`IndividualRunner` with a flat/fixed field is clean to `t_end=80`, and detaching either the knot-value
+derivatives or `growth_rate_gradient` changes nothing — the spurious term is *only* the query-height
+tangent, and *only* when the field carries a real slope at the cohort's height.
+
+So on the rate path the environment is read at the **frozen operating-point height** (`get_value_at_height`
+narrows the query to `xad::value(height)`). This is Kind A: the within-step spline read is a *diagnostic
+sample of the field*, not a differentiation channel. Parameter sensitivity still flows through (a) the
+**active knot values** — the resident self-shading channel, the actual Gate 1 target — and (b) the plant's
+**explicit** height dependence in `compute_rates` (`b_1·log(size)`, the mass cascade); only the interpolant's
+tangent w.r.t. its own evolving query point is dropped. Bit-identical on the `double` path. The four
+strategies each read the field on their rate path, so each needs the frozen query (K93 done at Gate 1;
+FF16/TF24 to match — their crown-integral reads, validated bit-identical in `§0`, are a separate site and
+unaffected).
+
+**The metric Jacobian is mixed: stage the build by subgraph.** The deliverable is an m-metric × p-trait
+Jacobian, and the rows touch **disjoint subgraphs** (verified in code, not asserted): `weighted_fecundity`
+= `offspring_produced_survival_weighted · patch_density_at_birth · S_D` (`node.h:64`), where
+`patch_density_at_birth` is a **frozen double** (`node.h:125`) and the offspring rate (`node.h:161`) carries
+**no density factor** — so R0 / fitness never touches `log_density_dt` (`node.h:147`), the sole home of the
+fragile `∂g/∂h` (Kind D). Census (biomass / LAI / basal area) and the resident competition field *do* carry
+it (`density * compute_competition`, `node.h:321`; `consumption_rate * density`, `node.h:103`). This yields
+a **delivery ladder** that takes the hardest barrier off the early critical path:
+- **(1) Mutant invasion-fitness gradient** — the demographic skeleton (fecundity / mortality / establishment)
+  + the leaf envelope injection (`supplied_derivative`), reading a **frozen** resident field. **No `∂g/∂h`,
+  no coupling channel, no forward-over-reverse, no resident feedback.** This is the adaptive-dynamics
+  selection gradient — the highest-value early deliverable — and it is exactly Gate 2 (TF24-mutant, field
+  frozen). **`∂g/∂h` (plant#39) is NOT a prerequisite for it**; the two are on disjoint subgraphs and can
+  proceed in parallel. This is the concrete "advance early" lever.
+- **(2) Resident fitness / R0 gradient** — adds the coupling channel (resident feedback). `∂g/∂h` re-enters
+  R0 *only* indirectly (`∂g/∂h → log_density → density → competition → environment → fecundity`), so its
+  contribution here is second-order-ish; **size it with one FD experiment** (dR0/dθ on a two-cohort
+  resident, `∂g/∂h` live vs detached). If negligible, resident fitness ships with a documented bound before
+  `∂g/∂h` is robust; if not, it needs it.
+- **(3) Census rows (biomass / LAI), resident** — genuinely need `∂g/∂h` robust (plant#39 forward-over-
+  reverse, or the abundance reframe plant#40). This is the only tier that *requires* the hardest machinery.
+
+Vector-adjoint gets the structural zeros of the mixed Jacobian for free (adjoints flow only along recorded
+edges); the value of naming the split is the *ordering* — build and verify tier 1, then 2, then 3, and stop
+treating `∂g/∂h` as the pacing item for the whole deliverable.
+
+**An FD-independent oracle — use it as the primary check.** Finite differences are a two-sided noisy
+instrument, and where the metric hides an inner solve (leaf, `height_seed`) the double oracle's own
+solver noise (~√ε) contaminates it. Two checks give machine-precision verification with no perturbation:
+- **The adjoint dot-product identity** `⟨J v, u⟩ = ⟨v, Jᵀ u⟩`. `J v` is one **forward** (tangent) pass
+  (seed input direction `v` — `directional_derivative`/`FReal`); `Jᵀ u` is one **reverse** pass (seed
+  output weight `u` — the tape). For random `u,v` the two must agree to machine precision — it is an
+  algebraic identity, needs no external truth, no perturbation, and no leaf re-solve. If forward and
+  reverse disagree, one has a bug. This is the standard AD self-consistency check and it should be the
+  primary gate; FD is kept only for the pieces the identity cannot see.
+- **Complex-step** `Im(f(x+ih))/h` on the *smooth* subgraph (K93 rates, the FF16 mass cascade): no
+  subtractive cancellation, so machine-precision per-parameter derivatives wherever the code is analytic
+  (breaks at the leaf optimiser and `min/max` — use only away from them).
+
+  *Where we use each (enumerated):* (1) **every gate** (Gate 0/1/2) asserts the dot-product identity on a
+  random `(u,v)` over the full run — the cheapest global correctness signal. (2) **`directional_derivative`
+  / `dg/dh`** — forward-vs-reverse consistency is exactly this identity at one input/one output. (3) the
+  **coupling channel** (§below / odelia) — dot-product between the knot *gather* (states→knots) and
+  *scatter* (knots→rates) certifies the injected rank-≤k edge. (4) **complex-step per-parameter** on K93
+  and the FF16 smooth cascade as an independent cross-check of the taped gradient. (5) as the **primary
+  oracle wherever the metric hides an inner solve** (leaf/`height_seed`/equilibrium), replacing the
+  noise-contaminated FD there. **Boundary:** the dot-product identity certifies the *taped map* is
+  self-consistent; it does **not** certify an *injected* partial's value (a wrong `supplied_derivative`
+  envelope value is self-consistent but wrong) — those injected values still need FD/analytic + a tight
+  inner-solve tolerance. Necessary, not sufficient.
+
+**One `implicit_function` seam for every embedded solve [design note].** `height_seed` (a root-find,
+currently hand-IFT'd), the leaf profit optimum (envelope), and TF24f's tracked-ψ are the *same*
+stationarity structure — "differentiate a quantity defined by `∂(·)/∂x = 0`". Rather than N bespoke
+hand-derived partial chains (each a QUALITY liability a static survey cannot catch), a single declarative
+`implicit_function(residual, inputs, y0)` forms `∂r/∂y` and `∂r/∂inputs` by tangent AD and injects
+`−(∂r/∂y)⁻¹(∂r/∂inputs)`. `supplied_derivative` stays the escape hatch for the genuinely opaque leaf
+(Kind B); `implicit_function` is the tested general case built on it. (odelia-side seam.)
+
+**`fwd_adj` is a Kind-D-only tool — do not spread it.** Forward-over-reverse is the right tool for exactly
+a rate term that *is itself a derivative* (Kind D: `dg/dh`). Blanket-nesting *all* ODE rates at the nested
+type buys nothing (ordinary rates are first-order — plain reverse, or single-layer forward for a Jacobian)
+and pays the nested-type tax on every op. It legitimately *recurs* in only one other place: a discrete
+adjoint of the **density** formulation needs `∂²g/∂h²` inside the RHS Jacobian `f_y`, which is again a
+nested/second derivative — one more reason the abundance reformulation (which deletes `dg/dh`, plant#40) is
+attractive. **Named traps** (both out of scope, recorded so they are not reached for): (i) *vector-forward*
+mode ("many θ in one pass") is the wrong axis — with ~28 traits and few metrics it is ~28× the work of
+reverse; (ii) a full **Hessian via `fwd_adj` through the leaf is second-order-wrong** — the envelope
+injection supplies only a *first-order* partial, so a correct second derivative would also need injected
+*second-order* leaf partials. Gauss-Newton curvature `JᵀJ` for a fitter comes free from the residual
+Jacobian (vector-adjoint, below) and needs no Hessian.
 
 ---
 
@@ -514,6 +854,39 @@ would expose a wrongly-frozen birth stamp or a dropped establishment-at-birth te
 - Schedule stops being frozen-on-the-double-pass (adaptive sub-step replay) → fixed-`double` snapshot +
   "mesh not differentiated" both break — the largest future redesign.
 - RAM binds → §5.1 minimal-POD payload.
+
+---
+
+## 17. Known limitations (documented, not yet closed)
+
+Two correctness edges are **outside the trajectory tape** and so are invisible to any FD-vs-tape check
+(both sides seed the same raw slots / replay the same frozen schedule). They are accepted for now and
+recorded here; each needs one measurement to size before it is either bounded or fixed.
+
+- **Frozen-mesh nodes (the R0 quadrature).** R0/fitness is a sum/integral whose integration nodes *are*
+  the cohort introduction times. We freeze the schedule (correctly, for step-*size*), which also freezes
+  those times: `d(node_time)/dθ = 0`. If changing θ would shift *when* cohorts are introduced, we drop
+  that shift at the very points the R0 integral samples. Interpretation: we compute the exact gradient of
+  the **fixed-schedule** metric; the open question is only how far that is from the biological R0 defined
+  on the θ-dependent schedule. This is not primarily an adaptivity problem — defining the model on a fixed
+  introduction schedule makes `d(node_time)/dθ = 0` *true*, so the frozen-mesh gradient is then exact for
+  the metric as computed. **Action:** if R0 is not right first pass, state this assumption explicitly at
+  the R0 surface, and size it once by finite-differencing the R0 trapezoid against a deliberate
+  introduction-schedule perturbation. (The deeper alternative — differentiating the mesh, or an abundance
+  reformulation — lives in plant#40.)
+
+- **θ parameterisation / the input contract.** `gradient.hpp` seeds a flat `DifferentiationTargets` of
+  raw `{params, ics}` — no link function, reparametrisation, or scaling. A bit-perfect tape then reports
+  the correct derivative of a possibly-wrong *coordinate*: (a) if the consumer calibrates in transformed
+  space (log-LMA, logit, positivity links) the raw `dM/dθ` needs a boundary chain-rule; (b) allometrically
+  coupled traits mean a per-slot partial is not the total derivative; (c) traits span orders of magnitude,
+  so raw-gradient conditioning is a fitter-quality issue. **Resolution is a workflow convention, not a code
+  change:** *calibrate in natural ranges* (then nothing is needed), or the R wrapper applies the link
+  chain-rule; and normalise for conditioning. Documented as the standing rule; the AD core reports raw
+  `dM/dθ` in natural trait coordinates.
+
+(Explicitly *not* pursued now, by decision: the patch-age disturbance-expectation outer term, tape-memory /
+checkpointing, and CI enforcement.)
 
 ---
 
