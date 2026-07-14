@@ -1,196 +1,182 @@
-# Reverse-mode gradients of a structured-population ODE solver: requirements
+# Reverse-mode gradients through a self-consistent coupling field
 
-A self-contained problem statement. No application knowledge is assumed. The goal
-is to establish, from first principles, the **complete set of capabilities** a
-differentiation layer must provide so that a family of structured-population models
-can be differentiated in **reverse mode**, and to ask what the minimal architecture
-that delivers them looks like.
+A domain-agnostic problem statement. No application knowledge is assumed. It fixes
+the **requirements** and enumerates the **components** a differentiation layer must
+handle to reverse-mode differentiate one specific workflow: a growing ensemble of
+characteristics that collectively generate the coupling field they each read back.
 
 ---
 
-## 1. The system, abstractly
+## 1. The workflow
 
-We integrate a **size- (or stage-) structured population model**: a first-order
-transport PDE solved by the **method of characteristics**. Concretely, the state is
-a set of **cohorts** (characteristics). Cohort `i` carries a small fixed-width
-state vector — a structural coordinate `xᵢ(t)` (e.g. size), a log-density `ℓᵢ(t)`,
-and bookkeeping integrals (cumulative reproduction, survival). Their rate laws are:
+We integrate a parametrized ODE system forward in time and want the gradient of a
+scalar functional `M` of the solution w.r.t. a parameter vector `θ`, by
+**reverse-mode automatic differentiation** (AD scalar type substituted for
+`double`, tape the solve, one reverse sweep returns `dM/dθ`).
+
+The state is a set of `N` **characteristics** (points). Point `i` carries a small
+fixed-width state vector, including a coordinate `xᵢ(t)` that advects under a
+velocity, and a transported density `ℓᵢ(t)`:
 
 ```
-dxᵢ/dt = g(xᵢ, E(t); θ)                         growth
-dℓᵢ/dt = −∂g/∂x (xᵢ, E; θ) − μ(xᵢ, E; θ)         density transport + mortality
-(plus bookkeeping integrals driven by g, μ, and a fecundity rate f)
+dxᵢ/dt = g(xᵢ, S; θ)                    velocity
+dℓᵢ/dt = −∂g/∂x (xᵢ, S; θ) − r(xᵢ, S; θ) transport (compression) + a local loss rate
+(+ a few bookkeeping integrals driven by g, r, and other local rates)
 ```
 
-Three structural facts define the difficulty:
+The one structural feature that defines this workflow — the **self-consistent
+coupling field**:
 
-- **The state grows during the solve.** New cohorts are introduced at the boundary
-  at a schedule of times; the state-vector dimension increases mid-integration.
-- **Cohorts do not interact pairwise. They couple only through one or more shared
-  environment fields `E(t)`**, each reconstructed *every step* from the entire
-  current population (a low-rank object — a spline / quadrature of an integral over
-  all cohorts of their per-cohort effect). Each cohort reads `E` at its own
-  coordinate `xᵢ`. Some fields are instantaneous functions of the population; some
-  carry their own ODE state (memory).
-- **The forward solver is adaptive** (error-controlled step size and cohort
-  spacing).
+- The points do **not** interact pairwise. They couple **only** through a shared
+  field `S(·, t)` — the **environment** — reconstructed **every step from the whole
+  ensemble**: `S` is a low-rank object (a `k`-knot spline, `k ≈ 15–20`, knot
+  positions fixed) obtained by projecting an integral over **all** points of a
+  per-point contribution `φ(xⱼ, stateⱼ; θ)`.
+- Each point reads `S` back **at its own coordinate** `xᵢ` — both the **value**
+  `S(xᵢ)` and the **spatial slope** `∂S/∂x(xᵢ)` (the transport term needs the
+  slope). So **the ensemble generates the field it experiences**: `S` is the
+  *resident* field of the ensemble that produced it, and every point is
+  simultaneously a **source** of `S` and a **reader** of `S`.
 
-We want the gradient `dM/dθ` of a scalar functional `M` of the terminal (or
-time-integrated) state, w.r.t. a parameter vector `θ`, by **reverse-mode automatic
-differentiation** — one tape of the solve, one reverse sweep, all of `θ` at once.
+Two more facts of the forward solve, both of which the differentiation must respect:
 
-`M` is one of: a **census** functional (a moment of the size distribution — total
-biomass, density in a size class) or a **lifetime-fitness** functional (survival-
-weighted lifetime reproduction, used for evolutionary invasion analysis).
+- **The ensemble grows during the solve.** New points are introduced at a boundary
+  on a schedule of times; `N` (and the state-vector dimension, and the source set of
+  `S`) increases mid-integration.
+- **The solve is adaptive** (error-controlled step size and point spacing).
 
-### Coverage target (why the layer must be general, not bespoke)
+`M` is a functional of the terminal or time-integrated state (a moment of the point
+distribution, or a survival-weighted integral of a local rate).
 
-The layer must serve **four model variants of increasing rate-law complexity**, and
-an **added second coupling field with its own state**. Ordered by what they force
-the differentiation layer to handle:
-
-- **Tier A** — `g`, `μ`, `f` are closed-form smooth-ish expressions of `(x, E, θ)`.
-  Couples through one instantaneous field. *(The minimal case; must work first.)*
-- **Tier B** — the rates come from an intermediate physiological sub-model (several
-  chained closed-form maps, more parameters, mild non-smoothness).
-- **Tier C** — a rate is defined by an **embedded scalar solver**: an inner
-  optimization (optimal trait allocation) or root-find run to convergence inside
-  `g`. This inner problem is iterative and its argmin/argmax is not naively
-  differentiable.
-- **Second field** — add a resource field that is **not** an instantaneous function
-  of the population but carries **its own ODE state**, coupled back into the rates.
-
-The differentiation layer is written **once**; a model is added by writing its rate
-law once (as a scalar-type-generic function) and reusing the layer — **not** by
-bespoke per-model adjoint surgery. Tier A is the acceptance gate; C and the second
-field are the generality stress tests.
+**Generality target.** The velocity `g`, loss rate `r`, and contribution `φ` range
+from closed-form smooth expressions to outputs of an inner sub-model; and the layer
+must eventually carry **more than one** field `S`, at least one of which is **not**
+an instantaneous function of the ensemble but carries **its own ODE state**
+(memory). The differentiation layer is written **once** and reused; a new model or a
+new field is added by writing its `g/r/φ` once (scalar-type-generic) and composing
+the layer's primitives — not by hand-deriving adjoints.
 
 ---
 
-## 2. Requirements (tight; scope deliberately narrow)
+## 2. Requirements (tight; scope narrow)
 
-Only the **gradient capability** of this solver family is in scope. Explicitly out
-of scope: the optimizer/estimator that consumes the gradients, model selection,
-parallelism, and the forward model's own numerics (taken as given and correct).
+In scope: the **reverse-mode gradient capability** for this workflow. Out of scope:
+the optimizer/estimator that consumes the gradients; the forward numerics
+themselves (taken as correct); parallelism.
 
-- **R1 — Correct reverse gradient, all parameters, one sweep.** `dM/dθ` must match a
-  trusted reference to **≤1% relative** (tighter — machine precision — for the
-  smooth, uncoupled parameters). Quantity: `|θ|` ≈ 5–20 depending on tier; cohorts
-  `N` up to a few hundred; shared-field rank `k` ≈ 15–20 knots.
-- **R2 — Independent verification.** The reference in R1 must be computed on a path
-  **independent of the reverse sweep** — a forward-mode JVP (`dM/dθ` via tangent
-  propagation) and/or finite differences — including a mode that does **not** rely
-  on finite differences, because some functionals (`M` integrating exponentials of
-  taped states) have no well-conditioned FD.
-- **R3 — Forward trajectory preserved.** Turning on differentiation must not change
-  the computed trajectory: the active (AD) forward pass must reproduce the plain
-  (`double`) solve's values **bit-for-bit**. The gradient must describe the model
-  that is actually run, not a nearby smoothed one. *(This constrains how any
-  stabilization or smoothing enters: it may change the derivative but not the
-  value.)*
-- **R4 — One reusable differentiation kit.** Adding a model or a field must not
-  require new hand-derived adjoints. The layer exposes a fixed set of primitives;
-  each model composes them. Quantity: cost of adding Tier B given Tier A works
-  = writing rate laws only, zero new adjoint code.
-- **R5 — Reverse-mode cost model.** The gradient for `|θ|` parameters must cost
-  `O(1)` forward solves (the reverse-mode win), not `O(|θ|)`. Tape memory bounded by
-  `O(state × steps)`; the growing state and per-step field rebuild must not make
-  this super-linear.
-- **R6 — Every approximation has a named, bounded bias with a diagnostic.** Wherever
-  the layer differentiates a *surrogate* instead of the literal operation (see the
-  hard components below), the discrepancy must be (a) named, (b) argued small with a
-  quantity or scaling, and (c) equipped with a cheap diagnostic that detects when it
-  stops being small.
+- **R1 — Correct reverse gradient, all parameters, one sweep.** `dM/dθ` matches a
+  trusted reference to **≤1% relative**, machine-precision for parameters that enter
+  no coupling term. Quantity: `|θ| ≈ 5–20`; `N` up to a few hundred; field rank
+  `k ≈ 15–20`.
+- **R2 — Independent verification, including FD-free.** The reference must be
+  computed on a path independent of the reverse sweep — a forward-mode JVP and/or
+  finite differences — and there must be a mode that does **not** use finite
+  differences, because some functionals (integrals of exponentials of taped states)
+  have no well-conditioned FD.
+- **R3 — Forward trajectory preserved bit-for-bit.** Enabling AD must not change the
+  computed trajectory: the active forward pass reproduces the `double` solve's values
+  exactly. Any stabilization/smoothing may change a **derivative** but never a
+  **value**. The gradient describes the model actually run.
+- **R4 — One reusable kit.** Adding a model or a field requires no new hand-derived
+  adjoint — only new `g/r/φ`. Correctness is established once per primitive and
+  inherited.
+- **R5 — Reverse-mode cost.** Gradient for `|θ|` parameters costs `O(1)` forward
+  solves, not `O(|θ|)`. Tape memory `O(state × steps)`; neither the per-step field
+  rebuild nor the growing ensemble may make this super-linear.
+- **R6 — Every approximation named, bounded, diagnosable.** Wherever the layer
+  differentiates a **surrogate** rather than the literal operation, the discrepancy
+  is (a) named, (b) bounded by a quantity or scaling, (c) equipped with a cheap
+  diagnostic that fires when it stops being small.
 
-**Scarce resource (derived from R3+R4+R6):** a single differentiation kit must
-produce **value-preserving** derivatives for a *heterogeneous* set of numerically
-awkward primitives (growing state, reconstructed-field reads, non-smooth clamps,
-embedded solvers) — each of which, taped naively, is either wrong or unstable — and
-must do so **compositionally**, so that correctness is established per-primitive
-once and inherited by every model. The design problem is choosing that primitive
-set.
+**Scarce resource (from R3+R4+R6):** a single kit must yield **value-preserving,
+reverse-correct** derivatives for the awkward primitives of this workflow — each of
+which, taped naively, is wrong or ill-conditioned — and do so **compositionally**.
+The design task is choosing that primitive set and, for each primitive whose literal
+operation is not differentiable, the right surrogate to differentiate instead.
 
 ---
 
-## 3. The hard components (comprehensive; what a correct treatment must provide)
+## 3. The components (comprehensive for this workflow)
 
-Each is a general phenomenon, not model-specific. For the family to be
-differentiable, the layer needs a principled, value-preserving, reverse-mode-correct
-treatment of **all** of them, composable per R4.
+Each is a general phenomenon. A correct, value-preserving, reverse-mode treatment of
+**all** of them, composable per R4, is what "make it work" means. C1–C3 are the
+coupling itself; C4–C6 are the enabling machinery the coupling forces.
 
-**C1 — Growing state under the tape.** The state vector gains dimensions
-mid-integration (cohort introduction at scheduled times). *Needs:* a taping scheme
-under which the reverse sweep correctly attributes adjoints across an introduction
-boundary — i.e. introduction expressed as an explicit differentiable operation on
-the tape (a boundary/birth map), not an opaque resize, and correct linkage between a
-cohort's pre- and post-introduction contributions.
+**C1 — Field value read.** A point's read `S(xᵢ)` depends on `θ` through **the whole
+ensemble** (every source's contribution `φⱼ` enters the knots) and through the
+point's **own coordinate** `xᵢ`. *Needs:* the reverse-correct sensitivity of a
+read of an ensemble-reconstructed field, w.r.t. both channels, without conflating
+them.
 
-**C2 — Adaptive → recorded schedule.** Step sizes and cohort spacing are chosen by
-error control; branching on *active* values would poison the tape (the schedule
-would spuriously depend on `θ`). *Needs:* record the schedule on a plain pass and
-replay it fixed for differentiation. *Accepted bias (R6):* the gradient is of the
-fixed-schedule model, not the adaptive one; the schedule's own `θ`-sensitivity is
-dropped. Diagnostic + bound required.
+**C2 — Field slope read (the transport term).** The compression term `∂g/∂x` carries
+`∂g/∂S · (∂S/∂x)`; the reverse sweep needs `d(∂S/∂x)/dθ`. The slope of a low-rank
+reconstruction read at a moving query is the delicate quantity — its naive
+sensitivity is dominated by sub-grid behavior of the reconstruction rather than the
+macroscopic field. *Needs:* a well-conditioned, value-preserving construction of the
+slope read's `θ`-sensitivity.
 
-**C3 — Coupling through a reconstructed shared field.** Each cohort reads `E` at its
-own coordinate; `E` is a low-rank reconstruction from *all* cohorts, rebuilt each
-step. The rates depend on both the field **value** and its **spatial slope** (the
-transport term `∂g/∂x` includes `∂g/∂E · dE/dx`). *Needs:* the reverse-correct
-`θ`-sensitivity of a field read — through the field's dependence on the whole
-population's state **and** through the reading cohort's own coordinate — for both the
-value and the slope, in a way that does not conflate a cohort's genuine coupling to
-the *rest* of the population with artifacts of it being one of the field's own
-sources. *(This is the subtlest component; a correct treatment is prerequisite for
-any coupled functional.)*
+**C3 — Self-reference (source = reader).** Because a point contributes to the field
+it reads, its read carries a sensitivity to **its own** contribution as well as to
+the rest of the ensemble's. A parameter that moves the point strongly can make the
+self-part of the read's sensitivity large and artifactual (the point's own imprint
+on the coarse field, sweeping past its own frozen read), while the genuine coupling
+signal — how the **rest** of the ensemble re-shapes the field around this point —
+is what the functional actually needs. *Needs:* a construction that carries the
+coupling-to-others sensitivity while not carrying the self-imprint artifact —
+**without classifying parameters** (the split is by *source identity*, self vs.
+others, a structural label; not by whether a parameter "moves the point").
 
-**C4 — Non-smooth primitives.** Rate laws contain `max`/`min`/clamps (rate
-positivity, resource floors) and piecewise definitions; their derivative is wrong or
-undefined at corners, and cohorts sit on corners with nonzero measure. *Needs:* a
-smoothing policy with a controlled scale `ε`, applied so it changes the derivative
-near the corner but not the value away from it (R3), with the `ε`-bias named and
-bounded (R6).
+**C4 — Growing ensemble under the tape.** `N` increases mid-solve; the field's
+source set and the state-vector dimension grow at scheduled boundaries. *Needs:* a
+taping scheme under which the reverse sweep correctly attributes adjoints across an
+introduction boundary — introduction expressed as an explicit differentiable
+boundary/birth map, not an opaque resize — and correct linkage of a point's
+pre- and post-introduction contributions to the field.
 
-**C5 — Embedded scalar solvers (Tier C).** A rate is the output of an inner
-root-find or optimization run to convergence. Taping the iteration is wrong (its
-length/branching are not the derivative) and often non-smooth (argmax). *Needs:*
-implicit-function-theorem derivatives for root-finds and envelope-theorem
-derivatives for optima — a **supplied-derivative** primitive that replaces the inner
-iteration's tape with the analytic sensitivity of its converged solution.
+**C5 — Adaptive → recorded schedule.** Step sizes and point spacing are chosen by
+error control; branching on active values would make the schedule spuriously depend
+on `θ`. *Needs:* record the schedule on a plain pass, replay it fixed for
+differentiation. *Accepted bias (R6):* the gradient is of the fixed-schedule model;
+the schedule's own `θ`-sensitivity is dropped — bound and diagnostic required.
 
-**C6 — Multiple and stateful fields (second field).** More than one coupling field,
-at least one carrying its own ODE state (memory), coupled bidirectionally with the
-population. *Needs:* the C3 treatment to **compose** over several fields, including
-one whose read at time `t` depends on its own past — i.e. the field's adjoint must
-flow back through its own dynamics, not just through the instantaneous
-reconstruction.
+**C6 — Multiple and stateful fields.** More than one field `S⁽¹⁾, S⁽²⁾, …`, at least
+one carrying its own ODE state (memory), coupled back into the rates. *Needs:* C1–C3
+to **compose** over several fields, including one whose read at time `t` depends on
+its own past — so its adjoint flows back through its own dynamics, not only through
+the instantaneous reconstruction.
 
-**C7 — Functionals with ill-conditioned references.** Some `M` integrate quantities
-that are exponentials of taped states; their finite-difference reference does not
-converge (the fixed schedule makes the sensitivity exponentially stiff). *Needs:*
-the FD-free forward-JVP reference of R2 as a first-class verification path, not an
-afterthought.
+*(Orthogonal seams that also occur in the general target but are not the coupling
+workflow — non-smooth rate primitives requiring controlled smoothing, and inner
+root-find/optimizer rates requiring implicit-function/envelope supplied derivatives
+— compose with the above through the same "differentiate the mathematics, not the
+code" discipline and are out of scope for this statement.)*
+
+**Verification (spans all).** Per R2: forward-mode JVP must equal reverse-mode VJP to
+machine precision on every primitive and every assembled model (this certifies the
+adjoint is a consistent adjoint of *something*), plus a **null-parameter probe** — a
+parameter whose true sensitivity is analytically ~0, so any spurious or dropped term
+appears at full magnitude and sign — as the sharpest correctness gate for C1–C3.
 
 ---
 
 ## 4. The questions
 
-1. **What is the minimal set of primitives** (the "kit" of R4) that covers C1–C7 so
-   every model in the coverage target composes them, and correctness is established
-   once per primitive? Which components collapse into one primitive and which
-   genuinely need their own?
-2. For each component, **what is the known-correct reverse-mode construction**, and
-   where the literal operation is not differentiable (C1 resize, C2 schedule, C4
-   corners, C5 inner solver, C3 field read), **what is the right value-preserving
-   surrogate** to differentiate instead — with its bias characterized per R6?
-3. **What is the correct taping discipline for the growing state (C1)** in a
-   method-of-characteristics solve — is the introduction boundary a gather/birth map
-   that must be explicit on the tape, and does a joint growing-state tape admit an
-   exact coupling adjoint, or must one reduce to fixed-size per-cohort tapes coupled
-   through the shared field?
-4. **How should the reconstructed-field coupling (C3) be structured** so a cohort's
-   read of a field it helps generate yields a reverse-correct sensitivity to the
-   *rest* of the population without a self-reference artifact, and so the same
-   structure composes to multiple, possibly stateful, fields (C6)?
-5. **Is there a single verification protocol** (R2) — forward-JVP vs reverse-VJP
-   agreement, plus a null/insensitive-parameter probe — that certifies each
-   primitive and each assembled model, and what are its failure-detection limits?
+1. **What minimal set of primitives** covers C1–C6 so every model and field composes
+   them and correctness is established once per primitive? Which components collapse
+   into one primitive and which genuinely need their own?
+2. For C1–C3 — the read of a **self-consistent field** — **what is the reverse-correct
+   construction** of the value and slope sensitivities that carries coupling-to-others
+   while excluding the self-imprint artifact, by source identity and without
+   parameter classification? Is the field read best structured as an explicit
+   low-rank node (the knot vector) with stored analytic partials `∂(read)/∂(knots)`
+   and `∂(knots)/∂(source state)`, so a source can never route its own sensitivity
+   into its own read?
+3. **What is the correct taping discipline for the growing ensemble (C4)** — is the
+   introduction boundary a gather/birth map that must be explicit on the tape, and
+   does a joint growing-state tape admit an exact coupling adjoint, or must one reduce
+   to fixed-size per-point tapes coupled through the shared field?
+4. **How does the C1–C3 construction compose to multiple, possibly stateful, fields
+   (C6)** without re-deriving adjoints per field?
+5. **What is the tightest verification protocol** (JVP=VJP agreement + null-parameter
+   probe) that certifies each primitive and each assembled model, and what are its
+   detection limits?
