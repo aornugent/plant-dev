@@ -1,152 +1,181 @@
-# Is the transport-term derivative necessary, or an artifact of the state representation?
+# A coupled transport solve and one ill-behaved gradient term: a complete description
 
-For the same two respondents. Domain-agnostic; no application knowledge assumed.
-Narrow scope by design: this is *only* about one term — the spatial derivative of
-the velocity — and whether the reverse-mode gradient must form its θ-sensitivity at
-all. We now suspect the boundary of the problem is where the solution lives: two
-structural features (a one-sided aggregate, and a choice of density variable) have
-not been used, and either may dissolve the term rather than tame it.
+For the same two respondents. Domain-agnostic; no application knowledge assumed. The
+scope is narrow — one term's reverse-mode sensitivity misbehaves — but the intent of
+this document is the opposite of narrow: to describe the whole system *completely*, so
+that a feature we have not thought to interrogate can be recognised as load-bearing.
+We have a strong suspicion we are missing something structural. Nothing below is a
+proposed fix; it is all description and measurement.
 
 ---
 
-## 1. The bounded object
+## 1. The continuous model
 
-A linear transport (conservation) law with nonlocal coupling, solved by the method
-of characteristics:
-
-```
-∂ₜ n(x,t) + ∂ₓ[ g(x,S) · n ] = − r(x,S) · n,      x > x_b   (influx at the boundary x_b)
-S(·,t) = ψ(A(·,t)),   A(z,t) = ∫_{x ≥ z} κ(z,x) · n(x,t) dx        (ONE-SIDED aggregate)
-```
-
-`n` is a density over a coordinate `x`; `g` is the velocity (advects `x`), `r` a loss
-rate; `S` is a low-rank reconstructed **coupling field** (`k ≈ 17` knots, `ψ = exp`)
-built from a **one-sided** aggregate — only sources with `x ≥ z` contribute at `z`.
-Characteristics `xᵢ(t)` solve `dxᵢ/dt = g(xᵢ, S(xᵢ))`; they are introduced at `x_b`
-on a fixed schedule and the set grows. We want the reverse-mode gradient `dM/dθ` of a
-functional `M`, and the functionals that matter are **moments**: `M = ∫ φ(x) n dx`.
-
-Along a characteristic the density obeys `d(ln n)/dt = −(∂ₓg + r)`. **`∂ₓg` — the
-spatial derivative of the velocity, the compression term — is the entire difficulty.**
-Everything else (the fixed-field partial, the field *value* read) is settled. The open
-object is `d(∂ₓg)/dθ`, and it carries a self-interaction: because a characteristic is
-both a source of `S` and a reader of `S` at its own moving coordinate, `∂ₓg` inherits
-the field *slope* `∂ₓS(xᵢ)`, and differentiating that produces a self-force term.
-
-## 2. Why the standard adjoint repair fails here (measured)
-
-The natural fix — put `∂ₓg` on the tape as one consistent construction (a secant of
-the reconstruction at the active query, both the knot channel and the query-motion
-channel live) so that the two halves of the self-interaction cancel — **does not
-cancel in this system.** Writing the self-block as `source-motion` (the source's own
-contribution moving) plus `query-motion` (the reader riding over its own imprint),
-the prediction was that they sum to a benign `O(k/N)` residual. Measured, on a small
-ensemble, against a converged finite difference:
-
-- the pure knot channel (query frozen) already over-shoots a trajectory-moving
-  parameter by **+2.3×**;
-- adding the query-motion channel makes it **worse** (**+3.4×**) — *same sign* — while
-  driving a coupling-only (null-channel) parameter to machine-exact.
-
-So the two halves **add, they do not cancel**; the one term that is `+` for a
-trajectory-mover is simultaneously the *entire* correct signal for a coupling-only
-parameter. Only a full self-consistent finite-difference rebuild (advance the
-characteristic *and* rebuild the field with the source at its new position) makes them
-cancel — i.e. the cancellation is a property of the forward map, not reproducible by
-any pointwise treatment of `∂ₓg` on the tape we have. Conclusion: **faithfully
-differentiating `∂ₓg` is likely the wrong boundary.** Hence the two questions below.
-
-## 3. Reframe A — the transport term is a property of the density *variable*, not the model
-
-`∂ₓg` appears only because we transport `ln n`, whose ODE contains it. It is absent
-from the *model*: neither the coupling field nor a moment functional contains `∂ₓg`.
-
-Track instead a **conserved weight** per characteristic, `Nᵢ`, the number carried by
-the characteristic (its Jacobian-times-density, `Nᵢ = nᵢ · Jᵢ`, `Jᵢ` = local
-characteristic spacing). Then:
+A linear transport (conservation) law over a scalar coordinate `x`, with nonlocal
+coupling and a boundary influx:
 
 ```
-dxᵢ/dt = g(xᵢ, S(xᵢ))                 (unchanged)
-dNᵢ/dt = − r(xᵢ, S(xᵢ)) · Nᵢ           (loss only — NO ∂ₓg)
-A(z,t) = Σ_{xⱼ ≥ z} κ(z, xⱼ) · Nⱼ      (the aggregate needs only weights + positions)
-M      = Σ φ(xᵢ) · Nᵢ                  (a moment needs only weights + positions)
+∂ₜ n(x,t) + ∂ₓ[ g(x, S; θ) · n ] = − r(x, S; θ) · n ,     x > x_b
+influx boundary condition at x = x_b (new mass enters at the low end)
 ```
 
-`∂ₓg` has vanished from the state, the field, and the functional. It was carrying the
-compression of the density; that compression is now represented *geometrically*, by
-the characteristics converging or diverging (`d(xᵢ₊₁−xᵢ)/dt = g(xᵢ₊₁)−g(xᵢ)`, a
-velocity *difference*, never a derivative). The field is identical (same aggregate,
-now over weights), and moments are identical.
+- `n(x,t)` is a density over `x`; `θ` is the parameter vector we differentiate w.r.t.
+- `g` is the **velocity** (advects `x` upward), `r` a **loss rate**. Both are smooth
+  closed-form functions of the local coordinate, the parameters, and a shared field.
+- `S(·,t)` is a **coupling field** through which all mass interacts (there is no
+  pairwise interaction). It is a pointwise nonlinear map of an **aggregate**:
 
-**The claim we want checked.** In this representation the coupling field is read
-**only as a value** — `g` and `r` see `S(xᵢ)`, never `∂ₓS`. The reverse gradient of
-`M` flows through `dxᵢ/dθ`, `dNᵢ/dθ`, and the field's value-sensitivity
-`∂S/∂θ|_{positions fixed}` (the knot channel — well-conditioned, and the part already
-settled). The field slope `∂ₓS(xᵢ)` still appears, but **only as a coefficient** in
-the position adjoint's Jacobian `∂g/∂xᵢ = ∂g/∂x|_S + ∂g/∂S · ∂ₓS(xᵢ)` — used, never
-*differentiated with respect to θ*. The pathological object was `d(∂ₓS)/dθ`; it does
-not occur. So the self-force, the staircase, the whole `dg/dh` derivative problem
-would be **eliminated by construction**, not repaired.
+```
+S(z,t) = ψ( A(z,t) ; θ ) ,   ψ = exp
+A(z,t) = ∫_{x ≥ z} κ(z, x; θ) · n(x,t) dx        (a ONE-SIDED cumulative aggregate)
+```
 
-This is the crux question: **is that correct, and if so what is the catch?** Candidate
-catches we can see, and want adjudicated:
-1. Does anything in the model genuinely need the *pointwise* density `n` (not a
-   moment) — a rate that reads `n(xᵢ)`, or a functional that is not a moment? If so
-   `n = N/J` needs the spacing `J` (from positions) — still no `∂ₓg`, but a new
-   position-difference object enters; is *its* θ-sensitivity benign?
-2. The boundary influx sets `Nᵢ` at introduction from the birth flux `B(τᵢ)`; if `B`
-   depends on the field or the boundary density, does a boundary term reintroduce a
-   slope?
-3. Is the position adjoint's use of `∂ₓS(xᵢ)` *as a coefficient* genuinely benign
-   (a value, well-conditioned), or does the self-consistency (`xᵢ` is a source of the
-   very `S` whose slope it reads) make even the coefficient ill-posed — i.e. does the
-   self-force merely move from the transport term into the position adjoint rather
-   than vanish? Our reasoning says it is one derivative order lower (slope-as-value,
-   not slope-differentiated) and therefore fine, but this is the load-bearing step.
+  Only mass at coordinates `x ≥ z` contributes to the field at `z`. `κ` is a smooth,
+  one-signed kernel that vanishes as `x → z⁺` at the boundary of its support.
 
-## 4. Reframe B — the one-sided aggregate, so far unused
+- **Self-consistency:** `n` generates `A` generates `S`, and the dynamics of every
+  parcel of `n` read `S` at that parcel's own coordinate. Every location is thus both
+  a source of the field and a reader of it.
 
-The aggregate is **one-sided**: `A(z) = ∫_{x ≥ z} κ n dx`. Two consequences we have
-not exploited:
+We want the reverse-mode AD gradient `dM/dθ` of a functional of the solution. The
+functionals of interest are **moments**: `M = ∫ φ(x) · n(x,T) dx`.
 
-- **It explains why the self-interaction is a pure *slope* phenomenon.** By Leibniz,
-  `∂ₓA(z) = −κ(z,z) n(z) − ∫_{x ≥ z} ∂ₓκ · n dx`. The first term is a **boundary term
-  at `x = z`** — a source sitting exactly at the lower edge of its own support. So a
-  characteristic's contribution to the field *value* at its own position is negligible
-  (it is at the edge, with nothing of itself above), while its contribution to the
-  *slope* is the full edge term. This is exactly what we measure (field value ≈ open at
-  the reader; the self-imprint is entirely in the slope) and exactly why differentiating
-  the slope produced a self-force while the value read was always clean. In Reframe A
-  the slope is never differentiated, so this boundary term never appears — corroborating
-  that the transport-term derivative is the whole disease.
+## 2. The discretization (exactly as run)
 
-- **It offers an *exact*, structural leave-one-out, if a slope is ever needed.** Since a
-  source contributes to `A(z)` only for `z ≤ xᵢ`, reading or differencing the field from
-  the **excluding side** (`z → xᵢ⁺`, above the source) removes that source's own
-  contribution *by the support of the kernel*, with no downdate, no reconstruction
-  surgery, no mask. The one-sidedness makes "the field of everyone above me" the
-  natural quantity a characteristic couples to. We have been reconstructing this
-  clumsily (knot-level downdates that also delete the genuine coupling); the kernel's
-  own support may give it for free — and it aligns the self-exclusion with an
-  upwind/one-sided read direction rather than a symmetric secant.
+- **Method of characteristics.** Parcels `xᵢ(t)` solve `dxᵢ/dt = g(xᵢ, S(xᵢ))`. New
+  characteristics are introduced at `x_b` on a schedule of times; the number of live
+  characteristics (and the state-vector dimension) **grows during the integration**.
+- **Density variable.** Each characteristic carries a **log-density** `ℓᵢ`, evolved by
+  `dℓᵢ/dt = −( ∂ₓg(xᵢ, S) + r(xᵢ, S) )`. The term `∂ₓg` is the spatial derivative of
+  the velocity along the coordinate — the **compression/transport term**. (This is the
+  representation actually used; it is stated here as a fact of the implementation, not
+  as a necessity.)
+- **Field reconstruction.** `A` is evaluated at `k` **fixed** knot positions `z_m`
+  (`k ≈ 17`; positions are frozen doubles, only the values carry `θ`). The aggregate at
+  each knot is a quadrature over the live characteristics (trapezoid in `x`, so each
+  characteristic enters with a weight set by its spacing to its neighbours). `S` is a
+  cubic spline through `ψ(A(z_m))`, rebuilt every step.
+- **The two reads.** A characteristic's rates read the field as a **value** `S(xᵢ)`
+  (inside `g` and `r`) and the compression term reads its **slope** `∂ₓS(xᵢ)` (inside
+  `∂ₓg`, via the chain rule `∂ₓg = ∂ₓg|_S + ∂g/∂S · ∂ₓS`). The slope is taken as a
+  finite-difference secant of the reconstruction.
+- **Non-smooth primitives** in the rates (a positivity clamp on the velocity) are
+  replaced by a smooth surrogate (softplus-type, width `ε`), so the rate path is
+  differentiable.
+- **Record/replay.** An adaptive pass in plain arithmetic records the step schedule and
+  the introduction times; the differentiated pass replays that schedule fixed. So the
+  schedule is `θ`-independent by construction.
 
-## 5. The narrow questions
+## 3. The gradient task and the one hard term
 
-1. **Is Reframe A valid** — does moving the density variable from transported `ln n`
-   (which contains `∂ₓg`) to a conserved weight `N` (which does not) yield the *same*
-   `M` while eliminating the transport-term derivative from the reverse pass entirely?
-   Is the system then coherently differentiable through **value-only** field reads?
+Reverse-mode AD (AD scalar for `double`, tape the replayed solve, one reverse sweep)
+returns `dM/dθ`. Almost everything differentiates transparently and correctly. The
+fixed-field partial `∂ₓg|_S` and the field **value** read `S(xᵢ)` (with its
+`θ`-sensitivity through the knots) are settled and faithful.
 
-2. **Is question 3.3 the real risk** — does the self-force truly vanish, or does it
-   reappear in the position adjoint through `∂ₓS(xᵢ)` as a coefficient? Precisely: is
-   using the field slope as a linearization coefficient (not differentiating it)
-   well-conditioned even though the reader is a source of that field?
+The single open object is the **`θ`-sensitivity of the compression term**,
+`d(∂ₓg)/dθ`, which requires `d(∂ₓS(xᵢ))/dθ` — the sensitivity of the field *slope* read
+at a characteristic's own moving coordinate. Because that coordinate is a source of the
+field, this term carries a self-interaction: the characteristic responds to the slope
+of a field it itself shapes.
 
-3. **Does the one-sided support give exact self-exclusion** (`z → xᵢ⁺`) wherever a
-   slope or field-derivative is genuinely required — as a structural identity rather
-   than a numerical downdate — and is that the same object as an upwind read?
+## 4. What is measured (data, not interpretation)
 
-4. **If Reframe A is valid, do we ever need `∂ₓg` again** — for a non-moment
-   functional, a density-dependent rate, or field stability — or can the whole system
-   be posed so the compression term is only ever a *derived diagnostic*, never a taped
-   quantity whose θ-derivative is required?
+Correctness reference: a converged central finite difference of the model exactly as
+run (same replayed schedule). Test uses a small ensemble (`N = 2`) and two parameter
+classes that stress the term oppositely:
+
+- **trajectory-moving** parameters — strongly move a characteristic's own path;
+- **coupling-only** parameters — whole effect is through the field; a **null-channel**
+  parameter has true sensitivity ≈ 0 on a functional and so reads any spurious term at
+  full magnitude and sign.
+
+Firm findings:
+
+1. **It is a derivative-rule inconsistency, not a numerical one.** Forward values are
+   bit-identical to the plain solve; forward-mode JVP equals reverse-mode VJP to machine
+   precision; yet the reverse gradient disagrees with the converged FD by an `O(1)`
+   factor on moments that read the compression term, and the disagreement does not
+   shrink with FD step. (JVP=VJP certifies both modes linearize the *same* taped
+   operator; it does not certify that operator is the derivative of the map that
+   produced the value.)
+
+2. **Every pointwise treatment of the slope's `θ`-sensitivity is right for one class and
+   wrong for the other.** Representative behaviour (relative error vs FD):
+
+   | treatment of `d(∂ₓS)/dθ` | trajectory-movers | coupling-only (null-channel) |
+   |---|---|---|
+   | drop it (freeze the query, no slope-θ) | ✓ ~0.2% | ✗ 189×, wrong sign |
+   | keep it, query frozen | ✗ 2.3× | ✓ ~5% |
+   | keep it, query un-frozen (one construction) | ✗ 3.4× | ✓ **machine-exact** |
+   | remove the reader's own contribution at the knots, re-reconstruct | ✓ ~1% | ✗ 94% low |
+
+3. **The self-interaction's two halves add; they do not cancel.** Decompose the slope's
+   `θ`-sensitivity into a *source-motion* piece (the reader's own contribution to the
+   field moving as `θ` moves it) and a *query-motion* piece (the reader riding over its
+   own imprint as it moves). Standard adjoint reasoning predicts these cancel to a small
+   residual. Measured, they have the **same sign** and compound (the "query frozen 2.3×"
+   → "query un-frozen 3.4×" step is the query-motion piece adding to, not cancelling,
+   the source-motion piece). The two pieces cancel **only** under a full self-consistent
+   finite-difference rebuild (advance the characteristic *and* rebuild the field with the
+   source at its new coordinate) — i.e. the cancellation is a property of the forward map
+   that no pointwise on-tape construction we have tried reproduces.
+
+4. **The same tape quantity is spurious for one class and essential for the other.** The
+   reader's own contribution to the field, kept, over-attributes a trajectory-mover's
+   gradient (2.3×) but *is* the entire correct signal for a coupling-only parameter.
+   Removing it (row 4) fixes the movers and destroys the coupling-only parameters. At
+   this ensemble size the reader's self-share of the local aggregate is `O(1)`; it is
+   expected to scale down with ensemble size.
+
+## 5. Structural features of the formulation (any of which may be load-bearing)
+
+Listed with equal weight and without advocacy — some may be essential, some incidental,
+some free to change. We do not know which.
+
+- The aggregate is **one-sided** (`∫_{x ≥ z}`): a location's own contribution to the
+  field is supported entirely on one side of it.
+- The pointwise map is `ψ = exp` (sources superpose in `A`, not in `S`).
+- The density is carried as a **transported log-density** whose ODE contains `∂ₓg`;
+  the compression term exists because of this state choice. The same moments are, in
+  principle, expressible from other book-keeping (characteristic spacing / a conserved
+  per-characteristic weight), in which `∂ₓg` need not appear in the state.
+- The field is **low-rank** (`k ≈ 17`) and its knot positions are **frozen**; only knot
+  values carry `θ`.
+- The slope is read by a **secant** of the reconstruction (not the analytic spline
+  derivative); the value and slope currently come from constructions that are not
+  guaranteed identical.
+- The characteristic reads the field at its **own** coordinate, and the read direction
+  (which side of the source the secant straddles) is a free choice.
+- The set of characteristics **grows** mid-solve; the schedule is frozen.
+- The functionals are **moments** (linear in `n`); whether any needed quantity is a
+  non-moment (pointwise density, a density-dependent rate) is a property of the model we
+  can state case by case.
+- The correctness reference is FD of the **model as run** (finite ensemble, this
+  discretization) — not of any continuum limit.
+
+## 6. The question
+
+We are fairly sure we are looking at the problem through the wrong variable or the wrong
+boundary, because the term that misbehaves (`d(∂ₓS)/dθ`) is internally consistent (JVP =
+VJP), faithful in value, and yet unreconcilable with the model's own finite difference by
+a single pointwise rule — and the cancellation that *would* reconcile it lives in the
+forward map, not in the object we are differentiating.
+
+So, deliberately open:
+
+1. **Which of the structural features in §5 is load-bearing** for whether this gradient
+   can be made simultaneously faithful (matches FD of the model as run) and
+   well-conditioned for both parameter classes — and is the difficulty *intrinsic* to a
+   self-consistent field read at a moving source, or an *artifact* of a representational
+   choice (the density variable, the read side, the value/slope construction, the
+   one-sidedness) that we have not questioned?
+
+2. If the difficulty is representational, **what is the minimal change of variables or of
+   the differentiated quantity** that removes it — and what does that change cost or
+   forbid elsewhere?
+
+3. If it is intrinsic, **what is the precise obstruction** (a statement of the form "no
+   pointwise linearization of a one-sided self-consistent slope read can match the
+   self-consistent forward difference, because …"), so we can stop looking for a local
+   fix and price the non-local one?
