@@ -1,0 +1,203 @@
+# Design: conserved-number SCM state for faithful reverse-mode gradients
+
+Applying the system-design skill to the question left open after the Tier-1
+experiment confirmed the conservation-pair diagnosis. Unlike the Oracle statements,
+this uses full domain knowledge — and the domain turns out to settle the question the
+domain-blind Oracles could not.
+
+## Triage: 3 — expensive to reverse
+
+Changes the core SCM demographic state variable, affects all four strategies
+(K93, FF16, TF24, TF24f), the field assembly, the birth boundary, serialization/resume,
+and the RcppR6 surface. Full procedure.
+
+## The domain fact the Oracles could not use
+
+The census/fitness functionals are **moments** `M = ∫ φ(x) n dx`. Integrating the
+transport PDE `∂ₜn + ∂ₓ(gn) = −rn` by parts:
+
+```
+dM/dt = ∫ φ[−∂ₓ(gn) − rn] dx = ∫ (φ'g − φr) n dx + boundary flux      — no ∂ₓg
+```
+
+**The compression term `∂ₓg` is absent from the physics every functional measures.** It
+appears on our tape only because we transport a *pointwise log-density* `ℓ`, whose ODE
+`dℓ/dt = −∂ₓg − r` carries it. The Explore pass confirms the enabling conditions in the
+real code: (a) no strategy rate reads its own density — rates are functions of the
+shared field value and the individual's own size only; (b) every downstream density
+consumer is a moment (light competition, TF24 soil-water depletion, biomass), with
+pointwise density read only by R diagnostics and a finiteness guard. So the transport
+term contaminates the *gradient* of every moment (via `ℓ → density`) while contributing
+nothing to the moments' *physics*. This is why the domain-blind Oracles could not break
+the keep-vs-drop tie: they could not see that the functionals are transport-free.
+
+## Requirements ledger
+
+- **R1 — correct reverse gradients, all parameters, all four strategies** (≤~1% vs
+  converged FD). Now: K93 census wrong (transport-term derivative unfaithful — *proven*
+  no pointwise fix); FF16/TF24/TF24f census gradients **unavailable** (the `dg/dh`
+  derivative is dropped, awaiting a forward-mode rate-path port). The transport artifact
+  contaminates every moment: light competition, soil-water depletion, biomass.
+- **R2 — the forward solve stays a valid SCM discretization** of the McKendrick PDE
+  (stable, convergent under refinement). Quantity: reference outputs re-baseline (values
+  shift at truncation order); convergence order preserved.
+- **R3 — one shared fix across strategies.** The transport lives in `Node`/`Species`
+  (strategy-agnostic); the fix must too. Adding a strategy should mean writing
+  `g / r / fecundity / field-coupling` only — no per-strategy transport-gradient work.
+- **R4 — reverse-mode cost `O(1)` forward solves**, not `O(|θ|)`.
+- **R5 — no rate or functional may need a quantity the new state can't supply.**
+  Verified: no per-cohort rate reads its own pointwise density across all four
+  strategies (challenged upward and checked, not assumed).
+
+**Scarce resource:** a demographic state variable whose reverse-mode differentiation
+does **not** manufacture a dependence on `∂ₓg` that the continuum moments provably do
+not have. The pointwise log-density is exactly the variable that manufactures it.
+
+## The floor
+
+**No change** — keep log-density + the upwind FD-stencil compression, differentiate as
+today. **Fails R1**, and not marginally: it is *proven* (Tier-1 investigation) that no
+pointwise on-tape treatment of `d(∂ₓg)/dθ` is faithful for this representation, because
+the compression is a cancelling pair split across two state pieces (`ℓ`'s ODE and the
+geometry/quadrature weights) that are discretized by *different* operators. K93 census is
+O(1) wrong; FF16/TF24/TF24f are unavailable. The floor cannot meet R1 by any local means.
+
+## Candidates
+
+- **A [first thought] — Tier 1, geometric compression** *(move: align the
+  discretization).* Replace the `ℓ`-ODE compression with `[g(x_{i+1}) − g(x_{i−1})]/
+  (x_{i+1} − x_{i−1})`, the same discrete operator the geometry uses.
+  *Commitment:* the two copies of `∂ₓg` are discretely identical → cancel on tape.
+  *Pays R1:* measured machine-exact for both parameter classes; needs only neighbour
+  `g`-values, so it works for all strategies with no rebind. *Costs:* keeps the
+  log-density state, keeps the redundant cancelling pair (a difference of two `O(1/Δx)`
+  terms — ~1–2 digits lost, and *silently re-breakable* if the two discretizations ever
+  drift), retains the slope-read machinery elsewhere, and still carries a `∂ₓg` in the
+  state. *Wins when:* a minimal, reversible change is paramount and the fragility is
+  tolerable.
+- **B — Tier 2, conserved-number state** *(move: change of variable).* Transport
+  log-**number** `L` (`dL/dt = −r`); moments and fields become number-weighted sums.
+  *Commitment:* the transported state is a conserved quantity, not a pointwise density;
+  `∂ₓg` is never taped. *Pays R1:* transport-free by construction — the term is
+  unstatable. *Costs:* core state reinterpretation across Node/Species/strategy initial
+  conditions, the aggregation (spacing-weighted density → number sum), the birth map,
+  serialization/RcppR6; re-baseline. *Wins when:* correctness across all strategies +
+  soil, robustness, and deleting the whole `dg/dh` apparatus are worth a one-time
+  migration.
+- **C — keep the model, differentiate non-pointwise** *(move: move the boundary to the
+  method).* Get the current model's gradient from the full self-consistent finite
+  difference (which *does* cancel) or a continuous adjoint. *Costs:* FD is `O(|θ|)`
+  solves (fails R4); a continuous adjoint differentiates a slightly different model
+  (R2 mismatch) and is its own research problem. *Wins when:* the forward model is truly
+  immutable — not our case.
+
+**Winner: B.** Eliminations: the floor fails R1 (proven, cited above). C fails R4
+(`O(|θ|)`) or R2 (adjoint model mismatch). **A meets R1 but is strictly dominated by B:**
+A only makes the pair *cancel* — it still carries two large opposite terms whose
+cancellation is fragile and re-breakable, keeps the density representation and the
+slope-read machinery, and leaves `∂ₓg` in the state; B *removes* the term. Both are
+shared-infra fixes (R3) and both re-baseline (R2 equal), so the tie breaks on robustness
+and on the large apparatus B deletes. A is the reversible fallback if B's migration
+proves too costly.
+
+## The commitment
+
+*The transported demographic state is the conserved cohort number (carried as
+log-number); every coupling and every functional is a number-weighted moment; the
+spatial derivative of growth is never a taped quantity on the rate path.*
+
+**Kept true by structure:** there is no `∂ₓg` term in any state equation and no
+field-slope read on the rate path — the transport term is *inexpressible*, so it cannot
+be differentiated wrongly. Density is recoverable as `n = N/Δx` only in diagnostic/output
+paths, off the rate tape.
+
+## Kill question
+
+*Assumption whose falsity makes this unnecessary:* that every rate and functional is a
+moment — i.e. no per-cohort rate reads its own pointwise density. **Verdict: survives.**
+Checked across K93/FF16/TF24/TF24f: rates read only the environment field and the
+individual's own size; the only pointwise-density reads are R diagnostics and a
+finiteness guard, neither of which produces a rate.
+
+## What survives deletion
+
+- Conserved-number state `L` → R1 (transport-free moments).
+- Number-weighted aggregation → R1/R5 (light competition, soil-water depletion, biomass
+  all become `Σ (per-plant)·e^L`).
+- Birth-number map → R2 (correct boundary influx).
+- `n = N/Δx` recovery → only where a diagnostic reports density; deletable if none does.
+- **Deleted, not kept:** `growth_rate_gradient` and its entire apparatus — the upwind FD
+  stencil, the K93 rebind / forward-over-reverse injection, and the environment
+  slope-read / interpolator query-derivative machinery on the rate path. None is needed.
+  This is a large simplification, not merely a fix.
+
+## What this settles (states that can no longer occur)
+
+- The self-force, the one-sided-slope pathology, the keep-vs-drop fork, and the finite-N
+  cavity question are all **unstatable** (no slope read, no transport term).
+- **FF16/TF24/TF24f census gradients become available with no forward-mode rate-path
+  port** — the §15 blocker ("await their rebind") dissolves, because there is no `dg/dh`
+  to instantiate. This is the direct payoff of "consider all four strategies."
+- The TF24/TF24f **soil-water depletion moment** is differentiated faithfully by the same
+  number-weighting (its density factor was the same artifact); the stateful soil field
+  composes — it is read as a value and coupled through a moment, exactly the clean case.
+
+## What this makes hard
+
+- A future functional genuinely needing pointwise density or `∂ₓn`: recover `n = N/Δx`
+  (neighbour spacing — a smooth value read, no self-force) or an SPH/KDE field read.
+  Priced: reintroduces neighbour coupling *at that read*, as a value.
+- Forward values change (different quadrature/representation) → all reference tests
+  re-baseline once. This is a re-baseline, **not a physics change**: both discretizations
+  converge to the same PDE, and the number form is the canonical Escalator-Boxcar-Train
+  state (number-per-cohort), i.e. the *more* standard of the two.
+
+## Kill condition
+
+A future strategy whose per-capita rate depends on its **own local density** (density-
+dependent mortality/growth not mediated by the shared field). Then the number form needs
+a local `n = N/Δx` read at that rate — still no `∂ₓg`, but neighbour-coupled. Hands off
+to candidate A's territory only if that local read proves ill-conditioned.
+
+## The design
+
+- **State (Node).** Replace per-cohort `log_density` (a density) with `log_number` `L`.
+  Rate: `dL/dt = −mortality`. Remove the transport term. `density` accessor becomes a
+  derived `e^L / Δx` for diagnostics only.
+- **Aggregation (Species/Patch).** `compute_competition` and `consumption_rate` change
+  from a density-trapezoid (`Σ spacing·density·per-plant`) to a number sum
+  (`Σ e^L·per-plant`); the spacing quadrature is absorbed into the number. Strategy-
+  agnostic, so one change covers all four.
+- **Birth map (Species boundary).** Newborn `L = log(birth influx × introduction
+  interval)` — the number entering — replacing the density-at-birth `= birth_rate/g`
+  boundary value. Differentiable, value-only.
+- **Functionals (Patch/R).** Biomass/census/seed-rain = `Σ φ·e^L`. Fecundity/R0 already
+  a transport-free moment over introduction times — unchanged.
+- **Remove.** `growth_rate_gradient` and callers; the FD stencil; the K93 forward-over-
+  reverse and `strategy_has_rebind` transport path; `get_environment_slope_at_height` /
+  `slope_at_height` and the interpolator's query-derivative reads *on the rate path*
+  (the interpolator's value read stays).
+- **Soil (TF24/TF24f).** No structural change: rates read soil values, depletion is a
+  number-weighted moment. Benefits automatically; the stateful field's adjoint flows
+  through its own ODE as before.
+
+Data flow after: positions `xᵢ` evolve by `g` (field **value** read); numbers `Lᵢ` decay
+by `r`; fields are `Σ (per-plant)(xⱼ)·e^{Lⱼ}`; moments are `Σ φ(xⱼ)·e^{Lⱼ}`. The reverse
+gradient flows through `x`, `L`, and value-only field reads. No slope, no transport term,
+one representation for all four strategies and both resource fields.
+
+## Answers to the framing questions
+
+- **Are model changes required?** Yes. It is proven that the current representation
+  admits no cheap faithful gradient (candidate C is the only no-forward-change option and
+  it fails R4/R2). The required change is *acceptable* because it removes a
+  discretization artifact, not physics — moments are transport-free.
+- **What does Tier 2 add over Tier 1?** Tier 1 makes the redundant pair cancel (fragile,
+  keeps the density state and the slope machinery, keeps a `∂ₓg` in the state). Tier 2
+  removes the redundancy, deletes the entire `dg/dh` apparatus, unblocks FF16/TF24/TF24f
+  without a forward-mode port, and composes to the soil field — for a one-time migration
+  cost.
+- **How to weigh the model change?** As a re-baseline of a numerically-different but
+  physically-equivalent (indeed more canonical) discretization, against the benefit of
+  correct gradients for all four strategies and both resource fields plus a large code
+  deletion.
