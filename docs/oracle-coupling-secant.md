@@ -114,6 +114,38 @@ Specific angles:
    it where it is both negligible and ill-conditioned (the direct directions) —
    without hand-classifying parameters?
 
+## Tested: the channel split is right, but the current implementation can't realize it
+
+The Oracle's partial-detach fix (freeze the query coordinate, keep the knot
+values live — the data channel) was implemented and measured. It **half-worked**,
+and the failure mode pins the fix to angle 3:
+
+- Freezing the query coordinate everywhere it appears (the field read, the slope
+  read, AND the nested directional-derivative's evaluation point and scratch
+  state) while keeping `dEdh` live: **null channel → exact** (−0.32), and
+  **coupling-only params good** (k_I 5.5%, b_2 7.3%). But **direct-effect params
+  still overshoot** (b_0 ~40%, height_0 2.7×).
+- The overshoot is **intrinsic to the current implementation shape**, not the
+  query coordinate: `d(dS/dx)` is not taped directly — it is injected as the
+  *forward tangent* of the coupling scalar inside a nested forward-over-reverse
+  evaluation of `dg/dx`. That injection **conflates two knot-sensitivity
+  channels**: the field *value* read `E(x)` already carries `Σ wᵢ·dcᵢ/dθ`, and the
+  injected slope tangent re-carries `Σ aᵢ·dcᵢ/dθ`; the reverse sweep sums both,
+  double-counting the knot sensitivity for parameters where `dcᵢ/dθ` is large
+  (the direct-effect params). No detach/keep setting separates them per-parameter,
+  because both channels ride the *same* injected object.
+
+**Implication for the fix.** The clean channel split is only expressible if the
+coupling is taped as an **explicit structured object** (angle 3): the `k`-vector
+of knot values `c` as the tape's only live coupling node, with the downstream read
+as an explicit `∂(rate)/∂c = ` (frozen-weight) linear map — so `dS/dx`'s
+θ-sensitivity flows *once*, through `dc/dθ`, with analytic weights, and the query
+motion is structurally excluded (the interface accepts only `c`). The
+forward-tangent injection cannot do this because value and slope share one
+tangent-carrying scalar. So angle 3 is not merely *an* option — it is the
+**required realization** of the channel split; angles 1–2 improve the value but
+cannot fix the double-count.
+
 ## Facts an answer can rely on
 
 - The fixed-field partial `∂g/∂x|_S` and the coupling *value* `dS/dx` (secant) are
