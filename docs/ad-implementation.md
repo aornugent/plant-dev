@@ -532,8 +532,7 @@ consistent but ill-conditioned: it forms `(g_θ(x)−g_θ(x−h))/h` with a tiny
 the regularised clamp (`∂²g/∂x∂θ ~ 1/ε_c`), measured `~7e6`. So the interim `∂g/∂h` gradient keeps the FD
 (upwind) value on the trajectory and injects the analytic derivative (a stable but scheme-inconsistent
 ~1.5% bias), documented in `node.h` and §17. The general problem — a consistent, well-conditioned
-reverse-mode gradient through a numerically-stabilised transport term — is written up domain-agnostically in
-`docs/oracle-transport-adjoint.md` for outside input.
+reverse-mode gradient through a numerically-stabilised transport term — is component 1 of the domain-agnostic catalog `docs/oracle-transport-adjoint.md`.
 
 The surrogate is `util::smooth_positive(x, ε) = ½(x + √(x² + ε²))` → `max(0, x)` as `ε→0` (C∞, monotone,
 no overflow, preserves `≥ 0`); the two-sided/step kinks use the analogous smooth-min / logistic step. `ε`
@@ -656,10 +655,10 @@ scheme-inconsistency bias** and it is where progress now stops for a hard reason
 > and accurate. Two-cohort growth-parameter census vs FD: **b_0 within 0.45%, b_1 within 0.026%** (was 1.5%
 > low with the coupling dropped, 2.3× high with the secant θ-derivative taped); SCM stable, `op 0.0753254`
 > unchanged. `height_0` ~3.5% and the tiny-magnitude mortality-channel `c_0` remain as smaller residuals.
-> Tracked in **plant#39**; `docs/oracle-transport-adjoint.md` carries the correction note.
+> Tracked in **plant#39**; `docs/oracle-transport-adjoint.md` (component 1) carries the resolved account.
 
 See **plant#39** for the full write-up and `docs/oracle-transport-adjoint.md` for the domain-agnostic
-statement.
+catalog (component 1 is this term; 2–8 are the other hard-to-differentiate components).
 
 **The `∂g/∂h` characteristic term and the leaf optimiser are different barrier kinds — different tools.**
 Both are "a derivative that can't be taken naively on the tape", but the reason differs, and so does the fix:
