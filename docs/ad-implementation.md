@@ -643,11 +643,20 @@ scheme-inconsistency bias** and it is where progress now stops for a hard reason
 > destabilised, and it is the likely source of the residual ~1.5% census bias (which grows with inter-cohort
 > coupling). The on-tape blow-up when differentiating the raw stencil (`~7e6`) is real and the Oracle's
 > conditioning analysis of it stands, but it concerns how to record the θ-derivative, not trajectory
-> stability. **Next experiment:** compute analytic `∂g/∂h` *including* `dE/dh` via the environment secant
-> (matching production, not the frozen scalar and not the raw spline tangent) for value and θ-sensitivity;
-> predicted to match production and close the census gradient. This ties into the interpolator/coupling
-> redesign (odelia#39/#40): the `dg/dh` path needs `dE/dh` from a secant/consistent channel. Tracked in
-> **plant#39**; `docs/oracle-transport-adjoint.md` carries a correction note.
+> stability.
+>
+> **RESOLVED [dE/dh experiment].** Injecting the coupling term `∂g/∂E·(dE/dh)` into the analytic dg/dh
+> closes the growth-parameter census gradient. Recipe: give the forward (tangent) sweep a competition scalar
+> whose *value* is `E(h0)` and whose *tangent* is `dE/dh` from the environment **secant**
+> `(E(h0)−E(h0−eps))/eps` (the robust channel matching the production stencil; not the analytic query
+> tangent). Inject the secant **value** but **detach its θ-sensitivity**: taping
+> `d(dE/dh)/dθ = (E_θ(h0)−E_θ(h0−eps))/eps` is an ill-conditioned difference over a step ≪ cohort spacing
+> and blows the census gradient up ~2.3× (the Oracle's eps≪Δx staircase, on the environment channel); its
+> true contribution is <0.5%, so freezing it and differentiating the tamer surrogate is both well-conditioned
+> and accurate. Two-cohort growth-parameter census vs FD: **b_0 within 0.45%, b_1 within 0.026%** (was 1.5%
+> low with the coupling dropped, 2.3× high with the secant θ-derivative taped); SCM stable, `op 0.0753254`
+> unchanged. `height_0` ~3.5% and the tiny-magnitude mortality-channel `c_0` remain as smaller residuals.
+> Tracked in **plant#39**; `docs/oracle-transport-adjoint.md` carries the correction note.
 
 See **plant#39** for the full write-up and `docs/oracle-transport-adjoint.md` for the domain-agnostic
 statement.
