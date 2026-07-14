@@ -135,7 +135,23 @@ and the failure mode pins the fix to angle 3:
   (the direct-effect params). No detach/keep setting separates them per-parameter,
   because both channels ride the *same* injected object.
 
-**Implication for the fix.** The clean channel split is only expressible if the
+**Follow-up spike (the new blocker).** The clean channel split was then tested
+directly: freeze the field-*value* knot channel (strip `E(x)`'s θ) and keep only
+the query-frozen field-*slope* channel `Σaᵢ·dcᵢ/dθ` live. Result: null channel
+exact (−0.32), coupling-only params good (k_I 4.5%, b_2 7.3%) — **but direct-effect
+params STILL overshoot** (b_0 740 vs 319, 2.3×). So the overshoot is **not** the
+value/slope double-count; the **query-frozen slope channel itself is
+spurious-large for direct-effect parameters**. This **contradicts the analysis
+above**, which predicted the data channel (`aᵢ ≈ wᵢ′`, O(1), query frozen) to be
+well-conditioned for all θ. It is not: for a parameter with large `dcᵢ/dθ` (a
+strong-growth trait that re-shades the whole stand), `Σaᵢ·dcᵢ/dθ` contributes
+~130% where its true contribution is ~0.5%. **This is the open blocker** — why is
+the query-frozen slope channel ill-conditioned for direct-effect parameters when
+the channel analysis says it should be O(1)? No proposed structured node can be
+specced until this is understood, because it would inherit the same overshoot.
+
+**Implication for the fix (pending the blocker).** The clean channel split is only
+expressible if the
 coupling is taped as an **explicit structured object** (angle 3): the `k`-vector
 of knot values `c` as the tape's only live coupling node, with the downstream read
 as an explicit `∂(rate)/∂c = ` (frozen-weight) linear map — so `dS/dx`'s
