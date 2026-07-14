@@ -1,5 +1,22 @@
 # Reverse-mode gradient through a state vector that grows mid-integration
 
+> **RETRACTED — misdiagnosis.** The "growing-state / mid-integration append"
+> framing below was wrong. A tangent-connectivity probe and a null-channel FD
+> check localized the actual bug to the **frozen coupling secant** in the density-
+> transport term (`d(dE/dh)/dθ` dropped) — i.e. **component 1 of
+> `oracle-transport-adjoint.md`**, its documented bias-ledger "open" item, *not*
+> the append. Evidence: single-cohort (no append at all) `d(log_density)/d(k_I)`
+> is spuriously 66 with the secant's θ-sensitivity detached and machine-exact
+> (−0.32) with it kept. The append was a red herring — it only changed which
+> metric's coupling exposed the pre-existing frozen-secant error. The tradeoff is
+> fundamental: detach → direct-effect params exact, coupling-only params wrong
+> (missing edge); un-detach at the sub-grid step → coupling params good,
+> direct-effect params 2.3× (the `eps≪Δx` staircase); no single secant step fixes
+> both. This document is kept only as a record of the eliminated hypothesis; the
+> live problem is component 1's open residual. Do not send this to the Oracle.
+
+---
+
 A self-contained problem in differentiable numerical methods. No application
 knowledge is assumed. Companion to `oracle-transport-adjoint.md` (a different,
 resolved problem in the same solver).
