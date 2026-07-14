@@ -658,7 +658,7 @@ scheme-inconsistency bias** and it is where progress now stops for a hard reason
 > Tracked in **plant#39**; `docs/oracle-transport-adjoint.md` (component 1) carries the resolved account.
 
 See **plant#39** for the full write-up and `docs/oracle-transport-adjoint.md` for the domain-agnostic
-catalog (component 1 is this term; 2–8 are the other hard-to-differentiate components).
+catalog (component 1 is this term; 2–6 are the other hard-to-differentiate components).
 
 **The `∂g/∂h` characteristic term and the leaf optimiser are different barrier kinds — different tools.**
 Both are "a derivative that can't be taken naively on the tape", but the reason differs, and so does the fix:
