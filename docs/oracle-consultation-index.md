@@ -94,3 +94,49 @@ pinning; the reduced-gradient inner-solve; schedule-timing sensitivity named the
 ### Highest-leverage pre-build tests (both pure `double`, no tape)
 **E2** (soil-block microscopy: identify the singular exponent, test the desingularizing chart) and
 **F1** (bin a marched state, check the BVP residual — kill-or-confirm the entire fixed-point route).
+
+---
+
+## Measurements / evidence trail (durable — the numbers behind the decisions)
+
+Every design commitment that rests on a measurement, with the number, so a context wipe doesn't lose
+*why* a lever was pulled. Reproduce from the plant#52 tip unless noted.
+
+- **QSS / S4 refutation (retired RODAS+QSS; chose multirate).** Instrumented a pulsed-forcing run:
+  `corr(log Δt, log d) = −0.91`, where `d = ‖u−u*‖/‖u‖` is distance from the algebraic balance
+  `f_u=0`. Smallest-decile steps carry large `d` (up to ~25); stiffest-decile median `d ≈ 27`; ~90%
+  of steps sit near balance with large `Δt`. **Conclusion: step collapse is accuracy-driven on a real
+  rapid feature, not stability-driven** — so (i) QSS is invalid in exactly the costly ~10% of steps,
+  (ii) an A-stable/implicit stepper does not enlarge steps. This *reversed* my earlier assumption
+  (stiffness ≡ QSS-valid) and is the datum in `oracle-consultation-soil-subsystem.md` §"measured
+  phenomenon". Corollary that made the multirate adjoint free: N/L amplifier (≤5 soil states force all
+  N cohorts to the global tiny step).
+- **Gate-0 / coupling parity (the P2c parity target — currently green).** With `NOT_CRAN=true`,
+  `TESTTHAT_PARALLEL=false`: `test-ad-gate0-tf24.R` 7 pass / 0 fail; `test-ad-tf24-soil-coupling.R`
+  and `test-ad-tf24f-collar-uptake.R` all green. These are the exact tests P2a→P2d must keep green
+  (bit-identity + gradient) — the definition of "#52 parity".
+- **K93 census-FD gradient (the P2a gate numbers).** From `ad-census-gradients.md` §7: reverse-mode
+  vs central-FD of the census functional gives `b_0 = 317.883`, `b_1 = −516.881`, with
+  `cos(ad, fd) = 1.0`. P2a (K93 on the clean engine) must reproduce these.
+- **C3 spline-ripple (why the moving-query derivative was frozen).** The moving-query (Lagrangian)
+  sensitivity through the under-resolved reconstruction compounded to **≈17×** the frozen-query value
+  — the reason odelia#38/#41 shipped the freeze. The Oracle's R0/§0 says a faithful tape ⊕
+  frozen-schedule FD must agree; the fork is reconciled by spline resolution (its `B′` caveat), so the
+  clean-engine plan reads `∂A/∂z` **exactly** off the separable field (P1b) rather than differencing a
+  spline — removing the ripple at the source rather than freezing around it.
+- **Mass-chart forward shift (the documented bit-identity exception).** Adopting the transport
+  log-mass chart (compression via neighbour secant) moves the K93 `double` trajectory by **~0.2%** —
+  the one sanctioned deviation from bit-identity, opt-in for gradient runs. Re-baseline the K93
+  snapshots only if it becomes the default (open item in the build plan).
+- **Verified structural identities (exact, not measured — but load-bearing, checked against code).**
+  Rank-3 kernel separability `κ(z,x)=c_k·x²(1−(z/x)^η)²` (⇒ suffix/prefix scans, P1b); C¹ double zero
+  `κ(z,z)=κ_z(z,z)=0` (⇒ near-diagonal band is safe); mass-chart compression cancellation uses *the
+  same* cohort spacings as `species.h` (⇒ chart absorbs `species.h` geometric-compression loop);
+  leaf inner solve is a quartic algebraic + collar balance (⇒ reduced-gradient `G(q)`, P1a nodes);
+  `leaf_model.cpp` already uses an incomplete-gamma antiderivative (⇒ `γ` node P1c is a formalisation,
+  not new math).
+
+**How to reproduce the two live measurements:** gate tests — `NOT_CRAN=true TESTTHAT_PARALLEL=false`
+then run the three `test-ad-*.R` files under plant. QSS/S4 — the pulsed-forcing instrumentation script
+(gentle pulses, short lifetimes to avoid the #550 density runaway); log `Δt` and `d` per accepted step,
+correlate. K93/C3 numbers are recorded in `ad-census-gradients.md`.
