@@ -8,9 +8,9 @@ science, and the differentiation machinery — ideally reusable across models �
 parameter gradients. The consultation is about the **mathematics and numerics of that design**.
 
 For each hard structural component below we want the *optimal implementation of its gradient
-contribution* — optimal meaning correct against the model as actually run, cheap (`O(1)`
-forward-solve equivalents for a whole gradient), and as **general and composable** as the
-mathematics allows rather than a bespoke per-model hand-treatment. Above the component level we
+contribution* — optimal meaning correct against the model as actually run, performant and
+optimisable, and as **general and composable** as the mathematics allows rather than a bespoke
+per-model hand-treatment. Above the component level we
 want to know whether a **reformulation** of the transported variables or the coupling
 representation would dissolve several of these difficulties at once, and at what cost.
 
@@ -21,9 +21,39 @@ compose, and where a change of representation beats a kit of point techniques. T
 structural feature as possibly load-bearing or possibly incidental; feel free to reject the
 framing or the choice of state variables.
 
-We use the XAD operator-overloading AD library: a single reverse-mode tape, with forward
-(tangent) mode and limited tangent-over-adjoint nesting also available. Nothing below is
-application-specific; the quantities are abstract.
+**What we need (the outcomes that matter).** The gradient must be **correct** — agreeing with a
+direct finite difference of the model as actually run. The machinery must be **performant and
+optimisable** — usable inside an outer loop (optimization/inference) that requests many gradients,
+and not degrading badly as the parameter count `|θ|` or the problem size `N` grows. It must be
+**modular and maintainable** — the reusable differentiation machinery cleanly separated from each
+model's science, so a model author writes equations, not derivative plumbing. And it should be
+**composable** — the treatment of one component must not break another where they chain, and
+ideally must survive a further (nested) derivative for second-order needs.
+
+**Why reverse mode.** There are many differentiation inputs (the `|θ| ≈ 5–20` parameters, plus
+initial conditions) and few scalar outputs (the reductions). Reverse-mode AD records the forward
+computation on a *tape* and then sweeps backward, propagating adjoints, to yield the derivative of
+one output with respect to *all* inputs in a single backward pass, at a cost of a small constant
+multiple of one forward evaluation — the natural choice when inputs greatly outnumber outputs. We
+build the tape by **operator overloading**: the same code runs with an "active" scalar type that
+records each elementary operation as it executes. Forward (tangent) mode — carrying a directional
+derivative alongside the value, no tape — is also available and is used mainly as an independent
+check; differentiating the reverse sweep again (tangent-over-adjoint nesting) gives second
+derivatives but is only partially supported. The engine is XAD. This is the setting an answer must
+live in — though you may still argue that a different *formulation of the model* would make the
+differentiation dramatically easier.
+
+**The crux in one paragraph.** We must differentiate a numerical time-integration of a transport
+equation, solved by tracking a growing set of moving points ("characteristics"), whose rates
+contain (i) the **spatial derivative of a field that the population itself generates
+self-consistently** — the term we return to repeatedly below and the one that has been hardest;
+(ii) an embedded **optimization plus constraint solve** at every point; and (iii) a nonlocal,
+low-rank coupling **rebuilt at every integration stage** — while doing it correctly, performantly,
+and with machinery reusable across models. Several individual components have known treatments; the
+open question is the *optimal* set of them, and whether a change of representation removes whole
+classes of difficulty at once.
+
+Nothing below is application-specific; the quantities are abstract.
 
 ---
 
@@ -62,10 +92,21 @@ dxᵢ/dt = g(xᵢ, Sᵢ, u; θ)                       Sᵢ = S(xᵢ)
 dℓᵢ/dt = − ( Cᵢ + r(xᵢ, Sᵢ, u; θ) )            Cᵢ = ∂ₓ[ g(x, S(x); θ) ] at xᵢ
 ```
 
-`Cᵢ` — the spatial derivative of the velocity along the reconstructed field, the **compression**
-— is not a closed form; it is presently a finite-difference secant of the reconstructed field
-about `xᵢ`. The transported per-characteristic quantity is a **pointwise log-density**; the
-mass carried by characteristic `i`, `mᵢ = exp(ℓᵢ)·Δxᵢ`, is not itself a state variable.
+`Cᵢ` — the **compression** — is the spatial derivative of the velocity *evaluated along the
+reconstructed field*: `Cᵢ = ∂ₓ[g(x, S(x); θ)]|_{xᵢ} = g_x + g_S · S′(x)` at `xᵢ`. It is unlike
+every other ingredient of the rates for four reasons at once: (i) it is a derivative *with respect
+to the spatial coordinate*, not with respect to a parameter, so it is a derivative the forward
+model itself must compute; (ii) it is taken through the field `S`, which the whole population
+generates self-consistently, so `S′` is a derivative of a nonlocal reconstruction; (iii) it is
+evaluated at the characteristic's **own moving coordinate** `xᵢ`, which is itself a state that is
+both a query into `S` and a source of `S`; and (iv) `S` is known only as a reconstruction, so `Cᵢ`
+has no closed form and is presently taken as a **finite-difference secant** of the reconstructed
+field about `xᵢ`. It is the only term in `dℓ/dt` that is not a plain pointwise rate.
+
+The transported per-characteristic quantity is a **pointwise log-density** `ℓᵢ`; the mass carried
+by characteristic `i`, `mᵢ = exp(ℓᵢ)·Δxᵢ`, is a derived quantity, **not** a state variable. Note
+that the same spatial derivative `∂ₓg` also governs how the spacings evolve —
+`d(Δxᵢ)/dt = g(xᵢ) − g(x_{i+1})` — and the spacings are the weights of every reduction (§2).
 
 ### 1.3 The coupling field `S`, rebuilt every RK stage
 
@@ -157,28 +198,31 @@ w.r.t. `θ` and initial conditions.
   variants `∫₀ᵀ Σᵢ (…)·exp(ℓᵢ)·Δxᵢ dt`; and scalar functions of `u(T)`. Several functionals per
   solve. The reduction weights are the **spacings** `Δxᵢ`, themselves functions of the evolving
   coordinates.
-- **Engine.** One reverse-mode tape records pass 2; one adjoint sweep per functional gives the
-  full gradient at `O(1)` forward-equivalents, independent of `|θ|`. Forward/tangent mode gives
-  Jacobian–vector products; tangent-over-adjoint nesting (for second derivatives) is possible but
-  restricted.
 - **Correctness reference.** Converged central finite difference of the *model as run*: replay
   the same frozen schedule at `θ ± ε eₚ` in `double`, central-difference, take the step plateau.
+  This is what "correct" means for us — the gradient of the trajectory actually integrated.
+
+(The reverse-mode engine, and why it fits many-input/few-output gradients, is described in the
+preamble. We record pass 2 and sweep once per functional.)
 
 ---
 
 ## 3. Facts an answer can rely on
 
-- Single reverse-mode tape (operator overloading); forward/tangent available; nesting limited.
-- Preferred: enabling differentiation does not change the forward trajectory (bit-identical
-  values). **We can accept a documented change of discretization or of the transported variables
-  if it is the minimal change that makes gradients correct and cheap** — a reformulation is on
-  the table.
+- The engine is a single reverse-mode operator-overloading tape (XAD); forward/tangent mode is
+  available; tangent-over-adjoint nesting is possible but restricted. Treatments that keep the
+  reverse sweep well-defined and, where possible, still nestable are preferred.
+- **A reformulation is on the table.** Enabling differentiation currently keeps the forward
+  trajectory bit-identical, which we like — but we will accept a *documented* change of the
+  discretization or of the transported variables if it is the minimal change that makes the
+  gradients correct and the machinery cleaner. Do not treat "forward unchanged" as inviolable.
 - The schedule (steps, stages, insertions, node positions) is frozen from pass 1; its own
-  `θ`-sensitivity is intentionally dropped (an accepted approximation).
+  `θ`-sensitivity is intentionally dropped (an accepted approximation, not a target).
 - Ordering preserved; membership sets stable; `κ(z,z)=0`; knots, `M`, `B` fixed.
-- Cost budget: `O(1)` forward-equivalents per gradient; tape memory manageable, checkpointing
-  available. Composability with second-order (nested) differentiation is a plus, not a
-  requirement.
+- We do **not** hand you a fixed cost model to satisfy. Reverse mode already gives a full gradient
+  per output in one sweep; what we care about is that the *whole* scheme stays performant and
+  optimisable as `|θ|` and `N` grow, and that its parts are modular enough to maintain — not that
+  any component hit a particular flop count.
 
 ---
 
@@ -264,9 +308,10 @@ Design guidance, not a patch. In rough priority:
 
 1. **A per-component map of the optimal treatment.** For each of C1–C12 (and anything we have
    mis-framed or missed): the mathematically optimal way to obtain its gradient contribution —
-   correct against the model as run, `O(1)` in cost, and stated generally enough to reuse across
-   models rather than per-model. Where two treatments trade off (e.g. exactness vs cost vs
-   composability), name the trade.
+   correct against the model as run, performant and optimisable as `|θ|` and `N` grow, and stated
+   generally enough to reuse across models rather than hand-authored per model. Where two treatments
+   trade off (e.g. exactness vs performance vs composability vs how cleanly they separate from the
+   model's science), name the trade.
 
 2. **Unification vs a kit.** Are these facets of one underlying structural issue that a single
    reformulation dissolves — e.g. a change in the **transported variable** (what quantity the
