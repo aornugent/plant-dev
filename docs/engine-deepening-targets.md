@@ -1,5 +1,14 @@
 # Engine design — deepening targets (from abstract to concrete, per component)
 
+> **Status (2026-07-16): all six deepened.** #6 → [`deepening-6-light-coupling.md`](./deepening-6-light-coupling.md)
+> (incl. dg/dh + the node.h number/density scan); #1 → [`deepening-1-leaf-residuals.md`](./deepening-1-leaf-residuals.md);
+> #3 → [`deepening-3-soil-coupling.md`](./deepening-3-soil-coupling.md); #2/#4/#5 →
+> [`deepening-2-4-5.md`](./deepening-2-4-5.md). **Net result:** the whole tape-aware inner-solve surface
+> for the plant family is **two sign-definite scalar IFTs** (leaf `ci` root N1; leaf collar optimum N3,
+> reused as the TF24f BVP pin) plus the birth-height IFT-at-a-root; everything else (light scan, transport
+> spline, soil antiderivative-difference, crown quadrature) is closed-form / Leibniz / reduction with no
+> hand-written adjoint.
+
 The [v2 surface design](./ad-engine-surface-design.md) commits the *shape* (three engine primitives,
 one model layer, two numerics layers). Before Phase 1/2 can be built, each component TF24/TF24f/K93/FF16
 actually needs must be pinned down to residuals, factors, and sign conditions. This is that punch-list —

@@ -110,6 +110,27 @@ exact `∂ₓg` into a log-density rate at all:
 So dg/dh needs **zero per-strategy AD code** (R2): the density-transport term is deleted from the model
 rate by the chart, and the one place a rate reads the light slope gets the exact scan value.
 
+### Number vs density in node.h today (bears on the mass chart)
+A close scan of `node.h` for what representation the transported demographic variable takes:
+- **Density is the only transported state.** `log_density`/`density` (`:139,141`, `density=exp(log_density)`,
+  `:98`) is the McKendrick density `n(x)`. It weights competition (`compute_competition = density ·
+  individual.compute_competition`, `:382`) and consumption (`consumption_rate = individual.consumption_rate
+  · density`, `:127`).
+- **The only "number" state is an output accumulator**, not a transported quantity:
+  `offspring_produced_survival_weighted` (+`_dt`, `:199`), rate `= fecundity · survival · pr_patch ratio` —
+  a cumulative lifetime count read by `weighted_fecundity`/R0, integrated *along* a characteristic, never
+  redistributed across size.
+- **Number appears implicitly at birth:** the density IC is `log(birth_rate·pr_estab/g)` (`:227`), i.e.
+  `density = (number flux)/velocity`, so the boundary **flux** `F = g·n = birth_rate·pr_estab` is the
+  natural boundary quantity — but it is *never carried as a state*.
+
+**Consequence for P1e:** there is **no existing transported number/mass** to co-opt — the mass chart
+`λ = ℓ + logΔx` (and the flux `F=g·n` the fixed-point BVP integrates) is genuinely new machinery the
+charts-as-views layer must synthesize. But the birth IC confirms the chart *aligns with the existing
+boundary law*: `influx_mass(S_b) ↔ birth_rate·pr_estab` and the `/g` in the IC is exactly the
+density↔flux conversion the chart owns. So the chart is new code, not a reinterpretation — and F1's
+`n=S/g` steady profile is the same `density = flux/velocity` relation this IC already encodes.
+
 ## 4. Model-facing surface (what the strategy author writes)
 
     template <class S> struct K93 {                    // FF16/TF24 identical but m(x)=area_leaf(x)
