@@ -91,6 +91,28 @@ the endpoint's **types** but not its **numerics** — the stiff resident replay 
 `resize()` tape-survival are orthogonal odelia items to de-risk on IndividualRunner + K93 resident first
 (§13, §15 Gate 1).
 
+### 0.6 Changelog v3→v4 (TF24/TF24f resident implemented; the §13 stiffness gate answered)
+The resident TF24/TF24f endpoint (§4.3, §6.3, §13), tracked in v3 as the unbuilt terminus, is **now
+implemented and verified** (branch `claude/reverse-mode-ff16-tvyl4f`; see
+[`ad-handover.md`](./ad-handover.md) for the stage ledger and verification). **W1** TF24/TF24f are
+scalar-templated (Stage A) with the `Leaf` left `double`; parameter sensitivity reaches the tape only via
+the envelope-theorem `supplied_derivative` leaf seam (§7.3), instantiation set closed to `{double, reverse
+active, forward tangent-oracle}`. **W2** the resident **soil↔canopy coupling is on the tape** (Stage C):
+active soil-water layers, `resource_depletion` → `value_type`, an injected `∂profit/∂(soil ψ)`, **and** the
+leaf's per-layer **uptake** as its own `supplied_derivative` output — so the water-limited feedback is
+differentiated, not dropped. Two seam corrections the endpoint needed and v3 did not foresee: uptake is
+**non-stationary in the collar**, so it uses **model-as-run** re-optimisation for base TF24 and the
+**analytic per-layer** `∂E/∂collar` for TF24f (a straight FD is wrong — `E_from_Soil_to_Root_Collar` is
+piecewise per soil layer; #47), and `compute_competition(0)` needed a `pow(0, active)`-tangent guard (#46).
+**W3** the **§13 stiffness deferral is superseded by data**: the fixed-schedule replay holds the stiff
+soil-coupled trajectory to a **bounded ~1e-4…1e-3 drift** even under deep (water-limited) drawdown — the
+Appendix A.2 / Q25 "replay-stiffness wall" is **not hit**; stiffness manifests as runtime, not
+incorrectness. Recommendation: relax the resident-defer to a **drift gate** (`tf24_stiffness_drift`), not a
+hard refusal. **W4** the load-bearing verification lesson: the growing-SCM census-metric FD is too noisy to
+trust; **Gate-0 leaf-level FD is the trustworthy oracle** (it caught both seam corrections cleanly). The
+O(P) FD leaf seam is accepted; the O(1) nested-AD envelope+KKT replacement (§7, the odelia
+`supplied_derivative_envelope` surface) is scoped and deferred (#44).
+
 ---
 
 ## 1. Architecture on one page
