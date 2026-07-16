@@ -1,8 +1,56 @@
-# The odelia AD-engine surface — design (first pass)
+# The odelia AD-engine surface — design (second pass)
 
-Status: design, first pass. Fleshes out the odelia surface for the reverse-mode engine the
-consultation and testing converged on. Follows the system-design skill; open uncertainties are
-surfaced at the end for the Oracle rather than resolved here.
+Status: design, second pass. First pass fleshed out the surface; this pass folds in the broader
+TF24 consult, the soil-subsystem (numerical-methods) consult, and the three-fork closure. Follows
+the system-design skill. The commitment is unchanged; the numerics layer is not.
+
+## v2 — what the consults changed (read this first)
+
+1. **Two numerics layers over one model layer — the biggest structural change.** The gradients are
+   wanted in two regimes (both required):
+   - **Transient** (finite-horizon distribution moments, non-settled): the **time-marching reverse
+     sweep** already designed — checkpoint per accepted step, re-record, sweep. No shortcut object
+     exists (the trajectory hasn't settled).
+   - **Fixed point** (regnans selection/equilibrium): the **Lagrangian trajectory has *no* fixed
+     point** — members are inserted and never removed, so `N` grows monotonically and the state never
+     repeats. The steady object is the **Eulerian profile**, which the separable kernel collapses to
+     a **tiny two-point BVP** (dimension ~4 + L: flux `F(x)=g·n`, the three suffix-integral states
+     `B_p`, the sink-quadrature states, and `L` algebraic steady-`u` unknowns). Its gradient is an
+     **IFT adjoint of the BVP residual** plus a standard **eigenvalue-perturbation identity** for the
+     dominant-mode growth rate — tens of residual evaluations per gradient, vs a 10³–10⁵-step march
+     per FD sample. Same Layer-M closed forms; a **second, thin numerics layer**. This is the "one
+     engine, both regimes" answer and the design payoff of the representation-agnostic model surface.
+2. **Soil "stiffness" is a multirate problem, not RODAS.** The cost is the **N/L amplifier** (the ≤5
+   soil states force all ~10²–10³ cohorts to tiny steps on the shared global step). Fix: **sub-cycle
+   the small block** (multirate) + **split steps at recorded forcing kinks** (free) + a
+   **desingularizing coordinate** for the near-boundary excursion (a chart). RODAS/implicit does *not*
+   help (the collapse is accuracy-driven, measured). **Keep `u` explicit on the recorded schedule**;
+   the implicit-`u` stage is retired to a **validation-gated fallback** (refine tol, confirm the
+   *gradient* converges; build the implicit node only if it drifts). The multirate adjoint is free —
+   tape the scheme as run (fits checkpointed record/replay).
+3. **Second-order, revised.** Still **no general HVP** in the transient regime (last round's
+   decision holds). BUT the fixed-point eigenvalue gradient needs **one nested `adj⟨fwd⟩` sweep** and
+   **second-order partials on the tiny BVP residual path** — so the residual-path nodes (`γ`, the
+   scalar-IFTs) must expose second-order partials (`∂²γ/∂s²`, differentiated-IFT). Low-dimensional,
+   applied once per gradient; this is the "limited nesting XAD supports," not general HVP.
+4. **Three forks closed (engine deltas, all Layer-K, none touching the model surface):** the scan
+   grows a **near-diagonal direct band** (the recombination `A=Σ a_p B_p` has alternating-sign
+   cancellation near the diagonal that compensated summation can't fix; `δ` defaults to 0 + a
+   debug exactness check); `γ(s,x)` becomes a **Layer-K node** with registered `∂/∂x`, `∂/∂s`
+   (series + digamma), optional `∂²/∂s²`, FD-validated at init; **pinning is a frozen active set**
+   (during a pinned interval `∂u/∂θ=0` is the *exact* sensitivity, not an approximation — trivial
+   node, stiffness vanishes; record/replay the set; smooth-floor is a model-side declared option).
+5. **The inner solve: one reduced-gradient `G(q)=dW/dq` serves both variants.** `v,w` as scalar-IFT
+   nodes (`v_•=−b_•/b_v`, `w_•=−e_•/e_w`, sign-definite by monotonicity); solved-`q` = a third
+   scalar-IFT root of `G=0` (`dG/dq<0` by concavity), tracked-`q` = an ODE state with rate `k·G`.
+   No envelope theorem is ever *applied* — `ρ`'s stationarity emerges through the IFT channel; `σ`'s
+   non-stationary terms are carried automatically. Inner tolerance set for `σ` (first-order), not
+   `ρ` (second-order). **Solved-vs-tracked changes the fixed-point eigenvalue** (different
+   linearization) — a per-model science decision at registration.
+6. **Top transient risk: schedule-timing sensitivity.** Depletion-episode timing moves with `θ`;
+   the frozen schedule drops it, and this system is depletion-dominated, so the dropped term is
+   likely larger here than in a stability-limited system. Measure before trusting frozen-schedule
+   gradients near depletion (F2).
 
 ## Triage: 3
 odelia's public API (a module boundary with external consumers — `plant`'s four strategies and the
@@ -36,9 +84,13 @@ procedure; Oracle support substitutes for the blind clean-sheet.
   the neighbour-secant compression (geometric compression, the measured ~0.2% K93 forward shift) — a
   documented change for gradient runs, accepted per `ad-census-gradients.md`.
 - **R6 — one engine, many models.** K93/FF16/TF24/TF24f now; regnans later.
-  *Challenge upward:* does regnans share the method-of-characteristics structure (ordered
-  non-crossing particles, low-rank kernel, mass-conserving transport), or is it a generic stiff ODE
-  system? This decides how much of the engine is shared vs plant-family-specific.
+  *Resolved (v2):* regnans is a workflow/selection consumer over plant, not a new ODE system — so the
+  transport core is plant-family-specific and regnans is served by the R7 fixed-point layer.
+- **R7 — gradients in *both* regimes (v2, first-class):** finite-horizon distribution moments along a
+  *non-settled* trajectory (transient), **and** selection/growth-rate gradients at the demographic
+  *steady state* (fixed point). *Quantity:* both requested many times in an outer loop; the fixed
+  point has **no Lagrangian representation** (N grows monotonically), so it needs a distinct steady
+  (Eulerian-profile BVP) numerics layer. Neither regime subsumes the other.
 
 **Scarce resource:** *hand-written-adjoint correctness.* Every place a human writes a reverse rule
 (a transpose, an IFT, a scan adjoint) is a **silent** gradient-bug site — value-exact, passes every
@@ -273,5 +325,65 @@ template <class S> struct StateView {          // all accessors exact, taped, cl
    trigger: an HVP/curvature consumer (a future regnans optimiser) appears → revisit odelia#36's
    nested tapes then.
 6. **Charts-as-views generality.** One witnessed discretisation (log-mass). Kept as a fixed pairing;
-   `TransportGeometry` promoted to a policy object only on a second witness. **Question:** is a
-   conserved-number or remeshing variant close enough on the roadmap to justify the abstraction now?
+   `TransportGeometry` promoted to a policy object only on a second witness. Note the desingularizing
+   soil coordinate (v2 item 2) is now a **second chart witness** — so the chart concept earns its
+   keep, though `TransportGeometry`-as-policy still waits for a second *transport* discretisation.
+7. **The eigenvalue functional's honesty conditions (fixed-point regime).** `dλ/dθ` is non-smooth at
+   a spectral-gap closure and at a marginally-active pinned set — genuine non-differentiabilities of
+   the science, not numerics. The engine must **monitor the gap and active-set stability and refuse**
+   (say so) rather than average through. Open: where in the θ-region do these bite (F5)?
+
+---
+
+## Second numerics layer — the fixed-point / equilibrium module
+
+Model layer (Layer M) unchanged. A new, thin numerics layer beside the time-marcher:
+
+- **The steady Eulerian-profile BVP** (dimension ~4 + L): `dF/dx = −(r/g)·F`, `dB_p/dx = −b_p·F/g`
+  (`A = Σ_p a_p B_p`), sink-quadrature states, and `L` algebraic steady-`u` equations; `F(x_b)` from
+  the influx law, `B_p→0` at the top. Solved by collocation/shooting in milliseconds. Its gradient is
+  the **IFT adjoint of the collocation residual** (transpose of the collocation Jacobian) — reusing
+  the same registered Layer-M closed forms and scalar-IFT nodes that the march uses.
+- **The dominant-eigenvalue gradient:** Arnoldi for the right/left eigenvectors of the linearized
+  operator `A=∂F/∂X` (local + rank-(3+L), so matvecs are O(grid)); then
+  `dλ/dθ = ∇_θφ − F_θᵀ A⁻ᵀ ∇_Xφ` with `φ = yᵀ(∂F/∂X)x` — one **`adj⟨fwd⟩` nested sweep** (low-dim) for
+  `∇φ` and one transposed Krylov solve. Tens of residual evals per gradient.
+- **Alternative, if the code already truncates negligible-mass members:** the renewal/shift-map fixed
+  point `Φ_cycle∘shift` has a genuine fixed point; its IFT adjoint's matvec is *exactly one reverse
+  sweep over one recorded cycle* — i.e. it **consumes the transient engine's step-VJP as its matvec**
+  (one engine, both regimes). Build the BVP (route ii) preferentially — it's exact for the
+  equilibrium-as-defined with no schedule/pinning path-dependence — and keep the renewal route as the
+  minimal-change fallback.
+- **Validate the equilibrium gradient against FD of the residual-solved equilibrium, never against a
+  re-march** (the march is contaminated by incomplete convergence + pinning path-dependence).
+
+---
+
+## Validation plan — test before build, cheapest first (all plain-`double`, no tape)
+
+**Soil / multirate (from the numerical-methods consult):**
+- **E2 (start here):** offline soil-block microscopy through recorded excursions — original vs
+  desingularized coordinate vs kink-split; identifies the singular exponent `a`, measures the
+  coordinate payoff. Pure R, no build. *(Also checks the one caveat: `K(θ)` and `ψ(θ)` may not share
+  one envelope → one chart may only partly desingularize.)*
+- **E1:** down-weight the soil components in the SCM error norm; does the step count recover? Resolves
+  the confound in my QSS measurement — is soil the cause (→ multirate wins) or do cohorts need the
+  small steps anyway? One control tweak.
+- **E3:** kink audit — rejected steps / step minima vs recorded rainfall knots under variable forcing.
+- **E4:** multirate prototype, values then gradients (the real build; last).
+
+**Fixed-point regime (from the TF24 consult):**
+- **F1 (highest leverage):** bin one converged marched state to a profile, evaluate the BVP residual
+  on it — small residual ⇒ the Eulerian object matches the march and the whole fixed-point route is
+  live; then solve the BVP from scratch and compare. Hours, no AD.
+- **F3:** validate the whole fixed-point `dλ/dθ` with FD matvecs + the eigen-perturbation formula
+  (zero AD) vs FD-of-λ across re-solved equilibria — tests the math object before any tape work.
+- **F2:** size the frozen-schedule (transient) error — base-θ-schedule FD vs re-adapted FD on a
+  depletion-timing θ-component. The dropped term.
+- **F4:** adjoint conditioning through a depletion episode (forward-JVP vs reverse-VJP over one
+  window) — transposed amplification near the singular boundary.
+- **F5:** spectral-gap + active-set stability scans across the θ-region — flags genuine
+  non-differentiabilities the engine must refuse rather than paper over.
+
+Recommended order: **E2 + F1** first (both pure-`double`, no build, and each de-risks the largest
+design bet in its regime — the desingularizing chart, and the entire BVP route).
