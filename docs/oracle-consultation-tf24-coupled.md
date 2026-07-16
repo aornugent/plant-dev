@@ -54,8 +54,8 @@ maximize over q :  W(q, v(q), w(q); xᵢ, Sᵢ, u; θ) = gain(v) − cost(q)
 - **`ρ` is stationary in `q` at the optimum** (`∂W/∂q=0`); the **companion flux `σ` is not**
   (`∂σ/∂q ≠ 0` there). `σ` is the sink that drives the auxiliary field `u` (§3). So the same solve
   produces one output whose `q`-sensitivity vanishes at the optimum and one whose does not.
-- The whole solve is currently done in plain `double` (the physiology is not carried on the AD
-  scalar); its parameter sensitivity has to reach the gradient some other way.
+- The whole solve is currently done in plain `double` (its internal arithmetic is not carried on the
+  AD scalar); its parameter sensitivity has to reach the gradient some other way.
 
 ## 3. The slow auxiliary field, coupled bidirectionally
 

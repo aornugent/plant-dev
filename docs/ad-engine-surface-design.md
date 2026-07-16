@@ -21,13 +21,17 @@ procedure; Oracle support substitutes for the blind clean-sheet.
 - **R3 — correct, performant, composable gradients.** Match FD-of-the-model-as-run to its plateau;
   O(1) forward-equivalents per gradient (flat in |θ|); survive one nesting (HVP) where the primitive
   allows. *Quantity:* |θ| ≈ 5–20, N ≈ 10²–10³, k ≈ 17, steps 10³–10⁵.
-- **R4 — a differentiable implicit (RODAS) stepper.** A general odelia capability, not plant-only
-  (regnans stiff trait dynamics; odelia#35). *Quantity + challenge upward:* the plant-soil stiffness
-  that motivated this is, on measurement, **accuracy-driven not stability-driven** (see the QSS
-  test), so an implicit stepper likely does **not** reduce plant's step count — R4's plant payoff is
-  uncertain. Its solid payoffs are (a) a general stiff capability for other consumers and (b) the
-  implicit-solve *primitive* it forces, which R2/R5 reuse. **Confirm R4 is wanted for the capability,
-  not the plant-stiffness number.**
+- **R4 — the soil-class subsystem resolvable performantly in *both* forward and reverse under
+  realistic (rapid/intermittent) forcing.** *Solution-verb stripped (decision, this round):* "a
+  differentiable RODAS stepper" was a mechanism wearing requirement clothes — RODAS is **not** the
+  goal and, by the QSS measurement, an implicit stepper likely does **not** cut the plant step count
+  (the collapse is accuracy-driven, not stability-driven). The real outcome is the low-dimensional
+  strongly-forced subsystem being cheap and correct in forward and reverse. **This is now a separate
+  targeted Oracle consult** (`oracle-consultation-soil-subsystem.md`), not assumed to be solved by
+  implicit integration. The **implicit-node primitive stays regardless** — it is witnessed by the
+  leaf optimum, the constraint, the breakpoint, and regnans' fixed point, none of which is stiffness.
+  The RODAS **stepper** is **out of engine scope** unless the targeted consult concludes implicit
+  integration is the right resolution.
 - **R5 — double path bit-identical, or documented minimal change.** The mass chart is exact only with
   the neighbour-secant compression (geometric compression, the measured ~0.2% K93 forward shift) — a
   documented change for gradient runs, accepted per `ad-census-gradients.md`.
@@ -238,14 +242,13 @@ template <class S> struct StateView {          // all accessors exact, taped, cl
 
 ## Open uncertainties — surfaced early for the Oracle
 
-1. **The stiffness justification is weaker than the roadmap assumes.** Measured: plant-soil step
-   collapse is **accuracy-driven** (tiny steps at *low* θ, far from equilibrium, corr(log dt, log ρ)
-   = −0.91; every stiff step is a transient), **not** stability-stiffness. So implicit RODAS likely
-   does **not** cut plant's step count, and QSS is invalid exactly where the cost is. **Question:** is
-   there residual value in reverse-RODAS *for plant* (robustness near the θ→residual singularity?), or
-   is R4 justified only by the general capability (regnans) and by forcing the implicit-node
-   primitive? If the latter, IMEX/RODAS is a general-odelia feature, not a plant-stiffness fix — which
-   changes how hard we push it.
+1. **The soil-subsystem resolution problem — RESOLVED into a separate targeted consult (decision).**
+   RODAS is not the goal; the goal is the low-dimensional strongly-forced subsystem being performant
+   and correct in forward *and* reverse under realistic forcing. My measurement (accuracy-driven step
+   collapse, not stability-stiffness) says implicit integration probably does not cut the cost, so we
+   do **not** presuppose it. Framed openly in `oracle-consultation-soil-subsystem.md`. The engine
+   keeps the implicit-node primitive (justified elsewhere) but the RODAS stepper is out of scope
+   pending that consult.
 2. **Does regnans fit the transport structure (R6)? — RESOLVED.** regnans is a *workflow* over
    plant ("assemble communities… iterate demography to equilibrium, compute selection gradients"),
    not a new ODE system. Consequences: (a) the transport core is plant-family-specific (confirmed —
@@ -258,17 +261,17 @@ template <class S> struct StateView {          // all accessors exact, taped, cl
    breakpoint + **demographic-equilibrium (regnans)**; the RODAS *stepper* specifically has lost its
    external witness and is deferred behind the primitive (build the primitive; make the RODAS stage
    one future instance, gated on a genuine stiff witness).
-3. **Kernel separability is per-canopy-mode.** Exact rank-3 for the default `(1−(z/x)^η)²`; the
-   `FlatTopSoftBox` and other modes differ. **Question:** does the scan primitive need a
-   non-separable fallback (a dense O(Nk) or the retained interpolator) for those modes, or do we
-   restrict the exact path to the separable kernels and keep the interpolator as the general fallback?
+3. **Kernel separability is per-canopy-mode — RESOLVED (decision).** Exact separable scan for the
+   default `(1−(z/x)^η)²`; **the interpolator is retained as the general fallback** for non-separable
+   modes (`FlatTopSoftBox`, …). The exact path is an optimisation gated on separability, not a
+   universal replacement — so the interpolator does not fully leave the codebase.
 4. **The special-function derivative.** The breakpoint antiderivative's shape parameter `c` is a
    differentiated trait, so `∂γ(s,x)/∂s` (digamma-series) is needed. **Question:** implement it in the
-   engine's antiderivative surface, or FD that one channel?
-5. **Second-order composability vs first-order cost.** The `fwd<double>` implicit-node callback avoids
-   nested tapes for first order; HVP needs odelia#36's nested types. **Question:** design the callback
-   scalar-generic for later nesting now (small cost), or defer entirely until an HVP consumer is
-   witnessed?
+   engine's antiderivative surface, or FD that one channel? (Low-stakes; still open.)
+5. **Second-order (HVP) — RESOLVED: deferred (decision).** Not needed until needed. The `fwd<double>`
+   implicit-node callback is first-order only; we do **not** pay to keep it nestable now. Retrofit
+   trigger: an HVP/curvature consumer (a future regnans optimiser) appears → revisit odelia#36's
+   nested tapes then.
 6. **Charts-as-views generality.** One witnessed discretisation (log-mass). Kept as a fixed pairing;
    `TransportGeometry` promoted to a policy object only on a second witness. **Question:** is a
    conserved-number or remeshing variant close enough on the roadmap to justify the abstraction now?
