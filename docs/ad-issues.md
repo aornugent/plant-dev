@@ -10,6 +10,31 @@ CP item) · **NTH** nice-to-have. Repo: `odelia` / `plant` / `meta` (docs, fixtu
 
 ---
 
+## Status (reconciled 2026-07-16)
+
+Reverse-mode AD is **implemented and verified across all four strategies** (FF16, K93,
+TF24, TF24f) on the stacked PRs; see [`ad-handover.md`](./ad-handover.md) for the branch/PR
+map. The build order below is kept as the historical dependency record. What remains open:
+
+**Done** (GitHub tracker issues closed as completed):
+- odelia layer — ODELIA-1..6, RIF-1/2/3, PROTO-3, functional/replay pare (odelia#28),
+  the co-design `directional_derivative`/JVP oracle + explicit interpolator query (odelia#38).
+- plant layer — PLANT-1..9 and PLANT-11 (plant#3/#5/#6/#8/#9/#11/#12/#13/#14/#15/#16),
+  and the `dg/dh` transport term resolved via K93 geometric compression (plant#39).
+
+**Still open** (tracked, not yet done):
+- **plant#10** (PLANT-5-adjacent / RIF-5/7) — R-facing `stand_gradient_cpp` + thin R wrapper.
+- **plant#42** — TF24 deep-crown active leaf gradient seam (currently `util::stop`).
+- **plant#44** — TF24 Tier-A O(1) exact leaf partials (O(P) FD accepted for now).
+- **plant#45** — TF24 end-to-end *resident* soil-coupling verification on the growing SCM.
+- **plant#48** — adopt `tf24_stiffness_drift` as the standing drift gate (relax the Q25 defer).
+- **plant#7** (epic) — stays open until the R-facing API (plant#10) lands.
+- **plant#4** (RIF-5 codesign), **plant#40** (parked design options) — design/record issues.
+- **odelia#13** (RIF-4 wrap/as guard) and **odelia#23** (history rows) — not started.
+- **odelia#39** — structured low-rank coupling channel (the next big design step).
+
+---
+
 ## Prototypes (do first — each can move a decision)
 
 ### PROTO-1 — Scalar-cost measurement · repo: plant · gates PLANT-1, decision 2

@@ -83,16 +83,27 @@ Cross-checks used:
 - Committed regression tests: `test-ad-tf24f-collar-uptake.R` (+ its two drivers)
   guard the #47 analytic collar-uptake term (leaf-level and seam, both ~1e-10).
 
-## Branch / commit state
+## Branch / PR state
 
-| Repo | Branch | Head | Contents |
-|---|---|---|---|
-| plant | `claude/reverse-mode-ff16-tvyl4f` | `2ec48414` | FF16 forward-instantiable; TF24/TF24f Stages A–F; Tier-B soil coupling; #44/#46/#47 |
-| superproject | `claude/reverse-mode-ff16-tvyl4f` | `5c4b0d7` | submodule pointer bumps |
+The work is carried as **stacked PRs**, not one branch. All are open against the
+`aornugent` forks — none merged to `develop`/`master` yet — but the deliverables are
+implemented in the branch tips. The submodules in this superproject are pinned to the
+stack tips (odelia `cc6571c`, plant `780cfe4`).
 
-The earlier activation-foundation stack (FF16+K93 activation, interpolator routing,
-skeleton threading, the census-gradient geometric compression) is upstream of this
-branch; see the git history and the prior handover for those PRs.
+**odelia stack** (base `master`):
+`ad-iterator-seam` (#35) → `ad-spline-active-query` (#36) → `ad-growing-reserve` (#37)
+→ `ad-directional-derivative` → `ad-jvp-oracle` (#40) → `ad-interpolator-coupling` (#41, tip).
+Plus `ad-reverse-gradient-layer-spec` (#42) — a standalone design-only doc off `master`.
+
+**plant stack** (base `develop`):
+`ad-1-scalar-template-ff16` (#17) → … → `ad-skeleton-foundations` (#34) →
+`ad-interp-routing` (#35) → `ad-strategy-activation` (#36) → `ad-guard-layer` (#37) →
+`ad-gate0-individual-runner` (#38) → `ad-gate1-scm` (#41, K93 census) →
+`tf24-ad-1-templating` (#49) → `tf24-ad-2-seams` (#50) → `tf24-ad-3-perf-fixes` (#51) →
+`tf24-ad-4-soil-coupling` (#52, tip).
+
+The pre-split single-branch `claude/reverse-mode-ff16-tvyl4f` (both repos) is superseded
+by the `tf24-ad-*` stack above — see the stale-branch list in this session's tidy-up.
 
 ## Next steps
 
