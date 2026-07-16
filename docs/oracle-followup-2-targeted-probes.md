@@ -5,7 +5,7 @@ case and asks openly for structure, this document poses a small set of **specifi
 collapses and asks you to confirm, reject, or replace each. Sending the two framings independently
 lets convergence (both point at the same reformulation) count as strong evidence and divergence
 localise the real fork. Scope is the same hard case: full self-consistent feedback, multivariable
-census moments, the optimizer-plus-auxiliary-subsystem instance with the density-transport term.
+distribution moments, the optimizer-plus-auxiliary-subsystem instance with the density-transport term.
 
 For each probe: is it real in this instance; if so what exactly does it remove; and the cheapest
 test that would settle it. "This one is a dead end because …" is as useful as a confirmation.

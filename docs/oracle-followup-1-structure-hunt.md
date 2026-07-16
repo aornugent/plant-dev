@@ -10,7 +10,7 @@ any piece.
 
 **Scope (deliberately narrowed).** Only the **fully self-consistent** regime: the population
 generates the field it reads, so every field value carries the state-derivatives of the whole
-population. The reductions are **several census moments at once** (a vector output). The instance
+population. The reductions are **several distribution moments at once** (a vector output). The instance
 carries all the hard machinery at once: an embedded within-step operating-point solve, a stiff
 low-dimensional auxiliary subsystem, and a breakpoint integral — plus the density-transport
 compression term in its clean neighbour-secant form. There is no frozen-background case here.
@@ -85,8 +85,8 @@ of a within-step objective:
    v*  solves c(v; q, …) = 0          a monotone supply = demand balance, unique root: ∂J/∂v ≠ 0
 ```
 
-`J` is a saturating gain (a smooth co-limitation — a soft-min of two saturating terms) minus a rising
-cost. The operating point is **static within the time step** (a fast equilibrium), reused. A second
+`J` is a smooth saturating gain (a smooth minimum of two saturating terms) minus a rising cost. The
+operating point is **static within the time step** (a fast equilibrium), reused. A second
 output at the same point, `σᵢ` (a flux), is **not** stationary in `q` (`∂σ/∂q ≠ 0` at the optimum);
 `σᵢ` is the population-side sink that drives the auxiliary subsystem. Two regimes: `q` solved to the
 optimum each step, or `q` carried as a slow relaxing ODE state (`dq/dt = a·∂J/∂q`, evaluated off the
@@ -95,13 +95,14 @@ optimum).
 ### 1.5 The auxiliary subsystem
 
 ```
-du_ℓ/dt = ( inflow − drainage_ℓ(u) − σ_ℓ ) / depth_ℓ ,   ℓ = 1..L ,  L ≈ 1–5
+du_ℓ/dt = ( s_ℓ − w_ℓ(u) − σ_ℓ ) / τ_ℓ ,   ℓ = 1..L ,  L ≈ 1–5
 ```
 
-`σ_ℓ` is the population-aggregated sink at level `ℓ` (a sum over characteristics of their `σ`
-contribution). `u_ℓ ≥ 0` is required (enforced by resets); `drainage_ℓ` and the conductivity in the
-operating point diverge as `u_ℓ → 0` (the stiffness). `u` feeds back into the operating point and the
-rates.
+`s_ℓ` is a source, `w_ℓ(u)` a state-dependent loss, and `σ_ℓ` the population-aggregated sink for
+component `ℓ` (a sum over characteristics of their `σ`). `u_ℓ ≥ 0` is required (enforced by resets);
+`w_ℓ` and a response coefficient the operating point reads both diverge as `u_ℓ → 0` (the source of
+stiffness), and the per-component scale `τ_ℓ` is small relative to the transport. `u` feeds back into
+the operating point and the rates.
 
 ### 1.6 The breakpoint integral
 
@@ -111,7 +112,7 @@ branches are individually smooth; `I` is continuous but its derivative has a jum
 
 ### 1.7 Reductions and parameters
 
-Several census moments simultaneously: `M_φ = Σᵢ φ(xᵢ)·mᵢ` for `φ ∈ {1, x², x^a, …}`, plus
+Several distribution moments simultaneously: `M_φ = Σᵢ φ(xᵢ)·mᵢ` for `φ ∈ {1, x², x^a, …}`, plus
 time-integrated `∫ Σᵢ p(xᵢ,Aᵢ)·mᵢ dt`. Differentiate the whole vector w.r.t. all parameters
 `θ = (β₀,β₁,β₂, γ₀,γ₁, δ₀,δ₁, c_k, η, and the operating-point/auxiliary parameters)` and initial
 conditions — **full feedback**: the field, the operating point, and `u` all respond to `θ`, and each
