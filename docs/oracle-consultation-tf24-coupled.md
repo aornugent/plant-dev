@@ -83,16 +83,21 @@ every small-step is a far-from-equilibrium transient). So a quasi-steady-state c
 invalid precisely in the episodes that dominate the cost, and an implicit stepper would *not* buy
 larger steps there (the transient is real, must be resolved).
 
-## 5. The outer loop — what the gradient is actually for
+## 5. What the gradients are for — two regimes, both required
 
-The trajectory above is usually iterated to a **fixed point**: the system is advanced repeatedly
-until a **steady state** (a steady member distribution + steady `u`). The quantities we differentiate
-w.r.t. `θ` are **reductions evaluated at that steady state** — several distribution moments, and a
-scalar functional giving the **growth rate of a small perturbation mode** about the steady state
-(a dominant-eigenvalue-type quantity: the initial growth rate of a distinct member type seeded at
-low mass against the established steady state). So the real object is a gradient **through a fixed
-point of the coupled optimization–transport–field system**, not merely of a single finite-horizon
-trajectory. Many such gradients are requested in an outer optimization loop.
+The reductions are differentiated in **two regimes, and we require both** — neither subsumes the
+other:
+
+- **Transient (non-steady-state):** several distribution moments of the population, evaluated along a
+  **finite-horizon trajectory that has *not* settled**. The object is the gradient of the
+  time-marched run. This is a **first-class requirement in its own right**, not merely a means to the
+  steady state.
+- **Fixed point:** the same system is also iterated to a **steady state** (a steady member
+  distribution + steady `u`), where a scalar functional — the **growth rate of a small perturbation
+  mode** about that state (a dominant-eigenvalue-type quantity) — is differentiated. The object is a
+  gradient **through the fixed point**.
+
+Many gradients of both kinds are requested in an outer loop.
 
 ## 6. The differentiation task and engine
 
@@ -115,11 +120,14 @@ loop (many gradients); flat in `|θ|` (reverse mode's premise).
 
 ## 8. Questions — open, and inviting reframing
 
-1. **What is the right object to differentiate?** Given that the reductions are wanted at a fixed
-   point (§5), is the correct target the adjoint of the *equilibrium residual* of the whole coupled
-   system (members + inner optima + field), rather than the reverse sweep of a time-marched
-   trajectory? If so, what is the equilibrium system, and does that subsume the per-step
-   inner-solve differentiation entirely?
+1. **What is the right object to differentiate — in each of the two regimes (§5)?** The transient
+   reductions require the gradient of a non-settled time-marched trajectory (a reverse sweep) — is
+   that the right approach, or is there structure that simplifies it? *Separately*, for the
+   fixed-point functional, is the correct target the adjoint of the *equilibrium residual* of the
+   whole coupled system (members + inner optima + field), rather than differentiating a long
+   time-march to steady state — and if so, does that subsume the per-step inner-solve differentiation
+   there? Can one engine serve both regimes without a bespoke path for each? (The transient regime is
+   required regardless, so an equilibrium-only reformulation does not suffice.)
 2. **The within-step constrained optimization (§2).** What is the correct, cheap way to obtain the
    gradient contribution of `ρ` (stationary) *and* `σ` (non-stationary) from one iterative
    optimize-plus-two-roots solve, without differentiating the iterations — in both the solved and the
