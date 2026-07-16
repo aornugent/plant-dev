@@ -246,8 +246,18 @@ template <class S> struct StateView {          // all accessors exact, taped, cl
    is R4 justified only by the general capability (regnans) and by forcing the implicit-node
    primitive? If the latter, IMEX/RODAS is a general-odelia feature, not a plant-stiffness fix — which
    changes how hard we push it.
-2. **Does regnans fit the transport structure (R6)?** Determines whether the transport core is
-   shared or plant-family-specific, hence how much of the engine is truly general.
+2. **Does regnans fit the transport structure (R6)? — RESOLVED.** regnans is a *workflow* over
+   plant ("assemble communities… iterate demography to equilibrium, compute selection gradients"),
+   not a new ODE system. Consequences: (a) the transport core is plant-family-specific (confirmed —
+   no external transport witness); (b) regnans is **not** an independent "general stiff capability"
+   witness for R4 — so RODAS's justification narrows to the implicit-node primitive plus plant's own
+   (accuracy-driven, questionable) stiffness; (c) regnans differentiates through a demographic
+   **fixed point**, which is another implicit-solve → it **reinforces the implicit-node primitive**
+   (equilibrium/selection gradients) and the R3 performance requirement (many gradient calls in an
+   outer loop). Net: the implicit-node primitive is now witnessed by leaf-optimum + constraint +
+   breakpoint + **demographic-equilibrium (regnans)**; the RODAS *stepper* specifically has lost its
+   external witness and is deferred behind the primitive (build the primitive; make the RODAS stage
+   one future instance, gated on a genuine stiff witness).
 3. **Kernel separability is per-canopy-mode.** Exact rank-3 for the default `(1−(z/x)^η)²`; the
    `FlatTopSoftBox` and other modes differ. **Question:** does the scan primitive need a
    non-separable fallback (a dense O(Nk) or the retained interpolator) for those modes, or do we
