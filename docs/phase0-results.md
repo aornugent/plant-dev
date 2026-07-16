@@ -1,6 +1,6 @@
 # Phase 0 validation results (F1, E2) — run 2026-07-16
 
-The two pre-build experiments from [`ad-engine-build-plan.md`](./ad-engine-build-plan.md)
+The two pre-build experiments from [`build-plan.md`](./build-plan.md)
 §"Phase 0". Both are pure `double`, no tape, no engine. Scripts:
 [`scripts/f1-eulerian-transport.R`](../scripts/f1-eulerian-transport.R),
 [`scripts/e2-soil-microscopy.R`](../scripts/e2-soil-microscopy.R). Reproduce: `Rscript` each

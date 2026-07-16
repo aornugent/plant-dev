@@ -1,6 +1,6 @@
 # Deepening #6 — the resident light-environment coupling (K93/FF16), and dg/dh
 
-Concretises target #6 of [`engine-deepening-targets.md`](./engine-deepening-targets.md), **resident
+Concretises target #6 of the deepening targets (now `design.md` §5), **resident
 path only** (the active, self-shaded field; mutant deferred). This is P1b's primary witness and the
 gate for P2a (K93) / P2b (FF16). It is also where **dg/dh** lives, so that is resolved here too.
 Anchors are plant#52.

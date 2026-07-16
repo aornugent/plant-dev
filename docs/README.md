@@ -1,90 +1,54 @@
-# AD infrastructure design (plant × odelia)
+# AD engine design (plant × odelia)
 
-**What.** A design for computing exact **trait gradients** of the `plant` SCM's
-emergent outputs — how stand properties (LAI, biomass, basal area, offspring
-production) respond to plant traits — by **automatic differentiation (AD)**, built on
-`odelia`'s AD-aware ODE runtime rather than a plant-private AD stack.
+**What.** A design for exact reverse-mode **trait/parameter gradients** of the `plant` SCM's emergent
+outputs (LAI, biomass, basal area, offspring/R0) — built on a small general-purpose AD engine in
+`odelia` so `plant` strategies contain **zero tape-aware code** and stay readable as science.
 
-**Why.** A validated prototype exists
-([traitecoevo/plant#553](https://github.com/traitecoevo/plant/pull/553), tracking
-issue [#472](https://github.com/traitecoevo/plant/issues/472)). The design reaches the
-same gradients with **surgical changes** to the plant components that already exist and
-a **small generic surface** on odelia — because the Patch is already the odelia System
-and `run_mutant` is already the frozen-schedule replay.
-
----
+**Why.** A validated prototype exists (traitecoevo/plant#553) — it is the **specification and regression
+oracle**, not the code that ships. This design reaches the same gradients with a small engine surface, a
+clean `System` interface, and the transported-state / coupling machinery owned by odelia.
 
 ## Read in this order
 
-1. **[`ad-infrastructure-design.md`](./ad-infrastructure-design.md)** — the design.
-   The thesis, the decisions, the three layers (odelia / plant / UX), the surgical
-   changes, the two workflows, and the four replay levels. Start here.
-2. **[`ad-record-replay.md`](./ad-record-replay.md)** — the one adaptive-numerics
-   primitive under the replay levels: record where the adaptive pass placed its nodes,
-   replay pinned to them with the active scalar.
-3. **[`ad-r-interface.md`](./ad-r-interface.md)** — the R/C++ boundary: why XAD types
-   are awkward through Rcpp, the "only doubles cross" invariant, and **user stories**
-   for each persona.
+1. **[`design.md`](./design.md)** — the authoritative design. Requirements + personas, the two-axis
+   framing (replay × functional), the M/N/K architecture + engine primitives, the L0–L3 replay levels,
+   dg/dh + the mass chart, the inner solves, the R boundary + emergent functional, the Control/caching
+   contract, the verification trust model + regression witnesses, and scope/known edges.
+2. **[`build-plan.md`](./build-plan.md)** — the phased, parallelizable build order to plant#52 parity and
+   the fixed-point layer: the delivery ladder, standing guards, Phases 0–3, the multirate track, the port
+   map, and the scope fences.
 
-[`ad-census-gradients.md`](./ad-census-gradients.md) is the standalone design for
-**correct reverse-mode census gradients through the growing SCM** — the conservation-pair
-diagnosis and the geometric-compression solution (`control$node_geometric_compression`).
-Read it for the transport-term (`∂ₓg`) gradient specifically.
+### Detailed appendices (per-component derivations `design.md` links)
+- [`deepening-6-light-coupling.md`](./deepening-6-light-coupling.md) — K93/FF16 light coupling + dg/dh.
+- [`deepening-1-leaf-residuals.md`](./deepening-1-leaf-residuals.md) — the TF24 leaf inner solves (N1, N3).
+- [`deepening-3-soil-coupling.md`](./deepening-3-soil-coupling.md) — the two-way soil↔leaf coupling.
+- [`deepening-2-4-5.md`](./deepening-2-4-5.md) — crown quadrature, leaf early-exits, TF24f in the BVP.
+- [`phase0-results.md`](./phase0-results.md) — F1/E2 + the two Gate-0 checks (the evidence trail).
 
-[`ad-issues.md`](./ad-issues.md) is the separate work breakdown — scoped items,
-dependencies, and build order — not part of the design proper.
+### Design inputs (the external-reasoner consultations)
+- [`oracle-consultation-index.md`](./oracle-consultation-index.md) — the running catalogue + measurement trail.
+- `oracle-ad-design-consultation.md`, `oracle-followup-{1,2}-*.md`, `oracle-consultation-{soil-subsystem,tf24-coupled}.md` — the statements and responses.
+- [`oracle-consultation-guide.md`](./oracle-consultation-guide.md) — general practice for framing a hard problem to an external reasoner.
 
-[`oracle-consultation-guide.md`](./oracle-consultation-guide.md) is general practice for
-framing a hard problem to an external expert reasoner so it surfaces structure you cannot
-see — distilled from this project, applicable to any.
+### Archive
+[`archive/`](./archive/) holds the prototype-era ("surgical changes to plant") design set that this
+engine design supersedes — infrastructure design, record/replay, R interface, the implementation design,
+the touchpoint catalog, the work-breakdown issues, the handover, the census-gradient standalone, and the
+v2 engine surface design. Kept for provenance and for the load-bearing detail folded forward into
+`design.md`/`build-plan.md`. **Not the current design** — start with `design.md`.
 
----
-
-## Key concepts (glossary)
-
-For a reader new to the model or to AD. Fuller treatment is in the design doc.
-
-- **SCM** — the plant "Solver for Characteristics Method": integrates a size- and
-  patch-structured population as cohorts introduced on a schedule and stepped by an
-  ODE solver. The **Patch** is the state being integrated; it is already an
-  `odelia::ode::Solver` System.
-- **Emergent output / metric** — a stand-level property that emerges from the cohorts:
-  LAI, biomass, basal area, offspring production. These are the quantities we
-  differentiate.
-- **Trait gradient** — the derivative of an emergent metric with respect to plant
-  traits (lma, wood density, …). The deliverable.
-- **Two workflows.**
-  - *Resident / total* — the whole stand differentiates **with self-feedback**: a
-    trait change re-shades the canopy the stand grows in.
-  - *Mutant / invasion* — a **rare** mutant's fitness gradient against an established
-    resident whose canopy is held fixed (the mutant is too rare to shade itself).
-    This is the selection gradient of evolutionary ecology.
-- **Birth rate & demographic equilibrium** — beyond trait gradients, the derivative of
-  the net reproduction ratio with respect to birth rate (`d R0/d birth_rate`) drives the
-  Newton solve for the equilibrium birth rate (where R0 = 1) — the density at which a
-  strategy sustains itself. The birth-rate gradient is a first-class deliverable, not
-  only a sensitivity.
-- **Reverse-mode AD / XAD / tape** — reverse-mode records operations on a *tape*, then
-  sweeps it backward to get all input derivatives from one output. **XAD** is the AD
-  library odelia vendors and compiles once. Reverse mode is optimal here because there
-  are many traits (inputs) and few metrics (outputs).
-- **Replay levels (L0–L3)** — the SCM has several *adaptive* constructions (the node
-  schedule, the ODE step sizes, the light interpolator, the crown quadrature). AD
-  needs each frozen to its recorded placement so the result is differentiable. The
-  key idea (see [`ad-record-replay.md`](./ad-record-replay.md)): run once adaptively,
-  **record where the nodes landed, replay on them fixed** with the active scalar.
-- **odelia** — the family's AD-aware ODE runtime: compiles XAD once, ships a
-  scalar-templated `Solver`, a reverse-mode gradient driver, and a differentiable
-  spline. plant already `LinkingTo: odelia`.
-- **The prototype** — plant PR #553, the validated spike. It is the **specification and
-  the regression oracle**, not the code that ships.
-
----
-
-## The one-sentence design
-
-Make the existing plant Patch and Strategy AD-compatible with small in-place changes,
-differentiate the SCM runs plant already has (`run` for resident, `run_mutant` for
-invasion) on a recorded-then-fixed replay, evaluate a plant-supplied emergent
-functional, and let odelia own the generic AD mechanism (tape, Jacobian, functional
-seam) it already almost provides — so only `double` ever crosses back to R.
+## Glossary
+- **SCM** — plant's Solver for Characteristics Method: a size- and patch-structured cohort population,
+  cohorts introduced on a schedule, stepped by an adaptive ODE solver. The **Patch** is the state being
+  integrated — already an `odelia::ode::Solver` System.
+- **Resident vs mutant** — resident/total differentiates *with* self-feedback (a trait re-shades the
+  stand); mutant/invasion is a rare mutant's fitness gradient against a frozen resident canopy (the
+  selection gradient). Same engine, the L3 replay variant.
+- **Replay levels L0–L3** — the four adaptive constructions frozen to their recorded placement so the run
+  is differentiable: L0 cohort schedule, L1 ODE steps, L2 quadrature/interpolator knots, L3 resident
+  canopy. See `design.md` §4.
+- **The mass chart** — transport log-mass (`dλ/dt=−r`), which removes the density-transport term `∂ₓg`
+  from the model rate (carried instead by the cohort-spacing geometry).
+- **Reverse-mode AD / XAD / tape** — records operations, sweeps backward for all input derivatives from
+  one output; optimal here (many params, few metrics). **XAD** is the library odelia vendors and compiles
+  once.

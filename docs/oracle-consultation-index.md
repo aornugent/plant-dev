@@ -86,7 +86,7 @@ Statements added this round (all pass `scripts/domain-leak-scan.sh`; the soil on
   `γ(s,x)` = a **Layer-K node** with `∂/∂s` (+`∂²/∂s²`), FD-validated; **pinning = frozen active set**
   (zero-adjoint is *exact*). Three small Layer-K deltas; none touches the model surface.
 
-### What the v2 engine design took from this (see `ad-engine-surface-design.md` §v2)
+### What the v2 engine design took from this (see `design.md`)
 Two numerics layers over one model layer; soil = multirate (RODAS fully dropped); second-order only on
 the tiny fixed-point BVP residual path (not general HVP); scan band; `γ` node; frozen-active-set
 pinning; the reduced-gradient inner-solve; schedule-timing sensitivity named the top transient risk.
@@ -115,7 +115,7 @@ Every design commitment that rests on a measurement, with the number, so a conte
   `TESTTHAT_PARALLEL=false`: `test-ad-gate0-tf24.R` 7 pass / 0 fail; `test-ad-tf24-soil-coupling.R`
   and `test-ad-tf24f-collar-uptake.R` all green. These are the exact tests P2a→P2d must keep green
   (bit-identity + gradient) — the definition of "#52 parity".
-- **K93 census-FD gradient (the P2a gate numbers).** From `ad-census-gradients.md` §7: reverse-mode
+- **K93 census-FD gradient (the P2a gate numbers).** From `design.md` §10 (regression witnesses): reverse-mode
   vs central-FD of the census functional gives `b_0 = 317.883`, `b_1 = −516.881`, with
   `cos(ad, fd) = 1.0`. P2a (K93 on the clean engine) must reproduce these.
 - **C3 spline-ripple (why the moving-query derivative was frozen).** The moving-query (Lagrangian)
@@ -139,4 +139,4 @@ Every design commitment that rests on a measurement, with the number, so a conte
 **How to reproduce the two live measurements:** gate tests — `NOT_CRAN=true TESTTHAT_PARALLEL=false`
 then run the three `test-ad-*.R` files under plant. QSS/S4 — the pulsed-forcing instrumentation script
 (gentle pulses, short lifetimes to avoid the #550 density runaway); log `Δt` and `d` per accepted step,
-correlate. K93/C3 numbers are recorded in `ad-census-gradients.md`.
+correlate. K93/C3 numbers are recorded in `design.md` §10 and `archive/ad-census-gradients.md`.
