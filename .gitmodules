@@ -8,3 +8,6 @@
 [submodule "odelia"]
 	path = odelia
 	url = https://github.com/aornugent/odelia.git
+[submodule "regnans"]
+	path = regnans
+	url = https://github.com/aornugent/regnans.git
