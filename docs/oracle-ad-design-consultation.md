@@ -104,9 +104,9 @@ has no closed form and is presently taken as a **finite-difference secant** of t
 field about `xᵢ`. It is the only term in `dℓ/dt` that is not a plain pointwise rate.
 
 The transported per-characteristic quantity is a **pointwise log-density** `ℓᵢ`; the mass carried
-by characteristic `i`, `mᵢ = exp(ℓᵢ)·Δxᵢ`, is a derived quantity, **not** a state variable. Note
-that the same spatial derivative `∂ₓg` also governs how the spacings evolve —
-`d(Δxᵢ)/dt = g(xᵢ) − g(x_{i+1})` — and the spacings are the weights of every reduction (§2).
+by characteristic `i`, `mᵢ = exp(ℓᵢ)·Δxᵢ`, is a derived quantity, **not** a state variable. The
+inter-characteristic spacings `Δxᵢ` themselves evolve, `d(Δxᵢ)/dt = g(xᵢ) − g(x_{i+1})`, and they
+are the weights of every reduction (§2).
 
 ### 1.3 The coupling field `S`, rebuilt every RK stage
 
@@ -231,14 +231,14 @@ preamble. We record pass 2 and sweep once per functional.)
 Each is a place where naive operator-overloading differentiation is inadequate or subtle. We give
 the structure and the difficulty, not our treatment. They are unranked on purpose.
 
-**C1 — The transport/compression term.** `∂ₓg` enters `dℓ/dt` explicitly; separately, the moment
-weights are the spacings `Δxᵢ`, which evolve as velocity differences
-`d(Δxᵢ)/dt = g(xᵢ) − g(x_{i+1})`. Differentiating the discrete solver naively yields a gradient
-that is *internally consistent* (forward-JVP = reverse-VJP to machine precision) and *value-exact*
-(bit-identical trajectory), yet differs from the finite-difference reference by an `O(1)`,
-non-vanishing factor concentrated in parameters that reach the reduction **only through the
-coupling** (`κ`/`Ψ`). We note this signature because it is structurally informative; a formulation
-that never forms `∂ₓg` as a tape quantity may sidestep it entirely.
+**C1 — The transport/compression term.** The compression `Cᵢ = ∂ₓg` (§1.2) is the subtlest
+ingredient of the rates: a spatial derivative of the self-generated field, at the point's own
+moving coordinate, with no closed form. Differentiating the discrete solver through this term is
+where a naive tape most visibly fails: the resulting gradient is *internally consistent*
+(forward-JVP = reverse-VJP to machine precision) and *value-exact* (bit-identical trajectory), yet
+disagrees with the finite-difference reference by an `O(1)`, non-vanishing factor, concentrated in
+parameters that reach the reduction **only through the coupling** (`κ`/`Ψ`). What is the correct
+gradient contribution of this term?
 
 **C2 — A rate that is itself a numerical derivative.** The compression is a finite-difference
 secant. Differentiating a finite-difference stencil on the tape amplifies any nearby
