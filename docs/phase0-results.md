@@ -63,6 +63,34 @@ a weaker reproduction of the *collapse* than the instrumented plant run. But the
 analysis is analytic (exact from the curves) and the chart comparison is a fair matched-accuracy test,
 so the two verdicts stand independently of reproducing that correlation.
 
+## Gate-0 deepening checks (2026-07-16) — the two obligations from the design deepening
+
+Two cheap single-cohort / single-leaf checks flagged while deepening the engine design (see
+`deepening-6-light-coupling.md` §5 and `deepening-2-4-5.md` #4).
+
+### Check A — mass-chart forward stability (`scripts/gate0-a-masschart-stability.R`) — **PASS**
+Toggling `node_geometric_compression` (the neighbour-secant path = the mass chart's `TransportGeometry`)
+on a K93 SCM at the **default** clamp `growth_eps=1e-4` (not inflated):
+- geometric path is **bounded and finite** — `max|log n| = 21.09` vs the FD stencil's `21.15`; stays
+  bounded through lifetime 110 (143 cohorts, `max|log n|=29.5`).
+- forward shift `offspring_production`: FD `0.075325` vs geometric `0.075453` = **0.169%** — matches the
+  documented ~0.2% (R5).
+- **Verdict:** the instability that forced the FD/upwind stencil (which needed the clamp inflated to
+  ~5e-2 for the *exact-analytic-into-rate* path) **does not recur** when `∂ₓg` is carried by the
+  neighbour secant. #6 §3's dg/dh resolution holds.
+
+### Check B — leaf shut-down early-exits, C⁰? (`scripts/gate0-b-leaf-earlyexit.R`, driver
+`plant/tests/testthat/gate0_b_leaf_earlyexit_driver.cpp`) — **FAIL (profit is discontinuous)**
+Sweeping soil moisture across the shut-down transition and refining to `θ`-step `1e-7`:
+- profit **jumps ≈1.46 in one step** — from a bit-identical shut-down floor `−8.3846` (`psi_stem` pinned
+  at `psi_crit`) up to the first feasible optimum `−6.93`; the jump does **not** shrink with the step
+  (a true discontinuity, not a sub-grid cliff).
+- **Verdict (corrected):** the early-exits are `decide()` predicates *for the gradient* (each branch
+  smooth, replayed, boundary measure-zero) **but a genuine hydraulic-failure discontinuity**, not a
+  continuous kink — so **no breakpoint/Leibniz term applies**, and the boundary is an honesty-condition
+  refuse point for the fixed-point/selection regime. My earlier "collapses continuously" assumption was
+  refuted by measurement. `deepening-2-4-5.md` #4 updated.
+
 ## Net effect on the build plan
 - **Phase 3 promoted from "gated" to "confirmed viable"** (F1) — route (ii), reusing the P1a
   implicit-node + P1c `γ` node with reserved higher-order partials.

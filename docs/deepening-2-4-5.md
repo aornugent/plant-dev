@@ -42,17 +42,31 @@ The leaf shut-down early-exits (`prepare_collar_solve` returns false → `set_sh
 4. `assim_max` (at `ci=ca`) `< 0` — no positive assimilation.
 
 Each selects between **the optimised branch** and **the shut-down closed form**
-`profit = −R_d − hydraulic_cost_TF(ψ_crit)` (`:673`). **Verdict: these are `decide()` predicates (Kind
-A)** — the branch choice is a feasibility predicate replayed on pass 2, and on each side profit is a
-smooth function of `θ`; the boundary is where the feasible interval shrinks to the point `ψ_crit`, so
-the optimum **collapses continuously** onto the shut-down evaluation (the optimum *is* `ψ_crit` there).
-No Leibniz jump term is required.
+`profit = −R_d − hydraulic_cost_TF(ψ_crit)` (`:673`).
 
-**The one obligation:** confirm profit is **C⁰ across each boundary** at Gate-0 (a cheap single-leaf
-sweep of `θ`/soil-ψ across each threshold, checking profit has no jump). If any boundary shows a value
-jump — not expected from the `ψ_crit`-collapse structure — it is promoted to a breakpoint node. Until
-measured, treat as `decide()` with the C⁰ assumption **flagged**, because a misclassified kink is a
-silent gradient bug (the scarce-resource failure mode).
+**Gate-0 measured (2026-07-16, `scripts/gate0-b-leaf-earlyexit.R`) — profit is NOT C⁰ across the
+shut-down boundary.** Sweeping soil moisture across the transition (5 layers together, height 5 m) and
+refining the step to `1e-7` in `θ`, profit **jumps ≈1.46 in a single step** — from a bit-identical
+shut-down floor (`−8.3846`, `psi_stem` pinned at `psi_crit=7.085`) up to the first feasible optimum
+(`−6.93`). It does not shrink with the step (a true discontinuity, not a sub-grid cliff). My earlier
+"collapses continuously" assumption was **wrong**: the shut-down floor sits strictly *below* the
+marginal feasible optimum, so losing all feasible transpiration is a discrete worsening — a genuine
+**hydraulic-failure cliff** in the fitness landscape.
+
+**Corrected verdict — `decide()` for the gradient, but a true discontinuity, NOT a continuous kink:**
+- For the transient reverse-mode gradient **at a fixed operating point**, the branch is selected and
+  replayed (Kind A `decide()`): a given cohort at a given time sits on *one* side, and that side's
+  profit is smooth, so its one-sided derivative is exact. The boundary is measure-zero in `θ`, so it is
+  not normally hit.
+- **But it is a jump, not a smooth kink**, so **no Leibniz/breakpoint term applies** — there is no
+  finite jump-slope to add; the derivative is *undefined at the boundary*. Treating it as a continuous
+  breakpoint would be a silent gradient bug in the opposite direction from the one first feared.
+- **Consequence for the fixed-point / selection regime (regnans):** the fitness landscape contains these
+  hydraulic-failure cliffs, so `dλ/dθ` is genuinely non-differentiable where an equilibrium sits on
+  one — an **honesty-condition refuse point** (design uncertainty 7), to be monitored like the
+  spectral-gap closure, not averaged through. Which of the four early-exits produces the cliff (the
+  measurement drove all layers together; `E_column<0` is the prime suspect) is worth isolating before
+  the fixed-point layer is built.
 
 Two other manifest entries, already understood:
 - `smooth_positive` growth/mortality clamps (`k93_strategy.h:242`, TF24) — **Kind C** documented
