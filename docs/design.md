@@ -46,8 +46,8 @@ parameters are **low-level strategy fields + soil params + birth rate** (not eco
 Most apparent complexity dissolves once two independent axes are separated:
 
 - **Replay** — a property of the *system*: what adaptive constructions must be frozen so the run is
-  differentiable (§4). The SCM always needs L0·L1·L2; a bare ODE needs only L1. The ecological
-  **feedback choice** (resident vs mutant) is the L3 variant.
+  differentiable (§4). The resident SCM needs L0·L1·L2 (recompute); a bare ODE needs only L1. The
+  ecological **feedback choice** (resident vs mutant) is the L2-recompute vs L3-frozen switch.
 - **Functional** — *what scalar* is differentiated (an emergent metric, or a likelihood), orthogonal to
   replay (§8).
 
@@ -55,6 +55,15 @@ Resident vs mutant is not two engines: **the Patch is already the odelia System,
 already the frozen-schedule replay.** The invasion gradient is the derivative *of an existing run*. No
 `SCMSystem`, no `StrategyConcept`, no second AD stack — surgical changes to existing components. This
 "no new abstractions" thesis is a standing constraint.
+
+**Residents first (the delivery ladder's spine).** The *primary* workflow is the **resident census
+gradient** (persona 1) — L2-recompute, self-shading, and the density-transport term — not invasion. The
+mutant path (L3, frozen field) is the *additive* variant and is **deferred**: it is a recorded-`double`
+read layered onto the resident recording, built after the resident path lands. This inverts the
+prototype-era "invasion-first" ordering, which the touchpoint catalog's own correction (Part VI.0) and
+odelia#28 retired: invasion-first forced a mixed-scalar frozen-`double` boundary *before* the System was
+templated, generating most of both prototype attempts' debt. Templating uniformly and reaching the
+resident L2 path first removes that boundary.
 
 ---
 
@@ -80,48 +89,94 @@ arithmetic, wrong-chart compression — become **inexpressible in model code**.
 6. **`value()` firewall** (P1d) — `decide(expr)` (predicate, replays the recorded choice on pass 2) and `diagnostic(expr)` (dead to the tape). Raw `xad::value` grep-banned in Model + Numerics.
 7. **verification harness** — the dot-product identity, frozen-schedule FD, per-edge probes, conservation invariants (§10).
 
+### The activation rule (what goes on the tape)
+> A quantity goes **active** iff it lies on the differentiable path from a seeded parameter to an
+> emergent metric **and** is produced by taped arithmetic (the ODE state, and the algebra mapping
+> state+background → rates). A quantity produced by **iteration, optimisation, or adaptive
+> refinement** never goes active — it stays `double` and enters the tape, if at all, as (a) a
+> **recorded value** (L2 knots / L3 background) or (b) an **injected analytic derivative** (an
+> implicit-node output). Diagnostics, error estimates, schedule control, and R facades are off the
+> graph.
+
+So the active surface is small and nearly model-invariant: the demographic skeleton
+`{height, mortality, fecundity, +extras, log_density, offspring}` + rates, plus a few lines of rate
+arithmetic per model. The expensive, model-defining machinery (the ~1500-line leaf hydraulics, the soil
+solver, every adaptive controller) stays `double` and touches the tape only through a recorded read or
+an injected derivative. **This is the clean odelia/plant boundary** — most of plant needs no reverse
+mode at all.
+
 ### Two numerics layers over the one model layer
 - **Transient** (R7a): the time-marching reverse sweep — checkpoint per accepted step, re-record, sweep. No shortcut (trajectory unsettled).
 - **Fixed point** (R7b, regnans): the Lagrangian has no fixed point (N grows), so differentiate the **steady Eulerian-profile BVP** (dim ~4+L: flux `F=g·n`, the three suffix-integral states `B_p`, sink-quadrature states, `L` algebraic steady-`u`), via the **IFT adjoint of the collocation residual** + a **dominant-eigenvalue perturbation identity** (one nested `adj⟨fwd⟩` sweep). F1 confirmed the Eulerian operator is faithful to the march (residual 8.6e-6) and the steady profile is well-posed.
 
+### The odelia co-design boundary (what odelia must provide — the v2 emphasis)
+odelia's AD surface was built for a **fixed-dimension, single-scalar, single-`advance_fixed`-replay**
+Solver; the SCM is none of those. The clean-boundary contract makes odelia own the hard machinery so
+plant supplies only closed forms + residual declarations. The load-bearing co-design items (catalog IX.4):
+
+- **A — growing-dimension active replay** *(load-bearing, unverified).* The SCM is
+  `[grow][resize][integrate]…`: cohorts introduced mid-run `resize()` the state, and a new cohort's ICs
+  are an **active function of the already-integrated stand** (`log_density = log(birth·pr_estab/g)`
+  reads the current, active environment). odelia's active twin is today built once around one
+  `reset()+run()` with no introduction/resize hook. odelia must **tape-once across a self-segmenting
+  `run()` that resizes**. *De-risk first on `IndividualRunner` (fixed-dimension) then K93-resident (the
+  cheapest full SCM).*
+- **B — tape reachable from `ode_rates`** for injected derivatives during replay. **Resolved by the
+  engine-primitive design:** the model never touches the tape — it declares a residual/kernel and the
+  odelia-owned implicit-node/scan primitive owns the injection. This is *why* the primitive boundary is
+  cleaner than the prototype's `supplied_derivative`-from-inside-the-model seam.
+- **F — the SCM as a self-segmenting runnable** (record-once around a `run()` that grows) — the empirical
+  form of A.
+- **G — an integration fixture**: growing dimension × injected-derivative-in-replay × the emergent
+  functional. The missing de-risking test.
+- **C/D** — multi-partial injected derivatives at `N>1`; whole-object L3 snapshots (deferred with L3).
+  **E — IC seeding** is already supported+tested in odelia (§11).
+
+The transient checkpointed record/replay and the multirate soil sub-cycle are odelia-owned steppers; the
+model declares the stiff index set. A/F/G are the gates the build plan front-loads.
+
 ---
 
-## 4. Replay levels L0–L3 (four freezes, four owners)
+## 4. Record / replay — three generic caches, one data-presence switch
 
-AD needs every adaptive construction frozen to its recorded placement. The "record pass 1 / replay pass
-2" idea has **four distinct levels with distinct owners and cadences** — collapsing them is a silent-bug
-source.
+AD needs every adaptive construction frozen to its recorded placement: run once adaptively in `double`,
+record where it landed, replay pinned on the active scalar. Per **[odelia#28](https://github.com/aornugent/odelia/issues/28)**
+(closed) this is **three generic caches and no state-machine metaphor** — the earlier "L0–L3, four
+freezes" framing was a headache that conflated levels; the clean model:
 
-| Level | What | Owner | Cadence | Freeze |
+| Cache | What | Owner | Cadence | Status |
 |---|---|---|---|---|
-| **L0** | cohort/node introduction schedule | plant (`scm`) | per run | positions frozen ⇒ `d(t_intro)/dθ = 0`; introductions add tape vars but **inject no discontinuity** (§why below) |
-| **L1** | ODE step times | odelia Solver | always present | recorded step schedule, replayed |
-| **L2** | quadrature / interpolator knots | plant + odelia spline | per step | **frozen-position** (resident light spline) **or moving-node** (see below) |
-| **L3** | background field values (resident canopy) | plant | per RK stage | **resident: recompute live; mutant: read frozen** (the crux below) |
+| **L1** | ODE step schedule | odelia `Solver` | per accepted step | done — driver replays `advance_fixed(recorded_steps())` |
+| **L2** | adaptive node positions (**the light spline knots — the only adaptive field**, VII.1) | System, via the replayable interpolator | per step | the **resident** path: record knots, **recompute values active** on them (self-shading flows) |
+| **L3** | per-stage recomputable field values | System | per RK stage | the **mutant** path: read recorded `double` by `(step,stage)`; **DEFERRED** |
 
-- **Cadence — positions per step, values per stage.** Positions freeze per step (they only remove
-  `double` adaptive *branching*; within-step variation is below tolerance by the controller). Values
-  freeze per stage (a frozen consumer must read the *exact* value each stage consumed — a real quantity,
-  not a discretisation choice). Hence the `Replayable` hooks: `record_stage` (accumulate/per-stage),
-  `record_ode_step` (commit/per-accepted-step — separate because a **rejected step** must not be
-  recorded), `replay_step` (load positions *before* stages), `has_recorded_field()` (query). Runtime
-  state is exactly two bits: *recording?* and *field frozen (mutant) vs recomputed (resident)?*;
-  "replaying" is derived, not stored. odelia grows **no `Recording` noun** — the neutral word is
-  **field**, and the numeric (interpolator/quadrature) is stateless, rebuilt from the recording.
-- **L3 is the correctness crux — frozen ≠ reconstructed.** The resident/total gradient must **recompute
-  the canopy live** from the active cohorts (re-run `compute_environment` on the recorded L2 knots).
-  **Reading the frozen field here silently yields the *invasion* gradient** (drops the self-shading
-  cross term) — the single most dangerous wrong-answer failure mode. One recording serves both
-  workflows: the resident `run` records values for mutants it cannot foresee (the per-stage hook records
-  positions **and** values together).
-- **L2 moving-node variant.** A census integrated over height has an integration bound that *is* an
-  active plant height, so the quadrature **nodes move** → needs the scalar-templated `QK<S>` consuming a
-  recorded subdivision (ODELIA-6), **not** a frozen-node replay (which would miss the moving-node
-  sensitivity). This is the level a naive "freeze everything" drops.
-- **Why L0 freezing is safe.** With introduction times constant, node introductions grow the tape but
-  are **not discontinuities** — one recording spans the whole run. (`refine_schedule`'s adaptive
-  bisection is frozen too; `d(schedule)/dθ` is dropped — argued negligible, sized by an experiment, not
-  yet measured.)
+Plus **L0** — the cohort introduction schedule (`scm`), frozen up front (`refine_schedule` runs once in
+`double`); with introduction times constant, introductions grow the tape but **inject no discontinuity**.
+
+**The one switch is data-presence, not a mode** (odelia#28): `has_recorded_field()` is a query.
+- **Resident ⇒ L3 empty ⇒ recompute** the field active on the frozen L2 knots — a trait re-shades the
+  stand. **This is the primary workflow and v1's target.**
+- **Mutant ⇒ L3 populated ⇒ read** the recorded `double` background (derivative zero by construction) —
+  the rare invader neither shades the resident nor itself. **Deferred** (per the current plan; L3 is the
+  additive mutant cache, built after the resident path lands).
+
+**A run reads L2 *or* L3, never both** (VIII.0). Resident = L0+L1+L2 (recompute, no L3 read). Mutant =
+L0+L1+L3 (frozen read, no L2 recompute). The resident's `double` recording stores the union of positions
+*and* values only so a *future* mutant can read them; the resident's own gradient never reads L3. There
+is no `live|frozen|replaying` state — only `recording` and the `has_recorded_field()` query; odelia grows
+**no `Recording` noun** (the word is *field*), and the interpolator owns its own knots (odelia#22).
+
+**Reconstruction is L2's job alone** (VII.0). The dangerous error the earlier docs flagged — reading a
+frozen field where the resident must recompute — is now structural: freezing is *only* a recorded read,
+so a dropped self-shading derivative is a missing-recording error (loud), not a plausible-wrong number
+(silent).
+
+**The crown quadrature is NOT a replay cache.** It is a **fixed-rule** `QK` (Cluster 4): nodes are a
+deterministic affine image of the integration bound, so an *active* bound (a census integrated over an
+active plant height) tapes exactly through the moving nodes — differentiate *through* it, no recorded
+positions. Only *adaptive* placement (the light spline) is L2; the crown integral, the leaf's `QAG`
+(`max_iter=1`, fixed), the leaf's four fixed-knot splines, and the extrinsic-driver splines are all
+fixed-rule, off the recorded-position path.
 
 ---
 
@@ -143,10 +198,18 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
   optimum `q*` (denominator `dG/dq < 0`). Transport `ψ_stem` is a closed-form spline composition (not a
   solve). One reduced gradient `G(q)=dW/dq` serves solved (TF24) and tracked (TF24f). Deletes the
   ~150-line FD `supplied_derivative` seam + `dprofit_droot_collar_psi`.
-- **Soil↔leaf coupling** → [`deepening-3`](./deepening-3-soil-coupling.md). `StateView.u()`; per-layer
-  uptake `E_i` = an antiderivative difference of the `γ` node; `dE_i/dψ` are Leibniz endpoints; layer
-  crossings = breakpoint nodes. Deletes `dsoil_consumption_dpsi_collar_perlayer` and the per-layer FD
-  partials. Same `E_i` serves transient sink and BVP steady-`u`.
+- **Soil↔leaf coupling** → [`deepening-3`](./deepening-3-soil-coupling.md). **Soil moisture is integrated
+  ODE state, not a background field** (VII.2): `TF24_Environment` carries `ode_size>0` (FF16/K93 carry 0),
+  and the coupling is bidirectional *inside* the ODE — cohorts sum `consumption_rate` into
+  `resource_depletion`, which evolves soil, which sets `ψ_soil`, which the leaf reads. So the AD treatment
+  is **active state**, not L2/L3: **resident TF24** integrates soil actively coupled to the active cohorts
+  (its adjoint rides tape-as-run — the multirate sub-cycle); **mutant TF24** reads soil *frozen* (it rides
+  L3, deferred). `StateView.u()` is the state accessor; per-layer uptake `E_i` = an antiderivative
+  difference of the `γ` node with Leibniz endpoints and breakpoint nodes at layer crossings. Deletes
+  `dsoil_consumption_dpsi_collar_perlayer` and the per-layer FD partials; the same `E_i` serves the
+  transient sink and the BVP steady-`u`. Resident soil adds a `∂profit/∂(soil ψ)` channel the mutant path
+  never needs — automatic here (the leaf reads `u()` on the tape), where the prototype needed a new hand
+  partial.
 - **Crown quadrature / early-exits / TF24f** → [`deepening-2-4-5`](./deepening-2-4-5.md). Crown = Kind C
   quadrature-through (no breakpoints; `q` and `L` both C¹). Leaf shut-down early-exits = `decide()`
   predicates for the gradient, **but profit is genuinely discontinuous** across the boundary (Gate-0
@@ -155,9 +218,14 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
   (profile identical to TF24) but adds a finite relaxation eigenvalue `k·dG/dq` to the spectrum.
 
 ### Other touchpoints the primitives must cover (from the catalog)
+- **The net-production sign branch** — `if (net_production > 0) { growth/fecundity } else { zero all
+  rates }` (`ff16_strategy.cpp:103`, `tf24_strategy.cpp:186`): a **genuine kink** a plant at the carbon
+  compensation point sits on; the subgradient choice must be documented (the whole growth block switches
+  off). This is the highest-traffic kink and is distinct from the K93 `smooth_positive` clamps.
 - **aux slots carry derivatives** — `competition_effect=area_leaf(h)`, `height_inverse` are recomputed in
   `update_dependent_aux` and read in the rate path; they must be templated on `S` or the derivative
-  drops silently. `aux_size` is runtime-varying.
+  drops silently. `aux_size` is runtime-varying (`collect_all_auxiliary` changes the layout) — must not
+  break a fixed tape.
 - **`height_max = max` over cohorts** sets the light-spline domain — a non-smooth max kink on the
   resident gradient; a `decide()` (the argmax is replayed).
 - **Deliberately frozen allometry deps** — `r_l`, `r_b` hard-code `lma`, so `d(r_l)/d(lma)=0` by
@@ -236,7 +304,18 @@ the hand IFT.
   never open-coded `if`s), call `compute_jacobian`, return a `double` matrix with dimnames
   (metrics × params) + the §9 caveat + the Control record.
 - **`EmergentFunctional` is a pure reduction** (`codomain()` = metric count; reads native state → `vector<S>`; drives nothing). Metric → reduction map: **LAI / biomass / basal-area** via `Species::census<Ψ>`; **offspring / R0** via `net_reproduction_ratio_by_node_weighted` (`scalars=1`); **birth-rate** via §9. This map *is* the definition of what is differentiated.
-- **`compute_jacobian` contracts:** (a) **pass the codomain** (output count) or pay an extra full replay to size outputs; (b) **column order is a contract** — column `j` = `d(output)/d(leaf_j)` in System-consume order, or columns transpose silently.
+- **Multi-variable, multi-metric census — get this right.** A census metric is `Σ_i n_i · Ψ(state_i)`, a
+  density-weighted reduction where the weight `Ψ` reads the **full multivariate cohort state**
+  (height, mortality, fecundity, area/mass_heartwood, …), not just height — so the reduction adjoint must
+  flow into **every** state variable `Ψ` touches (and into `n_i` via the density path, §6). The functional
+  is a **vector** of such reductions (`codomain = m`): one forward recording, **`m` reverse sweeps** (or
+  one seeded VJP per output row). Two structural facts the reduction must honour: (a) it composes over the
+  **growing cohort set** (the reduction ranges over a node count that changed mid-run — the sweep must
+  cover every introduced cohort); (b) **multi-species** — `ad_parameters()` is species-major, columns are
+  `(species, field)`, and a metric summed across species carries **cross-species terms through the shared
+  light field** (seed species-2's trait and it moves species-1's cohorts via shading). A census that reads
+  one state variable and one species is the easy case; the design targets the general one.
+- **`compute_jacobian` contracts:** (a) **pass the codomain** (output count) or pay an extra full replay to size outputs; (b) **column order is a contract** — column `j` = `d(output)/d(leaf_j)` in System-consume (species-major) order, or columns transpose silently.
 - **No `wrap`/`as` for active types, by policy** — forcing an explicit `xad::value()`/`derivative()` at the one extraction point keeps derivative loss visible; the active type has no `as` and must never get one (it would silently drop the derivative). This is *why* "only doubles cross R." The cache is anchored on the C++ `Solver` member, not an R handle (no R-visible active solver, not even a power-user hatch).
 
 ### Control and caching contract
@@ -249,7 +328,9 @@ the hand IFT.
 (which drops the offspring term). `d(metric)/d(birth_rate)` **flips sign** between the resident
 canopy-feedback axis and the frozen identity `metric/birth_rate` — a modelling choice that can dominate
 the response. `dR0/d(birth_rate)` drives the `R0=1` Newton solve for the demographic equilibrium (the
-regnans deliverable), and depends on the resident-recompute (L3) path.
+regnans deliverable), and depends on the resident-recompute (L2) path — `dR0/d(birth_rate)` *is* the
+density-regulating feedback (denser cohorts → more shading → lower per-capita fitness), so it needs the
+self-shading term the frozen/invasion version drops.
 
 ---
 
@@ -299,36 +380,57 @@ gradient). The trust model, in priority order:
 
 ## 11. Scope, known edges, and honesty conditions
 
-**In scope (v1):** resident + mutant trait/parameter gradients for K93/FF16/TF24/TF24f; birth-rate;
-transient moments; the fixed-point/selection layer for regnans.
+**In scope (v1):** **resident** trait/parameter gradients for K93/FF16/TF24/TF24f (the primary target);
+birth-rate; transient moments; **IC gradients**; the fixed-point/selection layer for regnans. **Resident
+TF24/TF24f soil is architecturally in scope** — the design must accommodate soil as active coupled state
+(the `resource_depletion` loop, the `∂profit/∂(soil ψ)` channel), so the architecture is not FF16-shaped;
+only the long-horizon stiffness regime is gated (below). **Mutant/invasion (L3) is deferred** — the
+additive frozen-field variant, built after the resident path.
 
-**Deferred / out of scope (documented so they aren't silently re-scoped in):**
-- **IC gradients beyond birth-rate** — the seam is uniform, but resume-from-state forbids ode-time replay
-  (`scm.h:231`), which AD replay requires, so IC-seeding and pinned-schedule replay are currently
-  mutually exclusive. Deferred.
+- **IC gradients (in scope, sequenced later).** The seam is uniform (`DifferentiationTargets` doesn't
+  privilege params vs ICs), and odelia supports+tests IC seeding (ledger E). The v1 target is the run's
+  *own* initial state (the seeded initial size distribution + initial soil), seeded and run from `t0` —
+  which needs no resume. The `scm.h:231` "resume-forbids-ode-time-replay" stub is a *different* workflow
+  (resuming from an exported mid-trajectory state); lift it as the IC path lands. Sequenced after the
+  resident core (build-plan), not deferred.
+
+**Out of scope (documented so they aren't silently re-scoped in):**
+- **The introduction-schedule derivative `d(schedule)/dθ`** — **decided out** (catalog XII.1): the
+  refined schedule is a nuisance variable; the frozen-schedule gradient *is* the gradient. This retires
+  the earlier "frozen-mesh R0 / size the dropped term" edge — no measurement is owed.
 - **Second-order / HVP** — except the fixed-point eigenvalue path's low-dim `adj⟨fwd⟩` + `∂²γ/∂s²`. No
-  general HVP; the `fwd<double>` implicit-node callback is first-order only (kept nestable for a future
-  retrofit).
-- **Adaptive sub-stepping inside replay** — v1 gates it with a clear error, never a wrong number.
-- **Leaf-level forward-mode AD stays plant-local**; **hyperpar total derivative** out of scope.
+  general HVP; the implicit-node's `fwd<double>` is first-order only (kept nestable for a future retrofit).
+- **Euler stepping** (a DGVM-compat mode incompatible with the RK-stage cache — a fact, not a choice);
+  the stochastic engine (RNG, non-differentiable — a compile constraint only); **hyperpar total
+  derivative** (v1 gives low-level-parameter partials, §9); leaf-level forward-mode stays plant-local.
 
-**Known correctness edges (accepted-and-documented, invisible to FD-vs-tape):**
-- **Frozen-mesh R0 quadrature** — introduction times *are* the integration nodes, so `d(node_time)/dθ=0`
-  and the harness computes the *fixed-schedule* metric's exact gradient. State it at the R0 surface; size
-  it with one FD experiment.
-- **The hydraulic-failure discontinuity** (§5) — a true profit jump at the leaf shut-down boundary; the
-  gradient is a one-sided branch derivative (exact off the measure-zero boundary), and the
-  fixed-point/selection module must **refuse** at a crossing (like a spectral-gap closure), not average
-  through.
-- **Stiff TF24f resident coupling at long horizons** — fixed-node replay drifts because the
-  `log_density`↔canopy loop needs adaptive sub-stepping. **Measured bounded** (~1e-4…1e-3 wet→dry /
-  short→long, incl. ~57% depletion): stiffness is a **runtime** cost, not incorrectness → a **drift gate
-  + runtime caveat** (the `tf24_stiffness_drift` standing gate), not a hard defer.
-- **Zero-height cohort NaN trap** — `area_leaf=(h/a_l1)^(1/a_l2)` differentiates to `0·log(0)=NaN` at
-  seed height; `pow(0, active)` NaNs the tangent (bites forward loudly, reverse latently). Fix: establish
-  `birth ≥ N` cohorts at `h0`; guard `z==0` boundaries. Carries an explicit test.
+**Known correctness edges (assessed on merit; some resolved by the current approach):**
+- **The hydraulic-failure discontinuity** (§5) — **real** (Gate-0 measured it): a true profit jump at
+  the leaf shut-down boundary. The gradient is a one-sided branch derivative (exact off the measure-zero
+  boundary); the fixed-point/selection module must **refuse** at a crossing (like a spectral-gap
+  closure), not average through. Kept.
+- **Long-horizon resident-TF24/TF24f stiffness** — *reframed, not a limitation of scope*. The
+  `log_density`↔canopy + plant↔soil coupling stiffens the fixed-schedule replay at long lifetimes. The
+  **multirate soil sub-cycle** (E2's verdict, the forward track) is the resolution — its adjoint rides
+  tape-as-run; the residual stiffness that multirate doesn't cover is held by **recorded adaptive
+  sub-stepping** (an L1-refinement: record the adaptive sub-schedule, replay it fixed — an odelia
+  co-design item) with a **double-replay-error drift gate** (`tf24_stiffness_drift`) meanwhile. So this is
+  *engineered-down*, not deferred-as-stiff.
+- **Zero-height cohort NaN trap** — **real**: `area_leaf=(h/a_l1)^(1/a_l2)` → `0·log(0)=NaN`;
+  `pow(0, active)` NaNs the tangent (forward loudly, reverse latently). Fix: establish `birth ≥ N`
+  cohorts at `h0`; guard `z==0`. Cheap, carries a test. Kept.
 - **θ-parameterisation / link functions** — the core reports raw `dM/dθ` in natural coordinates;
-  transformed-space calibration applies a boundary chain-rule (a workflow convention).
+  transformed-space calibration applies a boundary chain-rule (a workflow convention). Kept.
+
+**The kink / guard / store manifest (Cluster 7 — a test gate, not code):** each AD-hostile site is
+classified once — **kink** (subgradient, operating point can sit on it: the net-production sign branch,
+K93 growth/mortality clamps, the resource-spline floor+cap, canopy box/softbox, PPA layer joins, TF24
+soil floors, rooting-depth clamp, leaf `abs<1e-8`); **selector** (safe, branch on a passive value:
+shading-model dispatch, PPA layer index, the NaN-survival squash); **guard** (needs an active-safe form
+reading `value`, never throwing on an active intermediate: `check_finite_ode_state`,
+`compute_competition`'s `is_finite`, the K93 interpolator-OOB stop); **store** (must be `S` or has unsafe
+invalidation: the `aux` slots, `psi_soil_cache_`, `cached_driver_`, `height_max`). The output is a
+reviewed manifest with a verdict per site, so no subgradient ships silently.
 
 ---
 

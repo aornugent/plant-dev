@@ -42,11 +42,14 @@ v2 engine surface design. Kept for provenance and for the load-bearing detail fo
   cohorts introduced on a schedule, stepped by an adaptive ODE solver. The **Patch** is the state being
   integrated — already an `odelia::ode::Solver` System.
 - **Resident vs mutant** — resident/total differentiates *with* self-feedback (a trait re-shades the
-  stand); mutant/invasion is a rare mutant's fitness gradient against a frozen resident canopy (the
-  selection gradient). Same engine, the L3 replay variant.
-- **Replay levels L0–L3** — the four adaptive constructions frozen to their recorded placement so the run
-  is differentiable: L0 cohort schedule, L1 ODE steps, L2 quadrature/interpolator knots, L3 resident
-  canopy. See `design.md` §4.
+  stand) — the **primary, v1** workflow. Mutant/invasion is a rare mutant's fitness gradient against a
+  frozen resident canopy (the selection gradient) — the **deferred** additive variant. Same engine; per
+  odelia#28 the difference is pure data-presence (resident = L3 cache empty → recompute; mutant = L3
+  populated → read).
+- **Record/replay caches** — run once adaptively in `double`, record where it landed, replay pinned on
+  the active scalar. Three generic caches (odelia#28): **L1** ODE step schedule (Solver), **L2** the
+  adaptive light-spline knots (recompute values active — the resident path), **L3** per-stage frozen
+  field (the mutant read, deferred); plus **L0** the cohort schedule, frozen up front. See `design.md` §4.
 - **The mass chart** — transport log-mass (`dλ/dt=−r`), which removes the density-transport term `∂ₓg`
   from the model rate (carried instead by the cohort-spacing geometry).
 - **Reverse-mode AD / XAD / tape** — records operations, sweeps backward for all input derivatives from
