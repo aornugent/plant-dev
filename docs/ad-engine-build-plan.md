@@ -126,7 +126,12 @@ P1a/P1c reserve the slot). Validate against FD of the residual-solved equilibriu
 | `Solver::reserve_state` | **delete** | unused; growth correct via XAD slot indirection |
 
 ## Open before Phase 1 hardens
-- F1/E2 results (Phase 0) — gate Phase 3's shape and the soil coordinate.
+- ~~F1/E2 results (Phase 0)~~ **DONE 2026-07-16** — see [`phase0-results.md`](./phase0-results.md).
+  F1: the Eulerian transport operator is faithful to the march (median residual 8.6e-6) and the
+  steady profile is well-posed → **Phase 3 as route (ii) confirmed viable**. E2: the two soil
+  envelopes do not share a shape (32 OOM) and every desingularizing chart *increased* cost
+  (0.30–0.47×) → **drop the coordinate item; keep multirate sub-cycle + kink-split** (the latter cut
+  rejections 1.85×).
 - The `γ` `∂/∂s` implementation vs FD-fallback (P1c) — low-stakes, decide at build.
 - Whether P2a's mass chart is adopted as the *default* for gradient runs or stays opt-in (re-baseline
   the K93 ~0.2% snapshots if default).
