@@ -7,25 +7,26 @@ integration is expensive to resolve accurately under realistic forcing, and that
 in both directions. **Do not presuppose a solution** — in particular do not assume the answer is an
 implicit/stiff stepper, a quasi-steady-state elimination, or operator splitting; a measurement below
 suggests the usual stiffness remedy does not apply. We suspect the difficulty may be a
-representational artifact (the state variable, the near-singular constitutive law, the hard reset)
-rather than intrinsic; challenge the framing.
+representational artifact (the state variable, the near-singular constitutive law, the lower-bound
+projection) rather than intrinsic; challenge the framing.
 
 We integrate with an adaptive explicit Runge–Kutta method and differentiate with an XAD
 operator-overloading reverse-mode tape. Nothing below is application-specific.
 
 ## 1. The subsystem
-A low-dimensional state `u ∈ ℝ^L` (`L ≈ 1–5`) evolves alongside a large main system:
+A low-dimensional state `u ∈ ℝ^L` (`L ≈ 1–5`), **bounded below** (`u_ℓ ≥ u_min`), evolves alongside a
+large main system:
 
 ```
 du_ℓ/dt = ( s_ℓ(t) − w_ℓ(u_ℓ) − σ_ℓ ) / τ_ℓ ,   ℓ = 1..L
-w_ℓ(u) = W_ℓ · (u_ℓ / u_sat)^p ,   p ≈ 16 ,   u_ℓ ≥ 0 (enforced by a reset when a step would cross 0)
 ```
-- `s_ℓ(t)` is an **external forcing** that is realistically **rapid and intermittent** (bursts
-  separated by quiet intervals), not smooth.
-- `w_ℓ` is a **state-dependent loss with a large exponent** (`p ≈ 16`): near-zero when `u` is low,
-  steep when `u` is high. Both `w_ℓ` and other quantities read off `u` (below) approach a
-  **singularity as `u → 0`** (the reason for the reset).
-- `σ_ℓ` is a **sink drawn from the large main system** (see §2).
+- `w_ℓ(u)` is a **state-dependent loss that increases very steeply with `u`**: its slope `w′_ℓ(u)`
+  spans several orders of magnitude across the operating range — large when `u` is high, near-zero as
+  `u` approaches `u_min`, where `w_ℓ` and other quantities read off `u` become **near-singular** (the
+  reason for the lower bound, and for a projection back to it if a step would cross).
+- `s_ℓ(t)` is an **external forcing that is rapid and intermittent** (bursts separated by quiet
+  intervals), not smooth.
+- `σ_ℓ` is a **sink drawn from the large main system** (see §2), so the two are coupled.
 
 ## 2. The coupling and the cost setting
 The main system is a large ODE (dimension `N ≈ 10²–10³`) integrated on a **shared adaptive step
@@ -39,11 +40,11 @@ controller shrinks the step, the whole large system pays it, forward and reverse
 ## 3. The measured difficulty (the key datum)
 Instrumenting realistic runs, the step-size collapse that dominates cost is **accuracy-driven, not
 stability-driven**, and it is localised to `u`'s fast transients:
-- The controller's smallest steps occur when `u` is **low** (depleted, near the `u→0` singularity),
-  where the linear relaxation time `τ/w′(u) ∝ u^{1−p}` is actually **large** (slow). So the small
-  steps are **not** the classical stiff-stability limit (which would bind at *high* `u`, where
-  relaxation is fast); they are the controller resolving a **genuinely rapid excursion** of `u`
-  toward the singular boundary during a forcing burst.
+- The controller's smallest steps occur when `u` is **low** (near `u_min`, the singular end), where
+  the linear relaxation time `τ/w′(u)` is actually **large** (slow — `w′` is small there). So the
+  small steps are **not** the classical stiff-stability limit (which would bind at *high* `u`, where
+  `w′` is large and relaxation is fast); they are the controller resolving a **genuinely rapid
+  excursion** of `u` toward the singular bound during a forcing burst.
 - Quantitatively: `corr(log Δt, log(‖u − u*‖/u)) = −0.91` (`u*` = the instantaneous balance point);
   every smallest-decile step is a far-from-balance transient (`‖u−u*‖/u` up to ~25); ~90% of steps
   are near balance with large steps, ~10% are these tiny-step transients.
@@ -60,8 +61,7 @@ its gradient. The reduction gradients must still match a finite difference of th
 ## 5. Facts an answer can rely on
 - The subsystem is low-dimensional (`L ≤ 5`); the main system is large and shares its step schedule.
 - The forcing `s(t)` is data (recordable), rapid, intermittent.
-- The state is nonnegative with a hard reset at 0; the loss and other reads are near-singular as
-  `u → 0`.
+- The state is bounded below; the loss and other reads become near-singular at that bound (`u_min`).
 - A **reformulation is on the table** — of the state variable, the constitutive law near the
   boundary, the reset, or how `u` is stepped relative to the main system — if it makes the resolution
   cheap and keeps the forward values and the reverse gradient correct.
@@ -70,8 +70,8 @@ its gradient. The reduction gradients must still match a finite difference of th
 
 ## 6. Questions (open; invite reframing)
 1. Given §3, **what actually makes this subsystem expensive**, and is it **intrinsic** or an artifact
-   of a representational choice we have not questioned — the state variable `u`, the `u^p`
-   near-singular loss, or the hard reset at `u → 0`?
+   of a representational choice we have not questioned — the state variable `u`, the steep,
+   near-singular loss law, or the projection at the lower bound?
 2. Is there a **change of variables, regularisation, or local (per-step) analytic treatment** of the
    rapid excursion near the singular boundary that resolves it cheaply **and** stays differentiable in
    reverse mode — without changing the forward values beyond a documented, controlled amount?
@@ -79,7 +79,7 @@ its gradient. The reduction gradients must still match a finite difference of th
    own local error control — so its tiny-step transients do not force the whole large system to small
    steps? If so, what is the correct reverse-mode treatment of a sub-cycled subsystem, and how does
    the bidirectional coupling constrain it?
-4. Of the features — the large exponent `p`, the intermittent forcing, the hard reset, the shared
+4. Of the features — the steepness and near-singularity of the loss, the intermittent forcing, the lower-bound projection, the shared
    schedule, the bidirectional coupling — which is load-bearing for the cost, and which is incidental?
 5. A **cheap discriminating experiment** for whatever mechanism you judge most likely, to run before
    building.
