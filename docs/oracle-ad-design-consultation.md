@@ -106,7 +106,10 @@ field about `xᵢ`. It is the only term in `dℓ/dt` that is not a plain pointwi
 The transported per-characteristic quantity is a **pointwise log-density** `ℓᵢ`; the mass carried
 by characteristic `i`, `mᵢ = exp(ℓᵢ)·Δxᵢ`, is a derived quantity, **not** a state variable. The
 inter-characteristic spacings `Δxᵢ` themselves evolve, `d(Δxᵢ)/dt = g(xᵢ) − g(x_{i+1})`, and they
-are the weights of every reduction (§2).
+are the weights of every reduction (§2). A stabilised variant of the scheme takes `Cᵢ` as the
+neighbour secant `(g_{i+1} − g_{i−1})/(x_{i+1} − x_{i−1})` over those same spacings (one-sided at
+the ends) rather than a sub-grid stencil; with that choice `Cᵢ` is, term for term, the same
+discrete quantity as `d(logΔxᵢ)/dt`.
 
 ### 1.3 The coupling field `S`, rebuilt every RK stage
 
@@ -127,6 +130,21 @@ So the population couples through a **low-rank two-stage map** rebuilt each stag
 positions and `M, B` are fixed; only the knot **values** carry state-dependence. Reads occur at
 query points `xᵢ` that are themselves **evolving state**.
 
+Concrete structure of `κ` and `Ψ` (facts, not simplifications):
+- `Ψ(A) = exp(−A)` with `A ≥ 0`, so `S = exp(−A) ∈ (0,1]` is a decreasing function of a nonnegative
+  cumulative sum.
+- `κ(z, x; θ) = c_k · x² · (1 − (z/x)^η)²` for `z ≤ x`, else 0 (`c_k, η` parameters). Expanding,
+  `κ = c_k[ x² − 2 z^η x^{2−η} + z^{2η} x^{2−2η} ]` — a **finite separable sum** (here three terms
+  `Σ_p a_p(z) b_p(x)`), so `A(z)` is a small number of one-sided cumulative sums over the ordered
+  population.
+- The kernel has a **double zero on the diagonal**: `κ(z,z)=0` *and* `κ_z(z,z)=0`. Consequently
+  `A(z)` (and `S(z)`) is C¹ across every particle coordinate, and a source entering at the boundary
+  contributes only to its own read.
+- The rates read `S` (and the compression its neighbour values) **only at the population coordinates
+  `{xᵢ}` and the boundary `x_b`** — with one exception, a variant whose response `ρ` (§1.4) reads `S`
+  at several sub-grid points spanning each characteristic; even there the value needed is the same
+  separable aggregate, evaluable in closed form at any query.
+
 ### 1.4 Embedded inner solves (one ingredient of the rates)
 
 At each characteristic, one scalar ingredient of `g`/`r` — the **response** `ρᵢ` — is produced
@@ -138,8 +156,13 @@ by an inner optimization over a two-variable operating point `(q, v)`:
    v*  solves  c(v, q; xᵢ, Sᵢ, u; θ) = 0   (an equality constraint: ∂J/∂v ≠ 0 there)
 ```
 
-- Both the argmax and the constraint solve are **iterative**, with data-dependent iteration
-  counts and no closed form. We do not want to record those iterations on the tape.
+- Both the argmax and the constraint solve are **iterative** and we do not want to record their
+  iterations on the tape. They are, however, **algebraic, not transcendental**: `c(v; q) = 0` is a
+  rational balance that clears to a low-degree polynomial in `v` (a quadratic per branch; the
+  smooth-min coupling two branches raises the combined equation to a quartic), solved iteratively
+  only for branch-robustness. The optimum over `q` sits **strictly above** the `v`-solve (the
+  quantity fixing `v` is held constant during that inner solve), so the two are cleanly nested, not
+  simultaneous.
 - `J`, `c`, and the maps building them are **piecewise** in some arguments (§1.5).
 - **Two regimes** for the optimum:
   - **(a) solved** — `q` is driven to the optimum every evaluation (stationary, `∂J/∂q=0`);
@@ -156,9 +179,24 @@ Several ingredients of `g`, `r`, `H`, `J`, and `c` are piecewise or clamped: sig
 `if(a>0)… else 0`; clamps `max(0,x)`, `min(x, x_max)`; and, notably, a scalar built from an
 **integral whose active branch (integrand form and/or limits) switches at points that depend on
 the state and on `u`**. Some of these sit on a rate that is later differentiated or integrated
-in time.
+in time. Note the integral itself is **not** a quadrature: its integrand (`exp(−(ξ/b)^c)`-type) has
+a **closed-form antiderivative** (a lower-incomplete-gamma form), and it is currently evaluated
+analytically by differences of that antiderivative — the *only* difficulty is the moving,
+state-dependent branch point where the two branch antiderivatives meet.
 
-### 1.6 Increase of dimension, and the two-pass structure
+### 1.6 The auxiliary subsystem `u`
+
+`u ∈ ℝ^{L}` (`L ≈ 1–5`) evolves by `du_ℓ/dt = ( s_ℓ − w_ℓ(u_ℓ) − σ_ℓ ) / τ_ℓ`, with `s_ℓ` a source,
+`σ_ℓ` the population-aggregated sink (built from the non-stationary co-output `σ`, §1.4), and a
+state-dependent loss `w_ℓ(u) = W·(u/u_sat)^p` with a **large exponent** `p ≈ 16`. `u_ℓ ≥ 0` is
+enforced by a reset. Because of the large `p`, the local relaxation time `τ ∝ 1/w′(u) ∝ u^{1−p}` is
+**short when `u` is high and diverges as `u` depletes**. Measured on realistic runs: `u` sits within
+~1% of its instantaneous equilibrium ~90% of the time (relaxation ≪ the timescale on which the sink
+drifts), but a minority (~10%) of steps are genuine fast transients where `u` lags equilibrium by
+order one or more; the adaptive integrator resolves those with sharply reduced step sizes (the
+stiffness). `u` feeds back into `g`, `r`, and the operating point.
+
+### 1.7 Increase of dimension, and the two-pass structure
 
 - **Insertions.** New characteristics enter at the boundary `x_b` on a schedule; `N(t)` grows
   from `O(1)` to `N ≈ 10²–10³`. A newborn's `ℓ` is set by a boundary-influx formula reading
@@ -170,7 +208,7 @@ in time.
   ordering `x₁ < … < x_N` holds (no crossings), so every membership set `{j: xⱼ ≥ z_m}` is stable
   data.
 
-### 1.7 Sizes and symbols
+### 1.8 Sizes and symbols
 
 `N ≈ 10²–10³`; `k ≈ 17`; RK stages `s = 2–7`; steps `10³–10⁵`; `p_u ≈ 1–5`; `|θ| ≈ 5–20`.
 
