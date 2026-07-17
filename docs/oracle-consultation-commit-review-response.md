@@ -162,3 +162,27 @@ fully restores consistency (~1e-9).**
 With this, the commit review is discharged: the design stands, the three amendments (B1 control-block
 collapse, B2 pin-k-DAE-escape, B3 spectral quadrature + full-M anchor) are adopted, and the top footgun
 is measured with its cure in hand. Nothing further gates the #2 build.
+
+## H0 (envelope identity) checked — does NOT hold for TF24; both models supported without it
+
+The Oracle's H0 (if the coupling byproduct `c_ℓ = ∂P/∂u_ℓ` at the optimum, then `a = ∇_u V`,
+`V = Σ_j max_p P`, and the fast dynamics never reference `p*`) would be the one option that removes
+`p*` entirely and unifies TF24 (argmax) and TF24f (tracked). **Checked — it does not hold for TF24, on
+structure:** the quantity fed into the soil balance is the **water flux** `E` (`resource_depletion`, a
+volume rate in `θ̇ = (in − drain − E)/dz`), whereas `∂P/∂u_ℓ` is a **marginal carbon profit**. Different
+physical quantities / units; `E` is a constraint flux, not the gradient of the carbon objective. The
+optimal-stomatal relation links `E` to `∂P/∂ψ_soil` only through the hydraulic supply function and a
+shadow price `λ` — a model-specific relationship that would *reintroduce* `λ`/supply algebra, not
+eliminate `p*`. (`h0_envelope_check.R`; a clean empirical ratio couldn't be shown because a transpiring
+*standalone* leaf config isn't reachable through the R Leaf interface — the structural argument settles
+it regardless.)
+
+**Consequence — H0 is not needed to support both TF24 and TF24f.** The m-member collocation fast
+subsystem already supports both by construction; they differ only in how the control is obtained at the
+m collocation nodes: **TF24 re-optimises** the argmax there (option H2/H3 territory if kept exact),
+**TF24f tracks** it (`dq/dt=k·dprofit`). E2/E3 measured that the two agree (tracked reproduces the
+re-optimised/QSS soil trajectory to <1e-3). So "support both" is a property of the architecture, not of
+H0. The envelope theorem still earns its keep on the **reverse** side (differentiating through the
+optimised leaf, the `∂p*/∂input` terms drop by stationarity — which is *why* tracked and argmax gradients
+agree to first order and why the adjoint is robust). If a future strategy's coupling were a carbon-flux
+(so `c = ∂P/∂u`), H0 would apply and unify — worth a one-line check per new model.
