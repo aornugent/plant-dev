@@ -171,13 +171,32 @@ The go/no-go, run before building. Two structural facts from the code change how
   by the θ-dependent prepare — a **measured refutation of the 10×+ continuation economics** the
   response assumed. This is the datum to feed back to the Oracle.
 
-**E2 — collocation over cohorts (promising; the bigger lever).** At fixed ψ_soil, the optimised
-operating point and profit are **near-invariant across cohort height** (q_opt = 2.0049, profit =
-−16.476 from 0.5 m to 14 m). Strong hint that the expensive operating-point solve can be **shared /
-collocated across `m ≪ N` cohorts**, attacking the O(N) factor directly — consistent with the
-response's ranking that M→m composes multiplicatively, but here it appears to be the *dominant* lever,
-not the secondary one. **Next:** a proper E2 with real per-cohort leaf attributes from the strategy
-(vary the actual cohort states, not just height-scaled conductance) to measure the `m` needed.
+**E2 — collocation over cohorts (measured; the decisive lever).** `e2_collocation.R`. Represent the
+same continuous size distribution at increasing cohort counts `m`, compute the aggregate per-layer
+uptake (backed out of the real `patch$derivs`, full physiology), converge to a fine reference (`m=80`):
+
+| θ | m=8 | m=12 | m=20 | m=40 |
+|---|--:|--:|--:|--:|
+| wet | 0.24% | 0.10% | 0.036% | 0.008% |
+| mid | 0.34% | 0.14% | 0.044% | 0.006% |
+| dry | 1.24% | 0.51% | 0.17% | 0.03% |
+
+(rel. error vs the `m=80` aggregate.) Convergence is smooth and ≈O(`m⁻²`) — trapezoidal quadrature of a
+**smooth** integrand — i.e. per-cohort uptake `c(x)` is smooth in the cohort coordinate. **m ≈ 15–20
+cohorts reconstruct the aggregate to <0.5%.** For real stands (N ~ 100s–800s) that is a **5–40× cut in
+expensive per-cohort solves** with sub-percent aggregate error — the decisive O(N)→O(m) lever E1 lacked.
+The dry/near-singular regime converges slower (layer-shutdown branch boundaries → the response's "split
+per smooth piece" / adaptive node placement there), but still cleanly.
+
+**Combined verdict (E1 + E2).** The response's two compressions land in the *opposite* order to its
+ranking: **collocation over cohorts is the dominant lever** (5–40×, measured), and warm-start/tracked-q
+is the **secondary** one (~4.5×, capped by θ-dependent prepare). They compose (m collocation cohorts ×
+cheaper-per-solve). Concrete #1/#2 seam: at each macro/leg, solve the full physiology once to fix the
+light field and pick `m ≈ 15–20` collocation cohorts (more/adaptive in the dry regime); in the soil
+sub-cycle, refresh the aggregate uptake by solving only those `m` cohorts (optionally tracked-`q` for a
+further ~4.5×) and interpolating; step the ≤5 soil states with a Rosenbrock-W / RODAS micro-stepper for
+the wet-end stiffness. This is exact-in-θ (no surrogate-in-`u`), so it dodges the plateau, and its tape
+cost is `m` implicit nodes per micro-step (the N-factor never hits the tape).
 
 **Net reading:** the surrogate-in-`u` is dead (confirmed); rung-1 works but is modest (~4.5×), not
 transformative, because per-cohort prepare is θ-dependent and irreducible; the **M→m collocation over
