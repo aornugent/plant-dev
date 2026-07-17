@@ -242,6 +242,27 @@ runner / "TF24split" path; production TF24 untouched). The map that fixes the de
 - The **light spline is frozen per step** (rebuilt only in `compute_environment`, from `set_ode_state`),
   so cohorts+light can be held while θ varies.
 
+**Design decision (system-design skill, candidate C wins):** commit to a **`[slow | fast]` state layout,
+fast block last** — Patch is *already* this (`[cohorts | environment]`), so the SCM's `Solver<Patch>` needs
+**no wrapper and no re-ordering**, and `MriStep` needs no fast-indices/offset concept (it splits at
+`slow_size`). Rejected: a `MultiratePatch` wrapper (forces the SCM's `patch_type`/templating to change) and
+generalizing `MriStep` with an offset (a new engine concept for one witness). Cost paid: the two odelia
+demonstrators were flipped to slow-first to match the one convention. **DONE odelia-side** (layout
+standardized, `freeze_slow` hook added, `method="mri"` on the Solver; 275 pass).
+
+Remaining is **plant-side only** — additive, so production stays bit-identical when `method != mri`:
+- **Partition hooks on `Patch<T,E>`** (generic: fast = the environment ODE block = soil θ + aux, slow =
+  cohorts): `fast_size`/`slow_size`/`coupling_size()=0`, `slow_rates(x,u)`, `fast_rates(u,g)` (set soil,
+  `compute_rates`, extract soil rates — cohorts+light frozen), `freeze_slow(x)` (set cohorts,
+  `compute_environment`). Additive methods; the plain ODE path is untouched.
+- **Method selection through `Control`** → the SCM passes it to `solver(patch, make_ode_control(c), method)`.
+  Default `rkck` ⇒ production bit-identical.
+- **SCM adaptive path:** the resident run uses `advance_adaptive` (scm.h:238). MRI reports `yerr=0`, so set
+  `OdeControl.step_size_max` = the macro step for `method="mri"`; the controller then takes fixed
+  macro steps (grows to the cap, stays there). No embedded-error machinery needed.
+- Gate: SCM with `method="mri"` matches `rkck` on a real patch (correctness) and is stable at the daily
+  macro grid; then the split-vs-unsplit and MRI-vs-RK45 A/B (cost win needs items 4+).
+
 **Adapter design (no odelia change beyond the `freeze_slow` hook, already added):**
 - Fast block = the environment block (soil θ + aux); slow block = cohorts. `coupling_size = 0` — the fast
   rates read the **frozen Patch** (cohorts+light), not a linear aggregate `g`.
