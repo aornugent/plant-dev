@@ -9,6 +9,22 @@ so the port can proceed without the prototyping context. If you are picking this
 Status at freeze: **numerics settled, all load-bearing claims measured; nothing gates the design.**
 Remaining is the engine port itself + the plant-side exposures (§6, tracked in the plant issue).
 
+**Port progress (odelia branch `claude/tf24-multirate-engine`, off master `c9ae31b`):**
+- ✅ **Slice 1 — MRI skeleton + toy (forward).** `inst/include/odelia/mri.hpp` (`MRICoupling` + tables
+  incl. MRI-GARK-ERK33a; `mri_macro_step`/`mri_advance`; `FastLeg` — the fast block presented as a plain
+  System so the existing `SolverInternal` sub-cycles it, no parallel RK). `inst/include/examples/two_rate_system.hpp`
+  (scalable demonstrator). `src/mri_interface.cpp`, `tests/testthat/test-example-two-rate.R`. Gates: outer
+  ERK order (2/3/3), resolved coupling order (ERK33a→3), stiff consistency, fast-cost flat in M.
+- ✅ **Slice 2 — reverse mode by record→replay.** Macro step templated on the scalar; one record-or-replay
+  fast-leg driver (`if constexpr` guards the double-only adaptive branch); `MRISchedule`. `two_rate_gradient`
+  in the interface. Gate: adjoint = frozen-schedule FD ~1e-9 across k; eps-independent.
+- ⏳ **Slice 3 — R1 splitting inner + ROS34PW2** (next). **Slice 4 — TF24/TF24f in plant** (after; needs aornugent/plant#53).
+
+**Boundary refinement (vs §4.4/§4.5 below):** collocation and the control-block collapse are **model**
+concerns (how TF24 implements `aggregate`/`fast_rates`), **not** engine machinery. odelia stays
+model-agnostic: the MRI skeleton, inner steppers, and record→replay tape. A multirate System = a plain
+odelia System **+** `{fast_size, slow_rates, fast_rates, aggregate}` (`aggregate` linear-homogeneous).
+
 ---
 
 ## 1. Map — where everything is
