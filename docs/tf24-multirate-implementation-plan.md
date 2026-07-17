@@ -213,3 +213,62 @@ vehicle for the taped adjoint before touching the model.
 This is the **transient** regime only. The fixed-point / regnans gradients (the largest R7
 payoff) are the Eulerian-BVP + IFT-adjoint layer and do not use the stepper at all — MRI cuts
 the transient march cost (the N/L amplifier) and is orthogonal to the equilibrium gradients.
+
+---
+
+## 11. Phase B prototype — reverse-mode results (measured)
+
+Reverse-mode AD is implemented through the multirate MRI scheme
+([`mri_ad.hpp`](../scripts/tf24-multirate/mri_ad.hpp),
+[`mri_ad_runner.cpp`](../scripts/tf24-multirate/mri_ad_runner.cpp)): a double adaptive pass
+records the two-level frozen schedule (per-leg micro step sizes); an XAD reverse pass
+(`AReal<double>`, `computeJacobian`) replays it **fixed-step**, taping the scheme-as-run; one
+adjoint sweep returns `d(functional)/d(traits)`. The surrogate is the two-way low-rank
+soil(5)+canopy(M) system with a 5-trait vector `{Ksat_mult, n_psi, t_pot, theta_wilt,
+alpha_scale}`; **TF24f's tracked-`q` is just one more slow tracked state — same machinery, O(1)
+more tape** (the canopy states are already tracked ODE states, so the surrogate exercises the
+TF24f shape). Validation: [`mri_ad_test.R`](../scripts/tf24-multirate/mri_ad_test.R).
+
+![reverse-mode validation](fig/tf24-mri-ad-validation.png)
+
+1. **The tape is the exact discrete adjoint.** Across **4 rainfall scenarios** (dry 29 / normal
+   315 / wet 599 / pulsy 121 mm·yr⁻¹) **× 12 sampled trait vectors = 48 gradients** (5 components
+   each), reverse-mode matches frozen-schedule central FD to a **worst absolute error of 2e-9**
+   (the FD noise floor) — with hard positivity clamps *and* with smooth floors. No bespoke
+   multirate adjoint; the tape of the scheme-as-run is the gradient (panel a).
+2. **Reverse is O(1) in |θ|.** One sweep returns all trait gradients: reverse wall is **flat
+   (~30 ms)** as the number of differentiated traits goes 1→5, while FD is **linear**
+   (4.5→20 ms = 2|θ| forwards). Crossover ~7–8 traits; at the plant trait count (k≈17) reverse
+   wins ~2–3× *and*, unlike FD, is exact (panel b). This is the property FD cannot match at scale.
+3. **Multirate confines the tape cost to the small block.** Soil sub-cycle step count is
+   **independent of M** (1680 micro steps at every M); the M-block is taped only at macro cadence,
+   so reverse cost is **O(M·n_macro + n_micro·5), not O(M·n_micro)**. Reverse wall grows gently
+   with M (28→148 ms for M=10→800; panel c) — the multirate scalability claim, now in reverse mode.
+4. **Near-bound non-differentiability: a latent risk, handled — not an observed failure.** The
+   apparent early failures were a *relative*-error artifact: in the dry scenario the drainage
+   traits (`Ksat_mult`, `n_psi`) have ~0 gradient (drainage is irrelevant when bone-dry), so
+   relative error explodes while absolute error stays ~1e-11. Under a combined abs+rel criterion
+   (`|Δ| < 1e-7 + 1e-4|g|`) all 48 pass. The genuine residual risk is a trait perturbation
+   *straddling a hard clamp* (AD returns the one-sided derivative; FD straddles the kink); the
+   declared **smooth-floor** option removes it at negligible cost and is recommended for gradient
+   runs — matching the surface design's "smooth-floor is a model-side declared option" and the
+   event-as-IFT-root plan (§5) for hard `u_min` events.
+
+**Verdict — suitable.** Reverse-mode multirate gives **exact gradients, robustly, across the whole
+rainfall × trait matrix**, scaling **O(1) in |θ|** and **O(M·n_macro)** in the big block.
+Recommended gradient-run config: kink-aligned daily macro grid; Midpoint (order 2) or Kutta3
+(order 3) table; smooth-floor near the bound; checkpoint at macro boundaries.
+
+**Caveats / remaining Phase-B work before the literal plant port.**
+- The surrogate carries TF24/TF24f *structure* (two-way low-rank coupling, tracked slow states,
+  near-bound stress) but not plant's constants — it validates the *method's* reverse suitability.
+- `rev/fwd ≈ 15–32×` is operator-overloading tape overhead — a bounded constant, not a blow-up;
+  checkpointing at macro boundaries (already in §5) bounds tape memory for multi-year runs (the
+  single tape used here is fine to ~1 yr × M=800).
+- Not yet exercised: (i) a **hard `u_min` touchdown event with an active IFT-root** (the surrogate
+  uses smooth stress, no hard event); (ii) the **aggregate surrogate's u-dependence** (§6; the
+  surrogate's aggregate is pure-τ). Both have a clear path and are the last steps before wiring the
+  literal plant leaf/soil coupling.
+
+Ladder status update (§7): **V0 values ✅, V0 adjoints ✅ (48/48 vs FD); V2 gradient-vs-FD ✅ on the
+surrogate, gradient-vs-inner-tol sweep TODO; V3 trajectory ✅, gradient across scenarios ✅.**
