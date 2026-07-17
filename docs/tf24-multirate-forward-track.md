@@ -113,13 +113,33 @@ accuracy + stability). The aggregate surrogate (§6 of the plan) is the wall-tim
 
 ---
 
-## E. Next steps (in order)
+## E. Environment / build (real-patch work) — durable setup notes
 
-1. **[in progress] Higher-fidelity forward demonstration** — a surrogate carrying the TF24 coupling
-   *structure* (nested collar-potential root reading divergent `ψ_soil`; hard `u_min` floor) integrated
-   with the mode-flagged multirate mechanic, showing concept (matches global) + stability across
-   drought→monsoon. This de-risks the real-patch bring-up without needing the `plant` build.
-   (`plant` submodule is not checked out in the current environment.)
-2. Check out + build `plant`; add the mode-flagged Lie-split bring-up to the real TF24/TF24f patch.
-3. Factor the coupling (`StateView.u()`); port the MRI macro driver; validate across scenarios.
-4. Only then: reverse-mode on the real coupling (the verdict-changing risks in §B).
+- **Submodule pairing that builds:** `odelia@master` (c9ae31b — no XAD in `ode_util.hpp`) +
+  `plant@develop`. The AD branch `odelia@cc6571c` puts `xad::value` in `to_passive` and breaks
+  `plant`'s `control.cpp` (`'xad' has not been declared`). Reinstall odelia after switching:
+  `rm odelia/src/*.o odelia/src/*.so; R CMD INSTALL odelia`, then `cd plant && make`.
+- **Demographic-overflow fix is upstream:** `traitecoevo/plant#554` (NSC storage pool, reserve-gated
+  growth) is the root-cause fix for the `#550` cohort-density blow-up — *not* just `#552`'s graceful
+  abort. Our fork `aornugent/plant` was 7 commits behind; fast-forward `develop` to
+  `traitecoevo/plant@141dc8df`. With `#554` in, the coupled patch survives the full 60-day window
+  across drought→monsoon (before, it aborted at 0.1–33 d). The metarepo submodule pointer needs
+  `aornugent/plant` fast-forwarded to `141dc8df` (push to the fork was blocked from the session).
+- **Driving the real patch safely:** the raw `patch$derivs` **segfaults** when a hand-rolled
+  integrator hands it an *overshooting cohort state*. Perturbing **only the 5 soil states** (physical
+  range, incl. slightly negative / saturated) is safe. So the real-patch soil-integrator benchmark
+  freezes the cohort block and varies only soil — `run_global` calls the full (expensive) patch RHS
+  every soil-limited RK stage; `run_mri` refreshes cohort demand once per daily macro and sub-cycles
+  the soil with a cheap soil-only RHS (which reproduces the patch soil derivative to machine
+  precision). See `bench_real_patch.R`, `real_patch_probe.R`.
+- **Premise confirmed on the real patch:** soil `∂θ̇/∂θ ~ 343 day⁻¹` (fast timescale ~0.003 d) vs the
+  daily macro — ~300× separation.
+
+## F. Next steps (in order)
+
+1. **[in progress] Real-patch soil-integrator benchmark** — MRI vs the global RK45 run on the real
+   TF24/TF24f patch (cohorts frozen), across drought→monsoon: accuracy, stability, expensive-eval and
+   wall-time cost. (`bench_real_patch.R`; `data/bench_real_*.rds`.)
+2. Factor the coupling inside `plant` (`StateView.u()`); port the MRI macro driver into plant's
+   solver so cohorts evolve under the macro step too (removes the frozen-cohort caveat).
+3. Only then: reverse-mode on the real coupling (the verdict-changing risks in §B).
