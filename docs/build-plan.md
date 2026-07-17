@@ -69,7 +69,19 @@ clean-boundary axis the v2 emphasises:
 
 ## Phase 1 — engine primitives (odelia); P1a–P1d independent → parallel
 Each a standalone odelia addition with its own test, no plant dependency.
-- **P1a — implicit-node** *(load-bearing; de-risk first).* First-order reverse-through-solve via `fwd<double>` (no nested tapes). Verify on a scalar monotone root + a 2×2 KKT (IFT vs FD ~1e-10). Reserve a registration slot for higher-order partials (Phase 3) — additive, **not** implemented now.
+
+**Reassessed order (2026-07-17): scan first, not implicit-node.** The earlier "P1a first,
+load-bearing, de-risk first" put the implicit-node at the front because the scary unknown was whether
+the tape survives the growing-dimension resize / `ode_rates` injection. **That is now closed** (CD-A
+verified — `test-ad-growing-resize.R`). So the front of Phase 1 optimises instead for the *shortest path
+to one end-to-end verified resident gradient* — **K93 resident census**, the first visible win. K93 has
+**no inner solve**, so P1a/P1c are not on its path (they are TF24 machinery, P2c). The K93 path is
+**P1b (scan) → P1e (mass transport) → P2a/CD-G**. Build order: **P1b, then P1e, then P1d (light,
+structural), then P2a**; P1a+P1c land just before P2c, P1f with P2b. CD-B (tape-from-`ode_rates`) rides
+P1a and is verified on a plant-shaped toy when P1a lands, not up front.
+
+- **P1b — scan-coupling** *(first; the v2 core).* Suffix/prefix scans; near-diagonal band `δ` (default 0 + debug exactness check vs `kernel_direct`); Neumaier. Verify: dot-product oracle + `Σ a_p b_p` vs supplied `κ`. Pure odelia, self-verifying, no plant dependency — the disciplined first landing.
+- **P1a — implicit-node** *(lands before P2c).* First-order reverse-through-solve via `fwd<double>` (no nested tapes). Verify on a scalar monotone root + a 2×2 KKT (IFT vs FD ~1e-10). Reserve a registration slot for higher-order partials (Phase 3) — additive, **not** implemented now.
 - **P1b — scan-coupling.** Suffix/prefix scans; near-diagonal band `δ` (default 0 + debug exactness check vs `kernel_direct`); Neumaier. Verify: dot-product oracle + `Σ a_p b_p` vs supplied `κ`.
 - **P1c — `incomplete_gamma`** (was "the γ node"). Value + `∂/∂x` + `∂/∂s`; `∂²/∂s²` reserved. FD-validated at init.
 - **P1d — `value()` firewall + harness.** `decide`/`diagnostic`; raw `xad::value` grep-banned in Model/Numerics. The reusable harness: frozen-schedule FD, per-edge probes, the dot-product oracle, conservation invariants, the M1 "every seeded param has a partial" gate.
@@ -154,9 +166,11 @@ missing self-shading) and do **not** build a `stand_*_stage_history`. **PLANT-10
 Phase 3). **IC gradients** (`Patch::ad_initial_state`, ledger E) land after P2a's resident core — sequence
 them once the L2 recompute path is solid; remove the `scm.h:231` resume stub as the IC path lands.
 
-**Critical path to #52 parity:** (F1/E2 done; CD-A mechanism verified) → CD-B wiring + IC-seeding on IndividualRunner → P1a+P1b+P1c+P1e →
-P2a (also CD-A/CD-G on K93-resident) → P2b → P2c → P2d. Fastest visible win: **P2a (K93 resident census)
-once P1b+P1e land and CD-A is green.**
+**Critical path to #52 parity (reassessed):** (F1/E2 done; CD-A verified) → **P1b (scan)** → **P1e (mass
+transport)** → **P2a/CD-G (K93 resident census — the first visible win + integration fixture)** →
+P1a+P1c → **P2c wiring (TF24)** → P2b (FF16, +P1f) → P2d (TF24f). P1d (firewall) lands alongside P1b.
+IC-seeding on IndividualRunner sequences after P2a's resident core. Fastest visible win: **P2a once
+P1b+P1e land** (CD-A already green).
 
 ## Multirate soil — OUT OF THIS PLAN (pursued independently)
 The multirate sub-cycle for the ≤5-state soil block (E2: kink-split at recorded rainfall knots; the
