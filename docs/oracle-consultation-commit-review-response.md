@@ -130,8 +130,35 @@ gradient channel), **B2** (pin k, DAE documented as escape). Everything else is 
 
 **Discriminating experiment (run first, guide §7):** the **B3 gradient-reduction-bias check** — it is
 the "single most likely way this design quietly misleads," and it is a genuine gap in E4 (which
-certified adjoint = FD at *fixed* m, not gradient-of-reduced ≈ gradient-of-full). Extend the E4
-surrogate with an interior member-coordinate regime kink; measure gradient-vs-m and value-vs-m
-convergence with and without model-level smoothing of the switch; confirm the bias appears at the kink
-and that smoothing (cure a) restores gradient convergence. **B1 sizing** (spread of `p*` + `P_pp`
-margin) is the build-time measurement on the real cohorts.
+certified adjoint = FD at *fixed* m, not gradient-of-reduced ≈ gradient-of-full). **B1 sizing** (spread
+of `p*` + `P_pp` margin) is the build-time measurement on the real cohorts.
+
+## B3 footgun measured (2026-07-17) — `scripts/tf24-multirate/e4_bias_test.R` — CONFIRMED, and the cure works
+
+Extended the E4 surrogate with an interior member-coordinate regime boundary whose crossing **moves
+with `u`** (members shut off as the soil aggregate drops), and measured the adjoint's self-consistency
+(adjoint vs frozen-record FD of the *m*-scheme) as `m` refines, hard switch vs smoothed:
+
+| variant | adj vs FD (m = 8 → 64) |
+|---|---|
+| no kink (smooth coupling) | ~1e-9 throughout |
+| **hard moving kink** | **4.5e-3 → 4e-4** |
+| **smoothed kink (width 0.1 = cure a)** | **~1e-9 restored** |
+
+The hard kink degrades adjoint-vs-FD by **5–6 orders** — the m-scheme is **non-differentiable at the
+moving crossing**, so its own adjoint stops matching its own FD. This is precisely the failure a
+"1e-8 adjoint=FD on the *smooth* surrogate" check (our E4) does not catch until the real model's
+layer-shutdown boundaries bite. **Model-level smoothing of the regime switch (the Oracle's cure a)
+fully restores consistency (~1e-9).**
+
+**Consequences for the build (now locked):**
+1. **Smooth every member-coordinate regime switch at a declared scale** (leaf layer-shutdown / uptake
+   on-off) — a one-line model-side change; it restores high-order quadrature *and* a differentiable tape
+   everywhere, and needs no new machinery. This is a **prerequisite**, not an optimisation.
+2. Keep the harness's **adjoint-vs-FD self-consistency check on a kink-carrying surrogate** (not just a
+   smooth one) as the standing regression gate, plus the gradient-vs-`m`/`k` Richardson checks against a
+   full-M / small-lag reference on representative runs.
+
+With this, the commit review is discharged: the design stands, the three amendments (B1 control-block
+collapse, B2 pin-k-DAE-escape, B3 spectral quadrature + full-M anchor) are adopted, and the top footgun
+is measured with its cure in hand. Nothing further gates the #2 build.
