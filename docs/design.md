@@ -46,8 +46,9 @@ parameters are **low-level strategy fields + soil params + birth rate** (not eco
 Most apparent complexity dissolves once two independent axes are separated:
 
 - **Replay** — a property of the *system*: what adaptive constructions must be frozen so the run is
-  differentiable (§4). The resident SCM needs L0·L1·L2 (recompute); a bare ODE needs only L1. The
-  ecological **feedback choice** (resident vs mutant) is the L2-recompute vs L3-frozen switch.
+  differentiable (§4). The resident SCM needs L0·L1 + the exact-scan coupling field (L2 only for the
+  non-separable fallback); a bare ODE needs only L1. The ecological **feedback choice** (resident vs
+  mutant) is the recompute-active vs read-frozen (L3) switch.
 - **Functional** — *what scalar* is differentiated (an emergent metric, or a likelihood), orthogonal to
   replay (§8).
 
@@ -147,11 +148,18 @@ freezes" framing was a headache that conflated levels; the clean model:
 | Cache | What | Owner | Cadence | Status |
 |---|---|---|---|---|
 | **L1** | ODE step schedule | odelia `Solver` | per accepted step | done — driver replays `advance_fixed(recorded_steps())` |
-| **L2** | adaptive node positions (**the light spline knots — the only adaptive field**, VII.1) | System, via the replayable interpolator | per step | the **resident** path: record knots, **recompute values active** on them (self-shading flows) |
+| **L2** | recorded adaptive node positions | System, via the replayable interpolator | per step | **only the non-separable coupling fallback** (`FlatTopSoftBox`) + any other adaptive refiner; **not** the default coupling field (see below) |
 | **L3** | per-stage recomputable field values | System | per RK stage | the **mutant** path: read recorded `double` by `(step,stage)`; **DEFERRED** |
 
 Plus **L0** — the cohort introduction schedule (`scm`), frozen up front (`refine_schedule` runs once in
 `double`); with introduction times constant, introductions grow the tape but **inject no discontinuity**.
+
+**The default coupling field is exact, not L2** (odelia design #1). For the shared `CanopyShape` kernel
+`κ(z,x)=m(x)(1−(z/x)^η)²` (K93/FF16/TF24 defaults) the field is a **closed-form separable sum** computed
+by the **scan** — non-adaptive, so it needs **no recorded positions and no L2 record/replay at all**. The
+resident coupling path is therefore L0+L1 + the exact scan; the interpolator/L2 survives only where the
+kernel is genuinely non-separable. This retires the v1 clunk (a sampled adaptive spline over a
+closed-form sum, with a frozen `∂A/∂z` — Oracle R2: "no sampled-field differencing at any tier").
 
 **The one switch is data-presence, not a mode** (odelia#28): `has_recorded_field()` is a query.
 - **Resident ⇒ L3 empty ⇒ recompute** the field active on the frozen L2 knots — a trait re-shades the
@@ -160,9 +168,11 @@ Plus **L0** — the cohort introduction schedule (`scm`), frozen up front (`refi
   the rare invader neither shades the resident nor itself. **Deferred** (per the current plan; L3 is the
   additive mutant cache, built after the resident path lands).
 
-**A run reads L2 *or* L3, never both** (VIII.0). Resident = L0+L1+L2 (recompute, no L3 read). Mutant =
-L0+L1+L3 (frozen read, no L2 recompute). The resident's `double` recording stores the union of positions
-*and* values only so a *future* mutant can read them; the resident's own gradient never reads L3. There
+**A run reads a recomputed field *or* a frozen (L3) one, never both** (VIII.0). Resident recomputes the
+field active (the scan for separable kernels — no recorded positions; the interpolator + L2 for the
+non-separable fallback), no L3 read. Mutant = L0+L1+L3 (frozen read, no recompute). The resident's
+`double` recording stores positions *and* values only so a *future* mutant can read them; the resident's
+own gradient never reads L3. There
 is no `live|frozen|replaying` state — only `recording` and the `has_recorded_field()` query; odelia grows
 **no `Recording` noun** (the word is *field*), and the interpolator owns its own knots (odelia#22).
 
