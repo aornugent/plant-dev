@@ -25,7 +25,10 @@ Remaining is the engine port itself + the plant-side exposures (§6, tracked in 
   recession, TF24-shaped) is the A/B subject: **~6× fewer fast steps at matched accuracy, flat as drainage
   stiffness grows 1000×**, positivity preserved. Splitting is opt-in (only compiles for models with the
   hooks) so the same model runs both ways — this is the harness for measuring the plant#53 exposure impact.
-  Reverse-mode *through* the split inner is a follow-up (forward A/B is the measurement).
+  Reverse mode *through* the split inner is done too: `ros34pw2_step` templated on the scalar with a
+  **passive value-Jacobian** + double-matrix/active-rhs solve; `drainage_gradient_split` matches
+  frozen-schedule FD ~1e-9 (exact because the drainage residual is linear in u — a nonlinear residual
+  would differ by the omitted ∂J terms, the intended W-property approximation / §9 open item).
 - ⏳ **Slice 4 — TF24/TF24f in plant** (needs aornugent/plant#53), then full-patch MRI-vs-RK45 + the split-vs-unsplit A/B on the real soil.
 
 odelia PR: aornugent/odelia#45 (`claude/tf24-multirate-engine`).
