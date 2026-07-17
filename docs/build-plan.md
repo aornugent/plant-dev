@@ -151,10 +151,16 @@ comprehensive:
 Sequential within plant; the critical path to #52 parity. Each strategy is taken **resident-first** up
 the ladder (single-metric → multi-variable census → `dR0/db`); the mutant (L3) path is the deferred add.
 
-**Open — the plant base to port from is undecided.** #52 carries the v1 prototype; `develop` (or an
-earlier commit) does not. Which we branch Phase 2 from is a later decision, so every plant anchor below
-and in the Port map is **symbolic** (file / function name), resolved to line numbers only once the base
-is chosen. Nothing here is applied until Phase 2 begins; odelia primitives land first.
+**Base decided (2026-07-17): branch from the #52 tip (`780cfe49`), delete-and-replace, test-guarded.**
+The history settles it: mechanical templating and AD pollution are *interleaved per strategy* — TF24's
+Stage-A templating (`069bcc43`) is immediately followed by its FD seam (`ae34a72d`), so no commit has all
+four strategies templated with no pollution. An earlier point (`~8cc44500`) is clean for K93/FF16 but
+predates TF24 templating, so starting there means re-doing that templating *without* the green tests to
+guard it. At #52 all templating is done, the pollution is localized (the Port map below enumerates it),
+and the regression tests are green and encode the correct gradients — so we refactor *down* from a green
+baseline, deleting each clunk and re-running the tests. The plant branch `claude/odelia-ad-tape-reverse-496fuf`
+is cut from `780cfe49`; baseline K93-census and FF16 bit-identity tests pass (one unrelated pandoc/report
+env failure). End state is base-independent; #52 is the safest path to it.
 
 **Plant port ledger (all Phase-1 primitives landed; here is the plant edit each enables — status
 *enabled*, not yet *applied*).** The primitive exists and is verified in odelia; the plant change waits
