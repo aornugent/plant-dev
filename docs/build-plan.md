@@ -65,7 +65,26 @@ clean-boundary axis the v2 emphasises:
   a residual; the odelia-owned implicit-node injects) — but the primitive must be *wired* so a plant rate
   path triggers it during replay without a model-held tape handle. Verify with P1a on a plant-shaped toy.
 - **CD-G — the integration fixture:** growing dim × injected-derivative-in-replay × the emergent
-  functional, FD-checked. The single test that certifies the whole SCM path; build it early, on K93.
+  functional. The single test that certifies the whole SCM path; build it early, on K93.
+  **Construction recipe (mapped 2026-07-17 — all pieces exist; nothing about odelia needs changing):**
+  1. `Patch<T,E>` already satisfies the odelia System contract (`ode_size` grows, `ode_state/rates/
+     set_ode_state/reset`, species-major `ad_parameters`). Active IC seeding is real
+     (`node.h:210` `compute_initial_conditions` sets `log_density=log(birth·pr_estab/g)` reading the
+     active environment) — the intermediate that must survive the resize.
+  2. The SCM *already runs active* via the ode-times replay branch (`run_next_impl` `advance_fixed(e.times)`;
+     the `if constexpr(double)` guards compile out the adaptive branch), grown by `introduce_new_nodes`
+     + `set_state_from_system`. `run_mutant` is the existing record→replay driver.
+  3. **What must be added** (the only missing pieces): (a) expose the SCM as a `compute_gradient`-drivable
+     runnable — `get_system_ref()`, a public `tape`, `ad_parameters()` returning pointers into the
+     *source-of-truth* params `reset()` reseeds from (so seed→reset→run propagates, cf.
+     `IndividualRunner::reset`), and call `reserve_state(final_dim)` before the active replay so tape slots
+     stay put; (b) a `value_type`-typed scalar census functional — `Patch::compute_competition(0.0)`
+     already returns `value_type` and works (`offspring_production` is `double`, needs templating later).
+  4. **Verify with the JVP=VJP dot-product oracle** (`compute_jvp` vs `compute_gradient`), *not* census FD
+     (documented ~%-noisy). Requires `control.node_geometric_compression=TRUE` (the mass chart) +
+     `save_RK45_cache=TRUE`. This is a genuine multi-file construction (SCM/Parameters facade + driver +
+     oracle), the load-bearing integration — build and verify it before the transport-default deletion and
+     the `separable_field` field swap, which it guards.
 
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
