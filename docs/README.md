@@ -20,7 +20,7 @@ clean `System` interface, and the transported-state / coupling machinery owned b
 
 ### The odelia engine design (the general-purpose machinery)
 - **[`odelia-index.md`](./odelia-index.md)** — the design index + **concept audit** (the settled,
-  intuitive concept set; what each of the six notes below settles; the map to the build-plan labels).
+  intuitive concept set; what each of the seven notes below settles; the map to the build-plan labels).
   Start here for the engine.
 - `odelia-1-transport-spine.md` (the scan + mass transport), `odelia-2-implicit-node.md`,
   `odelia-3-soil-coupling.md` (`incomplete_gamma`), `odelia-4-value-firewall.md`,

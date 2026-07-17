@@ -40,7 +40,7 @@ pruning:
 `register_implicit`, `incomplete_gamma`, and the firewall verbs — mostly *operations*, two *nouns*
 (`A`, the scan), and the two the user flagged (`TransportGeometry`, `StateView`) are **gone**.
 
-## The six design notes → what each settles
+## The seven design notes → what each settles
 | # | Note | Settles | Build-plan label |
 |---|---|---|---|
 | 1 | [transport spine](./odelia-1-transport-spine.md) | the scan (exact field `A`) + mass transport; deletes `growth_rate_gradient` + the compression loop | P1b (scan) + P1e (transport) |
