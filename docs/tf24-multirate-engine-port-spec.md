@@ -252,6 +252,10 @@ The engine consumes plant through these. **R1 is the headline; the others are th
 
 1. **plant R1 exposure** (§6, plant issue): analytic drainage flow + residual RHS + touchdown. Gate:
    split soil integration matches the current monolithic soil solve on the 5 scenarios.
+   ✅ **DONE** — aornugent/plant#54 (branch `claude/plant-53-drainage-split`): `TF24_Environment::analytic_partial_flow` /
+   `residual_rhs` / `drainage_touchdown_time` + `test-tf24-soil-split.R` (decomposition identity exact ~1e-10;
+   exact flow ~1e-7; Strang converges to monolithic drought→monsoon). `compute_rates` unchanged; infiltration shared.
+   Items 4–8 of plant#53 (factored coupling, P_pp, feasibility-clamp event, setup cache, batched kernel) still to do.
 2. **odelia MRIStepper + InnerStepper seam** (4.1–4.2): port mri_core, collapse+order gates, ARKODE
    diff-test. Gate: order 1/2/2/3 tables; base-ERK & pure-inner collapse to machine precision.
 3. **R1 splitting inner + ROS34PW2** (4.3): Gate: matches an adaptive inner on the fast block; drainage
