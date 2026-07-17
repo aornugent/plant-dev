@@ -1,5 +1,13 @@
 # TF24 multi-rate stepper — prescriptive implementation plan (MRI-GARK over odelia)
 
+> **⚠ Superseded/extended by [`tf24-multirate-engine-port-spec.md`](./tf24-multirate-engine-port-spec.md)**
+> — the authoritative, consolidated build spec (read that first). This doc remains valid as the original
+> MRI-GARK plan and forward draft, but the final design (tracked-control fast subsystem, m-member
+> collocation, ROS34PW2 micro-stepper, **R1 exact-drainage splitting inner stepper**, the reverse-mode
+> record→replay contract, and the plant-side seams) lives in the port spec, refined by four Oracle rounds
+> and the E1–E4 measurements. R1's odelia component (the splitting `InnerStepper`) is specified in the
+> port spec §4.3.
+
 *Turns the multirate survey + the ARKODE MRIStep brief into a staged, prescriptive plan
 for the odelia AD engine, and ships a validated forward-mode **draft** you can run today.
 Grounded in [`ad-engine-surface-design.md`](./ad-engine-surface-design.md),
