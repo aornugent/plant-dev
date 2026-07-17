@@ -25,7 +25,7 @@ pruning:
 | **the field `A`** | the scan's result; the model reads its value and `A.at(z)` (crown). A plain readable, not a "view" | `CouplingField`/`StateView` (#1) |
 | **mass transport** | the helper that sets `log_density_dt` from the neighbour secant of the growth rate (the mass chart: transport log-mass, derive density from spacing) — one engine rule, deletes `node.h::growth_rate_gradient` + the `species.h` loop | `TransportGeometry` (#1) |
 | **`register_implicit`** | register an inner solve as a residual + a double solver; the engine forms the IFT partials and injects them (reuses `supplied_derivative` internally) | implicit-node (#2) |
-| **`incomplete_gamma`** | the exact soil-vulnerability antiderivative (value + `∂/∂x` + `∂/∂s`), replacing the sampled `root_vuln_integral` spline | the "γ node" (#3) |
+| **`incomplete_gamma`** | the exact Weibull antiderivative `∫exp(−(|ψ|/b)^c)` (value + `∂/∂x` + `∂/∂s`); bounds the **whole leaf hydraulic transport** — soil vulnerability *and* stem `transpiration_from_psi` are the same family — collapsing all four leaf splines to exact reads (odelia #7 §C) | the "γ node" (#3) |
 | **`decide` / `diagnostic`** | the two value-reads a model may make: a recorded, replayed branch; a dead (off-tape) read | value firewall (#4) |
 | **`is_finite` / `smooth_positive`** | ADL scalar-generic finiteness; the canonical smoothed `max(0,·)` with a declared radius | firewall (#4) |
 
@@ -33,7 +33,7 @@ pruning:
 | Concept | What it is |
 |---|---|
 | the rate functions | plant's own science names (`size_dt`, `mortality_dt`, `fecundity_dt`, …) reading the field `A` and their own state — **nothing new; plant keeps its names** |
-| the **separable coupling declaration** | the one genuinely new model declaration: how the shading kernel splits into a height-side and a size-side factor (`κ(z,x)=Σ_p a_p(z)b_p(x)`). *Open naming:* the honest options are `coupling_factors_query(z)` / `coupling_factors_source(x)` or a single `coupling_kernel` struct — **pick at build; the mathy `kernel_a/kernel_b` of #1 is a placeholder, not final.** |
+| the **separable coupling declaration** | the one genuinely new model declaration: how the shading kernel splits (`κ(z,x)=Σ_p query_factor_p(z)·source_factor_p(x)`). **Settled (odelia #7 §D):** `query_factors(z)` / `source_factors(x)` (naming the role each half depends on) + `competition_direct(z,x)` for the init self-check — replacing the mathy `kernel_a/kernel_b` placeholder. |
 | `register_implicit`, `decide`, `diagnostic`, `is_finite`, `smooth_positive`, `incomplete_gamma` | the engine primitives above, called from model code as plain functions |
 
 **Net new names a reader must hold:** the scan + the field `A`, the mass-transport helper,
@@ -49,6 +49,7 @@ pruning:
 | 4 | [value firewall](./odelia-4-value-firewall.md) | `decide`/`diagnostic`/`is_finite`/`smooth_positive`; the full AD-guard survey | P1d |
 | 5 | [existing pieces](./odelia-5-existing-pieces.md) | audit of Solver/driver/functionals/IC/interpolator/L0-L1 | the "Existing engine pieces" build-plan section |
 | 6 | [boundary/tape/checkpoint](./odelia-6-boundary-tape-checkpoint.md) | no `Runnable` (call-site comment); `reserve_state` deletion candidate; checkpointing measure-gated | same section |
+| 7 | [representation + TF24 trace](./odelia-7-tf24-trace.md) | the representation guarantee (read-side views); a full TF24/TF24f bounding trace; QK templated (not moved); `incomplete_gamma` widened to the leaf transport; the settled coupling-declaration name; the census experiment scoped | verifies P1a–e cover TF24 |
 
 ## The two tape-aware Kernels (the scarce resource, bounded)
 Across the whole design there are exactly **two hand-written adjoints** — the **scan** transpose and the

@@ -84,7 +84,8 @@ arithmetic, wrong-chart compression — become **inexpressible in model code**.
 ### Engine primitives (Kernels — the only XAD-aware code)
 1. **scan-coupling** (P1b) — separated kernel factors `{a_p(z), b_p(x)}` → descending suffix scans `B_p` → `A(x)=Σ a_p B_p` and `∂A/∂z=Σ a_p′ B_p`; reverse = mirrored prefix scans; Neumaier summation; a **near-diagonal direct band** `δ` for recombination cancellation. Init-time self-check `Σ a_p b_p == kernel_direct`; ships the dot-product test.
 2. **implicit-node** (P1a) — `register(residual F(y;p), untaped double solver, outputs)`; adjoint forms `∂F/∂y, ∂F/∂p` by `fwd<double>` over the templated residual, small dense solve, `incrementAdjoint`. Sign-definite denominator asserted at registration. `fwd<double>` gives first-order reverse-through-solve **without nested tapes**. Instances: leaf `ci` root, leaf collar optimum `q*`, breakpoints, birth height, the BVP collocation residual.
-3. **the field `A` + mass transport** (P1e) — the coupling field `A` is the scan's result (the model reads its value and `A.at(z)` for crown reads); **mass transport** is the one engine rule that sets `log_density_dt` from the neighbour secant of the growth rate (transport log-mass; derive density from spacing), deleting `node.h::growth_rate_gradient` + the `species.h` compression loop. *(No `StateView`/`TransportGeometry` nouns — see [`odelia-index.md`](./odelia-index.md) §concept-audit: the model reads its inputs as rate arguments + `A.at(z)`; the transport rule is fixed, not a named object.)*
+3. **the field `A` + mass transport** (P1e) — the coupling field `A` is the scan's result (the model reads its value and `A.at(z)` for crown reads); **mass transport** is the one engine rule that sets `log_density_dt` from the neighbour secant of the growth rate (transport log-mass; derive density from spacing), deleting `node.h::growth_rate_gradient` + the `species.h` compression loop. *(No `StateView`/`TransportGeometry` nouns — see [`odelia-index.md`](./odelia-index.md) §concept-audit.)*
+   **The representation guarantee** (Oracle; odelia #7 §A): the model writes natural rates and never the transport term (tier-1); odelia transports in *one canonical chart* (log-mass — a fixed, engine-private choice); and odelia **reconstructs whatever representation the model/functional reads** — density `n = exp(logmass)/spacing`, log-density, a moment, `A` — as an **exact taped read** (the read-side view). So the model expresses in whichever representation is natural and gets correct gradients; the fixed pairing constrains only odelia's internal bookkeeping. A rate written *on* a chart variable is the rare tier-2 opt-in (`register_chart_rate`, engine supplies the pullback).
 4. **γ(s,x) node** (P1c) — incomplete-gamma antiderivative: value + `∂/∂x` (elementary) + `∂/∂s` (series/digamma), FD-validated; `∂²/∂s²` reserved for the fixed-point path.
 5. **stepper + tape lifecycle** — explicit RKCK (the reference Control); checkpointed record/replay (per-step sub-tape); vector adjoints; multirate sub-cycle for the soil block.
 6. **`value()` firewall** (P1d) — `decide(expr)` (predicate, replays the recorded choice on pass 2) and `diagnostic(expr)` (dead to the tape). Raw `xad::value` grep-banned in Model + Numerics.
@@ -215,7 +216,12 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
   is **active state**, not L2/L3: **resident TF24** integrates soil actively coupled to the active cohorts
   (its adjoint rides tape-as-run — the multirate sub-cycle); **mutant TF24** reads soil *frozen* (it rides
   L3, deferred). The leaf reads the soil state directly; per-layer uptake `E_i` = an antiderivative
-  difference of `incomplete_gamma` with Leibniz endpoints and breakpoint nodes at layer crossings. Deletes
+  difference of `incomplete_gamma` with Leibniz endpoints and breakpoint nodes at layer crossings.
+  **`incomplete_gamma` bounds the whole leaf hydraulic transport, not just soil** (odelia #7): the stem
+  `transpiration_from_psi` integral is the *same* Weibull `∫exp(−(|ψ|/b)^c)` family, so all four leaf
+  splines collapse to exact reads (`f_r` elementary; the two integrals `incomplete_gamma`; the inverse
+  `psi_from_transpiration` a scalar `register_implicit` root) — no sampled spline `.deriv()` in the leaf
+  residual, so `register_implicit`'s injected partials are exact (R2 on the leaf). Deletes
   `dsoil_consumption_dpsi_collar_perlayer` and the per-layer FD partials; the same `E_i` serves the
   transient sink and the BVP steady-`u`. Resident soil adds a `∂profit/∂(soil ψ)` channel the mutant path
   never needs — automatic here (the leaf reads `u()` on the tape), where the prototype needed a new hand

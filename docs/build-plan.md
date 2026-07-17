@@ -73,7 +73,10 @@ Each a standalone odelia addition with its own test, no plant dependency.
   bound type** — the nodes are a deterministic affine image of the bound, so an *active* bound (a census
   integrated over an active plant height) tapes exactly through the moving nodes; **differentiate
   through, no recorded positions**. The `double` path is the `S=double` instantiation. (Not L2 — L2 is
-  the adaptive light spline only.) Delete the forked `integrate_ad`/`deep_crown_replay` spikes.
+  the adaptive light spline only.) **This is the v1 treatment** (the prototype already templated `qk.h`);
+  it **stays plant's `qk.h`** — *not* moved to odelia (generic fixed-rule quadrature, one witness; defer
+  the lift to a 2nd consumer). Delete the forked `integrate_ad`/`deep_crown_replay` spikes; don't touch
+  the dormant adaptive `QAG`.
 
 Named odelia follow-ups to fold in (from `archive/ad-issues.md`): #22 interpolator unification (the
 replayable interpolator owns its own knots — the clean L2), #23 history rows, #27

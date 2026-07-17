@@ -24,7 +24,7 @@ clean `System` interface, and the transported-state / coupling machinery owned b
   Start here for the engine.
 - `odelia-1-transport-spine.md` (the scan + mass transport), `odelia-2-implicit-node.md`,
   `odelia-3-soil-coupling.md` (`incomplete_gamma`), `odelia-4-value-firewall.md`,
-  `odelia-5-existing-pieces.md`, `odelia-6-boundary-tape-checkpoint.md` — the per-component design notes.
+  `odelia-5-existing-pieces.md`, `odelia-6-boundary-tape-checkpoint.md`, `odelia-7-tf24-trace.md` — the per-component design notes.
 
 ### Detailed appendices (per-component derivations `design.md` links)
 - [`deepening-6-light-coupling.md`](./deepening-6-light-coupling.md) — K93/FF16 light coupling + dg/dh.
