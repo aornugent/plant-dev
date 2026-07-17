@@ -204,6 +204,68 @@ model *posed* so the fed-back flux is the objective's own marginal would collaps
 
 ---
 
+## 3½. Ecological reading of the T1 finding: the dead zone is the hydraulic-failure threshold
+
+The near-bound "dead zone" is not an obscure numerical corner — it sits exactly on the most ecologically
+consequential event in the model. Probing the frozen stand as the soil dries
+(`scripts/tf24-multirate/t1b_hydraulic_threshold.R`):
+
+| θ | soil tension `ψ_soil` | cohort operating point `q` | uptake |
+|--:|--:|--:|--:|
+| 0.20 | 0.26 MPa | −1.42 | responsive |
+| 0.16 | 1.14 | −2.08 | responsive |
+| 0.13 | 4.47 | −4.81 | responsive, declining |
+| 0.115 | 10.0 | **−5.92 (pinned)** | dead / NA |
+| 0.10 | 25 | −5.92 | dead |
+| 0.06 | 719 | −5.92 | dead |
+
+At θ≈0.11–0.13 the soil tension (4–10 MPa) reaches the cohorts' **hydraulic critical potential** — `q`
+pins at ≈ −5.9 MPa, the leaf/root `psi_crit`, the potential at which the xylem loses conductance to
+runaway embolism. TF24 is a **plant-hydraulic drought-mortality model**; hydraulic failure is the event it
+exists to resolve. The numerical dead zone and the biological failure threshold are the *same point*.
+
+**What the current representation does at that event — and why it is ecologically wrong.** Instead of
+transpiration declining smoothly to zero as the vulnerability curve loses conductance (stomata closing,
+embolism spreading), the optimiser **pins the operating point at the critical potential** and the leaf
+solve leaves its domain, so uptake freezes at a constant (or NA) with **zero sensitivity to further
+drying**. Two distinct failures:
+1. **No down-regulation.** A plant past its hydraulic limit is modelled as continuing to draw water at a
+   fixed rate rather than shutting down — the opposite of drought physiology.
+2. **No drought sensitivity (a correctness defect).** The reverse-mode gradient of water use with respect
+   to soil moisture — and, through the hydraulic traits, with respect to `θ`-parameters — is **identically
+   zero across the entire drought regime**. For a model whose purpose is *trait-gradients of drought
+   performance*, the gradient is dead exactly where the science is.
+
+**Why "Case A" is the ecologically correct regime.** Roots cannot extract water past the point of
+hydraulic failure; transpiration → 0 there, so drying by root uptake **self-limits** and the wilting point
+is an **asymptote, not a wall**. The Osgood Case A (bound unreachable) is precisely this statement. The
+current model's degenerate "Case B by artifact" — a constant floor draining the soil to `θ_res` in finite
+time — asserts the opposite: plants draining soil *past hydraulic death*. Case A is not a numerical
+convenience; it is the correct ecology, and the reformulation restores it.
+
+**Mechanistic suitability of the reformulation.**
+- **The mechanism is already in the model.** TF24 carries a hydraulic vulnerability curve (`root_c`,
+  `root_b`, `root_psi_crit`; leaf `b`, `c`, `psi_crit`). R-C adds no physiology — it lets the existing
+  vulnerability curve run **smoothly to zero** instead of being truncated by the optimiser's domain edge
+  and the `ψ`-ceiling. The "declared smoothing scale" is not a fudge factor; it *is* the width of the
+  vulnerability curve — an ecological parameter (species water-use strategy, isohydric ↔ anisohydric)
+  already fit from hydraulic-trait data.
+- **The coordinate matches the physiology.** Plants sense and respond to water *potential*, and hydraulic
+  risk is ~sigmoidal in `ψ` / linear in log-tension. Integrating the soil block in log-scarcity
+  `ζ = ln(θ − θ_res) ≈ ln ψ` represents it in the variable the vulnerability curve, stomatal response, and
+  mortality risk are actually written in — the physiological analogue of the recession-curve reading for
+  drainage (R-A). Term-by-term meaning is preserved; each process becomes a per-stock rate.
+- **One genuine subtlety.** Runaway embolism is physically fairly abrupt (a cavitation cascade), so a real
+  steep nonlinearity does exist at `psi_crit`. But it is smooth and finite on the log-`ψ` axis, not a
+  discontinuity — the log chart resolves it with bounded slope where the hard clamp caricatures it as a
+  wall. And because the failure threshold is species/cohort-specific (consistent with the measured 2–4×
+  member spread in the value of water, R-X), the smoothing must be **per-strategy** — which is how plant
+  already parameterises hydraulics, not a single global soil constant.
+
+Net: the reformulation is not merely numerically better — it makes TF24 represent *its own central
+process*, drought-driven hydraulic failure, as the smooth, trait-controlled decline it is, and restores
+the drought-response gradient the model exists to compute.
+
 ## 4. How they compose — two stiffnesses, two mechanistic rewrites
 
 The measurement in §2 scopes the reformulations precisely, because the two stiffness sources are
