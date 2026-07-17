@@ -28,7 +28,7 @@ after the resident recording exists.
 
 ## Standing constraints (hold on every landing)
 - **Bit-identity guard.** Nothing lands that moves the `double` path: `test-strategy-ff16(-reference-comparison).R`, the K93 "offspring production unchanged" snapshots, `test-control.R` (pins the Control field set). A changed number = broken bit-identity; **diff the FP order, not just the value.** (Sanctioned exception: the mass chart's ~0.169% K93 shift, opt-in for gradient runs.)
-- **Each engine primitive ships its own verification before any plant consumer uses it** — the dot-product oracle `⟨Jv,u⟩=⟨v,Jᵀu⟩` for the scan; IFT-vs-FD for the implicit-node; Richardson-FD-vs-analytic for `γ`. The scarce resource (hand-adjoint correctness) defended structurally.
+- **Each engine primitive ships its own verification before any plant consumer uses it** — the dot-product oracle `⟨Jv,u⟩=⟨v,Jᵀu⟩` for `separable_field`; IFT-vs-FD for the implicit-node; Richardson-FD-vs-analytic for `incomplete_gamma`. The scarce resource (hand-adjoint correctness) defended structurally.
 - **Gate-0 is the oracle; the census metric is not.** Verify the active path at single-leaf/single-cohort clean FD (swept over δ). Never trust `compute_competition(0)` census FD (~%-noisy, fooled the prototype repeatedly).
 - **UX-2 fixture gate.** Snapshot validated Jacobians to `tests/testthat/fixtures/gradient-baseline.rds` (two-tier tolerance). **Nothing merges without UX-2 green** — the AD-vs-AD regression net, distinct from Gate-0.
 - **The one cross-track contract.** The engine must **tape the scheme as run** with a frozen, replayable control-flow schedule (L0 cohort schedule, L1 steps, L2 knots). Any parallel track (multirate) must keep its micro-schedule / event / pin decisions recordable in pass 1 and replayable in pass 2.
@@ -70,22 +70,21 @@ clean-boundary axis the v2 emphasises:
 ## Phase 1 — engine primitives (odelia); P1a–P1d independent → parallel
 Each a standalone odelia addition with its own test, no plant dependency.
 
-**Reassessed order (2026-07-17): scan first, not implicit-node.** The earlier "P1a first,
+**Reassessed order (2026-07-17): separable field first, not implicit-node.** The earlier "P1a first,
 load-bearing, de-risk first" put the implicit-node at the front because the scary unknown was whether
 the tape survives the growing-dimension resize / `ode_rates` injection. **That is now closed** (CD-A
 verified — `test-ad-growing-resize.R`). So the front of Phase 1 optimises instead for the *shortest path
 to one end-to-end verified resident gradient* — **K93 resident census**, the first visible win. K93 has
 **no inner solve**, so P1a/P1c are not on its path (they are TF24 machinery, P2c). The K93 path is
-**P1b (scan) → P1e (mass transport) → P2a/CD-G**. Build order: **P1b, then P1e, then P1d (light,
+**P1b (separable field) → P1e (mass transport) → P2a/CD-G**. Build order: **P1b, then P1e, then P1d (light,
 structural), then P2a**; P1a+P1c land just before P2c, P1f with P2b. CD-B (tape-from-`ode_rates`) rides
 P1a and is verified on a plant-shaped toy when P1a lands, not up front.
 
-- **P1b — scan-coupling** *(first; the v2 core).* Suffix/prefix scans; near-diagonal band `δ` (default 0 + debug exactness check vs `kernel_direct`); Neumaier. Verify: dot-product oracle + `Σ a_p b_p` vs supplied `κ`. Pure odelia, self-verifying, no plant dependency — the disciplined first landing.
+- **P1b — `separable_field`** *(first; the v2 core — **LANDED**).* Descending suffix scans build the field `A` and its query slope `∂A/∂z` from the separable factors; exact, non-adaptive. Verified: rank-3 separability, field/slope vs the direct O(N²) sum, and the dot-product oracle `⟨Jv,u⟩=⟨v,Jᵀu⟩` to machine precision (`odelia::separable_field`, `test-ad-separable-field.R`). *Deferred within P1b (noted):* the near-diagonal direct band `δ` and Neumaier compensation (robustness at high η), and the custom vectorised transpose (a tape-memory optimisation whose correctness target is the verified taped version).
 - **P1a — implicit-node** *(lands before P2c).* First-order reverse-through-solve via `fwd<double>` (no nested tapes). Verify on a scalar monotone root + a 2×2 KKT (IFT vs FD ~1e-10). Reserve a registration slot for higher-order partials (Phase 3) — additive, **not** implemented now.
-- **P1b — scan-coupling.** Suffix/prefix scans; near-diagonal band `δ` (default 0 + debug exactness check vs `kernel_direct`); Neumaier. Verify: dot-product oracle + `Σ a_p b_p` vs supplied `κ`.
 - **P1c — `incomplete_gamma`** (was "the γ node"). Value + `∂/∂x` + `∂/∂s`; `∂²/∂s²` reserved. FD-validated at init.
 - **P1d — `value()` firewall + harness.** `decide`/`diagnostic`; raw `xad::value` grep-banned in Model/Numerics. The reusable harness: frozen-schedule FD, per-edge probes, the dot-product oracle, conservation invariants, the M1 "every seeded param has a partial" gate.
-- **P1e — the field `A` + mass transport** (entangled with plant; start odelia-side). The scan builds `A` over the cohort `{xᵢ, log mᵢ}` (the model reads its value + `A.at(z)`); **mass transport** sets `log_density_dt` from the neighbour secant (transport log-mass, density from spacing). Depends on geometric compression (shipped, opt-in). Deletes the transport code from the model. *(No `StateView`/`TransportGeometry` nouns — see `odelia-index.md`.)*
+- **P1e — the field `A` + mass transport** (entangled with plant; start odelia-side). `separable_field` builds `A` over the cohort `{xᵢ, log mᵢ}` (the model reads its value + `A.at(z)`); **mass transport** sets `log_density_dt` from the neighbour secant (transport log-mass, density from spacing). Depends on geometric compression (shipped, opt-in). Deletes the transport code from the model. *(No `StateView`/`TransportGeometry` nouns — see `odelia-index.md`.)*
 - **P1f — `QK<S>` fixed-rule quadrature** (Cluster 4): template `QK::integrate` on the scalar **and the
   bound type** — the nodes are a deterministic affine image of the bound, so an *active* bound (a census
   integrated over an active plant height) tapes exactly through the moving nodes; **differentiate
@@ -113,7 +112,7 @@ comprehensive:
   `concept` can't check the runtime resize guarantee, so it would add a name without removing a bug class.
   **Deferred cleanup (1 witness):** odelia `Solver` owns the introduction loop → the SCM becomes a plain
   System; retrofit trigger = a 2nd growing-dimension System.
-- **Interpolator simplification (with P1b).** The scan (P1b) takes the separable coupling field and the
+- **Interpolator simplification (with P1b).** `separable_field` (P1b) takes the separable coupling field and the
   mass chart takes `dg/dh`, so the interpolator demotes to the **non-separable fallback only** — **delete**
   its coupling-era bandaids (the frozen active-query derivative, the geometric-compression entanglement);
   keep clean construct/record/replay. Do **not** lift QAG into odelia (no adaptive-quadrature witness —
@@ -166,7 +165,7 @@ missing self-shading) and do **not** build a `stand_*_stage_history`. **PLANT-10
 Phase 3). **IC gradients** (`Patch::ad_initial_state`, ledger E) land after P2a's resident core — sequence
 them once the L2 recompute path is solid; remove the `scm.h:231` resume stub as the IC path lands.
 
-**Critical path to #52 parity (reassessed):** (F1/E2 done; CD-A verified) → **P1b (scan)** → **P1e (mass
+**Critical path to #52 parity (reassessed):** (F1/E2 done; CD-A verified; **P1b landed**) → **P1b (separable field)** → **P1e (mass
 transport)** → **P2a/CD-G (K93 resident census — the first visible win + integration fixture)** →
 P1a+P1c → **P2c wiring (TF24)** → P2b (FF16, +P1f) → P2d (TF24f). P1d (firewall) lands alongside P1b.
 IC-seeding on IndividualRunner sequences after P2a's resident core. Fastest visible win: **P2a once
@@ -196,13 +195,13 @@ average through.
 ## Port map — what the new engine deletes/replaces
 | current (plant#52) | fate | replacement |
 |---|---|---|
-| `node.h::growth_rate_gradient` active block (~70 ln) | **delete** | mass chart (compression vanishes) + scan `∂A/∂z` |
+| `node.h::growth_rate_gradient` active block (~70 ln) | **delete** | mass chart (compression vanishes) + `separable_field` `∂A/∂z` |
 | `species.h` geometric-compression loop | **absorb** | the mass transport rule |
 | `tf24_strategy.cpp` FD `supplied_derivative` seam (~150 ln) + `leaf_profit_at_fixed_collar` | **delete** | reduced-gradient `G(q)` via P1a nodes (N1, N3) |
 | `leaf_model.cpp::dprofit_droot_collar_psi` (hand IFT) | **delete** | falls out of N1+N3 |
 | `leaf_model.cpp::dsoil_consumption_dpsi_collar_perlayer` + FD uptake partials | **delete** | `incomplete_gamma` antiderivative difference + breakpoint (Leibniz) |
-| interpolator on the coupling path | **replace (separable) / retain (fallback)** | scan; interpolator kept for `FlatTopSoftBox` |
-| `get_environment_slope_at_height` frozen surrogate | **delete** | exact `∂A/∂z` from the scan |
+| interpolator on the coupling path | **replace (separable) / retain (fallback)** | `separable_field`; interpolator kept for `FlatTopSoftBox` |
+| `get_environment_slope_at_height` frozen surrogate | **delete** | exact `∂A/∂z` from `separable_field` |
 | 13 plant headers `#include <XAD/…>` | **reduce to one** | `<odelia/seam.hpp>` |
 | scattered `to_passive` (77) | **replace where derivative-relevant** | `decide()`/`diagnostic()` firewall |
 | `Solver::reserve_state` | **delete** | unused; growth correct via XAD slot indirection |

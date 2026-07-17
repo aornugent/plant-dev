@@ -37,7 +37,7 @@ parameters are **low-level strategy fields + soil params + birth rate** (not eco
 - **R6 — one engine, many models.** K93/FF16/TF24/TF24f now; regnans (a workflow over plant) served by the fixed-point layer.
 - **R7 — gradients in both regimes.** Transient (finite-horizon moments, non-settled) **and** fixed point (demographic equilibrium / selection). Neither subsumes the other; the fixed point has no Lagrangian representation (N grows).
 
-**Scarce resource:** *hand-written-adjoint correctness* — every place a human writes a reverse rule is a silent gradient-bug site (value-exact, passes every double test, wrong only in the gradient). The design is measured by how few exist (**two**: the scan transpose and the implicit-node IFT) and how each self-checks.
+**Scarce resource:** *hand-written-adjoint correctness* — every place a human writes a reverse rule is a silent gradient-bug site (value-exact, passes every double test, wrong only in the gradient). The design is measured by how few exist (**two**: the `separable_field` transpose and the implicit-node IFT) and how each self-checks.
 
 ---
 
@@ -46,7 +46,7 @@ parameters are **low-level strategy fields + soil params + birth rate** (not eco
 Most apparent complexity dissolves once two independent axes are separated:
 
 - **Replay** — a property of the *system*: what adaptive constructions must be frozen so the run is
-  differentiable (§4). The resident SCM needs L0·L1 + the exact-scan coupling field (L2 only for the
+  differentiable (§4). The resident SCM needs L0·L1 + the exact separable field (L2 only for the
   non-separable fallback); a bare ODE needs only L1. The ecological **feedback choice** (resident vs
   mutant) is the recompute-active vs read-frozen (L3) switch.
 - **Functional** — *what scalar* is differentiated (an emergent metric, or a likelihood), orthogonal to
@@ -82,9 +82,9 @@ a transpose. The three silent-bug classes — a hand stencil/adjoint on the tape
 arithmetic, wrong-chart compression — become **inexpressible in model code**.
 
 ### Engine primitives (Kernels — the only XAD-aware code)
-1. **scan-coupling** (P1b) — separated kernel factors `{a_p(z), b_p(x)}` → descending suffix scans `B_p` → `A(x)=Σ a_p B_p` and `∂A/∂z=Σ a_p′ B_p`; reverse = mirrored prefix scans; Neumaier summation; a **near-diagonal direct band** `δ` for recombination cancellation. Init-time self-check `Σ a_p b_p == kernel_direct`; ships the dot-product test.
+1. **`separable_field`** (P1b) — separated kernel factors `{a_p(z), b_p(x)}` → descending suffix scans `B_p` → `A(x)=Σ a_p B_p` and `∂A/∂z=Σ a_p′ B_p`; reverse = mirrored prefix scans; Neumaier summation; a **near-diagonal direct band** `δ` for recombination cancellation. Init-time self-check `Σ a_p b_p == kernel_direct`; ships the dot-product test.
 2. **implicit-node** (P1a) — `register(residual F(y;p), untaped double solver, outputs)`; adjoint forms `∂F/∂y, ∂F/∂p` by `fwd<double>` over the templated residual, small dense solve, `incrementAdjoint`. Sign-definite denominator asserted at registration. `fwd<double>` gives first-order reverse-through-solve **without nested tapes**. Instances: leaf `ci` root, leaf collar optimum `q*`, breakpoints, birth height, the BVP collocation residual.
-3. **the field `A` + mass transport** (P1e) — the coupling field `A` is the scan's result (the model reads its value and `A.at(z)` for crown reads); **mass transport** is the one engine rule that sets `log_density_dt` from the neighbour secant of the growth rate (transport log-mass; derive density from spacing), deleting `node.h::growth_rate_gradient` + the `species.h` compression loop. *(No `StateView`/`TransportGeometry` nouns — see [`odelia-index.md`](./odelia-index.md) §concept-audit.)*
+3. **the field `A` + mass transport** (P1e) — the coupling field `A` is `separable_field`'s result (the model reads its value and `A.at(z)` for crown reads); **mass transport** is the one engine rule that sets `log_density_dt` from the neighbour secant of the growth rate (transport log-mass; derive density from spacing), deleting `node.h::growth_rate_gradient` + the `species.h` compression loop. *(No `StateView`/`TransportGeometry` nouns — see [`odelia-index.md`](./odelia-index.md) §concept-audit.)*
    **The representation guarantee** (Oracle; odelia #7 §A): the model writes natural rates and never the transport term (tier-1); odelia transports in *one canonical chart* (log-mass — a fixed, engine-private choice); and odelia **reconstructs whatever representation the model/functional reads** — density `n = exp(logmass)/spacing`, log-density, a moment, `A` — as an **exact taped read** (the read-side view). So the model expresses in whichever representation is natural and gets correct gradients; the fixed pairing constrains only odelia's internal bookkeeping. A rate written *on* a chart variable is the rare tier-2 opt-in (`register_chart_rate`, engine supplies the pullback).
 4. **`incomplete_gamma`** (P1c) — the exact Weibull antiderivative `∫exp(−(|ψ|/b)^c)`: value + `∂/∂x` (elementary) + `∂/∂s` (series/digamma), FD-validated; `∂²/∂s²` reserved for the fixed-point path. Bounds the **whole leaf hydraulic transport** — soil vulnerability *and* stem transpiration are the same family (§5; odelia #7 §C).
 5. **stepper + tape lifecycle** — explicit RKCK (the reference Control); checkpointed record/replay (per-step sub-tape); vector adjoints; multirate sub-cycle for the soil block.
@@ -128,7 +128,7 @@ plant supplies only closed forms + residual declarations. The load-bearing co-de
   resizes, and the census functional over the growing set — compose the confirmed pieces and FD-check.
 - **B — tape reachable from `ode_rates`** for injected derivatives during replay. **Resolved by the
   engine-primitive design:** the model never touches the tape — it declares a residual/kernel and the
-  odelia-owned implicit-node/scan primitive owns the injection. This is *why* the primitive boundary is
+  odelia-owned implicit-node / `separable_field` primitive owns the injection. This is *why* the primitive boundary is
   cleaner than the prototype's `supplied_derivative`-from-inside-the-model seam.
 - **F — the SCM as a self-segmenting runnable** (record-once around a `run()` that grows) — the empirical
   form of A.
@@ -162,8 +162,8 @@ Plus **L0** — the cohort introduction schedule (`scm`), frozen up front (`refi
 
 **The default coupling field is exact, not L2** (odelia design #1). For the shared `CanopyShape` kernel
 `κ(z,x)=m(x)(1−(z/x)^η)²` (K93/FF16/TF24 defaults) the field is a **closed-form separable sum** computed
-by the **scan** — non-adaptive, so it needs **no recorded positions and no L2 record/replay at all**. The
-resident coupling path is therefore L0+L1 + the exact scan; the interpolator/L2 survives only where the
+by **`separable_field`** — non-adaptive, so it needs **no recorded positions and no L2 record/replay at all**. The
+resident coupling path is therefore L0+L1 + the exact separable field; the interpolator/L2 survives only where the
 kernel is genuinely non-separable. This retires the v1 clunk (a sampled adaptive spline over a
 closed-form sum, with a frozen `∂A/∂z` — Oracle R2: "no sampled-field differencing at any tier").
 
@@ -175,7 +175,7 @@ closed-form sum, with a frozen `∂A/∂z` — Oracle R2: "no sampled-field diff
   additive mutant cache, built after the resident path lands).
 
 **A run reads a recomputed field *or* a frozen (L3) one, never both** (VIII.0). Resident recomputes the
-field active (the scan for separable kernels — no recorded positions; the interpolator + L2 for the
+field active (`separable_field` for separable kernels — no recorded positions; the interpolator + L2 for the
 non-separable fallback), no L3 read. Mutant = L0+L1+L3 (frozen read, no recompute). The resident's
 `double` recording stores positions *and* values only so a *future* mutant can read them; the resident's
 own gradient never reads L3. There
@@ -205,8 +205,8 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
   scans; C¹ double-diagonal zero makes the moving-query slope safe. **dg/dh** is deleted from the model
   rate by the transport-log-mass chart (`dλ/dt=−r`; `∂ₓg` carried by the neighbour secant — the mass
   transport rule); the exact `∂L/∂z` enters only where a rate reads the local light slope. Replaces
-  the `compute_competition` trapezium (the resident self-shading cohort-integral) with the scan.
-  **node.h scan:** the only transported state is `log_density`; the sole "number" is the offspring
+  the `compute_competition` trapezium (the resident self-shading cohort-integral) with `separable_field`.
+  **node.h audit:** the only transported state is `log_density`; the sole "number" is the offspring
   output accumulator; number appears implicitly at birth as `density=birth·estab/g` (flux/velocity) —
   so the mass chart is new machinery aligned with the existing boundary law.
 - **TF24 leaf inner solve** → [`deepening-1`](./deepening-1-leaf-residuals.md). Two sign-definite scalar
@@ -300,7 +300,7 @@ The complete inventory of genuine iterative inner solves in the plant family is 
 - **birth height** `lift_birth_height` (IFT at an existing root, one Newton step — not iterative on the gap),
 - (regnans) the **BVP collocation** solve + the **demographic-equilibrium** fixed point.
 
-Everything else — the light scan, the `ψ_stem` transport composition, the soil `E_i` antiderivative
+Everything else — the light separable field, the `ψ_stem` transport composition, the soil `E_i` antiderivative
 difference, the crown quadrature — is closed-form / Leibniz / reduction, carrying **no** hand-written
 adjoint. **Do not template the shed:** the leaf gas-exchange curves, soil curves, QAG, FD facades, and
 `r_*` R-facing wrappers participate only through the implicit-node/`supplied_derivative` seam;
@@ -371,7 +371,7 @@ carries **no privileged params/IC split** — a trait-seed and an IC-seed are th
 The whole point is a gradient that is *correct*, and the failure mode is silent (value-exact, wrong
 gradient). The trust model, in priority order:
 1. **The adjoint dot-product identity `⟨Jv,u⟩=⟨v,Jᵀu⟩`** (`compute_jvp`, odelia) — the primary
-   machine-precision gate for every hand adjoint (scan transpose, implicit-node IFT). **Boundary:** it
+   machine-precision gate for every hand adjoint (the `separable_field` transpose, implicit-node IFT). **Boundary:** it
    does **not** certify an injected `supplied_derivative` *value* — only that forward and reverse agree.
 2. **Gate-0 — single leaf / single cohort, clean FD — is the trustworthy oracle.** It caught two real
    defects and validates to ~1e-5.

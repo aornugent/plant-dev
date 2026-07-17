@@ -22,7 +22,7 @@ clean `System` interface, and the transported-state / coupling machinery owned b
 - **[`odelia-index.md`](./odelia-index.md)** — the design index + **concept audit** (the settled,
   intuitive concept set; what each of the seven notes below settles; the map to the build-plan labels).
   Start here for the engine.
-- `odelia-1-transport-spine.md` (the scan + mass transport), `odelia-2-implicit-node.md`,
+- `odelia-1-transport-spine.md` (`separable_field` + mass transport), `odelia-2-implicit-node.md`,
   `odelia-3-soil-coupling.md` (`incomplete_gamma`), `odelia-4-value-firewall.md`,
   `odelia-5-existing-pieces.md`, `odelia-6-boundary-tape-checkpoint.md`, `odelia-7-tf24-trace.md` — the per-component design notes.
 
