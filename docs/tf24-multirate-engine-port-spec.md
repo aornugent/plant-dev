@@ -38,7 +38,7 @@ global-vs-multirate) · `factor_probe{,2,3}.R` (cost decomposition, surrogate re
 `e4_test.R`+`e4_bias_test.R` (reverse-mode certification + gradient-reduction-bias) · `h0_envelope_check.R`
 · `r1_drainage_flow_check.R` (exact drainage recession).
 
-**Issues:** aornugent/odelia#43 (the design synthesis, public record) · `docs/plant-issue-R1-exposure.md` (ready-to-file; aornugent/plant out of session scope — file it there). **Branch:** `claude/tf24-multi-rate-stepper-n5audm` (plant-dev); odelia study branch
+**Issues:** aornugent/odelia#43 (the design synthesis, public record) · aornugent/plant#53 (plant-side R1 + coupling seams; body in `docs/plant-issue-R1-exposure.md`). **Branch:** `claude/tf24-multi-rate-stepper-n5audm` (plant-dev); odelia study branch
 `tf24-multirate-study`.
 
 **Build environment (measured-good):** odelia@master (`c9ae31b`) + plant@develop (`141dc8df`, includes
@@ -172,7 +172,7 @@ canonical `(x,u)` + records at macro boundaries; pass-2 re-record is solve-free.
 
 ---
 
-## 6. plant-side exposures (the model↔engine seam) — tracked in `docs/plant-issue-R1-exposure.md` (ready-to-file on aornugent/plant)
+## 6. plant-side exposures (the model↔engine seam) — filed as aornugent/plant#53 (body in `docs/plant-issue-R1-exposure.md`)
 
 The engine consumes plant through these. **R1 is the headline; the others are the coupling factoring.**
 

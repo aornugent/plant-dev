@@ -1,9 +1,8 @@
-# READY-TO-FILE ISSUE for aornugent/plant (could not be filed from this session — out of scope)
+# FILED as aornugent/plant#53 — https://github.com/aornugent/plant/issues/53
 
-*This is a standalone issue drafted for **aornugent/plant**. The session's GitHub scope is limited to
-`aornugent/plant-dev` and `aornugent/odelia`, so it could not be created directly. File it verbatim on
-aornugent/plant (or add the repo to a session and use the GitHub tools). Companion to
-`docs/tf24-multirate-engine-port-spec.md` §6.*
+*This is the standalone issue for **aornugent/plant**, now filed as
+[aornugent/plant#53](https://github.com/aornugent/plant/issues/53). This file is retained as the
+source-of-truth body. Companion to `docs/tf24-multirate-engine-port-spec.md` §6.*
 
 ---
 
