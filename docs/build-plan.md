@@ -67,8 +67,20 @@ clean-boundary axis the v2 emphasises:
 - **CD-G — the integration fixture:** growing dim × injected-derivative-in-replay × the emergent
   functional, FD-checked. The single test that certifies the whole SCM path; build it early, on K93.
 
-## Phase 1 — engine primitives (odelia); P1a–P1d independent → parallel
-Each a standalone odelia addition with its own test, no plant dependency.
+## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
+Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
+`claude/odelia-ad-tape-reverse-496fuf` (each ships the dot-product oracle and/or an FD/analytic
+self-check): **P1b** `separable_field`, **P1e** `cohort_spacing`/`log_density_rate`, **P1d**
+`smooth_positive`/`is_finite` + `decide`/`diagnostic`, **P1a** `register_implicit`, **P1c**
+`incomplete_gamma`. Two scoping refinements taken under the witness principle, recorded below:
+- **P1a is scalar only.** Every Phase-2 inner solve (leaf `ci` root, collar optimum, birth height) is
+  scalar; the dense/nested (KKT, tangent-over-adjoint) case has no witness until the fixed-point BVP
+  (Phase 3), where it lands — an unsupported nested scalar type is a `static_assert`, not a silent path.
+- **`decide` records in call order for a fixed replay schedule.** The commit-per-accepted-step wrapping
+  that makes it exact across an *adaptive* recording pass (discarding rejected steps) belongs with the
+  SCM System (P2a), like a recorded field's commit.
+
+P1f (`QK<S>` templating) is plant-side and applies at P2b (see the ledger below).
 
 **Reassessed order (2026-07-17): separable field first, not implicit-node.** The earlier "P1a first,
 load-bearing, de-risk first" put the implicit-node at the front because the scary unknown was whether
@@ -81,10 +93,10 @@ structural), then P2a**; P1a+P1c land just before P2c, P1f with P2b. CD-B (tape-
 P1a and is verified on a plant-shaped toy when P1a lands, not up front.
 
 - **P1b — `separable_field`** *(first; the v2 core — **LANDED**).* Descending suffix scans build the field `A` and its query slope `∂A/∂z` from the separable factors; exact, non-adaptive. Verified: rank-3 separability, field/slope vs the direct O(N²) sum, and the dot-product oracle `⟨Jv,u⟩=⟨v,Jᵀu⟩` to machine precision (`odelia::separable_field`, `test-ad-separable-field.R`). *Deferred within P1b (noted):* the near-diagonal direct band `δ` and Neumaier compensation (robustness at high η), and the custom vectorised transpose (a tape-memory optimisation whose correctness target is the verified taped version).
-- **P1a — implicit-node** *(lands before P2c).* First-order reverse-through-solve via `fwd<double>` (no nested tapes). Verify on a scalar monotone root + a 2×2 KKT (IFT vs FD ~1e-10). Reserve a registration slot for higher-order partials (Phase 3) — additive, **not** implemented now.
-- **P1c — `incomplete_gamma`** (was "the γ node"). Value + `∂/∂x` + `∂/∂s`; `∂²/∂s²` reserved. FD-validated at init.
-- **P1d — `value()` firewall + harness.** `decide`/`diagnostic`; raw `xad::value` grep-banned in Model/Numerics. The reusable harness: frozen-schedule FD, per-edge probes, the dot-product oracle, conservation invariants, the M1 "every seeded param has a partial" gate.
-- **P1e — the field `A` + mass transport** (entangled with plant; start odelia-side). `separable_field` builds `A` over the cohort `{xᵢ, log mᵢ}` (the model reads its value + `A.at(z)`); **mass transport** sets `log_density_dt` from the neighbour secant (transport log-mass, density from spacing). Depends on geometric compression (shipped, opt-in). Deletes the transport code from the model. *(No `StateView`/`TransportGeometry` nouns — see `odelia-index.md`.)*
+- **P1a — `register_implicit`** *(**LANDED**).* First-order reverse-through-solve: `dy/dp = -(dF/dp)/(dF/dy)` by forward-differentiating the residual at the root, carried through double/forward/reverse, no nested tape; sign of `dF/dy` asserted; unsupported nested type a `static_assert`. **Scalar** (covers every Phase-2 solve); dense/nested reserved for Phase 3. Verified: reverse gradient vs analytic, IFT vs re-solve FD, the oracle (`test-ad-implicit-node.R`).
+- **P1c — `incomplete_gamma`** *(**LANDED**; was "the γ node").* Lower incomplete gamma via the elementary everywhere-convergent series, so AD gives value + `∂/∂x` (the integrand/Leibniz endpoint) + `∂/∂a` (shape) off the same code — no hand digamma, no supplied-partial node. `∂²` reserved (Phase 3). Verified vs `pgamma`, the integrand, an FD, and the exact Weibull endpoint (`test-ad-incomplete-gamma.R`).
+- **P1d — value guards** *(**LANDED**).* `smooth_positive(x,r)` (canonical, plant's own formula — bit-identical) + ADL `is_finite`; `decide`/`diagnostic` (`test-ad-value-guards.R`, `test-ad-decide.R`). The `xad::value`/`to_passive` grep ban switches on with the plant port (P2a). The harness (frozen-schedule FD, per-edge probes, dot-product oracle, M1 gate) is folded into each primitive's test.
+- **P1e — mass transport** *(**LANDED**).* `cohort_spacing` + `log_density_rate`; `C = cohort_spacing(g)/cohort_spacing(x)` shares the reduction operator by construction, so the compression cancels in value *and* parameter derivative. Verified: the cancellation identity, the secant vs analytic `dg/dx`, the oracle (`test-ad-mass-transport.R`). Deletes the model transport term. *(No `StateView`/`TransportGeometry` nouns.)*
 - **P1f — `QK<S>` fixed-rule quadrature** (Cluster 4): template `QK::integrate` on the scalar **and the
   bound type** — the nodes are a deterministic affine image of the bound, so an *active* bound (a census
   integrated over an active plant height) tapes exactly through the moving nodes; **differentiate
@@ -144,23 +156,23 @@ earlier commit) does not. Which we branch Phase 2 from is a later decision, so e
 and in the Port map is **symbolic** (file / function name), resolved to line numbers only once the base
 is chosen. Nothing here is applied until Phase 2 begins; odelia primitives land first.
 
-**Plant port ledger (updated as odelia primitives land; detail in the Port map below).** Each landed
-odelia primitive enables a plant edit but does not apply it — status is *enabled*, not *applied*:
-- **`separable_field` (P1b) — enabled.** Replaces `species.h::compute_competition`, the coupling-path
-  interpolator read, and `get_environment_slope_at_height`; the strategy declares `{a_p,b_p}` +
-  `kernel_direct`. Applies at P2a (K93) / P2b (FF16 crown).
-- **mass transport (P1e) — enabled.** Deletes `node.h::growth_rate_gradient`, absorbs the
+**Plant port ledger (all Phase-1 primitives landed; here is the plant edit each enables — status
+*enabled*, not yet *applied*).** The primitive exists and is verified in odelia; the plant change waits
+for Phase 2:
+- **`separable_field` (P1b).** Replaces `species.h::compute_competition`, the coupling-path interpolator
+  read, and `get_environment_slope_at_height`; the strategy declares `{a_p,b_p}` + `kernel_direct`.
+  Applies at P2a (K93) / P2b (FF16 crown).
+- **mass transport (P1e).** Deletes `node.h::growth_rate_gradient`, absorbs the
   `node_geometric_compression` loop; reduction weights must read `cohort_spacing` (the shared operator).
   Applies at P2a.
-- **`smooth_positive` / `is_finite` (P1d) — enabled.** Plant `util::smooth_positive` magic radii →
-  the canonical declared-radius form (**bit-identical formula**); double-only guard sites → ADL
-  `is_finite`. Applies per strategy.
-- **`decide` / `diagnostic` + the `xad::value`/`to_passive` grep ban (P1d) — deferred to the System
-  path.** `decide` needs the record/replay channel, so it lands wired into the SCM (P2a), not as a free
-  function; the grep ban switches on once strategy TUs exist to police.
-- **`register_implicit` (P1a), `incomplete_gamma` (P1c), `QK<S>` (P1f) — not started.** Enable the TF24
-  leaf/soil deletions (FD seam, hand IFTs, hydraulic splines, `psi_soil_cache_`) and the crown quadrature
-  templating; apply at P2b/P2c/P2d.
+- **`smooth_positive` / `is_finite` (P1d).** Plant `util::smooth_positive` magic radii → the canonical
+  declared-radius form (**bit-identical formula**); double-only guard sites → ADL `is_finite`. Per strategy.
+- **`decide` / `diagnostic` (P1d).** Value-branches (net-production sign, PPA layer index, `height_max`,
+  leaf shut-down early-exits) → `decide`; dead `to_passive` reads → `diagnostic`. The commit-per-accepted-
+  step wrapping (adaptive recording) and the `xad::value`/`to_passive` grep ban land wired into the SCM at P2a.
+- **`register_implicit` (P1a), `incomplete_gamma` (P1c).** The TF24 leaf/soil deletions (FD seam, hand
+  IFTs, hydraulic splines, `psi_soil_cache_`); apply at P2c. **`QK<S>` (P1f)** is plant's `qk.h`
+  templating; applies at P2b.
 
 - **P2a — K93** (simplest: closed-form rates, separable kernel, no inner solve). Uses P1b + P1e. Also the
   **CD-A/CD-G de-risk vehicle** (cheapest full SCM: growing dim + L2 recompute + census). Deletes
@@ -189,11 +201,11 @@ missing self-shading) and do **not** build a `stand_*_stage_history`. **PLANT-10
 Phase 3). **IC gradients** (`Patch::ad_initial_state`, ledger E) land after P2a's resident core — sequence
 them once the L2 recompute path is solid; remove the `scm.h:231` resume stub as the IC path lands.
 
-**Critical path to #52 parity (reassessed):** (F1/E2 done; CD-A verified; **P1b landed**) → **P1b (separable field)** → **P1e (mass
-transport)** → **P2a/CD-G (K93 resident census — the first visible win + integration fixture)** →
-P1a+P1c → **P2c wiring (TF24)** → P2b (FF16, +P1f) → P2d (TF24f). P1d (firewall) lands alongside P1b.
-IC-seeding on IndividualRunner sequences after P2a's resident core. Fastest visible win: **P2a once
-P1b+P1e land** (CD-A already green).
+**Critical path to #52 parity (reassessed):** (F1/E2 done; CD-A verified; **all Phase-1 primitives
+landed**) → **[decide the plant base]** → **P2a/CD-G (K93 resident census — the first visible win +
+integration fixture)** → **P2b (FF16, +P1f)** → **P2c (TF24, applies P1a+P1c)** → **P2d (TF24f)**.
+IC-seeding on IndividualRunner sequences after P2a's resident core. **The next gate is the plant-base
+decision** (#52 vs develop vs earlier), not any further odelia primitive.
 
 ## Multirate soil — OUT OF THIS PLAN (pursued independently)
 The multirate sub-cycle for the ≤5-state soil block (E2: kink-split at recorded rainfall knots; the
