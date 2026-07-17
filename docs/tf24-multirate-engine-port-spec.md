@@ -258,6 +258,15 @@ The engine consumes plant through these. **R1 is the headline; the others are th
    Items 4–8 of plant#53 (factored coupling, P_pp, feasibility-clamp event, setup cache, batched kernel) still to do.
 2. **odelia MRIStepper + InnerStepper seam** (4.1–4.2): port mri_core, collapse+order gates, ARKODE
    diff-test. Gate: order 1/2/2/3 tables; base-ERK & pure-inner collapse to machine precision.
+   ✅ **DONE + wired into the method surface.** odelia master fast-forwarded to upstream (RODAS #35/#37,
+   which added the `Method` enum + `stepper_step` dispatch). MRI is now `method="mri"` — a first-class peer
+   of rkck/rodas: `MriStep<System>` matches the Step interface, a System opts in via `is_multirate`
+   (declares fast/slow split, state fast-first); driven by fixed macro steps (the kink grid), adaptivity in
+   the fast sub-cycle. Gate: `method="mri"` via the Solver is stable+accurate on the daily grid where
+   fixed-step rkck blows up. **This is the surface the SCM selects** — plant just passes `method="mri"` once
+   its patch System declares the soil block as fast (fast-first layout; needs plant#53 items 4+ for a cheap
+   fast_rates). Assumptions to honour in the plant adapter: **state laid out fast(soil)-first**, and
+   **fixed macro grid** (MRI reports no macro error, so drive with advance_fixed, not advance_adaptive).
 3. **R1 splitting inner + ROS34PW2** (4.3): Gate: matches an adaptive inner on the fast block; drainage
    stiffness gone (measure `‖[drainage, residual]‖` commutator + `‖∂a/∂u‖` — decides if the residual
    step can go explicit; R1's step-enlargement magnitude).
