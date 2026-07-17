@@ -243,13 +243,18 @@ for Phase 2:
 - **`separable_field` (P1b).** Replaces `species.h::compute_competition`, the coupling-path interpolator
   read, and `get_environment_slope_at_height`; the strategy declares `{a_p,b_p}` + `kernel_direct`.
   Applies at P2a (K93) / P2b (FF16 crown).
-- **mass transport (P1e).** *Started at P2a.* The `node_geometric_compression` arm in
-  `Species::compute_rates` now calls `odelia::log_density_rate` (plant `d87193f2`) — bit-identical to the
-  old hand arm (Gate-0 A: flag-off `0.075325` unchanged, flag-on `0.075453`, `max|log n|=21.09`), the
-  first odelia primitive on a plant path. **Remaining:** make it the transport *default* and delete
-  `node.h::growth_rate_gradient` (the FD/forward-over-reverse clunk) — this flips the forward number to
-  `0.075453` (0.169% > the offspring test's 1e-4 tol), so it needs a **documented re-baseline** of
-  `test-strategy-k93.R`. Reduction weights must read `cohort_spacing` for the cancellation to hold.
+- **mass transport (P1e).** ***APPLIED at P2a — mass chart is now K93's default transport.*** The
+  `Species::compute_rates` arm calls `odelia::log_density_rate`; the transport scheme is selected by a
+  compile-time strategy marker `strategy_supports_geometric_transport` (K93 declares the nested
+  `geometric_transport` type) **AND** the Control flag `node_geometric_compression` (default flipped to
+  `true`). K93 defaults to the mass chart (flag still forces the stencil for the layer-(a) `geometric=FALSE`
+  path); FF16/TF24 ignore the flag entirely (the secant is unstable for them) so the default flip leaves
+  them **bit-identical**. `Node::growth_rate_gradient`'s active forward-over-reverse dg/dh block is
+  **deleted** (dead once K93 is on the mass chart; FF16/TF24 never run an active SCM) — the double
+  FD-stencil value path stays for FF16/TF24 production. **Sanctioned re-baseline applied:** K93 offspring
+  `0.0753261 → 0.0754526` (single) and the three-species vector likewise (~0.17%); `test-strategy-k93.R`
+  and the lone-cohort case in `test-node.R` updated. Verified: FF16/TF24/TF24f + gate0 bit-identical,
+  node/patch/species/scm + K93 census/offspring gradients green.
 - **`smooth_positive` / `is_finite` (P1d).** Plant `util::smooth_positive` magic radii → the canonical
   declared-radius form (**bit-identical formula**); double-only guard sites → ADL `is_finite`. Per strategy.
 - **`decide` / `diagnostic` (P1d).** Value-branches (net-production sign, PPA layer index, `height_max`,
