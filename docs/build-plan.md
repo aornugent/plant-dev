@@ -114,6 +114,34 @@ clean-boundary axis the v2 emphasises:
     `net_reproduction_ratio_by_node_weighted` templated to `value_type`; (c) active SCM + L2 knot handoff +
     tape-on-SCM; (d) `compute_gradient` + `compute_jvp` + the oracle.
 
+  **STATUS (2026-07-17) — CD-G layers (a)–(d) LANDED and oracle-verified for K93.**
+  `k93_scm_census_driver.cpp` + `test-ad-k93-scm-gradient.R` on the plant branch. Two exports share one
+  core (`k93_scm_gradient_impl` over a `K93Metric` selector); both the **census** (total stand
+  competition) and **offspring/R0** functionals pass the JVP=VJP oracle (~3e-10 / ~4e-14). The active
+  value reproduces the double exactly (census `25.87369`; offspring `0.075453`). A structural cross-check
+  the oracle *cannot* make: `d(census)/d(d_0)=0` (recruitment has no path to basal area) while
+  `d(R0)/d(d_0)=+103` is the dominant offspring contributor.
+  - **Finding resolved — the L2 "knot handoff" was not needed for K93.** K93's environment is analytic
+    (no adaptive light spline → no L2 knots), so the resident active pass needs only **L1 ode-time
+    pinning**: record `patch.step_history` on a double run (needs `save_RK45_cache` = recording on), then
+    pin it on the active SCM through the *existing public* node-schedule surface
+    (`r_node_schedule` → `r_set_ode_times`/`r_set_use_ode_times` → `r_set_node_schedule`) — **not**
+    `run_mutant` (which `set_mutant`-freezes the field, L3). The active run recomputes the field at the
+    active scalar (resident L2). **No new plant surface.** The genuine L2 spline-knot handoff resurfaces
+    only for FF16/TF24 (adaptive light), at P2b.
+  - **Finding resolved — "no C++ SCM construction" — built in the driver** (K93 `Parameters<S>` for
+    `S ∈ {double, AReal, FReal}` from shared inputs; the double + active SCMs are separate objects so
+    only `step_history` (doubles) crosses between them).
+  - **Tape-on-SCM landed** (`scm.h`): a lazy `std::unique_ptr<tape_type> tape` member (the driver
+    contract), plus a copy-ctor that carries the simulation state and nulls the tape — RcppR6 copies the
+    object on every R crossing, and the double R ABI is unchanged.
+  - **value_type reproduction chain landed** (`util::trapezium` accumulator, `Node::fecundity`/
+    `weighted_fecundity`, `Species`/`Patch` reproduction reductions) — makes R0/offspring differentiable
+    with one scalar-generic path (no `_ad` fork); double path byte-identical, R ABI untouched.
+  - **Remaining for CD-G:** the LAI/biomass/basal **vector** census (codomain=3) is an FF16/TF24 concern
+    (K93 tracks size only → its census is the single basal-area moment); it lands with P2b alongside the
+    real L2 knot handoff.
+
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
 `claude/odelia-ad-tape-reverse-496fuf` (each ships the dot-product oracle and/or an FD/analytic
