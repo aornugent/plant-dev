@@ -227,6 +227,36 @@ The engine consumes plant through these. **R1 is the headline; the others are th
 
 ---
 
+## 6b. TF24 patch multirate adapter (designed; the next build)
+
+The odelia `method="mri"` surface is ready (§8 step 2). To run it on the real patch, plant needs a
+multirate **System** — a `MultiratePatch<T,E>` adapter wrapping `Patch<T,E>`, selected switchably (a new
+runner / "TF24split" path; production TF24 untouched). The map that fixes the design:
+
+- The Solver drives **`Patch<T,E>`** (scm.h). State layout is **`[cohort states | soil θ (L) | 4 aux]`** —
+  cohorts first, the environment (soil+aux) block **contiguous at the tail** (patch.h `ode_state`
+  = species then environment).
+- Per-layer uptake `resource_depletion` is assembled in `Patch::compute_rates` (sum over cohorts'
+  `consumption_rate(i)`) and **is a function of θ** (each cohort's `leaf.soil_consumption_` comes from
+  `psi_soil(θ)`); re-running `compute_rates` at a new θ re-evaluates it.
+- The **light spline is frozen per step** (rebuilt only in `compute_environment`, from `set_ode_state`),
+  so cohorts+light can be held while θ varies.
+
+**Adapter design (no odelia change beyond the `freeze_slow` hook, already added):**
+- Fast block = the environment block (soil θ + aux); slow block = cohorts. `coupling_size = 0` — the fast
+  rates read the **frozen Patch** (cohorts+light), not a linear aggregate `g`.
+- Present **soil-first** to odelia: `ode_state`/`set_ode_state` gather/scatter between the odelia view
+  `[soil | cohorts]` and the inner Patch `[cohorts | soil]`. (Keeps `MriStep` fast-first — no engine change.)
+- `freeze_slow(x_cohorts)`: set the inner Patch cohorts from x, `compute_environment` (rebuild light) once
+  per leg. `fast_rates(u_soil)`: set the soil block = u, `compute_rates` (re-eval uptake at θ from the
+  frozen cohorts+light), extract the soil rates. `slow_rates(x,u)`: full patch RHS, extract cohort rates.
+- Correctness first with **full-N uptake** in `fast_rates` (so the A/B runs; each fast step ≈ a full patch
+  RHS, so MRI is *correct + stable* but not yet *faster*). The cost win needs plant#53 items 4+
+  (collocation → uptake at m cohorts). R1 split vs unsplit is measurable immediately (soil stiffness).
+- Wiring: a new `OdeRunner`-style RcppR6 binding `Solver<MultiratePatch<TF24,TF24_Env>>` + `method="mri"`;
+  test: MRI vs `rkck`/`rodas` on a real patch (correctness + stability at the daily macro grid), then the
+  split-vs-unsplit and MRI-vs-RK45 A/B.
+
 ## 7. Measured evidence (do not re-derive)
 
 - **Premise:** soil ~300× faster (`real_patch_probe.R`). Cheap soil RHS reproduces patch soil deriv to
