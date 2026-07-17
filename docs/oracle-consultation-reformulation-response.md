@@ -249,3 +249,38 @@ should remove anyway; remove it (R-C) and you are in Case A, where the log-deple
 right.** Next: T2 (windowed chart + Rosenbrock prototype — clamp/floor activations → 0, transition steps
 expand, trajectory matches truth) and T3 (taped adjoint of the chart scheme + the telescoped
 `D=Σd_iθ_i` invariant), before building.
+
+## T2 + T3 measured (2026-07-17) — `t2_logchart_prototype.R`, `t3_chart_ad.cpp`/`t3_test.R` — reformulation confirmed
+
+Both windowed-prototype tests pass on a faithful self-contained soil block (drainage `θ^16` + cascade +
+saturation-excess forcing + root uptake with a **smooth vulnerability shutoff**, R-C).
+
+**T2 — forward (values), log-depletion chart `ζ=ln(θ−θ_res)` + Rosenbrock ROS2 vs a tight reference:**
+- **Trajectory matches truth** — the chart is a re-discretization, not a model change: max|Δθ| ≈ 8e-5 at
+  ζ-step H=0.02, degrading gracefully with H.
+- **Zero clamp activations at every step size** — positivity is structural in ζ (`θ = θ_res + e^ζ > θ_res`
+  always). With the smooth shutoff the trajectory also asymptotes to the bound (Case A), so no overshoot
+  occurs in either chart — the clamp is unnecessary once the model is smooth, and *impossible to violate*
+  in the chart.
+- **Fall vs floor, as predicted.** Drying passage ("fall", accuracy-limited): ~4–10× fewer steps. Parked
+  in the stiff water-stress transition ("floor", θ≈0.13, ψ≈4.5 MPa): explicit is stability-limited at 2000
+  steps, ζ+ROS2 matches accuracy in **50 steps — 40× fewer**. The intrinsic residence-time stiffness
+  remains (handed to the implicit solve); the chart makes those steps large and clamp-free.
+
+**T3 — reverse (gradients), XAD tape of the log-chart scheme, adjoint vs FD-as-run:**
+- **Adjoint == FD** to max_abs_err 1.7e-7 (rel 2.7e-8) on all three differentiable params (uptake scale,
+  vulnerability midpoint, drainage scale).
+- **The adjoint is exact; the residual is FD truncation, not adjoint error** — the eps_fd sweep scales the
+  discrepancy as eps² (1e-4→1.7e-3, 1e-6→1.7e-7) down to the FD roundoff floor (~3e-9 at 1e-7). The classic
+  "tape is exact, FD is noisy" signature. The smooth shutoff means no kink, so no B3-style degradation.
+- **Telescoped conservation invariant holds:** `D(T)−D(0) = −0.22947` vs `∫(infil − K_bottom − Σuptake) =
+  −0.22986`, residual 4e-4 (RK4 quadrature-limited); its *gradient* is the F=D(T) adjoint check above.
+
+**Verdict — the reformulation is validated end-to-end.** Log-depletion chart + smooth vulnerability shutoff
+(R-C + R-D): the forward scheme reproduces truth with the clamp/floor/singularity deleted and a 40× step
+cut in the stiff regime, and the reverse-mode gradient stays exact for the scheme as run with the
+conservation invariant intact. The residence-time stiffness is real and stays with the `L≤5` implicit
+solve, as the committed design already provides. What remains is the production build itself: pose the soil
+block in `ζ`, let the existing hydraulic vulnerability curve run smoothly to zero (removing the ψ-ceiling
+floor and its dead gradient), and step it with the `L≤5` Rosenbrock — the same micro-stepper the multirate
+design commits to, now in the honest coordinate.

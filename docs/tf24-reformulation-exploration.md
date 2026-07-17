@@ -321,5 +321,15 @@ exactly (R-A); represent water stress and stomatal acclimation as the smooth, fi
 processes they are (R-C, R-B); and **carry the soil state in log-scarcity** (R-D) — the axis on which the
 plant's tension response is linear — so the clamp, the ceiling, the singular slopes, and the significand
 loss simply cease to exist. Each change makes the model *more* physically faithful; the numerical pain was
-the model telling us it was posed in the wrong variables. Remaining before build: T2 (windowed chart +
-Rosenbrock prototype) and T3 (taped adjoint of the chart scheme + the telescoped `D=Σd_iθ_i` invariant).
+the model telling us it was posed in the wrong variables.
+
+**Validated end-to-end (T2, T3).** A windowed prototype confirms the forward and reverse behaviour
+(`t2_logchart_prototype.R`, `t3_chart_ad.cpp`; see [`oracle-consultation-reformulation-response.md`]): the
+log-depletion chart + smooth shutoff reproduces the reference trajectory with **zero clamp activations**
+(positivity structural) and a **40× step cut** in the stiff water-stress transition, and its reverse-mode
+adjoint **matches FD-as-run to ~1e-7** (eps-limited, no kink) with the telescoped `D=Σd_iθ_i` conservation
+invariant intact. The intrinsic residence-time stiffness remains and goes to the `L≤5` implicit solve, as
+the committed multirate design already provides. What remains is the production build: pose the soil block
+in `ζ`, let the existing hydraulic vulnerability curve run smoothly to zero (removing the ψ-ceiling floor
+and its dead gradient), and step it with the `L≤5` Rosenbrock — the same micro-stepper, now in the honest
+coordinate.
