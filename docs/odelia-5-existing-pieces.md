@@ -15,23 +15,21 @@ gradient driver duck-types the runnable via `reset()`/`run()`/`get_system_ref()`
 odelia's `Solver::run()` = `advance_fixed(replay_schedule_)` (the simple case), which the SCM overrides
 with its self-segmenting run.
 
-**Verdict.** The composition is sound and it works — but the *runnable contract* the SCM implements is
-**duck-typed and undocumented**, which is what makes "the SCM passes `run` to odelia" feel like a fork.
-The least-change fix is not to move the loop into odelia (that generalizes a growing-Solver over **one**
-witness — the SCM — which the design rules forbid), but to **formalize the Runnable contract as a
-documented odelia concept**: `{ value_type; reset(); run(); get_system_ref(); tape; get_history_step();
-+ the growing-dimension guarantee (active tape slots survive a mid-run resize) }`. Then the SCM's
-self-segmenting runnable is a *sanctioned extension point*, not a deviation, and the driver's duck-typing
-becomes a named concept it checks.
+**Verdict (revised by [odelia #6](./odelia-6-boundary-tape-checkpoint.md) — no new name).** The
+composition is sound and works. My earlier recommendation here — "formalize a `Runnable` concept" — was
+**overbuilt** and is withdrawn: a `concept` would relocate the duck-typed surface into a name without
+removing a bug class (the load-bearing guarantee, "the tape survives a mid-run resize," is a *runtime*
+property a `concept` can't check — a test checks it, and one exists). Per the concept-count scarce
+resource, the floor wins: **document the driver's ~5 required methods in a call-site comment** and keep
+the growing-resize **test** as the guarantee. **0 new named concepts.**
 
-**Flagged (the "better approach," deferred).** odelia's `Solver` could grow a native introduction/event
-hook (`introductions_due(t) → species`, `introduce(...)`) and own the segmentation loop, making the SCM
-a plain System. Cleaner boundary — but **one witness**. *Retrofit trigger:* a second growing-dimension
-System appears (a different structured-population model) → generalize then. Until then the SCM-owns-loop
-+ documented-Runnable-concept is the reversible default. **No Solver structural change in v1.**
+**Flagged (deferred, one witness).** odelia's `Solver` could grow a native introduction hook and own the
+segmentation loop, making the SCM a plain System (candidate C in odelia #6). Cleaner layering, but one
+witness → the YAGNI trap. *Retrofit trigger:* a second growing-dimension System. This is the "clean up
+post hoc" option. **No Solver structural change in v1; no new concept in v1.**
 
-**Build-plan action:** add a "Runnable concept" doc + a `static_assert(Runnable<SCM>)`; note the deferred
-generalization + its trigger.
+**Build-plan action:** a call-site comment on `compute_jacobian` listing the runnable methods; rely on
+the existing `test-ad-growing-resize.R`. No `Runnable` type. Record C + its trigger.
 
 ## 2. The "driver" — **a naming fix (three-way clash)**
 **Current.** "The driver" in `AUTODIFF.md`/`gradient.hpp` = the **gradient driver**
@@ -54,14 +52,15 @@ it; plant v1 didn't use it and the tape grew fine (slots are indices preserved a
 `vector` realloc does). **`std::vector` geometric growth ⇒ amortized O(N) copies total**, not O(N²) — so
 the realloc cost is O(N) cheap slot-preserving copies over a run, dominated by the O(N·steps) integration.
 
-**Verdict.** Marginal benefit; adding it to the critical path is an abstraction we don't need (the user's
-instinct is right). Keep it **available** (the SCM wrapper *may* call it) but **not required**. *Honest
-caveat:* I reasoned this (amortized-O(N), slot-preserving copy), didn't measure the per-`AReal`-copy tape
-cost — if a profile of a resident-census gradient shows the per-introduction resize is a hotspot, calling
-`reserve_state` once (to the known final N) removes it. Otherwise leave it unused.
+**Verdict (revised by odelia #6 — deletion candidate).** The spike confirms `AReal` holds a slot *index*,
+so the realloc is amortized-O(N) slot-preserving POD moves (the tape is immune) — `reserve_state` buys
+~nothing. An unused abstraction is the same debt as an unneeded one, so it should be **deleted unless a
+profile surprises us**: a ~5-line timing spike on `test-ad-growing-resize.R` (with vs without); if no
+benefit (expected), remove `reserve_state` from odelia; if a per-`AReal`-move tape cost appears (I could
+not fully rule it out from the headers), keep it and call it once. Not on the critical path either way.
 
-**Build-plan action:** a one-line profile check (is per-introduction resize a hotspot?) → call
-`reserve_state` iff yes; else no change. Low priority.
+**Build-plan action:** profile → **delete `reserve_state` or keep-and-call**; default expectation is
+delete. Low priority.
 
 ## 4. Checkpointing (RK-step / introduction boundary) — **evaluate, don't pre-build**
 **Current.** The gradient driver records **one tape** for the whole run and sweeps `m` rows over it
@@ -146,9 +145,9 @@ on the active replay — a test assertion, not new code).
 ## Summary — what this adds to the build plan
 | Piece | Verdict | Action | Priority |
 |---|---|---|---|
-| Solver/SCM | keep composition | document a **Runnable concept** + `static_assert`; defer the growing-Solver generalization (1 witness) | med |
+| Solver/SCM | keep composition | **call-site comment** + the growing-resize test (NO `Runnable` concept — see odelia #6); defer the odelia-owns-the-loop cleanup (1 witness) | low |
 | "driver" | naming | prose → "gradient driver"; glossary vs `ExtrinsicDrivers`; audit demo drivers | low |
-| `reserve_state` | don't mandate | profile the per-introduction resize; use iff a hotspot | low |
+| `reserve_state` | deletion candidate | profile the resize; **delete** iff no benefit (expected) — else keep-and-call | low |
 | checkpointing | evaluate | **measure peak tape memory**; introduction-boundary seam reserved, gated on a breach | med |
 | functionals | sound | **multi-metric/var/species census test** (persona 1), oracle-checked | high |
 | IC seeding | plant-done (78bd39) | wire `ad_initial_state` to the age-0 seed + test; resume-case fenced | med (sequenced) |

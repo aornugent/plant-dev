@@ -86,11 +86,13 @@ anti-staleness property against FD.
 The generic AD surface (Solver, gradient driver, functionals, record/replay, IC seeding,
 growing-dimension) already exists and mostly needs no change. The audit adds these to the plan so it is
 comprehensive:
-- **Runnable concept (Phase 1).** Document the duck-typed runnable the SCM implements (`value_type,
-  reset(), run(), get_system_ref(), tape, get_history_step()` + active tape slots survive a mid-run
-  resize) as a named odelia concept + `static_assert(Runnable<SCM>)`. The SCM keeps its self-segmenting
-  `run()` (HAS-A `Solver`, owns the `[grow][resize][integrate]` loop). **Deferred (1 witness):** an
-  introduction-aware odelia `Solver` that owns the loop — retrofit trigger = a 2nd growing-dimension System.
+- **Solver/SCM seam (Phase 1) — no new concept** (odelia #6). The SCM keeps its self-segmenting `run()`
+  (HAS-A `Solver`, owns the `[grow][resize][integrate]` loop); the gradient driver keeps duck-typing it.
+  Document the ~5 required methods in a **call-site comment** on `compute_jacobian`; the growing-dimension
+  guarantee is the existing `test-ad-growing-resize.R`. **No `Runnable` concept / `static_assert`** — a
+  `concept` can't check the runtime resize guarantee, so it would add a name without removing a bug class.
+  **Deferred cleanup (1 witness):** odelia `Solver` owns the introduction loop → the SCM becomes a plain
+  System; retrofit trigger = a 2nd growing-dimension System.
 - **Interpolator simplification (with P1b).** The scan (P1b) takes the separable coupling field and the
   mass chart takes `dg/dh`, so the interpolator demotes to the **non-separable fallback only** — **delete**
   its coupling-era bandaids (the frozen active-query derivative, the geometric-compression entanglement);
@@ -102,10 +104,12 @@ comprehensive:
 - **IC gradient (sequenced after the resident core).** Rests on **plant#499 / `78bd39`** (seed an initial
   size distribution at patch age 0 — landed). Wire `Patch::ad_initial_state()` to the age-0 seeded node
   states + a test; the resume-from-mid-run case stays fenced (the `scm.h:231` replay conflict).
-- **Evaluate-then-decide (med/low).** *Checkpointing:* measure peak tape memory on the largest resident
-  census; reserve the node-introduction `CheckpointCallback` seam, build it only on a budget breach (v1's
-  one-tape run fit 0.5–4 GB). *`reserve_state`:* profile the per-introduction resize; call it once iff a
-  hotspot (amortized-O(N) slot-preserving copy otherwise — marginal). Neither on the critical path.
+- **Evaluate-then-decide (med/low)** (odelia #6). *Checkpointing:* measure peak tape memory on the
+  largest resident census; if it breaches the budget (v1's one-tape run fit 0.5–4 GB) checkpoint at the
+  node-introduction boundary using the **vendored `XAD::CheckpointCallback`** (reuse, no new abstraction).
+  *`reserve_state`:* the spike shows the resize is amortized-O(N) slot-index-preserving POD moves (the
+  tape is immune), so **delete `reserve_state`** unless a profile surprises us (then keep-and-call).
+  Neither on the critical path; net **0 new named concepts**.
 - **Naming pass (low).** Prose: bare "driver" → "**gradient driver**" (`compute_*`), distinct from the
   Solver *driving* the stepper and from `ExtrinsicDrivers` (forcings); glossary line; audit the odelia demo
   systems' driver members.
