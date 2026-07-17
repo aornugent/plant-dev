@@ -150,20 +150,48 @@ non-smoothness eases.
   (uptake) stiffness that R-A cannot touch. This is the reformulation that addresses the persistent floor,
   and it is the one the multirate design already flagged as a **prerequisite**, not an optimisation.
 
-### R-D. Potential / mixed-form state near the dry bound — a coordinate, not a rewrite
+### R-D. Log-depletion (log-scarcity) state near the dry bound — the load-bearing dry-floor reformulation
 
-- **Mechanism.** Matric potential `ψ` is the variable the plant actually senses and the natural driving
-  variable for water flow (Richards-equation practice is often ψ-based or mixed θ–ψ).
-- **Current representation.** The state is θ; `ψ(θ)` diverges at the dry end, concentrating all the
-  difficulty there.
-- **Reformulation.** For the near-bound passage, integrate in a **desingularising coordinate** `w = φ(θ)`
-  (a bounded transform, e.g. potential-based) so the approach to `θ_res` is gentle.
-- **Preserves.** The retention-curve physics.
-- **Caveat (measured, H0 λ-spread).** The tempting version of this — recasting the whole coupling around a
-  single **shared "price of water"** `φ(θ)` (the H0/tariff collapse) — is **not licensed**: the shadow
-  price of water `λ_j = (∂P_j/∂θ)/(∂E_j/∂θ)` is **member-specific**, varying 2–4× across cohorts
-  (monotone in height/light; `eH0_lambda_spread.R`). So `φ` is a legitimate *coordinate for the near-bound
-  passage*, but **not** a global model rewrite. Secondary, optional.
+*This is the biggest measured result of the exploration, from a second Oracle consultation and the
+`t1_osgood_chart.R` (Osgood) test. See [`oracle-consultation-reformulation-response.md`].*
+
+- **Mechanism.** Matric potential `ψ = a_ψ·(θ/θ_sat)^{−n_ψ}` (`n_ψ≈6.57`) is the variable the plant
+  actually senses and the natural driving variable for soil water (Richards-equation practice is ψ-based or
+  mixed θ–ψ). Water stress is roughly **linear in log-scarcity** `ln ψ` — how many folds of tension from
+  saturation.
+- **Current representation & why it hurts — three symptoms of one cause.** The state is θ, and everything
+  bad happens as θ → θ_res through the composition `uptake ∘ ψ(θ)`: (i) **stiffness** — the uptake feedback
+  diverges as `∂a/∂θ ~ δ^{γ−1}` with **measured `γ−1 ≈ −6.56 ≈ −n_ψ`** (the divergence exponent *is* the
+  retention exponent); (ii) **singularity + catastrophic float range** — `θ^{−6.57}` spans ~15 orders over
+  a 1.5-order θ-range, so significand is lost before the tape sees it, which is *why* the `ψ` ceiling exists;
+  (iii) **non-differentiability** — the positivity clamp at θ_res plus the `ψ` ceiling. The Oracle's
+  decomposition (and T1) show these are **one mechanism** — scarcity-driven uptake shutting off steeply —
+  wearing three hats of different status: the stiffness is **intrinsic** (a residence time; no coordinate
+  removes it), but the singularity and clamp are **artifacts of the θ-chart**.
+- **A correctness bug this exposed (measured, T1).** As currently coded, uptake does **not** shut off at the
+  wilting point — the `ψ` ceiling (`soil_psi_max_=1e3`) **floors it at a constant** (≈6% of peak) with
+  `∂uptake/∂θ = 0` for all θ < ≈0.11. So the **reverse-mode gradient through uptake is silently zero across
+  the entire drought regime** — a latent AD-correctness defect exactly where drought response matters.
+- **Reformulation.** Integrate the soil block in the **log-depletion coordinate** `ζ = ln(θ − θ_res)`
+  (equivalently log-scarcity `ln ψ`, since `γ−1 = −q`), with the water-stress shutoff smoothed (R-C) so
+  uptake vanishes at the wilting point. `ζ' = (r − K − a)/(d·e^ζ)` — every process becomes its **per-stock
+  rate**, the natural per-capita form.
+- **Preserves.** The retention-curve physics and term-by-term interpretability — arguably *improves* the
+  ecological reading (log-scarcity is the axis on which tension and stress are linear).
+- **Buys (measured/derived).** Deletes the positivity clamp (a finite step in ζ cannot cross a bound at
+  −∞ → positivity is structural); deletes the `ψ` ceiling and its **dead gradient channel** (fixing the
+  correctness bug); **restores floating-point conditioning** (ζ spans O(10) vs θ^{−6.57}'s ~15 orders);
+  bounds the coupling slope (`∂a/∂ζ ≈ γ·a`). The T1 Osgood test confirms the regime: with the shutoff
+  fixed, the sink → drainage `~θ^{16} → 0`, the bound is **unreachable** ("Case A"), and the log chart is
+  exactly right; as-coded it is a degenerate reachable case held up only by the floor artifact.
+- **What it does NOT remove.** The intrinsic residence-time stiffness in the **stress transition**
+  (θ≈0.11–0.16), measured real-spectrum (eigenvalues −86.9…−0.42, no imaginary parts) — handed to the
+  `L≤5` Rosenbrock solve, exactly as the committed design does. The chart makes that solve well-conditioned
+  and smooth; it does not (and cannot) make the stiffness go away.
+- **Why not a global "price of water" rewrite (measured, H0 λ-spread).** The tempting version — recasting
+  the *coupling* around a single shared price `φ(θ)` — is **not licensed**: `λ_j = (∂P_j/∂θ)/(∂E_j/∂θ)` is
+  member-specific, 2–4× across cohorts (`eH0_lambda_spread.R`). So the log-scarcity coordinate is the right
+  **state chart for the soil block**, but the coupling stays per-member; do not collapse it.
 
 ### R-X. What NOT to do — the priced/tariff rewrite (H0)
 
@@ -183,11 +211,20 @@ The measurement in §2 scopes the reformulations precisely, because the two stif
 
 ```
   wet drainage spike   ──►  R-A  (exact recession)              : removes it exactly, + clamp, + analytic touchdown
-  dry uptake floor     ──►  R-C  (smooth water-stress shut-off) : softens the dominant near-singularity, fixes the adjoint
+  dry uptake floor     ──►  R-C  (smooth water-stress shut-off) : uptake -> 0 at wilting; fixes the adjoint AND
+                                                                  removes the psi-ceiling dead-gradient bug; -> Case A
+                        +   R-D  (log-depletion chart zeta)     : the state reformulation -- deletes clamp + psi ceiling
+                                                                  + significand loss; log-scarcity is the natural axis
                         +   R-B  (finite acclimation / TF24f)   : better-posed control at the bound, tape-clean
-                        +   implicit/Rosenbrock-W micro-stepper : still required for the uptake floor (R-A does NOT retire it)
-                        +   R-D  (desingularised coord)         : optional, near-bound passage only
+                        +   implicit/Rosenbrock-W micro-stepper : still required for the residence-time stiffness in the
+                                                                  stress transition (real spectrum; R-A/R-D don't remove it)
 ```
+
+R-C and R-D are **mutually reinforcing**: the smooth shutoff is what puts the system in Case A (bound
+unreachable), and the log-depletion chart is what makes Case A clean (structural positivity, no clamp, no
+ceiling, honest floating point). Neither alone is enough; together they replace every hard numerical switch
+near the bound with the smooth biology it stood in for, and fix a latent gradient-correctness bug in the
+bargain.
 
 Each rewrite makes the model **more** physically faithful: an exact recession curve instead of a
 clamped explicit drainage step; a finite stomatal acclimation rate instead of instantaneous
@@ -203,13 +240,24 @@ biological processes they were standing in for.
   numerical clamp, and yields analytic drainage events — **but it is not the main prize.** Measured: it
   does not retire the implicit micro-stepper, because the dominant stiffness is elsewhere.
 - **The dominant, persistent stiffness is the root water-stress coupling near the dry bound**, and the
-  reformulations that address it — **R-C (smooth stress shut-off)** and **R-B (finite acclimation,
-  TF24f)** — are the load-bearing ones. They are also the two that most improve the *ecological* fidelity
-  of the model, since the current code represents both processes as hard switches.
+  reformulations that address it — **R-C (smooth stress shut-off)** + **R-D (log-depletion chart)** +
+  **R-B (finite acclimation, TF24f)** — are the load-bearing ones. But note the sharpening from the Osgood
+  test: the *stiffness itself is intrinsic* (a residence time; no chart removes it — it goes to the implicit
+  solve), while the *singularity, the clamp, and the significand loss are artifacts of the θ-chart* that
+  R-D deletes. These are also the changes that most improve the *ecological* fidelity of the model, since the
+  current code represents water stress, stomatal adjustment, and depletion as hard switches / a bad
+  coordinate.
+- **R-D exposed a correctness bug, not just a performance one:** the ψ-ceiling floors uptake with a **dead
+  reverse-mode gradient across the whole drought regime** (θ < ≈0.11). The reformulation fixes the gradients
+  the model exists to produce.
 - **The priced/tariff rewrite (R-X) is measured-dead** for TF24; don't pursue it, but design future
   member couplings toward the marginal-coupled form if the science allows.
 
 The reformulation with "the same mechanistic ecological interpretability and better computational
-characteristics" is therefore not a single change but a **matched pair**: integrate the drainage
-recession exactly, and represent water stress and stomatal acclimation as the smooth, finite-rate
-biological processes they are — retiring the numerical switches that currently stand in for them.
+characteristics" is therefore not a single change but a **matched set**: integrate the drainage recession
+exactly (R-A); represent water stress and stomatal acclimation as the smooth, finite-rate biological
+processes they are (R-C, R-B); and **carry the soil state in log-scarcity** (R-D) — the axis on which the
+plant's tension response is linear — so the clamp, the ceiling, the singular slopes, and the significand
+loss simply cease to exist. Each change makes the model *more* physically faithful; the numerical pain was
+the model telling us it was posed in the wrong variables. Remaining before build: T2 (windowed chart +
+Rosenbrock prototype) and T3 (taped adjoint of the chart scheme + the telescoped `D=Σd_iθ_i` invariant).
