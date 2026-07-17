@@ -66,9 +66,9 @@ class of unknown that can move the architecture, on the clean-boundary axis the 
 Each a standalone odelia addition with its own test, no plant dependency.
 - **P1a — implicit-node** *(load-bearing; de-risk first).* First-order reverse-through-solve via `fwd<double>` (no nested tapes). Verify on a scalar monotone root + a 2×2 KKT (IFT vs FD ~1e-10). Reserve a registration slot for higher-order partials (Phase 3) — additive, **not** implemented now.
 - **P1b — scan-coupling.** Suffix/prefix scans; near-diagonal band `δ` (default 0 + debug exactness check vs `kernel_direct`); Neumaier. Verify: dot-product oracle + `Σ a_p b_p` vs supplied `κ`.
-- **P1c — `γ(s,x)` node.** Value + `∂/∂x` + `∂/∂s`; `∂²/∂s²` reserved. FD-validated at init.
+- **P1c — `incomplete_gamma`** (was "the γ node"). Value + `∂/∂x` + `∂/∂s`; `∂²/∂s²` reserved. FD-validated at init.
 - **P1d — `value()` firewall + harness.** `decide`/`diagnostic`; raw `xad::value` grep-banned in Model/Numerics. The reusable harness: frozen-schedule FD, per-edge probes, the dot-product oracle, conservation invariants, the M1 "every seeded param has a partial" gate.
-- **P1e — canonical-state + charts (entangled with plant; start odelia-side).** `(xᵢ, log mᵢ, u, accumulators)`; `StateView` charts as taped bijections; `TransportGeometry` = the fixed neighbour-secant ↔ log-mass pairing. Depends on geometric compression (shipped, opt-in). Deletes compression from the model.
+- **P1e — the field `A` + mass transport** (entangled with plant; start odelia-side). The scan builds `A` over the cohort `{xᵢ, log mᵢ}` (the model reads its value + `A.at(z)`); **mass transport** sets `log_density_dt` from the neighbour secant (transport log-mass, density from spacing). Depends on geometric compression (shipped, opt-in). Deletes the transport code from the model. *(No `StateView`/`TransportGeometry` nouns — see `odelia-index.md`.)*
 - **P1f — `QK<S>` fixed-rule quadrature** (Cluster 4): template `QK::integrate` on the scalar **and the
   bound type** — the nodes are a deterministic affine image of the bound, so an *active* bound (a census
   integrated over an active plant height) tapes exactly through the moving nodes; **differentiate
@@ -130,8 +130,8 @@ the ladder (single-metric → multi-variable census → `dR0/db`); the mutant (L
 - **P2c — TF24** (the hard one; re-reaches #52 soil coupling). Leaf **residual** (the already-templated
   `assim_colimited_ad`/`hydraulic_cost_ad`) drives the reduced-gradient `G(q)` via N1/N3 as P1a
   scalar-IFT nodes — the **leaf solver stays `double`**, the engine auto-differentiates the residual (no
-  per-trait hand `∂profit/∂θ`, the prototype's AD-9 body of work, deleted). `γ` via P1c. **Soil is active
-  coupled state** (`StateView.u()`), not a field: resident soil integrates on the multirate sub-cycle
+  per-trait hand `∂profit/∂θ`, the prototype's AD-9 body of work, deleted). `incomplete_gamma` via P1c. **Soil is active
+  coupled state** (the leaf reads the soil state directly), not a field: resident soil integrates on the multirate sub-cycle
   (its adjoint rides tape-as-run); the `∂profit/∂(soil ψ)` channel is automatic. Deletes the ~150-line FD
   seam + `dsoil_consumption_dpsi_collar_perlayer`. Gate: `test-ad-gate0-tf24.R`,
   `test-ad-tf24-soil-coupling.R`, `test-ad-tf24f-collar-uptake.R` (all currently green — the parity
@@ -164,7 +164,7 @@ not a wrong number).
 ## Phase 3 — the fixed-point / equilibrium layer (secondary, deferred)
 Gated on F1 (passed). The steady Eulerian-profile BVP (dim ~4+L) + IFT adjoint of the collocation
 residual + the dominant-eigenvalue perturbation identity (one nested `adj⟨fwd⟩` sweep). Reuses the P1a
-implicit-node + P1c `γ` node's **reserved** higher-order partials (`∂²γ/∂s²`, differentiated-IFT) —
+implicit-node + P1c `incomplete_gamma`'s **reserved** higher-order partials (`∂²γ/∂s²`, differentiated-IFT) —
 additive registrations, not a rewrite. TF24f adds one `q`-state pinned by `G=0`, contributing the
 `k·dG/dq` relaxation eigenvalue. Serves regnans' selection gradients + the `R0=1` equilibrium. Validate
 against FD of the residual-solved equilibrium, **never** a re-march. Honesty conditions: monitor the
@@ -175,10 +175,10 @@ average through.
 | current (plant#52) | fate | replacement |
 |---|---|---|
 | `node.h::growth_rate_gradient` active block (~70 ln) | **delete** | mass chart (compression vanishes) + scan `∂A/∂z` |
-| `species.h` geometric-compression loop | **absorb** | the chart's `TransportGeometry` |
+| `species.h` geometric-compression loop | **absorb** | the mass transport rule |
 | `tf24_strategy.cpp` FD `supplied_derivative` seam (~150 ln) + `leaf_profit_at_fixed_collar` | **delete** | reduced-gradient `G(q)` via P1a nodes (N1, N3) |
 | `leaf_model.cpp::dprofit_droot_collar_psi` (hand IFT) | **delete** | falls out of N1+N3 |
-| `leaf_model.cpp::dsoil_consumption_dpsi_collar_perlayer` + FD uptake partials | **delete** | γ-node antiderivative difference + breakpoint (Leibniz) |
+| `leaf_model.cpp::dsoil_consumption_dpsi_collar_perlayer` + FD uptake partials | **delete** | `incomplete_gamma` antiderivative difference + breakpoint (Leibniz) |
 | interpolator on the coupling path | **replace (separable) / retain (fallback)** | scan; interpolator kept for `FlatTopSoftBox` |
 | `get_environment_slope_at_height` frozen surrogate | **delete** | exact `∂A/∂z` from the scan |
 | 13 plant headers `#include <XAD/…>` | **reduce to one** | `<odelia/seam.hpp>` |
@@ -195,7 +195,7 @@ soil (via multirate). See `design.md` §11.
 ## Open before Phase 1 hardens
 - **CD-A / CD-G** (growing-dimension active replay + the integration fixture) — the load-bearing
   de-risk, on IndividualRunner then K93-resident.
-- The `γ` `∂/∂s` implementation vs FD-fallback (P1c) — low-stakes, decide at build.
+- The `incomplete_gamma` `∂/∂s` implementation vs FD-fallback (P1c) — low-stakes, decide at build.
 - Whether the mass chart is the *default* for gradient runs or stays opt-in (re-baseline the K93 ~0.169% snapshots if default).
 - Which of the four leaf early-exits produces the hydraulic-failure cliff (isolate before Phase 3).
 - The `∂profit/∂(soil ψ)` channel wiring for resident TF24 (automatic via `u()`, but verify at Gate-0).

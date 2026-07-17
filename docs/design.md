@@ -84,7 +84,7 @@ arithmetic, wrong-chart compression — become **inexpressible in model code**.
 ### Engine primitives (Kernels — the only XAD-aware code)
 1. **scan-coupling** (P1b) — separated kernel factors `{a_p(z), b_p(x)}` → descending suffix scans `B_p` → `A(x)=Σ a_p B_p` and `∂A/∂z=Σ a_p′ B_p`; reverse = mirrored prefix scans; Neumaier summation; a **near-diagonal direct band** `δ` for recombination cancellation. Init-time self-check `Σ a_p b_p == kernel_direct`; ships the dot-product test.
 2. **implicit-node** (P1a) — `register(residual F(y;p), untaped double solver, outputs)`; adjoint forms `∂F/∂y, ∂F/∂p` by `fwd<double>` over the templated residual, small dense solve, `incrementAdjoint`. Sign-definite denominator asserted at registration. `fwd<double>` gives first-order reverse-through-solve **without nested tapes**. Instances: leaf `ci` root, leaf collar optimum `q*`, breakpoints, birth height, the BVP collocation residual.
-3. **canonical-state + charts-as-views** (P1e) — engine-owned `(xᵢ, log mᵢ, u, accumulators)`; `StateView` charts (density / log-density / mass / `A` / `∂A/∂z` / `u`) as taped bijections; `TransportGeometry` = the fixed neighbour-secant ↔ log-mass pairing (a fixed pairing, **not** a policy object — promoted only on a second transport discretisation).
+3. **the field `A` + mass transport** (P1e) — the coupling field `A` is the scan's result (the model reads its value and `A.at(z)` for crown reads); **mass transport** is the one engine rule that sets `log_density_dt` from the neighbour secant of the growth rate (transport log-mass; derive density from spacing), deleting `node.h::growth_rate_gradient` + the `species.h` compression loop. *(No `StateView`/`TransportGeometry` nouns — see [`odelia-index.md`](./odelia-index.md) §concept-audit: the model reads its inputs as rate arguments + `A.at(z)`; the transport rule is fixed, not a named object.)*
 4. **γ(s,x) node** (P1c) — incomplete-gamma antiderivative: value + `∂/∂x` (elementary) + `∂/∂s` (series/digamma), FD-validated; `∂²/∂s²` reserved for the fixed-point path.
 5. **stepper + tape lifecycle** — explicit RKCK (the reference Control); checkpointed record/replay (per-step sub-tape); vector adjoints; multirate sub-cycle for the soil block.
 6. **`value()` firewall** (P1d) — `decide(expr)` (predicate, replays the recorded choice on pass 2) and `diagnostic(expr)` (dead to the tape). Raw `xad::value` grep-banned in Model + Numerics.
@@ -197,8 +197,8 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
 - **K93/FF16 light coupling + dg/dh** → [`deepening-6`](./deepening-6-light-coupling.md). Rank-3
   separable `κ(z,x)=m(x)(1−(z/x)^η)²` (`m=`(π/4)x² for K93, `area_leaf(x)` for FF16/TF24); three suffix
   scans; C¹ double-diagonal zero makes the moving-query slope safe. **dg/dh** is deleted from the model
-  rate by the transport-log-mass chart (`dλ/dt=−r`; `∂ₓg` carried by the neighbour secant =
-  `TransportGeometry`); the exact `∂L/∂z` enters only where a rate reads the local light slope. Replaces
+  rate by the transport-log-mass chart (`dλ/dt=−r`; `∂ₓg` carried by the neighbour secant — the mass
+  transport rule); the exact `∂L/∂z` enters only where a rate reads the local light slope. Replaces
   the `compute_competition` trapezium (the resident self-shading cohort-integral) with the scan.
   **node.h scan:** the only transported state is `log_density`; the sole "number" is the offspring
   output accumulator; number appears implicitly at birth as `density=birth·estab/g` (flux/velocity) —
@@ -214,8 +214,8 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
   `resource_depletion`, which evolves soil, which sets `ψ_soil`, which the leaf reads. So the AD treatment
   is **active state**, not L2/L3: **resident TF24** integrates soil actively coupled to the active cohorts
   (its adjoint rides tape-as-run — the multirate sub-cycle); **mutant TF24** reads soil *frozen* (it rides
-  L3, deferred). `StateView.u()` is the state accessor; per-layer uptake `E_i` = an antiderivative
-  difference of the `γ` node with Leibniz endpoints and breakpoint nodes at layer crossings. Deletes
+  L3, deferred). The leaf reads the soil state directly; per-layer uptake `E_i` = an antiderivative
+  difference of `incomplete_gamma` with Leibniz endpoints and breakpoint nodes at layer crossings. Deletes
   `dsoil_consumption_dpsi_collar_perlayer` and the per-layer FD partials; the same `E_i` serves the
   transient sink and the BVP steady-`u`. Resident soil adds a `∂profit/∂(soil ψ)` channel the mutant path
   never needs — automatic here (the leaf reads `u()` on the tape), where the prototype needed a new hand

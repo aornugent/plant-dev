@@ -18,6 +18,14 @@ clean `System` interface, and the transported-state / coupling machinery owned b
    the fixed-point layer: the delivery ladder, standing guards, Phases 0–3, the multirate track, the port
    map, and the scope fences.
 
+### The odelia engine design (the general-purpose machinery)
+- **[`odelia-index.md`](./odelia-index.md)** — the design index + **concept audit** (the settled,
+  intuitive concept set; what each of the six notes below settles; the map to the build-plan labels).
+  Start here for the engine.
+- `odelia-1-transport-spine.md` (the scan + mass transport), `odelia-2-implicit-node.md`,
+  `odelia-3-soil-coupling.md` (`incomplete_gamma`), `odelia-4-value-firewall.md`,
+  `odelia-5-existing-pieces.md`, `odelia-6-boundary-tape-checkpoint.md` — the per-component design notes.
+
 ### Detailed appendices (per-component derivations `design.md` links)
 - [`deepening-6-light-coupling.md`](./deepening-6-light-coupling.md) — K93/FF16 light coupling + dg/dh.
 - [`deepening-1-leaf-residuals.md`](./deepening-1-leaf-residuals.md) — the TF24 leaf inner solves (N1, N3).
