@@ -35,9 +35,25 @@ template <class S> static inline S popt(const std::vector<S>& u, const Par<S>& p
 }
 // objective gradient dP/dp = -(p - p_opt); tracked control relaxes p -> p_opt at rate k
 template <class S> static inline S dPdp(const S& p, const std::vector<S>& u, const Par<S>& pr){ return -(p - popt(u,pr)); }
+// B3 footgun probe: an interior member-coordinate regime boundary whose crossing MOVES with u
+// (members below x_cut(u) shut off; drier soil -> higher cutoff). GATE_ON toggles it; GATE_W is the
+// smoothing scale (0 = hard step -> the kink-crossing quadrature error the Oracle flagged; >0 = the
+// model-level smoothing cure). x_cut(u) moving at the micro rate is what makes the quadrature error's
+// u-derivative oscillate, so its gradient converges slower than its value unless smoothed.
+static bool   GATE_ON = false;
+static double GATE_W  = 0.0;
+template <class S> static inline S gate(double x, const std::vector<S>& u){
+  if(!GATE_ON) return S(1.0);
+  S ub=S(0.0); for(int l=0;l<L;++l) ub+=u[l]; ub/=double(L);
+  S xcut = S(0.30) + S(0.40)*(S(1.0) - ub/THSAT);          // dry -> higher cutoff (moves with u)
+  S z = (S(x) - xcut);
+  if(GATE_W<=0.0) return (z>S(0.0))? S(1.0):S(0.0);         // hard step (kink)
+  S s = z/S(GATE_W); if(s<=S(-0.5))return S(0.0); if(s>=S(0.5))return S(1.0);
+  S t = s+S(0.5); return t*t*(S(3.0)-S(2.0)*t);             // smoothstep over width GATE_W
+}
 // per-member, per-layer coupling c_l(x,u,p): uptake proportional to control p and soil availability
-template <class S> static inline S cfun(int l, double x, const S& ul, const S& p, const Par<S>& pr){
-  return pr.theta * S(rootw(l,x)) * p * stress(ul);
+template <class S> static inline S cfun(int l, double x, const std::vector<S>& u, const S& p, const Par<S>& pr){
+  return pr.theta * S(rootw(l,x)) * p * stress(u[l]) * gate(x,u);
 }
 
 // aggregate a_l = Σ_n W_n c_l  over m members at x_n (midpoint), W_n = 1/m (a smooth quadrature)
@@ -46,7 +62,7 @@ static void aggregate(const std::vector<S>& u, const std::vector<S>& p, int m,
                       const Par<S>& pr, std::vector<S>& a){
   for(int l=0;l<L;++l) a[l]=S(0.0);
   for(int n=0;n<m;++n){ double x=(n+0.5)/m; double W=1.0/m;
-    for(int l=0;l<L;++l) a[l]+=S(W)*cfun(l,x,u[l],p[n],pr); }
+    for(int l=0;l<L;++l) a[l]+=S(W)*cfun(l,x,u,p[n],pr); }
 }
 // full RHS of the (L+m) fast system: y = [u(0..L-1), p(0..m-1)]
 template <class S>
@@ -135,7 +151,8 @@ static std::vector<double> init_state(int m, const std::vector<double>& p3){
 
 // [[Rcpp::export]]
 Rcpp::List e4_grad(std::vector<double> rain, std::vector<double> pars, int m, double T, double k,
-                   double tol, double eps_fd){
+                   double tol, double eps_fd, int gate_on=0, double gate_w=0.0){
+  GATE_ON = (gate_on!=0); GATE_W = gate_w;
   // pass 1: record schedule (double)
   std::vector<double> y0=init_state(m,pars), y=y0, hs;
   Par<double> pr{pars[0],pars[1],pars[2]};
