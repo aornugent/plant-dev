@@ -138,6 +138,30 @@ comprehensive:
 ## Phase 2 — port plant onto the engine, bit-identity-guarded, in difficulty order
 Sequential within plant; the critical path to #52 parity. Each strategy is taken **resident-first** up
 the ladder (single-metric → multi-variable census → `dR0/db`); the mutant (L3) path is the deferred add.
+
+**Open — the plant base to port from is undecided.** #52 carries the v1 prototype; `develop` (or an
+earlier commit) does not. Which we branch Phase 2 from is a later decision, so every plant anchor below
+and in the Port map is **symbolic** (file / function name), resolved to line numbers only once the base
+is chosen. Nothing here is applied until Phase 2 begins; odelia primitives land first.
+
+**Plant port ledger (updated as odelia primitives land; detail in the Port map below).** Each landed
+odelia primitive enables a plant edit but does not apply it — status is *enabled*, not *applied*:
+- **`separable_field` (P1b) — enabled.** Replaces `species.h::compute_competition`, the coupling-path
+  interpolator read, and `get_environment_slope_at_height`; the strategy declares `{a_p,b_p}` +
+  `kernel_direct`. Applies at P2a (K93) / P2b (FF16 crown).
+- **mass transport (P1e) — enabled.** Deletes `node.h::growth_rate_gradient`, absorbs the
+  `node_geometric_compression` loop; reduction weights must read `cohort_spacing` (the shared operator).
+  Applies at P2a.
+- **`smooth_positive` / `is_finite` (P1d) — enabled.** Plant `util::smooth_positive` magic radii →
+  the canonical declared-radius form (**bit-identical formula**); double-only guard sites → ADL
+  `is_finite`. Applies per strategy.
+- **`decide` / `diagnostic` + the `xad::value`/`to_passive` grep ban (P1d) — deferred to the System
+  path.** `decide` needs the record/replay channel, so it lands wired into the SCM (P2a), not as a free
+  function; the grep ban switches on once strategy TUs exist to police.
+- **`register_implicit` (P1a), `incomplete_gamma` (P1c), `QK<S>` (P1f) — not started.** Enable the TF24
+  leaf/soil deletions (FD seam, hand IFTs, hydraulic splines, `psi_soil_cache_`) and the crown quadrature
+  templating; apply at P2b/P2c/P2d.
+
 - **P2a — K93** (simplest: closed-form rates, separable kernel, no inner solve). Uses P1b + P1e. Also the
   **CD-A/CD-G de-risk vehicle** (cheapest full SCM: growing dim + L2 recompute + census). Deletes
   `node.h::growth_rate_gradient`'s active block. Gate: FF16 bit-identity + the K93 census-FD targets
@@ -193,7 +217,8 @@ spectral gap, the marginally-active pinned set, and the hydraulic-failure cliff 
 average through.
 
 ## Port map — what the new engine deletes/replaces
-| current (plant#52) | fate | replacement |
+Symbolic anchors (base commit TBD — see the Phase 2 note). Line counts are the #52-prototype's, indicative.
+| current plant site | fate | replacement |
 |---|---|---|
 | `node.h::growth_rate_gradient` active block (~70 ln) | **delete** | mass chart (compression vanishes) + `separable_field` `∂A/∂z` |
 | `species.h` geometric-compression loop | **absorb** | the mass transport rule |
