@@ -37,26 +37,32 @@ scen <- list(drought=gen_rain(5,occ=0.18,scaleb=6), dry=gen_rain(7,occ=0.45,scal
              monsoon=gen_rain(2,occ=0.7,shape=0.35,scaleb=45))
 sel <- if (length(args)>=3) strsplit(args[3],",")[[1]] else names(scen)
 scen <- scen[sel]
-rain_at <- function(series, t){ d<-floor(t)+1; if(d<1)d<-1; if(d>length(series))d<-length(series); series[d] }
+# Rainfall evaluator that mirrors the patch EXACTLY: extrinsic_drivers_set_variable
+# builds an INTERPOLATED (spline) driver, so a step function would desync the cheap
+# soil RHS from the patch off the integer knots. Query the real interpolator instead.
+rain_fn_factory <- function(series){
+  e<-Environment("TF24"); e$extrinsic_drivers_set_variable("rainfall",0:(length(series)-1),series)
+  function(t) e$extrinsic_drivers_evaluate("rainfall", t)
+}
 
 # ---- real TF24 soil physics parameters (from tf24_environment.h) ------------
 SAT<-0.428; KSAT<-163.0411; NPSI<-6.57; A_INFIL<-1; B_INFIL<-8; DZ<-0.3; RESID<-1e-2
 Kf    <- function(th) KSAT*(pmax(th,0)/SAT)^(2*NPSI+3)
 infilf<- function(th0,r) r*max(0, 1 - A_INFIL*(th0/SAT)^B_INFIL)
 # cheap soil-only RHS: real drainage/infiltration; cohort demand U frozen over macro
-soil_rhs <- function(th, t, U, series){
-  r<-rain_at(series,t); win<-numeric(5); wout<-Kf(th)
+soil_rhs <- function(th, t, U, rfn){
+  r<-rfn(t); win<-numeric(5); wout<-Kf(th)
   win[1]<-infilf(th[1],r); for(i in 2:5) win[i]<-wout[i-1]
   rate<-(win-wout-U)/DZ; guard<-(th<=RESID)&(rate<0); rate[guard]<-0; rate
 }
 # soil RHS with a soil-moisture-RESPONSIVE uptake (U supplied as a per-layer fn of theta)
-soil_rhs_fn <- function(th, t, Ufn, series){
-  r<-rain_at(series,t); win<-numeric(5); wout<-Kf(th); U<-Ufn(th)
+soil_rhs_fn <- function(th, t, Ufn, rfn){
+  r<-rfn(t); win<-numeric(5); wout<-Kf(th); U<-Ufn(th)
   win[1]<-infilf(th[1],r); for(i in 2:5) win[i]<-wout[i-1]
   rate<-(win-wout-U)/DZ; guard<-(th<=RESID)&(rate<0); rate[guard]<-0; rate
 }
-uptake_from <- function(th, deriv_soil, t, series){        # back out frozen U at macro start
-  r<-rain_at(series,t); win<-numeric(5); wout<-Kf(th)
+uptake_from <- function(th, deriv_soil, t, rfn){           # back out frozen U at macro start
+  r<-rfn(t); win<-numeric(5); wout<-Kf(th)
   win[1]<-infilf(th[1],r); for(i in 2:5) win[i]<-wout[i-1]
   win - wout - deriv_soil*DZ
 }
@@ -125,15 +131,15 @@ run_global <- function(series, atol, rtol){
 # MRI: refresh the (expensive) cohort water demand via ONE full patch RHS per
 # daily macro; sub-cycle the soil with the CHEAP soil-only RHS in between.
 run_mri <- function(series, atol, rtol){
-  patch<-seed_patch(series); si<-soil_idx(patch); y0<-patch$ode_state
+  patch<-seed_patch(series); si<-soil_idx(patch); y0<-patch$ode_state; rfn<-rain_fn_factory(series)
   fe<-0L; ce<-0L
   daily<-0:Tend; sav<-matrix(NA,length(daily),5); th<-y0[si]; sav[1,]<-th; horizon<-0
   t0<-Sys.time()
   for(m in 1:(length(daily)-1)){
     ta<-daily[m]; tb<-daily[m+1]
     yt<-y0; yt[si]<-th; d0<-patch$derivs(yt,ta)[si]; fe<-fe+1L   # ONE expensive eval/macro
-    U<-uptake_from(th,d0,ta,series)                              # freeze cohort demand
-    srhs<-function(x,t){ ce<<-ce+1L; soil_rhs(x,t,U,series) }
+    U<-uptake_from(th,d0,ta,rfn)                                 # freeze cohort demand
+    srhs<-function(x,t){ ce<<-ce+1L; soil_rhs(x,t,U,rfn) }
     sres<-adaptive(srhs,th,ta,tb,atol,rtol,0.5)
     if(!fin(sres$y)) break
     th<-sres$y; sav[m+1,]<-th; horizon<-tb
@@ -146,26 +152,26 @@ run_mri <- function(series, atol, rtol){
 # real patch demand; interpolate per-layer U_i(θ_i) during the cheap soil sub-cycle.
 # Costs a few full evals per macro (vs 1 for the naive freeze) to recover accuracy.
 NPROBE <- if (length(args)>=4) as.integer(args[4]) else 8L
-build_uptake_fn <- function(patch, si, y0, th0, ta, series, fe_env){
+build_uptake_fn <- function(patch, si, y0, th0, ta, rfn, fe_env){
   scales<-seq(1.0, 0.06, length.out=NPROBE)
   TH<-matrix(NA,NPROBE,5); UU<-matrix(NA,NPROBE,5)
   for(k in seq_len(NPROBE)){
     thp<-pmax(RESID*0.5, scales[k]*th0); yt<-y0; yt[si]<-thp
     d<-patch$derivs(yt,ta)[si]; assign("fe",get("fe",envir=fe_env)+1L,envir=fe_env)
-    TH[k,]<-thp; UU[k,]<-uptake_from(thp,d,ta,series)
+    TH[k,]<-thp; UU[k,]<-uptake_from(thp,d,ta,rfn)
   }
   function(th) sapply(1:5, function(i){ o<-order(TH[,i])
     approx(TH[o,i],UU[o,i],xout=th[i],rule=2)$y })
 }
 run_mri_resp <- function(series, atol, rtol){
-  patch<-seed_patch(series); si<-soil_idx(patch); y0<-patch$ode_state
+  patch<-seed_patch(series); si<-soil_idx(patch); y0<-patch$ode_state; rfn<-rain_fn_factory(series)
   env<-environment(); env$fe<-0L; ce<-0L
   daily<-0:Tend; sav<-matrix(NA,length(daily),5); th<-y0[si]; sav[1,]<-th; horizon<-0
   t0<-Sys.time()
   for(m in 1:(length(daily)-1)){
     ta<-daily[m]; tb<-daily[m+1]
-    Ufn<-build_uptake_fn(patch, si, y0, th, ta, series, env)   # few expensive evals/macro
-    srhs<-function(x,t){ ce<<-ce+1L; soil_rhs_fn(x,t,Ufn,series) }
+    Ufn<-build_uptake_fn(patch, si, y0, th, ta, rfn, env)      # few expensive evals/macro
+    srhs<-function(x,t){ ce<<-ce+1L; soil_rhs_fn(x,t,Ufn,rfn) }
     sres<-adaptive(srhs,th,ta,tb,atol,rtol,0.5)
     if(!fin(sres$y)) break
     th<-sres$y; sav[m+1,]<-th; horizon<-tb
@@ -179,9 +185,9 @@ p_probe<-seed_patch(scen[[1]])
 cat(sprintf("Model %s: seeded stand = %d cohorts, patch ode_size = %d (5 soil + 4 aux + %d cohort states). Window %d d.\n",
     MODEL, length(stand_h), p_probe$ode_size, p_probe$ode_size-9, Tend))
 # faithfulness check
-{ si<-soil_idx(p_probe); y<-p_probe$ode_state; d0<-p_probe$derivs(y,0)
-  U<-uptake_from(y[si],d0[si],0,scen[[1]])
-  chk<-max(abs(soil_rhs(y[si],0,U,scen[[1]])-d0[si]))
+{ si<-soil_idx(p_probe); y<-p_probe$ode_state; d0<-p_probe$derivs(y,0); rfn<-rain_fn_factory(scen[[1]])
+  U<-uptake_from(y[si],d0[si],0,rfn)
+  chk<-max(abs(soil_rhs(y[si],0,U,rfn)-d0[si]))
   cat(sprintf("cheap soil-RHS vs real patch derivs at t=0: max|diff| = %.2e\n\n", chk)) }
 
 cat("Soil integrator on the real coupled patch, cohorts frozen (the slow block).\n")
