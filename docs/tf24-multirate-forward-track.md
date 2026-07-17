@@ -135,11 +135,41 @@ accuracy + stability). The aggregate surrogate (§6 of the plan) is the wall-tim
 - **Premise confirmed on the real patch:** soil `∂θ̇/∂θ ~ 343 day⁻¹` (fast timescale ~0.003 d) vs the
   daily macro — ~300× separation.
 
-## F. Next steps (in order)
+## F. Real-patch benchmark findings (measured, `bench_real_patch.R`)
 
-1. **[in progress] Real-patch soil-integrator benchmark** — MRI vs the global RK45 run on the real
-   TF24/TF24f patch (cohorts frozen), across drought→monsoon: accuracy, stability, expensive-eval and
-   wall-time cost. (`bench_real_patch.R`; `data/bench_real_*.rds`.)
-2. Factor the coupling inside `plant` (`StateView.u()`); port the MRI macro driver into plant's
-   solver so cohorts evolve under the macro step too (removes the frozen-cohort caveat).
+Setup: seed a realistic 8-cohort stand under a scenario driver; freeze the cohort block (slow); drive
+the 5 soil states forward 60 d. **Global** = single adaptive step size over the full patch RHS (soil
++ light-field + per-cohort hydraulics) — what plant's solver pays; every soil-limited step re-runs the
+whole expensive RHS. **MRI** = refresh the (expensive) cohort water demand at a chosen cadence and
+sub-cycle the 5 soil states cheaply in between (real TF24 drainage/infiltration; demand held between
+refreshes). Soil sub-cycle = small fixed-step clamped explicit Euler (the block is stiff +
+positivity-clamped; a hand-rolled adaptive high-order stage straddles the clamp and locks onto a
+spurious wet state — use a robust small step).
+
+**Findings:**
+1. **Premise holds:** soil `∂θ̇/∂θ ~ 343 d⁻¹` (fast timescale ~0.003 d) vs the daily cohort scale.
+2. **Soil physics factors exactly:** the cheap soil-only RHS reproduces the patch soil derivative to
+   machine precision *given the uptake* (max|diff| = 0 at t=0; matches at evolved θ given true U).
+3. **The coupling is the crux (verdict-changing risk #1, confirmed):** per-layer root uptake is a
+   **non-separable** function of the *whole* soil-moisture profile (as the top layer dries its uptake
+   *rises* while deeper layers fall — hydraulic redistribution). It cannot be frozen: a naive daily
+   Lie-split gives max|dθ| ~ 0.26–0.37 (soil pinned at a wrong attractor).
+4. **Refresh-cadence threshold:** the demand must be refreshed at ~**50×/day** (~7× the soil fast
+   timescale) for MRI to track global to <1e-3; below ~20×/day it diverges. So the *coupling* varies on
+   (near) the fast timescale — through θ — even though the cohort geometry is slow.
+5. **Net win, and where the bigger win is:** refreshing the *full* patch RHS 50×/day already costs far
+   fewer expensive evals than global's soil-limited rate (~6× for drought at 320 evals/day, growing to
+   ~tens× for wet/monsoon at thousands of evals/day). The **large** additional win requires separating
+   the two expensive pieces: the **light-field/cohort geometry is truly slow** (refresh daily) while the
+   **hydraulic uptake response to θ is fast** (refresh ~50×/day) — i.e. compute uptake cheaply in the
+   sub-cycle via the leaf/collar solve (plan §6 aggregate surrogate), freezing only the light field.
+
+## G. Next steps (in order)
+
+1. **Factor the coupling inside `plant`** (`StateView.u()`): expose (a) the slow light-field/cohort
+   geometry and (b) the fast hydraulic-uptake-given-θ (the leaf/collar solve) separately, so the soil
+   sub-cycle can refresh only the cheap fast piece. This is the bulk of the win (finding 5) and the
+   same seam reverse mode reuses.
+2. Port the MRI macro driver into plant's solver (use plant's own stable soil stepper; cohorts evolve
+   under the macro step — removes the frozen-cohort caveat and the fragile θ-round-trip through R).
 3. Only then: reverse-mode on the real coupling (the verdict-changing risks in §B).

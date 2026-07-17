@@ -128,88 +128,66 @@ run_global <- function(series, atol, rtol){
   list(theta=sav, full_evals=fe, horizon=horizon,
        wall_ms=as.numeric(Sys.time()-t0,units="secs")*1000)
 }
-# MRI: refresh the (expensive) cohort water demand via ONE full patch RHS per
-# daily macro; sub-cycle the soil with the CHEAP soil-only RHS in between.
-run_mri <- function(series, atol, rtol){
+# MRI: refresh the (expensive) cohort water demand `nsub` times/day; sub-cycle the
+# soil in between with the CHEAP soil-only RHS, that demand held. The soil block is
+# STIFF and positivity-clamped (fast timescale ~0.003 d), so the sub-cycle uses a
+# small fixed-step clamped explicit Euler (robust where an adaptive high-order stage
+# straddles the clamp and locks onto a spurious state). Cheap evals are soil-only;
+# only `nsub x days` EXPENSIVE full-patch evals are paid. Records daily soil theta.
+HS_CAP <- 5e-3   # cap on the soil sub-step (day)
+# local explicit-stability limit: drainage Jacobian ~ d/dθ[K(θ)/dz] = (2n+3)K/(θ·dz),
+# which reaches ~1400/day at wet θ (fast timescale ~7e-4 d). Step below ~1.5/λ.
+soil_h <- function(th){ lam<-max((2*NPSI+3)*Kf(th)/(pmax(th,1e-3)*DZ)); min(HS_CAP, 1.5/max(lam,1)) }
+run_mri <- function(series, atol, rtol, nsub=1L){
   patch<-seed_patch(series); si<-soil_idx(patch); y0<-patch$ode_state; rfn<-rain_fn_factory(series)
-  fe<-0L; ce<-0L
-  daily<-0:Tend; sav<-matrix(NA,length(daily),5); th<-y0[si]; sav[1,]<-th; horizon<-0
+  fe<-0L; ce<-0L; rdt<-1/nsub
+  sav<-matrix(NA,Tend+1,5); th<-y0[si]; sav[1,]<-th; horizon<-0
+  U<-NULL; last<--Inf; t<-0; nextday<-1L
   t0<-Sys.time()
-  for(m in 1:(length(daily)-1)){
-    ta<-daily[m]; tb<-daily[m+1]
-    yt<-y0; yt[si]<-th; d0<-patch$derivs(yt,ta)[si]; fe<-fe+1L   # ONE expensive eval/macro
-    U<-uptake_from(th,d0,ta,rfn)                                 # freeze cohort demand
-    srhs<-function(x,t){ ce<<-ce+1L; soil_rhs(x,t,U,rfn) }
-    sres<-adaptive(srhs,th,ta,tb,atol,rtol,0.5)
-    if(!fin(sres$y)) break
-    th<-sres$y; sav[m+1,]<-th; horizon<-tb
+  while(t < Tend-1e-12){
+    if(t-last>=rdt-1e-9){ yt<-y0; yt[si]<-th; d0<-patch$derivs(yt,t)[si]; fe<-fe+1L
+      U<-uptake_from(th,d0,t,rfn); last<-t }                     # refresh expensive demand
+    h<-min(soil_h(th), Tend-t, nextday-t)                        # stability-limited substep
+    th<-pmin(pmax(th+h*soil_rhs(th,t,U,rfn),RESID),SAT-1e-6); ce<-ce+1L; t<-t+h
+    if(!fin(th)) break
+    if(abs(t-nextday)<1e-9){ sav[nextday+1,]<-th; horizon<-nextday; nextday<-nextday+1L }
   }
   list(theta=sav, full_evals=fe, cheap_evals=ce, horizon=horizon,
        wall_ms=as.numeric(Sys.time()-t0,units="secs")*1000)
 }
-# MRI-R: θ-RESPONSIVE aggregate. At each macro start, probe the (expensive) uptake
-# response to soil moisture by scaling θ over [residual, current] and reading the
-# real patch demand; interpolate per-layer U_i(θ_i) during the cheap soil sub-cycle.
-# Costs a few full evals per macro (vs 1 for the naive freeze) to recover accuracy.
-NPROBE <- if (length(args)>=4) as.integer(args[4]) else 8L
-build_uptake_fn <- function(patch, si, y0, th0, ta, rfn, fe_env){
-  scales<-seq(1.0, 0.06, length.out=NPROBE)
-  TH<-matrix(NA,NPROBE,5); UU<-matrix(NA,NPROBE,5)
-  for(k in seq_len(NPROBE)){
-    thp<-pmax(RESID*0.5, scales[k]*th0); yt<-y0; yt[si]<-thp
-    d<-patch$derivs(yt,ta)[si]; assign("fe",get("fe",envir=fe_env)+1L,envir=fe_env)
-    TH[k,]<-thp; UU[k,]<-uptake_from(thp,d,ta,rfn)
-  }
-  function(th) sapply(1:5, function(i){ o<-order(TH[,i])
-    approx(TH[o,i],UU[o,i],xout=th[i],rule=2)$y })
-}
-run_mri_resp <- function(series, atol, rtol){
-  patch<-seed_patch(series); si<-soil_idx(patch); y0<-patch$ode_state; rfn<-rain_fn_factory(series)
-  env<-environment(); env$fe<-0L; ce<-0L
-  daily<-0:Tend; sav<-matrix(NA,length(daily),5); th<-y0[si]; sav[1,]<-th; horizon<-0
-  t0<-Sys.time()
-  for(m in 1:(length(daily)-1)){
-    ta<-daily[m]; tb<-daily[m+1]
-    Ufn<-build_uptake_fn(patch, si, y0, th, ta, rfn, env)      # few expensive evals/macro
-    srhs<-function(x,t){ ce<<-ce+1L; soil_rhs_fn(x,t,Ufn,rfn) }
-    sres<-adaptive(srhs,th,ta,tb,atol,rtol,0.5)
-    if(!fin(sres$y)) break
-    th<-sres$y; sav[m+1,]<-th; horizon<-tb
-  }
-  list(theta=sav, full_evals=env$fe, cheap_evals=ce, horizon=horizon,
-       wall_ms=as.numeric(Sys.time()-t0,units="secs")*1000)
-}
-
 # ============================================================================
+NSUBS <- if (length(args)>=4) as.integer(strsplit(args[4],",")[[1]]) else c(1L,10L,20L,50L,100L)
 p_probe<-seed_patch(scen[[1]])
 cat(sprintf("Model %s: seeded stand = %d cohorts, patch ode_size = %d (5 soil + 4 aux + %d cohort states). Window %d d.\n",
     MODEL, length(stand_h), p_probe$ode_size, p_probe$ode_size-9, Tend))
-# faithfulness check
 { si<-soil_idx(p_probe); y<-p_probe$ode_state; d0<-p_probe$derivs(y,0); rfn<-rain_fn_factory(scen[[1]])
-  U<-uptake_from(y[si],d0[si],0,rfn)
-  chk<-max(abs(soil_rhs(y[si],0,U,rfn)-d0[si]))
+  U<-uptake_from(y[si],d0[si],0,rfn); chk<-max(abs(soil_rhs(y[si],0,U,rfn)-d0[si]))
   cat(sprintf("cheap soil-RHS vs real patch derivs at t=0: max|diff| = %.2e\n\n", chk)) }
 
-cat("Soil integrator on the real coupled patch, cohorts frozen (the slow block).\n")
-cat("full(glob) = expensive full-patch RHS evals (one per soil-limited RK stage, as plant's\n")
-cat("single-step-size solver pays); full(MRI) = expensive evals (one per daily macro);\n")
-cat("cheap = soil-only RHS evals; error = MRI vs global soil trajectory (daily grid).\n\n")
-cat("Two MRI variants: freeze = cohort demand frozen per macro day (naive Lie split);\n")
-cat("resp = soil-moisture-responsive demand (probe uptake vs theta at macro start).\n\n")
-cat(sprintf("%-9s %7s | %10s %10s | %8s %8s %8s | %8s %8s\n",
-    "scenario","mm/yr","err_freeze","err_resp","full_g","full_frz","full_rsp",
-    "cut_frz","cut_rsp"))
+cat("Soil integrator on the real coupled patch, cohorts frozen (the slow block). The cohort water\n")
+cat("demand (per-layer root uptake) is strongly, NON-SEPARABLY soil-moisture-dependent (the plant\n")
+cat("redistributes uptake across the whole profile via the hydraulic solve), so it must be REFRESHED\n")
+cat("as the soil evolves -- freezing it fails. We sweep the refresh cadence (refreshes/day):\n")
+cat("full_g = expensive full-patch RHS evals in the global single-rate run (soil-limited step rate);\n")
+cat("full_M = expensive evals in MRI (= refreshes/day x days); err = max|dθ| vs global (daily grid);\n")
+cat("cut = full_g/full_M (reduction in expensive evals). The soil sub-cycle is cheap (soil-only).\n\n")
 res<-list()
 for(sn in names(scen)){
   series<-scen[[sn]]
-  g <-run_global   (series, 1e-8,1e-8)
-  rf<-run_mri      (series, 1e-8,1e-8)
-  rr<-run_mri_resp (series, 1e-8,1e-8)
-  ef<-max(abs(rf$theta-g$theta),na.rm=TRUE); er<-max(abs(rr$theta-g$theta),na.rm=TRUE)
-  cf<-g$full_evals/max(rf$full_evals,1); cr<-g$full_evals/max(rr$full_evals,1)
-  cat(sprintf("%-9s %7.0f | %10.2e %10.2e | %8d %8d %8d | %7.0fx %7.0fx\n",
-      sn, sum(series), ef, er, g$full_evals, rf$full_evals, rr$full_evals, cf, cr)); flush(stdout())
-  res[[sn]]<-list(g=g,rf=rf,rr=rr,ef=ef,er=er)
+  g<-run_global(series, 1e-8,1e-8)
+  cat(sprintf("--- %-9s (%4.0f mm/yr): global single-rate = %d expensive evals (%.0f/day), %.0f ms ---\n",
+      sn, sum(series), g$full_evals, g$full_evals/Tend, g$wall_ms)); flush(stdout())
+  cat(sprintf("    %8s | %8s | %9s | %8s | %9s\n","refr/day","full_M","err|dθ|","cut","cheap"))
+  rows<-list()
+  for(ns in NSUBS){
+    r<-run_mri(series, 1e-8,1e-8, ns)
+    err<-max(abs(r$theta-g$theta),na.rm=TRUE); cut<-g$full_evals/max(r$full_evals,1)
+    ok<-if(err<1e-3) "  <-- tracks global (err<1e-3)" else ""
+    cat(sprintf("    %8d | %8d | %9.2e | %7.0fx | %9d%s\n", ns, r$full_evals, err, cut, r$cheap_evals, ok)); flush(stdout())
+    rows[[as.character(ns)]]<-list(err=err,cut=cut,full=r$full_evals,cheap=r$cheap_evals)
+  }
+  res[[sn]]<-list(g=list(full_evals=g$full_evals,wall_ms=g$wall_ms,theta=g$theta),rows=rows)
 }
-saveRDS(list(model=MODEL,Tend=Tend,scen=scen,res=res), file.path(here,sprintf("data/bench_real_%s.rds",MODEL)))
+saveRDS(list(model=MODEL,Tend=Tend,scen=scen,NSUBS=NSUBS,res=res),
+        file.path(here,sprintf("data/bench_real_%s.rds",MODEL)))
 cat(sprintf("\nwrote data/bench_real_%s.rds\n", MODEL))
