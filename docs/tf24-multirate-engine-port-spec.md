@@ -24,7 +24,12 @@ Remaining is the engine port itself + the plant-side exposures (§6, tracked in 
 8. `oracle-consultation-h0-missive.md` — the open envelope-collapse question (future models).
 9. **this doc** — the consolidated port spec.
 
-**Key scripts (prototypes; the engine reimplements these in C++):**
+**Key scripts (prototypes; the engine reimplements these in C++).** ⚠ **All of `scripts/tf24-multirate/`
+is throwaway scaffolding — SAFE TO DELETE once the engine port lands and its own tests reproduce these
+results.** See [`scripts/tf24-multirate/README.md`](../scripts/tf24-multirate/README.md) for the manifest
+(each artifact → the spec claim it backs, and the ★ reuse-candidates: `mri_core.hpp`, `mri_ad.hpp`,
+`e4_fast_ad.cpp`). The durable record is this `docs/` set + aornugent/odelia#43; nothing in production
+depends on the scaffolding.
 `mri_core.hpp` (MRI tables + macro step, collapse+order verified) · `mri_ad.hpp`/`mri_ad_runner.cpp`
 (two-level record→replay reverse mode) · `bench_real_patch.R`+`real_patch_probe.R` (real-patch premise +
 global-vs-multirate) · `factor_probe{,2,3}.R` (cost decomposition, surrogate refutation) ·
@@ -242,6 +247,8 @@ The engine consumes plant through these. **R1 is the headline; the others are th
 - **B1 sizing** on real cohorts (spread of p*, P_pp margin) — decides rung 1 vs polynomial vs per-node.
 - **R1 commutator sizing** — 2× vs 20× step enlargement; and `‖∂a/∂u‖` (explicit residual step?).
 - **Gradient-reduction Richardson check** — add to the AD harness before trusting reduced-m gradients in
-  an outer optimizer (B3 footgun; not yet in the certification).
+  an outer optimizer (B3 footgun; not yet in the certification on the *real* coupling). Already
+  **prototyped on the surrogate** in `scripts/tf24-multirate/e4_bias_test.R` (a hard member kink breaks
+  adjoint=FD; model-level smoothing restores it) — port that check to the real coupling.
 - **R2/R3/R4** deferred (rainfall multiplicative; R1 pre-empts R3; H0/gradient-structure fail for R4) —
   revisit only if a gate above fails or a future model changes the structure.
