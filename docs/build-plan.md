@@ -64,27 +64,34 @@ clean-boundary axis the v2 emphasises:
 - **CD-B — tape-from-`ode_rates` injection** is **resolved by the primitive design** (the model declares
   a residual; the odelia-owned implicit-node injects) — but the primitive must be *wired* so a plant rate
   path triggers it during replay without a model-held tape handle. Verify with P1a on a plant-shaped toy.
-- **CD-G — the integration fixture:** growing dim × injected-derivative-in-replay × the emergent
-  functional. The single test that certifies the whole SCM path; build it early, on K93.
-  **Construction recipe (mapped 2026-07-17 — all pieces exist; nothing about odelia needs changing):**
-  1. `Patch<T,E>` already satisfies the odelia System contract (`ode_size` grows, `ode_state/rates/
-     set_ode_state/reset`, species-major `ad_parameters`). Active IC seeding is real
-     (`node.h:210` `compute_initial_conditions` sets `log_density=log(birth·pr_estab/g)` reading the
-     active environment) — the intermediate that must survive the resize.
-  2. The SCM *already runs active* via the ode-times replay branch (`run_next_impl` `advance_fixed(e.times)`;
-     the `if constexpr(double)` guards compile out the adaptive branch), grown by `introduce_new_nodes`
-     + `set_state_from_system`. `run_mutant` is the existing record→replay driver.
-  3. **What must be added** (the only missing pieces): (a) expose the SCM as a `compute_gradient`-drivable
-     runnable — `get_system_ref()`, a public `tape`, `ad_parameters()` returning pointers into the
-     *source-of-truth* params `reset()` reseeds from (so seed→reset→run propagates, cf.
-     `IndividualRunner::reset`), and call `reserve_state(final_dim)` before the active replay so tape slots
-     stay put; (b) a `value_type`-typed scalar census functional — `Patch::compute_competition(0.0)`
-     already returns `value_type` and works (`offspring_production` is `double`, needs templating later).
-  4. **Verify with the JVP=VJP dot-product oracle** (`compute_jvp` vs `compute_gradient`), *not* census FD
-     (documented ~%-noisy). Requires `control.node_geometric_compression=TRUE` (the mass chart) +
-     `save_RK45_cache=TRUE`. This is a genuine multi-file construction (SCM/Parameters facade + driver +
-     oracle), the load-bearing integration — build and verify it before the transport-default deletion and
-     the `separable_field` field swap, which it guards.
+- **CD-G — the SCM census gradient (the integration fixture).** **Objective in lights:** *improve the
+  odelia primitives so plant's DX is pain-free.* Build the K93 SCM census gradient, feel where plant must
+  write tape-aware/boilerplate code, and push that pain into odelia.
+
+  **What #52 actually has (verified 2026-07-17 against the PR head `780cfe49`, stack 4/4):** all four
+  strategies scalar-templated; **Gate-0 gradients only** (IndividualRunner single-plant + leaf-level, FD-
+  checked); the SCM census *plumbing* (dg/dh, geometric compression, species-major seeding). It has **no**
+  SCM/census gradient entry, **no** `EmergentFunctional`, **no** `stand_gradient`, **no** LAI/biomass/R0
+  functional. (The SCM gradient was the abandoned `AD-*` attempt — not trusted; `AD-9`/`spike` are
+  contaminated reference at most.) So CD-G is a genuine v2 build.
+
+  **Build (K93 first, then FF16, then TF24):**
+  1. `Patch<T,E>` already satisfies the odelia System contract and grows; the SCM already runs active via
+     the ode-times replay branch (`run_next_impl` `advance_fixed`, adaptive compiled out) grown by
+     `introduce_new_nodes`. Active IC seeding is real (`node.h:210` `log_density=log(birth·pr_estab/g)`).
+     **No `reserve_state`** — the `AReal` slot-index makes the tape resize-immune (verified).
+  2. **DX finding #1 (seeding flow):** the gradient driver seeds `ad_parameters()` then `reset()`s, but
+     `Patch::ad_parameters()` points into the *live species* while `reset()` reseeds from a separate
+     `parameters.strategies` copy — the seed is lost. `IndividualRunner` dodges this (reset re-derives from
+     the seeded object). Make the SCM-runnable's seed target and reset source one and the same.
+  3. **Functionals (the interface user-stories, `EmergentFunctional`, pure reductions):** a multivariate
+     census **vector** `(LAI, biomass, basal area)` (codomain=3, one recording → 3 sweeps) **and** R0
+     (`net_reproduction_ratio_by_node_weighted`, templated to `value_type`). K93 tracks size, so its census
+     is a size/basal moment; LAI/biomass are FF16/TF24 metrics. Report all four together where useful.
+  4. **Verify with the JVP=VJP dot-product oracle** (census FD is documented ~%-noisy). Needs
+     `node_geometric_compression=TRUE` + `save_RK45_cache=TRUE`. A sourceCpp driver like the gate0 ones —
+     **no `stand_gradient`/R surface yet** (settle the C++ boundary first). Guards the transport-default
+     deletion and the `separable_field` swap.
 
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
