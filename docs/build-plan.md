@@ -48,14 +48,19 @@ a breakpoint).
 is **resolved**; the density→optimum cross-term is captured, and the v2 work pursues clean odelia/plant
 boundaries rather than re-proving it.)
 
-**The front-loaded de-risk is now the odelia co-design ledger** (`design.md` §3 A/B/F/G) — the one
-class of unknown that can move the architecture, on the clean-boundary axis the v2 emphasises:
-- **CD-A — growing-dimension active replay** *(load-bearing).* Does odelia's active twin/tape survive a
-  mid-`run()` `resize()`, taping-once across `[grow][resize][integrate]` segments, with a new cohort's
-  active ICs (`log_density=log(birth·estab/g)` reading the active stand) captured? **De-risk cheapest on
-  `IndividualRunner`** (fixed-dimension — no growing dim, the clean single-plant target; this is also
-  where IC-seeding, ledger E, is exercised first) **→ then K93-resident** (the cheapest full SCM: growing
-  dim + L2 recompute + a census functional, no leaf/quadrature). This is the empirical form of CD-F/CD-G.
+**The front-loaded de-risk is now the odelia co-design ledger** (`design.md` §3). The load-bearing
+*mechanism* (CD-A, the tape surviving mid-run resize) is **already verified** — so the front-loaded work
+is the integration fixture CD-G (compose the confirmed pieces into the plant shape) + CD-B wiring, on the
+clean-boundary axis the v2 emphasises:
+- **CD-A — growing-dimension active replay** *(mechanism CONFIRMED — the remaining work is CD-G).* Does
+  odelia's active tape survive a mid-`run()` `resize()`, taping-once across `[grow][resize][integrate]`?
+  **Verified:** `test-ad-growing-resize.R` matches AD to closed-form (1e-8) and FD (1e-6) through
+  post-resize cohorts, `reserve_state` on *and* off; the `AReal`-slot-index mechanism (odelia #6) makes
+  the tape immune to the realloc move. So this is **not** an open architecture risk. What is left is the
+  plant *composition* — CD-G — a new cohort's active ICs (`log_density=log(birth·estab/g)` reading the
+  active stand), co-timed multi-species resize, the census over the growing set. **Exercise IC-seeding
+  (ledger E) first on `IndividualRunner`** (fixed-dimension, clean single-plant), **then CD-G on
+  K93-resident** (the cheapest full SCM: growing dim + L2 recompute + census, no leaf/quadrature).
 - **CD-B — tape-from-`ode_rates` injection** is **resolved by the primitive design** (the model declares
   a residual; the odelia-owned implicit-node injects) — but the primitive must be *wired* so a plant rate
   path triggers it during replay without a model-held tape handle. Verify with P1a on a plant-shaped toy.
@@ -149,7 +154,7 @@ missing self-shading) and do **not** build a `stand_*_stage_history`. **PLANT-10
 Phase 3). **IC gradients** (`Patch::ad_initial_state`, ledger E) land after P2a's resident core — sequence
 them once the L2 recompute path is solid; remove the `scm.h:231` resume stub as the IC path lands.
 
-**Critical path to #52 parity:** (F1/E2 done) → CD-A/CD-B de-risk on IndividualRunner → P1a+P1b+P1c+P1e →
+**Critical path to #52 parity:** (F1/E2 done; CD-A mechanism verified) → CD-B wiring + IC-seeding on IndividualRunner → P1a+P1b+P1c+P1e →
 P2a (also CD-A/CD-G on K93-resident) → P2b → P2c → P2d. Fastest visible win: **P2a (K93 resident census)
 once P1b+P1e land and CD-A is green.**
 
@@ -196,8 +201,8 @@ leaf-level forward-mode stays plant-local. **In scope, sequenced:** IC gradients
 soil (via multirate). See `design.md` §11.
 
 ## Open before Phase 1 hardens
-- **CD-A / CD-G** (growing-dimension active replay + the integration fixture) — the load-bearing
-  de-risk, on IndividualRunner then K93-resident.
+- **CD-G** (the integration fixture: active ICs × multi-species resize × census over the growing set) —
+  the remaining growing-dimension work now that CD-A's mechanism is verified; on K93-resident.
 - The `incomplete_gamma` `∂/∂s` implementation vs FD-fallback (P1c) — low-stakes, decide at build.
 - Whether the mass chart is the *default* for gradient runs or stays opt-in (re-baseline the K93 ~0.169% snapshots if default).
 - Which of the four leaf early-exits produces the hydraulic-failure cliff (isolate before Phase 3).

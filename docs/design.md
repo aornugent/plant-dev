@@ -116,13 +116,16 @@ odelia's AD surface was built for a **fixed-dimension, single-scalar, single-`ad
 Solver; the SCM is none of those. The clean-boundary contract makes odelia own the hard machinery so
 plant supplies only closed forms + residual declarations. The load-bearing co-design items (catalog IX.4):
 
-- **A — growing-dimension active replay** *(load-bearing, unverified).* The SCM is
-  `[grow][resize][integrate]…`: cohorts introduced mid-run `resize()` the state, and a new cohort's ICs
-  are an **active function of the already-integrated stand** (`log_density = log(birth·pr_estab/g)`
-  reads the current, active environment). odelia's active twin is today built once around one
-  `reset()+run()` with no introduction/resize hook. odelia must **tape-once across a self-segmenting
-  `run()` that resizes**. *De-risk first on `IndividualRunner` (fixed-dimension) then K93-resident (the
-  cheapest full SCM).*
+- **A — growing-dimension active replay** *(mechanism CONFIRMED; only the plant composition remains).*
+  The SCM is `[grow][resize][integrate]…`: cohorts introduced mid-run `resize()` the state, and a new
+  cohort's ICs are an **active function of the already-integrated stand**
+  (`log_density = log(birth·pr_estab/g)` reads the current, active environment). **The pivotal capability
+  — the reverse tape surviving a mid-run `resize()` — is verified**, not open: `test-ad-growing-resize.R`
+  matches AD to closed-form (1e-8) and FD (1e-6) through post-resize cohorts, with `reserve_state` on
+  *and* off; the mechanism is the `AReal`-slot-index (odelia #6) — a `vector` realloc moves the actives
+  without touching their slots, so the tape is immune. What remains is not an architecture unknown but the
+  **plant composition** (below, CD-G): active ICs reading the active stand, co-timed multi-species
+  resizes, and the census functional over the growing set — compose the confirmed pieces and FD-check.
 - **B — tape reachable from `ode_rates`** for injected derivatives during replay. **Resolved by the
   engine-primitive design:** the model never touches the tape — it declares a residual/kernel and the
   odelia-owned implicit-node/scan primitive owns the injection. This is *why* the primitive boundary is
@@ -130,12 +133,14 @@ plant supplies only closed forms + residual declarations. The load-bearing co-de
 - **F — the SCM as a self-segmenting runnable** (record-once around a `run()` that grows) — the empirical
   form of A.
 - **G — an integration fixture**: growing dimension × injected-derivative-in-replay × the emergent
-  functional. The missing de-risking test.
+  functional. **This — not a capability gap — is what remains of A**: the growing-resize mechanism is
+  proven; CD-G is the test that composes it into the plant shape (active ICs, multi-species, census).
 - **C/D** — multi-partial injected derivatives at `N>1`; whole-object L3 snapshots (deferred with L3).
   **E — IC seeding** is already supported+tested in odelia (§11).
 
 The transient checkpointed record/replay and the multirate soil sub-cycle are odelia-owned steppers; the
-model declares the stiff index set. A/F/G are the gates the build plan front-loads.
+model declares the stiff index set. CD-G is the gate the build plan front-loads — A's mechanism is
+already verified, so the front-loaded work is the integration fixture, landing with K93-resident (P2a).
 
 ---
 
