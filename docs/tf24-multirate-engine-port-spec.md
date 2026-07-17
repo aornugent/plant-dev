@@ -18,7 +18,17 @@ Remaining is the engine port itself + the plant-side exposures (§6, tracked in 
 - ✅ **Slice 2 — reverse mode by record→replay.** Macro step templated on the scalar; one record-or-replay
   fast-leg driver (`if constexpr` guards the double-only adaptive branch); `MRISchedule`. `two_rate_gradient`
   in the interface. Gate: adjoint = frozen-schedule FD ~1e-9 across k; eps-independent.
-- ⏳ **Slice 3 — R1 splitting inner + ROS34PW2** (next). **Slice 4 — TF24/TF24f in plant** (after; needs aornugent/plant#53).
+- ✅ **Slice 3 — optional splitting inner (ROS34PW2).** `inst/include/odelia/rosenbrock.hpp` (ROS34PW2,
+  verified order 3 + L-stable). The inner sub-cycle is a **policy** (`AdaptiveSubcycle` default,
+  `SplitSubcycle` opt-in) threaded through `mri_advance`; `subcycle_split` does Strang(exact `analytic_flow`,
+  ROS34PW2 `residual_rhs`, flow). `examples/drainage_system.hpp` (stiff power-law drainage + closed-form
+  recession, TF24-shaped) is the A/B subject: **~6× fewer fast steps at matched accuracy, flat as drainage
+  stiffness grows 1000×**, positivity preserved. Splitting is opt-in (only compiles for models with the
+  hooks) so the same model runs both ways — this is the harness for measuring the plant#53 exposure impact.
+  Reverse-mode *through* the split inner is a follow-up (forward A/B is the measurement).
+- ⏳ **Slice 4 — TF24/TF24f in plant** (needs aornugent/plant#53), then full-patch MRI-vs-RK45 + the split-vs-unsplit A/B on the real soil.
+
+odelia PR: aornugent/odelia#45 (`claude/tf24-multirate-engine`).
 
 **Boundary refinement (vs §4.4/§4.5 below):** collocation and the control-block collapse are **model**
 concerns (how TF24 implements `aggregate`/`fast_rates`), **not** engine machinery. odelia stays
