@@ -99,6 +99,21 @@ clean-boundary axis the v2 emphasises:
      **no `stand_gradient`/R surface yet** (settle the C++ boundary first). Guards the transport-default
      deletion and the `separable_field` swap.
 
+  **Driver decomposition (build bottom-up, verify each layer — 2026-07-17 findings):**
+  - **Finding: no C++ SCM construction.** `scm_base_parameters` / `birth_rate` (via `ExtrinsicDrivers`) /
+    the node schedule are set up *R-side* (`scm_support.R`); the gradient needs an *active-typed* SCM
+    rebuilt from those params. So the driver must either construct the K93 `Parameters<active>` in C++
+    (replicating the R setup) or rebind a double SCM's params to active. This is real work v1 never did.
+  - **Finding: the resident path is L2-recompute, not L3-freeze.** `has_recorded_field()` is false while a
+    resident records/replays, so the active pass recomputes the field via `compute_environment(true)`
+    (rescale on frozen knots) — self-shading flows. The driver's crux is handing the double run's recorded
+    **knot positions** to the active SCM's rescale (L2), distinct from `run_mutant`'s `environment_history`
+    freeze (L3, `has_recorded_field` true).
+  - **Layers:** (a) build+run a double K93 SCM in C++, reduce a census metric, check vs R `run_scm`;
+    (b) census functionals — basal/size moment (K93), LAI/biomass/basal vector (FF16/TF24), R0 via
+    `net_reproduction_ratio_by_node_weighted` templated to `value_type`; (c) active SCM + L2 knot handoff +
+    tape-on-SCM; (d) `compute_gradient` + `compute_jvp` + the oracle.
+
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
 `claude/odelia-ad-tape-reverse-496fuf` (each ships the dot-product oracle and/or an FD/analytic
