@@ -82,6 +82,36 @@ functional-as-pure-reduction + driver-owns-replay, **#28 (done) — the three-ca
 demonstrator (a shrink of FF16 resident light) exercises L1/L2 recompute + the L3 read + reuse + the
 anti-staleness property against FD.
 
+## Existing engine pieces (audited — see [`odelia-5-existing-pieces.md`](./odelia-5-existing-pieces.md))
+The generic AD surface (Solver, gradient driver, functionals, record/replay, IC seeding,
+growing-dimension) already exists and mostly needs no change. The audit adds these to the plan so it is
+comprehensive:
+- **Runnable concept (Phase 1).** Document the duck-typed runnable the SCM implements (`value_type,
+  reset(), run(), get_system_ref(), tape, get_history_step()` + active tape slots survive a mid-run
+  resize) as a named odelia concept + `static_assert(Runnable<SCM>)`. The SCM keeps its self-segmenting
+  `run()` (HAS-A `Solver`, owns the `[grow][resize][integrate]` loop). **Deferred (1 witness):** an
+  introduction-aware odelia `Solver` that owns the loop — retrofit trigger = a 2nd growing-dimension System.
+- **Interpolator simplification (with P1b).** The scan (P1b) takes the separable coupling field and the
+  mass chart takes `dg/dh`, so the interpolator demotes to the **non-separable fallback only** — **delete**
+  its coupling-era bandaids (the frozen active-query derivative, the geometric-compression entanglement);
+  keep clean construct/record/replay. Do **not** lift QAG into odelia (no adaptive-quadrature witness —
+  crown is fixed-rule `QK`, P1f).
+- **Multi-metric census test (Phase 2, high).** Verify the multivariate case we need: a
+  multi-metric/multi-variable/**multi-species** resident-census Jacobian (persona 1: LAI+biomass+basal-area
+  vs LMA+wood-density), FD-free-checked by the `compute_jvp` dot-product oracle + Gate-0 FD.
+- **IC gradient (sequenced after the resident core).** Rests on **plant#499 / `78bd39`** (seed an initial
+  size distribution at patch age 0 — landed). Wire `Patch::ad_initial_state()` to the age-0 seeded node
+  states + a test; the resume-from-mid-run case stays fenced (the `scm.h:231` replay conflict).
+- **Evaluate-then-decide (med/low).** *Checkpointing:* measure peak tape memory on the largest resident
+  census; reserve the node-introduction `CheckpointCallback` seam, build it only on a budget breach (v1's
+  one-tape run fit 0.5–4 GB). *`reserve_state`:* profile the per-introduction resize; call it once iff a
+  hotspot (amortized-O(N) slot-preserving copy otherwise — marginal). Neither on the critical path.
+- **Naming pass (low).** Prose: bare "driver" → "**gradient driver**" (`compute_*`), distinct from the
+  Solver *driving* the stepper and from `ExtrinsicDrivers` (forcings); glossary line; audit the odelia demo
+  systems' driver members.
+- **L0/L1:** done (adaptive-record → fixed-replay); confirm the SCM `run()` interleaves L0 introductions
+  with L1 `advance_fixed` on the active replay (a test assertion). L3 deferred.
+
 ## Phase 2 — port plant onto the engine, bit-identity-guarded, in difficulty order
 Sequential within plant; the critical path to #52 parity. Each strategy is taken **resident-first** up
 the ladder (single-metric → multi-variable census → `dR0/db`); the mutant (L3) path is the deferred add.
