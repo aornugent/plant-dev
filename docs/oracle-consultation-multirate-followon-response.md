@@ -188,8 +188,32 @@ already implements internally. My standalone q-Euler doesn't replicate it; the r
 
 **Verdict.** The Oracle's re-derived strategy is validated on the key regime: **tracked-`q` (TF24f) +
 continuous cheap refresh reproduces the QSS/global soil trajectory with no plateau, at k≈20**. The one
-concrete requirement surfaced for #2 is per-cohort feasible-`q` clamping (already in production). With
-E1 (setup cacheable, micro-RHS cheap), Probe B (m≈15–20 collocation), and E2/E3 (tracked-`q` accurate,
-no plateau), all four load-bearing pieces are measured. Remaining before a build: E4 (tape a window,
-adjoint vs frozen-record FD, gradient-vs-`k`/`m` sweeps), and wiring the m-member collocation together
-with tracked-`q` in-solver (Rosenbrock-W on the `(L+m)` block, per-cohort `q`-clamp events).
+concrete requirement surfaced for #2 is per-cohort feasible-`q` clamping (already in production).
+
+## E4 measured (2026-07-17) — `scripts/tf24-multirate/e4_fast_ad.cpp`, `e4_test.R` — PASS
+
+Reverse-mode certification of the proposed fast subsystem, taped through odelia's XAD engine. A
+self-contained surrogate carries the two NEW structural elements: the per-member controls promoted to
+differential states (`ṗ_n = k·∂P/∂p`, tracked, no argmax on the tape) and the coupling as an m-member
+quadrature (`a_ℓ = Σ_n W_n c_ℓ(x_n,u,p_n)`). Two-level record→replay (adaptive double pass records the
+`(L+m)` micro schedule; active pass replays fixed steps) so the tape is the discrete adjoint. Adjoint vs
+frozen-record central FD, then `k`- and `m`-sweeps:
+
+- **Adjoint = FD to ~1e-8** at the baseline (m=16, k=20: max_abs_err 2.6e-9), and across **all m ∈
+  {4…64}** (≤1.8e-8) and **all k ∈ {1…1000}** once FD noise is accounted for.
+- **The reductions live in the VALUE, not the gradient.** `F` drifts with `k` (tracking lag: 0.195→0.067
+  as k 1→1000) and with `m` (quadrature), but the adjoint stays exact for the scheme as run at every
+  setting — the accepted E2/E3/Probe-B value-errors do **not** amplify in the gradient.
+- **No hidden pitfall in the adjoint.** The lone anomaly (k=100 showed max_abs_err 8e-4 at eps_fd=1e-6)
+  is **FD roundoff noise, not an adjoint error**: at k=100 the adjoint is **eps_fd-independent**
+  (identical grad_rev across eps 1e-4→1e-7) while grad_fd degrades as the step shrinks (1e-4→2e-7,
+  1e-7→1.3e-4) — the classic cancellation signature, worst where the stiff (high-k) explicit replay makes
+  `F` param-sensitive. The tape is exact regardless.
+- **Reaffirms Rosenbrock-W.** High-`k` stiffness is where the explicit micro-stepper strains (and the FD
+  reference gets noisy); the response's implicit `(L+m)` micro-stepper is the right choice there. The
+  adjoint architecture is untouched by that choice (W-Jacobian recorded passive).
+
+**All five pieces measured — E1 (setup cacheable, micro-RHS cheap), Probe B (m≈15–20 collocation),
+E2/E3 (tracked-`q` accurate, no plateau, k≈20), E4 (adjoint exact, reductions don't amplify).** Nothing
+left that gates the design. Remaining is the build itself (#2): the in-solver `(L+m)` Rosenbrock-W fast
+subsystem with per-cohort feasible-`q` clamp events and m-member collocation, under the MRI skeleton.
