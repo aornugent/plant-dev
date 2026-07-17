@@ -296,6 +296,32 @@ biological processes they were standing in for.
 
 ---
 
+## 4½. Verification probes — stress-testing the chart before the build (V1–V3)
+
+Three cases T2/T3 did not exercise (`t5_chart_stress.R`, `t6_realpatch_logchart.R`). None uncovered a
+design-breaker; two sharpen the plan.
+
+- **V1 — differential depletion (a near-floor layer under a saturated one).** Handled. A thin layer at the
+  bound directly beneath saturation rewets fast in ζ (`dζ/dt~200`) and needs smaller steps there — a
+  **local, transient** cost the adaptive ζ-relative controller absorbs, not a blow-up. (An initial alarm of
+  `dζ/dt~2e5` was traced to a mm/m unit bug in the probe, not the chart.)
+- **V2 — fast rewetting from the floor + a rainfall kink.** The log chart *singularizes rewetting* in
+  principle (`dζ/dt = inflow/e^ζ`), but with physical units the rates are moderate (`~5–7/day` rewetting
+  from θ=0.03) and ζ+Rosenbrock converges cleanly; θ-chart is comparably easy. Only a layer within ~1e-3 of
+  the bound driven by strong inflow is stiff in ζ — rare (Case A keeps layers off the bound), and handled by
+  adaptivity. The rainfall kink must still be a **mandatory breakpoint** (schedule-aligned steps), the
+  already-known "two clocks" rule; box storms at ROS2 were forgiving, but the discipline stands.
+- **V3 — the real TF24 patch soil block in the log chart.** (a) R-D composes with the *real* coupling: a
+  **~20× step cut** on responsive drying (80 vs 1600 steps). (b) Decisively, the **real per-layer uptake is
+  smooth in ζ from θ=0.20→0.13 then goes dead flat** (`∂uptake/∂ζ = 0`, pinned at 2.56e-4) below θ≈0.12 —
+  the production `psi_crit` pin, now visible in the log coordinate. **The chart cannot smooth what the
+  coupling zeroed**, and that pin-kink at θ≈0.12 caps R-D's accuracy on the raw patch at ~1% (vs 1e-4 for the
+  smooth model in T2). This confirms on the real system what T1 found: **R-C (the C++ smooth shutoff) is a
+  prerequisite for R-D**, not an independent nicety — they must land together.
+
+Net: the reformulation survives the stress cases; the one firm build-ordering consequence is that the
+smooth vulnerability shutoff (R-C, in `plant`'s C++) must precede or accompany the chart change (R-D).
+
 ## 5. Honest bottom line
 
 - **R-A (exact drainage recession) is worth doing** — it exactly removes the wet-regime spike, deletes a
