@@ -80,6 +80,12 @@ clean-boundary axis the v2 emphasises:
      the ode-times replay branch (`run_next_impl` `advance_fixed`, adaptive compiled out) grown by
      `introduce_new_nodes`. Active IC seeding is real (`node.h:210` `log_density=log(birth·pr_estab/g)`).
      **No `reserve_state`** — the `AReal` slot-index makes the tape resize-immune (verified).
+     **The SCM is itself the runnable** (accessors landed, plant `593e2e78`): `get_system_ref()` returns
+     the `patch` snapshot (seed target pre-`reset`, read target post-`run` — one object, structural). The
+     **tape lives on the SCM**, not a wrapper (a wrapper would be a named object that only forwards —
+     rejected under the DX / no-new-abstractions principle). Copyability for the R-facing SCM follows
+     odelia `Solver`'s precedent: a `unique_ptr<tape_type>` member + a copy-ctor that resets the tape, added
+     only if the build shows move-alone insufficient.
   2. **DX finding #1 (seeding flow):** the gradient driver seeds `ad_parameters()` then `reset()`s, but
      `Patch::ad_parameters()` points into the *live species* while `reset()` reseeds from a separate
      `parameters.strategies` copy — the seed is lost. `IndividualRunner` dodges this (reset re-derives from
