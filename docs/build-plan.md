@@ -116,16 +116,16 @@ them once the L2 recompute path is solid; remove the `scm.h:231` resume stub as 
 P2a (also CD-A/CD-G on K93-resident) → P2b → P2c → P2d. Fastest visible win: **P2a (K93 resident census)
 once P1b+P1e land and CD-A is green.**
 
-## Parallel independent track — multirate soil, forward only (no gradients)
-Resident TF24 soil is **active coupled ODE state** (not a field), and its long-horizon stiffness is the
-one thing the fixed-schedule replay can't hold — so the multirate track is what keeps resident TF24 in
-scope. Sub-cycle the ≤5-state soil block within the SCM step + kink-split at recorded rainfall knots (E2:
-1.85× fewer rejections); the E2 desingularizing coordinate is **dropped** (E2 verdict: it makes it
-worse). Gated only on E2 (done). **Interface contract:** keep the micro-schedule / kink-splits /
-pin-times recorded in pass 1, replayed frozen in pass 2, so the AD engine can tape-as-run later with no
-new adjoint theory (this *is* the "recorded adaptive sub-stepping" that lifts the resident-stiffness
-wall). Adopt `tf24_stiffness_drift` as a standing **drift gate + runtime caveat** (stiffness is bounded
-~1e-4…1e-3, a runtime cost not an error — not a hard defer).
+## Multirate soil — OUT OF THIS PLAN (pursued independently)
+The multirate sub-cycle for the ≤5-state soil block (E2: kink-split at recorded rainfall knots; the
+desingularizing coordinate dropped) is **owned by the user and pursued independently** — it is not a
+task in this plan and nothing here waits on it. The AD engine neither depends on nor blocks it: resident
+TF24 soil coupling (odelia #3) is correct on the shared global step; multirate is a *forward performance*
+lift. **The one contract, if it later lands:** keep the soil micro-schedule / kink-splits recorded in
+pass 1 and replayed frozen in pass 2 (the "recorded adaptive sub-stepping" shape), so the AD engine can
+tape-as-run it with no new adjoint theory. Until then, long-horizon resident-TF24 stiffness is held by
+the `tf24_stiffness_drift` **drift gate + runtime caveat** (bounded ~1e-4…1e-3 — a runtime cost, gated,
+not a wrong number).
 
 ## Phase 3 — the fixed-point / equilibrium layer (secondary, deferred)
 Gated on F1 (passed). The steady Eulerian-profile BVP (dim ~4+L) + IFT adjoint of the collocation

@@ -419,13 +419,12 @@ additive frozen-field variant, built after the resident path.
   the leaf shut-down boundary. The gradient is a one-sided branch derivative (exact off the measure-zero
   boundary); the fixed-point/selection module must **refuse** at a crossing (like a spectral-gap
   closure), not average through. Kept.
-- **Long-horizon resident-TF24/TF24f stiffness** — *reframed, not a limitation of scope*. The
-  `log_density`↔canopy + plant↔soil coupling stiffens the fixed-schedule replay at long lifetimes. The
-  **multirate soil sub-cycle** (E2's verdict, the forward track) is the resolution — its adjoint rides
-  tape-as-run; the residual stiffness that multirate doesn't cover is held by **recorded adaptive
-  sub-stepping** (an L1-refinement: record the adaptive sub-schedule, replay it fixed — an odelia
-  co-design item) with a **double-replay-error drift gate** (`tf24_stiffness_drift`) meanwhile. So this is
-  *engineered-down*, not deferred-as-stiff.
+- **Long-horizon resident-TF24/TF24f stiffness** — the `log_density`↔canopy + plant↔soil coupling
+  stiffens the fixed-schedule replay at long lifetimes. **Within this plan it is held by the
+  `tf24_stiffness_drift` drift gate + runtime caveat** (bounded ~1e-4…1e-3 — a runtime cost, gated, never
+  a wrong number). The multirate soil sub-cycle that would lift it (recorded adaptive sub-stepping,
+  tape-as-run) is **pursued independently, out of this plan** — the AD coupling (§5/deepening-3) is
+  correct on the shared step regardless. So: gated here, engineered-down elsewhere.
 - **Zero-height cohort NaN trap** — **real**: `area_leaf=(h/a_l1)^(1/a_l2)` → `0·log(0)=NaN`;
   `pow(0, active)` NaNs the tangent (forward loudly, reverse latently). Fix: establish `birth ≥ N`
   cohorts at `h0`; guard `z==0`. Cheap, carries a test. Kept.
