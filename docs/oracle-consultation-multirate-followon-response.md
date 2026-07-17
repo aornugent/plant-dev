@@ -155,6 +155,41 @@ seam. Combined with Probe B (m ≈ 15–20 members), the m-member fast subsystem
 cheap: `m × (θ-dependent evaluate + gradient) ≈ 20 × ~(2–5 µs)` per micro-step, flat in M. The scheme
 sizes down as hoped.
 
-**Next:** E2 (`k`-sweep: tracked-`p`/TF24f vs solved-`p*` truth on recorded episodes — set the lag,
-validate the variant), then E3 (windowed `(L+m)` prototype vs tight truth on the stiff regimes that
-plateaued — the go/no-go).
+## E2 + E3 measured (2026-07-17) — `scripts/tf24-multirate/e2_e3_patch.R`
+
+Faithful patch-level test with **real transpiring cohorts** (the hand-built single leaf was degenerate
+— negative profit → zero uptake — so the real vehicle is TF24 vs TF24f). Freeze cohort size/density;
+integrate the 5 soil states (+ the per-cohort tracked `q`, for TF24f) forward under a stiff rainfall
+window using the **real patch soil rate every micro-step** (uptake refreshed continuously → no
+held-coupling plateau by construction). **TF24 = re-optimise = QSS reference; TF24f = tracked-`q`
+(`dq/dt = k_acclim·dprofit`, evaluate not optimise).** First verified spin-up: tracked `q` climbs from
+its seed to the optimum and TF24f uptake matches TF24 QSS uptake **to 4 decimals** (0.5862, 0.0289, …).
+
+**E3 go/no-go — PASS on semiarid (the regime that plateaued at 0.37 with frozen coupling):**
+
+| k_acclim | max\|dθ\| | rms\|dθ\| |
+|--:|--:|--:|
+| 5 | 8.8e-4 | 1.6e-4 |
+| 20 | 2.6e-4 | 4.6e-5 |
+| 100 | 1.9e-4 | 3.3e-5 |
+| 1000 | 1.1e-4 | 1.9e-5 |
+
+Tracked-`q` (evaluate) reproduces the QSS/global soil trajectory to **<1e-3 even at k=5** (2e-4 at
+k=20–100), **no plateau** — the continuously-refreshed fast subsystem works. **E2:** the tracking lag is
+small and controllable by `k`; the knee is ~k=20 (little gain beyond).
+
+**wet & drought — one mechanical gap identified (not a scheme failure).** A *freely-evolving* `q` with a
+**global** clamp fails at the extremes: wet drives the tallest cohort's `psi_stem` past `psi_crit`
+(leaf-solve domain error) even at a clamped `q`; drought needs a large optimum `q` so a fixed upper
+clamp *binds* → a fixed 2.35e-2 offset, **flat across k** (the tell that it's the clamp, not the lag).
+Both point to the same requirement: **per-cohort feasible-interval clamping of `q`** — exactly the
+clamp/event handling the response specified (§4 iv) and which production `evaluate_root_collar_psi`
+already implements internally. My standalone q-Euler doesn't replicate it; the real in-solver TF24f does.
+
+**Verdict.** The Oracle's re-derived strategy is validated on the key regime: **tracked-`q` (TF24f) +
+continuous cheap refresh reproduces the QSS/global soil trajectory with no plateau, at k≈20**. The one
+concrete requirement surfaced for #2 is per-cohort feasible-`q` clamping (already in production). With
+E1 (setup cacheable, micro-RHS cheap), Probe B (m≈15–20 collocation), and E2/E3 (tracked-`q` accurate,
+no plateau), all four load-bearing pieces are measured. Remaining before a build: E4 (tape a window,
+adjoint vs frozen-record FD, gradient-vs-`k`/`m` sweeps), and wiring the m-member collocation together
+with tracked-`q` in-solver (Rosenbrock-W on the `(L+m)` block, per-cohort `q`-clamp events).
