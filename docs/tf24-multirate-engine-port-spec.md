@@ -321,8 +321,28 @@ Remaining is **plant-side only** — additive, so production stays bit-identical
 3. **R1 splitting inner + ROS34PW2** (4.3): Gate: matches an adaptive inner on the fast block; drainage
    stiffness gone (measure `‖[drainage, residual]‖` commutator + `‖∂a/∂u‖` — decides if the residual
    step can go explicit; R1's step-enlargement magnitude).
-4. **Factored coupling + collocation** (4.4, §6): Gate: aggregate to <0.5% at m≈15–20 on real cohorts;
-   Lebesgue proxy bounded.
+   **⭐ PROMOTED TO PRIMARY LEVER (Oracle round 4, `oracle-consultation-multirate-collocation-response.md`).**
+   Exact, knob-free, cuts forward *and* reverse-mode-tape cost with zero bias; DONE in odelia (toys) but
+   **not yet composed with the patch member solves** — that composition + its measurement (**E-A**) is the
+   deciding datum and the next build. Compose Strang (½-recession ∘ residual ∘ ½-recession, coupling at the
+   ½-recessed state), keep the θ_res floor as an active event, measure `n_micro` by regime and error **in
+   J-units**. Decision rule: cost ≈ `n_micro × M × c_eval` vs floor `M × 21`; if ≲ 2–3× → **ship Lever 1
+   alone, never build Lever 2** (exact coupling, zero bias, smallest tape). Setup-cost settled: the ≈11
+   per-member setup is the *θ-dependent* soil-side prep (`psi_soil` caches + the argmax), paid per micro
+   step; the θ-independent Arrhenius cache (item 7) is separate and fires once/run — so full-M coupling per
+   micro step is genuinely O(M·(setup+search)), and `n_micro` decides everything.
+4. **Factored coupling + collocation** (4.4, §6): **the *secondary* lever, deferred until E-A says it is
+   needed.** Round-4 finding: the naive subsample-the-measure estimator meets <0.5% only on young/uniform
+   member sets; on the *evolved* (skewed) set it degrades ~10² (m=20 → 38% soil / 96% offspring on N≈91),
+   because the members are placed to resolve the cohort solution, not the uptake integrand, and offspring
+   amplifies coupling error ~10× (Probe D). **Corrected estimator (Oracle round 4):** separate measure from
+   integrand — integrate the skewed density ρ *exactly* over all M cohorts (O(M) arithmetic, **zero extra
+   member solves**) via moments `G_r = Σ_j ρ_j φ_r(ξ_j)`, and reduce only the *smooth* integrand
+   `c(ξ,u,p)` to d node cohorts (`a_ℓ ≈ Σ_r β_ℓr(u) G_r`); peel the heavy atoms, quadrature the tail
+   (Fekete/Leja or Carathéodory recombination), anchor with the free full-M stage-boundary evaluation as a
+   realized-error meter. The committed `n_collocation_nodes` path is the *refuted* subsample estimator —
+   keep it off by default; replace it only if E-A shows `n_micro` stays large. Gate: aggregate **and dJ/dθ**
+   to budget **in J-units** at m≈15–20 on real cohorts (offline shootout **E0**, no solver code).
 5. **Control block** (4.5): tracked-q via TF24f; B1 collapse. Gate: B1 sizing (p* spread, P_pp margin);
    tracked reproduces QSS soil to <1e-3 across scenarios.
 6. **Reverse mode** (4.6): two-level record→replay; passive/active contract; events. Gate: adjoint=FD to
