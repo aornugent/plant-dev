@@ -1,157 +1,124 @@
-# Calibrating a first-moment (ensemble-mean) model against finite single realizations seen through a nonlinear operator
+# Identifying shared parameters when the model returns only a conditional mean, and the data are single realizations seen through a nonlinear operator
 
-A statistical inverse-problem / calibration question. No application context is needed or given; every
-object is stated in neutral mathematical terms and the problem stands alone (assume none of any prior
-thread). We want the **formulation** — how to pose the inference — and we would rather you **re-derive it
-from the structure** than accept the decomposition we happen to describe. We may be carrying the wrong
-comparison object; say so if the structure points that way.
+A parameter-inference question. No application context is needed or given, and the generating mechanism is
+described **only through the computations it exposes** — deliberately at a level that names neither an
+application nor a solution method. We want you to choose the method, and would rather you re-derive the
+right approach from the structure than accept any decomposition we imply. It is self-contained (assume none
+of any prior thread). If we are comparing the wrong objects, say so.
 
-## The generative process (the "truth" that produced the data)
+## The objects
 
-A domain is a union of disjoint **cells**. Each cell independently undergoes **reset events** at the epochs
-of a renewal process with hazard `h(a)` (`a` = time since that cell's last reset); a reset empties the cell.
-Between resets a cell evolves **deterministically**.
+**A generative law producing a spatial field.** For a shared parameter `θ` there is a stochastic mechanism
+that fills a spatial domain. The domain is partitioned into **units**. Each unit is returned to a fixed
+baseline (the empty state) at random times — resets may be correlated across nearby units — and between its
+resets it generates a **configuration**: a finite set of **items**, each carrying a scalar attribute value
+and a position inside the unit's extent. Two kinds of parameter, plus one latent per unit:
 
-State of one cell of age `a`: a density `n(x, a)` over a scalar internal coordinate `x ∈ [x0, ∞)`, obeying a
-transport equation
+- `θ ∈ ℝ^p`, `p` small — **shared by every unit**; the object we want. Its components lie on a known
+  low-dimensional manifold (a change in one is offset by others).
+- `ε` — **fixed within a unit, drawn independently across units** from an unknown law `π_ε` (low-dimensional).
+- `τ` — the unit's **elapsed time since its last reset**, latent per unit, distributed as `w(τ)` (the
+  reset-time law family is itself uncertain).
 
-```
-∂_a n + ∂_x( g(x, E; θ, ε) · n ) = − μ(x, E; θ, ε) · n ,     n(x, 0) = 0 (empty at reset),
-```
+**The mechanism, given only through what it exposes.** We do not describe the internal dynamics. Two
+computations, and only these two, are available:
 
-with a boundary influx of new members at `x = x0` at rate `β(·; θ, ε)`. The dynamics couple **nonlocally and
-nonlinearly** through a scalar field: the value a member at coordinate `x` experiences is
+1. **A conditional mean — cheap and differentiable.** `m(x; θ, ε, τ)` = the expected density over the scalar
+   attribute `x` of the items in a unit at `(θ, ε, τ)` — a curve, not a configuration. `m` and its gradients
+   in `(θ, ε)` are cheap and exact. The phase-average `M(x; θ, ε) = ∫ m(x; θ, ε, τ) w(τ) dτ` is available
+   too; the field-average additionally integrates `M` over `π_ε`.
+2. **A full sampler — expensive.** Draw an actual configuration `C ~ L(θ, ε, τ)` (items, attributes,
+   positions). Everything about the law beyond its mean `m` — the count distribution, the spatial
+   arrangement, all higher structure — is reachable only this way, and it is costly.
 
-```
-E(x) = Φ( ∫_{x' > x} k(x'; θ) · n(x') dx' ) ,     Φ monotone decreasing  (e.g. Φ(z) = e^{−z}),
-```
+**A nonlinear observation map.** A known map `H` sends a **full configuration** to a fixed-length signal:
+`y = H(C) + noise`. `H` is nonlinear, many-to-one, and expensive (a simulator). It is defined on
+configurations — it needs the items' actual positions and count — **not** on the mean curve `m`.
 
-i.e. every member is affected only by the **aggregate of all members above it in `x`**. There is **no
-spatial (horizontal) coordinate** — interaction is mean-field within a cell. `g` and `μ` depend on `x`
-through `E(x)`.
+**The data.** Signals from **chosen windows** of the field: `{ y_k }_{k=1..K}`, each `y_k = H(C_k) + noise`,
+where `C_k` is the realized configuration inside window `k`. A window's geometry is **ours to choose**, and a
+window may cover a fraction of one unit, one whole unit, or several units — we do not observe the unit
+boundaries, nor `(ε_k, τ_k)`, nor the counts or positions. All units share the same `θ`.
 
-Parameters split into three kinds:
+## The representation gap
 
-- **`θ ∈ ℝ^p`, `p` small — global, shared by every cell**; the object we want. Its components are constrained
-  to a known low-dimensional manifold (a change in one is compensated by others).
-- **`ε` — a per-cell latent modifier** (low-dimensional) that perturbs the dynamics (e.g. a multiplier on the
-  influx `β` or on the field `E`), drawn i.i.d. across cells from an **unknown** distribution `π_ε`.
-- **`a` — the cell's age since last reset**, latent per cell, distributed as the stationary renewal-age
-  density `p(a) ∝ exp(−∫_0^a h)` (hazard family also possibly unknown).
-
-**Finite size.** A real cell holds **finitely many discrete members**; `n` is the many-member-density
-idealization. The realized configuration is a point set `{x_i}` whose expected density is `n`, carrying
-demographic/sampling fluctuations of order `1/√N` about `n`.
-
-## The model we hold (what is cheap to compute)
-
-For any `(θ, ε)`, a deterministic solver returns the whole single-cell trajectory `a ↦ n(x, a; θ, ε)` and
-hence the reset-age-averaged density
-
-```
-N̄(x; θ, ε) = ∫ n(x, a; θ, ε) · p(a) da .
-```
-
-This is the model's **first moment**: for a given global `θ` and a given local `ε` it gives the mean density
-(age-resolved and age-averaged). It does **not** return (i) the distribution of realizations at fixed
-`(θ, ε, a)` — the finite-`N` demographic fluctuations — nor (ii) the across-cell distribution, which would
-require `π_ε` and the hazard. `N̄` (and the trajectory `n(x,a)`) and their gradients in `(θ, ε)` are cheap
-and exact.
-
-## The observations (what the instrument returns)
-
-Each sampled cell `k` returns a signal
-
-```
-y_k = H( C_k ) + η_k ,
-```
-
-where `C_k` is the cell's **explicit realized configuration** — the finite point set `{x_i}`, together with
-**2-D/3-D spatial positions** the model does not carry — `H` is a **known, nonlinear, many-to-one forward
-operator** from a configuration to a fixed-length signal (a profile/vector), and `η_k` is measurement noise.
-Two facts about `H`: it is defined on **explicit spatial realizations, not on a density** (it needs actual
-members placed in space), and it is **expensive** (a simulator). We observe `{y_k}` over `K` cells; each cell
-has its own latent `(a_k, ε_k, N_k)` and spatial arrangement, none of which we observe.
-
-## The representation gap (the core of the difficulty)
-
-The observation operator's domain (**explicit spatial configurations**) is strictly richer than the model's
-output (**a 1-D density over `x`**). To predict `y` from the model one must supply degrees of freedom the
-model does not carry: a **sampling law** (density → a finite point set) and a **spatial-placement law**
-(a horizontal point process). The signal `y` may be sensitive to those supplied choices to an unknown degree
-— possibly comparable to its sensitivity to `θ`. Calibration must bridge this gap, not merely add noise on
-top of a matching prediction.
+`H`'s input space (finite configurations: counts + positions + attributes) is strictly richer than what the
+cheap computation returns (the attribute-density curve `m`). To predict a signal from `m` one must **supply
+degrees of freedom the mean does not carry** — a rule turning a density into a finite item set, and a rule
+placing those items in space. The signal `y` may depend on those supplied rules as strongly as on `θ`. A
+calibration must bridge this gap, not merely add observation noise onto a matching prediction.
 
 ## What we want
 
-Infer the **global `θ`** (and as much of `π_ε` and the hazard as necessary) from `{y_k}`. The model gives a
-single ensemble-mean density `N̄(θ, ε)`; the data are many **finite, phase- and nuisance-heterogeneous
-realizations, each pushed through a nonlinear operator**. It is not obvious what to compare to what, at what
-spatial support, or how to integrate out the per-cell latents.
+Recover the shared `θ` (and as much of `π_ε` and `w(τ)` as necessary) from `{y_k}`. The tension: the cheap
+side of the model returns a **single conditional-mean curve**, while the data are **many single
+realizations, each a nonlinear functional of one finite draw at latent nuisance settings**, gathered over
+windows whose relation to the reset units is ours to set. It is not obvious what to compare to what, over
+what spatial support, or how to account for the latents and the representation gap.
 
 ## Facts an answer can rely on / constraints
 
-- `N̄(x; θ, ε)`, the trajectory `n(x, a; θ, ε)`, and their gradients in `(θ, ε)` are cheap and exact.
-- The **full stochastic generative process can be simulated** at any `θ` (drawing `a, ε, N`, producing an
-  explicit configuration `C`) — but this is **expensive**, and `H` on top of it more so.
-- `H` is known and evaluable but nonlinear, many-to-one, and costly; there is **no cheap inverse**.
-- We can generate **synthetic data at a known `θ*`** and require any proposed method to recover `θ*` (a twin
-  experiment). This is our correctness reference; for real data it becomes held-out predictive fit.
-- The **window / support** that constitutes one observed "cell" is **ours to choose**. The hazard family and
-  `π_ε` family may be treated as parametric unknowns to co-infer.
-- **Soft preference (not a hard constraint):** a formulation that keeps the cheap deterministic core (`N̄`,
-  and gradients) doing most of the work — calling the expensive full simulator and `H` sparingly — is more
-  valuable than one that requires simulating the full stochastic process and `H` at every `θ`. But if the
-  right move discards that preference, say so.
+- `m(x; θ, ε, τ)`, its phase-average `M`, and their gradients in `(θ, ε)` are cheap and exact.
+- The full sampler and `H` are available at any `(θ, ε, τ)` but **expensive**; there is no cheap inverse of
+  `H`.
+- The internal dynamics is deterministic at the level of the mean and has the qualitative properties listed
+  under structural features. **If some further property of it is decisive, name the property and how the
+  answer forks on it.**
+- We can generate a **synthetic field at a known `θ*`** (full sampler + `H`) and require any method to
+  recover `θ*` — the correctness reference; on real data it becomes held-out predictive agreement.
+- The observation **window/support is ours to choose**; the families for `w(τ)` and `π_ε` may be treated as
+  parametric unknowns to co-infer.
+- **Soft preference, not a constraint:** a method that lets the cheap conditional mean do most of the work
+  and calls the expensive sampler / `H` sparingly is worth more than one that runs the full sampler at every
+  `θ`. If the right move discards this preference, say so.
 
 ## Structural features — any may be load-bearing or incidental; we do not know which
 
-The model returns only the **first moment**; the **two distinct averages** baked into it (mean-field
-coupling within a cell; ensemble average over reset-age); the model also exposes the **age-resolved**
-trajectory `n(x,a)`, not only its average; the **nonlinearity of the coupling** (mean density ≠ density of
-the mean); the **latent per-cell age `a`** under an unknown hazard; the **latent per-cell modifier `ε`** under
-unknown `π_ε`; **finite-`N` demographic noise**; the **nonlinear, realization-only, expensive operator `H`**
-(so `H`-of-the-mean ≠ mean-of-`H`); the **representation gap** (the model carries no horizontal coordinate or
-finite sample, both of which `H` needs); the **free choice of window/support**; a possible **confound between
-`θ` and the latent distributions** (`p(a)`, `π_ε`) that may reproduce the same marginal; the asymmetry that
-**`N̄` is cheap while the full simulator and `H` are expensive**; the availability of **cheap gradients** of
-the deterministic core.
+The model exposes **only the conditional mean** cheaply (all else needs the expensive sampler); the mean is
+available **phase-resolved** (`m(·,τ)`), not only phase-averaged; with `τ` the mean **relaxes toward a limit
+set by the mechanism's internal coupling** (units at large `τ` resemble one another); items interact **only
+through an aggregate** (so the mean is self-consistent without positions, while a single realization is
+not); parameters split **shared (`θ`) vs fixed-per-unit (`ε`)**; the latent phase `τ` under an uncertain
+reset law; the **representation gap** (mean = a curve; `H` needs counts + positions); the **nonlinearity of
+`H`** (so `H` of the mean ≠ mean of `H`); **finite-count fluctuations** within a single configuration; a
+spatial **correlation length** in the field, set jointly by the spatial correlation of resets and the range
+of the coupling; the **misalignment** between the reset unit and the freely-chosen observation window; a
+possible **confound** between `θ` and the latent laws `(w, π_ε)` that reproduces the same observed marginal;
+the **cheap-mean / expensive-everything-else** asymmetry.
 
 ## Questions (open; please rank the features and reject the framing if the data warrant)
 
-1. **What is the correct object to compare?** Is matching the model's first moment `N̄(θ)` to a suitable
-   **aggregate of `{y_k}`** the right move, or does identifying `θ` genuinely require the **distribution over
-   realizations** the model does not directly provide? If the latter, is that difficulty **intrinsic** (`θ`
-   is identifiable only through second-order/realization structure the mean field discards) or
-   **representational** (there is a cheap route to what's needed from the same deterministic core plus `H`)?
+1. **What is the correct object to compare?** Is matching the conditional mean to a suitable aggregate of
+   `{y_k}` right, or does identifying `θ` genuinely require structure of the full law that the mean discards
+   (reachable only via the expensive sampler)? If the latter, is that **intrinsic** (`θ` is identifiable
+   only through higher-order / single-realization structure) or **representational** (a cheap route exists
+   from the mean plus `H`)?
 
-2. **Support / self-averaging.** Is there a spatial support (window ≫ some correlation length) on which a
-   **spatial average of the data self-averages to the ensemble mean**, collapsing the problem to
-   mean-vs-mean and dissolving the need to "define a cell" — and if so, what sets that length and how would
-   we estimate it from the data themselves? At the opposite extreme (window ≈ one cell), what is the correct
-   likelihood for a **single finite realization**?
+2. **Support and aggregation.** Is there a window scale on which a **spatial aggregate of the data coincides
+   with the conditional-mean prediction** — dissolving the need to define a reset "unit" at all — and what
+   sets that scale, estimable from the data themselves? At the opposite extreme (window ≈ one unit or less),
+   what is the correct discrepancy / likelihood for a **single finite realization**?
 
-3. **Where does the nonlinear operator go, and how is the representation gap closed?** Quantify the bias of
-   **`H(N̄)`** (push the mean density through `H`, after some canonical placement) versus **`E[H(C)]`**
-   (sample configurations, place them, render, average). When is commuting `H` with the expectation
-   acceptable? Given `H` is expensive, what is the **cheapest correct** construction (a low-order correction
-   to `H(N̄)`, a control variate using `N̄`, an emulator of `H`), and how should the un-modeled
-   sampling/placement laws be chosen or marginalized so that `y`'s sensitivity to them does not masquerade as
-   sensitivity to `θ`?
+3. **The nonlinear operator and the representation gap.** Quantify the bias of `H(mean)` (push the mean
+   through `H` under some canonical count / placement) versus the **average of `H(realizations)`**. When is
+   interchanging `H` with the average acceptable? Given `H` is expensive, what is the **cheapest correct**
+   construction, and how should the un-modeled count / placement rules be chosen or integrated out so that
+   `y`'s sensitivity to them is not mistaken for sensitivity to `θ`?
 
-4. **Latent phase and nuisance.** Marginalize `(a, ε)` into a per-cell mixture, or infer them as per-cell
-   latents (the model gives `n(x,a)` age-resolved, which makes per-cell age inference feasible)? Is `θ`
-   **identifiable** against an unknown hazard and unknown `π_ε`, and what is the precise confound to watch —
-   which combinations of `θ` and the latent distributions are observationally equivalent?
+4. **Latent phase and per-unit heterogeneity.** Integrate `(τ, ε)` out into a per-window mixture, or infer
+   them per unit (the phase-resolved mean makes per-unit `τ` inference feasible)? Is `θ` **identifiable**
+   against an uncertain reset law `w(τ)` and an uncertain `π_ε`, and what is the precise confound — which
+   combinations of `θ` and `(w, π_ε)` are observationally equivalent?
 
-5. **Which statistics carry `θ`?** Because the model cannot reproduce horizontal spatial texture, should
-   spatial/second-order statistics of the data be **excluded** from the discrepancy, or do they carry
-   information about `(a, ε)` that **indirectly** helps identify `θ`? Name the summary you would actually fit
-   (marginal-`x` distribution; its moments/quantiles; cross-cell variance; spatial autocorrelation of `y`)
-   and why.
+5. **Which features of the data carry `θ`?** Because the cheap model cannot reproduce spatial arrangement,
+   should spatial / higher-order statistics of the data be **excluded** from the discrepancy, or do they
+   carry information about `(τ, ε)` that helps identify `θ` indirectly? Name the statistic you would actually
+   fit (the attribute marginal; its moments / quantiles; across-window variance; spatial autocorrelation of
+   `y`).
 
 6. **What are we missing?** A hidden invariant, a change of variables, or an assumption above that the
-   structure quietly contradicts.
+   structure quietly contradicts — including whether the conditional mean is even the right state variable
+   to be reasoning about.
 
-7. A **cheap discriminating experiment** — ideally carrying your own falsifiable prediction — to run before
-   building anything.
+7. A **cheap discriminating experiment** — carrying your own falsifiable prediction — to run before building
+   anything.
