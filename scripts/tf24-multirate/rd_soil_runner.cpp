@@ -108,5 +108,6 @@ Rcpp::List rd_soil_compare(double urate, double rin, double theta0, double Tend,
     Rcpp::_["ref"]        = run_zeta(ode::Method::rodas, tol*1e-3),  // tight reference (zeta+RODAS)
     Rcpp::_["theta_rkck"] = run_theta(ode::Method::rkck),
     Rcpp::_["zeta_rkck"]  = run_zeta(ode::Method::rkck, tol),
+    Rcpp::_["theta_rodas"]= run_theta(ode::Method::rodas),           // implicit on the RAW chart (clamped)
     Rcpp::_["zeta_rodas"] = run_zeta(ode::Method::rodas, tol));
 }
