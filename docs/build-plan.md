@@ -171,10 +171,26 @@ clean-boundary axis the v2 emphasises:
   path stays for everything else). height_max reads the species not the spline, the slope surface has no
   callers, and fixed-environment cases build their own spline via `set_fixed_environment`, so the resident
   spline was dead weight; full K93 double suite + the FD-gated gradient tests stay green, FF16/TF24 take
-  the unchanged else branch and are bit-identical. **Remaining:** FF16/TF24 (their competition/soil
-  active-instantiation + TF24 P2c IFT); re-verify FF16 R0 vs a δ-swept FD (it was oracle-only, so
-  suspect under the new standard); the multi-species single-shared-canopy assumption (per-species eta
-  would need per-species fields) is noted, not exercised.
+  the unchanged else branch and are bit-identical.
+
+  **UPDATE (2026-07-18) — FF16 R0 gradient is WRONG, and the field is NOT the fix (the leak is FF16's
+  rate-path adjoint).** Added the δ-swept pinned-schedule FD gate to `ff16_scm_gradient_driver.cpp` (it
+  was oracle-only). It exposed the same false confidence the oracle gave K93: `d(R0)/d(lma)` reverse is
+  ~ +440 against an FD plateau of ~ −255 (stable across four orders of δ). Crucially — and unlike K93 —
+  this is **not** the light-field representation. I built a shared `CompetitionField<S>` primitive (the
+  K93 field plumbing factored out) and wired FF16's deep-crown light onto the exact `separable_field`
+  (double path bit-identical, the FD still a −255 plateau), and the reverse number was still wrong (it
+  flipped to +440): the field is faithful in value AND in FD-derivative, so the leak is downstream in
+  FF16's heavier **rate-path adjoint** (crown-quadrature assimilation / allocation reverse pass). The
+  spline's frozen (zero) query-derivative was masking it; the correct larger field derivative just
+  un-masks it. The speculative `CompetitionField`/FF16-field wiring was **reverted** (no second working
+  consumer yet, and it perturbs FF16's production double read for no gradient gain — DX principle: no
+  abstraction / no production change without an earned win); only the FD gate landed, with the FF16 R0
+  test asserting it as a known failure (`expect_failure`, flips red when fixed). **The open P2b work is
+  now isolating that FF16 rate-path adjoint leak** (candidates: a `to_passive`/`xad::value` on the
+  assimilation-growth path, or the `QK::integrate` active-bound adjoint) — the FD gate is the instrument.
+  **Remaining beyond that:** TF24 (P2c: leaf IFT via P1a + `incomplete_gamma` + soil coupling); the
+  multi-species single-shared-canopy assumption (per-species eta would need per-species fields).
 
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
@@ -307,7 +323,13 @@ for Phase 2:
 - **P2b — FF16** (adds crown quadrature = sub-grid field reads via the fixed-rule `QK<S>`, P1f; a
   breakpoint node for particle crossings). **PLANT-11:** fix the zero-height cohort NaN (`0·log(0)`) —
   establish `birth≥N` cohorts at `h0`; carries a test. Port FF16's transport term to `rebind` to inherit
-  the shared mass chart (the census tier).
+  the shared mass chart (the census tier). **OPEN (2026-07-18): the FF16 R0 reverse gradient is WRONG**
+  (FD gate: reverse ~ +440 vs FD plateau ~ −255) and the light-field representation is NOT the cause (the
+  exact `separable_field` is FD-faithful but does not fix it — see the CD-G update above). The leak is
+  FF16's rate-path adjoint through the crown-quadrature assimilation / allocation reverse pass; the P1d
+  `to_passive`/`xad::value` firewall is not yet applied to FF16, so a dropped-derivative site there (or
+  the `QK::integrate` active-bound adjoint) is the prime suspect. The FD gate in
+  `ff16_scm_gradient_driver.cpp` (asserted `expect_failure`) is the instrument to drive green.
 - **P2c — TF24** (the hard one; re-reaches #52 soil coupling). Leaf **residual** (the already-templated
   `assim_colimited_ad`/`hydraulic_cost_ad`) drives the reduced-gradient `G(q)` via N1/N3 as P1a
   scalar-IFT nodes — the **leaf solver stays `double`**, the engine auto-differentiates the residual (no
