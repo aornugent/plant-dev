@@ -154,6 +154,23 @@ clean-boundary axis the v2 emphasises:
   - **Superseded earlier claims (struck):** "CD-G layers (a)–(d) oracle-verified"; "K93 analytic / no L2";
     "separable_field deferred for eta conditioning"; "FF16 R0 verified". All corrected above.
 
+  **UPDATE (2026-07-18) — ✅ K93 exact separable field INTEGRATED; census + R0 gradients FD-CORRECT.**
+  The exact `separable_field` now backs K93's competition read (`CanopyShape` rank-3 factors →
+  `Patch::compute_environment` assembles from cohorts → `K93_Environment::get_environment_at_height`
+  queries `at(a(z), rank(z))` with an active query height). The self-shading feedback derivative now
+  flows, and the K93 census AND offspring/R0 gradients **match the δ-swept FD** (in-test gate, tol 1e-3;
+  census b_0 −490.9, elasticity ~−1.1 — sensible, vs the old spline model's absurd +111). The oracle is
+  demoted to a self-consistency smoke test. The field is **faithful**: K93 double offspring within the
+  1e-4 test tol (single- and multi-species); full K93 double suite green (strategy-k93 21/0, patch 145/0,
+  scm 89/0, species/node clean); FF16/TF24 bit-identical (`env_has_competition_field` scopes it to K93).
+  Two real bugs found+fixed by the FD gate (both UB the install tolerated): a **dangling `CanopyShape`
+  pointer** (`&r_get_strategy().canopy_shape` on a temporary — the ~20% multi-species error) and a
+  **missing `/area`** in the amplitude (the test-patch change-patch-size failures). Conditioning at eta=12
+  is machine-precision (spike). **Remaining:** drop the now-redundant spline build for K93 (perf; both are
+  built today); then FF16/TF24 (their competition/soil active-instantiation + TF24 P2c IFT); the multi-
+  species single-shared-canopy assumption (per-species eta would need per-species fields) is noted, not
+  exercised.
+
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
 `claude/odelia-ad-tape-reverse-496fuf` (each ships the dot-product oracle and/or an FD/analytic
