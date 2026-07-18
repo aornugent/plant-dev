@@ -114,33 +114,45 @@ clean-boundary axis the v2 emphasises:
     `net_reproduction_ratio_by_node_weighted` templated to `value_type`; (c) active SCM + L2 knot handoff +
     tape-on-SCM; (d) `compute_gradient` + `compute_jvp` + the oracle.
 
-  **STATUS (2026-07-17) — CD-G layers (a)–(d) LANDED and oracle-verified for K93.**
-  `k93_scm_census_driver.cpp` + `test-ad-k93-scm-gradient.R` on the plant branch. Two exports share one
-  core (`k93_scm_gradient_impl` over a `K93Metric` selector); both the **census** (total stand
-  competition) and **offspring/R0** functionals pass the JVP=VJP oracle (~3e-10 / ~4e-14). The active
-  value reproduces the double exactly (census `25.87369`; offspring `0.075453`). A structural cross-check
-  the oracle *cannot* make: `d(census)/d(d_0)=0` (recruitment has no path to basal area) while
-  `d(R0)/d(d_0)=+103` is the dominant offspring contributor.
-  - **Finding resolved — the L2 "knot handoff" was not needed for K93.** K93's environment is analytic
-    (no adaptive light spline → no L2 knots), so the resident active pass needs only **L1 ode-time
-    pinning**: record `patch.step_history` on a double run (needs `save_RK45_cache` = recording on), then
-    pin it on the active SCM through the *existing public* node-schedule surface
-    (`r_node_schedule` → `r_set_ode_times`/`r_set_use_ode_times` → `r_set_node_schedule`) — **not**
-    `run_mutant` (which `set_mutant`-freezes the field, L3). The active run recomputes the field at the
-    active scalar (resident L2). **No new plant surface.** The genuine L2 spline-knot handoff resurfaces
-    only for FF16/TF24 (adaptive light), at P2b.
-  - **Finding resolved — "no C++ SCM construction" — built in the driver** (K93 `Parameters<S>` for
-    `S ∈ {double, AReal, FReal}` from shared inputs; the double + active SCMs are separate objects so
-    only `step_history` (doubles) crosses between them).
-  - **Tape-on-SCM landed** (`scm.h`): a lazy `std::unique_ptr<tape_type> tape` member (the driver
-    contract), plus a copy-ctor that carries the simulation state and nulls the tape — RcppR6 copies the
-    object on every R crossing, and the double R ABI is unchanged.
-  - **value_type reproduction chain landed** (`util::trapezium` accumulator, `Node::fecundity`/
-    `weighted_fecundity`, `Species`/`Patch` reproduction reductions) — makes R0/offspring differentiable
-    with one scalar-generic path (no `_ad` fork); double path byte-identical, R ABI untouched.
-  - **Remaining for CD-G:** the LAI/biomass/basal **vector** census (codomain=3) is an FF16/TF24 concern
-    (K93 tracks size only → its census is the single basal-area moment); it lands with P2b alongside the
-    real L2 knot handoff.
+  **STATUS (2026-07-18) — ⚠️ CD-G gradients are WRONG for trajectory traits; the fix is the exact field.**
+  A δ-swept finite-difference audit (2026-07-18) overturned the earlier "oracle-verified" claim. The SCM
+  census + R0 drivers (`k93_scm_census_driver.cpp` / `ff16_scm_gradient_driver.cpp`) compute a gradient
+  that is **~30× wrong** for any trait acting through the growth / self-shading trajectory (b_0, b_1 for
+  K93; lma, a_l1, k_l for FF16), and correct *only* for traits acting directly on the metric (recruitment
+  `d_0` → offspring is exact to the digit). What still stands: the SCM-as-runnable contract, the resident
+  L1 ode-time replay, the value_type reproduction chain, tape-on-SCM, the mass-chart transport, and every
+  double path (bit-identical). What does **not** stand: the gradient numbers and the "verified" label.
+
+  - **Why the oracle lied.** JVP=VJP checks reverse-vs-forward *self-consistency*; both legs traverse the
+    same lossy field representation, so they agree with each other while both being wrong vs the model.
+    **New verification standard: every SCM gradient is gated by a δ-SWEPT FD (find the stable plateau),
+    not the oracle.** The oracle stays only as a cheap self-consistency smoke test. (Single-δ census FD is
+    noise-dominated — the documented trap — so the *sweep* is mandatory: plateau ≈ truth.)
+  - **Root cause = the self-shading feedback derivative, dropped by the spline field.** `Patch::compute_
+    environment` samples `compute_competition(x)` at *double* x and fits a `ResourceSpline`; the cohorts
+    then read that spline. The query-height derivative is dropped (`get_value_at_height_frozen_query`) AND
+    the feedback through the field doesn't survive on the reverse tape — unfreezing the read left the
+    gradient bit-identical, so the frozen query is not the (whole) cause; the spline field-representation
+    is. K93's "analytic, no L2" claim above was **also wrong** — K93 uses the light spline like FF16.
+  - **The fix = `odelia::separable_field` as the environment's field representation** (the P1b intent:
+    "interpolator demotes to non-separable fallback; exact separable_field field"). Assembled from the
+    cohort population each step (O(N)), queried at the **active** cohort height (`at(a(z), rank(z))`), so
+    the query-height derivative *and* the active source-factor self-shading both flow exactly. Conditioning
+    is fine at K93's eta=12 (spike: field/slope vs direct sum to ~1e-15; the earlier "48-orders → needs
+    deferred band" fear was wrong — same-sign terms, negligible far-source underflow). No robustness band
+    needed.
+  - **Integration seam + contract (DX-first).** Strategy declares the rank-3 Yokozawa factors
+    `{a_p(z), a'_p(z), b_p(size)}` (one plant-side contract); `Patch::compute_environment` assembles the
+    field from cohort factors instead of handing over a double sampler; `get_environment_at_height(z)`
+    keeps its signature and queries `at(a(z), rank(z))` with `rank(z)` a binary search over descending
+    cohort heights. Gate: K93 census gradient matches the δ-swept FD (b_0 ≈ 48800, b_1 ≈ -38700), then
+    FF16/TF24, double path held bit-identical.
+  - **Landed + still valid regardless of the gradient bug:** tape-on-SCM (`scm.h` lazy tape + copy-ctor,
+    R ABI unchanged); value_type reproduction chain (`util::trapezium` accumulator, `Node::fecundity`/
+    `weighted_fecundity`, `Species`/`Patch` reductions, double byte-identical); resident L1 replay via the
+    public node-schedule surface; mass-chart K93 default transport.
+  - **Superseded earlier claims (struck):** "CD-G layers (a)–(d) oracle-verified"; "K93 analytic / no L2";
+    "separable_field deferred for eta conditioning"; "FF16 R0 verified". All corrected above.
 
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
