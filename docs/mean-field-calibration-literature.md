@@ -138,6 +138,65 @@ break it?) and Thread 4 (does the operator see what the marginal cannot?).
 run synthesis; then, if useful, a second missive that varies the *descriptive emphasis* — foregrounding the
 representation gap / operator (Q3) vs the sufficiency question (Q1) — never the method.
 
+## Later-run harvest (partial re-run 2026-07-18; cache-miss, stopped mid-verify)
+
+The resume missed cache and ran fresh, then was stopped. It **completed all 23 fetches across all five
+threads** (~110 claims) but its **verify phase only reached Thread 1** (26 confirm / 1 refute) before being
+stopped — independently reproducing the first run's Thread-1 confirmations (pipeline-stability signal). So
+the Thread 2–5 additions below are **[U] extracted from primary sources with direct quotes, not
+adversarially verified.** This is most of what a fresh run would have given us, minus verification of the
+new leads.
+
+**New refutation → do-not-carry.** "Long-range dispersal/interaction drives spatial systems to mean-field
+behaviour": the *core* is textbook (well-mixed / `L→∞` limit) but the vote **refuted it for overreach** — the
+same source documents mean-field **failing in transients, near extinction thresholds, and in cyclic
+dynamics**. Treat "long-range ⇒ mean adequate" as a stationary / near-equilibrium statement only. [C]
+
+**Thread 2 — self-averaging, now quantified (Q2).** Central Amazon old-growth: a **single hectare does NOT
+recover the landscape ensemble mean; plots must exceed ~10 ha** to be a reliable estimator; shifting-mosaic
+steady state emerges only at large scale. Plus an operator bias: **plot sampling omits 9–17% of tree
+mortality** by under-sampling large gap events. [U] Also Levin & Paine (joint patch size×age frequency
+distribution) and Kohyama SAL (patch-age × within-patch size; two-scale density dependence). [U]
+
+**Thread 3 — SBI toolkit (methods for Q1/Q5).** Wood synthetic likelihood (phase-insensitive summaries →
+simulate → Gaussian likelihood → MCMC). Neural SBI: ABC has a curse of dimensionality and **does not
+amortize across observations**; neural density estimators do. Rejection-ABC on a real IBM **diagnosed
+practical non-identifiability** (7 unconstrained params: 3 correlated, 4 insensitive) and did **structural
+module selection**. Pattern-oriented modelling (Grimm): **multiple weak patterns jointly defeat
+equifinality** ("right pattern for wrong reasons"). Summary-statistic choice is the critical bias–variance
+design; **no SBI method dominates** across problems. [U]
+
+**Thread 4 — observation operator, the frontier (Q3), now with an empirical anchor.** **DART 3-D radiative
+transfer: replacing the true spatially heterogeneous foliage field with a homogenized (constant) FAVD
+substantially biases the simulated spaceborne-lidar waveform**, whereas voxelizing to 1 m barely changes it
+*provided the real heterogeneity is retained* — so the bias is in the **horizontal heterogeneity the mean
+discards**, not in discretization. A measured `H(E[x]) ≠ E[H(x)]` for exactly our operator. The **GEDI
+waveform simulator** is a validated forward operator (ALS→waveform, bias <0.22 m) whose fidelity is
+**conditional on input point density**. Ma et al. (ED v3.0): operator = modeled vertical structure → canopy
+height; fine-scale heterogeneity affects **fluxes, not just stocks**. [U]
+
+**Thread 5 — identifiability confound (Q4).** Nine-VDM benchmark: a single aggregate target (biomass)
+permits **compensating parameter errors** (explicit equifinality). Bayesian calibration of a size-structured
+model: parameter-level equifinality, yet the **emergent qualitative outcome (competitive dominance) and its
+controlling process were identifiable** even when the rates were not — *what is identifiable is the outcome,
+not the rates.* FATES: identifiability **capped by structural error, not just parameter uncertainty.**
+Size-abundance slope across 160k FIA plots: **the slope is a transient of disturbance-recovery position, not
+a fixed demographic signature** — the demography/disturbance confound at continental scale (R²=0.20 even
+with age+disturbance+height predictors). [U]
+
+**`plant`, from a dedicated source — confirms the black-box framing.** The *same* size-and-patch-structured
+model is solvable **either deterministically (mean-field, method of characteristics) or stochastically**;
+`N(H|x,a)` obeys a McKendrick–von Foerster PDE; the patch-age distribution comes from the disturbance
+regime; landscape = single-patch trajectory scaled by `P(a)` (explicit space-for-ensemble). [U] Independent
+corroboration that the two computations the missive assumes are real and exact-by-construction.
+
+**Updated net read.** Threads 3/4/5 are now populated (from primary sources, unverified). The **frontier Q3
+has an empirical anchor**: the representation gap is real *and measurable* (DART). That cuts both ways for
+scoring the Oracle — a purely textbook answer on Q3 would cite this class of "homogenization biases the
+signal" result; a genuine breakthrough must go past *diagnosing* the bias to **cheaply correcting or
+marginalizing it** (a low-order operator correction, a control variate on the mean, an emulator) without
+paying for the full stochastic render at every θ.
+
 ## Sources (23 primary)
 
 Mean-field ↔ stochastic / moment closure: journals.uchicago.edu/doi/10.1086/303199 (Bolker & Pacala 1999);
