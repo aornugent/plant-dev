@@ -28,6 +28,16 @@ the other. Frame for discovery, not confirmation.
   statement that instead laid out the whole system neutrally got the Oracle to identify
   — unprompted — that a quantity was being carried twice as a cancelling pair, which was
   the actual answer and which neither we nor the narrow framing had reached.
+- **The mathematical representation is a candidate solution too.** Choosing to call the
+  object a measure, a field, a point pattern, or an operator of a particular class
+  silently selects the toolbox that fits it — the XY trap one layer down, and a lead even
+  when you have named no method. Describe the object by the *operations available on it*
+  (what is cheap to compute, what you can sample, what maps to the observable, what the
+  couplings are) and let the reasoner name the right formalization. The tell: if the answer
+  is the canonical method of the representation you chose, you led. In this project a
+  statement that fixed the object as "a law on finite point sets with an intensity" drew,
+  inevitably, the point-process calculus that fits that object — an excellent answer to a
+  question we had silently narrowed, not to the open one.
 
 ## 2. Present every structural feature with equal weight; foreground nothing
 
@@ -89,18 +99,28 @@ Two opposing pressures, and you must satisfy both:
   catalogue is what lets you diff responses and notice that a later, better-framed
   question unlocked something the earlier one suppressed.
 
-## 7. Never act on an Oracle claim without a cheap falsifiable test first
+## 7. Never act on an Oracle claim without a faithful falsifiable test first
 
 - Oracles are confidently wrong sometimes. In this project a proposed cancellation
   mechanism and a curvature-based fix were both delivered with high confidence and both
   **falsified by a one-recompile experiment.** The correct diagnosis was *also* delivered
   confidently — the only way to tell them apart was to test.
-- Reduce every Oracle-proposed mechanism to the smallest experiment that would confirm
-  or kill it, and run that **before** any refactor. The prototype-and-measure loop is the
-  arbiter; the Oracle is a source of hypotheses, not verdicts.
+- **The test's quality is fidelity to the real system, not cheapness.** The trap: an
+  experiment made cheap by *simplifying the system representation* answers an easier
+  question than the one you have, and its verdict need not transfer. In this project a
+  multirate stepper looked beneficial on a simplified, decoupled sub-system and delivered
+  **no benefit once coupled to the real system** — the cheapness came precisely from
+  dropping the coupling that governed the outcome. Choose the **most decisive experiment
+  that still exercises every interaction the conclusion depends on**, run in the deployed
+  setting, not a proxy; smallness is a tiebreaker among faithful tests, never the criterion.
+- Reduce every Oracle-proposed mechanism to the smallest *faithful* experiment that would
+  confirm or kill it, and run that **before** any refactor. The prototype-and-measure loop
+  is the arbiter; the Oracle is a source of hypotheses, not verdicts.
 - Prefer the test the Oracle itself proposes if it offers one — a good Oracle response
   includes its own falsifiable prediction ("both classes go green simultaneously; if the
-  mover is still off, the leak is in <named place>"). Run exactly that.
+  mover is still off, the leak is in <named place>"). Run exactly that — **but first check
+  its test keeps the real couplings; a prediction that only holds on a simplified
+  representation is the trap above.**
 
 ## 8. State the constraints the answer must respect
 
