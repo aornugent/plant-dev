@@ -166,10 +166,15 @@ clean-boundary axis the v2 emphasises:
   Two real bugs found+fixed by the FD gate (both UB the install tolerated): a **dangling `CanopyShape`
   pointer** (`&r_get_strategy().canopy_shape` on a temporary — the ~20% multi-species error) and a
   **missing `/area`** in the amplitude (the test-patch change-patch-size failures). Conditioning at eta=12
-  is machine-precision (spike). **Remaining:** drop the now-redundant spline build for K93 (perf; both are
-  built today); then FF16/TF24 (their competition/soil active-instantiation + TF24 P2c IFT); the multi-
-  species single-shared-canopy assumption (per-species eta would need per-species fields) is noted, not
-  exercised.
+  is machine-precision (spike). ***DONE — the redundant K93 spline build is dropped*** (`Patch::compute_
+  environment` assembles the exact field only for `env_has_competition_field` environments; the spline
+  path stays for everything else). height_max reads the species not the spline, the slope surface has no
+  callers, and fixed-environment cases build their own spline via `set_fixed_environment`, so the resident
+  spline was dead weight; full K93 double suite + the FD-gated gradient tests stay green, FF16/TF24 take
+  the unchanged else branch and are bit-identical. **Remaining:** FF16/TF24 (their competition/soil
+  active-instantiation + TF24 P2c IFT); re-verify FF16 R0 vs a δ-swept FD (it was oracle-only, so
+  suspect under the new standard); the multi-species single-shared-canopy assumption (per-species eta
+  would need per-species fields) is noted, not exercised.
 
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
@@ -269,9 +274,11 @@ env failure). End state is base-independent; #52 is the safest path to it.
 **Plant port ledger (all Phase-1 primitives landed; here is the plant edit each enables — status
 *enabled*, not yet *applied*).** The primitive exists and is verified in odelia; the plant change waits
 for Phase 2:
-- **`separable_field` (P1b).** Replaces `species.h::compute_competition`, the coupling-path interpolator
-  read, and `get_environment_slope_at_height`; the strategy declares `{a_p,b_p}` + `kernel_direct`.
-  Applies at P2a (K93) / P2b (FF16 crown).
+- **`separable_field` (P1b).** ***APPLIED at P2a (K93).*** Backs K93's coupling read: `CanopyShape`
+  declares the rank-3 Yokozawa factors `{a_p(z), a'_p(z), b_p(size)}`, `Patch::compute_environment`
+  assembles the field from the cohort population (`env_has_competition_field` scopes it), and
+  `K93_Environment::get_environment_at_height` queries `at(a(z), rank(z))` at the active query height.
+  The redundant K93 light spline is now dropped on this path. FF16 crown (P2b) still to come.
 - **mass transport (P1e).** ***APPLIED at P2a — mass chart is now K93's default transport.*** The
   `Species::compute_rates` arm calls `odelia::log_density_rate`; the transport scheme is selected by a
   compile-time strategy marker `strategy_supports_geometric_transport` (K93 declares the nested
