@@ -325,11 +325,35 @@ for Phase 2:
   establish `birth≥N` cohorts at `h0`; carries a test. Port FF16's transport term to `rebind` to inherit
   the shared mass chart (the census tier). **OPEN (2026-07-18): the FF16 R0 reverse gradient is WRONG**
   (FD gate: reverse ~ +440 vs FD plateau ~ −255) and the light-field representation is NOT the cause (the
-  exact `separable_field` is FD-faithful but does not fix it — see the CD-G update above). The leak is
-  FF16's rate-path adjoint through the crown-quadrature assimilation / allocation reverse pass; the P1d
-  `to_passive`/`xad::value` firewall is not yet applied to FF16, so a dropped-derivative site there (or
-  the `QK::integrate` active-bound adjoint) is the prime suspect. The FD gate in
+  exact `separable_field` is FD-faithful but does not fix it — see the CD-G update above). The FD gate in
   `ff16_scm_gradient_driver.cpp` (asserted `expect_failure`) is the instrument to drive green.
+
+  **Investigation (2026-07-18), narrowed but not yet root-caused.** Ruled OUT as the cause: the reverse
+  tape itself (fwd==rev==wrong, so it is a *structural* derivative error present in BOTH AD modes, not a
+  tape/adjoint bug); `QK::integrate` (correctly tapes the active crown bound + integrand; its `to_passive`
+  are only the error/abs machinery); `assimilation_leaf` (clean Michaelis–Menten, no dropped derivative);
+  the field read `optical_depth` (`dA/dz < 0` verified — taller ⇒ more light, correct sign). Gate-0
+  (single plant, FIXED light) is FD-correct, so the untested channel is `d(·)/d(light)` — the self-shading
+  FEEDBACK, exercised only in the coupled SCM. Characterised:
+  - **Spline (committed) consistently UNDERSHOOTS ~40–50%** across a `max_patch_lifetime` sweep (L=35:
+    AD −8.0 vs FD −16.0; L=50: −172 vs −256; same sign, ratio ~0.5–0.67 — a whole missing *channel*, not
+    noise). The missing channel is the query-height self-shading feedback the fitted spline freezes (same
+    physics as K93's 30× miss, milder for FF16 because growth is dominated by other terms).
+  - **Exact field OVERSHOOTS**: it adds a large *positive* term to EVERY trait's gradient (lma −172→+442,
+    k_l −7.3→+19.7, a_l1 3.7→38.3), flipping lma/k_l. Since the query channel's sign is verified correct,
+    the spurious positive is a **source-side** derivative error in the field ASSEMBLY for FF16 — prime
+    suspects: the skipped `new_node` boundary half-trapezium and/or the trapezium-measure `M` derivative
+    (both carry active cohort-height derivatives that must match `Species::compute_competition` exactly;
+    the ~0.03% value gap they cause is negligible but their *derivative* mismatch may not be).
+  - **A concrete secondary bug**: `area_leaf_0 = area_leaf(height_0)` with `height_0` a plain `double`
+    (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`; `establishment_probability`
+    (an R0 weight) reads it. `initial_height_` (line 765) carries `dh₀/dθ` via the IFT lift and has the
+    same value, so switching to it is bit-identical in value, derivative-restoring. Likely a contributor
+    to the undershoot, not the field overshoot.
+  - **Next**: build a channel-isolation harness (feedback-severed reverse vs a frozen-to-base double FD via
+    the double↔double mutant/`environment_history` path) to attribute the error per channel, then fix the
+    field source-derivative (new_node boundary + `M`) and `area_leaf_0`. The lifetime sweep + per-trait
+    ratios are the running signature to watch.
 - **P2c — TF24** (the hard one; re-reaches #52 soil coupling). Leaf **residual** (the already-templated
   `assim_colimited_ad`/`hydraulic_cost_ad`) drives the reduced-gradient `G(q)` via N1/N3 as P1a
   scalar-IFT nodes — the **leaf solver stays `double`**, the engine auto-differentiates the residual (no
