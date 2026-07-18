@@ -185,9 +185,12 @@ clean-boundary axis the v2 emphasises:
   cause = FF16's crown integral reads at `z = node·H`, so the focal plant's self-shading `Q(z/H)=Q(node)`
   is H-invariant, but the separable factoring `a_p(z)·b_p(H)` treats z and H as independent and the focal
   self-shading query/source derivatives fail to cancel. K93 never hits this (reads at `z=H`, `Q(1)=0`).
-  **Fix direction:** read the CROSS shading from the field and add the focal plant's own crown
-  self-shading analytically as `Q(node)` (H-invariant), or an equivalent that preserves the linkage. The
-  FD gate is `expect_failure` (green now, red when fixed); `freeze_query` is the diagnostic.
+  **CORRECTION (fix attempt refuted this):** the self-linkage was NOT the bug — freezing the focal
+  cohort's own query contribution made the gradient worse (+442→+729). The query error is in the
+  CROSS-cohort terms (+902 vs a true −82), leading suspect the FROZEN RANK (`n_sources_at_least` uses
+  passive z, so `dA/dz` misses cohorts entering/leaving as the crown query sweeps). See the detailed
+  update below. The FD gate is `expect_failure` (green now, red when fixed); `freeze_query` is the
+  diagnostic. The field integration (source channel proven correct) stays; the query fix is open.
   (Earlier this session I wrongly guessed a "source-side" error and hastily reverted the field on DX
   grounds — corrected: the field is the objective, its source channel is proven correct, and it is now
   integrated. A shared `CompetitionField<S>` extraction is deferred until the FF16 read is correct, then
@@ -349,14 +352,19 @@ for Phase 2:
       guess was WRONG).
     · field FULL: +442.7, 38.3, 19.7 — wrong. So the ENTIRE error is the **query-height channel**, the
       new derivative the field adds over the spline (~ +615 for lma vs a true ~ −82).
-  - **Root cause = the crown self-shading z–H linkage the separable factoring breaks.** FF16's crown
-    integral reads the field at `z = node·H`, so for the FOCAL plant the query height and its own source
-    height are LINKED and its self-shading `Q(z/H) = Q(node)` is H-invariant. The factoring
-    `a_p(z)·b_p(H)` treats z and H as independent, so the focal plant's self-shading query/source
-    derivatives fail to cancel. K93 never hits this (reads at `z = H`, self-shading `Q(1) = 0`). **Fix
-    direction:** read the CROSS shading (other cohorts) from the field but add the focal plant's own crown
-    self-shading analytically as `Q(node)` (manifestly H-invariant) — or an equivalent that preserves the
-    linkage. The `freeze_query` switch + FD gate are the instruments.
+  - **Self-shading-linkage hypothesis TESTED and REFUTED.** I implemented the "freeze only the focal
+    cohort's own query contribution" fix (value-preserving; the reader's own source frozen in query). It
+    made the gradient WORSE (+442 → +729), not better. The arithmetic decomposes the query channel
+    (total +615 over the −172 source baseline; truth −82): freezing the self source moved it +287, so the
+    self-source query was −287 and the **CROSS-shading query is +902** (should be −82). So the bug is the
+    cross-cohort query derivative, NOT the focal self-term (that hypothesis was wrong).
+  - **Leading suspect now: the FROZEN RANK.** `n_sources_at_least` uses `to_passive(z)`, so as the crown
+    query `z = node·H` sweeps with the focal height, the rank (which cohorts count as "taller than z") is
+    held fixed and `dA/dz` misses the terms from cohorts entering/leaving the shading set as the crown
+    moves through them. K93 dodges this (single point query at `z = H`, no crown sweep). The +902 is
+    consistent with an integrated-over-crown accumulation of these dropped boundary terms. **Next:** test
+    by adding the cohort-crossing term to the query derivative (or a rank that tracks `z` actively), with
+    the `freeze_query` switch + FD gate as instruments. The self-correction fix was reverted.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
