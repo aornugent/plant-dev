@@ -368,14 +368,34 @@ for Phase 2:
     where `patch_density_at_birth` is a birth-time double and the fecundity is an accumulated ODE state
     (node.h:96,208 — all `value_type`, no dropped derivative). Establishment reads light at the double
     `height_0`, so it carries no query derivative. `area_leaf_0` was tested (no effect).
-  - **Where the bug is now: the resident growth→fecundity trajectory, activated by the light query
-    derivative.** Every individual operation checked is correctly differentiated (field read, Beer's law,
-    `assimilation_leaf` Michaelis–Menten, `QK::integrate`, the fecundity/survival accumulation), yet the
-    aggregate query channel is +615 wrong — present in BOTH AD modes (structural). Not yet root-caused.
-    **Next:** instrument the SCM directly (e.g. reverse gradient over a 1-cohort / few-step trajectory vs a
-    hand-rolled reference, or bisect the trajectory) rather than isolated probes — the field/reproduction
-    subsystems are cleared, so the harness must exercise the coupled growth loop. `freeze_query` (field
-    read) and `metric=1` (census, isolates the reproduction chain) are the committed diagnostics.
+  - **RESOLVED (2026-07-18) — the "truth" was misrepresented; the pinned-schedule FD is an ARTIFACT for
+    FF16.** Oracle-consult §0 is the key: a value-exact gradient O(1) off FD means either a detached edge
+    (JVP≡VJP can't see it) OR the FD re-adapts the schedule (dropped-schedule term). Running the Oracle's
+    discriminating tests — a fully-adaptive, real-model R-level `run_scm` FD (T2, re-adapted schedule) vs
+    the pinned-schedule FD (T1, frozen) — settles it:
+
+    | | K93 `d(offspring)/d(b_0)` | FF16 `d(offspring)/d(lma)` |
+    |---|---|---|
+    | reverse AD (frozen schedule) | −0.11812 | +442 |
+    | pinned-schedule FD (frozen)  | −0.11812 | −255 |
+    | **adaptive FD (real model)** | **−0.11807** | **+4.2** |
+
+    **K93: all three agree** — schedule-insensitive, no detached edge, genuinely correct. **FF16: all three
+    disagree**, and the real (adaptive) gradient is **+4.2**, which neither the AD nor the pinned FD is near.
+    FF16's R0 is a small net (+4.2) of large opposing terms (growth benefit vs self-shading cost); the
+    record-once/replay-pinned method forces the perturbed dynamics onto the BASE schedule, and that
+    schedule-mismatch error dwarfs the +4.2 signal. So the FD gate we built for FF16 was validating against
+    a wrong target (−255), and the "field overshoot / detached edge / cross-shading query" narratives above
+    were all chasing an artifact. The `separable_field` is correct (probe proves it); K93 is correct.
+  - **The real issue is SCHEDULE SENSITIVITY, which is a declared scope fence** ("d(schedule)/dθ decided
+    out — nuisance variable", Scope fences). It is negligible for K93 (robust gradient) but dominant for
+    FF16's delicate near-cancelling R0. Implications / open decisions: (i) the pinned-schedule FD is NOT a
+    valid correctness gate for schedule-sensitive strategies — it must be replaced by the adaptive-FD as
+    the reference; (ii) the frozen-schedule reverse gradient the engine computes will not match the real
+    gradient for such strategies unless the schedule sensitivity is recovered (Oracle follow-up probe 7:
+    closed-form event/saltation correction) or the functional is reformulated to be schedule-robust; (iii)
+    K93/census remain valid. This is an engine-scope question for the build plan, not an FF16 code bug.
+    Committed diagnostics: `freeze_query` (field channel split), `metric=1` (census).
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
