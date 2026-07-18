@@ -352,19 +352,30 @@ for Phase 2:
       guess was WRONG).
     · field FULL: +442.7, 38.3, 19.7 — wrong. So the ENTIRE error is the **query-height channel**, the
       new derivative the field adds over the spline (~ +615 for lma vs a true ~ −82).
-  - **Self-shading-linkage hypothesis TESTED and REFUTED.** I implemented the "freeze only the focal
-    cohort's own query contribution" fix (value-preserving; the reader's own source frozen in query). It
-    made the gradient WORSE (+442 → +729), not better. The arithmetic decomposes the query channel
-    (total +615 over the −172 source baseline; truth −82): freezing the self source moved it +287, so the
-    self-source query was −287 and the **CROSS-shading query is +902** (should be −82). So the bug is the
-    cross-cohort query derivative, NOT the focal self-term (that hypothesis was wrong).
-  - **Leading suspect now: the FROZEN RANK.** `n_sources_at_least` uses `to_passive(z)`, so as the crown
-    query `z = node·H` sweeps with the focal height, the rank (which cohorts count as "taller than z") is
-    held fixed and `dA/dz` misses the terms from cohorts entering/leaving the shading set as the crown
-    moves through them. K93 dodges this (single point query at `z = H`, no crown sweep). The +902 is
-    consistent with an integrated-over-crown accumulation of these dropped boundary terms. **Next:** test
-    by adding the cohort-crossing term to the query derivative (or a rank that tracks `z` actively), with
-    the `freeze_query` switch + FD gate as instruments. The self-correction fix was reverted.
+  - **Self-shading-linkage hypothesis TESTED and REFUTED.** Freezing the focal cohort's own query
+    contribution (value-preserving) made the gradient WORSE (+442 → +729). Decomposing: self-source query
+    −287, cross query +902 — so the error is in the cross terms, not the focal self-term. Reverted.
+  - **The field read is EXONERATED (proven).** `test-ad-ff16-field-crown.R` / `field_crown_probe.cpp`:
+    the separable field's query derivative in the exact crown pattern (`z = node·H`, all source heights and
+    weights scaling with the parameter as a single-species stand's cohorts do) matches a direct O(N²) sum
+    AND finite differences to machine precision. The separable factoring is mathematically correct here, so
+    the field read is NOT where the reverse gradient goes wrong. (The "frozen rank" suspect is also weak —
+    cohorts leave the shading set exactly where their `Q(z/H)=Q(1)=0`, so no boundary term is dropped.)
+  - **Transport, reproduction-weighting, establishment RULED OUT for offspring.** Census (which IS
+    density-weighted) is wrong too, but that is the KNOWN dropped FF16 transport derivative (documented,
+    deferred — census needs differentiable transport). Offspring does NOT route through the transported
+    density: `weighted_fecundity = offspring_produced_survival_weighted · patch_density_at_birth · S_D`,
+    where `patch_density_at_birth` is a birth-time double and the fecundity is an accumulated ODE state
+    (node.h:96,208 — all `value_type`, no dropped derivative). Establishment reads light at the double
+    `height_0`, so it carries no query derivative. `area_leaf_0` was tested (no effect).
+  - **Where the bug is now: the resident growth→fecundity trajectory, activated by the light query
+    derivative.** Every individual operation checked is correctly differentiated (field read, Beer's law,
+    `assimilation_leaf` Michaelis–Menten, `QK::integrate`, the fecundity/survival accumulation), yet the
+    aggregate query channel is +615 wrong — present in BOTH AD modes (structural). Not yet root-caused.
+    **Next:** instrument the SCM directly (e.g. reverse gradient over a 1-cohort / few-step trajectory vs a
+    hand-rolled reference, or bisect the trajectory) rather than isolated probes — the field/reproduction
+    subsystems are cleared, so the harness must exercise the coupled growth loop. `freeze_query` (field
+    read) and `metric=1` (census, isolates the reproduction chain) are the committed diagnostics.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
