@@ -173,24 +173,26 @@ clean-boundary axis the v2 emphasises:
   spline was dead weight; full K93 double suite + the FD-gated gradient tests stay green, FF16/TF24 take
   the unchanged else branch and are bit-identical.
 
-  **UPDATE (2026-07-18) — FF16 R0 gradient is WRONG, and the field is NOT the fix (the leak is FF16's
-  rate-path adjoint).** Added the δ-swept pinned-schedule FD gate to `ff16_scm_gradient_driver.cpp` (it
-  was oracle-only). It exposed the same false confidence the oracle gave K93: `d(R0)/d(lma)` reverse is
-  ~ +440 against an FD plateau of ~ −255 (stable across four orders of δ). Crucially — and unlike K93 —
-  this is **not** the light-field representation. I built a shared `CompetitionField<S>` primitive (the
-  K93 field plumbing factored out) and wired FF16's deep-crown light onto the exact `separable_field`
-  (double path bit-identical, the FD still a −255 plateau), and the reverse number was still wrong (it
-  flipped to +440): the field is faithful in value AND in FD-derivative, so the leak is downstream in
-  FF16's heavier **rate-path adjoint** (crown-quadrature assimilation / allocation reverse pass). The
-  spline's frozen (zero) query-derivative was masking it; the correct larger field derivative just
-  un-masks it. The speculative `CompetitionField`/FF16-field wiring was **reverted** (no second working
-  consumer yet, and it perturbs FF16's production double read for no gradient gain — DX principle: no
-  abstraction / no production change without an earned win); only the FD gate landed, with the FF16 R0
-  test asserting it as a known failure (`expect_failure`, flips red when fixed). **The open P2b work is
-  now isolating that FF16 rate-path adjoint leak** (candidates: a `to_passive`/`xad::value` on the
-  assimilation-growth path, or the `QK::integrate` active-bound adjoint) — the FD gate is the instrument.
-  **Remaining beyond that:** TF24 (P2c: leaf IFT via P1a + `incomplete_gamma` + soil coupling); the
-  multi-species single-shared-canopy assumption (per-species eta would need per-species fields).
+  **UPDATE (2026-07-18) — FF16 reads the exact field (P2b objective); R0 gradient bug LOCALISED to the
+  crown self-shading z–H linkage.** Added the δ-swept pinned-schedule FD gate to
+  `ff16_scm_gradient_driver.cpp` (it was oracle-only); it exposed the same false confidence the oracle gave
+  K93 (`d(R0)/d(lma)` reverse ~ +440 vs FD plateau ~ −255). FF16 now reads its deep-crown light from the
+  same exact `separable_field` K93 uses (`field_supersedes_spline=false`, so FF16 still builds the spline
+  for not-yet-assembled / fixed-environment reads; all double suites green within tol). A `freeze_query`
+  channel-isolation switch on the field read splits the bug decisively: the field's SOURCE self-shading
+  derivative is CORRECT (freeze_query reproduces the spline to the digit, −172.5/3.69/−7.29), and the
+  ENTIRE error is the **query-height channel** the field newly adds (+615 for lma vs a true ~ −82). Root
+  cause = FF16's crown integral reads at `z = node·H`, so the focal plant's self-shading `Q(z/H)=Q(node)`
+  is H-invariant, but the separable factoring `a_p(z)·b_p(H)` treats z and H as independent and the focal
+  self-shading query/source derivatives fail to cancel. K93 never hits this (reads at `z=H`, `Q(1)=0`).
+  **Fix direction:** read the CROSS shading from the field and add the focal plant's own crown
+  self-shading analytically as `Q(node)` (H-invariant), or an equivalent that preserves the linkage. The
+  FD gate is `expect_failure` (green now, red when fixed); `freeze_query` is the diagnostic.
+  (Earlier this session I wrongly guessed a "source-side" error and hastily reverted the field on DX
+  grounds — corrected: the field is the objective, its source channel is proven correct, and it is now
+  integrated. A shared `CompetitionField<S>` extraction is deferred until the FF16 read is correct, then
+  K93+FF16 are its two consumers.) **Remaining:** the crown-linkage fix, then TF24 (P2c: leaf IFT via
+  P1a + `incomplete_gamma` + soil coupling); the multi-species single-shared-canopy assumption.
 
 ## Phase 1 — engine primitives (odelia); P1a–P1e — **LANDED**
 Each a standalone odelia addition with its own test, no plant dependency. All landed and verified on
@@ -339,12 +341,22 @@ for Phase 2:
     AD −8.0 vs FD −16.0; L=50: −172 vs −256; same sign, ratio ~0.5–0.67 — a whole missing *channel*, not
     noise). The missing channel is the query-height self-shading feedback the fitted spline freezes (same
     physics as K93's 30× miss, milder for FF16 because growth is dominated by other terms).
-  - **Exact field OVERSHOOTS**: it adds a large *positive* term to EVERY trait's gradient (lma −172→+442,
-    k_l −7.3→+19.7, a_l1 3.7→38.3), flipping lma/k_l. Since the query channel's sign is verified correct,
-    the spurious positive is a **source-side** derivative error in the field ASSEMBLY for FF16 — prime
-    suspects: the skipped `new_node` boundary half-trapezium and/or the trapezium-measure `M` derivative
-    (both carry active cohort-height derivatives that must match `Species::compute_competition` exactly;
-    the ~0.03% value gap they cause is negligible but their *derivative* mismatch may not be).
+  - **RESOLVED by channel isolation (the field IS the fix for the source channel; the query channel is
+    the bug).** FF16 now reads the exact `separable_field` (double suites green, within tol). A
+    `freeze_query` switch on the field read splits the two channels decisively:
+    · field SOURCE-only (query derivative frozen): −172.5, 3.69, −7.29 — **reproduces the spline to the
+      digit**, so the field's source self-shading derivative is CORRECT (the earlier "source-side error"
+      guess was WRONG).
+    · field FULL: +442.7, 38.3, 19.7 — wrong. So the ENTIRE error is the **query-height channel**, the
+      new derivative the field adds over the spline (~ +615 for lma vs a true ~ −82).
+  - **Root cause = the crown self-shading z–H linkage the separable factoring breaks.** FF16's crown
+    integral reads the field at `z = node·H`, so for the FOCAL plant the query height and its own source
+    height are LINKED and its self-shading `Q(z/H) = Q(node)` is H-invariant. The factoring
+    `a_p(z)·b_p(H)` treats z and H as independent, so the focal plant's self-shading query/source
+    derivatives fail to cancel. K93 never hits this (reads at `z = H`, self-shading `Q(1) = 0`). **Fix
+    direction:** read the CROSS shading (other cohorts) from the field but add the focal plant's own crown
+    self-shading analytically as `Q(node)` (manifestly H-invariant) — or an equivalent that preserves the
+    linkage. The `freeze_query` switch + FD gate are the instruments.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
