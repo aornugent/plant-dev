@@ -178,26 +178,64 @@ wrong and is corrected here and on the PR.)
 
 ## 5. Where R-D's benefit actually lives
 
-If R-D doesn't change these outcomes, what is it for? Its benefit is latent in
-this scenario set because — per §1 and §3 — none of these runs push soil into the
-genuinely stiff deep-dry band (θ < ~0.08, ψ at the cap). At the moderate dryness
-these scenarios reach (ψ ≤ 3.9 MPa), the adaptive explicit RKCK stepper on raw θ
-already copes. R-D's conditioning advantage shows up only when the soil is driven
-hard toward residual, where the earlier multirate probes measured raw-θ RKCK
-step counts climbing (to ~280+ accepted steps at real stiffness) while the
-log-chart / implicit forms stayed flat (~30). R-D is therefore best understood as:
+If R-D doesn't change these outcomes, what is it for? A controlled soil-block
+benchmark (`scripts/tf24-multirate/rd_rodas_bench.R`, real odelia solver, the
+TF24-shaped block, stiffness swept via the vulnerability-shutoff steepness `sh`)
+answers this more sharply than the gateway can — and the answer is more sobering
+than earlier probes suggested. Accepted step counts [accuracy vs a tight
+reference]:
 
-1. **Correctness insurance** — the residual floor is a true asymptote, enforced
-   by the chart rather than a clamp, so no configuration of parameters or forcing
-   can drive θ below θ_res or non-finite.
-2. **Conditioning for the dry tail** — a gentle field for the integrator exactly
-   where raw θ is stiffest, keeping the explicit stepper efficient without an
-   implicit solver in the common case.
+| sh | θ+RKCK | θ+RODAS | ζ+RKCK | ζ+RODAS |
+|---:|-------:|--------:|-------:|--------:|
+| 60 | 32 [1e-7] | 26 [1e-10] | 33 [8e-8] | 29 [6e-11] |
+| 250 | 80 [2e-6] | 28 [2e-12] | 83 [1e-7] | 30 [2e-13] |
+| 1000 | 284 [4e-8] | 29 [4e-14] | 265 [4e-7] | 30 [2e-14] |
+| 2000 | 580 [NA] | FAIL | 547 [NA] | FAIL |
 
-Neither is exercised to breaking point by the current gateway scenarios, which is
-*why* R-D reads as neutral here. That neutrality is the reassurance: the recast
-buys robustness at the dry tail without perturbing the ecology anywhere the model
-is already well-behaved.
+Two conclusions, both against R-D having a *numerical* payoff:
+
+- **The chart does not help the explicit stepper.** `ζ+RKCK ≈ θ+RKCK` at every
+  stiffness (265 vs 284 at sh=1000) — the dry-end stiffness is intrinsic to the
+  uptake coupling's timescale, not an artifact of the θ chart, so re-charting to
+  ζ does not relieve it.
+- **The chart does not help the implicit stepper either.** `ζ+RODAS ≈ θ+RODAS`
+  (30 vs 29 at sh=1000), both flat ~30 across the whole range, both accurate,
+  both failing together at sh=2000. The ~10× step win at stiffness is **RODAS
+  being implicit, independent of the chart** — it is fully available on raw θ.
+  (An earlier note attributed this conditioning to R-D; the θ+RODAS arm shows
+  that was wrong.)
+
+The reason the θ chart's positivity clamp does not degrade RODAS's Jacobian here
+is that the **vulnerability shutoff keeps the flux floor-respecting**, so the
+clamp branch never activates and the field is smooth on either chart. A floor
+test makes the dependency explicit:
+
+| | θ+RODAS | ζ+RODAS |
+|---|---|---|
+| flux **vanishes** at floor (shutoff on) | θ_min = 0.130 ✓ | θ_min = 0.130 ✓ |
+| flux **violates** floor (shutoff off) | θ → −17.85 (nonphysical) | FAIL (NaN) |
+
+When the flux genuinely wants θ < θ_res, **no chart saves you** — ζ blows up to
+−∞/NaN and θ runs nonphysically negative. So the residual floor is held by the
+*physiology* (uptake → 0 as ψ → ψ_crit), not by the chart. R-D is not a
+substitute for the vulnerability shutoff.
+
+What R-D uniquely provides is therefore narrow and non-numerical:
+
+1. **Structural positivity** — `θ = θ_res + eᶻ > θ_res` by construction replaces
+   the discontinuous residual-state clamp (which R-D removes). A cleaner,
+   kink-free formulation — but on the shipped explicit path, and even paired with
+   RODAS, it neither reduces cost nor changes any outcome versus the clamped θ
+   chart.
+2. **Correctness elegance** — the residual floor as a true Osgood asymptote
+   rather than a projection.
+
+Honestly stated: **R-D buys code-cleanliness and a structural guarantee, not
+performance or robustness.** The real stiff-regime win belongs to an implicit
+stepper (RODAS), which works on the existing θ chart; and the feasibility of the
+dry end belongs to the vulnerability shutoff, which R-D cannot replace. That is
+the reassurance behind its ecological neutrality (§2) — but it is also the reason
+R-D should be justified as a foundational/clarity change, not sold on numerics.
 
 ---
 
@@ -214,5 +252,14 @@ is already well-behaved.
    environments) that merit a scientific look: either the arid parameterisation
    is not root-zone-dry enough, or mesic traits are more drought-tolerant here
    than the scenario table assumes.
-3. **Land R-D on its faithfulness argument** (§2), decoupled from the gateway
-   baseline question entirely.
+3. **Land R-D on its faithfulness + clarity argument** (§2, §5), decoupled from
+   the gateway baseline question — and *not* on a numerical/performance claim,
+   which the RODAS benchmark does not support. If the bar for merging a
+   state-representation change is a demonstrable numerical or ecological benefit,
+   R-D does not currently clear it on the shipped path; its case is structural
+   positivity and correctness elegance ahead of a future implicit stepper. Worth
+   an explicit maintainer decision.
+4. **Keep the vulnerability shutoff; do not treat R-D as licence to remove it.**
+   The floor test (§5) shows the physiological shutoff — not the chart — is what
+   holds soil above θ_res. R-D correctly removes the non-mechanistic residual
+   *state* clamp, but it cannot substitute for the shutoff.
