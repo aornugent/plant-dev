@@ -1,65 +1,78 @@
-# Computing the expectation of a nonlinear map under a measure accessed cheaply through its mean and expensively through samples
+# Relating a cheaply-computed expected distribution to a nonlinear summary of expensive individual realizations
 
-A numerical-analysis question. No application is named and no method is assumed; each object is given only
-through the operations available on it. Self-contained; assume no earlier context. If the quantity we ask
-you to compute is the wrong object, say so.
+A numerical-analysis question. No application is named, no solution method is assumed, and no mathematical
+formalization is presupposed — each object is given only through the operations available on it, and part of
+the question is which formalization fits. Self-contained; assume no earlier context. If the relationship we
+ask you to compute is the wrong object, say so.
 
-## Setup
+## Setup (given as operations, not as a chosen object)
 
-`𝒳` is the space of finite point sets on a domain, each point carrying a scalar attribute and a position.
-`{μ_θ}` is a family of probability measures on `𝒳`, indexed by `θ ∈ ℝ^p` (`p` small). There are two ways to
-access `μ_θ`, of very different cost:
+A parametric generator `G_θ`, `θ ∈ ℝ^p` (only a few components vary; the rest are fixed, and the varying ones
+lie on a known low-dimensional manifold), is run forward in time from an empty state and is reset to empty at
+random times. Write `τ` for the time since the last reset; independent instances of `G_θ` occur at all values
+of `τ`, with density `w(τ)`. The state of an instance is a finite collection of **elements**, each carrying a
+scalar **magnitude**.
 
-- **Cheap, exact:** the mean `m(θ) = ∫_𝒳 x · μ_θ(dx)` — the intensity of `μ_θ`, a density over the attribute
-  — together with its gradient `∂m/∂θ`.
-- **Expensive:** an exact sample `X ~ μ_θ` (an actual finite point set). Nothing about `μ_θ` beyond its mean
-  — the number of points, their arrangement, any higher moment — is available except through samples.
+Two computations expose `G_θ`, at very different cost:
 
-`H : 𝒳 → ℝ^d` is a known map: **nonlinear**, evaluable on a point set (each evaluation costly), and defined
-**on point sets, not on the mean density** — to apply `H` to `m` one must first **lift** `m` to a point set
-(choose a count and place the points), which `m` does not determine.
+- **Cheap:** a deterministic solver returns the **expected distribution of the magnitude** across the
+  elements, conditional on `τ` — a curve `m(·; θ, τ)` — together with its `τ`-average `M(·; θ)` and the
+  gradients in `θ`. (This is an average over the generator's randomness; it is a smooth curve, not a
+  realization.)
+- **Expensive:** a stochastic simulator returns **one actual realization** — a finite collection of elements
+  with their magnitudes.
+
+A known map `H` returns a fixed-length **summary** of a realization's structure. `H` is nonlinear. It
+additionally requires an **arrangement of the elements in a space** that the generator does not supply. `H`
+can also be applied to the expected distribution `m` (a well-defined but different input), giving a value
+that is **biased** relative to the realizations.
 
 ## Target
 
-Compute
-```
-g(θ) = ∫_𝒳 H(x) · μ_θ(dx) = E_{X∼μ_θ}[H(X)]
-```
-— and, where possible, the law of `H(X)` — to controlled accuracy, across the family in `θ`, with as few
-expensive sample/`H` evaluations as possible. `∂g/∂θ` is wanted too.
+Relate the cheap expected distribution to the summaries of realizations: compute `g(θ) = E[H(realization)]`
+— and, where possible, the distribution of `H(realization)` — across the family in `θ`, to controlled
+accuracy, using the cheap solver and as few expensive realizations as possible. `∂g/∂θ` is wanted too.
 
-## The difficulty, in one fact
+## The difficulty
 
-`m(θ)` does not determine `μ_θ`, and `H` is nonlinear, so `g(θ) ≠ H(m(θ))`: the cheap surrogate is biased,
-and the defect `D(θ) = H(m(θ)) − g(θ)` has no a priori sign or size. And `H(m(θ))` is not even defined until
-`m` is lifted to a point set — a choice `g` may depend on as strongly as on `θ`.
+- `H` is nonlinear, so `E[H(realization)] ≠ H(m)`: applying `H` to the expected distribution is biased, and
+  the bias has no a priori sign or size.
+- The expected distribution conditional on `τ` is **strongly multimodal and changes shape markedly with
+  `τ`** (measured: from a spike, to a spread, to a two-mode form). Its `τ`-average `M` resembles no single
+  realization at all.
+- A realization is **finite** and carries an **arrangement** that `H` needs but neither the expected
+  distribution nor the generator supplies.
 
 ## Available structure — any may be load-bearing or incidental; we do not know which
 
-- `∂m/∂θ` is cheap and exact.
-- `μ_θ` is a **superposition** `μ_θ = ∫ μ_{θ,s} · w(s) ds` over a scalar index `s`, and each component mean
-  `m(θ,s)` is cheap and exact too (only full component samples are expensive).
-- A sample is a **finite** point set, carrying the counting and arrangement fluctuation the mean omits.
-- `H` reads a point set through its **positions and count**, which the mean density does not carry — this is
-  what forces the lift.
-- Ground truth for any fixed `θ` is available by averaging many expensive samples: the reference any cheap
-  scheme must match.
+- The gradient `∂m/∂θ` is cheap and exact.
+- The expected distribution is available **conditional on `τ`**, not only `τ`-averaged; it is multimodal and
+  strongly `τ`-dependent.
+- A realization is finite, carrying counting fluctuation the expectation omits.
+- `H` needs an arrangement (and an element count) the expected distribution does not carry; `H(m)` is
+  computable but biased.
+- Ground truth for any fixed `θ` is available by averaging many expensive realizations — the reference any
+  cheaper scheme must match, and it must be computed on the full generator, never a simplified proxy.
 
 ## Questions (open; please rank the structure and reject the framing if it is wrong)
 
-1. **The defect.** Bound and characterize `D(θ) = H(m(θ)) − g(θ)` from properties of `H` and `μ_θ`; give
-   computable conditions under which it is negligible.
-2. **Minimal information.** `m` is an incomplete summary of `μ_θ`. What is the least additional information
-   about `μ_θ` (a few higher moments? some low-dimensional summary?) that pins `g(θ)` to target accuracy —
-   and is that information cheaply available, or reachable only through samples?
-3. **Cheapest scheme.** Compute `g(θ)` and `∂g/∂θ`, across the family, to target error by combining many
-   cheap means (with `∂m/∂θ`, and the component means `m(θ,s)`) with few expensive samples. What is the
-   cost/error frontier, and the scheme that attains it?
-4. **The lift.** Because `𝒳` is richer than the mean's domain, `H(m)` requires a lift `m ↦ x`. Characterize
-   `g`'s sensitivity to the non-unique lift, and how to choose or average over it so the computed `g`
-   reflects `μ_θ` and not the lift.
-5. **What are we missing?** A hidden invariant, a change of variables, or an assumption above that the
-   structure quietly contradicts — including whether decomposing `g` around the mean `m` is the right move
-   at all.
-6. A **cheap discriminating experiment** — carrying your own falsifiable prediction — to run before building
-   a full scheme.
+1. **The formalization.** What mathematical object best captures the relationship between the cheap expected
+   distribution and the summaries of realizations? If more than one formalization is natural, say which, and
+   whether the choice changes the answer.
+2. **The bias.** Bound and characterize `E[H(realization)] − H(m)` from properties of `H` and the generator;
+   give computable conditions under which it is negligible.
+3. **Minimal information.** The expected distribution is an incomplete summary of a realization. What is the
+   least additional information about the generator's output that pins `g(θ)` to target accuracy — and is it
+   cheaply available, or reachable only through realizations?
+4. **Cheapest scheme.** Compute `g(θ)` and `∂g/∂θ`, across the family, to target error by combining the
+   cheap solver (with `∂m/∂θ` and the `τ`-conditional curves) with few expensive realizations. What is the
+   cost/error frontier?
+5. **The missing arrangement.** `H` needs an arrangement and count the generator omits. How should that be
+   supplied or averaged over so the computed `g` reflects the generator and not the supplied arrangement?
+6. **What are we missing?** A hidden invariant, a change of variables, or an assumption above that the
+   structure quietly contradicts — including whether relating things through the expected distribution is the
+   right move at all.
+7. **A faithful discriminating experiment.** The single experiment that would most decisively confirm or kill
+   your recommended approach — and that **exercises the full generator and map, not a simplified proxy**
+   (simplifications here have reversed conclusions before) — carrying your own falsifiable prediction, to run
+   before building a full scheme.
