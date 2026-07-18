@@ -345,11 +345,12 @@ for Phase 2:
     suspects: the skipped `new_node` boundary half-trapezium and/or the trapezium-measure `M` derivative
     (both carry active cohort-height derivatives that must match `Species::compute_competition` exactly;
     the ~0.03% value gap they cause is negligible but their *derivative* mismatch may not be).
-  - **A concrete secondary bug**: `area_leaf_0 = area_leaf(height_0)` with `height_0` a plain `double`
-    (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`; `establishment_probability`
-    (an R0 weight) reads it. `initial_height_` (line 765) carries `dh₀/dθ` via the IFT lift and has the
-    same value, so switching to it is bit-identical in value, derivative-restoring. Likely a contributor
-    to the undershoot, not the field overshoot.
+  - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
+    `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
+    that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
+    (bit-identical value) left the R0 gradient identical to the digit (−172.54, 3.69, −7.29), so the
+    seedling/establishment channel is NOT the ~40% undershoot — reverted (no earned win). Worth revisiting
+    for the census functional, but it is not this bug.
   - **Next**: build a channel-isolation harness (feedback-severed reverse vs a frozen-to-base double FD via
     the double↔double mutant/`environment_history` path) to attribute the error per channel, then fix the
     field source-derivative (new_node boundary + `M`) and `area_leaf_0`. The lifetime sweep + per-trait
