@@ -30,6 +30,7 @@ ordered next actions (all measurement — plant is buildable in-session).
 | `response-pointprocess.md` | The first Oracle response (point-process framing) + our framing audit. |
 | `response-triangulation.md` | Two responses (law-space, map-space) + the triangulation and contamination audit. |
 | `literature.md` | Research digest, tiered by verification. |
+| `models.md` | Census of existing models (cohort/demographic, IBM/gap, lidar RT operators) + the prior art. |
 | `sources.md` | Annotated bibliography (titles + URLs + DOIs) to bootstrap further literature search. |
 
 ## The Oracle classifier — what passes, what trips (hard-won this project)

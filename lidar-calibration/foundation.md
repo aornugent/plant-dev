@@ -125,6 +125,19 @@ correctly demoted to falsifiable predictions rather than assumptions.
   Oracle round was an artifact of a leading representation; the law-space response reaches the *same*
   within/between control-variate scheme with no point processes.
 
+## Prior art — the bar to beat (see `models.md`)
+
+We are **not first**: Fischer, Maréchaux & Chave (2019, *New Phytologist*, 10.1111/nph.15810) already fuse a
+forest IBM (**TROLL**) with **airborne lidar** via **rejection ABC** to calibrate crown-allometry parameters
+(20 000 simulations, best 200 as posterior; summary statistics = size distributions + canopy-height
+distributions). So the paradigm is established; our contribution must be in the *how*. The gaps that our
+foundation targets are exactly the ones they hit: they run blind ABC on a **full IBM**, whereas we have
+plant's **cheap deterministic mean + AD gradients** (the asymmetry the control-variate/amortization scheme
+exploits); they wall at **summary-statistic choice / well-posedness**, which is our matched-filter +
+**quotient** question; and they calibrate a few parameters at one site, where the **swept-conditions**
+(accelerator) framing targets the transferable trait manifold they call for. `models.md` records the full
+landscape (~18 models) and this positioning.
+
 ## Decision on further consultation
 
 **No further elicitation.** The unified frame's content is the composition of the two responses (we can
