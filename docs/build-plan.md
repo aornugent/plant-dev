@@ -424,13 +424,34 @@ for Phase 2:
     node-establishment structure, which still re-adapts under perturbation), compounded by a stride bug
     (`rates[k*5]` vs the true `Node::ode_size()==7`) in an interim probe. So there is **no engine bug** for
     FF16.
-  - **The one real issue is L1 schedule sensitivity (the declared scope fence).** The AD faithfully gives
-    the frozen-schedule gradient (+442); the real (adaptive) gradient is +4.2; the gap is the RK-step
-    schedule re-adaptation the frozen tape omits. K93 is schedule-insensitive so its frozen == adaptive
-    (all gates valid). FF16's near-cancelling R0 makes the fence material. **Decision (per user): option B —
-    reformulate the emergent functional to be schedule-robust so frozen ≡ adaptive**; alternatively scope
-    FF16 gradients as adaptive-FD-checked. Tightening L1 to shrink the gap crashes FF16 (density runaway).
-    The pinned-FD is retired as a reference; the adaptive `run_scm` FD is the correctness gate.
+  - **ROOT CAUSE (2026-07-19) — NOT schedule sensitivity; a WRONG replay schedule (a design flaw).**
+    "Schedule sensitivity" and "option B" (above) are SUPERSEDED. The user's challenge ("a resolved
+    schedule cannot have latent sensitivity") is correct. Data: pin the replay to the SOLVER-OWNED resolved
+    schedule (`SCM::r_ode_times()` == `solver.times()`, what `run_scm(use_ode_times=TRUE)` uses) and the
+    frozen R0(lma) tracks the adaptive curve to ~1e-5 with slope **+4.2** — i.e. no sensitivity, matching
+    the adaptive model. The whole −255/+442 saga came from the standalone drivers pinning to
+    `patch.step_history` (227 vs 230 entries; scm.h:347) — the LEGACY `run_mutant`/`save_RK45_cache` record,
+    NOT the resident replay schedule. Pinning to `step_history` → −255; pinning to `r_ode_times()` → +4.2.
+    So there is no schedule sensitivity, no detached edge, no need for option B, and no model bug: the AD is
+    correct when replayed on the right (solver-owned) schedule.
+
+  **DESIGN (2026-07-19, system-design skill; Tier 2; floor wins) — one solver-owned schedule; retire the
+  legacy path; gradients map onto the run workflow.** The failure was possible only because two schedule
+  recordings coexist (`odelia::Solver`'s `recorded_steps()`/`set_schedule()`/`run()` vs plant's
+  `save_RK45_cache`→`step_history`→`NodeSchedule.use_ode_times`) and a hand-rolled driver could pick the
+  wrong one. Ledger: R1 a gradient is correct and a caller CANNOT select a wrong replay schedule (failure
+  was 60× wrong); R2 adding a gradient maps onto `run_scm` (today ≈140-line bespoke driver per strategy →
+  functional + one run-shaped call); R3 the L1 schedule is solver-owned (odelia Replayable), recorded on
+  the adaptive run, replayed via `run()`; R4 retire `save_RK45_cache`/`step_history`/`environment_history`
+  to the deferred mutant path. Scarce resource: correctness of the replay schedule. **Floor (wins, mostly
+  deletion + reuse):** the gradient replay uses `r_ode_times()`; a run-shaped gradient entry records
+  adaptive → replays internally so the caller never hands in a schedule; the legacy cache is deprecated
+  off the gradient path. **Commitment:** one schedule recording, solver-owned, produced only by the
+  adaptive run — a caller cannot express a replay schedule, so cannot express a wrong one; kept true by the
+  entry owning record→replay and the existing "no recording → stop" guard in `Solver::run()`. **Makes
+  hard:** mutant (invasion) gradients (need the L3 `environment_history` that rode `save_RK45_cache`) —
+  already deferred; they get their own recorder when un-deferred. **Kill condition:** mutant gradients
+  become near-term → "one recording" becomes "one *resident* recording". Build deferred to user direction.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
