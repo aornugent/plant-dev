@@ -413,15 +413,24 @@ for Phase 2:
     step schedule)**, not L0. It is also not L1 under-resolution — the recorded L1 IS the resolved
     (adaptive) schedule; pinning it *at all*, at any resolution FF16 survives, is fragile. Only re-adapting
     L1 per perturbation recovers the real +4.2.
-  - **Two distinct issues on the L1-pinned schedule, both FF16-only:** (i) the pinned-FD (−255, a stable
-    smooth plateau) ≠ the reverse AD (+442) → a **detached edge** in the AD relative to its own frozen
-    schedule (present for census too: AD +17.5 vs pinned-FD −7.8; NOT the field read, which the probe
-    clears); and (ii) the pinned-schedule gradient (−255) ≠ the adaptive gradient (+4.2) → genuine **L1
-    schedule sensitivity**. K93 has neither. Tightening L1 to shrink (ii) crashes FF16 (density runaway).
-    **Open engine-design decision:** re-adapt L1 per perturbation for schedule-sensitive strategies (contra
-    the tape-a-fixed-schedule design), stabilise FF16's dynamics so a pinned L1 tracks the sensitivity, or
-    scope FF16 gradients as adaptive-FD-only. K93/census gates remain valid. Diagnostics committed; the
-    three-way matrix reproduces from the two SCM drivers + a `run_scm` adaptive-FD.
+  - **The "detached edge" DISSOLVED (2026-07-19) — there is none; the AD is faithful.** Isolation probes
+    (`ff16_single_rate_probe.cpp`, `ff16_feedback_probe.cpp`): (a) a single FF16 plant in fixed light has an
+    EXACT `d(growth)/d(lma)` (AD == FD to 6 digits, every height); (b) ONE `compute_rates` + field assembly
+    on a frozen multi-cohort state is EXACT (AD == FD to 6 digits), and `d(light)/d(lma)` through the frozen
+    field is exactly 0 in both AD and FD (field assembly clean). Since the per-step computation is exact and
+    the RK stepper is a linear stage combination (exact derivative), the reverse AD faithfully computes the
+    frozen-schedule gradient (+442). The earlier "AD +442 ≠ pinned-FD −255 → detached edge" was a mirage:
+    the pinned-FD is an IMPERFECTLY-frozen reference (pinning the ODE times does not freeze the
+    node-establishment structure, which still re-adapts under perturbation), compounded by a stride bug
+    (`rates[k*5]` vs the true `Node::ode_size()==7`) in an interim probe. So there is **no engine bug** for
+    FF16.
+  - **The one real issue is L1 schedule sensitivity (the declared scope fence).** The AD faithfully gives
+    the frozen-schedule gradient (+442); the real (adaptive) gradient is +4.2; the gap is the RK-step
+    schedule re-adaptation the frozen tape omits. K93 is schedule-insensitive so its frozen == adaptive
+    (all gates valid). FF16's near-cancelling R0 makes the fence material. **Decision (per user): option B —
+    reformulate the emergent functional to be schedule-robust so frozen ≡ adaptive**; alternatively scope
+    FF16 gradients as adaptive-FD-checked. Tightening L1 to shrink the gap crashes FF16 (density runaway).
+    The pinned-FD is retired as a reference; the adaptive `run_scm` FD is the correctness gate.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
