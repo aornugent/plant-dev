@@ -1,6 +1,6 @@
 # Oracle response — computing E[H] under cheap-mean / expensive-sample access
 
-*Response to [`oracle-consultation-mean-field-calibration.md`](./oracle-consultation-mean-field-calibration.md)
+*Response to [`elicitation.md`](./elicitation.md)
 (the v4 pure-numerical elicitation). Recorded verbatim (lightly reformatted), dated 2026-07-18. Hypotheses
 to test, not verdicts (guide §7).*
 

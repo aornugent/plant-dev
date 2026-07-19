@@ -1,7 +1,7 @@
 # Calibration problem — applied-domain research companion
 
 **Purpose.** Applied-domain (forest demography + remote sensing + inference) literature digest for the
-problem posed, register-neutrally, in [`oracle-consultation-mean-field-calibration.md`](./oracle-consultation-mean-field-calibration.md).
+problem posed, register-neutrally, in [`elicitation.md`](./elicitation.md).
 **This document is deliberately domain-full and is NOT the Oracle missive** — it exists so that, when the
 Oracle responds, we can tell a textbook answer from a genuine breakthrough, and so we do not spend effort
 testing a mechanism the field already knows to fail (guide §7).

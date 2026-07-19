@@ -2,11 +2,11 @@
 
 *Consolidation of the whole investigation (literature sweep + two Oracle framings + a grounding TF24 run)
 around one representation. Domain-full and internal — not an Oracle missive. Companions:
-[`oracle-consultation-guide.md`](./oracle-consultation-guide.md) (practice, updated this round),
-[`oracle-consultation-mean-field-calibration.md`](./oracle-consultation-mean-field-calibration.md) (the
-domain-clean elicitation, v7), [`-response.md`](./oracle-consultation-mean-field-calibration-response.md) and
-[`-triangulation.md`](./oracle-consultation-mean-field-calibration-triangulation.md) (the responses),
-[`mean-field-calibration-literature.md`](./mean-field-calibration-literature.md) (the research digest).*
+[`guide.md`](./guide.md) (practice, updated this round),
+[`elicitation.md`](./elicitation.md) (the
+domain-clean elicitation, v7), [`-response.md`](./response-pointprocess.md) and
+[`-triangulation.md`](./response-triangulation.md) (the responses),
+[`literature.md`](./literature.md) (the research digest).*
 
 ## The representation
 
