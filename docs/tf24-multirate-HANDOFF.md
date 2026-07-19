@@ -225,8 +225,52 @@ remaining accuracy walls (25% / 279%) are **in the cohort layer**
    R-D's effect on the 10×-hypersensitive gradient (a with/without-R-D rkck
    comparison would — cheap to run if the user wants certainty before reverting).*
 
+## Oracle round 6 verdict (2026-07-19) — the frame is retired
+
+Full statement + response: `docs/oracle-consultation-tf24-recharacterized{,-response}.md`.
+
+- **The fast/slow (x,u) block axis is wrong.** No block decomposition beats global explicit RK at
+  converged J (round-5 lower bound stands). The surviving decomposition is **temporal**:
+  **piecewise-smooth arcs separated by located events** — hybrid-systems treatment of the *same*
+  global explicit RK (step-to-event, restart, full order per arc). Leverage: **event functions are
+  decoupled from the O(M) RHS** (threshold crossing = scalar test on (ξ_j,u), 0 solves; forcing kink =
+  table lookup; argmax-bound flip = 1 solve). Skewed ρ is now an **ally** — only the few heavy members'
+  crossings are controller-visible, so the event set is small. Closes the gap to the bound; does not
+  beat it. Deletes the h_min wall.
+- **Our IMEX payload was confounded.** The 20–50× (growing with tol) is **order reduction of RODAS4
+  fed a noisy FD-Jacobian taken through the fixed-iteration bracketing search** (~2× per tol-decade;
+  we measured 2.4×), NOT proof the collapse is outside u. It *does* firmly kill implicit-u AND the
+  FD-Jacobian-through-member-solves route. The x-relocation instead rests on the **24% frozen-x error**
+  (cleanest datum) and the scattered-10⁻⁹-step pattern.
+- **GRADIENT LANDMINE (top priority, correctness):** the "settled fact" that the adjoint gets ∂c/∂u by
+  envelope-FD **at fixed p\*** is **wrong** — the envelope theorem covers only outputs *stationary* in
+  p, and the coupling co-output c (uptake/E_up) is **non-stationary**. True `dc/du = ∂c/∂u|_p* +
+  ∂c/∂p·∂p*/∂u`; the seam drops the 2nd term, into a J that amplifies 10×, and it **evades validation
+  if the FD reference also freezes p\***. Fix: `∂p*/∂u = −P_pu/P_pp` (IFT), `∂c/∂p` one extra eval.
+  **Status: the cheap forward proxy (standalone leaf, `find_` vs `evaluate_root_collar_psi`) was
+  INCONCLUSIVE** — the standalone operating point is degenerate (E_up≈1e-13; results flip with GSS
+  tol). The decisive test is at the **adjoint level on the reverse-mode branch**
+  (`claude/odelia-ad-tape-reverse-496fuf`): dJ/dθ adjoint vs true-FD-**with-reoptimization** on a real
+  transpiring patch state (Oracle E4). Do this before trusting any reverse-mode gradient.
+- **Frontier is the member mesh + the functional, not the integrator:** the insertion schedule refines
+  for x(t) but J hangs on ∫c·ρ → add a **coupling-weighted (ρ·|c|) refinement indicator** (free — the
+  full-M byproducts exist every step) and re-run the M-refinement certification. Attacks the 24% and
+  the 23% inter-scheme spread at root. And J is ~barely-observable-sensitive — reformulating it may
+  beat any numerics.
+
 ## Concrete next steps (in priority order)
 
+0. **[NEW, top priority] Verify the gradient landmine (Oracle E4)** on
+   `claude/odelia-ad-tape-reverse-496fuf`: compare dJ/dθ from the adjoint vs a
+   true finite difference that **re-optimizes the argmax** (not the frozen-p\*
+   FD), on ≥2 θ-components over a real transpiring patch state. A gap = the
+   dropped `∂c/∂p·∂p*/∂u` term → the reverse-mode gradient is first-order wrong on
+   the coupling channel. Cheap forward proxy was inconclusive (degenerate leaf).
+0b. **Event-sizing (Oracle E1/E2), this branch, no build:** instrument one run to
+   log each step's distance to the nearest event surface (forcing kink, heavy-
+   member threshold, argmax-bound flip, insertion, clamp); partition
+   smallest-decile/rejected steps into event-attributable vs intrinsic. E2 =
+   five-line time-kink-alignment A/B to bound the forcing-kink share.
 1. **Revert R-D** (result in): the accuracy wall is confirmed cohort-layer, so
    the soil-chart machinery buys nothing on the walls that matter. Optionally run
    the with/without-R-D rkck gradient comparison first if certainty is wanted.
