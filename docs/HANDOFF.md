@@ -14,9 +14,25 @@ Build a reverse-mode automatic-differentiation engine, **`odelia`**, that comput
 exact trait/parameter gradients of the **`plant`** size- and trait-structured
 forest model's emergent SCM outputs (census metrics — LAI / biomass / basal area —
 and R0 / offspring). The v2 objective *in lights*: **improve odelia's primitives so
-the plant developer experience is pain-free** — abstractions that *reduce*
-complexity, not named objects for their own sake. Use the `system-design` and
-`code-review` skills for anything structural; the AGENTS style guides apply.
+the plant developer experience is pain-free.**
+
+## Standing disciplines (the point of the project, not side-constraints — never drop these)
+- **DX is the objective, measured as concept count.** The win is code a plant
+  developer can hold in working memory and reason about — *dead-simple boundaries*,
+  not clever machinery. An abstraction earns its place ONLY by *reducing* net
+  complexity; a named object that merely relocates complexity (a wrapper, a concept,
+  a layer with one witness) makes DX **worse**. Too many named objects is itself the
+  failure mode. When in doubt, the floor — reuse + deletion — wins; add a name only
+  when it removes a *class* of bugs, and only with a second real witness.
+- **odelia and plant are co-designed.** DX spans both repos: when a plant pain points
+  at a missing/weak odelia primitive, fix it *in odelia* rather than papering over it
+  in plant. Both are on the same branch; edit odelia headers → reinstall odelia →
+  rebuild plant, kept in lockstep (see context-rebuild step 5).
+- **Use the `system-design` and `code-review` skills for anything structural** — not
+  once, but as the regular working rhythm: `system-design` *before* introducing any
+  abstraction/layer/boundary (it searches for the design that does the least), and
+  `code-review` over every non-trivial diff (it reopens each decision and makes the
+  diff justify a new name against a removed bug class). The AGENTS style guides apply.
 
 ## Repos, branches, layout (verify at session start — numbers below drift)
 - **Superrepo:** `/home/user/plant-dev` — holds `docs/`, the `plant` submodule, and
