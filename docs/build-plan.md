@@ -436,22 +436,37 @@ for Phase 2:
     correct when replayed on the right (solver-owned) schedule.
 
   **DESIGN (2026-07-19, system-design skill; Tier 2; floor wins) — one solver-owned schedule; retire the
-  legacy path; gradients map onto the run workflow.** The failure was possible only because two schedule
-  recordings coexist (`odelia::Solver`'s `recorded_steps()`/`set_schedule()`/`run()` vs plant's
-  `save_RK45_cache`→`step_history`→`NodeSchedule.use_ode_times`) and a hand-rolled driver could pick the
-  wrong one. Ledger: R1 a gradient is correct and a caller CANNOT select a wrong replay schedule (failure
-  was 60× wrong); R2 adding a gradient maps onto `run_scm` (today ≈140-line bespoke driver per strategy →
-  functional + one run-shaped call); R3 the L1 schedule is solver-owned (odelia Replayable), recorded on
-  the adaptive run, replayed via `run()`; R4 retire `save_RK45_cache`/`step_history`/`environment_history`
-  to the deferred mutant path. Scarce resource: correctness of the replay schedule. **Floor (wins, mostly
-  deletion + reuse):** the gradient replay uses `r_ode_times()`; a run-shaped gradient entry records
-  adaptive → replays internally so the caller never hands in a schedule; the legacy cache is deprecated
-  off the gradient path. **Commitment:** one schedule recording, solver-owned, produced only by the
-  adaptive run — a caller cannot express a replay schedule, so cannot express a wrong one; kept true by the
-  entry owning record→replay and the existing "no recording → stop" guard in `Solver::run()`. **Makes
-  hard:** mutant (invasion) gradients (need the L3 `environment_history` that rode `save_RK45_cache`) —
-  already deferred; they get their own recorder when un-deferred. **Kill condition:** mutant gradients
-  become near-term → "one recording" becomes "one *resident* recording". Build deferred to user direction.
+  legacy path; gradients map onto the run workflow.**
+
+  *Architecture (grounded in the merged code, 2026-07-19).* odelia's engine is MERGED (its `Solver` has the
+  clean L1 record/replay — `advance_adaptive` records `solver.times()`, `advance_fixed` replays,
+  `recorded_steps()`/`set_schedule()`/`run()` for the simple-System case, plus the gradient driver +
+  `separable_field`). Plant's SCM HAS-A that Solver but **overrides the simple `run()`** with its own
+  segmenting loop (`run_next_impl`: `advance_adaptive` to each introduction, `advance_fixed` on replay),
+  and does L1 replay through its OWN `NodeSchedule.use_ode_times`. The **correct** L1 schedule is
+  `SCM::r_ode_times()` == `solver.times()` (scm.h:512, what `run_scm(use_ode_times=TRUE)` replays — the
+  +4.2 path); `patch.step_history` is the SEPARATE `save_RK45_cache`/`run_mutant` L3 record (control.h:97,
+  scm.h:347). **The correct resident record→replay ALREADY EXISTS and works** (run adaptive → capture
+  `ode_times` → `run_scm(use_ode_times)`); the ONLY defect is that the standalone gradient drivers
+  reimplemented replay by pinning `step_history` instead of reusing `r_ode_times()`. And there is **no
+  SCM/R gradient entry at all** — `compute_gradient`/`DifferentiationTargets` appear only in the test
+  drivers, so every gradient is a ~200-line bespoke driver (R2).
+
+  Ledger: R1 a gradient is correct and a caller CANNOT select a wrong replay schedule (the failure was 60×
+  wrong); R2 adding a gradient maps onto `run_scm` (bespoke driver → functional + one run-shaped call); R3
+  the L1 schedule is the solver-recorded `r_ode_times()`, not a hand-set grid; R4 retire
+  `save_RK45_cache`/`step_history`/`environment_history` to the deferred mutant path. Scarce resource:
+  correctness of the replay schedule. **Floor (wins — mostly reuse + deletion, no new abstraction):** the
+  gradient path reuses the SCM's existing (correct) adaptive-record → `use_ode_times`-replay coordination
+  fed from `r_ode_times()`; a run-shaped gradient entry (a C++ `SCM` method + an R `run_scm` mode) owns that
+  record→replay and takes a functional, so a caller never hands in a schedule; `step_history` is not on the
+  resident/gradient path. **Commitment:** the resident replay schedule is produced ONLY by the adaptive
+  run (`solver.times()`); a caller cannot express a replay grid, so cannot express a wrong one — kept true
+  by the entry owning record→replay (no `ode_times`/`step_history` setter reachable from the gradient
+  path). **Makes hard:** mutant (invasion) gradients (need the L3 `environment_history` that rode
+  `save_RK45_cache`) — already deferred; they get their own recorder when un-deferred. **Kill condition:**
+  mutant gradients become near-term → "one resident recording" gains a separate mutant recorder. Build
+  deferred to user direction.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
