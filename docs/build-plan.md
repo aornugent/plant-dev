@@ -438,17 +438,25 @@ for Phase 2:
   **DESIGN (2026-07-19, system-design skill; Tier 2; floor wins) — one solver-owned schedule; retire the
   legacy path; gradients map onto the run workflow.**
 
-  *Architecture (grounded in the merged code, 2026-07-19).* odelia's engine is MERGED (its `Solver` has the
-  clean L1 record/replay — `advance_adaptive` records `solver.times()`, `advance_fixed` replays,
-  `recorded_steps()`/`set_schedule()`/`run()` for the simple-System case, plus the gradient driver +
-  `separable_field`). Plant's SCM HAS-A that Solver but **overrides the simple `run()`** with its own
+  *Architecture (grounded in the code, 2026-07-19; diffed vs odelia `master`).* odelia's AD engine is a
+  ~28-commit branch (`claude/odelia-ad-tape-reverse-496fuf`, NOT merged to master — co-developed on this
+  feature branch, installed and kept synced with plant per odelia/AGENTS). It is the substantial documented
+  surface: the gradient driver (`compute_jacobian`/`gradient`/`jvp`), `separable_field`, `implicit_node`,
+  `incomplete_gamma`, `decide`/value-guards, `mass_transport`, `supplied_derivative`, RODAS, and the Solver
+  L1 record/replay (`advance_adaptive` records `solver.times()`/`recorded_steps()`, `advance_fixed`
+  replays; `set_schedule()`/`run()` for the simple-System case). **AUTODIFF.md states the invariant the
+  design relies on: `recorded_steps()` is the SINGLE source of the replay grid, so it "can't go
+  inconsistent," guarded by one forgot-to-record check.** Plant's SCM HAS-A that Solver but **overrides the simple `run()`** with its own
   segmenting loop (`run_next_impl`: `advance_adaptive` to each introduction, `advance_fixed` on replay),
-  and does L1 replay through its OWN `NodeSchedule.use_ode_times`. The **correct** L1 schedule is
-  `SCM::r_ode_times()` == `solver.times()` (scm.h:512, what `run_scm(use_ode_times=TRUE)` replays — the
-  +4.2 path); `patch.step_history` is the SEPARATE `save_RK45_cache`/`run_mutant` L3 record (control.h:97,
-  scm.h:347). **The correct resident record→replay ALREADY EXISTS and works** (run adaptive → capture
-  `ode_times` → `run_scm(use_ode_times)`); the ONLY defect is that the standalone gradient drivers
-  reimplemented replay by pinning `step_history` instead of reusing `r_ode_times()`. And there is **no
+  and does L1 replay through its OWN `NodeSchedule.use_ode_times`. **This is where plant BROKE odelia's
+  single-source invariant:** it introduced a SECOND replay-grid source, so the grid the odelia design
+  guarantees "can't go inconsistent" now can. The **correct** L1 schedule is `SCM::r_ode_times()` ==
+  `solver.times()` (scm.h:512, what `run_scm(use_ode_times=TRUE)` replays — the +4.2 path);
+  `patch.step_history` is the SEPARATE `save_RK45_cache`/`run_mutant` L3 record (control.h:97, scm.h:347).
+  **The correct resident record→replay ALREADY EXISTS and works** (run adaptive → capture `ode_times` →
+  `run_scm(use_ode_times)`); the defect is that the standalone gradient drivers, given two sources,
+  reimplemented replay by pinning `step_history` instead of reusing `r_ode_times()` — a bad replay the
+  odelia workflow was designed to make impossible, only reachable because plant bypassed it. And there is **no
   SCM/R gradient entry at all** — `compute_gradient`/`DifferentiationTargets` appear only in the test
   drivers, so every gradient is a ~200-line bespoke driver (R2).
 
