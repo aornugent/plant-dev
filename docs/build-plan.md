@@ -389,13 +389,30 @@ for Phase 2:
     were all chasing an artifact. The `separable_field` is correct (probe proves it); K93 is correct.
   - **The real issue is SCHEDULE SENSITIVITY, which is a declared scope fence** ("d(schedule)/dθ decided
     out — nuisance variable", Scope fences). It is negligible for K93 (robust gradient) but dominant for
-    FF16's delicate near-cancelling R0. Implications / open decisions: (i) the pinned-schedule FD is NOT a
-    valid correctness gate for schedule-sensitive strategies — it must be replaced by the adaptive-FD as
-    the reference; (ii) the frozen-schedule reverse gradient the engine computes will not match the real
-    gradient for such strategies unless the schedule sensitivity is recovered (Oracle follow-up probe 7:
-    closed-form event/saltation correction) or the functional is reformulated to be schedule-robust; (iii)
-    K93/census remain valid. This is an engine-scope question for the build plan, not an FF16 code bug.
-    Committed diagnostics: `freeze_query` (field channel split), `metric=1` (census).
+    FF16.
+  - **CHARACTERISATION across functionals (2026-07-19) — it is an FF16 DYNAMICS property, NOT a functional
+    property.** The full matrix (AD frozen / pinned-FD / adaptive-FD real):
+
+    | | AD | pinned-FD | adaptive-FD |
+    |---|---|---|---|
+    | K93 census `d/db_0`    | −490.9 | −491    | −489.9 |
+    | K93 offspring `d/db_0` | −0.1181 | −0.1181 | −0.1181 |
+    | FF16 census `d/dlma`   | +17.55 | −7.836  | **−0.64** |
+    | FF16 offspring `d/dlma`| +442.7 | −254.9  | **+4.22** |
+
+    K93 is uniformly schedule-INSENSITIVE (all three agree for BOTH functionals — every K93 gate is
+    genuinely correct). FF16 is uniformly schedule-SENSITIVE (BOTH census and offspring show the spread;
+    census does not route through reproduction yet is equally broken). So the sensitivity lives in FF16's
+    trajectory on a fixed ODE schedule, and hits every emergent functional equally.
+  - **This challenges option B.** Reformulating the *functional* cannot fix a *trajectory*-level property
+    (census and offspring are affected identically). The fix must be at the schedule/dynamics level. FF16
+    resists the obvious lever: tightening the recorded ODE tolerance to resolve the sensitivity crashes
+    (the known FF16 density runaway), so the fixed-schedule gradient can't simply be refined. **Open
+    engine-design decision** (needs a call): either the AD workflow must re-adapt the schedule per
+    perturbation for schedule-sensitive strategies (contra the tape-a-fixed-schedule design), or FF16's
+    dynamics must be stabilised so the fixed schedule tracks the sensitivity, or FF16 gradients are scoped
+    as adaptive-FD-only. K93/census gates remain valid throughout. Diagnostics committed: the three-way
+    matrix is reproducible from the two SCM drivers + a `run_scm` adaptive-FD; `freeze_query`/`metric=1`.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
