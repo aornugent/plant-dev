@@ -51,6 +51,7 @@ are the trustworthy signal, divergences localize the fork.
 |---|---|
 | `HANDOFF.md` | **Live state + concrete next steps.** Rewritten each session. Read first. |
 | `foundation.md` | **The anchor.** Representation, settled findings, hazards, decisive experiment, next actions. |
+| `measurements.md` | **Faithful tests on the real plant SCM** (the measurement phase). Newest first; each arbitrates an Oracle hypothesis or foundation claim. M1: the quotient check. |
 | `guide.md` | How to consult the Oracle — framing practice, hard-won. Read before writing any elicitation. |
 | `elicitation.md` | First domain-clean elicitation (v7 map-space register that passes). |
 | `elicitation-quotients.md` | Second elicitation (map-space): effective dimension of a composed map + the structures that collapse it — observation-operator / trait-manifold / emergent quotients as one problem. |

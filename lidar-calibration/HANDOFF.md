@@ -77,11 +77,16 @@ what `plant` actually produces. `foundation.md` is the anchor; this file is the 
   "nearly free attribution" scheme is affordable *iff* the lidar operator's Jacobian `G=H′(u)` is solve-free.
   That is unknown for our operator and must be established first — it decides which version of the A/B/C/D
   experiment we can even run.
-- `plant` was **built in a previous session** for the grounding run, but a **fresh session starts without
-  it** — you must rebuild before any measurement (see `AGENTS.md`, pillar 2).
+- `plant` **rebuilds and re-grounds cleanly** (odelia installed, `plant.so` present; TF24 run reproduces the
+  documented bimodal canopy+understory maturity). Re-verify with `scratchpad/ground_tf24.R` if the container
+  was reclaimed.
+- **The measurement phase has started** (`measurements.md`). **M1 (the quotient check) is done:** the naive
+  single-template shift/scale quotient is **refuted**, but a **component-wise** one is **supported** — the
+  canopy pulse is nearly self-similar across age (std deciles `sd ≤ 0.09`) while the understory is a near-atom
+  at the seedling floor; the age-structure factors into ~2–3 collective coordinates (canopy height + understory
+  fraction + fixed pulse/atom shapes) on a *curved* manifold. **Caveat: single `(θ,c)`** — transferability
+  across θ and c is untested and is the load-bearing question.
 - Literature verification is **complete** (both anchors [A] verified).
-- **This is a phase boundary.** Starting the plant measurements is a new, larger phase of work — confirm the
-  direction with the user before diving in (they flagged the phase change explicitly).
 
 ## Concrete next steps (in order)
 
@@ -95,17 +100,23 @@ what `plant` actually produces. `foundation.md` is the anchor; this file is the 
    This gates everything below; it is the binding assumption our elicitation smuggled in.
 2. **The concentrated-vs-diffuse test** — is the trait signal *between* patch-ages / across-`c` (cheap methods
    win) or *within* a patch-age (needs many expensive draws)? (`foundation.md`, "decisive first experiment").
-3. **The A/B/C/D discriminating experiment** (`response-quotients.md` §7; ~55–75 solve-equivalents, full
-   `H∘S`). Flagship decisions: **P2** (does a *spoken-never-heard* direction exist — the operator collapse) and
-   **P5** (impersonation `τ` — is calibration well-posed against `c`). This subsumes the earlier **quotient
-   check** (do age-resolved size-densities superpose under shift/scale — self-thinning; is `rank(∂F/∂θ) < p`
-   across conditions?) and the **estimand check** (refine vs reseed the scene: numerics or a latent variable?).
-4. Only then build: age-resolved skeleton + control-variate correction + manifold amortization, swept over
+3. **M2 — transferability of the quotient `Ψ` (the immediate live next).** M1 found a candidate `Ψ` = (canopy
+   height, understory fraction, self-similar pulse + atom) *at one `(θ,c)`*. Sweep a handful of θ (along the
+   trait manifold) × a handful of c (rainfall/site) and test whether the *same* `Ψ` describes the state (is it
+   `c`-invariant? does the pulse stay self-similar?), and compute the **impersonation `τ`** (`response-
+   quotients.md` §6): does changing a trait move the state *along* the c-swept manifold (τ≈1, confounded with
+   c → ill-posed) or open fresh directions (τ≈0, easy)? This is the B/C part of the A/B/C/D experiment and is
+   pure model-side (no operator needed). Use a clean (constant/realistic) rainfall, not the M1 `sin` transient.
+4. **The A/B/C/D discriminating experiment in full** (`response-quotients.md` §7; ~55–75 solve-equivalents,
+   full `H∘S`). Flagship decisions: **P2** (does a *spoken-never-heard* direction exist — the operator
+   collapse) and **P5** (impersonation `τ`). Needs the operator, so it is gated by step 1; the estimand check
+   (refine vs reseed the scene: numerics or a latent variable?) rides along here.
+5. Only then build: age-resolved skeleton + control-variate correction + manifold amortization, swept over
    known conditions, with paired (CRN) gradients.
-5. **Optional — spatial patterning.** The user offered a "jump-start" on spatial-patterning-from-inter-patch-
+6. **Optional — spatial patterning.** The user offered a "jump-start" on spatial-patterning-from-inter-patch-
    coupling as one candidate emergent quotient; fold it in as *one instance* of the general frame (`τ` and the
    coupling-collapse tests of §4 are where it lands). Not yet provided.
-6. **Optional — model census by hand**, organised by whether each model exposes a cheap deterministic mean vs
+7. **Optional — model census by hand**, organised by whether each model exposes a cheap deterministic mean vs
    only a stochastic sampler, and its lidar-fusion track record (the methods-focused research did not map
    this).
 
