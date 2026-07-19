@@ -143,8 +143,8 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 | repo | branch | HEAD | note |
 |---|---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `0d1155c` | submodule bump lags plant HEAD (R-D not yet bumped) |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `fc0dd2bb` | R-D integrated as **verification experiment** (tests not ported) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | (this commit) | submodule bumped to plant `fc0dd2bb` |
+| plant | `claude/tf24-multi-rate-stepper-n5audm` | `fc0dd2bb` | R-D integrated as **verification experiment** (tests not ported); revert if verification confirms neutral |
 | odelia | `claude/tf24-multirate-engine` | `cd95f59` | `[slow\|fast]` layout; mutating hooks; runtime `mri_split()` |
 
 ## What is built and working
