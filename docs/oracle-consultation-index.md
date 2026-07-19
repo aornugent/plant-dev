@@ -206,3 +206,12 @@ R1 as delivered (centred neighbour secant) is correct for the **derivative** but
 **Reproductions:** FF16 gradient — the `ff16_scm_gradient_driver.cpp` driver on the resolved schedule
 (`run_scm(refine_schedule=TRUE)`), metric 0/2, compare `grad` vs `fd_grad`. #550 — the TF24 config in
 `test-strategy-tf24.R` ("SCM cohort-density blow-up fails gracefully (#550)").
+
+**Outbound elicitation drafted from these findings:** `oracle-consultation-transport-compression.md` —
+a standalone, domain-clean statement on the compression term `Cᵢ = ∂ₓg` (the one rate that is itself a
+numerical derivative). It lays out both discretisations flat with their measured value/gradient
+behaviour (one-sided sub-grid: value-stable, gradient `O(1)`-wrong in the coupling channel; centred
+neighbour secant: gradient-correct 0.5–1%, value-overflows at the `g=0` stall) and the contingent hybrid,
+then asks — without proposing a fix — whether the stability/differentiability tension is intrinsic to
+this term or an artifact of the transported variable / forming `∂ₓg` as a finite difference at all.
+Passes the domain-leak gate. Not yet sent.

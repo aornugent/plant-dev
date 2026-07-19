@@ -14,7 +14,8 @@ if [ ${#docs[@]} -eq 0 ]; then
         docs/oracle-followup-1-structure-hunt.md
         docs/oracle-followup-2-targeted-probes.md
         docs/oracle-consultation-tf24-coupled.md
-        docs/oracle-consultation-soil-subsystem.md)
+        docs/oracle-consultation-soil-subsystem.md
+        docs/oracle-consultation-transport-compression.md)
 fi
 # Word-boundaried where the term is a common substring (rain⊂constraint,
 # root⊂root-find, net⊂network, layer⊂AD-layer, stand⊂understand, leaf, age, cost).
