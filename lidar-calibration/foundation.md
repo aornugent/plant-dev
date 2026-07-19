@@ -6,7 +6,9 @@ around one representation. Domain-full and internal — not an Oracle missive. C
 [`elicitation.md`](./elicitation.md) (the
 domain-clean elicitation, v7), [`-response.md`](./response-pointprocess.md) and
 [`-triangulation.md`](./response-triangulation.md) (the responses),
-[`literature.md`](./literature.md) (the research digest).*
+[`literature.md`](./literature.md) (research digest), [`models.md`](./models.md) (model census + prior art),
+[`elicitation-quotients.md`](./elicitation-quotients.md) (the second, dimension-collapse elicitation). See
+`AGENTS.md` for the authoritative header, full index, and read-order; `HANDOFF.md` for live state.*
 
 ## The representation
 
@@ -140,15 +142,26 @@ landscape (~18 models) and this positioning.
 
 ## Decision on further consultation
 
-**No further elicitation.** The unified frame's content is the composition of the two responses (we can
-derive it); the deep shared insight (quotient) is decidable from our own model; the remaining unknowns are
-empirical. The bottleneck is measurement, not hypotheses — the prototype-and-measure loop is now the arbiter.
+**One further elicitation, on a genuinely new question — then measurement.** We declined to *re-run* the same
+problem (the unified frame is just the composition of the two responses, and much is now empirical). But
+formalising the three under-explored threads — the **observation operator**, the **transferable trait
+manifold**, and **emergent phenomena** — as **one general dimension-collapse problem** (the effective
+dimension of `θ`, and the structures that collapse it, in a composed map `F = H∘S`) is a *different, deeper*
+question that could expose structure invisible through the domain lens. That elicitation is drafted, CLEAN,
+and ready to send: `elicitation-quotients.md`. Beyond it, the bottleneck is measurement, not hypotheses.
 
-## Next actions (measurement, in order)
+## Next actions (in order)
 
-1. **The concentrated-vs-diffuse test** above, on real patches through a real `H` — decides which whole
-   family of methods applies.
-2. **The quotient check** — do age-resolved densities superpose under shift/scale; is `rank(∂F/∂θ)` < `p`.
+0. **Send `elicitation-quotients.md`** to the Oracle; record it verbatim and **triangulate against
+   `response-triangulation.md` #2** (same map-space register, so convergences are especially informative).
+   Audit for contamination (which planted premises did it inherit?).
+1. **The concentrated-vs-diffuse test** on real patches through a real `H` — decides which whole family of
+   methods applies. *(plant must be rebuilt first — see `AGENTS.md`.)*
+2. **The quotient check** — do age-resolved size-densities superpose under shift/scale; is `rank(∂F/∂θ) < p`
+   across conditions. *(Tests the quotient candidates, incl. self-thinning; ties to the elicitation above.)*
 3. **The estimand check** — refine vs reseed the scene; classify the representation gap as numerics or latent.
 4. Only then build: age-resolved skeleton + control-variate correction + manifold amortization, swept over
    known conditions, with paired (CRN) gradients.
+
+Every Oracle claim and every candidate quotient gets a **faithful** test (full coupled system, not a proxy)
+before we build on it (`guide.md` §7).
