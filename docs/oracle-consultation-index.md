@@ -127,7 +127,8 @@ Every design commitment that rests on a measurement, with the number, so a conte
 - **Mass-chart forward shift (the documented bit-identity exception).** Adopting the transport
   log-mass chart (compression via neighbour secant) moves the K93 `double` trajectory by **~0.2%** —
   the one sanctioned deviation from bit-identity, opt-in for gradient runs. Re-baseline the K93
-  snapshots only if it becomes the default (open item in the build plan).
+  snapshots only if it becomes the default (open item in the build plan). **UPDATE (2026-07-19): see
+  Round 3 below — the mass chart is now applied to FF16 and the value-stability limit is characterised.**
 - **Verified structural identities (exact, not measured — but load-bearing, checked against code).**
   Rank-3 kernel separability `κ(z,x)=c_k·x²(1−(z/x)^η)²` (⇒ suffix/prefix scans, P1b); C¹ double zero
   `κ(z,z)=κ_z(z,z)=0` (⇒ near-diagonal band is safe); mass-chart compression cancellation uses *the
@@ -140,3 +141,68 @@ Every design commitment that rests on a measurement, with the number, so a conte
 then run the three `test-ad-*.R` files under plant. QSS/S4 — the pulsed-forcing instrumentation script
 (gentle pulses, short lifetimes to avoid the #550 density runaway); log `Δt` and `d` per accepted step,
 correlate. K93/C3 numbers are recorded in `design.md` §10 and `archive/ad-census-gradients.md`.
+
+---
+
+## Round 3 — the mass chart applied to plant: R1/C1 confirmed; a new value-stability limit (2026-07-19)
+
+Applying R1 (the transport log-mass chart) to a real plant strategy (FF16, resident SCM census + R0
+gradient) both **confirms the Oracle's C1 diagnosis and R1 prescription** and **surfaces a limit R1 did
+not price**: the neighbour-secant compression the chart uses is the *centred* discretisation, which is
+value-unstable exactly where plant already has a documented density runaway (#550).
+
+### C1 confirmed verbatim, and R1 fixes it (the derivative)
+- **C1 reproduced exactly.** FF16's resident gradient was internally consistent (forward-JVP =
+  reverse-VJP), value-exact (bit-identical trajectory), yet O(1) off a δ-independent finite difference,
+  **concentrated in the traits that reach the metric only through the coupling** (self-shading light →
+  growth). That is C1 word for word. Root cause: `Node::growth_rate_gradient` (the FD-stencil compression
+  `∂ₓg`) returns a bare `double` on the active pass — its parameter-derivative is *dropped* — and the
+  competition field's source weight is density-weighted, so the dropped transport derivative corrupts
+  `d(field)/dθ` and thus every coupled gradient. This is also C2 in the flesh (a rate defined as an FD
+  secant, its gradient mishandled).
+- **R1 is the fix — for the DERIVATIVE.** Routing the transport derivative through the mass chart
+  (`odelia::log_density_rate`, the neighbour secant) makes reverse AD match the finite difference:
+  FF16 `d(offspring)/d(lma)` ratio **0.995–0.999** (life 25 and 40), across growth / offspring metrics.
+  The Oracle's R1 ("compression vanishes iff C is the neighbour secant") is confirmed on a real strategy.
+
+### The new finding R1 did not price — the centred chart is VALUE-unstable (same mechanism as #550)
+- **The mass chart's VALUE overflows under NORMAL forcing.** Switching FF16's *value* onto the centred
+  mass chart makes its cohort density run away (`log_density` → overflow) on a standard two-species run —
+  no drought needed. Instrumentation at the blow-up: the compression is only ~ −24 (not a spike), cohort
+  spacing is normal (no `Δx→0`), but the neighbouring growth rates are **exactly 0** — shaded understory
+  cohorts whose growth FF16 shuts off at `net_mass_production ≤ 0`. The centred secant across that
+  growth/no-growth boundary makes characteristics converge and density pile up.
+- **Same underlying cause as #550, confirmed by reproduction.** #550 (TF24, extreme seasonal drought)
+  and this FF16 case hit the **same guard** (`Patch::check_finite_ode_state`, from #552), the **same
+  equation** (`d(log_density)/dt = −∂ₓg − mortality` spiking positive → overflow), the **same symptom**
+  (density → +Inf, or a downstream non-finite soil state). Reproduced #550 directly (TF24 `lma=0.07`,
+  rainfall `0.4·sin(2πt)+0.5`, 5 soil layers, `mpl=30`): "a cohort density runs away in the SCM
+  size-density equations (… see #550)" at t≈17. So it is **the same mechanism, not merely a similar
+  symptom** — the McKendrick transport term `−∂ₓg` growing without bound where the characteristic
+  velocity `g` changes steeply/discontinuously in size.
+- **The distinction is the discretisation, not the cause.** #550 is *model-side steepness* (drought /
+  hydraulic-optimum discontinuity, deferred to #551 / NSC buffering #517) overwhelming even the **stable
+  upwind FD stencil**. The FF16 case is *scheme-side sensitivity*: the **centred** mass chart amplifies
+  the same term at a growth-shutoff boundary that the **upwind** stencil damps. The stencil is the stable
+  production scheme by design (upwinding is the standard stabilisation for hyperbolic transport); the
+  centred chart is not.
+
+### Consequence for R1, and the open fork
+R1 as delivered (centred neighbour secant) is correct for the **derivative** but cannot serve as the
+**value** for a shutoff-prone strategy without a stabiliser. Two ways to reconcile:
+- **(a) Derivative-only lift.** Keep the stencil value (stable), take only the mass-chart derivative
+  (`value = to_passive(stencil) + (m − to_passive(m))`). Correct + stable for FF16; **but** it desyncs
+  value and derivative and so is wrong for a strategy where the two schemes' *derivatives* differ (K93:
+  reverse AD −451.9 vs FD 139.9). So it must be per-strategy (K93 keeps the full centred chart, which is
+  stable for its monotone growth; FF16 takes the lift). Correct everywhere, but two transport behaviours.
+- **(b) Upwind mass chart (the consistency prize).** Give the chart the stencil's stabilisation — a
+  one-sided neighbour secant in the downwind (flow) direction. If that is both stable (matching the
+  stencil's bound) *and* exactly differentiable (the chart's property), then **one scheme serves value
+  and derivative for every strategy** — the clean unify. It would match the stencil's stability, so it
+  fixes the FF16-normal case; it would **not** solve #550's model-side steepness (that stays #551/#517).
+  *If (b) holds, consistency is worth re-blessing the K93 (and FF16) demography snapshots* (the ~0.2%
+  shift), which is the stated preference. This is the next thing to prototype.
+
+**Reproductions:** FF16 gradient — the `ff16_scm_gradient_driver.cpp` driver on the resolved schedule
+(`run_scm(refine_schedule=TRUE)`), metric 0/2, compare `grad` vs `fd_grad`. #550 — the TF24 config in
+`test-strategy-tf24.R` ("SCM cohort-density blow-up fails gracefully (#550)").
