@@ -74,16 +74,23 @@ the plant developer experience is pain-free.**
 
 ## RULES THAT MUST NOT BE RELEARNED (each cost real time this session)
 - **The correctness reference is the fully-adaptive real-model FD** — perturb a trait
-  and re-run `run_scm` (adaptive stepping) at ±δ, central difference. A
-  **pinned-schedule FD is NOT the truth**; treating it as truth sent a multi-turn
-  chase after phantom "schedule sensitivity" and "detached edges." K93 gradients are
-  FD-correct (all three of AD / pinned-FD / adaptive-FD agree). When AD disagrees with
-  a pinned-FD, suspect the *replay grid*, not the model.
-- **The replay grid has ONE legitimate source: `SCM::r_ode_times()` (== `solver.times()`
-  == odelia's `recorded_steps()`).** `patch.step_history` (populated by the
-  `save_RK45_cache` Control flag) is the SEPARATE **`run_mutant` L3 legacy** record and
-  is **deferred** — never use it for a resident gradient replay. Pinning `step_history`
-  gave a 60× wrong gradient (−255/+442); pinning `r_ode_times()` gives the correct one.
+  and re-run `run_scm` (adaptive stepping) at ±δ, central difference. Verify it in
+  **double, at R level**, before trusting any C++/AD number — this is what refuted two
+  successive over-confident root-cause claims this session. Sweep δ for the plateau.
+- **The correct frozen replay is the RESOLVED schedule — L0 `node_schedule_times` AND
+  L1 `ode_times` from `run_scm(refine_schedule=TRUE)` — i.e. what
+  `run_scm(use_ode_times=TRUE)` replays.** On that schedule, frozen FD == adaptive FD
+  (no schedule sensitivity). `r_ode_times()` alone is the correct L1 *source* but is
+  NOT sufficient: pinning only L1 onto the **default (unrefined) L0** is inconsistent
+  and gives a derivative-wrong (though value-correct) trajectory — that was the real
+  flaw in the old drivers, not the `step_history` vs `r_ode_times()` choice per se.
+  `patch.step_history` (the `save_RK45_cache`/`run_mutant` L3 legacy) is still deferred;
+  don't use it for a resident gradient.
+- **AD `≠` FD on the IDENTICAL resolved schedule is a real derivative bug, not a
+  schedule/replay artifact.** If forward AD == reverse AD yet both `≠` a δ-independent
+  FD, the *code* computes a wrong analytic derivative (a dropped `to_passive` term FD
+  sees through) — hunt it in the model code, not the replay. (This is FF16's current
+  open bug; see PART 2.)
 - **A "wrong gradient" is a schedule/replay bug until proven otherwise.** Before
   hypothesizing model or field bugs: (a) confirm the replay grid is `r_ode_times()`;
   (b) compare against the adaptive `run_scm` FD; (c) isolate with a single-step probe.
@@ -118,7 +125,8 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-19._
+_Last updated: 2026-07-19 (FF16 diagnosis corrected: no schedule sensitivity; open
+reverse-AD dropped-derivative bug in coupled growth)._
 
 ## Where things stand
 - **odelia engine:** the full documented AD surface is on the branch (28 commits ahead
@@ -131,64 +139,80 @@ _Last updated: 2026-07-19._
   `separable_field`; census and offspring/R0 gradients match the adaptive FD; the
   redundant light spline is dropped on the K93 path. All K93 double suites green.
 - **plant P2b (FF16):** the exact `separable_field` is integrated for FF16's deep-crown
-  light (double path within tol, all double suites green). Its R0 gradient is **not yet
-  gated correct** — but the cause is now fully understood (below), not a model bug.
-- **Trees:** clean. plant HEAD `57e27619`, superrepo HEAD `ab17a51`, odelia HEAD
-  `67793a5`. plant is 69 commits ahead of base; odelia 28.
+  light (double path within tol, all double suites green). Its R0 gradient is **still not
+  correct** — the cause is now precisely characterised (below): a genuine reverse-AD
+  dropped-derivative bug in FF16's coupled self-shading growth, NOT schedule sensitivity
+  and NOT a replay-grid choice.
+- **Trees:** clean. Superrepo HEAD `b2a8879` (plant submodule at `7f159f3d`); odelia
+  `67793a5`, installed and synced.
 
-## The resolved finding (the whole FF16 saga, in one place)
-The FF16 R0 "wrong gradient" (reverse AD `+442`, a pinned-FD `−255`, while the real
-adaptive gradient is `+4.2`) was **NOT** schedule sensitivity, **NOT** a detached edge,
-**NOT** a field/model bug. Proven this session:
-- Single FF16 plant in fixed light: `d(growth)/d(lma)` is **exact** (AD == FD, 6 digits).
-- One `compute_rates` + field assembly on a frozen state: **exact** (AD == FD);
-  `d(light)/d(lma)` through the frozen field is exactly 0. The `separable_field` read is
-  proven exact by `test-ad-ff16-field-crown.R`.
-- The real gradient (adaptive `run_scm` FD) is `+4.2`, and a pinned FD that replays on
-  the **correct** grid (`r_ode_times()`, what `run_scm(use_ode_times=TRUE)` uses) also
-  gives `+4.2` and tracks the adaptive R0 curve to ~1e-5.
-**Root cause:** the standalone gradient drivers pinned `patch.step_history` (the
-`save_RK45_cache`/`run_mutant` L3 legacy record) as the replay grid instead of
-`r_ode_times()`. Plant's SCM broke odelia's single-source-of-the-replay-grid invariant
-by having two sources; the driver picked the wrong one. See `docs/build-plan.md`
-(CD-G "ROOT CAUSE" + "DESIGN" blocks) for the full write-up.
+## The corrected finding (2026-07-19; supersedes the earlier "r_ode_times fixes it" claim)
+Two facts, both measured this session; the PRIOR handoff claim that pinning
+`r_ode_times()` yields `+4.2` was **REFUTED** and is retired.
+
+1. **There is NO schedule sensitivity.** Ground truth (adaptive `run_scm` FD) is
+   `d(offspring)/d(lma) = +4.2` (life 50, stable plateau). A *frozen* replay on the
+   **RESOLVED** schedule — both L0 `node_schedule_times` **and** L1 `ode_times` from
+   `run_scm(refine_schedule=TRUE)`, i.e. what `run_scm(use_ode_times=TRUE)` replays —
+   also gives `+4.24` **in double** (`scratchpad`/R-level, no AD). So frozen == adaptive
+   when the replay uses the resolved schedule. The old drivers were wrong because they
+   pinned **only L1** onto the **default (unrefined) L0** — an inconsistent schedule
+   giving a value-correct but derivative-wrong trajectory. (`r_ode_times()` alone is the
+   correct L1 *source* but is NOT sufficient; you need the resolved L0 too.)
+2. **A real reverse-AD dropped-derivative bug remains, schedule-independent.** On the
+   IDENTICAL resolved schedule, reverse AD `≠` the finite difference: e.g. metric=2
+   (pure growth, sum of heights), life 40, AD `−6299` vs resolved-FD `−1630`; life 25,
+   AD `+4902` vs FD `−3424`. Key properties: **δ-independent** (FD flat under a
+   3e-2→3e-5 step sweep, so NOT a kink — a genuinely dropped smooth derivative);
+   **forward AD == reverse AD** yet both `≠` FD (so it is a structural derivative error
+   in the *code*, not a tape/adjoint-accumulation bug); reproduces on **pure growth**
+   (so NOT reproduction/census, NOT field-at-0); **`freeze_query` irrelevant** (NOT the
+   field's query-height channel). It lives in FF16's coupled **self-shading light →
+   growth feedback** (single-plant fixed-light is exact; the bug needs the coupling).
+   The code computes an analytically wrong derivative that FD catches by perturbation —
+   i.e. a `to_passive`/dropped-term somewhere on the light-feedback → growth path that
+   was not found by inspection (checked: field rank boundary = `Q(1)=0` so zero; source
+   cumulative weights are active; `initial_height_` is active; crown-integral bound is
+   the active focal height; `canopy_top` is only the unused spline cap).
+- **Tape memory:** reverse AD fits to ~life 40; **life 50 crashes** (out of memory on
+  the finer schedule). Full-lifetime needs checkpointing at the node-introduction
+  boundary (vendored `XAD::CheckpointCallback`, deferred).
+- **K93 unaffected** — smooth closed-form rates, no coupled-growth branch; all three
+  (AD / resolved-FD / adaptive-FD) agree, all gates green.
 
 ## The design (system-design skill; Tier 2; floor wins — committed in build-plan)
-Restore odelia's single-source invariant **inside plant**, and make adding a gradient
-map onto the run workflow:
-- **Commitment:** the resident replay grid is produced ONLY by the adaptive run
-  (`r_ode_times()` / `solver.times()`); a caller cannot express a replay grid, so cannot
-  express a wrong one.
-- **A run-shaped gradient entry** (a C++ `SCM` method + an R `run_scm` mode) that owns
-  adaptive-record → single-source replay and takes a functional — so no standalone
-  driver and no hand-set schedule.
-- **Retire** `save_RK45_cache`/`step_history`/`environment_history` off the
-  resident/gradient path (deferred mutant L3 only).
-It is mostly **reuse + deletion**, not a new abstraction: the correct record→replay
-already exists and works (`run_scm(use_ode_times)`).
+Still valid and orthogonal to the adjoint bug above (the bug is in FF16's rate/field
+code, not the driver plumbing): make adding a gradient map onto the run workflow —
+a run-shaped gradient entry (C++ `SCM` method + R `run_scm` mode) that owns
+adaptive-**refine**-record → resolved-schedule replay and takes a functional, so a
+caller can neither hand in a schedule nor pick the wrong (default-L0) one. Mostly
+reuse + deletion: `run_scm(refine_schedule + use_ode_times)` already does the correct
+record→replay. Retire `save_RK45_cache`/`step_history` off the resident path (mutant L3
+only). NOTE: this entry would have structurally prevented the whole default-L0 saga.
 
 ## CONCRETE NEXT STEPS (in order; the user directs the build)
-1. **Prove the diagnosis end-to-end (cheapest, highest-confidence).** In
-   `plant/tests/testthat/ff16_scm_gradient_driver.cpp` and `k93_scm_census_driver.cpp`,
-   replace the replay grid `scm.get_system_ref().step_history` with `scm.r_ode_times()`
-   (== `solver.times()`) in `pin_replay`. Rebuild, run the FF16 R0 driver, and confirm
-   `d(R0)/d(lma) ≈ +4.2` (matching the adaptive `run_scm` FD) and that K93 gradients are
-   unchanged. This is a ~2-line change per driver and settles the whole saga.
-2. **Re-gate the FF16 R0 test against the adaptive FD.** Replace the `expect_failure`
-   known-gap assertion in `test-ad-ff16-scm-gradient.R` with a real `expect_equal`
-   against the adaptive `run_scm` FD (`+4.2`); retire the pinned-FD-as-truth framing.
-   (K93's tests already gate against the correct value.)
-3. **Build the run-shaped gradient entry (R2 / DX).** Design + implement the SCM/R
-   `run_scm`-mode gradient entry per the committed design; fold the standalone
-   `k93_scm_census_driver.cpp` / `ff16_scm_gradient_driver.cpp` into it (they become
-   "define a functional"). Cross-package: touches plant, possibly a thin odelia helper.
-4. **Retire the legacy replay path (R4).** Remove `save_RK45_cache`/`step_history` from
-   the resident/gradient path (keep only for the deferred mutant L3); make the
-   mutant-only records unreachable from resident gradients so the bad replay is
-   structurally inexpressible.
-5. **Resume the phased port.** Then P2b finish (FF16 multivariate census: LAI/biomass/
-   basal-area), P2c (TF24 — leaf IFT via `register_implicit` + `incomplete_gamma` + soil
-   coupling), P2d (TF24f). See `docs/build-plan.md` Phase 2.
+1. **Find + fix the FF16 reverse-AD dropped-derivative bug (THE blocker for a correct
+   FF16 gradient).** It is δ-independent, fwd==rev, pure-growth, coupling-only,
+   `freeze_query`-irrelevant. Approach: instrument the light-feedback → growth path for
+   a `to_passive`/double-typed intermediate whose value changes under an `lma`
+   perturbation (that is what FD sees and AD drops). The `freeze_field` knob (whole
+   optical depth → passive) confirms the feedback channel is large and wrongly computed;
+   bisect within it (source cumulative vs the assimilation-from-light path). Consider a
+   single-step reverse-vs-FD probe on a *coupled* 2–3-cohort state (the existing
+   `ff16_feedback_probe` froze the field, so it missed this — un-freeze it).
+2. **Build the run-shaped gradient entry (R2 / DX, committed design).** SCM method + R
+   `run_scm` mode owning refine→resolved-replay + a functional; fold the standalone
+   `k93_scm_census_driver.cpp` / `ff16_scm_gradient_driver.cpp` into it. Orthogonal to
+   step 1 but prevents the default-L0 class of bug structurally.
+3. **Re-gate the FF16 R0 test** (currently `expect_failure` on AD≠FD at life 40, value
+   exact): once step 1 lands, flip to a real `expect_equal` against the resolved-schedule
+   FD (== adaptive). Also route the K93 driver through the resolved schedule for symmetry
+   (K93 already correct, but should not depend on the default-L0 path).
+4. **Retire the legacy replay path (R4).** `save_RK45_cache`/`step_history` off the
+   resident/gradient path (mutant L3 only).
+5. **Then P2b finish** (FF16 multivariate census LAI/biomass/basal-area), **P2c** (TF24),
+   **P2d** (TF24f). NOTE: TF24 (P2c) shares FF16's coupled-feedback structure, so the
+   step-1 fix likely matters there too.
 
 ## Key files
 - Design/plan: `docs/build-plan.md` (phased plan + the CD-G root-cause/design log),

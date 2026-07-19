@@ -435,8 +435,24 @@ for Phase 2:
     So there is no schedule sensitivity, no detached edge, no need for option B, and no model bug: the AD is
     correct when replayed on the right (solver-owned) schedule.
 
+  **CORRECTION (2026-07-19, later — supersedes the ROOT CAUSE block above).** The claim that pinning
+  `r_ode_times()` yields `+4.2` was REFUTED by direct measurement. Two corrected facts (verified in double
+  at R level, then in the C++ driver): (1) **No schedule sensitivity** — a frozen replay on the RESOLVED
+  schedule (BOTH L0 `node_schedule_times` AND L1 `ode_times` from `run_scm(refine_schedule=TRUE)`) gives
+  `+4.24`, matching the adaptive `+4.2`. `r_ode_times()` is the correct L1 *source* but NOT sufficient:
+  the old drivers pinned only L1 onto the DEFAULT (unrefined) L0 — an inconsistent schedule, value-correct
+  but derivative-wrong. (2) **An open reverse-AD dropped-derivative bug remains, schedule-independent**:
+  on the identical resolved schedule, AD `≠` FD (metric=2 pure growth, life 40: AD `−6299` vs FD `−1630`),
+  δ-independent (not a kink), forward AD == reverse AD (a structural code-derivative error, not a tape
+  bug), `freeze_query`-irrelevant, coupling-only (single-plant fixed-light is exact). It lives in FF16's
+  self-shading light→growth feedback — a dropped `to_passive` term FD sees through, not yet pinned to a
+  line. Tape memory limits reverse AD to ~life 40 (life 50 OOMs; checkpointing deferred). The FF16 driver
+  now replays the resolved schedule (passed from R) and its test gates value-exact + AD≠FD `expect_failure`
+  at life 40. See `docs/HANDOFF.md` PART 2 for the full corrected write-up and next steps.
+
   **DESIGN (2026-07-19, system-design skill; Tier 2; floor wins) — one solver-owned schedule; retire the
-  legacy path; gradients map onto the run workflow.**
+  legacy path; gradients map onto the run workflow.** (Still valid and ORTHOGONAL to the open adjoint bug;
+  the run-shaped entry must own refine→resolved-replay, which would have prevented the default-L0 saga.)
 
   *Architecture (grounded in the code, 2026-07-19; diffed vs odelia `master`).* odelia's AD engine is a
   ~28-commit branch (`claude/odelia-ad-tape-reverse-496fuf`, NOT merged to master — co-developed on this
