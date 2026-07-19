@@ -109,10 +109,18 @@ correctly demoted to falsifiable predictions rather than assumptions.
   *"implicitly integrate forest structure observations with forest growth rates"*) and **lidar 3-D structure
   benchmarked against ED** (Ma et al.; GEDI). The self-thinning line is itself a scaling relation — a concrete
   candidate for the registered/quotient coordinate flagged above.
-- **[verified real & on-topic; user retrieving full text]:** the Central Amazon steady-state mosaic (Chambers
-  et al., *PNAS* 2013, 110(10):3949–3954, 10.1073/pnas.1202894110) — the mosaic average emerges only above a
-  spatial scale; a single hectare does not recover the landscape mean. Source confirmed via Scite; figures not
-  yet read verbatim.
+- **[A] verified verbatim (full text read):** the Central Amazon steady-state mosaic (Chambers et al., *PNAS*
+  2013, 110(10):3949–3954, 10.1073/pnas.1202894110) — old-growth is *"a mosaic of patches in different
+  successional stages, with the fraction of the landscape in any particular state relatively constant over
+  large… spatial scales,"* and *"the size distribution and return frequency of disturbance events, and
+  subsequent recovery processes, determine… the spatial scale over which this… steady state develops."*
+  Concretely, for this site: hectare-scale biomass is a *"sawtooth time series"* (a single hectare does not
+  recover the landscape mean); *"plots larger than 10 ha would provide the greatest sensitivity"* for trend
+  detection; and plot-based sampling misses *"9.1–16.9% of tree mortality"* by under-sampling large
+  disturbance events (raising the site mortality rate 1.02% → ~1.20% y⁻¹). Built by fusing field plots + a
+  remote-sensing disturbance PDF + individual-based simulation. This is the one **quantitative** answer to the
+  support / self-averaging question (what is a "patch", what window) that neither Oracle framing supplied:
+  self-averaging only above ~10 ha here, with a heavy large-disturbance tail that small footprints miss.
 - **Framing-induced, discount:** the elegant point-process / factorial-moment machinery from the first
   Oracle round was an artifact of a leading representation; the law-space response reaches the *same*
   within/between control-variate scheme with no point processes.
