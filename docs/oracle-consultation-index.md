@@ -11,6 +11,8 @@ responses, mark superseded ones, so later better-framed questions can be diffed 
 | — | Oracle main response | R0 diagnostic (§0), R1 mass chart, R2 field-as-object, R3 one implicit primitive, per-component map, seam, higher-order, perf; + follow-ups on XAD boundaries and the chart/view tier | received — **archive the raw text here** |
 | 2 | [`oracle-followup-1-structure-hunt.md`](./oracle-followup-1-structure-hunt.md) | broad framing: hard case fully specified, open hunt for analytical collapse | draft |
 | 3 | [`oracle-followup-2-targeted-probes.md`](./oracle-followup-2-targeted-probes.md) | narrow framing: specific candidate collapses to confirm/reject (independent triangulation of #2) | draft |
+| 4 | [`oracle-consultation-transport-compression.md`](./oracle-consultation-transport-compression.md) | standalone: the compression term `Cᵢ=∂ₓg` — value-stability vs gradient-correctness, framed for reframing | sent |
+| — | [`oracle-response-transport-compression.md`](./oracle-response-transport-compression.md) | response to #4: **transport log-mass `λ=ℓ+logΔx`; compression cancels identically; both symptoms dissolve.** Predictions 1–4 to test before building | received |
 
 ## Response spine (for diffing later framings)
 
