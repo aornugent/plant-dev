@@ -238,6 +238,25 @@ P1a and is verified on a plant-shaped toy when P1a lands, not up front.
   - `R`/export/import/resume/`expand_state`: the exported density state slot is now `λ`; reconstruct on import; audit `r_log_densities`. Snapshots: re-bless K93 + FF16 demography.
   - **Gates (Oracle predictions):** M-trace `Σexp(λ)` bounded through the FF16 stall (overflow gone); reverse AD == FD (both models, coupling params); K93 gradient still correct.
   - **Build order:** K93 first (geometric, stable — validate identity + views + no trajectory pathology), then opt FF16 onto it (overflow must vanish), then re-bless snapshots, then R/resume.
+
+  **FINDING (2026-07-19, first build attempt — the Δx-consistency requirement).** A first implementation
+  (log-mass state + `reconstruct_from_spacing(cohort_spacing)` + option-A newborn seed, all gated to
+  geometric strategies, `if constexpr`) COMPILED and RAN, but K93 offspring came out **0.00958 vs the
+  stencil's 0.0753 (~8× off)** — far more than option A's intended minimal shift. Root cause: **the
+  reconstruction and the reductions use DIFFERENT Δx.** `reconstruct_from_spacing` used the chart's
+  *centred* `odelia::cohort_spacing` `Δx=(h[i-1]-h[i+1])/2`, but `Species::compute_competition` (the
+  self-shading integral, and the census/offspring reductions built on it) is a **trapezium** rule
+  weighting per-node contributions by the *adjacent gaps* `(h₁-h₀)`. So `density·(trapezium gap) ≠ mass`
+  — the `/Δx` does not cancel, and the mismatch compounds. This is exactly the Oracle's caveat that "the
+  reduction weights must be the chart's Δxᵢ" (`oracle-response-transport-compression.md`): the mass chart
+  is only self-consistent if the SAME Δx appears in the transport, the view reconstruction, AND every
+  Δx-weighted reduction. **So P1e-λ is bigger than "transport λ + reconstruct views": the competition
+  integral / census quadrature must be rebuilt on the chart's `cohort_spacing` (a single consistent Δx),
+  which itself re-baselines the double trajectory (larger than option A hoped).** This is the real crux
+  and a genuine design point (which quadrature is canonical). The first-attempt code was reverted (tree
+  clean); the log-mass state/view/seed structure is correct and re-usable once the reduction quadrature
+  is reconciled. **Next: decide the canonical Δx (chart `cohort_spacing`) and rebuild `compute_competition`
+  + the reductions on it, then re-run K93 (expect a consistent, characterised re-baseline, not 8×).**
 - **P1f — `QK<S>` fixed-rule quadrature** (Cluster 4): template `QK::integrate` on the scalar **and the
   bound type** — the nodes are a deterministic affine image of the bound, so an *active* bound (a census
   integrated over an active plant height) tapes exactly through the moving nodes; **differentiate
