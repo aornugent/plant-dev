@@ -258,6 +258,25 @@ Full statement + response: `docs/oracle-consultation-tf24-recharacterized{,-resp
   the 23% inter-scheme spread at root. And J is ~barely-observable-sensitive — reformulating it may
   beat any numerics.
 
+## Event sizing (Oracle round-6 E1) — measured 2026-07-19
+
+Canonical benchmark bank in `scripts/tf24-benchmarks/` (6 hard rainfall sequences
+committed as `data/*.rds`; `generate_bank.R`, `event_sizing.R`, `RESULTS.md`).
+odelia `step_diag` logs every step attempt. Findings:
+- **~27–35% of step attempts are rejected** (rejection-bisection localisation
+  overhead — 1 in 3 O(M) RHS evals discarded), uniform across sequences.
+- **min h ≈ 1.4e-8–5e-8 · T** scattered collapse (confirms isolated non-smoothness).
+- **Forcing kinks explain a minority** (2–31%, tracks rain frequency); small steps
+  cluster **in dry gaps, away from rain**.
+- **Member insertions explain ~0** — the SCM already makes them step boundaries.
+- **70–98% unattributed → the dry-end state-dependent crossings** (leaf-shutdown
+  boundary, argmax bound, θ_res clamp). Splitting this residual into
+  removable-events vs intrinsic is the open measurement (Oracle E3).
+- **Multispecies (4 spp) fails NON-FINITE** at the highest reject frac (0.35) — a
+  genuine instability, not a slowdown.
+- Draft consult on event-aware integrator design: `docs/oracle-consultation-event-aware.md`
+  (domain-clean, ready to send).
+
 ## Concrete next steps (in priority order)
 
 0. **[NEW, top priority] Verify the gradient landmine (Oracle E4)** on
