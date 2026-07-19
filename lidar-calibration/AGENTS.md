@@ -27,6 +27,7 @@ ordered next actions (all measurement — plant is buildable in-session).
 | `foundation.md` | **The anchor.** Representation, settled findings, hazards, decisive experiment, next actions. Read first. |
 | `guide.md` | How to consult the Oracle — framing practice, hard-won. Read before writing any elicitation. |
 | `elicitation.md` | The current domain-clean problem statement to send the Oracle (the v7 register that passes). |
+| `elicitation-quotients.md` | Second elicitation (map-space register): the effective dimension of a composed map and the structures that collapse it — formalises observation-operator / trait-manifold / emergent quotients as one dimension-collapse problem. |
 | `response-pointprocess.md` | The first Oracle response (point-process framing) + our framing audit. |
 | `response-triangulation.md` | Two responses (law-space, map-space) + the triangulation and contamination audit. |
 | `literature.md` | Research digest, tiered by verification. |
