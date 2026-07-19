@@ -170,14 +170,23 @@ Two facts, both measured this session; the PRIOR handoff claim that pinning
    field's query-height channel). It lives in FF16's coupled **self-shading light →
    growth feedback** (single-plant fixed-light is exact; the bug needs the coupling).
    **Per-cohort localisation** (`ff16_cohort_height_tangents`, forward-mode
-   `d(height_i)/d(lma)` vs per-cohort FD): FD is smooth and coherent across cohorts
-   (tallest ≈ −8.6 uniformly), but **every** cohort's AD tangent is wrong, worst in the
-   understory (|gap| in the shortest 25% ≈ 10875 vs tallest 25% ≈ 273) — even the
-   emergent, near-unshaded tallest cohort is off (AD −1.4 vs FD −8.6). So it is a
-   **broad, systematic mis-propagation through the shared coupled field**, not a single
-   localised term. **Tested and RULED OUT:** birth-height / `prepare_strategy` staleness
-   (re-running `prepare_strategy()` in `Patch::reset()` — mirroring IndividualRunner —
-   did NOT close the gap; reverted). Still open.
+   `d(height_i)/d(lma)` vs per-cohort FD): FD is smooth and coherent across cohorts, but
+   **every** cohort's AD tangent is wrong. The largest gaps are **mid-canopy** cohorts
+   (heights 8–12, actively growing at rate ~0.2) where **FD ≈ small but AD ≈ large
+   negative (~−1300)** — i.e. **AD is SPURIOUSLY LARGE, not dropping a term.** It is
+   over-counting the coupled self-shading sensitivity, not severing it. **Tested and
+   RULED OUT:** (i) birth-height / `prepare_strategy` staleness (re-running
+   `prepare_strategy()` in `Patch::reset()` did not close the gap; reverted); (ii) the
+   `net_mass_production_dt>0` kink — NO cohort sits at it (all growth rates 0.03–0.45,
+   none ≈0; gap is 50/50 across slow/fast growers, corr with kink-proximity −0.27). The
+   field is reassembled with the active population every RK stage (`set_ode_state(it,
+   time)`→`compute_environment(true)`), and `density`/`height`/source-weights are all
+   active and fresh — so the spurious magnitude is NOT a stale/frozen value. Reframed
+   open question: **why does the reverse+forward AD assign a large coupled sensitivity
+   the finite difference does not see?** (An amplified/over-counted feedback in the
+   per-stage field reassembly on the tape is the current suspicion — e.g. the field
+   depending on state that the RK stage also feeds back, double-counted.) Still open;
+   two leading hypotheses refuted this session.
    The code computes an analytically wrong derivative that FD catches by perturbation —
    i.e. a `to_passive`/dropped-term somewhere on the light-feedback → growth path that
    was not found by inspection (checked: field rank boundary = `Q(1)=0` so zero; source
