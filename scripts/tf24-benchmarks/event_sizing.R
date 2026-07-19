@@ -28,11 +28,12 @@ run_one <- function(nm) {
   b <- readRDS(file.path(datadir, paste0(nm, ".rds")))
   rain <- b$rain; nd <- length(rain); life <- b$life
   times <- (0:(nd - 1)) / 365
+  life_run <- max(times)   # never integrate past the last defined rainfall day
   mkenv <- function() { e <- Environment("TF24")
     e$extrinsic_drivers_set_variable("rainfall", times, rain); e }
   lma <- if (nm == "multispecies") c(0.0500, 0.0825, 0.1400, 0.2200) else 0.0825
-  mk <- function() { p <- scm_base_parameters("TF24"); p$max_patch_lifetime <- life
-    add_strategies(p, trait_matrix(lma, "lma")) }
+  mk <- function() { p <- scm_base_parameters("TF24"); p$max_patch_lifetime <- life_run
+    add_strategies(p, trait_matrix(lma, "lma"), birth_rate = rep(1, length(lma))) }
   ctrl <- control(ode_method = "rkck", ode_tol_rel = TOL_REL, ode_tol_abs = TOL_REL)
 
   reset(); enable(TRUE); patch_rhs_calls_reset()
@@ -72,7 +73,7 @@ run_one <- function(nm) {
     wall_s = if (res$ok) round(res$wall, 1) else NA,
     median_h = if (length(h)) signif(median(h), 3) else NA,
     min_h = if (length(h)) signif(min(h), 3) else NA,
-    min_h_over_T = if (length(h)) signif(min(h) / life, 3) else NA,
+    min_h_over_T = if (length(h)) signif(min(h) / life_run, 3) else NA,
     small_rain = round(a_small[["rain"]], 3),
     small_insert = round(a_small[["insert"]], 3),
     small_unattr = round(a_small[["unattr"]], 3),
