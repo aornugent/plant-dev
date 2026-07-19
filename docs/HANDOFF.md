@@ -126,10 +126,10 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-19. This session: root-caused the FF16 gradient bug to the density-transport
-derivative; converged (design + two Oracle consults) on the **transport-log-mass chart (P1e-λ)** as the
-one fix for stability+correctness+performance; began the build and surfaced the **Δx-consistency**
-requirement. Trees clean: superrepo `646dad2`, plant `e9d77c1d`, odelia `67793a5` (installed==HEAD)._
+_Last updated: 2026-07-19. This session: disproved the "Δx-consistency crux" with a double-level
+diagnostic (trapezium ≡ cohort_spacing, interior-exact) and **landed the transport-log-mass chart (P1e-λ)
+for K93** — gradient exact, off-chart bit-identical, snapshots re-blessed. Next: opt FF16 onto the chart.
+Trees clean: superrepo `a272a11`, plant `c249689c`, odelia `f9d6ad8` (installed==HEAD)._
 
 ## THE HEADLINE (read this first)
 The FF16 gradient bug, the #550 density runaway, and the value/gradient tension are **one thing**: the
@@ -168,36 +168,52 @@ correct gradient). One scheme for all strategies. **This is P1e-λ; it is the cu
   minimal re-baseline). Option B (flux×interval, `m₀ = birth·estab·Δt_insert`, the Oracle's "natural"
   choice) filed as **aornugent/plant#59** for follow-up.
 
-## P1e-λ BUILD STATE — the Δx-consistency crux (the live blocker)
-A first implementation (log-mass state in `node.h`, `reconstruct_from_spacing(cohort_spacing)`, option-A
-newborn seed, delete the compression term; all `if constexpr strategy_supports_geometric_transport<T>` so
-non-geometric FF16-default/TF24 stay bit-identical) **compiled and ran** but K93 offspring came out
-**0.00958 vs the stencil 0.0753 (~8×)**. Root cause = **Δx inconsistency**: the view reconstruction used
-the chart's *centred* `odelia::cohort_spacing` `Δx=(h[i-1]−h[i+1])/2`, but `Species::compute_competition`
-(the self-shading integral, and the census/offspring reductions built on it) is a **trapezium** rule
-weighting by *adjacent gaps* `(h₁−h₀)` — so `density·(trapezium width) ≠ mass` and the `/Δx` doesn't
-cancel. **The Oracle's caveat made concrete: the mass chart is self-consistent only if ONE Δx
-(`cohort_spacing`) appears in transport, view, AND every Δx-weighted reduction.** WIP was reverted (tree
-clean); the log-mass state/view/seed structure is sound and reusable. Full write-up: `build-plan.md`
-P1e-λ "FINDING".
+## P1e-λ BUILD STATE — LANDED for K93 (plant `c249689c`, odelia `f9d6ad8`, superrepo `a272a11`)
+**The "Δx-consistency crux" was overstated and is now closed.** A double-level diagnostic on a real
+141-node K93 patch (`scratchpad/dx_diag.R`) proved the two "different discretisations" are **one operator**:
+the node-lumped trapezium weight equals `cohort_spacing` **exactly** on the interior (ratio 1.0000) and
+differs only 2× at the two boundary nodes (half-gap vs full-gap → ~1.9% on the field integral); the
+density→λ→density round-trip is an **exact identity** (ratio 1.000000). So the earlier ~8× was a *bug in
+the reverted WIP*, not an inherent quadrature mismatch — and no quadrature needed relocating into odelia
+(the `system-design` pass rejected an `odelia::reduce`/`Quadrature` object on concept-count; the winning
+floor was "reductions consume mass `exp(λ)` directly, which the existing trapezium already is on the
+interior").
+
+**What landed:** K93 transports `λ = log_density + log(cohort_spacing)` with `dλ/dt = −mortality` (no
+compression ever formed); `log_density`/`density` are a read-side view reconstructed at the top of
+`Patch::compute_environment`. odelia gained `log_mass_from_log_density` / `log_density_from_log_mass`
+beside `cohort_spacing`. Node gained `log_mass_` + `on_mass_chart()`; `compute_initial_conditions` seeds
+`log_mass_=log_density` (lone dx=1 default); `Species::seed_newborn_log_mass` rebuilds λ from the density
+view at every introduction (a remesh; exact round-trip for unchanged cells). **Results:** off-chart
+strategies (FF16-default, TF24, flag off) **bit-identical**; K93 offspring re-baselined ~0.03% (boundary
+effect) and the snapshots re-blessed; **R0 gradient exact** (reverse AD vs pinned-schedule FD ratio
+1.0000, value==value_double to 1e-10). Full regression sweep: 0 new failures (the 5 remaining — FF16 4,
+TF24 1 — are pre-existing WIP staleness + a pandoc error, confirmed on the baseline build).
 
 ## CONCRETE NEXT STEPS (in order)
-1. **Reconcile the reduction quadrature with the chart (THE next task).** Make `odelia::cohort_spacing`
-   the single canonical `Δx`: rebuild `Species::compute_competition` (and the census/offspring reductions
-   built on it) to weight by `cohort_spacing`, not the trapezium adjacent-gap rule. This re-baselines the
-   double trajectory (larger than option A alone — a characterised, sanctioned shift). Then re-apply the
-   reverted log-mass changes (state/view/seed) and re-run K93: expect a clean characterised re-baseline
-   (NOT 8×), gradient still correct.
-2. **Opt FF16 onto the chart; confirm the overflow vanishes** (the M-trace `Σexp(λ)` bounded through the
-   `g=0` stall) and reverse AD == FD across coupling params. Gate on the Oracle predictions
-   (`oracle-response-transport-compression.md` §"Falsifiable predictions").
-3. **Re-bless demography snapshots** (K93 + FF16) to the single consistent chart — the user OK'd this
-   *if* the chart is stable+consistent ("consistency is worth re-blessing the demography snapshots").
-4. **R export/import/resume/`expand_state`:** the exported density slot is now `λ`; reconstruct on import;
-   audit `r_log_densities`. Re-gate the FF16 R0 test against the adaptive FD (bare `expect_equal`).
-5. **Then resume the port:** finish P2b (FF16 multivariate census), P2c (TF24 — also shares the coupled
-   feedback, so P1e-λ likely matters there), P2d (TF24f). The run-shaped gradient entry (map onto
+1. **Opt FF16 onto the chart (THE next task).** Add the `geometric_transport` marker to
+   `FF16_Strategy` (as on K93) so `strategy_supports_geometric_transport<FF16>` is true; with
+   `node_geometric_compression` on, FF16 then transports λ. Confirm (a) the #550-style overflow vanishes
+   (`Σexp(λ)` bounded through the `g=0` growth-shutoff where the centred compression stencil was
+   unstable), and (b) reverse AD == adaptive FD across the coupling params (the severed
+   `growth_rate_gradient` derivative is gone — the whole point). **Watch:** FF16's `set_ode_state`/export
+   slot becomes λ, and the newborn-seed remesh runs on FF16's schedule; re-baseline expected. Gate on the
+   Oracle predictions (`oracle-response-transport-compression.md` §"Falsifiable predictions"). NOTE the 4
+   pre-existing FF16 test failures are stale WIP expectations (offspring 16.889→16.902 etc.) unrelated to
+   the chart — re-bless them together with the chart opt-in, don't chase them separately.
+2. **Re-bless FF16 demography snapshots** once on the chart (K93 already re-blessed this session).
+3. **R export/import/resume/`expand_state`:** the exported density slot is now `λ` for chart strategies
+   (`ode_names` still labels it "log_density" — fix or document); reconstruct on import; audit
+   `r_log_densities` (it reads the reconstructed view, so it's fine post-`compute_environment`). Re-gate
+   the FF16 R0 gradient test against the adaptive FD (flip `expect_failure` → bare `expect_equal`).
+4. **Then resume the port:** finish P2b (FF16 multivariate census), P2c (TF24 — shares the coupled
+   feedback, so the chart likely matters there too), P2d (TF24f). The run-shaped gradient entry (map onto
    `run_scm`, retire `save_RK45_cache`/`step_history`) is the DX deliverable once gradients are correct.
+
+## KEY DX ARTIFACT this session
+`scratchpad/dx_diag.R` — the double-level proof that trapezium ≡ `cohort_spacing` (interior exact,
+boundary 2×, round-trip identity). Rerun it if the quadrature question resurfaces; it settles the
+"do we need a quadrature primitive in odelia?" question with numbers (answer: no).
 
 ## KEY DOCS (read for the full argument)
 - `docs/oracle-consultation-transport-compression.md` — the standalone elicitation (domain-clean; the
