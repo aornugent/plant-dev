@@ -192,12 +192,29 @@ remaining accuracy walls (25% / 279%) are **in the cohort layer**
    revert it** (it is currently just an experiment adding named machinery —
    `theta_from_zeta`/`zeta_from_theta`, ζ init, chart conversions — that must
    pay for itself under the abstraction principle).
-   *Result: <PENDING — fill in from the current run>.*
+   **RESULT (measured, 15 yr single-species multi-yr drought, R-D build):**
+   ```
+   rkck    : off=5.553e-05  rhs=173907  353s  (baseline)
+   mri m=0 : off=6.873e-05  off.rel=2.38e-01  fast=327771  634s  speedup=0.56x
+   mri m=20: off=2.201e-04  off.rel=2.96e+00  fast=329199  113s  speedup=3.13x
+   mri m=40: off=1.200e-04  off.rel=1.16e+00  fast=328281  180s  speedup=1.96x
+   ```
+   **Full-N mri (m=0) is already 23.8% off rkck AND 0.56× (slower) — before any
+   collocation.** So the 24% error is intrinsic to the MRI macro-grid (fixed
+   daily step + sub-cycling under-resolves the **cohort** layer), NOT the soil
+   chart and NOT collocation. A soil-chart reshape (R-D) cannot close a
+   cohort-layer gap → **R-D does not earn its place → REVERT** (default action,
+   pending user confirmation). Collocation errors (m=20: 296%, m=40: 116%)
+   compound this; the 3.13×/1.96× "speedups" are meaningless at that accuracy.
+   *Caveat: this isolates the error as cohort-layer; it does not directly measure
+   R-D's effect on the 10×-hypersensitive gradient (a with/without-R-D rkck
+   comparison would — cheap to run if the user wants certainty before reverting).*
 
 ## Concrete next steps (in priority order)
 
-1. **Read the R-D result and keep-or-revert.** Default expectation: revert (it
-   adds names for no accuracy win on the walls that matter).
+1. **Revert R-D** (result in): the accuracy wall is confirmed cohort-layer, so
+   the soil-chart machinery buys nothing on the walls that matter. Optionally run
+   the with/without-R-D rkck gradient comparison first if certainty is wanted.
 2. **Code-review pruning pass over current changes** (invoke `code-review`).
    Candidates for deletion under the abstraction principle: R-D machinery if
    neutral; any collocation surface if the accuracy walls prove fatal; confirm
