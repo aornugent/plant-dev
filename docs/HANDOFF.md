@@ -179,14 +179,26 @@ the reverted WIP*, not an inherent quadrature mismatch — and no quadrature nee
 floor was "reductions consume mass `exp(λ)` directly, which the existing trapezium already is on the
 interior").
 
+**Chesterton's-fence result (verified; corrects an earlier mis-attribution).** The ~0.025% K93
+re-baseline is **NOT** a boundary-spacing effect. `cohort_spacing`'s only live consumers are now the
+chart's seed/view; `odelia::log_density_rate` (which used the full-gap boundary as the one-sided `C`
+stencil) has no callers on the λ chart. Flipping the boundary full-gap↔half-gap leaves K93 offspring
+**bit-identical** (`0.0754715463` either way): the boundary ½ is pure gauge — it cancels between seed
+`λ=ℓ+log dx` and view `ℓ=λ−log dx`, and stays cancelled under evolution since `∫C = log(dx(t)/dx(0))`
+independent of the ½. The re-baseline is the genuine truncation-error difference between two
+discretisations of the same PDE (old: integrate `dℓ/dt=−C−loss`; λ: RK-integrate `dλ/dt=−loss` +
+remesh-reproject at introductions) — it **cannot be nulled** without giving up the λ scheme's benefits
+(FF16 stability + ungarbled gradient). Full-gap boundary kept as the correct one-sided `C` stencil for a
+future old-chart revival.
+
 **What landed:** K93 transports `λ = log_density + log(cohort_spacing)` with `dλ/dt = −mortality` (no
 compression ever formed); `log_density`/`density` are a read-side view reconstructed at the top of
 `Patch::compute_environment`. odelia gained `log_mass_from_log_density` / `log_density_from_log_mass`
 beside `cohort_spacing`. Node gained `log_mass_` + `on_mass_chart()`; `compute_initial_conditions` seeds
 `log_mass_=log_density` (lone dx=1 default); `Species::seed_newborn_log_mass` rebuilds λ from the density
 view at every introduction (a remesh; exact round-trip for unchanged cells). **Results:** off-chart
-strategies (FF16-default, TF24, flag off) **bit-identical**; K93 offspring re-baselined ~0.03% (boundary
-effect) and the snapshots re-blessed; **R0 gradient exact** (reverse AD vs pinned-schedule FD ratio
+strategies (FF16-default, TF24, flag off) **bit-identical**; K93 offspring re-baselined ~0.025% and the
+snapshots re-blessed; **R0 gradient exact** (reverse AD vs pinned-schedule FD ratio
 1.0000, value==value_double to 1e-10). Full regression sweep: 0 new failures (the 5 remaining — FF16 4,
 TF24 1 — are pre-existing WIP staleness + a pandoc error, confirmed on the baseline build).
 
