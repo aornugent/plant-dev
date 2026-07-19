@@ -405,14 +405,23 @@ for Phase 2:
     census does not route through reproduction yet is equally broken). So the sensitivity lives in FF16's
     trajectory on a fixed ODE schedule, and hits every emergent functional equally.
   - **This challenges option B.** Reformulating the *functional* cannot fix a *trajectory*-level property
-    (census and offspring are affected identically). The fix must be at the schedule/dynamics level. FF16
-    resists the obvious lever: tightening the recorded ODE tolerance to resolve the sensitivity crashes
-    (the known FF16 density runaway), so the fixed-schedule gradient can't simply be refined. **Open
-    engine-design decision** (needs a call): either the AD workflow must re-adapt the schedule per
-    perturbation for schedule-sensitive strategies (contra the tape-a-fixed-schedule design), or FF16's
-    dynamics must be stabilised so the fixed schedule tracks the sensitivity, or FF16 gradients are scoped
-    as adaptive-FD-only. K93/census gates remain valid throughout. Diagnostics committed: the three-way
-    matrix is reproducible from the two SCM drivers + a `run_scm` adaptive-FD; `freeze_query`/`metric=1`.
+    (census and offspring are affected identically). The fix must be at the schedule/dynamics level.
+  - **L0 (node-introduction schedule) RESOLUTION tested and RULED OUT (2026-07-19).** Hypothesis: resolve
+    the node schedule first (refine_schedule, 113→137 nodes) and use it as the basis of the frozen replay.
+    Result: the frozen FD on the *resolved* L0 (with the resolved 238-step L1 recorded on top) still gives
+    **−255**, identical to the default-L0 frozen FD. So the fragility is entirely **L1 (the adaptive RK
+    step schedule)**, not L0. It is also not L1 under-resolution — the recorded L1 IS the resolved
+    (adaptive) schedule; pinning it *at all*, at any resolution FF16 survives, is fragile. Only re-adapting
+    L1 per perturbation recovers the real +4.2.
+  - **Two distinct issues on the L1-pinned schedule, both FF16-only:** (i) the pinned-FD (−255, a stable
+    smooth plateau) ≠ the reverse AD (+442) → a **detached edge** in the AD relative to its own frozen
+    schedule (present for census too: AD +17.5 vs pinned-FD −7.8; NOT the field read, which the probe
+    clears); and (ii) the pinned-schedule gradient (−255) ≠ the adaptive gradient (+4.2) → genuine **L1
+    schedule sensitivity**. K93 has neither. Tightening L1 to shrink (ii) crashes FF16 (density runaway).
+    **Open engine-design decision:** re-adapt L1 per perturbation for schedule-sensitive strategies (contra
+    the tape-a-fixed-schedule design), stabilise FF16's dynamics so a pinned L1 tracks the sensitivity, or
+    scope FF16 gradients as adaptive-FD-only. K93/census gates remain valid. Diagnostics committed; the
+    three-way matrix reproduces from the two SCM drivers + a `run_scm` adaptive-FD.
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
