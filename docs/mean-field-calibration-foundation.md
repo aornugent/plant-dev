@@ -99,12 +99,20 @@ correctly demoted to falsifiable predictions rather than assumptions.
   can require second-order structure the mean discards (a clean 1/2/4-parameter precedent); mean-based
   inference degrades in the small-count regime (the single-realization analogue); mean-field is exact only
   in the long-interaction-range limit. These underpin settled-point 1.
-- **[verified real & on-topic, specifics paywalled]:** the nine-model demography benchmark (*New Phytologist*,
-  10.1111/nph.70643) — matching a biomass snapshot does not identify demographic rates (compensating
-  growth/mortality); the Central Amazon steady-state mosaic (*PNAS*, 10.1073/pnas.1202894110) — the mosaic
-  average emerges only above a spatial scale, a single hectare does not recover the landscape mean. Sources
-  confirmed via Scite; exact figures not read verbatim. Mechanisms independently corroborated by the
-  triangulation.
+- **[A] verified verbatim (full text read):** the nine-VDM demography benchmark (Eckes-Shephard et al.,
+  *New Phytologist* 2025, 248:2722–2749, 10.1111/nph.70643; open access) — nine models captured mature-forest
+  carbon but *"showed compensating effects between overestimated growth and underestimated mortality rates,"*
+  so *"similar biomass pools across models result from compensatory interactions between gross growth fluxes
+  and turnover times"*: a biomass snapshot does **not** identify demographic rates, and growth + mortality are
+  the *"critical calibration targets."* Its recommended fix corroborates our synthesis — constrain the rates
+  with **structure over the recovery trajectory**: self-thinning / mass–density relationships (which
+  *"implicitly integrate forest structure observations with forest growth rates"*) and **lidar 3-D structure
+  benchmarked against ED** (Ma et al.; GEDI). The self-thinning line is itself a scaling relation — a concrete
+  candidate for the registered/quotient coordinate flagged above.
+- **[verified real & on-topic; user retrieving full text]:** the Central Amazon steady-state mosaic (Chambers
+  et al., *PNAS* 2013, 110(10):3949–3954, 10.1073/pnas.1202894110) — the mosaic average emerges only above a
+  spatial scale; a single hectare does not recover the landscape mean. Source confirmed via Scite; figures not
+  yet read verbatim.
 - **Framing-induced, discount:** the elegant point-process / factorial-moment machinery from the first
   Oracle round was an artifact of a leading representation; the law-space response reaches the *same*
   within/between control-variate scheme with no point processes.
