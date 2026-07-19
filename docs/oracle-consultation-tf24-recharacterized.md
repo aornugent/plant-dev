@@ -1,263 +1,173 @@
-# Oracle consultation — the TF24 SCM, re-characterised on the real evolving system
+# Follow-on: the decomposition's cheap block is not where cost or accuracy live — is the fast/slow axis wrong?
 
-*This supersedes five prior rounds (`oracle-consultation-multirate-update`, `-response`,
-`-followon`, `-followon-response`, `-collocation`, `-collocation-response`, `-verdict`). Those
-rounds reasoned about an abstract IVP with a "small fast block u" and a "large slow block x", and
-validated a decomposition on **frozen-cohort windows**. We have since built the decomposition on the
-**real, fully-evolving system** and measured it; the measurements move the binding constraints to a
-different block than every prior round assumed. This document deliberately gives the **complete,
-concrete system** (not an abstraction) and the **measurements**, and then asks — openly — where the
-leverage is. **We are not proposing a solution: please derive one from the system, and reject the
-multirate/decomposition frame outright if the data warrant.***
+A numerical-methods question. No application context is needed or given. This **follows five prior
+rounds** on the same IVP (two problem rounds, a cost-structure round, a collocation round, and a
+verdict round). The settled facts are restated inline so this stands alone. Since the last round we
+**built** the recommended decomposition on the real, fully-evolving system — and also built a
+single-step implicit variant — and the measurements **relocate both the dominant cost and the
+accuracy limit to the large block the decomposition freezes**, and **refute the prior localisation of
+the step-collapse to the small block**. We would rather you **re-derive the right axis from the
+structure** than refine the existing decomposition. If the data say the fast/slow split is on the
+wrong object, say so.
 
----
+Prior rounds were framed thinly enough that we pursued dead ends; this statement keeps the full
+structure. Two features earlier rounds under-described are foregrounded here only to the extent of
+being *present* — a second coupling channel, and a moving interior threshold in the integrand — and
+are then listed flat with everything else for you to rank.
 
-## Part A — The real system (complete and concrete)
+## Settled from prior rounds (treat as established; do not re-litigate)
 
-### A.1 What it computes, and why speed and reverse-mode stability matter
+IVP `y' = f(y,t;θ)`, `y ∈ ℝ^N`, on `[0,T]`, integrated by an **adaptive embedded explicit RK** with a
+local-error controller; `10³–10⁵` accepted steps at a single global step size. `y` splits into a
+**large block `x ∈ ℝ^M`** (`M ≈ 50–800`, and multiplying further when several independent large
+blocks share the small block) and a **small block `u ∈ ℝ^L`, `L ≤ 5`**. Downstream we take
+**reverse-mode gradients** (a tape recording every RK stage) of a scalar functional `J` w.r.t. a small
+`θ`; the gradient must match a finite difference of the solver as run.
 
-`plant` is a demographic vegetation model. One "patch" integrates a coupled ODE from t=0 to a horizon
-T under a prescribed, kinked **rainfall time series**, for one or several plant species. Two objects
-are coupled:
+**Two coupling channels, of different cost and character:**
 
-- a **size-structured population model** — an SCM ("characteristic solver method") for the
-  McKendrick–von Foerster renewal PDE: a mesh of **cohorts** advected along growth trajectories, with
-  a recruitment boundary and a death/transport term for density;
-- a **5-layer soil-water model (TF24)** driven by the rainfall and drawn down by the plants.
-
-Two downstream uses set the goals. **(1) Forward speed:** the patch is run very many times (community
-assembly, calibration, sensitivity); target scenarios are long (**~70 yr**), dynamic (multi-year
-drought + monsoonal bursts), and multi-species. **(2) Reverse-mode stability:** we take
-**reverse-mode gradients** of a scalar functional `J` (net offspring production, and calibration
-losses built on it) w.r.t. traits/parameters `θ`, via an operator-overloading AD tape (XAD) that
-records the integration; the gradient must stay trustworthy over those same long, dynamic scenarios.
-Both goals are relative to **the accuracy the science needs** — the tolerance at which `J` and
-`dJ/dθ` are converged — not the tightest tolerance the integrator can reach.
-
-### A.2 State layout
-
-The ODE state `y ∈ ℝ^N` is `[ cohorts (per species) | soil ]`:
-
-- **Cohort block, M cohorts (per species).** Each cohort is one node of the SCM characteristic mesh,
-  carrying `(height, log_density, cumulative_offspring, …)` = strategy state + 2. **M grows over a
-  run:** cohorts are **introduced on an adaptive schedule** (new recruits enter at the bottom size
-  boundary) and the mesh is refined until each cohort's contribution to competition/output is within
-  `schedule_eps`. Realistic stands reach **M ≈ 50–800** (per species). The cohort size coordinate is
-  ordered; **`log_density` is highly skewed on evolved stands** — mass concentrates in a few cohorts,
-  and many cohorts have `log_density → −∞` (density → 0) yet remain in the mesh to resolve the
-  trajectory.
-- **Soil block, L = 5 (+4).** 5 soil-water contents `θ_i` (one per layer), plus 4 **cumulative-flux
-  auxiliaries** that are pure diagnostics (they integrate outgoing fluxes; nothing reads them back),
-  so the dynamically-coupled fast block is **L = 5**.
-
-### A.3 Dynamics and the two couplings
-
-There are **two distinct couplings**, on different timescales and cost classes. Prior rounds modelled
-only the first.
-
-**(i) Cohort → soil (the expensive, state-dependent coupling): root-water uptake.**
 ```
-dθ_i/dt = ( infiltration_i(t) − drainage_i(θ) − uptake_i(cohorts, θ) ) / dz_i
-drainage_i(θ) = K_sat (θ_i/θ_sat)^(2 n_ψ+3),  exponent ≈ 16.1   (K_sat=163, n_ψ=6.57)
-ψ_i(θ)        = a_ψ (θ_i/θ_sat)^(−n_ψ),        exponent ≈ −6.57  (diverges as θ→θ_res; clamped at 1000)
-uptake_i(cohorts, θ) = (1/area) Σ_{j=1}^{M} density_j · consumption_i(cohort_j, θ)
+p_j*     = argmax_p P(p ; x_j, u, s(x)),   fixed-iteration derivative-free bracketing search
+ẋ_j      = g(x_j, u, s(x), p_j*)                                   j = 1..M
+a_ℓ(x,u) = Σ_{j=1}^M ρ_j · c_ℓ(ξ_j, u, p_j*),   ℓ = 1..L          (channel 1: x → u, expensive)
+u̇_ℓ      = b_ℓ(u,t) + [inter-component transfer in u] − a_ℓ(x,u)
+s(x)     = cheap low-dimensional aggregate of the whole large block (channel 2: x → x)
 ```
-Everything in the soil rate except `uptake` is O(1) per layer and cheap; drainage/matric *look* stiff
-(exp≈16, near-singular at the dry end) but are measured **not** to be the step-limiter (Part B).
-`consumption_i(cohort_j, θ)` — the transpiration cohort j pulls from layer i — is a **per-cohort
-hydraulic + carbon-optimisation solve**: given ψ(θ), solve leaf/stem water balance along a hydraulic
-vulnerability curve, and find the **root-collar potential maximising carbon profit**,
-`p_j* = argmax_p profit(p; cohort_j, θ)`. The argmax is a **deliberately fixed-iteration
-golden-section search** (chosen over Brent so `p_j*` is a *smooth, fixed-iteration* function of its
-inputs, because the demographic gradient differentiates through it). So `uptake` is an **O(M) sum of
-expensive per-cohort argmax solves**, depending on the live soil state θ.
 
-**A boundary in (cohort, θ) space — leaf shutdown.** When soil dries enough that stem potential would
-cross `ψ_crit`, the leaf **shuts down**: transpiration and `consumption_i` drop to zero
-(`E_up_ = 0`). Which cohorts are shut down depends on both the cohort (taller/older cohorts hit it
-first) and θ — a moving, non-smooth **interior boundary in the cohort–soil product space**. It is
-crossed repeatedly during drought as layers dry and re-wet.
+- **Channel 1 (`a`, x→u): expensive, `u`-dependent, an O(`M`) byproduct.** `ξ_j` is an **ordered
+  scalar member coordinate** (a component of `x_j`); `ρ_j ≥ 0` a per-member weight; `a` is a
+  **density-weighted quadrature** `∫ c(ξ,u,p(ξ)) ρ(ξ) dξ`. Each `c_ℓ(ξ_j,u,p_j*)` is a **byproduct of
+  the same per-member solve** that yields `ẋ_j`, so obtaining `a` costs the full O(`M`) solve set, and
+  `a` at a new `u` (`x` held) still requires re-running the `M` solves.
+- **Channel 2 (`s(x)`, x→x): cheap, size-only.** The large-block rates `ẋ_j` read a single
+  low-dimensional aggregate of the whole large block (cost flat in `M`); it is an all-to-all coupling
+  *among the members* through a cheap summary, carrying no `u`-dependence. In the decomposition it is
+  frozen once per macro leg.
+- **The inner control `p_j*` is an argmax**, solved by a **deliberately fixed-iteration** derivative-
+  free bracketing search (not Newton/Brent) so that `p_j*` is a *smooth, fixed-iteration* function of
+  its inputs — required because the tape differentiates through it. `∂P/∂p` is available **exactly**
+  (IFT).
+- **Per-member cost (consistent units):** `u`-dependent setup ≈ 11 (measured cacheable per leg, not
+  per `u`); one objective eval (setup done) ≈ 4.6; full argmax ≈ 21. The `ẋ_j` require **all `M`**
+  member solves regardless of how `u` is advanced — a floor common to every scheme.
+- **The step-controller collapse is accuracy-driven, not stability-driven** (`corr(logΔt,logd) =
+  −0.91`); global explicit RK reaches a **converged `J` at modest tolerance and cost**, and only fails
+  ~3 decades past `J`-convergence at a near-kink wall (cleared by shrinking `h_min` → a resolution
+  limit, not a stability limit).
+- **`J` is ~10× hypersensitive:** a coupling error of `x`% shows up as ~`10x`% in `J`, with ~23%
+  spread between independently-converged schemes at large `M`. Approximate schemes must be judged in
+  **`J`-units, not `u`-units**.
+- **Refuted as step-enlargers (measured, prior rounds):** QSS reduction of `u`; held/slow-refreshed
+  coupling (the true fast Jacobian of `u` includes `a`'s `u`-dependence, so `a` must live inside the
+  fast dynamics).
+- **The adjoint of the inner solve is not available by differentiating the RHS.** Because the inner
+  argmax is fixed-iteration-for-smoothness and the member solve is not built at the tape's scalar
+  type, `∂c/∂u` for the adjoint is supplied by an **envelope-theorem finite difference at fixed
+  `p_j*`** (at the argmax `∂P/∂p* = 0`, so `p*`'s motion contributes nothing to first order). **A full
+  forward-mode Jacobian of `f` in the tape scalar cannot be formed** — the per-member solve is
+  deliberately not an AD citizen.
 
-**(ii) Cohort → cohort (the cheap, size-only coupling): light competition.** Cohorts shade one
-another: a cohort's carbon assimilation depends on the light it receives, which is set by the leaf
-area of all taller cohorts — a **light field** `compute_competition(height)`, an integral over the
-cohort size distribution. This aggregate is **cheap** (a size integral, no per-cohort physiology
-re-solve) and is **frozen once per macro leg** in the decomposition (rebuilt when the cohorts move).
-It is a second all-to-all cohort coupling, but through a low-dimensional summary, not θ.
+## What we built since, and measured on the real *evolving* system (the payload; some of it refutes the above)
 
-**Cohort rates (the O(M) cost).**
-```
-dheight_j/dt      = growth(cohort_j, θ, light_field, p_j*)
-dlog_density_j/dt = −mortality(cohort_j, …) − ∂growth/∂height        (MvF transport term)
-dcohort_offspring_j/dt = fecundity(cohort_j, …)
-```
-Each cohort rate needs the **same expensive per-cohort physiology solve** that produced `p_j*` and the
-uptake. **95–100% of one full RHS evaluation is the M cohort solves.** New cohorts enter at the
-recruitment boundary; `∂growth/∂height` is the density-transport term (its evaluation is where the
-solution can develop sharp features as fast growers pull away).
+All numbers are on the **full coupled system with the large block evolving** (members inserted/refined
+on an adaptive schedule during the run) under a realistic kinked `b(·,t)` — **not** a surrogate and
+**not** a frozen-large-block window. Prior rounds' quantitative claims were largely measured on frozen
+`x` windows or a reduced surrogate; that is the gap this round closes.
 
-### A.4 Timescales and events
-
-- **Soil θ:** responds to rainfall pulses on a **days** scale; fastest at the wet end (large
-  `|drainage'|`) and near θ_res.
-- **Cohorts:** heights/densities evolve over **years**; the stand matures over decades.
-- **Sub-day events:** the per-cohort argmax is non-smooth in θ; cohort introductions and mesh
-  refinements are schedule events; leaf-shutdown boundary crossings are θ-driven. These isolated
-  non-smoothnesses (not the smooth stiff drainage) are what force the controller to h ~ 1e-9 yr
-  (~0.03 s) at scattered points.
-
-### A.5 Measured cost and convergence structure (neutral facts)
-
-- **Per-RHS cost is O(M)** (the cohort solves); the soil rate and the light field are negligible by
-  comparison.
-- **Wall time scales ~M^1.4** with node volume: at τ=1e-6, N=81 → 25 s / ~13.1k RHS evals;
-  N=324 → 183 s / ~23.9k evals. (RHS-eval count grows ~M^0.4; per-eval cost O(M).)
-- **`J` converges at modest tolerance:** bit-stable offspring by τ≈1e-5–1e-6; tightening to 1e-8 buys
-  no change in `J` and only hits a near-kink "wall" (cleared by shrinking h_min — a resolution limit,
-  not a stability limit) at ~47× the cost.
-- **`J` is ~10× hypersensitive:** a coupling/soil error of x% appears as ~10x% in `J`, with ~23%
-  spread between independently-converged schemes at large M. Approximate schemes must be validated in
-  **J-units**, not θ-units.
-- **AD tape:** reverse mode is record→replay (an adaptive double pass fixes the step schedule; an
-  active pass replays it), so **adjoint cost tracks accepted steps**; the per-cohort physiology and
-  the argmax are on the forward tape (via the envelope-FD leaf seam, A.6).
-
-### A.6 The AD design (a hard constraint on what is differentiable)
-
-On the reverse-mode branch `Patch<T,E>` is templated on the strategy scalar, **but by explicit design
-the embedded `Leaf` hydraulic model stays `double` and TF24 has *no* `rebind<U>()`.** The leaf's
-θ/parameter sensitivity reaches the tape via a `supplied_derivative` **seam computed by finite
-differences at *fixed* collar-ψ**, which the **envelope theorem** makes first-order exact (at the
-argmax, d(profit)/dp\* = 0, so the argmax's own motion contributes nothing to first order — this
-avoids differentiating through the golden-section search). **Consequence:** a full forward-AD Jacobian
-of the RHS (what a Rosenbrock/RODAS method needs) **cannot be formed on TF24** — the leaf is
-deliberately not an AD citizen; finite-difference or envelope-FD are the only routes to `∂uptake/∂θ`.
-
-### A.7 The scenarios that stress the system
-
-- **Rainfall:** an AR(1) log-annual multiplier drives a seasonal wet/dry two-state Markov process
-  with gamma-distributed daily intensities — realistic multi-year droughts and monsoonal bursts, with
-  kinks at every rain event. Semi-arid and monsoon variants give near-identical step counts
-  (~13k at τ=1e-6): storm intensity is not the discriminating stressor.
-- **Horizon:** target ~70 yr (mature, deep-mesh stands most of the run).
-- **Multi-species:** several species, each with its own cohort mesh, sharing the soil (via uptake)
-  and the light field (via competition) — M multiplies across species.
-
----
-
-## Part B — What is now MEASURED on the real evolving system (vs previously assumed)
-
-All numbers below are on the **real coupled `Solver<Patch<TF24,TF24_Environment>>`**, evolving
-cohorts, realistic drought rainfall — **not** a surrogate, **not** a frozen-cohort window.
-
-1. **The step is accuracy-limited, not stability-limited — now proven on the coupled patch.** We
-   built a single-step **IMEX**: implicit (RODAS4 + finite-difference Jacobian restricted to the 5
-   soil states) on the soil block, explicit on the cohorts. On a 3-yr drought:
-   | tol | rkck evals / wall | IMEX evals / wall | IMEX vs rkck |
+1. **Making the small block implicit makes it *worse* — refuting the localisation of the collapse to
+   `u`.** We built a single-step linearly-implicit (Rosenbrock/RODAS4) method with the Jacobian
+   **restricted to the small block `u`** (finite-differenced through the full RHS, so `a`'s
+   `u`-dependence is captured), explicit on `x`, one global step. On a representative episode:
+   | tol | explicit RK: RHS-evals / wall | implicit-`u`: RHS-evals / wall | ratio |
    |---|---|---|---|
-   | 1e-4 | 4 629 / 8 s | 100 557 / 452 s | 21.7× more evals, correct (off.rel 3.6e-2) |
-   | 1e-5 | 8 859 / 15 s | 462 641 / 2180 s | 52.2× more evals, correct (off.rel 1.7e-3) |
-   IMEX is *accurate* but takes **more, smaller** steps, and the deficit **grows** as tolerance
-   tightens (21.7×→52.2×). Making the soil block implicit bought **negative** step enlargement
-   (~8–20× more accepted steps; only ~2.5× is Jacobian-FD inflation). This **refutes the hypothesis
-   that soil stiffness limits the step.** (Prior rounds' "accuracy collapse localised to u near
-   u_min" was measured on a hydrology-only/surrogate system.)
+   | 1e-4 | 4 629 / 8 s | 100 557 / 452 s | 21.7× more evals (correct: `J`-err 3.6e-2) |
+   | 1e-5 | 8 859 / 15 s | 462 641 / 2180 s | 52.2× more evals (correct: `J`-err 1.7e-3) |
+   It is *accurate* but takes **more, smaller** steps, and the deficit **grows** as tolerance tightens
+   (21.7×→52.2×). ~8–20× of that is more accepted steps (only ~2.5× is Jacobian-FD inflation). **An
+   implicit treatment of `u` buys negative step enlargement** → the accuracy-driven collapse is **not
+   localised to `u`**; the step-limiting non-smoothness lives in the **large block `x`** (the argmax
+   control kink in `u`, member-insertion/refinement events, and the moving threshold below).
 
-2. **The accuracy wall is in the cohort layer, not the soil chart.** A reformulation of the soil state
-   variable (log-depletion chart ζ = ln(θ−θ_res)) was **neutral**: full-resolution multirate is
-   already ~24% off plain RK on an evolved stand **before any coupling reduction**, and that error is
-   intrinsic to under-resolving the **cohort** layer on the macro grid. A soil-side change cannot move
-   a cohort-layer error.
+2. **Reformulating the small block's coordinate is neutral; the accuracy limit is in resolving `x` on
+   the macro grid.** Re-charting `u` to remove its near-singular self-loss (`u ← ln(u−u_min)`) leaves
+   `J` unchanged. And the decomposition at **full** coupling (no member reduction) is already **~24%
+   off** the tight single-rate reference on an evolved large block — before any approximation — an
+   error intrinsic to advancing `x` across the macro step, not to `u` or the coupling.
 
-3. **Collocation over cohorts degrades badly on evolved stands.** Reducing the uptake sum to m nodes
-   by subsampling the evolved cohort set: **m=20 → ~296%, m=40 → ~116%** error on a 15-yr evolved
-   stand — vs <0.5% at m≈15–20 on a frozen snapshot / prescribed set. The evolved density measure is
-   skewed and the integrand develops interior kinks (the leaf-shutdown boundary), so subsampling
-   misses the mass. *(A round-4 proposal — integrate the density exactly over all M, reduce only the
-   smooth integrand — was never built or tested on real evolved stands.)*
+3. **The decomposition's mechanics work but it does not beat global RK on the evolving system.** The
+   macro/micro partition cuts *large-block* evaluations ~7.6×, but each micro step of `u` re-pays the
+   O(`M`) coupling, so the sub-cycle is **slower** than global RK unless the coupling is reduced — and
+   the reduction is what fails next.
 
-4. **The O(M) cohort solves are irreducible for the cohort rates.** The cohort rates `ẋ_j` require all
-   M per-cohort physiology solves regardless of how the soil is advanced.
+4. **Member-reduction of the coupling degrades ~10²–10³ on the *evolved* member set** (confirms and
+   extends the prior "Probe C" at full scale). Truth = full-`M` coupling at the evolved state.
+   Reducing to `m` by subsampling the evolved members: `m=20 → ~296%`, `m=40 → ~116%` error, vs
+   `< 0.5%` at `m ≈ 15–20` on a prescribed/frozen set. The evolved weight profile `ρ(ξ)` is **highly
+   skewed** (mass in a few members; many have `ρ_j → 0`, `log ρ_j → −∞`), the `ξ_j` are placed by the
+   schedule to resolve `x(t)` **not** the integrand `c·ρ`, and `c(ξ,·)` develops **interior kinks**
+   from the threshold in (5) — so subsampling misses the mass and straddles the kinks.
 
-5. **The multirate partition works mechanically but does not win.** MRI-GARK cuts *slow* (cohort-leg)
-   evaluations ~7.6×, but each fast (soil) micro-step re-pays the O(M) uptake, so on the real system
-   MRI is **slower** than global RK unless the uptake is made cheap — and the cheapening (collocation)
-   is what fails on evolved stands (item 3).
+## Structural features — any may be load-bearing or incidental; we do not know which
 
-6. **Global explicit RK reaches converged `J` cheaply** and only fails ~3 decades past `J`-convergence
-   at a near-kink wall (resolution, not stability). At the accuracy the science needs, global RK is
-   already near-optimal on step count.
+The two coupling channels (`a`: x→u, expensive, `u`-dependent, O(`M`) byproduct; `s(x)`: x→x, cheap,
+size-only, `u`-independent); the inner argmax control `p_j*` (fixed-iteration for tape-smoothness;
+exact `∂P/∂p`); a **moving interior threshold in the integrand**: `c_ℓ(ξ,u,·)` is smooth on one side
+of a boundary in the `(ξ,u)` plane and identically zero on the other (a member "switches off"), the
+boundary moves with `u`, and different members cross it as `u` evolves — so the integrand `c·ρ` has
+state-dependent interior kinks; the **skewed, evolving weight profile `ρ`**; the member set placed by
+an adaptive schedule that resolves `x(t)`, not `c·ρ`; the near-singular closed-form self-loss of `u`
+at `u_min` (exponent `q ≈ 16`) with a positivity-preserving clamp; the kinked `b(·,t)`; a **timescale
+separation of ~10²–10³** between `u` (fast, forced by `b`) and `x` (slow) — yet the isolated
+non-smoothnesses (argmax kink, insertion events, threshold crossings) force the controller to steps
+~`10⁻⁹` of the horizon at scattered points; the single global step size; the large-block rates `ẋ_j`
+needing all `M` solves regardless; the per-member setup (≈11) cacheable per leg; the argmax not an AD
+citizen (adjoint via envelope-FD at fixed `p*`; no forward Jacobian of `f`); the ~10× amplification of
+coupling error into `J` and ~23% inter-scheme spread; the fact that global explicit RK already reaches
+converged `J` cheaply and only fails past it at a resolution wall; that all prior favourable
+measurements were on frozen-`x` windows.
 
----
+## Facts an answer can rely on
 
-## Part C — The corrected constraint characterisation (the crux)
+- `a(x,u)` is only obtainable via the `M` member solves; nonlinearly, non-separably `u`-dependent
+  (frozen/low-order-in-`u` surrogate refuted).
+- The `ẋ_j` require all `M` member solves regardless of how `u` is advanced — common to every scheme.
+- An implicit treatment of `u` is measured **20–50× worse** than global explicit RK, worsening with
+  tolerance; a full-`M` decomposition is ~24% off truth on an evolved `x` before any reduction.
+- Member-reduction of the coupling is `<0.5%` on a prescribed/frozen set but `25–279%` on the evolved
+  set; `J` amplifies coupling error ~10×.
+- A full-`M` evaluation of **both** channels is available free at every macro-stage boundary (the
+  frozen `x` is present).
+- No forward-mode Jacobian of `f` is available (the inner solve is not differentiable at the tape
+  scalar); finite-difference / envelope-FD are the only routes to `∂a/∂u`. The reverse-mode adjoint
+  cost tracks accepted steps.
+- A documented, controlled change of discretisation is acceptable if the forward solution and the
+  reverse-mode gradient stay correct.
 
-Combining B.1–B.6 with A, the binding constraints are **both in the cohort block**, which every prior
-scheme treated as the block to *freeze and take big steps on*:
+## Questions (open; please rank the features and reject the framing if the data warrant)
 
-- **Cost:** 95–100% of every RHS eval is the M cohort physiology solves, needed for `ẋ_j` regardless
-  of the integrator (B.4). The soil block the whole program targeted is cheap.
-- **Accuracy / step count:** the step is set by the cohort layer — the per-cohort argmax
-  non-smoothness in θ, cohort-introduction/refinement events, and leaf-shutdown boundary crossings —
-  **not** by soil stiffness (B.1, B.2); implicit-on-soil makes it *worse* (B.1).
-- **Reducibility on the target regime:** the coupling-cheapening that would help (collocation over
-  cohorts) **fails on the evolved, skewed cohort distribution** (B.3) — exactly the regime the 70-yr
-  multi-species target lives in.
-- **All prior validation (E1–E4) was on frozen-cohort windows**, where the coupling *is* a smooth
-  m-quadrature and the cohort layer contributes no step-limiting events. That is where the program
-  works, and it is not the target regime.
-
-So the fast/slow **state** split is genuine (5 soil vs M cohorts; days vs years), but the program's
-lever (sub-cycle the small block, freeze the large one) is aimed at the cheap, well-behaved block,
-while cost and accuracy both live in the block it freezes.
-
----
-
-## Part D — Questions
-
-We deliberately propose no scheme. From Parts A–C:
-
-1. **Is there any integration/decomposition strategy that beats global explicit RK at converged `J`
-   on the *evolving* system — or is the honest verdict that the integrator is not the lever?** If a
-   strategy can win, name it, the **block it acts on**, and the property of the real system (Part A)
-   it exploits that we have missed.
-2. **Was the fast/slow axis assigned to the wrong block?** The program sub-cycled the cheap soil block
-   and froze the expensive cohort block. Given that all M cohort solves are needed per step anyway
-   (B.4), is any gain on the **cohort** side even possible — or does the O(M)-solve floor foreclose
-   it?
-3. **The cohort-layer step limit (B.1, A.4):** is it dominated by *removable* non-smoothness (the
-   argmax kink, introduction/refinement events, shutdown-boundary crossings) or by *genuine* fast
-   solution structure any same-order method must resolve? What cheap measurement separates these on
-   the real system?
-4. **Two couplings, two characters:** cohort→soil uptake is O(M), state-dependent in θ, and carries
-   the shutdown boundary; cohort→cohort competition is a cheap size-only aggregate. Does exploiting
-   their difference change anything — or is the light coupling a red herring for cost/accuracy?
-5. **`J`'s 10× amplification with the cohort-layer wall and skewed density:** does the combination
-   forbid *any* approximate-cohort scheme on the gradient path, or is there a form whose `J`-error
-   stays within budget on evolved stands?
-6. **Which measured fact in Part B is load-bearing for the verdict, and which is incidental?**
-7. **What are we missing?** A structural simplification, a hidden cost, or an assumption in our
-   framing (e.g. that the cohort mesh must be resolved to the current `schedule_eps`, that `J` must be
-   taken as given rather than reformulated to be less sensitive, that the leaf must remain a non-AD
-   `double` seam, that a single global step size is required) that the data quietly contradict.
-
----
-
-## Part E — Facts an answer can rely on, and cheap discriminating experiments
-
-**Rely on:** global RK reaches converged `J` at modest tolerance and cost; the M cohort solves are
-required for `ẋ_j` regardless of scheme; implicit-on-soil is measured 20–50× worse; collocation on
-evolved stands is measured 25–279% off; a full-M coupling *and* light-field evaluation is available
-free at every macro-stage boundary (the frozen cohort block is present); the leaf is deliberately a
-`double` FD seam (no forward-AD Jacobian on TF24); `J` amplifies coupling error ~10×; the reverse-mode
-adjoint cost tracks accepted steps.
-
-**Cheap experiments available before building anything:**
-- **On recorded evolved stands**, measure the accepted-step **count** for global RK with cohort
-  introductions/refinements event-aligned vs not, and with the argmax replaced by the already-existing
-  TF24f *tracked* collar-ψ control — does the step count fall? (Isolates removable non-smoothness from
-  genuine structure.)
-- **On a saved evolved mature state**, compare uptake reconstructions (any candidate the Oracle
-  names) against the full-M aggregate, errors propagated to a `J`-proxy — no solver code.
-- **Profile the per-cohort physiology kernel** with the θ-independent setup cached — what constant
-  factor is actually available on the O(M) floor?
+1. **Given that both the dominant cost (all `M` member solves) and the accuracy limit (the step
+   collapse) live in the large block `x` that the decomposition freezes — while the small block `u`
+   the decomposition sub-cycles is cheap and, measured, not the limiter — is a fast/slow split on this
+   `(x,u)` axis the right frame at all?** If a decomposition can still beat global explicit RK at
+   converged `J`, name it, the **block it acts on**, and the structural property it exploits that we
+   have missed. If not, say so.
+2. **Is the accuracy-limiting non-smoothness in `x` removable or intrinsic?** It comprises the argmax
+   control kink (in `u`), the adaptive member-insertion/refinement events, and the moving interior
+   threshold where members switch off. Which of these is a *representational* artefact (an event to be
+   handled, a control to be tracked as a differential state rather than an argmax, a boundary to be
+   split at) versus *genuine* fast solution structure any same-order method must resolve? What cheap
+   measurement separates them?
+3. **Do the two channels' different characters offer any leverage** — e.g. large implicit/exponential
+   steps on the slow large block while the cheap small block rides along — or does the "all `M` solves
+   per step" floor foreclose any large-block-side integrator gain, making constant-factor per-solve
+   reduction the only remaining lever?
+4. **Does the ~10× `J`-amplification, combined with the skewed evolving `ρ` and the interior kinks,
+   forbid *any* approximate-`x` scheme on the gradient path** — or is there a defect-corrected/anchored
+   form (a full-`M` evaluation is free at macro boundaries) whose `J`-error stays in budget on the
+   evolved set?
+5. Which measured fact is **load-bearing** for the verdict, and which is incidental?
+6. **What are we missing?** A structural simplification, a hidden cost, or an assumption in our framing
+   — that the member mesh must be resolved to its current schedule tolerance, that `J` must be taken as
+   given rather than reformulated to be less sensitive, that the inner solve must stay non-differentiable,
+   that a single global step size is required — that the data quietly contradict.
+7. A **cheap discriminating experiment** for whatever strategy you judge best — before we build it.
