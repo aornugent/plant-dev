@@ -169,6 +169,15 @@ Two facts, both measured this session; the PRIOR handoff claim that pinning
    (so NOT reproduction/census, NOT field-at-0); **`freeze_query` irrelevant** (NOT the
    field's query-height channel). It lives in FF16's coupled **self-shading light →
    growth feedback** (single-plant fixed-light is exact; the bug needs the coupling).
+   **Per-cohort localisation** (`ff16_cohort_height_tangents`, forward-mode
+   `d(height_i)/d(lma)` vs per-cohort FD): FD is smooth and coherent across cohorts
+   (tallest ≈ −8.6 uniformly), but **every** cohort's AD tangent is wrong, worst in the
+   understory (|gap| in the shortest 25% ≈ 10875 vs tallest 25% ≈ 273) — even the
+   emergent, near-unshaded tallest cohort is off (AD −1.4 vs FD −8.6). So it is a
+   **broad, systematic mis-propagation through the shared coupled field**, not a single
+   localised term. **Tested and RULED OUT:** birth-height / `prepare_strategy` staleness
+   (re-running `prepare_strategy()` in `Patch::reset()` — mirroring IndividualRunner —
+   did NOT close the gap; reverted). Still open.
    The code computes an analytically wrong derivative that FD catches by perturbation —
    i.e. a `to_passive`/dropped-term somewhere on the light-feedback → growth path that
    was not found by inspection (checked: field rank boundary = `Q(1)=0` so zero; source
@@ -192,14 +201,21 @@ only). NOTE: this entry would have structurally prevented the whole default-L0 s
 
 ## CONCRETE NEXT STEPS (in order; the user directs the build)
 1. **Find + fix the FF16 reverse-AD dropped-derivative bug (THE blocker for a correct
-   FF16 gradient).** It is δ-independent, fwd==rev, pure-growth, coupling-only,
-   `freeze_query`-irrelevant. Approach: instrument the light-feedback → growth path for
-   a `to_passive`/double-typed intermediate whose value changes under an `lma`
-   perturbation (that is what FD sees and AD drops). The `freeze_field` knob (whole
-   optical depth → passive) confirms the feedback channel is large and wrongly computed;
-   bisect within it (source cumulative vs the assimilation-from-light path). Consider a
-   single-step reverse-vs-FD probe on a *coupled* 2–3-cohort state (the existing
-   `ff16_feedback_probe` froze the field, so it missed this — un-freeze it).
+   FF16 gradient).** δ-independent, fwd==rev, pure-growth, coupling-only,
+   `freeze_query`-irrelevant, and per-cohort **broad + understory-worst** (see the
+   corrected finding). RULED OUT: schedule, replay grid, query channel, static field
+   read, birth-height/`prepare_strategy` staleness. Best remaining leads, in order:
+   (a) **Verify the active replay actually recomputes the field each step** — does
+   `advance_fixed` drive `Patch::set_ode_state(it, time)` (the recompute overload,
+   `has_recorded_field()==false`) at every step/stage, or is the field computed once at
+   `reset()` and reused with a stale derivative? A field whose VALUE updates but whose
+   DERIVATIVE is severed after step 0 would give exactly this broad, understory-worst
+   pattern with an exact value. Instrument `d(A(z))/d(lma)` (forward tangent) at a fixed
+   height across steps. (b) **`ff16_cohort_height_tangents`** already localises per
+   cohort; extend it to dump the tangent of the light each cohort reads mid-run to find
+   the step where the tangent dies. (c) Un-freeze `ff16_feedback_probe` on a coupled
+   2–3-cohort state (it froze the field, so it missed this). The `freeze_field` knob
+   confirms the feedback channel is large and wrongly computed.
 2. **Build the run-shaped gradient entry (R2 / DX, committed design).** SCM method + R
    `run_scm` mode owning refine→resolved-replay + a functional; fold the standalone
    `k93_scm_census_driver.cpp` / `ff16_scm_gradient_driver.cpp` into it. Orthogonal to
