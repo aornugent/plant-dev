@@ -123,132 +123,104 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 ---
 
+
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-19 (FF16 diagnosis corrected: no schedule sensitivity; open
-reverse-AD dropped-derivative bug in coupled growth)._
+_Last updated: 2026-07-19. This session: root-caused the FF16 gradient bug to the density-transport
+derivative; converged (design + two Oracle consults) on the **transport-log-mass chart (P1e-λ)** as the
+one fix for stability+correctness+performance; began the build and surfaced the **Δx-consistency**
+requirement. Trees clean: superrepo `646dad2`, plant `e9d77c1d`, odelia `67793a5` (installed==HEAD)._
 
-## Where things stand
-- **odelia engine:** the full documented AD surface is on the branch (28 commits ahead
-  of master), installed and **synced** (installed headers byte-identical to HEAD
-  `67793a5`): gradient driver (`compute_jacobian`/`gradient`/`jvp`), `separable_field`,
-  `implicit_node`, `incomplete_gamma`, `decide`/value-guards, `mass_transport`,
-  `supplied_derivative`, RODAS, Solver L1 record/replay. No odelia work is pending for
-  the immediate task.
-- **plant P2a (K93):** DONE and correct. K93 reads its deep-crown light from the exact
-  `separable_field`; census and offspring/R0 gradients match the adaptive FD; the
-  redundant light spline is dropped on the K93 path. All K93 double suites green.
-- **plant P2b (FF16):** the exact `separable_field` is integrated for FF16's deep-crown
-  light (double path within tol, all double suites green). Its R0 gradient is **still not
-  correct** — the cause is now precisely characterised (below): a genuine reverse-AD
-  dropped-derivative bug in FF16's coupled self-shading growth, NOT schedule sensitivity
-  and NOT a replay-grid choice.
-- **Trees:** clean. Superrepo HEAD `b2a8879` (plant submodule at `7f159f3d`); odelia
-  `67793a5`, installed and synced.
+## THE HEADLINE (read this first)
+The FF16 gradient bug, the #550 density runaway, and the value/gradient tension are **one thing**: the
+landed transport scheme carries **log-density ℓ** and computes the compression `C = ∂ₓg`. The fix — which
+`design.md §88` ("the representation guarantee") ALREADY specifies and two independent Oracle consults
+confirmed — is to transport **log-mass `λ = ℓ + log Δx`** instead: `dλ/dt = −r`, the compression cancels
+identically (never computed), `λ` is monotone (no overflow), no numerical `∂ₓ` on the tape (no severance,
+correct gradient). One scheme for all strategies. **This is P1e-λ; it is the current work.**
 
-## The corrected finding (2026-07-19; supersedes the earlier "r_ode_times fixes it" claim)
-Two facts, both measured this session; the PRIOR handoff claim that pinning
-`r_ode_times()` yields `+4.2` was **REFUTED** and is retired.
+## What is SETTLED (with evidence)
+- **FF16 R0 gradient root cause = the dropped density-transport derivative.** `Node::growth_rate_gradient`
+  returns a bare `double` on the active pass (the FD-stencil compression's θ-derivative is *severed*); the
+  competition field's source weight is density-weighted, so the missing derivative corrupts `d(field)/dθ`
+  and every coupled gradient. Routing the transport derivative through odelia's mass chart made reverse AD
+  match the adaptive FD (FF16 `d(offspring)/d(lma)` ratio **0.995–0.999**). This is the Oracle's **C1**
+  verbatim (`oracle-ad-design-consultation.md`), and R1 (mass chart) is the fix.
+- **NOT schedule sensitivity / NOT a replay-grid bug.** Earlier session claims ("r_ode_times fixes it →
+  +4.2") were REFUTED by direct measurement (adaptive-FD ground truth = +4.2; frozen replay on the
+  *resolved* schedule = +4.2 in double; the driver's r_ode_times replay gave +729). The correct frozen
+  replay is the **resolved** schedule (L0 `node_schedule_times` + L1 `ode_times` from
+  `run_scm(refine_schedule=TRUE)`) — no schedule sensitivity. That correction is committed in the FF16
+  driver/test and the RULES section of PART 1.
+- **#550 is the SAME underlying cause, not a similar symptom.** #550 (TF24, extreme-drought density
+  runaway; closed by PR #552 which added ONLY the `Patch::check_finite_ode_state` guard, deferring the
+  real fix to #551/#517) and the FF16 mass-chart overflow both hit the same guard, the same equation
+  (`d(log_density)/dt = −∂ₓg − mortality` spiking → overflow), the same symptom. Reproduced #550 directly
+  (`test-strategy-tf24.R` config). Difference is only discretisation+trigger: #550 = model-side steepness
+  overwhelming the stable upwind stencil (deferred #551/#517); FF16-on-mass-chart = the centred scheme
+  unstable at the `g=0` growth-shutoff where the upwind stencil is stable. **The log-mass chart removes it
+  by construction** (`λ` monotone), for FF16; #550's model steepness stays #551/#517.
+- **The landed P1e is only HALF the design.** `odelia::log_density_rate` transports `ℓ` and computes `C`
+  (realises only the reduction-level cancellation). K93 is stable+gradient-correct on it ONLY because its
+  growth is monotone (no stalls) — it is the benign case, **not** "the correct chart" (a correction I made
+  this session: K93 uses the incorrect log-density chart, just non-pathologically).
+- **Seed decision:** newborn mass seed = **option A** (reproduce birth density `λ₀ = ℓ₀ + log Δx₀`,
+  minimal re-baseline). Option B (flux×interval, `m₀ = birth·estab·Δt_insert`, the Oracle's "natural"
+  choice) filed as **aornugent/plant#59** for follow-up.
 
-1. **There is NO schedule sensitivity.** Ground truth (adaptive `run_scm` FD) is
-   `d(offspring)/d(lma) = +4.2` (life 50, stable plateau). A *frozen* replay on the
-   **RESOLVED** schedule — both L0 `node_schedule_times` **and** L1 `ode_times` from
-   `run_scm(refine_schedule=TRUE)`, i.e. what `run_scm(use_ode_times=TRUE)` replays —
-   also gives `+4.24` **in double** (`scratchpad`/R-level, no AD). So frozen == adaptive
-   when the replay uses the resolved schedule. The old drivers were wrong because they
-   pinned **only L1** onto the **default (unrefined) L0** — an inconsistent schedule
-   giving a value-correct but derivative-wrong trajectory. (`r_ode_times()` alone is the
-   correct L1 *source* but is NOT sufficient; you need the resolved L0 too.)
-2. **A real reverse-AD dropped-derivative bug remains, schedule-independent.** On the
-   IDENTICAL resolved schedule, reverse AD `≠` the finite difference: e.g. metric=2
-   (pure growth, sum of heights), life 40, AD `−6299` vs resolved-FD `−1630`; life 25,
-   AD `+4902` vs FD `−3424`. Key properties: **δ-independent** (FD flat under a
-   3e-2→3e-5 step sweep, so NOT a kink — a genuinely dropped smooth derivative);
-   **forward AD == reverse AD** yet both `≠` FD (so it is a structural derivative error
-   in the *code*, not a tape/adjoint-accumulation bug); reproduces on **pure growth**
-   (so NOT reproduction/census, NOT field-at-0); **`freeze_query` irrelevant** (NOT the
-   field's query-height channel). It lives in FF16's coupled **self-shading light →
-   growth feedback** (single-plant fixed-light is exact; the bug needs the coupling).
-   **Per-cohort localisation** (`ff16_cohort_height_tangents`, forward-mode
-   `d(height_i)/d(lma)` vs per-cohort FD): FD is smooth and coherent across cohorts, but
-   **every** cohort's AD tangent is wrong. The largest gaps are **mid-canopy** cohorts
-   (heights 8–12, actively growing at rate ~0.2) where **FD ≈ small but AD ≈ large
-   negative (~−1300)** — i.e. **AD is SPURIOUSLY LARGE, not dropping a term.** It is
-   over-counting the coupled self-shading sensitivity, not severing it. **Tested and
-   RULED OUT:** (i) birth-height / `prepare_strategy` staleness (re-running
-   `prepare_strategy()` in `Patch::reset()` did not close the gap; reverted); (ii) the
-   `net_mass_production_dt>0` kink — NO cohort sits at it (all growth rates 0.03–0.45,
-   none ≈0; gap is 50/50 across slow/fast growers, corr with kink-proximity −0.27). The
-   field is reassembled with the active population every RK stage (`set_ode_state(it,
-   time)`→`compute_environment(true)`), and `density`/`height`/source-weights are all
-   active and fresh — so the spurious magnitude is NOT a stale/frozen value. Reframed
-   open question: **why does the reverse+forward AD assign a large coupled sensitivity
-   the finite difference does not see?** (An amplified/over-counted feedback in the
-   per-stage field reassembly on the tape is the current suspicion — e.g. the field
-   depending on state that the RK stage also feeds back, double-counted.) Still open;
-   two leading hypotheses refuted this session.
-   The code computes an analytically wrong derivative that FD catches by perturbation —
-   i.e. a `to_passive`/dropped-term somewhere on the light-feedback → growth path that
-   was not found by inspection (checked: field rank boundary = `Q(1)=0` so zero; source
-   cumulative weights are active; `initial_height_` is active; crown-integral bound is
-   the active focal height; `canopy_top` is only the unused spline cap).
-- **Tape memory:** reverse AD fits to ~life 40; **life 50 crashes** (out of memory on
-  the finer schedule). Full-lifetime needs checkpointing at the node-introduction
-  boundary (vendored `XAD::CheckpointCallback`, deferred).
-- **K93 unaffected** — smooth closed-form rates, no coupled-growth branch; all three
-  (AD / resolved-FD / adaptive-FD) agree, all gates green.
+## P1e-λ BUILD STATE — the Δx-consistency crux (the live blocker)
+A first implementation (log-mass state in `node.h`, `reconstruct_from_spacing(cohort_spacing)`, option-A
+newborn seed, delete the compression term; all `if constexpr strategy_supports_geometric_transport<T>` so
+non-geometric FF16-default/TF24 stay bit-identical) **compiled and ran** but K93 offspring came out
+**0.00958 vs the stencil 0.0753 (~8×)**. Root cause = **Δx inconsistency**: the view reconstruction used
+the chart's *centred* `odelia::cohort_spacing` `Δx=(h[i-1]−h[i+1])/2`, but `Species::compute_competition`
+(the self-shading integral, and the census/offspring reductions built on it) is a **trapezium** rule
+weighting by *adjacent gaps* `(h₁−h₀)` — so `density·(trapezium width) ≠ mass` and the `/Δx` doesn't
+cancel. **The Oracle's caveat made concrete: the mass chart is self-consistent only if ONE Δx
+(`cohort_spacing`) appears in transport, view, AND every Δx-weighted reduction.** WIP was reverted (tree
+clean); the log-mass state/view/seed structure is sound and reusable. Full write-up: `build-plan.md`
+P1e-λ "FINDING".
 
-## The design (system-design skill; Tier 2; floor wins — committed in build-plan)
-Still valid and orthogonal to the adjoint bug above (the bug is in FF16's rate/field
-code, not the driver plumbing): make adding a gradient map onto the run workflow —
-a run-shaped gradient entry (C++ `SCM` method + R `run_scm` mode) that owns
-adaptive-**refine**-record → resolved-schedule replay and takes a functional, so a
-caller can neither hand in a schedule nor pick the wrong (default-L0) one. Mostly
-reuse + deletion: `run_scm(refine_schedule + use_ode_times)` already does the correct
-record→replay. Retire `save_RK45_cache`/`step_history` off the resident path (mutant L3
-only). NOTE: this entry would have structurally prevented the whole default-L0 saga.
+## CONCRETE NEXT STEPS (in order)
+1. **Reconcile the reduction quadrature with the chart (THE next task).** Make `odelia::cohort_spacing`
+   the single canonical `Δx`: rebuild `Species::compute_competition` (and the census/offspring reductions
+   built on it) to weight by `cohort_spacing`, not the trapezium adjacent-gap rule. This re-baselines the
+   double trajectory (larger than option A alone — a characterised, sanctioned shift). Then re-apply the
+   reverted log-mass changes (state/view/seed) and re-run K93: expect a clean characterised re-baseline
+   (NOT 8×), gradient still correct.
+2. **Opt FF16 onto the chart; confirm the overflow vanishes** (the M-trace `Σexp(λ)` bounded through the
+   `g=0` stall) and reverse AD == FD across coupling params. Gate on the Oracle predictions
+   (`oracle-response-transport-compression.md` §"Falsifiable predictions").
+3. **Re-bless demography snapshots** (K93 + FF16) to the single consistent chart — the user OK'd this
+   *if* the chart is stable+consistent ("consistency is worth re-blessing the demography snapshots").
+4. **R export/import/resume/`expand_state`:** the exported density slot is now `λ`; reconstruct on import;
+   audit `r_log_densities`. Re-gate the FF16 R0 test against the adaptive FD (bare `expect_equal`).
+5. **Then resume the port:** finish P2b (FF16 multivariate census), P2c (TF24 — also shares the coupled
+   feedback, so P1e-λ likely matters there), P2d (TF24f). The run-shaped gradient entry (map onto
+   `run_scm`, retire `save_RK45_cache`/`step_history`) is the DX deliverable once gradients are correct.
 
-## CONCRETE NEXT STEPS (in order; the user directs the build)
-1. **Find + fix the FF16 reverse-AD dropped-derivative bug (THE blocker for a correct
-   FF16 gradient).** δ-independent, fwd==rev, pure-growth, coupling-only,
-   `freeze_query`-irrelevant, and per-cohort **broad + understory-worst** (see the
-   corrected finding). RULED OUT: schedule, replay grid, query channel, static field
-   read, birth-height/`prepare_strategy` staleness. Best remaining leads, in order:
-   (a) **Verify the active replay actually recomputes the field each step** — does
-   `advance_fixed` drive `Patch::set_ode_state(it, time)` (the recompute overload,
-   `has_recorded_field()==false`) at every step/stage, or is the field computed once at
-   `reset()` and reused with a stale derivative? A field whose VALUE updates but whose
-   DERIVATIVE is severed after step 0 would give exactly this broad, understory-worst
-   pattern with an exact value. Instrument `d(A(z))/d(lma)` (forward tangent) at a fixed
-   height across steps. (b) **`ff16_cohort_height_tangents`** already localises per
-   cohort; extend it to dump the tangent of the light each cohort reads mid-run to find
-   the step where the tangent dies. (c) Un-freeze `ff16_feedback_probe` on a coupled
-   2–3-cohort state (it froze the field, so it missed this). The `freeze_field` knob
-   confirms the feedback channel is large and wrongly computed.
-2. **Build the run-shaped gradient entry (R2 / DX, committed design).** SCM method + R
-   `run_scm` mode owning refine→resolved-replay + a functional; fold the standalone
-   `k93_scm_census_driver.cpp` / `ff16_scm_gradient_driver.cpp` into it. Orthogonal to
-   step 1 but prevents the default-L0 class of bug structurally.
-3. **Re-gate the FF16 R0 test** (currently `expect_failure` on AD≠FD at life 40, value
-   exact): once step 1 lands, flip to a real `expect_equal` against the resolved-schedule
-   FD (== adaptive). Also route the K93 driver through the resolved schedule for symmetry
-   (K93 already correct, but should not depend on the default-L0 path).
-4. **Retire the legacy replay path (R4).** `save_RK45_cache`/`step_history` off the
-   resident/gradient path (mutant L3 only).
-5. **Then P2b finish** (FF16 multivariate census LAI/biomass/basal-area), **P2c** (TF24),
-   **P2d** (TF24f). NOTE: TF24 (P2c) shares FF16's coupled-feedback structure, so the
-   step-1 fix likely matters there too.
+## KEY DOCS (read for the full argument)
+- `docs/oracle-consultation-transport-compression.md` — the standalone elicitation (domain-clean; the
+  compression-term problem stated neutrally).
+- `docs/oracle-response-transport-compression.md` — the Oracle's answer (transport log-mass; the identity;
+  the 4 falsifiable predictions; the reformulation stated completely).
+- `docs/oracle-consultation-index.md` §"Round 3" — C1/R1 confirmed + the value-stability limit = #550.
+- `docs/build-plan.md` P1e-λ block — the touch-point map, the ordering constraint (`patch.h`
+  reconstruction between state-load `:807` and `compute_environment` `:818`), and the Δx-consistency
+  FINDING.
+- `docs/design.md §88` — "the representation guarantee" (odelia transports one canonical log-mass chart;
+  model expresses in log-density via read-side views; the design this whole session re-derived).
 
-## Key files
-- Design/plan: `docs/build-plan.md` (phased plan + the CD-G root-cause/design log),
-  `docs/design.md`, `docs/odelia-index.md`, `odelia/AUTODIFF.md`.
-- odelia engine: `odelia/inst/include/odelia/{gradient,ode_solver,separable_field,
-  implicit_node,incomplete_gamma,mass_transport,decide}.hpp`.
-- plant SCM/AD: `plant/inst/include/plant/{scm,patch,node,species}.h`,
-  `plant/inst/include/plant/models/{ff16,k93}_{strategy,environment}.h`,
-  `plant/inst/include/plant/{canopy_shape,competition_field?}.h` (note:
-  `competition_field.h` was a reverted experiment — the field lives inline in the
-  environments).
-- Gradient drivers/tests (to be folded away): `plant/tests/testthat/{k93_scm_census_driver,
-  ff16_scm_gradient_driver}.cpp` + their `test-ad-*.R`; isolation probes
-  `ff16_single_rate_probe.cpp`, `ff16_feedback_probe.cpp`, `field_crown_probe.cpp`.
+## KEY FILES (plant)
+- `inst/include/plant/node.h` — the transported state (`log_density`→`log_mass_` on the chart);
+  `compute_rates` (delete `growth_rate_gradient` from the geometric branch → `dλ/dt=−mortality`);
+  `set/ode_state`; the density-view reconstruction; the newborn seed.
+- `inst/include/plant/species.h` — `compute_rates` (delete the `log_density_rate` compression block);
+  **`compute_competition` (the trapezium integral to rebuild on `cohort_spacing`)**; `reconstruct_densities`;
+  `seed_newborn_log_mass`; `introduce_new_node`.
+- `inst/include/plant/patch.h` — `compute_environment` (reconstruction pass at top, before the field);
+  the `set_ode_state`→`compute_environment` ordering; `check_finite_ode_state` (#550 guard).
+- odelia: `inst/include/odelia/mass_transport.hpp` (`cohort_spacing`, `log_density_rate` — the latter to
+  retire once λ transport lands).
+- FF16 gradient driver/test: `tests/testthat/ff16_scm_gradient_driver.cpp` + `test-ad-ff16-scm-gradient.R`
+  (resolved-schedule replay; `expect_failure` gate to flip to `expect_equal` when the gradient is correct).
