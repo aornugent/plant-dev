@@ -46,40 +46,66 @@ what `plant` actually produces. `foundation.md` is the anchor; this file is the 
   swept condition; traits shared across the landscape; a nonlinear lidar operator that needs a scene the
   size-density does not fix.* Grounded in a real TF24 run (continuous, strongly multimodal size-density; no
   positions).
-- **Second elicitation drafted and ready** (`elicitation-quotients.md`): unifies the three under-explored
-  threads — **observation operator, transferable trait manifold, emergent phenomena** — as one
-  *dimension-collapse* problem (the effective dimension of `θ` in a composed map `F = H∘S`, and where
-  dimension collapses: `H`'s null-space, `S`'s image being low-dimensional, `θ`'s low rank). Deliberately
-  general, not narrowed to any one quotient. It passed the CLEAN gate.
+- **Second elicitation sent and answered** (`elicitation-quotients.md` → `response-quotients.md`): unified the
+  three under-explored threads — **observation operator, transferable trait manifold, emergent phenomena** —
+  as one *dimension-collapse* problem (the effective dimension of `θ` in a composed map `F = H∘S`, and where
+  dimension collapses: `H`'s null-space, `S`'s image being low-dimensional, `θ`'s low rank). It passed the
+  CLEAN gate. The response is the **deepest so far** and subsumes/deepens map-space response #2; triangulated
+  and audited. Durable, genuinely-new contributions (all hypotheses to arbitrate by measurement):
+  - **`J_i = G_i Z_i`** — split each condition's Jacobian into the *excited* bundle `Z_i=(∂S/∂θ)T` (θ→state,
+    costs solves) and the *heard* bundle `G_i=H′(u_i)` (state→output, **solve-free iff `H′` is cheap**). It
+    separates the three collapses a single θ→output SVD conflates, and lives at the state (`u`) level —
+    invisible from `(θ,y)` pairs.
+  - **the "spoken-never-heard" class `k_S−k_eff`** — trait directions excited in the state but that the lidar
+    operator cannot hear (the operator-null-space collapse, thread 1), now an isolated measurable quantity.
+  - **the impersonation diagnostic `τ`** — whether θ moves the state *along* the `c`-swept manifold (`τ≈1` ⇒ θ
+    is a condition-shift, **confounded with `c` → calibration ill-posed**) or opens fresh directions
+    (`τ≈0` ⇒ easy). A *free* well-posedness check we did not have.
+  - **framing correction:** the three collapses form a **filtration `p′→ρ_S→ρ_F`, not an additive sum** — it
+    corrected our own "decomposition by source" premise as ill-posed for overlapping losses.
+  - **the one caveat that gates affordability:** the "nearly free" economics assume `G=H′(u)` is **solve-free**
+    — true for a cheap analytic/summary `H` (e.g. a canopy-height-distribution functional), **false** for a
+    full radiative-transfer render (DART/LESS), whose Jacobian is itself expensive. This is now the first
+    thing to check (see next steps).
 
 ## Where we are right now
 
-- `elicitation-quotients.md` is **written, CLEAN, and ready to send — but not yet sent.** It is the immediate
-  next action.
-- `plant` was **built in the previous session** for the grounding run, but a **fresh session starts without
+- **Both elicitations are sent and answered.** All three Oracle responses are recorded, triangulated, and
+  audited (`response-pointprocess.md`, `response-triangulation.md`, `response-quotients.md`). **The
+  hypothesis-generation phase is complete; from here the bottleneck is measurement, not more consults.**
+- **The decisive fork for the next phase is the `H′`-cost caveat** in `response-quotients.md`: the whole
+  "nearly free attribution" scheme is affordable *iff* the lidar operator's Jacobian `G=H′(u)` is solve-free.
+  That is unknown for our operator and must be established first — it decides which version of the A/B/C/D
+  experiment we can even run.
+- `plant` was **built in a previous session** for the grounding run, but a **fresh session starts without
   it** — you must rebuild before any measurement (see `AGENTS.md`, pillar 2).
 - Literature verification is **complete** (both anchors [A] verified).
-- The decision on further consultation: this one further elicitation (the quotient/dimension-collapse
-  question) is warranted; beyond it the bottleneck is **measurement**, not more hypotheses.
+- **This is a phase boundary.** Starting the plant measurements is a new, larger phase of work — confirm the
+  direction with the user before diving in (they flagged the phase change explicitly).
 
 ## Concrete next steps (in order)
 
-1. **Send `elicitation-quotients.md` to the Oracle.** Record the response verbatim (or faithfully condensed)
-   as `response-quotients.md`; **triangulate it against `response-triangulation.md` #2** (same map-space
-   register — convergences are especially informative); audit for contamination (which planted premises did
-   it inherit? did it turn them into falsifiable predictions?).
-2. **Rebuild plant, then run the decisive measurements** (all on the *full coupled system*, no proxies):
-   - build: `R CMD INSTALL odelia` → `cd plant && make` → `library(odelia); pkgload::load_all("plant")`.
-   - **concentrated-vs-diffuse** — is the trait signal *between* patch-ages (cheap methods win) or *within*
-     (needs many expensive draws)? (`foundation.md`, "decisive first experiment").
-   - **quotient check** — do age-resolved size-densities collapse under a shift/scale (self-thinning); is
-     `rank(∂F/∂θ) < p` across conditions? (tests the quotient candidates the elicitation is about).
-   - **estimand check** — refine vs reseed the scene: is the representation gap *numerics* or a *latent
-     variable*?
-3. **Optional — spatial patterning.** The user offered a "jump-start" on spatial-patterning-from-inter-patch-
-   coupling as one candidate emergent quotient; fold it in as *one instance* of the general frame (do not let
-   it narrow the frame). Not yet provided.
-4. **Optional — model census by hand**, organised by whether each model exposes a cheap deterministic mean vs
+*All measurements on the **full coupled system**, no proxies (`guide.md` §7). Rebuild plant first:*
+`R CMD INSTALL odelia` → `cd plant && make` → `library(odelia); pkgload::load_all("plant")`.
+
+1. **The `H′`-cost / differentiability check — the gate.** For the observation operator we will actually use,
+   establish whether `G = H′(u)` is solve-free (cheap analytic/summary `H`, e.g. a canopy-height-distribution
+   functional → the whole scheme is nearly free as advertised) or expensive (full scene render, DART/LESS → `G`
+   is costly and the cost model must change: emulate `H`, or restrict to a cheap `H`-surrogate for attribution).
+   This gates everything below; it is the binding assumption our elicitation smuggled in.
+2. **The concentrated-vs-diffuse test** — is the trait signal *between* patch-ages / across-`c` (cheap methods
+   win) or *within* a patch-age (needs many expensive draws)? (`foundation.md`, "decisive first experiment").
+3. **The A/B/C/D discriminating experiment** (`response-quotients.md` §7; ~55–75 solve-equivalents, full
+   `H∘S`). Flagship decisions: **P2** (does a *spoken-never-heard* direction exist — the operator collapse) and
+   **P5** (impersonation `τ` — is calibration well-posed against `c`). This subsumes the earlier **quotient
+   check** (do age-resolved size-densities superpose under shift/scale — self-thinning; is `rank(∂F/∂θ) < p`
+   across conditions?) and the **estimand check** (refine vs reseed the scene: numerics or a latent variable?).
+4. Only then build: age-resolved skeleton + control-variate correction + manifold amortization, swept over
+   known conditions, with paired (CRN) gradients.
+5. **Optional — spatial patterning.** The user offered a "jump-start" on spatial-patterning-from-inter-patch-
+   coupling as one candidate emergent quotient; fold it in as *one instance* of the general frame (`τ` and the
+   coupling-collapse tests of §4 are where it lands). Not yet provided.
+6. **Optional — model census by hand**, organised by whether each model exposes a cheap deterministic mean vs
    only a stochastic sampler, and its lidar-fusion track record (the methods-focused research did not map
    this).
 

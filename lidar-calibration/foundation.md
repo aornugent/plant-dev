@@ -140,26 +140,46 @@ exploits); they wall at **summary-statistic choice / well-posedness**, which is 
 (accelerator) framing targets the transferable trait manifold they call for. `models.md` records the full
 landscape (~18 models) and this positioning.
 
-## Decision on further consultation
+## Decision on further consultation — settled: the second consult is done
 
-**One further elicitation, on a genuinely new question — then measurement.** We declined to *re-run* the same
-problem (the unified frame is just the composition of the two responses, and much is now empirical). But
-formalising the three under-explored threads — the **observation operator**, the **transferable trait
-manifold**, and **emergent phenomena** — as **one general dimension-collapse problem** (the effective
-dimension of `θ`, and the structures that collapse it, in a composed map `F = H∘S`) is a *different, deeper*
-question that could expose structure invisible through the domain lens. That elicitation is drafted, CLEAN,
-and ready to send: `elicitation-quotients.md`. Beyond it, the bottleneck is measurement, not hypotheses.
+The one further elicitation we judged warranted (the three under-explored threads — **observation operator**,
+**transferable trait manifold**, **emergent phenomena** — unified as one **dimension-collapse problem**: the
+effective dimension of `θ` in a composed map `F = H∘S`, and the structures that collapse it) has now been
+**sent and answered** (`elicitation-quotients.md` → `response-quotients.md`). **From here the bottleneck is
+measurement, not more hypotheses.** The response's three durable, genuinely-new contributions (all to be
+arbitrated by faithful measurement, not taken on authority):
+
+- **`J_i = G_i Z_i` — the state-space factorization.** Each condition's Jacobian splits into the *excited*
+  bundle `Z_i = (∂S/∂θ)T` (what `θ` can say into the state; costs solves) and the *heard* bundle
+  `G_i = H′(u_i)` (state→output; **solve-free iff `H′` is cheap** — see the caveat). This separates the three
+  collapses a single θ→output SVD conflates, and lives at the `u`-level (invisible from `(θ,y)` pairs alone).
+- **The "spoken-never-heard" class `k_S − k_eff`.** Trait directions excited in the state but that the lidar
+  operator *cannot hear* — the operator-null-space collapse (thread 1), now an isolated, measurable quantity.
+- **The impersonation diagnostic `τ`.** Whether `θ` moves the state *along* the `c`-swept manifold
+  (`τ≈1` ⇒ `θ` acts as a condition-shift, **confounded with `c` → calibration ill-posed**) or opens fresh
+  directions (`τ≈0` ⇒ identifiability structurally easy). A *free* well-posedness check we did not have.
+- **Framing correction:** the three collapses form a **filtration `p′→ρ_S→ρ_F`, not an additive sum** — our
+  "decomposition by source" premise was ill-posed for the overlapping losses, and the response fixed it.
+
+**The one caveat that gates everything (check before building):** the "nearly free" economics rest on
+`G = H′(u)` being **solve-free**, true only if the lidar operator is cheap and differentiable independent of
+the expensive SCM solve. A full radiative-transfer render (DART/LESS) is itself an expensive black box whose
+Jacobian is *not* free; a canopy-height-distribution functional *is* cheap. So the first faithful measurement
+is not P1–P6 but **how cheap and how differentiable the actual `H` is** — it decides the whole cost model.
 
 ## Next actions (in order)
 
-0. **Send `elicitation-quotients.md`** to the Oracle; record it verbatim and **triangulate against
-   `response-triangulation.md` #2** (same map-space register, so convergences are especially informative).
-   Audit for contamination (which planted premises did it inherit?).
-1. **The concentrated-vs-diffuse test** on real patches through a real `H` — decides which whole family of
-   methods applies. *(plant must be rebuilt first — see `AGENTS.md`.)*
-2. **The quotient check** — do age-resolved size-densities superpose under shift/scale; is `rank(∂F/∂θ) < p`
-   across conditions. *(Tests the quotient candidates, incl. self-thinning; ties to the elicitation above.)*
-3. **The estimand check** — refine vs reseed the scene; classify the representation gap as numerics or latent.
+1. **The `H′`-cost/differentiability check (the gate).** Establish, for the observation operator we will
+   actually use, whether `G = H′(u)` is solve-free (cheap analytic/summary `H`) or expensive (full scene
+   render). This decides whether the `response-quotients.md` attribution scheme is affordable as-is, or must
+   emulate `H` / restrict to a cheap `H`-surrogate. *(plant must be rebuilt first — see `AGENTS.md`.)*
+2. **The concentrated-vs-diffuse test** on real patches through a real `H` — decides which whole family of
+   methods applies (`between-patch-age`/across-`c` → cheap methods win; `within` → many expensive draws).
+3. **The A/B/C/D discriminating experiment** (`response-quotients.md` §7; ~55–75 solve-equivalents, full
+   `H∘S`). Flagship decisions: **P2** (does a spoken-never-heard direction exist — the operator collapse) and
+   **P5** (impersonation `τ` — is calibration even well-posed against `c`). Subsumes the quotient check (does
+   `rank(∂F/∂θ) < p` across conditions; do age-resolved size-densities superpose under shift/scale) and the
+   estimand check (refine vs reseed the scene: numerics or latent variable?).
 4. Only then build: age-resolved skeleton + control-variate correction + manifold amortization, swept over
    known conditions, with paired (CRN) gradients.
 

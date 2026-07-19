@@ -15,8 +15,8 @@ reconstruct it in this order, and **do not begin work until you have read 1–3*
 3. **This file (below)** — the three pillars, the Oracle-classifier lessons, and the working practice.
 4. **[`guide.md`](./guide.md)** — how to consult the Oracle. Read before writing any elicitation.
 5. As needed: `elicitation*.md` (what we have sent), `response-pointprocess.md` + `response-triangulation.md`
-   (what came back + our audits), `literature.md` / `models.md` / `sources.md` (evidence, prior art,
-   bibliography).
+   + `response-quotients.md` (what came back + our audits), `literature.md` / `models.md` / `sources.md`
+   (evidence, prior art, bibliography).
 
 ## The three pillars (enshrined — do not drift from these)
 
@@ -56,6 +56,7 @@ are the trustworthy signal, divergences localize the fork.
 | `elicitation-quotients.md` | Second elicitation (map-space): effective dimension of a composed map + the structures that collapse it — observation-operator / trait-manifold / emergent quotients as one problem. |
 | `response-pointprocess.md` | First Oracle response (point-process framing) + our framing audit. |
 | `response-triangulation.md` | Two responses (law-space, map-space) + the triangulation and contamination audit. |
+| `response-quotients.md` | Third response (dimension-collapse) + audit: the `J=G·Z` state-space factorization, the "spoken-never-heard" class, the impersonation diagnostic `τ`, and the one caveat (is `H′` solve-free?) that decides affordability. |
 | `literature.md` | Research digest, tiered by verification. |
 | `models.md` | Census of existing models (cohort/demographic, IBM/gap, lidar RT operators) + the prior art. |
 | `sources.md` | Annotated bibliography (titles + URLs + DOIs) to bootstrap further literature search. |
