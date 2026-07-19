@@ -179,9 +179,24 @@ remaining accuracy walls (25% / 279%) are **in the cohort layer**
 - **RODAS vs ROS:** RODAS **cannot run on the coupled patch** (no `rebind`, see
   Lesson 5). The branch's "RODAS 5–10×" was on a *cheap-prescribed-uptake soil
   block*, not the coupled patch.
-- **IMEX** (implicit soil block, explicit cohorts, single global step, no
-  sub-cycle) is the **promising untried architecture** — it avoids re-paying the
-  O(N) uptake every micro-step while still handling any genuine soil stiffness.
+- **IMEX** (implicit soil block via RODAS4 + block-FD Jacobian, explicit
+  cohorts, single global step) — **BUILT and MEASURED (2026-07-19): it loses
+  decisively.** On a 3 yr drought it is *correct* (converges to rkck's offspring)
+  but 20–50× more RHS evals and 56–145× slower, and the ratio **grows** as
+  tolerance tightens (21.7× at 1e-4 → 52.2× at 1e-5) — i.e. it takes *more,
+  smaller* steps than rkck, not fewer. Implicit-on-soil bought negative step
+  enlargement. This is the direct proof (on the real coupled patch) of what the
+  Oracle could only argue on a surrogate: **the step is accuracy-limited, not
+  stability-limited; soil stiffness is not the lever.** IMEX left in as a
+  documented diagnostic (`ode_method="imex"`, bit-identical off), like `mri`.
+  - *Why an exact Jacobian won't rescue it:* the 20–50× is ~8–20× more accepted
+    steps (only ~2.5× is Jacobian FD inflation). Those extra steps come from the
+    **explicitly-integrated cohort layer** (identical to rkck), which no
+    soil-block Jacobian touches. Confirmed against `claude/odelia-ad-tape-
+    reverse-496fuf`: TF24 deliberately has **no `rebind`** and the Leaf stays
+    `double` (design 4.3), its θ-sensitivity supplied by an envelope-theorem FD
+    seam — so RODAS's full AD Jacobian cannot run on TF24 regardless, and
+    templating the leaf is both rejected-by-design and unable to close the gap.
 
 ## Pending (finish these first)
 
@@ -225,15 +240,18 @@ remaining accuracy walls (25% / 279%) are **in the cohort layer**
    - boundary-aware collocation (place nodes to resolve the shutdown boundary in
      cohort space, not a blind subsample of the measure);
    - macro-grid cohort-resolution control (the under-resolution source).
-4. **Explore IMEX** (the untried architecture) — but only after confirming there
-   is genuine soil stiffness worth an implicit soil solve; if the stiffness is
-   entirely in cohort uptake, IMEX on the soil block won't help either, and the
-   answer is "reduce RHS cost" (batched/SoA cohort physiology, setup-cache
-   reuse), not a new integrator.
-5. **Draft an Oracle consult on the mixed result** (partition works but each
-   eval is O(N); collocation trades cost for accuracy; walls are cohort-layer) —
-   to pressure-test whether any integrator-side lever remains, or whether the
-   whole effort should pivot to RHS-cost reduction.
+4. ~~Explore IMEX~~ **DONE — IMEX measured, loses 20–50× (see above).** The
+   integrator is not the lever. The remaining levers are on the **RHS-evaluation
+   cost / cohort layer**: batched/SoA cohort physiology, setup-cache reuse of the
+   θ-dependent per-cohort prep, or removing the cohort-layer control kink
+   (event-handling the collar-ψ argmax / the TF24f tracked control).
+5. **Oracle consult (in progress 2026-07-19):** with the implicit stepper now
+   measured, the consult is no longer "does a decomposition help" (answered: no)
+   but **"given accuracy-limited steps, complex state-dependent O(N) coupling, a
+   cohort-layer accuracy wall that defeats collocation, and evolved mature stands
+   that frustrate quadrature — where is the real leverage, given the genuine
+   fast/slow split in the state?"** Build a complete, accurate system description
+   first (see `docs/oracle-consultation-*` and the recharacterization doc).
 
 ## Key files (quick map)
 
