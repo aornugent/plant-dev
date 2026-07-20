@@ -169,18 +169,26 @@ You are picking up with a clean context. Do this, in order:
    - **There is no mid-run step collapse.** min-h is the *initial* step
      (`ode_step_size_initial`); the `h_min` clamp never binds; accepted steps are healthy
      (median ~0.06 d). The old "1e-8·T scattered collapse" was the initial step misread.
-   - **The 27–35% rejection is I-controller over-reach** — rejected attempts are 2.4–4.0×
-     *larger* than accepted steps, bank-wide. Speed is controller hygiene, not stiffness,
-     not the inner search (round 7), not events (round 6.5), not the norm-artifact (T1,
-     weakened: no collapse, rejections at large h).
+   - **The 27–35% rejection is NOT reclaimable.** It looked like I-controller over-reach
+     (rejected attempts 2.4–4.0× larger than accepted), but building the PI controller (T2)
+     showed the reject fraction drops while *total work rises* — the rejections are the price
+     of striding at the accuracy limit on a broadband-error problem, not tunable waste. The
+     forward integrator is already near work-optimal. Speed is not the lever (rounds 5–8 all
+     negative: not decomposition, not events, not inner-search, not controller).
    - `J` has a **survival-threshold discontinuity** (whiplash: 2.4× flip, non-monotone in
      `GSS_tol`); this is the real identity of the 10×/23% facts and is functional-side.
 4. **Build order (each still gated on its cheap test where one exists) — see the round-8
    triage doc §"What to build next":**
    1. **E4 / adjoint correctness (task #23)** — the one un-run high-value test; reverse
       `dJ/dθ` vs a true re-solving FD on a transpiring state. **Do this first.**
-   2. **T2 controller (speed)** — PI/Gustafsson in odelia (toy-first); judge by reject
-      fraction ↓, J unchanged. Not bit-identical (changes the step sequence).
+   2. **T2 controller (speed) — DONE, net loss, reverted** (`docs/tf24-T2-controller-result.md`).
+      Built the PI/Gustafsson controller (odelia, opt-in, toy-validated: bit-identical off,
+      accuracy/order preserved). Bank: it lowers the reject *fraction* (0.28→0.24, 0.28→0.19)
+      but raises accepted-step count → **total work +13–29%** (J unchanged). The I-controller's
+      dead-band "hot striding" beats the PI's "cool" stepping; the 27–35% rejection is the price
+      of striding at the accuracy limit on a broadband-error problem, **not reclaimable by
+      controller tuning.** Reverted; production back to the I-controller. **Speed question closed:
+      the forward integrator is already near work-optimal at converged tol.**
    3. **Corner locator + IFT node (accuracy)** — identify the ci-branch-existence
       condition `S(p;state)=0` (branch-indicator log), solve `S=0` safeguarded, IFT node
       on `S`. Acceptance: `J(τ)` flattens at 5.87e-8, adjoint matches FD.
