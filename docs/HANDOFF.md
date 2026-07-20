@@ -126,33 +126,27 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-19. This session: disproved the "Δx-consistency crux" with a double-level
-diagnostic (trapezium ≡ cohort_spacing, interior-exact); **landed the transport-log-mass chart (P1e-λ)
-for K93** — gradient exact, off-chart bit-identical, snapshots re-blessed; and confirmed (Chesterton's
-fence) the ~0.025% re-baseline is scheme truncation, NOT boundary spacing (bit-identical under both
-conventions). Trees clean: superrepo `6a3e576`, plant `c249689c`, odelia `f9d6ad8` (installed==HEAD)._
+_Last updated: 2026-07-20. This session: **landed FF16 on the transport-log-mass chart** (odelia
+`ac6a988`, plant `c1b034ca`, superrepo `90f4908`). FF16 `geometric_transport` marker; the two-species
+crash (coincident shaded seedlings → zero cohort spacing → NaN density reconstruction) fixed by odelia's
+new **-inf zero-spacing convention** (a degenerate zero-width cohort → density 0, contributes 0). Tried a
+competition-in-mass rewrite (system-design'd) but REVERTED it — it degraded K93's AD-vs-FD gradient 0.56%
+(freezing spacing into λ vs recomputing it live); the lighter -inf convention keeps K93 exact. Result:
+K93 gradient <1e-3 preserved, FF16 `d/d(k_l)` machine-exact, `d/d(lma)` ~0.4%, `d/d(a_l1)` a known
+self-shading residual (task #10). Trees clean, installed==HEAD._
 
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
-**Opt FF16 onto the transport-log-mass chart.** Add the nested `geometric_transport` marker to
-`plant/inst/include/plant/models/ff16_strategy.h` (as K93 has: `using geometric_transport = void;`) so
-`strategy_supports_geometric_transport<FF16>` becomes true; with `node_geometric_compression` on (default),
-FF16 then transports `λ` via the exact same machinery K93 now uses (no FF16 code changes beyond the marker
-— the Node/Species/Patch plumbing is strategy-generic). Then:
-1. **Rebuild** (`R CMD INSTALL odelia` is NOT needed — odelia unchanged; just `rm -f plant/src/*.o *.so &&
-   R CMD INSTALL plant`). Watch for the `/usr/local/lib/R/site-library/00LOCK-plant` lock — `rm -rf` it if
-   a build was killed.
-2. **Confirm the #550-style overflow is gone**: `Σexp(λ)` stays bounded through FF16's `g=0` growth-shutoff
-   (the centred compression stencil was unstable there; `dλ/dt=−mortality` is monotone). Run a plain
-   `run_scm` FF16 first — it must complete without the `check_finite_ode_state` "non-finite cohort density"
-   stop.
-3. **Confirm the gradient is now correct**: reverse AD == adaptive FD across the coupling params (the
-   severed `growth_rate_gradient` derivative is gone — THE point). Use `test-ad-ff16-scm-gradient.R` /
-   `ff16_scm_gradient_driver.cpp`; flip its `expect_failure(...)` gate to a bare `expect_equal` when it lands.
-4. **Re-bless FF16 snapshots.** NB the 4 pre-existing FF16 test failures (`test-strategy-ff16.R`: offspring
-   16.889→16.902, `ode_times` count 297→296, + a pandoc error) are stale WIP expectations present on the
-   baseline build — re-bless them together with the chart opt-in; don't chase them as regressions.
+**Pick up one of:** (a) **FF16 `a_l1` self-shading adjoint residual** (task #10) — `d/d(a_l1)` reverse-AD
+0.0629 vs FD plateau 0.1007; both AD modes agree, FD disagrees; predates the chart work (present with
+reconstruction competition where K93 was exact) so a distinct mechanism from the (now-reverted) K93
+mass-gradient issue — investigate the self-shading feedback adjoint. (b) **FF16 multivariate census
+gradient** (LAI/biomass/basal-area, task #5). (c) **run-shaped gradient entry** + retire
+`save_RK45_cache`/`step_history` (tasks #3/#4).
 
-Gate on `docs/oracle-response-transport-compression.md` §"Falsifiable predictions". Full step list below.
+**Known limitation carried forward:** the -inf convention handles *exact* zero spacing (coincident
+heights). *Tiny-but-nonzero* centred spacing at a near-stall could still overflow an interior neighbour's
+reconstructed density; the retrofit if ever observed is the competition-in-mass path (node-lumped
+`Σ exp(λ)·kernel`, designed+prototyped this session, reverted for the K93 gradient cost).
 
 ## THE HEADLINE (read this first)
 The FF16 gradient bug, the #550 density runaway, and the value/gradient tension are **one thing**: the
