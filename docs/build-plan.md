@@ -619,12 +619,26 @@ for Phase 2:
   `run_scm(refine_schedule)`'s gradient (FF16 vs bespoke driver 1e-6; K93 vs certificate AD 1e-6) and the
   reoptimising/model FD. All double-path suites bit-identical (rebind_from dormant off the gradient path).
   **TF24 env soil config does not cross yet** (set at construction, not Control-derived) — the R5 assert trips
-  if a TF24 gradient is attempted; deferred with b1. **Co-design endpoint (task #4, deferred):** plant's SCM
-  still uses `NodeSchedule.use_ode_times` as its L1 replay handoff rather than odelia's `set_schedule()`/`run()`
-  — the *second replay-grid source*. Conforming the SCM's replay to odelia's (a `set_schedule` that the
-  segmenting `run()`/`run_mutant` honour) would let plant reuse odelia's `active_solver`/`gradient_on_double`
-  more directly and kill the second source; it touches the hot replay path (Tier 2/3, bit-identity-gated).
-  **Also remaining:** an R-facing `run_scm_gradient` shim (name→index resolution, doubles both ways).
+  if a TF24 gradient is attempted; deferred with b1.
+
+  **UNIFIED — resident replay conforms to odelia's Solver contract (2026-07-20, session 4; task #4 resident
+  half).** `SCM` now exposes odelia's exact replay vocabulary: `recorded_steps()` (== `solver.times()` ==
+  `r_ode_times()`, one body) is the SINGLE source of the resident replay grid, and `set_schedule(steps)` is
+  the handoff (validate + distribute across introductions + enable). `scm_jacobian` feeds
+  `set_schedule(recorded_steps())` from the adaptive double run — so the resident/gradient replay grid is
+  provably the recorded one, matching odelia's `gradient_on_double` layering (the low-level `set_schedule`
+  accepts any grid, like odelia's; the entry's no-schedule signature is the safety). `run()`'s segmenting loop
+  and `run_mutant`'s `step_history` (L3, deferred) are UNTOUCHED — `step_history` remains reachable only via
+  `run_mutant`, never a resident source. The free `use_recorded_ode_times` helper is gone.
+  **DX macro:** `PLANT_DIFFERENTIABLE(Strategy_)` (strategy.h) emits the two odelia System hooks every strategy
+  needs identically — the `rebind` alias + `rebind_from` (delegating to the one-home `rebind_strategy_fields`).
+  Used by FF16/K93/TF24; TF24f hand-writes (extra acclimation config). Kept in plant, NOT odelia: odelia's
+  style wants the AD contract visible as ordinary code in its few pedagogical Systems, whereas plant has 4+
+  strategies with identical boilerplate and an established X-macro culture (AD_FIELDS). Simple — no extra
+  guards; the R5 runtime assert already catches a config-crossing gap. **Remaining (task #4):** the `run_scm`
+  R path still loads `parameters.ode_times` via `make_node_schedule` (a production self-describing path, not the
+  gradient path) — fold onto `set_schedule` when the R surface is revisited. **Also remaining:** the R-facing
+  `run_scm_gradient` shim (deferred — R surface last, DX not yet settled).
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
