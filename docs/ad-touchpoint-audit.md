@@ -150,10 +150,24 @@ Newly-found vs the reading audit: **`omega` (FF16)** and **`k_I` (K93)** — bot
 via a double intermediary the static scan flagged but did not connect to a specific
 registered leaf. This is why B is required, not optional.
 
+**TF24** (52 leaves, life=10, growth metric, R-hyperpar-resolved params injected,
+reoptimising FD): **reverse-AD is numerically broken** — AD values are ~1e25–1e32
+while the (sane) FD is O(1–1e5). The double SCM runs fine (FD sane); the active
+reverse pass blows up ~30 orders of magnitude. So TF24 cannot be certified per-leaf
+yet — its reverse gradient is *non-functional*, not merely missing the plant#60
+term. Clean reads: `omega` SEVERED (AD=0, same birth-size root-solve as FF16); 12
+structural zeros (a_p1/a_p2/a_f3/S_D/p_50/beta1/nmass_*/dmass_dN/var_sapwood — don't
+reach growth at this config). **Action: TF24 reverse-AD needs debugging before a
+per-leaf certificate is meaningful** (candidates: the Leaf `supplied_derivative`
+seam partials, reverse over the stiff soil ODEs, or a tape/rebind issue). This is a
+distinct, larger workstream than the FF16/K93 remediation; TF24 gradient work
+(P2c/P2d) is downstream and plant#60 is filed.
+
 Regime caveat: B exercises only pathways active at this state/metric; regime-specific
 severances (TF24 drought clamps) are covered by the static census (Certificate A),
 not B. Completeness = A (finite grounding-site enumeration, regime-independent) ∧ B
-(per-registered-leaf verification for exercised regimes).
+(per-registered-leaf verification for exercised regimes). **B is now: FF16 ✓, K93 ✓,
+TF24 ✗ (reverse-AD blown up — must be fixed before it can be certified).**
 
 ## Strategy-agnostic engine sweep (odelia AD core + plant lower-level)
 
