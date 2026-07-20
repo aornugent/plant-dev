@@ -11,7 +11,11 @@ Notation is fixed once and used throughout: `x` (a large block of `M` members), 
 of `L` reservoirs), `p*` (an inner argmax), `a` and `s` (two coupling channels), `J` (a scalar
 functional obtained by reverse-mode differentiation of the whole solve), `θ` (a small parameter
 vector), `τ` (an inner-solve tolerance). The forward solve, the reverse gradient, and the many
-approximations we have tried are all described against this notation.
+approximations we have tried are all described against this notation. Two readings the bare equations
+do not carry are given as well: a **formal dynamical-systems characterisation** of the flow
+(immediately after §1) and a measured account of **how reduced or surrogate versions of this system
+mislead** (before §7). The latter is the hardest-won lesson here — every natural simplification we
+tried reported a conclusion the full coupled system then contradicted.
 
 ---
 
@@ -82,6 +86,65 @@ This surface is **nearly unreachable by construction** (see §5).
 weight-weighted reduction over the members). Its gradient `dJ/dθ` w.r.t. a small parameter vector `θ`
 is taken by **reverse-mode automatic differentiation over a tape of every Runge–Kutta stage of the
 whole solve**, and is required to match a finite difference of the solver **as actually run**.
+
+---
+
+## The dynamical system, formally
+
+Read as a dynamical system rather than a list of equations, the object sits in a specific and unusual
+class, and its resistance to approximation is a consequence of that class. Four structural facts.
+
+**(i) A measure transported by a mean-field flow.** The large block `x` is not a generic vector in
+`ℝ^M`; it is a **discretised measure** `μ_t = Σ_j ρ_j δ_{ξ_j}` on the coordinate line. The members are
+**characteristics**: `ξ_j` is advected, `ρ_j` evolves, atoms are **born** (insertion) and **absorbed**
+(`ρ_j → 0`, removed). So `x` is the particle/characteristic discretisation of a **first-order
+transport (advection) equation for a density with a birth–absorption source** — a structured/renewal
+flow. Members interact **only through low-dimensional shared channels**: the scalar aggregate `s(x)`
+(a functional of the whole measure) and the reservoir block `u`, whose drive `a = ∫ c(ξ,u,p*) dμ` is a
+**moment of the measure**. Every member sees the same `s` and `u`. This is a **mean-field /
+McKean–Vlasov** coupling: each member's dynamics depend on the population distribution through its
+moments, and the distribution evolves under those same dynamics — self-consistently.
+
+**(ii) A fast, forced, dissipative cascade with an absorbing boundary.** The reservoir block `u` is an
+ordered chain with one-way transfer, a near-singular power-law self-loss, and an **absorbing floor**
+(`u_min`, positivity-clamped), driven at the head by the forcing and drained by the moment `a`. Alone
+it is a stiff contraction toward a moving equilibrium set by the balance `b + T(u) = a` — but that
+equilibrium is a functional of `μ`, so the "fast" subsystem's slow manifold is defined by the slow
+block.
+
+**(iii) An embedded optimisation makes the vector field piecewise-smooth (Filippov), not smooth.** The
+control `p*` is the solution of an **embedded pointwise optimisation** per member — a
+**differential–variational** system. Its solution is an **active-constraint corner** (the maximiser
+sits where a nested feasibility branch switches; `∂P/∂p ≠ 0` there, a nonzero multiplier), so the
+active set changes across **codimension-1 switching surfaces** in state space. `f(y)` is Lipschitz but
+**not `C¹`** across them: the flow is **piecewise-smooth / Filippov-type**, smooth arcs joined at
+switching manifolds. A second family of switching surfaces comes from the member switch-off
+(`c ≡ 0` beyond a moving threshold). Both families move with the state; members cross them at scattered
+times, and an explicit RK crossing a `C⁰/C¹` surface drops toward first order locally.
+
+**(iv) The readout is a moment across a bifurcation manifold.** `J = ∫ φ dμ` is a **moment** of the
+transported measure. The weights obey dynamics with an **absorbing state at `ρ = 0`**; near it lies a
+**transcritical/saddle-node-type bifurcation** (a marginal atom appears in or leaves the measure). So
+`J` is **continuous along a trajectory but only piecewise-`C¹` in the parameters `θ`** (and in
+numerical tolerances): at the extinction/insertion manifold its `θ`-derivative carries a jump (a branch
+slope plus the crossing atom's contribution). That is the exact sense in which `J` "is barely an
+observable" — its adjoint (a branch slope) genuinely differs from a finite difference that straddles
+the manifold (which also sees the jump), and small coupling perturbations move the heavy atoms near
+thresholds disproportionately (the measured `~10×` amplification, `~23 %` inter-scheme spread).
+
+**Why the class resists approximation** — each standard reduction deletes a load-bearing structure:
+reducing the measure (collocation) re-quadratures a **near-singular** measure at nodes placed for the
+characteristics, not the moment; freezing/held-coupling breaks the **mean-field self-consistency** and
+converges to the wrong equilibrium; fast/slow reduction targets the fast block while the accuracy
+limit and the cost both sit in the slow **measure transport**; relaxing the embedded optimisation to a
+flow has **no fixed point** at an active-constraint corner; implicit/stabilised methods find **no
+stability limit** to relax and a Jacobian differenced through the non-`C¹` inner solve is noisy;
+reservoir re-charts remove a singularity that **was never the limiter**. Stated once: this is a
+**mean-field-coupled measure-transport flow with birth/absorption boundaries, closed by an embedded
+active-constraint optimisation that renders the vector field piecewise-smooth, read out through a
+moment functional that is only piecewise-differentiable across an extinction manifold** — and every
+simplifying assumption available (smooth low-rank coupling, a reducible measure, a leading fast
+subsystem, an interior optimum, a differentiable observable) is precisely a structure it does not have.
 
 ---
 
@@ -358,6 +421,44 @@ converged tolerance.
 - The `~10×` amplification of coupling error into `J` (measured directly: a member-reduction giving
   `0.8 %` coupling error yields `~9 %` `J`-error), and the `~23 %` spread between independently
   converged schemes at large `M`. `J` is, in the words used at the time, "barely an observable."
+
+## Reduced and surrogate models systematically mislead (measured)
+
+A recurring, expensive failure was reasoning about a **simpler stand-in** for the coupled system.
+Because every property that makes this system hard (§ "formally") is *absent* from the natural
+simplifications, a surrogate does not merely lose accuracy — it **reports the opposite conclusion**,
+and the error is only exposed on the full coupled object with an **evolved** measure. The measured
+instances:
+
+- **Free/cheap-coupling surrogate of the large block.** A stand-in whose coupling was a cheap mean
+  (cost flat in `M`) made multirate/decomposition look **~1200× faster** and "flat in `M`". On the
+  real system the coupling is the dominant `O(M)` cost, and decomposition is **`6–25×` slower** — the
+  opposite sign. The surrogate deleted structure (i) and (ii).
+- **Reservoir-only stiffness analysis.** Examining `u` alone showed a large self-loss Jacobian
+  (`≈1400`) and motivated implicit/Rosenbrock methods; the coupled `|J_full|` is `50–291×` larger and
+  the system is **not stability-limited at all**. The reduced model pointed at the wrong lever.
+- **Prescribed (quadrature-friendly) measure.** Member-reduction tested on a smooth prescribed set
+  gave `<0.5 %` error at `m ≈ 15–20`; on the **evolved, near-singular** measure the same reduction is
+  `25–279 %`. Testing on a benign distribution hid the failure (structure (iv)).
+- **Smooth-interior-optimum surrogate for the inner solve.** Assuming an interior maximum made the
+  tracked-control relaxation look convergent (matched to 4 decimals, reverse-mode certified to
+  `10⁻⁸`) and made a noise-floor/envelope story look right. The real operating point is an
+  active-constraint corner, so tracked-control **fails at every gain**, the envelope adjoint **drops a
+  first-order term**, and a Newton-on-`∂P/∂p=0` fix is **ill-posed** (no root). The surrogate had the
+  one property — an interior stationary point — the real solve lacks (structure (iii)).
+- **Frozen-`p*` finite-difference reference.** Used as the gradient "truth", it agreed with the
+  frozen-`p*` adjoint while **both dropped the same term** — a surrogate *reference* that concealed a
+  correctness bug. Only a finite difference that re-solves the inner problem exposes it.
+- **Clean-surrogate order verification.** A high-order multirate coupling verified beautifully on a
+  smooth surrogate (`156×` more accurate than a first-order split; reverse adjoints `48/48` to
+  `2×10⁻⁹`) and did **not survive** the real system (forcing features negate the order; the
+  head-to-head loses).
+
+The through-line: **the difficulty is irreducibly in the full coupled object**, and specifically in
+the evolved (skewed, near-singular) measure interacting self-consistently with the fast block through
+the moment coupling and the active-constraint inner solve. Any claim about this system that has not
+been measured on the full coupled patch **with an evolved measure** has, in this project's experience,
+a substantial chance of being sign-wrong.
 
 ## 7. Structural features (a flat inventory; any may be load-bearing or incidental)
 
