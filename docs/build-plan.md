@@ -581,6 +581,40 @@ for Phase 2:
   `save_RK45_cache`) — already deferred; they get their own recorder when un-deferred. **Kill condition:**
   mutant gradients become near-term → "one resident recording" gains a separate mutant recorder. Build
   deferred to user direction.
+
+  **RESOLVED (2026-07-20, session 4; system-design re-run on the two open structural details, floor still
+  wins).** (a) **Shape = a free function template**, `plant/scm_gradient.h::scm_jacobian(Parameters<StratD>
+  p, Control c, DifferentiationTargets targets, Functional fn)` (+ a `scm_gradient` scalar wrapper),
+  NOT an `SCM` method and NOT a `Parameters::rebind_from` — a method would bloat the already-large SCM and
+  couple a double SCM to constructing an active one; `rebind_from` is the crossing wearing a contract name
+  with only one witness (deferred, retrofit trigger = a 2nd consumer, e.g. the mutant recorder). The
+  signature takes **no schedule argument** — that IS the R1 mechanism (a caller cannot express a replay
+  grid because there is no parameter to express it through). Body: double SCM → `refine_schedule()` (writes
+  resolved L0+L1 into `p` via `r_ode_times()`) → rebind `p` double→active → active SCM with `use_ode_times`
+  on → `compute_jacobian`. (b) **Config crosses double→active via the existing `field_ptrs()` enumeration**
+  (widening is implicit; no per-field switch, no new enumeration) + verbatim copy of the `double` config
+  (birth_rate_y, control, schedule) + `prepare_strategy()` to rebuild precomputed S-state (the reset-timing
+  contract). **Precondition VERIFIED:** all 32 `FF16_Pars_` S-typed fields are in `FF16_AD_FIELDS`
+  (32/32), so `field_ptrs()` is the complete config enumeration; every other S-member is precomputed or
+  `double`. **No new named abstraction** — the entry reuses `refine_schedule`/`r_ode_times`/`use_ode_times`/
+  `field_ptrs`/`prepare_strategy`/`compute_jacobian` and adds one function name (R2) whose signature is the
+  R1 guarantee. The ~200–300-line bespoke drivers (ff16 297, k93 243) collapse to a functional + one call.
+
+  **LANDED (2026-07-20, session 4).** `plant/scm_gradient.h` — `scm_jacobian`/`scm_gradient` + `offspring_metric`/
+  `census_metric` functionals. The odelia System `rebind_from<S2>()` contract is now completed on the plant
+  types: `Strategy::copy_config_from` (base, scalar-independent config), `rebind_from` on FF16/K93/TF24/TF24f
+  strategies (field_ptrs widen + copy_config_from; precomputed state left to prepare_strategy), `Parameters::
+  rebind_from`, `SCM::rebind_from` (fresh SCM from rebound params + default env + Control); `rebind` aliases
+  added to TF24/TF24f/TF24_Environment. **R5 is structural, not convention:** `scm_jacobian` asserts the active
+  value reproduces the double reference (a dropped config member shifts it O(1) → loud `util::stop`, not a
+  plausible wrong number). Driver `scm_gradient_driver.cpp` takes ONLY traits + target indices (no schedule);
+  test `test-scm-gradient-entry.R` gates: value == value_double (1e-10); the entry's self-refined schedule
+  reproduces `run_scm(refine_schedule)`'s gradient (FF16 vs bespoke driver, 1e-6; K93 vs certificate AD, 1e-6);
+  and the reoptimising/model FD (FF16 per-trait certified tol, K93 1e-3). All double-path suites bit-identical
+  (rebind_from is dormant off the gradient path). **TF24 env soil config does not cross yet** (set at
+  construction, not Control-derived) — the R5 assert would trip if a TF24 gradient were attempted; deferred
+  with b1. **Remaining for this front:** an R-facing `run_scm_gradient` shim (name→index resolution, doubles
+  both ways) once the C++ boundary is exercised; retire the bespoke drivers + `step_history` (tasks #4/#6).
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
