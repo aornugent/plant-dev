@@ -161,11 +161,19 @@ within ±1 step). Step size is weakly predicted only by *continuous* structure
 the 70–98 % collapse is intrinsic fast structure, not removable events.** So
 spec §4a–4e (dense output, event location, active-set, transition handlers) are
 **not built** — they would buy ~nothing. Full write-up:
-`docs/tf24-classifier-gate-result.md`. Next: the proximity
-governor is optional (small expected win, since rejections don't co-locate);
-the real work is the **coupling-weighted mesh + J** (§7 below), and the one
-cohort-layer lever the data point at is the **GSS/argmax smoothness** (the TF24f
-tracked-control variant that deletes the argmax).
+`docs/tf24-classifier-gate-result.md`. A stress battery (whole-profile drydown,
+TF24f, multispecies) confirmed INTRINSIC holds at the dry extreme and surfaced two
+findings: (i) **leaf shutdown is nearly unreachable by construction** — it keys on
+the wettest accessible layer and even 12 yr zero rain can't dry the profile to
+psi_crit; the stand dies of carbon starvation from the drying topsoil while a wet
+deep layer persists (`docs/tf24-soil-profile-eco.md`, task #24); (ii) **TF24f is
+too fragile to run on hard sequences** — the tracked-ψ control leaves the feasible
+leaf-solve domain at the default `k_acclim=1` (**filed plant#61**), so the
+"delete the argmax via TF24f" lever needs a feasibility guard first. Next: the
+proximity governor is optional (small expected win, since rejections don't
+co-locate); the real work is the **coupling-weighted mesh + J** (§7 below).
+Remaining battery gap: multispecies capture (harness birth-rate API mismatch).
+Take to the Oracle: the gate verdict + the shutdown-reachability mechanism question.
 
 ## Where we are (one paragraph)
 

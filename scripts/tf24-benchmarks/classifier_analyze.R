@@ -30,8 +30,9 @@ MARGINS <- c("theta_res", "theta_sat", "psi_ceil", "runoff", "shutdown",
 FLIP_COLS <- c("clamp_bits", "runoff_on", paste0("branch", 0:5))
 
 analyze_one <- function(r) {
-  mon <- r$mon; log <- r$log; n <- nrow(mon)
-  if (n < 10) return(NULL)
+  mon <- r$mon; log <- r$log
+  if (is.null(mon) || nrow(mon) < 10) return(NULL)   # skip failed/aborted runs
+  n <- nrow(mon)
 
   rej <- log[log$ok == 0, , drop = FALSE]
   n_reject <- tabulate(match(rej$t, mon$t), nbins = n); n_reject[is.na(n_reject)] <- 0

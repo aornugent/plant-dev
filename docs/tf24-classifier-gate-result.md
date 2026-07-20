@@ -64,6 +64,30 @@ does **not** co-locate with the events that do fire.
   variant that removes the argmax could reduce the continuous stiffness — a
   model-side lever, not an event stepper.
 
+## Stress battery (added after review — coverage the first run lacked)
+
+To rule out a benign-coverage artifact, the gate was re-run with a whole-profile
+**drydown** scenario (4 yr build + 12 yr zero rain), the **TF24f** model variant,
+and a **multispecies** assembly. Findings:
+
+- **TF24 drydown** (max dry-end stress, 45k steps): bit-identical, branch5 ≈ 1.0,
+  and shutdown *still* never fires — min shutdown margin 0.79, the closest any run
+  gets, but never ≤ 0. Reject fraction is actually *low* (0.063): the stand dies
+  (carbon starvation) as the topsoil dries, so the run gets easier, not harder.
+  Intrinsic verdict holds at the dry extreme.
+- **Shutdown is nearly unreachable by construction** — even 12 yr zero rain does
+  not dry the wettest layer to psi_crit (it keys on the wettest accessible layer;
+  deep layers stay saturated). Full mechanistic write-up:
+  `docs/tf24-soil-profile-eco.md`. This *reinforces* INTRINSIC from the model side:
+  the event the stepper would locate is not merely absent, it is structurally
+  hard to reach.
+- **TF24f is too fragile to run the gate on**: it aborts on every hard scenario at
+  the default `k_acclim=1` (the tracked-ψ control leaves the feasible leaf-solve
+  domain — filed as **plant#61**). So the "delete the argmax via TF24f tracked-p"
+  lever is currently unusable on hard sequences and needs the feasibility guard
+  first.
+- **Multispecies** not yet captured (harness birth-rate API mismatch — remaining).
+
 ## Instrument (kept as a diagnostic; bit-identical when off)
 
 - odelia: `has_step_monitor` trait, `step_monitor_{enable,reset,get}` +
