@@ -317,6 +317,15 @@ P1a and is verified on a plant-shaped toy when P1a lands, not up front.
   clean); the log-mass state/view/seed structure is correct and re-usable once the reduction quadrature
   is reconciled. **Next: decide the canonical Δx (chart `cohort_spacing`) and rebuild `compute_competition`
   + the reductions on it, then re-run K93 (expect a consistent, characterised re-baseline, not 8×).**
+
+  **UPDATE (2026-07-20, session 5) — RESOLVED, and odelia#46 CLOSED.** The competition field now consumes
+  mass `exp(λ)` directly, formed as `(measure/dx)·exp(λ)·Ψ` (measure/dx O(1), exp(λ) bounded → `exp(λ)/dx`
+  never materialised, so no overflow at tiny-but-nonzero spacing). The canonical Δx is `odelia::cohort_spacing`
+  and the reduction is **value-identical** to the old reconstructed-density trapezium (NOT the 8× first attempt,
+  NOT the full-`cohort_spacing` prototype that moved the K93 gradient — the ½ boundary is kept). The reduction
+  now has ONE home, `Species::census<Ψ>` (the design §8 operator); `compute_competition` is its self-shading
+  member. The intensive density VIEW stays for the refinement diagnostic + R (huge-near-stall is #550/#551,
+  not #46). Landed plant `fe4f1f4c` (field) + `4a997898` (census operator + P2b-5).
 - **P1f — `QK<S>` fixed-rule quadrature** (Cluster 4): template `QK::integrate` on the scalar **and the
   bound type** — the nodes are a deterministic affine image of the bound, so an *active* bound (a census
   integrated over an active plant height) tapes exactly through the moving nodes; **differentiate

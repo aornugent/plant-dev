@@ -126,7 +126,8 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-20 (session 4). This session: **the run-shaped SCM gradient entry** — plant now has
+_Last updated: 2026-07-20 (session 5 — FF16 multivariate census gradient + odelia#46 close; see the
+SESSION 5 block below. Session-4 summary follows.). Session 4: **the run-shaped SCM gradient entry** — plant now has
 one call, `scm_gradient`/`scm_jacobian`, that takes a functional and target traits and returns a gradient,
 with **no schedule argument** (so a caller cannot express a wrong replay grid). Built on top: the odelia
 System **`rebind_from` contract completed** on the plant types, and the **resident replay unified onto
@@ -166,18 +167,41 @@ failure, `SCM cohort-density blow-up #550`, is pre-existing and unrelated — de
 bespoke driver 1e-6; K93 vs the certificate AD 1e-6 — and the reoptimising/model FD).
 
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
-"Finishing Phase 2." Resident FF16+K93 gradients are certified and now have a clean run-shaped entry. Order:
-1. **P2b-5 (task #5) — FF16 multivariate census gradient** (LAI/biomass/basal-area *vector*). The load-bearing
-   Rung-2 target (design §8) and the first real exercise of the entry with a **multi-output functional**
-   (codomain = 3, one recording → three sweeps via `scm_jacobian`). Recommended next.
-2. **P2b-cleanup (task #6)** — drop the orphaned probe drivers (`ff16_feedback_probe`, `ff16_single_rate_probe`,
-   `field_crown_probe`, the interim localisation drivers) now the gradient is certified; collapse any SFINAE
-   trait; retire the bespoke `ff16_scm_gradient_driver`/`k93_scm_census_driver` in favour of the entry
-   (they linger as the entry's cross-check for now).
-3. **b1 (task #17) — TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for P2c/P2d (TF24/TF24f). A
+"Finishing Phase 2." Resident FF16+K93 gradients are certified with a clean run-shaped entry; **P2b-5 (the
+FF16 multivariate census) is now DONE** (session 5), and **odelia#46 (competition-field overflow) is closed**.
+Order:
+1. **P2b-cleanup (task #6)** — drop the orphaned probe drivers (`ff16_feedback_probe`, `ff16_single_rate_probe`,
+   `field_crown_probe` — the last is already build-broken by the CanopyShape templating, confirmed pre-existing;
+   the interim localisation drivers) now the gradient is certified; collapse any SFINAE trait; retire the
+   bespoke `ff16_scm_gradient_driver`/`k93_scm_census_driver` in favour of the entry (they linger as the entry's
+   cross-check for now). **Also fold in the two session-5 review follow-ups:** (a) profile the per-call
+   `odelia::cohort_spacing` allocation in `Species::census` on the FF16 spline path (was once-per-build via
+   `reconstruct_densities`) — cache per-build only if it registers; (b) the trivial `/area` echo between
+   `Patch::census` and `Patch::compute_competition` (leave unless a third consumer appears).
+2. **b1 (task #17) — TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for P2c/P2d (TF24/TF24f). A
    distinct, larger track (Leaf `supplied_derivative` seam partials / reverse over the stiff soil ODEs /
    tape-rebind). The R5 assert in the entry now gives a clean tripwire; TF24's env-soil-config crossing also
-   needs finishing before a TF24 gradient (see build-plan).
+   needs finishing before a TF24 gradient (see build-plan). NOTE odelia#46's field overflow is now removed, so
+   if the TF24 blow-up ever touched the reconstructed density it no longer does — measure, don't assume.
+
+## ►► SESSION 5 — P2b-5 census + odelia#46 (DONE, LANDED) ◄◄
+Plant `4a997898`, superrepo `3c94715`; odelia unchanged. All plant-side.
+- **odelia#46 CLOSED on the field path.** The competition field reconstructed a per-cohort density
+  `exp(λ)/dx` that overflows at tiny-but-nonzero spacing near a growth stall. Both consumers
+  (`Species::compute_competition`, `Patch::assemble_competition_field`) now consume bounded mass `exp(λ)`
+  directly, formed as `(measure/dx)·exp(λ)·φ` — `measure/dx` is O(1), `exp(λ)` bounded, so `exp(λ)/dx` is
+  never materialised. Value-identical to the old trapezium up to reassociation (no re-baseline; certified
+  gradients unchanged). Coincident cohort (`dx==0`) contributes 0 (odelia's −inf convention, guarded
+  explicitly — a missing guard gives `gap/0`→NaN, the one self-inflicted bug found and fixed). The refinement
+  diagnostic + R views still read the density VIEW (intensive, legitimately huge near a stall — #550/#551
+  territory, deliberately not touched).
+- **`Species::census<Ψ>` is the design's §8 operator** — the mass-weighted reduction `Σ n_i·Ψ(individualᵢ)`;
+  `compute_competition` is now expressed through it (the self-shading member, `Ψ = per-individual shade`, with
+  the query-height cutoff). `Patch::census<Ψ>` sums per patch area. One home for the reduction idiom.
+- **FF16 multivariate census gradient (P2b-5).** Three per-individual Ψ (leaf area→LAI, above-ground biomass,
+  stem basal area) via the #266 `strategy->foo(vars)` pattern; `census_vector` codomain-3 functional →
+  `scm_jacobian` (one adaptive recording, three reverse sweeps). Each metric's reverse-AD `d/d(lma)` matches a
+  reoptimising adaptive-FD to ~1e-5. Test: `test-scm-gradient-entry.R` "FF16 census vector gradient".
 
 **Deferred by explicit decision (do NOT pull forward without asking):**
 - **R-facing `run_scm_gradient` shim** — R surface last; the DX (functional selection, name→index) is not yet
@@ -192,6 +216,10 @@ bespoke driver 1e-6; K93 vs the certificate AD 1e-6 — and the reoptimising/mod
   A resident gradient replays `recorded_steps()`; never inject a grid another way.
 - **`rebind_from<S2>()` / `PLANT_DIFFERENTIABLE`** — make a strategy differentiable; the mechanic lives once in
   `plant::rebind_strategy_fields`. A new strategy: write `AD_FIELDS` + `PLANT_DIFFERENTIABLE(Name_)`.
+- **`Species::census<Ψ>` / `Patch::census<Ψ>`** — the mass-weighted population reduction `Σ n_i·Ψ(individualᵢ)`,
+  consuming `exp(λ)` directly (overflow-free). A census metric = `census` of a per-individual Ψ;
+  `compute_competition` is the self-shading member (Ψ = shade, with the query-height cutoff). Never reconstruct
+  density on a field/reduction path. A codomain-m census is a functional returning m of these → `scm_jacobian`.
 - `odelia::implicit_value<S>(y_star, F)` — value defined by `F(y;p)=0`, returned IFT-differentiable. FF16/TF24
   birth heights (replaced hand-rolled `lift_birth_height`).
 - `odelia::util::diagnostic(x)` — intent-named `to_passive`: "derivative deliberately not taken." A bare
@@ -202,9 +230,13 @@ bespoke driver 1e-6; K93 vs the certificate AD 1e-6 — and the reoptimising/mod
 
 After any model change: re-run `scratchpad/certificate.R` — changed leaves flip to intact, others unchanged.
 
-**Known limitation carried forward (tracked: aornugent/odelia#46):** the -inf zero-spacing convention
-handles *exact* zero spacing; *tiny-but-nonzero* centred spacing at a near-stall could still overflow a
-reconstructed density (retrofit = competition-in-mass, prototyped+reverted for the K93 gradient cost).
+**odelia#46 — CLOSED (session 5).** The competition FIELD no longer reconstructs `exp(λ)/dx`; it consumes
+mass `exp(λ)` directly (`Species::census`/`compute_competition`, `Patch::assemble_competition_field`), so a
+tiny-but-nonzero spacing near a stall can no longer overflow it. Value-identical (no re-baseline). The prior
+"competition-in-mass" prototype was reverted for a K93 *gradient* cost because it used *full* `cohort_spacing`
+at the boundary (a 2× re-weight); the landed fix keeps the ½ boundary (`measure/dx`), so it's exact. The
+intensive density VIEW (refinement diagnostic, R accessors) can still be huge near a stall — that's the
+model-side density runaway #550/#551, a separate track.
 
 ## ⤵ HISTORICAL BACKGROUND (sessions 1–3 — SUPERSEDED; the work described below has LANDED)
 Everything from here down records how the transport-chart / FF16-gradient problem was diagnosed and solved
