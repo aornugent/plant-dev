@@ -38,6 +38,16 @@ dependencies, and build order — not part of the design proper.
 framing a hard problem to an external expert reasoner so it surfaces structure you cannot
 see — distilled from this project, applicable to any.
 
+### Related workstream: TF24 solver performance
+
+A separate line of work on making the TF24 SCM **faster forward / stable in reverse** over
+long, dynamic, multi-species runs. Its authoritative entry point and build plan is
+[`tf24-solver-performance-HANDOFF.md`](./tf24-solver-performance-HANDOFF.md) (start there);
+its "Document map" lists the current vs superseded docs. The verdict after seven Oracle
+rounds: the time-integrator is not the lever — the pathway is an **event-aware global
+explicit RK** plus member-mesh/functional work. The `tf24-multirate-*` and
+`oracle-consultation-multirate-*` docs are **superseded/historical**.
+
 ---
 
 ## Key concepts (glossary)

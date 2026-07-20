@@ -1,3 +1,9 @@
+> ⚠️ **SUPERSEDED (2026-07-19).** This specifies the multirate/block-decomposition
+> approach, which measurement + Oracle rounds 6–7 **retired** (the time-integrator
+> is not the lever; the pathway is an event-aware global explicit RK). Kept for the
+> audit trail. Current plan: `tf24-solver-performance-HANDOFF.md`. Do **not** build
+> from this doc.
+
 # TF24 multirate engine — port specification (read this first)
 
 **Purpose.** This is the authoritative, self-contained build spec for porting the TF24 soil multirate

@@ -1,3 +1,9 @@
+> ⚠️ **SUPERSEDED (2026-07-19).** The MRI-GARK/block-decomposition plan below was
+> built and measured; it does not beat global explicit RK (the integrator is not
+> the lever). Retired by Oracle rounds 6–7 in favour of an event-aware global
+> explicit RK. Kept for the audit trail. Current plan:
+> `tf24-solver-performance-HANDOFF.md`. Do **not** build from this doc.
+
 # TF24 multi-rate stepper — prescriptive implementation plan (MRI-GARK over odelia)
 
 > **⚠ Superseded/extended by [`tf24-multirate-engine-port-spec.md`](./tf24-multirate-engine-port-spec.md)**
