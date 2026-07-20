@@ -170,11 +170,25 @@ Resident FF16+K93 is done. The open fronts, in priority order:
    gradient work; a distinct, larger track (candidates: the Leaf `supplied_derivative` seam partials,
    reverse over the stiff soil ODEs, or a tape/rebind issue). TF24 cannot be per-leaf certified until this
    is understood. plant#60 (leaf soil-coupling envelope-FD) is a filed subset; seam already present.
-2. **DX co-design leftovers (odelia):** `plant::util::smooth_positive` (util.h) **duplicates**
-   `odelia::util::smooth_positive` — the primitive should live only in odelia (retire the plant copy). And
-   **guard `odelia::supplied_derivative()`** (no stationarity check — the engine-level plant#60 invitation).
+2. **DX co-design leftovers (odelia):** ✓ duplicated `smooth_positive` retired (plant now calls the odelia
+   primitive). Still open: **guard `odelia::supplied_derivative()`** (no stationarity check — the
+   engine-level plant#60 invitation).
 3. **The R-boundary unwrap** (~20 `xad::value` sites returning doubles to R) — deferred until resident
-   gradients settled (now they have). A wrap-layer conversion vs a primitive is a `system-design` question.
+   gradients settled (now they have). These are the `diagnostic` job: adopt `odelia::util::diagnostic` (a
+   wrap-layer conversion vs a per-site helper is a `system-design` question).
+
+**Odelia primitives added this session (suite of IFT/AD helpers — use these, don't hand-roll):**
+- `odelia::implicit_value<S>(y_star, F)` — the value defined by an equation `F(y;p)=0` (solved off-tape),
+  returned differentiable via the implicit function theorem; `F` reads the active params from scope. FF16
+  and TF24 birth heights use it (replaced the hand-rolled `lift_birth_height`). Sibling of
+  `register_implicit` (explicit input vector).
+- `odelia::util::diagnostic(x)` — intent-named `to_passive`: "read the value, derivative deliberately not
+  taken" (error estimates, NaN checks, messages, R-facing, control branches). qk uses it; the R-boundary
+  unwrap is its next home. A bare `to_passive` on a rate path is now the reviewable smell.
+- **The reset-timing contract** is documented in `odelia/AUTODIFF.md`: a differentiable System MUST
+  re-derive parameter-dependent precomputed state in `reset()` (post-seed), or that channel is severed.
+  This is the only correct pattern; `Patch::reset()` re-preparing strategies is plant's instance.
+
 After any model change: re-run `scratchpad/certificate.R` — changed leaves flip to intact, others unchanged.
 
 **Known limitation carried forward (tracked: aornugent/odelia#46):** the -inf zero-spacing convention
