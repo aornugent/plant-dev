@@ -395,6 +395,11 @@ removable-vs-intrinsic **classifier are one instrument.**
 
 **Current / authoritative**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
+- `oracle-consultation-fundamentals.md` — **the consolidated fresh-Oracle elicitation** (zero prior
+  context, domain-clean, no question/no proposed remedy): the complete system + discretisation +
+  correctness reference + the full measured record of every approximation tried and why it resisted
+  (decomposition/MRI/RODAS/IMEX, member-reduction, tracked-control, events, inner-tolerance, PI
+  controller, reformulations). Consolidates all prior rounds; the intended fresh-Oracle send.
 - `oracle-consultation-intrinsic-characterisation{,-response}.md` — the deep neutral
   characterisation consult **and the Oracle's response** (the noise-floor hypothesis).
 - `tf24-noise-floor-E1-E2-result.md` — **the E1/E2 triage of that response (current
