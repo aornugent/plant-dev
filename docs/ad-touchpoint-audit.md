@@ -6,6 +6,30 @@ across FF16 + the shared model surface (node, species, individual, internals,
 patch, environment, resource_spline, qk, canopy_shape, gradient, scm, strategy,
 util) + the other strategies (K93, TF24, TF24f) for comparison._
 
+> **RESOLUTION (session 3, 2026-07-20).** The resident FF16+K93 defects below are
+> **fixed and certified** — every `AD_FIELDS` leaf's reverse AD now matches the
+> reoptimising FD (FF16 32/32 metric=0, 30/30 metric=2; K93 all intact/zero). Fixes
+> were all plant-only (no odelia edit; the primitives existed). Corrections to this
+> audit's conclusions, found during remediation:
+> - **The root cause of `omega`/`eta`/the allometry birth-channel was a *timing*
+>   grounding, not the sites named below:** `prepare_strategy` (which holds the
+>   `lift_birth_height` IFT lift and the `canopy_shape`/`eta_c` precompute) was never
+>   re-run after the gradient driver seeds the parameters, so those precomputed
+>   quantities were baked with zero-derivative params. `Patch::reset()` now
+>   re-prepares each strategy (mirrors `IndividualRunner::reset()`). This is a fifth
+>   grounding flavour — *a precomputed quantity not recomputed post-seed* — added to
+>   the vocabulary.
+> - **`register_implicit` was NOT needed** for the birth size (item 5): `lift_birth_height`
+>   was already a correct IFT lift; only the timing + raw-double consumption were wrong.
+> - **K93 `k_I` (item 6) is NOT severed — it is structurally ZERO** (AD=0 correct). The
+>   field's `k_I·BA` and the read's `÷k_I` cancel exactly; the certificate's SEVERED was
+>   FD roundoff (FD ~1/step, sign-flipping; AD stable at ~0 vs an O(1e6) metric).
+> - **a5 (qk→`odelia::quadrature`) dropped as scope creep** (fixed rule, no adaptive
+>   nodes; diagnostic `to_passive` a strategy author never touches).
+>
+> TF24 remains blocked on the reverse-AD blow-up (b1). Details: `docs/HANDOFF.md`,
+> `docs/build-plan.md` "►► CURRENT WORK".
+
 ## The one-paragraph finding
 
 The plant AD surface is **overwhelmingly correct** — nearly every `to_passive`

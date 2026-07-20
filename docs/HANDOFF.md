@@ -126,46 +126,56 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-20 (session 2). This session: **a whole-surface AD-touchpoint audit + empirical
-per-leaf certification**, triggered by the FF16 `a_l1` residual and the user's call to stop careening
-bug-to-bug. Superrepo `bacf7ea`, plant `c74cd84e`, odelia `ac6a988`. No model code changed yet — this was
-diagnosis; **the next session builds the remediation.** Full detail: [`docs/ad-touchpoint-audit.md`](./ad-touchpoint-audit.md);
-remediation plan: [`docs/build-plan.md`](./build-plan.md) "►► CURRENT WORK" block._
+_Last updated: 2026-07-20 (session 3). This session: **the resident FF16+K93 AD-touchpoint remediation,
+implemented and certified** (Tranche (a) from the audit). Superrepo (bumped this session), plant HEAD,
+odelia `ac6a988` (unchanged — no odelia edits were needed). **FF16 and K93 resident gradients are now
+COMPLETE**: every registered `AD_FIELDS` leaf's reverse AD matches the re-optimising FD. Full detail:
+[`docs/ad-touchpoint-audit.md`](./ad-touchpoint-audit.md); [`docs/build-plan.md`](./build-plan.md) "►► CURRENT WORK"._
 
-## WHAT THIS SESSION ESTABLISHED (read the two docs above for detail)
-- **The `a_l1` residual root cause = FF16's `net_mass_production_dt_ > 0 ? rate : 0` growth/fecundity
-  CLAMP** (a model kink; AD gives the correct subgradient, two-sided FD sees across it). Confirmed by: FD
-  δ-plateau (not a kink-crossing), frozen-config RHS Jacobian exact everywhere, per-cohort tangents (log_mass
-  & mortality exact, height wrong), birth-rate/shading sweep. **K93 is exact because it already
-  `smooth_positive`s the identical clamp** (`k93_strategy.h:253`) — that is the fix template.
-- **`eta` is FULLY SEVERED (AD=0 vs FD≠0) in FF16 AND K93** — `CanopyShape` is an un-templated `double`
-  class holding eta; it grounds eta's derivative while templating only the query. One class fix (template
-  `CanopyShape` on `S`) retires it across all strategies.
-- **`omega` FULLY SEVERED (FF16 + TF24)** via the `height_seed()` double root-solve; **K93 `k_I` severed on
-  the growth channel.** Found by the empirical certificate, NOT by five agents' file-reading — the reason
-  the certificate is load-bearing.
-- **TF24 reverse-AD is NUMERICALLY BLOWN UP** (~1e25–1e32 vs sane FD) — non-functional, a separate
-  debugging track, not a smooth-positive job. plant#60 (leaf soil-coupling envelope-FD) is a *filed* subset;
-  its fix seam (`dsoil_consumption_dpsi_collar_perlayer`) is already present.
-- **Engine + lower-level agnostic surface is CLEAN** (odelia AD core, node/species/individual/patch/
-  environment/spline/interpolator/field/qk). One API foot-gun: `odelia::supplied_derivative()` injects
-  partials with no stationarity guard (the engine-level plant#60 invitation).
-- **Completeness method** (so we never again "read and hope"): static grounding census (finite: 63
-  `to_passive` + 36 `xad::value` + 36 `double` members + 2 helper classes) ∧ empirical per-leaf certificate
-  (`ad_certificate.cpp` → `certificate.R`/`tf24_cert.R`). FF16 ✓, K93 ✓, TF24 ✗-blocked.
+## WHAT THIS SESSION DID (resident FF16+K93 remediation — DONE + certified)
+All four resident-path jobs landed as plant-only edits (no odelia change needed; the primitives already
+existed). Certificate (`scratchpad/certificate.R`, driver `ad_certificate.cpp`): **FF16 32/32 metric=0,
+30/30 metric=2; K93 all intact/zero, both metrics.** Regression sweep clean (scm/patch/individual/species/
+node/strategy-ff16/strategy-k93/ad-ff16 all green).
+- **a2 (clamp) — smooth the FF16 `net > 0 ? rate : 0` growth/fecundity/establishment clamp** with
+  `util::smooth_positive` (K93's exemplar). New `FF16_Strategy::net_mass_production_eps = 1e-6` corner
+  radius (1e-4 biased establishment up ~2.6%; the certificate is r-independent so 1e-6 keeps demography
+  within ~3e-5). Heartwood keeps its hard gate (not a multiple of net; bit-identical). Fixed `a_l1`/`a_l2`.
+- **a1 (eta) — template `CanopyShape` on `S`.** eta now carried as `S`; the integer multiply chains are a
+  **double-only** fast path via `if constexpr`, active `S` uses general `pow(u,eta_)` (the chains carry no
+  eta term — templating alone was insufficient, the design's load-bearing catch). `pow(0,eta)` NaN guarded
+  (limit 0). Fixed `eta` in FF16 **and** K93. Bit-identical double path.
+- **a3 (birth size) — the fix was NOT `register_implicit`.** `lift_birth_height` was already a correct IFT
+  lift; the real bugs were (i) `prepare_strategy` (where the lift runs) was never re-run after the gradient
+  driver seeds the parameters, so `initial_height_`/`area_leaf_0`/`eta_c` were baked with zero-derivative
+  params, and (ii) FF16 consumed the raw double `height_seed()` root for `area_leaf_0`/establishment.
+  **Fix: `Patch::reset()` re-prepares each species' strategy** (mirrors `IndividualRunner::reset()`; one
+  place, all strategies) — this also unblocked a1 (eta_c/canopy baked the same way) — **plus** FF16 derives
+  `area_leaf_0`/establishment from the lifted `initial_height_`. Fixed `omega` (SEVERED→intact) and the
+  allometry birth-channel. Idempotent on the double path.
+- **a4 (K93 `k_I`) — NO code change; verified CORRECT.** The certificate's "SEVERED" was a false positive:
+  the field encodes `k_I·BA` and the read divides by `k_I`, so they cancel exactly → `cumulative_basal_area`
+  is k_I-independent → AD=0 is right. FD-step sweep confirmed FD scales ~1/step and flips sign (roundoff),
+  AD stable at -6e-12 (~0 vs O(1e6) metric). The audit's "structurally dead" was a misread; it is
+  structurally *zero*.
+
+**Deferred/dropped (design decisions this session):** the qk "`odelia::quadrature`" primitive is **dropped
+as scope creep** — qk is a fixed rule (no adaptive nodes to record), its `to_passive` is confined diagnostic
+machinery a strategy author never touches; a Replayable-QK would be machinery for a decision that doesn't
+exist. The `gauge`/`drop_derivative` marker idea is also dropped (it duplicated `Replayable`).
 
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
-**Full remediation, Tranche (a) — FF16/K93, certified and ready** (see build-plan "►► CURRENT WORK").
-Recommended order, `system-design` before the structural one:
-1. **a1 — template `CanopyShape` on `S`** (structural; fixes `eta` in FF16+K93+TF24 at once). system-design first.
-2. **a2 — `smooth_positive` the FF16 clamps** (fixes `a_l1`/`a_l2`; add an `FF16_Strategy` corner-radius
-   member mirroring K93 `growth_eps=1e-4`; re-bless FF16 demography snapshots).
-3. **a3 — IFT-lift the birth size**, consume it in `area_leaf_0` + `establishment_probability` (fixes
-   `omega` in FF16+TF24 and the establishment `height_0` severance).
-4. **a4 — K93 `k_I` growth path**; **a5 — qk → `odelia::quadrature` primitive** (DX, no numeric change).
-After each: re-run `certificate.R` — the changed leaves must flip SEVERED/PARTIAL → intact, others unchanged.
-**Tranche (b) — TF24 — is blocked on b1 (debug the reverse-AD blow-up)**; do not start TF24 remediation
-until b1 is understood. **Guard `supplied_derivative`** as part of whichever tranche touches it first.
+Resident FF16+K93 is done. The open fronts, in priority order:
+1. **b1 (task #17) — debug the TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for any TF24
+   gradient work; a distinct, larger track (candidates: the Leaf `supplied_derivative` seam partials,
+   reverse over the stiff soil ODEs, or a tape/rebind issue). TF24 cannot be per-leaf certified until this
+   is understood. plant#60 (leaf soil-coupling envelope-FD) is a filed subset; seam already present.
+2. **DX co-design leftovers (odelia):** `plant::util::smooth_positive` (util.h) **duplicates**
+   `odelia::util::smooth_positive` — the primitive should live only in odelia (retire the plant copy). And
+   **guard `odelia::supplied_derivative()`** (no stationarity check — the engine-level plant#60 invitation).
+3. **The R-boundary unwrap** (~20 `xad::value` sites returning doubles to R) — deferred until resident
+   gradients settled (now they have). A wrap-layer conversion vs a primitive is a `system-design` question.
+After any model change: re-run `scratchpad/certificate.R` — changed leaves flip to intact, others unchanged.
 
 **Known limitation carried forward (tracked: aornugent/odelia#46):** the -inf zero-spacing convention
 handles *exact* zero spacing; *tiny-but-nonzero* centred spacing at a near-stall could still overflow a

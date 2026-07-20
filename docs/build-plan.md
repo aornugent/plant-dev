@@ -44,26 +44,28 @@ a trait derivative is lost. The FF16 "a_l1 residual" that started this was one
 symptom of a small, enumerable class of defects; the audit found the rest — including
 two the file-reading missed (`omega`, K93 `k_I`).
 
-**Certification status:** FF16 ✓ certified, K93 ✓ certified, **TF24 ✗ blocked
-(reverse-AD numerically blown up, ~1e30 vs sane FD — a separate debugging track)**.
-Completeness = static grounding census (finite: 63 `to_passive` + 36 `xad::value` +
-36 `double` members + 2 un-templated helper classes) ∧ per-leaf empirical certificate.
+**Certification status:** **FF16 ✓ certified + REMEDIATED, K93 ✓ certified + REMEDIATED**
+(session 3 — every `AD_FIELDS` leaf's reverse AD now matches the reoptimising FD;
+regression sweep green), **TF24 ✗ blocked (reverse-AD numerically blown up, ~1e30 vs
+sane FD — a separate debugging track, b1)**. Completeness = static grounding census ∧
+per-leaf empirical certificate.
 
 **Two failure modes, one vocabulary:**
 1. **Grounding** — a leaf's derivative flows *through* a node that grounds to `double`
-   (un-templated helper class, bare-`double` member, `to_passive`, or a non-smooth
-   clamp). Severs everything upstream.
+   (un-templated helper class, bare-`double` member, `to_passive`, a non-smooth clamp,
+   **or a precomputed quantity that was not recomputed after the parameter was seeded**).
+   Severs everything upstream.
 2. **Un-registered leaf** — a param never wired onto the graph (`double` member not in
    `AD_FIELDS`). Its own gradient is simply absent.
 
-**Remediation — Tranche (a): FF16/K93 (certified, ready to build).**
-| # | fix | closes | mechanism / exemplar |
+**Remediation — Tranche (a): FF16/K93 — DONE (session 3), all plant-only, no odelia edit.**
+| # | fix | closes | outcome |
 |---|---|---|---|
-| a1 | **template `CanopyShape` on `S`** (eta/eta_c/eta_inverse become `S`) | `eta` SEVERED in **FF16 + K93 + TF24** at once | it is an un-templated class holding eta as `double`; methods template only the query. One class fix, three strategies. **structural → system-design first.** |
-| a2 | **`smooth_positive`** the FF16 `net_mass_production_dt_>0 ? rate : 0` clamp (`ff16_strategy.h:300-326`, and establishment `:670-675`) | `a_l1`/`a_l2` PARTIAL (the a_l1 residual) | K93 exemplar `k93_strategy.h:253`; add an `FF16_Strategy` corner-radius member mirroring K93 `growth_eps=1e-4`. Re-baselines FF16 demography (r is the knob). |
-| a3 | **IFT-lift the birth SIZE** and consume the lifted value in `area_leaf_0` + `establishment_probability` (not the raw `height_seed()` double root) | `omega` SEVERED (FF16 **and** TF24 — shared), establishment `height_0` | reuse `lift_birth_height`; `omega` flows only through the birth-size root-solve. |
-| a4 | trace + lift K93 `k_I` growth-channel path | K93 `k_I` SEVERED (growth) | small magnitude; likely a passive in cumulative_basal_area/canopy. |
-| a5 | **qk → `odelia::quadrature` primitive** (DX, no numeric change) | the `to_passive`-saturation smell | value+bound derivative already correct; move it off plant model code. |
+| a2 | **`smooth_positive`** the FF16 `net>0 ? rate : 0` growth/fecundity/establishment clamp; new `FF16_Strategy::net_mass_production_eps = 1e-6` (r is the faithfulness knob; certificate is r-independent). Heartwood keeps its hard gate (not ∝ net; bit-identical). | `a_l1`/`a_l2` | ✓ intact both metrics. FF16 offspring re-blessed (~3e-5). |
+| a1 | **template `CanopyShape` on `S`**; integer multiply chains are a **double-only** fast path (`if constexpr`), active `S` uses general `pow(u,eta_)` (chains carry no eta term — **templating alone was insufficient**); `pow(0,eta)` NaN guarded. | `eta` in **FF16 + K93** | ✓ intact both metrics, both strategies. Double path bit-identical. |
+| a3 | **birth size: NOT `register_implicit`.** `lift_birth_height` was already correct; the bug was that `prepare_strategy` (where it runs) was never re-run after the driver seeds params. Fix: **`Patch::reset()` re-prepares each strategy** (mirrors `IndividualRunner::reset()`, one place) — also unblocked a1 — + FF16 derives `area_leaf_0`/establishment from the lifted `initial_height_`. | `omega` SEVERED + allometry birth-channel | ✓ omega intact both metrics; idempotent on double. |
+| a4 | K93 `k_I` — **NO change; verified CORRECT.** Field encodes `k_I·BA`, read divides by `k_I` → exact cancel → k_I-independent growth → AD=0 right. Certificate "SEVERED" was FD roundoff (FD scales ~1/step, flips sign; AD stable ~0). | (false positive) | ✓ structurally zero, not dead. |
+| ~~a5~~ | ~~qk → `odelia::quadrature`~~ **DROPPED (scope creep).** qk is a fixed rule (no adaptive nodes to record); its `to_passive` is confined diagnostic machinery a strategy author never touches. A Replayable-QK would be machinery for a decision that doesn't exist. Retrofit trigger: a second fixed-rule quadrature consumer. | — | dropped by system-design |
 
 **Remediation — Tranche (b): TF24 (blocked — its own track).**
 - **b1 — debug TF24 reverse-AD blow-up (BLOCKER).** Reverse gradient is ~1e25–1e32 vs
