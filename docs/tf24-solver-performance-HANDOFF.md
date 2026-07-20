@@ -139,8 +139,50 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-20. Forcing clip shipped (#21) + Stage-1 classifier gate
-run: verdict INTRINSIC (the event stepper is NOT built).*
+*Last updated: 2026-07-20 (end of session). Forcing clip shipped (#21); Stage-1
+classifier gate run → verdict **INTRINSIC**; the event-stepper program is refuted
+by its own gate; a deep-characterisation Oracle consult is written and ready to
+send. **This session ends here; the next session's job is to receive the Oracle's
+response.***
+
+## ▶ NEXT SESSION — start here (receiving the Oracle response)
+
+You are picking up with a clean context. Do this, in order:
+
+1. **Read Part 1 in full**, then this Part 2.
+2. **The consult that is out:** `docs/oracle-consultation-intrinsic-characterisation.md`.
+   It is a complete, domain-clean, neutrally-weighted characterisation (no directed
+   questions) that reports the classifier result as a **measured refutation** of the
+   round-6/7 event-program bet. Read it before the response so you know exactly what
+   was asked. Its companion measurements: `docs/tf24-classifier-gate-result.md`,
+   `docs/tf24-soil-profile-eco.md`.
+3. **When the Oracle response arrives:** save it verbatim as
+   `docs/oracle-consultation-intrinsic-characterisation-response.md` (dated). Then
+   apply the **consult guide's §7 discipline (`docs/oracle-consultation-guide.md`)**:
+   *the Oracle is a hypothesis generator, not an authority.* Reduce **every** claim
+   it makes to the **cheapest falsifiable experiment** and run that **before**
+   building anything. Prefer any test the Oracle proposes itself.
+4. **You can test most attribution/geometry reframes for FREE:** the classifier's
+   raw per-step data is saved under `scripts/tf24-benchmarks/results/classifier_raw/`
+   (bit-identical monitored runs, all 5 bank scenarios + drydown + partial TF24f).
+   `scripts/tf24-benchmarks/classifier_analyze.R` runs offline on it — so any new
+   attribution logic, correlation, or geometry the Oracle suggests can be checked in
+   minutes without re-running the (expensive, monitored) sims. Only a genuinely new
+   *signal* needs a re-capture (`classifier_capture.R` / `classifier_battery.R`).
+5. **Rebuild the build env only if you need to run code:** `R CMD INSTALL --no-docs
+   --no-byte-compile odelia`; then `rm -f plant/src/*.o plant/src/*.so` and
+   `options(pkg.build_extra_flags=FALSE); pkgload::load_all("plant", export_all=TRUE)`.
+   Nothing is uncommitted; all three repos are pushed (HEADs below).
+
+**Most likely outcomes to be ready for (do not pre-commit to any):** (a) the Oracle
+concedes intrinsic and points at the member-mesh/`J` frontier (§7) — then the next
+build is the coupling-weighted (ρ·|c|) refinement indicator; (b) it proposes a new
+representational reframe (the fixed-iteration inner search / the continuously-
+narrowing argmax interval / a `J` reformulation) — reduce to a cheap test first;
+(c) it disputes the attribution methodology — re-run `classifier_analyze.R` with its
+definition on the saved raw data. Independently of the response, three items stand:
+the E4 gradient bug (plant#60, task #23), the pruning sign-off (task #20), and the
+multispecies-capture harness fix.
 
 ## Gate result (2026-07-20) — the event stepper is dead; the frontier is the mesh/J
 
@@ -182,24 +224,34 @@ bet (collapse is intrinsic/broadband, not removable events; enrichment lift ≈0
 
 ## Where we are (one paragraph)
 
-Seven Oracle rounds + direct measurement on the real coupled patch have **settled
-the verdict: the time-integrator is not the lever.** No block decomposition
-(multirate/MRI, collocation, implicit-on-soil/IMEX/RODAS) beats global explicit
-RK at converged `J`; all were built and measured, all lose or are refuted. The
-step is **accuracy-limited by isolated non-smoothness in the cohort layer**, not
-soil stiffness. The **one forward pathway** is an **event-aware global explicit
-RK** (step-to-event on the same solver) plus work on the **member mesh and the
-functional `J`** — the real accuracy frontier. Two correctness items sit outside
-the perf work: a **reverse-mode gradient bug** (filed) and a **multi-block
-non-finite failure** (diagnosed H1/overflow, not stiffness).
+Seven Oracle rounds + direct measurement settled that the **time-integrator is not
+the lever** (no block decomposition beats global explicit RK at converged `J`). The
+round-6/7 verdict then proposed one forward pathway — an **event-aware** global
+explicit RK (step-to-event) — gated on a classifier (build-#2 / E1) that would
+first prove the step-collapse is made of **removable events**. **We built that gate
+and it refuted the premise:** the collapse is **intrinsic/broadband**, not
+event-attributable (enrichment lift ≈0.8–1.0; event surfaces fire <0.5%; the
+dominant hypothesised event is unreachable *by construction*; the argmax-bound
+event never fires; the one control-smoothing remedy, tracked-`p`/TF24f, is
+numerically infeasible as posed → plant#61). So **§4a–4e of the event spec are not
+built.** The forcing clip (#21) shipped anyway (free). The remaining forward
+frontier is the **member mesh + functional `J`** (§7). A deep-characterisation
+consult reporting all this is written and awaiting the Oracle. Two correctness
+items sit outside the perf work: the **reverse-mode gradient bug** (plant#60, E4,
+task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 ## Repo state (exact)
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `b878b17` |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `64e1e729` |
-| odelia | `claude/tf24-multirate-engine` | `5d19a24` |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `8b4c841` |
+| plant | `claude/tf24-multi-rate-stepper-n5audm` | `05df4c1f` |
+| odelia | `claude/tf24-multirate-engine` | `71256d1` |
+
+All three clean and pushed to `aornugent/*`. Open PRs: none (do not open without
+explicit ask). Filed issues this session: **plant#61** (TF24f tracked-ψ leaves the
+feasible leaf-solve domain at default `k_acclim`), **plant#62** (leaf shutdown
+near-unreachable — wettest-layer keying).
 
 ## What is built (all bit-identical when off; kept as documented diagnostics)
 
@@ -214,10 +266,9 @@ non-finite failure** (diagnosed H1/overflow, not stiffness).
 - **R-C (correctness, keep):** a shut-down TF24 leaf draws no water — removes
   phantom uptake + fixes a dead-drought AD-gradient bug (`leaf_model.cpp`,
   `test-tf24-shutdown.R`).
-- **R-D (experiment, CONFIRMED DEAD → revert pending):** soil log-depletion chart
-  ζ=ln(θ−θ_res) at plant `fc0dd2bb`. Verified neutral (the accuracy wall is
-  cohort-layer, a soil-chart reshape cannot touch it). `git revert fc0dd2bb`
-  applies cleanly — see Next Actions #1.
+- **R-D (experiment, CONFIRMED DEAD — REVERTED #19):** soil log-depletion chart
+  ζ=ln(θ−θ_res). Verified neutral and reverted; production byte-identical to the
+  pre-R-D state. Done.
 - **Benchmark bank + instrumentation:** `scripts/tf24-benchmarks/` (6 canonical
   hard rainfall sequences as `data/*.rds` + generator + `event_sizing.R` +
   `RESULTS.md`); odelia `step_diag` step-attempt log (off by default).
@@ -233,22 +284,40 @@ non-finite failure** (diagnosed H1/overflow, not stiffness).
 
 ## Measured facts that anchor the plan
 
-- **Event sizing (E1) across the bank:** ~27–35% of step attempts **rejected**
-  (rejection-bisection overhead); **min h ≈ 1.4e-8–5e-8·T** scattered collapse;
-  forcing kinks explain only 2–31% (cluster in dry gaps); **member insertions
-  explain ~0** (already step boundaries); **70–98% unattributed → dry-end
-  state-dependent crossings** (leaf-shutdown boundary, argmax bound, θ_res clamp).
+- **Classifier gate (E1 / build-#2), the current authority — supersedes the earlier
+  event-sizing interpretation.** ~27–35% of step attempts rejected; min h
+  ≈1e-8–1e-9·T scattered. The earlier read ("70–98% unattributed → dry-end
+  state-dependent crossings: shutdown/argmax/θ_res") was a **hypothesis; the gate
+  refuted it.** Measured across 5 bank scenarios + drydown (all bit-identical
+  monitored): rejections co-locate with an event-surface flip only **2–4% (median
+  2%)** of the time; the member solve is **≥99.7% the single smooth branch**;
+  switch-off fires **<0.5%** and its margin never reaches 0 (unreachable by
+  construction, plant#62); the **argmax-bound (degenerate-interval) event never
+  fires (0)**; clamps/runoff never fire. Enrichment `P(event|hard)/P(event|easy)
+  ≈ 0.8–1.0` → **collapse is intrinsic/broadband.** The only (weak) continuous
+  predictor of step size is the **argmax feasible-interval width** (Spearman
+  ρ≈0.24–0.42) and, collinearly, soil-depletion margins (ρ≈0.4). Full write-up:
+  `docs/tf24-classifier-gate-result.md`.
 - **Multi-block failure:** multispecies (4 spp) goes non-finite at t=5.745 yr with
   the step **growing** (h up to ~0.25 yr) → **not** coupled-mode stiffness (H2);
   signature is H1 large-step overshoot / density overflow (`exp(log_density)→Inf`).
+  (Classifier multispecies capture is still blocked on a harness birth-rate API
+  fix — a remaining gap.)
 - **`J` is ~10× hypersensitive** (23% inter-scheme spread) — validate in J-units.
 
-## The forward pathway — event-aware integrator (Oracle round-7 build order)
+## The forward pathway — event-aware integrator (Oracle round-7 build order) — ⚠ LARGELY RETIRED BY ITS OWN GATE
 
-**Authoritative implementation spec: `docs/tf24-event-aware-spec.md`** (verified
-against the real odelia↔plant↔TF24 coupling; system-design ledger + staged build +
-codesign split + acceptance vs `BASELINE.md`). Design summary below; build from the
-spec.
+**Status:** step 1 shipped (clip); step 2 (the gate) ran and **refuted** the premise
+of steps 3–4 → **steps 4a–4e are not built** (see the gate result above; the spec
+`docs/tf24-event-aware-spec.md §3` now carries the INTRINSIC verdict inline). Step 3
+(proximity governor) is optional and low-value (rejections don't co-locate, so it
+has little to grip). **Step 5 (member mesh + `J`) is the surviving frontier.** The
+build order is kept below for the audit trail; do **not** build 4a–4e without a new
+Oracle mandate that overturns the gate.
+
+**Spec (now historical for §4, live for §7): `docs/tf24-event-aware-spec.md`**
+(verified coupling map; system-design ledger; codesign split; acceptance vs
+`BASELINE.md`).
 
 Full design rationale: `docs/oracle-consultation-event-aware{,-response}.md`.
 Design = step-to-event on the same global explicit RK; the localizer and the
@@ -277,40 +346,57 @@ removable-vs-intrinsic **classifier are one instrument.**
 
 ## Next actions (in order)
 
-1. **[code cleanup] Revert R-D** (`git revert fc0dd2bb` on plant — clean),
-   rebuild, confirm rkck bit-identical. Confirmed-dead machinery; needs sign-off.
-2. **[code-review pass]** Run the `code-review`/`simplify` lens over the retained
-   experimental surface. Keep IMEX (per decision) and R-C; assess whether MRI /
-   collocation / `mri_use_split` still earn their place now the frame is retired,
-   under the abstraction principle. Bit-identical-off is what licenses pruning.
-3. **[build] DONE.** #1 (kink clipping) shipped; #2 (classifier gate) run →
-   **INTRINSIC** (see "Gate result" above). The event-location stepper is not
-   built. Remaining forward options, in order: (a) **coupling-weighted (ρ·|c|)
-   mesh refinement + J re-certification** (§7 / build-order #5 — the real
-   frontier); (b) optionally the **proximity governor** for the reject fraction
-   (cheap but small expected win — rejections don't co-locate); (c) **TF24f
-   tracked-p** to delete the argmax and reduce the continuous cohort-layer
-   stiffness the gate identified.
-4. **[correctness, separate branch] Gradient bug (plant#60):** verify Oracle E4 on
-   `claude/odelia-ad-tape-reverse-496fuf` — adjoint dJ/dθ vs true FD that
-   **re-optimizes the argmax**, on a real transpiring patch state. Owned there.
-5. **[correctness] Multi-block:** confirm the proximity governor (or a density
-   guard) cures the multispecies non-finite; definitive H2 eigenvalue check only
-   if it doesn't.
+0. **[gated on the Oracle] Receive + triage the response** — see the "▶ NEXT
+   SESSION" block at the top: save it dated, then reduce every claim to the cheapest
+   falsifiable test (raw classifier data lets you test attribution/geometry reframes
+   for free) and run it before building. This is the head of the queue.
+1. **[frontier, most likely next build] Coupling-weighted (ρ·|c|) mesh refinement +
+   `J` re-certification** (§7 / event build-order step 5 — the surviving frontier).
+   The insertion schedule resolves `x(t)` but `J` depends on `∫c·ρ`; add a `ρ·|c|`
+   refinement indicator (free — the full-M byproducts exist every step) and re-run
+   the M-refinement certification of `J`. Attacks the 24%-class error + 23%
+   inter-scheme spread at the root. **Do this unless the Oracle redirects.**
+2. **[correctness, separate branch] Gradient bug (plant#60 / E4):** the one prior
+   Oracle item not yet tested. Verify on `claude/odelia-ad-tape-reverse-496fuf` —
+   adjoint dJ/dθ vs a true FD that **re-optimizes the argmax**, on a real transpiring
+   patch state (the envelope-at-fixed-p* recipe may drop `(∂c/∂p)(∂p*/∂u)`). Task #23.
+3. **[code-review sign-off] Pruning pass (task #20):** deletion of MRI / collocation /
+   `mri_use_split` — analysis done, physical deletion **awaiting user sign-off**.
+   Keep IMEX + R-C. Bit-identical-off licenses it. Now *more* justified: the frame is
+   fully retired by the gate.
+4. **[coverage gap] Multispecies classifier capture** — fix the `add_strategies`
+   birth-rate API mismatch in `classifier_battery.R` (needs per-species birth rate;
+   `rep(1,n)` did not satisfy it — check `add_strategies` signature), then capture the
+   R3 failure case through the monitor. Also the natural place to confirm whether the
+   multi-block H1 blow-up co-locates with any event.
+5. **[optional, low-value] Proximity governor** — only if a reject-fraction win is
+   wanted; expected small since rejections don't co-locate with event surfaces.
 
 ## Document map (status)
 
 **Current / authoritative**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
-- `tf24-event-aware-spec.md` — **the implementation spec** for the forward pathway
-  (verified coupling map, staged build, codesign split, acceptance criteria).
-- `scripts/tf24-benchmarks/BASELINE.md` — the frozen numbers to beat.
-- `oracle-consultation-event-aware{,-response}.md` — the live design rationale.
+- `oracle-consultation-intrinsic-characterisation.md` — **the consult now out to the
+  Oracle** (deep neutral characterisation; the classifier refutation). Its response
+  goes to `…-response.md` when it arrives.
+- `tf24-classifier-gate-result.md` — the gate measurement + verdict (INTRINSIC) and
+  the stress battery. The reason the event program is retired.
+- `tf24-soil-profile-eco.md` — the shutdown-reachability mechanism (plant#62).
+- `oracle-consultation-guide.md` — how to frame consults + **§7 test-before-build**
+  (apply to the incoming response).
+- `scripts/tf24-benchmarks/` — the bank, harness, `BASELINE.md` (frozen numbers),
+  `classifier_{capture,battery,analyze}.R`, and `results/classifier_raw/` (saved
+  per-step monitor data for free offline re-attribution).
+- `tf24-event-aware-spec.md` — the event-integrator spec; **§4 retired by the gate**
+  (verdict recorded inline in §3), §7 (mesh/`J`) still live. Reference, not a plan.
+- plant#60 — reverse-mode gradient bug (E4); plant#61/#62 — filed this session.
+
+**Context, superseded by the gate**
+- `oracle-consultation-event-aware{,-response}.md` — the round-7 design that
+  proposed the event program; its own gate (build-#2) refuted its premise.
 - `oracle-consultation-tf24-recharacterized{,-response}.md` — the round-6 verdict
-  (frame retired) and corrected system description.
-- `scripts/tf24-benchmarks/` (`RESULTS.md`, bank, harness) — canonical benchmark.
-- `oracle-consultation-guide.md` — how to frame Oracle consults (general).
-- plant#60 — the reverse-mode gradient bug (tracked on GitHub).
+  (block decomposition retired) + corrected system description. Still correct on
+  the negative results; superseded on the event program.
 
 **Superseded / historical** (kept for the audit trail; do NOT build from these)
 - `oracle-consultation-multirate-{update,response,followon,followon-response,collocation,collocation-response,verdict}.md`
