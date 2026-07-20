@@ -600,21 +600,31 @@ for Phase 2:
   `field_ptrs`/`prepare_strategy`/`compute_jacobian` and adds one function name (R2) whose signature is the
   R1 guarantee. The ~200–300-line bespoke drivers (ff16 297, k93 243) collapse to a functional + one call.
 
-  **LANDED (2026-07-20, session 4).** `plant/scm_gradient.h` — `scm_jacobian`/`scm_gradient` + `offspring_metric`/
-  `census_metric` functionals. The odelia System `rebind_from<S2>()` contract is now completed on the plant
-  types: `Strategy::copy_config_from` (base, scalar-independent config), `rebind_from` on FF16/K93/TF24/TF24f
-  strategies (field_ptrs widen + copy_config_from; precomputed state left to prepare_strategy), `Parameters::
-  rebind_from`, `SCM::rebind_from` (fresh SCM from rebound params + default env + Control); `rebind` aliases
-  added to TF24/TF24f/TF24_Environment. **R5 is structural, not convention:** `scm_jacobian` asserts the active
-  value reproduces the double reference (a dropped config member shifts it O(1) → loud `util::stop`, not a
-  plausible wrong number). Driver `scm_gradient_driver.cpp` takes ONLY traits + target indices (no schedule);
-  test `test-scm-gradient-entry.R` gates: value == value_double (1e-10); the entry's self-refined schedule
-  reproduces `run_scm(refine_schedule)`'s gradient (FF16 vs bespoke driver, 1e-6; K93 vs certificate AD, 1e-6);
-  and the reoptimising/model FD (FF16 per-trait certified tol, K93 1e-3). All double-path suites bit-identical
-  (rebind_from is dormant off the gradient path). **TF24 env soil config does not cross yet** (set at
-  construction, not Control-derived) — the R5 assert would trip if a TF24 gradient were attempted; deferred
-  with b1. **Remaining for this front:** an R-facing `run_scm_gradient` shim (name→index resolution, doubles
-  both ways) once the C++ boundary is exercised; retire the bespoke drivers + `step_history` (tasks #4/#6).
+  **LANDED (2026-07-20, session 4).** `plant/scm_gradient.h` — `scm_jacobian`/`scm_gradient` (the plant
+  analogue of odelia's `jacobian_on_double`/`gradient_on_double`; plant's SCM is *not* an `ode::Solver` — it
+  HAS-A one + node scheduling — so it cannot use odelia's Solver-typed entry, but it delegates seed/tape/sweep
+  to odelia's `compute_jacobian` and returns odelia's `{values, jacobian}` pair — no bespoke result type) +
+  `offspring_metric`/`census_metric` functionals. **The odelia System `rebind_from<S2>()` contract is now
+  completed on the plant types** (this is exactly the hook odelia's `has_rebind_from`/`active_solver` look for,
+  not a plant invention): `Strategy::copy_config_from` (base, scalar-independent config) + the single
+  `plant::rebind_strategy_fields` mechanic (config + `field_ptrs()` widen; precomputed state left to
+  `prepare_strategy`), so each strategy's `rebind_from` is a one-line delegation (FF16/K93/TF24/TF24f);
+  `Parameters::rebind_from`, `SCM::rebind_from`; `rebind` aliases on TF24/TF24f/TF24_Environment.
+  **`field_ptrs()` is the one AD-field enumeration feeding three consumers** — `ad_parameters()` (which params
+  to *seed*), `rebind_from` (config to *cross*), `field_names()` (R labels) — so it stays even under rebinding
+  (seeding and config-copy are different jobs). **R5 is structural:** `scm_jacobian` asserts the active value
+  reproduces a double-replay reference (a dropped config member shifts it O(1) → loud `util::stop`), so the
+  check is internal, not a returned field. Driver `scm_gradient_driver.cpp` takes ONLY traits + target indices
+  (no schedule); test `test-scm-gradient-entry.R` gates: the entry's self-refined schedule reproduces
+  `run_scm(refine_schedule)`'s gradient (FF16 vs bespoke driver 1e-6; K93 vs certificate AD 1e-6) and the
+  reoptimising/model FD. All double-path suites bit-identical (rebind_from dormant off the gradient path).
+  **TF24 env soil config does not cross yet** (set at construction, not Control-derived) — the R5 assert trips
+  if a TF24 gradient is attempted; deferred with b1. **Co-design endpoint (task #4, deferred):** plant's SCM
+  still uses `NodeSchedule.use_ode_times` as its L1 replay handoff rather than odelia's `set_schedule()`/`run()`
+  — the *second replay-grid source*. Conforming the SCM's replay to odelia's (a `set_schedule` that the
+  segmenting `run()`/`run_mutant` honour) would let plant reuse odelia's `active_solver`/`gradient_on_double`
+  more directly and kill the second source; it touches the hot replay path (Tier 2/3, bit-identity-gated).
+  **Also remaining:** an R-facing `run_scm_gradient` shim (name→index resolution, doubles both ways).
   - **A latent secondary bug, TESTED and RULED OUT for R0**: `area_leaf_0 = area_leaf(height_0)` with
     `height_0` a plain `double` (ff16_strategy.h:764/830) drops the birth-height-shift derivative `dh₀/dθ`
     that `initial_height_` (line 765) carries via the IFT lift. Rebuilding with `area_leaf(initial_height_)`
