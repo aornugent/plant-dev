@@ -1,149 +1,156 @@
-# Supplementary addendum + correction to the fundamentals elicitation
+# Supplementary addendum + correction to the fundamentals characterisation
 
-> For the **fresh-context** Oracle that answered `oracle-consultation-
-> fundamentals.md`. This carries (1) an erratum on one factual error your
-> ranked-first finding depended on, (2) the measurements we ran on your
-> findings before writing back — per the house rule of falsifying before
-> building, (3) facts about the system that were missing or wrong in the
-> original elicitation and that change the picture, and (4) the questions
-> that remain. The original elicitation otherwise stands.
+> For the reader of `oracle-consultation-fundamentals.md`. Same notation
+> throughout: `x` (large block of `M` members `x_j`, coordinate `ξ_j`, weight
+> `ρ_j`), `u` (small block of `L=5` reservoirs), `p*` (inner argmax), `a`/`s`
+> (coupling channels), `b(t)` (forcing into reservoir 1), `J = Σ_j tw_j·φ(x_j)`
+> (the moment functional), `θ` (parameters), `τ` (inner-solve tolerance). No
+> application domain; none is needed. This carries (1) one erratum, (2) the
+> measurements we ran on the findings before writing back, (3) facts about the
+> system that were missing or wrong in the original characterisation and that
+> change the picture, and (4) the open questions.
 
 ---
 
-## 1. Erratum: the forcing is a C² cubic spline, not piecewise-linear
+## 1. Erratum: `b(t)` is a C² spline, not piecewise-linear
 
-Your ranked-first finding (the "forcing node lattice" as the prime suspect
-for the broadband accuracy limit) read that §4 described the drivers as a
-"fine piecewise-linear node grid" while §1 called `b(t)` a `C²` spline. **§1
-is correct; §4 was wrong.** The code evaluates the driver through a standard
-tridiagonal **cubic spline** (`C²`), and that is the only representation any
-measured sequence used. Piecewise-linear exists but is an unused option — so
-your test (b) ("rerun with the C² spline option") is inverted: the spline is
-what already ran. The knot count/spacing you inferred (~daily, ~3×10⁻³,
-~10× below the median step) are right; only the continuity class was wrong.
+The characterisation was internally inconsistent about the forcing. §1 called
+`b(t)` a `C²` spline; §4 described the measured sequences as driven through "a
+fine piecewise-linear node grid." **§1 is correct.** `b(t)` is evaluated
+through a conventional tridiagonal **cubic spline (`C²`)**, and that is the only
+representation any measured sequence used; piecewise-linear exists but is an
+unused option. The knot count/spacing stated (~a few hundred knots per time
+unit, spacing `≈ 3×10⁻³`, ~10× below the median accepted step) are right; only
+the continuity class was wrong. Consequently the specific "order-5 across a
+`C¹` kink → local `O(h²)`" mechanism does not operate — there is no `b'` jump
+at a knot.
 
-## 2. What we measured on your findings
+## 2. Measurements run on the characterisation's open threads
 
-### 2a. The forcing knots (your stone 1): confirmed as a mechanism, refuted as a lever
+### 2a. The forcing spline knots — real mechanism, minor lever
 
 A `C²` cubic spline still has a **discontinuous third derivative at every
-knot**, so an order-5 method cannot reach full order across one — the weaker
-residual worth testing. We logged the distance from every step attempt to
-the nearest daily spline knot (offline, from saved per-step data):
+knot**, so an order-5 method cannot reach full order across one. We logged the
+distance from every step attempt to the nearest spline knot (offline, from
+saved per-step data, all five sequences):
 
-- **Real, size-independent effect.** Holding step size to a 0.15×DK-wide
-  window (so "crosses a knot" vs "fits between" differs only by *phase*), a
-  step that crosses a knot rejects **+12 to +36 pp more** than an
-  identically-sized step between knots — all 5 scenarios, growing as more of
-  the step sits past the knot. Your structural point ("no instrument ever
-  looked at the grid nodes") was correct: our clip and classifier only
-  logged sparse *value-change features*, never the dense spline knots.
-- **But minor.** Size-matched counterfactual: only **1.3–3.9 pp of the ~30 %
-  rejection** is knot-attributable. The median step is 0.08–0.22×DK and
-  84–92 % of steps are sub-knot on smooth cubic arcs; only 6–16 % of attempts
-  cross a *value-changing* knot (flat dry-spell knots are exactly constant
-  under a cubic spline — no jump). The 47× "wall" (effective order ≈ 1.8) is
-  **not** explained by the knots; if it were, the attributable fraction would
-  be large, not 2–4 pp.
+- **Real, size-independent effect.** With step size held to a narrow window
+  (so "crosses a knot" vs "fits between knots" differs only by phase, not
+  size), a step that spans a knot is rejected **+12 to +36 pp more** than an
+  identically-sized step between knots — consistent across all sequences,
+  growing as more of the step lies past the knot. No prior instrument had
+  looked at the knots (only at the sparse forcing-*feature* times).
+- **But small.** Size-matched counterfactual: only **1.3–3.9 pp of the ~30 %
+  rejection fraction** is knot-attributable. The median step is 0.08–0.22
+  knot-spacings, 84–92 % of steps are sub-knot on smooth cubic arcs, and only
+  6–16 % of attempts cross a knot where `b` is actually *changing* (a cubic
+  spline through equal values is exactly constant — flat stretches contribute
+  no third-derivative jump). The wall (`≈ 47×` cost per 3 decades of
+  tolerance past converged `J`, i.e. effective order `≈ 1.8`) is **not**
+  explained by the knots; if it were, the attributable fraction would be
+  large, not 2–4 pp. The broadband order limit lives in the *continuous*
+  structure — the Lipschitz-but-violently-curved coupling field.
 
-Net: the forcing joint is confirmed but is not the frontier-reopener the
-piecewise-linear premise implied. The broadband order limit lives in the
-*continuous* structure (the C¹-but-violently-curved coupling field).
+### 2b. The error norm as a maximum over a growing block — confirmed
 
-### 2b. The error norm (your points 4–5 / max-over-a-growing-block): confirmed
+We instrumented the adaptive controller to record, per step attempt, **which
+state component attains the max scaled error `rmax`** (bit-identical when off).
+Across all sequences:
 
-We built a norm-argmax log (which state component sets `rmax` per attempt,
-bit-identical off) and ran the bank. Your extreme-value hypothesis holds:
+- **192–345 distinct components** attain `rmax` among rejected attempts (state
+  dimension `N ≈ 800–1000`), normalised entropy **0.77–0.83** — the
+  attribution is broad, not one stiff mode.
+- **Members dominate over reservoirs.** The reservoir block `u` attains `rmax`
+  on only 24–34 % of rejected attempts in four of five sequences (one
+  reservoir-heavy exception at 55 %); the rest are attained by members `x_j`.
+- **Consecutive churn 0.23–0.28** — the arg-max component persists a few steps
+  then drifts as `M` grows: enough persistence to be non-memoryless, too
+  diffuse for a serial (PI-type) predictor. This is exactly why the PI
+  controller we tried cost +13–29 % work: there is no serial structure to
+  exploit.
 
-- **192–345 distinct components** set `rmax` among rejected attempts
-  (max dim ~800–1000), normalised entropy **0.77–0.83** — the attribution is
-  broad, not one stiff mode.
-- **Members, not soil, dominate**: soil sets `rmax` on only 24–34 % of
-  rejects in 4 of 5 scenarios (one soil-heavy exception at 55 %).
-- **Consecutive churn 0.23–0.28** — the argmax persists a few steps then
-  drifts as the population grows: enough persistence to be non-memoryless,
-  too diffuse for a serial (PI) predictor, which is exactly why our PI
-  controller measured +13–29 % work.
+This confirms the *precondition* for the goal-oriented / `J`-relevance-weighted
+error norm (members do set the norm, broadly). It does **not** yet establish
+its *safety*: we cannot yet tell whether the `rmax`-attaining members have
+small `ρ_j` (safe to down-weight) or are near the `ρ → 0` absorbing boundary
+(where down-weighting would corrupt `J`). That cross-reference is the next
+measurement and the gate on building it.
 
-This establishes the *precondition* for your goal-oriented / J-relevance-
-weighted norm (members do set the norm, broadly). It does **not** yet
-establish its *safety*: we cannot yet tell whether the rmax-setting members
-are marginal-ρ (safe to down-weight) or heavy/near-threshold (down-weighting
-would corrupt J). That cross-reference is our next measurement and the gate
-on building it.
+### 2c. The `J` spread across the member axis — mixed, first cut
 
-### 2c. The J spread across the member axis (your point 2 / lineage decomposition): mixed, first cut
+`J = Σ_j tw_j·φ(x_j)` is a weight-weighted reduction over members; the reduction
+is a quadrature over the member **insertion coordinate** `τ_ins` (the ordered
+time at which each member was inserted — the lineage axis), and `tw_j` carries
+both the member weight and a monotone-decreasing **insertion-time envelope**
+`w(τ_ins)`. We decomposed the difference in `J` between two insertion
+*schedules* (two discretised measures) along `τ_ins`. First cut, one sequence,
+a coarse schedule (`M≈93`) vs a 2×-denser one (`M≈185`), which disagree by
+**62 %** in `J`:
 
-J is a trapezoidal integral over nodes of `fecundity_i × patch_density_i × S_D
-× birth_rate_i`, where `node_times` is the lineage coordinate and `fecundity_i`
-is survival-weighted (carries the extinction structure). We decomposed the
-inter-mesh ΔJ along the lineage axis. First cut (one scenario, coarse 93-node
-vs 2×-densified 185-node mesh, 62 % apart):
+- The **absolute** discrepancy `|Δg(τ_ins)|` is concentrated to the same degree
+  as `J`'s own integrand (50 % of the mass in 1.7 % of the axis, vs 1.5 % for
+  the integrand) — in absolute terms the error just tracks where `J`'s mass
+  already sits (small `τ_ins`, where `w(τ_ins)` peaks).
+- The **relative** discrepancy `|Δg|/g` is **diffuse** (median 0.53 over 51 %
+  of the axis) **with a sharp spike** (`1532×` at one isolated `τ_ins`) — the
+  signature of a member present in one measure and absorbed (`ρ_j → 0`) in the
+  other, i.e. one crossing of the absorbing/insertion manifold.
 
-- The **absolute** |Δg| is concentrated to the same degree as J's own mass
-  (50 % of ∫|Δg| in 1.7 % of the axis; the integrand itself: 1.5 %) — i.e.
-  in absolute terms the error just tracks where J lives (young cohorts, where
-  the `patch_density(τ)` weight is highest, since a patch is likeliest to be
-  young).
-- The **relative** per-lineage error is **diffuse** (median 0.53 over 51 % of
-  the axis) **with a sharp survival-flip spike** (1532× at an isolated τ).
+So both mechanisms coexist: a **diffuse conditioning** component *and*
+**finitely-many absorbing-boundary crossings**. Caveat: this pair is not
+converged (62 % apart), so the diffuse part is inflated by the coarse schedule
+being under-resolved everywhere. The clean separation wants two *both-*
+converged measures (§3b) and is a heavier run.
 
-So both mechanisms are present: a diffuse conditioning component *and*
-finitely-many survival bits. On this evidence you and the context-carrying
-Oracle are describing two real pieces of the same spread, not competitors.
-Caveat: this pair is not converged (62 % apart), so the diffuse part is
-inflated; the clean separation needs two *both-converged* meshes, which is a
-heavier run (see §3b).
+## 3. Facts missing or wrong in the original characterisation
 
-## 3. Facts missing or wrong in the original elicitation (that change the picture)
+1. **The production run uses a *fixed* insertion schedule, and it is far from
+   converged in the measure.** The characterisation described member insertion
+   on "an adaptive schedule" but the default solve in fact runs a *fixed*
+   schedule, not the adaptive refiner. Measured: the fixed default (`M≈96`)
+   gives `J` **~6× from** the adaptively-refined value (`2.15×10⁻⁶` vs
+   `3.4×10⁻⁷` on one sequence), and even two *refined* measures (`M=173` vs
+   `320`) differ by `~2.3 %`. So the **member axis carries the dominant
+   *repeatable* error**, plausibly most of the "23 % inter-scheme spread,"
+   while the time integrator is at its floor. This reframes the measure/`J`
+   threads as the main event rather than a side item.
+2. **The adaptive schedule refiner is very expensive** — it re-runs the whole
+   forward solve many times to place members (`> 15` min per refined schedule
+   at moderate `T`). Any "remesh the measure every `K` steps" idea must be
+   costed against a refiner that is already a large fraction of a solve.
+3. **The `J` integrand structure**, not previously stated: `J`'s mass sits at
+   *small* `τ_ins` because the insertion-time envelope `w(τ_ins)` is
+   monotone-decreasing. Any moment-aware insertion indicator inherits this —
+   refinement should concentrate at small `τ_ins` *and* separately at the
+   isolated absorbing-boundary crossings, which lie elsewhere on the axis.
+4. **The `O(M)` cost of `f` is realised in practice**: a dense fixed schedule
+   (hundreds of members) over a long horizon is minutes per single forward
+   pass. This bounds every member-side idea — each must pay for itself against
+   an already-`O(M)` baseline.
 
-1. **The production member mesh is a *fixed* schedule, and it is far from
-   mesh-converged.** The elicitation described member insertion but did not
-   say that the default run uses a *fixed* node schedule (not the adaptive
-   refiner). Measured: the default (~96 nodes) gives J that is **~6× off** the
-   adaptively-refined value (2.15×10⁻⁶ vs 3.4×10⁻⁷ on one scenario), and even
-   two *refined* meshes (173 vs 320 nodes) differ by ~2.3 %. So the member
-   axis, not the time axis, carries the dominant *reproducible* error, and the
-   "23 % inter-scheme spread" is plausibly mostly this. This reframes your
-   points 2 and 4 as the main event.
-2. **The adaptive mesh refiner is very expensive.** Building a refined
-   schedule re-runs the SCM many times (>15 min per scheme at 15–20 yr). This
-   is why the converged-pair decomposition is not a quick test, and why any
-   "remesh every K steps" proposal (your stone 4) must be costed against a
-   refiner that is already a large fraction of a run.
-3. **The per-node integrand structure**, not stated before: J's mass sits at
-   *young* lineage ages because the patch-age weight `patch_density(τ)` is
-   monotone-decreasing (disturbance), peaking at τ→0. Any moment-aware
-   insertion indicator inherits this — refinement should concentrate at small
-   τ *and* at the isolated survival-flip ages, which are elsewhere.
-4. **The SCM cost is O(M) per RHS eval in practice**, confirmed: a dense
-   fixed mesh (hundreds of cohorts) over a long horizon is minutes per single
-   pass. This bounds every member-side idea (your stones 3, 4) — they must pay
-   for themselves against an already-O(M) baseline.
-
-## 4. The questions
-
-Given the erratum, the measurements, and the missing facts:
+## 4. Open questions
 
 1. **Is the forcing joint now closed as a major lever?** The knot effect is
-   real but ~2–4 pp; the sub-order-2 wall is unexplained by it and points at
-   the continuous coupling field. Is there a measurement that would localise
-   *that* — the thing actually setting the effective order — as cleanly as the
-   knot test localised the forcing?
-2. **Given that the member mesh carries a ~6×-to-2.3 % error while the time
-   integrator is at its floor, is the member axis the real frontier?** If so,
-   which of your member-side moves survives the O(M) SCM cost and the
-   expensive refiner — control-field interpolation (stone 3), remeshing
-   (stone 4), or moment-aware insertion + survival-guard (your point 2 +
-   the context Oracle's item B) — and what is the cheapest measurement that
-   would rank them before we build?
-3. **For the J-weighted norm (your point 5, precondition now confirmed):**
-   the safety question is whether the rmax-setting members are marginal or
-   near-threshold. Is cross-referencing each rmax member's ρ / distance-to-
-   survival-threshold the right and sufficient test, or is there a sharper
-   one? This is the only measured-live lever that could cut *accepted* steps.
+   real but `~2–4 pp`; the effective-order-`≈1.8` wall is unexplained by it and
+   points at the continuous coupling field. Is there a measurement that would
+   localise *that* — the thing actually setting the effective order — as
+   cleanly as the knot test localised the forcing?
+2. **Given that the measure carries a `~6×`-to-`2.3 %` error while the time
+   integrator is at its floor, is the member/measure axis the real frontier?**
+   If so, which member-side move survives the `O(M)` cost and the expensive
+   refiner — interpolating the control field `p*(ξ)` across members while
+   keeping all `M`; periodic remeshing of the measure onto structured nodes;
+   or a moment-aware (`ρ·|c|`, `φ·ρ`) insertion indicator paired with an
+   absorbing-boundary guard band — and what is the cheapest measurement that
+   ranks them before we build?
+3. **For the `J`-relevance-weighted error norm (precondition now confirmed):**
+   the safety question is whether the `rmax`-attaining members have small `ρ_j`
+   or lie near the `ρ → 0` boundary. Is cross-referencing each `rmax` member's
+   `ρ_j` / distance-to-absorbing-boundary the right and sufficient test? This
+   is the only measured-live lever that could reduce *accepted* steps.
 4. **With the record corrected, is there hidden leverage still unsurfaced?**
-   Four of your five "soft joints" remain (inner equation, measure, norm,
-   observable); the forcing joint is now corrected and largely closed. Where,
-   ranked by information-per-cost with a falsifier attached, would you look —
-   so we do not declare the forward problem closed one correction too early?
+   Of the problem-statement joints that were never varied — the inner-solve
+   equation, the measure representation, the error norm, the observable — and
+   with the forcing joint now corrected and largely closed, where, ranked by
+   information-per-cost with a falsifier attached, would you look next? We are
+   trying not to declare the forward problem closed one correction too early.
