@@ -34,7 +34,8 @@ run_one <- function(nm, years) {
   scm <- run_scm(p, e, ctrl)
   mon_enable(FALSE); diag_enable(FALSE)
   m <- mon_get()$margins
-  list(J = sum(scm$offspring_production), rho = m[, 8], frac = m[, 9])
+  list(J = sum(scm$offspring_production), rho = m[, 8], frac = m[, 9],
+       ldr = m[, 10])
 }
 
 scen <- list(intense_storms = 15, dry_to_wet = 15, extended_drought = 25)
@@ -42,17 +43,26 @@ rows <- list()
 for (nm in names(scen)) {
   r <- run_one(nm, scen[[nm]])
   is_member <- !is.na(r$frac)
-  f <- r$frac[is_member]
+  f <- r$frac[is_member]; ldr <- r$ldr[is_member]
+  # marginal (low-relevance) attainers: split into stable (|ldr| small, harmless
+  # to down-weight) vs dying (ldr very negative, heading to rho->0 => a survival
+  # bit, must keep full weight). ldr = d(log density)/dt per unit time.
+  marg <- f < 0.10
+  ldr_marg <- ldr[marg]
   rows[[nm]] <- data.frame(
     scenario = nm, n_acc = length(r$frac),
     pct_member = 100 * mean(is_member),        # attainer is a member (vs reservoir)
-    frac_med = median(f), frac_p90 = as.numeric(quantile(f, 0.90)),
-    pct_marginal_lt01 = 100 * mean(f < 0.01),  # <1% of species weight
+    frac_med = median(f),
     pct_marginal_lt10 = 100 * mean(f < 0.10),
-    pct_dominant_gt50 = 100 * mean(f > 0.50))
-  cat(sprintf("%-16s n_acc=%d pct_member=%.1f  frac med=%.4f p90=%.3f  <1%%=%.1f <10%%=%.1f >50%%=%.1f\n",
-      nm, length(r$frac), 100*mean(is_member), median(f),
-      quantile(f,0.9), 100*mean(f<0.01), 100*mean(f<0.10), 100*mean(f>0.5)))
+    pct_dominant_gt50 = 100 * mean(f > 0.50),
+    # within the marginal bucket:
+    marg_stable = 100 * mean(abs(ldr_marg) < 0.1, na.rm = TRUE),   # |ldr|<0.1
+    marg_dying  = 100 * mean(ldr_marg < -1,     na.rm = TRUE),     # ldr<-1
+    marg_ldr_med = median(ldr_marg, na.rm = TRUE))
+  cat(sprintf("%-16s member=%.0f%% <10%%wt=%.0f%% >50%%wt=%.0f%% | marginal: stable=%.0f%% dying=%.0f%% ldr_med=%.3f\n",
+      nm, 100*mean(is_member), 100*mean(f<0.10), 100*mean(f>0.5),
+      100*mean(abs(ldr_marg)<0.1, na.rm=TRUE), 100*mean(ldr_marg< -1, na.rm=TRUE),
+      median(ldr_marg, na.rm=TRUE)))
   flush(stdout())
   saveRDS(r, file.path(outdir, paste0("argmax_weight_", nm, ".rds")))
 }
