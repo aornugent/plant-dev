@@ -1,4 +1,4 @@
-# Design — the 2b safety-join instrument
+# Design — the 2b norm-weight-join instrument
 
 ## Triage: 2 — crosses the odelia↔plant System-hook boundary and changes a hook
 signature; but it is a diagnostic in the existing `step_monitor`/`step_argmax`
@@ -107,7 +107,7 @@ candidate B.
 3. **has_step_monitor trait** + the toy/other System `step_monitor` overloads
    gain the extra argument (or a defaulted overload) so the template still
    compiles.
-4. **Analysis** `argmax_safety.R`: read `step_monitor_get()`, take the two new
+4. **Analysis** `argmax_weight_join.R`: read `step_monitor_get()`, take the two new
    columns over accepted steps, and report the distribution of `ρ_attainer` and
    removal proxy (low-ρ/far → downweight; near-threshold → redistribute; mixed
    → guard band).

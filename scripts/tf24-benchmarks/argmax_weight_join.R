@@ -1,4 +1,4 @@
-# Ladder rung 2b (the norm-safety join). For each ACCEPTED step, the monitor now
+# Ladder rung 2b (the norm-weight join). For each ACCEPTED step, the monitor now
 # records the weight rho and the species-weight-fraction of the member that
 # attained rmax (the adaptive error-norm maximiser). Question: is the
 # error-limiting member J-relevant (dominant, high rho-fraction -> must keep
@@ -54,10 +54,10 @@ for (nm in names(scen)) {
       nm, length(r$frac), 100*mean(is_member), median(f),
       quantile(f,0.9), 100*mean(f<0.01), 100*mean(f<0.10), 100*mean(f>0.5)))
   flush(stdout())
-  saveRDS(r, file.path(outdir, paste0("argmax_safety_", nm, ".rds")))
+  saveRDS(r, file.path(outdir, paste0("argmax_weight_", nm, ".rds")))
 }
 S <- do.call(rbind, rows); rownames(S) <- NULL
-saveRDS(S, file.path(outdir, "argmax_safety_summary.rds"))
+saveRDS(S, file.path(outdir, "argmax_weight_summary.rds"))
 cat("\npct_member = accepted steps whose rmax attainer is a member (else reservoir).",
     "\nfrac = attainer's fraction of its species' weight. Low frac => marginal",
     "\n(J-irrelevant, downweight candidate); >50% => dominant (must keep weight).",

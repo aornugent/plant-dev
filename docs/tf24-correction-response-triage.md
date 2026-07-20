@@ -32,7 +32,7 @@ into "replay cheap probes against frozen fields."
 |---|---|---|---|---|
 | 4-tail | `J` bit-stable across 100× tol band; production at loose edge | J@1e-4 vs 1e-6 on one mesh | 2 runs | **DONE — inconclusive** (61% apart, but confounded by unconverged mesh; must redo on a converged measure — `tf24-richardson-result.md`) |
 | 2 (free) | smooth part of the measure error has a stable convergence order → certified `J` by Richardson | J on a nested schedule family {47,93,185}, fit order+extrapolate | 3 runs, offline | **DONE — struck** (fixed densification non-asymptotic, p≈0.2, negative extrapolant; uniform refinement does not converge the measure — placement does. The free-Richardson route fails; goal-oriented/ghost placement is promoted to *the* route) |
-| 2b join | are `rmax`-attaining members low-`ρ`/far-from-threshold (safe to downweight) or near-threshold (redistribute tol)? gates the norm lever | join `rmax` index log ↔ per-member `ρ_j`, dist-to-removal, adjoint `|λ_j|` | needs a synchronized `ρ`/margin log per attempt (small instrument) + reverse tape for `|λ_j|` | **build (small)** |
+| 2b join | are `rmax`-attaining members low-`ρ`/far-from-threshold (harmless to downweight) or near-threshold (redistribute tol)? gates the norm lever | join `rmax` index log ↔ per-member `ρ_j`, dist-to-removal, adjoint `|λ_j|` | needs a synchronized `ρ`/margin log per attempt (small instrument) + reverse tape for `|λ_j|` | **DONE (first cut)** |
 | 1 | ghost = exact passive probe | insert same candidate as ghost vs real; compare `g(τ_ins)` + crossing location | one solve + replays | **build (ghost capability)** |
 | 5 | windowed waveform relaxation converges (Picard/Anderson on `a(t)`, 5+1 functions) — removes global max-norm, `O(M)`-per-decision, and the plateau | perturb `a(t)` by δ on saved fields, one member sweep, measure contraction per window | one sweep on saved fields | **build (ghost/replay + WR harness)** |
 | 3 | certify the crossing instead of resolving it | ghost bisection in `τ_ins` | O(1/M)/probe | **build (needs ghost)** |
@@ -42,7 +42,7 @@ into "replay cheap probes against frozen fields."
 
 - **Rungs runnable now (offline/cheap):** the tol-band check and Richardson.
   Both attack claim 2/4 and need no new instrument. Running.
-- **The 2b safety join** is the next-cheapest and the gate on the *only*
+- **The 2b norm-weight join** is the next-cheapest and the gate on the *only*
   accepted-step lever inside the current architecture (the `J`-weighted norm).
   It needs a small synchronized log (per rejected attempt: the `rmax` member's
   `ρ_j` and distance-to-removal). The adjoint `|λ_j|` refinement needs the
@@ -68,7 +68,7 @@ into "replay cheap probes against frozen fields."
 
 1. **Now:** tol-band + Richardson (running). Decides whether `J` is certifiable
    from cheap data and whether the smooth measure error is asymptotic.
-2. **Next (small build):** the 2b safety join instrument → run the norm gate.
+2. **Next (small build):** the 2b norm-weight join instrument → run the norm gate.
    This is the cheapest lever that could cut accepted steps and stays inside
    the current architecture.
 3. **Then (validation-gated build):** the ghost-member probe + the ghost-vs-real

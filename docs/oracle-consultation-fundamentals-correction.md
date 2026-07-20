@@ -71,8 +71,8 @@ Across all sequences:
 
 This confirms the *precondition* for the goal-oriented / `J`-relevance-weighted
 error norm (members do set the norm, broadly). It does **not** yet establish
-its *safety*: we cannot yet tell whether the `rmax`-attaining members have
-small `ρ_j` (safe to down-weight) or are near the `ρ → 0` absorbing boundary
+its *validity*: we cannot yet tell whether the `rmax`-attaining members have
+small `ρ_j` (harmless to down-weight) or are near the `ρ → 0` absorbing boundary
 (where down-weighting would corrupt `J`). That cross-reference is the next
 measurement and the gate on building it.
 
@@ -144,7 +144,7 @@ converged measures (§3b) and is a heavier run.
    absorbing-boundary guard band — and what is the cheapest measurement that
    ranks them before we build?
 3. **For the `J`-relevance-weighted error norm (precondition now confirmed):**
-   the safety question is whether the `rmax`-attaining members have small `ρ_j`
+   the open question is whether the `rmax`-attaining members have small `ρ_j`
    or lie near the `ρ → 0` boundary. Is cross-referencing each `rmax` member's
    `ρ_j` / distance-to-absorbing-boundary the right and sufficient test? This
    is the only measured-live lever that could reduce *accepted* steps.
