@@ -126,68 +126,79 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-20 (session 3). This session: **the resident FF16+K93 AD-touchpoint remediation,
-implemented and certified** (Tranche (a) from the audit). Superrepo (bumped this session), plant HEAD,
-odelia `ac6a988` (unchanged — no odelia edits were needed). **FF16 and K93 resident gradients are now
-COMPLETE**: every registered `AD_FIELDS` leaf's reverse AD matches the re-optimising FD. Full detail:
-[`docs/ad-touchpoint-audit.md`](./ad-touchpoint-audit.md); [`docs/build-plan.md`](./build-plan.md) "►► CURRENT WORK"._
+_Last updated: 2026-07-20 (session 4). This session: **the run-shaped SCM gradient entry** — plant now has
+one call, `scm_gradient`/`scm_jacobian`, that takes a functional and target traits and returns a gradient,
+with **no schedule argument** (so a caller cannot express a wrong replay grid). Built on top: the odelia
+System **`rebind_from` contract completed** on the plant types, and the **resident replay unified onto
+odelia's `set_schedule`/`recorded_steps` contract** (single grid source). Plant `1e886086`, superrepo
+`9ec557b`; odelia unchanged (`16cff79`) — all plant-side. Session-3 (resident FF16+K93 remediation) remains
+the foundation this builds on; see `docs/build-plan.md` P2b-3 "LANDED"/"UNIFIED" for full detail._
 
-## WHAT THIS SESSION DID (resident FF16+K93 remediation — DONE + certified)
-All four resident-path jobs landed as plant-only edits (no odelia change needed; the primitives already
-existed). Certificate (`scratchpad/certificate.R`, driver `ad_certificate.cpp`): **FF16 32/32 metric=0,
-30/30 metric=2; K93 all intact/zero, both metrics.** Regression sweep clean (scm/patch/individual/species/
-node/strategy-ff16/strategy-k93/ad-ff16 all green).
-- **a2 (clamp) — smooth the FF16 `net > 0 ? rate : 0` growth/fecundity/establishment clamp** with
-  `util::smooth_positive` (K93's exemplar). New `FF16_Strategy::net_mass_production_eps = 1e-6` corner
-  radius (1e-4 biased establishment up ~2.6%; the certificate is r-independent so 1e-6 keeps demography
-  within ~3e-5). Heartwood keeps its hard gate (not a multiple of net; bit-identical). Fixed `a_l1`/`a_l2`.
-- **a1 (eta) — template `CanopyShape` on `S`.** eta now carried as `S`; the integer multiply chains are a
-  **double-only** fast path via `if constexpr`, active `S` uses general `pow(u,eta_)` (the chains carry no
-  eta term — templating alone was insufficient, the design's load-bearing catch). `pow(0,eta)` NaN guarded
-  (limit 0). Fixed `eta` in FF16 **and** K93. Bit-identical double path.
-- **a3 (birth size) — the fix was NOT `register_implicit`.** `lift_birth_height` was already a correct IFT
-  lift; the real bugs were (i) `prepare_strategy` (where the lift runs) was never re-run after the gradient
-  driver seeds the parameters, so `initial_height_`/`area_leaf_0`/`eta_c` were baked with zero-derivative
-  params, and (ii) FF16 consumed the raw double `height_seed()` root for `area_leaf_0`/establishment.
-  **Fix: `Patch::reset()` re-prepares each species' strategy** (mirrors `IndividualRunner::reset()`; one
-  place, all strategies) — this also unblocked a1 (eta_c/canopy baked the same way) — **plus** FF16 derives
-  `area_leaf_0`/establishment from the lifted `initial_height_`. Fixed `omega` (SEVERED→intact) and the
-  allometry birth-channel. Idempotent on the double path.
-- **a4 (K93 `k_I`) — NO code change; verified CORRECT.** The certificate's "SEVERED" was a false positive:
-  the field encodes `k_I·BA` and the read divides by `k_I`, so they cancel exactly → `cumulative_basal_area`
-  is k_I-independent → AD=0 is right. FD-step sweep confirmed FD scales ~1/step and flips sign (roundoff),
-  AD stable at -6e-12 (~0 vs O(1e6) metric). The audit's "structurally dead" was a misread; it is
-  structurally *zero*.
+## WHAT THIS SESSION DID (the run-shaped gradient entry + odelia co-design)
+All plant-side. Double path bit-identical; entry + AD gradient + double-path suites green (the one TF24
+failure, `SCM cohort-density blow-up #550`, is pre-existing and unrelated — deferred #551/#517 steepness).
 
-**Deferred/dropped (design decisions this session):** the qk "`odelia::quadrature`" primitive is **dropped
-as scope creep** — qk is a fixed rule (no adaptive nodes to record), its `to_passive` is confined diagnostic
-machinery a strategy author never touches; a Replayable-QK would be machinery for a decision that doesn't
-exist. The `gauge`/`drop_derivative` marker idea is also dropped (it duplicated `Replayable`).
+- **`plant/scm_gradient.h` — `scm_jacobian`/`scm_gradient` + `offspring_metric`/`census_metric` functionals.**
+  The plant analogue of odelia's `jacobian_on_double` (plant's `SCM` is *not* an `ode::Solver` — it HAS-A one
+  + node scheduling — so it can't use odelia's Solver-typed entry, but it delegates seed/tape/sweep to odelia's
+  `compute_jacobian` and returns odelia's `{values, jacobian}` pair). Flow: build double SCM → `refine_schedule()`
+  (discover the resolved L1) → `rebind_from<RevS>()` → `set_schedule(recorded_steps())` → `compute_jacobian`.
+  A caller passes traits + target indices + a functional, never a schedule.
+- **The odelia System `rebind_from<S2>()` contract is completed on the plant types** — this is *exactly*
+  odelia's `has_rebind_from`/`active_solver` hook, not a plant invention. `Strategy::copy_config_from` (base,
+  scalar-independent config) + the one-home `plant::rebind_strategy_fields` (config + `field_ptrs()` widen;
+  precomputed state rebuilt by `prepare_strategy` — the reset-timing contract). `Parameters::rebind_from`,
+  `SCM::rebind_from`. `PLANT_DIFFERENTIABLE(Strategy_)` (strategy.h) emits the two hooks every strategy needs
+  identically (`rebind` alias + `rebind_from`); used by FF16/K93/TF24, TF24f hand-writes (extra acclimation
+  config). **`field_ptrs()` is the one AD-field enumeration** feeding three consumers — `ad_parameters()`
+  (which params to *seed*), `rebind_from` (config to *cross*), `field_names()` (R labels) — so it stays even
+  under rebinding; seeding and config-copy are different jobs.
+- **R5 is structural:** `scm_jacobian` asserts the active value reproduces a double-replay reference (a dropped
+  config member shifts it O(1) → loud `util::stop`). This is what would trip if a TF24 gradient were attempted
+  (its env soil config is set at construction, not Control-derived, so it does not cross yet — deferred with b1).
+- **Resident replay unified to odelia's Solver contract (task #4, resident half).** `SCM::recorded_steps()`
+  (== `solver.times()` == `r_ode_times()`, one body) is the SINGLE source of the resident replay grid;
+  `SCM::set_schedule(steps)` is the handoff. `run()`'s segmenting loop and `run_mutant`'s `step_history`
+  (L3, deferred) are UNTOUCHED — `step_history` stays reachable only via `run_mutant`, never a resident source.
+
+**Tests:** `scm_gradient_driver.cpp` (takes traits + indices, NO schedule) + `test-scm-gradient-entry.R`
+(the entry's self-refined schedule reproduces `run_scm(refine_schedule)`'s gradient — FF16 vs the certified
+bespoke driver 1e-6; K93 vs the certificate AD 1e-6 — and the reoptimising/model FD).
 
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
-Resident FF16+K93 is done. The open fronts, in priority order:
-1. **b1 (task #17) — debug the TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for any TF24
-   gradient work; a distinct, larger track (candidates: the Leaf `supplied_derivative` seam partials,
-   reverse over the stiff soil ODEs, or a tape/rebind issue). TF24 cannot be per-leaf certified until this
-   is understood. plant#60 (leaf soil-coupling envelope-FD) is a filed subset; seam already present.
-2. **DX co-design leftovers (odelia):** ✓ duplicated `smooth_positive` retired (plant now calls the odelia
-   primitive). Still open: **guard `odelia::supplied_derivative()`** (no stationarity check — the
-   engine-level plant#60 invitation).
-3. **The R-boundary unwrap** (~20 `xad::value` sites returning doubles to R) — deferred until resident
-   gradients settled (now they have). These are the `diagnostic` job: adopt `odelia::util::diagnostic` (a
-   wrap-layer conversion vs a per-site helper is a `system-design` question).
+"Finishing Phase 2." Resident FF16+K93 gradients are certified and now have a clean run-shaped entry. Order:
+1. **P2b-5 (task #5) — FF16 multivariate census gradient** (LAI/biomass/basal-area *vector*). The load-bearing
+   Rung-2 target (design §8) and the first real exercise of the entry with a **multi-output functional**
+   (codomain = 3, one recording → three sweeps via `scm_jacobian`). Recommended next.
+2. **P2b-cleanup (task #6)** — drop the orphaned probe drivers (`ff16_feedback_probe`, `ff16_single_rate_probe`,
+   `field_crown_probe`, the interim localisation drivers) now the gradient is certified; collapse any SFINAE
+   trait; retire the bespoke `ff16_scm_gradient_driver`/`k93_scm_census_driver` in favour of the entry
+   (they linger as the entry's cross-check for now).
+3. **b1 (task #17) — TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for P2c/P2d (TF24/TF24f). A
+   distinct, larger track (Leaf `supplied_derivative` seam partials / reverse over the stiff soil ODEs /
+   tape-rebind). The R5 assert in the entry now gives a clean tripwire; TF24's env-soil-config crossing also
+   needs finishing before a TF24 gradient (see build-plan).
 
-**Odelia primitives added this session (suite of IFT/AD helpers — use these, don't hand-roll):**
-- `odelia::implicit_value<S>(y_star, F)` — the value defined by an equation `F(y;p)=0` (solved off-tape),
-  returned differentiable via the implicit function theorem; `F` reads the active params from scope. FF16
-  and TF24 birth heights use it (replaced the hand-rolled `lift_birth_height`). Sibling of
-  `register_implicit` (explicit input vector).
-- `odelia::util::diagnostic(x)` — intent-named `to_passive`: "read the value, derivative deliberately not
-  taken" (error estimates, NaN checks, messages, R-facing, control branches). qk uses it; the R-boundary
-  unwrap is its next home. A bare `to_passive` on a rate path is now the reviewable smell.
-- **The reset-timing contract** is documented in `odelia/AUTODIFF.md`: a differentiable System MUST
-  re-derive parameter-dependent precomputed state in `reset()` (post-seed), or that channel is severed.
-  This is the only correct pattern; `Patch::reset()` re-preparing strategies is plant's instance.
+**Deferred by explicit decision (do NOT pull forward without asking):**
+- **R-facing `run_scm_gradient` shim** — R surface last; the DX (functional selection, name→index) is not yet
+  settled and R is user-facing.
+- **task #4 remainder** — `run_scm`'s R path still loads `parameters.ode_times` via `make_node_schedule` (a
+  production self-describing path, not the gradient path); fold onto `set_schedule` when the R surface is
+  revisited. `run_mutant`/L3 stays deferred (no L3 caching yet).
+- **guard `odelia::supplied_derivative()`** (no stationarity check — engine-level plant#60 invitation).
+
+**Odelia/plant AD primitives — use these, don't hand-roll:**
+- **`SCM::recorded_steps()` / `set_schedule()`** — the resident replay contract (odelia's Solver vocabulary).
+  A resident gradient replays `recorded_steps()`; never inject a grid another way.
+- **`rebind_from<S2>()` / `PLANT_DIFFERENTIABLE`** — make a strategy differentiable; the mechanic lives once in
+  `plant::rebind_strategy_fields`. A new strategy: write `AD_FIELDS` + `PLANT_DIFFERENTIABLE(Name_)`.
+- `odelia::implicit_value<S>(y_star, F)` — value defined by `F(y;p)=0`, returned IFT-differentiable. FF16/TF24
+  birth heights (replaced hand-rolled `lift_birth_height`).
+- `odelia::util::diagnostic(x)` — intent-named `to_passive`: "derivative deliberately not taken." A bare
+  `to_passive` on a rate path is the reviewable smell.
+- **The reset-timing contract** (`odelia/AUTODIFF.md`): a differentiable System re-derives parameter-dependent
+  precomputed state in `reset()` (post-seed) or that channel is severed. `Patch::reset()` re-preparing
+  strategies is plant's instance; `rebind_from` leaves precompute to it by design.
 
 After any model change: re-run `scratchpad/certificate.R` — changed leaves flip to intact, others unchanged.
 
@@ -195,9 +206,16 @@ After any model change: re-run `scratchpad/certificate.R` — changed leaves fli
 handles *exact* zero spacing; *tiny-but-nonzero* centred spacing at a near-stall could still overflow a
 reconstructed density (retrofit = competition-in-mass, prototyped+reverted for the K93 gradient cost).
 
-## THE HEADLINE (read this first)
+## ⤵ HISTORICAL BACKGROUND (sessions 1–3 — SUPERSEDED; the work described below has LANDED)
+Everything from here down records how the transport-chart / FF16-gradient problem was diagnosed and solved
+across earlier sessions. Retained for rationale and evidence, **NOT as current direction** — the live state
+and next steps are the top of PART 2. In particular P1e-λ (log-mass transport), the **FF16 chart opt-in**,
+and the FF16/K93 **resident gradients are all DONE and certified**; any "current work" / "THE next task" /
+"CONCRETE NEXT STEPS" phrasing below is stale (those tasks are complete — see `build-plan.md` P2a/P2b).
+
+### THE HEADLINE (the transport-chart fix — now landed for K93 and FF16)
 The FF16 gradient bug, the #550 density runaway, and the value/gradient tension are **one thing**: the
-landed transport scheme carries **log-density ℓ** and computes the compression `C = ∂ₓg`. The fix — which
+old transport scheme carried **log-density ℓ** and computed the compression `C = ∂ₓg`. The fix — which
 `design.md §88` ("the representation guarantee") ALREADY specifies and two independent Oracle consults
 confirmed — is to transport **log-mass `λ = ℓ + log Δx`** instead: `dλ/dt = −r`, the compression cancels
 identically (never computed), `λ` is monotone (no overflow), no numerical `∂ₓ` on the tape (no severance,
