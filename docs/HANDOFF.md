@@ -126,16 +126,19 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-20 (session 5 — FF16 multivariate census gradient + odelia#46 close; see the
-SESSION 5 block below. Session-4 summary follows.). Session 4: **the run-shaped SCM gradient entry** — plant now has
-one call, `scm_gradient`/`scm_jacobian`, that takes a functional and target traits and returns a gradient,
-with **no schedule argument** (so a caller cannot express a wrong replay grid). Built on top: the odelia
-System **`rebind_from` contract completed** on the plant types, and the **resident replay unified onto
-odelia's `set_schedule`/`recorded_steps` contract** (single grid source). Plant `1e886086`, superrepo
-`9ec557b`; odelia unchanged (`16cff79`) — all plant-side. Session-3 (resident FF16+K93 remediation) remains
-the foundation this builds on; see `docs/build-plan.md` P2b-3 "LANDED"/"UNIFIED" for full detail._
+_Last updated: 2026-07-20 (session 5). **HEAD: plant `33d2c982`, superrepo `b39cf09`, odelia `16cff79`
+(unchanged — all plant-side). All clean, pushed.** This session: **the FF16 multivariate census gradient
+(P2b-5)** — `Species::census<Ψ>`, the design's §8 population-reduction operator (`compute_competition` is now
+its self-shading member); FF16 LAI/biomass/basal-area as per-individual Ψ; `census_vector` codomain-3 via
+`scm_jacobian` (one recording → three sweeps, gradients match adaptive FD ~1e-5). **odelia#46 CLOSED** — the
+competition field consumes mass `exp(λ)` directly, so it can no longer overflow at tiny-but-nonzero spacing
+(value-identical; certified gradients unchanged). **P2b-cleanup (#6) done** — dead SFINAE trait + orphaned
+probes removed. Full detail in the **SESSION 5 block** below (just under IMMEDIATE NEXT STEP). Sessions 3–4
+(resident FF16+K93 remediation; the run-shaped `scm_gradient`/`scm_jacobian` entry with the completed
+`rebind_from` contract and `set_schedule`/`recorded_steps` unification) are the foundation this builds on —
+see `docs/build-plan.md` P2b-3 "LANDED"/"UNIFIED"._
 
-## WHAT THIS SESSION DID (the run-shaped gradient entry + odelia co-design)
+## WHAT SESSION 4 DID (the run-shaped gradient entry + odelia co-design) — foundation for session 5
 All plant-side. Double path bit-identical; entry + AD gradient + double-path suites green (the one TF24
 failure, `SCM cohort-density blow-up #550`, is pre-existing and unrelated — deferred #551/#517 steepness).
 
@@ -176,8 +179,9 @@ overflow) is closed**. The remaining Phase-2 item is **b1** — everything else 
    needs finishing before a TF24 gradient (see build-plan). NOTE odelia#46's field overflow is now removed, so
    if the TF24 blow-up ever touched the reconstructed density it no longer does — measure, don't assume.
 
-## ►► SESSION 5 — P2b-5 census + odelia#46 (DONE, LANDED) ◄◄
-Plant `4a997898`, superrepo `3c94715`; odelia unchanged. All plant-side.
+## ►► SESSION 5 — P2b-5 census + odelia#46 + #6 cleanup (DONE, LANDED) ◄◄
+Final HEAD plant `33d2c982`, superrepo `b39cf09`; odelia unchanged (`16cff79`). All plant-side. (Landed across
+plant `fe4f1f4c` field / `4a997898` census / `33d2c982` cleanup.)
 - **odelia#46 CLOSED on the field path.** The competition field reconstructed a per-cohort density
   `exp(λ)/dx` that overflows at tiny-but-nonzero spacing near a growth stall. Both consumers
   (`Species::compute_competition`, `Patch::assemble_competition_field`) now consume bounded mass `exp(λ)`
