@@ -139,50 +139,56 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-20 (end of session). Forcing clip shipped (#21); Stage-1
-classifier gate run → verdict **INTRINSIC**; the event-stepper program is refuted
-by its own gate; a deep-characterisation Oracle consult is written and ready to
-send. **This session ends here; the next session's job is to receive the Oracle's
-response.***
+*Last updated: 2026-07-20 (later same day). Oracle response received and triaged
+under §7. It proposed a **derivative-noise-floor** mechanism (fixed-tol golden-
+section argmax → tolerance-independent RHS floor → controller bisects against it)
++ fix F1 (Newton on `∂P/∂p=0` + IFT node) + its own tests E1/E2. **We ran E1 and
+E2: the floor is real at the source but is NOT the solver's bottleneck — mechanism
+refuted at the solver level; F1 is additionally ill-posed (the optimum is a corner,
+not a smooth max). One genuine finding fell out: the floor corrupts J at survival
+thresholds.** Full write-up: `docs/tf24-noise-floor-E1-E2-result.md`.*
 
-## ▶ NEXT SESSION — start here (receiving the Oracle response)
+## ▶ NEXT SESSION — start here (post-Oracle, mechanism refuted)
 
 You are picking up with a clean context. Do this, in order:
 
 1. **Read Part 1 in full**, then this Part 2.
-2. **The consult that is out:** `docs/oracle-consultation-intrinsic-characterisation.md`.
-   It is a complete, domain-clean, neutrally-weighted characterisation (no directed
-   questions) that reports the classifier result as a **measured refutation** of the
-   round-6/7 event-program bet. Read it before the response so you know exactly what
-   was asked. Its companion measurements: `docs/tf24-classifier-gate-result.md`,
-   `docs/tf24-soil-profile-eco.md`.
-3. **When the Oracle response arrives:** save it verbatim as
-   `docs/oracle-consultation-intrinsic-characterisation-response.md` (dated). Then
-   apply the **consult guide's §7 discipline (`docs/oracle-consultation-guide.md`)**:
-   *the Oracle is a hypothesis generator, not an authority.* Reduce **every** claim
-   it makes to the **cheapest falsifiable experiment** and run that **before**
-   building anything. Prefer any test the Oracle proposes itself.
-4. **You can test most attribution/geometry reframes for FREE:** the classifier's
-   raw per-step data is saved under `scripts/tf24-benchmarks/results/classifier_raw/`
-   (bit-identical monitored runs, all 5 bank scenarios + drydown + partial TF24f).
-   `scripts/tf24-benchmarks/classifier_analyze.R` runs offline on it — so any new
-   attribution logic, correlation, or geometry the Oracle suggests can be checked in
-   minutes without re-running the (expensive, monitored) sims. Only a genuinely new
-   *signal* needs a re-capture (`classifier_capture.R` / `classifier_battery.R`).
+2. **The Oracle round + its triage:**
+   `docs/oracle-consultation-intrinsic-characterisation{,-response}.md` (consult +
+   verbatim response) and **`docs/tf24-noise-floor-E1-E2-result.md`** (the E1/E2
+   test result — read this one carefully; it is the current authority).
+3. **What E1/E2 settled (do not relitigate):**
+   - E1 (leaf level): argmax carries a floor `ε_p ~ GSS_tol_abs` (slope 1.10) and
+     non-stationary RHS outputs inherit O(ε) (assim slope 1.01) — **P1/P2 confirmed**.
+     But the objective is O(ε), not O(ε²): the optimum is a **corner** (cliff-left,
+     smooth-right; no interior stationary point across wet→dry). So the Oracle's **F1
+     is not well-posed** (no `∂P/∂p=0` root; `P_pp` undefined at the corner).
+   - E2 (solver level, the Oracle's own decisive test): reject fraction is **invariant
+     to a 1000× `GSS_tol_abs` change across all 5 bank scenarios**; min-h is a **config
+     artifact** (= `ode_step_size_min` = 1e-6 yr), not a noise floor. By the Oracle's
+     own criterion the mechanism is **refuted** — the inner search is not the speed lever.
+   - New finding: whiplash offspring is **non-monotone in `GSS_tol`** (2.4× J error at
+     the production default 1e-3; converged only by ≤1e-6) — a **survival-threshold
+     bifurcation**. The corner-floor's real cost is **J accuracy** in bifurcation-prone
+     scenarios, not speed.
+4. **The live lever is J accuracy at survival thresholds** (not speed). Two candidate
+   directions, both to be scoped with `system-design` before any build (see the result
+   doc's "What this means for the build"): (a) **smooth the corner** so outputs are C¹
+   in state and the survival boundary is crossed smoothly — the only thing that removes
+   the *non-monotone* J jitter; (b) **corner-locator** inner solve (root-find the
+   constraint-activation condition + IFT node on *that* condition, not stationarity) —
+   exact `p*`, clean adjoint, discharges the §6.6 gradient concern; buys J correctness
+   in whiplash-class runs, no speed (E2). E3 (noise-aware controller) is moot.
 5. **Rebuild the build env only if you need to run code:** `R CMD INSTALL --no-docs
    --no-byte-compile odelia`; then `rm -f plant/src/*.o plant/src/*.so` and
    `options(pkg.build_extra_flags=FALSE); pkgload::load_all("plant", export_all=TRUE)`.
-   Nothing is uncommitted; all three repos are pushed (HEADs below).
+   Nothing is uncommitted; all repos pushed (HEADs below). `GSS_tol_abs` is a
+   `control()` field — the E1/E2 knob needs no rebuild.
 
-**Most likely outcomes to be ready for (do not pre-commit to any):** (a) the Oracle
-concedes intrinsic and points at the member-mesh/`J` frontier (§7) — then the next
-build is the coupling-weighted (ρ·|c|) refinement indicator; (b) it proposes a new
-representational reframe (the fixed-iteration inner search / the continuously-
-narrowing argmax interval / a `J` reformulation) — reduce to a cheap test first;
-(c) it disputes the attribution methodology — re-run `classifier_analyze.R` with its
-definition on the saved raw data. Independently of the response, three items stand:
-the E4 gradient bug (plant#60, task #23), the pruning sign-off (task #20), and the
-multispecies-capture harness fix.
+Independently of the above, three items still stand: the **member-mesh/`J` frontier**
+(§7, the original converged-`J` accuracy work — still un-attacked and now the clear
+main line alongside the corner question), the **E4 gradient bug** (plant#60, task #23),
+the **pruning sign-off** (task #20), and the **multispecies-capture** harness fix.
 
 ## Gate result (2026-07-20) — the event stepper is dead; the frontier is the mesh/J
 
@@ -244,7 +250,7 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `8b4c841` |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `23d3852`+ (this update) |
 | plant | `claude/tf24-multi-rate-stepper-n5audm` | `05df4c1f` |
 | odelia | `claude/tf24-multirate-engine` | `71256d1` |
 
@@ -376,9 +382,11 @@ removable-vs-intrinsic **classifier are one instrument.**
 
 **Current / authoritative**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
-- `oracle-consultation-intrinsic-characterisation.md` — **the consult now out to the
-  Oracle** (deep neutral characterisation; the classifier refutation). Its response
-  goes to `…-response.md` when it arrives.
+- `oracle-consultation-intrinsic-characterisation{,-response}.md` — the deep neutral
+  characterisation consult **and the Oracle's response** (the noise-floor hypothesis).
+- `tf24-noise-floor-E1-E2-result.md` — **the E1/E2 triage of that response (current
+  authority on the inner-search question):** source floor confirmed, solver-level
+  mechanism refuted, F1 ill-posed (corner optimum), J-bifurcation finding.
 - `tf24-classifier-gate-result.md` — the gate measurement + verdict (INTRINSIC) and
   the stress battery. The reason the event program is retired.
 - `tf24-soil-profile-eco.md` — the shutdown-reachability mechanism (plant#62).
