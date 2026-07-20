@@ -143,10 +143,10 @@ mass-gradient issue — investigate the self-shading feedback adjoint. (b) **FF1
 gradient** (LAI/biomass/basal-area, task #5). (c) **run-shaped gradient entry** + retire
 `save_RK45_cache`/`step_history` (tasks #3/#4).
 
-**Known limitation carried forward:** the -inf convention handles *exact* zero spacing (coincident
-heights). *Tiny-but-nonzero* centred spacing at a near-stall could still overflow an interior neighbour's
-reconstructed density; the retrofit if ever observed is the competition-in-mass path (node-lumped
-`Σ exp(λ)·kernel`, designed+prototyped this session, reverted for the K93 gradient cost).
+**Known limitation carried forward (tracked: aornugent/odelia#46):** the -inf convention handles *exact*
+zero spacing (coincident heights). *Tiny-but-nonzero* centred spacing at a near-stall could still overflow
+an interior neighbour's reconstructed density; the retrofit if ever observed is the competition-in-mass
+path (node-lumped `Σ exp(λ)·kernel`, designed+prototyped this session, reverted for the K93 gradient cost).
 
 ## THE HEADLINE (read this first)
 The FF16 gradient bug, the #550 density runaway, and the value/gradient tension are **one thing**: the
