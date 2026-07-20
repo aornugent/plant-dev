@@ -197,8 +197,13 @@ non-finite failure** (diagnosed H1/overflow, not stiffness).
 
 ## The forward pathway — event-aware integrator (Oracle round-7 build order)
 
-Full design: `docs/oracle-consultation-event-aware{,-response}.md`. Design =
-step-to-event on the same global explicit RK; the localizer and the
+**Authoritative implementation spec: `docs/tf24-event-aware-spec.md`** (verified
+against the real odelia↔plant↔TF24 coupling; system-design ledger + staged build +
+codesign split + acceptance vs `BASELINE.md`). Design summary below; build from the
+spec.
+
+Full design rationale: `docs/oracle-consultation-event-aware{,-response}.md`.
+Design = step-to-event on the same global explicit RK; the localizer and the
 removable-vs-intrinsic **classifier are one instrument.**
 
 1. **Forcing-kink step clipping** — clip trial steps to the known rainfall-kink
@@ -243,7 +248,10 @@ removable-vs-intrinsic **classifier are one instrument.**
 
 **Current / authoritative**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
-- `oracle-consultation-event-aware{,-response}.md` — the live design + build order.
+- `tf24-event-aware-spec.md` — **the implementation spec** for the forward pathway
+  (verified coupling map, staged build, codesign split, acceptance criteria).
+- `scripts/tf24-benchmarks/BASELINE.md` — the frozen numbers to beat.
+- `oracle-consultation-event-aware{,-response}.md` — the live design rationale.
 - `oracle-consultation-tf24-recharacterized{,-response}.md` — the round-6 verdict
   (frame retired) and corrected system description.
 - `scripts/tf24-benchmarks/` (`RESULTS.md`, bank, harness) — canonical benchmark.
