@@ -155,6 +155,40 @@ severances (TF24 drought clamps) are covered by the static census (Certificate A
 not B. Completeness = A (finite grounding-site enumeration, regime-independent) ∧ B
 (per-registered-leaf verification for exercised regimes).
 
+## Strategy-agnostic engine sweep (odelia AD core + plant lower-level)
+
+Verified clean; the only actionable items are one API foot-gun and the confirmed
+knob location.
+
+- **odelia AD engine** (`gradient`/`directional_derivative`/`implicit_node`/
+  `supplied_derivative`/`ode_interface`/`ode_solver*`): no severed/kink. L3
+  silent-drop cannot originate here (odelia owns no `values_history`; it only
+  queries `has_recorded_field()` and recomputes at the active scalar when empty).
+  Adaptive stepping is compiled out of the active pass (replay via `step_to`, never
+  `step()`/`adjust_step_size`). `register_implicit` injects the full IFT term
+  `−(∂F/∂p)/(∂F/∂y)`, not an envelope shortcut.
+  - **FOOT-GUN — `supplied_derivative()`** accepts any value + any partials with no
+    stationarity/co-output guard. Safe via `register_implicit` (partials IFT-derived
+    from a residual), but the raw entry invites the plant#60 shape (a non-stationary
+    co-output at a frozen argmax). Guard: keep it internal / debug-FD-check the
+    supplied partial against `F` at registration.
+- **plant lower-level agnostic** (`individual_runner`/`leaf_model`/`control`/
+  base `strategy`/`gradient.h`/`RcppR6_post`): clean.
+  - `node.h:319` FD-abscissa strip is **severed-by-design** (McKendrick upwind
+    stencil; dead on the mass chart for FF16/K93). Resolves the gradient.h
+    call-site question: the abscissa is a pure eval coordinate on purpose.
+  - **`ff16_production_kernel.h` absorbed (commit 56b1d149) as pure arithmetic — no
+    clamp/positivity migrated into `ff16_strategy`.** The `:300` clamp is original.
+  - **plant#60 fix seam present:** `leaf_model.h` exposes
+    `dsoil_consumption_dpsi_collar_perlayer` (per-layer `∂c/∂p`) +
+    `dprofit_droot_collar_psi` (exact IFT `∂p*/∂ψ`) → the dropped
+    `(∂c/∂p)(∂p*/∂ψ)` term is now constructible.
+  - **`smooth_positive` corner-radius knob:** add an `FF16_Strategy` member mirroring
+    K93's `static constexpr double growth_eps = 1e-4` (`k93_strategy.h:94`), applied
+    by wrapping the `:300` branch in `util::smooth_positive(net, r)`. (Runtime-tunable
+    variant: a `double` in `control.h` after `node_gradient_eps`, threaded through
+    `RcppR6_post` wrap/as.)
+
 ## What is verified CORRECT (do not touch)
 
 Density-transport (dλ/dt = −mortality), `reconstruct_densities` /
