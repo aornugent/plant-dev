@@ -303,7 +303,13 @@ removable-vs-intrinsic **classifier built as one instrument**. Build order:
    explicit boundary — needs stiff treatment of θ along the shared-soil axis; note
    "implicit refuted" was single-species only!), H3 (clamp sliding-mode chatter).
    Cheap first cut: the failure's h-trajectory (smooth collapse→H2, jump→H1,
-   oscillation→H3).
+   oscillation→H3). **DONE (first cut): multispecies fails at t=5.745 yr with h
+   GROWING (0.19→0.29→0.255 yr large steps), not collapsing → NOT H2. Signature
+   is H1 (large-step overshoot) or a density overflow (exp(log_density)→Inf). The
+   controller wasn't near a stability boundary (large h accepted), so the implicit-
+   along-soil idea stays retired; cure is the proximity governor / step cap +
+   possibly a density-overflow guard. Definitive H2 check (eigenvalue of ∂θ̇/∂θ)
+   only if the governor doesn't fix it. steplog: results/multispecies_steplog.rds.**
 6. **Back to the member mesh + J** (still the real frontier: mesh refined for x(t)
    but J = ∫c·ρ; and J's 10× conditioning).
 
