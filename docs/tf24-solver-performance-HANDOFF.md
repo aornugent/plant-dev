@@ -139,56 +139,61 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-20 (later same day). Oracle response received and triaged
-under §7. It proposed a **derivative-noise-floor** mechanism (fixed-tol golden-
-section argmax → tolerance-independent RHS floor → controller bisects against it)
-+ fix F1 (Newton on `∂P/∂p=0` + IFT node) + its own tests E1/E2. **We ran E1 and
-E2: the floor is real at the source but is NOT the solver's bottleneck — mechanism
-refuted at the solver level; F1 is additionally ill-posed (the optimum is a corner,
-not a smooth max). One genuine finding fell out: the floor corrupts J at survival
-thresholds.** Full write-up: `docs/tf24-noise-floor-E1-E2-result.md`.*
+*Last updated: 2026-07-20 (round 8 triaged). Two Oracle rounds this day, both triaged
+under §7. Round 7 (noise-floor): E1/E2 refuted it — floor real at source, not the
+bottleneck; F1 ill-posed (`docs/tf24-noise-floor-E1-E2-result.md`). Round 8 (corner +
+speed/accuracy decoupling): the reframe is that the inner operating point is an
+**active-constraint corner (C5), not an optimum (C4)**. Triage
+(`docs/tf24-corner-response-triage.md`): **corner CONFIRMED** (a ci/assimilation
+feasibility edge — wet side falls to the −R_d fallback, productive branch turns on at
+p*); **the "step collapse" is a misread** — min-h is just the initial step, the h_min
+clamp never binds, no mid-run collapse; **the 27–35% rejection is I-controller
+over-reach** (rejected steps 2.4–4.0× larger than accepted, bank-wide) → supports the
+Oracle's T2 (better controller), weakens its T1 (norm-artifact). Speed = controller
+hygiene; accuracy = corner locator + adjoint + J-mollification.*
 
-## ▶ NEXT SESSION — start here (post-Oracle, mechanism refuted)
+## ▶ NEXT SESSION — start here (post-round-8; corner confirmed, speed = controller)
 
 You are picking up with a clean context. Do this, in order:
 
 1. **Read Part 1 in full**, then this Part 2.
-2. **The Oracle round + its triage:**
-   `docs/oracle-consultation-intrinsic-characterisation{,-response}.md` (consult +
-   verbatim response) and **`docs/tf24-noise-floor-E1-E2-result.md`** (the E1/E2
-   test result — read this one carefully; it is the current authority).
-3. **What E1/E2 settled (do not relitigate):**
-   - E1 (leaf level): argmax carries a floor `ε_p ~ GSS_tol_abs` (slope 1.10) and
-     non-stationary RHS outputs inherit O(ε) (assim slope 1.01) — **P1/P2 confirmed**.
-     But the objective is O(ε), not O(ε²): the optimum is a **corner** (cliff-left,
-     smooth-right; no interior stationary point across wet→dry). So the Oracle's **F1
-     is not well-posed** (no `∂P/∂p=0` root; `P_pp` undefined at the corner).
-   - E2 (solver level, the Oracle's own decisive test): reject fraction is **invariant
-     to a 1000× `GSS_tol_abs` change across all 5 bank scenarios**; min-h is a **config
-     artifact** (= `ode_step_size_min` = 1e-6 yr), not a noise floor. By the Oracle's
-     own criterion the mechanism is **refuted** — the inner search is not the speed lever.
-   - New finding: whiplash offspring is **non-monotone in `GSS_tol`** (2.4× J error at
-     the production default 1e-3; converged only by ≤1e-6) — a **survival-threshold
-     bifurcation**. The corner-floor's real cost is **J accuracy** in bifurcation-prone
-     scenarios, not speed.
-4. **The live lever is J accuracy at survival thresholds** (not speed). Two candidate
-   directions, both to be scoped with `system-design` before any build (see the result
-   doc's "What this means for the build"): (a) **smooth the corner** so outputs are C¹
-   in state and the survival boundary is crossed smoothly — the only thing that removes
-   the *non-monotone* J jitter; (b) **corner-locator** inner solve (root-find the
-   constraint-activation condition + IFT node on *that* condition, not stationarity) —
-   exact `p*`, clean adjoint, discharges the §6.6 gradient concern; buys J correctness
-   in whiplash-class runs, no speed (E2). E3 (noise-aware controller) is moot.
-5. **Rebuild the build env only if you need to run code:** `R CMD INSTALL --no-docs
-   --no-byte-compile odelia`; then `rm -f plant/src/*.o plant/src/*.so` and
-   `options(pkg.build_extra_flags=FALSE); pkgload::load_all("plant", export_all=TRUE)`.
-   Nothing is uncommitted; all repos pushed (HEADs below). `GSS_tol_abs` is a
-   `control()` field — the E1/E2 knob needs no rebuild.
+2. **The two Oracle rounds + their triage docs** (read the triage docs — they are the
+   current authority): round 7 `docs/tf24-noise-floor-E1-E2-result.md`; round 8
+   `docs/tf24-corner-response-triage.md` (+ the verbatim responses
+   `docs/oracle-consultation-{intrinsic-characterisation,corner-and-decoupling}-response.md`).
+3. **What is settled (do not relitigate):**
+   - The inner argmax is an **active-constraint corner (C5), not an interior optimum**:
+     a ci/assimilation feasibility edge (wet side → −R_d fallback; productive branch on
+     at `p*`; `∂P/∂p≈−8.8≠0` there). The reverse-mode envelope-at-fixed-`p*` adjoint is
+     therefore first-order wrong **by construction**.
+   - **There is no mid-run step collapse.** min-h is the *initial* step
+     (`ode_step_size_initial`); the `h_min` clamp never binds; accepted steps are healthy
+     (median ~0.06 d). The old "1e-8·T scattered collapse" was the initial step misread.
+   - **The 27–35% rejection is I-controller over-reach** — rejected attempts are 2.4–4.0×
+     *larger* than accepted steps, bank-wide. Speed is controller hygiene, not stiffness,
+     not the inner search (round 7), not events (round 6.5), not the norm-artifact (T1,
+     weakened: no collapse, rejections at large h).
+   - `J` has a **survival-threshold discontinuity** (whiplash: 2.4× flip, non-monotone in
+     `GSS_tol`); this is the real identity of the 10×/23% facts and is functional-side.
+4. **Build order (each still gated on its cheap test where one exists) — see the round-8
+   triage doc §"What to build next":**
+   1. **E4 / adjoint correctness (task #23)** — the one un-run high-value test; reverse
+      `dJ/dθ` vs a true re-solving FD on a transpiring state. **Do this first.**
+   2. **T2 controller (speed)** — PI/Gustafsson in odelia (toy-first); judge by reject
+      fraction ↓, J unchanged. Not bit-identical (changes the step sequence).
+   3. **Corner locator + IFT node (accuracy)** — identify the ci-branch-existence
+      condition `S(p;state)=0` (branch-indicator log), solve `S=0` safeguarded, IFT node
+      on `S`. Acceptance: `J(τ)` flattens at 5.87e-8, adjoint matches FD.
+   4. **J mollification (accuracy, model-side)** — soften the survival entry into `J`;
+      model-owner decision, flag don't build unilaterally.
+5. **Rebuild env only to run code:** `R CMD INSTALL --no-docs --no-byte-compile odelia`;
+   then `rm -f plant/src/*.o plant/src/*.so` and `options(pkg.build_extra_flags=FALSE);
+   pkgload::load_all("plant", export_all=TRUE)`. `GSS_tol_abs`, `ode_step_size_*` are
+   `control()` fields (no rebuild for those knobs). All committed and pushed.
 
-Independently of the above, three items still stand: the **member-mesh/`J` frontier**
-(§7, the original converged-`J` accuracy work — still un-attacked and now the clear
-main line alongside the corner question), the **E4 gradient bug** (plant#60, task #23),
-the **pruning sign-off** (task #20), and the **multispecies-capture** harness fix.
+Still standing independently: the **member-mesh/`J` frontier** (§7, original converged-`J`
+accuracy work, un-attacked), the **pruning sign-off** (task #20), the **multispecies-capture**
+harness fix.
 
 ## Gate result (2026-07-20) — the event stepper is dead; the frontier is the mesh/J
 
