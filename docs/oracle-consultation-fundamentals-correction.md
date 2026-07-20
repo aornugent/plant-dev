@@ -62,20 +62,49 @@ our conclusion:
      / switch-off surfaces) were measured to fire <0.5% of steps and *not*
      to co-locate with the rejections. We do not have a mechanism.
 
+## We ran the cheap test before asking
+
+Because the residual was cheaply falsifiable, we measured it before sending
+this — distance from every logged step attempt to the nearest daily spline
+knot, on the saved per-step logs, across all five single-species bank
+scenarios. The result (full write-up: `tf24-node-distance-result.md`):
+
+- **Your structural observation is vindicated and the mechanism is real.**
+  At *fixed* step size (0.15×DK-wide windows, so "crosses a knot" vs "fits
+  between" differs only by phase), a step that crosses a knot rejects **+12
+  to +36 pp more** than an identically-sized step between knots —
+  consistently across all five scenarios, growing as more of the step sits
+  past the knot. That is the C²-knot third-derivative jump reducing local
+  order, exactly as your (corrected) reasoning predicts, and it was
+  genuinely uninstrumented before.
+- **But it is a minor lever, not the broadband limit.** Size-matched
+  counterfactual: only **1.3–3.9 pp of the ~30 % rejection** is
+  knot-attributable (~5–13 % of the overhead). Only 6–16 % of attempts
+  cross a *value-changing* knot (flat dry-spell knots are exactly constant
+  under a cubic spline — no jump — hence harmless, and hence why our #21
+  value-change-feature clip was already ~cost-neutral). The median step is
+  0.08–0.22×DK and 84–92 % of steps are sub-knot on smooth cubic arcs. The
+  sub-order-2 wall is therefore **not** explained by the forcing: if it
+  were, the attributable fraction would be large, not 2–4 pp.
+
+So on our reading the forcing joint is **confirmed as a mechanism but
+refuted as a frontier-reopener** — the "5–20× on accepted steps" rested on
+the piecewise-linear premise, and corrected to C² it is ~2–4 pp reject /
+~1–2 % work.
+
 ## The question
 
-Given the correction — forcing is `C²` cubic spline, not piecewise-linear,
-and the residual puzzle above:
+Given the correction *and that measurement*:
 
-1. **Does your forcing finding retain any leverage in its corrected form?**
-   If the dense spline-knot lattice (jumping `b'''`, unmeasured by any
-   instrument) can still cap the achievable order — or if the sub-order-2
-   wall points at a different broadband non-smoothness we have not named —
-   what is the cheapest measurement that would confirm or kill it? (We can
-   log distance-from-each-step to the nearest *spline knot*, offline and
-   free, from saved per-step data.) Conversely, if the correction kills the
-   finding outright, say so plainly — a retired stone is as useful to us as
-   a live one.
+1. **Do you agree the forcing joint is now closed as a major lever, or does
+   the confirmed-but-small knot effect point somewhere we have not looked?**
+   In particular: the sub-order-2 wall remains unexplained by the knots,
+   which pushes the broadband order limit back onto the *continuous*
+   structure (the C¹-but-violently-curved coupling field). Is there a
+   measurement that would localise *that* — the thing actually setting the
+   effective order — as cleanly as the knot test localised the forcing? If
+   the correction plus measurement kills the forcing finding outright, say
+   so plainly; a retired stone is as useful to us as a live one.
 
 2. **Do your other original findings survive the correction unchanged?**
    Three of them did not depend on the forcing representation and are the
