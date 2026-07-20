@@ -208,13 +208,32 @@ Built in odelia against a **toy** (a scalar system with a known shutdown-like
 switch + a clamp, where the exact event time is analytic) before wiring TF24.
 Codesign: the mechanism is generic; TF24 supplies the event functions.
 
-**4a. Dense output (odelia, generic).** Add a cubic **Hermite interpolant** to the
-stepper: `state_type interpolate(theta01)` from `y(t)`, `y(t+h)`, `dydt_in`,
-`dydt_out` — 3rd-order, **zero extra RHS evals**. Enables interior evaluation of
-margins for location. (RKCK has no free 5th-order dense output; 3rd-order Hermite
-is sufficient to *bracket + locate* a margin zero, which is then the truncation
-point — accuracy of the arc itself is unaffected because we restart with the exact
-RHS.)
+**4a. Dense output (odelia, generic) — SHARED with odelia#24.** Event location
+needs an interpolant `interpolate(theta01)` over `[t, t+h]`. This is the **same
+capability requested independently in odelia#24** ("dense output for smooth
+trajectories"), where the maintainer points at Dormand–Prince for its 5th-order
+continuous extension. So decide it jointly, not for events alone:
+- **Preferred (shared win): a native DOPRI5(4) stepper with 5th-order dense
+  output**, added as an opt-in `Method` alongside RKCK/RODAS/MRI/IMEX (bit-identical
+  off). Pays *two* requirements — #24's consistent 5th-order plotting interpolant
+  **and** event location — and is a strictly better default stepper; templates
+  cleanly on the XAD scalar; reuses the adaptive controller unchanged. Reference
+  dust2 / FitzJohn `dopri` + Hairer `dopri5` for coefficients + the Shampine
+  dense-output formula (do **not** link dust2 — it is double-only; re-templating it
+  for AD is most of the work, so port coefficients into a clean templated
+  `DopriStep`).
+- **Fallback (zero-risk, unblocks events now): a cubic Hermite** from `y(t)`,
+  `y(t+h)`, `dydt_in`, `dydt_out` — ~20 lines, 3rd-order, no new stepper. **For
+  event *location* this is fully sufficient** (bracket the margin zero → Brent →
+  `t*`; the arc restarts with the exact RHS, so interpolant order does not affect
+  accuracy). Cash-Karp has no free 5th-order extension, so Hermite is the *only*
+  cheap dense output on the current stepper — but it serves #24's plotting only
+  weakly (3rd-order under a 5th-order solution).
+
+Decision rule: if odelia#24 is being actioned, build DOPRI5 and use it for both;
+if the event build must proceed first, ship the Hermite fallback and upgrade to
+DOPRI5's interpolant when it lands (the event locator consumes whichever
+`interpolate()` the active stepper provides).
 
 **4b. Event-function hook (System trait).** One method the System provides:
 `void event_functions(const state_type& y_interp, double t, std::vector<double>&
