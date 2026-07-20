@@ -3,7 +3,8 @@
 *Task #24, prompted by the Stage-1 classifier gate finding that leaf shutdown is
 nearly unreachable. Data: `scripts/tf24-benchmarks/eco_soil_characterisation.R`
 on the whole-profile drydown scenario (4 yr intermittent rain + 12 yr zero rain,
-single LMA=0.0825 species). Raw: `results/eco_soil_drydown.rds`.*
+single LMA=0.0825 species). Raw: `results/eco_soil_drydown.rds`. **Filed as
+plant#62** (standalone issue with self-contained reprex).*
 
 ## Question
 

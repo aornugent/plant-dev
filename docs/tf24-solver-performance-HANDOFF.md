@@ -173,7 +173,12 @@ leaf-solve domain at the default `k_acclim=1` (**filed plant#61**), so the
 proximity governor is optional (small expected win, since rejections don't
 co-locate); the real work is the **coupling-weighted mesh + J** (§7 below).
 Remaining battery gap: multispecies capture (harness birth-rate API mismatch).
-Take to the Oracle: the gate verdict + the shutdown-reachability mechanism question.
+Filed: **plant#61** (TF24f tracked-ψ leaves the feasible domain at default k_acclim)
+and **plant#62** (leaf shutdown nearly unreachable — wettest-layer keying). Oracle
+consult written as a deep neutral characterisation (no directed questions):
+**`docs/oracle-consultation-intrinsic-characterisation.md`** — the classifier is
+the Oracle's own E1/build-#2 and its result *refutes* the round-6/7 event-program
+bet (collapse is intrinsic/broadband, not removable events; enrichment lift ≈0.8–1.0).
 
 ## Where we are (one paragraph)
 
