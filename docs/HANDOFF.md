@@ -168,17 +168,9 @@ bespoke driver 1e-6; K93 vs the certificate AD 1e-6 — and the reoptimising/mod
 
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
 "Finishing Phase 2." Resident FF16+K93 gradients are certified with a clean run-shaped entry; **P2b-5 (the
-FF16 multivariate census) is now DONE** (session 5), and **odelia#46 (competition-field overflow) is closed**.
-Order:
-1. **P2b-cleanup (task #6)** — drop the orphaned probe drivers (`ff16_feedback_probe`, `ff16_single_rate_probe`,
-   `field_crown_probe` — the last is already build-broken by the CanopyShape templating, confirmed pre-existing;
-   the interim localisation drivers) now the gradient is certified; collapse any SFINAE trait; retire the
-   bespoke `ff16_scm_gradient_driver`/`k93_scm_census_driver` in favour of the entry (they linger as the entry's
-   cross-check for now). **Also fold in the two session-5 review follow-ups:** (a) profile the per-call
-   `odelia::cohort_spacing` allocation in `Species::census` on the FF16 spline path (was once-per-build via
-   `reconstruct_densities`) — cache per-build only if it registers; (b) the trivial `/area` echo between
-   `Patch::census` and `Patch::compute_competition` (leave unless a third consumer appears).
-2. **b1 (task #17) — TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for P2c/P2d (TF24/TF24f). A
+FF16 multivariate census) and P2b-cleanup (#6) are DONE** (session 5), and **odelia#46 (competition-field
+overflow) is closed**. The remaining Phase-2 item is **b1** — everything else is deferred by decision. Next:
+1. **b1 (task #17) — TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for P2c/P2d (TF24/TF24f). A
    distinct, larger track (Leaf `supplied_derivative` seam partials / reverse over the stiff soil ODEs /
    tape-rebind). The R5 assert in the entry now gives a clean tripwire; TF24's env-soil-config crossing also
    needs finishing before a TF24 gradient (see build-plan). NOTE odelia#46's field overflow is now removed, so
@@ -202,6 +194,13 @@ Plant `4a997898`, superrepo `3c94715`; odelia unchanged. All plant-side.
   stem basal area) via the #266 `strategy->foo(vars)` pattern; `census_vector` codomain-3 functional →
   `scm_jacobian` (one adaptive recording, three reverse sweeps). Each metric's reverse-AD `d/d(lma)` matches a
   reoptimising adaptive-FD to ~1e-5. Test: `test-scm-gradient-entry.R` "FF16 census vector gradient".
+- **Cleanup (#6, DONE).** Removed the dead `strategy_has_rebind` SFINAE trait (zero use sites; superseded by
+  odelia's `has_rebind_from`/`rebind_or_self`) and the orphaned drivers `ff16_feedback_probe`,
+  `ff16_single_rate_probe`, `field_crown_probe` (+ its build-broken test). **Kept** (by decision): the bespoke
+  `ff16_scm_gradient_driver`/`ad_certificate` — they are the entry test's independent cross-check; retiring
+  them would weaken it to a self-FD gate. **Deferred** (documented, not pulled forward): (a) profiling the
+  per-call `cohort_spacing` alloc in `Species::census`; (b) the trivial `/area` echo between `Patch::census`
+  and `compute_competition`. AD + regression suites green throughout.
 
 **Deferred by explicit decision (do NOT pull forward without asking):**
 - **R-facing `run_scm_gradient` shim** — R surface last; the DX (functional selection, name→index) is not yet
