@@ -277,6 +277,36 @@ odelia `step_diag` logs every step attempt. Findings:
 - Draft consult on event-aware integrator design: `docs/oracle-consultation-event-aware.md`
   (domain-clean, ready to send).
 
+## Oracle round-7 verdict (2026-07-19) — event-aware design + build order
+
+Full: `docs/oracle-consultation-event-aware{,-response}.md`. The design is
+**step-to-event on the same global explicit RK**, with the localizer and the
+removable-vs-intrinsic **classifier built as one instrument**. Build order:
+1. **Forcing-kink step clipping — today** (clip trial steps to the known rainfall
+   kink table; removes the measured 4–31% kink share; ~5-line change).
+2. **Shadow-monitor + branch-signature logging run — the classifier (gate).** Log,
+   per accepted step, all cheap event functions (heavy-member threshold `g_j`,
+   clamp margins `θ−θ_res`, argmax-bound margins, kink proximity) **+ an integer
+   branch signature from inside each per-cohort solve** (0 extra solves). Sign/
+   signature flips time-stamp every crossing incl. un-hypothesized ones (branches
+   inside the leaf solve). Attribution + a smooth-arc refinement test (poly fit vs
+   discontinuity) splits residual into event-attributable vs intrinsic. **Go/no-go
+   for the full build.**
+3. **Proximity governor** — cap trial step at ~1.2× time-to-nearest-event (from
+   logged margins + drift) → converts rejection bisection (O(M)×5–15 probes) into
+   one dense-output root solve. Kills most of the ~30% rejection overhead.
+4. **Dense-output event location + hot restart** (full stage recompute, never reuse
+   FSAL across an event) for the shutdown threshold; **clamp active-set** (pin/
+   release, not hysteresis); **tracked-p (TF24f)** to delete the argmax-bound class.
+5. **Q3 multi-block afternoon** before scaling multispecies: distinguish H1
+   (undetected crossing — governor cures), H2 (coupled-mode instability, `h·|λ|` at
+   explicit boundary — needs stiff treatment of θ along the shared-soil axis; note
+   "implicit refuted" was single-species only!), H3 (clamp sliding-mode chatter).
+   Cheap first cut: the failure's h-trajectory (smooth collapse→H2, jump→H1,
+   oscillation→H3).
+6. **Back to the member mesh + J** (still the real frontier: mesh refined for x(t)
+   but J = ∫c·ρ; and J's 10× conditioning).
+
 ## Concrete next steps (in priority order)
 
 0. **[NEW, top priority] Verify the gradient landmine (Oracle E4)** on
