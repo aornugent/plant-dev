@@ -35,6 +35,9 @@ idiomatic odelia primitives K93/TF24 already use.
 | 2 | `ff16_strategy.h:670-675` establishment `net > 0 ? 1/(tmp²+1)·decay : 0` | **KINK** | same clamp class, establishment path | `smooth_positive` | K93 has no clamp (establishment ≡ 1.0) |
 | 3 | `ff16_strategy.h:748` `canopy_shape.initialise(to_passive(pars.eta))` | **SEVERED** | **eta AD=0 vs FD=0.0051 (offspring) / −18.5 (growth)** — fully severed; `eta ∈ FF16_AD_FIELDS` | lift eta into a scalar-templated `CanopyShape` (carry active eta through Q / query & source factors) | — (also latent in **K93 `k93_strategy.h:282`**) |
 | 4 | `ff16_strategy.h:665-671` (+769-771) establishment uses passive `height_0` (`height_seed()` root) | **SEVERED** | establishment d/d(a_l1) AD=0 vs FD=-1.3e-4; small (cancels against g in the seed) | consume the IFT-lifted `initial_height()` (as growth does) instead of the raw double root | FF16 `lift_birth_height` (verified) / TF24 `lift_birth_height` |
+| 5 | `ff16_strategy.h` birth-size channel: `omega` (∈AD_FIELDS) flows through `height_seed()`→ passive `height_0`/`area_leaf_0` | **SEVERED (Certificate B)** | **omega AD=0 vs FD=2.3e5** (metric=2) — fully dead | IFT-lift the birth *size* wrt every trait (esp. omega) and consume the lifted value in `area_leaf_0` + establishment, not the raw `height_seed()` double | same IFT family as item 4 |
+| 6 | K93 `k_I` growth channel severed | **SEVERED (Certificate B)** | k_I AD 9.5e-12 vs FD 6.9e-8 (K93 metric=2) — small but structurally dead | trace k_I's growth path (likely a passive in cumulative_basal_area / canopy); lift | — |
+| — | FF16 `a_l2` (leaf-area exponent) | **PARTIAL (0.46/1.20)** | rides the same growth clamp as a_l1 | fixed by item 1 (`smooth_positive`) | K93 smooth_positive |
 
 Items 1–2 are the a_l1 gradient gap. Item 3 is a distinct, fully-severed eta
 gradient. Item 4 is real but small.
@@ -121,6 +124,36 @@ structs. Genuine numerical controls (`newton_tol_abs`, `GSS_tol_abs`, `ci_niter`
 any on a rate path; (c) a full-`AD_FIELDS` gradient-vs-reoptimising-FD sweep to
 catch severed *registered* leaves (eta-class). Grade-1 grounding classes are the
 priority — they silently zero *other* traits' gradients, not just their own.
+
+## Certificate B — empirical per-leaf verification (full AD_FIELDS vs FD)
+
+Reverse-AD gradient over EVERY registered leaf vs a per-field pinned-schedule
+central FD, at a real life=40 patch. This is the completeness proof file-reading
+cannot give — and it caught two severances the reading missed (`omega`, K93 `k_I`).
+Driver: `plant/tests/testthat/ad_certificate.cpp` (`ff16_allfield`/`k93_allfield`);
+harness `scratchpad/certificate.R`. Classes: intact (AD==FD≠0) | zero (both 0,
+structural) | SEVERED (AD=0, FD≠0) | PARTIAL (both ≠0, ratio off).
+
+**FF16** (32 leaves; metric=2 growth, the most sensitive):
+- **SEVERED:** `omega` (AD 0 vs FD 2.34e5 — seed mass, dead via the `height_seed()`
+  double root-solve → `height_0`/`area_leaf_0`), `eta` (AD 0 vs FD −18.5 — CanopyShape).
+- **PARTIAL:** `a_l1` (0.46), `a_l2` (1.20) — the growth/fecundity clamp.
+- 26 intact, 2 structural-zero (`a_f3`, `S_D` — don't reach the growth trajectory).
+- metric=0 (offspring): 28 intact, 1 SEVERED, 3 PARTIAL (fecundity clamp adds a_l1).
+
+**K93** (11 leaves):
+- **SEVERED:** `eta` (CanopyShape, both metrics); `k_I` on growth (AD 9.5e-12 vs FD
+  6.9e-8 — light-extinction coefficient, small magnitude but structurally dead).
+- 9 intact (metric=0); recruitment traits `d_0/d_1/S_D` structural-zero on growth.
+
+Newly-found vs the reading audit: **`omega` (FF16)** and **`k_I` (K93)** — both dead
+via a double intermediary the static scan flagged but did not connect to a specific
+registered leaf. This is why B is required, not optional.
+
+Regime caveat: B exercises only pathways active at this state/metric; regime-specific
+severances (TF24 drought clamps) are covered by the static census (Certificate A),
+not B. Completeness = A (finite grounding-site enumeration, regime-independent) ∧ B
+(per-registered-leaf verification for exercised regimes).
 
 ## What is verified CORRECT (do not touch)
 
