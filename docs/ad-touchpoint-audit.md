@@ -84,6 +84,44 @@ stable gradients are the default, not a per-site craft:
 5. Genuinely-passive (positions, counts, sort order, replay grid, diagnostics)
    stay passive — the audit confirms these are correct and must not be "fixed".
 
+## Graph-grounding / un-registered-node audit (the "not-yet-on-the-graph" risk)
+
+A gradient-vs-FD sweep only checks leaves *already* registered in `AD_FIELDS`. It
+is blind to a node that was never wired onto the graph: a parameter/intermediary/
+state left as plain `double`. Two grades, found by a type-flow trace (Pars vs
+`AD_FIELDS` registration diff + a scan for `double`-typed members/helper classes on
+rate paths):
+
+**Grade 1 — grounding class/intermediary (severs every leaf flowing *through* it):**
+
+| node | scope | severs | fix |
+|---|---|---|---|
+| `CanopyShape` (un-templated: `double eta_`, `eta_c_`, `eta_inverse_`; methods template only the *query* `Z z`) | FF16, K93, TF24 (strategy + env) | **eta** (verified AD=0 vs FD≠0) — query-height derivative flows, parameter derivative grounded | template `CanopyShape` on `S` for its eta state (one fix, all three strategies) |
+| `Leaf` (`leaf_model.h`, un-templated double hydraulics) | TF24, TF24f | soil-coupling co-output derivative (plant#60): reinjected via `supplied_derivative`, but the envelope-FD drops `(∂c/∂p)(∂p*/∂ψ)` | add the dropped IFT term at the seam |
+| `height_0`, `height_0_inverse` (double members) | FF16 | establishment's birth-height channel (d(height_0)/d(trait) missing) | consume the IFT-lifted `initial_height()` |
+
+**Grade 2 — un-registered scalar leaf (`double` coefficient: its *own* gradient is
+absent, but `double × active` still propagates other leaves, so it doesn't sever —
+except where it sits inside the double `Leaf`):**
+
+| node | scope | note |
+|---|---|---|
+| `root_c` (2.680147), `root_b` (3.898245), `root_psi_crit` (derived) | TF24 | hydraulic vulnerability curve; live *inside* the double Leaf → influence rides the plant#60 seam |
+| `beta_R_H` (3.4e2), `beta_R_V` (9.4e3) | TF24 | respiration coefficients hardcoded as members, not in `AD_FIELDS`/`Pars` |
+| `k_acclim` (1.0) | TF24f | acclimation rate hardcoded double |
+
+Registration completeness (Pars vs `AD_FIELDS`): FF16 32/32, K93 11/11, TF24 51/51
+`Pars` members are all `S` and all registered — the gaps above are the
+non-`Pars` hardcoded doubles and the un-templated helper classes, not the `Pars`
+structs. Genuine numerical controls (`newton_tol_abs`, `GSS_tol_abs`, `ci_niter`,
+`vulnerability_curve_ncontrol`, `psi_fd_step`) are correctly `double`.
+
+**Detection method to institutionalise:** (a) Pars-vs-`AD_FIELDS` diff per strategy;
+(b) grep every strategy/env/helper class for `double`-typed data members and flag
+any on a rate path; (c) a full-`AD_FIELDS` gradient-vs-reoptimising-FD sweep to
+catch severed *registered* leaves (eta-class). Grade-1 grounding classes are the
+priority — they silently zero *other* traits' gradients, not just their own.
+
 ## What is verified CORRECT (do not touch)
 
 Density-transport (dλ/dt = −mortality), `reconstruct_densities` /
