@@ -18,7 +18,7 @@ suppressMessages({
 cat("loaded\n"); flush(stdout())
 datadir <- "/home/user/plant-dev/scripts/tf24-benchmarks/data"
 outdir  <- "/home/user/plant-dev/scripts/tf24-benchmarks/results"
-nm <- "intense_storms"; years <- 12
+nm <- "intense_storms"; years <- 10
 b <- readRDS(file.path(datadir, paste0(nm, ".rds")))
 nd <- min(length(b$rain), round(years * 365))
 rain <- b$rain[seq_len(nd)]; times <- (0:(nd - 1)) / 365; tmax <- max(times)
