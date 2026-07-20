@@ -139,7 +139,33 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-19. Clean-desk consolidation after Oracle rounds 6–7.*
+*Last updated: 2026-07-20. Forcing clip shipped (#21) + Stage-1 classifier gate
+run: verdict INTRINSIC (the event stepper is NOT built).*
+
+## Gate result (2026-07-20) — the event stepper is dead; the frontier is the mesh/J
+
+Build-order #1 (forcing-kink clip) shipped: bit-identical off, offspring
+preserved, cost-neutral, small reject reduction; only ~2 % of accepted steps land
+on forcing features — confirming forcing is a minor step driver.
+
+Build-order #2 (the classifier gate) is **done and decisive: INTRINSIC.** The
+shadow-monitor + per-cohort branch-signature instrument (odelia `step_monitor`,
+plant `tf24_solve_diag`, bit-identical off) ran the full bank at converged tol.
+Across all 5 scenarios (20–70 yr, wet and dry): the hypothesized event surfaces
+are **never approached** (soil clamps/runoff never fire; leaf-shutdown margin
+never below 4.66 — shutdown is at 0; argmax collapsed-interval never fires;
+≥99.8 % of cohort solves take the smooth GSS branch), and the ~30 % rejection
+waste **does not co-locate** with the discrete events that do fire (median 2 %
+within ±1 step). Step size is weakly predicted only by *continuous* structure
+(GSS interval width / soil wetness, ρ≈0.3–0.4). **The kill question is answered:
+the 70–98 % collapse is intrinsic fast structure, not removable events.** So
+spec §4a–4e (dense output, event location, active-set, transition handlers) are
+**not built** — they would buy ~nothing. Full write-up:
+`docs/tf24-classifier-gate-result.md`. Next: the proximity
+governor is optional (small expected win, since rejections don't co-locate);
+the real work is the **coupling-weighted mesh + J** (§7 below), and the one
+cohort-layer lever the data point at is the **GSS/argmax smoothness** (the TF24f
+tracked-control variant that deletes the argmax).
 
 ## Where we are (one paragraph)
 
@@ -182,6 +208,15 @@ non-finite failure** (diagnosed H1/overflow, not stiffness).
 - **Benchmark bank + instrumentation:** `scripts/tf24-benchmarks/` (6 canonical
   hard rainfall sequences as `data/*.rds` + generator + `event_sizing.R` +
   `RESULTS.md`); odelia `step_diag` step-attempt log (off by default).
+- **Forcing-kink clip (#21, shipped):** odelia `has_clip_times` + `clip_forcing`
+  control; plant `clip_time_after` / `extrinsic_drivers_next_node_after`. Clips
+  trial steps to rainfall feature knots. Bit-identical off; cost-neutral.
+- **Stage-1 classifier instrument (#22, shipped; the GATE):** odelia
+  `step_monitor` (per-accepted-step margins + branch signatures, `step_diag`
+  storage + `has_step_monitor` trait) and plant `Patch::step_monitor` /
+  `tf24_solve_diag` per-cohort branch sink / `TF24_Environment::soil_event_margins`.
+  Bit-identical off. Verdict INTRINSIC (see "Gate result" above);
+  `scripts/tf24-benchmarks/classifier_{capture,analyze}.R`.
 
 ## Measured facts that anchor the plan
 
@@ -235,8 +270,14 @@ removable-vs-intrinsic **classifier are one instrument.**
    experimental surface. Keep IMEX (per decision) and R-C; assess whether MRI /
    collocation / `mri_use_split` still earn their place now the frame is retired,
    under the abstraction principle. Bit-identical-off is what licenses pruning.
-3. **[build] Ship build-order #1** (kink clipping), then **#2 (the classifier
-   gate)** — the decision point for the whole event-aware build.
+3. **[build] DONE.** #1 (kink clipping) shipped; #2 (classifier gate) run →
+   **INTRINSIC** (see "Gate result" above). The event-location stepper is not
+   built. Remaining forward options, in order: (a) **coupling-weighted (ρ·|c|)
+   mesh refinement + J re-certification** (§7 / build-order #5 — the real
+   frontier); (b) optionally the **proximity governor** for the reject fraction
+   (cheap but small expected win — rejections don't co-locate); (c) **TF24f
+   tracked-p** to delete the argmax and reduce the continuous cohort-layer
+   stiffness the gate identified.
 4. **[correctness, separate branch] Gradient bug (plant#60):** verify Oracle E4 on
    `claude/odelia-ad-tape-reverse-496fuf` — adjoint dJ/dθ vs true FD that
    **re-optimizes the argmax**, on a real transpiring patch state. Owned there.

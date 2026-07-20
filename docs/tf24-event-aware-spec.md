@@ -200,6 +200,19 @@ scenario, and the list of controller-visible event surfaces. **If removable
 dominates → build Stage 2. If intrinsic dominates → stop; keep governor + forcing
 clip; go to §7.**
 
+> **GATE RESULT (2026-07-20): INTRINSIC — Stage 2 is NOT built.** The instrument
+> shipped (odelia `step_monitor` + plant `tf24_solve_diag` per-cohort branch sink,
+> bit-identical off) and ran the full bank at converged tol. Across all 5
+> scenarios (20–70 yr, wet and dry): the hypothesized surfaces are **never
+> approached** (soil clamps/runoff never fire; leaf-shutdown margin never below
+> 4.66, shutdown is at 0; the argmax collapsed-interval branch never fires;
+> ≥99.8 % of cohort solves take the smooth GSS branch), and the ~30 % rejection
+> waste **does not co-locate** with the events that do fire (median 2 % within ±1
+> step). The only weak predictor of step size is continuous (GSS interval width /
+> soil wetness, ρ≈0.3–0.4), not a crossing. The kill question (§5) is answered:
+> the collapse is intrinsic fast structure. **§4a–4e are not built.** Full write-up:
+> `docs/tf24-classifier-gate-result.md`.
+
 ---
 
 ## 4. Stage 2 — the event-aware stepper (only if the gate passes)
