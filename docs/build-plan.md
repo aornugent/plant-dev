@@ -35,6 +35,64 @@ after the resident recording exists.
 - **Clean odelia/plant boundary (the v2 emphasis).** odelia owns the tape, the primitives, and record/replay across the growing dimension; plant supplies only scalar-generic closed forms + residual/kernel declarations. No model code reaches the tape (this is what makes the boundary cleaner than the prototype's in-model `supplied_derivative` seam). One templated body per read — **never** parallel `!is_same_v<double>` overloads.
 - **Build/test mechanics** (survival-critical — from `archive/ad-handover.md`): reinstall `odelia` after ANY odelia header edit (plant compiles against *installed* headers, not the submodule tree); `Sys.setenv(TESTTHAT_PARALLEL="false")`; build optimised once (`cd plant && make`, `-O2`) then `load_all` reuses the `.so`; regenerate RcppR6 only when adding/removing a registered field; on `undefined symbol`, `rm src/*.o src/*.so` and reinstall.
 
+## ►► CURRENT WORK — AD-touchpoint remediation (2026-07-20 audit) ◄◄
+Full findings + method: [`ad-touchpoint-audit.md`](./ad-touchpoint-audit.md). A
+whole-surface audit (every model + engine header vs pre-AD `develop`) plus an
+**empirical per-leaf certificate** (reverse-AD over every `AD_FIELDS` leaf vs a
+reoptimising FD) established, mechanically rather than by reading, WHERE and WHETHER
+a trait derivative is lost. The FF16 "a_l1 residual" that started this was one
+symptom of a small, enumerable class of defects; the audit found the rest — including
+two the file-reading missed (`omega`, K93 `k_I`).
+
+**Certification status:** FF16 ✓ certified, K93 ✓ certified, **TF24 ✗ blocked
+(reverse-AD numerically blown up, ~1e30 vs sane FD — a separate debugging track)**.
+Completeness = static grounding census (finite: 63 `to_passive` + 36 `xad::value` +
+36 `double` members + 2 un-templated helper classes) ∧ per-leaf empirical certificate.
+
+**Two failure modes, one vocabulary:**
+1. **Grounding** — a leaf's derivative flows *through* a node that grounds to `double`
+   (un-templated helper class, bare-`double` member, `to_passive`, or a non-smooth
+   clamp). Severs everything upstream.
+2. **Un-registered leaf** — a param never wired onto the graph (`double` member not in
+   `AD_FIELDS`). Its own gradient is simply absent.
+
+**Remediation — Tranche (a): FF16/K93 (certified, ready to build).**
+| # | fix | closes | mechanism / exemplar |
+|---|---|---|---|
+| a1 | **template `CanopyShape` on `S`** (eta/eta_c/eta_inverse become `S`) | `eta` SEVERED in **FF16 + K93 + TF24** at once | it is an un-templated class holding eta as `double`; methods template only the query. One class fix, three strategies. **structural → system-design first.** |
+| a2 | **`smooth_positive`** the FF16 `net_mass_production_dt_>0 ? rate : 0` clamp (`ff16_strategy.h:300-326`, and establishment `:670-675`) | `a_l1`/`a_l2` PARTIAL (the a_l1 residual) | K93 exemplar `k93_strategy.h:253`; add an `FF16_Strategy` corner-radius member mirroring K93 `growth_eps=1e-4`. Re-baselines FF16 demography (r is the knob). |
+| a3 | **IFT-lift the birth SIZE** and consume the lifted value in `area_leaf_0` + `establishment_probability` (not the raw `height_seed()` double root) | `omega` SEVERED (FF16 **and** TF24 — shared), establishment `height_0` | reuse `lift_birth_height`; `omega` flows only through the birth-size root-solve. |
+| a4 | trace + lift K93 `k_I` growth-channel path | K93 `k_I` SEVERED (growth) | small magnitude; likely a passive in cumulative_basal_area/canopy. |
+| a5 | **qk → `odelia::quadrature` primitive** (DX, no numeric change) | the `to_passive`-saturation smell | value+bound derivative already correct; move it off plant model code. |
+
+**Remediation — Tranche (b): TF24 (blocked — its own track).**
+- **b1 — debug TF24 reverse-AD blow-up (BLOCKER).** Reverse gradient is ~1e25–1e32 vs
+  sane FD on every nonzero-gradient leaf. Non-functional, not merely missing a term.
+  Candidates: the Leaf `supplied_derivative` seam partials, reverse over the stiff
+  soil ODEs, or a tape/rebind issue. Check forward-mode too (isolate fwd vs rev).
+- **b2 — plant#60 dropped-term** (once b1 is fixed): the seam differentiates the
+  non-stationary co-output `soil_consumption_`/`E_up_` at fixed collar-ψ, dropping
+  `(∂c/∂p)(∂p*/∂ψ)`. **Fix seam already present:** `dsoil_consumption_dpsi_collar_perlayer`
+  (per-layer `∂c/∂p`) × `dprofit_droot_collar_psi` (exact IFT `∂p*/∂ψ`). Verify with a
+  **reoptimising** FD on a real patch (a frozen-p* FD hides it).
+- **b3 — register TF24's hardcoded-double leaves** (`root_c`, `root_b`, `beta_R_H`,
+  `beta_R_V`, TF24f `k_acclim`, soil-env `K_s`/`a_psi`/`n_psi`/…) if their gradients
+  are ever needed; **b4 — `smooth_positive`** the soil drought clamps
+  (`tf24_environment.h:244/276/295/306`) and `max(light_openness,1e-4)`.
+
+**Engine-level (both tranches):** guard `odelia::supplied_derivative()` — it injects a
+value + partials with no stationarity check (the plant#60 invitation); keep it
+reachable only via `register_implicit`, or debug-FD-check the partials at registration.
+
+**Do NOT touch (verified correct):** density transport (dλ/dt=−mortality), reconstruct/
+seed/spacing, the separable-field assembly+read, qk value+bound derivative,
+`lift_birth_height` IFT, scm active-run gating, replay positions/counts/diagnostics,
+`node.h:319` FD stencil (severed-by-design, dead on the mass chart).
+
+**Diagnostics (scratchpad, re-runnable):** `certificate.R` (FF16/K93 per-leaf),
+`tf24_cert.R` (TF24, shows the blow-up), `birth_sweep.R`/`state_tan.R`/`a_l1_diag.R`
+(the a_l1 localisation). Certificate driver committed: `plant/tests/testthat/ad_certificate.cpp`.
+
 ## Phase 0 — validate the biggest bets (pure `double`, no build) — **DONE**
 See [`phase0-results.md`](./phase0-results.md). **F1** confirmed the fixed-point route (Eulerian
 transport operator faithful to the march, residual 8.6e-6; steady profile well-posed). **E2** redirected

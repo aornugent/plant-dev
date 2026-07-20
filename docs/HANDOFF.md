@@ -126,27 +126,50 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-20. This session: **landed FF16 on the transport-log-mass chart** (odelia
-`ac6a988`, plant `c1b034ca`, superrepo `90f4908`). FF16 `geometric_transport` marker; the two-species
-crash (coincident shaded seedlings → zero cohort spacing → NaN density reconstruction) fixed by odelia's
-new **-inf zero-spacing convention** (a degenerate zero-width cohort → density 0, contributes 0). Tried a
-competition-in-mass rewrite (system-design'd) but REVERTED it — it degraded K93's AD-vs-FD gradient 0.56%
-(freezing spacing into λ vs recomputing it live); the lighter -inf convention keeps K93 exact. Result:
-K93 gradient <1e-3 preserved, FF16 `d/d(k_l)` machine-exact, `d/d(lma)` ~0.4%, `d/d(a_l1)` a known
-self-shading residual (task #10). Trees clean, installed==HEAD._
+_Last updated: 2026-07-20 (session 2). This session: **a whole-surface AD-touchpoint audit + empirical
+per-leaf certification**, triggered by the FF16 `a_l1` residual and the user's call to stop careening
+bug-to-bug. Superrepo `bacf7ea`, plant `c74cd84e`, odelia `ac6a988`. No model code changed yet — this was
+diagnosis; **the next session builds the remediation.** Full detail: [`docs/ad-touchpoint-audit.md`](./ad-touchpoint-audit.md);
+remediation plan: [`docs/build-plan.md`](./build-plan.md) "►► CURRENT WORK" block._
+
+## WHAT THIS SESSION ESTABLISHED (read the two docs above for detail)
+- **The `a_l1` residual root cause = FF16's `net_mass_production_dt_ > 0 ? rate : 0` growth/fecundity
+  CLAMP** (a model kink; AD gives the correct subgradient, two-sided FD sees across it). Confirmed by: FD
+  δ-plateau (not a kink-crossing), frozen-config RHS Jacobian exact everywhere, per-cohort tangents (log_mass
+  & mortality exact, height wrong), birth-rate/shading sweep. **K93 is exact because it already
+  `smooth_positive`s the identical clamp** (`k93_strategy.h:253`) — that is the fix template.
+- **`eta` is FULLY SEVERED (AD=0 vs FD≠0) in FF16 AND K93** — `CanopyShape` is an un-templated `double`
+  class holding eta; it grounds eta's derivative while templating only the query. One class fix (template
+  `CanopyShape` on `S`) retires it across all strategies.
+- **`omega` FULLY SEVERED (FF16 + TF24)** via the `height_seed()` double root-solve; **K93 `k_I` severed on
+  the growth channel.** Found by the empirical certificate, NOT by five agents' file-reading — the reason
+  the certificate is load-bearing.
+- **TF24 reverse-AD is NUMERICALLY BLOWN UP** (~1e25–1e32 vs sane FD) — non-functional, a separate
+  debugging track, not a smooth-positive job. plant#60 (leaf soil-coupling envelope-FD) is a *filed* subset;
+  its fix seam (`dsoil_consumption_dpsi_collar_perlayer`) is already present.
+- **Engine + lower-level agnostic surface is CLEAN** (odelia AD core, node/species/individual/patch/
+  environment/spline/interpolator/field/qk). One API foot-gun: `odelia::supplied_derivative()` injects
+  partials with no stationarity guard (the engine-level plant#60 invitation).
+- **Completeness method** (so we never again "read and hope"): static grounding census (finite: 63
+  `to_passive` + 36 `xad::value` + 36 `double` members + 2 helper classes) ∧ empirical per-leaf certificate
+  (`ad_certificate.cpp` → `certificate.R`/`tf24_cert.R`). FF16 ✓, K93 ✓, TF24 ✗-blocked.
 
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
-**Pick up one of:** (a) **FF16 `a_l1` self-shading adjoint residual** (task #10) — `d/d(a_l1)` reverse-AD
-0.0629 vs FD plateau 0.1007; both AD modes agree, FD disagrees; predates the chart work (present with
-reconstruction competition where K93 was exact) so a distinct mechanism from the (now-reverted) K93
-mass-gradient issue — investigate the self-shading feedback adjoint. (b) **FF16 multivariate census
-gradient** (LAI/biomass/basal-area, task #5). (c) **run-shaped gradient entry** + retire
-`save_RK45_cache`/`step_history` (tasks #3/#4).
+**Full remediation, Tranche (a) — FF16/K93, certified and ready** (see build-plan "►► CURRENT WORK").
+Recommended order, `system-design` before the structural one:
+1. **a1 — template `CanopyShape` on `S`** (structural; fixes `eta` in FF16+K93+TF24 at once). system-design first.
+2. **a2 — `smooth_positive` the FF16 clamps** (fixes `a_l1`/`a_l2`; add an `FF16_Strategy` corner-radius
+   member mirroring K93 `growth_eps=1e-4`; re-bless FF16 demography snapshots).
+3. **a3 — IFT-lift the birth size**, consume it in `area_leaf_0` + `establishment_probability` (fixes
+   `omega` in FF16+TF24 and the establishment `height_0` severance).
+4. **a4 — K93 `k_I` growth path**; **a5 — qk → `odelia::quadrature` primitive** (DX, no numeric change).
+After each: re-run `certificate.R` — the changed leaves must flip SEVERED/PARTIAL → intact, others unchanged.
+**Tranche (b) — TF24 — is blocked on b1 (debug the reverse-AD blow-up)**; do not start TF24 remediation
+until b1 is understood. **Guard `supplied_derivative`** as part of whichever tranche touches it first.
 
-**Known limitation carried forward (tracked: aornugent/odelia#46):** the -inf convention handles *exact*
-zero spacing (coincident heights). *Tiny-but-nonzero* centred spacing at a near-stall could still overflow
-an interior neighbour's reconstructed density; the retrofit if ever observed is the competition-in-mass
-path (node-lumped `Σ exp(λ)·kernel`, designed+prototyped this session, reverted for the K93 gradient cost).
+**Known limitation carried forward (tracked: aornugent/odelia#46):** the -inf zero-spacing convention
+handles *exact* zero spacing; *tiny-but-nonzero* centred spacing at a near-stall could still overflow a
+reconstructed density (retrofit = competition-in-mass, prototyped+reverted for the K93 gradient cost).
 
 ## THE HEADLINE (read this first)
 The FF16 gradient bug, the #550 density runaway, and the value/gradient tension are **one thing**: the
