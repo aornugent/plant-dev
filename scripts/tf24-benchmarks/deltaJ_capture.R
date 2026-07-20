@@ -39,9 +39,14 @@ capture_one <- function(nm, years, eps) {
   cat(sprintf("saved %s : n=%d J=%.6e\n", tag, length(res$tau), res$J))
 }
 
-# order cheapest-first so a kill still leaves useful pairs
+# order cheapest-first so a kill still leaves useful pairs. 15-yr horizons:
+# the refine cost grows steeply with horizon (20 yr hung >15 min); 15 yr
+# completes in ~1-2 min/scheme and still spans the survival dynamics.
 jobs <- list(
-  c("intense_storms", 20, 2e-2), c("intense_storms", 20, 2e-3),
-  c("dry_to_wet",     25, 2e-2), c("dry_to_wet",     25, 2e-3))
-for (j in jobs) capture_one(j[1], as.numeric(j[2]), as.numeric(j[3]))
+  c("intense_storms", 15, 2e-2), c("intense_storms", 15, 2e-3),
+  c("dry_to_wet",     15, 2e-2), c("dry_to_wet",     15, 2e-3))
+for (j in jobs) {
+  capture_one(j[1], as.numeric(j[2]), as.numeric(j[3]))
+  flush(stdout())
+}
 cat("CAPTURE DONE\n")
