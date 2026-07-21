@@ -203,7 +203,14 @@ verified.** The next item is **step 2**:
    `docs/p2c-leaf-adjoint-design.md` "Step 4a". The node is validated in scratchpad only — its
    production home/signature (needs the double `Leaf`, unlike `ci_node`/`psistem_node`) is fixed by
    the step-5/6 wiring, so it is NOT yet in `leaf_model.h`.
-6. **►Step 4b — the bound/fold branch (START HERE).** The regime-detector fold node. `find_root_collar_psi`
+6. **►Step 4b — the bound-regime branch (START HERE).** GROUNDED (session 8,
+   `scratchpad/leaf_pstar_bound.cpp`): the bound band is `p* = bound_b = −root_crit`, and
+   `root_crit` solves `E_column(x, psi_soil, psi_crit)=0` (`find_root_psi(…,1)`) — the collar where
+   the stem hits `psi_crit`. So build it as `implicit_value` on `E_column=0` (a plain root-find IFT
+   over `psi_crit` + soil state, reusing `soil_uptake`+`cumulative_vuln`), **not** a bordered-fold
+   `{F=0,∂F/∂ci=0}`. Select it by the "`p*` clamped to `bound_b`" detector (NOT `|dprofit/dp*|<tol`,
+   which a tight golden section shows ≈0 in the band too). Verify vs the E4 `dp*/dθ` band (−252→−34).
+   Context (the original fork framing) below. `find_root_collar_psi`
    golden-section-maximises profit over the collar potential `p*` on `[bound_a, bound_b]`
    (`prepare_collar_solve`). **`p*` interior ⇒ stationarity IFT `∂profit/∂p*=0`; `p*` on `bound_b` (the
    branch-death edge) ⇒ bordered-fold IFT `g(p*)=∂F/∂ci=0`, `dp*/dstate=−g_state/g_p`.** Whether `p*` sits at a
@@ -252,6 +259,16 @@ interior-stationarity collar-optimum node — the dominant regime per the ground
   wrong there — `dp*/dstate` follows `d(bound_b)/dstate`. Step 4b adds the bordered-fold branch gated by
   `|dprofit/dp*|<tol`. The node is validated in scratchpad only (not on any rate path, not in
   `leaf_model.h`); its production signature is fixed by the step-5/6 assembly.
+- **Step 4b grounded — the BOUND band is a stem-critical root-find, not a bordered-fold**
+  (`scratchpad/leaf_pstar_bound.cpp`). Two corrections to the design's assumptions: (1) in the
+  bound band `p* = bound_b = −root_crit` **exactly** (p* tracks the moving bound), and `root_crit`
+  solves `E_column(x, psi_soil, psi_crit)=0` (`find_root_psi(…,1)`) — the collar where the **stem
+  hits `psi_crit`**. So the bound derivative `dp*/dstate = −d(root_crit)/dstate` is a **plain
+  root-find IFT** (`implicit_value` on `E_column=0`, reusing `soil_uptake`+`cumulative_vuln`), NOT
+  the anticipated bordered-fold `{F=0,∂F/∂ci=0}` — simpler. (2) The detector is "`p*` clamped to
+  `bound_b`" (which `find_root_collar_psi` already determines), **not** `|dprofit/dp*|<tol`: at a
+  tight golden section `dprofit/dp*≈4e-11≈0` in the bound band too (the earlier 0.9–4.3 was a loose-
+  GSS artifact). `dp*/dθ` finite in the band (−252→−34), = `d(bound_b)/dθ` — the E4 target for 4b.
 
 ## ►► SESSION 7 — P2c steps 1–3 (S output map + N_ci + N_psistem) DONE + step 4 grounded ◄◄
 Final HEAD plant `efe624e4`, superrepo `620e939`; odelia unchanged (`16cff79`). All plant-side. Steps 1–3

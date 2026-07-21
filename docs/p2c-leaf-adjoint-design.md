@@ -355,11 +355,35 @@ central difference):
   is `O(ε²)` truncation, smaller ε is roundoff (`implicit_value`'s inner 1e-6 amplifies `G`'s
   `~1e-15/ε` noise). At the sweet spot both channels plateau at ~1e-4.
 
-**Next: step 4b** — the bordered-fold branch for the BOUND band (`g(p*)=∂F/∂ci=0`,
-`dp*/dstate=−g_state/g_p*`; Refinement 1), gated by `|dprofit/dp*|<tol`; then steps 5–6
-(assemble N_p\*→N_psistem→N_ci→output map into `net_mass_production_dt`, delete the seam).
-The production node's home/signature (it needs the double `Leaf` for the off-tape solves +
-soil caches, unlike the pure `ci_node`/`psistem_node`) is decided when wiring step 5–6.
+## Step 4b grounding — the BOUND band is a stem-critical root-find, not a bordered-fold
+`scratchpad/leaf_pstar_bound.cpp`, θ sweep 0.11–0.16 at a tightened golden section
+(`GSS_tol_abs=1e-10`). Two corrections to the design's assumptions:
+
+1. **The BOUND regime is `p* = bound_b = −root_crit` exactly** (`dist(p*, bound_b)=0` across
+   θ≈0.125–0.155; `p*` tracks `bound_b` as it moves 6.39→3.08). `bound_b = max(−root_crit,
+   −root_psi_crit)` and `−root_crit` is the active bound. **`root_crit` solves
+   `E_column(x, psi_soil, psi_crit) = 0`** (`find_root_psi(…,1)`, `leaf_model.cpp:581`) — the
+   collar potential at which the **stem reaches `psi_crit`** (its vulnerability limit, the
+   branch-death edge). So the bound-regime derivative is `dp*/dstate = −d(root_crit)/dstate`,
+   a **plain root-find IFT** — `implicit_value` on `E_column(·; psi_soil, psi_crit, k_max, b,
+   c)=0` (`psi_crit` and the soil state are the active inputs) — **NOT** the bordered-fold
+   `{F=0, ∂F/∂ci=0}` that Refinement 1 / the step-4 fork anticipated. `E_column`'s `S`
+   closed form reuses `soil_uptake` + `cumulative_vuln`, both already in `leaf_output`. This
+   is simpler than feared: no `g=∂F/∂ci` closed form is needed.
+2. **The detector is "`p*` clamped to `bound_b`", not `|dprofit/dp*|<tol`.** With a tight
+   golden section `dprofit/dp*(p*)≈4e-11≈0` *in the bound band too* (the earlier
+   "0.9–4.3" figure was an artifact of the loose 1e-3 GSS evaluating the gradient short of
+   the bound). The reliable, structural branch-indicator is whether the golden-section
+   optimum sits on `bound_b` — which `find_root_collar_psi`/`prepare_collar_solve` already
+   determine (`|p* − bound_b| ≤ GSS_tol` ⇒ bound regime; interior otherwise). `dp*/dθ` is
+   large but finite in the band (−252 → −34), = `d(bound_b)/dθ`.
+
+**Next: step 4b build** — the bound-regime node (`implicit_value` on `E_column=0` for
+`root_crit`), selected by the clamped-to-`bound_b` detector; verify against E4 in the band
+(the `dpstar_dtheta_E4` column, −252→−34). Then steps 5–6 (assemble
+N_p\*→N_psistem→N_ci→output map into `net_mass_production_dt`, delete the seam). The
+production node's home/signature (it needs the double `Leaf` for the off-tape solves + soil
+caches, unlike the pure `ci_node`/`psistem_node`) is decided when wiring step 5–6.
 
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
