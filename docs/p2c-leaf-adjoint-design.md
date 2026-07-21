@@ -314,6 +314,53 @@ IFT regime N_p\* must handle, **before** writing it:
   `|dprofit/dp*| < tol` selects the regime. N_p\* = interior stationarity node in the common
   case + a bordered-fold branch for the BOUND band; the E4 targets are the `dp*/dθ` column.
 
+## Step 4a — the interior N_p\* node: design + DONE (2026-07-21)
+A `system-design` search settled *how* N_p\* computes `dp*/dstate` reverse-differentiably
+in state for the interior-stationarity regime (the dominant case per the grounding).
+
+**Decision — implicit_value on a finite-differenced reduced profit** (not a hand-written
+reduced gradient). `dp*/dstate = −P_ps/P_pp` (mixed second derivatives). The node is
+`implicit_value(p*, F)` with `F(p) = [profit_reduced(p+ε) − profit_reduced(p−ε)]/(2ε)`,
+where `profit_reduced<T>(p)` re-solves the double roots off the tape at `p±ε` and assembles
+the active outputs from the existing `leaf_output` map + the `N_psistem`/`N_ci` nodes:
+- `psi_stem = psistem_node(psi_stem*(p), psi_up=p, E_up(p), k_max, b, c)`,
+- `ci = ci_node(ci*(p), vcmax, et, …, gc(psi_stem,p), …)`,
+- `profit = assim_colimited(ci,…) − hydraulic_cost_TF(psi_stem,…)`.
+
+XAD then supplies the numerator `P_ps = ∂²profit/∂p∂state` on the reverse tape (the
+state-derivative of `F`), and `implicit_value`'s own double central difference supplies the
+denominator `P_pp = ∂²profit/∂p²` — so the node returns `p*` carrying `−P_ps/P_pp` with
+**no hand-written second derivatives**. The commitment: the derivative path reuses the one
+forward algebra (`leaf_output`) and cannot drift from the double `Leaf` (there is no second
+calculus copy). Rejected: (a) a hand-written closed-form `G` (a second, drift-prone
+transcription — and `dprofit_droot_collar_psi`'s internal forward-AD won't record state on
+the reverse tape); (c) promoting to an odelia `stationary_value` primitive (one witness only
+— TF24f reuses the *same* leaf node; retrofit trigger: a second argmax on the AD path).
+
+**Only for the interior regime.** At a bound (`|dprofit/dp*|>tol`, the fold band) `p*` is not
+stationary; `F(p*)≠0` and the stationarity IFT is wrong there — `dp*/dstate` follows the
+bound, `d(bound_b)/dstate`. The `|dprofit/dp*|<tol` detector must route the bound band to the
+separate bordered-fold branch (step 4b, still to build).
+
+**Verified — `scratchpad/leaf_pstar_node.cpp` (gate0), two independent channels vs E4**
+(perturb the member, re-optimise `p*` at a tightened golden section `GSS_tol_abs=1e-10`,
+central difference):
+- **k_max** (hydraulic / `psistem_node` channel): node `10917`/`10360` vs FD `10918`/`10364`
+  at θ=0.20/0.30 — reld **1.4e-4 / 3.5e-4**.
+- **vcmax** (photosynthesis / `ci_node` channel): node `−0.00183` vs FD `−0.00183` (matches to
+  all shown digits; the ~2–5e-3 *relative* figure is the E4 FD floor on a near-zero-sensitivity
+  channel, not node error).
+- `dprofit/dp*≈−1e-7` at both θ confirms the interior regime (detector clean).
+- **ε tuning:** the differencing step `ε≈1e-2·(|p*|+1)` is the nested-FD sweet spot — larger ε
+  is `O(ε²)` truncation, smaller ε is roundoff (`implicit_value`'s inner 1e-6 amplifies `G`'s
+  `~1e-15/ε` noise). At the sweet spot both channels plateau at ~1e-4.
+
+**Next: step 4b** — the bordered-fold branch for the BOUND band (`g(p*)=∂F/∂ci=0`,
+`dp*/dstate=−g_state/g_p*`; Refinement 1), gated by `|dprofit/dp*|<tol`; then steps 5–6
+(assemble N_p\*→N_psistem→N_ci→output map into `net_mass_production_dt`, delete the seam).
+The production node's home/signature (it needs the double `Leaf` for the off-tape solves +
+soil caches, unlike the pure `ci_node`/`psistem_node`) is decided when wiring step 5–6.
+
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
 / colimited assim / Weibull conductivity + `cumulative_vuln` via `incomplete_gamma` /

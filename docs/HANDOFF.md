@@ -126,8 +126,13 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 7). **HEAD: plant `efe624e4`, superrepo `620e939`, odelia `16cff79`
-(unchanged — all plant-side). All clean, pushed.** This session (7): **P2c steps 1–3 DONE + step 4 grounded.**
+_Last updated: 2026-07-21 (session 8). **HEAD: plant `efe624e4` (unchanged — step-4a node
+validated in scratchpad, not yet on any rate path), odelia `16cff79` (unchanged). Superrepo
+advances with docs only. All clean, pushed.** This session (8): **P2c step 4a DONE — the interior
+N_p\* node designed (`system-design`) and E4-verified on two channels; step 4b (bound/fold branch)
++ steps 5–6 next.** See the SESSION 8 block below._
+
+_Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
 `implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
 coding. Session 6 scoped P2c and did step 0. The committed P2c shape (`docs/p2c-leaf-adjoint-design.md`) is
@@ -188,7 +193,17 @@ verified.** The next item is **step 2**:
 4. ~~**Step 3 — N_psistem.**~~ DONE (session 7). `leaf_output::psistem_node` — `implicit_value` inverting
    `transpiration(ψ_stem,ψ_up)=E_up`, denom `k_max·exp(−(ψ_stem/b)^c)>0`. Gate0: `dψ_stem/dE_up`,
    `dψ_stem/dψ_up` vs central FD of the production spline inverse to ~1e-6 (spline precision).
-5. **►Step 4 — N_p\* (START HERE, the hard core).** The regime-detector fold node. `find_root_collar_psi`
+5. **Step 4a — interior N_p\* node.** DONE (session 8). `implicit_value(p*, F)` with
+   `F(p)=[profit_reduced(p+ε)−profit_reduced(p−ε)]/(2ε)`; `profit_reduced<T>` re-solves the double
+   roots off-tape at `p±ε` and assembles the active outputs via `leaf_output` + N_psistem/N_ci, so
+   XAD supplies `P_ps=∂²profit/∂p∂state` and `implicit_value`'s FD supplies `P_pp=∂²profit/∂p²` —
+   returning `p*` carrying `−P_ps/P_pp=dp*/dstate`, **no hand-written second derivatives**.
+   E4-verified two channels (`scratchpad/leaf_pstar_node.cpp`): k_max reld 1.4e-4/3.5e-4 (θ=.20/.30),
+   vcmax matches to all digits. ε≈1e-2·(|p*|+1) is the nested-FD sweet spot. Design record:
+   `docs/p2c-leaf-adjoint-design.md` "Step 4a". The node is validated in scratchpad only — its
+   production home/signature (needs the double `Leaf`, unlike `ci_node`/`psistem_node`) is fixed by
+   the step-5/6 wiring, so it is NOT yet in `leaf_model.h`.
+6. **►Step 4b — the bound/fold branch (START HERE).** The regime-detector fold node. `find_root_collar_psi`
    golden-section-maximises profit over the collar potential `p*` on `[bound_a, bound_b]`
    (`prepare_collar_solve`). **`p*` interior ⇒ stationarity IFT `∂profit/∂p*=0`; `p*` on `bound_b` (the
    branch-death edge) ⇒ bordered-fold IFT `g(p*)=∂F/∂ci=0`, `dp*/dstate=−g_state/g_p`.** Whether `p*` sits at a
@@ -213,6 +228,30 @@ verified.** The next item is **step 2**:
 corner (`Leaf` is entirely `double`; the only reverse-tape path is that FD seam). P2c's exact IFT node removes
 b1 and #60 together. plant#60 is IN SCOPE (the leaf adjoint is ours); its E4 verification (adjoint vs a
 re-optimising FD on a real transpiring patch) is the correctness reference for steps 1–6.
+
+## ►► SESSION 8 — P2c step 4a (the interior N_p\* node) designed + E4-verified ◄◄
+HEADs unchanged plant-side (`efe624e4`); superrepo advances with docs only. **Step 4a is the
+interior-stationarity collar-optimum node — the dominant regime per the grounding.**
+- **`system-design`: implicit_value on a finite-differenced reduced profit.** `dp*/dstate=−P_ps/P_pp`.
+  `implicit_value(p*, F)`, `F(p)=[profit_reduced(p+ε)−profit_reduced(p−ε)]/(2ε)`; `profit_reduced<T>`
+  re-solves the double roots off-tape at `p±ε` then assembles the active outputs from the existing
+  `leaf_output` map + N_psistem + N_ci. XAD gives the numerator `P_ps=∂²profit/∂p∂state` on the reverse
+  tape; `implicit_value`'s own double FD gives the denominator `P_pp=∂²profit/∂p²`. **No hand-written
+  second derivatives** — the derivative path reuses the one forward algebra and cannot drift from the
+  double `Leaf`. Rejected: a hand-written closed-form `G` (drift-prone; and `dprofit_droot_collar_psi`'s
+  internal forward-AD won't record state on the reverse tape) and an odelia `stationary_value` primitive
+  (one witness only; TF24f reuses the *same* node — retrofit trigger = a second AD-path argmax).
+- **E4-verified, two independent channels** (`scratchpad/leaf_pstar_node.cpp`, perturb the member +
+  re-optimise `p*` at tightened `GSS_tol_abs=1e-10`, central diff): k_max node `10917`/`10360` vs FD
+  `10918`/`10364` (θ=.20/.30, reld **1.4e-4 / 3.5e-4**); vcmax node `−0.00183` vs FD `−0.00183` (matches
+  to all shown digits; its ~2–5e-3 *relative* is the FD floor on a near-zero-sensitivity channel).
+  `dprofit/dp*≈−1e-7` confirms the interior regime. **ε≈1e-2·(|p*|+1)** is the nested-FD sweet spot
+  (larger = `O(ε²)` truncation; smaller = roundoff, `implicit_value`'s inner 1e-6 amplifies `G`'s
+  `~1e-15/ε` noise).
+- **Interior only.** At a bound (`|dprofit/dp*|>tol`) `p*` is not stationary, so the stationarity IFT is
+  wrong there — `dp*/dstate` follows `d(bound_b)/dstate`. Step 4b adds the bordered-fold branch gated by
+  `|dprofit/dp*|<tol`. The node is validated in scratchpad only (not on any rate path, not in
+  `leaf_model.h`); its production signature is fixed by the step-5/6 assembly.
 
 ## ►► SESSION 7 — P2c steps 1–3 (S output map + N_ci + N_psistem) DONE + step 4 grounded ◄◄
 Final HEAD plant `efe624e4`, superrepo `620e939`; odelia unchanged (`16cff79`). All plant-side. Steps 1–3
