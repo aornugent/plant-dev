@@ -126,16 +126,15 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 6). **HEAD: plant `ac1eaecc`, superrepo `6556c8a`, odelia `16cff79`
-(unchanged — all plant-side). All clean, pushed.** This session: **scoped and started P2c (correct resident
-reverse-mode AD gradients for TF24/TF24f)**. Landed: (1) the **P2c leaf-adjoint design** (`docs/p2c-leaf-adjoint-design.md`)
-— the committed shape is *evaluate-at-converged-point + IFT nodes*: the leaf solver stays `double`, `S` is
-carried only by a closed-form output map and by each solved root as an `implicit_value` node (N_ci, N_psistem,
-N_p\*), with **N_p\* a regime-detector fold node** on the plant#60 branch-death condition `{F=0, ∂F/∂ci=0}`;
-(2) **P2c step 0 DONE + verified** — the TF24 environment is now a differentiation source (soil physics as AD
-leaves, soil-water ICs seedable, the double→active crossing complete). **b1 diagnosis:** the ~1e30 blow-up is
-the FD `supplied_derivative` seam finite-differencing across the plant#60 corner — b1 and #60 are one root
-cause, and P2c's exact IFT node removes both. Full detail in the **SESSION 6 block** below. Session 5 (P2b-5
+_Last updated: 2026-07-21 (session 7). **HEAD: plant `27ca7bdd`, superrepo `a4e3e03`, odelia `16cff79`
+(unchanged — all plant-side). All clean, pushed.** This session (7): **P2c step 1 DONE** — the `S` leaf
+output map (`plant::leaf_output` in `leaf_model.h`). Session 6 scoped P2c and did step 0. The committed P2c
+shape (`docs/p2c-leaf-adjoint-design.md`) is *evaluate-at-converged-point + IFT nodes*: the leaf solver stays
+`double`, `S` is carried only by a closed-form output map and by each solved root as an `implicit_value` node
+(N_ci, N_psistem, N_p\*), with **N_p\* a regime-detector fold node** on the plant#60 branch-death condition
+`{F=0, ∂F/∂ci=0}`. **b1 diagnosis:** the ~1e30 blow-up is the FD `supplied_derivative` seam finite-differencing
+across the plant#60 corner — b1 and #60 are one root cause, and P2c's exact IFT node removes both. Steps 0–1
+DONE; step 2 (N_ci) is next. Full detail in the **SESSION 7 block** below (then SESSION 6). Session 5 (P2b-5
 census + odelia#46) and sessions 3–4 (resident FF16+K93 + the run-shaped entry) are the foundation._
 
 ## WHAT SESSION 4 DID (the run-shaped gradient entry + odelia co-design) — foundation for session 5
@@ -172,28 +171,64 @@ bespoke driver 1e-6; K93 vs the certificate AD 1e-6 — and the reoptimising/mod
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
 "Finishing Phase 2" = correct resident reverse-mode AD gradients for **TF24 and TF24f**. The plan is settled
 and recorded: **`docs/p2c-leaf-adjoint-design.md`** (read it first — the design + the env addendum + the
-verification record). **P2c step 0 (env as a differentiation source) is DONE + verified.** The next item is
-**P2c step 1 — the bulk of the work**:
-1. **Step 1 — `S`-template the leaf output map.** Scalar-template the leaf's assim (colimited/rubisco/
-   electron/electron_transport/arrhenius), `hydraulic_cost_TF`, `profit_psi_stem_TF`, `stom_cond_CO2`, and the
-   soil uptake as an `incomplete_gamma<S>` closed form. **Critical (Refinement 2 in the design):** replace the
-   *param-dependent spline relations* with `S` closed-forms — the vulnerability curve via `root_b`/`root_c`,
-   the transpiration relation via `b`/`c`/`K_s` — because the double `Leaf` cannot carry those derivatives.
-   The double *solver* (`golden_section_max`/`uniroot`) stays `double`; only the residual + output algebra
-   carry `S`. FF16/K93 already exercised the templating mechanics.
-2. **Steps 2–4 — the IFT nodes.** N_ci + N_psistem via `implicit_value`; **N_p\*** the regime-detector fold
-   node (interior ⇒ `∂profit/∂p*=0`; on `bound_b` ⇒ `{F=0,∂F/∂ci=0}`, `dp*/dstate=−g_state/g_p`). N_p\* is the
-   hard core; `g=∂F/∂ci` must be an `S` closed-form. **Note the fold caveat:** a naïve `implicit_value` on the
-   ci residual divides by `dF/dci→0` at the fold and re-blows-up — hence the bordered condition.
-3. **Steps 5–6 — soil active coupled state (mostly already `S`); delete the FD `supplied_derivative` seam** +
-   `leaf_profit_at_fixed_collar` + `dprofit_droot_collar_psi` + `dsoil_consumption_dpsi_collar_perlayer`.
-4. **Step 7 — gate:** rebuild TF24 Certificate B (`scratchpad/tf24_cert.R`, driver `ad_certificate.cpp`
+step-0 and step-1 verification records). **Steps 0 (env diff-source) and 1 (`S` leaf output map) are DONE +
+verified.** The next item is **step 2**:
+1. ~~**Step 0** — env as a differentiation source.~~ DONE (session 6).
+2. ~~**Step 1** — `S` leaf output map (`plant::leaf_output` in `leaf_model.h`).~~ DONE (session 7). Closed
+   forms for assim/arrhenius/electron-transport, `hydraulic_cost_TF`, `transpiration`, `stom_cond_CO2`, and
+   `soil_uptake`; the four hydraulic splines collapse to `odelia::incomplete_gamma` (`root_b`/`root_c` are NOT
+   AD-seeded, so soil uptake carries `S` only via `psi_soil` + collar). Value-parity verified at the converged
+   double point (~1e-15 spline-free algebra; ~1e-9 transpiration/uptake = the spline's own bias). Not on the
+   rate path yet — the seam is untouched (deleted at step 6).
+3. **►Step 2 — N_ci (START HERE).** Wrap the `psi_stem_to_ci` root (`leaf_model.cpp:1234`) as an
+   `odelia::implicit_value` node on the residual `g(ci) = A(ci)·umol_to_mol − gc·(ca−ci)·inv_atm = 0`,
+   denominator `dg/dci = A′·umol_to_mol + gc·inv_atm > 0` (deepening-1 N1, sign-definite; `implicit_value`'s
+   own FD of `dF/dci` at ci* is safe here — N_ci is NOT the fold; the fold is N_p\* only). The `A(ci)` reads
+   the step-1 `leaf_output::assim_colimited<S>`; `gc` reads `leaf_output::transpiration`/`stom_cond_CO2`.
+4. **Steps 3–4 — N_psistem + N_p\*.** N_psistem via `implicit_value` inverting `transpiration(ψ_stem) − E = 0`
+   (the inverse spline `psi_from_transpiration` has no forward closed form — this node replaces it). **N_p\***
+   the regime-detector fold node (interior ⇒ `∂profit/∂p*=0`; on `bound_b` ⇒ `{F=0,∂F/∂ci=0}`,
+   `dp*/dstate=−g_state/g_p`). N_p\* is the hard core; `g=∂F/∂ci` must be an `S` closed-form. **Fold caveat:**
+   a naïve `implicit_value` on the ci residual with `y=ci` divides by `dF/dci→0` at the fold — hence the
+   bordered condition on N_p\* specifically.
+5. **Steps 5–6 — soil active coupled state (mostly already `S`); delete the FD `supplied_derivative` seam** +
+   `leaf_profit_at_fixed_collar` + `dprofit_droot_collar_psi` + `dsoil_consumption_dpsi_collar_perlayer`. At
+   step 6, collapse the now-redundant spline-free algebra on `Leaf::` to delegate to `leaf_output::` (deferred
+   from step 1 to preserve bit-identity; the ~1e-15 re-baseline is acceptable once the value path moves).
+6. **Step 7 — gate:** rebuild TF24 Certificate B (`scratchpad/tf24_cert.R`, driver `ad_certificate.cpp`
    `tf24_allfield` committed) — all leaves intact, E4 gap closed. Then **P2d (TF24f)** reuses N_p\*.
 
 **b1 is diagnosed, not a separate track:** the ~1e30 blow-up IS the FD seam differencing across the plant#60
 corner (`Leaf` is entirely `double`; the only reverse-tape path is that FD seam). P2c's exact IFT node removes
 b1 and #60 together. plant#60 is IN SCOPE (the leaf adjoint is ours); its E4 verification (adjoint vs a
 re-optimising FD on a real transpiring patch) is the correctness reference for steps 1–6.
+
+## ►► SESSION 7 — P2c step 1 (S leaf output map) DONE ◄◄
+Final HEAD plant `27ca7bdd`, superrepo `a4e3e03`; odelia unchanged (`16cff79`). All plant-side.
+- **`plant::leaf_output` — the `S` leaf output map (`leaf_model.h`, header-inline).** Scalar-generic closed
+  forms of the leaf outputs, evaluated at the converged operating point: `arrh_curve`/`peak_arrh_curve`,
+  `electron_transport`, `assim_colimited`, `proportion_of_conductivity`, `cumulative_vuln`, `transpiration`,
+  `stom_cond_CO2`, `hydraulic_cost_TF`, `soil_uptake`. **The four hydraulic splines collapse to the exact
+  Weibull antiderivative `odelia::incomplete_gamma`** (`transpiration = k_max·[Γ(ψ_stem)−Γ(ψ_up)]`,
+  `Γ(m)=(b/c)·γ(1/c,(m/b)^c)`). Key simplification found this session: **`root_b`/`root_c` are NOT in
+  `TF24_AD_FIELDS`** (fixed doubles), so `soil_uptake` carries `S` only through `psi_soil` (soil ODE state) and
+  `P_x_r` (collar) — the root Weibull params stay passive. The commitment holds: the leaf solver stays double.
+- **Home decision (user pref):** inline in the existing `leaf_model.h`, NOT a standalone `leaf_output_map.h` —
+  one definition across both TUs, hot-path inline convention. The two forward-AD helpers
+  (`assim_colimited_ad`/`hydraulic_cost_ad`) moved up out of `leaf_model.cpp`'s anonymous namespace into
+  `leaf_output`; `dprofit_droot_collar_psi` now calls the migrated ones (`leaf_output::assim_colimited<AD>` /
+  `hydraulic_cost_TF<AD>`).
+- **Value-parity gate** (`scratchpad/leaf_output_parity.cpp`, gitignored): the `S` map at the converged double
+  operating point reproduces `profit_`/`assim_colimited_`/`hydraulic_cost_`/`vcmax_`/`jmax_`/`electron_transport_`
+  to ~1e-15 (spline-free algebra, bit-identical) and `transpiration_`/`stom_cond_CO2_`/`E_up_`/per-layer
+  `soil_consumption_` to ~1e-9 (the ~100-knot spline's own interpolation bias — the closed form is exact, #468
+  already seeded knots from it). Nothing on the rate path yet, so the double suites are bit-identical:
+  regressions green (leaf 214, TF24 46, TF24f 57, FF16 53+17).
+- **code-review: approve.** One deferred note: the spline-free algebra (`assim_colimited`/`hydraulic_cost_TF`)
+  now lives on both `Leaf::` and `leaf_output::` — pre-existing duplication (the old anon-ns helpers were
+  already the second copy), collapse deferred to step 6 (delegating `Leaf::` re-baselines the value path ~1e-15,
+  which step-1's bit-identity constraint forbids but step 6 allows). The soil resistances pass as `double` (the
+  `a_r1`/root-mass→uptake derivative is a step-5 scope boundary, correctly not carried yet).
 
 ## ►► SESSION 6 — P2c scoped + step 0 (env differentiation source) DONE ◄◄
 Final HEAD plant `ac1eaecc`, superrepo `6556c8a`; odelia unchanged (`16cff79`). All plant-side.
