@@ -239,24 +239,32 @@ there) names the exact wrong term. Then fix that term in `assemble_leaf_from`. A
 `fa53480a` + the two doc commits; `scratchpad/leaf_assemble_sweep.cpp` kept as the probe. This is a
 multi-session structural fix; b1/#60 remains OPEN._
 
-_**►► SESSION 10 CONCLUSION — the blow-up is the dry-end CHART MISSPECIFICATION, not a leaf-partial bug.
-◄◄** FD-step sweep of a blown channel at life=4 (`scratchpad/fdsweep.log`): AD `d(Σh)/d(theta)` =
-−2.565e14, but FD **plateaus at ~1.15e6 across h = 1e-2 … 1e-5** (never climbs toward AD). So the **true
-gradient is a sane ~1e6; the AD 1e14 is spurious by ~1e8** — the reverse mode exactly differentiates the
-misspecified θ-chart's near-singular DISCRETE trajectory (diverging `∂a/∂θ ~ δ^{γ−1}`, positivity clamp,
-ψ-ceiling floor) which FD steps over. This converges with the independent multirate-stepper review on
-`claude/multirate-stepper-review-r6dpwn`: same system (their `x`/`u` split IS ours), same dry-bound
-pathology, and their reformulation thread already diagnosed "**the clamp, the floor, the singular slopes,
-and most of the gradient pathology are the chart's artifacts, not the model's**" and VALIDATED the fix —
-**R-C (smooth vulnerability shutoff) + R-D (log-depletion chart `ζ=ln(θ−θ_res)`)** — with **adjoint == FD
-to 1e-7** on a windowed prototype (their T3). Ecological face: plant#62 (hydraulic shutdown keys on the
-WETTEST layer → structurally unreachable → top layers park at ψ_crit for years = the regime that sustains
-the blow-up) and plant#53 (the stiff `θ^16.14` drainage term, closed-form flow R1). **Full synthesis +
-the general numerical formulation + the misspecification argument: `docs/tf24-numerical-formulation-and-
-misspecification.md` (session 10).** Bottom line: **do NOT patch `assemble_leaf_from`'s soil-coupling
-partials on the current chart — that treats a symptom the reformulation deletes. The fix is R-C+R-D for
-TF24, shared with the forward stepper; coordinate with the multirate branch (prototype exists).** The
-psi_soil re-solve-FD localization probe is therefore moot (superseded by the arbiter)._
+_**►► SESSION 10 — FD-step arbiter: the reverse gradient is wrong by ~1e8; true gradient is sane. ◄◄**
+FD-step sweep of a blown channel at life=4 (`scratchpad/fdsweep.log`): AD `d(Σh)/d(theta)` = −2.565e14,
+but FD **plateaus at ~1.15e6 across h = 1e-2 … 1e-5** (never climbs toward AD). So the **true (smooth-model)
+gradient is ~1e6; the AD 1e14 is spurious by ~1e8.** AD is the exact derivative of the discrete recorded
+run, and FD (a secant of the same run) plateaus far below it → the recorded forward computation is
+**non-smooth / near-singular at the operating point in the soil-water loop**; AD returns a
+one-sided/near-singular slope, FD secants across it. Value path unaffected (double bit-identical). **Still
+OPEN: which recorded operation, and whether the injected leaf partial is wrong vs correct-but-amplified.**
+- **Decisive next probe (do this):** standalone per-call AD-vs-re-solve-FD of `net_mass_production_dt`
+  w.r.t. a `θ_soil` layer, swept wet→dry (θ≈0.11–0.16). AD≠FD per call ⇒ the leaf soil-coupling partial is
+  wrong (fix in `assemble_leaf_from`); AD==FD per call ⇒ the recorded soil-ODE reverse amplifies a correct
+  partial (different fix). Candidate ops to check: retention `ψ=θ^{−6.57}` composed with a clamp, the
+  ψ-ceiling `min(ψ,1e3)` (likely NOT hit — soil equilibrates at ψ 0.02–3.9 MPa), leaf regime switches,
+  the positivity/finite guard.
+- **A possibly-related forward-side line — NOT established as the same problem.** The multirate-stepper
+  review (`claude/multirate-stepper-review-r6dpwn`) has a forward step-collapse on the same block
+  structure at the dry bound. CAUTION: (a) forward-accuracy vs reverse-adjoint failures need not share a
+  root; (b) **R-D (log-depletion chart) was measured to do little to the numerics and was reverted** — do
+  NOT reach for it on faith; (c) their T1 dead-gradient is AD-too-SMALL at the floor, opposite to my
+  AD-too-LARGE at the transition. **Test the linkage empirically:** cherry-pick R-C (smooth vulnerability
+  shutoff) and R-D from that branch, rebuild, re-run my certificate at life 3/4; if R-C collapses max|ad|
+  to ~1e6 the problems are the same, else distinct. **Do NOT link my evidence to plant#60/#62 until that
+  experiment confirms it.**
+- **Full objective write-up:** `docs/tf24-numerical-formulation-and-misspecification.md` (rewritten to
+  separate [measured] from [hypothesis]; retracts an earlier over-eager "one pathology / adopt R-C+R-D"
+  framing — R-D is not a faith-fix and the linkage is untested)._
 
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
