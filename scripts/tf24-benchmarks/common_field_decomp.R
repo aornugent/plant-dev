@@ -51,14 +51,21 @@ for (nm in names(jobs)) {
     if (!is.null(sched)) p$node_schedule_times <- list(sort(unique(sched))); p }
   # default schedule N (from a plain run)
   s0 <- SCM("TF24","TF24_Env")(mkp(), mkenv(), PLAIN); s0$run()
-  baseN <- s0$patch$species[[1]]$node_times; sched2N <- densify(baseN, 2)
-  cat(sprintf("\n== %s (%dyr) N=%d 2N=%d ==\n", nm, years, length(baseN), length(sched2N))); flush(stdout())
+  baseN <- s0$patch$species[[1]]$node_times
 
   # fresh resident (cache) per mutant probe to keep step_history intact
   resident <- function() { scm <- SCM("TF24","TF24_Env")(mkp(baseN), mkenv(), CACHE); scm$run(); scm }
   rN <- resident(); J_N <- sum(rN$offspring_production)
+  # run_mutant pins insertion to the resident's frozen ode-step grid, so a mutant
+  # schedule must land ON those step times. Snap both schedules to the nearest
+  # resident ode time (5000+ available -> negligible snap error).
+  ode_t <- rN$ode_times
+  snap <- function(sched) sort(unique(vapply(sched, function(t) ode_t[which.min(abs(ode_t - t))], numeric(1))))
+  baseN_s <- snap(baseN); sched2N <- snap(densify(baseN, 2))
+  cat(sprintf("\n== %s (%dyr) N=%d 2N=%d (snapped to %d ode times) ==\n",
+              nm, years, length(baseN_s), length(sched2N), length(ode_t))); flush(stdout())
   # N on N field
-  rNN <- resident(); rNN$run_mutant(mkp(baseN)); J_NN <- sum(rNN$offspring_production); gNN <- g_of(rNN)
+  rNN <- resident(); rNN$run_mutant(mkp(baseN_s)); J_NN <- sum(rNN$offspring_production); gNN <- g_of(rNN)
   # 2N on N field
   r2NonN <- resident(); r2NonN$run_mutant(mkp(sched2N)); J_2NonN <- sum(r2NonN$offspring_production); g2NonN <- g_of(r2NonN)
   # 2N self-consistent
