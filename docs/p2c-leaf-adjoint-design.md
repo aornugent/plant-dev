@@ -445,6 +445,35 @@ scope; the pivot is per-solve, a crown integral would need it per quadrature nod
 **Kill condition:** a collar that is neither optimised nor a tracked state (e.g. stochastic) —
 the pivot's stationarity/tracked-state assumption breaks; hands off to candidate C.
 
+### Steps 5–6 — CORRECTION (2026-07-21): the height/root-trait channel runs through the soil resistances
+Mapping the FD seam's channels against the leaf source (`leaf_model.cpp:261-284` +
+`net_mass_production_dt` root-distribution `tf24_strategy.cpp:378-393`) found the "active
+physiology inputs" list was incomplete. `soil_uptake` currently takes `area_leaf` and the root
+resistances `r_R_H_min`, `r_R_V_sum` as **passive `double`**, but none of them is fixed geometry:
+- `area_leaf = (height/a_l1)^(1/a_l2)` — carries **height, a_l1, a_l2** (uptake scales `1/area_leaf`).
+- `r_R_H_min[i] = beta_R_H / (mass_root_prop[i]·2/3)`, `r_R_V[i] = beta_R_V·dz²/(mass_root_prop[i]/3)`,
+  and `mass_root_prop[i] = root_mass_carbon_scale·(a_r1·area_leaf)·(Q(z_i)−Q(z_{i+1}))` with
+  `rooting_depth = min(height, max)` — so the resistances carry **height, a_r1, a_l1, a_l2,
+  root_depth_shape_eta** (via the templated `CanopyShape::Q`). `beta_R_H`, `beta_R_V`, `dz` are fixed.
+
+The FD seam captures all of these (it perturbs the trait and rebuilds the whole leaf, resistances
+included). An analytic assembly that passes the resistances/area passive **silently severs** them —
+`dprofit/dheight`, `d(uptake)/d{a_r1, a_l1, a_l2, root_depth_shape_eta}` would be wrong (R1 fail).
+
+**Consequence for the build:** `assemble_active_leaf_outputs` must, before the pivot, actively
+recompute (all closed-form, no splines): `eta_c(pars.eta)`, `area_leaf((height,a_l1,a_l2))`,
+`mass_root_prop` (active `Q`), and `r_R_H_min`/`r_R_V_sum` from active `mass_root_prop`. And
+**`leaf_output::soil_uptake` must be generalised** so `area_leaf` and the two resistance vectors
+are the active `T` (currently `double`) — the last passive-`double` seam in the uptake path. The
+`double` instantiation stays bit-identical (R2). The physiology channel (vcmax/jmax/et/R_d via
+`peak_arrh_curve`/`electron_transport`, k_max via `K_s·theta/(height·eta_c)`, b/c/psi_crit/g1/beta2/
+curv_colim) is unchanged from the design above. Value-anchor every output to the double point:
+`out = S(double_val) + (assembled − to_passive(assembled))` (exact value = the converged double,
+exact assembled derivatives — honours R3). Regime detector computable from the converged point
+without re-running `prepare_collar_solve`: `is_bound = |E_column(root_collar_psi_, psi_soil_inverted_,
+psi_crit)| < tol` (0 exactly when p\* sits at the stem-crit bound; save/restore `root_collar_psi_`+
+`E_up_` around the call). In the bound regime `root_crit = root_collar_psi_` (no re-solve needed).
+
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
 / colimited assim / Weibull conductivity + `cumulative_vuln` via `incomplete_gamma` /
