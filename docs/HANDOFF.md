@@ -180,17 +180,21 @@ verified.** The next item is **step 2**:
    AD-seeded, so soil uptake carries `S` only via `psi_soil` + collar). Value-parity verified at the converged
    double point (~1e-15 spline-free algebra; ~1e-9 transpiration/uptake = the spline's own bias). Not on the
    rate path yet — the seam is untouched (deleted at step 6).
-3. **►Step 2 — N_ci (START HERE).** Wrap the `psi_stem_to_ci` root (`leaf_model.cpp:1234`) as an
-   `odelia::implicit_value` node on the residual `g(ci) = A(ci)·umol_to_mol − gc·(ca−ci)·inv_atm = 0`,
-   denominator `dg/dci = A′·umol_to_mol + gc·inv_atm > 0` (deepening-1 N1, sign-definite; `implicit_value`'s
-   own FD of `dF/dci` at ci* is safe here — N_ci is NOT the fold; the fold is N_p\* only). The `A(ci)` reads
-   the step-1 `leaf_output::assim_colimited<S>`; `gc` reads `leaf_output::transpiration`/`stom_cond_CO2`.
-4. **Steps 3–4 — N_psistem + N_p\*.** N_psistem via `implicit_value` inverting `transpiration(ψ_stem) − E = 0`
-   (the inverse spline `psi_from_transpiration` has no forward closed form — this node replaces it). **N_p\***
-   the regime-detector fold node (interior ⇒ `∂profit/∂p*=0`; on `bound_b` ⇒ `{F=0,∂F/∂ci=0}`,
-   `dp*/dstate=−g_state/g_p`). N_p\* is the hard core; `g=∂F/∂ci` must be an `S` closed-form. **Fold caveat:**
-   a naïve `implicit_value` on the ci residual with `y=ci` divides by `dF/dci→0` at the fold — hence the
-   bordered condition on N_p\* specifically.
+3. ~~**Step 2 — N_ci.**~~ DONE (session 7). `leaf_output::ci_node` — `implicit_value` on
+   `g(ci)=A(ci)·umol_to_mol − gc·(ca−ci)·inv_atm=0`, denom `dg/dci>0`. Gate0: `dci/dvcmax_25`, `dci/dgc` vs
+   central FD to ~1e-10.
+4. ~~**Step 3 — N_psistem.**~~ DONE (session 7). `leaf_output::psistem_node` — `implicit_value` inverting
+   `transpiration(ψ_stem,ψ_up)=E_up`, denom `k_max·exp(−(ψ_stem/b)^c)>0`. Gate0: `dψ_stem/dE_up`,
+   `dψ_stem/dψ_up` vs central FD of the production spline inverse to ~1e-6 (spline precision).
+5. **►Step 4 — N_p\* (START HERE, the hard core).** The regime-detector fold node. `find_root_collar_psi`
+   golden-section-maximises profit over the collar potential `p*` on `[bound_a, bound_b]`
+   (`prepare_collar_solve`). **`p*` interior ⇒ stationarity IFT `∂profit/∂p*=0`; `p*` on `bound_b` (the
+   branch-death edge) ⇒ bordered-fold IFT `g(p*)=∂F/∂ci=0`, `dp*/dstate=−g_state/g_p`.** Whether `p*` sits at a
+   bound is the structural #60 branch-indicator. `g=∂F/∂ci` must be an `S` closed-form. **Fold caveat:** a
+   naïve `implicit_value` on the ci residual with `y=ci` divides by `dF/dci→0` at the fold — that's why N_p\*
+   uses the bordered condition, NOT the plain ci residual. Verification: E4 (adjoint vs a re-optimising FD on
+   a real transpiring patch, plant#60), not just an isolated node gate. N_ci/N_psistem feed it (ci and ψ_stem
+   at the chosen p*).
 5. **Steps 5–6 — soil active coupled state (mostly already `S`); delete the FD `supplied_derivative` seam** +
    `leaf_profit_at_fixed_collar` + `dprofit_droot_collar_psi` + `dsoil_consumption_dpsi_collar_perlayer`. At
    step 6, collapse the now-redundant spline-free algebra on `Leaf::` to delegate to `leaf_output::` (deferred
@@ -203,7 +207,24 @@ corner (`Leaf` is entirely `double`; the only reverse-tape path is that FD seam)
 b1 and #60 together. plant#60 is IN SCOPE (the leaf adjoint is ours); its E4 verification (adjoint vs a
 re-optimising FD on a real transpiring patch) is the correctness reference for steps 1–6.
 
-## ►► SESSION 7 — P2c step 1 (S leaf output map) DONE ◄◄
+## ►► SESSION 7 — P2c steps 1–3 (S output map + N_ci + N_psistem) DONE ◄◄
+Final HEAD plant `efe624e4`, superrepo `958529d`; odelia unchanged (`16cff79`). All plant-side. Steps 1–3
+of P2c landed; step 4 (N_p\*, the fold) is next. Gate drivers in `scratchpad/` (gitignored):
+`leaf_output_parity.cpp` (step 1), `leaf_ci_node.cpp` (step 2), `leaf_psistem_node.cpp` (step 3).
+- **Step 2 — N_ci** (`leaf_output::ci_node`, `leaf_model.h`). `implicit_value` on the ci supply=demand
+  residual; denom `dg/dci=A′·umol_to_mol+gc·inv_atm>0`. Gate0: `dci/dvcmax_25` (photosynthesis channel via A)
+  and `dci/dgc` (stomatal-supply channel) vs central FD of the re-solved ci root to ~1e-10.
+- **Step 3 — N_psistem** (`leaf_output::psistem_node`). `implicit_value` inverting
+  `transpiration(ψ_stem,ψ_up)=E_up`; denom `k_max·exp(−(ψ_stem/b)^c)>0`. Gate0: `dψ_stem/dE_up`,
+  `dψ_stem/dψ_up` vs central FD of the production spline inverse `Leaf::transpiration_to_psi_stem` to ~1e-6
+  (spline precision); closed-form-vs-spline flux residual ~1e-13. **Bug fixed en route:** `cumulative_vuln`
+  must call `odelia::incomplete_gamma<T>` explicitly — the two args are XAD expression templates at an active
+  type, undeducible to one `S` (double has none, so it only surfaced at the reverse scalar). Value-identical
+  at double.
+- **Nodes are off the rate path** (only the scratchpad drivers instantiate them at active types). The seam is
+  untouched; steps 4–6 assemble N_p\*→N_psistem→N_ci→output map and wire+delete the seam at step 6.
+
+## ►► SESSION 7 (earlier) — P2c step 1 (S leaf output map) DONE ◄◄
 Final HEAD plant `27ca7bdd`, superrepo `a4e3e03`; odelia unchanged (`16cff79`). All plant-side.
 - **`plant::leaf_output` — the `S` leaf output map (`leaf_model.h`, header-inline).** Scalar-generic closed
   forms of the leaf outputs, evaluated at the converged operating point: `arrh_curve`/`peak_arrh_curve`,
