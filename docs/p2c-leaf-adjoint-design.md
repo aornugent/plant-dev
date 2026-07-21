@@ -218,15 +218,18 @@ algebra** and its value-parity gate; it introduces **no IFT node** (steps 2–4)
 value path are untouched.
 
 ## Home
-`plant/inst/include/plant/leaf_output_map.h` — a header-only namespace
-`plant::leaf_output` of templated free functions. Rationale: the commitment keeps the
-1490-line `Leaf` in `double`, so the `S` algebra cannot live on it; free functions taking
-`(converged roots, active params, active soil)` avoid a parallel `Leaf<S>` near-copy
-(AGENTS "no parallel near-copy"), and TF24f (step 7 / P2d) reuses the same functions. The
-two already-templated helpers in `leaf_model.cpp`'s anonymous namespace
-(`assim_colimited_ad`, `hydraulic_cost_ad`) **migrate here** so the one definition serves
-both `dprofit_droot_collar_psi` (double forward-AD, existing) and the new active output
-map — no third copy.
+The **existing `leaf_model.h`** — templated free functions in a `plant::leaf_output`
+namespace, header-inline (no new file; matches the hot-path inline convention,
+agents.md §12). Rationale: the commitment keeps the 1490-line `Leaf` in `double`, so the
+`S` algebra cannot live on it; free functions taking `(converged roots, active params,
+active soil)` avoid a parallel `Leaf<S>` near-copy (AGENTS "no parallel near-copy"), and
+placing them in the header (rather than in `tf24_strategy.cpp`) keeps **one** definition
+visible to both consumers across TUs — the existing double path
+(`leaf_model.cpp::dprofit_droot_collar_psi`) and the active output map
+(`tf24_strategy.cpp::net_mass_production_dt`) — and lets TF24f (step 7 / P2d) reuse them.
+The two already-templated helpers in `leaf_model.cpp`'s anonymous namespace
+(`assim_colimited_ad`, `hydraulic_cost_ad`) **move up into `leaf_model.h`** so the one
+definition serves both — no third copy.
 
 ## The closed-forms that replace the four splines (Refinement 2)
 Verified against `leaf_model.cpp`:
