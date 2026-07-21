@@ -165,6 +165,46 @@ Until that experiment runs, I will not link this evidence to plant#60/#62.
 
 ---
 
+## 6b. RESOLUTION (the actual bug — a sign error, found by the §4 gradient diagnostic)
+
+The §4 per-call diagnostic ran (`TF24_LEAFFD`, in-place AD-vs-re-solve-FD at dry/tall calls): the
+injected `d(profit)/d(psi_soil_L)` partials are **wrong** — a clean **sign flip** (ratio −1, magnitude
+exact) on the dominant layers, plus magnitude errors on the wettest layers:
+
+| layer | psi_soil | injected | re-solve fd | ratio |
+|---|---|---|---|---|
+| 0 | 0.272 | +2.3254 | −2.3254 | −1.00 |
+| 1 | 1.500 | +0.1136 | −0.1230 | −0.92 |
+| 2 | 0.740 | +0.0348 | −0.0348 | −1.00 |
+| 3 | 0.222 | +0.0128 | +0.1141 | +0.11 |
+| 4 | 0.132 | +0.0036 | +0.2092 | +0.017 |
+
+**Root cause [measured/confirmed]:** the local tape seeds `lpsi[L] = −psi_soil_S[L]` (the leaf's
+`psi_soil_inverted_` convention) but injects the resulting `d(·)/d(lpsi)` against the run-tape input
+`psi_soil_S` **without the chain-rule factor `d(lpsi)/d(psi_soil_S) = −1`**. So every soil-state
+partial is sign-flipped. A sign-flipped feedback partial turns the soil-water loop's negative feedback
+positive → the resident reverse sweep amplifies exponentially once the soil dries (life ≥ 3) — the
+blow-up. Negligible at life ≤ 2 (soil near-static), matching the sharp onset.
+
+**Fix (plant, this session):** negate the `src==3` (psi_soil) partials at injection —
+`profit_partials[k] *= (src[k]==3 ? -1 : 1)`, likewise `uptake_partials`. Active branch only; double
+path bit-identical.
+
+**Result:** the blow-up is gone. life=3 `max|ad|` 1.65e10 → **3.71e5**; life=4 2.56e14 → **5.31e5**
+(vs `max|fd|` 9.2e5 / 1.15e6); no BLOWN class.
+
+**Residual [measured, OPEN]:** `max|ad|` ≈ 5.3e5 vs `max|fd|` ≈ 1.15e6 (~2×, most fields now PARTIAL).
+The probe's wet-layer rows (3,4) show a *second* error the sign flip does not fix: those partials are
+undersized ~9–58× and not a clean sign flip — consistent with the **non-separable cross-layer uptake
+coupling** (perturbing one layer redistributes uptake across the others; the per-layer assembly
+mis-derives it). This is the next target, and it is a leaf-adjoint issue in `assemble_leaf_from`, still
+NOT the chart.
+
+**Correction to my earlier framing:** the "chart misspecification / near-singular discrete trajectory /
+possibly the same as the forward step-collapse" reading in §5 was NOT the cause of this blow-up. The
+cause was a plain sign bug in my own soil-coupling adjoint. The forward-side reformulation material
+remains a separate, unproven line; do not link.
+
 ## 6. Where this stands
 
 - **[established, mine]** The resident TF24 reverse-AD gradient is wrong at life ≥ 3 by ~1e8; the true

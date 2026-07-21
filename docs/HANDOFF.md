@@ -266,6 +266,24 @@ OPEN: which recorded operation, and whether the injected leaf partial is wrong v
   separate [measured] from [hypothesis]; retracts an earlier over-eager "one pathology / adopt R-C+R-D"
   framing — R-D is not a faith-fix and the linkage is untested)._
 
+_**►► SESSION 10 — ROOT CAUSE FOUND AND (mostly) FIXED: a sign bug, NOT the chart. ◄◄** The precise
+gradient diagnostic (per-call injected `d(profit)/d(psi_soil_L)` vs re-solve double FD, `TF24_LEAFFD`)
+showed the injected soil-state partials are **sign-flipped** (ratio −1, magnitude exact, on the
+dominant layers). Root cause: the local tape seeds `lpsi[L] = −psi_soil_S[L]` (leaf's signed-potential
+convention) but injects `d(·)/d(lpsi)` against the run-tape input `psi_soil_S` **without the
+chain-rule −1** (`tf24_strategy.cpp` ~line 573/599). A sign-flipped feedback partial makes the resident
+reverse sweep's soil-water loop positive-feedback → exponential blow-up once the soil dries (life≥3);
+negligible at life≤2 (soil near-static) — matches the sharp onset. **Fix applied** (negate `src==3`
+partials; active branch only, double bit-identical): **life=3 max|ad| 1.65e10→3.71e5, life=4
+2.56e14→5.31e5, no BLOWN.** So b1/#60 blow-up was OUR adjoint sign bug, found by using the gradient as a
+precise diagnostic — the chart-misspecification synthesis was a red herring (retracted). **Residual
+OPEN: max|ad|≈5.3e5 vs max|fd|≈1.15e6 (~2×, fields now PARTIAL not BLOWN).** The probe's wet-layer rows
+(psi_soil 3,4) show a second, smaller error the sign flip doesn't fix — injected undersized ~9–58×, not
+a clean flip — consistent with the **non-separable cross-layer uptake coupling** mis-derived by the
+per-layer assembly. Next: characterise + fix that residual in `assemble_leaf_from` (re-run `TF24_LEAFFD`
+after the sign fix to see which layers remain off), then re-certify. Still a leaf-adjoint issue, NOT the
+chart; do not link to forward-side / #60 / #62 without the empirical linkage test._
+
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
 `implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
