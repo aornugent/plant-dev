@@ -142,14 +142,34 @@ These are paid-for in wasted sessions. Do not relearn them.
 *Last updated: 2026-07-21 (session 2). Prior session consolidated the record into a
 domain-clean **fundamentals** elicitation → TWO Oracles → **correction/addendum** → fresh
 Oracle's falsification ladder; the big reframe stands: the forward problem RELOCATED from
-the time-stepper (at its floor for the norm it is given) to the MEASURE (member-mesh)
-axis. **This session: unblocked and VALIDATED the ladder's unlock (ghost = `run_mutant`).**
-The RK45-cache OOM was fixed by slimming the cache to the field a replay reads (plant
-`b2f70dfa`, shipped); the 12-yr ghost that OOM'd now peaks at 1.14 GB. Item-1 validation
-passed cleanly: the frozen-field error is O(mass fraction), →0 as ρ→0 — the ghost is an
-asymptotically exact rare-invasion / marginal-member probe. The rungs above it (goal-
-oriented placement + J certificate; certified crossings; WR contraction) are now cheaply
-runnable on saved fields. Full result: `docs/tf24-ghost-validate-result.md`.*
+the time-stepper (at its floor for the norm it is given) to the MEASURE (member-mesh) axis.
+**This session ran the ladder to the bottom.** (1) Fixed the RK45-cache OOM by slimming the
+cache to the field a replay reads (plant `b2f70dfa`); the 12-yr ghost that OOM'd now peaks
+1.14 GB. (2) **Validated the ghost (rung 1):** frozen-field error is O(mass fraction), →0 as
+ρ→0 — an exact rare-invasion / marginal-member probe. (3) **Killed WR (rung 5):** built a
+contraction probe (plant `0015c9fd`), measured κ≈10 ≫ 1 uniformly — plain/windowed/damped
+Picard diverges (the known ~10× coupling amplification). (4) **Goal-oriented placement
+(rung 2) does not fund:** J does not converge under node-count refinement for ANY placement
+family (survival-flip discontinuity) — nothing to place toward. Filed **odelia#47** (L3
+replay should store only the recomputable field, per the slim-cache precedent).*
+
+***The forward-numerics frontier has now resolved to a conclusion:*** *the time-stepper is at
+its floor, WR is expansive, and placement cannot certify a functional that is discontinuous
+under the refinement. The residual measure-axis error IS J's intrinsic discontinuity (a
+moment of a measure with an absorbing weight boundary), whose fix is **item B — model-side
+mollification of the survival entry**, exactly as both fundamentals Oracles predicted. What
+remains numerics-actionable: **rung 3** (certified survival crossings via ghost bisection,
++ the rainfall-as-locator test) — which would quantify the discontinuity to inform the
+mollification width — and a cheap DX side-win (the production default schedule is badly
+placed; uniform is 3–35× closer).*
+
+***PENDING NEXT STEP — an Oracle update*** *(user-requested this session; deferred to next).
+Guidance from the user for it: present the system CONCRETELY and COMPREHENSIVELY; do NOT lead
+to conclusions or frame solutions; it is fine to break the consult-guide format and drop the
+directed questioning — spend the budget on a fuller system characterisation instead. Stay
+domain-clean (restructure into a general numerical formulation; the classifier trips on
+soil/cohort/rain/leaf/etc.). Fold in this session's three new measured results (ghost
+validation, WR κ≈10, placement non-convergence) as data, neutrally.*
 
 ## ▶ NEXT SESSION — start here (the frontier is the measure axis, not the stepper)
 
@@ -310,14 +330,15 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `c57bfc0`+ (this update) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `71ad3b3`+ (this update) |
 | plant | `claude/tf24-multi-rate-stepper-n5audm` | `0015c9fd` (slim cache + WR contraction probe) |
-| odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged this session) |
+| odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged this session; odelia#47 filed on GitHub) |
 
-All three clean and pushed to `aornugent/*`. Open PRs: none (do not open without
-explicit ask). Filed issues this session: **plant#61** (TF24f tracked-ψ leaves the
-feasible leaf-solve domain at default `k_acclim`), **plant#62** (leaf shutdown
-near-unreachable — wettest-layer keying).
+All three clean and pushed to `aornugent/*`. Open PRs: none (do not open without explicit
+ask). Issues filed: **odelia#47** this session (L3 replay: record only the recomputable
+field, per the slim-cache precedent); **plant#61** (TF24f tracked-ψ leaves the feasible
+leaf-solve domain at default `k_acclim`) and **plant#62** (leaf shutdown near-unreachable —
+wettest-layer keying) in the prior session.
 
 ## What is built (all bit-identical when off; kept as documented diagnostics)
 
@@ -442,6 +463,13 @@ removable-vs-intrinsic **classifier are one instrument.**
 
 **Current / authoritative**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
+- **This session's ladder results (2026-07-21):**
+  `tf24-ghost-validate-result.md` (rung 1: ghost = `run_mutant` validated as an exact
+  marginal-member probe; slim-cache fix, memory numbers),
+  `tf24-wr-contraction-result.md` (rung 5: WR killed, κ≈10), and
+  `tf24-goal-placement-result.md` (rung 2: goal-oriented placement does not fund; J
+  non-convergent under refinement = survival-flip discontinuity → item B). odelia#47
+  (L3 replay slim-record) filed on GitHub.
 - `oracle-consultation-fundamentals.md` — **the consolidated fresh-Oracle elicitation** (zero prior
   context, domain-clean, no question/no proposed remedy): the complete system + discretisation +
   correctness reference + the full measured record of every approximation tried and why it resisted
@@ -462,7 +490,8 @@ removable-vs-intrinsic **classifier are one instrument.**
   per-step monitor data for free offline re-attribution).
 - `tf24-event-aware-spec.md` — the event-integrator spec; **§4 retired by the gate**
   (verdict recorded inline in §3), §7 (mesh/`J`) still live. Reference, not a plan.
-- plant#60 — reverse-mode gradient bug (E4); plant#61/#62 — filed this session.
+- plant#60 — reverse-mode gradient bug (E4, out of scope: reverse mode not in play);
+  plant#61/#62 — filed prior session; odelia#47 — filed this session.
 
 **Context, superseded by the gate**
 - `oracle-consultation-event-aware{,-response}.md` — the round-7 design that
