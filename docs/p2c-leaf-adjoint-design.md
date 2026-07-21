@@ -190,6 +190,20 @@ already in the SCM ODE system (`ode_size = node_ode_size + environment.ode_size(
 IC path is exposing existing state as seedable, not new integration.
 
 ## Verify
-Soil-state IC gradient and the four soil-param gradients vs a re-optimising FD on a real
-transpiring patch (same E4 discipline as the leaf). This is independent of the leaf-adjoint
-steps 1–6 and can land first.
+Soil-state IC gradient and the soil-param gradients vs a re-optimising FD on a real
+transpiring patch (same E4 discipline as the leaf) — but this is only meaningful once the
+leaf adjoint (steps 1–6) lands, since the reverse pass still routes through the leaf FD
+seam and blows up. What step 0 *can* verify now (and does), independent of the leaf:
+
+- **Composition** — `Patch::ad_parameters()` = 58 (52 strategy + 6 env), `ad_initial_state()`
+  = 5 soil layers. ✓
+- **Crossing correctness** — the crossed active env is **bit-identical** to a fresh default
+  env in every config member (all six params, per-layer soil water, `n_layers`, residual). ✓
+- **R5** — `scm_gradient` for TF24 targeting an env param no longer trips the R5 assert
+  (the crossed active value reproduces the double reference); tested at short lifetime so
+  the reverse tape fits (the gradient value is still garbage — the leaf seam, steps 1–6). ✓
+- **No regression** — FF16/K93 entry gradient + census-vector tests stay green after the
+  shared `SCM::rebind_from` / base `Environment_` / `Patch::ad_parameters` changes. ✓
+
+(An earlier "0.17% crossing discrepancy" was a flawed reference — a fresh SCM pinning only
+L1 onto the *unrefined* L0 — not a crossing bug; the direct config comparison settled it.)
