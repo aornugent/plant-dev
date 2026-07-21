@@ -296,6 +296,24 @@ seam deletion is step 6.
 Gate harness: extend `scratchpad/tf24_cert.R` with a `leaf_output_parity` driver reading
 an operating-point `Leaf` and comparing. `code-review` over the diff before commit.
 
+## Step 4 grounding — the p\* regime map (2026-07-21, `scratchpad/leaf_pstar_regime.cpp`)
+An empirical soil-moisture sweep at the single-leaf operating point (regime detector =
+`|Leaf::dprofit_droot_collar_psi(p*)|`; E4 = re-optimising FD `dp*/dtheta`) settles which
+IFT regime N_p\* must handle, **before** writing it:
+- **Wet (θ ≳ 0.16): interior optimum dominates** (18/24 points). `dprofit/dp* ≈ 0` (±1e-4),
+  `p*` and `dp*/dθ` smooth (−40 → −0.03). Stationarity IFT: `G(p*)=dprofit/dp*=0`,
+  `dp*/dstate = −(∂G/∂state)/(∂G/∂p*)`. This is the gate0-green case.
+- **Transition (θ ≈ 0.12–0.15): BOUND** (3 points) — `p*` pinned at a feasible bound,
+  `dprofit/dp*` = 0.9–4.3, `dp*/dθ` spikes to −117/−121/−46. **This is the plant#60 fold /
+  b1 regime.** Crucially `dp*/dθ` is **finite** (−120) — the b1 ~1e30 blow-up was the FD
+  seam differencing across the profit *jump*, NOT `dp*/dθ` being singular; the exact IFT
+  node recovers the finite −120.
+- **Dry (θ ≲ 0.11): shutdown** — `dprofit` NA, `dp*/dθ=0` (the `set_shutdown_state`
+  early-exits, the continuous `decide()` cases gate0_b verified).
+- **Detector works:** interior (`<1e-3`) vs bound (`>0.9`) separate cleanly, so
+  `|dprofit/dp*| < tol` selects the regime. N_p\* = interior stationarity node in the common
+  case + a bordered-fold branch for the BOUND band; the E4 targets are the `dp*/dθ` column.
+
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
 / colimited assim / Weibull conductivity + `cumulative_vuln` via `incomplete_gamma` /
