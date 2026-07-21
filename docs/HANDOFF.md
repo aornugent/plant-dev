@@ -126,16 +126,18 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 9). **HEAD: plant `70d7179c` (working FD seam preserved;
-`soil_uptake` explicit `<T>` groundwork; tf24 tests green), odelia `16cff79` (unchanged). All
-clean, pushed.** This session (9): **P2c step 4b DONE + E4-verified; steps 5–6 attempted and
-DE-RISKED with two decisive findings** — (a) the height/root-trait channel runs through the soil
-resistances (they must be active, not passive), and (b) **the full active assembly on the run
-tape OOMs** (`bad_alloc` at life=1) because the resident gradient records the whole SCM run on
-one tape; the correct build keeps `supplied_derivative` and feeds it EXACT partials from a
-per-call LOCAL-tape gradient of the assembly (the assembly is written + validated, saved in
-scratchpad). The working FD seam is intact. See the SESSION 9 / SESSION 8 blocks + design doc
-"Steps 5–6 — SECOND CORRECTION"._
+_Last updated: 2026-07-21 (session 9). **HEAD: plant `5eca2097` (P2c steps 4b + 5–6 DONE), odelia
+`16cff79` (unchanged). All clean, pushed.** This session (9): **P2c COMPLETE through step 6** —
+step 4b (bound N_p\* node) E4-verified, then steps 5–6 landed: the FD leaf seam is replaced by
+`TF24_Strategy::assemble_leaf_from` run on a per-call LOCAL tape with exact partials injected via
+`supplied_derivative` (a full active assembly on the run tape OOMs — the resident gradient records
+the whole run on one tape). **E4: every leaf channel now intact** (the previously severed
+a_r1/a_l1/a_l2/root_depth_shape_eta/curv_fact_*/K_s/eta flow); b1 blow-up gone; double path
+bit-identical (tf24/tf24f/ff16 green). Residual ~0.7% AD/FD ratio is a global reoptimise-vs-FD
+bias (on non-leaf channels like omega too), not a severance. See design doc "Steps 5–6 — DONE".
+**Next: step 7 (rebuild TF24 Certificate B) then P2d (TF24f reuses the leaf adjoint).** Optional
+cleanup: step-6 `Leaf::`→`leaf_output::` delegation deferred (would break bit-identity until a
+deliberate re-baseline)._
 
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**

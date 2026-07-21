@@ -501,9 +501,33 @@ same tape economy as the FD seam. The reusable assembly algebra is saved at
 `scratchpad/assemble_active_leaf_outputs.saved.cpp`; the local-tape wiring needs the assembly
 parameterised to read local active inputs (a `pars`-copy or an input-vector arg) rather than the
 member `pars`. So the design's "delete `supplied_derivative`" conclusion is **reversed** — it
-stays; only its FD partials are replaced. (`leaf_profit_at_fixed_collar` and
-`dsoil_consumption_dpsi_collar_perlayer` still go; `dprofit_droot_collar_psi` stays — TF24f's
-`solve_leaf` uses it for the acclimation rate, independent of the seam.)
+stays; only its FD partials are replaced. (`leaf_profit_at_fixed_collar` still goes;
+`dprofit_droot_collar_psi` and `dsoil_consumption_dpsi_collar_perlayer` stay — TF24f's
+`solve_leaf` uses the former for the acclimation rate and the latter is called inside it.)
+
+## Steps 5–6 — DONE (2026-07-21, plant `5eca2097`)
+Built as the second correction prescribed. `TF24_Strategy::assemble_leaf_from` re-assembles the
+leaf carbon profit + per-layer soil uptake as active scalars from a local `pars` copy + local
+height/light/soil-ψ, anchored at the converged double leaf; `net_mass_production_dt`'s reverse
+branch runs it on a **per-call local `xad::Tape`** (the run tape stood down via
+`deactivate()`/`activate()` — `setActive` throws otherwise), reads exact partials per output
+(one adjoint sweep each, `clearDerivatives` between), and injects them onto the run tape via
+`supplied_derivative`. Run-tape footprint stays O(#inputs)/step — no OOM. `leaf_output`
+generalised to active `T` for `soil_uptake` (area_leaf + resistances), `electron_transport`
+(PPFD + curv), `assim_colimited`/`ci_node` (curv). `leaf_profit_at_fixed_collar` deleted.
+
+**E4 (reoptimising double FD, `scratchpad/tf24_cert.R`): every leaf channel intact** — the
+previously severed `a_r1`, `a_l1`, `a_l2`, `root_depth_shape_eta`, `curv_fact_colim`,
+`curv_fact_elec_trans`, `K_s`, `eta` all flow, joining the always-intact channels at the same
+ratio. The residual uniform ~0.7% AD/FD ratio is a global property (present on non-leaf channels
+like `omega` too — FD-reference/reoptimise-vs-evaluate bias), NOT a severance. **b1 blow-up gone;
+double path bit-identical (tf24 + tf24f + ff16 tripwires green).** Non-leaf `recruitment_decay`/
+`a_d0` remain partial (recruitment/mortality channels, outside the leaf adjoint — pre-existing).
+
+**Remaining P2c cleanup (optional):** step 6's "collapse the spline-free algebra on `Leaf::` to
+delegate to `leaf_output::`" is not done (the double `Leaf` still uses its own splines; the
+assembly reuses `leaf_output` only on the active path). Deferred — the value path is unchanged
+and bit-identity depends on the splines staying until a deliberate re-baseline.
 
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
