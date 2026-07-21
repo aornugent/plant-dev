@@ -192,6 +192,27 @@ mismatched input/output names the culprit. The freeze approach is a dead end (it
 don't repeat it. `TF24_PSTAR_FROZEN`/`TF24_FREEZE_*` diagnostics were reverted (tree clean at
 `fa53480a`; the installed `.so` may still carry them — rebuild before trusting a fresh run)._
 
+_**►► ROOT CAUSE FOUND (session 10, `scratchpad/leaf_assemble_sweep.cpp`) — regime-aware ψ_stem. ◄◄**
+A single-leaf isolation probe (reconstruct `assemble()`'s chain, seed `kmax`, compare its reverse-AD
+derivative to a re-solve double FD of the real leaf, swept over soil water θ) pins it: the profit
+derivative is **exact while soil is wet** (θ≥0.16, interior, ψ_stem<ψ_crit=7.085 → `ratio_profit`=1.0000),
+then **degrades the moment ψ_stem reaches ψ_crit** (θ≤0.15: ratio 0.78→0.44→0.32→0.24). The mechanism is
+in the ψ_stem intermediate: **in the bound regime the real leaf pins ψ_stem=ψ_crit (`d ψ_stem/d kmax≈0`),
+but the assembly's `psistem_node` — which computes ψ_stem by inverting the flux balance
+`transpiration(ψ_stem)=E_up` — returns a spurious ~1e6 derivative** (θ=0.15: chain `-209926` vs real
+`0.065`). That wrong ψ_stem derivative flows into the per-layer soil-consumption partials, and the
+soil-water feedback amplifies it over steps → the life≥3 SCM blow-up. **This matches the sharp onset:**
+life≤2 stays wet (every leaf interior, `psistem_node` valid); life≥3 dries enough for the first cohort to
+hit the bound, where the assembly's ψ_stem model is invalid. The "joint-IFT" hypothesis above is
+SUPERSEDED — the interior chain is correct (certificate clean at life≤2); the bug is that `assemble()`
+applies the interior ψ_stem relation in the **bound/shutdown** regimes too. **Fix (design next):
+regime-aware ψ_stem in `assemble()`** — when the converged leaf is at the bound (ψ_stem==ψ_crit) or in
+shutdown, anchor ψ_stem at ψ_crit (carrying only dψ_crit/dstate), recompute ci from that, and use the
+shutdown profit formula (`-R_d - hydraulic_cost_TF(ψ_crit)`) where applicable — mirroring the double
+leaf's regime branches, which the assembly currently collapses to the interior case. This is a contained
+change to one function, not a rewrite. Validation: certificate must be clean at life=4 (and ≥). Also
+resolves the `psi_crit` SEVERED footnote (same bound/shutdown channel)._
+
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
 `implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
