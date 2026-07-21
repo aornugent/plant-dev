@@ -239,6 +239,25 @@ there) names the exact wrong term. Then fix that term in `assemble_leaf_from`. A
 `fa53480a` + the two doc commits; `scratchpad/leaf_assemble_sweep.cpp` kept as the probe. This is a
 multi-session structural fix; b1/#60 remains OPEN._
 
+_**►► SESSION 10 CONCLUSION — the blow-up is the dry-end CHART MISSPECIFICATION, not a leaf-partial bug.
+◄◄** FD-step sweep of a blown channel at life=4 (`scratchpad/fdsweep.log`): AD `d(Σh)/d(theta)` =
+−2.565e14, but FD **plateaus at ~1.15e6 across h = 1e-2 … 1e-5** (never climbs toward AD). So the **true
+gradient is a sane ~1e6; the AD 1e14 is spurious by ~1e8** — the reverse mode exactly differentiates the
+misspecified θ-chart's near-singular DISCRETE trajectory (diverging `∂a/∂θ ~ δ^{γ−1}`, positivity clamp,
+ψ-ceiling floor) which FD steps over. This converges with the independent multirate-stepper review on
+`claude/multirate-stepper-review-r6dpwn`: same system (their `x`/`u` split IS ours), same dry-bound
+pathology, and their reformulation thread already diagnosed "**the clamp, the floor, the singular slopes,
+and most of the gradient pathology are the chart's artifacts, not the model's**" and VALIDATED the fix —
+**R-C (smooth vulnerability shutoff) + R-D (log-depletion chart `ζ=ln(θ−θ_res)`)** — with **adjoint == FD
+to 1e-7** on a windowed prototype (their T3). Ecological face: plant#62 (hydraulic shutdown keys on the
+WETTEST layer → structurally unreachable → top layers park at ψ_crit for years = the regime that sustains
+the blow-up) and plant#53 (the stiff `θ^16.14` drainage term, closed-form flow R1). **Full synthesis +
+the general numerical formulation + the misspecification argument: `docs/tf24-numerical-formulation-and-
+misspecification.md` (session 10).** Bottom line: **do NOT patch `assemble_leaf_from`'s soil-coupling
+partials on the current chart — that treats a symptom the reformulation deletes. The fix is R-C+R-D for
+TF24, shared with the forward stepper; coordinate with the multirate branch (prototype exists).** The
+psi_soil re-solve-FD localization probe is therefore moot (superseded by the arbiter)._
+
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
 `implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
