@@ -139,15 +139,17 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-21. This session: consolidated the whole record into a
-domain-clean **fundamentals** elicitation, sent it to TWO Oracles (one with prior
-context, one fresh/zero-context), triaged both, sent a domain-clean **correction/
-addendum** back to the fresh Oracle, and triaged its reply by running the cheap rungs
-of its falsification ladder. **The big reframe: the forward problem is not closed — it
-RELOCATED from the time-stepper to the MEASURE (member-mesh) axis.** The time integrator
-is at its floor *for the norm it is given*; the member mesh is where the error and the
-levers now live. All four cheap tests run; the one architectural probe (ghost) is blocked
-on memory, not logic.*
+*Last updated: 2026-07-21 (session 2). Prior session consolidated the record into a
+domain-clean **fundamentals** elicitation → TWO Oracles → **correction/addendum** → fresh
+Oracle's falsification ladder; the big reframe stands: the forward problem RELOCATED from
+the time-stepper (at its floor for the norm it is given) to the MEASURE (member-mesh)
+axis. **This session: unblocked and VALIDATED the ladder's unlock (ghost = `run_mutant`).**
+The RK45-cache OOM was fixed by slimming the cache to the field a replay reads (plant
+`b2f70dfa`, shipped); the 12-yr ghost that OOM'd now peaks at 1.14 GB. Item-1 validation
+passed cleanly: the frozen-field error is O(mass fraction), →0 as ρ→0 — the ghost is an
+asymptotically exact rare-invasion / marginal-member probe. The rungs above it (goal-
+oriented placement + J certificate; certified crossings; WR contraction) are now cheaply
+runnable on saved fields. Full result: `docs/tf24-ghost-validate-result.md`.*
 
 ## ▶ NEXT SESSION — start here (the frontier is the measure axis, not the stepper)
 
@@ -196,17 +198,21 @@ on memory, not logic.*
    - **Cheap rungs DONE:** knots (minor), churn (confirmed), Richardson (fixed family
      non-asymptotic → certificate needs goal-oriented placement), norm-weight join +
      ldr split (modest lever).
-   - **The unlock, but BLOCKED on memory:** **ghost members = `run_mutant`.** plant's
-     `run_mutant` already IS the Oracle's zero-feedback probe (replays a strategy against the
-     resident's cached `(u,s)(t)` with no feedback, pinned to resident ode times). BUT it
-     requires `save_RK45_cache=TRUE`, which stores every RK sub-step's environment and
-     **OOMs (exit 137)** at 10–12 yr in this container — even run alone. **Next step: re-run
-     `scripts/tf24-benchmarks/ghost_validate.R` at a SHORT horizon (try 3–5 yr, or a smaller
-     schedule)** to get the item-1 validation (ghost-B vs real-B co-resident: J and g(τ) gap
-     = frozen-field error). If it validates, it unlocks (cheaply, on saved fields):
-     goal-oriented placement + a J certificate (rung 2), certified survival crossings (rung 3),
-     and the **windowed waveform-relaxation contraction test (rung 5 — the architectural swing
-     that removes the global max-norm and the O(M)-per-decision at once)**.
+   - **The unlock — DONE and VALIDATED (2026-07-21):** **ghost members = `run_mutant`.**
+     The OOM was the RK45 cache storing a full `Environment` (incl. the light spline's
+     adaptive builder + band workspace, both replay-unused) per sub-step. Fixed by caching
+     only the field a replay reads — light knots + soil state, `EnvStepRecord` (plant
+     `b2f70dfa`, bit-identical, `test-mutant.R` green). 12-yr ghost now peaks **1.14 GB**
+     (was OOM). **Item 1 validated:** frozen-field error is O(mass fraction), →0 as ρ→0
+     (relJ 63→0.42→0.036→0.003 as probe mass 0.39→0.06→0.006→0.0006); `J_real→J_ghost` as
+     mass→0. The ghost is an exact rare-invasion / marginal-member probe. **3 yr is
+     pre-reproductive (J~1e-15); use ≥12 yr** (J~2.7e-7). Result +
+     scripts: `docs/tf24-ghost-validate-result.md`, `scripts/tf24-benchmarks/ghost_{validate,massfrac}.R`.
+   - **Now runnable cheaply on saved fields (the rungs above):** goal-oriented placement +
+     J certificate (rung 2), certified survival crossings via ghost bisection (rung 3), and
+     the **windowed waveform-relaxation contraction test (rung 5 — the architectural swing
+     that removes the global max-norm and the O(M)-per-decision at once)**. These are the head
+     of the queue.
    - **Model-side, logged not built:** Newton-on-`g` / the bordered-fold locator for the
      gradient seam (plant#60, updated this session with the exact `{F=0, ∂F/∂r=0}` system);
      J mollification; multi-block NaN-guard/growth-clip.
@@ -282,9 +288,9 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `a377c42`+ (this update) |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `202c4adf` |
-| odelia | `claude/tf24-multirate-engine` | `2f78191` |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `9b6eb3d`+ (this update) |
+| plant | `claude/tf24-multi-rate-stepper-n5audm` | `b2f70dfa` (slim RK45 replay cache) |
+| odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged this session) |
 
 All three clean and pushed to `aornugent/*`. Open PRs: none (do not open without
 explicit ask). Filed issues this session: **plant#61** (TF24f tracked-ψ leaves the
