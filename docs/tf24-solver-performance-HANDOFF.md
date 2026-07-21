@@ -139,69 +139,88 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-20 (round 8 triaged). Two Oracle rounds this day, both triaged
-under §7. Round 7 (noise-floor): E1/E2 refuted it — floor real at source, not the
-bottleneck; F1 ill-posed (`docs/tf24-noise-floor-E1-E2-result.md`). Round 8 (corner +
-speed/accuracy decoupling): the reframe is that the inner operating point is an
-**active-constraint corner (C5), not an optimum (C4)**. Triage
-(`docs/tf24-corner-response-triage.md`): **corner CONFIRMED** (a ci/assimilation
-feasibility edge — wet side falls to the −R_d fallback, productive branch turns on at
-p*); **the "step collapse" is a misread** — min-h is just the initial step, the h_min
-clamp never binds, no mid-run collapse; **the 27–35% rejection is I-controller
-over-reach** (rejected steps 2.4–4.0× larger than accepted, bank-wide) → supports the
-Oracle's T2 (better controller), weakens its T1 (norm-artifact). Speed = controller
-hygiene; accuracy = corner locator + adjoint + J-mollification.*
+*Last updated: 2026-07-21. This session: consolidated the whole record into a
+domain-clean **fundamentals** elicitation, sent it to TWO Oracles (one with prior
+context, one fresh/zero-context), triaged both, sent a domain-clean **correction/
+addendum** back to the fresh Oracle, and triaged its reply by running the cheap rungs
+of its falsification ladder. **The big reframe: the forward problem is not closed — it
+RELOCATED from the time-stepper to the MEASURE (member-mesh) axis.** The time integrator
+is at its floor *for the norm it is given*; the member mesh is where the error and the
+levers now live. All four cheap tests run; the one architectural probe (ghost) is blocked
+on memory, not logic.*
 
-## ▶ NEXT SESSION — start here (post-round-8; corner confirmed, speed = controller)
-
-You are picking up with a clean context. Do this, in order:
+## ▶ NEXT SESSION — start here (the frontier is the measure axis, not the stepper)
 
 1. **Read Part 1 in full**, then this Part 2.
-2. **The two Oracle rounds + their triage docs** (read the triage docs — they are the
-   current authority): round 7 `docs/tf24-noise-floor-E1-E2-result.md`; round 8
-   `docs/tf24-corner-response-triage.md` (+ the verbatim responses
-   `docs/oracle-consultation-{intrinsic-characterisation,corner-and-decoupling}-response.md`).
-3. **What is settled (do not relitigate):**
-   - The inner argmax is an **active-constraint corner (C5), not an interior optimum**:
-     a ci/assimilation feasibility edge (wet side → −R_d fallback; productive branch on
-     at `p*`; `∂P/∂p≈−8.8≠0` there). The reverse-mode envelope-at-fixed-`p*` adjoint is
-     therefore first-order wrong **by construction**.
-   - **There is no mid-run step collapse.** min-h is the *initial* step
-     (`ode_step_size_initial`); the `h_min` clamp never binds; accepted steps are healthy
-     (median ~0.06 d). The old "1e-8·T scattered collapse" was the initial step misread.
-   - **The 27–35% rejection is NOT reclaimable.** It looked like I-controller over-reach
-     (rejected attempts 2.4–4.0× larger than accepted), but building the PI controller (T2)
-     showed the reject fraction drops while *total work rises* — the rejections are the price
-     of striding at the accuracy limit on a broadband-error problem, not tunable waste. The
-     forward integrator is already near work-optimal. Speed is not the lever (rounds 5–8 all
-     negative: not decomposition, not events, not inner-search, not controller).
-   - `J` has a **survival-threshold discontinuity** (whiplash: 2.4× flip, non-monotone in
-     `GSS_tol`); this is the real identity of the 10×/23% facts and is functional-side.
-4. **Build order (each still gated on its cheap test where one exists) — see the round-8
-   triage doc §"What to build next":**
-   1. **E4 / adjoint correctness (task #23)** — the one un-run high-value test; reverse
-      `dJ/dθ` vs a true re-solving FD on a transpiring state. **Do this first.**
-   2. **T2 controller (speed) — DONE, net loss, reverted** (`docs/tf24-T2-controller-result.md`).
-      Built the PI/Gustafsson controller (odelia, opt-in, toy-validated: bit-identical off,
-      accuracy/order preserved). Bank: it lowers the reject *fraction* (0.28→0.24, 0.28→0.19)
-      but raises accepted-step count → **total work +13–29%** (J unchanged). The I-controller's
-      dead-band "hot striding" beats the PI's "cool" stepping; the 27–35% rejection is the price
-      of striding at the accuracy limit on a broadband-error problem, **not reclaimable by
-      controller tuning.** Reverted; production back to the I-controller. **Speed question closed:
-      the forward integrator is already near work-optimal at converged tol.**
-   3. **Corner locator + IFT node (accuracy)** — identify the ci-branch-existence
-      condition `S(p;state)=0` (branch-indicator log), solve `S=0` safeguarded, IFT node
-      on `S`. Acceptance: `J(τ)` flattens at 5.87e-8, adjoint matches FD.
-   4. **J mollification (accuracy, model-side)** — soften the survival entry into `J`;
-      model-owner decision, flag don't build unilaterally.
+2. **The current authority docs (read these):** `docs/tf24-two-oracle-synthesis.md`
+   (the two responses compared), `docs/tf24-correction-response-triage.md` (the ladder +
+   status), and the four result docs below. Verbatim Oracle responses:
+   `docs/oracle-consultation-fundamentals-response-{fresh,ongoing}.md` and
+   `docs/oracle-consultation-correction-response-fresh.md`. The elicitation +
+   correction sent out: `docs/oracle-consultation-fundamentals{,-correction}.md`
+   (both domain-clean — keep them that way; the classifier trips on soil/cohort/rain/
+   leaf/etc.).
+3. **What is settled this session (do not relitigate):**
+   - **The measure axis carries the dominant *reproducible* error, not the time axis.**
+     The production run uses a *fixed* insertion schedule that is **~6× from mesh-converged**
+     (J 2.15e-6 fixed vs 3.4e-7 refined on one sequence); even two *refined* meshes differ
+     ~2.3%. Fixed uniform densification is **not asymptotic** (Richardson order p≈0.2,
+     negative extrapolant — `docs/tf24-richardson-result.md`): placement, not count,
+     converges the measure. So a *certificate* for J needs adaptive/goal-oriented placement,
+     not the >15-min refiner. The tol-band "production at loose edge" check is **unresolved**
+     (confounded by the unconverged mesh; redo on a converged measure).
+   - **Forcing spline knots (fresh Oracle's top stone): real but minor.** A step crossing a
+     C² daily knot rejects +12–36 pp more (size-controlled), but only **1.3–3.9 pp of the
+     ~30% rejection** is knot-attributable. Not a frontier-reopener
+     (`docs/tf24-node-distance-result.md`). Corrected the elicitation's §4 error (forcing is
+     a C² cubic spline, not piecewise-linear).
+   - **The error norm is an extreme value over a growing member block (item D,
+     confirmed).** 192–345 distinct components attain `rmax` among rejects (entropy
+     0.77–0.83); members dominate over reservoirs (~70/30); consecutive churn 0.23–0.28
+     (drifts, not memoryless → nothing for a serial predictor, explains the PI failure).
+     `docs/tf24-argmax-churn-result.md`.
+   - **The J-weighted-norm lever is real but modest.** The norm-weight join
+     (`docs/tf24-norm-weight-join-result.md`): the `rmax`-attaining member is J-marginal
+     (<10% species weight) on 50–69% of member-limited steps — but the distance-to-removal
+     split shows **⅓–½ of those marginal setters are *dying*** (`d(log ρ)/dt < −1`,
+     heading to the `ρ→0` boundary = survival bits that must keep full weight). Net cleanly-
+     reclaimable ≈ **10–20% of accepted steps**, gated by a survival guard band. Worth a
+     prototype only if that's judged worth the machinery; the architectural stone (WR) likely
+     beats it.
+   - **`J`'s inter-mesh spread is BOTH diffuse and survival-bits** (`docs/tf24-deltaJ-decomp-result.md`,
+     first cut on an unconverged pair): median relative per-lineage error 0.53 (diffuse) with
+     a 1532× spike (a survival flip). Clean separation needs a *both-converged* mesh pair.
+
+4. **The frontier / build order (fresh Oracle's falsification ladder, cheapest-first —
+   `docs/tf24-correction-response-triage.md`):**
+   - **Cheap rungs DONE:** knots (minor), churn (confirmed), Richardson (fixed family
+     non-asymptotic → certificate needs goal-oriented placement), norm-weight join +
+     ldr split (modest lever).
+   - **The unlock, but BLOCKED on memory:** **ghost members = `run_mutant`.** plant's
+     `run_mutant` already IS the Oracle's zero-feedback probe (replays a strategy against the
+     resident's cached `(u,s)(t)` with no feedback, pinned to resident ode times). BUT it
+     requires `save_RK45_cache=TRUE`, which stores every RK sub-step's environment and
+     **OOMs (exit 137)** at 10–12 yr in this container — even run alone. **Next step: re-run
+     `scripts/tf24-benchmarks/ghost_validate.R` at a SHORT horizon (try 3–5 yr, or a smaller
+     schedule)** to get the item-1 validation (ghost-B vs real-B co-resident: J and g(τ) gap
+     = frozen-field error). If it validates, it unlocks (cheaply, on saved fields):
+     goal-oriented placement + a J certificate (rung 2), certified survival crossings (rung 3),
+     and the **windowed waveform-relaxation contraction test (rung 5 — the architectural swing
+     that removes the global max-norm and the O(M)-per-decision at once)**.
+   - **Model-side, logged not built:** Newton-on-`g` / the bordered-fold locator for the
+     gradient seam (plant#60, updated this session with the exact `{F=0, ∂F/∂r=0}` system);
+     J mollification; multi-block NaN-guard/growth-clip.
+   - **E4 / adjoint correctness (task #23)** still the one un-run high-value correctness test.
+
 5. **Rebuild env only to run code:** `R CMD INSTALL --no-docs --no-byte-compile odelia`;
    then `rm -f plant/src/*.o plant/src/*.so` and `options(pkg.build_extra_flags=FALSE);
-   pkgload::load_all("plant", export_all=TRUE)`. `GSS_tol_abs`, `ode_step_size_*` are
-   `control()` fields (no rebuild for those knobs). All committed and pushed.
+   pkgload::load_all("plant", export_all=TRUE)`. The **norm-weight-join instrument** is built
+   (odelia `step_monitor` hook gained an `rmax_index` arg; plant `Patch::step_monitor` appends
+   the attaining member's ρ, weight-fraction, and `d(log ρ)/dt`) — **bit-identical off,
+   verified rel=0**. `step_argmax_*` log (which component sets `rmax` per attempt) also built.
 
-Still standing independently: the **member-mesh/`J` frontier** (§7, original converged-`J`
-accuracy work, un-attacked), the **pruning sign-off** (task #20), the **multispecies-capture**
-harness fix.
+Still standing independently: the **pruning sign-off** (task #20) and the
+**multispecies-capture** harness fix.
 
 ## Gate result (2026-07-20) — the event stepper is dead; the frontier is the mesh/J
 
@@ -263,9 +282,9 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `23d3852`+ (this update) |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `05df4c1f` |
-| odelia | `claude/tf24-multirate-engine` | `71256d1` |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `a377c42`+ (this update) |
+| plant | `claude/tf24-multi-rate-stepper-n5audm` | `202c4adf` |
+| odelia | `claude/tf24-multirate-engine` | `2f78191` |
 
 All three clean and pushed to `aornugent/*`. Open PRs: none (do not open without
 explicit ask). Filed issues this session: **plant#61** (TF24f tracked-ψ leaves the
