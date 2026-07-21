@@ -232,10 +232,29 @@ verified.** The next item is **step 2**:
    is the FD check), verify against the `dp*/dθ` E4 targets, THEN add the bordered-fold branch for the narrow
    BOUND band, selected by `|dprofit/dp*|<tol`. Then step 5–6: assemble N_p\*→N_psistem→N_ci→output map, wire
    into `net_mass_production_dt`, delete the seam.
-5. **Steps 5–6 — soil active coupled state (mostly already `S`); delete the FD `supplied_derivative` seam** +
-   `leaf_profit_at_fixed_collar` + `dprofit_droot_collar_psi` + `dsoil_consumption_dpsi_collar_perlayer`. At
-   step 6, collapse the now-redundant spline-free algebra on `Leaf::` to delegate to `leaf_output::` (deferred
-   from step 1 to preserve bit-identity; the ~1e-15 re-baseline is acceptable once the value path moves).
+5. **►Steps 5–6 — the p\* pivot assembly (START HERE — DESIGNED, not built).** Design committed
+   (`docs/p2c-leaf-adjoint-design.md` "Steps 5–6 — design", Tier 3 `system-design`). **Key realisation:**
+   the envelope theorem means `profit` doesn't need `dp*/dstate`, but every OTHER leaf output does
+   (transpiration, `E_up`, per-layer `soil_consumption` read by `evapotranspiration_dt`, ψ_stem, ci) — so
+   N_p\*'s job is to produce **p\* as ONE active scalar pivot** that flows into all outputs. Build a private
+   templated method `TF24_Strategy::assemble_active_leaf_outputs` (replacing `leaf_profit_at_fixed_collar`),
+   reading `pars`/`environment`/`leaf`: (a) active p\* pivot — TF24 interior ⇒ node 4a, TF24 bound ⇒ node 4b
+   (clamped-to-`bound_b` detector), TF24f ⇒ the tracked collar state (no node); (b) recompute active
+   physiology from active `pars` via the templated `leaf_output` helpers (peak_arrh_curve, electron_transport,
+   …) — mirror `set_physiology` (`leaf_model.cpp:218-241`: vcmax_/jmax_/gamma_/km_/R_d_/electron_transport_)
+   and `net_mass_production_dt` (`tf24_strategy.cpp:365-370`: k_max, sapwood volume from active pars/height);
+   (c) anchor ψ_stem/ci at the double optimum via `psistem_node`/`ci_node`; (d) form
+   `profit_s = assim_colimited(ci) − hydraulic_cost_TF(ψ_stem)` and
+   `soil_consumption_active_[L] = soil_uptake(psi_soil, −p*, …)[L]`. Then **delete** the FD block
+   (`tf24_strategy.cpp:509-690`), `leaf_profit_at_fixed_collar`, `dprofit_droot_collar_psi`,
+   `dsoil_consumption_dpsi_collar_perlayer`, and the `supplied_derivative` include+usage — the active path
+   makes them dead. Input channels to reproduce (from the FD seam, `shouldRecord`-gated): the ~15
+   `TF24_AD_FIELDS`, `height`, `light_active` (self-shading openness), per-layer `psi_soil_S`, and TF24f's
+   `seam_collar_psi_input()`. Deep-crown (`!single_solve`) active path stays a `util::stop` (unchanged scope).
+   **Verify:** double bit-identity (FF16 + TF24 tripwires), then E4 (adjoint vs re-optimising FD on a real
+   patch) across TF24 and TF24f. At step 6, also collapse the now-redundant spline-free algebra on `Leaf::` to
+   delegate to `leaf_output::` (the ~1e-15 re-baseline is acceptable once the value path moves).
+   The two pivots are validated in scratchpad (`leaf_pstar_node.cpp` 4a, `leaf_pstar_bound_node.cpp` 4b).
 6. **Step 7 — gate:** rebuild TF24 Certificate B (`scratchpad/tf24_cert.R`, driver `ad_certificate.cpp`
    `tf24_allfield` committed) — all leaves intact, E4 gap closed. Then **P2d (TF24f)** reuses N_p\*.
 

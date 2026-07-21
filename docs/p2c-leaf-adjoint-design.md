@@ -404,12 +404,46 @@ needs and give ~1e-6, tighter than the interior node's ~1e-4. The θ channel fro
 (−252→−34) would require chaining `dpsi_soil/dθ`; the param channels prove the IFT structure
 directly, so it was not re-run.
 
-**Next: steps 5–6** — assemble N_p\*→N_psistem→N_ci→output map into `net_mass_production_dt`,
-delete the FD seam (`leaf_profit_at_fixed_collar`, `dprofit_droot_collar_psi`,
-`dsoil_consumption_dpsi_collar_perlayer`). The production N_p\* home/signature (it needs the
-double `Leaf` for the off-tape solves + soil caches, unlike the pure `ci_node`/`psistem_node`,
-and must switch on the clamped-to-`bound_b` detector to pick the interior vs bound branch) is
-decided when wiring step 5–6.
+## Steps 5–6 — design: the p\* pivot assembly (2026-07-21, `system-design`, Tier 3)
+The load-bearing realisation: **the envelope theorem means `profit` does not need `dp*/dstate`
+(at an interior optimum `∂profit/∂p*≈0`), but every OTHER leaf output does** — transpiration,
+`E_up`, per-layer `soil_consumption` (read by `evapotranspiration_dt`), ψ_stem, ci are not
+stationary in p\*. So N_p\*'s real job is to produce **p\* as one active scalar pivot** that
+then flows into all leaf outputs uniformly.
+
+**Commitment: p\* is a single active scalar pivot carrying `dp*/dstate`; every leaf output is
+an active function of that pivot plus the active physiology inputs, assembled from the
+converged double operating point.** The FD seam had no pivot — it finite-differenced whole
+`profit` per input; the pivot unifies all outputs and all input channels through one active
+variable, and the envelope theorem is then just "profit is insensitive to the pivot" (so 4a's
+~1e-4 pivot accuracy is harmless for profit, good for uptake). Kept true by structure: the
+double `Leaf` stays double (design 4.3), so the only way to an active p\* is the
+`implicit_value` pivot — no re-recorded solve is expressible.
+
+**Home/signature: a private templated method `TF24_Strategy::assemble_active_leaf_outputs`**
+replacing `leaf_profit_at_fixed_collar`. It reads `pars`/`environment`/`leaf` directly (not a
+20-arg signature) and composes the existing `leaf_output` free functions (`peak_arrh_curve`,
+`electron_transport`, `transpiration`, `stom_cond_CO2`, `ci_node`, `psistem_node`,
+`assim_colimited`, `hydraulic_cost_TF`, `soil_uptake`) + the two `implicit_value` pivots
+inline. Rejected: (B) a `leaf_output::` free function — forces `Leaf&` into that Leaf-free
+namespace and re-creates the 20-arg signature we are deleting, with no second non-strategy
+caller; (C) split interior/bound as separate assembled paths — duplicates the shared
+downstream assembly for a divergence that is only one `if` at the pivot. One new method
+replaces three deleted (`leaf_profit_at_fixed_collar`, `dprofit_droot_collar_psi`,
+`dsoil_consumption_dpsi_collar_perlayer`): **net names down by 2.**
+
+**The pivot, three modes (R5):** TF24 interior ⇒ node 4a; TF24 bound (clamped-to-`bound_b`
+detector) ⇒ node 4b; TF24f ⇒ the tracked collar ODE state (already active — no node). Then
+the shared assembly: recompute active physiology from active `pars` via the templated
+`leaf_output` helpers, anchor ψ_stem/ci at the double optimum via `psistem_node`/`ci_node`,
+form `profit_s = assim_colimited(ci) − hydraulic_cost_TF(ψ_stem)` and
+`soil_consumption_active_[L] = soil_uptake(psi_soil, P_x_r=−p*, …)[L]`. Feed
+`profit_s → assimilation_`, `soil_consumption_active_ → evapotranspiration_dt`.
+
+**Bad at:** the deep-crown (`!single_solve`) active path stays a `util::stop` (unchanged
+scope; the pivot is per-solve, a crown integral would need it per quadrature node).
+**Kill condition:** a collar that is neither optimised nor a tracked state (e.g. stochastic) —
+the pivot's stationarity/tracked-state assumption breaks; hands off to candidate C.
 
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
