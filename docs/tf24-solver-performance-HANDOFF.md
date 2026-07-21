@@ -163,13 +163,14 @@ remains numerics-actionable: **rung 3** (certified survival crossings via ghost 
 mollification width — and a cheap DX side-win (the production default schedule is badly
 placed; uniform is 3–35× closer).*
 
-***PENDING NEXT STEP — an Oracle update*** *(user-requested this session; deferred to next).
-Guidance from the user for it: present the system CONCRETELY and COMPREHENSIVELY; do NOT lead
-to conclusions or frame solutions; it is fine to break the consult-guide format and drop the
-directed questioning — spend the budget on a fuller system characterisation instead. Stay
-domain-clean (restructure into a general numerical formulation; the classifier trips on
-soil/cohort/rain/leaf/etc.). Fold in this session's three new measured results (ghost
-validation, WR κ≈10, placement non-convergence) as data, neutrally.*
+***ORACLE UPDATE — WRITTEN and committed this session*** *(`docs/oracle-consultation-fundamentals-v2.md`,
+plant-dev `c5f0b65`). Follows the user's guidance: concrete + comprehensive, no conclusions, no
+proposed remedies, no directed questions (consult-guide Q&A format dropped; budget spent on
+characterisation). Domain-clean (grep gate clean; only "reservoir" — the deliberate general rendering
+of the small block — matches). Supersedes the earlier fundamentals elicitation + addendum: errata
+folded in; adds §9 with this session's three new results (9a zero-feedback probe O(weight fraction),
+9b self-consistency contraction κ≈10, 9c J non-convergence under mesh refinement). It is a REVIEW
+ARTIFACT — nothing has been sent to any Oracle.*
 
 ## ▶ NEXT SESSION — start here (the frontier is the measure axis, not the stepper)
 
@@ -250,11 +251,14 @@ validation, WR κ≈10, placement non-convergence) as data, neutrally.*
      fundamentals Oracles said. Cheap DX side-win: the production **default schedule is badly
      placed** (whiplash 847% off); plain uniform is 3–35× closer at matched count. Full
      result: `docs/tf24-goal-placement-result.md`; scripts `goal_placement_{predict,test,converge}.R`.
-   - **Surviving ladder:** rung 3 (certified survival crossings via ghost bisection in
-     `τ_ins`), paired with the **rainfall-as-locator test** (drought windows in the known
-     forcing should predict the lineage-ages carrying survival crossings → free bracket).
-     **Item B (J mollification)** is now the identified measure-axis requirement but is a
-     model-side decision (survival-margin window width), not numerics.
+   - **Surviving ladder (NOT run — user paused here this session):** rung 3 (certified survival
+     crossings via ghost bisection in `τ_ins`), paired with the **rainfall-as-locator test**
+     (drought windows in the known forcing should predict the lineage-ages carrying survival
+     crossings → free bracket). This would quantify the discontinuity to inform item B's
+     mollification width. **Item B (J mollification)** is the identified measure-axis requirement
+     but is a model-side decision (survival-margin window width), not numerics. The user chose to
+     **pause after the Oracle update** rather than run rung 3 — the forward-numerics frontier is
+     already resolved to a conclusion. Rung 3 is the clean head of the queue for next session.
    - **Model-side, logged not built:** Newton-on-`g` / the bordered-fold locator for the
      gradient seam (plant#60, updated this session with the exact `{F=0, ∂F/∂r=0}` system);
      J mollification; multi-block NaN-guard/growth-clip.
@@ -330,7 +334,7 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `71ad3b3`+ (this update) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `c5f0b65`+ (v2 Oracle draft + this update) |
 | plant | `claude/tf24-multi-rate-stepper-n5audm` | `0015c9fd` (slim cache + WR contraction probe) |
 | odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged this session; odelia#47 filed on GitHub) |
 
@@ -470,6 +474,10 @@ removable-vs-intrinsic **classifier are one instrument.**
   `tf24-goal-placement-result.md` (rung 2: goal-oriented placement does not fund; J
   non-convergent under refinement = survival-flip discontinuity → item B). odelia#47
   (L3 replay slim-record) filed on GitHub.
+- `oracle-consultation-fundamentals-v2.md` — **the current Oracle characterisation (this session's
+  update; supersedes `-fundamentals.md` + its correction).** Self-contained, domain-clean,
+  no directed questions, no proposed remedies; §9 folds in ghost probe / WR κ≈10 / placement
+  non-convergence. A review artifact — not sent.
 - `oracle-consultation-fundamentals.md` — **the consolidated fresh-Oracle elicitation** (zero prior
   context, domain-clean, no question/no proposed remedy): the complete system + discretisation +
   correctness reference + the full measured record of every approximation tried and why it resisted
