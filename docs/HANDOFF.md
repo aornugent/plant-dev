@@ -175,6 +175,23 @@ fold-robust node (the design's anticipated bordered/root-find formulation, or cl
 a wider detector band). This is a structural change — use `system-design` before building. P2d (TF24f)
 is blocked behind it (shares the pivot). Step 7 is NOT passed; b1/#60 is RE-OPENED._
 
+_**Localization so far (session 10, env-guarded freeze probes at life=4, since reverted):** the blow-up
+is inside `assemble_leaf_from`'s final `assemble()` call, but is **NOT cleanly one node**. Freezing
+the p\* pivot derivative made it WORSE (2.56e14 → 4.04e28); freezing `psistem_node` worse (→4.29e18);
+freezing `soil_uptake` → NaN; freezing `ci_node` → crash. i.e. **freezing any single node destroys a
+cancellation and makes the residual bigger** — the signature of a **near-singular COUPLED leaf
+Jacobian** near the constraint boundary, where the assembly's *chain* of independent scalar IFT nodes
+(`soil_uptake → psistem_node → ci_node`, each dividing by its own marginal derivative) is
+ill-conditioned. Hypothesis (unconfirmed): the leaf operating point (ψ_stem, ci, E_up, p\* jointly) is
+a coupled fixed point whose derivative wants ONE joint IFT over the full leaf Jacobian, not a chain of
+scalar IFT nodes. **Decisive next probe (do this before any redesign): per-leaf-call adjoint-vs-FD
+isolation** — extract a dry-regime leaf operating point from a life=4 run, compare the injected leaf
+partials (d profit/d input, d uptake/d input) against a direct double FD of the leaf solve at that
+point; matches ⇒ the fault is feedback amplification, mismatch ⇒ the assembly partial is wrong and the
+mismatched input/output names the culprit. The freeze approach is a dead end (it breaks cancellations);
+don't repeat it. `TF24_PSTAR_FROZEN`/`TF24_FREEZE_*` diagnostics were reverted (tree clean at
+`fa53480a`; the installed `.so` may still carry them — rebuild before trusting a fresh run)._
+
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
 `implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
