@@ -126,11 +126,12 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 8). **HEAD: plant `efe624e4` (unchanged — step-4a node
-validated in scratchpad, not yet on any rate path), odelia `16cff79` (unchanged). Superrepo
-advances with docs only. All clean, pushed.** This session (8): **P2c step 4a DONE — the interior
-N_p\* node designed (`system-design`) and E4-verified on two channels; step 4b (bound/fold branch)
-+ steps 5–6 next.** See the SESSION 8 block below._
+_Last updated: 2026-07-21 (session 9). **HEAD: plant `70d7179c` (`soil_uptake` explicit `<T>`
+so it instantiates active — enabling change for the bound node; production numerics untouched),
+odelia `16cff79` (unchanged). Both N_p\* nodes validated in scratchpad, not yet on any rate path.
+All clean, pushed.** This session (9): **P2c step 4b DONE — the bound-regime N_p\* node built as a
+plain `E_column=0` root-find IFT and E4-verified (k_max reld ~1e-7, psi_crit reld ~1e-6);
+steps 5–6 (assemble + delete the FD seam) next.** See the SESSION 9 / SESSION 8 blocks below._
 
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
@@ -203,13 +204,20 @@ verified.** The next item is **step 2**:
    `docs/p2c-leaf-adjoint-design.md` "Step 4a". The node is validated in scratchpad only — its
    production home/signature (needs the double `Leaf`, unlike `ci_node`/`psistem_node`) is fixed by
    the step-5/6 wiring, so it is NOT yet in `leaf_model.h`.
-6. **►Step 4b — the bound-regime branch (START HERE).** GROUNDED (session 8,
-   `scratchpad/leaf_pstar_bound.cpp`): the bound band is `p* = bound_b = −root_crit`, and
-   `root_crit` solves `E_column(x, psi_soil, psi_crit)=0` (`find_root_psi(…,1)`) — the collar where
-   the stem hits `psi_crit`. So build it as `implicit_value` on `E_column=0` (a plain root-find IFT
-   over `psi_crit` + soil state, reusing `soil_uptake`+`cumulative_vuln`), **not** a bordered-fold
-   `{F=0,∂F/∂ci=0}`. Select it by the "`p*` clamped to `bound_b`" detector (NOT `|dprofit/dp*|<tol`,
-   which a tight golden section shows ≈0 in the band too). Verify vs the E4 `dp*/dθ` band (−252→−34).
+6. **Step 4b — the bound-regime branch.** DONE (session 9, `scratchpad/leaf_pstar_bound_node.cpp`).
+   `p* = −implicit_value(root_crit, F)`, `F(x)=soil_uptake(psi_soil,x,…)−transpiration(psi_crit,−x,k_max,b,c)`
+   (the `E_column=0` continuity residual at the stem's vulnerability limit), assembled from the same
+   `leaf_output` free functions as the double path. `implicit_value`'s inner FD gives `dF/dx`, XAD gives
+   the exact `dF/dstate`; **no nested FD** (no second derivative here), cleaner than 4a. Enabling change
+   (plant `70d7179c`): `leaf_output::soil_uptake` got explicit `<T>` on its
+   `proportion_of_conductivity`/`cumulative_vuln` calls (unary-minus args are expression templates under
+   an active scalar); `double` instantiation bit-identical, production untouched (`soil_uptake` isn't a
+   production caller until step 6). E4-verified (perturb member, re-optimise at `GSS_tol_abs=1e-10`,
+   central diff; θ=0.13/0.14/0.15 all clamped, `dist(p*,bound_b)≈3e-11`): **k_max reld 6.6e-7/1.2e-7/2.7e-7,
+   psi_crit reld 2.4e-6/1.7e-6/2.8e-6** — the seeded-param channels the gradient needs, tighter than 4a's
+   ~1e-4. Design record: `docs/p2c-leaf-adjoint-design.md` "Step 4b". Node validated in scratchpad only;
+   the interior/bound branch selection (clamped-to-`bound_b` detector) and production home/signature are
+   fixed by step-5/6 wiring. **►Steps 5–6 START HERE.**
    Context (the original fork framing) below. `find_root_collar_psi`
    golden-section-maximises profit over the collar potential `p*` on `[bound_a, bound_b]`
    (`prepare_collar_solve`). **`p*` interior ⇒ stationarity IFT `∂profit/∂p*=0`; `p*` on `bound_b` (the

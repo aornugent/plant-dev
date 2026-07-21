@@ -378,12 +378,38 @@ central difference):
    determine (`|p* − bound_b| ≤ GSS_tol` ⇒ bound regime; interior otherwise). `dp*/dθ` is
    large but finite in the band (−252 → −34), = `d(bound_b)/dθ`.
 
-**Next: step 4b build** — the bound-regime node (`implicit_value` on `E_column=0` for
-`root_crit`), selected by the clamped-to-`bound_b` detector; verify against E4 in the band
-(the `dpstar_dtheta_E4` column, −252→−34). Then steps 5–6 (assemble
-N_p\*→N_psistem→N_ci→output map into `net_mass_production_dt`, delete the seam). The
-production node's home/signature (it needs the double `Leaf` for the off-tape solves + soil
-caches, unlike the pure `ci_node`/`psistem_node`) is decided when wiring step 5–6.
+## Step 4b — the bound-regime N_p\* node: DONE (2026-07-21, `scratchpad/leaf_pstar_bound_node.cpp`)
+Built exactly as the grounding prescribed: `p* = -implicit_value(root_crit, F)` with
+`F(x) = soil_uptake(psi_soil, x, …) − transpiration(psi_crit, −x, k_max, b, c)` — the
+`E_column=0` continuity residual at the stem's vulnerability limit, assembled from the same
+`leaf_output` free functions the double path uses. `implicit_value`'s single inner double FD
+supplies `dF/dx`; XAD supplies the exact `dF/dstate` on the reverse tape; the node returns
+`root_crit` carrying `−(dF/dstate)/(dF/dx)`, negated to `p*`. **No nested FD** (unlike the
+interior node 4a — there is no second derivative here), so it is cleaner.
+
+Enabling change (plant `70d7179c`): `leaf_output::soil_uptake` needed explicit `<T>` on its
+`proportion_of_conductivity`/`cumulative_vuln` calls — the unary-minus arguments are
+expression templates under an active scalar and broke deduction; it had only ever been
+instantiated on `double`. The `double` instantiation is bit-identical (FF16 tripwire + leaf
+tests green), and production numerics are untouched (`soil_uptake` is not yet a production
+caller — `net_mass_production_dt` still uses `E_from_Soil_to_Root_Collar`; that swap is step 6).
+
+**Verified vs E4** (perturb the member, re-optimise `p*` at `GSS_tol_abs=1e-10`, central
+difference; θ=0.13/0.14/0.15, all clamped to `bound_b` — `dist(p*, bound_b)≈3e-11`):
+- **k_max**: node `1.101e4`/`1.5e4`/`1.785e4` vs FD — reld **6.6e-7 / 1.2e-7 / 2.7e-7**.
+- **psi_crit**: node `0.182`/`0.102`/`0.085` vs FD — reld **2.4e-6 / 1.7e-6 / 2.8e-6**.
+
+The seeded-param channels (k_max, psi_crit — both enter `E_column`) are the ones the gradient
+needs and give ~1e-6, tighter than the interior node's ~1e-4. The θ channel from the grounding
+(−252→−34) would require chaining `dpsi_soil/dθ`; the param channels prove the IFT structure
+directly, so it was not re-run.
+
+**Next: steps 5–6** — assemble N_p\*→N_psistem→N_ci→output map into `net_mass_production_dt`,
+delete the FD seam (`leaf_profit_at_fixed_collar`, `dprofit_droot_collar_psi`,
+`dsoil_consumption_dpsi_collar_perlayer`). The production N_p\* home/signature (it needs the
+double `Leaf` for the off-tape solves + soil caches, unlike the pure `ci_node`/`psistem_node`,
+and must switch on the clamped-to-`bound_b` detector to pick the interior vs bound branch) is
+decided when wiring step 5–6.
 
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
