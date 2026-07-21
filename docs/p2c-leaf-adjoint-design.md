@@ -207,3 +207,88 @@ seam and blows up. What step 0 *can* verify now (and does), independent of the l
 
 (An earlier "0.17% crossing discrepancy" was a flawed reference — a fresh SCM pinning only
 L1 onto the *unrefined* L0 — not a crossing bug; the direct config comparison settled it.)
+
+---
+
+# Step 1 sub-plan — the `S` leaf output map (grounded 2026-07-21)
+
+Concretises worklist step 1 before the diff. Step 1 delivers the **pure `S` output
+algebra** and its value-parity gate; it introduces **no IFT node** (steps 2–4) and
+**does not yet delete the seam** (step 6). The double solver and the double `Leaf`
+value path are untouched.
+
+## Home
+`plant/inst/include/plant/leaf_output_map.h` — a header-only namespace
+`plant::leaf_output` of templated free functions. Rationale: the commitment keeps the
+1490-line `Leaf` in `double`, so the `S` algebra cannot live on it; free functions taking
+`(converged roots, active params, active soil)` avoid a parallel `Leaf<S>` near-copy
+(AGENTS "no parallel near-copy"), and TF24f (step 7 / P2d) reuses the same functions. The
+two already-templated helpers in `leaf_model.cpp`'s anonymous namespace
+(`assim_colimited_ad`, `hydraulic_cost_ad`) **migrate here** so the one definition serves
+both `dprofit_droot_collar_psi` (double forward-AD, existing) and the new active output
+map — no third copy.
+
+## The closed-forms that replace the four splines (Refinement 2)
+Verified against `leaf_model.cpp`:
+- `proportion_of_conductivity(ψ) = exp(−(ψ/b)^c)` — already pointwise closed-form
+  (`:1054`); no spline for the value, only for the *cumulative integral*.
+- `Γ(m) ≡ ∫₀^m exp(−(s/b)^c) ds = (b/c)·γ_lower(1/c, (m/b)^c)` — the cumulative
+  vulnerability integral (`build_cumulative_vulnerability_integral :1070`), which
+  `transpiration_from_psi` / `root_vuln_integral_from_psi` spline. This **is**
+  `odelia::incomplete_gamma<S>` (P1c); the double splines survive only as the value-path
+  fast lookup.
+- `transpiration(ψ_stem, ψ_up) = k_max·[Γ(ψ_stem) − Γ(ψ_up)]` (`:1146`) — a difference of
+  two `incomplete_gamma<S>` evals; **no spline**.
+- `psi_from_transpiration` (the **inverse** spline, `:1168`) — the one relation with no
+  forward closed form. It becomes the **`N_psistem` implicit_value node** (step 3):
+  invert `transpiration(ψ_stem) − E = 0` for `ψ_stem`, so no `S` inverse spline is needed.
+- **`root_b`/`root_c` are NOT AD-seeded** (fixed doubles, `tf24_strategy.h:441`), so the
+  soil-uptake `Γ` carries `S` only through `psi_soil` (soil ODE state) and `P_x_r`
+  (collar, from `N_p*`); the root Weibull params stay `double` constants.
+
+## The functions (all `template <class T>`, in `plant::leaf_output`)
+Photosynthesis temp params carry `T` through the seeded `vcmax_25`/`jmax_25`:
+- `arrh_curve(double Ea, T ref, double leaf_temp)`, `peak_arrh_curve(...)` — `vcmax_`,
+  `jmax_`, `gamma_`, `km_`, `R_d_` (the latter three from `double` constants → stay
+  `double`; `vcmax_`/`jmax_` become `T`).
+- `electron_transport(T jmax, double a, double PPFD, double curv)` (`:1181`).
+- `assim_colimited(T ci, T vcmax, T et, double gstar_Pa, T km_or_const, T R_d, double curv)`
+  — migrated `assim_colimited_ad` (`:16`), widening the seeded args to `T`.
+
+Hydraulic / conductance / cost:
+- `weibull(T psi, T b, T c) = exp(−(psi/b)^c)`.
+- `cumulative_vuln(T m, T b, T c) = incomplete_gamma<T>` form of `Γ(m)`.
+- `transpiration(T psi_stem, T psi_up, T k_max, T b, T c)`.
+- `stom_cond_CO2(T transpiration, double atm_kpa, double atm_vpd)` (`:1172`).
+- `hydraulic_cost_TF(T psi_stem, T g1, T beta2, T b, T c)` — migrated `hydraulic_cost_ad`
+  (`:24`), Weibull inline.
+- `profit_TF(T assim, T cost) = assim − cost` (`:1341`).
+
+Soil uptake (the general + two kink branches of `E_from_Soil_to_Root_Collar :399`) as one
+`T` function over layers, mean conductivity from `cumulative_vuln` in the (double) root
+params; carries `T` via `psi_soil[i]` and `P_x_r`. Produces `E_up_` (kg) and per-layer
+`soil_consumption_` (mol), matching the existing unit split (`:543`).
+
+## What step 1 wires (and what it defers)
+Step 1 adds the header + a **value-parity gate only**. It does **not** replace the seam
+yet: with the double roots `(ci*, ψ_stem*, p*)` from `find_root_collar_psi`, evaluate the
+`S` output map at those roots cast to `S` (`to_passive` round-trip, no active seeds) and
+assert it reproduces `leaf.profit_`, `leaf.E_up_`, `leaf.soil_consumption_[]`. This proves
+the algebra is a faithful `S` transcription before any node carries a derivative. The
+`implicit_value` nodes (steps 2–4) then feed *active* roots into the same functions; the
+seam deletion is step 6.
+
+## Verification checkpoints (double path stays bit-identical)
+1. **Per-function unit parity (double):** each `leaf_output::f<double>(...)` equals the
+   corresponding `Leaf::` method to ~1e-12 at a sampled operating point.
+2. **`incomplete_gamma` vs the spline:** `cumulative_vuln<double>` equals
+   `transpiration_from_psi.eval` / `root_vuln_integral_from_psi.eval` to the spline's own
+   ~100-knot tolerance (the closed form is exact; any residual is the spline's bias, which
+   #468 already reduced — this is where a tiny value shift, if any, appears and is bounded).
+3. **Assembled value parity:** the `S` output map at the converged double roots reproduces
+   `profit_` / `E_up_` / `soil_consumption_` (checkpoint above).
+4. **No regression:** FF16/K93 + TF24 double-path suites unchanged (the header is not yet
+   on any rate path).
+
+Gate harness: extend `scratchpad/tf24_cert.R` with a `leaf_output_parity` driver reading
+an operating-point `Leaf` and comparing. `code-review` over the diff before commit.
