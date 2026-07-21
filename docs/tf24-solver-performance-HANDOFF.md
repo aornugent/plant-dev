@@ -217,10 +217,24 @@ runnable on saved fields. Full result: `docs/tf24-ghost-validate-result.md`.*
      `u_min`, the 50–291× region). Only Anderson/Newton–Krylov on the small `a(t)+s` fixed
      point could work, which abandons WR's cheap-Picard appeal. Retired as posed. Full result:
      `docs/tf24-wr-contraction-result.md`. Probe hooks kept as documented diagnostics.
-   - **Surviving frontier — rung 2, executable now on saved fields (pure R):** goal-oriented
-     member placement + J certificate (the measure-axis "main event"; uses `g(τ)` + the
-     validated ghost, no new infra) — head of the queue. Then rung 3 (certified survival
-     crossings via ghost bisection in `τ_ins`).
+   - **Rung 2 (goal-oriented placement) — RUN and does NOT fund (2026-07-21).** Tested across
+     the measure-stressing bank scenarios (extended_drought, dry_to_wet, long_horizon,
+     whiplash). (i) The Oracle's hierarchical-surplus indicator is **anti-correlated** with
+     the J-error (Spearman −0.56…−0.86); error sits ~100% at small τ_ins (J's mass), not at
+     surplus peaks. (ii) g-mass placement doesn't robustly beat uniform (loses on the deep
+     long_horizon mesh). (iii) **Schedule-neutral convergence: J does not converge under
+     node-count refinement for ANY family** — successive deltas grow, families disagree
+     9–45% at 4×. This is the **survival-flip discontinuity** (refining moves which members
+     cross ρ→0), not a placement problem — nothing to place *toward*. Routes to **item B
+     (J mollification, model-side)** as the real measure-axis requirement, exactly as both
+     fundamentals Oracles said. Cheap DX side-win: the production **default schedule is badly
+     placed** (whiplash 847% off); plain uniform is 3–35× closer at matched count. Full
+     result: `docs/tf24-goal-placement-result.md`; scripts `goal_placement_{predict,test,converge}.R`.
+   - **Surviving ladder:** rung 3 (certified survival crossings via ghost bisection in
+     `τ_ins`), paired with the **rainfall-as-locator test** (drought windows in the known
+     forcing should predict the lineage-ages carrying survival crossings → free bracket).
+     **Item B (J mollification)** is now the identified measure-axis requirement but is a
+     model-side decision (survival-margin window width), not numerics.
    - **Model-side, logged not built:** Newton-on-`g` / the bordered-fold locator for the
      gradient seam (plant#60, updated this session with the exact `{F=0, ∂F/∂r=0}` system);
      J mollification; multi-block NaN-guard/growth-clip.
