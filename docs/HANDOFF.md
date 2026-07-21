@@ -213,6 +213,32 @@ leaf's regime branches, which the assembly currently collapses to the interior c
 change to one function, not a rewrite. Validation: certificate must be clean at life=4 (and ≥). Also
 resolves the `psi_crit` SEVERED footnote (same bound/shutdown channel)._
 
+_**►► CORRECTED ROOT CAUSE (session 10, later) — it is the SOIL-WATER FEEDBACK channel, not the leaf
+assembly. ◄◄** The regime-aware-ψ_stem fix above was **built and it was a NO-OP** (max|ad| byte-identical
+2.56e14): the `|E_column|<1e-6` bound detector is **never true** in the life=4 run (0 bound calls / 495826
+interior) — those bound-regime observations came from the FROZEN-p\* probe, a different path, so that
+diagnosis (and the joint-IFT one) were over-read from a non-representative probe. Direct measurement on
+the REAL active path settled it:_
+_• Interior p\* node denominator `P_pp` is **healthy** (min|P_pp|≈2.5, never near 0) — not a vanishing
+denominator._
+_• The **injected leaf partials are bounded and sane** across all 495826 calls: `max|d profit/d input|=9421`,
+`max|d uptake/d input|=3.03`. So the leaf assembly is NOT producing huge partials._
+_• **Killing the soil-water feedback channel** (zeroing the injected partials w.r.t. the `psi_soil` STATE
+inputs, `src==3`) drops `max|ad|` **2.56e14 → 3.05e5 (sane)**. Since the true `max|fd|`≈1.15e6 is ABOVE the
+killed value, the soil feedback is a **legitimate** gradient channel that AD **over-amplifies ~1e8**._
+_**Conclusion:** the leaf's soil-state coupling partials — `d(profit)/d(psi_soil)` and
+`d(soil_consumption_L)/d(psi_soil)` injected via `supplied_derivative` — are **bounded but WRONG**, and the
+soil-water ODE reverse sweep compounds the per-step error over the (dry, long) trajectory to 1e14. The bug
+is in how `assemble_leaf_from` differentiates the leaf outputs w.r.t. the soil-water state (the coupled
+re-optimisation response through `psi_soil`), NOT the p\* node, NOT the bound regime, NOT partial magnitude._
+_**Decisive next probe:** extend `scratchpad/leaf_assemble_sweep.cpp` to seed a `psi_soil` layer (not `kmax`)
+and compare the assembly's `d(uptake)/d(psi_soil)` + `d(profit)/d(psi_soil)` to a re-solve double leaf FD,
+across θ — the mismatch (present even in the interior, since life≤2 is clean only because soil barely moves
+there) names the exact wrong term. Then fix that term in `assemble_leaf_from`. All session-10 diagnostics
+(regime restructure, `TF24_LOG_PPP`, `TF24_LOG_PART`, `TF24_KILL_SOILFB`) were reverted — tree clean at
+`fa53480a` + the two doc commits; `scratchpad/leaf_assemble_sweep.cpp` kept as the probe. This is a
+multi-session structural fix; b1/#60 remains OPEN._
+
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
 `implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
