@@ -84,7 +84,15 @@ with T6. (Open-loop; ±κ caveat; one sequence.)
 - **Machinery:** 9a probe against a filtered replay field. Confirm closed-loop as a
   model variant where only `g` sees filtered `u`.
 
-### T5 — Heavy-atom splitting study (claim 4). *(a few forward solves)*
+### T5 — Heavy-atom splitting study (claim 4). **DROPPED (2026-07-21): premise falsified by T5a.** `tf24-v2-T5a-emergent-skewness-result.md`
+Max weight fraction ~1.6% (not ~40%) and ∝1/M — the measure has no dominant atom and
+τ_ins refinement subdivides it cleanly. Nothing heavy to split; do not build the cohort
+split. (Oracle conflated 9a's second-*species* weight fraction with a single *cohort*.)
+Consequence: 9c non-convergence is not granularity → T3 becomes the decisive fork
+(field-shift vs survivor-flip), and item B is re-opened. Bonus: the ~1.6% max weight makes
+the T3 frozen-field probe trustworthy (probe error is O(weight fraction)).
+
+### T5(orig) — Heavy-atom splitting study (claim 4). *(superseded above)*
 - **Question:** is τ_ins the wrong convergence axis? Skewness is emergent (max ρ_j
   ~0.3–0.4 at every density); refinement never splits heavy atoms. 9a shows a single
   atom's self-consistency matters at O(its weight fraction).

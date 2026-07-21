@@ -65,23 +65,46 @@ innocent, item B survives (the discontinuity is genuinely in the model).
   windows. So the same sequence is a prior for *both* where to split/place members *and*
   how coarsely to advance them. Untested (rung 3 / part of T5).
 
-## Premise check before building T5
+## UPDATE — the claim-4 leg is FALSIFIED (T5a), which redirects the whole plan
 
-T5's split machinery rests on the claim that **skewness is emergent** (max ρ_j ~0.3–0.4
-at every mesh density). Verified directly first (run N/2N/4N, read per-node weights):
-`scripts/tf24-benchmarks/emergent_skewness.R`, result appended below.
+Before building T5's split machinery I checked its premise directly (run N/2N/4N, read
+per-node weights: `emergent_skewness.R`, `tf24-v2-T5a-emergent-skewness-result.md`).
+**The premise is false.** The heaviest atom carries ~1.6% of the J-mass (not ~40%) and
+its fraction **halves each mesh doubling** (∝1/M) — the measure has no dominant atom and
+τ_ins refinement subdivides it cleanly. The Oracle conflated 9a's whole-second-**species**
+weight fraction (0.388) with a single **cohort** (~1.6%).
 
-## Status of the two remaining closers
+**So the reconciliation must be restated.** Two legs, one survives:
+- **T1 leg stands:** the coupling field `a*` is well-conditioned; the continuum exists.
+- **Claim-4 leg falls:** the non-convergence is **not** heavy-atom granularity, because
+  there is no heavy atom and the measure refines cleanly.
 
-- **T5 — heavy-atom splitting** (needs a measure-preserving mid-run cohort split;
-  cannot be faked with the frozen-field probe because probe error is O(weight fraction)
-  and heavy atoms are exactly where it fails — 9a: 63% error at 0.39). Decides item B.
-- **T4→T6 — the arbitrage** (Newton-on-g offline falsifier gates the cheap `a(u)`
-  refresh that realises the ~30–100× member-step arbitrage).
+**With granularity out and the field well-conditioned, the residual J-movement must be
+field-shift (κ-amplified feedback) and/or survivor-flips (members crossing ρ→0
+differently at different meshes).** The survivor-flip is precisely the intrinsic
+survival-boundary discontinuity rung 2 routed to **item B** — and T1 does NOT protect J
+from it (T1 conditions the field `a*`, not the moment across the boundary). **So item B
+is back on the table as a live cause**, and the reconciliation is no longer "T1 rescues
+the forward problem, fix is splitting." It is: **T1 says a limit exists; the question is
+whether the residual non-convergence is protocol (field-shift/placement) or intrinsic
+(survivor-flips = item B).**
 
-## Bottom line
+## Status of the remaining closers (revised)
 
-Arm 2's T1 **rescues the forward problem** from arm 1's "intrinsic discontinuity, needs
-a model change" verdict: the continuum J is well-posed, and 9c/rung-2 non-convergence is
-a fixable wrong-axis discretisation protocol. The benchmark bank and rainfall-prior fold
-into the two closers (T5, T6) rather than forming a separate track.
+- **T5 — heavy-atom splitting: DROPPED.** Premise falsified by T5a; nothing heavy to
+  split; do not build the cohort-split machinery.
+- **T3 — common-field ΔJ decomposition: now the DECISIVE test.** Splits the J-movement
+  into field-shift (protocol; placement/feedback — fixable in numerics) vs survivor-flips
+  (intrinsic; item B — model-side). This is the fork the line of work now turns on.
+- **T2 — insertion-transient audit:** still useful; a growing-with-density insertion mass
+  is another protocol candidate for the field-shift term.
+- **T4→T6 — the arbitrage:** independent of the above; Newton-on-g offline falsifier
+  gates the ~30–100× member-step arbitrage. Still live and high-value.
+
+## Bottom line (revised)
+
+T1 establishes the continuum J exists and is well-conditioned — that much rescues J from
+"intrinsically ill-posed." But T5a kills the Oracle's mechanism for the residual
+non-convergence (heavy atoms), so **whether 9c/rung-2 is fully protocol or partly item B
+is now genuinely open, and T3 is the test that settles it.** The default-schedule DX win
+and the rainfall-prior idea stand; the arbitrage path (T4→T6) is separate and live.
