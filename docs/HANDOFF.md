@@ -255,6 +255,20 @@ verified.** The next item is **step 2**:
    patch) across TF24 and TF24f. At step 6, also collapse the now-redundant spline-free algebra on `Leaf::` to
    delegate to `leaf_output::` (the ~1e-15 re-baseline is acceptable once the value path moves).
    The two pivots are validated in scratchpad (`leaf_pstar_node.cpp` 4a, `leaf_pstar_bound_node.cpp` 4b).
+   **►CORRECTION (session 9, `docs/p2c-leaf-adjoint-design.md` "Steps 5–6 — CORRECTION"): the design
+   above was incomplete.** `soil_uptake`'s `area_leaf` + root resistances (`r_R_H_min`, `r_R_V_sum`) are NOT
+   fixed geometry — they carry the height/a_r1/a_l1/a_l2/root_depth_shape_eta channel via `mass_root_prop`
+   (`leaf_model.cpp:261-284`, `tf24_strategy.cpp:378-393`). Passing them passive silently severs those
+   gradients (the FD seam captures them by full-leaf-rebuild). So the assembly must ALSO actively recompute
+   `eta_c(eta)`, `area_leaf(height,a_l1,a_l2)`, `mass_root_prop` (templated `CanopyShape::Q` — TF24's
+   `Q(double,double,double)` at `tf24_strategy.cpp` needs an active sibling), and `r_R_H_min`/`r_R_V_sum`
+   from active `mass_root_prop`, AND `leaf_output::soil_uptake` must be generalised so `area_leaf` + the two
+   resistance vectors are active `T` (grav_head_z, beta_R_H/V, dz stay double). Value-anchor every output:
+   `out = S(double_val) + (assembled − to_passive(assembled))`. Regime detector from the converged point (no
+   re-solve): `is_bound = |E_column(root_collar_psi_, psi_soil_inverted_, psi_crit)| < tol` (save/restore
+   `root_collar_psi_`+`E_up_`); in the bound regime `root_crit = root_collar_psi_`. This is a ~150-line
+   single-pass build — do it with fresh context. The full recipe (channel list + anchor + detector) is in the
+   design doc CORRECTION section.
 6. **Step 7 — gate:** rebuild TF24 Certificate B (`scratchpad/tf24_cert.R`, driver `ad_certificate.cpp`
    `tf24_allfield` committed) — all leaves intact, E4 gap closed. Then **P2d (TF24f)** reuses N_p\*.
 
