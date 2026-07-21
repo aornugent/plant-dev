@@ -208,11 +208,19 @@ runnable on saved fields. Full result: `docs/tf24-ghost-validate-result.md`.*
      mass→0. The ghost is an exact rare-invasion / marginal-member probe. **3 yr is
      pre-reproductive (J~1e-15); use ≥12 yr** (J~2.7e-7). Result +
      scripts: `docs/tf24-ghost-validate-result.md`, `scripts/tf24-benchmarks/ghost_{validate,massfrac}.R`.
-   - **Now runnable cheaply on saved fields (the rungs above):** goal-oriented placement +
-     J certificate (rung 2), certified survival crossings via ghost bisection (rung 3), and
-     the **windowed waveform-relaxation contraction test (rung 5 — the architectural swing
-     that removes the global max-norm and the O(M)-per-decision at once)**. These are the head
-     of the queue.
+   - **Rung 5 (WR contraction) — RUN and KILLED (2026-07-21).** Built the probe (plant
+     `0015c9fd`: `record_uptake` + `sweep_soil` + `overwrite_cached_soil`, off by default,
+     bit-identical, `test-mutant` green) and measured the Picard contraction of
+     `a→u→members→a` on saved fields. **κ ≈ 10 ≫ 1**, uniform across δ and across all six
+     2-yr windows (δ=0 round-trip sanity 1.1%). Plain/windowed/damped WR **diverges** — it is
+     the same ~10× coupling amplification already on record (members respond enormously near
+     `u_min`, the 50–291× region). Only Anderson/Newton–Krylov on the small `a(t)+s` fixed
+     point could work, which abandons WR's cheap-Picard appeal. Retired as posed. Full result:
+     `docs/tf24-wr-contraction-result.md`. Probe hooks kept as documented diagnostics.
+   - **Surviving frontier — rung 2, executable now on saved fields (pure R):** goal-oriented
+     member placement + J certificate (the measure-axis "main event"; uses `g(τ)` + the
+     validated ghost, no new infra) — head of the queue. Then rung 3 (certified survival
+     crossings via ghost bisection in `τ_ins`).
    - **Model-side, logged not built:** Newton-on-`g` / the bordered-fold locator for the
      gradient seam (plant#60, updated this session with the exact `{F=0, ∂F/∂r=0}` system);
      J mollification; multi-block NaN-guard/growth-clip.
@@ -288,8 +296,8 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `9b6eb3d`+ (this update) |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `b2f70dfa` (slim RK45 replay cache) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `c57bfc0`+ (this update) |
+| plant | `claude/tf24-multi-rate-stepper-n5audm` | `0015c9fd` (slim cache + WR contraction probe) |
 | odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged this session) |
 
 All three clean and pushed to `aornugent/*`. Open PRs: none (do not open without
