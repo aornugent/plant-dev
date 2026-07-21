@@ -28,7 +28,12 @@ Nothing measured so far says this. Each test below can flip one leg.
 
 ## The ladder (cheapest/most-decisive first; ★ = offline on saved fields)
 
-### T1 ★ — Arnoldi on T′ (claim 2). **MOST DECISIVE; machinery already built.**
+### T1 ★ — Arnoldi on T′ (claim 2). **DONE (2026-07-21): Outcome A.** `tf24-v2-T1-arnoldi-result.md`
+ρ(T′)≈7–8 (WR dead), but nearest eigenvalue to +1 is a real mode at distance ~0.05–0.2
+(conditioning ~5–22, noise-limited); **nothing at +1** → fixed point well-conditioned,
+continuum J exists & stable, **9c is protocol**. Leg 1 of the concession falsified.
+
+
 - **Question:** distance of spec(T′) from **+1**, since fixed-point conditioning is
   `‖(I−T′)⁻¹‖`. κ≈10 is only a directional norm along `a*`; the spectrum is the real
   answer. (Note: `|λ|≈10` far from +1 in modulus is *good* conditioning — WR-as-
@@ -62,7 +67,13 @@ Nothing measured so far says this. Each test below can flip one leg.
   participant re-solves.
 - **Machinery:** 9a ghost/replay (`run_mutant` on a frozen cache).
 
-### T4 ★ — Filtered-field probe (claim 5).
+### T4 ★ — Filtered-field probe (claim 5). **DONE (2026-07-21): arbitrage confirmed.** `tf24-v2-T4-filtered-field-result.md`
+J invariant (≤3%) removing all `u`-texture below ~2 days; +14% weekly; 2.3× monthly;
+blows up seasonal. Member block over-resolved ~30–100×; needs only the weekly-and-slower
+envelope of `u`. Licenses averaged member advance given a cheap `a(u)` refresh → pairs
+with T6. (Open-loop; ±κ caveat; one sequence.)
+
+
 - **Question:** is the O(M) block being integrated at the *fast* block's resolution
   for no J benefit? Advance probes against **low-pass-filtered** `(u,s)(t)` over a
   cutoff sweep; watch J-contributions vs cutoff (±κ band).

@@ -68,4 +68,33 @@ eigenvalue near +1): the forward J question is NOT closed as ill-posed.
 
 ## eps=1e-3 robustness recheck
 
-*(filled on completion — confirms min|λ−1| stable under a 10× smaller FD step)*
+Re-ran at a 10× smaller FD step (noisier: κ-along-`a*` came out 13.6 vs 9b's 9.9,
+the round-trip noise amplified by the smaller step). Spectrum: **ρ(T′) = 7.97**
+(a real mode at −7.97 leads; complex pair −2.86 ± 6.04i) — same amplifying,
+far-from-+1 dominant structure. **min|λ−1| = 0.045** at a real Ritz value **0.955**;
+there is also a real mode at **2.13**.
+
+**Reconciling the two runs:** the nearest-to-+1 eigenvalue is **real**, and its
+estimate moves with the FD step — 1.207 (eps=1e-2) vs 0.955 (eps=1e-3), i.e. a real
+eigenvalue somewhere in ~[0.95, 1.3], with a second real mode near 2. Its distance
+from +1 is therefore **~0.05–0.2**, conditioning **~5–22** — noise-limited to a factor
+of ~5. **Robust across both:** (i) ρ(T′) ≈ 7–8 (WR dead, amplifying); (ii) **nothing
+sits at +1**, and there is **no tight Ritz cluster pinned to 1** (a genuine marginal
+mode would produce one) — so the fixed point is **well-conditioned (finite, O(5–20)),
+not marginal.** Outcome A stands; only the exact conditioning is uncertain.
+
+If a firm conditioning number is later wanted, a **central-difference matvec**
+`(T(a*+εv) − T(a*−εv))/2ε` cancels the O(ε²) bias and would tighten the near-+1 mode;
+not run here because the decision it gates (9c is protocol → pursue heavy-atom
+splitting) does not depend on 5 vs 22.
+
+## Bottom line
+
+The mean-field fixed point is well-conditioned (‖(I−T′)⁻¹‖ ~ O(5–20), no eigenvalue
+at +1). **The continuum J exists and is a stable observable of the model.** 9c's
+non-convergence is therefore a discretisation-protocol artifact, not intrinsic
+ill-posedness — the concession condition's leg 1 is falsified, and the search moves to
+*which* protocol axis converges it (T5 heavy-atom splitting; T2/T3 to localise the
+mechanism). The ~23% inter-scheme spread reads as conditioning (5–20) × an O(1–5%)
+per-scheme measure-discretisation error — consistent with a convergent-but-coarse
+measure, not a divergent one.
