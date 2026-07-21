@@ -57,7 +57,15 @@ continuum J exists & stable, **9c is protocol**. Leg 1 of the concession falsifi
 - **Machinery:** reference run + per-insertion `u` before/after (needs a light probe;
   R-level if insertion times + cached `u` suffice, else a small plant hook).
 
-### T3 ★ — Common-field ΔJ decomposition (claim 3).
+### T3 ★ — Common-field ΔJ decomposition (claim 3). **DONE (2026-07-21): 100% field-shift, diffuse → protocol, not item B.** `tf24-v2-T3-common-field-decomp-result.md`
+Both intense_storms & whiplash: quadrature ~0% (J-moment converged at N), field-shift
+100% (κ-amplified feedback drops J 69–84%), diffuse (no survivor-flip spike), at small
+τ_ins. Resolves the fork: mesh non-convergence is a protocol problem in the field `a*`,
+fixable in numerics (resolve `a*` via a field/resolvent-weighted mesh) — **item B off the
+critical path.** Explains rung-2's g-mass anti-correlation (J's integrand already
+converged; error lives in the field). Concession condition fully falsified.
+
+
 - **Question:** split the 9–45% family disagreement into **quadrature-at-fixed-field**
   (placement genuinely matters) + **field shift** (κ-amplified feedback; placement
   innocent) + **survivor flips** (branch structure).

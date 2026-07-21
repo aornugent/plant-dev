@@ -101,10 +101,41 @@ whether the residual non-convergence is protocol (field-shift/placement) or intr
 - **T4→T6 — the arbitrage:** independent of the above; Newton-on-g offline falsifier
   gates the ~30–100× member-step arbitrage. Still live and high-value.
 
-## Bottom line (revised)
+## RESOLVED by T3 — the non-convergence is field-shift (protocol), not item B
 
-T1 establishes the continuum J exists and is well-conditioned — that much rescues J from
-"intrinsically ill-posed." But T5a kills the Oracle's mechanism for the residual
-non-convergence (heavy atoms), so **whether 9c/rung-2 is fully protocol or partly item B
-is now genuinely open, and T3 is the test that settles it.** The default-schedule DX win
-and the rainfall-prior idea stand; the arbitrage path (T4→T6) is separate and live.
+T3 (`tf24-v2-T3-common-field-decomp-result.md`) settles the fork on both sequences
+(intense_storms, whiplash — the latter carried 9c's 1532× spike): the mesh J-movement is
+**~0% placement/quadrature, 100% κ-amplified field-shift, diffuse (no survivor-flip
+spike), at small τ_ins.** So:
+- **Item B is off the critical path.** The survival-boundary discontinuity does not drive
+  the non-convergence; the 9c 1532× spike was a low-g lineage's *relative* error,
+  J-negligible. Rung-2's "intrinsic discontinuity → must mollify J model-side" is
+  **overturned.**
+- **The fix is numerical: converge the field `a* = ∫c dμ`.** J's own integrand is already
+  mesh-converged; the field (a c-weighted moment) is not, and feedback amplifies its
+  residual ~10× into J. The production default mesh is far from *field*-converged.
+- **Why g-mass placement anti-correlated (rung 2):** it targeted J's integrand, which is
+  converged; the error is in the field. The right indicator targets field convergence,
+  resolvent-weighted `(I−T′)⁻¹` — the Oracle's claim-1 proposal; T1's dominant modes are
+  those weights.
+
+## Final reconciliation (T1 + T5a + T3)
+
+- **T1:** field `a*` well-conditioned; continuum J exists and is stable.
+- **T5a:** measure refines cleanly (max weight ~1.6%, ∝1/M); no heavy atom (claim 4 wrong).
+- **T3:** mesh non-convergence is 100% field-shift (feedback), diffuse, at small τ_ins.
+
+**Both arms now meet cleanly.** Arm 1 (placement ladder) observed non-convergence and the
+badly-placed default; arm 2 explains it: the coupling **field** is under-resolved at the
+default mesh, and feedback amplifies the residual — a numerical protocol problem, not the
+intrinsic J-discontinuity arm 1 inferred. The default-schedule DX win stands (it's the
+field being coarse). The rainfall prior stands (drought windows shape the field). The
+arbitrage path (T4→T6, member block over-resolved in *time*) is orthogonal and live.
+
+## What remains
+- **The forward-convergence lever:** a field/resolvent-weighted member-mesh indicator
+  (target `a*` convergence, not `g`); T1's dominant modes supply the resolvent weights.
+  A multi-level (N→2N→4N) field-shift/Richardson read on `a*` would size the convergence
+  rate (T3 measured one N→1.5N step).
+- **The time-arbitrage:** T6 (Newton-on-g offline falsifier) gates the ~30–100× member
+  macro-step (T4).
