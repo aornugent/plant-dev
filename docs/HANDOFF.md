@@ -126,18 +126,54 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 9). **HEAD: plant `5eca2097` (P2c steps 4b + 5–6 DONE), odelia
-`16cff79` (unchanged). All clean, pushed.** This session (9): **P2c COMPLETE through step 6** —
-step 4b (bound N_p\* node) E4-verified, then steps 5–6 landed: the FD leaf seam is replaced by
-`TF24_Strategy::assemble_leaf_from` run on a per-call LOCAL tape with exact partials injected via
-`supplied_derivative` (a full active assembly on the run tape OOMs — the resident gradient records
-the whole run on one tape). **E4: every leaf channel now intact** (the previously severed
-a_r1/a_l1/a_l2/root_depth_shape_eta/curv_fact_*/K_s/eta flow); b1 blow-up gone; double path
-bit-identical (tf24/tf24f/ff16 green). Residual ~0.7% AD/FD ratio is a global reoptimise-vs-FD
-bias (on non-leaf channels like omega too), not a severance. See design doc "Steps 5–6 — DONE".
-**Next: step 7 (rebuild TF24 Certificate B) then P2d (TF24f reuses the leaf adjoint).** Optional
-cleanup: step-6 `Leaf::`→`leaf_output::` delegation deferred (would break bit-identity until a
-deliberate re-baseline)._
+_Last updated: 2026-07-21 (session 10). **HEAD: plant `fa53480a`, super `13c50eb`, odelia `16cff79`
+(unchanged). All clean, pushed.**_
+
+_**►► SESSION 10 — step 7 certificate RE-OPENS b1: the TF24 leaf adjoint is NOT correct at
+realistic patch lifetime. ◄◄** Session 9's "P2c COMPLETE through step 6 / b1 blow-up gone / every
+leaf channel intact" claim was **verified only at life=1 and is FALSE at life ≥ 3.** The step-7
+certificate (`scratchpad/tf24_cert.R`, now parallelised — see below) measured the reverse-AD
+gradient vs the pinned-schedule central FD across patch lifetime:_
+
+| life | ode_times | max\|ad\| | max\|fd\| | verdict |
+|---|---|---|---|---|
+| 1 | 128 | 5.23e5 | 5.26e5 | clean (32 intact, no BLOWN) |
+| 2 | 165 | 5.35e5 | 6.88e5 | **clean** |
+| 3 | 203 | **1.65e10** | 9.17e5 | blow-up begins |
+| 4 | 361 | **2.56e14** | 1.15e6 | total blow-up (all channels BLOWN) |
+| 10 | 1664 | — | — | reverse-AD run **OOMs** (>15 GB tape) |
+
+_**Findings (all measured, cross-checked):** (1) the blow-up is **AD-only** — the FD/double path
+stays sane and grows smoothly (5e5→1.15e6) throughout; per PART 1 that makes it a **real analytic
+derivative bug**, not a schedule/replay artifact. (2) Onset is **sharp** between life=2 (clean) and
+life=3 (1.65e10), then compounds to 2.56e14 at life=4 — the signature of **one near-singular node's
+adjoint** appearing once the patch dries enough for a cohort's leaf to cross the interior↔bound
+**fold**, then propagating to every seeded param through the coupled reverse sweep (all ratios
+~1e8–1e9, uniform). This is **plant#60 / b1, not closed** — `assemble_leaf_from`'s interior p\* node
+divides by `P_pp` (nested central-FD 2nd derivative of profit), which **→0 at the fold**; the
+`|E_column|<1e-6` regime detector and the nested-FD denominators are not robust across the
+transition. (3) Reproduced identically via the **monolithic** `tf24_allfield` (max\|ad\|=1.65e10 at
+life=3), so it is NOT a driver-refactor artifact. (4) **life=10 OOMs** in the reverse-AD run: the
+resident gradient records the whole SCM on one tape (~Σ steps × live cohorts × inputs); even with
+`supplied_derivative`'s per-step economy it exceeds 15 GB by life=10 — a separate real scaling limit
+(needs tape checkpointing / recompute-on-sweep, an odelia-level feature)._
+
+_**Certificate optimisation LANDED (plant `fa53480a`):** split the `ad_certificate.cpp` `sweep()`
+into a `do_ad` flag + explicit `fd_fields` subset, exposing `tf24_ad()` (one reverse sweep, all
+fields) and `tf24_fd(fields)` (central FD for a subset). The FD reference — `2·N` independent pinned
+SCM runs, the dominant cost — is now fanned across cores with `mclapply`; **verified bit-identical to
+the monolithic result** (`max|split-mono| = 0`, AD and FD). FD dropped 88.7s→22.9s at life=1 (3.9× on
+4 cores). `*_allfield` exports unchanged externally. `scratchpad/tf24_cert.R [life]` uses the parallel
+path (life defaults to 10; use life≤2 for a clean run, 3–4 to see the blow-up)._
+
+_**►► IMMEDIATE NEXT STEP: task #23 (plant#60 fold-IFT) — the leaf adjoint's p\* node must be made
+robust across the interior↔bound fold.** The clean life≤2 result shows the physiology/output channels
+are right; the failure is localised to the p\* pivot's derivative at the fold. Next diagnostic:
+instrument `assemble_leaf_from` to log per-compute_rates the selected regime + the node denominators
+(interior `P_pp`, bound `dF/dx`) at life=3, find the step where a denominator collapses, and design a
+fold-robust node (the design's anticipated bordered/root-find formulation, or clamping/switching with
+a wider detector band). This is a structural change — use `system-design` before building. P2d (TF24f)
+is blocked behind it (shares the pivot). Step 7 is NOT passed; b1/#60 is RE-OPENED._
 
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**

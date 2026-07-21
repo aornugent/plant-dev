@@ -505,7 +505,24 @@ stays; only its FD partials are replaced. (`leaf_profit_at_fixed_collar` still g
 `dprofit_droot_collar_psi` and `dsoil_consumption_dpsi_collar_perlayer` stay — TF24f's
 `solve_leaf` uses the former for the acclimation rate and the latter is called inside it.)
 
-## Steps 5–6 — DONE (2026-07-21, plant `5eca2097`)
+## ⚠ Steps 5–6 — the "DONE" below was PREMATURE; step 7 re-opens b1 (2026-07-21, session 10)
+**The "E4: every leaf channel intact / b1 blow-up gone" claim in the block below was verified only
+at life=1 and is FALSE at life ≥ 3.** The step-7 certificate (`scratchpad/tf24_cert.R`, now
+parallelised) measured the reverse-AD gradient vs the pinned central FD across patch lifetime: clean
+at life 1–2 (max|ad|≈max|fd|≈5e5), then the **AD gradient blows up** — life=3 max|ad|=1.65e10,
+life=4 max|ad|=2.56e14 (all channels BLOWN), life=10 the reverse run OOMs (>15 GB tape). The FD/double
+path stays sane throughout, so this is a **real analytic derivative bug (b1 / plant#60, NOT closed)**,
+not a replay artifact; reproduced identically via the monolithic `tf24_allfield`. The onset is sharp
+(life 2→3), uniform across all channels (ratios ~1e8), and matches a **near-singular p\* node at the
+interior↔bound fold**: `assemble_leaf_from`'s interior node divides by `P_pp` (nested-FD 2nd
+derivative of profit) which →0 at the fold, and the `|E_column|<1e-6` regime detector is not robust
+across the transition. **Next: task #23 (plant#60 fold-IFT) — make the p\* node fold-robust; use
+`system-design` first.** The physiology/output channels are correct (clean at life≤2); only the p\*
+pivot derivative fails at the fold. The build below stands as-is; what is wrong is the *verification
+claim*, corrected here and in `docs/HANDOFF.md` (session 10). The certificate-driver parallelisation
+(plant `fa53480a`) is the reusable tool that revealed this.
+
+## Steps 5–6 — DONE (2026-07-21, plant `5eca2097`) — see the ⚠ correction above; "E4 intact" holds only at life≤2
 Built as the second correction prescribed. `TF24_Strategy::assemble_leaf_from` re-assembles the
 leaf carbon profit + per-layer soil uptake as active scalars from a local `pars` copy + local
 height/light/soil-ψ, anchored at the converged double leaf; `net_mass_production_dt`'s reverse
