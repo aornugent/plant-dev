@@ -151,3 +151,45 @@ to plain stationarity and the regime detector becomes dead weight — hands to a
    `dsoil_consumption_dpsi_collar_perlayer` (R3).
 7. **gate** — rebuild Certificate B for TF24 (`scratchpad/tf24_cert.R`, driver committed):
    all leaves intact, E4 gap closed. Then P2d (TF24f) reuses N_p\*.
+
+---
+
+# Addendum — the environment as a differentiation source (step 0, expanded)
+
+Step 0 was originally scoped as a passive config crossing (fix the R5 assert). It is
+expanded here: the environment becomes a **differentiation source** — its physical soil
+params and its soil-water ODE state become seedable AD inputs.
+
+## The shape (Pólya, two witnesses: strategy + environment)
+The environment is made differentiable by the *same* mechanism a strategy already uses —
+not a new concept. The `double`/passive-env special case dies.
+- **Promote the four rate-path physical soil params to `S`** — `soil_moist_sat`, `K_sat`,
+  `a_infil`, `b_infil` — in an `ENV_AD_FIELDS` X-macro with `field_ptrs()` (mirrors
+  `TF24_AD_FIELDS`). `a_psi`/`n_psi` are skipped (marked "not currently used", not on the
+  rate path — no witness). `soil_number_of_depths` stays passive (discretization, never a
+  gradient). `depth` stays passive for now (moving-mesh derivative — **plant#64**).
+- **`Environment::ad_parameters()`** → the promoted params; **`Environment::ad_initial_state()`**
+  → the soil-water state handles (first `soil_number_of_depths` entries of `vars.states`).
+- **`Patch::ad_parameters()`** = `[species₀..speciesₙ params, env params]`;
+  **`Patch::ad_initial_state()`** = `[env soil-state layers]` (replaces the `{}` stub).
+- **Crossing:** `rebind_from` widens the promoted params (`double`→`S`, via `field_ptrs`);
+  `copy_config_from` crosses `soil_number_of_depths` + the grid (`z`/`z_mid`/`dz`) + `depth`
+  as passive config.
+
+## The one new invariant — the flat index contract
+`DifferentiationTargets` column order (AUTODIFF: params-then-ics) becomes, for a Patch:
+`params = [species params…, env params…]`, `ics = [env soil-state layers…]`. Documented at
+`Patch::ad_parameters`/`ad_initial_state` so a name→index resolver cannot transpose columns
+silently. This is the only genuinely new concept the addendum adds; it is the composition
+rule for two param sources, held by the concatenation order in one place.
+
+## Why this fits the commitment
+It reuses `PLANT_DIFFERENTIABLE` / `rebind_strategy_fields` / `field_ptrs` wholesale — the
+env stops being a special case, a net concept reduction. The soil state is already `S` and
+already in the SCM ODE system (`ode_size = node_ode_size + environment.ode_size()`), so the
+IC path is exposing existing state as seedable, not new integration.
+
+## Verify
+Soil-state IC gradient and the four soil-param gradients vs a re-optimising FD on a real
+transpiring patch (same E4 discipline as the leaf). This is independent of the leaf-adjoint
+steps 1–6 and can land first.
