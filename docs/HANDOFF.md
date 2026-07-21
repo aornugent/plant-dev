@@ -126,17 +126,17 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-20 (session 5). **HEAD: plant `33d2c982`, superrepo `b39cf09`, odelia `16cff79`
-(unchanged — all plant-side). All clean, pushed.** This session: **the FF16 multivariate census gradient
-(P2b-5)** — `Species::census<Ψ>`, the design's §8 population-reduction operator (`compute_competition` is now
-its self-shading member); FF16 LAI/biomass/basal-area as per-individual Ψ; `census_vector` codomain-3 via
-`scm_jacobian` (one recording → three sweeps, gradients match adaptive FD ~1e-5). **odelia#46 CLOSED** — the
-competition field consumes mass `exp(λ)` directly, so it can no longer overflow at tiny-but-nonzero spacing
-(value-identical; certified gradients unchanged). **P2b-cleanup (#6) done** — dead SFINAE trait + orphaned
-probes removed. Full detail in the **SESSION 5 block** below (just under IMMEDIATE NEXT STEP). Sessions 3–4
-(resident FF16+K93 remediation; the run-shaped `scm_gradient`/`scm_jacobian` entry with the completed
-`rebind_from` contract and `set_schedule`/`recorded_steps` unification) are the foundation this builds on —
-see `docs/build-plan.md` P2b-3 "LANDED"/"UNIFIED"._
+_Last updated: 2026-07-21 (session 6). **HEAD: plant `ac1eaecc`, superrepo `6556c8a`, odelia `16cff79`
+(unchanged — all plant-side). All clean, pushed.** This session: **scoped and started P2c (correct resident
+reverse-mode AD gradients for TF24/TF24f)**. Landed: (1) the **P2c leaf-adjoint design** (`docs/p2c-leaf-adjoint-design.md`)
+— the committed shape is *evaluate-at-converged-point + IFT nodes*: the leaf solver stays `double`, `S` is
+carried only by a closed-form output map and by each solved root as an `implicit_value` node (N_ci, N_psistem,
+N_p\*), with **N_p\* a regime-detector fold node** on the plant#60 branch-death condition `{F=0, ∂F/∂ci=0}`;
+(2) **P2c step 0 DONE + verified** — the TF24 environment is now a differentiation source (soil physics as AD
+leaves, soil-water ICs seedable, the double→active crossing complete). **b1 diagnosis:** the ~1e30 blow-up is
+the FD `supplied_derivative` seam finite-differencing across the plant#60 corner — b1 and #60 are one root
+cause, and P2c's exact IFT node removes both. Full detail in the **SESSION 6 block** below. Session 5 (P2b-5
+census + odelia#46) and sessions 3–4 (resident FF16+K93 + the run-shaped entry) are the foundation._
 
 ## WHAT SESSION 4 DID (the run-shaped gradient entry + odelia co-design) — foundation for session 5
 All plant-side. Double path bit-identical; entry + AD gradient + double-path suites green (the one TF24
@@ -170,14 +170,66 @@ failure, `SCM cohort-density blow-up #550`, is pre-existing and unrelated — de
 bespoke driver 1e-6; K93 vs the certificate AD 1e-6 — and the reoptimising/model FD).
 
 ## ►► IMMEDIATE NEXT STEP (start here) ◄◄
-"Finishing Phase 2." Resident FF16+K93 gradients are certified with a clean run-shaped entry; **P2b-5 (the
-FF16 multivariate census) and P2b-cleanup (#6) are DONE** (session 5), and **odelia#46 (competition-field
-overflow) is closed**. The remaining Phase-2 item is **b1** — everything else is deferred by decision. Next:
-1. **b1 (task #17) — TF24 reverse-AD blow-up** (~1e25–1e32 vs sane FD). BLOCKER for P2c/P2d (TF24/TF24f). A
-   distinct, larger track (Leaf `supplied_derivative` seam partials / reverse over the stiff soil ODEs /
-   tape-rebind). The R5 assert in the entry now gives a clean tripwire; TF24's env-soil-config crossing also
-   needs finishing before a TF24 gradient (see build-plan). NOTE odelia#46's field overflow is now removed, so
-   if the TF24 blow-up ever touched the reconstructed density it no longer does — measure, don't assume.
+"Finishing Phase 2" = correct resident reverse-mode AD gradients for **TF24 and TF24f**. The plan is settled
+and recorded: **`docs/p2c-leaf-adjoint-design.md`** (read it first — the design + the env addendum + the
+verification record). **P2c step 0 (env as a differentiation source) is DONE + verified.** The next item is
+**P2c step 1 — the bulk of the work**:
+1. **Step 1 — `S`-template the leaf output map.** Scalar-template the leaf's assim (colimited/rubisco/
+   electron/electron_transport/arrhenius), `hydraulic_cost_TF`, `profit_psi_stem_TF`, `stom_cond_CO2`, and the
+   soil uptake as an `incomplete_gamma<S>` closed form. **Critical (Refinement 2 in the design):** replace the
+   *param-dependent spline relations* with `S` closed-forms — the vulnerability curve via `root_b`/`root_c`,
+   the transpiration relation via `b`/`c`/`K_s` — because the double `Leaf` cannot carry those derivatives.
+   The double *solver* (`golden_section_max`/`uniroot`) stays `double`; only the residual + output algebra
+   carry `S`. FF16/K93 already exercised the templating mechanics.
+2. **Steps 2–4 — the IFT nodes.** N_ci + N_psistem via `implicit_value`; **N_p\*** the regime-detector fold
+   node (interior ⇒ `∂profit/∂p*=0`; on `bound_b` ⇒ `{F=0,∂F/∂ci=0}`, `dp*/dstate=−g_state/g_p`). N_p\* is the
+   hard core; `g=∂F/∂ci` must be an `S` closed-form. **Note the fold caveat:** a naïve `implicit_value` on the
+   ci residual divides by `dF/dci→0` at the fold and re-blows-up — hence the bordered condition.
+3. **Steps 5–6 — soil active coupled state (mostly already `S`); delete the FD `supplied_derivative` seam** +
+   `leaf_profit_at_fixed_collar` + `dprofit_droot_collar_psi` + `dsoil_consumption_dpsi_collar_perlayer`.
+4. **Step 7 — gate:** rebuild TF24 Certificate B (`scratchpad/tf24_cert.R`, driver `ad_certificate.cpp`
+   `tf24_allfield` committed) — all leaves intact, E4 gap closed. Then **P2d (TF24f)** reuses N_p\*.
+
+**b1 is diagnosed, not a separate track:** the ~1e30 blow-up IS the FD seam differencing across the plant#60
+corner (`Leaf` is entirely `double`; the only reverse-tape path is that FD seam). P2c's exact IFT node removes
+b1 and #60 together. plant#60 is IN SCOPE (the leaf adjoint is ours); its E4 verification (adjoint vs a
+re-optimising FD on a real transpiring patch) is the correctness reference for steps 1–6.
+
+## ►► SESSION 6 — P2c scoped + step 0 (env differentiation source) DONE ◄◄
+Final HEAD plant `ac1eaecc`, superrepo `6556c8a`; odelia unchanged (`16cff79`). All plant-side.
+- **P2c design (`docs/p2c-leaf-adjoint-design.md`).** System-design search over the TF24 leaf adjoint. The
+  `Leaf` (`leaf_model.cpp`, 1490 lines) is entirely `double`; the only reverse-tape path is an FD
+  `supplied_derivative` seam that central-differences leaf profit at frozen `p*`. **b1 root cause:** in the
+  soil-coupled patch the operating point sits on the plant#60 **fold** (profit jumps ~1.5 at `p*`), so the
+  seam FDs across a discontinuity → partials ≈ jump/step ≈ 1e6 → ~1e30 after the SCM reverse sweep. gate0
+  (single plant, fixed env, away from the corner) is green — the blow-up is corner-specific. **Winner
+  (committed):** *evaluate-at-converged-point + IFT nodes* — leaf solver stays `double`; `S` carried only by a
+  closed-form output map + `implicit_value` nodes at each solved root; N_p\* a **regime-detector fold node**.
+  Commitment kept true by structure: `golden_section_max`/`uniroot` are `double`-typed, so the iteration
+  cannot reach the tape. Worklist steps 0–7 in the doc (see IMMEDIATE NEXT STEP).
+- **plant#60 escalated + in scope.** Read the issue's 3 comments: the operating point is an active-constraint
+  **corner** (`∂P/∂p≈−8.8≠0`, a ci-branch switch), so the frozen-p\* seam is O(1) wrong through the value
+  channel too; the original `−P_{p,ψ}/P_{pp}` fix is invalid (P_pp undefined at a corner) — superseded by the
+  IFT node on the fold `{F=0,∂F/∂r=0}` (two Oracles converged; locus smooth, slope −1.0004). E4 (adjoint vs a
+  re-optimising FD on a real transpiring patch) is the correctness reference. The leaf adjoint is OURS on this
+  branch, so #60's fix = P2c step 4. **plant#64 filed:** `depth` as an AD param needs a moving-mesh derivative
+  (it sets the grid) — deferred; `depth` crosses as passive config for now.
+- **P2c step 0 DONE + verified — the environment is a differentiation source.** Base `Environment_` gained the
+  odelia System hooks (`ad_parameters`/`ad_initial_state`/`copy_config_from`; empty defaults for FF16/K93).
+  TF24 env: the six rate-path soil params (`soil_moist_sat`, `K_sat`, `a_psi`, `n_psi`, `a_infil`, `b_infil`)
+  promoted to `S` AD leaves (`TF24_ENV_AD_FIELDS`); `ad_initial_state` exposes the per-layer soil-water state
+  as seedable ICs; `copy_config_from` crosses the passive soil geometry (guarded resize). `Patch::ad_parameters`
+  composes `[species params, env params]` (58 = 52+6, a documented column-order contract); `ad_initial_state`
+  returns the 5 soil layers. `SCM::rebind_from` crosses the env (config + param widening). **Verified:**
+  composition correct; crossed env **bit-identical** to fresh in every config member; **R5 no longer trips for
+  TF24** (short-life; gradient still garbage via the un-fixed leaf seam — expected, steps 1–6); FF16/K93 entry
+  gradient + census regressions green. (`a_psi`/`n_psi` promoted after finding the "not currently used"
+  comment stale — they ARE on the drainage/retention path. An earlier "0.17% crossing discrepancy" was a
+  flawed reference — a fresh SCM pinning L1 onto unrefined L0 — not a bug.)
+- **Diagnostic harness rebuilt:** `scratchpad/tf24_cert.R` (TF24 Certificate B; driver `ad_certificate.cpp`
+  `tf24_allfield`/`tf24_field_names` committed) — its FD is the E4 re-optimising reference. `scratchpad/` is
+  now gitignored (ephemeral). The `field_values` bridge: `unlist(add_strategies(scm_base_parameters("TF24"),
+  trait_matrix(lma,"lma"),birth_rate=20)$strategies[[1]]$pars)[tf24_field_names()]`.
 
 ## ►► SESSION 5 — P2b-5 census + odelia#46 + #6 cleanup (DONE, LANDED) ◄◄
 Final HEAD plant `33d2c982`, superrepo `b39cf09`; odelia unchanged (`16cff79`). All plant-side. (Landed across
