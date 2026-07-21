@@ -295,3 +295,17 @@ seam deletion is step 6.
 
 Gate harness: extend `scratchpad/tf24_cert.R` with a `leaf_output_parity` driver reading
 an operating-point `Leaf` and comparing. `code-review` over the diff before commit.
+
+## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
+`plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport
+/ colimited assim / Weibull conductivity + `cumulative_vuln` via `incomplete_gamma` /
+transpiration / stom-cond / `hydraulic_cost_TF` / `soil_uptake`). The two forward-AD
+helpers moved up from `leaf_model.cpp`'s anonymous namespace; `dprofit_droot_collar_psi`
+calls the migrated ones. **Value parity** at the converged double operating point
+(`scratchpad/leaf_output_parity.cpp`): profit / assim / cost / vcmax / jmax / et to
+~1e-15 (spline-free algebra, bit-identical); transpiration / stom-cond / E_up / per-layer
+uptake to ~1e-9 (the ~100-knot spline's own bias — the closed form is exact). Regressions
+green: leaf 214, TF24 46, TF24f 57, FF16 53+17; double path bit-identical. Not yet on any
+rate path. **code-review: approve** — one deferred note (the spline-free algebra now lives
+both on `Leaf::` and in `leaf_output::`; pre-existing duplication, collapse deferred to
+step 6 to preserve step-1 bit-identity). **Next: step 2 (N_ci `implicit_value`).**
