@@ -193,12 +193,31 @@ path bit-identical.
 **Result:** the blow-up is gone. life=3 `max|ad|` 1.65e10 → **3.71e5**; life=4 2.56e14 → **5.31e5**
 (vs `max|fd|` 9.2e5 / 1.15e6); no BLOWN class.
 
-**Residual [measured, OPEN]:** `max|ad|` ≈ 5.3e5 vs `max|fd|` ≈ 1.15e6 (~2×, most fields now PARTIAL).
-The probe's wet-layer rows (3,4) show a *second* error the sign flip does not fix: those partials are
-undersized ~9–58× and not a clean sign flip — consistent with the **non-separable cross-layer uptake
-coupling** (perturbing one layer redistributes uptake across the others; the per-layer assembly
-mis-derives it). This is the next target, and it is a leaf-adjoint issue in `assemble_leaf_from`, still
-NOT the chart.
+**Residual [measured, OPEN] — localised precisely.** After the sign fix: certificate life=1 clean
+(~0.99); life=2 PARTIAL (~0.75–0.92, right sign); life=4 `max|ad|` 5.3e5 vs `max|fd|` 1.15e6 (~0.46,
+signs now mixed). Re-running the per-call diagnostic (post-fix) pins it:
+
+| layer | psi_soil | profit inj/fd (ratio) | uptake inj/fd (ratio) |
+|---|---|---|---|
+| 0 | 0.272 | −2.325 / −2.325 (1.0) | (1.15) |
+| 1 | 1.500 | −0.114 / −0.123 (0.92) | (1.0) |
+| 2 | 0.740 | −0.035 / −0.035 (1.0) | (1.0) |
+| 3 | 0.222 | −0.0128 / **+0.114** (−0.11) | (1.0) |
+| 4 | 0.132 | −0.0036 / **+0.209** (−0.017) | (1.0) |
+
+**The per-layer `uptake` partials are now ALL correct (ratio 1.0)** — the sign fix fully fixed them.
+The residual is only in the **profit** partial, and only for the **wet deep layers (3,4)**: they have
+*tiny* uptake sensitivity (~1e-6) yet a *large positive* profit FD (+0.11, +0.21). So profit's
+sensitivity to a wet layer flows **not through that layer's uptake but through the collar
+re-optimisation (the p\* channel)** — which the assembly mishandles for weakly-coupled layers. By the
+envelope theorem this p\* channel should be ~0; the fact that the re-solve FD sees it large means the
+leaf is **not at a stationary interior optimum** there (flat / near-fold), so either the interior p\*
+node's `dp*/dpsi_soil` is wrong OR the single-leaf re-solve FD is itself noisy at the flat optimum
+(**not yet disambiguated — do not over-conclude**). This is a leaf-adjoint issue (the p\*/envelope
+channel), still NOT the chart. Next: (a) h-sweep the single-leaf FD for L=3,4 to test if it is a real
+plateau or noise; (b) check `dprofit/dp*` at those operating points (stationary or not); (c) if real,
+fix the p\* channel's `dp*/dpsi_soil` for weakly-coupled layers. The SCM-level residual (0.46, from the
+trusted pinned FD) is real regardless of (a).
 
 **Correction to my earlier framing:** the "chart misspecification / near-singular discrete trajectory /
 possibly the same as the forward step-collapse" reading in §5 was NOT the cause of this blow-up. The

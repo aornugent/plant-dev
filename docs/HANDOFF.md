@@ -284,6 +284,20 @@ per-layer assembly. Next: characterise + fix that residual in `assemble_leaf_fro
 after the sign fix to see which layers remain off), then re-certify. Still a leaf-adjoint issue, NOT the
 chart; do not link to forward-side / #60 / #62 without the empirical linkage test._
 
+_**►► RESIDUAL LOCALISED (post sign-fix, per-call `TF24_LEAFFD`).** life=1 clean (~0.99) confirms the
+sign fix is right; life=2 ~0.75–0.92 (right sign); life=4 max|ad|≈5.3e5 vs max|fd|≈1.15e6 (~0.46, mixed
+signs). The per-call probe: **the per-layer `uptake` partials are now ALL correct (ratio 1.0)** — the
+sign fix fully fixed them. The residual is ONLY the **profit** partial, ONLY for the **wet deep layers
+(3,4)**: those layers have tiny uptake sensitivity (~1e-6) but a large positive profit FD (+0.11/+0.21),
+so profit's sensitivity to a wet layer flows through the **collar re-optimisation (p\* channel)**, which
+the assembly mishandles for weakly-coupled layers. Envelope says the p\* channel should be ~0; the FD
+sees it large → the leaf is **not at a stationary interior optimum** there (flat/near-fold). NOT
+disambiguated whether it is a real p\*-node `dp*/dpsi_soil` error or single-leaf-FD noise at the flat
+optimum — DO NOT over-conclude. Next diagnostics: (a) h-sweep the single-leaf FD for L=3,4 (plateau vs
+noise); (b) check `dprofit/dp*` there (stationary?); (c) if real, fix the p\* channel. The SCM-level 0.46
+residual (trusted pinned FD) is real regardless. Full detail in
+`docs/tf24-numerical-formulation-and-misspecification.md` §6b._
+
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
 `implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
