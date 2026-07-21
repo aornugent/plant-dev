@@ -126,16 +126,18 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 7). **HEAD: plant `27ca7bdd`, superrepo `a4e3e03`, odelia `16cff79`
-(unchanged — all plant-side). All clean, pushed.** This session (7): **P2c step 1 DONE** — the `S` leaf
-output map (`plant::leaf_output` in `leaf_model.h`). Session 6 scoped P2c and did step 0. The committed P2c
-shape (`docs/p2c-leaf-adjoint-design.md`) is *evaluate-at-converged-point + IFT nodes*: the leaf solver stays
-`double`, `S` is carried only by a closed-form output map and by each solved root as an `implicit_value` node
-(N_ci, N_psistem, N_p\*), with **N_p\* a regime-detector fold node** on the plant#60 branch-death condition
-`{F=0, ∂F/∂ci=0}`. **b1 diagnosis:** the ~1e30 blow-up is the FD `supplied_derivative` seam finite-differencing
-across the plant#60 corner — b1 and #60 are one root cause, and P2c's exact IFT node removes both. Steps 0–1
-DONE; step 2 (N_ci) is next. Full detail in the **SESSION 7 block** below (then SESSION 6). Session 5 (P2b-5
-census + odelia#46) and sessions 3–4 (resident FF16+K93 + the run-shaped entry) are the foundation._
+_Last updated: 2026-07-21 (session 7). **HEAD: plant `efe624e4`, superrepo `620e939`, odelia `16cff79`
+(unchanged — all plant-side). All clean, pushed.** This session (7): **P2c steps 1–3 DONE + step 4 grounded.**
+Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
+`implicit_value` nodes (both gate0-verified), and an empirical **p\* regime map** that de-risks step 4 before
+coding. Session 6 scoped P2c and did step 0. The committed P2c shape (`docs/p2c-leaf-adjoint-design.md`) is
+*evaluate-at-converged-point + IFT nodes*: the leaf solver stays `double`, `S` is carried only by a closed-form
+output map and by each solved root as an `implicit_value` node (N_ci, N_psistem, N_p\*), with **N_p\* a
+regime-detector fold node** on the plant#60 branch-death condition `{F=0, ∂F/∂ci=0}`. **b1 diagnosis:** the
+~1e30 blow-up is the FD `supplied_derivative` seam finite-differencing across the plant#60 corner — b1 and #60
+are one root cause, and P2c's exact IFT node removes both. **Steps 0–3 DONE; step 4 (N_p\*, the fold) is next
+— START HERE.** Full detail in the **SESSION 7 block** below (then SESSION 6). Session 5 (P2b-5 census +
+odelia#46) and sessions 3–4 (resident FF16+K93 + the run-shaped entry) are the foundation._
 
 ## WHAT SESSION 4 DID (the run-shaped gradient entry + odelia co-design) — foundation for session 5
 All plant-side. Double path bit-identical; entry + AD gradient + double-path suites green (the one TF24
@@ -194,7 +196,12 @@ verified.** The next item is **step 2**:
    naïve `implicit_value` on the ci residual with `y=ci` divides by `dF/dci→0` at the fold — that's why N_p\*
    uses the bordered condition, NOT the plain ci residual. Verification: E4 (adjoint vs a re-optimising FD on
    a real transpiring patch, plant#60), not just an isolated node gate. N_ci/N_psistem feed it (ci and ψ_stem
-   at the chosen p*).
+   at the chosen p*). **The regime map is already grounded** (design doc "Step 4 grounding" +
+   `scratchpad/leaf_pstar_regime.cpp`): the **interior stationarity regime dominates** the wet range, so build
+   that node first (`G(p*)=dprofit/dp*=0`; `Leaf::dprofit_droot_collar_psi` already computes `G` in double and
+   is the FD check), verify against the `dp*/dθ` E4 targets, THEN add the bordered-fold branch for the narrow
+   BOUND band, selected by `|dprofit/dp*|<tol`. Then step 5–6: assemble N_p\*→N_psistem→N_ci→output map, wire
+   into `net_mass_production_dt`, delete the seam.
 5. **Steps 5–6 — soil active coupled state (mostly already `S`); delete the FD `supplied_derivative` seam** +
    `leaf_profit_at_fixed_collar` + `dprofit_droot_collar_psi` + `dsoil_consumption_dpsi_collar_perlayer`. At
    step 6, collapse the now-redundant spline-free algebra on `Leaf::` to delegate to `leaf_output::` (deferred
@@ -207,10 +214,14 @@ corner (`Leaf` is entirely `double`; the only reverse-tape path is that FD seam)
 b1 and #60 together. plant#60 is IN SCOPE (the leaf adjoint is ours); its E4 verification (adjoint vs a
 re-optimising FD on a real transpiring patch) is the correctness reference for steps 1–6.
 
-## ►► SESSION 7 — P2c steps 1–3 (S output map + N_ci + N_psistem) DONE ◄◄
-Final HEAD plant `efe624e4`, superrepo `958529d`; odelia unchanged (`16cff79`). All plant-side. Steps 1–3
-of P2c landed; step 4 (N_p\*, the fold) is next. Gate drivers in `scratchpad/` (gitignored):
-`leaf_output_parity.cpp` (step 1), `leaf_ci_node.cpp` (step 2), `leaf_psistem_node.cpp` (step 3).
+## ►► SESSION 7 — P2c steps 1–3 (S output map + N_ci + N_psistem) DONE + step 4 grounded ◄◄
+Final HEAD plant `efe624e4`, superrepo `620e939`; odelia unchanged (`16cff79`). All plant-side. Steps 1–3
+of P2c landed; step 4 (N_p\*, the fold) grounded and next. Gate/probe drivers in `scratchpad/` (gitignored):
+`leaf_output_parity.cpp` (step 1), `leaf_ci_node.cpp` (step 2), `leaf_psistem_node.cpp` (step 3),
+`leaf_pstar_regime.cpp` (step-4 grounding). **Build recipe reminder:** header edits force a near-full
+recompile — `rm -f plant/src/*.o plant/src/*.so && R CMD INSTALL plant --no-multiarch --no-docs` (~3 min, run
+from `/home/user/plant-dev` with an explicit `cd`); sourceCpp drivers use the
+`PKG_CXXFLAGS`/`PKG_LIBS` bridge (see the driver-run one-liners in the scratchpad, or PART 1 build tax).
 - **Step 2 — N_ci** (`leaf_output::ci_node`, `leaf_model.h`). `implicit_value` on the ci supply=demand
   residual; denom `dg/dci=A′·umol_to_mol+gc·inv_atm>0`. Gate0: `dci/dvcmax_25` (photosynthesis channel via A)
   and `dci/dgc` (stomatal-supply channel) vs central FD of the re-solved ci root to ~1e-10.
@@ -221,6 +232,14 @@ of P2c landed; step 4 (N_p\*, the fold) is next. Gate drivers in `scratchpad/` (
   must call `odelia::incomplete_gamma<T>` explicitly — the two args are XAD expression templates at an active
   type, undeducible to one `S` (double has none, so it only surfaced at the reverse scalar). Value-identical
   at double.
+- **Step 4 grounded — the p\* regime map** (`scratchpad/leaf_pstar_regime.cpp`; evidence recorded in the
+  design doc's "Step 4 grounding" section). Soil-moisture sweep with detector `|dprofit_droot_collar_psi(p*)|`
+  and E4 = re-optimising FD `dp*/dθ`: **interior stationarity dominates the wet range** (`dprofit/dp*≈0`,
+  18/24 points — the gate0-green case); a **narrow BOUND/fold band at the dry transition** (θ≈0.12–0.15,
+  `dprofit/dp*`=0.9–4.3, `dp*/dθ`≈−120 — the plant#60/b1 regime, but `dp*/dθ` is **finite**: the b1 blow-up was
+  the seam differencing the profit *jump*, not a singular `dp*/dθ`); **shutdown below** (`decide()` early-exits).
+  The `|dprofit/dp*|<tol` detector separates interior vs bound cleanly. The `dp*/dθ` column is the E4 target
+  N_p\* must reproduce.
 - **Nodes are off the rate path** (only the scratchpad drivers instantiate them at active types). The seam is
   untouched; steps 4–6 assemble N_p\*→N_psistem→N_ci→output map and wire+delete the seam at step 6.
 
