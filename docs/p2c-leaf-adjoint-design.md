@@ -464,15 +464,46 @@ included). An analytic assembly that passes the resistances/area passive **silen
 recompute (all closed-form, no splines): `eta_c(pars.eta)`, `area_leaf((height,a_l1,a_l2))`,
 `mass_root_prop` (active `Q`), and `r_R_H_min`/`r_R_V_sum` from active `mass_root_prop`. And
 **`leaf_output::soil_uptake` must be generalised** so `area_leaf` and the two resistance vectors
-are the active `T` (currently `double`) — the last passive-`double` seam in the uptake path. The
-`double` instantiation stays bit-identical (R2). The physiology channel (vcmax/jmax/et/R_d via
-`peak_arrh_curve`/`electron_transport`, k_max via `K_s·theta/(height·eta_c)`, b/c/psi_crit/g1/beta2/
-curv_colim) is unchanged from the design above. Value-anchor every output to the double point:
-`out = S(double_val) + (assembled − to_passive(assembled))` (exact value = the converged double,
-exact assembled derivatives — honours R3). Regime detector computable from the converged point
-without re-running `prepare_collar_solve`: `is_bound = |E_column(root_collar_psi_, psi_soil_inverted_,
-psi_crit)| < tol` (0 exactly when p\* sits at the stem-crit bound; save/restore `root_collar_psi_`+
-`E_up_` around the call). In the bound regime `root_crit = root_collar_psi_` (no re-solve needed).
+are the active `T` (currently `double`) — the last passive-`double` seam in the uptake path. Also
+**`electron_transport` (PPFD, curv → T)** and **`assim_colimited`/`ci_node` (curv → T)** — those
+took `double` PPFD/curv, silently severing the k_I+light channel (routed through the active
+radiation) and the seeded `curv_fact_elec_trans`/`curv_fact_colim`. All `double` instantiations
+stay bit-identical (R2). Value-anchor every output: `out = S(double_val) + (assembled −
+to_passive(assembled))`. Regime detector from the converged point (no re-solve):
+`is_bound = |E_column(root_collar_psi_, psi_soil_inverted_, psi_crit)| < tol` (save/restore
+`root_collar_psi_`+`E_up_`); in the bound regime `root_crit = root_collar_psi_`.
+
+### Steps 5–6 — SECOND CORRECTION (2026-07-21): the run-shaped reverse tape needs the leaf collapsed per step
+Built `assemble_active_leaf_outputs` exactly as above (+ the leaf_output generalisations); it
+**compiles, the double path is bit-identical (FF16+TF24 tripwires green), and the per-call
+gradients are correct** (the pivots were validated in scratchpad). But wiring it onto the
+**ambient run tape** — the committed "delete `supplied_derivative`, assemble on the run tape"
+plan — **`std::bad_alloc`s even at `max_patch_lifetime=1`** (128 ode_times). Diagnosis: the
+resident reverse gradient (`compute_gradient`) records the **entire SCM run on one tape** —
+every RK substep × every cohort × every `net_mass_production_dt`. The old `supplied_derivative`
+seam deliberately collapsed each step's leaf to **O(#inputs) tape nodes** (one node per seeded
+input, carrying a scalar partial); the full active assembly instead records the whole
+`leaf_output` algebra **plus nested `implicit_value` inner-FD evals** (the interior node alone is
+6× `profit_reduced`, each building `psistem_node`+`ci_node`) per step. That is ~100–1000× the
+per-step tape footprint → the run tape blows memory. **The committed design's core move (full
+active assembly on the run tape) is not viable for run-shaped tapes.**
+
+**Corrected approach (keep `supplied_derivative`, exact partials): the assembly is correct — run
+it on a LOCAL, per-call tape, extract exact partials, and inject them via `supplied_derivative`
+onto the run tape.** Per `net_mass_production_dt`: (1) open a local `xad::Tape`, register local
+active copies of the run-tape inputs (the seeded `pars` fields + height + light openness +
+per-layer soil-ψ), (2) run the assembly reading those local actives → profit + per-layer uptake,
+(3) `computeAdjoints`, read `d(profit)/d(input_k)` and `d(uptake_L)/d(input_k)`, (4)
+`supplied_derivative(run_tape, profit0, run_inputs, partials)` and per layer — exactly the old
+seam's shape but with **exact** partials replacing its central-FD ones. Run-tape footprint stays
+O(#inputs)/step (no OOM); the local tape is discarded per call (bounded). This closes E4 with the
+same tape economy as the FD seam. The reusable assembly algebra is saved at
+`scratchpad/assemble_active_leaf_outputs.saved.cpp`; the local-tape wiring needs the assembly
+parameterised to read local active inputs (a `pars`-copy or an input-vector arg) rather than the
+member `pars`. So the design's "delete `supplied_derivative`" conclusion is **reversed** — it
+stays; only its FD partials are replaced. (`leaf_profit_at_fixed_collar` and
+`dsoil_consumption_dpsi_collar_perlayer` still go; `dprofit_droot_collar_psi` stays — TF24f's
+`solve_leaf` uses it for the acclimation rate, independent of the seam.)
 
 ## Step 1 — DONE (2026-07-21, plant `27ca7bdd`, superrepo `0ec8f5b`)
 `plant::leaf_output` added header-inline to `leaf_model.h` (arrhenius / electron transport

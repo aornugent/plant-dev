@@ -126,12 +126,16 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 9). **HEAD: plant `70d7179c` (`soil_uptake` explicit `<T>`
-so it instantiates active — enabling change for the bound node; production numerics untouched),
-odelia `16cff79` (unchanged). Both N_p\* nodes validated in scratchpad, not yet on any rate path.
-All clean, pushed.** This session (9): **P2c step 4b DONE — the bound-regime N_p\* node built as a
-plain `E_column=0` root-find IFT and E4-verified (k_max reld ~1e-7, psi_crit reld ~1e-6);
-steps 5–6 (assemble + delete the FD seam) next.** See the SESSION 9 / SESSION 8 blocks below._
+_Last updated: 2026-07-21 (session 9). **HEAD: plant `70d7179c` (working FD seam preserved;
+`soil_uptake` explicit `<T>` groundwork; tf24 tests green), odelia `16cff79` (unchanged). All
+clean, pushed.** This session (9): **P2c step 4b DONE + E4-verified; steps 5–6 attempted and
+DE-RISKED with two decisive findings** — (a) the height/root-trait channel runs through the soil
+resistances (they must be active, not passive), and (b) **the full active assembly on the run
+tape OOMs** (`bad_alloc` at life=1) because the resident gradient records the whole SCM run on
+one tape; the correct build keeps `supplied_derivative` and feeds it EXACT partials from a
+per-call LOCAL-tape gradient of the assembly (the assembly is written + validated, saved in
+scratchpad). The working FD seam is intact. See the SESSION 9 / SESSION 8 blocks + design doc
+"Steps 5–6 — SECOND CORRECTION"._
 
 _Session 7: **P2c steps 1–3 DONE + step 4 grounded.**
 Landed the `S` leaf output map (`plant::leaf_output` in `leaf_model.h`), the **N_ci** and **N_psistem**
@@ -266,9 +270,23 @@ verified.** The next item is **step 2**:
    resistance vectors are active `T` (grav_head_z, beta_R_H/V, dz stay double). Value-anchor every output:
    `out = S(double_val) + (assembled − to_passive(assembled))`. Regime detector from the converged point (no
    re-solve): `is_bound = |E_column(root_collar_psi_, psi_soil_inverted_, psi_crit)| < tol` (save/restore
-   `root_collar_psi_`+`E_up_`); in the bound regime `root_crit = root_collar_psi_`. This is a ~150-line
-   single-pass build — do it with fresh context. The full recipe (channel list + anchor + detector) is in the
-   design doc CORRECTION section.
+   `root_collar_psi_`+`E_up_`); in the bound regime `root_crit = root_collar_psi_`. Also generalise
+   `electron_transport` (PPFD, curv → T) + `assim_colimited`/`ci_node` (curv → T) — they severed k_I/light and
+   the seeded curv_fact_*. The full channel recipe is in the design doc CORRECTION section.
+   **►►SECOND CORRECTION (session 9) — the run-tape blows memory; keep `supplied_derivative`.** The assembly
+   was built exactly as above (saved: `scratchpad/assemble_active_leaf_outputs.saved.cpp`), compiles, is
+   bit-identical on double, and gives correct per-call gradients — BUT wiring it onto the ambient run tape
+   `std::bad_alloc`s even at life=1. The resident gradient records the WHOLE SCM run on one tape; the old
+   `supplied_derivative` collapsed each step's leaf to O(#inputs) tape nodes on purpose, while the full active
+   assembly records the whole leaf algebra + nested implicit_value inner-FDs per step (~100–1000× footprint).
+   **The "delete supplied_derivative / assemble on the run tape" plan is NOT viable.** Corrected build: run
+   the (correct) assembly on a **LOCAL per-call tape**, extract exact partials `d(profit)/d(input)` +
+   `d(uptake_L)/d(input)`, inject via `supplied_derivative` onto the run tape — the old seam's shape with
+   EXACT partials instead of FD. Needs the assembly parameterised to read local active inputs (a `pars`-copy
+   or input-vector arg) not the member `pars`. `supplied_derivative` STAYS; `dprofit_droot_collar_psi` STAYS
+   (TF24f uses it); only `leaf_profit_at_fixed_collar` + `dsoil_consumption_dpsi_collar_perlayer` go. Plant is
+   at `70d7179c` — the WORKING FD seam is preserved (tf24 tests green); steps 5-6 not landed. See design doc
+   "Steps 5–6 — SECOND CORRECTION".
 6. **Step 7 — gate:** rebuild TF24 Certificate B (`scratchpad/tf24_cert.R`, driver `ad_certificate.cpp`
    `tf24_allfield` committed) — all leaves intact, E4 gap closed. Then **P2d (TF24f)** reuses N_p\*.
 
