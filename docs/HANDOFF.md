@@ -129,11 +129,11 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 _Last updated: 2026-07-22 (session 13, end). **HEAD: plant `1af3c4e1` (sign fix, unchanged), super advances
 with docs, odelia unchanged. All clean, pushed. The tf24_strategy.cpp `TF24_PSPROBE` probe was reverted; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23): ORACLE-REFRAMED. The golden-section
-tolerance artifact is a comparison-bracketing STAIRCASE; our reverse gradient (0.652) is mostly the RIGHT
-object and our FD reference (0.573) was measuring the wrong one. The genuine bug is the CORNER regime (node
-undefined there), masked by the interior measurement. RUN 2 cheap confirmatory tests, THEN build. Full trail:
-`docs/oracle-response-inner-argmax-adjoint.md` + `docs/oracle-consultation-index.md` Round 4 + doc §6g. ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — TF24 `p*` gradient (task #23): SETTLED. The "residual" was a VERIFICATION-
+REFERENCE ARTIFACT, not an AD bug — the reverse node is correct in the interior regime. Both confirmatory
+tests passed. The build/fix is now PRESCRIPTIVELY SPECIFIED in `docs/build-plan.md` → "SETTLED — TF24 p*
+gradient" (branch-flag regime selection on the default path + opt-in terminal polish). Build it there with
+`system-design` + `code-review`. Do NOT chase the 0.82×. ◄◄◄◄**_
 
 _**SESSION 13 (oracle round) — the reframe.** A comparison-based bracketing search returns
 `p̂ = A + γ_ω(B−A)`, a STAIRCASE: affine-within-cell (slope 0.573, no profit info) + O(ε) jumps carrying the
@@ -149,14 +149,22 @@ exact `dprofit_droot_collar_psi` we already have), ~9–13 vs ~16 obj-evals (CHE
 trifecta symptoms at once (forward noise-floor step-collapse, non-monotone J(ε), reverse gradient). Strongly
 CONFIRMS the committed P2c two-manifold IFT design; SHARPENS its detector (branch-flags-at-bracket-endpoints,
 not `e_col`)._
-_**►IMMEDIATE NEXT STEP (guide §7 — falsify before building):** (1) **scale test** — fix δ at the production
-plateau, sweep ε; predict FD jumps 0.573→0.652 once a few·ε<δ (retires the contract question). (2) **corner
-census** — per-call branch-flag + `|∂profit/∂p|` log (expect bimodal ≲4e-3 vs ≈8.8); size the corner
-trajectory-fraction and inspect shipped-node outputs there for divide-by-shelf-curvature blowups (sizes the
-REAL bug; may show the life=4 "residual" is ~entirely a reference artifact). THEN: default gradient-node →
-branch-flag regime selection (no forward bit moved); opt-in flag → terminal polish (candidate next default).
-Use `system-design` for the node/polish; `code-review` on the diff. Sign flag to reconcile: endpoint formula
-−0.573 vs quoted FD +0.573 (state-sign convention). Probe reconstruct from session-13 git history (`TF24_PSPROBE`)._
+_**►TESTS RUN (session 13, both decisive — `scratchpad/staircase_session13_tests.log`).** (1) **Scale test:**
+fixed δ=1e-4, sweep ε → 0.573 (ε≥3e-4) to 0.652 (ε≤3e-6); at production ε=1e-3, sweep δ → flat 0.573 plateau
+(δ≤3e-4) then ≈0.65 (δ≥1e-3). Widening δ recovers the ideal without touching ε → the 0.573 was the within-cell
+artifact; the node's 0.652 is the object. (2) **Corner census:** 1.1M interior solves at life=4, |∂profit/∂p|
+<4e-3 for 99.1% and <1e-2 for ALL; ZERO corner calls. So the "residual" is a reference artifact and the corner
+regime is a latent hazard (dry/shutdown only, #55/#62), not live here._
+_**►IMMEDIATE NEXT STEP (build; specified in `docs/build-plan.md` "SETTLED — TF24 p* gradient"):** default-path
+gradient node → **branch-flag regime selection** (interior `−P_pσ/P_pp` vs fold `−F_σ/F_p`; no forward bit
+moved; makes the corner derivative defined — latent-safety, prerequisite for dry-scenario #55/#62 validation);
+opt-in flag → **terminal polish** (bracket-localize + 3–4 Newton steps on the active condition via the exact
+`dprofit_droot_collar_psi` we already have; ~9–13 vs ~16 obj-evals, cheaper; discharges the forward noise-floor
+step-collapse + non-monotone J(ε) too; candidate next default). Use `system-design` before, `code-review` on the
+diff. Corrected verification anchor: tight-inner-ε frozen-schedule FD (or wide-δ multi-cell secant), NEVER the
+loose-ε small-δ swept plateau (the staircase trap). Sign note RESOLVED: all measurements are consistently
+negative (−0.573 / −0.652); the earlier "+0.573" was a writeup slip. Probe scaffold (`TF24_SCALETEST` /
+`TF24_CORNERCENSUS`) reconstruct from session-13 git history if a re-measure is needed._
 
 _--- prior session-13 framing (SUPERSEDED by the reframe above; the "design decision" was the wrong question) ---_
 

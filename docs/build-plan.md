@@ -733,3 +733,70 @@ soil (via multirate). See `design.md` §11.
 - Whether the mass chart is the *default* for gradient runs or stays opt-in (re-baseline the K93 ~0.169% snapshots if default).
 - Which of the four leaf early-exits produces the hydraulic-failure cliff (isolate before Phase 3).
 - The `∂profit/∂(soil ψ)` channel wiring for resident TF24 (automatic via `u()`, but verify at Gate-0).
+
+---
+
+## SETTLED — TF24 `p*` gradient: the "residual" was a verification-reference artifact; the corner node is a latent hazard (session 13, 2026-07-22)
+
+The long-running TF24 reverse-AD "residual" (sessions 10–13; the `~0.82×` SCM ratio, the
+`dp*/dψ = 0.652` node vs `0.573` FD) is **resolved, and it was not an AD bug**. A fresh-Oracle
+consult (`oracle-response-inner-argmax-adjoint.md`) plus two decisive tests (`scratchpad/
+staircase_session13_tests.log`) settle it. Read `oracle-consultation-index.md` Round 4 and
+`tf24-numerical-formulation-and-misspecification.md` §6g for the full trail; the prescriptive summary:
+
+**The mechanism.** The collar optimum is found by `golden_section_max` (comparison-based bracketing,
+`GSS_tol_abs = 1e-3`). Its output is a **staircase**: `p̂(σ) = A(σ) + γ_ω·(B(σ)−A(σ))` — affine
+within each comparison cell (width `~few·τ` in state, slope `A′+γ_ω(B′−A′)` carrying **no** objective
+information), with the optimum-tracking living in the `O(τ)` jumps at cell boundaries. Value converges
+to `p*` as `τ→0`; the almost-everywhere derivative does **not**.
+
+**What this means (verified, tests 1–2):**
+- **The reverse node computes the RIGHT object.** `dp*/dψ = 0.652` is the true optimum sensitivity.
+  `0.573` is the within-cell staircase slope — a **diagnostic, not a reference**. The old
+  `dprofit_droot_collar_psi` IFT and the assembled node agree with it.
+- **"FD of the code as run" is a δ/τ-indexed family, not one number** (test 1, decisive): at fixed
+  `δ=1e-4`, sweeping `τ` gives `0.573` (τ≥3e-4) → `0.652` (τ≤3e-6), the jump at `few·τ ≈ δ`; at
+  **production `τ=1e-3`, sweeping `δ`** gives a flat `0.573` plateau for `δ≤3e-4` and `≈0.65` for
+  `δ≥1e-3`. **Widening δ past the cell width recovers the ideal without touching τ.**
+- **The corner regime does not fire in the standard scenario** (test 2, decisive): over **1.1M**
+  interior leaf solves at life=4 (birth_rate=20), `|∂profit/∂p|` at `p*` is `<4e-3` for 99.1% of calls
+  and `<1e-2` for **all** of them (peak at the predicted GSS floor `|P_pp|·τ/2 ≈ 4e-3`). **Zero**
+  corner calls, zero `e_col`-bound flags. The corner (plant#60 wall, `∂profit/∂p ≠ 0`) is a **latent
+  hazard for dry/shutdown scenarios only** (plant#55/#62 territory), not a live bug here.
+
+**CORRECTED VERIFICATION STANDARD (supersedes the b2 / P2b prescriptions above for any inner-iterative
+solve).** A gradient through a comparison-solved operating point must be validated against a **tight-
+inner-tolerance frozen-schedule FD** (the anchor), or equivalently a **wide-δ multi-cell secant** at
+production τ — **never** a loose-τ small-δ "swept-plateau" FD. On a staircase the small-δ plateau is
+the *within-cell artifact* and looks the most authoritative (it is exactly affine there). The b2 note
+("verify with a reoptimising FD; a frozen-p* FD hides it") and the P2b "δ-swept plateau" standard are
+**staircase traps** for this term. Rule of thumb: if a "plateau" is τ-invariant while widening δ moves
+it, the plateau is the inner-solve artifact.
+
+**PRESCRIPTIVE FIX (for a new session; not yet built — gate with `system-design` + `code-review`):**
+- **Default path (ship; no forward bit moves):** upgrade the `p*` gradient node's regime selector from
+  the `e_col`/feasible-interval test to the **branch-flag at the two final bracket endpoints** (read
+  the inner sub-solve's feasibility branch at each end): same branch ⇒ interior manifold, use
+  `−P_pσ/P_pp`; different ⇒ fold inside the bracket ⇒ corner manifold, use `−F_σ/F_p` on the root-loss
+  residual `F`. This makes the corner derivative **defined** (today the interior node divides by shelf
+  curvature ≈ 0 there). Document the residual `O(10τ)` value–derivative offset (bounded by the
+  resolvent `‖(I−T′)⁻¹‖ ≈ 5–22`). Zero corner incidence at life=4 means this is **latent-safety**, a
+  prerequisite before any dry-scenario (`#55`/`#62`) validation, not a fix to the current numbers.
+- **Opt-in flag (candidate next default):** **terminal polish** — keep bracketing for global
+  localization + branch detection (~5 comparisons), then 3–4 safeguarded Newton/secant steps on the
+  active condition (`∂profit/∂p = 0` interior, `F = 0` at the fold) confined to the bracket, using the
+  **closed-form `∂profit/∂p` we already have** (`dprofit_droot_collar_psi`) and do not use. Cost
+  `≈9–13` obj-equivalents vs `≈16` today (**cheaper**). This collapses the forward RHS noise floor
+  (retiring the multirate branch's 27–35% rejection storm and `h_min` wall), removes the non-monotone
+  `J(τ)` accuracy bug, and makes value + derivative describe one object (FD-as-run at any sane δ then
+  agrees). Breaks double bit-identity by `O(τ)` per solve → opt-in, re-baseline snapshots when promoted.
+- **Forbidden:** taping through the comparison search (it reproduces `0.573`, satisfies the literal
+  contract, and is uniquely meaningless).
+- **Do NOT** continue chasing the `0.82×`/`14%` against the loose-FD reference; it is not a closable
+  gap and closing it would be wrong.
+
+**Convergence with the committed design.** This independently re-derives the P2c two-manifold IFT
+selection (`p2c-leaf-adjoint-design.md`) and the port-map's "reduced-gradient `G(q)` via P1a nodes";
+the only sharpening is the **detector** (branch-flags-at-bracket-endpoints, not `e_col`) and the
+recognition that the polish is *cheaper*, so the flag is the candidate next default rather than a
+concession.

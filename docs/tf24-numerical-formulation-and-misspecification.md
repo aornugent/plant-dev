@@ -426,15 +426,23 @@ and the optimum-tracking (`0.652`) living entirely in the O(ε) jumps at cell bo
   FD, a frozen-p* FD hides it") and the P2b "δ-swept FD plateau" standard both measure the within-cell
   artifact at production ε. **Corrected anchor: tight-inner-tolerance frozen-schedule FD.**
 
-**PENDING VERIFICATION (guide §7 — do before rewriting any conclusion as settled):** (1) *scale test* —
-fix δ at the production plateau, sweep ε; predict FD jumps 0.573→0.652 once a few·ε < δ. (2) *corner
-census* — per-call branch-flag + `|∂profit/∂p|` histogram (expect bimodal ≲4e-3 vs ≈8.8); size the
-corner trajectory-fraction and inspect shipped-node outputs there for divide-by-shelf-curvature blowups.
-Until these run, §6f's numbers are trusted but this reinterpretation is the Oracle's diagnosis, not a
-measured verdict. **Fix (post-verification):** default-path gradient node → branch-flag regime selection
-(interior `−P_pσ/P_pp` vs fold `−F_σ/F_p`), no forward bit moved; opt-in flag → terminal polish (bracket
-localize + ~3–4 Newton steps on the active condition using the exact `dprofit_droot_collar_psi` we already
-have), making value+gradient coherent at ~9–13 vs ~16 obj-evals (cheaper), the candidate next default.
+**VERIFIED (session 13; both tests decisive — `scratchpad/staircase_session13_tests.log`).**
+(1) *Scale test.* At fixed `δ=1e-4`, sweeping the inner tol `ε`: `dp*/dψ = 0.573` for `ε ≥ 3e-4` →
+`0.652` for `ε ≤ 3e-6` (jump at `few·ε ≈ δ`). At **production `ε=1e-3`, sweeping `δ`**: flat `0.573`
+plateau for `δ ≤ 3e-4`, `≈0.65` for `δ ≥ 1e-3` — so **widening δ recovers the ideal without touching
+ε**. "FD of the code as run" is a δ/ε family; `0.573` is the within-cell artifact my session-13 plateau
+(`δ=1e-4`, `ε=1e-3`) landed in; the node's `0.652` is the object. (2) *Corner census.* Over **1.1M**
+interior leaf solves at life=4, `|∂profit/∂p|` at `p*` is `<4e-3` for 99.1% and `<1e-2` for **all** of
+them (peak at the predicted `|P_pp|·ε/2 ≈ 4e-3` floor); **zero** corner calls, zero `e_col`-bound flags.
+So (a) the §6a–§6f "residual" is a **reference artifact** — the node is correct in the interior regime;
+(b) the corner regime is a **latent hazard** (0 incidence here; real only in dry/shutdown, `#55`/`#62`).
+**Do not chase the `0.82×`.** **Fix (prescriptive, `docs/build-plan.md` "SETTLED — TF24 p* gradient"):**
+default-path node → branch-flag regime selection (interior `−P_pσ/P_pp` vs fold `−F_σ/F_p`), no forward
+bit moved, makes the corner derivative defined (latent-safety, prerequisite for dry-scenario validation);
+opt-in flag → terminal polish (bracket-localize + 3–4 Newton steps on the active condition via the exact
+`dprofit_droot_collar_psi` we already have), ~9–13 vs ~16 obj-evals (cheaper), candidate next default.
+**Corrected verification standard:** validate this term against a tight-inner-ε frozen-schedule FD (or a
+wide-δ multi-cell secant), never a loose-ε small-δ swept-plateau FD (the staircase trap).
 
 ## 6. Where this stands (superseded above by §6c; kept for the trail)
 
