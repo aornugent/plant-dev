@@ -139,48 +139,71 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-21 (session 2). Prior session consolidated the record into a
-domain-clean **fundamentals** elicitation → TWO Oracles → **correction/addendum** → fresh
-Oracle's falsification ladder; the big reframe stands: the forward problem RELOCATED from
-the time-stepper (at its floor for the norm it is given) to the MEASURE (member-mesh) axis.
-**This session ran the ladder to the bottom.** (1) Fixed the RK45-cache OOM by slimming the
-cache to the field a replay reads (plant `b2f70dfa`); the 12-yr ghost that OOM'd now peaks
-1.14 GB. (2) **Validated the ghost (rung 1):** frozen-field error is O(mass fraction), →0 as
-ρ→0 — an exact rare-invasion / marginal-member probe. (3) **Killed WR (rung 5):** built a
-contraction probe (plant `0015c9fd`), measured κ≈10 ≫ 1 uniformly — plain/windowed/damped
-Picard diverges (the known ~10× coupling amplification). (4) **Goal-oriented placement
-(rung 2) does not fund:** J does not converge under node-count refinement for ANY placement
-family (survival-flip discontinuity) — nothing to place toward. Filed **odelia#47** (L3
-replay should store only the recomputable field, per the slim-cache precedent).*
+*Last updated: 2026-07-22 (session 3). Session 2 wrote the domain-clean v2 characterisation
+(`oracle-consultation-fundamentals-v2.md`). Session 3 got the **v2 Oracle response** (a major
+reframe, verbatim in `oracle-consultation-fundamentals-v2-response.md`), triaged it into a new
+falsifier ladder (`tf24-v2-response-triage.md`), and ran the cheap offline falsifiers. The
+forward-convergence question is now **RESOLVED**, and the diagnosis is the OPPOSITE of session 2's
+tentative item-B conclusion.*
 
-***The forward-numerics frontier has now resolved to a conclusion:*** *the time-stepper is at
-its floor, WR is expansive, and placement cannot certify a functional that is discontinuous
-under the refinement. The residual measure-axis error IS J's intrinsic discontinuity (a
-moment of a measure with an absorbing weight boundary), whose fix is **item B — model-side
-mollification of the survival entry**, exactly as both fundamentals Oracles predicted. What
-remains numerics-actionable: **rung 3** (certified survival crossings via ghost bisection,
-+ the rainfall-as-locator test) — which would quantify the discontinuity to inform the
-mollification width — and a cheap DX side-win (the production default schedule is badly
-placed; uniform is 3–35× closer).*
+***THE HEADLINE (session 3): the forward problem is well-posed and the fix is NUMERICAL, not a
+model change.*** *Three offline tests, reconciled in `tf24-v2-reconciliation.md` and stated for
+plant maintainers in `tf24-offspring-convergence-finding.md`:*
+- ***T1 (Arnoldi on T′, `tf24-v2-T1-arnoldi-result.md`):*** *the coupling-field fixed point is
+  well-conditioned — spec(T′) has ρ≈7 but NOTHING at +1 (min|λ−1|≈0.05–0.2, cond ~5–22). The
+  continuum J EXISTS and is a stable observable. (κ≈10 = WR divergence, NOT J ill-posedness.)*
+- ***T5a (emergent skewness, `tf24-v2-T5a-emergent-skewness-result.md`):*** *the Oracle's claim-4
+  premise is FALSE — max cohort weight fraction is ~1.6% (not ~40%) and ∝1/M; the measure refines
+  cleanly, no heavy atom to split. (Oracle conflated 9a's second-SPECIES weight with a single
+  cohort.) → T5 (splitting) DROPPED.*
+- ***T3 (common-field ΔJ decomposition, `tf24-v2-T3-common-field-decomp-result.md`):*** *the
+  9c/rung-2 non-convergence is **100% soil-water field-shift** (κ-amplified feedback), diffuse, at
+  small τ_ins — NOT placement, NOT survivor-flips. **Item B is OFF the critical path**; rung-2's
+  "intrinsic discontinuity, mollify the model" verdict is OVERTURNED. The fix is to converge the
+  FIELD a*=∫c dμ (a c-weighted moment), which the default mesh under-resolves; this is why the
+  reproduction-targeted refiner and g-mass indicator anti-correlated (J's integrand is already
+  converged; the error is in the field).*
 
-***ORACLE UPDATE — WRITTEN and committed this session*** *(`docs/oracle-consultation-fundamentals-v2.md`,
-plant-dev `c5f0b65`). Follows the user's guidance: concrete + comprehensive, no conclusions, no
-proposed remedies, no directed questions (consult-guide Q&A format dropped; budget spent on
-characterisation). Domain-clean (grep gate clean; only "reservoir" — the deliberate general rendering
-of the small block — matches). Supersedes the earlier fundamentals elicitation + addendum: errata
-folded in; adds §9 with this session's three new results (9a zero-feedback probe O(weight fraction),
-9b self-consistency contraction κ≈10, 9c J non-convergence under mesh refinement). It is a REVIEW
-ARTIFACT — nothing has been sent to any Oracle.*
+***PROTOTYPES this session:*** *P1 (static field-aware schedule, `tf24-v2-P1-field-aware-schedule-result.md`)
+= NULL — dense-early is non-monotonic vs uniform (confounded by a uniform reference + J
+hypersensitivity); corroborates that static/local placement can't see feedback-dominated error.
+Uniform stays the pragmatic simple best but is not a convergence fix, and dense uniform is ~5× the
+per-run cost. P2 (uptake-Taylor falsifier, `tf24-v2-P2-uptake-taylor-falsifier-result.md`) = **PASS**
+— uptake is a low-order function of soil water over weekly windows and MOST predictable near the dry
+limit (dry-tercile ~1%); the way the multirate/IMEX ancestors died is falsified. → **GO to T6.***
 
-## ▶ NEXT SESSION — start here (the frontier is the measure axis, not the stepper)
+***NEXT: build T6 (Newton-on-uptake + weekly macro-step) per the prescriptive spec
+`docs/tf24-v2-T6-newton-uptake-BUILD-SPEC.md`.*** *Two levers remain: (T6, the chosen one) the
+SPEED arbitrage — 10–100× fewer cohort solves (T4 headroom) via cohorts-on-a-weekly-step with a
+cheap analytic uptake refresh; and (deferred) the ACCURACY refiner — a field/resolvent-weighted
+member mesh to converge J (P1 showed static shapes fail; needs the real goal-oriented, feedback-aware
+indicator — expensive to iterate here). Item B is not needed. Rung 3 (survival crossings) is moot for
+offspring (T3: survivor-flips J-negligible).*
 
-1. **Read Part 1 in full**, then this Part 2.
-2. **The current authority docs (read these):** `docs/tf24-two-oracle-synthesis.md`
-   (the two responses compared), `docs/tf24-correction-response-triage.md` (the ladder +
-   status), and the four result docs below. Verbatim Oracle responses:
-   `docs/oracle-consultation-fundamentals-response-{fresh,ongoing}.md` and
-   `docs/oracle-consultation-correction-response-fresh.md`. The elicitation +
-   correction sent out: `docs/oracle-consultation-fundamentals{,-correction}.md`
+## ▶ NEXT SESSION — start here: BUILD T6 (the diagnosis is closed)
+
+1. **Read Part 1 in full**, then this Part 2 head.
+2. **Read, in order:** `docs/tf24-v2-T6-newton-uptake-BUILD-SPEC.md` (the prescriptive build —
+   follow it), then the evidence it rests on: `tf24-offspring-convergence-finding.md`
+   (plant-maintainer statement of the finding), `tf24-v2-P2-uptake-taylor-falsifier-result.md`
+   (the GO), `tf24-v2-T4-filtered-field-result.md` (the 10–100× headroom), and
+   `tf24-v2-reconciliation.md` (how T1/T5a/T3 fit — why the fix is numerical, not item B).
+   Verbatim Oracle response + triage: `oracle-consultation-fundamentals-v2-response.md`,
+   `tf24-v2-response-triage.md`.
+3. **Execute T6 Slice 1 first** (Newton operating-point solve, flag OFF/bit-identical, then ON
+   vs GSS across the bank; ship as its own PR), then Slice 2's offline ∂a/∂u gate BEFORE wiring.
+   The analytic gradient the build needs already exists: `LeafModel::dprofit_droot_collar_psi`.
+
+### Session-2 measure-axis context (superseded by session-3's resolution; audit trail only)
+
+- **Do NOT rebuild from these as if open:** the session-2 ladder (ghost/WR/placement) and its
+  tentative item-B routing are SUPERSEDED — T3 showed the non-convergence is field-shift, not the
+  survival discontinuity, so item B is off the critical path.
+- Session-2 authority docs (historical): `docs/tf24-two-oracle-synthesis.md`,
+   `docs/tf24-correction-response-triage.md`, the ladder result docs, and the verbatim responses
+   `docs/oracle-consultation-fundamentals-response-{fresh,ongoing}.md`,
+   `docs/oracle-consultation-correction-response-fresh.md`, elicitations
+   `docs/oracle-consultation-fundamentals{,-correction}.md`
    (both domain-clean — keep them that way; the classifier trips on soil/cohort/rain/
    leaf/etc.).
 3. **What is settled this session (do not relitigate):**
@@ -334,9 +357,13 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `c5f0b65`+ (v2 Oracle draft + this update) |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `0015c9fd` (slim cache + WR contraction probe) |
-| odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged this session; odelia#47 filed on GitHub) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `9fc0915`+ (session-3 v2 response, T1/T5a/T3/P1/P2 results, finding, T6 spec, this handoff) |
+| plant | `claude/tf24-multi-rate-stepper-n5audm` | `0015c9fd` (slim cache + WR/uptake probe hooks; UNCHANGED session 3 — all session-3 work was R scripts + docs) |
+| odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged; odelia#47 filed) |
+
+**Session 3 changed no C++** — all findings came from R probes on saved fields reusing the
+session-2 machinery (`set_record_uptake`/`run_mutant`/`sweep_soil`/`overwrite_cached_soil`). T6 is
+the first session-3 C++ build (not yet started).
 
 All three clean and pushed to `aornugent/*`. Open PRs: none (do not open without explicit
 ask). Issues filed: **odelia#47** this session (L3 replay: record only the recomputable
@@ -465,8 +492,26 @@ removable-vs-intrinsic **classifier are one instrument.**
 
 ## Document map (status)
 
-**Current / authoritative**
+**Current / authoritative (session 3 — the live line of work)**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
+- **`tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — THE NEXT BUILD (prescriptive). Start here.**
+- `tf24-offspring-convergence-finding.md` — the finding for plant maintainers (concrete, no
+  formalism): offspring non-convergence = under-resolved soil-water field × feedback, not the
+  model; fix is a field-targeted schedule, not the reproduction-targeted refiner.
+- `tf24-v2-reconciliation.md` — how the two experimental arms meet; the T1/T5a/T3 synthesis.
+- `oracle-consultation-fundamentals-v2.md` + `-response.md` — the v2 characterisation (sent) and
+  the Oracle's reframe (received, verbatim).
+- `tf24-v2-response-triage.md` — the falsifier ladder (T1–T6) with per-test verdicts.
+- Result docs: `tf24-v2-T1-arnoldi-result.md` (field well-conditioned),
+  `tf24-v2-T5a-emergent-skewness-result.md` (no heavy atom; claim-4 false),
+  `tf24-v2-T3-common-field-decomp-result.md` (100% field-shift; item B off critical path),
+  `tf24-v2-P1-field-aware-schedule-result.md` (static shapes NULL),
+  `tf24-v2-P2-uptake-taylor-falsifier-result.md` (uptake cheaply refreshable → GO to T6).
+- Scripts (session 3, all in `scripts/tf24-benchmarks/`): `arnoldi_spectrum.R`,
+  `emergent_skewness.R`, `common_field_decomp.R`, `field_aware_min.R`,
+  `uptake_taylor_falsifier.R` (+ results/ `.rds`).
+
+**Session-2 / earlier (historical — see the audit-trail note in the NEXT SESSION block)**
 - **This session's ladder results (2026-07-21):**
   `tf24-ghost-validate-result.md` (rung 1: ghost = `run_mutant` validated as an exact
   marginal-member probe; slim-cache fix, memory numbers),
