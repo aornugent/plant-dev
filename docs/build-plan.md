@@ -800,3 +800,38 @@ selection (`p2c-leaf-adjoint-design.md`) and the port-map's "reduced-gradient `G
 the only sharpening is the **detector** (branch-flags-at-bracket-endpoints, not `e_col`) and the
 recognition that the polish is *cheaper*, so the flag is the candidate next default rather than a
 concession.
+
+### UPDATE (session 14, 2026-07-22): #55 landed; the FLOOR is chosen for task #23
+
+**#55 (shut-down leaf phantom uptake) is fixed and on our branch** (plant `762b7e25`, super
+`e30f00b`), cherry-picked from aornugent/plant PR#56. `set_shutdown_state` now zeroes
+`soil_consumption_`/`E_up_` instead of leaving the previous (responsive) cohort's values on the
+**reused `Leaf` object** — removing a stale, soil-moisture-independent phantom drain that (a)
+drained soil when nothing transpired and (b) **zeroed the reverse-mode uptake gradient across the
+whole drought regime**. So this is an in-scope AD gradient-severance fix, not just forward-model
+hygiene. Verified: the shutdown / reused-leaf assertions pass and the TF24 double-path suite is
+green (no regression). The vulnerability curve already ramps uptake smoothly to ~0, so shutdown is
+a clean continuation of that ramp, not a discontinuity needing smoothing. Caveat: it changes
+deep-drought results (removes the phantom drain) → the **opt-in TF24 scenario-gateway baseline may
+need re-blessing** when next run.
+
+**Decision: the FLOOR wins for task #23 — do NOT build the corner detector or the opt-in polish
+now.** The AD is already correct in every regime that fires; the corner (`∂profit/∂p ≠ 0` at the
+`ψ_crit` wall) has **zero authoritative incidence** (session-13's 1.1M life=4 solves) and could not
+be induced this session: a total-drought SCM produced no living stressed cohorts
+(`dry_scenario_census.R`, `n=0`), and an ad-hoc single-leaf sweep was unfaithful
+(`leaf_transition_sweep.R`: `E_up≈1e-10` pinned at the zero-transpiration bound, mid-band
+spline-domain `util::stop`). No witness ⇒ building the detector means committing untestable code.
+
+**The detector + opt-in polish stay PRESCRIBED-BUT-DEFERRED** (the design above stands). #55 has
+now **unblocked the retrofit trigger**: the decisive next step, whenever the corner question is
+reopened, is a **faithful env-gated C++ census of the real `net_mass_production_dt` regime decision
++ `P_pp`, over a tuned SEASONAL-drought SCM run** — gentle rainfall pulses so cohorts live *through*
+the `θ≈0.12–0.16` transition band, NOT a step to zero. If that shows the corner fires and `e_col`
+misclassifies (with `P_pp` collapsing), build the branch-flag sign-test detector (reuse
+`dprofit_droot_collar_psi` at the two bracket endpoints); otherwise the floor is permanent. The two
+scratchpad probes need that seasonal-drought / faithful-operating-point refinement before they
+carry signal.
+
+**Task #23 is CLOSED** — the reverse-mode AD `p*` gradient is correct where exercised; the corner
+node is documented latent-safety, deferred to the trigger above.

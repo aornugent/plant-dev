@@ -126,14 +126,29 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-22 (session 13, end). **HEAD: plant `1af3c4e1` (sign fix, unchanged), super advances
-with docs, odelia unchanged. All clean, pushed. The tf24_strategy.cpp `TF24_PSPROBE` probe was reverted; tree clean.**_
+_Last updated: 2026-07-22 (session 14, end). **HEAD: plant `762b7e25` (#55 shut-down uptake fix), super
+advances with docs, odelia unchanged. All clean, pushed. Scratchpad probes gitignored; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — TF24 `p*` gradient (task #23): SETTLED. The "residual" was a VERIFICATION-
-REFERENCE ARTIFACT, not an AD bug — the reverse node is correct in the interior regime. Both confirmatory
-tests passed. The build/fix is now PRESCRIPTIVELY SPECIFIED in `docs/build-plan.md` → "SETTLED — TF24 p*
-gradient" (branch-flag regime selection on the default path + opt-in terminal polish). Build it there with
-`system-design` + `code-review`. Do NOT chase the 0.82×. ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — TF24 `p*` gradient (task #23): CLOSED (floor chosen). The reverse-mode AD
+is correct in every regime that fires; the "residual" was a verification-reference artifact (session 13). A
+`system-design` pass (session 14) chose the FLOOR: do NOT build the corner detector or the opt-in polish —
+the corner has zero authoritative incidence and no witness could be induced. #55 (shut-down phantom uptake)
+was landed this session (plant `762b7e25`, from aornugent/plant PR#56), which removed an in-scope AD
+gradient-severance AND unblocked dry-scenario validation. The detector + polish remain PRESCRIBED-BUT-DEFERRED
+in `docs/build-plan.md` → "SETTLED — TF24 p* gradient" → "UPDATE (session 14)"; the retrofit TRIGGER is a
+faithful env-gated C++ census of the real regime decision + `P_pp` over a tuned SEASONAL-drought SCM run
+(gentle rainfall pulses, live cohorts through the θ≈0.12–0.16 band). Build only if that shows the corner
+fires + `e_col` misclassifies. Do NOT chase the 0.82×. Open deferred work: #4 (retire step_history),
+life=10 OOM (tape checkpointing). ◄◄◄◄**_
+
+_**SESSION 14 — #55 landed + floor chosen.** Cherry-picked aornugent/plant PR#56 (R-C) as plant `762b7e25`
+under a meaningful message: `set_shutdown_state` zeroes `soil_consumption_`/`E_up_` so a reused shut-down
+leaf no longer carries the previous responsive cohort's uptake — killing a phantom soil drain that also
+zeroed the reverse-mode drought gradient (in-scope severance fix). Verified: leaf shutdown/reused assertions
+pass, TF24 double-path suite green. Caveat: opt-in TF24 scenario-gateway baseline may need re-blessing.
+Witness hunt for the p\* corner: inconclusive — dry SCM census `n=0` (no living stressed cohorts under step
+drought), single-leaf sweep unfaithful; session-13's 1.1M-solve zero-corner census remains authoritative.
+Floor chosen; task #23 closed. Probes: `scratchpad/dry_scenario_census.R`, `scratchpad/leaf_transition_sweep.R`._
 
 _**SESSION 13 (oracle round) — the reframe.** A comparison-based bracketing search returns
 `p̂ = A + γ_ω(B−A)`, a STAIRCASE: affine-within-cell (slope 0.573, no profit info) + O(ε) jumps carrying the
