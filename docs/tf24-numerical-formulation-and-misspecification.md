@@ -342,6 +342,67 @@ NOT a `P_pp`/nested-FD problem and NOT contained to a one-line denominator swap.
 (`TF24_PPP_EXACT`/`TF24_EPS` env gates + the exact-`P_pp` anchor) was reverted — plant back at the sign-fix
 commit; re-add from session-12 git history. Probe record: `scratchpad/upfd3_decisive.log`.
 
+## 6f. ROOT CAUSE (session 13) — the residual is a golden-section CONVERGENCE-TOLERANCE artifact, not an AD error
+
+**§6d and §6e were both chasing a phantom.** A forward-mode replication of the reduced chain (`TF24_PSPROBE`,
+active branch, life=4, same dry operating point: L=0, psidry=0.2993, p\*=1.78935) measured every candidate
+directly against the real double leaf. All are **exact**:
+
+| quantity | node / reduced | true (double leaf) | ratio |
+|---|---|---|---|
+| `g = ∂profit/∂ψ_soil` at fixed collar, at `p*−ε`, `p*`, `p*+ε` | 2.40034 / 2.25254 / 2.10849 | 2.40035 / 2.25254 / 2.10848 | **1.0000** |
+| `P_ps = ∂²profit/∂p∂ψ_soil` (slope in p of g) | −5.23153 | −5.23178 | **1.0000** |
+| `P_pp = ∂²profit/∂p²` (implicit_value's inner FD-of-FD) | −8.03061 | −8.02462 | **1.0007** |
+| `∂ψ_stem/∂ψ_soil` at fixed collar (cached vs general E-path) | 0.533935 | 0.533935 | **1.0000** |
+
+So **`P_ps` is exact** (refuting §6e), **`P_pp` is exact** (as §6e also found), the anchor's ψ-response is
+irrelevant (the fixed-collar g is exact at every p, refuting the §6e candidate mechanism), and the cached-vs-general
+`E_from_Soil_to_Root_Collar` derivatives are identical (refuting the §6c/session-11 spline hypothesis for this
+path too). The node correctly computes `−P_ps/P_pp = −0.6514`, and the fixed-collar analytic IFT is `−0.6520`.
+
+**The gap is in what `p*` IS.** `p*=1.78935` is a genuine **interior** optimum (bracket `[bound_a, bound_b] =
+[0.28993, 2.66982]`, far from both bounds). The double model finds it with `util::golden_section_max` at
+`GSS_tol_abs = 1e-3` (`leaf_model.cpp:801`), which returns `(a+b)/2` once the bracket shrinks below `1e-3`. That
+returned point sits at a **fixed fraction of the bracket** (`bound_a + 0.63·(bound_b−bound_a) = 1.79`), so its
+derivative tracks the **moving bounds** (`d(bound_a)/dψ = −0.933`, `d(bound_b)/dψ = −0.362`), *not* the true
+stationary point. The decisive measurement:
+
+```
+STATIONARITY: exact dprofit/dp @p* = 7.45e-4   (not 0 — GSS stopped ~1e-3 short of stationarity)
+dp*/dpsi:  tight(1e-9)=-0.651679   loose(1e-3)=-0.57317
+```
+
+- **Tight** golden section (tol 1e-9) → `dp*/dψ = −0.6517`, matching the node's `−0.6514` and the fixed-collar
+  IFT `−0.6520`. The node computes the derivative of the **true** (fully-converged) optimum.
+- **Loose** golden section (tol 1e-3, the production setting) → `dp*/dψ = −0.57317`, **exactly** the physical
+  re-optimization and the prior "true 0.573" reference. The double model — and hence the pinned-schedule FD the
+  certificate compares against — reports a loosely-converged `p*` that tracks the bracket.
+
+**Therefore the ~14% single-channel deficit (and the SCM-level `inj/full ≈ 0.82`) is the difference between the
+AD node's ideal-optimum derivative (0.652) and the double model's loose-GSS bracket-tracking `p*` (0.573).** Every
+prior localization came back exact because none of the individual terms was ever wrong; the mismatch lives in the
+*optimizer's finite convergence*, which the evaluate-at-converged-point IFT node deliberately does not model.
+
+This reframes the residual: it is NOT a wrong analytic derivative in the sense of PART 1's "AD ≠ FD on the
+identical computation" rule. The AD differentiates the *ideal* stationary optimum; the double model computes a
+*finitely-converged* surrogate. The node's 0.652 is arguably the more physically-correct gradient; the FD's 0.573
+is the derivative of a tolerance artifact.
+
+**►IMMEDIATE NEXT STEP — a design decision (blast radius; take to the user + `system-design`):**
+1. **Tighten `GSS_tol_abs`** (e.g. 1e-3 → ~1e-8) so the double model's `p*` is the true stationary point; then
+   AD (0.652) and FD both agree at 0.652. *Cost:* breaks the double-bit-identity baselines (values shift ~1e-3
+   relative), and ~3× the golden-section iterations on the hot leaf-solve path (perf). Most principled — the
+   model becomes more accurate and the AD is correct against it.
+2. **Validate AD against a tight-tol FD reference** while leaving the production model at 1e-3: recognise the
+   node computes the true-optimum gradient, and the loose-GSS FD is the artifact. *Cost:* the resident SCM
+   gradient then does NOT equal the exact gradient of the model *as run* (loose GSS) — a semantic call about
+   what "the gradient" means.
+3. **Model the loose-GSS bracket dependence in the node** — reproduce the finite golden section's
+   bracket-tracking `dp*/dψ`. *Cost:* fragile, many concepts, defeats P2c's IFT design. Not recommended.
+Empirical confirmation still owed: build option 1 and re-run the life-4 certificate to show `inj/full → 1.0`.
+Probe blocks (`TF24_PSPROBE`) reverted — plant back at sign-fix `1af3c4e1`, tree clean; reconstruct from
+session-13 git history / this section. Raw probe output: `scratchpad/psprobe6.err`.
+
 ## 6. Where this stands (superseded above by §6c; kept for the trail)
 
 - **[established, mine]** The resident TF24 reverse-AD gradient is wrong at life ≥ 3 by ~1e8; the true

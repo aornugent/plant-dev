@@ -126,13 +126,44 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-22 (session 12, end). **HEAD: plant `1af3c4e1` (sign fix, unchanged), super advances
-with docs, odelia unchanged. All clean, pushed. The tf24_strategy.cpp `TF24_UPFD3` probe was reverted; tree clean.**_
+_Last updated: 2026-07-22 (session 13, end). **HEAD: plant `1af3c4e1` (sign fix, unchanged), super advances
+with docs, odelia unchanged. All clean, pushed. The tf24_strategy.cpp `TF24_PSPROBE` probe was reverted; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23): localised to `profit_reduced`'s MIXED partial `P_ps`; needs a fresh fix. ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23): ROOT CAUSE FOUND. It is a golden-section
+CONVERGENCE-TOLERANCE artifact, NOT an AD error. The next step is a DESIGN DECISION (blast radius) — take it to
+the user + `system-design`. ◄◄◄◄**_
 
-_**SESSION 12 — the residual is the interior p\* node's `dp*/dstate`, ~14% too large; localised to the MIXED
-second partial `P_ps = ∂²profit/∂p∂ψ_soil`, NOT `P_pp` and NOT spline-vs-closed-form.** Full trail + tables in
+_**SESSION 13 — the ~14% residual is the golden-section optimizer's finite tolerance (`GSS_tol_abs=1e-3`), not
+any analytic derivative.** Forward-mode replication of the reduced chain (`TF24_PSPROBE`, life=4, dry point
+L=0/psidry=0.2993/p\*=1.78935) measured every candidate against the real double leaf: **`P_ps` exact (r=1.0000),
+`P_pp` exact (r=1.0007), fixed-collar `∂profit/∂ψ` exact at every p (r=1.0000), cached-vs-general E-path ψ-deriv
+identical (r=1.0000).** So §6d (P_pp) AND §6e (P_ps) were BOTH phantoms — no individual term was ever wrong. Full
+trail + tables in `docs/tf24-numerical-formulation-and-misspecification.md` **§6f**. Decisive numbers:_
+_• p\*=1.78935 is a genuine INTERIOR optimum (bracket [0.290, 2.670], far from both bounds — NOT clamped)._
+_• `exact dprofit/dp @p* = 7.45e-4` (≠0: golden section stops ~1e-3 short of stationarity)._
+_• **`dp*/dψ`: TIGHT golden section (tol 1e-9) = −0.6517 = the node (−0.6514) = fixed-collar IFT (−0.6520);
+LOOSE (tol 1e-3, production) = −0.57317 = physical re-opt = the FD "truth."** The loose `p*` sits at a fixed
+fraction of the bracket (`bound_a + 0.63·(bound_b−bound_a)`), so its ψ-derivative tracks the MOVING bounds
+(`d(bound_a)/dψ=−0.933`, `d(bound_b)/dψ=−0.362`), not the stationary point._
+_• **So:** the AD node differentiates the IDEAL stationary optimum (0.652); the double model computes a
+finitely-converged surrogate whose `p*` tracks the bracket (0.573); the pinned-FD reference sees the surrogate.
+The 14% single-channel gap (SCM `inj/full≈0.82`) is exactly `0.573 vs 0.652`. The node's 0.652 is arguably the
+MORE physically-correct gradient; the FD's 0.573 is the derivative of a tolerance artifact._
+_• **►IMMEDIATE NEXT STEP — DESIGN DECISION (do NOT just pick one; blast radius):** (1) **tighten `GSS_tol_abs`**
+1e-3→~1e-8 (leaf_model.cpp:801 / ctor default line 25) so the model's p\* is the true optimum and AD==FD at
+0.652 — but breaks double-bit baselines (~1e-3 value shifts) and ~3× golden-section iters on the hot leaf path;
+(2) validate AD against a TIGHT-tol FD reference, leaving production at 1e-3 (semantic: resident gradient then
+≠ exact gradient of the model as-run); (3) model the loose-GSS bracket dependence in the node (fragile, defeats
+P2c — not recommended). Recommend option 1, but CONFIRM WITH USER first (shared forward code). Owed empirical
+check: build option 1, re-run the life-4 certificate, show `inj/full→1.0`. Use `system-design` for whichever is
+chosen. `TF24_PSPROBE` reverted — plant at sign-fix commit; reconstruct from session-13 git history / §6f.
+Raw probe output: `scratchpad/psprobe6.err`._
+
+_(Session 12 detail below is now SUPERSEDED by §6f — both the P_ps localization and its "anchor" candidate were
+refuted in session 13. Kept for the trail.)_
+
+_**SESSION 12 — [SUPERSEDED by §6f] the residual is the interior p\* node's `dp*/dstate`, ~14% too large;
+localised (incorrectly) to the MIXED second partial `P_ps = ∂²profit/∂p∂ψ_soil`.** Full trail in
 `docs/tf24-numerical-formulation-and-misspecification.md` **§6d–§6e**. Ran probes at a life=4 responsive dry
 point (opt_psi_stem 2.53 ≪ psi_crit 5.92, so far from shutdown; #55/#62 guardrail satisfied)._
 _• **§6c candidate (a) REFUTED.** Closed-form `soil_uptake` direct slope == double **spline** slope to 5 digits
