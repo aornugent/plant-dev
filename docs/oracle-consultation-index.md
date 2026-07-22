@@ -13,6 +13,7 @@ responses, mark superseded ones, so later better-framed questions can be diffed 
 | 3 | [`oracle-followup-2-targeted-probes.md`](./oracle-followup-2-targeted-probes.md) | narrow framing: specific candidate collapses to confirm/reject (independent triangulation of #2) | draft |
 | 4 | [`oracle-consultation-transport-compression.md`](./oracle-consultation-transport-compression.md) | standalone: the compression term `Cᵢ=∂ₓg` — value-stability vs gradient-correctness, framed for reframing | sent |
 | — | [`oracle-response-transport-compression.md`](./oracle-response-transport-compression.md) | response to #4: **transport log-mass `λ=ℓ+logΔx`; compression cancels identically; both symptoms dissolve.** Predictions 1–4 to test before building | received |
+| 5 | [`oracle-consultation-inner-argmax-adjoint.md`](./oracle-consultation-inner-argmax-adjoint.md) | standalone (session 13): the reverse-mode gradient through a **finite-tolerance inner argmax** — the IFT node differentiates the *ideal* optimum (0.652), the FD-of-code-as-run sees the loose bracketing search's *bracket-tracking* surrogate (0.573); every "a term is wrong" mechanism refuted, τ-sweep decisive. Asks: which object should the gradient compute, intrinsic-vs-representational, backward-compat fix, one-node-for-both-regimes. CLEAN. | drafted, not sent |
 
 ## Response spine (for diffing later framings)
 
