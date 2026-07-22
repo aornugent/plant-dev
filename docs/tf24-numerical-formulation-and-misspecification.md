@@ -280,6 +280,56 @@ derivative match the double leaf's actual — spline — slope at the dry end, o
 representations). Diagnostic drivers: `scratchpad/upfd.R` + the `TF24_UPFD`/`TF24_STAT_PROBE` env-gated
 blocks (reverted after this session; re-add from git history of the session-11 probe if needed).
 
+## 6d. DISAMBIGUATED (session 12) — the direct term is EXACT; the residual is the p\* channel, ~14% too large
+
+The §6c fixed-collar probe was run (`TF24_UPFD3`, active branch, life=4, dry operating point:
+ψ_soil[0]=0.299, opt_psi_stem=2.53 ≪ psi_crit=5.92, i.e. **responsive regime, far from shutdown** — the
+#55/#62 guardrail is satisfied). Three fixed-collar quantities plus the re-solve total, per layer, all
+h-stable (h=1e-6 vs h/4 identical). Two important corrections to §6c along the way: (i) the injected uptake
+partial is **not** a fixed-collar partial — at the interior optimum `assemble_leaf_from` builds `p_star` as
+an `implicit_value` pivot (`tf24_strategy.cpp` ~855) that flows into `soil_uptake`, so **`inj` already
+carries the p\* channel** (`dp*/dstate = −P_ps/P_pp`); (ii) getting the fixed-collar FD right required the
+signed convention — `E_from_Soil_to_Root_Collar(root_collar_psi_ [signed], psi_soil_inverted_ [= −psi_soil])`.
+
+Decisive numbers (driest layer; the others scale identically):
+
+| quantity | value | reading |
+|---|---|---|
+| `cfDirect` — closed-form `soil_uptake` direct slope, fixed collar | −0.00088368 | |
+| `fixedFD` — double **spline** direct slope, fixed collar | −0.00088368 | **`cf/fixed = 1.0000`** |
+| `fullFD` — double re-solve total (truth) | −0.00038764 | |
+| `p*true` = fullFD − fixedFD (true collar-reoptimisation channel) | **+0.00049604** | |
+| `assemblyP*` = inj − cfDirect (assembly's p\* channel) | **+0.00056379** | **1.137× too large** |
+| `inj` (assembled total) / `fullFD` | 0.825 | (= §6c residual, reproduced) |
+
+**Findings [measured]:**
+1. **§6c's candidate (a) is REFUTED.** The closed-form `leaf_output::soil_uptake` direct slope **equals** the
+   double spline slope to 5 digits (`cf/fixed = 1.0000`, all layers). There is **no** spline-vs-closed-form
+   discrepancy — the session-11 "value(spline)/derivative(closed-form)" hypothesis was wrong.
+2. **The net dry-layer sensitivity is a near-cancellation:** exact direct hydraulic term (−0.00088) + a larger,
+   opposite collar-reoptimisation (p\*) channel (+0.00050 true) ≈ −0.00039. Because the net is a *difference of
+   two larger opposing channels*, a few-percent error in either blows up in the net.
+3. **The error is entirely in the p\* channel, which is ~14% too large — uniformly across layers**
+   (1.137/1.151/1.137 for L0/L1/L2). The direct term is exact. A **uniform** overestimate across
+   chemically-unrelated layers points at the **shared scalar** in `dp*/dstate = −P_ps/P_pp`: the denominator
+   `P_pp = ∂²profit/∂p²`, computed by a **nested central FD** (ε = 1e-2·(|p\*|+1)) in the interior node. A
+   `P_pp` ~12% too small inflates *every* `dp*/dstate` by ~14% — exactly this signature. (This also explains
+   the whole-SCM story: the p\* channel is the collar's response to soil, the dominant edge of the feedback
+   loop, so a uniform 14% per-step error compounds to the ~0.75/0.46 life=2/4 deficit.)
+
+**Fix candidates [next, fix phase] — contained to the interior p\* node in `assemble_leaf_from`:**
+(i) confirm P_pp is the culprit by an ε-sweep of the nested FD (or by comparing the node's `dp*/dψ_soil`
+against a direct collar-re-solve FD); (ii) if so, replace the nested-FD `P_pp` with an exact/better-conditioned
+second derivative — e.g. single-FD the already-exact analytic `Leaf::dprofit_droot_collar_psi` (forward-AD+IFT)
+for `P_pp = d(dprofit/dp)/dp`, removing one FD level. Not yet split from a possible `∂uptake/∂p` closed-form
+error (the other factor in `assemblyP*`), though the uniform-across-layers signature favours the shared `P_pp`.
+This connects to the corner/decoupling and recharacterized **oracle consults** on the sibling multirate branch
+(`docs/oracle-consultation-*-response.md`), which independently flagged the non-stationary uptake co-output's
+`(∂c/∂p)·(∂p*/∂u)` channel and the fragility of nested-FD second derivatives through the member solve — and to
+the forward-side T1/T3 finding that this soil-feedback loop is well-conditioned (‖(I−T′)⁻¹‖≈5–20), so fixing
+the one node's `P_pp` will propagate cleanly. Probe: `scratchpad/upfd3_decisive.log`; env-gated `TF24_UPFD3`
+block reverted (re-add from session-12 git history / this conversation).
+
 ## 6. Where this stands (superseded above by §6c; kept for the trail)
 
 - **[established, mine]** The resident TF24 reverse-AD gradient is wrong at life ≥ 3 by ~1e8; the true
