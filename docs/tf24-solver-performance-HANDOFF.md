@@ -521,9 +521,12 @@ removable-vs-intrinsic **classifier are one instrument.**
   solve shipped; bit-identical off, ON matches GSS max rel 6.8e-4, 1.20× whole-solve).**
 - **`tf24-v2-T6-slice2-duptake-gate-result.md` — Slice 2 gate DONE (CONDITIONAL GO). Interior
   IFT ∂a/∂u validated to ~1e-4; found interior IFT fails on BOUNDARY-PINNED operating points
-  (dry regime, Spearman 0.71 vs stationarity residual). Slice 3 ∂a/∂u must be TWO-BRANCH
-  (interior IFT + boundary-response), keyed on Slice-1's endpoint-sign test. Pure-R gate,
-  no C++ this slice.**
+  (dry regime, Spearman 0.71 vs stationarity residual). Slice 3 ∂a/∂u must be TWO-BRANCH.**
+- **`tf24-v2-T6-slice3a-analytic-duptake-result.md` — Slice 3a DONE. Two-branch analytic C++
+  `Leaf::compute_duptake_dpsi_soil` (interior IFT + boundary continuity IFT, dispatched by the
+  g_a/g_b signs from Slice 1); re-gated analytic-vs-FD across the bank: ALL med 4.2e-5 / max
+  6.1e-4, DRY med 4.0e-5. Bit-identical (not on production path). NEXT: Slice 3b (rho-weighted
+  stand ∂a/∂u + retention chain, then the odelia macro/micro integrator + trust monitor).**
 - `tf24-offspring-convergence-finding.md` — the finding for plant maintainers (concrete, no
   formalism): offspring non-convergence = under-resolved soil-water field × feedback, not the
   model; fix is a field-targeted schedule, not the reproduction-targeted refiner.
