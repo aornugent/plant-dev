@@ -310,25 +310,37 @@ Decisive numbers (driest layer; the others scale identically):
    opposite collar-reoptimisation (p\*) channel (+0.00050 true) ≈ −0.00039. Because the net is a *difference of
    two larger opposing channels*, a few-percent error in either blows up in the net.
 3. **The error is entirely in the p\* channel, which is ~14% too large — uniformly across layers**
-   (1.137/1.151/1.137 for L0/L1/L2). The direct term is exact. A **uniform** overestimate across
-   chemically-unrelated layers points at the **shared scalar** in `dp*/dstate = −P_ps/P_pp`: the denominator
-   `P_pp = ∂²profit/∂p²`, computed by a **nested central FD** (ε = 1e-2·(|p\*|+1)) in the interior node. A
-   `P_pp` ~12% too small inflates *every* `dp*/dstate` by ~14% — exactly this signature. (This also explains
-   the whole-SCM story: the p\* channel is the collar's response to soil, the dominant edge of the feedback
-   loop, so a uniform 14% per-step error compounds to the ~0.75/0.46 life=2/4 deficit.)
+   (1.137/1.151/1.137 for L0/L1/L2). The direct term and `∂uptake/∂p` are exact (split-probe: `∂u/∂p`
+   closed-form/spline = 1.0000). So the assembly's node `dp*/dψ_soil = −P_ps/P_pp` is 14% too large. The
+   uniform-across-layers signature *appeared* to point at the shared denominator `P_pp = ∂²profit/∂p²`
+   (nested FD) — see §6e, where that is **refuted**.
 
-**Fix candidates [next, fix phase] — contained to the interior p\* node in `assemble_leaf_from`:**
-(i) confirm P_pp is the culprit by an ε-sweep of the nested FD (or by comparing the node's `dp*/dψ_soil`
-against a direct collar-re-solve FD); (ii) if so, replace the nested-FD `P_pp` with an exact/better-conditioned
-second derivative — e.g. single-FD the already-exact analytic `Leaf::dprofit_droot_collar_psi` (forward-AD+IFT)
-for `P_pp = d(dprofit/dp)/dp`, removing one FD level. Not yet split from a possible `∂uptake/∂p` closed-form
-error (the other factor in `assemblyP*`), though the uniform-across-layers signature favours the shared `P_pp`.
-This connects to the corner/decoupling and recharacterized **oracle consults** on the sibling multirate branch
-(`docs/oracle-consultation-*-response.md`), which independently flagged the non-stationary uptake co-output's
-`(∂c/∂p)·(∂p*/∂u)` channel and the fragility of nested-FD second derivatives through the member solve — and to
-the forward-side T1/T3 finding that this soil-feedback loop is well-conditioned (‖(I−T′)⁻¹‖≈5–20), so fixing
-the one node's `P_pp` will propagate cleanly. Probe: `scratchpad/upfd3_decisive.log`; env-gated `TF24_UPFD3`
-block reverted (re-add from session-12 git history / this conversation).
+## 6e. P_pp REFUTED — the residual is a STRUCTURAL error in the mixed partial `P_ps` (session 12, fix attempt)
+
+The §6d fix (value-anchor F's value to the exact analytic `Leaf::dprofit_droot_collar_psi`, so `implicit_value`'s
+inner FD `dFdy` becomes the single-FD of the exact `∂profit/∂p` = the true `P_pp`) was **built and run — and the
+ratio did not move** (`dp*/dψ node/true` 1.137 → 1.137). An **ε-sweep** of the residual's central-difference
+step (1e-2, 3e-3, 1e-3, 3e-4, 1e-4, with the exact-`P_pp` anchor on) gave **1.1371 at every ε**; the node's
+`dp*/dψ` converges to 0.65176 as ε→0 while the true value (collar re-solve) is 0.57317. Two conclusions
+[measured]:
+- **`P_pp` is correct and ε-truncation is NOT the cause.** The §6d attribution ("`P_pp` ~12% too small") is
+  **wrong** — a mis-read of the uniform-across-layers signature (which `P_pp`-shared and `P_ps`-uniformly-biased
+  both produce).
+- **The 14% is structural in the numerator `P_ps = ∂²profit/∂p∂ψ_soil`**: the XAD state-derivative through the
+  templated `profit_reduced`. `profit_reduced` reproduces `∂²profit/∂p²` exactly (confirmed by the anchor giving
+  the same `dFdy`) but its **mixed** second derivative `∂²profit/∂p∂ψ_soil` is ~14% too large, ε-independent.
+
+**Candidate mechanism [hypothesis, next probe]:** `profit_reduced` re-solves its anchors
+`psi_stem_star = find_psi_stem_from_psi_root(−p, leaf.psi_soil_inverted_)` and `ci_star` **off-tape at the
+UNPERTURBED converged soil** (`leaf.psi_soil_inverted_`), then assembles psistem_node/ci_node around those fixed
+anchors. The IFT nodes carry the correct first-order state response, but the p-vs-ψ **cross** term may be biased
+because the anchor does not move with ψ_soil — so `∂²profit/∂p∂ψ` (which needs the anchor's own ψ-response) is
+off while `∂²profit/∂p²` (anchor fixed in ψ, only p varies) is right. **Next probe:** compare `profit_reduced`'s
+`∂profit/∂ψ|_p` at two values of p against the real double leaf's, to localise where the p-dependence of the
+state-coupling diverges; then fix the anchor's ψ-response (or the responsible node's cross-derivative). This is
+NOT a `P_pp`/nested-FD problem and NOT contained to a one-line denominator swap. The fix experiment
+(`TF24_PPP_EXACT`/`TF24_EPS` env gates + the exact-`P_pp` anchor) was reverted — plant back at the sign-fix
+commit; re-add from session-12 git history. Probe record: `scratchpad/upfd3_decisive.log`.
 
 ## 6. Where this stands (superseded above by §6c; kept for the trail)
 

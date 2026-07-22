@@ -129,32 +129,33 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 _Last updated: 2026-07-22 (session 12, end). **HEAD: plant `1af3c4e1` (sign fix, unchanged), super advances
 with docs, odelia unchanged. All clean, pushed. The tf24_strategy.cpp `TF24_UPFD3` probe was reverted; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23): DISAMBIGUATED in session 12 → fix the p\* node's `P_pp`. ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23): localised to `profit_reduced`'s MIXED partial `P_ps`; needs a fresh fix. ◄◄◄◄**_
 
-_**SESSION 12 — the residual is the interior p\* node's `dp*/dstate`, ~14% too large (NOT spline-vs-closed-form).**
-Ran the §6c fixed-collar probe (`TF24_UPFD3`, life=4, responsive dry point — opt_psi_stem 2.53 ≪ psi_crit 5.92,
-so far from shutdown; #55/#62 guardrail satisfied). Full detail + table in `docs/tf24-numerical-formulation-and-misspecification.md` **§6d**._
-_• **§6c candidate (a) REFUTED.** Closed-form `leaf_output::soil_uptake` direct slope == double **spline** slope
-to 5 digits (`cf/fixed = 1.0000`, all layers). No spline/closed-form discrepancy._
-_• **The net dry-layer `d(uptake)/dψ_soil` is a near-cancellation:** exact direct term (−0.00088) + larger
-opposite p\* channel (+0.00050 true) ≈ −0.00039. `inj` (the assembled total) is 0.825× truth because its **p\*
-channel is +0.00056 = 1.137× too large**, while the direct term is exact._
-_• **The 14% overestimate is UNIFORM across layers** (1.137/1.151/1.137) → the shared scalar in
-`dp*/dstate = −P_ps/P_pp`: the denominator **`P_pp = ∂²profit/∂p²`, a nested central FD (ε=1e-2·(|p\*|+1))** in
-the interior `implicit_value` node (`tf24_strategy.cpp` ~855). A `P_pp` ~12% small inflates every `dp*/dstate` ~14%._
-_• Correction to §6c framing: `inj` is NOT a fixed-collar partial — the interior node makes `p_star` an active
-pivot flowing into `soil_uptake`, so `inj` already carries the p\* channel (just mis-sized)._
-_• **►IMMEDIATE NEXT STEP (fix phase):** (1) confirm `P_pp` is the culprit — ε-sweep the nested FD, or compare
-the node's `dp*/dψ_soil` to a direct collar-re-solve FD (split it from a possible `∂uptake/∂p` closed-form error;
-uniform-across-layers favours shared `P_pp`). (2) Replace nested-FD `P_pp` with a better-conditioned second
-derivative: single-FD the exact analytic `Leaf::dprofit_droot_collar_psi` (forward-AD+IFT) for
-`P_pp = d(dprofit/dp)/dp`, removing one FD level. Contained to the interior p\* node in `assemble_leaf_from`.
-Use `system-design` (touches the node's derivative recipe) + `code-review`. Validate: certificate uniform ratio
-→ 1.0 at life=2 AND life=4. Grounding: forward-side T1 says the loop is well-conditioned (‖(I−T′)⁻¹‖≈5–20) so a
-one-node fix propagates cleanly; the corner/recharacterized **oracle consults** (sibling branch
-`claude/tf24-multi-rate-stepper-n5audm`) independently flag nested-FD 2nd-derivatives through the member solve as
-fragile, and the non-stationary uptake co-output's p\* channel as the correctness landmine. Probe record:
-`scratchpad/upfd3_decisive.log`; `TF24_UPFD3` block reverted (re-add from session-12 git history)._
+_**SESSION 12 — the residual is the interior p\* node's `dp*/dstate`, ~14% too large; localised to the MIXED
+second partial `P_ps = ∂²profit/∂p∂ψ_soil`, NOT `P_pp` and NOT spline-vs-closed-form.** Full trail + tables in
+`docs/tf24-numerical-formulation-and-misspecification.md` **§6d–§6e**. Ran probes at a life=4 responsive dry
+point (opt_psi_stem 2.53 ≪ psi_crit 5.92, so far from shutdown; #55/#62 guardrail satisfied)._
+_• **§6c candidate (a) REFUTED.** Closed-form `soil_uptake` direct slope == double **spline** slope to 5 digits
+(`cf/fixed = 1.0000`); `∂uptake/∂p` closed-form == spline (1.0000). The direct term is exact._
+_• **The net `d(uptake)/dψ_soil` is a near-cancellation:** exact direct term (−0.00088) + larger opposite p\*
+channel (+0.00050 true) ≈ −0.00039. `inj` is 0.825× truth because its p\* channel is 1.137× too large; the p\*
+channel = `(∂uptake/∂p)·(dp*/dψ)`, and the node's `dp*/dψ` = 0.652 vs true 0.573 (1.137×), UNIFORM across layers._
+_• **`P_pp` REFUTED (§6e).** The §6d "P_pp ~12% too small" attribution was WRONG. Value-anchoring the residual F
+to the exact analytic `Leaf::dprofit_droot_collar_psi` (making `implicit_value`'s inner FD the single-FD of the
+exact `∂profit/∂p` = true `P_pp`) left the ratio UNCHANGED (1.137). An ε-sweep {1e-2…1e-4} gave 1.1371 at every
+ε (node `dp*/dψ` → 0.65176 as ε→0). So `P_pp` is correct and it is NOT ε-truncation — the 14% is STRUCTURAL in
+the numerator **`P_ps = ∂²profit/∂p∂ψ_soil`** (XAD through the templated `profit_reduced`). `profit_reduced`
+reproduces `∂²profit/∂p²` exactly but its MIXED partial is ~14% too large._
+_• **►IMMEDIATE NEXT STEP (fresh fix):** localise WHY `profit_reduced`'s mixed partial is off. Leading candidate:
+`profit_reduced` re-solves its anchors `psi_stem_star`/`ci_star` OFF-TAPE at the UNPERTURBED converged soil
+(`leaf.psi_soil_inverted_`), so the anchor doesn't move with ψ_soil → the p-vs-ψ cross term is biased while the
+pure-p term is right. Probe: compare `profit_reduced`'s `∂profit/∂ψ|_p` at TWO values of p against the real
+double leaf, to see where the p-dependence of the state-coupling diverges; then fix the anchor's ψ-response (or
+the responsible node's cross-derivative). This is NOT a `P_pp`/nested-FD problem and NOT a one-line denominator
+swap. Use `system-design` + `code-review`. Validate: certificate uniform ratio → 1.0 at life=2 AND life=4.
+Grounding: forward-side T1 (loop well-conditioned, ‖(I−T′)⁻¹‖≈5–20) so a correct one-node fix propagates cleanly.
+Probe record: `scratchpad/upfd3_decisive.log`; all env-gated probe blocks (`TF24_UPFD3`/`TF24_PPP_EXACT`/`TF24_EPS`)
+reverted — plant back at the sign-fix commit; re-add from session-12 git history / conversation._
 
 _**►► GROUNDING (session 12) — cross-checked against the forward-side numerical corpus on branch
 `claude/tf24-multi-rate-stepper-n5audm`.** plant#62 (shutdown keys on the wettest layer → nearly unreachable;
