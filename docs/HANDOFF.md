@@ -126,8 +126,52 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 10). **HEAD: plant `fa53480a`, super `13c50eb`, odelia `16cff79`
-(unchanged). All clean, pushed.**_
+_Last updated: 2026-07-21 (session 10, end). **HEAD: plant `1af3c4e1` (sign fix), super `25341e1`,
+odelia `16cff79` (unchanged). All clean, pushed.**_
+
+_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23). ◄◄◄◄**_
+
+_**What is SOLVED (this session, committed):** the catastrophic life≥3 reverse-AD blow-up (b1/plant#60,
+`max|ad|` up to 2.56e14) was **OUR adjoint sign bug**, found by using the gradient as a per-call precise
+diagnostic — NOT the dry-end chart, NOT the forward-side step-collapse (I chased that and was wrong;
+retracted). Root cause: `net_mass_production_dt`'s local-tape leaf assembly seeds `lpsi[L] = −psi_soil_S[L]`
+(the leaf's signed-potential convention) then injected `d(·)/d(lpsi)` against the run-tape input
+`psi_soil_S` **without the chain-rule −1**. A sign-flipped soil-water feedback partial → positive-feedback
+reverse loop → exponential blow-up once the soil dries. **Fix (plant `1af3c4e1`):** negate the `src==3`
+partials in `tf24_strategy.cpp` (~line 601, `chain_sign`); active branch only, double bit-identical.
+**Result:** life=3 `max|ad|` 1.65e10→3.71e5, life=4 2.56e14→5.31e5, no BLOWN; **life=1 clean (~0.99),
+confirming the fix**; the per-layer `uptake` partials are now ALL correct (ratio 1.0)._
+
+_**What REMAINS (the residual, task #23):** a bounded ~2× error, life=4 `max|ad|`≈5.3e5 vs `max|fd|`≈1.15e6
+(~0.46, signs mixed; life=2 ~0.75–0.92 right-signed). Per-call diagnostic pinned it: the residual is ONLY
+in the **profit** partial, ONLY for the **wet deep layers (L=3,4)**. Those layers have tiny uptake
+sensitivity (~1e-6) but a large positive re-solve profit FD (+0.11/+0.21), so profit's sensitivity to a wet
+layer flows through the **collar re-optimisation (p\* channel)**, which the assembly mishandles for
+weakly-coupled layers. By envelope this channel should be ~0, so the leaf is not at a stationary interior
+optimum there (flat / near-fold / near a spline-domain edge)._
+
+_**The disambiguation that BLOCKED (why it needs a fresh approach):** the intended probe — h-sweep the
+single-leaf re-solve FD for L=3,4 (plateau = real derivative the assembly drops; noise = assembly is fine)
+plus log `dprofit/dp*` (`leaf.dprofit_droot_collar_psi`) for stationarity — **hits `util::stop`
+"Extrapolation disabled … outside interpolated domain"**: perturbing a wet layer's ψ_soil pushes the leaf
+re-solve past a hydraulic spline's domain edge. `util::stop` is an R longjmp, so a C++ try/catch does NOT
+catch it (confirmed). So the single-leaf re-solve FD is intrinsically fragile at these operating points —
+itself weak evidence for the "FD-noise-at-a-boundary" side. **Next-session plan:** (1) do the h-sweep
+WITHOUT re-solving — evaluate profit at FIXED collar via `find_psi_stem_from_psi_root(−q)` + `psi_stem_to_ci`
++ profit algebra at perturbed ψ_soil (stays in-domain, no golden section), to get ∂profit/∂ψ_soil|_p cleanly;
+(2) separately confirm `dprofit/dp*` magnitude at the L=3,4 calls (stationary?); (3) if the p\* channel is
+real, the assembly's `assemble(p_star)` must reproduce the true (imperfectly-stationary) `∂profit/∂p·dp*/dψ`
+— likely the interior-node `dp*/dψ_soil` for weakly-coupled layers, or anchoring `∂profit/∂p` to the double
+golden-section residual rather than the assembled-stationary value. Full detail:
+`docs/tf24-numerical-formulation-and-misspecification.md` §6b. Diagnostic driver pattern:
+`scratchpad/leaf_assemble_sweep.cpp` + the in-branch `TF24_LEAFFD`/`TF24_LEAFH` env-gated blocks (reverted;
+re-add from git history `git show` of the session-10 probe commits if needed)._
+
+_**Discipline reminders that paid off (keep):** the gradient is the sharpest diagnostic — compare an
+injected partial to a re-solve FD per call to localise, don't pattern-match a symptom. Tag [measured] vs
+[hypothesis]. Do NOT link this to the forward-side / #60 / #62 / R-C+R-D until an empirical test
+(cherry-pick R-C, re-run the certificate) shows the same defect — R-D was measured near-inert and reverted,
+so it is not a faith-fix._
 
 _**►► SESSION 10 — step 7 certificate RE-OPENS b1: the TF24 leaf adjoint is NOT correct at
 realistic patch lifetime. ◄◄** Session 9's "P2c COMPLETE through step 6 / b1 blow-up gone / every
