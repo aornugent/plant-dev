@@ -129,9 +129,36 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 _Last updated: 2026-07-22 (session 13, end). **HEAD: plant `1af3c4e1` (sign fix, unchanged), super advances
 with docs, odelia unchanged. All clean, pushed. The tf24_strategy.cpp `TF24_PSPROBE` probe was reverted; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23): ROOT CAUSE FOUND. It is a golden-section
-CONVERGENCE-TOLERANCE artifact, NOT an AD error. The next step is a DESIGN DECISION (blast radius) — take it to
-the user + `system-design`. ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23): ORACLE-REFRAMED. The golden-section
+tolerance artifact is a comparison-bracketing STAIRCASE; our reverse gradient (0.652) is mostly the RIGHT
+object and our FD reference (0.573) was measuring the wrong one. The genuine bug is the CORNER regime (node
+undefined there), masked by the interior measurement. RUN 2 cheap confirmatory tests, THEN build. Full trail:
+`docs/oracle-response-inner-argmax-adjoint.md` + `docs/oracle-consultation-index.md` Round 4 + doc §6g. ◄◄◄◄**_
+
+_**SESSION 13 (oracle round) — the reframe.** A comparison-based bracketing search returns
+`p̂ = A + γ_ω(B−A)`, a STAIRCASE: affine-within-cell (slope 0.573, no profit info) + O(ε) jumps carrying the
+optimum-tracking (0.652). Consequences: (a) **0.573 is the artifact, 0.652 the right object; DO NOT chase the
+0.82× SCM ratio for interior states** — our δ-plateau sat inside one cell (the cleanest-looking plateau is the
+artifact branch). (b) **The real AD bug is the CORNER regime** (plant#60 wall, `∂profit/∂p≠0`): the interior
+node divides by shelf-curvature≈0 and `e_col`/`|∂profit/∂p|` detectors misclassify the shelf as stationary —
+UNDEFINED, not 14%-off; masked by our interior life=4 point. (c) **The build-plan's "reoptimising FD" (b2) and
+"δ-swept plateau" verification standards are staircase traps** at production ε; corrected anchor = tight-inner-ε
+frozen-schedule FD. (d) **Fix = terminal polish** (bracket-localize + read branch-flags at the two bracket ends
++ 3–4 Newton steps on the active condition — `∂profit/∂p=0` interior, fold `F=0` at the corner — using the
+exact `dprofit_droot_collar_psi` we already have), ~9–13 vs ~16 obj-evals (CHEAPER), discharging all three
+trifecta symptoms at once (forward noise-floor step-collapse, non-monotone J(ε), reverse gradient). Strongly
+CONFIRMS the committed P2c two-manifold IFT design; SHARPENS its detector (branch-flags-at-bracket-endpoints,
+not `e_col`)._
+_**►IMMEDIATE NEXT STEP (guide §7 — falsify before building):** (1) **scale test** — fix δ at the production
+plateau, sweep ε; predict FD jumps 0.573→0.652 once a few·ε<δ (retires the contract question). (2) **corner
+census** — per-call branch-flag + `|∂profit/∂p|` log (expect bimodal ≲4e-3 vs ≈8.8); size the corner
+trajectory-fraction and inspect shipped-node outputs there for divide-by-shelf-curvature blowups (sizes the
+REAL bug; may show the life=4 "residual" is ~entirely a reference artifact). THEN: default gradient-node →
+branch-flag regime selection (no forward bit moved); opt-in flag → terminal polish (candidate next default).
+Use `system-design` for the node/polish; `code-review` on the diff. Sign flag to reconcile: endpoint formula
+−0.573 vs quoted FD +0.573 (state-sign convention). Probe reconstruct from session-13 git history (`TF24_PSPROBE`)._
+
+_--- prior session-13 framing (SUPERSEDED by the reframe above; the "design decision" was the wrong question) ---_
 
 _**SESSION 13 — the ~14% residual is the golden-section optimizer's finite tolerance (`GSS_tol_abs=1e-3`), not
 any analytic derivative.** Forward-mode replication of the reduced chain (`TF24_PSPROBE`, life=4, dry point

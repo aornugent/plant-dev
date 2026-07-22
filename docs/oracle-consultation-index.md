@@ -218,3 +218,93 @@ neighbour secant: gradient-correct 0.5–1%, value-overflows at the `g=0` stall)
 then asks — without proposing a fix — whether the stability/differentiability tension is intrinsic to
 this term or an artifact of the transported variable / forming `∂ₓg` as a finite difference at all.
 Passes the domain-leak gate. Not yet sent.
+
+---
+
+## Round 4 — the inner-argmax staircase (2026-07-22; consult #5 sent, response received)
+
+Statement `oracle-consultation-inner-argmax-adjoint.md` (the broad trifecta characterisation, no
+candidate led) sent to a fresh Oracle. Response verbatim in `oracle-response-inner-argmax-adjoint.md`.
+
+### Response spine
+- **The one fact.** A comparison-based bracketing search's probe locations are affine in the bracket;
+  the objective enters *only* through the ~16 binary comparisons. So the returned point is
+  `p̂(σ) = A(σ) + γ_ω·(B(σ)−A(σ))`, a **staircase**: within each comparison cell (width a few×τ in
+  state) it is *exactly affine with a slope that carries no information about the objective*
+  (`A′ + γ_ω(B′−A′)`), and the optimum-tracking lives entirely in the O(τ) jumps at cell boundaries.
+  Uniform convergence (value → `p*`) but **derivative non-convergence** (a.e. slope → the frozen
+  within-cell value, never the ideal). Our numbers instantiate it exactly: γ=0.6298, within-cell
+  slope −0.573, distributional slope 0.652.
+- **The reframe: the reference was wrong, not the tape.** "FD of the code as run" is a δ/τ-indexed
+  *family*: δ≪cell → the within-cell artifact slope (0.573); δ≫cell → ideal + O(τ/δ). Our τ=1e-9
+  agreement was our *fixed δ* becoming thousands of cells wide, not the surrogate converging. Our
+  δ-plateau at τ=1e-3 sat **inside one cell** — "the cleanest-looking plateau you will ever see,
+  because within a cell the code is exactly affine." **0.573 is a diagnostic, not a reference; do not
+  chase the 0.82×.** The interior-regime node (2) is mostly computing the right object (0.652).
+- **The genuine bug the 14% masked: the corner regime.** Node (2) is not 14% off there — it is
+  *undefined in principle*: the midpoint sits within τ/2 of the wall; on the shelf side `|P_p|≈0`
+  mimics stationarity (a `|P_p|` detector misclassifies) and `−P_pσ/P_pp` divides by shelf curvature
+  ≈0. Severity ∝ trajectory-time in corner states. **Measure first.**
+- **Representation (1) [envelope-FD at fixed p*] is wrong in BOTH regimes**, not just the corner:
+  envelope zeroes `(∂P/∂p)p*′` but not `(∂c/∂p)p*′`/`(∂g/∂p)p*′`, and our own O(τ)/O(τ²) asymmetry is
+  exactly the statement that c,g are non-stationary in p. (Corrects a claim in our own consult §2.2.)
+- **The fix = terminal polish (one move, all three symptoms).** Keep bracketing for global
+  localization + branch detection (~5 comparisons), read the sub-solve branch flags at the two final
+  bracket ends, then 3–4 safeguarded Newton/secant steps on the *active* condition (`P_p=0` interior;
+  `F=0` at the fold) confined to the bracket. Cost ≈9–13 obj-equiv vs ≈16 today — **cheaper**; the
+  closed-form `P_p` we already have and don't use is the free asset. Value+derivative become one
+  object; the contract dispute dissolves.
+- **Regime selector = discrete + free:** branch flags at the two bracket endpoints. Same branch ⇒
+  interior manifold (`−P_pσ/P_pp`); different ⇒ fold inside bracket ⇒ corner manifold (`−F_σ/F_p` on
+  the root-loss residual). Transitions are measure-zero in time (kink, `dJ/dθ` exists, no jump term)
+  *unless* the argmax swaps between separated candidates at a value tie (then a switching-time event
+  term). The <0.5% switch-off incidence concentrates on the bifurcating trajectories.
+- **Shipping shape.** Default = forward bit-identical, gradient node upgraded to branch-flag selection
+  + fold-IFT (fixes the undefined corner behaviour, moves no forward bit, documents an O(10τ) offset
+  bounded by the resolvent `≈5–22`). Flag = polished solve (value+gradient coherent), likely the
+  cheaper next default. Forbidden = tape-through-search (satisfies the literal contract, uniquely
+  meaningless).
+- **Restated correctness contract.** (i) Anchor: AD == FD on a frozen schedule at **tight** inner
+  tolerance, fixed δ, to integrator tolerance. (ii) At production τ: AD sits at the *envelope minimum*
+  of the FD family (floor O(τ^{2/3}) at δ*~τ^{1/3}); a clean sub-cell plateau that is τ-invariant while
+  the envelope moves is the signature of an inner-solve artifact, not the gradient.
+
+### My evaluation — reconciliation against spec + build-plan
+- **Strong convergence with the committed P2c design** (`p2c-leaf-adjoint-design.md`): the
+  two-manifold IFT selection (interior stationarity vs branch-fold) and the rejection of
+  tape-through-the-search are *exactly* the shipped design's commitment and its rejected candidate —
+  independent re-derivation, treat as validated.
+- **The Oracle SHARPENS the regime detector.** The committed code selects the fold branch via `e_col`
+  (E_column at ψ_crit) / feasible-interval position; the Oracle's **branch-flag-at-the-two-bracket-
+  endpoints** is more robust to the "shelf mimics stationarity" misclassification the `|P_p|`/`e_col`
+  detector can suffer, and it is free. This is a concrete, cheap upgrade to the selection mechanism.
+- **The Oracle OVERTURNS the build-plan's verification prescription.** `build-plan.md` b2 says verify
+  the `(∂c/∂p)(∂p*/∂ψ)` term with "a **reoptimising** FD on a real patch (a frozen-p* FD hides it)",
+  and the P2b verification standard mandates "a **δ-swept** FD (find the stable plateau)." On a
+  staircase both are traps: the reoptimising FD at production τ measures the 0.573 surrogate, and the
+  δ-sweep's "stable plateau" is the exactly-affine within-cell branch — the artifact looks most
+  authoritative. **Corrected anchor: tight-inner-τ frozen-schedule FD.** This reinterprets (does not
+  falsify) the session-10→13 measured facts: the numbers stand; the *reference* they were compared
+  against was, for this term at interior states, the wrong object.
+- **Consistent with the P2c design's own kill condition** (`p2c-design` lines 129–132: reformulate the
+  inner solve to a genuine interior optimum → the fold node collapses). The Oracle's polish is that
+  reformulation, and it clarifies the fold node does **not** fully collapse (corner geometry is
+  intrinsic to the model) — so keep the selection, add the polish.
+
+### Pre-build tests (guide §7 — falsify before building; the Oracle supplied these)
+1. **Scale test (retires the contract question).** Fix δ at the production plateau; sweep τ. Predict
+   FD sits on 0.573 until a few·τ < δ, then jumps to 0.652. Cheap; run first.
+2. **Corner census (sizes the REAL bug).** Per-call log of branch flags + `|P_p(p̂)|`; expect a
+   bimodal histogram (≲`|P_pp|τ/2 ≈ 4e-3` vs ≈8.8). Measure trajectory-time in corner states; inspect
+   shipped-node outputs there for divide-by-shelf-curvature blowups. Decides whether there is any
+   material AD bug at all in the life=4 scenario (vs a pure reference artifact).
+3. **Reductio (optional, sharpest).** A θ into P but not (A,B) ⇒ sub-cell FD ≈ 0.
+- Sign flag to confirm: the printed endpoint formula gives −0.573 vs a quoted FD of +0.573 (state-sign
+  convention between the two measurements) — reconcile.
+
+### What this changes for task #23
+Not "tighten GSS / option 1-2-3" but: (a) default-path gradient-node upgrade to branch-flag regime
+selection (fixes the undefined corner derivative, no forward bit moved); (b) opt-in terminal-polish
+flag (coherent value+gradient, likely cheaper, candidate next default); (c) replace the loose-τ
+reoptimising / δ-swept FD reference with a tight-inner-τ frozen-schedule anchor. Gate all three on
+tests 1–2 first.

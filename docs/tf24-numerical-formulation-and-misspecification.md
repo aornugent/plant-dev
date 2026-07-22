@@ -403,6 +403,39 @@ Empirical confirmation still owed: build option 1 and re-run the life-4 certific
 Probe blocks (`TF24_PSPROBE`) reverted — plant back at sign-fix `1af3c4e1`, tree clean; reconstruct from
 session-13 git history / this section. Raw probe output: `scratchpad/psprobe6.err`.
 
+## 6g. ORACLE REFRAME (session 13, consult #5) — the reference was the wrong object; the real bug is the corner regime
+
+A fresh-Oracle consult on the broad characterisation (`docs/oracle-consultation-inner-argmax-adjoint.md`;
+response verbatim in `docs/oracle-response-inner-argmax-adjoint.md`; evaluation in
+`docs/oracle-consultation-index.md` Round 4) returns a single load-bearing fact that reinterprets §6a–§6f.
+
+**The measured facts of §6f stand; their interpretation flips.** A comparison-based bracketing search
+returns `p̂(σ) = A(σ) + γ_ω(B(σ)−A(σ))` — a **staircase**: exactly affine within each comparison cell
+(width a few×ε in state) with a slope carrying *no* information about profit (`A′+γ_ω(B′−A′) = 0.573`),
+and the optimum-tracking (`0.652`) living entirely in the O(ε) jumps at cell boundaries. So:
+- **The node's 0.652 is (mostly) the right object; 0.573 is the artifact.** "FD of the code as run" is a
+  δ/ε-indexed family, not one number: our δ-plateau at production ε sat *inside one cell* (hence the
+  suspiciously clean plateau — within a cell the code is exactly affine), measuring the within-cell
+  endpoint slope. The τ=1e-9 agreement was our fixed δ spanning thousands of cells, not the surrogate
+  converging. **Do not chase the 0.82× SCM ratio for interior states — it is a reference artifact.**
+- **The genuine, currently-undefined AD bug is the CORNER regime, which the interior life=4 measurement
+  masks.** Where profit has the §6b/plant#60 wall (`∂profit/∂p ≠ 0`, flat shelf), the interior
+  stationarity node divides by shelf curvature ≈ 0 and a `|∂profit/∂p|`/`e_col` detector misclassifies
+  the shelf as stationary. Severity ∝ trajectory-time in corner states — **unmeasured**.
+- **The build-plan's verification prescriptions are staircase traps.** `build-plan.md` b2 ("reoptimising
+  FD, a frozen-p* FD hides it") and the P2b "δ-swept FD plateau" standard both measure the within-cell
+  artifact at production ε. **Corrected anchor: tight-inner-tolerance frozen-schedule FD.**
+
+**PENDING VERIFICATION (guide §7 — do before rewriting any conclusion as settled):** (1) *scale test* —
+fix δ at the production plateau, sweep ε; predict FD jumps 0.573→0.652 once a few·ε < δ. (2) *corner
+census* — per-call branch-flag + `|∂profit/∂p|` histogram (expect bimodal ≲4e-3 vs ≈8.8); size the
+corner trajectory-fraction and inspect shipped-node outputs there for divide-by-shelf-curvature blowups.
+Until these run, §6f's numbers are trusted but this reinterpretation is the Oracle's diagnosis, not a
+measured verdict. **Fix (post-verification):** default-path gradient node → branch-flag regime selection
+(interior `−P_pσ/P_pp` vs fold `−F_σ/F_p`), no forward bit moved; opt-in flag → terminal polish (bracket
+localize + ~3–4 Newton steps on the active condition using the exact `dprofit_droot_collar_psi` we already
+have), making value+gradient coherent at ~9–13 vs ~16 obj-evals (cheaper), the candidate next default.
+
 ## 6. Where this stands (superseded above by §6c; kept for the trail)
 
 - **[established, mine]** The resident TF24 reverse-AD gradient is wrong at life ≥ 3 by ~1e8; the true
