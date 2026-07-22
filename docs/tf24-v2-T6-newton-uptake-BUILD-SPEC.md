@@ -94,6 +94,29 @@ exactly (B).
 > boundary bound_b(ψ) (IFT of the root_crit/root_psi_crit continuity condition in
 > `find_root_psi`). Build BOTH in Slice 3's C++ ∂a/∂u and re-gate analytic-vs-FD before wiring.
 
+> **Slice 3 REUSE MAP (2026-07-22 inventory of the retired MRI machinery, all present in the
+> tree since the forward-speed branches sit at the old HEADs).** Do NOT rebuild these:
+> - odelia `mri.hpp`: `mri_macro_step`/`mri_advance` (freeze-slow macro/micro skeleton),
+>   `MRISchedule` + `replay` flag (record→replay reverse-mode for free), the
+>   `AdaptiveSubcycle`/`SplitSubcycle` functor seam (l.270-287), `has_freeze_slow` trait;
+>   `ode_step_mri*.hpp` `MriStep` (Step-interface wrapper), `Method::mri` dispatch in
+>   `ode_solver_internal.hpp`. Toys: `examples/two_rate_system.hpp`, `drainage_system.hpp` +
+>   their tests.
+> - plant `patch.h`: `[slow=cohorts | fast=soil]` layout, `slow_size`/`fast_size`,
+>   **`freeze_slow`** (freezes canopy + light field per leg — the macro-step freeze),
+>   `slow_rates`/`fast_rates`, `mri_split`, and the `record_uptake`/`sweep_soil`/
+>   `overwrite_cached_soil` probe (the closest existing "freeze cohorts, sub-cycle soil vs a
+>   prescribed a(t)" scaffold). Control keys `ode_method`/`n_collocation_nodes`/`mri_use_split`;
+>   counters `mri_fast_rate_calls`/`patch_rhs_calls` (`mri_diag.cpp`).
+> - **The ONE thing to replace:** `fast_rates`→`fast_block_uptake()`→`assemble_resource_depletion()`
+>   runs the O(M) cohort sum every fast-RHS eval (why the old MRI was 6-25x slower). T6 swaps it
+>   for `a ≈ a0 + (∂a/∂u)(u−u0)` from Slice 3a, as a new frozen-per-leg context (like
+>   `freeze_slow`), NOT the linear `aggregate`/g channel (`coupling_size()==0` for plant).
+> Decomposition: 3b-i stand ∂a/∂u (member-loop byproduct mirroring `assemble_resource_depletion`,
+> validated vs FD of stand a) → 3b-ii OFFLINE macro-step falsifier (freeze cohorts, sub-cycle soil
+> with the refreshed a, compare soil traj + offspring to truth; sets the trust-monitor rate) →
+> 3b-iii odelia integrator (toy-first) + wire + Slice 4 measure.
+
 **Slice 3 — macro-step scheme (odelia engine + plant hooks).**
 - In odelia, add a macro/micro integrator that: freezes cohorts over H, sub-cycles the
   5-dim soil block with the Taylor-refreshed `a(u)` from Slice 2, and a trust monitor
