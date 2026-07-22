@@ -190,8 +190,12 @@ offspring (T3: survivor-flips J-negligible).*
    `tf24-v2-reconciliation.md` (how T1/T5a/T3 fit — why the fix is numerical, not item B).
    Verbatim Oracle response + triage: `oracle-consultation-fundamentals-v2-response.md`,
    `tf24-v2-response-triage.md`.
-3. **Execute T6 Slice 1 first** (Newton operating-point solve, flag OFF/bit-identical, then ON
-   vs GSS across the bank; ship as its own PR), then Slice 2's offline ∂a/∂u gate BEFORE wiring.
+3. **Slice 1 is DONE and SHIPPED** (plant `5a48347b`, `tf24-v2-T6-slice1-newton-collar-result.md`):
+   `newton_collar_solve` control key, OFF-by-default/bit-identical, ON matches GSS to max rel
+   6.8e-4 across the bank, 1.20× whole-solve. Implemented as a safeguarded TOMS748 root-find on
+   the analytic `dprofit_droot_collar_psi` (not a hand-rolled Newton — reuses existing machinery;
+   see the result doc's design note). **NEXT: Slice 2** — analytic `∂a/∂u` as a member-loop
+   byproduct, offline-gated vs central differences (~1e-4, incl. dry tercile) BEFORE any wiring.
    The analytic gradient the build needs already exists: `LeafModel::dprofit_droot_collar_psi`.
 
 ### Session-2 measure-axis context (superseded by session-3's resolution; audit trail only)
@@ -357,8 +361,8 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `9fc0915`+ (session-3 v2 response, T1/T5a/T3/P1/P2 results, finding, T6 spec, this handoff) |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `0015c9fd` (slim cache + WR/uptake probe hooks; UNCHANGED session 3 — all session-3 work was R scripts + docs) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `cfdc8ee`+ (session-3 v2 arc; + T6 Slice 1 result + scripts + submodule bump) |
+| plant | `claude/tf24-multi-rate-stepper-n5audm` | `5a48347b` (**T6 Slice 1: Newton/gradient collar solve**, OFF-by-default, bit-identical off; over `0015c9fd` slim cache + probe hooks) |
 | odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged; odelia#47 filed) |
 
 **Session 3 changed no C++** — all findings came from R probes on saved fields reusing the
