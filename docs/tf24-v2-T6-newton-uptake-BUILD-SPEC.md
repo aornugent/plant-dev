@@ -130,7 +130,19 @@ exactly (B).
 > occur (worst 14/40, dry+storm rewetting). Cheap trust monitor feasible (corr(a_err,‖δu‖²)=0.985)
 > but must scale by ‖J‖, not a raw ‖δu‖ threshold — that is the 3b-iii trust-monitor spec.
 
-**Slice 3 — macro-step scheme (odelia engine + plant hooks).**
+> **Slice 3b-iii GATE RESULT (2026-07-22) — DONE end-to-end.**
+> **Step 1 (toy odelia integrator, `tf24-v2-T6-slice3b-iii-uptake-integrator-result.md`): PASS.**
+> `subcycle_uptake` (frozen affine coupling + trust monitor + record→replay of re-expansion indices)
+> + `UptakeSubcycle` + `UptakeSystem` toy, reusing `mri_macro_step`/`freeze_slow`/`MRISchedule`.
+> Gate: accuracy ~5e-4, 9.7–16.5× coupling-eval reduction (death mode absent), cheap monitor within
+> ~1.5× oracle, record→replay adjoint matches FD <1e-6. THE MONITOR LESSON: trigger on the 2nd-order
+> remainder e²=(‖pred_a−a₀‖/‖a₀‖)², NOT the 1st-order excursion ‖J·δu‖ (over-triggered 12×).
+> **Step 2 (mri_uptake on the real patch, `tf24-v2-T6-slice3b-iii-step2-mri-uptake-patch-result.md`):
+> PASS forward.** `Method::mri_uptake`+`MriUptakeStep`; patch hooks (env_has_split-guarded). Gate
+> (30-yr TF24 SCM): 40× fewer O(M) cohort sums at 9.8e-3 offspring vs rkck; re-expansions=0;
+> bit-identical off. Residual ~1% = order-1 MRI macro-discretization (a Slice-4 knob), not the refresh.
+
+**Slice 3 — macro-step scheme (odelia engine + plant hooks). ✅ DONE (see gate callout above).**
 - In odelia, add a macro/micro integrator that: freezes cohorts over H, sub-cycles the
   5-dim soil block with the Taylor-refreshed `a(u)` from Slice 2, and a trust monitor
   (2nd-order remainder estimate) that triggers a true-`a` re-expansion. Prototype/validate

@@ -150,9 +150,11 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-22 (session 5 — T6 build: Slice 3b-i stand ∂a/∂u built+validated (bit-identical),
-Slice 3b-ii macro-step falsifier = GO (2.9×–40×); NEXT = Slice 3b-iii odelia integrator, see the
-"▶ NEXT SESSION" block below). Session 2 wrote the domain-clean v2 characterisation
+*Last updated: 2026-07-22 (session 6 — T6 build: Slice 3b-iii DONE end-to-end. Step 1 (toy odelia
+uptake integrator) PASS; step 2 (mri_uptake wired on the real TF24 patch) PASS forward — 40× fewer
+O(M) cohort sums at 9.8e-3 offspring vs rkck, bit-identical off. NEXT = Slice 4 (scenario bank),
+see the "▶ NEXT SESSION" block below). Session 5 built Slice 3b-i (stand ∂a/∂u, bit-identical) and
+Slice 3b-ii (macro-step falsifier = GO, 2.9×–40×). Session 2 wrote the domain-clean v2 characterisation
 (`oracle-consultation-fundamentals-v2.md`). Session 3 got the **v2 Oracle response** (a major
 reframe, verbatim in `oracle-consultation-fundamentals-v2-response.md`), triaged it into a new
 falsifier ladder (`tf24-v2-response-triage.md`), and ran the cheap offline falsifiers. The
@@ -185,37 +187,44 @@ per-run cost. P2 (uptake-Taylor falsifier, `tf24-v2-P2-uptake-taylor-falsifier-r
 — uptake is a low-order function of soil water over weekly windows and MOST predictable near the dry
 limit (dry-tercile ~1%); the way the multirate/IMEX ancestors died is falsified. → **GO to T6.***
 
-***T6 progress (session 5): Slice 1 SHIPPED; Slice 2 gate DONE; Slice 3a (two-branch analytic
-∂a/∂u) BUILT+VALIDATED; Slice 3b-i (stand ∂a/∂u byproduct) BUILT+VALIDATED (dry 1e-5, bit-identical
-off); Slice 3b-ii (offline macro-step falsifier) = GO — arbitrage viable 2.9×–40× at ≤5.5e-4 soil
-accuracy, cheap trust monitor feasible (corr 0.985). NEXT = Slice 3b-iii (odelia macro/micro
-integrator, toy-first) → Slice 4 (end-to-end), reusing the retired MRI skeleton.*** *The two levers on record:
+***T6 progress (session 6): Slice 1 SHIPPED; Slice 2 gate DONE; Slice 3a BUILT+VALIDATED; Slice 3b-i
+(stand ∂a/∂u) BUILT+VALIDATED; Slice 3b-ii (falsifier) = GO (2.9×–40×); Slice 3b-iii DONE end-to-end
+— step 1 (toy odelia integrator) PASS (accuracy ~5e-4, 9.7–16.5× coupling reduction, cheap monitor
+within ~1.5× oracle, record→replay adjoint exact) and step 2 (mri_uptake on the real patch) PASS
+forward (40× fewer O(M) cohort sums at 9.8e-3 offspring vs rkck, bit-identical off). NEXT = Slice 4
+(scenario bank: converged-J acceptance + wall-clock).*** *The two levers on record:
 (T6, chosen) the SPEED arbitrage — 10–100× fewer cohort solves (T4 headroom) via cohorts-on-a-
 weekly-step with a cheap analytic uptake refresh; and (deferred) the ACCURACY refiner (P1 showed
 static shapes fail). Item B not needed; rung 3 moot (T3: survivor-flips J-negligible).*
 
-## ▶ NEXT SESSION — start here: T6 Slice 3b-iii (prescriptive)
+## ▶ NEXT SESSION — start here: T6 Slice 4 (end-to-end scenario bank; prescriptive)
 
 **Branches (post-split): develop on `claude/tf24-forward-speed-n5audm` (plant) and
 `claude/tf24-forward-speed-engine` (odelia); meta stays on
 `claude/tf24-multi-rate-stepper-n5audm` and its `.gitmodules` tracks the two forward-speed
-branches. Push ONLY to `aornugent/*`. See Part 1 §5. Slice 3b-iii is the FIRST odelia build of
-the whole track — the odelia branch is untouched since the split (`2f78191`).**
+branches. Push ONLY to `aornugent/*`. See Part 1 §5.** Slice 3b-iii (the odelia integrator +
+real-patch wiring) is DONE; Slice 4 is mostly an R measurement task — likely NO new C++ unless the
+macro-grid driving needs a change (see §3 below).
 
 ### 0. Rebuild context (read in this order)
 1. **Part 1 in full** (codesign rules, bit-identical invariant, branch/commit rules, hard-won lessons).
 2. `docs/tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — the build plan + the REUSE MAP + gate-result callouts.
-3. The session-4/5 result docs, in order: `tf24-v2-T6-slice1-newton-collar-result.md`,
+3. The result docs, in order: `tf24-v2-T6-slice1-newton-collar-result.md`,
    `tf24-v2-T6-slice2-duptake-gate-result.md`, `tf24-v2-T6-slice3a-analytic-duptake-result.md`,
-   `tf24-v2-T6-slice3b-i-stand-duptake-result.md` (stand ∂a/∂u), and
-   **`tf24-v2-T6-slice3b-ii-macrostep-falsifier-result.md` (the GO decision + the trust-monitor
-   spec 3b-iii must implement — read this one closely).**
-4. Rebuild plant (headers changed): from `plant/`, `rm -f src/*.o src/*.so`,
-   `Rscript -e "library(methods); RcppR6::RcppR6()"`, then
-   `Rscript -e 'options(pkg.build_extra_flags=FALSE); pkgbuild::compile_dll(compile_attributes=TRUE, debug=FALSE)'`.
-   Sanity (both should reprint their headline numbers):
-   `Rscript scripts/tf24-benchmarks/duptake_stand_gate.R` (dry tercile med ~1e-5, abs-err/global med ~1.2e-4);
-   `Rscript scripts/tf24-benchmarks/macrostep_falsifier.R` (adaptive cohort-sums 1–14/40, soil err ≤5.5e-4).
+   `tf24-v2-T6-slice3b-i-stand-duptake-result.md`, `tf24-v2-T6-slice3b-ii-macrostep-falsifier-result.md`,
+   `tf24-v2-T6-slice3b-iii-uptake-integrator-result.md` (toy), and
+   **`tf24-v2-T6-slice3b-iii-step2-mri-uptake-patch-result.md` (the real-patch PASS + the honest
+   scoping Slice 4 must resolve — read this one closely).**
+4. Rebuild: **odelia first** (plant LinkingTo it), then plant.
+   - odelia: from `odelia/`, `Rscript -e 'options(pkg.build_extra_flags=FALSE); pkgbuild::compile_dll(compile_attributes=FALSE)'`
+     then `R CMD INSTALL --no-docs --no-byte-compile odelia` (installs headers plant compiles against).
+   - plant: from `plant/`, `rm -f src/*.o src/*.so`, `Rscript -e "library(methods); RcppR6::RcppR6()"`,
+     then `Rscript -e 'options(pkg.build_extra_flags=FALSE); pkgbuild::compile_dll(compile_attributes=TRUE, debug=FALSE)'`.
+   Sanity (should reprint their headline numbers):
+   `Rscript scripts/tf24-benchmarks/duptake_stand_gate.R` (dry tercile med ~1e-5);
+   `Rscript scripts/tf24-benchmarks/macrostep_falsifier.R` (adaptive cohort-sums 1–14/40);
+   `Rscript scripts/tf24-benchmarks/mri_uptake_gate.R` (40× coupling reduction, offspring rel ~9.8e-3 vs rkck).
+   In-package tests: from `odelia/`, `testthat::test_dir("tests/testthat", filter="example-uptake")` (25 pass).
 
 ### 1. What is already DONE and TRUE (do not rebuild; build on these)
 - **Slice 1 (plant):** control key `newton_collar_solve` (OFF/bit-identical); ON = safeguarded
@@ -251,11 +260,41 @@ the whole track — the odelia branch is untouched since the split (`2f78191`).*
   drainage cascade are `a`-independent (`analytic_partial_flow` + the rain/cascade terms). The soil
   balance = exact drainage flow ⊕ (rain+cascade+uptake) remainder. R surface already exposed:
   `TF24_Environment::r_residual_rhs(theta,a)`, `r_analytic_partial_flow(theta,dt)`.
-- **THE TRUST-MONITOR SPEC (3b-ii's deliverable for 3b-iii):** the linearization error is
-  ~C·‖δu‖² and **corr(a_err, ‖δu‖²) = 0.985** — so a probe-free 2nd-order/excursion trigger is
-  feasible. BUT the excursion at the trip spans ~2 orders across regimes (5.6e-4→8.5e-2), so the
-  monitor **must scale by local sensitivity** (‖J‖ / a true 2nd-order remainder), NOT a raw fixed
-  ‖δu‖ threshold. The 2.9×–40× is an ORACLE (ideal) bound; a cheap monitor trails it (large headroom).
+- **THE TRUST-MONITOR SPEC (3b-ii's deliverable, now IMPLEMENTED in 3b-iii):** the linearization
+  error is ~C·‖δu‖² and **corr(a_err, ‖δu‖²) = 0.985**. THE MONITOR LESSON (learned mid-build,
+  3b-iii): trigger on the **2nd-order remainder** e² = (‖pred_a−a₀‖/‖a₀‖)² — NOT the first-order
+  excursion ‖J·δu‖ (which over-triggered 12×, because `a` genuinely moves a lot; that is the whole
+  point). e² is probe-free, needs only a₀ and J (Slice 3b-i), conservative by an O(1) factor
+  (cheap count ≥ oracle = the safe direction). This is the production monitor form on the patch
+  (`Patch::trust_excursion`).
+- **Slice 3b-iii step 1 (odelia, DONE) — the toy integrator.** `tf24-v2-T6-slice3b-iii-uptake-
+  integrator-result.md`. New inner `subcycle_uptake` (leg-start capture + fixed-nmicro micro-steps
+  on the frozen affine coupling + trust-monitored re-capture; record→replay of the re-expansion
+  indices via `MRISchedule.reexpansions`), `UptakeSubcycle` functor, `mri_coupling_evals`, and the
+  `UptakeSystem` toy. Reuses `mri_macro_step`/`freeze_slow`/`MRISchedule` wholesale (for plant
+  `coupling_size()==0` the MRI-GARK aggregate channel is already inert). Gate `test-example-uptake.R`
+  PASS: accuracy ~5e-4, 9.7–16.5× coupling-eval reduction (death mode absent), cheap monitor within
+  ~1.5× oracle, **record→replay adjoint matches FD <1e-6** (reverse mode proven on the toy).
+- **Slice 3b-iii step 2 (plant, DONE) — mri_uptake on the real patch.** `tf24-v2-T6-slice3b-iii-
+  step2-mri-uptake-patch-result.md`. odelia `Method::mri_uptake` + `MriUptakeStep` (mri_forward_euler
+  coupling + `UptakeSubcycle`, shared `mri_step_run`); `subcycle_uptake` gained a Strang split
+  micro-step (`analytic_flow·residual_frozen·analytic_flow`) for stiff Systems (`has_residual_frozen`).
+  Plant patch hooks (all `if constexpr(env_has_split<E>)`-guarded → FF16/K93 no-ops, bit-identical):
+  `refresh_anchor` (a₀=`fast_block_uptake`, J=`assemble_duptake_jacobian`, counts `mri_coupling_evals`),
+  `predicted_uptake`, `residual_frozen`, `trust_excursion`, `trust_true_error` (oracle diagnostic).
+  Control keys `mri_uptake_tol`(1e-2)/`mri_uptake_nmicro`(40); `scm_ode_method` maps "mri_uptake".
+  Gate `mri_uptake_gate.R` (30-yr TF24 SCM): **40× fewer O(M) cohort sums** (1654 vs 66160 cheap
+  residual evals) at **9.8e-3 offspring vs rkck**, **re-expansions = 0** (death mode absent),
+  bit-identical off (TF24 default offspring 1.03714898556177 unchanged; FF16 runs).
+- **HONEST SCOPING carried into Slice 4 (from step 2):** (a) the residual ~1% offspring error is the
+  **order-1 MRI macro-discretization** (shared with `method="mri"`), NOT the refresh (0 re-expansions;
+  refresh validated by 3b-ii ≤5.5e-4 + the toy ≤5e-4) — a Slice-4 knob (finer macro grid, or a
+  higher-order coupling table e.g. `mri_kutta3` for the slow advance). (b) The SCM drives the solver
+  with `advance_adaptive`; the macro-leg size is bounded via `ode_step_size_max` (set weekly in the
+  gate). (c) A `method="mri"` full-resolve isolation is impractical (the >30-min 6–25× penalty T6
+  removes) and confounded at short horizons by near-zero-J hypersensitivity (lesson #4; use ≥12 yr).
+  (d) Patch-level REVERSE mode is NOT wired (forward is the deliverable; `reexpansions` is recorded
+  and replay-ready; reverse proven on the toy only).
 - **Foundational facts:** T4 → cohorts ≤3%-sensitive to sub-weekly soil (freeze weekly). P2 → uptake
   low-order in soil water, most predictable near dry. Arbitrage = freeze cohorts, sub-cycle soil,
   refresh `a` from `∂a/∂u` instead of the O(M) cohort sum.
@@ -280,57 +319,61 @@ the whole track — the odelia branch is untouched since the split (`2f78191`).*
   frozen-per-leg context (like `freeze_slow`), NOT the linear `aggregate`/g channel
   (`coupling_size()==0` for plant).
 
-### 3. Slice 3b build order (each step gated before the next)
-- **3b-i — stand ∂a/∂u (plant). ✅ DONE** (plant `99064255`). See §1 and
-  `tf24-v2-T6-slice3b-i-stand-duptake-result.md`. Gate `duptake_stand_gate.R`.
-- **3b-ii — offline macro-step falsifier (R). ✅ DONE = GO** (meta `b3b6403`). See §1 and
-  `tf24-v2-T6-slice3b-ii-macrostep-falsifier-result.md`. Falsifier `macrostep_falsifier.R`.
-- **3b-iii — odelia macro/micro integrator (engine, toy-FIRST per codesign). ← START HERE.**
-  The arbitrage is proven viable (3b-ii); now build the engine that realises it. Order:
-  1. **Toy first (odelia, no plant).** Extend a toy (`inst/include/examples/two_rate_system.hpp` or
-     `drainage_system.hpp`) with a coupling that is refreshable from a stored Jacobian: fast block
-     `du/dt = f(u, a)` where `a = a0 + J(u − u_anchor)` between re-expansions, and a `true_a(u)` the
-     monitor can call on re-expansion. Add a new `Subcycle` functor alongside
-     `AdaptiveSubcycle`/`SplitSubcycle` (mri.hpp l.270-287 seam) that: (a) holds the frozen
-     `(u_anchor, a0, J)`; (b) each micro-step refreshes `a` cheaply; (c) runs the **trust monitor**
-     and re-expands (recompute `a0`, `J`, reset `u_anchor`) when it trips.
-     - **Trust monitor (per 3b-ii spec):** trigger on a **sensitivity-scaled** 2nd-order estimate,
-       NOT a raw `‖δu‖`. Cheapest defensible form: re-expand when `‖J‖·‖δu‖` (or a stored-curvature
-       2nd-order remainder) exceeds `tol·‖a0‖`. Validate on the toy that this reproduces the oracle
-       re-expansion count from 3b-ii to within a small factor (the toy has a known `true_a`, so you
-       can compare cheap-monitor trips vs oracle trips directly). Target: cheap-monitor cohort-sums
-       ≤ ~1.5× the oracle count, accuracy matching.
-     - Reuse `MRISchedule` + `replay` so the reverse pass records→replays the re-expansion schedule
-       for free (record-mode logs where it re-expanded; replay-mode reuses it).
-  2. **Wire the real patch (plant).** A variant `fast_rates` (patch.h l.308-315) that reads the
-     cached refresh `a0 + J(u − u_anchor)` from a NEW frozen-per-leg context (built like
-     `freeze_slow`, l.272-283, but also snapshotting `a0 = assemble_resource_depletion()` and
-     `J = assemble_duptake_jacobian()` at leg start with `control.compute_uptake_jacobian` ON for
-     that snapshot only) INSTEAD of `fast_block_uptake → assemble_resource_depletion` (the O(M) sum).
-     On a trust trip, recompute the snapshot (the one O(M) cost per re-expansion). Soil rate itself:
-     reuse `r_residual_rhs`/`analytic_partial_flow` (the `a` enters only the uptake term — see §1
-     "Key soil fact"). Add `ode_method="mri_uptake"` gated OFF; **production bit-identical when off**
-     (verify offspring OFF==ON exactly, as in 3b-i). `freeze_slow` already exists; do NOT use the
-     linear `aggregate`/g channel (`coupling_size()==0` for plant).
-  3. **GATE (3b-iii):** on the real patch over a single scenario window, the `mri_uptake` soil
-     trajectory + stand `a` must match the global-RK reference to the 3b-ii accuracy (≤~1e-3), and
-     the cohort-sum count (`mri_fast_rate_calls`/`patch_rhs_calls`, `src/mri_diag.cpp`) must show the
-     expected reduction. Reverse-mode: gradient via record→replay must match a full-resolve adjoint.
-- **Slice 4 — wire + measure end-to-end.** Bank (intense_storms, whiplash, extended_drought,
-  dry_to_wet, long_horizon, drydown) at a converged member mesh: per scenario report offspring rel
-  error vs global-RK reference, cohort-solve count, wall-clock, trust-monitor re-expansion rate.
-  **Acceptance = offspring within converged-J tol (measure, don't assume — wet-window refresh error
-  ×~10 feedback, T3; 3b-ii's ≤5.5e-4 per-window soil error at tol=1e-2 leaves headroom under a ~1e-1
-  offspring budget, but confirm end-to-end) AND net cohort-solve reduction (target 10–100×; 3b-ii
-  oracle bound was 2.9×–40× per window, so expect the realised whole-run number in that band or a bit
-  under). Kill condition: trust monitor fires ~every fast step → collapses to global RK (DEAD, same
-  as MRI ancestor) — 3b-ii showed this does NOT happen on the bank, worst 14/40.**
+### 2b. Slice 3b build order — ✅ ALL DONE (see §1 for details + result docs)
+- **3b-i — stand ∂a/∂u (plant). ✅ DONE.** Gate `duptake_stand_gate.R`.
+- **3b-ii — offline macro-step falsifier (R). ✅ DONE = GO.** Falsifier `macrostep_falsifier.R`.
+- **3b-iii — odelia integrator (toy) + real-patch wiring. ✅ DONE.** Step 1 gate
+  `test-example-uptake.R`; step 2 gate `mri_uptake_gate.R`. `ode_method="mri_uptake"` exists,
+  bit-identical off, 40× coupling reduction at 9.8e-3 offspring on the 30-yr single-species SCM.
+
+### 3. Slice 4 build order (end-to-end scenario bank; prescriptive) — ← START HERE
+Slice 4 is the real acceptance test. It is mostly R measurement on top of the built `mri_uptake`;
+add C++ ONLY if the macro-grid driving needs it (see step 3 below). Order:
+1. **Reference + harness (R).** For each bank scenario (`scripts/tf24-benchmarks/data/*.rds`:
+   intense_storms, whiplash, extended_drought, dry_to_wet, long_horizon, drydown), at a **converged
+   member mesh** and **converged inner tol** (GSS_tol_abs/ci_abs_tol 1e-12): run the SCM with (a)
+   `ode_method=""` (rkck) = the global-RK **reference**, and (b) `ode_method="mri_uptake"`
+   (compute_uptake_jacobian=TRUE, n_collocation_nodes=0, tol=1e-2, nmicro=40, ode_step_size_max
+   weekly). Per scenario report: **offspring rel error** vs the rkck reference, **cohort-solve count**
+   (`mri_coupling_evals` = the O(M) sums, vs `mri_fast_rate_calls` = cheap; and vs rkck's
+   `patch_rhs_calls`), **wall-clock** (same-machine A/B only — see the `profile-plant` skill; machine
+   drift is large), and the **trust-monitor re-expansion rate** (mri_coupling_evals/nlegs − 1).
+   Extend `mri_uptake_gate.R` into a per-scenario table; save an `.rds`.
+2. **If offspring accuracy misses converged-J tol on any scenario, tighten the KNOWN knobs and
+   re-measure — do NOT assume the refresh is at fault** (step-2 showed re-expansions=0 and the ~1%
+   is the order-1 MRI macro-discretization). In cheapest-first order: (a) finer macro grid (smaller
+   `ode_step_size_max`); (b) higher-order slow advance — swap `mri_forward_euler` for `mri_kutta3`
+   in `MriUptakeStep::step` (odelia, one line; the coupling tables already exist); (c) tighter
+   `mri_uptake_tol` (more re-expansions — only helps if re-expansions>0, i.e. the refresh IS
+   drifting). Each is a speed/accuracy trade; report the operating point that meets tol at max speed.
+3. **Macro-grid driving (C++ only if needed).** The SCM currently drives `mri_uptake` via
+   `advance_adaptive` with the leg bounded by `ode_step_size_max` (yerr=0 ⇒ always-accept ramp from
+   `ode_step_size_initial` up to the cap, so the first ~6 legs per event-interval are tiny — inflates
+   `mri_coupling_evals`). If that ramp dominates the cost on long scenarios, add a fixed weekly (or
+   forcing-kink) macro grid for `mri_uptake` in `scm.h`'s run path (mirrors the existing
+   `advance_fixed` branch). This is shared with `method="mri"`; system-design it first.
+4. **Acceptance = offspring within converged-J tol on EVERY bank scenario AND net cohort-solve
+   reduction (target 10–100×; 3b-ii oracle bound 2.9×–40× per window, step-2 realised 40× on the
+   benign 30-yr run — expect lower on storm/rewetting scenarios where re-expansions fire).** Kill
+   condition: trust monitor fires ~every fast step → collapse to global RK (DEAD) — 3b-ii showed this
+   does NOT happen on the bank (worst 14/40), but verify per scenario. If a storm-dominated scenario
+   is irreducible, the honest fallback is "mri_uptake on dry/steady scenarios, rkck on storm-dominated"
+   — still a partial DX win; report honestly (build-spec §4).
+5. **(Optional, separate) patch-level reverse mode.** Only if the reverse-mode gradient is needed for
+   `mri_uptake` (not required for the offspring/speed deliverable). The `reexpansions` schedule is
+   already recorded on the forward pass; wiring the patch adjoint is a distinct subsystem (plant#60
+   territory) — scope it on its own, do not fold into Slice 4's forward acceptance.
 
 ### 4. Discipline (the reason this is working)
 Gate offline before every C++ build; validate bit-identical-OFF; run `system-design` before a
-non-trivial change and `code-review` before every commit (Part 1 §3). Two session-4 gates each
-caught a real problem before wiring (Slice 2: interior-only wrong on dry/boundary states; Slice 3a
-re-gate: residual-threshold boundary dispatch → fixed by keying off g_a/g_b). Keep doing this.
+non-trivial change and `code-review` before every commit (Part 1 §3). Gates keep catching real
+problems before they ship: Slice 2 (interior-only wrong on dry/boundary states); Slice 3a
+(residual-threshold boundary dispatch → keyed off g_a/g_b); Slice 3b-iii step 1 (the trust monitor
+first triggered on the FIRST-order excursion ‖J·δu‖ → over-triggered 12×; fixed to the 2nd-order
+remainder e², the safe form now on the patch); Slice 3b-iii step 2 code-review (deleted dead
+`fast_rates_frozen`). Keep doing this. NOTE the generic-Patch trap (seen twice, 3b-i and 3b-iii):
+a `Patch` method that calls a TF24-only environment method (e.g. `get_soil_number_of_depths`) breaks
+FF16/K93 compilation — guard the body with `if constexpr (env_has_split<E>::value)`.
 
 ### Session-2 measure-axis context (superseded by session-3's resolution; audit trail only)
 
@@ -495,10 +538,10 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `b3b6403` (session-5: + Slice 3b-i/3b-ii result docs + `duptake_stand_gate.R` + `macrostep_falsifier.R`; `.gitmodules` tracks the forward-speed branches) |
-| plant (active) | `claude/tf24-forward-speed-n5audm` | `99064255` (+ **Slice 3b-i** stand ∂a/∂u: `duptake_jacobian`, `assemble_duptake_jacobian`, `duptake_retention_factor`, `control.compute_uptake_jacobian`, `resource_depletion` exposure; over Slice 1 + Slice 3a) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `7fbc89c` (session-6: + Slice 3b-iii toy + step-2 result docs, `mri_uptake_gate.R`; submodule pointers advanced) |
+| plant (active) | `claude/tf24-forward-speed-n5audm` | `c4845c4d` (+ **Slice 3b-iii step 2**: `ode_method="mri_uptake"` patch hooks `refresh_anchor`/`predicted_uptake`/`residual_frozen`/`trust_excursion`/`trust_true_error`, control keys `mri_uptake_tol`/`nmicro`, `mri_coupling_evals` counter; over Slice 1/3a/3b-i) |
 | plant (frozen) | `claude/tf24-multi-rate-stepper-n5audm` | `9c8bd2d6` (pre-split MRI/collocation/IMEX/R-C block only) |
-| odelia (active) | `claude/tf24-forward-speed-engine` | `2f78191` (UNCHANGED — no engine code yet; **Slice 3b-iii is the first odelia build**) |
+| odelia (active) | `claude/tf24-forward-speed-engine` | `3cfed4e` (+ **Slice 3b-iii**: `subcycle_uptake`+`UptakeSubcycle`+`MRISchedule.reexpansions`+`mri_coupling_evals`, `Method::mri_uptake`+`MriUptakeStep`+`mri_step_run`, `UptakeSystem` toy + `test-example-uptake.R`) |
 | odelia (frozen) | `claude/tf24-multirate-engine` | `b88514d` (pre-split MRI/RODAS/IMEX engine block only) |
 
 **2026-07-22 branch split:** the current work was divided at plant `9c8bd2d6` /
@@ -645,6 +688,12 @@ removable-vs-intrinsic **classifier are one instrument.**
 - **`tf24-v2-T6-slice2-duptake-gate-result.md` — Slice 2 gate DONE (CONDITIONAL GO). Interior
   IFT ∂a/∂u validated to ~1e-4; found interior IFT fails on BOUNDARY-PINNED operating points
   (dry regime, Spearman 0.71 vs stationarity residual). Slice 3 ∂a/∂u must be TWO-BRANCH.**
+- **`tf24-v2-T6-slice3b-iii-uptake-integrator-result.md` — Slice 3b-iii step 1 (toy odelia
+  integrator) PASS: `subcycle_uptake`/`UptakeSubcycle`, the 2nd-order monitor lesson, 9.7–16.5×
+  reduction, record→replay adjoint <1e-6.**
+- **`tf24-v2-T6-slice3b-iii-step2-mri-uptake-patch-result.md` — Slice 3b-iii step 2 (mri_uptake on
+  the real patch) PASS forward: 40× coupling reduction at 9.8e-3 offspring, bit-identical off, +
+  the honest scoping Slice 4 must resolve.**
 - **`tf24-v2-T6-slice3a-analytic-duptake-result.md` — Slice 3a DONE. Two-branch analytic C++
   `Leaf::compute_duptake_dpsi_soil` (interior IFT + boundary continuity IFT, dispatched by the
   g_a/g_b signs from Slice 1); re-gated analytic-vs-FD across the bank: ALL med 4.2e-5 / max
