@@ -126,34 +126,41 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-22 (session 15, end). **HEAD: plant `c6b164ec` (P2d TF24f collar channel), super
-`<this docs commit>`, odelia unchanged. All clean, pushed. Scratchpad probes gitignored; tree clean.**_
+_Last updated: 2026-07-22 (session 15, end). **HEAD: plant `c6b164ec` (P2d TF24f collar leaf channel), super
+advances with docs, odelia unchanged. All clean, pushed. Scratchpad probes gitignored; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — P2 IS COMPLETE; plant#52 gradient parity is reached. Session 15 wired the
-last severed channel (P2d TF24f tracked collar-ψ, plant `c6b164ec`) after a `system-design` pass (floor)
-and `code-review` (approve): the tracked collar-ψ is one more `supplied_derivative` input, sourced from the
-leaf's analytic partials (`∂profit/∂ψ` = `seam_collar_psi_partial()`; per-layer `∂uptake/∂ψ` = new hook
-`seam_collar_uptake_partials()` → `dsoil_consumption_dpsi_collar_perlayer`, negated, NaN→0). Verified:
-`tf24f-collar` 3/3, `tf24f-collar-uptake` seam 8/8, resident TF24 + double suites unchanged, 430 pass / 0
-fail. All four strategies (K93/FF16/TF24 resident/TF24f) now have correct reverse-mode SCM gradients. NEXT
-WORK is OFF the parity path — pick with the user: (1) task #4 — retire `save_RK45_cache`/`step_history` from
-the `run_scm` R path (`make_node_schedule` still loads `parameters.ode_times`; fold onto `set_schedule`),
-plus the deferred `run_scm_gradient` R shim; (2) life=10+ OOM — tape checkpointing (odelia-level, vendored
-`XAD::CheckpointCallback`); (3) IC gradients (`Patch::ad_initial_state`, ledger E); (4) Phase 3 (the
-fixed-point/equilibrium BVP layer, gated on F1). Task #23 (`p*`) remains CLOSED (floor). Use `system-design`
-before any structural change, `code-review` on every non-trivial diff. ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — make the TF24/TF24f FULL-SCM gradient compile + FD-verify (R0, then census).
+The build-status matrix (`docs/build-plan.md`, "CURRENT WORK") is now the authoritative, test-cited status;
+read it first. What is DONE: the leaf/rate reverse-AD gradient for ALL FOUR strategies, and the full-SCM R0 +
+census gradients for FF16 and K93 through the run-shaped entry (`scm_jacobian`/`scm_gradient`). What is NOT
+done (the gap this session uncovered): TF24/TF24f have NEVER run through the full-SCM gradient entry — the
+active growing-dimension SCM does not COMPILE for them.
+`scm_gradient(Parameters<TF24_Strategy_<active>>, …, offspring_metric{})` fails at `node.h:347`
+(`set_log_density(*it++)`: `Node<TF24…>::value_type` resolves to `int` in the active SCM, while FF16/K93
+compile). TWO SUB-GAPS: (1) make the TF24/TF24f active SCM compile + run (trace `value_type` propagation
+through `Node`/`Species`/`Patch` for these strategies; then FD-verify R0 at a SMALL life — the TF24 reverse
+tape OOMs by life~10); (2) the multivariate census vector needs `census_leaf_area`/`census_mass`/
+`census_basal_area` — defined ONLY in `ff16_strategy.h` — added to TF24/TF24f (they compute area_leaf/mass,
+so mirror FF16). Then add committed FD-gated tests for the TF24/TF24f cells in the matrix (there is currently
+NO test exercising a TF24 SCM gradient — that absence is exactly how the drift happened). Use `system-design`
+before, `code-review` on the diff. Then the off-path work remains: task #4 (`step_history` off the R path +
+`run_scm_gradient` shim), life=10+ OOM (tape checkpointing), IC gradients, Phase 3. Task #23 (`p*`) CLOSED
+(floor). ◄◄◄◄**_
 
-_**SESSION 15 — reconciled stale docs, then completed P2 (P2d).** Two parts. (a) Ground-truth + tidy: a
-fresh build + full P2 gradient run showed P2a/P2b/P2c green and P2d red (severed tracked-ψ channel), so I
-corrected the stale docs — `build-plan.md` (current-work banner, cert status b1-fixed + TF24-resident-certified,
-P2b marked DONE, P2c documented as following `p2c-leaf-adjoint-design.md` with the seam KEPT, port-map table's
-three leaf rows annotated superseded, SESSION 15 section), `HANDOFF.md`, `ad-touchpoint-audit.md` — and cleared
-~98MB of stale scratchpad debug dumps (`docs` commit `e516712`). Key correction: the build-plan's open FF16
-"R0 WRONG / expect_failure" prose was STALE (task #10 closed it; the saga was a wrong replay schedule fixed by
-the run-shaped entry). (b) Fixed P2d (plant `c6b164ec`): the tracked collar-ψ channel, via a new
-`seam_collar_uptake_partials()` hook + appending the collar to the seam's `supplied_derivative` inputs;
-resident TF24 byte-identical (nullptr hook). plant#52 gradient parity reached. Design notes / oracle
-consultations / `p2c-leaf-adjoint-design.md` were already accurate — left as provenance._
+_**SESSION 15 — reconciled stale docs; fixed the P2d leaf channel; UNCOVERED the TF24/TF24f full-SCM gap;
+adopted the anti-drift matrix.** Chronology: (a) ground-truth + tidy — a fresh build + P2 gradient run showed
+the leaf-coupling gradients green and P2d's tracked-collar channel red; corrected the stale docs (the FF16
+"R0 WRONG / expect_failure" prose was STALE — task #10 had closed it; the saga was a wrong replay schedule)
+and cleared ~98MB of scratchpad dumps (`docs` `e516712`). (b) Fixed the P2d TF24f tracked-collar LEAF channel
+(plant `c6b164ec`): new `seam_collar_uptake_partials()` hook + appending the collar to the seam's
+`supplied_derivative` inputs; resident TF24 byte-identical (nullptr hook); `tf24f-collar` 3/3,
+`tf24f-collar-uptake` 8/8, 430 pass/0 fail. (c) On the user's request to confirm R0 + census across all four,
+DISCOVERED that TF24/TF24f had never gone through the full-SCM entry and it does not compile — so my "P2
+complete / #52 parity reached" claim (in (b)'s commits and the first cut of these docs) was an OVERCLAIM,
+now corrected. (d) Adopted the anti-drift discipline: `build-plan.md` now carries a build-status MATRIX whose
+every cell cites the test that proves it — an empty cell is a visible gap. Root cause of the drift: "done"
+was inferred from leaf-coupling tests, not from a test exercising the user-facing SCM entry per strategy.
+Design notes / oracle consultations / `p2c-leaf-adjoint-design.md` were accurate — left as provenance._
 
 _**SESSION 14 — #55 landed + floor chosen.** Cherry-picked aornugent/plant PR#56 (R-C) as plant `762b7e25`
 under a meaningful message: `set_shutdown_state` zeroes `soil_consumption_`/`E_up_` so a reused shut-down

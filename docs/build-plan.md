@@ -35,16 +35,47 @@ after the resident recording exists.
 - **Clean odelia/plant boundary (the v2 emphasis).** odelia owns the tape, the primitives, and record/replay across the growing dimension; plant supplies only scalar-generic closed forms + residual/kernel declarations. No model code reaches the tape (this is what makes the boundary cleaner than the prototype's in-model `supplied_derivative` seam). One templated body per read — **never** parallel `!is_same_v<double>` overloads.
 - **Build/test mechanics** (survival-critical — from `archive/ad-handover.md`): reinstall `odelia` after ANY odelia header edit (plant compiles against *installed* headers, not the submodule tree); `Sys.setenv(TESTTHAT_PARALLEL="false")`; build optimised once (`cd plant && make`, `-O2`) then `load_all` reuses the `.so`; regenerate RcppR6 only when adding/removing a registered field; on `undefined symbol`, `rm src/*.o src/*.so` and reinstall.
 
-## ►► CURRENT WORK (session 15, 2026-07-22): P2 COMPLETE — plant#52 gradient parity reached ◄◄
-**All of P2 is green** (verified by a full gradient-test run on a fresh build): P2a (K93),
-P2b (FF16), P2c (TF24 resident), and **P2d (TF24f tracked-`q`) — now fixed** (plant `c6b164ec`;
-the tracked collar-ψ channel is wired into the leaf seam). Gate-0 FF16/TF24, K93 SCM census + R0,
-FF16 SCM R0 + census-vector + entry, TF24 resident light + soil coupling, and both TF24f collar
-tests all pass; b1 is FIXED; task #23 (`p*`) closed (floor). 430 pass / 0 fail across the double
-+ gradient suites. **The critical path to #52 parity is DONE.** Remaining program work is off the
-parity path: task #4 (retire `step_history` from the resident/gradient R path), life=10+ OOM (tape
-checkpointing), IC gradients, and Phase 3 (the fixed-point/equilibrium layer). See the P2d bullet
-in Phase 2 and the session-15 note at the end of this file.
+## ►► CURRENT WORK (session 15, 2026-07-22): the AUTHORITATIVE build-status matrix ◄◄
+
+**Anti-drift rule (adopt going forward): a gradient is "done" ONLY when a committed test drives
+that (strategy × metric × entry) cell through the code path a user would use, and FD-verifies it.
+"The leaf-coupling test passes" is NOT "the SCM gradient works" — those are different code paths.**
+Status below is a matrix of *test citations*, not prose; an empty cell is a visible gap, and the
+way to re-confirm any cell is to run the cited test. (This matrix exists because session 15 found
+a prose-vs-code drift: "P2c/P2d done" had been recorded from leaf-coupling tests while the full-SCM
+gradient path had never been instantiated for TF24/TF24f — see below.)
+
+Two distinct reverse-AD gradient paths per strategy:
+- **Leaf/rate coupling** — one `compute_rates` / `IndividualRunner`, the leaf seam + rate algebra.
+- **Full-SCM emergent metric** — the growing-dimension `scm_jacobian`/`scm_gradient` entry a user
+  actually calls for R0 / census (record adaptive → replay active → reduce → reverse sweep).
+
+| Strategy | Leaf/rate coupling | Full-SCM R0 (offspring) | Full-SCM census scalar | Full-SCM census vector (LAI/biomass/basal) |
+|---|---|---|---|---|
+| **FF16** | ✓ `test-ad-gate0-ff16` | ✓ `test-ad-ff16-scm-gradient`, `test-scm-gradient-entry` | ✓ `test-scm-gradient-entry` | ✓ `test-scm-gradient-entry` (`ff16_census_vector_gradient`) |
+| **K93** | ✓ (rates are closed-form) | ✓ `test-ad-k93-scm-gradient`, `test-scm-gradient-entry` | ✓ `test-ad-k93-scm-gradient` (size/basal moment) | — N/A: size-structured, no `census_leaf_area`/`census_mass` |
+| **TF24** | ✓ `test-ad-gate0-tf24`, `test-ad-tf24-light-coupling`, `test-ad-tf24-soil-coupling` | ✗ **UNBUILT** — active SCM does not compile | ✗ UNBUILT | ✗ UNBUILT + no census methods |
+| **TF24f** | ✓ `test-ad-tf24f-collar`, `test-ad-tf24f-collar-uptake` | ✗ **UNBUILT** — active SCM does not compile | ✗ UNBUILT | ✗ UNBUILT + no census methods |
+
+**What is genuinely DONE:** the leaf/rate reverse-AD gradient for all four strategies (b1 fixed;
+P2c resident TF24 leaf coupling; P2d TF24f tracked collar-ψ, plant `c6b164ec`; task #23 `p*` closed);
+and the full-SCM R0 + census gradients for **FF16 and K93** through the run-shaped entry. 430 pass /
+0 fail across the double + these gradient suites.
+
+**THE OPEN GAP (next session — the real remaining P2 work):** TF24/TF24f have **never** run through
+the full-SCM gradient entry. `scm_gradient(Parameters<TF24_Strategy_<active>>, …, offspring_metric{})`
+fails to COMPILE at `node.h:347` (`set_log_density(*it++)` — `Node<TF24…>::value_type` resolves to
+`int` in the active SCM, while FF16/K93 compile). So neither R0 nor census works for TF24/TF24f yet.
+Two sub-gaps: (1) make the TF24/TF24f active growing-dimension SCM compile + run (value_type
+propagation through `Node`/`Species`/`Patch` for these strategies; then FD-verify R0); (2) the
+`census_vector` metric needs `census_leaf_area`/`census_mass`/`census_basal_area` — defined only in
+`ff16_strategy.h` — added to TF24/TF24f (they compute area_leaf/mass, so it mirrors FF16). Use
+`system-design` before, then FD-gate each cell above. **Correction to the session-15 claim below and
+in git history: "P2 complete / #52 parity reached" overstated — parity holds for the leaf/rate
+gradient and for FF16/K93 full-SCM gradients, NOT for TF24/TF24f full-SCM gradients.**
+
+Other off-path program work (unchanged): task #4 (retire `step_history` from the resident/gradient R
+path), life=10+ OOM (tape checkpointing), IC gradients, Phase 3 (the fixed-point/equilibrium layer).
 
 _(historical — the AD-touchpoint remediation that was "current work" through session 3):_
 
@@ -682,7 +713,10 @@ for Phase 2:
     the double↔double mutant/`environment_history` path) to attribute the error per channel, then fix the
     field source-derivative (new_node boundary + `M`) and `area_leaf_0`. The lifetime sweep + per-trait
     ratios are the running signature to watch.
-- **P2c — TF24 resident — DONE (session 15 verified).** Gate: `test-ad-gate0-tf24.R`,
+- **P2c — TF24 resident LEAF COUPLING — DONE (session 15 verified); full-SCM still UNBUILT.** The
+  leaf/rate reverse-AD gradient is verified (gate0 + light + soil coupling); the growing-dimension
+  SCM census/R0 gradient for TF24 does NOT compile yet (see the build-status matrix at the top).
+  Gate: `test-ad-gate0-tf24.R`,
   `test-ad-tf24-light-coupling.R`, `test-ad-tf24-soil-coupling.R` all green. **Implemented per the
   committed [`p2c-leaf-adjoint-design.md`](./p2c-leaf-adjoint-design.md), which SUPERSEDES the
   port-map's "delete the seam / template the residual" prescription below.** What actually landed:
@@ -891,14 +925,24 @@ stale prose that had P2b "WRONG" and TF24 "blocked"):
 - **P2c followed the committed leaf-adjoint design, not the port-map** — double `Leaf` +
   `implicit_value` nodes + `supplied_derivative` local-tape partials; the seam and the two analytic
   gradient helpers are RETAINED (port-map table + P2c bullet corrected).
-- **P2d (TF24f tracked collar-ψ) — FIXED (plant `c6b164ec`), completing P2.** Was a severed channel
+- **P2d (TF24f tracked collar-ψ) — leaf channel FIXED (plant `c6b164ec`); does NOT complete P2.** Was a severed channel
   (AD ≡ 0 vs nonzero FD). Fix followed a `system-design` pass (floor) + `code-review` (approve): the
   tracked collar-ψ is treated as one more `supplied_derivative` input, sourced from the leaf's
   analytic partials — `∂profit/∂ψ` = `seam_collar_psi_partial()` (the acclimation gradient), per-layer
   `∂uptake/∂ψ` = a new sibling hook `seam_collar_uptake_partials()` (`dsoil_consumption_dpsi_collar_perlayer`,
   negated to the tracked frame, NaN→0 at kinks). Resident TF24 returns `nullptr` → byte-identical.
   Gate: `tf24f-collar` 3/3, `tf24f-collar-uptake` seam 8/8; resident + double suites unchanged
-  (430 pass / 0 fail). **plant#52 gradient parity reached.**
+  (430 pass / 0 fail). This closes the TF24f **tracked-collar leaf channel** — NOT the full-SCM
+  TF24f gradient, which is still UNBUILT (the active SCM does not compile for TF24/TF24f; see the
+  build-status matrix at the top).
+
+**CORRECTION (session 15, later): "completing P2 / plant#52 parity reached" — stated here and in the
+P2c/P2d commit messages — was an OVERCLAIM.** Verified this session by pushing TF24/TF24f through the
+run-shaped entry: the full-SCM active path does not compile for them (`node.h:347`, `value_type`→`int`).
+The leaf/rate gradient is done for all four strategies and the full-SCM R0+census gradient is done for
+FF16/K93, but TF24/TF24f full-SCM gradients are UNBUILT. The build-status matrix at the top of this file
+is the authoritative, test-cited status. Root cause of the drift: "done" had been inferred from
+leaf-coupling tests rather than a test exercising the user-facing SCM entry per strategy.
 
 Docs reconciled this session: this file (current-work banner, cert status, P2b/P2c/P2d bullets,
 port-map table), `HANDOFF.md` (START HERE + session-15 block), `ad-touchpoint-audit.md` (b1-fixed
