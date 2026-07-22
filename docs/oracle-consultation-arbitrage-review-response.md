@@ -127,3 +127,82 @@ points that way — the offline falsifier before the build, the byte-identical A
 12×-over-triggering monitor and its fix: this round was run the way the record demanded, and the
 result is the first scheme in the whole history that beats the reference where the reference can't
 even run.
+
+---
+
+## Oracle follow-up (volunteered) — the full target architecture
+
+*Recorded verbatim. This is a target design to be built ONLY behind the ladder: the refresh-sweep
+slope gates it (a plateau halts everything until understood), and each component is tested cheapest-
+first. Not a licence to build the whole thing — the guide's rule stands (falsify each mechanism first).*
+
+Design principle first, because it dictates every choice: **make every fast-side operation exact or
+machine-precision (so the fast side can never fail or need tuning), spend all adaptivity on the slow
+side (where the accuracy actually binds), and let every trust decision be made by a computable
+quantity with a recorded discrete signature (so the adjoint is a replay, not a hope).** Simplicity
+comes from exactness: exact sub-flows have no knobs.
+
+### State, per-leg objects
+Leg `[t_k, t_k+H_k]`, frozen large block `x_k`. At the leg anchor `u₀` (one fused member sweep):
+`a₀ = a(x_k,u₀)` (L-vector byproduct); `G = ∂a/∂u|_{u₀}` (L×L exact, IFT byproduct, same sweep);
+`B` = ρ-weighted switch-flip box `{u : no member with ρ_j>ρ_guard flips}` (margin reduce, free);
+`ĉ` = running curvature estimate. Affine model inside the leg: `â(u)=a₀+G(u−u₀)`.
+
+### Fast advance (exact, unconditionally stable, no member solves)
+Split `u̇ = b(u₁,t)+Tu−κ(u)−â(u)` into three exactly-integrable pieces, Strang-composed per
+micro-segment δ (segments only where events demand):
+- `Φ_κ(δ)`: `u_ℓ ← [u_ℓ^{1−q}+(q−1)c_ℓ δ]^{−1/(q−1)}`, floored at `u_min` (exact recession);
+- `Φ_L(δ)`: `v ← e^{(T−G)δ}v + (T−G)^{−1}(e^{(T−G)δ}−I)(const)` (exact 5×5 expm, cached per anchor);
+- `Φ_b(δ)`: scalar 1-D solve on component 1 with the gate; kinks event-located exactly in 1-D.
+`u(t+δ) = Φ_κ(δ/2)∘Φ_b(δ/2)∘Φ_L(δ)∘Φ_b(δ/2)∘Φ_κ(δ/2)`. Fast-side error = splitting O(δ²)+model
+error only; non-finite states impossible by construction.
+
+### Trust: three cheap monitors, one action
+Re-anchor (one O(M) sweep; reset `u₀,a₀,G,B`) when ANY of:
+- `(M1) e² = (‖G(u−u₀)‖∞/‖a₀‖∞)² > tol_lin` (2nd-order drift proxy);
+- `(M2) u ∉ B` (a guarded member would flip — jump hazard, invisible to M1 by construction);
+- `(M3) ĉ·‖u−u₀‖² > tol_lin` (curvature-aware; catches the `u_min` approach where G grows ahead).
+
+### Certify (free, every re-anchor and leg end)
+True `a` is evaluated at every anchor anyway: `d_k = ‖a_true−â‖/‖a₀‖` (realized defect, exact);
+`ĉ ← EMA of ‖a_true−â‖/‖u−u₀‖²` (closed-loop curvature, feeds M3); J-band: accumulate
+`Σ_k d_k·A_k` (A_k = J-amplification estimate); report J ± band, and where the band diverges report
+branch-resolved J + flip inventory.
+
+### Slow advance (where the adaptivity lives)
+Embedded explicit pair on the frozen-coupling macro map (3-stage 3rd order + 2nd-order companion;
+each stage = one member sweep sharing cached u-independent setup; stage 1 fused with the anchor sweep
+⇒ 3 sweeps/leg). `E_slow` in a ρ- and J-weighted norm (weights `tw_j·|∂φ/∂x_j|` proxy, floored;
+FULL weight inside the survival guard band `ρ_j<ρ_guard` — never downweight at-risk members).
+accept/reject the leg on `E_slow`; `H_{k+1}=H_k·clip((tol_slow/E_slow)^{1/3},[0.2,5])`.
+
+### Events (aligned, not discovered)
+`H_k` pre-clipped to forcing-feature times, member-insertion times (insertions at leg boundaries
+only, ρ ramped C¹), prescribed-drive discontinuities (all known a priori); ρ-removal only at leg
+boundaries and only when `tw_j·sup|φ|·ρ_j < ε_J` (J-certified deletion); gate kinks inside legs
+handled exactly inside the 1-D `Φ_b` solve.
+
+### Prior conditioning / warmup
+Precompute an H-schedule from the known drive (`H⁰_k ~ min(forcing period, envelope headroom)`;
+monitors absorb only state-dependent surprises); first W legs run with mandatory mid-leg re-anchor +
+true-a shadow to calibrate `ĉ, A_k, tol_lin` per regime; `ρ_guard, ε_J` set once from J's measured
+amplification (ρ_guard s.t. a flip moves J < tol_J).
+
+### Adjoint (replay, not re-decide)
+Forward records the discrete signature {re-anchor indices, monitor-which-fired, inner-solve branch
+flags, floor touchdowns, kink crossings, insertion/removal events}. Reverse replays it fixed: linear
+fast flows transpose exactly (expmᵀ actions, tiny tape); anchor cotangents need `∂²a/∂u∂(x,θ)` — one
+HVP per anchor per reverse pass, same member-loop machinery as G (build once; validate vs FD that
+re-solves inner problems, branch-flip-aware).
+
+### Fallback ladder (bulletproofing)
+re-anchor rate > r_max/leg → halve H_k; H_k at floor and still tripping → disable â for that leg
+(true a(u) per micro-segment — correct by construction, just slow); arbitrage globally off →
+bit-identical to the reference single-rate solver.
+
+**Summary:** three member sweeps per accepted leg (the irreducible floor for a 3rd-order slow
+advance), an exactly-integrated 5-D interior, three one-line monitors, one adaptation law on the slow
+error, a replayable signature. Every component is exact, already measured in the record (`G`, `e²`,
+the recession, the margin instrument), or the certified fix to a measured failure. The only optional
+extension, gated behind its own falsifier, is the `p*(ξ)`-field interpolation inside the sweeps to
+attack the 3-sweep floor.
