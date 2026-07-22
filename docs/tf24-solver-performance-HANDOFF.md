@@ -150,8 +150,9 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-22 (session 4 — T6 build: Slice 1 shipped, branch split, Slice 2 gate,
-Slice 3a built+validated; NEXT = Slice 3b, see the "▶ NEXT SESSION" block below). Session 2 wrote the domain-clean v2 characterisation
+*Last updated: 2026-07-22 (session 5 — T6 build: Slice 3b-i stand ∂a/∂u built+validated (bit-identical),
+Slice 3b-ii macro-step falsifier = GO (2.9×–40×); NEXT = Slice 3b-iii odelia integrator, see the
+"▶ NEXT SESSION" block below). Session 2 wrote the domain-clean v2 characterisation
 (`oracle-consultation-fundamentals-v2.md`). Session 3 got the **v2 Oracle response** (a major
 reframe, verbatim in `oracle-consultation-fundamentals-v2-response.md`), triaged it into a new
 falsifier ladder (`tf24-v2-response-triage.md`), and ran the cheap offline falsifiers. The
@@ -184,53 +185,80 @@ per-run cost. P2 (uptake-Taylor falsifier, `tf24-v2-P2-uptake-taylor-falsifier-r
 — uptake is a low-order function of soil water over weekly windows and MOST predictable near the dry
 limit (dry-tercile ~1%); the way the multirate/IMEX ancestors died is falsified. → **GO to T6.***
 
-***T6 progress (session 4): Slice 1 SHIPPED, Slice 2 gate DONE (conditional GO), Slice 3a
-(two-branch analytic ∂a/∂u) BUILT + VALIDATED. NEXT = Slice 3b (stand ∂a/∂u → offline macro-step
-falsifier → odelia integrator), reusing the retired MRI skeleton.*** *The two levers on record:
+***T6 progress (session 5): Slice 1 SHIPPED; Slice 2 gate DONE; Slice 3a (two-branch analytic
+∂a/∂u) BUILT+VALIDATED; Slice 3b-i (stand ∂a/∂u byproduct) BUILT+VALIDATED (dry 1e-5, bit-identical
+off); Slice 3b-ii (offline macro-step falsifier) = GO — arbitrage viable 2.9×–40× at ≤5.5e-4 soil
+accuracy, cheap trust monitor feasible (corr 0.985). NEXT = Slice 3b-iii (odelia macro/micro
+integrator, toy-first) → Slice 4 (end-to-end), reusing the retired MRI skeleton.*** *The two levers on record:
 (T6, chosen) the SPEED arbitrage — 10–100× fewer cohort solves (T4 headroom) via cohorts-on-a-
 weekly-step with a cheap analytic uptake refresh; and (deferred) the ACCURACY refiner (P1 showed
 static shapes fail). Item B not needed; rung 3 moot (T3: survivor-flips J-negligible).*
 
-## ▶ NEXT SESSION — start here: T6 Slice 3b (prescriptive)
+## ▶ NEXT SESSION — start here: T6 Slice 3b-iii (prescriptive)
 
 **Branches (post-split): develop on `claude/tf24-forward-speed-n5audm` (plant) and
 `claude/tf24-forward-speed-engine` (odelia); meta stays on
 `claude/tf24-multi-rate-stepper-n5audm` and its `.gitmodules` tracks the two forward-speed
-branches. Push ONLY to `aornugent/*`. See Part 1 §5.**
+branches. Push ONLY to `aornugent/*`. See Part 1 §5. Slice 3b-iii is the FIRST odelia build of
+the whole track — the odelia branch is untouched since the split (`2f78191`).**
 
 ### 0. Rebuild context (read in this order)
 1. **Part 1 in full** (codesign rules, bit-identical invariant, branch/commit rules, hard-won lessons).
-2. `docs/tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — the build plan. **Its Slice-3 note now carries
-   the REUSE MAP** (exact odelia/plant machinery to reuse) and the two GATE-RESULT callouts.
-3. The session-4 result docs, in order: `tf24-v2-T6-slice1-newton-collar-result.md` (Newton collar
-   solve shipped), `tf24-v2-T6-slice2-duptake-gate-result.md` (why ∂a/∂u must be two-branch),
-   `tf24-v2-T6-slice3a-analytic-duptake-result.md` (the built + validated per-leaf Jacobian).
+2. `docs/tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — the build plan + the REUSE MAP + gate-result callouts.
+3. The session-4/5 result docs, in order: `tf24-v2-T6-slice1-newton-collar-result.md`,
+   `tf24-v2-T6-slice2-duptake-gate-result.md`, `tf24-v2-T6-slice3a-analytic-duptake-result.md`,
+   `tf24-v2-T6-slice3b-i-stand-duptake-result.md` (stand ∂a/∂u), and
+   **`tf24-v2-T6-slice3b-ii-macrostep-falsifier-result.md` (the GO decision + the trust-monitor
+   spec 3b-iii must implement — read this one closely).**
 4. Rebuild plant (headers changed): from `plant/`, `rm -f src/*.o src/*.so`,
    `Rscript -e "library(methods); RcppR6::RcppR6()"`, then
    `Rscript -e 'options(pkg.build_extra_flags=FALSE); pkgbuild::compile_dll(compile_attributes=TRUE, debug=FALSE)'`.
-   Sanity: `Rscript scripts/tf24-benchmarks/duptake_analytic_regate.R` should reprint ALL med ~4.2e-5,
-   max ~6.1e-4.
+   Sanity (both should reprint their headline numbers):
+   `Rscript scripts/tf24-benchmarks/duptake_stand_gate.R` (dry tercile med ~1e-5, abs-err/global med ~1.2e-4);
+   `Rscript scripts/tf24-benchmarks/macrostep_falsifier.R` (adaptive cohort-sums 1–14/40, soil err ≤5.5e-4).
 
 ### 1. What is already DONE and TRUE (do not rebuild; build on these)
-- **Slice 1 (plant, on the branch):** control key `newton_collar_solve` (OFF/bit-identical); ON =
-  a safeguarded `util::uniroot_smooth` (TOMS748) root-find on the analytic
-  `Leaf::dprofit_droot_collar_psi == 0` over the feasible collar interval, with an **endpoint-sign
-  safeguard** (`g_a>0 && g_b<0` ⇒ interior optimum; else boundary-pinned). ON matches GSS max rel
-  6.8e-4, 1.20× whole-solve.
-- **Slice 3a (plant, on the branch):** `Leaf::compute_duptake_dpsi_soil()` fills the field
-  `duptake_dpsi_soil_` (row-major `i*n+k`) = d(soil_consumption_[i])/d(psi_soil_inverted_[k]),
-  the per-leaf uptake Jacobian. **Two branches keyed on the SAME g_a/g_b endpoint-sign test:**
-  interior → IFT on `dprofit=0` (dP/dψ_k = g_k/g_P); boundary-pinned → IFT on the active
-  continuity condition (`E_column_zero==0` at bound_a, `E_column(·,psi_crit)==0` at bound_b),
-  dispatched by which g sign is active — **NOT a residual threshold** (that mis-selected; it was the
-  bug that gave 30–50% error). All partials are FD of CLOSED-FORM leaf functions at the FIXED
-  operating point (no re-solve, no FD-through-search). Validated analytic-vs-full-resolve-FD: ALL
-  med 4.2e-5 / max 6.1e-4, DRY med 4.0e-5. Bit-identical (nothing on the production path calls it).
-  Steps `hE=1e-6` (E_from_Soil/E_column partials), `hg=1e-5` (dprofit partials).
-- **Foundational facts:** T4 → cohorts are ≤3%-sensitive to sub-weekly soil texture (freeze over a
-  weekly macro-step). P2 → uptake is a low-order function of soil water, MOST predictable near the
-  dry limit; the dry-limit death mode is falsified. So the arbitrage is: freeze cohorts, sub-cycle
-  soil, refresh `a` from `∂a/∂u` instead of the O(M) cohort sum.
+- **Slice 1 (plant):** control key `newton_collar_solve` (OFF/bit-identical); ON = safeguarded
+  `util::uniroot_smooth` (TOMS748) root-find on `Leaf::dprofit_droot_collar_psi==0` with the
+  endpoint-sign safeguard (`g_a>0 && g_b<0` ⇒ interior; else boundary). Max rel 6.8e-4, 1.20×.
+- **Slice 3a (plant):** `Leaf::compute_duptake_dpsi_soil()` fills `duptake_dpsi_soil_` (row-major
+  `i*n+k`) = d(soil_consumption_[i])/d(psi_soil_inverted_[k]). Two branches keyed on the SAME
+  g_a/g_b test (interior IFT on `dprofit=0`; boundary IFT on the active continuity condition — NOT a
+  residual threshold). FD of closed-form leaf fns at the fixed operating point. Validated max 6.1e-4.
+  Steps `hE=1e-6`, `hg=1e-5`.
+- **Slice 3b-i (plant, DONE this session):** the stand uptake Jacobian, mirroring the
+  `consumption_rate` chain. `Internals::duptake_jacobian` (row-major `i*ns+k`, already in
+  soil-moisture space — the retention chain is folded in by the fill), filled per-cohort in
+  `TF24_Strategy::compute_rates` behind **`control.compute_uptake_jacobian`** (default OFF →
+  field empty → **bit-identical**, verified: SCM offspring OFF==ON to the last bit). Retention factor
+  `TF24_Environment::duptake_retention_factor(k) = +n_psi·psi_mag/theta` (interior; 0 floored/capped),
+  verified exact. Aggregated by `Patch::assemble_duptake_jacobian()` (density trapezium, sum/area);
+  `Patch::resource_depletion()` exposes stand `a`. Both R-exposed. Gate
+  `duptake_stand_gate.R`: dry tercile med **1.0e-5**, abs-err/global med **1.2e-4** / max 2.3e-3.
+  (Wet relative error is FD-noise-limited — coupling scale ~0.03 vs 30.8 dry — not a Jacobian error;
+  an h-sweep confirms the FD converges to the analytic value there.)
+- **Slice 3b-ii (R, DONE this session) — the GO decision.** Offline macro-step falsifier
+  (`macrostep_falsifier.R`): a split micro-stepper (`flow(dt/2)·residual(dt)·flow(dt/2)`) run
+  byte-identically two ways over a weekly window, differing ONLY in the coupling channel — TRUE
+  `a(u)` (O(M) cohort sum) vs LIN `a0+J(u−u0)`. **Result: the arbitrage is viable across the whole
+  {wet,mid,dry}×{drought,drizzle,storm} bank** — an adaptive trust monitor (re-linearize when the
+  error would exceed tol=1e-2) cuts cohort-sums to **1–14 of 40 (2.9×–40×)** while keeping soil
+  accuracy **≤5.5e-4** everywhere. The MRI-ancestor death mode (cohort-sums ≈ nmicro) does NOT occur
+  (worst 14/40, dry+storm rewetting). Without a monitor, dry+storm hits 650% `a`-error → the monitor
+  is necessary and sufficient.
+- **Key soil fact (used by the falsifier, reuse it in 3b-iii):** the coupling `a` enters the soil
+  ODE ONLY through the uptake term `−a_i/dz_i` in `residual_rhs`; rainfall infiltration + inter-layer
+  drainage cascade are `a`-independent (`analytic_partial_flow` + the rain/cascade terms). The soil
+  balance = exact drainage flow ⊕ (rain+cascade+uptake) remainder. R surface already exposed:
+  `TF24_Environment::r_residual_rhs(theta,a)`, `r_analytic_partial_flow(theta,dt)`.
+- **THE TRUST-MONITOR SPEC (3b-ii's deliverable for 3b-iii):** the linearization error is
+  ~C·‖δu‖² and **corr(a_err, ‖δu‖²) = 0.985** — so a probe-free 2nd-order/excursion trigger is
+  feasible. BUT the excursion at the trip spans ~2 orders across regimes (5.6e-4→8.5e-2), so the
+  monitor **must scale by local sensitivity** (‖J‖ / a true 2nd-order remainder), NOT a raw fixed
+  ‖δu‖ threshold. The 2.9×–40× is an ORACLE (ideal) bound; a cheap monitor trails it (large headroom).
+- **Foundational facts:** T4 → cohorts ≤3%-sensitive to sub-weekly soil (freeze weekly). P2 → uptake
+  low-order in soil water, most predictable near dry. Arbitrage = freeze cohorts, sub-cycle soil,
+  refresh `a` from `∂a/∂u` instead of the O(M) cohort sum.
 
 ### 2. THE REUSE MAP (retired MRI machinery, present in the tree — do NOT rebuild)
 (Full detail in the build-spec Slice-3 note.) Reuse:
@@ -253,40 +281,50 @@ branches. Push ONLY to `aornugent/*`. See Part 1 §5.**
   (`coupling_size()==0` for plant).
 
 ### 3. Slice 3b build order (each step gated before the next)
-- **3b-i — stand ∂a/∂u (plant, member-loop byproduct).** Mirror the `consumption_rate` chain
-  (`individual → node → species → patch`) for the Jacobian: per cohort, call
-  `compute_duptake_dpsi_soil` on its leaf and weight by the SAME factors `consumption_rate` applies
-  to `soil_consumption_[i]` (`area_leaf_ * 60*60*12*365/1000*kg_per_mol_h2o`, see
-  `tf24_strategy.cpp:184`); trapezium-integrate over cohort density (as `Species::consumption_rate`
-  does, `species.h:307-325`); sum over species / `area` (as `Patch::assemble_resource_depletion`,
-  `patch.h:898-907`); apply the retention chain `dψ_inverted_k/du_k = n_psi*psi_mag/theta`
-  (`psi_from_soil_moist`, `tf24_environment.h:462`; the interior form, 0 when floored/capped).
-  Result: stand `∂a/∂u` (env-slot × soil-layer). Expose read-only. **GATE:** vs a central-difference
-  of stand `a` (`assemble_resource_depletion`) w.r.t. soil state, reusing
-  `set_record_uptake`/`sweep_soil`/`overwrite_cached_soil` (the P2 machinery). Must agree ~1e-3
-  across the bank incl. the dry tercile. Bit-identical when unused.
-- **3b-ii — OFFLINE macro-step falsifier (R, no engine yet).** THE decision gate for the whole
-  arbitrage. Over a real weekly window: freeze cohorts, sub-cycle the 5-layer soil with the
-  refreshed `a ≈ a0 + (∂a/∂u)(u−u0)` (+ optional 2nd order), and compare the resulting soil
-  trajectory AND offspring to the true coupled solve. Reuse `sweep_soil`/`overwrite_cached_soil`.
-  Measure how often a 2nd-order trust monitor would demand re-expansion (P2: rarely near dry, ~⅓ in
-  wet/storm windows). **This sets the trust-monitor rate and the realised speedup BEFORE building
-  the engine.** If wet-window offspring drift is irreducible, the arbitrage caps at "safe on
-  dry/steady, falls back to global RK on storm-dominated" — still a partial DX win; report honestly.
-- **3b-iii — odelia macro/micro integrator (engine, toy-FIRST per codesign).** Add a new `Subcycle`
-  functor alongside `AdaptiveSubcycle`/`SplitSubcycle` that refreshes `a` from the frozen
-  `a0 + (∂a/∂u)(u−u0)` instead of calling `fast_block_uptake`, + a trust monitor (2nd-order
-  remainder) that triggers a true-`a` re-expansion. **Validate on the two-rate/drainage toy first**
-  (extend a toy with a da/du-refreshable coupling), THEN wire the real patch (a variant `fast_rates`
-  that reads the cached refresh; `freeze_slow` already exists). Add `ode_method="mri_uptake"` (or
-  similar) gated OFF; production bit-identical when off.
+- **3b-i — stand ∂a/∂u (plant). ✅ DONE** (plant `99064255`). See §1 and
+  `tf24-v2-T6-slice3b-i-stand-duptake-result.md`. Gate `duptake_stand_gate.R`.
+- **3b-ii — offline macro-step falsifier (R). ✅ DONE = GO** (meta `b3b6403`). See §1 and
+  `tf24-v2-T6-slice3b-ii-macrostep-falsifier-result.md`. Falsifier `macrostep_falsifier.R`.
+- **3b-iii — odelia macro/micro integrator (engine, toy-FIRST per codesign). ← START HERE.**
+  The arbitrage is proven viable (3b-ii); now build the engine that realises it. Order:
+  1. **Toy first (odelia, no plant).** Extend a toy (`inst/include/examples/two_rate_system.hpp` or
+     `drainage_system.hpp`) with a coupling that is refreshable from a stored Jacobian: fast block
+     `du/dt = f(u, a)` where `a = a0 + J(u − u_anchor)` between re-expansions, and a `true_a(u)` the
+     monitor can call on re-expansion. Add a new `Subcycle` functor alongside
+     `AdaptiveSubcycle`/`SplitSubcycle` (mri.hpp l.270-287 seam) that: (a) holds the frozen
+     `(u_anchor, a0, J)`; (b) each micro-step refreshes `a` cheaply; (c) runs the **trust monitor**
+     and re-expands (recompute `a0`, `J`, reset `u_anchor`) when it trips.
+     - **Trust monitor (per 3b-ii spec):** trigger on a **sensitivity-scaled** 2nd-order estimate,
+       NOT a raw `‖δu‖`. Cheapest defensible form: re-expand when `‖J‖·‖δu‖` (or a stored-curvature
+       2nd-order remainder) exceeds `tol·‖a0‖`. Validate on the toy that this reproduces the oracle
+       re-expansion count from 3b-ii to within a small factor (the toy has a known `true_a`, so you
+       can compare cheap-monitor trips vs oracle trips directly). Target: cheap-monitor cohort-sums
+       ≤ ~1.5× the oracle count, accuracy matching.
+     - Reuse `MRISchedule` + `replay` so the reverse pass records→replays the re-expansion schedule
+       for free (record-mode logs where it re-expanded; replay-mode reuses it).
+  2. **Wire the real patch (plant).** A variant `fast_rates` (patch.h l.308-315) that reads the
+     cached refresh `a0 + J(u − u_anchor)` from a NEW frozen-per-leg context (built like
+     `freeze_slow`, l.272-283, but also snapshotting `a0 = assemble_resource_depletion()` and
+     `J = assemble_duptake_jacobian()` at leg start with `control.compute_uptake_jacobian` ON for
+     that snapshot only) INSTEAD of `fast_block_uptake → assemble_resource_depletion` (the O(M) sum).
+     On a trust trip, recompute the snapshot (the one O(M) cost per re-expansion). Soil rate itself:
+     reuse `r_residual_rhs`/`analytic_partial_flow` (the `a` enters only the uptake term — see §1
+     "Key soil fact"). Add `ode_method="mri_uptake"` gated OFF; **production bit-identical when off**
+     (verify offspring OFF==ON exactly, as in 3b-i). `freeze_slow` already exists; do NOT use the
+     linear `aggregate`/g channel (`coupling_size()==0` for plant).
+  3. **GATE (3b-iii):** on the real patch over a single scenario window, the `mri_uptake` soil
+     trajectory + stand `a` must match the global-RK reference to the 3b-ii accuracy (≤~1e-3), and
+     the cohort-sum count (`mri_fast_rate_calls`/`patch_rhs_calls`, `src/mri_diag.cpp`) must show the
+     expected reduction. Reverse-mode: gradient via record→replay must match a full-resolve adjoint.
 - **Slice 4 — wire + measure end-to-end.** Bank (intense_storms, whiplash, extended_drought,
   dry_to_wet, long_horizon, drydown) at a converged member mesh: per scenario report offspring rel
-  error vs global-RK reference, cohort-solve count (`patch_rhs_calls`/`mri_fast_rate_calls`),
-  wall-clock, trust-monitor re-expansion rate. **Acceptance = offspring within converged-J tol
-  (measure, don't assume — wet-window refresh error ×~10 feedback, T3) AND net cohort-solve
-  reduction (target 10–100×). Kill condition: trust monitor fires ~every fast step → collapses to
-  global RK (DEAD, same as MRI ancestor).**
+  error vs global-RK reference, cohort-solve count, wall-clock, trust-monitor re-expansion rate.
+  **Acceptance = offspring within converged-J tol (measure, don't assume — wet-window refresh error
+  ×~10 feedback, T3; 3b-ii's ≤5.5e-4 per-window soil error at tol=1e-2 leaves headroom under a ~1e-1
+  offspring budget, but confirm end-to-end) AND net cohort-solve reduction (target 10–100×; 3b-ii
+  oracle bound was 2.9×–40× per window, so expect the realised whole-run number in that band or a bit
+  under). Kill condition: trust monitor fires ~every fast step → collapses to global RK (DEAD, same
+  as MRI ancestor) — 3b-ii showed this does NOT happen on the bank, worst 14/40.**
 
 ### 4. Discipline (the reason this is working)
 Gate offline before every C++ build; validate bit-identical-OFF; run `system-design` before a
@@ -457,10 +495,10 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `c110663` (session-4 T6 arc: Slice 1/2/3a results + scripts + reuse map; `.gitmodules` tracks the forward-speed branches) |
-| plant (active) | `claude/tf24-forward-speed-n5audm` | `bcb9ed9f` (**Slice 1** Newton collar solve + **Slice 3a** `compute_duptake_dpsi_soil`; over `0015c9fd` slim cache + probe hooks) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `b3b6403` (session-5: + Slice 3b-i/3b-ii result docs + `duptake_stand_gate.R` + `macrostep_falsifier.R`; `.gitmodules` tracks the forward-speed branches) |
+| plant (active) | `claude/tf24-forward-speed-n5audm` | `99064255` (+ **Slice 3b-i** stand ∂a/∂u: `duptake_jacobian`, `assemble_duptake_jacobian`, `duptake_retention_factor`, `control.compute_uptake_jacobian`, `resource_depletion` exposure; over Slice 1 + Slice 3a) |
 | plant (frozen) | `claude/tf24-multi-rate-stepper-n5audm` | `9c8bd2d6` (pre-split MRI/collocation/IMEX/R-C block only) |
-| odelia (active) | `claude/tf24-forward-speed-engine` | `2f78191` (UNCHANGED session 4 — no engine code yet; Slice 3b-iii is the first odelia build) |
+| odelia (active) | `claude/tf24-forward-speed-engine` | `2f78191` (UNCHANGED — no engine code yet; **Slice 3b-iii is the first odelia build**) |
 | odelia (frozen) | `claude/tf24-multirate-engine` | `b88514d` (pre-split MRI/RODAS/IMEX engine block only) |
 
 **2026-07-22 branch split:** the current work was divided at plant `9c8bd2d6` /

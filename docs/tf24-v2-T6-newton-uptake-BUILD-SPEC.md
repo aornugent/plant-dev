@@ -116,6 +116,19 @@ exactly (B).
 > validated vs FD of stand a) → 3b-ii OFFLINE macro-step falsifier (freeze cohorts, sub-cycle soil
 > with the refreshed a, compare soil traj + offspring to truth; sets the trust-monitor rate) →
 > 3b-iii odelia integrator (toy-first) + wire + Slice 4 measure.
+>
+> **Slice 3b-i GATE RESULT (2026-07-22, `tf24-v2-T6-slice3b-i-stand-duptake-result.md`): PASS.**
+> `Patch::assemble_duptake_jacobian` (density trapezium of the per-cohort Jacobian + retention chain
+> folded in the gated fill) vs central-diff of stand `a`: dry tercile med **1.0e-5**, abs-err/global
+> med **1.2e-4** / max 2.3e-3. Bit-identical off (SCM offspring OFF==ON exactly). Wet relative error
+> is FD-noise-limited (coupling ~0.03 vs 30.8 dry), not a Jacobian error (h-sweep confirms).
+>
+> **Slice 3b-ii GATE RESULT (2026-07-22, `tf24-v2-T6-slice3b-ii-macrostep-falsifier-result.md`): GO.**
+> Offline falsifier — split micro-stepper run byte-identically with TRUE `a(u)` vs LIN `a0+J(u−u0)`.
+> Adaptive trust monitor cuts cohort-sums to **1–14 of 40 (2.9×–40×)** at soil accuracy **≤5.5e-4**
+> across {wet,mid,dry}×{drought,drizzle,storm}. MRI-ancestor death mode (cohort-sums≈nmicro) does NOT
+> occur (worst 14/40, dry+storm rewetting). Cheap trust monitor feasible (corr(a_err,‖δu‖²)=0.985)
+> but must scale by ‖J‖, not a raw ‖δu‖ threshold — that is the 3b-iii trust-monitor spec.
 
 **Slice 3 — macro-step scheme (odelia engine + plant hooks).**
 - In odelia, add a macro/micro integrator that: freezes cohorts over H, sub-cycles the
