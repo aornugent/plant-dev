@@ -19,7 +19,7 @@ cat("loaded\n"); flush(stdout())
 datadir <- "/home/user/plant-dev/scripts/tf24-benchmarks/data"
 outdir  <- "/home/user/plant-dev/scripts/tf24-benchmarks/results"
 CACHE <- control(ode_method="rkck", ode_tol_rel=1e-6, ode_tol_abs=1e-6, save_RK45_cache=TRUE)
-jobs <- list(intense_storms=12, extended_drought=20)   # storms (big du) + dry (hypersensitive)
+jobs <- list(extended_drought=20)   # dry-throughout stress for the dry-limit question
 WIN_YEARS <- 1/52                                       # weekly windows
 
 NSOIL <- 5                                              # physical soil layers (aux vars follow)
@@ -37,7 +37,8 @@ for (nm in names(jobs)) {
   b <- readRDS(file.path(datadir, paste0(nm, ".rds")))
   nd <- min(length(b$rain), round(years*365)); rain <- b$rain[seq_len(nd)]
   times <- (0:(nd-1))/365; tmax <- max(times)
-  mkenv <- function(){ e <- Environment("TF24"); e$extrinsic_drivers_set_variable("rainfall", times, rain); e }
+  tpad <- c(times, tmax + (1:3)/365); rpad <- c(rain, rep(rain[length(rain)], 3))  # pad domain past tmax
+  mkenv <- function(){ e <- Environment("TF24"); e$extrinsic_drivers_set_variable("rainfall", tpad, rpad); e }
   mkp <- function(){ p <- scm_base_parameters("TF24"); p$max_patch_lifetime <- tmax
     add_strategies(p, trait_matrix(0.0825,"lma"), birth_rate=1) }
   scm <- run_scm(mkp(), mkenv(), CACHE); st <- scm$ode_times
