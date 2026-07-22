@@ -126,20 +126,35 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-22 (session 14, end). **HEAD: plant `762b7e25` (#55 shut-down uptake fix), super
-advances with docs, odelia unchanged. All clean, pushed. Scratchpad probes gitignored; tree clean.**_
+_Last updated: 2026-07-22 (session 15, end). **HEAD: plant `762b7e25`, super advances with docs, odelia
+unchanged. All clean, pushed. Scratchpad probes gitignored; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — TF24 `p*` gradient (task #23): CLOSED (floor chosen). The reverse-mode AD
-is correct in every regime that fires; the "residual" was a verification-reference artifact (session 13). A
-`system-design` pass (session 14) chose the FLOOR: do NOT build the corner detector or the opt-in polish —
-the corner has zero authoritative incidence and no witness could be induced. #55 (shut-down phantom uptake)
-was landed this session (plant `762b7e25`, from aornugent/plant PR#56), which removed an in-scope AD
-gradient-severance AND unblocked dry-scenario validation. The detector + polish remain PRESCRIBED-BUT-DEFERRED
-in `docs/build-plan.md` → "SETTLED — TF24 p* gradient" → "UPDATE (session 14)"; the retrofit TRIGGER is a
-faithful env-gated C++ census of the real regime decision + `P_pp` over a tuned SEASONAL-drought SCM run
-(gentle rainfall pulses, live cohorts through the θ≈0.12–0.16 band). Build only if that shows the corner
-fires + `e_col` misclassifies. Do NOT chase the 0.82×. Open deferred work: #4 (retire step_history),
-life=10 OOM (tape checkpointing). ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — finish P2: wire the P2d TF24f tracked collar-ψ channel. Session 15 built
+plant fresh and ran the whole P2 gradient suite: P2a (K93), P2b (FF16), and P2c (TF24 RESIDENT) are all
+GREEN — b1 is fixed and task #23 (`p*`) is closed. The ONLY open P2 gap is P2d (TF24f, tracked-`q`): the
+tracked collar-ψ channel is SEVERED. `test-ad-tf24f-collar.R` (0/3) and the seam half of
+`test-ad-tf24f-collar-uptake.R` fail with AD ≡ 0 where FD is nonzero — `d(growth)/dψ` ad=0 vs
+fd=1.62/0.52/−0.022 at ψ=0.8/1.5/2.5; `d(uptake[L])/dψ` ad=0 vs fd∈[4e-7…1e-3] every layer. TF24f runs its
+leaf at a TRACKED (non-optimal) collar-ψ ODE state, so `∂profit/∂ψ ≠ 0` (no envelope-theorem cancellation).
+THE FIX: the leaf `supplied_derivative` seam in `tf24_strategy.cpp` (the `assemble_leaf_from` / collar
+channel) must inject `∂profit/∂ψ` (the analytic `dprofit_droot_collar_psi` the acclimation rate already
+uses) and per-layer `∂uptake/∂ψ` (`dsoil_consumption_dpsi_collar_perlayer`) onto the ACTIVE tracked
+collar-ψ state, so `∂profit/∂ψ · dψ_tracked/dθ` is on the tape. This completes P2 / plant#52 parity. Use
+`system-design` (Tier 1–2, contained seam wiring) before, `code-review` on the diff. Details:
+`docs/build-plan.md` P2d bullet + SESSION 15 section; the committed leaf design is
+`docs/p2c-leaf-adjoint-design.md` (steps 6–7 / P2d). Open deferred work (unchanged): task #23 CLOSED
+(floor); #4 (retire step_history off the resident/gradient path); life=10 OOM (tape checkpointing). ◄◄◄◄**_
+
+_**SESSION 15 — P2 status verified; docs reconciled; P2d identified as the last gap.** No code shipped;
+this was a ground-truth + tidy pass. Fresh build, ran every P2 gradient test: P2a/P2b/P2c green, P2d red
+(severed tracked-ψ channel, above). Corrected stale docs to match: `build-plan.md` (current-work banner
+now points at P2d; cert status says b1-fixed + TF24-resident-certified; P2b marked DONE; P2c documented as
+following `p2c-leaf-adjoint-design.md` — seam KEPT with exact local-tape partials, NOT the port-map's
+"delete the seam"; port-map table's three leaf rows annotated superseded; new SESSION 15 section),
+`HANDOFF.md` (this block + START HERE), `ad-touchpoint-audit.md` (b1-fixed update). Key correction to the
+prior mental model: the build-plan prose claiming an open FF16 "R0 gradient is WRONG / expect_failure" was
+STALE (task #10 closed it; the saga was a wrong replay schedule, resolved by the run-shaped entry). Design
+notes / oracle consultations / `p2c-leaf-adjoint-design.md` were already accurate — left as provenance._
 
 _**SESSION 14 — #55 landed + floor chosen.** Cherry-picked aornugent/plant PR#56 (R-C) as plant `762b7e25`
 under a meaningful message: `set_shutdown_state` zeroes `soil_consumption_`/`E_up_` so a reused shut-down

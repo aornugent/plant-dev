@@ -35,7 +35,23 @@ after the resident recording exists.
 - **Clean odelia/plant boundary (the v2 emphasis).** odelia owns the tape, the primitives, and record/replay across the growing dimension; plant supplies only scalar-generic closed forms + residual/kernel declarations. No model code reaches the tape (this is what makes the boundary cleaner than the prototype's in-model `supplied_derivative` seam). One templated body per read — **never** parallel `!is_same_v<double>` overloads.
 - **Build/test mechanics** (survival-critical — from `archive/ad-handover.md`): reinstall `odelia` after ANY odelia header edit (plant compiles against *installed* headers, not the submodule tree); `Sys.setenv(TESTTHAT_PARALLEL="false")`; build optimised once (`cd plant && make`, `-O2`) then `load_all` reuses the `.so`; regenerate RcppR6 only when adding/removing a registered field; on `undefined symbol`, `rm src/*.o src/*.so` and reinstall.
 
-## ►► CURRENT WORK — AD-touchpoint remediation (2026-07-20 audit) ◄◄
+## ►► CURRENT WORK (session 15, 2026-07-22): P2 is one gate from parity — P2d (TF24f tracked collar-ψ) ◄◄
+**Verified by a full gradient-test run this session** (fresh build): P2a (K93), P2b (FF16),
+and P2c (TF24 **resident**) are all GREEN — Gate-0 FF16/TF24, K93 SCM census + R0, FF16 SCM
+R0 + census-vector + entry, TF24 resident light-coupling + soil-coupling. The AD-touchpoint
+remediation below is DONE and b1 is FIXED (see the certification note). **The one remaining
+P2 gap is P2d (TF24f, tracked-`q`):** `test-ad-tf24f-collar.R` and the seam half of
+`test-ad-tf24f-collar-uptake.R` fail because the TF24f **tracked collar-ψ** channel is
+SEVERED — `∂profit/∂ψ` and `∂uptake/∂ψ` return AD ≡ 0 where FD is nonzero (e.g.
+`d(growth)/dψ` ad=0 vs fd=1.62 at ψ=0.8). TF24f runs its leaf at a tracked ODE state, not
+the optimum, so the envelope theorem does not zero this term; the seam must inject
+`∂profit/∂ψ` (the analytic `dprofit_droot_collar_psi` the acclimation rate already uses)
+onto the active tracked state. This is the last step to plant#52 parity. See the P2d bullet
+in Phase 2 and the session-15 note at the end of this file.
+
+_(historical — the AD-touchpoint remediation that was "current work" through session 3):_
+
+## ►► AD-touchpoint remediation (2026-07-20 audit) ◄◄
 Full findings + method: [`ad-touchpoint-audit.md`](./ad-touchpoint-audit.md). A
 whole-surface audit (every model + engine header vs pre-AD `develop`) plus an
 **empirical per-leaf certificate** (reverse-AD over every `AD_FIELDS` leaf vs a
@@ -44,11 +60,13 @@ a trait derivative is lost. The FF16 "a_l1 residual" that started this was one
 symptom of a small, enumerable class of defects; the audit found the rest — including
 two the file-reading missed (`omega`, K93 `k_I`).
 
-**Certification status:** **FF16 ✓ certified + REMEDIATED, K93 ✓ certified + REMEDIATED**
-(session 3 — every `AD_FIELDS` leaf's reverse AD now matches the reoptimising FD;
-regression sweep green), **TF24 ✗ blocked (reverse-AD numerically blown up, ~1e30 vs
-sane FD — a separate debugging track, b1)**. Completeness = static grounding census ∧
-per-leaf empirical certificate.
+**Certification status (updated session 15):** **FF16 ✓, K93 ✓, TF24 resident ✓.**
+FF16/K93 certified + remediated (session 3 — every `AD_FIELDS` leaf's reverse AD matches
+the reoptimising FD). **b1 is FIXED** — the ~1e30 blow-up was an adjoint sign error on the
+injected soil-state partials (plant `1af3c4e1`), compounded by #55's shut-down phantom
+uptake (`762b7e25`); TF24 resident Gate-0 + light-coupling + soil-coupling gradients are
+now green. Remaining: **P2d (TF24f tracked collar-ψ) — SEVERED**, see the current-work
+banner above. Completeness = static grounding census ∧ per-leaf empirical certificate.
 
 **Two failure modes, one vocabulary:**
 1. **Grounding** — a leaf's derivative flows *through* a node that grounds to `double`
@@ -424,7 +442,16 @@ for Phase 2:
   **CD-A/CD-G de-risk vehicle** (cheapest full SCM: growing dim + L2 recompute + census). Deletes
   `node.h::growth_rate_gradient`'s active block. Gate: FF16 bit-identity + the K93 census-FD targets
   (`b_0` 317.883, `b_1` −516.881, `cos=1.0`, `design.md` §10).
-- **P2b — FF16** (adds crown quadrature = sub-grid field reads via the fixed-rule `QK<S>`, P1f; a
+- **P2b — FF16 — DONE (session 15 verified).** `test-ad-ff16-scm-gradient.R`, the census-vector
+  gradient, and the run-shaped entry all pass: value exact (1e-6), the loss channel (k_l) exact
+  (1e-6), lma and a_l1 within 1e-2 of the resolved-schedule FD. The self-shading adjoint residual
+  the trail below chases was CLOSED (task #10) once the mass chart carried the loss channel and the
+  clamp/birth-size groundings were fixed (a2/a3); the "+442 vs −255" saga was a WRONG replay
+  schedule (bespoke drivers pinned `step_history` instead of `r_ode_times()`), resolved by the
+  run-shaped entry. **The narrative below is HISTORICAL provenance — the headline "R0 gradient is
+  WRONG" no longer holds.**
+
+  _(historical trail:)_ (adds crown quadrature = sub-grid field reads via the fixed-rule `QK<S>`, P1f; a
   breakpoint node for particle crossings). **PLANT-11:** fix the zero-height cohort NaN (`0·log(0)`) —
   establish `birth≥N` cohorts at `h0`; carries a test. Port FF16's transport term to `rebind` to inherit
   the shared mass chart (the census tier). **OPEN (2026-07-18): the FF16 R0 reverse gradient is WRONG**
@@ -658,16 +685,29 @@ for Phase 2:
     the double↔double mutant/`environment_history` path) to attribute the error per channel, then fix the
     field source-derivative (new_node boundary + `M`) and `area_leaf_0`. The lifetime sweep + per-trait
     ratios are the running signature to watch.
-- **P2c — TF24** (the hard one; re-reaches #52 soil coupling). Leaf **residual** (the already-templated
-  `assim_colimited_ad`/`hydraulic_cost_ad`) drives the reduced-gradient `G(q)` via N1/N3 as P1a
-  scalar-IFT nodes — the **leaf solver stays `double`**, the engine auto-differentiates the residual (no
-  per-trait hand `∂profit/∂θ`, the prototype's AD-9 body of work, deleted). `incomplete_gamma` via P1c. **Soil is active
-  coupled state** (the leaf reads the soil state directly), not a field: resident soil integrates on the multirate sub-cycle
-  (its adjoint rides tape-as-run); the `∂profit/∂(soil ψ)` channel is automatic. Deletes the ~150-line FD
-  seam + `dsoil_consumption_dpsi_collar_perlayer`. Gate: `test-ad-gate0-tf24.R`,
-  `test-ad-tf24-soil-coupling.R`, `test-ad-tf24f-collar-uptake.R` (all currently green — the parity
-  target). Long-horizon resident stiffness held by the drift gate + recorded sub-stepping (below).
-- **P2d — TF24f** (tracked-`q`). `q` an ODE state, rate `k·G` reusing P2c's `G`. Completes #52 parity.
+- **P2c — TF24 resident — DONE (session 15 verified).** Gate: `test-ad-gate0-tf24.R`,
+  `test-ad-tf24-light-coupling.R`, `test-ad-tf24-soil-coupling.R` all green. **Implemented per the
+  committed [`p2c-leaf-adjoint-design.md`](./p2c-leaf-adjoint-design.md), which SUPERSEDES the
+  port-map's "delete the seam / template the residual" prescription below.** What actually landed:
+  the **`Leaf` stays `double`**; each solved root is an `implicit_value` node (N_ci, N_psistem,
+  N_p\*); the reverse-tape path is a **local per-call tape assembly whose exact partials are injected
+  via `supplied_derivative`** (NOT deleted). Only `leaf_profit_at_fixed_collar` was actually removed;
+  `dprofit_droot_collar_psi` and `dsoil_consumption_dpsi_collar_perlayer` are RETAINED (the exact
+  analytic gradients the assembly and TF24f's acclimation rate use). The `p*` interior-node residual
+  was resolved as a verification-reference artifact (task #23, floor — see the SETTLED section).
+  _(historical design intent:)_ Leaf **residual** drives the reduced-gradient `G(q)` via N1/N3 as P1a
+  scalar-IFT nodes; `incomplete_gamma` via P1c; soil is active coupled state; "Deletes the ~150-line
+  FD seam + `dsoil_consumption_dpsi_collar_perlayer`" — this deletion did NOT happen (see above).
+- **P2d — TF24f (tracked-`q`) — OPEN, the last P2 gap.** `q` an ODE state, rate `k·G` reusing P2c's
+  `G`. **Session-15 status: the tracked collar-ψ channel is SEVERED.** `test-ad-tf24f-collar.R` (0/3)
+  and the seam half of `test-ad-tf24f-collar-uptake.R` (the analytic-per-layer half passes) fail with
+  AD ≡ 0 where FD is nonzero — `d(growth)/d(tracked_ψ)` ad=0 vs fd=1.62/0.52/−0.022 at ψ=0.8/1.5/2.5;
+  `d(uptake[L])/d(tracked_ψ)` ad=0 vs fd∈[4e-7…1e-3] every layer. Because TF24f runs the leaf at the
+  **tracked** state (not the optimum), `∂profit/∂ψ ≠ 0` — the envelope theorem does not zero it. The
+  fix: the leaf `supplied_derivative` seam must inject `∂profit/∂ψ` (the analytic
+  `dprofit_droot_collar_psi`, reused from the acclimation rate) and the per-layer `∂uptake/∂ψ`
+  (`dsoil_consumption_dpsi_collar_perlayer`) onto the **active tracked collar-ψ state**, so the
+  acclimation channel `∂profit/∂ψ · dψ_tracked/dθ` is on the tape. This completes #52 parity.
 
 **PLANT-4a (the resident-recompute correctness point):** the resident gradient must **re-run
 `compute_environment` on the recorded L2 light-spline knots** with active cohorts (L2 recompute, L3
@@ -706,13 +746,18 @@ average through.
 
 ## Port map — what the new engine deletes/replaces
 Symbolic anchors (base commit TBD — see the Phase 2 note). Line counts are the #52-prototype's, indicative.
-| current plant site | fate | replacement |
+**The three TF24-leaf rows were SUPERSEDED by the committed
+[`p2c-leaf-adjoint-design.md`](./p2c-leaf-adjoint-design.md)** (see the P2c bullet): the seam is
+KEPT (double `Leaf` + `implicit_value` nodes + exact local-tape partials via `supplied_derivative`),
+and `dprofit_droot_collar_psi` / `dsoil_consumption_dpsi_collar_perlayer` are RETAINED. The `fate`
+column below is the ORIGINAL intent, corrected in the last column.
+| current plant site | fate | replacement / **actual outcome** |
 |---|---|---|
 | `node.h::growth_rate_gradient` active block (~70 ln) | **delete** | mass chart (compression vanishes) + `separable_field` `∂A/∂z` |
 | `species.h` geometric-compression loop | **absorb** | the mass transport rule |
-| `tf24_strategy.cpp` FD `supplied_derivative` seam (~150 ln) + `leaf_profit_at_fixed_collar` | **delete** | reduced-gradient `G(q)` via P1a nodes (N1, N3) |
-| `leaf_model.cpp::dprofit_droot_collar_psi` (hand IFT) | **delete** | falls out of N1+N3 |
-| `leaf_model.cpp::dsoil_consumption_dpsi_collar_perlayer` + FD uptake partials | **delete** | `incomplete_gamma` antiderivative difference + breakpoint (Leibniz) |
+| `tf24_strategy.cpp` FD `supplied_derivative` seam (~150 ln) + `leaf_profit_at_fixed_collar` | ~~delete~~ | **only `leaf_profit_at_fixed_collar` deleted; seam KEPT, now an exact local-tape assembly (`implicit_value` N_ci/N_psistem/N_p\* + `supplied_derivative`)** |
+| `leaf_model.cpp::dprofit_droot_collar_psi` (hand IFT) | ~~delete~~ | **RETAINED — exact `∂profit/∂p` used by the assembly and TF24f's acclimation rate** |
+| `leaf_model.cpp::dsoil_consumption_dpsi_collar_perlayer` + FD uptake partials | ~~delete~~ | **RETAINED — exact per-layer `∂uptake/∂p`; the P2d tracked-ψ injection is what still needs wiring** |
 | interpolator on the coupling path | **replace (separable) / retain (fallback)** | `separable_field`; interpolator kept for `FlatTopSoftBox` |
 | `get_environment_slope_at_height` frozen surrogate | **delete** | exact `∂A/∂z` from `separable_field` |
 | 13 plant headers `#include <XAD/…>` | **reduce to one** | `<odelia/seam.hpp>` |
@@ -835,3 +880,29 @@ carry signal.
 
 **Task #23 is CLOSED** — the reverse-mode AD `p*` gradient is correct where exercised; the corner
 node is documented latent-safety, deferred to the trigger above.
+
+---
+
+## SESSION 15 (2026-07-22): P2 status verified by test run; P2d is the sole open gap
+
+A fresh build + full P2 gradient-test run this session established ground truth (superseding the
+stale prose that had P2b "WRONG" and TF24 "blocked"):
+
+- **P2a (K93) ✓, P2b (FF16) ✓, P2c (TF24 resident) ✓** — all gradient tests green (Gate-0
+  FF16/TF24; K93 census + R0; FF16 R0 + census-vector + entry; TF24 resident light + soil coupling).
+- **b1 FIXED** (adjoint sign `1af3c4e1` + #55 `762b7e25`); **task #23** `p*` residual closed (floor).
+- **P2c followed the committed leaf-adjoint design, not the port-map** — double `Leaf` +
+  `implicit_value` nodes + `supplied_derivative` local-tape partials; the seam and the two analytic
+  gradient helpers are RETAINED (port-map table + P2c bullet corrected).
+- **P2d (TF24f tracked collar-ψ) is the last gap — a SEVERED channel.** `test-ad-tf24f-collar.R`
+  (0/3) and the seam half of `test-ad-tf24f-collar-uptake.R` fail with AD ≡ 0 vs nonzero FD:
+  `d(growth)/dψ` ad=0 vs fd=1.62/0.52/−0.022 (ψ=0.8/1.5/2.5); `d(uptake[L])/dψ` ad=0 vs
+  fd∈[4e-7…1e-3]. The leaf runs at a tracked (non-optimal) collar-ψ, so `∂profit/∂ψ ≠ 0`; the seam
+  must inject `∂profit/∂ψ` (`dprofit_droot_collar_psi`) and per-layer `∂uptake/∂ψ`
+  (`dsoil_consumption_dpsi_collar_perlayer`) onto the active tracked state. Fixing this completes
+  P2 / plant#52 parity.
+
+Docs reconciled this session: this file (current-work banner, cert status, P2b/P2c/P2d bullets,
+port-map table), `HANDOFF.md` (START HERE + session-15 block), `ad-touchpoint-audit.md` (b1-fixed
+update). The design notes, oracle consultations, and `p2c-leaf-adjoint-design.md` were already
+accurate and left as provenance.

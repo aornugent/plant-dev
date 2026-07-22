@@ -27,8 +27,14 @@ util) + the other strategies (K93, TF24, TF24f) for comparison._
 > - **a5 (qk→`odelia::quadrature`) dropped as scope creep** (fixed rule, no adaptive
 >   nodes; diagnostic `to_passive` a strategy author never touches).
 >
-> TF24 remains blocked on the reverse-AD blow-up (b1). Details: `docs/HANDOFF.md`,
-> `docs/build-plan.md` "►► CURRENT WORK".
+> **UPDATE (session 15, 2026-07-22).** b1 is FIXED (adjoint sign of the injected
+> soil-state partials, plant `1af3c4e1`; plus the #55 shut-down uptake severance,
+> `762b7e25`). TF24 **resident** is now certified — Gate-0, resident light-coupling,
+> and resident soil-coupling gradient tests are all green. The `p*` interior node
+> residual was resolved as a verification-reference artifact (task #23, floor). The
+> only open P2 gap is **P2d (TF24f tracked collar-ψ)**: the tracked-state channel is
+> SEVERED (`∂profit/∂ψ`, `∂uptake/∂ψ` return AD≡0 vs nonzero FD). Details:
+> `docs/HANDOFF.md`, `docs/build-plan.md` "►► CURRENT WORK".
 
 ## The one-paragraph finding
 
