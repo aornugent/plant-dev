@@ -224,7 +224,63 @@ possibly the same as the forward step-collapse" reading in §5 was NOT the cause
 cause was a plain sign bug in my own soil-coupling adjoint. The forward-side reformulation material
 remains a separate, unproven line; do not link.
 
-## 6. Where this stands
+## 6c. RESIDUAL RESOLVED TO ONE TERM (session 11) — dry-layer `d(uptake)/dψ_soil`, spline-vs-closed-form slope
+
+Session 11 re-opened the residual with the gradient as a precise per-call diagnostic and **overturned the
+§6b hypothesis**. Sequence of measurements, all [measured]:
+
+1. **Stationarity arbiter (exact, in-domain).** `Leaf::dprofit_droot_collar_psi` (forward-AD + IFT, no FD)
+   at every tall/dry operating point across a life=4 run (ψ_soil to −1.57, 5 layers, heights 1–8 m):
+   `dprofit/dp* ≈ ±1e-3 ≈ 0` **everywhere**. The leaf is tightly stationary → by the envelope theorem the
+   p\* channel contributes ≈0 to `d(profit)/dψ_soil` for **every** layer. **§6b's "wet-layer profit via p\*"
+   hypothesis is refuted**; the "+0.11 re-solve FD" in the §6b table was FD noise at the flat optimum.
+
+2. **The residual is a uniform factor that compounds with patch age.** Certificate at life=2: **every**
+   substantial channel is PARTIAL at a uniform AD/FD ≈ **0.68–0.81** (rho .75, vcmax .72, jmax .79, g1 .77,
+   r_l .79, r_s .81, k_b .68, root_depth_shape_eta .74); life=1 clean (~1.0), life=4 ~0.46. A uniform factor
+   across chemically-unrelated params + growth with patch age = **one shared feedback quantity's adjoint
+   off by a constant, compounding over the trajectory**. The pinned-FD reference is **step-stable** across
+   fd_rel = 1e-3…3e-5 (rho .753/.753/.752/.759, vcmax .72, jmax .79), so the deficit is a **real AD error**,
+   not FD noise.
+
+3. **Per-call injected-vs-double-re-solve-FD, in-domain (the decisive probe).** At real dry operating points
+   (probe: `TF24_UPFD` block, active branch of `net_mass_production_dt`; central FD, perturb ψ_soil, re-solve
+   `find_root_collar_psi`; `with_soil_src` = 99848/100000 so soil IS injected):
+
+   | layer | ψ_soil | profit inj/fd | uptake inj/fd (h) | uptake inj/fd (h/4) |
+   |---|---|---|---|---|
+   | **0 (driest)** | 0.305 | 1.000 | **0.824** | **0.824** |
+   | 1 | 0.164 | 1.000 | 0.996 | 0.996 |
+   | 2 | 0.081 | 1.000 | 0.999 | 0.999 |
+   | 3 | 0.061 | 1.000 | 1.000 | 1.000 |
+   | 4 | 0.051 | 1.000 | 1.000 | 1.000 |
+
+   **0.824 is identical at h and h/4** → NOT truncation, a **real analytic error**. Every profit partial and
+   every wetter-layer uptake partial is exact (1.000). So the entire SCM residual reduces to: **the injected
+   `d(uptake)/dψ_soil` at the driest layer is ~0.82× the true derivative.** The driest layer is the steepest
+   point of the retention curve and the dominant edge of the soil-water feedback loop, so an ~0.82 per-step
+   error there compounds over the trajectory → uniform ~0.75 at life=2 → 0.46 at life=4; life=1 clean (soil
+   not yet dry enough for that layer's term to bite). All observations explained.
+
+**Candidate mechanism [hypothesis, well-supported].** The **double** leaf's per-layer conductivity integral
+(`Leaf::E_from_Soil_to_Root_Collar`, `leaf_model.cpp:466+`) is a **spline** (`root_vuln_integral_from_psi`)
+that the code comment (`leaf_model.cpp:414`) says **linearly extrapolates at the dry end**; the **active**
+`leaf_output::soil_uptake` (`leaf_model.h:192`) uses the exact closed form (`cumulative_vuln` = incomplete
+gamma). Values match to ~1e-9 at the operating point, but **slopes diverge where the spline extrapolates —
+the driest layer.** Since the injected value is anchored to the spline result (`anchor()`) while its
+derivative comes from the closed form, this is a value/derivative inconsistency (the classic dropped-term
+shape PART 1 warns of). NOT the p\* channel, NOT profit.
+
+**Not yet disambiguated (first probe of the fix phase):** (a) spline-vs-closed-form slope in the *direct*
+`∂uptake/∂ψ|_p`, vs (b) uptake's p\* channel `dp*/dψ_soil` (uptake, unlike profit, is not envelope-protected).
+Separate with a **fixed-collar** double FD (hold P_x_r at the converged collar, perturb ψ_soil, re-run
+`E_from_Soil_to_Root_Collar` only): matches injected ⇒ p\* channel is the culprit (b); differs ⇒ the direct
+spline/closed-form slope is (a). Then the fix is contained to `leaf_output::soil_uptake` (make its ψ_soil
+derivative match the double leaf's actual — spline — slope at the dry end, or reconcile the two integral
+representations). Diagnostic drivers: `scratchpad/upfd.R` + the `TF24_UPFD`/`TF24_STAT_PROBE` env-gated
+blocks (reverted after this session; re-add from git history of the session-11 probe if needed).
+
+## 6. Where this stands (superseded above by §6c; kept for the trail)
 
 - **[established, mine]** The resident TF24 reverse-AD gradient is wrong at life ≥ 3 by ~1e8; the true
   gradient is ~1e6 (FD plateau); the defect is a near-singular/non-smooth recorded operation in the

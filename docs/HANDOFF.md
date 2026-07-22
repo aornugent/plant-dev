@@ -126,10 +126,39 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-21 (session 10, end). **HEAD: plant `1af3c4e1` (sign fix), super `25341e1`,
-odelia `16cff79` (unchanged). All clean, pushed.**_
+_Last updated: 2026-07-22 (session 11, end). **HEAD: plant `1af3c4e1` (sign fix), super advances with docs,
+odelia `16cff79` (unchanged). All clean, pushed. The tf24_strategy.cpp probes were reverted; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23). ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — TF24 reverse-AD residual (task #23), diagnosis CORRECTED in session 11. ◄◄◄◄**_
+
+_**SESSION 11 — residual localised to ONE term; §6b hypothesis overturned.** Using the gradient as a precise
+per-call diagnostic (see `docs/tf24-numerical-formulation-and-misspecification.md` §6c for the full trail):_
+_• **The p\* / wet-layer-profit hypothesis (§6b, and this handoff's prior START HERE) is REFUTED.** The exact
+`Leaf::dprofit_droot_collar_psi` shows `dprofit/dp* ≈ 0` at ALL dry/tall operating points → the leaf is
+stationary, the p\* channel is ~0 by envelope, and every injected **profit** partial is exact (ratio 1.000).
+The "+0.11 re-solve FD" that drove §6b was FD noise at the flat optimum._
+_• **The residual is a uniform AD/FD ≈ 0.73 at life=2 (all substantial params: rho .75, vcmax .72, jmax .79,
+g1 .77, r_l .79…), degrading to ~0.46 at life=4, life=1 clean.** Pinned-FD reference is step-stable
+(fd_rel 1e-3…3e-5) → a REAL AD error, uniform (one shared quantity), compounding with patch age._
+_• **Decisive per-call probe (injected vs double re-solve FD, central, in-domain, life=4):** every profit
+partial and every wetter-layer uptake partial = 1.000; **the injected `d(uptake)/dψ_soil` at the DRIEST layer
+is 0.824× the truth** — identical at h and h/4, so NOT truncation, a real analytic error. The driest layer is
+the dominant edge of the soil-water feedback loop, so 0.82 there compounds over the trajectory → the uniform
+SCM deficit. THE ENTIRE RESIDUAL = this one term._
+_• **Candidate mechanism [strong hypothesis]:** the double leaf's per-layer conductivity integral is a SPLINE
+(`root_vuln_integral_from_psi`) that **linearly extrapolates at the dry end** (`leaf_model.cpp:414` comment);
+the active `leaf_output::soil_uptake` uses the exact closed form (`cumulative_vuln`). Values match ~1e-9 but
+slopes diverge at the dry layer → value(spline)/derivative(closed-form) inconsistency._
+_• **►IMMEDIATE NEXT STEP (fix phase):** disambiguate (a) direct spline-vs-closed-form slope vs (b) uptake's
+p\* channel `dp*/dψ_soil` (uptake is NOT envelope-protected) with a FIXED-COLLAR double FD (hold P_x_r,
+perturb ψ_soil, re-run `E_from_Soil_to_Root_Collar` only, no re-optimise). Then fix — contained to
+`leaf_output::soil_uptake`: make its dry-end ψ_soil derivative match the double leaf's actual (spline) slope,
+or reconcile the two integral representations. Use `system-design` (it touches the S output map) + `code-review`.
+Validate: certificate uniform ratio → 1.0 at life=2 AND life=4. Diagnostic drivers: `scratchpad/upfd.R`,
+`scratchpad/statprobe.R`; env-gated `TF24_UPFD`/`TF24_STAT_PROBE` probe blocks were reverted — re-add from the
+session-11 diff in this conversation, or reconstruct from §6c._
+
+_--- prior (session 10) START HERE, now partly SUPERSEDED (sign fix still valid; residual framing corrected above) ---_
 
 _**What is SOLVED (this session, committed):** the catastrophic life≥3 reverse-AD blow-up (b1/plant#60,
 `max|ad|` up to 2.56e14) was **OUR adjoint sign bug**, found by using the gradient as a per-call precise
