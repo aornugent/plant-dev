@@ -518,8 +518,12 @@ removable-vs-intrinsic **classifier are one instrument.**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
 - **`tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — the T6 build plan (prescriptive).**
 - **`tf24-v2-T6-slice1-newton-collar-result.md` — Slice 1 DONE (Newton/gradient collar
-  solve shipped; bit-identical off, ON matches GSS max rel 6.8e-4, 1.20× whole-solve).
-  Next: Slice 2 (analytic ∂a/∂u, offline-gated before wiring).**
+  solve shipped; bit-identical off, ON matches GSS max rel 6.8e-4, 1.20× whole-solve).**
+- **`tf24-v2-T6-slice2-duptake-gate-result.md` — Slice 2 gate DONE (CONDITIONAL GO). Interior
+  IFT ∂a/∂u validated to ~1e-4; found interior IFT fails on BOUNDARY-PINNED operating points
+  (dry regime, Spearman 0.71 vs stationarity residual). Slice 3 ∂a/∂u must be TWO-BRANCH
+  (interior IFT + boundary-response), keyed on Slice-1's endpoint-sign test. Pure-R gate,
+  no C++ this slice.**
 - `tf24-offspring-convergence-finding.md` — the finding for plant maintainers (concrete, no
   formalism): offspring non-convergence = under-resolved soil-water field × feedback, not the
   model; fix is a field-targeted schedule, not the reproduction-targeted refiner.

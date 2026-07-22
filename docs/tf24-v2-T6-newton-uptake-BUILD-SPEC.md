@@ -84,6 +84,16 @@ exactly (B).
   P2 machinery). Must agree to ~1e-4 rel across the bank, incl. the dry tercile. If it
   disagrees near the dry limit, stop — the refresh will be wrong exactly where it matters.
 
+> **Slice 2 GATE RESULT (2026-07-22, `tf24-v2-T6-slice2-duptake-gate-result.md`): CONDITIONAL GO.**
+> Interior-optimum IFT slope validated to ~1e-4. BUT the gate found interior IFT is
+> WRONG (median ~5% err, tol/h-independent) exactly where the collar operating point is
+> **boundary-pinned** (active constraint at the critical potential; Spearman 0.71 of error
+> vs the interior-stationarity residual). So the Slice-2 ∂a/∂u must be **two-branch**, keyed
+> on the SAME interior-vs-boundary test Slice 1's endpoint-sign safeguard already computes:
+> (1) interior → IFT on dprofit=0 [validated]; (2) boundary-pinned → differentiate the active
+> boundary bound_b(ψ) (IFT of the root_crit/root_psi_crit continuity condition in
+> `find_root_psi`). Build BOTH in Slice 3's C++ ∂a/∂u and re-gate analytic-vs-FD before wiring.
+
 **Slice 3 — macro-step scheme (odelia engine + plant hooks).**
 - In odelia, add a macro/micro integrator that: freezes cohorts over H, sub-cycles the
   5-dim soil block with the Taylor-refreshed `a(u)` from Slice 2, and a trust monitor
