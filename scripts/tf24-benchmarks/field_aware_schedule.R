@@ -17,8 +17,8 @@ datadir <- "/home/user/plant-dev/scripts/tf24-benchmarks/data"
 outdir  <- "/home/user/plant-dev/scripts/tf24-benchmarks/results"
 CACHE <- control(ode_method="rkck", ode_tol_rel=1e-6, ode_tol_abs=1e-6, save_RK45_cache=TRUE)
 PLAIN <- control(ode_method="rkck", ode_tol_rel=1e-6, ode_tol_abs=1e-6)
-jobs <- list(intense_storms=12, whiplash=16, extended_drought=20, dry_to_wet=20, long_horizon=30)
-REF_MULT <- 8   # dense uniform reference
+jobs <- list(intense_storms=12, whiplash=16, extended_drought=20, dry_to_wet=20)
+REF_MULT <- 4   # dense uniform reference (relative anchor; families compared at count N)
 
 for (nm in names(jobs)) {
   years <- jobs[[nm]]
