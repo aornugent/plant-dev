@@ -150,10 +150,15 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-22 (session 6 — T6 build: Slice 3b-iii DONE end-to-end. Step 1 (toy odelia
-uptake integrator) PASS; step 2 (mri_uptake wired on the real TF24 patch) PASS forward — 40× fewer
-O(M) cohort sums at 9.8e-3 offspring vs rkck, bit-identical off. NEXT = Slice 4 (scenario bank),
-see the "▶ NEXT SESSION" block below). Session 5 built Slice 3b-i (stand ∂a/∂u, bit-identical) and
+*Last updated: 2026-07-22 (session 7 — T6 Slice 4 DONE: end-to-end scenario bank + the kutta3
+accuracy fix. `mri_uptake` runs the full dynamic bank, out-surviving rkck (all 6 complete vs rkck's
+3), death mode absent, 3–10× cohort-solve reduction; and the slow advance was upgraded
+forward-Euler→kutta3 (odelia one-liner), cutting the dynamic-regime offspring bias 12%→<0.1% at the
+weekly leg. bit-identical off; odelia toy 25/25 incl. adjoint <1e-6. See
+`tf24-v2-T6-slice4-scenario-bank-result.md` and the "▶ NEXT SESSION" block. Session 6 built Slice
+3b-iii DONE end-to-end — step 1 (toy odelia uptake integrator) PASS; step 2 (mri_uptake wired on the
+real TF24 patch) PASS forward — 40× fewer O(M) cohort sums at 9.8e-3 offspring vs rkck, bit-identical
+off. Session 5 built Slice 3b-i (stand ∂a/∂u, bit-identical) and
 Slice 3b-ii (macro-step falsifier = GO, 2.9×–40×). Session 2 wrote the domain-clean v2 characterisation
 (`oracle-consultation-fundamentals-v2.md`). Session 3 got the **v2 Oracle response** (a major
 reframe, verbatim in `oracle-consultation-fundamentals-v2-response.md`), triaged it into a new
@@ -191,8 +196,15 @@ limit (dry-tercile ~1%); the way the multirate/IMEX ancestors died is falsified.
 (stand ∂a/∂u) BUILT+VALIDATED; Slice 3b-ii (falsifier) = GO (2.9×–40×); Slice 3b-iii DONE end-to-end
 — step 1 (toy odelia integrator) PASS (accuracy ~5e-4, 9.7–16.5× coupling reduction, cheap monitor
 within ~1.5× oracle, record→replay adjoint exact) and step 2 (mri_uptake on the real patch) PASS
-forward (40× fewer O(M) cohort sums at 9.8e-3 offspring vs rkck, bit-identical off). NEXT = Slice 4
-(scenario bank: converged-J acceptance + wall-clock).*** *The two levers on record:
+forward (40× fewer O(M) cohort sums at 9.8e-3 offspring vs rkck, bit-identical off). Slice 4 (session
+7) DONE — see below.*** ***T6 Slice 4 (session 7): scenario bank = speed/robustness demonstrator (rkck
+crashes 3/6, all traces near-extinction at every trait+scale → offspring ill-conditioned on the bank,
+lesson #4); accuracy assessed in a survivable dynamic regime instead. Forward-Euler slow advance had
+an O(H) dynamic bias (12% at weekly leg); swapped to 3rd-order kutta3 (odelia one-liner, outright
+swap not a control key) → ≤2e-4 at moderate seasonality, 2.3e-3 on the constant gate, bit-identical
+off, toy adjoint intact. Bank post-kutta3: all 6 complete (kutta3 also un-crashed intense_storms),
+3–10× cohort-solve reduction, 1–3.2× wall-clock (wall-clock wins only where the cohort sum dominates),
+death mode absent.*** *The two levers on record:
 (T6, chosen) the SPEED arbitrage — 10–100× fewer cohort solves (T4 headroom) via cohorts-on-a-
 weekly-step with a cheap analytic uptake refresh; and (deferred) the ACCURACY refiner (P1 showed
 static shapes fail). Item B not needed; rung 3 moot (T3: survivor-flips J-negligible).*
