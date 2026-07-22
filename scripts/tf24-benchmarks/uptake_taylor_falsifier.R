@@ -22,7 +22,9 @@ CACHE <- control(ode_method="rkck", ode_tol_rel=1e-6, ode_tol_abs=1e-6, save_RK4
 jobs <- list(intense_storms=12, extended_drought=20)   # storms (big du) + dry (hypersensitive)
 WIN_YEARS <- 1/52                                       # weekly windows
 
+NSOIL <- 5                                              # physical soil layers (aux vars follow)
 relresid <- function(x, y, deg) {                       # relative residual of poly(y~x,deg)
+  ok <- is.finite(x) & is.finite(y); x <- x[ok]; y <- y[ok]
   if (length(unique(x)) <= deg + 1) return(NA)
   fit <- tryCatch(lm(y ~ poly(x, deg, raw=TRUE)), error=function(e) NULL)
   if (is.null(fit)) return(NA)
@@ -43,8 +45,9 @@ for (nm in names(jobs)) {
   at <- scm$uptake_times; aM <- do.call(rbind, scm$uptake_values)   # times x (>=5)
   a_st <- lapply(st, function(tt) aM[which.min(abs(at - tt)), ])
   aS <- do.call(rbind, a_st)                                        # aligned to st
-  uS <- do.call(rbind, scm$sweep_soil(st, a_st, st))               # times x 5 soil layers
-  nlay <- ncol(uS); aS <- aS[, seq_len(nlay), drop=FALSE]          # match uptake to soil layers
+  uS <- do.call(rbind, scm$sweep_soil(st, a_st, st))               # times x (5 soil + aux)
+  nlay <- min(NSOIL, ncol(uS), ncol(aS))                           # physical soil layers only
+  uS <- uS[, seq_len(nlay), drop=FALSE]; aS <- aS[, seq_len(nlay), drop=FALSE]
   umin <- min(uS)                                                   # proxy for the dry floor
   cat(sprintf("\n== %s (%dyr): %d steps, %d layers, soil range [%.3f, %.3f] ==\n",
               nm, years, length(st), nlay, umin, max(uS))); flush(stdout())
