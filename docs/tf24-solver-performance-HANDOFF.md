@@ -106,8 +106,19 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 ## 5. Security / process constraints (verbatim, non-negotiable)
 
-- Develop on branch **`claude/tf24-multi-rate-stepper-n5audm`** (both `plant-dev`
-  meta and `plant` submodule) and **`claude/tf24-multirate-engine`** (odelia).
+- **Active development branches (post-split, 2026-07-22):**
+  **`claude/tf24-forward-speed-n5audm`** (plant) and
+  **`claude/tf24-forward-speed-engine`** (odelia). The `plant-dev` meta stays on
+  **`claude/tf24-multi-rate-stepper-n5audm`** but its `.gitmodules` now tracks the
+  two forward-speed branches (submodule SHAs unchanged: plant `5a48347b`, odelia
+  `2f78191`). **Do the T6 build here.**
+- **Frozen pre-split branches (the MRI/IMEX engine line, do NOT build on):**
+  `claude/tf24-multi-rate-stepper-n5audm` (plant, ends at `9c8bd2d6`) and
+  `claude/tf24-multirate-engine` (odelia, ends at `b88514d`). On 2026-07-22 the
+  work was split: everything from the forcing-kink clip onward (classifier hooks,
+  step monitor, slim cache, WR probe, **T6 Slice 1**) was moved to the
+  forward-speed branches; these two were reset (force-pushed) back to the split
+  commits so they carry only the MRI/collocation/IMEX/R-C block.
 - **Push ONLY to `aornugent/*` forks. NEVER push to `traitecoevo/*`.**
 - Commit trailers:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` and
@@ -361,9 +372,16 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `cfdc8ee`+ (session-3 v2 arc; + T6 Slice 1 result + scripts + submodule bump) |
-| plant | `claude/tf24-multi-rate-stepper-n5audm` | `5a48347b` (**T6 Slice 1: Newton/gradient collar solve**, OFF-by-default, bit-identical off; over `0015c9fd` slim cache + probe hooks) |
-| odelia | `claude/tf24-multirate-engine` | `2f78191` (unchanged; odelia#47 filed) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `cfdc8ee`+ (session-3 v2 arc; + T6 Slice 1 result + scripts; `.gitmodules` now tracks the forward-speed branches) |
+| plant (active) | `claude/tf24-forward-speed-n5audm` | `5a48347b` (**T6 Slice 1: Newton/gradient collar solve**, OFF-by-default, bit-identical off; over `0015c9fd` slim cache + probe hooks) |
+| plant (frozen) | `claude/tf24-multi-rate-stepper-n5audm` | `9c8bd2d6` (pre-split MRI/collocation/IMEX/R-C block only) |
+| odelia (active) | `claude/tf24-forward-speed-engine` | `2f78191` (step_diag + forcing clip + classifier monitor + norm-argmax + step_monitor) |
+| odelia (frozen) | `claude/tf24-multirate-engine` | `b88514d` (pre-split MRI/RODAS/IMEX engine block only) |
+
+**2026-07-22 branch split:** the current work was divided at plant `9c8bd2d6` /
+odelia `b88514d`. The pre-split MRI/IMEX engine line stays on the original branch
+names (frozen at those commits); all later diagnostic + T6 work continues on the
+new `tf24-forward-speed-*` branches, which the meta `.gitmodules` now tracks.
 
 **Session 3 changed no C++** — all findings came from R probes on saved fields reusing the
 session-2 machinery (`set_record_uptake`/`run_mutant`/`sweep_soil`/`overwrite_cached_soil`). T6 is
@@ -498,7 +516,10 @@ removable-vs-intrinsic **classifier are one instrument.**
 
 **Current / authoritative (session 3 — the live line of work)**
 - `tf24-solver-performance-HANDOFF.md` — this file (the build plan).
-- **`tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — THE NEXT BUILD (prescriptive). Start here.**
+- **`tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — the T6 build plan (prescriptive).**
+- **`tf24-v2-T6-slice1-newton-collar-result.md` — Slice 1 DONE (Newton/gradient collar
+  solve shipped; bit-identical off, ON matches GSS max rel 6.8e-4, 1.20× whole-solve).
+  Next: Slice 2 (analytic ∂a/∂u, offline-gated before wiring).**
 - `tf24-offspring-convergence-finding.md` — the finding for plant maintainers (concrete, no
   formalism): offspring non-convergence = under-resolved soil-water field × feedback, not the
   model; fix is a field-targeted schedule, not the reproduction-targeted refiner.

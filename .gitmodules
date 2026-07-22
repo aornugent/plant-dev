@@ -4,7 +4,8 @@
 [submodule "plant"]
 	path = plant
 	url = https://github.com/aornugent/plant.git
-	branch = develop
+	branch = claude/tf24-forward-speed-n5audm
 [submodule "odelia"]
 	path = odelia
 	url = https://github.com/aornugent/odelia.git
+	branch = claude/tf24-forward-speed-engine
