@@ -140,12 +140,20 @@ bit-exactly for offspring + census (scalar + vector), through the run-shaped ent
 value-reproduction bug — the leaf-seam `assemble_leaf_from` leaked scratch mutations (`E_up_`,
 `root_collar_psi_`, `ci_`, vuln cache) into the shared double `leaf`, drifting the recorded active trajectory;
 FIXED by snapshotting/restoring the whole leaf around the recording seam (active-branch only, double
-bit-identical). THE REMAINING GAP: the gradient VALUE is NOT FD-verified. A naive central FD of a TF24 SCM
-metric has NO plateau — an FD-step sweep (census-scalar, life=4, lma) gave ratios `2.7, 2.9, 0.083, −1.4,
-0.0035` across `d=1e-3…1e-7`. This is the sessions 11-13 "staircase": leaf per-call non-smoothness
-(golden-section p* at `GSS_tol_abs=1e-3`, regime switches) makes the metric non-smooth at central-FD scales.
-NEXT: build the tight-inner-ε / wide-δ multi-cell reference from sessions 11-13 (or raise `GSS_tol_abs` — the
-session-13 design decision, CONFIRM WITH USER; it shifts double baselines). Then FD-gate the `◐` cells to `✓`.
+bit-identical). THE REMAINING GAP: the gradient VALUE is NOT FD-verified, and the best reference obtained
+shows a **candidate real ~1.6× residual**. Read `oracle-response-inner-argmax-adjoint.md` FIRST — it maps the
+whole verification. The AD gradient is τ-invariant (census-scalar lma: -7.33 at life=3, -10.71 at life=4,
+stable over `GSS_tol_abs`=1e-3…1e-9) = it differentiates the ideal optimum (doctrine B). FD is a δ/τ-indexed
+family: too-small δ (1e-5) is staircase/roundoff NOISE (the "0.083/12×" reading was that artifact —
+RETRACTED); too-large δ (≳5e-2) drives the SCM non-finite (#550). In the narrow valid window (tight τ=1e-6,
+mid-window δ=1e-3…2e-2) the life=3 FD is fairly stable at ≈-4.3 vs AD -7.33 → **AD/FD ≈ 1.65, stable across
+the window** — NOT the loose-τ staircase (which the oracle says not to chase), so a plausible real
+discrepancy. NEXT: apply the sessions-11-13 machinery at the SCM level — the tight-τ frozen anchor within the
+valid-δ window (oracle Decisive experiment 2), the corner-regime branch-flag selection the oracle prescribes
+(check whether it was ever built — task #23 "prescribed", maybe not implemented), and possibly raising
+production `GSS_tol_abs` (session-13 design decision — CONFIRM WITH USER; shifts double baselines). Then
+FD-gate the `◐` cells to `✓`. Discipline that paid off this session: VERIFY THE FD REFERENCE (δ~τ^{1/3},
+above noise, below runaway) BEFORE trusting the ratio — a wrong δ produced a wrong "12×" conclusion.
 Perf note: the leaf snapshot copies the whole Leaf per active compute_rates step — life=4 certifies fine but
 life≥5 is slow (the tape also OOMs by life~10 regardless). Use `system-design` before, `code-review` on the
 diff. Off-path work remains: task #4 (`step_history` off the R path + `run_scm_gradient` shim), life=10+ OOM

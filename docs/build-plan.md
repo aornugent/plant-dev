@@ -81,15 +81,31 @@ and the full-SCM R0 + census gradients for **FF16 and K93** through the run-shap
    bit-identical; all TF24/TF24f leaf-coupling + double suites still green). The value now reproduces
    bit-exactly at every life.
 
-**THE REMAINING OPEN GAP (task #27): FD-verify the TF24/TF24f full-SCM gradient VALUE.** A naive
-central FD of a TF24 SCM metric has **no plateau** — an FD-step sweep of census-scalar (life=4, lma)
-gave ratios `2.7, 2.9, 0.083, -1.4, 0.0035` across `d = 1e-3 … 1e-7`. This is the documented
-"staircase" (sessions 11-13): the leaf model's per-call non-smoothness (golden-section p* at
-`GSS_tol_abs=1e-3`, regime switches) makes the metric non-smooth at the scales a central FD needs, so a
-central difference is **not** a trustworthy reference. Certifying the gradient needs the tight-inner-ε /
-wide-δ multi-cell reference from that work (or tightening `GSS_tol_abs` — the session-13 design
-decision, deferred to the user). Until then the gradient cells are `◐`, not `✓`. The value-reproduction
-and finite-gradient properties ARE committed-tested (`test-ad-tf24-scm-gradient`).
+**THE REMAINING OPEN GAP (task #27): FD-verify the TF24/TF24f full-SCM gradient VALUE.** The AD gradient
+is well-defined and **τ-invariant** (census-scalar, lma: `-7.33` at life=3, `-10.71` at life=4, stable
+across inner `GSS_tol_abs` = 1e-3 … 1e-9) — consistent with differentiating the *ideal* optimum (the
+oracle's doctrine B; see `oracle-response-inner-argmax-adjoint.md`). Verifying it against FD is the hard
+part, and the oracle already mapped why:
+- **The FD-of-the-code-as-run is a δ/τ-indexed family, not one number.** At too-small a step it is pure
+  staircase/roundoff noise — the earlier "ratio 0.083 / 12× / uniform" reading was an **artifact of
+  d=1e-5 (retracted)**; an FD-step sweep there gives `2.7, 2.9, 0.083, -1.4, 0.0035` across
+  `d=1e-3…1e-7`, i.e. no plateau. The oracle's own warning: *do not chase the loose-FD ratio; it is not a
+  closable gap.* At too-large a step (d≳5e-2) a 10% lma jump drives the SCM non-finite (#550 runaway).
+- **The valid window is narrow.** With a tight inner tolerance (`GSS_tol_abs`=1e-6) and a mid-window
+  secant (`d`=1e-3…2e-2, above the noise, below the runaway), the FD is *fairly* stable: life=3 FD ≈
+  `-4.3` (± ~10%) vs AD `-7.33` → **AD/FD ≈ 1.65, stable across the window**; life=4 is not usable (FD
+  unstable, sits near the runaway). So on the best reference obtained, there is a **~1.6× residual at
+  life=3** that does **not** close as the step varies on the plateau — this is *not* the loose-τ
+  staircase; it is a candidate **real** discrepancy (AD larger than the ideal secant), in the family of
+  the session 10-13 leaf-adjoint residuals but now at the full-SCM level.
+
+So the gradient cells stay `◐`, NOT `✓`: value bit-exact (committed-tested, `test-ad-tf24-scm-gradient`),
+gradient well-defined but showing an unresolved ~1.6× residual against the best FD reference. Closing it
+needs the sessions 11-13 machinery applied at the SCM level (tight-τ frozen anchor within the valid-d
+window; the corner-regime branch-flag selection the oracle prescribes but which may not be built; possibly
+raising production `GSS_tol_abs` — the session-13 design decision, still owed to the user). Method note:
+the earlier 12× claim came from an under-sized FD step, caught by re-running with the oracle's δ~τ^{1/3}
+guidance — verify the reference before trusting the ratio.
 
 **Correction to the session-15 git-history claim: "P2 complete / #52 parity reached" overstated** —
 parity holds for the leaf/rate gradient and for FF16/K93 full-SCM gradients; TF24/TF24f full-SCM
