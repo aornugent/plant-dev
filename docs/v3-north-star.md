@@ -139,7 +139,7 @@ double-side polish + `register_implicit` — so it also holds the "two hand
 adjoints, zero new concepts" invariant (§2). The residual judgment (is the
 branch-select + two residuals clean as plant code, or does it want a thin
 wrapper?) is a build-time code-review call, not a design gate.
-(oracle-response-inner-argmax-adjoint; task #23.)
+(oracle/oracle-response-inner-argmax-adjoint; task #23.)
 
 ### 4e. The one HONEST open question (do not paper over it)
 `design.md §5` assumes the decomposed leaf outputs record on the run tape as cheap
@@ -198,12 +198,12 @@ Canonical working set (a new session reads only these):
 - **This doc** (north star) + **`design.md`** (detailed; §12 corrected to state the
   shipped seam reality, not the aspirational deletion) + a **status doc**
   (build-plan/HANDOFF Part-1 headers + the test-cited build-status matrix).
-- Reference: `oracle-response-transport-compression.md`,
-  `oracle-response-inner-argmax-adjoint.md`, `oracle-consultation-index.md`
+- Reference: `oracle/oracle-response-transport-compression.md`,
+  `oracle/oracle-response-inner-argmax-adjoint.md`, `oracle/oracle-consultation-index.md`
   (evidence ledger), `p2c-leaf-adjoint-design.md` (shipped-leaf record),
-  `oracle-consultation-guide.md` (methodology).
-- Appendices (derivations): `deepening-6` (separability — highest value),
-  `deepening-1`, `deepening-2-4-5`, `deepening-3`, `phase0-results.md`.
+  `oracle/oracle-consultation-guide.md` (methodology).
+- Appendices (derivations): `deepenings/deepening-6` (separability — highest value),
+  `deepenings/deepening-1`, `deepenings/deepening-2-4-5`, `deepenings/deepening-3`, `phase0-results.md`.
 
 Archive (fold-forward then move to `archive/`): the seven `odelia-N-*` journey
 notes (retired nouns), `HANDOFF.md` Part 2 + `build-plan.md` saga sections,
