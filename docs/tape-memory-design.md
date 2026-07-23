@@ -1,3 +1,10 @@
+> **SUPERSEDED by `reverse-mode-dx-design.md`** (holistic pass after the
+> odelia/plant/XAD deep study). This doc addressed memory only and partly
+> mis-scoped TF24's cause (the seam does not bound step-count memory; the
+> driver is the `maxDerivative_` slot high-water from the non-leaf S-geometry,
+> which `resetTo` never resets). The memory primitive here survives as Phase 3
+> (segmented checkpointed replay); read the new doc for the full design.
+
 # Design — bounding reverse-tape memory for the SCM gradient
 
 _System-design pass (Tier 3). Inputs: the session's tape measurements
