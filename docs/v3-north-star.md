@@ -95,18 +95,33 @@ This is the crux. The genuine ecology is small; the accreted machinery is large.
   optimum for TF24f) with intrinsic nonsmoothness at transitions; plus a genuine
   hydraulic-failure discontinuity (shutdown) that must **not** be smoothed.
 
-### 4b. The designed decomposition (design.md §5 — the target, never fully built)
-Express the leaf so the differentiable path is exact and the inner solves are the
-only tape-aware objects — **zero hand adjoint in the strategy**:
-- 4 hydraulic splines → **exact reads**: the two integrals via `incomplete_gamma`,
-  `f_r` elementary, the inverse via a scalar `register_implicit` root. No sampled
-  `.deriv()` in the leaf residual ⇒ injected partials are exact.
-- **N_ci** (stomatal root), **N_ψstem** (transpiration inversion) → `implicit_value`
-  scalar IFT nodes (forward-mode partials, **no local tape, no nested tape**).
-- **p\*** → double-side Newton polish + `register_implicit` (§4d; no new node).
-- profit + per-layer uptake → **closed-form arithmetic** over the solved scalars
-  and exact reads; the tape does the chain rule ⇒ **b1 (sign) and b2 (dropped
-  term) become inexpressible**; no `chain_sign`, no manual injection, no snapshot.
+### 4b. The decomposition (design.md §5 + deepening-1 — pieces mostly BUILT, wired wrong)
+Verified against the source, the leaf reduces to exactly **two genuine scalar
+inner solves** plus closed-form composition (deepening-1 §"nested-solve inventory"):
+- **N1 — ci root** → `register_implicit`; residual `A(ci)·umol_to_mol −
+  gc(ψ_stem,q)(ca−ci)·inv_atm = 0`, denominator `A′·umol_to_mol + gc·inv_atm > 0`
+  (sign-definite, leaf_model.h). Wraps `psi_stem_to_ci`.
+- **N2 — ψ_stem** → **not a solve**: a closed-form spline composition; the inverse
+  `psi_from_transpiration` is a scalar `register_implicit` root (denominator
+  `k_max·exp(−(ψ/b)^c) > 0`, already annotated at leaf_model.h:266); the
+  soil-layer crossing becomes a Leibniz breakpoint.
+- **N3 — q\* optimum** → `register_implicit` on the reduced gradient `G(q)=dW/dq`
+  (deepening-1: the single shared object; TF24f integrates `k·G` — one expression,
+  both variants), denominator `dG/dq<0`, **plus** the oracle's branch-flag fold
+  handling (§4d).
+- profit + per-layer uptake → **closed-form arithmetic** over the solved scalars;
+  the tape does the chain rule ⇒ **b1 (sign) and b2 (dropped term) become
+  inexpressible**; no `chain_sign`, no manual injection, no snapshot.
+
+**Crucial correction (read the source, 2026-07-23):** the S-generic kernels and
+`incomplete_gamma` are **already built** — `incomplete_gamma<S>` exists
+(`incomplete_gamma.hpp:30`); leaf_model.h already expresses the vulnerability
+curve (:149), its cumulative integral via `incomplete_gamma` (:158), and the cost
+(:181) in closed form; `assemble_leaf_from` already uses these + `implicit_value`
+for p\*. **So the gap is not "decompose the splines" — it is "replace the
+local-tape black-box differentiation with N1/N3 `register_implicit` nodes."** The
+`register_implicit` residual must be `S`-generic (it forward-differentiates the
+residual); the leaf's `S`-kernels already are, so this is wiring, not new math.
 
 ### 4c. The accidental machinery this deletes
 The shipped `net_mass_production_dt` seam (local-tape splice + `supplied_derivative`
@@ -141,20 +156,27 @@ branch-select + two residuals clean as plant code, or does it want a thin
 wrapper?) is a build-time code-review call, not a design gate.
 (oracle/oracle-response-inner-argmax-adjoint; task #23.)
 
-### 4e. The one HONEST open question (do not paper over it)
-`design.md §5` assumes the decomposed leaf outputs record on the run tape as cheap
-arithmetic. **Session 9 found the *undecomposed* leaf OOMs on the run tape at
-life=1** — but that was recording the Brent + nested-FD re-solves, which §4b
-removes. Whether the *decomposed* leaf is cheap enough to record directly is
-**untested**. v3 is robust to the answer:
-- **If it fits** → record directly; no injection primitive needed (simplest).
-- **If it doesn't** → an **odelia-owned** local-adjoint primitive (the reverse
-  multi-output dual of `register_implicit`: evaluate the sub-computation on a
-  scratch tape, splice its exact Jacobian as O(#inputs) nodes) does it.
-Either way **R1 holds** — the strategy has no hand adjoint; the tape lifecycle is
-the engine's. This is a bounded implementation choice, **not** a design gate, and
-it is settled by one measurement *after* §4b lands (not before — measuring the
-undecomposed leaf, as I did, just re-derives the session-9 OOM).
+### 4e. Memory — largely answered by the primitive's mechanism (not an open gate)
+I earlier flagged this as an open "measure it" question and proposed L-A (record
+the leaf on the run tape). **Reading the source resolves most of it:**
+- The **session-9 OOM (L-A) recorded the *current* `assemble_leaf_from`** — which
+  contains the **nested-FD `p*`** (`implicit_value` of a central difference that
+  re-solves the double Brent per ±ε) and the double inner solves. That is a major
+  contributor to the ~100–1000× footprint.
+- The decomposition (§4b) makes N1/N3 **`register_implicit` nodes, whose reverse
+  path is forward-mode OFF the run tape + one injected `supplied_derivative` edge**
+  (verified in `implicit_node.hpp`). So the inner solves are **never recorded** —
+  exactly the L-A OOM driver, gone.
+- What remains recorded is the **closed-form outputs + the `incomplete_gamma`
+  series** — ordinary arithmetic, FF16-like per cohort-step, bounded by Phase-2
+  checkpointing.
+So the decomposition records **strictly less** than L-A, with the specific OOM
+driver removed by construction. Residual honest caveat: the `incomplete_gamma`
+convergent series × soil layers × cohort-steps is the one term worth a single
+confirming measurement *after* §4b lands — but the mechanism strongly favors
+viability, and there is **no** injection-primitive design gate (the `register_implicit`
+edges already are the injection). This corrects my prior framing that treated
+memory as the deciding open question.
 
 ## 5. The ladder to completion (each rung cited; verify, don't inherit status)
 - **DONE, FD-verified:** FF16 + K93 full-SCM resident gradients (census + R0),
