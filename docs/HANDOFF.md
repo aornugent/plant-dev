@@ -49,6 +49,13 @@ the plant developer experience is pain-free.**
   appear in commits/code/artifacts (chat only). Never push to `traitecoevo/*`.
 
 ## HOW TO REBUILD CONTEXT FROM SCRATCH (do this in order, every fresh session)
+**Docs are a lead, not an authority — verify before you build on them.** Every prose claim of status
+("done", "won't compile", "wrong by X", "UNBUILT") is potentially stale: it was true when written and
+the code has moved. Before acting on such a claim, reproduce it against the *current* code with the
+cheapest decisive check (a compile probe, a single test run, a one-value FD). Session 16 found TWO stale
+session-15 claims this way ("won't compile at node.h:347"; "the census methods are missing everywhere")
+that were false against HEAD. The build-status matrix (`build-plan.md`) exists precisely so a claim is a
+*test citation you can re-run*, not a sentence you trust — re-run the cell before you believe it.
 1. **Read `odelia/AUTODIFF.md` FIRST.** It is the authoritative account of the AD
    workflow: the two orthogonal axes (Replay L1/L2/L3 × Functional), ownership (the
    **Solver owns the schedule L1**; the System owns its background L2/L3), the System
@@ -59,6 +66,16 @@ the plant developer experience is pain-free.**
 2. **Read `odelia/AGENTS.md` and `plant/agents.md`** (dev workflow, style, build/test).
 3. **Read `docs/design.md`, `docs/build-plan.md`, `docs/odelia-index.md`** (the
    what/why, the phased plan, and the authoritative concept set / names).
+3b. **If the task touches an area with a prior Oracle consultation, READ that Oracle
+   response BEFORE designing your approach — and follow its Decisive Experiments and
+   contract, not an ad-hoc method.** Index: `docs/oracle-consultation-index.md`. The
+   responses are `docs/oracle-response-*.md`. In particular, anything touching the TF24
+   leaf `p*` adjoint or FD-verifying a TF24 gradient is governed by
+   `oracle-response-inner-argmax-adjoint.md` (the staircase; the δ/τ-indexed FD family;
+   the tight-τ frozen anchor). Session 16 re-derived that response's findings the hard
+   way *after* falling into the exact trap it documents (chasing a loose/under-stepped
+   FD ratio) — because the response was not consulted at task start. Consulting it is not
+   optional when its subject is in scope.
 4. **Diff odelia against `master`, NOT develop.** odelia's default is `master`; the
    AD engine is a large branch (~28 commits), **NOT merged**. Diffing the wrong base
    hides the entire engine and wasted a session:
@@ -73,10 +90,26 @@ the plant developer experience is pain-free.**
    spans both repos).
 
 ## RULES THAT MUST NOT BE RELEARNED (each cost real time this session)
+- **Treat docs as potentially stale; verify before building on a status claim.** (See the
+  principle under "HOW TO REBUILD CONTEXT".) A "done / broken / wrong-by-X" sentence is a
+  lead to reproduce, not a fact to inherit — the code has moved since it was written.
+- **Consult the relevant Oracle response BEFORE choosing a verification/debugging method —
+  and DO NOT trust an FD ratio until you have verified the FD reference itself.** This is the
+  trap session 16 fell into (and session 12 before it): a TF24-SCM/leaf-adjoint FD is a
+  **δ/τ-indexed family, not one number** (`oracle-response-inner-argmax-adjoint.md`). A
+  central FD is meaningless unless the step is in the valid window — **δ ~ τ^{1/3}, above the
+  staircase/roundoff noise floor AND below the step that drives the SCM non-finite (#550)**.
+  Too small (e.g. `d_rel=1e-5`) → pure noise (session 16's retracted "12×"); too large
+  (`d_rel≳5e-2`) → non-finite. The correctness anchor is **AD vs FD on a frozen schedule at
+  TIGHT inner tolerance (`GSS_tol_abs`), fixed δ in the window, to integrator tolerance**
+  (the Oracle's Decisive Experiment 2) — NOT a loose-τ / small-δ swept plateau, which is the
+  staircase artifact the Oracle says explicitly *not* to chase. Verify the reference, then
+  the ratio.
 - **The correctness reference is the fully-adaptive real-model FD** — perturb a trait
   and re-run `run_scm` (adaptive stepping) at ±δ, central difference. Verify it in
   **double, at R level**, before trusting any C++/AD number — this is what refuted two
-  successive over-confident root-cause claims this session. Sweep δ for the plateau.
+  successive over-confident root-cause claims this session. Sweep δ for the plateau
+  (in the valid window per the rule above — a "clean plateau" at tiny δ can be the artifact).
 - **The correct frozen replay is the RESOLVED schedule — L0 `node_schedule_times` AND
   L1 `ode_times` from `run_scm(refine_schedule=TRUE)` — i.e. what
   `run_scm(use_ode_times=TRUE)` replays.** On that schedule, frozen FD == adaptive FD
