@@ -1,5 +1,13 @@
 # Handoff — odelia AD engine × plant SCM gradients
 
+> **►► NEW ENTRY POINT (2026-07-23): read [`v3-north-star.md`](./v3-north-star.md) FIRST.**
+> It is the guiding light — objective (DX=concept-count + coverage), the durable
+> principles that survived all 16 sessions, the leaf decomposition that restores R1
+> for TF24 (the seam is an accidental shortcut, not the design), and the ladder to
+> completion. Then this handoff (Part 1 rules), then `design.md`. ~14 docs were
+> archived to `archive/` in the v3 reorg; the canonical set is listed in
+> `v3-north-star.md` §7.
+
 This document is the entry point for any new session. It has two parts: an
 **authoritative header** (persistent — how to rebuild context correctly, and the
 hard-won rules that must not be relearned), and a **state + next-steps** section

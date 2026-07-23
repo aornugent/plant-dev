@@ -456,6 +456,17 @@ reviewed manifest with a verdict per site, so no subgradient ships silently.
 
 ## 12. What deletes from plant (R1)
 
+> **STATUS (2026-07-23, corrected — see `v3-north-star.md` §4):** the FF16/K93
+> deletions below LANDED (`growth_rate_gradient` off the active pass, the
+> compression loop, the XAD-include reduction). The **TF24 leaf deletions have
+> NOT happened**: recording the (undecomposed) leaf on the run tape OOMs at
+> life=1 (session 9), so a `supplied_derivative` **local-tape seam shipped
+> instead** (`p2c-leaf-adjoint-design.md`) — a third hand-written adjoint inside a
+> strategy, violating R1 for TF24. v3 restores R1 by executing §5's decomposition
+> (`incomplete_gamma` splines + `implicit_value` N_ci/N_ψstem + a `stationary_value`
+> p\* node), after which these deletions apply to TF24 too. Read this section as
+> the *target*, not the shipped state, for TF24.
+
 `node.h::growth_rate_gradient` (~70 ln), the TF24 `supplied_derivative` FD seam (~150 ln) +
 `leaf_profit_at_fixed_collar`, `dprofit_droot_collar_psi`, `dsoil_consumption_dpsi_collar_perlayer`, the
 per-layer FD uptake partials, `species.h`'s geometric-compression loop (absorbed into the chart), the
