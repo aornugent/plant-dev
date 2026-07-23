@@ -83,6 +83,27 @@ These were never reversed; a v3 that breaks one is wrong.
 ## 4. The leaf — where TF24 overwhelmed the intent, and the way back
 This is the crux. The genuine ecology is small; the accreted machinery is large.
 
+**Framing (from reading the whole corpus + source): the entire design is ~6
+odelia primitives, all already BUILT, and FF16/K93 already run on them with zero
+tape code.** `separable_field` (light field + exact `∂L/∂z`), `mass_transport`
+(log-mass chart, deletes `∂ₓg`), `register_implicit`/`implicit_value` (inner
+solves), `incomplete_gamma` (leaf/soil hydraulic integrals), `decide`/
+`smooth_positive` (firewall), and the Solver + record→replay (AUTODIFF.md).
+**TF24 is the lone strategy still on the accidental seam instead of these.** So v3
+is not "design something" — it is "bring TF24 onto the primitives the other three
+already use." The complete tape-aware solve surface for the whole plant family is
+**exactly two scalar IFTs (N_ci, N_p\*) + birth-height** (deepenings-1/2-4-5);
+everything else (light scan, transport spline, soil antiderivative-difference,
+crown quadrature, TF24f pin) is closed-form/Leibniz/reduction with zero hand
+adjoint.
+
+**`p2c-leaf-adjoint-design.md` already did this system-design and chose the answer**
+— candidate **B** (evaluate-at-converged-point + IFT nodes), rejecting **A**
+(template the whole leaf: golden-section/uniroot branch on active values → the
+fold lands on the tape + a huge per-solve tape) and **C** (corrected seam: seam
+survives). The shipped code is neither — a hybrid local-tape seam that pays A's
+recording cost (local tape + snapshot) that B does not. v3 = finish B.
+
 ### 4a. Irreducible ecology (any correct differentiator must handle all of these)
 - **The inner optimum `p*` + envelope asymmetry:** profit is stationary in `p`,
   but transpiration/ci/ψ_stem/per-layer-uptake are **not** — they need
@@ -113,15 +134,28 @@ inner solves** plus closed-form composition (deepening-1 §"nested-solve invento
   the tape does the chain rule ⇒ **b1 (sign) and b2 (dropped term) become
   inexpressible**; no `chain_sign`, no manual injection, no snapshot.
 
-**Crucial correction (read the source, 2026-07-23):** the S-generic kernels and
-`incomplete_gamma` are **already built** — `incomplete_gamma<S>` exists
-(`incomplete_gamma.hpp:30`); leaf_model.h already expresses the vulnerability
-curve (:149), its cumulative integral via `incomplete_gamma` (:158), and the cost
-(:181) in closed form; `assemble_leaf_from` already uses these + `implicit_value`
-for p\*. **So the gap is not "decompose the splines" — it is "replace the
-local-tape black-box differentiation with N1/N3 `register_implicit` nodes."** The
-`register_implicit` residual must be `S`-generic (it forward-differentiates the
-residual); the leaf's `S`-kernels already are, so this is wiring, not new math.
+**The commitment (p2c candidate B), kept true by structure:** *the leaf solver runs
+in `double`; `S` is carried only by the closed-form output map and by each solved
+root registered as an `implicit_value` node* — so no iteration and no finite
+difference ever evaluates across the fold. Enforced structurally:
+`util::golden_section_max` / `util::uniroot_smooth` have **double-only signatures**,
+so an active scalar physically cannot enter the solver; taping the iteration is
+inexpressible. This is why candidate B has **no OOM** — the 1490-line solver is
+never templated or recorded; only the output map + injected IFT edges touch the
+tape. (The shipped seam's local-tape *recording* of the assembly is candidate A's
+cost, paid needlessly.)
+
+**`incomplete_gamma` is mandatory, not optional — and here is exactly why.** TF24's
+parameter-derived precompute lives in the **double splines** (`set_physiology`),
+which the commitment keeps double, so `reset()` cannot re-derive them in `S`
+(AUTODIFF.md reset-timing contract). Therefore any seeded **hydraulic** param that
+reaches the operating point *through a spline* — `root_b`/`root_c` via the
+vulnerability curve, `b`/`c`/`K_s` via transpiration — is **silently severed**
+unless re-expressed analytically in `S`. `incomplete_gamma` is that re-expression
+(the vulnerability integral is the Weibull `∫exp(−(|ψ|/b)^c)`; already at
+leaf_model.h:158). The double splines survive only as the value-path fast lookup;
+the active path never reads them for a seeded-param derivative. So it is a hard
+prerequisite for the hydraulic-param channel, not a cleanup.
 
 ### 4c. The accidental machinery this deletes
 The shipped `net_mass_production_dt` seam (local-tape splice + `supplied_derivative`
@@ -132,11 +166,18 @@ a pragmatic shortcut instead of the decomposition; the shortcut then grew b1, b2
 the OOM workaround, and the task-#23 accuracy problem.
 
 ### 4d. The one genuinely hard build piece — and it needs NO new odelia concept
-The p\* collar optimum is an **argmax**, and the double model solves it by golden
-section — a staircase (doctrine B). A naive IFT node divides by a shelf-curvature
-the `1e-6` detector misclassifies. The oracle's prescribed, *cheaper* fix
-(≈9–13 obj-evals vs ≈16 today) decomposes into **two existing pieces — no new
-primitive**:
+The p\* collar optimum is an **argmax** solved by golden section — a staircase
+(doctrine B). Two source facts pin the fold node precisely (p2c refinement 1):
+**at the fold `dF/dci→0`, so a naïve `implicit_value` on the ci-residual (`y=ci`)
+divides by ≈0 — that IS the b1 blow-up.** The correct N_p\* is `implicit_value` on
+the **branch-death condition `g(p*)=∂F/∂ci=0`**, whose denominator `dg/dp* ≈
+−1.0004` is regular; and the regime is selected by whether the double solve
+returns `p*` interior (⇒ stationarity IFT `∂profit/∂p*=0`) or at the feasibility
+bound `bound_b` (⇒ the fold IFT). That **regime detector is "the one genuinely new
+concept"** the design admits. The oracle's prescribed, *cheaper* fix (≈9–13
+obj-evals vs ≈16) decomposes into **two existing pieces — no new primitive** —
+and, per p2c's kill condition, **the polish can retire even the detector** (if the
+ci solve is Newton-reformulated so p\* becomes a genuine interior optimum):
 1. **A plant-side terminal Newton polish of the double `p*` solve**
    (`leaf_model.cpp`): bracket-localise + read the branch flag at the bracket ends
    + 3–4 safeguarded Newton steps on the stationarity condition using the
