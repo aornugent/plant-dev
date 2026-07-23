@@ -126,26 +126,41 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 # PART 2 — CURRENT STATE & NEXT STEPS (rewrite each session)
 
-_Last updated: 2026-07-22 (session 15, end). **HEAD: plant `c6b164ec` (P2d TF24f collar leaf channel), super
-advances with docs, odelia unchanged. All clean, pushed. Scratchpad probes gitignored; tree clean.**_
+_Last updated: 2026-07-23 (session 16, end). **HEAD: plant `04466e39` (TF24/TF24f full-SCM compiles + value
+reproduces), super `be60041` (docs + pointer), odelia unchanged. All clean, pushed. Scratchpad probes
+gitignored; tree clean.**_
 
-_**►►►► START HERE NEXT SESSION — make the TF24/TF24f FULL-SCM gradient compile + FD-verify (R0, then census).
-The build-status matrix (`docs/build-plan.md`, "CURRENT WORK") is now the authoritative, test-cited status;
-read it first. What is DONE: the leaf/rate reverse-AD gradient for ALL FOUR strategies, and the full-SCM R0 +
-census gradients for FF16 and K93 through the run-shaped entry (`scm_jacobian`/`scm_gradient`). What is NOT
-done (the gap this session uncovered): TF24/TF24f have NEVER run through the full-SCM gradient entry — the
-active growing-dimension SCM does not COMPILE for them.
-`scm_gradient(Parameters<TF24_Strategy_<active>>, …, offspring_metric{})` fails at `node.h:347`
-(`set_log_density(*it++)`: `Node<TF24…>::value_type` resolves to `int` in the active SCM, while FF16/K93
-compile). TWO SUB-GAPS: (1) make the TF24/TF24f active SCM compile + run (trace `value_type` propagation
-through `Node`/`Species`/`Patch` for these strategies; then FD-verify R0 at a SMALL life — the TF24 reverse
-tape OOMs by life~10); (2) the multivariate census vector needs `census_leaf_area`/`census_mass`/
-`census_basal_area` — defined ONLY in `ff16_strategy.h` — added to TF24/TF24f (they compute area_leaf/mass,
-so mirror FF16). Then add committed FD-gated tests for the TF24/TF24f cells in the matrix (there is currently
-NO test exercising a TF24 SCM gradient — that absence is exactly how the drift happened). Use `system-design`
-before, `code-review` on the diff. Then the off-path work remains: task #4 (`step_history` off the R path +
-`run_scm_gradient` shim), life=10+ OOM (tape checkpointing), IC gradients, Phase 3. Task #23 (`p*`) CLOSED
-(floor). ◄◄◄◄**_
+_**►►►► START HERE NEXT SESSION — FD-verify the TF24/TF24f FULL-SCM gradient VALUE (task #27, the remaining
+open piece). The build-status matrix (`docs/build-plan.md`, "CURRENT WORK") is authoritative; read it first.
+WHAT SESSION 16 SETTLED: the TF24/TF24f active SCM gradient now COMPILES and REPRODUCES the double value
+bit-exactly for offspring + census (scalar + vector), through the run-shaped entry, committed-tested
+(`test-ad-tf24-scm-gradient`, driver `tf24_scm_gradient_driver.cpp`). Two stale/real things were fixed:
+(a) the "won't compile at node.h:347" claim was STALE — only the census vector failed, for want of
+`census_leaf_area`/`census_mass`/`census_basal_area` on TF24 (now added, TF24f inherits); (b) a real
+value-reproduction bug — the leaf-seam `assemble_leaf_from` leaked scratch mutations (`E_up_`,
+`root_collar_psi_`, `ci_`, vuln cache) into the shared double `leaf`, drifting the recorded active trajectory;
+FIXED by snapshotting/restoring the whole leaf around the recording seam (active-branch only, double
+bit-identical). THE REMAINING GAP: the gradient VALUE is NOT FD-verified. A naive central FD of a TF24 SCM
+metric has NO plateau — an FD-step sweep (census-scalar, life=4, lma) gave ratios `2.7, 2.9, 0.083, −1.4,
+0.0035` across `d=1e-3…1e-7`. This is the sessions 11-13 "staircase": leaf per-call non-smoothness
+(golden-section p* at `GSS_tol_abs=1e-3`, regime switches) makes the metric non-smooth at central-FD scales.
+NEXT: build the tight-inner-ε / wide-δ multi-cell reference from sessions 11-13 (or raise `GSS_tol_abs` — the
+session-13 design decision, CONFIRM WITH USER; it shifts double baselines). Then FD-gate the `◐` cells to `✓`.
+Perf note: the leaf snapshot copies the whole Leaf per active compute_rates step — life=4 certifies fine but
+life≥5 is slow (the tape also OOMs by life~10 regardless). Use `system-design` before, `code-review` on the
+diff. Off-path work remains: task #4 (`step_history` off the R path + `run_scm_gradient` shim), life=10+ OOM
+(tape checkpointing), IC gradients, Phase 3. Tasks #23 (`p*`), #24 CLOSED. ◄◄◄◄**_
+
+_**SESSION 16 — TF24/TF24f full-SCM: compiles + value reproduces (the session-15 "won't compile / UNBUILT"
+was two errors, both corrected by measurement).** Reproduced the compile state with a probe (offspring +
+census-scalar compiled as-is; only census-vector failed → added the three census methods to TF24). Found +
+fixed a real value-reproduction bug via scm_jacobian's R5 check (leaf-scratch leak in the recording seam →
+whole-leaf snapshot/restore). Diagnosed the FD-verification blocker: naive central FD of a TF24 SCM metric is
+a staircase (no plateau), so the gradient VALUE is not yet certifiable without the sessions 11-13 reference.
+Committed plant `04466e39`, super `be60041`. The anti-drift matrix now shows these cells as `◐` (compile +
+value + finite gradient, tested) — NOT `✓` — with the gradient FD-verify explicitly OPEN. Method note: every
+claim here was measured (compile probe, R5 diag, reset-idempotency test, FD-step sweep, double + leaf-coupling
+regression), not read — which is exactly what turned the two stale session-15 claims around._
 
 _**SESSION 15 — reconciled stale docs; fixed the P2d leaf channel; UNCOVERED the TF24/TF24f full-SCM gap;
 adopted the anti-drift matrix.** Chronology: (a) ground-truth + tidy — a fresh build + P2 gradient run showed
