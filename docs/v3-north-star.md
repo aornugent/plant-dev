@@ -103,7 +103,7 @@ only tape-aware objects — **zero hand adjoint in the strategy**:
   `.deriv()` in the leaf residual ⇒ injected partials are exact.
 - **N_ci** (stomatal root), **N_ψstem** (transpiration inversion) → `implicit_value`
   scalar IFT nodes (forward-mode partials, **no local tape, no nested tape**).
-- **p\*** → a new `stationary_value` node (§4d).
+- **p\*** → double-side Newton polish + `register_implicit` (§4d; no new node).
 - profit + per-layer uptake → **closed-form arithmetic** over the solved scalars
   and exact reads; the tape does the chain rule ⇒ **b1 (sign) and b2 (dropped
   term) become inexpressible**; no `chain_sign`, no manual injection, no snapshot.
@@ -116,18 +116,30 @@ hard way and is deleted by §4b. It exists because TF24 was sequenced last and g
 a pragmatic shortcut instead of the decomposition; the shortcut then grew b1, b2,
 the OOM workaround, and the task-#23 accuracy problem.
 
-### 4d. The one genuinely hard, irreducible build piece: `stationary_value`
+### 4d. The one genuinely hard build piece — and it needs NO new odelia concept
 The p\* collar optimum is an **argmax**, and the double model solves it by golden
 section — a staircase (doctrine B). A naive IFT node divides by a shelf-curvature
-the `1e-6` detector misclassifies. The oracle's prescribed, *cheaper* fix:
-bracket-localise + read branch flags at the bracket ends + **3–4 terminal Newton
-steps on the active stationarity condition using the closed-form
-`Leaf::dprofit_droot_collar_psi` we already have and don't use**, then take the
-IFT derivative of that converged Newton step (interior `−P_pσ/P_pp` vs fold
-`−F_σ/F_p`, selected by the branch flag). One reduced gradient `G(q)` serves TF24
-(solved) and TF24f (tracked off-optimum). **This is the only new odelia concept
-v3 admits, and it retires the three-regime hand-code, the nested FD, and the
-`1e-6` detector at once.** (oracle-response-inner-argmax-adjoint; task #23.)
+the `1e-6` detector misclassifies. The oracle's prescribed, *cheaper* fix
+(≈9–13 obj-evals vs ≈16 today) decomposes into **two existing pieces — no new
+primitive**:
+1. **A plant-side terminal Newton polish of the double `p*` solve**
+   (`leaf_model.cpp`): bracket-localise + read the branch flag at the bracket ends
+   + 3–4 safeguarded Newton steps on the stationarity condition using the
+   closed-form `Leaf::dprofit_droot_collar_psi` **we already have and don't use**,
+   to `|p̂−p*|~1e-12`. This makes value and derivative describe *one* object and
+   deletes the loose-GSS staircase — a change to the double solver, not the AD.
+2. **`register_implicit` with the branch-selected residual** — interior
+   `∂profit/∂p=0` (`dp*/dσ=−P_pσ/P_pp`) or fold continuity `F=0` (`−F_σ/F_p`) —
+   which is exactly the IFT derivative of the converged Newton step. Existing
+   primitive; the branch flag picks which residual.
+One reduced gradient `G(q)` serves TF24 (solved) and TF24f (tracked off-optimum:
+the same `register_implicit` residual, evaluated off the root). This **retires the
+three-regime hand-code, the nested FD, and the `1e-6` detector** using only a
+double-side polish + `register_implicit` — so it also holds the "two hand
+adjoints, zero new concepts" invariant (§2). The residual judgment (is the
+branch-select + two residuals clean as plant code, or does it want a thin
+wrapper?) is a build-time code-review call, not a design gate.
+(oracle-response-inner-argmax-adjoint; task #23.)
 
 ### 4e. The one HONEST open question (do not paper over it)
 `design.md §5` assumes the decomposed leaf outputs record on the run tape as cheap
@@ -150,7 +162,7 @@ undecomposed leaf, as I did, just re-derives the session-9 OOM).
 - **DONE, value-only:** TF24/TF24f full-SCM compiles + reproduces the double value
   bit-exactly; gradient **not** FD-certified (the seam is in place). (task #27.)
 - **THE GAP (v3 Phase 1):** execute §4b for TF24 — wire `incomplete_gamma` into
-  the 4 leaf splines; `implicit_value` for N_ci/N_ψstem; build `stationary_value`
+  the 4 leaf splines; `implicit_value` for N_ci/N_ψstem; polish the double p* solve + `register_implicit`
   (§4d); express profit/uptake as closed-form; delete the §4c machinery. Verify
   with Gate-0 + the tight-τ frozen-schedule anchor (§3), **not** the census
   staircase. Then settle §4e with one memory measurement.
@@ -171,12 +183,13 @@ undecomposed leaf, as I did, just re-derives the session-9 OOM).
   integral + the shading separation. No `xad::`. That is R1, and it generalises:
   a future strategy declares its solves and kernels, nothing more.
 - **Coverage:** the same primitives serve all four strategies; TF24f is the same
-  `stationary_value` node evaluated off-optimum.
+  `register_implicit` p* residual evaluated off-optimum.
 - **Kill condition:** if the decomposed leaf both OOMs on the run tape AND cannot
   be bounded by the local-adjoint primitive within the DX budget, then the leaf
   genuinely cannot be zero-hand-adjoint and R1 must be relaxed for TF24 — but no
   evidence suggests this; §4e is the check.
-- **Watch:** `stationary_value` (§4d) is the load-bearing new concept; if it
+- **Watch:** the p\* Newton-polish + branch-selected `register_implicit` (§4d) is
+  the load-bearing hard piece (no new concept); if it
   cannot be built to give the ideal-optimum derivative cheaply, the whole p\*
   accuracy story (and task #27's residual) stays open.
 
