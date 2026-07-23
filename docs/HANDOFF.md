@@ -72,8 +72,9 @@ that were false against HEAD. The build-status matrix (`build-plan.md`) exists p
    **`recorded_steps()` is the SINGLE source of the replay grid, so it "can't go
    inconsistent," guarded by one forgot-to-record check.**
 2. **Read `odelia/AGENTS.md` and `plant/agents.md`** (dev workflow, style, build/test).
-3. **Read `docs/design.md`, `docs/build-plan.md`, `docs/odelia-index.md`** (the
-   what/why, the phased plan, and the authoritative concept set / names).
+3. **Read `docs/v3-north-star.md` FIRST** (the self-contained authority on the
+   coupled system + design), then `docs/design.md` (detailed rationale) and the
+   `docs/build-plan.md` build-status matrix (test-cited current status). (odelia-index.md, README.md, the odelia-N notes, and the oracle *statements* are archived; the concept set now lives in v3 §1.)
 3b. **If the task touches an area with a prior Oracle consultation, READ that Oracle
    response BEFORE designing your approach — and follow its Decisive Experiments and
    contract, not an ad-hoc method.** Index: `docs/oracle/oracle-consultation-index.md`. The

@@ -1,3 +1,9 @@
+> **The candidate-B design here is AFFIRMED by `v3-north-star.md` §4** (the current,
+> self-contained authority). The 'Steps 5-6 DONE / CORRECTION' sections document the
+> shipped local-tape seam divergence, which v3 SUPERSEDES: v3 finishes candidate B
+> (IFT nodes + incomplete_gamma) and deletes the seam. Read the A/B/C search,
+> commitment, and refinements as the valid rationale; the 'DONE' seam as history.
+
 # P2c — the TF24 leaf adjoint (design)
 
 _System-design search, 2026-07-20. Records the decision so the next session starts

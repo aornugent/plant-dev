@@ -1,3 +1,9 @@
+> **SUPERSEDED as the design authority by `v3-north-star.md`.** The build-status
+> MATRIX below is current (test-cited). But the p* '~1.6x residual to close'
+> narrative is superseded by v3 doctrine B (the ratio is a reference artifact and
+> must NOT close), and the shipped `supplied_derivative` seam it describes is
+> superseded by v3's candidate-B decomposition (finish it, don't extend it).
+
 # The odelia AD engine — build plan
 
 Companion to [`design.md`](./design.md) (the *what*/*why*). This is the *how* and *in what order*: a

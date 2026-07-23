@@ -1,3 +1,7 @@
+> **`v3-north-star.md` is the current authority and is self-contained.** This doc is
+> the detailed design rationale it cites; where it states a TF24 deletion as done,
+> read it as the TARGET (v3 §9) — the seam still ships.
+
 # The odelia AD engine — design
 
 Authoritative design for exact reverse-mode **trait/parameter gradients** of the `plant` SCM's emergent
@@ -9,7 +13,8 @@ Phase-0 evidence is in [`phase0-results.md`](./phase0-results.md); the build ord
 
 A validated prototype exists (traitecoevo/plant#553): it is the **specification and regression oracle**,
 not the code that ships. This design reaches the same gradients with a small engine and a plant that
-contains **zero tape-aware code**.
+contains **zero tape-aware code** — the TARGET; for TF24 the seam still ships (see
+`v3-north-star.md` §4/§9, the current authority).
 
 ---
 
@@ -29,7 +34,7 @@ parameters are **low-level strategy fields + soil params + birth rate** (not eco
 8. **odelia developer — AD on adaptive numerics.** Two independent capabilities: node-position replay (required for AD, automatic, rides the call) vs value-freeze (an optional *variant* chosen by calling `run_mutant`, not a flag).
 
 ### Requirements ledger
-- **R1 — a model reads as science.** A strategy writes only scalar-generic pointwise closed forms + declarations: **0** XAD tokens, **0** hand-written adjoints. (Today: ~13 headers include XAD; `node.h::growth_rate_gradient` ~70 ln; TF24 leaf seam ~150 ln — all deleted.)
+- **R1 — a model reads as science.** A strategy writes only scalar-generic pointwise closed forms + declarations: **0** XAD tokens, **0** hand-written adjoints. (Today: ~13 headers include XAD; `node.h::growth_rate_gradient` ~70 ln — deleted; TF24 leaf seam ~150 ln — **TARGET, not yet done** (v3 §9).)
 - **R2 — one transport-gradient path for all strategies.** `dg/dh` needs no per-strategy AD. (Today correct only for K93.)
 - **R3 — correct, performant, composable.** Match FD-of-the-model-as-run to its plateau; O(1) forward-equivalents per gradient; survive one nesting where the primitive allows. `|θ|≈5–20`, `N≈10²–10³`, steps `10³–10⁵`.
 - **R4 — the soil subsystem resolvable performantly in forward *and* reverse under realistic forcing.** Multirate, not RODAS (E2: accuracy-driven, not stability-driven).
@@ -472,7 +477,7 @@ reviewed manifest with a verdict per site, so no subgradient ships silently.
 per-layer FD uptake partials, `species.h`'s geometric-compression loop (absorbed into the chart), the
 `get_environment_slope_at_height` frozen surrogate, the interpolator *on the coupling path*
 (retained only for `FlatTopSoftBox`), the 13 XAD includes (→ one seam header), the scattered `to_passive`
-(→ `decide`/`diagnostic`), `Solver::reserve_state`. Net: **zero tape-aware tokens in strategy files.**
+(→ `decide`/`diagnostic`), `Solver::reserve_state`. Net (TARGET): **zero tape-aware tokens in strategy files** — achieved for FF16/K93; the TF24 items are v3 Phase 1.
 
 ## Kill question
 The engine hard-codes the method-of-characteristics structure (ordered non-crossing particles, low-rank

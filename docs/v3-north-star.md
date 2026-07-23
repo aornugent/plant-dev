@@ -20,7 +20,7 @@ and the *plan*. No history — only what is true and what to build.
   passes every double test, wrong only in the gradient. **The whole system has
   exactly TWO hand adjoints — the `separable_field` transpose and the
   `register_implicit` IFT — each self-checked by the dot-product oracle
-  `⟨Jv,u⟩=⟨v,Jᵀu⟩`. Zero in strategies.** (design.md §1; odelia-index.)
+  `⟨Jv,u⟩=⟨v,Jᵀu⟩`. Zero in strategies.** (design.md §1.)
 - **Only `double` crosses the R boundary.** The tape is anchored on the C++
   Solver; R never holds an active type.
 
