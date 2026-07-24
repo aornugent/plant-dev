@@ -45,26 +45,22 @@ The engine is ~6 primitives. FF16/K93 use them with no tape awareness; TF24 must
   identically and is never formed**; `λ` is monotone (no overflow). `cohort_spacing`
   is the one neighbour-difference operator; density is the read-side view
   `exp(λ)/Δx`. `log_{mass,density}_from_{density,mass}` are the inverse maps.
-- **`register_implicit<S>(F, solve, p, denom_sign)`** / **`implicit_value<S>(y*, F)`**
-  (`odelia/implicit_node.hpp`) — a value `y*` solved OFF the tape (root/optimum),
-  made differentiable by the IFT `dy*/dp = −(∂F/∂p)/(∂F/∂y)`. `register_implicit`
-  takes an explicit active-input vector, forms `∂F/∂p`, `∂F/∂y` by **forward mode
-  off the reverse tape**, asserts `sign(∂F/∂y)`, and injects **one
-  `supplied_derivative` edge** — the inner iteration is never recorded, no nested
-  tape. `implicit_value` is the scope-reading sibling (its `∂F/∂y` is a double
-  central difference at `y*`; its `S(y*)−corr+to_passive(corr)` idiom is the
-  value-grafting move worth the name `graft_value`). **Decision (2026-07-24): TF24
-  uses `implicit_value` for every leaf node** (ci, ψ_stem, p\* interior, p\* bound) —
-  it reads the strategy's own members from scope (no marshalled input vector), it is
-  the 23-call-site primitive FF16/leaf_model already use, and the standalone proof
-  shows its central-difference `∂F/∂y` is accurate at every operating point. **No
-  merge**: the two have genuinely different mechanisms (scope + central-difference vs
-  explicit-vector + forward-mode), so merging relocates a switch rather than removing
-  one. `register_implicit` has **zero production callers** (only its own
-  example/test) and is a post-wiring *deletion* candidate — not a merge target. The
-  one feature it has that `implicit_value` lacks is the `sign(∂F/∂y)` assertion (the
-  guard against the b1 fold blow-up); porting that as an optional argument to
-  `implicit_value` is the single recommended follow-up before wiring.
+- **`implicit_value<S>(y*, F, expect=any)`** (`odelia/implicit_node.hpp`) — a value
+  `y*` solved OFF the tape (root/optimum), made differentiable by the IFT
+  `dy*/dp = −(∂F/∂p)/(∂F/∂y)`. `F(S y)` reads the active parameters from scope (no
+  marshalled input vector); `∂F/∂y` is a double central difference at `y*`; the
+  `S(y*)−corr+to_passive(corr)` idiom is the value-grafting move worth the name
+  `graft_value`, and it composes across reverse/forward/nested modes. The optional
+  `expect` (`denom_sign::positive|negative|any`) asserts invertibility — at a fold
+  `∂F/∂y→0` this node divides by ≈0 (the b1 blow-up), so declaring the sign makes it
+  a loud stop instead of a silent garbage gradient. **This is the single IFT
+  primitive (decision 2026-07-24).** TF24 uses it for every leaf node (ci, ψ_stem,
+  p\* interior, p\* bound). The former `register_implicit` (explicit-vector +
+  forward-mode + `supplied_derivative` injection) had **zero production callers** and
+  was **deleted**; its `sign(∂F/∂y)` guard — the one feature worth keeping — was
+  **ported** here as `expect`. This was *not* a merge: the two mechanisms differed,
+  so a merged function would only relocate the switch. Its example/test now exercise
+  `implicit_value` across double/forward/reverse plus the guard.
 - **`incomplete_gamma<S>(a,x)`** (`odelia/incomplete_gamma.hpp`) — the lower
   incomplete gamma via convergent series; the exact `S` closed form of the Weibull
   hydraulic integral `∫exp(−(|ψ|/b)^c)` = `(b/c)·γ(1/c,(m/b)^c)`, with elementary
@@ -428,12 +424,10 @@ fixed point pins `q` by `G=0`. No parallel machinery.
 - **Deferred (real, out of scope for the resident census gradient):** mutant/invasion
   (L3 frozen field); IC gradients; the fixed-point / Eulerian-BVP layer + eigenvalue
   module for regnans selection gradients (where the honesty-refuse points, §7, live).
-- **Consolidations (ride along):** name `graft_value`; port `register_implicit`'s
-  `sign(∂F/∂y)` guard onto `implicit_value` as an optional argument, then treat
-  `register_implicit` as a deletion candidate (zero production callers) — **not** a
-  merge (§1 decision: the two mechanisms differ; merging relocates a switch); surface
-  the dot-product oracle at the R boundary; move the `rebind_from` completeness guard
-  into odelia.
+- **Consolidations:** ✅ `register_implicit` **deleted**, its `sign(∂F/∂y)` guard
+  **ported** onto `implicit_value` as the optional `expect` argument (§1) — one IFT
+  primitive now. Remaining ride-alongs: name `graft_value`; surface the dot-product
+  oracle at the R boundary; move the `rebind_from` completeness guard into odelia.
 
 ---
 
