@@ -53,7 +53,18 @@ The engine is ~6 primitives. FF16/K93 use them with no tape awareness; TF24 must
   `supplied_derivative` edge** — the inner iteration is never recorded, no nested
   tape. `implicit_value` is the scope-reading sibling (its `∂F/∂y` is a double
   central difference at `y*`; its `S(y*)−corr+to_passive(corr)` idiom is the
-  value-grafting move worth the name `graft_value`).
+  value-grafting move worth the name `graft_value`). **Decision (2026-07-24): TF24
+  uses `implicit_value` for every leaf node** (ci, ψ_stem, p\* interior, p\* bound) —
+  it reads the strategy's own members from scope (no marshalled input vector), it is
+  the 23-call-site primitive FF16/leaf_model already use, and the standalone proof
+  shows its central-difference `∂F/∂y` is accurate at every operating point. **No
+  merge**: the two have genuinely different mechanisms (scope + central-difference vs
+  explicit-vector + forward-mode), so merging relocates a switch rather than removing
+  one. `register_implicit` has **zero production callers** (only its own
+  example/test) and is a post-wiring *deletion* candidate — not a merge target. The
+  one feature it has that `implicit_value` lacks is the `sign(∂F/∂y)` assertion (the
+  guard against the b1 fold blow-up); porting that as an optional argument to
+  `implicit_value` is the single recommended follow-up before wiring.
 - **`incomplete_gamma<S>(a,x)`** (`odelia/incomplete_gamma.hpp`) — the lower
   incomplete gamma via convergent series; the exact `S` closed form of the Weibull
   hydraulic integral `∫exp(−(|ψ|/b)^c)` = `(b/c)·γ(1/c,(m/b)^c)`, with elementary
@@ -163,9 +174,13 @@ gc(ψ_stem,q)(ca−ci)·inv_atm = 0`, denominator `A′·umol_to_mol + gc·inv_a
 
 **4.2 N_ψstem — transpiration inversion (deepening-1).** *Not* an optimum: a
 closed-form spline composition `ψ_stem = P(E_up(−q)/k_max + S(q))`; the inverse
-`psi_from_transpiration` is a scalar `register_implicit` root (denominator
-`k_max·exp(−(ψ_stem/b)^c) > 0`, annotated leaf_model.h:266). The soil-layer-crossing
-kink is a Leibniz breakpoint.
+`psi_from_transpiration` is a scalar `implicit_value` root (denominator
+`k_max·exp(−(ψ_stem/b)^c) > 0`, sign-definite and regular — an inversion, not a
+fold; annotated leaf_model.h:266). The soil-layer-crossing kink is a Leibniz
+breakpoint. **Witnessed standalone (2026-07-24):** `weibull_leaf`'s
+`weibull_leaf_stem_demo` restores this node between the collar optimum and the `ci`
+root (the full nest `p → ψ_stem → ci`); `d(ψ_stem)/dθ`, `dp*`, and `dprofit` all
+FD-match across the four traits (reld ≤5e-5).
 
 **4.3 N_p\* — the collar optimum, the one genuinely hard piece.** `p*` maximises
 `W(p)`. **The envelope asymmetry (do not simplify away):** at an interior optimum
@@ -277,16 +292,28 @@ plant-free miniature:
     on every channel;
   - **two-layer soil feedback** (`weibull_leaf_soil_demo`) — per-layer uptake with the
     layer-crossing breakpoint, the spatial `ψ_0/ψ_1` channels and per-layer sinks
-    `dE_i/dθ` (the historic sign-error site, §5) FD-verified and sign-checked.
-  **Takeaways that shaped §4.3–4.4:** no new odelia primitive is required, no
+    `dE_i/dθ` (the historic sign-error site, §5) FD-verified and sign-checked;
+  - **full 3-deep nest** (`weibull_leaf_stem_demo`) — the transpiration inversion
+    `ψ_stem` (§4.2) restored between the collar optimum and the `ci` root (`p → ψ_stem
+    → ci`), a second `implicit_value` with a regular sign-definite denominator; the
+    three outputs FD-match on all four traits;
+  - **tape-memory bound** (`weibull_leaf_tape_profile`) — the load-bearing OOM proof:
+    the `implicit_value` (solve-off-tape) path records a tape **exactly independent of
+    the inner solver's iteration count** (~1.6k ops per leaf solve), while a naive
+    on-tape solve grows with iterations, costs ~26× more per solve, and returns a
+    *wrong* zero gradient (frozen-bracket record — the doctrine-B staircase). This is
+    the direct confirmation that the design bounds the tape that status-quo TF24 blows
+    up on.
+  **Takeaways that shaped §4.1–4.4:** no new odelia primitive is required, no
   denominator overload; the whole TF24 re-expression reduces to one `soil_uptake`
-  signature widening + routing the active hydraulic params, and the bound regime is a
-  second `implicit_value` residual, not new machinery. **What the example still does
-  NOT witness** (so the plant wiring must still cover it directly): the SCM-level
-  tape-over-time / `geometric_transport` / census reduction — the leaf here is static,
-  so nothing here speaks to memory across cohort-steps × layers; and the ci↔ψ_stem
-  transpiration-inversion (N_ψstem, §4.2) is collapsed to `gc = α·E_up`. Those two are
-  proven only by the plant-linked scratchpad certs, which are not durable.
+  signature widening + routing the active hydraulic params, and every inner solve
+  (ci, ψ_stem, p\* interior, p\* bound) is an `implicit_value` node, not new
+  machinery. **What the example still does NOT witness** (so the plant wiring must
+  cover it directly): the SCM-level tape-over-time interaction — `geometric_transport`,
+  the census reduction, and the soil sub-cycle adjoint over the *growing* state. The
+  per-leaf tape is proven bounded; how those bounded leaf tapes accumulate across
+  cohort-steps × layers × the resize path is the one memory question the static leaf
+  cannot answer, and is deferred (treated separately per the plan).
 
 ---
 
@@ -357,15 +384,20 @@ fixed point pins `q` by `G=0`. No parallel machinery.
 - **Concept proven standalone (2026-07-24, §4.3/§4.6):** every leaf node
   (interior/bound `p*`, `ci`, `ψ_stem`), the `incomplete_gamma` hydraulic channels,
   and the envelope asymmetry are FD-verified off the SCM. The vendored `weibull_leaf`
-  odelia example now durably witnesses the **interior, bound/fold, and two-layer soil
-  feedback** cases (no new primitive, no denominator overload); the plant-linked
-  scratchpad certs additionally cover the real-leaf `ψ_stem` inversion. **Mechanical
-  for the leaf's inner-solve gradient** (steps 1–4). **NOT yet witnessed by any durable
-  test** — and therefore the real risk in the wiring — are the two SCM-level pieces the
-  static leaf cannot exercise: the tape-over-time memory behaviour under
-  `geometric_transport` + census (step 5, the OOM's actual domain) and the per-run
-  interaction of the soil sub-cycle adjoint with the growing state. Treat those as
-  design-live, not mechanical.
+  odelia example now durably witnesses the **interior, bound/fold, two-layer soil
+  feedback, and full 3-deep nest (with the `ψ_stem` inversion)** cases (no new
+  primitive, no denominator overload), *and* the **tape-memory bound** that is the
+  crux: the solve-off-tape node path records a tape independent of solver iterations
+  (~1.6k ops/solve) where a naive on-tape solve is ~26× larger per solve and grows
+  with iterations — so the design provably bounds the tape that status-quo TF24 blows
+  up on. **Primitive decision (§1): `implicit_value` for every node; no merge;
+  `register_implicit` is a deletion candidate.** **Mechanical for the leaf's
+  inner-solve gradient** (steps 1–4). **The one remaining memory question no durable
+  test yet answers** — and therefore the real residual risk — is how the bounded
+  *per-leaf* tapes accumulate across the SCM's cohort-steps × layers × resize path
+  under `geometric_transport` + census, together with the soil sub-cycle adjoint over
+  the growing state. Treat that as design-live, not mechanical (deferred, handled
+  separately).
 - **The gap (v3 Phase 1 — finish p2c candidate B for TF24):**
   1. **Widen `leaf_output::soil_uptake`** to take `S root_b/root_c` (identical body;
      `cumulative_vuln`/`transpiration` are already S-templated) and pass the active
@@ -396,9 +428,12 @@ fixed point pins `q` by `G=0`. No parallel machinery.
 - **Deferred (real, out of scope for the resident census gradient):** mutant/invasion
   (L3 frozen field); IC gradients; the fixed-point / Eulerian-BVP layer + eigenvalue
   module for regnans selection gradients (where the honesty-refuse points, §7, live).
-- **Consolidations (ride along):** name `graft_value`; merge `implicit_value` +
-  `register_implicit`; surface the dot-product oracle at the R boundary; move the
-  `rebind_from` completeness guard into odelia.
+- **Consolidations (ride along):** name `graft_value`; port `register_implicit`'s
+  `sign(∂F/∂y)` guard onto `implicit_value` as an optional argument, then treat
+  `register_implicit` as a deletion candidate (zero production callers) — **not** a
+  merge (§1 decision: the two mechanisms differ; merging relocates a switch); surface
+  the dot-product oracle at the R boundary; move the `rebind_from` completeness guard
+  into odelia.
 
 ---
 
