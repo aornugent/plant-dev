@@ -208,39 +208,34 @@ witnessed is only the *simultaneous* composition at full SCM scale (light field 
 density transport + census + soil, over many cohort-steps on TF24) — that is an
 integration checkpoint the plant wiring itself exercises, not a design gap.
 
-## THE NEXT TASK: wire TF24 onto the primitives (v3 §9 Phase 1) — prescriptive
-Goal: delete the TF24 hand-adjoint seam and make `tf24_strategy.cpp` call the same
-primitives FF16/K93 use. **Success = `tf24_strategy.cpp` has 0 `xad::`/`tape`/
-`supplied_derivative`/`chain_sign`/`snapshot` tokens (FF16/K93 have 0 today; TF24 has
-32 tape + 10 supplied_deriv + 3 chain_sign + 3 snapshot).** Do the steps in order;
-each is small and independently checkable at Gate-0 before moving on.
+## THE NEXT TASK: wire TF24 onto the primitives — see [`v3-phase1-plan.md`](./v3-phase1-plan.md)
+Session 18 revised the wiring plan after three investigations (code review, git
+archaeology, the `leaf_output` design decision). **The executable sequence is now
+[`v3-phase1-plan.md`](./v3-phase1-plan.md)** — read it, not the old 6-step list that
+used to live here. What changed:
 
-1. **Widen `leaf_output::soil_uptake` to `S root_b/root_c`** (`plant/inst/include/
-   plant/leaf_model.h` ~line 193 — currently `double root_b/root_c`). The body and
-   `cumulative_vuln<S>`/`transpiration<S>` are already S-templated; this signature is
-   the *only* structural severance of the hydraulic channel (v3 §4.4). Then pass the
-   active `p.root_b/p.root_c` in `assemble_leaf_from` (`tf24_strategy.cpp` ~810).
-   Gate-0 check: `d(E_up)/d(root_c)` becomes nonzero and FD-matches (was structurally 0).
-2. **N_ci** and **N_ψstem** as `implicit_value` nodes (v3 §4.1/§4.2), replacing the
-   `psi_stem_to_ci` / `psi_from_transpiration` double reads on the active path. Both
-   have sign-definite denominators — pass `denom_sign::positive` to the guard. Proven
-   shape: `weibull_leaf`'s ci + stem nodes.
-3. **N_p\*** on `implicit_value` (v3 §4.3): interior = stationarity residual (nested-FD
-   denominator, proven adequate); bound = the regime-detected branch-death residual
-   (regular denominator). Reuse `G(q)` for TF24f. Proven shape: `weibull_leaf`'s
-   `pstar_node` (interior) + `pcrit_node` (bound).
-4. **Per-layer uptake `E_i`** as the `incomplete_gamma` antiderivative-difference with
-   Leibniz endpoint partials + layer-crossing breakpoints (v3 §5). Proven shape:
-   `soil_leaf`'s per-layer uptake + `weibull_leaf_soil_demo`.
-5. **Declare `using geometric_transport`** for TF24 (v3 §3.2) — one marker, like
-   FF16/K93, or the census gradient silently drops the density-transport channel.
-6. **DELETE the seam**: the local tape block (`tf24_strategy.cpp` ~615–676), the
-   `supplied_derivative` marshalling (~700–710), `chain_sign`, the whole-leaf
-   `snapshot`, `soil_consumption_active_`, the nested-FD `p*`, the
-   `dsoil_consumption_dpsi_collar_perlayer` FD partials, and the `#include
-   <odelia/supplied_derivative.hpp>` + `<chrono>` at the top. Keep
-   `dprofit_droot_collar_psi` only if it stays useful as a double value-path/regime
-   helper. Confirm the token count hits 0.
+- **It is mostly DELETION, not addition.** Most primitives already landed:
+  `assemble_leaf_from` (`tf24_strategy.cpp` 726+) is a run-tape-ready S assembler using
+  `implicit_value` nodes; the `leaf_output` closed forms exist; census/soil/TF24f
+  wiring is in. What's left is stripping the hand-adjoint seam + one duplication. Git
+  archaeology found **no hidden-clean commit** to revert to (the assembler and the seam
+  were born together in plant `1ebdebad`); forward deletion from HEAD beats a rewrite.
+- **Revised sequence:** (1) delete the seam (local tape 555–715, `supplied_derivative`,
+  `chain_sign`, snapshot, `PLANT_TAPE_STATS`), call `assemble_leaf_from` directly;
+  (2) make `Leaf`'s output methods scalar-generic closed-form templates, **absorbing
+  the `leaf_output` namespace** and collapsing the double/S formula duplication (the
+  §-design decision, v3 §4.4a: no separate namespace — the leaf science lives once, in
+  `Leaf`; splines kept only if `profile-plant` demands, behind the same method);
+  (3) fold the TF24f tracked collar into `assemble_leaf_from` (retires `seam_collar_*` +
+  the tf24f `psi_fd_step`); (4) delete residual accretion + FD-verify at SCM scale (#27).
+- **Success (grep-able):** 0 seam tokens in `tf24_strategy.cpp`; 0 `namespace
+  leaf_output`; 0 non-template `double Leaf::` output copies; `supplied_derivative.hpp`
+  deleted from odelia (the seam was its only caller).
+- **The DX bar** is vendored at `docs/reference/tf24-base-develop/` (pristine develop
+  TF24) — minimal divergence from it is the objective (current drift +796; ~300 deletable).
+- **Already toy-proven** (plant Gate-0s are confirmation, not discovery): the
+  resistance-network `soil_uptake` incl. seeded `root_b/root_c`, the `E_column`
+  bound-continuity residual, and the value-graft guard — `weibull_leaf` demos (E)/(F)/(G).
 
 ## Verification bar for the wiring (do not skip — this is where sessions burned)
 - **Gate-0 first, not census FD.** Verify each new node at a single leaf/cohort with a
