@@ -179,6 +179,20 @@ oracle Q3):
   **branch-death** condition, `dp*/dσ = −F_σ/F_p`.
 - **Tracked** (TF24f): `p` is an ODE state, evaluated off the optimum.
 
+**Proven standalone; the denominator needs no help (2026-07-24).** A plant-free
+leaf harness (odelia example `weibull_leaf`, §4.6) certified all three regimes vs
+a re-optimising Gate-0 FD. Finding that changes the plan: the interior node's
+denominator `P_pp` computed by `implicit_value`'s **own nested central difference
+is accurate to <0.1%** at every interior operating point (trait *and* per-soil-layer
+channels). A once-floated "supply `P_pp` from analytic `dprofit_droot_collar_psi`"
+overload was built, shown to give an identical answer, and **deleted** (unneeded
+name). The "~14% too large" that motivated it was a **near-fold point misclassified
+as interior** (`∂W/∂p ≠ 0` there) — where the interior formula itself is wrong and
+the analytic denominator does *not* fix it either (both give the same ~1.9× miss).
+The cure for the dry region is the **regime detector switching to the bound node**,
+not a better denominator. Bound-regime soil/trait channels verify to ≤1e-7 (traits)
+and exact (soil layers, no profit central-difference).
+
 **The precise node (p2c refinement 1):** at the fold `dF/dci → 0`, so a naïve
 `implicit_value` on the ci-residual **divides by ≈0 — this is the b1 blow-up.** The
 correct N_p\* is `implicit_value` on the **branch-death condition `g(p*)=∂F/∂ci=0`**,
@@ -224,12 +238,40 @@ splines survive as the value-path fast lookup; the active path never reads them 
 a seeded-param derivative. Not a cleanup — a prerequisite for the hydraulic-param
 channel.
 
+**Scoped precisely by the standalone proof (2026-07-24).** The re-expression is
+*already live* for the stem channel: `leaf_output::cumulative_vuln<S>` and
+`transpiration<S>` are S-templated on `b/c`, and the example verifies the
+`incomplete_gamma` value, its Leibniz `d/dx`, and — the one channel no tape library
+supplies — the **shape `d/dc` (series)** to machine precision (reld ~1e-10). The
+**only** remaining severance is one signature: `leaf_output::soil_uptake` takes
+`root_b/root_c` as **`double`**, so `d(E_up)/d(root_c)` is structurally `0` today.
+Widening it to `S root_b/root_c` (identical body, same `incomplete_gamma`) recovers
+the exact gradient. So the "MANDATORY re-expression" reduces, in practice, to a
+signature widening plus passing the active `p.root_b/p.root_c` in `assemble_leaf_from`.
+
 **4.5 Crown quadrature (deepening-2).** MeanLight/CrownCentre = one leaf solve at a
 scan-based reduction; DeepCrown = one solve per quadrature node. Both are **Kind-C
 taped reductions over fixed double bounds** (the integrand `q(z/H)·L(z)` is C¹ by
 the double-zero) — no breakpoints. The decomposed nodes remove the current
 `util::stop("deep-crown not implemented")` (it becomes a reduction of node
 evaluations).
+
+**4.6 Standalone concept-proof (vendored; run before the plant wiring).** All of the
+above was verified *off the SCM* before touching plant, on a real leaf and on a
+plant-free miniature:
+- **plant-linked Gate-0 certs** (scratchpad; interior/bound `p*` nodes × trait +
+  per-soil-layer channels; the full `assemble_leaf_from` chain with the envelope
+  asymmetry) — every channel matches a re-optimising FD; layer-0 and profit to
+  machine precision, the envelope-asymmetry consumption channel to ~5e-4.
+- **`odelia` example `weibull_leaf`** (`inst/examples/weibull_leaf_interface.cpp`,
+  `test-example-weibull-leaf.R`) — a self-contained, plant-free leaf with the *same
+  primitive composition* (`incomplete_gamma` Weibull hydraulics + a nested `ci`
+  `implicit_value` + a `p*` `implicit_value` optimum + the envelope asymmetry),
+  checked AD-vs-FD in odelia's own CI. This is the durable regression witness that
+  the primitive stack composes correctly, independent of plant. **Takeaways that
+  shaped §4.3–4.4:** no new odelia primitive is required, no denominator overload,
+  and the whole TF24 re-expression reduces to one `soil_uptake` signature widening +
+  routing the active hydraulic params. The plant wiring (§9) is now mechanical.
 
 ---
 
@@ -297,18 +339,30 @@ fixed point pins `q` by `G=0`. No parallel machinery.
   tape code.
 - **Done, value-only:** TF24/TF24f compile + reproduce the double value; gradient runs
   through the seam (not certified).
+- **Concept proven standalone (2026-07-24, §4.3/§4.6):** every leaf node
+  (interior/bound `p*`, `ci`, `ψ_stem`), the `incomplete_gamma` hydraulic channels,
+  and the envelope asymmetry are FD-verified off the SCM — on a real leaf and on the
+  vendored `weibull_leaf` odelia example. No new primitive, no denominator overload.
+  This turns the gap below from design into mechanical wiring.
 - **The gap (v3 Phase 1 — finish p2c candidate B for TF24):**
-  1. `incomplete_gamma` re-expression of the leaf hydraulic transport so the active
-     path never reads a double spline for a seeded-param derivative (§4.4).
-  2. **N_ci** (§4.1) and **N_ψstem-inverse** (§4.2) as `register_implicit` nodes.
-  3. **N_p\*** as the regime-detected fold node on `g=∂F/∂ci` (§4.3); reuse `G(q)`
+  1. **Widen `leaf_output::soil_uptake`** to take `S root_b/root_c` (identical body;
+     `cumulative_vuln`/`transpiration` are already S-templated) and pass the active
+     `p.root_b/p.root_c` in `assemble_leaf_from`. This *is* the "`incomplete_gamma`
+     re-expression" in practice (§4.4) — the kernels already use it; only the
+     signature severs.
+  2. **N_ci** (§4.1) and **N_ψstem-inverse** (§4.2) as `register_implicit`/
+     `implicit_value` nodes (proven in the certs).
+  3. **N_p\*** on stock `implicit_value`: interior = stationarity residual
+     (nested-FD denominator, proven adequate); bound = the regime-detected
+     continuity/branch-death residual with a regular denominator (§4.3); reuse `G(q)`
      for TF24f.
   4. Per-layer uptake `E_i` as the `incomplete_gamma` antiderivative-difference with
      Leibniz partials + layer-crossing breakpoints (§5).
   5. Declare `geometric_transport` for TF24 (§3.2).
   6. **Delete** the seam: local tape, `supplied_derivative` marshalling, `chain_sign`,
      whole-leaf snapshot, `soil_consumption_active_`, the nested-FD `p*`,
-     `dprofit_droot_collar_psi` (falls out of the nodes),
+     `dprofit_droot_collar_psi` (falls out of the nodes — but keep it as the double
+     value-path/regime helper if convenient),
      `dsoil_consumption_dpsi_collar_perlayer`.
   - **Memory is by construction** (§4): the solver is never recorded; the tape holds
     the closed-form output map + a handful of injected edges + the `incomplete_gamma`
