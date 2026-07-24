@@ -169,10 +169,99 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 ---
 
-# PART 2 — archived
+# PART 2 — CURRENT STATE + NEXT STEPS (rewritten session 17, 2026-07-24)
 
-The per-session state + next-steps history (sessions 1–16) has been moved to
-[`archive/handoff-part2-sessions-1-16.md`](./archive/handoff-part2-sessions-1-16.md)
-as a fresh move. Current state and the way forward live in
-[`v3-north-star.md`](./v3-north-star.md) (the guiding light) and
-[`build-plan.md`](./build-plan.md) (the test-cited status matrix).
+Per-session history for sessions 1–16 is in
+[`archive/handoff-part2-sessions-1-16.md`](./archive/handoff-part2-sessions-1-16.md).
+The design authority is [`v3-north-star.md`](./v3-north-star.md); the test-cited
+status matrix is [`build-plan.md`](./build-plan.md). This section is the live state.
+
+## Where we are: the whole TF24 primitive stack is proven STANDALONE (off the SCM)
+Sessions 16–17 de-risked v3 by proving every hard piece on plant-free odelia
+examples with FD-checked CI tests — so the plant wiring below is now the *first*
+place any remaining unknown can appear. Do not re-litigate these; they are settled
+and have durable witnesses:
+
+- **`implicit_value` is the single IFT primitive** (odelia `implicit_node.hpp`).
+  `register_implicit` was **deleted** (zero production callers); its `sign(∂F/∂y)`
+  guard was ported onto `implicit_value` as the optional `expect` (`denom_sign::
+  positive|negative|any`). Use `implicit_value` for every TF24 leaf node.
+- **`weibull_leaf`** (odelia `inst/examples/weibull_leaf_interface.cpp`,
+  `test-example-weibull-leaf.R`, 39 assertions) — the TF24 leaf miniature. Witnesses
+  the **interior** `p*` optimum + envelope asymmetry, the **bound/fold** regime
+  (branch-death `implicit_value`, `dW/dp≠0` so profit carries `dp*`), the **full
+  3-deep nest** `p→ψ_stem→ci` (ψ_stem an inversion node), and the **tape-memory
+  bound** (`weibull_leaf_tape_profile`: the solve-off-tape node path is ~1.6k ops
+  per solve, *exactly independent* of solver iterations; a naive on-tape solve is
+  ~26× larger and returns a wrong zero gradient — this is the OOM proof).
+- **`soil_leaf`** (odelia `inst/examples/soil_leaf_interface.cpp`,
+  `test-ad-soil-leaf.R`, 9 assertions) — the soil feedback witness. A per-layer
+  soil-water ODE whose `ψ_soil(θ)` drives the leaf's `incomplete_gamma` uptake, which
+  is the soil sink (the closed loop), integrated through the odelia Solver, with a
+  `ci` `implicit_value` node **inside `ode_rates`** and a consumer introduced mid-run
+  (the growing tape). Reverse `d(biomass)/d(kmax,c)` FD-matches to <1e-9; tape stays
+  a few MB. The soil sub-cycle adjoint, node-in-rates, and resize path are correct
+  *together*.
+
+**Consequence: the design has no remaining unproven concept.** What is NOT yet
+witnessed is only the *simultaneous* composition at full SCM scale (light field +
+density transport + census + soil, over many cohort-steps on TF24) — that is an
+integration checkpoint the plant wiring itself exercises, not a design gap.
+
+## THE NEXT TASK: wire TF24 onto the primitives (v3 §9 Phase 1) — prescriptive
+Goal: delete the TF24 hand-adjoint seam and make `tf24_strategy.cpp` call the same
+primitives FF16/K93 use. **Success = `tf24_strategy.cpp` has 0 `xad::`/`tape`/
+`supplied_derivative`/`chain_sign`/`snapshot` tokens (FF16/K93 have 0 today; TF24 has
+32 tape + 10 supplied_deriv + 3 chain_sign + 3 snapshot).** Do the steps in order;
+each is small and independently checkable at Gate-0 before moving on.
+
+1. **Widen `leaf_output::soil_uptake` to `S root_b/root_c`** (`plant/inst/include/
+   plant/leaf_model.h` ~line 193 — currently `double root_b/root_c`). The body and
+   `cumulative_vuln<S>`/`transpiration<S>` are already S-templated; this signature is
+   the *only* structural severance of the hydraulic channel (v3 §4.4). Then pass the
+   active `p.root_b/p.root_c` in `assemble_leaf_from` (`tf24_strategy.cpp` ~810).
+   Gate-0 check: `d(E_up)/d(root_c)` becomes nonzero and FD-matches (was structurally 0).
+2. **N_ci** and **N_ψstem** as `implicit_value` nodes (v3 §4.1/§4.2), replacing the
+   `psi_stem_to_ci` / `psi_from_transpiration` double reads on the active path. Both
+   have sign-definite denominators — pass `denom_sign::positive` to the guard. Proven
+   shape: `weibull_leaf`'s ci + stem nodes.
+3. **N_p\*** on `implicit_value` (v3 §4.3): interior = stationarity residual (nested-FD
+   denominator, proven adequate); bound = the regime-detected branch-death residual
+   (regular denominator). Reuse `G(q)` for TF24f. Proven shape: `weibull_leaf`'s
+   `pstar_node` (interior) + `pcrit_node` (bound).
+4. **Per-layer uptake `E_i`** as the `incomplete_gamma` antiderivative-difference with
+   Leibniz endpoint partials + layer-crossing breakpoints (v3 §5). Proven shape:
+   `soil_leaf`'s per-layer uptake + `weibull_leaf_soil_demo`.
+5. **Declare `using geometric_transport`** for TF24 (v3 §3.2) — one marker, like
+   FF16/K93, or the census gradient silently drops the density-transport channel.
+6. **DELETE the seam**: the local tape block (`tf24_strategy.cpp` ~615–676), the
+   `supplied_derivative` marshalling (~700–710), `chain_sign`, the whole-leaf
+   `snapshot`, `soil_consumption_active_`, the nested-FD `p*`, the
+   `dsoil_consumption_dpsi_collar_perlayer` FD partials, and the `#include
+   <odelia/supplied_derivative.hpp>` + `<chrono>` at the top. Keep
+   `dprofit_droot_collar_psi` only if it stays useful as a double value-path/regime
+   helper. Confirm the token count hits 0.
+
+## Verification bar for the wiring (do not skip — this is where sessions burned)
+- **Gate-0 first, not census FD.** Verify each new node at a single leaf/cohort with a
+  clean δ-swept FD (the `weibull_leaf`/`soil_leaf` cert pattern), BEFORE the full SCM.
+- **The TF24 SCM-metric FD is a δ/τ-indexed family, not one number** (Part 1 rules +
+  `oracle/oracle-response-inner-argmax-adjoint.md`). The correctness anchor is AD vs FD
+  on a **frozen resolved schedule at tight inner tolerance**, δ in the valid window —
+  NOT a loose-τ swept plateau. Task #27 (FD-verify the full TF24 SCM gradient) is the
+  closing gate and needs exactly this reference. Do NOT chase a loose-FD ratio.
+- **Memory:** the per-leaf tape is proven bounded; after decomposition, take the one
+  confirming measurement v3 §9 names — `incomplete_gamma` series × soil layers ×
+  cohort-steps — via `PLANT_TAPE_STATS=1` (the hook is live in `scm_gradient.h` ~119,
+  printing `mem_bytes/ops/stmts`). Compare the curve to FF16's.
+
+## Build tax (repeated from Part 1 because it bites every session)
+- Edit plant headers → `rm -f plant/src/*.o plant/src/*.so && R CMD INSTALL plant
+  --no-multiarch --no-docs` (~3 min). Edit odelia headers → `R CMD INSTALL
+  /home/user/plant-dev/odelia --no-multiarch --no-docs` first, THEN rebuild plant.
+- Run `R CMD INSTALL` with an **absolute** package path (a stray `cd` leaves the shell
+  in the package dir and "invalid package" results). `rm -rf /usr/local/lib/R/
+  site-library/00LOCK-*` before installing if a prior install was interrupted.
+- odelia example certs are `sourceCpp` files that link the installed `odelia.so`; they
+  recompile in seconds with no plant rebuild. After editing an installed example, the
+  tests load the **installed** copy — reinstall odelia to refresh it.
