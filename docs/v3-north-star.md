@@ -300,6 +300,20 @@ plant-free miniature:
     *wrong* zero gradient (frozen-bracket record — the doctrine-B staircase). This is
     the direct confirmation that the design bounds the tape that status-quo TF24 blows
     up on.
+  - **resistance-network uptake, bound-continuity, and value-graft** (added
+    2026-07-24 after cross-referencing the toy against `assemble_leaf_from`) — the
+    three surfaces the clean demos above under-witnessed but TF24 relies on:
+    `weibull_leaf_uptake_network_demo` ports the *real* `leaf_output::soil_uptake`
+    (3-branch Darcy flux, mean-conductivity `cumulative_vuln` integral split at 0,
+    gravity head) with `root_b`/`root_c` **seeded** — certifying the exact channel
+    the signature widening (§4.4) restores, `d(E_up)/d(root_c)` through the series;
+    `weibull_leaf_bound_continuity_demo` pins p\* by the `E_up(p)=demand` continuity
+    residual (TF24's `E_column` bound, regular denominator) rather than the toy's
+    `cond−k_crit`; `weibull_leaf_graft_demo` witnesses the `anchor(leaf.profit_,·)`
+    value-graft — raw assembled value equals the double truth at the correct anchor,
+    diverges at a wrong one (the guard discriminates), derivative survives the swap.
+    All FD-match. So the wiring's three "re-certify, don't assume" Gate-0 checks are
+    now proven standalone; the composition is *identical* to `assemble_leaf_from`.
   **Takeaways that shaped §4.1–4.4:** no new odelia primitive is required, no
   denominator overload; the whole TF24 re-expression reduces to one `soil_uptake`
   signature widening + routing the active hydraulic params, and every inner solve
