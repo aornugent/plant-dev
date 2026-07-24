@@ -265,13 +265,28 @@ plant-free miniature:
   machine precision, the envelope-asymmetry consumption channel to ~5e-4.
 - **`odelia` example `weibull_leaf`** (`inst/examples/weibull_leaf_interface.cpp`,
   `test-example-weibull-leaf.R`) — a self-contained, plant-free leaf with the *same
-  primitive composition* (`incomplete_gamma` Weibull hydraulics + a nested `ci`
-  `implicit_value` + a `p*` `implicit_value` optimum + the envelope asymmetry),
-  checked AD-vs-FD in odelia's own CI. This is the durable regression witness that
-  the primitive stack composes correctly, independent of plant. **Takeaways that
-  shaped §4.3–4.4:** no new odelia primitive is required, no denominator overload,
-  and the whole TF24 re-expression reduces to one `soil_uptake` signature widening +
-  routing the active hydraulic params. The plant wiring (§9) is now mechanical.
+  primitive composition*, checked AD-vs-FD in odelia's own CI. It now witnesses **all
+  three hard cases** the composition must survive (26 assertions):
+  - **interior optimum** (`weibull_leaf_demo`) — `incomplete_gamma` hydraulics + nested
+    `ci` `implicit_value` + `p*` `implicit_value` on the stationarity residual + the
+    envelope asymmetry (`dW/dθ` direct-only, `d(E_up)/dθ` carries `dp*`);
+  - **bound/fold** (`weibull_leaf_bound_demo`) — `p*` pinned at a hydraulic bound
+    `p_crit` solved by a **branch-death `implicit_value`** (residual `cond(p)−k_crit`,
+    regular denominator, §4.3). Because `dW/dp ≠ 0` at the bound, the profit gradient
+    *itself* carries `dp*/dθ` — the case the interior demo cannot show, matched to FD
+    on every channel;
+  - **two-layer soil feedback** (`weibull_leaf_soil_demo`) — per-layer uptake with the
+    layer-crossing breakpoint, the spatial `ψ_0/ψ_1` channels and per-layer sinks
+    `dE_i/dθ` (the historic sign-error site, §5) FD-verified and sign-checked.
+  **Takeaways that shaped §4.3–4.4:** no new odelia primitive is required, no
+  denominator overload; the whole TF24 re-expression reduces to one `soil_uptake`
+  signature widening + routing the active hydraulic params, and the bound regime is a
+  second `implicit_value` residual, not new machinery. **What the example still does
+  NOT witness** (so the plant wiring must still cover it directly): the SCM-level
+  tape-over-time / `geometric_transport` / census reduction — the leaf here is static,
+  so nothing here speaks to memory across cohort-steps × layers; and the ci↔ψ_stem
+  transpiration-inversion (N_ψstem, §4.2) is collapsed to `gc = α·E_up`. Those two are
+  proven only by the plant-linked scratchpad certs, which are not durable.
 
 ---
 
@@ -341,9 +356,16 @@ fixed point pins `q` by `G=0`. No parallel machinery.
   through the seam (not certified).
 - **Concept proven standalone (2026-07-24, §4.3/§4.6):** every leaf node
   (interior/bound `p*`, `ci`, `ψ_stem`), the `incomplete_gamma` hydraulic channels,
-  and the envelope asymmetry are FD-verified off the SCM — on a real leaf and on the
-  vendored `weibull_leaf` odelia example. No new primitive, no denominator overload.
-  This turns the gap below from design into mechanical wiring.
+  and the envelope asymmetry are FD-verified off the SCM. The vendored `weibull_leaf`
+  odelia example now durably witnesses the **interior, bound/fold, and two-layer soil
+  feedback** cases (no new primitive, no denominator overload); the plant-linked
+  scratchpad certs additionally cover the real-leaf `ψ_stem` inversion. **Mechanical
+  for the leaf's inner-solve gradient** (steps 1–4). **NOT yet witnessed by any durable
+  test** — and therefore the real risk in the wiring — are the two SCM-level pieces the
+  static leaf cannot exercise: the tape-over-time memory behaviour under
+  `geometric_transport` + census (step 5, the OOM's actual domain) and the per-run
+  interaction of the soil sub-cycle adjoint with the growing state. Treat those as
+  design-live, not mechanical.
 - **The gap (v3 Phase 1 — finish p2c candidate B for TF24):**
   1. **Widen `leaf_output::soil_uptake`** to take `S root_b/root_c` (identical body;
      `cumulative_vuln`/`transpiration` are already S-templated) and pass the active
