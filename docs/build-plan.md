@@ -123,7 +123,7 @@ path), life=10+ OOM (tape checkpointing), IC gradients, Phase 3 (the fixed-point
 _(historical — the AD-touchpoint remediation that was "current work" through session 3):_
 
 ## ►► AD-touchpoint remediation (2026-07-20 audit) ◄◄
-Full findings + method: [`ad-touchpoint-audit.md`](./ad-touchpoint-audit.md). A
+Full findings + method: [`ad-touchpoint-audit.md`](./archive/ad-touchpoint-audit.md). A
 whole-surface audit (every model + engine header vs pre-AD `develop`) plus an
 **empirical per-leaf certificate** (reverse-AD over every `AD_FIELDS` leaf vs a
 reoptimising FD) established, mechanically rather than by reading, WHERE and WHETHER
@@ -431,7 +431,7 @@ functional-as-pure-reduction + driver-owns-replay, **#28 (done) — the three-ca
 demonstrator (a shrink of FF16 resident light) exercises L1/L2 recompute + the L3 read + reuse + the
 anti-staleness property against FD.
 
-## Existing engine pieces (audited — see [`odelia-5-existing-pieces.md`](./odelia-5-existing-pieces.md))
+## Existing engine pieces (audited — see [`odelia-5-existing-pieces.md`](./archive/odelia-5-existing-pieces.md))
 The generic AD surface (Solver, gradient driver, functionals, record/replay, IC seeding,
 growing-dimension) already exists and mostly needs no change. The audit adds these to the plan so it is
 comprehensive:
@@ -861,7 +861,7 @@ The long-running TF24 reverse-AD "residual" (sessions 10–13; the `~0.82×` SCM
 `dp*/dψ = 0.652` node vs `0.573` FD) is **resolved, and it was not an AD bug**. A fresh-Oracle
 consult (`oracle-response-inner-argmax-adjoint.md`) plus two decisive tests (`scratchpad/
 staircase_session13_tests.log`) settle it. Read `oracle-consultation-index.md` Round 4 and
-`tf24-numerical-formulation-and-misspecification.md` §6g for the full trail; the prescriptive summary:
+`archive/tf24-numerical-formulation-and-misspecification.md` §6g for the full trail; the prescriptive summary:
 
 **The mechanism.** The collar optimum is found by `golden_section_max` (comparison-based bracketing,
 `GSS_tol_abs = 1e-3`). Its output is a **staircase**: `p̂(σ) = A(σ) + γ_ω·(B(σ)−A(σ))` — affine
@@ -988,6 +988,6 @@ is the authoritative, test-cited status. Root cause of the drift: "done" had bee
 leaf-coupling tests rather than a test exercising the user-facing SCM entry per strategy.
 
 Docs reconciled this session: this file (current-work banner, cert status, P2b/P2c/P2d bullets,
-port-map table), `HANDOFF.md` (START HERE + session-15 block), `ad-touchpoint-audit.md` (b1-fixed
+port-map table), `HANDOFF.md` (START HERE + session-15 block), `archive/ad-touchpoint-audit.md` (b1-fixed
 update). The design notes, oracle consultations, and `p2c-leaf-adjoint-design.md` were already
 accurate and left as provenance.

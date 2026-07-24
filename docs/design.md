@@ -89,7 +89,7 @@ arithmetic, wrong-chart compression — become **inexpressible in model code**.
 ### Engine primitives (Kernels — the only XAD-aware code)
 1. **`separable_field`** (P1b) — separated kernel factors `{a_p(z), b_p(x)}` → descending suffix scans `B_p` → `A(x)=Σ a_p B_p` and `∂A/∂z=Σ a_p′ B_p`; reverse = mirrored prefix scans; Neumaier summation; a **near-diagonal direct band** `δ` for recombination cancellation. Init-time self-check `Σ a_p b_p == kernel_direct`; ships the dot-product test.
 2. **implicit-node** (P1a) — `register(residual F(y;p), untaped double solver, outputs)`; adjoint forms `∂F/∂y, ∂F/∂p` by `fwd<double>` over the templated residual, small dense solve, `incrementAdjoint`. Sign-definite denominator asserted at registration. `fwd<double>` gives first-order reverse-through-solve **without nested tapes**. Instances: leaf `ci` root, leaf collar optimum `q*`, breakpoints, birth height, the BVP collocation residual.
-3. **the field `A` + mass transport** (P1e) — the coupling field `A` is `separable_field`'s result (the model reads its value and `A.at(z)` for crown reads); **mass transport** is the one engine rule that sets `log_density_dt` from the neighbour secant of the growth rate (transport log-mass; derive density from spacing), deleting `node.h::growth_rate_gradient` + the `species.h` compression loop. *(No `StateView`/`TransportGeometry` nouns — see [`odelia-index.md`](./odelia-index.md) §concept-audit.)*
+3. **the field `A` + mass transport** (P1e) — the coupling field `A` is `separable_field`'s result (the model reads its value and `A.at(z)` for crown reads); **mass transport** is the one engine rule that sets `log_density_dt` from the neighbour secant of the growth rate (transport log-mass; derive density from spacing), deleting `node.h::growth_rate_gradient` + the `species.h` compression loop. *(No `StateView`/`TransportGeometry` nouns — see [`odelia-index.md`](./archive/odelia-index.md) §concept-audit.)*
    **The representation guarantee** (Oracle; odelia #7 §A): the model writes natural rates and never the transport term (tier-1); odelia transports in *one canonical chart* (log-mass — a fixed, engine-private choice); and odelia **reconstructs whatever representation the model/functional reads** — density `n = exp(logmass)/spacing`, log-density, a moment, `A` — as an **exact taped read** (the read-side view). So the model expresses in whichever representation is natural and gets correct gradients; the fixed pairing constrains only odelia's internal bookkeeping. A rate written *on* a chart variable is the rare tier-2 opt-in (`register_chart_rate`, engine supplies the pullback).
 4. **`incomplete_gamma`** (P1c) — the exact Weibull antiderivative `∫exp(−(|ψ|/b)^c)`: value + `∂/∂x` (elementary) + `∂/∂s` (series/digamma), FD-validated; `∂²/∂s²` reserved for the fixed-point path. Bounds the **whole leaf hydraulic transport** — soil vulnerability *and* stem transpiration are the same family (§5; odelia #7 §C).
 5. **stepper + tape lifecycle** — explicit RKCK (the reference Control); checkpointed record/replay (per-step sub-tape); vector adjoints; multirate sub-cycle for the soil block.
@@ -205,7 +205,7 @@ fixed-rule, off the recorded-position path.
 
 Each links to its deepening doc for the exact residuals, factors, and sign conditions.
 
-- **K93/FF16 light coupling + dg/dh** → [`deepening-6`](./deepening-6-light-coupling.md). Rank-3
+- **K93/FF16 light coupling + dg/dh** → [`deepening-6`](./deepenings/deepening-6-light-coupling.md). Rank-3
   separable `κ(z,x)=m(x)(1−(z/x)^η)²` (`m=`(π/4)x² for K93, `area_leaf(x)` for FF16/TF24); three suffix
   scans; C¹ double-diagonal zero makes the moving-query slope safe. **dg/dh** is deleted from the model
   rate by the transport-log-mass chart (`dλ/dt=−r`; `∂ₓg` carried by the neighbour secant — the mass
@@ -214,12 +214,12 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
   **node.h audit:** the only transported state is `log_density`; the sole "number" is the offspring
   output accumulator; number appears implicitly at birth as `density=birth·estab/g` (flux/velocity) —
   so the mass chart is new machinery aligned with the existing boundary law.
-- **TF24 leaf inner solve** → [`deepening-1`](./deepening-1-leaf-residuals.md). Two sign-definite scalar
+- **TF24 leaf inner solve** → [`deepening-1`](./deepenings/deepening-1-leaf-residuals.md). Two sign-definite scalar
   IFT nodes: **N1** stomatal `ci` root (denominator `A′·umol_to_mol + gc·inv_atm > 0`), **N3** collar
   optimum `q*` (denominator `dG/dq < 0`). Transport `ψ_stem` is a closed-form spline composition (not a
   solve). One reduced gradient `G(q)=dW/dq` serves solved (TF24) and tracked (TF24f). Deletes the
   ~150-line FD `supplied_derivative` seam + `dprofit_droot_collar_psi`.
-- **Soil↔leaf coupling** → [`deepening-3`](./deepening-3-soil-coupling.md). **Soil moisture is integrated
+- **Soil↔leaf coupling** → [`deepening-3`](./deepenings/deepening-3-soil-coupling.md). **Soil moisture is integrated
   ODE state, not a background field** (VII.2): `TF24_Environment` carries `ode_size>0` (FF16/K93 carry 0),
   and the coupling is bidirectional *inside* the ODE — cohorts sum `consumption_rate` into
   `resource_depletion`, which evolves soil, which sets `ψ_soil`, which the leaf reads. So the AD treatment
@@ -236,7 +236,7 @@ Each links to its deepening doc for the exact residuals, factors, and sign condi
   transient sink and the BVP steady-`u`. Resident soil adds a `∂profit/∂(soil ψ)` channel the mutant path
   never needs — automatic here (the leaf reads `u()` on the tape), where the prototype needed a new hand
   partial.
-- **Crown quadrature / early-exits / TF24f** → [`deepening-2-4-5`](./deepening-2-4-5.md). Crown = Kind C
+- **Crown quadrature / early-exits / TF24f** → [`deepening-2-4-5`](./deepenings/deepening-2-4-5.md). Crown = Kind C
   quadrature-through (no breakpoints; `q` and `L` both C¹). Leaf shut-down early-exits = `decide()`
   predicates for the gradient, **but profit is genuinely discontinuous** across the boundary (Gate-0
   measured a ~1.46 jump at θ-step 1e-7) — a hydraulic-failure cliff, an honesty-condition refuse point,

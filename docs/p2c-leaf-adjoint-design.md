@@ -7,7 +7,7 @@
 # P2c — the TF24 leaf adjoint (design)
 
 _System-design search, 2026-07-20. Records the decision so the next session starts
-from the map, not a blank page. Companion: `build-plan.md` P2c; `ad-touchpoint-audit.md`
+from the map, not a blank page. Companion: `build-plan.md` P2c; `archive/ad-touchpoint-audit.md`
 (TF24 Certificate A); plant#60 (the corner)._
 
 ## The problem in one paragraph
