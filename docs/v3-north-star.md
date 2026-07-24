@@ -331,6 +331,20 @@ feedback differentiates structurally. Soil is **active integrated state** (its
 env carries `ode_size>0`), the multirate sub-cycle on the forward-only track; its
 adjoint rides tape-as-run.
 
+**Witnessed standalone (2026-07-24).** The soil sub-cycle adjoint cannot be tested
+without a sink — the loop has no dynamics until a leaf reads `ψ_soil` — so it is
+witnessed *coupled to the toy leaf*, off the SCM: the odelia example `soil_leaf`
+(`inst/examples/soil_leaf_interface.cpp`, `test-ad-soil-leaf.R`) integrates a
+per-layer soil-water ODE whose potential drives the leaf's `incomplete_gamma`
+uptake, which is the soil sink (the closed feedback loop), with a `ci`
+`implicit_value` node **inside** `ode_rates` and a consumer introduced mid-run (the
+growing tape). Reverse `d(final biomass)/d(kmax, c)` matches a re-integrating FD to
+<1e-9 (the shape `c` flows entirely through the feedback), the active value
+reproduces the double run bit-for-bit, and the tape stays a few MB. So the
+**feedback-loop adjoint, node-in-rates, and resize path are correct together**
+before the plant wiring; what `soil_leaf` omits is the light field + density
+transport + census layered on at full SCM scale (§9).
+
 ---
 
 ## 6. TF24f — tracked collar, same object (deepening-5)
@@ -388,12 +402,15 @@ fixed point pins `q` by `G=0`. No parallel machinery.
   with iterations — so the design provably bounds the tape that status-quo TF24 blows
   up on. **Primitive decision (§1): `implicit_value` for every node; no merge;
   `register_implicit` is a deletion candidate.** **Mechanical for the leaf's
-  inner-solve gradient** (steps 1–4). **The one remaining memory question no durable
-  test yet answers** — and therefore the real residual risk — is how the bounded
-  *per-leaf* tapes accumulate across the SCM's cohort-steps × layers × resize path
-  under `geometric_transport` + census, together with the soil sub-cycle adjoint over
-  the growing state. Treat that as design-live, not mechanical (deferred, handled
-  separately).
+  inner-solve gradient** (steps 1–4). The soil sub-cycle adjoint, a leaf node living
+  inside `ode_rates`, and the growing-tape/resize path are now **witnessed together
+  standalone** by the `soil_leaf` odelia example (§5) — FD-matched, value-exact, tape
+  bounded. **The one remaining thing no durable test yet answers** — the residual
+  wiring risk — is the *full* SCM composition at scale: the light field + density
+  transport (`geometric_transport`) + census reduction layered on top of the soil
+  feedback simultaneously, over many cohort-steps. Each of those is FF16/K93-proven
+  or `soil_leaf`-proven *separately*; their simultaneous interaction on TF24 is what
+  the plant wiring itself exercises. Not a design gap — an integration checkpoint.
 - **The gap (v3 Phase 1 — finish p2c candidate B for TF24):**
   1. **Widen `leaf_output::soil_uptake`** to take `S root_b/root_c` (identical body;
      `cumulative_vuln`/`transpiration` are already S-templated) and pass the active
