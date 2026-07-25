@@ -59,10 +59,20 @@ Post-kutta3 (§3), all six scenarios complete under `mri_uptake`:
 - **Trust-monitor death mode absent everywhere** (re-expansion 0.11–0.53/leg vs
   the DEAD threshold ≈ nmicro). The 3b-ii prediction holds on the real patch
   across the whole dynamic bank — the monitor never collapses to global RK.
-- **mri_uptake out-survives the reference:** it completes whiplash /
-  extended_drought / long_horizon (rkck crashes) AND, with kutta3, now completes
-  intense_storms too (forward-Euler hit the cohort-interpolation ceiling there —
-  the more accurate slow advance avoids it). Robustness bonus.
+- **mri_uptake completes traces the reference cannot** — whiplash /
+  extended_drought / long_horizon (rkck crashes) and, with kutta3, intense_storms.
+  **⚠️ CORRECTED (see `tf24-v2-T6-density-blowup-550-investigation-result.md`):
+  completing is NOT the same as being right, and must not be read as a robustness
+  win.** The rkck crashes are the plant#550 cohort-density blow-up (a *model*
+  divergence, not a solver overflow); upstream's own position (plant#552) is that
+  when it fires, "trustworthy completion is blocked on the model." On
+  `extended_drought` — the one crashing trace for which we can now obtain a
+  reference (rkck completes it when `newton_collar_solve=TRUE`) — **mri_uptake is
+  ~1400× below that reference** (4.06e-13 vs 5.65e-10, rel err 0.999; the collar
+  solver changes mri_uptake by only 0.3%, so the gap is mri_uptake, not the
+  confound). Both values sit deep in the near-extinction hypersensitive regime on
+  a trace the model is documented to diverge on, so the honest reading is that
+  **neither number is trustworthy there** — not that mri_uptake is superior.
 
 ## 3. The accuracy fix: kutta3 slow advance (the one C++ change in Slice 4)
 
@@ -131,10 +141,13 @@ method (rkck cannot even run those traces).**
 
 ## 6. Verdict
 
-**PASS (forward), with a precise accuracy characterization.** `mri_uptake` runs on
-the full dynamic TF24 bank, out-surviving the rkck reference (all 6 complete vs
-rkck's 3), with the trust monitor holding re-expansions at their floor (death mode
-absent) and a 3–10× cohort-solve reduction. The kutta3 slow advance makes it
+**PASS (forward) in the well-conditioned regimes, with a precise accuracy
+characterization.** `mri_uptake` runs on the full dynamic TF24 bank, with the trust
+monitor holding re-expansions at their floor (death mode absent) and a 3–10×
+cohort-solve reduction. **It also completes 3 traces the rkck reference cannot —
+but that is NOT claimed as a robustness win** (see §2 and the #550 investigation
+doc: those crashes are a model-level density divergence, and where a reference is
+obtainable mri_uptake is ~1400× off it). The kutta3 slow advance makes it
 **gradient-quality in the well-conditioned regime** (≤2e-4 at moderate seasonality,
 2.3e-3 on the constant gate), bit-identical off, reverse-replay-safe. Near-extinction
 stress traces remain offspring-ill-conditioned for every method — an intrinsic
