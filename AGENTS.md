@@ -159,6 +159,23 @@ one call.
   its source of truth.
 - No dropping a guarantee (bounds check, cleanup path) during a refactor; no
   demo code compiled into the shipped .so; no dead files after a rename.
+- **Never let a function or lambda that returns an AD value use a deduced return
+  type.** XAD operators return *expression templates* holding references to their
+  operands, so a deduced return type hands the caller references to temporaries
+  and by-value parameters that die on return. The caller then materialises a
+  dangling expression and records whatever the reused stack now holds as a tape
+  slot; the reverse sweep dereferences it and segfaults far from the cause.
+  Valgrind cannot see it — the dangling storage is stack, not heap. Declare the
+  scalar return type (`-> S`, `-> T`) on every such lambda, including one-line
+  helpers. This cost a session to find (plant TF24's `anchor` graft); the two
+  structural defences are `odelia::implicit_value`'s `static_assert` on its
+  residual, and `odelia::util::graft_value` owning the value-graft idiom so it
+  is not hand-written.
+
+      // BAD  -- returns a dangling expression template
+      auto anchor = [](double v, S x) { return S(v) + (x - to_passive(x)); };
+      // GOOD -- materialised while its operands are alive
+      auto anchor = [](double v, const S& x) -> S { return graft_value<S>(v, x); };
 
 ### Defaults to unlearn
 
