@@ -235,7 +235,9 @@ The missing piece: `Species::introduce_new_node(double time, double patch_densit
 node with its introduction time and the patch-age density at birth**, and neither is part of
 `ode_state`. They feed the lifetime-fitness terms. The probe reconstructed cohort counts by
 introducing at t=0, so every node got the wrong stamps — which is precisely what produced the
-compounding error, and is what a backward pass would have done too.
+compounding error, and is what a backward pass would have done too. **The discriminating datum:
+segment 0 needs no reconstructed introductions and is exact** (K93 `max_reld` and `max_abs` both
+0.00e+00); the error grows with how many stamps had to be faked.
 
 So the backward loop must restore, per node, **the ODE state and those two stamps.** Nothing is
 lost: the introduction time is the node-schedule entry and the density is

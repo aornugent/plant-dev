@@ -291,7 +291,8 @@ its contract widens by one word (the structural change recorded for step k runs 
    absolute agreement is tiny (1e-31 to 1e-15 on FF16) but the relative error grows ~16x per ten
    segments on both K93 and FF16. Cause found: `Species::introduce_new_node(time, patch_density)`
    **stamps each node with its introduction time and patch-age density at birth**, and neither is
-   in `ode_state`; they feed the lifetime-fitness terms. So the backward loop must restore the ODE
+   in `ode_state`; they feed the lifetime-fitness terms. Discriminating datum: segment 0 needs no
+   reconstructed introductions and is **exact** (K93 max_reld and max_abs both 0.00e+00). So the backward loop must restore the ODE
    state **and those two stamps** per node. Both are known on the plain pass (the schedule entry
    and `survival_weighting->density(t)`), so nothing is lost -- but a gradient built on
    `set_ode_state` alone would be quietly wrong in a way that compounds down the run.
