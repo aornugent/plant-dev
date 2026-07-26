@@ -4,19 +4,26 @@
 #
 # THREE CHECKS, and note what the first one really is:
 #
-# 1. BIT-IDENTITY OF THE ANCHOR VALUES, for free, via the trust monitor. The
-#    monitor re-captures when trust_excursion(u) > tol, and trust_excursion is the
-#    squared relative excursion of the predicted uptake from the anchor's own a0.
-#    At a subcycle's first micro-step u IS the anchor's theta, so if the published
-#    anchor equals what refresh_anchor would have computed, the excursion is
-#    exactly 0 and the monitor cannot trip. Any discrepancy -- even one ulp that
-#    grew -- shows up as a nonzero re-capture count. So in the regimes measured to
-#    have zero genuine re-expansions (amp 0 / 0.3 / 0.6: 4358 of 4358 captures were
-#    duplicates), the post-change count must be EXACTLY 0. That is a stronger
-#    statement than comparing printed offspring digits.
-# 2. OFFSPRING UNCHANGED against the pre-change values recorded below.
+# 1. THE DUPLICATE CAPTURES ARE GONE. odelia's subcycle opens with an
+#    UNCONDITIONAL refresh_anchor (mri.hpp, "mandatory leg-start capture") -- it is
+#    NOT monitor-gated. (An earlier version of this gate claimed the monitor gave a
+#    free bit-identity proof, on the mistaken reading that the m=0 capture was
+#    monitor-gated; that argument is void and has been removed.) refresh_anchor now
+#    returns early on a bitwise theta match, so in the regimes measured to have zero
+#    genuine re-expansions (amp 0 / 0.3 / 0.6: 4358 of 4358 captures were
+#    subcycle-start duplicates) the post-change count must be EXACTLY 0.
+#    Bit-identity of the RESULT is therefore checked the ordinary way, in (2).
+# 2. OFFSPRING UNCHANGED against the pre-change values recorded below. These carry
+#    only the 6 significant figures the probe printed, so this bounds the drift at
+#    ~1e-6 relative rather than proving bit-identity. The skip is exact by
+#    construction (it reuses values from the same computation at the same
+#    arguments), so any drift at all would mean the theta key is admitting a case
+#    it should not -- the tolerance is a tripwire, not an error budget.
 # 3. PRODUCTION BIT-IDENTICAL with ode_method != "mri_uptake" (the standing
-#    invariant): the TF24 default SCM offspring to the last bit.
+#    invariant): the TF24 default SCM offspring to the last bit. NOTE the recorded
+#    value 1.03714898556177 is the DEFAULT patch at the DEFAULT tolerance -- do not
+#    override max_patch_lifetime or birth_rate here, or the comparison is against a
+#    different run (which is exactly how this check first "failed").
 #
 # Cost is reported as MEMBER SWEEPS PER LEG, which is the quantity that actually
 # scales with cohort count -- not as the cheap/expensive ratio, which becomes a
@@ -71,9 +78,8 @@ for (i in seq_len(nrow(PRE))) {
 }
 
 # (3) production bit-identical: the standing invariant.
-p0 <- scm_base_parameters("TF24"); p0$max_patch_lifetime <- 30
-p1 <- add_strategies(p0, trait_matrix(0.0825, "lma"), hyperpar = TF24_hyperpar,
-                     birth_rate = list(1))
+p0 <- scm_base_parameters("TF24")
+p1 <- add_strategies(p0, trait_matrix(0.0825, "lma"), hyperpar = TF24_hyperpar)
 scm <- SCM("TF24", "TF24_Env")(p1, Environment("TF24"), control())
 scm$run()
 prod_off <- scm$net_reproduction_ratios
