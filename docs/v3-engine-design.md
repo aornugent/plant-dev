@@ -173,6 +173,43 @@ pre-change state, *then* apply the change, so the change is inside the unit. App
 units loses the newborn's adjoint silently (19% error, right sign), which a constant-IC toy
 cannot detect.
 
+## Landing it in plant: the unit is the event segment, and that needs no new surface
+
+`SCM::run_next()` already does exactly one unit's worth of work — consume the events at `t0`,
+`introduce_new_nodes`, then `advance_fixed(e.times)` over that event's slice of the recorded
+grid. So plant's natural unit is the **event segment**, not the ODE step. Measured, on the
+schedules plant actually uses:
+
+| | ODE steps | introductions | steps/segment | L0 on L1 |
+|---|---|---|---|---|
+| K93, default | 173 | 141 | **1.23** | 141/141 |
+| K93, refined | 285 | 233 | **1.22** | 233/233 |
+| FF16, default | 264 | 141 | **1.87** | 141/141 |
+| FF16, refined | 277 | 161 | **1.72** | 161/161 |
+
+A segment holds 1.2-1.9 steps, so segment granularity gives a peak within **1.9x** of ideal
+step granularity — nothing against a memory ratio of 130-438x. And every introduction time lies
+on the ODE grid (100%, all four rows), so a segment boundary is always a step boundary.
+
+**This partially rehabilitates the retracted event-segment unit** (`v3-step-local-adjoint.md`
+§3b). Its *reasoning* was still wrong — the ratio is a property of a schedule policy, not of the
+model — but its *conclusion* is right for the schedules in use, and it is the version that needs
+no solver surgery. The step remains the ideal unit; the segment is the affordable one.
+
+**So the kill condition for the segment is a number, not an argument:** if a schedule policy
+pushes steps/segment high — the multirate finding, a coarse uniform grid refined at
+introductions, would — peak tape rises with it and the unit must become the step. That is the
+one change that requires reaching inside `SCM::run_next_impl` to split `advance_fixed(e.times)`
+into its individual steps. Until then, don't.
+
+**What is unbuilt, precisely.** Two pieces, both inside `scm_gradient.h`, both using SCM's
+existing public surface:
+1. a plain pass that stores, per segment, the patch state **entering** the segment
+   (pre-introduction, so the introduction is re-recorded inside the unit); and
+2. a backward loop over segments: fresh tape, register the stored state and the seeded targets,
+   restore, introduce, `advance_fixed(e.times)`, seed the output adjoints, sweep once per output
+   row, carry the entering-state adjoints back.
+
 ## Kill condition
 
 A background whose structure is not derivable from step-start plain values. That hands off to

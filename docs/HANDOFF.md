@@ -269,9 +269,18 @@ its contract widens by one word (the structural change recorded for step k runs 
 `replay_structure`, `unit_count` and `set_trajectory` are all unnecessary. See the design doc.
 
 ### OPEN, in priority order
-1. **Land the loop in plant.** Store the trajectory, walk back, re-record. The interface is
-   settled (design doc); what is unbuilt is plant's side: `Patch::replay_step(k)` must apply the
-   introduction recorded for step k, on tape.
+1. **Land the loop in plant — and it needs NO new plant surface.** `SCM::run_next()` already
+   does one unit: consume the events at t0, `introduce_new_nodes`, `advance_fixed(e.times)`. So
+   the unit is the **event segment**, and measured steps/segment is **1.22-1.23 (K93) / 1.72-1.87
+   (FF16)** on both default and refined schedules, with L0 on L1 at 100% (141/141, 233/233,
+   141/141, 161/161). A peak within 1.9x of ideal step granularity is nothing against 130-438x.
+   Two pieces, both inside `scm_gradient.h`: (a) a plain pass storing the patch state *entering*
+   each segment, pre-introduction; (b) a backward loop over segments -- fresh tape, register the
+   stored state and the seeded targets, restore, introduce, `advance_fixed(e.times)`, seed the
+   output adjoints, sweep per row, carry the entering-state adjoints back.
+   **Kill condition, with a number:** if a schedule policy pushes steps/segment high (the
+   multirate finding would), peak rises with it and the unit must become the step -- which is the
+   one change needing surgery inside `run_next_impl`. Until then, don't.
 2. **#32** (tf24f collar 2.9e-4), **#27** (the closing FD gate) — both unblocked once memory allows.
 3. **The soil rates' hard clamps.** Three selects, `smooth_positive` used 3x in `ff16_strategy.h`
    and 0x in `tf24_environment.h`. The saturation-excess runoff floor is a *physical* boundary a
