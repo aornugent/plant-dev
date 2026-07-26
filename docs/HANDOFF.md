@@ -218,35 +218,50 @@ When a gradient test "passes", check it did not skip.
   its series (TF24 4.445 → 3.236 GB at `life=1`, value and gradient unchanged);
   `odelia::preaccumulate` is built and toy-proven (1 127 → 7 recorded ops at 21 nodes,
   flat in node count, **gradient bit-identical** to the full tape, FD 5e-9).
+- **Crown preaccumulation was measured and retired (§6e).** The estimate said 2.7× and
+  "closes FF16"; the measurement says **1.49×** (66% of the crown tape is the light-field
+  read, which that boundary leaves behind) and FF16 stays OOM at `life=105`. The best
+  boundary measures **3.7×**. Consequence: **C's ceiling is ~3× (FF16) / ~5× (TF24)**, so
+  leanness alone reaches production lifetime for neither strategy.
 - **Known open:** the tf24f collar 2.9e-4 residual (#32), the SCM FD gate (#27), and
-  TF24 at `life=4` still OOMs.
+  TF24 at `life=4` still OOMs — now with no leanness route that closes it.
 
 ---
 
 # SIGNPOSTS — what to do next, in order
 
-### ▶ 1. NOW: FF16 crown preaccumulation, **boundary A** — task #36
-The largest lever available, and self-contained. Read
-`v3-reverse-memory-design.md` §6d first. Read the 21 light values on the run tape,
-preaccumulate the rest (inputs ≈ 48 against ~588 internals). Expect **~2.5× on FF16**:
-9.02 GB at `life=40` → ~3.6 GB, and `life=105` **OOM → ~6 GB, which closes the FF16
-memory line**.
-- **Check the precondition first:** A assumes the crown reads through
-  `get_value_at_height_frozen_query`, so `L_j` depends on knot *values*, not actively
-  on `z_j`. Confirm for FF16's crown. If the query is active, `L_j` becomes a per-node
-  input — the approach still holds, n just grows.
-- **The bar is bit-identical, not within-tolerance.** Preaccumulation only moves bytes;
-  a moved gradient is a bug. Verify with `test-ad-ff16-scm-gradient.R` +
-  `test-scm-gradient-entry.R` (both FD-gated, both green — and confirm they *ran*),
-  FF16 bit-identity, and `PLANT_TAPE_STATS=1` at life 4/10/40/105.32.
+### ✗ 1. RETIRED BY MEASUREMENT — FF16 crown preaccumulation (task #36)
+**Do not build this. It was measured and it does not pay.** Session 21 ran the
+precondition check this signpost asked for, and it refuted both of §6d's numbers. Read
+**`v3-reverse-memory-design.md` §6e** — the probe is committed at
+`docs/reference/crown-preaccum-probe.{cpp,R}` and re-runs in seconds.
+- **The precondition is false.** With the competition field assembled — the production
+  rate path — FF16's crown does **not** read `get_value_at_height_frozen_query`; it reads
+  `step_light(exp(-field_optical_depth(z)))`, which passes the **active** query height
+  into `shading_query_factors`. Harmless to correctness, but it is why the read is
+  expensive.
+- **The field read is 66% of the crown tape, not 29%.** So boundary A is capped at
+  **1.49×** (not 2.7×), which leaves FF16 OOM at `life=105`. Boundary D — field read
+  inside the block, the 63 cumulative source weights declared — measures **3.7×** (not
+  12×), and 67 partials for a scalar output is that shape's information floor.
+- **The bar was wrong too:** both boundaries reassociate, so `d_h` (A) and `d_eta` (D)
+  move at 1.6e-14 / 2.1e-15 while every other channel stays bit-identical.
+  **Ask for round-off across all channels, not bit-identity.**
+- **The real reason not to land it:** `preaccumulate`'s "an omitted channel is
+  unreachable" guarantee **does not hold here**. FF16's integrand is a member lambda, so
+  `pars.a_p1`, `pars.a_p2` and `canopy_shape.eta_` are reachable through `this` whether
+  declared or not. 1.49× does not buy a call site whose input list is hand-enumerated.
 
-### ⏸ 2. DECISION POINT (needs the owner): boundary B
-B reaches ~12× but requires **Environment to expose its active field values** as an
-`ad_field_values()`-shaped contract member — new vocabulary on a shared interface,
-coupling strategy code to how the environment stores its field. That is an R3 design
-decision, so **run `system-design` and ask; do not slip it in.** Only needed for margin
-and for TF24 — and §0 of `v3-step-local-adjoint.md` says leanness falls short for TF24
-at production lifetime regardless.
+### ⏸ 2. THE DECISION THIS OPENS (needs the owner)
+§6e's arithmetic reprices **C as a whole**: with 3.7× rather than 12× from the crown,
+C's ceiling is **~3× for FF16 and ~5× for TF24**, so **leanness alone reaches production
+lifetime for neither strategy.** The choice is therefore no longer "A now, B later" but:
+- **take the step-local adjoint (signpost 6) as the route**, whose trigger has widened to
+  include FF16 — it is now FF16's only path to `life = 105.32`; or
+- **take boundary D anyway** for its 3.7×, accepting the `ad_field_values()`-shaped
+  contract member (an R3 `system-design` decision — do not slip it in) plus the
+  hand-enumerated trait list.
+Signpost 3's two levers are unaffected and pay either way.
 
 ### ▶ 3. THEN: the two remaining leanness levers — task #31
 Both pure wins (less forward work as well as fewer bytes), both self-contained:
@@ -266,14 +281,16 @@ stale comments, residual accretion).
 
 ### ▶ 5. THE CLOSING GATE — task #27
 FD-verify the full TF24/TF24f SCM gradient; the explicit `skip()` at
-`test-ad-tf24-scm-gradient.R:85`. **Blocked until memory allows `life≥4`** (signposts 1
-and 3). Read `oracle/oracle-response-inner-argmax-adjoint.md` **before** designing the
+`test-ad-tf24-scm-gradient.R:85`. **Blocked until memory allows `life≥4`** — via signpost 3, or
+signpost 6; **not** signpost 1, which §6e retired. Read `oracle/oracle-response-inner-argmax-adjoint.md` **before** designing the
 FD: tight-τ frozen-schedule reference, never a loose-τ swept plateau.
 
-### ⏸ 6. DEFERRED, with a numeric trigger — task #35
-The step-local adjoint (`v3-step-local-adjoint.md`). **Trigger: TF24 wanted at
-`max_patch_lifetime` ≳ 40**, because leanness tops out at ~7.3× against the 15–45×
-production needs. It makes peak memory independent of lifetime and **removes the
+### ▶ 6. NOW A LIVE CANDIDATE, not a deferral — task #35
+The step-local adjoint (`v3-step-local-adjoint.md`). **The trigger has widened**: it was
+"TF24 wanted at `max_patch_lifetime` ≳ 40" on the assumption that leanness tops out at
+~7.3× and closes FF16. §6e measured the crown and **C's ceiling is now ~3× (FF16) and ~5×
+(TF24)**, against the 8× and 15–45× production needs — so this is **FF16's only remaining
+route to `life = 105.32`** too, not just TF24's. It makes peak memory independent of lifetime and **removes the
 growing tape** rather than managing it. Its largest hidden cost: `least_squares` reads
 `get_history_step`, so it does **not** survive unchanged — convert it as part of that
 work, not after.

@@ -460,6 +460,78 @@ at `life=40` → ~3.6 GB, and `life=105` from OOM to roughly 6 GB — so **A alo
 brings FF16 to production lifetime**, which was R2's FF16 line. B would be for margin and
 for TF24, where §0's arithmetic says leanness falls short regardless.
 
+## 6e. 6d MEASURED, and both its numbers are wrong — crown preaccumulation does not close FF16
+
+Everything above §6d is estimate; this section is measurement.
+`docs/reference/crown-preaccum-probe.cpp` records one FF16 crown integral at active `S`
+against a 400-source separable competition field and reads the tape's exact byte model at
+each boundary, then sweeps and compares **every** channel the integrand carries. Re-run:
+`NOT_CRAN=true Rscript docs/reference/crown-preaccum-probe.R`.
+
+| variant | crown tape | vs full | ops/read |
+|---|---|---|---|
+| full (what FF16 records today) | 781 ops / 12 764 B | — | — |
+| **the field reads alone** | 486 ops / **8 376 B = 65.6%** | — | **21.1** |
+| the rest of the integrand alone | 295 ops / 4 388 B | — | 14.0 |
+| **boundary A** (lights outside, rest preaccumulated) | 496 ops / 8 552 B | **1.49×** | — |
+| **boundary D** (field read inside, cumulatives declared) | ~199 ops / **3 472 B** | **3.7×** | — |
+
+**Two estimates in §6d were wrong, in the same direction.**
+
+1. **The field read is 66% of the crown tape, not 29%.** §6d put it at ~8 of ~28 ops per
+   node; it is **21.1 of 35.1**. So boundary A — which by construction leaves every field
+   read on the run tape — is capped by Amdahl at **1.49×, not 2.7×**. Preaccumulation
+   itself is not the disappointment: it collapses the part it is given by **25×**
+   (4 388 B → 176 B). There is simply not enough of the crown inside boundary A.
+2. **The precondition §6d asked to confirm is false.** FF16's rate path does *not* read
+   `get_value_at_height_frozen_query`. With the competition field assembled — which is the
+   production rate path — `get_environment_at_height` resolves to
+   `step_light(exp(-field_optical_depth(z)))`, and `field_optical_depth` passes the
+   **active** query height into `shading_query_factors<S>`. So `L_j` does depend actively
+   on `z_j`. This does not break A (reading `L_j` on the run tape records that dependence
+   correctly, and the probe confirms every channel), but it *is* why the read costs 21 ops
+   instead of a spline's 8, and therefore why A is capped where it is.
+
+**So A does not close the FF16 memory line.** At 1.49×: 9.02 GB at `life=40` → 6.1 GB, and
+`life=105.32` stays an OOM. §6d's "A alone probably brings FF16 to production lifetime"
+does not survive its own measurement.
+
+**Boundary D is the measured form of B, and it is 3.7×, not 12×.** D declares as inputs the
+3 cumulative source-weight entries each node's rank selects (63) plus the bound and traits
+(4) — 67 inputs against the whole crown's 781 internal ops — and reconstructs the field
+read inside the block. The probe charges D for recomputing the cumulative sums
+(158 404 B); **production must not**, because the field assembles once per RK stage and its
+cumulatives already sit on the run tape, so D's marginal per-cohort cost is the block
+alone, 3 472 B. 67 partials for a scalar output is the information floor for a
+one-block-per-crown-integral design, so **3.7× is D's ceiling, not its first cut** — still
+short of the **≥8×** R2 asks of FF16 at production lifetime.
+
+**The bit-identical bar is not achievable and should not be asked for.** Both boundaries
+reassociate the arithmetic, so a channel routed through the reassociated part moves at
+round-off: A moves `d_h` by 1.6e-14 relative, D moves `d_eta` by 2.1e-15. Every other
+channel — `value`, the two `a_p` traits, `eta`, and both field-source channels — is
+bit-identical under both. **The honest bar is: all channels agree to round-off, and the
+channel that moves is the one the block reassociated.**
+
+**`preaccumulate`'s checkability does not hold at this site.** The header's guarantee is
+that a channel omitted from `inputs` "cannot be reached from inside f at all". FF16's
+integrand is a member lambda: `assimilation_leaf` reads `pars.a_p1`/`pars.a_p2` and `q`
+reads `canopy_shape.eta_`, all reachable through `this` whether or not they are declared.
+The probe had to hand-enumerate them and rebuild a local `CanopyShape` from the declared
+`eta` — and it is only *because* they were declared that the probe's `d_eta`, `d_a_p1` and
+`d_a_p2` are right. A future active member added to the integrand loses its gradient
+**silently**. That is the project's named failure class, and it is the real price of either
+boundary here, over and above the first-order blindness.
+
+**Verdict: do not land A.** 1.49× does not pay for a call site whose input list is
+enumerable only by hand. D's 3.7× is worth having *if* leanness is the route, but it needs
+the §6d contract decision and it still leaves FF16 short. What the measurement actually
+strengthens is §0 of [`v3-step-local-adjoint.md`](./v3-step-local-adjoint.md): the C column
+there assumed ~12× from the crown, so **C's ceiling drops from 10.0× to ~3× for FF16 and
+from 7.3× to ~5× for TF24, and neither strategy reaches production lifetime on leanness
+alone.** The step-local adjoint's trigger is no longer "TF24 beyond `life` ≈ 40" — it is
+now also FF16's only route to `life = 105.32`.
+
 ## 7. What this makes hard
 
 Beyond the two obvious costs — ~2× active-run wall time, and the cohort-introduction

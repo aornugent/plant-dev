@@ -31,6 +31,18 @@ roughly `life=20–40`, which is enough to unblock the #27 FD gate and
 lifetime needs this document. That is the trigger to build it: **TF24 wanted at
 `max_patch_lifetime` ≳ 40.**
 
+> **CORRECTION (session 21, measured).** The table's crown row is wrong. The 12× was an
+> estimate; the crown was then measured at every boundary
+> (`v3-reverse-memory-design.md` §6e, probe under `docs/reference/`): the achievable factor
+> is **1.49×** with the light reads left on the run tape, **3.7×** with them moved inside,
+> because the field read is **66%** of the crown tape rather than the 29% assumed. Re-run
+> the table with 3.7× in that row and **C's ceiling falls to ~3× for FF16 and ~5× for
+> TF24 — so leanness alone reaches production lifetime for neither strategy.**
+>
+> The trigger therefore widens: it is no longer only "TF24 beyond `life` ≈ 40" but
+> **FF16's only remaining route to `life = 105.32`** as well. The deferral above was
+> priced against a C that could close FF16; it cannot.
+
 The second trigger is unrelated to memory: this change makes peak memory *independent*
 of patch lifetime, so it is also what stops R2 being re-asked every time someone raises
 the lifetime.
