@@ -50,6 +50,7 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
   plant::SCM<Strat, Env> fwd(p, env, ctrl);
   fwd.set_schedule(schedule);
 
+  std::vector<Patch> entering_patch;           // the forward patch, whole, entering k
   std::vector<std::vector<double>> entering;   // state before segment k's introduction
   std::vector<std::vector<double>> leaving;    // state after segment k integrates
   std::vector<std::vector<std::size_t>> added; // species introduced opening segment k
@@ -60,6 +61,7 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
     std::vector<double> y(pk.ode_size());
     pk.ode_state(y.begin());
     entering.push_back(y);
+    entering_patch.push_back(pk);
     t_in.push_back(fwd.time());
 
     const std::vector<std::size_t> a = fwd.run_next();
@@ -79,6 +81,11 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
   std::vector<int> probed;
   std::vector<double> max_reld, max_abs;
   std::vector<int> width_ok;
+  // The spline that shapes the segment: if a rebuilt patch does not choose the same
+  // nodes as the forward pass, the two see different backgrounds and no amount of
+  // state restoration will make them agree.
+  std::vector<int> fwd_nodes, reb_nodes, nodes_match;
+  std::vector<double> from_copy_abs;
 
   for (std::size_t k = 0; k < U; k += static_cast<std::size_t>(probe_every)) {
     // The segment's own slice of the recorded grid.
@@ -89,6 +96,15 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
     if (times.size() < 2) continue;
     times.front() = t_in[k];
     times.back() = t_out[k];
+
+    // The forward pass's spline entering this segment, for comparison.
+    std::vector<double> fwd_x;
+    {
+      plant::SCM<Strat, Env> upto(p, env, ctrl);
+      upto.set_schedule(schedule);
+      for (std::size_t j = 0; j < k; ++j) upto.run_next();
+      fwd_x = upto.r_patch().r_environment().light_availability.spline.get_x();
+    }
 
     plant::Patch<Strat, Env> unit(p, env, ctrl);
     unit.reset();
@@ -117,6 +133,39 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
     solver.set_collect(false);
     solver.set_state_from_system();
     solver.advance_fixed(times);
+
+    {
+      const std::vector<double> rx =
+          solver.get_system_ref().r_environment().light_availability.spline.get_x();
+      fwd_nodes.push_back(static_cast<int>(fwd_x.size()));
+      reb_nodes.push_back(static_cast<int>(rx.size()));
+      bool same = fwd_x.size() == rx.size();
+      if (same)
+        for (std::size_t i = 0; i < rx.size(); ++i)
+          if (fwd_x[i] != rx[i]) { same = false; break; }
+      nodes_match.push_back(same ? 1 : 0);
+    }
+
+    // Same segment, but started from a whole copy of the forward patch rather than a
+    // patch rebuilt out of the stored state vector.
+    double ma_copy = -1.0;
+    {
+      Patch from_copy = entering_patch[k];
+      from_copy.introduce_new_nodes(added[k]);
+      odelia::ode::Solver<Patch> s2(from_copy, plant::make_ode_control(ctrl));
+      s2.set_collect(false);
+      s2.set_state_from_system();
+      s2.advance_fixed(times);
+      const Patch& d2 = s2.get_system_ref();
+      std::vector<double> y2(d2.ode_size());
+      d2.ode_state(y2.begin());
+      if (y2.size() == leaving[k].size()) {
+        ma_copy = 0.0;
+        for (std::size_t i = 0; i < y2.size(); ++i)
+          ma_copy = std::max(ma_copy, std::fabs(y2[i] - leaving[k][i]));
+      }
+    }
+    from_copy_abs.push_back(ma_copy);
 
     const Patch& done = solver.get_system_ref();
     std::vector<double> y(done.ode_size());
@@ -147,7 +196,11 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
       Rcpp::Named("probed") = Rcpp::wrap(probed),
       Rcpp::Named("width_ok") = Rcpp::wrap(width_ok),
       Rcpp::Named("max_reld") = Rcpp::wrap(max_reld),
-      Rcpp::Named("max_abs") = Rcpp::wrap(max_abs));
+      Rcpp::Named("max_abs") = Rcpp::wrap(max_abs),
+      Rcpp::Named("fwd_nodes") = Rcpp::wrap(fwd_nodes),
+      Rcpp::Named("reb_nodes") = Rcpp::wrap(reb_nodes),
+      Rcpp::Named("nodes_match") = Rcpp::wrap(nodes_match),
+      Rcpp::Named("from_copy_abs") = Rcpp::wrap(from_copy_abs));
 }
 
 }  // namespace

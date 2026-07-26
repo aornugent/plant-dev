@@ -225,29 +225,38 @@ all public (`private:` starts at `patch.h:224`), and `set_ode_state(it, time)` r
 whole invariant itself — states, environment state, time, the finiteness check,
 `compute_environment(true)` and `compute_rates()`. So restoring a unit is one call.
 
-**A Patch is NOT fully restorable from `ode_state` — measured, and this is the real obstacle.**
-`docs/reference/segment-rerecord-probe.{cpp,R}` re-runs single segments from a stored state and
-compares them to the forward pass. Absolute agreement is tiny (1e-31 to 1e-15 on FF16) but the
-relative error **grows geometrically with segment index** — about 16x per ten segments, on both
-K93 and FF16. That is not round-off; it is a missing piece of state compounding.
+**A segment IS exactly re-runnable — verified on plant.**
+`docs/reference/segment-rerecord-probe.{cpp,R}` re-runs single event segments and compares them
+to the forward pass. Re-run from a **whole copy of the patch entering the segment**, the result is
+**bit-exact — max_abs 0.00e+00 at every probed segment, on both K93 and FF16.** That is the
+design's core requirement, met on the anchor rather than on a toy.
 
-The missing piece: `Species::introduce_new_node(double time, double patch_density)` **stamps each
-node with its introduction time and the patch-age density at birth**, and neither is part of
-`ode_state`. They feed the lifetime-fitness terms. The probe reconstructed cohort counts by
-introducing at t=0, so every node got the wrong stamps — which is precisely what produced the
-compounding error, and is what a backward pass would have done too. **The discriminating datum:
-segment 0 needs no reconstructed introductions and is exact** (K93 `max_reld` and `max_abs` both
-0.00e+00); the error grows with how many stamps had to be faked.
+**What is not enough is `ode_state`.** Rebuilding the patch out of the stored state vector drifts
+(K93 to 1.5e-5, FF16 to 1.7e-15 absolute). So a stored trajectory has to carry enough to
+reconstitute the entering patch, not merely its ODE state.
 
-So the backward loop must restore, per node, **the ODE state and those two stamps.** Nothing is
-lost: the introduction time is the node-schedule entry and the density is
-`survival_weighting->density(t)`, both known on the plain pass. But `set_ode_state` alone is not
-enough, and a gradient built on it would be quietly wrong in a way that grows down the run.
+**What is missing is NOT yet isolated, and three guesses were wrong.** Recording them so they are
+not retried:
+- *The per-node introduction-time / patch-density stamps.* **Retracted.** `ode_names()` shows
+  `offspring_produced_survival_weighted` *is* an ODE state, `patch_density_at_birth` is not, and
+  `Node::compute_rates` takes `pr_patch_survival` as an argument — so the stamps cannot affect the
+  ODE state the probe compares. They are read in exactly one load-bearing place,
+  `Node::weighted_fecundity`, which is the **R0/offspring** metric only: **census gradients do not
+  need them at all**, and where they are needed they are deterministic doubles recoverable from the
+  schedule (no disturbance derivative required).
+- *A stale first stage carried across the introduction (first-same-as-last).* **Refuted twice.**
+  Invalidating `dydt_in` on a width change changed **nothing**, and the reason is that
+  `set_state_from_system` already does `system.ode_rates(dydt_in.begin()); dydt_in_is_clean = true`
+  — the stage is refreshed from the system every time. The one-line "fix" was inert and was dropped.
+- *Spline path-dependence as the whole story.* Real but not sufficient: FF16's rebuilt node set does
+  differ from the forward one (same count 33 early, **different positions**; by segment 80/90 the
+  counts diverge, 33 vs 35 and 43 vs 67) — yet **K93 fits no spline at all**
+  (`field_supersedes_spline = true`, 0 nodes both ways) and still drifts. So there is at least one
+  more missing piece.
 
-**Then check the environment branch.** `set_ode_state` calls `compute_environment(true)`, which
-takes the *rescale* branch when `spline_rescale_usually` is set — reusing stretched nodes rather
-than re-refining. Both passes reach it through the same call so they should agree, but confirm a
-re-recorded segment reproduces the forward one to round-off **before** trusting a gradient.
+**The next probe is obvious and cheap:** bisect between the two regimes that are already measured
+to differ — whole-patch copy (exact) versus rebuilt-from-`ode_state` (drifts) — restoring one more
+piece at a time until it goes exact. Do that before writing any backward loop.
 
 ## Kill condition
 
