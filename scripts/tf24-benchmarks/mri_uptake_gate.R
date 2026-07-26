@@ -11,13 +11,16 @@
 # real cohort-sum reduction with the death mode absent.
 options(pkg.build_extra_flags = FALSE)
 suppressMessages(pkgload::load_all("/home/user/plant-dev/plant", export_all = TRUE, quiet = TRUE))
+source("scripts/tf24-benchmarks/converged_control.R")
 cat("loaded\n"); flush(stdout())
 
-base_ctrl <- function() {
-  ctrl <- control()
-  ctrl$GSS_tol_abs <- 1e-12; ctrl$ci_abs_tol <- 1e-12
-  ctrl
-}
+# Tolerances via the shared helper (hard-won lesson #7): the reference must be
+# converged in BOTH families. This gate previously set only GSS_tol_abs/ci_abs_tol
+# and left ode_tol_rel/abs at their 1e-4 default, so its headline "9.8e-3 / 2.3e-3
+# offspring error" was measured against a reference carrying ~4e-3 of its own
+# time-integration error -- i.e. those figures were upper bounds on disagreement,
+# not measurements of mri_uptake's error, and were pessimistic.
+base_ctrl <- function() converged_control(ode_tol = 1e-6)
 build <- function(ctrl) {
   p0 <- scm_base_parameters("TF24"); p0$max_patch_lifetime <- 30
   p1 <- add_strategies(p0, trait_matrix(0.0825, "lma"), hyperpar = TF24_hyperpar,
@@ -34,13 +37,7 @@ ref <- run_offspring(build(base_ctrl()))
 cat(sprintf("rkck offspring: %s\n", paste(sprintf("%.8g", ref), collapse=", "))); flush(stdout())
 
 # --- mri_uptake: the arbitrage ------------------------------------------------
-cu <- base_ctrl()
-cu$ode_method <- "mri_uptake"
-cu$compute_uptake_jacobian <- TRUE
-cu$n_collocation_nodes <- 0
-cu$mri_uptake_tol <- 1e-2
-cu$mri_uptake_nmicro <- 40
-cu$ode_step_size_max <- 7 / 365      # cap macro legs at ~weekly (T4 freeze window)
+cu <- mri_uptake_control(days = 7, tol = 1e-2, nmicro = 40, ode_tol = 1e-6)
 mri_fast_rate_calls_reset(); mri_coupling_evals_reset()
 up <- run_offspring(build(cu))
 cheap  <- mri_fast_rate_calls_get()
