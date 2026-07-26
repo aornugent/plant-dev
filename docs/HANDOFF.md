@@ -286,9 +286,17 @@ its contract widens by one word (the structural change recorded for step k runs 
    entering-state adjoints back. `introduce_new_nodes` / `reset` / `set_ode_state` / `ode_state`
    are all public (`private:` starts at `patch.h:224`) and `set_ode_state(it, time)` re-establishes
    the whole invariant itself (`compute_environment(true)` + `compute_rates()`).
-   **Check first:** `set_ode_state` -> `compute_environment(true)` takes the *rescale* branch, so
-   verify a re-recorded segment reproduces the forward one before trusting any gradient -- that is
-   the one place the two passes could diverge structurally.
+   **MEASURED OBSTACLE -- a Patch is not fully restorable from `ode_state`.**
+   `docs/reference/segment-rerecord-probe.{cpp,R}` re-runs single segments from a stored state:
+   absolute agreement is tiny (1e-31 to 1e-15 on FF16) but the relative error grows ~16x per ten
+   segments on both K93 and FF16. Cause found: `Species::introduce_new_node(time, patch_density)`
+   **stamps each node with its introduction time and patch-age density at birth**, and neither is
+   in `ode_state`; they feed the lifetime-fitness terms. So the backward loop must restore the ODE
+   state **and those two stamps** per node. Both are known on the plain pass (the schedule entry
+   and `survival_weighting->density(t)`), so nothing is lost -- but a gradient built on
+   `set_ode_state` alone would be quietly wrong in a way that compounds down the run.
+   **Then** confirm the environment branch: `set_ode_state` -> `compute_environment(true)` takes
+   the *rescale* path, so verify a re-recorded segment reproduces the forward one to round-off.
    **Kill condition, with a number:** if a schedule policy pushes steps/segment high (the
    multirate finding would), peak rises with it and the unit must become the step -- which is the
    one change needing surgery inside `run_next_impl`. Until then, don't.

@@ -225,11 +225,27 @@ all public (`private:` starts at `patch.h:224`), and `set_ode_state(it, time)` r
 whole invariant itself — states, environment state, time, the finiteness check,
 `compute_environment(true)` and `compute_rates()`. So restoring a unit is one call.
 
-**The one risk to check first.** `set_ode_state` calls `compute_environment(true)`, which takes
-the *rescale* branch when `spline_rescale_usually` is set — reusing stretched nodes rather than
-re-refining. Both passes reach the environment through the same call, so they should agree; but
-verify a re-recorded segment reproduces the forward one **before** trusting a gradient, because
-this is the one place the two passes could diverge structurally.
+**A Patch is NOT fully restorable from `ode_state` — measured, and this is the real obstacle.**
+`docs/reference/segment-rerecord-probe.{cpp,R}` re-runs single segments from a stored state and
+compares them to the forward pass. Absolute agreement is tiny (1e-31 to 1e-15 on FF16) but the
+relative error **grows geometrically with segment index** — about 16x per ten segments, on both
+K93 and FF16. That is not round-off; it is a missing piece of state compounding.
+
+The missing piece: `Species::introduce_new_node(double time, double patch_density)` **stamps each
+node with its introduction time and the patch-age density at birth**, and neither is part of
+`ode_state`. They feed the lifetime-fitness terms. The probe reconstructed cohort counts by
+introducing at t=0, so every node got the wrong stamps — which is precisely what produced the
+compounding error, and is what a backward pass would have done too.
+
+So the backward loop must restore, per node, **the ODE state and those two stamps.** Nothing is
+lost: the introduction time is the node-schedule entry and the density is
+`survival_weighting->density(t)`, both known on the plain pass. But `set_ode_state` alone is not
+enough, and a gradient built on it would be quietly wrong in a way that grows down the run.
+
+**Then check the environment branch.** `set_ode_state` calls `compute_environment(true)`, which
+takes the *rescale* branch when `spline_rescale_usually` is set — reusing stretched nodes rather
+than re-refining. Both passes reach it through the same call so they should agree, but confirm a
+re-recorded segment reproduces the forward one to round-off **before** trusting a gradient.
 
 ## Kill condition
 
