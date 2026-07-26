@@ -146,6 +146,10 @@ that were false against HEAD. The build-status matrix (`build-plan.md`) exists p
   **Run Rscript from `/home/user/plant-dev`** — a `cd plant` in a prior Bash command
   leaves the shell there and `load_all("plant")` then fails ("no package called
   'plant'"); pass an explicit `cd /home/user/plant-dev &&`.
+- **`testthat` caps failures at 10 and prints the cap as if it were the total.** Session 20
+  reported "10 odelia loader errors"; the real number is **30**. Always
+  `testthat::set_max_fails(Inf)` before quoting a count, and get a baseline by *rebuilding*
+  the stashed tree, not by stashing source alone (installed headers do not revert).
 - **Commit messages via heredoc `-F -`** (inner double-quotes in `-m` break the shell).
 - **Don't over-conclude.** This session flipped between "detached edge" and "no
   detached edge" before the real cause (bad replay grid) surfaced. State findings as
@@ -285,7 +289,15 @@ FD-verify the full TF24/TF24f SCM gradient; the explicit `skip()` at
 signpost 6; **not** signpost 1, which §6e retired. Read `oracle/oracle-response-inner-argmax-adjoint.md` **before** designing the
 FD: tight-τ frozen-schedule reference, never a loose-τ swept plateau.
 
-### ▶ 6. NOW A LIVE CANDIDATE, not a deferral — task #35
+### ▶ 6. IN PROGRESS — task #35, the step-local adjoint
+**Step (1) of three is DONE and pushed** (session 21): the replay hook is now indexed,
+`replay_step(k)`, so a backward pass is expressible and neither System infers its
+position. **Step (2) is the next thing to do and it is a `system-design` question:** the
+driver's opaque `run()` must become an indexed "advance step k from state y". See
+`v3-step-local-adjoint.md` §3a — `soil_leaf`'s `Runner::run()` is the witness that makes
+this a contract change rather than a driver change, and it is the right first target
+*because* its `introduce()` calls are the hard case. **Do not write the driver before (2)
+is settled** — that is how the next session inherits a plausible, silent bug.
 The step-local adjoint (`v3-step-local-adjoint.md`). **The trigger has widened**: it was
 "TF24 wanted at `max_patch_lifetime` ≳ 40" on the assumption that leanness tops out at
 ~7.3× and closes FF16. §6e measured the crown and **C's ceiling is now ~3× (FF16) and ~5×
@@ -295,12 +307,25 @@ growing tape** rather than managing it. Its largest hidden cost: `least_squares`
 `get_history_step`, so it does **not** survive unchanged — convert it as part of that
 work, not after.
 
-### ⚑ 7. Owner is taking this: odelia's 10 loader errors
-`test-ad-{functional,jacobian,record-replay,tape-cache}.R` and `test-rodas.R` error out
-(10 total) from a loader problem, not from session 20's changes — but my baseline check
-was imperfect (stashing source does not revert installed headers), so treat
-"pre-existing" as probable, not proven. Given signpost 0's corollary, these deserve a
-look: same class of silence.
+### ⚑ 7. Owner is taking this: odelia's loader errors — **30, not 10**
+Session 21 re-measured with `set_max_fails(Inf)` and a properly rebuilt baseline: it is
+**30 errors / 211 pass / 3 skip**, identical with and without session 21's changes, so
+**"pre-existing" is now proven, not probable**. The earlier "10" was the max-fails cap
+being read as a total — the same class of silence as signpost 0's corollary, one level up.
+The symptom is missing RcppR6 R-level bindings (`object 'LorenzSystem' not found`,
+`could not find function Canopy_new`), spanning `test-euler`, `test-drivers`,
+`test-odeControl`, `test-example-{leaf,leaf-ad,lorenz}`, `test-ad-*` and `test-rodas`.
+**Consequence worth knowing:** the Canopy record/replay tests are among the dead ones, so
+the record→replay channel currently has **no running R-level witness** — which is why
+session 21 asserted `Replayable` at the definition instead of trusting the suite.
+
+### ▶ 8. Also live: plant's `test-mutant` 8 failures are pre-existing drift
+Measured identical (same numeric values, e.g. 0.09177 vs an expected 0.09125) against a
+fully rebuilt baseline. Not caused by session 21. They are seed-rain expectations that
+predate this branch's model changes; nobody has re-blessed them. Note the **full plant
+suite OOMs the box**, so it cannot be used as a gate — verify against the focused set
+session 21 used (`test-mutant`, `test-control`, `test-ad-k93-scm-gradient`,
+`test-scm-gradient-entry`, `test-scm-support`, `test-initial-state`, `test-ode-euler`).
 
 ---
 
