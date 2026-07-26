@@ -346,3 +346,54 @@ that is the state plant is in today.
 strategy setup. There is no adaptivity in the crown integral to keep off the tape, so there is no
 position set to cache and nothing to replay. The quadrature half of the concern is **vacuous**, and
 that is one fewer thing the design has to carry.
+
+
+---
+
+# Closed by measurement: the spline cannot be tamed for the query derivative
+
+The owner's tiebreaker is right and worth stating first: **the spline is what the forward model
+already uses, so it is the smaller change from vendored develop, and it should win if it can carry
+the derivative.** It cannot, and this is the number that settles it.
+
+`docs/reference/spline-tangent-probe.{cpp,R}` fits a spline to a 200-cohort stand at plant's own
+tolerances and compares `d(light)/dz` against the field's exact `sum a_p'(z) B_p`. Two fits: to the
+light `exp(-A)`, and to the optical depth `A` (which `ff16_environment.h` already notes "refines
+cleanly"), recovering `dE = -A' exp(-A)`.
+
+| tol | nodes (E / A) | mean slope reld (E / A) | max slope reld (E / A) | value err (E / A) |
+|---|---|---|---|---|
+| 1e-3 | 35 / 37 | 728 / 492 | 2.9e5 / 2.0e5 | 5.8e-4 / 3.9e-4 |
+| **1e-4** (production) | 45 / 61 | **9.50 / 2.27** | 3.8e3 / 8.9e2 | 2.0e-4 / 9.3e-5 |
+| 1e-5 | 103 / 157 | 0.120 / 0.023 | 36 / 2.5 | 4.4e-5 / 4.6e-5 |
+| 1e-6 | 311 / 511 | 9.7e-3 / 3.4e-3 | 1.14 / 0.42 | 3.4e-5 / 5.5e-6 |
+| 1e-8 | 3967 / 5155 | 6.8e-4 / 6.0e-4 | 0.133 / 0.162 | 1.8e-6 / 2.7e-6 |
+
+**At production tolerance the tangent is wrong by 950% (light) or 227% (depth), on average.** That
+is `plant#39`'s "unreliable, compounding slope", quantified. Fitting to the optical depth is
+consistently **2-4x better** on the mean — the intuition was right — and still nowhere near usable.
+Convergence is poor: from 1e-6 to 1e-8, a 100x tighter tolerance and 10x more nodes buys only 3-8x
+on the max.
+
+**The values are fine.** Value error tracks the fitting tolerance as designed, so nothing here
+argues against the spline as a source of *light*.
+
+**But value and slope cannot come from different constructs.** Reading `E` from the spline while
+taking `dE/dz` from the field gives a derivative that is not the derivative of the value being
+differentiated — the detached-derivative pattern this project already deleted once (the secant
+seam, `get_environment_slope_at_height`). Consistency forces one construct for both, and only one
+of them can carry the slope.
+
+**So the field earns its place on correctness, not on elegance**, and FF16's arrangement — field
+for the rate path — is now justified by measurement rather than assertion. The change-size argument
+is the right tiebreaker and it loses to a 227% error.
+
+**Consequence for the recommendation above:** giving TF24 the field is no longer a preference, it is
+the only way TF24's crown gets a correct `d(light)/d(height)` channel at all. TF24 reads
+`light_availability.get_value_at_height(height)` with an active height today, which means it is
+carrying exactly the tangent measured above.
+
+**What would reopen it:** a spline whose *derivative* is fitted rather than inherited — fit `A` and
+`A'` as a pair, or use a monotone Hermite form seeded with the exact `A'` at each node. That keeps
+one construct, keeps value and slope consistent, and could plausibly reach the accuracy the field
+has. Nobody has tried it; it is the only route left to the smaller change.
