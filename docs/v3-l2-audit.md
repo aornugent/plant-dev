@@ -147,3 +147,40 @@ path* — 1.24× is all that a real restructuring buys, which is the same story 
 (67 partials for a scalar output is that shape's information floor). What is accreted is the
 field's **coexistence with the spline**, not the field itself. So the target is the second
 construct, not the first.
+
+## TF24: why the clean IFT did not finish the job
+
+The expectation was one implicit-function lift around the leaf solve, and done. **The IFT is
+clean and it works** — `weibull_leaf` measured the solve-off-tape node at ~1.6k ops per solve,
+*exactly* independent of solver iterations, against ~26× for a naive on-tape solve that also
+returns a wrong zero gradient. Nothing about the inversion is the problem.
+
+Two structural facts explain the rest.
+
+**1. The IFT bounds cost per call; nothing bounds the call count.** `assemble_leaf_from`
+carries 2–3 `implicit_value` nodes (p\*, ci, psi_stem) and they live *inside* `ode_rates`, so
+they are instantiated `cohorts × stages × nodes` times per step — order 3 600 residual
+recordings at 200 cohorts and 6 stages — and each residual sums the resistance network over
+soil layers. "One IFT and done" would hold if the solve happened once per step. Memory was
+never the IFT's job, and no improvement to the inversion touches it. Only bounding the *run*
+does, which is the step-local adjoint.
+
+**2. TF24's environment carries ODE state, and FF16's does not.** `FF16_Environment` is a pure
+background (`ode_size() == 0`); `TF24_Environment` holds soil water as ODE state and computes
+its own rates from the depletion the leaves caused. So one object plays two roles with two
+different replay requirements — soil state is **L1**, solver-owned; the light spline is **L2**,
+System-owned — and the leaf node sits wedged between them, reading light and driving soil.
+That is the coupling, and it is why the leaf could not be reasoned about as one isolated
+inversion.
+
+**Consequence for the L2 decision, and it is the useful part:** TF24's memory problem is node
+*count* × run length. **L2 is not on that critical path at all.** So the L2 choice should be
+made on correctness and change-size grounds alone — which favours **keeping TF24 on the spline
+and building the missing L2 positions recording in odelia**, rather than restructuring TF24's
+model onto the field. The spline route touches the engine, where the primitive is genuinely
+missing; the field route touches the science, and buys no memory it does not already have.
+Fewer changes to reverse-mode-critical model code is the tie-breaker, and nothing measured
+here outweighs it.
+
+Unmeasured, and the confirming arithmetic for OPEN #2: node count per step × recorded residual
+body, via `PLANT_TAPE_STATS=1` with soil layers varied. Confirm before acting.
