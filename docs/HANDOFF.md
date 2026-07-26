@@ -160,6 +160,18 @@ that were false against HEAD. The build-status matrix (`build-plan.md`) exists p
     Looks green at 312 pass; the AD engine was never exercised.
   So a red count from `test_dir` and a green one from `test_local` are both meaningless.
   `AGENTS.md` → *Local Development* says this; read it before quoting any odelia count.
+- **THE TWO PACKAGES NEED OPPOSITE INVOCATIONS. This is a trap in both directions.**
+  - **odelia: `library()`, never `load_all()`** (above) — plant resolves odelia's compiled XAD
+    `Tape` symbols in `.onLoad`, so odelia must be a real install. `load_all` silently skips
+    the AD workflow.
+  - **plant: `pkgload::load_all("plant")`, not `library(plant)`.** Many of plant's tests call
+    **internal** functions — `Node`, `Parameters`, `trapezium` are NOT exported — so under
+    `library(plant)` + `test_file()` they fail with `could not find function "Node"`. That is
+    an invocation artifact, identical in kind to odelia's `test_dir` trap and just as
+    meaningless. `load_all` exposes internals; `make test` works because `test_check()` runs
+    tests with the package *namespace* as parent.
+  - So the working combination is: **install odelia, `load_all` plant.** Session 22 hit the
+    plant half of this and nearly recorded a green file as broken.
 - **`testthat` also caps failures at 10 and prints the cap as if it were the total** — use
   `testthat::set_max_fails(Inf)` before quoting any count. And baseline by *rebuilding* the
   stashed tree, not by stashing source alone (installed headers do not revert).
@@ -243,12 +255,33 @@ listed as PROVEN is a lead.**
 | `preaccumulate` should be deleted (zero production callers) | owner's call; it reverses session 20 |
 
 ### OPEN — the unfinished discovery, in priority order
-1. **Is there one good replayable L2 construct?** The owner's live question. `FF16_Environment`
-   currently carries **three light paths** (separable field / fitted spline / PPA stepping) and
-   **two derivative-stripping debug statics on a production class**
-   (`freeze_query_derivative`, `freeze_field_derivative`), plus a frozen query whose tangent is
-   supplied by a separate secant. Start from the code; §6c is **not** an answer (it weighed
-   bytes, not complexity).
+1. **Is there one good replayable L2 construct?** The owner's live question. **Session 22 read
+   the code and the inventory is SMALLER than session 21 claimed** — see the corrections below.
+   §6c is still **not** an answer (it weighed bytes, not complexity).
+
+   **Corrected inventory (grep-verified, session 22):**
+   - **`step_light` is not a third light path.** It wraps *both* branches of
+     `get_environment_at_height`, so it is one shared read-time transform, not an alternative
+     source. Session 21's "three light paths" was imprecise: there are **two sources and one
+     transform**.
+   - **The secant tangent channel was dead and is now DELETED** (33 lines): both
+     `get_environment_slope_at_height` wrappers plus `ResourceSpline::slope_at_height`, whose
+     only callers were those wrappers. It was a leftover of the removed dg/dh seam, and
+     `design.md`, `build-plan.md` and `deepening-6` all already prescribed deleting it in
+     favour of the field's exact `∂A/∂z`. **So "a frozen query whose tangent comes from a
+     separate secant" is no longer true of the code.**
+   - **The two `freeze_*` statics are diagnostic-only and live**: one caller,
+     `ff16_scm_gradient_driver.cpp`, which sets both per call for channel isolation. Not dead
+     — but they are mutable global switches on a production class, so correctness rests on
+     every entry point setting them.
+   - **The real asymmetry is three environments with three arrangements**, and this is the
+     question worth designing against: **K93** field-only (`field_supersedes_spline=true`, the
+     spline is never fitted); **FF16** field *and* a spline fitted every step
+     (`=false`); **TF24** spline-only, no field at all — so TF24's light carries no active
+     query-height derivative. **TF24 is also the strategy with the memory quagmire (#2 below).**
+   - **FF16's second source is not free to delete:** `light_availability` is an RcppR6-exposed
+     property and `patch.h:839` restores it via `r_init_interpolators`, so flipping FF16 to
+     `true` changes an R-visible surface. That is a design decision, not a cleanup.
 2. **Why did TF24's soil/leaf coupling become a memory problem** when it should have been a
    clean IFT after the solve? Unverified hypothesis: `implicit_value` keeps the *solve* off
    tape but still records the residual body once per call per layer per stage, so the IFT was
@@ -415,7 +448,14 @@ Part 1 rule above for the two invocation traps that produced the false counts. O
 came out of it: the `here` package was genuinely missing and every example test's path
 resolution needs it — installed. It was not the cause.
 
-### ▶ 8. Also live: plant's `test-mutant` 8 failures are pre-existing drift
+### ▶ 8. Also live: stale blessed numbers to re-bless (NOT a forward-model concern)
+`test-canopy-methods.R` fails 2 assertions (`16.88946` at :179, the soft-box/crown-centre
+difference at :116). **Dated, not debugged:** that number was blessed 2026-06-25; the shading
+model changed 2026-07-18/19/20 (the separable-field read, `CanopyShape` templated on S). The
+expectation predates the model by three weeks. Everything else in the focused set is green, so
+the forward model is fine — **these want re-blessing, same as `test-mutant` below.**
+
+### ▶ 8b. plant's `test-mutant` 8 failures are pre-existing drift
 Measured identical (same numeric values, e.g. 0.09177 vs an expected 0.09125) against a
 fully rebuilt baseline. Not caused by session 21. They are seed-rain expectations that
 predate this branch's model changes; nobody has re-blessed them. Note the **full plant
