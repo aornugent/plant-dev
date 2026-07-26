@@ -26,7 +26,8 @@ using namespace Rcpp;
 namespace {
 
 template <class Strat>
-Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
+Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every,
+                          bool settle_twice) {
   using Env = typename Strat::environment_type;
   using Patch = plant::Patch<Strat, Env>;
 
@@ -123,10 +124,15 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
     // values. The earlier version of this probe faked the widths and installed no
     // spline, which is what made it drift.
     plant::Patch<Strat, Env> unit(p, env, ctrl);
-    if (light_state[k].size() >= 6) {
+    // An environment that fits no spline (K93 reads the exact field) still needs
+    // SOMETHING for r_set_state to install, since init wants three points. A flat
+    // one is fine precisely because it is never read.
+    std::vector<double> light = light_state[k];
+    if (light.size() < 6) light = {0.0, 0.5, 1.0, 1.0, 1.0, 1.0};
+    if (true) {
       // plant's own restore: state, individuals per species, and the spline's nodes
       // and values. This is the piece the earlier version of this probe omitted.
-      unit.r_set_state(t_in[k], entering[k], counts[k], light_state[k]);
+      unit.r_set_state(t_in[k], entering[k], counts[k], light);
     } else {
       // Nothing to install: this environment fits no spline (K93 reads the exact
       // field), so the restore is the state and the cohort count alone.
@@ -147,6 +153,17 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
       unit.set_ode_state(entering[k].begin(), t_in[k]);
     }
     unit.introduce_new_nodes(added[k]);
+    // Settle once more before integrating. compute_environment runs BEFORE
+    // compute_rates inside set_ode_state, and the competition source weight is read
+    // from an aux slot that compute_rates writes -- so the first settle builds the
+    // field from whatever aux the fresh patch happened to hold, and only the second
+    // sees aux consistent with this state. Aux is not part of ode_state, so a rebuilt
+    // patch cannot inherit it.
+    if (settle_twice) {
+      std::vector<double> y_now(unit.ode_size());
+      unit.ode_state(y_now.begin());
+      unit.set_ode_state(y_now.begin(), t_in[k]);
+    }
 
     odelia::ode::Solver<Patch> solver(unit, plant::make_ode_control(ctrl));
     solver.set_collect(false);
@@ -226,9 +243,12 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
 
 // [[Rcpp::export]]
 Rcpp::List segment_rerecord_probe(std::string model = "K93", double birth_rate = 20.0,
-                                  double lifetime = 20.0, int probe_every = 10) {
+                                  double lifetime = 20.0, int probe_every = 10,
+                                  bool settle_twice = false) {
   if (model == "K93") {
-    return rerecord_probe<plant::K93_Strategy>(birth_rate, lifetime, probe_every);
+    return rerecord_probe<plant::K93_Strategy>(birth_rate, lifetime, probe_every,
+                                              settle_twice);
   }
-  return rerecord_probe<plant::FF16_Strategy>(birth_rate, lifetime, probe_every);
+  return rerecord_probe<plant::FF16_Strategy>(birth_rate, lifetime, probe_every,
+                                             settle_twice);
 }

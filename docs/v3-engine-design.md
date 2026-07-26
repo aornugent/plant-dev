@@ -235,38 +235,54 @@ design's core requirement, met on the anchor rather than on a toy.
 (K93 to 1.5e-5, FF16 to 1.7e-15 absolute). So a stored trajectory has to carry enough to
 reconstitute the entering patch, not merely its ODE state.
 
-**What is missing is NOT yet isolated, and three guesses were wrong.** Recording them so they are
-not retried:
-- *The per-node introduction-time / patch-density stamps.* **Retracted.** `ode_names()` shows
-  `offspring_produced_survival_weighted` *is* an ODE state, `patch_density_at_birth` is not, and
-  `Node::compute_rates` takes `pr_patch_survival` as an argument — so the stamps cannot affect the
-  ODE state the probe compares. They are read in exactly one load-bearing place,
-  `Node::weighted_fecundity`, which is the **R0/offspring** metric only: **census gradients do not
-  need them at all**, and where they are needed they are deterministic doubles recoverable from the
-  schedule (no disturbance derivative required).
-- *A stale first stage carried across the introduction (first-same-as-last).* **Refuted twice.**
-  Invalidating `dydt_in` on a width change changed **nothing**, and the reason is that
-  `set_state_from_system` already does `system.ode_rates(dydt_in.begin()); dydt_in_is_clean = true`
-  — the stage is refreshed from the system every time. The one-line "fix" was inert and was dropped.
-- *Spline path-dependence.* **Retracted, twice over.** The node-set comparison behind it was
-  malformed — it compared the forward spline *entering* a segment against the rebuilt one *leaving*
-  it, at different times, so it was never evidence. And restoring through plant's own
-  `Patch::r_set_state(time, state, counts, light_availability)`, which installs the node set and
-  values properly, **changed the drift not at all.** The reason is structural: on the rate path
-  both K93 and FF16 read the **exact separable field**, assembled from cohorts and a pure function
-  of state — not the spline. So the spline cannot be the cause for either model.
+**What is missing — ISOLATED.** Each node carries `pr_patch_survival_at_birth`, a plain double set
+at birth, **not part of `ode_state`**, and `Node::compute_rates` divides by it:
 
-**After four hypotheses, what `ode_state` fails to restore is still not isolated.** Ruled out by
-measurement: the node stamps, a stale first stage (twice), and the light spline. Still open, and
-each needs a targeted probe rather than a guess: a species' pending boundary node (`new_node`,
-which `introduce_new_nodes` pushes and which is recomputed by `compute_rates` — so it *should*
-match), and anything a cohort carries outside its ODE state that `compute_rates` does not
-recompute.
+    offspring_produced_survival_weighted_dt = ... * pr_patch_survival / pr_patch_survival_at_birth
 
-**The discipline for whoever picks this up:** the two regimes are measured and stable —
-whole-patch copy is **exact**, every from-scratch reconstruction drifts. Instrument the difference
-directly (diff the two patches member by member at a mid-run segment) instead of hypothesising a
-cause and testing it, which is what failed four times here. Do it before writing any backward loop.
+`node.h:74` says so in as many words — *"pr_patch_survival_at_birth feeds the fecundity rate"* —
+next to a parenthetical about the loaded ODE state. A reconstruction that introduces its cohorts at
+t = 0 gives every one of them `pr_patch_survival_at_birth = 1`, so every cohort's fecundity rate is
+wrong by `1 / pr_survival(t_birth)`. That is exactly the measured signature: **zero at segment 0**
+(one cohort, born at t = 0, correct) growing with segment index as more cohorts carry the error.
+
+**Everything a unit needs, then:** the ODE state, the per-species cohort counts, and per node
+`pr_patch_survival_at_birth`. For an R0 functional also `node_introduction_time` and
+`patch_density_at_birth`. **All are deterministic doubles recoverable from the schedule** — the
+birth time is the schedule entry and the rest follow from the disturbance regime — so no derivative
+is needed and nothing is lost. **plant already has the surface:** `Species::set_state(..., const
+std::vector<double>& pr_patch_survival)` and `Parameters::initial_pr_patch_survival` exist for
+exactly this.
+
+**And it has nothing to do with adaptive structure.** So the structure role in `Replayable` has no
+witness from this, and should be **deleted** rather than renamed — the outcome
+`v3-replayable-redesign.md` flags as strictly better.
+
+**How this was found, and the four wrong turns before it.** Recorded because the method matters
+more than the answer:
+- *The per-node stamps.* **Right in substance, refuted for the wrong reason.** `patch_density_at_birth`
+  really does feed only `weighted_fecundity` (a reduction) and `node_introduction_time` really is
+  inert for the rates — both checked correctly. The conclusion "stamps cannot affect the ODE state"
+  was then drawn without finding the **third** stamp, which is the one that does.
+- *A stale first stage (first-same-as-last).* **Refuted twice.** Invalidating `dydt_in` on a width
+  change changed nothing, because `set_state_from_system` already does
+  `system.ode_rates(dydt_in.begin()); dydt_in_is_clean = true`. The one-line "fix" was inert and was
+  dropped.
+- *Spline path-dependence.* **Refuted.** The node comparison behind it was malformed (forward
+  *entering* vs rebuilt *leaving*), and restoring the spline properly through
+  `Patch::r_set_state` changed the drift not at all — on the rate path both K93 and FF16 read the
+  exact field, not the spline.
+- *A lagged aux slot.* **Real, but not this.** `compute_environment` does run before `compute_rates`
+  inside `set_ode_state`, and the competition source weight is read from an aux slot the latter
+  writes — so the field at a stage is built from the previous stage's aux. Settling twice confirms
+  the lag is load-bearing for **FF16** (it makes the match *worse*, 1e-35 -> 1e-14, because the
+  forward pass uses the lagged value) and is irrelevant for **K93**. It is a genuine property of the
+  model worth knowing; it is not the drift.
+
+**The lesson, stated for the next session:** four hypotheses were tested and refuted before the
+answer came from *reading the consumer of a quantity* rather than guessing at causes. When two
+regimes are measured and stable — whole-patch copy exact, reconstruction drifting — diff the two
+objects member by member instead of proposing mechanisms.
 
 ## Kill condition
 
