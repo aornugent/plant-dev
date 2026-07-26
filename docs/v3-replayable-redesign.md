@@ -112,21 +112,25 @@ the same concept.
 
 ## What this makes hard
 
-- **It stores what could, in a different design, be derived.** A background refined from scratch
-  each step has a node set that *is* a function of state — proven this session, bit-identically.
-  This concept carries positions instead, because plant *inherits* them through `rescale_spline`
-  and so they are genuinely path-dependent. If `rescale_usually` were turned off, the saving
-  becomes redundant and the concept becomes dead weight for that System.
+- **It may store what could be derived, and that is not yet settled.** A background refined from
+  scratch each step has a node set that *is* a function of state — proven this session,
+  bit-identically. plant instead *inherits* its node set through `rescale_spline`, which makes it
+  path-dependent in principle. But installing the forward node set properly changed the measured
+  drift not at all, because on the rate path both K93 and FF16 read the exact field rather than the
+  spline. **So whether anything about the light structure needs saving at all is open.** The
+  concept's job may reduce to naming the hook and having no plant witness that needs it — in which
+  case it should not be built.
 - **It says nothing about how much structure.** A System could save something enormous per step
   and the concept would not object. The bound is a review matter, not a structural one.
 
 ## Kill condition
 
-**A background whose structure is refined from scratch on every step.** Then positions are
-derivable from state and nothing needs saving — the concept is unnecessary for that System, and
-`ReplaysStructure` should simply go unsatisfied rather than be implemented as a no-op. Which is
-also the honest statement of the fork in `v3-l2-audit.md`: cache positions, or stop inheriting
-them. This concept is the design for the first choice.
+**No System needs to save anything.** If the bisect shows that what a stored `ode_state` fails to
+restore has nothing to do with adaptive structure — and the spline result now points that way —
+then `ReplaysStructure` has no witness and should not be built. The R4 problem (a concept that
+cannot tell replaying from not replaying) would then be fixed by **deleting** the structure role
+from `Replayable` outright rather than by renaming it, which is a strictly better outcome and
+should be preferred if the evidence allows.
 
 ## Unverified before building
 
