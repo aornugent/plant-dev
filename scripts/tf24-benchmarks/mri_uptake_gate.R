@@ -20,7 +20,7 @@ cat("loaded\n"); flush(stdout())
 # offspring error" was measured against a reference carrying ~4e-3 of its own
 # time-integration error -- i.e. those figures were upper bounds on disagreement,
 # not measurements of mri_uptake's error, and were pessimistic.
-base_ctrl <- function() converged_control(ode_tol = 1e-6)
+base_ctrl <- function() converged_control(ode_tol = 1e-5)
 build <- function(ctrl) {
   p0 <- scm_base_parameters("TF24"); p0$max_patch_lifetime <- 30
   p1 <- add_strategies(p0, trait_matrix(0.0825, "lma"), hyperpar = TF24_hyperpar,
@@ -37,7 +37,7 @@ ref <- run_offspring(build(base_ctrl()))
 cat(sprintf("rkck offspring: %s\n", paste(sprintf("%.8g", ref), collapse=", "))); flush(stdout())
 
 # --- mri_uptake: the arbitrage ------------------------------------------------
-cu <- mri_uptake_control(days = 7, tol = 1e-2, nmicro = 40, ode_tol = 1e-6)
+cu <- mri_uptake_control(days = 7, tol = 1e-2, nmicro = 40, ode_tol = 1e-5)
 mri_fast_rate_calls_reset(); mri_coupling_evals_reset()
 up <- run_offspring(build(cu))
 cheap  <- mri_fast_rate_calls_get()
