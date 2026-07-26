@@ -169,7 +169,88 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 ---
 
-# PART 2 — CURRENT STATE + NEXT STEPS (rewritten session 17, 2026-07-24)
+# PART 2 — CURRENT STATE + NEXT STEPS (rewritten session 19, 2026-07-25)
+
+## READ THIS FIRST: the rule that cost session 19
+**Never give a deduced return type to a function or lambda that returns an AD
+value.** XAD operators return *expression templates* holding references to their
+operands. A deduced return type therefore hands the caller references to
+temporaries and by-value parameters that are destroyed on return; the caller
+materialises a dangling expression, records reused stack bytes as a tape operand
+slot, and the reverse sweep segfaults arbitrarily far from the cause. **valgrind
+cannot detect it** — the dangling storage is stack, not heap.
+
+    // BAD  -- returns a dangling expression template
+    auto anchor = [](double v, S x) { return S(v) + (x - to_passive(x)); };
+    // GOOD -- materialised while its operands are alive
+    auto anchor = [](double v, const S& x) -> S { return graft_value<S>(v, x); };
+
+This single line was the TF24 interior-p\* reverse-sweep segfault. Because the
+corruption depended on stack layout, turning almost anything else off made it
+"disappear" — freezing p\*, dropping the nested `implicit_value` nodes, removing
+`soil_uptake`, de-statefulling the double solvers. All four looked like leads; none
+was the cause. **If you meet a garbage tape slot, suspect a dangling AD expression
+before suspecting XAD.** Defences: `odelia::util::graft_value` owns the graft
+idiom; `implicit_value` static_asserts its residual returns `S` exactly;
+`AGENTS.md` → "Never (code)"; and `odelia/inst/examples/pstar_ode_reprex_interface.cpp`
+reproduces it on demand (`graft=2`) with the full forensic account in its header.
+
+## THE NEXT TASK: v3 Phase 1 Steps 3 and 4 — see [`v3-phase1-plan.md`](./v3-phase1-plan.md)
+Steps 1 and 2 are **done and verified**; the plan carries the executable detail for
+what remains, with measured targets. In short:
+- **Step 3** — fold the TF24f tracked collar into `assemble_leaf_from`. Start with
+  3a (delete `seam_collar_psi_partial`/`seam_collar_uptake_partials`, now provably
+  dead), then 3b (fold the one live `seam_collar_psi_input` use), then **3c: close
+  the measured 2.9e-4 δ-independent residual** in `test-ad-tf24f-collar.R` at
+  ψ=2.5 (1 failing assertion of 3). The plan gives the per-channel diagnostic and
+  three ranked hypotheses, clamping first. Do not loosen the tolerance — the gap is
+  δ-independent, so it is a real term.
+- **Step 4** — **do 4d FIRST: tape memory is now a real blocker.** Measured
+  `PLANT_TAPE_STATS=1`: 4.44 GB at `life=1`, 7.01 GB at `life=2`, 9.20 GB at
+  `life=3`, **OOM-killed at `life=4`** — which is what `test-ad-tf24-scm-gradient.R`
+  test 1 uses, so that test is *killed*, not slow. ~34 MB/step, linear. Cause:
+  deleting the seam removed what bounded the run tape (it recorded the leaf on a
+  throwaway local tape and injected only O(#inputs) nodes per step; now the whole
+  assembly is recorded every stage × cohort × step). **Do not reinstate the seam** —
+  the plan lists the options, XAD checkpointing first (`chkpt=0` today, i.e. the
+  checkpoint API is entirely unused), then cutting the p\* central difference's
+  double recording. Then 4a (delete odelia's now-uncalled `supplied_derivative.hpp`
+  + example/test, clean 8 stale plant comments), 4b residual accretion, and **4c the
+  closing gate**: FD-verify the full TF24/TF24f SCM gradient (task #27), an explicit
+  `skip()` at `test-ad-tf24-scm-gradient.R:85` awaiting the tight-τ frozen-schedule
+  reference. Read `oracle/oracle-response-inner-argmax-adjoint.md` before designing
+  that FD.
+
+## Where we are: the TF24 reverse gradient WORKS
+- **Gate-0 FD-matches on all 7 channels** (`vcmax_25`, `jmax_25`, `K_s`, `k_I`,
+  `lma`, `rho`, `a_l1`) — `test-ad-gate0-tf24.R`, 7 assertions.
+- TF24 soil-coupling (3) and light-coupling (6) AD tests pass; tf24f
+  collar-uptake (11) passes; the active run reproduces the double trajectory
+  exactly; the double path is bit-identical (`test-leaf` 214, `test-strategy-tf24`
+  46, `test-strategy-tf24f` 57).
+- **Known open:** the tf24f collar residual (Step 3c) and the SCM FD gate (4c).
+  `test-ad-tf24-scm-gradient.R` test 1 is slow (many minutes) — budget for it
+  rather than assuming a hang.
+- The seam is deleted and `leaf_output` is absorbed into `Leaf` as scalar-generic
+  member templates; leaf-surface drift vs the DX bar went **+796 → +577**, with
+  `leaf_model.cpp` now *below* base.
+
+## New this session, reusable
+- **`odelia::util::graft_value(v, x)`** — the value-graft as a primitive (value from
+  a converged double, derivative from the active expression), so the trap above is
+  unreachable through it.
+- **`pstar_ode_reprex`** (`odelia/inst/examples/`, `test-ad-pstar-ode-reprex.R`) —
+  a plant-free, knob-driven harness for the nested interior-optimum composition.
+  **Use it before any plant rebuild** when a leaf-AD question can be posed
+  plant-free: seconds per config vs ~6 minutes. Knobs: `use_pstar`, `nest`,
+  `n_steps`, `nlayer`, `persist`, `nfields`, `graft`.
+- **`implicit_value` hardening** — pauses recording during its double `dF/dy` probe
+  (no orphan nodes) and static_asserts the residual's return type. This caught 17
+  latent dangling lambdas in odelia's own examples.
+
+---
+
+# PART 2 (ARCHIVE) — state as of session 17, 2026-07-24
 
 Per-session history for sessions 1–16 is in
 [`archive/handoff-part2-sessions-1-16.md`](./archive/handoff-part2-sessions-1-16.md).
@@ -208,7 +289,7 @@ witnessed is only the *simultaneous* composition at full SCM scale (light field 
 density transport + census + soil, over many cohort-steps on TF24) — that is an
 integration checkpoint the plant wiring itself exercises, not a design gap.
 
-## THE NEXT TASK: wire TF24 onto the primitives — see [`v3-phase1-plan.md`](./v3-phase1-plan.md)
+## (SUPERSEDED — this was session 18's next task; Steps 1-2 are now done. Kept for the rationale only.) Wire TF24 onto the primitives
 Session 18 revised the wiring plan after three investigations (code review, git
 archaeology, the `leaf_output` design decision). **The executable sequence is now
 [`v3-phase1-plan.md`](./v3-phase1-plan.md)** — read it, not the old 6-step list that
