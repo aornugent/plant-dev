@@ -292,12 +292,21 @@ FD: tight-τ frozen-schedule reference, never a loose-τ swept plateau.
 ### ▶ 6. IN PROGRESS — task #35, the step-local adjoint
 **Step (1) of three is DONE and pushed** (session 21): the replay hook is now indexed,
 `replay_step(k)`, so a backward pass is expressible and neither System infers its
-position. **Step (2) is the next thing to do and it is a `system-design` question:** the
-driver's opaque `run()` must become an indexed "advance step k from state y". See
-`v3-step-local-adjoint.md` §3a — `soil_leaf`'s `Runner::run()` is the witness that makes
-this a contract change rather than a driver change, and it is the right first target
-*because* its `introduce()` calls are the hard case. **Do not write the driver before (2)
-is settled** — that is how the next session inherits a plausible, silent bug.
+position. **Step (2) is DONE too** — the contract is settled in `v3-step-local-adjoint.md` §3b/§3b-i:
+the unit is the **event segment** (measured at **1.10–1.34 ODE steps**, because the SCM
+introduces at nearly every step, so memory has 27–36× of margin either way and concept
+count decides), and **`run()` becomes derived** — `for (k) replay_unit(k)` — so there is one
+replay path rather than a second control flow. Three members: `unit_count()`,
+`replay_unit(k)`, `set_trajectory(...)`, the last joining the existing hand-over family
+(L1 schedule, L2/L3 recording, and now the recorded state trajectory — which
+`Solver::history` already is).
+
+**Step (3) is code, and the order matters.** Add the three members to odelia's `Solver`,
+re-express `run()` as the loop, mirror on `soil_leaf::Runner` — then **verify the existing
+gradient is bit-identical from the `run()` re-expression alone, before the driver exists**.
+That isolates "the loop is the same loop" from "the adjoint is right"; conflating them is how
+a wrong adjoint gets blamed on the refactor. Only then write the driver, `soil_leaf` first
+(§7's ladder), whose `introduce()` calls are the hard case and therefore the right witness.
 The step-local adjoint (`v3-step-local-adjoint.md`). **The trigger has widened**: it was
 "TF24 wanted at `max_patch_lifetime` ≳ 40" on the assumption that leanness tops out at
 ~7.3× and closes FF16. §6e measured the crown and **C's ceiling is now ~3× (FF16) and ~5×
