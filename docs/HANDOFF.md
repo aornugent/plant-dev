@@ -146,10 +146,23 @@ that were false against HEAD. The build-status matrix (`build-plan.md`) exists p
   **Run Rscript from `/home/user/plant-dev`** — a `cd plant` in a prior Bash command
   leaves the shell there and `load_all("plant")` then fails ("no package called
   'plant'"); pass an explicit `cd /home/user/plant-dev &&`.
-- **`testthat` caps failures at 10 and prints the cap as if it were the total.** Session 20
-  reported "10 odelia loader errors"; the real number is **30**. Always
-  `testthat::set_max_fails(Inf)` before quoting a count, and get a baseline by *rebuilding*
-  the stashed tree, not by stashing source alone (installed headers do not revert).
+- **RUN ODELIA'S SUITE WITH `cd odelia && make test`. Nothing else is a gate.** Sessions 20
+  and 21 both reported large numbers of odelia "loader errors" (10, then 30). **Both were
+  invocation artifacts and odelia is green: `make test` gives 0 fail / 467 pass / 3 skip.**
+  The two traps, and they fail in opposite directions:
+  - `testthat::test_dir()` **does not attach the package**, so every exported object reads as
+    missing (`object 'LorenzSystem' not found`, `could not find function Canopy_new`). Looks
+    like 30 broken tests; means nothing.
+  - `testthat::test_local()` / `pkgload::load_all()` **silently skips the entire AD
+    workflow** — the tests self-skip with "native-pointer lifecycle unstable under
+    load_all", by design, because `AGENTS.md` requires odelia be loaded with `library()`
+    from a real install (plant resolves odelia's compiled XAD `Tape` symbols in `.onLoad`).
+    Looks green at 312 pass; the AD engine was never exercised.
+  So a red count from `test_dir` and a green one from `test_local` are both meaningless.
+  `AGENTS.md` → *Local Development* says this; read it before quoting any odelia count.
+- **`testthat` also caps failures at 10 and prints the cap as if it were the total** — use
+  `testthat::set_max_fails(Inf)` before quoting any count. And baseline by *rebuilding* the
+  stashed tree, not by stashing source alone (installed headers do not revert).
 - **Commit messages via heredoc `-F -`** (inner double-quotes in `-m` break the shell).
 - **Don't over-conclude.** This session flipped between "detached edge" and "no
   detached edge" before the real cause (bad replay grid) surfaced. State findings as
@@ -325,17 +338,12 @@ exists**; then the driver. Five open checks are listed at the end of §3d — `r
 staying the sole decider of L0, the `complete()`/resume branch, `run_mutant`'s
 `environment_history`, multi-species lists, and the re-sync price.
 
-### ⚑ 7. Owner is taking this: odelia's loader errors — **30, not 10**
-Session 21 re-measured with `set_max_fails(Inf)` and a properly rebuilt baseline: it is
-**30 errors / 211 pass / 3 skip**, identical with and without session 21's changes, so
-**"pre-existing" is now proven, not probable**. The earlier "10" was the max-fails cap
-being read as a total — the same class of silence as signpost 0's corollary, one level up.
-The symptom is missing RcppR6 R-level bindings (`object 'LorenzSystem' not found`,
-`could not find function Canopy_new`), spanning `test-euler`, `test-drivers`,
-`test-odeControl`, `test-example-{leaf,leaf-ad,lorenz}`, `test-ad-*` and `test-rodas`.
-**Consequence worth knowing:** the Canopy record/replay tests are among the dead ones, so
-the record→replay channel currently has **no running R-level witness** — which is why
-session 21 asserted `Replayable` at the definition instead of trusting the suite.
+### ✓ 7. RESOLVED, not owed: odelia is green
+Sessions 20 and 21 both mis-reported odelia's suite as broken (10, then 30 "loader errors").
+**`cd odelia && make test` → 0 fail / 467 pass / 3 skip**, AD workflow included. See the
+Part 1 rule above for the two invocation traps that produced the false counts. One real fix
+came out of it: the `here` package was genuinely missing and every example test's path
+resolution needs it — installed. It was not the cause.
 
 ### ▶ 8. Also live: plant's `test-mutant` 8 failures are pre-existing drift
 Measured identical (same numeric values, e.g. 0.09177 vs an expected 0.09125) against a
