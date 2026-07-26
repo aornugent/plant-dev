@@ -282,3 +282,67 @@ environment is touched.
 ### Scale of the accretion, for reference
 The TF24 leaf diff against develop is **+1 139 / −454** — `tf24_strategy.cpp` +950,
 `tf24_environment.h` +248, `leaf_model.h` +240.
+
+
+---
+
+# Correction (owner, session 22): the original plan was to cache positions, and for plant it is right
+
+The owner's steer: *"our original plan was not to refine on active — we refine during the adaptive
+RK solve and cache positions for subsequent replay. Same goes for quadrature — replay is exact, and
+its purpose is to avoid adaptivity on the tape, but I've been confused about why it's so expensive
+when we move to reverse mode. We know the positions and just need to rebuild the values in active
+type."*
+
+Both halves are right, and the second half now has a measured answer.
+
+## Why reverse mode was expensive: plant never cached, and refining on tape re-solved
+
+`ResourceSpline::construct_spline` calls `spline.construct(f, ...)` with `f` returning the working
+scalar. On a replay pass that means **re-refining on the active scalar at every step** — the cache
+was never built, so the replay does refinement work the design says it should not do.
+
+And refining on the active scalar was *itself* far more expensive than it looks: the refiner
+predicted each trial midpoint with the interpolant it was building, so it **re-solved the
+coefficient band on active values once per refinement pass and recorded every solve**. Measured
+**6.66x** the tape for identical nodes, values and derivatives. That is the answer to the
+confusion: the cost was not the values, it was the repeated solves behind the prediction.
+
+That is now fixed in the refiner — the predictor is plain-valued, bringing `construct` to **1.13x**
+of the floor (build directly on known nodes). So *the tape cost of not caching is gone*. What
+caching still buys is **refinement time**, which for plant is real: the target sums over every
+cohort.
+
+## Where this audit was wrong: plant's positions are NOT derivable, because plant inherits them
+
+This audit concluded that L2 recording is unnecessary, on the strength of a probe showing an
+adaptive node set is bit-identical whether refined plain or active. **That probe refines from
+scratch.** plant does not: `compute_environment(rescale = true)` takes `rescale_spline`, which
+**stretches the previous node set** rather than re-refining. So plant's node set at step k is a
+function of the whole history of rescales — **path-dependent, and not recoverable from step-k
+state.**
+
+Measured, on the segment re-record probe: a patch rebuilt from stored state chooses **different
+spline node positions** from the forward pass (FF16, same count 33 early, positions differing; by
+segment 80/90 the counts diverge too, 33 vs 35 and 43 vs 67).
+
+**So for plant, positions must be carried — the original plan.** Two ways to satisfy it, and the
+choice is a real fork:
+
+| | what it does | cost |
+|---|---|---|
+| **cache positions** (the original plan) | the plain pass records the node set per step; the replay calls `init` on it | one `vector<double>` per step (~50 nodes x 8 B x steps, tens of kB) |
+| **stop inheriting** (`rescale_usually = false`) | every step re-refines from scratch, so the node set becomes a pure function of state and is derivable | a full refinement per step, and the target sums over all cohorts |
+
+The first is what the owner designed and is cheaper in time. The second needs no stored state and
+satisfies "no storing what can be derived" — but only because it *makes* it derivable, by paying
+for refinement. **Either is defensible; inheriting positions while not caching them is not**, and
+that is the state plant is in today.
+
+## Quadrature needs nothing: the rule is already fixed
+
+`FF16_Strategy::assimilation_...` integrates with `quadrature::QK`, whose nodes are
+`centre +/- half_length * xgk[j]` — a deterministic affine map of a **fixed** rule, chosen at
+strategy setup. There is no adaptivity in the crown integral to keep off the tape, so there is no
+position set to cache and nothing to replay. The quadrature half of the concern is **vacuous**, and
+that is one fewer thing the design has to carry.
