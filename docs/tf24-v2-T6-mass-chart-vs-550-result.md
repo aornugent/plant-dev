@@ -165,8 +165,9 @@ accuracy floor at a non-smooth feature — a controlled stop, not a blow-up.)
 | **1e-6** | **completes** (538 s), offspring 3.8230283e-08 |
 
 So one of the three "crashing" bank traces is not crashing on the model at all — it is crashing on the
-integrator's tolerance. `long_horizon` at 1e-6 is the third data point and should be added here when it
-lands.
+integrator's tolerance. **`long_horizon` at 1e-6 was not run** (stopped for time; the 70 yr horizon at a
+100× tighter tolerance is a long run). It is the obvious next data point, and `bank_trace.R` takes it
+directly: `Rscript scripts/tf24-mass-chart/bank_trace.R long_horizon 1e-6 plant`.
 
 ## 6. Result E — the abort time is not reproducible under floating-point reassociation
 
