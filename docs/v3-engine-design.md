@@ -202,13 +202,34 @@ introductions, would — peak tape rises with it and the unit must become the st
 one change that requires reaching inside `SCM::run_next_impl` to split `advance_fixed(e.times)`
 into its individual steps. Until then, don't.
 
-**What is unbuilt, precisely.** Two pieces, both inside `scm_gradient.h`, both using SCM's
-existing public surface:
-1. a plain pass that stores, per segment, the patch state **entering** the segment
-   (pre-introduction, so the introduction is re-recorded inside the unit); and
-2. a backward loop over segments: fresh tape, register the stored state and the seeded targets,
-   restore, introduce, `advance_fixed(e.times)`, seed the output adjoints, sweep once per output
-   row, carry the entering-state adjoints back.
+**What is unbuilt, precisely — and every piece it needs is already public.**
+
+*Forward, through the SCM.* `refine_schedule()`, then `schedule = recorded_steps()`, then loop
+`run_next()`. Per segment record three things: the patch state **entering** it (that is just
+`r_patch()`'s state after the *previous* `run_next()`, so it is pre-introduction and the
+introduction gets re-recorded inside the unit), the species indices `run_next()` returns, and the
+segment's slice of `schedule` — derivable, because every introduction time lies on the ODE grid
+(100%, measured above).
+
+*Backward, driving the Patch directly — not the SCM.* This is the part that avoids new surface.
+The SCM cannot be positioned at segment `k` (its `node_schedule` has no seek), but it does not
+need to be: the unit is a Patch plus a Solver, exactly as the spike is a Toy plus a Solver. Lift
+once with `scm.rebind_from<RevS>()` and take the active Patch from `get_system_ref()` as a
+configuration mould; then per segment, on a fresh tape, copy the mould,
+`set_ode_state(stored[k], t_k)`, `introduce_new_nodes(species[k])`, build
+`odelia::ode::Solver<active_patch>`, `advance_fixed(times[k])`, seed the output adjoints, sweep
+once per output row, and carry the entering-state adjoints back.
+
+`Patch::introduce_new_nodes`, `Patch::reset`, `Patch::set_ode_state` and `Patch::ode_state` are
+all public (`private:` starts at `patch.h:224`), and `set_ode_state(it, time)` re-establishes the
+whole invariant itself — states, environment state, time, the finiteness check,
+`compute_environment(true)` and `compute_rates()`. So restoring a unit is one call.
+
+**The one risk to check first.** `set_ode_state` calls `compute_environment(true)`, which takes
+the *rescale* branch when `spline_rescale_usually` is set — reusing stretched nodes rather than
+re-refining. Both passes reach the environment through the same call, so they should agree; but
+verify a re-recorded segment reproduces the forward one **before** trusting a gradient, because
+this is the one place the two passes could diverge structurally.
 
 ## Kill condition
 

@@ -274,10 +274,21 @@ its contract widens by one word (the structural change recorded for step k runs 
    the unit is the **event segment**, and measured steps/segment is **1.22-1.23 (K93) / 1.72-1.87
    (FF16)** on both default and refined schedules, with L0 on L1 at 100% (141/141, 233/233,
    141/141, 161/161). A peak within 1.9x of ideal step granularity is nothing against 130-438x.
-   Two pieces, both inside `scm_gradient.h`: (a) a plain pass storing the patch state *entering*
-   each segment, pre-introduction; (b) a backward loop over segments -- fresh tape, register the
-   stored state and the seeded targets, restore, introduce, `advance_fixed(e.times)`, seed the
-   output adjoints, sweep per row, carry the entering-state adjoints back.
+   **Forward** through the SCM (`refine_schedule` -> `recorded_steps` -> loop `run_next()`),
+   recording per segment: the state entering it (= `r_patch()`'s state after the *previous*
+   `run_next()`, so pre-introduction), the species `run_next()` returns, and that segment's slice
+   of the schedule. **Backward drives the Patch directly, not the SCM** -- the SCM has no
+   `node_schedule` seek and does not need one, because a unit is a Patch plus a Solver just as
+   the spike's unit is a Toy plus a Solver. Lift once via `rebind_from<RevS>()`, take the active
+   Patch from `get_system_ref()` as a mould, then per segment on a fresh tape: copy the mould,
+   `set_ode_state(stored[k], t_k)`, `introduce_new_nodes(species[k])`, build
+   `odelia::ode::Solver<active_patch>`, `advance_fixed(times[k])`, sweep per output row, carry the
+   entering-state adjoints back. `introduce_new_nodes` / `reset` / `set_ode_state` / `ode_state`
+   are all public (`private:` starts at `patch.h:224`) and `set_ode_state(it, time)` re-establishes
+   the whole invariant itself (`compute_environment(true)` + `compute_rates()`).
+   **Check first:** `set_ode_state` -> `compute_environment(true)` takes the *rescale* branch, so
+   verify a re-recorded segment reproduces the forward one before trusting any gradient -- that is
+   the one place the two passes could diverge structurally.
    **Kill condition, with a number:** if a schedule policy pushes steps/segment high (the
    multirate finding would), peak rises with it and the unit must become the step -- which is the
    one change needing surgery inside `run_next_impl`. Until then, don't.
