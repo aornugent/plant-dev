@@ -1,6 +1,11 @@
 # Step-local adjoint — the deferred engine change, in implementation detail
 
-**Status: DEFERRED, designed, not built.** The decision to defer is deliberate and
+**Status: the algorithm is PROVEN (§3e); the contract is DESIGNED but BELIEVED, not settled;
+the boundary is DELIBERATELY UNCOMMITTED.** Read §3e first (measurement), then §3c/§3d
+(current design), and treat §3b as dead text. The confidence grading for all of it is the
+session-21 ledger at the top of [`HANDOFF.md`](./HANDOFF.md) PART 2.
+
+**Original status line:** The decision to defer is deliberate and
 recorded in §0. The design search that selected it is
 [`v3-reverse-memory-design.md`](./v3-reverse-memory-design.md); this document is the
 implementation-level record so the work can be picked up cold.
@@ -241,7 +246,13 @@ becomes correct after all. The ratio is 10 000× today; it is the number to watc
 
 ---
 
-## 3b. Step (2) settled: the unit is the event segment, and `run()` becomes derived
+## 3b. DEAD TEXT — the event-segment unit, RETRACTED in §3c
+> **Retracted. Kept only for the derivation, not the conclusion.** Its measurement
+> (1.10–1.34 ODE steps per segment) is real but measures a *schedule policy*, not the model,
+> and §3e then measured the segment unit's peak tape at 26× the step unit's. Read §3c/§3d for
+> what replaced it. Do not cite anything below this line as current.
+
+### (retracted) Step (2) settled: the unit is the event segment, and `run()` becomes derived
 
 `system-design`, session 21. **Triage 2** — a contract member on the interface every
 differentiable System presents.

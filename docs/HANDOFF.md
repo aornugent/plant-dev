@@ -213,6 +213,69 @@ suspecting XAD.** Defences: `odelia::util::graft_value`, that `static_assert`,
 `test-scm-gradient-entry.R` had silently stopped running 11 FD-verified assertions.
 When a gradient test "passes", check it did not skip.
 
+## SESSION 21 CONFIDENCE LEDGER — read this before any design section
+
+This session produced a lot of design prose and then refuted some of its own. Rather than
+trust the prose, here is every claim graded by the rule in
+[`v3-evidence-triage.md`](./v3-evidence-triage.md), applied to itself. **A design section not
+listed as PROVEN is a lead.**
+
+### PROVEN — re-runnable, cite the command
+| claim | evidence |
+|---|---|
+| Step-local sweep is exact to round-off (1e-15…1e-14) on a growing-dimension System, against a whole-run tape, an FD, and a closed form | `cd odelia && make test`; `test-ad-step-local.R`, 25 assertions |
+| **Peak tape is flat in run length**: 3 792 B at nstep 10/20/40/80 while the whole-run tape grows 53 300 → 419 540 B | same |
+| A structural change placed **between** units loses the newborn IC adjoint — **19% error, silent**, right sign | same |
+| **A constant-IC toy cannot detect that**, and both existing toys have constant ICs while plant's newborn density reads the stand | same |
+| The light-field read is **66%** of the FF16 crown tape; boundary A = **1.49×**, boundary D = **3.7×**; all channels agree to round-off | `NOT_CRAN=true Rscript docs/reference/crown-preaccum-probe.R` |
+| FF16's crown reads the **separable field with an active query height**, not `get_value_at_height_frozen_query` | same probe; `ff16_environment.h` `field_optical_depth` |
+| **L0 ⊆ L1**: every introduction time lies on the resolved ODE grid (93/93, 108/108) | inline R, §3c |
+| odelia is **green: 0 fail / 467 pass / 3 skip** | `cd odelia && make test` |
+| The XAD tape byte model `12·ops + 8·stmts + 8·slots` is exact | crown probe reproduces 12 764 B to the byte |
+
+### BELIEVED — the design, and what would settle each
+| claim | what would settle it |
+|---|---|
+| **L0 should be the fourth recorded layer** (`replay_structure(k)`), unit = one ODE step (§3c/§3d) | the L2 audit, plus a toy with a **coupled IC** and an **out-of-order L2 read** |
+| `run()` derived from a unit loop is a net DX win | do it in plant, count concepts deleted vs added |
+| The unconditional post-hook state re-sync is acceptable | price one state copy per step on a System that never grows |
+| Leanness (option C) tops out at ~3× (FF16) / ~5× (TF24) | arithmetic over measured pieces; not measured end-to-end |
+| `preaccumulate` should be deleted (zero production callers) | owner's call; it reverses session 20 |
+
+### OPEN — the unfinished discovery, in priority order
+1. **Is there one good replayable L2 construct?** The owner's live question. `FF16_Environment`
+   currently carries **three light paths** (separable field / fitted spline / PPA stepping) and
+   **two derivative-stripping debug statics on a production class**
+   (`freeze_query_derivative`, `freeze_field_derivative`), plus a frozen query whose tangent is
+   supplied by a separate secant. Start from the code; §6c is **not** an answer (it weighed
+   bytes, not complexity).
+2. **Why did TF24's soil/leaf coupling become a memory problem** when it should have been a
+   clean IFT after the solve? Unverified hypothesis: `implicit_value` keeps the *solve* off
+   tape but still records the residual body once per call per layer per stage, so the IFT was
+   clean and the cost is everything around it. **Confirm before acting.**
+3. **Stress axes not run** (§3e): an L2/L3 recording read out of order (`CanopySystem`, from
+   C++ — its R bindings self-skip); an `implicit_value` node re-recorded per unit; m > 1
+   outputs; bit-determinism of a re-recorded unit (§4.3's invariant); one tape reused via
+   `resetTo` instead of a fresh tape per unit.
+4. #32 (collar 2.9e-4), #27 (the FD gate).
+
+### REFUTED — do not re-derive these
+- §6d's crown estimates (2.7× / 12×) → measured 1.49× / 3.7× (§6e).
+- §3b's **event-segment unit** → retracted (§3c); its 1.10–1.34 ratio measures a schedule
+  policy, not the model. **§3b is dead text kept only for the derivation.**
+- "odelia has 10 / 30 loader errors" → invocation artifacts, both times.
+- The handoff's own precondition that FF16's crown reads a frozen-query spline.
+- (Earlier) session 19's attribution of the OOM to the deleted seam.
+
+### DELIBERATELY UNCOMMITTED — do not "finish" this without the L2 audit
+The step-local spike **keeps its backward loop in the example file, not in odelia**, and
+drives the Solver only through members that already exist. That is a choice, not an
+omission: it means the algorithm is proven while **the boundary is still free to move**, so
+the L2 audit can decide where the seam belongs. Moving the loop into odelia — or adding
+`replay_structure`, `unit_count`, `set_trajectory` — before that audit is the one thing that
+would waste this session's work, because it commits the interface on the strength of a
+BELIEVED row.
+
 ## Before reading the corpus: [`v3-evidence-triage.md`](./v3-evidence-triage.md)
 24 design docs, deepenings and Oracle consults exist and they are **not clean signal** —
 some were superseded by refutations, some were always estimate dressed as measurement. That
