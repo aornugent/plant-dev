@@ -292,29 +292,38 @@ FD: tight-τ frozen-schedule reference, never a loose-τ swept plateau.
 ### ▶ 6. IN PROGRESS — task #35, the step-local adjoint
 **Step (1) of three is DONE and pushed** (session 21): the replay hook is now indexed,
 `replay_step(k)`, so a backward pass is expressible and neither System infers its
-position. **Step (2) is DONE too** — the contract is settled in `v3-step-local-adjoint.md` §3b/§3b-i:
-the unit is the **event segment** (measured at **1.10–1.34 ODE steps**, because the SCM
-introduces at nearly every step, so memory has 27–36× of margin either way and concept
-count decides), and **`run()` becomes derived** — `for (k) replay_unit(k)` — so there is one
-replay path rather than a second control flow. Three members: `unit_count()`,
-`replay_unit(k)`, `set_trajectory(...)`, the last joining the existing hand-over family
-(L1 schedule, L2/L3 recording, and now the recorded state trajectory — which
-`Solver::history` already is).
+position. **Step (2) was settled and then RETRACTED and re-settled — read §3c and §3d, not §3b.**
+§3b chose the event segment as the unit on a measured 1.10–1.34 ODE steps per segment. That
+ratio is a property of **one schedule choice, and it is known to be a poor one**: the
+multirate work found TF24's transient rainfall dynamics take very many global RK steps on
+the default schedule, and that a *less dense uniform* grid refined at cohort introductions
+does better. Under that schedule a segment holds many steps and §3b's margin evaporates.
 
-**Step (3) is code, and the order matters.** Add the three members to odelia's `Solver`,
-re-express `run()` as the loop, mirror on `soil_leaf::Runner` — then **verify the existing
-gradient is bit-identical from the `run()` re-expression alone, before the driver exists**.
-That isolates "the loop is the same loop" from "the adjoint is right"; conflating them is how
-a wrong adjoint gets blamed on the refactor. Only then write the driver, `soil_leaf` first
-(§7's ladder), whose `introduce()` calls are the hard case and therefore the right witness.
-The step-local adjoint (`v3-step-local-adjoint.md`). **The trigger has widened**: it was
-"TF24 wanted at `max_patch_lifetime` ≳ 40" on the assumption that leanness tops out at
-~7.3× and closes FF16. §6e measured the crown and **C's ceiling is now ~3× (FF16) and ~5×
-(TF24)**, against the 8× and 15–45× production needs — so this is **FF16's only remaining
-route to `life = 105.32`** too, not just TF24's. It makes peak memory independent of lifetime and **removes the
-growing tape** rather than managing it. Its largest hidden cost: `least_squares` reads
-`get_history_step`, so it does **not** survive unchanged — convert it as part of that
-work, not after.
+**The design that replaces it (§3c/§3d):** L0 (cohort introductions) becomes the **fourth
+recorded layer**, beside the schedule (L1), node positions (L2) and field values (L3). One
+new indexed hook, `replay_structure(k)`, joins `replay_step(k)`; a unit is "apply the
+structural change recorded at `t_k`, then integrate one ODE step". Load-bearing measured
+fact: **every introduction time already lies on the resolved ODE grid** (93/93 and 108/108
+for FF16 at life 10 and 40), so L0 marks *which L1 steps carry a change* rather than being a
+second timeline. Peak tape is one ODE step whatever `refine_schedule` does, so no scheduling
+policy is encoded — a coarse uniform grid, clustered introductions, a multirate stepper and
+multiple species all need no contract change. `unit_count()` and the segment concept are
+deleted; `run()` is still derived from the loop.
+
+**Two method corrections worth keeping.** (a) **plant is the anchor; the toys lead odelia's
+design.** §3a used `soil_leaf::Runner`'s three hardcoded segments as "the witness" fixing the
+contract — that inverts it. `soil_leaf` and `growing_resize` both mirror plant's *hand-rolled*
+interleave, so under §3d both should be **re-expressed to replay their introductions through
+the hook**, giving it two cheap witnesses before plant is touched. (b) L0 and L1 are **replay,
+not AD** — resolved by `refine_schedule`, then frozen.
+
+**Step (3), in order:** re-express the two toys onto `replay_structure(k)`; price the
+unconditional post-hook state re-sync on a System that never grows; then plant's
+`run_next_impl` interleave becomes a recording plus the shared loop; **verify the existing
+gradient is bit-identical from the loop re-expression alone, before any adjoint driver
+exists**; then the driver. Five open checks are listed at the end of §3d — `refine_schedule`
+staying the sole decider of L0, the `complete()`/resume branch, `run_mutant`'s
+`environment_history`, multi-species lists, and the re-sync price.
 
 ### ⚑ 7. Owner is taking this: odelia's loader errors — **30, not 10**
 Session 21 re-measured with `set_max_fails(Inf)` and a properly rebuilt baseline: it is
