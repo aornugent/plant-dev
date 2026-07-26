@@ -417,6 +417,49 @@ the leaf's operating point is a solve, not a position. So the per-cohort cost th
 dominates the tape is genuinely active work, and reducing it needs per-call
 preaccumulation (§6b) rather than frozen-operator algebra.
 
+## 6d. FF16 crown wiring — the boundary decision, and why the factor depends on it
+
+`preaccumulate` is built and toy-proven (`weibull_leaf_preaccum_demo`: 1 127 → 7
+recorded ops at the crown's own 21 nodes, flat in node count, gradient bit-identical to
+recording the internals, FD-verified to 5e-9). Wiring it into FF16 is **not** mechanical,
+and the reason is worth stating because it sets the achievable factor.
+
+`FF16_Strategy::assimilation` builds an integrand
+`f(z) = assimilation_leaf(environment.get_environment_at_height(z, top)) · q(z/H, z)`
+and hands it to `QK::integrate(f, 0, height)` — a 21-node fixed rule. Per node the
+recorded work is roughly: field read ~8 ops, `assimilation_leaf` ~10, `q` ~10 → ~28,
+so ~588 per crown integral, consistent with FF16's measured 40.4 KB/cohort-step.
+
+The integrand's dominant active input is **the shared light field**, and that is the
+fork:
+
+- **Boundary A — lights read outside the block.** Read the 21 light values on the run
+  tape, then preaccumulate `Σ w_j · assimilation_leaf(L_j) · q(z_j/H, z_j)` with inputs
+  `{L_j}` (21) + height + height_inverse + traits ≈ 48. The ~168 ops of field reads and
+  ~40 of node arithmetic stay on the run tape. **588 → ~216, i.e. ~2.7× on the crown,
+  ~2.5× on FF16 overall.** Entirely local to `ff16_strategy.h`; no contract change.
+  (This boundary is available because the rate path reads through
+  `get_value_at_height_frozen_query`, so `L_j` depends on the knot *values* and not
+  actively on `z_j` — §6c. Confirm that is the variant `get_environment_at_height`
+  resolves to before relying on it.)
+- **Boundary B — lights read inside the block.** Inputs become the field's own active
+  values (knot vector ≈ 40) + height + traits ≈ 47, and internals ~588. **588 → ~47,
+  i.e. ~12×.** But the block must then *reconstruct* the field read from a passed value
+  vector, which means the Environment has to expose its active field values as a
+  declared input list — an `ad_field_values()`-shaped contract member alongside
+  `ad_parameters()`.
+
+**B is where the 12× lives, and it is a new contract member on Environment**, so it is a
+`system-design` decision under R3, not a refactor: it adds vocabulary to a shared
+interface, and it couples strategy code to how the environment stores its field. A is a
+safe, local, immediately verifiable 2.5×.
+
+**Recommendation:** take A first (it is self-contained and its verification is the
+existing FF16 FD gate), then decide B deliberately. Note what A alone buys: FF16 9.02 GB
+at `life=40` → ~3.6 GB, and `life=105` from OOM to roughly 6 GB — so **A alone probably
+brings FF16 to production lifetime**, which was R2's FF16 line. B would be for margin and
+for TF24, where §0's arithmetic says leanness falls short regardless.
+
 ## 7. What this makes hard
 
 Beyond the two obvious costs — ~2× active-run wall time, and the cohort-introduction
