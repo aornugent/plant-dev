@@ -13,7 +13,7 @@ are `v3-engine-design.md` and `v3-l2-audit.md`.
 | | outcome | quantity / evidence |
 |---|---|---|
 | **R1** | a step re-run in isolation reproduces the forward pass exactly | **met from a whole patch copy: max_abs 0.00e+00 at every probed segment, K93 and FF16.** Not met from `ode_state` alone (drifts to 1.5e-5 / 1.7e-15) |
-| **R2** | the thing that must survive between passes is the **adaptive structure** | plant's node set is *inherited* through `rescale_spline`, so it is path-dependent: a rebuilt patch chooses different positions (FF16: 33 positions differing early; 33 vs 35 and 43 vs 67 by segment 80/90) |
+| **R2** | *something* must survive between passes; **what, is not yet established** | restoring the spline properly through `Patch::r_set_state` changed the drift **not at all** — both K93 and FF16 read the exact field on the rate path, not the spline. So R2 is a real requirement with an **unidentified** subject. This design does not depend on it: see the note below |
 | **R3** | structure is a **per-step** quantity, not per-stage | positions change as the canopy grows; values were the per-stage thing, and values are L3 |
 | **R4** | a System that claims to replay must actually replay | **plant satisfies `Replayable` today and does not replay structure at all.** Nothing caught that |
 | **R5** | no new interpolator surface | `get_x()` and `init(x, y)` already exist and are exactly the two operations needed |
@@ -22,6 +22,13 @@ are `v3-engine-design.md` and `v3-l2-audit.md`.
 **Scarce resource:** not bytes — a step's node set is tens of kB over a whole run. It is
 **checkable intent**: the current concept cannot tell a System that replays structure from one
 that doesn't.
+
+**What this design does and does not rest on.** It rests on **R4** — that satisfying a replay
+concept should mean something, which is falsified today because plant satisfies `Replayable` while
+replaying no structure. That argument stands on its own. It does **not** rest on structure being
+the thing a stored `ode_state` fails to restore: four hypotheses for that have now been refuted,
+including the spline. So build the concept for R4, and let the bisect say what `save_structure`
+must actually save — it may need company, or a different name.
 
 ## The floor
 

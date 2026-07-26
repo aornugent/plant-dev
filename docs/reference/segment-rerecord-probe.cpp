@@ -55,6 +55,8 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
   std::vector<std::vector<double>> leaving;    // state after segment k integrates
   std::vector<std::vector<std::size_t>> added; // species introduced opening segment k
   std::vector<double> t_in, t_out;
+  std::vector<std::vector<std::size_t>> counts;  // individuals per species, entering k
+  std::vector<std::vector<double>> light_state;  // the spline's nodes and values, entering k
 
   while (!fwd.complete()) {
     const plant::Patch<Strat, Env>& pk = fwd.r_patch();
@@ -62,6 +64,16 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
     pk.ode_state(y.begin());
     entering.push_back(y);
     entering_patch.push_back(pk);
+    {
+      // One species in this probe, so the node count follows from the state width:
+      // each node carries the strategy's states plus fecundity and log-density.
+      const std::size_t per_node =
+          plant::Node<Strat, Env>::ode_names().size();
+      const std::size_t env_ode = pk.ode_size() - pk.node_ode_size();
+      counts.push_back({(pk.ode_size() - env_ode) / per_node});
+      const Rcpp::NumericMatrix m = pk.r_environment().light_availability.r_get_state();
+      light_state.push_back(std::vector<double>(m.begin(), m.end()));
+    }
     t_in.push_back(fwd.time());
 
     const std::vector<std::size_t> a = fwd.run_next();
@@ -106,27 +118,34 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every) {
       fwd_x = upto.r_patch().r_environment().light_availability.spline.get_x();
     }
 
+    // Restore through plant's own entry point, which takes the three things a patch
+    // needs: the state, the individuals per species, and the light spline's nodes and
+    // values. The earlier version of this probe faked the widths and installed no
+    // spline, which is what made it drift.
     plant::Patch<Strat, Env> unit(p, env, ctrl);
-    unit.reset();
-    // Restore to the entering width by introducing until the widths agree; the
-    // schedule that produced `entering[k]` is the same one, so this reproduces the
-    // cohort count without replaying the whole run.
-    // (reset() gives the t=0 population; every later segment has more cohorts.)
-    bool width_reached = true;
-    int guard = 0;
-    while (unit.ode_size() < entering[k].size()) {
-      unit.introduce_new_nodes({0});
-      if (++guard > 100000) { width_reached = false; break; }
+    if (light_state[k].size() >= 6) {
+      // plant's own restore: state, individuals per species, and the spline's nodes
+      // and values. This is the piece the earlier version of this probe omitted.
+      unit.r_set_state(t_in[k], entering[k], counts[k], light_state[k]);
+    } else {
+      // Nothing to install: this environment fits no spline (K93 reads the exact
+      // field), so the restore is the state and the cohort count alone.
+      unit.reset();
+      int guard = 0;
+      while (unit.ode_size() < entering[k].size() && ++guard < 100000) {
+        unit.introduce_new_nodes({0});
+      }
+      if (unit.ode_size() != entering[k].size()) {
+        probed.push_back(static_cast<int>(k));
+        width_ok.push_back(0);
+        max_reld.push_back(NA_REAL);
+        max_abs.push_back(NA_REAL);
+        fwd_nodes.push_back(0); reb_nodes.push_back(0); nodes_match.push_back(0);
+        from_copy_abs.push_back(NA_REAL);
+        continue;
+      }
+      unit.set_ode_state(entering[k].begin(), t_in[k]);
     }
-    if (!width_reached || unit.ode_size() != entering[k].size()) {
-      probed.push_back(static_cast<int>(k));
-      width_ok.push_back(0);
-      max_reld.push_back(NA_REAL);
-      max_abs.push_back(NA_REAL);
-      continue;
-    }
-
-    unit.set_ode_state(entering[k].begin(), t_in[k]);
     unit.introduce_new_nodes(added[k]);
 
     odelia::ode::Solver<Patch> solver(unit, plant::make_ode_control(ctrl));

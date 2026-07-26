@@ -248,15 +248,25 @@ not retried:
   Invalidating `dydt_in` on a width change changed **nothing**, and the reason is that
   `set_state_from_system` already does `system.ode_rates(dydt_in.begin()); dydt_in_is_clean = true`
   — the stage is refreshed from the system every time. The one-line "fix" was inert and was dropped.
-- *Spline path-dependence as the whole story.* Real but not sufficient: FF16's rebuilt node set does
-  differ from the forward one (same count 33 early, **different positions**; by segment 80/90 the
-  counts diverge, 33 vs 35 and 43 vs 67) — yet **K93 fits no spline at all**
-  (`field_supersedes_spline = true`, 0 nodes both ways) and still drifts. So there is at least one
-  more missing piece.
+- *Spline path-dependence.* **Retracted, twice over.** The node-set comparison behind it was
+  malformed — it compared the forward spline *entering* a segment against the rebuilt one *leaving*
+  it, at different times, so it was never evidence. And restoring through plant's own
+  `Patch::r_set_state(time, state, counts, light_availability)`, which installs the node set and
+  values properly, **changed the drift not at all.** The reason is structural: on the rate path
+  both K93 and FF16 read the **exact separable field**, assembled from cohorts and a pure function
+  of state — not the spline. So the spline cannot be the cause for either model.
 
-**The next probe is obvious and cheap:** bisect between the two regimes that are already measured
-to differ — whole-patch copy (exact) versus rebuilt-from-`ode_state` (drifts) — restoring one more
-piece at a time until it goes exact. Do that before writing any backward loop.
+**After four hypotheses, what `ode_state` fails to restore is still not isolated.** Ruled out by
+measurement: the node stamps, a stale first stage (twice), and the light spline. Still open, and
+each needs a targeted probe rather than a guess: a species' pending boundary node (`new_node`,
+which `introduce_new_nodes` pushes and which is recomputed by `compute_rates` — so it *should*
+match), and anything a cohort carries outside its ODE state that `compute_rates` does not
+recompute.
+
+**The discipline for whoever picks this up:** the two regimes are measured and stable —
+whole-patch copy is **exact**, every from-scratch reconstruction drifts. Instrument the difference
+directly (diff the two patches member by member at a mid-run segment) instead of hypothesising a
+cause and testing it, which is what failed four times here. Do it before writing any backward loop.
 
 ## Kill condition
 
