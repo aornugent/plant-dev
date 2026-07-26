@@ -225,6 +225,60 @@ suspecting XAD.** Defences: `odelia::util::graft_value`, that `static_assert`,
 `test-scm-gradient-entry.R` had silently stopped running 11 FD-verified assertions.
 When a gradient test "passes", check it did not skip.
 
+## SESSION 22 — THE ENGINE DESIGN IS LANDED: [`v3-engine-design.md`](./v3-engine-design.md)
+
+Read that document first; it supersedes the design sections of `v3-reverse-memory-design.md` and
+`v3-step-local-adjoint.md`. Session 21's ledger below is kept for its refutations.
+
+**The finding.** The engine was not short a primitive. It was short a **unit of recording** — and
+it carried four primitives too many while looking for one.
+
+### PROVEN this session, each re-runnable
+| claim | evidence |
+|---|---|
+| **TF24's tape is flat per cohort-step** (46.9 / 51.6 / 54.4 / 56.4 kB per step x width at life 1 / 1.5 / 2 / 2.5), so cost is node *count* x run length and **no component leanness can touch it** | `PLANT_TAPE_STATS=1` + `tf24_scm_gradient` |
+| **An adaptive node set is bit-identical built plain or active, with nothing recorded** — 149 nodes, 0 mismatches, `max_abs_diff` exactly 0. **This deletes L2 as a layer.** | `test-ad-adaptive-structure.R`, 27 assertions |
+| Refining through a plain-valued predictor is **5.9x leaner** (304320 -> 51652 B), same nodes, bit-identical value, derivative unchanged | same |
+| **An `implicit_value` node in the rates re-records exactly per unit** — reld 0.0 (coupled IC), 1.1e-15 (constant) | `test-ad-step-local.R` |
+| **Several Jacobian rows come off one re-recording**, so a census 3-vector costs a scalar's tape | same |
+| **Peak tape flat at 6560 B from 30 to 480 units** while whole-run grows 91636 -> 1438036; ratio 14x -> 219x, **linear in run length** | same |
+| **Time cost is a flat 4.2x** (4.15-4.37 over 60 -> 960 units) against a memory ratio growing 28x -> 438x | `us_whole_run` / `us_step_local` |
+| Four odelia primitives had **no consumer but their own demo**; deleted with their demos and tests (**697 lines, 4 names**) | `preaccumulate`, `supplied_derivative`, `decide`/`branch_log`, `directional_derivative` |
+| odelia green at **0 fail / 484 pass / 5 skip**; plant focused set 524 pass, 2 pre-existing fails | `cd odelia && make test` |
+
+### REFUTED this session — do not retry
+- **Reusing one tape rewound between units.** Keeps the gradient exact (1.8e-15) but `resetTo`
+  **does not release** the tape: peak grows 48 kB -> 742 kB over 60 -> 960 units against a flat
+  6560 B, and the time advantage reverses (1.48x at 60 units, 8.42x at 960). **A fresh tape per
+  unit is the design.** Guarded by a test.
+- **Refining the interpolant on the active scalar inside plant** (`to_passive(f(h))` per node).
+  Tape went *up* 1.4-1.8%: in plant the target sums over all cohorts, so evaluating it twice
+  costs more than the saved band solves. The fix belongs in the refiner, and does.
+- **The query-factor `pow` hoist** — 1.24x on the crown, and `deepening-6` had already predicted
+  it would be small ("FF16 adds no new scan, only more `a_p(z)` evaluations").
+- **`Replayable` as a deletion target.** It is opt-in via `if constexpr` and costs zero concepts
+  when unused. Only its *L2 role* is deleted.
+
+### The engine, entire — five things
+1. `Solver`: `advance_adaptive` discovers the schedule, `advance_fixed` replays it.
+2. The `System` contract.  3. A `Functional`.  4. `implicit_value`.
+5. **One rule: build discrete structure on plain values; evaluate values at the active scalar.**
+
+The backward loop needs **no new names** — `replay_step(k)` already exists and is already indexed;
+its contract widens by one word (the structural change recorded for step k runs *on tape*).
+`replay_structure`, `unit_count` and `set_trajectory` are all unnecessary. See the design doc.
+
+### OPEN, in priority order
+1. **Land the loop in plant.** Store the trajectory, walk back, re-record. The interface is
+   settled (design doc); what is unbuilt is plant's side: `Patch::replay_step(k)` must apply the
+   introduction recorded for step k, on tape.
+2. **#32** (tf24f collar 2.9e-4), **#27** (the closing FD gate) — both unblocked once memory allows.
+3. **The soil rates' hard clamps.** Three selects, `smooth_positive` used 3x in `ff16_strategy.h`
+   and 0x in `tf24_environment.h`. The saturation-excess runoff floor is a *physical* boundary a
+   real trajectory crosses; the two theta<=0 guards bite off-manifold. Check before smoothing.
+4. **Re-bless two stale numbers**: `test-canopy-methods.R` `16.88946` (blessed 2026-06-25, model
+   changed 2026-07-18/19/20) and `test-mutant`'s 8 seed-rain expectations.
+
 ## SESSION 21 CONFIDENCE LEDGER — read this before any design section
 
 This session produced a lot of design prose and then refuted some of its own. Rather than

@@ -146,6 +146,33 @@ the step.
   the tie-break, but a new environment could break it by sorting on an active key. There is no
   structural defence against that yet — only this sentence.
 
+## The interface, and why it needs no new names
+
+The spike deliberately kept its backward loop in the example file so the seam could still move.
+With L2 deleted, several output rows working, and a fresh tape per unit proven correct, the
+loop's requirements are fully known — and they are all satisfied by members that already exist:
+
+    for k = last unit .. 0:
+      tape                                    # fresh, per unit
+      register the stored entering state and the seeded parameters
+      sys.set_ode_state(stored[k], t_k)       # exists -- the pre-change state
+      sys.replay_step(k)                      # exists -- apply step k's structural change
+      solver.set_state_from_system()           # exists
+      solver.advance_fixed({t_k, t_k+1})       # exists
+      seed the output adjoints from lambda; sweep once per output row
+      lambda <- the entering-state adjoints; accumulate the parameter adjoints
+
+**`replay_step(k)` is the only hook, and it is already there and already indexed** (landed
+session 21). Its documented job — *restore the record for step k* — widens by one word: the
+structural change recorded for step k is part of that record, and it must run **on tape** so a
+stand-dependent newborn carries its adjoint. That is a contract clarification, not a new member.
+
+So `replay_structure(k)`, `unit_count()` and `set_trajectory()` — all three floated in earlier
+drafts — are **not needed**. The order matters and is the one thing to get right: restore the
+pre-change state, *then* apply the change, so the change is inside the unit. Applying it between
+units loses the newborn's adjoint silently (19% error, right sign), which a constant-IC toy
+cannot detect.
+
 ## Kill condition
 
 A background whose structure is not derivable from step-start plain values. That hands off to
