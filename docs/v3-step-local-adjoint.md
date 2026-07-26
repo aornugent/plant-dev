@@ -382,3 +382,86 @@ code: add the three members to odelia's `Solver`, re-express `run()` as the loop
 them on `soil_leaf::Runner`, and only then write the driver. The existing gradient must be
 bit-identical after the `run()` re-expression alone — verify that before the driver exists,
 because it isolates "the loop is the same loop" from "the adjoint is right".
+
+---
+
+## 3c. RETRACTION of §3b's unit, and the primitive that replaces it
+
+**§3b chose the event segment as the unit. That is withdrawn.** Two corrections from the
+owner (session 21), one of which invalidates §3b's central measurement.
+
+### Why the segment unit fails
+
+§3b justified the segment by measuring **1.10–1.34 ODE steps per segment** and concluding
+peak tape was within 1.34× of the finest possible unit. **That ratio is not a property of
+the model — it is a property of one schedule choice, and that choice is known to be bad.**
+The cohort-introduction schedule (L0) and the ODE step grid (L1) are both *resolved* by
+`refine_schedule` and then replayed; neither is an AD construct. Work on the multirate
+stepper branch found that for TF24's transient rainfall dynamics the **default schedule is a
+poor starting point** — global RK took very many steps, and a *less dense uniform* grid with
+refinement concentrated at cohort introductions outperformed it. Under that schedule a
+segment holds many ODE steps, so §3b's 1.34× becomes unbounded and its "27× of margin"
+evaporates. **A unit defined by the gap between introductions inherits whatever the
+scheduler happens to do, which is exactly the thing we expect to keep changing.**
+
+Second correction, about method: `soil_leaf` is a **toy, and its role is to lead odelia's
+design** — to let a primitive be explored cheaply. **plant is the anchor**: the design must
+serve the real cohort workflow. §3a used `soil_leaf::Runner`'s three hardcoded segments as
+"the witness" that fixed the contract's shape. That inverts the relationship: the toy's
+accidental shape is not evidence about the contract. Its `introduce()` calls are still a
+useful *exercise* of the mechanism, but plant's L0/L1 structure is what the mechanism must
+express.
+
+### The load-bearing fact, measured
+
+**Every cohort-introduction time already lies on the resolved ODE grid** — FF16 at
+`life=10`: 93 of 93; at `life=40`: 108 of 108; `union(ode_times, intro_times) = ode_times`
+in both. So L0 is not a second timeline needing to be merged with L1; **it is a marking of
+which L1 steps carry a structural change.**
+
+### The primitive
+
+> **A unit is: apply whatever structural change is recorded at `t_k`, then integrate one
+> ODE step `t_k → t_{k+1}`.** The grid is `recorded_steps()`, unchanged.
+
+This is schedule-independent by construction — redistribute the L1 density however
+`refine_schedule` likes and a unit is still one ODE step, so peak tape is one step whatever
+the scheduler does. It also needs no new grid, no segment, and no `unit_count()`: the count
+is `recorded_steps().size() - 1`.
+
+**And it says where cohort introductions belong: L0 is a recording layer, like the others.**
+The project already has the pattern — the adaptive pass decides and records, the replay pass
+reads back: L1 the schedule, L2 node positions, L3 field values. Introductions are the same
+shape and are currently the exception, driven by plant's own `node_schedule` loop inside
+`SCM::run_next_impl` rather than replayed from a recording. Bringing L0 into the family
+gives one hook beside `record_ode_step` / `replay_step(k)` — "apply the structural change
+recorded for step k" — and then:
+
+- the Solver's replay loop is uniform: for each k, apply L0, load L2/L3, step. **One loop,
+  used forwards by `run()` and out of order by the adjoint driver** — which was §3b's good
+  idea and survives it.
+- **the state-dimension change stops being special.** It is recorded data replayed at a
+  known index, not control flow the driver must reproduce.
+- `SCM::run_next_impl`'s hand-rolled interleave — pop events, `introduce_new_nodes`,
+  `set_state_from_system`, `advance_fixed(sub-grid)` — becomes a recording plus the shared
+  loop. That is **deletion in plant**, which is the R3 direction rather than a cost.
+
+**Contract, revised:** one L0 replay hook (joining an existing family of three) plus the
+state-trajectory hand-over from §3b-i. `unit_count()` and the segment concept are both
+deleted; `run()` is still derived from the loop.
+
+### What must be checked before this is built
+
+Not yet verified, and each could change the shape:
+
+1. **Does the adaptive pass still own L0 decisions?** It must — `refine_schedule` is the
+   decider; the recording only captures the outcome. Confirm nothing in the introduction
+   path needs to *decide* during a replay.
+2. **`complete()` and the resume path.** `SCM::run()` loops on `!complete()`, and
+   `run_next_impl` has a resume branch for `e.time_introduction() > t0`. Under a recorded L0
+   the loop bound becomes the grid length; check the resume case is expressible as a step
+   with no structural change.
+3. **`run_mutant`** reads `environment_history` on the same replay machinery; check the L0
+   recording does not collide with the mutant L3 path.
+4. **Multiple species.** L0 is per species (`node_schedule.times(i)`); the recorded change at
+   step k is therefore a list, not a count.
