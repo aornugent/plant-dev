@@ -465,3 +465,84 @@ Not yet verified, and each could change the shape:
    recording does not collide with the mutant L3 path.
 4. **Multiple species.** L0 is per species (`node_schedule.times(i)`); the recorded change at
    step k is therefore a list, not a count.
+
+## 3d. The primitive's shape: L0 as the fourth recorded layer
+
+**One indexed hook, joining the family of three.** odelia never learns what a cohort is; it
+says "step k begins" and the System applies whatever *it* recorded for step k — including a
+change to `ode_size()`.
+
+    record_stage(stage)      // per RK stage   : record a field value        (L3)
+    record_ode_step()        // per accepted step: commit node positions     (L2)
+    replay_step(k)           // per step, replay: restore that step's record (L1-indexed)
+    replay_structure(k)      // per step, replay: apply that step's recorded structural change  <-- new (L0)
+
+and the Solver's replay loop becomes uniform, forwards or out of order:
+
+    for k in units:
+      system.replay_structure(k);      // may grow ode_size(); a no-op for most Systems
+      set_state_from_system();         // re-sync: the state vector may have changed length
+      system.replay_step(k);           // L2/L3 for this step
+      step_to(t_{k+1});
+
+**The re-sync is unconditional, and that is deliberate.** Making it conditional on "did the
+size change" is a branch whose wrong answer is silent, and plant already pays exactly this
+cost today (`introduce_new_nodes` is always followed by `set_state_from_system`). For a
+System with no structural change the hook is a no-op and the re-sync is one state copy per
+step — a measurable cost to price, not a correctness question.
+
+**Why not overload `replay_step(k)` to also introduce.** It fires at the right moment and
+would keep the family at three. Rejected: restoring a background is derivative-neutral
+bookkeeping, while changing the state vector reallocates tape slots — the growing-tape
+concern. Conflating them hides the one that has a failure mode behind the one that does not.
+The count argument goes the other way anyway: the family grows by one hook and **plant
+deletes its own event loop**, so the net concept count falls.
+
+**What plant deletes.** `SCM::run_next_impl`'s hand-rolled interleave — pop events from
+`node_schedule`, `introduce_new_nodes(ret)`, `set_state_from_system()`,
+`advance_fixed(e.times)` — becomes a recording plus the shared loop. `SCM::run()`'s
+`while (!complete())` becomes the loop over `recorded_steps()`.
+
+**The mechanism it needs already exists and is proven.** `growing_resize` (odelia toy,
+`test-ad-growing-resize.R`) witnesses `ode_size()` growth at a step boundary under an active
+tape, with `reserve_state` established as a *memory optimisation, not a correctness
+requirement*. So "the state grows mid-replay" is not new risk; only "the growth is replayed
+from a recording rather than driven by a caller" is.
+
+**Consequence for the toys, and it is the owner's point about their role.** `growing_resize`
+and `soil_leaf` both currently mirror plant's *hand-rolled* shape: `introduce()` called by
+the harness between `advance_fixed` segments. That is why §3a mistook the toy for evidence
+about the contract. Under this design both should be **re-expressed to record and replay
+their introductions through `replay_structure(k)`** — which is what makes them lead the
+design rather than fossilise the previous one, and gives the hook two cheap witnesses before
+plant is touched.
+
+### Why this is the flexible one
+
+The unit is one ODE step and the structural change is recorded data at an index, so **nothing
+in the contract encodes a scheduling policy.** Specifically it survives, with no change:
+
+- a **less dense uniform L1 refined at introductions** (the multirate finding) — density is
+  just a different `recorded_steps()`;
+- **more or fewer introductions**, or introductions clustered in the transient;
+- a **multirate stepper**, provided each sub-rate advance still ends on a grid time, since the
+  hook only requires that structural changes land on step boundaries — which is measured to
+  hold (L0 ⊂ L1, 100%);
+- **multiple species** — the recorded change at step k is a per-species list, so this is a
+  property of what the System records, not of the hook.
+
+The design's one real assumption is therefore **L0 ⊆ L1**, which is measured, and which
+`refine_schedule` maintains because an introduction must land on a step boundary to be
+integrated at all.
+
+### Open checks, unchanged from §3c plus one
+
+1. `refine_schedule` must remain the sole *decider* of L0; the recording only captures the
+   outcome. Confirm nothing in the introduction path decides during a replay.
+2. `complete()` and the resume branch (`e.time_introduction() > t0`) must be expressible as a
+   step carrying no structural change.
+3. `run_mutant` shares this machinery via `environment_history`; check the L0 recording does
+   not collide with the mutant L3 path.
+4. Multiple species: the recorded change is a list, not a count.
+5. **Price the unconditional re-sync** on a System that never grows (one state copy per step)
+   before accepting it.
