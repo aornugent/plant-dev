@@ -370,6 +370,53 @@ with the first-order-only registry as the primitive's actual job. Fold `graft_va
 as the injection step; leave `implicit_value` a sibling rather than forcing a
 false unification.
 
+## 6c. Frozen L2 positions — a stronger idea than preaccumulation, checked and set aside
+
+**The principle is right, and it dominates preaccumulation wherever it applies.** When
+an adaptive construction's positions are recorded and replayed frozen (L2), the
+reconstruction becomes a **fixed linear operator** on the active node values: a cubic
+spline fit is a tridiagonal solve whose matrix depends only on knot *positions*, and a
+suffix scan is a sparse incidence matrix that depends only on the ranks. So its Jacobian
+is **the same for every step, stage and cohort** — computed once per recording rather
+than once per call — and applying its transpose is **exact**, not first-order. Both
+respects beat per-call preaccumulation.
+
+**It is already applied where it bites hardest.** `separable_field`'s hand-written
+transpose *is* this idea: a frozen-structure sparse operator whose transpose is written
+once and reused. That retroactively justifies why it is one of only two sanctioned hand
+adjoints — it is not an exception to the no-hand-adjoints rule so much as the one place
+where the frozen-operator transpose is worth naming.
+
+**But it cannot be the lever here, by a scaling argument that needs no measurement.**
+L2 reconstruction happens **once per RK stage** (the environment is rebuilt per stage,
+not per cohort), whereas the tape scales as **steps × cohorts × stages**. With 500–1 200
+cohorts, anything per-stage is ~1/n_cohorts of the per-step cost — a fraction of a
+percent. The spline build cannot matter however cleverly its adjoint is expressed.
+
+Two follow-ups from actually looking, one negative and one worth keeping:
+
+- **The frozen-query spline *read* is per-cohort, so it is hot — but there is no win.**
+  `get_value_at_height_frozen_query` indexes at the stripped double height (deliberately:
+  the interpolant's analytic tangent is unreliable on the rate path, so the query
+  derivative is supplied separately by a secant). Frozen knots *and* frozen query means
+  the read is a frozen-weight linear functional of the knot values — exactly the
+  structure above. But the coefficients are already built, so the read is just
+  `((d·Δ + c)·Δ + b)·Δ + a` ≈ 8 recorded ops, and the frozen 4-term dot product that
+  would replace it is ~7. **No win**; the read is already at the floor.
+- **The audit it suggests is worth running anyway:** find active arithmetic whose result
+  depends *only* on frozen positions — spline coefficient assembly at frozen knots,
+  `a_p(z)` / `a_p'(z)` basis evaluations at frozen z, quadrature weights. Every such
+  quantity should be `double`, computed once; recorded as active it is tape with zero
+  information in it. This is cheap to grep for and it is the same defect class as
+  `ops/stmt` = 1.4 (§1.4) — recorded work that carries no derivative.
+
+**Why the hot spots are immune.** Neither is a frozen-position construct. The crown
+quadrature's nodes are an affine image of the **active** crown bound *by design* — the
+P1f decision was to differentiate through the moving nodes and record no positions — and
+the leaf's operating point is a solve, not a position. So the per-cohort cost that
+dominates the tape is genuinely active work, and reducing it needs per-call
+preaccumulation (§6b) rather than frozen-operator algebra.
+
 ## 7. What this makes hard
 
 Beyond the two obvious costs — ~2× active-run wall time, and the cohort-introduction
