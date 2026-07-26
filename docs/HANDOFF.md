@@ -213,6 +213,13 @@ suspecting XAD.** Defences: `odelia::util::graft_value`, that `static_assert`,
 `test-scm-gradient-entry.R` had silently stopped running 11 FD-verified assertions.
 When a gradient test "passes", check it did not skip.
 
+## Before reading the corpus: [`v3-evidence-triage.md`](./v3-evidence-triage.md)
+24 design docs, deepenings and Oracle consults exist and they are **not clean signal** —
+some were superseded by refutations, some were always estimate dressed as measurement. That
+document is the triage rule (**for every number, ask what would change it**), three worked
+examples from session 21 where the casual version of "verify first" passed a wrong claim, and
+a **marked reading list for the L2 question**. Read it before the archive.
+
 ## The three documents that carry the current plan
 1. **[`v3-reverse-memory-design.md`](./v3-reverse-memory-design.md)** — the memory
    profile (§1), the design search (§2–5), and the four follow-ups: preaccumulation as
