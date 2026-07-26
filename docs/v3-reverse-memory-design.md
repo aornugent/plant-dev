@@ -634,3 +634,58 @@ differentiation](https://arxiv.org/pdf/2206.01298);
 The statement-fusion argument behind §1.4 is
 [Efficient Expression Templates for Operator Overloading-based AD](https://arxiv.org/pdf/1205.3506)
 and [CoDiPack](https://arxiv.org/pdf/1709.07229).
+
+## 6f. Boundary D's holistic treatment: dropped, and the criterion that replaces it
+
+Asked and answered under `system-design` (session 21), once B is committed as the
+delivery mechanism. **D is dropped. Nothing is built. What survives is a criterion.**
+
+**The arithmetic that decides it.** Under B the scarce resource is no longer whole-run
+tape but **peak bytes in one step** = cohort width × bytes per cohort-step. At production
+lifetime that is ~1 300 × 42.5 KB ≈ **55 MB** (FF16) and ~1 300 × 79.7 KB ≈ **104 MB**
+(TF24), against R2's ≤ 2 GB — **36× and 19× of margin**. D would take FF16's 55 MB to
+17 MB. It buys margin on a line already met, and charges for it: strategy-side vocabulary
+(**fails R3 as literally written**), 67 hand-enumerated inputs per integral, a nested
+sweep per crown call per cohort per stage, and a second first-order-blind site. D also
+fails R2 standalone — its measured 3.2× on FF16 leaves 6.0 GB against the 2 GB target.
+
+**The criterion, which is the part worth keeping:**
+
+> **Preaccumulate only where the block's input list is already a declared interface owned
+> by something else.** Where it is not, omitting a channel is silent; where it is,
+> omitting one is a compile error or structurally impossible.
+
+Kept true by the interface existing for its own reasons — a free function's parameter
+list, or the System contract's `ode_size` / `set_ode_state` / `ad_parameters` — not by a
+reviewer checking that a `std::vector<S>` is complete. It is a rule, not a noun: it adds
+nothing to R3's count. It earns its place by re-explaining all four sites in hand, and by
+being what actually separates them:
+
+| site | who owns the interface | verdict |
+|---|---|---|
+| `incomplete_gamma(a, x)` | its own parameter list | **safe** — landed, 1.37× on TF24's SCM |
+| `separable_field` transpose | the field's assembled inputs; frozen structure ⇒ **exact** | **safe** — and this is why it is a sanctioned hand adjoint |
+| **the step boundary (B)** | the System contract, already declared | **safe, and exact** — chain-rule reassociation, no truncation |
+| **FF16 crown (D)** | nobody — a member lambda reaching `pars.a_p1`, `pars.a_p2`, `canopy_shape.eta_` through `this` | **unsafe** — only hand-declaring them made §6e's trait channels right |
+
+**So the answer to "is D a general primitive?" is no, and the reason generalises:
+reassociate at the coarsest boundary the run's own structure already provides.** The step
+boundary comes free from the ODE recurrence and is exact; the cohort/background boundary
+must be hand-declared and is first order. **B is D at the granularity where the interface
+already exists** — D is the same idea one level too fine to be safe.
+
+**The deletion pass takes `preaccumulate` with it.** `incomplete_gamma` hand-rolls its own
+forward-dual injection and does **not** call `preaccumulate`, so with the crown retired the
+primitive has **zero production callers** — only `weibull_leaf_preaccum_demo`. The
+project's rule is "add a name only with a second real witness", and it now has none.
+Recommend deleting `odelia/inst/include/odelia/preaccumulate.hpp`, the demo and its 12
+assertions; §6b and §6e keep the technique and the numbers, and git keeps the code.
+Left standing for the owner, since it reverses a commit from the session before this one
+and costs nothing to keep.
+
+**Kill condition for the drop:** one step's tape exceeds the budget — cohort width beyond
+~47 000 at FF16's 42.5 KB/cohort-step, against ~1 300 today. That hands back to D, whose
+precondition is to hoist the crown integrand out of the member lambda into a free function
+taking `(L, z, traits…)`, so the criterion is satisfied *before* the block is drawn.
+Nothing else revives it: not lifetime (B is flat in it), not trait count (R1 struck it),
+not output count (B carries m λ-vectors against one tape).
