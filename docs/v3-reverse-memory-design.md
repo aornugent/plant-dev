@@ -320,6 +320,56 @@ So the honest answer to "optimise only their adjoints" is: the soil coupling's a
 should be analytic and that is a pure win; the crown quadrature's adjoint wants
 preaccumulation, which is the one lever B genuinely makes unnecessary.
 
+## 6b. Preaccumulation as a primitive — where it applies, and the reason to name it
+
+The shape is: **evaluate a block off the tape, obtain its local Jacobian off the tape
+by AD, record n·m injected partials instead of the block's internals.** It costs
+`min(n, m)` AD passes over the block, so the mode is chosen by shape — forward when n
+is small (tapeless), nested reverse when m is small. It wins iff `n·m ≪ internal ops`.
+
+**It is not quite the same thing as `implicit_value`, and the difference matters.**
+`implicit_value` shares the *injection* (graft the value, carry the derivative) but not
+the Jacobian-by-AD: it obtains `dF/dy` from a paused double probe plus the IFT, and it
+still records **one** evaluation of `F` on the tape. What it avoids recording is the
+*solve*, not the residual body. Preaccumulation avoids recording the body itself. So
+they are siblings over a shared injection idiom — of which `graft_value` already owns
+half — not one a special case of the other. Two witnesses for the full primitive, one
+of them implemented.
+
+### Where it applies
+
+| site | n | m | verdict |
+|---|---|---|---|
+| `incomplete_gamma` | 2 | 1 | **done** — forward, tapeless; 1.37× on TF24's whole SCM |
+| **crown quadrature** (`QK::integrate` of a scalar integrand) | ~25–70 | **1** | **the big one.** ~560 recorded ops per integral (FF16's 40.4 KB/cohort-step ÷ 12 B/op ÷ ~6 stages); one nested reverse sweep gives every partial. **8–22×**, and it is *all* of FF16's 20× over K93 plus half of TF24 |
+| any other fixed-rule quadrature in `qk.h` | many | 1 | same shape; the crown is the witness, this is the general form |
+| `soil_uptake` / resistance network | ~10 | ~6 | **marginal, and it shrank**: injecting `incomplete_gamma` already removed most of its internals. Measure before touching |
+| the p\* stationarity residual | — | 1 | prefer making the residual *analytic* (2.7×) over preaccumulating a central difference |
+| `assim_colimited`, `stom_cond_CO2`, `hydraulic_cost_TF` | few | 1 | **no** — too few internal ops to pay for the injection |
+| **`separable_field`** | all cohort masses | all queried heights | **no, by construction** — both dimensions are large, so n·m exceeds the scan. This is precisely why its reverse is the one hand-written transpose, and preaccumulation cannot retire it |
+
+### The reason to name it is auditability, not reuse
+
+Injection is **first order**. Every block we inject reads as having zero curvature. That
+is fine for the tape as asked for today, but Phase 3 — the fixed-point / eigenvalue
+layer where the selection-gradient deliverable lives — is the plausible consumer of
+second derivatives, and it would meet a model that is silently second-order-blind in
+exactly the places we optimised. Scattered hand-rolled injections cannot be enumerated;
+one primitive can, and can later carry either a second-order mode or a loud refusal.
+
+**That is the bug-class argument that earns the name** — not the six lines of shared
+code. The six lines would not justify it; an un-auditable first-order boundary spreading
+through the hot path does.
+
+### Recommendation
+
+**Do not extract the primitive yet.** One witness is implemented, and the project's own
+rule is to generalise only over witnesses. Build the crown case next — it is the largest
+lever and the second real witness — and if it wants the same code, factor at that point,
+with the first-order-only registry as the primitive's actual job. Fold `graft_value` in
+as the injection step; leave `implicit_value` a sibling rather than forcing a
+false unification.
+
 ## 7. What this makes hard
 
 Beyond the two obvious costs — ~2× active-run wall time, and the cohort-introduction
