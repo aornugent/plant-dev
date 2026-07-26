@@ -184,3 +184,39 @@ here outweighs it.
 
 Unmeasured, and the confirming arithmetic for OPEN #2: node count per step × recorded residual
 body, via `PLANT_TAPE_STATS=1` with soil layers varied. Confirm before acting.
+
+## Does the soil ODE state need differentiating? Yes — and it is already free
+
+Soil water is **not a background**. `Environment::ode_size()` returns `vars.state_size` and
+`Patch::ode_state` splices `environment.ode_state(it)` into the state vector, so soil water is
+part of `y`. Consequences:
+
+- **The soil derivative flows automatically.** Being state, it is carried by the reverse sweep
+  with no recording, no freezing decision, and no L2/L3 involvement. Its replay is L1, settled.
+- **Replaying soil "as any other competitive field" would be strictly worse.** It would demote
+  soil from state (exact, free) to background (frozen or recorded, feedback dropped) — the same
+  trap as populating L3 on light.
+- **The feedback is the mechanism, not a refinement.** A trait that transpires harder draws the
+  soil down, which feeds back on uptake. Freeze theta and the gradient claims more transpiration
+  buys carbon with no drying cost — systematically wrong for the trait-selection workflows this
+  exists to serve.
+- **The workflows that legitimately hold soil fixed are the mutant ones**, where a rare invader
+  does not move the resident's soil, so it reads the recorded resident soil. That is L3, mutant,
+  deferred. So **soil needs no new concept**: state for residents, L3 for mutants, exactly as
+  light already is.
+
+**The real hazard is differentiability, not replay.** The soil rates carry three hard selects,
+and `smooth_positive` appears three times in `ff16_strategy.h` and **zero** times in
+`tf24_environment.h` — the same class of clamp that was smoothed for FF16's growth/fecundity
+path. Ranked by whether a physical trajectory crosses them:
+
+1. **The saturation-excess runoff floor**, `(runoff_factor > 0) ? runoff_factor : 0`. A physical
+   regime boundary, crossed whenever the soil wets to saturation, so it is a genuine kink **on**
+   the trajectory and a trait that shifts uptake shifts where it is crossed. **This is the one
+   that matters.**
+2. `theta <= soil_moist_residual && rate < 0`, and `(theta > 0) ? theta : 0` guarding `pow`.
+   Both guard nonphysical excursions an intermediate RK stage can probe, so they bite **off**
+   the physical manifold and are probably harmless — an assumption to test, not to assume.
+
+Unmeasured: whether a TF24 run actually crosses the runoff floor at production rainfall, and
+whether the gradient is one-sided there. That is the check to run before smoothing anything.
