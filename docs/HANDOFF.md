@@ -269,6 +269,16 @@ its contract widens by one word (the structural change recorded for step k runs 
 `replay_structure`, `unit_count` and `set_trajectory` are all unnecessary. See the design doc.
 
 ### OPEN, in priority order
+0. **Redesign `Replayable` first — [`v3-replayable-redesign.md`](./v3-replayable-redesign.md).**
+   Four members become two (`save_structure(k)` / `load_structure(k)`), the per-stage cadence leaves
+   the structure path, and the mutant value cache stops pretending to be the same concept. The bug
+   class this removes is already realised: **plant satisfies `Replayable` today and replays no
+   structure at all**, because `record_stage(int)` carries both jobs and plant implements only the
+   value half. No interpolator change is needed -- `get_x()` and `init(x, y)` are exactly the two
+   operations. plant gains `ResourceSpline::build_on(nodes, f)`, which `rescale_spline` then calls,
+   so it is a refactor not an addition.
+   **Do the bisect in that doc's last section before writing either hook.**
+
 1. **Land the loop in plant — and it needs NO new plant surface.** `SCM::run_next()` already
    does one unit: consume the events at t0, `introduce_new_nodes`, `advance_fixed(e.times)`. So
    the unit is the **event segment**, and measured steps/segment is **1.22-1.23 (K93) / 1.72-1.87
