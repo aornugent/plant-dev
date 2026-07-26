@@ -1,5 +1,14 @@
 # The stress-bank crashes are plant#550 (cohort-density blow-up), not a drainage overflow
 
+> **CORRECTED 2026-07-26 by [`tf24-v2-T6-mass-chart-vs-550-result.md`](tf24-v2-T6-mass-chart-vs-550-result.md).**
+> §1 below classifies the crashes as mode (1) from the *message* they abort with. Instrumented, the
+> cohort density never diverges on `whiplash` (max `log_density` ≈ 0) or `long_horizon` (≈ −27) — a soil
+> layer leaves its physical range first and the inter-layer cascade amplifies it, which is mode (2)
+> arriving through the mode-(1) message. `whiplash` also completes at `ode_tol = 1e-6`. The refutation of
+> rung #5 (the exact drainage recession) rests on the mode-(1) reading and should be treated as open;
+> §§2–5 (Slice 1 rescuing `extended_drought`, the 1400× reference disagreement, the reclassification of
+> the bank) are unaffected.
+
 *2026-07-22. Oracle ladder rung #5 was "retrofit the exact drainage recession into the global
 adaptive RK so it stops going non-finite on the 3 crashing stress traces, giving a second-family
 reference." The premise was falsified before any code was written, and the investigation instead
