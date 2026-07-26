@@ -127,8 +127,18 @@ the step.
 
 ## What this makes hard
 
-- **Wall clock.** Each unit's forward is re-run once on the backward pass, in active arithmetic,
-  so expect rather more than 2x the forward cost. Unpriced.
+- **Wall clock: a flat 4.2x, measured.** 4.15 / 4.37 / 4.30 / 4.15 / 4.19 against the whole-run
+  reverse pass at 60 / 120 / 240 / 480 / 960 units, while the memory ratio over the same range
+  grows 27.7x -> 438x. So the trade is **a constant factor in time for a memory saving that grows
+  with the run** — which is the right shape, since time is what we have and memory is what we do
+  not. At ~22 us per unit the cost is dominated by building a tape per unit, and that turns out
+  not to be removable:
+  - **Reusing one tape, rewound between units, is a trap — refuted by measurement.** It keeps the
+    gradient exact (1.8e-15) but rewinding to a marked position does **not release** the tape, so
+    peak memory grows with the run (48 kB -> 742 kB over 60 -> 960 units) against a flat 6 560 B
+    for a fresh tape. Its time advantage also reverses as the tape grows — 1.48x at 60 units,
+    8.42x at 960 — because each unit now clears derivatives over an ever-larger array. **A fresh
+    tape per unit is the design, not an unoptimised first draft.** Guarded by a test.
 - **A genuinely path-dependent background** — hysteresis, or an accumulator that is not ODE state
   — could not be rebuilt from step-start state. None exists in plant today. If one appears it
   must either become ODE state or be recorded, and then L2's recording returns.
