@@ -79,7 +79,71 @@ Genuine re-expansions appear only at amp=0.9, where the stand is collapsing towa
 (offspring 0.018 — the lesson-#4 regime). Everywhere the model is alive, **every single O(M) anchor
 sweep is redundant work.**
 
-## 4. The fix, and why it needs no caching machinery
+## 3a. ⚠ The "duplicate" reading is WRONG — the fix was built, measured, and REVERTED
+
+**The counters in §3 prove the two sweeps happen at the same call sites with the same nominal
+`(x, u)`. They do not prove the two sweeps compute the same values, and I inferred that they did
+without measuring it. They do not.**
+
+Built anyway (`slow_rates` publishes; `refresh_anchor` returns early on a bitwise theta match) and
+gated. Mechanically it worked exactly as predicted:
+
+| metric | before | after |
+|---|---|---|
+| anchor captures (amp 0/0.3/0.6) | 4358 | **0** |
+| member sweeps / leg | 4.00 | **2.00** |
+| wall-clock (amp=0.3) | 124 s | **81 s (1.53×)** |
+| genuine captures at amp=0.9 | 782 predicted | **783 actual** |
+
+**But J moved:** 35.1212 → 34.5828 at amp=0.3 (1.5e-2), ~4× the weekly-leg error the scheme was
+being trusted at. The skip was supposed to be exact by construction, so any drift falsifies the
+premise. A direct diagnostic (`anchor_skip_diag.R`: on a matched theta, sweep anyway and compare
+published vs swept) measured the discrepancy rather than arguing about it:
+
+```
+amp=0.0  skips=1208  max_rel_diff=3.487e-05
+amp=0.3  skips=1208  max_rel_diff=2.454e-02
+```
+
+**So the anchor published by `slow_rates` and the anchor `refresh_anchor` computes are genuinely
+different values, at the same nominal `(x, u)`.** The subcycle-start capture is *not* redundant
+work; it evaluates uptake in a context that differs materially from the one the slow stage saw. The
+change is reverted; `patch.h` is back at the pre-session baseline.
+
+**Why the error survived to a build.** Two compounding mistakes, both worth naming:
+1. I inferred the capture site from a nearby code path instead of reading it. The capture at
+   `mri.hpp:325` is **unconditional** ("mandatory leg-start capture"), not monitor-gated — so the
+   first version of the change did nothing at all.
+2. From that misreading I constructed a "free bit-identity proof via the trust monitor", which made
+   the change appear *self*-validating and removed the very check that would have caught the
+   problem. **An argument that proves your change is exact is worth as much as a reference that
+   flatters your method** (cf. hard-won lesson #7) — both suppress the instinct to measure.
+
+**The open question this leaves, which is worth more than the fusion was.** Two evaluations of the
+member loop at the same cohort state and the same soil state differ by up to 2.4e-2. The only
+asymmetry visible in the source is that `slow_rates` calls `compute_environment(true)` and then
+`freeze_slow(x)` calls it *again* before the subcycle sweeps — but `rescale_spline` with an
+unchanged `height_max` maps knots to themselves, so that *should* be idempotent. Either it is not,
+or something else in the sweep carries state across calls. Either way it means **the light field the
+cohorts see depends on how many times `compute_environment` has been called, not only on the
+state** — a hidden path-dependence in the model, not the solver.
+
+**Next step, and a trap in it.** The test is: hold the patch state fixed, call `compute_environment`
+repeatedly, read `resource_depletion` after each, and see whether reading 2 differs from reading 1.
+**The trap:** `Patch::r_compute_environment` (the R-exposed one) hardcodes `compute_environment(false)`
+— the `construct_spline` branch — whereas `slow_rates` and `freeze_slow` both pass `true`, the
+`rescale_spline` branch. A test written against the R hook as it stands would exercise the wrong
+branch and return a falsely reassuring "idempotent". The test needs a temporary R hook taking the
+`rescale` flag. (A script doing it the wrong way was written and deleted rather than committed.)
+
+Also note the amplitude dependence in the diagnostic: 3.5e-5 at amp=0 versus 2.454e-02 at amp=0.3.
+The discrepancy grows with *rainfall* forcing, which drives the soil, not the light field — so the
+`compute_environment` explanation above is a hypothesis with a fact already sitting awkwardly beside
+it, and the idempotence test should be treated as a falsifier rather than a confirmation.
+
+**Do not attempt the fusion again until this is understood.**
+
+## 4. The fix as designed (reverted — kept for the record)
 
 `Patch::slow_rates` publishes the anchor it has already computed (`publish_anchor`, three
 assignments plus a guard); the subcycle then opens with `trust_excursion == 0` and does not
@@ -102,14 +166,19 @@ statement than comparing printed offspring digits.
 
 ## 5. Result
 
-*(gate: `scripts/tf24-benchmarks/anchor_fusion_gate.R` — filled in below once run)*
+**Cost mechanism: works (2.00 sweeps/leg, 1.53× wall-clock). Accuracy: FAILS (J moves 1.5e-2).
+Reverted.** See §3a. What survives from this session is the P1 measurement (§1–2), the
+duplicate/genuine capture decomposition (§3, which is a correct *call-site* accounting), the
+re-established gate headline (2.42e-3 at 40×), and a sharp new open question about
+`compute_environment` path-dependence.
 
 ## 6. What this changes for the plan
 
-- **P2 as written in the handoff is superseded.** It proposed fusing the anchor capture with the
-  slow advance's first stage for 4 → 3 sweeps (~25%). The actual redundancy is 2 of 4 sweeps,
-  affecting *both* sub-intervals, so the win is **4 → 2 (50%)** and it needs no fusion of differing
-  quantities — only not recomputing.
+- **P2 is BLOCKED, not superseded, and not by its arithmetic.** The handoff proposed fusing the
+  anchor capture with the slow advance's first stage (4 → 3 sweeps, ~25%). The sweep counting says
+  the ceiling is really 4 → 2, and the machinery to claim it is trivial — but §3a shows the two
+  sweeps do not produce the same values, so *any* fusion (P2's or mine) changes results until the
+  2.4e-2 discrepancy is explained. **Do not re-attempt P2 before running the idempotence test.**
 - **The setup cache is demoted, not dead.** At 37–47% of a sweep it is the largest remaining
   per-sweep item, but it can only be shared where cohorts are frozen — i.e. across mid-subcycle
   re-expansions, measured at 0/leg in benign regimes and 0.36/leg at amp=0.9. It is worth building
