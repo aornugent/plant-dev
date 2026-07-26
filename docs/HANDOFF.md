@@ -169,105 +169,121 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 ---
 
-# PART 2 — CURRENT STATE + NEXT STEPS (rewritten session 19, 2026-07-25)
+# PART 2 — CURRENT STATE + NEXT STEPS (rewritten session 20, 2026-07-26)
 
 ## READ THIS FIRST: the rule that cost session 19
 **Never give a deduced return type to a function or lambda that returns an AD
 value.** XAD operators return *expression templates* holding references to their
-operands. A deduced return type therefore hands the caller references to
-temporaries and by-value parameters that are destroyed on return; the caller
-materialises a dangling expression, records reused stack bytes as a tape operand
-slot, and the reverse sweep segfaults arbitrarily far from the cause. **valgrind
-cannot detect it** — the dangling storage is stack, not heap.
+operands, so a deduced return type hands the caller references to temporaries and
+by-value parameters destroyed on return; the caller materialises a dangling
+expression, records reused stack bytes as a tape operand slot, and the reverse sweep
+segfaults arbitrarily far from the cause. **valgrind cannot see it** — the storage is
+stack, not heap.
 
     // BAD  -- returns a dangling expression template
     auto anchor = [](double v, S x) { return S(v) + (x - to_passive(x)); };
     // GOOD -- materialised while its operands are alive
     auto anchor = [](double v, const S& x) -> S { return graft_value<S>(v, x); };
 
-**The `static_assert` earned itself immediately.** Session 20 found a second live
-instance it now catches at compile time: `ff16_strategy.h:823`, FF16's birth-height
-`implicit_value` residual, written with a deduced return type. Two consequences worth
-remembering — (a) `scm_gradient_driver.cpp` therefore would not build, so
-`test-scm-gradient-entry.R` was **silently skipping** 11 FD-verified assertions
-(`skip_if_not(built, ...)` turns a compile failure into a skip: check for those);
-(b) FF16/K93's shipped active gradient path had been carrying that undefined
-behaviour, passing its FD tests because the dangling read happened to land on
-still-intact stack. Fixed with `-> S`; all green after, and the entry test un-skips.
+Session 20 found a second live instance (`ff16_strategy.h:823`, FF16's birth-height
+residual), so the `static_assert` on `implicit_value`'s residual has now earned itself
+twice. **If you meet a garbage tape slot, suspect a dangling AD expression before
+suspecting XAD.** Defences: `odelia::util::graft_value`, that `static_assert`,
+`AGENTS.md` → "Never (code)", and `pstar_ode_reprex(graft=2)` reproducing it on demand.
 
-This single line was the TF24 interior-p\* reverse-sweep segfault. Because the
-corruption depended on stack layout, turning almost anything else off made it
-"disappear" — freezing p\*, dropping the nested `implicit_value` nodes, removing
-`soil_uptake`, de-statefulling the double solvers. All four looked like leads; none
-was the cause. **If you meet a garbage tape slot, suspect a dangling AD expression
-before suspecting XAD.** Defences: `odelia::util::graft_value` owns the graft
-idiom; `implicit_value` static_asserts its residual returns `S` exactly;
-`AGENTS.md` → "Never (code)"; and `odelia/inst/examples/pstar_ode_reprex_interface.cpp`
-reproduces it on demand (`graft=2`) with the full forensic account in its header.
+**Corollary worth its own line:** that bug was invisible because
+`skip_if_not(built, ...)` turns a **sourceCpp build failure into a skip**, so
+`test-scm-gradient-entry.R` had silently stopped running 11 FD-verified assertions.
+When a gradient test "passes", check it did not skip.
 
-## THE NEXT TASK: v3 Phase 1 Steps 3 and 4 — see [`v3-phase1-plan.md`](./v3-phase1-plan.md)
-Steps 1 and 2 are **done and verified**; the plan carries the executable detail for
-what remains, with measured targets. In short:
-- **Step 3** — fold the TF24f tracked collar into `assemble_leaf_from`. Start with
-  3a (delete `seam_collar_psi_partial`/`seam_collar_uptake_partials`, now provably
-  dead), then 3b (fold the one live `seam_collar_psi_input` use), then **3c: close
-  the measured 2.9e-4 δ-independent residual** in `test-ad-tf24f-collar.R` at
-  ψ=2.5 (1 failing assertion of 3). The plan gives the per-channel diagnostic and
-  three ranked hypotheses, clamping first. Do not loosen the tolerance — the gap is
-  δ-independent, so it is a real term.
-- **Step 4** — **4d is re-diagnosed (session 20) and is NOT a TF24 problem.** It is a
-  genuine kernel OOM (peak RSS 15.19 GB, `SIGKILL`, `oom_kill` incremented, `dmesg`
-  victim record), the tape is ~88% of RSS, its byte count is exactly
-  `ops·12 + stmts·8 + deriv·8`, and memory is fully released between calls — so no
-  leak. **But FF16 — which never had a seam and has no leaf solve — OOMs the same
-  way at its own production `max_patch_lifetime`** (9.02 GB already at `life=40`).
-  So the old "seam deletion removed what bounded the run tape" attribution is
-  refuted. Per cohort-step TF24 costs only ~1.9× FF16: the leaf is a 2× multiplier,
-  and the mechanism is shared and structural — one tape holds the whole SCM run, so
-  tape ∝ **steps × cohorts**, for every strategy. The v3 design's scaling fix is
-  intact and measured (node path 699 ops/solve flat in `n_solves`; per-step cost flat
-  in `n_steps`; the naive on-tape solve still iteration-dependent at 11 k → 42 k).
-  What the toys never measured is the *per-evaluation constant on plant's actual
-  composition*: `weibull_leaf` certified 11.7 KB/solve for a single p\* node at a
-  known p\*, `soil_leaf` 22.7 KB/plant-step for a lone `ci` node, but plant records
-  `implicit_value` on a **central difference whose every evaluation rebuilds the
-  nested nodes** — 664 KB/step in the reprex. Consequence for the plan: the analytic
-  stationarity residual is worth ~2.7× (TF24 only) and gets Phase 1's lives under the
-  limit, but **only checkpointing breaks the steps × cohorts accumulation** (`chkpt=0`
-  everywhere, so XAD's checkpoint API is unused), and that is engine work for all
-  strategies. Then 4a (delete odelia's now-uncalled `supplied_derivative.hpp` +
-  example/test, clean 8 stale plant comments), 4b residual accretion, and **4c the
-  closing gate**: FD-verify the full TF24/TF24f SCM gradient (task #27), an explicit
-  `skip()` at `test-ad-tf24-scm-gradient.R:85` awaiting the tight-τ frozen-schedule
-  reference. Read `oracle/oracle-response-inner-argmax-adjoint.md` before designing
-  that FD.
+## The three documents that carry the current plan
+1. **[`v3-reverse-memory-design.md`](./v3-reverse-memory-design.md)** — the memory
+   profile (§1), the design search (§2–5), and the four follow-ups: preaccumulation as
+   a primitive (§6b), the frozen-L2 idea checked and set aside (§6c), and **the FF16
+   crown boundary decision (§6d)**.
+2. **[`v3-step-local-adjoint.md`](./v3-step-local-adjoint.md)** — the deferred engine
+   change, at implementation detail, with its trigger.
+3. **[`v3-phase1-plan.md`](./v3-phase1-plan.md)** — Steps 3 and 4 of the TF24 wiring.
 
-## Where we are: the TF24 reverse gradient WORKS
-- **Gate-0 FD-matches on all 7 channels** (`vcmax_25`, `jmax_25`, `K_s`, `k_I`,
-  `lma`, `rho`, `a_l1`) — `test-ad-gate0-tf24.R`, 7 assertions.
-- TF24 soil-coupling (3) and light-coupling (6) AD tests pass; tf24f
-  collar-uptake (11) passes; the active run reproduces the double trajectory
-  exactly; the double path is bit-identical (`test-leaf` 214, `test-strategy-tf24`
-  46, `test-strategy-tf24f` 57).
-- **Known open:** the tf24f collar residual (Step 3c) and the SCM FD gate (4c).
-  `test-ad-tf24-scm-gradient.R` test 1 is slow (many minutes) — budget for it
-  rather than assuming a hang.
-- The seam is deleted and `leaf_output` is absorbed into `Leaf` as scalar-generic
-  member templates; leaf-surface drift vs the DX bar went **+796 → +577**, with
-  `leaf_model.cpp` now *below* base.
+## Where we are
+- **TF24 reverse gradient works.** Gate-0 FD-matches on all 7 channels; soil (3),
+  light (6), tf24f collar-uptake (11) pass; the active run reproduces the double
+  trajectory; the double path is bit-identical (`test-leaf` 214, tf24 46, tf24f 57).
+- **The memory diagnosis was wrong and is now corrected.** It is a genuine kernel OOM,
+  but **FF16 OOMs the same way at its own production lifetime** — never had a seam, has
+  no leaf solve. Tape ∝ steps × cohorts for every strategy; K93 completes at
+  `life=105.32` in 0.75 GB. Per cohort-step: K93 2.15 KB → FF16 42.5 KB (**the crown
+  quadrature**) → TF24 79.7 KB (the leaf, only 1.9× more).
+- **Two levers landed.** `incomplete_gamma` injects its partials instead of recording
+  its series (TF24 4.445 → 3.236 GB at `life=1`, value and gradient unchanged);
+  `odelia::preaccumulate` is built and toy-proven (1 127 → 7 recorded ops at 21 nodes,
+  flat in node count, **gradient bit-identical** to the full tape, FD 5e-9).
+- **Known open:** the tf24f collar 2.9e-4 residual (#32), the SCM FD gate (#27), and
+  TF24 at `life=4` still OOMs.
 
-## New this session, reusable
-- **`odelia::util::graft_value(v, x)`** — the value-graft as a primitive (value from
-  a converged double, derivative from the active expression), so the trap above is
-  unreachable through it.
-- **`pstar_ode_reprex`** (`odelia/inst/examples/`, `test-ad-pstar-ode-reprex.R`) —
-  a plant-free, knob-driven harness for the nested interior-optimum composition.
-  **Use it before any plant rebuild** when a leaf-AD question can be posed
-  plant-free: seconds per config vs ~6 minutes. Knobs: `use_pstar`, `nest`,
-  `n_steps`, `nlayer`, `persist`, `nfields`, `graft`.
-- **`implicit_value` hardening** — pauses recording during its double `dF/dy` probe
-  (no orphan nodes) and static_asserts the residual's return type. This caught 17
-  latent dangling lambdas in odelia's own examples.
+---
+
+# SIGNPOSTS — what to do next, in order
+
+### ▶ 1. NOW: FF16 crown preaccumulation, **boundary A** — task #36
+The largest lever available, and self-contained. Read
+`v3-reverse-memory-design.md` §6d first. Read the 21 light values on the run tape,
+preaccumulate the rest (inputs ≈ 48 against ~588 internals). Expect **~2.5× on FF16**:
+9.02 GB at `life=40` → ~3.6 GB, and `life=105` **OOM → ~6 GB, which closes the FF16
+memory line**.
+- **Check the precondition first:** A assumes the crown reads through
+  `get_value_at_height_frozen_query`, so `L_j` depends on knot *values*, not actively
+  on `z_j`. Confirm for FF16's crown. If the query is active, `L_j` becomes a per-node
+  input — the approach still holds, n just grows.
+- **The bar is bit-identical, not within-tolerance.** Preaccumulation only moves bytes;
+  a moved gradient is a bug. Verify with `test-ad-ff16-scm-gradient.R` +
+  `test-scm-gradient-entry.R` (both FD-gated, both green — and confirm they *ran*),
+  FF16 bit-identity, and `PLANT_TAPE_STATS=1` at life 4/10/40/105.32.
+
+### ⏸ 2. DECISION POINT (needs the owner): boundary B
+B reaches ~12× but requires **Environment to expose its active field values** as an
+`ad_field_values()`-shaped contract member — new vocabulary on a shared interface,
+coupling strategy code to how the environment stores its field. That is an R3 design
+decision, so **run `system-design` and ask; do not slip it in.** Only needed for margin
+and for TF24 — and §0 of `v3-step-local-adjoint.md` says leanness falls short for TF24
+at production lifetime regardless.
+
+### ▶ 3. THEN: the two remaining leanness levers — task #31
+Both pure wins (less forward work as well as fewer bytes), both self-contained:
+**(a)** make the interior p\* stationarity residual analytic instead of a central
+difference of the full assembly — **2.7× on TF24's leaf**, no new vocabulary;
+**(b)** expression fusion — `ops/stmt` is **1.40–1.63**, so named intermediate actives
+are defeating XAD's expression templates and statements + derivatives are **40% of the
+tape**. Worth ~1.3× everywhere, and it is a style rule that stops the regression
+recurring.
+
+### ▶ 4. THEN: Phase-1 correctness and deletions — tasks #32, #33, #34
+**#32** the tf24f collar 2.9e-4 residual at ψ=2.5, **δ-independent from 1e-7 to 1e-3**,
+so a real missing term — do **not** loosen the tolerance; the plan gives the
+per-channel diagnostic and three ranked hypotheses, clamping first. **#33/#34** are
+pure deletion (the proven-dead `seam_collar_*` hooks, `supplied_derivative.hpp`, 8
+stale comments, residual accretion).
+
+### ▶ 5. THE CLOSING GATE — task #27
+FD-verify the full TF24/TF24f SCM gradient; the explicit `skip()` at
+`test-ad-tf24-scm-gradient.R:85`. **Blocked until memory allows `life≥4`** (signposts 1
+and 3). Read `oracle/oracle-response-inner-argmax-adjoint.md` **before** designing the
+FD: tight-τ frozen-schedule reference, never a loose-τ swept plateau.
+
+### ⏸ 6. DEFERRED, with a numeric trigger — task #35
+The step-local adjoint (`v3-step-local-adjoint.md`). **Trigger: TF24 wanted at
+`max_patch_lifetime` ≳ 40**, because leanness tops out at ~7.3× against the 15–45×
+production needs. It makes peak memory independent of lifetime and **removes the
+growing tape** rather than managing it. Its largest hidden cost: `least_squares` reads
+`get_history_step`, so it does **not** survive unchanged — convert it as part of that
+work, not after.
+
+### ⚑ 7. Owner is taking this: odelia's 10 loader errors
+`test-ad-{functional,jacobian,record-replay,tape-cache}.R` and `test-rodas.R` error out
+(10 total) from a loader problem, not from session 20's changes — but my baseline check
+was imperfect (stashing source does not revert installed headers), so treat
+"pre-existing" as probable, not proven. Given signpost 0's corollary, these deserve a
+look: same class of silence.
 
 ---
 
