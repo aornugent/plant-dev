@@ -246,6 +246,12 @@ t = 0 gives every one of them `pr_patch_survival_at_birth = 1`, so every cohort'
 wrong by `1 / pr_survival(t_birth)`. That is exactly the measured signature: **zero at segment 0**
 (one cohort, born at t = 0, correct) growing with segment index as more cohorts carry the error.
 
+**Verified by a discriminating prediction, not by reading alone.** If this stamp is the cause the
+error can only appear in the one state its rate feeds. The probe reports which component of a node
+carries the maximum error: **`offspring_produced_survival_weighted`, in every probed segment of both
+K93 and FF16, exclusively** — never height, mortality, fecundity, heartwood or log-density. That is
+the signature and nothing else produces it.
+
 **Everything a unit needs, then:** the ODE state, the per-species cohort counts, and per node
 `pr_patch_survival_at_birth`. For an R0 functional also `node_introduction_time` and
 `patch_density_at_birth`. **All are deterministic doubles recoverable from the schedule** — the
@@ -306,3 +312,66 @@ The owner's assessment was right on both counts, and specifically:
 
 The engine was not short a primitive. It was short a **unit of recording** — and it carried four
 primitives too many while looking for one.
+
+
+---
+
+## How the leaf-soil coupling changes the space, and the primitive for all three
+
+Owner, session 22: *"I'm open to new ideas, but they must extend to TF24 too. How does leaf-soil
+coupling change the viable solution space? Is there a general primitive for all three strategies?"*
+
+**There is, and it is already built.** All three strategies shade with the *same* rank-3 Yokozawa
+kernel. TF24's is `k_I * area_leaf(H) * (1 - (z/H)^eta)^2`, which expands to
+
+    {1, -2 z^eta, z^{2eta}} . {amp, amp H^-eta, amp H^-2eta}
+
+— exactly `CanopyShape::shading_query_factors` / `shading_source_factors`, which is what
+`separable_field` consumes. So `separable_field` + `CanopyShape` is the general construct, and the
+`env_has_competition_field` trait already routes a System to it.
+
+**The one difference TF24 makes is what a source weight *is*.** For K93 and FF16 the weight is a
+closed form in the cohort's state. For TF24 it is `area_leaf`, an output of the leaf solve — and
+`implicit_value` already covers that. **So the primitive for all three is the composition of two
+existing primitives, with no new vocabulary.** That is the answer to the question as asked.
+
+The coupling changes the space in two further ways, and **neither needs a new primitive**:
+
+**1. TF24's environment carries ODE state, and that is a simplification, not a complication.** Soil
+water sits in `y` (`ode_size() > 0`, against `== 0` for FF16 and K93), so the reverse sweep carries
+`d/d(theta)` automatically — no recording, no freezing decision, no replay layer. Treating soil as a
+background instead would be strictly worse: it would drop the depletion feedback that makes a
+water-limited model mean anything. The workflows that legitimately hold soil fixed are the mutant
+ones, which is the existing deferred layer. **Soil needs no new concept at all.**
+
+**2. The source weight is read from a LAGGED aux slot — measured, and load-bearing.** Inside
+`set_ode_state`, `compute_environment()` runs *before* `compute_rates()`, and the competition source
+weight is read from an aux slot that `compute_rates` writes. So the field at RK stage *s* is built
+from aux written at stage *s-1*: **the environment is not a pure function of `y`.** Settling a
+restored patch a second time (which refreshes aux) makes the match with the forward pass
+**markedly worse** for FF16 — 1e-35 -> 1e-14 at segment 20, 2e-22 -> 1e-6 at segment 80 — because the
+forward pass genuinely uses the lagged value. For K93 it changes nothing.
+
+This is a property of the model worth knowing rather than a defect to fix, but it constrains any
+re-record: **a unit that rebuilds its environment from current state alone is not reproducing what
+the forward pass read.** FF16 happened to match to 1e-22 with a single settle; whether that is
+structural or luck is untested, and for TF24 — where the aux is a *leaf solve* output rather than a
+closed form — it is the thing to check first.
+
+### What a unit must therefore carry, for all three
+
+| | why | recoverable? |
+|---|---|---|
+| the ODE state | the integrand | stored |
+| per-species cohort counts | the width | derivable from the introduction schedule |
+| `pr_patch_survival_at_birth` per node | **divides the fecundity rate** — the measured cause of every drift | `survival_weighting->pr_survival(t_birth)`, deterministic |
+| `node_introduction_time`, `patch_density_at_birth` | only `weighted_fecundity`, so **only for an R0 functional** | deterministic from the schedule |
+| the aux entering the unit | the environment reads it one stage stale (above) | **open — check on TF24 first** |
+
+Everything but the last row is a deterministic double recoverable from the schedule, needing no
+derivative, which matches the owner's steer that patch density is deterministic and disturbance
+gradients are out of scope. **plant already has the setter:** `Species::set_birth_state(times,
+patch_density, pr_patch_survival)`, reached through `Parameters::initial_*`.
+
+**And none of it is adaptive structure.** So `ReplaysStructure` still has no witness, and the
+structure role in `Replayable` should be **deleted** rather than renamed.

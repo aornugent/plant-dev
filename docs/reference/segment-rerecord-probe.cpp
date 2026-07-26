@@ -99,6 +99,7 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every,
   // state restoration will make them agree.
   std::vector<int> fwd_nodes, reb_nodes, nodes_match;
   std::vector<double> from_copy_abs;
+  std::vector<int> worst_component;
 
   for (std::size_t k = 0; k < U; k += static_cast<std::size_t>(probe_every)) {
     // The segment's own slice of the recorded grid.
@@ -147,7 +148,7 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every,
         max_reld.push_back(NA_REAL);
         max_abs.push_back(NA_REAL);
         fwd_nodes.push_back(0); reb_nodes.push_back(0); nodes_match.push_back(0);
-        from_copy_abs.push_back(NA_REAL);
+        from_copy_abs.push_back(NA_REAL); worst_component.push_back(-1);
         continue;
       }
       unit.set_ode_state(entering[k].begin(), t_in[k]);
@@ -215,11 +216,16 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every,
       continue;
     }
     double mr = 0.0, ma = 0.0;
+    std::size_t worst = 0;
     for (std::size_t i = 0; i < y.size(); ++i) {
       const double d = std::fabs(y[i] - leaving[k][i]);
-      ma = std::max(ma, d);
+      if (d > ma) { ma = d; worst = i; }
       mr = std::max(mr, d / (std::fabs(leaving[k][i]) + 1e-300));
     }
+    // Which component of a node carries the error. If survival-at-birth is the cause,
+    // it must land in the fecundity slot, since that is the only rate it divides.
+    worst_component.push_back(
+        static_cast<int>(worst % plant::Node<Strat, Env>::ode_names().size()));
     probed.push_back(static_cast<int>(k));
     width_ok.push_back(1);
     max_reld.push_back(mr);
@@ -236,7 +242,10 @@ Rcpp::List rerecord_probe(double birth_rate, double lifetime, int probe_every,
       Rcpp::Named("fwd_nodes") = Rcpp::wrap(fwd_nodes),
       Rcpp::Named("reb_nodes") = Rcpp::wrap(reb_nodes),
       Rcpp::Named("nodes_match") = Rcpp::wrap(nodes_match),
-      Rcpp::Named("from_copy_abs") = Rcpp::wrap(from_copy_abs));
+      Rcpp::Named("from_copy_abs") = Rcpp::wrap(from_copy_abs),
+      Rcpp::Named("worst_component") = Rcpp::wrap(worst_component),
+      Rcpp::Named("component_names") =
+          Rcpp::wrap(plant::Node<Strat, Env>::ode_names()));
 }
 
 }  // namespace
