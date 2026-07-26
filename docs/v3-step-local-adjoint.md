@@ -238,3 +238,117 @@ Develop behind a branch if that is safer, but delete the branch before calling i
 If per-cohort state ever grows until the stored trajectory is comparable to its tape,
 the premise fails and **checkpointing** (trading that storage back for recompute)
 becomes correct after all. The ratio is 10 000× today; it is the number to watch.
+
+---
+
+## 3b. Step (2) settled: the unit is the event segment, and `run()` becomes derived
+
+`system-design`, session 21. **Triage 2** — a contract member on the interface every
+differentiable System presents.
+
+### Requirements ledger
+
+- **R1** — B's backward pass must be expressible against every differentiable System:
+  index the run, restore unit k's start state, record exactly unit k, sweep, discard.
+  **Quantity: 4 implementors** — odelia `Solver`, `soil_leaf::Runner`, plant `SCM`, plant
+  `IndividualRunner`.
+- **R2** — peak tape ≤ one unit. **Measured (FF16, `life` 4/10/40): 95/110/145 ODE steps
+  against 86/93/108 introductions = 1.10/1.18/1.34 ODE steps per event segment.**
+- **R3** — concept count = new members × implementors.
+- **R5** — the value stays bit-reproducible, so the forward pass must remain today's code.
+- **R6** — first-order-blind sites stay enumerable. B adds none; it is exact.
+
+**Scarce resource: new members every differentiable System must implement.** This is the
+finding that decides the design — at unit = one ODE step peak tape is ~55 MB (FF16
+`life=105`), at unit = one event segment it is ~74 MB, and R2's target is 2 GB, so **both
+pass with 27–36× margin. Memory does not choose the unit; concept count does.** Therefore
+choose the unit the code already has.
+
+### The floor
+
+**Add nothing: `set_schedule(sub-grid)` + `run()` + the existing `history`.** All three
+exist, and `history` already stores per-unit `System` copies under `collect`, which is the
+stored trajectory *and* is complete in §4.4's sense (derived caches included).
+
+**It fails R1, on the SCM specifically.** `SCM::set_schedule` does not just set the L1
+grid — it calls `node_schedule.r_set_ode_times` and `r_set_use_ode_times(true)`, so the
+grid and the **introduction schedule** are the same act. Handing it a two-point sub-grid
+truncates the node schedule and silently drops the introductions inside the window. The
+floor cannot express "replay just unit k" for the one implementor that matters most.
+
+### Candidates
+
+- **A [first thought]** *(move 3: move the boundary)* — `unit_count()`, `restore(k)`,
+  `advance_unit(k)`: **3 new members × 4 implementors**. Pays R1 directly. Costs: a second
+  control flow alongside `run()`, which is the cost §4 charged candidate A of the original
+  search. Wins when the backward pass genuinely needs to do something the forward pass
+  never does.
+- **B** *(move 2: record → replay)* — the forward pass records its own segmentation, so
+  add one Solver-side member `replay_unit(k)` and nothing to the System. **1 new member ×
+  2 schedule owners.** Wins when the recording already knows the unit boundaries — it does.
+- **C** *(move 6: Pólya with witnesses)* — as B, **and re-express `run()` as
+  `for (k = 0; k < unit_count(); ++k) replay_unit(k);`**. Then `replay_unit` is not a
+  concept added beside `run()`; it is the loop body that already exists in all four
+  implementors, named, with `run()` derived from it. Wins when the whole-run replay and the
+  per-unit replay must be the same code — which R5 requires.
+
+**Winner: C.** A is eliminated on R3 and on the second control flow (3 members × 4
+implementors, and a backward path that can drift from the forward one — the defect R5
+exists to prevent). B is C without the last step, and leaves `run()` as an independent
+body that can disagree with the loop; the deletion pass below removes it.
+
+### The commitment
+
+> **A run is a sequence of independently replayable units, and the whole-run replay is
+> derived from that sequence rather than the other way round.**
+
+**Kept true by:** `run()` having no body of its own beyond the loop over `replay_unit(k)`.
+A unit that cannot be replayed standalone therefore cannot be part of a run — the forward
+pass would not work either, so the backward pass cannot be the only thing that breaks. This
+is what removes B's "second control flow" cost entirely: there is one replay path, used
+forwards by `run()` and out of order by the adjoint driver.
+
+**The unit is the event segment** — `[introduce][integrate to the next introduction]` —
+because that is what `SCM::run_next_impl` and `soil_leaf::Runner`'s three segments already
+are, and R2's measurement says it costs 1.34× the theoretical minimum peak, against 27× of
+margin. Choosing the ODE step instead would buy 1.34× of memory nobody needs and require a
+decomposition neither implementor has.
+
+**Consequence for §4.1:** the cohort-introduction adjoint jump stops being a special
+boundary. An introduction is *inside* a unit, so its adjoint is recorded and swept with the
+rest of that unit's tape — no distinct term, no separate segment to get right.
+
+### Kill question
+
+**Assumption whose falsity makes this unnecessary:** that the backward pass must reuse the
+forward pass's code. If a backward-only path were acceptable, the driver could hand-roll
+the stepping and no contract would change.
+
+**Verdict: survives.** R5 requires the replayed value to be bit-reproducible, and §4.3
+requires re-recording a unit to be bit-deterministic from its stored state. Both are
+properties of *the same code running twice*; under a separate backward path they degrade
+from structure to convention, and the warm-start foot-gun in §4.3 becomes undetectable.
+
+### What survives deletion
+
+- **`replay_unit(k)`** → R1 (nothing else can express the backward pass) and R5 (one path).
+- **`unit_count()`** → R1: the driver must know how many units to walk, and it is not
+  `recorded_steps().size()` — units are segments, steps are 1.10–1.34× as many.
+- **`run()`'s body** → nothing. It becomes the two-line loop, so it is deleted, not added to.
+- **`restore(k)` / `advance_unit(k)` as separate members** → nothing. Restoration is part of
+  replaying a unit, and splitting them invites a caller that advances without restoring.
+
+### What this makes hard
+
+Peak tape is 1.34× larger than a per-ODE-step design, and a unit containing an unusually
+long integration gap (the resume path, where `e.time_introduction() > t0`) is one unit
+however many steps it holds — so a resumed run has one oversized unit. Coped with by
+splitting only that case, if it ever binds; the ordinary path introduces at nearly every
+step, which is exactly why it does not bind today.
+
+### Kill condition
+
+**A run whose units stop being small** — a strategy that introduces rarely, so segments hold
+many ODE steps and one unit's tape approaches the budget. The measured ratio (1.10–1.34) is
+the number to watch; at ~30 steps per segment the ODE step becomes the right unit and
+candidate A's finer decomposition is the retrofit.
