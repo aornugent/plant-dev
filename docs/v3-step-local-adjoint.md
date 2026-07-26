@@ -106,6 +106,44 @@ XAD already provides every primitive: `getPosition`, `resetTo`, `computeAdjoints
 `clearDerivativesAfter`. **No `CheckpointCallback`, no nested recording, no recompute
 schedule.**
 
+## 3a. CORRECTION (session 21): the replay surface is a contract change, and it is B's real prerequisite
+
+§3 above claims "no new segmentation concept is needed". That is true of the *schedule* and
+false of the *replay surface*. Two facts, both read off the current code before any driver
+was written:
+
+**(i) The driver only knows how to replay the WHOLE run.** `compute_jacobian` duck-types
+its solver on six members — `tape`, `get_system_ref`, `ad_parameters`,
+`ad_initial_state`, `reset`, `run` — and `run()` is opaque. `soil_leaf`'s `Runner::run()`
+is the witness: three `advance_fixed` segments with `sys.introduce()` between them, so its
+step sequence *and its two state-dimension changes* are sealed inside one call. A backward
+pass cannot index into that. So B needs the run re-expressible as an indexed sequence —
+"advance step k from state y" — and that is one genuinely new concept on the interface
+every differentiable System presents, not merely a new driver behind the old one.
+
+**(ii) The `replay_step()` hook assumes the pass is monotone, and the two implementations
+disagree about it.** `CanopySystem::replay_step()` reads `positions_history.at(step)` and
+then `++step` — a private cursor that only walks forward. `Patch::replay_step()` instead
+*resolves* its index from `time()`, with a sequential fast path and a `std::find`
+fallback, so it already tolerates arbitrary order. **A backward pass would therefore be
+silently wrong on one System and correct on the other** — §4.4's failure shape exactly, and
+invisible because each is self-consistent on a forward replay.
+
+**The fix for (ii) is a DX win independent of B, and it should land first:** pass the step
+index to the hook — `replay_step(std::size_t k)`. Then `CanopySystem` loses its cursor
+member and `Patch` loses its time search and its `idx`; neither has to *infer* where it is,
+because the Solver already knows. That is a hook whose signature changes rather than a hook
+added, it deletes state from both implementations, and it makes "the cursor and the
+schedule cannot go inconsistent" structural — the same argument that makes
+`recorded_steps()` the single source of the grid.
+
+**Sequencing this implies**, and it differs from §7's ladder: (1) index the replay hook in
+both repos, verified by the existing suites — self-contained, and correct whether or not B
+proceeds; (2) settle the indexed-step contract that replaces the opaque `run()`, under
+`system-design`, since it is a shared-interface concept; (3) only then write the driver,
+starting at `soil_leaf` — which is the right first witness precisely *because* its
+`introduce()` calls make it the hard case for (2), not the easy one.
+
 ## 4. The five things that can make it silently wrong
 
 Ordered by how easy each is to miss. (1) and (2) are the ones to design against; the
