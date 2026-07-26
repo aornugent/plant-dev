@@ -171,7 +171,7 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-22 (session 7 — T6 Slice 4 DONE: end-to-end scenario bank + the kutta3
+*Last updated: 2026-07-26 (session 7 — T6 Slice 4 DONE, then an Oracle review round, an escape CERTIFICATION, a #550 diagnosis, and a TOLERANCE CORRECTION that revises every offspring-accuracy number. NEXT = four per-leg COST priorities, see the ▶ NEXT SESSION block. Original Slice 4 entry follows.) (session 7 — T6 Slice 4 DONE: end-to-end scenario bank + the kutta3
 accuracy fix. `mri_uptake` runs the full dynamic bank, out-surviving rkck (all 6 complete vs rkck's
 3), death mode absent, 3–10× cohort-solve reduction; and the slow advance was upgraded
 forward-Euler→kutta3 (odelia one-liner), cutting the dynamic-regime offspring bias 12%→<0.1% at the
@@ -230,14 +230,25 @@ death mode absent.*** *The two levers on record:
 weekly-step with a cheap analytic uptake refresh; and (deferred) the ACCURACY refiner (P1 showed
 static shapes fail). Item B not needed; rung 3 moot (T3: survivor-flips J-negligible).*
 
-## ▶ NEXT SESSION — start here: T6 Slice 4 (end-to-end scenario bank; prescriptive)
+## ▶ NEXT SESSION — start here: T6 per-leg COST reduction (4 priorities, prescriptive)
 
 **Branches (post-split): develop on `claude/tf24-forward-speed-n5audm` (plant) and
 `claude/tf24-forward-speed-engine` (odelia); meta stays on
 `claude/tf24-multi-rate-stepper-n5audm` and its `.gitmodules` tracks the two forward-speed
-branches. Push ONLY to `aornugent/*`. See Part 1 §5.** Slice 3b-iii (the odelia integrator +
-real-patch wiring) is DONE; Slice 4 is mostly an R measurement task — likely NO new C++ unless the
-macro-grid driving needs a change (see §3 below).
+branches. Push ONLY to `aornugent/*`. See Part 1 §5.**
+
+**THE FRAME (session 7's key finding — read this before choosing work).** Slice 4 shipped and
+`mri_uptake` works. But re-measurement against a properly converged reference showed that **the
+cohort-solve advantage evaporates exactly where the accuracy becomes good**: in the survivable
+dynamic regime (amp=0.3) it is **3.8× fewer cohort solves at 3.5e-3**, and by H=1.75 d (error
+≤4e-4, reference-limited) the coupling count 16868 ≈ rkck's 16581 RHS evals — **no saving at all.**
+So the binding constraint is no longer accuracy; it is **per-leg member-sweep cost**. Every item
+below lowers that, which is what widens the usable operating window. **Do NOT chase accuracy knobs
+or the stress bank** (see §3a for what is parked and why).
+
+**Also: stop quoting one reduction factor.** It is strongly regime-dependent — 40× on the
+constant-rainfall gate, 3.8× in the dynamic regime at the same weekly leg, 3–10× on the stress bank.
+Always state the regime.
 
 ### 0. Rebuild context (read in this order)
 1. **Part 1 in full** (codesign rules, bit-identical invariant, branch/commit rules, hard-won lessons).
@@ -245,9 +256,18 @@ macro-grid driving needs a change (see §3 below).
 3. The result docs, in order: `tf24-v2-T6-slice1-newton-collar-result.md`,
    `tf24-v2-T6-slice2-duptake-gate-result.md`, `tf24-v2-T6-slice3a-analytic-duptake-result.md`,
    `tf24-v2-T6-slice3b-i-stand-duptake-result.md`, `tf24-v2-T6-slice3b-ii-macrostep-falsifier-result.md`,
-   `tf24-v2-T6-slice3b-iii-uptake-integrator-result.md` (toy), and
-   **`tf24-v2-T6-slice3b-iii-step2-mri-uptake-patch-result.md` (the real-patch PASS + the honest
-   scoping Slice 4 must resolve — read this one closely).**
+   `tf24-v2-T6-slice3b-iii-uptake-integrator-result.md` (toy),
+   `tf24-v2-T6-slice3b-iii-step2-mri-uptake-patch-result.md` (the real-patch PASS), and
+   `tf24-v2-T6-slice4-scenario-bank-result.md` (note its CORRECTION banner).
+   **Then the three session-7 docs, which supersede numbers in the above — read all three:**
+   **`tf24-v2-T6-tolerance-correction-and-remeasurement.md`** (why every offspring-accuracy figure
+   moved, and the corrected table — read FIRST),
+   **`tf24-v2-T6-refresh-sweep-escape-certification-result.md`** (the escape is certified), and
+   **`tf24-v2-T6-density-blowup-550-investigation-result.md`** (the stress-bank crashes are a model
+   divergence; what we may and may not claim).
+   Oracle: `oracle-consultation-arbitrage-review{,-response}.md` (the response's §4 is refuted; its
+   volunteered architecture is a target, not a licence to build) and the parked
+   `oracle-consultation-hypersensitivity-extinction.md`.
 4. Rebuild: **odelia first** (plant LinkingTo it), then plant.
    - odelia: from `odelia/`, `Rscript -e 'options(pkg.build_extra_flags=FALSE); pkgbuild::compile_dll(compile_attributes=FALSE)'`
      then `R CMD INSTALL --no-docs --no-byte-compile odelia` (installs headers plant compiles against).
@@ -256,8 +276,13 @@ macro-grid driving needs a change (see §3 below).
    Sanity (should reprint their headline numbers):
    `Rscript scripts/tf24-benchmarks/duptake_stand_gate.R` (dry tercile med ~1e-5);
    `Rscript scripts/tf24-benchmarks/macrostep_falsifier.R` (adaptive cohort-sums 1–14/40);
-   `Rscript scripts/tf24-benchmarks/mri_uptake_gate.R` (40× coupling reduction, offspring rel ~9.8e-3 vs rkck).
+   `Rscript scripts/tf24-benchmarks/refresh_sweep.R` (escape certified: error falls with the forced
+   re-anchor rate R in all 9 regimes, no floor above the ~3e-7 splitting error).
    In-package tests: from `odelia/`, `testthat::test_dir("tests/testthat", filter="example-uptake")` (25 pass).
+   **`mri_uptake_gate.R` was re-pointed at a converged reference (lesson #7) and its headline number
+   is NOT yet re-established — the re-run was still in flight at the end of session 7. Re-run it and
+   record the result before quoting any gate figure.** Its old 9.8e-3 / 2.3e-3 were measured against
+   an `ode_tol=1e-4` reference and are upper bounds on disagreement, not measurements.
 
 ### 1. What is already DONE and TRUE (do not rebuild; build on these)
 - **Slice 1 (plant):** control key `newton_collar_solve` (OFF/bit-identical); ON = safeguarded
@@ -328,6 +353,38 @@ macro-grid driving needs a change (see §3 below).
   removes) and confounded at short horizons by near-zero-J hypersensitivity (lesson #4; use ≥12 yr).
   (d) Patch-level REVERSE mode is NOT wired (forward is the deliverable; `reexpansions` is recorded
   and replay-ready; reverse proven on the toy only).
+- **Session 7 (T6 post-Slice-4): four things established, two of them corrections.**
+  1. **Escape CERTIFIED** (`refresh_sweep.R`, `tf24-v2-T6-refresh-sweep-escape-certification-result.md`).
+     The affine coupling structurally escapes the frozen-coupling refutation: with the monitor OFF and
+     the re-anchor rate R forced, the soil-trajectory error falls monotonically with R in **all 9**
+     `{wet,mid,dry}×{drought,drizzle,storm}` regimes — smooth ones ~O(1/R²), kinked storm ones ~O(1/R)
+     — with **no floor above the ~3e-7 splitting error**. The `dry+storm` re-rise leg (the 650%
+     unmonitored blow-up, the Oracle's #1 re-entry worry) escapes cleanly. Contrast the held-`a`
+     re-entry signature: a floor at O(0.1). **Consequence: the margin-box (M2) and curvature (M3)
+     guards the Oracle proposed are convergence-RATE optimisations, not correctness fixes.**
+  2. **The stress-bank crashes are plant#550, a MODEL divergence** (`ρ → +∞` in the weight equation),
+     not a drainage overflow — see §3a and `tf24-v2-T6-density-blowup-550-investigation-result.md`.
+     **New evidence:** T6 Slice 1 (`newton_collar_solve`) **rescues 1 of the 3 crashing traces**
+     (`extended_drought` completes, J=5.65e-10), supporting #551's discontinuity mechanism on an issue
+     upstream closed as not planned. **Correction it forced:** on that trace `mri_uptake` is **~1400×**
+     below the now-obtainable reference, so "completes traces the reference cannot" is **NOT** a
+     robustness win and the Slice 4 claim was softened.
+  3. **⚠ CORRECTION — the tolerance error (hard-won lesson #7).** Every offspring-accuracy figure in
+     Slice 4, the crosscheck and the gate was measured against a reference converged in only the
+     inner-solve family, with `ode_tol` left at its **1e-4 default**. The reference was the outlier:
+     `ode_tol=1e-4 → J=35.1148736`, `1e-5 → 35.2448663`, and mri_uptake's own limit is ≈35.24.
+     **Corrected (amp=0.3): the weekly-leg error is 3.5e-3, not 1.8e-4** (the old figure was flattered
+     by the bad reference *and* by a sign crossing). Full account:
+     `tf24-v2-T6-tolerance-correction-and-remeasurement.md`. Structural fix: `converged_control.R`.
+  4. **The order test is DEAD and the cost frame changed** — see the NEXT SESSION frame and P3.
+- **Oracle round 6 (review) done; a follow-up submission is parked.**
+  `oracle-consultation-arbitrage-review.md` + `-response.md` (includes a volunteered full target
+  architecture, to be built only behind its ladder). Its §4 mechanism was **refuted** (see §3a).
+  `oracle-consultation-hypersensitivity-extinction.md` is written and awaiting a response; it corrects
+  a **material incompleteness in all five prior rounds** — none had ever disclosed the **weight
+  equation** `d(log ρ)/dt = −∂g/∂ξ − m`, i.e. that the weight dynamics *differentiate* the member
+  velocity field in the member coordinate (by one-sided FD, `eps=1e-6`), so `ρ` can diverge to **+∞**
+  and not merely to the absorbing 0.
 - **Foundational facts:** T4 → cohorts ≤3%-sensitive to sub-weekly soil (freeze weekly). P2 → uptake
   low-order in soil water, most predictable near dry. Arbitrage = freeze cohorts, sub-cycle soil,
   refresh `a` from `∂a/∂u` instead of the O(M) cohort sum.
@@ -359,43 +416,58 @@ macro-grid driving needs a change (see §3 below).
   `test-example-uptake.R`; step 2 gate `mri_uptake_gate.R`. `ode_method="mri_uptake"` exists,
   bit-identical off, 40× coupling reduction at 9.8e-3 offspring on the 30-yr single-species SCM.
 
-### 3. Slice 4 build order (end-to-end scenario bank; prescriptive) — ← START HERE
-Slice 4 is the real acceptance test. It is mostly R measurement on top of the built `mri_uptake`;
-add C++ ONLY if the macro-grid driving needs it (see step 3 below). Order:
-1. **Reference + harness (R).** For each bank scenario (`scripts/tf24-benchmarks/data/*.rds`:
-   intense_storms, whiplash, extended_drought, dry_to_wet, long_horizon, drydown), at a **converged
-   member mesh** and **converged inner tol** (GSS_tol_abs/ci_abs_tol 1e-12): run the SCM with (a)
-   `ode_method=""` (rkck) = the global-RK **reference**, and (b) `ode_method="mri_uptake"`
-   (compute_uptake_jacobian=TRUE, n_collocation_nodes=0, tol=1e-2, nmicro=40, ode_step_size_max
-   weekly). Per scenario report: **offspring rel error** vs the rkck reference, **cohort-solve count**
-   (`mri_coupling_evals` = the O(M) sums, vs `mri_fast_rate_calls` = cheap; and vs rkck's
-   `patch_rhs_calls`), **wall-clock** (same-machine A/B only — see the `profile-plant` skill; machine
-   drift is large), and the **trust-monitor re-expansion rate** (mri_coupling_evals/nlegs − 1).
-   Extend `mri_uptake_gate.R` into a per-scenario table; save an `.rds`.
-2. **If offspring accuracy misses converged-J tol on any scenario, tighten the KNOWN knobs and
-   re-measure — do NOT assume the refresh is at fault** (step-2 showed re-expansions=0 and the ~1%
-   is the order-1 MRI macro-discretization). In cheapest-first order: (a) finer macro grid (smaller
-   `ode_step_size_max`); (b) higher-order slow advance — swap `mri_forward_euler` for `mri_kutta3`
-   in `MriUptakeStep::step` (odelia, one line; the coupling tables already exist); (c) tighter
-   `mri_uptake_tol` (more re-expansions — only helps if re-expansions>0, i.e. the refresh IS
-   drifting). Each is a speed/accuracy trade; report the operating point that meets tol at max speed.
-3. **Macro-grid driving (C++ only if needed).** The SCM currently drives `mri_uptake` via
-   `advance_adaptive` with the leg bounded by `ode_step_size_max` (yerr=0 ⇒ always-accept ramp from
-   `ode_step_size_initial` up to the cap, so the first ~6 legs per event-interval are tiny — inflates
-   `mri_coupling_evals`). If that ramp dominates the cost on long scenarios, add a fixed weekly (or
-   forcing-kink) macro grid for `mri_uptake` in `scm.h`'s run path (mirrors the existing
-   `advance_fixed` branch). This is shared with `method="mri"`; system-design it first.
-4. **Acceptance = offspring within converged-J tol on EVERY bank scenario AND net cohort-solve
-   reduction (target 10–100×; 3b-ii oracle bound 2.9×–40× per window, step-2 realised 40× on the
-   benign 30-yr run — expect lower on storm/rewetting scenarios where re-expansions fire).** Kill
-   condition: trust monitor fires ~every fast step → collapse to global RK (DEAD) — 3b-ii showed this
-   does NOT happen on the bank (worst 14/40), but verify per scenario. If a storm-dominated scenario
-   is irreducible, the honest fallback is "mri_uptake on dry/steady scenarios, rkck on storm-dominated"
-   — still a partial DX win; report honestly (build-spec §4).
-5. **(Optional, separate) patch-level reverse mode.** Only if the reverse-mode gradient is needed for
-   `mri_uptake` (not required for the offspring/speed deliverable). The `reexpansions` schedule is
-   already recorded on the forward pass; wiring the patch adjoint is a distinct subsystem (plant#60
-   territory) — scope it on its own, do not fold into Slice 4's forward acceptance.
+### 3. Build order — the four priorities (prescriptive) — ← START HERE
+
+Ordered by value-per-effort against the per-leg cost floor. **1 and 2 are measurements/refactors
+with no new numerics; 3 needs two rebuilds; 4 is a real build.**
+
+**P1 — Resolve the setup-caching contradiction (a MEASUREMENT, no build). Biggest certain win.**
+Our own record contradicts itself and the Oracle flagged it: the cost-structure round said the
+≈11-unit per-member setup is **`u`-independent and cacheable per macro interval**; the later
+characterisation charged it per `u`-change. **One measurement settles it.** If the old claim holds,
+the setup is cached across all three slow-advance stages **and** every re-expansion → **up to ~half
+the member-loop cost**, which is larger than every other item here. Method: instrument the member
+loop (or A/B a memoised vs non-memoised setup) at the weekly operating leg in the survivable dynamic
+regime; report setup vs objective-eval vs argmax shares of one sweep. Plant already memoises some
+θ-independent per-cohort setup (see the R1 issue item 7, "setup-cache seam") — check what is actually
+reused before building anything.
+
+**P2 — Fuse the anchor capture with the slow advance's first stage. ~25% off the floor.**
+Today a leg pays 4 member sweeps: the anchor (`refresh_anchor`: `a₀` + `G`) plus 3 slow-advance
+stages. The same loop can emit `ẋ`, `a₀` and `G` sharing one setup ⇒ **4 → 3 sweeps/leg**. Do this
+after P1, because what can be shared depends on what the setup caching allows. `refresh_anchor` and
+`compute_species_rates`/`assemble_resource_depletion` are the seam (`plant/inst/include/plant/patch.h`).
+
+**P3 — `mri_heun` vs `mri_kutta3` A/B at the fixed operating leg. Another ~third.**
+Settles 3 → 2 sweeps/leg. **This replaces the H-sweep order test, which is DEAD** (§1: the scheme is
+not in an asymptotic regime; a ~2.7e-3 deterministic jitter floor in J-vs-H makes order unextractable
+at *any* reference quality). Method: rebuild odelia with `mri_heun()` at
+`ode_step_mri_impl.hpp:MriUptakeStep::step` (one line, same place kutta3 went), re-run the corrected
+gate + the amp=0.3 dynamic point, compare **J error and coupling count** against kutta3. Decision:
+if Heun holds ≲ kutta3's 3.5e-3 at the weekly leg, ship it and take the sweep back. Two rebuilds
+(~4 min each) — budget for them.
+
+**P4 — Adaptive H with a prior-conditioned schedule. Biggest build, do last.**
+Re-expansion rates of **0.11–0.53 per leg** say the legs have real headroom, and the drive/gate
+geometry is known a priori, so the H-schedule can be precomputed with the trust monitor absorbing
+only state-dependent surprises. The 3-stage table embeds a 2nd-order companion, giving a **free
+slow-error estimate** to accept/reject legs on. `system-design` this before writing code; it also
+subsumes the old "fixed macro grid in `scm.h`" idea.
+
+### 3a. Parked, with reasons (do NOT restart these without a new reason)
+- **The stress bank as an ACCURACY test.** It is a cost/monitor measurement only. The rkck crashes
+  there are **plant#550**, a *model-level* cohort-density divergence (`ρ → +∞`), not a solver
+  overflow — upstream's own position (plant#552) is *"trustworthy completion is blocked on the
+  model"*, and #551 (the `opt_psi_stem`-discontinuity root cause) was **closed as not planned**. See
+  `tf24-v2-T6-density-blowup-550-investigation-result.md`.
+- **The Oracle's rung #5 (retrofit the exact recession into the global RK).** Refuted before
+  building: the crashes are the density mode, never the soil mode. A solver fix for a non-solver
+  failure.
+- **The H-sweep order test.** Dead, see P3.
+- **Patch-level reverse mode / the `∂²a/∂u∂(x,θ)` HVP.** Real and unscoped, but a separate subsystem
+  and forward is the deliverable. Keep the door open (see §1's reverse-mode note); do not build now.
+- **Hypersensitivity/extinction.** A submission is written and parked:
+  `oracle-consultation-hypersensitivity-extinction.md` (awaiting a response).
 
 ### 4. Discipline (the reason this is working)
 Gate offline before every C++ build; validate bit-identical-OFF; run `system-design` before a
@@ -571,10 +643,10 @@ task #23) and the **multi-block non-finite failure** (diagnosed H1/overflow).
 
 | repo | branch | HEAD |
 |---|---|---|
-| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `7fbc89c` (session-6: + Slice 3b-iii toy + step-2 result docs, `mri_uptake_gate.R`; submodule pointers advanced) |
+| plant-dev (meta) | `claude/tf24-multi-rate-stepper-n5audm` | `e719cfd` (session-7: Slice 4 result + kutta3, escape certification, #550 investigation, Oracle review round + hypersensitivity submission, tolerance correction + `converged_control.R`, four-priority handoff) |
 | plant (active) | `claude/tf24-forward-speed-n5audm` | `c4845c4d` (+ **Slice 3b-iii step 2**: `ode_method="mri_uptake"` patch hooks `refresh_anchor`/`predicted_uptake`/`residual_frozen`/`trust_excursion`/`trust_true_error`, control keys `mri_uptake_tol`/`nmicro`, `mri_coupling_evals` counter; over Slice 1/3a/3b-i) |
 | plant (frozen) | `claude/tf24-multi-rate-stepper-n5audm` | `9c8bd2d6` (pre-split MRI/collocation/IMEX/R-C block only) |
-| odelia (active) | `claude/tf24-forward-speed-engine` | `3cfed4e` (+ **Slice 3b-iii**: `subcycle_uptake`+`UptakeSubcycle`+`MRISchedule.reexpansions`+`mri_coupling_evals`, `Method::mri_uptake`+`MriUptakeStep`+`mri_step_run`, `UptakeSystem` toy + `test-example-uptake.R`) |
+| odelia (active) | `claude/tf24-forward-speed-engine` | `8de3907` (+ **Slice 4**: `mri_kutta3()` slow advance in `MriUptakeStep::step`, replacing `mri_forward_euler` — cuts the dynamic-regime O(H) offspring bias; over `3cfed4e` (+ **Slice 3b-iii**: `subcycle_uptake`+`UptakeSubcycle`+`MRISchedule.reexpansions`+`mri_coupling_evals`, `Method::mri_uptake`+`MriUptakeStep`+`mri_step_run`, `UptakeSystem` toy + `test-example-uptake.R`) |
 | odelia (frozen) | `claude/tf24-multirate-engine` | `b88514d` (pre-split MRI/RODAS/IMEX engine block only) |
 
 **2026-07-22 branch split:** the current work was divided at plant `9c8bd2d6` /
