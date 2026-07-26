@@ -185,6 +185,16 @@ cannot detect it** — the dangling storage is stack, not heap.
     // GOOD -- materialised while its operands are alive
     auto anchor = [](double v, const S& x) -> S { return graft_value<S>(v, x); };
 
+**The `static_assert` earned itself immediately.** Session 20 found a second live
+instance it now catches at compile time: `ff16_strategy.h:823`, FF16's birth-height
+`implicit_value` residual, written with a deduced return type. Two consequences worth
+remembering — (a) `scm_gradient_driver.cpp` therefore would not build, so
+`test-scm-gradient-entry.R` was **silently skipping** 11 FD-verified assertions
+(`skip_if_not(built, ...)` turns a compile failure into a skip: check for those);
+(b) FF16/K93's shipped active gradient path had been carrying that undefined
+behaviour, passing its FD tests because the dangling read happened to land on
+still-intact stack. Fixed with `-> S`; all green after, and the entry test un-skips.
+
 This single line was the TF24 interior-p\* reverse-sweep segfault. Because the
 corruption depended on stack layout, turning almost anything else off made it
 "disappear" — freezing p\*, dropping the nested `implicit_value` nodes, removing
@@ -205,17 +215,28 @@ what remains, with measured targets. In short:
   ψ=2.5 (1 failing assertion of 3). The plan gives the per-channel diagnostic and
   three ranked hypotheses, clamping first. Do not loosen the tolerance — the gap is
   δ-independent, so it is a real term.
-- **Step 4** — **do 4d FIRST: tape memory is now a real blocker.** Measured
-  `PLANT_TAPE_STATS=1`: 4.44 GB at `life=1`, 7.01 GB at `life=2`, 9.20 GB at
-  `life=3`, **OOM-killed at `life=4`** — which is what `test-ad-tf24-scm-gradient.R`
-  test 1 uses, so that test is *killed*, not slow. ~34 MB/step, linear. Cause:
-  deleting the seam removed what bounded the run tape (it recorded the leaf on a
-  throwaway local tape and injected only O(#inputs) nodes per step; now the whole
-  assembly is recorded every stage × cohort × step). **Do not reinstate the seam** —
-  the plan lists the options, XAD checkpointing first (`chkpt=0` today, i.e. the
-  checkpoint API is entirely unused), then cutting the p\* central difference's
-  double recording. Then 4a (delete odelia's now-uncalled `supplied_derivative.hpp`
-  + example/test, clean 8 stale plant comments), 4b residual accretion, and **4c the
+- **Step 4** — **4d is re-diagnosed (session 20) and is NOT a TF24 problem.** It is a
+  genuine kernel OOM (peak RSS 15.19 GB, `SIGKILL`, `oom_kill` incremented, `dmesg`
+  victim record), the tape is ~88% of RSS, its byte count is exactly
+  `ops·12 + stmts·8 + deriv·8`, and memory is fully released between calls — so no
+  leak. **But FF16 — which never had a seam and has no leaf solve — OOMs the same
+  way at its own production `max_patch_lifetime`** (9.02 GB already at `life=40`).
+  So the old "seam deletion removed what bounded the run tape" attribution is
+  refuted. Per cohort-step TF24 costs only ~1.9× FF16: the leaf is a 2× multiplier,
+  and the mechanism is shared and structural — one tape holds the whole SCM run, so
+  tape ∝ **steps × cohorts**, for every strategy. The v3 design's scaling fix is
+  intact and measured (node path 699 ops/solve flat in `n_solves`; per-step cost flat
+  in `n_steps`; the naive on-tape solve still iteration-dependent at 11 k → 42 k).
+  What the toys never measured is the *per-evaluation constant on plant's actual
+  composition*: `weibull_leaf` certified 11.7 KB/solve for a single p\* node at a
+  known p\*, `soil_leaf` 22.7 KB/plant-step for a lone `ci` node, but plant records
+  `implicit_value` on a **central difference whose every evaluation rebuilds the
+  nested nodes** — 664 KB/step in the reprex. Consequence for the plan: the analytic
+  stationarity residual is worth ~2.7× (TF24 only) and gets Phase 1's lives under the
+  limit, but **only checkpointing breaks the steps × cohorts accumulation** (`chkpt=0`
+  everywhere, so XAD's checkpoint API is unused), and that is engine work for all
+  strategies. Then 4a (delete odelia's now-uncalled `supplied_derivative.hpp` +
+  example/test, clean 8 stale plant comments), 4b residual accretion, and **4c the
   closing gate**: FD-verify the full TF24/TF24f SCM gradient (task #27), an explicit
   `skip()` at `test-ad-tf24-scm-gradient.R:85` awaiting the tight-τ frozen-schedule
   reference. Read `oracle/oracle-response-inner-argmax-adjoint.md` before designing

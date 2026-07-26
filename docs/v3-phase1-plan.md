@@ -154,43 +154,86 @@ a plateau:
 more likely the FD reference than the adjoint. Verify the reference before believing
 any ratio.**
 
-### 4d. Memory — MEASURED, AND IT IS A REAL BLOCKER (do this before 4c)
-This is no longer "one confirming measurement". Measured with `PLANT_TAPE_STATS=1`
-via `tf24_scm_gradient("lma", 20, life, 0L, ...)`:
+### 4d. Memory — MEASURED, AND IT IS NOT A TF24 PROBLEM (re-diagnosed session 20)
+**The failure is a genuine kernel OOM, and the earlier attribution to seam deletion
+is refuted.** Both halves of that are measurements, not inferences.
 
-| life | steps | tape | ops | wall |
-|---|---|---|---|---|
-| 1 | 129 | **4.44 GB** | 223 M | 47 s |
-| 2 | 166 | **7.01 GB** | 350 M | 73 s |
-| 3 | 194 | **9.20 GB** | 459 M | 97 s |
-| 4 | — | **OOM (SIGKILL)** | — | — |
+**The failure mode.** `tf24_scm_gradient("lma", 20, 4, 0L, ...)` peaks at **15.19 GB
+RSS** and is `SIGKILL`ed; the kernel `oom_kill` counter increments and `dmesg`
+carries the victim record (`anon-rss:15928804kB`, `global_oom`). Not a hang, not an
+exception, not a segfault. The tape is ~88% of that RSS, and its size is exactly
+`ops·12 + stmts·8 + deriv·8` (4 445 422 996 B at `life=1`, to the byte), so there is
+no leak and no allocator waste. Memory is **fully released** between calls (RSS
+returns to 0.13 GB), so the five successive calls in test 1 do not accumulate.
 
-`life=4` is what `test-ad-tf24-scm-gradient.R` test 1 uses, which is why that test
-is *killed*, not merely slow. Growth is ~linear in steps at **~34 MB/step**, and
-the box has 15 GB.
+**The scaling, for two strategies:**
 
-**Why: deleting the seam removed the thing that bounded the run tape.** The seam
-recorded the leaf on a throwaway local tape and injected only `O(#inputs)`
-`supplied_derivative` nodes per step onto the run tape. Now the whole leaf assembly
-is recorded on the run tape at every stage × cohort × step. The *per-leaf* tape is
-still bounded and iteration-independent (toy-proven, `weibull_leaf_tape_profile`);
-the problem is how many times it is recorded.
+| model | life | steps | node width | tape | KB/(step·width) |
+|---|---|---|---|---|---|
+| FF16 | 4 | 95 | 602 | 1.53 GB | 26.2 |
+| FF16 | 10 | 141 | 658 | 3.39 GB | 35.7 |
+| FF16 | 40 | 235 | 903 | 9.02 GB | 41.5 |
+| FF16 | 105.32 *(its own default)* | — | — | **OOM** | — |
+| TF24 | 1 | 129 | 532 | 4.45 GB | 63.3 |
+| TF24 | 2 | 166 | 567 | 7.01 GB | 72.7 |
+| TF24 | 3 | 194 | 595 | 9.20 GB | 77.8 |
+| TF24 | 4 | — | — | **OOM** | — |
 
-This is a design question, not a leak — do **not** reach for the seam again. Options
-to weigh with `system-design`, cheapest first:
-1. **Checkpointing.** XAD has a checkpoint API (`insertCallback`,
-   `newNestedRecording`/`endNestedRecording`, `getAndResetOutputAdjoint`) and
-   `chkpt=0` in the stats above shows it is entirely unused. A per-cohort-step
-   checkpoint would trade recompute for tape and is the intended XAD answer.
-2. **Reduce recorded work per leaf call.** The interior p\* residual is a *central
-   difference* of `profit_reduced`, so it records the full assembly **twice per
-   evaluation**, plus the nested nodes. An analytic stationarity residual would cut
-   the dominant term.
+**FF16 never had a seam and has no leaf solve, and it OOMs the same way** — at its
+own production `max_patch_lifetime`. So seam deletion is not the cause. Per
+cohort-step TF24 costs only ~1.9× FF16; the leaf is a **2× multiplier, not the
+mechanism**. The mechanism is shared and structural: **one tape holds the whole SCM
+run, so tape size scales as steps × cohorts.** This is a pre-existing,
+strategy-independent limit that TF24 merely reached sooner (its `life` is smaller
+because its steps are dearer). Growth is *not* "linear at 34 MB/step" — per-step
+cost rises with the cohort count.
+
+**The v3 design's scaling fix is intact — do not go looking for a regression.**
+What v2 blew up on is measurably gone (`weibull_leaf_tape_profile`,
+`pstar_ode_reprex`):
+- a naive on-tape solve is iteration-dependent: 11 001 → 42 081 ops/solve as inner
+  iterations go 20 → 60;
+- the `implicit_value` node path is flat: **699 ops/solve** at `n_solves` 1, 10, 100;
+- per-step cost is flat in step count: 42 918 → 42 610 ops/step over `n_steps`
+  20 → 160.
+
+**What the toys never measured is the per-evaluation constant on the composition
+plant actually records.** They certified simpler shapes:
+- `weibull_leaf_tape_profile` — one p\* node at a *known* p\*, no central
+  difference: **11.7 KB/solve**;
+- `soil_leaf` — a `ci` node inside `ode_rates` with the closed feedback loop and a
+  growing tape, 60 steps: 2.60 MB total = **22.7 KB per plant-step**;
+- `pstar_ode_reprex` — plant's actual shape (`implicit_value` on a **central
+  difference** of a reduced profit whose every evaluation rebuilds the nested
+  ψ_stem and ci nodes): **664 KB/step**, ~29× `soil_leaf`.
+
+The reprex now reports tape stats, so that multiplier is decomposable
+(`n_steps=40`, `nlayer=2`, ops/step): closed form 5 267 → p\* node without nesting
+10 514 → nested nodes with p\* frozen 16 009 → **both, i.e. plant's shape, 42 742**
+(8.1×). The central difference roughly doubles the nested content.
+
+**Sizing the candidates against those numbers.** Fitting the three TF24 points gives
+tape ∝ life^0.66 (3 points — treat as an order-of-magnitude guide):
+1. **Analytic stationarity residual** (was option 2): ~2.7× for TF24, so `life=4`
+   drops from ~11 GB to ~4 GB. Buys 1–2 life units, is TF24-only, and does nothing
+   for FF16. Worth doing, but it is not the fix.
+2. **Checkpointing** is the only mechanism that breaks the steps × cohorts
+   accumulation, and `chkpt=0` on every run above confirms XAD's checkpoint API
+   (`insertCallback`, `newNestedRecording`/`endNestedRecording`,
+   `getAndResetOutputAdjoint`) is entirely unused. At production lifetime the
+   extrapolation is ~94 GB for TF24 and ~35 GB even with (1), so **no constant-factor
+   cut reaches a full-lifetime patch gradient for either strategy.**
 3. Coarser cohort-step schedule for gradient runs (accuracy cost — measure).
 
-Compare the resulting curve to FF16's before declaring this closed. The env hook
-lives in `scm_gradient.h` (~119); it was removed from `tf24_strategy.cpp` with the
-seam.
+**Re-scope accordingly:** this is engine work for *all* strategies, not a TF24
+Phase-1 step. Phase 1 needs only "TF24 at the lives its tests use", which (1)
+delivers; the production-lifetime gradient needs (2) and should be tracked as its own
+engine task. Question with a default: if TF24 is only ever wanted at short lives,
+(1) alone closes Phase 1 — **default if unanswered: do (1) in Phase 1, and open (2)
+as engine work covering FF16/K93 too.**
+
+The env hook lives in `scm_gradient.h` (~119); the reprex reports `mem_bytes`/`ops`/
+`stmts` so the per-step constant can be re-measured in seconds without a plant build.
 
 ---
 
