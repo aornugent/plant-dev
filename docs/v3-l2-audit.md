@@ -100,3 +100,50 @@ kill condition for this recommendation.
 - **The two `freeze_*` statics are live diagnostics**, one caller (the channel-isolation
   driver), set per call. Not dead — but they are mutable globals on a production class, so
   correctness rests on every entry point setting them.
+
+## Can the workflow make the field faster? Measured: essentially no
+
+The adaptive → fixed → replay workflow suggests two levers. Both were studied before
+building, and the arithmetic killed a third.
+
+**Direct summation instead of any cache — dead on arithmetic, no measurement needed.**
+`separable_field` is not a cache justified by op count; it is an asymptotic restructuring.
+Per RK stage the field costs `O(n·R)` assembly plus `O(R)` per read, so `~3n + 3nq`, against
+`n²q` for evaluating competition directly at every read. At n ≈ 200 that is ~67× more work.
+Step-local repricing does not rescue it: the gap is a factor of n, not a constant.
+
+**Hoisting the query-factor `pow` out of the crown integral — measured 1.24×, not worth it.**
+On an active scalar `pow_eta` is *always* the general `pow(u, eta)` (the integer multiply
+chains are double-only, since they would drop the eta derivative), so every quadrature node
+pays a full active `pow`. A node sits at `z_j = u_j * h` with `u_j` fixed by the rule, and the
+source factors already compute `h^eta` during assembly, so `z_j^eta = u_j^eta * h^eta` can pay
+that `pow` once per cohort instead of once per node. Implemented as the `field_hoist` variant
+of `docs/reference/crown-preaccum-probe.cpp` and measured:
+
+| | bytes | factor |
+|---|---|---|
+| field reads, as they are | 8 376 | — |
+| field reads, `z^eta` factorised | 5 888 | **1.42× leaner** |
+| whole crown, consequently | 12 764 → 10 276 | **1.24×** |
+
+All channels agree to round-off (`value` and `d_src0` bit-identical, `d_h` and `d_src_mid`
+1.3e-16, `d_eta` 1.1e-14), so the factorisation is correct. **The prediction that motivated it
+was wrong:** the per-node `pow` is ~30% of the field read, not its dominant term — the rank-3
+dot product, the `exp` and the read machinery carry the rest. 1.24× is in boundary A's family
+(1.49×), far under the ≥8× §6e says is needed, and it costs bit-identity with develop plus an
+overload to pass a precomputed `z^eta`. **Do not build it.**
+
+**The one lever still worth having is about correctness, not speed.** `separable_field.hpp`
+says it needs "no recorded positions", and that is true only because it takes the source
+ordering *from the caller* — the structure lives in `patch.h`'s sort and `n_sources_at_least`.
+So the field's L2 is **the source permutation and the per-query rank cutoffs**, both pure
+functions of double heights. Recording them on the adaptive pass removes the per-stage
+`O(n log n)` sort and the `n·q` binary searches from the replay pass, and freezes the branching
+so a re-recorded unit is bit-identical **by construction** rather than by the tie-break comparator.
+Step-local is what makes it affordable: only one step's ranks are ever live. Unmeasured.
+
+**What this settles about the owner's doubt.** The field is not accreted bandaid *on the read
+path* — 1.24× is all that a real restructuring buys, which is the same story boundary D told
+(67 partials for a scalar output is that shape's information floor). What is accreted is the
+field's **coexistence with the spline**, not the field itself. So the target is the second
+construct, not the first.

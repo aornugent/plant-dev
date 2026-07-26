@@ -154,6 +154,43 @@ Rcpp::List crown_probe(double height = 10.0, int n_src = 400,
     out.push_back(report("field_only", before, after, A, in));
   }
 
+  // ---- V_hoist: the same field reads, with z^eta factorised ----------------
+  // A quadrature node sits at z_j = u_j * h with u_j fixed by the rule, so
+  // z_j^eta = u_j^eta * h^eta. The u_j^eta are shared by every cohort and every
+  // step, and h^eta is already computed by the source factors during assembly,
+  // so the per-node active pow that dominates the read can be paid once instead
+  // of NNODE times. Reassociation, so expect round-off rather than bit-identity.
+  {
+    tape_type tape;
+    inputs in;
+    in.register_all(tape, ns, h_top, height);
+    CanopyShape<S> shape(in.eta);
+    auto env = in.environment(shape);
+    const counts before = read_counts(tape);
+    const S centre = 0.5 * in.h, half = 0.5 * in.h;
+    const S he = pow(in.h, in.eta);   // the source factors already hold this
+    std::vector<S> ue(NNODE);
+    for (std::size_t j = 0; j < NNODE; ++j) {
+      const double u = 0.5 * (1.0 + R.x[j]);
+      ue[j] = pow(S(u), in.eta);
+    }
+    S A(0.0);
+    for (std::size_t j = 0; j < NNODE; ++j) {
+      const S z = centre + half * R.x[j];
+      const std::size_t k = env.n_sources_at_least(odelia::util::to_passive(z));
+      if (k == 0) { A += R.w[j] * S(1.0); continue; }
+      const S ze = ue[j] * he;
+      const std::array<S, 3> a{S(1.0), S(-2.0) * ze, ze * ze};
+      A += R.w[j] * exp(-env.competition_field.at(a, k - 1));
+    }
+    A *= half;
+    const counts after = read_counts(tape);
+    tape.registerOutput(A);
+    xad::derivative(A) = 1.0;
+    tape.computeAdjoints();
+    out.push_back(report("field_hoist", before, after, A, in));
+  }
+
   // ---- V_A: boundary A -- lights on the run tape, the rest preaccumulated --
   {
     tape_type tape;
