@@ -97,9 +97,14 @@ Each name below is held there by a ledger line. Everything else went.
 - **L2 as a layer.** No `positions_history`, no `replay_structure(k)`, no L2 role for
   `record_stage`. Structure is derived; AGENTS.md's "no storing what can be derived" settles it,
   and the probe proves it is derivable.
-- **`Replayable` is L3-only machinery.** All four of its hooks are already no-ops on the resident
-  path (`recording = control.save_RK45_cache`, off by default), so the resident engine — the one
-  that works and that we are scaling — needs none of them.
+- **L2's *role* in `record_stage`.** Nobody needs to implement a hook to stash node positions.
+  `Replayable` itself is **not** a deletion target — it is opt-in through `if constexpr`, so a
+  System without the hooks never has them called and the branch compiles away. It costs zero
+  concepts when unused. What is true is narrower: on plant's **resident** path all four hooks are
+  already no-ops (`recording = control.save_RK45_cache`, off by default;
+  `has_recorded_field()` false on an empty history), so the concept serves the mutant/L3 path
+  only — and that path is out of scope. Do not grow it for the resident engine; do not delete it
+  either.
 - **Four primitives whose only caller was their own demo:** `preaccumulate`,
   `supplied_derivative`, `branch_log`/`decide` (whose `diagnostic()` duplicated `util`'s), and a
   `directional_derivative` header parallel to the live one in `gradient.hpp`. **697 lines.**
