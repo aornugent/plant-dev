@@ -104,6 +104,27 @@ These are paid-for in wasted sessions. Do not relearn them.
    run → "steppers can't help" (too strong). State the scenario every number was
    measured on.
 
+7. **⚠ "Converged reference" means BOTH tolerance families. `ode_tol` defaults to
+   1e-4.** plant carries two independent families: **inner-solve** (`GSS_tol_abs`,
+   `ci_abs_tol`) and **outer ODE** (`ode_tol_rel`, `ode_tol_abs`, **default 1e-4**).
+   For an entire session we wrote `GSS_tol_abs <- 1e-12; ci_abs_tol <- 1e-12`, called
+   it "the converged reference", and left `ode_tol` at 1e-4 — so the reference carried
+   ~4e-3 of its own time-integration error. Measured (mean=1, amp=0.3, life=40):
+   `ode_tol=1e-4` → J=35.1148736; `ode_tol=1e-5` → J=**35.2448663** (moves 3.7e-3);
+   and `mri_uptake`'s own converged limit is ≈35.24 — i.e. **the reference was the
+   outlier and the scheme under test was right.** Every accuracy number measured that
+   way was wrong, and wrong in the **pessimistic** direction, which is exactly why it
+   escaped notice: the scheme looked *worse* than it was, so nothing tripped a
+   too-good-to-be-true check. **Corollary: an error that flatters your reference is as
+   dangerous as one that flatters your method — sanity-check both directions.**
+   **Structural fix, use it:** `scripts/tf24-benchmarks/converged_control.R` exposes
+   `converged_control(ode_tol, inner_tol)` and `mri_uptake_control(days, ...)`. Never
+   hand-roll the tolerance block again. Note the asymmetry that hid the bug:
+   `mri_uptake` reports `yerr=0` (always accept), so `ode_tol` does **not** control it
+   — its accuracy is set by `ode_step_size_max`/`mri_uptake_tol`/`nmicro`. Tightening
+   "the tolerance" therefore moves the reference **only**, and a shared under-converged
+   reference silently mis-scores every method that ignores it.
+
 ## 5. Security / process constraints (verbatim, non-negotiable)
 
 - **Active development branches (post-split, 2026-07-22):**
