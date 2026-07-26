@@ -546,3 +546,61 @@ integrated at all.
 4. Multiple species: the recorded change is a list, not a count.
 5. **Price the unconditional re-sync** on a System that never grows (one state copy per step)
    before accepting it.
+
+---
+
+## 3e. PROVEN BY EXECUTION — the spike, and what it found
+
+Everything above §3e is argument. This is measurement.
+`odelia/inst/examples/step_local_adjoint_interface.cpp` +
+`odelia/tests/testthat/test-ad-step-local.R` (25 assertions). **The backward loop lives in
+the example, not in odelia**, driving the Solver only through members that already exist
+(`set_ode_state` / `set_state_from_system` / `advance_fixed`), so **no interface is
+committed and the boundary is still free to move** — any candidate placement of the loop can
+be re-run against the same oracles.
+
+Both open questions are *parameters*, not assumptions: `unit_kind` (one ODE step vs one
+inter-introduction segment) and `ic_kind` (a newborn's IC constant, as every existing toy has
+it, vs coupled to the standing state, as plant has it).
+
+Oracles: the whole-run reverse tape, a re-integrating central FD, and a closed form.
+
+| test | result |
+|---|---|
+| step-local vs whole-run, all 4 combinations | **1e-15…1e-14**, and matches FD + closed form |
+| **peak tape vs run length** (step units) | **3 792 B flat** at nstep 10/20/40/80, while the whole-run tape grows 53 300 → 419 540 B (**14× → 111×**) |
+| unit = segment vs step, nstep 40 | **100 356 B vs 3 792 B**, and the segment's peak scales with schedule density |
+| change **outside** a unit, constant IC | agrees, **2.22e-15** |
+| change **outside** a unit, **coupled IC** | **wrong by 19%** — no error, right sign, plausible magnitude |
+
+**The central claim is confirmed:** the sweep is exact to round-off, and **peak tape is
+independent of run length** — which is the property no other candidate has.
+
+**§3c's retraction of the segment unit is now measured, not argued.** A segment's tape scales
+with how many steps the scheduler puts between introductions; at nstep 40 that is 26× the
+step unit's peak. The policy argument and the measurement agree.
+
+**The falsification fired, and its corollary is the finding that matters.** Placing the
+structural change *between* units loses the newborn's IC adjoint. Under a **constant** IC
+that loss is invisible — both placements agree to 2.22e-15 — because a constant IC has no
+state dependence to lose. Under a **coupled** IC it is a 19% error, silently. And:
+
+> **Both existing toys have constant ICs** — `growing_resize`'s `1.0` and `soil_leaf`'s `W0`
+> — **while plant's newborn density reads the active stand** (`birth · pr_estab / g`). So
+> **neither toy can detect this error**, and as written they would have green-lit a design
+> that is wrong on plant.
+
+That is the concrete form of the owner's correction: the toys must *lead* the design — be
+built to exercise the mechanism, including its failure mode — rather than be read as evidence
+about the contract. Any toy used as a witness for this work needs a **stand-coupled IC**.
+
+### What is still not proven, and is the next stress axis
+
+The spike's System is deliberately trivial (linear decay, one parameter, no background). Not
+yet exercised: an **L2/L3 recording read out of order** (`CanopySystem` is the vehicle, and
+its R bindings are among the dead tests, so drive it from C++); an **`implicit_value` node
+inside the rates** re-recorded per unit (`soil_leaf`, once given a coupled IC); **m > 1
+outputs** carrying m λ-vectors against one tape; **bit-determinism of a re-recorded unit**
+(§4.3's invariant, testable by hashing a unit's tape stats in place vs re-recorded); and one
+tape reused with `resetTo` instead of a fresh tape per unit, which is the optimisation the
+spike deliberately skipped to keep the peak-tape claim honest.
