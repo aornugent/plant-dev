@@ -255,9 +255,16 @@ listed as PROVEN is a lead.**
 | `preaccumulate` should be deleted (zero production callers) | owner's call; it reverses session 20 |
 
 ### OPEN — the unfinished discovery, in priority order
-1. **Is there one good replayable L2 construct?** The owner's live question. **Session 22 read
-   the code and the inventory is SMALLER than session 21 claimed** — see the corrections below.
-   §6c is still **not** an answer (it weighed bytes, not complexity).
+1. **Is there one good replayable L2 construct? — ANSWERED, see
+   [`v3-l2-audit.md`](./v3-l2-audit.md).** Not "a better recorder": **a background with nothing
+   adaptive to record, which makes L2 vacuous.** The exact `separable_field` is that; the
+   adaptively-refined spline is its opposite. K93 clean, FF16 clean by accident, **TF24 exposed
+   — spline-only, no field, adaptive refit on every replay step, and its L2 path is deferred.**
+   Recommendation: give TF24 the field (wiring — its kernel is the same rank-3 Yokozawa form).
+   Price: Box/SoftBox shading is not separable, so L2 stays required there (the kill condition).
+   **Correction to carry:** L2 = adaptive positions, resident path; L3 = recorded values, mutant
+   path, deferred. Session 22 first conflated them and mis-read `save_RK45_cache` (L3) as
+   covering both. §6c is still **not** an answer (it weighed bytes, not complexity).
 
    **Corrected inventory (grep-verified, session 22):**
    - **`step_light` is not a third light path.** It wraps *both* branches of
