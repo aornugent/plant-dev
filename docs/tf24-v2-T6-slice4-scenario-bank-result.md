@@ -1,5 +1,16 @@
 # T6 Slice 4 — end-to-end scenario bank + the kutta3 accuracy fix: RESULT
 
+> **⚠ CORRECTION (2026-07-26). Every offspring-accuracy figure below was measured against a
+> reference converged in only ONE of plant's two tolerance families** — `ode_tol_rel/abs` were left
+> at their **1e-4 default**, so the reference carried ~4e-3 of its own time-integration error.
+> Corrected numbers and the full account are in
+> [`tf24-v2-T6-tolerance-correction-and-remeasurement.md`](./tf24-v2-T6-tolerance-correction-and-remeasurement.md).
+> Headline changes: the amp=0.3 dynamic error is **3.5e-3, not 1.8e-4** (the old figure was flattered
+> by the bad reference *and* by a sign crossing); the cohort-solve reduction is strongly
+> regime-dependent (3.8× here, 40× on the constant gate) and should not be quoted as one number.
+> **Unaffected:** the certified escape, the 3b-ii falsifier, the toy adjoint, all cohort-solve counts
+> and monitor rates, and the qualitative decision to use kutta3.
+
 *2026-07-22. Slice 3b-iii wired `ode_method="mri_uptake"` on the real TF24 patch
 (40× cohort-solve reduction, 9.8e-3 offspring on a 30-yr constant-rainfall SCM).
 Slice 4 is the acceptance test: does the arbitrage hold across the full dynamic
