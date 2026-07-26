@@ -125,6 +125,22 @@ These are paid-for in wasted sessions. Do not relearn them.
    "the tolerance" therefore moves the reference **only**, and a shared under-converged
    reference silently mis-scores every method that ignores it.
 
+8. **⚠ Same call site + same nominal state ≠ same value. And beware an argument that proves your
+   own change is exact.** Session 8: counters showed 2 of the 4 member sweeps per macro leg were
+   anchor captures at the *same* `(x,u)` as the slow stage immediately before them — 100% "duplicate"
+   share at rainfall amp 0/0.3/0.6, `3308 = 2 × 1654 legs` exactly on the gate. Skipping them
+   delivered exactly the predicted cost win (4.00 → 2.00 sweeps/leg, 1.53× wall-clock) **and moved J
+   by 1.5e-2.** Measured directly, the two anchors differ by up to **2.454e-02** — the sweeps share a
+   call site and a nominal state but **not a value**. Value equality was *inferred* from the counters
+   and never measured. Two compounding failures made it worse: (a) the capture site was inferred from
+   a nearby code path rather than read (`mri.hpp:325` is an **unconditional** "mandatory leg-start
+   capture", not monitor-gated), and (b) from that misreading a "free bit-identity proof via the
+   trust monitor" was constructed, which made the change **self-validating** and removed the one
+   check that would have caught the problem. **Corollary to lesson #7: an error that flatters your
+   reference and an argument that certifies your own method are the same failure — both suppress the
+   instinct to measure. A pure-speed-win-at-no-cost result is the shape that deserves the *most*
+   scrutiny, not the least.**
+
 ## 5. Security / process constraints (verbatim, non-negotiable)
 
 - **Active development branches (post-split, 2026-07-22):**
@@ -171,7 +187,7 @@ These are paid-for in wasted sessions. Do not relearn them.
 
 # PART 2 — STATE & NEXT STEPS (rewritten each session)
 
-*Last updated: 2026-07-26 (session 7 — T6 Slice 4 DONE, then an Oracle review round, an escape CERTIFICATION, a #550 diagnosis, and a TOLERANCE CORRECTION that revises every offspring-accuracy number. NEXT = four per-leg COST priorities, see the ▶ NEXT SESSION block. Original Slice 4 entry follows.) (session 7 — T6 Slice 4 DONE: end-to-end scenario bank + the kutta3
+*Last updated: 2026-07-26 (session 8 -- P1 DONE (setup IS u-independent, 37-47% of a sweep, but the 4 sweeps/leg differ by cohort STATE not u, so the projected cache win is unavailable); P2 BUILT, MEASURED and REVERTED (cost mechanism works -- 4.00 -> 2.00 sweeps/leg, 1.53x -- but the two sweeps are NOT value-duplicates: 2.454e-02 apart, J moved 1.5e-2), leaving a BLOCKER worth more than P2 was; gate headline re-established at 2.42e-3 / 40x. New hard-won lesson #8. NEXT = P3, the first unblocked item. Session 7 entry follows.) (session 7 — T6 Slice 4 DONE, then an Oracle review round, an escape CERTIFICATION, a #550 diagnosis, and a TOLERANCE CORRECTION that revises every offspring-accuracy number. NEXT = four per-leg COST priorities, see the ▶ NEXT SESSION block. Original Slice 4 entry follows.) (session 7 — T6 Slice 4 DONE: end-to-end scenario bank + the kutta3
 accuracy fix. `mri_uptake` runs the full dynamic bank, out-surviving rkck (all 6 complete vs rkck's
 3), death mode absent, 3–10× cohort-solve reduction; and the slow advance was upgraded
 forward-Euler→kutta3 (odelia one-liner), cutting the dynamic-regime offspring bias 12%→<0.1% at the
@@ -250,6 +266,14 @@ or the stress bank** (see §3a for what is parked and why).
 constant-rainfall gate, 3.8× in the dynamic regime at the same weekly leg, 3–10× on the stress bank.
 Always state the regime.
 
+**SESSION 8 CHANGED THIS BLOCK. Read `tf24-v2-T6-P1-setup-caching-and-anchor-fusion-result.md`
+before P2/P3/P4.** P1 is DONE (and demoted the setup cache); **P2 is BLOCKED behind a measured
+2.4e-2 discrepancy between two member-loop evaluations at the same state** — see P2 below. The
+constant-rainfall gate headline is re-established against the converged reference: **2.42e-3
+offspring rel error at 40× cohort-solve reduction** (essentially unchanged from the old 2.3e-3, so
+the tolerance correction bit only in the dynamic regime). **P3 (`mri_heun` vs `mri_kutta3` A/B) is
+now the first unblocked item** and is independent of the blocker.
+
 ### 0. Rebuild context (read in this order)
 1. **Part 1 in full** (codesign rules, bit-identical invariant, branch/commit rules, hard-won lessons).
 2. `docs/tf24-v2-T6-newton-uptake-BUILD-SPEC.md` — the build plan + the REUSE MAP + gate-result callouts.
@@ -279,10 +303,12 @@ Always state the regime.
    `Rscript scripts/tf24-benchmarks/refresh_sweep.R` (escape certified: error falls with the forced
    re-anchor rate R in all 9 regimes, no floor above the ~3e-7 splitting error).
    In-package tests: from `odelia/`, `testthat::test_dir("tests/testthat", filter="example-uptake")` (25 pass).
-   **`mri_uptake_gate.R` was re-pointed at a converged reference (lesson #7) and its headline number
-   is NOT yet re-established — the re-run was still in flight at the end of session 7. Re-run it and
-   record the result before quoting any gate figure.** Its old 9.8e-3 / 2.3e-3 were measured against
-   an `ode_tol=1e-4` reference and are upper bounds on disagreement, not measurements.
+   **✅ RESOLVED (session 8). `mri_uptake_gate.R` against the converged (`ode_tol=1e-5`) reference:
+   offspring rel error `2.42e-3` at a `40×` cohort-solve reduction** (rkck 1.0378157, mri_uptake
+   1.0403294; 3308 coupling evals vs 132320 cheap residual evals; 30-yr constant rainfall, life 30,
+   birth 20). Note this is essentially the old 2.3e-3 — on the *constant* gate the pre-correction
+   reference was already near-converged, so the lesson-#7 tolerance error bit only in the **dynamic**
+   regime (where amp=0.3 moved 1.8e-4 → 3.5e-3). Quote this figure, and always state the regime.
 
 ### 1. What is already DONE and TRUE (do not rebuild; build on these)
 - **Slice 1 (plant):** control key `newton_collar_solve` (OFF/bit-identical); ON = safeguarded
@@ -421,21 +447,41 @@ Always state the regime.
 Ordered by value-per-effort against the per-leg cost floor. **1 and 2 are measurements/refactors
 with no new numerics; 3 needs two rebuilds; 4 is a real build.**
 
-**P1 — Resolve the setup-caching contradiction (a MEASUREMENT, no build). Biggest certain win.**
-Our own record contradicts itself and the Oracle flagged it: the cost-structure round said the
-≈11-unit per-member setup is **`u`-independent and cacheable per macro interval**; the later
-characterisation charged it per `u`-change. **One measurement settles it.** If the old claim holds,
-the setup is cached across all three slow-advance stages **and** every re-expansion → **up to ~half
-the member-loop cost**, which is larger than every other item here. Method: instrument the member
-loop (or A/B a memoised vs non-memoised setup) at the weekly operating leg in the survivable dynamic
-regime; report setup vs objective-eval vs argmax shares of one sweep. Plant already memoises some
-θ-independent per-cohort setup (see the R1 issue item 7, "setup-cache seam") — check what is actually
-reused before building anything.
+**P1 — ✅ DONE (session 8). Answered, and it redirected the plan. See
+`tf24-v2-T6-P1-setup-caching-and-anchor-fusion-result.md`.** The setup IS `u`-independent (37–47% of
+a member sweep, bit-identical on reuse across soil states — the earlier claim was right, the later
+one wrong). **But the projected win does not follow:** the 4 sweeps in a leg differ by cohort
+**state**, not by `u`, so the setup can only be shared across mid-subcycle re-expansions — measured
+at **0/leg** in every regime where the stand is alive (0.36/leg only at amp=0.9, near extinction).
+The setup cache is demoted: real, but almost never exercised. Revisit only if a later change (P4's
+adaptive H, a coarser trust tol) raises the re-expansion rate.
 
-**P2 — Fuse the anchor capture with the slow advance's first stage. ~25% off the floor.**
-Today a leg pays 4 member sweeps: the anchor (`refresh_anchor`: `a₀` + `G`) plus 3 slow-advance
-stages. The same loop can emit `ẋ`, `a₀` and `G` sharing one setup ⇒ **4 → 3 sweeps/leg**. Do this
-after P1, because what can be shared depends on what the setup caching allows. `refresh_anchor` and
+**P2 — 🚫 BLOCKED (session 8). Built, measured, REVERTED. Do NOT re-attempt before the blocker
+below is resolved.** The sweep counting is better than the handoff thought — 2 of the 4 sweeps are
+anchor captures at the same nominal `(x,u)` as the slow stage before them, so the ceiling is
+**4 → 2 (50%)**, not 4 → 3. And the cost mechanism WORKS: captures 4358 → 0, sweeps 4.00 → 2.00/leg,
+wall-clock 124s → 81s (**1.53×**), with exactly the predicted 783 genuine captures surviving at
+amp=0.9. **But J moved 1.5e-2** (35.1212 → 34.5828 at amp=0.3), ~4× the error the scheme is trusted
+at. A direct diagnostic showed why: the anchor `slow_rates` computes and the anchor `refresh_anchor`
+computes are **genuinely different values** at the same nominal `(x,u)` — max rel diff **3.5e-5 at
+amp=0, 2.454e-02 at amp=0.3**. The subcycle-start sweep is NOT redundant work.
+**⛔ THE BLOCKER (and it is worth more than P2 was): why do two member-loop evaluations at the same
+cohort state and the same soil state differ by 2.4e-2?** Recipe + the trap in it (the R-exposed
+`compute_environment` hardcodes `rescale=false`, the *wrong* branch, and would return a falsely
+reassuring "idempotent") are in §3a of the P1 doc. Note the discrepancy scales with **rainfall**
+amplitude, which drives the soil, not the light field — so treat the `compute_environment`
+double-call hypothesis as a falsifier target, not an explanation.
+*Two process lessons from this, both paid for:* (a) the counters proved same-call-site and
+same-nominal-state; **value equality was inferred, not measured** — measure it; (b) the first attempt
+misread `mri.hpp:325` (the leg-start capture is **unconditional**, not monitor-gated) and the "free
+bit-identity proof via the trust monitor" built on that misreading made the change look
+*self-validating*, removing the check that would have caught it. **An argument that proves your own
+change exact is as dangerous as a reference that flatters your method (lesson #7's twin).**
+
+*Superseded P2 text, for reference:* fuse the anchor capture with the slow advance's first stage.
+A leg pays 4 member sweeps: the anchor (`refresh_anchor`: `a₀` + `G`) plus the slow-advance
+stages. The same loop can emit `ẋ`, `a₀` and `G` sharing one setup ⇒ **4 → 3 sweeps/leg**.
+`refresh_anchor` and
 `compute_species_rates`/`assemble_resource_depletion` are the seam (`plant/inst/include/plant/patch.h`).
 
 **P3 — `mri_heun` vs `mri_kutta3` A/B at the fixed operating leg. Another ~third.**
