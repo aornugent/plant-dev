@@ -220,3 +220,65 @@ path. Ranked by whether a physical trajectory crosses them:
 
 Unmeasured: whether a TF24 run actually crosses the runoff floor at production rainfall, and
 whether the gradient is one-sided there. That is the check to run before smoothing anything.
+
+## Accounting: what this session added, and what it re-derived
+
+**Corrected by the owner mid-audit: this did not start from scratch.**
+`deepenings/deepening-6-light-coupling.md` had already prescribed most of it, and reading it
+first would have saved most of the work below. It already says:
+
+- delete the secant, replaced by **exact `dA/dz = sum a_p' B_p`, taped live** — so this
+  session's 33-line deletion executed a standing prescription, it did not discover one;
+- the interpolator is **retained only for `FlatTopSoftBox`**, whose `leaf_area_above` is not
+  separable — the same "kill condition" this audit wrote up as new;
+- the general-`eta` case routes through `std::pow` and **bit-identity must be confirmed** — the
+  same cost the hoist measurement ran into;
+- FF16's crown "adds no new scan, only more `a_p(z)` evaluations" — which **predicts** the
+  hoist's 1.24×, since the hoist attacks only the `a_p` term.
+
+So the design answer for light was already on record, and it agrees with what this audit
+reached independently: **the field's scan is the replayable construct; the interpolator survives
+only for the non-separable shading model.** Convergence is worth something, but it was not new.
+
+**Genuinely added this session:** the L2/L3 distinction correction; that soil is ODE state and
+so needs no replay concept; the tie-break that makes reconstruction deterministic; the hoist
+priced at 1.24× and retired; and the tape-scaling measurement below.
+
+### The measurement: TF24 cost is flat per cohort-step
+
+TF24, `K_s`, offspring metric, `PLANT_TAPE_STATS=1`:
+
+| life | steps | ode width | tape | bytes/(step x width) |
+|---|---|---|---|---|
+| 1 | 129 | 532 | 3.22 GB | 46.9 k |
+| 1.5 | 153 | 553 | 4.37 GB | 51.6 k |
+| 2 | 166 | 567 | 5.12 GB | 54.4 k |
+| 2.5 | 177 | 581 | 5.80 GB | 56.4 k |
+
+Tape grows 1.8x while the per-(step x width) cost drifts only 1.2x, and that drift is what using
+*final* width against a run whose width fills in over time would produce. So the cost is
+**constant per cohort-step times steps times cohorts** — confirming that no improvement to the
+implicit lift can help (it is already O(1) per node) and that **only bounding the run does**:
+one step's peak is ~47 kB x 532 = **~25 MB against 3.22 GB**, a ~130x reduction that widens with
+lifetime. That is the quantitative case for the step-local sweep.
+
+Caveat: at these lifetimes the offspring value is ~1e-20 and the returned gradient was empty, so
+this run is degenerate for *correctness*. The memory figures are sound (the tape was built and
+swept); the gradient channel needs its own check.
+
+### The gap that actually blocks L2, found by looking at the toys
+
+- **`soil_leaf_interface.cpp` has no L2 hooks at all** — no `record_stage`, no `replay_step`, no
+  `has_recorded_field`. It witnesses the soil/leaf coupling and the implicit lift, **not the
+  replay of an adaptive background.**
+- **`CanopySystem` has the replay hooks but no coupling.**
+
+So no existing witness holds both, which is exactly why the step-local spike's "L2 recording
+read out of order" axis is still unrun. **The missing artefact is one toy with an adaptive
+background, a coupled initial condition, and a replay** — and since L2 recording would be an
+odelia primitive shared by FF16 and TF24, that toy is what earns it two witnesses before either
+environment is touched.
+
+### Scale of the accretion, for reference
+The TF24 leaf diff against develop is **+1 139 / −454** — `tf24_strategy.cpp` +950,
+`tf24_environment.h` +248, `leaf_model.h` +240.
