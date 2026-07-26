@@ -352,3 +352,33 @@ step, which is exactly why it does not bind today.
 many ODE steps and one unit's tape approaches the budget. The measured ratio (1.10–1.34) is
 the number to watch; at ~30 steps per segment the ODE step becomes the right unit and
 candidate A's finer decomposition is the retrofit.
+
+### 3b-i. Refinement found while shaping the driver: restoration needs a handed-over trajectory
+
+§3b says two members. Writing `replay_unit(k)` shows it is **three**, and the third one
+is not a new *kind* of thing.
+
+`replay_unit(k)` must restore unit k's start state, and it cannot restore it from its own
+`history`: the double forward pass is what *populates* the trajectory, so on the active
+pass the trajectory has to arrive from outside. That is already how every other recorded
+layer crosses the double→active boundary — L1 via `set_schedule`, L2/L3 via
+`set_recording`. So the trajectory is handed over the same way, and **it is best understood
+as a fourth recording layer rather than a new mechanism**: call it the recorded *state*
+trajectory alongside the recorded schedule (L1), node positions (L2) and field values (L3).
+`Solver::history` (a `std::vector<System>` populated under `collect`) is already exactly
+this, and for plant it is already complete in §4.4's sense because it holds whole `System`
+copies including derived caches.
+
+**Members, final: `unit_count()`, `replay_unit(k)`, `set_trajectory(...)`** — with `run()`
+derived from the first two, and the third joining the existing hand-over family.
+
+The alternative — the driver calls `set_state(y_k, t_k)` itself and `replay_unit(k)` only
+advances — was rejected: it splits restore from advance, so a caller that advances without
+restoring is expressible, which is the silent-wrongness shape §4.4 warns about. Keeping
+restoration inside `replay_unit` is what makes the misuse inexpressible.
+
+**This is where step (3) starts.** Nothing above requires further design; the next action is
+code: add the three members to odelia's `Solver`, re-express `run()` as the loop, mirror
+them on `soil_leaf::Runner`, and only then write the driver. The existing gradient must be
+bit-identical after the `run()` re-expression alone — verify that before the driver exists,
+because it isolates "the loop is the same loop" from "the adjoint is right".
