@@ -273,16 +273,98 @@ relocating them — see §6. And the requirement change that kills it is named i
 - **Strategy code does not change at all** — B is entirely inside odelia's driver, so
   R3 is untouched.
 
+## 6a. C, refined: what "optimise only their adjoints" actually looks like
+
+C was framed above as model-only. That is wrong, and the correction matters: the two
+highest-payoff versions live in **odelia**, not in strategy code.
+
+**Crown quadrature → preaccumulation (a local Jacobian).** The rule is
+`function_integration_rule = 21`, so each cohort's crown integral evaluates 21
+Gauss–Kronrod nodes per rate call, each a rank-3 field read plus an assimilation:
+~840 recorded ops for **one output**. Because it is one output, a single reverse sweep
+over the block on a nested tape yields every partial at once; record those instead of
+the internals. Inputs are the height, the 3 scan values at each of the 21 nodes, and a
+few traits — ~69 partials against ~840 ops, so **~12×**, which is the right order to
+reclaim FF16's 20× over K93.
+
+This is structurally what the deleted seam was, with one decisive difference: **the
+seam hand-wrote the partials; preaccumulation computes them by AD.** So it is not a
+hand adjoint, the "exactly two hand adjoints in the system" invariant survives
+untouched, and the correct home is an odelia primitive (declare the block's inputs and
+output) rather than a formula in a strategy TU. That distinction is the whole reason
+this is admissible and the seam was not.
+
+**Leaf soil coupling → analytic special-function derivatives.** `incomplete_gamma`
+evaluates a convergent series (`for n = 1; n < 1000`) and **records every term**. But
+its endpoint derivative is the integrand itself — elementary, closed form — and only
+the *shape* channel `∂/∂s` needs the series. So: evaluate the value by series
+off-tape, graft the analytic `∂/∂x`, and record the series only when the shape
+parameter is actually seeded. A multi-term recorded loop becomes ~5 recorded ops.
+Per-layer `E_i` is an antiderivative difference `(G(a) − G(b))/(a − b)`, so both
+endpoints get the same treatment. v3 §5 already calls these "exact Leibniz endpoint
+terms" — this is that statement finally being true of the *tape*, not just the maths,
+and it is the `graft_value` idiom applied to a special function. No hand adjoint: the
+endpoint derivative is the definition.
+
+**Rank them by whether they still pay under B**, since B removes the memory ceiling
+that motivated all of C:
+
+| lever | memory | time | verdict under B |
+|---|---|---|---|
+| `incomplete_gamma` analytic `∂/∂x` | ~20× on the hydraulic channel | **less** forward work too — the series is never recorded | **pure win, do it** |
+| analytic p\* stationarity residual | 2.7× (TF24) | less forward work | **pure win, do it** |
+| expression fusion (`ops/stmt` 1.4 → 4) | ~1.3×, all strategies | slightly less | **pure win, and a style rule that stops it recurring** |
+| crown preaccumulation | ~12× | **extra** nested sweep per block, repaid only if the block is swept several times (m=3 census rows) — roughly break-even | **defer**: this was the big memory lever, and B makes it redundant |
+
+So the honest answer to "optimise only their adjoints" is: the soil coupling's adjoint
+should be analytic and that is a pure win; the crown quadrature's adjoint wants
+preaccumulation, which is the one lever B genuinely makes unnecessary.
+
 ## 7. What this makes hard
 
-~2× the active-run wall time (each step's forward is recorded once more than today),
-and the cohort-introduction boundary needs an explicit adjoint jump: a newborn's IC
-reads the active stand, so the newborn's adjoint feeds back into the existing state's
-adjoint at that instant. Today that is just more tape; under B it is a distinct term
-that has to be right, and it is the one place B can be silently wrong. Cope by making
-introduction its own recorded segment (it already is one) and gating it with a
-short-lifetime AD-vs-AD comparison against the current whole-run tape, which stays
-available as the oracle.
+Beyond the two obvious costs — ~2× active-run wall time, and the cohort-introduction
+adjoint jump (a newborn's IC reads the active stand, so its adjoint feeds back into the
+standing state's adjoint at that instant; today that is just more tape, under B it is a
+distinct term) — four more, and the first is the one that is easy to miss.
+
+1. **Time-distributed functionals lose their current contract.** `least_squares` reads
+   `solver.get_history_step(idx)` and holds those **intermediate** states as active
+   values. Under B they are stored `double`s on no tape, so it cannot work as written.
+   The fix is standard — an observation at step j seeds `∂L/∂y_j` into λ_j during the
+   backward pass — but it changes the functional contract from "a pure reduction of the
+   positioned solver" to "declare the steps you read and contribute a per-step adjoint
+   seed". That is a new concept in a documented interface, and calibration is one of
+   AUTODIFF.md's three axes, so it is not a corner case. Final-state functionals
+   (census, R0) are unaffected.
+2. **Re-recording must be bit-deterministic from the stored state, and that becomes a
+   standing invariant rather than a happy accident.** Checked: TF24's collar solve is a
+   fresh golden-section over bounds derived from the current soil state, so it is
+   path-independent and passes today. But any future warm-start in a strategy's inner
+   solver — an obvious speed idea — would silently break the gradient while leaving
+   every double test green. This is a **new foot-gun class** and wants a structural
+   guard, not a comment.
+3. **The stored trajectory must be complete.** `set_ode_state` has to restore
+   everything a step reads: aux slots, the light field, and the soil-derived caches
+   (`psi_soil_inverted_`, `root_vuln_integral_soil_`). Anything cached-but-not-
+   re-derived is the reset-timing bug in a new location — same silent, plausible,
+   wrong failure shape as populating the L3 cache.
+4. **We stop using `xad::computeJacobian`.** It owns record-once/sweep-m-rows today;
+   under B odelia hand-rolls m sweeps per step and accumulates ∂J/∂θ into its own
+   `double` across steps (XAD zeroes derivatives per recording, so a lost or
+   double-counted step is silent). That is more odelia code and it cuts against
+   "invoke the vendored facilities, don't re-implement them" — modest, but real.
+
+**What it explicitly does not cost: accuracy.** The step-local discrete adjoint is the
+same chain-rule product as the whole-run sweep, merely associated differently, so it is
+exact rather than an approximation — worth stating because it is the natural worry, and
+because it is what distinguishes this from the *continuous* adjoint (solving an adjoint
+ODE), which would introduce its own discretisation error. Debuggability improves: a
+wrong adjoint localises to one step.
+
+Cope with (1) by converting `least_squares` as part of the work rather than after it,
+and with (2)–(4) by gating on a short-lifetime AD-vs-AD comparison against the
+whole-run tape, which stays available as the oracle, plus the forward
+`⟨Jv,u⟩=⟨v,Jᵀu⟩` check, which shares none of B's machinery.
 
 ## 8. Kill condition
 
@@ -313,10 +395,13 @@ a memory saving that B already delivered.
 3. **The R2 acceptance measurement:** FF16 and TF24 gradients at
    `max_patch_lifetime = 105.32` under 2 GB. That is the ledger line; nothing is
    closed until it is a number.
-4. **C**, ordered by measured payoff and now judged on wall time: analytic p\*
-   residual (2.7× of recorded work, TF24), expression fusion (~1.3×, all strategies,
-   and it is a style rule that stops the regression recurring), crown quadrature
-   (FF16's 20× over K93 — profile before touching, per `profile-plant`).
+4. **C, only the levers that still pay under B** — see §6a for the derivation.
+   `incomplete_gamma`'s analytic endpoint derivative, the analytic p\* stationarity
+   residual, and expression fusion are all pure wins (less forward work as well as
+   fewer bytes). Crown preaccumulation is **deferred**: it was the big memory lever and
+   B makes it redundant.
+5. **Convert `least_squares`** to the per-step adjoint-seed contract (§7.1) — part of
+   B's work, not a follow-up, since B breaks it as written.
 
 **One naming constraint, from R3.** The end state is that `compute_jacobian` *is*
 step-local — not a second driver beside it. A parallel `compute_jacobian_stepwise`
