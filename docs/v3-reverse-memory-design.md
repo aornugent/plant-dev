@@ -120,10 +120,11 @@ the compute-versus-storage question before any candidate is written.
 
 ## 2. Requirements ledger
 
-- **R1 — exact trait gradients of the SCM's emergent outputs** (census
-  LAI/biomass/basal-area, R0/offspring). Outputs m ≤ 3 today. Number of traits
-  **k = unknown — ask.** The tests seed k=1. *This is the one quantity that decides
-  whether reverse mode is needed at all* (§3).
+- **R1 — exact *reverse-mode* trait gradients of the SCM's emergent outputs** (census
+  LAI/biomass/basal-area, R0/offspring). Outputs m ≤ 3 today. **Reverse mode is
+  non-negotiable** (owner's ruling, 2026-07-26) — so the trait count `k` is *not* a
+  design input, and a k-forward-runs scheme is not an admissible answer however small
+  k is. Forward mode keeps exactly one job: the independent oracle.
 - **R2 — run at production patch lifetime.** `max_patch_lifetime = 105.32` is FF16's
   own default. Measured: K93 0.75 GB ✓, FF16 **OOM**, TF24 OOM at life=4. Budget
   15 GB, and a gradient that consumes the whole box is not usable inside a
@@ -137,11 +138,14 @@ the compute-versus-storage question before any candidate is written.
 - **R5 — value reproduction stays bit-exact** (already structural in
   `scm_jacobian`).
 
-**Challenged upward:** R2 arrives as a solution-verb — "add checkpointing". The
-outcome wanted is *a gradient that fits in memory at production lifetime*;
-checkpointing is one mechanism for it, and §1.5 says it is the mechanism for the
-opposite regime from ours. Second challenge: R1 needs its `k`. If k ≤ ~5, the floor
-below meets everything and none of this is needed.
+**Challenged upward, and answered.** (a) R2 arrived as a solution-verb — "add
+checkpointing". The outcome wanted is *a gradient that fits in memory at production
+lifetime*; checkpointing is one mechanism for it, and §1.5 says it is the mechanism
+for the opposite regime from ours. (b) R1 was challenged for its trait count `k`,
+since a small k would make tapeless forward mode sufficient. **Answered: reverse mode
+is non-negotiable.** So k is struck from the ledger and forward mode is demoted from
+candidate to oracle. This *tightens* the search — §4 now has one surviving
+candidate on arithmetic alone.
 
 **Scarce resource:** peak tape bytes = *(recorded ops per cohort-step)* ×
 *(steps × cohorts held simultaneously)*. Every past effort — `implicit_value`,
@@ -152,29 +156,26 @@ the second.** That is the gap.
 
 ## 3. The floor
 
-**Forward mode. It already exists, and it uses no tape at all.**
-`odelia::compute_jvp` is a tapeless forward dual (`xad::fwd`), currently used only as
-the dot-product oracle. k traits = k forward runs at ~2–3× double cost each, **zero
-tape bytes**, no new concept, no plant change. Wiring it to the SCM entry is one
-`scm_jvp` function beside `scm_jacobian`.
+Reverse mode is required, so the floor is **the dumbest reverse-mode change that
+fits in memory: leave the driver alone and shrink the model's recorded work** —
+candidate C below, on its own. No new concept, no engine change, nothing but making
+plant's hot path record less.
 
-Against the ledger: it meets **R2 outright and with infinite margin**, R3 (nothing
-new in strategy code), R4, R5.
+**It fails R2, by arithmetic.** C is worth ~1.3× on FF16 and ~3.5× on TF24 against
+a requirement of ≥ 8× (FF16 life=105) and ≥ 15–45× (TF24 life=105). FF16 at
+production lifetime needs 15 GB→2 GB and leanness delivers 15→11.5.
 
-It fails R1 only on time, and only if k is large: cost is k × (2–3 ×
-double-run) versus reverse's 1 ×. At k=5 that is ~10–15 double runs — for FF16 at
-life=105, minutes, not hours.
+That failure is what pays for a driver change, and it is worth being precise about
+*why* it fails rather than just that it does: C shrinks the **first** factor of the
+scarce resource, and the ledger says the unbounded factor is the **second**
+(steps × cohorts). No amount of per-cohort-step thrift changes a product whose other
+term grows without limit. This is also why C must not be mistaken for the fix — it is
+real work with real payoff (§9), but it cannot close R2 and shouldn't be asked to.
 
-**So the floor genuinely suffices for small k, and that is the kill question for the
-entire reverse-mode edifice at SCM scale.** It must be answered before building
-anything: *how many traits does a production gradient need?* If the answer is "a
-handful, for selection gradients", ship the floor. If it is "tens, for calibration",
-the floor's k× time is the ledger line that pays for a candidate below.
-
-Note what the floor does *not* do: it gives no reverse-mode witness, so the
-FD-verification programme (task #27) and the `⟨Jv,u⟩=⟨v,Jᵀu⟩` oracle still want a
-working reverse path. That is a real requirement, but it is a *testing* requirement
-satisfiable at short lifetimes, where reverse already works.
+*(Forward mode — `odelia::compute_jvp`, tapeless, zero tape bytes — would meet R2
+outright, and is struck as a candidate by the R1 ruling. It keeps its existing job as
+the independent `⟨Jv,u⟩=⟨v,Jᵀu⟩` oracle, which is worth more here than usual: it is
+the one check on B that does not share B's machinery.)*
 
 ---
 
@@ -219,19 +220,22 @@ dominates — and it also buys *time*, which neither A nor B does.
 
 ### Pick by arithmetic
 
-**Winner: the floor if k ≤ ~5; otherwise B, with C done regardless.**
+**Winner: B. C is done alongside it as a time optimisation, not as a memory fix.**
 
+- **C (the floor) fails R2** — ~1.3× on FF16 against ≥ 8× required. Eliminated as
+  the answer; retained as work.
 - **A is dominated by B.** Both bound the tape; A pays a recompute factor ≥ 1 *and*
-  a callback/schedule vocabulary to avoid storing a trajectory that costs 0.92 MB.
-  Its "wins when" condition — trajectory too big to store — is false here by 10 000×.
-  Eliminated on R2-with-least-machinery, not on taste.
-- **C alone does not meet R2.** FF16 needs ≥ 8× and C gives it ~1.3×. It is not a
-  competitor; it is orthogonal work that both other candidates benefit from.
+  a callback/schedule vocabulary, all to avoid storing a trajectory that costs
+  0.92 MB. Its "wins when" condition — trajectory too big to store — is false here by
+  10 000×. Eliminated on R2-with-least-machinery, not on taste. This is also the
+  precise form of the "lazy tape management" objection: A buys memory with recompute
+  and leaves the recorded work untouched, whereas B buys it with 0.92 MB of storage
+  and leaves the recorded work equally untouched — so *neither* excuses C, and only
+  A charges time for the privilege.
 - **B meets R2 with margin** (129–300× against a required 8–45×) and, uniquely,
   makes peak memory **independent of patch lifetime** — the only candidate whose
-  scaling in the scarce resource is flat rather than merely smaller.
-- **The floor beats B on every axis except time**, and time is the axis whose
-  quantity is unknown. Hence the question, not a guess.
+  scaling in the scarce resource is flat rather than merely smaller. It is also the
+  only one that *removes* a concept (the growing tape, §6) instead of adding one.
 
 ---
 
@@ -283,27 +287,42 @@ available as the oracle.
 ## 8. Kill condition
 
 If per-cohort state grows until the stored trajectory is comparable to its tape,
-B's premise (§1.5) fails and the right answer becomes **A** — trade that storage
-back for recompute. Watch the ratio; it is 10 000× today. Separately, if k turns out
-to be ≤ ~5 and stays there, **the floor** supersedes both and B is unnecessary
-machinery.
+B's premise (§1.5) fails and the right answer becomes **A** — trade that storage back
+for recompute. Watch the ratio; it is 10 000× today. (The R1 ruling closes the other
+exit: no trait count makes forward mode the answer.)
 
 ---
 
 ## 9. Sequence
 
-1. **Answer `k`.** One question, and it can retire most of this document.
-2. **C, now, regardless of the answer** — it is what "set the strategies up for
-   lean, fast reverse mode" actually means, it is derivative-neutral, and it buys
-   time as well as bytes. Order by measured payoff: analytic p\* residual (2.7×,
-   TF24), expression fusion (~1.3×, all strategies, and it is a style rule that
-   stops the regression recurring), crown quadrature (FF16's 20× — profile before
-   touching).
-3. **Floor wiring** — `scm_jvp` beside `scm_jacobian`. Cheap, and it is the
-   memory-free escape hatch plus an independent oracle whichever way (1) goes.
-4. **B**, if `k` says so. Build it against the current whole-run tape as the
-   correctness oracle at short lifetime, then delete nothing until the AD-vs-AD
-   comparison is green at three lifetimes.
+**B first, C second** — and the order matters for an honest reason. C's payoff is
+measured *per cohort-step*; under B the memory ceiling is gone, so C stops being a
+memory fix and becomes purely a speed fix. Doing B first means C gets justified
+against a time budget it can actually be measured on, instead of being credited with
+a memory saving that B already delivered.
+
+1. **B, proven on a toy before plant** — the project's own doctrine. `soil_leaf` is
+   the right witness: a node inside `ode_rates`, a mid-run `introduce()` (so the
+   insertion adjoint jump of §7 is exercised), a closed feedback loop, and an existing
+   re-integrating FD reference it already matches to <1e-9. Gate: same gradient, and
+   peak tape flat in step count.
+2. **B into plant** at K93 (cheapest full SCM, and its 0.75 GB whole-run tape is a
+   working oracle), then FF16, then TF24. Keep the whole-run driver available as the
+   AD-vs-AD oracle at short lifetime until all three are green; the `⟨Jv,u⟩=⟨v,Jᵀu⟩`
+   forward oracle is the independent check that shares none of B's machinery.
+3. **The R2 acceptance measurement:** FF16 and TF24 gradients at
+   `max_patch_lifetime = 105.32` under 2 GB. That is the ledger line; nothing is
+   closed until it is a number.
+4. **C**, ordered by measured payoff and now judged on wall time: analytic p\*
+   residual (2.7× of recorded work, TF24), expression fusion (~1.3×, all strategies,
+   and it is a style rule that stops the regression recurring), crown quadrature
+   (FF16's 20× over K93 — profile before touching, per `profile-plant`).
+
+**One naming constraint, from R3.** The end state is that `compute_jacobian` *is*
+step-local — not a second driver beside it. A parallel `compute_jacobian_stepwise`
+would add a name and a choice to every caller while removing neither, which is the
+failure mode the DX objective names. Develop it as a second path if that is safer,
+but the branch is deleted before this is called done.
 
 **Not recommended:** A, unless the §8 ratio moves.
 
