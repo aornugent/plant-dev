@@ -1,5 +1,29 @@
 # The stress-bank crashes are plant#550 (cohort-density blow-up), not a drainage overflow
 
+> **⚠⚠ THIS DOCUMENT'S CENTRAL CONCLUSION IS REFUTED. Read the correction before using anything below.**
+> Later per-RHS-evaluation instrumentation (written up in
+> [`oracle-consultation-hypersensitivity-extinction.md`](./oracle-consultation-hypersensitivity-extinction.md)
+> §C1–C2) shows the crashes are **NOT** a cohort-density divergence and **NOT** a model failure:
+> - **The weights never diverge.** Max `ρ ≈ 1` (trace 1) and `≈ 2e-12` (trace 2), against a guard
+>   ceiling of `e^50`. The density guard runs every evaluation and never fires. Member spacing is flat
+>   across the event — no concentration, no caustic.
+> - **A soil component leaves its physical range inside a step** (`8.84`, then `−191`, then
+>   `+770/−1009`, against a physical range of `[0, 0.5]`); the one-way inter-layer chain then amplifies
+>   the excursion until a factor is non-finite.
+> - The `species.h:241` guard fires when **any** factor of the reduction is non-finite. §1–2 below read
+>   that message as "a density diverged". The non-finite factor was `c_ℓ` evaluated at `u = −916` —
+>   **never `ρ`**. The reasoning in §1 correctly rules out a *drainage overflow of the stated form*, but
+>   its positive conclusion (density mode) does not follow and is wrong.
+> - **A 100× tighter tolerance converts the abort into a completed run**, directly contradicting §3's
+>   "the divergence is in the equations, not the stepper".
+>
+> **So the Oracle's rung #5 — put the exact positivity-preserving recession into the baseline adaptive
+> solve — was refuted here on a false premise and should be REINSTATED as a live candidate.** What
+> survives from this document: the 1400× reference-comparison correction to the Slice 4 robustness
+> claim (§2), and the Slice-1 partial rescue as a *measurement* (its interpretation as evidence for a
+> model-level discontinuity does not follow).
+
+
 *2026-07-22. Oracle ladder rung #5 was "retrofit the exact drainage recession into the global
 adaptive RK so it stops going non-finite on the 3 crashing stress traces, giving a second-family
 reference." The premise was falsified before any code was written, and the investigation instead

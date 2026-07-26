@@ -501,11 +501,28 @@ slow-error estimate** to accept/reject legs on. `system-design` this before writ
 subsumes the old "fixed macro grid in `scm.h`" idea.
 
 ### 3a. Parked, with reasons (do NOT restart these without a new reason)
-- **The stress bank as an ACCURACY test.** It is a cost/monitor measurement only. The rkck crashes
-  there are **plant#550**, a *model-level* cohort-density divergence (`ρ → +∞`), not a solver
-  overflow — upstream's own position (plant#552) is *"trustworthy completion is blocked on the
-  model"*, and #551 (the `opt_psi_stem`-discontinuity root cause) was **closed as not planned**. See
-  `tf24-v2-T6-density-blowup-550-investigation-result.md`.
+- **The stress bank as an ACCURACY test.** It is a cost/monitor measurement only — that part stands.
+  **⚠ BUT ITS STATED CAUSE IS REFUTED (see below); this is NOT parked any more.**
+- **⚠⚠ CORRECTION (session 8) — the crashes are the SOLVER, not the model.** The
+  `density-blowup-550-investigation` doc concluded the stress-bank crashes were a *model-level*
+  cohort-density divergence (`ρ → +∞`), and this block used to repeat that. **Our own later
+  instrumentation, written up in `oracle-consultation-hypersensitivity-extinction.md` §C1–C2,
+  refutes it and was never propagated back here.** Measured, per-RHS-evaluation, on both crashing
+  traces: **the weights never diverge** (max `ρ ≈ 1` and `≈ 2e-12` against a guard ceiling of `e^50`;
+  the weight guard runs every evaluation and never fires) and **the member spacing does not collapse**.
+  What actually happens is a **soil component leaving its physical range inside a step** (`8.84`, then
+  `−191`, then `+770/−1009`, against a range of `[0, 0.5]`), after which the one-way inter-layer chain
+  amplifies the excursion until a factor is non-finite. The `species.h:241` guard we read as "a density
+  diverged" fires whenever **any** factor of the reduction is non-finite, and the non-finite factor was
+  `c_ℓ` evaluated at `u = −916`, never `ρ`. **And a 100× tighter tolerance converts the abort into a
+  completed run** (reprex: aborts at `ode_tol=1e-4`, completes at `1e-6` with two step regimes agreeing
+  on J to 5e-4; stress trace 1: same). That is an explicit integrator violating positivity on a stiff
+  term — **exactly the term for which we hold an exact positivity-preserving recession, verified to
+  1e-13, which is NOT used inside the coupled adaptive solve** (only inside `mri_uptake`'s micro-steps).
+  **Consequences:** (a) "trustworthy completion is blocked on the model" is not our finding to repeat;
+  (b) putting the exact recession into the *baseline* solve is now a live and cheap candidate, and it
+  may lift the accuracy ceiling the whole T6 cost programme has been optimising underneath; (c) the
+  Slice-1 partial rescue (1 of 3 traces) is consistent with this, not evidence for the model story.
 - **The Oracle's rung #5 (retrofit the exact recession into the global RK).** Refuted before
   building: the crashes are the density mode, never the soil mode. A solver fix for a non-solver
   failure.
