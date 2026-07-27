@@ -32,3 +32,14 @@ for (m in c("FF16", "TF24")) {
     flush(stdout())
   }
 }
+
+# QC-4: what prepare_strategy() costs, and why it is not just a cost. reset() calls it per
+# species and TF24's rebuilds the Leaf (two 100-knot interpolators) -- which is also what
+# appears to clear the leaf's per-solve state. Skipping it to speed up the restore would
+# silently reintroduce the staleness blocker, so the price of the guarantee is recorded here.
+cat("\n== QC-4: prepare_strategy() in isolation, against the restore it sits inside ==\n")
+for (m in c("K93", "FF16", "TF24")) {
+  r <- unit_cost_probe(m, 20, 20, 10)
+  cat(sprintf("%-5s prepare %8.1f us | restore %8.1f us (%4.1f%% of restore) | unit %9.1f us\n",
+              m, r$prepare_us, r$restore_us, 100 * r$prepare_us / r$restore_us, r$unit_us))
+}

@@ -17,6 +17,14 @@
  * and reports per-unit totals plus the extrapolation to a given unit count. Run at two lifetimes
  * to see how each scales with cohort width.
  *
+ * QC-4 (added 2026-07-27): `prepare_us` isolates `Strategy::prepare_strategy()`, because
+ * `r_set_state` -> `reset()` calls it per species (patch.h:325) and TF24's rebuilds the whole
+ * `Leaf` including two 100-knot interpolators (tf24_strategy.cpp:1112). That matters twice
+ * over: it is a real slice of the restore, AND it is what appears to clear the leaf's
+ * per-solve state. So "speed the restore up by skipping prepare_strategy" is the obvious
+ * optimisation and would SILENTLY REINTRODUCE the staleness blocker. This puts the price of
+ * the guarantee on the record so that trade is made knowingly.
+ *
  * Run from /home/user/plant-dev via docs/reference/unit-cost-probe.R.
  */
 
@@ -96,6 +104,17 @@ Rcpp::List cost_probe(double birth_rate, double lifetime, int reps) {
   times.front() = t_in;
   times.back() = t_out;
 
+  // QC-4: prepare_strategy() in isolation, on a standalone Strategy of the same type.
+  double t_prepare = 0.0;
+  {
+    for (int r = 0; r < reps; ++r) {
+      Strat probe_st = st;
+      auto a = clk::now();
+      probe_st.prepare_strategy();
+      t_prepare += us_since(a);
+    }
+  }
+
   double t_copy = 0.0, t_restore = 0.0, t_advance = 0.0;
   for (int r = 0; r < reps; ++r) {
     auto a = clk::now();
@@ -121,6 +140,7 @@ Rcpp::List cost_probe(double birth_rate, double lifetime, int reps) {
       Rcpp::Named("cohorts") = static_cast<int>(counts[0]),
       Rcpp::Named("units_this_run") = static_cast<int>(n_units),
       Rcpp::Named("steps_in_unit") = static_cast<int>(times.size() - 1),
+      Rcpp::Named("prepare_us") = t_prepare / n,
       Rcpp::Named("copy_us") = t_copy / n,
       Rcpp::Named("restore_us") = t_restore / n,
       Rcpp::Named("advance_us") = t_advance / n,
