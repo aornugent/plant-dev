@@ -33,7 +33,7 @@ the plant developer experience is pain-free.**
 - **odelia and plant are co-designed.** DX spans both repos: when a plant pain points
   at a missing/weak odelia primitive, fix it *in odelia* rather than papering over it
   in plant. Both are on the same branch; edit odelia headers → reinstall odelia →
-  rebuild plant, kept in lockstep (see context-rebuild step 5).
+  rebuild plant, kept in lockstep (the runbook's step 0 checks it).
 - **Use the `system-design` and `code-review` skills for anything structural** — not
   once, but as the regular working rhythm: `system-design` *before* introducing any
   abstraction/layer/boundary (it searches for the design that does the least), and
@@ -54,50 +54,97 @@ the plant developer experience is pain-free.**
   trailers required (`Co-Authored-By` + `Claude-Session`). The model id must NOT
   appear in commits/code/artifacts (chat only). Never push to `traitecoevo/*`.
 
-## HOW TO REBUILD CONTEXT FROM SCRATCH (do this in order, every fresh session)
-**Docs are a lead, not an authority — verify before you build on them.** Every prose claim of status
-("done", "won't compile", "wrong by X", "UNBUILT") is potentially stale: it was true when written and
-the code has moved. Before acting on such a claim, reproduce it against the *current* code with the
-cheapest decisive check (a compile probe, a single test run, a one-value FD). Session 16 found TWO stale
-session-15 claims this way ("won't compile at node.h:347"; "the census methods are missing everywhere")
-that were false against HEAD. The build-status matrix (`build-plan.md`) exists precisely so a claim is a
-*test citation you can re-run*, not a sentence you trust — re-run the cell before you believe it.
-1. **Read `odelia/AUTODIFF.md` FIRST.** It is the authoritative account of the AD
-   workflow: the two orthogonal axes (Replay L1/L2/L3 × Functional), ownership (the
-   **Solver owns the schedule L1**; the System owns its background L2/L3), the System
-   contract, and **the one way to get it wrong** (populating the L3 field-value cache
-   silently drops a background's feedback derivative). Internalize the invariant:
-   **`recorded_steps()` is the SINGLE source of the replay grid, so it "can't go
-   inconsistent," guarded by one forgot-to-record check.**
-2. **Read `odelia/AGENTS.md` and `plant/agents.md`** (dev workflow, style, build/test).
-3. **Follow `docs/README.md`'s reading order** — `v3-facts.md`, then `v3-dead-ends.md`, then
-   `v3-engine-design.md`. `v3-north-star.md` holds the objective and durable principles;
-   `build-plan.md` is the test-cited status matrix. **Do not start from a narrative document:**
-   session 22 re-derived `deepenings/deepening-6-light-coupling.md` by doing so.
-3b. **If the task touches an area with a prior Oracle consultation, READ that Oracle
-   response BEFORE designing your approach — and follow its Decisive Experiments and
-   contract, not an ad-hoc method.** Index: `docs/oracle/oracle-consultation-index.md`. The
-   responses are `docs/oracle/oracle-response-*.md`. In particular, anything touching the TF24
-   leaf `p*` adjoint or FD-verifying a TF24 gradient is governed by
-   `docs/oracle/oracle-response-inner-argmax-adjoint.md` (the staircase; the δ/τ-indexed FD family;
-   the tight-τ frozen anchor). Session 16 re-derived that response's findings the hard
-   way *after* falling into the exact trap it documents (chasing a loose/under-stepped
-   FD ratio) — because the response was not consulted at task start. Consulting it is not
-   optional when its subject is in scope.
-4. **Diff odelia against `master`, NOT develop.** odelia's default is `master`; the
-   AD engine is a large branch (~28 commits), **NOT merged**. Diffing the wrong base
-   hides the entire engine and wasted a session:
-   `git -C odelia diff --stat $(git -C odelia merge-base HEAD master) HEAD`.
-   Diff plant against its base: `git -C plant diff --stat $(git -C plant merge-base HEAD origin/develop) HEAD`.
-5. **VERIFY the installed odelia == the odelia branch HEAD before touching plant.**
-   plant compiles against the **installed** odelia headers
-   (`system.file("include", package="odelia")`), not the submodule tree. Check:
-   `diff -q "$(Rscript -e 'cat(system.file("include",package="odelia"))')/odelia/gradient.hpp odelia/inst/include/odelia/gradient.hpp`.
-   If you edit odelia headers, **reinstall odelia** (`cd odelia && make compile` or
-   `R CMD INSTALL .`) then rebuild plant — keep them in lockstep (co-designing DX
-   spans both repos).
+## REBUILD CONTEXT: a runbook. Run each step; each has an expected result.
 
-## RULES THAT MUST NOT BE RELEARNED (each cost real time this session)
+**Do not read prose to rebuild context — execute this.** Every prose claim of status is a lead to
+reproduce, not a fact to inherit: sessions 15, 16, 19, 20, 21 and 22 each lost time to a stale
+sentence, and two of them reported *proven* failure counts that were invocation artefacts. Steps 0-3
+take about ten minutes, most of it waiting for a suite.
+
+**Every command below was executed verbatim when this runbook was written, and produced the stated
+result.** If one does not, that is the finding — fix the runbook, and say so.
+
+### Step 0 — verify the workspace. Do this before reading anything.
+
+```bash
+cd /home/user/plant-dev
+for r in . plant odelia; do printf "%-8s " "$r"; git -C $r branch --show-current; done
+inc=$(Rscript -e 'cat(system.file("include", package="odelia"))')
+diff -q "$inc/odelia/gradient.hpp" odelia/inst/include/odelia/gradient.hpp \
+  && echo "ODELIA INSTALL IN SYNC"
+```
+
+**Expect:** all three on `claude/odelia-ad-tape-reverse-496fuf`, and `ODELIA INSTALL IN SYNC`.
+**If out of sync:** `R CMD INSTALL /home/user/plant-dev/odelia --no-multiarch --no-docs`, then
+`rm -f plant/src/*.o plant/src/*.so && R CMD INSTALL /home/user/plant-dev/plant --no-multiarch --no-docs`.
+plant compiles against the **installed** odelia headers, not the submodule tree — this is why the
+check exists.
+
+### Step 1 — read exactly four documents, in this order. Nothing else.
+
+| # | file | read it for |
+|---|---|---|
+| 1 | **this file, PART 1 only** (you are here) | the rules below |
+| 2 | **`docs/v3-facts.md`** | every measured number, with the command that reproduces it |
+| 3 | **`docs/v3-dead-ends.md`** | refuted claims — read before proposing any mechanism |
+| 4 | **`docs/v3-engine-design.md`** | the current design: commitment, deletions, kill condition |
+
+**Do NOT start from a narrative document.** Session 22 re-derived
+`deepenings/deepening-6-light-coupling.md`'s conclusions by doing so. `docs/README.md` lists which
+documents are narratives and says where new writing goes.
+
+**`odelia/AUTODIFF.md` is the API authority** — read it when you touch the engine's surface, and note
+that L2 is **not** a recording (an adaptive structure is rebuilt from plain values; see `v3-facts.md`
+§4). Older prose describing "Replay L1/L2/L3" as three recorded layers is stale.
+
+### Step 2 — verify the suites match what `v3-facts.md` claims.
+
+```bash
+cd odelia && make test          # expect: 0 fail / 484 pass / 5 skip
+```
+
+**The two packages need opposite invocations, and getting it wrong has produced false failure
+counts in three separate sessions:**
+- **odelia — `library()`, never `load_all`.** plant resolves odelia's compiled XAD `Tape` symbols in
+  `.onLoad`, so odelia must be a real install. `test_dir()` does not attach the package (every
+  exported name reads as missing); `test_local()` silently *skips the whole AD workflow*.
+- **plant — `pkgload::load_all("plant")`, not `library(plant)`.** Many tests call internals
+  (`Node`, `Parameters`, `trapezium` are not exported), so `library()` hides them.
+- So the working combination is **install odelia, `load_all` plant**. And run
+  `testthat::set_max_fails(Inf)` before quoting any count — testthat caps at 10 and prints the cap
+  as the total.
+
+Known-failing and **not** yours: `test-canopy-methods.R` (2 stale blessings), `test-mutant.R`
+(8 stale seed-rain expectations), `test-strategy-ff16.R:248` (pandoc absent). The full plant suite
+OOMs the box; use a focused set.
+
+### Step 3 — re-run the one fact your task depends on.
+
+Find the row in `v3-facts.md` your work rests on and run its command. That is the whole point of the
+ledger carrying commands: a fact is re-verifiable rather than trusted. The probes live in
+`docs/reference/` as `.cpp` + `.R` pairs.
+
+**Run `Rscript` from `/home/user/plant-dev`.** A `cd plant` in a previous command leaves the shell
+there and `load_all("plant")` then fails; pass an explicit `cd /home/user/plant-dev &&`.
+
+### Step 4 — only now, and only if the task touches them, read further.
+
+| if the task touches | read first |
+|---|---|
+| the TF24 leaf `p*` adjoint, or FD-verifying any TF24 gradient | **`oracle/oracle-response-inner-argmax-adjoint.md`** — mandatory. The FD is a δ/τ-indexed *family*, not one number |
+| the light path | `deepenings/deepening-6-light-coupling.md` |
+| the control flow or the memory profile | `v3-control-flow.md` |
+| the `Replayable` concept | `v3-replayable-redesign.md` |
+| the older corpus generally | `v3-evidence-triage.md` — **for every number, ask what would change it** |
+
+**Diff against the right base.** odelia's default is `master`, not develop; the AD engine is a large
+unmerged branch, and diffing the wrong base hides the whole engine:
+```bash
+git -C odelia diff --stat $(git -C odelia merge-base HEAD master) HEAD
+git -C plant  diff --stat $(git -C plant  merge-base HEAD origin/develop) HEAD
+```
+
+## RULES THAT MUST NOT BE RELEARNED (each one cost a session, somewhere)
 - **Treat docs as potentially stale; verify before building on a status claim.** (See the
   principle under "HOW TO REBUILD CONTEXT".) A "done / broken / wrong-by-X" sentence is a
   lead to reproduce, not a fact to inherit — the code has moved since it was written.
