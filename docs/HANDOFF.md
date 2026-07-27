@@ -380,7 +380,13 @@ components per node, so production is **141 cohorts**, and a production sweep is
 ~5.5 min per gradient**, not the ~40 min first recorded (`v3-facts.md` §3c). The memory arithmetic is
 unaffected: it was always per *state*.
 
-**1. [#37] Choose and land the `Leaf` fix.** The cause is **confirmed, not hypothesised**: replaying a
+**1. [#37] Choose and land the `Leaf` fix — BUT RUN `v3-requirements.md` §20b QC FIRST.** A code chain
+read this session suggests the blocker may not exist on the path the design uses: `r_set_state` →
+`reset()` → `prepare_strategy()` → **a fresh `Leaf`** with `setup_clean_leaf()` wiping the per-solve
+fields (`patch.h:838`, `:325`; `tf24_strategy.cpp:1112`; `leaf_model.cpp:35`). The blocker was measured
+on the **whole-`Patch` copy** path, which never calls `r_set_state`. One probe variant settles it — see
+QC for the discriminating experiment and what it would change. **Do not choose a candidate before
+running it.** The cause is **confirmed, not hypothesised**: replaying a
 segment while the leaf holds that segment's own state is **exactly 0** where the deferred replay is
 1.8e-13 → 1.3e-8, with FF16/K93 (no leaf) zero both ways —
 `Rscript docs/reference/leaf-staleness-probe.R`. What that buys is a weaker requirement than assumed:

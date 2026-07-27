@@ -88,6 +88,18 @@ Everything below is a constraint on *how* that can be achieved.
 | **C5.6** | **a newborn's initial condition IS stand-dependent** — `log_density` moves **1.105** across entering-state perturbations, while height/mortality/fecundity/offspring do not move at all | `chained-adjoint-probe` → `newborn_state_sensitivity` |
 | **C5.7** | `Species::set_birth_state(times, density, pr_survival)` exists but **no test calls it** | `species.h:132`; `patch.h:386-400` |
 
+## 5b. Strategy preparation, and what a reset rebuilds  (read directly this session)
+
+| | constraint | evidence |
+|---|---|---|
+| **C5b.1** | **`Patch::reset()` calls `prepare_strategy()` on every species** — deliberately, so a seeded parameter's derivative reaches the precomputed birth size / canopy shape / `eta_c` | `patch.h:318-329` |
+| **C5b.2** | **TF24's `prepare_strategy()` CONSTRUCTS A FRESH `Leaf`** — `leaf = Leaf(to_passive(pars.vcmax_25), …)` | `tf24_strategy.cpp:1112` |
+| **C5b.3** | the `Leaf` constructor runs `setup_transpiration(100)`, `setup_root_vulnerability(100)` and `setup_clean_leaf()`, which sets `ci_`, `stom_cond_CO2_` … to `NA_REAL` | `src/leaf_model.cpp:33-35`, `:65-75` |
+| **C5b.4** | **`r_set_state` calls `reset()`** as its first act | `patch.h:838` |
+| **C5b.5** | so the leaf's four interpolators are **constructor-built on a fixed 100-knot grid**, not per-solve state; they are rebuilt whenever `prepare_strategy` runs | `leaf_model.h:127-135`; `vulnerability_curve_ncontrol = 100` |
+| **C5b.6** | the genuinely per-solve leaf state is `ci_`, `stom_cond_CO2_`, `opt_psi_stem_`, `opt_ci_`, `profit_`, `psi_soil_`, `psi_soil_inverted_`, and `root_vuln_integral_soil_` — the last documented as "Rebuilt in `find_root_collar_psi`" | `leaf_model.h:185-200` |
+| **C5b.7** | **the `Leaf` is never templated on `S`** — it is always `double`, and `prepare_strategy` passes `to_passive(...)` parameters into it | `tf24_strategy.h:427-430`; `tf24_strategy.cpp:1112`. The S-path science lives in `assemble_leaf_from` instead, so this is a deliberate boundary rather than a severance — **but it means no derivative flows through the `leaf` object itself** |
+
 ## 6. The light field — separability and its preconditions
 
 | | constraint | evidence |
@@ -96,7 +108,9 @@ Everything below is a constraint on *how* that can be achieved.
 | **C6.2** | the factorisation is exact **only when the same η appears in query and source factors** | `(1−(z/H)^η)²` expands that way and no other |
 | **C6.3** | **the field is assembled with ONE canopy, taken from `species[0]`** | `patch.h:757-759`, commented "any cohort's canopy (shared shape)" — an assumption, not a fact |
 | **C6.4** | **so all species must share η.** Mixing it does not degrade, it **diverges**: the field computes **7.98e+14** where the exact kernel gives 0.118 (η 12 vs 4); 742 at η 12 vs 10 | `two-species-probe` |
-| **C6.5** | only the **DeepCrown** profile is separable; `FlatTopBox`/`FlatTopSoftBox` have **no correct tangent route** | `canopy_shape.h`, `shading_rank`; both are explicitly pedagogical, defaults are DeepCrown |
+| **C6.5** | there are **SIX** `ShadingModel` modes, and only **two** change the competition kernel: `FlatTopBox` → `Box` and `FlatTopSoftBox` → `SoftBox`. `DeepCrown`, `MeanLight`, `CrownCentre` **and `PPA`** all map to `Deep`, which is the separable one | `canopy_shape.h:50-52` (enum), `:129-131` (the mapping — `default: Deep`) |
+| **C6.5a** | **TF24's default is `MeanLight`, NOT `DeepCrown`** (FF16's default is `DeepCrown`). The mode changes how *assimilation* integrates light over crown depth; it changes the *competition* contribution only for the two Box modes | `tf24_strategy.h:399`; `ff16_strategy.h:786`. **This corrects a claim that said "defaults are DeepCrown → separable"** — the conclusion survives, the reason was wrong, and it was wrong about TF24 |
+| **C6.5b** | so the two modes with no correct tangent route are `FlatTopBox` (a hard step) and `FlatTopSoftBox` (a smoothstep) — and `PPA` is separable on the competition side whatever its assimilation kink | as above |
 | **C6.6** | sources are merged in descending height with ties broken on the **flat concatenated index**, so the cumulative sum adds the same terms in the same order on every rebuild | `patch.h:741-748` |
 | **C6.7** | that tie-break is **stable across a rebuild** with two species | `copy_abs` exactly 0 at every segment — but **equal widths only** (§20) |
 | **C6.8** | **an empty `species[0]` is undefined behaviour** — the per-species loop skips empty species, the function early-returns only on zero *total* sources, so `patch.h:758` dereferences `node_begin()` on an empty vector | measured reachability **0** on an ordinary two-species run; undefended in general |
@@ -330,11 +344,64 @@ theorem that later work would not have touched.
 | **Q33** | `FlatTopSoftBox`'s interpolator fallback must be a **per-`ShadingModel` decision at strategy setup**, not a runtime branch on the hot path | MED | read `canopy_shape.h:190` |
 | **Q34** | the birth density IC `log(birth·estab/g)` is a genuine **kink at density → 0** — measure-zero, zero downstream weight, recorded as a `decide()` | LOW | `node.h:227` |
 
+### QC — THE CRITICAL ONE: the `Leaf` blocker may not exist on the path the design uses
+
+**Status: a code-level deduction awaiting one measurement. Do not act on it, and do not dismiss it.**
+
+Four facts, each read directly this session and recorded as C5b.1–C5b.4:
+
+1. `r_set_state` calls `reset()` (`patch.h:838`)
+2. `reset()` calls `prepare_strategy()` on **every** species (`patch.h:325`)
+3. TF24's `prepare_strategy()` does `leaf = Leaf(...)` — a **fresh** Leaf (`tf24_strategy.cpp:1112`)
+4. the `Leaf` constructor runs `setup_clean_leaf()`, setting the per-solve fields to `NA_REAL`
+   (`src/leaf_model.cpp:35`)
+
+**Therefore a unit restored through `r_set_state` appears to get a leaf with no history at all** — and
+the whole blocker (#37) was measured on the **copy** path. `leaf-staleness-probe` replays via
+`replay(copy, …)`, a whole-`Patch` copy with `set_state_from_system()`; it never calls `r_set_state`, so
+the shared Strategy's leaf keeps its end-of-run state. That is exactly the arrangement the design does
+**not** use.
+
+**Why this is not yet a conclusion.** `segment-rerecord-probe`'s `rebuilt` column *does* use
+`r_set_state` and TF24 still drifts there (4.35e-13 … 5.47). §4b attributes that to the dropped birth
+stamps plus dead cohorts, with a live-state worst of ~2e-5 — but nobody has separated "no leaf
+staleness" from "stamp drift" on that path. The project's own rule applies: **diff the objects, do not
+propose mechanisms.**
+
+**The discriminating experiment, and it is cheap.** `leaf-staleness-probe` already runs both orderings.
+Add a *rebuilt* variant: replay each segment via `r_set_state` instead of from a copy, deferred **and**
+inline. Prediction if this deduction holds: on the rebuilt path deferred and inline are **identical**
+(no staleness signal at all), while the copy path keeps its 1.84e-13 / 4.99e-11 / 1.30e-08 split.
+
+**What it would change.** If confirmed, #37 largely dissolves: no per-unit Strategy copy, so C17.4's
+accumulation hazard never arises, C17.5's re-seating problem never arises, and U2/U3 unblock. If
+refuted, we learn which leaf field survives a `reset()`, which is just as valuable. Either way the
+recorded cost of Leaf-fix candidate 1 — "pays 4 spline rebuilds × 2 598 units" — needs restating:
+`prepare_strategy` **already** rebuilds those interpolators on every restore, so that cost is already
+inside the measured 11–15% restore, not an extra charge against one candidate.
+
+### From `archive/ad-touchpoint-catalog.md` (the exhaustive four-part survey)
+
+| | claim | risk | what would settle it |
+|---|---|---|---|
+| **Q35** | **QAG's adaptive subdivision has `max_iterations = 1` everywhere, so it never fires** — dormant, on no differentiated graph | MED | read `qag.h:85` and the callers |
+| **Q36** | the **light spline is the ONLY adaptive field** in any system; ODE steps are L1, the introduction schedule is L0, and the leaf's interpolators, extrinsic drivers, the vulnerability grid and `CanopyShape` are all **fixed-knot** | MED — consistent with our L2 deletion, and C5b.5 confirms the leaf half | the census is a closed enumeration; re-run the greps |
+| **Q37** | **mutable caches keyed on EXACT `double` comparison** are a distinct AD hazard class: `psi_soil_cache_` invalidated by `psi_soil_cache_state_[i] != vars.state(i)` (`tf24_environment.h:304-329`), the per-time `cached_driver_` (`:295-300`), and the leaf's inverted-soil / operating-point caches. A cache keyed on `value(x)` can go stale **or poison the tape** | MED — **independently corroborated by the Oracle's Q23**, which is why it is worth checking first | read those lines; then perturb an active input and check the cache invalidates |
+| **Q38** | **a gradient is only well-defined relative to a fixed `Control`** — `fixed_time_step` switches RKCK↔Euler, `schedule_eps/nsteps` changes cohort structure, `shading_model` changes the mode, `GSS_tol_abs`/`ci_*` change the leaf solve. Several knobs silently move the trajectory and therefore the gradient | LOW — `control.h` is stable | enumerate which Control the design differentiates at, and state it |
+| **Q39** | the **FD node-gradient** (`growth_rate_gradient`) and its **`thread_local` scratch** may or may not carry the trait derivative — recorded as *unmeasured either way* | HIGH — this is what AD replaces; it may be gone | grep for it; if live, test whether it carries the derivative |
+| **Q40** | **`birth_rate` is an extrinsic driver, not a strategy field**, so how it is seeded as a differentiation target was never settled | MED — and it interacts with C5.6: `is_variable_birth_rate = true` is what makes seed rain stand-dependent | read `extrinsic_drivers.h`; try seeding it |
+| **Q41** | the dropped **`d(schedule)/d(trait)`** from freezing the refined schedule was *argued* below tolerance, never measured | MED — C3.6 measured no schedule *sensitivity* on the resolved schedule, which may or may not be the same question | compare an adaptive-FD against a resolved-frozen-FD across traits |
+| **Q42** | the SCM is a **growing-dimension** system and "does reverse-mode AD survive `set_state_from_system()` resizing mid-run" was called **the pivotal risk** | LOW — now answered in the affirmative by our own probes (§4d/§4e run introductions on tape) | already largely settled; keep for the record |
+| **Q43** | **six competition modes exist and two of them do not run at all** (`FlatTopBox`, PPA-hard) | verified — see C6.5/C6.5a | done |
+| **Q44** | the kink manifest — `max(0,spline)`/`cap→1.0` (`resource_spline.h:88`), K93 growth/`mu` clamps, FF16 `step_light`/`smooth_floor`, `CanopyShape` box/softbox steps, TF24 soil positivity resets, leaf `abs(·)<1e-8` special-cases, every `is_finite`/`stop` guard — was to be **classified once** into selector / kink / guard and recorded. **The manifest was specified but there is no sign it was ever produced** | MED | this is S3's enumeration; produce it |
+| **Q45** | `IndividualRunner` is "the clean AD target the whole plan skipped" | MED | read it; it may be a cheaper first witness than the SCM |
+
 **Three of these would change a design decision if confirmed**, and they are the reason this section
 exists rather than being folded in: **Q15** (a value-reproduction check is not evidence of gradient
 correctness — and `scm_jacobian` currently relies on one), **Q25** (a true discontinuity in the fitness
 landscape, where no breakpoint term is admissible), and **Q11/Q20** (the census quadrature may be the
-next accuracy limit, and a `Δx` may be missing from a reduction).
+next accuracy limit, and a `Δx` may be missing from a reduction). **QC above outranks all three**: it
+could remove the project's only remaining blocker, and it costs one probe variant.
 
 ## 20c. Strategy for proving §20 and §20b are not missing anything
 
