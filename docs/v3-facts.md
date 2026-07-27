@@ -391,6 +391,40 @@ depth for K93. Requesting `first_unit = 200` throws "need at least two usable un
 fewer than ~202 segments. **TF24 at production remains unexecuted — it is blocked by the `Leaf`
 (#37), not by anything measured here.**
 
+### 4e. The chained state adjoint, in plant — the design's central mechanism
+
+Until now this had run **only on an odelia toy**: in plant everything was either a whole-run single
+tape or a unit on a **frozen** trajectory (§4d) where the entering state is a tape *constant*. Carrying
+λ = d(functional)/d(entering state) backwards from unit k+1 into unit k is what makes the sweep a
+sweep. `NOT_CRAN=true Rscript docs/reference/chained-adjoint-probe.R`
+
+Two computations of the same derivative: **reference** = one tape over N consecutive units, state
+flowing; **chained** = N tapes walked backwards with λ carried. Every window opens with an
+introduction, so the newborn is created **on tape inside the unit**.
+
+| units | functional | λ scale | reference trait adjoint | chained | rel | λ at first unit |
+|---|---|---|---|---|---|---|
+| 3 | summed height | **1.0 — trivial** | 0.246193525713 | same | 9.02e-16 | exact |
+| 3 | density-weighted | **592** | −0.384447553349 | same | **1.44e-16** | **exact** |
+| 6 | density-weighted | 592 | −0.381554341979 | same | **7.86e-15** | **exact** |
+| 12 | density-weighted | 593 | −0.361954029296 | same | **3.37e-15** | **exact** |
+
+**The first row is why the probe reports λ's scale.** With a summed-height functional λ is ≡1 on every
+height and ~1e-12 elsewhere, so matching it proves almost nothing — the same vacuity that stopped a
+constant-IC toy from detecting the 19% newborn error. A density-weighted functional couples to the
+light field, and at 12 units the per-unit trait contributions run **+0.386 … +1.546, −3.079** — large
+cancellation, so a single wrong unit could not hide in the sum.
+
+**A newborn's initial condition IS stand-dependent, measured rather than assumed.** Perturbing each of
+the 200 entering-state components and re-introducing moves the newborn's **`log_density` by 1.105**,
+while `height`, `mortality`, `fecundity` and `offspring_produced_survival_weighted` **do not move at
+all**. So the 19% between-units hazard is live in plant, and the
+restore → seed → **then** introduce ordering carries the newborn adjoint exactly.
+
+**What this does NOT establish:** the reference restores each unit too (it re-installs structure from
+stored plain values before overwriting the values at the active scalar), so this isolates **the tape
+split and the λ carry**, not restore fidelity — that is §4b's ~2e-5 on live state.
+
 ## 5. plant surface facts that cost time to find
 
 | fact | where |

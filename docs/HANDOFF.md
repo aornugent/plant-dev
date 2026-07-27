@@ -95,7 +95,7 @@ check exists.
 | 2 | **`docs/v3-facts.md`** | every measured number, with the command that reproduces it |
 | 3 | **`docs/v3-dead-ends.md`** | refuted claims — read before proposing any mechanism |
 | 4 | **`docs/v3-engine-design.md`** | the current design: commitment, deletions, kill condition |
-| 5 | **`docs/v3-requirements.md`** | **every concrete requirement with its evidence, and §6 the risk register of what is STILL UNTESTED.** Read §6 before committing to any design |
+| 5 | **`docs/v3-requirements.md`** | **the constraint inventory — ~110 constraints per component, each with evidence. §20 = untested, per component. §21 = the current candidate's properties, kept OUT of the constraints on purpose.** Read before reopening the design |
 
 **Do NOT start from a narrative document.** Session 22 re-derived
 `deepenings/deepening-6-light-coupling.md`'s conclusions by doing so. `docs/README.md` lists which
@@ -183,6 +183,8 @@ rediscovering things.
 | Does the aux lag need per-step storage? | **No — settle exactly ONCE.** Double-settling makes FF16 worse by 10 orders and does not rescue TF24. The open question in `v3-control-flow.md` is closed | facts §4b |
 | Do trait adjoints accumulate across units? | **Automatically, IF units share the Strategy** — `Strategy::ptr` is a `shared_ptr`, so a Patch *copy* shares the seeded address. A per-unit Strategy makes each a distinct input; one read = **41–51%** of the answer | facts §4d |
 | Has the sweep ever run in plant? | **Yes, now** — K93 units under AD, FD-exact **1.3e-09**, at lifetime 20 **and** at production 105.32. Per-unit tape 0.96 MB → 4.38 MB | facts §4d |
+| Does the **chained state adjoint** work in plant? | **Yes, exactly** — one tape over N units vs N tapes with λ carried: **1.4e-16 / 7.9e-15 / 3.4e-15** at 3/6/12 units, λ matching exactly. Use a **density-weighted** functional; summed height gives a trivial λ and a vacuous test | facts §4e |
+| Are plant's newborns stand-dependent (so the 19% hazard is live)? | **Yes** — a newborn's `log_density` moves **1.105** across entering-state perturbations; height/mortality/fecundity/offspring do not move at all | facts §4e |
 | Does a multi-row Jacobian work through units? | **Yes** — codomain 2 off one recording, both rows FD-exact, tape **+0.38%** vs one row | facts §4d |
 | Is `Replayable` a deletion target? | **No** — it is opt-in via `if constexpr` and costs zero concepts unused. Only its *structure role* is dead | dead-ends |
 

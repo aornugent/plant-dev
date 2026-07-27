@@ -12,7 +12,7 @@ Four documents rebuild context. Read them in this order and nothing else is need
 | 2 | [`v3-facts.md`](./v3-facts.md) | **every measured number, with the command that reproduces it.** Read before designing anything |
 | 3 | [`v3-dead-ends.md`](./v3-dead-ends.md) | refuted claims and retired approaches. Read before proposing a mechanism |
 | 4 | [`v3-engine-design.md`](./v3-engine-design.md) | the current design: commitment, what it deletes, what it makes hard, kill condition |
-| 5 | [`v3-requirements.md`](./v3-requirements.md) | **the requirements ledger: outcomes, the storage contract, 12 structural preconditions, and §6 — what is STILL UNTESTED, ranked by whether it can invalidate the design.** Read §6 before any design decision |
+| 5 | [`v3-requirements.md`](./v3-requirements.md) | **the constraint inventory: ~110 individual constraints, PER COMPONENT (AD substrate, solver/schedule, patch restore, introductions, light field, spline, structure, K93, FF16, TF24 leaf, TF24 soil, density transport, census, multi-species, disturbance, Strategy ownership, verification, DX). §20 is what is still untested per component; §21 keeps the CURRENT CANDIDATE's properties separate, because they are answers and not requirements** |
 
 Then, only if the task touches them:
 
@@ -74,6 +74,8 @@ claim before its correction.
     argument (drier is much slower — run points one at a time)
   - `restore-stamp-probe` — what `r_set_state` drops (the birth stamps), and the reference magnitude
     that makes the raw drift columns readable
+  - `chained-adjoint-probe` — A1/A2: the chained state adjoint in plant, and whether a
+    newborn is stand-dependent. Read `lambda scale` before believing a match
   - `unit-adjoint-probe` — the first plant witness of a unit under AD: adjoint accumulation,
     the shared-Strategy pointer identity that decides it, and the per-unit tape
   - `two-species-probe` — the shared-`eta` constraint the separable field carries, plus
