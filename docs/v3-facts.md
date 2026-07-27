@@ -327,6 +327,50 @@ an empty vector. Measured reachability on an ordinary two-species run: **0 segme
 unreachable *on this schedule*, and undefended in general — the probe counts the state and never
 dereferences it.
 
+### 4d. The first plant witness of a unit under AD — and what decides adjoint accumulation
+
+Every exactness/peak/time number for the sweep had been an **odelia toy**; this is a unit running
+under the active scalar **in plant**, FD-verified. K93, 2 and 4 units from segment 40, trajectory
+frozen (units restored from stored plain values, so the state entering is a tape constant and the
+**trait channel alone** is measured; the FD reference perturbs the same trait and re-runs the same
+units from the same stored states, so AD and FD are the same functional).
+`NOT_CRAN=true Rscript docs/reference/unit-adjoint-probe.R`
+
+**The accumulation worry resolves into a CONDITIONAL, and ownership decides it.** `Individual` holds
+`strategy_type_ptr` = **`std::shared_ptr`** (`k93_strategy.h:68`), and `Species::ad_parameters()`
+returns `strategy->field_ptrs()` (`species.h:141-142`) — pointers into that one shared Strategy's
+`pars`. Measured by pointer identity:
+
+| arrangement | shares the seeded address? | consequence |
+|---|---|---|
+| **Patch COPY** (what the design does — copy the mould) | **YES** | one AD input; **adjoints accumulate automatically** |
+| Patch built fresh from `Parameters` (Leaf-fix candidate 1's shape) | **no** | a **distinct** input per unit; one read = one unit |
+
+| quantity | 2 units | 4 units |
+|---|---|---|
+| value | 166.0586674 | 340.138723 |
+| shared-Strategy adjoint | 0.1621656777 | 0.4181440068 |
+| **sum of per-unit adjoints** | 0.1621656777 | 0.4181440068 |
+| rel \|sum − shared\| | **0.00e+00** | **1.33e-16** |
+| rel \|AD − FD\| | **3.37e-09** (at `d_rel` 1e-3) | 1.2e-06 at 1e-6 |
+| **one unit's adjoint alone, as % of the total** | **50.6%** | **41.1%** |
+| **tape per unit, restore included** | **956 350 B / 43 864 ops** | 980 044 B / 44 938 ops |
+
+**So the hazard is not present in the design as written — and Leaf-fix candidate 1 would CREATE it.**
+That couples #37 and #40 by a mechanism rather than a suspicion: if units get their own Strategy, the
+sweep must sum the trait adjoints over every unit, and omitting that returns **~41–51% of the right
+answer with the right sign and nothing thrown**.
+
+**The FD reference was verified before the ratio was trusted** (the Part 1 rule). Its error is
+**roundoff-dominated**, so it improves as δ *grows*: 3.37e-09 at `d_rel` 1e-3, 1.6e-07 at 1e-5,
+1.14e-05 at 1e-7, 2.56e-04 at 1e-8. The 1e-06 first seen at `d_rel` 1e-6 was the FD's noise floor,
+not an AD error.
+
+**Per-unit tape, which the ~89 MB estimate omitted (`#42`): ~0.96 MB for K93 at ~40 cohorts, and it
+barely moves with unit count** (956 kB → 980 kB from 2 to 4 units), i.e. it is per-unit as the design
+assumes rather than accumulating. This is K93, not TF24, so it bounds the shape of the cost, not its
+production magnitude.
+
 ## 5. plant surface facts that cost time to find
 
 | fact | where |
