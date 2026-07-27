@@ -274,11 +274,11 @@ K93 **1.23**, FF16 **1.87**, **TF24 18.43** (2598 ODE steps for 141 introduction
 transient). So the event segment works for K93/FF16 and needs no new plant surface, but **fails for
 TF24**, which fires the kill condition already written into the design. **Build the step unit.**
 
-**Proposed TF24 footprint at `life = 105.32`: ~125-220 MB** (100-200 MB peak tape + 21 MB stored
-trajectory) against a **~269 GB** whole-run tape. Factor ~2600x, which is just the number of units.
-From measured marginals: one ODE step costs 47.9 / 58.0 / 61.6 MB at widths 543 / 560 / 574, so
-~105 kB per state-step, times 987 production states. **Cheapest useful measurement left: one more
-marginal at `life = 4`,** to pin whether per-state cost grows faster than linearly in width.
+**Proposed TF24 footprint at `life = 105.32`: ~110 MB** (89 MB peak tape + 21 MB stored trajectory)
+against a **~231 GB** whole-run tape. Factor ~2600x, which is just the number of units. From five
+measured marginals over widths 543-606 (the last averaging 84 steps): **per-state cost is flat at
+86-107 kB with no trend**, so the production figure is 90 kB x 987 states = 89 MB per step -- a
+multiplication, not an extrapolation. The scaling question is closed.
 
 ### OPEN, in priority order
 0. **Redesign `Replayable` first — [`v3-replayable-redesign.md`](./v3-replayable-redesign.md).**

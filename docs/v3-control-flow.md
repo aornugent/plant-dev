@@ -125,26 +125,31 @@ extrapolated from an average. Each row is a step increment at nearly-fixed width
 
 | lifetime span | Δ steps | width (states) | Δ tape | **per step** | per state-step |
 |---|---|---|---|---|---|
-| 1 → 1.5 | 24 | ~543 | 1.150 GB | **47.9 MB** | 88 kB |
-| 1.5 → 2 | 13 | ~560 | 0.754 GB | **58.0 MB** | 104 kB |
-| 2 → 2.5 | 11 | ~574 | 0.678 GB | **61.6 MB** | 107 kB |
+| 1 → 1.5 | 24 | ~543 | 1.150 GB | 47.9 MB | 88.0 kB |
+| 1.5 → 2 | 13 | ~560 | 0.754 GB | 58.0 MB | 104 kB |
+| 2 → 2.5 | 11 | ~574 | 0.678 GB | 61.6 MB | 107 kB |
+| 2.5 → 3 | 17 | ~588 | 0.965 GB | 56.8 MB | 96.6 kB |
+| **3 → 3.5** | **84** | ~606 | 4.389 GB | 52.2 MB | **86.2 kB** |
 
-At production width (**987** node states + 9 soil), one TF24 ODE step costs:
+**Per-state cost is constant in width.** The apparent growth in the first three rows (88 → 107 kB)
+was noise from 11-13 step increments; the last row averages **84** steps and gives 86.2 kB, and the
+series is flat-to-declining over widths 543 → 606. So there is no superlinear term to extrapolate,
+and the production estimate is a multiplication rather than a guess.
 
-- **~104 MB** if the per-state cost stays constant (`105 kB × 987`);
-- **~180 MB** if it grows linearly in width, which the three rows above weakly suggest
-  (88 → 107 kB as width goes 543 → 574).
+At production width (**987** node states + 9 soil), one TF24 ODE step costs
 
-**So the honest peak estimate for the proposed TF24 solution is 100–200 MB**, and the uncertainty is
-the per-state scaling, not the method.
+    ~90 kB per state-step  x  987 states  =  ~89 MB
+
+**So the peak for the proposed TF24 solution is ~90 MB**, and the earlier 100-200 MB range collapses
+to the low end now that the scaling is measured rather than assumed.
 
 Against what it replaces:
 
 | | whole-run tape at `life = 105.32` | proposed peak | factor |
 |---|---|---|---|
-| **TF24, step unit** | ~105 kB × 987 × 2 598 ≈ **269 GB** | **100–200 MB** | **~2 600×** |
-| TF24, *segment* unit | same | 1.9–3.7 GB | ~140× — **fails, hence the step unit** |
-| FF16, segment unit | ~55 kB × 987 × 264 ≈ **14 GB** | ~100 MB | ~140× |
+| **TF24, step unit** | ~90 kB × 987 × 2 598 ≈ **231 GB** | **~89 MB** | **~2 600×** |
+| TF24, *segment* unit | same | ~1.6 GB | ~141× — **fails, hence the step unit** |
+| FF16, segment unit | ~47 kB × 987 × 264 ≈ **12 GB** | ~87 MB | ~141× |
 
 The reduction factor is simply **the number of units**, which is the design's whole claim: peak =
 whole ÷ units. And it is why TF24 gains more than FF16 — it has 2 598 units, not 141.
@@ -158,14 +163,15 @@ whole ÷ units. And it is why TF24 gains more than FF16 — it has 2 598 units, 
 
 Per-cohort birth stamps are stored once per cohort, not per step: 3 doubles × 141 cohorts ≈ 3.4 kB.
 
-**Total proposed TF24 footprint: ~125–220 MB at production lifetime**, against a 269 GB whole-run
-tape that OOMs the machine. Wall clock: a flat **4.2×** the whole-run reverse pass, measured on the
+**Total proposed TF24 footprint: ~110 MB at production lifetime** (89 MB peak tape + 21 MB stored
+trajectory), against a **~231 GB** whole-run tape that OOMs the machine. Wall clock: a flat **4.2×** the whole-run reverse pass, measured on the
 spike and constant in run length.
 
 ### What would invalidate this profile
 
-- **Per-state cost growing faster than linearly in width.** The three marginals span only
-  543 → 574 states; production is 987. Measuring one more point at `life = 4` would tighten it, and
-  that is now the cheapest useful measurement left.
+- ~~Per-state cost growing faster than linearly in width.~~ **Measured and closed.** Five marginals
+  over widths 543 → 606, the last averaging 84 steps: per-state cost is flat at 86-107 kB with no
+  trend. The remaining extrapolation is width 606 → 987 at constant per-state cost, which the series
+  supports.
 - **The aux lag needing per-step storage.** Adds a few kB per step — irrelevant to the total, but it
   would mean the environment is not restorable from `y` and the *design* changes, not the arithmetic.
