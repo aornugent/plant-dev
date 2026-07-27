@@ -57,6 +57,46 @@ All from `cd odelia && make test` → `test-ad-step-local.R` (57 assertions).
 | **All three strategies share one kernel** | TF24's `k_I·area_leaf(H)·(1−(z/H)^η)²` = `{1, −2z^η, z^{2η}}·{amp, amp·H^−η, amp·H^−2η}` = `CanopyShape`'s pair | algebra, checked against `canopy_shape.h:196-211` |
 | Only the **Deep** profile is separable | Box/SoftBox keep the interpolator | `canopy_shape.h` comment + `shading_rank` |
 
+## 3b. The field composed over a leaf solve, and the soil clamps
+
+The composition `separable_field` **over `implicit_value` source weights** — TF24's shape, which
+K93's and FF16's closed-form sources never exercise. This was the design's largest unwitnessed claim.
+
+| fact | number | re-run |
+|---|---|---|
+| **A field assembled over IFT source weights differentiates exactly** | all 5 channels FD-exact at **6.9e-11 … 3.3e-9** | `test-ad-field-over-implicit.R` (52 assertions) |
+| The field *assembly* is pinned independently of any FD | the `amp` channel matches the analytic identity `dA/damp = A/amp` at **2.2e-16** | same |
+| Exactness does not degrade with population size | worst reld **1.6e-8 → 8.5e-10** over 2 → 40 sources (it *improves*) | same |
+| …nor in the stiff soil regime | `dJ/dtheta` reld **2.1e-9 … 6.0e-10** over θ = 0.5 → 0.05, where the functional moves 4.85 → 29.4 | same |
+| **The witness is not vacuous** — severing the solve collapses exactly the coupled channels | `to_passive(u)` zeroes `dJ/dk`, `dJ/dθ`, `dJ/dn` to **exactly 0** while `amp` and `eta` stay **bit-identical** | same |
+| The active and plain paths agree exactly | `identical(value, value_double)` — `implicit_value` returns y* with no shift | same |
+
+**Consequence:** the field's cumulative sums thread IFT-derived derivatives correctly, and the shared
+soil scalar reaching every source is differentiated correctly through all of them. The composition is
+no longer the risk; the `Leaf`-ownership blocker is.
+
+### The soil clamps: four non-smooth constructs, one that matters
+
+| construct | `tf24_environment.h` | class |
+|---|---|---|
+| runoff floor `runoff_factor > 0 ? · : 0` | :303 | **kink** — rate continuous, slope jumps |
+| conductivity floor `theta > 0 ? · : 0` | :354 | **kink**, and only at θ<0, an RK-stage artefact |
+| retention floor `theta > theta_r ? · : theta_r` | :365 | **kink** |
+| **drying guard** `theta <= theta_r && rate < 0 → rate = 0` | :335 | **SEVERANCE** |
+
+The guard is the only dangerous one, and the reason is not smoothness: on the clamped side
+`d(rate)/d(theta)` **and** `d(rate)/d(resource_depletion)` are both zero, so the whole plant→soil
+uptake channel is cut on a set of positive measure. That is the same severance class as the a1–a4
+fixes, not a kink.
+
+| fact | number | re-run |
+|---|---|---|
+| **At the default rainfall no clamp is visited** | min θ is **18–21× θ_r** (θ_r = 0.01) per layer; max θ **0.3106** vs θ_sat **0.428**; min `runoff_factor` **0.9231**; 0 layer-steps at the guard, 0 near it, 0 negative | `Rscript docs/reference/soil-clamp-probe.R` |
+
+So `tf24_environment.h`'s own claim — "well below any realistic operating moisture, so it does not
+perturb non-drought runs" — is **confirmed for the default driver**. The margin under a dried driver
+is a separate question and is where the guard would bite.
+
 ## 4. Replay: what reproduces and what does not
 
 | fact | number | re-run |
@@ -89,7 +129,7 @@ All from `cd odelia && make test` → `test-ad-step-local.R` (57 assertions).
 
 | fact | number | re-run |
 |---|---|---|
-| odelia green | **0 fail / 484 pass / 5 skip** | `cd odelia && make test` |
+| odelia green | **0 fail / 535 pass / 5 skip** | `cd odelia && make test` |
 | plant focused set | **524 pass / 2 fail / 1 error** — all pre-existing | install odelia, `load_all` plant, `test_file` per file |
 | The 2 plant failures are **stale blessings** | `16.88946` blessed 2026-06-25; the shading model changed 2026-07-18/19/20 | `git log -S"16.88946"` |
 | odelia surface after deletions | **19 headers** (was 23); 697 lines and 4 names removed | `ls odelia/inst/include/odelia/` |

@@ -107,7 +107,7 @@ that L2 is **not** a recording (an adaptive structure is rebuilt from plain valu
 ### Step 2 — verify the suites match what `v3-facts.md` claims.
 
 ```bash
-cd odelia && make test          # expect: 0 fail / 484 pass / 5 skip
+cd odelia && make test          # expect: 0 fail / 535 pass / 5 skip
 ```
 
 **The two packages need opposite invocations, and getting it wrong has produced false failure
@@ -295,7 +295,7 @@ new document only for a new decision.**
 
 - **The engine is five concepts** (Solver, System contract, Functional, `implicit_value`, and one
   rule: build structure on plain values, evaluate values at the active scalar). 697 lines and four
-  primitives were deleted; odelia is 19 headers, green at 484 passes.
+  primitives were deleted; odelia is 19 headers, green at 535 passes.
 - **Memory is settled as a diagnosis:** cost is per-cohort-step × steps × cohorts, so only bounding
   the run helps. The step-local sweep is proven exact with peak flat in run length, at a flat 4.2×
   time. Proposed TF24 footprint **~110 MB** against a **~231 GB** whole-run tape.
@@ -303,10 +303,15 @@ new document only for a new decision.**
   FF16's 1.87, which fires the design's own kill condition.
 - **`Replayable`'s structure role is dead**; the concept itself is opt-in and costs nothing unused.
 - **The field is justified for all three strategies** — one shared rank-3 kernel, and the spline
-  cannot carry `d(light)/dz` (227% mean error at production tolerance).
-- **Two things block a trustworthy TF24 gradient**, both found by measurement and neither yet fixed:
-  the `Leaf` is shared mutable state outside the replayed patch (so a TF24 segment re-run is *not*
-  exact), and the soil clamps are unsmoothed where FF16's analogue was smoothed.
+  cannot carry `d(light)/dz` (227% mean error at production tolerance). **And the composition that
+  had no witness now has one:** a field assembled over `implicit_value` source weights, coupled
+  through one shared soil scalar, is FD-exact on every channel and matches an analytic identity at
+  2.2e-16 — with a severance control proving the coupled channels come from the IFT partials alone.
+- **ONE thing blocks a trustworthy TF24 gradient:** the `Leaf` is shared mutable state outside the
+  replayed patch (`Individual` holds a Strategy *pointer*), so a TF24 segment re-run is not exact.
+  The soil clamps turned out to be a *smaller* worry than they looked — three of the four are kinks,
+  and the one real severance is **not visited at the default rainfall** (min θ is 18–21× θ_r). Its
+  margin under a dried driver is the open question, not the clamps themselves.
 
 ### OPEN, in priority order
 
@@ -319,12 +324,29 @@ the SIGNPOSTS section that used to follow is gone, and why is recorded below.
    leaf state (1.8e-13 → 1.3e-8, in `log_density`). Copy the Strategy per unit rather than auditing
    every cache — an audit is a convention that decays. **Then re-check the aux lag**, which is
    currently swamped by this.
-2. **[#38] Raise confidence on the leaf/soil coupling and its composition with the field.** The field
-   assembled over `implicit_value` source weights has **no witness anywhere** — K93's and FF16's
-   sources are closed forms. This is the main discovery gap.
-3. **[#38, second half] Check the soil clamps.** The saturation-excess runoff floor is a *physical* boundary a real
-   trajectory crosses; `smooth_positive` appears 3× in `ff16_strategy.h`, **0×** in
-   `tf24_environment.h`. Confirm a trajectory crosses it before smoothing anything.
+2. ~~**Raise confidence on the leaf/soil coupling and its composition with the field.**~~
+   **ANSWERED, and it is exact.** `test-ad-field-over-implicit.R` (52 assertions) assembles a
+   `separable_field` over `implicit_value` source weights, with ONE shared soil-like scalar every
+   source reads: all 5 channels FD-exact at 6.9e-11 - 3.3e-9, the `amp` channel matches an analytic
+   identity at **2.2e-16** (so the field assembly is pinned independently of any FD), it holds over
+   2 -> 40 sources and down to theta = 0.05, and severing the solve collapses **exactly** the coupled
+   channels while leaving the others bit-identical. `v3-facts.md` section 3b. **Nothing further owed.**
+3. **[#38] The soil clamps: one is a severance, and its margin is unmeasured.** Four non-smooth
+   constructs, but only the drying guard `theta <= theta_r && rate < 0 -> rate = 0`
+   (`tf24_environment.h:335`) is dangerous, and not because of smoothness: on its clamped side
+   `d(rate)/d(theta)` **and** `d(rate)/d(resource_depletion)` are both zero, so the plant->soil uptake
+   channel is **cut**, not kinked -- the a1-a4 class. The other three are kinks where a zero
+   derivative is what the model means.
+   **At the default rainfall no clamp is visited:** min theta is 18-21x theta_r, max theta 0.3106 vs
+   theta_sat 0.428, min `runoff_factor` 0.9231, zero layer-steps at or near the guard
+   (`Rscript docs/reference/soil-clamp-probe.R`). So the header's own claim that the floor is "well
+   below any realistic operating moisture" holds for the default driver.
+   **What is open:** the margin under a *dried* driver. TF24 is a water-limited model, so drought is a
+   parameter regime a study visits, and if the guard fires there then a gradient taken across a
+   rainfall gradient is silently severed. The probe takes a `rainfall` argument for exactly this
+   sweep. **Do not smooth anything until the sweep says which regime fires it** -- smoothing an
+   unvisited boundary is cost with no benefit, and `smooth_positive` is already used 3x in
+   `ff16_strategy.h` and 0x here.
 4. **[#35] Then build:** the step unit, restoring per node the ODE state, per-species counts and
    `pr_patch_survival_at_birth` (plus two more stamps only for R0). Interface in
    [`v3-control-flow.md`](./v3-control-flow.md); it needs no new plant surface beyond splitting
@@ -368,7 +390,7 @@ that made a fresh session start from the wrong place. Recorded so the deletion i
   closed with #31 for the same reason; 6 described the *event segment* unit and a `replay_structure`
   hook, both superseded (TF24 measures 18.43 steps/segment, and `Replayable`'s structure role is
   dead). 4, 5, 8 and 8b survive as item 5 of OPEN above, with their details.
-- Signpost 7 also carried a stale count (467 pass / 3 skip). Current: **484 pass / 5 skip**.
+- Signpost 7 also carried a stale count (467 pass / 3 skip). Current: **535 pass / 5 skip**.
 
 **The rule this enforces:** there is exactly one to-do list in this file, `OPEN` above. A second
 ordered list is how direction goes stale — one gets updated and the other is what the next session
