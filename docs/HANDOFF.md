@@ -337,10 +337,11 @@ mixing them is why session 22 re-derived `deepening-6`'s conclusions and met fou
 retractions inline. `README.md` also states where new writing goes — **append to the ledgers; open a
 new document only for a new decision.**
 
-### The state in six lines
+### The state, in short
 
-- **Discovery is finished. Nothing in `OPEN` is design work** — it is tests, one benchmark gate, and
-  one design choice with three priced candidates.
+- **Discovery is largely finished, but `OPEN` is no longer only tests.** Two items are **defects that
+  need design** — the field cannot carry per-species `eta`, and `least_squares` cannot survive a
+  plain-valued trajectory — and each blocks a **primary user story**. The rest is measurement.
 - **The engine is five concepts** (Solver, System contract, Functional, `implicit_value`, and one
   rule: build structure on plain values, evaluate values at the active scalar). 697 lines and four
   primitives were deleted; odelia is 19 headers, green at 535 passes.
@@ -348,9 +349,11 @@ new document only for a new decision.**
   trajectory. Peak = whole ÷ units, so the reduction factor *is* the unit count: TF24 **~110 MB**
   against **~231 GB**, at a flat 4.2× in time. TF24 needs the step unit (18.43 steps/segment); K93
   (1.23) and FF16 (1.87) can ship on the cheaper segment unit.
-- **The light story is closed and covers all three strategies:** one shared rank-3 kernel, the spline
-  cannot carry the tangent (227%), and a field assembled over `implicit_value` source weights is
-  FD-exact with the assembly pinned to an analytic identity at 2.2e-16.
+- **The light story is closed for ONE `eta` and open for many.** Settled: one shared rank-3 kernel, the
+  spline cannot carry the tangent (227%), and a field over `implicit_value` source weights is FD-exact
+  with the assembly pinned to an analytic identity at 2.2e-16. **Not settled:** the assembly reads
+  `species[0]`'s canopy for every source, so species of differing `eta` get a wrong **forward value**
+  (7.98e+14 vs an exact 0.118). The fix is a rank-**3·n_η** grouping, which keeps separability.
 - **Soil needs no concept** (it is ODE state) and **the soil clamps are closed** — the one real
   severance is unreachable, both water sinks shutting off at 12.5× θ_r. Do not smooth them.
 - **The `Leaf` blocker is CLOSED and needed no fix.** It only ever existed on the whole-`Patch` copy
