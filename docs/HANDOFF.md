@@ -309,9 +309,9 @@ new document only for a new decision.**
   2.2e-16 — with a severance control proving the coupled channels come from the IFT partials alone.
 - **ONE thing blocks a trustworthy TF24 gradient:** the `Leaf` is shared mutable state outside the
   replayed patch (`Individual` holds a Strategy *pointer*), so a TF24 segment re-run is not exact.
-  The soil clamps turned out to be a *smaller* worry than they looked — three of the four are kinks,
-  and the one real severance is **not visited at the default rainfall** (min θ is 18–21× θ_r). Its
-  margin under a dried driver is the open question, not the clamps themselves.
+  The soil clamps are **closed**: three of the four are kinks, and the one real severance is
+  **structurally unreachable** — both water sinks shut off at 12.5× θ_r (roots at `root_psi_crit`,
+  drainage as `K ∝ θ^16.14`), and every measured min θ over a 10× rainfall sweep sits just above it.
 
 ### OPEN, in priority order
 
@@ -331,22 +331,19 @@ the SIGNPOSTS section that used to follow is gone, and why is recorded below.
    identity at **2.2e-16** (so the field assembly is pinned independently of any FD), it holds over
    2 -> 40 sources and down to theta = 0.05, and severing the solve collapses **exactly** the coupled
    channels while leaving the others bit-identical. `v3-facts.md` section 3b. **Nothing further owed.**
-3. **[#38] The soil clamps: one is a severance, and its margin is unmeasured.** Four non-smooth
-   constructs, but only the drying guard `theta <= theta_r && rate < 0 -> rate = 0`
-   (`tf24_environment.h:335`) is dangerous, and not because of smoothness: on its clamped side
-   `d(rate)/d(theta)` **and** `d(rate)/d(resource_depletion)` are both zero, so the plant->soil uptake
-   channel is **cut**, not kinked -- the a1-a4 class. The other three are kinks where a zero
+3. ~~**Check the soil clamps.**~~ **ANSWERED — the dangerous one cannot fire, and needs no
+   smoothing.** Of four non-smooth constructs only the drying guard
+   (`tf24_environment.h:335`, `theta <= theta_r && rate < 0 -> rate = 0`) was a real hazard, and not
+   for smoothness: it zeroes `d(rate)/d(theta)` **and** `d(rate)/d(resource_depletion)`, cutting the
+   plant->soil uptake channel (the a1-a4 severance class). The other three are kinks where a zero
    derivative is what the model means.
-   **At the default rainfall no clamp is visited:** min theta is 18-21x theta_r, max theta 0.3106 vs
-   theta_sat 0.428, min `runoff_factor` 0.9231, zero layer-steps at or near the guard
-   (`Rscript docs/reference/soil-clamp-probe.R`). So the header's own claim that the floor is "well
-   below any realistic operating moisture" holds for the default driver.
-   **What is open:** the margin under a *dried* driver. TF24 is a water-limited model, so drought is a
-   parameter regime a study visits, and if the guard fires there then a gradient taken across a
-   rainfall gradient is silently severed. The probe takes a `rainfall` argument for exactly this
-   sweep. **Do not smooth anything until the sweep says which regime fires it** -- smoothing an
-   unvisited boundary is cost with no benefit, and `smooth_positive` is already used 3x in
-   `ff16_strategy.h` and 0x here.
+   **It is structurally unreachable.** Sweeping rainfall 1 -> 0.1 moves min theta only 18x -> 13.0x
+   theta_r, flat at 12.8-13.1x from 0.5 down. The cause is arithmetic, not luck: roots stop
+   extracting at `root_psi_crit`, which is theta = **12.5x theta_r**, and drainage
+   `K ~ theta^16.14` has collapsed 9 orders of magnitude by then. Every measured min theta sits
+   immediately above that threshold. `v3-facts.md` section 3b has the table and the kill condition
+   (a flatter retention curve, a much larger `root_psi_crit`, or a sink bypassing both).
+   **So: do not smooth it.** The 0.05 / 0 rainfall points are confirmatory only.
 4. **[#35] Then build:** the step unit, restoring per node the ODE state, per-species counts and
    `pr_patch_survival_at_birth` (plus two more stamps only for R0). Interface in
    [`v3-control-flow.md`](./v3-control-flow.md); it needs no new plant surface beyond splitting

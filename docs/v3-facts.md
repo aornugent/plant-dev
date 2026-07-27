@@ -106,17 +106,38 @@ At `lifetime = 3` (points are affordable there; the default-rainfall shape is th
 | 1 (default) | 0.1804 | **18×** | 0 | 0 | 8 s |
 | 0.5 | 0.1310 | **13.1×** | 0 | 0 | 6 s |
 | 0.2 | 0.1276 | **12.8×** | 0 | 0 | 114 s |
+| 0.1 | 0.1296 | **13.0×** | 0 | 0 | 268 s |
 
-**min θ plateaus rather than marching toward the guard** — halving rainfall again (0.5 → 0.2) moves it
-only 13.1× → 12.8× θ_r. That plateau is the measurement.
+**min θ plateaus rather than marching toward the guard** — a 10× rainfall reduction (1 → 0.1) moves it
+only 18× → 13.0× θ_r, and from 0.5 down it is flat at **12.8–13.1×** and not even monotone.
 
-**A proposed mechanism, NOT measured — do not cite this as established:** the drawdown may be
-self-limiting, because as ψ_soil falls the root vulnerability curve shuts uptake down, so the plants
-stop drawing the layer further. It fits three points and it would be the reassuring answer (a
-structural reason the guard is unreachable, rather than "no trajectory happens to cross it"). It is
-also exactly the shape of guess that produced **four wrong attributions** for the segment drift, so
-it needs its own discriminating test — e.g. read the uptake term as θ falls and check it collapses
-before θ_r — before anyone relies on it.
+### Why: BOTH water sinks shut off at ~12.5× θ_r, so the guard is structurally unreachable
+
+The plateau's cause is not a lucky trajectory. It is arithmetic in the parameters, and the
+discriminating number is where the root vulnerability curve hits `root_psi_crit` (5% conductivity,
+`tf24_strategy.h:439-441`):
+
+| θ | × θ_r | ψ_soil (MPa) | root conductivity | drainage K (m/yr) |
+|---|---|---|---|---|
+| 0.1804 (rain 1) | 18.0× | 0.519 | **0.996** | 1.4e-4 |
+| 0.1310 (rain 0.5) | 13.1× | 4.25 | 0.283 | 8.2e-7 |
+| 0.1296 (rain 0.1) | 13.0× | 4.56 | 0.218 | 6.9e-7 |
+| 0.1276 (rain 0.2) | 12.8× | 5.05 | 0.135 | 5.4e-7 |
+| **0.1247 = `root_psi_crit`** | **12.5×** | **5.87** | **0.05** | 3.7e-7 |
+| 0.05 | 5.0× | 2 381 | **0** | 1.4e-13 |
+| θ_r = 0.01 | 1.0× | 9.3e7 | **0** | 7.6e-25 |
+
+**Every measured min θ sits immediately above 12.5× θ_r, the θ at which roots stop extracting.** Both
+sinks vanish long before the guard: uptake because `root_conductivity → 0`, and drainage because
+`K ∝ θ^(2n+3) = θ^16.14` collapses 9 orders of magnitude. The retention exponent `n_psi = 6.57` makes
+ψ explode — 5.87 MPa at 12.5× θ_r against **9.3e7 MPa** at θ_r — so nothing can push the layer down
+there. Re-run: the arithmetic is `a_psi=1.78e3, n_psi=6.57, θ_sat=0.428, K_sat=163.04`
+(`tf24_environment.h:88-92`) and `root_b=3.898245, root_c=2.680147` (`tf24_strategy.h:439-441`).
+
+**Consequence: the drying guard at `:335` cannot fire on any rainfall, and needs no smoothing.**
+**What would change that** (the kill condition for this conclusion): a materially flatter retention
+curve (smaller `n_psi`), a much larger `root_psi_crit`, or any new sink that drains a layer without
+going through root conductivity or `soil_K`. Re-derive the 12.5× if any of those three move.
 Extreme-drought points (0.1 / 0.05 / 0) are **still open** (task #38).
 
 **Cost note, and it is why this took three attempts:** drier drivers are drastically slower — 6 s at
