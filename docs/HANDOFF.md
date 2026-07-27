@@ -1,17 +1,15 @@
 # Handoff — odelia AD engine × plant SCM gradients
 
-> **►► NEW ENTRY POINT (2026-07-23): read [`v3-north-star.md`](./v3-north-star.md) FIRST.**
-> It is the guiding light — objective (DX=concept-count + coverage), the durable
-> principles that survived all 16 sessions, the leaf decomposition that restores R1
-> for TF24 (the seam is an accidental shortcut, not the design), and the ladder to
-> completion. Then this handoff (Part 1 rules), then `design.md`. ~14 docs were
-> archived to `archive/` in the v3 reorg; the canonical set is listed in
-> `v3-north-star.md` §7.
+> **►► ENTRY POINT: [`README.md`](./README.md).** It gives the reading order — Part 1 of this file,
+> then `v3-facts.md` (measured numbers with their re-run commands), then `v3-dead-ends.md` (refuted
+> claims), then `v3-engine-design.md`. It also states where new writing goes: **append to the
+> ledgers; open a new document only for a new decision.**
 
-This document is the entry point for any new session. It has two parts: an
-**authoritative header** (persistent — how to rebuild context correctly, and the
-hard-won rules that must not be relearned), and a **state + next-steps** section
-(rewritten each session).
+This document holds two things: an **authoritative header** (Part 1 — how to rebuild
+context correctly, and the hard-won rules that must not be relearned), and the
+**current state with next steps**. The measured numbers and the refuted claims now
+live in their own ledgers, per `README.md`, because they have different lifetimes
+from this narrative.
 
 ---
 
@@ -72,9 +70,10 @@ that were false against HEAD. The build-status matrix (`build-plan.md`) exists p
    **`recorded_steps()` is the SINGLE source of the replay grid, so it "can't go
    inconsistent," guarded by one forgot-to-record check.**
 2. **Read `odelia/AGENTS.md` and `plant/agents.md`** (dev workflow, style, build/test).
-3. **Read `docs/v3-north-star.md` FIRST** (the self-contained authority on the
-   coupled system + design), then `docs/design.md` (detailed rationale) and the
-   `docs/build-plan.md` build-status matrix (test-cited current status). (odelia-index.md, README.md, the odelia-N notes, and the oracle *statements* are archived; the concept set now lives in v3 §1.)
+3. **Follow `docs/README.md`'s reading order** — `v3-facts.md`, then `v3-dead-ends.md`, then
+   `v3-engine-design.md`. `v3-north-star.md` holds the objective and durable principles;
+   `build-plan.md` is the test-cited status matrix. **Do not start from a narrative document:**
+   session 22 re-derived `deepenings/deepening-6-light-coupling.md` by doing so.
 3b. **If the task touches an area with a prior Oracle consultation, READ that Oracle
    response BEFORE designing your approach — and follow its Decisive Experiments and
    contract, not an ad-hoc method.** Index: `docs/oracle/oracle-consultation-index.md`. The
@@ -225,201 +224,55 @@ suspecting XAD.** Defences: `odelia::util::graft_value`, that `static_assert`,
 `test-scm-gradient-entry.R` had silently stopped running 11 FD-verified assertions.
 When a gradient test "passes", check it did not skip.
 
-## SESSION 22 — THE ENGINE DESIGN IS LANDED: [`v3-engine-design.md`](./v3-engine-design.md)
+## START HERE: [`README.md`](./README.md) is the reading order
 
-Read that document first; it supersedes the design sections of `v3-reverse-memory-design.md` and
-`v3-step-local-adjoint.md`. Session 21's ledger below is kept for its refutations.
+Four documents rebuild context, in order: **Part 1 of this file** (the rules below), then
+[`v3-facts.md`](./v3-facts.md) (every measured number with its re-run command), then
+[`v3-dead-ends.md`](./v3-dead-ends.md) (refuted claims — read before proposing a mechanism), then
+[`v3-engine-design.md`](./v3-engine-design.md) (the current design).
 
-**The finding.** The engine was not short a primitive. It was short a **unit of recording** — and
-it carried four primitives too many while looking for one.
+**Session 22's per-session ledger has been folded into those three files** rather than left as a
+fourth pile of prose. That is deliberate: facts, decisions and dead ends have different lifetimes, and
+mixing them is why session 22 re-derived `deepening-6`'s conclusions and met four of its own
+retractions inline. `README.md` also states where new writing goes — **append to the ledgers; open a
+new document only for a new decision.**
 
-### PROVEN this session, each re-runnable
-| claim | evidence |
-|---|---|
-| **TF24's tape is flat per cohort-step** (46.9 / 51.6 / 54.4 / 56.4 kB per step x width at life 1 / 1.5 / 2 / 2.5), so cost is node *count* x run length and **no component leanness can touch it** | `PLANT_TAPE_STATS=1` + `tf24_scm_gradient` |
-| **An adaptive node set is bit-identical built plain or active, with nothing recorded** — 149 nodes, 0 mismatches, `max_abs_diff` exactly 0. **This deletes L2 as a layer.** | `test-ad-adaptive-structure.R`, 27 assertions |
-| Refining through a plain-valued predictor is **5.9x leaner** (304320 -> 51652 B), same nodes, bit-identical value, derivative unchanged | same |
-| **An `implicit_value` node in the rates re-records exactly per unit** — reld 0.0 (coupled IC), 1.1e-15 (constant) | `test-ad-step-local.R` |
-| **Several Jacobian rows come off one re-recording**, so a census 3-vector costs a scalar's tape | same |
-| **Peak tape flat at 6560 B from 30 to 480 units** while whole-run grows 91636 -> 1438036; ratio 14x -> 219x, **linear in run length** | same |
-| **Time cost is a flat 4.2x** (4.15-4.37 over 60 -> 960 units) against a memory ratio growing 28x -> 438x | `us_whole_run` / `us_step_local` |
-| Four odelia primitives had **no consumer but their own demo**; deleted with their demos and tests (**697 lines, 4 names**) | `preaccumulate`, `supplied_derivative`, `decide`/`branch_log`, `directional_derivative` |
-| odelia green at **0 fail / 484 pass / 5 skip**; plant focused set 524 pass, 2 pre-existing fails | `cd odelia && make test` |
+### The state in six lines
 
-### REFUTED this session — do not retry
-- **Reusing one tape rewound between units.** Keeps the gradient exact (1.8e-15) but `resetTo`
-  **does not release** the tape: peak grows 48 kB -> 742 kB over 60 -> 960 units against a flat
-  6560 B, and the time advantage reverses (1.48x at 60 units, 8.42x at 960). **A fresh tape per
-  unit is the design.** Guarded by a test.
-- **Refining the interpolant on the active scalar inside plant** (`to_passive(f(h))` per node).
-  Tape went *up* 1.4-1.8%: in plant the target sums over all cohorts, so evaluating it twice
-  costs more than the saved band solves. The fix belongs in the refiner, and does.
-- **The query-factor `pow` hoist** — 1.24x on the crown, and `deepening-6` had already predicted
-  it would be small ("FF16 adds no new scan, only more `a_p(z)` evaluations").
-- **`Replayable` as a deletion target.** It is opt-in via `if constexpr` and costs zero concepts
-  when unused. Only its *L2 role* is deleted.
-
-### The engine, entire — five things
-1. `Solver`: `advance_adaptive` discovers the schedule, `advance_fixed` replays it.
-2. The `System` contract.  3. A `Functional`.  4. `implicit_value`.
-5. **One rule: build discrete structure on plain values; evaluate values at the active scalar.**
-
-The backward loop needs **no new names** — `replay_step(k)` already exists and is already indexed;
-its contract widens by one word (the structural change recorded for step k runs *on tape*).
-`replay_structure`, `unit_count` and `set_trajectory` are all unnecessary. See the design doc.
-
-### THE CONTROL FLOW AND THE TF24 PROFILE: [`v3-control-flow.md`](./v3-control-flow.md)
-**One measurement changes the unit.** Steps per introduction segment at production lifetime:
-K93 **1.23**, FF16 **1.87**, **TF24 18.43** (2598 ODE steps for 141 introductions -- the rainfall
-transient). So the event segment works for K93/FF16 and needs no new plant surface, but **fails for
-TF24**, which fires the kill condition already written into the design. **Build the step unit.**
-
-**Proposed TF24 footprint at `life = 105.32`: ~110 MB** (89 MB peak tape + 21 MB stored trajectory)
-against a **~231 GB** whole-run tape. Factor ~2600x, which is just the number of units. From five
-measured marginals over widths 543-606 (the last averaging 84 steps): **per-state cost is flat at
-86-107 kB with no trend**, so the production figure is 90 kB x 987 states = 89 MB per step -- a
-multiplication, not an extrapolation. The scaling question is closed.
+- **The engine is five concepts** (Solver, System contract, Functional, `implicit_value`, and one
+  rule: build structure on plain values, evaluate values at the active scalar). 697 lines and four
+  primitives were deleted; odelia is 19 headers, green at 484 passes.
+- **Memory is settled as a diagnosis:** cost is per-cohort-step × steps × cohorts, so only bounding
+  the run helps. The step-local sweep is proven exact with peak flat in run length, at a flat 4.2×
+  time. Proposed TF24 footprint **~110 MB** against a **~231 GB** whole-run tape.
+- **The unit is the ODE step, not the event segment** — TF24 measures 18.43 steps/segment against
+  FF16's 1.87, which fires the design's own kill condition.
+- **`Replayable`'s structure role is dead**; the concept itself is opt-in and costs nothing unused.
+- **The field is justified for all three strategies** — one shared rank-3 kernel, and the spline
+  cannot carry `d(light)/dz` (227% mean error at production tolerance).
+- **Two things block a trustworthy TF24 gradient**, both found by measurement and neither yet fixed:
+  the `Leaf` is shared mutable state outside the replayed patch (so a TF24 segment re-run is *not*
+  exact), and the soil clamps are unsmoothed where FF16's analogue was smoothed.
 
 ### OPEN, in priority order
-0. **Redesign `Replayable` first — [`v3-replayable-redesign.md`](./v3-replayable-redesign.md).**
-   Four members become two (`save_structure(k)` / `load_structure(k)`), the per-stage cadence leaves
-   the structure path, and the mutant value cache stops pretending to be the same concept. The bug
-   class this removes is already realised: **plant satisfies `Replayable` today and replays no
-   structure at all**, because `record_stage(int)` carries both jobs and plant implements only the
-   value half. No interpolator change is needed -- `get_x()` and `init(x, y)` are exactly the two
-   operations. plant gains `ResourceSpline::build_on(nodes, f)`, which `rescale_spline` then calls,
-   so it is a refactor not an addition.
-   **Do the bisect in that doc's last section before writing either hook.**
 
-1. **Land the loop in plant — and it needs NO new plant surface.** `SCM::run_next()` already
-   does one unit: consume the events at t0, `introduce_new_nodes`, `advance_fixed(e.times)`. So
-   the unit is the **event segment**, and measured steps/segment is **1.22-1.23 (K93) / 1.72-1.87
-   (FF16)** on both default and refined schedules, with L0 on L1 at 100% (141/141, 233/233,
-   141/141, 161/161). A peak within 1.9x of ideal step granularity is nothing against 130-438x.
-   **Forward** through the SCM (`refine_schedule` -> `recorded_steps` -> loop `run_next()`),
-   recording per segment: the state entering it (= `r_patch()`'s state after the *previous*
-   `run_next()`, so pre-introduction), the species `run_next()` returns, and that segment's slice
-   of the schedule. **Backward drives the Patch directly, not the SCM** -- the SCM has no
-   `node_schedule` seek and does not need one, because a unit is a Patch plus a Solver just as
-   the spike's unit is a Toy plus a Solver. Lift once via `rebind_from<RevS>()`, take the active
-   Patch from `get_system_ref()` as a mould, then per segment on a fresh tape: copy the mould,
-   `set_ode_state(stored[k], t_k)`, `introduce_new_nodes(species[k])`, build
-   `odelia::ode::Solver<active_patch>`, `advance_fixed(times[k])`, sweep per output row, carry the
-   entering-state adjoints back. `introduce_new_nodes` / `reset` / `set_ode_state` / `ode_state`
-   are all public (`private:` starts at `patch.h:224`) and `set_ode_state(it, time)` re-establishes
-   the whole invariant itself (`compute_environment(true)` + `compute_rates()`).
-   **MEASURED OBSTACLE -- a Patch is not fully restorable from `ode_state`.**
-   `docs/reference/segment-rerecord-probe.{cpp,R}` re-runs single segments from a stored state:
-   absolute agreement is tiny (1e-31 to 1e-15 on FF16) but the relative error grows ~16x per ten
-   segments on both K93 and FF16. Cause found: `Species::introduce_new_node(time, patch_density)`
-   **stamps each node with its introduction time and patch-age density at birth**, and neither is
-   in `ode_state`; they feed the lifetime-fitness terms. Discriminating datum: segment 0 needs no
-   reconstructed introductions and is **exact** (K93 max_reld and max_abs both 0.00e+00). So the backward loop must restore the ODE
-   state **and those two stamps** per node. Both are known on the plain pass (the schedule entry
-   and `survival_weighting->density(t)`), so nothing is lost -- but a gradient built on
-   `set_ode_state` alone would be quietly wrong in a way that compounds down the run.
-   **Then** confirm the environment branch: `set_ode_state` -> `compute_environment(true)` takes
-   the *rescale* path, so verify a re-recorded segment reproduces the forward one to round-off.
-   **Kill condition, with a number:** if a schedule policy pushes steps/segment high (the
-   multirate finding would), peak rises with it and the unit must become the step -- which is the
-   one change needing surgery inside `run_next_impl`. Until then, don't.
-2. **#32** (tf24f collar 2.9e-4), **#27** (the closing FD gate) — both unblocked once memory allows.
-3. **The soil rates' hard clamps.** Three selects, `smooth_positive` used 3x in `ff16_strategy.h`
-   and 0x in `tf24_environment.h`. The saturation-excess runoff floor is a *physical* boundary a
-   real trajectory crosses; the two theta<=0 guards bite off-manifold. Check before smoothing.
-4. **Re-bless two stale numbers**: `test-canopy-methods.R` `16.88946` (blessed 2026-06-25, model
-   changed 2026-07-18/19/20) and `test-mutant`'s 8 seed-rain expectations.
-
-## SESSION 21 CONFIDENCE LEDGER — read this before any design section
-
-This session produced a lot of design prose and then refuted some of its own. Rather than
-trust the prose, here is every claim graded by the rule in
-[`v3-evidence-triage.md`](./v3-evidence-triage.md), applied to itself. **A design section not
-listed as PROVEN is a lead.**
-
-### PROVEN — re-runnable, cite the command
-| claim | evidence |
-|---|---|
-| Step-local sweep is exact to round-off (1e-15…1e-14) on a growing-dimension System, against a whole-run tape, an FD, and a closed form | `cd odelia && make test`; `test-ad-step-local.R`, 25 assertions |
-| **Peak tape is flat in run length**: 3 792 B at nstep 10/20/40/80 while the whole-run tape grows 53 300 → 419 540 B | same |
-| A structural change placed **between** units loses the newborn IC adjoint — **19% error, silent**, right sign | same |
-| **A constant-IC toy cannot detect that**, and both existing toys have constant ICs while plant's newborn density reads the stand | same |
-| The light-field read is **66%** of the FF16 crown tape; boundary A = **1.49×**, boundary D = **3.7×**; all channels agree to round-off | `NOT_CRAN=true Rscript docs/reference/crown-preaccum-probe.R` |
-| FF16's crown reads the **separable field with an active query height**, not `get_value_at_height_frozen_query` | same probe; `ff16_environment.h` `field_optical_depth` |
-| **L0 ⊆ L1**: every introduction time lies on the resolved ODE grid (93/93, 108/108) | inline R, §3c |
-| odelia is **green: 0 fail / 467 pass / 3 skip** | `cd odelia && make test` |
-| The XAD tape byte model `12·ops + 8·stmts + 8·slots` is exact | crown probe reproduces 12 764 B to the byte |
-
-### BELIEVED — the design, and what would settle each
-| claim | what would settle it |
-|---|---|
-| **L0 should be the fourth recorded layer** (`replay_structure(k)`), unit = one ODE step (§3c/§3d) | the L2 audit, plus a toy with a **coupled IC** and an **out-of-order L2 read** |
-| `run()` derived from a unit loop is a net DX win | do it in plant, count concepts deleted vs added |
-| The unconditional post-hook state re-sync is acceptable | price one state copy per step on a System that never grows |
-| Leanness (option C) tops out at ~3× (FF16) / ~5× (TF24) | arithmetic over measured pieces; not measured end-to-end |
-| `preaccumulate` should be deleted (zero production callers) | owner's call; it reverses session 20 |
-
-### OPEN — the unfinished discovery, in priority order
-1. **Is there one good replayable L2 construct? — ANSWERED, see
-   [`v3-l2-audit.md`](./v3-l2-audit.md).** Not "a better recorder": **a background with nothing
-   adaptive to record, which makes L2 vacuous.** The exact `separable_field` is that; the
-   adaptively-refined spline is its opposite. K93 clean, FF16 clean by accident, **TF24 exposed
-   — spline-only, no field, adaptive refit on every replay step, and its L2 path is deferred.**
-   Recommendation: give TF24 the field (wiring — its kernel is the same rank-3 Yokozawa form).
-   Price: Box/SoftBox shading is not separable, so L2 stays required there (the kill condition).
-   **Correction to carry:** L2 = adaptive positions, resident path; L3 = recorded values, mutant
-   path, deferred. Session 22 first conflated them and mis-read `save_RK45_cache` (L3) as
-   covering both. §6c is still **not** an answer (it weighed bytes, not complexity).
-
-   **Corrected inventory (grep-verified, session 22):**
-   - **`step_light` is not a third light path.** It wraps *both* branches of
-     `get_environment_at_height`, so it is one shared read-time transform, not an alternative
-     source. Session 21's "three light paths" was imprecise: there are **two sources and one
-     transform**.
-   - **The secant tangent channel was dead and is now DELETED** (33 lines): both
-     `get_environment_slope_at_height` wrappers plus `ResourceSpline::slope_at_height`, whose
-     only callers were those wrappers. It was a leftover of the removed dg/dh seam, and
-     `design.md`, `build-plan.md` and `deepening-6` all already prescribed deleting it in
-     favour of the field's exact `∂A/∂z`. **So "a frozen query whose tangent comes from a
-     separate secant" is no longer true of the code.**
-   - **The two `freeze_*` statics are diagnostic-only and live**: one caller,
-     `ff16_scm_gradient_driver.cpp`, which sets both per call for channel isolation. Not dead
-     — but they are mutable global switches on a production class, so correctness rests on
-     every entry point setting them.
-   - **The real asymmetry is three environments with three arrangements**, and this is the
-     question worth designing against: **K93** field-only (`field_supersedes_spline=true`, the
-     spline is never fitted); **FF16** field *and* a spline fitted every step
-     (`=false`); **TF24** spline-only, no field at all — so TF24's light carries no active
-     query-height derivative. **TF24 is also the strategy with the memory quagmire (#2 below).**
-   - **FF16's second source is not free to delete:** `light_availability` is an RcppR6-exposed
-     property and `patch.h:839` restores it via `r_init_interpolators`, so flipping FF16 to
-     `true` changes an R-visible surface. That is a design decision, not a cleanup.
-2. **Why did TF24's soil/leaf coupling become a memory problem** when it should have been a
-   clean IFT after the solve? Unverified hypothesis: `implicit_value` keeps the *solve* off
-   tape but still records the residual body once per call per layer per stage, so the IFT was
-   clean and the cost is everything around it. **Confirm before acting.**
-3. **Stress axes not run** (§3e): an L2/L3 recording read out of order (`CanopySystem`, from
-   C++ — its R bindings self-skip); an `implicit_value` node re-recorded per unit; m > 1
-   outputs; bit-determinism of a re-recorded unit (§4.3's invariant); one tape reused via
-   `resetTo` instead of a fresh tape per unit.
-4. #32 (collar 2.9e-4), #27 (the FD gate).
-
-### REFUTED — do not re-derive these
-- §6d's crown estimates (2.7× / 12×) → measured 1.49× / 3.7× (§6e).
-- §3b's **event-segment unit** → retracted (§3c); its 1.10–1.34 ratio measures a schedule
-  policy, not the model. **§3b is dead text kept only for the derivation.**
-- "odelia has 10 / 30 loader errors" → invocation artifacts, both times.
-- The handoff's own precondition that FF16's crown reads a frozen-query spline.
-- (Earlier) session 19's attribution of the OOM to the deleted seam.
-
-### DELIBERATELY UNCOMMITTED — do not "finish" this without the L2 audit
-The step-local spike **keeps its backward loop in the example file, not in odelia**, and
-drives the Solver only through members that already exist. That is a choice, not an
-omission: it means the algorithm is proven while **the boundary is still free to move**, so
-the L2 audit can decide where the seam belongs. Moving the loop into odelia — or adding
-`replay_structure`, `unit_count`, `set_trajectory` — before that audit is the one thing that
-would waste this session's work, because it commits the interface on the strength of a
-BELIEVED row.
+1. **Own the `Leaf` per unit.** `Individual` holds a *pointer* to the Strategy, so a Patch copy shares
+   one `Leaf` carrying per-solve state and four splines; a TF24 segment re-run inherits end-of-run
+   leaf state (1.8e-13 → 1.3e-8, in `log_density`). Copy the Strategy per unit rather than auditing
+   every cache — an audit is a convention that decays. **Then re-check the aux lag**, which is
+   currently swamped by this.
+2. **Raise confidence on the leaf/soil coupling and its composition with the field.** The field
+   assembled over `implicit_value` source weights has **no witness anywhere** — K93's and FF16's
+   sources are closed forms. This is the main discovery gap.
+3. **Check the soil clamps.** The saturation-excess runoff floor is a *physical* boundary a real
+   trajectory crosses; `smooth_positive` appears 3× in `ff16_strategy.h`, **0×** in
+   `tf24_environment.h`. Confirm a trajectory crosses it before smoothing anything.
+4. **Then build:** the step unit, restoring per node the ODE state, per-species counts and
+   `pr_patch_survival_at_birth` (plus two more stamps only for R0). Interface in
+   [`v3-control-flow.md`](./v3-control-flow.md); it needs no new plant surface beyond splitting
+   `advance_fixed(e.times)` inside `run_next_impl`.
+5. **#32** (tf24f collar 2.9e-4), **#27** (the closing FD gate), and re-bless two stale numbers
+   (`test-canopy-methods` `16.88946`; `test-mutant`'s 8 seed-rain expectations).
 
 ## Before reading the corpus: [`v3-evidence-triage.md`](./v3-evidence-triage.md)
 24 design docs, deepenings and Oracle consults exist and they are **not clean signal** —
