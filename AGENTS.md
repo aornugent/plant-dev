@@ -22,8 +22,8 @@ say-so**. That rule exists because a recorded blocker outlived its fix across fo
 
 **The probes and the former ledgers are not deleted, only unlinked from this branch.** The file's
 own banner names the branch and commit; recover them with
-`git checkout <that-branch> -- docs/reference` when you need to re-run a citation. `scripts/` is
-still here and holds the `gate0-*` harnesses.
+`git checkout <that-branch> -- docs/reference` when you need to re-run a citation. The same applies to
+`scripts/`, which holds the `gate0-*` harnesses — `git checkout <that-branch> -- scripts`.
 
 Then, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the
