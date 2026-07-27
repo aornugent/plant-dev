@@ -97,11 +97,12 @@ So `tf24_environment.h`'s own claim — "well below any realistic operating mois
 perturb non-drought runs" — is **confirmed for the default driver**. The margin under a dried driver
 is a separate question and is where the guard would bite.
 
-**Not yet a fact, but the one observation the attempt produced:** the 8-point rainfall sweep in the
-probe's driver did **not** finish in ~50 minutes, where the single default-rainfall run takes about
-two. Drier drivers are drastically slower — consistent with the rainfall transient that gives TF24
-18.43 steps/segment, and a reason to run the sweep one point at a time with a generous timeout rather
-than as a loop. The sweep result is **open** (task #38).
+**Not yet a fact, but the one thing the first attempt established:** the 8-point rainfall sweep was
+**killed by its own 3000 s timeout** (exit 143) having produced nothing, where the single
+default-rainfall run takes about two minutes. Two lessons, both mechanical: drier drivers are
+drastically slower — consistent with the transient that gives TF24 18.43 steps/segment — so run the
+sweep **one point at a time**; and do not pipe the driver through `tail`, because the buffer means a
+timeout discards every point already computed. The sweep result is **open** (task #38).
 
 ## 4. Replay: what reproduces and what does not
 
