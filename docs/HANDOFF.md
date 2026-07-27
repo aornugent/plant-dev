@@ -169,7 +169,7 @@ rediscovering things.
 | Is memory a leak, or a bad boundary, or the leaf? | **None of those.** Tape is flat per cohort-step, so cost = per-state-step × states × steps. Only bounding the *run* helps | facts §1 |
 | Can a spline carry `d(light)/dz`? | **No** — 227% mean error at production tolerance even fitted to optical depth. Hence the field | facts §3 |
 | Is a separable field valid for TF24 too? | **Yes** — all three strategies share one rank-3 kernel; TF24's expands to exactly `CanopyShape`'s pair | facts §3 |
-| Is the separable field valid across species? | **ONLY IF ALL SPECIES SHARE `eta`.** One query-factor set serves every source (`patch.h:757-759`); mixing η **diverges** — a shading factor of **7.98e+14** where the exact kernel gives 0.118 | facts §4c |
+| Is the separable field valid across species? | **Not as written — this is a DEFECT, not a constraint.** One query-factor set serves every source (`patch.h:757-759`), so mixing η **diverges** (7.98e+14 against an exact 0.118) and the **forward value is wrong too**. η is a declared AD target in all three models, and separability survives as a rank-**3·n_η** field | facts §4c, requirements C6.4b, U15 |
 | Is the field's tie-break stable across a rebuild? | **Yes** — two K93 species replay at `copy_abs` **exactly 0**, every segment. But both had **equal widths**; differing widths untested | facts §4c |
 | Does a field over an `implicit_value` source weight differentiate correctly? | **Yes, exactly** — 5/5 channels FD-exact, assembly pinned to an analytic identity at 2.2e-16, severance control both ways | facts §3b |
 | Are the soil clamps a gradient hazard? | **No.** Three of four are kinks; the one severance is unreachable — both water sinks shut off at 12.5× θ_r. **Do not smooth them** | facts §3b, dead-ends |
@@ -353,109 +353,73 @@ new document only for a new decision.**
   FD-exact with the assembly pinned to an analytic identity at 2.2e-16.
 - **Soil needs no concept** (it is ODE state) and **the soil clamps are closed** — the one real
   severance is unreachable, both water sinks shutting off at 12.5× θ_r. Do not smooth them.
-- **One blocker, cause confirmed:** the `Leaf` is shared through a Strategy pointer, so a deferred
-  replay inherits stale solve state. Correctness needs the leaf *consistent with the unit*, not
-  *owned by* it — which is why the fix is now a real choice rather than a foregone copy.
-- **Nothing has run in plant yet.** Every sweep number is an odelia toy, and every fact was measured
-  with **one species**. That is what `OPEN` items 2–5 are for.
+- **The `Leaf` blocker is CLOSED and needed no fix.** It only ever existed on the whole-`Patch` copy
+  path; via `r_set_state` the deferred and inline replays are identical, because `reset()` reconstructs
+  the leaf and `compute_rates` re-solves it against the restored state (`v3-facts.md` §4f).
+- **The sweep now has a plant witness.** A K93 unit runs under AD, trait adjoints accumulate, the
+  **chained state adjoint is exact** (1.4e-16 … 3.4e-15 over 3–12 units), and a codomain-2 Jacobian
+  costs +0.38% (`v3-facts.md` §4d, §4e). What has *not* run in plant: TF24 at all, and any gradient
+  with two species.
+- **Two open items are user-story defects, not missing tests:** the field cannot carry per-species
+  `eta` (blocks community assembly), and `least_squares` cannot survive a plain-valued trajectory
+  (blocks calibration). See `v3-requirements.md` §1b.
 
 ### OPEN, in priority order
 
-**This list is authoritative.** The task list mirrors it and carries the same IDs; where they
-disagree, this list is right and the task wants updating. Nothing else in this file is a to-do list —
-the SIGNPOSTS section that used to follow is gone, and why is recorded below. Tasks marked
-`BACKLOG:` are deliberately NOT here; ignore them until this list is empty.
+**This list is authoritative.** The task list mirrors it and carries the same IDs; where they disagree,
+this list is right. Nothing else in this file is a to-do list. Tasks marked `BACKLOG:` are deliberately
+NOT here.
 
-**Everything below is a TEST or a GATE. None of it is design work.** Session 22 finished discovery:
-the field-over-leaf composition is witnessed exact, the soil clamps are closed, and the `Leaf`
-blocker's cause is confirmed. What remains before building is clearing assumptions that would produce
-a *wrong number* rather than an error, and one benchmark the owner asked for.
+**Read [`v3-requirements.md`](./v3-requirements.md) first — §1b (the user stories), then §20/§20b/§20c.**
+Two items below exist because a user story demands them, not because a test is missing.
 
-**0. [#39] ~~GATE — benchmark the default TF24 run on `develop`.~~ DONE — no regression, gate
-clears.** `develop` **49.57 s / 2 621 steps** against this branch **50.31 s / 2 599 steps**: +1.5%
-wall clock, +2.4% per step, **both under 60 s** so the owner's recollection holds. The AD work has not
-slowed the forward model, so the memory and time projections rest on a sound baseline. Re-run:
-`./docs/reference/tf24-develop-benchmark.sh`.
-**It also corrected a timing extrapolation:** 987 is node *states*, not cohorts — TF24 carries 7 ODE
-components per node, so production is **141 cohorts**, and a production sweep is **~78 s in double /
-~5.5 min per gradient**, not the ~40 min first recorded (`v3-facts.md` §3c). The memory arithmetic is
-unaffected: it was always per *state*.
+**1. [#46] Fix the light field for per-species `eta`.** **A defect, and it blocks the two primary user
+stories.** `assemble_competition_field` takes the query factors from `species[0]`'s canopy alone
+(`patch.h:757-759`), so with species of differing η the field computes **7.98e+14** where the exact
+kernel gives 0.118 — **the forward value is wrong, not just the gradient**. η is a declared AD target in
+all three models (`X(eta)`), and community assembly and selection gradients vary traits *across* species
+by definition. **The fix keeps separability:** group sources by η, one descending-height cumulative sum
+per group, sum 3·n_η query terms — rank **3·n_η**, degenerating to today's rank 3 when η is shared
+(`v3-requirements.md` C6.4b). Acceptance: `two-species-probe`'s (A) goes exact at every η pair, and the
+tie-break/order check (B) still holds with **differing** species widths. Run `system-design` — this is a
+structural change to a hot path.
 
-**1. [#37] ~~Choose and land the `Leaf` fix.~~ CLOSED — the blocker does not exist on the design's
-path, and no candidate is needed.** Measured (`NOT_CRAN=true Rscript docs/reference/leaf-staleness-probe.R`):
-via `r_set_state` the deferred and inline replays are **identical** (1.11e-13 / 7.64e-12 / 8.69e-11 at
-segments 20/40/60), while the copy path still shows its split — so the probe can still detect staleness
-and there is none to detect. The mechanism is **not** the leaf being wiped: `reset()` reconstructs it and
-`compute_rates` **re-solves it against the restored state**, so `ci_`/`profit_` come out *segment-specific*
-(26.48 → 27.279 / 27.194 / 27.111). It is therefore a function of the unit, which is what correctness
-needed, without owning anything. **Consequences: the per-unit Strategy copy is not required, so #40's
-accumulation hazard and the Node re-seating hazard never arise, and #42/TF24-at-production unblock.**
-**Do not "optimise" the restore by skipping `prepare_strategy`** — that is what buys this, at **8.6% of
-the restore** (~1.25% of a unit, ~0.7 s over 2 598 units). The cause is **confirmed, not hypothesised**: replaying a
-segment while the leaf holds that segment's own state is **exactly 0** where the deferred replay is
-1.8e-13 → 1.3e-8, with FF16/K93 (no leaf) zero both ways —
-`Rscript docs/reference/leaf-staleness-probe.R`. What that buys is a weaker requirement than assumed:
-correctness needs the leaf to hold state **consistent with the unit**, not the unit to **own** the
-leaf. So three candidates, and the copy is no longer the obvious winner — **run `system-design`**:
-per-unit Strategy copy (pays 4 spline rebuilds × 2 598 units, and forces item 2); per-unit reset
-(blocked on there being no boundary to reset); or give `Leaf` a nested transient struct (makes the
-reset one assignment and the boundary visible).
-**Note the inline ordering is a diagnostic, not a fix** — a backward pass is inherently deferred.
+**2. [#42b] Measure the TF24 per-unit tape.** **UNBLOCKED — this was waiting on #37, which is now
+closed.** `TAPE_STATS` on one restored TF24 unit. **The ~89 MB headline, and therefore the whole memory
+case, is currently an extrapolation** from width 606 to 987 with no TF24 unit ever measured. K93's is
+known (0.96 MB at ~40 cohorts, 4.38 MB at production lifetime).
 
-**1b. [#45] Give the restore path a way to carry the birth stamps.** Measured this session and it is a
-**requirement, not a preference**: `Patch::r_set_state` (`patch.h:832-847`) restores state, per-species
-counts and the light spline and **nothing else**, so every rebuilt unit runs with default birth stamps.
-Restoring them cuts the relative drift **~10× (FF16)** and **~17× (TF24)** —
-`Rscript docs/reference/restore-stamp-probe.R`. `Species::set_birth_state` exists but `Patch` exposes
-`at_species()` **const-only** with `species` private, so **there is no public route**; the probe
-`const_cast`s, which a real fix must not. Smallest change is extending `r_set_state`, which also
-subsumes item 6 (#44) since that path *is* the R0 path. Note the framing this corrected: the
-exactness facts ("K93 replays bit-exactly") belong to the **whole-`Patch` copy** column, while the
-design runs on the **rebuilt** one — do not quote one for the other.
+**3. [#27] FD-verify a TF24 gradient — for the first time.** Its test asserts only `is.finite` plus
+value reproduction; FD verification is explicitly open. **So exactness is unverified for the model the
+whole design exists to serve.** Use the Oracle's Decisive Experiment 2 (frozen resolved schedule, tight
+inner tolerance, δ in the window) — `oracle/oracle-response-inner-argmax-adjoint.md` is mandatory
+reading first. Note **C14b.4**: a value-reproduction check and `⟨Jv,u⟩=⟨v,Jᵀu⟩` are *self-consistency*,
+not correctness.
 
-**2. [#40] ~~Test that trait adjoints accumulate across units.~~ DONE — and it is now an input to
-item 1, not an independent test.** Ownership decides it: `Strategy::ptr` is a `std::shared_ptr` and
-`Species::ad_parameters()` returns `strategy->field_ptrs()`, so a Patch **copy shares** the seeded
-address (measured by pointer identity) and the design's units accumulate into one adjoint
-automatically — verified against a frozen-trajectory FD at **1.3e-09**, with sum-equals-shared at
-**0.00e+00 / 1.33e-16**. **Leaf-fix candidate 1 (per-unit Strategy) CREATES the hazard it was feared
-to have:** one unit's adjoint alone is **50.6%** (2 units) / **41.1%** (4 units) of the total, right
-sign, nothing thrown. So candidate 1 must additionally sum trait adjoints over every unit — price that
-against the reset and nested-struct candidates. `NOT_CRAN=true Rscript docs/reference/unit-adjoint-probe.R`
+**4. [#47] Decide what user story 6.3 (calibration) needs.** `least_squares` reads **intermediate**
+history states as **active** values (`odelia/.../gradient.hpp:226-245`), so a plain-valued trajectory
+breaks it **silently** — the value stays right, the derivative through the observations is lost. The
+repair is a `Functional` contract change ("declare the steps you read, contribute a per-step adjoint
+seed"), i.e. **a new concept**, against an objective measured in concept count. Design it against the
+story, not against the function.
 
-**3. [#41] ~~Test two species.~~ DONE — and it found a constraint, not a tolerance.** The determinism
-worry was **unfounded**: two K93 species replay at `copy_abs` **exactly 0** at every segment, tie-break
-included. What it found instead: **the separable field is only valid if all species share `eta`.** One
-query-factor set serves every source (`patch.h:757-759`, "shared shape" — a comment, not a fact),
-while η is a per-strategy trait *and* a differentiation target, so mixing η **diverges**: the field
-computes **7.98e+14** where the exact kernel gives 0.118. Either the design makes "one η per
-community" a structural precondition, or the field needs one query-factor block per distinct η.
-**Decide before building anything multi-species.** Two gaps remain: both species had **equal widths**
-at every segment (differing widths untested), and an **empty species 0 is latent UB** at
-`patch.h:758` — measured reachability 0 on an ordinary run, undefended in general.
-`NOT_CRAN=true Rscript docs/reference/two-species-probe.R`
+**5. [#45] Give the restore path a public route for the birth stamps.** `r_set_state` drops all three;
+restoring them cuts relative drift ~10× (FF16) / ~17× (TF24). `Species::set_birth_state` exists but
+`Patch::at_species()` is const-only with `species` private, so **there is no public route** — probes
+`const_cast`. Subsumes **#44** (the R0 path *is* this path).
 
-**4. [#42] ~~Test the per-unit tape.~~ DONE.** K93, restore included: **956 350 B / 43 864 ops** at
-~40 cohorts, and **980 044 B** at 4 units — so it is per-unit as assumed, not accumulating. At
-production lifetime 105.32 it is **4 383 368 B**, 4.6× lifetime-20, tracking cohort width. Same probe.
-**Still open: the TF24 per-unit tape**, which is the one the ~89 MB headline is about, and it is
-blocked by the `Leaf` (#37).
+**6. [#41b] A multi-species gradient, and differing widths.** No gradient has ever been taken with two
+species. The replay check used species introduced on the same schedule, so their widths were **equal at
+every segment** — the case the tie-break exists for is untested. Do this after #1.
 
-**5. [#43] PARTLY DONE — a K93 unit has now run under AD in plant, and it is exact.** What exists:
-units restored from stored plain values, advanced under the active scalar, trait adjoint accumulated
-across units, FD-verified at **1.3e-09** at lifetime 20 **and 1.78e-09 at production lifetime
-105.32**, plus a codomain-2 Jacobian off one recording (**+0.38%** tape). What does **not** exist: the
-sweep proper — no **state** adjoint is chained between units, so this witnesses the **trait channel on
-a frozen trajectory**, which is the half that does not need `run_next_impl` surgery. The chained sweep
-is item 7. Then FF16 (1.87, same unit), then TF24 (18.43 → the step unit).
+**7. [#35] The step unit.** Split `advance_fixed(e.times)` inside `SCM::run_next_impl`; never attempted,
+and TF24 needs it (18.43 steps/segment). K93 (1.23) and FF16 (1.87) do not. **No longer blocked on leaf
+ownership** — that was #37, now closed.
 
-**6. [#44] Test the R0 restore path before promising R0.** `set_birth_state` "exists" but **no test
-calls it**, and the rebuilt-state drift lands exclusively in `offspring_produced_survival_weighted` —
-the slot R0 reads. Census gradients do not need those stamps and are unaffected.
-
-**7. [#35] Then the step unit**, per [`v3-control-flow.md`](./v3-control-flow.md): split
-`advance_fixed(e.times)` inside `run_next_impl`. Blocked by #39 and #43. **[#27]** the closing FD gate
-is blocked on this.
+**8. [#48] Produce the kink manifest.** It was specified as the deliverable that stops "a silently wrong
+subgradient shipping unnoticed" and **nothing suggests it was ever produced**. Sites are enumerated in
+`v3-requirements.md` §20c (S3/S7) — classify each once as selector / kink / guard / *is-a-derivative*
+and record the verdict. This is also the completeness check on §20.
 
 **Two standing hazards, documented and undefended:** structure must stay a deterministic function of
 plain values (a new environment sorting on an active key would break it — there is no structural

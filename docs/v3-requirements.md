@@ -38,6 +38,25 @@ per model**, and without regressing the forward model.
 
 Everything below is a constraint on *how* that can be achieved.
 
+## 1b. The user stories the surface must serve
+
+From `archive/ad-r-interface.md` §6 — the R experience of each persona, and **the recurring point is
+what they never touch**. These are the DX specification; "concept count" is measured against them.
+
+| | persona | asks for | status |
+|---|---|---|---|
+| **6.1** | forest ecologist | trait sensitivity of emergent LAI/biomass, resident with self-shading feedback — `stand_gradient(scm, metrics, traits, feedback="resident")` | **primary workflow.** FF16 census works; TF24 unverified (U1) |
+| **6.2** | evolutionary ecologist | selection gradient of a rare mutant against a resident, to locate singular strategies — `offspring_production_gradient(...)` | **primary workflow.** Needs the mutant/frozen-canopy path (deferred) and R0 (U6) |
+| **6.3** | modeller calibrating to data | a hot L-BFGS loop: `solver$set_observations(times, obs, obs_idx)` then `value_and_gradient(p)` returning **both from one recording** | **advanced, and "the story that most stresses the invariant". THIS IS `least_squares` — see C14.5b: it reads intermediate history as ACTIVE values, so a plain-valued trajectory breaks it** |
+| **6.4** | plant developer | add an emergent metric with one scalar-templated kernel and a registered name; **no tape code, no odelia change** | the concept-count test |
+| **6.5** | odelia downstream developer | implement the System contract, get gradients free, doubles only | R5 |
+| **6.6** | maintainer | compare AD against a re-run FD in plain R, same shape | why only `double` crosses |
+| **6.7** | anyone | forgot `save_RK45_cache` → a clear actionable error, never a crash | fail loud |
+| **6.8** | odelia downstream developer | enable AD on a system with adaptive numerics | the L2 question, now vacuous |
+
+**Two of these bind on open items and neither is a corner case: 6.3 is exactly the `least_squares`
+incompatibility, and 6.1/6.2 are exactly what per-species η blocks** (§6 below).
+
 ---
 
 ## 2. The AD substrate (XAD)
@@ -107,7 +126,9 @@ Everything below is a constraint on *how* that can be achieved.
 | **C6.1** | all three strategies shade with **one** rank-3 kernel: `{1, −2z^η, z^2η} · {amp, amp·H^−η, amp·H^−2η}` | algebra, checked against `canopy_shape.h:196-211` |
 | **C6.2** | the factorisation is exact **only when the same η appears in query and source factors** | `(1−(z/H)^η)²` expands that way and no other |
 | **C6.3** | **the field is assembled with ONE canopy, taken from `species[0]`** | `patch.h:757-759`, commented "any cohort's canopy (shared shape)" — an assumption, not a fact |
-| **C6.4** | **so all species must share η.** Mixing it does not degrade, it **diverges**: the field computes **7.98e+14** where the exact kernel gives 0.118 (η 12 vs 4); 742 at η 12 vs 10 | `two-species-probe` |
+| **C6.4** | **the current assembly is DEFECTIVE for species of differing η — this is a bug to fix, NOT a constraint to design around.** With one query-factor set the field computes **7.98e+14** where the exact kernel gives 0.118 (η 12 vs 4), and 742 at η 12 vs 10. Since η is read from `species[0]` only, **the forward value is wrong too**, latently — not just the gradient | `two-species-probe`; `patch.h:757-759` |
+| **C6.4a** | **η is a declared differentiation target in ALL THREE models** — `X(eta)` appears in `FF16_AD_FIELDS`, `K93_AD_FIELDS` and `TF24_AD_FIELDS`. plant already says η is a trait to differentiate, and community assembly and selection gradients (stories 6.1/6.2) vary traits **across** species by definition | `ff16_strategy.h:113`, `k93_strategy.h:49`, `tf24_strategy.h:98` |
+| **C6.4b** | **separability SURVIVES per-species η; the field is rank 3·n_η, not rank 3.** Group sources by η: `A(z) = Σ_η Σ_p a_p^η(z) · [Σ_{j: η_j = η} ampM_j · b_p^η(H_j)]`. Each group keeps its own descending-height cumulative sum, and a query sums 3·n_η terms. It **degenerates to today's rank 3 when all species share η**, and in the worst case (every species distinct) it costs the same as one field per species | algebra over `canopy_shape.h:198-211`; the requirement this imposes is in U15 |
 | **C6.5** | there are **SIX** `ShadingModel` modes, and only **two** change the competition kernel: `FlatTopBox` → `Box` and `FlatTopSoftBox` → `SoftBox`. `DeepCrown`, `MeanLight`, `CrownCentre` **and `PPA`** all map to `Deep`, which is the separable one | `canopy_shape.h:50-52` (enum), `:129-131` (the mapping — `default: Deep`) |
 | **C6.5a** | **TF24's default is `MeanLight`, NOT `DeepCrown`** (FF16's default is `DeepCrown`). The mode changes how *assimilation* integrates light over crown depth; it changes the *competition* contribution only for the two Box modes | `tf24_strategy.h:399`; `ff16_strategy.h:786`. **This corrects a claim that said "defaults are DeepCrown → separable"** — the conclusion survives, the reason was wrong, and it was wrong about TF24 |
 | **C6.5b** | so the two modes with no correct tangent route are `FlatTopBox` (a hard step) and `FlatTopSoftBox` (a smoothstep) — and `PPA` is separable on the competition side whatever its assimilation kink | as above |
@@ -285,7 +306,8 @@ Everything below is a constraint on *how* that can be achieved.
 | **U2** | TF24 memory | **UNBLOCKED by QC** (no longer waiting on #37). **The ~89 MB per-unit tape is an extrapolation** — marginals stop at width 606, production is 987, and no TF24 *unit* tape has ever been measured. The whole memory case rests on it | TAPE_STATS on one restored TF24 unit; blocked by C11.7 |
 | ~~**U3**~~ | TF24 leaf | **CLOSED** — no fix is needed; the restore path already gives a leaf consistent with the unit | done, §20b QC |
 | **U4** | multi-species | **no gradient has ever been taken with two species.** Replay is verified in double only, and only with **equal widths** at every segment | two species introduced on different schedules |
-| **U5** | multi-species | C6.4 (shared η) has no **structural** enforcement — nothing stops a user configuring two ηs and getting 1e+14 | a precondition check, or per-η field blocks |
+| **U15** | the light field | **PER-SPECIES η IS A REQUIREMENT, AND THE FIELD DOES NOT MEET IT.** Not "untested" — a known defect (C6.4) blocking stories 6.1/6.2. The fix is C6.4b's rank-3·n_η grouping; what is untested is its cost at realistic assembly sizes and whether the per-group cumulative sums preserve the tie-break determinism of C6.6/C6.7 | implement the grouping; re-run `two-species-probe` (it must go exact) and the tie-break check with differing η |
+| **U14** | functionals | **user story 6.3 (calibration) is incompatible with a plain-valued trajectory** (C14.5b). Whether the contract change is one concept or several, and whether `value_and_gradient` can still return both from one recording, is undecided | design it against story 6.3, not against `least_squares` in isolation |
 | **U6** | R0 | `set_birth_state` is called by no test, has **no public API** (C4.8), and the drift lands precisely in the slot R0 reads | #44 + #45 |
 | **U7** | FF16 | its gate is **4 orders looser** than the truth (C10.8) | tighten after verifying the δ-sensitive FD |
 | **U8** | the step unit | splitting `advance_fixed(e.times)` inside `SCM::run_next_impl` has **never been attempted**; TF24 needs it | #35 |

@@ -287,8 +287,11 @@ TF24 first") is **closed: one settle, no aux storage.**
 Every other number in this file was measured with **exactly one species**. Three things fall out;
 `NOT_CRAN=true Rscript docs/reference/two-species-probe.R`.
 
-**(A) THE SEPARABLE FIELD IS ONLY VALID IF ALL SPECIES SHARE `eta`. This is a constraint, not a
-tolerance.** The rank-3 factorisation is exact by algebra — query factors `{1, −2z^η, z^2η}` dotted
+**(A) THE CURRENT FIELD ASSEMBLY IS DEFECTIVE FOR SPECIES OF DIFFERING `eta` — a bug, not a
+constraint.** (Originally written here as "all species must share η"; that framing is **withdrawn**, see
+`v3-dead-ends.md`. η is a declared differentiation target in all three models, and separability survives
+per-species η as a rank-**3·n_η** field — `v3-requirements.md` C6.4b. What follows is the measurement,
+which stands.) The rank-3 factorisation is exact by algebra — query factors `{1, −2z^η, z^2η}` dotted
 with source factors `{1, H^−η, H^−2η}` give `(1−(z/H)^η)²` — **but only when the same η appears in
 both** (`canopy_shape.h:198-211`). `Patch::assemble_competition_field` builds source factors from each
 species' own canopy inside its per-species loop (`patch.h:698`) and then takes the query factors from
@@ -303,10 +306,10 @@ two species of different η the mixture does not merely lose accuracy, **it dive
 | 12 | 4 | 0.1183 | **7.98e+14** | 7.98e+14 |
 
 A shading factor must lie in [0,1]; these are 1e+14. "Shared shape" is an **assumption written as a
-comment**, and η is a per-strategy trait carried as `S` *and a differentiation target*. Either the
-design states "one η per community" as a precondition enforced by structure, or the field needs one
-query-factor block per distinct η (rank 3 → 3×n_η). **Do not build multi-species on the field before
-choosing.** Note this is measured against the exact kernel with no SCM run, deliberately: a
+comment**, and η is a per-strategy trait carried as `S` *and a differentiation target*. **The fix is the
+rank-3·n_η grouping** (C6.4b): group sources by η, one cumulative sum per group, sum 3·n_η query terms —
+which reduces to today's rank 3 when η is shared. **Note this is also a latent FORWARD-value bug**, since
+`species[0]`'s η is used for every source regardless of derivatives. Note this is measured against the exact kernel with no SCM run, deliberately: a
 two-species FF16 SCM is too fragile to carry the test (η=2, and η=4 at `birth_rate` 20 over a 20-year
 lifetime, both trip plant's own non-finite-density guard, and at 12 steps the field is still exactly
 1.0 everywhere so the comparison is vacuous).
