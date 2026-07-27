@@ -282,6 +282,51 @@ state, per-species counts, light spline, **and the three birth stamps** — and 
 a plant API that does not exist yet. The aux question that `v3-control-flow.md` left open ("check on
 TF24 first") is **closed: one settle, no aux storage.**
 
+### 4c. Two species — and the hard constraint the separable field turns out to carry
+
+Every other number in this file was measured with **exactly one species**. Three things fall out;
+`NOT_CRAN=true Rscript docs/reference/two-species-probe.R`.
+
+**(A) THE SEPARABLE FIELD IS ONLY VALID IF ALL SPECIES SHARE `eta`. This is a constraint, not a
+tolerance.** The rank-3 factorisation is exact by algebra — query factors `{1, −2z^η, z^2η}` dotted
+with source factors `{1, H^−η, H^−2η}` give `(1−(z/H)^η)²` — **but only when the same η appears in
+both** (`canopy_shape.h:198-211`). `Patch::assemble_competition_field` builds source factors from each
+species' own canopy inside its per-species loop (`patch.h:698`) and then takes the query factors from
+**species 0's canopy alone** (`patch.h:757-759`, commented "any cohort's canopy (shared shape)"). With
+two species of different η the mixture does not merely lose accuracy, **it diverges**:
+
+| η_query | η_source | exact `Q` at z=9, H=10 | what the field computes | abs error |
+|---|---|---|---|---|
+| 12 | 12 | — | — | **0** — exact, as designed |
+| 12 | 10 | 0.4242 | **742.2** | 7.4e+02 |
+| 12 | 8 | 0.3244 | **7.97e+06** | 7.97e+06 |
+| 12 | 4 | 0.1183 | **7.98e+14** | 7.98e+14 |
+
+A shading factor must lie in [0,1]; these are 1e+14. "Shared shape" is an **assumption written as a
+comment**, and η is a per-strategy trait carried as `S` *and a differentiation target*. Either the
+design states "one η per community" as a precondition enforced by structure, or the field needs one
+query-factor block per distinct η (rank 3 → 3×n_η). **Do not build multi-species on the field before
+choosing.** Note this is measured against the exact kernel with no SCM run, deliberately: a
+two-species FF16 SCM is too fragile to carry the test (η=2, and η=4 at `birth_rate` 20 over a 20-year
+lifetime, both trip plant's own non-finite-density guard, and at 12 steps the field is still exactly
+1.0 everywhere so the comparison is vacuous).
+
+**(B) Tie-break determinism holds across a rebuild — the worry was unfounded.** Sources merge in
+descending height with ties broken on the flat concatenated index (`patch.h:741-748`), and that index
+is a function of species order and per-species counts, both restored. Measured on two K93 species
+(differing in `b_0`, so no η problem): `copy_abs` is **exactly 0.00e+00 at every probed segment**, and
+`rebuilt_abs` matches the one-species figures (7.68e-18 → 1.71e-05, the `r_set_state` stamp drift of
+§4b). **Two species add no new replay error.** Caveat, and it is a real gap: both species are
+introduced on the same schedule, so their widths were **equal at every segment** (10/10 … 90/90) — the
+differing-width case is still untested.
+
+**(C) An empty first species is latent UB, not yet witnessed.** The per-species loop skips empty
+species (`m == 0`) and the function early-returns only when the **total** source count is zero, so
+species 0 empty with species 1 non-empty reaches `patch.h:758` and calls `node_begin()->individual` on
+an empty vector. Measured reachability on an ordinary two-species run: **0 segments**. So it is
+unreachable *on this schedule*, and undefended in general — the probe counts the state and never
+dereferences it.
+
 ## 5. plant surface facts that cost time to find
 
 | fact | where |

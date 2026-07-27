@@ -168,6 +168,8 @@ rediscovering things.
 | Is memory a leak, or a bad boundary, or the leaf? | **None of those.** Tape is flat per cohort-step, so cost = per-state-step × states × steps. Only bounding the *run* helps | facts §1 |
 | Can a spline carry `d(light)/dz`? | **No** — 227% mean error at production tolerance even fitted to optical depth. Hence the field | facts §3 |
 | Is a separable field valid for TF24 too? | **Yes** — all three strategies share one rank-3 kernel; TF24's expands to exactly `CanopyShape`'s pair | facts §3 |
+| Is the separable field valid across species? | **ONLY IF ALL SPECIES SHARE `eta`.** One query-factor set serves every source (`patch.h:757-759`); mixing η **diverges** — a shading factor of **7.98e+14** where the exact kernel gives 0.118 | facts §4c |
+| Is the field's tie-break stable across a rebuild? | **Yes** — two K93 species replay at `copy_abs` **exactly 0**, every segment. But both had **equal widths**; differing widths untested | facts §4c |
 | Does a field over an `implicit_value` source weight differentiate correctly? | **Yes, exactly** — 5/5 channels FD-exact, assembly pinned to an analytic identity at 2.2e-16, severance control both ways | facts §3b |
 | Are the soil clamps a gradient hazard? | **No.** Three of four are kinks; the one severance is unreachable — both water sinks shut off at 12.5× θ_r. **Do not smooth them** | facts §3b, dead-ends |
 | Must adaptive node positions be recorded (the "L2 layer")? | **No.** A node set is **bit-identical** built plain or active with nothing recorded. L2 as a layer is deleted | facts §4, dead-ends |
@@ -396,10 +398,17 @@ the Strategy instance, so if units own copies, each seeds different AD inputs an
 end captures only the **last unit's** contribution — plausible magnitude, right sign, nothing thrown.
 **This is the highest-risk untested assumption in the design.** Decide it together with item 1.
 
-**3. [#41] Test two species. Every fact in `v3-facts.md` was measured with exactly one.** The sharpest
-risk is the field's determinism, which the commitment depends on: sources are merged across species by
-height with ties broken on **index**, and nobody has checked that index is stable across a rebuild
-when species widths differ. If it is not, replay adds the same terms in a different order.
+**3. [#41] ~~Test two species.~~ DONE — and it found a constraint, not a tolerance.** The determinism
+worry was **unfounded**: two K93 species replay at `copy_abs` **exactly 0** at every segment, tie-break
+included. What it found instead: **the separable field is only valid if all species share `eta`.** One
+query-factor set serves every source (`patch.h:757-759`, "shared shape" — a comment, not a fact),
+while η is a per-strategy trait *and* a differentiation target, so mixing η **diverges**: the field
+computes **7.98e+14** where the exact kernel gives 0.118. Either the design makes "one η per
+community" a structural precondition, or the field needs one query-factor block per distinct η.
+**Decide before building anything multi-species.** Two gaps remain: both species had **equal widths**
+at every segment (differing widths untested), and an **empty species 0 is latent UB** at
+`patch.h:758` — measured reachability 0 on an ordinary run, undefended in general.
+`NOT_CRAN=true Rscript docs/reference/two-species-probe.R`
 
 **4. [#42] Test the per-unit tape, which the ~89 MB estimate omits the restore from.** TAPE_STATS came
 from a whole-run gradient, which performs no restores; a unit also records `compute_environment` +

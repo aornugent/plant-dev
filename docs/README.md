@@ -73,6 +73,8 @@ claim before its correction.
     argument (drier is much slower — run points one at a time)
   - `restore-stamp-probe` — what `r_set_state` drops (the birth stamps), and the reference magnitude
     that makes the raw drift columns readable
+  - `two-species-probe` — the shared-`eta` constraint the separable field carries, plus
+    two-species replay and the empty-first-species UB
   - `unit-cost-probe` — what one unit costs in wall clock, split copy / restore / advance
   - `spline-tangent-probe` — the spline-cannot-carry-the-tangent measurement
   - `crown-preaccum-probe` — the crown boundaries, and the XAD byte model
