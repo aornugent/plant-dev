@@ -4,17 +4,26 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-**The AD-gradient work has its own entry point and its own rules, and both are mandatory:**
+**The AD-gradient work keeps ONE document: [`docs/v3-requirements.md`](docs/v3-requirements.md).**
+Read it before designing anything. It is the constraint inventory — ~110 constraints, one section per
+component, each carrying a measurement, a code location, or a derivation — plus:
 
-1. **[`docs/HANDOFF.md`](docs/HANDOFF.md) Part 1** — the rebuild runbook. **Execute it; do not read
-   prose to rebuild status.** Every prose claim of status is a lead to reproduce, not a fact to
-   inherit.
-2. **[`docs/DOC-DISCIPLINE.md`](docs/DOC-DISCIPLINE.md) — handoff and compaction guidelines, MUST be
-   followed.** Desync is the most expensive failure in this workspace: a new session trusts a stale
-   sentence and loses half its context to it. One to-do list; every number carries its re-run
-   command; a citation is code; refutations move rather than being retracted inline. Includes the
-   **compaction protocol** for resuming mid-edit.
-3. **Before ending a session:** `./docs/check-docs.sh` must print `DOCS IN SYNC`.
+- **§1b** the user stories the surface must serve (the DX specification; concept count is measured
+  against them),
+- **§20** what is untested, per component, and **§20b** claims recovered from the old corpus that are
+  quarantined until verified,
+- **§20c** the strategy for proving §20 is not missing anything,
+- **§22** corrections, including two cases where a *correct* conclusion rested on a *wrong* stated
+  mechanism.
+
+**Its provenance rule is mandatory:** a line earns a place among the constraints only on a passing
+test, a `docs/reference/` probe, or a code location read directly — **never on another document's
+say-so**. That rule exists because a recorded blocker outlived its fix across four documents.
+
+**The probes and the former ledgers are not deleted, only unlinked from this branch.** The file's
+own banner names the branch and commit; recover them with
+`git checkout <that-branch> -- docs/reference` when you need to re-run a citation. `scripts/` is
+still here and holds the `gate0-*` harnesses.
 
 Then, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the
@@ -70,7 +79,8 @@ it and triggers a near-full `plant/src` recompile. Build optimised once
 (`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
 `load_all()` without `make` builds unoptimised and makes every slow test several
 times slower (the difference between a ~3 min suite and the ">8 min" quoted in
-`docs/ad-handover.md`).
+an earlier handover note, now recoverable from the branch named in
+`docs/v3-requirements.md`).
 
 **Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
 `Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`
@@ -322,7 +332,7 @@ Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
 ## PR workflow
 
 Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
-entry in a planning doc such as [`docs/ad-issues.md`](docs/ad-issues.md). PRs are opened
+entry in the session task list. PRs are opened
 against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
 upstream is a separate, user-driven step (see *Workflow for Agents* above).
 
@@ -330,8 +340,7 @@ upstream is a separate, user-driven step (see *Workflow for Agents* above).
   issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
   mapping is unambiguous.
 - **Stacked diffs where issues depend on each other.** When working through several
-  interdependent issues at once — the dependency chains in `docs/ad-issues.md` are the
-  common case — branch each PR on top of the one it builds on rather than off the base
+  interdependent issues at once, which is the common case — branch each PR on top of the one it builds on rather than off the base
   branch, and target that parent branch. Reviewers then see only the incremental diff and
   the PRs merge in order down to the submodule's default branch (`master`/`main`).
   Independent issues branch straight off the default branch and can merge in any order.
