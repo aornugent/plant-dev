@@ -104,7 +104,35 @@ against ~26× for a naive on-tape solve. What it cannot bound is that the node s
 `ode_rates`, so it is instantiated `cohorts × stages × nodes` times per step. **No improvement to the
 inversion touches that; only bounding the run does.** Which is what PASS 3 above is.
 
-**3. The source weight is read one stage stale, and this is the open item.** Inside `set_ode_state`,
+**3. THE AUX LAG CHECK IS DONE, AND IT FOUND SOMETHING WORSE.** Run on TF24, the segment re-record
+probe shows that **even re-running from a whole copy of the patch is not exact** — 1.84e-13,
+4.99e-11 and 1.30e-08 at segments 20 / 40 / 60, against **exactly 0.00e+00** for FF16 and K93. And
+the error sits in **`log_density`**, not the fecundity slot, so it is a different mechanism from the
+survival-at-birth one.
+
+**Cause: TF24's leaf is shared mutable state outside the replayed patch.** `Individual` holds
+`strategy_type_ptr` — a *pointer* to the Strategy — so copying a Patch copies the Individuals but
+they all keep pointing at **one** Strategy, and therefore **one `Leaf`**. That Leaf carries
+per-solve state (`opt_psi_stem_`, `opt_ci_`, `profit_`, the soil-side caches and four splines). The
+forward run leaves it wherever its *last* solve finished, so a segment re-run inherits end-of-run
+leaf state rather than the state that segment actually saw.
+
+**This is the real obstacle for TF24, and it is not the aux lag.** It has to be fixed before any
+TF24 step-local gradient is trustworthy. Two ways:
+
+| | how | cost |
+|---|---|---|
+| **copy the Strategy per unit** | the unit owns its Leaf, so shared history cannot leak in | the leaf's splines rebuild per unit — the refinement cost, per unit |
+| **audit every leaf cache** | prove each is rebuilt from patch state at the start of a solve | an audit that must stay true as the leaf changes |
+
+The first is structural and cheap to reason about; the second is a convention that decays. **Prefer
+the copy.**
+
+**The aux lag itself is real but secondary.** Settling twice changes TF24 barely (6.85e-12 ->
+6.98e-12 at segment 20, 3.45e-05 -> 2.40e-05 at 80) against FF16's dramatic worsening — so for TF24
+the lag is swamped by the leaf-state problem. Re-check it after the leaf is owned per unit.
+
+**For the record, what the lag is:** Inside `set_ode_state`,
 `compute_environment()` runs *before* `compute_rates()`, and the competition source weight comes from
 an aux slot the latter writes — so the field at RK stage *s* is built from aux written at stage
 *s−1*. **The environment is therefore not a pure function of `y`.** Settling a restored patch twice
