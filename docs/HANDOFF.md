@@ -343,7 +343,12 @@ the SIGNPOSTS section that used to follow is gone, and why is recorded below.
    `K ~ theta^16.14` has collapsed 9 orders of magnitude by then. Every measured min theta sits
    immediately above that threshold. `v3-facts.md` section 3b has the table and the kill condition
    (a flatter retention curve, a much larger `root_psi_crit`, or a sink bypassing both).
-   **So: do not smooth it.** The 0.05 / 0 rainfall points are confirmatory only.
+   **So: do not smooth it.** The sweep ran clean to rainfall 0.05 (a 20x reduction). Rainfall exactly
+   **0 throws, and not on anything soil-related** — it hits plant's own non-finite-density guard on
+   the characteristic equations (`log_density=58514`, `density=inf` at t = 1.25), because growth falls
+   steeply with size under zero rainfall. So under extreme drought the **plants** fail first while the
+   soil is still ~13x theta_r, and rainfall 0 is outside the model's valid range by its own guard.
+   Corollary for any drought study: a gradient across a rainfall gradient **cannot include 0**.
 4. **[#35] Then build:** the step unit, restoring per node the ODE state, per-species counts and
    `pr_patch_survival_at_birth` (plus two more stamps only for R0). Interface in
    [`v3-control-flow.md`](./v3-control-flow.md); it needs no new plant surface beyond splitting

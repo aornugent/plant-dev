@@ -107,6 +107,8 @@ At `lifetime = 3` (points are affordable there; the default-rainfall shape is th
 | 0.5 | 0.1310 | **13.1×** | 0 | 0 | 6 s |
 | 0.2 | 0.1276 | **12.8×** | 0 | 0 | 114 s |
 | 0.1 | 0.1296 | **13.0×** | 0 | 0 | 268 s |
+| 0.05 | 0.1307 | **13.1×** | 0 | 0 | 385 s |
+| **0** | — | — | — | — | **throws** (see below) |
 
 **min θ plateaus rather than marching toward the guard** — a 10× rainfall reduction (1 → 0.1) moves it
 only 18× → 13.0× θ_r, and from 0.5 down it is flat at **12.8–13.1×** and not even monotone.
@@ -120,7 +122,7 @@ discriminating number is where the root vulnerability curve hits `root_psi_crit`
 | θ | × θ_r | ψ_soil (MPa) | root conductivity | drainage K (m/yr) |
 |---|---|---|---|---|
 | 0.1804 (rain 1) | 18.0× | 0.519 | **0.996** | 1.4e-4 |
-| 0.1310 (rain 0.5) | 13.1× | 4.25 | 0.283 | 8.2e-7 |
+| 0.1310 (rain 0.5 **and** 0.05) | 13.1× | 4.25 | 0.283 | 8.2e-7 |
 | 0.1296 (rain 0.1) | 13.0× | 4.56 | 0.218 | 6.9e-7 |
 | 0.1276 (rain 0.2) | 12.8× | 5.05 | 0.135 | 5.4e-7 |
 | **0.1247 = `root_psi_crit`** | **12.5×** | **5.87** | **0.05** | 3.7e-7 |
@@ -134,7 +136,22 @@ sinks vanish long before the guard: uptake because `root_conductivity → 0`, an
 there. Re-run: the arithmetic is `a_psi=1.78e3, n_psi=6.57, θ_sat=0.428, K_sat=163.04`
 (`tf24_environment.h:88-92`) and `root_b=3.898245, root_c=2.680147` (`tf24_strategy.h:439-441`).
 
-**Consequence: the drying guard at `:335` cannot fire on any rainfall, and needs no smoothing.**
+**Consequence: the drying guard at `:335` does not fire anywhere the model runs, and needs no
+smoothing.** The sweep covers rainfall **1 → 0.05**, a 20× reduction, with the guard untouched and
+min θ flat at 12.8–13.1× θ_r throughout — and the endpoint is now explained rather than assumed:
+
+| fact | detail |
+|---|---|
+| **Rainfall exactly 0 throws, and NOT on anything soil-related** | `Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=58514.5, height=2.11) at time=1.25` |
+| What that is | plant's **own** guard: at zero rainfall growth falls steeply with size, so the density derivative `-d(growth)/d(height) - mortality` grows without bound and overflows. Its message advises a shorter lifetime or less extreme drivers |
+
+**This closes the question in the same direction:** under extreme drought the **plants** fail first —
+the characteristic equation overflows at t ≈ 1.25 — while the soil is still ~13× θ_r. Rainfall 0 is
+outside the model's valid operating range by its own guard, so "does not fire anywhere the model runs"
+is literally accurate rather than a hedge.
+
+**A bound worth knowing for any drought study:** an FD or a gradient taken *across* a rainfall
+gradient cannot include rainfall 0 — the forward model throws there before any derivative is at issue.
 **What would change that** (the kill condition for this conclusion): a materially flatter retention
 curve (smaller `n_psi`), a much larger `root_psi_crit`, or any new sink that drains a layer without
 going through root conductivity or `soil_K`. Re-derive the 12.5× if any of those three move.
