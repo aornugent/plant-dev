@@ -9,15 +9,23 @@ actually satisfy, and an earlier draft of this file made exactly that mistake.
 
 - **C-constraints (§2–§19)** — properties of plant, the models, the maths, or the AD substrate. True
   regardless of which design we choose. These are requirements.
-- **D-facts (§21)** — properties of the *current candidate* (the step-local sweep). Real, measured,
-  and **not requirements**. "Fresh tape per unit", "the change goes inside the unit", "what a stored
-  unit carries" all live here: they are answers, and putting them in a requirements list pre-decides
-  the design. Read §21 as "what we learned by building one candidate", not as constraints.
+- **Quarantine (§20b)** — claims recovered from the Oracle responses and the deepenings that WOULD be
+  constraints if they still hold, but whose only evidence is a document. **Not usable until verified.**
+  §20b carries each one's source, date, staleness risk and the test that would settle it.
 
-**§20 is the untested register** — per component, with what would settle each.
+**§20 is the untested register** — per component, with what would settle each. **§20c is the strategy
+for proving §20 and §20b are not missing anything**, which is a different job from extending them.
 
-Every line cites a measurement, a code location, or an algebraic derivation. Where documents
-disagreed with the code, the code won; §22 records the corrections.
+The *current candidate's* properties are deliberately **not** in this file; §21 says where they live.
+
+**PROVENANCE RULE.** A line earns a place in §2–§19 only if its evidence is one of:
+**(a)** a currently-passing test, **(b)** a probe in `docs/reference/` with a re-run command, or
+**(c)** a code location read directly. **A claim whose only evidence is another document does NOT
+qualify** — it goes to §20b (quarantine) until verified. This rule exists because a recorded "FF16 has
+an open dropped-derivative bug" survived across four documents after it had been fixed (§22.1), and
+because §20b's contents were written 2026-07-16 … 07-22, *before* the a1–a4 severance fixes, the mass
+chart, and the leaf-seam deletion landed. Where documents disagreed with the code, the code won; §22
+records the corrections.
 
 ---
 
@@ -261,23 +269,148 @@ Everything below is a constraint on *how* that can be achieved.
 
 ---
 
-## 21. D-facts — properties of the current candidate, NOT requirements
+## 20b. QUARANTINE — corpus claims that are not yet evidence
 
-Kept separate on purpose. These are what building the step-local sweep taught us. A different design
-need not honour them; it must only honour §2–§19.
+These were recovered by combing `oracle/` and `deepenings/`. **Every one would be a constraint if it
+still holds**, and several are the kind that ends a design. **None is usable yet**: their only evidence
+is a document, they were written **2026-07-16 … 07-22**, and the a1–a4 severance fixes, the geometric
+mass chart, the `leaf_output` absorption and the FD-seam deletion all landed *after*. The FF16 episode
+(§22.1) is the precedent — a recorded blocker outlived its fix by four documents.
 
-| | fact | evidence |
-|---|---|---|
-| **D1** | peak = whole ÷ units, and the reduction factor **is** the unit count | peak flat 6 560 B over 30→480 units while whole-run grows 91 636 → 1 438 036 B |
-| **D2** | a **fresh tape per unit**, not a rewound one | forced by C2.3 |
-| **D3** | the structural change must go **inside** the unit; between units, a stand-dependent newborn loses its adjoint — **19%**, silent, right sign | and C5.6 shows plant's newborns *are* stand-dependent, so this is live |
-| **D4** | a stored unit carries: ODE state, per-species counts, light spline, and the three birth stamps. **Not** the aux (C4.5) | TF24: 20.7 MB trajectory + ~3.4 kB stamps |
-| **D5** | **the chained state adjoint is exact in plant** — one tape over N units vs N tapes with λ carried: **1.4e-16 / 7.9e-15 / 3.4e-15** at 3 / 6 / 12 units, λ matching exactly, with cancelling per-unit terms (+1.55, −3.08) so a single bad unit could not hide | `chained-adjoint-probe` |
-| **D6** | on a frozen trajectory a unit is FD-exact at **1.3e-09**; per-unit tape **0.96 MB** (K93 ~40 cohorts), **4.38 MB** at production lifetime | `unit-adjoint-probe` |
-| **D7** | time cost is a **flat 4.2×**, memory saving grows with the run | the trade's shape is right |
-| **D8** | the restore is **11–15%** of a unit — not the bottleneck |  |
-| **D9** | the engine is five concepts: `Solver`, the `System` contract, a `Functional`, `implicit_value`, and one rule |  |
-| **D10** | component leanness cannot close the gap — best genuine win 5.89× moved TF24's total by **0.018%** | which is why the *unit* was the answer, not a primitive |
+**Staleness risk** is my read of how likely the claim has been overtaken: **HIGH** = the code it
+describes has since been rewritten; **MED** = adjacent code changed; **LOW** = a measurement or a
+theorem that later work would not have touched.
+
+### From `oracle-response-inner-argmax-adjoint.md` (2026-07-22) — the `p*` search
+
+| | claim | risk | what would settle it |
+|---|---|---|---|
+| **Q1** | the `p*` solve is comparison-based (golden section), so `p̂` is a **staircase**: exactly affine inside each comparison cell with a slope carrying **no information about the objective** (γ = 0.6298; within-cell −0.573 vs distributional 0.652) | HIGH — #23 later called the residual "a reference artefact"; the solver may have changed | read the current leaf solve; if still comparison-terminated, Oracle experiment 1 (fix δ, sweep τ) |
+| **Q2** | any θ entering through `P` but **not** through the bracket `(A,B)` has literal sensitivity **exactly zero** at sub-cell δ — the comparisons quantise it away | HIGH | the reductio probe: find such a θ, take a sub-cell FD |
+| **Q3** | in the **corner/fold** regime the shipped node divides by shelf curvature ≈ 0, so the gradient is **undefined in principle**, not "14% off" | HIGH | corner census: per-call branch flags + \|P_p(p̂)\| histogram |
+| **Q4** | the robust selector is **discrete and free** — read the sub-solve's branch indicator at both ends of the final bracket; same branch ⇒ interior IFT, different ⇒ fold IFT `−F_σ/F_p` | MED — prescriptive, may be partly implemented | grep the leaf for a branch-flag read |
+| **Q5** | freezing `p*` inside `c` and `g` drops an **O(1)** term **even at a perfect interior optimum** — the envelope theorem zeroes `(∂P/∂p)p*′` and says nothing about `(∂c/∂p)p*′` | LOW — a theorem | confirm no code freezes `p*` in a consumer |
+| **Q6** | taping **through** the search reproduces the surrogate slope and is uniquely meaningless — forbidden | LOW | grep that no path tapes the search |
+| **Q7** | the FD family obeys `\|AD − FD_δ\| ≤ C(δ² + τ/δ)`, floor **O(τ^{2/3})** at `δ* ~ τ^{1/3}` | LOW | it is the basis of the δ-window rule already in C18.2 |
+| **Q8** | a **clean sub-cell plateau that is τ-invariant while the envelope moves** is the signature of an inner-solve artefact, not of the gradient | LOW | already partly encoded in C18.1 |
+| **Q9** | **transition continuity is unknown**: if `p*` slides into the wall it is a kink and piecewise-IFT selection suffices; if the global argmax **swaps at a value tie** it jumps and needs switching-time sensitivity with an **adjoint jump term** | MED | instrument `p̂` across regime flips: O(τ) vs O(1) |
+| **Q10** | the resolvent `‖(I−T′)⁻¹‖ ≈ 5–22`, so a per-unit error propagates **~10×** and stops | MED | re-measure if the fixed-point layer is built |
+| **Q11** | after any polish the **next** binding accuracy limit is that the unit schedule resolves `x(t)`, **not** the quadrature `∫c·ρ` — a **~23% inter-scheme spread** | MED — bears directly on census accuracy | compare census under two quadrature schemes on one trajectory |
+| **Q12** | value ties are a **forward-noise hotspot** — comparisons decide by O(τ²) objective differences, so the search dithers | MED | tie census |
+
+### From `oracle-response-transport-compression.md` (2026-07-19) — transport, and four general theorems
+
+| | claim | risk | what would settle it |
+|---|---|---|---|
+| **Q13** | **engine rule: a rate defined as a numerical derivative must be computed from ACTIVE quantities. Any private numeric probe of an active field severs the tape** | LOW — general, and the diagnosis was confirmed | grep the model surface for `±eps` probes and central differences of active fields |
+| **Q14** | **JVP == VJP proves nothing** — both read the same recorded graph | LOW | it invalidates a check we currently make; see C18 |
+| **Q15** | **closeness of values does not imply closeness of gradients**: a **0.2%** value gap gave a **sign-flipped** gradient (−451.9 vs +139.9) in a nonlinearly self-coupled system | LOW | **this weakens `scm_jacobian`'s R5 value-reproduction check as evidence of gradient correctness** |
+| **Q16** | the hybrid is a **theorem**: `value(A) + [B − passive(B)]` is the derivative of trajectory B on the value of trajectory A — correct **iff** A ≡ B | LOW | the general prohibition on detached derivatives |
+| **Q17** | log-mass is **monotone nonincreasing pointwise and unconditionally**: `dλ/dt = −r ≤ 0`, so the value can never overflow | MED — the chart landed, so this should now be checkable | λ-monotonicity audit: log `ℓ + log Δx` per point per step |
+| **Q18** | **insertion re-indexing can cause a silent mass jump** (a new point changes neighbours' `Δx` with no compensating `ℓ` change); one-sided end formulas are the other suspect | MED | the same audit, keyed to step + index |
+| **Q19** | a newborn needs a **mass** `m₀ = influx density × initial cell width` — "the only genuinely new modelling content" | MED — the chart landed | read the current birth IC |
+| **Q20** | a reduction weighted by `exp(ℓ)` **alone** (no `Δx`) is pointwise-density-weighted; **if the continuum object is `∫(…)·n dx`, a `Δx` was dropped** | MED — bears on every census metric | audit the census reductions' weights |
+| **Q21** | the kernel is low-rank separable with **`κ(z,z) = 0`**, so the diagonal boundary term vanishes by the double zero and `S′` is closed form | LOW | algebra; consistent with C6.1 |
+| **Q22** | `∂C/∂θ` is genuine **everywhere**, including the query-motion and coupling components — there is no legitimate "don't differentiate it" | LOW | — |
+| **Q23** | **value-keyed caches on field reads** are a suspected second severance class ("replayed-not-recomputed knot values") | MED | grep for caches keyed on values |
+| **Q24** | the **frozen-schedule** approximation band is **0.5–1%**, distinct from the kink | MED — and it appears to sit **in tension with C3.6** (frozen-resolved FD == adaptive FD) | reconcile: C3.6 is the *resolved* schedule, Q24 may describe a merely-frozen one |
+
+### From `deepenings/` (2026-07-16 … 07-19) — the leaf, the soil, the transported state
+
+| | claim | risk | what would settle it |
+|---|---|---|---|
+| **Q25** | **the leaf shut-down boundary is a TRUE DISCONTINUITY, not a kink** — profit jumps **≈1.46** and does not shrink as the θ step refines to 1e-7. So **no Leibniz/breakpoint term applies and the derivative is undefined at the boundary**; treating it as a continuous breakpoint would be a silent gradient bug *in the opposite direction from the one first feared*. Four early-exits select it; **which one produces the cliff was never isolated** (`E_column < 0` the prime suspect) | MED — **its script `scripts/gate0-b-leaf-earlyexit.R` is GONE** (checked), so the measurement cannot be re-run as recorded | **rebuild the sweep** (refine θ to 1e-7 across the transition, 5 layers, height 5 m), then isolate which of the four exits produces the cliff |
+| **Q26** | N1 (stomatal `ci`) has a **sign-definite** denominator `dg/dci > 0` strictly | LOW | the node's registered assertion |
+| **Q27** | N3 (`q*`) has `dG/dq < 0` at the maximiser, and the node **refuses** rather than returning a spurious optimum on a flat/non-concave landscape | LOW | same |
+| **Q28** | N2 (`ψ_stem`) is **not** an inner solve, but `E_up′` returns **NaN** at a soil-layer-crossing boundary and the code **falls back to a central difference** | HIGH — the FD seam was deleted in P2c | grep for the fallback |
+| **Q29** | base TF24 has **no collar-ψ channel** (envelope, `seam_collar_psi_input() == nullptr`); TF24f **does** — `q` becomes a tracked state, **+1 pinned state and a new eigenvalue** | MED | read `tf24f_strategy` |
+| **Q30** | per-layer uptake `E_i` is an **antiderivative difference** of an incomplete gamma, so Leibniz gives both endpoint partials exactly (`dG/d(endpoint) = f_r(endpoint)`); two of its three branches are measure-zero | LOW | consistent with C12.6 |
+| **Q31** | **density is the only transported state**; `offspring_produced_survival_weighted` is an output accumulator integrated **along** a characteristic, never redistributed across size; the boundary flux `F = g·n = birth_rate·pr_estab` is **never carried as a state** | MED — the mass chart changed the transported variable | read `node.h` |
+| **Q32** | a **general** η routes through `std::pow` while η ∈ {1,2,4,8,10,12} use exact multiply chains — **bit-identity is conditional on both paths agreeing** | MED | compare `a_p`/`a_p′` on a general η |
+| **Q33** | `FlatTopSoftBox`'s interpolator fallback must be a **per-`ShadingModel` decision at strategy setup**, not a runtime branch on the hot path | MED | read `canopy_shape.h:190` |
+| **Q34** | the birth density IC `log(birth·estab/g)` is a genuine **kink at density → 0** — measure-zero, zero downstream weight, recorded as a `decide()` | LOW | `node.h:227` |
+
+**Three of these would change a design decision if confirmed**, and they are the reason this section
+exists rather than being folded in: **Q15** (a value-reproduction check is not evidence of gradient
+correctness — and `scm_jacobian` currently relies on one), **Q25** (a true discontinuity in the fitness
+landscape, where no breakpoint term is admissible), and **Q11/Q20** (the census quadrature may be the
+next accuracy limit, and a `Δx` may be missing from a reduction).
+
+## 20c. Strategy for proving §20 and §20b are not missing anything
+
+Extending a list is not the same as bounding it. Four of these five mechanisms are **closed
+enumerations** — they can be *completed*, so their output is a table with holes rather than a judgement.
+
+**S1 — Provenance audit of §2–§19 (mechanical, cheap).** Every C-line must cite a passing test, a
+`docs/reference/` probe, or a code location. Any line whose evidence is only a document moves to §20b.
+This is enforceable by `check-docs.sh` and it bounds *this file's* own reliability, which nothing
+currently does. Do this first: it may demote lines I have already written.
+
+**S2 — Differentiation-target × functional coverage matrix (closed).** Enumerate every entry of each
+model's `*_AD_FIELDS` macro (K93 declares 11) crossed with every functional (3 census + R0). Mark each
+cell FD-verified / value-only / never exercised. **The holes are the answer**, and the enumeration is
+complete by construction because the macro list *is* the set of differentiation targets (C17.6
+guarantees `field_ptrs` and `field_names` cannot disagree). This is the single strongest check available
+and it does not exist today.
+
+**S3 — Branch and boundary census on a production run (closed per-branch).** Instrument one TF24 and
+one FF16 production run to count how often each discrete construct is taken: the four leaf early-exits,
+the four soil clamps, `E_i`'s three branches, the `dx == 0` coincident-cohort case, the density guard,
+the shut-down closed form, `smooth_positive`'s corner radius. **Any branch with nonzero incidence and no
+recorded derivative treatment is a missing constraint.** This generalises the Oracle's corner census and
+directly tests Q3, Q9, Q12, Q25.
+
+**S4 — Severance-pattern sweep of the model surface (closed per-pattern).** Grep for the known
+signatures, each of which has produced a real bug: `to_passive` on a live channel; private numeric
+probes (`±eps`, central differences) of an active field (Q13); value-keyed caches (Q23); ternaries and
+`std::max/min` on active predicates; NaN fallbacks (Q28); deduced return types on AD-valued functions
+(C2.2). Task #11 did this once; the code has moved since, and the pattern list is now longer.
+
+**S5 — Continuous invariant audits (catch classes, not instances).** λ-monotonicity (Q17), mass
+conservation across insertions (Q18), active-value == double reproduction, node-set bit-identity
+(C8.1), and the field's order-invariance. These run cheaply and fail loudly on whole classes of error
+rather than on the instance you thought to test.
+
+**S6 — The adversarial question, per component.** For each of §2–§19: *what does this component do that
+no probe has ever caused it to do?* Known answers already: `FlatTopBox`/`FlatTopSoftBox` (C6.5),
+`is_variable_birth_rate = true` (which is what makes seed rain stand-dependent and may change C5.6),
+two species with different η (C6.4), FF16 beyond life 40 (C10.7), rainfall below 0.05 (U13), a general
+non-specialised η (Q32). Each is a configuration nothing has run.
+
+**S7 — Reconcile against the enumerations that already exist.** The deepenings maintain a **nested-solve
+inventory** and a **manifest of non-smooth constructs classified Kind A/B/C**; task #11 produced an **AD
+touch-point audit**. Any entry in those lists with no corresponding C-line is a hole in this file. These
+are prior attempts at exactly this completeness problem and they should be diffed against §2–§19 rather
+than re-derived — which is the failure mode this whole document exists to prevent.
+
+**Order.** S1 (bounds this file) → S7 (cheap, uses existing enumerations) → S2 (the strongest new
+check) → S4 (cheap, mechanical) → S3 (needs instrumentation) → S5 → S6. S2 and S3 together are what
+would let anyone say "§20 is complete" with a straight face.
+
+## 21. The current candidate lives elsewhere — on purpose
+
+The step-local sweep's own properties are **not** in this file. They are requirements-shaped only if you
+have already chosen it, and an earlier draft of this document listed ten of them here, which is how
+"fresh tape per unit" came to look like a constraint on the problem rather than a property of one answer.
+
+They live in their real homes, all verified present before this section was emptied:
+
+| the candidate's property | where it lives |
+|---|---|
+| peak = whole ÷ units; peak flat at 6 560 B | `v3-facts.md` §2 |
+| a fresh tape per unit, not a rewound one | `v3-facts.md` §2; `v3-control-flow.md` |
+| the structural change goes inside the unit (19%) | `v3-facts.md` §2; `v3-engine-design.md` |
+| what a stored unit carries | `v3-facts.md` §4b; `v3-engine-design.md` |
+| the chained state adjoint in plant | `v3-facts.md` §4e |
+| a unit on a frozen trajectory; per-unit tape | `v3-facts.md` §4d |
+| a flat 4.2× in time | `v3-facts.md` §2 |
+| the restore is 11–15% of a unit | `v3-facts.md` §3c |
+| the engine is five concepts | `v3-engine-design.md` |
+| component leanness tops out (0.018%) | `v3-facts.md` §1 |
+
+**The design itself is [`v3-engine-design.md`](./v3-engine-design.md) and
+[`v3-control-flow.md`](./v3-control-flow.md).** Read this file to judge a design; read those to know
+what the current one is.
 
 ## 22. Corrections made in compiling this
 

@@ -12,7 +12,7 @@ Four documents rebuild context. Read them in this order and nothing else is need
 | 2 | [`v3-facts.md`](./v3-facts.md) | **every measured number, with the command that reproduces it.** Read before designing anything |
 | 3 | [`v3-dead-ends.md`](./v3-dead-ends.md) | refuted claims and retired approaches. Read before proposing a mechanism |
 | 4 | [`v3-engine-design.md`](./v3-engine-design.md) | the current design: commitment, what it deletes, what it makes hard, kill condition |
-| 5 | [`v3-requirements.md`](./v3-requirements.md) | **the constraint inventory: ~110 individual constraints, PER COMPONENT (AD substrate, solver/schedule, patch restore, introductions, light field, spline, structure, K93, FF16, TF24 leaf, TF24 soil, density transport, census, multi-species, disturbance, Strategy ownership, verification, DX). §20 is what is still untested per component; §21 keeps the CURRENT CANDIDATE's properties separate, because they are answers and not requirements** |
+| 5 | [`v3-requirements.md`](./v3-requirements.md) | **the constraint inventory: ~110 individual constraints, PER COMPONENT (AD substrate, solver/schedule, patch restore, introductions, light field, spline, structure, K93, FF16, TF24 leaf, TF24 soil, density transport, census, multi-species, disturbance, Strategy ownership, verification, DX). §20 = untested per component; **§20b = QUARANTINE**, 34 claims recovered from `oracle/` and `deepenings/` that are not yet evidence; **§20c = the strategy for proving §20/§20b are complete**; §21 says where the current candidate's properties live, since they are answers and not requirements** |
 
 Then, only if the task touches them:
 

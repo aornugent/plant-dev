@@ -95,7 +95,7 @@ check exists.
 | 2 | **`docs/v3-facts.md`** | every measured number, with the command that reproduces it |
 | 3 | **`docs/v3-dead-ends.md`** | refuted claims — read before proposing any mechanism |
 | 4 | **`docs/v3-engine-design.md`** | the current design: commitment, deletions, kill condition |
-| 5 | **`docs/v3-requirements.md`** | **the constraint inventory — ~110 constraints per component, each with evidence. §20 = untested, per component. §21 = the current candidate's properties, kept OUT of the constraints on purpose.** Read before reopening the design |
+| 5 | **`docs/v3-requirements.md`** | **the constraint inventory — ~110 constraints per component, each with evidence. §20 = untested per component; **§20b = 34 QUARANTINED corpus claims** (document-only evidence, three of which would change a design decision); **§20c = how to prove §20/§20b are complete**; §21 = where the candidate's own properties live.** Read before reopening the design |
 
 **Do NOT start from a narrative document.** Session 22 re-derived
 `deepenings/deepening-6-light-coupling.md`'s conclusions by doing so. `docs/README.md` lists which
