@@ -282,8 +282,8 @@ Everything below is a constraint on *how* that can be achieved.
 | | component | what is not established | what would settle it |
 |---|---|---|---|
 | **U1** | TF24 end to end | **TF24 gradients have never been FD-verified.** Its test asserts only `is.finite` and value reproduction; FD verification is explicitly `OPEN — staircase reference needed` (#27) | C18.2's anchor |
-| **U2** | TF24 memory | **the ~89 MB per-unit tape is an extrapolation** — marginals stop at width 606, production is 987, and no TF24 *unit* tape has ever been measured. The whole memory case rests on it | TAPE_STATS on one restored TF24 unit; blocked by C11.7 |
-| **U3** | TF24 leaf | the `Leaf` fix is unchosen, and the choice **changes C17.4/C17.5** | #37 |
+| **U2** | TF24 memory | **UNBLOCKED by QC** (no longer waiting on #37). **The ~89 MB per-unit tape is an extrapolation** — marginals stop at width 606, production is 987, and no TF24 *unit* tape has ever been measured. The whole memory case rests on it | TAPE_STATS on one restored TF24 unit; blocked by C11.7 |
+| ~~**U3**~~ | TF24 leaf | **CLOSED** — no fix is needed; the restore path already gives a leaf consistent with the unit | done, §20b QC |
 | **U4** | multi-species | **no gradient has ever been taken with two species.** Replay is verified in double only, and only with **equal widths** at every segment | two species introduced on different schedules |
 | **U5** | multi-species | C6.4 (shared η) has no **structural** enforcement — nothing stops a user configuring two ηs and getting 1e+14 | a precondition check, or per-η field blocks |
 | **U6** | R0 | `set_birth_state` is called by no test, has **no public API** (C4.8), and the drift lands precisely in the slot R0 reads | #44 + #45 |
@@ -358,9 +358,21 @@ theorem that later work would not have touched.
 | **Q33** | `FlatTopSoftBox`'s interpolator fallback must be a **per-`ShadingModel` decision at strategy setup**, not a runtime branch on the hot path | MED | read `canopy_shape.h:190` |
 | **Q34** | the birth density IC `log(birth·estab/g)` is a genuine **kink at density → 0** — measure-zero, zero downstream weight, recorded as a `decide()` | LOW | `node.h:227` |
 
-### QC — THE CRITICAL ONE: the `Leaf` blocker may not exist on the path the design uses
+### QC — RESOLVED BY MEASUREMENT: the `Leaf` blocker does not exist on the design's path
 
-**Status: a code-level deduction awaiting one measurement. Do not act on it, and do not dismiss it.**
+**Status: CONFIRMED, and the mechanism I predicted was wrong.** Kept here in full because the reasoning
+is the record; the numbers are in `v3-facts.md` §4f and the refutations in `v3-dead-ends.md`.
+
+**Result.** Via `r_set_state`, deferred and inline replays are **identical** (1.11e-13 / 7.64e-12 /
+8.69e-11 at segments 20/40/60) while the copy path still splits — positive control intact, nothing to
+detect. **But `reset()` does not wipe the leaf to `NA`**: measured, `ci_` goes 26.479476 →
+**27.27942 / 27.19419 / 27.11116**, i.e. *segment-specific*. The leaf is reconstructed **and re-solved
+against the restored state**, making it a function of the unit rather than of history. Cost: `prepare_strategy`
+is **260.9 µs = 8.6%** of TF24's restore (K93 0.5 µs, FF16 2.0 µs), so ~1.25% of a unit.
+**Consequences: C17.4's accumulation hazard and C17.5's re-seating hazard are moot, U2/U3 unblock, and
+"skip `prepare_strategy` to speed the restore" is now a known foot-gun.**
+
+The original deduction follows, unedited.
 
 Four facts, each read directly this session and recorded as C5b.1–C5b.4:
 

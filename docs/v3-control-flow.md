@@ -131,6 +131,13 @@ TF24 step-local gradient is trustworthy. Two ways:
 The first is structural and cheap to reason about; the second is a convention that decays. **Prefer
 the copy.**
 
+> **SUPERSEDED — neither is needed** (`v3-facts.md` §4f). The drift above is a property of the
+> whole-`Patch` **copy** path. The design's unit calls `r_set_state`, which begins with `reset()`, which
+> re-prepares the Strategy and reconstructs the `Leaf`; `compute_rates` then re-solves it **against the
+> restored state**. Measured: deferred and inline replays through `r_set_state` are **identical**, while
+> the copy path still splits. Cost of the guarantee: **8.6% of the restore**. Do not skip
+> `prepare_strategy` to save it.
+
 **The aux lag itself is real but secondary.** Settling twice changes TF24 barely (6.85e-12 ->
 6.98e-12 at segment 20, 3.45e-05 -> 2.40e-05 at 80) against FF16's dramatic worsening — so for TF24
 the lag is swamped by the leaf-state problem. Re-check it after the leaf is owned per unit.

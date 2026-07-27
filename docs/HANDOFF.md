@@ -176,7 +176,8 @@ rediscovering things.
 | Must adaptive node positions be recorded (the "L2 layer")? | **No.** A node set is **bit-identical** built plain or active with nothing recorded. L2 as a layer is deleted | facts §4, dead-ends |
 | Is the event segment the right unit? | **For K93 (1.23) and FF16 (1.87) yes; for TF24 no — 18.43 steps/segment.** Build the step unit | facts §4 |
 | Can one tape be rewound between units instead of rebuilt? | **No** — `resetTo` keeps the gradient exact but does not release; peak grows 48 kB → 742 kB and the time advantage reverses | facts §2, dead-ends |
-| Why is a TF24 segment replay inexact when FF16/K93 are exact? | **Stale shared `Leaf` state**, confirmed: inline replay is **exactly 0**, deferred is 1.8e-13 → 1.3e-8, FF16/K93 zero both ways | facts §4 |
+| Why is a TF24 segment replay inexact when FF16/K93 are exact? | **Stale shared `Leaf` state — but ONLY on the whole-`Patch` COPY path.** Inline 0 vs deferred 1.8e-13 → 1.3e-8 there | facts §4 |
+| Does that blocker affect the path the design uses? | **NO — settled.** Via `r_set_state` deferred and inline are **identical** (1.11e-13 / 7.64e-12 / 8.69e-11), while the copy path still splits, so the probe's power is intact. `reset()` reconstructs the leaf and `compute_rates` **re-solves it against the restored state** — `ci_` goes 26.48 → 27.279/27.194/27.111, *segment-specific*. Costs **8.6% of the restore** (~1.25% of a unit) | facts §4f |
 | Is the per-unit restore too expensive? | **No** — 11–15% of a unit. The rate evaluation dominates, as in the forward pass | facts §3c |
 | What does a stored unit need beyond `ode_state`? | cohort counts, the light spline, **and all three birth stamps** — `r_set_state` drops them and there is **no public API** to restore them | facts §4b, §5 |
 | Is the design's restore path exact, like the copy path? | **No, and it does not need to be.** ~**2e-5** relative on live state; the scary 5.47 / 45% are on a cohort at `log_density` = −328 (density 1e-143). The FD gate needs a tolerance, not an equality | facts §4b, dead-ends |
@@ -380,13 +381,17 @@ components per node, so production is **141 cohorts**, and a production sweep is
 ~5.5 min per gradient**, not the ~40 min first recorded (`v3-facts.md` §3c). The memory arithmetic is
 unaffected: it was always per *state*.
 
-**1. [#37] Choose and land the `Leaf` fix — BUT RUN `v3-requirements.md` §20b QC FIRST.** A code chain
-read this session suggests the blocker may not exist on the path the design uses: `r_set_state` →
-`reset()` → `prepare_strategy()` → **a fresh `Leaf`** with `setup_clean_leaf()` wiping the per-solve
-fields (`patch.h:838`, `:325`; `tf24_strategy.cpp:1112`; `leaf_model.cpp:35`). The blocker was measured
-on the **whole-`Patch` copy** path, which never calls `r_set_state`. One probe variant settles it — see
-QC for the discriminating experiment and what it would change. **Do not choose a candidate before
-running it.** The cause is **confirmed, not hypothesised**: replaying a
+**1. [#37] ~~Choose and land the `Leaf` fix.~~ CLOSED — the blocker does not exist on the design's
+path, and no candidate is needed.** Measured (`NOT_CRAN=true Rscript docs/reference/leaf-staleness-probe.R`):
+via `r_set_state` the deferred and inline replays are **identical** (1.11e-13 / 7.64e-12 / 8.69e-11 at
+segments 20/40/60), while the copy path still shows its split — so the probe can still detect staleness
+and there is none to detect. The mechanism is **not** the leaf being wiped: `reset()` reconstructs it and
+`compute_rates` **re-solves it against the restored state**, so `ci_`/`profit_` come out *segment-specific*
+(26.48 → 27.279 / 27.194 / 27.111). It is therefore a function of the unit, which is what correctness
+needed, without owning anything. **Consequences: the per-unit Strategy copy is not required, so #40's
+accumulation hazard and the Node re-seating hazard never arise, and #42/TF24-at-production unblock.**
+**Do not "optimise" the restore by skipping `prepare_strategy`** — that is what buys this, at **8.6% of
+the restore** (~1.25% of a unit, ~0.7 s over 2 598 units). The cause is **confirmed, not hypothesised**: replaying a
 segment while the leaf holds that segment's own state is **exactly 0** where the deferred replay is
 1.8e-13 → 1.3e-8, with FF16/K93 (no leaf) zero both ways —
 `Rscript docs/reference/leaf-staleness-probe.R`. What that buys is a weaker requirement than assumed:

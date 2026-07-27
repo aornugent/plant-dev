@@ -230,7 +230,7 @@ this branch's odelia links against.
 | Refining through a plain-valued predictor | **5.89×** leaner (304 320 → 51 652 B), same nodes, bit-identical value | same |
 | **A segment re-run from a whole patch copy is exact — K93, FF16** | `max_abs` **0.00e+00** at every probed segment | `Rscript docs/reference/segment-rerecord-probe.R` |
 | **…but NOT for TF24** | **1.84e-13 / 4.99e-11 / 1.30e-08** at segments 20 / 40 / 60; worst component **`fecundity`** (20, 40) and **`area_heartwood`** (60) | `Rscript docs/reference/leaf-staleness-probe.R` |
-| **CAUSE CONFIRMED — it is stale shared `Leaf` state, and nothing else** | replaying a segment **inline** (before the forward pass advances past it, so the leaf holds that segment's own state) is **exactly 0.00e+00** at segments 20 / 40 / 60, where the **deferred** replay of the identical segment against the identical reference gives 1.84e-13 / 4.99e-11 / 1.30e-08 | same |
+| **CAUSE CONFIRMED FOR THE COPY PATH — stale shared `Leaf` state** | replaying a segment **inline** (leaf holds that segment's own state) is **exactly 0.00e+00** at segments 20 / 40 / 60, where the **deferred** replay of the identical segment gives 1.84e-13 / 4.99e-11 / 1.30e-08. **This is `restore_mode = 0`. It does NOT happen on the path the design uses — see §4f** | same |
 | The controls behave as they must | FF16 and K93 — no leaf — are **exactly 0 in both columns**, all three segments | same |
 | Rebuilt from `ode_state` alone, all models drift | K93 to **1.46e-05**, FF16 to 2.21e-22; error **exclusively** in `offspring_produced_survival_weighted` | same |
 | The competition source weight is read **one stage stale** | settling twice makes FF16 *worse*: 1e-35 → 1e-14 at segment 20, 2e-22 → 1e-6 at 80. TF24 barely moves | same, `settle_twice = TRUE` |
@@ -424,6 +424,51 @@ restore → seed → **then** introduce ordering carries the newborn adjoint exa
 **What this does NOT establish:** the reference restores each unit too (it re-installs structure from
 stored plain values before overwriting the values at the active scalar), so this isolates **the tape
 split and the λ carry**, not restore fidelity — that is §4b's ~2e-5 on live state.
+
+### 4f. The `Leaf` blocker does not exist on the restore path (QC)
+
+**The blocker was measured on the whole-`Patch` copy path, which the design does not use.** Its unit is
+a copy of a mould **plus `r_set_state`**, and that call begins with `reset()`. Four cells, TF24, one
+probe: `NOT_CRAN=true Rscript docs/reference/leaf-staleness-probe.R`
+
+| mode | seg 20 | seg 40 | seg 60 | worst component | verdict |
+|---|---|---|---|---|---|
+| **0 copy** — deferred | 1.84e-13 | 4.99e-11 | 1.30e-08 | `fecundity`, `area_heartwood` | — |
+| **0 copy** — inline | **0** | **0** | **0** | `height` | **SPLIT ×3 — the positive control holds** |
+| **1 rebuilt** (`r_set_state`) — deferred | 1.11e-13 | 7.64e-12 | 8.69e-11 | `log_density` | — |
+| **1 rebuilt** — inline | 1.11e-13 | 7.64e-12 | 8.69e-11 | `log_density` | **IDENTICAL — no staleness signal** |
+| **2 rebuilt + stamps** — both | 1.11e-13 | 7.64e-12 | 8.69e-11 | `log_density` | identical; stamps change nothing here |
+
+**The control is what makes this readable.** Mode 0 still splits, so the probe can detect staleness; on
+the design's path it detects **none**, and the residual is *ordering-independent* — the restore's own
+error, not inherited history. The worst component also moves (`fecundity`/`area_heartwood` → `log_density`),
+i.e. a different mechanism, as expected. FF16 and K93 are 0 in every cell.
+
+**The mechanism is NOT "reset wipes the leaf" — that prediction was wrong.** Measured directly, the
+leaf's per-solve fields before and after `r_set_state` (same probe, `leaf_state_around_restore`):
+
+| field | before (all three segments) | after seg 20 | after seg 40 | after seg 60 |
+|---|---|---|---|---|
+| `ci_` | 26.479476 | 27.27942 | 27.19419 | **27.11116** |
+| `profit_` | 5.264746 | 13.45603 | 13.56841 | **13.68070** |
+
+`before` is **identical across segments** — the stale end-of-run state. `after` is **different for each
+segment**. So `reset()` reconstructs the `Leaf` (`prepare_strategy` → `leaf = Leaf(...)` →
+`setup_clean_leaf`) and then `r_set_state`'s `compute_environment`/`compute_rates` **re-solve it against
+the restored state**. The leaf ends up a **function of the unit** rather than of history — which is
+exactly what correctness needs, obtained without owning it.
+
+**What the guarantee costs** (`Rscript docs/reference/unit-cost-probe.R`, `prepare_us`):
+
+| model | `prepare_strategy()` | share of the restore |
+|---|---|---|
+| K93 | **0.5 µs** | 0.6% |
+| FF16 | **2.0 µs** | 0.8% |
+| **TF24** | **260.9 µs** | **8.6%** |
+
+The restore is 14.5% of a TF24 unit, so the fresh leaf costs ≈**1.25% of a unit** (~0.7 s over 2 598
+units). **Skipping `prepare_strategy` to speed up the restore would silently reintroduce the blocker** —
+that is what this number is for.
 
 ## 5. plant surface facts that cost time to find
 
