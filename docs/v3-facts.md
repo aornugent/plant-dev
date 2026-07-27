@@ -97,12 +97,36 @@ So `tf24_environment.h`'s own claim — "well below any realistic operating mois
 perturb non-drought runs" — is **confirmed for the default driver**. The margin under a dried driver
 is a separate question and is where the guard would bite.
 
-**Not yet a fact, but the one thing the first attempt established:** the 8-point rainfall sweep was
-**killed by its own 3000 s timeout** (exit 143) having produced nothing, where the single
-default-rainfall run takes about two minutes. Two lessons, both mechanical: drier drivers are
-drastically slower — consistent with the transient that gives TF24 18.43 steps/segment — so run the
-sweep **one point at a time**; and do not pipe the driver through `tail`, because the buffer means a
-timeout discards every point already computed. The sweep result is **open** (task #38).
+### The margin: how dry before the guard fires
+
+At `lifetime = 3` (points are affordable there; the default-rainfall shape is the same as at 20):
+
+| rainfall | min θ | as multiple of θ_r | layer-steps at guard | near guard | wall clock |
+|---|---|---|---|---|---|
+| 1 (default) | 0.1804 | **18×** | 0 | 0 | 8 s |
+| 0.5 | 0.1310 | **13.1×** | 0 | 0 | 6 s |
+| 0.2 | 0.1276 | **12.8×** | 0 | 0 | 114 s |
+
+**min θ plateaus rather than marching toward the guard** — halving rainfall again (0.5 → 0.2) moves it
+only 13.1× → 12.8× θ_r. That plateau is the measurement.
+
+**A proposed mechanism, NOT measured — do not cite this as established:** the drawdown may be
+self-limiting, because as ψ_soil falls the root vulnerability curve shuts uptake down, so the plants
+stop drawing the layer further. It fits three points and it would be the reassuring answer (a
+structural reason the guard is unreachable, rather than "no trajectory happens to cross it"). It is
+also exactly the shape of guess that produced **four wrong attributions** for the segment drift, so
+it needs its own discriminating test — e.g. read the uptake term as θ falls and check it collapses
+before θ_r — before anyone relies on it.
+Extreme-drought points (0.1 / 0.05 / 0) are **still open** (task #38).
+
+**Cost note, and it is why this took three attempts:** drier drivers are drastically slower — 6 s at
+rainfall 0.5 against **114 s** at 0.2, same lifetime. Run points one at a time.
+
+**Two mechanical traps that cost two runs here, both mine:** do not pipe the driver through `tail`
+(the buffer means a timeout discards every point already computed — one attempt died at its 3000 s
+timeout having emitted nothing); and `pkill -f <pattern>` **matches its own bash wrapper's command
+line**, so it killed the shell before the heredoc that was to write the next script, leaving a stale
+same-named file from an earlier session to run instead.
 
 ## 4. Replay: what reproduces and what does not
 
