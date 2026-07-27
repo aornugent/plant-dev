@@ -180,6 +180,9 @@ rediscovering things.
 | What does a stored unit need beyond `ode_state`? | cohort counts, the light spline, **and all three birth stamps** — `r_set_state` drops them and there is **no public API** to restore them | facts §4b, §5 |
 | Is the design's restore path exact, like the copy path? | **No, and it does not need to be.** ~**2e-5** relative on live state; the scary 5.47 / 45% are on a cohort at `log_density` = −328 (density 1e-143). The FD gate needs a tolerance, not an equality | facts §4b, dead-ends |
 | Does the aux lag need per-step storage? | **No — settle exactly ONCE.** Double-settling makes FF16 worse by 10 orders and does not rescue TF24. The open question in `v3-control-flow.md` is closed | facts §4b |
+| Do trait adjoints accumulate across units? | **Automatically, IF units share the Strategy** — `Strategy::ptr` is a `shared_ptr`, so a Patch *copy* shares the seeded address. A per-unit Strategy makes each a distinct input; one read = **41–51%** of the answer | facts §4d |
+| Has the sweep ever run in plant? | **Yes, now** — K93 units under AD, FD-exact **1.3e-09**, at lifetime 20 **and** at production 105.32. Per-unit tape 0.96 MB → 4.38 MB | facts §4d |
+| Does a multi-row Jacobian work through units? | **Yes** — codomain 2 off one recording, both rows FD-exact, tape **+0.38%** vs one row | facts §4d |
 | Is `Replayable` a deletion target? | **No** — it is opt-in via `if constexpr` and costs zero concepts unused. Only its *structure role* is dead | dead-ends |
 
 **Four wrong attributions for one drift, and two mislabelled probe outputs, are recorded in
@@ -393,10 +396,15 @@ subsumes item 6 (#44) since that path *is* the R0 path. Note the framing this co
 exactness facts ("K93 replays bit-exactly") belong to the **whole-`Patch` copy** column, while the
 design runs on the **rebuilt** one — do not quote one for the other.
 
-**2. [#40] Test that trait adjoints accumulate across units.** `field_ptrs()` returns pointers *into*
-the Strategy instance, so if units own copies, each seeds different AD inputs and a single read at the
-end captures only the **last unit's** contribution — plausible magnitude, right sign, nothing thrown.
-**This is the highest-risk untested assumption in the design.** Decide it together with item 1.
+**2. [#40] ~~Test that trait adjoints accumulate across units.~~ DONE — and it is now an input to
+item 1, not an independent test.** Ownership decides it: `Strategy::ptr` is a `std::shared_ptr` and
+`Species::ad_parameters()` returns `strategy->field_ptrs()`, so a Patch **copy shares** the seeded
+address (measured by pointer identity) and the design's units accumulate into one adjoint
+automatically — verified against a frozen-trajectory FD at **1.3e-09**, with sum-equals-shared at
+**0.00e+00 / 1.33e-16**. **Leaf-fix candidate 1 (per-unit Strategy) CREATES the hazard it was feared
+to have:** one unit's adjoint alone is **50.6%** (2 units) / **41.1%** (4 units) of the total, right
+sign, nothing thrown. So candidate 1 must additionally sum trait adjoints over every unit — price that
+against the reset and nested-struct candidates. `NOT_CRAN=true Rscript docs/reference/unit-adjoint-probe.R`
 
 **3. [#41] ~~Test two species.~~ DONE — and it found a constraint, not a tolerance.** The determinism
 worry was **unfounded**: two K93 species replay at `copy_abs` **exactly 0** at every segment, tie-break
@@ -410,17 +418,19 @@ at every segment (differing widths untested), and an **empty species 0 is latent
 `patch.h:758` — measured reachability 0 on an ordinary run, undefended in general.
 `NOT_CRAN=true Rscript docs/reference/two-species-probe.R`
 
-**4. [#42] Test the per-unit tape, which the ~89 MB estimate omits the restore from.** TAPE_STATS came
-from a whole-run gradient, which performs no restores; a unit also records `compute_environment` +
-`compute_rates` over every cohort. Arithmetic risk only — the 2 600× is the unit *count* and is
-unaffected — but the headline should be honest.
+**4. [#42] ~~Test the per-unit tape.~~ DONE.** K93, restore included: **956 350 B / 43 864 ops** at
+~40 cohorts, and **980 044 B** at 4 units — so it is per-unit as assumed, not accumulating. At
+production lifetime 105.32 it is **4 383 368 B**, 4.6× lifetime-20, tracking cohort width. Same probe.
+**Still open: the TF24 per-unit tape**, which is the one the ~89 MB headline is about, and it is
+blocked by the `Leaf` (#37).
 
-**5. [#43] Build the FIRST plant witness: K93, segment unit.** Every exactness/peak/time number for
-the sweep is an **odelia toy**; the sweep has never run in plant. K93 replays bit-exactly, has no
-leaf (so item 1 does not block it), no soil, and 1.23 steps/segment so the segment unit suffices —
-**no surgery inside `run_next_impl`**. Do this *before* the step unit's surgery so a failure is
-unambiguous about which change caused it. Then FF16 (1.87, same unit), then TF24 (18.43 → the step
-unit).
+**5. [#43] PARTLY DONE — a K93 unit has now run under AD in plant, and it is exact.** What exists:
+units restored from stored plain values, advanced under the active scalar, trait adjoint accumulated
+across units, FD-verified at **1.3e-09** at lifetime 20 **and 1.78e-09 at production lifetime
+105.32**, plus a codomain-2 Jacobian off one recording (**+0.38%** tape). What does **not** exist: the
+sweep proper — no **state** adjoint is chained between units, so this witnesses the **trait channel on
+a frozen trajectory**, which is the half that does not need `run_next_impl` surgery. The chained sweep
+is item 7. Then FF16 (1.87, same unit), then TF24 (18.43 → the step unit).
 
 **6. [#44] Test the R0 restore path before promising R0.** `set_birth_state` "exists" but **no test
 calls it**, and the rebuilt-state drift lands exclusively in `offspring_produced_survival_weighted` —
