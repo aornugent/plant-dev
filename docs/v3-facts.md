@@ -185,13 +185,42 @@ segment each lifetime reaches; `Rscript docs/reference/unit-cost-probe.R`:
 rebuilding the environment over 987 cohorts) and it is refuted: the rate evaluation dominates, as it
 does in the forward pass.
 
-**What it implies for production, and this is an extrapolation, not a measurement:** at these widths
-the production unit counts give FF16 **0.5 s** and TF24 **54 s** per sweep in double. Scaling ~linearly
-from 97 to 987 cohorts (≈10×) puts a TF24 production sweep near **9 minutes in double**, and at the
-measured 4.2× AD factor near **40 minutes per gradient**. Not fatal, and worth knowing before anyone
-promises R2 in seconds. **Caveats:** double not active; the probed segment is the most step-dense one
-in the run, so `advance/step` may be pessimistic; and linearity in width is assumed, supported only by
-per-state-step *tape* being flat in width (§1) rather than by a timing measurement.
+**What it implies for production.** **CORRECTED** — the first version of this row scaled 97 → 987
+"cohorts" and reported ~9 minutes in double and ~40 minutes per gradient. That was wrong by ≈7×:
+**987 is node *states*, not cohorts.** TF24 carries **7 ODE components per node** ((688−9)/97 = 7.0
+measured by this probe), so 987 node states is **141 cohorts** — which is exactly the 141 introductions
+in §1. The extrapolation from 97 cohorts is therefore **1.45×, not 10×**:
+
+| | per sweep, double | at the measured 4.2× AD factor |
+|---|---|---|
+| FF16 | ~0.5 s | ~2 s |
+| **TF24** | **~78 s** | **~5.5 min per gradient** |
+
+**Independently corroborated by the develop benchmark below:** a whole TF24 forward run is 50 s over
+2 599 steps (19.4 ms/step averaged across growing width, against this probe's 17.7 ms/step at 97
+cohorts — so per-step cost is roughly flat, as the tape is). A sweep re-runs each unit once
+(recompute factor 1) plus restores at 11–15%, so ≈58 s in double and ≈4 min per gradient by that
+route. Two independent estimates landing at 4–6 minutes.
+
+**Caveats that remain:** double not active; the probed segment is the most step-dense in the run, so
+`advance/step` may be pessimistic.
+
+### The develop baseline — is the branch slower than the forward model it started from?
+
+Owner's ask, session 22: *"run a TF24 benchmark on develop before continuing. I think the default run
+used to be < 60%"* — read as wall-clock seconds.
+
+| | wall clock | ODE steps | per step |
+|---|---|---|---|
+| `develop` (plant 141dc8df + odelia master) | **49.57 s** | 2 621 | 18.91 ms |
+| this branch | **50.31 s** | 2 599 | 19.36 ms |
+
+**No regression: +1.5% wall clock, +2.4% per step**, and **both under 60 s**, so the recollection holds.
+The AD work has not slowed the forward model, which means the memory and time projections above rest
+on a sound baseline. Re-run: `./docs/reference/tf24-develop-benchmark.sh` (~15 min — two package installs) — and note **develop's plant has
+`LinkingTo: odelia`**, so the benchmark installs odelia@master *and* plant@develop into a **separate
+library** via git worktrees. Installing either into the default library would clobber the plant that
+this branch's odelia links against.
 
 ## 4. Replay: what reproduces and what does not
 

@@ -357,15 +357,15 @@ the field-over-leaf composition is witnessed exact, the soil clamps are closed, 
 blocker's cause is confirmed. What remains before building is clearing assumptions that would produce
 a *wrong number* rather than an error, and one benchmark the owner asked for.
 
-**0. [#39] GATE — benchmark the default TF24 run on `develop` versus this branch.** Owner's ask:
-*"I think the default run used to be < 60%"* — read as wall-clock seconds, and **confirm that reading
-before drawing conclusions**. Why first: session 22 measured ~17.7 ms per ODE step at 97 cohorts and
-~20.7 ms per one-step unit (`v3-facts.md` §3c), which extrapolates to ~9 minutes in double for a
-production sweep. **If this branch slowed the forward model, every memory and time projection rests on
-an inflated baseline** and the next job is a regression hunt, not engine work.
-**Install hazard:** do NOT `R CMD INSTALL` develop's plant into the default library — it clobbers the
-plant that odelia links against. Use `git -C plant worktree add` plus `R CMD INSTALL -l <tmplib>`;
-the task has the commands.
+**0. [#39] ~~GATE — benchmark the default TF24 run on `develop`.~~ DONE — no regression, gate
+clears.** `develop` **49.57 s / 2 621 steps** against this branch **50.31 s / 2 599 steps**: +1.5%
+wall clock, +2.4% per step, **both under 60 s** so the owner's recollection holds. The AD work has not
+slowed the forward model, so the memory and time projections rest on a sound baseline. Re-run:
+`./docs/reference/tf24-develop-benchmark.sh`.
+**It also corrected a timing extrapolation:** 987 is node *states*, not cohorts — TF24 carries 7 ODE
+components per node, so production is **141 cohorts**, and a production sweep is **~78 s in double /
+~5.5 min per gradient**, not the ~40 min first recorded (`v3-facts.md` §3c). The memory arithmetic is
+unaffected: it was always per *state*.
 
 **1. [#37] Choose and land the `Leaf` fix.** The cause is **confirmed, not hypothesised**: replaying a
 segment while the leaf holds that segment's own state is **exactly 0** where the deferred replay is
