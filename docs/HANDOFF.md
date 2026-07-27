@@ -100,6 +100,10 @@ check exists.
 `deepenings/deepening-6-light-coupling.md`'s conclusions by doing so. `docs/README.md` lists which
 documents are narratives and says where new writing goes.
 
+**Then read "ALREADY SETTLED — DO NOT REDISCOVER THESE" below, before forming any plan.** It is a
+table of questions answered by measurement, each having cost at least one session. It exists because
+the dominant cost of this project has been rediscovery, not construction.
+
 **`odelia/AUTODIFF.md` is the API authority** — read it when you touch the engine's surface, and note
 that L2 is **not** a recording (an adaptive structure is rebuilt from plain values; see `v3-facts.md`
 §4). Older prose describing "Replay L1/L2/L3" as three recorded layers is stale.
@@ -150,6 +154,34 @@ unmerged branch, and diffing the wrong base hides the whole engine:
 git -C odelia diff --stat $(git -C odelia merge-base HEAD master) HEAD
 git -C plant  diff --stat $(git -C plant  merge-base HEAD origin/develop) HEAD
 ```
+
+## ALREADY SETTLED — DO NOT REDISCOVER THESE
+
+**Read this list before you form a plan.** Each line is a question that has been *answered by
+measurement*, at the cost of at least one session. If you find yourself about to investigate one,
+stop and read the citation instead. The cost of this project is not building things; it is
+rediscovering things.
+
+| settled question | the answer | where |
+|---|---|---|
+| Can component leanness reach production lifetime? | **No.** Ceiling ~3× (FF16) / ~5× (TF24) against ~2 600× needed. A genuine 5.89× interpolator win moved TF24's total by **0.018%** | dead-ends |
+| Is memory a leak, or a bad boundary, or the leaf? | **None of those.** Tape is flat per cohort-step, so cost = per-state-step × states × steps. Only bounding the *run* helps | facts §1 |
+| Can a spline carry `d(light)/dz`? | **No** — 227% mean error at production tolerance even fitted to optical depth. Hence the field | facts §3 |
+| Is a separable field valid for TF24 too? | **Yes** — all three strategies share one rank-3 kernel; TF24's expands to exactly `CanopyShape`'s pair | facts §3 |
+| Does a field over an `implicit_value` source weight differentiate correctly? | **Yes, exactly** — 5/5 channels FD-exact, assembly pinned to an analytic identity at 2.2e-16, severance control both ways | facts §3b |
+| Are the soil clamps a gradient hazard? | **No.** Three of four are kinks; the one severance is unreachable — both water sinks shut off at 12.5× θ_r. **Do not smooth them** | facts §3b, dead-ends |
+| Must adaptive node positions be recorded (the "L2 layer")? | **No.** A node set is **bit-identical** built plain or active with nothing recorded. L2 as a layer is deleted | facts §4, dead-ends |
+| Is the event segment the right unit? | **For K93 (1.23) and FF16 (1.87) yes; for TF24 no — 18.43 steps/segment.** Build the step unit | facts §4 |
+| Can one tape be rewound between units instead of rebuilt? | **No** — `resetTo` keeps the gradient exact but does not release; peak grows 48 kB → 742 kB and the time advantage reverses | facts §2, dead-ends |
+| Why is a TF24 segment replay inexact when FF16/K93 are exact? | **Stale shared `Leaf` state**, confirmed: inline replay is **exactly 0**, deferred is 1.8e-13 → 1.3e-8, FF16/K93 zero both ways | facts §4 |
+| Is the per-unit restore too expensive? | **No** — 11–15% of a unit. The rate evaluation dominates, as in the forward pass | facts §3c |
+| What does a stored unit need beyond `ode_state`? | cohort counts **and `pr_patch_survival_at_birth`** (it divides the fecundity rate); two more stamps only for R0 | facts §5, engine-design |
+| Is `Replayable` a deletion target? | **No** — it is opt-in via `if constexpr` and costs zero concepts unused. Only its *structure role* is dead | dead-ends |
+
+**Four wrong attributions for one drift, and two mislabelled probe outputs, are recorded in
+`v3-dead-ends.md`.** The transferable lesson: when two regimes are measured and stable, **diff the
+objects** rather than proposing mechanisms — and a probe returning one diagnostic beside two
+comparisons must name which comparison it describes.
 
 ## RULES THAT MUST NOT BE RELEARNED (each one cost a session, somewhere)
 - **Treat docs as potentially stale; verify before building on a status claim.** (See the
@@ -293,82 +325,95 @@ new document only for a new decision.**
 
 ### The state in six lines
 
+- **Discovery is finished. Nothing in `OPEN` is design work** — it is tests, one benchmark gate, and
+  one design choice with three priced candidates.
 - **The engine is five concepts** (Solver, System contract, Functional, `implicit_value`, and one
   rule: build structure on plain values, evaluate values at the active scalar). 697 lines and four
   primitives were deleted; odelia is 19 headers, green at 535 passes.
-- **Memory is settled as a diagnosis:** cost is per-cohort-step × steps × cohorts, so only bounding
-  the run helps. The step-local sweep is proven exact with peak flat in run length, at a flat 4.2×
-  time. Proposed TF24 footprint **~110 MB** against a **~231 GB** whole-run tape.
-- **The unit is the ODE step, not the event segment** — TF24 measures 18.43 steps/segment against
-  FF16's 1.87, which fires the design's own kill condition.
-- **`Replayable`'s structure role is dead**; the concept itself is opt-in and costs nothing unused.
-- **The field is justified for all three strategies** — one shared rank-3 kernel, and the spline
-  cannot carry `d(light)/dz` (227% mean error at production tolerance). **And the composition that
-  had no witness now has one:** a field assembled over `implicit_value` source weights, coupled
-  through one shared soil scalar, is FD-exact on every channel and matches an analytic identity at
-  2.2e-16 — with a severance control proving the coupled channels come from the IFT partials alone.
-- **ONE thing blocks a trustworthy TF24 gradient:** the `Leaf` is shared mutable state outside the
-  replayed patch (`Individual` holds a Strategy *pointer*), so a TF24 segment re-run is not exact.
-  The soil clamps are **closed**: three of the four are kinks, and the one real severance is
-  **structurally unreachable** — both water sinks shut off at 12.5× θ_r (roots at `root_psi_crit`,
-  drainage as `K ∝ θ^16.14`), and every measured min θ over a 10× rainfall sweep sits just above it.
+- **The commitment:** the sweep is taken one **ODE step** at a time over a stored plain-valued
+  trajectory. Peak = whole ÷ units, so the reduction factor *is* the unit count: TF24 **~110 MB**
+  against **~231 GB**, at a flat 4.2× in time. TF24 needs the step unit (18.43 steps/segment); K93
+  (1.23) and FF16 (1.87) can ship on the cheaper segment unit.
+- **The light story is closed and covers all three strategies:** one shared rank-3 kernel, the spline
+  cannot carry the tangent (227%), and a field assembled over `implicit_value` source weights is
+  FD-exact with the assembly pinned to an analytic identity at 2.2e-16.
+- **Soil needs no concept** (it is ODE state) and **the soil clamps are closed** — the one real
+  severance is unreachable, both water sinks shutting off at 12.5× θ_r. Do not smooth them.
+- **One blocker, cause confirmed:** the `Leaf` is shared through a Strategy pointer, so a deferred
+  replay inherits stale solve state. Correctness needs the leaf *consistent with the unit*, not
+  *owned by* it — which is why the fix is now a real choice rather than a foregone copy.
+- **Nothing has run in plant yet.** Every sweep number is an odelia toy, and every fact was measured
+  with **one species**. That is what `OPEN` items 2–5 are for.
 
 ### OPEN, in priority order
 
 **This list is authoritative.** The task list mirrors it and carries the same IDs; where they
 disagree, this list is right and the task wants updating. Nothing else in this file is a to-do list —
-the SIGNPOSTS section that used to follow is gone, and why is recorded below.
+the SIGNPOSTS section that used to follow is gone, and why is recorded below. Tasks marked
+`BACKLOG:` are deliberately NOT here; ignore them until this list is empty.
 
-1. **[#37] Own the `Leaf` per unit.** `Individual` holds a *pointer* to the Strategy, so a Patch copy shares
-   one `Leaf` carrying per-solve state and four splines; a TF24 segment re-run inherits end-of-run
-   leaf state (1.8e-13 → 1.3e-8). **CONFIRMED by a discriminating test:** replaying a segment while the
-   leaf still holds that segment's own state is **exactly 0** at all three probed segments, where the
-   deferred replay is not — `Rscript docs/reference/leaf-staleness-probe.R`. Copy the Strategy per unit rather than auditing
-   every cache — an audit is a convention that decays. **Then re-check the aux lag**, which is
-   currently swamped by this.
-2. ~~**Raise confidence on the leaf/soil coupling and its composition with the field.**~~
-   **ANSWERED, and it is exact.** `test-ad-field-over-implicit.R` (52 assertions) assembles a
-   `separable_field` over `implicit_value` source weights, with ONE shared soil-like scalar every
-   source reads: all 5 channels FD-exact at 6.9e-11 - 3.3e-9, the `amp` channel matches an analytic
-   identity at **2.2e-16** (so the field assembly is pinned independently of any FD), it holds over
-   2 -> 40 sources and down to theta = 0.05, and severing the solve collapses **exactly** the coupled
-   channels while leaving the others bit-identical. `v3-facts.md` section 3b. **Nothing further owed.**
-3. ~~**Check the soil clamps.**~~ **ANSWERED — the dangerous one cannot fire, and needs no
-   smoothing.** Of four non-smooth constructs only the drying guard
-   (`tf24_environment.h:335`, `theta <= theta_r && rate < 0 -> rate = 0`) was a real hazard, and not
-   for smoothness: it zeroes `d(rate)/d(theta)` **and** `d(rate)/d(resource_depletion)`, cutting the
-   plant->soil uptake channel (the a1-a4 severance class). The other three are kinks where a zero
-   derivative is what the model means.
-   **It is structurally unreachable.** Sweeping rainfall 1 -> 0.1 moves min theta only 18x -> 13.0x
-   theta_r, flat at 12.8-13.1x from 0.5 down. The cause is arithmetic, not luck: roots stop
-   extracting at `root_psi_crit`, which is theta = **12.5x theta_r**, and drainage
-   `K ~ theta^16.14` has collapsed 9 orders of magnitude by then. Every measured min theta sits
-   immediately above that threshold. `v3-facts.md` section 3b has the table and the kill condition
-   (a flatter retention curve, a much larger `root_psi_crit`, or a sink bypassing both).
-   **So: do not smooth it.** The sweep ran clean to rainfall 0.05 (a 20x reduction). Rainfall exactly
-   **0 throws, and not on anything soil-related** — it hits plant's own non-finite-density guard on
-   the characteristic equations (`log_density=58514`, `density=inf` at t = 1.25), because growth falls
-   steeply with size under zero rainfall. So under extreme drought the **plants** fail first while the
-   soil is still ~13x theta_r, and rainfall 0 is outside the model's valid range by its own guard.
-   Corollary for any drought study: a gradient across a rainfall gradient **cannot include 0**.
-4. **[#35] Then build:** the step unit, restoring per node the ODE state, per-species counts and
-   `pr_patch_survival_at_birth` (plus two more stamps only for R0). Interface in
-   [`v3-control-flow.md`](./v3-control-flow.md); it needs no new plant surface beyond splitting
-   `advance_fixed(e.times)` inside `run_next_impl`.
-5. **Not on the critical path, and each has a detail worth not losing:**
-   - **#32** — the tf24f collar 2.9e-4 residual at ψ=2.5 is **δ-independent from 1e-7 to 1e-3**, so it
-     is a real missing term. Do *not* loosen the tolerance.
-   - **#27** — the closing FD gate, the explicit `skip()` at `test-ad-tf24-scm-gradient.R:85`. Read
-     `oracle/oracle-response-inner-argmax-adjoint.md` **before** designing the FD: tight-τ
-     frozen-schedule reference, never a loose-τ swept plateau. Unblocked by item 4, not by leanness.
-   - **#33, #34** — pure deletion, described in the tasks.
-   - **Two stale blessings to re-bless, not debug.** `test-canopy-methods` `16.88946` (:179) and the
-     soft-box/crown-centre difference (:116) were blessed 2026-06-25; the shading model changed
-     2026-07-18/19/20. `test-mutant`'s 8 seed-rain expectations are pre-existing drift, measured
-     identical against a fully rebuilt baseline (e.g. 0.09177 vs an expected 0.09125). **The full
-     plant suite OOMs the box**, so gate on the focused set: `test-mutant`, `test-control`,
-     `test-ad-k93-scm-gradient`, `test-scm-gradient-entry`, `test-scm-support`, `test-initial-state`,
-     `test-ode-euler`.
+**Everything below is a TEST or a GATE. None of it is design work.** Session 22 finished discovery:
+the field-over-leaf composition is witnessed exact, the soil clamps are closed, and the `Leaf`
+blocker's cause is confirmed. What remains before building is clearing assumptions that would produce
+a *wrong number* rather than an error, and one benchmark the owner asked for.
+
+**0. [#39] GATE — benchmark the default TF24 run on `develop` versus this branch.** Owner's ask:
+*"I think the default run used to be < 60%"* — read as wall-clock seconds, and **confirm that reading
+before drawing conclusions**. Why first: session 22 measured ~17.7 ms per ODE step at 97 cohorts and
+~20.7 ms per one-step unit (`v3-facts.md` §3c), which extrapolates to ~9 minutes in double for a
+production sweep. **If this branch slowed the forward model, every memory and time projection rests on
+an inflated baseline** and the next job is a regression hunt, not engine work.
+**Install hazard:** do NOT `R CMD INSTALL` develop's plant into the default library — it clobbers the
+plant that odelia links against. Use `git -C plant worktree add` plus `R CMD INSTALL -l <tmplib>`;
+the task has the commands.
+
+**1. [#37] Choose and land the `Leaf` fix.** The cause is **confirmed, not hypothesised**: replaying a
+segment while the leaf holds that segment's own state is **exactly 0** where the deferred replay is
+1.8e-13 → 1.3e-8, with FF16/K93 (no leaf) zero both ways —
+`Rscript docs/reference/leaf-staleness-probe.R`. What that buys is a weaker requirement than assumed:
+correctness needs the leaf to hold state **consistent with the unit**, not the unit to **own** the
+leaf. So three candidates, and the copy is no longer the obvious winner — **run `system-design`**:
+per-unit Strategy copy (pays 4 spline rebuilds × 2 598 units, and forces item 2); per-unit reset
+(blocked on there being no boundary to reset); or give `Leaf` a nested transient struct (makes the
+reset one assignment and the boundary visible).
+**Note the inline ordering is a diagnostic, not a fix** — a backward pass is inherently deferred.
+
+**2. [#40] Test that trait adjoints accumulate across units.** `field_ptrs()` returns pointers *into*
+the Strategy instance, so if units own copies, each seeds different AD inputs and a single read at the
+end captures only the **last unit's** contribution — plausible magnitude, right sign, nothing thrown.
+**This is the highest-risk untested assumption in the design.** Decide it together with item 1.
+
+**3. [#41] Test two species. Every fact in `v3-facts.md` was measured with exactly one.** The sharpest
+risk is the field's determinism, which the commitment depends on: sources are merged across species by
+height with ties broken on **index**, and nobody has checked that index is stable across a rebuild
+when species widths differ. If it is not, replay adds the same terms in a different order.
+
+**4. [#42] Test the per-unit tape, which the ~89 MB estimate omits the restore from.** TAPE_STATS came
+from a whole-run gradient, which performs no restores; a unit also records `compute_environment` +
+`compute_rates` over every cohort. Arithmetic risk only — the 2 600× is the unit *count* and is
+unaffected — but the headline should be honest.
+
+**5. [#43] Build the FIRST plant witness: K93, segment unit.** Every exactness/peak/time number for
+the sweep is an **odelia toy**; the sweep has never run in plant. K93 replays bit-exactly, has no
+leaf (so item 1 does not block it), no soil, and 1.23 steps/segment so the segment unit suffices —
+**no surgery inside `run_next_impl`**. Do this *before* the step unit's surgery so a failure is
+unambiguous about which change caused it. Then FF16 (1.87, same unit), then TF24 (18.43 → the step
+unit).
+
+**6. [#44] Test the R0 restore path before promising R0.** `set_birth_state` "exists" but **no test
+calls it**, and the rebuilt-state drift lands exclusively in `offspring_produced_survival_weighted` —
+the slot R0 reads. Census gradients do not need those stamps and are unaffected.
+
+**7. [#35] Then the step unit**, per [`v3-control-flow.md`](./v3-control-flow.md): split
+`advance_fixed(e.times)` inside `run_next_impl`. Blocked by #39 and #43. **[#27]** the closing FD gate
+is blocked on this.
+
+**Two standing hazards, documented and undefended:** structure must stay a deterministic function of
+plain values (a new environment sorting on an active key would break it — there is no structural
+defence, only this sentence), and `Patch::r_at` does not compile (`patch.h:179`, latent until
+something instantiates it). Also `FlatTopBox`/`FlatTopSoftBox` are the two non-separable shading
+models and therefore have **no correct tangent route**; defaults are `DeepCrown` → separable, and both
+are explicitly pedagogical, so this only bites if someone gradients those configs.
 
 ## Before reading the corpus: [`v3-evidence-triage.md`](./v3-evidence-triage.md)
 24 design docs, deepenings and Oracle consults exist and they are **not clean signal** —

@@ -8,7 +8,7 @@ Four documents rebuild context. Read them in this order and nothing else is need
 
 | # | read | what it is for |
 |---|---|---|
-| 1 | [`HANDOFF.md`](./HANDOFF.md) **Part 1 only** | the rules that must not be relearned: build tax, test invocation, the deduced-return-type hazard, git discipline |
+| 1 | [`HANDOFF.md`](./HANDOFF.md) **Part 1 only** | the **rebuild runbook** (execute it), **"ALREADY SETTLED — DO NOT REDISCOVER THESE"**, and the rules that must not be relearned: build tax, test invocation, the deduced-return-type hazard, git discipline |
 | 2 | [`v3-facts.md`](./v3-facts.md) | **every measured number, with the command that reproduces it.** Read before designing anything |
 | 3 | [`v3-dead-ends.md`](./v3-dead-ends.md) | refuted claims and retired approaches. Read before proposing a mechanism |
 | 4 | [`v3-engine-design.md`](./v3-engine-design.md) | the current design: commitment, what it deletes, what it makes hard, kill condition |
@@ -64,7 +64,16 @@ claim before its correction.
 - `docs/*.md` — live. Anything superseded moves to `archive/`.
 - `docs/archive/` — superseded, kept because a dead end unrecorded is a dead end re-walked.
 - `docs/reference/` — **runnable probes.** These are the citations in `v3-facts.md`; each has a `.cpp`
-  and a `.R` that runs it. They are the reason a fact can be re-verified instead of trusted.
+  and a `.R` that runs it. They are the reason a fact can be re-verified instead of trusted:
+  - `segment-rerecord-probe` — does a unit replay reproduce the forward pass? (`rebuilt_worst`
+    describes `rebuilt_abs`, **not** `from_copy_abs` — see the driver header)
+  - `leaf-staleness-probe` — **the discriminating test for the `Leaf` blocker**: inline vs deferred
+    replay, with FF16/K93 as no-leaf controls
+  - `soil-clamp-probe` — where a trajectory sits relative to the soil clamps; takes a `rainfall`
+    argument (drier is much slower — run points one at a time)
+  - `unit-cost-probe` — what one unit costs in wall clock, split copy / restore / advance
+  - `spline-tangent-probe` — the spline-cannot-carry-the-tangent measurement
+  - `crown-preaccum-probe` — the crown boundaries, and the XAD byte model
 - `docs/oracle/` — consultations (questions we asked, including the confused ones) and responses
   (answers, carrying the Decisive Experiments). The asymmetry matters.
 - `docs/deepenings/` — long-form studies that predate the v3 design.
