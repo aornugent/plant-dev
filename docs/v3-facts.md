@@ -237,6 +237,51 @@ this branch's odelia links against.
 | **L0 ⊆ L1** — every introduction time lies on the ODE grid | 141/141, 233/233, 161/161, and for TF24 141/141 | inline R over `ode_times` / `node_schedule$all_times` |
 | **Steps per introduction segment** | K93 **1.23**, FF16 **1.87**, **TF24 18.43** (2 598 steps / 141 introductions) | same |
 
+### 4b. The restore path — what `r_set_state` drops, and how bad the drift really is
+
+**The two columns of `segment-rerecord-probe` are two different storage models, and only one is the
+design's.** `from_copy_abs` stores a whole `Patch` per unit; `rebuilt_abs` stores plain values and
+restores — and the design stores plain values (`unit-cost-probe`'s unit is `Patch unit = mould;`
+then `r_set_state`). So **the exactness facts above belong to the copy path, and the design runs on
+the drifting one.** Anyone quoting "K93 replays bit-exactly" for the sweep is quoting the wrong
+column.
+
+**How bad is it? Far less than the raw columns suggest — read the reference magnitude, not the
+error.** `Rscript docs/reference/restore-stamp-probe.R` reports the forward value at the
+worst-absolute component:
+
+| model | segment | worst-abs error | reference there | what it means |
+|---|---|---|---|---|
+| TF24 | 90 | **5.47** (`log_density`) | **−328** | density e^−328 ≈ **1e-143** — a numerically extinct cohort |
+| TF24 | 80 | 3.45e-05 (`log_density`) | 1.71 | **a live cohort: ~2e-5 relative. This is the honest worst case** |
+| TF24 | 10–70 | ≤1.46e-07 | 3.20 | ~5e-8 relative |
+| K93 / FF16 | ≤90 | ≤1.65e-15 | 1e-20 … 1e-11 | on vanishing quantities |
+
+So the alarming headline figures — an absolute **5.47** and a **45% relative** — live entirely on
+dead cohorts, and the relative column is inflated wherever the reference is ~1e-27. **The design's
+restore path is good to ~2e-5 relative on live state.** That is not bit-exactness, so the closing FD
+gate needs a stated tolerance rather than an equality; it is nowhere near a sinking error.
+
+**Confirmed contributor: `r_set_state` silently drops the birth stamps.** It restores the ODE state,
+the per-species node counts and the light spline, and **nothing else** (`patch.h:832-847`). Each node
+also carries three birth stamps (introduction time, patch density at birth,
+`pr_patch_survival_at_birth`); the fecundity rate divides by the last, and patch survival decays with
+patch age, so the cost grows with segment index — which is exactly the observed shape, landing exactly
+in `offspring_produced_survival_weighted`. Restoring them via `Species::set_birth_state` improves the
+relative error **~10× (FF16: 1.62e-01 → 2.01e-02 at segment 90)** and **~17× (TF24: 4.50e-01 →
+2.69e-02)**, and leaves the absolute untouched (the absolute worst is the dead cohort, which no stamp
+affects). Same probe.
+
+| fact | number | re-run |
+|---|---|---|
+| **There is NO public API to restore the birth stamps** | `Patch::at_species()` is const-only and `species` is private; `set_birth_state` exists on `Species` but is unreachable from outside. The probe `const_cast`s | `restore-stamp-probe.cpp` header |
+| **The aux lag needs NO per-step storage — settle exactly once** | double-settling makes FF16 **worse by 10 orders** (1.50e-36 → 1.61e-15 at segment 10; 1.65e-15 → 1.91e-05 at 90) and does not rescue TF24 (5.47 → 3.70e-01, still the dead cohort) | `segment-rerecord-probe`, `settle_twice = TRUE` |
+
+**Consequence for the design:** the stored unit's requirement list is now *measured*, not assumed —
+state, per-species counts, light spline, **and the three birth stamps** — and the last of those needs
+a plant API that does not exist yet. The aux question that `v3-control-flow.md` left open ("check on
+TF24 first") is **closed: one settle, no aux storage.**
+
 ## 5. plant surface facts that cost time to find
 
 | fact | where |

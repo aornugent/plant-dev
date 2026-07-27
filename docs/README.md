@@ -71,6 +71,8 @@ claim before its correction.
     replay, with FF16/K93 as no-leaf controls
   - `soil-clamp-probe` — where a trajectory sits relative to the soil clamps; takes a `rainfall`
     argument (drier is much slower — run points one at a time)
+  - `restore-stamp-probe` — what `r_set_state` drops (the birth stamps), and the reference magnitude
+    that makes the raw drift columns readable
   - `unit-cost-probe` — what one unit costs in wall clock, split copy / restore / advance
   - `spline-tangent-probe` — the spline-cannot-carry-the-tangent measurement
   - `crown-preaccum-probe` — the crown boundaries, and the XAD byte model

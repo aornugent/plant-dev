@@ -175,7 +175,9 @@ rediscovering things.
 | Can one tape be rewound between units instead of rebuilt? | **No** — `resetTo` keeps the gradient exact but does not release; peak grows 48 kB → 742 kB and the time advantage reverses | facts §2, dead-ends |
 | Why is a TF24 segment replay inexact when FF16/K93 are exact? | **Stale shared `Leaf` state**, confirmed: inline replay is **exactly 0**, deferred is 1.8e-13 → 1.3e-8, FF16/K93 zero both ways | facts §4 |
 | Is the per-unit restore too expensive? | **No** — 11–15% of a unit. The rate evaluation dominates, as in the forward pass | facts §3c |
-| What does a stored unit need beyond `ode_state`? | cohort counts **and `pr_patch_survival_at_birth`** (it divides the fecundity rate); two more stamps only for R0 | facts §5, engine-design |
+| What does a stored unit need beyond `ode_state`? | cohort counts, the light spline, **and all three birth stamps** — `r_set_state` drops them and there is **no public API** to restore them | facts §4b, §5 |
+| Is the design's restore path exact, like the copy path? | **No, and it does not need to be.** ~**2e-5** relative on live state; the scary 5.47 / 45% are on a cohort at `log_density` = −328 (density 1e-143). The FD gate needs a tolerance, not an equality | facts §4b, dead-ends |
+| Does the aux lag need per-step storage? | **No — settle exactly ONCE.** Double-settling makes FF16 worse by 10 orders and does not rescue TF24. The open question in `v3-control-flow.md` is closed | facts §4b |
 | Is `Replayable` a deletion target? | **No** — it is opt-in via `if constexpr` and costs zero concepts unused. Only its *structure role* is dead | dead-ends |
 
 **Four wrong attributions for one drift, and two mislabelled probe outputs, are recorded in
@@ -377,6 +379,17 @@ per-unit Strategy copy (pays 4 spline rebuilds × 2 598 units, and forces item 2
 (blocked on there being no boundary to reset); or give `Leaf` a nested transient struct (makes the
 reset one assignment and the boundary visible).
 **Note the inline ordering is a diagnostic, not a fix** — a backward pass is inherently deferred.
+
+**1b. [#45] Give the restore path a way to carry the birth stamps.** Measured this session and it is a
+**requirement, not a preference**: `Patch::r_set_state` (`patch.h:832-847`) restores state, per-species
+counts and the light spline and **nothing else**, so every rebuilt unit runs with default birth stamps.
+Restoring them cuts the relative drift **~10× (FF16)** and **~17× (TF24)** —
+`Rscript docs/reference/restore-stamp-probe.R`. `Species::set_birth_state` exists but `Patch` exposes
+`at_species()` **const-only** with `species` private, so **there is no public route**; the probe
+`const_cast`s, which a real fix must not. Smallest change is extending `r_set_state`, which also
+subsumes item 6 (#44) since that path *is* the R0 path. Note the framing this corrected: the
+exactness facts ("K93 replays bit-exactly") belong to the **whole-`Patch` copy** column, while the
+design runs on the **rebuilt** one — do not quote one for the other.
 
 **2. [#40] Test that trait adjoints accumulate across units.** `field_ptrs()` returns pointers *into*
 the Strategy instance, so if units own copies, each seeds different AD inputs and a single read at the

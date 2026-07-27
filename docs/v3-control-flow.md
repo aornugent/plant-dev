@@ -147,6 +147,13 @@ rather than a closed form, so whether a single settle reproduces it is the first
 before trusting any TF24 gradient from this flow. If it does not, the aux entering each unit joins
 the stored trajectory (a few kB per step).
 
+> **CLOSED — settle exactly once, and store no aux** (`v3-facts.md` §4b). Double-settling was
+> measured on all three: it makes FF16 **worse by ten orders** (1.50e-36 → 1.61e-15 at segment 10)
+> and does not rescue TF24 (5.47 → 3.70e-01, and that residual is a cohort at `log_density` = −328,
+> i.e. numerically extinct). TF24's single-settle drift on **live** state is ~2e-5 relative. So the
+> aux does **not** join the stored trajectory; what does join it is the **three birth stamps**, which
+> `r_set_state` drops and no public API can restore.
+
 ---
 
 ## Memory profile of the proposed TF24 solution
