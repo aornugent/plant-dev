@@ -107,8 +107,11 @@ inversion touches that; only bounding the run does.** Which is what PASS 3 above
 **3. THE AUX LAG CHECK IS DONE, AND IT FOUND SOMETHING WORSE.** Run on TF24, the segment re-record
 probe shows that **even re-running from a whole copy of the patch is not exact** — 1.84e-13,
 4.99e-11 and 1.30e-08 at segments 20 / 40 / 60, against **exactly 0.00e+00** for FF16 and K93. And
-the error sits in **`log_density`**, not the fecundity slot, so it is a different mechanism from the
-survival-at-birth one.
+the worst component is **`fecundity`** (segments 20, 40) and **`area_heartwood`** (60) --
+**corrected**: this document previously said `log_density`, which was the *rebuilt-from-`ode_state`*
+column misread from a mislabelled probe output, and the "different mechanism" inference drawn from it
+is withdrawn. What the mechanism is has since been settled directly, and by a better experiment: see
+the staleness result in `v3-facts.md` section 4.
 
 **Cause: TF24's leaf is shared mutable state outside the replayed patch.** `Individual` holds
 `strategy_type_ptr` — a *pointer* to the Strategy — so copying a Patch copies the Individuals but

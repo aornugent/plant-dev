@@ -173,7 +173,9 @@ same-named file from an earlier session to run instead.
 | An adaptive node set is **bit-identical** built plain or active, nothing recorded | 149 nodes, 0 mismatches, `max_abs_diff` **exactly 0** | `test-ad-adaptive-structure.R` (27 assertions) |
 | Refining through a plain-valued predictor | **5.89×** leaner (304 320 → 51 652 B), same nodes, bit-identical value | same |
 | **A segment re-run from a whole patch copy is exact — K93, FF16** | `max_abs` **0.00e+00** at every probed segment | `Rscript docs/reference/segment-rerecord-probe.R` |
-| **…but NOT for TF24** | **1.84e-13 / 4.99e-11 / 1.30e-08** at segments 20 / 40 / 60; error in **`log_density`** | same |
+| **…but NOT for TF24** | **1.84e-13 / 4.99e-11 / 1.30e-08** at segments 20 / 40 / 60; worst component **`fecundity`** (20, 40) and **`area_heartwood`** (60) | `Rscript docs/reference/leaf-staleness-probe.R` |
+| **CAUSE CONFIRMED — it is stale shared `Leaf` state, and nothing else** | replaying a segment **inline** (before the forward pass advances past it, so the leaf holds that segment's own state) is **exactly 0.00e+00** at segments 20 / 40 / 60, where the **deferred** replay of the identical segment against the identical reference gives 1.84e-13 / 4.99e-11 / 1.30e-08 | same |
+| The controls behave as they must | FF16 and K93 — no leaf — are **exactly 0 in both columns**, all three segments | same |
 | Rebuilt from `ode_state` alone, all models drift | K93 to **1.46e-05**, FF16 to 2.21e-22; error **exclusively** in `offspring_produced_survival_weighted` | same |
 | The competition source weight is read **one stage stale** | settling twice makes FF16 *worse*: 1e-35 → 1e-14 at segment 20, 2e-22 → 1e-6 at 80. TF24 barely moves | same, `settle_twice = TRUE` |
 | **L0 ⊆ L1** — every introduction time lies on the ODE grid | 141/141, 233/233, 161/161, and for TF24 141/141 | inline R over `ode_times` / `node_schedule$all_times` |

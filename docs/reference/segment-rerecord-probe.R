@@ -1,7 +1,11 @@
 # Does one event segment re-run reproduce the forward pass?
 #   rebuilt_abs   -- rebuilt from the stored ODE state alone
 #   from_copy_abs -- re-run from a whole copy of the Patch
-#   worst_comp    -- which Node component carries the error (see component_names)
+#   rebuilt_worst -- which Node component carries the REBUILT error. It describes
+#                    rebuilt_abs, NOT from_copy_abs: the probe computes it inside the
+#                    rebuilt comparison (segment-rerecord-probe.cpp:202). Printing it
+#                    beside from_copy_abs under a neutral name once produced a wrong
+#                    attribution that reached four documents -- hence the name.
 # from_copy_abs is exactly 0 for K93/FF16 and NOT for TF24: TF24's Leaf is shared
 # through a Strategy pointer, so a Patch copy inherits end-of-run leaf state.
 #   NOT_CRAN=true Rscript docs/reference/segment-rerecord-probe.R
@@ -25,5 +29,5 @@ for (m in c("K93", "FF16", "TF24")) {
   print(data.frame(segment = r$probed,
                    rebuilt_abs = signif(r$max_abs, 3),
                    from_copy_abs = signif(r$from_copy_abs, 3),
-                   worst_comp = r$component_names[r$worst_component + 1L]))
+                   rebuilt_worst = r$component_names[r$worst_component + 1L]))
 }

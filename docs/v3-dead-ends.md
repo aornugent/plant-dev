@@ -44,6 +44,23 @@ tested before the right one was found **by reading the consumer of a quantity** 
 stable, **diff the objects** rather than proposing mechanisms. Four hypotheses cost more than one
 careful read of who consumes a quantity.
 
+## One mislabelled output column, one wrong attribution, four documents
+
+**"TF24's `from_copy` error sits in `log_density`."** Asserted in `v3-control-flow.md`, `v3-facts.md`,
+`HANDOFF.md` and task #37, and used to argue that the copy-replay drift was "a different mechanism
+from the survival-at-birth one". **It is wrong.** `segment-rerecord-probe.cpp` computes
+`worst_component` inside the **rebuilt-from-`ode_state`** comparison (`:202`), but the driver printed
+it in the same row as `from_copy_abs` under the neutral name `worst_comp` — so it was read as
+describing the copy path. The copy path's worst component is **`fecundity`** (segments 20, 40) and
+**`area_heartwood`** (60), measured by `leaf-staleness-probe.R`. The "different mechanism" inference
+drawn from the misread label is withdrawn.
+
+The column is now named `rebuilt_worst`, with the reason in the driver's header so it does not recur.
+**The transferable lesson is narrower than "be careful":** a probe that returns one diagnostic
+alongside two comparisons must name which comparison it describes, because the reader has no way to
+tell from the output — and this is the second time a *labelling* defect in this same probe produced
+false evidence (the first was the malformed node-set metric, retracted above).
+
 ## Invocation artefacts that were mistaken for failures
 
 | claim | reality |

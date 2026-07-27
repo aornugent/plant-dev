@@ -321,7 +321,9 @@ the SIGNPOSTS section that used to follow is gone, and why is recorded below.
 
 1. **[#37] Own the `Leaf` per unit.** `Individual` holds a *pointer* to the Strategy, so a Patch copy shares
    one `Leaf` carrying per-solve state and four splines; a TF24 segment re-run inherits end-of-run
-   leaf state (1.8e-13 → 1.3e-8, in `log_density`). Copy the Strategy per unit rather than auditing
+   leaf state (1.8e-13 → 1.3e-8). **CONFIRMED by a discriminating test:** replaying a segment while the
+   leaf still holds that segment's own state is **exactly 0** at all three probed segments, where the
+   deferred replay is not — `Rscript docs/reference/leaf-staleness-probe.R`. Copy the Strategy per unit rather than auditing
    every cache — an audit is a convention that decays. **Then re-check the aux lag**, which is
    currently swamped by this.
 2. ~~**Raise confidence on the leaf/soil coupling and its composition with the field.**~~
