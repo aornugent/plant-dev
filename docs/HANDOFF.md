@@ -95,6 +95,7 @@ check exists.
 | 2 | **`docs/v3-facts.md`** | every measured number, with the command that reproduces it |
 | 3 | **`docs/v3-dead-ends.md`** | refuted claims — read before proposing any mechanism |
 | 4 | **`docs/v3-engine-design.md`** | the current design: commitment, deletions, kill condition |
+| 5 | **`docs/v3-requirements.md`** | **every concrete requirement with its evidence, and §6 the risk register of what is STILL UNTESTED.** Read §6 before committing to any design |
 
 **Do NOT start from a narrative document.** Session 22 re-derived
 `deepenings/deepening-6-light-coupling.md`'s conclusions by doing so. `docs/README.md` lists which
@@ -223,8 +224,11 @@ comparisons must name which comparison it describes.
 - **AD `≠` FD on the IDENTICAL resolved schedule is a real derivative bug, not a
   schedule/replay artifact.** If forward AD == reverse AD yet both `≠` a δ-independent
   FD, the *code* computes a wrong analytic derivative (a dropped `to_passive` term FD
-  sees through) — hunt it in the model code, not the replay. (This is FF16's current
-  open bug; see PART 2.)
+  sees through) — hunt it in the model code, not the replay. (**This is NO LONGER FF16's
+  bug, and that cross-reference dangled** — it pointed at a PART 2 that was rewritten. The
+  a1–a4 severance fixes closed it: measured today FF16 matches FD at **2.6e-06** (lma),
+  **6.1e-06** (a_l1), **1.3e-08** (k_l), and the test passes 6/6 with no skips. See
+  `v3-requirements.md` §7.1. **The rule itself stands** — it is how that bug was found.)
 - **A "wrong gradient" is a schedule/replay bug until proven otherwise.** Before
   hypothesizing model or field bugs: (a) confirm the replay grid is `r_ode_times()`;
   (b) compare against the adaptive `run_scm` FD; (c) isolate with a single-step probe.

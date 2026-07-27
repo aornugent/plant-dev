@@ -12,6 +12,7 @@ Four documents rebuild context. Read them in this order and nothing else is need
 | 2 | [`v3-facts.md`](./v3-facts.md) | **every measured number, with the command that reproduces it.** Read before designing anything |
 | 3 | [`v3-dead-ends.md`](./v3-dead-ends.md) | refuted claims and retired approaches. Read before proposing a mechanism |
 | 4 | [`v3-engine-design.md`](./v3-engine-design.md) | the current design: commitment, what it deletes, what it makes hard, kill condition |
+| 5 | [`v3-requirements.md`](./v3-requirements.md) | **the requirements ledger: outcomes, the storage contract, 12 structural preconditions, and §6 — what is STILL UNTESTED, ranked by whether it can invalidate the design.** Read §6 before any design decision |
 
 Then, only if the task touches them:
 
