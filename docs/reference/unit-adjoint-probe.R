@@ -47,3 +47,14 @@ for (nu in c(2, 4)) {
   cat(sprintf("tape per unit               %.0f bytes, %.0f ops\n",
               r$tape_bytes_per_unit, r$tape_ops_per_unit))
 }
+
+cat("\n== multi-row Jacobian through the per-unit path (codomain 2, one recording) ==\n")
+for (nu in c(2, 4)) {
+  j <- unit_jacobian_probe(20, 20, nu, 40, 1e-3)
+  cat(sprintf("%d units: tape %.0f bytes for BOTH rows\n", j$units, j$tape_bytes))
+  print(data.frame(row = c("sum height", "sum height^2"),
+                   value = signif(j$values, 10),
+                   adjoint = signif(j$adjoints, 10),
+                   fd = signif(j$fd, 10),
+                   rel = signif(abs(j$adjoints - j$fd) / abs(j$fd), 3)))
+}

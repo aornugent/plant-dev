@@ -49,6 +49,7 @@
 #include <odelia/ode_solver.hpp>
 #include <odelia/gradient.hpp>
 
+#include <array>
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -161,7 +162,118 @@ make_params(double birth_rate, double lifetime, double b0_scale) {
   return p;
 }
 
+// Two independent reductions of the same unit, for the multi-row Jacobian: the summed
+// height, and the summed SQUARED height. Distinct rows with distinct trait sensitivity.
+template <class S>
+std::array<S, 2> reduce_two(
+    const plant::Patch<plant::K93_Strategy_<S>, plant::K93_Environment_<S>>& done) {
+  S h = S(0.0), h2 = S(0.0);
+  for (std::size_t i = 0; i < done.size(); ++i)
+    for (auto it = done.at_species(i).node_begin(); it != done.at_species(i).node_end(); ++it) {
+      h += it->height();
+      h2 += it->height() * it->height();
+    }
+  return {h, h2};
+}
+
+template <class S>
+std::array<S, 2> run_unit2(
+    plant::Patch<plant::K93_Strategy_<S>, plant::K93_Environment_<S>> unit,
+    const Frozen& f, const plant::Control& ctrl) {
+  using Patch = plant::Patch<plant::K93_Strategy_<S>, plant::K93_Environment_<S>>;
+  unit.r_set_state(f.t_in, f.y, f.counts, f.light);
+  unit.introduce_new_nodes(f.added);
+  odelia::ode::Solver<Patch> s(unit, plant::make_ode_control(ctrl));
+  s.set_collect(false);
+  s.set_state_from_system();
+  s.advance_fixed(f.times);
+  return reduce_two<S>(s.get_system_ref());
+}
+
 }  // namespace
+
+// Both rows of a codomain-2 Jacobian off ONE recording, through the per-unit path. The
+// design claims a census 3-vector costs a scalar's tape; that was witnessed on an odelia
+// toy and on a whole-run plant gradient, never through units. `tape_bytes` is reported so
+// it can be compared against the codomain-1 figure from unit_adjoint_probe.
+// [[Rcpp::export]]
+Rcpp::List unit_jacobian_probe(double birth_rate = 20.0, double lifetime = 20.0,
+                               int n_units = 2, int first_unit = 40,
+                               double d_rel = 1e-3) {
+  using ad = xad::adj<double>;
+  using RevS = ad::active_type;
+  using PatchA = plant::Patch<plant::K93_Strategy_<RevS>, plant::K93_Environment_<RevS>>;
+  using PatchD = plant::Patch<plant::K93_Strategy, plant::K93_Strategy::environment_type>;
+
+  plant::Control ctrl;
+  const auto pd0 = make_params<double>(birth_rate, lifetime, 1.0);
+  const std::vector<Frozen> units = freeze<double>(pd0, birth_rate, lifetime, n_units, first_unit);
+  if (units.size() < 2) Rcpp::stop("need at least two usable units -- lower first_unit");
+  const std::size_t U = units.size();
+
+  std::vector<double> row_adjoint(2, 0.0), row_value(2, 0.0);
+  std::size_t tape_bytes = 0;
+  {
+    ad::tape_type tape(false);
+    tape.activate();
+    std::vector<RevS> inputs(1, plant::K93_Pars_<double>().b_0);
+    std::function<std::vector<RevS>(std::vector<RevS>&)> forward =
+        [&](std::vector<RevS>& x) -> std::vector<RevS> {
+      typename plant::K93_Strategy_<RevS>::environment_type env;
+      auto pa = make_params<RevS>(birth_rate, lifetime, 1.0);
+      PatchA mould(pa, env, ctrl);
+      *mould.ad_parameters()[B0_INDEX] = x[0];
+      RevS a = RevS(0.0), b = RevS(0.0);
+      for (std::size_t u = 0; u < U; ++u) {
+        const auto r = run_unit2<RevS>(mould, units[u], ctrl);
+        a += r[0];
+        b += r[1];
+      }
+      return {a, b};
+    };
+    const auto jac = xad::computeJacobian(inputs, forward, 2, &tape);
+    row_adjoint[0] = jac[0][0];
+    row_adjoint[1] = jac[1][0];
+    tape_bytes = tape.getMemory();
+  }
+
+  // FD both rows, same frozen functional.
+  std::vector<double> fd(2, 0.0);
+  {
+    const double b0 = plant::K93_Pars_<double>().b_0;
+    const double h = d_rel * std::fabs(b0);
+    std::array<double, 2> jp{0.0, 0.0}, jm{0.0, 0.0};
+    for (int sgn = -1; sgn <= 1; sgn += 2) {
+      plant::K93_Strategy::environment_type env;
+      auto pdp = make_params<double>(birth_rate, lifetime, (b0 + sgn * h) / b0);
+      PatchD mould(pdp, env, ctrl);
+      std::array<double, 2> acc{0.0, 0.0};
+      for (std::size_t u = 0; u < U; ++u) {
+        const auto r = run_unit2<double>(mould, units[u], ctrl);
+        acc[0] += r[0];
+        acc[1] += r[1];
+      }
+      if (sgn < 0) jm = acc; else jp = acc;
+    }
+    for (int i = 0; i < 2; ++i) fd[i] = (jp[i] - jm[i]) / (2.0 * h);
+  }
+  {
+    plant::K93_Strategy::environment_type env;
+    PatchD mould(pd0, env, ctrl);
+    for (std::size_t u = 0; u < U; ++u) {
+      const auto r = run_unit2<double>(mould, units[u], ctrl);
+      row_value[0] += r[0];
+      row_value[1] += r[1];
+    }
+  }
+
+  return Rcpp::List::create(
+      Rcpp::Named("units") = static_cast<int>(U),
+      Rcpp::Named("values") = row_value,
+      Rcpp::Named("adjoints") = row_adjoint,
+      Rcpp::Named("fd") = fd,
+      Rcpp::Named("tape_bytes") = static_cast<double>(tape_bytes));
+}
 
 // [[Rcpp::export]]
 Rcpp::List unit_adjoint_probe(double birth_rate = 20.0, double lifetime = 20.0,

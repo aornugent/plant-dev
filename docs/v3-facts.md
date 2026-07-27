@@ -371,6 +371,26 @@ barely moves with unit count** (956 kB → 980 kB from 2 to 4 units), i.e. it is
 assumes rather than accumulating. This is K93, not TF24, so it bounds the shape of the cost, not its
 production magnitude.
 
+**A multi-row Jacobian comes off ONE recording through the per-unit path too.** Claimed for a census
+3-vector, witnessed on an odelia toy and on a whole-run plant gradient, never through units. Codomain
+2 (summed height, summed height²), same driver:
+
+| rows | value | adjoint | FD | rel |
+|---|---|---|---|---|
+| sum height | 166.0587 | 0.1621657 | 0.1621657 | **3.37e-09** |
+| sum height² | 332.2347 | 0.6488920 | 0.6488920 | **1.60e-09** |
+
+Tape for **both** rows at 2 units: **1 919 916 B**, against **1 912 700 B** for the single row —
+**+0.38%**. A vector-valued census really does cost a scalar's tape here.
+
+**Production lifetime, executed for the first time.** Every peak/time figure was arithmetic from width
+606 → 987. K93 at `max_patch_lifetime = 105.32` (the TF24 production lifetime), 2 units from segment
+100: **AD vs FD 1.78e-09**, sum-equals-shared **3.1e-15**, and **tape/unit 4 383 368 B** — 4.6× the
+lifetime-20 figure, tracking cohort width as expected. So the per-unit machinery holds at production
+depth for K93. Requesting `first_unit = 200` throws "need at least two usable units", so that run has
+fewer than ~202 segments. **TF24 at production remains unexecuted — it is blocked by the `Leaf`
+(#37), not by anything measured here.**
+
 ## 5. plant surface facts that cost time to find
 
 | fact | where |
