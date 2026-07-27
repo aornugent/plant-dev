@@ -205,7 +205,21 @@ Everything below is a constraint on *how* that can be achieved.
 | **C14.2** | three census Ψ exist: LAI, biomass, basal area, as a **codomain-3** functional | stage 3, FD-verified |
 | **C14.3** | **several Jacobian rows come off one recording** — a census 3-vector costs a scalar's tape | toy; whole-run plant; and now **+0.38%** through the per-unit path |
 | **C14.4** | a functional must be a **pure reduction** — it reads state and returns scalars | the `Functional` contract |
+| **C14.5b** | **the `Functional` contract currently permits reading INTERMEDIATE history states as ACTIVE values, and `least_squares` does exactly that** — `solver.get_history_step(idx)` then `sys.ode_state(...)` into `value_type` | `odelia/inst/include/odelia/gradient.hpp:226-245`, verified live. **Any design that stores the trajectory as plain `double` breaks it silently — the value stays right and the derivative through the observations is lost.** The fix is a contract change ("declare the steps you read and contribute a per-step adjoint seed"), i.e. **a new concept**; and calibration is one of `AUTODIFF.md`'s three axes, so it is not a corner case. **Final-state functionals (census, R0) are unaffected** |
 | **C14.5** | R0/offspring is an **ODE state** (`offspring_produced_survival_weighted`), so it is still a final-state functional, not a cross-unit accumulator | `node.h` |
+
+### 14b. Further verified surface facts (read this session)
+
+| | constraint | evidence |
+|---|---|---|
+| **C14b.1** | `Internals::auxs` **is** `std::vector<S>` — the templating requirement (`height → area_leaf → rate` flows through an aux slot) **is met**, so there is no severance there | `internals.h:41,46,51` |
+| **C14b.2** | the exact-`double`-keyed soil cache hazard **is already closed structurally**: `if constexpr (!std::is_same_v<S, double>) cache_stale = true;` — on the active path the cache is never served, with the reason in a comment ("a value-only exact compare cannot see a changed derivative") | `tf24_environment.h:394-400`. **This resolves what two independent documents flagged (Oracle Q23, catalog Q37)** |
+| **C14b.3** | the genuine iterative inner solves in the whole family are **N1** (`ci` root), **N3** (collar optimum `q*`), **birth height** (one Newton step at an existing root), and — outside plant — regnans' BVP collocation and demographic-equilibrium fixed point. **Everything else is closed-form / Leibniz / reduction and carries no hand adjoint** | `design.md` §7, cross-checked against the deepening inventories |
+| **C14b.4** | `⟨Jv,u⟩ = ⟨v,Jᵀu⟩` is **self-consistency, not correctness** — forward and reverse can traverse the same lossy representation and agree while both wrong | stated independently in `v3-north-star.md` §8, the Oracle's transport response, and the catalog. **Three sources; treat as a rule** |
+| **C14b.5** | `height_max = max` over cohorts sets the **light-spline domain** — a replayed argmax over values | `v3-l2-audit.md`; the guard survey classes it Kind A |
+| **C14b.6** | the two `freeze_*` statics are **live diagnostics but mutable globals on a production class** — correctness rests on every entry point setting them | `v3-l2-audit.md`, "Also settled while reading the code" |
+| **C14b.7** | the R boundary is **one** exported entry point reading **by native pointer into the live Patch**; an `Rcpp::as<Environment>` round-trip is **lossy for crown-sampled light and O(stand) slow** | `design.md` §8 |
+| **C14b.8** | Box/SoftBox shading is the **kill condition for deleting L2**: if anyone needs a gradient through such a stand, the deferred positions path is required again | `v3-l2-audit.md` "What this makes hard" |
 
 ## 15. Multi-species
 
@@ -333,7 +347,7 @@ theorem that later work would not have touched.
 
 | | claim | risk | what would settle it |
 |---|---|---|---|
-| **Q25** | **the leaf shut-down boundary is a TRUE DISCONTINUITY, not a kink** — profit jumps **≈1.46** and does not shrink as the θ step refines to 1e-7. So **no Leibniz/breakpoint term applies and the derivative is undefined at the boundary**; treating it as a continuous breakpoint would be a silent gradient bug *in the opposite direction from the one first feared*. Four early-exits select it; **which one produces the cliff was never isolated** (`E_column < 0` the prime suspect) | MED — **its script `scripts/gate0-b-leaf-earlyexit.R` is GONE** (checked), so the measurement cannot be re-run as recorded | **rebuild the sweep** (refine θ to 1e-7 across the transition, 5 layers, height 5 m), then isolate which of the four exits produces the cliff |
+| **Q25** | **the leaf shut-down boundary is a TRUE DISCONTINUITY, not a kink** — profit jumps **≈1.46** and does not shrink as the θ step refines to 1e-7. So **no Leibniz/breakpoint term applies and the derivative is undefined at the boundary**; treating it as a continuous breakpoint would be a silent gradient bug *in the opposite direction from the one first feared*. Four early-exits select it; **which one produces the cliff was never isolated** (`E_column < 0` the prime suspect) | MED — its `.R` script is gone, **but its C++ driver `plant/tests/testthat/gate0_b_leaf_earlyexit_driver.cpp` SURVIVES** (checked), so this needs only a harness, not a rebuild | **write an R harness around the surviving driver** (refine θ to 1e-7 across the transition, 5 layers, height 5 m), then isolate which of the four exits produces the cliff |
 | **Q26** | N1 (stomatal `ci`) has a **sign-definite** denominator `dg/dci > 0` strictly | LOW | the node's registered assertion |
 | **Q27** | N3 (`q*`) has `dG/dq < 0` at the maximiser, and the node **refuses** rather than returning a spurious optimum on a flat/non-concave landscape | LOW | same |
 | **Q28** | N2 (`ψ_stem`) is **not** an inner solve, but `E_up′` returns **NaN** at a soil-layer-crossing boundary and the code **falls back to a central difference** | HIGH — the FD seam was deleted in P2c | grep for the fallback |
@@ -380,13 +394,28 @@ recorded cost of Leaf-fix candidate 1 — "pays 4 spline rebuilds × 2 598 units
 `prepare_strategy` **already** rebuilds those interpolators on every restore, so that cost is already
 inside the measured 11–15% restore, not an extra charge against one candidate.
 
+### From `v3-step-local-adjoint.md` §4, `phase0-results.md`, the guard survey, and `v3-north-star.md`
+
+| | claim | risk | what would settle it |
+|---|---|---|---|
+| **Q46** | **a future WARM START in any strategy's inner solver would make a step path-dependent and break re-recording SILENTLY, with every double test still green.** TF24's `find_root_collar_psi` was verified to run a *fresh* `golden_section_max` over bounds derived from current soil state, so re-recording is currently a pure function of (state, traits) | MED — a live foot-gun class, and "it wants a structural guard, not a comment" | re-verify no warm start exists; then decide whether a guard is expressible |
+| **Q47** | the stored trajectory must also restore TF24's derived caches `psi_soil_inverted_` / `root_vuln_integral_soil_` | **probably MOOT** — C5b.2/C5b.6 show `prepare_strategy` rebuilds the Leaf and `root_vuln_integral_soil_` is "Rebuilt in `find_root_collar_psi`" | confirm both are re-derived, not inherited |
+| **Q48** | **TF24's net-production sign branch `if(net>0){grow}else{zero}` is a HARD un-smoothed gate**, where FF16 uses `smooth_positive` — a genuine kink at the carbon compensation point | MED | read `tf24_strategy`; classify per the manifest |
+| **Q49** | K93's `smooth_positive` radii (**1e-4** growth, **1e-5** mortality) are **magic per-strategy constants**, not declared model parameters — the subgradient radius is undeclared | LOW | read `k93_strategy.h:242` |
+| **Q50** | two more Kind-A sites need recorded decisions: the **PPA layer index** `floor(τ/…)`, and the **node survival squash** `if(!is_finite(survival)) survival = 0` | MED | the manifest again |
+| **Q51** | the guard survey's **Kind A/B/C/D taxonomy** (off-derivative / on-derivative-off-tape / on-tape / *the operation IS a derivative*) with ~11 enumerated sites and a prescribed treatment each. **Kind D — "never differenced" — is the rule that the FD stencil violated** | LOW as a frame; MED per site | walk the 11 sites against current code (this is S4 + S7) |
+| **Q52** | the acceptance criterion on record is a **number**: FF16 and TF24 census + R0 at `max_patch_lifetime = 105.32`, **under 2 GB peak**, FD-verified against the tight-τ frozen-schedule reference | LOW | adopt or restate it |
+| **Q53** | a step-local sweep may have to **drop `xad::computeJacobian`** (which owns record-once/sweep-m-rows) and hand-roll m sweeps per step, carrying m λ vectors | **partly refuted already** — our codomain-2 probe got both rows off one recording through `computeJacobian` at +0.38% | re-check at m = 3 with λ chaining |
+| **Q54** | the soil step-collapse is **multirate + kink-split, NOT a coordinate artifact fixable by one chart** (E2, measured) | LOW | recorded as decided |
+| **Q55** | mass-chart forward stability **PASSED** (gate0-a): geometric path bounded, `max|log n|` **21.09** vs the FD stencil's 21.15, still bounded at lifetime 110 (143 cohorts, 29.5), forward shift **0.169%** — so the instability that forced the FD stencil does not recur | MED — **its script is GONE too** (checked), and unlike gate0-b no driver was named, so this one needs a rebuild | rebuild it; it is the cheapest check on Oracle Q17 (λ-monotonicity) |
+
 ### From `archive/ad-touchpoint-catalog.md` (the exhaustive four-part survey)
 
 | | claim | risk | what would settle it |
 |---|---|---|---|
 | **Q35** | **QAG's adaptive subdivision has `max_iterations = 1` everywhere, so it never fires** — dormant, on no differentiated graph | MED | read `qag.h:85` and the callers |
 | **Q36** | the **light spline is the ONLY adaptive field** in any system; ODE steps are L1, the introduction schedule is L0, and the leaf's interpolators, extrinsic drivers, the vulnerability grid and `CanopyShape` are all **fixed-knot** | MED — consistent with our L2 deletion, and C5b.5 confirms the leaf half | the census is a closed enumeration; re-run the greps |
-| **Q37** | **mutable caches keyed on EXACT `double` comparison** are a distinct AD hazard class: `psi_soil_cache_` invalidated by `psi_soil_cache_state_[i] != vars.state(i)` (`tf24_environment.h:304-329`), the per-time `cached_driver_` (`:295-300`), and the leaf's inverted-soil / operating-point caches. A cache keyed on `value(x)` can go stale **or poison the tape** | MED — **independently corroborated by the Oracle's Q23**, which is why it is worth checking first | read those lines; then perturb an active input and check the cache invalidates |
+| **Q37 — RESOLVED, VERIFIED CLOSED** (see C14b.2; kept for the trail) | **mutable caches keyed on EXACT `double` comparison** are a distinct AD hazard class: `psi_soil_cache_` invalidated by `psi_soil_cache_state_[i] != vars.state(i)` (`tf24_environment.h:304-329`), the per-time `cached_driver_` (`:295-300`), and the leaf's inverted-soil / operating-point caches. A cache keyed on `value(x)` can go stale **or poison the tape** | **closed** — the active path never serves the cache (`if constexpr`), and `cached_driver_` caches plain `double` drivers only | done: `tf24_environment.h:394-400` |
 | **Q38** | **a gradient is only well-defined relative to a fixed `Control`** — `fixed_time_step` switches RKCK↔Euler, `schedule_eps/nsteps` changes cohort structure, `shading_model` changes the mode, `GSS_tol_abs`/`ci_*` change the leaf solve. Several knobs silently move the trajectory and therefore the gradient | LOW — `control.h` is stable | enumerate which Control the design differentiates at, and state it |
 | **Q39** | the **FD node-gradient** (`growth_rate_gradient`) and its **`thread_local` scratch** may or may not carry the trait derivative — recorded as *unmeasured either way* | HIGH — this is what AD replaces; it may be gone | grep for it; if live, test whether it carries the derivative |
 | **Q40** | **`birth_rate` is an extrinsic driver, not a strategy field**, so how it is seeded as a differentiation target was never settled | MED — and it interacts with C5.6: `is_variable_birth_rate = true` is what makes seed rain stand-dependent | read `extrinsic_drivers.h`; try seeding it |
@@ -444,11 +473,20 @@ no probe has ever caused it to do?* Known answers already: `FlatTopBox`/`FlatTop
 two species with different η (C6.4), FF16 beyond life 40 (C10.7), rainfall below 0.05 (U13), a general
 non-specialised η (Q32). Each is a configuration nothing has run.
 
-**S7 — Reconcile against the enumerations that already exist.** The deepenings maintain a **nested-solve
-inventory** and a **manifest of non-smooth constructs classified Kind A/B/C**; task #11 produced an **AD
-touch-point audit**. Any entry in those lists with no corresponding C-line is a hole in this file. These
-are prior attempts at exactly this completeness problem and they should be diffed against §2–§19 rather
-than re-derived — which is the failure mode this whole document exists to prevent.
+**S7 — Reconcile against the enumerations that already exist. THE SWEEP HAS NOW NAMED THEM**, so this
+step is concrete rather than aspirational. Four closed lists exist and each should be walked against
+§2–§19:
+
+| enumeration | where | size |
+|---|---|---|
+| the **AD-guard survey** — every value-touch site → Kind A/B/C/D → prescribed treatment | `archive/odelia-4-value-firewall.md` | ~11 sites |
+| the **kink manifest** it specifies (`resource_spline.h:88`, K93 clamps, FF16 `step_light`, Box/SoftBox steps, soil positivity resets, leaf `abs(·)<1e-8`, every `is_finite`/`stop` guard) | `archive/ad-touchpoint-catalog.md` Cluster 7 | **specified, apparently never produced** |
+| the **adaptive-component census** — the light spline is the only L2 field | catalog VII.1 | 8 components |
+| the **nested-solve inventory** — N1, N3, birth height (+ regnans BVP, equilibrium) | `design.md` §7, deepenings 1/2/3 | 3 in plant |
+| the **five silent-wrongness modes** of a step-local sweep | `v3-step-local-adjoint.md` §4 | 5 |
+
+**The kink manifest is the one real hole**: it was specified as the deliverable that stops "a silently
+wrong subgradient shipping unnoticed", and nothing suggests it was ever produced. Producing it *is* S3.
 
 **Order.** S1 (bounds this file) → S7 (cheap, uses existing enumerations) → S2 (the strongest new
 check) → S4 (cheap, mechanical) → S3 (needs instrumentation) → S5 → S6. S2 and S3 together are what
