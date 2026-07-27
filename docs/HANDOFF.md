@@ -244,7 +244,7 @@ so the field is recomputed at the active scalar and its feedback derivative flow
 
 ---
 
-# PART 2 — CURRENT STATE + NEXT STEPS (rewritten session 20, 2026-07-26)
+# PART 2 — CURRENT STATE + NEXT STEPS (rewritten session 22, 2026-07-27)
 
 ## READ THIS FIRST: the rule that cost session 19
 **Never give a deduced return type to a function or lambda that returns an AD
@@ -303,23 +303,39 @@ new document only for a new decision.**
 
 ### OPEN, in priority order
 
-1. **Own the `Leaf` per unit.** `Individual` holds a *pointer* to the Strategy, so a Patch copy shares
+**This list is authoritative.** The task list mirrors it and carries the same IDs; where they
+disagree, this list is right and the task wants updating. Nothing else in this file is a to-do list —
+the SIGNPOSTS section that used to follow is gone, and why is recorded below.
+
+1. **[#37] Own the `Leaf` per unit.** `Individual` holds a *pointer* to the Strategy, so a Patch copy shares
    one `Leaf` carrying per-solve state and four splines; a TF24 segment re-run inherits end-of-run
    leaf state (1.8e-13 → 1.3e-8, in `log_density`). Copy the Strategy per unit rather than auditing
    every cache — an audit is a convention that decays. **Then re-check the aux lag**, which is
    currently swamped by this.
-2. **Raise confidence on the leaf/soil coupling and its composition with the field.** The field
+2. **[#38] Raise confidence on the leaf/soil coupling and its composition with the field.** The field
    assembled over `implicit_value` source weights has **no witness anywhere** — K93's and FF16's
    sources are closed forms. This is the main discovery gap.
-3. **Check the soil clamps.** The saturation-excess runoff floor is a *physical* boundary a real
+3. **[#38, second half] Check the soil clamps.** The saturation-excess runoff floor is a *physical* boundary a real
    trajectory crosses; `smooth_positive` appears 3× in `ff16_strategy.h`, **0×** in
    `tf24_environment.h`. Confirm a trajectory crosses it before smoothing anything.
-4. **Then build:** the step unit, restoring per node the ODE state, per-species counts and
+4. **[#35] Then build:** the step unit, restoring per node the ODE state, per-species counts and
    `pr_patch_survival_at_birth` (plus two more stamps only for R0). Interface in
    [`v3-control-flow.md`](./v3-control-flow.md); it needs no new plant surface beyond splitting
    `advance_fixed(e.times)` inside `run_next_impl`.
-5. **#32** (tf24f collar 2.9e-4), **#27** (the closing FD gate), and re-bless two stale numbers
-   (`test-canopy-methods` `16.88946`; `test-mutant`'s 8 seed-rain expectations).
+5. **Not on the critical path, and each has a detail worth not losing:**
+   - **#32** — the tf24f collar 2.9e-4 residual at ψ=2.5 is **δ-independent from 1e-7 to 1e-3**, so it
+     is a real missing term. Do *not* loosen the tolerance.
+   - **#27** — the closing FD gate, the explicit `skip()` at `test-ad-tf24-scm-gradient.R:85`. Read
+     `oracle/oracle-response-inner-argmax-adjoint.md` **before** designing the FD: tight-τ
+     frozen-schedule reference, never a loose-τ swept plateau. Unblocked by item 4, not by leanness.
+   - **#33, #34** — pure deletion, described in the tasks.
+   - **Two stale blessings to re-bless, not debug.** `test-canopy-methods` `16.88946` (:179) and the
+     soft-box/crown-centre difference (:116) were blessed 2026-06-25; the shading model changed
+     2026-07-18/19/20. `test-mutant`'s 8 seed-rain expectations are pre-existing drift, measured
+     identical against a fully rebuilt baseline (e.g. 0.09177 vs an expected 0.09125). **The full
+     plant suite OOMs the box**, so gate on the focused set: `test-mutant`, `test-control`,
+     `test-ad-k93-scm-gradient`, `test-scm-gradient-entry`, `test-scm-support`, `test-initial-state`,
+     `test-ode-euler`.
 
 ## Before reading the corpus: [`v3-evidence-triage.md`](./v3-evidence-triage.md)
 24 design docs, deepenings and Oracle consults exist and they are **not clean signal** —
@@ -328,152 +344,28 @@ document is the triage rule (**for every number, ask what would change it**), th
 examples from session 21 where the casual version of "verify first" passed a wrong claim, and
 a **marked reading list for the L2 question**. Read it before the archive.
 
-## The three documents that carry the current plan
-1. **[`v3-reverse-memory-design.md`](./v3-reverse-memory-design.md)** — the memory
-   profile (§1), the design search (§2–5), and the four follow-ups: preaccumulation as
-   a primitive (§6b), the frozen-L2 idea checked and set aside (§6c), and **the FF16
-   crown boundary decision (§6d)**.
-2. **[`v3-step-local-adjoint.md`](./v3-step-local-adjoint.md)** — the deferred engine
-   change, at implementation detail, with its trigger.
-3. **[`v3-phase1-plan.md`](./v3-phase1-plan.md)** — Steps 3 and 4 of the TF24 wiring.
+## Superseded: the SIGNPOSTS list, and the "three documents that carry the current plan"
 
-## Where we are
-- **TF24 reverse gradient works.** Gate-0 FD-matches on all 7 channels; soil (3),
-  light (6), tf24f collar-uptake (11) pass; the active run reproduces the double
-  trajectory; the double path is bit-identical (`test-leaf` 214, tf24 46, tf24f 57).
-- **The memory diagnosis was wrong and is now corrected.** It is a genuine kernel OOM,
-  but **FF16 OOMs the same way at its own production lifetime** — never had a seam, has
-  no leaf solve. Tape ∝ steps × cohorts for every strategy; K93 completes at
-  `life=105.32` in 0.75 GB. Per cohort-step: K93 2.15 KB → FF16 42.5 KB (**the crown
-  quadrature**) → TF24 79.7 KB (the leaf, only 1.9× more).
-- **Two levers landed.** `incomplete_gamma` injects its partials instead of recording
-  its series (TF24 4.445 → 3.236 GB at `life=1`, value and gradient unchanged);
-  `odelia::preaccumulate` is built and toy-proven (1 127 → 7 recorded ops at 21 nodes,
-  flat in node count, **gradient bit-identical** to the full tape, FD 5e-9).
-- **Crown preaccumulation was measured and retired (§6e).** The estimate said 2.7× and
-  "closes FF16"; the measurement says **1.49×** (66% of the crown tape is the light-field
-  read, which that boundary leaves behind) and FF16 stays OOM at `life=105`. The best
-  boundary measures **3.7×**. Consequence: **C's ceiling is ~3× (FF16) / ~5× (TF24)**, so
-  leanness alone reaches production lifetime for neither strategy.
-- **Known open:** the tf24f collar 2.9e-4 residual (#32), the SCM FD gate (#27), and
-  TF24 at `life=4` still OOMs — now with no leanness route that closes it.
+Both lived here until session 22 and both are **deleted, not moved** — they were the stale direction
+that made a fresh session start from the wrong place. Recorded so the deletion is not undone:
 
----
+- The **"three documents that carry the current plan"** named `v3-reverse-memory-design.md`,
+  `v3-step-local-adjoint.md` and `v3-phase1-plan.md`. Those are now *narrative* — their numbers are in
+  [`v3-facts.md`](./v3-facts.md), their wrong turns in [`v3-dead-ends.md`](./v3-dead-ends.md), and
+  §6d of the first plus §3b of the second are refuted text. [`README.md`](./README.md) is the reading
+  order; the plan is [`v3-engine-design.md`](./v3-engine-design.md) and
+  [`v3-control-flow.md`](./v3-control-flow.md).
+- **SIGNPOSTS 1–8** ordered eight next steps. Signpost 1 (crown preaccumulation) was already marked
+  retired; 2 asked the owner to choose between leanness and the step-local sweep — **answered: the
+  sweep**, since leanness tops out at ~3×/~5× against a required ~2600×; 3's two leanness levers are
+  closed with #31 for the same reason; 6 described the *event segment* unit and a `replay_structure`
+  hook, both superseded (TF24 measures 18.43 steps/segment, and `Replayable`'s structure role is
+  dead). 4, 5, 8 and 8b survive as item 5 of OPEN above, with their details.
+- Signpost 7 also carried a stale count (467 pass / 3 skip). Current: **484 pass / 5 skip**.
 
-# SIGNPOSTS — what to do next, in order
-
-### ✗ 1. RETIRED BY MEASUREMENT — FF16 crown preaccumulation (task #36)
-**Do not build this. It was measured and it does not pay.** Session 21 ran the
-precondition check this signpost asked for, and it refuted both of §6d's numbers. Read
-**`v3-reverse-memory-design.md` §6e** — the probe is committed at
-`docs/reference/crown-preaccum-probe.{cpp,R}` and re-runs in seconds.
-- **The precondition is false.** With the competition field assembled — the production
-  rate path — FF16's crown does **not** read `get_value_at_height_frozen_query`; it reads
-  `step_light(exp(-field_optical_depth(z)))`, which passes the **active** query height
-  into `shading_query_factors`. Harmless to correctness, but it is why the read is
-  expensive.
-- **The field read is 66% of the crown tape, not 29%.** So boundary A is capped at
-  **1.49×** (not 2.7×), which leaves FF16 OOM at `life=105`. Boundary D — field read
-  inside the block, the 63 cumulative source weights declared — measures **3.7×** (not
-  12×), and 67 partials for a scalar output is that shape's information floor.
-- **The bar was wrong too:** both boundaries reassociate, so `d_h` (A) and `d_eta` (D)
-  move at 1.6e-14 / 2.1e-15 while every other channel stays bit-identical.
-  **Ask for round-off across all channels, not bit-identity.**
-- **The real reason not to land it:** `preaccumulate`'s "an omitted channel is
-  unreachable" guarantee **does not hold here**. FF16's integrand is a member lambda, so
-  `pars.a_p1`, `pars.a_p2` and `canopy_shape.eta_` are reachable through `this` whether
-  declared or not. 1.49× does not buy a call site whose input list is hand-enumerated.
-
-### ⏸ 2. THE DECISION THIS OPENS (needs the owner)
-§6e's arithmetic reprices **C as a whole**: with 3.7× rather than 12× from the crown,
-C's ceiling is **~3× for FF16 and ~5× for TF24**, so **leanness alone reaches production
-lifetime for neither strategy.** The choice is therefore no longer "A now, B later" but:
-- **take the step-local adjoint (signpost 6) as the route**, whose trigger has widened to
-  include FF16 — it is now FF16's only path to `life = 105.32`; or
-- **take boundary D anyway** for its 3.7×, accepting the `ad_field_values()`-shaped
-  contract member (an R3 `system-design` decision — do not slip it in) plus the
-  hand-enumerated trait list.
-Signpost 3's two levers are unaffected and pay either way.
-
-### ▶ 3. THEN: the two remaining leanness levers — task #31
-Both pure wins (less forward work as well as fewer bytes), both self-contained:
-**(a)** make the interior p\* stationarity residual analytic instead of a central
-difference of the full assembly — **2.7× on TF24's leaf**, no new vocabulary;
-**(b)** expression fusion — `ops/stmt` is **1.40–1.63**, so named intermediate actives
-are defeating XAD's expression templates and statements + derivatives are **40% of the
-tape**. Worth ~1.3× everywhere, and it is a style rule that stops the regression
-recurring.
-
-### ▶ 4. THEN: Phase-1 correctness and deletions — tasks #32, #33, #34
-**#32** the tf24f collar 2.9e-4 residual at ψ=2.5, **δ-independent from 1e-7 to 1e-3**,
-so a real missing term — do **not** loosen the tolerance; the plan gives the
-per-channel diagnostic and three ranked hypotheses, clamping first. **#33/#34** are
-pure deletion (the proven-dead `seam_collar_*` hooks, `supplied_derivative.hpp`, 8
-stale comments, residual accretion).
-
-### ▶ 5. THE CLOSING GATE — task #27
-FD-verify the full TF24/TF24f SCM gradient; the explicit `skip()` at
-`test-ad-tf24-scm-gradient.R:85`. **Blocked until memory allows `life≥4`** — via signpost 3, or
-signpost 6; **not** signpost 1, which §6e retired. Read `oracle/oracle-response-inner-argmax-adjoint.md` **before** designing the
-FD: tight-τ frozen-schedule reference, never a loose-τ swept plateau.
-
-### ▶ 6. IN PROGRESS — task #35, the step-local adjoint
-**Step (1) of three is DONE and pushed** (session 21): the replay hook is now indexed,
-`replay_step(k)`, so a backward pass is expressible and neither System infers its
-position. **Step (2) was settled and then RETRACTED and re-settled — read §3c and §3d, not §3b.**
-§3b chose the event segment as the unit on a measured 1.10–1.34 ODE steps per segment. That
-ratio is a property of **one schedule choice, and it is known to be a poor one**: the
-multirate work found TF24's transient rainfall dynamics take very many global RK steps on
-the default schedule, and that a *less dense uniform* grid refined at cohort introductions
-does better. Under that schedule a segment holds many steps and §3b's margin evaporates.
-
-**The design that replaces it (§3c/§3d):** L0 (cohort introductions) becomes the **fourth
-recorded layer**, beside the schedule (L1), node positions (L2) and field values (L3). One
-new indexed hook, `replay_structure(k)`, joins `replay_step(k)`; a unit is "apply the
-structural change recorded at `t_k`, then integrate one ODE step". Load-bearing measured
-fact: **every introduction time already lies on the resolved ODE grid** (93/93 and 108/108
-for FF16 at life 10 and 40), so L0 marks *which L1 steps carry a change* rather than being a
-second timeline. Peak tape is one ODE step whatever `refine_schedule` does, so no scheduling
-policy is encoded — a coarse uniform grid, clustered introductions, a multirate stepper and
-multiple species all need no contract change. `unit_count()` and the segment concept are
-deleted; `run()` is still derived from the loop.
-
-**Two method corrections worth keeping.** (a) **plant is the anchor; the toys lead odelia's
-design.** §3a used `soil_leaf::Runner`'s three hardcoded segments as "the witness" fixing the
-contract — that inverts it. `soil_leaf` and `growing_resize` both mirror plant's *hand-rolled*
-interleave, so under §3d both should be **re-expressed to replay their introductions through
-the hook**, giving it two cheap witnesses before plant is touched. (b) L0 and L1 are **replay,
-not AD** — resolved by `refine_schedule`, then frozen.
-
-**Step (3), in order:** re-express the two toys onto `replay_structure(k)`; price the
-unconditional post-hook state re-sync on a System that never grows; then plant's
-`run_next_impl` interleave becomes a recording plus the shared loop; **verify the existing
-gradient is bit-identical from the loop re-expression alone, before any adjoint driver
-exists**; then the driver. Five open checks are listed at the end of §3d — `refine_schedule`
-staying the sole decider of L0, the `complete()`/resume branch, `run_mutant`'s
-`environment_history`, multi-species lists, and the re-sync price.
-
-### ✓ 7. RESOLVED, not owed: odelia is green
-Sessions 20 and 21 both mis-reported odelia's suite as broken (10, then 30 "loader errors").
-**`cd odelia && make test` → 0 fail / 467 pass / 3 skip**, AD workflow included. See the
-Part 1 rule above for the two invocation traps that produced the false counts. One real fix
-came out of it: the `here` package was genuinely missing and every example test's path
-resolution needs it — installed. It was not the cause.
-
-### ▶ 8. Also live: stale blessed numbers to re-bless (NOT a forward-model concern)
-`test-canopy-methods.R` fails 2 assertions (`16.88946` at :179, the soft-box/crown-centre
-difference at :116). **Dated, not debugged:** that number was blessed 2026-06-25; the shading
-model changed 2026-07-18/19/20 (the separable-field read, `CanopyShape` templated on S). The
-expectation predates the model by three weeks. Everything else in the focused set is green, so
-the forward model is fine — **these want re-blessing, same as `test-mutant` below.**
-
-### ▶ 8b. plant's `test-mutant` 8 failures are pre-existing drift
-Measured identical (same numeric values, e.g. 0.09177 vs an expected 0.09125) against a
-fully rebuilt baseline. Not caused by session 21. They are seed-rain expectations that
-predate this branch's model changes; nobody has re-blessed them. Note the **full plant
-suite OOMs the box**, so it cannot be used as a gate — verify against the focused set
-session 21 used (`test-mutant`, `test-control`, `test-ad-k93-scm-gradient`,
-`test-scm-gradient-entry`, `test-scm-support`, `test-initial-state`, `test-ode-euler`).
+**The rule this enforces:** there is exactly one to-do list in this file, `OPEN` above. A second
+ordered list is how direction goes stale — one gets updated and the other is what the next session
+reads first.
 
 ---
 
