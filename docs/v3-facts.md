@@ -166,6 +166,33 @@ timeout having emitted nothing); and `pkill -f <pattern>` **matches its own bash
 line**, so it killed the shell before the heredoc that was to write the next script, leaving a stale
 same-named file from an earlier session to run instead.
 
+## 3c. What one unit costs in plant — the design's absolute wall clock
+
+The design's headline is "a flat **4.2×** the whole-run reverse pass", which is a *ratio* measured on
+an odelia toy at ~22 µs/unit. Nobody had measured the absolute, and the toy's restore is
+`set_ode_state` over a handful of doubles where plant's reinstalls the light spline and re-runs
+`compute_environment` **and** `compute_rates` over every cohort. Measured in double, at the widest
+segment each lifetime reaches; `Rscript docs/reference/unit-cost-probe.R`:
+
+| | cohorts | copy | **restore** | advance / step | one-step unit | restore share |
+|---|---|---|---|---|---|---|
+| FF16 life 10 | 92 | 109 µs | 318 µs | 1 648 µs | 2 075 µs | 15.3% |
+| FF16 life 20 | 97 | 30 µs | 221 µs | 1 677 µs | 1 928 µs | 11.4% |
+| TF24 life 10 | 92 | 89 µs | 2 825 µs | 15 600 µs | 18 515 µs | 15.3% |
+| TF24 life 20 | 97 | 91 µs | 2 928 µs | 17 712 µs | 20 731 µs | 14.1% |
+
+**The restore is NOT the bottleneck — 11–15% of a unit.** That was the worry (2 598 restores each
+rebuilding the environment over 987 cohorts) and it is refuted: the rate evaluation dominates, as it
+does in the forward pass.
+
+**What it implies for production, and this is an extrapolation, not a measurement:** at these widths
+the production unit counts give FF16 **0.5 s** and TF24 **54 s** per sweep in double. Scaling ~linearly
+from 97 to 987 cohorts (≈10×) puts a TF24 production sweep near **9 minutes in double**, and at the
+measured 4.2× AD factor near **40 minutes per gradient**. Not fatal, and worth knowing before anyone
+promises R2 in seconds. **Caveats:** double not active; the probed segment is the most step-dense one
+in the run, so `advance/step` may be pessimistic; and linearity in width is assumed, supported only by
+per-state-step *tape* being flat in width (§1) rather than by a timing measurement.
+
 ## 4. Replay: what reproduces and what does not
 
 | fact | number | re-run |

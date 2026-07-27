@@ -173,7 +173,13 @@ pre-change state, *then* apply the change, so the change is inside the unit. App
 units loses the newborn's adjoint silently (19% error, right sign), which a constant-IC toy
 cannot detect.
 
-## Landing it in plant: the unit is the event segment, and that needs no new surface
+## Landing it in plant: the event segment — SUPERSEDED FOR TF24, read this first
+
+> **The kill condition at the end of this section HAS FIRED.** TF24 measures **18.43 steps/segment**
+> against FF16's 1.87, so the segment is not a viable unit there and **the unit to build is the ODE
+> step** — see [`v3-control-flow.md`](./v3-control-flow.md) and `OPEN` item 4 in
+> [`HANDOFF.md`](./HANDOFF.md). The section below is still correct for K93 (1.23) and FF16 (1.87), and
+> it is the cheapest *first witness* because it needs no solver surgery. Do not read it as the plan.
 
 `SCM::run_next()` already does exactly one unit's worth of work — consume the events at `t0`,
 `introduce_new_nodes`, then `advance_fixed(e.times)` over that event's slice of the recorded
