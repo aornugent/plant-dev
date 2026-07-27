@@ -4,6 +4,13 @@
 > then `v3-facts.md` (measured numbers with their re-run commands), then `v3-dead-ends.md` (refuted
 > claims), then `v3-engine-design.md`. It also states where new writing goes: **append to the
 > ledgers; open a new document only for a new decision.**
+>
+> **►► BEFORE YOU WRITE OR EDIT ANY DOC: [`DOC-DISCIPLINE.md`](./DOC-DISCIPLINE.md) — MUST be
+> followed.** Handoff and compaction rules. One to-do list (`OPEN`, below); every status claim
+> carries the command that reproduces it; a citation is code, so if you change the code you run the
+> citation; refutations move to `v3-dead-ends.md` and are never inlined. It also gives the
+> **compaction protocol** — on resuming, execute the runbook and prove what landed before writing
+> more prose. Enforced by `./docs/check-docs.sh`, which every session runs before it ends.
 
 This document holds two things: an **authoritative header** (Part 1 — how to rebuild
 context correctly, and the hard-won rules that must not be relearned), and the

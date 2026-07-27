@@ -1,5 +1,9 @@
 # Reading order
 
+**Writing or editing a doc? [`DOC-DISCIPLINE.md`](./DOC-DISCIPLINE.md) first — it is mandatory**, and
+it supersedes the "where new writing goes" table at the bottom of this file (which it restates in
+full). It also carries the compaction protocol. `./docs/check-docs.sh` enforces the mechanical rules.
+
 Four documents rebuild context. Read them in this order and nothing else is needed to start work.
 
 | # | read | what it is for |

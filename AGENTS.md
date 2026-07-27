@@ -3,7 +3,20 @@
 This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, and `odelia`.
 
 ## Session Start (do this first, every session)
-Before doing anything else, add the sibling package repos to the session's GitHub
+
+**The AD-gradient work has its own entry point and its own rules, and both are mandatory:**
+
+1. **[`docs/HANDOFF.md`](docs/HANDOFF.md) Part 1** — the rebuild runbook. **Execute it; do not read
+   prose to rebuild status.** Every prose claim of status is a lead to reproduce, not a fact to
+   inherit.
+2. **[`docs/DOC-DISCIPLINE.md`](docs/DOC-DISCIPLINE.md) — handoff and compaction guidelines, MUST be
+   followed.** Desync is the most expensive failure in this workspace: a new session trusts a stale
+   sentence and loses half its context to it. One to-do list; every number carries its re-run
+   command; a citation is code; refutations move rather than being retracted inline. Includes the
+   **compaction protocol** for resuming mid-edit.
+3. **Before ending a session:** `./docs/check-docs.sh` must print `DOCS IN SYNC`.
+
+Then, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the
 code, but issue/PR access is a separate grant:
 
