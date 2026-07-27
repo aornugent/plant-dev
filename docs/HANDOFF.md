@@ -268,6 +268,18 @@ The backward loop needs **no new names** — `replay_step(k)` already exists and
 its contract widens by one word (the structural change recorded for step k runs *on tape*).
 `replay_structure`, `unit_count` and `set_trajectory` are all unnecessary. See the design doc.
 
+### THE CONTROL FLOW AND THE TF24 PROFILE: [`v3-control-flow.md`](./v3-control-flow.md)
+**One measurement changes the unit.** Steps per introduction segment at production lifetime:
+K93 **1.23**, FF16 **1.87**, **TF24 18.43** (2598 ODE steps for 141 introductions -- the rainfall
+transient). So the event segment works for K93/FF16 and needs no new plant surface, but **fails for
+TF24**, which fires the kill condition already written into the design. **Build the step unit.**
+
+**Proposed TF24 footprint at `life = 105.32`: ~125-220 MB** (100-200 MB peak tape + 21 MB stored
+trajectory) against a **~269 GB** whole-run tape. Factor ~2600x, which is just the number of units.
+From measured marginals: one ODE step costs 47.9 / 58.0 / 61.6 MB at widths 543 / 560 / 574, so
+~105 kB per state-step, times 987 production states. **Cheapest useful measurement left: one more
+marginal at `life = 4`,** to pin whether per-state cost grows faster than linearly in width.
+
 ### OPEN, in priority order
 0. **Redesign `Replayable` first — [`v3-replayable-redesign.md`](./v3-replayable-redesign.md).**
    Four members become two (`save_structure(k)` / `load_structure(k)`), the per-stage cadence leaves
