@@ -1,25 +1,98 @@
 # Cohort-granular reverse-mode gradients for the SCM
 
 A proposal for obtaining exact trait gradients of SCM outputs at production
-lifetime, addressed to plant maintainers. It concerns the memory cost of
-reverse-mode automatic differentiation and how the structure of
-`Patch::compute_rates` bounds it.
+lifetime, addressed to plant maintainers.
 
 Numbers labelled **measured** were produced in this study and the command that
 produced them is given. Numbers labelled **projected** are arithmetic on measured
-quantities and are marked as such. Numbers taken from earlier work in this
-repository are attributed to it.
+quantities and are marked as such. Numbers attributed to earlier work come from the
+ledgers and probes on `archive/v3-docs-and-probes`.
 
 ---
 
-## 1. The problem
+## 1. The proposal
 
-Reverse-mode AD records every floating-point operation on a tape, then walks the
-tape backwards to accumulate derivatives. The tape must be complete before the
-reverse walk begins, so its peak size is the whole recorded computation.
+Reverse-mode AD must hold a complete tape before it can walk it backwards, so peak
+memory is the whole recorded computation. For the SCM that is the whole run: at TF24
+production settings, approximately **220 GB** (section 2). This proposal does not
+make the recording smaller. It changes what a recording *is*.
 
-For the SCM the recorded computation is the whole run. At TF24 production
-settings the run has:
+**Store the trajectory in plain `double`. On the reverse pass, record and sweep one
+cohort at a time.**
+
+The reason this is possible is a property of the model rather than of the
+implementation. Within one Runge-Kutta stage, every cohort influences every other
+one **only** through a single scalar field of height. So the per-stage computation is
+four layers, and the middle one is thin:
+
+```
+     y  =  cohort states (141 x 7)  +  environment states (9)
+     |
+ L1  |  per cohort, independent, closed form   (allometry: area_leaf, density)
+     v
+ L2  |  ONE reduction over all cohorts, then an interpolant   (the light field)
+     v
+ L3  |  per cohort, independent, EXPENSIVE     (rates; for TF24, the leaf solve)
+     v
+ L4  |  ONE reduction, then the soil           (resource_depletion -> soil rates)
+     v
+    dydt
+```
+
+The reverse pass runs those four layers backwards in a strict order with **no
+circular dependency**, and this is the one point that had to be settled before the
+design was viable. The graph looks circular — L3's sweep needs the light adjoints
+that L2 produces, and L2 needs the light adjoints that L3 produces — and it is not,
+because L1 is a *separate closed-form map* and is adjointed analytically rather than
+on a cohort's tape:
+
+```
+given lambda (the adjoint of y at the end of this step)
+
+  a   L4 adjoint          -> lambda_soil, lambda_depletion     small, closed form
+  b   for each cohort j:  fresh tape; record ONLY cohort j's rates; sweep once;
+                          read off lambda_y_j (direct), lambda_light_j,
+                          lambda_psi, lambda_traits; RELEASE the tape
+                                                     <-- PEAK IS ONE COHORT
+  c   L2 adjoint          -> lambda at the field's nodes -> lambda_(area_leaf, density, H)
+  d   L1 adjoint          -> lambda_y_j (field contribution)   closed form
+  e   lambda_y_j = direct + field
+```
+
+Step (b) holds all the expensive arithmetic and its tape is released before the next
+cohort's is created. Steps (a), (c), (d) are linear or closed-form maps whose
+adjoints cost what their forward evaluation costs.
+
+**Three properties make this worth doing:**
+
+- **Peak is flat in run length.** Measured: 1.0 kB per cohort tape from 60 to 480
+  steps, while a whole-run tape over the same range grows 20.8 MB to 169.0 MB.
+- **Peak is flat in the number of differentiation targets.** Seeding more traits adds
+  registered inputs, not recorded operations, so the tape is the same size. One
+  sweep still yields every trait's adjoint. This matters because the realistic target
+  count is tens, not a handful (section 4.2).
+- **No new vocabulary reaches a Strategy author.** `Individual::compute_rates` is
+  recorded exactly as it already stands. The decomposition lives entirely in the
+  gradient driver.
+
+**What it costs:** a stored plain trajectory (22.5 MB at production, projected), a
+recompute factor of exactly 1 (each cohort's rates are re-run once on the reverse
+pass), and the implementation work in section 9 — of which traversing the adaptive
+RK45 stage structure is the largest genuinely unbuilt piece.
+
+**What it depends on:** that a cohort's rates are a pure function of that cohort's
+boundary. Section 5 establishes this by reading develop, and finds two caches that
+must be fixed first.
+
+Sections 2 to 8 substantiate the above. Section 10 draws out what the design asks of
+someone writing a new Strategy, which is the part that determines whether this is
+usable rather than merely correct.
+
+---
+
+## 2. The problem, quantified
+
+At TF24 production settings the run has:
 
 | quantity | value | how |
 |---|---|---|
@@ -30,38 +103,31 @@ settings the run has:
 | leaf optimisations | **4 372 101** | instrumented count, this study |
 | forward wall clock | **53.1 s** | same run |
 
-Earlier work in this repository measured the reverse tape at approximately
-**86 kB per node-ODE-state per step**, flat in stand width over the range it could
-reach (widths 543–606). Multiplying out:
+Earlier work measured the reverse tape at approximately **86 kB per node-ODE-state
+per step**, flat in stand width over the range it could reach (widths 543 to 606):
 
     987 states x 2 829 steps x 86 kB  ~=  220 GB          (projected)
 
-That figure is why no TF24 gradient has been taken at production lifetime. The
-same earlier work measured TF24 gradients succeeding at `max_patch_lifetime = 1`
-(3.22 GB) and the kernel killing the process above 2.5.
+TF24 gradients were measured succeeding at `max_patch_lifetime = 1` (3.22 GB) with
+the kernel killing the process above 2.5.
 
-Two families of remedy have already been tried in this repository and measured:
+Two remedy families have been tried and measured, and both are closed:
 
-- **Recording fewer operations.** Crown preaccumulation at two boundaries (1.49x,
-  3.7x), hoisting the query-factor `pow` (1.24x), and a leaner interpolant
-  refinement (5.89x on the component, **0.018%** on TF24's total). Against a
-  required factor of order 10^2–10^3 this is not a route.
+- **Recording fewer operations.** Crown preaccumulation at two boundaries (1.49x and
+  3.7x), hoisting the query-factor `pow` (1.24x), a leaner interpolant refinement
+  (5.89x on the component, **0.018%** on TF24's total). Against a required factor of
+  order 10^2 to 10^3, component leanness is not a route.
 - **Reusing one tape, rewound between units.** `xad::Tape::resetTo` keeps the
-  gradient exact but does not release memory: peak grew 48 kB to 742 kB over
-  60 to 960 units, and the time advantage reversed from 1.48x to 8.42x.
-
-What follows is a third family: keep the tape complete, but make the *unit* that
-is recorded a single cohort within a single ODE step rather than the whole run.
+  gradient exact but does not release memory: peak grew 48 kB to 742 kB over 60 to
+  960 units, and the time advantage reversed from 1.48x to 8.42x.
 
 ---
 
-## 2. State at develop
-
-### 2.1 The forward call chain, one accepted step
+## 3. State at develop
 
 `SCM::run_next()` advances the ODE solver, which calls `Patch::set_ode_state(it,
-time)` at every Runge-Kutta stage. That function (`patch.h:679-702` on develop) is
-the whole per-stage computation and it runs in a fixed order:
+time)` at every Runge-Kutta stage. That function (`patch.h:679-702`) is the whole
+per-stage computation, in a fixed order:
 
 ```
 Patch::set_ode_state(const_iterator it, double time)
@@ -69,6 +135,7 @@ Patch::set_ode_state(const_iterator it, double time)
         Species::set_ode_state -> Node::set_ode_state -> Individual::set_ode_state
           per state slot:  vars.states[i] = *it++;
                            strategy->update_dependent_aux(i, vars)
+              TF24: competition_effect = area_leaf(height); height_inverse = 1/height
           Node also:       set_log_density(*it++)  ->  density = exp(log_density)
   2  environment.set_ode_state(it)                      // 9 environment states
   3  environment.time = time
@@ -89,264 +156,213 @@ Patch::set_ode_state(const_iterator it, double time)
         environment.compute_rates(resource_depletion)   // soil rates
 ```
 
-Two properties of this ordering matter and are worth stating because at least one
-document in this repository records the opposite.
+Two facts that the decomposition rests on, both read directly from the above:
 
-**The auxiliary slots are not lagged.** `Individual::set_ode_state`
-(`individual.h:104-110`) calls `update_dependent_aux` for each slot *as it loads
-it*, and TF24's `update_dependent_aux` (`tf24_strategy.cpp:140-147`) is what sets
-`competition_effect = area_leaf(height)` and `height_inverse = 1/height`. Step 5
-reads those auxiliary values through `compute_competition`. Step 5 therefore reads
-auxiliary values written in step 1 of the same call. `Patch::compute_environment`
-is a pure function of the ODE state just loaded. The same is true on the AD
-branch: `update_dependent_aux` and the step ordering are unchanged there.
+**`compute_environment` is a pure function of the ODE state just loaded.** Step 1
+refreshes each cohort's auxiliary slots as it loads each state, through
+`update_dependent_aux` (`individual.h:104-110`, `tf24_strategy.cpp:140-147`), and
+step 5 reads exactly those. Nothing in the field's construction depends on step 6.
 
-**The plant-to-soil and soil-to-plant couplings are both narrow.** Cohorts reach
-the soil only through the summed `resource_depletion` vector (9 entries), and the
-soil reaches cohorts only through `get_soil_water_potential_state()` (5 entries,
-one per layer). Nothing else crosses.
+**The plant-soil coupling is narrow in both directions.** Cohorts reach the soil only
+through the summed `resource_depletion` vector, and the soil reaches cohorts only
+through `get_soil_water_potential_state()` — five layer potentials. Nothing else
+crosses.
 
-### 2.2 What the AD branch adds
-
-The plant submodule's `claude/odelia-ad-tape-reverse-496fuf` branch adds
-`plant/inst/include/plant/scm_gradient.h`,
-whose `scm_jacobian` runs an adaptive double pass to fix the schedule, replays it
-at an active scalar via `SCM::rebind_from<S>()`, and calls odelia's
-`compute_jacobian` for one recording and one sweep per output row. That entry
-point is correct in structure and is what runs out of memory. Nothing in this
-proposal replaces it; the proposal replaces the single recording it takes.
+The AD branch adds `plant/inst/include/plant/scm_gradient.h`, whose `scm_jacobian`
+runs an adaptive double pass to fix the schedule, replays it at an active scalar via
+`SCM::rebind_from<S>()`, and calls odelia's `compute_jacobian` for one recording and
+one sweep per output row. That entry point is correct in structure and is what runs
+out of memory. This proposal replaces the single recording it takes, not the entry
+point.
 
 ---
 
-## 3. The structure being exploited
+## 4. The structure being exploited
 
-Read section 2.1 again as a data-flow graph rather than a call sequence. Per
-Runge-Kutta stage, the computation is four layers, and the coupling between them
-is thin:
+Section 1's four layers are section 3's call chain read as a data-flow graph. L1 and
+L3 are independent across cohorts and are coupled only through L2's output. That is
+the mean-field structure of the model: it is also why
+`Patch::compute_environment` is an O(n) build plus O(1) queries rather than an
+O(n^2) all-pairs sum (plant's `agents.md` section 12).
 
-```
-     y  =  cohort states (141 x 7)  +  environment states (9)
-     |
- L1  | per cohort, independent, closed form
-     |   Individual::set_ode_state + update_dependent_aux
-     |   -> competition_effect_j = area_leaf(H_j),  density_j = exp(log_density_j)
-     v
- L2  | ONE reduction over all cohorts, then an interpolant
-     |   Patch::compute_environment -> compute_competition(x) summed over nodes
-     |   -> light availability as a function of height
-     v
- L3  | per cohort, independent, expensive
-     |   Individual::compute_rates -> TF24_Strategy::compute_rates
-     |     reads light at the 21 Gauss-Kronrod abscissae of its own crown
-     |     runs the leaf hydraulic optimisation
-     |   -> vars.rates (5) + log_density_dt + offspring rate  = 7
-     |   -> vars.consumption_rates                            = 9
-     v
- L4  | ONE reduction, then the soil
-     |   resource_depletion = sum of consumption_rates / area
-     |   TF24_Environment::compute_rates(resource_depletion)
-     v
-    dydt
-```
+The consequence for reverse mode is that **the only quantity that must be held across
+the cohort loop is the adjoint of the field**, not the adjoint of any cohort's
+internal computation.
 
-L1 and L3 are embarrassingly parallel across cohorts. They are coupled only
-through L2's output. This is not an accident of implementation: it is the
-mean-field structure of the model. Every cohort influences every other one only
-by contributing to, and reading from, one scalar field of height. That is the same
-property that makes `Patch::compute_environment` an O(n) build plus O(1) queries
-rather than an O(n^2) all-pairs sum (see plant's `agents.md` section 12).
-
-The consequence for reverse mode is that **the only quantity that has to be held
-across the cohort loop is the adjoint of the field**, not the adjoint of every
-cohort's internal computation.
-
-### 3.1 The cohort's interface, counted
-
-For TF24 with `n` seeded trait targets:
+### 4.1 The cohort's boundary
 
 | direction | quantity | count |
 |---|---|---|
-| in | own ODE state (`state_size()` 5 + log_density + offspring) | 7 |
+| in | own ODE state (`state_size()` 5, plus log_density and offspring) | 7 |
 | in | light at the crown's Gauss-Kronrod abscissae (`function_integration_rule = 21`) | 21 |
-| in | vertical light gradient at the same abscissae (see report 3) | 21 |
-| in | soil water potential per layer | 5 |
-| in | seeded traits (a subset of `TF24_AD_FIELDS`, not all 51) | n |
+| in | vertical light gradient at the same abscissae (report 3) | 21 |
+| in | soil water potential, one per layer | 5 |
+| in | seeded differentiation targets | n |
 | out | rates | 7 |
-| out | per-slot consumption | 9 |
+| out | consumption rates, sized to the environment's ODE width (9), of which TF24 writes the five soil layers | 5 of 9 |
 
-At `n = 4` that is 58 inputs and 16 outputs. The local Jacobian is 928 doubles,
-about **7.4 kB**, against the roughly **600 kB** the same cohort-step currently
-records (7 states x 86 kB). The ratio is about **80x**, and it is set by the
-model's coupling structure, not by any tuning of the recorded arithmetic.
+### 4.2 On the number of differentiation targets
 
-There is a variant that stores nothing at all, described next, and it is the one
-this proposal recommends.
+`TF24_AD_FIELDS` declares **51** strategy parameters — the full trait and physiology
+set (`lma`, `rho`, `hmat`, `eta`, ... `vcmax_25`, `p_50`, `K_s`, `jmax_25`, ...), not
+a soil-specific subset. `Species::ad_parameters()` returns
+`strategy->field_ptrs()`, pointers into the strategy's `pars`, generated from that
+one macro list alongside `field_names()` so the two cannot disagree in membership or
+order. K93 declares 11 and FF16 32.
+
+So the realistic target count is **tens**, and for a calibration workflow plausibly
+all 51. Environment and driver parameters are *not* in the macro — `birth_rate` is an
+extrinsic driver rather than a strategy field, and how it would be seeded is an open
+question this proposal does not settle.
+
+This matters for two different quantities, and the distinction is the reason the
+design tolerates large n:
+
+- **If the local Jacobian is stored**, its size is `(54 + n) x 12`. At n = 4 that is
+  5.6 kB; at n = 51, 10.1 kB. It grows with n, linearly and slowly.
+- **If the cohort is re-recorded on the reverse pass — which is what section 1
+  proposes — nothing is stored, and peak is flat in n.** Seeding more inputs adds
+  registered tape slots, not recorded operations: the arithmetic of
+  `Individual::compute_rates` is identical whether one trait is seeded or fifty-one.
+  Only the trait-adjoint accumulator grows, by n doubles.
+
+**Time is also flat in n.** A reverse sweep's cost scales with the number of output
+rows, not inputs, so one sweep per cohort per step yields all n trait adjoints
+together. That is reverse mode's central property and the decomposition preserves it
+intact. It is also why reverse mode is the right choice here rather than a
+convention: at n in the tens, a forward-mode alternative would cost n passes.
+
+For reference against the recording it replaces: one cohort-step currently records
+roughly **600 kB** (7 states x 86 kB), so a stored Jacobian would be a factor of 60
+to 107 smaller depending on n, and a re-recorded cohort's tape is bounded by one
+cohort's rates regardless.
 
 ---
 
-## 4. Is the cohort a legitimate unit?
+## 5. Is the cohort a legitimate unit?
 
-The decomposition is only valid if `Individual::compute_rates` is a pure function
-of (its own `Internals`, the environment values it reads, the strategy's
-parameters). If it carried information from one cohort to the next, re-running one
-cohort in isolation during a reverse pass would not reproduce the forward pass.
+The decomposition is valid only if `Individual::compute_rates` is a pure function of
+(its own `Internals`, the environment values it reads, the strategy's parameters). If
+it carried information from one cohort to the next, re-running one cohort in
+isolation would not reproduce the forward pass.
 
-The risk is concrete. `Individual` holds a `strategy_type_ptr`
-(`individual.h:179`), which is a `std::shared_ptr`, so **every cohort of a species
-writes into the same `TF24_Strategy` object**. That object has three mutable
-members every cohort touches:
+The risk is concrete. `Individual` holds a `strategy_type_ptr` (`individual.h:179`),
+a `std::shared_ptr`, so **every cohort of a species writes into the same
+`TF24_Strategy` object.** That object has three mutable members every cohort touches:
 
-| member | declared at | verdict |
-|---|---|---|
-| `std::vector<double> mass_root_prop_` | `tf24_strategy.h` | scratch. `mass_root_prop_.assign(soil_number_of_depths_, 0.0)` at the top of every `net_mass_production_dt`, then refilled. Write before read. |
-| `quadrature::QK function_integrator` | `tf24_strategy.h` | fixed rule, set once in `prepare_strategy`. Its `last_*` members are diagnostic only. |
-| `Leaf leaf` | `tf24_strategy.h` | see below |
+| member | verdict |
+|---|---|
+| `std::vector<double> mass_root_prop_` | scratch. `.assign(soil_number_of_depths_, 0.0)` at the top of every `net_mass_production_dt`, then refilled. Write before read. |
+| `quadrature::QK function_integrator` | fixed rule, set once in `prepare_strategy`. Its `last_*` members are diagnostic only. |
+| `Leaf leaf` | scratch, for the reason below |
 
-The `Leaf` is the one that needs care, and it is clean for a specific reason.
-`net_mass_production_dt` reaches the leaf only through the local lambda
-`optimise_at`, which calls `leaf.set_physiology(...)` **before** `solve_leaf()` on
-every invocation (`tf24_strategy.cpp:401`). `Leaf::set_physiology` re-seats every
-per-solve field: it assigns `psi_soil_`, rebuilds `grav_head_z_`, `.assign`s
-`c_r_V_` and `c_r_H_`, resizes `soil_consumption_`, and sets
-`transpiration_cached_ = false`. And `find_root_collar_psi` takes its bracket from
-`prepare_collar_solve` off the current soil state and runs a **fresh**
-`golden_section_max` — there is no warm start from a previous solve. The leaf is
-therefore a function of the inputs `set_physiology` was handed, not of the cohort
-that used it last.
+The `Leaf` is clean for a specific and slightly fragile reason.
+`net_mass_production_dt` reaches it only through the local lambda `optimise_at`,
+which calls `leaf.set_physiology(...)` **before** `solve_leaf()` on every invocation
+(`tf24_strategy.cpp:401`). `Leaf::set_physiology` re-seats every per-solve field: it
+assigns `psi_soil_`, rebuilds `grav_head_z_`, `.assign`s `c_r_V_` and `c_r_H_`,
+resizes `soil_consumption_`, and sets `transpiration_cached_ = false`. And
+`find_root_collar_psi` takes its bracket from `prepare_collar_solve` off the current
+soil state and runs a **fresh** `golden_section_max` — there is no warm start. So the
+leaf is a function of what `set_physiology` was handed, not of the cohort that used
+it last.
 
-Two exceptions were found. Both are correct in value today and both are worth
-recording because they become live hazards the moment an active scalar reaches
-them:
+Two exceptions were found. Both are correct in value today; both are prerequisites:
 
 1. **`photo_temp_cached_`** (`leaf_model.h:250-252`) persists across cohorts and
-   across the whole run. Its key is `(leaf_temp_, atm_o2_kpa_)`. The members it
-   caches include `vcmax_` and `jmax_`, which are functions of `pars.vcmax_25` and
-   `pars.jmax_25` — **both declared entries of `TF24_AD_FIELDS`**. The key is a
-   proper subset of the cached values' dependencies. This is safe only because
-   those two parameters are constant within a run. If a caller ever varied them
-   mid-run, or if the cache key is not extended when the leaf is templated, the
-   cache would serve values for the wrong parameters.
+   across the whole run, keyed on `(leaf_temp_, atm_o2_kpa_)`. The members it caches
+   include `vcmax_` and `jmax_`, which depend on `pars.vcmax_25` and `pars.jmax_25` —
+   **both declared entries of `TF24_AD_FIELDS`**. The key is a proper subset of the
+   cached values' dependencies. This is safe only because those parameters are
+   constant within a run.
 2. **`psi_soil_cache_`** (`tf24_environment.h:304-328`) invalidates on
-   `psi_soil_cache_state_[i] != vars.state(i)`, an exact `double` comparison
-   against soil state. The AD branch closes the analogous hazard elsewhere with
+   `psi_soil_cache_state_[i] != vars.state(i)`, an exact `double` comparison against
+   soil state. The AD branch closes the analogous hazard elsewhere with
    `if constexpr (!std::is_same_v<S, double>) cache_stale = true;`
-   (`tf24_environment.h:394-400` on the branch). The same treatment applies here.
+   (`tf24_environment.h:394-400` on that branch).
 
 **Conclusion.** On develop, one cohort's rate computation is a pure function of its
-boundary. The unit is legitimate. The two caches above are prerequisites, not
-blockers.
+boundary, and the unit is legitimate. But the property is held by *discipline inside
+`set_physiology`* rather than by structure, which is the subject of section 10.
 
 ---
 
-## 5. The proposal
+## 6. The reverse pass in detail
 
-### 5.1 Forward pass
+### 6.1 Forward
 
-Unchanged from what `scm_gradient.h` already does, except that the trajectory is
-kept:
+Unchanged from `scm_gradient.h`, except that the trajectory is kept:
 
-1. Run the adaptive double pass (`SCM::refine_schedule()`), which fixes the
-   resolved L1 schedule. `recorded_steps()` is the single source of the replay
-   grid.
+1. Run the adaptive double pass (`SCM::refine_schedule()`), fixing the resolved L1
+   schedule. `recorded_steps()` is the single source of the replay grid.
 2. Replay that schedule in plain `double`, storing the full ODE state at each
    accepted step.
 
-Storage, at production: 996 states x 8 bytes x 2 829 steps = **22.5 MB**
-(projected from the measured shape). This is the whole additional memory the
-proposal requires.
+Storage at production: 996 states x 8 bytes x 2 829 steps = **22.5 MB** (projected).
+This is the whole additional memory the proposal requires.
 
-### 5.2 Reverse pass
+### 6.2 Backward
 
-Walk the stored trajectory backwards. Within one step, the reverse of the four
-layers runs in a strict order with no circular dependency. This was the one point
-that had to be settled before the design was viable, because the obvious reading
-of the graph suggests a cycle: L3's sweep needs the light adjoints that L2
-produces, and L2 needs the light adjoints that L3 produces. It does not, because
-L1 is a separate closed-form map and is adjointed analytically rather than on a
-cohort's tape:
+Section 1's steps (a) to (e), per step, walking the trajectory backwards. Step (b) in
+detail:
 
 ```
-given  lambda  (adjoint of y at the end of this step)
-
-  a  L4 adjoint:  lambda_soil, lambda_depletion
-                  (9 x 9 and 9 x 9 blocks; small, closed form or a small tape)
-
-  b  for each cohort j, one at a time:
-        fresh tape
-        register:  own state (7), light (21), light gradient (21),
-                   soil potential (5), seeded traits (n)
-        record:    Individual::compute_rates for this cohort only
-        seed:      lambda_rates_j, lambda_depletion
-        sweep once
-        read off:  lambda_y_j (direct), lambda_light_j, lambda_gradient_j,
-                   lambda_psi, lambda_traits (accumulate)
-        release tape                              <-- PEAK IS HERE, ONE COHORT
-
-  c  L2 adjoint:  lambda_light_j, lambda_gradient_j  ->  lambda at the field's nodes
-                  ->  lambda_(competition_effect_j, density_j, H_j)
-
-  d  L1 adjoint:  closed form (area_leaf and exp are analytic)
-                  ->  lambda_y_j (field contribution)
-
-  e  lambda_y_j  =  direct + field
+for each cohort j:
+    fresh tape
+    register:  own state (7), light (21), light gradient (21),
+               soil potential (5), seeded targets (n)
+    record:    Individual::compute_rates for this cohort only
+    seed:      lambda_rates_j, lambda_depletion
+    sweep once
+    read off:  lambda_y_j (direct), lambda_light_j, lambda_gradient_j,
+               lambda_psi, lambda_traits (accumulate)
+    release
 ```
 
-Step (b) is where all the expensive arithmetic is, and its tape is released before
-the next cohort's is created. Step (c) is a linear map whose adjoint is another
-linear map of the same size. Steps (a), (d) and (e) are closed form.
+**Trait adjoints accumulate over (b) across all cohorts and all steps**, and this is
+load-bearing rather than incidental. Because the strategy is shared through a
+`shared_ptr` and `ad_parameters()` returns pointers into its `pars`, a single trait is
+one input read by every cohort. Earlier work measured that treating each cohort as a
+distinct input instead yields **41 to 51%** of the correct answer, with the right
+sign and no error raised. It must be tested directly.
 
-**Trait adjoints accumulate over (b) across all cohorts and all steps.** This is
-load-bearing: because the strategy is shared through a `shared_ptr`
-(`individual.h:179`) and `Species::ad_parameters()` returns pointers into the
-strategy's `pars`, a single trait is one input read by every cohort. Earlier work
-in this repository measured that treating each cohort as a distinct input instead
-yields **41–51%** of the correct answer with the right sign and no error raised.
-The accumulation in (b) must therefore be tested directly, not assumed.
+### 6.3 What the field adjoint costs
 
-### 5.3 What replaces `compute_environment` on the reverse pass
+Step (c) requires the adjoint of the light field, and its cost depends on the
+interpolant:
 
-Step (c) requires the adjoint of the field. This is where the interpolant choice
-becomes structural rather than a matter of accuracy, and it is the subject of
-report 3. The short statement:
+- develop fits a **C2 cubic spline** to light values. C2 continuity is enforced by a
+  tridiagonal solve over all nodes, so one light read depends on **every** node
+  value, and its adjoint is a transposed band solve of run-dependent width.
+- A **cubic Hermite** interpolant carrying value and slope at each node is local: one
+  read depends on exactly **two** nodes, and its adjoint is O(1) per query. Verified
+  rather than assumed: with an active node value registered on a tape,
+  `d(eval)/d(node_2)` is 0.55 for a query in a span touching node 2 and **exactly 0**
+  for a query two spans away.
 
-- develop fits a **C2 cubic spline** to light values (`ResourceSpline::construct`
-  via `basic_interpolator`). C2 continuity is enforced by a tridiagonal solve over
-  all nodes, so one light read depends on **every** node value, and its adjoint is
-  a transposed band solve of run-dependent width.
-- A **cubic Hermite** interpolant carrying value and slope at each node is local:
-  one read depends on exactly **two** nodes. Its adjoint is O(1) per query.
-
-Locality was verified rather than assumed. With an active knot value registered on
-a tape, `d(eval)/d(node_2)` is 0.55 for a query in a span touching node 2 and
-**exactly 0** for a query two spans away.
-
-The field's node values themselves are a reduction over cohorts, so their adjoint
-is a reduction of the same shape and the same cost as the forward build — the
-standard reverse-mode guarantee.
+Report 3 makes that case. The decomposition here is correct with either; only the
+cost differs.
 
 ---
 
-## 6. Evidence
+## 7. Evidence
 
 A standalone system was built with plant's coupling structure and none of its
-physiology: N cohorts, a shared light field with the same
-`(1 - (z/H)^eta)^2` kernel, per-cohort rates containing an inner implicit solve,
-soil water as ODE state depleted by the cohorts and read back as a potential,
-traits shared across cohorts, explicit Euler stepping, and a mass-weighted census
-functional. Source: `scratchpad/cohort_toy.cpp`.
+physiology: N cohorts, a shared light field with the same `(1 - (z/H)^eta)^2` kernel,
+per-cohort rates containing an inner implicit solve, soil water as ODE state depleted
+by the cohorts and read back, traits shared across cohorts, explicit Euler stepping,
+and a mass-weighted census functional. Source: `scratchpad/cohort_toy.cpp`.
 
-**This is a toy. It establishes that the decomposition and the reverse ordering
-are correct and how peak memory scales. It establishes nothing about TF24's
-physiology.** The distinction matters: earlier work in this repository records a
-case where a summed-height functional gave a constant adjoint and could not detect
-a 19% error, so a toy witness has to be checked for vacuity. Here the functional
-is mass-weighted and the severance controls in section 6.3 confirm the witness
-responds when a real channel is cut.
+**This is a toy. It establishes that the decomposition and the reverse ordering are
+correct, and how peak memory scales. It establishes nothing about TF24's physiology.**
+The vacuity question is real — earlier work records a summed-height functional whose
+constant adjoint could not detect a 19% error — so the functional here is
+mass-weighted, and section 7.3's severance controls confirm the witness responds when
+a live channel is cut.
 
-### 6.1 Correctness
+### 7.1 Correctness
 
-With the field queried exactly (no interpolant, isolating the adjoint machinery
-from any interpolation error):
+With the field queried exactly, isolating the adjoint machinery from interpolation:
 
 | check | result |
 |---|---|
@@ -354,11 +370,11 @@ from any interpolation error):
 | AD vs central finite differences | **4.5e-10 to 3.4e-9** |
 | finite-difference step dependence | improves as the step *grows* (1.9e-8 at 1e-7, 4.5e-10 at 1e-5) |
 
-The last row matters: it is the roundoff-dominated regime, so the finite
-difference is the less accurate of the two. Configurations covered N in {8, 20,
-40, 80} and 60 to 480 steps.
+The last row places the finite difference as the less accurate party, which is the
+roundoff-dominated regime earlier work also measured for a single unit.
+Configurations: N in {8, 20, 40, 80}, 60 to 480 steps.
 
-### 6.2 Scaling
+### 7.2 Scaling
 
 | N | steps | one whole-run tape | per-cohort tape | field tape | trajectory |
 |---|---|---|---|---|---|
@@ -369,29 +385,26 @@ difference is the less accurate of the two. Configurations covered N in {8, 20,
 | 40 | 240 | 321 MB | **1.0 kB** | 1 310 kB | 0.16 MB |
 | 80 | 240 | 1 252 MB | **1.0 kB** | 5 184 kB | 0.31 MB |
 
-Three readings:
-
-- **The per-cohort tape is flat in both run length and stand size.** This is the
-  claim the proposal rests on and it holds exactly.
+- **The per-cohort tape is flat in both run length and stand size.** This is the claim
+  the proposal rests on.
 - The whole-run tape is linear in step count and quadratic in stand size.
-- The field-assembly tape is flat in step count and quadratic in stand size
-  (330 to 1 310 to 5 184 kB for N of 20, 40, 80: exactly 4x per doubling). In this
-  toy L2 was placed on a tape for convenience rather than adjointed by hand, so
-  this term is an implementation choice, not a property of the design. It is
-  quadratic because the toy's field assembly is an all-pairs sum; plant's is O(n)
-  by construction.
+- The field-assembly tape is flat in step count and quadratic in stand size (330,
+  1 310, 5 184 kB for N of 20, 40, 80 — exactly 4x per doubling). In this toy L2 was
+  placed on a tape for convenience rather than adjointed by hand, so this term is an
+  implementation choice. It is quadratic because the toy's assembly is an all-pairs
+  sum; plant's is O(n) by construction.
 
 At the largest configuration the peak for the cohort path is **5.2 MB against
 1 252 MB, a factor of 241**, and the factor grows with run length because the
 numerator is flat and the denominator is not.
 
-### 6.3 Behaviour under TF24's harder features
+### 7.3 Under TF24's harder features
 
-The inner implicit solve was replaced with TF24's actual construct: a
-fixed-tolerance golden-section maximisation over a bracket whose upper bound comes
-from the soil state, with the envelope theorem for the objective and the implicit
-function theorem for the side outputs, plus the boundary branch where the argmax
-lands on the bracket end.
+The inner solve was replaced with TF24's actual construct: a fixed-tolerance
+golden-section maximisation over a bracket whose upper bound comes from the soil
+state, with the envelope theorem for the objective and the implicit function theorem
+for the side outputs, plus the boundary branch where the argmax lands on the bracket
+end.
 
 | leaf treatment | interior | boundary | cohort vs whole | AD vs FD |
 |---|---|---|---|---|
@@ -401,172 +414,211 @@ lands on the bracket end.
 | argmax, bound at 0.30 | 1 183 | **17** | 7.5e-15 | 2.9e-06 |
 | argmax, bound at 0.10 | 0 | **1 200** | 9.8e-15 | **3.1e-10** |
 
-**The decomposition is unaffected by any of it.** The argmax, the boundary branch,
-and a run that mixes the two all reproduce the whole-run tape to 1e-14 or better.
-The residual AD-versus-FD discrepancy introduced by the argmax is a property of
-the argmax node and is the subject of report 2.
+**The decomposition is unaffected by any of it.** The argmax, the boundary branch, and
+a run mixing the two all reproduce the whole-run tape to 1e-14 or better. The residual
+AD-versus-FD discrepancy the argmax introduces is a property of the argmax node and is
+report 2's subject.
 
-**The witness is not vacuous.** Severing the argmax's influence on the side output
-— the consumer the envelope theorem does not cover — breaks the gradient by
-**4.1%** (root-find) and **11.6%** (argmax) while the decomposition stays at
-1e-15. The channel being tested is load-bearing.
+**The witness is not vacuous.** Severing the argmax's influence on the side output —
+the consumer the envelope theorem does not cover — breaks the gradient by **4.1%**
+(root-find) and **11.6%** (argmax) while the decomposition stays at 1e-15.
 
-### 6.4 Two defects found in the course of building this, both relevant to plant
+### 7.4 Two defects found while building this
 
 - **`pow(0, eta)` has a NaN derivative with respect to the exponent.**
-  `d/d(eta) 0^eta = 0^eta log(0)`. In the toy this made exactly one trait's
-  gradient NaN while the others stayed finite and plausible. plant's canopy kernel
-  evaluates `pow(z / height, eta)` and the ground-level query is `z = 0`
+  `d/d(eta) 0^eta = 0^eta log(0)`. In the toy this made exactly one trait's gradient
+  NaN while the others stayed finite and plausible. plant's canopy kernel evaluates
+  `pow(z / height, eta)` and the ground-level query is `z = 0`
   (`Patch::compute_competition(0.0)` is called by `Node::compute_competition`).
-  Whether this is reachable on plant's active path should be checked; the failure
-  mode is a single silently-NaN trait.
-- **A bounded value with an unbounded derivative.** In an early version the
-  per-cohort soil draw did not scale with stand size, so 20 cohorts drove the soil
-  toward the pole of `psi = 1/(0.05 + theta)`. The census value stayed at 27 while
-  the gradient grew by a factor of 1.85 per step to 6e14. This is the shape of a
-  derivative blow-up that value-based tests cannot see, and it is why TF24's soil
-  positivity guards exist.
+  Reachability on plant's active path should be checked; the failure mode is a single
+  silently-NaN trait.
+- **A bounded value with an unbounded derivative.** In an early version the per-cohort
+  soil draw did not scale with stand size, so 20 cohorts drove the soil toward the
+  pole of `psi = 1/(0.05 + theta)`. The census value stayed at 27 while the gradient
+  grew by a factor of 1.85 per step to 6e14. Value-based tests cannot see this, and it
+  is why TF24's soil positivity guards exist.
 
-A third hypothesis was tested and **refuted**: that nodes placed at cohort tops
-would produce collapsing spans when cohorts converge in height, making the
-interpolant ill-conditioned. Measured minimum span was 3.7e-2 over the whole run,
-never close. This is recorded so it is not re-derived.
+A third hypothesis was tested and **refuted**: that nodes at cohort tops would produce
+collapsing spans as cohorts converge in height, making the interpolant ill-conditioned.
+Minimum span measured 3.7e-2 over a full run, never close. Recorded so it is not
+re-derived.
 
 ---
 
-## 7. Leverage, projected to plant
-
-Arithmetic on the measured quantities in section 1, with the source of each factor
-stated. **These are projections, not measurements.**
+## 8. Leverage, projected to plant
 
 | | current | proposed |
 |---|---|---|
 | peak tape | ~220 GB (86 kB x 987 x 2 829) | one cohort-step, ~600 kB |
 | plus field adjoint per step | — | O(n) in plant, small |
 | plus stored trajectory | — | 22.5 MB |
-| recompute factor | 1 | 1 (each cohort's rates re-run once) |
-| new concepts a strategy author sees | — | none |
+| recompute factor | 1 | 1 |
+| scaling in target count n | — | flat in memory and in sweeps |
+| new concepts a Strategy author sees | — | none |
 
-The final row is the one that motivates the whole approach. Nothing in section 5
-appears in a strategy's source. `Individual::compute_rates` is recorded as it
-already stands; the decomposition lives entirely in the gradient driver.
-
-Earlier work in this repository measured the wall-clock cost of a step-local
-reverse sweep at a flat **4.2x** relative to a whole-run reverse pass over 60 to
-960 units, while the memory ratio over the same range grew from 27.7x to 438x.
-That trade — a constant factor in time for a memory saving that grows with the run
-— is the right shape here, since time is available and memory is not. The
-cohort-granular variant should sit in the same regime but has not been timed.
+Earlier work measured the wall-clock cost of a step-local reverse sweep at a flat
+**4.2x** relative to a whole-run reverse pass over 60 to 960 units, while the memory
+ratio over the same range grew from 27.7x to 438x — a constant factor in time for a
+memory saving that grows with the run. The cohort-granular variant should sit in the
+same regime but has not been timed.
 
 ---
 
-## 8. Constraints and open risks
+## 9. Constraints
 
-**C1. The two caches in section 4 must be handled first.** `photo_temp_cached_`'s
-key omits `vcmax_25` and `jmax_25`; `psi_soil_cache_`'s key is an exact `double`
-comparison on soil state. Neither is wrong today. Both are prerequisites.
+**C1. The two caches in section 5 must be handled first.** `photo_temp_cached_`'s key
+omits `vcmax_25` and `jmax_25`; `psi_soil_cache_`'s key is an exact `double`
+comparison on soil state.
 
-**C2. Explicit versus Runge-Kutta stepping.** The toy uses explicit Euler, for
-which the step map is `y_{k+1} = y_k + h f(y_k)` and the adjoint recursion is
-unambiguous. plant uses an adaptive RK45 (Cash-Karp). Each accepted step has six
-stage evaluations, and the reverse pass must traverse the stage structure, not
-just the step. This is standard but it is genuinely unbuilt and it is the largest
-piece of implementation work in the proposal.
+**C2. Explicit versus Runge-Kutta stepping.** The toy uses explicit Euler, whose step
+map is `y_{k+1} = y_k + h f(y_k)` and whose adjoint recursion is unambiguous. plant
+uses an adaptive RK45 (Cash-Karp): each accepted step has six stage evaluations and
+the reverse pass must traverse the stage structure, not just the step. This is
+standard but genuinely unbuilt, and it is the largest single piece of work.
 
-**C3. The field adjoint's cost depends on the interpolant.** With develop's C2
-fitted spline, one light read reaches every node through the band solve. The
-proposal assumes a local interpolant (report 3). Without it the design still works
-but the field adjoint is materially more expensive and the node count becomes a
-run-dependent quantity in the middle of the reverse pass.
+**C3. The field adjoint's cost depends on the interpolant** (section 6.3).
 
-**C4. Trait adjoint accumulation is untested in plant.** Section 5.2 depends on
-it; the 41–51% figure from earlier work shows what a failure looks like and that
-it fails quietly.
+**C4. Trait adjoint accumulation is untested in plant.** The 41 to 51% figure shows
+what a failure looks like and that it fails quietly.
 
 **C5. Introductions inside a step.** `Patch::introduce_new_nodes` changes the ODE
-width, and earlier work in this repository measured that applying a structural
-change *between* units rather than inside one loses the newborn's adjoint —
-**19% error, correct sign, silent**, undetectable by a constant-initial-condition
-toy. Every introduction time was measured to lie on the ODE grid (141/141 and
-233/233 for K93, 141/141 and 161/161 for FF16, 141/141 for TF24), so a step
-boundary is always available; the ordering still has to be got right deliberately.
+width, and earlier work measured that applying a structural change *between* units
+rather than inside one loses the newborn's adjoint — **19% error, correct sign,
+silent**, undetectable by a constant-initial-condition toy. Every introduction time
+was measured to lie on the ODE grid (141/141 and 233/233 for K93, 141/141 and 161/161
+for FF16, 141/141 for TF24), so a step boundary is always available; the ordering
+still has to be deliberate.
 
-**C6. The stored trajectory is not sufficient on its own.** Earlier work found
-that rebuilding a patch from `ode_state` alone drifts, and isolated the cause: each
-`Node` carries `pr_patch_survival_at_birth`, a plain `double` set at birth, not
-part of `ode_state`, which **divides** the fecundity rate (`node.h:74` states this;
-the division is at `node.h:217`). Omitting it puts the error exclusively in
-`offspring_produced_survival_weighted` — verified by discriminating prediction on
-both K93 and FF16. It is recoverable deterministically from the schedule and the
-disturbance regime, so no derivative is needed, but the reverse pass must restore
-it. `Species::set_birth_state(times, patch_density, pr_survival)` exists
+**C6. The stored trajectory is not sufficient on its own.** Each `Node` carries
+`pr_patch_survival_at_birth`, a plain `double` set at birth, not part of `ode_state`,
+which **divides** the fecundity rate (`node.h:74` states this; the division is at
+`node.h:217`). Omitting it puts the error exclusively in
+`offspring_produced_survival_weighted`, verified by discriminating prediction on both
+K93 and FF16. It is recoverable deterministically from the schedule and the
+disturbance regime, so no derivative is needed, but the reverse pass must restore it.
+`Species::set_birth_state(times, patch_density, pr_survival)` exists
 (`species.h:132`) and is called by no test.
 
-**C7. This design carries no structural defence of its own assumption.** It
-requires that a cohort's rates be a pure function of its boundary. Section 4
-establishes that by reading the current code. A future warm start in any inner
-solver would break it silently, with every double-valued test still passing.
-Earlier work flagged this and concluded it wants a structural guard rather than a
-comment; no such guard exists.
+**C7. The purity property has no structural defence.** Section 5 establishes it by
+reading the current code. A future warm start in any inner solver would break it
+silently, with every double-valued test still passing.
 
 ---
 
-## 9. Implementation order
+## 10. What this asks of a Strategy author
 
-Each step is independently checkable and the sequence is chosen so a failure is
+The design's claim is that it adds no vocabulary. That is true of the *engine*: a
+Strategy implements `compute_rates` and gets a gradient. But it does impose
+requirements on how a scientific model is *structured*, and they are currently
+undocumented and held by discipline rather than by the type system. Section 5 found
+TF24 satisfying them, but narrowly, and by accident of one function's habits.
+
+Stated as guidance for someone writing or extending a Strategy, each rule paired with
+the concrete instance that motivates it:
+
+**1. Per-cohort state belongs in `Internals`, and nothing may carry between cohorts.**
+The reverse pass re-runs one cohort in isolation, so anything the forward pass left on
+the shared `Strategy` and read back is invisible to it. `Internals` is the sanctioned
+container and it is already the right shape.
+
+**2. Shared mutable members on the `Strategy` are a liability, and the safe pattern is
+write-before-read.** `mass_root_prop_` is safe because it is `.assign`ed at the top of
+every call. `Leaf leaf` is safe because `set_physiology` re-seats it. Neither is
+enforced. A member that is read before being written in the same call is a
+cross-cohort channel, and no test would catch it — the forward pass is
+order-deterministic, so a stale read reproduces exactly.
+
+**3. A cache must be keyed on everything its value depends on, or not exist.**
+`photo_temp_cached_` caches `vcmax_` on a key that omits `vcmax_25`. Correct today
+because `vcmax_25` is run-constant; wrong the moment it is not, and a differentiation
+target is exactly a parameter someone intends to vary.
+
+**4. Narrow the environment interface.** The cost of differentiating a cohort scales
+with how many environment values it reads. TF24 reads 21 light values and 5 soil
+potentials. A Strategy that read the whole environment, or queried it at
+state-dependent points chosen by a search, would be materially more expensive.
+
+**5. Expose an inner solve's *residual*, not its *search*.** For a quantity defined
+implicitly, the differentiable object is the defining equation, not the iteration that
+found it. `odelia::implicit_value` takes the residual. `golden_section_max`'s argmax,
+by contrast, is affine in its bracket and independent of the objective values, so
+differentiating through the search yields something that is not the derivative of the
+argmax (report 2 section 4).
+
+**6. Never define a rate as a numerical derivative of an active quantity.**
+`Node::growth_rate_gradient` computes `dg/dh` by a finite-difference stencil. The
+stencil is a legitimate discretisation — it is the upwind form of the advection term
+and the analytic alternative is unstable — but it must be evaluated on quantities that
+carry derivatives, or the transport term's parameter sensitivity is dropped.
+
+**7. Say whether a switch is a kink you mean.** TF24's `if (net_mass_production_dt_ >
+0)` is a hard un-smoothed gate at the carbon compensation point where FF16 and K93 use
+`smooth_positive`. A zero derivative may be exactly what the model means; the point is
+that it should be a recorded decision rather than an accident of writing an `if`.
+
+**8. Fixed quadrature rules are structure; adaptive ones are not.** `quadrature::QK`
+places nodes as a deterministic affine function of its bounds, so an active bound
+tapes correctly. An adaptive rule whose node *count* depends on active values would
+make the recorded computation state-dependent.
+
+The engine cannot check most of these. Rules 1 to 3 could plausibly be made
+structural — see section 11 step 4 — and doing so would convert the riskiest of them
+from convention into compile-time or assertion-time facts.
+
+---
+
+## 11. Implementation order
+
+Each step is independently checkable, and the sequence is chosen so a failure is
 attributable.
 
-1. **Extend `photo_temp_cached_`'s key** to include `vcmax_25` and `jmax_25`, and
-   give `psi_soil_cache_` the `if constexpr` treatment the branch already applies
-   elsewhere. Both are small and both are prerequisites.
-2. **Check `pow(0, eta)`** on plant's active path (section 6.4). A single trait
-   returning NaN is easy to miss.
-3. **K93 first.** No leaf, no soil, closed-form rates. This exercises the
-   decomposition, the RK stage traversal (C2), trait accumulation (C4) and the
-   birth stamp (C6) with nothing else in the way. Its gradient is already
-   FD-verified through `scm_gradient.h`, so there is a reference.
-4. **Hand-adjoint L1 and L2** rather than taping them, removing the residual
-   stand-size term in the peak (section 6.2).
-5. **FF16.** Adds the crown integral and the light field's self-shading feedback.
-   Its coupled gradient is already exact to the finite-difference noise floor
-   (lma 2.64e-06, a_l1 6.06e-06, k_l 1.31e-08 in earlier work), so a regression is
-   visible.
-6. **TF24 at `max_patch_lifetime = 105.32`.** The deliverable. Requires report 2's
-   leaf node and report 3's interpolant.
+1. **Extend `photo_temp_cached_`'s key** to include `vcmax_25` and `jmax_25`, and give
+   `psi_soil_cache_` the `if constexpr` treatment the AD branch already applies
+   elsewhere. Small, and prerequisites.
+2. **Check `pow(0, eta)`** on plant's active path (section 7.4).
+3. **K93 first.** No leaf, no soil, closed-form rates. Exercises the decomposition, the
+   RK stage traversal (C2), trait accumulation (C4) and the birth stamp (C6) with
+   nothing else in the way. Its gradient is already FD-verified through
+   `scm_gradient.h`, so there is a reference.
+4. **Consider restructuring TF24's shared mutable state**, conditional on measured
+   forward performance and on the result being clearer than what it replaces. Three
+   candidates, in increasing order of ambition:
+   - move `mass_root_prop_` to a stack-local buffer or an `Internals` slot, removing a
+     shared member whose safety currently depends on an `.assign` at the top of one
+     function;
+   - give the `Leaf`'s per-solve fields an explicit boundary from its parameters, so
+     "what `set_physiology` must re-seat" is a structural fact rather than a list
+     someone maintains — this also directly addresses report 2's C5;
+   - key or drop the two caches per section 10 rule 3.
+   None of this is required for the design to work. All of it converts section 10's
+   rules 1 to 3 from convention into structure, and the second would have prevented
+   the `set_shutdown_state` defect report 2 records. `mass_root_prop_` and the
+   `thread_local` scratch in `Node::growth_rate_gradient` were both introduced as
+   measured optimisations, so any change here needs the `profile-plant` workflow and a
+   same-session A/B, not an argument.
+5. **Hand-adjoint L1 and L2** rather than taping them, removing the residual stand-size
+   term in the peak (section 7.2).
+6. **FF16.** Adds the crown integral and the light field's self-shading feedback. Its
+   coupled gradient is already exact to the finite-difference noise floor (lma
+   2.64e-06, a_l1 6.06e-06, k_l 1.31e-08), so a regression is visible.
+7. **TF24 at `max_patch_lifetime = 105.32`.** The deliverable. Requires report 2's leaf
+   node and report 3's interpolant.
 
 ---
 
-## 10. What would falsify this
+## 12. What would falsify this
 
 Stated as checks rather than arguments, so the answer is a number:
 
 - **A cohort's rates are not reproducible from its boundary.** Re-run one cohort's
-  `compute_rates` from stored state plus stored environment reads and compare to
-  the forward pass bit for bit. Any difference locates a carried-over quantity
-  section 4 missed.
-- **Peak does not stay flat.** Report the per-cohort tape at K93 production width
-  and lifetime. If it grows with either, the unit is not what section 3 claims.
+  `compute_rates` from stored state plus stored environment reads and compare to the
+  forward pass bit for bit. Any difference locates a carried-over quantity section 5
+  missed — and rule 2 of section 10 says where to look.
+- **Peak does not stay flat.** Report the per-cohort tape at K93 production width and
+  lifetime, and at two target counts an order apart. Growth in either says the unit is
+  not what section 4 claims.
 - **Trait adjoints do not accumulate.** A gradient that is a fixed fraction of the
   finite-difference reference, with the correct sign, is the signature.
-- **The RK stage traversal loses a term.** The census functional's gradient against
-  the existing FF16 finite-difference gate; earlier work's 19% newborn-adjoint
-  error is the reference failure mode.
-
----
-
-## 11. Relationship to the other two reports
-
-This report assumes, and does not establish:
-
-- **Report 2 (the leaf as one differentiable node).** The cohort tape in section
-  5.2 step (b) records `Individual::compute_rates`, which for TF24 contains the
-  hydraulic optimisation. Report 2 argues that solve should enter the tape as a
-  single node with a supplied local Jacobian rather than as recorded arithmetic,
-  and quantifies the residual that treatment leaves.
-- **Report 3 (the light interpolant).** Section 5.3's locality requirement, and
-  the vertical light gradient that appears in the cohort's input list in section
-  3.1.
-
-The three are separable. The decomposition in this report is correct with
-develop's fitted spline and with the leaf recorded operation by operation; it is
-merely more expensive.
+- **The RK stage traversal loses a term.** The census functional's gradient against the
+  existing FF16 finite-difference gate; the 19% newborn-adjoint error is the reference
+  failure mode.
