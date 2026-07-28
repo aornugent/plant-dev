@@ -412,16 +412,37 @@ every AD concern. It is also not a reason to stop: census metrics are integrals 
 live population and are not implicated by the same mechanism, and K93 and FF16 have no
 soil coupling at all.
 
-*Near a survival threshold, the AD-versus-FD anchor is unsatisfiable in principle.*
-`dJ/dtheta` there is a branch slope plus a jump. The adjoint computes the branch slope;
-a finite difference straddling the flip measures the jump; no method computes both, so
-the requirement "the gradient must match a finite difference of the solver as run"
-cannot be met. This does not weaken the anchor where it applies — it means the anchor
-needs a stated domain, and a run near a threshold must be detected rather than trusted.
-Whether to smooth the survival entry into the functional is a model-owner decision, not
-a numerics one; it should be flagged to them, not decided here. Note that it is a
-separate question from offspring *convergence*, which experiment 3 above shows the
-survival threshold does **not** drive.
+*Near a threshold the AD-versus-FD anchor is unsatisfiable — and the mechanism says what
+to do about it.* The anatomy is precise. A member crossing its threshold moves a kink
+**through the aggregate**, so the aggregate's derivative carries a Leibniz boundary term
+
+    [jump] x d(threshold location)/d(theta)
+
+A subgradient tape **drops that term entirely**; a finite difference **smears** it over
+the perturbation. The ratio between what is missing and what is smeared is unbounded,
+which is why the discrepancy is measured at five to six orders rather than at some
+tolerance. So the anchor is not merely inconvenient there: neither side computes the same
+object.
+
+The consequence is more actionable than "state a domain and detect it". **Smoothing the
+switch at a declared scale converts the boundary term into an ordinary smooth
+contribution**, and the measured agreement goes to ~1e-9 — the anchor becomes satisfiable
+rather than needing an exemption. It buys two further things from the same change:
+it restores the member quadrature's convergence order, which a kink crossing collocation
+nodes destroys; and it rounds the corner of the aggregate sink itself, which pushes the
+system toward the regime where the moisture bound is genuinely unreachable rather than
+held off by a floor. Three defects, one change, and the scale is a trait the model already
+carries.
+
+The exact alternative stays available if the smoothing scale is ever scientifically
+contested: locate the crossing as an active root and split the quadrature at it. That
+keeps the sharp model and pays for it with an event.
+
+Either way this remains a model-owner decision, because it moves forward values. What the
+numerics can say is what it now does say: without it, the functional is not an observable
+with a derivative, and no engine can supply one. Note it is a separate question from
+offspring *convergence*, which experiment 3 above shows the survival threshold does
+**not** drive.
 
 ---
 
