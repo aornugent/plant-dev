@@ -10,6 +10,13 @@
 > objective has a smooth interior maximum by construction, so it never exercised this
 > geometry.
 >
+> **The branch census below also undercounts.** It enumerates five early exits from
+> `prepare_collar_solve` plus an uncounted sixth case (pinned at `bound_b`). The `ci`-branch
+> corner is none of those — it is a jump *inside* the objective evaluation, reached on every
+> ordinary call rather than as an exit from the setup. So the leaf's discrete structure is not
+> fully enumerated by exit instrumentation, and whether more structure hides inside the
+> objective is unexamined. See `05-soil-plant-coupling.md` section 5d.
+>
 > What survives, and is unaffected: the argument for keeping `Leaf` entirely `double`
 > (section 1's second half); that a tape recording the search returns the derivative of
 > the bracket rather than of the argmax (section 5); the branch census and the

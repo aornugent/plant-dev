@@ -214,12 +214,23 @@ signs: gradient positive at `bound_a` and negative at `bound_b` means an interio
 root; one-signed across the bracket means the optimum is at the profit-increasing boundary, so
 clamp there.
 
+**What a moving boundary costs, quantified.** Separately from the corner's stationarity
+problem, any boundary whose *location* depends on the differentiation target contributes a
+Leibniz term `[jump] x d(location)/d(theta)`. A subgradient tape drops it entirely; a finite
+difference smears it over the perturbation; the ratio between the missing and the smeared term
+is unbounded. Measured on a hard moving regime boundary: adjoint-against-FD degrades by
+**five to six orders**, and smoothing the boundary at a declared scale restores **~1e-9**.
+This is a general statement about differentiating a moving switch and does not depend on which
+construct creates it — so it applies to the `ci`-branch corner, to `bound_b` pinning, and to
+the shut-down test alike, wherever their locations move with a trait.
+
 **Two distinct objects, not to be conflated.** The corner above is a `ci`-branch feasibility
 edge *interior* to the bracket. Separately, the operating point is sometimes **pinned at
 `bound_b`**, where `dprofit ≠ 0` for a different reason — the constraint is the bracket end
 itself. Both need branch-specific derivatives; section 4's dispatch handles both.
 
-**And one live finite difference inside the analytic gradient.** `dprofit_droot_collar_psi`
+**And one live finite difference inside the analytic gradient**, which report 2 section 8
+already flags and this report can now locate exactly. `dprofit_droot_collar_psi`
 computes `dE_up/dr` from `dE_from_soil_dpsi_collar`, which **returns NaN near a branch kink**
 — a soil-layer crossing — and develop then falls back to a central difference on the transport
 at `h = 1e-6`:
@@ -274,9 +285,24 @@ choose the operating point** — drove the worst case from `5.0e-1` to `6.1e-4`.
 
 Error correlates with boundary-pinning (Spearman 0.71 against the stationarity residual), not
 with dryness as such; dryness matters only because it makes pinning more frequent as the
-feasible interval shrinks. The in-run pinning frequency on a real trajectory is **unmeasured**
-— the validation sample was deliberately dry-weighted — and it sets how much of the boundary
-branch is load-bearing.
+feasible interval shrinks.
+
+**On develop at production settings the boundary branch is never taken, so it is insurance
+rather than load-bearing.** Report 2's census counted it directly: across **4 372 101** leaf
+solves at `max_patch_lifetime = 105.32`, the argmax is pinned at `bound_b` **zero** times, and
+at `bound_a` zero times. A fivefold rainfall reduction changes nothing; tenfold gives 267 of
+343 779 (0.08%); twentyfold gives 110 984 of 330 021 (33.6%) — but that stand is largely dying
+(about 280 accepted steps against 2 153), so the 33.6% is over an unrepresentative population.
+The dry-weighted validation sample above, at ~40% pinned, corresponds to that twentyfold
+regime. So the interior branch is the production path.
+
+**But report 2's census cannot see the corner, and that is the open measurement.** It
+instrumented the five early exits and endpoint-pinning. The corner of section 3 is neither: it
+is interior to the bracket and non-stationary. So "every solve is a strictly interior optimum"
+means *interior to the feasible interval*, not *at a stationary point* — the two readings are
+easy to conflate and only the first was measured. **The corner's incidence on develop is
+therefore unknown**, because no counter exists for it. That is a different and more important
+number than the pinning fraction, and nothing in either report supplies it.
 
 **Aggregation adds no vocabulary.** The stand Jacobian is the same density-weighted trapezium
 over cohorts, summed over species and divided by patch area, that `Patch::resource_depletion`
@@ -342,6 +368,166 @@ at `theta = 0.1246`, and the measured driest layer is **0.133** — `psi = 3.85`
 root-weighted rather than wettest-layer keying would each close it. An earlier version of this
 report read "never fires" as licence; it is better read as *one sampled envelope, with a 6%
 margin, on a keying that is itself a modelling choice.*
+
+---
+
+## 5b. The conditioning of the loop, and what its structure permits
+
+Three facts about the loop as an operator. They decide whether the problem is well-posed at
+all, and they bound what any solver can buy.
+
+**The coupled fixed point is well-conditioned, so a converged answer exists.** Arnoldi on the
+self-consistency map `T: a -> u -> members -> a` at its fixed point: spectral radius
+`rho(T') ~ 7-8`, with the dominant modes at negative real parts and large imaginary parts —
+far from `+1`. The nearest mode to `+1` is real and sits **0.05-0.2** away, so `(I - T')` is
+non-singular and `||(I - T')^-1|| ~ 5-22`. **Nothing sits at `+1` and there is no tight cluster
+pinned to it**, which a genuinely marginal mode would produce.
+
+That is the result that makes this whole exercise well-posed: **the continuum R0 exists and is
+a stable observable of the model**, so the non-convergence in section 6 is a discretisation
+protocol artefact rather than ill-posedness. It also reads the ~23% spread between independently
+converged schemes as conditioning (5-22) times an O(1-5%) discretisation error, not a divergence.
+Caveats: the matvec carries ~1.8% round-trip noise so subdominant Ritz values are noise-limited,
+and it is one sequence at one horizon; the robust reads are `rho ~ 7-8` and the gap at `+1`.
+
+**The large spectral radius is a different fact from the conditioning, and it kills relaxation.**
+`rho(T') ~ 7-8` far from `+1` is *good* conditioning but an *amplifying* operator, which is why
+iterating the coupling to self-consistency fails (section 7) — and why a small error in uptake is
+not a small error in the answer.
+
+**The near-bound eigenvalue is chart-invariant.** Linearising a layer's balance near depletion
+gives `lambda = gamma * r / (d * delta*)` — turnover is throughput over stock — which diverges as
+the stock depletes. No change of state variable removes it. It splits into two regimes with
+different remedies: a **fall** regime, where the input collapses and the step is
+accuracy-limited, so no method enlarges those steps; and a **floor** regime, sitting at the
+depleted balance, where the step is stability-limited and an implicit method wins. A chart can
+delete a clamp and restore floating-point conditioning; it cannot remove this timescale, and it
+cannot hold a bound the physics does not (section 5).
+
+**The soil block's structure is favourable and under-exploited.** `TF24_Environment`'s
+inter-layer cascade is one-directional — layer `k` drains to `k+1` with no back-transfer — so the
+soil Jacobian is **lower-bidiagonal plus diagonal**. Real spectrum, no oscillatory stiffness, and
+an implicit step solves it by forward substitution with better adjoint conditioning than a general
+solve. At `L <= 5` that is nearly free. `RODAS4(3)` and `ode_jacobian.hpp` are already on odelia
+master, and are not reachable from the SCM patch today (no rebind hook, no active scalar) —
+which is a plumbing gap, not a design question.
+
+---
+
+## 5c. What the numerics can and cannot buy
+
+Measured levers, including the ones that turned out not to be levers. These bound any solution
+without prescribing one.
+
+**The functional needs only the weekly-and-slower envelope of soil moisture — the largest
+untaken arbitrage.** Low-passing the soil trajectory and re-advancing the cohorts against it:
+
+| texture removed below | R0 / R0(unfiltered) |
+|---|---|
+| ~half a day | 1.022 |
+| ~2 days | 1.028 |
+| ~1 week | 1.136 |
+| ~1 month | 2.273 |
+| ~3 months | 15.6 |
+
+R0 is invariant to ~3% under removal of *all* sub-2-day texture and bends by 14% at the weekly
+scale; the knee sits between weekly and monthly. The shared step is sub-daily (0.07-0.26 day),
+so the O(M) cohort block is integrated **30-100x finer than the functional requires**. Caveats:
+open-loop (the probe sees the filtered trajectory but does not feed back, and the loop gain is
+~10x), one sequence, and soil moisture only. A burst-dominated driver could move the knee finer.
+This arbitrage is gated on a cheap refresh of the coupling at the fast rate — which is exactly
+what section 4's Jacobian is.
+
+**Order matters more than step size on the cohort block, and the fix costs no vocabulary.** A
+first-order advance of the slow block left a **12%** R0 bias at a weekly leg, converging as the
+leg shrank (8.4% at 3.5 d, 1.2% at 1.75 d — the first-order signature) so that reaching ~1%
+needed a 1.75-day leg and ate the speed win. Raising the coupling order to third fixed it at the
+*same* leg while keeping the cohort-solve reduction. Two properties worth carrying: reverse
+replay stays safe because the stage count is deterministic, so record and replay take identical
+structure; and it was taken as an outright swap rather than a control key, on the explicit
+grounds that a key would be "a permanent concept every user must learn."
+
+**A replay cache should store the field, not the builder.** Caching a full environment copy per
+Runge-Kutta sub-step included the light interpolant's *adaptive builder* and the band-solve
+workspace — build-only state a replay never reads. Storing only knots, values and the environment
+ODE state, and rebuilding through the existing initialiser, is a **bit-identical** reconstruction
+and took a 12-year run from **>15 GB to 1.14 GB**, with every dependent number reproducing to the
+printed digit. This bears on report 1's memory case and on report 3, whose subject *is* the
+builder being cached.
+
+**Frozen-field replay is faithful exactly in the rare limit.** The error is O(mass fraction) and
+vanishes as the probe's weight does: relative R0 gap **63.4** at mass fraction 0.388, 0.424 at
+0.060, 0.036 at 0.0064, 0.003 at 0.0006. So the mutant path is valid where it is used — marginal
+members and rare invaders — and invalid for a heavy probe, where feedback is superlinear.
+
+**Down-weighting the step-limiting cohorts is a modest lever, because they overlap the cohorts R0
+needs.** About 30% of accepted steps are limited by the soil block, which a cohort-weighted error
+norm cannot touch at all; of the cohort-limited remainder, 14-21% are set by a *dominant* cohort
+that must keep full weight; and within the marginal rest, **a third to a half are dying** —
+heading to the absorbing density boundary, which is precisely what R0 is most sensitive to.
+Cleanly reclaimable: roughly **10-20%** of accepted steps. The measured tension is structural: a
+cohort crossing the survival threshold has fast local dynamics (so it sets the error norm) *and*
+is R0-critical, so the two populations are not separable by weight alone.
+
+---
+
+## 5d. What couples across reports 2, 3 and 5, and is not closed
+
+Five links between the three coupling reports. Each is a statement about data that does not
+exist yet, not a proposal.
+
+**The corner is not in report 2's branch census, so that census undercounts.** Report 2
+enumerates the leaf's discrete structure as five early exits from `prepare_collar_solve` plus an
+uncounted sixth case (the operating point pinned at `bound_b`). The `ci`-branch corner of
+section 3 is **none of those**: it is a jump *inside* the objective evaluation — the inner
+assimilation solve's productive branch ceasing to exist — reached on every ordinary call, not an
+exit from the setup. So the leaf carries at least one discrete structure that the census was
+built to enumerate and did not. Whether there are others inside the objective is unexamined;
+the census instrumented exits, and this one is not an exit.
+
+**Replacing the search may change what the transport stencil differences, and the sign of that
+change is unknown.** develop's comment (section 2.2) states that
+`Node::growth_rate_gradient` relies on the argmax varying smoothly with height. Section 3's
+bracketing locator removes the `GSS_tol_abs` staircase, which is what fixes R0's value
+(section 6). But the stencil's present safety comes *from* the staircase being locally flat: it
+differences a surrogate that is locally affine in height. An exactly-located corner varies with
+height genuinely — which should be better, unless the corner **swaps branch** as height changes,
+in which case the exact operating point jumps and the stencil differences a discontinuity at
+`node_gradient_eps = 1e-6`. Nobody has measured whether the corner's location is continuous in
+height. This is the one place where a fix in this report could degrade report 4's subject, and
+it is cheap to check: track the corner's location across a height sweep at fixed soil state.
+
+**Report 3's slope accuracy target should be set by this report's `lambda`, and is not.**
+Section 2.4 establishes that the spread in the water coupling's adjoint is *generated* by the
+light gradient down the profile. So an error in the light field's **slope** propagates into
+`lambda_j` and hence into the water coupling's adjoint. Report 3 measures its slope error
+(1.9e-2 globally normalised at develop's 65 knots, against the value-fitted cubic's 2.9e-2), and
+this report measures `lambda`'s spread (CV 20-60%), but **the transfer function between them is
+unmeasured** — so neither report can say what slope accuracy the coupling actually requires.
+Report 3 currently chooses its knot set on a build-cost argument. It should be chosen on this.
+
+**Report 1's cohort purity is supported by the soil-side reads, and that is worth stating
+because report 1 rests on it.** Reading `prepare_collar_solve` at develop: `psi_soil_inverted_`
+and the per-layer cumulative-vulnerability lookups `root_vuln_integral_soil_` are **rebuilt at
+the top of every solve** from the current soil state, so they are genuine per-solve scratch and
+carry no history between cohorts. That is a precondition for report 1's cohort-granular
+recording, verified rather than assumed. It does **not** extend to `TF24_Environment`'s
+`psi_soil_cache_`, which is a different object keyed on an exact `double` comparison of state,
+nor to the shared-`Leaf` staleness of C9.
+
+**Report 1's memory argument has a second axis it does not count.** Report 1 prices reverse-mode
+memory in tape bytes. Section 5c's cache measurement is a different axis on the same path: a
+replay cache that stored the light interpolant's *builder* rather than its knots cost >15 GB at
+12 years and 1.14 GB after, bit-identically. Any per-cohort or per-step recording scheme
+inherits that distinction, and report 1 does not currently mention it.
+
+**One quantity all three reports need and none has measured.** The operating point's sensitivity
+to state, `dp*/dstate`. Report 2 needs it for its node's local Jacobian; section 4 needs it for
+the interior branch of the uptake Jacobian; report 4's stencil differences a growth rate that
+depends on it. It has only ever been reached indirectly — through the validated uptake Jacobian,
+or inferred from the argmax's behaviour. Measuring it directly at a transpiring state, in both
+the interior and boundary-pinned regimes, would serve all three at once and is the natural
+companion to section 10 item 1.
 
 ---
 
@@ -452,7 +638,10 @@ Changing the inner search changes what the demographic transport stencil differe
 **C5. The interior branch's response is a finite difference of that gradient**, validated only
 at inner tolerance 1e-12 (§4).
 
-**C6. In-run boundary-pinning frequency is unknown** (§4), and it sizes the boundary branch.
+**C6. Boundary-pinning has zero incidence at production** (§4, report 2's census over 4.37M
+solves), so §4's boundary branch is insurance. What is unknown is the **corner's** incidence,
+which no counter measures — report 2 instrumented exits and endpoint-pinning, and the corner is
+neither.
 
 **C7. Values change.** The exact locator moves offspring by 8.2e-5 to 6.8e-4 across a bank — in
 the *correct* direction, since the default is wrong by 2.4× in the bifurcation-prone case (§6).
@@ -540,8 +729,10 @@ Ranked by what each would settle rather than by cost.
    `dJ/dtheta` against a finite difference that **re-solves** the inner problem, on a
    transpiring state, in a regime satisfying §6. §3 predicts it fails. Everything in §3 and §4
    is conditional on this, and it is inferred, not measured. *(task 49)*
-2. **How often is the operating point boundary-pinned in run?** Sizes §4's boundary branch.
-   *(task 52)*
+2. **How often is the operating point at the corner?** Not the same question as pinning, which
+   report 2 measured at zero incidence for production. Nothing counts the corner, and its
+   incidence decides whether §3 describes the production path or an edge case. *(task 52,
+   re-scoped)*
 3. **Does the interior branch survive develop's inner tolerances?** Validated only at 1e-12
    (C5). *(task 53)*
 4. **How often does `dE_from_soil_dpsi_collar` return NaN on a production run?** C4's fallback
