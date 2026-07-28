@@ -87,6 +87,50 @@ is contractive — an Arnoldi spectrum of the coupled map never approaches the r
 threshold, so a converged answer exists — but a small error in uptake is not a small
 error in the answer.
 
+**Two stiffnesses, from two different processes, and the persistent one is the coupling.**
+Decomposing the soil Jacobian along real trajectories separates hydrology
+(infiltration + drainage + cascade) from root uptake:
+
+- **Drainage**, wet regime. Conductivity goes as `theta^16.14`, so `dK/dtheta` reaches
+  about **4600/day** near saturation. Large, but **episodic** — it needs a fully wet
+  layer.
+- **Uptake stress**, dry regime. The retention curve's `theta^-6.57` makes potential
+  diverge, so uptake becomes hypersensitive to small changes in moisture. Measured
+  uptake/hydrology ratio: **8× to 291×**.
+
+In a real transpiring stand the **uptake-stress term is the persistent floor** and
+drainage is a spike riding on it. It dominates throughout a semiarid run and shows up as
+dry pockets even in a wet one. This refutes the intuition that drainage is the dominant
+stiffness, and it matters here because the uptake term *is* the soil–plant coupling: the
+stiffness and the gradient channel are the same object. The divergence exponent is
+measured at **−6.56**, which is `-n_psi` — the divergence exponent *is* the retention
+exponent, so the coordinate the state is carried in is implicated, not just the rate.
+
+**The coupling's own adjoint is ordered by the light field.** The shadow price of water
+`lambda_j = (dP_j/dtheta)/(dE_j/dtheta)` — the marginal value of soil water to cohort `j`
+— is measured per cohort on a real 8-cohort stand with its frozen canopy light:
+
+| theta | mean lambda | spread across cohorts (CV) | max/min |
+|---|---|---|---|
+| 0.34 (wet) | 3.04e5 | 35.6% | 2.40 |
+| 0.26 | 3.31e5 | **60.0%** | **4.14** |
+| 0.20 | 3.50e5 | 43.2% | 2.98 |
+| 0.16 (dry) | 6.61e5 | 20.0% | 1.64 |
+
+The spread is **systematic, not noise**: `lambda_j` is monotone in cohort height, because
+the light gradient down the profile sets marginal water-use efficiency. Taller, better-lit
+cohorts value water 2–4× more than shaded ones.
+
+Two things follow. First, **the light interpolant and the soil coupling are the same
+problem seen twice** — the spread in the soil coupling's adjoint is *generated* by the
+light field, so report 3's accuracy target and this report's are linked through
+`lambda`. Second, the elegant simplification is dead: recasting the coupling around one
+shared price would misprice understory against canopy by up to 4×. It survives only as a
+design rule for future models — a member model posed so the fed-back flux is the
+objective's own marginal collapses by construction, and there is a cheap standing test for
+it (sample the control across its feasible range and regress `dP/du` on `E`; collapse
+holds only if that is affine with a member-independent slope).
+
 ---
 
 ## 3. The operating point is an active constraint, not a maximum
@@ -258,7 +302,53 @@ carbon starvation from the drying topsoil while still rooted into deep water it 
 exploits — 38% of rainfall over 16 years leaves as deep drainage, and there is no upward
 capillary flux between layers.
 
-**What this licenses, and what it does not.** It upholds the existing decision not to
+**A correction: the floor that keeps the soil above those guards is the same artifact that
+kills the drought gradient.** The paragraphs above read the never-firing guards as licence.
+That reading is wrong, and the measurement that breaks it was in the same corpus.
+
+`soil_psi_max_ = 1e3` caps matric potential. Past that cap, uptake does not shut off at
+the wilting point — it is **floored at a constant**, about 6% of peak, with
+`d(uptake)/d(theta)` **exactly zero for every theta below about 0.11**:
+
+| theta | psi_soil | cohort operating point | uptake |
+|---|---|---|---|
+| 0.20 | 0.26 MPa | −1.42 | responsive |
+| 0.13 | 4.47 | −4.81 | responsive, declining |
+| **0.115** | **10.0** | **−5.92, pinned at psi_crit** | **dead / NA** |
+| 0.06 | 719 | −5.92 | dead |
+
+Two consequences, and the second is the more serious.
+
+*The reachability argument is circular.* Measured `theta_min = 0.133` sits just above the
+dead zone at 0.115, and it stays there partly **because** the constant floor keeps
+draining a fixed trickle rather than letting uptake self-limit. This is a reachable
+regime held open by an artifact, not an asymptote. Fix the shut-off and the reachability
+question reopens — it does not stay answered.
+
+*The reverse-mode gradient of water use with respect to soil moisture is identically zero
+across the whole drought regime.* For a model whose purpose is trait gradients of drought
+performance, the drought channel is dead. This is not a smoothness nicety: it is a wrong
+number, silently, in the region the model exists to resolve. It is also ecologically
+wrong in the same breath — a plant past hydraulic failure is modelled as continuing to
+draw water at a fixed rate, where the physiology says transpiration declines to zero as
+the vulnerability curve loses conductance. The numerical dead zone and the hydraulic
+failure threshold are the same point.
+
+**And the AD cost of the hard boundary is measured.** A hard moving regime boundary
+degrades adjoint-against-finite-difference by **five to six orders**; smoothing it
+restores **~1e-9**. That is the largest single number in this area and it is the argument
+for treating the shut-off as a correctness prerequisite rather than a refinement.
+
+**This does not overturn the decision not to smooth the four soil clamps**, and the
+distinction matters. At the runoff, conductivity and retention floors a zero derivative
+is what the model means — those stay. At the `psi` ceiling a zero derivative is an
+artifact of a cap standing in for a gradual process, and the physiology it stands in for
+is already in the model: TF24 carries the hydraulic vulnerability curve (`root_c`,
+`root_b`, `root_psi_crit`), so the smoothing scale is that curve's width — an
+already-fitted per-strategy trait, not a tuning constant. Whether to make that change is
+a model-owner decision; the numbers above are what it should be decided on.
+
+**What the never-firing guards do license, and what they do not.** It upholds the existing decision not to
 smooth the soil kinks: a zero derivative is what the model means at a kink, and these
 kinks are not on the sampled path anyway. It does **not** license removing them. The
 floor is held by the physiology, not by any choice of state variable: with the
@@ -454,6 +544,27 @@ the vulnerability-shutoff floor test.
 adjoint first-order wrong. The mechanism is sound and two independent reasoners
 converged on it, but it is an argument, and step 1 of section 9 exists to test it rather
 than assume it.
+
+**A stale reassurance, recorded because it is load-bearing where it appears.** The
+shadow-price correspondence closes by stating that "envelope smoothness in the adjoint" is
+safe and is why tracked and re-optimised gradients agree to first order. That was written
+2026-07-17; the corner was measured 2026-07-20 and refutes it — with `dprofit/dp = -8.8`
+at the operating point there is no stationarity for envelope smoothness to rest on. The
+shadow-price *measurements* in that document stand; its concluding reassurance does not.
+Anything downstream that inherited it needs re-checking.
+
+**The verification vehicle exists and should be used.** Two scenario banks are recoverable
+with one checkout each: `scripts/tf24-multirate/data/rainfall_scenarios.csv` with
+`gen_rainfall.R` (366 days across drought / dry / semiarid / wet / monsoon), and
+`scripts/tf24-benchmarks/data/*.rds` (`intense_storms`, `whiplash`, `extended_drought`,
+`dry_to_wet`, `long_horizon`, `drydown`, `multispecies`). Both reviewers of that programme
+named the bank its most valuable reusable artifact. For this work it is more than a
+benchmark: it is the finite-difference verification vehicle, because it spans the regimes
+where the coupling changes character — the wet drainage spike, the mid range where
+`lambda`'s spread is widest at 60%, and the dry regime where the dead channel lives. A
+gradient verified only on a benign trajectory says nothing about the drought channel, which
+is the channel currently returning zero. `whiplash` is the scenario that exposed the 2.4×
+offspring error.
 
 **Oracle claims that measurement refuted, recorded so they are not re-inherited:** that
 the inner argmax floor drives the ~30% step rejection (refuted — the rejection fraction
