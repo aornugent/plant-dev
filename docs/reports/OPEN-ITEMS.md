@@ -99,17 +99,28 @@ replaced is an open question with unknown sign.
 
 ## Verification surface
 
-**44, 45.** The R0 restore path is unexercised (`set_birth_state` is called by no test) and has
-no public route for the birth stamps.
+**44, 45. The R0 restore path** is unexercised and has no public route for the birth stamps —
+both still true, but sequenced; see "retire or re-establish" below.
 
 **48. Produce the kink manifest.** Specified long ago, never made. Report 5 §5 is the soil half.
 
 ## Engine — report 1
 
-**35.** Step-local reverse sweep. **4, 34.** Mutant-record cleanup off the resident path; delete
-residual accretion. **43.** First plant witness (K93 step-local sweep — nothing has run in plant
-at all). **47.** Decide what the calibration user story needs from the `Functional` contract —
-the one story a plain-valued trajectory breaks.
+**35. Step-local reverse sweep.** Report 1's subject, so live — but **its stated blocker is
+stale.** It reads "BLOCKED on leaf ownership (see `docs/HANDOFF.md` OPEN)"; that file exists in
+neither repo, and the leaf-ownership question was resolved by measurement (the restore path
+already gives a leaf consistent with the unit, making it a design choice rather than a blocker).
+Re-file without the blocker.
+
+**47. What the calibration user story needs from the `Functional` contract.** Live and
+independent — the one story a plain-valued trajectory breaks, since `least_squares` reads
+intermediate history as active values.
+
+**43. First plant witness — K93 step-local sweep.** Live in that nothing has run in plant at all,
+so report 1 has no end-to-end witness. But it is a *K93* task against a standing instruction to
+focus on TF24, so it competes poorly unless wanted specifically as the cheapest first witness.
+
+*(4 and 34 were here; both are under "retire or re-establish" below.)*
 
 ## odelia
 
