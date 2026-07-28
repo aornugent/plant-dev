@@ -1,3 +1,23 @@
+> **Superseded by `06-tf24-dependency-map.md`. Kept for its measurements, not its framing.**
+>
+> This report was written against a feature branch, not `develop`, and three of its
+> load-bearing claims do not survive re-basing:
+>
+> * §3's corner is a **`bound_a` pinning in a single-layer configuration**, not the
+>   ordinary case. Measured on develop's forward path, incidence is **zero** in 10,153
+>   cohort-time records at production lifetime and zero on a drydown reaching
+>   `psi_soil = 3.74 MPa`; the operating point stays 0.0347 MPa clear of it and the margin
+>   *grows* as the soil dries. The production operating point is a stationary interior
+>   maximum, so the envelope argument §3 rejects is valid where the model runs.
+> * §3's "freezing the operating point loses 89-100% of the derivative" holds in the
+>   supply-limited regime only, which production does not visit.
+> * §2.2b's root-mediated redistribution is real in the code and **never fires**:
+>   `E_up_ < 0` has zero incidence.
+>
+> Its measurements of the soil dynamics, the two stiffnesses, `lambda`'s spread, the R0
+> horizon and tolerance tables, and §7's list of refuted claims all stand. §9's design
+> rules stand. Read §7 and §9; take everything else from report 6.
+
 # The soil–plant coupling: differentiating a plant that chooses
 
 Reports 2 and 3 each take one piece of TF24's carbon economy — the leaf's operating point,
