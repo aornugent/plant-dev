@@ -799,45 +799,35 @@ field left stale by one exit becomes a previous member's value entering this mem
 
 ---
 
-## 10. What to measure, and where the open work lives
+## 10. What is left to measure, and in what order
 
-Ranked by what each would settle rather than by cost.
+Items 1 and 2 of an earlier version of this list are **settled** — see
+`corner-and-envelope-result.md`, and §1, §3 and §12 above, which have been updated. The corner is
+real at every sampled state and freezing the operating point costs 89-100% of the carbon-channel
+derivative. What remains, ranked by what each would settle:
 
-1. **Is the frozen-operating-point adjoint first-order wrong at the corner?** Reverse-mode
-   `dJ/dtheta` against a finite difference that **re-solves** the inner problem, on a
-   transpiring state, in a regime satisfying §6. §3 predicts it fails. Everything in §3 and §4
-   is conditional on this, and it is inferred, not measured. *(task 49)*
-2. **How often is the operating point at the corner?** Not the same question as pinning, which
-   report 2 measured at zero incidence for production. Nothing counts the corner, and its
-   incidence decides whether §3 describes the production path or an edge case. *(task 52,
-   re-scoped)*
-3. **Does the interior branch survive develop's inner tolerances?** Validated only at 1e-12
-   (C5). *(task 53)*
-4. **How often does `dE_from_soil_dpsi_collar` return NaN on a production run?** C4's fallback
-   is an unmeasured finite difference inside the gradient this report recommends. *(new)*
-5. **What is the pinning margin under a shallower rooting depth or a drier driver?** §5's 2.05
-   MPa is one trait set on one envelope, and §2.2b shows the margin is held up by three
-   representational choices rather than by the physics. *(task 58)*
-7. **Does the vulnerability curve's domain edge get crossed?** §2.2b: beyond it
-   `root_vuln_from_psi` extrapolates negative, giving a wrong-sign uptake that the finiteness
-   check does not catch, guarded in only one of the three branches. This is a correctness
-   question before it is a gradient question. *(new)*
-6. **A multi-level field-shift sequence.** §6 measured one refinement step; a second licenses an
-   extrapolated reference and a field-convergence rate. *(task 54's prerequisite)*
+1. **The water channel's argmax-motion share, on a real transpiring patch state.** The probe that
+   settled the carbon channel is degenerate for uptake (`soil_consumption_` at 1e-13 to 6e-11), so
+   the co-output's response is still unmeasured. This is the half `plant#60` argues is
+   load-bearing, and it decides which channel the design has to prioritise.
+2. **How often `dE_from_soil_dpsi_collar` returns NaN on a production run** (C4). Its fallback is
+   a finite difference inside the very gradient §3 recommends building the locator on.
+3. **The pinning margin under a shallower rooting depth or a drier driver** (§5, C8). 2.05 MPa is
+   one trait set on one envelope, and §2.2b shows the margin is held up by three representational
+   choices rather than by the physics.
+4. **Whether the vulnerability curve's domain edge is crossed** (§2.2b). Beyond it the model
+   produces a wrong-sign uptake that the finiteness check cannot catch. Correctness before
+   gradients.
+5. **Whether the interior branch survives develop's inner tolerances** (C5). Validated at 1e-12.
+6. **A multi-level field-shift sequence** (§6). One refinement step was measured; a second
+   licenses an extrapolated reference and a field-convergence rate.
 
-Open work by TF24 component, so it can be triaged against the code rather than against this
-document:
+And one question §3's own result raises for the fix it proposes: because the gradient is
+one-signed *across* `p*`, there is **no sign change at the corner to bracket** — the sign change
+is between the shelf's exactly-zero gradient and the branch's −13.4. Whether a bracketing
+root-find locates that reliably is now the primitive's problem to answer.
 
-| component | open items |
-|---|---|
-| `Leaf` operating point (`find_root_collar_psi`, `prepare_collar_solve`) | 49 corner adjoint; 52 pinning fraction; 53 interior branch at production tolerance; NaN-fallback incidence (new); 32, 33 the TF24f tracked collar |
-| `TF24_Environment` soil block | pinning margin under other traits/drivers (new); 48 the kink manifest, for which §5 is the soil half |
-| light field (`ResourceSpline`, `CanopyShape`) — report 3 | 50 the unattributed 91% of a spline rebuild; 51 the real-knot-set falsifier; 46 per-species eta |
-| node schedule / measure | 54 retarget refinement at the coupling field, not reproduction; 27 the TF24 gradient FD-verification, which C10 re-scopes to ≥ 12 years |
-| transport term (`growth_rate_gradient`) — report 4 | C3's coupling to `GSS_tol_abs`; routes A/B/C unmeasured |
-| verification surface | 55 the anchor's domain; 44, 45 the R0 restore path |
-| engine (report 1) | 35 the step-local sweep; 4, 34 mutant-record cleanup; 47 the calibration contract |
-| odelia | 56 the non-finite step guard's full-suite run |
+The full open-item list, by component, is `OPEN-ITEMS.md`. It is deliberately not duplicated here.
 
 ---
 
