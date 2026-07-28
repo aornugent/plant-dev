@@ -306,9 +306,41 @@ capillary flux between layers.
 kills the drought gradient.** The paragraphs above read the never-firing guards as licence.
 That reading is wrong, and the measurement that breaks it was in the same corpus.
 
-`soil_psi_max_ = 1e3` caps matric potential. Past that cap, uptake does not shut off at
-the wilting point — it is **floored at a constant**, about 6% of peak, with
-`d(uptake)/d(theta)` **exactly zero for every theta below about 0.11**:
+**First, a provenance correction, because the mechanism is not develop's.** The branch that
+measured this attributes the dead channel to `soil_psi_max_ = 1e3`, a cap on matric
+potential that floors uptake at a constant with `d(uptake)/d(theta)` exactly zero below
+theta about 0.11. **`soil_psi_max_` does not exist on develop.** develop instead floors
+*theta* inside `psi_from_soil_moist`:
+
+```cpp
+const double t = std::max(soil_moist_, soil_moist_residual);   // soil_moist_residual = 1e-2
+return a_psi * std::pow(t/soil_moist_sat, -n_psi)/1e6;
+```
+
+Computing where each threshold bites on develop's own constants
+(`a_psi = 1.78e3`, `n_psi = 6.57`, `theta_sat = 0.428`):
+
+| threshold | theta where it bites | present on develop |
+|---|---|---|
+| collar pins at `psi_crit` ~ 5.9 MPa | **0.1246** | **yes** |
+| the branch's `soil_psi_max_` ceiling (1e3 MPa) | 0.0571 | **no** |
+| develop's theta floor (`soil_moist_residual`) | 0.0100 | yes, but 13x below the operating range |
+
+So on develop the flat-derivative severance sits at theta = 0.010 — an order of magnitude
+below the measured operating minimum, and therefore genuinely unreached. **The dead channel
+as the branch describes it is a property of the branch's soil code, not of develop.**
+
+What *is* on develop, and what the rest of this section is really about, is the **pinning**
+mechanism: the retention curve is identical, so soil tension crosses the cohorts'
+`psi_crit` at **theta = 0.1246**, and the measured driest layer reaches **theta = 0.133,
+which is psi = 3.85 MPa** — only 6% in moisture, or 1.5x in tension, from the threshold.
+The drydown run's closest approach was 0.79 MPa. That is the same object section 3 calls
+the corner and section 4 dispatches as the boundary-pinned branch; it is not a separate
+ceiling artifact.
+
+The branch's numbers below are therefore kept as a **warning about a representation choice
+develop has not made**, and as the measured anatomy of what pinning does to a gradient — not
+as a develop defect:
 
 | theta | psi_soil | cohort operating point | uptake |
 |---|---|---|---|
@@ -319,11 +351,13 @@ the wilting point — it is **floored at a constant**, about 6% of peak, with
 
 Two consequences, and the second is the more serious.
 
-*The reachability argument is circular.* Measured `theta_min = 0.133` sits just above the
-dead zone at 0.115, and it stays there partly **because** the constant floor keeps
-draining a fixed trickle rather than letting uptake self-limit. This is a reachable
-regime held open by an artifact, not an asymptote. Fix the shut-off and the reachability
-question reopens — it does not stay answered.
+*The reachability margin is thin, on develop's own numbers.* `theta_min = 0.133` is
+psi = 3.85 MPa against a collar `psi_crit` of 5.9 — 6% in moisture. The earlier reading of
+"never within a factor of ten of residual" is true and beside the point: residual is not the
+threshold that matters. The threshold that matters is hydraulic failure, and the stand
+operates just above it. Anything that dries the profile a little further — a shallower
+rooting depth, a drier driver than the sampled envelope, a trait set with a less negative
+`psi_crit` — crosses it.
 
 *The reverse-mode gradient of water use with respect to soil moisture is identically zero
 across the whole drought regime.* For a model whose purpose is trait gradients of drought
