@@ -613,13 +613,24 @@ with one checkout each: `scripts/tf24-multirate/data/rainfall_scenarios.csv` wit
 `gen_rainfall.R` (366 days across drought / dry / semiarid / wet / monsoon), and
 `scripts/tf24-benchmarks/data/*.rds` (`intense_storms`, `whiplash`, `extended_drought`,
 `dry_to_wet`, `long_horizon`, `drydown`, `multispecies`). Both reviewers of that programme
-named the bank its most valuable reusable artifact. For this work it is more than a
-benchmark: it is the finite-difference verification vehicle, because it spans the regimes
-where the coupling changes character — the wet drainage spike, the mid range where
-`lambda`'s spread is widest at 60%, and the dry regime where the dead channel lives. A
-gradient verified only on a benign trajectory says nothing about the drought channel, which
-is the channel currently returning zero. `whiplash` is the scenario that exposed the 2.4×
-offspring error.
+named the bank its most valuable reusable artifact.
+
+**But it is a speed and robustness vehicle, not an accuracy vehicle**, and an earlier version
+of this paragraph had that wrong. Measured: all six traces give offspring `1e-8`–`1e-13` even
+at `birth_rate = 20`; an lma sweep 0.04→1.0 is monotone-decreasing at best ~`2e-10`; scaling
+rainfall 1×→20× never lifts one trace above ~`1e-9`. The same species and birth rate give
+offspring **1.03** under constant rainfall. The traces were built as soil-integrator stress
+tests, so they sit permanently in the near-extinction regime where the functional is
+ill-conditioned for every method — refining one method's own time discretisation moves
+offspring by O(1)–O(10) non-monotonically while the soil trajectory converges to `5.5e-4` on
+the same refinement. Cash–Karp does not even complete 3 of the 6 at converged tolerance, and
+that failure is a model-level density divergence, not a solver overflow.
+
+So the bank is the right vehicle for exercising the coupling's *regimes* and for robustness,
+and the wrong one for an FD accuracy reference. Accuracy has to be judged where the functional
+is well-conditioned — the model's own seasonal driver at the sustaining rainfall mean with
+amplitude dialled up, where offspring is O(1). `report 06` collects these bounds as
+constraints A1–A5.
 
 **Oracle claims that measurement refuted, recorded so they are not re-inherited:** that
 the inner argmax floor drives the ~30% step rejection (refuted — the rejection fraction
