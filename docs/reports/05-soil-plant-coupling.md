@@ -51,10 +51,18 @@ own trajectory converges cleanly; and at develop's default inner tolerance it is
 wrong. A gradient delivered without those bounds is a number a user will trust further than it
 deserves. This is not a caveat to bury — it changes what the deliverable is.
 
-**What this report does not claim.** Item 1's severity is *inferred*, not measured: the
-prediction that develop's current adjoint is first-order wrong at the corner has never been
-tested against a finite difference that re-solves the inner problem. That test is cheap, it is
-first in section 10, and everything in items 1 and 2 is conditional on it.
+**Item 1 is now measured on develop, and it understates the problem.**
+`corner-and-envelope-result.md` runs the test from R against develop's own analytic gradient.
+The operating point is a corner at **every** sampled state — zero of six show a gradient sign
+change — so it is the ordinary case, not an edge case. And decomposing the carbon channel,
+`d(profit)/d(psi) = explicit + g · dp*/dpsi`, the argmax-motion term is **89% of the total at
+the wettest state sampled and 100% at the driest**. Freezing the operating point does not drop
+a first-order correction; it drops the derivative.
+
+**What is still not claimed.** The *water* channel's magnitude. `soil_consumption_` in that
+single-layer configuration is 1e-13 to 6e-11 — degenerate, exactly the objection raised on
+`plant#60` — so the co-output's response cannot be concluded from it and needs a real
+transpiring patch state.
 
 ---
 
@@ -287,10 +295,16 @@ slope **1.06** against a predicted 2 — because with no stationary point
 `profit(p_hat) − profit(p*) ≈ −8.8 · (p_hat − p*)`. Slope 2 was the sharpest available test of
 the envelope framing, and it failed.
 
-*Any adjoint that freezes the operating point is first-order wrong.* With `dprofit/dp ≠ 0` at
-the operating point, nothing downstream is stationary — not consumption, not growth, not
-profit. Freezing `p*` drops terms of size `(dc/dp, −8.8) · dp*/dstate` in every cohort solve,
-into a functional that amplifies about 10×. **Untested; section 10 item 1.**
+*Any adjoint that freezes the operating point loses the derivative, not a correction.*
+Measured on develop (`corner-and-envelope-result.md` §4): the argmax-motion term
+`g · dp*/dpsi` is 89.2% / 96.6% / 99.2% / 100.6% of `d(profit)/d(psi_soil)` at soil potentials
+0.5 / 1.0 / 1.5 / 2.0 MPa, with the explicit partial falling from −0.52 to within
+finite-difference noise of zero. And `dp*/dpsi_soil = 1.00000` with a **constant** offset
+`p* − psi_soil = 0.0049`, so the plant holds the soil-to-collar *gradient* rather than its
+collar potential. Two consequences: the share lost grows toward 100% as conditions dry, so the
+error is worst exactly where drought response is the science; and because the corner moves with
+the soil at rate 1, a frozen evaluation lands on the opposite branch, making a naive frozen
+finite difference diverge as 1/step rather than estimate anything.
 
 *Report 2's polish has no root to find.* Report 2 proposes a Newton polish on `dprofit/dp = 0`
 behind an implicit-function node. There is no interior point where that holds, and the second
@@ -867,9 +881,14 @@ failure; the exact retention factor; `lambda_j`'s spread; the two-stiffness deco
 R0 tolerance and horizon tables; the field-shift decomposition; the guard incidences; the
 conductivity table and `theta_min = 0.133`.
 
-**Inferred, not measured:** that the corner makes develop's *current* adjoint first-order
-wrong. The mechanism is sound and two independent reasoners converged on it, but it is an
-argument. Section 10 item 1 exists to test it rather than assume it.
+**Measured on develop since this report was written** (`corner-and-envelope-result.md`): the
+corner's existence at every sampled state, the shelf/jump/decline geometry with the `ci` step,
+`dp*/dpsi = 1` with a constant offset, and the 89-100% argmax share of the carbon-channel
+derivative. What was inferred is now measured, and the severity was understated.
+
+**Still inferred:** the *water* channel's magnitude, because the single-layer probe that
+settles the carbon channel is degenerate for uptake (1e-13 to 6e-11). A real transpiring patch
+state is needed.
 
 **Not applicable to develop, and recorded to prevent re-import:** the branch's
 `soil_psi_max_`-driven dead drought-gradient channel (§7).
