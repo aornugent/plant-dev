@@ -1,5 +1,26 @@
 # The TF24 leaf as a single differentiable node
 
+> **Superseded in part — read `05-soil-plant-coupling.md` section 3 first.** This report
+> treats the collar operating point as an interior maximiser and proposes a Newton polish
+> on `dprofit/dp = 0` behind an implicit-function node. Measured, the operating point is
+> an **active-constraint corner**, not a maximiser: the objective has no interior
+> stationary point and `dprofit/dp = -8.8` there. So the envelope theorem never applied,
+> the polish has no root to find, and the node's denominator is undefined. The polish
+> result quoted below (4.541e-10, flat across tolerances) was measured on a toy whose
+> objective has a smooth interior maximum by construction, so it never exercised this
+> geometry.
+>
+> What survives, and is unaffected: the argument for keeping `Leaf` entirely `double`
+> (section 1's second half); that a tape recording the search returns the derivative of
+> the bracket rather than of the argmax (section 5); the branch census and the
+> `set_shutdown_state` defect (section 3); the census table (section 4).
+>
+> What replaces the polish: a **bracketing** root-find on the analytic gradient
+> `Leaf::dprofit_droot_collar_psi`, which converges to the gradient's sign change — which
+> is what a corner is — and needs no second derivative. It already ships behind
+> `control$newton_collar_solve`. Sections 1 and 5 below need rewriting around this;
+> report 5 carries the measurements in the meantime.
+
 ## 1. The proposal
 
 Everywhere else in plant, a rate is a closed-form function of state and traits. In
