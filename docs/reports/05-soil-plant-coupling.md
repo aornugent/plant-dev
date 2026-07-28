@@ -119,6 +119,101 @@ so the surrogate is locally affine. **`GSS_tol_abs` and `node_gradient_eps` are 
 this comment is the only place in the code that hints at it. Report 4 treats the stencil; the
 point here is that its safety rests on the argmax's staircase, not on its smoothness.
 
+### 2.2b What the coupling is, ecologically
+
+Reading the water balance and the uptake law together, TF24's soil–plant coupling represents
+four processes, and the way they are represented is what makes the differentiation problem the
+shape it is.
+
+**On the soil side**, per layer `i`:
+
+    d(theta_i)/dt = ( water_in_i  -  K(theta_i)  -  uptake_i ) / dz_i
+
+with `water_in_0` the rainfall reduced by a saturation-excess runoff term
+`max(0, 1 - a_infil (theta_0/theta_sat)^b_infil)`, `water_in_{i>0}` the drainage out of the
+layer above, and `K` the Clapp–Hornberger / Zeng–Decker unsaturated conductivity. Drainage is a
+**one-directional downward cascade**: layer `i` feeds `i+1` and never the reverse.
+
+**On the plant side**, per layer, uptake is Ohm's law on a water-potential gradient:
+
+    E_i = ( psi_soil_i  -  P_collar  -  grav_head_i ) / ( area_leaf * r_R_i )
+    r_R_i = r_R_H_i + r_R_V_sum_i ,
+    r_R_H_i = r_R_H_min_i * span / integral
+
+where `integral` is the mean fractional root conductivity over the potential interval the water
+must traverse, taken from the pre-integrated hydraulic vulnerability curve. Three things about
+that expression carry ecological weight:
+
+**Uptake declines gracefully at the dry end, and the mechanism is already in develop.** As a
+layer dries, the interval `[P_src_min, P_src_max]` widens into the vulnerability curve's
+decline, the mean conductivity falls, `r_R_H` rises, and `E_i` falls away smoothly. There is no
+moisture at which a layer's contribution switches off. That is exactly the gradual water-stress
+response one would want to represent — and it is already what the code does.
+
+**The plant is the soil's only upward pathway.** `E_i` is signed. When a layer is drier than the
+collar, gravity-adjusted, the flow **reverses and the layer gains water** — develop's own
+comment on the equal-potentials branch says so: *"Transpiration is equivalent to gravitational
+water loss (i.e. layer gains water)."* And the soil-side comment states the division of labour
+explicitly: *"no upward capillary flux between layers — that is handled hydraulically inside the
+plant via `E_from_Soil_to_Root_Collar`."* So **hydraulic redistribution is entirely mediated by
+the root system.** The coupling is not a sink the plants draw on; it is the only mechanism that
+moves water against the drainage cascade. That makes it more load-bearing than a consumption
+term would be, and it means an approximation that treats uptake as one-signed is not a small
+error in the physics.
+
+**Depth costs resistance, which is why deep water goes unused.** `r_R_V_sum_i` accumulates with
+depth, so reaching a lower layer is dearer than reaching a shallow one — independently of how
+wet it is. Uptake *is* biased toward wet layers, by potential gradient; it is biased *away* from
+deep ones, by transport resistance.
+
+**And the observed drought outcome follows from those three.** In a twelve-year zero-rain
+drydown the profile develops a strong vertical gradient that it never equalises:
+
+| depth | theta | psi (MPa) |
+|---|---|---|
+| 0.3 m (top) | 0.127 | **5.34** |
+| 0.6 m | 0.127 | 5.13 |
+| 0.9 m | 0.136 | 3.28 |
+| 1.2 m | 0.176 | 0.611 |
+| 1.5 m (bottom) | 0.190 | **0.373** |
+
+against `psi_crit ≈ 5.6`. The top two layers arrive at the hydraulic threshold while the bottom
+sits two potential orders away from it. Stand leaf area peaks at 3.96 around year 3 and
+collapses to nearly zero by year 16; **38% of the sixteen-year rainfall leaves as deep
+drainage**. So the stand **starves on top-layer stress while rooted into water it never
+exploits**, and drought mortality arrives through carbon starvation rather than hydraulic
+failure.
+
+**That is the finding that should shape the representation, and it cuts against the obvious
+reading.** TF24 is a plant-hydraulic drought-mortality model: the collar pinning at `psi_crit` —
+the potential at which xylem loses conductance to runaway embolism — is the event the model
+exists to resolve. Three representational choices combine to make it nearly unreachable: the
+whole-cohort shut-down keyed on the **wettest** accessible layer, the downward-only soil flow,
+and every cohort rooting the full profile. Each is individually defensible; together they route
+almost all mortality through the carbon pathway instead.
+
+So the hard switch in this model is **not** standing in for a gradual process that is missing —
+the gradual process is present, in `r_R`. The whole-cohort shut-down sits *on top of* a
+mechanism that already declines smoothly, and it exists because the collar solve has no feasible
+interval once every layer is past critical, not because the biology switches. Read that way it
+is a **solver guard in biological clothing**, and the question it raises is not "what scale
+should we smooth it at" but "why is the graceful mechanism not permitted to reach zero on its
+own". That reframing is develop-specific and it is the opposite of what the general
+hard-switch-stands-in-for-gradual-biology heuristic would have predicted.
+
+**One hazard falls out of the same reading.** develop's guard comment records that
+`root_vuln_from_psi` **linearly extrapolates negative** beyond its fitted domain, so a
+deep-drought layer can produce negative conductivity, a negative-but-finite `r_R`, and a
+**wrong-sign `E_i` that the post-loop finiteness check would not catch**. The guard against it is
+present only in the equal-potentials branch. So the vulnerability curve's domain edge is a real
+boundary in the coupling, distinct from every threshold discussed above, and it fails silently
+rather than loudly.
+
+**And one trap for anyone assembling a Jacobian across the pair:** `soil_consumption_[i]` is
+left in mol H2O m^-2 s^-1 while `E_up_` is converted to kg — *"the two siblings therefore carry
+different units by design"*, with the per-layer conversion applied downstream in
+`TF24_Strategy::compute_rates`.
+
 ### 2.3 The dry end amplifies, and the amplifier *is* the coupling
 
 Decomposing the soil Jacobian along real trajectories separates hydrology (infiltration,
@@ -371,56 +466,43 @@ margin, on a keying that is itself a modelling choice.*
 
 ---
 
-## 5b. The conditioning of the loop, and what its structure permits
+## 5b. Is the thing we are differentiating well defined?
 
-Three facts about the loop as an operator. They decide whether the problem is well-posed at
-all, and they bound what any solver can buy.
+One result decides whether any of this is worth doing, and it is easy to skip past.
 
-**The coupled fixed point is well-conditioned, so a converged answer exists.** Arnoldi on the
-self-consistency map `T: a -> u -> members -> a` at its fixed point: spectral radius
-`rho(T') ~ 7-8`, with the dominant modes at negative real parts and large imaginary parts —
-far from `+1`. The nearest mode to `+1` is real and sits **0.05-0.2** away, so `(I - T')` is
-non-singular and `||(I - T')^-1|| ~ 5-22`. **Nothing sits at `+1` and there is no tight cluster
-pinned to it**, which a genuinely marginal mode would produce.
+**The coupled fixed point is well-conditioned, so the continuum R0 exists and is a stable
+observable of the model.** Arnoldi on the self-consistency map `T: a -> u -> cohorts -> a` at
+its fixed point gives spectral radius `rho(T') ~ 7-8`, with the dominant modes at negative real
+parts and large imaginary parts — far from `+1`. The nearest mode to `+1` is real and sits
+**0.05-0.2** away, so `(I - T')` is non-singular and `||(I - T')^-1|| ~ 5-22`. **Nothing sits at
+`+1`, and there is no tight cluster pinned to it**, which a genuinely marginal mode would
+produce.
 
-That is the result that makes this whole exercise well-posed: **the continuum R0 exists and is
-a stable observable of the model**, so the non-convergence in section 6 is a discretisation
-protocol artefact rather than ill-posedness. It also reads the ~23% spread between independently
-converged schemes as conditioning (5-22) times an O(1-5%) discretisation error, not a divergence.
-Caveats: the matvec carries ~1.8% round-trip noise so subdominant Ritz values are noise-limited,
-and it is one sequence at one horizon; the robust reads are `rho ~ 7-8` and the gap at `+1`.
+That matters because the alternative was live: had an eigenvalue sat at `+1`, R0 would not be a
+stable observable of the model at all, no mesh would converge it, and the deliverable would have
+had to become a banded interval rather than a number. It is not that. So section 6's
+non-convergence is a discretisation-protocol artefact, and the ~23% spread between independently
+converged schemes reads as conditioning (5-22) times an O(1-5%) discretisation error rather than
+a divergence.
 
-**The large spectral radius is a different fact from the conditioning, and it kills relaxation.**
-`rho(T') ~ 7-8` far from `+1` is *good* conditioning but an *amplifying* operator, which is why
-iterating the coupling to self-consistency fails (section 7) — and why a small error in uptake is
-not a small error in the answer.
+Two caveats: the matvec carries ~1.8% round-trip noise so subdominant modes are noise-limited,
+and it is one sequence at one horizon. The robust reads are the spectral radius and the gap at
+`+1`.
 
-**The near-bound eigenvalue is chart-invariant.** Linearising a layer's balance near depletion
-gives `lambda = gamma * r / (d * delta*)` — turnover is throughput over stock — which diverges as
-the stock depletes. No change of state variable removes it. It splits into two regimes with
-different remedies: a **fall** regime, where the input collapses and the step is
-accuracy-limited, so no method enlarges those steps; and a **floor** regime, sitting at the
-depleted balance, where the step is stability-limited and an implicit method wins. A chart can
-delete a clamp and restore floating-point conditioning; it cannot remove this timescale, and it
-cannot hold a bound the physics does not (section 5).
-
-**The soil block's structure is favourable and under-exploited.** `TF24_Environment`'s
-inter-layer cascade is one-directional — layer `k` drains to `k+1` with no back-transfer — so the
-soil Jacobian is **lower-bidiagonal plus diagonal**. Real spectrum, no oscillatory stiffness, and
-an implicit step solves it by forward substitution with better adjoint conditioning than a general
-solve. At `L <= 5` that is nearly free. `RODAS4(3)` and `ode_jacobian.hpp` are already on odelia
-master, and are not reachable from the SCM patch today (no rebind hook, no active scalar) —
-which is a plumbing gap, not a design question.
+**The same spectrum explains why a small error in uptake is not a small error in the answer.**
+`rho ~ 7-8` far from `+1` is *good* conditioning but an *amplifying* operator. That is the
+formal version of section 2.3's 50-291x dry-end amplification, and it is why the coupling's
+accuracy requirement (section 5c) cannot be read off the size of the term alone.
 
 ---
 
-## 5c. What the numerics can and cannot buy
+## 5c. What the coupling's accuracy requirement is, and is not
 
-Measured levers, including the ones that turned out not to be levers. These bound any solution
-without prescribing one.
+One measurement bounds how accurately the coupling has to be resolved, and it is not the one
+intuition suggests.
 
-**The functional needs only the weekly-and-slower envelope of soil moisture — the largest
-untaken arbitrage.** Low-passing the soil trajectory and re-advancing the cohorts against it:
+**R0 needs only the weekly-and-slower envelope of soil moisture.** Low-passing the soil
+trajectory and re-advancing the cohorts against it:
 
 | texture removed below | R0 / R0(unfiltered) |
 |---|---|
@@ -430,44 +512,17 @@ untaken arbitrage.** Low-passing the soil trajectory and re-advancing the cohort
 | ~1 month | 2.273 |
 | ~3 months | 15.6 |
 
-R0 is invariant to ~3% under removal of *all* sub-2-day texture and bends by 14% at the weekly
-scale; the knee sits between weekly and monthly. The shared step is sub-daily (0.07-0.26 day),
-so the O(M) cohort block is integrated **30-100x finer than the functional requires**. Caveats:
-open-loop (the probe sees the filtered trajectory but does not feed back, and the loop gain is
-~10x), one sequence, and soil moisture only. A burst-dominated driver could move the knee finer.
-This arbitrage is gated on a cheap refresh of the coupling at the fast rate — which is exactly
-what section 4's Jacobian is.
+R0 is invariant to ~3% under removal of **all** sub-2-day texture, and bends by 14% only at the
+weekly scale. So the fast ripple in soil moisture — which the shared sub-daily step spends most
+of its effort resolving — is not what the functional is made of; the **envelope** is. Caveats:
+open-loop, one sequence, soil moisture only, and a burst-dominated driver could move the knee
+finer.
 
-**Order matters more than step size on the cohort block, and the fix costs no vocabulary.** A
-first-order advance of the slow block left a **12%** R0 bias at a weekly leg, converging as the
-leg shrank (8.4% at 3.5 d, 1.2% at 1.75 d — the first-order signature) so that reaching ~1%
-needed a 1.75-day leg and ate the speed win. Raising the coupling order to third fixed it at the
-*same* leg while keeping the cohort-solve reduction. Two properties worth carrying: reverse
-replay stays safe because the stage count is deterministic, so record and replay take identical
-structure; and it was taken as an outright swap rather than a control key, on the explicit
-grounds that a key would be "a permanent concept every user must learn."
-
-**A replay cache should store the field, not the builder.** Caching a full environment copy per
-Runge-Kutta sub-step included the light interpolant's *adaptive builder* and the band-solve
-workspace — build-only state a replay never reads. Storing only knots, values and the environment
-ODE state, and rebuilding through the existing initialiser, is a **bit-identical** reconstruction
-and took a 12-year run from **>15 GB to 1.14 GB**, with every dependent number reproducing to the
-printed digit. This bears on report 1's memory case and on report 3, whose subject *is* the
-builder being cached.
-
-**Frozen-field replay is faithful exactly in the rare limit.** The error is O(mass fraction) and
-vanishes as the probe's weight does: relative R0 gap **63.4** at mass fraction 0.388, 0.424 at
-0.060, 0.036 at 0.0064, 0.003 at 0.0006. So the mutant path is valid where it is used — marginal
-members and rare invaders — and invalid for a heavy probe, where feedback is superlinear.
-
-**Down-weighting the step-limiting cohorts is a modest lever, because they overlap the cohorts R0
-needs.** About 30% of accepted steps are limited by the soil block, which a cohort-weighted error
-norm cannot touch at all; of the cohort-limited remainder, 14-21% are set by a *dominant* cohort
-that must keep full weight; and within the marginal rest, **a third to a half are dying** —
-heading to the absorbing density boundary, which is precisely what R0 is most sensitive to.
-Cleanly reclaimable: roughly **10-20%** of accepted steps. The measured tension is structural: a
-cohort crossing the survival threshold has fast local dynamics (so it sets the error norm) *and*
-is R0-critical, so the two populations are not separable by weight alone.
+Two things follow for a gradient. The accuracy target on the coupling is set by the envelope,
+not by the ripple — so an approximation that preserves the envelope and loses the texture is
+admissible in a way one might not have assumed. And conversely, an error that biases the
+*envelope* is not forgiven by being small pointwise, which is what makes section 2.3's
+amplification and section 5b's conditioning load-bearing rather than academic.
 
 ---
 
@@ -675,12 +730,21 @@ the choice can be made by different mechanisms in different regimes, then **the 
 branch on the same test the solver used**, never on a re-derived proxy. A residual threshold
 that looks equivalent measured 30–50% wrong where the sign test measured 6e-4.
 
-**Ask what gradual process a hard switch is standing in for.** A hard switch in place of a
-smooth response costs three things at once: stiffness, a moving non-differentiability, and — if
-it saturates rather than vanishing — a dead gradient channel. All three are symptoms of one
-misrepresentation, and they come back together when it is fixed. This is the most reliably
-positive-sum move available: better mechanism, better conditioning, better derivative, no
-trade.
+**Ask what gradual process a hard switch is standing in for — and check whether it is already
+there.** A hard switch in place of a smooth response costs three things at once: stiffness, a
+moving non-differentiability, and — if it saturates rather than vanishing — a dead gradient
+channel. All three are symptoms of one misrepresentation, and they come back together when it is
+fixed. That makes it the most reliably positive-sum move available.
+
+**But the question has a second answer that is easy to miss, and TF24 is a case of it.** Before
+asking at what scale to smooth a switch, ask whether the model *already contains* the graceful
+mechanism the switch is pre-empting. Here it does: per-layer uptake declines smoothly through
+the hydraulic vulnerability curve's rising resistance, and the whole-cohort shut-down sits on top
+of that, firing not because the biology switches but because the *solve* has no feasible interval
+left. A switch in that position is a **solver guard in biological clothing**, and smoothing it
+would add a scale parameter to paper over a mechanism that is already smooth underneath.
+Distinguishing the two cases is a code-reading question, not a modelling one, and getting it
+backwards costs a parameter and buys nothing.
 
 **The coordinate is part of the model.** When the divergence exponent of a coupling equals the
 exponent of the curve that defines the state's meaning, the *state variable* is implicated and
@@ -738,7 +802,12 @@ Ranked by what each would settle rather than by cost.
 4. **How often does `dE_from_soil_dpsi_collar` return NaN on a production run?** C4's fallback
    is an unmeasured finite difference inside the gradient this report recommends. *(new)*
 5. **What is the pinning margin under a shallower rooting depth or a drier driver?** §5's 2.05
-   MPa is one trait set on one envelope. *(new)*
+   MPa is one trait set on one envelope, and §2.2b shows the margin is held up by three
+   representational choices rather than by the physics. *(task 58)*
+7. **Does the vulnerability curve's domain edge get crossed?** §2.2b: beyond it
+   `root_vuln_from_psi` extrapolates negative, giving a wrong-sign uptake that the finiteness
+   check does not catch, guarded in only one of the three branches. This is a correctness
+   question before it is a gradient question. *(new)*
 6. **A multi-level field-shift sequence.** §6 measured one refinement step; a second licenses an
    extrapolated reference and a field-convergence rate. *(task 54's prerequisite)*
 
@@ -779,6 +848,13 @@ document:
 ## 12. Measured, versus inferred
 
 **Measured on develop, read directly this session:** the loop of §2 and every symbol in it;
+the four-process water balance and the one-directional drainage cascade; the per-layer uptake law
+`E_i = (psi_soil_i - P_collar - grav_head_i)/(area_leaf * r_R_i)` with
+`r_R_H_i = r_R_H_min_i * span / integral` over the vulnerability curve, and its sign reversal for
+a layer drier than the collar; the comment recording that upward redistribution is mediated by
+the plant rather than the soil; the negative linear extrapolation of `root_vuln_from_psi` beyond
+its domain and the single branch that guards it; the mol/kg unit split between
+`soil_consumption_[i]` and `E_up_`;
 `GSS_tol_abs = 1e-3`, `node_gradient_eps = 1e-6`, `ode_tol_rel/abs = 1e-4`,
 `ode_step_size_initial = ode_step_size_min = 1e-6`, `soil_moist_residual = 1e-2`; the
 golden-section call and its comment; `dprofit_droot_collar_psi`'s construction and its
