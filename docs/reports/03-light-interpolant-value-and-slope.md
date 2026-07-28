@@ -80,18 +80,33 @@ run-dependent width. A Hermite span depends on exactly **two** knots. Verified o
 live tape: `d(eval)/d(knot_2)` is 0.55 for a query in a span touching knot 2 and
 **exactly 0** two spans away.
 
-**Cost, and this is the weak point.** Query cost is fine: at matched knot count the
-Hermite is 6% faster per value and 2.6x faster when value and slope are both wanted. The
-build is the problem. Measured on a production TF24 run, the light interpolant is rebuilt
-**20 304 times** — once per Runge-Kutta stage, not once per accepted step — costing
-**3.92 s of a 59.5 s run, 6.6%**. Production takes the `rescale` path (20 160 calls)
-rather than the adaptive `construct` (144 calls), and rescale re-evaluates the
-competition kernel at each of its **65** knots. The Hermite needs **142** knots and two
-reductions per knot, so on kernel-evaluation count the build is roughly **2.8x** more
-expensive, projecting to **+11.8%** on the forward run (section 5.5).
+**Cost.** Query cost is fine: at matched knot count the Hermite is 6% faster per value
+and 2.6x faster when value and slope are both wanted. The build was the open issue.
+Measured on a production TF24 run, the light interpolant is rebuilt **20 304 times** —
+once per Runge-Kutta stage, not once per accepted step — costing **3.92 s of a 59.5 s
+run, 6.6%**. Production takes the `rescale` path (20 160 calls) rather than the adaptive
+`construct` (144 calls), and rescale re-evaluates the competition kernel at each of its
+**65** knots.
 
-That is above what a forward-path change should cost, and it is the open issue in this
-proposal. Section 5.5 sets out what is and is not yet counted.
+An earlier version of this section projected **+11.8%**, from a knot count of **142**
+against 65. `interpolant-cost.md` measures the three things that count did not separate,
+and the projection does not survive them:
+
+- The slope is not a second sweep. `q` is exactly `-dQ/dz` and both are written in terms
+  of one `pow_eta_(u, eta)`, so a fused sweep costs **1.5-1.9x** the value sweep where
+  two sweeps cost **2.1-2.8x**.
+- The Hermite build step is **10x cheaper** than the cubic's band solve (0.258 us against
+  2.556 us at 65 knots), a credit of 2.30 us per build.
+- **The 142-knot premise is wrong.** On plant's own 65-knot set the Hermite is already
+  better than the cubic on value (1.47x) *and* on slope (1.48x). The cohort-top set buys
+  far more slope accuracy and remains available, but it is a choice rather than a
+  precondition.
+
+On the 65-knot set the forward cost is between **+0.33% and +5.3%**, and the bracket's
+width is one unmeasured quantity: the sweep and the band solve together account for
+17.6 us of the measured 193.2 us per build, leaving **91% unattributed**. The obvious
+candidate — plant's missing LTO — was tested and rejected. Section 5.5 carries the
+detail; `interpolant-cost.md` carries the measurements and the build line.
 
 **This is the only one of the three proposals that changes forward-model numbers**, at
 roughly the fitting tolerance, so baselines need re-blessing. It is also the only one
@@ -339,29 +354,45 @@ is `rescale`, not the adaptive build.
 
 **`rescale` is not cheap, and it is the closest analogue to a Hermite build.** It
 re-evaluates the competition kernel at each of its 65 knots and then runs the band solve
-in `initialise()`. The Hermite build evaluates two reductions — `A` and `dA/dz`, sharing
-their `pow(z/H_j, eta)` if fused — at **142** knots, and needs no band solve. Counting
-kernel evaluations as the dominant term: 142 knots at roughly 1.3x the per-knot
-arithmetic against 65 knots at 1.0x gives about **2.8x**, projecting
+in `initialise()`.
 
-    59.5 s  -  3.916 s  +  3.916 s x 2.8  ~=  66.5 s      = +11.8%    (projected)
+An earlier version of this section stopped here, counted kernel evaluations as the
+dominant term, and projected `142 knots x 1.3` against `65 x 1.0` = about **2.8x**, or
+**+11.8%** on the run. Two of that projection's three inputs were wrong, and the third
+was never a requirement. `interpolant-cost.md` measures them:
 
-**What is not yet counted, in both directions.** Against the Hermite: nothing — the 2.8x
-already assumes the fused reduction. In its favour: it does no band solve, no
-`clear()` and `add_point` loop with reallocation, and no adaptive refinement; and 65
-knots is the *final* count, so the average over the run is lower and the true rescale
-baseline may be cheaper than 193.2 us implies at small stand sizes. Those are real
-savings that the kernel-evaluation count ignores, and they are why this is a projection
-rather than a measurement.
+| | measured | what the projection assumed |
+|---|---|---|
+| slope as a second sweep | **1.5-1.9x** fused | 1.3x per-knot, folded into the knot ratio |
+| the build step itself | Hermite **10x cheaper** (2.30 us credit per build) | ignored |
+| knots needed to beat the cubic | **65** — the set plant already has | 142, the cohort tops |
 
-**The honest position: the query side is settled and favourable, the build side is not,
-and 142 knots against 65 is the driver.** The knot count is not tunable — the knots are
-the cohort tops, which is what buys the convergence in section 5.3 — so closing this gap
-means either measuring the omitted savings and finding them larger than they look, or
-accepting a forward-path cost of several percent, or finding a formulation that needs
-fewer knots. It should be measured properly, by wiring a Hermite build into
-`ResourceSpline` alongside the existing one and timing both on the same run, before the
-proposal is accepted.
+The third is the one that mattered. At 65 knots the Hermite is better than the cubic on
+value (4.465e-04 against 6.574e-04) and on slope (1.949e-02 against 2.894e-02), both
+normalised on the target's global range. So the knot count is not forced by accuracy;
+142 knots buys *more* slope accuracy, and section 5.3's 100x margin needs them, but
+beating develop's interpolant does not.
+
+On the 65-knot set:
+
+    upper bound (all 193.2 us scales by 1.8):   59.5 - 3.92 + 7.05  =  62.6 s  = +5.3%
+    lower bound (only the measured parts):      59.5 - 3.92 + 4.11  =  59.7 s  = +0.33%
+
+**What is still not counted, and it is the whole width of that bracket.** The kernel
+sweep accounts for 15 us of the 193.2 us per build and the band solve for 2.6 us —
+**17.6 us, so 91% is unattributed.** The candidate was plant's missing LTO, since
+`Individual::compute_competition` cannot inline into the templated sweep; that was
+tested against a real two-translation-unit build and **rejected** — the call boundary
+moved the sweep from 14.0 to 15.2 us, not to 190. The mechanism is open. It is also
+worth chasing on develop's own account: if 175 us per build is avoidable, that is 3.5 s
+of a 59.5 s run with no AD work involved.
+
+**The honest position: the query side is settled and favourable, and the build side is
+now bracketed rather than blocking.** Closing the bracket means attributing the missing
+91% and then wiring a Hermite build into `ResourceSpline` on the 65-knot set alongside
+the existing one, timing both on the same run. That measurement should be made before the
+proposal is accepted, but it is no longer being asked to rescue a projection that put the
+cost above the forward-path budget.
 
 Two things are removed from the build side in exchange and are not counted above: the
 adaptive refinement loop disappears entirely — the knot set is the cohort heights, known
@@ -403,8 +434,15 @@ order. `test-strategy-tf24.R`, `test-canopy-methods.R` and the FF16 references u
 `rescale_spline` reuses the existing knot set — rescaled affinely to the new
 `height_max` — and re-evaluates. With knots at cohort heights the knot set changes
 whenever a cohort grows, so there is nothing to reuse and every build is a full build.
-This is the largest open cost in the proposal: +11.8% projected against a measured 6.6%
-current cost, driven by 142 knots against 65.
+
+This was recorded as the largest open cost, at +11.8% against a measured 6.6%. It is
+smaller than that and it is no longer the binding constraint: on plant's existing
+65-knot set — where the Hermite already beats the cubic on both value and slope — the
+cost is bracketed at **+0.33% to +5.3%** (section 5.5). Keeping the 65-knot set also
+keeps `rescale`'s reuse intact, since the knots are then still positions rather than
+cohort tops. Choosing the cohort-top set instead gives up that reuse *and* pays the
+knot-count multiplier, so it should be chosen for the slope accuracy it buys, not by
+default.
 
 **C6. `pow(0, eta)` is a live hazard at the ground knot.** `d/d(eta) 0^eta =
 0^eta log(0)`, which is NaN. `A(0)` and `dA/dz(0)` are the natural first knot, and
@@ -413,6 +451,18 @@ current cost, driven by 142 knots against 65.
 gradient for exactly one trait while every other trait stayed finite and plausible. At
 `z = 0` the cohort contributes its full amplitude with `u = 0` and no `pow` is needed,
 so the fix is a guard rather than a reformulation.
+
+**C6b. The ground knot breaks `q` too, and that one is a defect in develop.** Separately
+from the `eta` derivative: `q(u,z) = 2 eta (1 - u^eta) u^eta / z` divides by `z`, so
+`q(0,0)` is `0/0` — **NaN in plain `double`, with no AD involved**. Measured. Since the
+field's lowest knot is exactly `z = 0` (`construct_spline` sets `lower_bound = 0.0`),
+anything that asks the field for a slope at the ground gets NaN. Writing `q` over
+`u^(eta-1)/H` rather than `u^eta/z` — the two are equal for `z > 0` — is finite there
+and removes a division from the hot path; the `u -> 0` limit is 0 for every `eta > 1`
+and `1/H` at `eta = 1`, resolved once in `initialise()` alongside `pow_eta_`. The patch
+is `canopy-shape-fused-q.patch`, and it is worth landing whether or not this proposal
+is accepted: today nothing reads the field's slope, so the defect is latent, and the
+first consumer to want one would meet it.
 
 **C7. The `1e-4` light floor.** `compute_average_light_environment` clamps light to
 `max(get_environment_at_height(z), 0.0001)`, with a comment recording that the original
@@ -477,9 +527,11 @@ undershoots, which is a different problem with a different fix.
 4. **Measure C1's convergence** — the knot-position channel against knot density at
    production width. This decides whether cohort-top knots suffice or spans need
    subdividing.
-5. **Time the Hermite build against `rescale_spline` on one production run**, both
-   wired into `ResourceSpline`. Section 5.5's +11.8% is a projection from kernel-evaluation
-   counts and it is the number that decides whether this proposal is affordable.
+5. **Attribute the 91% of `rescale_spline` that section 5.5 cannot account for**, then
+   time a Hermite build against it on one production run, both wired into
+   `ResourceSpline` on the 65-knot set. That collapses the +0.33%..+5.3% bracket to one
+   number. It is also worth doing for develop alone: 175 us of unattributed cost per
+   build is 3.5 s of a 59.5 s run.
 6. **Switch the read**, re-bless the baselines, confirm the forward benchmark is within
    the accepted band.
 7. **Then** wire the slope into the crown integral's height channel, which is where the
@@ -505,9 +557,18 @@ work.
 - **The knot-position channel does not shrink with knot density.** Then C1 is a floor
   rather than a discretisation error, and the passive-position treatment needs
   revisiting.
-- **The build cost exceeds the forward-performance budget.** Section 5.5 projects
-  +11.8% from a kernel-evaluation count. Settle it by wiring a Hermite build into
-  `ResourceSpline` beside the existing one and timing both on one production run. If the
-  omitted savings — no band solve, no refinement loop, no reallocating knot append — do
-  not bring it under a few percent, the proposal needs a formulation with fewer knots
-  and section 5.3's convergence argument has to be re-made at that density.
+- **The build cost exceeds the forward-performance budget.** Section 5.5 brackets it at
+  +0.33%..+5.3% on the 65-knot set, against a rejected earlier projection of +11.8%.
+  Settle it by wiring a Hermite build into `ResourceSpline` beside the existing one and
+  timing both on one production run. The bracket lands at its upper end if the
+  unattributed 91% of each build turns out to scale with the cohort sweep; if the run
+  then sits outside the accepted band, the fallback is fewer knots than 65, and
+  section 5.3's convergence argument has to be re-made at that density.
+
+- **The Hermite loses to the cubic on the 65-knot set for a real stand.** Section 4 of
+  `interpolant-cost.md` used a synthetic top-heavy stand with uniform knots, where
+  plant's are adaptively refined then affinely rescaled. Better-placed knots help both
+  interpolants, but not necessarily equally. Re-run the matched-knot comparison on a
+  knot set and cohort population dumped from a real production step. If the Hermite's
+  value advantage disappears there, the 65-knot argument in section 5.5 goes with it and
+  the cost returns to the cohort-top figure.
