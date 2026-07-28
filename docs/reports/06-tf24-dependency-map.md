@@ -562,7 +562,8 @@ two views of one quantity, and one of them costs nothing.
 |---|---|
 | `∂g/∂h`, the transport stencil | computed by finite difference, and it is on the gradient path of **every census metric** because `Ψ` carries `n_k = exp(ℓ_k)`. It is *not* on R0's path. This is report 4's subject. |
 | `∂(pr_estab)/∂φ` through the birth switch | `establishment_probability` still carries a hard `if (P_net > 0) … else 0`, un-smoothed, and it multiplies into `ℓ(birth)` and `M(birth)` — hence into every census metric. Develop smoothed the *growth* gate and left this one. |
-| `Π_pp` | never computed anywhere in develop. It is the denominator of the entire argmax channel. |
+| `∂r/∂S` at the `max(S,0)` clamp | **active on 13.96%** of production records (§9b), and it zeroes the carbon → mortality → survival → density channel on all of them. Not the coupling, but squarely on the census gradient. |
+| `Π_pp` | never computed anywhere in develop. It is the denominator of the entire argmax channel. Inferred `≈ −1.1 × 10⁵`. |
 | `∇(∂Π/∂p)` | the one genuinely new expression the design needs. |
 
 ---
@@ -614,12 +615,14 @@ default; deep-crown is a supported option and the map should not silently assume
 `break`s when `Q` hits zero, which is a discrete change in how many layers receive roots.
 Both sit directly on the `h → water` path.
 
-**8. Three new non-smooth points arrived with the storage block.** `max(S,0)` and
-`min(S/S_max, 1)` are clamps on `r`, and `dS/dt = net_flux > 0 ? net_flux : floor_gate ·
-net_flux` is continuous in value but **kinked in derivative** at `net_flux = 0`, since the
-two arms have slopes `1` and `floor_gate < 1`. Develop removed one hard switch and
-introduced three softer non-smoothnesses; the map must not report the carbon side as
-smooth.
+**8. Three new non-smooth points arrived with the storage block, and one of them is
+heavily populated.** `max(S,0)` and `min(S/S_max, 1)` are clamps on `r`, and
+`dS/dt = net_flux > 0 ? net_flux : floor_gate · net_flux` is continuous in value but
+**kinked in derivative** at `net_flux = 0`, since the two arms have slopes `1` and
+`floor_gate < 1`. Measured on develop, the `max(S,0)` clamp is active on **13.96%** of
+cohort-time records, because storage genuinely goes negative (minimum `−2.2e-3` against a
+median of `1.8e-4`) — see §9b. So the map must not report the carbon side as smooth, and
+must not assume `S ≥ 0`, which develop's own comment asserts and the run refutes.
 
 **9. `mortality_dt` branches on `is_finite(cumulative_mortality)`,** returning `0` when
 mortality has saturated. That is a switch on a state, and its active set changes during a
@@ -683,13 +686,45 @@ that branch in 10,153 production records; minimum margin `0.03472 MPa`; `E_up < 
 compared function-body-by-function-body against develop and are identical, which is what
 licenses carrying these numbers over.
 
-**Branch-measured, pending re-verification on develop:** everything that went through
-`dprofit_droot_collar_psi` or `dE_from_soil_dpsi_collar`, because both **differ** from
-develop. That is: the `1e-6` stationarity figure; the `10–23` value of `∂Π/∂p` at
-`GSS_tol_abs = 1e-3` and hence the `|Π_pp| ~ 10⁵` inference; `dp*/dψ ≈ 0.93–0.99` and its
-`0.4–3.7%` error; the `48–51%` error in the flux derivative and the cancellation identity
-that explains it; the cost of one gradient evaluation. These are the numbers §7's "solved"
-and "peaked" rows rest on, so they are the first thing to re-run.
+**Re-verified on a develop build.** develop was compiled from the worktree and every
+number that had been taken on the feature branch was re-run against it. All of them
+reproduce, most to five digits:
+
+| quantity | branch | **develop** |
+|---|---|---|
+| `∂Π/∂p` at `GSS_tol_abs = 1e-3` | 11.166 / 10.382 / −19.445 / 23.057 | **identical** |
+| `∂Π/∂p` at `tol = 1e-12` | 1e-5 … 1e-7 | **1e-5 … 1e-7** (stationary) |
+| `p*` displacement at `tol = 1e-3` | 1.03e-4 … 2.04e-4 | **identical** |
+| `dp*/dψ` | 0.9320–0.9958 | **0.9329–0.9958** |
+| `dp*/dψ` relative error | 0.39% / 3.68% | **0.39% / 3.68%** |
+| `d(profit)/dψ` relative error | 0.006–0.9% | **0.006–0.9%** |
+| **`d(consumption)/dψ` relative error** | **47.7–53.2%** | **47.6–53.2%** |
+
+So the cancellation identity holds on develop: absolute error in `dp*/dψ` divided by
+`(1 − dp*/dψ)` predicts the flux error to within its own noise (e.g. `0.0038269 / 0.0080286
+= 47.7%` against 47.6% measured). And `|Π_pp| ≈ 1.1 × 10⁵` from develop's own numbers
+(`g = 11.166` over a displacement of `1.031e-4`; `23.057` over `2.038e-4`), consistent
+across states — still a ratio of two measurements rather than a direct one, but a
+well-conditioned one.
+
+**Also re-run on develop, with two figures that changed:**
+
+| | branch | **develop** |
+|---|---|---|
+| zero-flux branch incidence, life 105.32 | 0 | **0** |
+| `E_up < 0` (redistribution) | 0 | **0** |
+| minimum margin `psi_stem − |collar|` | 0.03472 MPa | **0.02688 MPa** (27× `GSS_tol_abs`; still none below 1e-2) |
+| `net_mass_production_dt ≤ 0` | 0.80% | **14.04%** |
+
+The last row is the storage block doing its job: on develop a cohort can sit at negative
+net production for a long stretch, drawing reserves down, where the old hard gate zeroed
+its rates and killed it. It is *not* a discontinuity count on develop, because `P_pos`
+smooths it — see §9b.
+
+**Still inferred, not measured:** `Π_pp`'s sign directly (it is inferred negative from
+`p*` being a maximiser and from the sign of `g` either side); the incidence of the light
+floor; the incidence of the `size() < 2` water switch; whether `∇(∂Π/∂p)` is well
+conditioned anywhere.
 
 **Inferred, not measured:** `Π_pp`'s sign and magnitude; the incidence of the light floor;
 the incidence of the `size() < 2` water switch; whether `∇(∂Π/∂p)` is well conditioned
@@ -698,22 +733,84 @@ anywhere.
 **Not claimed at all:** anything about FF16 or K93; anything about a transported-variable
 change; the cost of the reverse pass, which depends on `∇(∂Π/∂p)` and has not been built.
 
+## 9b. Develop's two smoothing scales, measured against what they smooth
+
+A declared smoothing scale is only useful if it is comparable to the spread of its
+argument. Much smaller and it is a hard switch wearing a smooth coat — and then its
+derivative is a *spike*, which for a gradient is worse than the switch was. Both of
+develop's scales were checked against a production run.
+
+**`storage_prod_eps = 1e-4`, smoothing the positive part of net production.** Measured over
+10,153 records:
+
+| | |
+|---|---|
+| `\|P\|` median | 7.3e-2 |
+| `\|P\|` 10th percentile | 3.0e-4 |
+| `\|P\| < 1 × eps` | **360 (3.55%)** |
+| `\|P\| < 10 × eps` | **2,964 (29.2%)** |
+| `P ≤ 0` | 1,425 (14.0%) |
+| `P ≤ −eps` | 1,395 (13.7%) |
+
+So the smoothing region is genuinely populated — 3.6% of records sit inside one scale
+length and 29% within ten. The scale is well chosen: not decorative, and not so wide that
+it distorts the healthy population (median `|P|` is 730 scale lengths away). This is the
+one place in TF24 where a mollification has been sized against data rather than guessed.
+
+**`storage` goes negative, and the `max(S, 0)` clamp is active on 14% of records.**
+
+| | |
+|---|---|
+| `storage` minimum | **−2.249e-03** |
+| `storage` median | 1.756e-04 |
+| `storage ≤ 0` | **1,417 (13.96%)** |
+
+Develop's comment on `dS/dt` says the outflow gate "floors storage at zero so relative
+reserves `r` stay in `[0,1]`". **It does not.** The gate `S/(S + 1e-3·S_max)` tends to zero
+as `S → 0⁺`, but an explicit stepper overshoots, and once `S < 0` the expression is no
+longer a gate at all: with `|S|` comparable to or larger than `gate_ref = 1e-3·S_max` — and
+the measured magnitudes are comparable, since median storage is `1.8e-4` — the factor
+approaches 1 or changes sign, so the deficit drains at full rate.
+
+The consequence is bounded rather than catastrophic, and that is the `#550` fix working as
+intended: `r = min(max(S,0)/S_max, 1)` clamps to `0`, so mortality sits at its finite
+maximum `d_I + a_dG1 = 5.6 /yr` instead of spiking. But for the dependency map it matters
+twice. The `max(S, 0)` clamp is a **derivative discontinuity active on 14% of records**, and
+it zeroes the gradient through `r` on all of them — which is the channel from carbon into
+mortality, and hence into survival, density, and every census metric. And the stated
+invariant (`S ≥ 0`) does not hold, so anything built on it is unsound.
+
+Neither of these is the leaf–soil coupling. Both are on the census gradient's path, and
+neither is in any existing kink inventory.
+
 ---
 
 ## 10. What to do next, in order
 
-1. **Re-run the gradient probes against a develop build.** Everything in §9's third
-   category. Until that is done, §7's "solved" row is a design sketch, not a result.
-2. **Measure `Π_pp` directly** across the production envelope. It is the denominator of
-   the whole argmax channel and nothing computes it.
+**Done in this pass:** develop was built and every branch-measured number re-verified
+(§9). §7's "solved" and "peaked" rows now rest on develop measurements.
+
+1. **Measure `Π_pp` directly** across the production envelope. It is the denominator of
+   the whole argmax channel, nothing computes it, and `≈ −1.1e5` is currently a ratio of
+   two other measurements. This is the single number §6.2 step 3 stands on.
+2. **Fix the storage floor** (§9b). `S` goes negative and the gate the comment relies on
+   stops being a gate there. It is a forward-model correctness item, it is cheap, and it
+   removes a clamp that is active on 14% of records from the census gradient's path.
 3. **Count the two uncounted switches** — the light floor and `size() < 2` — because both
    are currently assumed live or dead without evidence.
-4. **Decide `establishment_probability`.** It is the only hard switch left on the carbon
+4. **Decide `establishment_probability`.** It is the only *hard* switch left on the carbon
    path and it sits on every census metric's gradient. Develop already smoothed its
-   sibling, so the precedent and the machinery exist.
+   sibling and sized the scale against data (§9b), so both the precedent and the method
+   exist.
 5. **Then, and only then, build `∇(∂Π/∂p)`.** It is one derivative of one closed-form
    expression, it must include the `ci` root-find's own implicit-function term, and it is
    the single new piece of code the whole design needs.
+
+A note on sequencing that the map makes visible: items 2–4 are all on the census
+gradient's path and none of them is the leaf–soil coupling. The coupling's own defect is
+now fully characterised (§9's cancellation identity) and its fix is item 5. If the goal is
+a correct census gradient, items 2–4 are not a detour around the coupling — they are
+channels of the same answer that no amount of work on the leaf will supply.
 
 ## 11. What would falsify this map
 

@@ -54,3 +54,23 @@ while its own trajectory converges cleanly, and the same species and birth rate 
 offspring ~1 under constant rainfall. An accuracy reference needs a regime where the
 functional is O(1), which means the model's own seasonal driver at a sustaining mean with
 amplitude dialled up — not these.
+
+## Running the probes against develop rather than the branch
+
+The probes take the package path from `pkgload::load_all("plant")`, which resolves to the
+submodule — and the submodule tracks a feature branch, not `develop`. To measure develop:
+
+```sh
+git -C plant worktree add /home/user/plant-develop origin/develop
+cd /home/user/plant-develop && make compile          # ~25 min, serial
+sed 's#load_all("plant"#load_all("/home/user/plant-develop"#' scripts/<probe>.R > /tmp/p.R
+Rscript /tmp/p.R
+```
+
+The installed `odelia` now includes `<XAD/XAD.hpp>` in `ode_util.hpp`, so the
+`-include XAD/XAD.hpp` workaround an earlier note recorded is no longer needed.
+
+Verified identical between develop and the branch (so forward-path numbers transfer):
+`set_leaf_states_rates_from_psi_stem`, `prepare_collar_solve`, `find_root_collar_psi`,
+`evaluate_root_collar_psi`, `profit_at_collar_psi`, `E_from_Soil_to_Root_Collar`.
+Differing: `set_shutdown_state`, `dprofit_droot_collar_psi`, `dE_from_soil_dpsi_collar`.
