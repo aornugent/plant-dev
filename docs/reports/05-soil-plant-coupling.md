@@ -1,114 +1,148 @@
-# Differentiating the soil–plant coupling
+# The soil–plant coupling: differentiating a plant that chooses
 
-**Provenance.** The measurements cited here were made on two branches and are not on
-develop: plant `claude/tf24-forward-speed-n5audm` (the code: commits `5a48347b`,
-`bcb9ed9f`, `99064255`) and plant-dev `claude/tf24-multi-rate-stepper-n5audm` /
-`claude/multirate-stepper-review-r6dpwn` (the write-ups under `docs/`). Section 11
-separates what is measured from what is inferred, because several conclusions in that
-corpus are Oracle hypotheses that later measurement **refuted**, and two of them are
-load-bearing here.
+Reports 2 and 3 each take one piece of TF24's carbon economy — the leaf's operating point,
+and the light field it reads. This report takes the third and the one that binds them: the
+water. Together the three cover every channel through which a trait reaches an emergent
+TF24 output.
+
+Every code reference below is TF24 at **develop**, read directly. Where a measurement was
+made elsewhere, the text says so and section 12 marks it.
 
 ---
 
 ## 1. The proposal
 
-TF24's cohorts and its soil column are coupled through one scalar per soil layer: every
-cohort draws water, the summed draw drives soil moisture down, and soil moisture sets
-every cohort's carbon gain. Soil water is ODE state, not a background, so
-**the gradient of every census metric and of R0 runs through that coupling**. It is the
-one channel in TF24 that no amount of care elsewhere can route around.
+In every other plant strategy a rate is a closed-form function of state and traits. TF24's
+is not, and the reason is water. Each cohort **chooses** how hard to pull on the soil — it
+picks a root-collar water potential that trades carbon gain against hydraulic risk — and the
+sum of those choices drains a soil column that is itself ODE state, which then changes what
+every cohort will choose next. So the object to be differentiated is not an expression but a
+**loop closed through a choice**.
 
-The coupling's derivative turns out not to be the hard part. It is already built and
-validated. Three things are missing, and they are what this report proposes:
+That has one consequence which is easy to state and hard to escape: **the gradient of every
+census metric and of R0 passes through this loop.** Soil water is state, so its derivative is
+carried for free; but the choice sits inside the loop, evaluated once per cohort per
+Runge–Kutta stage, and if the choice is differentiated wrongly then every trait gradient TF24
+can produce is wrong by a first-order amount.
 
-**1. Differentiate the operating point through the condition that defines it, not
-through stationarity.** The collar operating point is presented in the code and in
-earlier design work as the maximiser of carbon profit. Measured, it is not: the
-objective has no interior stationary point, and `dprofit/dp = -8.8` at the operating
-point. It is an **active constraint** — the last point on a surviving branch of the
-inner assimilation solve. Every envelope-based treatment of it, including the one this
-repository's report 2 proposes, is therefore first-order wrong. The replacement is a
-bracketing root-find on the analytic profit gradient that plant already has, safeguarded
-by the endpoint signs, with the derivative taken from whichever condition the solve
-found active.
+Three things are needed, and the third is the one nobody has written down.
 
-**2. Take the uptake Jacobian from the chain that already computes uptake.** The stand's
-water draw is assembled by a density-weighted trapezium over cohorts, per layer. Its
-derivative has exactly that shape, so it can be assembled by the same traversal with the
-same weights, adding **no new concept a Strategy author has to learn**. This is the DX
-argument and it is the reason to prefer this route over anything that introduces a
-soil-specific adjoint vocabulary.
+**1. Differentiate the choice through the condition that defines it.** develop's code and its
+comments present the collar potential as the *maximiser* of carbon profit, and treat it as
+smooth. It is neither. The objective has no interior stationary point: measured, it is a flat
+shelf, a jump of about 1.5, then a smooth decline at slope **−8.8**, with the operating point
+at the corner. The corner is where the inner assimilation solve's productive branch stops
+existing. So the operating point is an **active constraint**, and every envelope-style
+treatment of it — including the one report 2 proposes — drops a first-order term. What works
+is already half-present in develop: a *bracketing* root-find on `dprofit_droot_collar_psi`,
+which exists and is exact, safeguarded by the sign of that gradient at each end of the
+bracket, with the derivative then taken from whichever condition the search found active.
 
-**3. State where the coupled gradient is an object at all.** Two measured facts bound
-it, and neither is currently recorded anywhere a user would see: at production settings
-TF24's offspring is **2.4× wrong** and does not converge under schedule refinement; and
-near a cohort's survival threshold `dJ/dtheta` is a branch slope *plus a jump*, so the
-AD-versus-finite-difference anchor is unsatisfiable there **by any method**. A gradient
-delivered without that boundary is a number a user will over-trust.
+**2. Assemble the uptake Jacobian with the traversal that already assembles uptake.** The
+stand's water draw is a density-weighted trapezium over cohorts, per layer, summed over
+species, divided by patch area. Its derivative has exactly that shape. Building it by the
+same traversal with the same weights adds **no concept a Strategy author has to learn** —
+which is the whole argument for this route over anything that introduces a soil-specific
+adjoint vocabulary.
+
+**3. State where a gradient of R0 is an object at all.** R0 is only a meaningful number above
+about a 12-year horizon; near extinction it is ill-conditioned for *every* method while its
+own trajectory converges cleanly; and at develop's default inner tolerance it is measurably
+wrong. A gradient delivered without those bounds is a number a user will trust further than it
+deserves. This is not a caveat to bury — it changes what the deliverable is.
+
+**What this report does not claim.** Item 1's severity is *inferred*, not measured: the
+prediction that develop's current adjoint is first-order wrong at the corner has never been
+tested against a finite difference that re-solves the inner problem. That test is cheap, it is
+first in section 10, and everything in items 1 and 2 is conditional on it.
 
 ---
 
-## 2. State at develop: the loop, and where it is tight
+## 2. State at develop: one turn of the loop
 
-Five soil layers by default, carried as ODE state (`ode_size() > 0`, 9 entries), so
-`d/dtheta` needs no freezing decision and no recording — it is state, and the depletion
-feedback comes for free with it.
+Five soil layers by default, carried as ODE state — `TF24_Environment::ode_size() > 0`, nine
+entries. So `d/dtheta` needs no freezing decision and no recording; the depletion feedback
+comes with the state.
 
-One turn of the loop, per cohort per RHS evaluation:
+Per cohort, per right-hand-side evaluation:
 
 ```
-psi_soil_[k]                     retention curve, from soil moisture state
+vars.state(i)                     soil moisture, ODE state
+  -> psi_from_soil_moist          retention curve, floored at soil_moist_residual
+  -> psi_soil_[k]                 positive magnitudes
   -> prepare_collar_solve         flips to psi_soil_inverted_, precomputes the
-                                  soil-side integral lookups, and derives the
+                                  per-layer cumulative-vulnerability lookups
+                                  root_vuln_integral_soil_, and derives the
                                   feasible collar interval [bound_a, bound_b]
-  -> find_root_collar_psi         golden_section_max over that interval at
+  -> find_root_collar_psi         util::golden_section_max over that interval,
                                   GSS_tol_abs = 1e-3
   -> opt_psi_stem_, profit_       the operating point
   -> E_from_Soil_to_Root_Collar   soil_consumption_[k] per layer, E_up_ total
   -> set_consumption_rate         per-cohort consumption_rate[k]
   -> Patch::resource_depletion    density-weighted trapezium over cohorts,
                                   summed over species, per patch area
-  -> dtheta/dt                    and back to psi_soil_[k]
+  -> dtheta/dt                    and back to the retention curve
 ```
 
-Two properties of this loop matter for everything below.
+Four properties of this loop carry the rest of the report.
 
-**The bracket is soil-derived.** `bound_a` and `bound_b` come from the soil state:
-`bound_a` is the collar potential at which uptake vanishes, `bound_b` the potential at
-which the stem reaches `psi_crit`. As the soil dries the interval shrinks toward
-`psi_crit`. So soil moisture enters the operating point through the *bracket*, not only
-through the objective — which is what makes the argmax's dependence on soil state
-different in kind from its dependence on plant height.
+### 2.1 The bracket is soil-derived, so soil enters the choice twice
 
-**The dry end amplifies.** Measured, the coupled plant-plus-soil sensitivity near the
-dry limit is **50–291×** the soil-hydrology-only sensitivity, and a disturbance to the
-uptake field is amplified about **10×** through the feedback before it settles. The loop
-is contractive — an Arnoldi spectrum of the coupled map never approaches the runaway
-threshold, so a converged answer exists — but a small error in uptake is not a small
-error in the answer.
+`prepare_collar_solve` derives `[bound_a, bound_b]` from the soil state itself: `bound_a` is
+where uptake vanishes, `bound_b` where the stem reaches `psi_crit`. As the soil dries the
+interval shrinks toward `psi_crit`. So moisture reaches the operating point **through the
+bracket as well as through the objective** — which is what makes its dependence on soil state
+different in kind from its dependence on plant height, and why a treatment that captures only
+the objective channel is incomplete in a way that is invisible at fixed soil state.
 
-**Two stiffnesses, from two different processes, and the persistent one is the coupling.**
-Decomposing the soil Jacobian along real trajectories separates hydrology
-(infiltration + drainage + cascade) from root uptake:
+### 2.2 The choice is made by a search whose smoothness develop relies on, and does not have
 
-- **Drainage**, wet regime. Conductivity goes as `theta^16.14`, so `dK/dtheta` reaches
-  about **4600/day** near saturation. Large, but **episodic** — it needs a fully wet
-  layer.
-- **Uptake stress**, dry regime. The retention curve's `theta^-6.57` makes potential
-  diverge, so uptake becomes hypersensitive to small changes in moisture. Measured
+`find_root_collar_psi` calls `util::golden_section_max` at `GSS_tol_abs = 1e-3`. The code
+explains the choice:
+
+> *Unlike Brent, its argmax is a smooth (fixed-iteration) function of the inputs, so the
+> operating point varies smoothly with plant height — the demographic growth-rate gradient
+> relies on this.*
+
+The stated dependency is real and the stated mechanism is false. Golden-section shrinks its
+bracket by a fixed ratio and returns its midpoint; the iteration count depends only on the
+bracket width and the tolerance, and the objective enters **only** through the comparison that
+picks which half to keep. So for a fixed comparison pattern the returned argmax is an exact
+affine function of the bracket endpoints and is **independent of the objective's values**. It
+is not smooth in height — it is a staircase, locally flat, with steps of order the tolerance.
+
+The comment is nonetheless valuable, because it names the consumer: `Node::growth_rate_gradient`
+finite-differences the growth rate in height at `node_gradient_eps = 1e-6` to obtain the
+demographic transport term. That stencil therefore differences a staircase of step `1e-3` at a
+probe distance of `1e-6`, and survives only because the comparison pattern is locally constant
+so the surrogate is locally affine. **`GSS_tol_abs` and `node_gradient_eps` are coupled**, and
+this comment is the only place in the code that hints at it. Report 4 treats the stencil; the
+point here is that its safety rests on the argmax's staircase, not on its smoothness.
+
+### 2.3 The dry end amplifies, and the amplifier *is* the coupling
+
+Decomposing the soil Jacobian along real trajectories separates hydrology (infiltration,
+drainage, inter-layer cascade) from root uptake. Two stiffnesses appear, from two different
+processes:
+
+- **Drainage**, wet. `soil_K_from_soil_theta` is `K_sat · (theta/theta_sat)^(2·n_psi+3)`, an
+  exponent of about **16.14**, so `dK/dtheta` reaches ~4600/day near saturation. Large, but
+  **episodic** — it needs a fully wet layer.
+- **Uptake stress**, dry. `psi_from_soil_moist` goes as `theta^(-n_psi)` with `n_psi ≈ 6.57`,
+  so potential diverges and uptake becomes hypersensitive to small moisture changes. Measured
   uptake/hydrology ratio: **8× to 291×**.
 
-In a real transpiring stand the **uptake-stress term is the persistent floor** and
-drainage is a spike riding on it. It dominates throughout a semiarid run and shows up as
-dry pockets even in a wet one. This refutes the intuition that drainage is the dominant
-stiffness, and it matters here because the uptake term *is* the soil–plant coupling: the
-stiffness and the gradient channel are the same object. The divergence exponent is
-measured at **−6.56**, which is `-n_psi` — the divergence exponent *is* the retention
-exponent, so the coordinate the state is carried in is implicated, not just the rate.
+In a real transpiring stand the **uptake term is the persistent floor** and drainage is a
+spike riding on it; it dominates a semiarid run throughout and shows as dry pockets even in a
+wet one. This matters here because the uptake term *is* the soil–plant coupling: **the
+stiffness and the gradient channel are the same object.** The divergence exponent is measured
+at **−6.56**, i.e. `−n_psi` — so the coordinate the state is carried in is implicated, not
+merely the rate.
 
-**The coupling's own adjoint is ordered by the light field.** The shadow price of water
-`lambda_j = (dP_j/dtheta)/(dE_j/dtheta)` — the marginal value of soil water to cohort `j`
-— is measured per cohort on a real 8-cohort stand with its frozen canopy light:
+### 2.4 The coupling's own adjoint is ordered by the light field
+
+The marginal value of soil water to cohort `j`, `lambda_j = (dP_j/dtheta)/(dE_j/dtheta)`,
+measured per cohort on an 8-cohort stand with its frozen canopy light:
 
 | theta | mean lambda | spread across cohorts (CV) | max/min |
 |---|---|---|---|
@@ -117,108 +151,109 @@ exponent, so the coordinate the state is carried in is implicated, not just the 
 | 0.20 | 3.50e5 | 43.2% | 2.98 |
 | 0.16 (dry) | 6.61e5 | 20.0% | 1.64 |
 
-The spread is **systematic, not noise**: `lambda_j` is monotone in cohort height, because
-the light gradient down the profile sets marginal water-use efficiency. Taller, better-lit
-cohorts value water 2–4× more than shaded ones.
+The spread is **systematic, not noise**: `lambda_j` is monotone in cohort height, because the
+light gradient down the profile sets marginal water-use efficiency. Taller, better-lit cohorts
+value water 2–4× more than shaded ones.
 
-Two things follow. First, **the light interpolant and the soil coupling are the same
-problem seen twice** — the spread in the soil coupling's adjoint is *generated* by the
-light field, so report 3's accuracy target and this report's are linked through
-`lambda`. Second, the elegant simplification is dead: recasting the coupling around one
-shared price would misprice understory against canopy by up to 4×. It survives only as a
-design rule for future models — a member model posed so the fed-back flux is the
-objective's own marginal collapses by construction, and there is a cheap standing test for
-it (sample the control across its feasible range and regress `dP/du` on `E`; collapse
-holds only if that is affine with a member-independent slope).
+Two things follow. **The light field and the water coupling are one problem seen twice** — the
+spread in the water coupling's adjoint is *generated* by the light gradient, so report 3's
+accuracy target and this one's are linked through `lambda`. And **the elegant simplification is
+dead**: recasting the coupling around a single shared price of water would misprice understory
+against canopy by up to 4×. It survives only as a rule for future models (section 9).
 
 ---
 
 ## 3. The operating point is an active constraint, not a maximum
 
-This is the load-bearing correction and it invalidates a proposal in this repository.
+This is the load-bearing correction, and it invalidates a proposal in report 2.
 
-**Measured geometry.** Mapping the objective finely across its peak at fixed state: a
-flat shelf on the wet side, a jump of about **1.5**, then a smooth monotone decline at
-slope **−8.8**. The "argmax" is the corner at the top of the jump, roughly 0.01 MPa
-above `bound_a`. Confirmed across wet-to-dry regimes; never a smooth interior stationary
-point.
+**The measured geometry.** Mapping the objective finely across its peak at fixed state gives a
+flat shelf on the wet side, a jump of about **1.5**, then a smooth monotone decline at slope
+**−8.8**. The operating point is the corner at the top of the jump, roughly 0.01 MPa above
+`bound_a`. Confirmed across wet-to-dry regimes; never a smooth interior stationary point.
 
 **What the jump is.** Reading the evaluator's internals either side:
 
 | side of the corner | `opt_psi_stem` | `ci` | net assimilation |
 |---|---|---|---|
-| wet (shelf) | pinned | 4.331 | **−1.5** (the `−R_d` floor) |
+| wet (shelf) | pinned | 4.331 | **−1.5**, the `−R_d` floor |
 | dry (live) | tracks the collar | 5.488 (**jumps**) | ~0, then productive |
 
-The inner `ci` / assimilation solve has a productive branch and a non-productive
-fallback. On the wet side the productive branch does not exist and the evaluator returns
-the fallback. The operating point is **the last collar potential at which the productive
-branch survives** — a constraint-activation locus, not an optimum.
+The inner `ci`/assimilation solve has a productive branch and a non-productive fallback. On the
+wet side the productive branch does not exist and the evaluator returns the fallback. The
+operating point is **the last collar potential at which the productive branch survives** — a
+constraint-activation locus.
 
 **Three consequences, in order of severity.**
 
-*The envelope theorem never applied.* At a true interior maximiser the objective's error
-under a perturbed argmax is second order. Measured, the profit floor scales as
-`O(eps)` — log-log slope **1.06** against a predicted 2 — because with no stationary
-point `profit(p_hat) - profit(p*) ≈ -8.8 (p_hat - p*)`. The prediction of slope 2 was
-the sharpest available test of the envelope framing and it failed.
+*The envelope theorem never applied.* At a true interior maximiser, the objective's error under
+a perturbed argmax is second order. Measured, the profit floor scales as `O(eps)` — log-log
+slope **1.06** against a predicted 2 — because with no stationary point
+`profit(p_hat) − profit(p*) ≈ −8.8 · (p_hat − p*)`. Slope 2 was the sharpest available test of
+the envelope framing, and it failed.
 
-*Any adjoint that freezes the operating point is first-order wrong.* With
-`dprofit/dp ≠ 0` there, nothing downstream is stationary — not consumption, not growth,
-not profit. An envelope-at-fixed-`p*` adjoint drops terms of size
-`(dc/dp, -8.8) · dp*/dstate` in every cohort solve, into a functional that amplifies
-about 10×. **This is untested on the reverse tape and it is the highest-value
-correctness test outstanding.** It is the test that belongs on this branch.
+*Any adjoint that freezes the operating point is first-order wrong.* With `dprofit/dp ≠ 0` at
+the operating point, nothing downstream is stationary — not consumption, not growth, not
+profit. Freezing `p*` drops terms of size `(dc/dp, −8.8) · dp*/dstate` in every cohort solve,
+into a functional that amplifies about 10×. **Untested; section 10 item 1.**
 
-*Report 2's polish has no root to find.* Report 2 proposes a Newton polish on
-`dprofit/dp = 0` behind an implicit-function node. There is no interior point where that
-holds, and the second derivative the node's denominator needs is undefined at a corner.
-The measurement that made report 2's polish look successful — a residual of 4.541e-10,
-flat across tolerances — was taken on a toy whose objective has a smooth interior
-maximum by construction, so it never exercised this geometry. **Report 2 sections 1 and
-5 need rewriting around the corner.**
+*Report 2's polish has no root to find.* Report 2 proposes a Newton polish on `dprofit/dp = 0`
+behind an implicit-function node. There is no interior point where that holds, and the second
+derivative its denominator needs is undefined at a corner. The measurement that made the polish
+look successful — a residual of 4.541e-10, flat across tolerances — was taken on a toy whose
+objective has a smooth interior maximum by construction, so it never met this geometry.
 
-**The primitive that does work, and it already ships.** A *bracketing* root-find on the
-profit gradient, not a Newton iteration on it. `Leaf::dprofit_droot_collar_psi` already
-exists as an exact analytic gradient (IFT plus forward AD). A bracketing method
-converges to a **sign change**, which is precisely what a corner is, and needs only the
-gradient — never the second derivative that is missing. Wired as
-`control$newton_collar_solve` (off by default), with an endpoint-sign safeguard: gradient
-positive at `bound_a` and negative at `bound_b` means an interior sign-change root;
-one-signed across the bracket means the maximum is at the profit-increasing boundary, so
-clamp there. Measured: **1.20×** faster whole-solve (111.0 s to 92.3 s), and the
-`GSS_tol_abs` quantisation of the argmax removed. Offspring moves 8.2e-5 to 6.8e-4
-across the scenario bank — that gap *is* the quantisation being removed.
+**The primitive that works, and most of it is already in develop.** A *bracketing* root-find on
+the profit gradient rather than a Newton iteration on it. `Leaf::dprofit_droot_collar_psi`
+exists on develop and is genuinely analytic: forward-mode AD of the assimilation and
+hydraulic-cost algebra for `A'(ci)` and `C'(psi_stem)`, the implicit function theorem on the
+stomatal `ci` equation for `dci/dp`, and analytic spline derivatives for the transport chain.
+A bracketing method converges to a **sign change**, which is exactly what a corner is, and
+needs only the gradient — never the missing second derivative. The safeguard is the endpoint
+signs: gradient positive at `bound_a` and negative at `bound_b` means an interior sign-change
+root; one-signed across the bracket means the optimum is at the profit-increasing boundary, so
+clamp there.
 
-**Two distinct objects, and they should not be conflated.** The corner above is a
-`ci`-branch feasibility edge interior to the bracket. Separately, the operating point is
-sometimes **pinned at `bound_b`** (the critical collar potential), where `dprofit ≠ 0`
-for a different reason: the constraint is the bracket end itself. Both need
-branch-specific derivatives; section 4's dispatch handles both. Earlier work located the
-corner as a transport root-fold and proposed a bordered fold system for it; the
-measurement says it is the assimilation branch instead, so the locator equation is
-different even though the shape of the fix is the same.
+**Two distinct objects, not to be conflated.** The corner above is a `ci`-branch feasibility
+edge *interior* to the bracket. Separately, the operating point is sometimes **pinned at
+`bound_b`**, where `dprofit ≠ 0` for a different reason — the constraint is the bracket end
+itself. Both need branch-specific derivatives; section 4's dispatch handles both.
+
+**And one live finite difference inside the analytic gradient.** `dprofit_droot_collar_psi`
+computes `dE_up/dr` from `dE_from_soil_dpsi_collar`, which **returns NaN near a branch kink**
+— a soil-layer crossing — and develop then falls back to a central difference on the transport
+at `h = 1e-6`:
+
+```cpp
+const double dEup_dr = dE_from_soil_dpsi_collar(r, psi_soil_inverted_);
+if (std::isfinite(dEup_dr)) { ... analytic ... }
+else { /* central difference at h = 1e-6 */ }
+```
+
+So develop's analytic gradient is analytic *except* at layer crossings, where it is a finite
+difference of a function containing inner root-finds. The incidence of that fallback on a
+production run is **unmeasured**, and it is the one place where the recommended primitive
+inherits a numerical seam rather than removing one.
 
 ---
 
 ## 4. The uptake Jacobian, and the dispatch rule that makes it work
 
-What the coupling needs is `d(consumption_rate[i])/d(theta_k)` per cohort, aggregated to
-the stand. Built and validated as `Leaf::compute_duptake_dpsi_soil`, filling a row-major
-`i*n + k` block. Every partial is a difference of a **closed-form** leaf function at the
-**fixed** operating point — no re-solve, and no finite difference through a search.
+What the coupling needs is `d(consumption_rate[i])/d(theta_k)` per cohort, aggregated to the
+stand. Each partial can be a difference of a **closed-form** leaf function at the **fixed**
+operating point — no re-solve, and no finite difference through a search.
 
-Two branches, and both are required:
+Two branches, both required:
 
-- **interior optimum** — IFT on the stationarity condition:
-  `dP*/dpsi_k = -g_k / g_P`, then
+- **interior optimum** — the implicit function theorem on stationarity:
+  `dP*/dpsi_k = −g_k/g_P`, then
   `dc_i/dpsi_k = [dc_i/dpsi_k]_{P* fixed} + (dc_i/dP*)(dP*/dpsi_k)`.
-- **boundary-pinned** — the operating point tracks the active bound, so the response
-  comes from IFT on *that bound's* defining continuity condition
-  (`E_column_zero = 0` at `bound_a`, `E_column(·, psi_crit) = 0` at `bound_b`).
+- **boundary-pinned** — the operating point tracks the active bound, so the response comes
+  from the implicit function theorem on *that bound's* defining continuity condition:
+  `E_column_zero = 0` at `bound_a`, `E_column(·, psi_crit) = 0` at `bound_b`.
 
-**Validated** against a finite difference of a full operating-point re-solve, 45 soil
-states, driest layer 0.2–4.6 MPa, inner tolerance 1e-12:
+Validated against a finite difference of a full operating-point re-solve, 45 soil states,
+driest layer 0.2–4.6 MPa, inner tolerance 1e-12:
 
 | | median | p90 | max |
 |---|---|---|---|
@@ -227,417 +262,347 @@ states, driest layer 0.2–4.6 MPa, inner tolerance 1e-12:
 | wet tercile | 5.4e-5 | — | 8.6e-5 |
 
 **The dispatch rule is the transferable finding, and it was found the hard way.**
-Interior-IFT-only was ~4.5e-2 in the dry tercile — a real error, not FD noise: it did not
-shrink when tolerance and step were tightened. Adding a boundary branch dispatched by a
-**residual threshold** (which of the two continuity residuals is near zero at the
-operating point) fixed most states but left three at **30–50%** error, because the
-threshold mis-selected. Dispatching instead on the **`g_a`/`g_b` endpoint signs — the
-same test the solve itself used to choose the operating point** — drove the worst case
-from 5.0e-1 to 6.1e-4.
+Interior-only was `4.5e-2` wrong in the dry tercile — a real error, not FD noise; it did not
+shrink as tolerance and step were tightened. Adding a boundary branch dispatched by a
+**residual threshold** (which of the two continuity residuals is near zero at the operating
+point) fixed most states but left three at **30–50%**, because the threshold mis-selected.
+Dispatching instead on the endpoint gradient signs — **the same test the solve itself used to
+choose the operating point** — drove the worst case from `5.0e-1` to `6.1e-4`.
 
-> **Key the derivative branch off the same test the solver used to pick the operating
-> point, never off a re-derived proxy for it.**
+> **Key the derivative branch off the same test the solver used to pick the operating point,
+> never off a re-derived proxy for it.**
 
-The error correlates with boundary-pinning (Spearman 0.71 against the stationarity
-residual), not with dryness as such; dryness matters only because it makes pinning more
-frequent as the feasible interval shrinks. The in-run frequency of pinning on a real
-trajectory is **not yet measured** — the 40% above is over a deliberately dry-weighted
-sample — and it sets how much the boundary branch actually matters.
+Error correlates with boundary-pinning (Spearman 0.71 against the stationarity residual), not
+with dryness as such; dryness matters only because it makes pinning more frequent as the
+feasible interval shrinks. The in-run pinning frequency on a real trajectory is **unmeasured**
+— the validation sample was deliberately dry-weighted — and it sets how much of the boundary
+branch is load-bearing.
 
-**Aggregation adds no vocabulary.** The stand Jacobian is assembled by the same
-density-weighted trapezium over cohorts, summed over species and divided by patch area,
-that already assembles the depletion itself — the same traversal, the same weights, with
-the retention factor folded in per layer so everything above stays environment-agnostic.
-Gated behind a control flag; **bit-identical when off**, verified to the last bit on SCM
-offspring (20.74297971123531, absolute difference 0.0).
+**Aggregation adds no vocabulary.** The stand Jacobian is the same density-weighted trapezium
+over cohorts, summed over species and divided by patch area, that `Patch::resource_depletion`
+already runs — the same traversal, the same weights, with the retention factor folded in per
+layer so everything above it stays environment-agnostic. The retention chain closing the loop,
+`dpsi_inverted_k/dtheta_k = n_psi · psi / theta`, is **exact** — checked against a numerical
+derivative of `psi_from_soil_moist` to full precision — and correctly **zero** where the curve
+is floored at `soil_moist_residual`.
 
-The retention chain closing the loop back to soil state,
-`dpsi_inverted_k/dtheta_k = n_psi · psi / theta`, is **exact** — checked against a
-numerical derivative of the retention curve to full precision — and correctly **zero**
-where the curve is floored at residual or capped at its maximum potential.
-
-One caveat carried from the validation: the interior branch's operating-point response
-is itself a finite difference of the analytic gradient, and that gradient contains inner
-root-finds. The validation used inner tolerance 1e-12. At production inner tolerances
-this differencing is not clean, which is a real constraint on where the branch may be
-used.
+One caveat carried from the validation: the interior branch's operating-point response is
+itself a finite difference of the analytic gradient, which contains inner root-finds. It was
+validated at inner tolerance 1e-12; at develop's tolerances this differencing is not obviously
+clean, and that is unmeasured.
 
 ---
 
 ## 5. What the soil never does, and what that licenses
 
-Four non-smooth constructs in the soil rate — a runoff floor, a conductivity floor, a
-retention floor, and a drying guard — plus the leaf's shut-down discontinuity, have all
-been treated as things a gradient design must handle. Measured on production runs, none
-of them is reached.
+develop's soil rate carries four non-smooth constructs and the leaf carries a shut-down
+discontinuity. All five have been treated as things a gradient design must handle. On the
+sampled envelope, none is reached.
 
-**Why the dry end is unreachable.** Drainage conductivity goes as
-`K(theta) ∝ theta^p` with `p = 2 n_psi + 3 ≈ 16.14`. A sixteenth power collapses:
+**Why the dry end is unreachable.** Conductivity goes as the ~16th power of moisture:
 
 | theta | K (mm/day) | psi_soil (MPa) |
 |---|---|---|
 | 0.428 (saturation) | 1.6e+2 | 0.002 |
 | 0.150 | 7.3e-6 | 1.75 |
 | 0.120 | 2.0e-7 | 7.6 |
-| 0.010 (residual) | 3.5e-24 | capped |
+| 0.010 (`soil_moist_residual`) | 3.5e-24 | floored |
 
-By `theta ≈ 0.12` a bare column at half saturation loses **0.015 over ten years**.
-Drainage cannot carry the soil into the deep-dry band, and root uptake shuts off
-smoothly as potential saturates. So residual moisture is an **asymptote approached in
-infinite time, not a floor hit in finite time**. Measured minimum over every scenario:
-**theta = 0.133**, against residual 0.010 — never within a factor of ten.
+By `theta ≈ 0.12` a bare column at half saturation loses **0.015 over ten years**. Drainage
+cannot carry the soil into the deep-dry band, and root uptake declines as potential rises. So
+residual moisture is an **asymptote approached in infinite time, not a floor hit in finite
+time**. Measured minimum over every scenario: **theta = 0.133**, against a residual of 0.010.
 
-**And the guards are measured never to fire.** Instrumented over the scenario bank
-including a 30-year extended drought: soil clamp and runoff signatures **never** fire;
-the collapsed-bracket branch **never** fires; about **99.8%** of cohort solves take the
-ordinary search branch; the only discrete event that occurs at all fires on **under
-0.5%** of steps.
+**And the guards are measured never to fire.** Instrumented over a scenario bank including a
+30-year extended drought: the soil clamp and runoff signatures never fire; the collapsed-bracket
+exit never fires; about **99.8%** of cohort solves take the ordinary search branch; the only
+discrete event occurring at all fires on under **0.5%** of steps.
 
-**Leaf shutdown is structurally hard to reach, and the mechanism is specific.** Shutdown
-requires the *wettest accessible* layer to be drier than `psi_crit`. Every cohort roots
-to 1.5 m, and in a 12-year zero-rain drydown the top two layers reach 5.13–5.34 MPa
-against `psi_crit ≈ 5.6` while the bottom layer stays at **0.37 MPa**. The margin never
-reaches zero; its closest approach across the whole bank is 0.79. The stand dies of
-carbon starvation from the drying topsoil while still rooted into deep water it never
-exploits — 38% of rainfall over 16 years leaves as deep drainage, and there is no upward
-capillary flux between layers.
+**Leaf shutdown is structurally hard to reach, and the mechanism is specific to how the test is
+keyed.** `prepare_collar_solve` computes `wettest_soil_layer = max_k(psi_inverted_k)` and shuts
+down only when `−wettest_soil_layer >= psi_crit`. So a cohort shuts down only when **every**
+rooted layer is drier than critical — one benign layer keeps it transpiring. In a 12-year
+zero-rain drydown the top two layers reach 5.13–5.34 MPa against `psi_crit ≈ 5.6` while the
+bottom layer sits at **0.37 MPa**; measured with four of five layers past critical and no
+shutdown. The stand dies of carbon starvation from the drying topsoil while still rooted into
+deep water it never exploits — 38% of rainfall over 16 years leaves as deep drainage, and there
+is no upward capillary flux between layers.
 
-**A correction: the floor that keeps the soil above those guards is the same artifact that
-kills the drought gradient.** The paragraphs above read the never-firing guards as licence.
-That reading is wrong, and the measurement that breaks it was in the same corpus.
+**What this licenses, and what it does not.** It upholds the decision not to smooth the soil
+kinks: a zero derivative is what the model means at those, and they are not on the sampled path.
+It does **not** license removing them — the dry-end floor is held by the *physiology*, not by any
+choice of state variable. With the vulnerability shut-off disabled, raw moisture runs to
+**−17.85** and a log-depletion chart gives **NaN**; a re-charting of the soil state is not a
+substitute for the shut-off.
 
-**First, a provenance correction, because the mechanism is not develop's.** The branch that
-measured this attributes the dead channel to `soil_psi_max_ = 1e3`, a cap on matric
-potential that floors uptake at a constant with `d(uptake)/d(theta)` exactly zero below
-theta about 0.11. **`soil_psi_max_` does not exist on develop.** develop instead floors
-*theta* inside `psi_from_soil_moist`:
-
-```cpp
-const double t = std::max(soil_moist_, soil_moist_residual);   // soil_moist_residual = 1e-2
-return a_psi * std::pow(t/soil_moist_sat, -n_psi)/1e6;
-```
-
-Computing where each threshold bites on develop's own constants
-(`a_psi = 1.78e3`, `n_psi = 6.57`, `theta_sat = 0.428`):
-
-| threshold | theta where it bites | present on develop |
-|---|---|---|
-| collar pins at `psi_crit` ~ 5.9 MPa | **0.1246** | **yes** |
-| the branch's `soil_psi_max_` ceiling (1e3 MPa) | 0.0571 | **no** |
-| develop's theta floor (`soil_moist_residual`) | 0.0100 | yes, but 13x below the operating range |
-
-So on develop the flat-derivative severance sits at theta = 0.010 — an order of magnitude
-below the measured operating minimum, and therefore genuinely unreached. **The dead channel
-as the branch describes it is a property of the branch's soil code, not of develop.**
-
-What *is* on develop, and what the rest of this section is really about, is the **pinning**
-mechanism: the retention curve is identical, so soil tension crosses the cohorts'
-`psi_crit` at **theta = 0.1246**, and the measured driest layer reaches **theta = 0.133,
-which is psi = 3.85 MPa** — only 6% in moisture, or 1.5x in tension, from the threshold.
-The drydown run's closest approach was 0.79 MPa. That is the same object section 3 calls
-the corner and section 4 dispatches as the boundary-pinned branch; it is not a separate
-ceiling artifact.
-
-The branch's numbers below are therefore kept as a **warning about a representation choice
-develop has not made**, and as the measured anatomy of what pinning does to a gradient — not
-as a develop defect:
-
-| theta | psi_soil | cohort operating point | uptake |
-|---|---|---|---|
-| 0.20 | 0.26 MPa | −1.42 | responsive |
-| 0.13 | 4.47 | −4.81 | responsive, declining |
-| **0.115** | **10.0** | **−5.92, pinned at psi_crit** | **dead / NA** |
-| 0.06 | 719 | −5.92 | dead |
-
-Two consequences, and the second is the more serious.
-
-*The reachability margin is thin, on develop's own numbers.* `theta_min = 0.133` is
-psi = 3.85 MPa against a collar `psi_crit` of 5.9 — 6% in moisture. The earlier reading of
-"never within a factor of ten of residual" is true and beside the point: residual is not the
-threshold that matters. The threshold that matters is hydraulic failure, and the stand
-operates just above it. Anything that dries the profile a little further — a shallower
-rooting depth, a drier driver than the sampled envelope, a trait set with a less negative
-`psi_crit` — crosses it.
-
-*The reverse-mode gradient of water use with respect to soil moisture is identically zero
-across the whole drought regime.* For a model whose purpose is trait gradients of drought
-performance, the drought channel is dead. This is not a smoothness nicety: it is a wrong
-number, silently, in the region the model exists to resolve. It is also ecologically
-wrong in the same breath — a plant past hydraulic failure is modelled as continuing to
-draw water at a fixed rate, where the physiology says transpiration declines to zero as
-the vulnerability curve loses conductance. The numerical dead zone and the hydraulic
-failure threshold are the same point.
-
-**And the AD cost of the hard boundary is measured.** A hard moving regime boundary
-degrades adjoint-against-finite-difference by **five to six orders**; smoothing it
-restores **~1e-9**. That is the largest single number in this area and it is the argument
-for treating the shut-off as a correctness prerequisite rather than a refinement.
-
-**This does not overturn the decision not to smooth the four soil clamps**, and the
-distinction matters. At the runoff, conductivity and retention floors a zero derivative
-is what the model means — those stay. At the `psi` ceiling a zero derivative is an
-artifact of a cap standing in for a gradual process, and the physiology it stands in for
-is already in the model: TF24 carries the hydraulic vulnerability curve (`root_c`,
-`root_b`, `root_psi_crit`), so the smoothing scale is that curve's width — an
-already-fitted per-strategy trait, not a tuning constant. Whether to make that change is
-a model-owner decision; the numbers above are what it should be decided on.
-
-**What the never-firing guards do license, and what they do not.** It upholds the existing decision not to
-smooth the soil kinks: a zero derivative is what the model means at a kink, and these
-kinks are not on the sampled path anyway. It does **not** license removing them. The
-floor is held by the physiology, not by any choice of state variable: with the
-vulnerability shutoff disabled, raw moisture runs to **−17.85** and a log-depletion
-chart gives **NaN**. A re-charting of the soil state is not a substitute for the
-shutoff.
-
-It also does not license calling the kinks unreachable in general. This is a statement
-about a sampled envelope of rainfall scenarios and one trait set, not a theorem. The
-drydown run came within 0.79 MPa of shutdown; a shallower-rooted strategy would come
-closer.
+Nor does it license calling the constructs unreachable in general. **This is an envelope, not a
+theorem.** The load-bearing margin is thin: develop's retention curve reaches `psi_crit ≈ 5.9`
+at `theta = 0.1246`, and the measured driest layer is **0.133** — `psi = 3.85`, a margin of
+**2.05 MPa** or 6% in moisture. A shallower-rooted strategy, a drier driver, or a
+root-weighted rather than wettest-layer keying would each close it. An earlier version of this
+report read "never fires" as licence; it is better read as *one sampled envelope, with a 6%
+margin, on a keying that is itself a modelling choice.*
 
 ---
 
-## 6. Where the value is wrong before the gradient is
+## 6. Where R0 is an observable, and where it is not
 
-Two measured facts about TF24's offspring bound what a gradient of it can mean. Neither
-is recorded anywhere a user of a gradient would encounter it.
+Three measured bounds. None is recorded anywhere a user of a gradient would meet it, and
+together they define the envelope in which a gradient of R0 means anything.
 
-**At the production inner tolerance, offspring is 2.4× wrong, non-monotonically.**
+**R0 needs a long horizon.** Offspring against patch lifetime, single resident: 3 yr `1.1e-15`,
+5 yr `4.1e-13`, 8 yr `5.4e-10`, 12 yr `2.7e-7`, 20 yr `1.4e-5`. Below about 12 years the run is
+pre-reproductive and R0 sits on the numerical noise floor. **Verification at short horizon is
+void**, however convenient — which rules out the cheap-and-short strategy directly.
 
-| `GSS_tol_abs` | offspring (whiplash, 12 yr) |
+**At develop's default inner tolerance, R0 is wrong, non-monotonically.**
+
+| `GSS_tol_abs` | offspring (one scenario, 12 yr, outer tolerance 1e-6) |
 |---|---|
-| **1e-3 (production default)** | **1.412e-7** |
+| **1e-3 (develop's default)** | **1.412e-7** |
 | 1e-4 | 5.90e-8 |
 | 1e-5 | 1.413e-7 |
 | 1e-6 | 5.871e-8 |
 | 1e-8 | 5.868e-8 |
 
-Converged only at 1e-6 and below. A marginal cohort's survival flips with the sub-1e-3
-argmax floor, so tightening does not monotonically improve it. Section 3's exact locator
-removes this at the source, which is the strongest argument for building it: it is
-simultaneously the speed fix, the gradient fix, and the fix for a wrong value.
+Converged only at 1e-6 and below. A marginal cohort's survival flips with the sub-1e-3 argmax
+staircase, so tightening does not monotonically improve it. Section 3's exact locator removes
+this at the source — which is the strongest argument for it: the same change fixes the speed,
+the gradient, and a wrong value.
 
-**Offspring does not converge under schedule refinement, and the soil coupling is the
-entire reason.** Refining the cohort schedule moves offspring from 2.7e-7 to 8.5e-8
-(94 to ~140 cohorts) on one scenario and 2.1e-6 to 3.3e-7 on another; two different
-refined schedules disagree by 9–45%. Three experiments locate it:
+**Near extinction the functional is ill-conditioned for every method, while its trajectory is
+fine.** Refining a method's *own* time discretisation moves offspring by O(1)–O(10),
+**non-monotonically** (one trace: `8.2e-8 → 1.5e-8 → 4.7e-6`), while the soil trajectory
+converges to `5.5e-4` on the same refinement. **A trajectory-convergence result is not a
+functional-convergence result.**
 
-1. Freeze the soil trajectory and add 1.5× more cohorts without letting them feed back:
-   offspring changes by **~0%** (6e-10). The reproduction quadrature is already
-   converged.
-2. Let the same denser cohorts feed back into soil water: offspring drops **69–84%** —
-   **100% of the non-convergence.**
-3. The shift is diffuse across the productive early cohorts; the three largest-changing
-   points carry 2–3% of the total change. It is **not** a spike at a cohort crossing the
-   survival threshold.
+Two practical consequences for verification:
 
-So the schedule is under-resolving the *water-uptake field over time*, and the existing
-refinement heuristic — which flags cohorts by their contribution to reproduction —
-chases a signal that is already resolved, and has been measured to anti-correlate with
-the true error. **The refinement criterion should target where adding a cohort most
-changes total uptake.** That is a concrete, actionable change and it is the prerequisite
-for a converged R0 to differentiate at all.
+*The rainfall stress bank is a speed and robustness vehicle, not an accuracy vehicle.* Its six
+traces give offspring `1e-8`–`1e-13` even at `birth_rate = 20`; an lma sweep 0.04→1.0 is
+monotone-decreasing at best ~`2e-10`; scaling rainfall 1×→20× never lifts one trace above
+~`1e-9`. **The same species and birth rate give offspring 1.03 under constant rainfall.** The
+traces were built as soil-integrator stress tests, so they sit permanently in the
+ill-conditioned regime, and Cash–Karp does not complete three of them at converged tolerance —
+a model-level density divergence, not a solver overflow, so no reference exists there either.
+Accuracy has to be judged where R0 is O(1): the model's own seasonal driver at the sustaining
+rainfall mean with amplitude dialled up. An earlier version of this report had this backwards.
 
-**Two consequences for the goal, stated plainly.**
+*Both of develop's tolerance families must be stated.* `GSS_tol_abs = 1e-3` is the inner one;
+`ode_tol_rel = ode_tol_abs = 1e-4` is the outer. Converging one leaves the other's error in the
+reference — elsewhere this invalidated an entire accuracy table, moving one headline from
+`1.8e-4` to `3.5e-3`.
 
-*A gradient of R0 is meaningful only where R0 is converged, and at production settings
-it is not.* This is a precondition on the whole R0 deliverable and it is upstream of
-every AD concern. It is also not a reason to stop: census metrics are integrals over the
-live population and are not implicated by the same mechanism, and K93 and FF16 have no
-soil coupling at all.
+**And R0's non-convergence under schedule refinement is entirely the water feedback.** Three
+experiments: freeze the soil trajectory and add 1.5× more cohorts without letting them feed
+back, and offspring moves by **~0%** (6e-10) — the reproduction quadrature is already converged;
+let the same cohorts feed back and it moves **69–84%**; and the shift is diffuse across the
+productive early cohorts, with the three largest-changing points carrying 2–3% of the total, so
+it is **not** a spike at a cohort crossing the survival threshold. Independently, putting a
+denser measure on a *common frozen field* moves R0 by ~0% while letting the field respond moves
+it 69–84% — **100% of the change is coupling-field shift, ~0% is quadrature.**
 
-*Near a threshold the AD-versus-FD anchor is unsatisfiable — and the mechanism says what
-to do about it.* The anatomy is precise. A member crossing its threshold moves a kink
-**through the aggregate**, so the aggregate's derivative carries a Leibniz boundary term
-
-    [jump] x d(threshold location)/d(theta)
-
-A subgradient tape **drops that term entirely**; a finite difference **smears** it over
-the perturbation. The ratio between what is missing and what is smeared is unbounded,
-which is why the discrepancy is measured at five to six orders rather than at some
-tolerance. So the anchor is not merely inconvenient there: neither side computes the same
-object.
-
-The consequence is more actionable than "state a domain and detect it". **Smoothing the
-switch at a declared scale converts the boundary term into an ordinary smooth
-contribution**, and the measured agreement goes to ~1e-9 — the anchor becomes satisfiable
-rather than needing an exemption. It buys two further things from the same change:
-it restores the member quadrature's convergence order, which a kink crossing collocation
-nodes destroys; and it rounds the corner of the aggregate sink itself, which pushes the
-system toward the regime where the moisture bound is genuinely unreachable rather than
-held off by a floor. Three defects, one change, and the scale is a trait the model already
-carries.
-
-The exact alternative stays available if the smoothing scale is ever scientifically
-contested: locate the crossing as an active root and split the quadrature at it. That
-keeps the sharp model and pays for it with an event.
-
-Either way this remains a model-owner decision, because it moves forward values. What the
-numerics can say is what it now does say: without it, the functional is not an observable
-with a derivative, and no engine can supply one. Note it is a separate question from
-offspring *convergence*, which experiment 3 above shows the survival threshold does
-**not** drive.
+So the schedule is under-resolving the **water-uptake field over time**, and develop's
+refinement heuristic — which flags cohorts by their contribution to reproduction — targets a
+quantity that is already converged, and has been measured to anti-correlate with the true error.
 
 ---
 
-## 7. Constraints
+## 7. What is measured out
 
-**C1. Soil water is ODE state, and must stay that way.** Nine entries with
-`ode_size() > 0`. Treating it as a background driver would drop the depletion feedback,
-which section 6 shows is the dominant term in offspring's own convergence.
+Recorded so it is not re-derived. Each of these was proposed, built or believed, and then
+refuted by measurement.
 
-**C2. The bracket is soil-derived, so soil enters the operating point twice.** Through
-the objective and through `[bound_a, bound_b]`. A treatment that captures only the
-objective channel is incomplete in a way that is invisible at fixed soil state.
+| claim | refuted by |
+|---|---|
+| the inner argmax floor drives the ~30% step rejection | rejection fraction invariant to a 1000× change in `GSS_tol_abs` |
+| a minimum-step clamp forces uncontrolled accepts | one step at the floor (0.0%); and on develop `ode_step_size_initial` and `ode_step_size_min` are **both 1e-6**, so the two cannot be told apart there |
+| a Newton polish on stationarity is the fix | no interior root exists (§3) |
+| drainage is the dominant stiffness | uptake stress dominates 8–291× in a transpiring stand (§2.3) |
+| an intrinsic survival discontinuity blocks R0's convergence | 100% coupling-field shift, diffuse (§6) |
+| the cohort measure is granularity-limited by a heavy atom | heaviest cohort carries ~1.6%, halving per mesh doubling; the ~40% figure misread a second species' share of two-strategy R0 as one cohort's share within one species |
+| iterating the coupling to self-consistency removes the global step control | one Picard sweep amplifies by ~10× in every 2-year window, and for expansive positive gain the damped iteration has spectral radius `\|1+9w\| > 1` for **every** `w > 0` |
+| the daily forcing lattice explains the cost wall | size-matched, knot-crossing steps reject +12 to +36 pp more — a real third-derivative effect — but only 1.3–3.9 pp of the 27–31% total |
+| a shared price of water would collapse the coupling | `lambda_j` spread 2–4× across cohorts, monotone in height (§2.4) |
+| envelope smoothness in the adjoint is safe | the corner: nothing is stationary (§3) |
 
-**C3. The interior branch's response is a finite difference of an analytic gradient
-containing inner root-finds.** Validated at inner tolerance 1e-12. Production tolerances
-do not obviously support it, and this is unmeasured.
-
-**C4. The in-run frequency of boundary-pinning is unknown.** 40% on a dry-weighted
-sample; unknown on a real trajectory. It sets how much the boundary branch matters and
-therefore how much of section 4 is load-bearing.
-
-**C5. Values change.** Replacing the search with the locator moves offspring by
-8.2e-5 to 6.8e-4 across the bank — and that is the *correct* direction, since the
-production value is 2.4× wrong in the bifurcation-prone case. Baselines need
-re-blessing, and the re-blessing needs the converged reference, not the current one.
-
-**C6. The unreachability results are an envelope, not a theorem.** Section 5's closest
-approach to shutdown is 0.79 MPa. A different trait set or rooting depth is a different
-statement.
-
-**C7. `Leaf` is shared through the Strategy pointer**, so the operating point,
-`soil_consumption_`, `E_up_` and the soil caches are per-solve scratch on an object
-several cohorts see in turn. A shut-down cohort left `soil_consumption_` and `E_up_`
-stale, feeding a previous cohort's draw into the balance — fixed on the branch by zeroing
-both at shutdown. The general hazard is that any *new* per-solve field on `Leaf` has the
-same shape, and nothing structural marks which fields are transient.
+**Two were mine.** Reading §5's never-firing guards as licence rather than as an envelope with
+a 6% margin; and importing a dead drought-gradient channel from a branch whose `soil_psi_max_`
+member **does not exist on develop** — develop floors moisture inside `psi_from_soil_moist`
+instead, 13× below the operating range, so the severance that branch measured is genuinely
+unreached here. The pattern in both: taking a measured symptom and its attributed mechanism as
+one package.
 
 ---
 
-## 8. What this asks of a Strategy author
+## 8. Constraints
 
-1. **If your model chooses an operating point, say which condition defines it.** Not
-   "the maximum of profit" but the equation that holds there — a stationarity condition,
-   a branch-existence condition, or an active bound. The derivative is taken from that
-   equation.
-2. **Dispatch the derivative on the same test the solve used.** If the solve chose a
-   branch by comparing endpoint gradient signs, the derivative must branch on those same
-   signs. A re-derived proxy — a residual threshold, a dryness threshold — measured
-   30–50% wrong.
-3. **Don't smooth a kink to make it differentiable.** A zero derivative is what the model
-   means there. Measure whether the kink is on the sampled path before designing around
-   it; four of TF24's soil kinks are never reached.
-4. **Don't replace a physiological floor with a state chart.** The chart cannot hold a
-   bound the physics does not.
-5. **Assemble a derivative with the traversal that assembles the quantity.** If uptake is
-   a density-weighted trapezium over cohorts, so is its Jacobian, with the same weights.
-   This is what keeps the concept count flat.
-6. **Declare any new per-solve field on a shared object, and clear it on every exit
-   path** — including the early ones. A field left stale by one exit is a previous
-   cohort's value entering this cohort's balance.
-7. **If your functional can threshold a member's existence, say so.** It is then not
-   differentiable there, and no engine can make it so.
+**C1. Soil water must stay ODE state.** Treating it as a background driver drops the depletion
+feedback, which §6 shows is 100% of R0's own convergence error.
 
----
+**C2. Soil enters the choice twice** — objective and bracket (§2.1). A treatment capturing only
+the objective is incomplete, invisibly so at fixed soil state.
 
-## 9. Implementation order
+**C3. `GSS_tol_abs` and `node_gradient_eps` are coupled** through the argmax staircase (§2.2).
+Changing the inner search changes what the demographic transport stencil differences.
 
-1. **Test whether the current adjoint is first-order wrong at the corner.** Reverse-mode
-   `dJ/dtheta` against a finite difference that re-solves the inner problem, on a
-   transpiring state. This is cheap, it is the highest-value outstanding correctness
-   test, and section 3 predicts it fails. Do it **before** building any locator — if it
-   passes, section 3's severity assessment is wrong and the order changes.
-2. **Turn on the shipped locator** (`newton_collar_solve`) and confirm the acceptance
-   test that was tabulated in advance: offspring flat at 5.87e-8 across `GSS_tol_abs`.
-3. **Measure the in-run boundary-pinning fraction** (C4). It decides how much of step 4
-   matters.
-4. **Turn on the gated uptake Jacobian** and re-validate the two branches at production
-   inner tolerance rather than 1e-12 (C3).
-5. **Change the schedule refinement criterion to target uptake**, and only then quote a
-   converged R0 (section 6).
-6. **Take the survival-threshold question to the model owners** with the numbers, not a
-   proposed smoothing.
+**C4. develop's analytic profit gradient contains a finite difference** at soil-layer crossings,
+`h = 1e-6` (§3). Incidence unmeasured.
+
+**C5. The interior branch's response is a finite difference of that gradient**, validated only
+at inner tolerance 1e-12 (§4).
+
+**C6. In-run boundary-pinning frequency is unknown** (§4), and it sizes the boundary branch.
+
+**C7. Values change.** The exact locator moves offspring by 8.2e-5 to 6.8e-4 across a bank — in
+the *correct* direction, since the default is wrong by 2.4× in the bifurcation-prone case (§6).
+Re-blessing needs the converged reference, not the current one.
+
+**C8. The unreachability results are an envelope with a 6% margin** (§5), on a wettest-layer
+keying that is itself a modelling choice.
+
+**C9. `Leaf` is shared through the Strategy pointer**, so the operating point,
+`soil_consumption_`, `E_up_` and the soil caches are per-solve scratch on an object several
+cohorts see in turn. A shut-down cohort that leaves `soil_consumption_` and `E_up_` stale feeds
+a previous cohort's draw into the balance. The general hazard is that any *new* per-solve field
+on `Leaf` has the same shape, and nothing structural marks which fields are transient.
+
+**C10. Verification needs a stated regime**: horizon ≥ 12 years, R0 well-conditioned, both
+tolerance families converged (§6). No global explicit reference exists on the hard traces.
 
 ---
 
-## 10. What would falsify this
+## 9. For the System designer: what this generalises to
+
+None of the following is TF24-specific. They are the shapes that made this model hard to
+differentiate, and any scientific model with a choice, a shared resource, or a threshold will
+meet them.
+
+**A model that *chooses* is not a model that *computes*, and the derivative comes from the
+condition that defines the choice.** Write down what holds at the operating point — a
+stationarity condition, a branch-existence condition, an active bound — and differentiate
+*that*. "It is the maximum of X" is a description, not a condition; here it was also false. If
+the choice can be made by different mechanisms in different regimes, then **the derivative must
+branch on the same test the solver used**, never on a re-derived proxy. A residual threshold
+that looks equivalent measured 30–50% wrong where the sign test measured 6e-4.
+
+**Ask what gradual process a hard switch is standing in for.** A hard switch in place of a
+smooth response costs three things at once: stiffness, a moving non-differentiability, and — if
+it saturates rather than vanishing — a dead gradient channel. All three are symptoms of one
+misrepresentation, and they come back together when it is fixed. This is the most reliably
+positive-sum move available: better mechanism, better conditioning, better derivative, no
+trade.
+
+**The coordinate is part of the model.** When the divergence exponent of a coupling equals the
+exponent of the curve that defines the state's meaning, the *state variable* is implicated and
+not just the rate. Carry state in the variable the process is smooth and bounded in. But be
+clear about what a chart can and cannot do: it can delete a clamp and restore floating-point
+conditioning; it cannot remove an intrinsic timescale, and it cannot hold a bound that the
+physics does not.
+
+**A reduction over members creates a switch keyed on one member.** TF24's shut-down fires only
+when *every* rooted layer is past critical, because the test is a `max` over accessible layers.
+That is a defensible modelling choice which also makes the event the model exists to represent
+nearly unreachable. Whenever a threshold is keyed on an extremum over components, check its
+reachability before designing around it — and check whether the keying, not the threshold, is
+what you meant.
+
+**The adjoint of a shared resource is a price, and its spread across members decides which
+simplifications exist.** If the marginal value of the resource is near-uniform, the coupling can
+be posed as a shared tariff and collapses to a gradient flow — the fed-back flux becomes the
+objective's own marginal, and the whole control apparatus leaves the inner loop. If it is not,
+that route is closed. There is a cheap standing test: sample the control across its feasible
+range at fixed state and regress `dP/du` against the flux `E`; the collapse holds only if that
+is affine with a member-independent slope. A dozen closed-form evaluations, no re-solves, and
+worth running **per new member model** rather than reasoned about. Designing a model so the
+fed-back quantity *is* the objective's marginal buys the collapse by construction.
+
+**Assemble a derivative with the traversal that assembles the quantity.** If a flux is a
+density-weighted trapezium over members, so is its Jacobian, with the same weights. This is what
+keeps the concept count flat as models are added: the Strategy author writes the science once
+and the derivative follows the same shape.
+
+**A functional can be ill-conditioned while its trajectory converges.** Check the functional's
+conditioning before quoting any gradient of it, and state the regime. A non-monotone tolerance
+sweep is a property of the regime, not necessarily a bug. And converging one tolerance family
+while another sits at its default produces a reference that is not one.
+
+**Declare per-solve scratch, and clear it on every exit path — including the early ones.** A
+field left stale by one exit becomes a previous member's value entering this member's balance.
+
+---
+
+## 10. What to measure, and where the open work lives
+
+Ranked by what each would settle rather than by cost.
+
+1. **Is the frozen-operating-point adjoint first-order wrong at the corner?** Reverse-mode
+   `dJ/dtheta` against a finite difference that **re-solves** the inner problem, on a
+   transpiring state, in a regime satisfying §6. §3 predicts it fails. Everything in §3 and §4
+   is conditional on this, and it is inferred, not measured. *(task 49)*
+2. **How often is the operating point boundary-pinned in run?** Sizes §4's boundary branch.
+   *(task 52)*
+3. **Does the interior branch survive develop's inner tolerances?** Validated only at 1e-12
+   (C5). *(task 53)*
+4. **How often does `dE_from_soil_dpsi_collar` return NaN on a production run?** C4's fallback
+   is an unmeasured finite difference inside the gradient this report recommends. *(new)*
+5. **What is the pinning margin under a shallower rooting depth or a drier driver?** §5's 2.05
+   MPa is one trait set on one envelope. *(new)*
+6. **A multi-level field-shift sequence.** §6 measured one refinement step; a second licenses an
+   extrapolated reference and a field-convergence rate. *(task 54's prerequisite)*
+
+Open work by TF24 component, so it can be triaged against the code rather than against this
+document:
+
+| component | open items |
+|---|---|
+| `Leaf` operating point (`find_root_collar_psi`, `prepare_collar_solve`) | 49 corner adjoint; 52 pinning fraction; 53 interior branch at production tolerance; NaN-fallback incidence (new); 32, 33 the TF24f tracked collar |
+| `TF24_Environment` soil block | pinning margin under other traits/drivers (new); 48 the kink manifest, for which §5 is the soil half |
+| light field (`ResourceSpline`, `CanopyShape`) — report 3 | 50 the unattributed 91% of a spline rebuild; 51 the real-knot-set falsifier; 46 per-species eta |
+| node schedule / measure | 54 retarget refinement at the coupling field, not reproduction; 27 the TF24 gradient FD-verification, which C10 re-scopes to ≥ 12 years |
+| transport term (`growth_rate_gradient`) — report 4 | C3's coupling to `GSS_tol_abs`; routes A/B/C unmeasured |
+| verification surface | 55 the anchor's domain; 44, 45 the R0 restore path |
+| engine (report 1) | 35 the step-local sweep; 4, 34 mutant-record cleanup; 47 the calibration contract |
+| odelia | 56 the non-finite step guard's full-suite run |
+
+---
+
+## 11. What would falsify this
 
 - **The adjoint matches the re-solving finite difference at the corner.** Then the
-  envelope-at-fixed-operating-point channel is somehow adequate, section 3's severity is
-  overstated, and only the value error in section 6 survives.
-- **The locator does not flatten offspring across `GSS_tol_abs`.** Then the flip is not
-  driven by the argmax floor and something else moves it; the 2.4× stands unexplained.
-- **Boundary-pinning is rare in run** (C4). Then section 4's boundary branch is
-  near-dead weight and the interior IFT alone is enough — which would be good news, and
-  it is measurable before any build.
-- **The interior branch degrades at production inner tolerance** (C3). Then the cheap
-  operating-point response is unavailable where it is wanted and the Jacobian needs a
-  different construction.
-- **A trait set reaches leaf shutdown or a soil clamp with non-negligible frequency.**
-  Then section 5's licence lapses for that region and the discontinuity has to be
-  handled rather than noted.
+  frozen-operating-point channel is adequate, §3's severity is overstated, and only §6's value
+  bounds survive.
+- **The locator does not flatten R0 across `GSS_tol_abs`.** Then the flip is not driven by the
+  argmax staircase, and the 2.4× stands unexplained.
+- **Boundary-pinning is rare in run.** Then §4's boundary branch is near-dead weight and the
+  interior IFT alone suffices — good news, and measurable before any build.
+- **The interior branch degrades at develop's inner tolerance.** Then the cheap
+  operating-point response is unavailable where it is wanted.
+- **A trait set reaches shutdown or a soil clamp with non-negligible frequency.** Then §5's
+  licence lapses for that region.
+- **`lambda_j`'s spread collapses on a fuller cohort population.** Then the shared-price route
+  reopens and most of §4 is unnecessary.
 
 ---
 
-## 11. Measured, versus inferred
+## 12. Measured, versus inferred
 
-Given how much of the surrounding corpus is Oracle correspondence, and that several of
-its confident claims were later refuted by measurement, this separation is explicit.
+**Measured on develop, read directly this session:** the loop of §2 and every symbol in it;
+`GSS_tol_abs = 1e-3`, `node_gradient_eps = 1e-6`, `ode_tol_rel/abs = 1e-4`,
+`ode_step_size_initial = ode_step_size_min = 1e-6`, `soil_moist_residual = 1e-2`; the
+golden-section call and its comment; `dprofit_droot_collar_psi`'s construction and its
+`h = 1e-6` NaN fallback; the wettest-layer shut-down keying and the `E_column < 0` exit; the
+retention and conductivity exponents; the absence of `soil_psi_max_`.
 
-**Measured, with a script and numbers behind it:** the objective's corner geometry and
-the `ci` jump either side; the profit floor's slope 1.06; the 1.20× locator speed-up and
-the 8.2e-5..6.8e-4 offspring move; the two-branch Jacobian's 4.2e-5 median / 6.1e-4 max
-and the 30–50% residual-dispatch failure; the exact retention factor; bit-identity when
-gated off; the 2.4× offspring error and its non-monotone tolerance table; the three
-freeze/feed-back convergence experiments; the sixteenth-power conductivity table and
-theta_min = 0.133; the never-firing clamps and the 0.79 MPa closest shutdown approach;
-the vulnerability-shutoff floor test.
+**Measured elsewhere, mechanism verified against develop:** the corner geometry and the `ci`
+jump; the profit floor's slope 1.06; the two-branch Jacobian's accuracy and the residual-dispatch
+failure; the exact retention factor; `lambda_j`'s spread; the two-stiffness decomposition; the
+R0 tolerance and horizon tables; the field-shift decomposition; the guard incidences; the
+conductivity table and `theta_min = 0.133`.
 
-**Inferred here, not measured:** that the corner makes the *current* reverse-mode
-adjoint first-order wrong. The mechanism is sound and two independent reasoners
-converged on it, but it is an argument, and step 1 of section 9 exists to test it rather
-than assume it.
+**Inferred, not measured:** that the corner makes develop's *current* adjoint first-order
+wrong. The mechanism is sound and two independent reasoners converged on it, but it is an
+argument. Section 10 item 1 exists to test it rather than assume it.
 
-**A stale reassurance, recorded because it is load-bearing where it appears.** The
-shadow-price correspondence closes by stating that "envelope smoothness in the adjoint" is
-safe and is why tracked and re-optimised gradients agree to first order. That was written
-2026-07-17; the corner was measured 2026-07-20 and refutes it — with `dprofit/dp = -8.8`
-at the operating point there is no stationarity for envelope smoothness to rest on. The
-shadow-price *measurements* in that document stand; its concluding reassurance does not.
-Anything downstream that inherited it needs re-checking.
-
-**The verification vehicle exists and should be used.** Two scenario banks are recoverable
-with one checkout each: `scripts/tf24-multirate/data/rainfall_scenarios.csv` with
-`gen_rainfall.R` (366 days across drought / dry / semiarid / wet / monsoon), and
-`scripts/tf24-benchmarks/data/*.rds` (`intense_storms`, `whiplash`, `extended_drought`,
-`dry_to_wet`, `long_horizon`, `drydown`, `multispecies`). Both reviewers of that programme
-named the bank its most valuable reusable artifact.
-
-**But it is a speed and robustness vehicle, not an accuracy vehicle**, and an earlier version
-of this paragraph had that wrong. Measured: all six traces give offspring `1e-8`–`1e-13` even
-at `birth_rate = 20`; an lma sweep 0.04→1.0 is monotone-decreasing at best ~`2e-10`; scaling
-rainfall 1×→20× never lifts one trace above ~`1e-9`. The same species and birth rate give
-offspring **1.03** under constant rainfall. The traces were built as soil-integrator stress
-tests, so they sit permanently in the near-extinction regime where the functional is
-ill-conditioned for every method — refining one method's own time discretisation moves
-offspring by O(1)–O(10) non-monotonically while the soil trajectory converges to `5.5e-4` on
-the same refinement. Cash–Karp does not even complete 3 of the 6 at converged tolerance, and
-that failure is a model-level density divergence, not a solver overflow.
-
-So the bank is the right vehicle for exercising the coupling's *regimes* and for robustness,
-and the wrong one for an FD accuracy reference. Accuracy has to be judged where the functional
-is well-conditioned — the model's own seasonal driver at the sustaining rainfall mean with
-amplitude dialled up, where offspring is O(1). `report 06` collects these bounds as
-constraints A1–A5.
-
-**Oracle claims that measurement refuted, recorded so they are not re-inherited:** that
-the inner argmax floor drives the ~30% step rejection (refuted — the rejection fraction
-is invariant to a 1000× change in inner tolerance); that a minimum-step-size clamp was
-binding and producing uncontrolled forced accepts (refuted — one step at the floor,
-0.0%, and the apparent floor is the *initial* step size, not a wall); that a Newton
-polish on stationarity is the fix (refuted — no root exists). The first of these was
-also stated in an intermediate write-up as "min-h equals `ode_step_size_min`"; the later
-measurement corrects it to `ode_step_size_initial`. Where documents disagree, the
-measurement wins.
+**Not applicable to develop, and recorded to prevent re-import:** the branch's
+`soil_psi_max_`-driven dead drought-gradient channel (§7).
