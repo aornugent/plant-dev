@@ -56,6 +56,21 @@ to be unnecessary:
 Those are the only four facts needed. Nothing inside `Leaf` is differentiated; the
 node relates its inputs to its outputs and the tape sees a small dense block.
 
+**One further step is not optional, and it is the most actionable finding here.**
+`golden_section_max` returns the midpoint of a bracket it has narrowed to `tol`, so
+`q*` carries an error of up to `tol/2` — and that error enters the derivative through
+the point at which the implicit function theorem is linearised. Measured, with the
+decomposition otherwise identical: at `tol = 1e-12` the gradient is wrong by 5.8e-06,
+and **at TF24's production `GSS_tol_abs = 1e-3` it is wrong by 3.5%.** Newton-polishing
+`q*` to a stationary point before using it gives **4.5e-10 at every tolerance tested**,
+matching an exact root-find. Tightening the search instead does not work: the error
+plateaus at 6e-6 and stops responding.
+
+So the node must polish. It is cheap — one to three Newton steps from within `tol/2` of
+the root — and develop already has the exact first derivative it needs
+(`dprofit_droot_collar_psi`). Section 7.2 gives the measurements and section 6.1 the
+placement.
+
 **Measured, and this is what makes it practical:** across 4 372 101 leaf solves at
 production settings, **every one is a strictly interior optimum**. All five of the
 solver's early exits have zero incidence and the narrowest feasibility bracket
@@ -322,6 +337,14 @@ opt_root_psi)` is the objective at its own maximiser, so `dP/dq = 0` and
 The argmax's motion contributes nothing. Obtained by evaluating the objective at the
 passive argmax.
 
+**Before either: polish `q*`.** Take one to three Newton steps on `dP/dq = 0` from the
+search's answer, using `dprofit_droot_collar_psi` for the first derivative. The
+linearisation point for everything below must be a stationary point, not a bracket
+midpoint (section 7.2). This changes the operating point by up to `GSS_tol_abs/2`,
+which moves `profit_` only at second order — it is at an optimum — but moves
+`soil_consumption_` at first order, so it is a forward-model change at that scale and
+is the one part of this proposal that needs re-blessing.
+
 **`soil_consumption_`, interior optimum.** A consumer of `q*`, so it needs
 
     dq*/d(theta)  =  -( d2P / dq dtheta ) / ( d2P / dq2 )
@@ -397,6 +420,8 @@ for the side output, and the boundary branch.
 arithmetically correct and how large its residuals are. It establishes nothing about
 TF24's leaf physiology.
 
+### 7.1 The two branches
+
 | leaf treatment | interior | boundary | cohort vs whole-run tape | AD vs FD |
 |---|---|---|---|---|
 | implicit root-find | — | — | 1.4e-14 | **4.5e-10** |
@@ -410,43 +435,46 @@ matches FD to 3.1e-10, because `q*` is then an analytic function of the bound. F
 interior, 1.1e-05. A run mixing the two (17 boundary of 1 200) does not degrade, so
 the selector composes and there is no catastrophe at the switch.
 
-**Part of the interior residual is the search tolerance.** Sweeping the golden-section
-tolerance `tau` at fixed finite-difference step:
+### 7.2 The interior residual, and why it closes
 
-| tau | AD vs FD | tau^(2/3) |
-|---|---|---|
-| 1e-6 | 2.09e-04 | 1.00e-04 |
-| 1e-8 | 3.31e-06 | 4.64e-06 |
-| 1e-10 | 9.21e-06 | 2.15e-07 |
-| 1e-12 | 5.81e-06 | 1.00e-08 |
-| 1e-14 | 5.96e-06 | 4.64e-10 |
+The interior branch's discrepancy is entirely the accuracy of `q*` **as a linearisation
+point**. Sweeping the search tolerance, with and without a Newton polish of `q*` before
+the implicit function theorem is applied:
 
-From 1e-6 to 1e-8 it tracks `tau^(2/3)`. Below that it **plateaus at approximately
-6e-6** and tightening the search does nothing further.
+| search tolerance | unpolished | polished | ratio |
+|---|---|---|---|
+| **1e-3** (TF24's `GSS_tol_abs`) | **3.48e-02** | **4.54e-10** | 7.7e7 |
+| 1e-4 | 1.41e-02 | 4.54e-10 | 3.1e7 |
+| 1e-6 | 2.09e-04 | 3.44e-10 | 6.1e5 |
+| 1e-9 | 1.11e-05 | 4.54e-10 | 2.4e4 |
+| 1e-12 | 5.81e-06 | 4.54e-10 | 1.3e4 |
 
-**The witness is not vacuous.** Severing the argmax's influence on the side output —
-the channel the envelope theorem does not cover — breaks the gradient by **4.1%** for
-the root-find and **11.6%** for the argmax, while the decomposition itself stays at
-1e-15. So `dq*/d(theta)` into `soil_consumption_` is load-bearing at the several-percent
-level, not a refinement.
+Polished, the argmax branch matches the plain root-find reference (4.542e-10) to three
+digits at every tolerance, and the search tolerance stops mattering. Unpolished, the
+error is **3.5% at the tolerance TF24 actually uses**, and tightening the search does
+not rescue it — it plateaus near 6e-6.
 
-**One open finding, localised but not closed.** The 6e-6 plateau is not the
-decomposition (1e-15), not the side-output channel (present with IFT enabled), not the
-search tolerance (survives `tau = 1e-14`), and not the finite-difference step. Against
-the root-find row's 4.5e-10 under otherwise identical treatment, it is in the argmax
-node's own derivative construction. Two candidates were not separated:
+Two candidates were eliminated by direct test rather than argument. The envelope
+application is **not** implicated: carrying `q*`'s own derivative into `profit_` instead
+of evaluating at the passive argmax changes nothing (5.812e-06 either way), and combining
+that with the polish gives the same 4.541e-10. And it is not `implicit_value`'s
+finite-difference probe scale: the polish leaves that probe untouched and still recovers
+exactness.
 
-1. the envelope theorem applied at an argmax carrying O(`tau`) position error, so
-   `dP/dq` is not exactly zero where it is assumed to be; or
-2. `odelia::implicit_value`'s central difference for `dF/dy`, which uses a fixed
-   `eps = 1e-6 * (|y*| + 1)`. In the interior branch the residual `F` is itself
-   `dP/dq`, so this probe computes a **second** derivative by differencing a first
-   one, and a fixed-scale probe is the wrong tool for that.
+**The transferable rule:** a search's stopping tolerance is not the accuracy of a
+derivative built on its answer. An argmax consumed by anything other than the objective
+must be polished to a stationary point before it is used as a linearisation point, and
+the required accuracy is set by the derivative, not by the value.
 
-Candidate 2 is the more likely and it is cheap to test: make the probe scale-aware and
-re-run the sweep. For context, 6e-6 relative sits four orders below the FF16 gradient
-gate that ships today, so it is not a blocker — but it is also not what an exact IFT
-should give, so it should be named rather than absorbed.
+This also characterises develop's demographic transport term.
+`Node::growth_rate_gradient` finite-differences the growth rate at
+`node_gradient_eps = 1e-6`, and the growth rate depends on `q*`, which moves in steps of
+order `GSS_tol_abs = 1e-3`. The stencil is stable only because the comparison pattern is
+locally constant across a 1e-6 height perturbation, so `q*` moves affinely with its
+bracket — which means the quantity that stencil differentiates is the bracket-affine
+surrogate rather than the true optimum. That is consistent with the code working and
+with section 5's analysis, and it is worth knowing before anyone tightens or loosens
+either tolerance.
 
 ---
 
@@ -557,9 +585,10 @@ should be a recorded decision rather than an artefact of writing an `if`.
 1. **Land the section 4 counters behind an environment-variable gate.** They are cheap,
    they converted a suspected blocker into a measured non-event, and they are the
    mechanism for C1's and C2's incidence questions.
-2. **Fix `implicit_value`'s `dF/dy` probe scale** and re-run section 7's `tau` sweep. If
-   the 6e-6 plateau drops to 1e-9, candidate 2 is confirmed and the interior branch is
-   exact. This is the highest-information cheap test in this report.
+2. **Polish the collar argmax** (section 6.1). At `GSS_tol_abs = 1e-3` this is the
+   difference between a 3.5% error and an exact derivative, so it is a prerequisite
+   rather than a refinement. It changes `soil_consumption_` at the `tol/2` level, so it
+   needs a baseline re-bless.
 3. **Fix `set_shutdown_state`** on develop (section 3.5). A forward-model correctness
    fix, independent of AD.
 4. **Extend `photo_temp_cached_`'s key** to include `vcmax_25` and `jmax_25`.
@@ -583,8 +612,10 @@ should be a recorded decision rather than an artefact of writing an `if`.
   breaks the envelope argument there. `set_shutdown_state` is one such path — it sets
   `profit_` directly. Section 4 says it is unreached in production; the enumeration
   should be completed rather than assumed.
-- **The interior residual does not fall with a scale-aware probe.** Then candidate 1 of
-  section 7 is live and the envelope application needs revisiting.
+- **Polishing does not recover exactness on the real leaf.** Section 7.2 establishes it
+  on a toy objective with an analytic second derivative. TF24's objective is a composition
+  through `find_psi_stem_from_psi_root`, so its stationarity condition is more expensive
+  to Newton on, and whether two or three steps suffice is unmeasured.
 - **The supplied Jacobian disagrees with a whole-tape recording of the same solve.**
   Record one leaf solve operation by operation at short lifetime, where the tape fits,
   and compare row by row. This is the direct test and it needs no full SCM run.

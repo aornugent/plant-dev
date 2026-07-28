@@ -80,12 +80,18 @@ run-dependent width. A Hermite span depends on exactly **two** knots. Verified o
 live tape: `d(eval)/d(knot_2)` is 0.55 for a query in a span touching knot 2 and
 **exactly 0** two spans away.
 
-**Cost.** At matched knot count the Hermite is 6% faster per value query and 2.6x
-faster when value and slope are both wanted. The knot set roughly doubles (142 against
-the 73–81 the refiner settles on), which costs about 2x on value-only queries. The
-build is 5.4x more expensive per ODE step, projected at **+1.9%** of a 53.1 s forward
-run, with an identified halving not yet taken (section 5.5). The adaptive refinement
-loop disappears, and with it three `Control` knobs cease to influence any gradient.
+**Cost, and this is the weak point.** Query cost is fine: at matched knot count the
+Hermite is 6% faster per value and 2.6x faster when value and slope are both wanted. The
+build is the problem. Measured on a production TF24 run, the light interpolant is rebuilt
+**20 304 times** — once per Runge-Kutta stage, not once per accepted step — costing
+**3.92 s of a 59.5 s run, 6.6%**. Production takes the `rescale` path (20 160 calls)
+rather than the adaptive `construct` (144 calls), and rescale re-evaluates the
+competition kernel at each of its **65** knots. The Hermite needs **142** knots and two
+reductions per knot, so on kernel-evaluation count the build is roughly **2.8x** more
+expensive, projecting to **+11.8%** on the forward run (section 5.5).
+
+That is above what a forward-path change should cost, and it is the open issue in this
+proposal. Section 5.5 sets out what is and is not yet counted.
 
 **This is the only one of the three proposals that changes forward-model numbers**, at
 roughly the fitting tolerance, so baselines need re-blessing. It is also the only one
@@ -307,25 +313,60 @@ The interpolant is not slower; a larger knot set is. Going from 73–81 to 142 k
 roughly 2x on value-only queries, and that cost is real and not tunable — the knot set
 is determined by the stand.
 
-### 5.5 Build cost
+### 5.5 Build cost — measured on plant, and unfavourable
 
-The interpolant is rebuilt inside every `Patch::set_ode_state`, so build cost multiplies
-by the step count rather than amortising.
+The interpolant is rebuilt inside every `Patch::set_ode_state`. That is called at every
+Runge-Kutta **stage**, not once per accepted step, which was worth measuring rather than
+assuming. Instrumenting `ResourceSpline::compute_environment` on a production TF24 run
+(`max_patch_lifetime = 105.32`, 2 829 accepted steps, 59.5 s):
 
-| | per step, 141 cohorts | projected over 2 829 steps |
-|---|---|---|
-| value-fitted, adaptive to `tol = 1e-4` | 82.3 us | 0.23 s |
-| Hermite at cohort tops (142 knots) | 439.5 us | 1.24 s |
+| path | calls | total | per call | knots |
+|---|---|---|---|---|
+| `construct_spline` (adaptive refinement) | 144 | 0.021 s | 143.0 us | — |
+| `rescale_spline` (reuse the knot set, re-evaluate) | **20 160** | **3.895 s** | 193.2 us | 65 |
+| both | 20 304 | **3.916 s = 6.6% of the run** | | |
 
-Against a measured 53.1 s forward run that is **+1.9%** (projected). The 5.4x ratio has
-an identified and untaken halving: the harness evaluates `A` and `dA/dz` in two separate
-passes, each recomputing `pow(z/H_j, eta)`, and section 4 notes they share it. A fused
-reduction should bring the build to roughly 2.7x and the run cost to about **+0.7%**.
+Three things follow, and the first two were wrong in an earlier version of this report.
 
-Two things are removed from the build side and are not counted above: the adaptive
-refinement loop disappears entirely — the knot set is the cohort heights, known without
-searching — and with it `spline_tol`, `spline_nbase` and `spline_max_depth` cease to
-influence any gradient.
+**The multiplier is 7.13, not 1.** 20 160 rescales against 2 829 accepted steps: the
+field is rebuilt per stage because it depends on state, and state changes per stage.
+Any per-build cost is multiplied by that.
+
+**Production takes the `rescale` path, 140 times more often than `construct`.** The 144
+`construct` calls come from `introduce_new_node`, which passes `rescale = false`; the
+20 160 rescales come from `set_ode_state`, which passes `true`. So the baseline to beat
+is `rescale`, not the adaptive build.
+
+**`rescale` is not cheap, and it is the closest analogue to a Hermite build.** It
+re-evaluates the competition kernel at each of its 65 knots and then runs the band solve
+in `initialise()`. The Hermite build evaluates two reductions — `A` and `dA/dz`, sharing
+their `pow(z/H_j, eta)` if fused — at **142** knots, and needs no band solve. Counting
+kernel evaluations as the dominant term: 142 knots at roughly 1.3x the per-knot
+arithmetic against 65 knots at 1.0x gives about **2.8x**, projecting
+
+    59.5 s  -  3.916 s  +  3.916 s x 2.8  ~=  66.5 s      = +11.8%    (projected)
+
+**What is not yet counted, in both directions.** Against the Hermite: nothing — the 2.8x
+already assumes the fused reduction. In its favour: it does no band solve, no
+`clear()` and `add_point` loop with reallocation, and no adaptive refinement; and 65
+knots is the *final* count, so the average over the run is lower and the true rescale
+baseline may be cheaper than 193.2 us implies at small stand sizes. Those are real
+savings that the kernel-evaluation count ignores, and they are why this is a projection
+rather than a measurement.
+
+**The honest position: the query side is settled and favourable, the build side is not,
+and 142 knots against 65 is the driver.** The knot count is not tunable — the knots are
+the cohort tops, which is what buys the convergence in section 5.3 — so closing this gap
+means either measuring the omitted savings and finding them larger than they look, or
+accepting a forward-path cost of several percent, or finding a formulation that needs
+fewer knots. It should be measured properly, by wiring a Hermite build into
+`ResourceSpline` alongside the existing one and timing both on the same run, before the
+proposal is accepted.
+
+Two things are removed from the build side in exchange and are not counted above: the
+adaptive refinement loop disappears entirely — the knot set is the cohort heights, known
+without searching — and with it `spline_tol`, `spline_nbase` and `spline_max_depth` cease
+to influence any gradient.
 
 ---
 
@@ -357,13 +398,13 @@ insurance, not as a fix for an observed problem.
 order. `test-strategy-tf24.R`, `test-canopy-methods.R` and the FF16 references under
 `tests/testthat/FF16_reference/` are affected.
 
-**C5. `rescale_usually` has no analogue.** `ResourceSpline::compute_environment` takes a
-`rescale` flag and, when `spline_rescale_usually` is set, calls `rescale_spline` rather
-than rebuilding — a speed path that reuses the existing knot set with new values. With
-knots at cohort heights the knot set changes whenever a cohort grows, so there is
-nothing to reuse. The 82.3 us baseline in section 5.5 is a full `construct`; if the
-rescale path dominates in production the comparison is less favourable than stated, and
-it should be re-measured on a real run before the build cost is accepted.
+**C5. `rescale_usually` has no analogue, and it is the production path.** Measured:
+20 160 rescales against 144 constructs on a production run (section 5.5).
+`rescale_spline` reuses the existing knot set — rescaled affinely to the new
+`height_max` — and re-evaluates. With knots at cohort heights the knot set changes
+whenever a cohort grows, so there is nothing to reuse and every build is a full build.
+This is the largest open cost in the proposal: +11.8% projected against a measured 6.6%
+current cost, driven by 142 knots against 65.
 
 **C6. `pow(0, eta)` is a live hazard at the ground knot.** `d/d(eta) 0^eta =
 0^eta log(0)`, which is NaN. `A(0)` and `dA/dz(0)` are the natural first knot, and
@@ -436,7 +477,9 @@ undershoots, which is a different problem with a different fix.
 4. **Measure C1's convergence** — the knot-position channel against knot density at
    production width. This decides whether cohort-top knots suffice or spans need
    subdividing.
-5. **Re-measure build cost on a real run** (C5), with the rescale path in play.
+5. **Time the Hermite build against `rescale_spline` on one production run**, both
+   wired into `ResourceSpline`. Section 5.5's +11.8% is a projection from kernel-evaluation
+   counts and it is the number that decides whether this proposal is affordable.
 6. **Switch the read**, re-bless the baselines, confirm the forward benchmark is within
    the accepted band.
 7. **Then** wire the slope into the crown integral's height channel, which is where the
@@ -462,5 +505,9 @@ work.
 - **The knot-position channel does not shrink with knot density.** Then C1 is a floor
   rather than a discretisation error, and the passive-position treatment needs
   revisiting.
-- **The build cost exceeds the forward-performance budget** once the rescale path (C5)
-  and the fused reduction are both accounted for.
+- **The build cost exceeds the forward-performance budget.** Section 5.5 projects
+  +11.8% from a kernel-evaluation count. Settle it by wiring a Hermite build into
+  `ResourceSpline` beside the existing one and timing both on one production run. If the
+  omitted savings — no band solve, no refinement loop, no reallocating knot append — do
+  not bring it under a few percent, the proposal needs a formulation with fewer knots
+  and section 5.3's convergence argument has to be re-made at that density.

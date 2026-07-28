@@ -65,8 +65,11 @@ adjoints cost what their forward evaluation costs.
 
 **Three properties make this worth doing:**
 
-- **Peak is flat in run length.** Measured: 1.0 kB per cohort tape from 60 to 480
-  steps, while a whole-run tape over the same range grows 20.8 MB to 169.0 MB.
+- **Peak is flat in run length, and in the stage count.** Measured: ~1.0 kB per cohort
+  tape from 60 to 480 steps, while a whole-run tape over the same range grows 20.8 MB to
+  169.0 MB. Moving from Euler to a four-stage Runge-Kutta multiplies the whole-run tape
+  by the stage count (56.4 MB to 226.1 MB at a matched configuration) and leaves the
+  cohort tape at 1.1 kB.
 - **Peak is flat in the number of differentiation targets.** Seeding more traits adds
   registered inputs, not recorded operations, so the tape is the same size. One
   sweep still yields every trait's adjoint. This matters because the realistic target
@@ -75,10 +78,14 @@ adjoints cost what their forward evaluation costs.
   recorded exactly as it already stands. The decomposition lives entirely in the
   gradient driver.
 
-**What it costs:** a stored plain trajectory (22.5 MB at production, projected), a
-recompute factor of exactly 1 (each cohort's rates are re-run once on the reverse
-pass), and the implementation work in section 9 — of which traversing the adaptive
-RK45 stage structure is the largest genuinely unbuilt piece.
+**What it costs:** a stored plain trajectory (22.5 MB at production, projected), and a
+doubling of the plain-`double` work — plant's Runge-Kutta step has six stages, and the
+backward pass rebuilds those stage states by re-running the step in `double` rather than
+storing them, so each stage is evaluated once forward and once again on the way back.
+Each (stage, cohort) pair is then recorded and swept exactly once. **Storage is
+independent of the stage count**, which is what makes rebuilding preferable to storing.
+Measured wall clock against a whole-run tape over the same trajectory: **1.4 to 1.6x**,
+improving as the stand grows (section 7.4).
 
 **What it depends on:** that a cohort's rates are a pure function of that cohort's
 boundary. Section 5 establishes this by reading develop, and finds two caches that
@@ -398,7 +405,60 @@ At the largest configuration the peak for the cohort path is **5.2 MB against
 1 252 MB, a factor of 241**, and the factor grows with run length because the
 numerator is flat and the denominator is not.
 
-### 7.3 Under TF24's harder features
+### 7.3 Under a multi-stage Runge-Kutta step
+
+plant integrates with an adaptive RK45, so the step map is not the one-line Euler
+update the sections above use. The toy was extended to classical four-stage RK4 with
+the adjoint recursion written against the tableau:
+
+```
+lambda_k_i  starts at  h * b_i * lambda_{n+1}
+visit stages in REVERSE order, so lambda_k_i is complete when it is used:
+  lambda_Y_i, lambda_theta  +=  vjp_rhs(Y_i, lambda_k_i)     // the per-cohort sweeps
+  lambda_n += lambda_Y_i
+  lambda_k_j += h * a_ij * lambda_Y_i   for every earlier stage j
+```
+
+The stage states `Y_i` are rebuilt by re-running the step in `double` rather than
+stored, so the trajectory stays at one state per step.
+
+| N | steps | whole-run tape | cohort tape | field tape | trajectory | cohort vs whole |
+|---|---|---|---|---|---|---|
+| 20 | 40 | 56.0 MB | **1.1 kB** | 331 kB | 0.01 MB | 1.78e-14 |
+| 20 | 80 | 112.4 MB | **1.1 kB** | 333 kB | 0.03 MB | 1.41e-14 |
+| 20 | 160 | 226.1 MB | **1.1 kB** | 337 kB | 0.06 MB | 1.36e-14 |
+| 20 | 320 | 458.2 MB | **1.1 kB** | 349 kB | 0.11 MB | 9.30e-15 |
+| 40 | 160 | 862.7 MB | **1.1 kB** | 1 324 kB | 0.11 MB | 3.40e-14 |
+| 80 | 160 | 3 361.3 MB | **1.1 kB** | 5 241 kB | 0.21 MB | 1.33e-14 |
+
+Against finite differences at N = 20, 40 steps: **4.80e-10**. Value bit-identical
+between the two paths.
+
+Two readings. **The stage structure costs the cohort path nothing** — the tape is one
+cohort's rates at one stage, so six stages means six sequential tapes of the same size,
+not one six times larger. And **it costs the whole-run path a factor of the stage
+count**: at N = 20 and 160 steps, 226.1 MB under RK4 against 56.4 MB under Euler, a
+factor of 4.0 for four stages. At the largest configuration the comparison is 5.2 MB
+against 3 361 MB, a factor of **646**. The more stages the integrator uses, the larger
+the advantage.
+
+### 7.4 Wall clock
+
+Cohort-granular against a whole-run tape over the same RK4 trajectory, best of three:
+
+| N | steps | whole-run (s) | cohort (s) | ratio |
+|---|---|---|---|---|
+| 20 | 80 | 0.221 | 0.363 | **1.64x** |
+| 20 | 160 | 0.453 | 0.728 | **1.61x** |
+| 40 | 160 | 1.617 | 2.274 | **1.41x** |
+
+The ratio improves as the stand grows, because the per-step field-assembly work is
+shared across cohorts while the per-cohort tape cost is not. For comparison, earlier
+work measured a step-local sweep at a flat 4.2x; the cohort-granular variant is
+cheaper because the expensive per-cohort recordings are exactly the work the forward
+pass already does, rather than a re-run of the whole step's arithmetic.
+
+### 7.5 Under TF24's harder features
 
 The inner solve was replaced with TF24's actual construct: a fixed-tolerance
 golden-section maximisation over a bracket whose upper bound comes from the soil
@@ -423,7 +483,7 @@ report 2's subject.
 the consumer the envelope theorem does not cover — breaks the gradient by **4.1%**
 (root-find) and **11.6%** (argmax) while the decomposition stays at 1e-15.
 
-### 7.4 Two defects found while building this
+### 7.6 Two defects found while building this
 
 - **`pow(0, eta)` has a NaN derivative with respect to the exponent.**
   `d/d(eta) 0^eta = 0^eta log(0)`. In the toy this made exactly one trait's gradient
@@ -452,15 +512,17 @@ re-derived.
 | peak tape | ~220 GB (86 kB x 987 x 2 829) | one cohort-step, ~600 kB |
 | plus field adjoint per step | — | O(n) in plant, small |
 | plus stored trajectory | — | 22.5 MB |
-| recompute factor | 1 | 1 |
+| plain-double evaluations per stage | 1 | 2 (one forward, one to rebuild the stage state) |
+| recordings per (stage, cohort) | 1 | 1 |
+| measured wall clock | 1x | 1.4-1.6x |
 | scaling in target count n | — | flat in memory and in sweeps |
 | new concepts a Strategy author sees | — | none |
 
-Earlier work measured the wall-clock cost of a step-local reverse sweep at a flat
-**4.2x** relative to a whole-run reverse pass over 60 to 960 units, while the memory
-ratio over the same range grew from 27.7x to 438x — a constant factor in time for a
-memory saving that grows with the run. The cohort-granular variant should sit in the
-same regime but has not been timed.
+The wall-clock cost is measured at **1.4 to 1.6x** and improving with stand size
+(section 7.4), against a memory ratio that reaches **646x** at the largest
+configuration tested and grows with both run length and stage count. That is the right
+shape: a small constant factor in time for a memory saving that grows with everything
+the problem grows in.
 
 ---
 
@@ -470,11 +532,14 @@ same regime but has not been timed.
 omits `vcmax_25` and `jmax_25`; `psi_soil_cache_`'s key is an exact `double`
 comparison on soil state.
 
-**C2. Explicit versus Runge-Kutta stepping.** The toy uses explicit Euler, whose step
-map is `y_{k+1} = y_k + h f(y_k)` and whose adjoint recursion is unambiguous. plant
-uses an adaptive RK45 (Cash-Karp): each accepted step has six stage evaluations and
-the reverse pass must traverse the stage structure, not just the step. This is
-standard but genuinely unbuilt, and it is the largest single piece of work.
+**C2. Runge-Kutta stage traversal — built and verified, with two gaps.** Section 7.3
+implements it for classical RK4 and reproduces the whole-run tape to 1.4e-14. What
+remains: the recursion is written against RK4's tableau with each stage depending only
+on its immediate predecessor, and Cash-Karp's is denser, so the inner loop must become
+a general `sum over j < i` rather than three special cases. And plant's stepper is
+**adaptive** — a rejected step is computed and discarded, so the reverse pass must
+follow the accepted steps only. `recorded_steps()` already gives exactly those, so this
+is a matter of driving from that list rather than a new mechanism.
 
 **C3. The field adjoint's cost depends on the interpolant** (section 6.3).
 
@@ -619,6 +684,8 @@ Stated as checks rather than arguments, so the answer is a number:
   not what section 4 claims.
 - **Trait adjoints do not accumulate.** A gradient that is a fixed fraction of the
   finite-difference reference, with the correct sign, is the signature.
-- **The RK stage traversal loses a term.** The census functional's gradient against the
-  existing FF16 finite-difference gate; the 19% newborn-adjoint error is the reference
-  failure mode.
+- **The RK stage traversal loses a term on Cash-Karp's denser tableau.** Section 7.3
+  verified RK4, where each stage depends only on its predecessor. Re-run the same
+  three-way comparison — cohort-granular, whole-run tape, finite differences — on the
+  full tableau, and against the existing FF16 finite-difference gate. The 19%
+  newborn-adjoint error is the reference failure mode for a lost term.
