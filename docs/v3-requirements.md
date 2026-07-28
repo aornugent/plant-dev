@@ -19,14 +19,14 @@ for proving §20 and §20b are not missing anything**, which is a different job 
 The *current candidate's* properties are deliberately **not** in this file; §21 says where they live.
 
 > **WHERE THE EVIDENCE LIVES.** This file is the only document kept on this branch. Every citation of
-> the form `docs/reference/<probe>` or `v3-facts.md §N` resolves against **`claude/odelia-ad-tape-reverse-496fuf` at `afac480`**, where the
+> the form `docs/reference/<probe>` or `v3-facts.md §N` resolves against **`archive/v3-docs-and-probes` at `afac480`**, where the
 > probes and the four ledgers (`v3-facts.md`, `v3-dead-ends.md`, `v3-engine-design.md`,
 > `v3-control-flow.md`, plus `HANDOFF.md`, `oracle/`, `deepenings/`, `archive/`) are intact. Recover any
 > of it with:
 >
 > ```bash
-> git checkout claude/odelia-ad-tape-reverse-496fuf -- docs/          # everything
-> git checkout claude/odelia-ad-tape-reverse-496fuf -- docs/reference # just the runnable probes
+> git checkout archive/v3-docs-and-probes -- docs/          # everything
+> git checkout archive/v3-docs-and-probes -- docs/reference # just the runnable probes
 > ```
 >
 > **The `docs/reference/*.{cpp,R}` probes are the evidence for most C-lines below**, so a line's
@@ -35,7 +35,7 @@ The *current candidate's* properties are deliberately **not** in this file; §21
 > Q25 and Q55:
 >
 > ```bash
-> git checkout claude/odelia-ad-tape-reverse-496fuf -- scripts
+> git checkout archive/v3-docs-and-probes -- scripts
 > ```
 >
 > The one exception that survives here: `plant/tests/testthat/gate0_b_leaf_earlyexit_driver.cpp`, so
@@ -392,7 +392,7 @@ theorem that later work would not have touched.
 
 | | claim | risk | what would settle it |
 |---|---|---|---|
-| **Q25** | **the leaf shut-down boundary is a TRUE DISCONTINUITY, not a kink** — profit jumps **≈1.46** and does not shrink as the θ step refines to 1e-7. So **no Leibniz/breakpoint term applies and the derivative is undefined at the boundary**; treating it as a continuous breakpoint would be a silent gradient bug *in the opposite direction from the one first feared*. Four early-exits select it; **which one produces the cliff was never isolated** (`E_column < 0` the prime suspect) | MED — **its harness exists and is re-runnable, but not on this branch**: `scripts/gate0-b-leaf-earlyexit.R`, driver at `scripts/gate0_b_leaf_earlyexit_driver.cpp` **and** at `plant/tests/testthat/gate0_b_leaf_earlyexit_driver.cpp` (that copy is still here). An earlier claim that the script was gone checked `plant/scripts/` and was wrong | `git checkout claude/odelia-ad-tape-reverse-496fuf -- scripts` then run it; **or** drive the surviving `plant/tests/testthat/` copy. Then isolate which of the four exits produces the cliff (refine θ to 1e-7 across the transition, 5 layers, height 5 m), then isolate which of the four exits produces the cliff |
+| **Q25** | **the leaf shut-down boundary is a TRUE DISCONTINUITY, not a kink** — profit jumps **≈1.46** and does not shrink as the θ step refines to 1e-7. So **no Leibniz/breakpoint term applies and the derivative is undefined at the boundary**; treating it as a continuous breakpoint would be a silent gradient bug *in the opposite direction from the one first feared*. Four early-exits select it; **which one produces the cliff was never isolated** (`E_column < 0` the prime suspect) | MED — **its harness exists and is re-runnable, but not on this branch**: `scripts/gate0-b-leaf-earlyexit.R`, driver at `scripts/gate0_b_leaf_earlyexit_driver.cpp` **and** at `plant/tests/testthat/gate0_b_leaf_earlyexit_driver.cpp` (that copy is still here). An earlier claim that the script was gone checked `plant/scripts/` and was wrong | `git checkout archive/v3-docs-and-probes -- scripts` then run it; **or** drive the surviving `plant/tests/testthat/` copy. Then isolate which of the four exits produces the cliff (refine θ to 1e-7 across the transition, 5 layers, height 5 m), then isolate which of the four exits produces the cliff |
 | **Q26** | N1 (stomatal `ci`) has a **sign-definite** denominator `dg/dci > 0` strictly | LOW | the node's registered assertion |
 | **Q27** | N3 (`q*`) has `dG/dq < 0` at the maximiser, and the node **refuses** rather than returning a spurious optimum on a flat/non-concave landscape | LOW | same |
 | **Q28** | N2 (`ψ_stem`) is **not** an inner solve, but `E_up′` returns **NaN** at a soil-layer-crossing boundary and the code **falls back to a central difference** | HIGH — the FD seam was deleted in P2c | grep for the fallback |
@@ -464,7 +464,7 @@ inside the measured 11–15% restore, not an extra charge against one candidate.
 | **Q52** | the acceptance criterion on record is a **number**: FF16 and TF24 census + R0 at `max_patch_lifetime = 105.32`, **under 2 GB peak**, FD-verified against the tight-τ frozen-schedule reference | LOW | adopt or restate it |
 | **Q53** | a step-local sweep may have to **drop `xad::computeJacobian`** (which owns record-once/sweep-m-rows) and hand-roll m sweeps per step, carrying m λ vectors | **partly refuted already** — our codomain-2 probe got both rows off one recording through `computeJacobian` at +0.38% | re-check at m = 3 with λ chaining |
 | **Q54** | the soil step-collapse is **multirate + kink-split, NOT a coordinate artifact fixable by one chart** (E2, measured) | LOW | recorded as decided |
-| **Q55** | mass-chart forward stability **PASSED** (gate0-a): geometric path bounded, `max|log n|` **21.09** vs the FD stencil's 21.15, still bounded at lifetime 110 (143 cohorts, 29.5), forward shift **0.169%** — so the instability that forced the FD stencil does not recur | MED — **its harness `scripts/gate0-a-masschart-stability.R` exists on `claude/odelia-ad-tape-reverse-496fuf`, not on this branch** (an earlier claim that it was gone checked `plant/scripts/` and was wrong). Unlike gate0-b it has **no driver copy inside plant**, so recovery is the only route | `git checkout claude/odelia-ad-tape-reverse-496fuf -- scripts` then run it; cheapest check on Oracle Q17 (λ-monotonicity) |
+| **Q55** | mass-chart forward stability **PASSED** (gate0-a): geometric path bounded, `max|log n|` **21.09** vs the FD stencil's 21.15, still bounded at lifetime 110 (143 cohorts, 29.5), forward shift **0.169%** — so the instability that forced the FD stencil does not recur | MED — **its harness `scripts/gate0-a-masschart-stability.R` exists on `archive/v3-docs-and-probes`, not on this branch** (an earlier claim that it was gone checked `plant/scripts/` and was wrong). Unlike gate0-b it has **no driver copy inside plant**, so recovery is the only route | `git checkout archive/v3-docs-and-probes -- scripts` then run it; cheapest check on Oracle Q17 (λ-monotonicity) |
 
 ### From `archive/ad-touchpoint-catalog.md` (the exhaustive four-part survey)
 

@@ -108,7 +108,8 @@ one per layer). Nothing else crosses.
 
 ### 2.2 What the AD branch adds
 
-`claude/odelia-ad-tape-reverse-496fuf` adds `plant/inst/include/plant/scm_gradient.h`,
+The plant submodule's `claude/odelia-ad-tape-reverse-496fuf` branch adds
+`plant/inst/include/plant/scm_gradient.h`,
 whose `scm_jacobian` runs an adaptive double pass to fix the schedule, replays it
 at an active scalar via `SCM::rebind_from<S>()`, and calls odelia's
 `compute_jacobian` for one recording and one sweep per output row. That entry

@@ -7,7 +7,7 @@ Numbers labelled **measured** were produced in this study, with the instrumentat
 described in section 3. Numbers labelled **projected** are arithmetic on measured
 quantities. Numbers attributed to earlier work come from this repository's
 `docs/v3-facts.md` and the probes under `docs/reference/` on
-`claude/odelia-ad-tape-reverse-496fuf`.
+`archive/v3-docs-and-probes`.
 
 ---
 
