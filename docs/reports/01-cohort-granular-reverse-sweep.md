@@ -145,6 +145,12 @@ Three consequences:
   a perturbation that changes the accepted step count changes the answer by more than the
   derivative being measured.
 
+**Within one set of flags it is bit-reproducible across builds, and the clock is not.** Two
+independent `-O2` builds of the same tree — one against odelia in a scratch library, one against
+the site install — give the same 5 055 steps and the same offspring to the last digit, at 89.9 s
+and 92.6 s. So a value gate can demand exact equality, and a **timing gate has about 3% of
+run-to-run noise** under it, which is the floor for any accepted band.
+
 The instrumented leaf count stays in the right-hand column because it was instrumented rather
 than projected, and it is consistent with its own tree: 141 x 6 x 2 829 x 2 is about 4.8 M
 against 4 372 101 measured, the remainder being the stand growing from one cohort to 141. **The
