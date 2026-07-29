@@ -88,8 +88,10 @@ Measured wall clock against a whole-run tape over the same trajectory: **1.4 to 
 improving as the stand grows (section 7.4).
 
 **What it depends on:** that a cohort's rates are a pure function of that cohort's
-boundary. Section 5 establishes this by reading develop, and finds two caches that
-must be fixed first.
+boundary. Section 5 reads develop against that requirement. On develop it does not hold:
+TF24's shared `Leaf` carries deep-layer uptake between cohorts on 33.78% of production
+records, and two caches are keyed on less than they depend on. All three are
+prerequisites (`../tf24-correctness.md` P0.1, and section 9's C1).
 
 Sections 2 to 8 substantiate the above. Section 10 draws out what the design asks of
 someone writing a new Strategy, which is the part that determines whether this is
@@ -248,20 +250,13 @@ cohort's rates regardless.
 
 ## 5. Is the cohort a legitimate unit?
 
-> **This section's conclusion is false as stated. See `07-tf24-develop-audit.md` §1.1.**
-> The table below clears the shared `Leaf` on the grounds that `set_physiology` re-seats
-> every per-solve field, and specifically that it "resizes `soil_consumption_`". It calls
-> `.resize(n, 0.0)`, whose fill argument touches only *new* elements, while
-> `E_from_Soil_to_Root_Collar` writes only up to `max_soil_layer`. So a shallow-rooted
-> cohort reads the previous cohort's deep-layer uptake — measured on **33.78%** of
-> production records, and the source is that cohort's finite-difference growth probe at a
-> perturbed height. §12's leading falsifier therefore has a known answer: it fails.
->
-> The design is not thereby wrong — a re-recorded cohort computes those layers as zero,
-> which is what its own physics implies — but it will not reproduce develop bit-for-bit
-> until the forward model is fixed. `../tf24-correctness.md` P0.1 is the one-word fix, and
-> `../build-plan.md` §2.2 explains why the free-function architecture removes this class of
-> risk rather than managing it.
+> **On develop it is not, and the reason is one line of TF24's leaf.** `set_physiology`
+> calls `soil_consumption_.resize(n, 0.0)`, whose fill applies only to newly added
+> elements, and `E_from_Soil_to_Root_Collar` writes only up to `max_soil_layer`. A
+> shallow-rooted cohort therefore reads the previously-solved cohort's deep-layer uptake —
+> **33.78%** of production records, measured. `../tf24-correctness.md` P0.1 is the fix; it
+> is a prerequisite for this design, because the bit-identity check in §12 cannot pass
+> against a forward pass that is order-dependent. The table below is otherwise accurate.
 
 The decomposition is valid only if `Individual::compute_rates` is a pure function of
 (its own `Internals`, the environment values it reads, the strategy's parameters). If

@@ -102,8 +102,8 @@ saturation (0.428), which is the tell.
 Called by no C++ code and covered by no test — it is an R-facing utility only, so this
 is not a simulation defect. It is worse in one specific way: it is the natural function
 to reach for when converting a critical potential into a moisture threshold, so any
-recorded figure of that kind is wrong by 8.19×. (One such figure is in the archived
-open-items list.)
+recorded figure of that kind is wrong by 8.19×, so re-derive any moisture threshold that
+came through it.
 
 **Gate.** `soil_moist_from_psi(psi_from_soil_moist(θ)) == θ` to 1e-12 for θ in
 (θ_r, θ_sat], and the round trip is a committed test. A property check is the right
@@ -150,6 +150,7 @@ Two thirds of it already exists in measured form. What is known:
 | `max(0.0, spline(height))` undershoot guard | firing — the field's minimum is **exactly 0** | report 07 §1.8 |
 | `Species::consumption_rate`'s `size() < 2` | **0.70%** of output times, and it is the *first* one | report 07 §1.7 |
 | the three shut-down exits | **0%** at the default driver; minimum margin 27× `GSS_tol_abs` | report 06 §9 |
+| the **interior / bound-pinned** operating-point selector | **15 of 52** states across the argmax's whole feasible domain, all at `psi_soil ≥ 1.5 MPa` and `height ≥ 2 m`. None inside the default driver's range; the stress banks reach it | `scripts/curvature_probe.R` |
 | the zero-flux `psi_upstream >= psi_stem` branch | **0%**; the jump across it is exactly `R_d` | report 06, report 07 |
 | `E_up_ < 0` (hydraulic redistribution) | **never** | report 06 §9 |
 | `rooting_depth = min(height, 1.5)` | crossed by **every** cohort, once, early — so the channel is correctly dead for production-size plants | report 07 |
@@ -215,6 +216,29 @@ what the model means at the carbon compensation point — the point is that it s
 a recorded decision rather than an artefact of writing an `if`. develop already has
 both the precedent (`P_pos`) and the method for sizing a smoothing scale against data
 (`storage_prod_eps`, measured well-sized).
+
+---
+
+## P0.7 — `q(z, height)` divides by `z`
+
+`q(z, h) = 2η(1 − u^η)u^η / z` with `u = (z/h)^η`. The division makes `q(0, h)` a `0/0`, so
+it is **NaN for every height**, not only at `h = 0` — measured. The light field's lowest knot
+is exactly `z = 0` (`construct_spline` sets `lower_bound = 0.0`), so the first consumer to ask
+the field for a slope at the ground meets it. Nothing reads the field's slope today, which is
+why the defect is latent.
+
+Writing `q` over `u^(η−1)/h` rather than `u^η/z` — the two are equal for `z > 0` — is finite
+there and removes a division from the hot path. The `u → 0` limit is 0 for every `η > 1` and
+`1/h` at `η = 1`, resolved once alongside the other `η` precomputation.
+
+Separately at the same knot: `d/dη` of `0^η` is `0^η log 0` = NaN, which bites once `η` is a
+differentiation target. At `z = 0` a cohort contributes its full amplitude with `u = 0` and no
+`pow` is needed, so the fix is a guard rather than a reformulation.
+
+**A zero-height cohort is not the concern.** `height_0 = 0.344195 m` (measured), so `h = 0`
+is unreachable through introduction, and `growth_rate_gradient`'s `1e-6` probe is far from it.
+
+**Gate.** `q(0, h)` finite for every `h`, and both sites carry a test.
 
 ---
 

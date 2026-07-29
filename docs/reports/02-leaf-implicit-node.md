@@ -1,40 +1,29 @@
 # The TF24 leaf as a single differentiable node
 
-> **Read `06-tf24-dependency-map.md` §6 alongside this. An earlier banner here said this
-> report was superseded because the operating point is an active-constraint corner rather
-> than an interior maximiser; that claim came from a degenerate single-layer probe and is
-> withdrawn** — see `../archive/corner-and-envelope-result.md`'s banner and
-> `../audit-2026-07.md`. Measured on a production run: the operating point **is** a
-> stationary interior maximum (`|∂Π/∂p| ~ 1e-5 … 1e-7` at tight tolerance), corner
-> incidence is **zero** in 10 153 records, and the envelope theorem holds to 0.006–0.9% on
-> `d(profit)/dψ`. So this report's premise stands.
+> **Read `06-tf24-dependency-map.md` §6 alongside this.** On the production path the
+> collar operating point is a stationary interior maximum (`|∂Π/∂p| ~ 1e-5 … 1e-7` at tight
+> tolerance) and the envelope theorem holds to 0.006–0.9% on `d(profit)/dψ`, so this
+> report's premise is the right one. What replaces its **Newton polish** is not a
+> correction to the geometry but a cheaper construction: report 06 §6.2 collapses the five
+> flux adjoints onto one scalar, divides once by `Π_pp`, and takes one gradient of
+> `∂Π/∂p` — no root-find at all. The polish figure quoted below (4.541e-10) is a toy
+> measurement and is not a production number.
 >
-> What does not stand is the **Newton polish**, for a different and measured reason: at
-> develop's `GSS_tol_abs = 1e-3` the returned point is ~1e-4 off the argmax, and with
-> `|Π_pp| ≈ 1.1×10⁵` that search error cancels catastrophically in the **co-output** —
-> `d(consumption)/dψ` comes out **47.6–53.2%** wrong while `d(profit)/dψ` stays
-> envelope-protected. Report 06 §6.2 replaces the polish with a one-scalar solve
-> (`μ = −s/Π_pp`) plus one gradient of `∂Π/∂p`, which needs no root-find at all. The
-> polish result quoted below (4.541e-10, flat across tolerances) was measured on a toy and
-> should not be read as a production number either way.
+> **The branch census below undercounts, and that stands.** It enumerates five early exits
+> from `prepare_collar_solve` plus an uncounted sixth case pinned at `bound_b`. The
+> zero-flux `psi_upstream >= psi_stem` branch is none of those — it is a jump *inside* the
+> objective evaluation, which exit instrumentation cannot see. Its incidence is zero on a
+> production run and the jump across it is exactly `R_d`. `../tf24-correctness.md` P0.5 is
+> the full manifest.
 >
-> **The branch census below undercounts, and that part is unaffected.** It enumerates five
-> early exits from `prepare_collar_solve` plus an uncounted sixth case (pinned at
-> `bound_b`). The zero-flux `psi_upstream >= psi_stem` branch is none of those — it is a
-> jump *inside* the objective evaluation, so exit instrumentation cannot see it. Its
-> incidence is now measured at **zero** on a production run, and the jump across it is
-> exactly `R_d` (report 06). `../tf24-correctness.md` P0.5 is the full manifest.
->
-> What survives, and is unaffected: the argument for keeping `Leaf` entirely `double`
-> (section 1's second half); that a tape recording the search returns the derivative of
-> the bracket rather than of the argmax (section 5); the branch census and the
-> `set_shutdown_state` defect (section 3); the census table (section 4).
->
-> What replaces the polish: a **bracketing** root-find on the analytic gradient
-> `Leaf::dprofit_droot_collar_psi`, which converges to the gradient's sign change — which
-> is what a corner is — and needs no second derivative. It already ships behind
-> `control$newton_collar_solve`. Sections 1 and 5 below need rewriting around this;
-> report 5 carries the measurements in the meantime.
+> **`Π_pp` is measured** (`scripts/curvature_probe.R`): negative at 52 of 52 states over
+> the argmax's whole feasible domain, `|Π_pp|` from 0.1723 to 15.61, so the single divide
+> in §6.2 amplifies a flux adjoint by at most 5.8×. The same sweep finds 15 of those 52
+> states with the operating point **pinned at a bound** — every one at `psi_soil ≥ 1.5 MPa`
+> and `height ≥ 2 m`, outside the default driver's range but inside the stress banks'. The
+> leaf node is therefore two branches and a selector on `|∂Π/∂p|`, and this report's
+> section 1 already has the right shape for the bound branch: pinned means `p*` *is* the
+> bound, so its derivative is the bound's derivative, analytic and exact.
 
 ## 1. The proposal
 
