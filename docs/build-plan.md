@@ -230,6 +230,27 @@ environment, since §2.7 recomputes it. The quadrature abscissae move with an ac
 bound, and inside the cohort block that is recorded rather than replayed, because both the
 quadrature and the bound are on the block's tape.
 
+**Introduction times, step times and stage times, precisely.** Introductions land on step
+boundaries **structurally**, not just in measurement: `advance_adaptive` sets
+`time = time_max` on its final step (`ode_solver_internal.hpp:304`), so a step always ends
+exactly on the event time. Report 01 C5's 141/141 is a consequence. Within a step, RKCK's
+stage times are `ah = {1/5, 3/10, 3/5, 1, 7/8}`, so **stage index is not time order**: index 3
+(`k5`) is at `t + h` and index 4 (`k6`) at `t + 0.875 h`, and index 5 (`dydt_out`) is at
+`t + h` as well. Two stages share a timestamp, so **a stage is addressed by index and never by
+time**. develop's `set_ode_state(it, int index)` is index-based and correct; `load_ode_step`
+resolves *steps* by time and is also correct.
+
+`k1` is not a stage of its own step: RKCK is first-same-as-last, so `k1` is the previous step's
+index-5 evaluation carried by `save_dydt_out_as_in` (`ode_solver_internal.hpp:355`). That is
+clean for a reverse traversal — `dydt_out` enters neither the `y` update nor `yerr`
+(`ode_step.hpp:140-154`), so it has exactly one consumer and no double counting. The exception
+is every introduction: `Patch::introduce_new_nodes` rebuilds the field but does not recompute
+rates (`patch.h:621-631`), and `set_state_from_system` then seeds `dydt_in` from the stored
+rates and marks them clean (`ode_solver_internal.hpp:146-152`). So at ~141 of 2 829 steps,
+`k1` is the rate vector from before the newcomer entered the field, entering the update with
+weight `c1 = 37/378`. **`lambda_k1` therefore belongs to the step boundary, and the step
+boundary is where introductions live** — one seam, to be designed once (§11).
+
 `odelia::ode::Solver` holds an `xad::Tape<double>` member, so plant includes XAD transitively and
 always will. The rule is that **no plant file spells `xad::`**, checked by
 `grep -r 'xad::' plant/inst plant/src` returning nothing. develop has one violation today, in
@@ -241,14 +262,18 @@ and only the spelling moves.
 
 ## 3. What we take
 
-Four names cross from odelia into plant, plus one small helper. Nothing else is adopted.
+Four names cross from odelia into plant, plus one small helper. **None of the four exists at
+the `854a8e18` baseline** — `to_passive`, `implicit_value` and `hermite_interpolator` are on
+odelia's AD branch, and `preaccumulate` was added there in `2a60998` and deleted again in
+`28059bd`. So all four are new code written against a design, not lifts; the AD branch is prior
+art for three of them and a discarded spike for the fourth.
 
-| name | from | its one consumer in plant |
+| name | prior art | its one consumer in plant |
 |---|---|---|
-| `preaccumulate(inputs, outputs, f)` | `preaccumulate.hpp`, extended to m outputs with externally seeded output adjoints | step (b): the cohort block |
-| `implicit_value(y*, F)` | `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1` |
-| `hermite_interpolator<S>` | `hermite_interpolator.hpp` | the light interpolant's evaluation (§2.6) |
-| `to_passive` | `ode_util.hpp` | the descending-height sort key in the light reduction |
+| a vector-Jacobian product over a block: `(x, lambda_out, f) -> lambda_in` | `preaccumulate` (deleted) solved a different problem — it grafted partials back onto an enclosing tape. There is no enclosing tape here, so the graft, its first-order-only property and its return-type `static_assert` are all beside the point. §11 designs this | step (b): the cohort block |
+| `implicit_value(y*, F)` | AD branch, `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1` |
+| `hermite_interpolator<S>` | AD branch, `hermite_interpolator.hpp` | the light interpolant's evaluation (§2.6) |
+| `to_passive` | AD branch, `ode_util.hpp` | the descending-height sort key in the light reduction |
 | a forward-derivative helper | new, small | `dprofit_droot_collar_psi`, so `src/leaf_model.cpp` stops spelling `xad::fwd` |
 
 Two odelia changes have no plant-visible name: `Step` gains `step_adjoint` and a description of
@@ -256,9 +281,19 @@ its stage structure (§2.5), and `preaccumulate` reports its recording size so p
 the peak without touching `xad::Tape`.
 
 From plant `develop`: `Species::census<Psi>` and its self-shading integral, `Control()`'s
-defaults, `SCM::refine_schedule`, `r_ode_times()`. `SCM::run_mutant`, `is_mutant_run` and
-`environment_history` stay in place untouched — not on the resident path, needed when invasion
-returns.
+defaults, `SCM::refine_schedule`, `r_ode_times()`.
+
+**The mutant replay path is already dead on develop, and we leave it dead.**
+`Patch::cache_ode_step`, `cache_RK45_step` and `load_ode_step` (`patch.h:727-775`) carry
+comments saying odelia calls them; odelia at `854a8e18` does not, and neither does anything in
+plant. `save_RK45_cache` defaults false and is set true only in `R/benchmark.R`. So
+`environment_history` is always empty, `Patch::set_mutant` stops with "Run a resident first"
+(`patch.h:236`), and `run_mutant` pins the replay grid to `patch.step_history`
+(`scm.h:309`), which is still `{0.0}` — which is where the 60x came from. Meanwhile odelia at
+`854a8e18` carries a *different* replay interface: the `Replayable` concept with
+`record_stage` / `record_ode_step` / `replay_step` / `has_recorded_field`
+(`ode_interface.hpp:42-48`), which plant does not implement. Phase 4's invasion task therefore
+reconnects a dead path to a renamed interface; it does not resume a working one.
 
 From the plant AD branch: the scalar templating as the starting diff, reshaped per §2.1;
 `CanopyShape<S>`; birth size through `implicit_value`; the three census metrics as one
@@ -750,3 +785,44 @@ sub-grid difference carries.
 
 **Order: M1 and M2 in parallel, then M3 and M4; (4) before P3.2; (5) before anything is
 verified against TF24's numbers.**
+
+---
+
+## 11. Four open design threads
+
+Each is frontloaded deliberately: the cost of getting one wrong is a wrong gradient that looks
+plausible, and all four are cheaper to settle on paper than in a bisect. Worked in this order,
+because each constrains the next.
+
+**11.1 The state-transfer interface.** odelia's System contract is already scalar-generic — its
+own AD examples template every ODE method on the iterator
+(`examples/lorenz_system.hpp:106`), and `least_squares` calls `ode_state` on an active vector
+(`gradient.hpp:157`). The legacy `double` typedefs are used in exactly four places in all of
+odelia: the recursive element-range helpers at `ode_interface.hpp:73, 82, 92, 102`, which exist
+only for plant because odelia has no container System. plant's ~20 container signatures adopt
+them from there. The R boundary is already isolated and already has a name — the `r_*` family
+at `S = double`, `xad::value` at the return, doubles out of `compute_jacobian` — and that is
+the shape `stand_gradient` copies. **Open:** whether to template the iterators (the AD branch
+did: +1002/-378 across nine container headers) or to remove the flattening entirely; and what
+stops the next container from regressing. `SpeciesBase` is a fifth container and is shared with
+the stochastic path; `ResourceSpline` is a sixth and sits on the R boundary.
+
+**11.2 The boundary node.** `Species::new_node` is the size-density equation's inflow boundary,
+it is in the field reduction by necessity, and its density is lagged one stage because the
+relation that defines it is implicit (report 01 §3). `height_0` is the reduction's lower
+integration limit, so the field also carries a Leibniz term (report 03 §1b). **Open:** whether
+to model the lag, close it, or show it is negligible — and how `lambda_k1` at an introduction
+is attributed (§2.8).
+
+**11.3 Density transport.** Two questions, and report 04 §1 now separates them: what the ODE
+transports, and — if a density — how `dg/dh` is obtained. Route B answers the second; route D
+(transport individuals, reconstruct density from spacing) dissolves it. Either removes the
+sub-grid probe, which is **about half of every TF24 leaf solve in a production run** (report 04
+§1). **Open:** Q1 before Q2, and report 04 §6b lists what decides it without any AD.
+
+**11.4 The block's VJP.** A thin wrapper over XAD's tape drivers, not a primitive with a
+theory. The design question is not the wrapper but the block's input and output layout, which
+must be written once rather than twice — a forward assembly and an adjoint scatter that
+disagree silently is a wrong gradient. **Open:** and it is the same decision as 11.1, because
+if the patch owns contiguous state then a block's inputs are views and its adjoints scatter in
+place, and no layout can disagree.

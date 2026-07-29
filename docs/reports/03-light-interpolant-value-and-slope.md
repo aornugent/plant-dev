@@ -155,11 +155,23 @@ sensitivity arrives as ordinary chain-rule terms in the *query* instead:
 
 Recorded arithmetic, not a structural approximation.
 
-**`height_max`'s selector remains, and moves somewhere the tape can handle it.** It is a `max`
-over active heights, so its derivative is 1 for the tallest cohort and 0 for the rest, with a
-tie when two cohorts are equal-height. On the normalised coordinate that selector sits in the
-arithmetic rather than in the knot placement. It is a discrete branch on the gradient path and
-belongs in the switch inventory with its incidence, which is currently uncounted.
+**`height_max`'s selector remains, and it is smaller than it looks.** `Species::height_max()`
+returns `nodes.front().height()` (`species.h:167`), not a `max` — it relies on the
+descending-height invariant, so *within* a species the derivative is 1 for the first node
+unconditionally and there is no tie. The `max`, and the tie, live only in `Patch::height_max`
+across species (`patch.h:424`). A single-species run therefore has no selector at all, and
+every incidence number in this corpus is single-species. On the normalised coordinate what
+remains sits in the arithmetic rather than in the knot placement.
+
+**The field reduction has a moving lower bound of its own, and it is `height_0`.**
+`Species::compute_competition` closes its descending trapezium on the inflow boundary node at
+`new_node.height()` (`species.h:221`), so the reduction integrates over `[height_0, H_max]`
+and `height_0` comes from `height_seed`'s root-find — trait-dependent. This report's section 1
+makes the case for a crown integral's moving bound; the same argument applies one level up, to
+the field's own quadrature, and the term is one evaluation of the integrand at `height_0`
+times `d(height_0)/d(trait)`. It is closed form and it belongs with the knot adjoints, not
+inside a cohort block. The boundary node's *density* is the other thing that sweep reads which
+is not ODE state; report 01 §3 sets out why it is lagged and what that costs.
 
 **A fixed absolute grid is the wrong alternative.** It would also make positions constant, and
 `height_max` runs from 0.34 m at the first cohort to 17.94 m at production, so most of 65 knots

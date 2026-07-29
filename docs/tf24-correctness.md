@@ -136,11 +136,16 @@ source of truth.
 ## P0.5 — the switch inventory
 
 **The one item specified in four places and produced in none.** Every clamp, floor,
-`min`/`max`, ternary and branch on a computed value on TF24's carbon and water paths,
-each classified (selector / kink / guard / *the operation is itself a derivative*) and
-each carrying a **measured incidence**.
+`min`/`max`, ternary and branch on a computed value on TF24's carbon, water,
+**demographic and field-reduction** paths, each classified (selector / kink / guard /
+*the operation is itself a derivative*) and each carrying a **measured incidence**.
 
-Two thirds of it already exists in measured form. What is known:
+The first table is the carbon and water paths, which are two thirds measured. The second
+is the demographic and field-reduction paths, read directly from the container headers,
+all uncounted — they were outside every report's scope because no report starts from
+`Node`, `Species` or `Patch`.
+
+### Carbon and water
 
 | construct | incidence | source |
 |---|---|---|
@@ -151,11 +156,30 @@ Two thirds of it already exists in measured form. What is known:
 | `Species::consumption_rate`'s `size() < 2` | **0.70%** of output times, and it is the *first* one | report 07 §1.7 |
 | the three shut-down exits | **0%** at the default driver; minimum margin 27× `GSS_tol_abs` | report 06 §9 |
 | the **interior / bound-pinned** operating-point selector | **15 of 52** states across the argmax's whole feasible domain, all at `psi_soil ≥ 1.5 MPa` and `height ≥ 2 m`. None inside the default driver's range; the committed rainfall sequences reach it | `scripts/curvature_probe.R` |
-| `height_max = max` over cohort heights, which sets the light interpolant's domain | uncounted. Derivative 1 for the tallest cohort and 0 for the rest, with a tie when two are equal. On the normalised coordinate the selector sits in the arithmetic rather than in the knot placement (`../build-plan.md` §2.9) | to measure |
 | the zero-flux `psi_upstream >= psi_stem` branch | **0%**; the jump across it is exactly `R_d` | report 06, report 07 |
 | `E_up_ < 0` (hydraulic redistribution) | **never** | report 06 §9 |
 | `rooting_depth = min(height, 1.5)` | crossed by **every** cohort, once, early — so the channel is correctly dead for production-size plants | report 07 |
 | soil positivity guard, conductivity floor, retention floor, `soil_psi_max_` | the guard is NaN-safe on develop (`!(rate > 0.0)`); reachability argued from `K ∝ θ^16.14` but the drier-driver case is open | report 06, open-item 58 |
+
+### Demographic and field reduction
+
+Read directly from develop's container headers. Every one is on the census gradient's
+path, because a census metric is `sum_k n_k psi(state_k)` with `n_k = exp(l_k)`, and
+none is counted.
+
+| construct | where | what it decides |
+|---|---|---|
+| `Species::height_max()` returns `nodes.front().height()`, **not a max** | `species.h:167` | it relies on the descending-height invariant, so within a species the derivative is 1 for the first node unconditionally and there is no tie. The `max` — and the tie — exist only **across** species in `Patch::height_max` (`patch.h:424`). This is a cheaper selector than report 03 §1b assumes, and single-species runs have no selector at all |
+| `if (size() == 1 \|\| f_h1 > 0)` | `species.h:220` | whether the boundary node's trapezium interval enters the light field. A branch on a computed competition value that changes how many terms the field reduction contains |
+| `if (h0 < height) break;` | `species.h:215` | where the descending sweep stops. The term count of the field reduction is state-dependent, which is the same class as an adaptive knot count |
+| `new_node.height()` as the field trapezium's **lower integration limit** | `species.h:221` | a moving integration bound in the field reduction itself, equal to `height_0` and therefore trait-dependent through `height_seed`. Not a switch; listed here because it is the other thing that sweep reads which is not ODE state |
+| `!util::is_finite(survival_individual)` → `0.0` | `node.h:144-150` | zeroes the whole fecundity rate, hence offspring and R0, when `exp(-mortality)` underflows. A switch on a state, whose active set grows monotonically through a run |
+| `!util::is_finite(log_density)` → `log_density_dt = 0.0` | `node.h:182-185` | at introduction, when `g <= 0` makes `log_density` `-Inf`. Zeroes the newborn's transport rate |
+| `g > 0 ? log(birth_rate * pr_estab / g) : log(0.0)` | `node.h:177` | the inflow boundary condition itself. `-Inf` on the closed side |
+| `mortality_dt`'s `is_finite(cumulative_mortality)` | `tf24_strategy.cpp` | already on the "still to count" list below; recorded here too because it is the switch that feeds the two above |
+| `Patch::check_finite_ode_state()` | `patch.h:693` | a hard stop rather than a branch, so it has no derivative — but it defines the domain the gradient is valid on, and a finite-difference verification step that crosses it fails loudly rather than quietly. Worth a row so that is on purpose |
+| `size() > 0 & !is_mutant_run` | `patch.h:568` | whether the field is rebuilt at all. Also a bitwise `&` on two bools, which is a wart rather than a hazard |
+| `consumption_rates` sized `NA_REAL` to ODE width | P0.4 | four NaNs per cohort per stage reach `resource_depletion`. Under a reverse sweep `NaN * 0` is `NaN`, so this poisons the adjoint rather than staying latent. **Promote P0.4 to the same tier as P0.1** |
 
 **Still to count**: the root vulnerability curve's domain edge (beyond its fitted
 domain `root_vuln_from_psi` extrapolates **negative** → negative conductivity →

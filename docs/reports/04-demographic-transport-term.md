@@ -44,20 +44,44 @@ differences. Evaluating both growth-rate evaluations at the active scalar leaves
 value bit-identical — same arithmetic, same order — while the derivative becomes the
 derivative of the scheme plant actually solves. Nothing about the trajectory changes.
 
-**Three routes, and they are not equivalent:**
+**Two questions, and conflating them is why this has not settled.**
 
-| | route | value change | cost | differentiable |
-|---|---|---|---|---|
-| **A** | evaluate the existing stencil actively | none | already paid forward; one extra recording per cohort per stage | yes, amplifying roundoff by `1/eps` |
-| **B** | difference across neighbouring cohorts instead of a sub-grid probe — **chosen** | yes, unquantified | **free** both directions | yes, amplifying by `1/spacing` |
-| **C** | smooth the growth clamp, then use analytic `dg/dh` | yes, and it removes the upwinding | cheapest per call | yes, and unstable for that reason |
+> **Q1. What does the ODE transport?** develop transports `log_density`. The compression
+> term `-dg/dh` appears *because* of that choice: in a method-of-characteristics scheme the
+> conserved quantity between two characteristics is the number of individuals in the
+> interval, and that obeys `dN/dt = -mortality * N` with no compression term at all.
+>
+> **Q2. If it transports a density, how is `dg/dh` obtained?** A sub-grid probe, a
+> difference on the cohort grid, or analytically.
+>
+> Q2 carries a stability constraint (section 1b, "why route C is wrong"). Q1 dissolves Q2.
+> Routes A, B, C and E below are all answers to Q2. Route D is an answer to Q1.
 
-**The decision is B**, and section 1b sets out why. In short: any first difference of active
-derivatives divided by `eps` amplifies roundoff by `1/eps` whether or not the differenced
-quantity is smooth, the cohort spacing is four to five orders larger than `1e-6`, differencing
-on the cohort grid is the discretisation a method-of-characteristics scheme already has, and it
-costs nothing in either direction. C is rejected on principle: substituting the analytic
-`dg/dh` removes the upwinding.
+| | route | answers | value change | cost | differentiable |
+|---|---|---|---|---|---|
+| **A** | evaluate the existing sub-grid stencil actively | Q2 | none | already paid forward; one extra recording per cohort per stage | yes, amplifying roundoff by `1/eps` |
+| **B** | difference `g` across neighbouring cohorts | Q2 | yes, unquantified | **removes ~50% of TF24's leaf solves** (below) | yes, amplifying by `1/spacing` |
+| **C** | smooth the growth clamp, then use analytic `dg/dh` by hand | Q2 | yes, and it removes the upwinding | cheapest per call | yes, and unstable for that reason |
+| **E** | analytic `dg/dh` by forward-mode AD of the rate chain in `h` | Q2 | same as C | one tangent sweep, reusing the leaf partials the reverse pass needs anyway | yes; **same mathematics as C, so it inherits C's stability objection** |
+| **D** | transport `N` (individuals per interval); reconstruct `n = N / dh` where a reduction needs it | Q1 | yes, unquantified | no stencil, so the same ~50% saving as B | exactly, and it differences a **state** rather than a rate |
+
+**Sections 1b to 5 argue B over A, C and E, and that argument stands.** What they do not
+address is D, which is not on the same axis. This report previously recorded D as "the
+existing workaround … invasive" and moved on; that is a judgement about a past
+implementation, not about the change of variable. Section 6b states what D is and what
+would decide it.
+
+**The forward cost of the stencil, measured rather than argued.** `Node::compute_rates`
+calls `growth_rate_gradient` *after* `individual.compute_rates` (`node.h:132-140`), and
+`growth_rate_given_height` runs a complete `compute_rates` including the leaf hydraulic
+optimisation (`individual.h:138-143`). So every cohort costs **two** leaf solves per RK
+stage. Against report 02's instrumented count: 141 cohorts x 6 stages x 2 829 steps x 2 is
+about 4.8 million, and the measured total is **4 372 101**, the remainder explained by the
+stand growing from one cohort to 141. **About half of every TF24 leaf solve in a production
+run is the finite-difference probe**, and the leaf dominates the 53 s run. Any route that
+removes the probe — B or D — is a large forward *saving*, not a neutral change, and it
+plausibly funds the reverse pass's stage rebuild on its own. This report's earlier "free
+both directions" understated it by a factor of two.
 
 **One hard dependency, and it is a measurement rather than a fix.** Route A divides a
 difference of two derivatives by `node_gradient_eps = 1e-6`, so it amplifies any error in
@@ -129,6 +153,26 @@ less of an obstacle than it was, since the shared-leaf fix re-blesses TF24's bas
 
 Two constructs go away with it: the sub-grid probe, and `node_gradient_eps` together with the
 coupling to `GSS_tol_abs` that section 5 records and nothing else does.
+
+### Three things B requires that are not one-line changes
+
+**`Species::compute_rates` becomes two passes.** Today `Node::compute_rates` computes the
+individual's rates and then, in the same call, `log_density_dt` (`node.h:132-140`). Cohort
+`j` cannot form `log_density_dt` from its neighbours until their growth rates exist, so the
+loop splits: all individuals' rates first, then all transport rates. `Node::compute_rates`
+loses its line 138 and `Species` gains the stencil.
+
+**The newborn's transport rate acquires a neighbour it does not have today.**
+`Node::compute_initial_conditions` computes the boundary node's rates in isolation and reads
+`individual.rate(HEIGHT_INDEX)` for `log_density` (`node.h:164-189`), before the species has
+recomputed anyone. The newborn is the shortest cohort, so under B it is the bottom boundary
+and one-sided against the cohort *above* it — a coupling that does not exist on develop.
+
+**A one-cohort species has no neighbour at all.** Not hypothetical:
+`Species::consumption_rate` already returns exactly `0.0` for `size() < 2`, measured at
+0.70% of output times and it is the *first* one — the window in which establishment is
+decided (report 07 §1.7). B needs a stated rule there, with its incidence, and the rule is
+a modelling decision rather than a derivation.
 
 ---
 
@@ -333,6 +377,62 @@ they are bit-identical, candidate 2 is dead and the clamp is the story. If they 
 the stencil's meaning needs re-establishing before anything is built on it.
 
 ---
+
+## 6b. Route D — change what is transported
+
+Stated properly, because sections 1 to 6 dismiss it in one sentence about a past
+implementation rather than on its merits.
+
+The size-density equation conserves individuals, not density. Between two characteristics
+`h_j(t)` and `h_{j+1}(t)`, the number of individuals
+
+    N_j = integral of n over [h_j, h_{j+1}]
+
+changes only by mortality:
+
+    dN_j/dt = -mortality_j * N_j
+
+There is no compression term, because compression is what happens to `n` when the interval
+`dh_j = h_{j+1} - h_j` stretches, and `N` does not care. Density is recovered where a
+reduction needs it, as `n_j = N_j / dh_j`.
+
+**What that buys.** No stencil, so no `node_gradient_eps`, no `1/eps` amplification, no
+coupling to `GSS_tol_abs`, no `thread_local` scratch, no shared-`Strategy` entanglement, and
+the ~50% of leaf solves that the probe accounts for. The transport term's derivative becomes
+exact and trivial. And the differencing that remains is a difference of `h_j` — a **state**,
+differentiable exactly with no rate re-evaluation — where route B differences `g`, a rate.
+Route B and route D use the same information; they place it differently.
+
+**What it costs, and what is genuinely uncertain.**
+
+- `n = N / dh` is unbounded as `dh -> 0`. Minimum cohort spacing measured over a full
+  coupled run is **3.7e-02** (report 01 §7.6, report 03 C3), so it is bounded in practice —
+  but the boundary node's interval *is* degenerate at the moment of introduction, by
+  construction: `Species::compute_competition`'s last term has `h1 - h0 = 0` immediately
+  after `introduce_new_node` pushes a copy of `new_node`. Where `n` is largest is exactly
+  where the BC supplies it directly, which may be a gift or a trap.
+- Every consumer of density changes: the field reduction, `Species::consumption_rate`, and
+  the census. That is what "invasive" meant, and it is real.
+- The stability argument transfers rather than disappearing. Under D there is no difference
+  in a *rate*, so §1b's upwinding objection to C does not apply — but the reconstruction
+  `N/dh` is a quadrature choice with its own conditioning, and nobody has characterised it.
+  Note that plant already forms every density-weighted quantity as a trapezium over cohorts,
+  so reconstructing `n` from spacings inside those reductions is arguably more consistent
+  than transporting a density with a sub-grid probe.
+
+**What would decide it, and none of it needs AD.**
+
+1. **Does `N/dh` reconstruct `n` acceptably on a production run?** Log both on one develop
+   run: transport `l` as now, and alongside it integrate `N` from the same initial
+   conditions. Compare reconstructed `n` against `exp(l)` per cohort per output time, and
+   report the worst case and where it occurs — expected at the smallest spacings and at
+   introduction.
+2. **How large is the dropped channel?** Unchanged from §7 item 2, and still the number that
+   says whether any of this matters.
+3. **Does the boundary interval behave?** The newborn's `N` at introduction, against the
+   analytic inflow `birth_rate * pr_estab`, which is a flux and therefore the natural thing
+   to seed `N` with — where `l`'s seed needs a division by `g` (`node.h:177`) and goes to
+   `-Inf` when `g <= 0`. D may remove a switch as well as a stencil.
 
 ## 7. What to measure next
 

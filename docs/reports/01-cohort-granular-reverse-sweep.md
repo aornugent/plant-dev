@@ -167,10 +167,34 @@ Patch::set_ode_state(const_iterator it, double time)
 
 Two facts that the decomposition rests on, both read directly from the above:
 
-**`compute_environment` is a pure function of the ODE state just loaded.** Step 1
-refreshes each cohort's auxiliary slots as it loads each state, through
-`update_dependent_aux` (`individual.h:104-110`, `tf24_strategy.cpp:140-147`), and
-step 5 reads exactly those. Nothing in the field's construction depends on step 6.
+**`compute_environment` reads the ODE state just loaded, plus one lagged scalar per
+species.** Step 1 refreshes each cohort's auxiliary slots as it loads each state, through
+`update_dependent_aux` (`individual.h:104-110`, `tf24_strategy.cpp:140-147`), and step 5
+reads exactly those. It also reads `Species::new_node` — the inflow boundary node — whose
+density is written by step 6 of the *previous* evaluation. `Species::compute_competition`
+(`species.h:196-224`) closes its descending trapezium on the boundary node:
+
+```cpp
+if (size() == 1 || f_h1 > 0) {
+  const double h0 = new_node.height(), f_h0 = new_node.compute_competition(height);
+  tot += (h1 - h0) * (f_h1 + f_h0);
+}
+```
+
+That interval is not optional and not a defect: it is the size-density equation's inflow
+boundary, and its width is the gap between the smallest cohort and `height_0`. What is
+lagged is the boundary node's **density**, `exp(log(birth_rate * pr_estab / g))`
+(`node.h:177`), which needs the growth rate at `height_0`, which needs the field. The
+relation is implicit, and develop resolves it by one stage of Picard: the field at a stage
+uses the boundary density from the stage before.
+
+Three things follow for the decomposition. The per-stage computation is a function of
+`(y, t, boundary density from the previous stage)`, so it has one carried scalar per
+species that is not ODE state. The reverse pass acquires a stage-to-stage edge, from the
+knot adjoints back into the previous stage's boundary node — which runs in the same
+direction as the sweep, so nothing becomes circular. And `height_0` is the reduction's
+lower integration limit, so the field carries a Leibniz term in `d(height_0)/d(trait)`
+that closed-form step (c) must include. `../build-plan.md` names the design choice.
 
 **The plant-soil coupling is narrow in both directions.** Cohorts reach the soil only
 through the summed `resource_depletion` vector, and the soil reaches cohorts only
@@ -277,6 +301,14 @@ a `std::shared_ptr`, so **every cohort of a species writes into the same
 | `std::vector<double> mass_root_prop_` | scratch. `.assign(soil_number_of_depths_, 0.0)` at the top of every `net_mass_production_dt`, then refilled. Write before read. |
 | `quadrature::QK function_integrator` | fixed rule, set once in `prepare_strategy`. Its `last_*` members are diagnostic only. |
 | `Leaf leaf` | scratch, for the reason below |
+| `Leaf::soil_consumption_` | **carried**, on 33.78% of production records. `set_physiology` calls `.resize`, whose fill reaches only new elements, and the solve writes only to `max_soil_layer`. `../tf24-correctness.md` P0.1 |
+
+A fourth mutable member sits one level up, on `Species` rather than on the `Strategy`, and
+it is carried by design:
+
+| member | verdict |
+|---|---|
+| `Species::new_node` | **carried, deliberately.** The inflow boundary node, refreshed at the end of every `Species::compute_rates` and read by the *next* `compute_environment`. §3 sets out what that means for the decomposition. It is not a purity violation to remove; it is a boundary condition to design |
 
 The `Leaf` is clean for a specific and slightly fragile reason.
 `net_mass_production_dt` reaches it only through the local lambda `optimise_at`,
@@ -303,9 +335,17 @@ Two exceptions were found. Both are correct in value today; both are prerequisit
    `if constexpr (!std::is_same_v<S, double>) cache_stale = true;`
    (`tf24_environment.h:394-400` on that branch).
 
-**Conclusion.** On develop, one cohort's rate computation is a pure function of its
-boundary, and the unit is legitimate. But the property is held by *discipline inside
-`set_physiology`* rather than by structure, which is the subject of section 10.
+**Conclusion.** The cohort is the right unit, and on develop one cohort's rates are a pure
+function of its boundary **after `../tf24-correctness.md` P0.1 lands** — before that,
+`soil_consumption_` carries the previous cohort's deep-layer uptake, and what it carries is
+that cohort's finite-difference probe at a perturbed height. Two properties that survive
+the fix are held by discipline rather than structure: `set_physiology` must re-seat every
+per-solve field, and the two caches must be keyed on everything they depend on. Section 10
+is about making those structural.
+
+Separately, and at a different level: the *stage* is not a pure function of `(y, t)`,
+because the field reads the lagged boundary node (§3). That is a property of the patch, not
+of the cohort, and it does not touch the choice of unit.
 
 ---
 
