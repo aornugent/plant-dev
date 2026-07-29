@@ -150,7 +150,8 @@ Two thirds of it already exists in measured form. What is known:
 | `max(0.0, spline(height))` undershoot guard | firing — the field's minimum is **exactly 0** | report 07 §1.8 |
 | `Species::consumption_rate`'s `size() < 2` | **0.70%** of output times, and it is the *first* one | report 07 §1.7 |
 | the three shut-down exits | **0%** at the default driver; minimum margin 27× `GSS_tol_abs` | report 06 §9 |
-| the **interior / bound-pinned** operating-point selector | **15 of 52** states across the argmax's whole feasible domain, all at `psi_soil ≥ 1.5 MPa` and `height ≥ 2 m`. None inside the default driver's range; the stress banks reach it | `scripts/curvature_probe.R` |
+| the **interior / bound-pinned** operating-point selector | **15 of 52** states across the argmax's whole feasible domain, all at `psi_soil ≥ 1.5 MPa` and `height ≥ 2 m`. None inside the default driver's range; the committed rainfall sequences reach it | `scripts/curvature_probe.R` |
+| `height_max = max` over cohort heights, which sets the light interpolant's domain | uncounted. Derivative 1 for the tallest cohort and 0 for the rest, with a tie when two are equal. On the normalised coordinate the selector sits in the arithmetic rather than in the knot placement (`../build-plan.md` §2.9) | to measure |
 | the zero-flux `psi_upstream >= psi_stem` branch | **0%**; the jump across it is exactly `R_d` | report 06, report 07 |
 | `E_up_ < 0` (hydraulic redistribution) | **never** | report 06 §9 |
 | `rooting_depth = min(height, 1.5)` | crossed by **every** cohort, once, early — so the channel is correctly dead for production-size plants | report 07 |
