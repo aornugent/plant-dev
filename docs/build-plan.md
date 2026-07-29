@@ -195,7 +195,10 @@ same discretisation as transporting counts, without changing the state or any co
 makes the scheme conserve individuals up to mortality where a sub-grid probe leaks them at
 `O(dh g'')` (§2.2). It also removes about half of TF24's leaf solves (§3). A sub-grid difference
 divided by `eps` amplifies roundoff by `1/eps` regardless of smoothness, against a measured
-minimum spacing of 3.7e-02 (§5); substituting the analytic `dg/dh` removes the upwinding (§6).
+minimum spacing of **8.2095e-06** — so the divisor advantage is 3 470x at the median and only 8x at
+the first percentile, not the four orders a toy measurement suggested (§5). The choice does not rest
+on it: §2.1 makes the cohort-grid difference exact rather than an estimate. Substituting the
+analytic `dg/dh` removes the upwinding (§6).
 
 **The light interpolant is held on `u = z / height_max` with fixed fractions.** Report 03 §1b:
 `rescale_spline` is not cheaper than building adaptively, so it exists to keep the knot count
@@ -943,14 +946,29 @@ the measurements, and they settle the numerical half:
 - **The circularity is real** — the `max(light, 1e-4)` clamp would sever `pr_estab`'s dependence on
   the field if it bound over the seedling crown, and it does not: `L` runs 0.1657 to 1.0 there.
 
-**Open, and now purely structural:** whether the reverse pass wants the channel at all. Dropping the
-boundary node from the field is forward-safe at the fitting tolerance, but it deletes the only route
-by which `birth_rate` and `pr_estab` reach the field, and that channel's derivative is unmeasured —
-the number that would settle it does not exist until the reverse pass does. If the channel is kept
-it needs the two-term boundary derivative (through the flux, and through the speed). The Leibniz
-term at the reduction's lower limit is owed either way. Separately: how `lambda_k1` at an
-introduction is attributed (§2.8), and the `g > 0 ? ... : log(0)` cliff, which is representational
-rather than ecological and belongs with P0.5.
+**Decided: keep the channel and close the lag.** Two facts settle it. `A` is exactly proportional to
+`birth_rate` — every cohort's density is seeded as `log(birth_rate * pr_estab / g)` and transported
+by a rate independent of it — so `dA/d(log birth_rate) = A` and the boundary node carries *exactly
+its share* of that sensitivity, 1.454% at the median. Dropping the channel therefore needs a number
+nobody has. And the fixed point
+
+    n_b  ->  B * pr_estab(field(n_b)) / g(field(n_b))
+
+is **a contraction with modulus of order 1e-3**, because the boundary term is at most 1.3e-3 of `A`.
+So one extra Picard step converges it to about 1e-6 relative — one additional boundary-node
+evaluation per species per stage, not a root-find, and `implicit_value` is not needed. The
+implicit-function correction to the derivative is O(1e-3), so the adjoint takes the naive
+within-stage derivative and is right to a tenth of a percent.
+
+The reason to close it is structural rather than numerical: keeping the lag forces a scalar to be
+carried backwards across stage boundaries and, at a step's first stage, across the step boundary,
+through `step_adjoint` — which is odelia's and knows nothing about species. That is mutable state in
+the adjoint pass.
+
+**Open:** the two-term boundary derivative (through the flux, and through the speed); the Leibniz
+term at the reduction's lower limit, owed either way; and the introduction seam it shares with
+§11.3 and §2.8. The `g > 0 ? ... : log(0)` cliff is representational rather than ecological and
+belongs with P0.5.
 
 **Also open, and found by the same probe:** report 07 §1.8's light-floor census disagrees with the
 profile by four orders of magnitude. `tf24-correctness.md` P0.5 carries it. Until it is settled,
@@ -962,10 +980,21 @@ changing the state or any consumer; it makes the scheme conserve individuals up 
 consistent with the flux boundary condition in the collapsing-interval limit; and it removes about
 half of TF24's leaf solves.
 
-**Open, and all of it is in report 04 §7 and §8:** the one staggering decision, from which the
-first-, last- and one-cohort rules follow; the size of the forward-value change (M4), to be
-presented with §2.2's conservation diagnostic; and the two-pass restructure of
-`Species::compute_rates`.
+**The staggering is decided** (report 04 §7): pair each cohort with the interval **below** it. It
+is the upwind direction, it is develop's `node_gradient_direction = -1`, it is the staggering
+`Species::compute_competition` already uses by closing its trapezium on `new_node`, and it removes
+the `size() < 2` case by construction because the boundary node is always a neighbour.
+
+**One seam remains, and three findings meet at it.** At the instant of introduction
+`nodes.back()` is a copy of `new_node`, so the interval below has zero width — and a rate *is* read
+there, once per introduction, through `set_state_from_system`'s first-same-as-last seed. That is the
+same place as the stale `k1` (§2.8) and the same place as the boundary node's prescribed density
+(§11.2). The rule is not a floor on the spacing: at an inflow boundary the density is prescribed
+rather than transported, which develop already applies to the value. Design the seam once.
+
+**Open:** the size of the forward-value change (M4), to be presented alongside report 04 §2.2's
+conservation diagnostic; and the two-pass restructure of `Species::compute_rates`, which must
+include `new_node` in the first pass so the bottom cohort's neighbour is current rather than lagged.
 
 **11.4 The block's VJP.** A thin wrapper over XAD's tape drivers, not a primitive with a
 theory. The design question is not the wrapper but the block's input and output layout, which

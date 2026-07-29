@@ -59,19 +59,33 @@ which is the stencil above. Read the other way,
 counts are the same discretisation of the PDE, in different coordinates for the integrator.
 Differencing keeps `log_density` as the state, so the census, the light field's reduction and
 `Species::consumption_rate` all keep reading `exp(log_density)` and nothing downstream changes.
-Transporting counts would change the integrated state, the reconstruction of density from it,
-the overflow behaviour at small spacing and the coincident-cohort case, for the same dynamics.
+Transporting counts would change the integrated state, the reconstruction of density from it, the
+overflow behaviour at small spacing and the coincident-cohort case, for the same dynamics.
 
-### 2.2 It makes the scheme conserve individuals
+**The overflow is not hypothetical, and differencing avoids it.** Minimum interior spacing measured
+on the model is **8.2095e-06** (§5), so reconstructing `n = N/dh` would amplify by up to **1.2e+05**
+where the stencil `(g_j - g_{j+1})/dh_j` stays O(`g'`) and bounded. Same dynamics, different
+numerical exposure — which is the concrete reason the coordinate matters even though the
+discretisation does not.
 
-Under the cohort-grid stencil, `N_j` obeys `dN_j/dt = -mortality_j N_j` exactly. Under a
+### 2.2 The discrete count's dynamics are exact
+
+Under the cohort-grid stencil `N_j = n_j dh_j` obeys `dN_j/dt = -mortality_j N_j` exactly. Under a
 sub-grid probe it does not:
 
     dN_j/dt = N_j * ( (g_j - g_{j+1})/dh_j  -  dg/dh|_point  -  mortality_j )
 
-and the first two terms differ by `O(dh * g'')`. So a sub-grid probe leaks individuals at that
-order and the cohort-grid stencil does not. That is a forward-model property, independent of
-any derivative, and it is the argument that carries the re-blessing this change needs.
+and the first two terms differ by `O(dh * g'')`, so a sub-grid probe carries a spurious source or
+sink of that order in the density equation and the cohort-grid stencil carries none.
+
+**Stated precisely, because "conserves individuals" would be too strong.** `N_j` is a rectangle
+estimate of the count in its interval, using the density at the interval's upper endpoint, and
+`mortality_j` is one cohort's mortality applied across the interval — both first order in `dh`. So
+the discretisation error lives in the **quadrature** relating `sum_j N_j` to the true total, and not
+in the **dynamics** of the discrete quantity, which are exact. A sub-grid probe has error in both.
+
+That is a forward-model property with no derivative in it, and it is the argument that carries the
+re-blessing this change needs.
 
 ### 2.3 It is consistent with the boundary condition
 
@@ -173,9 +187,30 @@ one, for two reasons.
 a difference of two parameter-derivatives divided by `1e-6`. Even with exact AD on both terms,
 two O(1) quantities carried to a relative accuracy of about `1e-16`, differenced and divided by
 `1e-6`, leave an absolute error of about `1e-10`. Whether that matters is its ratio to the second
-partial being estimated, and it is present before any non-smoothness. The cohort grid's divisor
-is the spacing, whose minimum measured over a full coupled run is **3.7e-02** — four to five
-orders larger.
+partial being estimated, and it is present before any non-smoothness.
+
+The cohort grid's divisor is the spacing, and it is **not** four orders larger. Measured over 9 870
+interior intervals from 141 recorded states (`../../scripts/cohort_spacing.R`):
+
+| | |
+|---|---|
+| minimum | **8.2095e-06** |
+| 1st percentile | 8.213e-06 |
+| median | 3.4726e-03 |
+| maximum | 1.7092 |
+| below `1e-4` | **2 323 of 9 870 (23.5%)** |
+
+So the advantage over `node_gradient_eps = 1e-6` is **3 470x at the median and 8x at the first
+percentile** — real, but not the blanket four-to-five orders an earlier version of this section
+claimed on the strength of a toy measurement of 3.7e-02. The tight spacings are all in the initial
+transient, where the schedule introduces cohorts `1e-5` apart in time and they have barely grown
+apart; report 01 §7.6's figure came from a synthetic stand and does not survive on the model.
+
+**This is why the choice does not rest on conditioning.** §2.1's identity makes the cohort-grid
+difference *exact* — it is `d(log dh)/dt`, not an estimate of anything — so the argument above
+concerns only how much roundoff the derivative carries, not whether the value is right. A sub-grid
+probe is inexact in value *and* worse conditioned; the cohort grid is exact in value and better
+conditioned by between one and three and a half orders depending on where in the run you are.
 
 **A staircase, on top of that, and specific to TF24.** TF24's growth rate depends on the leaf's
 collar operating point, which comes from `golden_section_max`: affine in its bracket within a
@@ -214,15 +249,53 @@ means the choice is *which grid to difference on*, not whether to difference.
 
 ## 7. What it requires
 
-**One staggering decision, from which three rules follow.** `n` lives at nodes and `dh` lives on
-intervals, so any `N/dh` correspondence is a choice of staggering. Made once, it settles what the
-first cohort does (no neighbour above), what the last does (no neighbour below), and what a
-one-cohort species does. Those are not three special cases; they are one decision read three
-ways.
+**One staggering decision: pair each cohort with the interval below it.** `n` lives at nodes and
+`dh` lives on intervals, so any `N/dh` correspondence is a choice of staggering, and
+`dh_j = h_j - h_{j+1}` is the right one on four independent grounds.
 
-The one-cohort case is not hypothetical. `Species::consumption_rate` already returns exactly
-`0.0` for `size() < 2`, measured at **0.70%** of output times — and it is the *first* one, the
-window in which establishment is decided (report 07 §1.7).
+*It is the upwind direction.* Growth is positive, so information flows toward increasing height and
+an upwind difference takes it from below; in the descending order `Species` stores, "below `j`" is
+`j+1`.
+
+*It is what develop already does.* `node_gradient_direction = -1` dispatches to
+`gradient_fd_backward`, backward in height.
+
+*It is the staggering the field reduction already uses.* `Species::compute_competition` closes its
+descending trapezium on `new_node` (`species.h:220-223`), so the boundary node is already the bottom
+endpoint of the cohort grid. Using it here puts the transport stencil and the field's quadrature on
+one grid with one boundary.
+
+*It removes the one-cohort case.* `new_node` is always live with a height and a density, so every
+cohort has a neighbour below — including the sole cohort of a one-cohort species. That is report 07
+§1.7's 0.70% window gone by construction rather than by a guard, and it is why the alternative
+staggering is worse: pairing with the interval *above* leaves the tallest cohort without a
+neighbour, at the outflow end where no boundary condition supplies one, and brings the one-cohort
+case back.
+
+### 7.1 The one degenerate interval, and where it actually occurs
+
+`Species::introduce_new_node` pushes a *copy* of `new_node`, so at the instant of introduction
+`nodes.back()` and `new_node` are both at `height_0` and `dh = 0` exactly. The field reduction
+survives that because its term is `(h1 - h0)(f1 + f0)` and the width is a factor; a stencil divides
+by it.
+
+**Measured: it is never zero at a recorded state.** Over 141 recorded states the boundary interval
+runs 8.2094e-06 to 3.8097e-01 with a median of 2.6756e-02, and it is exactly zero at none of them
+(`../../scripts/cohort_spacing.R`). By the time the solver has advanced to the next recorded state
+the newborn has grown away from `height_0`.
+
+**But a rate is read at the degenerate configuration, exactly once per introduction.**
+`SCM::run_next_impl` calls `introduce_new_nodes` and then `solver.set_state_from_system()`, which
+seeds `dydt_in` from the stored rates and marks them clean (`ode_solver_internal.hpp:146-152`), and
+for the newborn those come from `compute_initial_conditions` at the configuration where its interval
+below has zero width. **That is the same seam as the stale first-same-as-last `k1`**
+(`../build-plan.md` §2.8): one place, at the introduction, where three separate findings meet.
+
+So the rule is not a floor on `dh`. It is that **at the inflow boundary the density is prescribed
+rather than transported** — `n_b = B/g`, which develop already applies to the value (`node.h:177`) —
+so the bottom cohort takes its density from the boundary condition at introduction and is
+transported thereafter. Designing that seam once covers the degenerate interval, the newborn's
+`log_density_dt`, and the `k1` staleness together.
 
 **`Species::compute_rates` becomes two passes.** Today `Node::compute_rates` computes the
 individual's rates and then, in the same call, `log_density_dt` (`node.h:132-140`). Cohort `j`

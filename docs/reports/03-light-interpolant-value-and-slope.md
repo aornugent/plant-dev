@@ -519,12 +519,29 @@ production counts.
 **C2. Knot count roughly doubles**, 142 against 73–81. That is the 2x on value-only
 queries in section 5.4, and it is set by the stand rather than by a tolerance.
 
-**C3. Cohorts converging in height.** Knots at cohort tops means spans can narrow as
-cohorts converge, and a span far below the domain scale makes the Hermite coefficients
-a difference of near-equal numbers divided by that span. This was expected to be the
-scheme's weak point. **It was measured and did not occur**: minimum span 3.7e-02 over a
-full coupled run. A merge tolerance relative to the domain is implemented as cheap
-insurance, not as a fix for an observed problem.
+**C3. Cohorts converging in height — and this is the scheme's weak point after all.** Knots
+at cohort tops means spans narrow as cohorts converge, and a span far below the domain
+scale makes the Hermite coefficients a difference of near-equal numbers divided by that
+span. An earlier version of this constraint reported the hazard as measured and absent, on
+a minimum span of 3.7e-02 taken in report 01 §7.6's synthetic stand. **On the model it is
+present.** Measured over 9 870 interior cohort intervals from 141 recorded states
+(`../../scripts/cohort_spacing.R`):
+
+| | |
+|---|---|
+| minimum spacing | **8.2095e-06** |
+| median | 3.4726e-03 |
+| below `1e-4` | **2 323 of 9 870 (23.5%)** |
+
+Against a domain of up to 17.9 m, a span of 8.2e-06 is a relative scale of 5e-07, and
+nearly a quarter of spans are below 1e-4. The tight ones are all in the initial transient,
+where the schedule introduces cohorts `1e-5` apart in time and they have barely grown apart.
+A merge tolerance is not cheap insurance here; it would be doing real work.
+
+**This is an argument for §1b's fixed fractions rather than for cohort-top knots.** On the
+normalised coordinate the knot positions are chosen once and do not track converging
+cohorts, so the conditioning hazard does not arise. Choosing the cohort-top set would buy
+the slope accuracy of section 5.3 and take this on.
 
 **C4. Numbers move and baselines need re-blessing.** Replacing an interpolant fitted to
 `tol = 1e-4` with one exact at 142 knots changes light values at approximately that

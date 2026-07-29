@@ -705,8 +705,12 @@ the consumer the envelope theorem does not cover — breaks the gradient by **4.
 
 A third hypothesis was tested and **refuted**: that nodes at cohort tops would produce
 collapsing spans as cohorts converge in height, making the interpolant ill-conditioned.
-Minimum span measured 3.7e-2 over a full run, never close. Recorded so it is not
-re-derived.
+Minimum span measured 3.7e-2 over a full run in the toy, never close. **That figure does not
+survive on the model**: measured on develop over 9 870 interior intervals the minimum spacing is
+**8.2095e-06** and 23.5% are below 1e-4, all in the initial transient where the schedule introduces
+cohorts 1e-5 apart in time (`../../scripts/cohort_spacing.R`). The toy's stand was synthetic; the
+hypothesis it refuted is refuted only there. Report 04 §5 carries what that costs the conditioning
+argument, and report 03 C3 what it costs an interpolant with knots at the cohort tops.
 
 ---
 
