@@ -154,7 +154,7 @@ introduction's adjoint contributes only parameter terms, through
 `log(birth_rate · pr_estab / g)`.
 
 Peak is one cohort's block, constant in run length, stage count and seeded-trait count. The
-trajectory is stored in `double`, one state per accepted step, 22.5 MB at production; stage states
+trajectory is stored in `double`, one state per accepted step, 46.3 MB at production; stage states
 are rebuilt by re-running the step rather than stored, so storage does not grow with the stage
 count.
 

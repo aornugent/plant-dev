@@ -119,15 +119,19 @@ falls back to a finite difference at a layer kink. Section 8.
 
 `TF24_Strategy::net_mass_production_dt` runs the hydraulic optimisation once per
 cohort per Runge-Kutta stage. At production settings — `max_patch_lifetime = 105.32`,
-141 cohorts, 2 829 accepted ODE steps, mean-light shading — that is **4 372 101 leaf
-solves** (measured), in a 53.1 s forward run.
+141 cohorts, mean-light shading — that is **4 372 101 leaf solves** (measured), in a
+53.1 s forward run, over 2 829 accepted ODE steps. **That count and that step count
+predate the NSC storage state**; report 01 §2 gives develop's own counts, where the
+same structural ratio projects about 8 M solves. The ratio is what this report uses and
+it is unaffected: two solves per cohort per stage.
 
 A leaf solve taken off the tape records approximately **1 600 operations, independent
 of the number of solver iterations**. At XAD's 12 bytes per operation:
 
     4 372 101 solves x 19.2 kB  ~=  84 GB          (projected)
 
-against a whole-run tape of roughly 220 GB. So the leaf is a large fraction of the
+against a whole-run tape of roughly 220 GB on the same tree (494 GB on develop's counts,
+report 01 §2). So the leaf is a large fraction of the
 recording without being all of it, and shrinking it alone does not make a production
 gradient possible. Report 1 bounds peak memory; this report is about correctness and
 containment, with size as a secondary benefit.
