@@ -1,7 +1,7 @@
 # Rainfall transients, cherry-picked
 
 Drivers built to stress TF24's soil solver. Brought here so the coupling work in
-`docs/reports/05-soil-plant-coupling.md` can be measured against a driver that produces
+`docs/archive/05-soil-plant-coupling.md` (archived) can be measured against a driver that produces
 wetting and drying **fronts**, rather than against a uniformly scaled-down constant
 rainfall — which shifts the mean and collapses the stand instead of moving the collar
 across its operating regimes.

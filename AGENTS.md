@@ -4,26 +4,29 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-**The AD-gradient work keeps ONE document: [`docs/v3-requirements.md`](docs/v3-requirements.md).**
-Read it before designing anything. It is the constraint inventory — ~110 constraints, one section per
-component, each carrying a measurement, a code location, or a derivation — plus:
+**Read [`docs/build-plan.md`](docs/build-plan.md) before designing anything**, then
+[`docs/audit-2026-07.md`](docs/audit-2026-07.md), which says what else is a source of truth and what
+is archived. In short:
 
-- **§1b** the user stories the surface must serve (the DX specification; concept count is measured
-  against them),
-- **§20** what is untested, per component, and **§20b** claims recovered from the old corpus that are
-  quarantined until verified,
-- **§20c** the strategy for proving §20 is not missing anything,
-- **§22** corrections, including two cases where a *correct* conclusion rested on a *wrong* stated
-  mechanism.
+- [`docs/build-plan.md`](docs/build-plan.md) — the plan: the architecture decision, the salvage
+  manifest for both AD branches, the tasks, the gates. Baselines are plant `develop` and
+  odelia `854a8e18`.
+- [`docs/tf24-correctness.md`](docs/tf24-correctness.md) — the TF24 forward-model prerequisites.
+- `docs/reports/01`–`04`, `06`, `07` — the derivations and measurements the plan rests on.
+  **Reference material, not status**; they are never edited to track progress.
+- `docs/archive/` — four documents whose conclusions are stale or configuration-dependent, each
+  bannered with what survives. `docs/audit-2026-07.md` explains each. **Do not design from them.**
 
-**Its provenance rule is mandatory:** a line earns a place among the constraints only on a passing
-test, a `docs/reference/` probe, or a code location read directly — **never on another document's
+**The provenance rule is mandatory:** a claim earns a place in a live document only on a passing
+test, a re-runnable probe, or a code location read directly — **never on another document's
 say-so**. That rule exists because a recorded blocker outlived its fix across four documents.
+Its companion: **a measurement carries its configuration** — layer count, driver, tolerances,
+lifetime, trait set — because a conclusion inherits its probe's degeneracies.
 
-**The probes and the former ledgers are not deleted, only unlinked from this branch.** The file's
-own banner names the branch and commit; recover them with
-`git checkout <that-branch> -- docs/reference` when you need to re-run a citation. The same applies to
-`scripts/`, which holds the `gate0-*` harnesses — `git checkout <that-branch> -- scripts`.
+**The old probe corpus and ledgers are not deleted, only unlinked.** Recover them with
+`git checkout archive/v3-docs-and-probes -- docs/reference` (and `-- scripts` for the `gate0-*`
+harnesses). Current probes are in `scripts/`, each stating its configuration; see
+`scripts/README.md`.
 
 Then, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the
@@ -79,8 +82,7 @@ it and triggers a near-full `plant/src` recompile. Build optimised once
 (`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
 `load_all()` without `make` builds unoptimised and makes every slow test several
 times slower (the difference between a ~3 min suite and the ">8 min" quoted in
-an earlier handover note, now recoverable from the branch named in
-`docs/v3-requirements.md`).
+an earlier handover note, now recoverable from `archive/v3-docs-and-probes`).
 
 **Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
 `Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`

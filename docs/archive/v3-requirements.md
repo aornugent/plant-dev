@@ -1,3 +1,31 @@
+> **ARCHIVED 2026-07-29 — not a source of truth. See [`../audit-2026-07.md`](../audit-2026-07.md).**
+>
+> This was the constraint inventory and the mandated session-start read. Its **method**
+> was right and is retained: the provenance rule ("a line earns a place only on a passing
+> test, a re-runnable probe, or a code location read directly — never on another
+> document's say-so") is the reason this archive exists at all.
+>
+> **What was lifted out and still lives:** §1's goal statement and §1b's user stories are
+> now [`../build-plan.md`](../build-plan.md) §1. The C-lines that a task depends on are
+> restated at that task.
+>
+> **Why it is archived rather than edited:**
+> - **§20b is 55 claims whose only evidence is a document**, by its own admission, written
+>   before several of the fixes they describe. Several are now refuted outright: **Q48**
+>   ("TF24's net-production sign branch is a HARD un-smoothed gate") is false on develop,
+>   which replaced it with a smooth positive part and a logistic reserve gate; **Q25**'s
+>   "true discontinuity" of ≈1.46 is explained — it is exactly `R_d`, at the wrong
+>   compensation point, with the correct one available in closed form; **Q37** is closed.
+>   A quarantine that is read as a hazard list is worse than no list.
+> - **§21 points at four ledger files** (`v3-facts.md`, `v3-dead-ends.md`,
+>   `v3-engine-design.md`, `v3-control-flow.md`) that are not on this branch, so ten of
+>   the current candidate's properties resolve to nothing.
+> - **§20's untested register is superseded** by reports 06 and 07, which measured most
+>   of it against a develop build.
+>
+> Recover the probes it cites with
+> `git checkout archive/v3-docs-and-probes -- docs/reference`.
+
 # Constraint inventory — per component, with evidence
 
 **What this is.** Not a synthesis. The individual constraints each component imposes, listed

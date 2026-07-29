@@ -1,3 +1,26 @@
+> **ARCHIVED 2026-07-29 — not a source of truth. See [`../audit-2026-07.md`](../audit-2026-07.md).**
+>
+> The session task list. **Its live items are now
+> [`../build-plan.md`](../build-plan.md) §5 and [`../tf24-correctness.md`](../tf24-correctness.md);
+> its closed items are wrong.**
+>
+> The specific hazard: the "Closed this session" section records item **52** as having
+> found the collar operating point at the `ci`-branch corner in "**every sampled state** …
+> It is the ordinary case, so report 5 §3 is load-bearing", and item **60** builds on that.
+> Report 06 measured **zero** corner incidence in 10 153 production records, with a
+> minimum margin of 0.02688 MPa — 27× `GSS_tol_abs` — and the margin *growing* as the soil
+> dries. The claim came from a degenerate single-layer probe; see the banner on
+> `corner-and-envelope-result.md`.
+>
+> Also stale here: item **49**'s framing (freezing the operating point costs the
+> derivative) inverts the measured production result; item **55**'s soil-smoothing
+> question is answered by report 06 §9b's measurement of develop's two smoothing scales;
+> item **58**'s recorded moisture threshold (θ = 0.1246) was derived through
+> `soil_moist_from_psi`, which is wrong by 8.19× (`tf24-correctness.md` P0.3).
+>
+> Its four "retire or re-establish" entries were a good instinct and the audit agrees
+> with all four.
+
 # Open items
 
 The session task list, written down so it is visible. Grouped by the component it lands in, so

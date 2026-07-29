@@ -1,3 +1,40 @@
+> **ARCHIVED 2026-07-29 — its central conclusions do not describe the production regime.
+> See [`../audit-2026-07.md`](../audit-2026-07.md).**
+>
+> **This is the most misleading document in the corpus and the reason the audit happened.**
+> It concludes that TF24's collar operating point is a corner "at every state that
+> solves", that this is "the ordinary case", and that an envelope-justified adjoint loses
+> **89–100%** of the carbon-channel derivative. Report 06 §6 derives the whole reverse pass
+> *from* the envelope theorem, so if that conclusion held the design would be dead.
+>
+> **It does not hold.** Every measurement here is on a **single soil layer at
+> `test-leaf.r`'s parameters** — a configuration §5 of this very document admits is
+> degenerate, with `soil_consumption_` measuring 1e-13 to 6e-11. In that configuration
+> `p*` is pinned at `bound_a`, the zero-uptake collar. §3's own table gives it away: the
+> offset `p* − psi_soil` is **0.004900 at every state**, which is exactly
+> `grav_head_z_[0] = 9.8e-3 × 0.5`. The "corner" is a bound pinning in a leaf that is
+> barely transpiring, not a feature of the objective.
+>
+> Measured on a production run instead (report 06 §9, develop build, 10 153 records):
+> corner incidence **zero**; minimum margin **0.02688 MPa**, 27× `GSS_tol_abs`, growing
+> with dryness; the operating point a genuine **stationary interior maximum**
+> (`|∂Π/∂p| ~ 1e-5 … 1e-7` at tight tolerance); and the envelope holding to
+> **0.006–0.9%** on `d(profit)/dψ`. What *is* wrong on the production path is the
+> **co-output**: `d(consumption)/dψ` is off by **47.6–53.2%**, fully explained by
+> cancellation of the search's own error, and that is report 06's subject.
+>
+> **What survives.** §2's geometry of the shelf is real and report 06 identified every
+> number on it (`ci` = 4.330575 = `gamma_25 · umol_per_mol_to_Pa`; the 1.5000 jump is
+> exactly `R_d`; the physically correct replacement, the net-zero compensation point at
+> 5.490638, is a closed-form quadratic root). §5's refusal to conclude anything about the
+> water channel from a degenerate probe was correct and should have been applied to §1 and
+> §4 as well. §6's "Report 2's Newton polish is doubly dead" is **withdrawn** — it rests
+> on §1.
+>
+> The lesson, recorded because it is general: **a probe's configuration is part of its
+> result.** A single-layer leaf at hand-set potentials is not the production path, and this
+> document says so in §5 while generalising from it in §1, §4 and §6.
+
 # The corner, and what freezing the operating point costs — measured on develop
 
 Settles two open items from `05-soil-plant-coupling.md`: whether the collar operating point

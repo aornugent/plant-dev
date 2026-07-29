@@ -1,21 +1,29 @@
 # The TF24 leaf as a single differentiable node
 
-> **Superseded in part — read `05-soil-plant-coupling.md` section 3 first.** This report
-> treats the collar operating point as an interior maximiser and proposes a Newton polish
-> on `dprofit/dp = 0` behind an implicit-function node. Measured, the operating point is
-> an **active-constraint corner**, not a maximiser: the objective has no interior
-> stationary point and `dprofit/dp = -8.8` there. So the envelope theorem never applied,
-> the polish has no root to find, and the node's denominator is undefined. The polish
-> result quoted below (4.541e-10, flat across tolerances) was measured on a toy whose
-> objective has a smooth interior maximum by construction, so it never exercised this
-> geometry.
+> **Read `06-tf24-dependency-map.md` §6 alongside this. An earlier banner here said this
+> report was superseded because the operating point is an active-constraint corner rather
+> than an interior maximiser; that claim came from a degenerate single-layer probe and is
+> withdrawn** — see `../archive/corner-and-envelope-result.md`'s banner and
+> `../audit-2026-07.md`. Measured on a production run: the operating point **is** a
+> stationary interior maximum (`|∂Π/∂p| ~ 1e-5 … 1e-7` at tight tolerance), corner
+> incidence is **zero** in 10 153 records, and the envelope theorem holds to 0.006–0.9% on
+> `d(profit)/dψ`. So this report's premise stands.
 >
-> **The branch census below also undercounts.** It enumerates five early exits from
-> `prepare_collar_solve` plus an uncounted sixth case (pinned at `bound_b`). The `ci`-branch
-> corner is none of those — it is a jump *inside* the objective evaluation, reached on every
-> ordinary call rather than as an exit from the setup. So the leaf's discrete structure is not
-> fully enumerated by exit instrumentation, and whether more structure hides inside the
-> objective is unexamined. See `05-soil-plant-coupling.md` section 5d.
+> What does not stand is the **Newton polish**, for a different and measured reason: at
+> develop's `GSS_tol_abs = 1e-3` the returned point is ~1e-4 off the argmax, and with
+> `|Π_pp| ≈ 1.1×10⁵` that search error cancels catastrophically in the **co-output** —
+> `d(consumption)/dψ` comes out **47.6–53.2%** wrong while `d(profit)/dψ` stays
+> envelope-protected. Report 06 §6.2 replaces the polish with a one-scalar solve
+> (`μ = −s/Π_pp`) plus one gradient of `∂Π/∂p`, which needs no root-find at all. The
+> polish result quoted below (4.541e-10, flat across tolerances) was measured on a toy and
+> should not be read as a production number either way.
+>
+> **The branch census below undercounts, and that part is unaffected.** It enumerates five
+> early exits from `prepare_collar_solve` plus an uncounted sixth case (pinned at
+> `bound_b`). The zero-flux `psi_upstream >= psi_stem` branch is none of those — it is a
+> jump *inside* the objective evaluation, so exit instrumentation cannot see it. Its
+> incidence is now measured at **zero** on a production run, and the jump across it is
+> exactly `R_d` (report 06). `../tf24-correctness.md` P0.5 is the full manifest.
 >
 > What survives, and is unaffected: the argument for keeping `Leaf` entirely `double`
 > (section 1's second half); that a tape recording the search returns the derivative of

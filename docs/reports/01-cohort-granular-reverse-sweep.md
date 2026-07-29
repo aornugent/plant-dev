@@ -248,6 +248,21 @@ cohort's rates regardless.
 
 ## 5. Is the cohort a legitimate unit?
 
+> **This section's conclusion is false as stated. See `07-tf24-develop-audit.md` §1.1.**
+> The table below clears the shared `Leaf` on the grounds that `set_physiology` re-seats
+> every per-solve field, and specifically that it "resizes `soil_consumption_`". It calls
+> `.resize(n, 0.0)`, whose fill argument touches only *new* elements, while
+> `E_from_Soil_to_Root_Collar` writes only up to `max_soil_layer`. So a shallow-rooted
+> cohort reads the previous cohort's deep-layer uptake — measured on **33.78%** of
+> production records, and the source is that cohort's finite-difference growth probe at a
+> perturbed height. §12's leading falsifier therefore has a known answer: it fails.
+>
+> The design is not thereby wrong — a re-recorded cohort computes those layers as zero,
+> which is what its own physics implies — but it will not reproduce develop bit-for-bit
+> until the forward model is fixed. `../tf24-correctness.md` P0.1 is the one-word fix, and
+> `../build-plan.md` §2.2 explains why the free-function architecture removes this class of
+> risk rather than managing it.
+
 The decomposition is valid only if `Individual::compute_rates` is a pure function of
 (its own `Internals`, the environment values it reads, the strategy's parameters). If
 it carried information from one cohort to the next, re-running one cohort in
