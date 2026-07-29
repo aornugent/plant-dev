@@ -445,8 +445,11 @@ Two rules, enforced per task:
 5. **A clamp, floor, `min`/`max` or `if` on a computed value is a derivative decision.** Put it
    in the switch inventory with the incidence that justifies it.
 6. **Never give a deduced return type to anything returning an active value.** XAD operators
-   return expression templates holding references to their operands; `graft_value` exists so
-   the pattern is not written by hand.
+   return expression templates holding references to their operands, so a deduced return type
+   hands the caller references to temporaries that die on return. The reverse sweep then reads
+   reused stack memory and segfaults arbitrarily far from the cause, and valgrind cannot see it
+   because the storage is stack. Declare the scalar return type on every such function and
+   lambda, including one-line helpers.
 
 ---
 
