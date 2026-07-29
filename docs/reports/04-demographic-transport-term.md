@@ -291,11 +291,19 @@ for the newborn those come from `compute_initial_conditions` at the configuratio
 below has zero width. **That is the same seam as the stale first-same-as-last `k1`**
 (`../build-plan.md` §2.8): one place, at the introduction, where three separate findings meet.
 
-So the rule is not a floor on `dh`. It is that **at the inflow boundary the density is prescribed
-rather than transported** — `n_b = B/g`, which develop already applies to the value (`node.h:177`) —
-so the bottom cohort takes its density from the boundary condition at introduction and is
-transported thereafter. Designing that seam once covers the degenerate interval, the newborn's
-`log_density_dt`, and the `k1` staleness together.
+So the rule is not a floor on `dh`, and §7's stencil carries it in one branch. The seam is shared:
+the same read is where `dydt_in` is stale, and `../tf24-correctness.md` P0.9 measures that — a rate
+wrong by more than its own magnitude at 51 of 141 introductions, and 0.2916% on offspring once
+fixed. **One line fixes it**, `compute_rates()` after `compute_environment(false)` in
+`introduce_new_nodes`, and it removes all three symptoms.
+
+**And the same underlying fact fixes a third reduction.** `Species::consumption_rate` returns `0.0`
+for `size() < 2` because a trapezium needs two points; `Species::compute_competition` never has that
+problem because it integrates from `new_node` up. A reduction over the size distribution starts at
+the **boundary**, not at the smallest cohort — and the boundary node is always there.
+`../tf24-correctness.md` P0.8 carries it: the light and water reductions currently disagree about
+their domain of integration, `[height_0, H]` against `[h_smallest, H]`, and recruits between the two
+transpire without being billed.
 
 **`Species::compute_rates` becomes two passes.** Today `Node::compute_rates` computes the
 individual's rates and then, in the same call, `log_density_dt` (`node.h:132-140`). Cohort `j`
@@ -304,8 +312,27 @@ individuals' rates first, then all transport rates. `Node::compute_rates` loses 
 `Species` gains the stencil:
 
 ```cpp
-double Species<T,E>::growth_rate_gradient(std::size_t i) const;   // one-sided at the ends
+// -dg/dh differenced on the cohort grid: a cohort spans the interval down to its
+// lower neighbour, the lowest down to new_node.
+template <typename T, typename E>
+double Species<T,E>::growth_rate_gradient(size_t i, double time) const {
+  const bool lowest = i + 1 == size();
+  // Introduced at this instant, so still a copy of new_node: no interval yet.
+  if (lowest && util::identical(nodes[i].introduction_time(), time)) {
+    return i > 0 ? growth_rate_gradient(i - 1, time) : 0.0;
+  }
+  const node_type& below = lowest ? new_node : nodes[i + 1];
+  return (nodes[i].growth_rate() - below.growth_rate()) /
+         (nodes[i].height() - below.height());
+}
 ```
+
+There is no tolerance in it. `util::identical` on the introduction time asks whether this cohort
+was introduced at this instant, which is true or false rather than small or large, and a cohort
+introduced earlier has necessarily grown above `height_0` because `new_node`'s height never moves.
+A just-born cohort takes the compression of the cohort above because it has no interval of its own
+yet; the first cohort of a species has neither, and a single cohort is not yet a distribution to
+compress. `Node::growth_rate()` is one accessor, which odelia's AD branch already carries.
 
 **The newborn acquires a neighbour it does not have today.**
 `Node::compute_initial_conditions` computes the boundary node's rates in isolation and reads

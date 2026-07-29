@@ -5,9 +5,10 @@ These are defects and undecided questions in TF24's forward model on develop
 `141dc8df`. They are prerequisites for two different reasons, and the distinction
 matters when scheduling them:
 
-- **P0.1–P0.4 block the engine**, because the design's own acceptance test is
-  "re-run one cohort's rates from its boundary and compare bit for bit", and on develop
-  that fails for reasons unrelated to gradients.
+- **P0.1–P0.4, P0.8 and P0.9 block the engine**, because the design's own acceptance test
+  is "re-run one cohort's rates from its boundary and compare bit for bit", and on develop
+  that fails for reasons unrelated to gradients. P0.8 and P0.9 are **family-wide** rather
+  than TF24-specific, and they are the two the reverse pass cannot be built on top of.
 - **P0.5–P0.6 block TF24's phase only**, because you cannot decide which switches to
   mollify before you know which ones fire, and you cannot FD-verify against numbers
   the owner may change.
@@ -15,7 +16,8 @@ matters when scheduling them:
 Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
 the work list, not the argument. Probes: `scripts/leaf_state_carryover.R`,
-`scripts/uncounted_switches.R`.
+`scripts/uncounted_switches.R`, `scripts/light_floor.R`, `scripts/boundary_node.R`,
+`scripts/cohort_spacing.R`; the introduction probe is `reports/introduction-k1.patch`.
 
 ---
 
@@ -264,6 +266,87 @@ differentiation target. At `z = 0` a cohort contributes its full amplitude with 
 is unreachable through introduction, and `growth_rate_gradient`'s `1e-6` probe is far from it.
 
 **Gate.** `q(0, h)` finite for every `h`, and both sites carry a test.
+
+---
+
+## P0.8 — a reduction over the size distribution starts at the boundary, not at the smallest cohort
+
+**Family-wide**, not TF24-specific: FF16 and K93 share every line of it.
+
+Three reductions run over the size distribution, and they disagree about where the
+distribution starts.
+
+| reduction | bottom endpoint | consequence |
+|---|---|---|
+| `Species::compute_competition` (`species.h:220-223`) | **`new_node`** at `height_0` | correct, and needs no special case |
+| `Species::consumption_rate` | `nodes.back()`, with `if (size() < 2) return 0.0;` | a transpiring plant draws **no water**, at 0.70% of output times — and it is the *first* one, the window in which establishment is decided (report 07 §1.7) |
+| the transport stencil, under `build-plan.md` §11.3 | no neighbour below the lowest cohort | the case report 04 §7 designs |
+
+`new_node` is the size-density equation's inflow boundary. It is always live, its height is
+always `height_0`, and it is the distribution's left endpoint. `compute_competition` reaches
+the right answer *because* it integrates from there; the other two invent a lower limit and
+then need a rule for what happens when it does not exist.
+
+**The fix is one fix.** Give `Species::consumption_rate` the boundary node as its bottom
+endpoint, exactly as `compute_competition` does. Then a one-cohort species has two trapezium
+points, the `size() < 2` branch goes, and the transport stencil's bottom neighbour is the same
+node in the same place.
+
+It is a correctness fix rather than tidying: recruits between `height_0` and the smallest
+cohort transpire, and develop omits them from the water balance. It also removes an
+inconsistency nothing records — **the same patch state is integrated over `[height_0, H]` for
+light and `[h_smallest, H]` for water.**
+
+**Gate.** A one-cohort species draws nonzero water. The light and water reductions agree on
+their domain of integration. Offspring and the three census metrics re-blessed with the shift
+recorded, at a pinned build.
+
+---
+
+## P0.9 — `ode_rates` is not the derivative of `ode_state` after an introduction
+
+**Family-wide.** `Patch::introduce_new_nodes` widens the state and rebuilds the light field,
+and does not recompute rates (`patch.h:621-631`). `SCM::run_next_impl` then calls
+`solver.set_state_from_system()` immediately (`scm.h:262-263`), which reads `ode_rates` into
+`dydt_in` and sets `dydt_in_is_clean = true` (`ode_solver_internal.hpp:146-152`), so
+`setup_dydt_in` will not recompute. RKCK is first-same-as-last, so **`dydt_in` becomes `k1`**:
+the rate vector from the previous state and the previous field, used as the derivative of the
+widened state under the rebuilt field. odelia records the doubt in place — *"Not clear that
+this is the right thing here; should just be able to look up the correct dydt rates because
+we've already set state?"*
+
+**Measured** (`scripts/k1_probe.md` records the patch; 141 introductions, `-O2`):
+
+| max abs |Δrate| at an introduction | median | max |
+|---|---|---|
+| pre-existing cohorts | 6.66e-09 | **5.884** |
+| the newborn's own slots | 2.44e-09 | 0.994 |
+| environment (soil) | 8.31e-06 | 3.10e-03 |
+| pre-existing cohorts, **relative** | 1.12e-08 | **1.203e+02** |
+
+Above 1% relative at **59 of 141** introductions, above 10% at 56, **above 100% at 51**. The
+distribution is bimodal because the amplifier is the sub-grid stencil: a newborn perturbs the
+field slightly, and `log_density_dt = -dg/dh - mortality` differences two nearly-equal growth
+rates, so a small field change becomes a large rate change. That predicts the error mostly
+disappears once the transport stencil moves to the cohort grid — worth checking rather than
+assuming.
+
+**Effect on the run.** Offspring `4.214017357509567e+01` to `4.226306091461433e+01`, a change
+of **0.2916%**, and 5 055 accepted steps to 5 060. That is twice the `-O0`/`-O2` build noise
+(report 01 §2), so it is attributable at a pinned build. Cost: 141 extra rate evaluations
+against about 30 000, and no measurable wall-clock difference.
+
+**Fix.** One line — `compute_rates()` after `compute_environment(false)` in
+`introduce_new_nodes`. `environment_ptr` is already `&environment` there, set in `reset()`.
+
+**Why it matters beyond the value.** `dydt_in` becoming `k1` means a reverse traversal that
+treats `k1` as `derivs(y_n, t_n)` is differentiating at the wrong point at 141 of 5 055 steps,
+with the right sign and nothing thrown — report 01 C5's newborn-adjoint failure mode. And it
+is the same instant at which the transport stencil's bottom interval has zero width and the
+boundary density is stale, so **one fix removes three symptoms**.
+
+**Gate.** At every introduction, `ode_rates` immediately after `introduce_new_nodes` equals
+`ode_rates` after a further `compute_rates()`. Re-bless with P0.8, P2.1 and P2.4 in one pass.
 
 ---
 

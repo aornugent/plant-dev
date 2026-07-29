@@ -985,12 +985,20 @@ is the upwind direction, it is develop's `node_gradient_direction = -1`, it is t
 `Species::compute_competition` already uses by closing its trapezium on `new_node`, and it removes
 the `size() < 2` case by construction because the boundary node is always a neighbour.
 
-**One seam remains, and three findings meet at it.** At the instant of introduction
-`nodes.back()` is a copy of `new_node`, so the interval below has zero width — and a rate *is* read
-there, once per introduction, through `set_state_from_system`'s first-same-as-last seed. That is the
-same place as the stale `k1` (§2.8) and the same place as the boundary node's prescribed density
-(§11.2). The rule is not a floor on the spacing: at an inflow boundary the density is prescribed
-rather than transported, which develop already applies to the value. Design the seam once.
+**The seam is one line, and it is now measured.** At the instant of introduction `nodes.back()` is a
+copy of `new_node`, so the interval below has zero width — and a rate *is* read there, once per
+introduction, through `set_state_from_system`'s first-same-as-last seed. That is the same place as
+the stale `k1` (§2.8) and the same place as the boundary node's prescribed density (§11.2).
+`tf24-correctness.md` **P0.9** measures it: a pre-existing cohort's rate wrong by more than its own
+magnitude at **51 of 141** introductions, and offspring moving **0.2916%** once fixed — twice the
+build noise, so attributable. The fix is `compute_rates()` after `compute_environment(false)` in
+`introduce_new_nodes`, and it removes all three symptoms. Report 04 §7's stencil carries the
+remaining branch with no tolerance in it, keyed on the introduction time rather than on a spacing.
+
+**A third reduction has the same cause.** `Species::consumption_rate`'s `size() < 2` returns zero
+because a trapezium needs two points, where `compute_competition` integrates from `new_node` up and
+never has the problem. **P0.8**: a reduction over the size distribution starts at the boundary, not
+at the smallest cohort. Both P0.8 and P0.9 are family-wide and both are engine blockers.
 
 **Open:** the size of the forward-value change (M4), to be presented alongside report 04 §2.2's
 conservation diagnostic; and the two-pass restructure of `Species::compute_rates`, which must
