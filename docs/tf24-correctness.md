@@ -297,6 +297,12 @@ cohort transpire, and develop omits them from the water balance. It also removes
 inconsistency nothing records — **the same patch state is integrated over `[height_0, H]` for
 light and `[h_smallest, H]` for water.**
 
+**It also reaches the inflow boundary condition.** `establishment_probability` solves the leaf
+against the soil state, and that state was depleted by `consumption_rate` — so the `pr_estab` a
+newborn is seeded with was computed against a soil that the recruits between `height_0` and the
+smallest cohort never drew from. The boundary density is `log(birth_rate · pr_estab / g)`, so the
+omission propagates into every cohort's seeded density, not only into the water balance.
+
 **Gate.** A one-cohort species draws nonzero water. The light and water reductions agree on
 their domain of integration. Offspring and the three census metrics re-blessed with the shift
 recorded, at a pinned build.
@@ -350,10 +356,62 @@ boundary density is stale, so **one fix removes three symptoms**.
 
 ---
 
+## P0.10 — the shared `Leaf`'s purity is derived by reading, and nothing executes it
+
+**Family-shaped, TF24-bodied**: every model shares a `Strategy` across its cohorts through
+`Individual`'s `strategy_type_ptr` (`individual.h:179`); only TF24 hangs a sixty-member
+sub-model off it.
+
+The cohort is a legitimate reverse-pass unit only if `Individual::compute_rates` is a function of
+its own `Internals`, the environment values it reads, and the parameters. Report 01 §5 establishes
+that by reading `set_physiology` and enumerating what it re-seats — `psi_soil_`, `grav_head_z_`,
+`c_r_V_`, `c_r_H_`, `soil_consumption_`'s resize, `transpiration_cached_ = false` — and by noting
+that `find_root_collar_psi` brackets off the current soil state with no warm start. That is the
+right method and it found four carriers:
+
+| carrier | where |
+|---|---|
+| `Leaf::soil_consumption_`, deep layers | P0.1. **33.78%** of production records |
+| `Leaf::soil_consumption_` and `E_up_` past a shutdown exit | P0.2, report 06 §8 item 5 |
+| `photo_temp_cached_`, keyed on `(leaf_temp_, atm_o2_kpa_)` while caching `vcmax_` and `jmax_` | report 01 §5, report 02 C3. The key is a proper subset of the dependencies, and both parameters are differentiation targets |
+| `psi_soil_cache_`, keyed on exact `double` equality of the soil state | report 01 §5, report 06 §8 item 10. A finite-difference verification perturbs exactly that state |
+
+**What is missing is not the enumeration but an executable check.** Report 02 C5 says why reading
+is not enough: the input list "was assembled by reading `set_physiology`'s signature and would
+silently become incomplete if that signature grew", against roughly thirty loose doubles, five
+vectors and four interpolators with nothing marking which are transient. And report 01 §10 rule 2
+states the conclusion flatly — "`Leaf leaf` is safe because `set_physiology` re-seats it. Neither
+is enforced" — where §5 lists three exceptions inside that object. P0.1's gate is the right shape
+(`solve(seedling); solve(tree); solve(seedling)` bit-identical) but covers one triple and one
+member.
+
+**The check.** Take a census of production `(height, psi_soil, radiation)` states. Solve them in a
+fixed order, then in several permutations, and assert every leaf output — `profit_`,
+`soil_consumption_[]`, `E_up_`, `transpiration_`, `opt_psi_stem_`, `root_collar_psi_`,
+`stom_cond_CO2_` — bit-identical across permutations. A single re-solve of the same state after any
+other state must reproduce it exactly.
+
+Two properties make this the right instrument. It needs no AD, so it can run on develop today. And
+it catches what no forward test can: the forward pass is order-deterministic, so a stale read
+reproduces exactly, run after run, and only a *reordering* exposes it.
+
+**Gate.** Bit-identity across permutations for every output, at a pinned build. Any carrier it
+finds becomes a P0 row of its own. Running it before P0.1 and P0.2 should reproduce their known
+incidences, which is the check on the harness.
+
+---
+
 ## Housekeeping — batchable, no gate
 
 Small, none changes a number. Worth one PR together.
 
+- **The boundary node solves the same leaf twice per stage.**
+  `Node::compute_initial_conditions` calls `compute_rates`, which stores
+  `net_mass_production_dt_` in aux, and then `establishment_probability`, which recomputes it at
+  the identical `(height_0, area_leaf_0, environment)` — `new_node`'s height is `height_0` from
+  `Individual`'s constructor and it is never stepped. About 1% of leaf solves. The reason to
+  record it is the reverse pass: it is two evaluations of one function, whose adjoints must be
+  added or one is silently dropped.
 - The `assimilation` aux name is declared, allocated, reported to R and **written
   nowhere** — exactly `0` on all 10 153 records. Either write it (`assimilation_` is
   computed one line above the return in `net_mass_production_dt`) or delete the name.

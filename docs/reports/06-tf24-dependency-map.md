@@ -526,7 +526,7 @@ The deliverable. Read §8 before relying on it.
 |---|---|
 | `∂c_{k,i}/∂ψ_j` | **diagonal + rank one**: diagonal because `E_i` reads only its own layer's `ψ_i`; rank one because all five layers share the single scalar `p*_k`. |
 | cohort ↔ soil | rank `ode_size()` = 9. The whole population talks to the soil through nine numbers. |
-| cohort ↔ cohort | only via the light spline; rank = knot count, assembled once per step. |
+| cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h:220-223`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed**: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). |
 | the trait channel | separable from the state channel, and both are pulled back by the *same* `μ_k`, so adding traits does not add solves. |
 
 ### Solved — an implicit relation, differentiated by its defining condition
@@ -612,9 +612,11 @@ the ~`∂r_R/∂ψ` level. The absolute-value also means `span` has a kink at `p
 
 **2. The `max(light, 1e-4)` clamp is inside the crown integral.** So a deeply shaded
 cohort's radiation is a *constant* with respect to every other cohort's height. That is a
-blocked channel — but only for cohorts below the floor, and nothing has counted how many
-those are. Reading it as always-live overstates the light coupling; reading it as always
-clamped understates it.
+blocked channel — but the count is now zero. `L` over the field is minimised at the ground by
+construction (`L = exp(-A)`), and its measured minimum is **0.1657209** against a floor of `1e-4`:
+0 of 8 292 knot values at or below it, and 0 of 141 introduction steps over the seedling crown.
+Reaching the floor needs `A ≈ 9.2` against a maximum `A(0)` of 1.797. So the light coupling is
+live everywhere it matters, and this row is a hazard for a drier stand rather than for this one.
 
 **3. The trapezium weights depend on state.** §6.3 notes it, and it is the term most
 likely to be dropped by someone writing this by hand, because the forward code hides it

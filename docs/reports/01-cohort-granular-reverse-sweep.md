@@ -561,8 +561,18 @@ This is the whole additional memory the proposal requires.
 > plant. It belongs in odelia, reached through one new System requirement mirroring one that
 > already exists: `ode_rates_adjoint(lambda_dydt) -> lambda_y` beside `ode_rates(y) -> dydt`.
 > plant then implements `Patch::ode_rates_adjoint` — steps (a) to (e) — and keeps the
-> between-step structure, because an introduction's adjoint contributes only parameter terms
-> through `log(birth_rate * pr_estab / g)`. `SCM` does not have to impersonate a `Solver`.
+> between-step structure.
+>
+> **The inflow boundary is not parameter-only, and an earlier version of this banner said it
+> was.** `log(birth_rate * pr_estab / g)` is not closed form in parameters:
+> `establishment_probability` runs a full `net_mass_production_dt` at `height_0`, so both
+> `pr_estab` and `g` read the light field and the soil, and both therefore depend on every other
+> cohort's state. The dependence is also continuous rather than per-event, because
+> `Species::compute_competition` closes its trapezium on `new_node` at every stage. §3.1 carries
+> the mathematics — the forward inflow boundary is the adjoint's outflow boundary, one term,
+> `lambda_n(x_b,t) / g(x_b)`, and that part stands. What does not stand is the inference that
+> `SCM` therefore needs no `Solver` members; `../build-plan.md` §2.4 records that the reason is
+> void and asserts no replacement.
 
 Section 1's steps (a) to (e), per step, walking the trajectory backwards. Step (b) in
 detail:

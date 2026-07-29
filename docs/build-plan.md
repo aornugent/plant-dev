@@ -117,9 +117,25 @@ is closed form in a rate the block already emits.
 `log_density_dt` and `offspring_dt` are not outputs; and `g` is `rates[HEIGHT_INDEX]` rather than a
 twelfth output.
 
+**The block unpacks its states through `set_state`, not into `states[]`.** `Individual::compute_rates`
+reads two aux slots it does not write — `competition_effect = area_leaf(height)` and
+`height_inverse = 1/height` — and the only writer is `update_dependent_aux`, called from
+`Individual::set_state(int, double)` and from `set_ode_state` (`individual.h:49, 54, 107`). Assigning
+the unpacked inputs straight into `vars.states[]` therefore leaves `area_leaf` at whatever the last
+forward call left there, which severs `height -> area_leaf` and with it every trait reaching the
+rates through leaf area. Unpacking through `set_state` re-derives both on the block's own tape, so
+they are inlined functions of `height` (report 06 §1) rather than inputs, and the input count stays
+76 + n. `update_dependent_aux` keys on the state index, so per-index recomputation is sufficient.
+
+**The input count is only fixed once P2.1 lands.** 65 is the knot count under §2.6's fixed
+fractions; on develop the refiner re-chooses at each introduction and the count runs 33 to 129
+(report 03 §1b). So `n_cohort_reads()` is well defined — and T4's size assertion statable — only
+after P2.1, which Phase 2 already puts first.
+
 `Leaf` stays `double` inside the block behind a declared boundary — in (soil water potential per
 layer, radiation, traits), out (profit, per-layer uptake) — with its derivatives arriving as
-injected partials.
+injected partials. Report 02 §6.1 constructs them and §6.2 counts them: `(14 + n) x 6` per solve,
+with the traits that reach the leaf only through `prepare_strategy` as its row `n`.
 
 **Where it lives: on `Individual`, with each container packing its own segment.** The block *is*
 `Individual::compute_rates` with its inputs declared, so it is that function with a boundary rather
@@ -188,12 +204,22 @@ void Patch<T,E>::ode_rates_adjoint(ItIn lambda_dydt, ItOut lambda_y);
 
 ```
 a  the closed-form seeds -- everything a block needs before it can be swept:
-     soil adjoint         lambda_uptake per cohort; the drainage cascade is bidiagonal
+     soil adjoint         lambda_uptake per cohort; the drainage cascade is bidiagonal,
+                          with the positivity guard's rows zeroed where it fired forward
      transport stencil    lambda_g per cohort, plus a direct lambda_h (§2.6)
+     offspring            lambda_fecundity_rate, and a direct lambda_mortality through
+                          exp(-M) (`node.h:152-154`) -- a state, not only a rate
 b  per cohort: record the block, seed its 11 output adjoints, sweep, read input adjoints
 c  light knot adjoints -> (area_leaf, density, height)   the summed reduction, closed form
 d  allometry adjoint       closed form
 ```
+
+The soil guard is `if theta_i <= theta_r and !(rate_i > 0): rate_i = 0`, so where it fired the
+forward row is identically zero and the transposed row must be too. Closed form does not mean
+unconditional.
+
+These four letters are this plan's. Report 01 §1 splits the same work into five, its (e) being the
+assembly `lambda_y_j = direct + field`, which is folded into (c) and (d) here.
 
 **The stencil is a seed, not a consumer, which is why it is in (a).** A block cannot be swept until
 every output adjoint exists, and under §2.6's cohort-grid stencil a cohort's `g` feeds its
@@ -201,9 +227,50 @@ neighbours' `log_density_dt` as well as its own — so `lambda_g` is closed form
 recursion's `lambda_log_density_dt` and must be formed first. An earlier version of this list had
 the stencil after the blocks, which would seed them with a `lambda_g` that does not yet exist.
 
-`SCM` keeps the between-step structure and does **not** grow a `Solver`'s members: an
-introduction's adjoint contributes only parameter terms, through
-`log(birth_rate · pr_estab / g)`.
+`SCM` keeps the between-step structure. **The inflow boundary contributes state terms, not only
+parameter terms, and it contributes them continuously rather than at introduction events.**
+
+The event's shape is the classical one and survives. For linear advection the adjoint runs
+backwards in time, so the forward *inflow* boundary is the adjoint's *outflow* boundary: it needs
+no adjoint condition and contributes the single term `lambda_n(x_b, t) / g(x_b)`.
+
+What does not survive is "only parameter terms". `log(birth_rate · pr_estab / g)` is not closed
+form in parameters — `establishment_probability` runs a full `net_mass_production_dt` at `height_0`
+(`tf24_strategy.cpp:704-716`), reading the light field, the soil potentials and a leaf solve, and
+`g` is the newborn's own height rate over the same inputs. Both therefore depend on every other
+cohort's state. And the dependence is not confined to the 141 events: `Species::compute_competition`
+closes its descending trapezium on `new_node` (`species.h:220-223`), so the boundary density is the
+field quadrature's lower endpoint at **every stage**. The field is a functional of the state *and*
+of the boundary condition, so `lambda_field` carries `∂A/∂n(x_b)` and then the condition's two-term
+derivative — one through the flux `B = birth_rate · pr_estab`, one through `g(x_b)`.
+
+Two dependencies, three orders apart, which is what makes this cheap:
+
+| dependency | magnitude |
+|---|---|
+| `pr_estab` and `g` on *other* cohorts' state, through the field and the soil | O(1). `L` varies 6x across the seedling crown and the floor never binds |
+| the boundary density on *itself*, through its own contribution to the field | a contraction of modulus **~1e-3** |
+
+**The `max(light, 1e-4)` clamp cannot sever the first, and this is measured twice.** Over the
+seedling crown `[0, height_0 = 0.344195]`, `L` runs **0.1657 to 1.0**, binding at **0 of 141**
+introduction steps; the independent census of the field's light column gives minimum
+**0.1657209**, 0 of 8 292 values at or below `1e-4` and none negative — the same 0.1657 to four
+digits by a second route. It is structural rather than lucky: `L = exp(-A)` with `A` the leaf area
+above `z`, so `L` is minimised at the ground by construction, and reaching `1e-4` needs `A ≈ 9.2`
+against a maximum `A(0)` of **1.797**.
+
+The self-loop is bounded because the boundary node's absolute contribution to `A` is at most
+**1.346e-03** (median 2.1e-06), moving ground light by at most **3.48e-04**, 0 of 141 steps above
+`1e-3`. So one Picard step closes the fixed point to ~1e-6 relative and the implicit-function
+correction to the derivative is O(1e-3) — §11.2's decision, and the reason the adjoint may take the
+naive within-stage derivative.
+
+**So the reason this section gave for `SCM` not growing a `Solver`'s members is void, and no
+replacement is asserted here.** The state dependence is real and measured; what it implies for the
+block boundary is open (§11.2). Owed either way: the Leibniz term at the field reduction's lower
+limit. If the boundary node stays, that limit is `height_0` and the term is `d(height_0)/d(trait)`
+through `height_seed`; if it goes, the limit becomes the smallest cohort's height, which is ODE
+state, and the term is still there on a different quantity.
 
 Peak is one cohort's block, constant in run length, stage count and seeded-trait count. The
 trajectory is stored in `double`, one state per accepted step, 46.0 MB at production; stage states
@@ -221,7 +288,7 @@ No report owns this, and it is what pays for going at TF24 first.
 
 | | check | what it tests | what it needs |
 |---|---|---|---|
-| **V1** | one whole-`Patch` recording at one state, against the sum of steps (a)–(e) at the same state | the decomposition | one state. No schedule, no trajectory, no `SCM` surface |
+| **V1** | one whole-`Patch` recording at one state, against the sum of steps (a)–(d) at the same state | the decomposition | one state. No schedule, no trajectory, no `SCM` surface |
 | **V2** | `block_adjoints(scm, step, cohort, output_seed)` against a finite difference of the same block | one block's adjoint, attributably | the trajectory store |
 | **V3** | one step's `lambda_y` against a finite difference of one step | the stage recursion | one step |
 | **V4** | whole-run gradient against a re-run finite difference at production lifetime | the deliverable | everything |
@@ -262,10 +329,10 @@ refiner and supplies the fractions; a `hermite_interpolator<S>` evaluates value 
 ### 2.7 Resident, and how invasion follows
 
 The resident gradient is the one where the canopy responds to the trait. In the reverse pass that
-is step (d): the knot-value adjoints propagate back into every cohort's `area_leaf`, density and
+is step (c): the knot-value adjoints propagate back into every cohort's `area_leaf`, density and
 height, closing the light loop.
 
-**The invasion gradient is the same pass with step (d) omitted** — the mutant reads a canopy that
+**The invasion gradient is the same pass with step (c) omitted** — the mutant reads a canopy that
 does not respond to its trait. One branch in one step, not a second path.
 
 So the resident case is the general one and needs no recorded environment. None of
@@ -429,9 +496,20 @@ pass is order-dependent.
 | **P0.5** | **the switch inventory** — every clamp, floor, `min`/`max` and branch on a computed value on TF24's carbon and water paths, classified, each with a measured incidence | doc + probes | every row has a number. Includes `height_max`'s selector (§2.6) and the operating-point selector (§8) |
 | **P0.6** | the two ecology decisions: leaf respiration counted twice, and `establishment_probability`'s hard gate | owner's call | a recorded decision either way, with a `scientific_version` bump |
 | **P0.7** | `q(z, height)` divides by `z`, so `q(0, h)` is NaN for every `h`, and the light interpolant's lowest knot is exactly `z = 0` | small | `q(0, h)` finite for every `h` |
+| **P0.8** | a reduction over the size distribution starts at the boundary node, not at the smallest cohort — three reductions disagree. Family-wide | small + baselines | a one-cohort species draws nonzero water; the light and water reductions integrate the same domain |
+| **P0.9** | `ode_rates` is not the derivative of `ode_state` after an introduction, so `k1` is the pre-introduction rate vector at 141 of 5 055 steps. Family-wide | 1 line + baselines | `ode_rates` after `introduce_new_nodes` equals `ode_rates` after a further `compute_rates()` |
+| **P0.10** | the shared `Leaf`'s purity is enumerated by reading and never executed | probe | every leaf output bit-identical across permutations of a production state census |
 
 P0.5 is the input Phase 3 needs: you cannot choose which switches to smooth before knowing
 which fire. **P0.6 gates Phase 3, not Phase 1.**
+
+**Three of these gate the reverse pass rather than merely improving the forward model.** P0.1 and
+P0.10 are the same claim at different strengths — that one cohort's rates are a function of their
+declared inputs — and V1 and V2 both compare a decomposed computation against the forward pass, so
+neither means anything until it holds. P0.4 is promoted to the same tier: it puts four `NA_REAL`
+per cohort per stage into `resource_depletion`, and under a reverse sweep `NaN * 0` is `NaN`, so it
+poisons the adjoint where forward it stays latent. P0.9 additionally makes a reverse traversal
+differentiate at the wrong point at those 141 steps, with the right sign and nothing thrown.
 
 ---
 
@@ -774,22 +852,22 @@ Ordered so that each task closes on one of §2.5's checks and a failure has one 
 
 ---
 
-**P3.1 — the closed-form steps.** Steps (a), (d), (e), with step (b) a stub returning zeros.
+**P3.1 — the closed-form steps.** Steps (a), (c), (d), with step (b) a stub returning zeros.
 
 ```cpp
 template <class ItIn, class ItOut>
 void Patch<T,E>::ode_rates_adjoint(ItIn lambda_dydt, ItOut lambda_y) {
   soil_adjoint(...);            // (a) bidiagonal drainage cascade, no linear solve
   // (b) stub
-  light_knot_adjoint(...);      // (d) knot values -> (area_leaf, density, height)
-  allometry_adjoint(...);       // (e)
+  light_knot_adjoint(...);      // (c) knot values -> (area_leaf, density, height)
+  allometry_adjoint(...);       // (d)
 }
 ```
 
 *Order.* The soil adjoint first, because it is checkable on its own: **V1** with the blocks
 stubbed compares the closed-form part against the matching part of a whole-`Patch` recording at one
 state.
-*Watch* step (d) visiting sources in the same order as the forward sum, for P2.2's reason.
+*Watch* step (c) visiting sources in the same order as the forward sum, for P2.2's reason.
 
 ---
 
@@ -807,6 +885,9 @@ LeafOutcome solve_leaf_boundary(Leaf&, const std::vector<double>& psi_soil,
                                 double radiation, const TF24_Pars<double>& pars);
 ```
 
+*Requires P0.1 and P0.10.* The first line of the signature calls the block a pure function of its
+declared inputs, and P0.10 is what makes that a checked fact rather than a read-derived one.
+
 *Order.* (1) The block with the leaf held constant, so **V2** exercises the allometry, storage and
 demographic chain alone. (2) The leaf boundary with the interior operating point only. (3) The
 bound-pinned case and the selector.
@@ -817,7 +898,7 @@ come from:
 
 | | test | what it catches |
 |---|---|---|
-| **T4** | `in.size() == state_size() + n_cohort_reads() + ad_parameters().size()`, and a pack/unpack round trip reproducing the states, the environment reads and the parameters bit-for-bit | the pack and the adjoint scatter drifting apart on an offset |
+| **T4** | `in.size() == state_size() + n_cohort_reads() + ad_parameters().size()`, and a pack/unpack round trip reproducing the states, the environment reads and the parameters bit-for-bit — **and the dependent aux slots**, which are derived rather than packed (§2.3) | the pack and the adjoint scatter drifting apart on an offset; an unpack that bypasses `set_state` and leaves `area_leaf` stale |
 | **T5** | **knot-adjoint accumulation.** One knot value read by `k` cohorts: `lambda_knot` must equal the sum of the `k` contributions, asserted as a value | the same silent failure as the trait case — a fixed fraction of the answer with the correct sign |
 | **T6** | trait-adjoint accumulation across cohorts, asserted as a value | measured signature **41–51%** of the truth, correct sign, nothing thrown (report 01 §6.2) |
 
@@ -850,9 +931,19 @@ of the search's own displacement, so a fix that does not remove it has not addre
 
 ---
 
-**P3.5 — the stencil's adjoint, and drive from the stepper.** Step (c) distributes `lambda_g`
-across the three neighbouring blocks P2.4's stencil reads; then `Step::step_adjoint` drives
-`Patch::ode_rates_adjoint`.
+**P3.5 — the stencil's adjoint, and drive from the stepper.** `lambda_g` is formed in step (a),
+before any block is swept, because a block cannot be swept until every output adjoint exists
+(§2.4). Under report 04 §7's staggering each cohort pairs with the interval **below** it, so
+`g_i` appears in `growth_rate_gradient(i)` and in `growth_rate_gradient(i-1)`: **two**
+contributions per cohort, not the three a centred difference would give. Then `Step::step_adjoint`
+drives `Patch::ode_rates_adjoint`.
+
+**`Patch::ode_rates` computes nothing.** The whole right-hand side is
+`Patch::set_ode_state(it, time)` — it sets states, rebuilds the field, then calls `compute_rates`
+(`patch.h:680-702`) — and `ode_rates` only reads the stored rates out (`patch.h:802-804`). So
+`ode_rates_adjoint` mirrors `ode_rates`' *signature*, not its work, and its precondition is that
+the forward pass has already been run at the state being differentiated. That is what makes each
+reverse stage cost a forward RHS before any recording begins.
 
 *Closes on* **V3** — one step's `lambda_y` against a finite difference of one step. The reference
 failure for a lost tableau term is a **19%** error with the correct sign and no message, so a
@@ -885,7 +976,7 @@ Separate pushes, sequenced by what each needs.
 
 | | what it is | needs first |
 |---|---|---|
-| **invasion gradients** | omit step (d) (§2.7). Bring back `run_mutant` and the recorded environment, and make a missing `save_RK45_cache` an error rather than a search failure | Phase 3 |
+| **invasion gradients** | omit step (c) (§2.7). Bring back `run_mutant` and the recorded environment, and make a missing `save_RK45_cache` an error rather than a search failure | Phase 3 |
 | **FF16 and K93** | the templating plus the existing census reduction; retire `ff16_production_kernel.h`; port the `smooth_positive` clamp fix and K93's `k_I` channel; tighten FF16's gradient test, which passes at 1e-2 where the truth is ~1e-6 | Phase 3 |
 | **two species** | two `Leaf` objects, `Species::consumption_rate`'s `size() < 2` per species, and per-species η grouped inside the light reduction. Every incidence number in reports 06 and 07 is single-species | FF16 |
 | **calibration** | `least_squares` reads intermediate trajectory states as active values, which a `double` trajectory breaks without a message. Either the functional declares which steps it reads and contributes a per-step adjoint seed, or calibration stores a second denser trajectory. Record the decision before opening it | Phase 3 |
@@ -1046,8 +1137,14 @@ the measurements, and they settle the numerical half:
   light field is bounded by **3.5e-04**, at `ResourceSpline`'s own `1e-4` fitting tolerance, so the
   difference between its lagged and converged value is smaller again. Closing the fixed point buys
   no accuracy.
-- **The circularity is real** — the `max(light, 1e-4)` clamp would sever `pr_estab`'s dependence on
-  the field if it bound over the seedling crown, and it does not: `L` runs 0.1657 to 1.0 there.
+- **The circularity is real, and the clamp cannot sever it.** `L` over the seedling crown
+  `[0, height_0 = 0.344195]` runs **0.1657 to 1.0** against a floor of `1e-4`, binding at **0 of 141**
+  introduction steps; the field's own light column gives minimum **0.1657209**, 0 of 8 292 values at
+  or below the floor. Structural rather than lucky: `L = exp(-A)`, minimised at the ground by
+  construction, and `1e-4` needs `A ≈ 9.2` against a maximum `A(0)` of **1.797**.
+- **The channel is continuous, not per-event.** `Species::compute_competition` closes its trapezium
+  on `new_node` (`species.h:220-223`), so the boundary density is the field quadrature's lower
+  endpoint at every stage. §2.4 carries what that does to the introduction's adjoint.
 
 **Decided: keep the channel and close the lag.** Two facts settle it. `A` is exactly proportional to
 `birth_rate` — every cohort's density is seeded as `log(birth_rate * pr_estab / g)` and transported
@@ -1068,14 +1165,17 @@ carried backwards across stage boundaries and, at a step's first stage, across t
 through `step_adjoint` — which is odelia's and knows nothing about species. That is mutable state in
 the adjoint pass.
 
-**Open:** the two-term boundary derivative (through the flux, and through the speed); the Leibniz
-term at the reduction's lower limit, owed either way; and the introduction seam it shares with
-§11.3 and §2.8. The `g > 0 ? ... : log(0)` cliff is representational rather than ecological and
-belongs with P0.5.
+**Open:** what the boundary node's state dependence implies for the block boundary. §2.4 now states
+the two-term boundary derivative (through the flux `B = birth_rate · pr_estab`, and through the
+speed `g`) and states that both reach the field and the soil, so the introduction is not a
+parameter-only seam. The Leibniz term at the reduction's lower limit is owed either way. The
+`g > 0 ? ... : log(0)` cliff is representational rather than ecological and belongs with P0.5.
 
-**Also open, and found by the same probe:** report 07 §1.8's light-floor census disagrees with the
-profile by four orders of magnitude. `tf24-correctness.md` P0.5 carries it. Until it is settled,
-neither the floor nor the undershoot guard has a usable incidence.
+**Closed since this thread was opened:** the light-floor census. Report 07 §1.8's four-orders
+disagreement was an artifact — `res$env$light_availability` is 8 292 × 5, and coercing the whole
+tibble to one vector censused times, step indices, patch densities and knot heights alongside the
+light values, so the "minimum exactly 0" was the ground knot's *height*. Both P0.5 floor rows now
+read zero, by two independent routes.
 
 **11.3 Density transport. Settled — report 04 now states it as the design.** The cohort-grid
 stencil is exactly `d(log dh)/dt`, so it is the same discretisation as transporting counts without
