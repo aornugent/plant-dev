@@ -491,7 +491,8 @@ It ode_rates(FwdIt first, FwdIt last, It it);      // and ode_state, ode_aux, se
 // vector-Jacobian product over one block: the only new primitive. NOT preaccumulate --
 // there is no enclosing tape here, so nothing is grafted back and the block's own tape
 // is the only one. Doubles in, doubles out; f is generic and is instantiated at the
-// active scalar inside, so plant never spells xad::.
+// active scalar inside, so plant never spells xad::. Stops if a tape is already active:
+// the replay is pure double, so the block's tape must be the only one.
 template <class F>
 std::vector<double> vector_jacobian_product(const std::vector<double>& x,
                                             const std::vector<double>& output_adjoints,
@@ -1056,9 +1057,18 @@ at the smallest cohort. Both P0.8 and P0.9 are family-wide and both are engine b
 conservation diagnostic; and the two-pass restructure of `Species::compute_rates`, which must
 include `new_node` in the first pass so the bottom cohort's neighbour is current rather than lagged.
 
-**11.4 The block's VJP.** A thin wrapper over XAD's tape drivers, not a primitive with a
-theory. The design question is not the wrapper but the block's input and output layout, which
-must be written once rather than twice — a forward assembly and an adjoint scatter that
-disagree silently is a wrong gradient. **Open:** and it is the same decision as 11.1, because
-if the patch owns contiguous state then a block's inputs are views and its adjoints scatter in
-place, and no layout can disagree.
+**11.4 The block's VJP. Settled — §2.3 and §2.4 carry it, report 01 §4.1 and §6.2 the derivation.**
+The primitive is a thin wrapper over XAD's tape drivers and nothing more. What needed deciding was
+the block's boundary, its layout, and where the code goes, and all three are now stated: the block
+is `Individual::compute_rates` (11 out, 76 + n in); the layout is four segments that are already
+contiguous, so it is four sizes rather than a table; and the code goes on `Individual` with each
+container packing its own segment, which keeps §2.1's rule against a per-model free function.
+
+Three things the design gained by being written out. The transport stencil is a **seed**, so it
+belongs with the soil adjoint before the blocks rather than after them (§2.4). `prepare_strategy()`
+must not run inside a block. And the shape generalises to other models only if `Environment`
+declares what a cohort may read from it, as the same triple as its state.
+
+**Open:** nothing structural. What remains is the test list — the recording-size invariant, the
+layout assertion, and the knot-adjoint accumulation, which has the same silent failure mode as the
+trait accumulation and only the latter has a measured signature (41–51%).
