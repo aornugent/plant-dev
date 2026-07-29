@@ -24,11 +24,12 @@ all. On the AD branch this is explicit: the active arm of `growth_rate_gradient`
 computes the stencil in `double` on a scratch copy and returns `value_type(fd_value)`,
 discarding the derivative.
 
-The existing workaround is to change what the ODE transports, choosing a variable in
-which the compression term cancels identically so that no numerical derivative appears
-on the differentiated path. That works, and it is invasive: it changes the integrated
-state, the reconstruction of density from it, the overflow behaviour at small cohort
-spacing, and the coincident-cohort case. **This report is about doing without it.**
+One way out is to change what the ODE transports, choosing a variable in which the
+compression term cancels identically so that no numerical derivative appears on the
+differentiated path. That works, and it changes the integrated state, the reconstruction
+of density from it, the overflow behaviour at small cohort spacing, and the
+coincident-cohort case. **Section 1c shows that the second route below obtains the same
+dynamics without any of that**, so this report is about doing it there instead.
 
 **The claim to attack is a conflation.** develop's own account of the stencil says two
 things, and only the first is true:
@@ -63,13 +64,11 @@ derivative of the scheme plant actually solves. Nothing about the trajectory cha
 | **B** | difference `g` across neighbouring cohorts | Q2 | yes, unquantified | **removes ~50% of TF24's leaf solves** (below) | yes, amplifying by `1/spacing` |
 | **C** | smooth the growth clamp, then use analytic `dg/dh` by hand | Q2 | yes, and it removes the upwinding | cheapest per call | yes, and unstable for that reason |
 | **E** | analytic `dg/dh` by forward-mode AD of the rate chain in `h` | Q2 | same as C | one tangent sweep, reusing the leaf partials the reverse pass needs anyway | yes; **same mathematics as C, so it inherits C's stability objection** |
-| **D** | transport `N` (individuals per interval); reconstruct `n = N / dh` where a reduction needs it | Q1 | yes, unquantified | no stencil, so the same ~50% saving as B | exactly, and it differences a **state** rather than a rate |
+| **D** | transport `N` (individuals per interval); reconstruct `n = N / dh` where a reduction needs it | Q1 | the same dynamics as B (§1c) | no stencil, so the same ~50% saving as B | exactly — and §1c shows B already is this |
 
-**Sections 1b to 5 argue B over A, C and E, and that argument stands.** What they do not
-address is D, which is not on the same axis. This report previously recorded D as "the
-existing workaround … invasive" and moved on; that is a judgement about a past
-implementation, not about the change of variable. Section 6b states what D is and what
-would decide it.
+**Sections 1b to 5 argue B over A, C and E, and that argument stands.** What settles B against
+D is not a trade-off but an identity: **B and D are the same dynamics in different
+coordinates**, and B does not pay for the coordinate change. Section 1c derives it.
 
 **The forward cost of the stencil, measured rather than argued.** `Node::compute_rates`
 calls `growth_rate_gradient` *after* `individual.compute_rates` (`node.h:132-140`), and
@@ -96,6 +95,62 @@ Route A's forward cost is already paid. `Node::compute_rates` calls `growth_rate
 after `individual.compute_rates`, and that evaluates `growth_rate_given_height` on a
 `thread_local` scratch — so the second rate evaluation, including TF24's leaf solve, is
 already in the measured 53 s. Route A costs recording it, not evaluating it.
+
+---
+
+## 1c. Route B is route D, and it is a conservation result
+
+Take route D. Transport the count in an interval, and reconstruct the density from the spacing:
+
+    dN_j/dt = -mu_j N_j            n_j = N_j / dh_j
+
+The spacing has its own exact rate, because both of its endpoints are transported heights:
+
+    dh_j       = h_j - h_{j+1}          (descending order, as Species stores them)
+    d(dh_j)/dt = g_j - g_{j+1}          exact; both rates are already computed
+
+So
+
+    log n_j       = log N_j - log dh_j
+    d(log n_j)/dt = -mu_j - (1/dh_j) d(dh_j)/dt
+                  = -mu_j - (g_j - g_{j+1}) / (h_j - h_{j+1})
+
+and that second term **is** route B's cohort-grid stencil. Read the other way,
+
+    d(log n)/dt = -mu - d(log dh)/dt   <=>   d(log(n dh))/dt = -mu   <=>   dN/dt = -mu N
+
+**So route B's stencil is not an approximation to `dg/dh`; it is the exact `d(log dh)/dt`.**
+B and D discretise the PDE identically and differ only in which variable the integrator
+advances — which is not nothing (different variables give different local truncation error and
+different error control, so the two are not bit-identical) but is a numerical difference rather
+than a modelling one.
+
+That closes the question §1's table opens. Section 6b's four costs of D — the integrated state,
+the reconstruction, overflow at small spacing, the coincident-cohort case — are all costs of the
+**coordinate change**, and B pays none of them: the state stays `log_density` and every consumer
+keeps reading `exp(log_density)`.
+
+### The forward-model argument, which has nothing to do with gradients
+
+Under B, `N_j = n_j dh_j` obeys `dN_j/dt = -mu_j N_j` exactly, so **the scheme conserves
+individuals up to mortality.** Under develop's sub-grid probe it does not:
+
+    dN_j/dt = N_j * ( (g_j - g_{j+1})/dh_j  -  dg/dh|_point  -  mu_j )
+
+and the first two terms differ by `O(dh * g'')`. develop's scheme therefore leaks individuals at
+that order; B does not. Since B has to be re-blessed anyway, this is the argument that makes the
+re-blessing worth asking for — a conservation property gained, not a discretisation swapped.
+
+It also composes with the boundary. As a newborn interval collapses at introduction, `N -> 0` and
+`n = N/dh -> B/g`, which is the flux boundary condition of report 01 §3.1. The degenerate
+interval is not an edge case to guard; it is the limit that recovers the BC.
+
+### What B genuinely inherits
+
+`n` lives at nodes and `dh` lives on intervals, so **any `N/dh` correspondence is a choice of
+staggering.** That is the real content of §4's "a boundary rule at the top and bottom cohort": not
+an awkward special case but one staggering decision, to be made once and written down, from which
+the first-cohort, last-cohort and one-cohort rules all follow.
 
 ---
 
@@ -378,10 +433,11 @@ the stencil's meaning needs re-establishing before anything is built on it.
 
 ---
 
-## 6b. Route D — change what is transported
+## 6b. Route D — the coordinate change, and why B does not need it
 
-Stated properly, because sections 1 to 6 dismiss it in one sentence about a past
-implementation rather than on its merits.
+§1c shows B and D are the same dynamics, so what follows is the cost of the coordinate change
+alone. It is recorded because the change has been attempted before and because a future reader
+will ask.
 
 The size-density equation conserves individuals, not density. Between two characteristics
 `h_j(t)` and `h_{j+1}(t)`, the number of individuals

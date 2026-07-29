@@ -243,7 +243,62 @@ species that is not ODE state. The reverse pass acquires a stage-to-stage edge, 
 knot adjoints back into the previous stage's boundary node — which runs in the same
 direction as the sweep, so nothing becomes circular. And `height_0` is the reduction's
 lower integration limit, so the field carries a Leibniz term in `d(height_0)/d(trait)`
-that closed-form step (c) must include. `../build-plan.md` names the design choice.
+that closed-form step (c) must include.
+
+### 3.1 What the boundary node is, and what it is worth
+
+**In the mathematics it is a flux boundary condition.** The size-density equation on
+`x >= x_b` with a recruit flux `B(t)` closes with
+
+    g(x_b) n(x_b, t) = B(t)      so      n(x_b) = B / g(x_b)
+
+which is exactly `log(birth_rate * pr_estab / g)` at `node.h:177`. The division is not an
+artefact: it converts a flux, which is what the ecology measures, into the density the state
+happens to store. Two things follow. The `g -> 0` singularity is **representational** — the code
+writes `log(0)` and then zeroes the rate on a finiteness check, where the ecology has recruits
+accumulating harmlessly in a size class nobody is leaving. And the field's reduction integrates
+over `[x_b, H_max]`, so it needs `n(x_b)` as its left endpoint at every stage: the field is a
+functional of the state **and of the boundary condition**.
+
+**The reverse-mode treatment of a flux boundary condition is standard, and it is one term.** The
+adjoint of a linear advection problem runs backwards in time, so the forward problem's *inflow*
+boundary is the adjoint problem's *outflow* boundary — and an outflow boundary needs no
+condition. The boundary enters the gradient as
+
+    dPsi/dB(t) = lambda_n(x_b, t) * d n(x_b)/dB = lambda_n(x_b, t) / g(x_b)
+
+the adjoint at the boundary times the boundary condition's own derivative. No extra adjoint
+equation, no boundary data for `lambda`. The design already has this shape for the introduction
+*event*; what it needs additionally is the same two-term derivative — one through the flux `B`,
+one through the speed `g(x_b)`, the second reaching into the seedling's own physiology — wherever
+the field's quadrature reads the left endpoint.
+
+**Measured, so that the alternative is closed** (`../../scripts/boundary_node.R`, develop
+`141dc8df`, odelia `854a8e18`, 141 introduction steps over `[0, 105.32]`). The boundary term is
+exactly the last trapezium interval of `Species::compute_competition`, so its share of the
+field's optical depth is directly computable:
+
+| | |
+|---|---|
+| share at ground level, median | **1.454%** |
+| steps with share above 1% | **71 / 141** |
+| at the first step | **1.000** — the boundary node is the whole field |
+| through the first 0.5 yr | about 12% |
+| after t ~ 2 yr | 2e-4, falling to ~1e-6 |
+
+So **the boundary node cannot be dropped from the field.** While the stand is young every cohort
+sits near `height_0` and the boundary interval is most of the profile; it becomes negligible only
+once a canopy exists. The lag is to be designed, not deleted.
+
+**And the circularity is real.** The relation is implicit because the boundary density needs
+`g(height_0)`, which needs the field over `[0, height_0]`. The `max(light, 1e-4)` clamp would sever
+that if it bound there, and it does not: over the seedling crown `L` runs **0.1657 to 1.0** across
+all 141 steps, against a floor of `1e-4`, and it binds nowhere. Since `L = exp(-A)` and `A` is leaf
+area *above* `z`, `L` is minimised at the ground by construction, so this is the global minimum of
+the profile — reaching the floor would need about five times the optical depth this stand attains.
+That result does not sit with report 07 §1.8's census of 4.638% of knot values at or below `1e-4`
+with a minimum of exactly 0; those two cannot both describe the physical field, and
+`../tf24-correctness.md` P0.5 carries the discrepancy.
 
 **The plant-soil coupling is narrow in both directions.** Cohorts reach the soil only
 through the summed `resource_depletion` vector, and the soil reaches cohorts only

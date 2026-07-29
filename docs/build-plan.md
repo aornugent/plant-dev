@@ -929,18 +929,35 @@ and only compiles because real translation units reach `species_base.h` first by
 Harmless today; it bites the first time a translation unit is added, which is what a gradient
 entry point is.
 
-**11.2 The boundary node.** `Species::new_node` is the size-density equation's inflow boundary,
-it is in the field reduction by necessity, and its density is lagged one stage because the
-relation that defines it is implicit (report 01 §3). `height_0` is the reduction's lower
-integration limit, so the field also carries a Leibniz term (report 03 §1b). **Open:** whether
-to model the lag, close it, or show it is negligible — and how `lambda_k1` at an introduction
-is attributed (§2.8).
+**11.2 The boundary node.** Report 01 §3.1 now carries the mathematics, the standard reverse-mode
+treatment of a flux boundary condition, and two measurements that close the two cheap options.
+The boundary node **cannot** leave the field: its share of the field's optical depth is 1.454% at
+the median, above 1% on 71 of 141 steps, and 1.000 at the first step, where it *is* the field. And
+the circularity is **real**: the `max(light, 1e-4)` clamp would sever `pr_estab`'s dependence on
+the field if it bound over the seedling crown, and it does not — `L` runs 0.1657 to 1.0 there,
+four orders from the floor.
 
-**11.3 Density transport.** Two questions, and report 04 §1 now separates them: what the ODE
-transports, and — if a density — how `dg/dh` is obtained. Route B answers the second; route D
-(transport individuals, reconstruct density from spacing) dissolves it. Either removes the
-sub-grid probe, which is **about half of every TF24 leaf solve in a production run** (report 04
-§1). **Open:** Q1 before Q2, and report 04 §6b lists what decides it without any AD.
+**Open:** whether to model the one-stage lag, close the fixed point with `implicit_value`, or make
+the boundary density a state; the two-term boundary derivative (through the flux, and through the
+speed) wherever the field's quadrature reads its left endpoint; the unconditional Leibniz term at
+that endpoint; and how `lambda_k1` at an introduction is attributed (§2.8). The `g > 0 ? ... :
+log(0)` cliff is representational rather than ecological and belongs with P0.5.
+
+**Also open, and found by the same probe:** report 07 §1.8's light-floor census disagrees with the
+profile by four orders of magnitude. `tf24-correctness.md` P0.5 carries it. Until it is settled,
+neither the floor nor the undershoot guard has a usable incidence.
+
+**11.3 Density transport.** Report 04 §1c derives the identity that settles it: the cohort-grid
+stencil `(g_j - g_{j+1})/dh_j` **is** the exact `d(log dh)/dt`, so route B and route D are the
+same discretisation in different coordinates, and B leaves the state and every consumer alone. B
+also makes the scheme conserve individuals up to mortality, which develop's sub-grid probe does
+not — a forward-model argument, independent of gradients, and the one worth taking to the owner
+since P2.4 needs a re-blessing either way. And it removes **about half of every TF24 leaf solve in
+a production run**.
+
+**Open:** the staggering choice (`n` at nodes, `dh` on intervals), from which the first-, last- and
+one-cohort rules follow; the size of the forward-value change (M4); and the two-pass restructure of
+`Species::compute_rates` that report 04 §1b's last subsection sets out.
 
 **11.4 The block's VJP.** A thin wrapper over XAD's tape drivers, not a primitive with a
 theory. The design question is not the wrapper but the block's input and output layout, which
