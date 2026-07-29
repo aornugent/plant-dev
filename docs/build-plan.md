@@ -154,15 +154,14 @@ introduction's adjoint contributes only parameter terms, through
 `log(birth_rate · pr_estab / g)`.
 
 Peak is one cohort's block, constant in run length, stage count and seeded-trait count. The
-trajectory is stored in `double`, one state per accepted step, 46.3 MB at production; stage states
+trajectory is stored in `double`, one state per accepted step, 46.0 MB at production; stage states
 are rebuilt by re-running the step rather than stored, so storage does not grow with the stage
 count.
 
-**One odelia prerequisite.** Its two steppers describe their stages differently — RODAS has a
-public `static const int n_stages = 6`, RKCK has neither a count nor reachable coefficients — and
-plant hard-codes the count across the boundary (`environment_cache(6) { // length of
-odelia::ode::Step`). A stepper must describe its stage structure before a traversal can be written
-against it. RKCK only, per §1.
+**Nothing crosses the boundary to describe the stage structure.** `step_adjoint` is a member of
+`Step`, so the tableau it needs is already in scope and no stage count has to be published. That
+matters because plant currently hard-codes one across the boundary — `environment_cache(6) { //
+length of odelia::ode::Step` — on the mutant path, which §3 leaves dead. RKCK only, per §1.
 
 ### 2.5 Verification: local, and at the Patch level
 
@@ -262,23 +261,28 @@ and only the spelling moves.
 
 ## 3. What we take
 
-Four names cross from odelia into plant, plus one small helper. **None of the four exists at
-the `854a8e18` baseline** — `to_passive`, `implicit_value` and `hermite_interpolator` are on
-odelia's AD branch, and `preaccumulate` was added there in `2a60998` and deleted again in
-`28059bd`. So all four are new code written against a design, not lifts; the AD branch is prior
-art for three of them and a discarded spike for the fourth.
+Three names cross from odelia into plant, plus one small helper and one concept. **None exists at
+the `854a8e18` baseline** — `implicit_value` and `hermite_interpolator` are on odelia's AD branch,
+and `preaccumulate` was added there in `2a60998` and deleted again in `28059bd`. So all of it is
+new code written against a design rather than a lift.
+
+**`to_passive` is not among them.** P1.1 sets out why nothing in plant needs to convert an active
+value to a passive one: comparisons and branches work natively, the cohort order is structural, the
+knot fractions are `double` by declaration under §2.6, and the graft idiom belonged to a mechanism
+this design does not have. The one real extraction is the R boundary and it lives in the `r_*`
+family.
 
 | name | prior art | its one consumer in plant |
 |---|---|---|
-| a vector-Jacobian product over a block: `(x, lambda_out, f) -> lambda_in` | `preaccumulate` (deleted) solved a different problem — it grafted partials back onto an enclosing tape. There is no enclosing tape here, so the graft, its first-order-only property and its return-type `static_assert` are all beside the point. §11 designs this | step (b): the cohort block |
+| `vector_jacobian_product` | `preaccumulate` (deleted) solved a different problem — it grafted partials back onto an enclosing tape. There is no enclosing tape here, so the graft, its first-order-only property and its return-type `static_assert` are all beside the point | step (b): the cohort block |
+| `OdeElement` | new. Constrains the four recursive helpers so the state-transfer interface stops naming `double` (§11.1) | every container's ODE plumbing |
 | `implicit_value(y*, F)` | AD branch, `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1` |
 | `hermite_interpolator<S>` | AD branch, `hermite_interpolator.hpp` | the light interpolant's evaluation (§2.6) |
-| `to_passive` | AD branch, `ode_util.hpp` | the descending-height sort key in the light reduction |
 | a forward-derivative helper | new, small | `dprofit_droot_collar_psi`, so `src/leaf_model.cpp` stops spelling `xad::fwd` |
 
 Two odelia changes have no plant-visible name: `Step` gains `step_adjoint` and a description of
-its stage structure (§2.5), and `preaccumulate` reports its recording size so plant can assert
-the peak without touching `xad::Tape`.
+its stage structure (§2.5), and the vector-Jacobian product reports its recording size so plant
+can assert the peak without touching `xad::Tape`.
 
 From plant `develop`: `Species::census<Psi>` and its self-shading integral, `Control()`'s
 defaults, `SCM::refine_schedule`, `r_ode_times()`.
@@ -334,7 +338,7 @@ Two rules, enforced per task:
 1. **Your model is templated on its scalar; `double` is production.** Write the science once.
    If new physiology does not compile at the active scalar, that is the design working.
 2. **Positions are `double`; values carry `S`.** Knot fractions, quadrature abscissae and sort
-   keys are decided on passive values, and `to_passive` is how you say so. A knot *count* that
+   keys are decided on passive values, and declaring them `double` is how you say so. A knot *count* that
    depends on an active value makes the recorded computation depend on the state.
 3. **An inner solve is declared by its residual,** through `implicit_value`. Never
    differentiate the iteration that found the root: `golden_section_max`'s result is affine in
@@ -401,36 +405,117 @@ Nothing here computes a gradient.
 
 ---
 
-**P1.1 — the odelia surface.** From `854a8e18` on `master`. Four names plus two internals.
+**P1.1 — the odelia surface.** From `854a8e18` on `master`.
+
+Nothing here is a lift: none of the names exists at the baseline (§3). Three have prior art on
+odelia's AD branch, one is new, and one is the concept that stops the state-transfer interface
+regressing.
 
 ```cpp
-// preaccumulate.hpp -- today's one-output, internally-seeded form generalised
-template <class S, class F>
-std::vector<double> preaccumulate(const std::vector<S>& inputs,
-                                  const std::vector<double>& output_adjoints,
-                                  F&& f);                    // f: vector<S> -> vector<S>
+// ode_interface.hpp -- constrain the four recursive helpers, and delete the two
+// legacy double typedefs. Required AT the element's own value_type iterator: that is
+// the constraint a double-typed signature fails, and it fails here rather than
+// inside derivs.
+template <typename E>
+concept OdeElement = requires(E e,
+    typename std::vector<typename E::value_type>::iterator it,
+    typename std::vector<typename E::value_type>::const_iterator cit) {
+  typename E::value_type;
+  { e.ode_size() }         -> std::convertible_to<std::size_t>;
+  { e.ode_state(it) }      -> std::same_as<decltype(it)>;
+  { e.ode_rates(it) }      -> std::same_as<decltype(it)>;
+  { e.set_ode_state(cit) } -> std::same_as<decltype(cit)>;
+};
+
+template <std::forward_iterator FwdIt, class It>
+  requires OdeElement<typename std::iter_value_t<FwdIt>>
+It ode_rates(FwdIt first, FwdIt last, It it);      // and ode_state, ode_aux, set_ode_state
+
+// vector-Jacobian product over one block: the only new primitive. NOT preaccumulate --
+// there is no enclosing tape here, so nothing is grafted back and the block's own tape
+// is the only one. Doubles in, doubles out; f is generic and is instantiated at the
+// active scalar inside, so plant never spells xad::.
+template <class F>
+std::vector<double> vector_jacobian_product(const std::vector<double>& x,
+                                            const std::vector<double>& output_adjoints,
+                                            F&& f);
 std::size_t last_recording_size();   // so plant can assert peak without touching xad::Tape
 
 // ode_step.hpp
 template <class System>
 void Step<System>::step_adjoint(System&, const state_type& lambda_out,
                                 state_type& lambda_in, double h);
-static constexpr int n_stages();     // RKCK gains what RODAS already has
 ```
 
-Plus `implicit_value`, `hermite_interpolator`, `to_passive`, and the non-finite step-size
-rejection, lifted unchanged.
+Plus `implicit_value` and `hermite_interpolator`, and the non-finite step-size rejection.
+`needs_time` stays as it is — a legacy quirk that costs nothing to leave. **One concept, not
+two:** with the time dispatch untouched there is no reason for a System-level refinement, and
+`OdeElement` is the whole requirement.
 
-*Order.* `to_passive` first (nothing depends on it), then `preaccumulate`, then `n_stages` and
-`step_adjoint`, then `implicit_value` and `hermite_interpolator` in either order.
-*Must not break* the odelia suite, and `ode_util.hpp` must still include no XAD — plant includes
-it everywhere, and pulling XAD in through it is how the boundary erodes.
-*Closes on* one test per name driven from a System rather than from an example, and
-`step_adjoint` reproducing a finite difference of one step on the Lorenz System.
+**What the concept buys, stated honestly.** It does not remove a mechanism — it adds one. What it
+buys is that the four helpers stop naming `double`, the two legacy typedefs are deleted, and a
+container written against a `double` iterator fails at the helper with a readable message instead
+of deep inside `derivs`. `r_ode_state` and the rest of the `r_*` family then name
+`std::vector<double>::iterator` inline, where it means something.
+
+**No conversion helper.** There is nothing for a `to_passive` to do: comparisons and branches work
+on active values natively (XAD defines them for `AReal`, expressions, and mixed active/`double` —
+`BinaryOperators.hpp:99-158`); cohorts are kept in descending order by construction so there is no
+sort key to extract; §2.6's normalised coordinate makes the knot fractions `double` by declaration;
+and the graft idiom belonged to `preaccumulate`'s inject-onto-an-outer-tape mechanism, which this
+design does not have. The one real extraction is the R boundary, and it lives inside the `r_*`
+family. Putting a converter in `ode_util.hpp` — which plant reaches from every translation unit
+via `control.h` → `ode_control.hpp` — is how the XAD boundary erodes, and it is what odelia's AD
+branch did.
+
+*Order.* The concept and the four helpers first, since P1.2a depends on them. Then
+`vector_jacobian_product`, then `step_adjoint`, then `implicit_value` and `hermite_interpolator`
+in either order.
+*Must not break* the odelia suite, and `ode_util.hpp` must still include no XAD.
+*Closes on* one test per name driven from a System rather than from an example; `step_adjoint`
+reproducing a finite difference of one step on the Lorenz System; and a negative test — a
+deliberately `double`-typed element rejected by `OdeElement` with the error at the helper.
 
 ---
 
-**P1.2 — TF24 templated.** The largest task and the one to break into commits.
+**P1.2a — the state-transfer plumbing, at `S = double`.** Probe-measured (§11.1), so this is a
+known quantity rather than an estimate: **26 uses of the two legacy typedefs across 9 headers.**
+
+| file | uses | |
+|---|---|---|
+| `patch.h` | 6 | deterministic |
+| `node.h` | 4 | deterministic |
+| `stochastic_patch.h` | 4 | stochastic |
+| `environment.h`, `individual.h`, `species.h`, `species_base.h`, `individual_runner.h`, `stochastic_node.h` | 2 each | mixed |
+
+`models/*.h` has none — `TF24_Environment` inherits `Environment`'s. Four of the nine files are
+the stochastic and single-individual paths, which never carry an active scalar but do share the
+plumbing, so they are in the sweep.
+
+```cpp
+template <typename It> It ode_state(It it) const;      // and ode_rates, ode_aux
+template <typename It> It set_ode_state(It it);        // Patch also takes (It, double) and (It, int)
+```
+
+**Fifteen of the twenty-six are signature-only.** Probe B established that the read-out direction
+(`ode_state`, `ode_rates`, `ode_aux`) needs no body changes at all, because `double` to active is
+an implicit conversion. Only `set_ode_state` has work behind it, and that work is P1.2b.
+
+*Order.* odelia's helpers and the concept (P1.1) first. Then the six deterministic-path headers,
+then the three stochastic ones. Add `#include <plant/individual.h>` to `node.h`, which is missing
+it (§11.1).
+*Must not break* anything: at `S = double` the deduced `It` **is** `std::vector<double>::iterator`,
+so this generates identical object code.
+*Closes on* bit-identity — the TF24 and FF16 suites unchanged, the FF16 references unchanged, and
+one production run reproducing offspring `4.214017357509567e+01` exactly — **at a pinned build**.
+A `-O0` build of the same tree differs by 0.145% in offspring and 0.79% in accepted step count
+(report 01 §2), so a gate that does not name its compiler flags measures the compiler.
+
+---
+
+**P1.2b — TF24 templated.** The largest task and the one to break into commits. Probe B named its
+four entry points: `Environment::vars.states[i] = *it++`, `Individual::set_state(int, double)`,
+`Node::offspring_produced_survival_weighted`, and `Node::set_log_density(double)`.
 
 ```cpp
 template <typename S = double> struct TF24_Pars { S lma, rho, hmat, omega, ...; };
@@ -442,18 +527,22 @@ template <typename S = double> class TF24_Environment { using value_type = S; ..
 template <typename S = double> class Internals { std::vector<S> states, rates, auxs, ...; };
 ```
 
-Then in each container, one line: `using value_type = typename T::value_type;`.
+Then in each container, one line: `using value_type = typename T::value_type;`. **Six containers,
+not four** — `Patch`, `Species`, `SpeciesBase`, `Node`, `Individual` and `Environment`, plus
+`ResourceSpline`, which is a plain class today holding a concrete `Interpolator` and which sits on
+the R boundary. `SpeciesBase` is the one shared with the stochastic path.
 
 *Commit order, each bit-identical before the next.* (1) `Internals<S>` with `S = double`
 everywhere else. (2) `TF24_Pars<S>` and `TF24_Strategy<S>`, `Control` and `ExtrinsicDrivers` left
-`double`. (3) `TF24_Environment<S>`. (4) the four containers reading `value_type` from `T`. (5) the
-RcppR6 yml and regeneration. (6) remove or relocate `growth_rate_gradient`'s scratch as M5
-directs.
+`double`. (3) `TF24_Environment<S>` and `ResourceSpline<S>`. (4) the six containers reading
+`value_type` from `T`. (5) the RcppR6 yml and regeneration. (6) remove or relocate
+`growth_rate_gradient`'s scratch — but see P2.4, which deletes it outright, so M5 may have nothing
+left to measure.
 *Must not break* `test-strategy-tf24.R`, `test-strategy-tf24f.R`, `test-patch.R`,
 `test-individual.R`, the stochastic tests, or the forward benchmark.
-*Closes on* bit-identity — the TF24 suite unchanged, and one production run reproducing develop's
-offspring and census to the last bit — plus the benchmark inside the accepted band. The AD branch
-measured develop 49.57 s against branch 50.31 s.
+*Closes on* bit-identity at a pinned build — the TF24 suite unchanged, and one production run
+reproducing offspring `4.214017357509567e+01` to the last bit — plus the forward benchmark inside
+the accepted band against develop's **89.9 s** at `-O2` (report 01 §2).
 *The failure to watch for* is a deduced return type on anything returning an active value. XAD
 operators return expression templates holding references to their operands, so the caller gets
 references to dead temporaries, the reverse sweep reads reused stack memory, and the segfault
@@ -794,18 +883,51 @@ Each is frontloaded deliberately: the cost of getting one wrong is a wrong gradi
 plausible, and all four are cheaper to settle on paper than in a bisect. Worked in this order,
 because each constrains the next.
 
-**11.1 The state-transfer interface.** odelia's System contract is already scalar-generic — its
-own AD examples template every ODE method on the iterator
-(`examples/lorenz_system.hpp:106`), and `least_squares` calls `ode_state` on an active vector
-(`gradient.hpp:157`). The legacy `double` typedefs are used in exactly four places in all of
-odelia: the recursive element-range helpers at `ode_interface.hpp:73, 82, 92, 102`, which exist
-only for plant because odelia has no container System. plant's ~20 container signatures adopt
-them from there. The R boundary is already isolated and already has a name — the `r_*` family
-at `S = double`, `xad::value` at the return, doubles out of `compute_jacobian` — and that is
-the shape `stand_gradient` copies. **Open:** whether to template the iterators (the AD branch
-did: +1002/-378 across nine container headers) or to remove the flattening entirely; and what
-stops the next container from regressing. `SpeciesBase` is a fifth container and is shared with
-the stochastic path; `ResourceSpline` is a sixth and sits on the R boundary.
+**11.1 The state-transfer interface. Settled — the shape is P1.1 and P1.2a.**
+
+odelia's System contract is already scalar-generic: its own AD examples template every ODE
+method on the iterator (`examples/lorenz_system.hpp:106`), and `least_squares` calls
+`ode_state` on an active vector (`gradient.hpp:157`). The legacy `double` typedefs are used in
+exactly four places in all of odelia — the recursive element-range helpers at
+`ode_interface.hpp:73, 82, 92, 102` — which exist only for plant, because odelia has no
+container System. plant's signatures adopt them from there, in **26 places across 9 headers**.
+
+Two compile probes on develop `141dc8df` against odelia `854a8e18` measured the surface rather
+than estimating it.
+
+*Probe A*, double containers called with an active iterator: **3 errors**, all the iterator
+type. Nothing hidden.
+
+*Probe B*, the two legacy typedefs redefined to name an active iterator — which makes every
+plant signature that adopted them active-typed **without editing plant** — **4 errors**, all one
+shape:
+
+```
+environment.h:40   vars.states[i] = *it++;                        // store is vector<double>
+node.h:243         individual.set_state(i, *it++);                // set_state(int, double)
+node.h:245         offspring_produced_survival_weighted = *it++;
+node.h:246         set_log_density(*it++);                         // takes double
+```
+
+**The read-out direction produced no errors at all** — `ode_state`, `ode_rates` and `ode_aux`
+write `*it++ = individual.state(i)`, and `double` to active is an implicit conversion. So
+templating those signatures is *sufficient*, with no body changes. Only the load direction
+fails, and it fails exactly where an active value must be stored into a `double` member. Those
+four points are the state vector, which is why the plumbing and the scalar split cleanly into
+P1.2a and P1.2b.
+
+The probe reports only what was instantiated, and each `set_ode_state` body stopped at its first
+failing assignment, so there is a cascade behind each of the four once the store carries `S`.
+What it establishes is that there is no *third* category: no `Rcpp::` conversion, no `util::`
+helper taking `double` by value, no arithmetic failure, and nothing in `Species`, `Patch` or
+`SpeciesBase` bodies.
+
+Two incidentals from the same probes. plant-develop compiles clean against `854a8e18`, so
+report 02 §4's build blocker is AD-branch-only and its §10 item 5 is dead. And `node.h` is not
+self-contained — it names `Individual<T,E>` at line 18 without including `plant/individual.h`,
+and only compiles because real translation units reach `species_base.h` first by another route.
+Harmless today; it bites the first time a translation unit is added, which is what a gradient
+entry point is.
 
 **11.2 The boundary node.** `Species::new_node` is the size-density equation's inflow boundary,
 it is in the field reduction by necessity, and its density is lagged one stage because the

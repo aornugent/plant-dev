@@ -14,7 +14,7 @@ ledgers and probes on `archive/v3-docs-and-probes`.
 
 Reverse-mode AD must hold a complete tape before it can walk it backwards, so peak
 memory is the whole recorded computation. For the SCM that is the whole run: at TF24
-production settings, approximately **494 GB** (section 2). This proposal does not
+production settings, approximately **490 GB** (section 2). This proposal does not
 make the recording smaller. It changes what a recording *is*.
 
 **Store the trajectory in plain `double`. On the reverse pass, record and sweep one
@@ -78,7 +78,7 @@ adjoints cost what their forward evaluation costs.
   recorded exactly as it already stands. The decomposition lives entirely in the
   gradient driver.
 
-**What it costs:** a stored plain trajectory (46.3 MB at production, projected), and a
+**What it costs:** a stored plain trajectory (46.0 MB at production, projected), and a
 doubling of the plain-`double` work — plant's Runge-Kutta step has six stages, and the
 backward pass rebuilds those stage states by re-running the step in `double` rather than
 storing them, so each stage is evaluated once forward and once again on the way back.
@@ -109,17 +109,41 @@ At TF24 production settings the run has:
 | cohorts | **141** | 141 |
 | states per cohort | **8** = `state_size()` 6 + log-density + offspring (`node.h:79`) | 7 |
 | environment ODE states | **9** | 9 |
-| accepted ODE steps | **5 095** | 2 829 |
-| leaf optimisations | ~8 M (projected: 141 x 6 stages x 5 095 x 2) | **4 372 101** (instrumented) |
-| offspring production | **4.220134475942768e+01** | not recorded |
+| accepted ODE steps | **5 055** | 2 829 |
+| leaf optimisations | ~8 M (projected: 141 x 6 stages x 5 055 x 2) | **4 372 101** (instrumented) |
+| offspring production | **4.214017357509567e+01** | not recorded |
+| forward wall clock | **89.9 s** | 53.1 / 59.5 s |
+| per accepted step | **17.8 ms** | 21.0 ms |
 
 **The right-hand column predates the NSC storage state.** `TF24_Strategy::state_size()` is a
 compile-time `6` on develop (`tf24_strategy.h:125`), so 987 = 141 x 7 can only come from a
 five-state TF24 — the storage pool arrived with `#517` and report 06 §1 records it as new.
-Adding a sixth state with its own dynamics also moved the error control, hence 5 095 accepted
+Adding a sixth state with its own dynamics also moved the error control, hence 5 055 accepted
 steps rather than 2 829. The left-hand column was measured this session on develop `141dc8df`
 against odelia `854a8e18`, `scm_base_parameters("TF24", "TF24_Env")` with
-`add_strategies(trait_matrix(0.1978791, "lma"))`, `Control()`, `refine_schedule = FALSE`.
+`add_strategies(trait_matrix(0.1978791, "lma"))`, `Control()`, `refine_schedule = FALSE`,
+compiled `-O2 -DNDEBUG` (`make compile`).
+
+**The forward run is slower only because there are more steps.** Per accepted step it is
+*cheaper* than the earlier tree — 17.8 ms against 21.0 — so the 89.9 s is 1.79x the step count
+at 0.85x the cost each, and there is no performance regression hiding in it.
+
+**A trajectory is reproducible within one build and not across two.** The same run compiled
+`-O0` (`pkgbuild::compile_dll()`'s default) takes **5 095** accepted steps and reports offspring
+`4.220134475942768e+01` — 0.79% more steps and **0.145%** different offspring. The model has no
+randomness, so this is the adaptive step-size controller amplifying last-bit differences in
+arithmetic association into a different accepted grid, and everything downstream inherits it.
+Three consequences:
+
+- **Every bit-identity gate names its build.** Comparing a number taken at `-O0` against one
+  taken at `-O2` measures the compiler.
+- **A forward-value change smaller than about 0.15% in offspring cannot be attributed unless the
+  build is pinned.** Within one build the run is deterministic and bit-reproducible, so pinning
+  is sufficient — but it has to be deliberate.
+- It is the measured reason for a design choice already made: a finite-difference verification
+  must run base and perturbed on the **same recorded grid**, not on two adaptive passes, because
+  a perturbation that changes the accepted step count changes the answer by more than the
+  derivative being measured.
 
 The instrumented leaf count stays in the right-hand column because it was instrumented rather
 than projected, and it is consistent with its own tree: 141 x 6 x 2 829 x 2 is about 4.8 M
@@ -131,7 +155,7 @@ Earlier work measured the reverse tape at approximately **86 kB per node-ODE-sta
 per step**, flat in stand width over the range it could reach (widths 543 to 606). On develop's
 own counts:
 
-    1 128 states x 5 095 steps x 86 kB  ~=  494 GB         (projected)
+    1 128 states x 5 055 steps x 86 kB  ~=  490 GB         (projected)
 
 against 220 GB on the pre-`#517` counts. The problem this report addresses got larger, not
 smaller.
@@ -379,7 +403,7 @@ Unchanged from `scm_gradient.h`, except that the trajectory is kept:
 2. Replay that schedule in plain `double`, storing the full ODE state at each
    accepted step.
 
-Storage at production: 1 137 states x 8 bytes x 5 095 steps = **46.3 MB** (projected), on
+Storage at production: 1 137 states x 8 bytes x 5 055 steps = **46.0 MB** (projected), on
 develop's counts from section 2.
 This is the whole additional memory the proposal requires.
 
@@ -604,9 +628,9 @@ re-derived.
 
 | | current | proposed |
 |---|---|---|
-| peak tape | ~494 GB (86 kB x 1 128 x 5 095) | one cohort-step, ~600 kB |
+| peak tape | ~490 GB (86 kB x 1 128 x 5 055) | one cohort-step, ~600 kB |
 | plus field adjoint per step | — | O(n) in plant, small |
-| plus stored trajectory | — | 46.3 MB |
+| plus stored trajectory | — | 46.0 MB |
 | plain-double evaluations per stage | 1 | 2 (one forward, one to rebuild the stage state) |
 | recordings per (stage, cohort) | 1 | 1 |
 | measured wall clock | 1x | 1.4-1.6x |

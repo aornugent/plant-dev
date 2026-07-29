@@ -130,7 +130,7 @@ of the number of solver iterations**. At XAD's 12 bytes per operation:
 
     4 372 101 solves x 19.2 kB  ~=  84 GB          (projected)
 
-against a whole-run tape of roughly 220 GB on the same tree (494 GB on develop's counts,
+against a whole-run tape of roughly 220 GB on the same tree (490 GB on develop's counts,
 report 01 §2). So the leaf is a large fraction of the
 recording without being all of it, and shrinking it alone does not make a production
 gradient possible. Report 1 bounds peak memory; this report is about correctness and

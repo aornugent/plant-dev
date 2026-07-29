@@ -425,7 +425,7 @@ The interpolant is rebuilt inside every `Patch::set_ode_state`. That is called a
 Runge-Kutta **stage**, not once per accepted step, which was worth measuring rather than
 assuming. Instrumenting `ResourceSpline::compute_environment` on a production TF24 run
 (`max_patch_lifetime = 105.32`, 2 829 accepted steps, 59.5 s — **pre-`#517` counts**, see
-report 01 §2; develop takes 5 095 steps, so the call counts below scale by about 1.8 and
+report 01 §2; develop takes 5 055 steps, so the call counts below scale by about 1.8 and
 the percentage-of-run figures need re-measuring):
 
 | path | calls | total | per call | knots |
