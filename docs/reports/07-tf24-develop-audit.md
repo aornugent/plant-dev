@@ -551,10 +551,10 @@ decision, and two of them are one line each.
    sizing method (`storage_prod_eps`, measured well-sized in report 06 §9b).
 6. **Size the resource vector by resource count, not ODE width** (§1.6). Removes
    four NaNs per stage and one structural disagreement.
-7. **Then measure `Π_pp` and build `∇(∂Π/∂p)`** — report 06's items 1 and 5,
-   unchanged. Nothing here displaces them; §1.1 and §1.2 change what the forward
-   pass they will be verified against actually computes, which is why they come
-   after.
+7. **Then the leaf's reverse pass.** `Π_pp` is measured (`scripts/curvature_probe.R`) and
+   the interior case is well conditioned; what remains is the bound-pinned case and
+   `∇(∂Π/∂p)`. Both come after items 1 and 2, because those change what the forward pass
+   they are verified against computes. The ordered work list is `../build-plan.md` §5–§6.
 
 Housekeeping, batchable: delete or write the `assimilation` aux (§1.5); delete
 `compute_roots`, the dead constructor local, and the ignored `rescale_usually`

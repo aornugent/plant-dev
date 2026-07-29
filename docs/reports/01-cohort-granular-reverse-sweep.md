@@ -28,34 +28,34 @@ four layers, and the middle one is thin:
 ```
      y  =  cohort states (141 x 7)  +  environment states (9)
      |
- L1  |  per cohort, independent, closed form   (allometry: area_leaf, density)
+ALL  |  per cohort, independent, closed form   (allometry: area_leaf, density)
      v
- L2  |  ONE reduction over all cohorts, then an interpolant   (the light field)
+LGT  |  ONE reduction over all cohorts, then an interpolant   (the light field)
      v
- L3  |  per cohort, independent, EXPENSIVE     (rates; for TF24, the leaf solve)
+RAT  |  per cohort, independent, EXPENSIVE     (rates; for TF24, the leaf solve)
      v
- L4  |  ONE reduction, then the soil           (resource_depletion -> soil rates)
+SOIL |  ONE reduction, then the soil           (resource_depletion -> soil rates)
      v
     dydt
 ```
 
 The reverse pass runs those four layers backwards in a strict order with **no
 circular dependency**, and this is the one point that had to be settled before the
-design was viable. The graph looks circular — L3's sweep needs the light adjoints
-that L2 produces, and L2 needs the light adjoints that L3 produces — and it is not,
-because L1 is a *separate closed-form map* and is adjointed analytically rather than
+design was viable. The graph looks circular — RAT's sweep needs the light adjoints
+that LGT produces, and LGT needs the light adjoints that RAT produces — and it is not,
+because ALL is a *separate closed-form map* and is adjointed analytically rather than
 on a cohort's tape:
 
 ```
 given lambda (the adjoint of y at the end of this step)
 
-  a   L4 adjoint          -> lambda_soil, lambda_depletion     small, closed form
+  a   SOIL adjoint        -> lambda_soil, lambda_depletion     small, closed form
   b   for each cohort j:  fresh tape; record ONLY cohort j's rates; sweep once;
                           read off lambda_y_j (direct), lambda_light_j,
                           lambda_psi, lambda_traits; RELEASE the tape
                                                      <-- PEAK IS ONE COHORT
-  c   L2 adjoint          -> lambda at the field's nodes -> lambda_(area_leaf, density, H)
-  d   L1 adjoint          -> lambda_y_j (field contribution)   closed form
+  c   LGT adjoint         -> lambda at the field's knots -> lambda_(area_leaf, density, H)
+  d   ALL adjoint         -> lambda_y_j (field contribution)   closed form
   e   lambda_y_j = direct + field
 ```
 
@@ -188,8 +188,8 @@ point.
 
 ## 4. The structure being exploited
 
-Section 1's four layers are section 3's call chain read as a data-flow graph. L1 and
-L3 are independent across cohorts and are coupled only through L2's output. That is
+Section 1's four layers are section 3's call chain read as a data-flow graph. ALL and
+RAT are independent across cohorts and are coupled only through LGT's output. That is
 the mean-field structure of the model: it is also why
 `Patch::compute_environment` is an O(n) build plus O(1) queries rather than an
 O(n^2) all-pairs sum (plant's `agents.md` section 12).
@@ -200,11 +200,16 @@ internal computation.
 
 ### 4.1 The cohort's boundary
 
+> The light enters as the interpolant's knot **values**, not as light sampled at the crown
+> abscissae. The abscissae sit at `z = u_k * height`, so their positions depend on the
+> cohort's own height and sampled light is an intermediate. Recording the interpolation and
+> the quadrature inside the cohort's own block puts the moving-bound term and `q(z, height)`
+> on that block's tape, so step (c) above reduces to the adjoint of the cohort sum alone.
+
 | direction | quantity | count |
 |---|---|---|
 | in | own ODE state (`state_size()` 5, plus log_density and offspring) | 7 |
-| in | light at the crown's Gauss-Kronrod abscissae (`function_integration_rule = 21`) | 21 |
-| in | vertical light gradient at the same abscissae (report 3) | 21 |
+| in | the light interpolant's knot **values** | 65 |
 | in | soil water potential, one per layer | 5 |
 | in | seeded differentiation targets | n |
 | out | rates | 7 |
@@ -310,8 +315,8 @@ boundary, and the unit is legitimate. But the property is held by *discipline in
 
 Unchanged from `scm_gradient.h`, except that the trajectory is kept:
 
-1. Run the adaptive double pass (`SCM::refine_schedule()`), fixing the resolved L1
-   schedule. `recorded_steps()` is the single source of the replay grid.
+1. Run the adaptive double pass (`SCM::refine_schedule()`), resolving the node
+   schedule and the ODE grid. `recorded_steps()` is the single source of the replay grid.
 2. Replay that schedule in plain `double`, storing the full ODE state at each
    accepted step.
 
@@ -671,7 +676,8 @@ attributable.
    `thread_local` scratch in `Node::growth_rate_gradient` were both introduced as
    measured optimisations, so any change here needs the `profile-plant` workflow and a
    same-session A/B, not an argument.
-5. **Hand-adjoint L1 and L2** rather than taping them, removing the residual stand-size
+5. **Adjoint the allometry and the light reduction by hand** rather than recording them,
+   removing the residual stand-size
    term in the peak (section 7.2).
 6. **FF16.** Adds the crown integral and the light field's self-shading feedback. Its
    coupled gradient is already exact to the finite-difference noise floor (lma

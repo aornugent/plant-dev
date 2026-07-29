@@ -80,8 +80,8 @@ dry solve on a fresh leaf reports `NA`, so the value is entirely a function of w
 before it.
 
 **Incidence: zero at the default driver** (0 of 10 153; minimum margin to the shut-down
-branch 0.02688 MPa = 27× `GSS_tol_abs`). Live in the drought transients, which is the
-configuration where a water-balance error matters most.
+branch 0.02688 MPa = 27× `GSS_tol_abs`). Reached by the committed rainfall
+sequences, which is where a water-balance error matters most.
 
 The `assim_max_ < 0` exit does call `E_from_Soil_to_Root_Collar` at its own operating
 point and is already correct — it shows the intended shape.
@@ -133,7 +133,7 @@ source of truth.
 
 ---
 
-## P0.5 — the kink manifest
+## P0.5 — the switch inventory
 
 **The one item specified in four places and produced in none.** Every clamp, floor,
 `min`/`max`, ternary and branch on a computed value on TF24's carbon and water paths,

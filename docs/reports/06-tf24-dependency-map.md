@@ -195,7 +195,12 @@ radiation  =  k_I · max(light, 1e-4) · PPFD
 ```
 
 `MeanLight` is a Gauss-Kronrod integral of the light profile over the crown, so the
-radiation driving one cohort's leaf depends on **many** light knots, not one.
+radiation driving one cohort's leaf depends on **many** light knots, not one. Its reverse
+form has three parts: the knot values it reads, the `q(z,h)` weighting, and the upper bound
+`h`, which is itself an active state. Recording the interpolation and the quadrature inside
+the cohort's own block puts all three on that block's tape, so the aggregation's adjoint is
+not written out here — `../build-plan.md` §2.4 declares the block's inputs as the 65 knot
+values rather than sampled light for exactly this reason.
 
 ### 4.2 The leaf solve
 

@@ -59,13 +59,19 @@ method-of-characteristics scheme. **C is the one that addresses the actual cause
 section 5's reading is right that the stencil exists to avoid a clamp corner rather than
 to provide grid-scale upwinding.
 
-**One hard dependency.** Route A divides a difference of two derivatives by
-`node_gradient_eps = 1e-6`, so it amplifies any error in `dg/d(trait)` that is not
-smooth in `h` by a factor of `1/eps`. TF24's growth rate depends on a leaf argmax whose
-error is a staircase in height, so **the argmax polish of report 2 is a prerequisite for
-route A, not an independent improvement** (section 5). Route B's divisor is the cohort
-spacing rather than `1e-6`, which is five or more orders larger, so it is far more
-tolerant of this.
+**One hard dependency, and it is a measurement rather than a fix.** Route A divides a
+difference of two derivatives by `node_gradient_eps = 1e-6`, so it amplifies any error in
+`dg/d(trait)` that is not smooth in `h` by a factor of `1/eps`. TF24's growth rate depends
+on a leaf operating point whose displacement from the true optimum moves in steps with
+height (section 5). Whether that amplification is real at production settings is measured
+before route A is built (`../build-plan.md` §5b, M4), on K93 first as a control. Route B's
+divisor is the cohort spacing rather than `1e-6`, five or more orders larger, so it is far
+more tolerant.
+
+Route A's forward cost is already paid. `Node::compute_rates` calls `growth_rate_gradient`
+after `individual.compute_rates`, and that evaluates `growth_rate_given_height` on a
+`thread_local` scratch — so the second rate evaluation, including TF24's leaf solve, is
+already in the measured 53 s. Route A costs recording it, not evaluating it.
 
 ---
 
@@ -211,17 +217,18 @@ difference cancels to `O(eps * d(error)/dh)` — harmless. If the error is a **s
 in `h`, the two evaluations can sit on different steps and the difference is the full
 step, amplified by `1/eps = 10^6`.
 
-TF24's growth rate depends on the leaf's collar argmax, which comes from
+TF24's growth rate depends on the leaf's collar operating point, which comes from
 `golden_section_max` and moves in steps: it is affine in its bracket within a comparison
-pattern and jumps when the pattern changes. That is a staircase in `h`. And a separate
-measurement in report 2 gives its size: **unpolished, the argmax contributes a 3.5%
-error to `dg/d(theta)` at TF24's production `GSS_tol_abs = 1e-3`; Newton-polished to a
-stationary point, 4.5e-10.**
+pattern and jumps when the pattern changes. That is a staircase in `h`, and its step is
+**bracket-scale rather than tolerance-scale** — which is also what reconciles report 06 §9's
+`dPi/dp` of 11-23 at `GSS_tol_abs = 1e-3` with the measured curvature `Pi_pp` of about -4.
+A `1e-4` displacement from the optimum would give `4e-4`; a bracket-scale one gives what is
+measured.
 
-So route A on TF24 without the polish would amplify a percent-level staircase by a
-million. **Report 2's polish is a prerequisite for route A, not an independent
-improvement.** With it, the amplified residual is of order `1e-9 / 1e-6 = 1e-3`, which
-is still large enough to want measuring rather than assuming.
+So the size of the step, and therefore whether route A amplifies it, is the quantity to
+measure rather than to argue about. M4 measures it directly by taking the stencil's trait
+derivative from a tape at `node_gradient_eps` of 1e-4, 1e-6 and 1e-8: if the amplification
+is real, agreement with a finite difference degrades as `eps` shrinks.
 
 This is also, read the other way, a characterisation of why develop works today. The
 `double` stencil differences a staircase whose step size is `GSS_tol_abs = 1e-3` at a
@@ -291,7 +298,7 @@ In the order that resolves the most per unit effort:
    compensation point on a production run, counted the way report 2 counts the leaf
    branches. If the answer is never, route C's stability concern is moot and the analytic
    derivative is available; if it is often, the clamp needs smoothing on its own merits.
-6. **Route A on TF24, after report 2's polish.** The amplified residual of section 5,
+6. **Route A on TF24.** The amplified residual of section 5,
    measured rather than bounded.
 
 Steps 1, 2 and 5 need no new machinery and no gradient engine.
