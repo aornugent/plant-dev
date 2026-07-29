@@ -546,15 +546,30 @@ The deliverable. Read §8 before relying on it.
 | `dp*/dφ` as a **matrix** | replaced by one scalar and one gradient (§6.2 step 5). |
 | the whole argmax in **TF24f** | it is state. |
 
-### Peaked — where the curvature helps instead of hurting
+### Peaked — WITHDRAWN; `Π_pp` has since been measured directly
 
-One measurement deserves its own row because it inverts the usual reading. The objective
-is **sharply peaked**: displacing `p*` by `1e-4` moves `∂Π/∂p` by 10–23, implying
-`|Π_pp| ~ 10⁵`. Large curvature is normally bad news — a stiff inner problem. Here it is
-what makes step 3 safe, because the failure mode of `−s_k/Π_pp` is `Π_pp → 0` (a fold),
-and we are five orders away from it. **The same number that makes golden section's answer
-a poor linearisation point makes the implicit-function solve well-conditioned.** Those are
-two views of one quantity, and one of them costs nothing.
+> **This row's inference was wrong by four orders. See `../build-plan.md` §8 and
+> `scripts/curvature_probe.R`.** It read `|Π_pp| ~ 10⁵` off the fact that displacing `p*`
+> by `1e-4` moves `∂Π/∂p` by 10–23. Measured directly — a central difference of develop's
+> own analytic `dprofit_droot_collar_psi` about the solved operating point, at
+> `GSS_tol_abs = 1e-10`, over the whole feasible domain of the argmax — `|Π_pp|` is
+> **0.1723 to 15.61**, median 4.2. The objective is *gently curved*, not sharply peaked.
+>
+> **Step 3 is still safe, for a different and better reason.** `Π_pp` is negative at all 52
+> sampled states, with no fold and no sign change, so the worst amplification through
+> `−s_k/Π_pp` is **5.8×**. §6.2's one-scalar solve is well conditioned wherever the argmax
+> is interior — that conclusion survives; only this row's mechanism was wrong.
+>
+> **What it opens.** With `Π_pp ≈ −4`, a `1e-4` displacement should move `∂Π/∂p` by about
+> `4e-4`, not by 10–23. So the 10–23 measured at `GSS_tol_abs = 1e-3` is not a small error
+> amplified by curvature — either the search returns a point much further from the argmax
+> than `1e-4`, or those states are in the **bound-pinned** regime the same probe found
+> (15 of 52, all at `psi_soil ≥ 1.5 MPa` and `height ≥ 2 m`, with `|∂Π/∂p|` up to 2.12 even
+> at tolerance `1e-10`). That is a question about the search rather than the geometry, and
+> it is cheap to settle. It does not touch §6.2's derivation.
+>
+> The cancellation identity in §9 is unaffected: it was measured from `dp*/dψ` and the two
+> flux derivatives directly, not from `Π_pp`.
 
 ### Genuinely open — the map does not dispose of these
 
@@ -563,7 +578,8 @@ two views of one quantity, and one of them costs nothing.
 | `∂g/∂h`, the transport stencil | computed by finite difference, and it is on the gradient path of **every census metric** because `Ψ` carries `n_k = exp(ℓ_k)`. It is *not* on R0's path. This is report 4's subject. |
 | `∂(pr_estab)/∂φ` through the birth switch | `establishment_probability` still carries a hard `if (P_net > 0) … else 0`, un-smoothed, and it multiplies into `ℓ(birth)` and `M(birth)` — hence into every census metric. Develop smoothed the *growth* gate and left this one. |
 | `∂r/∂S` at the `max(S,0)` clamp | **active on 13.96%** of production records (§9b), and it zeroes the carbon → mortality → survival → density channel on all of them. Not the coupling, but squarely on the census gradient. |
-| `Π_pp` | never computed anywhere in develop. It is the denominator of the entire argmax channel. Inferred `≈ −1.1 × 10⁵`. |
+| ~~`Π_pp`~~ | **CLOSED — measured.** `scripts/curvature_probe.R`: negative at 52 of 52 states over the whole feasible domain of the argmax, `\|Π_pp\|` **0.1723 … 15.61** (median 4.2), worst amplification 5.8×. No fold. The inferred `−1.1 × 10⁵` above was wrong by four orders; see the withdrawn "peaked" row. |
+| the **interior / bound-pinned selector** | *new, and this row replaces `Π_pp`'s.* 15 of the same 52 states have the operating point **pinned at a bound** — `\|∂Π/∂p\|` from 0.054 to 2.12 at tolerance `1e-10` — every one at `psi_soil ≥ 1.5 MPa` **and** `height ≥ 2 m`. None is inside the default driver's range, which is why §9 measured zero corner incidence; the stress banks reach it. So §6.2 needs a companion bound branch and a discrete regime test, and that test belongs in the kink manifest with its incidence. |
 | `∇(∂Π/∂p)` | the one genuinely new expression the design needs. |
 
 ---
@@ -653,6 +669,20 @@ object the cohort loop uses, and it does so at a different `h`. Ordering matters
 **14. I have not verified `Π_pp`'s sign and magnitude directly** — it is inferred from two
 other measurements. If it is anywhere near zero at some reachable state, §6.2 step 3 needs
 a fallback and the "peaked" row is wrong.
+
+> **ANSWERED, and it went both ways.** `scripts/curvature_probe.R`: `Π_pp` is negative at
+> 52 of 52 states over the argmax's whole feasible domain, never near zero (minimum
+> `|Π_pp|` 0.1723), so §6.2 step 3 needs no fallback for a fold — **and the "peaked" row
+> was wrong anyway**, by four orders. The same probe found a second thing this list did not
+> anticipate: 15 of the 52 states have the operating point **pinned at a bound**, all at
+> `psi_soil ≥ 1.5 MPa` and `height ≥ 2 m`. §6.2 covers the interior case only, so it needs
+> a companion bound branch. That is item 15.
+
+**15. The map assumes the operating point is interior everywhere it matters.** §9 measured
+zero corner incidence *at the default driver*, and item 14's probe shows why that was the
+wrong place to look: the bound-pinned regime is dry **and** tall, outside the default
+driver's `psi_soil` range but inside the committed stress banks'. So the leaf node is two
+branches and a selector, not one branch.
 
 ---
 
@@ -787,12 +817,16 @@ neither is in any existing kink inventory.
 
 ## 10. What to do next, in order
 
-**Done in this pass:** develop was built and every branch-measured number re-verified
-(§9). §7's "solved" and "peaked" rows now rest on develop measurements.
+**Done since this pass:** develop was built and every branch-measured number re-verified
+(§9); `Π_pp` was then measured directly (`scripts/curvature_probe.R`), which **closed** the
+old item 1 and **withdrew** §7's "peaked" row. The live work list is now
+`../build-plan.md` §5–§6; what follows is kept as this report's own reading of the order.
 
-1. **Measure `Π_pp` directly** across the production envelope. It is the denominator of
-   the whole argmax channel, nothing computes it, and `≈ −1.1e5` is currently a ratio of
-   two other measurements. This is the single number §6.2 step 3 stands on.
+1. ~~**Measure `Π_pp` directly.**~~ **Done.** Negative at 52 of 52 states, `|Π_pp|` 0.1723
+   … 15.61, no fold, worst amplification 5.8×. §6.2 step 3 is well conditioned in the
+   interior regime — and the same probe found the **bound-pinned** regime (15 of 52, dry and
+   tall), so §6.2 needs a companion bound branch and a regime selector. That selector is
+   now the new work here, ahead of item 5.
 2. **Fix the storage floor** (§9b). `S` goes negative and the gate the comment relies on
    stops being a gate there. It is a forward-model correctness item, it is cheap, and it
    removes a clamp that is active on 14% of records from the census gradient's path.
