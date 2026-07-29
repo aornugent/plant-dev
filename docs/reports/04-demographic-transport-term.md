@@ -107,6 +107,11 @@ Against report 02's instrumented count on the pre-`#517` tree: 141 cohorts x 6 s
 steps x 2 is about 4.8 million against **4 372 101** measured, the remainder being the stand
 growing from one cohort to 141. The ratio is structural and holds on any tree.
 
+**Corroborated from inside plant, independently.** `tests/testthat/test-scm.R:106` carries a
+profiling note: *"50.1% in growth_rate_gradient(), and 45.4% in compute_rates() and 2.8% in
+initial_conditions() (so that's 98.3%) total."* Half the run, recorded in the test suite, from a
+different direction than the leaf-solve arithmetic above.
+
 **Two constructs go away**: the sub-grid probe with its `thread_local` scratch, and
 `node_gradient_eps` together with the coupling to `GSS_tol_abs` that section 5 records and
 nothing else does.
@@ -291,7 +296,8 @@ for the newborn those come from `compute_initial_conditions` at the configuratio
 below has zero width. **That is the same seam as the stale first-same-as-last `k1`**
 (`../build-plan.md` §2.8): one place, at the introduction, where three separate findings meet.
 
-So the rule is not a floor on `dh`, and §7's stencil carries it in one branch. The seam is shared:
+So the rule is not a floor on `dh`, and §7.2's stencil carries it in one branch, guarded on the
+divisor itself. The seam is shared:
 the same read is where `dydt_in` is stale, and `../tf24-correctness.md` P0.9 measures that — a rate
 wrong by more than its own magnitude at 51 of 141 introductions, and 0.2916% on offspring once
 fixed. **One line fixes it**, `compute_rates()` after `compute_environment(false)` in
@@ -305,36 +311,98 @@ the **boundary**, not at the smallest cohort — and the boundary node is always
 their domain of integration, `[height_0, H]` against `[h_smallest, H]`, and recruits between the two
 transpire without being billed.
 
-**`Species::compute_rates` becomes two passes.** Today `Node::compute_rates` computes the
-individual's rates and then, in the same call, `log_density_dt` (`node.h:132-140`). Cohort `j`
-cannot form `log_density_dt` until its neighbours' growth rates exist, so the loop splits: all
-individuals' rates first, then all transport rates. `Node::compute_rates` loses its line 138 and
-`Species` gains the stencil:
+### 7.2 `Species::compute_rates` becomes two passes
+
+Today `Node::compute_rates` computes the individual's rates and then, in the same call,
+`log_density_dt` (`node.h:132-140`). A cohort cannot form `log_density_dt` until its neighbour's
+growth rate exists, so the loop splits — and the boundary node has to be in the first pass, because
+the lowest cohort differences against it:
 
 ```cpp
-// -dg/dh differenced on the cohort grid: a cohort spans the interval down to its
-// lower neighbour, the lowest down to new_node.
 template <typename T, typename E>
-double Species<T,E>::growth_rate_gradient(size_t i, double time) const {
-  const bool lowest = i + 1 == size();
-  // Introduced at this instant, so still a copy of new_node: no interval yet.
-  if (lowest && util::identical(nodes[i].introduction_time(), time)) {
-    return i > 0 ? growth_rate_gradient(i - 1, time) : 0.0;
+void Species<T,E>::compute_rates(const E& environment, double pr_patch_survival,
+                                 double birth_rate) {
+  for (auto& c : nodes) {
+    c.compute_rates(environment, pr_patch_survival);
   }
-  const node_type& below = lowest ? new_node : nodes[i + 1];
-  return (nodes[i].growth_rate() - below.growth_rate()) /
-         (nodes[i].height() - below.height());
+  new_node.compute_initial_conditions(environment, pr_patch_survival, birth_rate);
+  // The transport term reads the neighbour below, so it needs every growth rate
+  // above -- including the boundary node's.
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    nodes[i].set_log_density_rate(-growth_rate_gradient(i) - nodes[i].mortality_rate());
+  }
+}
+
+// -dg/dh on the cohort grid: a cohort spans the interval down to its lower
+// neighbour, the lowest down to new_node. Where that interval has no width, the
+// cohort takes the compression of the one above.
+template <typename T, typename E>
+double Species<T,E>::growth_rate_gradient(size_t i) const {
+  const node_type& below = i + 1 < size() ? nodes[i + 1] : new_node;
+  const double dh = nodes[i].height() - below.height();
+  if (dh == 0.0) {
+    return i > 0 ? growth_rate_gradient(i - 1) : 0.0;
+  }
+  return (nodes[i].growth_rate() - below.growth_rate()) / dh;
 }
 ```
 
-There is no tolerance in it. `util::identical` on the introduction time asks whether this cohort
-was introduced at this instant, which is true or false rather than small or large, and a cohort
-introduced earlier has necessarily grown above `height_0` because `new_node`'s height never moves.
-A just-born cohort takes the compression of the cohort above because it has no interval of its own
-yet; the first cohort of a species has neither, and a single cohort is not yet a distribution to
-compress. `Node::growth_rate()` is one accessor, which odelia's AD branch already carries.
+**The guard is on the divisor, which is better than a guard on the cause.** `dh == 0.0` is exactly
+when the stencil is undefined, and it is reached three ways: a cohort introduced this instant is
+still a copy of `new_node`; a cohort whose growth has been gated to zero since birth has never left
+`height_0`; and two cohorts can coincide in height (report 06 §8 item 12). Testing the introduction
+time would catch only the first. Exact equality is right here because it is not a tolerance — the
+question is whether a division is valid, and the measured spacings are 8.2e-06 and up (§5), so
+nothing sits near zero without being at it.
 
-**The newborn acquires a neighbour it does not have today.**
+`Node` gains three accessors that odelia's AD branch already carries: `growth_rate()`,
+`mortality_rate()` and `set_log_density_rate()`. `Node::growth_rate_gradient` and
+`Individual::growth_rate_given_height` lose their last callers.
+
+### 7.3 The restructure is value-neutral, but only after P0.1
+
+Worth separating, because M4's measurement depends on it. The first pass is today's loop minus one
+line, so it is bit-identical **given the same `Leaf` state** — and today the loop interleaves the
+sub-grid probe's solves between the cohorts' own, so removing them changes what the shared `Leaf`
+holds when each cohort solves. After `../tf24-correctness.md` P0.1 the `Leaf` is order-independent
+and the equality holds. Before it, it does not. So P0.1 precedes this, and the whole of the forward
+movement is then attributable to the stencil rather than to the loop.
+
+That gives the task its order, with each step checkable before the next:
+
+1. Add `Species::growth_rate_gradient(i)` beside the existing `Node` one and log both on one
+   production run. No restructure yet; this is M4's value half.
+2. Split `compute_rates` into two passes, with pass two still calling `Node`'s sub-grid stencil.
+   **Bit-identical**, because pass two computes the same quantity from the same inputs. This
+   isolates "did I break the loop" from "did the value move".
+3. Switch pass two to the cohort-grid stencil. This is where the value moves, by M4's amount.
+4. Delete what is now unreachable, and land the interface change.
+
+### 7.4 It is an R-interface change, and two tests are pinned to the old stencil
+
+`Node::growth_rate_gradient` is exposed in `inst/RcppR6_classes.yml:556` for all four model pairs,
+so `plant/agents.md` §3.3 applies: a machine-actionable `NEWS.md` mapping, and a **loud** flag,
+because this is a case where the meaning changes rather than the name.
+
+| removed | replacement |
+|---|---|
+| `node$growth_rate_gradient(env)` | `species$growth_rate_gradient(i)` — moved to `Species`, no environment argument, **and a different discretisation** |
+| `Control$node_gradient_eps`, `node_gradient_direction`, `node_gradient_richardson`, `node_gradient_richardson_depth` | no equivalent |
+
+Two tests go with it. `test-node.R:21-68` builds an R-side `growth_rate_given_height` and asserts
+the node's value equals a backward difference at `node_gradient_eps` **exactly** — that test *is*
+the sub-grid stencil's definition, so under the cohort grid it has no subject. And
+`test-node.R:126` asserts the `ode_rates` composition through the same call.
+
+What replaces them tests the new stencil's own properties, and there are four worth having: the
+two-cohort case against a hand-computed difference quotient; the lowest cohort differencing against
+`new_node`; the three zero-width cases taking the value above; and the identity of §2.1, that
+`log_density_dt + mortality_rate` equals `-d(log dh)/dt`, checked by differencing `dh` over a short
+integration. The last is the one that would catch a staggering error, because it is the only one
+that reads the *dynamics* rather than the arithmetic.
+
+### 7.5 The newborn acquires a neighbour it does not have today
+
 `Node::compute_initial_conditions` computes the boundary node's rates in isolation and reads
 `individual.rate(HEIGHT_INDEX)` for `log_density` (`node.h:164-189`), before the species has
 recomputed anyone. The newborn is the shortest cohort, so it is the bottom boundary and one-sided

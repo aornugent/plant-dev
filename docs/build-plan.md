@@ -531,8 +531,18 @@ branch did.
 in either order.
 *Must not break* the odelia suite, and `ode_util.hpp` must still include no XAD.
 *Closes on* one test per name driven from a System rather than from an example; `step_adjoint`
-reproducing a finite difference of one step on the Lorenz System; and a negative test — a
-deliberately `double`-typed element rejected by `OdeElement` with the error at the helper.
+reproducing a finite difference of one step on the Lorenz System; a negative test — a deliberately
+`double`-typed element rejected by `OdeElement` with the error at the helper — and three on the
+vector-Jacobian product:
+
+| | test | what it catches |
+|---|---|---|
+| **T1** | the product against a central finite difference of the same block, on a System small enough to difference | the primitive itself |
+| **T2** | `last_recording_size()` invariant across two input counts an order apart, and across two output counts | a block whose recording grows with something it should not |
+| **T3** | calling it with a tape already active **stops** | a caller who wrapped the reverse pass in a tape, which would silently record the blocks onto it |
+
+T2 is report 01 §1's central claim reduced to an assertion, and T3 is the precondition that makes
+"the block's tape is the only one" checkable rather than assumed.
 
 ---
 
@@ -711,13 +721,42 @@ double Species<T,E>::growth_rate_gradient(std::size_t i) const;   // one-sided a
 `node_gradient_eps`, `node_gradient_direction` and `node_gradient_richardson` go from `Control`,
 and with them the coupling to `GSS_tol_abs` that nothing else records.
 
-*Order.* (1) Add the cohort-grid stencil beside the sub-grid probe and log both on one production
-run — that is M4's value half. (2) Switch `log_density_dt` to it. (3) Delete the probe and the
-three `Control` fields.
+*Order*, from report 04 §7.3, and step 2 is the one that makes M4 attributable.
+(1) Add `Species::growth_rate_gradient(i)` beside the existing `Node` one and log both on one
+production run — M4's value half, no restructure yet.
+(2) Split `Species::compute_rates` into two passes, with pass two still calling `Node`'s sub-grid
+stencil. **Bit-identical**, because pass two computes the same quantity from the same inputs — which
+isolates "did I break the loop" from "did the value move". The boundary node must be in pass one,
+because the lowest cohort differences against it.
+(3) Switch pass two to the cohort-grid stencil. This is where the value moves.
+(4) Delete `Node::growth_rate_gradient`, `r_growth_rate_gradient`, the `thread_local` scratch,
+`Individual::growth_rate_given_height` and the four `node_gradient_*` `Control` fields.
+
+*Requires P0.1 first.* The restructure is value-neutral only after it: pass one is today's loop minus
+one line, and today that loop interleaves the probe's leaf solves between the cohorts' own, so
+removing them changes what the shared `Leaf` holds unless it is order-independent (report 04 §7.3).
+
+*It is an R-interface change, so `plant/agents.md` §3.3 applies* — a machine-actionable `NEWS.md`
+mapping and a **loud** flag, because the meaning changes rather than the name.
+`Node::growth_rate_gradient` is in `RcppR6_classes.yml:556` for all four model pairs.
+`node$growth_rate_gradient(env)` becomes `species$growth_rate_gradient(i)`; the four
+`node_gradient_*` `Control` fields have no replacement.
+
+*Two tests are pinned to the old stencil and must be rewritten, not relaxed.* `test-node.R:21-68`
+asserts the node's value equals an R-side backward difference at `node_gradient_eps` **exactly** —
+that test *is* the sub-grid stencil's definition. `test-node.R:126` asserts the `ode_rates`
+composition through the same call. Report 04 §7.4 lists the four properties that replace them, of
+which the identity `log_density_dt + mortality_rate == -d(log dh)/dt` is the one that would catch a
+staggering error.
+
 *Closes on* `log_density_dt` matching M4's measured change, with offspring and the three census
-metrics re-blessed and the shift recorded.
-*The ends.* First and last cohort have one neighbour, so the stencil is one-sided there — the same
-one-sidedness the sub-grid probe had, on a grid that exists.
+metrics re-blessed at a pinned build, the shift recorded, and report 04 §2.2's conservation
+diagnostic presented alongside it — a sub-grid probe leaks individuals at `O(dh g'')` and the cohort
+grid does not, which is the forward-model argument for the change.
+*The ends.* Guarded on the divisor rather than on the cause: `dh == 0` is reached three ways — a
+cohort introduced this instant is still a copy of `new_node`, a cohort whose growth has been gated
+to zero has never left `height_0`, and two cohorts can coincide — and all three take the compression
+of the cohort above.
 
 ---
 
@@ -773,7 +812,18 @@ demographic chain alone. (2) The leaf boundary with the interior operating point
 bound-pinned case and the selector.
 *Closes on* **V1** complete, and **V2** at stage 0 for both operating-point cases — the pinned one
 needs `psi_soil ≥ 1.5 MPa` at `height ≥ 2 m` (§8). The selector's incidence goes in P0.5's
-inventory.
+inventory. Plus three tests of the block's boundary, which is where a silent wrong gradient would
+come from:
+
+| | test | what it catches |
+|---|---|---|
+| **T4** | `in.size() == state_size() + n_cohort_reads() + ad_parameters().size()`, and a pack/unpack round trip reproducing the states, the environment reads and the parameters bit-for-bit | the pack and the adjoint scatter drifting apart on an offset |
+| **T5** | **knot-adjoint accumulation.** One knot value read by `k` cohorts: `lambda_knot` must equal the sum of the `k` contributions, asserted as a value | the same silent failure as the trait case — a fixed fraction of the answer with the correct sign |
+| **T6** | trait-adjoint accumulation across cohorts, asserted as a value | measured signature **41–51%** of the truth, correct sign, nothing thrown (report 01 §6.2) |
+
+T5 has no measured signature yet, and T6 does. That asymmetry is the argument for writing T5 as a
+value assertion rather than a finiteness check: the failure it guards against is the one the corpus
+has already been bitten by once, in the channel next door.
 *Two things to decide here, not in P3.3.* `∂Π/∂p` is `dprofit_droot_collar_psi`, which already
 contains forward-mode AD and an implicit-function term, so its gradient is the mixed second partial
 `∂²Π/∂p∂φ`. A preaccumulated block carries exact first derivatives and no curvature, so the leaf
