@@ -273,22 +273,47 @@ equation, no boundary data for `lambda`. The design already has this shape for t
 one through the speed `g(x_b)`, the second reaching into the seedling's own physiology — wherever
 the field's quadrature reads the left endpoint.
 
-**Measured, so that the alternative is closed** (`../../scripts/boundary_node.R`, develop
-`141dc8df`, odelia `854a8e18`, 141 introduction steps over `[0, 105.32]`). The boundary term is
-exactly the last trapezium interval of `Species::compute_competition`, so its share of the
-field's optical depth is directly computable:
+**Measured** (`../../scripts/boundary_node.R`, develop `141dc8df`, odelia `854a8e18`, 141
+introduction steps over `[0, 105.32]`). The boundary term is exactly the last trapezium interval
+of `Species::compute_competition`, so its contribution is directly computable.
 
-| | |
-|---|---|
-| share at ground level, median | **1.454%** |
-| steps with share above 1% | **71 / 141** |
-| at the first step | **1.000** — the boundary node is the whole field |
-| through the first 0.5 yr | about 12% |
-| after t ~ 2 yr | 2e-4, falling to ~1e-6 |
+**Absolute, which is the measure that matters:**
 
-So **the boundary node cannot be dropped from the field.** While the stand is young every cohort
-sits near `height_0` and the boundary interval is most of the profile; it becomes negligible only
-once a canopy exists. The lag is to be designed, not deleted.
+| | median | max |
+|---|---|---|
+| boundary node's contribution to the optical depth `A` | 2.1e-06 | **1.346e-03** |
+| its effect on light at ground level | 7.8e-07 | **3.48e-04** |
+| steps where that exceeds 1e-3 in light | | **0 / 141** |
+
+So the boundary node never moves the light field by more than **3.5e-04**, which is at
+`ResourceSpline`'s own fitting tolerance of `1e-4`.
+
+**Its *share* of the field is not the measure**, and reading it as one is a trap worth recording.
+The share at ground level is 1.454% at the median, 12% through the first half-year, and 1.000 at
+the first step — but `A(0)` itself runs from 6.0e-10 at the first step to 3.4e-4 at half a year,
+against 1.797 at its maximum. Early on the boundary node is most of nothing. A ratio taken where
+both terms are near zero says nothing about the field.
+
+Two consequences.
+
+**The one-stage lag is numerically irrelevant.** If the whole term is bounded by 3.5e-04 in light,
+the difference between its lagged and its converged value is smaller again. So closing the fixed
+point buys no accuracy, and the lag is not a defect to fix.
+
+**Dropping the boundary node from the field is forward-safe, and it is not free.** The value change
+is at the fitting tolerance. What it deletes is the channel through which `birth_rate` and
+`pr_estab` reach the field at all, and that channel's *derivative* is unmeasured — a term small in
+value can carry a derivative that is not. So this is a decision with a stated trade-off, and the
+number that would settle it does not exist until the reverse pass does.
+
+**The circularity is real, and not severed by the clamp.** The relation is implicit because the
+boundary density needs `g(height_0)`, which needs the field over `[0, height_0]`. The
+`max(light, 1e-4)` clamp would sever that if it bound there, and it does not: over the seedling
+crown `L` runs **0.1657 to 1.0** across all 141 steps, four orders clear of the floor. Since
+`L = exp(-A)` and `A` is leaf area *above* `z`, `L` is minimised at the ground by construction, so
+that is the global minimum of the profile — the floor would need about five times this stand's
+optical depth. `../tf24-correctness.md` P0.5 carries what that means for the recorded light-floor
+census.
 
 **And the circularity is real.** The relation is implicit because the boundary density needs
 `g(height_0)`, which needs the field over `[0, height_0]`. The `max(light, 1e-4)` clamp would sever

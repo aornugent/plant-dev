@@ -557,12 +557,18 @@ is `canopy-shape-fused-q.patch`, and it is worth landing whether or not this pro
 is accepted: today nothing reads the field's slope, so the defect is latent, and the
 first consumer to want one would meet it.
 
-**C7. The `1e-4` light floor.** `compute_average_light_environment` clamps light to
-`max(get_environment_at_height(z), 0.0001)`, with a comment recording that the original
-rationale was never written down. That clamp is a derivative severance wherever it
-binds: on the clamped side `dL/dz` is zero. Its incidence should be counted, since a
-deeply shaded understorey is exactly where it would bind and exactly where a census
-metric has weight.
+**C7. The `1e-4` light floor does not bind, and this is now measured.** The clamp in
+`compute_average_light_environment` and `radiation_at` would sever `dL/dz` wherever it bound.
+Over 8 292 light knot values from a production run, **none is at or below `1e-4` and the minimum
+is 0.1657209** (`../../scripts/light_floor.R`, report 07 §1.8). It is structural rather than
+lucky: `L = exp(-A)` with `A` the leaf area *above* `z`, so `L` is minimised at the ground, and
+reaching `1e-4` needs about five times this stand's optical depth. The argument is about optical
+depth, so a denser canopy or a larger `k_I` would change it — the zero carries this driver.
+
+**And the `std::max(0.0, spline(height))` undershoot guard is not firing:** no knot value is
+negative. Section 2 documents the guard against a cubic undershooting between knots, notably K93
+at high `k_I`; on TF24 at these settings it has nothing to catch, which removes one of the two
+reasons section 5 gives for preferring a Hermite. The slope argument is untouched.
 
 ---
 

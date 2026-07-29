@@ -929,19 +929,26 @@ and only compiles because real translation units reach `species_base.h` first by
 Harmless today; it bites the first time a translation unit is added, which is what a gradient
 entry point is.
 
-**11.2 The boundary node.** Report 01 §3.1 now carries the mathematics, the standard reverse-mode
-treatment of a flux boundary condition, and two measurements that close the two cheap options.
-The boundary node **cannot** leave the field: its share of the field's optical depth is 1.454% at
-the median, above 1% on 71 of 141 steps, and 1.000 at the first step, where it *is* the field. And
-the circularity is **real**: the `max(light, 1e-4)` clamp would sever `pr_estab`'s dependence on
-the field if it bound over the seedling crown, and it does not — `L` runs 0.1657 to 1.0 there,
-four orders from the floor.
+**11.2 The boundary node.** Report 01 §3.1 carries the mathematics — it is a flux boundary
+condition, `g(x_b) n(x_b) = B(t)`, and the reverse-mode treatment of one is standard and costs a
+single term because the forward inflow boundary is the adjoint's outflow boundary. It also carries
+the measurements, and they settle the numerical half:
 
-**Open:** whether to model the one-stage lag, close the fixed point with `implicit_value`, or make
-the boundary density a state; the two-term boundary derivative (through the flux, and through the
-speed) wherever the field's quadrature reads its left endpoint; the unconditional Leibniz term at
-that endpoint; and how `lambda_k1` at an introduction is attributed (§2.8). The `g > 0 ? ... :
-log(0)` cliff is representational rather than ecological and belongs with P0.5.
+- **The one-stage lag is numerically irrelevant.** The boundary node's whole contribution to the
+  light field is bounded by **3.5e-04**, at `ResourceSpline`'s own `1e-4` fitting tolerance, so the
+  difference between its lagged and converged value is smaller again. Closing the fixed point buys
+  no accuracy.
+- **The circularity is real** — the `max(light, 1e-4)` clamp would sever `pr_estab`'s dependence on
+  the field if it bound over the seedling crown, and it does not: `L` runs 0.1657 to 1.0 there.
+
+**Open, and now purely structural:** whether the reverse pass wants the channel at all. Dropping the
+boundary node from the field is forward-safe at the fitting tolerance, but it deletes the only route
+by which `birth_rate` and `pr_estab` reach the field, and that channel's derivative is unmeasured —
+the number that would settle it does not exist until the reverse pass does. If the channel is kept
+it needs the two-term boundary derivative (through the flux, and through the speed). The Leibniz
+term at the reduction's lower limit is owed either way. Separately: how `lambda_k1` at an
+introduction is attributed (§2.8), and the `g > 0 ? ... : log(0)` cliff, which is representational
+rather than ecological and belongs with P0.5.
 
 **Also open, and found by the same probe:** report 07 §1.8's light-floor census disagrees with the
 profile by four orders of magnitude. `tf24-correctness.md` P0.5 carries it. Until it is settled,

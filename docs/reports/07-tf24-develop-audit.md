@@ -328,30 +328,40 @@ where a transpiring plant consumes nothing.
 Report 06 listed this as an uncounted switch (§10 item 3). It is now counted. The
 number is small enough that it is a correctness question, not a priority one.
 
-### 1.8 The `1e-4` light floor binds on 4.6% of the field
+### 1.8 The `1e-4` light floor never binds, and neither does the undershoot guard
 
 `compute_average_light_environment` and `radiation_at` both clamp with
-`std::max(light, 1e-4)`, with a comment recording that the original rationale was
-never written down. On the clamped side `d(light)/dz` is zero, so it is a
-derivative severance — report 03 C7 asks for its incidence.
+`std::max(light, 1e-4)` (`tf24_strategy.cpp:41, 449`), with a comment recording that
+the original rationale was never written down. On the clamped side `d(light)/dz` is
+zero, so it would be a derivative severance wherever it binds. Report 03 C7 asks for
+its incidence.
 
-**Measured** over 41 460 light-spline knot values from a production run:
+**Measured** (`scripts/light_floor.R`, 8 292 knot values over 142 output steps of a
+production run):
 
-| | share |
+| | |
 |---|---|
-| at or below `1e-4` (the floor binds) | **4.638%** |
-| at or below `1e-3` | 8.222% |
-| at or below `1e-2` | 12.617% |
-| minimum value | **exactly 0** |
+| light knot values at or below `1e-4` | **0 of 8 292** |
+| minimum light knot value | **0.1657209** |
+| negative knot values | **0** |
+| knots per step | 33 to 129, mean 58.4 |
 
-The minimum being exactly zero is the `std::max(0.0, spline(height))` undershoot
-guard in `resource_spline.h` firing — report 03 §2 documents that guard and §7
-rule 6 asks whether it is meant. It is: the cubic undershoots.
+**Zero incidence, and it is structural rather than lucky.** `L(z) = exp(-A(z))` with
+`A` the projected leaf area *above* `z`, so `L` is minimised at the ground by
+construction, and the ground value is 0.166. Reaching `1e-4` needs `A ~ 9.2`, about
+five times the optical depth this stand attains. Confirmed independently by evaluating
+`exp(-Patch::compute_competition(z))` directly over `[0, height_0]` at 141
+introduction steps (`scripts/boundary_node.R`): the same 0.1657.
 
-This is a knot-value census, not a query census — it bounds how much of the field
-sits under the floor, and the answer is "the deep understorey, where the youngest
-third of the cohorts live". That is enough to say the floor is on the production
-path rather than a guard against the impossible.
+**The `std::max(0.0, spline(height))` undershoot guard is not firing either.** No knot
+value is negative. `resource_spline.h` documents the guard against a cubic undershooting
+between knots, notably for K93 at high `k_I`; on TF24 at these settings it has nothing
+to catch.
+
+So neither construct is on TF24's production path, and neither needs a derivative
+treatment. Both belong in the switch inventory at zero, with the driver recorded — the
+argument above is about this stand's optical depth, so a denser canopy or a higher `k_I`
+would change it.
 
 ### 1.9 TF24f's single-plant R interface is silently wrong
 
