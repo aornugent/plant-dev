@@ -135,8 +135,17 @@ which is `x_k = u_k * height_max` for fixed fractions `u_k` inherited from the o
 `construct` at the start of the run.
 
 **So hold the interpolant on `u = z / height_max`, with the fractions fixed.** Bit-identical to
-what `rescale_spline` already produces, up to performing one division rather than an affine
-remap over the whole knot vector. Three things follow.
+what `rescale_spline` already produces *between introductions*, up to performing one division
+rather than an affine remap over the whole knot vector.
+
+**Across introductions it is a change, and the knot count is not 65.** `introduce_new_node` passes
+`rescale = false`, so `construct_spline` re-refines adaptively at each of the 141 introductions and
+chooses a fresh fraction set. Measured over 142 output steps: **33 to 129 knots, mean 58.4**
+(`../../scripts/light_floor.R`). So fixing the fractions once is a genuine reparameterisation, not a
+restatement — M3's gate has to expect bit-identity within an introduction interval and a recorded
+shift across one.
+
+Three things follow.
 
 **The knot positions become constant, so C1's dropped channel disappears.** C1 records that
 knot positions must be passive and that dropping `d(position)/d(trait)` costs 8.7e-04 on a

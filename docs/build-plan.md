@@ -189,11 +189,13 @@ disagreement attributable without it.
 **Resident, with invasion following from it** (§2.7 below is the only part with no report home).
 
 **The transport stencil differences across neighbouring cohorts**, not on a `1e-6` sub-grid.
-Report 04 §1b: any first difference of active derivatives divided by `eps` amplifies roundoff by
-`1/eps` regardless of smoothness; the minimum cohort spacing measured over a full run is 3.7e-02;
-the cohorts are the grid a method-of-characteristics scheme already has; it is free both
-directions; and it keeps the stencil out of a cohort block. Substituting the analytic `dg/dh`
-removes the upwinding and is not the alternative.
+Report 04 §2.1: the cohort-grid difference is not an approximation to `dg/dh` — it is exactly
+`d(log dh)/dt`, because the spacing between two characteristics has an exact rate. So it is the
+same discretisation as transporting counts, without changing the state or any consumer, and it
+makes the scheme conserve individuals up to mortality where a sub-grid probe leaks them at
+`O(dh g'')` (§2.2). It also removes about half of TF24's leaf solves (§3). A sub-grid difference
+divided by `eps` amplifies roundoff by `1/eps` regardless of smoothness, against a measured
+minimum spacing of 3.7e-02 (§5); substituting the analytic `dg/dh` removes the upwinding (§6).
 
 **The light interpolant is held on `u = z / height_max` with fixed fractions.** Report 03 §1b:
 `rescale_spline` is not cheaper than building adaptively, so it exists to keep the knot count
@@ -386,7 +388,7 @@ None on the critical path; each can kill or confirm one choice in §2.
 |---|---|---|---|
 | **M1** | **A block with a moving integration bound.** An interpolant integrated over `[0, h]` with `h` a declared input; check the height adjoint against a finite difference. This is the structure that fails if §2.4 is wrong | whether the block boundary closes, including the moving bound | odelia only |
 | **M2** | **`CanopyShape<S>` alone, ported to develop.** One file | §2.1's shape, bit-identity, and the forward benchmark, at the smallest possible cost | the AD branch already wrote it |
-| **M3** | **The normalised light coordinate.** Rebuild the field as `u = z/height_max` with fixed fractions and confirm it reproduces `rescale_spline` bit-for-bit; then Hermite convergence on that fraction set | §2.6. If it is not bit-identical, the reparameterisation is a model change and needs re-blessing | `double` only |
+| **M3** | **The normalised light coordinate.** Rebuild the field as `u = z/height_max` with fixed fractions. Bit-identity holds only **within an introduction interval**: `introduce_new_node` passes `rescale = false`, so develop re-refines adaptively at each of the 141 introductions and the knot count runs 33 to 129, mean 58.4 (report 03 §1b). So M3 measures two things — bit-identity between introductions, and the size of the shift across one | §2.6, and how much of it needs re-blessing | `double` only |
 | **M4** | **The transport stencil across neighbouring cohorts.** Value change against the sub-grid stencil on one production run; conditioning of both against a finite difference | §2.8, and the size of the forward-value change to re-bless | `double` for the value; M1 and M2 for the derivative |
 | **M5** | **The scratch.** Forward benchmark with `growth_rate_gradient`'s `thread_local` scratch, with a `Node` member, and with the block called twice | §2.4's last paragraph. The prior is that a member is no slower and possibly warmer | `double` only |
 
@@ -643,7 +645,7 @@ P2.2.
 
 ---
 
-**P2.4 — the transport stencil across cohorts.** Report 04 §1b.
+**P2.4 — the transport stencil across cohorts.** Report 04 §2 and §7.
 
 ```cpp
 // species.h -- g comes from the neighbours' already-computed rates
@@ -954,17 +956,16 @@ rather than ecological and belongs with P0.5.
 profile by four orders of magnitude. `tf24-correctness.md` P0.5 carries it. Until it is settled,
 neither the floor nor the undershoot guard has a usable incidence.
 
-**11.3 Density transport.** Report 04 §1c derives the identity that settles it: the cohort-grid
-stencil `(g_j - g_{j+1})/dh_j` **is** the exact `d(log dh)/dt`, so route B and route D are the
-same discretisation in different coordinates, and B leaves the state and every consumer alone. B
-also makes the scheme conserve individuals up to mortality, which develop's sub-grid probe does
-not — a forward-model argument, independent of gradients, and the one worth taking to the owner
-since P2.4 needs a re-blessing either way. And it removes **about half of every TF24 leaf solve in
-a production run**.
+**11.3 Density transport. Settled — report 04 now states it as the design.** The cohort-grid
+stencil is exactly `d(log dh)/dt`, so it is the same discretisation as transporting counts without
+changing the state or any consumer; it makes the scheme conserve individuals up to mortality; it is
+consistent with the flux boundary condition in the collapsing-interval limit; and it removes about
+half of TF24's leaf solves.
 
-**Open:** the staggering choice (`n` at nodes, `dh` on intervals), from which the first-, last- and
-one-cohort rules follow; the size of the forward-value change (M4); and the two-pass restructure of
-`Species::compute_rates` that report 04 §1b's last subsection sets out.
+**Open, and all of it is in report 04 §7 and §8:** the one staggering decision, from which the
+first-, last- and one-cohort rules follow; the size of the forward-value change (M4), to be
+presented with §2.2's conservation diagnostic; and the two-pass restructure of
+`Species::compute_rates`.
 
 **11.4 The block's VJP.** A thin wrapper over XAD's tape drivers, not a primitive with a
 theory. The design question is not the wrapper but the block's input and output layout, which
