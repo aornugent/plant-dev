@@ -359,7 +359,8 @@ bit-compatible with TF24 and is not trying to be.
 
 ```
 ──── once per RHS evaluation ────────────────────────────────────────────────
-build L(z) from  Σ_k n_k · comp(h_k)                       # one spline, ~65 knots
+build L(z) = exp(−Σ_k n_k · comp(h_k))                    # one spline, 33–129 knots;
+                                                           # the knots hold L, not the sum
 ψ_i ← retention(θ_i)                                       # 5 numbers, cached
 for each cohort k:                                         # independent given (L, ψ)
     x_k ← geometry(h_k), root distribution, κ, v
@@ -528,6 +529,7 @@ The deliverable. Read §8 before relying on it.
 | cohort ↔ soil | rank `ode_size()` = 9. The whole population talks to the soil through nine numbers. |
 | cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h:220-223`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed**: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). |
 | the trait channel | separable from the state channel, and both are pulled back by the *same* `μ_k`, so adding traits does not add solves. |
+| a trait read **twice**, once per cohort and once by the field | `k_I` is the absorption coefficient in `radiation = k_I · L · PPFD` and the extinction coefficient in `comp(z) = k_I · a · (1 − u^η)²`; `η` is the crown quadrature weight, `η_c`, *and* that same shading kernel. Both contributions are wanted and they arrive in different steps of the reverse pass, so the trait adjoint is a sum over steps as well as over cohorts. |
 
 ### Solved — an implicit relation, differentiated by its defining condition
 

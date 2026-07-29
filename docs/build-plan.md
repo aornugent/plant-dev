@@ -108,9 +108,15 @@ is closed form in a rate the block already emits.
 | declared inputs | | outputs | |
 |---|---|---|---|
 | own ODE state — the strategy's states only | 6 | strategy rates | 6 |
-| light interpolant knot **values** | 65 | per-layer uptake | 5 |
+| light interpolant knot **values**, which are `L = exp(-A)` | 65 | per-layer uptake | 5 |
 | soil water potential per layer | 5 | | |
 | seeded traits | up to 51 | | |
+
+**The knots hold `L`, not `A`.** `TF24_Environment::compute_environment` splines
+`exp(-f_compute_competition(height))` (`tf24_environment.h:469-479`), so Beer's law is applied at
+the field build and the block reads transmittance. Step (c) therefore chains `dL/dA = -L` before
+distributing to `(area_leaf, density, height)`. Distributing `lambda_knot` as though the knots held
+summed leaf area is a sign error times a factor of `L` — plausible-looking and silent.
 
 **76 + n in, 11 out.** Not on either side, and each was wrong in an earlier version of this table:
 `log_density` and `offspring` are not inputs, because `Individual::compute_rates` never reads them;
@@ -220,6 +226,19 @@ unconditional.
 
 These four letters are this plan's. Report 01 §1 splits the same work into five, its (e) being the
 assembly `lambda_y_j = direct + field`, which is folded into (c) and (d) here.
+
+**A trait read both inside a cohort and by the field reduction accumulates in two steps, and both
+must be added.** Two of TF24's do:
+
+| trait | inside the block, step (b) | in the field, step (c) |
+|---|---|---|
+| `k_I` | the absorption coefficient: `radiation = k_I · max(L, 1e-4) · PPFD` | the extinction coefficient: `comp(z) = k_I · area_leaf · (1 - u^eta)^2` |
+| `eta` | the crown quadrature weight `q(z, h)`, and `eta_c` in the conductance and the sapwood volume | the same `(1 - u^eta)^2` shading kernel |
+
+This is report 01 §6.2's accumulation failure — a fixed fraction of the truth with the correct sign
+and nothing thrown — in a second place: **across steps rather than across cohorts.** The
+cross-cohort case has a measured signature (41–51%); this one does not, and the two are independent,
+so a test for one does not cover the other.
 
 **The stencil is a seed, not a consumer, which is why it is in (a).** A block cannot be swept until
 every output adjoint exists, and under §2.6's cohort-grid stencil a cohort's `g` feeds its
@@ -408,8 +427,19 @@ Two odelia changes have no plant-visible name: `Step` gains `step_adjoint` and a
 its stage structure (§2.5), and the vector-Jacobian product reports its recording size so plant
 can assert the peak without touching `xad::Tape`.
 
-From plant `develop`: `Species::census<Psi>` and its self-shading integral, `Control()`'s
-defaults, `SCM::refine_schedule`, `r_ode_times()`.
+From plant `develop`: `Control()`'s defaults, `SCM::refine_schedule`, `r_ode_times()`.
+
+**`Species::census<Psi>` is not one of them — it does not exist on develop.** `grep -r census
+plant/inst/include/plant plant/R plant/inst/RcppR6_classes.yml` returns nothing at `141dc8df`.
+develop has the hand-rolled trapezium in `Species::compute_competition` (`species.h:196-227`) and
+nothing else that reduces over the size distribution with a supplied weight. The templated
+`census<Psi>` is on the AD branch, so it belongs in the second list below — and it arrives with a
+condition: its central expression is written on the **mass chart** (`get_log_mass()`,
+`odelia::cohort_spacing`, `on_mass_chart()`), which §7 rules out. What is liftable is its
+*off-chart* branch, which is the plain `density * psi` trapezium, plus the boundary logic it
+reproduces from develop — `size() == 1 || (!broke && f_last > 0)`, P0.5's row. So P3.6 writes the
+reduction against develop's boundary treatment, taking the AD branch's shape and not its state.
+This matters because `census<Psi>` is what seeds the whole reverse pass.
 
 **The mutant replay path is already dead on develop, and we leave it dead.**
 `Patch::cache_ode_step`, `cache_RK45_step` and `load_ode_step` (`patch.h:727-775`) carry
@@ -1053,6 +1083,7 @@ sub-grid difference carries.
 | the decomposition is wrong | V1 fails at one state, with nothing else in the way | P3.1 |
 | the stage recursion loses a term | V3 fails on one step; the reference failure is a 19% error with the correct sign and no message | P3.5 |
 | trait adjoints do not accumulate across cohorts | a fixed fraction of the finite difference with the correct sign, nothing thrown. Treating each cohort as a separate input gives 41–51% | P3.6 |
+| trait adjoints do not accumulate across *steps* | the same signature, unmeasured. `k_I` and `eta` are read both inside the block and by the field reduction (§2.4), so each needs a step (b) and a step (c) contribution | P3.6, and P3.1's V1 for the step (c) half alone |
 | the leaf's boundary is wider than §2.4 declares | P3.2 grows an output nobody declared | P3.2; P0.5's inventory should predict it |
 | the value-reproduction check is read as an acceptance test | a 0.2% difference in value has produced a sign-flipped gradient | every gate compares AD against a re-run finite difference |
 
