@@ -48,16 +48,16 @@ derivative of the scheme plant actually solves. Nothing about the trajectory cha
 
 | | route | value change | cost | differentiable |
 |---|---|---|---|---|
-| **A** | evaluate the existing stencil actively | none | one extra active rate evaluation per cohort per stage | yes |
-| **B** | difference across neighbouring cohorts instead of a sub-grid probe | yes, unquantified | **free** — the neighbours' rates are already computed | yes |
-| **C** | smooth the growth clamp, then use analytic `dg/dh` | yes, unquantified | cheapest per call | yes |
+| **A** | evaluate the existing stencil actively | none | already paid forward; one extra recording per cohort per stage | yes, amplifying roundoff by `1/eps` |
+| **B** | difference across neighbouring cohorts instead of a sub-grid probe — **chosen** | yes, unquantified | **free** both directions | yes, amplifying by `1/spacing` |
+| **C** | smooth the growth clamp, then use analytic `dg/dh` | yes, and it removes the upwinding | cheapest per call | yes, and unstable for that reason |
 
-**A is the conservative choice** and the one to build first, because it is the only one
-that leaves the forward model alone. **B is the interesting one**, because it is free and
-because differencing on the cohort grid is arguably the right discretisation for a
-method-of-characteristics scheme. **C is the one that addresses the actual cause**, if
-section 5's reading is right that the stencil exists to avoid a clamp corner rather than
-to provide grid-scale upwinding.
+**The decision is B**, and section 1b sets out why. In short: any first difference of active
+derivatives divided by `eps` amplifies roundoff by `1/eps` whether or not the differenced
+quantity is smooth, the cohort spacing is four to five orders larger than `1e-6`, differencing
+on the cohort grid is the discretisation a method-of-characteristics scheme already has, and it
+costs nothing in either direction. C is rejected on principle: substituting the analytic
+`dg/dh` removes the upwinding.
 
 **One hard dependency, and it is a measurement rather than a fix.** Route A divides a
 difference of two derivatives by `node_gradient_eps = 1e-6`, so it amplifies any error in
@@ -72,6 +72,63 @@ Route A's forward cost is already paid. `Node::compute_rates` calls `growth_rate
 after `individual.compute_rates`, and that evaluates `growth_rate_given_height` on a
 `thread_local` scratch — so the second rate evaluation, including TF24's leaf solve, is
 already in the measured 53 s. Route A costs recording it, not evaluating it.
+
+---
+
+## 1b. The decision: difference across cohorts
+
+Four reasons, in order of weight.
+
+**1. Conditioning, and it does not depend on smoothness.** Route A's derivative is a first
+difference of two parameter-derivatives divided by `node_gradient_eps = 1e-6`. Even with exact
+AD on both terms, two O(1) quantities carried to a relative accuracy of about 1e-16, differenced
+and divided by 1e-6, leave an absolute error of about 1e-10. Whether that matters is the ratio
+of that error to the second partial being estimated, and it is present before any staircase.
+Section 5's staircase is the extra, TF24-specific amount on top of it. Route B's divisor is the
+cohort spacing, whose minimum measured over a full coupled run is **3.7e-02** — four to five
+orders larger.
+
+**2. It is the discretisation the scheme already has.** In a method-of-characteristics scheme
+the cohorts *are* the grid. Differencing `g` between neighbouring cohorts is the natural upwind
+stencil on that grid; a `1e-6` probe discretises on a grid that does not exist, and then has to
+be told how far to probe.
+
+**3. It costs nothing either direction.** The neighbours' rates are already computed, so there
+is no extra evaluation forward and nothing extra to record in reverse. Route A's forward cost is
+also already paid — `Node::compute_rates` calls `growth_rate_gradient` after
+`individual.compute_rates`, so the second rate evaluation including TF24's leaf solve is in the
+measured 53 s — but route A still has to *record* it, and route B does not.
+
+**4. It keeps the reverse pass's cohort unit intact.** Under the cohort-block decomposition each
+block emits its own `g`. Route B's stencil is then a closed-form combination of three
+neighbouring blocks' outputs, so it belongs with the soil and allometry adjoints as a
+closed-form step rather than inside a block. Route A's stencil is intra-cohort, so it forces the
+block to cross the leaf's boundary twice — once at `h`, once at `h - eps` — with two sets of
+injected partials, and the first set has to be read before the second overwrites the leaf's
+outputs.
+
+### Why route C is wrong rather than merely unstable
+
+The AD branch found that substituting the analytic `dg/dh` needs the growth clamp smoothed to
+`eps ~ 5e-2` to stay bounded, a roughly 6% change to K93's demography, and section 6 asks
+whether that means the stencil is load-bearing for stability. It does, and for a reason that is
+not about clamps: **the one-sided difference is an upwind discretisation of a hyperbolic
+advection term, so it carries numerical diffusion, and the analytic derivative does not.**
+Replacing it removes the stabilisation. That is expected behaviour for the substitution, not a
+defect to smooth around, and it means the choice is *which grid to difference on*, not whether
+to difference.
+
+Section 6's open question therefore resolves without the measurement it asks for: the
+stabilisation claim is true, and it does not favour A over B, because both difference.
+
+### What it costs
+
+A change to the forward value, unquantified. `log_density_dt` changes, so offspring and every
+census metric move. That needs measuring before it lands, and baselines re-blessing after —
+less of an obstacle than it was, since the shared-leaf fix re-blesses TF24's baselines anyway.
+
+Two constructs go away with it: the sub-grid probe, and `node_gradient_eps` together with the
+coupling to `GSS_tol_abs` that section 5 records and nothing else does.
 
 ---
 

@@ -114,6 +114,85 @@ that delivers something on its own without the other two.
 
 ---
 
+## 1b. The decision: hold the interpolant on a normalised coordinate
+
+This is what the proposal above becomes once the workflow is settled, and it changes where
+`height_max` enters.
+
+**Why `rescale_spline` exists.** It is not cheaper than building adaptively — 193.2 us per
+call against `construct_spline`'s 143.0 (section 5.5). Its purpose is to keep the **knot count
+fixed across stages**. An adaptive refiner re-run every stage would return a different number
+of knots at different positions, so the field's discretisation would jitter between stages and
+the ODE step controller would see error that is not in the solution. That is also exactly what
+a gradient needs: a knot *count* that depends on an active value makes the recorded computation
+depend on the state.
+
+**What it actually computes.** With `spline.min() = 0`, its affine remap is
+
+    x_new = x_old * height_max / height_max_old
+
+which is `x_k = u_k * height_max` for fixed fractions `u_k` inherited from the one adaptive
+`construct` at the start of the run.
+
+**So hold the interpolant on `u = z / height_max`, with the fractions fixed.** Bit-identical to
+what `rescale_spline` already produces, up to performing one division rather than an affine
+remap over the whole knot vector. Three things follow.
+
+**The knot positions become constant, so C1's dropped channel disappears.** C1 records that
+knot positions must be passive and that dropping `d(position)/d(trait)` costs 8.7e-04 on a
+coarse 20-knot coupled run. On develop that channel is worse than C1 makes it look, because
+`rescale` is not a one-off adaptive placement: the positions are an affine function of
+`height_max` recomputed **every stage**, and `height_max` is `max` over active cohort heights
+(`patch.h:424`). So the chain
+
+    tallest cohort's height -> height_max -> all 65 knot positions -> every crown integral
+
+is re-formed per stage and `to_passive` drops all of it. On the normalised coordinate the same
+sensitivity arrives as ordinary chain-rule terms in the *query* instead:
+
+    d/d(z)          ->  1 / height_max
+    d/d(height_max) ->  -z / height_max^2
+
+Recorded arithmetic, not a structural approximation.
+
+**`height_max`'s selector remains, and moves somewhere the tape can handle it.** It is a `max`
+over active heights, so its derivative is 1 for the tallest cohort and 0 for the rest, with a
+tie when two cohorts are equal-height. On the normalised coordinate that selector sits in the
+arithmetic rather than in the knot placement. It is a discrete branch on the gradient path and
+belongs in the switch inventory with its incidence, which is currently uncounted.
+
+**A fixed absolute grid is the wrong alternative.** It would also make positions constant, and
+`height_max` runs from 0.34 m at the first cohort to 17.94 m at production, so most of 65 knots
+would sit above the canopy for the first decades of every run.
+
+### Two interpolants, two jobs
+
+| | type | job |
+|---|---|---|
+| knot fractions | the value-fitted cubic and its adaptive refiner | chooses the fractions once, at the start of the run. Positions only |
+| evaluation | `hermite_interpolator<S>` | value and slope at those fractions, carrying the working scalar |
+
+The Hermite has no refiner, so it cannot replace the fitted cubic; it is an addition with one
+consumer. It is also not a candidate for the leaf's four vulnerability and transpiration curves
+or for the extrinsic drivers: those call `set_extrapolate(false)` and rely on it, while a
+Hermite extends linearly by construction (section 5).
+
+### The slope reduction must merge in the same order as the value reduction
+
+`hermite_interpolator::init` takes `dydx`, and section 4 supplies it as a second reduction over
+cohorts. `Patch::compute_competition` merges sources in descending height with ties broken on
+the flat concatenated index, so the value sum adds the same terms in the same order on every
+rebuild (C6.6). **The slope reduction has to use that same order**, or the value and the slope
+come from sums that differ in their last bits — which is the detached-derivative pattern this
+report exists to remove, reintroduced at the level of floating-point association rather than of
+construct.
+
+Fusing the two sweeps is what section 5.5 measures at 1.5-1.9x against 2.1-2.8x for two
+separate sweeps, so one pass returning a pair is both cheaper and the only form in which the
+order is guaranteed identical.
+
+---
+
 ## 2. State at develop
 
 `TF24_Environment::compute_environment` fits the interpolant to light availability:

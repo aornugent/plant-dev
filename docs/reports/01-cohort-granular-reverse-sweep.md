@@ -325,6 +325,26 @@ This is the whole additional memory the proposal requires.
 
 ### 6.2 Backward
 
+> **Three things about step (b) that this section's pseudocode leaves implicit.**
+>
+> **It is a vector-Jacobian product, not a Jacobian.** The block has 14 outputs for TF24 (8
+> rates, 5 per-layer uptake, and its own height growth rate `g`) against up to 57 inputs, and the
+> matrix is never formed. Seed all 14 output adjoints and sweep once: cost is one sweep per
+> cohort per stage regardless of how many traits are seeded, which is the property section 4.2
+> claims.
+>
+> **The seeding order is forced.** Every output adjoint must exist before any block is swept, so
+> `lambda_uptake` comes from step (a), `lambda_rates` from the stage recursion, and `lambda_g`
+> from `lambda_log_density_dt`. There is no circularity and no freedom.
+>
+> **The stage recursion is not plant's.** The Cash-Karp tableau and stage states are
+> `private static const` on `odelia::ode::Step`, so a reverse traversal cannot be written in
+> plant. It belongs in odelia, reached through one new System requirement mirroring one that
+> already exists: `ode_rates_adjoint(lambda_dydt) -> lambda_y` beside `ode_rates(y) -> dydt`.
+> plant then implements `Patch::ode_rates_adjoint` — steps (a) to (e) — and keeps the
+> between-step structure, because an introduction's adjoint contributes only parameter terms
+> through `log(birth_rate * pr_estab / g)`. `SCM` does not have to impersonate a `Solver`.
+
 Section 1's steps (a) to (e), per step, walking the trajectory backwards. Step (b) in
 detail:
 
@@ -649,41 +669,29 @@ from convention into compile-time or assertion-time facts.
 
 ## 11. Implementation order
 
-Each step is independently checkable, and the sequence is chosen so a failure is
-attributable.
+The ordered work list is `../build-plan.md`. It differs from an earlier draft of this section in
+two ways worth stating here, because both change what this design has to prove.
 
-1. **Extend `photo_temp_cached_`'s key** to include `vcmax_25` and `jmax_25`, and give
-   `psi_soil_cache_` the `if constexpr` treatment the AD branch already applies
-   elsewhere. Small, and prerequisites.
-2. **Check `pow(0, eta)`** on plant's active path (section 7.4).
-3. **K93 first.** No leaf, no soil, closed-form rates. Exercises the decomposition, the
-   RK stage traversal (C2), trait accumulation (C4) and the birth stamp (C6) with
-   nothing else in the way. Its gradient is already FD-verified through
-   `scm_gradient.h`, so there is a reference.
-4. **Consider restructuring TF24's shared mutable state**, conditional on measured
-   forward performance and on the result being clearer than what it replaces. Three
-   candidates, in increasing order of ambition:
-   - move `mass_root_prop_` to a stack-local buffer or an `Internals` slot, removing a
-     shared member whose safety currently depends on an `.assign` at the top of one
-     function;
-   - give the `Leaf`'s per-solve fields an explicit boundary from its parameters, so
-     "what `set_physiology` must re-seat" is a structural fact rather than a list
-     someone maintains — this also directly addresses report 2's C5;
-   - key or drop the two caches per section 10 rule 3.
-   None of this is required for the design to work. All of it converts section 10's
-   rules 1 to 3 from convention into structure, and the second would have prevented
-   the `set_shutdown_state` defect report 2 records. `mass_root_prop_` and the
-   `thread_local` scratch in `Node::growth_rate_gradient` were both introduced as
-   measured optimisations, so any change here needs the `profile-plant` workflow and a
-   same-session A/B, not an argument.
-5. **Adjoint the allometry and the light reduction by hand** rather than recording them,
-   removing the residual stand-size
-   term in the peak (section 7.2).
-6. **FF16.** Adds the crown integral and the light field's self-shading feedback. Its
-   coupled gradient is already exact to the finite-difference noise floor (lma
-   2.64e-06, a_l1 6.06e-06, k_l 1.31e-08), so a regression is visible.
-7. **TF24 at `max_patch_lifetime = 105.32`.** The deliverable. Requires report 2's leaf
-   node and report 3's interpolant.
+**TF24 first, not K93.** K93 was the natural first witness — no leaf, no soil, closed-form
+rates, so a failure belongs to the engine and nowhere else. Going straight at TF24 gives that
+up, so attributability has to come from the verification design instead: one whole-`Patch`
+recording at one state against the sum of per-cohort blocks at the same state tests the
+decomposition; one block at stage 0 against a finite difference of that block tests one block;
+one step's `lambda_y` against a finite difference of one step tests the stage recursion. Those
+are built before the production gradient, not after it.
+
+**No whole-run recording, at any lifetime.** Section 7's evidence came from comparing the
+cohort-granular sweep against a whole-run tape, and that comparison is worth having — but
+supporting it in plant is what made the SCM grow a Solver's members on the AD branch. The same
+evidence about the decomposition is available from one state at the `Patch` level, where the
+System already exists, so the whole-run comparison stays in the toy and does not enter plant.
+
+**Two prerequisites survive from this report's original list**, both now in
+`../tf24-correctness.md`: the shared-leaf carry-over (section 5, and P0.1), and
+`photo_temp_cached_`'s key omitting `vcmax_25` and `jmax_25` (section 9, C1). The
+`psi_soil_cache_` hazard in the same constraint needs re-reading against the resident path,
+where the soil state is active every stage.
+
 
 ---
 
