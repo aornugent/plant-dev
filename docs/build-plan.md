@@ -101,16 +101,61 @@ The recorded unit is one cohort's rate chain at one Runge-Kutta stage. Report 01
 give the unit, the declared inputs, why the light enters as knot values, why step (b) is a
 vector-Jacobian product, and why the seeding order is forced. For TF24 concretely:
 
+**The block is `Individual::compute_rates`.** `Node`'s two demographic equations are outside it:
+`log_density_dt` needs a *neighbour's* growth rate under the cohort-grid stencil, and `offspring_dt`
+is closed form in a rate the block already emits.
+
 | declared inputs | | outputs | |
 |---|---|---|---|
-| own ODE state | 6 + log-density + offspring | rates | 8 |
+| own ODE state — the strategy's states only | 6 | strategy rates | 6 |
 | light interpolant knot **values** | 65 | per-layer uptake | 5 |
-| soil water potential per layer | 5 | height growth rate `g` | 1 |
+| soil water potential per layer | 5 | | |
 | seeded traits | up to 51 | | |
+
+**76 + n in, 11 out.** Not on either side, and each was wrong in an earlier version of this table:
+`log_density` and `offspring` are not inputs, because `Individual::compute_rates` never reads them;
+`log_density_dt` and `offspring_dt` are not outputs; and `g` is `rates[HEIGHT_INDEX]` rather than a
+twelfth output.
 
 `Leaf` stays `double` inside the block behind a declared boundary — in (soil water potential per
 layer, radiation, traits), out (profit, per-layer uptake) — with its derivatives arriving as
 injected partials.
+
+**Where it lives: on `Individual`, with each container packing its own segment.** The block *is*
+`Individual::compute_rates` with its inputs declared, so it is that function with a boundary rather
+than a new one — which matters because §2.1 rules out the per-model free function. Each of the four
+segments is owned by the class that knows its size: states by `Individual` (`state_size()`), the
+knot values and resource state by `Environment`, the parameters by the Strategy
+(`ad_parameters()`, ordered by the yml). So the input vector is four existing contiguous runs
+concatenated, the layout *is* those four sizes, and the pack and the adjoint scatter read them from
+the same accessors. One assertion closes it.
+
+**`prepare_strategy()` must not run inside the block** — it builds the `Leaf`'s four 100-knot
+interpolators and runs `height_seed()`'s root-find, about 4 million times each. It need not: the
+`Leaf`, quadrature rule and shading model are passive, `eta_c` is one closed-form line in
+`pars.eta`, and `height_0`/`area_leaf_0` are on the birth path rather than the rate path.
+
+**One thing to state rather than leave to habit.** `compute_rates` reaches parameters through
+`strategy->pars`, so the active parameter values live on a shared strategy, re-seeded from the input
+vector at the top of every block. That is write-before-read with identical values within a stage —
+report 01 §10 rule 2's sanctioned pattern — but on the reverse pass, and it is a requirement. The
+defence against a *missing* parameter is `ad_parameters()` coming from the yml (P1.3).
+
+**It generalises, given one declaration.** The four segments are model-independent in shape, and
+K93 (3 states, light only), FF16 (5 states) and TF24f (7 states) fit unchanged. The gap is the
+middle one: nothing in `Environment` declares **what a cohort may read from it** — 65 knot values
+plus 5 potentials for TF24, knot values only for FF16, a layer count for a stepped-light model. So
+`Environment` gains that as the same triple as its state, which thread 1 has just made
+iterator-generic:
+
+```cpp
+std::size_t n_cohort_reads() const;
+template <typename It> It cohort_reads(It it) const;
+template <typename It> It set_cohort_reads(It it);
+```
+
+Not speculative — something has to pack TF24's 65 + 5 regardless. Naming it as that triple means
+the next model implements a pattern it has already seen.
 
 **The block removes `growth_rate_gradient`'s scratch, and this has no report home.** Today
 `Node::growth_rate_gradient` holds `thread_local std::optional<individual_type> scratch` so it
@@ -142,12 +187,19 @@ void Patch<T,E>::ode_rates_adjoint(ItIn lambda_dydt, ItOut lambda_y);
 `Patch::ode_rates_adjoint`, given the adjoint of `dydt`:
 
 ```
-a  soil adjoint            closed form: the drainage cascade is bidiagonal, no solve
-b  per cohort: record the block, seed its output adjoints, sweep, read input adjoints
-c  transport stencil       closed form over neighbouring cohorts' g outputs (§2.6)
-d  light knot adjoints -> (area_leaf, density, height)   the summed reduction, closed form
-e  allometry adjoint       closed form
+a  the closed-form seeds -- everything a block needs before it can be swept:
+     soil adjoint         lambda_uptake per cohort; the drainage cascade is bidiagonal
+     transport stencil    lambda_g per cohort, plus a direct lambda_h (§2.6)
+b  per cohort: record the block, seed its 11 output adjoints, sweep, read input adjoints
+c  light knot adjoints -> (area_leaf, density, height)   the summed reduction, closed form
+d  allometry adjoint       closed form
 ```
+
+**The stencil is a seed, not a consumer, which is why it is in (a).** A block cannot be swept until
+every output adjoint exists, and under §2.6's cohort-grid stencil a cohort's `g` feeds its
+neighbours' `log_density_dt` as well as its own — so `lambda_g` is closed form in the stage
+recursion's `lambda_log_density_dt` and must be formed first. An earlier version of this list had
+the stencil after the blocks, which would seed them with a `lambda_g` that does not yet exist.
 
 `SCM` keeps the between-step structure and does **not** grow a `Solver`'s members: an
 introduction's adjoint contributes only parameter terms, through

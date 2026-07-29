@@ -49,10 +49,13 @@ on a cohort's tape:
 ```
 given lambda (the adjoint of y at the end of this step)
 
-  a   SOIL adjoint        -> lambda_soil, lambda_depletion     small, closed form
-  b   for each cohort j:  fresh tape; record ONLY cohort j's rates; sweep once;
-                          read off lambda_y_j (direct), lambda_light_j,
-                          lambda_psi, lambda_traits; RELEASE the tape
+  a   the closed-form seeds -- everything a block's outputs need before it can be swept:
+        SOIL adjoint      -> lambda_soil, and lambda_uptake for every cohort
+        TRANSPORT stencil -> lambda_g for every cohort, and a direct lambda_h
+  b   for each cohort j:  fresh tape; record ONLY cohort j's rates; seed its 11 output
+                          adjoints from (a) and from the stage recursion; sweep once;
+                          read off lambda_states, lambda_knots, lambda_psi,
+                          lambda_traits; RELEASE the tape
                                                      <-- PEAK IS ONE COHORT
   c   LGT adjoint         -> lambda at the field's knots -> lambda_(area_leaf, density, H)
   d   ALL adjoint         -> lambda_y_j (field contribution)   closed form
@@ -62,6 +65,15 @@ given lambda (the adjoint of y at the end of this step)
 Step (b) holds all the expensive arithmetic and its tape is released before the next
 cohort's is created. Steps (a), (c), (d) are linear or closed-form maps whose
 adjoints cost what their forward evaluation costs.
+
+**Both parts of (a) are seeds, which is why they are one step.** A block cannot be swept
+until every one of its output adjoints exists, and two of the three sources are closed
+form: the soil adjoint supplies `lambda_uptake`, and the transport stencil supplies
+`lambda_g` — because under report 04 §2's cohort-grid stencil a cohort's `g` feeds the
+`log_density_dt` of its neighbours as well as its own. Only `lambda_rates` for the
+remaining states comes straight from the stage recursion. Grouping the stencil with the
+soil rather than after the blocks is not a preference; putting it after would seed the
+blocks with a `lambda_g` that does not yet exist.
 
 **Three properties make this worth doing:**
 
@@ -353,20 +365,50 @@ internal computation.
 
 ### 4.1 The cohort's boundary
 
-> The light enters as the interpolant's knot **values**, not as light sampled at the crown
-> abscissae. The abscissae sit at `z = u_k * height`, so their positions depend on the
-> cohort's own height and sampled light is an intermediate. Recording the interpolation and
-> the quadrature inside the cohort's own block puts the moving-bound term and `q(z, height)`
-> on that block's tape, so step (c) above reduces to the adjoint of the cohort sum alone.
+**The block is `Individual::compute_rates`, and that is narrower than the demographic
+equations.** `Node::compute_rates` adds two more — `log_density_dt` and
+`offspring_produced_survival_weighted_dt` — and neither can be inside the block: the first
+needs a *neighbour's* growth rate under the cohort-grid stencil (report 04 §2), and the second
+is closed form in a rate the block already emits. So the block stops where
+`Individual::compute_rates` stops, which is also where §1 says the recording goes.
+
+**The light enters as the interpolant's knot values**, not as light sampled at the crown
+abscissae. The abscissae sit at `z = u_k * height`, so their positions depend on the cohort's own
+height and sampled light is an intermediate. Recording the interpolation and the quadrature
+inside the block puts the moving-bound term and `q(z, height)` on that block's tape.
+
+For TF24 on develop, where `state_size()` is 6:
 
 | direction | quantity | count |
 |---|---|---|
-| in | own ODE state (`state_size()` 5, plus log_density and offspring) | 7 |
+| in | own ODE state — the strategy's states only | 6 |
 | in | the light interpolant's knot **values** | 65 |
 | in | soil water potential, one per layer | 5 |
 | in | seeded differentiation targets | n |
-| out | rates | 7 |
-| out | consumption rates, sized to the environment's ODE width (9), of which TF24 writes the five soil layers | 5 of 9 |
+| out | strategy rates | 6 |
+| out | per-layer uptake | 5 |
+
+**76 + n in, 11 out** — 127 in at n = 51. Three things that are *not* on either side, and each
+was wrong in an earlier version of this table. `log_density` and `offspring` are not inputs,
+because `Individual::compute_rates` never reads them; density reaches the world one level up,
+through `Node::consumption_rate` and `Node::compute_competition`. `log_density_dt` and
+`offspring_dt` are not outputs, per the paragraph above. And the height growth rate `g` is not a
+twelfth output — it is `rates[HEIGHT_INDEX]`, and counting it separately double-counts it.
+
+**The layout needs no table, because every segment is already contiguous.** The states are
+`Internals::states`, the knot values are the interpolant's own `y` vector, the resource state is
+the environment's state, and the parameters are `ad_parameters()` in the order the RcppR6 yml
+declares. So the input vector is four existing runs concatenated, the layout *is* those four
+sizes, and the forward pack and the adjoint scatter read them from the same accessors — which is
+the only way they cannot drift apart. One assertion closes it:
+`in.size() == state_size() + knots().size() + n_resources() + ad_parameters().size()`.
+
+**`prepare_strategy()` must not run inside the block.** It builds the `Leaf`'s four 100-knot
+interpolators and runs `height_seed()`'s root-find, and doing that per cohort per stage is about
+4 million of each. It does not need to: the `Leaf`, the quadrature rule and the shading model are
+passive; `eta_c` is one closed-form line in `pars.eta`; and `height_0` and `area_leaf_0` are read
+by the birth path, not by the rate path, so `implicit_value`'s root-find is resolved once per
+gradient evaluation rather than per block.
 
 ### 4.2 On the number of differentiation targets
 
@@ -497,11 +539,18 @@ This is the whole additional memory the proposal requires.
 
 > **Three things about step (b) that this section's pseudocode leaves implicit.**
 >
-> **It is a vector-Jacobian product, not a Jacobian.** The block has 14 outputs for TF24 (8
-> rates, 5 per-layer uptake, and its own height growth rate `g`) against up to 57 inputs, and the
-> matrix is never formed. Seed all 14 output adjoints and sweep once: cost is one sweep per
-> cohort per stage regardless of how many traits are seeded, which is the property section 4.2
-> claims.
+> **It is a vector-Jacobian product, not a Jacobian.** The block has **11** outputs for TF24 —
+> 6 strategy rates and 5 per-layer uptake, per §4.1 — against **76 + n** inputs, and the matrix is
+> never formed. Seed all 11 output adjoints and sweep once: cost is one sweep per cohort per stage
+> regardless of how many traits are seeded, which is the property section 4.2 claims.
+>
+> **The primitive is a vector-Jacobian product and nothing more.** Doubles in, doubles out; the
+> callable is generic and is instantiated at the active scalar inside, so plant never spells
+> `xad::`. It requires no tape to be active on entry — the replay is pure `double` and the block's
+> tape must be the only one — and it reports its recording size so the peak can be asserted
+> without touching `xad::Tape`. The test on that size is the one that catches a block which has
+> accidentally captured something active: peak bounded by one block, invariant in cohort count and
+> in seeded-trait count.
 >
 > **The seeding order is forced.** Every output adjoint must exist before any block is swept, so
 > `lambda_uptake` comes from step (a), `lambda_rates` from the stage recursion, and `lambda_g`
@@ -521,15 +570,22 @@ detail:
 ```
 for each cohort j:
     fresh tape
-    register:  own state (7), light (21), light gradient (21),
-               soil potential (5), seeded targets (n)
+    register:  own states (6), knot values (65), soil potential (5), targets (n)
     record:    Individual::compute_rates for this cohort only
-    seed:      lambda_rates_j, lambda_depletion
+    seed:      lambda_rates (6) from the stage recursion, lambda_g from step (a)'s
+               stencil, lambda_uptake (5) from step (a)'s soil adjoint
     sweep once
-    read off:  lambda_y_j (direct), lambda_light_j, lambda_gradient_j,
-               lambda_psi, lambda_traits (accumulate)
+    read off:  lambda_states -> this cohort's lambda_y slots
+               lambda_knots  -> the patch-level knot accumulator, for step (c)
+               lambda_psi    -> lambda_y's soil slots, through dpsi/dtheta
+               lambda_traits -> the run-level accumulator
     release
 ```
+
+**Two of the four destinations accumulate across cohorts**, and both are load-bearing for the
+same reason: one trait is one input read by every cohort, and one knot value is one input read by
+every cohort whose crown spans it. The trait case is measured below; the knot case has the same
+shape and the same silent failure mode.
 
 **Trait adjoints accumulate over (b) across all cohorts and all steps**, and this is
 load-bearing rather than incidental. Because the strategy is shared through a
