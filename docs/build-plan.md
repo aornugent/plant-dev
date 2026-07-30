@@ -353,8 +353,8 @@ No report owns this, and it is what pays for going at TF24 first.
 | | check | what it tests | what it needs |
 |---|---|---|---|
 | **V1** | one whole-`Patch` recording at one state, against the sum of steps (a)–(d) at the same state | the decomposition | one state. No schedule, no trajectory, no `SCM` surface |
-| **V2** | `block_adjoints(scm, step, cohort, output_seed)` against a finite difference of the same block, **with the leaf held constant** | one block's adjoint over the allometry, storage and demographic chain, attributably | the trajectory store |
-| **V2L** | the leaf's rows against report 02 §6.9's three identities — stationarity, soil-side against stem-side flux, and the waist residual | the leaf's boundary, where a finite difference is the worse reference | one solved operating point |
+| **V2** | one cohort's block at one stored step, seeded on one output, against a finite difference of the same block, **with the leaf held constant** | one block's adjoint over the allometry, storage and demographic chain, attributably | the trajectory store |
+| **V2L** | the leaf's partial derivatives against report 02 §6.9's three identities — stationarity, soil-side against stem-side flux, and the waist residual | the leaf's boundary, where a finite difference is the worse reference | one solved operating point |
 | **V3** | one step's `lambda_y` against a finite difference of one step | the stage recursion | one step |
 | **V4** | whole-run gradient against a re-run finite difference at production lifetime | the deliverable | everything |
 
@@ -364,12 +364,12 @@ anything. At stage 0 the state *is* the stored trajectory state, exactly. V3 cov
 and the tableau separately.
 
 **Why the leaf gets its own check.** A re-run finite difference resolves the collar's response to
-about four digits, and the residue the water rows turn on is four to nine percent of that response,
+about four digits, and the residue the uptake partials turn on is four to nine percent of that response,
 so a finite difference of the leaf solve cannot measure the quantity it would be checking — a
 disagreement reports the reference rather than the scheme. V2 therefore holds the leaf constant,
-which is exactly the split P3.2's step order already uses, and V2L takes the leaf's rows against
+which is exactly the split P3.2's step order already uses, and V2L takes the leaf's partials against
 identities that hold by construction. V4 keeps its re-run finite difference: at the whole-run level
-the leaf's rows are one contribution among many and the reference is no longer the limit.
+the leaf's partials are one contribution among many and the reference is no longer the limit.
 
 **There is deliberately no whole-run recording.** Supporting one is exactly what made `SCM` grow
 a `Solver`'s members on the AD branch, and V1 gets the same evidence about the decomposition from
@@ -1399,19 +1399,23 @@ before any block is swept, because a block cannot be swept until every output ad
 contributions per cohort, not the three a centred difference would give. Then `Step::step_adjoint`
 drives `Patch::ode_rates_adjoint`.
 
-**`Patch::ode_rates` computes nothing.** The whole right-hand side is
-`Patch::set_ode_state(it, time)` — it sets states, rebuilds the field, then calls `compute_rates`
-(`patch.h:680-702`) — and `ode_rates` only reads the stored rates out (`patch.h:802-804`). So
-`ode_rates_adjoint` mirrors `ode_rates`' *signature*, not its work. Its precondition is the state and
-the field at the stage being differentiated, which is `set_ode_state`'s first four lines, plus that
-stage's aux — not a rate evaluation, which the recordings do.
+**`Patch::set_ode_state` needs its first four lines callable on their own, and this task exposes
+them.** It is `{ load states; set time; check finite; compute_environment; compute_rates }` in that
+order (`patch.h:680-702`), and `ode_rates` only reads the stored rates out (`patch.h:802-804`). So
+`ode_rates_adjoint` mirrors `ode_rates`' *signature*, not its work, and its precondition is the state
+and the field at the stage being differentiated, plus that stage's aux — not a rate evaluation, which
+the recordings are. Exposing the first four changes no forward behaviour; the forward path calls the
+same lines in the same order. A separate, larger option is to move the rate computation into
+`ode_rates` so plant matches every other System, which needs two odelia signatures to take the System
+by mutable reference first (`aornugent/plant#65`) — and would make P0.9 unreachable rather than
+fixed.
 
 **The rebuild keeps each stage's aux** — six vectors held by `Step` beside `k1`–`k6`, about 10 kB —
 and the sweep hands it back with `set_ode_aux` so the leaf reads its operating point and the soil its
 per-layer uptake instead of recomputing either (§2.8). `Step` already owns `k1`–`k6` and `ytmp`, and
 first-same-as-last means `k1` is the previous step's `dydt_out`, so the rebuild allocates nothing and
-evaluates five stages rather than six — except at an introduction, where P0.9's fix makes the seeded `k1` the rate
-of the state it belongs to.
+evaluates five stages rather than six — except at an introduction, where P0.9's fix makes the seeded
+`k1` the rate of the state it belongs to.
 
 *Closes on* **V3** — one step's `lambda_y` against a finite difference of one step. A lost tableau
 term is silent and has no measured signature (report 01 §12), which is the argument for checking
