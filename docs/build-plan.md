@@ -490,6 +490,12 @@ So the environment publishes its per-layer uptake to aux and the guard is recomp
 from the stage's state and its aux. That is the second reason the environment needs aux (P1.1), and it
 is a diagnostic worth having forward.
 
+*The order within a stage.* The aux is restored once, before any block is recorded; each block then
+re-derives its own `competition_effect` and `height_inverse` from its unpacked state (§2.3), which
+overwrites the restored pair with the same values at the active scalar. Restoring after a block would
+replace an active value with a passive one and sever every trait that reaches the rates through leaf
+area.
+
 *The leaf.* Its operating point comes back with the aux, and `evaluate_root_collar_psi` refreshes
 `psi_soil_inverted_` and the soil-side vulnerability integrals through `prepare_collar_solve` before
 the partials read them — which is P0.1's second half, and the reason the 1 µs figure in §8b includes
@@ -755,8 +761,13 @@ None on the critical path; each can kill or confirm one choice in §2.
 
 | **M6** | **The leaf's boundary — run.** `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`, `leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`, `leaf_recover_a.R`, against develop at 5 and 20 layers and two species | report 02 §6, and it confirmed it: the envelope row exact for a leaf trait, the waist's joint residual 2.6e-04 to 9.2e-04 over 41 directions, `waist_b` against its closed form to 0.16–1.04%, `waist_a` recovered to 1e-05, both translation defects exact, and the stationarity gap that makes P2.6 a prerequisite | done |
 
+| **M7** | **The aux round trip.** Solve a leaf at a production state, keep the aux, solve something else, restore the aux and evaluate at the stored operating point: every leaf output bit-identical to the first solve. Then the same for the soil — recompute the positivity guard's fired set from a stage's state and restored uptake, against the set the forward pass used | §2.8's carry, and whether `set_ode_aux` is sufficient or something else must be published | `double` only, and it runs on develop |
+| **M8** | **The descending-height invariant.** Scan a production run for a non-descending neighbouring pair. `Species::height_max()` is `nodes.front().height()`, the transport stencil differences against the neighbour below, and P2.1 routes every light query through `height_max` — three consumers, one unenforced invariant, and the storage gate gives a taller cohort with drawn-down reserves a growth rate a shorter one can exceed | whether `height_max`'s adjoint and the stencil's sign need a guard | `double` only |
+
 M1, M2, M3 and M5 are independent. M4's value half is independent; its derivative half needs
-M1 and M2. M6 is complete, and P3.2 and P3.3 are written against it.
+M1 and M2. M6 is complete, and P3.2 and P3.3 are written against it. M7 and M8 need no AD and run on develop
+today; both were added because the reverse pass acquired a dependency the forward model has never been
+asked about — M7 for the aux carry, M8 for an invariant three consumers now share.
 
 ---
 

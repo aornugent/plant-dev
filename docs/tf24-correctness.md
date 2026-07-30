@@ -149,6 +149,12 @@ sized by the environment's **ODE width** when what it means is the environment's
 explicit `n_resources()` over shrinking the vector by hand — the count should have one
 source of truth.
 
+**The same vector is what the reverse pass needs published.** `Patch::resource_depletion` is a member
+rebuilt per `compute_rates` and overwritten by the next stage, and the soil's positivity guard is
+closed form in the soil state and that vector — so the sweep cannot recover which rows fired unless the
+environment carries its per-layer uptake in aux (`build-plan.md` §2.8). Sizing it by resource count and
+publishing it are the same edit at the same site.
+
 ---
 
 ## P0.5 — the switch inventory
@@ -200,7 +206,10 @@ none is counted.
 | `size() > 0 & !is_mutant_run` | `patch.h:568` | whether the field is rebuilt at all. Also a bitwise `&` on two bools, which is a wart rather than a hazard |
 | `consumption_rates` sized `NA_REAL` to ODE width | P0.4 | four NaNs per cohort per stage reach `resource_depletion`. Under a reverse sweep `NaN * 0` is `NaN`, so this poisons the adjoint rather than staying latent. **Promote P0.4 to the same tier as P0.1** |
 
-**Still to count**: the root vulnerability curve's domain edge (beyond its fitted
+**Still to count**: the soil positivity guard's own incidence — `theta_i <= theta_r && !(rate_i > 0)`
+is argued unreachable from `K ∝ θ^16.14` and never counted, and the reverse pass has to zero the
+transposed row wherever it fired, so a zero here would make that channel insurance rather than
+machinery; the root vulnerability curve's domain edge (beyond its fitted
 domain `root_vuln_from_psi` extrapolates **negative** → negative conductivity →
 negative-but-finite `r_R` → wrong-sign `E_i` that the `isfinite(E_up_)` net cannot
 catch; guarded in one of three branches); the `prev_q == 0` exact-double break in the
