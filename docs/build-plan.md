@@ -124,6 +124,7 @@ is closed form in a rate the block already emits.
 |---|---|---|---|
 | own ODE state — the strategy's states only | 6 | strategy rates | 6 |
 | light interpolant knot **values**, which are `L = exp(-A)` | 65 | per-layer uptake, declared width | 5 |
+| knot **slopes**, `dL/dz` — the interpolant's second data vector | 65 | | |
 | soil water potential per layer | 5 | | |
 | seeded traits | up to 51 | | |
 
@@ -133,7 +134,18 @@ the field build and the block reads transmittance. Step (c) therefore chains `dL
 distributing to `(area_leaf, density, height)`. Distributing `lambda_knot` as though the knots held
 summed leaf area is a sign error times a factor of `L` — plausible-looking and silent.
 
-**76 + n in, 11 out.** The uptake vector's *declared width* is the layer count; the entries
+**The Hermite carries slopes, and they are inputs too.** A cubic Hermite span is determined by the
+value *and* the slope at each of its two ends, so a query reads four data numbers and the field is two
+vectors of 65, not one. The slopes come from their own reduction over cohorts (report 03 §4), so they
+are not derivable inside a block. Declaring only the values would leave the light channel a fixed
+fraction of itself, with the correct sign and nothing thrown.
+
+The two are not independent, and step (c) owns the link: the field stores `L = exp(-A)`, so
+`dL/dz = -L · dA/dz`, and with `s_k` the summed slope kernel at knot `k` the data is `m_k = -y_k s_k`.
+So `lambda_m` reaches both — `lambda_y += lambda_m · (-s_k)` and `lambda_s += lambda_m · (-y_k)` —
+before either is distributed to the cohorts.
+
+**141 + n in, 11 out.** The uptake vector's *declared width* is the layer count; the entries
 actually written are the layers with root mass, which `max_soil_layer` gives and which follows the
 rooting depth (report 02 §6.8). An unwritten entry is zero after P0.1, so its output adjoint is
 zero and the count above is the right one to declare, seed and assert against. Four things sit on
@@ -150,7 +162,7 @@ the unpacked inputs straight into `vars.states[]` therefore leaves `area_leaf` a
 forward call left there, which severs `height -> area_leaf` and with it every trait reaching the
 rates through leaf area. Unpacking through `set_state` re-derives both on the block's own tape, so
 they are inlined functions of `height` (report 00 §1) rather than inputs, and the input count stays
-76 + n. `update_dependent_aux` keys on the state index, so per-index recomputation is sufficient.
+141 + n. `update_dependent_aux` keys on the state index, so per-index recomputation is sufficient.
 
 **The input count is only fixed once P2.1 lands.** 65 is the knot count under §2.6's fixed
 fractions; on develop the refiner re-chooses at each introduction and the count runs 33 to 129
@@ -188,8 +200,8 @@ defence against a *missing* parameter is `ad_parameters()` coming from the yml (
 
 **It generalises, given one declaration.** The four segments are model-independent in shape, and
 K93 (3 states, light only), FF16 (5 states) and TF24f (7 states) fit unchanged. The gap is the
-middle one: nothing in `Environment` declares **what a cohort may read from it** — 65 knot values
-plus 5 potentials for TF24, knot values only for FF16, a layer count for a stepped-light model. So
+middle one: nothing in `Environment` declares **what a cohort may read from it** — 65 knot values, 65 knot
+slopes and 5 potentials for TF24, knot values only for FF16, a layer count for a stepped-light model. So
 `Environment` gains that as the same triple as its state, which thread 1 has just made
 iterator-generic:
 
@@ -243,8 +255,9 @@ a  the closed-form seeds -- everything a block needs before it can be swept:
      offspring            lambda_fecundity_rate, and a direct lambda_mortality through
                           exp(-M) (`node.h:152-154`) -- a state, not only a rate
 b  per cohort: record the block, seed its 11 output adjoints, sweep, read input adjoints
-c  light knot adjoints -> (area_leaf, density, height)   the summed reduction, closed form
-     lower limit          the reduction closes on the boundary node, so
+c  light knot adjoints -> (area_leaf, density, height)   two summed reductions, closed form
+     slope to value       `m_k = -y_k s_k`, so lambda_m reaches lambda_y and lambda_s (§2.3)
+     lower limit          the reductions close on the boundary node, so
                           `d(height_0)/d(trait)` through `height_seed` (P3.1)
      height_max           the knot fractions are held on `u = z / height_max`, so every
                           query carries `1/height_max` and `-z/height_max^2` (P2.1, P3.1)
@@ -446,12 +459,35 @@ so evaluating rates again in `double` first would compute everything twice. Henc
 `system.set_ode_state` on the sweep must establish the state and the field and stop there —
 `Patch::set_ode_state` today is `{ load states; set time; check finite; compute_environment;
 compute_rates }` in that order (`patch.h:680-702`), so this is exposing its first four lines, not
-changing them (P3.5). The field rebuild it keeps is 193 µs against the 2.9 ms a full evaluation
-costs.
+changing them (P3.5). What it keeps is the field refresh: two reductions filling 130 numbers, whose
+kernel sweep report 03 §5.5 measures at 15 µs, against the 2.9 ms a full rate evaluation costs.
 
-**What plant adds to be differentiable, in total.** `Patch::ode_rates_adjoint`, `set_ode_aux`, and
-the split above. `Leaf::input_adjoints` is the model's own mathematics rather than machinery. Nothing
-else on the science path acquires a reverse-mode name, and no Strategy author sees one.
+**Where each of the three couplings meets the rebuild.**
+
+*The light field.* Its span coefficients are affine in the four data numbers a span touches, so a
+query is linear in the knot data and there is no linearisation point to get wrong. The block declares
+the 130 data numbers as inputs and builds `hermite_interpolator<S>` from them, so the crown integral's
+moving upper bound, `q(z, h)` and the interpolation all land on the block's own tape (§2.3). The
+positions are `double` and run-constant (P2.1), so nothing structural is recorded and the same span
+index serves the forward pass and every block.
+
+*The soil.* The sweep needs to know which of the positivity guard's rows fired — `theta_i <= theta_r
+&& !(rate_i > 0)` zeroes a row forward, so the transposed row must be zero too (§2.4). The condition
+is closed form in `theta` and the per-layer uptake, and `theta` is in the stage state, but the uptake
+is summed over every cohort by `Patch::compute_rates` into a member and overwritten by the next stage.
+So the environment publishes its per-layer uptake to aux and the guard is recomputable on the sweep
+from the stage's state and its aux. That is the second reason the environment needs aux (P1.1), and it
+is a diagnostic worth having forward.
+
+*The leaf.* Its operating point comes back with the aux, and `evaluate_root_collar_psi` refreshes
+`psi_soil_inverted_` and the soil-side vulnerability integrals through `prepare_collar_solve` before
+the partials read them — which is P0.1's second half, and the reason the 1 µs figure in §8b includes
+a prepare.
+
+**What plant adds to be differentiable, in total.** `Patch::ode_rates_adjoint`, `set_ode_aux` on the
+containers and the environment, and the split above. `Leaf::input_adjoints` is the model's own
+mathematics rather than machinery. Nothing else on the science path acquires a reverse-mode name, and
+no Strategy author sees one.
 
 ### 2.9 What is stored, what is recomputed, and the XAD boundary
 
@@ -468,7 +504,7 @@ across the rebuild.** §2.8 is the walk. What each candidate for storing costs, 
 |---|---|---|---|
 | ODE state per accepted step | **46.0 MB** | the only way back into a step | **stored** |
 | stage states, or the six stage rates | 276 MB | the rebuild, about 16 s | recomputed: the rebuild is arithmetic on rates the stages need anyway |
-| the light field's knot values per stage | 37 MB | nothing — the rebuild evaluates the field on its way to the rates | recomputed |
+| the light field's knot data per stage | 37 MB | nothing — the rebuild fills it on its way to the rates, and the refresh is two reductions (P2.1) | recomputed |
 | soil water potentials per stage | 1.2 MB | one closed-form curve per layer | recomputed from the soil state |
 | each cohort's collar operating point | 31 MB if kept for the run | about **36 s**, and it pins the linearisation point to the forward one | **carried in aux**, six stages of it, live for one step (§2.8) |
 
@@ -766,9 +802,19 @@ void Step<System>::step_adjoint(System&, double time, double step_size,
 
 The concept constrains the iterator type and nothing else. `ode_size()` and `aux_size()` are the
 other two helpers' whole requirement, and a missing member already reports itself; a wrong iterator
-type is what produces a page of template errors, so that is what the concept is for. The elements are
-`Species`, `Node` and `Individual`. `Environment` is not one — it has no aux, and `Patch::ode_aux`
-runs over the species range only (`patch.h:808-812`).
+type is what produces a page of template errors, so that is what the concept is for.
+
+`set_ode_aux` is an ordinary member, not an opt-in behind a concept. It is the mirror of `ode_aux`, so
+the family is five and the solver can assert what it asserts of the other four: the iterator advanced
+by `aux_size()`. A hook the System answers by index gives the solver nothing to check, which
+disqualifies it here — this machinery exists to stop a silently wrong gradient. odelia's own Systems
+have no aux and return the iterator unchanged; `Patch`'s is the one implementation that does work, and
+it is written once for all four model pairs.
+
+**`Environment` becomes one of the elements.** `Patch::ode_aux` runs over the species range only
+(`patch.h:808-812`), where `ode_state` and `ode_rates` both continue into the environment. That
+asymmetry is what leaves the soil's positivity guard unrecoverable on the sweep (§2.9), so the
+environment gains `aux_size`, `ode_aux` and `set_ode_aux`, and publishes its per-layer uptake.
 
 The product writes into a buffer the caller owns and returns the recording size. The buffer is
 reused across 3.9 M calls; a returned vector would allocate on each, and a `last_recording_size()`
@@ -923,8 +969,8 @@ in step.
 at each one it sets the patch to that step's state, evaluates the right-hand side there — that is
 `ode_rates_adjoint`'s precondition (P3.5) — and rebuilds the step's six stage states by re-running
 the step in `double`. So it needs the ODE state vector at every accepted step, and nothing on
-develop keeps one. §2.8 is how they are used and §2.9 what else was considered storing. The solver holds only the current state; `SCM` keeps the schedule, which is
-times; and `run_scm(collect = TRUE)` collects R lists of the patch at the **142 output times**, not
+develop keeps one. §2.8 is how they are used and §2.9 what else was considered storing. The solver
+holds only the current state; `SCM` keeps the schedule, which is times; and `run_scm(collect = TRUE)` collects R lists of the patch at the **142 output times**, not
 the 5 055 accepted steps. Storing 5 055 double state vectors, 46.0 MB, is what makes the reverse
 pass possible without a tape of the whole run, which is 490 GB (report 01 §2).
 
@@ -980,6 +1026,23 @@ class ResourceSpline {
   void get_value_and_slope_at_height(double z, S& v, S& dvdz) const;
 };
 ```
+
+**Fixed fractions make the knot positions run-constant, and that is what the interpolant should be
+built around.** `hermite_interpolator::init` takes positions, values and slopes together and then
+`rebuild()`s everything: it validates that the positions ascend, scans them for uniformity, and fills
+65 spans of coefficients. Called once per stage — 36 000 times a run — it re-derives structure that
+cannot change after P2.1. So the type splits along the line report 03 §7 rule 5 already draws:
+
+```cpp
+void set_nodes(const std::vector<double>& x);              // once per run: validate, scan, index
+void set_data(const std::vector<S>& y, const std::vector<S>& dydx);   // per stage: 65 spans
+```
+
+Positions are structure and are `double` by type; values and slopes are data and carry `S`. A plant
+System then holds one interpolant for the whole run and refreshes two vectors per stage, which is
+also why P2.3 has no build cost to trade against: the per-stage work is the two reductions that fill
+those vectors, and report 03 §5.5's unattributed 175 µs belongs to `rescale_spline`'s adaptive
+machinery and band solve, both of which are gone.
 
 *Order.* (1) Add `knot_fractions_` and rebuild through it, keeping the fitted cubic as the
 evaluator — this alone should be bit-identical to `rescale_spline`, which is M3. (2) Delete
@@ -1321,14 +1384,15 @@ drives `Patch::ode_rates_adjoint`.
 **`Patch::ode_rates` computes nothing.** The whole right-hand side is
 `Patch::set_ode_state(it, time)` — it sets states, rebuilds the field, then calls `compute_rates`
 (`patch.h:680-702`) — and `ode_rates` only reads the stored rates out (`patch.h:802-804`). So
-`ode_rates_adjoint` mirrors `ode_rates`' *signature*, not its work, and its precondition is that
-the forward pass has already been run at the state being differentiated. That is what makes each
-reverse stage cost a forward RHS before any recording begins.
+`ode_rates_adjoint` mirrors `ode_rates`' *signature*, not its work. Its precondition is the state and
+the field at the stage being differentiated, which is `set_ode_state`'s first four lines, plus that
+stage's aux — not a rate evaluation, which the recordings do.
 
-**The rebuild keeps each cohort's operating point** for the six stages it is rebuilding, about 7 kB,
-and the recordings read it (§2.8). `Step` already owns `k1`–`k6` and `ytmp`, and first-same-as-last
-means `k1` is the previous step's `dydt_out`, so the rebuild allocates nothing and evaluates five
-stages rather than six — except at an introduction, where P0.9's fix makes the seeded `k1` the rate
+**The rebuild keeps each stage's aux** — six vectors held by `Step` beside `k1`–`k6`, about 10 kB —
+and the sweep hands it back with `set_ode_aux` so the leaf reads its operating point and the soil its
+per-layer uptake instead of recomputing either (§2.8). `Step` already owns `k1`–`k6` and `ytmp`, and
+first-same-as-last means `k1` is the previous step's `dydt_out`, so the rebuild allocates nothing and
+evaluates five stages rather than six — except at an introduction, where P0.9's fix makes the seeded `k1` the rate
 of the state it belongs to.
 
 *Closes on* **V3** — one step's `lambda_y` against a finite difference of one step. A lost tableau
@@ -1703,7 +1767,7 @@ lagged.
 **11.4 The block's VJP. Settled — §2.3 and §2.4 carry it, report 01 §4.1 and §6.2 the derivation.**
 The primitive is a thin wrapper over XAD's tape drivers and nothing more. What needed deciding was
 the block's boundary, its layout, and where the code goes, and all three are now stated: the block
-is `Individual::compute_rates` (11 out, 76 + n in); the layout is four segments that are already
+is `Individual::compute_rates` (11 out, 141 + n in); the layout is four segments that are already
 contiguous, so it is four sizes rather than a table; and the code goes on `Individual` with each
 container packing its own segment, which keeps §2.1's rule against a per-model free function.
 
