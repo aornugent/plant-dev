@@ -226,9 +226,10 @@ has a mutable `Individual` to perturb height on. Under §2.1 that is a `thread_l
 active values across block tape lifetimes, which is the class of fault that segfaults far from
 its cause. It is not needed: the block *is* the rate chain as a function of height, so evaluating
 it at two heights is two calls with different arguments and nothing to perturb. The scratch
-survives only on the pure-double path, and M5 measures whether it is still worth having there. If
-one is needed, a `Node` member beats `thread_local` — 141 scratches at about 36 kB total, the same
-copy-assignment storage reuse, per Node rather than per thread, and warmer in cache.
+survives only on the pure-double path, and **M5 measured that it is not worth having there either**:
+a fresh copy per call costs at most 1.5% of the forward run, against a 1.9% spread between two runs
+of the same arm, and reproduces offspring bit-for-bit. So the `thread_local` goes and nothing
+replaces it — no member, no scratch, no third arrangement to explain.
 
 ### 2.4 Where each part of the reverse pass lives
 
@@ -417,16 +418,34 @@ is bit-identical, the knot positions become constant, and `height_max`'s sensiti
 chain-rule terms in the query rather than a structural approximation. The fitted cubic keeps its
 refiner and supplies the fractions; a `hermite_interpolator<S>` evaluates value and slope at them.
 
-**Open: which state's refinement supplies the fractions.** Fixing them removes the carried state, and
-it makes the choice load-bearing in a way develop's per-introduction refinement hides. develop
-re-refines 141 times and lands on 33 to 129 knots, mean 58.4 (report 03 §1b), so the sets it uses
-early and late in a run are not the same set — a stand of one 0.34 m seedling and a 17.9 m canopy want
-their knots in different places. Refining at the first state would concentrate them near the ground for
-the whole run. Three candidates, and this needs deciding before P2.1 lands rather than during it:
-refine once at a representative mature state; refine on a pilot run and keep the union; or take a
-fixed non-uniform set and justify it against the profile. **M3 is where a bad choice shows up** — as a
-shift that does not shrink with knot count — so M3 should be run against more than one candidate set
-rather than against one.
+**The fractions are uniform, and the open question was a count rather than a state.** M3 asked which
+state's refinement should supply them, over four candidate sets and a uniform refinement sweep. What
+it found:
+
+| candidate | knots | worst crown-mean shift |
+|---|---|---|
+| develop's first-step set | 33 | 8.4e-03 |
+| develop's mid-run set | 115 | 3.3e-03 |
+| uniform | 58 | 2.1e-03 |
+| uniform | 65 | 1.7e-03 |
+| uniform | 129 | 2.5e-04 |
+| every step's set pooled | 279 | 8.0e-07, and circular |
+
+**The error is resolution, not placement.** Doubling the uniform count divides the worst shift by 5.0,
+6.7 and 5.6 — about `h^2.5`, which is the right rate for this field rather than a cubic's `h^4`,
+because `L = exp(-A)` and `A` breaks in derivative at every cohort height where `Q(z/h)` kinks. So the
+failure signature a bad set would show — a shift that does not shrink with knot count — does not
+appear, and adaptive refinement could not improve the rate either, since those kinks move with the
+state. A refinement-derived set is no better than uniform at equal count and worse at higher count:
+uniform at 58 beats the mid-run set at 115 on every statistic, and the first-step set reproduces
+uniform-33 to every digit, because at that state the field is flat and the refiner returns an equally
+spaced set. The pooled set's exactness is an artefact of its being a superset; what it prices honestly
+is 558 data numbers per stage against 130.
+
+So: **uniform fractions, count chosen from the re-blessing tolerance.** 65 gives a worst-case
+crown-mean shift of 1.7e-03 and a median of 1.6e-06, and keeps §2.3's input count at 141 + n; 129
+buys 2.5e-04 for twice the data and takes it to 269 + n. The reference is develop itself, so these are
+the shifts to re-bless against, not accuracy against the true field.
 
 ### 2.7 Resident, and how invasion follows
 
@@ -785,17 +804,17 @@ None on the critical path; each can kill or confirm one choice in §2.
 |---|---|---|---|
 | **M1** | **A block with a moving integration bound — run.** `scripts/m1_moving_bound.cpp` | whether the block boundary closes, including the moving bound, and **it does**: the height adjoint matches a central difference to 1.2e-11 … 7.4e-10 at heights 0.3442, 2, 8 and 17.9429, and the knot-value channel to 8 digits. It also found the one thing that has to be added — `hermite_interpolator::eval` takes `double`, and with the query frozen `d(I)/d(height)` is **exactly zero at 4 of 4**, because after `z = h·ξ` the Yokozawa weight carries no height and the query position is height's only route in. The fix is the `value + slope·(u − value_of_u)` graft odelia's older `Interpolator` already owns as `eval_with_query_derivative`, one line over hermite's `value_and_slope`; measured identical to re-evaluating the span polynomial actively | done |
 | **M2** | **`CanopyShape<S>` against develop's — run.** `scripts/m2_canopy_shape.cpp` and its `.sh`, which holds both versions in one translation unit rather than porting one | §2.1's shape, and it confirms it. **Bit-identical**: 0 differences over 2 048 (height, position) pairs for each of `q`, `Q`, `leaf_area_above` and `Qp` at eight etas, so the switch on a stored kind costs no digits against the function-pointer dispatch. **The eta channel is live**: `d(Q)/d(eta)` matches a central difference to 7–9 digits at 6 of 8 states, the other two at the reference's floor. **No forward cost**: 59.8 ms against develop's 88.3 ms for 12.8 M `q+Q` at eta 12 — read as an upper bound on the risk, not as the model's number, since P1.2's whole-run benchmark is the gate. And it found that a **`double` position with an active eta does not compile** (XAD's `pow` expression will not convert), so the severance cannot be silent — but every gradient-path caller must reach the profile with an S-valued position, the field build's run-constant knot positions included. Same conclusion as M1 from the other side | done |
-| **M3** | **The normalised light coordinate**, and which state's refinement chooses the fractions (§2.6). Rebuild the field as `u = z/height_max` with fixed fractions, for at least two candidate sets — one refined early, one at a mature state. Bit-identity holds only **within an introduction interval**: `introduce_new_node` passes `rescale = false`, so develop re-refines adaptively at each of the 141 introductions and the knot count runs 33 to 129, mean 58.4 (report 03 §1b). So M3 measures two things — bit-identity between introductions, and the size of the shift across one | §2.6, and how much of it needs re-blessing | `double` only |
+| **M3** | **The normalised light coordinate, accuracy half — run.** `scripts/m3_fixed_fractions.R`, four candidate fraction sets plus a uniform refinement sweep | §2.6, and it **closes the open choice**: the shift is resolution rather than placement (about `h^2.5`, since `A` breaks in derivative at every cohort height), so uniform fractions at 65 knots give a worst-case crown-mean light shift of 1.7e-03 and a median of 1.6e-06, beating both refinement-derived sets — one of which, at 115 knots, is worse than uniform at 58. What remains is the **bit-identity half**: `x_k = u_k · height_max` is exact arithmetic within an introduction interval, and that is a statement to check against the built interpolant rather than against develop's recorded knots | accuracy half done |
 | **M4** | **The transport stencil across neighbouring cohorts.** Value change against the sub-grid stencil on one production run; conditioning of both against a finite difference | §2.6, and the size of the forward-value change to re-bless | `double` for the value; M1 and M2 for the derivative |
-| **M5** | **The scratch.** Forward benchmark with `growth_rate_gradient`'s `thread_local` scratch, with a `Node` member, and with the block called twice | §2.3's last paragraph. The prior is that a member is no slower and possibly warmer | `double` only |
+| **M5** | **The scratch — run.** `scripts/m5_scratch.R` with `docs/reports/m5-scratch-arms.patch`: `thread_local`, a `Node` member, and a fresh copy per call, selected at runtime so one build serves all three | §2.3's last paragraph, and it settles it more simply than the prior did. Min-of-three: 86.1–86.8 s for the `thread_local`, 87.6 s for both others — **at most ~1.5%**, against a 1.9% spread between two runs of the same arm, and all three reproduce offspring `42.140173575095666` exactly. So no arm is worth choosing on speed, *including the one with no scratch at all*: the `thread_local` can go and nothing has to replace it. The prior — a member is no slower and possibly warmer — is wrong in its second half and irrelevant in its first | done |
 
 | **M6** | **The leaf's boundary — run.** `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`, `leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`, `leaf_recover_a.R`, against develop at 5 and 20 layers and two species | report 02 §6, and it confirmed it: the envelope row exact for a leaf trait, the waist's joint residual 2.6e-04 to 9.2e-04 over 41 directions, `waist_b` against its closed form to 0.16–1.04%, `waist_a` recovered to 1e-05, both translation defects exact, and the stationarity gap that makes P2.6 a prerequisite | done |
 
 | **M7** | **The aux round trip — run.** `scripts/aux_round_trip.R`, nine states including three drier than the driver reaches | §2.8's carry, and it confirmed it, **conditional on P0.1**: restoring `set_physiology`'s inputs and evaluating at the stored operating point reproduces all 14 leaf outputs bit-identically after an intervening solve elsewhere (9/9), and one evaluation lands where the search left the leaf (9/9), so the sweep pays an evaluation and not a search. On a *fresh* leaf 8 of 9 are bit-identical and the ninth is P0.1 — the seedling's unrooted layers 3–5 carry the previous cohort's uptake, so today a leaf's outputs are a function of the previous cohort's solve as well as of its own inputs and aux. Nothing beyond the operating point needs publishing. For the soil: the guard reads the stage state, the cascade, `rainfall(time)` and the per-layer uptake and no other member, so aux closes it — and θ's minimum over a production run is **0.1563 against θ_r = 1e-2**, so the zeroed rows are correct and unexercised at this driver | done |
 | **M8** | **The descending-height invariant — run.** `scripts/descending_heights.R` | whether `height_max`'s adjoint and the stencil's sign need a guard, and they do not on this configuration: **0 of 10 011** neighbouring pairs non-descending over 142 output times, largest gap `-8.209404e-06`, median spacing 3.527e-03. The closest pair is 8.2 µm apart and report 04 §5's minimum spacing is the same number by a second route, so `height_max = nodes.front().height()` and `dh > 0` hold — with an 8 µm margin, one species, the default driver | done |
 
-M3 and M5 are independent; M1 and M2 are done, so M4's derivative half is unblocked as well as its
-value half. M6 is complete, and P3.2 and P3.3 are written against it. M7 and M8 need no AD and run on develop
+M1, M2 and M5 are done, so M4's derivative half is unblocked as well as its value half. M3's accuracy
+half is done and settles §2.6; its bit-identity half waits on P2.1's interpolant existing. M6 is complete, and P3.2 and P3.3 are written against it. M7 and M8 need no AD and run on develop
 today; both were added because the reverse pass acquired a dependency the forward model has never been
 asked about — M7 for the aux carry, M8 for an invariant three consumers now share. **Both are now
 run, and both answered yes**; between them they moved one item, which is that P0.1 now gates the
@@ -1073,8 +1092,8 @@ the boundary node's lag (P2.7).
 ```cpp
 template <typename S = double>
 class ResourceSpline {
-  std::vector<double> knot_fractions_;              // u_k, fixed after one adaptive construct
-  interpolator::Interpolator     fitted_;           // supplies the fractions, once
+  std::vector<double> knot_fractions_;              // u_k, uniform, fixed for the run
+  interpolator::Interpolator     fitted_;           // the forward fit; no longer places knots
   interpolator::hermite_interpolator<S> field_;     // evaluates, carries S
   double height_max_, inv_height_max_;              // the reciprocal is the hot-path form
   S get_value_at_height(double z) const;            // field_(z * inv_height_max_)
@@ -1082,6 +1101,10 @@ class ResourceSpline {
   template <typename Q> S get_value_at_height(Q z) const;   // a crown abscissa: z = h * xi
 };
 ```
+
+The fractions are **uniform at 65**, which M3 settles: the shift against develop is resolution rather
+than placement, so a refinement-derived set buys nothing and the count is the only knob (§2.6). The
+fitted cubic still exists on the forward path; it no longer chooses the positions.
 
 **Fixed fractions make the knot positions run-constant, and that is what the interpolant should be
 built around.** `hermite_interpolator::init` takes positions, values and slopes together and then
@@ -1111,13 +1134,17 @@ machinery and band solve, both of which are gone.
 field is not a pure function of the state across an introduction, and a reverse traversal crosses
 those backwards.
 
-*Order.* (1) Add `knot_fractions_` and rebuild through it, keeping the fitted cubic as the
-evaluator — this alone should be bit-identical to `rescale_spline`, which is M3. (2) Delete
-`rescale_spline`. (3) Only then bring in the Hermite (P2.3).
+*Order, and the two steps are different in kind.* (1) Add `knot_fractions_` and rebuild through it,
+keeping the fitted cubic as the evaluator **and taking the fractions from that interval's own adaptive
+fit** — `x_k = u_k · height_max` is then exact arithmetic and this step is bit-identical. (2) Switch
+the fractions to uniform-65. This one is **not** bit-identical and is not meant to be: M3 measures the
+crown-mean light shift at up to 1.7e-03, so this is the deliberate re-blessing, and it is the step
+that removes the carried knot set. Doing (1) and (2) as one change loses the ability to tell a
+transcription error from the shift that was expected. (3) Delete `rescale_spline`. (4) Only then bring
+in the Hermite (P2.3).
 *Touches* every `get_environment_at_height` caller, plus the `cap` argument and the
 `max(0.0, spline(height))` undershoot guard, both expressed in absolute height today.
-*Closes on* M3's result: bit-identical where M3 says it should be, otherwise the shift recorded and
-baselines re-blessed.
+*Closes on* step (1) bit-identical, and step (2)'s shift inside M3's band with baselines re-blessed.
 
 ---
 
@@ -1672,9 +1699,9 @@ aux transfer and `step_adjoint` are the same either way.
 |---|---|---|
 | the block boundary does not close around a moving integration bound | the height adjoint disagrees with a finite difference | **M1 — closed.** It matches to 1e-11, and the one failure mode it found is not a disagreement but a severance: a frozen query position gives exactly zero (§2.8). So the guard is that the crown integral reads the field through the active-position overload, and a test that seeds height alone catches it |
 | the forward model slows under templating | benchmark outside the accepted band, or reference numbers move | **M2 — closed for one file**: bit-identical and 0.677x the forward cost at production eta. Then P1.2, gated on the templated build against a develop build **in the same session on the same machine** (§8b). The AD branch's comparison was 49.57 s against 50.31 s — a +1.5% templating cost, and it is the ratio that transfers |
-| the normalised coordinate is not bit-identical to `rescale_spline` | a forward shift where none was expected | **M3** |
+| the normalised coordinate is not bit-identical to `rescale_spline` | a forward shift where none was expected | **M3's remaining half**, at P2.1. Its accuracy half is closed: uniform-65 shifts crown-mean light by at most 1.7e-03 against develop, which is the number to re-bless |
 | differencing across cohorts changes the forward value more than expected | `log_density_dt` and offspring move | **M4** |
-| removing the scratch slows the forward pass | benchmark | **M5** |
+| removing the scratch slows the forward pass | benchmark | **M5 — closed.** At most 1.5%, inside the same-arm spread |
 | a channel exists that templating cannot reach | a derivative obtainable only through a second implementation | P3.1's V1 |
 | the decomposition is wrong | V1 fails at one state, with nothing else in the way | P3.1 |
 | the stage recursion loses a term | V3 fails on one step. **No measured signature** — report 01 §12 records that C5's 19% belongs to the newborn-adjoint mechanism, not to a lost tableau term, so the only thing known is that it is silent | P3.5 |

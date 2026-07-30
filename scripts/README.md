@@ -5,8 +5,15 @@ without reconstructing how it was produced. Build `-O2` deliberately before timi
 plant-dev `AGENTS.md`, "Testing plant".
 
 `../docs/build-plan.md` §5b is the measurement list and says what each decides. `M1`
-(`m1_moving_bound.cpp`), `M2` (`m2_canopy_shape.cpp` with `m2_canopy_shape.sh`), `M6`, `M7`
-(`aux_round_trip.R`) and `M8` (`descending_heights.R`) are run; `M3`, `M4` and `M5` are not.
+(`m1_moving_bound.cpp`), `M2` (`m2_canopy_shape.cpp` with `m2_canopy_shape.sh`), `M3`'s accuracy half
+(`m3_fixed_fractions.R`), `M5` (`m5_scratch.R`, which needs
+`../docs/reports/m5-scratch-arms.patch` applied to the tree it loads), `M6`, `M7`
+(`aux_round_trip.R`) and `M8` (`descending_heights.R`) are run. `M4` is not, and `M3`'s bit-identity
+half waits on P2.1.
+
+Timings: a production TF24 lifetime is ~86 s at `-O2` on this box with `collect = FALSE`, and
+`collect = TRUE` adds ~38 s of R-side assembly. An incremental rebuild after touching one header in
+`inst/include/plant/` is ~2m45s, not the ~25 min a full build costs.
 
 The two C++ probes carry their own build lines. Both need `odelia/src/Tape.cpp` for XAD's
 `active_tape_`, and R plus Rcpp because `ode_util.hpp` reaches Rcpp for `util::stop`. Two more
