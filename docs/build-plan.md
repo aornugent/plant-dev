@@ -411,6 +411,17 @@ is bit-identical, the knot positions become constant, and `height_max`'s sensiti
 chain-rule terms in the query rather than a structural approximation. The fitted cubic keeps its
 refiner and supplies the fractions; a `hermite_interpolator<S>` evaluates value and slope at them.
 
+**Open: which state's refinement supplies the fractions.** Fixing them removes the carried state, and
+it makes the choice load-bearing in a way develop's per-introduction refinement hides. develop
+re-refines 141 times and lands on 33 to 129 knots, mean 58.4 (report 03 §1b), so the sets it uses
+early and late in a run are not the same set — a stand of one 0.34 m seedling and a 17.9 m canopy want
+their knots in different places. Refining at the first state would concentrate them near the ground for
+the whole run. Three candidates, and this needs deciding before P2.1 lands rather than during it:
+refine once at a representative mature state; refine on a pilot run and keep the union; or take a
+fixed non-uniform set and justify it against the profile. **M3 is where a bad choice shows up** — as a
+shift that does not shrink with knot count — so M3 should be run against more than one candidate set
+rather than against one.
+
 ### 2.7 Resident, and how invasion follows
 
 The resident gradient is the one where the canopy responds to the trait. In the reverse pass that
@@ -755,7 +766,7 @@ None on the critical path; each can kill or confirm one choice in §2.
 |---|---|---|---|
 | **M1** | **A block with a moving integration bound.** An interpolant integrated over `[0, h]` with `h` a declared input; check the height adjoint against a finite difference. This is the structure that fails if §2.3 is wrong | whether the block boundary closes, including the moving bound | odelia only |
 | **M2** | **`CanopyShape<S>` alone, ported to develop.** One file | §2.1's shape, bit-identity, and the forward benchmark, at the smallest possible cost | the AD branch already wrote it |
-| **M3** | **The normalised light coordinate.** Rebuild the field as `u = z/height_max` with fixed fractions. Bit-identity holds only **within an introduction interval**: `introduce_new_node` passes `rescale = false`, so develop re-refines adaptively at each of the 141 introductions and the knot count runs 33 to 129, mean 58.4 (report 03 §1b). So M3 measures two things — bit-identity between introductions, and the size of the shift across one | §2.6, and how much of it needs re-blessing | `double` only |
+| **M3** | **The normalised light coordinate**, and which state's refinement chooses the fractions (§2.6). Rebuild the field as `u = z/height_max` with fixed fractions, for at least two candidate sets — one refined early, one at a mature state. Bit-identity holds only **within an introduction interval**: `introduce_new_node` passes `rescale = false`, so develop re-refines adaptively at each of the 141 introductions and the knot count runs 33 to 129, mean 58.4 (report 03 §1b). So M3 measures two things — bit-identity between introductions, and the size of the shift across one | §2.6, and how much of it needs re-blessing | `double` only |
 | **M4** | **The transport stencil across neighbouring cohorts.** Value change against the sub-grid stencil on one production run; conditioning of both against a finite difference | §2.6, and the size of the forward-value change to re-bless | `double` for the value; M1 and M2 for the derivative |
 | **M5** | **The scratch.** Forward benchmark with `growth_rate_gradient`'s `thread_local` scratch, with a `Node` member, and with the block called twice | §2.3's last paragraph. The prior is that a member is no slower and possibly warmer | `double` only |
 
