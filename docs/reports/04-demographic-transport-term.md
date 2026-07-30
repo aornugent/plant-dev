@@ -305,7 +305,7 @@ the newborn has grown away from `height_0`.
 seeds `dydt_in` from the stored rates and marks them clean (`ode_solver_internal.hpp:146-152`), and
 for the newborn those come from `compute_initial_conditions` at the configuration where its interval
 below has zero width. **That is the same seam as the stale first-same-as-last `k1`**
-(`../build-plan.md` §2.8): one place, at the introduction, where three separate findings meet.
+(`../build-plan.md` §2.9): one place, at the introduction, where three separate findings meet.
 
 So the rule is not a floor on `dh`, and §7.2's stencil carries it in one branch, guarded on the
 divisor itself. The seam is shared:

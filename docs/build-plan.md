@@ -402,18 +402,67 @@ its path, which keeps the two-record arrangement — `step_history` per accepted
 `environment_history[step][stage]` per stage, resolved by matching time — out of it. Replaying the
 wrong one of those gave a gradient wrong by 60×.
 
-### 2.8 What is stored, what is recomputed, and the XAD boundary
+### 2.8 How the reverse pass runs
+
+No report carries this. It is the control flow of one gradient evaluation, with the owner of each
+line, and it is what §2.4's four letters sit inside.
+
+```
+plant, once     run the adaptive pass; the resolved schedule is r_ode_times()      P1.4
+odelia, once    replay that schedule, recording (t, h, y) at each accepted step
+plant, once     seed lambda on the states the census functional reads at T         P3.6
+
+odelia          Solver::solve_adjoint, for k = K-1 ... 0 over the recorded steps:
+                  (t, h, y) = checkpoint k
+                  Step::step_adjoint(system, t, h, y, lambda_out, lambda_in):
+
+                    # the rebuild: step()'s own arithmetic, unchanged
+                    for stage i = 0 ... 5:
+                        derivs(system, Y_i, k_i, t + ah_i h, i)     # plant: rates
+                        system.ode_aux(aux_i.begin())               # keep this stage's aux
+
+                    # the sweep: stages in reverse, so lambda_k_i is complete when used
+                    lambda_k_i = h c_i lambda_out                   # the tableau's seeds
+                    for stage i = 5 ... 0:
+                        system.set_ode_state(Y_i, t + ah_i h)       # state and field, no rates
+                        system.set_ode_aux(aux_i.begin())           # this stage's aux back
+                        system.ode_rates_adjoint(lambda_k_i, lambda_Y_i)    # plant: (a)-(d)
+                        lambda_in   += lambda_Y_i
+                        lambda_k_j  += h a_ij lambda_Y_i   for every earlier stage j
+```
+
+**Why the rebuild is forward and the sweep is backward.** `Y_i` needs `k_1 … k_{i-1}`, so the stage
+states can only be formed in order. `lambda_k_i` receives from `lambda_Y_j` for every *later* stage
+`j`, so a stage's output adjoint is complete only after the stages above it are swept. The two orders
+are opposite and neither is a choice.
+
+**`Step` needs no new storage for the rebuild.** `k1`–`k6` and `ytmp` are already its members, and
+`Y_i` is one line of the tableau off `y` and the `k`s. What it adds is six aux vectors, sized like the
+`k`s.
+
+**Six rate evaluations per step, not twelve.** The rebuild pays them, because `k_i` is what the
+tableau needs. The sweep does not: the recordings *are* the cohort rate chain, at the active scalar,
+so evaluating rates again in `double` first would compute everything twice. Hence
+`system.set_ode_state` on the sweep must establish the state and the field and stop there —
+`Patch::set_ode_state` today is `{ load states; set time; check finite; compute_environment;
+compute_rates }` in that order (`patch.h:680-702`), so this is exposing its first four lines, not
+changing them (P3.5). The field rebuild it keeps is 193 µs against the 2.9 ms a full evaluation
+costs.
+
+**What plant adds to be differentiable, in total.** `Patch::ode_rates_adjoint`, `set_ode_aux`, and
+the split above. `Leaf::input_adjoints` is the model's own mathematics rather than machinery. Nothing
+else on the science path acquires a reverse-mode name, and no Strategy author sees one.
+
+### 2.9 What is stored, what is recomputed, and the XAD boundary
 
 Resident TF24 records two things: **the node schedule** (plant) and **the ODE step times**
 (odelia, `advance_fixed`). `r_ode_times()` is the one source of the replay grid. With the schedule
 recorded, introduction times are constants, so introductions widen the state without adding a
 discontinuity.
 
-**Storage is per accepted step. Everything within a step is recomputed, and one thing is kept as
-scratch while it is.** The reverse pass enters a step at its stored state, rebuilds the six stage
-states by re-running the step in `double`, then walks the stages backwards recording one block per
-cohort. What each candidate costs, at develop's counts — 5 055 accepted steps, 1 137 ODE states,
-about 3.9 M (stage, cohort) pairs:
+**Storage is per accepted step. Everything within a step is recomputed, and one thing is carried
+across the rebuild.** §2.8 is the walk. What each candidate for storing costs, at develop's counts
+— 5 055 accepted steps, 1 137 ODE states, about 3.9 M (stage, cohort) pairs:
 
 | candidate | size | what it would save | verdict |
 |---|---|---|---|
@@ -421,15 +470,20 @@ about 3.9 M (stage, cohort) pairs:
 | stage states, or the six stage rates | 276 MB | the rebuild, about 16 s | recomputed: the rebuild is arithmetic on rates the stages need anyway |
 | the light field's knot values per stage | 37 MB | nothing — the rebuild evaluates the field on its way to the rates | recomputed |
 | soil water potentials per stage | 1.2 MB | one closed-form curve per layer | recomputed from the soil state |
-| each cohort's collar operating point | 31 MB if kept for the run | about **36 s**, and it pins the linearisation point to the forward one | **kept as scratch**, 6 × n_cohorts doubles, live for one step |
+| each cohort's collar operating point | 31 MB if kept for the run | about **36 s**, and it pins the linearisation point to the forward one | **carried in aux**, six stages of it, live for one step (§2.8) |
 
-The last row is the one worth stating rather than leaving to habit. The rebuild solves every
-cohort's leaf on its way to the rates, so the operating point is already in hand when the recording
-wants it; evaluating the leaf there costs about **1 µs** against **10.2 µs** to search for it again
-(§8b). Keeping six stages of operating points is about 7 kB, so it is scratch inside
-`ode_rates_adjoint` rather than trajectory data. An implementation that re-solves instead pays 9.2 µs
-per (stage, cohort) — 36 s per gradient — and linearises at a point it re-derived rather than the one
-the forward pass used.
+The last row needs no mechanism of its own. develop already publishes the operating point to an aux
+slot — `aux_idx_opt_root_psi`, alongside `opt_psi_stem_`, `E_up_`, `transpiration_` and `profit_`
+(`tf24_strategy.cpp:160-167`) — because they are diagnostics a user reads. The rebuild solves every
+cohort's leaf on its way to the rates, so the sweep gets the operating point back with the stage's
+aux and evaluates the leaf there: about **1 µs** against **10.2 µs** to search for it again (§8b).
+Six stages of aux is about 10 kB, held by `Step` beside `k1`–`k6`. An implementation that re-solves
+pays 9.2 µs per (stage, cohort) — 36 s per gradient — and linearises at a point it re-derived rather
+than the one the forward pass used.
+
+So the transfer is `ode_aux` on the rebuild and `set_ode_aux` on the sweep: the missing fifth member
+of a family that already has four, in the vocabulary of the ODE contract rather than of reverse mode.
+A model that publishes nothing to aux pays nothing and gains nothing.
 
 **Steps, not stages, is the unit of storage** for three reasons that are all structural. The state
 width changes only at introductions, and those land on step boundaries (below). A rejected step is
@@ -437,14 +491,28 @@ computed and discarded, so its stages never enter the solution, and `recorded_st
 only accepted ones. And a stage is addressed by index rather than by time (below), so a stage-keyed
 store would need the step index anyway.
 
-**odelia's `Replayable` concept is not the mechanism, and should not be wired up.** It exists to
-freeze a schedule so a later pass replays it: `record_stage` / `record_ode_step` / `replay_step` /
-`has_recorded_field` (`ode_interface.hpp:42-48`), at two depths. At the deeper depth the recorded
-field values are reused as fixed `double`s — which sets the derivative through the field to zero, and
-that is step (c), the whole resident channel. At the shallower depth it records knot positions, which
-§2.6 makes constant by construction, so there is nothing to record. It is also a forward-replay hook
-set, where this pass runs backwards. The resident gradient recomputes the field from the state it has
-just set, which is both cheaper than replaying it and the only way to keep the channel.
+**`Replayable` stays as it is, and the resident pass does not use it.** Its hooks are already called:
+`Step::step` runs `record_stage(system, i)` after every stage and the call compiles away for a System
+that does not satisfy the concept, and `derivs` chooses `set_ode_state(y, index)` over
+`set_ode_state(y, time)` when a System reports a recorded field (`ode_interface.hpp:155-168`). So the
+generic per-stage hook exists, and the question is whether the resident pass should use it or a typed
+transfer.
+
+**Two different requirements, which is why one concept cannot serve both.** `Replayable` exists for
+state a System must **not** recompute, because recomputing would change the answer: a mutant reading a
+canopy that must stay the resident's. The resident pass needs state it **need not** recompute, because
+recomputing would give the same answer — a pure saving. The first has to be a System-side record,
+because only the System knows what to freeze. The second does not: `ode_aux` already serialises it,
+`set_ode_aux` restores it, the buffer is the solver's, and nothing in plant acquires a notion of a
+stage or of recording.
+
+Generalising the hooks to save arbitrary parts of a System would put that buffer back inside plant,
+give the solver something it cannot check, and leave "part" undefined. It would also be for one
+consumer: the mutant case already has `Replayable`, calibration wants trajectory states rather than
+System records, and TF24's operating point is the aux case above. Reaching for the deeper
+`Replayable` depth on the resident path is worse than unnecessary — it reuses recorded field values as
+fixed `double`s, which sets the derivative through the field to zero, and that is step (c), the entire
+resident channel.
 
 There is no knot-position record — §2.6's fractions are fixed by construction — and no recorded
 environment, since §2.7 recomputes it. The quadrature abscissae move with an active integration
@@ -855,7 +923,7 @@ in step.
 at each one it sets the patch to that step's state, evaluates the right-hand side there — that is
 `ode_rates_adjoint`'s precondition (P3.5) — and rebuilds the step's six stage states by re-running
 the step in `double`. So it needs the ODE state vector at every accepted step, and nothing on
-develop keeps one. §2.8 is what else was considered storing and why none of it is. The solver holds only the current state; `SCM` keeps the schedule, which is
+develop keeps one. §2.8 is how they are used and §2.9 what else was considered storing. The solver holds only the current state; `SCM` keeps the schedule, which is
 times; and `run_scm(collect = TRUE)` collects R lists of the patch at the **142 output times**, not
 the 5 055 accepted steps. Storing 5 055 double state vectors, 46.0 MB, is what makes the reverse
 pass possible without a tape of the whole run, which is 490 GB (report 01 §2).
@@ -1428,7 +1496,7 @@ about 63 s:
 | term | count | unit | total |
 |---|---|---|---|
 | rebuild the stage states in `double` | one forward RHS per stage | — | ~63 s |
-| the leaf's partial derivatives, at the operating point the rebuild kept (§2.8) | 3.9 M (stage, cohort) | 4–6 `dprofit`, 14–21 µs | 55–82 s |
+| the leaf's partial derivatives, at the operating point the rebuild kept (§2.9) | 3.9 M (stage, cohort) | 4–6 `dprofit`, 14–21 µs | 55–82 s |
 | record and sweep the block | 3.9 M | 3–5× the block's own 6 µs of non-leaf arithmetic | 70–117 s |
 | | | | **190–260 s** |
 
@@ -1438,7 +1506,7 @@ is a **30 to 50×** saving, and V4's finite-difference verification is the expen
 acceptance test rather than the cheap one.
 
 **Re-solving the leaf instead of keeping its operating point adds 36 s** — 9.2 µs per (stage,
-cohort), the golden section's own cost (§2.8).
+cohort), the golden section's own cost (§2.9).
 
 **The one soft number is the record-and-sweep multiplier.** 3–5× is XAD-typical and is not measured
 here; it is the term that could double the total. It is measurable before any of plant is written —
@@ -1613,7 +1681,7 @@ the `size() < 2` case by construction because the boundary node is always a neig
 **The seam is one line, and it is now measured.** At the instant of introduction `nodes.back()` is a
 copy of `new_node`, so the interval below has zero width — and a rate *is* read there, once per
 introduction, through `set_state_from_system`'s first-same-as-last seed. That is the same place as
-the stale `k1` (§2.8) and the same place as the boundary node's prescribed density (§11.2).
+the stale `k1` (§2.9) and the same place as the boundary node's prescribed density (§11.2).
 `tf24-correctness.md` **P0.9** measures it: a pre-existing cohort's rate wrong by more than its own
 magnitude at **51 of 141** introductions, and offspring moving **0.2916%** once fixed — twice the
 build noise, so attributable. The fix is `compute_rates()` after `compute_environment(false)` in
