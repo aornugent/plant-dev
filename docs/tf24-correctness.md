@@ -15,7 +15,11 @@ matters when scheduling them:
   mollify before you know which ones fire, and you cannot FD-verify against numbers
   the owner may change.
 - **P0.7 blocks whoever first asks the light field for a slope**, which is P2.2. It is latent
-  until then, and it is one line either way.
+  until then, and it is one line either way. Its derivative sibling is **P0.12**: `q`'s NaN at
+  `z = 0` is in the value, and `pow(u, eta)`'s at `u = 0` is only in the derivative, so that one
+  stays invisible until `eta` is seeded.
+- **P0.12 gates P1.2b**, which templates TF24: landing it first means one canopy profile is
+  templated rather than two.
 - **P0.11 blocks the reverse pass rather than the forward comparisons.** Two evaluations of one
   function have two adjoints; removing the duplicate is cheaper than remembering to add them.
 
@@ -441,6 +445,73 @@ reproduces exactly, run after run, and only a *reordering* exposes it.
 **Gate.** Bit-identity across permutations for every output, at a pinned build. Any carrier it
 finds becomes a P0 row of its own. Running it before P0.1 and P0.2 should reproduce their known
 incidences, which is the check on the harness.
+
+---
+
+## P0.12 — TF24 writes the canopy profile itself, twice, and pays `pow` for it
+
+**Where.** `tf24_strategy.h` includes `canopy_shape.h` for the `ShadingModel` enum only.
+TF24 has its own `q` (`tf24_strategy.cpp:737`), `Q` (`:744`) and `Qp` (`:754`), and a
+**second copy of `Q` inlined** into the hot-path `compute_competition` overload
+(`:726-734`), whose own comment says it "reproduces `pars.k_I * area_leaf(height) *
+Q(z, height, pars.eta)`". FF16 (`ff16_strategy.h:377`) and K93 (`k93_strategy.h:103`)
+use `CanopyShape`. The `eta_c` formula is written three times — `tf24_strategy.cpp:804`,
+`ff16_strategy.cpp:569`, and `CanopyShape::compute_eta_c`.
+
+**Three things follow, and only one of them is a style question.**
+
+*Two copies of one equation with nothing keeping them equal.* This is the
+`ff16_production_kernel.h` pattern [`build-plan.md`](build-plan.md) §2.1 rules out, in the
+model the gradient is being built for.
+
+*`pow` has a NaN derivative at `u = 0`, and the field's lowest knot is exactly `z = 0`.*
+`d/d(eta) u^eta = u^eta log(u)`, which at `u = 0` is `0 · (−inf)`. The value is fine —
+`pow(0, 12)` is 0 — so this is latent until `eta` is seeded, and then it fires on the
+**first knot of every field build**, making one trait's gradient NaN while every other
+stays finite and plausible (report 01 §7.6 found exactly this in a toy). `CanopyShape`'s
+`pow_eta` returns `Z(0.0)` when `to_passive(u) <= 0`, which is the limit, and the
+eta-specialised chains carry no `log` at all.
+
+*The eta-specialised chains are ~9x faster than the general `pow`.* TF24 calls
+`pow(u, pars.eta)` with `pars.eta = 12.0`, which is one of the specialised values.
+Arithmetic, not measurement: about 127 M competition evaluations per run (58.4 knots x
+~71.5 cohorts x 6 stages x 5 055 steps) plus about 45 M crown-integral `q` calls, at the
+~20 ns per evaluation M2 measures between the general `pow` and the `u^12` chain, is about
+**3.4 s of an 86 s run, ~4%**. Treat as an upper bound: a microbenchmark's cache is warmer
+than the field build's.
+
+**It is not bit-identical, and that is the whole cost.** `pow(u, 12.0)` and `u2*u4*u8`
+differ in the last bits, so this moves the forward value, and the adaptive controller
+amplifies last-bit differences into a different accepted grid — report 01 §2 measures
+0.145% in offspring and 0.79% in step count between two builds of one tree. So expect a
+shift of that order and re-bless deliberately. There is no bit-identical route to the
+chain; the only bit-identical option is to keep `pow` and add the `u <= 0` guard alone,
+which fixes the NaN and leaves the duplication and the 4%.
+
+**Order.** (1) Add a `CanopyShape canopy_shape` member to `TF24_Strategy`, initialise it in
+`prepare_strategy`, and assert its `Q` against TF24's over a production census of
+`(z, height, eta)` — this measures the shift before anything moves. (2) Switch
+`compute_competition`, both overloads, and the crown integral's `q` to it; re-bless.
+(3) Delete `TF24_Strategy::q`, `::Q`, `::Qp` and the inlined duplicate. (4) Take `eta_c`
+from one formula: `CanopyShape` already computes it, so expose it and have both strategies
+read it.
+
+**Why before Phase 1.** [`build-plan.md`](build-plan.md) P1.2b templates TF24. Doing this
+first means one implementation is templated rather than two, and `CanopyShape<S>` is
+already what §3 takes.
+
+**What it does not need.** TF24's `prepare_strategy` rejects PPA and both flat-top models,
+so `Q` is the only profile it can reach and `leaf_area_above`'s dispatch is not wanted —
+FF16 needs that, TF24 does not.
+
+**It also makes P0.7 a one-place fix.** `q` divides by `z`, so `q(0, h)` is NaN for every
+`h`, and `CanopyShape::q` has the same division. With TF24 on `CanopyShape` that guard is
+written once for three models instead of twice for two.
+
+**Gate.** `CanopyShape::Q` and TF24's agree to the last bit at every sampled `(z, h)` **or**
+the difference is recorded as last-bits-only before the switch; one production run
+re-blessed with the shift stated; `grep -c "pow(z / height\|pow(u, pars.eta)" src/tf24_strategy.cpp`
+returns 0; and a seeded-`eta` gradient at the ground knot is finite.
 
 ---
 
