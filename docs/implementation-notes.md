@@ -93,6 +93,138 @@ edited to track them.
 
 Each entry carries the commit, the gates as run, and the forward shift.
 
+### P0.8 — the water reduction starts at the boundary node
+
+Branch `p0/boundary-reduction`, commit `f93e72be`, `inst/include/plant/species.h` only.
+`Species::consumption_rate` takes `new_node` as its bottom endpoint, as
+`compute_competition` already does, reusing the one `util::trapezium` call rather than growing a
+second descending loop. `size() < 2` becomes `size() == 0`, which is the empty-species case and not a
+replacement guard — a species is empty before its first introduction.
+
+| | offspring production | accepted steps |
+|---|---|---|
+| develop `141dc8df` | `42.140173575095666` | 5 055 |
+| P0.8 | `42.474057288733817` | 5 077 |
+
+**+0.7924% in offspring, +22 accepted steps** — larger than the 0.70% one-cohort window, as expected,
+because the omission also reached `pr_estab` and so every cohort's seeded boundary density.
+
+**The gate that pins the endpoint is worth keeping.** A one-cohort species goes from exactly `0` to
+`8.9885595436215663e-04`, so the branch is gone rather than unreached. Then: place the smallest cohort
+*exactly at* `height_0`, and the boundary interval has zero width, so the total must be bit-identical
+before and after **iff** the added endpoint is `new_node` at `height_0`. It is —
+`0.0007131905804356113` both ways, 17 digits — and moving that cohort 0.05 m off the boundary does
+change the value. That distinguishes the right endpoint from merely a lower one, which a
+value-goes-up check cannot.
+
+Ordering is safe and was checked rather than assumed: `Species::compute_rates` runs every node's
+rates, then `new_node.compute_initial_conditions`, which computes the boundary node's own rates, and
+`Patch::compute_rates` reads `consumption_rate` after that. So the boundary node's uptake is the
+current stage's.
+
+**FF16 and K93 do not move, and the reason is not that the header is unshared.** It is shared and
+instantiated for both, but `FF16_Environment::ode_size()` and K93's are **0** against TF24's 9, and
+`Patch::compute_rates` accumulates inside `for (i = 0; i < ode_size(); i++)` — so the loop body never
+runs and `consumption_rate` is never called. The change is family-wide in the code and TF24-only in
+the numbers. `test-mutant.R`'s two errors and `test-strategy-ff16.R`'s pandoc error were shown
+pre-existing by a paired run on develop, byte-identical either side.
+
+**One prediction came out backwards, and it is recorded as measured rather than as expected.**
+Cumulative root uptake over the run goes *down*, 81.2293 to 81.1801 (−0.061%), and every soil layer
+ends slightly wetter. The instantaneous uptake at a fixed state goes up — that is what the two gates
+show — but over a run the extra draw is not additive: billing the recruits moves the light and soil
+trajectory, and the stand settles transpiring marginally less in total. Which of the two channels
+dominates, fewer or smaller cohorts against drier intermediate soil suppressing later uptake, is not
+chased here.
+
+Noticed and not touched: `Species::consumption_rate_by_node_rev` and `r_heights_rev` have no callers
+outside `consumption_rate`, despite the `r_` prefix implying an R accessor.
+
+### P0.11 — one evaluation at the boundary node
+
+Branch `p0/boundary-establishment`, commit `60c0fc27`. **Bit-identical**, which was the gate:
+`42.140173575095666` at 5 055 accepted steps both ways, and `pr_estab` at the boundary node equal to
+all 17 digits. So the specification's premise holds — the two evaluations really were at identical
+arguments.
+
+Each strategy gains `establishment_probability(env, double)` holding the body plus a thin
+`(env, const Internals&)` entry point reading its own aux slot, which is the pattern
+`net_mass_production_dt(env, vars)` already uses in these headers. The one-argument
+`establishment_probability(env)` still evaluates at `height_0` and is what R reaches, so its meaning
+is unchanged — checked by asserting an `Individual` set to height 5 still returns the birth-size
+value. No cache, no `mutable`.
+
+**One fewer leaf solve per stage per species, counted:** 178.433413 to 177.433413 per stage, a total
+difference of 13 809 on a life-20 run, which is the stage count exactly.
+
+**A deviation from the file allowlist, reported rather than taken silently.** `individual.h` had to
+gain a six-line forwarder, because `Individual::strategy` and `::vars` are both private and `node.h`
+has no other route to the stored rate. The alternative, reading `individual.aux("net_mass_production_dt")`
+from `node.h`, throws for K93, which does not declare that aux name.
+
+FF16 shares the pattern exactly and is fixed the same way in the same commit. K93 does not — its
+`establishment_probability` returns `1.0` and reads no carbon budget — so it gains only the overload,
+because `node.h` is shared and the call must resolve for every strategy. TF24f inherits TF24's and
+needed no edit; its ordering is safe because `compute_rates` assigns the tracked potential from the
+seeded state before the establishment call, which its unchanged suite confirms.
+
+Noticed and not touched: `stochastic_species.h:72` and `stochastic_patch.h:166` reach
+`establishment_probability(env)` on a fresh `new_node` whose rates have not been computed, so they
+must keep recomputing — correct as it stands, but the stochastic path still pays the birth-size solve
+the SCM path no longer does.
+
+### P0.1, P0.2 — the leaf's per-solve fields re-seated
+
+Branch `p0/leaf-purity`, three commits: `ab15cc9f` (P0.1), `399b81ab` (P0.2), `866ae40a` (the stale
+soil potentials inside the derivative). `src/leaf_model.cpp` and `inst/include/plant/leaf_model.h`
+only.
+
+**P0.1 is the whole forward shift, and P0.2 and the third commit are bit-identical.**
+
+| | offspring production | accepted steps |
+|---|---|---|
+| develop `141dc8df` | `42.140173575095666` | 5 055 |
+| P0.1 | `42.198239148966778` | 5 065 |
+| P0.2 | `42.198239148966778` | 5 065 |
+| the derivative's soil potentials | `42.198239148966778` | 5 065 |
+
+**+0.138% in offspring and +10 accepted steps.** Worth noting that this sits just *below* the
+0.145% two builds of one tree differ by, so the number is attributable only because it was taken
+before and after in one worktree at one set of flags — which is the whole reason the build is pinned.
+P0.2 reproducing to the last bit is the independent confirmation of its zero incidence at this
+driver, and it makes the fix a free correctness assertion rather than a change.
+
+Gates, all three failing before and passing after: a seedling's deep layers read zero on a leaf that
+solved a tree first; `solve(seedling); solve(tree); solve(seedling)` bit-identical; a shut-down solve
+reports zero uptake and matches a fresh leaf, where develop reports the previous solve's uptake
+against a fresh leaf's `NA`. No test failed and **no baseline number moved**, including
+`test-strategy-tf24.R`'s reference comparison and its E-conservation test — consistent with those
+being single-plant states, where there is no previous cohort to inherit from. `test-strategy-ff16.R`
+carries one pre-existing environmental error, `pandoc_available()` false in this container, which is
+not a number.
+
+**TF24f does not move, for a stated mechanical reason** rather than by luck: `TF24f_Strategy::solve_leaf`
+calls the derivative immediately after `evaluate_root_collar_psi`, so `prepare_collar_solve` has
+already seated the same vector from the same `psi_soil_` and the added refresh recomputes bit-identical
+values. All 57 assertions pass at every commit.
+
+The third commit is larger than "refresh what it reads": the loop that seats `psi_soil_inverted_` and
+`root_vuln_integral_soil_` moved out of `prepare_collar_solve` into `Leaf::refresh_soil_potentials()`,
+returning the wettest layer's potential, with the operation order preserved so the forward path is
+unchanged. The derivative entry point now calls it too. Before, changing the soil and calling the
+derivative directly gave `-2.685285` against a refreshed `10.072843` — a relative difference of 1,
+not a drift, and the same character as the value recorded in P0.1 at a different probe state. The
+refreshed value is bit-identical across the builds either side of the commit, which is the direct
+evidence the refactor moves nothing.
+
+**Two things this leaves owed.** The gate ran from a scratch copy of
+`scripts/leaf_state_carryover.R`'s mechanism, because that probe hardcodes the develop worktree, so
+the *derivative* staleness has no committed probe — `scripts/leaf_permutation.R` covers P0.1's own
+mechanism and reproduces its incidence, but nothing asserts the refreshed-against-stale property, and
+its only current protection is that the TF24f suite passes. And the derivative now costs
+`max_soil_layer` spline evaluations per call it did not before, which is invisible on this path but
+lands twice per solve once the collar polish calls it.
+
 ### P0.10 — the shared leaf's purity, executed
 
 `scripts/leaf_permutation.R`, commit `3b34dcf`. Probe only; no model code changed, so no shift.
