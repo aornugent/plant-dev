@@ -71,7 +71,12 @@
 #       available in closed form from quantities the forward pass already holds,
 #       plus two evaluations of the root vulnerability curve.
 #
-#   A3  FALSIFIED. D taken as a central difference along the diagonal gaps
+#   A3  MY VERDICT HERE WAS WRONG -- see scripts/leaf_uniform_check.R. The
+#       diagonal route is the ACCURATE one and the reference it was judged against
+#       (a whole-solve difference at step 1e-6) is not converged. Corrected defect
+#       0.0652/0.0421/0.0380. Original text kept below for the record.
+#
+#   A3  [WRONG] D taken as a central difference along the diagonal gaps
 #       3.18-29.55% against subtraction. A difference in a direction where R
 #       barely moves puts the cancellation in the numerator: it relocates the
 #       problem rather than removing it. The idea pays only if the directional
