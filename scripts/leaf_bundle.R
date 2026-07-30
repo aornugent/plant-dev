@@ -3,7 +3,7 @@
 #
 # The design differentiates the census through the leaf's BOUNDARY, not through
 # the leaf: the interior stays double and a fixed bundle of partials is injected.
-# Report 06 section 6.2 reduces that bundle to envelope rows, explicit flux rows,
+# Report 00 section 6.2 reduces that bundle to envelope rows, explicit flux rows,
 # and one rank-one correction mu_k * grad(dPi/dp). This probe measures the four
 # claims that bundle rests on, at production states, before anything is built on
 # them.

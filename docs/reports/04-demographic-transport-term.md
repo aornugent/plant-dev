@@ -220,7 +220,7 @@ conditioned by between one and three and a half orders depending on where in the
 **A staircase, on top of that, and specific to TF24.** TF24's growth rate depends on the leaf's
 collar operating point, which comes from `golden_section_max`: affine in its bracket within a
 comparison pattern, jumping when the pattern changes. That is a staircase in `h`, and its step is
-**bracket-scale rather than tolerance-scale** — which is also what reconciles report 06 §9's
+**bracket-scale rather than tolerance-scale** — which is also what reconciles report 00 §9's
 `dPi/dp` of 11-23 at `GSS_tol_abs = 1e-3` with the measured curvature `Pi_pp` of about -4. A
 `1e-4` displacement from the optimum would give `4e-4`; a bracket-scale one gives what is
 measured. If the error in `dg/d(theta)` is smooth in `h`, the two evaluations nearly cancel; if it
@@ -350,7 +350,7 @@ double Species<T,E>::growth_rate_gradient(size_t i) const {
 **The guard is on the divisor, which is better than a guard on the cause.** `dh == 0.0` is exactly
 when the stencil is undefined, and it is reached three ways: a cohort introduced this instant is
 still a copy of `new_node`; a cohort whose growth has been gated to zero since birth has never left
-`height_0`; and two cohorts can coincide in height (report 06 §8 item 12). Testing the introduction
+`height_0`; and two cohorts can coincide in height (report 00 §8 item 12). Testing the introduction
 time would catch only the first. Exact equality is right here because it is not a tolerance — the
 question is whether a division is valid, and the measured spacings are 8.2e-06 and up (§5), so
 nothing sits near zero without being at it.

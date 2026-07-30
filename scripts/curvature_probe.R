@@ -1,6 +1,6 @@
 # Pi_pp: the curvature of carbon profit at the collar operating point.
 #
-# Report 06's reverse pass turns the five flux adjoints into one scalar and then
+# Report 00's reverse pass turns the five flux adjoints into one scalar and then
 # divides by Pi_pp = d2(profit)/dp2. Nothing computes it; the value the design
 # currently rests on (~ -1.1e5) is a ratio of two other measurements. Its failure
 # mode is Pi_pp -> 0, a fold, where the one-line solve mu = -s/Pi_pp needs a
@@ -161,7 +161,7 @@ saveRDS(d, "/tmp/curvature_probe.rds")
 
 # The rows split into two regimes and they must not be pooled: where |dPi/dp| is
 # at the solver's floor the point is a genuine stationary interior maximum and
-# Pi_pp is the curvature report 06 divides by; where it is O(1) the point is
+# Pi_pp is the curvature report 00 divides by; where it is O(1) the point is
 # PINNED at a bound, so the second derivative is a local slope change, not the
 # denominator of a stationarity solve.
 stat <- ok[abs(ok$g) < 1e-6, ]; pin <- ok[abs(ok$g) >= 1e-6, ]

@@ -12,7 +12,7 @@ Two probes were written for it and are committed:
 - `scripts/leaf_state_carryover.R` — does one leaf solve leave state the next one reads
 - `scripts/uncounted_switches.R` — incidence, on a production run, of four discrete constructs
 
-Read `06-tf24-dependency-map.md` first for the forward/reverse structure. This
+Read `00-tf24-dependency-map.md` first for the forward/reverse structure. This
 report does not restate it; it adds the parts the map's own §7 table has no row
 for, because nothing in the map's derivation reaches them.
 
@@ -171,11 +171,11 @@ Not a fraction of a percent — the **whole** uptake, at the same leaf area, fro
 plant that is not transpiring. And on a fresh leaf the same solve reports `NA`,
 so the value is entirely a function of what ran before it.
 
-**Where it bites.** Report 06 §9 measured **zero** shut-down incidence on a
+**Where it bites.** Report 00 §9 measured **zero** shut-down incidence on a
 production run (0 of 10 153, minimum margin 0.02688 MPa = 27× `GSS_tol_abs`), so
 this is latent at the default driver. It is live exactly in the drought
 transients — the configuration OPEN-ITEMS #58 exists to explore and the one where
-a water-balance error matters most. Report 02 §3.5 recorded the defect; report 06
+a water-balance error matters most. Report 02 §3.5 recorded the defect; report 00
 §8 item 5 confirmed it is unfixed on develop. What neither says is that the third
 exit's value is a *solver iterate*, which is not "stale" so much as meaningless.
 
@@ -225,7 +225,7 @@ efficiency as though it were assimilated carbon; and `root_mass_carbon_scale =
 83.26 · 0.5` is an unexplained factor of 41.63 converting fine-root mass into the
 units the root hydraulic network expects, flagged `TODO` and never resolved.
 
-**No report owns this.** Report 02 owns the leaf's *gradient*; report 06 maps the
+**No report owns this.** Report 02 owns the leaf's *gradient*; report 00 maps the
 leaf's *dependencies*. Neither audits the leaf's carbon bookkeeping against the
 strategy that consumes it, because the boundary between them is exactly where the
 two reports' scopes meet.
@@ -325,7 +325,7 @@ window between a species' first and second introduction. Small, but it is the
 window in which establishment is decided, and it is the only place in the model
 where a transpiring plant consumes nothing.
 
-Report 06 listed this as an uncounted switch (§10 item 3). It is now counted. The
+Report 00 listed this as an uncounted switch (§10 item 3). It is now counted. The
 number is small enough that it is a correctness question, not a priority one.
 
 ### 1.8 The `1e-4` light floor never binds, and neither does the undershoot guard
@@ -442,7 +442,7 @@ They integrate cleanly *with each other*. Each owns one mechanism, states its
 constraints, and hands off at a named boundary: report 1 needs report 2's leaf
 node and report 3's interpolant (§11 step 7); report 3 supplies the slope report
 1's crown channel wants; report 4 removes the mass chart report 1's §7 witness
-assumed. There is no contradiction between them that I can find, and report 06's
+assumed. There is no contradiction between them that I can find, and report 00's
 dependency map is a consistent spine for all five.
 
 What they do not do is **cover the System**. Each report starts from a mechanism
@@ -525,7 +525,7 @@ and now known to be non-configurable.
 
 **Report 05.** Already superseded. Nothing here revives it.
 
-**Report 06.** §7's classification table needs the eight unowned rows above; §10
+**Report 00.** §7's classification table needs the eight unowned rows above; §10
 items 3 and 4 are answered (0.70% and the establishment gate's exact
 consequence); §8's adversarial list needs `soil_consumption_`, which is the one
 way the map could be wrong that its fourteen items do not consider — the map
@@ -555,10 +555,10 @@ decision, and two of them are one line each.
    together with the `a_bio · a_y` treatment of hydraulic cost and the `83.26`
    root-mass scale. This is the largest ecological question in the file and the
    only finding here I should not decide.
-5. **Decide `establishment_probability`'s gate** (§1.9, report 06 §10 item 4) —
+5. **Decide `establishment_probability`'s gate** (§1.9, report 00 §10 item 4) —
    and while it is open, fix TF24f's per-individual path so the two models agree
    on a bare `Individual`. Develop already has the precedent (`P_pos`) and the
-   sizing method (`storage_prod_eps`, measured well-sized in report 06 §9b).
+   sizing method (`storage_prod_eps`, measured well-sized in report 00 §9b).
 6. **Size the resource vector by resource count, not ODE width** (§1.6). Removes
    four NaNs per stage and one structural disagreement.
 7. **Then the leaf's reverse pass.** `Π_pp` is measured (`scripts/curvature_probe.R`) and
@@ -591,7 +591,7 @@ Stated as checks, so the answer is a number.
   the leaf. Read `leaf.max_soil_layer` directly per solve and compare. A
   mismatch means the root-distribution loop does something the reimplementation
   does not.
-- **The shut-down carry-over is unreachable even in the transients.** Report 06
+- **The shut-down carry-over is unreachable even in the transients.** Report 00
   measured zero incidence at the default driver. Re-run the committed rainfall
   banks with the shut-down exits instrumented. Zero there too would make §1.2
   genuinely dead code rather than latent.

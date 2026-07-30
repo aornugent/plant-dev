@@ -129,7 +129,7 @@ At TF24 production settings the run has:
 
 **The right-hand column predates the NSC storage state.** `TF24_Strategy::state_size()` is a
 compile-time `6` on develop (`tf24_strategy.h:125`), so 987 = 141 x 7 can only come from a
-five-state TF24 — the storage pool arrived with `#517` and report 06 §1 records it as new.
+five-state TF24 — the storage pool arrived with `#517` and report 00 §1 records it as new.
 Adding a sixth state with its own dynamics also moved the error control, hence 5 055 accepted
 steps rather than 2 829. The left-hand column was measured this session on develop `141dc8df`
 against odelia `854a8e18`, `scm_base_parameters("TF24", "TF24_Env")` with

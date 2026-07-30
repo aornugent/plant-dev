@@ -1,4 +1,4 @@
-> **Superseded by `06-tf24-dependency-map.md`. Kept for its measurements, not its framing.**
+> **Superseded by `00-tf24-dependency-map.md`. Kept for its measurements, not its framing.**
 >
 > This report was written against a feature branch, not `develop`, and three of its
 > load-bearing claims do not survive re-basing:

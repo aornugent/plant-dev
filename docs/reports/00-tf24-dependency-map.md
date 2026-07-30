@@ -1,4 +1,4 @@
-# TF24, mapped: the forward pass, the reverse pass, and where every partial goes
+# TF24, mapped: the physical reading, the forward pass, the reverse pass, and where every partial goes
 
 ## 0. What this report is, and how to read it
 
@@ -16,8 +16,12 @@ where a hand-built local Jacobian beats a tape by orders of magnitude rather tha
 constant factor. Report 1 found its win that way; this is the same exercise applied to
 the water.
 
-**Read it in order.** Sections 1–5 build the forward pass from the soil upward; you need
-all of it before the reverse pass in §6 makes sense. §7 is the classification table —
+**Read it in order, and start with the two unnumbered sections below.** *The physical
+reading* states the five facts the rest of this report elaborates, and *the gradient, end to
+end* walks the whole computation forwards and then backwards in prose. Between them they are
+the orientation; everything numbered after is the detail that supports them. Then sections
+1–5 build the forward pass from the soil upward; you need all of it before the reverse pass
+in §6 makes sense. §7 is the classification table —
 the actual deliverable. §8 is an adversarial review of §7, listing the places where the
 map is at risk of being *wrong* rather than merely incomplete; read it before trusting
 the table. §9 separates what is measured from what is asserted.
@@ -35,6 +39,109 @@ templated Strategy. `Node`, `Species`, `Patch`, `TF24_Strategy` and `Leaf` are a
 describing the forward computation that a gradient would have to be built *onto*, and
 identifying the structure that makes that cheap or expensive. Nothing here proposes
 templating `Leaf`.
+
+---
+
+## The physical reading
+
+Almost everything in this report follows from five statements about what TF24 *is*. A
+reader holding these five will predict §7's classification rather than having to learn it.
+
+**1. The cohort optimises, so carbon is stationary and water is not.** Each cohort chooses
+its root-collar water potential to maximise carbon profit. At that choice, profit's
+derivative with respect to the choice is zero — so profit's sensitivity to anything else,
+soil or light or a trait, is its *direct* sensitivity with the choice held still. Uptake is
+at no optimum. It merely consumes the choice, so its sensitivity carries the choice's
+movement too.
+
+This asymmetry is the most consequential fact here: **the carbon half of the leaf costs
+nothing to differentiate and the water half is the entire difficulty.** For a purely
+photosynthetic trait it is starker — uptake has no direct dependence on such a trait at
+all, so *all* of its water sensitivity arrives through the operating point's movement.
+Measured: profit's sensitivity to `vcmax_25` at a frozen operating point equals the
+full-solve value to every digit, while uptake's is exactly zero.
+
+**2. Water moves on differences; tissue fails on absolutes.** Uptake is driven by the
+difference between a soil layer's potential and the collar's. But loss of conductivity —
+embolism, in root and xylem alike — depends on the *absolute* tension. So the model nearly
+has a symmetry: shift the whole water column, soil and collar together, and uptake would
+not change. It does not quite hold, and the entire defect is the bend of the vulnerability
+curves across the operating span. In a plant whose conductivity did not decline with
+tension, uptake would be exactly insensitive to uniform drying.
+
+Three consequences, all measured on develop at 20 layers:
+
+- When the soil dries uniformly the collar follows it closely — `dp*/dψ` = 0.907 to 0.959 —
+  so uptake changes by about one percent of what the potentials do. The uptake channel is
+  near-singular in the uniform direction, amplification 15× to 26×. A *single* layer's
+  perturbation gives 0.79 and only 4.8×, so a conditioning claim here is meaningless
+  without its direction.
+- A whole-solve finite difference resolves the collar's response to about four digits, so
+  it **cannot** measure that one-percent residue. **Anything defined as a small difference
+  of large quantities must be computed as itself**, from the term that breaks the symmetry —
+  and for the uptake that term is a single one, the cumulative root-vulnerability integral
+  over an interval whose endpoints both slide.
+- The stem does the opposite. It *amplifies*, falling 1.28 to 2.97 times as fast as the
+  soil, because the same flux through a less conductive xylem needs a steeper gradient.
+  Collar and stem therefore break the same symmetry with opposite signs.
+
+**3. Leaf area cancels out of the water channel.** Per-leaf-area uptake carries a factor
+`1/area_leaf`, and the conversion to canopy uptake multiplies by `area_leaf`. So the soil
+sees uptake with no leaf-area factor at all. Leaf area reaches the water only through the
+operating point, and through root mass's effect on root resistance (§4.2).
+
+**4. Cohorts see each other through two small objects and nothing else.** The light profile
+— one spline — and the soil moisture vector. Everything else is per cohort and independent
+given those two. So the all-to-all coupling has the rank of the knot count on the light
+side and the layer count on the water side, however many cohorts there are (§2).
+
+**5. A reduction over the size distribution begins at the inflow boundary, not at the
+smallest cohort.** The boundary node is always live, its height is always the birth height,
+and it is the distribution's lower endpoint. A reduction starting at the smallest *existing*
+cohort invents a limit and then needs a rule for when it does not exist.
+
+## The gradient, end to end
+
+**Forward, once per right-hand-side evaluation.** The soil holds one moisture state per
+layer, and a retention curve turns each into a water potential. Every cohort's height and
+density together build one light profile. Each cohort then reads that profile over its own
+crown and the potentials from every layer, chooses its collar potential, and emits six rates
+— height, mortality, fecundity, heartwood area and mass, storage — together with one water
+draw per layer. The draws sum into the soil's balance. Two demographic equations per cohort
+close the system: the density transport term, which differences growth across neighbouring
+cohorts, and survival-weighted offspring. A census metric is a weighted sum over the size
+distribution, taken from the boundary node upward.
+
+**Backwards, from the metric.** Seed the adjoint on the states the metric reads. Then, at
+each step of the trajectory in reverse, the adjoint of the right-hand side goes in four
+parts:
+
+1. **The closed-form seeds** — everything a cohort's sweep needs before it can run. The
+   soil's drainage cascade is bidiagonal, so transposing it is free. The transport stencil
+   supplies each cohort's growth-rate adjoint, which is why it is a seed rather than a
+   consumer. Offspring contributes a mortality adjoint directly, because it reads that
+   state and not only a rate.
+2. **One sweep per cohort** of its own rate chain, from its states, the light profile's knot
+   values, the layer potentials and the traits, to its six rates and its per-layer draws.
+   The leaf sits inside this with a boundary rather than a tape: its carbon row is free by
+   fact 1, and its water rows need the operating point's movement, obtained from the
+   condition that defines the operating point. The coefficient that closes the soil channel
+   is recovered from one additional pair of residual evaluations on this pass.
+3. **The light knot adjoints**, pushed back into every cohort's leaf area, density and
+   height. The knots hold transmittance rather than summed leaf area, so this step carries
+   Beer's law's own derivative.
+4. **The allometry**, closed form.
+
+The trait adjoint accumulates over every cohort, every stage and every step — and a trait
+read in two places accumulates in two of the four parts, not one. `k_I` is the absorption
+coefficient inside a cohort and the extinction coefficient in the field; `eta` is the crown
+quadrature weight, the crown-shape constant, and that same field kernel.
+
+**Where the difficulty is, in one line each.** The leaf, because the operating point is an
+optimum rather than a state, and because its water rows are governed by a broken symmetry
+(facts 1 and 2). The light, because a cohort reads a field and the field is built from every
+cohort. The transport term, because it is a difference across neighbours. The inflow
+boundary, because it is a flux condition rather than a value.
 
 ---
 

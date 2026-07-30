@@ -1,7 +1,7 @@
 # The amplification is a broken symmetry, and the defect has a closed form.
 #
 # THE OBSERVATION. Uptake responds to a UNIFORM soil drying only weakly, because
-# the plant pulls harder and almost tracks it: report 06 section 9 measures
+# the plant pulls harder and almost tracks it: report 00 section 9 measures
 # dp*/dpsi = 0.9329-0.9958, so the driving disequilibrium changes by only
 # (1 - dp*/dpsi) = 0.004-0.067 and any absolute error in dp*/dpsi shows up
 # 15-238x larger in the flux derivative. scripts/leaf_waist2.R's T4 looked like a
@@ -10,7 +10,7 @@
 # matters, and it was untested.
 #
 # THE MATHEMATICS. Translate the whole water column: psi_i -> psi_i + d and
-# p -> p + d, in magnitudes. Read E_i off report 06 section 4.2 and the code:
+# p -> p + d, in magnitudes. Read E_i off report 00 section 4.2 and the code:
 #
 #     E_i    = (psi_i - p - g_i) / (a * r_R,i)
 #     r_R,i  = r_H,i * span_i / integral_i + r_V,i
@@ -60,7 +60,7 @@
 #         canopy   dp*/dpsi = 0.954816   amplification 22.1x
 #       Against 0.79 (4.8x) for a single layer of twenty, so the near-cancellation
 #       is real and belongs to the uniform direction. But it is 11-25x here, not
-#       the 15-238x report 06 section 9's 0.9329-0.9958 implies -- that range is
+#       the 15-238x report 00 section 9's 0.9329-0.9958 implies -- that range is
 #       from another configuration and does not reproduce at these states.
 #
 #   A2  THE CLOSED FORM IS EXACT. Predicted against a central difference of E_i

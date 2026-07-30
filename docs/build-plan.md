@@ -130,7 +130,7 @@ reads two aux slots it does not write — `competition_effect = area_leaf(height
 the unpacked inputs straight into `vars.states[]` therefore leaves `area_leaf` at whatever the last
 forward call left there, which severs `height -> area_leaf` and with it every trait reaching the
 rates through leaf area. Unpacking through `set_state` re-derives both on the block's own tape, so
-they are inlined functions of `height` (report 06 §1) rather than inputs, and the input count stays
+they are inlined functions of `height` (report 00 §1) rather than inputs, and the input count stays
 76 + n. `update_dependent_aux` keys on the state index, so per-index recomputation is sufficient.
 
 **The input count is only fixed once P2.1 lands.** 65 is the knot count under §2.6's fixed
@@ -1045,22 +1045,22 @@ the maximisation — `psi_soil` from the default driver's 0.015–0.17 MPa down 
 `psi_crit = 7.085`, four heights, five uneven profiles of the kind a drydown produces.
 
 **`Π_pp` is negative at 52 of 52 states**, `|Π_pp|` from **0.1723 to 15.61** (median 4.2). The
-divide in report 06 §6.2 fails when `Π_pp → 0`; nothing in the domain comes near it, and the
+divide in report 00 §6.2 fails when `Π_pp → 0`; nothing in the domain comes near it, and the
 largest amplification of a flux adjoint is **5.8×**. So the interior case is one divide with no
 fallback.
 
 | case | count | treatment |
 |---|---|---|
-| stationary interior maximum (`\|∂Π/∂p\|` at the solver's floor) | **37 / 52** | report 06 §6.2 as written |
+| stationary interior maximum (`\|∂Π/∂p\|` at the solver's floor) | **37 / 52** | report 00 §6.2 as written |
 | pinned at a bound (`\|∂Π/∂p\|` = 0.054 … 2.12 at tolerance `1e-10`) | **15 / 52** | `p*` is the bound, so its derivative is the bound's derivative |
 
 Every pinned state is at `psi_soil ≥ 1.5 MPa` **and** `height ≥ 2 m`. None is inside the
-default driver's `psi_soil` range, which is why report 06's production census finds no pinned
+default driver's `psi_soil` range, which is why report 00's production census finds no pinned
 states; the committed rainfall sequences reach 1.5+ MPa. Selection is a comparison on
 `|∂Π/∂p|` available where the search returns, and it is a discrete branch on the gradient path,
 so P0.5's inventory carries it.
 
-**Why report 06 §9's `∂Π/∂p` of 11–23 is consistent with a curvature of −4.** A `1e-4`
+**Why report 00 §9's `∂Π/∂p` of 11–23 is consistent with a curvature of −4.** A `1e-4`
 displacement would give about `4e-4`. `golden_section_max` returns a point affine in its
 bracket within one comparison pattern, jumping when the pattern changes, so the displacement is
 bracket-scale rather than tolerance-scale — report 04 §5's mechanism. A property of the search,
@@ -1098,7 +1098,7 @@ sub-grid difference carries.
 3. **Is the normalised light coordinate bit-identical to `rescale_spline`?** **M3.** If not, the
    interpolant change is a model change and Phase 2 needs the owner.
 4. **Is the leaf's boundary (soil water potential per layer, radiation, traits) → (profit,
-   per-layer uptake)?** Report 06 §5 says so. A sixth quantity changes P3.2's shape.
+   per-layer uptake)?** Report 00 §5 says so. A sixth quantity changes P3.2's shape.
 5. **Do P0.6's two ecology decisions bump `scientific_version`?** With P2.1 and P2.4 also
    changing forward numbers, there is a case for taking all four to the owner together.
 

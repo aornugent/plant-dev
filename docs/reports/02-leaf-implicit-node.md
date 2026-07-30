@@ -1,10 +1,10 @@
 # The TF24 leaf as a single differentiable node
 
-> **Read `06-tf24-dependency-map.md` §6 alongside this.** On the production path the
+> **Read `00-tf24-dependency-map.md` §6 alongside this.** On the production path the
 > collar operating point is a stationary interior maximum (`|∂Π/∂p| ~ 1e-5 … 1e-7` at tight
 > tolerance) and the envelope theorem holds to 0.006–0.9% on `d(profit)/dψ`, so this
 > report's premise is the right one. What replaces its **Newton polish** is not a
-> correction to the geometry but a cheaper construction: report 06 §6.2 collapses the five
+> correction to the geometry but a cheaper construction: report 00 §6.2 collapses the five
 > flux adjoints onto one scalar, divides once by `Π_pp`, and takes one gradient of
 > `∂Π/∂p` — no root-find at all. The polish figure quoted below (4.541e-10) is a toy
 > measurement and is not a production number.

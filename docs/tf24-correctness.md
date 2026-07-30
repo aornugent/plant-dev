@@ -151,18 +151,18 @@ all uncounted — they were outside every report's scope because no report start
 
 | construct | incidence | source |
 |---|---|---|
-| `max(S, 0)` on storage | **13.96%** of records; storage genuinely goes negative (min −2.249e-03 vs median 1.756e-04), so the `dS/dt` comment's claim that the outflow gate "floors storage at zero" does not hold | report 06 §9b |
-| `net_mass_production_dt <= 0` | **14.04%** — but *not* a discontinuity count, since `P_pos` smooths it | report 06 §9b |
+| `max(S, 0)` on storage | **13.96%** of records; storage genuinely goes negative (min −2.249e-03 vs median 1.756e-04), so the `dS/dt` comment's claim that the outflow gate "floors storage at zero" does not hold | report 00 §9b |
+| `net_mass_production_dt <= 0` | **14.04%** — but *not* a discontinuity count, since `P_pos` smooths it | report 00 §9b |
 | `max(light, 1e-4)` | **zero. 0 of 8 292 light knot values at or below the floor; minimum 0.1657209** (`../scripts/light_floor.R`). Structural, not lucky: `L = exp(-A)` with `A` the leaf area *above* `z`, so `L` is minimised at the ground, and reaching `1e-4` needs about five times this stand's optical depth. Confirmed independently against `exp(-Patch::compute_competition(z))` over `[0, height_0]` | report 07 §1.8 |
 | `height <= cap ? spline(height) : 1.0` | **structurally zero in a resident run.** `cap` is `spline.max()`, set from `Patch::height_max()`, which *is* the tallest cohort's height — so no crown query can exceed it and the tallest cohort's top quadrature point sits exactly at equality, taking the spline arm. Listed because it is a branch on a computed value, and because it is not structurally zero for a mutant taller than every resident | `resource_spline.h:88` |
 | `max(0.0, spline(height))` undershoot guard | **zero. No negative knot value.** The guard exists for a cubic undershooting between knots (K93 at high `k_I`); on TF24 at these settings it has nothing to catch | report 07 §1.8 |
 | `Species::consumption_rate`'s `size() < 2` | **0.70%** of output times, and it is the *first* one | report 07 §1.7 |
-| the three shut-down exits | **0%** at the default driver; minimum margin 27× `GSS_tol_abs` | report 06 §9 |
+| the three shut-down exits | **0%** at the default driver; minimum margin 27× `GSS_tol_abs` | report 00 §9 |
 | the **interior / bound-pinned** operating-point selector | **15 of 52** states across the argmax's whole feasible domain, all at `psi_soil ≥ 1.5 MPa` and `height ≥ 2 m`. None inside the default driver's range; the committed rainfall sequences reach it | `scripts/curvature_probe.R` |
-| the zero-flux `psi_upstream >= psi_stem` branch | **0%**; the jump across it is exactly `R_d` | report 06, report 07 |
-| `E_up_ < 0` (hydraulic redistribution) | **never** | report 06 §9 |
+| the zero-flux `psi_upstream >= psi_stem` branch | **0%**; the jump across it is exactly `R_d` | report 00, report 07 |
+| `E_up_ < 0` (hydraulic redistribution) | **never** | report 00 §9 |
 | `rooting_depth = min(height, 1.5)` | crossed by **every** cohort, once, early — so the channel is correctly dead for production-size plants | report 07 |
-| soil positivity guard, conductivity floor, retention floor, `soil_psi_max_` | the guard is NaN-safe on develop (`!(rate > 0.0)`); reachability argued from `K ∝ θ^16.14` but the drier-driver case is open | report 06, open-item 58 |
+| soil positivity guard, conductivity floor, retention floor, `soil_psi_max_` | the guard is NaN-safe on develop (`!(rate > 0.0)`); reachability argued from `K ∝ θ^16.14` but the drier-driver case is open | report 00, open-item 58 |
 
 ### Demographic and field reduction
 
@@ -373,9 +373,9 @@ right method and it found four carriers:
 | carrier | where |
 |---|---|
 | `Leaf::soil_consumption_`, deep layers | P0.1. **33.78%** of production records |
-| `Leaf::soil_consumption_` and `E_up_` past a shutdown exit | P0.2, report 06 §8 item 5 |
+| `Leaf::soil_consumption_` and `E_up_` past a shutdown exit | P0.2, report 00 §8 item 5 |
 | `photo_temp_cached_`, keyed on `(leaf_temp_, atm_o2_kpa_)` while caching `vcmax_` and `jmax_` | report 01 §5, report 02 C3. The key is a proper subset of the dependencies, and both parameters are differentiation targets |
-| `psi_soil_cache_`, keyed on exact `double` equality of the soil state | report 01 §5, report 06 §8 item 10. A finite-difference verification perturbs exactly that state |
+| `psi_soil_cache_`, keyed on exact `double` equality of the soil state | report 01 §5, report 00 §8 item 10. A finite-difference verification perturbs exactly that state |
 
 **What is missing is not the enumeration but an executable check.** Report 02 C5 says why reading
 is not enough: the input list "was assembled by reading `set_physiology`'s signature and would

@@ -56,7 +56,7 @@
 #   T4  NO-OP. split and diagonal agree to every printed digit because they are
 #       the same expression: -(dR/dpsi_1 + Pi_pp)/Pi_pp == -dR/dpsi_1/Pi_pp - 1.
 #       The disequilibrium coordinate is algebraically trivial here. Note also
-#       dp*/dpsi_1 ~ 0.79 for ONE layer, against report 06's 0.9329-0.9958 for a
+#       dp*/dpsi_1 ~ 0.79 for ONE layer, against report 00's 0.9329-0.9958 for a
 #       UNIFORM soil change -- so the 15-238x amplification belongs to the uniform
 #       direction, and conflating the two overstated the single-layer case.
 #   T5a the seedling anomaly is P0.1, not physiology. max_soil_layer = 6 of 20,

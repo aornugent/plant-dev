@@ -12,7 +12,11 @@ is archived. In short:
   manifest for both AD branches, the tasks, the gates. Baselines are plant `develop` and
   odelia `854a8e18`.
 - [`docs/tf24-correctness.md`](docs/tf24-correctness.md) — the TF24 forward-model prerequisites.
-- `docs/reports/01`–`04`, `06`, `07` — the derivations and measurements the plan rests on.
+- [`docs/reports/00-tf24-dependency-map.md`](docs/reports/00-tf24-dependency-map.md) — **the
+  first reading.** Its physical reading gives the five facts TF24's gradient follows from, and
+  its end-to-end walk states the flow forwards and backwards in prose. Read it before the
+  others; they are its detail.
+- `docs/reports/01`–`04`, `07` — the derivations and measurements the plan rests on.
   **Reference material, not status**; they are never edited to track progress.
 - `docs/archive/` — four documents whose conclusions are stale or configuration-dependent, each
   bannered with what survives. `docs/audit-2026-07.md` explains each. **Do not design from them.**
