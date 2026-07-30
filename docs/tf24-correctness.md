@@ -23,6 +23,22 @@ matters when scheduling them:
 - **P0.12 gates P1.2b**, which templates TF24: landing it first means one canopy profile is
   templated rather than two.
 
+## What has landed
+
+Commits are on plant branches off `develop` `141dc8df`, merged into `p0/phase-0`. The evidence — gates
+as run, and the shift where numbers moved — is in
+[`implementation-notes.md`](implementation-notes.md), not here.
+
+| | commit | forward effect |
+|---|---|---|
+| P0.1 | `ab15cc9f` | offspring `42.140173575095666` -> `42.198239148966778`, 5 055 -> 5 065 steps (+0.138%) |
+| P0.2 | `399b81ab` | bit-identical, confirming its zero incidence at this driver |
+| P0.1's second read | `6bc1e7b0` | bit-identical |
+| P0.5 | `487fd4f` (plant-dev) | probes and rows only |
+| P0.8 | `f93e72be` | offspring `42.474057288733817`, 5 077 steps (+0.7924%) |
+| P0.10 | `3b34dcf` (plant-dev) | probe only |
+| P0.11 | `60c0fc27` | bit-identical, one fewer leaf solve per stage per species |
+
 Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
 the work list, not the argument. Probes: `scripts/leaf_state_carryover.R`,
