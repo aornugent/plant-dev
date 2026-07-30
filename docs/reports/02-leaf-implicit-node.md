@@ -258,6 +258,15 @@ cohort's water draw to `resource_depletion`.** That is a forward-model defect, n
 only a gradient one: the uptake is stale and independent of the shut-down plant's own
 soil moisture.
 
+**And a shutdown exit is not required for it.** The same `resize` leaves every layer *below*
+`max_soil_layer` untouched on an ordinary solve, so a shallow-rooted cohort following a deeper one
+carries that cohort's deep-layer uptake with no branch taken at all — 33.78% of production records
+(report 01 §5, `../tf24-correctness.md` P0.1), against zero incidence for this section's shutdown
+route. `../build-plan.md` M7 measures the consequence for the reverse pass: restoring a leaf's inputs
+and its stored operating point reproduces every output bit-for-bit at 8 of 9 states, and the ninth is
+this defect. So P0.1 and P0.2 are one fault with two entrances, and P0.1's is the one the production
+driver uses.
+
 The fix is two lines in `set_shutdown_state` — `soil_consumption_.assign(n, 0.0)` and
 `E_up_ = 0.0` — and the AD branch already carries it. Section 4 establishes the blast
 radius: unreachable on the production driver, 199 occurrences in 330 021 solves at a
@@ -273,12 +282,11 @@ at `96941d3b`. Runs used `scm_base_parameters("TF24", "TF24_Env")` with
 `Control()`, `refine_schedule = FALSE`. The instrumentation is preserved as
 `docs/reports/leaf-branch-census.patch`.
 
-One obstacle worth recording, because it blocks any such run: **develop's plant does
-not compile against the installed odelia.** `odelia/ode_util.hpp` calls `xad::value`
-without including XAD, so `control.cpp` fails on the first translation unit reaching
-`plant/control.h -> odelia/ode_control.hpp -> odelia/ode_util.hpp`. Forcing
-`-include XAD/XAD.hpp` through `PKG_CPPFLAGS` works around it; the real fix is an
-include in the odelia header.
+One obstacle was recorded here, and it has since been shown to be branch-local: develop's plant
+failing to compile against the installed odelia, because `odelia/ode_util.hpp` called `xad::value`
+without including XAD. Report 01 §11.1 compiled plant-develop clean against `854a8e18` — the header
+now includes XAD — so the `-include XAD/XAD.hpp` workaround this section describes is not needed, and
+§10's item asking for the include is closed.
 
 | configuration | solves | E1 | E2 | E3 | E4 | E5 | pinned at bound_a | pinned at bound_b | min bracket |
 |---|---|---|---|---|---|---|---|---|---|

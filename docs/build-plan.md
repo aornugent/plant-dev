@@ -658,11 +658,18 @@ the `854a8e18` baseline** — `implicit_value` and `hermite_interpolator` are on
 and `preaccumulate` was added there in `2a60998` and deleted again in `28059bd`. So all of it is
 new code written against a design rather than a lift.
 
-**`to_passive` is not among them.** P1.1 sets out why nothing in plant needs to convert an active
-value to a passive one: comparisons and branches work natively, the cohort order is structural, the
-knot fractions are `double` by declaration under §2.6, and the graft idiom belonged to a mechanism
-this design does not have. The one real extraction is the R boundary and it lives in the `r_*`
-family.
+**`to_passive` is needed in exactly one shape, and it is not the one the AD branch used it for.**
+Nothing on the *value* path converts: comparisons and branches work natively, the cohort order is
+structural, the knot fractions are `double` by declaration under §2.6, and the graft idiom belonged to
+a mechanism this design does not have. What does convert is an **index or a discrete choice taken from
+an active value** — and `CanopyShape<S>`, which §3 takes as one file, already has three: the
+`pow_eta` kind selected from `eta`, the box-model threshold `eta_c_`, and the `u <= 0` guard at the
+crown base. The interpolant's active-position read is the same shape, `value + slope · (u −
+to_passive(u))` (M1). So the rule is that a conversion may pick a branch, an index or a span, and may
+never appear in a value a derivative flows through — which is checkable by where it is called rather
+than by whether it exists. Note that `CanopyShape`'s `eta_c_` is the box threshold and is `double`,
+while `TF24_Strategy<S>::eta_c` is the conductance and sapwood-volume constant and carries `S`: two
+names, two jobs, and only one of them is on the gradient path.
 
 | name | prior art | its one consumer in plant |
 |---|---|---|
@@ -740,9 +747,12 @@ Two rules, enforced per task:
 
 1. **Your model is templated on its scalar; `double` is production.** Write the science once.
    If new physiology does not compile at the active scalar, that is the design working.
-2. **Positions are `double`; values carry `S`.** Knot fractions, quadrature abscissae and sort
-   keys are decided on passive values, and declaring them `double` is how you say so. A knot *count* that
-   depends on an active value makes the recorded computation depend on the state.
+2. **Fractions are `double`; positions and values carry `S`.** A knot fraction, a quadrature
+   abscissa as a fraction of the interval, and a sort key are decided on passive values, and declaring
+   them `double` is how you say so. The *position* built from one is not: a crown abscissa is
+   `height · ξ_j`, and reading the field at its value rather than at it makes `d/d(height)` exactly
+   zero (M1). A knot *count* that depends on an active value makes the recorded computation depend on
+   the state.
 3. **An inner solve is declared by its residual,** through `implicit_value`. Never
    differentiate the iteration that found the root: `golden_section_max`'s result is affine in
    its bracket and independent of the objective's values, so recording the search returns the
@@ -811,7 +821,9 @@ None on the critical path; each can kill or confirm one choice in §2.
 | **M6** | **The leaf's boundary — run.** `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`, `leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`, `leaf_recover_a.R`, against develop at 5 and 20 layers and two species | report 02 §6, and it confirmed it: the envelope row exact for a leaf trait, the waist's joint residual 2.6e-04 to 9.2e-04 over 41 directions, `waist_b` against its closed form to 0.16–1.04%, `waist_a` recovered to 1e-05, both translation defects exact, and the stationarity gap that makes P2.6 a prerequisite | done |
 
 | **M7** | **The aux round trip — run.** `scripts/aux_round_trip.R`, nine states including three drier than the driver reaches | §2.8's carry, and it confirmed it, **conditional on P0.1**: restoring `set_physiology`'s inputs and evaluating at the stored operating point reproduces all 14 leaf outputs bit-identically after an intervening solve elsewhere (9/9), and one evaluation lands where the search left the leaf (9/9), so the sweep pays an evaluation and not a search. On a *fresh* leaf 8 of 9 are bit-identical and the ninth is P0.1 — the seedling's unrooted layers 3–5 carry the previous cohort's uptake, so today a leaf's outputs are a function of the previous cohort's solve as well as of its own inputs and aux. Nothing beyond the operating point needs publishing. For the soil: the guard reads the stage state, the cascade, `rainfall(time)` and the per-layer uptake and no other member, so aux closes it — and θ's minimum over a production run is **0.1563 against θ_r = 1e-2**, so the zeroed rows are correct and unexercised at this driver | done |
-| **M8** | **The descending-height invariant — run.** `scripts/descending_heights.R` | whether `height_max`'s adjoint and the stencil's sign need a guard, and they do not on this configuration: **0 of 10 011** neighbouring pairs non-descending over 142 output times, largest gap `-8.209404e-06`, median spacing 3.527e-03. The closest pair is 8.2 µm apart and report 04 §5's minimum spacing is the same number by a second route, so `height_max = nodes.front().height()` and `dh > 0` hold — with an 8 µm margin, one species, the default driver | done |
+| **M8** | **The descending-height invariant — run.** `scripts/descending_heights.R` | whether `height_max`'s adjoint and the stencil's sign need a guard, and they do not on this configuration: **0 of 10 011** neighbouring pairs non-descending over 142 output times, largest gap `-8.209404e-06`, median spacing 3.527e-03. The closest pair is 8.2 µm apart, which matches report 04 §7.1's boundary-interval minimum
+(8.2094e-06) rather than §5's interior figure (8.2095e-06) — §7.1 asks which of the two is a rounding
+of the other, and this is a third measurement landing on the first, so `height_max = nodes.front().height()` and `dh > 0` hold — with an 8 µm margin, one species, the default driver | done |
 
 M1, M2 and M5 are done, so M4's derivative half is unblocked as well as its value half. M3's accuracy
 half is done and settles §2.6; its bit-identity half waits on P2.1's interpolant existing. M6 is complete, and P3.2 and P3.3 are written against it. M7 and M8 need no AD and run on develop
@@ -901,15 +913,17 @@ concept covers the whole requirement: with the time dispatch untouched there is 
 System-level one to say. The `r_*` family then names `std::vector<double>::iterator` inline, where
 it means something.
 
-**No conversion helper.** There is nothing for a `to_passive` to do: comparisons and branches work
-on active values natively (XAD defines them for `AReal`, expressions, and mixed active/`double` —
-`BinaryOperators.hpp:99-158`); cohorts are kept in descending order by construction so there is no
-sort key to extract; §2.6's normalised coordinate makes the knot fractions `double` by declaration;
-and the graft idiom belonged to `preaccumulate`'s inject-onto-an-outer-tape mechanism, which this
-design does not have. The one real extraction is the R boundary, and it lives inside the `r_*`
-family. Putting a converter in `ode_util.hpp` — which plant reaches from every translation unit
-via `control.h` → `ode_control.hpp` — is how the XAD boundary erodes, and it is what odelia's AD
-branch did.
+**The conversion helper stays where odelia already keeps it, and plant calls it only to choose.**
+Nothing on the value path needs it: comparisons and branches work on active values natively (XAD
+defines them for `AReal`, expressions, and mixed active/`double` — `BinaryOperators.hpp:99-158`);
+cohorts are kept in descending order by construction, so there is no sort key to extract; §2.6's
+normalised coordinate makes the knot fractions `double` by declaration; and the graft idiom belonged
+to `preaccumulate`'s inject-onto-an-outer-tape mechanism, which this design does not have. What plant
+does need it for is picking a branch or an index from an active value — `CanopyShape<S>`'s three uses
+(§3) and the interpolant's span index — and `odelia::util::to_passive` in `ode_util.hpp` is where
+those already read it. The line to hold is the one the AD branch crossed: a conversion inside a value
+whose derivative is wanted, which is how the XAD boundary erodes. The R boundary's extraction is
+separate and lives in the `r_*` family.
 
 *Order.* The concept and the four helpers first, since P1.2a depends on them. Then
 `vector_jacobian_product`, then `step_adjoint`, then `implicit_value` and `hermite_interpolator`
@@ -988,17 +1002,18 @@ the R boundary. `SpeciesBase` is the one shared with the stochastic path.
 *Commit order, each bit-identical before the next.* (1) `Internals<S>` with `S = double`
 everywhere else. (2) `TF24_Pars<S>` and `TF24_Strategy<S>`, `Control` and `ExtrinsicDrivers` left
 `double`. (3) `TF24_Environment<S>` and `ResourceSpline<S>`. (4) the six containers reading
-`value_type` from `T`. (5) the RcppR6 yml and regeneration. (6) remove or relocate
-`growth_rate_gradient`'s scratch — but see P2.4, which deletes it outright, so M5 may have nothing
-left to measure.
+`value_type` from `T`. (5) the RcppR6 yml and regeneration. (6) remove `growth_rate_gradient`'s scratch outright. M5 measured
+all three arrangements within 1.5% of each other, so nothing replaces it, and P2.4 deletes the
+probe that needs it.
 *Must not break* `test-strategy-tf24.R`, `test-strategy-tf24f.R`, `test-patch.R`,
 `test-individual.R`, the stochastic tests, or the forward benchmark.
 *Closes on* bit-identity at a pinned build — the TF24 suite unchanged, and one production run
 reproducing offspring `4.214017357509567e+01` to the last bit — plus the forward benchmark inside
 the accepted band. **The band is a ratio taken in one session on one machine, never an absolute
-time** (§8b): the same tree at `-O2` runs 89.9 s on one box and 103.9 s on another, both
-reproducing that offspring value exactly and both taking the same 5 055 accepted steps. The step
-count and the value are properties of the tree and the flags; the seconds are the machine's.
+time** (§8b): the same tree at `-O2` has run **89.9 s**, **102.9 s** and **86.1 s** in three sessions,
+every one reproducing that offspring value exactly and taking the same 5 055 accepted steps. The step
+count and the value are properties of the tree and the flags; the seconds are not even reliably the
+machine's, since two of those three are the same container image.
 *The failure to watch for* is a deduced return type on anything returning an active value. XAD
 operators return expression templates holding references to their operands, so the caller gets
 references to dead temporaries, the reverse sweep reads reused stack memory, and the segfault
@@ -1173,7 +1188,11 @@ same order, checked rather than asserted.
 **P2.3 — the Hermite in `ResourceSpline`.** Swap the evaluator, feeding `init(x, y, dydx)` from
 P2.2.
 
-*Closes on* O(h⁴) on value and O(h³) on slope at the production fraction set.
+*Closes on* O(h⁴) on value and O(h³) on slope **on a smooth test field**, which is where report 03
+§5.3 measured 16.0 and 8.0 — its knots sit **at the cohort tops**, so each span is smooth. The
+production fraction set is uniform (P2.1) and therefore does not align with the cohort heights, where
+`Q(z/h)` breaks the field's derivative; M3 measures about `h^2.5` there. So the gate is the scheme's
+rate on a smooth target, and the production rate is recorded rather than required.
 *Note* the R-facing state changes shape — the fitted cubic reports (x, y), a Hermite carries
 (x, y, m). That is a `NEWS.md` entry.
 
@@ -1490,10 +1509,11 @@ fixed.
 
 **The rebuild keeps each stage's aux** — six vectors held by `Step` beside `k1`–`k6`, about 10 kB —
 and the sweep hands it back with `set_ode_aux` so the leaf reads its operating point and the soil its
-per-layer uptake instead of recomputing either (§2.8). `Step` already owns `k1`–`k6` and `ytmp`, and
-first-same-as-last means `k1` is the previous step's `dydt_out`, so the rebuild allocates nothing and
-evaluates five stages rather than six — except at an introduction, where P0.9's fix makes the seeded
-`k1` the rate of the state it belongs to.
+per-layer uptake instead of recomputing either (§2.8). `Step` already owns `k1`–`k6` and `ytmp`, so the rebuild allocates nothing. It evaluates **six**
+stages, not five: first-same-as-last saves an evaluation on the *forward* pass because `k1` is the
+previous step's `dydt_out`, and a reverse traversal has not rebuilt that step yet — it visits the step
+above first. So `k1` is re-derived as `f(y, t)` at the step's own start state, which is what P0.9's fix
+makes correct at an introduction, where develop's seeded `k1` is the pre-introduction rate vector.
 
 *Closes on* **V3** — one step's `lambda_y` against a finite difference of one step. A lost tableau
 term is silent and has no measured signature (report 01 §12), which is the argument for checking
@@ -1641,8 +1661,13 @@ it is subtracted:
 | `dprofit_droot_collar_psi` | — | **3.5 µs** |
 
 **The leaf solve is most of the forward run, and half of the solves are the stencil's probe.**
-7.8 M solves (report 01 §2's structural ratio on develop's counts) at 10.2 µs is **80 s of 102.9**,
-so the leaf is about **78%** and P2.4 removes about **39%** of forward time by deleting the probe.
+7.8 M solves (report 01 §2's structural ratio on develop's counts) at 10.2 µs is **80 s**, so against
+the 102.9 s run measured beside it the leaf is about **78%** and P2.4 removes about **39%** of forward
+time by deleting the probe. **That share is anchored to one wall clock and the wall clock moves**: the
+same tree later ran 86.1 s (M5), against which the same 80 s would be 93% — which is too high to
+believe and says the per-call cost, the solve count or the clock belong to different sessions. So the
+share is the one number here to re-take with its own timing in a single session; the *ratio* P2.4
+turns on — one of the two solves per cohort per stage — is structural and does not depend on it.
 Measured from the other side, a marginal Richardson probe costs 15.0% of a life-20 run — a lower
 bound, because the extra probes reuse caches the first one fills. The test suite's own profiling
 note says 50.1% (report 04 §3). The three agree in order and the arithmetic sits between the two
@@ -1723,8 +1748,10 @@ aux transfer and `step_adjoint` are the same either way.
    **M1** answers it without plant.
 2. **Does the scalar belong on the types that own the parameters, with `<T,E>` unchanged?**
    **M2** for one file; P1.2 for TF24.
-3. **Is the normalised light coordinate bit-identical to `rescale_spline`?** **M3.** If not, the
-   interpolant change is a model change and Phase 2 needs the owner.
+3. **Is the normalised light coordinate bit-identical to `rescale_spline`?** Only in P2.1's first
+   step, and deliberately not in its second. M3's accuracy half settles the fractions — uniform at
+   65 — and prices the switch at a 1.7e-03 crown-mean light shift, so the interpolant change *is* a
+   model change and Phase 2 needs the owner for it. The bit-identity to check is step (1)'s.
 4. **Is the leaf's boundary as report 02 §6.8 states it** — `2n + 3` geometry and soil inputs
    plus twelve of its own parameters, out to profit and one uptake per rooted layer? A thirteenth
    parameter or a sixth output kind changes P3.2's shape. Note the output arity is
@@ -1733,8 +1760,8 @@ aux transfer and `step_adjoint` are the same either way.
 5. **Do P0.6's two ecology decisions bump `scientific_version`?** With P2.1 and P2.4 also
    changing forward numbers, there is a case for taking all four to the owner together.
 
-**Order: M1 and M2 in parallel, then M3 and M4; (4) before P3.2; (5) before anything is
-verified against TF24's numbers.**
+**Order: M1, M2, M3's accuracy half and M5 are done. M4 remains, and it lands with P2.4 step (1);
+(4) before P3.2; (5) before anything is verified against TF24's numbers.**
 
 ---
 

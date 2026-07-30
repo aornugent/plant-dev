@@ -326,18 +326,14 @@ boundary density needs `g(height_0)`, which needs the field over `[0, height_0]`
 crown `L` runs **0.1657 to 1.0** across all 141 steps, four orders clear of the floor. Since
 `L = exp(-A)` and `A` is leaf area *above* `z`, `L` is minimised at the ground by construction, so
 that is the global minimum of the profile — the floor would need about five times this stand's
-optical depth. `../tf24-correctness.md` P0.5 carries what that means for the recorded light-floor
-census.
+optical depth.
 
-**And the circularity is real.** The relation is implicit because the boundary density needs
-`g(height_0)`, which needs the field over `[0, height_0]`. The `max(light, 1e-4)` clamp would sever
-that if it bound there, and it does not: over the seedling crown `L` runs **0.1657 to 1.0** across
-all 141 steps, against a floor of `1e-4`, and it binds nowhere. Since `L = exp(-A)` and `A` is leaf
-area *above* `z`, `L` is minimised at the ground by construction, so this is the global minimum of
-the profile — reaching the floor would need about five times the optical depth this stand attains.
-That result does not sit with report 07 §1.8's census of 4.638% of knot values at or below `1e-4`
-with a minimum of exactly 0; those two cannot both describe the physical field, and
-`../tf24-correctness.md` P0.5 carries the discrepancy.
+**A third census agrees, and the disagreement an earlier version of this section recorded does not
+exist.** It attributed to report 07 §1.8 a count of 4.638% of knot values at or below `1e-4` with a
+minimum of exactly 0. §1.8 reports the opposite — 0 of 8 292, minimum 0.1657209 — and a re-run of the
+production light column this session reproduces exactly that: 8 292 values, minimum **0.1657209**,
+none at or below `1e-4`, none negative, ground-level median 0.9997. So the cited conflict was a stale
+cross-reference rather than two measurements of one field.
 
 **The plant-soil coupling is narrow in both directions.** Cohorts reach the soil only
 through the summed `resource_depletion` vector, and the soil reaches cohorts only
@@ -375,8 +371,9 @@ is closed form in a rate the block already emits. So the block stops where
 `Individual::compute_rates` stops, which is also where §1 says the recording goes.
 
 **The light enters as the interpolant's knot values**, not as light sampled at the crown
-abscissae. The abscissae sit at `z = u_k * height`, so their positions depend on the cohort's own
-height and sampled light is an intermediate. Recording the interpolation and the quadrature
+abscissae. The abscissae sit at `z = xi_j * height` — `xi_j` a quadrature fraction, not to be confused with
+the knot fractions `u_k` of report 03 — so their positions depend on the cohort's own height and
+sampled light is an intermediate. Recording the interpolation and the quadrature
 inside the block puts the moving-bound term and `q(z, height)` on that block's tape.
 
 For TF24 on develop, where `state_size()` is 6:
@@ -424,7 +421,8 @@ set (`lma`, `rho`, `hmat`, `eta`, ... `vcmax_25`, `p_50`, `K_s`, `jmax_25`, ...)
 a soil-specific subset. `Species::ad_parameters()` returns
 `strategy->field_ptrs()`, pointers into the strategy's `pars`, generated from that
 one macro list alongside `field_names()` so the two cannot disagree in membership or
-order. K93 declares 11 and FF16 32.
+order. That is the AD branch's arrangement; `../build-plan.md` P1.3 keeps the property and moves the
+source to the RcppR6 yml, which is already the one place names and pointers are declared. K93 declares 11 and FF16 32.
 
 So the realistic target count is **tens**, and for a calibration workflow plausibly
 all 51. Environment and driver parameters are *not* in the macro — `birth_rate` is an
@@ -885,8 +883,8 @@ because `vcmax_25` is run-constant; wrong the moment it is not, and a differenti
 target is exactly a parameter someone intends to vary.
 
 **4. Narrow the environment interface.** The cost of differentiating a cohort scales
-with how many environment values it reads. TF24 reads 21 light values and 5 soil
-potentials. A Strategy that read the whole environment, or queried it at
+with how many environment values it reads. TF24 reads the light field's 65 knot values, their 65
+slopes once the field carries them (§4.1), and 5 soil potentials. A Strategy that read the whole environment, or queried it at
 state-dependent points chosen by a search, would be materially more expensive.
 
 **5. Expose an inner solve's *residual*, not its *search*.** For a quantity defined

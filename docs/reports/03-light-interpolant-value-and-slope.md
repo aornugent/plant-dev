@@ -131,8 +131,15 @@ depend on the state.
 
     x_new = x_old * height_max / height_max_old
 
-which is `x_k = u_k * height_max` for fixed fractions `u_k` inherited from the one adaptive
-`construct` at the start of the run.
+which is `x_k = u_k * height_max` for fixed fractions `u_k`.
+
+**Which fractions, measured.** This section assumed they would be inherited from the one adaptive
+`construct` at the start of the run. `../build-plan.md` M3 measured that choice against three others
+and it is the worst of them: at the first step the stand is one seedling, the field is flat, and the
+refiner returns an equally spaced set, so the first state's refinement carries no information — its
+crown-mean light error reproduces a uniform 33-knot set to every digit. The error is resolution
+rather than placement (about `h^2.5`, set by the derivative breaks at the cohort heights), a mid-run
+refinement at 115 knots is worse than uniform at 58, and the decision is **uniform at 65**.
 
 **So hold the interpolant on `u = z / height_max`, with the fractions fixed.** Bit-identical to
 what `rescale_spline` already produces *between introductions*, up to performing one division
@@ -190,7 +197,7 @@ would sit above the canopy for the first decades of every run.
 
 | | type | job |
 |---|---|---|
-| knot fractions | the value-fitted cubic and its adaptive refiner | chooses the fractions once, at the start of the run. Positions only |
+| knot fractions | fixed, uniform at 65 (M3) | positions only, and no refiner chooses them |
 | evaluation | `hermite_interpolator<S>` | value and slope at those fractions, carrying the working scalar |
 
 The Hermite has no refiner, so it cannot replace the fitted cubic; it is an addition with one
@@ -404,6 +411,13 @@ Hermite ratios: **16.0 and 16.0** on the value, which is O(h^4); **8.0 and 8.0**
 slope, which is O(h^3). Those are the textbook rates, and obtaining them *is* the
 evidence that the breaks are resolved — a scheme smoothing over curvature jumps cannot
 achieve them.
+
+**Those rates belong to this knot placement, and the production one gives them up.** The table
+subdivides *cohort-top* spans, so every span is smooth and the breaks fall on knots. Fixed uniform
+fractions (§1b, M3) do not align with the cohort heights, so a break sits inside a span and the
+observed rate on the production field is about `h^2.5`. That is the price of making the positions
+run-constant, and it is paid in resolution: `../build-plan.md` P2.3's gate is therefore stated on a
+smooth target, with the production rate recorded beside it.
 
 The fitted cubic on the same knots goes 1.21e-03, 1.13e-03, 2.95e-04: essentially flat,
 then erratic. At 565 knots the Hermite slope is 100x better and the margin widens with

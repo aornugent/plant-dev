@@ -111,9 +111,13 @@ growing from one cohort to 141. The ratio is structural and holds on any tree.
 **5.56 s of a 36.92 s** life-20 run — **15.0%** per probe (`../../scripts/gradient_budget.R`,
 develop at `-O2`, life 20, five layers, one species). That is a lower bound: the extra probes reuse
 the soil and photosynthesis caches the first one fills. Arithmetic from the other side puts it
-higher — 7.8 M solves at a measured **10.2 us** each (`../../scripts/leaf_call_cost.R`) is 80 s of a
-102.9 s production run, so the leaf is about 78% of forward time and the probe about 39% of it. Both
-sit below the profiling note quoted next.
+higher — 7.8 M solves at a measured **10.2 us** each (`../../scripts/leaf_call_cost.R`) is 80 s, and
+against the 102.9 s production run measured beside it the leaf is about 78% of forward time and the
+probe about 39% of it. Both sit below the profiling note quoted next. **The share is anchored to that
+one wall clock**: the same tree later ran 86.1 s (`../build-plan.md` §5b M5), against which 80 s would
+be 93%, so the percentage needs re-taking with its own timing in one session. The structural ratio —
+two solves per cohort per stage, one of them the probe — does not depend on it, and that is what this
+section's argument uses.
 
 **Corroborated from inside plant, independently.** `tests/testthat/test-scm.R:106` carries a
 profiling note: *"50.1% in growth_rate_gradient(), and 45.4% in compute_rates() and 2.8% in
@@ -297,7 +301,9 @@ runs 8.2094e-06 to 3.8097e-01 with a median of 2.6756e-02, and it is exactly zer
 (`../../scripts/cohort_spacing.R`). Note that §5's minimum over the 9 870 *interior* intervals is
 8.2095e-06 — the same probe, a different population, and the two differ only in the fifth digit.
 Either the global minimum is this boundary interval reported twice with a rounding difference, or
-it is a coincidence; one line from the probe would say which, and no argument here depends on it. By the time the solver has advanced to the next recorded state
+it is a coincidence; no argument here depends on it, and a third measurement now favours the first
+reading: `../build-plan.md` M8 scans 10 011 neighbouring pairs over 142 output steps and reports a
+minimum of **8.209404e-06**, which is §7.1's figure to seven digits and not §5's. By the time the solver has advanced to the next recorded state
 the newborn has grown away from `height_0`.
 
 **But a rate is read at the degenerate configuration, exactly once per introduction.**
