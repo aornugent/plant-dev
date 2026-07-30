@@ -1081,9 +1081,10 @@ drives `Patch::ode_rates_adjoint`.
 the forward pass has already been run at the state being differentiated. That is what makes each
 reverse stage cost a forward RHS before any recording begins.
 
-*Closes on* **V3** — one step's `lambda_y` against a finite difference of one step. The reference
-failure for a lost tableau term is a **19%** error with the correct sign and no message, so a
-whole-run check would not localise it.
+*Closes on* **V3** — one step's `lambda_y` against a finite difference of one step. A lost tableau
+term is silent and has no measured signature (report 01 §12), which is the argument for checking
+one step rather than the whole run: a whole-run disagreement would not localise it, and there is no
+magnitude to recognise it by.
 
 ---
 
@@ -1199,7 +1200,7 @@ when the pattern changes, so the displacement is bracket-scale rather than toler
 | removing the scratch slows the forward pass | benchmark | **M5** |
 | a channel exists that templating cannot reach | a derivative obtainable only through a second implementation | P3.1's V1 |
 | the decomposition is wrong | V1 fails at one state, with nothing else in the way | P3.1 |
-| the stage recursion loses a term | V3 fails on one step; the reference failure is a 19% error with the correct sign and no message | P3.5 |
+| the stage recursion loses a term | V3 fails on one step. **No measured signature** — report 01 §12 records that C5's 19% belongs to the newborn-adjoint mechanism, not to a lost tableau term, so the only thing known is that it is silent | P3.5 |
 | trait adjoints do not accumulate across cohorts | a fixed fraction of the finite difference with the correct sign, nothing thrown. Treating each cohort as a separate input gives 41–51% | P3.6 |
 | trait adjoints do not accumulate across *steps* | the same signature, unmeasured. `k_I` and `eta` are read both inside the block and by the field reduction (§2.4), so each needs a step (b) and a step (c) contribution | P3.6, and P3.1's V1 for the step (c) half alone |
 | the leaf's boundary is wider than §2.3 and report 02 §6.8 declare | P3.2 grows an output nobody declared | P3.2; P0.5's inventory should predict it |

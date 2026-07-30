@@ -846,17 +846,23 @@ reproduce, most to five digits:
 | `∂Π/∂p` at `GSS_tol_abs = 1e-3` | 11.166 / 10.382 / −19.445 / 23.057 | **identical** |
 | `∂Π/∂p` at `tol = 1e-12` | 1e-5 … 1e-7 | **1e-5 … 1e-7** (stationary) |
 | `p*` displacement at `tol = 1e-3` | 1.03e-4 … 2.04e-4 | **identical** |
-| `dp*/dψ` | 0.9320–0.9958 | **0.9329–0.9958** |
+| `dp*/dψ` **[one layer at a time, 5 layers]** | 0.9320–0.9958 | **0.9329–0.9958** |
 | `dp*/dψ` relative error | 0.39% / 3.68% | **0.39% / 3.68%** |
 | `d(profit)/dψ` relative error | 0.006–0.9% | **0.006–0.9%** |
 | **`d(consumption)/dψ` relative error** | **47.7–53.2%** | **47.6–53.2%** |
 
 So the cancellation identity holds on develop: absolute error in `dp*/dψ` divided by
 `(1 − dp*/dψ)` predicts the flux error to within its own noise (e.g. `0.0038269 / 0.0080286
-= 47.7%` against 47.6% measured). And `|Π_pp| ≈ 1.1 × 10⁵` from develop's own numbers
-(`g = 11.166` over a displacement of `1.031e-4`; `23.057` over `2.038e-4`), consistent
-across states — still a ratio of two measurements rather than a direct one, but a
-well-conditioned one.
+= 47.7%` against 47.6% measured).
+
+**`Π_pp` was later measured directly and is not `1.1 × 10⁵`.** A central difference of
+`dprofit_droot_collar_psi` about the solved point gives `|Π_pp|` of **0.17 to 15.6 at five layers**
+and **14.4 to 198 at twenty** (`../build-plan.md` §8, `../../scripts/curvature_probe.R`), negative
+at every state sampled. The ratio route is sound — at matched states `R`/displacement reproduces the
+direct value to three or four digits — but the pair used here does not belong to one state: at five
+layers over six production states `|R|` at `GSS_tol_abs = 1e-3` is 8.8e-05 to 1.2e-03, not 11–23.
+So the `1.1 × 10⁵` above, and the `∂Π/∂p` of 11–23 it is computed from, are this configuration's
+and reproduce nowhere else. Nothing in the design rests on either.
 
 **Also re-run on develop, with two figures that changed:**
 

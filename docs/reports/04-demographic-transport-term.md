@@ -286,7 +286,10 @@ by it.
 
 **Measured: it is never zero at a recorded state.** Over 141 recorded states the boundary interval
 runs 8.2094e-06 to 3.8097e-01 with a median of 2.6756e-02, and it is exactly zero at none of them
-(`../../scripts/cohort_spacing.R`). By the time the solver has advanced to the next recorded state
+(`../../scripts/cohort_spacing.R`). Note that §5's minimum over the 9 870 *interior* intervals is
+8.2095e-06 — the same probe, a different population, and the two differ only in the fifth digit.
+Either the global minimum is this boundary interval reported twice with a rounding difference, or
+it is a coincidence; one line from the probe would say which, and no argument here depends on it. By the time the solver has advanced to the next recorded state
 the newborn has grown away from `height_0`.
 
 **But a rate is read at the degenerate configuration, exactly once per introduction.**

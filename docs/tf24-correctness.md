@@ -5,19 +5,24 @@ These are defects and undecided questions in TF24's forward model on develop
 `141dc8df`. They are prerequisites for two different reasons, and the distinction
 matters when scheduling them:
 
-- **P0.1–P0.4, P0.8 and P0.9 block the engine**, because the design's own acceptance test
-  is "re-run one cohort's rates from its boundary and compare bit for bit", and on develop
-  that fails for reasons unrelated to gradients. P0.8 and P0.9 are **family-wide** rather
-  than TF24-specific, and they are the two the reverse pass cannot be built on top of.
-- **P0.5–P0.6 block TF24's phase only**, because you cannot decide which switches to
+- **P0.1–P0.4, P0.8, P0.9 and P0.10 block the engine**, because the design's own acceptance
+  test is "re-run one cohort's rates from its boundary and compare bit for bit", and on
+  develop that fails for reasons unrelated to gradients. P0.1 and P0.10 are that claim at
+  two strengths. P0.8 and P0.9 are **family-wide** rather than TF24-specific.
+- **P0.5 and P0.6 block TF24's phase only**, because you cannot decide which switches to
   mollify before you know which ones fire, and you cannot FD-verify against numbers
   the owner may change.
+- **P0.7 blocks whoever first asks the light field for a slope**, which is P2.2. It is latent
+  until then, and it is one line either way.
 
 Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
 the work list, not the argument. Probes: `scripts/leaf_state_carryover.R`,
 `scripts/uncounted_switches.R`, `scripts/light_floor.R`, `scripts/boundary_node.R`,
-`scripts/cohort_spacing.R`; the introduction probe is `reports/introduction-k1.patch`.
+`scripts/cohort_spacing.R`, `scripts/k1_arms.R` with `reports/introduction-k1.patch`, and
+the leaf-boundary set `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`,
+`leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`,
+`leaf_recover_a.R`.
 
 ---
 
@@ -53,6 +58,15 @@ a perturbed height**.
 **Gate.** The seedling's deep layers read 0 on a leaf that solved a tree first, and
 `solve(seedling); solve(tree); solve(seedling)` is bit-identical. Re-bless TF24
 baselines and record the shift.
+
+**The same object has a second undeclared read, and it lands here.**
+`dprofit_droot_collar_psi` reads the member `psi_soil_inverted_`, which only
+`prepare_collar_solve` refreshes. Change the soil and call it directly and it differentiates
+against the previous state's vector: measured, `R` returns `-4.3244858e-07` where the refreshed
+value is `0.12438779` — a relative difference of 1, not a drift. It is the same fault as the
+stale uptake, one level up: a function whose inputs are partly members, with no statement that
+says which. Fix it the same way — the derivative entry point refreshes what it reads, or takes
+it as an argument.
 
 **Also do.** Assert the invariant rather than restoring it by hand:
 `soil_consumption_` is sized and cleared by the one statement that knows its length.
@@ -281,7 +295,7 @@ distribution starts.
 |---|---|---|
 | `Species::compute_competition` (`species.h:220-223`) | **`new_node`** at `height_0` | correct, and needs no special case |
 | `Species::consumption_rate` | `nodes.back()`, with `if (size() < 2) return 0.0;` | a transpiring plant draws **no water**, at 0.70% of output times — and it is the *first* one, the window in which establishment is decided (report 07 §1.7) |
-| the transport stencil, under `build-plan.md` §11.3 | no neighbour below the lowest cohort | the case report 04 §7 designs |
+| the transport stencil | before report 04 §7's staggering, no neighbour below the lowest cohort | settled the same way: pairing each cohort with the interval **below** makes the boundary node the lowest cohort's neighbour, so the case does not arise |
 
 `new_node` is the size-density equation's inflow boundary. It is always live, its height is
 always `height_0`, and it is the distribution's left endpoint. `compute_competition` reaches
@@ -322,7 +336,7 @@ widened state under the rebuilt field. odelia records the doubt in place — *"N
 this is the right thing here; should just be able to look up the correct dydt rates because
 we've already set state?"*
 
-**Measured** (`scripts/k1_probe.md` records the patch; 141 introductions, `-O2`):
+**Measured** (`scripts/k1_arms.R`, instrumented by `reports/introduction-k1.patch`; 141 introductions, `-O2`):
 
 | max abs |Δrate| at an introduction | median | max |
 |---|---|---|
@@ -410,9 +424,10 @@ Small, none changes a number. Worth one PR together.
   `Node::compute_initial_conditions` calls `compute_rates`, which stores
   `net_mass_production_dt_` in aux, and then `establishment_probability`, which recomputes it at
   the identical `(height_0, area_leaf_0, environment)` — `new_node`'s height is `height_0` from
-  `Individual`'s constructor and it is never stepped. About 1% of leaf solves. The reason to
-  record it is the reverse pass: it is two evaluations of one function, whose adjoints must be
-  added or one is silently dropped.
+  `Individual`'s constructor and it is never stepped. Read from the code, not counted: the share
+  of leaf solves is one boundary node against the live cohorts, so a few percent, and nobody has
+  measured it. The reason to record it is the reverse pass: it is two evaluations of one
+  function, whose adjoints must be added or one is silently dropped.
 - The `assimilation` aux name is declared, allocated, reported to R and **written
   nowhere** — exactly `0` on all 10 153 records. Either write it (`assimilation_` is
   computed one line above the return in `net_mass_production_dt`) or delete the name.

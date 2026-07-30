@@ -645,6 +645,12 @@ difference. That fallback would sit inside the supplied Jacobian, which is preci
 where a numerical derivative of an active quantity should not be. It needs a decision
 rather than inheritance, and the kink incidence should be counted.
 
+It reaches further than the Jacobian's own rows. `R` is `dprofit_droot_collar_psi`, so
+`dψ_stem/dp` is one of the intermediates §6.3's closed form for `b` is built from — meaning that
+where the fallback fires, `b` is closed form in a differenced quantity rather than an analytic one.
+Nothing measured has hit it, and the incidence is still uncounted, so this is the one place the
+word *closed form* in §6.3 is conditional.
+
 **C3. Two caches must be handled, as in report 1.** `photo_temp_cached_` persists
 across cohorts on a key of `(leaf_temp_, atm_o2_kpa_)` while caching `vcmax_` and
 `jmax_`, which depend on `pars.vcmax_25` and `pars.jmax_25` — both declared entries of
@@ -660,15 +666,19 @@ any AD work.
 **C5. `Leaf` has no boundary between parameters and per-solve scratch.** Roughly thirty
 loose doubles, five vectors and four interpolators, interleaved, with nothing marking
 which are transient. This proposal reduces the consequence — nothing needs auditing
-for active-scalar safety — but section 6.2's input list was assembled by reading
+for active-scalar safety — but §6.8's input list was assembled by reading
 `set_physiology`'s signature and would silently become incomplete if that signature
-grew. Report 1 section 11 step 4 proposes giving those fields an explicit boundary,
+grew — and one entry has already been found dead that way (`sapwood_volume_per_leaf_area`,
+stored and never read). Report 1 section 11 step 4 proposes giving those fields an explicit boundary,
 which would make the input list derivable rather than maintained.
 
 **C6. Only mean-light and crown-centre are covered.** TF24's deep-crown assembly
-raises a stop on the AD branch's active path. Under this proposal deep-crown is 21
-nodes per cohort rather than one, each with its own Jacobian — mechanical, but 21 times
-the work, and not covered by section 7's evidence.
+raises a stop on the AD branch's active path. Under this proposal deep-crown is one operating
+point per crown quadrature node — 21 rather than one — and §6's bundle applies per node, so the
+cost is 21 times the boundary rather than 21 times a dense Jacobian: `waist_b` is closed form
+per node and `waist_a` is one residual pair per node. Mechanical, still 21 times the work, and
+still not covered by section 7's evidence. Mean-light is the default and is what every number in
+this report was taken on.
 
 ---
 

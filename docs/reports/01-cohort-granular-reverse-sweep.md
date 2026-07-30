@@ -97,7 +97,9 @@ storing them, so each stage is evaluated once forward and once again on the way 
 Each (stage, cohort) pair is then recorded and swept exactly once. **Storage is
 independent of the stage count**, which is what makes rebuilding preferable to storing.
 Measured wall clock against a whole-run tape over the same trajectory: **1.4 to 1.6x**,
-improving as the stand grows (section 7.4).
+improving as the stand grows (section 7.4). That is the toy's ratio against a whole-run tape,
+not against the forward `double` run, and **no equivalent has been measured on TF24** — where a
+cohort contains a leaf solve and the toy's cohort does not.
 
 **What it depends on:** that a cohort's rates are a pure function of that cohort's
 boundary. Section 5 reads develop against that requirement. On develop it does not hold:
@@ -841,7 +843,10 @@ disturbance regime, so no derivative is needed, but the reverse pass must restor
 
 **C7. The purity property has no structural defence.** Section 5 establishes it by
 reading the current code. A future warm start in any inner solver would break it
-silently, with every double-valued test still passing.
+silently, with every double-valued test still passing. `../tf24-correctness.md` **P0.10** is
+the executable form of this constraint: permute a census of production states and require every
+leaf output to be bit-identical, which is the only check a reordering can fail and a re-run
+cannot.
 
 ---
 
@@ -951,5 +956,8 @@ Stated as checks rather than arguments, so the answer is a number:
 - **The RK stage traversal loses a term on Cash-Karp's denser tableau.** Section 7.3
   verified RK4, where each stage depends only on its predecessor. Re-run the same
   three-way comparison — cohort-granular, whole-run tape, finite differences — on the
-  full tableau, and against the existing FF16 finite-difference gate. The 19%
-  newborn-adjoint error is the reference failure mode for a lost term.
+  full tableau, and against the existing FF16 finite-difference gate. **This failure has no
+  measured signature.** C5's 19% belongs to a different mechanism — a structural change applied
+  between units rather than inside one, losing the newborn's adjoint — and borrowing it here
+  would put a number on a failure nobody has produced. What is known is only that a lost term
+  is silent, so the check has to be a comparison rather than a smell test.
