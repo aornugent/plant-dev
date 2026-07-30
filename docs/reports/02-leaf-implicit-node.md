@@ -222,8 +222,11 @@ acclimation tracking:
 - `Leaf::dprofit_droot_collar_psi(opt_root_psi)` — forward-mode AD for the analytic
   photosynthesis and cost algebra, the implicit function theorem at the
   `psi_stem_to_ci` root-find, and analytic spline derivatives via
-  `Interpolator::deriv` for the smooth transport. It replaced a noisy finite
-  difference.
+  `Interpolator::deriv` for the smooth transport. One branch is not analytic: when
+  `dE_from_soil_dpsi_collar` returns NaN at a branch kink it falls back to a `1e-6` central
+  difference on the transport, which is C2's subject and whose incidence is uncounted. It
+  also reads `psi_soil_inverted_`, which only `prepare_collar_solve` refreshes, so a caller
+  that changes the soil and calls it directly differentiates against a stale vector.
 - `Leaf::dE_from_soil_dpsi_collar(P_x_r, psi_soil)` — analytic
   `d(E_up_)/d(collar potential)`, where the integral's derivative collapses to the
   analytic slope of the pre-integrated vulnerability curve.
@@ -356,83 +359,192 @@ as differentiable by composition, which is exactly the mistake this section rule
 
 ## 6. The node
 
-### 6.1 Construction, by output
+The leaf stays `double`. Golden section, the two bracket root-finds, the `ci` root-find, the
+four interpolants and both caches are never taped and never audited for active-scalar
+safety. At its solved operating point the leaf hands back a fixed bundle of numbers and the
+cohort's own tape composes them.
 
-**`profit_`, interior optimum.** `profit_ = profit_psi_stem_TF(opt_psi_stem_,
-opt_root_psi)` is the objective at its own maximiser, so `dP/dq = 0` and
+Two adjoints arrive — one scalar on profit, one per soil layer on uptake — and leave as
+contributions to the soil potentials, the geometry and light inputs, and the traits.
 
-    d(profit)/d(theta)  =  partial(profit)/partial(theta)   at fixed q*
+### 6.1 Carbon is an envelope row
 
-The argmax's motion contributes nothing. Obtained by evaluating the objective at the
-passive argmax.
+`profit_` is `profit_psi_stem_TF` evaluated at its own maximiser, so `dΠ/dp = 0` there and
 
-**Before either: polish `q*`.** Take one to three Newton steps on `dP/dq = 0` from the
-search's answer, using `dprofit_droot_collar_psi` for the first derivative. The
-linearisation point for everything below must be a stationary point, not a bracket
-midpoint (section 7.2). This changes the operating point by up to `GSS_tol_abs/2`,
-which moves `profit_` only at second order — it is at an optimum — but moves
-`soil_consumption_` at first order, so it is a forward-model change at that scale and
-is the one part of this proposal that needs re-blessing.
+```
+contribution += lambda_Pi * dPi/du        at frozen p*, for every input u
+```
 
-**`soil_consumption_`, interior optimum.** A consumer of `q*`, so it needs
+with no argmax derivative anywhere. Measured: `dΠ/d(vcmax_25)` at a frozen operating point
+equals a central difference of the whole solve to every printed digit at six of six
+production states.
 
-    dq*/d(theta)  =  -( d2P / dq dtheta ) / ( d2P / dq2 )
+### 6.2 Water is not, and five rows collapse to one scalar
 
-from the implicit function theorem applied to stationarity, with
-`denom_sign::negative` asserted — at a maximiser the second derivative is negative,
-and near a fold it approaches zero, which is where an unguarded division produces the
-large spurious gradients this construct is known for. `odelia::implicit_value` is the
-existing primitive and its sign guard turns that into a loud stop.
+`E_i` consumes `p*` rather than being stationary in it, so it carries the argmax's motion.
+Two properties make that cheap.
 
-**Both outputs, boundary optimum.** `q*` is the bound, so
-`dq*/d(theta) = d(bound_b)/d(theta)` with
-`bound_b = max(-root_crit, -root_psi_crit)`. `root_psi_crit` is closed form in
-`root_b` and `root_c`; `root_crit` comes from `find_root_psi`, itself a root-find and
-so another `implicit_value`. There is no envelope theorem here — `dP/dq != 0` at the
-bound — so `profit_` picks up the boundary term too.
+**The explicit part is sparse.** `E_i` reads its own layer's potential and the collar, so
+`∂E_i/∂ψ_j` is diagonal. Root mass enters through `r_R`, whose vertical component is a
+cumulative sum down the column, so `∂E_i/∂(root mass_j)` is lower triangular. And
+`∂E_i/∂area_leaf = −E_i/area_leaf` **exactly**, because `1/area_leaf` is a single factor and
+the resistances contain no leaf area. That is an internal identity rather than a model
+channel: report 00 §4.2 shows the factor cancels downstream, so the soil sees uptake with no
+leaf-area dependence.
 
-**The selector.** `abs(opt_root_psi - bound_b) <= 2 * GSS_tol_abs`, evaluated where
-the search returns. No new state and no new tolerance.
+**The argmax part is rank one.** Every layer shares one `p*`, so
 
-### 6.2 Inputs, and how they scale with the target count
+```
+s_k  = sum_i  lambda_E,i * dE_i/dp           one number per cohort
+mu_k = - s_k / Pi_pp                         one divide, from dPi/dp = 0
+contribution += mu_k * grad R                R = dPi/dp
+```
 
-The differentiable inputs are the arguments to `set_physiology` that carry
-derivatives, plus the seeded traits that reach the leaf through `prepare_strategy`:
+`Π_pp = ∂R/∂p` is negative at every state sampled, running from −1.09 at a five-layer
+seedling to −198 at a twenty-layer canopy tree. It scales with the layer count, because more
+layers mean more conductance and a sharper optimum, so a value quoted without its layer count
+means nothing.
 
-| input | source | count |
-|---|---|---|
-| `radiation` | `k_I * max(light, 1e-4) * PPFD` | 1 |
-| `psi_soil` | `environment.get_soil_water_potential_state()` | 5 |
-| `area_leaf_` | aux `competition_effect` = `area_leaf(height)` | 1 |
-| `mass_root_prop_` | `mass_root(area_leaf_)` distributed over layers by `Q` | 5 |
-| `leaf_specific_conductance_max` | `K_s * theta / (height * eta_c)` | 1 |
-| `sapwood_volume_per_leaf_area` | `theta * height * eta_c` | 1 |
-| seeded targets reaching the leaf | subset of `TF24_AD_FIELDS` | n |
+### 6.3 The waist: `grad R` is two scalars
 
-`TF24_AD_FIELDS` declares **51** strategy parameters, so n is realistically tens
-rather than a handful, and for a calibration workflow plausibly the full set. The
-block is `(14 + n) x 6` entries written to the enclosing tape per solve:
+`R` reads the soil potentials, the per-layer root masses and the leaf area **only** through
+the soil-to-collar flux `E_up` and its derivative with respect to the collar potential. So
+for every one of those `2n + 1` directions
 
-| n | block | against 19.2 kB recorded |
-|---|---|---|
-| 4 | 1.3 kB | 15x smaller |
-| 12 | 1.9 kB | 10x |
-| 32 | 3.3 kB | 5.8x |
-| 51 | 4.7 kB | 4.1x |
+```
+dR/du  =  a * dE_up/du  +  b * d(dE_up/dr)/du
+```
 
-The size benefit therefore shrinks as more targets are seeded, from about 15x to about
-4x. **The containment benefit does not depend on n at all**, and it is the reason to
-do this: `Leaf` stays `double`, so its interpolators, caches, integrator, root-find and
-search are never audited for active-scalar correctness and never can be silently
-wrong. Under report 1's cohort-granular decomposition peak memory is already bounded
-without any of this, which is why size is secondary here.
+with `a` and `b` two scalars shared across all of them and both `E_up` derivatives closed
+form. A joint fit over 41 directions — twenty potentials, twenty root masses, leaf area —
+under one shared pair leaves a relative residual of 2.6e-04 to 9.2e-04.
 
-### 6.3 What runs unchanged
+**`b` is closed form** in intermediates `R` already computes:
 
-`optimise_at(radiation)` executes exactly as develop does it, in `double`. Every
-interpolator, both caches, the QAG integrator, the nested `psi_stem_to_ci` root-find
-and the golden-section search are bit-identical. There is no templated `Leaf` and none
-of section 1's audit is required.
+```
+b = - ( A'(ci) * dci/dpsi_stem  -  C'(psi_stem) ) * P'(E_psistem) / kappa
+```
+
+It agrees with the joint fit to 1.04% and 0.16%, and pinning it there while refitting `a`
+leaves the residual unchanged.
+
+**`a = ∂R/∂E_up` is recovered from one additional pair of residual evaluations** on the
+reverse pass, in a single soil-potential direction. One direction suffices because the
+potential family is rank one — its unscaled second singular value is 1.3e-05 to 2.0e-05 of
+the first, and the `b` channel is a millionth of the potential response there. Recovered from
+each of twenty layers in turn, the values agree to 0.00129%, 0.00036% and 8.4e-05% at the
+three states measured, so using more than one layer is a consistency check rather than a
+cost.
+
+The pair belongs to a `Leaf`, hence to a species. At identical soil, two species give `a` of
+−1.79e+05 against −1.51e+05 for a sapling and −9.11e+05 against −7.66e+05 for a tree.
+
+### 6.4 The remaining input directions
+
+Radiation, the leaf-specific conductance and the leaf's own parameters are parameter
+derivatives of two short algebraic functions and of two interpolants:
+
+- `assim_colimited_ad` and `hydraulic_cost_ad` are already templated on their scalar in
+  develop, so `A′`, `C′` and their parameter derivatives come from them directly.
+- The transpiration and root-vulnerability interpolants are built once per `Leaf` from `b`,
+  `c`, `root_b` and `root_c` over a hundred control points. Their positions are constant and
+  their values carry the parameter — the same arrangement report 03 gives the light
+  interpolant.
+
+`κ` is the one input the waist does not absorb alone: it appears inside `E_ψstem` and again as
+a multiplier in the stomatal conductance, so it carries one extra explicit term.
+
+### 6.5 The polish, which the envelope row requires
+
+The envelope row is valid where `dΠ/dp = 0`. Golden section at production tolerance returns a
+point where `|R|` is 8.8e-05 to 1.2e-03; Newton on `R` takes it to 1.6e-08 to 4.7e-07. The
+displacement moves `profit_` at second order — which is why §6.1's measurement is exact at
+either point — and `soil_consumption_` at first order. So the polish is a prerequisite, and
+it is a forward-model change that needs a baseline re-bless.
+
+The forward model therefore runs golden section only far enough to enter the Newton basin.
+At the measured production bracket, reaching `1e-3` costs seventeen profit evaluations and
+reaching `1e-1` costs eight; Newton's derivative is `Π_pp`, which the bundle already holds.
+
+### 6.6 The uniform direction, computed from what breaks the symmetry
+
+Report 00's physical reading gives the reason: uptake is driven by a difference of potentials
+while conductivity depends on absolute tension, so a uniform translation of the water column
+is a near symmetry and the flux response along it is a small residue — four to nine percent
+of the collar's own response. It is computed from the term that breaks the symmetry, never by
+subtracting the collar's response from one.
+
+For the uptake, the only translation-breaking term is the cumulative root-vulnerability
+integral over an interval whose endpoints both slide:
+
+```
+dE_i/dd = E_i * (r_H,i / r_R,i) * ( f_r(|P_min,i|) - f_r(|P_max,i|) ) / integral_i
+```
+
+exact to 0.002–0.012% against a difference along the translation, at every layer of every
+state measured. Every factor is already computed in the forward pass, plus two evaluations of
+the vulnerability curve.
+
+For the stem, `psi_from_transpiration` and `transpiration_from_psi` are inverses, so
+`P(S(x)) = x` and the leading term is exactly one:
+
+```
+dpsi_stem/dd = 1 + P'(E_psistem)*(dE_up/dd)/kappa + S'(p)*[ P'(E_psistem) - P'(S(p)) ]
+```
+
+exact to better than 5e-06. The second correction dominates, and its sign is the opposite of
+the collar's: the stem falls 1.28 to 2.97 times as fast as the soil, because the same flux
+through a less conductive xylem needs a steeper gradient.
+
+### 6.7 The bound case
+
+`p*` is the argmax over `[bound_a, bound_b]`, both from root-finds — `bound_a` where soil
+uptake is zero, `bound_b` the drier of the stem's and the root's critical potentials. When
+`p*` is interior the bounds enter no row. When the polish leaves the bracket, `p*` **is** the
+bound and `dp*/du = d(bound)/du`: `root_psi_crit` is closed form in `root_b` and `root_c`,
+and `root_crit` carries its own implicit-function term. Section 4 measures the incidence —
+zero at the production driver, and a third of solves at a twentyfold rainfall reduction.
+
+### 6.8 The inputs, and how the bundle scales
+
+| input | count |
+|---|---|
+| radiation | 1 |
+| soil water potential, per layer | `n` |
+| `area_leaf` | 1 |
+| root mass, per layer | `n` |
+| leaf-specific conductance | 1 |
+| the leaf's own parameters — `vcmax_25`, `jmax_25`, `a`, `curv_fact_elec_trans`, `curv_fact_colim`, `b`, `c`, `psi_crit`, `beta2`, `g1_TF24`, plus `rho` and `a_bio` | 12 |
+
+`sapwood_volume_per_leaf_area` is passed to `set_physiology`, stored, and read nowhere, so it
+is not an input.
+
+Outputs are `profit_` and one uptake per layer that has root mass. That arity is
+state-dependent: `max_soil_layer` is the deepest layer with nonzero root mass, so it follows
+the rooting depth, and any size assertion has to read it rather than the layer count.
+
+**The bundle does not grow with the trait count.** A trait outside the leaf reaches it only
+through the geometry and light inputs, and the cohort's own tape supplies those. **Nor does it
+grow with the layer count** in the expensive direction: the `2n + 1` potential, root-mass and
+leaf-area directions cost the two scalars of §6.3 however large `n` is.
+
+### 6.9 Verification without a finite difference
+
+A re-run finite difference of the whole solve is the amplified route. It resolves the collar's
+response to about four digits, and the residue being checked is four to nine percent of that
+response, so it cannot measure the quantity it would be verifying — a disagreement there
+reports the reference, not the scheme. Three exact invariants do the job, and none is a
+difference of large numbers:
+
+- **Stationarity.** `R(p*(u), u) = 0` identically in every input, so
+  `∂R/∂u + Π_pp · dp*/du = 0`. The bundle supplies both terms, so it checks itself at any
+  state, in a unit test, with no differencing.
+- **Continuity.** `ψ_stem` is defined by inverting the transpiration relation, so `E_up` from
+  the soil side is identically `κ(S(ψ_stem) − S(p))` from the stem side. Two different
+  interpolant chains compute the same number, so their derivatives must agree — which checks
+  the interpolant derivative chain, the one part with no other oracle.
+- **The waist.** The joint residual over all `2n + 1` directions under one shared pair of
+  coefficients, which is also how a bad recovery of `a` announces itself.
 
 ---
 
@@ -614,10 +726,11 @@ should be a recorded decision rather than an artefact of writing an `if`.
 1. **Land the section 4 counters behind an environment-variable gate.** They are cheap,
    they converted a suspected blocker into a measured non-event, and they are the
    mechanism for C1's and C2's incidence questions.
-2. **Polish the collar argmax** (section 6.1). At `GSS_tol_abs = 1e-3` this is the
-   difference between a 3.5% error and an exact derivative, so it is a prerequisite
-   rather than a refinement. It changes `soil_consumption_` at the `tol/2` level, so it
-   needs a baseline re-bless.
+2. **Polish the collar argmax** (§6.5), and loosen golden section to the Newton basin
+   with it. At `GSS_tol_abs = 1e-3` this is the difference between a 3.5% error and an
+   exact derivative, so it is a prerequisite rather than a refinement. It changes
+   `soil_consumption_` at first order in the displacement, so it needs a baseline
+   re-bless.
 3. **Fix `set_shutdown_state`** on develop (section 3.5). A forward-model correctness
    fix, independent of AD.
 4. **Extend `photo_temp_cached_`'s key** to include `vcmax_25` and `jmax_25`.
@@ -626,7 +739,9 @@ should be a recorded decision rather than an artefact of writing an `if`.
 6. **Build the node for the interior branch only**, with the boundary branch raising a
    loud stop. Section 4 says the production driver never reaches it, so this is a usable
    intermediate state and the stop makes the untested path unreachable rather than
-   silently wrong.
+   silently wrong. Order within it: the envelope row (§6.1) and the explicit flux rows
+   (§6.2), then `b` from its closed form and `a` recovered (§6.3), then the two
+   translation-defect terms (§6.6). §6.9's three invariants gate each step.
 7. **Add the boundary branch** and verify against a deliberately dried driver where
    section 4 shows it fires.
 8. **Count C1's gate crossings and C2's kink incidence**, then decide whether either
@@ -645,6 +760,14 @@ should be a recorded decision rather than an artefact of writing an `if`.
   on a toy objective with an analytic second derivative. TF24's objective is a composition
   through `find_psi_stem_from_psi_root`, so its stationarity condition is more expensive
   to Newton on, and whether two or three steps suffice is unmeasured.
+- **The waist does not hold where it has not been measured.** §6.3's joint fit is at five
+  and twenty layers, at three interior states, for two species. A state where the operating
+  point sits near a bound, or where a layer crosses the equal-potentials branch, is
+  untested — and there the two `E_up` derivatives are the first things to lose smoothness.
+- **`a` recovered from one direction disagrees with `a` recovered from another.** §6.3
+  measures the spread at 1e-05 or below over twenty layers. A state where it is not flat
+  means the potential family is no longer rank one, and the second coefficient is then
+  live in a direction the recovery assumes it is not.
 - **The supplied Jacobian disagrees with a whole-tape recording of the same solve.**
   Record one leaf solve operation by operation at short lifetime, where the tape fits,
   and compare row by row. This is the direct test and it needs no full SCM run.

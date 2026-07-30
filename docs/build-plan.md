@@ -139,9 +139,13 @@ fractions; on develop the refiner re-chooses at each introduction and the count 
 after P2.1, which Phase 2 already puts first.
 
 `Leaf` stays `double` inside the block behind a declared boundary — in (soil water potential per
-layer, radiation, traits), out (profit, per-layer uptake) — with its derivatives arriving as
-injected partials. Report 02 §6.1 constructs them and §6.2 counts them: `(14 + n) x 6` per solve,
-with the traits that reach the leaf only through `prepare_strategy` as its row `n`.
+layer, root mass per layer, leaf area, radiation, conductance, its own twelve parameters), out
+(profit, one uptake per rooted layer) — with its derivatives arriving as injected partials.
+**Report 02 §6 is the design.** Its shape: carbon is an envelope row and free; the five flux
+adjoints collapse onto one scalar and one divide; the gradient that closes them factors, so the
+`2n + 1` potential, root-mass and leaf-area directions cost two scalars, one closed form and one
+recovered on the reverse pass. So the boundary grows with neither the trait count nor the layer
+count.
 
 **Where it lives: on `Individual`, with each container packing its own segment.** The block *is*
 `Individual::compute_rates` with its inputs declared, so it is that function with a boundary rather
@@ -908,19 +912,55 @@ state.
 template <class S>
 std::vector<S> tf24_cohort_block(const std::vector<S>& inputs,
                                  const TF24_Pars<S>& pars, const Control& control);
-// the leaf's boundary, S = double inside
-struct LeafOutcome { double profit; std::vector<double> uptake;
-                     std::vector<double> d_profit, d_uptake; };   // partials, injected
-LeafOutcome solve_leaf_boundary(Leaf&, const std::vector<double>& psi_soil,
-                                double radiation, const TF24_Pars<double>& pars);
+
+// the leaf's boundary. S = double inside; report 02 §6 derives every row.
+struct LeafBoundary {
+  double profit, E_up, Pi_pp;          // Pi_pp = dR/dp, R = dPi/dp
+  std::vector<double> uptake;          // one per layer with root mass
+  std::vector<double> dPi;             // envelope row, at frozen p*        (§6.1)
+  std::vector<double> dE_dpsi, dE_dp;  // explicit flux rows, diagonal      (§6.2)
+  double waist_a, waist_b;             // grad R = a*dE_up + b*d(dE_up/dr)  (§6.3)
+  std::vector<double> dE_translate;    // the uniform-direction defect      (§6.6)
+  double dstem_translate;
+  bool at_bound;                       // then dp*/du = d(bound)/du         (§6.7)
+};
+LeafBoundary solve_leaf_boundary(Leaf&, const std::vector<double>& psi_soil,
+                                 double radiation, const TF24_Pars<double>& pars);
 ```
+
+**The leaf's rows, and where each comes from.** Carbon is an envelope row — `profit_` sits at
+its own maximiser, so its sensitivity is direct with the operating point held still, and
+nothing about the argmax enters. Water is not stationary, so it carries the operating point's
+movement: five flux adjoints collapse onto one scalar per cohort, one divide by `Pi_pp` gives
+the operating point's adjoint, and the gradient that closes it **factors**. `R` reads the soil
+potentials, the per-layer root masses and the leaf area only through the soil-to-collar flux
+and its collar derivative, so those `2n + 1` directions cost **two scalars**: `waist_b` is
+closed form in intermediates `R` already computes, and `waist_a` is **recovered from one extra
+pair of residual evaluations on this pass** in a single potential direction, which identifies
+it because that family is rank one. Everything else — radiation, conductance, the leaf's own
+twelve parameters — is a parameter derivative of two functions develop already templates and
+of two interpolants whose knots are fixed at construction.
+
+**Two rows are computed from a broken symmetry rather than by subtraction.** Uptake responds
+to a uniform drying of the whole column only through the cumulative root-vulnerability
+integral over a sliding interval, and the stem's response through the transport interpolants'
+curvature. Both have closed forms (report 02 §6.6). A whole-solve finite difference cannot
+resolve either, so they are computed, not differenced.
+
+**Requires the polish first** (report 02 §6.5): the envelope row is valid only where
+`dPi/dp = 0`, and golden section at production tolerance leaves `|R|` at 8.8e-05 to 1.2e-03.
+Newton on `R` takes it to 1.6e-08 to 4.7e-07, using `Pi_pp`, which the boundary already
+returns. Golden section then runs only to the Newton basin. It moves `soil_consumption_` at
+first order, so it lands with Phase 2's re-blessing rather than here.
 
 *Requires P0.1 and P0.10.* The first line of the signature calls the block a pure function of its
 declared inputs, and P0.10 is what makes that a checked fact rather than a read-derived one.
 
 *Order.* (1) The block with the leaf held constant, so **V2** exercises the allometry, storage and
-demographic chain alone. (2) The leaf boundary with the interior operating point only. (3) The
-bound-pinned case and the selector.
+demographic chain alone. (2) The envelope row and the explicit flux rows. (3) `waist_b` from its
+closed form, then `waist_a` recovered — verified by recovering it from several potential
+directions and requiring them to agree, which they do to 1e-05 or better. (4) The two
+translation-defect rows. (5) The bound-pinned case and the selector.
 *Closes on* **V1** complete, and **V2** at stage 0 for both operating-point cases — the pinned one
 needs `psi_soil ≥ 1.5 MPa` at `height ≥ 2 m` (§8). The selector's incidence goes in P0.5's
 inventory. Plus three tests of the block's boundary, which is where a silent wrong gradient would
@@ -935,22 +975,38 @@ come from:
 T5 has no measured signature yet, and T6 does. That asymmetry is the argument for writing T5 as a
 value assertion rather than a finiteness check: the failure it guards against is the one the corpus
 has already been bitten by once, in the channel next door.
-*Two things to decide here, not in P3.3.* `∂Π/∂p` is `dprofit_droot_collar_psi`, which already
-contains forward-mode AD and an implicit-function term, so its gradient is the mixed second partial
-`∂²Π/∂p∂φ`. A preaccumulated block carries exact first derivatives and no curvature, so the leaf
-cannot be both preaccumulated and the source of `∇(∂Π/∂p)`: either the block declares `∂Π/∂p` as a
-fifteenth output, making the mixed partial a first-order sweep of it, or `∇(∂Π/∂p)` is written by
-hand. And `bound_a = -root_zero_E` comes from a root-find, so the bound's derivative needs its own
-implicit-function term. Nobody has written it.
+*Three invariants gate it, and none is a finite difference* (report 02 §6.9). A re-run finite
+difference of the leaf solve resolves the collar's response to about four digits while the residue
+under test is four to nine percent of it, so a disagreement there reports the reference rather than
+the scheme. Instead: **stationarity**, `∂R/∂u + Π_pp · dp*/du = 0` for every input, which the
+boundary can check against itself at any state; **continuity**, `E_up` from the soil side against
+`κ(S(ψ_stem) − S(p))` from the stem side, two different interpolant chains that must agree and the
+only check on the interpolant derivatives; and **the waist residual** over all `2n + 1` directions
+under one shared pair, which is how a bad recovery of `waist_a` announces itself.
+
+*Both bounds are root-finds*, and their derivatives are wanted only where the operating point is
+the bound: `root_psi_crit` is closed form in `root_b` and `root_c`, `root_crit` carries its own
+implicit-function term, and report 02 §4 measures the incidence as zero at the production driver
+and a third of solves at a twentyfold rainfall reduction.
 
 ---
 
-**P3.3 — `∇(∂Π/∂p)`**, including the `ci` root-find's implicit-function term, in whichever form
-P3.2 chose.
+**P3.3 — the leaf's own parameter rows.** The twelve parameters that reach the model only
+through `Leaf`'s constructor and `set_physiology`: parameter derivatives of `assim_colimited_ad`
+and `hydraulic_cost_ad`, both already templated on their scalar in develop, and of the
+transpiration and root-vulnerability interpolants, whose control points are fixed at construction
+so the parameter is carried by the values (report 03's arrangement, second consumer).
 
-*Closes on* `d(consumption)/dψ` within finite-difference noise, against the **47.6–53.2%** error
-that holding the operating point fixed gives today. That error is fully explained by cancellation
-of the search's own displacement, so a fix that does not remove it has not addressed the cause.
+*Why it is separate from P3.2.* P3.2's rows are the same for every model with an inner optimum;
+these are TF24's leaf physiology and nothing else shares them. Splitting them means a failure here
+cannot be confused with a failure in the waist.
+
+*Closes on* a seeded leaf-only trait end to end. `vcmax_25` is the discriminating one: uptake has
+**no** direct dependence on it, so the whole of `d(uptake)/d(vcmax_25)` arrives through the
+operating point's movement, and a broken argmax channel returns exactly zero rather than a wrong
+number. Also `d(consumption)/dψ`, against the **47.6–53.2%** error that holding the operating point
+fixed gives today — an error fully explained by the search's own displacement, so a fix that does
+not remove it has not addressed the cause.
 
 ---
 
@@ -1085,6 +1141,8 @@ sub-grid difference carries.
 | trait adjoints do not accumulate across cohorts | a fixed fraction of the finite difference with the correct sign, nothing thrown. Treating each cohort as a separate input gives 41–51% | P3.6 |
 | trait adjoints do not accumulate across *steps* | the same signature, unmeasured. `k_I` and `eta` are read both inside the block and by the field reduction (§2.4), so each needs a step (b) and a step (c) contribution | P3.6, and P3.1's V1 for the step (c) half alone |
 | the leaf's boundary is wider than §2.4 declares | P3.2 grows an output nobody declared | P3.2; P0.5's inventory should predict it |
+| the leaf's waist does not hold where it has not been measured | the joint residual over the `2n + 1` directions leaves the 1e-04 band, or `waist_a` recovered from two potential directions disagrees | P3.2 step (3), and report 02 §11's last two falsifiers |
+| the envelope row is used at an unpolished operating point | carbon is right and every uptake row is wrong at first order in the displacement | report 02 §6.5; the polish lands with Phase 2 |
 | the value-reproduction check is read as an acceptance test | a 0.2% difference in value has produced a sign-flipped gradient | every gate compares AD against a re-run finite difference |
 
 ---
@@ -1097,8 +1155,11 @@ sub-grid difference carries.
    **M2** for one file; P1.2 for TF24.
 3. **Is the normalised light coordinate bit-identical to `rescale_spline`?** **M3.** If not, the
    interpolant change is a model change and Phase 2 needs the owner.
-4. **Is the leaf's boundary (soil water potential per layer, radiation, traits) → (profit,
-   per-layer uptake)?** Report 00 §5 says so. A sixth quantity changes P3.2's shape.
+4. **Is the leaf's boundary as report 02 §6.8 states it** — `2n + 3` geometry and soil inputs
+   plus twelve of its own parameters, out to profit and one uptake per rooted layer? A thirteenth
+   parameter or a sixth output kind changes P3.2's shape. Note the output arity is
+   state-dependent through `max_soil_layer`, so an assertion must read it rather than the layer
+   count.
 5. **Do P0.6's two ecology decisions bump `scientific_version`?** With P2.1 and P2.4 also
    changing forward numbers, there is a case for taking all four to the owner together.
 

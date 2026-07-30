@@ -508,6 +508,10 @@ work.
 
 ### 6.2 The leaf's contribution, derived
 
+**Report 02 §6 is the design this derivation became; read it for what the leaf hands back
+and how each row is obtained.** What follows is the derivation, which is what makes that
+design checkable rather than a list.
+
 Adjoints arrive at the leaf's two output kinds: a scalar `Π̄_k` and a five-vector
 `c̄_{k,i}`. We must push them back to `ψ`, to `x_k` (the geometry/light inputs), and to
 `φ`.
@@ -561,7 +565,10 @@ Substituting into step 2 and grouping:
 x̄_k += Σ_i c̄_{k,i} · ∂E_i/∂x_k |_{p*}
 ```
 
-**Step 5 — the argmax channel, as one gradient of one scalar function.**
+**Step 5 — the argmax channel, as one gradient of one scalar function.** Its input side
+factors: `∂Π/∂p` reads the potentials, the per-layer root masses and the leaf area only
+through the soil-to-collar flux and its collar derivative, so this gradient is two scalars
+times closed-form vectors however many layers there are (report 02 §6.3).
 
 ```
 (ψ̄, x̄, φ̄) += μ_k · ∇_{ψ,x,φ} ( ∂Π/∂p ) |_{p*}
