@@ -205,22 +205,31 @@ all uncounted — they were outside every report's scope because no report start
 ### Demographic and field reduction
 
 Read directly from develop's container headers. Every one is on the census gradient's
-path, because a census metric is `sum_k n_k psi(state_k)` with `n_k = exp(l_k)`, and
-none is counted.
+path, because a census metric is `sum_k n_k psi(state_k)` with `n_k = exp(l_k)`.
+**Counted** by `scripts/demographic_switches.R`, which needs the counters in
+`p0.5-instrumentation.patch` because seven of these are unreachable from R.
 
-| construct | where | what it decides |
-|---|---|---|
-| `Species::height_max()` returns `nodes.front().height()`, **not a max** | `species.h:167` | it relies on the descending-height invariant, so within a species the derivative is 1 for the first node unconditionally and there is no tie. The `max` — and the tie — exist only **across** species in `Patch::height_max` (`patch.h:424`). This is a cheaper selector than report 03 §1b assumes, and single-species runs have no selector at all |
-| `if (size() == 1 \|\| f_h1 > 0)` | `species.h:220` | whether the boundary node's trapezium interval enters the light field. A branch on a computed competition value that changes how many terms the field reduction contains |
-| `if (h0 < height) break;` | `species.h:215` | where the descending sweep stops. The term count of the field reduction is state-dependent, which is the same class as an adaptive knot count |
-| `new_node.height()` as the field trapezium's **lower integration limit** | `species.h:221` | a moving integration bound in the field reduction itself, equal to `height_0` and therefore trait-dependent through `height_seed`. Not a switch; listed here because it is the other thing that sweep reads which is not ODE state |
-| `!util::is_finite(survival_individual)` → `0.0` | `node.h:144-150` | zeroes the whole fecundity rate, hence offspring and R0, when `exp(-mortality)` underflows. A switch on a state, whose active set grows monotonically through a run |
-| `!util::is_finite(log_density)` → `log_density_dt = 0.0` | `node.h:182-185` | at introduction, when `g <= 0` makes `log_density` `-Inf`. Zeroes the newborn's transport rate |
-| `g > 0 ? log(birth_rate * pr_estab / g) : log(0.0)` | `node.h:177` | the inflow boundary condition itself. `-Inf` on the closed side |
-| `mortality_dt`'s `is_finite(cumulative_mortality)` | `tf24_strategy.cpp` | already on the "still to count" list below; recorded here too because it is the switch that feeds the two above |
-| `Patch::check_finite_ode_state()` | `patch.h:693` | a hard stop rather than a branch, so it has no derivative — but it defines the domain the gradient is valid on, and a finite-difference verification step that crosses it fails loudly rather than quietly. Worth a row so that is on purpose |
-| `size() > 0 & !is_mutant_run` | `patch.h:568` | whether the field is rebuilt at all. Also a bitwise `&` on two bools, which is a wart rather than a hazard |
-| `consumption_rates` sized `NA_REAL` to ODE width | P0.4 | four NaNs per cohort per stage reach `resource_depletion`. Under a reverse sweep `NaN * 0` is `NaN`, so this poisons the adjoint rather than staying latent. **Promote P0.4 to the same tier as P0.1** |
+**Read the denominator, because three are in play.** 10 153 cohort-time records and 142
+output times are the census grid. **35 133 is Runge-Kutta stage evaluations of the
+boundary node, not 141 introductions** — `compute_initial_conditions` runs once per
+species per stage, 249 times per introduction, and each one is a full
+`establishment_probability` and so a full leaf solve at `height_0` on the shared `Leaf`.
+The rest are calls of the enclosing C++ function, which see every stage including the
+growth-rate gradient's probes and the collar root-find's iterates.
+
+| construct | where | incidence | what it decides |
+|---|---|---|---|
+| `Species::height_max()` returns `nodes.front().height()`, **not a max** | `species.h:167` | no selector within a species | it relies on the descending-height invariant, so within a species the derivative is 1 for the first node unconditionally and there is no tie. The `max` — and the tie — exist only **across** species in `Patch::height_max` (`patch.h:424`). This is a cheaper selector than report 03 §1b assumes, and single-species runs have no selector at all |
+| `if (size() == 1 \|\| f_h1 > 0)` | `species.h:220` | **74 060 of 3 075 900 calls (2.41%)** enter the interval — 627 via `size() == 1`, 73 433 via `f_h1 > 0`. Smallest positive `f_h1` that took the arm **2.714503e-11** | whether the boundary node's trapezium interval enters the light field. **The row with no scale at all**: the term it switches on is `(h1 - h0)(f_h1 + f_h0)`, which vanishes as `f_h1 -> 0` only if `f_h0` does, and `f_h0` is the boundary node's own competition, which does not. So the field reduction is discontinuous in the resident state at a threshold sitting where the comparison decides on rounding — against `storage_prod_eps = 1e-4` sized against a median `\|P\|` of 7.3e-2 |
+| `if (h0 < height) break;` | `species.h:215` | **2 989 227 of 3 075 900 calls (97.18%)** break early; 86 574 run to the end, 99 return early. 216 594 704 trapezium terms, at most 141 in one call | where the descending sweep stops. The term count of the field reduction is state-dependent, which is the same class as an adaptive knot count. Almost always taken because the field is queried well below the canopy top, so this is a term count rather than a severance — and the exposure is report 00 §8 item 3's, that the trapezium weights are functions of state, over 216 M terms |
+| `new_node.height()` as the field trapezium's **lower integration limit** | `species.h:221` | every field build | a moving integration bound in the field reduction itself, equal to `height_0` and therefore trait-dependent through `height_seed`. Not a switch; listed here because it is the other thing that sweep reads which is not ODE state |
+| `!util::is_finite(survival_individual)` → `0.0` | `node.h:144-150` | **zero. 0 of 3 758 283 calls** | **dead, and the effect it was credited with belongs one line above it.** The guard tests `is_finite`, and `exp(-mortality)` underflows to exactly `0.0`, which is finite — so it cannot fire on an underflow, only on a NaN mortality. The zeroing of fecundity is real and does grow monotonically: `exp(-mortality)` is exactly `0.0` on **185 851 calls (4.95%)**, and **327 of 10 153 records (3.22%)** hold `mortality = Inf`, none before `t = 3.5` and 6 nodes per output time from `t = 7` on. The live severance is the `exp`, so the switch needs no derivative treatment and the underflow does |
+| `!util::is_finite(log_density)` → `log_density_dt = 0.0` | `node.h:182-185` | **7 879 of 35 133 stage evaluations (22.43%)**, confined to `t` in **[3.222267, 8.544184]** and absent from every later decile | zeroes the newborn's transport rate. **Not for the documented reason**: `g > 0` on all 35 133 calls, and the `-Inf` comes from the numerator. Attributed — `birth_rate == 0` on **0**, `pr_estab == 0` on **all 7 879** — so this guard's active set *is* `establishment_probability`'s gate and nothing else. Smoothing that gate retires this row with it |
+| `g > 0 ? log(birth_rate * pr_estab / g) : log(0.0)` | `node.h:177` | **zero, at a wide margin: 0 of 35 133**, minimum `g` over the run **0.09529771 m/yr** | the inflow boundary condition itself. The closed arm is never taken, so the `-Inf` above never comes from here. Also: the operation is itself a derivative of the boundary condition |
+| `mortality_dt`'s `is_finite(cumulative_mortality)` | `tf24_strategy.cpp` | **371 702 of 7 516 566 calls (4.95%)** return `0.0` on `cumulative_mortality = Inf`; largest finite value 545.06 | **the largest live severance in this pass.** The rate is replaced by an exact zero, so `d(mortality)/d(state)` is zero on that set and every census metric inherits it. Not a rounding effect and not smoothable: 327 records hold `Inf` outright, so the set is not near a threshold — the cohort is at survival zero, and dropping the node is the honest treatment rather than zeroing its derivative and carrying it |
+| `Patch::check_finite_ode_state()` | `patch.h:693` | not counted; a stop | a hard stop rather than a branch, so it has no derivative — but it defines the domain the gradient is valid on, and a finite-difference verification step that crosses it fails loudly rather than quietly. Worth a row so that is on purpose |
+| `size() > 0 & !is_mutant_run` | `patch.h:568` | **always true: 35 274 of 35 274**, 0 empty and 0 mutant | whether the field is rebuilt at all. Structurally true in a resident run, so it needs no derivative treatment. Also a bitwise `&` on two bools, which is a wart rather than a hazard |
+| `consumption_rates` sized `NA_REAL` to ODE width | P0.4 | four per cohort per stage | four NaNs per cohort per stage reach `resource_depletion`. Under a reverse sweep `NaN * 0` is `NaN`, so this poisons the adjoint rather than staying latent. **Promote P0.4 to the same tier as P0.1** |
 
 **The soil positivity guard is now counted, and it is zero.** `theta_i <= theta_r && !(rate_i > 0)`
 was argued unreachable from `K ∝ θ^16.14`; measured, θ's minimum over a production run is
@@ -230,12 +239,39 @@ than machinery *at this driver* — and it is still owed, because the committed 
 where it would fire. The census is at 142 output times rather than per stage, so a stage dipping
 between two of them is not observed; at this margin that is an inference.
 
-**Still to count**: the root vulnerability curve's domain edge (beyond its fitted
-domain `root_vuln_from_psi` extrapolates **negative** → negative conductivity →
-negative-but-finite `r_R` → wrong-sign `E_i` that the `isfinite(E_up_)` net cannot
-catch; guarded in one of three branches); the `prev_q == 0` exact-double break in the
-root-distribution loop; `mortality_dt`'s `is_finite(cumulative_mortality)` switch; and
-`establishment_probability`'s gate (P0.6).
+**The three that were still to count are counted**, all by
+`scripts/demographic_switches.R`. `mortality_dt`'s guard is in the table above.
+
+**The root vulnerability curve's domain edge is zero at 1.15x, and that is the tightest
+margin in this document.** Beyond its fitted domain `root_vuln_from_psi` extrapolates
+negative, giving negative conductivity, a negative-but-finite `r_R` and a wrong-sign
+`E_i` the `isfinite(E_up_)` net cannot catch. Measured: **0 of 1 162 082 517 layer
+evaluations** cross it, largest magnitude presented **5.919880 MPa** against a last knot
+at **6.822923** — a margin of 0.903 MPa. Every other zero here is comfortable, at 27x
+`GSS_tol_abs`, a factor of 15.6, or five times the stand's optical depth. Two things make
+this one worth acting on rather than recording. The near-edge magnitude is a **collar
+root-find iterate, not a state**: `|opt_root_psi|` peaks at 2.36 MPa, so an output-time
+census reports 2.5x more margin than the solver holds, and a drier driver or a wider
+bracket moves the iterate rather than the state. But the sign-error path is narrower than
+the description above: `root_vuln_from_psi` is read only in the **equal-potentials
+branch, 15 109 531 evals (1.30%)**, which already carries the `f_ri <= 0` stop, while the
+general branch's **1 146 972 986 (98.70%)** read `root_vuln_integral_from_psi`, whose
+linear extrapolation is **positive** — so crossing the edge there gives a wrong
+conductance rather than a wrong-sign flux, and the gravity-balanced branch is taken 0
+times. **What is owed is a domain assertion, not a second sign guard.**
+
+**The `prev_q == 0` exact-double break** is a selector on cohort height: **767 291 of
+7 551 699 loop calls (10.16%)**, breaking at layer 3, 4 or 5 on 403 873 / 188 566 /
+174 852, and at the record level **3 430 of 10 153 (33.78%)** — the same set as P0.1's,
+because a break at `a = k` is `max_soil_layer == k - 1`. It fires only for cohorts below
+1.199 m, and it sits on the direct `h -> water` path.
+
+**Five rows have nonzero incidence and no recorded derivative treatment**, in order of
+exposure: `establishment_probability`'s gate (below, and P0.6's to decide);
+`mortality_dt`'s `is_finite` guard; `species.h:220`'s scaleless `f_h1 > 0`;
+`node.h:182-185`, whose whole active set is the gate's; and the `prev_q == 0` break.
+`species.h:215` is a term count rather than a severance, and `patch.h:568`,
+`node.h:177` and `node.h:144-150` need none.
 
 **Gate.** Every row has an incidence number. A row with nonzero incidence and no
 recorded derivative treatment is a missing constraint, and that is exactly what the
@@ -290,6 +326,24 @@ what the model means at the carbon compensation point — the point is that it s
 a recorded decision rather than an artefact of writing an `if`. develop already has
 both the precedent (`P_pos`) and the method for sizing a smoothing scale against data
 (`storage_prod_eps`, measured well-sized).
+
+**It now has an incidence, and it closes on a quantity that is numerically zero.**
+`scripts/demographic_switches.R`: the gate takes its closed arm on **7 879 of 35 133
+boundary-node stage evaluations (22.43%)**, all inside `t` in **[3.222267, 8.544184]** —
+the recruitment window, and no later decile. On exactly those calls
+`net_mass_production_dt` at `height_0` is negative on all 7 879 but only just: **minimum
+−3.352987e-05, maximum −2.283012e-09, mean −2.063678e-05**. That is about five orders
+below `storage_prod_eps = 1e-4`, the scale develop already applies to the positive part
+of the same quantity one function away, and seven below report 00 §9b's median `|P|` of
+7.3e-2. So `d(pr_estab)/d(state)` jumps from zero to the full `1/(tmp^2 + 1)` slope
+across a threshold the model cannot resolve, and the decision is not whether the
+derivative should be zero — it is that the sign of a quantity at `1e-9` is deciding it.
+
+Two consequences follow whichever way the ecology goes. `node.h:182-185`'s entire active
+set is downstream of this gate, so smoothing it retires that row as well. And **a
+finite-difference verification of any census gradient straddles this gate** for
+`t` in [3.2, 8.5] at a perturbation of `1e-9`, which is below every step size a re-run
+difference would use — so V4's reference is exposed to it, not just the model.
 
 ---
 

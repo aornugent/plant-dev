@@ -16,13 +16,22 @@
 #
 #   Rscript scripts/demographic_switches.R          # counters, needs the patch
 #
+#   PLANT_SWITCH_PROBE=1                            # every counter below
+#   PLANT_SWITCH_PROBE=1 PLANT_SWITCH_PROBE_NMP=1   # adds net_mass_production_dt
+#     at height_0 wherever pr_estab == 0. That is one extra solve on the shared
+#     Leaf, so it perturbs the run (root_loop calls move 7 551 699 -> 7 559 578);
+#     take every other counter from the arm without it.
+#
 # The constructs counted in C++:
 #   Species::compute_competition  -- the `h0 < height` break and the
 #     `size() == 1 || f_h1 > 0` boundary-node arm, with the resulting term count
 #   Patch::compute_environment    -- `size() > 0 & !is_mutant_run`
 #   Node::compute_rates           -- `!is_finite(survival_individual) -> 0`
 #   Node::compute_initial_conditions -- `g > 0 ? log(...) : log(0)` and the
-#     `!is_finite(log_density) -> log_density_dt = 0` follow-up
+#     `!is_finite(log_density) -> log_density_dt = 0` follow-up, with the two
+#     factors of the numerator counted separately so the zero is attributable:
+#     `birth_rate == 0` against `pr_estab == 0`, the latter being
+#     establishment_probability's `net_mass_production_dt_ > 0` gate
 #   TF24_Strategy::mortality_dt   -- `is_finite(cumulative_mortality)`
 #   the root-distribution loop    -- the `prev_q == 0` exact-double break
 #   E_from_Soil_to_Root_Collar    -- which of the three branches each layer takes,
@@ -44,8 +53,15 @@
 #   node.compute_rates           3 758 283 calls; survival_individual non-finite
 #     0; survival_individual exactly 0 185 851 (4.95%); largest finite
 #     cumulative mortality 545.06
-#   node.compute_initial_conditions  35 133 calls; g <= 0 zero times, g_min
-#     0.09529771 m/yr; log_density non-finite 7 879 (22.43%)
+#   node.compute_initial_conditions  35 133 calls (once per species per Runge-Kutta
+#     stage, against 141 introductions); g <= 0 zero times, g_min 0.09529771 m/yr;
+#     log_density non-finite 7 879 (22.43% of stage evaluations)
+#   zero_numerator  of those 7 879, birth_rate == 0 on 0 and pr_estab == 0 on
+#     7 879; both zero on 0. Confined to t in [3.222267, 8.544184], the first
+#     tenth of the lifetime, and absent from every later bin
+#   nmp_at_height_0 (PLANT_SWITCH_PROBE_NMP arm only, which perturbs the shared
+#     Leaf) net_mass_production_dt at height_0 on those 7 879 calls: all negative,
+#     min -3.352987e-05, max -2.283012e-09, mean -2.063678e-05
 #   mortality_dt                 7 516 566 calls; cumulative_mortality
 #     non-finite 371 702 (4.95%); largest finite value 545.06
 #   root_loop                    7 551 699 calls; prev_q == 0 break 767 291
