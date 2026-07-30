@@ -393,7 +393,18 @@ median and only 8x at the first percentile, not the four orders a toy measuremen
 exact rather than an estimate. Substituting the analytic `dg/dh` removes the upwinding
 (report 04 §6).
 
-**The light interpolant is held on `u = z / height_max` with fixed fractions.** Report 03 §1b:
+**The light interpolant is held on `u = z / height_max` with fixed fractions.** This is a
+prerequisite for the reverse pass and not only an accuracy choice. `rescale_spline` reads
+`spline.get_x()` — the knot set the *previous* build left — and rescales it to the new `height_max`
+(`resource_spline.h:152-158`), so the field is a function of the state **and** of which fraction set
+is currently loaded. Within an introduction interval that set is constant and the positions come out
+at `u_k · height_max` either way, so the build is pure there; across one it is not, because
+`introduce_new_node` passes `rescale = false` and the refiner chooses afresh. A reverse traversal
+crosses those boundaries backwards, so at 141 of 5 055 steps it would rebuild the field on a fraction
+set from the wrong interval — a different knot count, not a small error. Fixing the fractions removes
+the carried state, and with it the question.
+
+Report 03 §1b:
 `rescale_spline` is not cheaper than building adaptively, so it exists to keep the knot count
 fixed across stages, and the map it applies is `x_k = u_k · height_max` — so the normalised form
 is bit-identical, the knot positions become constant, and `height_max`'s sensitivity becomes
@@ -437,7 +448,7 @@ odelia          Solver::solve_adjoint, for k = K-1 ... 0 over the recorded steps
                     # the sweep: stages in reverse, so lambda_k_i is complete when used
                     lambda_k_i = h c_i lambda_out                   # the tableau's seeds
                     for stage i = 5 ... 0:
-                        system.set_ode_state(Y_i, t + ah_i h)       # state and field, no rates
+                        system.set_ode_state(Y_i, t + ah_i h)       # state and field only: P3.5
                         system.set_ode_aux(aux_i.begin())           # this stage's aux back
                         system.ode_rates_adjoint(lambda_k_i, lambda_Y_i)    # plant: (a)-(d)
                         lambda_in   += lambda_Y_i
@@ -503,7 +514,7 @@ across the rebuild.** §2.8 is the walk. What each candidate for storing costs, 
 | candidate | size | what it would save | verdict |
 |---|---|---|---|
 | ODE state per accepted step | **46.0 MB** | the only way back into a step | **stored** |
-| stage states, or the six stage rates | 276 MB | the rebuild, about 16 s | recomputed: the rebuild is arithmetic on rates the stages need anyway |
+| stage states, or the six stage rates | 276 MB | the rebuild, about 63 s (§8b) | recomputed: 276 MB is a poor price for one forward pass, and the rates are what the tableau needs anyway |
 | the light field's knot data per stage | 37 MB | nothing — the rebuild fills it on its way to the rates, and the refresh is two reductions (P2.1) | recomputed |
 | soil water potentials per stage | 1.2 MB | one closed-form curve per layer | recomputed from the soil state |
 | each cohort's collar operating point | 31 MB if kept for the run | about **36 s**, and it pins the linearisation point to the forward one | **carried in aux**, six stages of it, live for one step (§2.8) |
@@ -989,7 +1000,8 @@ What the reverse pass must not do is rebuild a `Patch` from the records and expe
 and it is the only public route for the stamps if anything ever does need to reconstruct rather than
 replay.
 *Closes on* the replayed final state being bit-identical to the forward run.
-*One state per accepted step is sufficient only once P2.7 lands.* A sequential replay reproduces
+*One state per accepted step is sufficient for the reverse pass only once P2.7 lands; P1.4's own gate
+is unaffected, because a replay runs forward.* A sequential replay reproduces
 develop's lagged boundary density for free, because it visits the stages in the same order the
 forward run did. A reverse traversal does not: it rebuilds a step's stage states after visiting the
 step above, so at the step's first stage the boundary node holds a later stage's value. With the lag
@@ -1043,6 +1055,10 @@ System then holds one interpolant for the whole run and refreshes two vectors pe
 also why P2.3 has no build cost to trade against: the per-stage work is the two reductions that fill
 those vectors, and report 03 §5.5's unattributed 175 µs belongs to `rescale_spline`'s adaptive
 machinery and band solve, both of which are gone.
+
+*Why it precedes Phase 3* — §2.6: `rescale_spline` carries the previous build's knot set, so the
+field is not a pure function of the state across an introduction, and a reverse traversal crosses
+those backwards.
 
 *Order.* (1) Add `knot_fractions_` and rebuild through it, keeping the fitted cubic as the
 evaluator — this alone should be bit-identical to `rescale_spline`, which is M3. (2) Delete
@@ -1220,8 +1236,10 @@ void Patch<T,E>::ode_rates_adjoint(ItIn lambda_dydt, ItOut lambda_y) {
 }
 ```
 
-**Step (c) carries three things, and two of them are not the cohort sum.** The knot values reach
-every cohort's leaf area, density and height through the summed reduction. Beyond that: the
+**Step (c) carries four things, and three of them are not the cohort sum.** The knot values and the
+knot slopes reach every cohort's leaf area, density and height through their two summed reductions.
+Beyond that: the two data vectors are linked by `m_k = -y_k s_k` (§2.3), so `lambda_m` must reach
+`lambda_y` and the slope sum before either is distributed. the
 reduction's lower limit is the boundary node at `height_0`, so it contributes one evaluation of the
 integrand there times `d(height_0)/d(trait)`, which `implicit_value` supplies through `height_seed`
 (P1.1). And under P2.1 the knot fractions are held on `u = z / height_max`, so every query carries
@@ -1582,6 +1600,15 @@ measured quantities.
 count and trait count (report 01 §7.2). The 2 GB gate in V4 has three orders of headroom; it exists
 to catch a recording that is not being released, not to be approached.
 
+**Why the block and not the whole step.** Report 01 §2's 490 GB is `1 128 states × 5 055 steps ×
+86 kB`, so one *step's* recording is about **97 MB** — inside the same gate. Recording a whole step
+would delete the hand-written parts of §2.4: the tape would transpose the tableau, the two field
+reductions, the soil cascade and every accumulation, leaving the leaf as the only supplied adjoint.
+It is slower — report 01 §7.4 measured a step-local sweep at **4.2×** the forward run against the
+block-granular variant's 1.4–1.6×, though against different baselines — and it is the fallback if the
+hand-written steps prove hard to keep correct. Nothing in this plan forecloses it: the trajectory, the
+aux transfer and `step_adjoint` are the same either way.
+
 ---
 
 ## 9. Risks, each with the number that would expose it
@@ -1598,6 +1625,7 @@ to catch a recording that is not being released, not to be approached.
 | the stage recursion loses a term | V3 fails on one step. **No measured signature** — report 01 §12 records that C5's 19% belongs to the newborn-adjoint mechanism, not to a lost tableau term, so the only thing known is that it is silent | P3.5 |
 | trait adjoints do not accumulate across cohorts | a fixed fraction of the finite difference with the correct sign, nothing thrown. Treating each cohort as a separate input gives 41–51% | P3.6 |
 | trait adjoints do not accumulate across *steps* | the same signature, unmeasured. `k_I` and `eta` are read both inside the block and by the field reduction (§2.4), so each needs a step (b) and a step (c) contribution | P3.6, and P3.1's V1 for the step (c) half alone |
+| the knot **slopes** are not declared as block inputs | the light channel is a fixed fraction of itself, correct sign, nothing thrown — the same shape as the trait case. T5 covers it only if it seeds both data vectors | P3.1's V1, and T5 written over values *and* slopes |
 | the leaf's boundary is wider than §2.3 and report 02 §6.8 declare | P3.2 grows an output nobody declared | P3.2; P0.5's inventory should predict it |
 | the leaf's waist does not hold where it has not been measured | the joint residual over the `2n + 1` directions leaves the 1e-04 band, or `dR_dflux` recovered from two potential directions disagrees | P3.2 step (3), and report 02 §11's last two falsifiers |
 | the envelope row is used at an unpolished operating point | carbon is right and every uptake row is wrong at first order in the displacement | report 02 §6.5; the polish lands with Phase 2 |

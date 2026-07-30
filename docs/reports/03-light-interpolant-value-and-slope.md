@@ -340,9 +340,11 @@ template <typename S> class hermite_interpolator {
 
 Knot positions are `double`; values and slopes carry the working scalar `S`. The surface
 mirrors `basic_interpolator` so `ResourceSpline` can hold one in place of the other,
-with a slope vector added at `init`. (odelia's older value-fitted `Interpolator` spells
-the same operation `deriv`; this type uses `slope` throughout for consistency with
-`value_and_slope`.)
+with a slope vector added at `init`. `init` validates the positions, scans them for uniformity and
+fills every span, so a caller whose positions never change re-derives structure per call;
+`../build-plan.md` P2.1 splits it into setting the nodes once and refreshing the data per stage.
+(odelia's older value-fitted `Interpolator` spells the same operation `deriv`; this type uses `slope`
+throughout for consistency with `value_and_slope`.)
 
 On span `[x_k, x_{k+1}]` with `h = x_{k+1} - x_k` and `t = (u - x_k)/h`, the Hermite
 basis is rearranged into a cubic in `t` and stored per span as one contiguous record

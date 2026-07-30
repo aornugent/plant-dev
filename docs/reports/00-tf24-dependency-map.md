@@ -306,8 +306,8 @@ radiation driving one cohort's leaf depends on **many** light knots, not one. It
 form has three parts: the knot values it reads, the `q(z,h)` weighting, and the upper bound
 `h`, which is itself an active state. Recording the interpolation and the quadrature inside
 the cohort's own block puts all three on that block's tape, so the aggregation's adjoint is
-not written out here — `../build-plan.md` §2.4 declares the block's inputs as the 65 knot
-values rather than sampled light for exactly this reason.
+not written out here — `../build-plan.md` §2.3 declares the block's inputs as the knot data rather
+than sampled light for exactly this reason.
 
 ### 4.2 The leaf solve
 
@@ -641,7 +641,7 @@ The deliverable. Read §8 before relying on it.
 |---|---|
 | `∂c_{k,i}/∂ψ_j` | **diagonal + rank one**: diagonal because `E_i` reads only its own layer's `ψ_i`; rank one because all five layers share the single scalar `p*_k`. |
 | cohort ↔ soil | rank `ode_size()` = 9. The whole population talks to the soil through nine numbers. |
-| cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h:220-223`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed**: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). |
+| cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h:220-223`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed** on develop: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). `../build-plan.md` §2.6 fixes the fractions, at which point the rank is 65 values plus 65 slopes. |
 | the trait channel | separable from the state channel, and both are pulled back by the *same* `μ_k`, so adding traits does not add solves. |
 | a trait read **twice**, once per cohort and once by the field | `k_I` is the absorption coefficient in `radiation = k_I · L · PPFD` and the extinction coefficient in `comp(z) = k_I · a · (1 − u^η)²`; `η` is the crown quadrature weight, `η_c`, *and* that same shading kernel. Both contributions are wanted and they arrive in different steps of the reverse pass, so the trait adjoint is a sum over steps as well as over cohorts. |
 

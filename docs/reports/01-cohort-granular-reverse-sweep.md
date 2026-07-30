@@ -385,12 +385,16 @@ For TF24 on develop, where `state_size()` is 6:
 |---|---|---|
 | in | own ODE state — the strategy's states only | 6 |
 | in | the light interpolant's knot **values** | 65 |
+| in | its knot **slopes**, once the field carries them | 65 |
 | in | soil water potential, one per layer | 5 |
 | in | seeded differentiation targets | n |
 | out | strategy rates | 6 |
 | out | per-layer uptake | 5 |
 
-**76 + n in, 11 out** — 127 in at n = 51. Three things that are *not* on either side, and each
+**76 + n in, 11 out** on develop's value-only field; **141 + n** once the field carries a slope per
+knot as well, which a cubic Hermite does and a value-fitted spline does not
+(`../build-plan.md` §2.3, report 03). The slopes come from their own reduction over cohorts, so a
+block cannot derive them. Three things that are *not* on either side, and each
 was wrong in an earlier version of this table. `log_density` and `offspring` are not inputs,
 because `Individual::compute_rates` never reads them; density reaches the world one level up,
 through `Node::consumption_rate` and `Node::compute_competition`. `log_density_dt` and
@@ -403,7 +407,8 @@ the environment's state, and the parameters are `ad_parameters()` in the order t
 declares. So the input vector is four existing runs concatenated, the layout *is* those four
 sizes, and the forward pack and the adjoint scatter read them from the same accessors — which is
 the only way they cannot drift apart. One assertion closes it:
-`in.size() == state_size() + knots().size() + n_resources() + ad_parameters().size()`.
+`in.size() == state_size() + n_cohort_reads() + ad_parameters().size()`, with the environment's
+count covering both knot data vectors and the resource state.
 
 **`prepare_strategy()` must not run inside the block.** It builds the `Leaf`'s four 100-knot
 interpolators and runs `height_seed()`'s root-find, and doing that per cohort per stage is about
@@ -542,7 +547,8 @@ This is the whole additional memory the proposal requires.
 > **Three things about step (b) that this section's pseudocode leaves implicit.**
 >
 > **It is a vector-Jacobian product, not a Jacobian.** The block has **11** outputs for TF24 —
-> 6 strategy rates and 5 per-layer uptake, per §4.1 — against **76 + n** inputs, and the matrix is
+> 6 strategy rates and 5 per-layer uptake, per §4.1 — against **76 + n** inputs (**141 + n** with knot
+> slopes, §4.1), and the matrix is
 > never formed. Seed all 11 output adjoints and sweep once: cost is one sweep per cohort per stage
 > regardless of how many traits are seeded, which is the property section 4.2 claims.
 >
@@ -582,7 +588,7 @@ detail:
 ```
 for each cohort j:
     fresh tape
-    register:  own states (6), knot values (65), soil potential (5), targets (n)
+    register:  own states (6), knot values (65) and slopes (65), soil potential (5), targets (n)
     record:    Individual::compute_rates for this cohort only
     seed:      lambda_rates (6) from the stage recursion, lambda_g from step (a)'s
                stencil, lambda_uptake (5) from step (a)'s soil adjoint
