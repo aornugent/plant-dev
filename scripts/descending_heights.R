@@ -15,10 +15,13 @@
 # add_strategies(trait_matrix(0.1978791,"lma")), Control(), refine_schedule = FALSE,
 # max_patch_lifetime = 105.32 set on the base parameters before add_strategies.
 #
-# RESULTS. Not yet run: two attempts outran their session. Expect ~10 000 records
-# over 142 output times. The number that matters is the count of non-descending
-# neighbouring pairs; a nonzero count makes height_max's adjoint and the stencil's
-# divisor sign need a guard rather than an invariant.
+# RESULTS. 10 153 records over 142 output times, 10 011 neighbouring pairs.
+# Non-descending pairs: 0. Largest gap -8.209404e-06, so the order holds with the
+# closest pair 8.2 um apart; median spacing 3.527e-03. Heights 0.3442 to 17.9429,
+# 1 to 142 nodes per step. The minimum matches report 04 section 5's 8.2095e-06 by
+# a second route. So height_max = nodes.front().height() and the stencil's dh > 0
+# are invariants on this configuration, and the guard is not needed for it -- but
+# the margin is 8 um, and this is one species at the default driver.
 
 suppressMessages({ library(odelia); pkgload::load_all("/home/user/plant-develop", quiet = TRUE) })
 p0 <- scm_base_parameters("TF24", "TF24_Env")
@@ -26,7 +29,7 @@ p0$max_patch_lifetime <- 105.32
 p <- add_strategies(p0, trait_matrix(0.1978791, "lma"))
 r <- run_scm(p, Environment("TF24"), Control(), collect = TRUE, refine_schedule = FALSE)
 
-d <- r$species[[1]]                      # one flat record per (step, node)
+d <- r$species                           # one flat record per (step, node)
 d <- d[order(d$step, d$node), ]
 gaps <- unlist(lapply(split(d$height, d$step),
                       function(h) if (length(h) > 1) diff(h) else numeric(0)))

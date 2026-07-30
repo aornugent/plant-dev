@@ -8,7 +8,9 @@ matters when scheduling them:
 - **P0.1–P0.4, P0.8, P0.9 and P0.10 block the engine**, because the design's own acceptance
   test is "re-run one cohort's rates from its boundary and compare bit for bit", and on
   develop that fails for reasons unrelated to gradients. P0.1 and P0.10 are that claim at
-  two strengths. P0.8 and P0.9 are **family-wide** rather than TF24-specific.
+  two strengths. P0.8 and P0.9 are **family-wide** rather than TF24-specific. P0.1 also gates the
+  reverse pass's aux carry: restoring a leaf's inputs and operating point reproduces its outputs
+  bit-for-bit at 8 of 9 states and the ninth is P0.1 (`scripts/aux_round_trip.R`).
 - **P0.5 and P0.6 block TF24's phase only**, because you cannot decide which switches to
   mollify before you know which ones fire, and you cannot FD-verify against numbers
   the owner may change.
@@ -21,7 +23,8 @@ Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
 the work list, not the argument. Probes: `scripts/leaf_state_carryover.R`,
 `scripts/uncounted_switches.R`, `scripts/light_floor.R`, `scripts/boundary_node.R`,
-`scripts/cohort_spacing.R`, `scripts/k1_arms.R` with `reports/introduction-k1.patch`, and
+`scripts/cohort_spacing.R`, `scripts/aux_round_trip.R`, `scripts/descending_heights.R`,
+`scripts/k1_arms.R` with `reports/introduction-k1.patch`, and
 the leaf-boundary set `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`,
 `leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`,
 `leaf_recover_a.R`.
@@ -60,6 +63,15 @@ a perturbed height**.
 **Gate.** The seedling's deep layers read 0 on a leaf that solved a tree first, and
 `solve(seedling); solve(tree); solve(seedling)` is bit-identical. Re-bless TF24
 baselines and record the shift.
+
+**It also gates the reverse pass's aux carry, which is a second reason to land it first.**
+`scripts/aux_round_trip.R` restores `set_physiology`'s inputs and the stored operating point and
+compares 14 leaf outputs: bit-identical at 9 of 9 states on the same leaf, and at 8 of 9 on a fresh
+one. The ninth is this defect — a seedling whose layers 3–5 hold the previous solve's uptake, worst
+relative difference 1.0 — and the fresh leaf is the one that is right. So until this lands, a leaf's
+outputs are not a function of its own inputs and aux, and the reverse pass's rebuild cannot
+reproduce the forward pass by restoring them. Any one deeper-rooted prior state is enough to trigger
+it, and the cohort loop runs tallest-first.
 
 **The same object has a second undeclared read, and it lands here.**
 `dprofit_droot_collar_psi` reads the member `psi_soil_inverted_`, which only
@@ -206,10 +218,15 @@ none is counted.
 | `size() > 0 & !is_mutant_run` | `patch.h:568` | whether the field is rebuilt at all. Also a bitwise `&` on two bools, which is a wart rather than a hazard |
 | `consumption_rates` sized `NA_REAL` to ODE width | P0.4 | four NaNs per cohort per stage reach `resource_depletion`. Under a reverse sweep `NaN * 0` is `NaN`, so this poisons the adjoint rather than staying latent. **Promote P0.4 to the same tier as P0.1** |
 
-**Still to count**: the soil positivity guard's own incidence — `theta_i <= theta_r && !(rate_i > 0)`
-is argued unreachable from `K ∝ θ^16.14` and never counted, and the reverse pass has to zero the
-transposed row wherever it fired, so a zero here would make that channel insurance rather than
-machinery; the root vulnerability curve's domain edge (beyond its fitted
+**The soil positivity guard is now counted, and it is zero.** `theta_i <= theta_r && !(rate_i > 0)`
+was argued unreachable from `K ∝ θ^16.14`; measured, θ's minimum over a production run is
+**0.1563 against `theta_r = 1e-2`**, a factor of 15.6, and no record is at or below it
+(`scripts/aux_round_trip.R` A4). So the reverse pass's zeroed transposed row is insurance rather
+than machinery *at this driver* — and it is still owed, because the committed rainfall sequences are
+where it would fire. The census is at 142 output times rather than per stage, so a stage dipping
+between two of them is not observed; at this margin that is an inference.
+
+**Still to count**: the root vulnerability curve's domain edge (beyond its fitted
 domain `root_vuln_from_psi` extrapolates **negative** → negative conductivity →
 negative-but-finite `r_R` → wrong-sign `E_i` that the `isfinite(E_up_)` net cannot
 catch; guarded in one of three branches); the `prev_q == 0` exact-double break in the

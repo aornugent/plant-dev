@@ -4,8 +4,13 @@ Each `*.R` here states its CONFIGURATION and its RESULTS in a header, so a numbe
 without reconstructing how it was produced. Build `-O2` deliberately before timing anything — see
 plant-dev `AGENTS.md`, "Testing plant".
 
-Two probes are written and **not yet run**: `descending_heights.R` (M8) and the aux round trip (M7,
-not yet written). `../docs/build-plan.md` §5b is the list and says what each decides.
+`../docs/build-plan.md` §5b is the measurement list and says what each decides. `M6`, `M7`
+(`aux_round_trip.R`) and `M8` (`descending_heights.R`) are run; `M1`–`M5` are not.
+
+One trap the two of them cost: `run_scm(collect = TRUE)`'s `$species` **is** the flat tibble of one
+record per (step, node), so `r$species[[1]]` is its first column rather than the first species. The
+same object's `$env$soil_moist` is long over (step, layer) with no layer column, five rows per output
+time in layer order.
 
 Three traps that cost time:
 

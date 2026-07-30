@@ -510,7 +510,9 @@ area.
 *The leaf.* Its operating point comes back with the aux, and `evaluate_root_collar_psi` refreshes
 `psi_soil_inverted_` and the soil-side vulnerability integrals through `prepare_collar_solve` before
 the partials read them — which is P0.1's second half, and the reason the 1 µs figure in §8b includes
-a prepare.
+a prepare. Measured (M7): the restore reproduces all 14 leaf outputs bit-for-bit, and one evaluation
+at the stored point lands where the search left the leaf. **Bit-identity on a leaf with no history
+needs P0.1**, whose stale deep layers make the outputs a function of the previous cohort's solve.
 
 **What plant adds to be differentiable, in total.** `Patch::ode_rates_adjoint`, `set_ode_aux` on the
 containers and the environment, and the split above. `Leaf::input_adjoints` is the model's own
@@ -543,7 +545,8 @@ cohort's leaf on its way to the rates, so the sweep gets the operating point bac
 aux and evaluates the leaf there: about **1 µs** against **10.2 µs** to search for it again (§8b).
 Six stages of aux is about 10 kB, held by `Step` beside `k1`–`k6`. An implementation that re-solves
 pays 9.2 µs per (stage, cohort) — 36 s per gradient — and linearises at a point it re-derived rather
-than the one the forward pass used.
+than the one the forward pass used. M7 measured the round trip bit-identical at 9 of 9 states, and
+found that the operating point is the only thing needing publication — with P0.1 as its condition.
 
 So the transfer is `ode_aux` on the rebuild and `set_ode_aux` on the sweep: the missing fifth member
 of a family that already has four, in the vocabulary of the ODE contract rather than of reverse mode.
@@ -772,13 +775,15 @@ None on the critical path; each can kill or confirm one choice in §2.
 
 | **M6** | **The leaf's boundary — run.** `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`, `leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`, `leaf_recover_a.R`, against develop at 5 and 20 layers and two species | report 02 §6, and it confirmed it: the envelope row exact for a leaf trait, the waist's joint residual 2.6e-04 to 9.2e-04 over 41 directions, `waist_b` against its closed form to 0.16–1.04%, `waist_a` recovered to 1e-05, both translation defects exact, and the stationarity gap that makes P2.6 a prerequisite | done |
 
-| **M7** | **The aux round trip.** Solve a leaf at a production state, keep the aux, solve something else, restore the aux and evaluate at the stored operating point: every leaf output bit-identical to the first solve. Then the same for the soil — recompute the positivity guard's fired set from a stage's state and restored uptake, against the set the forward pass used | §2.8's carry, and whether `set_ode_aux` is sufficient or something else must be published | `double` only, and it runs on develop |
-| **M8** | **The descending-height invariant.** Scan a production run for a non-descending neighbouring pair. `Species::height_max()` is `nodes.front().height()`, the transport stencil differences against the neighbour below, and P2.1 routes every light query through `height_max` — three consumers, one unenforced invariant, and the storage gate gives a taller cohort with drawn-down reserves a growth rate a shorter one can exceed | whether `height_max`'s adjoint and the stencil's sign need a guard | `double` only |
+| **M7** | **The aux round trip — run.** `scripts/aux_round_trip.R`, nine states including three drier than the driver reaches | §2.8's carry, and it confirmed it, **conditional on P0.1**: restoring `set_physiology`'s inputs and evaluating at the stored operating point reproduces all 14 leaf outputs bit-identically after an intervening solve elsewhere (9/9), and one evaluation lands where the search left the leaf (9/9), so the sweep pays an evaluation and not a search. On a *fresh* leaf 8 of 9 are bit-identical and the ninth is P0.1 — the seedling's unrooted layers 3–5 carry the previous cohort's uptake, so today a leaf's outputs are a function of the previous cohort's solve as well as of its own inputs and aux. Nothing beyond the operating point needs publishing. For the soil: the guard reads the stage state, the cascade, `rainfall(time)` and the per-layer uptake and no other member, so aux closes it — and θ's minimum over a production run is **0.1563 against θ_r = 1e-2**, so the zeroed rows are correct and unexercised at this driver | done |
+| **M8** | **The descending-height invariant — run.** `scripts/descending_heights.R` | whether `height_max`'s adjoint and the stencil's sign need a guard, and they do not on this configuration: **0 of 10 011** neighbouring pairs non-descending over 142 output times, largest gap `-8.209404e-06`, median spacing 3.527e-03. The closest pair is 8.2 µm apart and report 04 §5's minimum spacing is the same number by a second route, so `height_max = nodes.front().height()` and `dh > 0` hold — with an 8 µm margin, one species, the default driver | done |
 
 M1, M2, M3 and M5 are independent. M4's value half is independent; its derivative half needs
 M1 and M2. M6 is complete, and P3.2 and P3.3 are written against it. M7 and M8 need no AD and run on develop
 today; both were added because the reverse pass acquired a dependency the forward model has never been
-asked about — M7 for the aux carry, M8 for an invariant three consumers now share.
+asked about — M7 for the aux carry, M8 for an invariant three consumers now share. **Both are now
+run, and both answered yes**; between them they moved one item, which is that P0.1 now gates the
+reverse pass as well as the forward comparisons.
 
 ---
 
