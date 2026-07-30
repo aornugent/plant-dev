@@ -30,7 +30,15 @@
 #       dp*/dpsi_1 itself runs 0.857 to 1.339 -- the plant tracks the soil, which
 #       is why the flux derivative is a cancellation.
 #
-#   L4  the waist HOLDS. Residual of dR/dpsi[1:5] after projection onto
+# SUPERSEDED, L4 ONLY, by scripts/leaf_waist2.R and leaf_waist3.R. Two faults:
+# this probe passed E_from_Soil_to_Root_Collar a POSITIVE collar potential where
+# it takes the signed one, and it fitted two coefficients to five layers. The
+# tight residual below is real but says only "rank <= 2" -- the psi family is
+# nearly rank ONE (s2/s1 ~ 1e-05), so the second coefficient is unidentified and
+# the fitted value is noise. leaf_waist3.R identifies both from a joint fit and
+# confirms the closed form. L3 stands.
+#
+#   L4  Residual of dR/dpsi[1:5] after projection onto
 #       span{dE_up/dpsi, d2E_up/dp dpsi}, relative to |dR/dpsi|:
 #         seedling 4.7e-16 | sapling wet 6.6e-07 | sapling dry 1.3e-06
 #         tree dry 2.3e-07 | canopy max 1.7e-07 | beyond driver 6.4e-07
