@@ -365,8 +365,9 @@ safety. At its solved operating point the leaf contracts its own two output adjo
 inputs, and the cohort's tape carries them on from there.
 
 Two adjoints arrive — one scalar on profit, one per soil layer on uptake — and leave as
-contributions to the soil potentials, the geometry and light inputs, and the traits. The rows below
-are how that contraction is formed; they are the leaf's own state, not a value it returns.
+contributions to the soil potentials, the geometry and light inputs, and the traits. What follows is
+the partial derivative of each output with respect to each input, which is what that contraction
+sums over; they are the leaf's own state, not a value it returns.
 
 ### 6.1 Carbon is an envelope row
 

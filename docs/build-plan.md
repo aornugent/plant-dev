@@ -814,13 +814,18 @@ hold besides the vector, and no separate `times`, because a time that lives besi
 disagree with it — `r_ode_times()` already exists as the schedule and would be a second list to keep
 in step.
 
-**It retires more than it adds.** With one record of `(time, state)` per accepted step, and §2.7's
-invasion pass recomputing the field rather than replaying it, nothing on the gradient path reads the
-mutant replay machinery: `Patch::environment_history`, `environment_cache`, `cache_ode_step`,
-`cache_RK45_step`, `load_ode_step`, `Control::save_RK45_cache`, `use_cached_environment` and
-`patch.step_history`. All of it is already dead on develop (§3) and all of it is what Phase 4's
-invasion row would otherwise have to revive. So the store replaces a mechanism instead of joining
-one, and Phase 4 deletes rather than reconnects.
+**Why the states have to be stored at all.** The reverse pass visits accepted steps backwards, and
+at each one it sets the patch to that step's state, evaluates the right-hand side there — that is
+`ode_rates_adjoint`'s precondition (P3.5) — and rebuilds the step's six stage states by re-running
+the step in `double`. So it needs the ODE state vector at every accepted step, and nothing on
+develop keeps one. The solver holds only the current state; `SCM` keeps the schedule, which is
+times; and `run_scm(collect = TRUE)` collects R lists of the patch at the **142 output times**, not
+the 5 055 accepted steps. Storing 5 055 double state vectors, 46.0 MB, is what makes the reverse
+pass possible without a tape of the whole run, which is 490 GB (report 01 §2).
+
+Nothing is replayed from a record. The resident pass rebuilds the light field and the soil
+potentials from the state it has just set, exactly as the forward pass does (§2.7), so the store
+holds state and nothing else.
 
 **The birth values are not stored, because the replay sets them.** `pr_patch_survival_at_birth`
 divides the fecundity rate and is not in `ode_state`, so a `Patch` reconstructed from stored state
@@ -839,8 +844,12 @@ forward run did. A reverse traversal does not: it rebuilds a step's stage states
 step above, so at the step's first stage the boundary node holds a later stage's value. With the lag
 closed the stage is a function of `(y, t)`; with it open, each record needs one scalar per species
 and the rebuild has to seed it.
-*The trap.* Two schedule records exist. `r_ode_times()` is the replay grid; `patch.step_history`
-is the other, and replaying it instead gave a gradient wrong by 60×.
+*The trap.* Two lists of times exist and only one is the replay grid. `r_ode_times()` is it.
+`patch.step_history` is the mutant environment cache's index — `cache_ode_step` pushes a time
+alongside each cached `environment_history` entry, and only when `save_RK45_cache` is set
+(`patch.h:727-733`), which nothing on the resident path sets. So in production it holds its
+initialiser, `{0.0}`, and `SCM::run_mutant` pins the replay grid to it (`scm.h:309`) — the gradient
+wrong by 60×.
 
 ---
 
@@ -1080,21 +1089,24 @@ void Leaf::input_adjoints(double lambda_profit,
                           std::vector<double>& input_adjoints) const;
 ```
 
-The leaf is a vector-Jacobian product, like the block that contains it: two output adjoints in,
-one contribution per input out, in `Leaf::inputs()`' order, written into a buffer the cohort loop
-owns and reuses. The rows are per-solve members of `Leaf`, formed where `profit_` and
-`soil_consumption_` are formed and read by nothing else — `profit_` and the uptake vector are
-already members, so a returned aggregate would carry a second copy of two outputs the forward pass
-reads directly, and four vector allocations per (stage, cohort), 3.9 M times.
+The leaf is a vector-Jacobian product, like the block that contains it: two output adjoints in, one
+contribution per input out, in `Leaf::inputs()`' order, written into a buffer the cohort loop owns
+and reuses. What it sums over is the partial derivative of each output — `profit_`, and each rooted
+layer's uptake — with respect to each input, and those are per-solve members of `Leaf`, formed where
+`profit_` and `soil_consumption_` themselves are formed. Returning them instead would carry a second
+copy of two outputs the forward pass reads off the leaf directly, and allocate four vectors per
+(stage, cohort), 3.9 M times.
 
 `Leaf::inputs()` is the one statement of the input order, and both the pack in the cohort block and
 the scatter here read it. The assertion is `input_adjoints.size() == inputs().size()` — T4's shape
 one level down.
 
-Report 02 §6 derives every row: §6.1 the envelope row, §6.2 the flux rows, §6.3 `dR_dflux` and
-`dR_dflux_slope` (`a` and `b`), §6.6 the uniform direction, §6.7 the bound. Two members are the
-polish's as well — it needs `dR_dcollar` and needs to know whether the point is pinned — so both are
-the leaf's own state whether or not a gradient is being taken.
+Report 02 §6 derives each of them: §6.1 profit's, which needs no argmax term; §6.2 uptake's direct
+dependence on its own layer's potential and on root mass; §6.3 the two coefficients `dR_dflux` and
+`dR_dflux_slope` (`a` and `b`) that carry the rest of uptake's dependence through the operating
+point; §6.6 uptake's and the stem's response to a uniform drying; §6.7 the pinned case. Two of the
+members are the polish's as well — it needs `dR_dcollar` and needs to know whether the point is
+pinned — so both are the leaf's own state whether or not a gradient is being taken.
 
 **`dR_dcollar` is a central difference of `dprofit_droot_collar_psi`,** the construction
 `scripts/curvature_probe.R` and report 00 §7 measure it with. The closed form needs the second
@@ -1105,7 +1117,7 @@ magnitude is measured over the whole feasible domain, 0.17 to 198 by layer count
 zero. Its own error is checked by halving the step and requiring less movement than §6.9's
 stationarity tolerance.
 
-**The leaf's rows, and where each comes from.** Carbon is an envelope row — `profit_` sits at
+**Where each partial comes from.** Carbon is an envelope row — `profit_` sits at
 its own maximiser, so its sensitivity is direct with the operating point held still, and
 nothing about the argmax enters. Water is not stationary, so it carries the operating point's
 movement: five flux adjoints collapse onto one scalar per cohort, one divide by `dR_dcollar` gives
@@ -1126,8 +1138,8 @@ resolve either, so they are computed, not differenced.
 
 **Requires the polish first** (report 02 §6.5): the envelope row is valid only where
 `dPi/dp = 0`, and golden section at production tolerance leaves `|R|` at 8.8e-05 to 1.2e-03.
-Newton on `R` takes it to 1.6e-08 to 4.7e-07, using `dR_dcollar`, which the boundary already
-returns. Golden section then runs only to the Newton basin. It moves `soil_consumption_` at
+Newton on `R` takes it to 1.6e-08 to 4.7e-07, using `dR_dcollar`, which the leaf holds
+either way. Golden section then runs only to the Newton basin. It moves `soil_consumption_` at
 first order, so it lands with Phase 2's re-blessing rather than here.
 
 *Requires P0.1 and P0.10.* The first line of the signature calls the block a pure function of its
@@ -1140,8 +1152,8 @@ directions and requiring them to agree, which they do to 1e-05 or better. (4) Th
 translation-defect rows. (5) The bound-pinned case and the selector.
 *Closes on* **V1** complete, and **V2** at stage 0 for both operating-point cases — the pinned one
 needs `psi_soil ≥ 1.5 MPa` at `height ≥ 2 m` (§8). The selector's incidence goes in P0.5's
-inventory. Plus three tests of the block's boundary, which is where a silent wrong gradient would
-come from:
+inventory. Plus three tests where the block meets its inputs, which is where a silent wrong gradient
+would come from:
 
 | | test | what it catches |
 |---|---|---|
@@ -1247,7 +1259,7 @@ Separate pushes, sequenced by what each needs.
 
 | | what it is | needs first |
 |---|---|---|
-| **invasion gradients** | omit step (c) (§2.7). The resident pass recomputes the field, so this deletes the mutant replay records (P1.4) rather than reviving them: what remains is `run_mutant` driven from the same trajectory | Phase 3 |
+| **invasion gradients** | omit step (c) (§2.7). `run_mutant` and the replay records it reads are dead on develop and reach a renamed odelia interface, so the first task is to re-diagnose that path rather than resume it (§3) | Phase 3 |
 | **FF16 and K93** | the templating plus the existing census reduction; retire `ff16_production_kernel.h`; port the `smooth_positive` clamp fix and K93's `k_I` channel; tighten FF16's gradient test, which passes at 1e-2 where the truth is ~1e-6 | Phase 3 |
 | **two species** | two `Leaf` objects, `Species::consumption_rate`'s `size() < 2` per species, and per-species η grouped inside the light reduction. Every incidence number in reports 00 and 07 is single-species | FF16 |
 | **calibration** | `least_squares` reads intermediate trajectory states as active values, which a `double` trajectory breaks without a message. Either the functional declares which steps it reads and contributes a per-step adjoint seed, or calibration stores a second denser trajectory. Record the decision before opening it | Phase 3 |
@@ -1373,7 +1385,7 @@ about 63 s:
 | term | count | unit | total |
 |---|---|---|---|
 | rebuild the stage states in `double` | one forward RHS per stage | — | ~63 s |
-| the leaf's rows | 3.9 M (stage, cohort) | 4–6 `dprofit`, 14–21 µs | 55–82 s |
+| the leaf's partial derivatives | 3.9 M (stage, cohort) | 4–6 `dprofit`, 14–21 µs | 55–82 s |
 | record and sweep the block | 3.9 M | 3–5× the block's own 6 µs of non-leaf arithmetic | 70–117 s |
 | | | | **190–260 s** |
 
