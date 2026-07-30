@@ -489,9 +489,19 @@ kernel sweep report 03 §5.5 measures at 15 µs, against the 2.9 ms a full rate 
 *The light field.* Its span coefficients are affine in the four data numbers a span touches, so a
 query is linear in the knot data and there is no linearisation point to get wrong. The block declares
 the 130 data numbers as inputs and builds `hermite_interpolator<S>` from them, so the crown integral's
-moving upper bound, `q(z, h)` and the interpolation all land on the block's own tape (§2.3). The
+moving upper bound, `q(z, h)` and the interpolation all land on the block's own tape (§2.3). The knot
 positions are `double` and run-constant (P2.1), so nothing structural is recorded and the same span
 index serves the forward pass and every block.
+
+**The query position is not one of those `double`s, and the distinction is the whole height channel.**
+A crown abscissa is `z_j = h ξ_j`, so the field is read at an active position while being *indexed* at
+a passive one. M1 measured what happens if the read freezes it: after the substitution `z = h ξ` the
+Yokozawa weight carries no height at all, so the query is height's only route into the integral and
+freezing it makes `d(I)/d(height)` **exactly zero**. odelia's older `Interpolator` already owns both
+readings — `eval` freezes the query derivative, `eval_with_query_derivative` opts in, and its own
+comment names a quadrature abscissa as the case that should — so what is needed is the same pair on
+`hermite_interpolator`, which its `value_and_slope` makes one line: `value + slope · (u − to_passive(u))`.
+Measured identical to re-evaluating the span polynomial actively, so the cheap form is the right one.
 
 *The soil.* The sweep needs to know which of the positivity guard's rows fired — `theta_i <= theta_r
 && !(rate_i > 0)` zeroes a row forward, so the transposed row must be zero too (§2.4). The condition
@@ -634,7 +644,7 @@ family.
 | `vector_jacobian_product` | `preaccumulate` (deleted) solved a different problem — it grafted partials back onto an enclosing tape. There is no enclosing tape here, so the graft, its first-order-only property and its return-type `static_assert` are all beside the point | step (b): the cohort block |
 | `OdeElement` | new. Constrains the four recursive helpers so the state-transfer interface stops naming `double` (§11.1) | every container's ODE plumbing |
 | `implicit_value(y*, F)` | AD branch, `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1` |
-| `hermite_interpolator<S>` | AD branch, `hermite_interpolator.hpp` | the light interpolant's evaluation (§2.6) |
+| `hermite_interpolator<S>` | AD branch, `hermite_interpolator.hpp`, **plus an active-position read** — it takes `double u` today, and M1 measures the crown integral's height adjoint as exactly zero without one. `Interpolator`'s `eval` / `eval_with_query_derivative` pair is the shape to copy | the light interpolant's evaluation (§2.6), and the crown integral's abscissae (§2.8) |
 | a forward-derivative helper | new, small | `dprofit_droot_collar_psi`, so `src/leaf_model.cpp` stops spelling `xad::fwd` |
 
 Two odelia changes have no plant-visible name: `Step` gains `step_adjoint` and a description of
@@ -767,7 +777,7 @@ None on the critical path; each can kill or confirm one choice in §2.
 
 | | measurement | what it decides | needs |
 |---|---|---|---|
-| **M1** | **A block with a moving integration bound.** An interpolant integrated over `[0, h]` with `h` a declared input; check the height adjoint against a finite difference. This is the structure that fails if §2.3 is wrong | whether the block boundary closes, including the moving bound | odelia only |
+| **M1** | **A block with a moving integration bound — run.** `scripts/m1_moving_bound.cpp` | whether the block boundary closes, including the moving bound, and **it does**: the height adjoint matches a central difference to 1.2e-11 … 7.4e-10 at heights 0.3442, 2, 8 and 17.9429, and the knot-value channel to 8 digits. It also found the one thing that has to be added — `hermite_interpolator::eval` takes `double`, and with the query frozen `d(I)/d(height)` is **exactly zero at 4 of 4**, because after `z = h·ξ` the Yokozawa weight carries no height and the query position is height's only route in. The fix is the `value + slope·(u − value_of_u)` graft odelia's older `Interpolator` already owns as `eval_with_query_derivative`, one line over hermite's `value_and_slope`; measured identical to re-evaluating the span polynomial actively | done |
 | **M2** | **`CanopyShape<S>` alone, ported to develop.** One file | §2.1's shape, bit-identity, and the forward benchmark, at the smallest possible cost | the AD branch already wrote it |
 | **M3** | **The normalised light coordinate**, and which state's refinement chooses the fractions (§2.6). Rebuild the field as `u = z/height_max` with fixed fractions, for at least two candidate sets — one refined early, one at a mature state. Bit-identity holds only **within an introduction interval**: `introduce_new_node` passes `rescale = false`, so develop re-refines adaptively at each of the 141 introductions and the knot count runs 33 to 129, mean 58.4 (report 03 §1b). So M3 measures two things — bit-identity between introductions, and the size of the shift across one | §2.6, and how much of it needs re-blessing | `double` only |
 | **M4** | **The transport stencil across neighbouring cohorts.** Value change against the sub-grid stencil on one production run; conditioning of both against a finite difference | §2.6, and the size of the forward-value change to re-bless | `double` for the value; M1 and M2 for the derivative |
@@ -778,7 +788,7 @@ None on the critical path; each can kill or confirm one choice in §2.
 | **M7** | **The aux round trip — run.** `scripts/aux_round_trip.R`, nine states including three drier than the driver reaches | §2.8's carry, and it confirmed it, **conditional on P0.1**: restoring `set_physiology`'s inputs and evaluating at the stored operating point reproduces all 14 leaf outputs bit-identically after an intervening solve elsewhere (9/9), and one evaluation lands where the search left the leaf (9/9), so the sweep pays an evaluation and not a search. On a *fresh* leaf 8 of 9 are bit-identical and the ninth is P0.1 — the seedling's unrooted layers 3–5 carry the previous cohort's uptake, so today a leaf's outputs are a function of the previous cohort's solve as well as of its own inputs and aux. Nothing beyond the operating point needs publishing. For the soil: the guard reads the stage state, the cascade, `rainfall(time)` and the per-layer uptake and no other member, so aux closes it — and θ's minimum over a production run is **0.1563 against θ_r = 1e-2**, so the zeroed rows are correct and unexercised at this driver | done |
 | **M8** | **The descending-height invariant — run.** `scripts/descending_heights.R` | whether `height_max`'s adjoint and the stencil's sign need a guard, and they do not on this configuration: **0 of 10 011** neighbouring pairs non-descending over 142 output times, largest gap `-8.209404e-06`, median spacing 3.527e-03. The closest pair is 8.2 µm apart and report 04 §5's minimum spacing is the same number by a second route, so `height_max = nodes.front().height()` and `dh > 0` hold — with an 8 µm margin, one species, the default driver | done |
 
-M1, M2, M3 and M5 are independent. M4's value half is independent; its derivative half needs
+M2, M3 and M5 are independent, and M1 is done. M4's value half is independent; its derivative half needs
 M1 and M2. M6 is complete, and P3.2 and P3.3 are written against it. M7 and M8 need no AD and run on develop
 today; both were added because the reverse pass acquired a dependency the forward model has never been
 asked about — M7 for the aux carry, M8 for an invariant three consumers now share. **Both are now
@@ -1063,6 +1073,7 @@ class ResourceSpline {
   double height_max_, inv_height_max_;              // the reciprocal is the hot-path form
   S get_value_at_height(double z) const;            // field_(z * inv_height_max_)
   void get_value_and_slope_at_height(double z, S& v, S& dvdz) const;
+  template <typename Q> S get_value_at_height(Q z) const;   // a crown abscissa: z = h * xi
 };
 ```
 
@@ -1076,6 +1087,13 @@ cannot change after P2.1. So the type splits along the line report 03 §7 rule 5
 void set_nodes(const std::vector<double>& x);              // once per run: validate, scan, index
 void set_data(const std::vector<S>& y, const std::vector<S>& dydx);   // per stage: 65 spans
 ```
+
+**A height query is passive; a crown abscissa is not.** The field is read at a fixed height (the crown
+centre, a competition knot) and at `z = height · ξ_j` inside the crown integral, and the second carries
+the whole height channel — M1 measures it as exactly zero if the query freezes. So the interpolant
+needs both readings and `ResourceSpline` passes them through, on the naming `Interpolator` already
+uses. The knot positions stay `double` either way; it is the *query* that is sometimes active, and
+conflating the two is what makes this look decided when it is not.
 
 Positions are structure and are `double` by type; values and slopes are data and carry `S`. A plant
 System then holds one interpolant for the whole run and refreshes two vectors per stage, which is
@@ -1646,7 +1664,7 @@ aux transfer and `step_adjoint` are the same either way.
 
 | risk | how it shows | when we would know |
 |---|---|---|
-| the block boundary does not close around a moving integration bound | the height adjoint disagrees with a finite difference | **M1**, before Phase 1 |
+| the block boundary does not close around a moving integration bound | the height adjoint disagrees with a finite difference | **M1 — closed.** It matches to 1e-11, and the one failure mode it found is not a disagreement but a severance: a frozen query position gives exactly zero (§2.8). So the guard is that the crown integral reads the field through the active-position overload, and a test that seeds height alone catches it |
 | the forward model slows under templating | benchmark outside the accepted band, or reference numbers move | **M2**, then P1.2, gated on the templated build against a develop build **in the same session on the same machine** (§8b). The AD branch's comparison was 49.57 s against 50.31 s — a +1.5% templating cost, and it is the ratio that transfers |
 | the normalised coordinate is not bit-identical to `rescale_spline` | a forward shift where none was expected | **M3** |
 | differencing across cohorts changes the forward value more than expected | `log_density_dt` and offspring move | **M4** |

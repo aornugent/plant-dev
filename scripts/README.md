@@ -4,8 +4,11 @@ Each `*.R` here states its CONFIGURATION and its RESULTS in a header, so a numbe
 without reconstructing how it was produced. Build `-O2` deliberately before timing anything — see
 plant-dev `AGENTS.md`, "Testing plant".
 
-`../docs/build-plan.md` §5b is the measurement list and says what each decides. `M6`, `M7`
-(`aux_round_trip.R`) and `M8` (`descending_heights.R`) are run; `M1`–`M5` are not.
+`../docs/build-plan.md` §5b is the measurement list and says what each decides. `M1`
+(`m1_moving_bound.cpp`), `M6`, `M7` (`aux_round_trip.R`) and `M8` (`descending_heights.R`) are run;
+`M2`–`M5` are not. `m1_moving_bound.cpp` is the one C++ probe here and carries its own build line:
+it needs `odelia/src/Tape.cpp` for XAD's `active_tape_`, and R plus Rcpp because `ode_util.hpp`
+reaches Rcpp for `util::stop`.
 
 One trap the two of them cost: `run_scm(collect = TRUE)`'s `$species` **is** the flat tibble of one
 record per (step, node), so `r$species[[1]]` is its first column rather than the first species. The
