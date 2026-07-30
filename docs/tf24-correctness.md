@@ -14,6 +14,8 @@ matters when scheduling them:
   the owner may change.
 - **P0.7 blocks whoever first asks the light field for a slope**, which is P2.2. It is latent
   until then, and it is one line either way.
+- **P0.11 blocks the reverse pass rather than the forward comparisons.** Two evaluations of one
+  function have two adjoints; removing the duplicate is cheaper than remembering to add them.
 
 Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
@@ -416,18 +418,43 @@ incidences, which is the check on the harness.
 
 ---
 
+## P0.11 — the boundary node solves the same leaf twice per stage
+
+**Family-wide.** `Node::compute_initial_conditions` calls `compute_rates`, which stores
+`net_mass_production_dt_` in an aux slot, and then `establishment_probability`, which recomputes it
+at the identical arguments: `new_node`'s height is `height_0` from `Individual`'s constructor and it
+is never stepped, so `vars.aux(competition_effect)` is `area_leaf(height_0)` by the same function
+that `prepare_strategy` used for `area_leaf_0`, and `1/height_0` likewise
+(`tf24_strategy.cpp:704-716`, `node.h:164-175`, `individual.h:113-117`). Two evaluations, one
+value.
+
+**Why it is a P0 rather than housekeeping.** Under a reverse sweep two evaluations of one function
+have two adjoints, and they must be added. Dropping one gives a gradient that is wrong through the
+recruitment channel — hence through every census metric and R0 — by whatever share establishment
+carries, with the correct sign and nothing thrown. That is the same silent failure as the trait and
+knot accumulations, in a third place, and unlike those two it can be removed rather than tested for:
+one evaluation has one adjoint.
+
+**The fix is to pass the value, not to cache it.** `compute_initial_conditions` hands
+`establishment_probability` the rate it has just stored. The R-facing
+`establishment_probability(env)` keeps its current meaning — it is a birth-size quantity evaluated at
+`height_0` whatever the individual's own height, and a caller reaching it through an arbitrary
+`Individual` must keep getting that.
+
+**Not counted.** The share is one boundary node against the live cohorts, so it falls from a few
+percent early in a run to well under one percent at 141 cohorts. Worth taking with the forward
+benchmark rather than on its own.
+
+**Gate.** `establishment_probability` at the boundary node bit-identical before and after — it is the
+same function at the same arguments, so anything else means the arguments were not the same. Leaf
+solves per stage down by one per species, counted rather than argued.
+
+---
+
 ## Housekeeping — batchable, no gate
 
 Small, none changes a number. Worth one PR together.
 
-- **The boundary node solves the same leaf twice per stage.**
-  `Node::compute_initial_conditions` calls `compute_rates`, which stores
-  `net_mass_production_dt_` in aux, and then `establishment_probability`, which recomputes it at
-  the identical `(height_0, area_leaf_0, environment)` — `new_node`'s height is `height_0` from
-  `Individual`'s constructor and it is never stepped. Read from the code, not counted: the share
-  of leaf solves is one boundary node against the live cohorts, so a few percent, and nobody has
-  measured it. The reason to record it is the reverse pass: it is two evaluations of one
-  function, whose adjoints must be added or one is silently dropped.
 - The `assimilation` aux name is declared, allocated, reported to R and **written
   nowhere** — exactly `0` on all 10 153 records. Either write it (`assimilation_` is
   computed one line above the return in `net_mass_production_dt`) or delete the name.

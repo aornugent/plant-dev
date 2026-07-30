@@ -107,6 +107,14 @@ Against report 02's instrumented count on the pre-`#517` tree: 141 cohorts x 6 s
 steps x 2 is about 4.8 million against **4 372 101** measured, the remainder being the stand
 growing from one cohort to 141. The ratio is structural and holds on any tree.
 
+**Priced two ways, and they bracket rather than agree.** A marginal Richardson probe costs
+**5.56 s of a 36.92 s** life-20 run — **15.0%** per probe (`../../scripts/gradient_budget.R`,
+develop at `-O2`, life 20, five layers, one species). That is a lower bound: the extra probes reuse
+the soil and photosynthesis caches the first one fills. Arithmetic from the other side puts it
+higher — 7.8 M solves at a measured **10.2 us** each (`../../scripts/leaf_call_cost.R`) is 80 s of a
+102.9 s production run, so the leaf is about 78% of forward time and the probe about 39% of it. Both
+sit below the profiling note quoted next.
+
 **Corroborated from inside plant, independently.** `tests/testthat/test-scm.R:106` carries a
 profiling note: *"50.1% in growth_rate_gradient(), and 45.4% in compute_rates() and 2.8% in
 initial_conditions() (so that's 98.3%) total."* Half the run, recorded in the test suite, from a
