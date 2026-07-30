@@ -10,12 +10,7 @@ plant-dev `AGENTS.md`, "Testing plant".
 it needs `odelia/src/Tape.cpp` for XAD's `active_tape_`, and R plus Rcpp because `ode_util.hpp`
 reaches Rcpp for `util::stop`.
 
-One trap the two of them cost: `run_scm(collect = TRUE)`'s `$species` **is** the flat tibble of one
-record per (step, node), so `r$species[[1]]` is its first column rather than the first species. The
-same object's `$env$soil_moist` is long over (step, layer) with no layer column, five rows per output
-time in layer order.
-
-Three traps that cost time:
+Four traps that cost time:
 
 - `max_patch_lifetime` must be set on the **base** parameters, before `add_strategies` — that call
   builds the node schedule, and a later change leaves the schedule past the lifetime
@@ -23,6 +18,10 @@ Three traps that cost time:
 - R buffers `cat` output to a file, so a long probe shows nothing until it exits. Do not read progress
   from a redirect; wait for the exit.
 - `pkill -f <pattern>` matches the shell running it. Use a bracketed class: `pkill -f "gradient_bud[g]et"`.
+- `run_scm(collect = TRUE)`'s `$species` **is** the flat tibble of one record per (step, node), so
+  `r$species[[1]]` is its first column rather than the first species. The same object's
+  `$env$soil_moist` is long over (step, layer) with no layer column, five rows per output time in
+  layer order.
 
 ---
 
