@@ -78,6 +78,24 @@ them per edit is wasteful. The cost is dominated by the **C++ rebuild** and by
 odelia-reinstall mechanics are under *Local Development* above; paths below are
 from the `plant-dev` root.)
 
+**Build at `-O2` deliberately: `pkgbuild::compile_dll()` defaults to `-O0`.** It appends
+`-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars` asking for `-O2`
+is silently overridden — a timing taken that way measures the debug build, which is roughly twice as
+slow. Pass `debug = FALSE`:
+
+```sh
+cd plant   # or a develop worktree
+R_MAKEVARS_USER=/path/to/Makevars-O2 Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
+```
+
+with `Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`. Confirm it took by checking that the
+compile line for one translation unit in the log ends at `-O2` with no trailing `-O0`.
+
+**Absolute times belong to the machine; only same-session ratios transfer.** The same tree at `-O2`
+runs a production TF24 lifetime in 89.9 s on one box and 102.9 s on another, both reproducing offspring
+`42.14017357509567` and the same 5 055 accepted steps. The value and the step count are properties of
+the tree and the flags. Gate on a ratio measured against a develop build in the same session.
+
 **The per-iteration tax is the rebuild, not the tests.** An R-only change under
 `pkgload::load_all("plant")` skips compilation; a C++ change recompiles
 incrementally — but the strategy/environment core is header-inline, so editing a

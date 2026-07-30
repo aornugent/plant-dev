@@ -1,3 +1,23 @@
+# Probes and drivers
+
+Each `*.R` here states its CONFIGURATION and its RESULTS in a header, so a number can be re-taken
+without reconstructing how it was produced. Build `-O2` deliberately before timing anything — see
+plant-dev `AGENTS.md`, "Testing plant".
+
+Two probes are written and **not yet run**: `descending_heights.R` (M8) and the aux round trip (M7,
+not yet written). `../docs/build-plan.md` §5b is the list and says what each decides.
+
+Three traps that cost time:
+
+- `max_patch_lifetime` must be set on the **base** parameters, before `add_strategies` — that call
+  builds the node schedule, and a later change leaves the schedule past the lifetime
+  (`time_max must be greater than (or equal to) current time`).
+- R buffers `cat` output to a file, so a long probe shows nothing until it exits. Do not read progress
+  from a redirect; wait for the exit.
+- `pkill -f <pattern>` matches the shell running it. Use a bracketed class: `pkill -f "gradient_bud[g]et"`.
+
+---
+
 # Rainfall transients, cherry-picked
 
 Drivers built to stress TF24's soil solver. Brought here so the coupling work in
