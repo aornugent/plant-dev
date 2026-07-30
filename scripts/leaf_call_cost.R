@@ -1,7 +1,7 @@
 #   Rscript scripts/leaf_call_cost.R
 #
 # What the leaf's three entry points cost per call, which is what prices the reverse
-# pass's boundary bundle and the collar polish.
+# pass's leaf rows and the collar polish.
 #
 # CONFIGURATION. plant develop 141dc8df, odelia 854a8e18, built -O2 -DNDEBUG via
 # pkgbuild::compile_dll(debug = FALSE). One Leaf at the parameters below, five soil
@@ -14,6 +14,6 @@
 #   the same at 1e-1                          11.35    5.6
 #   evaluate_root_collar_psi                   6.74    1.0
 #   dprofit_droot_collar_psi                     --    3.5
-# So the bundle (four to six dprofit) is 14 to 21 us against a 10.2 us solve, and
+# So the rows (four to six dprofit) are 14 to 21 us against a 10.2 us solve, and
 # loosening the bracket pays 4.6 us against about 14 us of Newton.
 

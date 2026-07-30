@@ -361,11 +361,12 @@ as differentiable by composition, which is exactly the mistake this section rule
 
 The leaf stays `double`. Golden section, the two bracket root-finds, the `ci` root-find, the
 four interpolants and both caches are never taped and never audited for active-scalar
-safety. At its solved operating point the leaf hands back a fixed bundle of numbers and the
-cohort's own tape composes them.
+safety. At its solved operating point the leaf contracts its own two output adjoints onto its
+inputs, and the cohort's tape carries them on from there.
 
 Two adjoints arrive — one scalar on profit, one per soil layer on uptake — and leave as
-contributions to the soil potentials, the geometry and light inputs, and the traits.
+contributions to the soil potentials, the geometry and light inputs, and the traits. The rows below
+are how that contraction is formed; they are the leaf's own state, not a value it returns.
 
 ### 6.1 Carbon is an envelope row
 

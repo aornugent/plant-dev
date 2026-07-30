@@ -136,8 +136,8 @@ summed leaf area is a sign error times a factor of `L` — plausible-looking and
 **76 + n in, 11 out.** The uptake vector's *declared width* is the layer count; the entries
 actually written are the layers with root mass, which `max_soil_layer` gives and which follows the
 rooting depth (report 02 §6.8). An unwritten entry is zero after P0.1, so its output adjoint is
-zero and the count above is the right one to declare, seed and assert against. Not on either side,
-and each was wrong in an earlier version of this table:
+zero and the count above is the right one to declare, seed and assert against. Four things sit on
+neither side, and each is a plausible mistake:
 `log_density` and `offspring` are not inputs, because `Individual::compute_rates` never reads them;
 `log_density_dt` and `offspring_dt` are not outputs; and `g` is `rates[HEIGHT_INDEX]` rather than a
 twelfth output.
@@ -274,8 +274,8 @@ so a test for one does not cover the other.
 **The stencil is a seed, not a consumer, which is why it is in (a).** A block cannot be swept until
 every output adjoint exists, and under §2.6's cohort-grid stencil a cohort's `g` feeds its
 neighbours' `log_density_dt` as well as its own — so `lambda_g` is closed form in the stage
-recursion's `lambda_log_density_dt` and must be formed first. An earlier version of this list had
-the stencil after the blocks, which would seed them with a `lambda_g` that does not yet exist.
+recursion's `lambda_log_density_dt` and must be formed first. After the blocks it would seed them
+with a `lambda_g` that does not exist yet.
 
 `SCM` keeps the between-step structure. **The inflow boundary contributes state terms, not only
 parameter terms, and it contributes them continuously rather than at introduction events.**
@@ -625,16 +625,14 @@ odelia's AD branch, one is new, and one is the concept that stops the state-tran
 regressing.
 
 ```cpp
-// ode_interface.hpp -- what the six recursive helpers require of an element, at the
-// element's own value_type iterator. A double-typed signature fails here rather than
-// deep inside derivs. The two legacy double typedefs go.
+// ode_interface.hpp -- the state transfer, at the element's own value_type iterator.
+// That is the one thing a double-typed signature gets wrong, and it fails here rather
+// than deep inside derivs. The two legacy double typedefs go.
 template <typename E>
 concept OdeElement = requires(E e,
     typename std::vector<typename E::value_type>::iterator it,
     typename std::vector<typename E::value_type>::const_iterator cit) {
   typename E::value_type;
-  { e.ode_size() }         -> std::convertible_to<std::size_t>;
-  { e.aux_size() }         -> std::convertible_to<std::size_t>;
   { e.ode_state(it) }      -> std::same_as<decltype(it)>;
   { e.ode_rates(it) }      -> std::same_as<decltype(it)>;
   { e.ode_aux(it) }        -> std::same_as<decltype(it)>;
@@ -646,18 +644,13 @@ template <std::forward_iterator FwdIt, class It>
 It ode_rates(FwdIt first, FwdIt last, It it);      // and ode_state, ode_aux, set_ode_state
 
 // One block, recorded and swept once. f is generic and is instantiated at the active
-// scalar inside, so plant never spells xad::; doubles cross the boundary. The
-// recording size is returned rather than left for a later query, so there is no
-// between-call state to read stale. Stops if a tape is already active -- the replay is
-// pure double, so the block's tape is the only one.
-struct vjp_result {
-  std::vector<double> input_adjoints;
-  std::size_t recording_size;          // plant asserts peak without touching xad::Tape
-};
-
+// scalar inside, so plant never spells xad::; doubles cross the boundary. Returns the
+// recording size, so plant can assert peak without touching xad::Tape. Stops if a tape
+// is already active -- the replay is pure double, so the block's tape is the only one.
 template <class F>
-vjp_result vector_jacobian_product(const std::vector<double>& x,
-                                   const std::vector<double>& output_adjoints, F&& f);
+std::size_t vector_jacobian_product(const std::vector<double>& x,
+                                    const std::vector<double>& output_adjoints, F&& f,
+                                    std::vector<double>& input_adjoints);
 
 // ode_step.hpp -- step()'s argument order, with y needed to rebuild the stage states
 template <class System>
@@ -666,28 +659,23 @@ void Step<System>::step_adjoint(System&, double time, double step_size,
                                 state_type& lambda_in);
 ```
 
-Three choices in that sketch, each of which the alternative gets wrong. **`aux_size` and
-`ode_aux` are in the concept** because they are two of the six helpers, so leaving them out
-would constrain part of the surface and let the rest fail where it used to. The elements the
-helpers are instantiated over are `Species`, `Node` and `Individual`, and all three have all six;
-`Environment` is not one of them — it has no aux at all, and `Patch::ode_aux` runs over the species
-range only (`patch.h:808-812`), so the concept must not be attached to it. **The recording
-size is a return value**, not a `last_recording_size()`: a free function reporting the
-previous call is mutable state at namespace scope, wrong under any concurrency, and readable
-after the call that set it has been forgotten. **`needs_time` is left alone** — it is
-`enable_if` and a detection struct, which new code may not be, but rewriting it changes the
-time dispatch for no gain.
+The concept constrains the iterator type and nothing else. `ode_size()` and `aux_size()` are the
+other two helpers' whole requirement, and a missing member already reports itself; a wrong iterator
+type is what produces a page of template errors, so that is what the concept is for. The elements are
+`Species`, `Node` and `Individual`. `Environment` is not one — it has no aux, and `Patch::ode_aux`
+runs over the species range only (`patch.h:808-812`).
 
-Plus `implicit_value` and `hermite_interpolator`, and the non-finite step-size rejection.
-`needs_time` stays as it is — a legacy quirk that costs nothing to leave. **One concept, not
-two:** with the time dispatch untouched there is no reason for a System-level refinement, and
-`OdeElement` is the whole requirement.
+The product writes into a buffer the caller owns and returns the recording size. The buffer is
+reused across 3.9 M calls; a returned vector would allocate on each, and a `last_recording_size()`
+query would be namespace-scope state readable after the call that set it is forgotten.
 
-**What the concept buys, stated honestly.** It does not remove a mechanism — it adds one. What it
-buys is that the four helpers stop naming `double`, the two legacy typedefs are deleted, and a
-container written against a `double` iterator fails at the helper with a readable message instead
-of deep inside `derivs`. `r_ode_state` and the rest of the `r_*` family then name
-`std::vector<double>::iterator` inline, where it means something.
+`needs_time` stays as it is: it is `enable_if` and a detection struct, which new code may not be,
+and rewriting it changes the time dispatch for nothing.
+
+Plus `implicit_value` and `hermite_interpolator`, and the non-finite step-size rejection. One
+concept covers the whole requirement: with the time dispatch untouched there is nothing for a
+System-level one to say. The `r_*` family then names `std::vector<double>::iterator` inline, where
+it means something.
 
 **No conversion helper.** There is nothing for a `to_passive` to do: comparisons and branches work
 on active values natively (XAD defines them for `AReal`, expressions, and mixed active/`double` —
@@ -815,25 +803,31 @@ index reach the same field.
 accepted step.
 
 ```cpp
-struct Trajectory {
-  struct Step { double time; std::vector<double> state; };
-  std::vector<Step> steps;                   // one per accepted step, widening at introductions
-};
-Trajectory SCM<T,E>::store_trajectory();
+// One accepted step. The state widens at an introduction, so the record is ragged.
+struct ode_step_record { double time; std::vector<double> state; };
+
+std::vector<ode_step_record> SCM<T,E>::store_trajectory();
 ```
 
-**One thing, and the time travels with the state it belongs to.** An earlier sketch held `times`
-and `states` as two vectors and noted that `times == scm.r_ode_times()` — two containers that can
-come apart by one entry, next to a third copy of the same list. One struct per accepted step cannot,
-and the count is `steps.size()`.
+A vector of those is the whole store. There is no wrapper type, because there is nothing for one to
+hold besides the vector, and no separate `times`, because a time that lives beside its state cannot
+disagree with it — `r_ode_times()` already exists as the schedule and would be a second list to keep
+in step.
+
+**It retires more than it adds.** With one record of `(time, state)` per accepted step, and §2.7's
+invasion pass recomputing the field rather than replaying it, nothing on the gradient path reads the
+mutant replay machinery: `Patch::environment_history`, `environment_cache`, `cache_ode_step`,
+`cache_RK45_step`, `load_ode_step`, `Control::save_RK45_cache`, `use_cached_environment` and
+`patch.step_history`. All of it is already dead on develop (§3) and all of it is what Phase 4's
+invasion row would otherwise have to revive. So the store replaces a mechanism instead of joining
+one, and Phase 4 deletes rather than reconnects.
 
 **The birth values are not stored, because the replay sets them.** `pr_patch_survival_at_birth`
 divides the fecundity rate and is not in `ode_state`, so a `Patch` reconstructed from stored state
-alone gets `offspring_produced_survival_weighted` wrong and nothing else. But P1.4 replays the
-resolved schedule — a real run, in order — so `compute_initial_conditions` stamps every `Node` as it
-is introduced, exactly as the forward pass did, and `node_introduction_time` and
-`patch_density_at_birth` are already `Node` members. What the reverse pass must not do is rebuild a
-`Patch` from `steps` and expect the stamps to be there.
+alone gets `offspring_produced_survival_weighted` wrong and nothing else. P1.4 replays the resolved
+schedule — a real run, in order — so `compute_initial_conditions` stamps every `Node` as it is
+introduced, and `node_introduction_time` and `patch_density_at_birth` are already `Node` members.
+What the reverse pass must not do is rebuild a `Patch` from the records and expect the stamps.
 
 *Order.* Store and replay first. Then give `Species::set_birth_state` a test — today it has none,
 and it is the only public route for the stamps if anything ever does need to reconstruct rather than
@@ -843,8 +837,8 @@ replay.
 develop's lagged boundary density for free, because it visits the stages in the same order the
 forward run did. A reverse traversal does not: it rebuilds a step's stage states after visiting the
 step above, so at the step's first stage the boundary node holds a later stage's value. With the lag
-closed the stage is a function of `(y, t)`; with it open, `Trajectory` needs one scalar per species
-per step and the rebuild has to seed it.
+closed the stage is a function of `(y, t)`; with it open, each record needs one scalar per species
+and the rebuild has to seed it.
 *The trap.* Two schedule records exist. `r_ode_times()` is the replay grid; `patch.step_history`
 is the other, and replaying it instead gave a gradient wrong by 60×.
 
@@ -1002,7 +996,7 @@ carries belongs to the current field rather than to the previous stage's.
 // field it helps build, so a second evaluation closes it to ~1e-6 relative.
 ```
 
-*Why it is a Phase 2 task and not a note.* Keeping the lag forces a scalar per species to be
+*Why it is a forward change.* Keeping the lag forces a scalar per species to be
 carried backwards across stage boundaries — and, at a step's first stage, across the step boundary
 through `step_adjoint`, which is odelia's and knows nothing about species. Closing it makes the
 stage a function of `(y, t)` alone, which is what lets P1.4 store one state per accepted step and
@@ -1079,69 +1073,37 @@ template <class S>
 std::vector<S> tf24_cohort_block(const std::vector<S>& inputs,
                                  const TF24_Pars<S>& pars, const Control& control);
 
-// The leaf at its solved operating point, and the partials the cohort's tape
-// composes. All double: nothing inside the leaf is recorded.
-struct LeafBoundary {
-  double profit;
-  std::vector<double> uptake;             // per layer with root mass, mol m^-2 s^-1
-
-  // Profit is stationary in the collar potential, so its row is taken with the
-  // operating point held still and carries no argmax term.
-  std::vector<double> dprofit;            // one per leaf input, in inputs()' order
-
-  // Uptake is not stationary. The part that reads its inputs directly:
-  std::vector<double> duptake_dpsi;       // layer i reads its own potential
-  std::vector<double> duptake_droot_mass; // cumulative down the column
-  // and the part that moves with the operating point. R is dprofit/d(collar);
-  // R reads the potentials, the root masses and the leaf area only through the
-  // soil-to-collar flux and its collar derivative, so two coefficients close all
-  // of those directions.
-  double dR_dflux, dR_dflux_slope;
-  double dR_dcollar;                      // negative; the divide that closes it
-
-  // Uptake responds to a uniform drying of the whole column only through the bend
-  // of the vulnerability curves, so that direction is computed, never differenced.
-  std::vector<double> duptake_uniform;
-  double dstem_uniform;
-
-  bool pinned;                            // the operating point is a bound, so its
-                                          // derivative is the bound's
-};
-
-// Precondition: set_physiology and the solve have run, so this reads the point the
-// forward pass is using rather than choosing its own.
-LeafBoundary leaf_boundary(Leaf&);
+// The leaf contracts its own two output adjoints onto its inputs, at the point the
+// solve left. Doubles throughout: nothing inside the leaf is recorded.
+void Leaf::input_adjoints(double lambda_profit,
+                          const std::vector<double>& lambda_uptake,
+                          std::vector<double>& input_adjoints) const;
 ```
 
-**The names, against report 02 §6's mathematics.** `dR_dflux` is `a`, `dR_dflux_slope` is `b`,
-`dR_dcollar` is `Π_pp`, `duptake_uniform` and `dstem_uniform` are §6.6's two translation defects,
-and `pinned` selects §6.7. The code says what the quantity is of what; the report says where it
-comes from.
+The leaf is a vector-Jacobian product, like the block that contains it: two output adjoints in,
+one contribution per input out, in `Leaf::inputs()`' order, written into a buffer the cohort loop
+owns and reuses. The rows are per-solve members of `Leaf`, formed where `profit_` and
+`soil_consumption_` are formed and read by nothing else — `profit_` and the uptake vector are
+already members, so a returned aggregate would carry a second copy of two outputs the forward pass
+reads directly, and four vector allocations per (stage, cohort), 3.9 M times.
 
-**Four things the struct does not have.** It does not carry `E_up`: that is
-`kg_per_mol_h2o · Σ uptake`, and holding one number twice in two units is how a Jacobian formed
-across the pair gets a unit wrong (report 00 §4.2 warns about exactly this pair). It does not carry a
-layer count — `uptake.size()` is the arity, and it follows `max_soil_layer` rather than the
-environment's layer count (report 02 §6.8), so a count beside it could disagree with it. It does not
-name a document section in a comment. And `leaf_boundary` takes no inputs it could re-seat
-differently from the forward pass: `set_physiology` and the solve have already run, so there is one
-operating point rather than two that must agree.
+`Leaf::inputs()` is the one statement of the input order, and both the pack in the cohort block and
+the scatter here read it. The assertion is `input_adjoints.size() == inputs().size()` — T4's shape
+one level down.
 
-**`dR_dcollar` is a central difference of `R`, and that is a decision rather than an oversight.**
-Nothing in develop computes it, and the closed form needs the second derivatives that ruled out
-deriving `dR_dflux` (report 02 §6.3). Two extra evaluations of `dprofit_droot_collar_psi` give it,
-which is how report 00 §7 and `scripts/curvature_probe.R` measured it. Three things make a
-difference acceptable *here* and nowhere else on this path: it is all `double`, since the leaf is
-passive; it enters as a divisor that scales one adjoint rather than as a channel that carries one, so
-its relative error passes straight through rather than compounding; and its magnitude is measured
-over the whole feasible domain, 0.17 to 198 depending on layer count and never near zero, so the
-division has no fold to fall into. What is owed is its own error: halve the step and require the
-value to move by less than the tolerance the stationarity check (§6.9) is asserted at.
+Report 02 §6 derives every row: §6.1 the envelope row, §6.2 the flux rows, §6.3 `dR_dflux` and
+`dR_dflux_slope` (`a` and `b`), §6.6 the uniform direction, §6.7 the bound. Two members are the
+polish's as well — it needs `dR_dcollar` and needs to know whether the point is pinned — so both are
+the leaf's own state whether or not a gradient is being taken.
 
-**One input order, in one place.** `dprofit` is indexed by the leaf's inputs, and so is the cohort's
-pack of them, so both read that order from one accessor on `Leaf` — the same discipline §2.3 applies
-to the block's four segments, at the boundary inside it. The assertion is `dprofit.size() ==
-inputs().size()`, which is T4's shape one level down.
+**`dR_dcollar` is a central difference of `dprofit_droot_collar_psi`,** the construction
+`scripts/curvature_probe.R` and report 00 §7 measure it with. The closed form needs the second
+derivatives that rule out deriving `dR_dflux` (report 02 §6.3). A difference is sound here and
+nowhere else on this path: it is all `double`; it enters as a divisor scaling one adjoint rather than
+as a channel carrying one, so its relative error passes through instead of compounding; and its
+magnitude is measured over the whole feasible domain, 0.17 to 198 by layer count and never near
+zero. Its own error is checked by halving the step and requiring less movement than §6.9's
+stationarity tolerance.
 
 **The leaf's rows, and where each comes from.** Carbon is an envelope row — `profit_` sits at
 its own maximiser, so its sensitivity is direct with the operating point held still, and
@@ -1259,22 +1221,13 @@ magnitude to recognise it by.
 // A weighted reduction over the size distribution, from the boundary node up (P0.8).
 template <class Psi> value_type Species<T,E>::census(Psi psi) const;
 
-// The metrics as one functional: one recording, one seed per metric.
-template <class... Psi>
-struct census_vector {
-  std::tuple<Psi...> metrics;
-  static constexpr std::size_t codomain() { return sizeof...(Psi); }
-};
-using tf24_census = census_vector<leaf_area, mass_above_ground, area_stem>;
+// The metrics travel as a tuple, so the codomain is sizeof...(Psi) and a fourth metric
+// is one word.
+using tf24_census = std::tuple<leaf_area, mass_above_ground, area_stem>;
 ```
 
-**The codomain is counted, not declared.** An earlier sketch wrote `codomain()` as a literal `3`
-beside a comment naming three metrics — a count that can disagree with its source of truth, and the
-acceptance test in §1 is precisely that a fourth metric costs one word. It now does.
-
-**A metric that needs a height cut carries it itself.** `census` takes the weight and nothing else;
-the same sketch had a `double query = 0.0` with no stated meaning, which is a second way to say
-what a `Psi` already says.
+`census` takes the weight and nothing else. A metric that reads its own height cut carries it, being
+a functor over one cohort's state.
 
 R side: `stand_gradient(scm, metrics, traits)`, doubles in and out, recording the `Control` it
 differentiated at. Plus `plant/agents.md` §13.
@@ -1294,7 +1247,7 @@ Separate pushes, sequenced by what each needs.
 
 | | what it is | needs first |
 |---|---|---|
-| **invasion gradients** | omit step (c) (§2.7). Bring back `run_mutant` and the recorded environment, and make a missing `save_RK45_cache` an error rather than a search failure | Phase 3 |
+| **invasion gradients** | omit step (c) (§2.7). The resident pass recomputes the field, so this deletes the mutant replay records (P1.4) rather than reviving them: what remains is `run_mutant` driven from the same trajectory | Phase 3 |
 | **FF16 and K93** | the templating plus the existing census reduction; retire `ff16_production_kernel.h`; port the `smooth_positive` clamp fix and K93's `k_I` channel; tighten FF16's gradient test, which passes at 1e-2 where the truth is ~1e-6 | Phase 3 |
 | **two species** | two `Leaf` objects, `Species::consumption_rate`'s `size() < 2` per species, and per-species η grouped inside the light reduction. Every incidence number in reports 00 and 07 is single-species | FF16 |
 | **calibration** | `least_squares` reads intermediate trajectory states as active values, which a `double` trajectory breaks without a message. Either the functional declares which steps it reads and contributes a per-step adjoint seed, or calibration stores a second denser trajectory. Record the decision before opening it | Phase 3 |
@@ -1323,8 +1276,8 @@ Separate pushes, sequenced by what each needs.
 - RODAS and the stochastic solver are out of scope; both must keep compiling and passing.
 - No disturbance gradients, and no second derivative *of the deliverable* — no Hessian of a
   census metric with respect to traits. `dR_dcollar` is a second derivative of profit in one
-  scalar direction and is a declared field of the leaf's boundary (P3.2); so are the interpolant
-  slopes the translation-defect rows read. Those are inside the first-order machinery, not an
+  scalar direction and is a member of the leaf (P3.2); so are the interpolant slopes the
+  uniform-direction rows read. Those are inside the first-order machinery, not an
   extension of it.
 - No smoothing without a measured incidence and a scale sized against data. develop has both
   the precedent (`P_pos`) and the method (`storage_prod_eps`).
@@ -1420,7 +1373,7 @@ about 63 s:
 | term | count | unit | total |
 |---|---|---|---|
 | rebuild the stage states in `double` | one forward RHS per stage | — | ~63 s |
-| the leaf's boundary bundle | 3.9 M (stage, cohort) | 4–6 `dprofit`, 14–21 µs | 55–82 s |
+| the leaf's rows | 3.9 M (stage, cohort) | 4–6 `dprofit`, 14–21 µs | 55–82 s |
 | record and sweep the block | 3.9 M | 3–5× the block's own 6 µs of non-leaf arithmetic | 70–117 s |
 | | | | **190–260 s** |
 
