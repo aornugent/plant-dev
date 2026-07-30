@@ -18,10 +18,10 @@ matters when scheduling them:
   until then, and it is one line either way. Its derivative sibling is **P0.12**: `q`'s NaN at
   `z = 0` is in the value, and `pow(u, eta)`'s at `u = 0` is only in the derivative, so that one
   stays invisible until `eta` is seeded.
-- **P0.12 gates P1.2b**, which templates TF24: landing it first means one canopy profile is
-  templated rather than two.
 - **P0.11 blocks the reverse pass rather than the forward comparisons.** Two evaluations of one
   function have two adjoints; removing the duplicate is cheaper than remembering to add them.
+- **P0.12 gates P1.2b**, which templates TF24: landing it first means one canopy profile is
+  templated rather than two.
 
 Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
