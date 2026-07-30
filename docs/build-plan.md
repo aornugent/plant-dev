@@ -447,6 +447,30 @@ crown-mean shift of 1.7e-03 and a median of 1.6e-06, and keeps §2.3's input cou
 buys 2.5e-04 for twice the data and takes it to 269 + n. The reference is develop itself, so these are
 the shifts to re-bless against, not accuracy against the true field.
 
+**What fractions gain against knots at the cohort tops, which is the alternative the reports argue.**
+Fractions were adopted for structure: `x_k = u_k · height_max` is what `rescale_spline` already
+computes, and fixing `u_k` makes the count and the positions run-constant, which is what removes the
+carried knot set (above) and what lets the block declare its inputs at all. M3b measures the accuracy
+side, and it goes the same way:
+
+| placement | knots | median | p95 | worst | worst span / domain |
+|---|---|---|---|---|---|
+| uniform | 65 | 1.6e-06 | 1.9e-04 | 1.7e-03 | 1.6e-02 |
+| uniform | matched, 3–143 | 2.7e-07 | 3.5e-05 | **7.2e-04** | 7.0e-03 |
+| cohort tops | 3–143 | 6.9e-06 | 7.6e-03 | **1.6e-02** | **1.3e-06** |
+
+**Cohort tops are 22× worse at the same count**, because cohort heights cluster and the field's
+curvature does not: the minimum interior spacing is 8.2e-06 m on a 17.9 m domain, so a knot per cohort
+top crowds many knots inside one bunch and leaves the gaps between bunches unresolved — and the field
+bends where leaf area is, not where cohort tops are. It also confirms on the model the collapsing-span
+hazard report 01 §7.6 could only refute in a toy: worst span 1.3e-06 of the domain, against a Hermite
+that divides by the span width.
+
+Report 03 §5.3's `O(h^4)` stands and is not the same claim: it subdivides cohort-top spans *uniformly*
+to 142, 283 and 565 knots, so the kinks sit on knots and the spans are refined. That is the
+placement's asymptotic rate; M3b measures the constant at a count a production run can afford. So the
+fractions are not a purity tax — at production counts they are also the better placement.
+
 ### 2.7 Resident, and how invasion follows
 
 The resident gradient is the one where the canopy responds to the trait. In the reverse pass that
@@ -1189,10 +1213,12 @@ same order, checked rather than asserted.
 P2.2.
 
 *Closes on* O(h⁴) on value and O(h³) on slope **on a smooth test field**, which is where report 03
-§5.3 measured 16.0 and 8.0 — its knots sit **at the cohort tops**, so each span is smooth. The
-production fraction set is uniform (P2.1) and therefore does not align with the cohort heights, where
-`Q(z/h)` breaks the field's derivative; M3 measures about `h^2.5` there. So the gate is the scheme's
-rate on a smooth target, and the production rate is recorded rather than required.
+§5.3 measured 16.0 and 8.0 — its knots sit at the cohort tops *and* subdivide those spans, so every
+span is smooth. The production fraction set is uniform (P2.1) and does not align with the cohort
+heights, where `Q(z/h)` breaks the field's derivative, so the observed rate there is about `h^2.5`
+(M3). That is a rate and not a penalty: at production counts the uniform set is *more* accurate than
+cohort tops (M3b, §2.6). So the gate is the scheme's rate on a smooth target, with the production rate
+recorded beside it.
 *Note* the R-facing state changes shape — the fitted cubic reports (x, y), a Hermite carries
 (x, y, m). That is a `NEWS.md` entry.
 

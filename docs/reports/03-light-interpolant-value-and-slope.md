@@ -412,12 +412,17 @@ slope, which is O(h^3). Those are the textbook rates, and obtaining them *is* th
 evidence that the breaks are resolved — a scheme smoothing over curvature jumps cannot
 achieve them.
 
-**Those rates belong to this knot placement, and the production one gives them up.** The table
-subdivides *cohort-top* spans, so every span is smooth and the breaks fall on knots. Fixed uniform
-fractions (§1b, M3) do not align with the cohort heights, so a break sits inside a span and the
-observed rate on the production field is about `h^2.5`. That is the price of making the positions
-run-constant, and it is paid in resolution: `../build-plan.md` P2.3's gate is therefore stated on a
-smooth target, with the production rate recorded beside it.
+**Those rates belong to this knot placement, and the production one gives up the rate but not the
+accuracy.** The table subdivides *cohort-top* spans, so every span is smooth and the breaks fall on
+knots. Fixed uniform fractions (§1b) do not align with the cohort heights, so a break sits inside a
+span and the observed rate on the production field is about `h^2.5` (`../build-plan.md` M3). That
+sounds like a price and measurement says it is not: at a matched knot count on a real stand, uniform
+fractions are **22x more accurate** than knots at the cohort tops (M3b), because cohort heights
+cluster — minimum spacing 8.2e-06 m on a 17.9 m domain — so a knot per cohort top crowds a bunch and
+leaves the gaps between bunches unresolved. The same measurement puts the worst span at 1.3e-06 of the
+domain against uniform's 7.0e-03, which is section 5.1's locality argument turning into a conditioning
+hazard, and confirms on the model what report 01 §7.6 could only refute in a toy. P2.3's gate is
+therefore stated on a smooth target, with the production rate recorded beside it.
 
 The fitted cubic on the same knots goes 1.21e-03, 1.13e-03, 2.95e-04: essentially flat,
 then erratic. At 565 knots the Hermite slope is 100x better and the margin widens with
