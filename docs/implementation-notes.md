@@ -992,3 +992,73 @@ unconditionally. And odelia has **no namespace-scope alias for the adjoint activ
 appears only inside function bodies or as a class member, so reaching it without plant spelling
 `xad::` required naming a full `Solver` instantiation. An `odelia::ode::active_scalar` alias is
 owed.
+
+## `reset()` restores the soil state
+
+`TF24_Environment` snapshots the soil state whenever `set_soil_water_state` sets it, and
+`clear_environment()` restores it alongside clearing the light profile. `environment.h` needed no
+base-class hook.
+
+**The gate was shown to bite before the fix, on the base tree:**
+
+    run 1 offspring 42.176246845059751  steps 5105
+    run 2 offspring 42.296696440471194  steps 5062     offspring identical: FALSE
+    after run + reset : 0.284128746037276 … 81.215239676534338
+    freshly built     : 0.214 0.214 0.214 0.214 0.214 0 0 0 0
+
+and after: run 2 identical to run 1 at `42.176246845059751` / 5 105, and the post-reset state
+bitwise equal to a freshly built one. The reference forward run is unmoved, which is the
+safety property — this restores an initial condition rather than changing one.
+
+**A correction to how this defect was first characterised.** The figure recorded earlier,
+offspring `6.6462981636817595e-23` on a second run, came from a different probe. Measured here,
+constructing the `SCM` directly at `max_patch_lifetime = 105.32`, the second run reports
+`42.296696440471194` — because on this configuration the carried-over soil is *wetter* than a
+fresh start (0.284 against 0.214), so the second run does slightly **better** rather than
+collapsing. Same defect, opposite-looking symptom. **Its magnitude and even its sign are
+probe-dependent**, which is worth knowing before anyone quotes a severity for it.
+
+### The snapshot is required, and restoring the constructed default would be wrong
+
+Two readings were available: re-run whatever initialises the state at construction, or snapshot
+it. Settled on the code. The constructor's last line is the only initialiser —
+`set_soil_water_state(std::vector<double>(soil_number_of_depths, soil_moist_sat*0.5))` — so
+re-running it *would* reproduce the default. It is still wrong, because `set_soil_water_state`
+is part of the R interface and is exercised: a test sets a one-layer soil to `0.1` and hands that
+environment to `run_scm`, and `scenario_eval.R` uses it too. Recomputing the default at
+`reset()` would overwrite the caller's choice and move the **first** run's initial condition,
+which is precisely what this packet forbade. `set_soil_parameters` makes it worse, since it
+reallocates the state to zeros.
+
+So the snapshot is not storing what can be derived — the starting moisture is a caller's choice,
+not a function of the parameters. It is taken at the one place that sets soil states and reset
+at the one place that resizes, so it cannot drift.
+
+### The refine-schedule shift moved the other way from the prediction
+
+At `schedule_nsteps = 2`, `max_patch_lifetime = 105.32`:
+
+| | offspring | ode steps | schedule size |
+|---|---|---|---|
+| before | `54.700442966301416` | 5 715 | 168 |
+| after | `54.881000377659738` | 5 756 | 167 |
+
+Predicted in advance to move *downward*, on the reasoning that the base tree's second run starts
+from wetter soil and so overstates offspring. It moved **upward**, by +0.18. Recorded as
+measured, not reconciled: the refinement also changed the schedule (168 to 167 nodes), and the
+schedule's effect on offspring is larger than the soil's, so only the *fact* of movement is
+predictable from the carried soil, not its direction. Nothing re-blessed.
+
+## The cost of a gate depends on how many packets are running
+
+The operational finding of the phase, and it invalidates the costing in several of its own
+packets. **A production TF24 lifetime is about 90 s on an idle box and about 7 minutes on this
+one while a wave of packets is building** — roughly 5×. Every gate in this phase was costed
+against the 90 s figure, so a gate stated as "three minutes" ran twenty, and the un-capped
+refine-schedule gate consumed 50 minutes at full CPU before being killed.
+
+Fan-out multiplies per-packet cost: eight packets on four cores do not each run at the isolated
+rate, so **a wave's wall clock is not the sum of its packets' measured costs**, and a gate must
+be costed for the contended case. This is the same figure the build is pinned against for a
+different reason — absolute times belong to the machine, and here they belong to the machine's
+current load as well.
