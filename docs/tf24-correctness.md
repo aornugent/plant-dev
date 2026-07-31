@@ -25,8 +25,8 @@ matters when scheduling them:
 
 ## What has landed
 
-Commits are on plant branches off `develop` `141dc8df`, merged into `p0/phase-0`. The evidence — gates
-as run, and the shift where numbers moved — is in
+Commits are on plant branches off `develop` `141dc8df`, merged into `p0/phase-0` and raised as
+`aornugent/plant#66`. The evidence — gates as run, and the shift where numbers moved — is in
 [`implementation-notes.md`](implementation-notes.md), not here.
 
 | | commit | forward effect |
