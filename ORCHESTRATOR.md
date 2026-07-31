@@ -1,14 +1,66 @@
 # Orchestrator
 
 How a phase of this build is run: one session acting as architect, orchestrator and reviewer over
-subagents that do the implementation in isolation. Written to be handed to a fresh session, and
-carrying the concrete plan for Phase 1 at the end.
+subagents that do the implementation in isolation. Written to be handed to a fresh session.
 
 The division exists because an agent cannot assess its own completeness. What replaces
 self-assessment is that **every packet's gate is a command whose output the orchestrator re-runs**.
-Phase 0's record supports the division and locates the risk: the agents corrected the architect four
-times and stopped on one real contradiction, while every serious error in the phase was an
-unguarded architect edit. So the discipline below applies hardest to the orchestrator's own hands.
+Two phases of evidence now support the division and locate the risk in the same place: the agents
+corrected the architect eleven times across Phase 0 and Phase 1 and stopped on five real
+contradictions, while **every expensive failure in both phases was the orchestrator's** — an
+unguarded edit, an unread document, an unpriced gate, an unverified environment. So the discipline
+below applies hardest to the orchestrator's own hands, and §0 is where it bites.
+
+**The organising fact, learned the expensive way.** Every costly failure in Phase 1 traced back to a
+cheap check that was skipped. Reading one section of the plan — five minutes — would have saved three
+attempts at one task and roughly four hours of compute. Confirming a packet's two repositories
+compile together — thirty seconds — would have saved three dead first cycles. Doing the arithmetic on
+one gate — one minute — would have saved an hour of full-CPU work on a gate that was already
+retracted. **Slow is smooth and smooth is fast: the pre-flight in §0 is the cheapest hour in the
+phase.**
+
+---
+
+## 0. Before you send anything
+
+Six checks. None takes more than a few minutes. Each one, skipped, cost this project real time.
+
+**1. Read the section that owns the thing, not the section that mentions it.** `build-plan.md` §2.8
+is the reverse pass's control flow; §2.9 is what is stored. They disagreed about whether a trajectory
+record carries the step size — §2.8's pseudocode records `(t, h, y)`, §2.9's prose says "the ODE step
+times" and its storage table lists state alone. Two packets were written from §2.9 and both failed.
+**When two sections of the plan disagree, that is the finding, and it outranks the task.** Write it
+down before you write the packet.
+
+**2. Never cite a document in a packet you have not read.** Phase 1 pointed packets at §2.8 and §2.9
+by line number without the orchestrator having read either. The agents read them and were better
+informed than the person directing them, which is a bad way to run a review.
+
+**3. Prove the packet's environment compiles.** A plant base paired with the wrong odelia bit three
+times: a base without `value_type` against the constrained range helpers (56 errors); a base
+predating the plumbing sweep against an odelia with the typedefs deleted (68 errors); and a plumbing
+baseline that had no build in which base plant and the new helpers could coexist at all. Build the
+pairing yourself, or state in the packet which incompatibility it will hit and why that is
+acceptable. **A packet's environment is part of its specification.**
+
+**4. Cost every gate, and write the cost in the packet.** `refine_schedule = TRUE` is up to
+`control.schedule_nsteps = 20` production runs, and a packet asked for it before *and* after — an
+hour-plus gate, retracted after 50 minutes of full CPU. `schedule_nsteps = 2` exercised the same
+defect *better*, because the fault appears on the second run and two steps attribute it to one
+contaminated run rather than nineteen compounding ones. **Cheaper and sharper were the same choice.**
+
+**5. Check the gate is satisfiable.** Phase 1's active-build packet was told the active value must
+equal the `double` value *to the last bit*. It cannot: on `double` the canopy takes a multiplication
+chain and on an active scalar `std::pow`, and this repository had already measured those disagreeing
+by 2 ulp at the default exponent. The contradiction went unnoticed only because compile errors
+stopped the comparison from running. **Ask what would make this gate impossible, not just what would
+make it fail.**
+
+**6. Ask what would make the gate pass vacuously.** An agent added a gate the orchestrator had not
+thought of — `static_assert(Replayable<Patch<...>>)` — because if the concept were not satisfied the
+recording hook would never fire and every downstream assertion would pass on an empty store. **A gate
+that cannot distinguish "correct" from "absent" is not a gate.** Look for the version of each gate
+that passes when nothing happened.
 
 ---
 
@@ -16,20 +68,30 @@ unguarded architect edit. So the discipline below applies hardest to the orchest
 
 In this order, and in full rather than by grep:
 
-1. `AGENTS.md` here, `plant/agents.md`, `odelia/AGENTS.md` — session start, build recipe, style.
-2. `docs/build-plan.md` — the specification.
+1. `AGENTS.md` here, `plant/agents.md` (including §13), `odelia/AGENTS.md` — session start, build
+   recipe, style. **The two style guides disagree about issue references** — the workspace forbids
+   issue tags, odelia permits a stable anchor like `#472` — and nobody has decided which governs
+   plant. Know that before you enforce either.
+2. `docs/build-plan.md`. §2.8 and §2.9 are the design of the reverse pass and of what is stored, and
+   they are the two most consequential sections in the file. Read them before any task that touches
+   the trajectory, the aux transfer, or the stage rebuild.
 3. `docs/tf24-correctness.md` — the prerequisites and what has landed, at which commit.
-4. `docs/implementation-notes.md` — the evidence, the pinned build, the standing lessons.
-5. `docs/reports/00`–`04`, `07` for the phase in hand. They are develop-time analysis; read them
-   against the landed table so a fixed defect is not re-planned.
+4. `docs/implementation-notes.md` — the evidence, the pinned build, the standing lessons. Phase 1's
+   entries are long because the failures were informative; read the "what the plan did not predict"
+   subsections first.
+5. `docs/phase-1-review.md` — what the merged tree gets wrong or leaves owed.
+6. `docs/reports/00`–`04`, `07`. **Read them twice: once for the design, and again at review time
+   against the code.** Report 01 §3 names the carried boundary density that sank three attempts at
+   the trajectory store; it was read at session start, and its relevance only became visible when a
+   measurement demanded an explanation. A report read once is orientation; a report read against a
+   diff is a review tool.
 
 Then establish ground truth rather than assuming it, because the tree moves between sessions:
 
-- `git log`, `git status`, and **the submodule pointers**, in both `plant` and `odelia`. Confirm the
-  base is where the plan says. Phase 1's was not.
+- `git log`, `git status`, and **the submodule pointers**, in both `plant` and `odelia`.
 - Confirm the pinned build took: a value gate that does not name its flags measures the compiler.
-- Re-measure the reference forward run yourself. It is one build and one run, and it is the number
-  every bit-identity gate in the phase is written against.
+- **Re-measure the reference forward run yourself**, in a worktree nothing else touches. It is one
+  build and one run, and it is the number every bit-identity gate in the phase is written against.
 
 ## 2. The packet
 
@@ -39,99 +101,75 @@ time:
 
 1. **The change in one sentence, plus an explicit file allowlist.** Touching anything else is a
    deviation to report, not initiative.
-2. **The gate as a command, with the expected form of the answer.** Not "verify it works".
-3. **What it may not do:** no baseline regeneration, no adjacent tidying, no new files unless named,
+2. **The gate as a command, with the expected form of the answer, and its cost.** Not "verify it
+   works", and not a gate whose price you have not computed (§0.4).
+3. **The environment, proven** (§0.3): which base, which sibling install, and that they build.
+4. **What it may not do:** no baseline regeneration, no adjacent tidying, no new files unless named,
    and no design choices — where two readings exist, report both and stop.
-4. **Required reading by pointer** — the task's own section and the one report section carrying the
-   mechanism. Not "the corpus".
-5. **The build recipe verbatim**, including `rm -f src/*.o src/*.so` before every build.
-6. **The style rules verbatim**, plus one before-and-after exemplar from the file being edited.
-7. **Its own worktree, its own R library, its own scratch directory** (§4). Phase 0 lost work three
-   times to shared scratch.
-8. **Report format:** the diff, each gate's output pasted verbatim, and an explicit "what I could not
-   do". Stated plainly: *do not report a gate as passing that you did not run.*
+5. **Required reading by pointer** — the task's own section and the one report section carrying the
+   mechanism. Sections you have read (§0.2).
+6. **The build recipe verbatim**, including `rm -f src/*.o src/*.so` before every build.
+7. **The style rules verbatim**, plus one before-and-after exemplar from the file being edited.
+8. **Its own worktree, its own R library, its own scratch directory** (§5).
 9. **Its own baseline first.** Take the base tree's reference number in the packet's own worktree
-   before the first edit, and stop if it does not reproduce. Every later figure is then same-tree,
-   same-session.
+   before the first edit, and stop if it does not reproduce.
+10. **Report format:** the diff, each gate's output pasted verbatim, and an explicit "what I could not
+    do". Stated plainly: *do not report a gate as passing that you did not run.*
+11. **Work economy** (§6). A packet that rebuilds when it could compile one translation unit will
+    spend its budget on the wrong thing.
 
-## 2b. Cost the gate, and do not gate what the gate cannot see
+**Do not tell an agent which obstruction will be largest unless you have measured it.** Phase 1's
+active-build packet was told to expect the untemplated environment to be its biggest problem. It was
+not — the environment is one funnel, and the largest group was `std::`-qualified math on an active
+argument, which has nothing to do with it. An architect's guess, stated as an expectation, is a bias
+the agent then spends evidence to overturn.
 
-A gate has a price, and the packet is where it is decided. Two rules, both learned by paying.
+## 3. Gate what the gate can see
 
-**Write the whole change, review it statically and adversarially, then build once.** Phase 1
-templated TF24 as six commits, each gated on a full clean rebuild and a production reference
-run — about twelve minutes each, most of the packet's wall clock. All six passed identically,
-and **not one of the change's real defects would have been visible to any of them.** Templating
-at `S = double` is expected to generate identical object code, so a bit-identity gate at
-`S = double` is nearly blind to the hazards that actually matter: a deduced return type, a
-swapped like-typed argument, a missing `pow` guard. None of those moves a number until an
-active scalar reaches them.
+The most useful thing Phase 1 learned about verification.
 
-What did find things was reading. A grep for deduced return types found **three lambdas
-declared `-> double` that would have silently converted an active value to a passive one**; the
-`q(z_over_height, z)` audit by *meaning* cleared five call sites the type system cannot check;
-and reading the class hierarchy found a half-templated environment. A build found none of it.
+**Six bit-identity gates on a type-level refactor found nothing, and a grep found three real
+defects.** Templating at `S = double` is expected to generate identical object code, so a
+bit-identity gate at `S = double` is nearly blind to the hazards that actually matter: a deduced
+return type, a swapped like-typed argument, a missing guard. None of them moves a number until an
+active scalar arrives. What did find things was reading — a grep for deduced return types found
+**three lambdas declared `-> double` that would have silently converted an active value to a passive
+one**, which no `double` build could ever see.
 
-So: baseline once, write the change in full, review it, build once at the end as verification,
-and put the real check in the active build. Keep commits as a structure for **reading** — one
-idea each, so a reviewer can follow — not as a schedule of gates.
+So:
 
-**Reserve per-step numerical gates for steps that can actually move a number.** An arithmetic
-change earns one. A type-level refactor whose whole claim is "identical object code" does not;
-one gate at the end tests that claim exactly as well. If a late gate fails and you cannot
-localise it, *then* bisect — that costs the builds you skipped, and only in the case where
-something really did move.
+- **Write the change in full, review it statically and adversarially, then build once.** Keep commits
+  as a structure for *reading* — one idea each — not as a schedule of gates.
+- **Reserve per-step numerical gates for steps that can actually move a number.** A refactor whose
+  whole claim is "identical object code" is tested exactly as well by one gate at the end. If that
+  one fails, bisect *then* — paying the skipped builds only in the case where something really moved.
+- **Put the real check where the errors surface.** For scalar templating that is the active build,
+  not the `double` suite.
+- **A gate command must be proven to fail when it should.** A bare `testthat::test_file()` in odelia
+  attaches no package namespace: depending on the file it reports spurious errors, or `FAIL 0 | PASS
+  0` at **exit status 0**, which is a false pass. Three packets hit it independently. The
+  namespace-bearing form is `testthat::test_dir(dir, package = "odelia", load_package = "installed")`.
+  Before shipping a gate command, break the thing it checks and confirm the command notices.
 
-**Bound the cost of every gate before sending it, and say the bound.** Phase 1 shipped a packet
-asking for `refine_schedule = TRUE` before and after, without noticing that
-`control.schedule_nsteps = 20` makes that up to twenty production runs each — an hour-plus gate,
-where `schedule_nsteps = 2` exercises the same defect *better*, because the fault appears on the
-second run and two steps attribute it to one contaminated run instead of nineteen compounding
-ones. Cheaper and sharper were the same choice.
+## 4. Sequence and fan-out, decided by dependency
 
-**An expensive gate also makes an agent unreachable.** A queued correction only lands at the
-agent's next tool round, so an agent blocked inside a one-hour call cannot be told to stop. The
-remedy is to bound the cost when writing the packet; failing that, kill the process by PID,
-which returns the call and delivers the message.
+Fan out what is independent; sequence what is not. Fanning out a dependency chain thrashes: the
+downstream agent rebases onto a moving base and its bit-identity gate measures the rebase.
 
-**For a compile-only question, compile one translation unit with `-fsyntax-only`.** Measured:
-**10 invocations at about 2.9 s each, 30 s of compiler time**, against roughly 13 minutes for a
-clean `compile_dll` of 24 translation units plus 2 minutes for a reference run. The same census
-by package rebuild would have been over two hours. Two things make it work:
+**Fan-out multiplies per-packet cost, and a wave's wall clock is not the sum of its packets' isolated
+costs.** A production lifetime run is about 90 s on an idle box and about **7 minutes** under a wave
+of builds — roughly 5×. Every gate in Phase 1 was costed against the 90 s figure, so a gate stated as
+"three minutes" ran twenty. Cost gates for the contended case.
 
-- **`-fmax-errors=200` is the whole trick.** The default cut off after one group of errors and
-  hid four others; raising it turned twenty visible errors into the full 41 and is what made the
-  census meaningful rather than misleading.
-- **`pgrep -f <pattern>` matches the shell running it**, so it reports a live build forever —
-  the same family as the `pkill -f` hazard. Poll `kill -0 <pid>` on the PID.
+**A packet whose sibling is mid-change should be told which API is moving.** Two Phase 1 packets
+touched overlapping odelia surface; naming the accessor being redefined (`recorded_steps()`) was
+cheaper than serialising them.
 
-**Background processes are frozen between tool calls in this container.** `nohup … &` plus
-polling across calls makes no progress — a five-minute job showed 71 s of CPU after 40 minutes
-of wall clock. Long work must run in the foreground with an explicit timeout, or inside a single
-call that waits for it.
+## 5. Environment isolation
 
-**Do not tell an agent which obstruction will be largest unless it is measured.** Phase 1's
-active-build packet was told to expect the untemplated environment to be its biggest problem. It
-was not: the environment is one funnel, and the largest group was `std::`-qualified math on an
-active argument, which has nothing to do with it. An architect's guess, stated as an
-expectation, is a bias the agent then has to spend evidence to overturn.
-
-## 3. Sequence and fan-out, decided by dependency
-
-Fan out what is independent; sequence what is not. Phase 0's twelve items were independent and ran
-eight-wide. Phase 1 is a chain with two independent limbs, so it runs in waves (§7) and the spine
-gets one agent at a time. Fanning out a dependency chain thrashes: the downstream agent rebases
-onto a moving base and its bit-identity gate measures the rebase.
-
-## 4. Environment isolation
-
-Phase 0 needed one worktree per packet and nothing more, because it touched only `plant`. **Phase 1
-edits `odelia` headers, and that changes the shape of the problem:** `plant` reaches those headers
-through the *installed* `odelia`, and `odelia` must be a real install because `plant` resolves its
-XAD `Tape` symbols at load time. Two agents installing `odelia` into the shared site library would
-overwrite each other's headers and each would then build `plant` against the other's.
-
-So each packet that touches `odelia` gets:
+Each packet gets its own worktree, its own R library when it touches `odelia`, and its own scratch
+directory. `plant` reaches odelia's headers through the *installed* package, so two agents installing
+into one library overwrite each other's headers:
 
 ```sh
 mkdir -p /home/user/lib-<packet>
@@ -139,359 +177,181 @@ export R_LIBS_USER=/home/user/lib-<packet>          # searched before the site l
 Rscript -e 'install.packages("<odelia worktree>", repos = NULL, type = "source")'
 ```
 
-and every subsequent `Rscript` in that packet keeps `R_LIBS_USER` set, so `LinkingTo` resolves
-`odelia`'s include directory out of the packet's own library and the site library supplies
-everything else. A packet that touches only `plant` needs no library of its own.
+**And the orchestrator's own verification needs its own worktree too** — a detached checkout at the
+commit SHA, which nothing else can touch. This is not symmetry for its own sake: two concurrent
+builds in one worktree left `src/*.so` half-written, and **loading a mid-write `.so` succeeds and
+returns plausible wrong numbers** — `offspring 42.366121223872653 / 5042` against a true
+`42.176246845059751 / 5105`. It has the size and character of a real result. Hit twice in Phase 1,
+both times because a verification build ran in a worktree where an agent was still active.
 
-Worktrees: `git worktree add -b <branch> /home/user/wt-<packet> <base>`, about 19 MB and a 95 s
-build each, which is what makes one per packet affordable. Scratch: `/home/user/p1/<packet>/`,
-never the shared scratchpad.
+**Verify an install by grepping the installed artifact, never by reading the install log.** A library
+was found carrying an odelia with **zero** step-size accessors while its source worktree had 34, so
+the packet's entire mechanism was absent from the tree being built against.
 
-## 5. Review
+## 6. Work economy
+
+- **For a compile-only question, compile one translation unit with `-fsyntax-only`.** Measured: **10
+  invocations at about 2.9 s each, 30 s of compiler time**, against roughly 13 minutes for a clean
+  `compile_dll` of 24 translation units plus 2 minutes for a reference run. The same census by
+  rebuild would have been over two hours.
+- **`-fmax-errors=200` is the whole trick.** The default cut off after one group of errors and hid
+  four others; raising it turned twenty visible errors into the full 41 and made the census
+  meaningful rather than misleading.
+- **Background processes are frozen between tool calls in this container.** `nohup … &` plus polling
+  across calls makes no progress — a five-minute job showed 71 s of CPU after 40 minutes of wall
+  clock. Run long work in the foreground with an explicit timeout, or inside one call that waits.
+- **An expensive gate makes an agent unreachable.** A queued correction only lands at the agent's
+  next tool round, so an agent blocked inside a one-hour call cannot be told to stop. Bound the cost
+  when writing the packet; failing that, kill the process **by PID**, which returns the call and
+  delivers the message.
+
+## 7. Review
 
 - **Re-run every gate.** An agent's "tests pass" is unverified until its output has appeared in the
-  orchestrator's own session. A false pass is worse than a gate not run.
-- **A mechanical sweep over every diff before it lands** — `/home/user/p0/style-sweep.sh` covers
-  doc-section references, issue tags, decorative nouns, banners, `xad::` inside `plant`,
-  deduced-return-type lambdas, comment runs over two lines, and touched baselines or generated
-  files — **plus reading every comment line the orchestrator did not write.**
+  orchestrator's own session, in the orchestrator's own worktree. A false pass is worse than a gate
+  not run. Where you choose not to re-run something, **say so explicitly** rather than implying you
+  did.
+- **Distinguish an agent's harness from its tree.** Several Phase 1 baselines were contaminated by
+  the namespace problem in §3; the agents' comparisons were still sound because they used one form on
+  both sides, but their absolute numbers were not. Re-measure on the namespace-bearing form.
+- **A mechanical sweep over every diff before it lands** — `/home/user/p0/style-sweep.sh <worktree>
+  <base>` covers doc-section references, issue tags, decorative nouns, banners, `xad::` inside
+  `plant`, deduced-return-type lambdas, comment runs over two lines, and touched baselines or
+  generated files — **plus reading every comment line the orchestrator did not write.**
+- **The sweep reports candidates, not verdicts.** A hit on a line a diff merely *moved* is not a
+  violation, and the arithmetic settles it: when a file move relocated 15 issue tags into a header,
+  7 in the base header plus 8 in the base source equalled 15 in the tip, so the phase added none.
+- **Some invariants are properties of the merge, not of any branch.** `grep -r 'xad::' plant/inst
+  plant/src` returned five lines on every branch in isolation and nothing on the merged tree, because
+  the helper that empties it was developed on a sibling branch. Check those at integration.
+- **When an agent reports a contradiction, investigate against the code before overriding it.** Five
+  times in Phase 1 the agent was right and the plan or the packet was wrong.
+- **Hold your own edits to packet discipline.** Anything hand-edited and called non-semantic gets a
+  bit-identical gate before it is believed — including a merge conflict you resolved by hand.
 - **The cross-model tripwire on every merge, not at the end of the phase.** Phase 0's
   offspring-to-zero regression survived three steps because FF16 and K93 only ran once, at the end.
-- **In Phase 1 the tripwire is bit-identity, which makes it cheap and absolute.** Nothing in this
-  phase may move a number except the one item that is allowed to (§7, the environment's aux), and
-  that one states in advance which assertions move and by how much.
-- **When an agent reports a contradiction, investigate against the code before overriding it.**
-- **Hold your own edits to packet discipline.** Anything hand-edited and called non-semantic gets a
-  bit-identical gate before it is believed. Prefer to delegate even a revert as a packet.
+  A green TF24 suite is not evidence about the shared canopy: TF24 reaches the profile through
+  `q_from_height` and never the raw two-argument form, so all three TF24 gates passed while FF16's
+  offspring was exactly zero. **What caught it was a whole-lifetime FF16 run**, and no per-file
+  suite substitutes for one.
 
-## 6. Integrate, and record
+## 8. Stopping is the product
 
-One integration branch per phase. After each merge, **verify every change is present** rather than
-trusting the auto-merge, then build once and run the tripwire. The composite number for the phase is
-taken on the merged tree in one session; a per-item forward figure below about 0.15% in offspring
-needs a mechanism, not a before-and-after pair. **Re-bless nothing** — recording a shift is the job,
-accepting it is the owner's.
+Five packets in Phase 1 stopped without finishing, and every one was right to. Two of them falsified
+statements in the plan. **A stopped packet with a diagnosis is worth more than a finished one that
+papered over a contradiction**, and the practice only works if that is true in fact and not just in
+the packet's wording.
+
+What that requires of the orchestrator:
+
+- **Say so when the packet was wrong.** Four of Phase 1's stops were caused by the packet, not the
+  work. An agent that is told "your environment was broken and it was mine" reports the next problem
+  faster.
+- **Ask for the cost.** "Roughly what did your gates cost, and which of my gates were uneconomic" is
+  how the 90 s-versus-7 minutes fact surfaced. An agent will otherwise absorb an unpriced gate
+  silently.
+- **Prefer a resume to a fresh packet.** An agent resumed with its context intact fixed a
+  bit-identity defect in one round; the same correction as a new packet would have re-derived
+  everything.
+- **Do not reward a weakened gate.** When a gate fails, the wanted output is the numbers and a stop —
+  not a tolerance that lets it through. Say this in the packet, and then honour it when it happens.
+
+## 9. Integrate, and record
+
+One integration branch per repository per phase. After each merge, **verify every change is present
+by reading the merged tree** rather than trusting the auto-merge, then build once and run the
+tripwire. Check the arithmetic of the merge: if four packets added 4, 11, 27 and 7 assertions to a
+264-pass baseline, the merged tree should show 313, and anything else means a merge lost or duplicated
+something.
+
+**Some work has no packet, and it is the integrator's.** Every Phase 1 allowlist was code and tests,
+so nothing updated `odelia/AUTODIFF.md`, which the plan makes the home for the System requirements
+that this phase *changed*. Nobody could have done it but the integrator, and it was missed. Before
+closing a phase, list the documents the plan assigns and check each against what landed.
+
+**Re-bless nothing** — recording a shift is the job, accepting it is the owner's. Phase 1 ended
+bit-identical, including the one shift the plan had sanctioned, so there was nothing to accept.
 
 Recording is part of "done", not a pass afterwards. `implementation-notes.md` takes the commit, the
-build, the gates as run, the shift where numbers moved, and anything the item revealed that the plan
-did not predict — that last field is what earns the file. `build-plan.md` and `tf24-correctness.md`
-take a commit tag and nothing else. Reports are reference, never edited to track progress, but a
-forward-pointer that has become factually wrong is corrected with a one-line note that leaves the
-develop-time analysis intact.
+build, the gates as run, the shift where numbers moved, and **anything the item revealed that the
+plan did not predict** — that last field is what earns the file, and in Phase 1 it was most of the
+value. `build-plan.md` and `tf24-correctness.md` take a commit tag and nothing else, **except that a
+forward-pointer the phase has disproved gets a one-line correction** with its evidence. Reports are
+reference, never edited to track progress, corrected the same way.
 
-## 7. Standing hazards
+## 10. Standing hazards
+
+Build and measurement:
 
 - `pkgbuild::compile_dll()` defaults to `-O0` and appends its flags last; pass `debug = FALSE` and
-  check a compile line ends at `-O2`.
+  check a compile line ends at `-O2`. The same tree at `-O0` differs by 0.145% in offspring and
+  0.79% in accepted steps.
 - `rm -f src/*.o src/*.so` before every build. R's make does not track header dependencies and the
   core is header-inline, so a header edit otherwise fails to compile in — a silent false pass.
+- **If a number moves unexpectedly, clean-rebuild and re-measure before believing or reporting it**
+  (§5).
 - `library(odelia)` from a real install, never `load_all` for odelia; `load_all` the plant tree under
   test; `Sys.setenv(TESTTHAT_PARALLEL = "false")`.
 - R buffers `cat` to a redirect. Poll for the process to exit; do not read progress out of the file.
-- `pkill -f <pattern>` matches the shell running it and will kill the session. Kill by PID.
+- `pkill -f <pattern>` and `pgrep -f <pattern>` match the shell running them. Kill by PID; poll
+  `kill -0 <pid>`.
+
+Model and code:
+
 - `run_scm(collect = TRUE)$species` is the flat per-step-per-node table; `$species[[1]]` is a column.
-- Two like-typed positional arguments of unrelated meaning are a silent-swap hazard, and templating
-  is when to re-check the call sites by meaning rather than by type.
+- **Two like-typed positional arguments of unrelated meaning are a silent-swap hazard**, and
+  templating is when to re-check the call sites by meaning rather than by type. This shipped a
+  regression once: a meaning changed then reverted left one caller mismatched, it compiled, and a
+  model's offspring went silently to zero.
+- **The stage is not a pure function of `(y, t)`.** `Species::compute_rates` writes the inflow
+  boundary node on every call and `Species::compute_competition` reads it, so the light field depends
+  on a density carried from the previous evaluation. A **rejected** step attempt writes that scalar
+  while producing no accepted step, so **no pinned replay can reproduce an adaptive run**, and the
+  reverse pass's stage rebuild inherits the same problem. P2.7 closes the lag and is therefore a
+  prerequisite for the reverse pass rather than a refinement.
+- **`fl(fl(t + h) − t) ≠ h`.** A step size is not recoverable by differencing recorded times; at
+  `t ≈ 100` the low four decimal digits are gone. Record `h`.
+- Registering a tape's inputs **after** `newRecording()` gives silently zero adjoints. Register
+  first.
+- Never give a deduced return type to anything returning an active value; and beware `-> double` on a
+  lambda in templated code, which silently passivates.
 
 ---
 
-# Phase 1, as planned
+## Where Phase 1 left things
 
-Nothing in Phase 1 computes a gradient. Its whole product is that the model *can* carry an active
-scalar, that the plumbing no longer names `double`, and that a run's trajectory is stored.
+Both integration branches are pushed and the superproject pointers reference them.
 
-## Ground truth, measured this session
+    odelia  p1/odelia-integration    322 pass, 0 fail, 0 error, 2 skip
+    plant   p1/phase-1
 
-**The base moved, and it is not what the plan says.** `origin/p0/phase-0` is now `7b05b55e`, which
-merges upstream `develop` — five commits including six TF24 hydraulics fixes and a re-blessed
-scenario baseline — into the Phase 0 tip. Six files are touched by both sides. Phase 1 branches from
-`7b05b55e`, and PR #66 is still open, so Phase 1 stacks on it rather than on `develop`.
-
-**All eight Phase 0 items survive the merge**, checked by reading the merged tree rather than
-trusting it: the leaf's `assign` and `refresh_soil_potentials`, `n_resources()`, the recompute in
-`introduce_new_nodes`, the crown-base branch, the establishment overloads, and
-`consumption_rate` starting at `new_node`.
-
-**The merge is numerically inert on this configuration.** At the pinned build, one species, five
-layers, `max_patch_lifetime = 105.32`, `refine_schedule = FALSE`:
-
-| | offspring production | accepted steps |
+| | offspring | accepted steps |
 |---|---|---|
-| `p0/phase-0` before the merge | `42.176246845059751` | 5 105 |
-| `p0/phase-0` at `7b05b55e` | `42.176246845059751` | 5 105 |
+| plant `7b05b55e`, before the phase | `42.176246845059751` | 5 105 |
+| **`p1/phase-1`, everything merged** | **`42.176246845059751`** | **5 105** |
+| FF16 | `19.825535760483262` | 209 |
+| K93 | `0.030546712014675573` | 240 |
 
-Bit-identical, which is the useful result: **Phase 1's bit-identity target is unchanged**, and
-upstream's TF24 work is invisible at the default driver — consistent with P0.5 measuring zero
-incidence on the shutdown exits it hardens.
+**The whole phase is bit-identical.** The environment's aux widening — the plan's one sanctioned
+shift — moves no assertion, because nothing reads the environment's aux.
 
-**odelia's base is not where the plan says either.** The plan calls for `854a8e18` "on `master`";
-`854a8e18` is *not* on master, it is master plus thirteen commits of earlier AD-surface work, and
-the submodule is checked out forty-five commits further along on the AD branch. Of the five names
-P1.1 asks for, `implicit_value` and `hermite_interpolator` already exist on that branch and
-`vector_jacobian_product`, `step_adjoint` and `OdeElement` exist nowhere.
+Owed, all recorded with evidence in `implementation-notes.md` and `phase-1-review.md`, none blocking:
 
-## The dependency graph
-
-```
-P1.1a  odelia: OdeElement + the four range helpers ─┬─ P1.1b  vector_jacobian_product (T1–T3)
-                                                    ├─ P1.1c  step_adjoint
-                                                    ├─ P1.1d  implicit_value + hermite active read
-                                                    └─ P1.2a  plant plumbing, S = double
-                                                                 └─ P1.2b  TF24<S>, six commits
-                                                                      ├─ P1.3  trait registration
-P1.4  the trajectory store (independent throughout)                  └─ P1.5  the active build
-```
-
-`P1.4` touches `scm.h` and pure `double`, and depends on nothing here, so it runs from the start.
-The spine is one agent at a time. `P1.5` is the one addition to the plan's task list and §9 argues
-for it.
-
-## Waves
-
-| wave | packets | base |
-|---|---|---|
-| A | P1.1a, P1.4 | odelia `854a8e18`; plant `7b05b55e` |
-| B | P1.1b, P1.1c, P1.1d | P1.1a's branch |
-| C | P1.2a | plant `7b05b55e`, odelia at P1.1a |
-| D | P1.2b — six commits, each bit-identical before the next | P1.2a's branch |
-| E | P1.3, P1.5 | P1.2b's branch (P1.5 also needs P1.1b) |
-
-Eight packets, and the wave boundaries are the barriers: B needs A's concept, C needs it installed,
-D needs C's signatures, E needs D's templates. Within a wave the packets are independent and run
-together.
-
-## The packets
-
-**P1.1a — the concept and the four range helpers.** `OdeElement` constraining the element's
-`value_type` iterator, and `ode_state`, `ode_rates`, `ode_aux`, `set_ode_state` over an element
-range templated on the iterator; the two legacy `double` typedefs deleted. `set_ode_aux` is an
-ordinary member, not an opt-in. `needs_time` is left alone.
-*Gate:* the odelia suite unchanged; `ode_util.hpp` still includes no XAD; and a deliberately
-`double`-typed element rejected by `OdeElement` with the error reported at the helper rather than as
-a page of instantiation noise.
-
-**P1.1b — `vector_jacobian_product`.** Writes into a caller-owned buffer and returns the recording
-size. `f` is generic and instantiated at the active scalar inside, so `plant` never spells `xad::`.
-*Gate:* T1 against a central finite difference of the same block; T2 the recording size invariant
-across two input counts an order apart and two output counts; T3 **stops** when a tape is already
-active.
-
-**P1.1c — `Step<System>::step_adjoint`.** Takes the step's start state so the six stage states can
-be rebuilt from members that already exist.
-*Gate:* one step's adjoint against a finite difference of that step on the Lorenz System.
-
-**P1.1d — `implicit_value`, and the interpolant read at an active position.** Both have prior art on
-the AD branch; the interpolant's `eval` takes `double u` there, and the addition is the
-`value + slope · (u − to_passive(u))` read M1 measures the crown integral's height adjoint as
-exactly zero without. Plus the non-finite step-size rejection.
-*Gate:* one test per name driven from a System rather than from an example, and the active-position
-read reproducing a finite difference in the query position.
-
-**P1.2a — plant's plumbing at `S = double`.** The nine headers whose signatures adopt the legacy
-typedefs: `patch.h`, `node.h`, `stochastic_patch.h`, `environment.h`, `individual.h`, `species.h`,
-`species_base.h`, `individual_runner.h`, `stochastic_node.h`. **The plan's "26 uses" is a count of
-signatures; there are 44 textual occurrences, because most are declared in-class and defined out of
-it** — so the gate is *zero* remaining occurrences, not a count matched. Read-out direction is
-signature-only; only `set_ode_state` has work behind it and that work is P1.2b. Add the missing
-`#include <plant/individual.h>` to `node.h`.
-*Gate:* bit-identity. At `S = double` the deduced iterator *is*
-`std::vector<double>::iterator`, so this generates identical object code: offspring
-`42.176246845059751` at 5 105 steps, and the suite's pass and fail sets unchanged.
-
-**P1.2b — TF24 templated.** `Internals<S>`, then `TF24_Pars<S>` and `TF24_Strategy<S>`, then
-`TF24_Environment<S>` and `ResourceSpline<S>`, then the six containers reading `value_type` from
-`T`, then the yml and its regeneration, then `growth_rate_gradient`'s `thread_local` scratch
-removed outright. `Control`, `ExtrinsicDrivers` and `Leaf` stay `double`. `CanopyShape` is
-templated from **the version now on the branch** — function-pointer chains, the crown-base branch,
-the shared static `eta_c` — and gains the one split templating forces: the chains on `double`, and
-`std::pow` on an active `S` so `u^eta · log(u)` is taped, guarded by `to_passive(u) <= 0`, under
-`if constexpr` and not a runtime flag. Re-check `q(z_over_height, z)`'s call sites by meaning.
-*Gate:* bit-identity after every one of the six commits, same two numbers; the TF24, TF24f,
-patch, individual and stochastic suites unchanged; and no deduced return type on anything returning
-an active value.
-
-**P1.3 — trait registration.** `ad_parameters()` and `ad_parameter_names()` from the yml, called
-once per gradient evaluation and held for the run.
-*Gate:* the two agree in size and order, and seeding by name and by index reach the same field.
-
-**P1.4 — the trajectory store.** `struct ode_step_record { double time; std::vector<double> state; }`
-and `SCM<T,E>::store_trajectory()`, replaying the resolved schedule in `double`, one state per
-accepted step. No wrapper type and no separate times vector. Then a test for
-`Species::set_birth_state`, which has none.
-*Gate:* the replayed final state bit-identical to the forward run. **The trap:** `r_ode_times()` is
-the replay grid; `patch.step_history` is the mutant cache's index and in production still holds
-`{0.0}`, which is where a 60x error came from.
-
-**P1.5 — the active build.** One test translation unit instantiating the templated TF24 at odelia's
-active scalar and asserting only that it compiles and reproduces the `double` value at the same
-inputs. §9 argues why.
-*Gate:* it compiles, and the active value equals the double value to the last bit.
-
-## Per-task hazards surfaced by re-reading the reports
-
-Confirmed against reports 00, 01, 04, 07 and `tf24-correctness.md`. Each is a constraint a packet must
-carry, quoted so the agent need not re-derive it.
-
-**P1.1 / P1.2a — the aux family becomes load-bearing over a slot written nowhere.** TF24's
-`aux_names()` returns eleven names but `assimilation` "is declared, allocated, reported to R and
-written nowhere — exactly 0 on all 10 153 records" (report 07 §1.5). P1.1 asserts the aux iterator
-advances by `aux_size()`, so that permanently-zero slot is now inside a structurally-checked width.
-Left as-is it is harmless (a zero adjoint), but it is the same defect class P0.4 removed from the
-resource vector, and the packet should state it rather than have the agent trip on the width mismatch.
-
-**P1.1 — publishing the environment's per-layer uptake is fresh work.** `tf24-correctness.md` P0.4
-says "sizing it by resource count and publishing it are the same edit". Only sizing landed
-(`n_resources()`); nothing publishes uptake to aux. So the environment-aux commit (below) writes the
-publication for the first time — not a rider on a landed change.
-
-**P1.3 — two caches are keyed on a proper subset of their dependencies, and registering the traits
-they cache gives a silently-zero channel.** `photo_temp_cached_` is keyed on `(leaf_temp,
-atm_o2_kpa)` while caching `vcmax_` and `jmax_`, and "both parameters are differentiation targets"
-(P0.10). `psi_soil_cache_` is keyed on exact `double` equality of the soil state, "and a
-finite-difference verification perturbs exactly that state". P0.10 could not execute either — the keys
-are run-constant, so no census reordering moves them — so they are the two carriers Phase 0 left
-unmeasured. Registering `vcmax_25` or `jmax_25` in P1.3 without addressing the key severs the channel
-with nothing thrown. The packet names both and requires the FD check to perturb the cached parameter.
-
-**P1.2b — a second `pow` at an unguarded site, reachable only under a seeded exponent.**
-`TF24_Strategy::Q` keeps one `pow` for the root-mass distribution at `root_depth_shape_eta = 0.2`
-(P0.12). P0.7's value guard does not cover its *derivative*: `u^eta · log(u)` at `u = 0` is the same
-NaN as the canopy's, at a site the crown-base branch does not touch. Latent unless
-`root_depth_shape_eta` is a differentiation target — so P1.3 must not register it without the guard,
-and P1.2b's `if constexpr` split should cover this site too, not only the canopy.
-
-**P1.2b — TF24f is templated alongside TF24 and carries two open defects.** Its per-individual API is
-"silently wrong" (`plant#61`: establishment exactly 0 against TF24's 0.9984, "the clamp that rescues
-the value path is the same clamp that makes the gradient point out of it"), and the only guard on
-P0.1's derivative-staleness fix is that the TF24f suite passes — there is no committed probe. If
-templating perturbs that suite, the guard goes with it. The packet flags both as watch items, not as
-Phase 1 work to resolve.
-
-**P1.2b — two latent link/return hazards in the class being templated.**
-`TF24_Strategy::compute_roots` is "declared and never defined … a link error waiting for its first
-caller" (07 §1.10), and instantiation behaviour differs from today's non-template case.
-`Leaf::electron_transport()` "declares a local shadowing the member it computes and relies on the
-caller assigning the return value" — the exact shape of P1.2b's named deduced-return-type failure
-mode. Both go in the packet's checklist.
-
-**P1.4 — the store must restore one birth-time scalar the state vector does not carry.** Each `Node`
-holds `pr_patch_survival_at_birth`, a plain `double` set at birth, not in `ode_state`, that divides
-the fecundity rate; omitting it puts the whole error in `offspring_produced_survival_weighted` and
-nothing else (report 01 §9 C6, verified on K93 and FF16). P1.4 replays the resolved schedule rather
-than reconstructing, so `compute_initial_conditions` re-stamps it — the packet's rule is "replay,
-never rebuild a Patch from records". `Species::set_birth_state` exists and has no test; P1.4 adds one.
-
-**P1.4 — the store's grid is finer than any measurement in the project.** Everything measured to date
-is at 142 output times or 10 153 cohort-time records; P1.4 stores 5 105 accepted steps, "the first
-artefact at that resolution, and no existing number cross-checks it" (P0.5's degeneracy note). The
-gate is therefore bit-identity of the replayed final state at the pinned build and nothing weaker.
-The one state a record cannot reproduce by arithmetic is the `dh = 0` boundary interval at the
-instant of introduction (report 04 §7.1) — but P0.9 made the rates there current, which is exactly
-what makes "store state, rebuild rates by evaluating" sound; before P0.9 it was wrong at 141 steps.
-
-## The reports need a reconciliation pass, and it is not Phase 1's
-
-The re-read found the reports substantially stale against Phase 0: six of report 07's ten findings are
-fixed with nothing in the file saying so, report 04's state-census figures are all on the pre-Phase-0
-trajectory (5 055 steps, not 5 105), and report 07 §2.2 is internally contradictory on the light
-floor (it claims "4.638%, confirmed firing" against its own §1.8's "0 of 8 292, minimum 0.1657209").
-These are reference documents, not status, so they are corrected with one-line landed-notes, not
-rewritten — a bounded docs task for whoever next touches them, tracked here so it is not lost. It does
-not block Phase 1; Phase 1 reads the code and this file, not the reports' stale counts.
-
-## The one thing in Phase 1 that is not bit-identical
-
-**`Environment` becoming an aux element changes `aux_size()`.** `Patch::ode_aux` runs over the
-species range only, while `ode_state` and `ode_rates` continue into the environment, and that
-asymmetry is what leaves the soil's positivity guard unrecoverable on the sweep. Closing it means
-the environment publishes its per-layer uptake, so the aux vector gets wider and every R-visible aux
-width moves with it. The plan files this under P1.1, but `Environment` is plant's, so it belongs in
-**P1.2a as its own commit, after the bit-identical sweep** — the sweep keeps its clean gate, and the
-widening states in advance which assertions move and by how much. Nothing else in the phase may
-move a number.
-
-## Design constraints, settled
-
-1. **odelia's base is `854a8e18`, and the three existing primitives come across as spikes.**
-   `implicit_value`, `hermite_interpolator` and the non-finite step-size rejection are cherry-picked
-   rather than re-derived, but **they are not finished code** — they are to be improved, optimised and
-   integrated properly, not lifted. §9 lists what each owes. The AD branch tip is not the base: it
-   also carries `mass_transport.hpp` and `separable_field.hpp`, whose mass chart §7 rules out.
-2. **P1.5, the active build, is in scope.** Without it Phase 1 ends with TF24 templated but never
-   instantiated at anything but `double`, so Phase 3 would discover every error at once, the `Leaf`
-   boundary included.
-3. **`Environment::n_cohort_reads` / `cohort_reads` / `set_cohort_reads` is deferred.** §2.3 gives
-   `Environment` the triple, but no task owns it and its size is only well defined once P2.1 fixes
-   the knot count.
-4. **Phase 1 stacks on PR #66**, one PR per task, each targeting its parent branch.
-
-## What the spikes owe, and what Phase 1 must add beyond the plan's list
-
-Read against the code rather than the plan, five things are owed that no task currently names.
-
-**The legacy typedefs cannot be deleted in P1.1a.** `odelia` itself uses
-`ode::iterator`/`ode::const_iterator` in **zero** places — they exist only for `plant`, which names
-them in **44** — so deleting them in the odelia packet leaves plant unbuildable until P1.2a lands
-two waves later, and neither packet can then gate on its own. They stay through P1.1a and are
-deleted in **one odelia commit at the end of P1.2a**, once plant has stopped naming them.
-
-**The four range helpers are already templated on the AD branch** (`412d1b7`), so P1.1a's new work is
-the concept, the deletion above, and `set_ode_aux` as an ordinary member. Cherry-pick the templating;
-do not rewrite it.
-
-**`hermite_interpolator`'s per-stage rebuild is P1.1d's, not P2.1's.** `init` takes positions, values
-and slopes together and then validates ascent, scans for uniformity and fills 65 spans — structure
-that cannot change once P2.1 fixes the fractions, re-derived 36 000 times a run. P2.1 names the split
-(`set_nodes` once per run, `set_data` per stage) as part of its own task, but the split is
-odelia-side, has no plant consumer yet, and moves no forward number, so it belongs here where the
-primitive is being finished. P2.1 should consume a completed interpolant, not reshape one mid-phase.
-The same packet adds the active-position read — `eval` takes `double u` today, and M1 measures the
-crown integral's height adjoint as exactly zero without it — and renames the `active` flag, which
-in this codebase's vocabulary reads as "active scalar" and means "initialised".
-
-**`implicit_value`'s IFT denominator is a double central difference** at `eps = 1e-6·(|y*|+1)`, so the
-node's derivative inherits a finite-difference error where the rest of the design is exact. Replacing
-it with a forward tangent would force every caller's residual to become generic, which is a real cost
-for one call site. So P1.1d **measures it rather than changing it**: the IFT derivative against a
-central difference of `y*` over the eight parameters `height_seed` carries, at three values of `eps`.
-It changes only if the error is material, and the number is recorded either way. Phase 0's lesson was
-that a readability rewrite of working arithmetic moved more than the fix it accompanied.
-
-**Nothing owns the forward-derivative helper, and it is Phase 1's.** §3's sixth row asks for a small
-forward-derivative helper so `src/leaf_model.cpp` stops spelling `xad::`, and the design's rule is
-that `grep -r 'xad::' plant/inst plant/src` returns nothing. It still returns **five lines**, all in
-one function computing `dA/dci` and `dC/dpsi_stem` by forward mode. No P-task names it, it is small
-and independent, and the invariant it restores is exactly what P1.5's active build tests. It becomes
-**P1.1e**, an odelia helper plus the one plant call site, gated on bit-identity and on that grep
-being empty.
-
-**`plant/agents.md` has no §13.** The plan's §4 requires that a task changing what a model author
-writes updates it in the same PR, and P1.2b is that task, so **P1.2b creates §13** from §4's
-seven-item outline. It is a deliverable, not a follow-up.
-
-## Corrections owed to the documents
-
-- `docs/reports/interpolant-cost.md` §1 records the crown-base density limit at `eta = 1` as `1/H`.
-  It is **`2/H`**, measured bitwise when P0.7 landed. This is the third document to carry the wrong
-  constant and the last one still carrying it.
-- The same file's "What is left to measure" item 4 asks for the `q` rewrite to be landed. **P0.7
-  landed a branch instead**, deliberately, and the rewrite was reverted for moving two models for no
-  gradient benefit. Items 1–3 remain open and are Phase 2's.
-- `docs/build-plan.md` P1.1 says "From `854a8e18` on `master`". `854a8e18` is **not** on `master`; it
-  is `master` plus thirteen commits of earlier AD-surface work.
-- `docs/build-plan.md` §2.9 says `Patch::introduce_new_nodes` "rebuilds the field but does not
-  recompute rates", and builds an argument on it: that at 141 of 5 055 steps `k1` is the rate vector
-  from before the newcomer entered the field, so `lambda_k1` belongs to the step boundary. **P0.9
-  fixed that** — the rates are now recomputed there. The seam is still at the step boundary, but it
-  is now clean, which simplifies rather than complicates Phase 3. The paragraph needs re-deriving
-  against the branch.
-- Line numbers cited for `patch.h` are stale by about a hundred lines: upstream's height-inversion
-  diagnostic landed in the merge. Packets should cite names, not lines.
-- `docs/build-plan.md` P1.2a's "26 uses" is a count of signatures. A grep finds **44** occurrences
-  across the same nine files, because most are declared in-class and defined out of it.
-- **`docs/build-plan.md` §2.9's `k1`/step-boundary paragraph — re-derived against the post-P0.9
-  branch (landed this turn).** It reasoned from "`introduce_new_nodes` rebuilds the field but does not
-  recompute rates"; P0.9 recomputes them there, so at the 141 introduction steps `dydt_in` is now the
-  freshly recomputed rate at the widened state, `derivs(y_after, t)` — the correct linearisation
-  point, wrong before P0.9. The seam stays at the step boundary but is now clean (a bookkeeping seam,
-  not a stale-point one), which simplifies Phase 3 rather than complicating it.
+- **`Replayable` should be `Recordable`.** Its only real implementor records and never replays.
+- **The active build's value gate is unsatisfiable as written** (§0.5), and 41 compile errors at 33
+  sites are documented in six groups. The largest is `std::`-qualified math on an active argument.
+- **`plant::Environment` is half-templated** — light carries `S`, the whole soil water balance stays
+  `double`. A decision is owed before anything differentiates through the soil.
+- **Thirteen registered traits will read as exactly zero** until the leaf's supplied Jacobian exists,
+  because `Leaf` is `double` and takes them by value. By design, and dangerous precisely because
+  exactly-zero is this design's worst failure mode.
+- **Two unguarded `pow` sites** — `CanopyShape::Qp`'s `eta_inverse_` and the soil curves' `n_psi`.
+  Neither exponent may be registered as a target until guarded.
+- **`ResourceSpline<S>` promises an active height its interpolant cannot accept**, which is the seam
+  the Phase 2 interpolant swap lands on rather than a defect to patch.
+- **`Solver::run()` serves two operations through one door** — a recorded trajectory and a
+  caller-supplied time grid — and the vector alone does not say which. Two entry points are owed.
+  These are not superseded stubs: the three `Solver_*` entry points were introduced in the same
+  commit as `compute_jacobian` as one deliberate layering, and that commit retired the actual spike.
+- **`ARCHITECTURE.md`** is still silent on this phase, and the hermite still lacks the pair of query
+  readings §2.8 asks for.
