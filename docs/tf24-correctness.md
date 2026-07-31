@@ -635,7 +635,14 @@ written once for three models instead of twice for two.
 **Gate.** `CanopyShape::Q` and TF24's agree to the last bit at every sampled `(z, h)` **or**
 the difference is recorded as last-bits-only before the switch; one production run
 re-blessed with the shift stated; no canopy `pow` survives in
-`src/tf24_strategy.cpp`; and a seeded-`eta` gradient at the ground knot is finite.
+`src/tf24_strategy.cpp`; and `q(0, h)` finite for every `h`, which is the value half.
+
+**The derivative half of this gate cannot be tested in Phase 0, and is not claimed.** A seeded-`eta`
+gradient finite at the ground knot needs an active scalar, and Phase 0 contains no AD at all. What
+Phase 0 lands is the value guard; the derivative guard is `pow`'s `u^eta · log(u)` at `u = 0`, which
+lives inside the exponent helper and belongs to P1.2b when `CanopyShape` is templated. The two are
+guards at the same point in the same function, so it is worth landing them together in the reader's
+mind and separately in the code.
 
 **`TF24_Strategy::Q` stays, and an earlier version of this gate was wrong to ask for its deletion.**
 Its `eta_x` argument exists because `src/tf24_strategy.cpp:423` calls it for the **root mass
