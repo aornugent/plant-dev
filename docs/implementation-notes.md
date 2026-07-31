@@ -1143,3 +1143,104 @@ that its plant base and its odelia actually compile together, or state explicitl
 incompatibility the packet is expected to hit and why that is acceptable. A packet's environment
 is part of its specification, and an unbuildable pairing spends an agent's whole first cycle
 before anything begins.
+
+## The trajectory store, and why three attempts failed first
+
+**The store is recorded during the adaptive run, not by replaying it.** `Patch` satisfies odelia's
+`Replayable` concept so that `SolverInternal::step`'s existing `record_ode_step(system)` hook fires
+on the accepted branch; `record_ode_step()` is the only member that does anything, while
+`record_stage(int)` and `replay_step()` are empty and `has_recorded_field()` returns `false`. The
+record is `ode_step_record { double time; double step_size; std::vector<double> state; }`.
+
+Verified independently at the branch tip in a detached worktree, production TF24, pinned build,
+0 occurrences of `-O0`:
+
+    forward run                             offspring 42.176246845059751   5 105 steps
+    records                                 5 105, equal to the accepted step count
+    stored final state vs the forward run   bitwise identical, 0 of 1 137 components differ
+    first step size                         NaN, from the solver
+    t_i == t_{i-1} + h_i                    bitwise at every step
+    recorded times vs r_ode_times()         bitwise identical
+    two stores from one SCM                 bitwise identical
+
+`test-mutant.R` byte-identical before and after — the same two pre-existing fixture errors at the
+same two locations — which is the gate that says satisfying the concept changed no behaviour.
+
+### Why a replay cannot reproduce the adaptive run, which the plan says it can
+
+**The stage is not a pure function of `(y, t)`.** `Species::compute_rates` ends by writing
+`new_node.compute_initial_conditions(...)` on **every** call, and `Species::compute_competition`
+closes its descending trapezium on `new_node.height()` and its competition — so the light field
+reads a boundary node whose density was written by the *previous* evaluation. Report 01 §3 sets this
+out and calls it one stage of Picard: the per-stage computation is a function of
+`(y, t, boundary density carried from the previous evaluation)`.
+
+A **rejected** step attempt runs `stepper_step`, hence `derivs`, hence `compute_rates` — so it
+writes that carried scalar while producing no accepted step. A replay makes no rejected attempts, so
+it arrives at every accepted step with a different carried density.
+
+**This falsifies a claim in `build-plan.md` P1.4:** *"A sequential replay reproduces develop's lagged
+boundary density for free, because it visits the stages in the same order the forward run did."* It
+does not — it skips every rejected attempt. The plan then asserts P1.4's own gate is unaffected by
+the lag, and that assertion is what three packets were built on.
+
+Measured, production TF24, before the remedy:
+
+| | offspring | deviation | components differing |
+|---|---|---|---|
+| forward, adaptive | `42.176246845059751` | — | — |
+| replay over recorded **times** | `42.235505201883193` | 0.1405% | 1 118 of 1 137 |
+| replay over recorded **step sizes** | `42.403558838695034` | 0.539% | 1 118 of 1 137 |
+
+**The true `h` makes it worse, and that is the tell.** A more faithful step size lands at the same
+state with a *less* faithful carried scalar, so nothing cancels. The step-size mechanism itself is
+sound: it reproduced the recorded time grid bitwise and satisfied `t_i == t_{i-1} + h_i` bitwise at
+every one of 5 105 steps. Two separable effects, and the plan only knew about the smaller one.
+
+Localisation, which is what identified the cause: absent in short runs (FF16 and K93 at 17 accepted
+steps are bit-identical), present on FF16 at production lifetime as well as TF24, and **sudden
+rather than accumulating** — on a short TF24 schedule it appears within the first introduction
+interval, 515 of 569 components at once, which is a rejection rather than drift.
+
+The codebase already half-knew. `test-scm.R` carried a comment saying a pinned run "does not
+actually produce *exactly* the same output, which is very surprising", guessing at the step-size
+difference — the smaller of the two effects. Its assertion passed only because `control_accurate()`
+at 14 introductions leaves almost every step interval-final, and it excluded TF24. That test is now
+re-scoped: determinism is the load-bearing assertion, and TF24 is included rather than excluded.
+
+### What this means for Phase 3, and it is a prerequisite rather than an optimisation
+
+§2.8's reverse pass rebuilds each step's stage states by re-running the step from `(t, h, y)`. **It
+inherits the same problem**: re-running re-derives the carried boundary density rather than
+restoring it, so the rebuilt stage states will not be the forward pass's while the field reads
+`new_node`. `(t, h, y)` is necessary and **not sufficient** for the reverse pass — the carried
+density, one scalar per species per step, is a fourth thing it needs and the record does not hold.
+P2.7 closes the lag, so **P2.7 is a prerequisite for the reverse pass**, not a numerical refinement
+to schedule at leisure.
+
+### Owed
+
+- **`Replayable` is now the wrong name.** Its only real implementor records and never replays:
+  `replay_step()` is empty and `has_recorded_field()` is permanently `false`. `Recordable` is the
+  rename. An odelia change, recorded rather than taken.
+- `Patch`'s implicit copy constructor copies the store once per recorded run — about 46 MB at
+  production — where `patch = solver.get_system_ref()` runs at the end of a run. A known cost, not
+  a defect.
+- `record_ode_step` also fires from `step_to`/`step_by`, so a recorded run down the pinned path
+  would record too. Nothing sets `record_steps` on that path today.
+
+## The phase, merged and closed
+
+    odelia  p1/odelia-integration    322 pass, 0 fail, 0 error, 2 skip
+    plant   p1/phase-1
+
+| | offspring | accepted steps |
+|---|---|---|
+| plant `7b05b55e`, before the phase | `42.176246845059751` | 5 105 |
+| **`p1/phase-1`, everything merged** | **`42.176246845059751`** | **5 105** |
+| FF16 | `19.825535760483262` | 209 |
+| K93 | `0.030546712014675573` | 240 |
+
+**Bit-identical, and the whole phase moves no number.** Nothing to re-bless — including the
+environment's aux widening, which the plan had singled out as its one sanctioned shift and which
+moves no assertion at all.
