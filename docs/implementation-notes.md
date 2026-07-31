@@ -93,6 +93,40 @@ edited to track them.
 
 Each entry carries the commit, the gates as run, and the forward shift.
 
+### P0.3, P0.4 — the retention inverse, and sizing by resource count
+
+Branch `p0/soil-vectors`, commits `bb8d4496` (P0.3) and `38214b2b` (P0.4). **Both bit-identical**:
+offspring `42.140173575095666` at 5 055 steps at the baseline and after each commit, which is the
+strongest gate available here because it says slots 0 to 4 still do what they did.
+
+P0.3's pre-edit round trip reproduces the recorded measurement exactly —
+`theta 0.3000 -> psi 1.837887e-02 -> theta 2.456763e+00`, ratio 8.189 — and reads
+`0.29999999999999999` after. The test is committed in `tests/testthat/test-environment-TF24.R` over
+199 thetas at `tolerance = 1e-12`, plus the original tell as its own assertion: no recovered moisture
+above saturation. It filters the region where `soil_psi_max_ = 1e3` clamps the forward curve, roughly
+theta below 0.057, because the round trip cannot be an identity through a clamp.
+
+**P0.4's gate is a count, not an argument.** A temporary probe in `Patch::compute_rates`, immediately
+before `environment_ptr->compute_rates(resource_depletion)`, counted non-finite entries of the
+accumulated vector on a real run: **exactly four per call, in 1 979 of 2 000 calls** under develop's
+`ode_size()` sizing, and **0 of 6 000** under `n_resources()`. The 21 clean calls at the start are the
+window where an empty or single-node species returns zero — which is P0.8's branch, seen from the
+other side. The probe was reverted; the committed tree carries no `#ifdef`.
+
+**The base-class default is 0, and the reasoning matters more than the value.** FF16 and K93 never
+touch `Environment::vars`, so their `ode_size()` is already 0 and neither strategy calls
+`set_consumption_rate`. Delegating `n_resources()` to `ode_size()` would give the same number today
+and reproduce the exact conflation P0.4 exists to remove, so the base states the honest fact about an
+environment that publishes no consumable resource and TF24 overrides with `soil_number_of_depths`. No
+second count is stored or passed.
+
+Not interface-visible: `n_resources()` has only C++ callers and `get_soil_number_of_depths()` already
+exposes the count to R, so the yml is untouched and nothing was regenerated.
+
+Noticed and not touched: `Patch::reset`'s `// resize to species count` comment is wrong — the reserve
+is by resource count — and `compute_rates` `push_back`s into a vector only `clear()`ed at the end of
+the previous call, so that `reserve` is decorative.
+
 ### P0.9 — rates recomputed when nodes are introduced
 
 Branch `p0/introduction-rates`, commit `49b03bb0`. One line — `compute_rates()` after

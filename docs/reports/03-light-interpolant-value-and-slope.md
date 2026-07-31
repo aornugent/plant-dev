@@ -599,7 +599,8 @@ field's lowest knot is exactly `z = 0` (`construct_spline` sets `lower_bound = 0
 anything that asks the field for a slope at the ground gets NaN. Writing `q` over
 `u^(eta-1)/H` rather than `u^eta/z` — the two are equal for `z > 0` — is finite there
 and removes a division from the hot path; the `u -> 0` limit is 0 for every `eta > 1`
-and `1/H` at `eta = 1`, resolved once in `initialise()` alongside `pow_eta_`. The patch
+and `2/H` at `eta = 1` — `q = 2(1 - u)u/z = 2(1 - u)/H`, so the constant is 2 — resolved
+once in `initialise()` alongside `pow_eta_`. The patch
 is `canopy-shape-fused-q.patch`, and it is worth landing whether or not this proposal
 is accepted: today nothing reads the field's slope, so the defect is latent, and the
 first consumer to want one would meet it.

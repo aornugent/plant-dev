@@ -374,7 +374,14 @@ why the defect is latent.
 
 Writing `q` over `u^(η−1)/h` rather than `u^η/z` — the two are equal for `z > 0` — is finite
 there and removes a division from the hot path. The `u → 0` limit is 0 for every `η > 1` and
-`1/h` at `η = 1`, resolved once alongside the other `η` precomputation.
+**`2/h`** at `η = 1`: `q = 2(1 − u)u/z = 2(1 − u)/h`, so the constant is 2 and not the `1/h` an
+earlier version of this row recorded. Resolved once alongside the other `η` precomputation.
+
+**The fix cannot be a bare guard, because `q` is not handed the height.** `CanopyShape::q` takes
+`(u, z)`, and at the ground both are zero, so `h = z/u` is itself `0/0` and unrecoverable. Any
+treatment therefore changes the signature to carry `height` or `height_inverse`, which reaches FF16's
+two crown-integral call sites — so this is not the one-line change it reads as, and the reformulation
+is the cheaper of the two rather than the more invasive.
 
 Separately at the same knot: `d/dη` of `0^η` is `0^η log 0` = NaN, which bites once `η` is a
 differentiation target. At `z = 0` a cohort contributes its full amplitude with `u = 0` and no
@@ -581,8 +588,16 @@ written once for three models instead of twice for two.
 
 **Gate.** `CanopyShape::Q` and TF24's agree to the last bit at every sampled `(z, h)` **or**
 the difference is recorded as last-bits-only before the switch; one production run
-re-blessed with the shift stated; `grep -c "pow(z / height\|pow(u, pars.eta)" src/tf24_strategy.cpp`
-returns 0; and a seeded-`eta` gradient at the ground knot is finite.
+re-blessed with the shift stated; no canopy `pow` survives in
+`src/tf24_strategy.cpp`; and a seeded-`eta` gradient at the ground knot is finite.
+
+**`TF24_Strategy::Q` stays, and an earlier version of this gate was wrong to ask for its deletion.**
+Its `eta_x` argument exists because `src/tf24_strategy.cpp:423` calls it for the **root mass
+distribution over soil layers** at `pars.root_depth_shape_eta = 0.2`, not for the canopy. So `q`,
+`Qp` and the inlined duplicate go and `Q` remains, with one `pow` that is the root profile's. Giving
+the root distribution its own `CanopyShape` would remove that last copy and is bit-identical by
+inspection — eta 0.2 dispatches to `std::pow` either way — but it is a member for a purpose nothing
+here names, so it is recorded rather than taken.
 
 ---
 
