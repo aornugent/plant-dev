@@ -138,3 +138,100 @@ plant, and a sweep will keep reporting them until someone does.
 - **No deduced return type on anything returning an active value**, verified by the first code
   ever to instantiate these templates at an active scalar, which is stronger than inspection.
 - **The typedef sweep is complete and `xad::` is empty in plant**, on the merged tree.
+
+---
+
+# Addendum: reviewed against reports 00–04
+
+The four findings above came from the build plan and the style guides. Re-reading the reports
+with the merged code in hand adds two, and clears the interpolant.
+
+## 5. The interpolant is faithful to its report, and `ResourceSpline` promises what it cannot yet honour
+
+**Cleared, then reframed.** `hermite_interpolator` matches report 03 §5's specified surface
+exactly — `init`, `eval`, `operator()`, `slope`, `value_and_slope`, `min`, `max`, `size`,
+`knots`, `clear`, and the per-span record `{x0, inv_h, y0, c1, c2, c3}` stored contiguously so a
+query touches one cache line. It is a superset in one respect the report did not ask for: every
+query is templated on its argument type, so it accepts an active position.
+
+But report 03 §5 also claims the surface "mirrors `basic_interpolator` so `ResourceSpline` can
+hold one in place of the other", and that is where the code and the reports meet awkwardly:
+
+    resource_spline.h:114   odelia::interpolator::basic_interpolator<S> spline;
+    resource_spline.h:72    S get_value_at_height(S height) const;
+    resource_spline.h:92    return height <= cap ? std::max(S(0.0), spline(height)) : S(1.0);
+
+`ResourceSpline<S>` **declares an active-height accessor that its own interpolant cannot
+honour** — `basic_interpolator<S>` carries `S` values on a `double` abscissa. At `S = double`
+this is invisible; at an active `S` it is the active build's obstruction F.
+
+**So obstruction F is not a defect to patch — it is the seam the interpolant swap lands on, and
+the hermite was built to that shape.** Both halves exist after this phase and neither is
+connected to the other: the fitted interpolant holds the production knot set and cannot take an
+active position; the Hermite can take one and has no consumer. Report 03 §8 and the plan's P2.1
+and P2.2 own the connection. Worth stating plainly because a reader meeting the mismatch cold
+would reasonably try to fix it in `ResourceSpline`, which is the one place it should not be
+fixed.
+
+The templating went one step further than the interpolant beneath it. That is not wrong — the
+accessor's signature is where the design is heading — but it means `ResourceSpline<S>`'s
+signature is a promise dated for Phase 2, and nothing says so at the site.
+
+## 6. Report 02's leaf input list has drifted, exactly as its own constraint predicted
+
+Report 02 §6.8 enumerates the leaf's parameter inputs as **12**: `vcmax_25`, `jmax_25`, `a`,
+`curv_fact_elec_trans`, `curv_fact_colim`, `b`, `c`, `psi_crit`, `beta2`, `g1_TF24`, plus `rho`
+and `a_bio`.
+
+Read from the merged code, `TF24_Strategy::prepare_strategy` passes **13** `pars.*` arguments
+into `Leaf`'s constructor:
+
+    pars.vcmax_25  pars.c  pars.b  pars.psi_crit  pars.root_c  pars.root_b
+    pars.root_psi_crit  pars.beta2  pars.jmax_25  pars.a
+    pars.curv_fact_elec_trans  pars.curv_fact_colim  pars.g1_TF24
+
+So the report **omits three** — `root_c`, `root_b`, `root_psi_crit` — and **includes two that
+arrive by a different route**: `rho` and `a_bio` are `set_physiology` arguments, per solve, not
+construction-time parameters seeded once per run. That distinction is load-bearing for a supplied
+local Jacobian, which must know which of its inputs are fixed for the run and which move per
+call.
+
+Report 02's C5 predicted this precisely: *"§6.8's input list was assembled by reading
+`set_physiology`'s signature and would silently become incomplete if that signature grew — and
+one entry has already been found dead that way."* It was assembled from `set_physiology`, which
+is exactly why the three constructor-only root parameters are absent. The report is consistent
+about its method; the method was incomplete, and it said so.
+
+This also sharpens the trait-registration finding above. Thirteen registered parameters flatten
+to exactly zero at the leaf boundary, and thirteen `pars.*` arguments cross that boundary — but
+they are **not the same thirteen**. `p_50` and `K_s` are not constructor arguments: `p_50`
+reaches the leaf through the derived `b`, and `K_s` through
+`leaf_specific_conductance_max` on the per-solve path. So the flattening happens by two
+mechanisms, at two different times in a run, and a Jacobian that treats them uniformly will be
+wrong about which are constant.
+
+**Proposed corrections, not taken** — reports are reference and are corrected with a one-line
+note rather than rewritten:
+
+- `reports/02` §6.8: the parameter count is 13 at construction plus the per-solve
+  `set_physiology` arguments; `rho` and `a_bio` belong to the second group, and `root_c`,
+  `root_b`, `root_psi_crit` to the first.
+- `reports/03` §5: the drop-in claim holds for the type's surface but not for the abscissa —
+  `ResourceSpline` cannot hold `basic_interpolator` and accept an active height, which is what
+  the accessor now asks for.
+
+## Cleared against the reports
+
+- **Report 01 §4.1's block boundary** — knot *slopes* are named as block inputs, and nothing in
+  Phase 1 supplies them to a block. Correct: the field carries no slope yet, and report 03 §8's
+  step 1 and P2.2 own that. The Hermite carrying slopes is the primitive, not the wiring.
+- **Report 01 §6.2's `ode_rates_adjoint`** — a new System requirement, Phase 3's. Phase 1 landed
+  its odelia half, `Step<System>::step_adjoint`, which is the stage recursion the report says
+  cannot live in plant because the tableau is private there. Consistent.
+- **Report 04 §7.2's two-pass `Species::compute_rates`** and the `Node` accessors it needs —
+  untouched, correctly, as that is P2.4.
+- **Report 00 §7's "free" rows** — `dθ/dφ`, `dψ_i/dθ_i`, the bidiagonal soil, the write-only flux
+  accumulators. Nothing in Phase 1 closes any of them; the half-templated environment leaves the
+  soil in `double`, which is consistent with those channels being closed-form rather than taped.
+  Whether that is by design or by coincidence is the decision finding 1 and the environment seam
+  both point at.
