@@ -115,9 +115,17 @@ re-blessing needs.**
 | P0.9 alone | `42.263060914614329` | 5 060 | +0.2916% |
 | P0.12 alone | `42.424434588327919` | 5 029 | +0.6746% |
 | P0.8 alone | `42.474057288733817` | 5 077 | +0.7924% |
-| **`p0/phase-0`** | **`42.180107697778624`** | **5 092** | **+0.0948%** |
+| `p0/phase-0`, before the readability pass | `42.180107697778624` | 5 092 | +0.0948% |
+| **`p0/phase-0`** | **`42.383720683840139`** | **5 067** | **+0.5779%** |
 
-Four individually positive shifts summing to about +1.9% compose to +0.0948%. **The reading is not
+A later readability pass moved it again, and by more than most of the fixes did. Collapsing the
+profile's two multiplication chains into one derives `u^eta` as `u^(eta-1) * u`, which rounds
+differently, so the value went from +0.0948% to +0.5779% and the step count from +37 to +12 on a
+change that alters no equation. **That is the clearest evidence in this phase for how little a single
+composite figure means**: an edit made purely for legibility moved offspring six times as far as
+re-seating the leaf's uptake did.
+
+Four individually positive shifts summing to about +1.9% compose to +0.0948% before that pass. **The reading is not
 that biology cancels — it is that most of each individual figure is the adaptive controller
 re-rolling.** Report 01 §2 measures 0.145% in offspring between two builds of one tree from
 arithmetic association alone, so P0.1's +0.138% is *at* that scale, P0.9's is twice it, and the
@@ -130,8 +138,8 @@ not just a pair of runs.
 
 | | develop | `p0/phase-0` | shift |
 |---|---|---|---|
-| FF16 offspring | `56.279389293267506` (214 steps) | `56.281302989371063` (216 steps) | +0.0034% |
-| K93 offspring | `0.0089044234001279098` (108 steps) | `0.0089044267831322674` (108 steps) | +0.000038% |
+| FF16 offspring | `56.279389293267506` (214 steps) | `56.281302991148586` (216 steps) | +0.0034% |
+| K93 offspring | `0.0089044234001279098` (108 steps) | `0.0089044267831302551` (108 steps) | +0.000038% |
 
 So the three `test-strategy-ff16.R` assertions that now fail do so on `testthat`'s default relative
 tolerance of about 1.5e-08 against a movement of 3.4e-05, and on two exact integer step counts — not
@@ -204,8 +212,8 @@ prescribes.
 **Its arithmetic, checked rather than assumed.** `u_eta_m1 = u^(eta−1)`, `u_eta = u_eta_m1·u`, and
 `2·eta·(1 − u^eta)·u^(eta−1)/h` equals `2·eta·(1 − u^eta)·u^eta/z` exactly, since
 `u^eta/z = u^(eta−1)/h`. Gates on the merged tree: **`q(0, h)` finite at 35 of 35** (eta, height)
-pairs, and the `eta = 1` limit is exactly `2/h` at all five heights — `5.8106596551` against
-`2/0.344195`. That constant was recorded as `1/h` in two documents and is wrong; the agent's
+pairs, **bitwise equal to `2/h` at all five heights** at `eta = 1` (`5.810659655137` at
+`height_0`), and exactly zero at every higher exponent. That constant was recorded as `1/h` in two documents and is wrong; the agent's
 arithmetic check found it, not a test, because nothing reads the field's slope yet.
 
 **Below `eta = 1` the density genuinely diverges at the ground.** `0^(eta−1)` is `+inf` for
