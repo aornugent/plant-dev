@@ -268,9 +268,10 @@ this defect. So P0.1 and P0.2 are one fault with two entrances, and P0.1's is th
 driver uses.
 
 The fix is two lines in `set_shutdown_state` — `soil_consumption_.assign(n, 0.0)` and
-`E_up_ = 0.0` — and the AD branch already carries it. Section 4 establishes the blast
-radius: unreachable on the production driver, 199 occurrences in 330 021 solves at a
-twentyfold rainfall reduction.
+`E_up_ = 0.0`. Section 4 establishes the blast radius: unreachable on the production driver, 199
+occurrences in 330 021 solves at a twentyfold rainfall reduction. (**Landed as P0.2**,
+`aornugent/plant#66`; `../tf24-correctness.md` and `../implementation-notes.md` carry it. This report
+describes develop `141dc8df`, where the defect is still present.)
 
 ---
 
@@ -742,6 +743,11 @@ should be a recorded decision rather than an artefact of writing an `if`.
 ---
 
 ## 10. Implementation order
+
+**The live work list is `../build-plan.md` §5–§6; this is the report's own reading, kept as its
+conclusion.** Two of the steps below have since landed on `aornugent/plant#66` as Phase 0: step 3
+(`set_shutdown_state`, as P0.2), and step 5 is moot — report 01 §11.1 found `ode_util.hpp` already
+includes XAD at the `854a8e18` baseline, so no include is owed.
 
 1. **Land the section 4 counters behind an environment-variable gate.** They are cheap,
    they converted a suspected blocker into a measured non-event, and they are the

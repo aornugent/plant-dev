@@ -709,7 +709,7 @@ names, two jobs, and only one of them is on the gradient path.
 | `vector_jacobian_product` | `preaccumulate` (deleted) solved a different problem — it grafted partials back onto an enclosing tape. There is no enclosing tape here, so the graft, its first-order-only property and its return-type `static_assert` are all beside the point | step (b): the cohort block |
 | `OdeElement` | new. Constrains the four recursive helpers so the state-transfer interface stops naming `double` (§11.1) | every container's ODE plumbing |
 | `implicit_value(y*, F)` | AD branch, `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1` |
-| `CanopyShape<S>` | AD branch, `canopy_shape.h`, and develop's own class underneath it | FF16 and K93 today; **TF24 once P0.12 lands**, which is what stops the profile being written twice and hands TF24 the eta-specialised chains it currently forgoes |
+| `CanopyShape<S>` | **P0.12 landed: TF24 is now on develop's `CanopyShape`** (function-pointer chains, a crown-base branch in `q_from_height`, a shared static `eta_c`; `aornugent/plant#66`). The AD branch's enum-kind `CanopyShape<S>` is a second reference, not the file to lift — P1.2b templates the one on the branch and adds the double/active split | FF16, K93 and TF24 today at `double`; P1.2b templates the class and finalises the split |
 | `hermite_interpolator<S>` | AD branch, `hermite_interpolator.hpp`, **plus an active-position read** — it takes `double u` today, and M1 measures the crown integral's height adjoint as exactly zero without one. `Interpolator`'s `eval` / `eval_with_query_derivative` pair is the shape to copy | the light interpolant's evaluation (§2.6), and the crown integral's abscissae (§2.8) |
 | a forward-derivative helper | new, small | `dprofit_droot_collar_psi`, so `src/leaf_model.cpp` stops spelling `xad::fwd` |
 
@@ -801,6 +801,15 @@ Two rules, enforced per task:
    reused stack memory and segfaults arbitrarily far from the cause, and valgrind cannot see it
    because the storage is stack. Declare the scalar return type on every such function and
    lambda, including one-line helpers.
+7. **Two arguments of one type, with unrelated meanings, is a silent-swap hazard — the more so
+   under templating.** `CanopyShape::q(z_over_height, z)` takes two `double`s where the first is a
+   ratio and the second the height to divide by; nothing stops a caller passing them the wrong way,
+   and it compiles. Phase 0 shipped a regression through exactly this — a meaning changed then
+   reverted, leaving one caller mismatched, which sent a model's offspring silently to zero
+   (`implementation-notes.md`). Templating adds an `S` to these signatures, so it is the moment to
+   re-check each call site by meaning rather than by type. Prefer a named struct or distinct types
+   over two like-typed positional arguments where you can; where you cannot, the call sites are a
+   review checklist, not a compiler's problem.
 
 ---
 
@@ -817,7 +826,7 @@ pass is order-dependent.
 | **P0.3** | `soil_moist_from_psi`'s missing `* 1e6`, plus a round-trip test | 1 line + test | round trip to 1e-12 for θ in (θ_r, θ_sat] |
 | **P0.4** | size the resource vector by resource count, not ODE width | small | no `NA_REAL` reaches `resource_depletion` |
 | **P0.5** | **the switch inventory** — every clamp, floor, `min`/`max`, ternary and branch on a computed value on TF24's carbon, water, **demographic and field-reduction** paths, classified, each with a measured incidence | doc + probes | every row has a number. Includes `height_max`'s selector (§2.6) and the operating-point selector (§8) |
-| **P0.6** | the two ecology decisions: leaf respiration counted twice, and `establishment_probability`'s hard gate | owner's call | a recorded decision either way, with a `scientific_version` bump |
+| **P0.6** | two ecology decisions. **The establishment gate is decided — the hard switch stays** (`scripts/establishment_gate.R`: its two arms are on one scale, and develop's `storage_prod_eps` is 6x too large to smooth it). **Leaf respiration counted twice is still the owner's**, narrowed to the photosynthetic-nitrogen component (29.5% of `r_l`) and pending the provenance of `B_lf5` | owner's call on respiration only | the gate's decision recorded; respiration a recorded decision either way, with a `scientific_version` bump |
 | **P0.7** | `q(z, height)` divides by `z`, so `q(0, h)` is NaN for every `h`, and the light interpolant's lowest knot is exactly `z = 0`. The value's NaN; P0.12 is the derivative's, at the same point | small | `q(0, h)` finite for every `h` |
 | **P0.8** | a reduction over the size distribution starts at the boundary node, not at the smallest cohort — three reductions disagree. Family-wide | small + baselines | a one-cohort species draws nonzero water; the light and water reductions integrate the same domain |
 | **P0.9** | `ode_rates` is not the derivative of `ode_state` after an introduction, so `k1` is the pre-introduction rate vector at 141 of 5 055 steps. Family-wide | 1 line + baselines | `ode_rates` after `introduce_new_nodes` equals `ode_rates` after a further `compute_rates()` |
@@ -1065,6 +1074,25 @@ machine's, since two of those three are the same container image.
 operators return expression templates holding references to their operands, so the caller gets
 references to dead temporaries, the reverse sweep reads reused stack memory, and the segfault
 lands arbitrarily far from the cause. Valgrind cannot see it because the storage is stack.
+
+**`CanopyShape` is templated here, and the starting point is not the AD branch's file.** Phase 0
+(P0.12) put TF24 onto **develop's** `CanopyShape` — the function-pointer chain dispatch, plus a branch
+in `q_from_height` for the crown base and a shared static `eta_c(double)` (`aornugent/plant#66`). So
+this task templates the class that is now on the branch, not the enum-kind `CanopyShape<S>` §3's table
+and M2 describe; those measured a different structure and certify only that the profile *can* carry an
+active scalar, not the file to lift. Reconcile at this point — the design is finalised here — and the
+one substantive addition templating forces is the double/active split the chains cannot avoid: **on
+`double`, the multiplication chains (value only); on an active `S`, `std::pow` so the `eta` derivative
+`u^eta · log(u)` is taped, guarded by `to_passive(u) <= 0 -> 0` because `pow`'s derivative there is
+`0 · (−inf)`**. That is the seeded-`eta` half of P0.12's ground-knot guard, deferred to here because
+Phase 0 has no active scalar. `if constexpr` on `std::is_same_v<S, double>`, not a runtime flag (§7).
+
+**Watch the two-argument profile signatures.** `CanopyShape::q(z_over_height, z)` takes two `double`s
+of unrelated meaning, and Phase 0 shipped a regression through exactly this: a change to the second
+argument's meaning, then a revert, left a caller passing the wrong one — it compiled, because both are
+`double`, and sent a model's offspring silently to zero (`implementation-notes.md`). Under templating
+these signatures gain an `S`, so re-check every call site by meaning, not by type. This is the same
+class as the fraction-against-position rule below — a meaning the type system does not hold.
 
 ---
 
@@ -1343,12 +1371,23 @@ lets P3.5 rebuild stage states by re-running the step. It moves the field at the
 magnitude — at most 3.5e-04 in light, at `ResourceSpline`'s fitting tolerance — so it is a forward
 change, and a small one.
 
-*Order.* (1) Add the second evaluation and measure the shift in offspring and in the three census
-metrics. (2) Confirm a third evaluation moves nothing at 1e-6 relative, which is the contraction
-claim as a check rather than an argument.
-*Closes on* the shift recorded and re-blessed with the rest of Phase 2, and on the third-evaluation
-check. The forward benchmark should not move measurably: it is one boundary node against 141
-cohorts.
+*Order.* (1) Add the second evaluation and measure the shift **in the light field at the boundary
+node**, not in offspring. (2) Confirm a third evaluation moves nothing at 1e-6 relative, which is the
+contraction claim as a check rather than an argument.
+*Closes on* the third-evaluation contraction check, and the light-field shift inside the fitting
+tolerance, re-blessed with the rest of Phase 2. The forward benchmark should not move measurably: it
+is one boundary node against 141 cohorts.
+
+**Verify this one in light, not in offspring, and Phase 0 is why.** The predicted effect is at most
+3.5e-04 in light, at `ResourceSpline`'s fitting tolerance — two orders below the 0.145% the adaptive
+controller re-rolls offspring by between two builds of one tree (report 01 §2). Phase 0 measured that
+directly: a pure-readability edit to the canopy profile, changing no equation, moved offspring
+further than re-seating the leaf's uptake did (`implementation-notes.md`). So an offspring or census
+delta cannot attribute this change — it will be swamped by the grid re-roll — and the contraction
+check plus the bounded light-field shift are the real gates. **The general rule this instances: a
+forward-value claim below about 0.15% in offspring needs a mechanism or a quantity measured upstream
+of the controller, not a before/after pair.** The light field at the boundary node is exactly such an
+upstream quantity, which is why it is the right place to look here.
 *What it does not buy* is accuracy — the lagged and converged values differ by less than the
 fitting tolerance (§11.2). It buys the reverse pass a stage that depends on nothing but the state.
 
@@ -1595,6 +1634,28 @@ developer reads §13 and adds a fourth metric without touching tape code.
 as a separate input gives **41–51%** of the answer with the correct sign and nothing thrown, so the
 test asserts the value, not finiteness.
 
+**Two Phase-0 findings land on this task, and both are about a zeroed derivative on the census path.**
+
+*V4's finite-difference reference straddles the establishment gate.* P0.6's gate returns zero at
+non-positive net production, un-smoothed, on 23.1% of boundary-node stage evaluations confined to
+`t` in **[3.22, 8.54]** — the recruitment window (`scripts/establishment_gate.R`, P0.6). A re-run
+finite difference of a census gradient perturbs a trait and re-runs, and in that window the
+perturbation can flip the gate at a step size of ~1e-9, so the reference disagrees with the adjoint
+for a reason that is neither's error. **Choose V4's verification states and step sizes to avoid the
+window, or difference a metric evaluated at `t` outside it.** This is a property of the reference, not
+of the scheme, and it is the one place V4's re-run difference is not the oracle it is elsewhere.
+
+*The `mortality = Inf` cohorts carry a zeroed derivative into the census.* P0.5 counted **327 of
+10 153 records (3.22%)** at survival exactly zero — `exp(-mortality)` underflowed — with `mortality_dt`
+returning an exact `0.0` there, from `t = 7` on. `census` reads `n_k = exp(l_k)`, so these cohorts
+contribute a density and a state whose mortality derivative is zero, and that zero is genuine (the
+cohort is dead) rather than a severance to smooth: the set is not near a threshold. **The proposed
+treatment is to drop a cohort from the reduction once its survival underflows, rather than carry it
+with a zeroed derivative — which is a forward-model decision (it changes the census value at the
+underflow, not only its gradient), so it wants the owner and a re-bless before P3.6's V4, not a quiet
+guard inside the reduction.** Recorded here because P3.6 is where it first bites; the measurement and
+the "drop the node" reading are P0.5's.
+
 ---
 
 ### Phase 4 — after the prize
@@ -1603,7 +1664,7 @@ Separate pushes, sequenced by what each needs.
 
 | | what it is | needs first |
 |---|---|---|
-| **invasion gradients** | omit step (c) (§2.7). `run_mutant` and the replay records it reads are dead on develop and reach a renamed odelia interface, so the first task is to re-diagnose that path rather than resume it (§3) | Phase 3 |
+| **invasion gradients** | omit step (c) (§2.7). `run_mutant` and the replay records it reads are dead on develop and reach a renamed odelia interface, so the first task is to re-diagnose that path rather than resume it (§3). **Inherit P0.9's open edge:** the `compute_rates()` P0.9 added to `introduce_new_nodes` uses `environment_ptr`, which on a mutant run can address a cached environment (`set_ode_state(it, index)`) rather than the live one — harmless while the path is dead, load-bearing the moment it is reconnected (`implementation-notes.md`, P0.9) | Phase 3 |
 | **FF16 and K93** | the templating plus the existing census reduction; retire `ff16_production_kernel.h`; port the `smooth_positive` clamp fix and K93's `k_I` channel; tighten FF16's gradient test, which passes at 1e-2 where the truth is ~1e-6 | Phase 3 |
 | **two species** | two `Leaf` objects, `Species::consumption_rate`'s `size() < 2` per species, and per-species η grouped inside the light reduction. Every incidence number in reports 00 and 07 is single-species | FF16 |
 | **calibration** | `least_squares` reads intermediate trajectory states as active values, which a `double` trajectory breaks without a message. Either the functional declares which steps it reads and contributes a per-step adjoint seed, or calibration stores a second denser trajectory. Record the decision before opening it | Phase 3 |
@@ -1806,8 +1867,10 @@ aux transfer and `step_adjoint` are the same either way.
    parameter or a sixth output kind changes P3.2's shape. Note the output arity is
    state-dependent through `max_soil_layer`, so an assertion must read it rather than the layer
    count.
-5. **Do P0.6's two ecology decisions bump `scientific_version`?** With P2.1 and P2.4 also
-   changing forward numbers, there is a case for taking all four to the owner together.
+5. **Does P0.6's respiration decision bump `scientific_version`?** The establishment gate is
+   already decided (it stays); only the double-counted photosynthetic-nitrogen respiration is open,
+   and it is the owner's. With P2.1 and P2.4 also changing forward numbers, there is a case for
+   taking respiration to the owner in that same conversation.
 
 **Order: M1, M2, M3's accuracy half and M5 are done. M4 remains, and it lands with P2.4 step (1);
 (4) before P3.2; (5) before anything is verified against TF24's numbers.**

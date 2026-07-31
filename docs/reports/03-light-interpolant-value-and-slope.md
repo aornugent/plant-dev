@@ -596,14 +596,19 @@ so the fix is a guard rather than a reformulation.
 from the `eta` derivative: `q(u,z) = 2 eta (1 - u^eta) u^eta / z` divides by `z`, so
 `q(0,0)` is `0/0` — **NaN in plain `double`, with no AD involved**. Measured. Since the
 field's lowest knot is exactly `z = 0` (`construct_spline` sets `lower_bound = 0.0`),
-anything that asks the field for a slope at the ground gets NaN. Writing `q` over
-`u^(eta-1)/H` rather than `u^eta/z` — the two are equal for `z > 0` — is finite there
-and removes a division from the hot path; the `u -> 0` limit is 0 for every `eta > 1`
-and `2/H` at `eta = 1` — `q = 2(1 - u)u/z = 2(1 - u)/H`, so the constant is 2 — resolved
-once in `initialise()` alongside `pow_eta_`. The patch
-is `canopy-shape-fused-q.patch`, and it is worth landing whether or not this proposal
-is accepted: today nothing reads the field's slope, so the defect is latent, and the
-first consumer to want one would meet it.
+anything that asks the field for a slope at the ground gets NaN. The `u -> 0` limit is 0 for every
+`eta > 1` and `2/H` at `eta = 1` — `q = 2(1 - u)u/z = 2(1 - u)/H`, so the constant is 2.
+
+**Landed as P0.7, and as a branch rather than the reformulation this paragraph first proposed**
+(`aornugent/plant#66`; `../tf24-correctness.md`, `../implementation-notes.md`). Rewriting `q` over
+`u^(eta-1)/H` reaches the same finite value and drops a division, but on develop's function-pointer
+chains it needs a *second* chain family to supply `u^(eta-1)`, which moved every model sharing the
+class for no gradient benefit — a chain carries no `eta` term, so it is never the route to a valid
+derivative. A `z <= 0` branch in `q_from_height` taking the limit above fixes the value in the one
+place it arises, on develop's arithmetic untouched. The seeded-`eta` derivative NaN at the same knot
+is a separate matter, handled when `CanopyShape` is templated (build-plan P1.2b). This report
+describes develop `141dc8df`, where the value defect is present and latent — nothing reads the
+field's slope until P2.2.
 
 **C7. The `1e-4` light floor does not bind, and this is now measured.** The clamp in
 `compute_average_light_environment` and `radiation_at` would sever `dL/dz` wherever it bound.
