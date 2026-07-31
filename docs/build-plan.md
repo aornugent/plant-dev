@@ -1008,6 +1008,14 @@ T2 is report 01 §1's central claim reduced to an assertion, and T3 is the preco
 **P1.2a — the state-transfer plumbing, at `S = double`.** Probe-measured (§11.1), so this is a
 known quantity rather than an estimate: **26 uses of the two legacy typedefs across 9 headers.**
 
+**Corrected in Phase 1: 26 is a count of signatures; the textual count is 45**, because most are
+declared in-class and defined out of it, so the gate is zero remaining occurrences rather than a
+count matched. Also landed there: the elements need `value_type` **before** the range helpers may be
+constrained, not merely before the typedefs are deleted — plant is otherwise unbuildable, with 56
+`no type named 'value_type'` errors. And the environment's aux widening, which this plan calls the
+one thing in the phase that is not bit-identical, **moves no assertion at all**: nothing reads the
+environment's aux. See `implementation-notes.md`, Phase 1.
+
 | file | uses | |
 |---|---|---|
 | `patch.h` | 6 | deterministic |
@@ -1126,6 +1134,14 @@ struct ode_step_record { double time; std::vector<double> state; };
 
 std::vector<ode_step_record> SCM<T,E>::store_trajectory();
 ```
+
+**Corrected in Phase 1: the record also carries the step size, as §2.8 already says (`t, h, y`).**
+A time-only record cannot meet this task's own bit-identity gate, and the step size is not
+recoverable from the times — the stepper records `t_i = fl(t_{i-1} + h_i)` and a replay recovers
+`time_max - time`, but `fl(fl(t + h) − t) ≠ h`. Measured: replaying the exact recorded grid moves
+offspring by 0.14%, and one grid time changed by one ulp perturbs 1 051 of 1 137 state components.
+The reverse pass needs `h` regardless, since it rebuilds each step's stage states by re-running the
+step. See `implementation-notes.md`, Phase 1.
 
 A vector of those is the whole store. There is no wrapper type, because there is nothing for one to
 hold besides the vector, and no separate `times`, because a time that lives beside its state cannot

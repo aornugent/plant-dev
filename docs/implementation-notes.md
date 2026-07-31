@@ -549,3 +549,216 @@ threshold a mollifier could smooth.
 introductions** — once per species per stage, sitting beside 35 274 `compute_environment` calls. So
 the boundary node is re-evaluated every stage, which is the same fact P0.11 removes a duplicate leaf
 solve from, and any figure over that denominator is per stage rather than per introduction.
+
+---
+
+# Phase 1
+
+Nothing in Phase 1 computes a gradient. Its product is that the model *can* carry an active
+scalar, that the plumbing no longer names `double`, and that a run's trajectory is stored.
+
+## Ground truth, re-measured at the start of the phase
+
+Reference forward run, plant `7b05b55e`, the pinned build, 0 occurrences of `-O0` in the log:
+
+    offspring 42.176246845059751    5 105 accepted steps
+
+Reproduces the figure the phase is planned against. Re-taken a second time later in an
+isolated worktree, for the reason under *A mid-write `.so`* below.
+
+odelia suite at `854a8e18`, installed and with the package attached: **257 pass, 0 fail, 0
+error, 2 skip.** Both skips are `test-rodas.R`, `deSolve` being absent in this container.
+
+Legacy typedef occurrences in plant: **45**, not the plan's 26 — that is a count of
+signatures, and most are declared in-class and defined out of it.
+
+## The odelia surface
+
+One integration branch off `854a8e18`. Each merge was checked by reading the merged tree for
+every change rather than trusting the auto-merge, then built once and gated.
+
+| tree | pass | fail |
+|---|---|---|
+| `854a8e18` | 257 | 0 |
+| the concept and the range helpers | 264 | 0 |
+| `vector_jacobian_product` | 268 | 0 |
+| `step_adjoint` | 275 | 0 |
+| `implicit_value` and the interpolant | 291 | 0 |
+| the typedef deletion, step sizes, the forward-derivative helper | **320** | **0** |
+
+320 is exactly 264 + 4 + 11 + 27 + 7 + 7, so no packet's tests were lost or double-counted
+across the merges, and nothing that passed before fails.
+
+What each item is gated on, since a suite count says only that nothing broke:
+
+- **`vector_jacobian_product`** against a central finite difference of the same block, and
+  the recording size identical whether one output adjoint is seeded or three.
+- **`step_adjoint`** against a finite difference of one step on the Lorenz system: worst
+  relative disagreement `2.639e-11` at `eps = 1e-4`, degrading to `1.957e-07` at `1e-7` —
+  roundoff dominating, which is the expected signature and the reason the number is quoted
+  with its epsilon. `lambda_out` was deliberately not a unit vector, so the gate fails if the
+  transpose is dropped.
+- **`implicit_value`'s** IFT denominator measured rather than changed: `2.627e-06`,
+  `2.628e-08`, `2.617e-10` at verifying `eps` of `1e-3`, `1e-4`, `1e-5`. Clean `eps²` decay
+  over two decades places the residual in the *verifying* difference, so the node's own error
+  is below `2.6e-10` and the denominator stays. Agrees with report 02 §7.2 by a different
+  route.
+- **The interpolant's `set_nodes`/`set_data` split** reproducing the all-at-once build
+  **bitwise**, including the load-bearing case: a second `set_data` reusing the layout the
+  first wrote. And the active-position read against a difference in the query position,
+  `2.956e-10` on uniform knots and `6.209e-09` on irregular ones, with an explicit assertion
+  that the adjoint is **not** zero — the failure the graft exists to prevent.
+- **`to_passive`** keeps `ode_util.hpp` free of XAD by resolving `value(x)` through
+  argument-dependent lookup, where the earlier branch added the include and gave that gate
+  up. It also recurses, so a nested `FReal<AReal<double>>` strips to `double` where a single
+  `xad::value` stops one layer short.
+- **The forward-derivative helper** empties `grep -r 'xad::' plant/inst plant/src` (exit 1,
+  from five lines), with plant bit-identical and `A_prime`/`C_prime` equal to the
+  hand-written values to the last bit.
+
+## plant's plumbing, at `S = double`
+
+45 occurrences to 0 across the nine headers, `value_type` added to the elements, and the
+missing `#include <plant/individual.h>` added to `node.h`. **Bit-identical at every commit**
+— `42.176246845059751` at 5 105 — verified independently in a detached worktree at each
+commit SHA. Fourteen suites unchanged.
+
+## What the plan did not predict
+
+**Constraining the range helpers breaks plant one step earlier than deleting the typedefs
+does.** The plan records that the typedefs cannot go until plant stops naming them. It does
+not record that adding `requires OdeElement<...>` to the helpers breaks plant on its own,
+with the typedefs still present: `OdeElement` requires `typename E::value_type` and plant's
+elements declared none. **56 occurrences of `no type named 'value_type'`**, in `Node`,
+`Species`, `StochasticNode` and `StochasticSpecies`. So the ordering constraint is that
+`value_type` must land on the elements before the helpers may be constrained. Found by a
+packet's own baseline, which stopped without making an edit and reported the compiler output.
+Two consequences: the concept commit is not independently gateable against plant, and the
+plumbing sweep's bit-identity gate necessarily spans an odelia change too, because no build
+exists in which base plant and the constrained helpers coexist.
+
+**`OdeElement` over-requires, and the plan's own text says so.** It demands `ode_aux` of
+every element; `StochasticSpecies` has none and is never walked by the `ode_aux` helper. The
+plan intends the concept to constrain "the iterator type and nothing else — a missing member
+already reports itself". As written it requires presence. Taken here: `SpeciesBase` gains a
+four-line `ode_aux` in the form of the `ode_state`/`ode_rates` above it, numerically inert,
+with all three stochastic suites unchanged. **Owed:** constrain each helper on the member it
+calls, which would also drop the `value_type` requirement, since each helper already has its
+iterator deduced from the caller. Not taken, because it would put two landed, gated commits
+back in flight for a change with no numerical content. Its tax, stated so it is not
+rediscovered: every future element must implement all four members even if one helper walks
+it.
+
+**The phase's one sanctioned numerical shift moves no assertion.** The plan singles out the
+environment becoming an aux element as the one non-bit-identical item and asks it to state in
+advance which assertions move. Predicted in writing, then measured, and the two agreed on
+every row: `TF24_Environment::aux_size()` is 5, `Patch<TF24,TF24_Env>$ode_aux` widens from
+`11·n` to `11·n + 5` at 0, 1 and 2 nodes, FF16 and K93 unchanged at `3·n` and `2·n`, and
+offspring and steps unmoved. Nothing reads the environment's aux — `grep -rn 'ode_aux'
+tests/testthat/` is empty and no environment declares it in the yml — so nothing was
+regenerated and nothing re-blessed. **So the whole of Phase 1 is bit-identical**, which is
+stronger than planned. The consequence is that the publication landed unguarded, so it now
+carries a test asserting the five slots sum to the soil's own cumulative-uptake accumulator
+(`0.46671037559317002`, equal to 17 digits) and that the deepest layer is **negative** —
+uptake is signed. A width assertion alone would pass over five zeros, which is the defect
+class this work has been removing elsewhere.
+
+**The stage-state rebuild was not bit-identical to the step it rebuilds.** Caught in review,
+not by a gate. `step()` writes each stage as `y + h*(b₁k₁ + b₂k₂ + …)`; the first
+`step_adjoint` accumulated `s += h*bₘkₘ` term by term. Same value to rounding, different in
+the last bits from stage 3 on. Invisible to a finite-difference gate at `2.6e-11`, and it
+matters because the rebuild *is* the linearisation point and a later task will want a reverse
+traversal to reproduce the forward pass exactly. Fixed to `step()`'s own association and gated
+on **bitwise** equality of all six stage states, observed through a System that records the
+state it is handed rather than by editing `step()`. The gate was shown to bite: restoring the
+old arithmetic fails stages 5 and 6. Its limit, reported rather than hidden — stages 3 and 4
+land on the same double at the chosen state, so two of the four non-trivial stages are
+exercised.
+
+**Registering a tape's inputs after `newRecording()` gives silently zero adjoints.** Cost one
+packet its first attempt. `registerInputs` first, then `newRecording()`. Worth recording
+because it is a silent wrong-gradient trap and because a second packet independently used the
+correct order, so two arrived at it from opposite directions.
+
+**A stated gate command can measure the harness rather than the tree.** A bare
+`testthat::test_file()` or `test_dir()` gives the tests no package namespace, so the odelia
+helper's internals are out of scope. Depending on the file this reports spurious errors — 9 of
+them, and 28 at the baseline — or, worse, `FAIL 0 | PASS 0` at **exit status 0**, which is a
+false pass. Three packets hit it independently. The namespace-bearing form is
+`testthat::test_dir(dir, package = "odelia", load_package = "installed")`.
+
+**A mid-write `.so` loads, and returns plausible wrong numbers.** Two concurrent builds in one
+worktree left `src/*.so` half-written, and loading it gave **`offspring 42.366121223872653` at
+5 042 steps** against the true `42.176246845059751` at 5 105 — a shift with the size and
+character of a real result. Hit twice, both times because the orchestrator ran a verification
+build in a worktree where an agent was still active. The plan's rule is one worktree per
+packet; what this adds is that **the orchestrator's own verification needs its own worktree** —
+a detached checkout at the commit SHA. Standing rule: if a number moves unexpectedly,
+`rm -f src/*.o src/*.so`, rebuild clean, and re-measure before believing or reporting it.
+
+## Two items Phase 1 gained, both forced by a gate failing honestly
+
+The trajectory store's gate — the replayed final state bit-identical to the forward run —
+could not be met, for two independent reasons, and the packet stopped rather than weaken it.
+
+**The plan contradicts itself on what a trajectory record is.** P1.4 settles the record as
+`{ double time; std::vector<double> state; }`; §2.8 says the solver records `(t, h, y)`.
+`r_ode_times()` carries `t` alone, and the step size is **not recoverable from it**: the
+stepper advances `time += step_size` and records `t_i = fl(t_{i-1} + h_i)`, while a replay
+recovers `time_max - time`. `fl(fl(t + h) − t)` is not `h` — the addition rounds to `ulp(t)`
+and the subtraction cannot recover the discarded bits. At `t ≈ 100`, `ulp(t) ≈ 1.4e-14`
+against `h ≈ 0.02` whose `ulp(h) ≈ 3.5e-18`. Measured: replaying the **exact** recorded grid
+gives offspring `42.235505201883193` against `42.176246845059751` — 0.14%, the same order and
+the same mechanism as this tree's `-O0`/`-O2` gap; and one interior grid time changed by one
+ulp perturbs **1 051 of 1 137** state components.
+
+Resolved as a design decision: **the record carries the step size, and odelia records it.**
+The decisive reason is not the gate but the consumer — the reverse pass rebuilds each step's
+six stage states by re-running the step, and cannot re-run a step without its size. Having
+just made that rebuild bit-exact, feeding it an `h` wrong in its last bits discards what that
+cost. And "no separate times vector" forbids a *parallel* array that can drift from the
+states; a step size stored beside its own state cannot disagree with it. Landed: the solver
+records `(time reached, size taken)` as one container of pairs, so the length invariant holds
+by construction; the initial time's size is NaN, which the step-size-driven replay *requires*
+as its first element, as the analogue of the existing "first time equals the current time"
+check. **Gated bitwise:** a replay over the recorded step sizes reproduces the adaptive run in
+all components, and the same trajectory through the time-driven replay differs in 3 of 3,
+worst `2.92388e-12`.
+
+**`reset()` leaves the previous run's soil in the environment.** A forward-model defect with
+no AD in it. `Patch::reset()` calls `environment.clear()`, which calls `clear_environment()`,
+which for TF24 is `light_availability.clear();` and never touches `vars.states` — the five
+soil moisture states and the four cumulative-flux accumulators. Measured: after a production
+run, `reset()` leaves `ode_state` bitwise identical to the final state, soil at `3.106059e-01`
+where a fresh run starts at `0.214`, and a second `run()` reports offspring
+`6.6462981636817595e-23` against `42.176246845059751`. **It is reachable:** `refine_schedule()`
+calls `run()` in a loop and `run()` begins with `reset()`, so every refinement iteration after
+the first computes its error signal against a run that started from depleted soil, and the
+schedule is chosen on that. `run_scm`'s default is `refine_schedule = FALSE`, which is why
+nothing measured in this project has exercised it, but it is the documented replacement for
+the former `build_schedule`. TF24-only in effect and family-wide in the code, since
+`FF16_Environment::ode_size()` and K93's are 0 against TF24's 9. It belongs in
+`tf24-correctness.md` as a prerequisite in its own right.
+
+## Owed
+
+- Constrain each range helper on the member it calls, instead of one `OdeElement` requiring
+  all four.
+- `vector_jacobian_product` constructs a tape per call. The caller-owned adjoint buffer exists
+  because the primitive is called of order 3.9 M times; a whole `Tape` per call is a larger
+  allocation than the vector that avoids. Correctness is unaffected and Phase 1 computes no
+  gradient, so this is recorded rather than changed — the first thing to measure when the
+  sweep's cost is taken.
+- `step_adjoint` re-records a `Replayable` System's stages, because it refills `k1..k6` by
+  calling `step()`, which calls `record_stage()`. Compiles away for a non-`Replayable` System,
+  which is the tested path. Live the moment anything on plant's side becomes `Replayable`.
+- `step_adjoint` guards on `has_rebind_from`, a SFINAE detection struct, where the style rules
+  ask for a concept. It reused the existing struct rather than writing a parallel one, which
+  was right inside its allowlist; the struct is owed a conversion now that the codebase is
+  C++20.
+- `recorded_steps()` returns times, and now reads like it returns step sizes.
+- `Solver::step_sizes()` and the step-size-driven replay are C++-only; no R bindings.
+- The `implicit_value` measurement over the eight parameters `height_seed` carries. Not
+  reachable from an odelia packet — the primitive was measured on a scalar equation instead,
+  which establishes that the probe scale is not limiting at that conditioning and not at
+  `height_seed`'s.
