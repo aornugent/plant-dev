@@ -90,6 +90,10 @@ edited to track them.
   `scripts/establishment_gate.R`: its two arms are on one scale, so the sign test separates real
   carbon states and there is nothing to mollify. The measurement also rules out the obvious scale —
   `storage_prod_eps = 1e-4` is six times the open arm's median.
+- **The crown density's ground limit is a branch, not a reformulation.** The rewrite over
+  `u^(eta-1)` reached the same value but needed a second chain family and moved two models this phase
+  was not changing. Chains supply values, not derivatives, so they were never the route to a valid
+  gradient.
 - **P0.6's respiration half is not taken**, and is left with the owner. It needs the
   parameterisation's provenance, which is not in the repository: whether `B_lf5`'s coefficient was
   fitted against a model that already netted out dark respiration. What was added is a narrower
@@ -115,17 +119,26 @@ re-blessing needs.**
 | P0.9 alone | `42.263060914614329` | 5 060 | +0.2916% |
 | P0.12 alone | `42.424434588327919` | 5 029 | +0.6746% |
 | P0.8 alone | `42.474057288733817` | 5 077 | +0.7924% |
-| `p0/phase-0`, before the readability pass | `42.180107697778624` | 5 092 | +0.0948% |
-| **`p0/phase-0`** | **`42.383720683840139`** | **5 067** | **+0.5779%** |
+| `p0/phase-0`, first assembly | `42.180107697778624` | 5 092 | +0.0948% |
+| `p0/phase-0`, with the density rewritten | `42.383720683840139` | 5 067 | +0.5779% |
+| **`p0/phase-0`** | **`42.176246845059751`** | **5 105** | **+0.0856%** |
 
-A later readability pass moved it again, and by more than most of the fixes did. Collapsing the
-profile's two multiplication chains into one derives `u^eta` as `u^(eta-1) * u`, which rounds
-differently, so the value went from +0.0948% to +0.5779% and the step count from +37 to +12 on a
-change that alters no equation. **That is the clearest evidence in this phase for how little a single
-composite figure means**: an edit made purely for legibility moved offspring six times as far as
-re-seating the leaf's uptake did.
+**Three assemblies of the same eight fixes gave +0.0948%, +0.5779% and +0.0856%.** The middle one
+rewrote the crown density over `u^(eta-1)` and derived `u^eta` from it, which rounds differently; the
+last takes the density's ground limit by a branch and leaves develop's arithmetic alone. No equation
+differs between them. **That is the clearest evidence here for how little a composite figure means on
+its own** — rounding choices with no modelling content moved offspring further than re-seating the
+leaf's uptake did, and in both directions.
 
-Four individually positive shifts summing to about +1.9% compose to +0.0948% before that pass. **The reading is not
+**The final assembly is also the smallest change.** `canopy_shape.h` is 17 insertions and 6 deletions
+against develop, against 61 and 57 for the middle one. The rewrite had needed a second family of
+multiplication chains to supply `u^(eta-1)`, and those chains are a value optimisation: a chain
+carries no exponent term, so its derivative with respect to the exponent is structurally absent
+rather than merely imprecise. Chains are what a gradient path routes *around*, so building more of
+them was solving a problem this phase does not have — Phase 0 has no active scalar at all. What the
+density needed was one branch at the crown base.
+
+Four individually positive shifts summing to about +1.9% compose to +0.0856%. **The reading is not
 that biology cancels — it is that most of each individual figure is the adaptive controller
 re-rolling.** Report 01 §2 measures 0.145% in offspring between two builds of one tree from
 arithmetic association alone, so P0.1's +0.138% is *at* that scale, P0.9's is twice it, and the
@@ -138,8 +151,12 @@ not just a pair of runs.
 
 | | develop | `p0/phase-0` | shift |
 |---|---|---|---|
-| FF16 offspring | `56.279389293267506` (214 steps) | `56.281302991148586` (216 steps) | +0.0034% |
-| K93 offspring | `0.0089044234001279098` (108 steps) | `0.0089044267831302551` (108 steps) | +0.000038% |
+| FF16 offspring | `56.279389293267506` (214 steps) | `56.281303050101073` (216 steps) | +0.0034% |
+| K93 offspring | `0.0089044234001279098` (108 steps) | `0.0089044267831322674` (108 steps) | +0.000038% |
+
+**Both move only through the introduction fix now**, because develop's shared canopy arithmetic is
+untouched. Under the middle assembly they also moved through the profile, which was avoidable
+exposure on two models this phase was not meant to change.
 
 So the three `test-strategy-ff16.R` assertions that now fail do so on `testthat`'s default relative
 tolerance of about 1.5e-08 against a movement of 3.4e-05, and on two exact integer step counts — not
@@ -158,6 +175,16 @@ reference files.
 | `test-strategy-ff16-reference-comparison.R` 17 | pass |
 | `test-strategy-ff16.R` | 50 pass, **3 fail in "offspring arrival"**, plus a pandoc error that is environmental |
 | `test-mutant.R` | 2 errors, both the pre-existing "Run a resident first" fixture |
+
+**A two-argument signature of one type is its own hazard, and it bit once.** `CanopyShape::q` takes
+`(z_over_height, z)` — two `double`s whose meanings are unrelated, the second being divided by. The
+density rewrite had changed the second to a reciprocal height; reverting the header left FF16's two
+call sites passing the old meaning, which compiled silently and sent FF16's offspring to exactly
+zero. What caught it was the FF16 whole-lifetime check, which exists only because P0.9 is
+family-wide: all three TF24 gates passed, because TF24 reaches the profile through `q_from_height`
+and never the raw two-argument form. This is the same class as the fraction-against-position
+distinction the design already guards — a meaning the type system cannot hold — and it is now
+measured rather than anticipated.
 
 **No TF24 baseline moved**, despite the composite shift, because `test-strategy-tf24.R`'s assertions
 are single-plant rather than whole-run — which is worth knowing before relying on that file as a

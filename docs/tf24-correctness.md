@@ -42,8 +42,8 @@ Commits are on plant branches off `develop` `141dc8df`, merged into `p0/phase-0`
 | P0.3 | `bb8d4496` | bit-identical |
 | P0.4 | `38214b2b` | bit-identical; four NaNs per call become none |
 | P0.12 | `602d7481`, `b04d4667`, `b83405b1`, `973535ab` | offspring `42.424434588327919`, 5 029 steps (+0.6746%), from a difference bounded by 2 ulp |
-| P0.7 | `4ec45f6f` | `q(0, h)` finite at 35 of 35; FF16 moves +0.0034% at production lifetime |
-| **all eight, `p0/phase-0`** | `e171efb2` | **offspring `42.180107697778624`, 5 092 steps (+0.0948%)** — smaller than any single item's |
+| P0.7 | `1a89087a` | `q(0, h)` finite at 35 of 35, bitwise `2/h` at `eta = 1`, by a branch at the crown base |
+| **all eight, `p0/phase-0`** | `1a89087a` | **offspring `42.176246845059751`, 5 105 steps (+0.0856%)** — smaller than any single item's. FF16 +0.0034%, K93 +0.000038%, both through P0.9 alone |
 
 Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
