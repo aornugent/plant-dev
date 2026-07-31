@@ -93,6 +93,53 @@ edited to track them.
 
 Each entry carries the commit, the gates as run, and the forward shift.
 
+### P0.9 — rates recomputed when nodes are introduced
+
+Branch `p0/introduction-rates`, commit `49b03bb0`. One line — `compute_rates()` after
+`compute_environment(false)` in `Patch::introduce_new_nodes`. `environment_ptr` confirmed to be
+`&environment` there on both branches, set in `reset()` and through `set_initial_state()`, so no
+`scm.h` or odelia change was needed.
+
+**It reproduces the recorded measurement digit for digit**, which is the point of re-taking it:
+
+| max abs \|Δrate\| at an introduction | before, median | before, max | after |
+|---|---|---|---|
+| pre-existing cohorts | 6.661e-09 | **5.884** | **0** |
+| the newborn's own slots | 2.442e-09 | 0.9943 | 0 |
+| environment | 8.314e-06 | 3.101e-03 | 0 |
+| pre-existing, relative | 1.119e-08 | **1.2029e+02** | 0 |
+
+Above 1% relative at **59 of 141**, above 10% at 56, **above 100% at 51** — then 0 of 141 on all
+four measures, so a further recompute changes nothing at 141/141. Offspring
+`42.140173575095666` -> `42.263060914614329` (+0.2916%), 5 055 -> 5 060 steps, both reproducing the
+recorded values. All 141 introduction times remain on the ODE grid. Wall clock 122.37 s -> 119.56 s,
+best of two, the difference negative and inside noise: 141 extra rate evaluations against about
+30 000.
+
+**This is the phase's first intended test failure, and it was left failing.**
+`test-strategy-ff16.R` goes from 0 to 3 failures, all in "offspring arrival" — FF16's offspring,
+its 100th ODE time and its accepted step count all move, because the fix is family-wide:
+
+| | before | after |
+|---|---|---|
+| FF16, one species | 16.88946487 | 16.88950163 |
+| FF16, two species | 11.99529321 / 16.47518975 | 11.99520444 / 16.47498818 |
+| K93, one species | 0.07532605164 | 0.07532614595 |
+
+`test-strategy-ff16-reference-comparison.R` and `test-strategy-k93.R` still pass — their numbers
+moved too, but inside those files' own `1e-4` and `1e-5` tolerances, which is worth knowing: the
+reference comparison is not the tripwire here, the hard-coded assertions in
+`test-strategy-ff16.R` are. Nothing under `tests/testthat/FF16_reference/` was touched and nothing
+was re-blessed.
+
+**One hazard reported rather than changed**, and it belongs to Phase 4 rather than here: in a mutant
+run `environment_ptr` can point into `environment_history` through `set_ode_state(it, index)`, so the
+added `compute_rates()` would build against the last-loaded cached environment rather than
+`environment`. It does not bite now — the mutant path's introductions are followed by
+`set_ode_state(it, index)`, and both mutant tests fail identically before and after — but it is the
+one place where the added line's environment is not `&environment`, and the invasion task reconnects
+exactly that path.
+
 ### P0.8 — the water reduction starts at the boundary node
 
 Branch `p0/boundary-reduction`, commit `f93e72be`, `inst/include/plant/species.h` only.

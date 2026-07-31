@@ -35,6 +35,7 @@ as run, and the shift where numbers moved — is in
 | P0.2 | `399b81ab` | bit-identical, confirming its zero incidence at this driver |
 | P0.1's second read | `6bc1e7b0` | bit-identical |
 | P0.5 | `487fd4f` (plant-dev) | probes and rows only |
+| P0.9 | `49b03bb0` | offspring `42.263060914614329`, 5 060 steps (+0.2916%). Family-wide: moves FF16 and K93, and leaves `test-strategy-ff16.R` failing 3 assertions until the re-bless |
 | P0.8 | `f93e72be` | offspring `42.474057288733817`, 5 077 steps (+0.7924%) |
 | P0.10 | `3b34dcf` (plant-dev) | probe only |
 | P0.11 | `60c0fc27` | bit-identical, one fewer leaf solve per stage per species |
