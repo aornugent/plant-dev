@@ -130,6 +130,22 @@ on a large shift. `test-strategy-ff16-reference-comparison.R` still passes, beca
 tolerance absorbs it, which makes the hard-coded assertions the tripwire here rather than the
 reference files.
 
+**The suites on the merged tree: 1 007 assertions pass, 3 fail, and the 3 are the re-bless.**
+
+| file | result |
+|---|---|
+| `test-strategy-tf24.R` 48, `test-strategy-tf24f.R` 57, `test-strategy-k93.R` 21 | pass |
+| `test-canopy-methods.R` 63, `test-environment-TF24.R` 88, `test-environment.R` 21 | pass |
+| `test-node.R` 74, `test-species.R` 174, `test-patch.R` 145, `test-scm.R` 89 | pass |
+| `test-individual.R` 131, `test-initial-state.R` 27 | pass |
+| `test-strategy-ff16-reference-comparison.R` 17 | pass |
+| `test-strategy-ff16.R` | 50 pass, **3 fail in "offspring arrival"**, plus a pandoc error that is environmental |
+| `test-mutant.R` | 2 errors, both the pre-existing "Run a resident first" fixture |
+
+**No TF24 baseline moved**, despite the composite shift, because `test-strategy-tf24.R`'s assertions
+are single-plant rather than whole-run — which is worth knowing before relying on that file as a
+tripwire for a trajectory change. What is owed at the re-bless is three numbers in one FF16 file.
+
 ## Landed
 
 Each entry carries the commit, the gates as run, and the forward shift.

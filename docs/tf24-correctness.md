@@ -39,6 +39,11 @@ as run, and the shift where numbers moved — is in
 | P0.8 | `f93e72be` | offspring `42.474057288733817`, 5 077 steps (+0.7924%) |
 | P0.10 | `3b34dcf` (plant-dev) | probe only |
 | P0.11 | `60c0fc27` | bit-identical, one fewer leaf solve per stage per species |
+| P0.3 | `bb8d4496` | bit-identical |
+| P0.4 | `38214b2b` | bit-identical; four NaNs per call become none |
+| P0.12 | `602d7481`, `b04d4667`, `b83405b1`, `973535ab` | offspring `42.424434588327919`, 5 029 steps (+0.6746%), from a difference bounded by 2 ulp |
+| P0.7 | `4ec45f6f` | `q(0, h)` finite at 35 of 35; FF16 moves +0.0034% at production lifetime |
+| **all eight, `p0/phase-0`** | `e171efb2` | **offspring `42.180107697778624`, 5 092 steps (+0.0948%)** — smaller than any single item's |
 
 Every item's mechanism, measurement and provenance is in
 [`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
