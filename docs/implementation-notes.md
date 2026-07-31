@@ -89,9 +89,113 @@ edited to track them.
 
 ---
 
+## The whole phase, merged
+
+`p0/phase-0` merges all eight items off `develop` `141dc8df`, with no conflicts — `tf24_strategy.cpp`
+and `ff16_strategy.cpp` auto-merged despite three items touching each, and every change was checked
+present afterwards rather than trusted. Built and gated in one session at the pinned build, 0
+occurrences of `-O0` in the log.
+
+**The composite forward shift is smaller than any single item's, and that is the number the
+re-blessing needs.**
+
+| | offspring production | accepted steps | shift |
+|---|---|---|---|
+| develop `141dc8df` | `42.140173575095666` | 5 055 | — |
+| P0.1 alone | `42.198239148966778` | 5 065 | +0.138% |
+| P0.9 alone | `42.263060914614329` | 5 060 | +0.2916% |
+| P0.12 alone | `42.424434588327919` | 5 029 | +0.6746% |
+| P0.8 alone | `42.474057288733817` | 5 077 | +0.7924% |
+| **`p0/phase-0`** | **`42.180107697778624`** | **5 092** | **+0.0948%** |
+
+Four individually positive shifts summing to about +1.9% compose to +0.0948%. **The reading is not
+that biology cancels — it is that most of each individual figure is the adaptive controller
+re-rolling.** Report 01 §2 measures 0.145% in offspring between two builds of one tree from
+arithmetic association alone, so P0.1's +0.138% is *at* that scale, P0.9's is twice it, and the
+composite is *below* it. What is robust is the composite and the step count; a per-item figure is
+attributable only in the weaker sense that it was taken before and after in one worktree at one set
+of flags. Any future item whose claimed effect is under about 0.15% in offspring needs a mechanism,
+not just a pair of runs.
+
+**The family-wide exposure is small.** At production lifetime, one species:
+
+| | develop | `p0/phase-0` | shift |
+|---|---|---|---|
+| FF16 offspring | `56.279389293267506` (214 steps) | `56.281302989371063` (216 steps) | +0.0034% |
+| K93 offspring | `0.0089044234001279098` (108 steps) | `0.0089044267831322674` (108 steps) | +0.000038% |
+
+So the three `test-strategy-ff16.R` assertions that now fail do so on `testthat`'s default relative
+tolerance of about 1.5e-08 against a movement of 3.4e-05, and on two exact integer step counts — not
+on a large shift. `test-strategy-ff16-reference-comparison.R` still passes, because its own `1e-04`
+tolerance absorbs it, which makes the hard-coded assertions the tripwire here rather than the
+reference files.
+
 ## Landed
 
 Each entry carries the commit, the gates as run, and the forward shift.
+
+### P0.12, P0.7 — TF24 on `CanopyShape`, and the density at the crown base
+
+Branch `p0/canopy-shape`, five commits: `602d7481` (the member), `b04d4667` (the switch),
+`b83405b1` (delete the duplicates), `973535ab` (one `eta_c`), `4ec45f6f` (P0.7's reformulation).
+
+| | offspring production | accepted steps |
+|---|---|---|
+| develop `141dc8df` | `42.140173575095666` | 5 055 |
+| the member added, nothing switched | `42.140173575095666` | 5 055 |
+| switched to `CanopyShape` | `42.424434588327919` | 5 029 |
+| duplicates deleted, `eta_c` shared | `42.424434588327919` | 5 029 |
+
+**+0.6746% in offspring and −26 steps**, from a difference that is last-bits-only. Measured before
+the switch over a production census of 15 087 (knot z, cohort height) pairs: at TF24's default
+`eta = 12`, 1 144 pairs differ and **every difference is bounded by 4.440892e-16** — 2 ulp of 1.0.
+`eta = 1` is exact, `eta = 2` differs at 6 pairs by 1 ulp, and the non-specialised etas are
+bit-identical because both sides call `std::pow`. So the forward movement is the adaptive controller
+amplifying 2 ulp into a different accepted grid, which is the mechanism report 01 §2 measures at
+0.145%; this is 4.6x that.
+
+**The speed claim was measured paired, which is the only way it could be.** Two builds cannot be
+timed in one R process, so both `.so` files were kept and alternated A/B/A/B in one shell session
+with sources untouched: **119.09 s against 112.05 s, 5.9% faster**, or 5.4% per step against the 26
+fewer steps. Above the ~3% noise band only because the comparison is paired — the same worktree
+showed 9% drift between sessions on a build that changes no hot-path arithmetic.
+
+**`TF24_Strategy::Q` stays, and the gate asking for its deletion was wrong.** Its `eta_x` argument
+exists because `src/tf24_strategy.cpp:423` calls it for the root mass distribution at
+`root_depth_shape_eta = 0.2`. So `q`, `Qp` and the inlined duplicate go, `Q` remains with one `pow`
+that is the root profile's, and no canopy `pow` survives. Giving the root distribution its own
+`CanopyShape` would remove the last copy and is bit-identical by inspection — 0.2 dispatches to
+`std::pow` either way — but it is a member for a purpose nothing specified, so it was raised rather
+than taken.
+
+**P0.7 was stopped on a real contradiction and then resolved.** `CanopyShape::q` took `(u, z)`, and
+at the ground both are zero, so `h = z/u` is `0/0` and unrecoverable — meaning any treatment, guard or
+reformulation, must change the signature and reach FF16's two call sites. The reformulation also moves
+FF16's last bits, which that task was told not to do. Both readings were reported rather than one
+being chosen: the right call, since the constraint had already been spent by P0.9 landing
+family-wide, which the task could not know. Reading A was then directed, being what the plan
+prescribes.
+
+**Its arithmetic, checked rather than assumed.** `u_eta_m1 = u^(eta−1)`, `u_eta = u_eta_m1·u`, and
+`2·eta·(1 − u^eta)·u^(eta−1)/h` equals `2·eta·(1 − u^eta)·u^eta/z` exactly, since
+`u^eta/z = u^(eta−1)/h`. Gates on the merged tree: **`q(0, h)` finite at 35 of 35** (eta, height)
+pairs, and the `eta = 1` limit is exactly `2/h` at all five heights — `5.8106596551` against
+`2/0.344195`. That constant was recorded as `1/h` in two documents and is wrong; the agent's
+arithmetic check found it, not a test, because nothing reads the field's slope yet.
+
+**Below `eta = 1` the density genuinely diverges at the ground.** `0^(eta−1)` is `+inf` for
+`eta < 1`, so the reformulation replaces a NaN with an infinity and is right to. Not reachable for the
+canopy, where both models using it run `eta = 12`.
+
+**The `q = −dQ/dz` identity survives the reformulation**, which was the gate that mattered most,
+because that identity is what makes a later slope reduction free. Worst relative agreement by
+position at `eta = 12`: **4.3e-12 at `u = 0.7`, 5.6e-11 at `u = 0.9`, 2.6e-08 at `u = 0.45`** —
+and 6.4e-05 at `u = 0.2`, which is the **reference's** floor and not `q`'s. Two measurements
+establish that rather than asserting it: halving `eps` makes the residual *worse*, by 6x to 20x,
+which is roundoff's signature and the opposite of truncation's; and the worst point is where `Q` is
+**flattest**, `Q ≈ 1 − 8e-09` at `u = 0.2` under `eta = 12`, so differencing two `Q` values near 1
+loses almost every digit while `q` returns `8.94e-08` correctly. An earlier reading of this residual
+attributed it to curvature near the crown top; that was wrong in both mechanism and location.
 
 ### P0.3, P0.4 — the retention inverse, and sizing by resource count
 
