@@ -190,6 +190,15 @@ the packet's entire mechanism was absent from the tree being built against.
 
 ## 6. Work economy
 
+- **Identify the tree by SHA, and check whether the evidence already covers it, before building
+  anything.** A commit whose parent is the branch tip you were going to apply it to *is* that tree
+  plus that commit, so the gate output recorded against its SHA is this tree's gate output. Phase 1
+  re-ran a build and two lifetime runs to reproduce numbers `implementation-notes.md` already
+  attributed to the exact commit being moved. The recorded number and the SHA travel together for
+  precisely this reason — so read the record first and re-measure only what it does not cover.
+- **Write the change in full, review it, and build once at the end as verification.** Not a build
+  per commit and not a gate per step: a rebuild is the most expensive instrument available and it
+  answers a question that static reading usually answers better (§3).
 - **For a compile-only question, compile one translation unit with `-fsyntax-only`.** Measured: **10
   invocations at about 2.9 s each, 30 s of compiler time**, against roughly 13 minutes for a clean
   `compile_dll` of 24 translation units plus 2 minutes for a reference run. The same census by
