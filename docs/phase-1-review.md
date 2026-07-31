@@ -235,3 +235,83 @@ note rather than rewritten:
   soil in `double`, which is consistent with those channels being closed-form rather than taped.
   Whether that is by design or by coincidence is the decision finding 1 and the environment seam
   both point at.
+
+---
+
+# Addendum: the replay grid, and the two callers of `run()`
+
+## The step-size record fixes a defect that is latent in odelia and live in plant
+
+The trajectory record carries `(t, h, y)` because `h` is not recoverable from the times:
+`fl(fl(t + h) − t) ≠ h`. That is settled by `build-plan.md` §2.8, whose control flow records and
+consumes `(t, h, y)` per accepted step. §2.9's prose says "the ODE step times" and its storage table
+lists only state, which is the looser statement, and it is the one both earlier trajectory-store
+packets were written from.
+
+Attempting to make odelia's *own* gradient driver replay over step sizes was reverted, and the
+measurement is why: **no gradient reachable from R in odelia moves at all.** The only
+recorded-replay gradient is the canopy one at `t ∈ [0, 2]` over 10 steps, where `ulp(t) ≈ 2e-16`
+against `h ≈ 0.2` — the bits a time-driven replay discards fall below the last bit of the state.
+The effect needs `t ≫ h`: at `t ≈ 100`, `ulp(t) ≈ 1.4e-14` against `h ≈ 0.02`, which is where
+`test-step-record.R` measures 3 of 3 components differing by up to `2.92388e-12`. So the defect is
+**latent in odelia and live in plant's `t ≈ 105` run**, and plant reaches the fix through
+`advance_fixed_steps` directly, without `run()` being touched.
+
+Every gradient and every AD-versus-FD residual was measured three ways — under the change, under
+the revert, and on a clean reinstall of the base — and was bit-identical every time. The code is
+byte-identical to base; what landed is the documentation of the finding and two test assertions.
+
+## `Solver::run()` serves two operations through one door
+
+Found by trying to change it. Both callers reach `run()` through `set_schedule()`, and the vector
+alone does not say which was meant:
+
+- **Replay a recorded adaptive trajectory** — `src/canopy_interface.cpp` records an adaptive pass
+  on a double solver and hands its own recording to the active twin. `jacobian_on_double`'s comment
+  says so at the call: *"hand the recorded L1 schedule to the active twin"*.
+- **Differentiate a solve over a caller-supplied time grid** — `Solver_gradient_final_state`,
+  `Solver_jacobian_final_state` and `Solver_value_and_gradient` in `src/lorenz_interface.cpp`,
+  through `gradient_on_double` / `jacobian_on_double` / `Solver_value_and_gradient_impl` in
+  `inst/include/odelia/solver_interface.hpp`. In `test-ad-jacobian.R` and `test-ad-functional.R`
+  that grid is `seq(0, 1, length.out = 11)`, with the finite-difference oracle beside it being
+  `solver$advance_fixed(times)` in R. **The grid is the specification; there is no recording, and
+  nothing for a step size to be more faithful to.**
+
+Making `run()` step by sizes unconditionally therefore broke nine tests of a working feature with
+`First element in 'step_sizes' must be NaN`. The alternative offered was to branch on
+`std::isnan(front())` — sniffing the data to guess which operation the caller meant. Neither is
+right, and the packet stopped rather than choose.
+
+**Owed: two explicit entry points**, so a recording and a specification are distinguished by the
+caller rather than by inspection of the vector. Recorded in `AUTODIFF.md`, not implemented.
+
+Also owed, and smaller: `AUTODIFF.md`'s pre-existing line *"`recorded_steps()` is the single source
+of the replay grid"* is true of the recorded-replay operation and reads as though it covered the
+caller-supplied grid, which arrives from R and never passes through `recorded_steps()`.
+
+## These three entry points are not a superseded stub, and the history says so plainly
+
+Worth settling, because "early AD stubs we are superseding" is the natural reading and it is wrong.
+`Solver_gradient_final_state`, `Solver_jacobian_final_state` and `Solver_value_and_gradient` were
+introduced in **the same commit** as `compute_jacobian`, `compute_gradient`,
+`DifferentiationTargets`, `gradient_on_double` and `jacobian_on_double` — `dac5077`, 2026-07-10.
+They were born together as one deliberate three-tier layering, and that commit is itself the
+*retirement* of the spike:
+
+> Replace the spike's hard-coded sum-of-squares gradient with the generic reverse-mode AD driver.
+> … Retires the orphaned duplicate `Solver_*_impl` block from `ode_interface.cpp`.
+
+So the early stub — a hard-coded sum-of-squares gradient and a duplicated `Solver_*_impl` block —
+was already removed by the commit that created these. The layering it left has a job per tier:
+`compute_jacobian` delegates record-once/row-sweep to vendored XAD; `gradient_on_double` /
+`jacobian_on_double` lift the active twin via `rebind_from` and hand it the schedule; and the three
+`Solver_*` entry points keep the twin invisible — *"built internally per call, and never seen by R
+— no `active` flag, no active XPtr."*
+
+`Solver_value_and_gradient` also has a purpose the others do not: it is the **calibration** entry,
+sharing one tape between an optimiser's `fn` and `gr`, where an arbitrary functional goes through
+the other two.
+
+**Consequence for the owed work:** it is not a deletion. The distinction to make explicit is at
+`set_schedule()`, and `LeafSolver_value_and_gradient` in the leaf example uses the same path, so it
+is not confined to Lorenz.
