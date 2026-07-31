@@ -377,6 +377,13 @@ there and removes a division from the hot path. The `u → 0` limit is 0 for eve
 **`2/h`** at `η = 1`: `q = 2(1 − u)u/z = 2(1 − u)/h`, so the constant is 2 and not the `1/h` an
 earlier version of this row recorded. Resolved once alongside the other `η` precomputation.
 
+**Below `η = 1` the density genuinely diverges at the ground, and no formulation changes that.**
+The limit is `0^(η−1)`, which is `+inf` for `η < 1`, so `q(0, h)` is unbounded there rather than
+merely awkward — the reformulation replaces a NaN with an infinity and is right to. Not reachable for
+the canopy, where TF24 and FF16 both run `η = 12`; the one sub-unit exponent in the model,
+`root_depth_shape_eta = 0.2`, drives the root profile through `TF24_Strategy::Q` and never asks for a
+density.
+
 **The fix cannot be a bare guard, because `q` is not handed the height.** `CanopyShape::q` takes
 `(u, z)`, and at the ground both are zero, so `h = z/u` is itself `0/0` and unrecoverable. Any
 treatment therefore changes the signature to carry `height` or `height_inverse`, which reaches FF16's
