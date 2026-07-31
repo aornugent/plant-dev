@@ -1107,8 +1107,39 @@ above is its gate.
 
 ### Still owed at the close of this phase
 
-- **The trajectory store is not in the merged tree.** Its two prerequisites now exist — the
-  recorded step sizes and the soil-state restore — and it is being rebuilt against them with the
-  step size in the record. Until its bit-identity gate passes, the store is the one Phase 1
-  deliverable outstanding.
-- The submodule pointers here move again when it lands.
+**The trajectory store is the one Phase 1 deliverable outstanding**, and it is not in the merged
+tree. Its two prerequisites now exist — the recorded step sizes and the soil-state restore — so
+what remains is to write the store against them and pass its gate. The design is settled and
+recorded above: the record carries the step size, and the replay is driven by the recorded step
+sizes rather than by differencing times.
+
+Whoever picks it up should branch from **`p1/phase-1`** (`1204d332`) and install odelia from
+**`p1/odelia-integration`** (`e10ab19`). Two environment errors cost the first two attempts and
+are worth not repeating:
+
+- **`p1/env-reset` is the wrong base**, even though it carries the soil fix, because it is
+  branched from before the plumbing sweep and so still names `odelia::ode::const_iterator` in 45
+  places — which the merged odelia deletes. 68 compile errors, all of that one shape.
+  `p1/phase-1` carries both prerequisites.
+- **An install can silently not take.** A library was found carrying an odelia with **zero**
+  step-size accessors while its source worktree had 34, so the packet's whole mechanism was
+  absent from the tree being built against. Verify an install by grepping the *installed* header
+  for the symbol you need, not by reading the install log.
+
+### A base paired with the wrong odelia bit three times in this phase
+
+Worth stating as a class, because it is the same mistake in three costumes and every instance was
+the orchestrator's:
+
+1. A plant worktree at `7b05b55e` paired with an odelia carrying the constrained range helpers —
+   56 `no type named 'value_type'` errors, because plant's elements had none yet.
+2. The plumbing sweep's own baseline, which had to be taken against the pre-concept site odelia
+   because no build exists in which base plant and the constrained helpers coexist.
+3. A plant branch predating the plumbing sweep paired with an odelia that had deleted the legacy
+   typedefs — the 68 errors above.
+
+**The check that would have caught all three takes seconds:** before sending a packet, confirm
+that its plant base and its odelia actually compile together, or state explicitly which
+incompatibility the packet is expected to hit and why that is acceptable. A packet's environment
+is part of its specification, and an unbuildable pairing spends an agent's whole first cycle
+before anything begins.
