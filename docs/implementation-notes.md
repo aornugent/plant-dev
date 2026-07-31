@@ -762,3 +762,85 @@ the former `build_schedule`. TF24-only in effect and family-wide in the code, si
   reachable from an odelia packet — the primitive was measured on a scalar equation instead,
   which establishes that the probe scale is not limiting at that conditioning and not at
   `height_seed`'s.
+
+## TF24 templated
+
+Five code commits plus the documentation commit, on the plumbing branch. **Bit-identical at
+every commit** — `offspring 42.176246845059751` at 5 105 — and re-verified independently at
+the branch tip in a detached worktree, 0 occurrences of `-O0`. Fifteen suites unchanged,
+including the family tripwire: `test-strategy-ff16.R`'s three "offspring arrival" failures and
+its `pandoc_available()` error identical **character for character** before and after, not
+merely equal in count. FF16 and K93 whole-lifetime runs unchanged.
+
+`Control`, `ExtrinsicDrivers` and `Leaf` stay `double` by design. `src/tf24_strategy.cpp` and
+`src/tf24f_strategy.cpp` are deleted, their definitions moving into the headers as template
+definitions; no dead files.
+
+**The `pow` split landed at both sites.** On `double` the multiplication chains; on an active
+`S`, `std::pow` under `if constexpr`, guarded by `to_passive(u) <= 0` because the `eta`
+derivative `u^eta · log(u)` is `0 · (−inf)` there. Both the canopy profile and
+`TF24_Strategy::Q`'s root-mass distribution, the latter being the site the crown-base branch
+does not reach.
+
+### The commit order the plan specifies is not buildable
+
+The plan puts the RcppR6 yml and its regeneration in a commit of their own, after the
+templating. That cannot work: once a class is a template, `plant::Internals` as a type name is
+ill-formed, so the generated `RcppR6.cpp`/`RcppExports.cpp` stop compiling in the **same**
+commit that templates it. A `= double` default does not rescue it — a default makes
+`Internals<>` legal, not `Internals`. So the yml edits and regeneration land in the commits that
+require them, and the task is five code commits rather than six. Buildability wins, because
+"bit-identical before the next" means nothing if a commit does not build. Regeneration was
+verified a no-op both at the baseline and on the committed tree (`RcppR6 up to date`, clean
+`git status`), which is what says the generated files match the yml rather than having been
+hand-edited.
+
+### `plant::Environment` is half-templated, and that is the seam
+
+`TF24_Environment<S>` derives from the untemplated `Environment`, whose `Internals<double> vars`
+**is** the soil water state. So the light profile carries `S` while the entire soil water
+balance — `compute_rates`, `soil_K_from_soil_theta`, `psi_from_soil_moist`,
+`soil_moist_from_psi` — stays `double`. At `S = double` this is bit-identical and invisible; at
+an active `S` the soil side carries no derivative. Not widened here, because templating
+`Environment` reaches FF16's and K93's environments too. **A decision is owed before anything
+differentiates through the soil.** Note that report 00 §7 classifies the soil channels as free
+or closed-form — `dθ/dφ` because moisture is ODE state, `dψ_i/dθ_i` because it is analytic — so
+the seam may be intended rather than accidental; that reconciliation has not been done and
+should not be assumed.
+
+### Two more `pow` sites carry the same latent NaN derivative, unguarded
+
+Found by reading, not by a gate, and deliberately left alone since the task was told to guard
+exactly two:
+
+- **`CanopyShape::Qp`** — `std::pow(1 − sqrt(x), eta_inverse_)`, whose `eta_inverse_`
+  derivative is `0^k · log 0` at `x = 1`. FF16-only.
+- **The three TF24 soil curves**, exponents `n_psi` and `2·n_psi + 3`, bases reaching 0.
+  Unreachable while the environment seam above stands.
+
+**Neither `eta` (through `Qp`) nor `n_psi` may be registered as a differentiation target until
+it has the guard** — the same argument that put the guard on `Q` here. A NaN of this shape makes
+exactly one trait's gradient NaN while every other stays finite and plausible.
+
+### A grep found three lambdas that would have silently passivated an active value
+
+`resource_spline.h:41` had no return type at all, and three lambdas in `tf24_strategy.h` and
+`tf24_environment.h` were declared `-> double`, which at an active `S` would have converted the
+value to a passive one and dropped its derivative — silently, with no compile error and no
+number moving. **This is the finding that most justifies the static review**, because no
+bit-identity gate at `S = double` could ever see it. All now declare `-> S`.
+
+One deduced lambda remains, `optimise_at` in `tf24_strategy.h`, which returns `void` — its body
+sets physiology and solves, with no `return`. Not a violation, since it returns no value; worth
+`-> void` the next time the file is opened, because a future editor adding a `return` there
+creates the hazard.
+
+### Style sweep: every hit is a pre-existing line the diff moved
+
+Fourteen issue tags and a banner appear as additions because commit 2 deletes an 825-line
+source file and moves its definitions into the header. The arithmetic closes exactly: **7 in
+the base header plus 8 in the base source equals 15 in the tip header.** None is new. And
+`grep -rn 'xad::'` returns five lines in `src/leaf_model.cpp` on this branch, which is branch
+topology rather than a regression — the forward-derivative helper that empties it lives on a
+sibling branch, and no commit here touches that file. **The grep must be re-checked on the
+merged plant tree**, where both are present.
