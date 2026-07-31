@@ -54,6 +54,46 @@ time:
    before the first edit, and stop if it does not reproduce. Every later figure is then same-tree,
    same-session.
 
+## 2b. Cost the gate, and do not gate what the gate cannot see
+
+A gate has a price, and the packet is where it is decided. Two rules, both learned by paying.
+
+**Write the whole change, review it statically and adversarially, then build once.** Phase 1
+templated TF24 as six commits, each gated on a full clean rebuild and a production reference
+run — about twelve minutes each, most of the packet's wall clock. All six passed identically,
+and **not one of the change's real defects would have been visible to any of them.** Templating
+at `S = double` is expected to generate identical object code, so a bit-identity gate at
+`S = double` is nearly blind to the hazards that actually matter: a deduced return type, a
+swapped like-typed argument, a missing `pow` guard. None of those moves a number until an
+active scalar reaches them.
+
+What did find things was reading. A grep for deduced return types found **three lambdas
+declared `-> double` that would have silently converted an active value to a passive one**; the
+`q(z_over_height, z)` audit by *meaning* cleared five call sites the type system cannot check;
+and reading the class hierarchy found a half-templated environment. A build found none of it.
+
+So: baseline once, write the change in full, review it, build once at the end as verification,
+and put the real check in the active build. Keep commits as a structure for **reading** — one
+idea each, so a reviewer can follow — not as a schedule of gates.
+
+**Reserve per-step numerical gates for steps that can actually move a number.** An arithmetic
+change earns one. A type-level refactor whose whole claim is "identical object code" does not;
+one gate at the end tests that claim exactly as well. If a late gate fails and you cannot
+localise it, *then* bisect — that costs the builds you skipped, and only in the case where
+something really did move.
+
+**Bound the cost of every gate before sending it, and say the bound.** Phase 1 shipped a packet
+asking for `refine_schedule = TRUE` before and after, without noticing that
+`control.schedule_nsteps = 20` makes that up to twenty production runs each — an hour-plus gate,
+where `schedule_nsteps = 2` exercises the same defect *better*, because the fault appears on the
+second run and two steps attribute it to one contaminated run instead of nineteen compounding
+ones. Cheaper and sharper were the same choice.
+
+**An expensive gate also makes an agent unreachable.** A queued correction only lands at the
+agent's next tool round, so an agent blocked inside a one-hour call cannot be told to stop. The
+remedy is to bound the cost when writing the packet; failing that, kill the process by PID,
+which returns the call and delivers the message.
+
 ## 3. Sequence and fan-out, decided by dependency
 
 Fan out what is independent; sequence what is not. Phase 0's twelve items were independent and ran
