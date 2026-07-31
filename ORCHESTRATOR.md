@@ -94,6 +94,28 @@ agent's next tool round, so an agent blocked inside a one-hour call cannot be to
 remedy is to bound the cost when writing the packet; failing that, kill the process by PID,
 which returns the call and delivers the message.
 
+**For a compile-only question, compile one translation unit with `-fsyntax-only`.** Measured:
+**10 invocations at about 2.9 s each, 30 s of compiler time**, against roughly 13 minutes for a
+clean `compile_dll` of 24 translation units plus 2 minutes for a reference run. The same census
+by package rebuild would have been over two hours. Two things make it work:
+
+- **`-fmax-errors=200` is the whole trick.** The default cut off after one group of errors and
+  hid four others; raising it turned twenty visible errors into the full 41 and is what made the
+  census meaningful rather than misleading.
+- **`pgrep -f <pattern>` matches the shell running it**, so it reports a live build forever —
+  the same family as the `pkill -f` hazard. Poll `kill -0 <pid>` on the PID.
+
+**Background processes are frozen between tool calls in this container.** `nohup … &` plus
+polling across calls makes no progress — a five-minute job showed 71 s of CPU after 40 minutes
+of wall clock. Long work must run in the foreground with an explicit timeout, or inside a single
+call that waits for it.
+
+**Do not tell an agent which obstruction will be largest unless it is measured.** Phase 1's
+active-build packet was told to expect the untemplated environment to be its biggest problem. It
+was not: the environment is one funnel, and the largest group was `std::`-qualified math on an
+active argument, which has nothing to do with it. An architect's guess, stated as an
+expectation, is a bias the agent then has to spend evidence to overturn.
+
 ## 3. Sequence and fan-out, decided by dependency
 
 Fan out what is independent; sequence what is not. Phase 0's twelve items were independent and ran

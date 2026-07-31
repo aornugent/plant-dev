@@ -901,3 +901,94 @@ touched and nothing regenerated.
 **Not independently re-verified by the orchestrator.** Two inline accessors and a test cannot
 move a number, and the composite figure on the merged plant tree covers this transitively and
 more strongly. Stated rather than implied.
+
+## The active build
+
+**The class bodies instantiate; the member bodies do not.** This is the packet's product, and a
+long list is the finding rather than a failure — the alternative was for the next phase to meet
+all of it at once.
+
+    static_assert(sizeof(plant::TF24_Strategy<active_scalar>) > 0);   // clean, no diagnostics
+    static_assert(sizeof(plant::TF24_Environment<active_scalar>) > 0);
+    static_assert(sizeof(plant::CanopyShape<active_scalar>) > 0);
+
+**41 errors at 33 distinct sites, in six groups.** The reference run stays
+`42.176246845059751` at 5 105, and `plant.so` is byte-for-byte the same size across the builds
+either side of the one change made.
+
+**A — `std::`-qualified math on an active argument: 12 sites, and this is the largest
+obstruction.** `std::pow/max/min/sqrt/exp` are constrained to arithmetic types; XAD's overloads
+are found only by argument-dependent lookup. Sites include `TF24_Pars`' own default member
+initialisers (`b`, `psi_crit`, `root_psi_crit`), the light floor's `std::max`, the storage
+block's `std::min`/`std::exp`/`std::sqrt`, and `CanopyShape`'s two `std::pow` calls.
+
+**I predicted the environment seam would be the largest obstruction and I was wrong.** It is one
+funnel, not a diffuse problem: `Internals<S>` keeps `consumption_rates` and
+`set_consumption_rate(int, double)` deliberately `double`, so the single place `S` must be
+dropped is the plant's water draw, and everything downstream of it —
+`compute_rates`, `soil_K_from_soil_theta`, `psi_from_soil_moist`, `soil_moist_from_psi` — never
+sees an active value and never errored. `Internals<S>`'s `states`, `rates`, `auxs` and
+`set_aux()` instantiate without complaint.
+
+**B — the `double` state and aux boundary: 12 sites.** The consumption-rate funnel above, the
+DeepCrown branch's `std::vector<double>` accumulators, and `util::is_finite(double)`.
+
+**C — `quadrature::QK` is not templated: 3 sites.** `integrate` takes `double` limits and
+returns `double`; the integrand is already generic, the limits and the result are not.
+
+**D — `util::uniroot` refuses `height_seed()`'s active brackets: 1 site, and this is the design
+working.** The residual lambda is declared `-> S`, so the bracket's derivative cannot leak out
+and the call simply refuses rather than silently collapsing. Left exactly as it is.
+
+**E — the `Leaf` boundary is precisely where the design says, and it is cleanly enumerable.**
+Two shapes only: the traits going in (the constructor, where 13 of 19 arguments are now active,
+and `set_physiology`) and the outputs coming back (`leaf.profit_`, `transpiration_`, `E_up_`,
+`opt_psi_stem_`, `root_collar_psi_`, `stom_cond_CO2_`, `assim_colimited_`,
+`soil_consumption_[a]`). A supplied local Jacobian across that interface looks tractable.
+
+**`Control` and `ExtrinsicDrivers` produced no errors at all**, which is worth knowing: a
+`double` promotes into an expression template freely, so the boundary only bites where a
+`double` must be *written* or a `double` parameter *matched*. That is a sharper rule than "these
+stay double".
+
+**F — a real inconsistency introduced when the profile was templated.**
+`basic_interpolator<S>` carries `S` *values* on a `double` *abscissa* — `eval(double)`,
+`operator()(double)` — and `TF24_Environment::compute_environment` is consistent with that, its
+lambda being `[&](double height) -> S`. But `ResourceSpline<S>::get_value_at_height` is declared
+to take `S height`, which the interpolant cannot accept. **So a differentiable *height* is not
+reachable through the light spline at all — only a differentiable light value.** Closing it means
+either templating the abscissa in odelia or narrowing the accessor to `double`, which is a
+decision about whether height is ever an active input. Related to, but not the same as, the
+recorded hazard that reading the field at a fraction rather than a position makes `d/d(height)`
+exactly zero.
+
+### The deduced-return-type trap is not set anywhere in TF24
+
+Audited by the first thing ever to instantiate these templates, which is stronger than
+inspection. All five value-returning lambdas declare their scalar return type; the one that
+deduces returns `void`. So the hazard that cost a session to find earlier is absent here.
+
+### One line changed, and why it is not a design choice
+
+`std::pow(u, eta_x)` to unqualified `pow` inside `TF24_Strategy::Q`'s
+`if constexpr (!is_same_v<S, double>)` branch. That branch is discarded for `S = double` so it
+cannot reach production codegen, and the sibling `double` branch two lines up already writes
+unqualified `pow` — a typo in code that had never been compiled. Bit-identity held and the `.so`
+size is unchanged.
+
+**Two readings on the other eleven, reported rather than taken:** requalifying to unqualified
+calls changes overload resolution for the `double` instantiation too, so bit-identity would have
+to be re-earned by measurement rather than argument; adding `using std::pow;` or a plant-side
+generic wrapper is safer for `double` but is a new mechanism and a decision about where plant
+keeps its generic math. And **`std::max`/`std::min` are not a requalification at all** — they are
+homogeneous templates, so even with ADL the literal must first be promoted to `S`. That is a
+change with a shape.
+
+### Also found
+
+`CanopyShape::pow_eta_general` is instantiated even at TF24's default `eta = 12`, because taking
+the address of a static member function in the unselected branch instantiates it
+unconditionally. And odelia has **no namespace-scope alias for the adjoint active scalar** — it
+appears only inside function bodies or as a class member, so reaching it without plant spelling
+`xad::` required naming a full `Solver` instantiation. An `odelia::ode::active_scalar` alias is
+owed.
