@@ -427,9 +427,9 @@ seven-item outline. It is a deliverable, not a follow-up.
   diagnostic landed in the merge. Packets should cite names, not lines.
 - `docs/build-plan.md` P1.2a's "26 uses" is a count of signatures. A grep finds **44** occurrences
   across the same nine files, because most are declared in-class and defined out of it.
-- **`docs/build-plan.md` §2.9's `k1`/step-boundary paragraph is to be re-derived against the
-  post-P0.9 branch** (owner's decision this turn: fixed at the end of this turn, flagged here
-  meanwhile). It reasons from "`introduce_new_nodes` rebuilds the field but does not recompute rates";
-  P0.9 recompute the rates there, so at the 141 introduction steps `k1` is now current, not stale.
-  The seam stays at the step boundary but is clean, which simplifies Phase 3's design rather than
-  complicating it.
+- **`docs/build-plan.md` §2.9's `k1`/step-boundary paragraph — re-derived against the post-P0.9
+  branch (landed this turn).** It reasoned from "`introduce_new_nodes` rebuilds the field but does not
+  recompute rates"; P0.9 recomputes them there, so at the 141 introduction steps `dydt_in` is now the
+  freshly recomputed rate at the widened state, `derivs(y_after, t)` — the correct linearisation
+  point, wrong before P0.9. The seam stays at the step boundary but is now clean (a bookkeeping seam,
+  not a stale-point one), which simplifies Phase 3 rather than complicating it.

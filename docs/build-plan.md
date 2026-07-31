@@ -665,15 +665,19 @@ time**. develop's `set_ode_state(it, int index)` is index-based and correct; `lo
 resolves *steps* by time and is also correct.
 
 `k1` is not a stage of its own step: RKCK is first-same-as-last, so `k1` is the previous step's
-index-5 evaluation carried by `save_dydt_out_as_in` (`ode_solver_internal.hpp:355`). That is
-clean for a reverse traversal — `dydt_out` enters neither the `y` update nor `yerr`
-(`ode_step.hpp:140-154`), so it has exactly one consumer and no double counting. The exception
-is every introduction: `Patch::introduce_new_nodes` rebuilds the field but does not recompute
-rates (`patch.h:621-631`), and `set_state_from_system` then seeds `dydt_in` from the stored
-rates and marks them clean (`ode_solver_internal.hpp:146-152`). So at 141 of 5 055 steps,
-`k1` is the rate vector from before the newcomer entered the field, entering the update with
-weight `c1 = 37/378`. **`lambda_k1` therefore belongs to the step boundary, and the step
-boundary is where introductions live** — one seam, to be designed once (§11).
+index-5 evaluation carried by `save_dydt_out_as_in`. That is clean for a reverse traversal —
+`dydt_out` enters neither the `y` update nor `yerr`, so it has exactly one consumer and no double
+counting. An introduction is the exception in *provenance* but no longer in *value*.
+`Patch::introduce_new_nodes` rebuilds the field and, since P0.9 (`aornugent/plant` PR #66),
+recomputes the rates there; `set_state_from_system` then seeds `dydt_in` from those rates and marks
+them clean. So at the 141 introduction steps `dydt_in` is the freshly recomputed rate at the widened
+state, `derivs(y_after, t)`, entering the update with weight `c1 = 37/378` — the correct point,
+where before P0.9 it was the rate from before the newcomer entered the field, wrong at 141 of
+5 055 steps. **`lambda_k1` still belongs to the step boundary, and the step boundary is still where
+introductions live, but the boundary is now clean** — the reverse traversal reads a `dydt_in` that
+is a rate at the state it will linearise around, so the seam is one of bookkeeping (its source is a
+stored recompute, not the previous step's `dydt_out`) rather than of a stale linearisation point.
+One seam, to be designed once (§11).
 
 `odelia::ode::Solver` holds an `xad::Tape<double>` member, so plant includes XAD transitively and
 always will. The rule is that **no plant file spells `xad::`**, checked by
