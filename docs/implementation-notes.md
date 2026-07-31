@@ -844,3 +844,60 @@ the base header plus 8 in the base source equals 15 in the tip header.** None is
 topology rather than a regression — the forward-derivative helper that empties it lives on a
 sibling branch, and no commit here touches that file. **The grep must be re-checked on the
 merged plant tree**, where both are present.
+
+## Trait registration
+
+`ad_parameters()` and `ad_parameter_names()` on `TF24_Strategy<S>`, **55 of the 59 fields the
+yml declares for `TF24_Pars`**, in the yml's declaration order. Bit-identical:
+`offspring 42.176246845059751` at 5 105. Name-and-index agreement checked for **every** one of
+the 55, not a sample: writing a unique value through `ad_parameters()[i]` changes exactly one
+wrapped field and it is the one `ad_parameter_names()[i]` denotes, so no index reaches a
+neighbour. The read-back path is the yml-generated `Rcpp::wrap`, so the yml is the authority on
+which field a name means rather than a second list.
+
+**Excluded, four, each with its reason:** `eta` (reaches the unguarded `CanopyShape::Qp`),
+`root_depth_shape_eta` (guarded at `Q`, excluded on instruction), and `vcmax_25`/`jmax_25` (the
+cache key below). `n_psi` turned out not to be a `TF24_Pars` member at all — it lives on
+`TF24_Environment`, so there was nothing to exclude here and it cannot be registered from this
+surface.
+
+### Thirteen registered parameters will read as exactly zero, and that is the design
+
+The finding that matters most here, and it was reported rather than discovered later.
+`prepare_strategy()` passes the leaf's parameters into `Leaf` **by value**, and `Leaf` is
+deliberately `double`. So an active `p_50`, `K_s`, `c`, `b`, `psi_crit`, `beta2`, `g1_TF24`,
+`a`, `curv_fact_elec_trans`, `curv_fact_colim`, `root_c`, `root_b` or `root_psi_crit` is
+flattened at that boundary and its gradient reads **exactly zero** — not wrong, zero.
+
+That is what the design intends: report 02's thesis is that `Leaf` stays `double` and the tape
+gets one node whose local Jacobian is *supplied*, so these parameters' derivatives are meant to
+arrive through that Jacobian rather than through taping. **But nothing yet supplies it**, so the
+zeros are real until Phase 3. Recorded loudly because exactly-zero is the failure mode this
+whole design exists to prevent, and anyone who runs a gradient before that Jacobian exists will
+see thirteen zeros and have no way to tell design from defect. Not measured — measuring it needs
+a gradient, which Phase 1 does not compute.
+
+Same boundary is the second, independent reason `vcmax_25` and `jmax_25` stay unregistered:
+`Leaf::photo_temp_cached_` is keyed on `(leaf_temp_, atm_o2_kpa_)` while caching `vcmax_`,
+`jmax_`, `gamma_`, `ko_`, `kc_`, `R_d_` and `km_` — a proper subset of the dependencies — but
+even with the key fixed, the `double` `Leaf` severs the channel first. Extending the key also
+reaches `src/leaf_model.cpp`, beyond the one allowlisted header, which was the stated stop
+condition. Both readings reported, neither taken.
+
+### The accessors are not generated, and could not be
+
+The plan asks for names and pointers "from the RcppR6 yml, no macro list". Literal generation is
+not reachable: RcppR6's templates live inside the installed package, outside the repository, and
+generated output could only ever name `TF24_Strategy<double>` rather than the template. What
+landed instead is the list in the header with **a test that verifies it elementwise against the
+yml's declaration order**, so the two cannot silently disagree — no X-macro, no second name
+list, no stored count. Weaker than generation, and guarded. Making it literal needs either a
+repo-local generator or a change to RcppR6's templates, which is new scope.
+
+Also: `TF24_Strategy` is a yml `list:` class, so it has no `methods:` slot and the accessors are
+not R-visible. Consistent with active types staying C++-internal, and the reason the yml was not
+touched and nothing regenerated.
+
+**Not independently re-verified by the orchestrator.** Two inline accessors and a test cannot
+move a number, and the composite figure on the merged plant tree covers this transitively and
+more strongly. Stated rather than implied.
