@@ -1062,3 +1062,53 @@ rate, so **a wave's wall clock is not the sum of its packets' measured costs**, 
 be costed for the contended case. This is the same figure the build is pinned against for a
 different reason — absolute times belong to the machine, and here they belong to the machine's
 current load as well.
+
+## The phase, merged
+
+One integration branch per repository. Every merge was checked by **reading the merged tree**
+for each change rather than trusting the auto-merge, then built once and gated.
+
+    odelia  p1/odelia-integration  e10ab19    320 pass, 0 fail, 0 error, 2 skip
+    plant   p1/phase-1             1204d332
+
+**The composite figure is the baseline figure.**
+
+| | offspring | accepted steps |
+|---|---|---|
+| plant `7b05b55e`, before the phase | `42.176246845059751` | 5 105 |
+| **`p1/phase-1`, the whole phase merged** | **`42.176246845059751`** | **5 105** |
+
+Bit-identical, at the pinned build, 0 occurrences of `-O0`. **The entire phase moves no
+number** — including the environment's aux widening, which the plan had singled out as its one
+sanctioned shift. There is nothing to re-bless.
+
+The family tripwire on the merged tree, which is what caught a silent regression in the previous
+phase and is the reason it is taken here rather than at the end:
+
+| | offspring | accepted steps |
+|---|---|---|
+| FF16 | `19.825535760483262` | 209 |
+| K93 | `0.030546712014675573` | 240 |
+
+Both unmoved, despite `CanopyShape` being shared across the family and templated in this phase.
+
+**`grep -rn 'xad::' inst src` in plant returns nothing on the merged tree**, which is the first
+tree on which it could: the five occurrences lived in `src/leaf_model.cpp` and the helper that
+replaces them was developed on a sibling branch, so every branch in isolation still showed them.
+The design's rule that plant never names `xad::` holds only as a property of the merged tree, and
+that is where it is now verified.
+
+**One merge conflict, resolved by hand, and gated before it was believed.**
+`inst/include/plant/models/tf24_environment.h`: the templating branch changed
+`Internals(...)` to `Internals<double>(...)` in `set_soil_number_of_depths`, and the reset branch
+added the soil snapshot on the following line. Both sides kept. Because that is a hand edit by the
+orchestrator, it was held to the same standard as a packet — the composite bit-identity figure
+above is its gate.
+
+### Still owed at the close of this phase
+
+- **The trajectory store is not in the merged tree.** Its two prerequisites now exist — the
+  recorded step sizes and the soil-state restore — and it is being rebuilt against them with the
+  step size in the record. Until its bit-identity gate passes, the store is the one Phase 1
+  deliverable outstanding.
+- The submodule pointers here move again when it lands.
