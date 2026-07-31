@@ -86,6 +86,15 @@ edited to track them.
   bit-identical route was the alternative; the shift is accepted and re-blessed with the rest.
 - **P0.4 sizes by an explicit `n_resources()`** on `Environment` rather than by shrinking the
   vector at the call site, so the count has one source of truth.
+- **P0.6's establishment gate keeps its hard switch**, on the measurement in
+  `scripts/establishment_gate.R`: its two arms are on one scale, so the sign test separates real
+  carbon states and there is nothing to mollify. The measurement also rules out the obvious scale —
+  `storage_prod_eps = 1e-4` is six times the open arm's median.
+- **P0.6's respiration half is not taken**, and is left with the owner. It needs the
+  parameterisation's provenance, which is not in the repository: whether `B_lf5`'s coefficient was
+  fitted against a model that already netted out dark respiration. What was added is a narrower
+  diagnosis of which component duplicates, and a caveat that the absolute figures on record are in
+  inconsistent units.
 
 ---
 

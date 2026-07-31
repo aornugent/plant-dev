@@ -831,11 +831,13 @@ pass is order-dependent.
 specification.
 
 P0.5 is the input Phase 3 needs: you cannot choose which switches to smooth before knowing
-which fire. **P0.6 gates Phase 3, not Phase 1.** It now has an incidence for the first time: its
-establishment gate closes on 22.43% of boundary-node stage evaluations, on a net production between
-−3.4e-05 and −2.3e-09, so a threshold five orders below the scale develop already applies to the same
-quantity decides whether a recruit exists — and a re-run finite difference of a census gradient
-straddles it in that window, which puts V4's own reference inside the question.
+which fire. **P0.6's establishment gate is now settled: the hard gate stays.** Measured on both
+sides, its argument's negative values are comparable to its positive ones — the most negative is
+about twice the open arm's median — so it separates two real carbon states rather than deciding on
+noise, and develop's `storage_prod_eps = 1e-4` would be six times too large to smooth it with. What
+survives for Phase 3 is narrower: a re-run finite difference of a census gradient crosses the gate in
+the recruitment window, so V4 chooses states and step sizes that avoid it. **P0.6's respiration half
+remains the owner's.**
 
 **Which of these gate the engine.** `tf24-correctness.md`'s own split is **P0.1–P0.4, P0.8, P0.9
 and P0.10**; P0.5–P0.7 gate TF24's phase only, P0.11 gates the reverse pass's recruitment

@@ -308,6 +308,28 @@ Neither is ours to make. Both change every simulated number, so both want a
 
 ### Leaf dark respiration is subtracted twice
 
+**Which component is duplicated is narrower than "leaf respiration", and that changes the
+fix.** TF24's hyperparameter function splits leaf nitrogen into a structural part and a
+photosynthetic part and gives each its own respiration coefficient
+(`R/tf24.R`): `narea_ls = (a_lf1 + B_lf1 lma) / 1000` and
+`narea_lp = (B_lf2 vcmax_25 + B_lf3 jmax_25) / 1000`, then
+`r_l = B_lf4 nmass_ls + B_lf5 nmass_lp`. The second term is respiration of the
+photosynthetic machinery, driven by `vcmax_25` and `jmax_25` — which is what
+`R_d_ = vcmax_ * 0.015` already is. So the duplicate is `r_lp` against `R_d_`; the
+structural term `r_ls` has no counterpart in the leaf and is not double-counted.
+
+At the default trait, `r_lp` is **29.5% of `r_l`** (103.08 of 348.86, in the units the
+hyperparameter returns), against a photosynthetic share of leaf nitrogen of 18.0%. FF16,
+which has no Farquhar leaf and no `R_d`, keeps a single undivided term
+(`r_l = B_lf4 narea / lma`), so the split arrived with TF24 and its author separated
+exactly the component the leaf now also charges.
+
+Two things follow. The candidate fix is to drop `r_lp` and keep `r_ls`, or to drop `R_d_`
+from `profit_` — not to scale `r_l`. And the absolute figures below need re-deriving in one
+consistent unit system before either is acted on: `r_l * lma` and `R_d` converted to annual
+terms do not reproduce the 1.578x ratio, so at least one of the two is quoted in units the
+other is not.
+
 `Leaf::assim_colimited` ends in `- R_d_`, so `profit_` is net of dark respiration.
 `net_mass_production_dt` then subtracts `pars.r_l * mass_leaf` — leaf dark respiration
 again.
@@ -349,23 +371,35 @@ a recorded decision rather than an artefact of writing an `if`. develop already 
 both the precedent (`P_pos`) and the method for sizing a smoothing scale against data
 (`storage_prod_eps`, measured well-sized).
 
-**It now has an incidence, and it closes on a quantity that is numerically zero.**
-`scripts/demographic_switches.R`: the gate takes its closed arm on **7 879 of 35 133
-boundary-node stage evaluations (22.43%)**, all inside `t` in **[3.222267, 8.544184]** —
-the recruitment window, and no later decile. On exactly those calls
-`net_mass_production_dt` at `height_0` is negative on all 7 879 but only just: **minimum
-−3.352987e-05, maximum −2.283012e-09, mean −2.063678e-05**. That is about five orders
-below `storage_prod_eps = 1e-4`, the scale develop already applies to the positive part
-of the same quantity one function away, and seven below report 00 §9b's median `|P|` of
-7.3e-2. So `d(pr_estab)/d(state)` jumps from zero to the full `1/(tmp^2 + 1)` slope
-across a threshold the model cannot resolve, and the decision is not whether the
-derivative should be zero — it is that the sign of a quantity at `1e-9` is deciding it.
+**Decided: keep the hard gate. It is not a numerical artefact, and this is measured on
+both sides.** The gate takes its closed arm on **8 112 of 35 133 boundary-node stage
+evaluations (23.1%)**, confined to `t` in **[3.22, 8.54]** — the recruitment window, and
+no later decile. `scripts/establishment_gate.R` measures the argument's whole
+distribution rather than only the closed side:
 
-Two consequences follow whichever way the ecology goes. `node.h:182-185`'s entire active
-set is downstream of this gate, so smoothing it retires that row as well. And **a
-finite-difference verification of any census gradient straddles this gate** for
-`t` in [3.2, 8.5] at a perturbation of `1e-9`, which is below every step size a re-run
-difference would use — so V4's reference is exposed to it, not just the model.
+| | `net_mass_production_dt` at `height_0` |
+|---|---|
+| closed arm, 8 112 calls | −3.344298e-05 … −7.886865e-09 |
+| open arm, 27 021 calls | p01 2.539e-06, p10 8.219e-06, **median 1.611e-05**, p90 4.571e-05, max 3.112e-04 |
+
+**The negative values are comparable to the positive ones** — the most negative is about
+twice the open arm's median — so the sign test separates two genuinely different carbon
+states at the scale a seedling operates at, and a zero derivative there is the model's
+statement that such a seedling does not establish.
+
+**Smoothing it with develop's existing scale would be a mistake, and that is the useful
+finding.** `storage_prod_eps = 1e-4` is **six times the open arm's median** and three
+times the most negative value, so it would smear the entire distribution rather than
+mollify an edge. A scale sized against *this* argument would have to be about `1e-6`, an
+order below the open arm's first percentile. An earlier version of this row compared the
+closed arm against report 00 §9b's median `|P|` of 7.3e-2 and concluded the threshold was
+numerically unresolvable; that denominator is the whole cohort population, dominated by
+large trees, and against the seedling's own distribution the comparison inverts.
+
+Two consequences stand regardless. `node.h:182-185`'s entire active set is downstream of
+this gate, so it is one decision and not two. And **a re-run finite difference of a census
+gradient straddles the gate** for `t` in [3.2, 8.5]: the treatment for that is to choose
+verification states and step sizes that do not cross it, not to mollify the model.
 
 ---
 
