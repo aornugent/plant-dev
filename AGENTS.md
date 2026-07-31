@@ -214,15 +214,18 @@ one call.
   slot; the reverse sweep dereferences it and segfaults far from the cause.
   Valgrind cannot see it — the dangling storage is stack, not heap. Declare the
   scalar return type (`-> S`, `-> T`) on every such lambda, including one-line
-  helpers. This cost a session to find (plant TF24's `anchor` graft); the two
-  structural defences are `odelia::implicit_value`'s `static_assert` on its
-  residual, and `odelia::util::graft_value` owning the value-graft idiom so it
-  is not hand-written.
+  helpers. This cost a session to find (plant TF24's `anchor` graft). The one
+  structural defence is `odelia::implicit_value`'s `static_assert` on its
+  residual's return type, which turns the mistake into a compile error at the
+  one site that most invites it.
 
       // BAD  -- returns a dangling expression template
       auto anchor = [](double v, S x) { return S(v) + (x - to_passive(x)); };
-      // GOOD -- materialised while its operands are alive
-      auto anchor = [](double v, const S& x) -> S { return graft_value<S>(v, x); };
+      // GOOD -- the same arithmetic, materialised while its operands are alive
+      auto anchor = [](double v, const S& x) -> S { return S(v) + (x - to_passive(x)); };
+
+  The two forms differ only in `-> S` and taking `x` by reference, and that is
+  the whole lesson: the fix is the declared return type, not a helper.
 
 ### Defaults to unlearn
 
