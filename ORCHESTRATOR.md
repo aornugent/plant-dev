@@ -92,6 +92,15 @@ In this order, and in full rather than by grep:
    measurement demanded an explanation. A report read once is orientation; a report read against a
    diff is a review tool.
 
+**Items 1–5 are decisions and are read in full; item 6 is evidence and is read by the section.**
+Two sessions ran out of context reading the corpus and had none left to execute with, so the
+economy has to be stated. The plan and the notes are what a packet can contradict, so the
+orchestrator holds all of them. The reports are ~4 900 lines of measurement, and §0.2's bar — never
+cite what you have not read — is met by **the section that owns the claim**, which is also what
+§0.1 asks for. So cite `report 03 §1b` having read §1b, and let the packet read the rest of report
+03 for the mechanism. **Where a phase is to run in one turn, this is the difference between
+possible and not.**
+
 Then establish ground truth rather than assuming it, because the tree moves between sessions:
 
 - `git log`, `git status`, and **the submodule pointers**, in both `plant` and `odelia`.
@@ -157,6 +166,17 @@ So:
   namespace-bearing form is `testthat::test_dir(dir, package = "odelia", load_package = "installed")`.
   Before shipping a gate command, break the thing it checks and confirm the command notices.
 
+**This section's economy inverts when the phase moves numbers, and Phase 2 does.** Phase 1's gates
+were blind *because* the phase was bit-identical by construction — templating at `S = double`
+generates the same object code, so no value gate could see the hazards, and reading found what six
+gates could not. Phase 2 is the opposite: every task changes a forward number, and the plan's step
+decompositions exist precisely so that a bit-identity gate discriminates. P2.1 step (1) is
+bit-identical and step (2) is deliberately not; P2.4 step (2) is bit-identical and step (3) is where
+the value moves. **Skipping the bit-identical intermediate throws away the attribution the
+decomposition was bought for** — it is the only thing separating "I broke the loop" from "the value
+moved by the predicted amount". So in Phase 2 what gets batched is the **re-blessing**, and a step
+whose own claim is bit-identity has earned its run.
+
 ## 4. Sequence and fan-out, decided by dependency
 
 Fan out what is independent; sequence what is not. Fanning out a dependency chain thrashes: the
@@ -170,6 +190,21 @@ of builds — roughly 5×. Every gate in Phase 1 was costed against the 90 s fig
 **A packet whose sibling is mid-change should be told which API is moving.** Two Phase 1 packets
 touched overlapping odelia surface; naming the accessor being redefined (`recorded_steps()`) was
 cheaper than serialising them.
+
+**Write in parallel; build serially.** These are separable and Phase 1 conflated them. Authoring is
+free to fan out — it costs context, not CPU, and §3 already says to write a change in full before
+building it. Building and running are the contended resources, and the 5× above means three
+concurrent lanes of builds make every gate in every lane five times slower, so a wave *loses* to a
+queue whenever the lanes are not genuinely independent. **Fan out the writing, then take the builds
+one at a time in dependency order.** The corollary is that a phase's wall clock is roughly its build
+count times one build, and the way to run a phase in one turn is to reduce that count rather than to
+overlap it.
+
+**Count the builds before starting, because a phase fits one turn only if nothing is built twice.**
+A clean build is ~95 s and a production lifetime run ~90 s idle, so a dozen of each is under an
+hour and two dozen is not. That arithmetic is what §0's pre-flight is buying, and it is why a
+satisfiability check (§0.5) is worth more here than anywhere: one unsatisfiable gate costs a
+rewrite, a rebuild and a re-run.
 
 ## 5. Environment isolation
 
@@ -269,6 +304,14 @@ What that requires of the orchestrator:
 - **Do not reward a weakened gate.** When a gate fails, the wanted output is the numbers and a stop —
   not a tolerance that lets it through. Say this in the packet, and then honour it when it happens.
 
+**Stopping inside a single turn cannot mean waiting.** When the whole phase is one turn there is no
+next session to hand a stop to, so a stop resolves as: record the finding with its evidence, finish
+every task that is *not* downstream of it, and say plainly at the end what was left and why. The
+thing that must not happen is the stop quietly becoming a weakened gate because the turn wanted to
+finish. **A phase that lands five of seven tasks with the other two diagnosed is a good turn; one
+that lands seven with a tolerance widened to fit is not**, and the second is only distinguishable
+from the first if the gates were written down before the work started.
+
 ## 9. Integrate, and record
 
 One integration branch per repository per phase. After each merge, **verify every change is present
@@ -346,6 +389,135 @@ Model and code:
 
 ---
 
+## 11. Phase 2, in one turn
+
+Seven tasks, four of which move forward numbers, landing as **one re-blessing**. That is the plan's
+own requirement and it is what makes the phase a single unit of work rather than a sequence of
+sessions: a per-task re-bless would bless four times against a moving baseline.
+
+### 11.1 The order is forced, and one constraint is not in the plan
+
+```
+    measure  ── one instrumented build, one run: the gate-crossing census AND M4's value half
+       |
+    P2.7  boundary reordering (from spike/boundary-acyclic)
+       |
+    P2.1  step (1) fractions ── step (2) uniform-65 ── step (3) delete rescale_spline
+       |                                                    |
+       |                                              P2.2  slope reduction
+       |                                                    |
+       |                                              P2.3  Hermite in ResourceSpline
+       |                                                    |
+    P2.4  step (1) done above ── (2) two passes ── (3) cohort grid ── (4) delete + NEWS
+       |
+    P2.6  collar polish          P2.5  attribute rescale_spline's cost
+       |
+    one re-bless + the cross-model tripwire
+```
+
+**P2.7 must precede P2.4, and the plan does not say so.** The plan gives only "P2.4 before P2.6".
+But both tasks restructure `Species::compute_rates`, and `spike/boundary-acyclic` has already moved
+`Node::compute_initial_conditions` out of it into the field build via `Patch::compute_boundary_nodes`
+— which is exactly where report 04 §7.2's two-pass pseudocode wants the boundary node to sit, because
+the lowest cohort differences against it. Landing P2.4 first means placing that call inside
+`compute_rates` and then moving it out again, restructuring one function twice and invalidating the
+first restructure's bit-identity gate. Taking P2.7 first also hands P2.4 the *more current* boundary
+neighbour its stencil wants, which `implementation-notes.md` records the spike as supplying.
+
+**P2.4 before P2.6 is about measurement order, not files.** P2.6 touches `leaf_model.cpp` alone, so
+it can be written in parallel with everything above it and merged last. What it may not do is land
+before P2.4's numbers are taken: it widens the golden-section bracket a hundredfold, and report 04
+§5 records that develop's probe survives differencing a staircase only because the comparison
+pattern is locally constant at the *current* bracket. Interleaved, P2.4 step (2)'s bit-identity gate
+is asserted against a moving leaf and M4 stops being attributable.
+
+### 11.2 Three things are already done that the plan or this document records as owed
+
+Checked in the tree, not inferred — §0.6's rule run in the opposite direction.
+
+- **`hermite_interpolator` is complete.** It has the `set_nodes`/`set_data` split P2.1 asks for, and
+  the active-position read in *both* `eval` and `value_and_slope`, grafted as
+  `value + slope · (u − to_passive(u))` with a `static_assert` that rejects an active position
+  against `S = double` — the silent-severance case M1 measured as exactly zero. It is one
+  type-dispatched function rather than §2.8's `eval`/`eval_with_query_derivative` pair, which is
+  better: there is no wrong overload to call. **This document's Phase 1 tail recorded it as
+  outstanding and was wrong.**
+- **P0.1 has landed**, so P2.4's two-pass restructure is value-neutral (report 04 §7.3) and the
+  leaf is order-independent.
+- **P0.7 has landed**, so P2.2's reduction may query the field's slope at the ground knot.
+
+### 11.3 Two measurements before any code, and they share one build
+
+Both are instrumentation-only additions to `species.h`, both want one production run, and neither
+needs the other's output. **One build, one run, two answers** — the §6 economy applied where it
+actually pays.
+
+1. **Does a gate crossing ever land beside a sub-`1e-4` cohort spacing?** `implementation-notes.md`
+   records this as covered by no task. TF24's growth gate is hard and un-smoothed —
+   `smooth_positive` appears twice in FF16, twice in K93, never in TF24 — and the cohort-grid stencil
+   divides a growth-rate difference by a spacing whose measured minimum is 8.2095e-06 with 23.5%
+   below 1e-4. A gate crossing over that divisor is an O(1e5) term in `log_density_dt` that
+   develop's sub-grid probe **cannot** produce, because both its evaluations are the same cohort.
+   If it happens, P2.4 needs more than a `dh == 0` guard and report 04 §6's remedy is unavailable.
+2. **M4's value half** — `Species::growth_rate_gradient(i)` beside the existing `Node` one, both
+   logged on one production run. This is P2.4 step (1) and it is the number the re-blessing is
+   argued against.
+
+### 11.4 The gates, and the two that would otherwise be unsatisfiable
+
+| | gate | note |
+|---|---|---|
+| P2.7 | `derivs(y, t)` twice, **bitwise**, 0 of 753 components; a third evaluation moves ground light < 1e-6 relative; light-field shift within the boundary term's own 3.5e-04 | verify in **light at the boundary node**, never in offspring — the predicted effect is two orders below the 0.145% the controller re-rolls offspring by |
+| P2.1 (1) | bit-identical **within an introduction interval** | **not whole-run.** Across an introduction `construct_spline` re-refines and the count runs 33–129, mean 58.4 (report 03 §1b). A whole-run bit-identity gate here cannot pass, and asserting one costs a rewrite and a rebuild |
+| P2.1 (2) | crown-mean light shift within M3's band — worst 1.7e-03, median 1.6e-06 | the deliberate re-bless; this is the step that removes the carried knot set |
+| P2.1 (3) | the purity probe **bitwise** at all three models | with rescaling gone and P2.7 landed, both path dependences are closed; neither alone is sufficient |
+| P2.2 | agreement with a tight central difference of `compute_competition` across `eta` ∈ {1,2,4,8,10,12} and one non-integer | plus: the two sums add the same terms in the same order, **checked rather than asserted** — a value and a slope from differently-associated sums disagree in their last bits, which is this report's own defect reappearing in floating-point association |
+| P2.3 | O(h⁴) on value, O(h³) on slope, **on a smooth test field** | the production fraction set is uniform and does not align with the cohort tops where `Q(z/h)` breaks the field's derivative, so the production rate is about `h^2.5`. Record it beside the gate; it is a rate, not a penalty — uniform beats cohort tops 22× at matched count |
+| P2.4 (2) | bit-identical | the step that separates "I broke the loop" from "the value moved" |
+| P2.4 (3) | `log_density_dt` matching M4, with report 04 §2.2's conservation diagnostic presented alongside | a sub-grid probe leaks individuals at `O(dh g'')` and the cohort grid does not — that is the forward-model argument the re-bless rests on |
+| P2.4 (4) | two pinned tests **rewritten, not relaxed** | `test-node.R`'s backward-difference assertion *is* the sub-grid stencil's definition, so it has no subject under the new one. Four properties replace them, and the identity `log_density_dt + mortality_rate == -d(log dh)/dt` is the only one that reads the dynamics rather than the arithmetic, so it is the one that would catch a staggering error |
+| P2.6 | `\|R\|` < 1e-07 at every sampled state; the polished point independent of the bracket tolerance; benchmark no worse | two traps: `dprofit_droot_collar_psi` leaves the operating-point outputs at its own probe point, so the loop must restore them, and it reads `psi_soil_inverted_`, which only `prepare_collar_solve` refreshes |
+| P2.5 | the forward benchmark after P2.1, with the difference attributed | **the 3.5 s share is anchored to a 59.5 s pre-`#517` run and means nothing until re-taken** against the gate number. This is `aornugent/plant#68` |
+
+### 11.5 One re-bless, and the tripwire is part of it
+
+Everything above lands together, at the pinned build, and the composite shift is recorded with the
+per-item shifts beside it. Phase 0 is the reason to expect the composite to be *smaller* than its
+parts: four individually positive shifts summing to ~1.9% composed to +0.0856%, because most of each
+individual figure is the adaptive controller re-rolling rather than biology.
+
+**FF16 and K93 run whole-lifetime in the same pass, not at the end of the phase** (§7). P2.4, P2.7
+and P2.1 are all family-wide, and Phase 0's offspring-to-zero regression survived three steps
+because the other two models ran only once, at the end. A green TF24 suite is not evidence about
+shared code.
+
+### 11.6 The budget
+
+About **nine builds and ten production runs** if nothing is built twice: one for the shared
+measurement, one for P2.7, three across P2.1's steps (P2.2 and P2.3 ride the third, since their
+gates are unit-level and need no production run), two across P2.4's, one for P2.6, one for the
+merged tree. At ~95 s a build and ~90 s an idle TF24 lifetime — FF16 and K93 are 209 and 240 steps
+and nearly free — that is well under an hour **serially**. It is several hours as three concurrent
+lanes, per §4. Build one at a time.
+
+### 11.7 Carried into the phase, and not covered by any task
+
+- **`max(S, 0)` on storage is a derivative discontinuity active on 13.96% of records, and no task
+  fixes it.** Report 00 §9b measures it: storage genuinely goes negative (min −2.249e-03 against a
+  median 1.756e-04), and develop's own comment claiming the outflow gate floors storage at zero
+  **does not hold** — once `S < 0` and `|S|` is comparable to `1e-3·S_max`, the factor approaches 1
+  or changes sign and the deficit drains at full rate. The clamp zeroes the carbon → mortality →
+  survival → density channel on all 14%, which is squarely on every census metric's gradient. Report
+  00 §10 lists fixing it as its second priority; `tf24-correctness.md` P0.5 carries the incidence in
+  its table but **omits it from its own summary of rows with nonzero incidence and no recorded
+  treatment**, which is how it fell through. Phase 2 is the re-blessing window, so it rides here or
+  waits for the next one — and that is the owner's call, alongside the establishment gate and the
+  respiration double-count.
+- **Aux has two owners** — the operating-point transfer and the diagnostics a user reads. A
+  functional reading `E_up_` through aux would give the cohort block a seventh output row.
+
+---
+
 ## Where Phase 1 left things
 
 Both integration branches are pushed and the superproject pointers reference them.
@@ -381,5 +553,5 @@ Owed, all recorded with evidence in `implementation-notes.md`, none blocking:
   caller-supplied time grid — and the vector alone does not say which. Two entry points are owed.
   These are not superseded stubs: the three `Solver_*` entry points were introduced in the same
   commit as `compute_jacobian` as one deliberate layering, and that commit retired the actual spike.
-- **`ARCHITECTURE.md`** is still silent on this phase, and the hermite still lacks the pair of query
-  readings §2.8 asks for.
+- **`ARCHITECTURE.md`** is still silent on this phase. *(The second half of this item — that the
+  hermite lacked its pair of query readings — was checked against the tree and is false; §11.2.)*

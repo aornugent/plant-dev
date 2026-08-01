@@ -1212,6 +1212,14 @@ and M4 stops being attributable. The four are the light interpolant's
 coordinate (P2.1), the transport stencil (P2.4), the collar operating point's polish (P2.6), and
 the boundary node's lag (P2.7).
 
+**Corrected after Phase 1: P2.7 must also precede P2.4.** Both restructure
+`Species::compute_rates`, and the boundary reordering moves `Node::compute_initial_conditions` out
+of it into the field build — which is where report 04 §7.2 wants the boundary node, because the
+lowest cohort differences against it. Landing P2.4 first places that call inside `compute_rates`
+and then moves it out again, restructuring one function twice and voiding the first restructure's
+bit-identity gate. Taking P2.7 first also supplies the more current boundary neighbour the stencil
+wants. Preserved on plant `spike/boundary-acyclic`; see `implementation-notes.md`.
+
 ---
 
 **P2.1 — the light interpolant on a normalised coordinate.** Report 03 §1b.

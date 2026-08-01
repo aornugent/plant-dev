@@ -288,12 +288,20 @@ times. **What is owed is a domain assertion, not a second sign guard.**
 because a break at `a = k` is `max_soil_layer == k - 1`. It fires only for cohorts below
 1.199 m, and it sits on the direct `h -> water` path.
 
-**Five rows have nonzero incidence and no recorded derivative treatment**, in order of
+**Six rows have nonzero incidence and no recorded derivative treatment**, in order of
 exposure: `establishment_probability`'s gate (below, and P0.6's to decide);
-`mortality_dt`'s `is_finite` guard; `species.h:220`'s scaleless `f_h1 > 0`;
+`mortality_dt`'s `is_finite` guard; the `max(S, 0)` clamp on storage;
+`species.h:220`'s scaleless `f_h1 > 0`;
 `node.h:182-185`, whose whole active set is the gate's; and the `prev_q == 0` break.
 `species.h:215` is a term count rather than a severance, and `patch.h:568`,
 `node.h:177` and `node.h:144-150` need none.
+
+**An earlier version of this summary said five and omitted the storage clamp**, which is in the
+table above at **13.96%** and which report 00 §10 lists as its second priority. It zeroes the
+carbon → mortality → survival → density channel wherever it fires, so it is on every census
+metric's gradient, and develop's comment that the outflow gate floors storage at zero does not hold
+(report 00 §9b). It has no task in any phase. Being in the table and not in the count is how it
+fell through.
 
 **Gate.** Every row has an incidence number. A row with nonzero incidence and no
 recorded derivative treatment is a missing constraint, and that is exactly what the
