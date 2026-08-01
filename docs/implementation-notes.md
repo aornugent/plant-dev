@@ -1449,6 +1449,109 @@ reported it as settled. Reconciled in `tf24-correctness.md` P0.6 and now recorde
 the closed arm spans four to five orders, real carbon deficit at the top and a numerical zero at
 the bottom, so no single smoothing scale fits and the call is the owner's.
 
+---
+
+# Phase 2
+
+Branch `p2/phase-2` off plant `p1/audit-fixes` (`076ae24f`), against odelia `p1/audit-fixes`
+(`43c8561`) installed into its own library. **The site library held a pre-Phase-1 odelia with no
+`hermite_interpolator.hpp` at all**, which is the install-verification rule earning itself again:
+grep the artifact, never the log.
+
+The reference run reproduces in this worktree at the pinned build — offspring
+`42.176246845059751`, 5 105 accepted steps — which is also the proof that the transport census
+below is inert when its environment variable is unset.
+
+**A build here is about ten minutes, not the ~95 s recorded under "The build, pinned".** That
+figure is not this machine, and the difference is the whole shape of a phase's budget: nine builds
+is ninety minutes, not fifteen.
+
+## The transport census: one run, two questions
+
+`PLANT_TRANSPORT_CENSUS` accumulates moments and extremes over every (stage, node) record rather
+than dumping rows, because a production lifetime is 3 785 061 of them. It answers M4's value half
+and the gated-neighbour question together, which is why Phase 2's two pre-measurements became one
+run.
+
+| | |
+|---|---|
+| records | 3 785 061 |
+| max \|cohort-grid stencil\| | **142.85** |
+| records with \|stencil\| > 1e3 | **0** |
+| records with \|stencil\| > 1e5 | **0** |
+| max \|sub-grid probe\| | 1.51 |
+| `dh == 0` | **141** |
+| `dh < 1e-4` | 444 624 (11.7%) |
+| M4: mean(cohort − sub-grid) | −0.0620 |
+| M4: sd | 1.878 |
+| M4: peak \|difference\| | 142.59 |
+
+**The O(1e5) term does not occur.** The stencil peaks two to three orders below the figure the
+corpus feared, and no record exceeds 1e3. The peak is the lowest cohort differencing against the
+boundary node at height 0.3447 — essentially `height_0` — where the newborn grows at 0.0958 against
+the established cohort's 0.0257 over a spacing of 4.9e-04. That is a real four-fold growth
+difference, and its mechanism is the *smooth* reserve gate rather than a switch: a fresh boundary
+node has reserves a depleted seedling does not. So the hazard exists in kind, is bounded at ~143,
+and needs no smoothed clamp.
+
+**`dh == 0` at exactly 141 records is report 04 §7.1's prediction confirmed per stage** — one
+degenerate interval per introduction, where an output-time census could only infer it.
+
+**The cohort spacing goes negative, at −0.0334 m, and M8 could not see it.** M8 scanned 10 011
+neighbouring pairs over 142 output times and found none non-descending; the census sees every
+stage. M8's own caveat named this gap. The tree already knows the state exists —
+`Species::compute_competition_unordered` handles it, from `#571` — but **report 04 §7.2's stencil
+pairs `nodes[i]` with `nodes[i+1]` and takes list order for height order**, so it would difference
+a pair that is not adjacent in height. P2.4 needs a guard on non-descending pairs, not only on
+`dh == 0`. Which pair crosses — the boundary pair or an interior one — is not yet attributed.
+
+## P2.7 — the boundary density formed in a field that excludes its own interval
+
+`f0338c06`. The field build is now A0 (state alone) → the boundary condition evaluated in A0 → A =
+A0 plus the interval formed from it, so nothing reads a density carried from the previous
+evaluation. The boundary node moves from `Species::compute_rates` to the field build, which also
+takes it from two evaluations per stage to one.
+
+**The gate, and it is the property the task exists to buy:** `derivs(y, t)` twice, bitwise.
+
+    TF24  1137 components   0 differing
+    FF16   686 components   0 differing
+    K93    490 components   0 differing
+
+against 92 of 753 before the reordering. Measured with `rescale_spline` still present, which
+matters for what it does *not* establish — see the next entry.
+
+Forward effect, at the pinned build:
+
+| | offspring | steps | shift |
+|---|---|---|---|
+| before | `42.176246845059751` | 5 105 | — |
+| TF24 | `42.249808414392021` | 5 071 | +0.174% |
+| FF16 | `19.826401394339019` | 209 | +0.0044% |
+| K93 | `0.030548077017350173` | 240 | +0.0045% |
+
+**FF16 and K93 keep their exact step counts, so their +0.004% is the change itself; TF24's 0.174%
+is mostly the controller re-rolling on 34 fewer steps.** That is Phase 0's lesson reused as an
+attribution tool rather than relearned.
+
+**Two things owed, both stated rather than papered over.** The commit bundles the reordering with
+the removal of the second boundary-node evaluation, and their forward effects are not separately
+attributed; separating them costs one build. And the light-field shift at the boundary node — the
+bound the plan asks this task to be verified against, at most 3.5e-04 — was measured on
+`spike/boundary-acyclic`, whose formulation evaluates the boundary node twice where this one
+evaluates it once. **I did not re-measure it here, and say so rather than imply otherwise.** The
+purity gate is measured on this tree and is the stronger claim.
+
+## The derivs-twice probe measures idempotence, not history independence
+
+Worth separating because it decides what P2.1's gate can be. `rescale_spline`'s remap is
+`x_new = x_old * height_max / height_max_old`, so **evaluating one state twice rescales by exactly
+1**: the knot positions do not move and the probe cannot see the carried grid. The bitwise purity
+above therefore establishes idempotence and says nothing about the field's dependence on the
+history of previous builds, which is the property P2.1 removes and which only shows up when one
+state is reached two ways. A gate that cannot distinguish "pure" from "rescaled by one" is not
+P2.1's gate.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
