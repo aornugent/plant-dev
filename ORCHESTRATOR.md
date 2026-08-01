@@ -763,6 +763,75 @@ Phase 3 rather than waiting for a re-blessing window, and both land on P3.6:
 
 ---
 
+## Where Phase 3 stands
+
+**Integrated and verified, but not closed.** The phase's prerequisites are done and its six tasks are
+not started.
+
+    plant   p3/phase-3             c9914ffb   five packets, pushed
+    odelia  p3/odelia-integration  fdccd7b    two packets, pushed
+
+Both submodule pointers moved onto them. **The whole phase is bit-identical** — TF24
+`42.179817344974609` / 4 798, FF16 `19.834058960443031` / 209, K93 `0.030538172107758225` / 240 — and
+`derivs(y, t)` twice is still bitwise pure, 0 of 1137 and 0 of 705. plant 2 857 pass / 0 fail, odelia 334
+pass / 0 fail.
+
+**What the phase has bought so far.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>` **instantiates at
+the adjoint active scalar**: 61 error lines down to 19, and all 19 are deliberate — 17 in a shading model
+the gradient path never takes, one at the leaf's `double` boundary, one at `height_seed`'s root-find.
+The reverse pass's cost model is measured rather than assumed, and it is **~430–460 s, 3.7 to 4.0 forward
+runs, a ~26x saving** against a central difference. The pinned-leaf question is settled at 0 in 7.35 M.
+
+**What remains before P3.1.** `Patch::rebind_from`, which `step_adjoint` hard-asserts on; the
+cohort-reads triple on `Environment`, without which five of the block's 141 declared inputs are passive
+and `d(uptake)/d(psi)` has nothing to attach a partial to. Then P3.1 through P3.6, and V1 is the first
+gate the phase has that reads a derivative rather than a type.
+
+**Three things carried into it, each with the reason it is not yet decided.**
+
+- **The competition family's `height` argument stays `double`.** A sound argument, ungated: only a
+  numeric derivative distinguishes it from a dropped `d/dz` channel, and V1 is that instrument.
+- **The leaf's derivative is exactly zero by construction and declared.** Every output enters the active
+  chain at one expression, which is where P3.2's supplied partials attach.
+- **The reused tape is demonstrated, not realised.** No consumer holds one; calling the tape-less
+  overload inside the cohort loop restores the old cost with nothing failing.
+
+**Owed, small:** two `*it++ = <active>` R-boundary seams in `individual.h` and `stochastic_node.h`; a
+`StochasticPatch` instantiation in the probe so those containers have a standing gate; and the mutant
+replay path's tests, which throw because nothing has populated `environment_history` since odelia removed
+the hook that called `cache_ode_step` — dead mechanism, live test.
+
+### What Phase 3 has taught about gates, which is most of what it has taught
+
+Six packets, and **every one found a real defect in its brief.** The defects were not varied: five were
+one mistake in different costumes, and it is worth naming precisely because §0.6 does not catch it.
+
+**A gate must name the quantity that moves when the feared thing happens — not the quantity you are
+thinking about.**
+
+| the gate | what it could not see |
+|---|---|
+| `template class TF24_Strategy<active>` as the active-build census | never instantiates `Individual`, so it was blind to the container holding the state the block differentiates |
+| a reused tape's adjoints against a single call's | `newRecording()` leaves adjoints **correct** while leaking a slot per input per call; the discriminator was the recording *size* |
+| an FF16/K93 tripwire written without `add_strategies` | both models ran empty and it printed no numbers at all |
+| a type assertion that the transport probe returns `S` | **passes with the inner lambda at `-> double`**, because the quotient deduces its result from the point, not the integrand |
+| "no errors in `resource_spline.h`" | measured through the type being changed rather than the type that consumes it |
+
+Three rules come out of it, in increasing order of how much they cost to learn:
+
+1. **Run the gate on the unmodified tree first** and confirm it produces a number you recognise. Kills the
+   first three in ten seconds each.
+2. **Census from the outermost consumer inward.** A strategy-level probe cannot see the container; a
+   container-level one cannot see the R boundary above it. Five for five this phase — the last instance
+   found the *entire light channel* silently passivated, 65 knot values and 65 slopes, invisible from one
+   level down.
+3. **When the failure is a derivative reading zero, the gate has to be a derivative** — and where that is
+   not yet available, **constrain the callee instead of asserting at the call**. A `requires` clause finds
+   every site; an assertion finds the site you thought of. That is what turned the failed transport gate
+   into `integrand_of`, and it is what would have caught the light channel.
+
+---
+
 ## Where Phase 2 left things
 
 **The phase is closed.** `p2/phase-2` (plant, `5fd351e9`, pushed) carries **P2.7, P2.1, P2.2, P2.6
