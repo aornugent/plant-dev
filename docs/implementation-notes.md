@@ -1875,6 +1875,50 @@ complete: P2.3, P2.4 and P2.5 have not landed.
 | **P2.4** the transport stencil | P0.1, the gated-neighbour measurement | both done. `Species::growth_rate_gradient(i)` is in the tree with no caller; M4's value half is measured; **and it needs a guard on non-descending pairs**, which is new |
 | **P2.5** attribute `rescale_spline`'s cost | P2.1 | landed. The 3.5 s share must be re-taken against a gate number, since 59.5 s is a pre-`#517` run |
 
+## P2.5 — the forward cost, attributed per task
+
+Each packet's worktree is one task on top of P2.7 and each still held its own `-O2` build, so the
+attribution needed four **runs** and no rebuilds. Taken sequentially in one session on one machine, so
+the ratios transfer and the seconds do not.
+
+| tree | offspring | steps | seconds | **ms/step** |
+|---|---|---|---|---|
+| plant `p1/audit-fixes` | `42.176246845059751` | 5 105 | 116.2 | **22.8** |
+| P2.7 | `42.249808414392021` | 5 071 | 123.3 | **24.3** |
+| P2.7 + P2.2 | `42.249808414392021` | 5 071 | 113.5 | **22.4** |
+| P2.7 + P2.1 | `42.63017390650149` | 5 465 | 118.2 | **21.6** |
+| P2.7 + P2.6 | `42.571418227614053` | 4 634 | 159.7 | **34.5** |
+| all four merged | `42.133087152116609` | 4 730 | 164.0 | **34.7** |
+
+**Read per step, not per run**, because three of these change the accepted step count by up to 7%.
+
+**P2.2 is free, and bit-identical — confirmed independently of its own packet.** Offspring is the same
+17 digits as P2.7 at the same 5 071 steps, which is what "no caller on the rate path" predicts.
+
+**P2.1 recovers time, which answers P2.5.** 24.3 → **21.6 ms/step, −11%**, and *faster than the P1
+base* despite P2.7 having doubled the field build. Report 03 §5.5 measured the interpolant build at
+6.6% of the run with 91% of each build unattributed; removing the adaptive refiner and the rescale
+remap recovers more than that 6.6%, so part of the unattributed 175 µs was the refinement machinery.
+**The share still wants re-taking against a single gate number** — the 3.5 s figure belongs to a
+59.5 s pre-`#517` run — but the sign and rough size of P2.5's question are now answered: the time is
+recovered, not lost.
+
+**P2.6 is the whole of the phase's forward regression**, 24.3 → 34.5 ms/step, **+42%** against §8b's
+"up to +10%".
+
+### That regression is expected, and the reason is a packet boundary I drew
+
+P2.6 has three steps and I authorised only the first. The plan's own argument is that the polish is
+paid for by **loosening golden section to the Newton basin** — seventeen profit evaluations to reach
+`GSS_tol_abs = 1e-3` against eight to reach `1e-1` — and my packet said "Do not loosen `GSS_tol_abs`
+in this packet." So the +42% is the cost of step (1) carrying none of step (2)'s credit, exactly as
+§8b predicts when it says the polish "is not free at these tolerances".
+
+Two levers remain, both named in §8b and both unspent: the loosening, and reusing `dR_dcollar` across
+the second Newton step (7 evaluations to 5). **Landing step (1) alone would put the phase 42% slower
+per step, so it must not be re-blessed in this state** — which is also the argument for the plan's
+insistence that Phase 2's four value-movers land together rather than one at a time.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
