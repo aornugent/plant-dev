@@ -728,7 +728,7 @@ names, two jobs, and only one of them is on the gradient path.
 | name | prior art | its one consumer in plant |
 |---|---|---|
 | `vector_jacobian_product` | `preaccumulate` (deleted) solved a different problem — it grafted partials back onto an enclosing tape. There is no enclosing tape here, so the graft, its first-order-only property and its return-type `static_assert` are all beside the point | step (b): the cohort block |
-| `OdeElement` | new. Constrains the four recursive helpers so the state-transfer interface stops naming `double` (§11.1) | every container's ODE plumbing |
+| ~~`OdeElement`~~ | **Superseded during the Phase 1 audit and never landed under that name.** A concept on the *element* checked it against an iterator over its own `value_type`, not the one the helper threads — so it could not see the case it was introduced for, an element whose state moves through another scalar's iterator. Each of the five range helpers now carries a `requires requires` clause on the one member it calls, and rejects that case at the call | every container's ODE plumbing |
 | `implicit_value(y*, F)` | AD branch, `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1` |
 | `CanopyShape<S>` | **P0.12 landed: TF24 is now on develop's `CanopyShape`** (function-pointer chains, a crown-base branch in `q_from_height`, a shared static `eta_c`; `aornugent/plant#66`). The AD branch's enum-kind `CanopyShape<S>` is a second reference, not the file to lift — P1.2b templates the one on the branch and adds the double/active split | FF16, K93 and TF24 today at `double`; P1.2b templates the class and finalises the split |
 | `hermite_interpolator<S>` | AD branch, `hermite_interpolator.hpp`, **plus an active-position read** — it takes `double u` today, and M1 measures the crown integral's height adjoint as exactly zero without one. `Interpolator`'s `eval` / `eval_with_query_derivative` pair is the shape to copy | the light interpolant's evaluation (§2.6), and the crown integral's abscissae (§2.8) |
@@ -965,6 +965,12 @@ void Step<System>::step_adjoint(System&, double time, double step_size,
 The concept constrains the iterator type and nothing else. `ode_size()` and `aux_size()` are the
 other two helpers' whole requirement, and a missing member already reports itself; a wrong iterator
 type is what produces a page of template errors, so that is what the concept is for.
+
+**Corrected in Phase 1: a concept on the element cannot express this, and per-helper constraints
+can.** The audit replaced `OdeElement` with a `requires requires` clause on each of the five helpers,
+naming the one member that helper calls. A Phase 3 author adding `ode_rates_adjoint` to this family
+should constrain it the same way, and should read `ode_interface.hpp` for the shape rather than the
+block above.
 
 `set_ode_aux` is an ordinary member, not an opt-in behind a concept. It is the mirror of `ode_aux`, so
 the family is five and the solver can assert what it asserts of the other four: the iterator advanced
@@ -1706,6 +1712,13 @@ not remove it has not addressed the cause.
 `src/leaf_model.cpp` become one odelia helper. Forward mode stays; only the spelling moves.
 
 *Closes on* `grep -r 'xad::' plant/inst plant/src` returning nothing.
+
+> **Landed in Phase 1, so Phase 3 has five tasks rather than six.** `odelia::ode::forward_derivative`
+> replaced both spellings, plant bit-identical, and the grep goes from five lines in
+> `src/leaf_model.cpp` to nothing (`implementation-notes.md`, *The odelia surface*). **The rule remains
+> a property of the merged tree rather than a closed item** — the same grep returned five lines on every
+> Phase 1 branch in isolation and nothing on the merge, because the helper that empties it was developed
+> on a sibling branch — so it is re-checked at every integration (`ORCHESTRATOR.md` §7).
 
 ---
 
