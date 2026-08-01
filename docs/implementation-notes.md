@@ -2044,6 +2044,80 @@ steps supports a less stiff right-hand side — or 434.77 is a coarse-grid artef
 **The grid-refinement study is what separates them**: refine the node schedule two or three times and
 ask whether the arms converge toward each other or the cohort-grid arm converges toward 42. Running.
 
+### Diagnosis, part two: the two stencils are different operators, not two resolutions of one
+
+The decisive measurement, and it needed no build — the pre-P2.4 tree has **both** operators live, so
+both were evaluated on the same end-of-run state:
+
+| model | `cor(cohort, sub-grid)`, interior | disagreement |
+|---|---|---|
+| K93 — `g` a function of height alone | **0.9625** | ~6% |
+| FF16 — weakly coupled heartwood | **0.9789** | ~9% |
+| **TF24** | **0.0519** | **~54%, opposite sign over most of the grid** |
+
+TF24's interior cohort-grid values sweep monotonically through zero (−0.031 to +0.039) while the
+sub-grid values stay uniformly negative (−0.060 to −0.234). **On TF24 the two are statistically
+unrelated.**
+
+**The mechanism.** `(g_i − g_below)/dh` is exactly `d(log dh)/dt` — the identity test and the
+conservation diagnostic both confirm it. But that equals `−∂g/∂h` **only when `g` is a function of
+height alone.** For a multi-state individual the two-node difference is a *total* derivative along the
+cohort grid, `∂g/∂h + Σ_k (∂g/∂s_k)(ds_k/dh)`, and in TF24 the second term dominates. The ordering
+across three models tracks exactly how much non-height state `g` carries: K93 none, 1.4%; FF16 a
+weakly-coupled heartwood, 16%; TF24 storage and a reserve gate, 932%.
+
+**So report 04 §2.1's identity is right and its scope was never stated.** Nothing in the derivation is
+wrong; what is missing is the condition under which `d(log dh)/dt` is the compression term of a density
+in height. That condition holds for K93 and nearly for FF16, and fails for TF24 — the model the whole
+build is for.
+
+### The boundary pair is not the driver
+
+Ruled out by experiment rather than by argument. Excluding it entirely — the lowest cohort takes the
+compression of the one above — leaves offspring at **469.1**, still 11× the baseline, with only the step
+count recovering (4 319 against 4 730).
+
+It is nonetheless pathological, and the split census quantifies it: mean |stencil| **8.36** at the
+boundary against **0.129** interior, max 161.7, and **all 153 guarded pairs**. But it is 1% of records,
+and its peak has the same signature as the interior peak — `g` 0.030 against `g_below` 0.125 at
+`dh` 1.6 cm, a four-fold growth difference between neighbours 1.6 cm apart. **The boundary pair is the
+worst instance of the state-difference problem, not a separate one.**
+
+### Where the divergence accumulates
+
+Not gradual. Total density diverges at **each node introduction from `t ≈ 6`**, jumping about 10× within
+`Δt ≈ 0.15` where the sub-grid arm decays smoothly through the same interval:
+
+    new: t 5.9999 D 33.6 | 6.0094 D 35.2 | 6.0530 D 49.1 | 6.1998 D 192.4 | 6.3431 D 333.5
+    old: t 5.9418 D 39.7 | 6.0155 D 38.8 | 6.0906 D 37.9 | 6.1665 D  37.1 | 6.3422 D  35.2
+
+That is the recruitment window, and it is where the state discontinuity between a freshly seeded node
+and a reserve-depleted neighbour is largest — the same explanation as the operator disagreement.
+
+### Two readings, and they are a modelling question rather than a numerical one
+
+**Neither is taken here.** They differ in what the SCM's density variable means.
+
+- **The cohort grid is right and the sub-grid probe was wrong.** Individuals do not cross a
+  characteristic, so the count between two cohorts is conserved up to mortality whatever else the
+  cohorts carry, and `log n = log N − log dh` then forces the cohort-grid form. On this reading the
+  conservation diagnostic is decisive — the sub-grid probe leaks +3.99 and the cohort grid does not —
+  and TF24's density genuinely spikes because a fresh recruit really does grow 4.8× faster than a
+  reserve-depleted neighbour, so the interval really does collapse.
+- **The density is a density in height alone, so it needs the partial.** The compression term of a
+  height-marginal density is `∂g/∂h` at fixed non-height state, and a neighbour difference cannot
+  supply it for a multi-state individual. On this reading the replacement for the sub-grid probe should
+  be an analytic or AD partial derivative of `g` in height — not a neighbour difference — and the
+  1e-6 probe was a poor implementation of the right quantity rather than the wrong quantity.
+
+**A refinement study cannot settle this if the two operators converge to different limits**, which is
+what the decorrelation predicts: adjacent states grow more similar as the schedule is refined, but
+`ds_k/dh` need not vanish. A plateau in the gap between arms would therefore be a positive result —
+evidence that the disagreement is semantic. That study is running with this interpretation supplied.
+
+**What is not in doubt:** fixing the lowest cohort's treatment will not recover the baseline, so the
+`new_node` staggering fork is downstream of this decision rather than the cause of it.
+
 ### What the packet closed, and it was an open question here
 
 A tally over one production run, 1 078 893 guarded pairs:
