@@ -2690,6 +2690,71 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
+## The container sweep, and the light channel it found silently severed
+
+plant `672cd702` on `p3/sweep`. Nine files. **`Patch<TF24_Strategy<S>, TF24_Environment<S>>` now
+instantiates at the active scalar: 61 error lines to 19, all 19 in `tf24_strategy.h`** and line-for-line
+the same site set as the baseline — the 17 DeepCrown sites plus the two `prepare_strategy` asserts.
+TF24, FF16 and K93 all bit-identical; suites 0 fail beyond the three known pre-existing errors.
+
+**The failed gate is now an invariant.** `gradient.h` carries
+`integrand_of<Function, S> = std::same_as<std::invoke_result_t<Function&, const S&>, S>`, a `requires` on
+all seven difference-quotient helpers. Patch the transport lambda back to `-> double` and **both call
+sites fail, named by constraint**, with the concept's unsatisfied requirement printed. That replaces a
+type assertion that passed in both worlds.
+
+**And the same hazard was live on the main light channel.** `Patch::compute_environment_once`'s field-build
+lambda returned `std::pair<double, double>` into `TF24_Environment::compute_environment`, which wants
+`std::pair<S, S>` — it converts silently, so **all 65 knot values and all 65 knot slopes would have been
+passive constants.** That is the entire light channel, which is step (c) of the reverse pass and the whole
+resident gradient. `StochasticPatch` had the identical lambda.
+
+Three things about that find are worth keeping. It was **invisible from an `Individual`-level probe** — the
+outermost-consumer rule, now five-for-five. **No type assertion on the outer result would have caught it**,
+for the same reason mine did not: the builder's parameter is what converts. And it is the second instance
+of one shape found by one census, which is the argument for making the *constraint* the check rather than
+the assertion: a `requires` clause finds every site, an assertion finds the site you thought of.
+
+Also surfaced: **`Patch::r_at` and `StochasticPatch::r_at` were both broken** —
+`at(species_index.check_bounds(size()))`, calling a member that does not exist, with no `return`. Neither
+is in the yml, so neither had ever been compiled. And `util::trapezium` and `util::to_string` were silent
+narrowing points for any active caller.
+
+### The one ruling that wants challenging, and it is recorded as open
+
+**The `height` argument of the whole competition family stays `double`.** §2.2 says a field query's
+position carries `S`, which argues for widening it. The packet did not, and its reasoning is sound as far
+as it goes: every call site passes a knot position from the interpolant's grid, which is `double` by a
+committed decision; §2.3 declares the block's inputs as the knot **values and slopes**, not the positions;
+and the slope is computed analytically by the fused reduction rather than by differencing `z`, so nothing
+needs `d/dz`. What must flow is `d(competition)/d(cohort state)`, and that travels through the *node's own*
+height, which is active.
+
+**Nothing in the packet distinguishes "correct" from "a dropped `d/dz` channel that happens not to matter
+yet", and only a numeric derivative would.** So it is recorded as the open ruling of this sweep, to be
+settled at V1 — where a whole-`Patch` recording compared against the decomposition is exactly the
+instrument that would show it. It halved the diff, which is a real argument for taking it now and checking
+it then, but it is a judgement and not a measurement.
+
+Two smaller rulings, both stated with their reason: `Species::height_max()` carries `S` and the drop
+happens on **one commented line** in `resource_spline.h` rather than being hidden inside `height_max`, so
+a later active consumer cannot silently receive a constant; and `HeightScan`'s cache now holds an active
+value across tape lifetimes, invalidated by every mutator so a stale one is never read — the same
+arrangement `Internals<S>` already has, noted rather than changed.
+
+### Two gate gaps in my brief, one of which the packet closed itself
+
+- **`stochastic_species.h` and `stochastic_patch.h` are in the allowlist but in no gate's instantiation
+  set** — the deterministic `Patch` never reaches them. That is the same "work without a gate" the previous
+  packet correctly refused, and I reintroduced it. The packet built the gate itself in a scratch TU and
+  measured **19 refusals + 9 sites before, 19 + 2 after**; the two remaining are the same
+  `*it++ = <active>` R-boundary seam in `individual.h:130` and `stochastic_node.h:73`, both outside its
+  allowlist. Two one-line changes, now owed. **A standing gate wants a `StochasticPatch` instantiation in
+  the probe**, at the cost of changing the expected 19.
+- **The probe costs ~30 s here, not the ~3 s I quoted** — the odelia/Rcpp/BH include set dominates. Still
+  cheap, but it changes how a packet batches edits, and the packet front-loaded rather than iterating
+  site by site because of it.
+
 ## Individual's state store carries the scalar — and my passivation gate does not work
 
 plant `p3/store` (worktree `wt-p3-store`, off `1e045de7`). `Individual` holds `Internals<value_type>`,
