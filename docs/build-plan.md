@@ -1271,7 +1271,14 @@ those backwards.
 
 *Order, and the two steps are different in kind.* (1) Add `knot_fractions_` and rebuild through it,
 keeping the fitted cubic as the evaluator **and taking the fractions from that interval's own adaptive
-fit** — `x_k = u_k · height_max` is then exact arithmetic and this step is bit-identical. (2) Switch
+fit**. ~~`x_k = u_k · height_max` is then exact arithmetic and this step is bit-identical.~~
+**Corrected in Phase 2: that is arithmetically false and no form of the gate can pass.** `u_k = x_k /
+height_max` is itself a rounding, so the rebuild computes `fl(fl(x/H₀) · H₁)` against `rescale_spline`'s
+`fl(x · fl(H₁/H₀))` — two roundings of one exact value by different routes. Measured: **572 of 8 256
+knot positions land 1–2 ulp apart** over 142 recorded states, and those moves change the *adaptive knot
+count* at 46 of 142 introductions, giving a 4.6e-04 offspring shift. Report 03 §1b states it correctly
+("up to performing one division rather than an affine remap"); this line did not. Treat step (1)'s gate
+as a transcription check at 1–2 ulp on the positions, not as bit-identity. (2) Switch
 the fractions to uniform-65. This one is **not** bit-identical and is not meant to be: M3 measures the
 crown-mean light shift at up to 1.7e-03, so this is the deliberate re-blessing, and it is the step
 that removes the carried knot set. Doing (1) and (2) as one change loses the ability to tell a

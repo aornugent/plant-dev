@@ -1737,6 +1737,83 @@ structurally and by inspection but never exercised — every gate ran the ordere
 transport census shows crossed heights do occur**, at a spacing of −0.0334 m, so that path is
 reachable in production and is now the one part of this reduction with no measurement behind it.
 
+## P2.1 — the light interpolant on a normalised coordinate
+
+`aa3d2ee7`, `d4a9e338`, `931d9b4c` on `p2/p2-interp`. Knot fractions held for the run, uniform at 65,
+and the rescale path deleted.
+
+### The property the task buys, and it is measured decisively
+
+**History independence, bitwise.** The same state reached two ways — the field as recorded during a
+run, against a rebuild at that state — over 10 011 crown means at 142 states:
+
+| | worst |
+|---|---|
+| base tree | 3.37e-04 |
+| after step (3) | **0** — median 0, p95 0 |
+
+**Knot positions run-constant**, and the gate was shown to fail before it passed:
+
+| | knot count | builds on the uniform-65 fractions, bitwise |
+|---|---|---|
+| base | min 33, max 125, mean 58.1, **28 distinct counts** | 0 of 142 |
+| step (1) | min 33, max 125, mean 58.2, 32 distinct | 0 of 142 |
+| **step (3)** | **65 at every build, 1 distinct count** | **142 of 142** |
+
+**My gate as written needed correcting, and the packet corrected it.** I asked for the *absolute*
+position vector to be run-constant. It cannot be: `x_k = u_k · height_max` and `height_max` runs 0.34 m
+to 17.9 m by design — report 03 §1b rejects a fixed absolute grid explicitly. The assertion that bites
+is `x == u · height_max` bitwise against one fixed uniform `u`, which is the same claim in the right
+coordinate.
+
+The `derivs`-twice regression check is unchanged at all three models: 0 of 1137, 0 of 987, 0 of 530.
+
+### Step (1) cannot be bit-identical, and the plan said it was
+
+See the correction now in `build-plan.md` §P2.1. `u_k = x_k / height_max` is a rounding, so the rebuild
+is `fl(fl(x/H₀) · H₁)` where `rescale_spline` computed `fl(x · fl(H₁/H₀))`. **572 of 8 256 positions
+land 1–2 ulp apart**, and because the fitted cubic is still the evaluator at that step, those moves
+change the *adaptive* knot count at 46 of 142 introductions and offspring by 4.6e-04. The packet
+reported the gate failing rather than redefining it, which is the wanted behaviour: a 2-ulp position
+move is a passing transcription check by every reading except the literal one.
+
+### Step (2)'s shift, and one unresolved ambiguity
+
+10 011 crown means over 142 states: worst absolute **4.94e-04** against M3's ~1.7e-03, median
+**9.74e-07** against ~1.6e-06 — both inside the band. But the worst *relative* shift is **2.04e-03**,
+marginally above 1.7e-03. **M3's figure does not say whether it is absolute or relative**, and mean
+crown openness is dimensionless in [0,1] so both readings parse. Recorded rather than chosen; if M3
+meant relative, step (2) is 20% over band and wants the owner.
+
+Forward value after step (3): offspring **`42.63017390650149`** at 5 465 steps, bit-identical between
+steps (2) and (3).
+
+### A guard is lost, and it is the same box-model problem P2.2 found from the other side
+
+`test-canopy-methods.R:128` asserts that `flat-top-box` **cannot** build a light environment, expecting
+`run_scm` to raise "Interpolated function as refined as currently possible". With no adaptive refiner
+there is nothing to stall, so a discontinuous profile is now sampled silently at 65 uniform knots and
+the run completes. **That is a lost guard, not a moved number.** `Patch::compute_environment` still
+catches `interpolator::refinement_failure` around a call that can no longer raise it, so the catch is
+dead too.
+
+Two packets reached the box models independently — P2.2 through `q` not being the kernel's derivative
+for them, P2.1 through the refiner no longer rejecting them. **Neither model is TF24, which rejects
+both; the exposure is FF16 and K93.** Worth one decision covering both rather than two.
+
+### Owed
+
+- The dead constructor arguments: `ResourceSpline(tol, nbase, max_depth, rescale_usually)` and
+  `compute_environment`'s `rescale` now select nothing. Removing them reaches the RcppR6 yml,
+  `patch.h` and `stochastic_patch.h`, none of which was in the allowlist.
+- **My packet quoted a stale reference number** — `42.176246845059751` / 5 105, which is the *P1* base,
+  where the tree it was given already carried the boundary reordering and stands at
+  `42.249808414392021` / 5 071. The packet was told to stop if the reference did not reproduce; it
+  diagnosed the discrepancy correctly, pinned its own baseline and continued, which was the right call.
+  **A packet's reference must be taken on the packet's own base, and mine was not.**
+- `test-patch.R:86` was not shown failing identically on the base tree, because the base `.so` had been
+  overwritten; the pandoc failure at `test-strategy-ff16.R:238` is environmental.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
