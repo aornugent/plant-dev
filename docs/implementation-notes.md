@@ -2690,6 +2690,55 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
+## Phase 3 integrated, and verified on the merged tree
+
+    plant   p3/phase-3            c9914ffb   five packets
+    odelia  p3/odelia-integration fdccd7b    two packets
+
+Verified by a pass that changed no source file, in a worktree neither it nor I had experimented in.
+
+| | expected | measured |
+|---|---|---|
+| TF24 / FF16 / K93 forward values | the phase-2 closure values | **bit-identical, all three, step counts included** |
+| stage purity, `derivs(y, t)` twice bitwise | 0 differing | **TF24 0 of 1137, K93 0 of 705** |
+| the active probe | 19, all in one file | **19, all in `tf24_strategy.h`** |
+| plant suite | ≥ 1 309 pass | **2 857 pass, 0 fail**, 6 errors (below), 10 skip |
+| odelia suite | 331 | **334 pass, 0 fail, 0 error, 2 skip** — 327 + 3 + 4, so the merge lost and duplicated nothing |
+
+**So the whole phase is bit-identical**, which was not a goal — three packets moved type declarations
+through the containers and every one of them held the forward model exactly. The purity property the next
+phase depends on survives the merge.
+
+**Two of the six suite errors were not on my known list, and they are pre-existing.** `test-mutant.R` at
+lines 40 and 126 both throw `Run a resident first to generate a competitve landscape`, from
+`Patch::set_mutant()` guarding an empty `environment_history`. The only thing that populates that member
+is `Patch::cache_ode_step`, which **has no callers anywhere in plant**: its caller was an odelia hook
+removed in `1773fe3`, long before this phase, and no Phase 3 commit touches it. Same category as the three
+`test-stochastic-patch.R` errors — a dead mechanism whose test still runs — and it is now on the list.
+This is the corpus's own record that the mutant replay path is dead, meeting its test suite for the first
+time.
+
+**One brief defect of mine, and it is a gap in a rule I rely on.** My verification setup exported
+`R_LIBS_USER` for the odelia *install* and never for the plant *build*, so the first build resolved
+`-I/usr/local/lib/R/site-library/odelia/include` — a stale July odelia with no `hermite_interpolator.hpp`
+at all. It died on a fatal include rather than producing a mixed `.so`, so nothing escaped. **The
+install-verification rule checks the install; it does not check which library the build actually used.**
+Those can differ. The check that closes it is one line on the build log:
+
+    grep -o "\-I'[^']*odelia[^']*'" <build log> | sort -u
+
+**A behavioural fix rode inside a plumbing packet**, and it deserves its own line: `Patch::r_at` and
+`StochasticPatch::r_at` read `at(species_index.check_bounds(size()));` — a call to a member that does not
+exist, with no `return`, so the function fell off its end. Neither is in the yml, so neither had ever been
+compiled. Fixed to `return species[...]`, keeping the bounds check. Correct, and not scalar plumbing.
+
+**And I moved a submodule pointer four times without saying so.** The odelia gitlink advanced inside
+`c4422ba`, `4e51514`, `08ada4a` and `419a9a3` — all commits whose messages describe documentation —
+because I staged with `git add -A` from the superproject root while the submodule sat on a moved branch.
+The end state is right and verified, but the history says otherwise. **A submodule pointer is a semantic
+change and must not ride in a docs commit**; stage the superproject's paths explicitly, or check
+`git status` before committing rather than after.
+
 ## The container sweep, and the light channel it found silently severed
 
 plant `672cd702` on `p3/sweep`. Nine files. **`Patch<TF24_Strategy<S>, TF24_Environment<S>>` now
