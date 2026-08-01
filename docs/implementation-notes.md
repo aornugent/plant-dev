@@ -2690,6 +2690,60 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
+## Two owed odelia items, taken — and a style rule that cannot be followed as written
+
+odelia `25619be` on `p3/odelia-surface`, off `p1/audit-fixes`. Both were recorded as owed since Phase 1
+and both stopped being housekeeping: the alias is how a consumer names the adjoint scalar without
+spelling `xad::`, and the concept is what `Patch::rebind_from` will fail against two tasks from now.
+
+**Verified in this session** by installing into my own library and grepping the *installed* headers:
+suite **331 pass, 0 fail, 0 error, 2 skip**, the alias at `ode_interface.hpp:24`, `Rebindable` at three
+sites, and `has_rebind_from` in **zero** files.
+
+**The alias is `odelia::ode::active_scalar<T = double>` in `ode_interface.hpp`**, defined from the same
+expression the `Solver` member used, which now reads `active_scalar<double>` — one definition, no second
+spelling to drift. Templated because `step_adjoint` needs the layer over `value_type`, which is
+`AReal<double>` under an outer fit, so a hard-coded `double` alias would have forced a second spelling
+at the one site that most needs the first.
+
+**`ode_util.hpp` stays XAD-free and the include runs the safe way** — `ode_interface.hpp` includes
+`ode_util.hpp`, not the reverse — so `to_passive`'s ADL trick is intact. **My allowlist suggested
+`ode_util.hpp` as a candidate home and that was a trap**, which the packet caught: putting an XAD type
+in the one header deliberately kept clear of XAD would have undone a documented choice.
+
+**The concept constrains the return type, not just the member's presence, and the diagnostic is the
+whole point.** A `rebind_from` returning the wrong scalar satisfies a presence check and then fails deep
+inside `step_adjoint`; `Rebindable` requires the rebound type's `value_type` to *be* the requested
+scalar. Confirmed by compiling a System without the hook — the error is at the `static_assert` with
+`the required expression 's.rebind_from<U>()' is invalid` and `nested requirement ... is not satisfied`
+underneath it, and nothing downstream. That is a call-site diagnostic where the struct gave a boolean.
+
+### The style rule "a concept plus `if constexpr`" cannot be followed for a pure refusal in C++20
+
+The packet did not use `if constexpr` and was right not to. `step_adjoint` has no alternative branch to
+select — the rule is *refuse* — and `if constexpr (!C) { static_assert(false, ...); }` is **ill-formed in
+C++20 even in the discarded branch**; P2593 fixes that only in C++23. Following the rule literally would
+have meant adding a `dependent_false` helper: a new piece of generic machinery to express a plain
+refusal, which is the opposite of what the rule is for. What landed is `static_assert` with a *concept*
+as its predicate rather than a struct's `::value`.
+
+**So the rule wants a clause.** It exists to forbid SFINAE detection structs and runtime capability
+flags; it should say that a compile-time **choice** is a concept plus `if constexpr`, and a compile-time
+**refusal** is a concept in a `static_assert`. Both are concepts; only one has a branch.
+
+### My baseline was wrong again, and it is the same mistake twice
+
+I gave 330 as the odelia suite's baseline. It is **327** on `p1/audit-fixes`; 330 is the tip of
+`p3/vjp-tape-reuse`, which adds three tests. Two packets ago I gave 322, which was the count at Phase 1's
+close, before the audit took it to 327. **Both times I quoted a number from a different commit than the
+one the packet was given.** The corpus holds all three figures correctly; what it does not hold is which
+tip each belongs to, and that is the thing a packet actually needs. A baseline is a property of a commit
+and should be written as one.
+
+Also from this packet: `R_LIBS_USER` alone does not make a standalone `-fsyntax-only` compile work
+against odelia — Rcpp's and R's include paths have to be assembled by hand, because
+`ode_util.hpp` reaches `RcppCommon.h`. The same tax the cost probe reported, now hit twice.
+
 ## The environment's half-templating is a prerequisite, not a deferred decision
 
 Read from the code while the state-store packet was in flight, and it moves an item Phase 1 recorded as

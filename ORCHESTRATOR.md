@@ -66,6 +66,12 @@ the tree** — the notes recorded a claim, not a commit, and it took a `grep` to
 has a second half: a gate you recorded is a gate you should be able to point at. §7's "re-run every
 gate" covers the ones you ran; this covers the ones you were told about.
 
+**A baseline is a property of a commit, so write it as one.** Twice in Phase 3 a packet was given an
+odelia suite count from a different tip than the one it was handed — 322 (Phase 1's close, before the
+audit), 327 (`p1/audit-fixes`), 330 (the tape branch, which adds three tests). All three are recorded
+correctly; what was not recorded is which tip each belongs to, which is the only part a packet needs.
+Quote the SHA beside the number.
+
 **And the third half, which Phase 3 paid for three times: run the gate on the unmodified tree before
 you send it, and confirm it produces a number you recognise.** Asking "what would make this pass
 vacuously" is not enough, because it is answered from the same understanding that wrote the gate. Phase
@@ -583,9 +589,10 @@ Neither is a defect; both are work with no task, which is the category §9 says 
 lift it to the adjoint scalar")`, and `grep -rn 'rebind_from' plant/inst/include` returns **nothing**.
 So P3.5 cannot call `step_adjoint` on a `Patch` at all until the hook exists. The plan mentions
 `SCM::rebind_from<S>()` only in passing, as something the *retired* AD branch had (§2.7), and §3's
-"what we take" does not list it. Two riders: `has_rebind_from` is a SFINAE detection struct where the
-style rules ask for a concept, which Phase 1 recorded as owed and which this makes live; and the hook
-has to construct the whole active `Patch`, so it is downstream of prerequisite 2.
+"what we take" does not list it. Two riders: ~~`has_rebind_from` is a SFINAE detection struct~~ — **now a
+`Rebindable` concept constraining the *return* scalar, not just the member's presence, so a wrong
+rebind fails at the call rather than deep inside `step_adjoint`** (odelia `p3/odelia-surface`); and the
+hook has to construct the whole active `Patch`, so it is downstream of prerequisites 2 and 3.
 
 **2. The active build is a prerequisite for V1, and the plan has no task for it.** V1 compares steps
 (a)–(d) against *one whole-`Patch` recording at one state*, and a recording requires

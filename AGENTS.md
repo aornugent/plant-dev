@@ -200,8 +200,12 @@ one call.
 
 - No parallel near-copy of an existing type or path; modify what exists.
 - No re-implementing what vendored XAD provides.
-- No runtime capability flags or SFINAE detection structs — a concept +
-  `if constexpr`.
+- No runtime capability flags or SFINAE detection structs. A compile-time
+  **choice** is a concept plus `if constexpr`; a compile-time **refusal** is a
+  concept inside a `static_assert`. Both are concepts, only one has a branch —
+  and `if constexpr (!C) { static_assert(false); }` is ill-formed in C++20 even
+  in the discarded branch, so writing a refusal that way needs a helper for a
+  false predicate, which is the machinery this rule exists to avoid.
 - No storing what can be derived; no passing a count that can disagree with
   its source of truth.
 - No dropping a guarantee (bounds check, cleanup path) during a refactor; no
