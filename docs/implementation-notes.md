@@ -2630,6 +2630,66 @@ Four, and three are mine:
 fixed trait. The same reachability gap the corpus already flags, now blocking instrumentation by state
 as well as inspection from R.
 
+## The record-and-sweep multiplier, measured — 8x, not 3 to 5
+
+`odelia/scripts/vjp_cost.cpp`, an untracked probe stating its own configuration; no odelia header
+touched. **Re-measured in the orchestrator's own session** and it reproduces, which matters here
+because it is a timing and another build was running in both cases.
+
+| size | arm D | arm R | R/D |
+|---|---|---|---|
+| 75 inputs, 17 knots, 10 quadrature points | 1.557 us | 23.637 us | 15.18 |
+| **171 inputs, 65 knots, 40 points** | **4.516 us** | **47.900 us** | **10.61** |
+| 561 inputs, 260 knots, 160 points | 16.038 us | 144.390 us | 9.00 |
+
+Marginal, which strips the fixed cost: **8.20** small-to-mid and **8.37** mid-to-large.
+
+**Two findings, and the second is worth more than the first.**
+
+**The multiplier is flat in block size, so the budget's structural assumption was right** — the
+recorded arithmetic costs a flat ~8x and the falling R/D is entirely a fixed per-call cost. But it is
+flat at 8, not 3–5, and at the block's own size the applicable figure is 10.6. Re-costed with the two
+recordings per (stage, cohort) that deferring P2.4 forces: **~670 s, so 5 to 6 forward runs rather than
+2 to 3**, and the saving against 51 traits by central difference is **~17x** rather than 30–50x.
+Decisive still; the stated total does not hold. `build-plan.md` §8b carries the table.
+
+**Tape construction is 22% of the reverse term and hoisting it is the cheapest win on the budget.**
+Construct-and-destroy alone is **10.44 us** against arm R's 47.9 us, and an empty record-seed-sweep at
+171 inputs is 13.11 us — so registering, seeding and sweeping a trivial recording costs under 3 us on
+top of the tape. `vector_jacobian_product` builds one per call, of order 3.9 M times. Reusing a tape
+with `newRecording()`, which `compute_jacobian` already does, is ~**108 s** off a ~670 s gradient and
+takes R/D at block size from 10.6 toward ~8.2. Phase 1 recorded the tape-per-call as "the first thing
+to measure when the sweep's cost is taken" — it is measured, and it is now the first thing to fix.
+
+**The recording-size invariant still holds**: 52 080 bytes with one output adjoint seeded and 52 080
+with all eleven. So peak is 46 MB of trajectory plus ~52 kB, and the 2 GB gate has four orders of
+headroom rather than three.
+
+**Why the number is trustworthy, stated because a timing usually is not.** The arms are interleaved in
+one loop, so contention moves numerator and denominator together — and the proof that this worked is
+that two measurements taken under different loads agree to within a few percent. Arm D is defended
+against dead-code elimination through a `volatile` sink, and its times scale 1 : 3.2 : 11.5 against a
+quadrature count scaling 1 : 4 : 16, which is the independent check that the compiler did not delete
+it. Built at `-O2 -DNDEBUG`; a `-O0` ratio would be biased rather than merely noisy, because the two
+arms optimise very differently.
+
+### What the packet could not do, and one thing it corrected in the brief
+
+The block is a **stand-in**, not `Individual::compute_rates`: it matches the declared shape and uses the
+real interpolant, but not the real arithmetic mix, so 8x is the multiplier for
+power-law-plus-interpolant work rather than for that function. Arm D landed at 4.5 us against the 6 us
+target, which biases R/D upward only through the fixed cost and leaves the marginal 8x untouched. And
+the size sweep moves knots and quadrature points together, so the interpolant's share is not separated
+from the quadrature's.
+
+**My brief was wrong that R and Rcpp includes were probably unnecessary.** `gradient.hpp` reaches
+`ode_util.hpp` and thence `RcppCommon.h`, so both include paths, `-lR`, an `Rcpp.h` include and
+`src/Tape.cpp` are all mandatory — **XAD is not fully header-only**, because
+`xad::Tape<double,1>::active_tape_` lives in that translation unit. Worth knowing before anyone else
+tries to compile an odelia probe standalone. The packet also noticed that this corpus records the
+recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
+both pass, and the two wordings should agree.
+
 ## The active build is larger than the census said, because the census was too narrow
 
 **`Individual` holds `Internals<double> vars` (`individual.h:205`), not `Internals<S>`.** So the whole

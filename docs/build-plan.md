@@ -1970,11 +1970,50 @@ acceptance test rather than the cheap one.
 **Re-solving the leaf instead of keeping its operating point adds 36 s** — 9.2 µs per (stage,
 cohort), the golden section's own cost (§2.9).
 
-**The one soft number is the record-and-sweep multiplier.** 3–5× is XAD-typical and is not measured
-here; it is the term that could double the total. It is measurable before any of plant is written —
-T1's harness in P1.1 times a block-shaped System against its own double evaluation — so P1.1 closes
-on it and the budget is re-taken then. Everything else in the table is measured or is arithmetic on
-measured quantities.
+~~**The one soft number is the record-and-sweep multiplier.** 3–5× is XAD-typical.~~
+
+**Measured in Phase 3, and it is 8x, not 3-5x — so this table's total does not hold.** P1.1 was
+supposed to take this measurement and did not: the primitive was gated on a central finite difference
+and on the recording-size invariant, both correctness checks, and never timed.
+`odelia/scripts/vjp_cost.cpp` measures it on a block-shaped callable — 171 inputs, 11 outputs, a real
+`hermite_interpolator` read at an active position at each of 40 quadrature points — with the two arms
+**interleaved in one loop** so contention affects numerator and denominator alike:
+
+| size | arm D | arm R | R/D |
+|---|---|---|---|
+| 75 inputs, 17 knots, 10 points | 1.56 us | 23.6 us | 15.2 |
+| **171 inputs, 65 knots, 40 points** | **4.52 us** | **47.9 us** | **10.6** |
+| 561 inputs, 260 knots, 160 points | 16.0 us | 144 us | 9.0 |
+
+**The multiplier is flat in block size, and the assumption of flatness was the right one** — the
+marginal ratio is 8.20 and 8.37 across the two steps, so the recorded arithmetic costs a flat ~8x and
+the apparent size dependence is entirely a fixed per-call cost. At the block's own size the applicable
+figure is **10.6**.
+
+Re-costed, with the two recordings per (stage, cohort) that deferring P2.4 forces:
+
+| term | | |
+|---|---|---|
+| rebuild the stage states in `double` | one forward RHS per stage | ~115 s |
+| the leaf's partial derivatives | 3.9 M, 14-21 us | 55-82 s |
+| record and sweep, **twice** per (stage, cohort) | 3.9 M x 6 us x 10.6 x 2 | **~496 s** |
+| | | **~670 s** |
+
+**So a gradient is 5 to 6 forward runs rather than 2 to 3**, and the saving against a
+central-difference gradient of 51 traits (102 forward runs, ~11 700 s) is about **17x** rather than
+30-50x. Still decisive, and the acceptance test's economics are unchanged — but re-cost before
+building further on the stated total.
+
+**The cheapest available win is in odelia and is already recorded as owed.**
+`vector_jacobian_product` constructs a `Tape` per call: construct-and-destroy alone measures
+**10.4 us**, which is **22%** of arm R at the block's size, and an empty record-seed-sweep at 171
+inputs is 13.1 us — so registering, seeding and sweeping a trivial recording costs under 3 us on top of
+the tape. Hoisting the tape and reusing it with `newRecording()`, which `compute_jacobian` already
+does, takes roughly **108 s** off the figure above and moves R/D at block size from 10.6 toward ~8.2.
+Phase 1 recorded this as "the first thing to measure when the sweep's cost is taken"; it is now
+measured and it is the first thing to fix.
+
+Everything else in the table is measured or is arithmetic on measured quantities.
 
 **What the peak is.** 46 MB of trajectory plus one block's recording, flat in run length, stage
 count and trait count (report 01 §7.2). The 2 GB gate in V4 has three orders of headroom; it exists

@@ -597,7 +597,18 @@ of its groups.
 
 ### 11.4 Three measurements before code, and two need no plant
 
-**1. The record-and-sweep multiplier, and §8b promised this and did not deliver it.** §8b names 3–5×
+**1. ~~The record-and-sweep multiplier~~ — TAKEN, and it is 8x rather than 3-5x.** Marginal ratio 8.20
+and 8.37 across a 4x and a 16x size step, so **flat in block size** as the budget assumed; **R/D 10.6**
+at the block's own size, the difference being a large fixed per-call cost. Re-costed, a gradient is
+**5 to 6 forward runs rather than 2 to 3** and the saving against a central difference is ~17x rather
+than 30-50x. `odelia/scripts/vjp_cost.cpp`; `build-plan.md` §8b now carries the table.
+
+**And it found the cheapest win on the whole budget.** `vector_jacobian_product` builds a `Tape` per
+call, and construct-and-destroy alone is **10.4 us — 22% of arm R**. Hoisting it and reusing with
+`newRecording()` takes ~108 s off a ~670 s gradient. Phase 1 recorded the tape-per-call as "the first
+thing to measure when the sweep's cost is taken"; it is measured, and it is now the first thing to fix.
+
+*What it was, and why it needed taking:* §8b names 3–5×
 as "the one soft number" and "the term that could double the total", and says T1's harness in P1.1
 "times a block-shaped System against its own double evaluation — so P1.1 closes on it and the budget is
 re-taken then". **P1.1 gated the product on a central finite difference and on the recording-size
@@ -643,19 +654,29 @@ ask what it reports when the channel under test returns exactly zero. Where the 
 the gate needs an explicit assertion that the adjoint is **not** zero — which is what odelia's own
 active-position test already does, and it is the right precedent to copy.
 
-### 11.6 The budget, re-read after P2.4
+### 11.6 The budget, re-costed from measurement
 
-§8b's table is written against a post-P2.4 forward pass of about 63 s, and there is no such pass.
-Re-read it as: forward about **115 s**, the leaf-partials term unchanged, and **the record-and-sweep
-term at twice its stated value** — two block recordings per cohort per stage, not one (§11.2). Which
-makes §11.4's first measurement the one that decides whether "a gradient is 2 to 3 forward runs" is
-still the right order of magnitude, or whether it is 4 to 6. Both are worth having against a
-central-difference gradient's 102 runs; they are not the same engineering problem.
+§8b was written against a post-P2.4 forward pass of about 63 s and a record-and-sweep multiplier of
+3–5x. Neither holds: there is no 63 s pass, and the multiplier is **8x marginal, 10.6x at the block's
+size**. With two recordings per (stage, cohort):
 
-**Peak is the claim to hold, and it is flat.** 46 MB of trajectory plus one block's recording, constant
-in run length, stage count and trait count. The 2 GB gate has three orders of headroom and exists to
-catch a recording that is not released, not to be approached — so if it ever comes close, the finding is
-a leak and not a sizing error.
+| term | | |
+|---|---|---|
+| rebuild the stage states in `double` | one forward RHS per stage | ~115 s |
+| the leaf's partial derivatives | 3.9 M, 14–21 µs | 55–82 s |
+| record and sweep, **twice** | 3.9 M × 6 µs × 10.6 × 2 | **~496 s** |
+| | | **~670 s** |
+
+**A gradient is 5 to 6 forward runs, and the saving against 51 traits by central difference is ~17x.**
+Decisive, and the deliverable's economics are unchanged — V4's re-run finite difference is still the
+expensive half of the acceptance test. What changed is that the reverse term now dominates the budget
+rather than sharing it, so **the tape hoist in §11.4 is worth taking before P3.2 rather than after**:
+it is ~108 s, one odelia change, already recorded as owed since Phase 1.
+
+**Peak is the claim to hold, and it is unaffected.** 46 MB of trajectory plus one block's recording —
+the measurement puts a block's recording at **52 kB**, flat in the number of output adjoints seeded (1
+and 11 give the same bytes). The 2 GB gate has four orders of headroom and exists to catch a recording
+that is not released.
 
 ### 11.7 The documents the plan assigns, and Phase 1 missed one
 
