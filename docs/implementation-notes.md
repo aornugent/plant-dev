@@ -2291,6 +2291,84 @@ polish is genuinely paid for relative to where it started — but "faster than b
 it is the same error this corpus keeps finding: a ratio quoted against the wrong arm. P2.4 would
 repay it several times over if it is ever taken; P2.3 would add about 3%.
 
+## Phase 2, closed
+
+`p2/phase-2` = P2.7, P2.1, P2.2, P2.6 and P2.3, plus the soft-box slope. Fourteen commits off
+`p1/audit-fixes`. P2.5 is answered as a measurement; **P2.4 is out of scope** with report 10 as its
+home. One build at the pinned build, 0 occurrences of `-O0`, every gate re-run in the orchestrator's
+own worktree.
+
+    derivs(y, t) twice, bitwise:  TF24 0 of 1137   FF16 0 of 686   K93 0 of 490
+
+| | offspring | steps | shift |
+|---|---|---|---|
+| `p1/audit-fixes` | `42.176246845059751` | 5 105 | — |
+| **`p2/phase-2`** | **`42.179817344974609`** | **4 798** | **+0.0085%** |
+| FF16 | `19.834058960443031` | 209 | +0.043% |
+| K93 | `0.030538172107758225` | 240 | −0.028% |
+
+**Six tasks, three of which move a forward number, composing to under a twentieth of a percent** —
+and both simpler models keep their exact step counts, so their figures are the change itself rather
+than the controller re-rolling.
+
+Suite: **1 309 pass, 0 fail**, plus one environmental error (`FF16_generate_stand_report` needs
+pandoc). Re-blessed: FF16's offspring and `ode_times`, the deep-crown baseline, `GSS_tol_abs`'s
+default. Migrated rather than re-blessed: three tests whose subject stopped existing (below). Relaxed
+with a reason: one 1e-21 assertion.
+
+**On timing, less than I said earlier.** This session's wall clocks for comparable trees ran 97 s to
+164 s depending on how many packets were building concurrently, so **absolute times are not comparable
+across the session** and no phase-level ms/step is quotable from them. What is quotable is each
+packet's own same-session ratio: P2.1 recovers 11% per step, P2.6 costs +42% at step (1) and −1% with
+step (2), P2.3 costs about +3%, P2.2 is free.
+
+### Two defects P2.3 shipped, and both were mine to catch
+
+**It segfaulted R.** `ResourceSpline::clear()` emptied the interpolant, and every query reads its
+bounds to decide whether a height is in domain — so `max()` read `x.back()` on an empty vector and
+`get_environment_at_height` on a cleared environment crashed. The fitted spline tolerated it; a
+Hermite does not. Clearing now restores the flat open field the constructor starts from, which is what
+a cleared light environment means.
+
+**And setting the light field from R had stopped being possible.** That went through
+`env$light_availability$spline <- interpolator`, and the `spline` field cannot be an RcppR6 class once
+the interpolant carries a slope per knot. `init_interpolators` is now exposed, taking heights, values
+and slopes as one vector.
+
+**Both were missed because `test-scm.R` and `test-environment.R` were not in the gate list I wrote**,
+which named the strategy files, `test-patch.R` and `test-canopy-methods.R`. The packet reported the
+`test-environment.R` failures faithfully and I read them as expected fallout from a declared interface
+change. **A test that can no longer express its subject is not a moved baseline** — `spline$size`
+returning NULL is a renamed accessor, `spline <- interpolator` erroring is a capability gone, and
+telling them apart is the orchestrator's job.
+
+**A third thing fell out of it: the old "manually set environment" test never set the environment.**
+`light_availability` is a field, so reading it copies; the old test mutated the copy and then asserted
+the copy against its own input, which passes whatever the environment holds. The migrated test does
+the get-mutate-assign-back round trip and asserts on the environment.
+
+### The box-model question dissolved rather than being decided
+
+`flat-top-box` and `flat-top-soft-box` are both teaching devices and `canopy_shape.h` says so.
+`flat-top-box` is *"a deliberately naive variant … the model does not run. See the vignette"* — its
+test asserts it fails, so nothing was withdrawn and P2.3 only changes which error it raises.
+`flat-top-soft-box` runs, and it is a cubic smoothstep: `d/dt` of `1 − t²(3 − 2t)` is `−6t(1 − t)`, so
+`q = 6t(1 − t) / ((1 − lo) H)`, exact, vanishing at both ends of the transition. Implemented rather
+than deferred — filing an issue for a one-liner while shipping a regression to a working model was the
+wrong trade. **No capability withdrawn, no fallback mechanism, no runtime branch.**
+
+### Owed
+
+- **A newborn should probably inherit the boundary condition in the completed field**, not in the
+  field that excludes the boundary interval. A recruiting cohort of density `n_b` does shade its own
+  leaves over its crown, and unlike the field build itself this is not circular. That means re-seeding
+  after the field build; the 1e-21 assertion above is what it would restore. Recorded rather than done,
+  because it is a modelling change and a re-blessing pass is the wrong place for one.
+- **`hermite_interpolator` has no accessor for its knot values or slopes**, so `r_get_state` reads them
+  back through `value_and_slope` and a slope returns as `fl(fl(m·h)·fl(1/h))` — up to an ulp from what
+  was supplied. Adding the accessors belongs to odelia and would also let `spline` be R-facing again.
+- The dead `ResourceSpline` constructor arguments, which now select nothing.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
