@@ -1919,6 +1919,38 @@ the second Newton step (7 evaluations to 5). **Landing step (1) alone would put 
 per step, so it must not be re-blessed in this state** — which is also the argument for the plan's
 insistence that Phase 2's four value-movers land together rather than one at a time.
 
+### Both levers spent: the polish is now free
+
+`45a83b8f`. `GSS_tol_abs` drops from `1e-3` to `1e-1`, and a Newton step after the first reuses the
+derivative already held — it divides a step length, so a stale one changes the step taken and not the
+point the steps converge to. A rejected step is retried once against a derivative taken at the current
+point, and a fresh derivative still rejected is the bound case.
+
+| arm | seconds | steps | ms/step |
+|---|---|---|---|
+| P2.6 step (1) alone | 158.0 | 4 730 | **33.40** |
+| **both steps** | 116.4 | 4 854 | **23.98** |
+| pre-P2.6 reference | — | — | 24.3 |
+
+**23.98 against 24.3 — the polish now costs less than nothing**, before the plan's +10% tolerance is
+touched. Evaluations per solve go 7.25 → 6.75 at the new default (5.17 at the old one), and the nine
+profit evaluations the loosened search no longer does more than cover the two extra `dprofit` calls.
+
+The gates hold at the new default: worst `|R|` **9.587e-09** against 1e-07 required, and the polished
+point still bracket-independent at **1.044e-09** — the same figure as step (1), so the reuse moved
+nothing. `test-leaf.r` 383 pass. Forward value `42.192676883315706` at 4 854 steps.
+
+**The existing bracket-independence test gated the new default without being touched**, because it was
+written against the residual rather than against whatever the default happened to be. That is the
+difference between a test of a property and a test of a configuration.
+
+**Two process notes disclosed by the packet.** The two arms were built in the opposite order to the
+one planned — sources were edited while the "baseline" build was still compiling, so that object was
+in fact the change arm — but both are clean full builds at `-O2` with no `-O0`, so the comparison
+stands. And two comment-only edits may post-date the object they were compiled into. Worth recording
+because the first is a real hazard: **editing a worktree while it is building silently relabels which
+arm you measured.**
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
