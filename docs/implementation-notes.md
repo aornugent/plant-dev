@@ -2630,6 +2630,65 @@ Four, and three are mine:
 fixed trait. The same reachability gap the corpus already flags, now blocking instrumentation by state
 as well as inspection from R.
 
+## P3.5's transport adjoint, designed — and the probe has no active path at all
+
+The design §11.2 of `ORCHESTRATOR.md` puts before P3.2, because P3.2 freezes the block's boundary and
+this decides how many times the block is evaluated. Read from the code rather than from the plan, and
+the plan's premise does not hold.
+
+**Report 04 §5 records that "differentiating develop's sub-grid probe at the active scalar is
+bit-identical and yields the derivative of the discretisation actually solved". That is true of the
+*scheme* and false of the *code*.** The probe is passive end to end, at three independent points:
+
+| site | what it does |
+|---|---|
+| `Individual::growth_rate_given_height(double height, env) -> double` | takes the perturbed height as a **passive** `double`, so `d/dh` is structurally zero, and returns `double`, converting the active rate away |
+| the lambda in `Node::growth_rate_gradient`, `node.h:211` | declared `[&] (double h) -> double` |
+| every `util::gradient_fd*` and `gradient_richardson` overload | `double` in the parameter, the value and the return |
+
+So there is no active path to differentiate. `log_density_dt = -growth_rate_gradient - mortality` would
+carry **exactly zero** derivative through its transport term — the failure mode this design exists to
+prevent, in the one channel report 10 already named as the load-bearing cost of deferring P2.4.
+
+**What P3.5 needs, and the choice is bookkeeping rather than mathematics.** Either way the block is
+evaluated twice per cohort per stage, which is report 10 §6's figure and is confirmed here:
+
+- **Record both evaluations.** Make the probe scalar-generic — `growth_rate_given_height(S, env) -> S`,
+  the lambda `-> S`, and a scalar-generic difference quotient — and let the tape record
+  `(g(h) − g(h−eps))/eps` with both evaluations on it. `lambda_g` then reaches both automatically and
+  step (a) needs no hand-written seed at all.
+- **Seed it by hand.** Keep the probe `double` for the value and supply the transport term's adjoint as
+  two seeds, `−lambda_ldd/eps` on the block at `h` and `+lambda_ldd/eps` on the block at `h−eps`. The
+  second block still has to be recorded, so this buys no evaluations — only explicitness.
+
+**Recommend the first**, because the second writes by hand a chain rule the tape already gets right, and
+the corpus's own measured failure mode is a hand-written accumulation that is a fixed fraction of the
+truth with the correct sign. What the first costs is that a `1/eps` amplification sits inside the tape
+rather than in a seed, which is a conditioning fact and not a correctness one.
+
+**The conditioning is inherited and is the same under either reading, and it is the number to watch.**
+The derivative of the quotient with respect to a trait is
+`(∂g(h)/∂θ − ∂g(h−eps)/∂θ)/eps` — two nearly-equal partials differenced and divided by `1e-6`. Report
+10 §6 prices it at about **1e-10 of absolute error before any non-smoothness**, against a cohort-grid
+divisor 3 470× larger at the median spacing. **So V3 must not be read as a check on the transport
+channel's accuracy**: it verifies the tableau, and the transport term's conditioning is a property of
+the discretisation the model carries, not of the adjoint. Gate the transport channel against a finite
+difference *of the same quotient*, never against an analytic `dg/dh`.
+
+**Not decided here:** whether making the probe scalar-generic reaches `util::gradient_fd`'s other
+callers. It is generic numerics used beyond this path, so a scalar-generic version wants adding beside
+the `double` one rather than replacing it, and that is a task-sized change rather than a line.
+
+### The style sweep could not see this, and now can
+
+`ORCHESTRATOR.md` §10 names the hazard — "beware `-> double` on a lambda in templated code, which
+silently passivates" — and `style-sweep.sh` checked only for the *opposite* case, a lambda with **no**
+declared return type. So an explicitly `double`-returning lambda in scalar-generic code read as
+compliant, which is the more dangerous of the two because it looks deliberate. The sweep now greps for
+`-> double` in added lines as well; confirmed to bite on `node.h:211` and one site in `individual.h`.
+**A rule in a document that the sweep cannot check is a rule that is not enforced**, and the two lists
+are worth diffing against each other once rather than discovering the gaps one at a time.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not

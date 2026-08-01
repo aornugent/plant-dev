@@ -463,7 +463,8 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
        |
     Patch::rebind_from ── step_adjoint static_asserts on it; P3.5 cannot run without it
        |
-    P3.5's transport adjoint, DESIGNED ── not built; it fixes the block's boundary
+    P3.5's transport adjoint ── DESIGNED, and the probe turned out to have no active
+       |                          path at all: three severances, so it is a rewrite
        |
     P3.1  (a) soil ── (c) light knots ── (d) allometry,  step (b) stubbed        V1
        |
@@ -479,7 +480,17 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
 **Two of the three are §11.3b's prerequisites, above P3.1 in the diagram and absent from the plan
 entirely.** The third is an ordering constraint inside the plan's own task list:
 
-**P3.5's transport adjoint must be *designed* before P3.2, and the plan orders it after.** This is
+**P3.5's transport adjoint is now designed, and designing it found that the plan's premise was
+false.** Report 04 §5 says differentiating develop's sub-grid probe at an active scalar "is
+bit-identical and yields the derivative of the discretisation actually solved". True of the scheme,
+false of the code: the probe is passive at three independent points — a `double` perturbed height, a
+`-> double` lambda, and `double`-typed difference-quotient helpers — so the transport term would carry
+**exactly zero** derivative. The recommendation is to make the probe scalar-generic and let the tape
+record both evaluations, so `lambda_g` needs no hand-written seed; the conditioning (about 1e-10
+absolute, from dividing differenced partials by `1e-6`) is inherited either way and is the number to
+watch. `implementation-notes.md` carries the design.
+
+**The original constraint stands as an ordering fact:** This is
 Phase 2's bequest and report 10 §6 states it: with P2.4 out of scope the model carries develop's
 sub-grid probe, so `log_density_dt` reads `g` at the cohort's height **and** at `h − eps`, and the
 second reading is the output of a *second evaluation of the cohort block at a different input*. So
