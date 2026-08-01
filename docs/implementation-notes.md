@@ -1668,6 +1668,75 @@ selector and run one production lifetime, which is the same shape as the transpo
 C++ or adding a binding. That is the reason this is a question rather than a measurement, and it is
 worth fixing on its own account.
 
+## P2.2 — the competition profile's slope beside its value
+
+`f3c0e088` on `p2/p2-slope`. One fused traversal at every level — `Species`, `Node`, `Individual`,
+each strategy, and `CanopyShape::Q_and_q`, which forms `Q` and `q` from the single `u^eta` they
+share. The `Species` reduction mirrors `compute_competition_impl` term for term: same descending
+traversal, same early exit, same boundary trapezium, same `/2`.
+
+| gate | measured |
+|---|---|
+| the identity against a tight central difference, `eta` ∈ {1,2,4,8,10,12} and 7.3 | worst relative error **3.7e-11 to 1.1e-10** — central-difference truncation, on both the specialised chains and the `std::pow` path |
+| the fused value against `compute_competition`, bitwise | `identical()` **TRUE**, max \|diff\| 0, at every eta and on TF24 |
+| `q(0, h)` and the slope at `z = 0` | finite for every `h` in 1e-8 … 1e6 and every eta; `2/h` at eta 1, 0 otherwise |
+
+**The bitwise gate was given teeth, and the first attempt at them was invalid.** Reversing a
+*two*-term sum cannot change the result, because floating-point addition is commutative — only the
+association matters. With three species the check discriminates: the fused value equals `(a+b)+c`
+and differs from `a+(b+c)` at 2 of 400 query heights, worst 7.1e-15. So the gate is a statement
+about association, tested against a reassociation that is shown to move the double.
+
+### `q` is not the derivative of the competition kernel for every shading model
+
+Report 03 §4 concludes that `q` is "already declared, already called by both mean-light and
+deep-crown, **already correct for every strategy**". It is not. FF16 and K93 accept
+`flat-top-box` and `flat-top-soft-box`, which route competition through `leaf_area_above` — a hard
+step and a smoothstep — rather than through the Yokozawa `Q`. For those two models `-k_I · a · q` is
+the slope of a profile the field does not use. TF24 already rejects them, which is why the report's
+claim held everywhere it was checked.
+
+Taken here as a stop rather than a silent wrong slope: `Q_and_q` raises for the two box models,
+with a test. **The alternative reading is to omit the guard and document the restriction**, and that
+is the owner's if the eventual slope consumer only ever runs Yokozawa.
+
+**A C++ hazard found on the way, worth keeping.** The first version of that guard identified the
+shading model by comparing the stored function pointer against `&leaf_above_deep`. **The weak-symbol
+addresses did not merge across translation units, so the comparison misfired.** A stored enum
+replaced it. Function-pointer identity is not a reliable discriminator in a header-inline codebase
+built without LTO — which is this one.
+
+### Three test failures on `p2/phase-2` are the boundary reordering's, not this packet's
+
+Established by stashing the packet's edits, rebuilding clean and re-running — the right method, and
+it corrected the packet's own first answer, which came from reading `test_file(reporter="summary")`'s
+return value and missing the failures buried in its `result` column.
+
+| file | baseline | with P2.2 |
+|---|---|---|
+| `test-canopy-methods.R` | FAIL 1 / PASS 62 | FAIL 1 / PASS 87 |
+| `test-patch.R` | FAIL 2 / PASS 160 | FAIL 2 / PASS 160 |
+
+The `test-canopy-methods.R` failure is "deep-crown reproduces the baseline SCM result", **16.8990
+against 16.8895** — a 0.056% shift from the boundary reordering, and a baseline for the phase's
+re-blessing rather than a defect. The two `test-patch.R` failures are the 1e-21
+`offspring_produced_survival_weighted_dt` difference recorded above. So P2.2 moves no number and
+adds 25 assertions.
+
+### Declared deviations
+
+`inst/include/plant/individual.h` gained a seven-line forwarder, because `Individual::strategy` is
+private and a per-strategy slope entry point is otherwise unreachable from `Node` — an omission in
+the allowlist rather than a choice. And the RcppR6 yml and its four generated files carry
+`r_compute_competition_and_slope`, returning `std::vector<double>`, so the bitwise property is a
+standing test rather than a one-off probe. Both disclosed; six builds rather than one, also
+disclosed.
+
+**Owed, and it connects to a finding above.** The `!scan.decreasing` fallback was mirrored
+structurally and by inspection but never exercised — every gate ran the ordered path. **The
+transport census shows crossed heights do occur**, at a spacing of −0.0334 m, so that path is
+reachable in production and is now the one part of this reduction with no measurement behind it.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
