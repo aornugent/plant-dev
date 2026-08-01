@@ -2096,6 +2096,33 @@ accessors is the fix and it belongs to odelia.
 `test-environment.R` loses four more assertions to the removed `spline<-` setter; the `#253` floor it
 guarded is unchanged in `get_value_at_height` and simply no longer reachable by that route.
 
+## The phase as it stands, gated on the merged tree
+
+`p2/phase-2` = P2.7 + P2.1 + P2.2 + P2.6. One build at the pinned build, 0 occurrences of `-O0`,
+every gate re-run in the orchestrator's own worktree.
+
+    derivs(y, t) twice, bitwise:  TF24 0 of 1137   FF16 0 of 686   K93 0 of 490
+
+| | offspring | steps | seconds | ms/step |
+|---|---|---|---|---|
+| plant `p1/audit-fixes` | `42.176246845059751` | 5 105 | 116.2 | **22.76** |
+| **`p2/phase-2`** | **`42.192676883315706`** | **4 854** | 116.0 | **23.90** |
+| FF16 | `19.806714238717067` | 210 | | |
+| K93 | `0.030552896191851354` | 234 | | |
+
+**Composite forward shift +0.039% on offspring**, FF16 −0.095%, K93 +0.020%. Four changes, three of
+which move a number, composing to under a twentieth of a percent — the Phase 0 pattern again, and
+below the 0.145% the controller re-rolls by, so the *step counts* are the robust part.
+
+### A baseline I mislabelled, corrected
+
+I reported P2.6's result as "23.98 ms/step against a 24.3 **pre-phase** baseline". **24.3 is P2.7's
+figure, not the phase's baseline.** The pre-phase baseline is `p1/audit-fixes` at **22.76 ms/step**,
+so the phase costs **+5.0% per step**, not a saving. It is inside the plan's +10% tolerance and the
+polish is genuinely paid for relative to where it started — but "faster than baseline" was wrong, and
+it is the same error this corpus keeps finding: a ratio quoted against the wrong arm. P2.4 would
+repay it several times over if it is ever taken; P2.3 would add about 3%.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not

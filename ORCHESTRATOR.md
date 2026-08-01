@@ -533,7 +533,8 @@ P2.4 are written, gated and pushed to their own branches, and deliberately not m
 blocked on one decision that is the owner's, not the orchestrator's.
 
     plant   p2/phase-2      derivs(y,t) bitwise pure at all three models
-                            23.98 ms/step against a 24.3 pre-phase baseline
+                            offspring 42.192676883315706, 4 854 steps, +0.039%
+                            23.90 ms/step against a 22.76 baseline, so +5.0%
     plant   p2/p2-hermite   numerics pass; withdraws two shading models
     plant   p2/p2-stencil   correct by its own identity; moves offspring 10.3x
 
@@ -573,6 +574,10 @@ one re-blessing, and pointing at it would say otherwise.
   the mid-write `.so`.
 - **Function-pointer identity is not a discriminator** in a header-inline codebase without LTO: the
   weak-symbol addresses did not merge across translation units.
+- **Name the arm a ratio is against, every time.** I reported the phase as faster than baseline by
+  quoting it against P2.7's 24.3 rather than the pre-phase 22.76. It is +5.0%, inside the band and
+  not a saving. §8b already insists every timing gate is a ratio measured in one session; what this
+  adds is that the *denominator* has to be named as carefully as the numerator.
 
 ---
 
