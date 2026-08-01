@@ -1399,14 +1399,25 @@ compiler, so an error count measures nothing about exposure in either direction.
 
 ## What no task covers
 
-**A gated cohort next to an ungated one.** TF24's growth gate is hard and un-smoothed —
-`smooth_positive` appears at two sites in FF16, two in K93, none in TF24. The cohort-grid
-stencil divides a growth-rate difference by a cohort spacing whose measured minimum is
-8.2095e-06, with 23.5% of spacings below 1e-4. A gate crossing in the numerator over that
-divisor is an O(1e5) term in `log_density_dt`, and develop's sub-grid probe **cannot** produce
-it, because both of its evaluations are the same cohort perturbed by 1e-6. Report 04 §6's
-stability remedy is a smoothed clamp, which TF24 does not have. One logged production run
-answers it, and it should be taken before P2.4 is written.
+**A gated cohort next to an ungated one — and the premise is false.** This was recorded as
+"TF24's growth gate is hard and un-smoothed, because `smooth_positive` appears at two sites in
+FF16, two in K93, none in TF24". **Corrected against the tree in Phase 2:** `smooth_positive`
+exists at *no* site in plant's headers, and report 02 C1 attributes the four it names to the **AD
+branch**, so a branch-specific fact was carried into a develop-tree conclusion by a grep that
+found nothing. `TF24_Strategy::compute_rates` smooths the gate inline —
+`Ppos = 0.5 * (P + sqrt(P * P + storage_prod_eps * storage_prod_eps))` at
+`storage_prod_eps = 1e-4`, times a logistic reserve gate — which is what `#517` replaced the hard
+`net > 0` cutoff with, and which report 00 §4.3 records. `test-node.R` states it in its own
+comment while loosening a tolerance for it. TF24's one remaining hard `net > 0` gate is inside
+`establishment_probability`, which is P0.6's and which sets the boundary node's density rather
+than any cohort's `g`.
+
+So there is no switch for two neighbours to sit on opposite sides of. What survives is the
+quantitative question — the cohort-grid stencil divides a growth-rate difference by a spacing
+whose measured minimum is 8.2095e-06 with 23.5% below 1e-4, and a large enough difference over
+that divisor is an O(1e5) term develop's sub-grid probe cannot produce, because both of its
+evaluations are the same cohort perturbed by 1e-6. **That is answered by M4's own census rather
+than by a second run**, which is how the two Phase 2 pre-measurements became one.
 
 **`node_gradient_eps` and `GSS_tol_abs` are coupled, and Phase 2 gives its tasks no order.**
 Report 04 §5 records that develop's probe survives differencing a 1e-3-scale staircase at a

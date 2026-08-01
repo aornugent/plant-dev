@@ -452,13 +452,21 @@ Both are instrumentation-only additions to `species.h`, both want one production
 needs the other's output. **One build, one run, two answers** — the §6 economy applied where it
 actually pays.
 
-1. **Does a gate crossing ever land beside a sub-`1e-4` cohort spacing?** `implementation-notes.md`
-   records this as covered by no task. TF24's growth gate is hard and un-smoothed —
-   `smooth_positive` appears twice in FF16, twice in K93, never in TF24 — and the cohort-grid stencil
-   divides a growth-rate difference by a spacing whose measured minimum is 8.2095e-06 with 23.5%
-   below 1e-4. A gate crossing over that divisor is an O(1e5) term in `log_density_dt` that
-   develop's sub-grid probe **cannot** produce, because both its evaluations are the same cohort.
-   If it happens, P2.4 needs more than a `dh == 0` guard and report 04 §6's remedy is unavailable.
+1. **How large does the cohort-grid stencil get where the spacing is small?** This was framed as
+   "does a gate crossing land beside a sub-`1e-4` spacing", on the premise that TF24's growth gate is
+   hard and un-smoothed. **That premise is false, and the framing goes with it.** `TF24_Strategy`'s
+   growth path is `Ppos = ½(P + √(P² + storage_prod_eps²))` times a logistic reserve gate, with
+   `storage_prod_eps = 1e-4` — the hard `net > 0` cutoff was replaced by `#517` and report 00 §4.3
+   records it. The corpus said otherwise because it grepped for the *helper* `smooth_positive`, which
+   exists nowhere in plant's headers; report 02 C1 attributes those sites to the **AD branch**, and
+   the claim was carried across to a develop-tree conclusion. TF24's only hard `net > 0` gate is
+   inside `establishment_probability`, which is P0.6's, and it sets the boundary node's density
+   rather than any cohort's `g`. `test-node.R` states the smoothing in its own comment.
+   So there is no switch for two neighbours to sit on opposite sides of, and what remains is the
+   quantitative question: the spacing's measured minimum is 8.2095e-06 with 23.5% below 1e-4, and a
+   large enough growth-rate difference over that divisor is still an O(1e5) term develop's sub-grid
+   probe cannot produce, because both its evaluations are the same cohort. **That question is
+   answered by M4's own census**, so the two measurements are one run and not two.
 2. **M4's value half** — `Species::growth_rate_gradient(i)` beside the existing `Node` one, both
    logged on one production run. This is P2.4 step (1) and it is the number the re-blessing is
    argued against.
