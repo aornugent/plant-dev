@@ -2690,6 +2690,43 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
+## The environment's half-templating is a prerequisite, not a deferred decision
+
+Read from the code while the state-store packet was in flight, and it moves an item Phase 1 recorded as
+"a decision owed before anything differentiates through the soil" onto the critical path.
+
+`Environment` holds `Internals<double> vars` (`environment.h:112`) — that store **is** the soil water
+state — and `TF24_Environment::get_soil_water_potential_state()` returns
+`const std::vector<double>&`. `TF24_Strategy::compute_rates` reads it at `:949` as
+`const std::vector<double>& psi_soil`.
+
+**Why that is not benign for the block.** `build-plan.md` §2.3 declares the block's inputs as 6 own
+states + 65 knot values + 65 knot slopes + **5 soil water potentials** + traits, and §2.4 step (a)
+transposes the soil's bidiagonal drainage cascade by hand. The two halves meet at the block's boundary:
+the cascade's adjoint needs `lambda_psi` *out of* the block's sweep, and a passive input produces no
+adjoint. So five of the declared 141 inputs cannot carry one, and the channel that goes silent is
+**d(uptake)/d(psi)** — precisely the row report 02 §6.2 derives as "uptake's direct dependence on its own
+layer's potential".
+
+**And it is the same row the leaf's supplied Jacobian is meant to inject.** The leaf is `double` by
+design and its partials arrive across the seam rather than by taping — but a partial has to be *attached
+to something*. `∂uptake/∂psi` can only attach if `psi` is an active value on the block's tape. So the
+environment's store is not merely untemplated, it is **the thing that makes the leaf's water rows
+unreachable**.
+
+**The mechanism the plan names for this does not exist yet.** `grep -rn 'cohort_reads' plant/inst/include`
+returns nothing: §2.3's triple — `n_cohort_reads()`, `cohort_reads(It)`, `set_cohort_reads(It)`, by which
+the block unpacks the environment values it reads from its own active input vector — is unwritten. That
+triple is what would let the block inject active soil potentials without templating the whole soil
+balance, and it is the narrower change of the two.
+
+**So the ordering, and it is now four deep before P3.1:** the state store, then the cohort-reads triple
+on `Environment` (which subsumes the soil-potential question for the block, whether or not the soil's own
+ODE rates ever carry `S`), then `Patch::rebind_from`, then P3.1. Report 00 §7 classifies the soil's own
+channels as free or closed-form — `dθ/dφ` because moisture is ODE state, `dψ/dθ` because it is analytic —
+so **the seam may be right for the soil's rates and wrong for the block's reads**, and those are separable.
+That distinction is what the triple buys and it is the reason not to template `Environment` wholesale.
+
 ## Four of the block's five sites, and a gate of mine that could not fail
 
 plant `1e045de7` on `p3/block`. **Every gate re-run in the orchestrator's own session.**

@@ -488,6 +488,11 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
        |                                      passive; once the store carries S the
        |                                      -> double lambda becomes a silent zero
        |
+    Environment's cohort-reads triple ── n_cohort_reads/cohort_reads/set_cohort_reads,
+       |                                unwritten. Five of the block's 141 declared inputs
+       |                                are soil potentials and today they are passive, so
+       |                                d(uptake)/d(psi) has nothing to attach a partial to
+       |
     Patch::rebind_from ── step_adjoint static_asserts on it; P3.5 cannot run without it
        |
     P3.5's transport adjoint ── DESIGNED, and the probe turned out to have no active
