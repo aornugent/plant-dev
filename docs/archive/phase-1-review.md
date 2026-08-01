@@ -1,3 +1,11 @@
+> **Archived.** Every finding here is now either fixed on `p1/audit-fixes` in plant and
+> odelia, recorded in `implementation-notes.md` under "The Phase 1 audit", or a correction in
+> `build-plan.md`. Two are `aornugent/plant#67`. Read it for how the findings were reached; read
+> the build plan for what is true now. Its finding 2 (that `Replayable` conflates unrelated
+> capabilities and `Patch` should implement one member) is **wrong** and was withdrawn: those
+> members are the mutant mechanism, and index addressing is structurally required because RKCK
+> evaluates two stages at one timestamp.
+
 # Phase 1, close review
 
 Read against `build-plan.md` §2 and §4, `AGENTS.md`'s code style, `odelia/AGENTS.md`, and

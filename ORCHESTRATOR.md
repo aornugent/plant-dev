@@ -56,11 +56,15 @@ by 2 ulp at the default exponent. The contradiction went unnoticed only because 
 stopped the comparison from running. **Ask what would make this gate impossible, not just what would
 make it fail.**
 
-**6. Ask what would make the gate pass vacuously.** An agent added a gate the orchestrator had not
-thought of — `static_assert(Replayable<Patch<...>>)` — because if the concept were not satisfied the
-recording hook would never fire and every downstream assertion would pass on an empty store. **A gate
-that cannot distinguish "correct" from "absent" is not a gate.** Look for the version of each gate
-that passes when nothing happened.
+**6. Ask what would make the gate pass vacuously.** The trajectory store depends on a concept being
+satisfied by four member names: unsatisfied, the recording hook never fires and every downstream
+assertion passes on an empty store. **A gate that cannot distinguish "correct" from "absent" is not
+a gate.** Look for the version of each gate that passes when nothing happened.
+
+An earlier version of this section credited that gate to an agent. **The audit found it was never in
+the tree** — the notes recorded a claim, not a commit, and it took a `grep` to notice. So the rule
+has a second half: a gate you recorded is a gate you should be able to point at. §7's "re-run every
+gate" covers the ones you ran; this covers the ones you were told about.
 
 ---
 
@@ -79,7 +83,9 @@ In this order, and in full rather than by grep:
 4. `docs/implementation-notes.md` — the evidence, the pinned build, the standing lessons. Phase 1's
    entries are long because the failures were informative; read the "what the plan did not predict"
    subsections first.
-5. `docs/phase-1-review.md` — what the merged tree gets wrong or leaves owed.
+5. `docs/implementation-notes.md`'s Phase 1 audit section — what the merged tree got wrong, what
+   was fixed, and the five spikes that killed four design ideas. The close review it came from is
+   archived; this is the live account.
 6. `docs/reports/00`–`04`, `07`. **Read them twice: once for the design, and again at review time
    against the code.** Report 01 §3 names the carried boundary density that sank three attempts at
    the trajectory store; it was read at session start, and its relevance only became visible when a
@@ -276,6 +282,21 @@ so nothing updated `odelia/AUTODIFF.md`, which the plan makes the home for the S
 that this phase *changed*. Nobody could have done it but the integrator, and it was missed. Before
 closing a phase, list the documents the plan assigns and check each against what landed.
 
+**Cite a symbol, not a line, and a document will not need maintaining.** Every line citation
+in `build-plan.md` §2.8, §2.9 and §3 had drifted by the end of Phase 1 while every claim
+they supported was still true — `patch.h:727-775` had become `867-915`, `scm.h:309` had
+become `320`. A citation is only stable if it names something that cannot move:
+
+- **live code: the symbol.** `Patch::load_ode_step`, not `patch.h:888`. It survives every
+  edit, it is greppable, and it tells the reader what to look for rather than where to look.
+- **archaeology: a commit and a path.** `git show 903b8292:inst/include/...` is frozen by
+  construction, so a line number is safe there and nowhere else.
+- **a number: the command that produced it.** A count someone can re-derive needs no
+  maintenance; a count they must trust rots silently.
+
+The cheapest way to stop a citation drifting is to delete the second copy of the fact it
+supports, which is what one home per fact is for.
+
 **Re-bless nothing** — recording a shift is the job, accepting it is the owner's. Phase 1 ended
 bit-identical, including the one shift the plan had sanctioned, so there was nothing to accept.
 
@@ -342,7 +363,7 @@ Both integration branches are pushed and the superproject pointers reference the
 **The whole phase is bit-identical.** The environment's aux widening — the plan's one sanctioned
 shift — moves no assertion, because nothing reads the environment's aux.
 
-Owed, all recorded with evidence in `implementation-notes.md` and `phase-1-review.md`, none blocking:
+Owed, all recorded with evidence in `implementation-notes.md`, none blocking:
 
 - **`Replayable` should be `Recordable`.** Its only real implementor records and never replays.
 - **The active build's value gate is unsatisfiable as written** (§0.5), and 41 compile errors at 33

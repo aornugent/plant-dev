@@ -489,6 +489,15 @@ height, closing the light loop.
 **The invasion gradient is the same pass with step (c) omitted** — the mutant reads a canopy that
 does not respond to its trait. One branch in one step, not a second path.
 
+**And that is odelia's L3 mechanism rather than a branch at all.** `AUTODIFF.md` states it
+generically: with recorded background values populated, a System reads them as `double` off the
+tape, so that background's derivative is zero by construction. The resident leaves L3 empty and
+the field's derivative flows; the invasion pass populates it and it does not. One data question,
+two workflows, no branch in the adjoint code. What Phase 4 owes is the connection, not a design:
+`has_recorded_field()` and the index-addressed `set_ode_state` are the mechanism, index
+addressing is structurally required because RKCK evaluates two stages at one timestamp, and the
+retired AD branch shows the reconnection was a rename with the bodies unchanged.
+
 So the resident case is the general one and needs no recorded environment. None of
 `environment_history`, `environment_cache`, `save_RK45_cache` or `use_cached_environment` is on
 its path, which keeps the two-record arrangement — `step_history` per accepted step,
@@ -616,6 +625,10 @@ pays 9.2 µs per (stage, cohort) — 36 s per gradient — and linearises at a p
 than the one the forward pass used. M7 measured the round trip bit-identical at 9 of 9 states, and
 found that the operating point is the only thing needing publication — with P0.1 as its condition.
 
+**Aux acquires a second owner here, and a functional's author needs to know.** The slots are
+diagnostics a user reads (report 02 §3.3) and now the operating-point transfer; a functional
+reading `E_up_` through aux would give the block a seventh output row.
+
 So the transfer is `ode_aux` on the rebuild and `set_ode_aux` on the sweep: the missing fifth member
 of a family that already has four, in the vocabulary of the ODE contract rather than of reverse mode.
 A model that publishes nothing to aux pays nothing and gains nothing.
@@ -741,7 +754,8 @@ comments saying odelia calls them; odelia at `854a8e18` does not, and neither do
 plant. `save_RK45_cache` defaults false and is set true only in `R/benchmark.R`. So
 `environment_history` is always empty, `Patch::set_mutant` stops with "Run a resident first"
 (`patch.h:236`), and `run_mutant` pins the replay grid to `patch.step_history`
-(`scm.h:309`), which is still `{0.0}` — which is where the 60x came from. Meanwhile odelia at
+(`scm.h:309`), which is still `{0.0}` — which is where the 60x came from. (That figure has no source — no commit, test or note records
+the measurement — so treat it as unverified.) Meanwhile odelia at
 `854a8e18` carries a *different* replay interface: the `Replayable` concept with
 `record_stage` / `record_ode_step` / `replay_step` / `has_recorded_field`
 (`ode_interface.hpp:42-48`), which plant does not implement. Phase 4's invasion task therefore
@@ -763,7 +777,7 @@ examples called them. Every name in the first table above has a consumer in §6 
 ## 4. Documents
 
 One home per fact, and the home is named before the code is written.
-`docs/audit-2026-07.md` indexes what is archived.
+`docs/archive/` holds what is superseded, each document bannered with what survives.
 
 | document | owns |
 |---|---|
@@ -1191,7 +1205,11 @@ wrong by 60×.
 ### Phase 2 — the four changes that move forward numbers
 
 They land together so there is one re-blessing rather than four, and P0.6's ecology decisions
-belong in the same conversation with the owner (§10). The four are the light interpolant's
+belong in the same conversation with the owner (§10). **P2.4 must complete before P2.6**:
+report 04 §5 records that the sub-grid probe survives differencing a staircase only because the
+comparison pattern is locally constant at the current bracket, and P2.6 widens that bracket a
+hundredfold — interleaved, P2.4 step (2)'s bit-identity gate is asserted against a moving leaf
+and M4 stops being attributable. The four are the light interpolant's
 coordinate (P2.1), the transport stencil (P2.4), the collar operating point's polish (P2.6), and
 the boundary node's lag (P2.7).
 
@@ -1255,6 +1273,12 @@ in the Hermite (P2.3).
 *Touches* every `get_environment_at_height` caller, plus the `cap` argument and the
 `max(0.0, spline(height))` undershoot guard, both expressed in absolute height today.
 *Closes on* step (1) bit-identical, and step (2)'s shift inside M3's band with baselines re-blessed.
+**Corrected after Phase 1: this is a correctness prerequisite for the reverse pass, and the
+carried knot set is now measured rather than argued.** `rescale_spline` inherits the previous
+build's positions, so a stage is impure at about 4.8e-08 for that reason alone; with rescaling
+disabled a stage is bit-exactly pure at all three models. Fixed fractions and a boundary-node
+treatment are both needed and neither is sufficient alone. Gate it on a purity probe —
+`derivs(y, t)` twice, bitwise — as well as on the light shift. See `implementation-notes.md`.
 
 ---
 
@@ -1337,6 +1361,12 @@ staggering error.
 metrics re-blessed at a pinned build, the shift recorded, and report 04 §2.2's conservation
 diagnostic presented alongside it — a sub-grid probe leaks individuals at `O(dh g'')` and the cohort
 grid does not, which is the forward-model argument for the change.
+*Measure before writing this.* A cohort crossing the establishment or growth gate beside one
+that has not puts a growth-rate difference over a spacing whose measured minimum is 8.2095e-06,
+with 23.5% below 1e-4 — an O(1e5) term in `log_density_dt` that develop's sub-grid probe cannot
+produce, because both its evaluations are the same cohort. TF24 has no `smooth_positive`, so
+report 04 §6's remedy is unavailable. One logged production run settles it.
+
 *The ends.* Guarded on the divisor rather than on the cause: `dh == 0` is reached three ways — a
 cohort introduced this instant is still a copy of `new_node`, a cohort whose growth has been gated
 to zero has never left `height_0`, and two cohorts can coincide — and all three take the compression
@@ -1390,6 +1420,12 @@ stage a function of `(y, t)` alone, which is what lets P1.4 store one state per 
 lets P3.5 rebuild stage states by re-running the step. It moves the field at the boundary node's own
 magnitude — at most 3.5e-04 in light, at `ResourceSpline`'s fitting tolerance — so it is a forward
 change, and a small one.
+
+**Corrected after Phase 1: one extra Picard step does not make the stage pure, and a reordering
+does, at the same cost.** Forming the boundary density in a field that excludes its own interval
+takes `derivs(y, t)` called twice from 92 of 753 components differing to 0 of 753, where a Picard
+step only attenuates the carried dependence by the contraction modulus. Measured on plant
+`spike/boundary-acyclic`; see `implementation-notes.md`. Prefer that formulation.
 
 *Order.* (1) Add the second evaluation and measure the shift **in the light field at the boundary
 node**, not in offspring. (2) Confirm a third evaluation moves nothing at 1e-6 relative, which is the

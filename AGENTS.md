@@ -4,9 +4,9 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-**Read [`docs/build-plan.md`](docs/build-plan.md) before designing anything**, then
-[`docs/audit-2026-07.md`](docs/audit-2026-07.md), which says what else is a source of truth and what
-is archived. In short:
+**Read [`ORCHESTRATOR.md`](ORCHESTRATOR.md) section 1 first** — it orders the whole reading
+list and says what each document is for — then [`docs/build-plan.md`](docs/build-plan.md) before
+designing anything. In short:
 
 - [`docs/build-plan.md`](docs/build-plan.md) — the plan: the architecture decision, the salvage
   manifest for both AD branches, the tasks, the gates. Baselines are plant `develop` and
@@ -18,8 +18,8 @@ is archived. In short:
   others; they are its detail.
 - `docs/reports/01`–`04`, `07` — the derivations and measurements the plan rests on.
   **Reference material, not status**; they are never edited to track progress.
-- `docs/archive/` — four documents whose conclusions are stale or configuration-dependent, each
-  bannered with what survives. `docs/audit-2026-07.md` explains each. **Do not design from them.**
+- `docs/archive/` — documents whose conclusions are stale, superseded or
+  configuration-dependent, each bannered with what survives. **Do not design from them.**
 
 **The provenance rule is mandatory:** a claim earns a place in a live document only on a passing
 test, a re-runnable probe, or a code location read directly — **never on another document's

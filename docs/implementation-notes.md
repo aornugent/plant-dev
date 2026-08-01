@@ -1244,3 +1244,157 @@ to schedule at leisure.
 **Bit-identical, and the whole phase moves no number.** Nothing to re-bless — including the
 environment's aux widening, which the plan had singled out as its one sanctioned shift and which
 moves no assertion at all.
+
+---
+
+# The Phase 1 audit, and five spikes against the Phase 2 design
+
+Read against the build plan, the style guides and reports 00–04 and 07. Nine findings were
+fixed on `p1/audit-fixes` in both repositories; the rest became build-plan corrections or
+`aornugent/plant#67`. Then five spikes tested the design ideas the audit suggested. **Four of
+the five ideas died, which is what the spikes were for.**
+
+## What the audit fixed
+
+odelia, 327 pass (from 322): each range helper is constrained on the one member it calls
+rather than on the element, so an element whose state moves through another scalar's iterator
+is rejected at the call — the case `OdeElement` was introduced for and could not see, because
+it checked the element against an iterator over its own `value_type` rather than the one the
+helper threads. `implicit_value`'s `denom_sign` is gone (nothing but its own test declared a
+sign; a zero denominator is the failure whichever sign was expected). `step_adjoint` restores
+the System to the step's start state, having walked it to the last stage state.
+
+plant, bit-identical at `42.176246845059751` / 5 105: `set_ode_aux` on `Individual`, `Node`,
+`SpeciesBase` and `Patch`, so the aux transfer has a read direction as well as a write one;
+the environment's published buffer sized by the count that decides its width; the `Replayable`
+assertion the notes had credited but the tree did not carry; and eleven registered
+differentiation targets removed because no equation reads them.
+
+**A registered parameter no equation reads is a gradient row that is exactly zero.** The test
+that now says so perturbs each registered parameter and requires some output to move, over
+four states — a seedling, a mature plant, a shaded one whose carbon is negative, and one in
+soil dry enough to pin the collar. It needs all four: a fresh individual holds no storage, so
+the reserve gate and storage-dependent mortality cannot move; recruitment decay is a rate
+against patch age, so at time zero it cannot move. An earlier version of the probe reported
+four live parameters as dead for those reasons. `p_50` is the interesting one: its only reader
+is `TF24_Pars`' own default initialisers for `c` and `b`, so it is consumed at construction and
+a value set afterwards reaches nothing.
+
+## The spikes
+
+**The stage is not idempotent, and the reordering makes it exact.** `derivs(y, t)` twice in a
+row differs at **92 of 753 components** on the production end state. Forming the boundary
+density in a field that excludes its own interval, then adding the interval back, takes that to
+**0 of 753**. One further Picard step then moves the ground light by at most **9.912e-08**
+relative over 66 290 field builds, so the fixed point is converged; the shift against the lag is
+at most **1.464e-06** relative, two orders inside the boundary term's own 3.495e-04
+contribution, and 0 of 66 290 builds exceed the 3.5e-04 bound report 01 §3.1 predicts. It costs
+one extra field build per stage — the same as the planned Picard step, not O(1) as first
+claimed, because the density reads a field rather than a value. Composes with report 04's
+stencil, which wants exactly the more-current boundary neighbour it supplies. Preserved on
+plant `spike/boundary-acyclic`.
+
+**There are two path dependences, not one, and the second is the light spline's knot grid.**
+`ResourceSpline::rescale_spline` reuses the previous build's knot positions, so the grid is
+inherited from the history of field builds rather than derived from the current state. That is
+a residual impurity of ~4.8e-08 which the reordering cannot touch; with rescaling disabled the
+reordered stage is **bit-exactly pure across FF16, K93 and TF24**. So a reproducible rebuild
+needs fixed knot fractions *and* one of the boundary treatments — neither alone is sufficient,
+and a pinned replay stayed at 1118 of 1137 components differing after the reordering.
+
+**Trajectory storage, measured where it grows fastest.** Accepted steps and final ODE width:
+one species at the default driver 5 104 / 1 137; two species 3 676 / 2 265; the hardest
+committed rainfall sequence found (S05) 8 415 / 1 137. The two dials partly cancel — doubling
+the width dropped the step count 28% — so the trajectory runs **33 to 60 MB** and a per-stage
+store would be **198 to 360 MB**. Mean width over steps is 0.746 of the final width and
+cumulative storage is near-uniform in step index, so a uniform checkpoint interval in steps
+would be near-optimal and one in time badly wrong. Two species against S05 did not finish
+inside ten minutes and is unmeasured.
+
+**Ranking configurations at a short lifetime does not predict which is hardest.** S07 was the
+maximum at `max_patch_lifetime = 10` and the minimum of three at production; S06 was
+mid-ranked and nearly doubled it. A cheap probe can tell you how to drive a scenario and not
+which scenario to drive. Wall clock tracks step count, so a gate costed on the default driver
+is about half price on the rainfall banks.
+
+## What the spikes killed
+
+**Storing the six stage states instead of rebuilding them.** The collar operating point is
+nowhere in the ODE state — it is the output of a search — and the soil positivity guard's
+condition needs the summed per-layer uptake, which is also not state and can only be produced
+by solving every cohort's leaf. The rebuild is not the memory-cheap option; it is the only
+thing that manufactures two quantities the state does not contain. §2.9's one-line rejection
+was right for a better reason than it gave.
+
+**Deleting the dead mutant replay path.** `has_recorded_field()` and the index-addressed
+`set_ode_state` overload *are* the mutant mechanism. RKCK evaluates two stages at the same
+timestamp — `ah[3] = 1` and `dydt_out` at `t + h` — so a stage cannot be addressed by time and
+index addressing is structurally required for any per-stage frozen field. Their cost to the
+resident pass is one always-false branch. The two retired commits on the old AD branch show the
+whole failure was a name mismatch: `cache_ode_step` → `record_ode_step`, bodies unchanged, and
+`test-mutant.R` went from 2 errors to 19 passing.
+
+**One boundary primitive across all three scales.** Two spikes refused the leaf independently.
+Its output arity is state-dependent through `max_soil_layer`, its input list is not derivable
+(one entry was already found dead that way), and its adjoint is a factorisation — `2n + 1`
+directions onto two shared scalars, one of them recovered by evaluating the residual again
+during the sweep — rather than a range to scatter into. A primitive covering the ODE interface
+and the cohort's environment reads compiles and costs eleven names against six loops deleted,
+so it earns its place only if the cohort-read boundary is built on it.
+
+**"Most of the 41 active-build errors are off the gradient path."** Inverted. `b` and
+`psi_crit` are leaf parameters P3.3 must differentiate, `CanopyShape`'s `pow` is `eta`'s field
+channel, the twelve-site consumption funnel is the water channel itself, and `QK` is the crown
+integral whose frozen query M1 measured as exactly zero. Only one group of six is the leaf
+boundary. And staying `double` is precisely what makes report 02's C2 and C3 invisible to a
+compiler, so an error count measures nothing about exposure in either direction.
+
+## What no task covers
+
+**A gated cohort next to an ungated one.** TF24's growth gate is hard and un-smoothed —
+`smooth_positive` appears at two sites in FF16, two in K93, none in TF24. The cohort-grid
+stencil divides a growth-rate difference by a cohort spacing whose measured minimum is
+8.2095e-06, with 23.5% of spacings below 1e-4. A gate crossing in the numerator over that
+divisor is an O(1e5) term in `log_density_dt`, and develop's sub-grid probe **cannot** produce
+it, because both of its evaluations are the same cohort perturbed by 1e-6. Report 04 §6's
+stability remedy is a smoothed clamp, which TF24 does not have. One logged production run
+answers it, and it should be taken before P2.4 is written.
+
+**`node_gradient_eps` and `GSS_tol_abs` are coupled, and Phase 2 gives its tasks no order.**
+Report 04 §5 records that develop's probe survives differencing a 1e-3-scale staircase at a
+1e-6 step only because the comparison pattern is locally constant at the current bracket. P2.6
+widens that bracket a hundredfold. Interleaved with P2.4, its bit-identity gate is asserted
+against a moving leaf and M4 stops being attributable.
+
+**Aux has two owners.** §2.9 co-opts aux slots as the operating-point transfer while report 02
+§3.3 notes that a functional reading `E_up_` through aux would give the block a seventh output
+row. Same shape as every defect this project has found: a quantity written by one place and
+read by another under an assumption neither states.
+
+**The invasion case reconciles with the resident design, and neither document says so.**
+`AUTODIFF.md`'s L3 mechanism is generic: with recorded background values populated, the System
+reads them as `double` off the tape, so *that background's derivative is zero by construction*.
+That is what "omit step (c)" means. Resident leaves L3 empty and the field's derivative flows;
+invasion populates it and it does not. One data question, two workflows, no branch in the
+adjoint code.
+
+**The contraction family already exists in odelia, unnamed.** `implicit_value` takes its
+partials from the implicit function theorem, `vector_jacobian_product` from a tape, and
+`SuppliedDerivative` from the author's own mathematics. Three sources of partials for one idea,
+which makes the leaf's supplied Jacobian an instance rather than a mechanism of its own.
+
+**Two for the owner.** 91% of `rescale_spline`'s 193.2 µs per build is unattributed over 20 160
+builds — 3.5 s of a 59.5 s run, with LTO tested and rejected as the cause — and it is a task
+nowhere. And the establishment gate: `tf24-correctness.md` keeps the hard switch because "the
+arms are on one scale", while `reports/p0.5-switch-census.md` reports the closed arm reaching
+−2.283012e-09, seven orders below the resident median `|P|` and five below the scale develop
+already uses to smooth the same quantity one function away. Same distribution, opposite
+conclusions, different denominators.
+
+## Corrections to what was recorded here
+
+- The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
+  in the merged tree**; the only commits naming `Replayable` are on the retired AD branch. It
+  is now in `SCM::store_trajectory`, where the dependency is.
+- The **60× wrong-gradient figure has no source** — no commit, test or note records the
+  measurement, and it appears only as a sentence repeated across documents. Treat as unverified.
