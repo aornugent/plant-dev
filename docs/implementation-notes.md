@@ -1951,7 +1951,37 @@ stands. And two comment-only edits may post-date the object they were compiled i
 because the first is a real hazard: **editing a worktree while it is building silently relabels which
 arm you measured.**
 
-## P2.4 — the transport stencil moves offspring by 10.3×, and is not merged
+## P2.4 — out of scope, and why that is a conclusion rather than a deferral
+
+**Decided: the transport stencil leaves this build.** It is a forward-model modelling question, raised
+as `aornugent/plant#69`, and
+[`reports/10-density-transport-and-carried-physiology.md`](reports/10-density-transport-and-carried-physiology.md)
+is its single home — derivation, every measurement, the two smaller findings about the inflow boundary
+node, and what deferring costs. Code, the four replacement tests and every probe are on plant
+`transport/cohort-grid-stencil` (four commits off `p2/phase-2`). `build-plan.md` P2.4 keeps its
+specification behind a banner; report 04 carries a correction to its conclusion and is otherwise not
+edited. **Phase 2 is three value-movers, not four**, and P2.6 no longer waits on anything.
+
+**Why out of scope rather than blocked.** The reverse pass differentiates whatever the forward model
+does, and report 04 §5 records that differentiating develop's sub-grid probe at the active scalar is
+bit-identical and yields the derivative of the discretisation actually solved. So the build proceeds
+either way, and it should not hold a modelling decision hostage to its own schedule.
+
+**The cost of deferring, and one item is load-bearing.** No 37%-per-step forward saving; the
+conservation defect stays (3.4× on one cohort); a `1e-6` divisor stays on the gradient path. And
+**P3.5's transport adjoint needs two block recordings per cohort per stage rather than one**, because
+`log_density_dt` under the sub-grid probe reads `g` at the cohort's height *and* at `h - eps`, the
+second being the output of a second evaluation of the block at a different input. `lambda_g` stops
+being a closed-form seed. That is symmetric with the forward cost — two leaf solves for the same
+reason — and §8b's record-and-sweep term should be budgeted at twice its stated value until it is
+designed.
+
+**What the diagnosis cost, and what it bought.** Two packets, four builds, about a dozen production
+runs. It killed my own leading hypothesis (the boundary pair), confirmed report 04 §2.2 for the first
+time, found that develop's blessed TF24 offspring is not converged, and turned a "10.3× is too big"
+judgement into a mechanism. The detail below is kept as the evidence.
+
+## The diagnosis: the transport stencil moves offspring by 10.3×
 
 `03558de8`, `783ccc28`, `e820456e` on `p2/p2-stencil`. **Written, gated, and held out of
 `p2/phase-2`.** Report 04 §8 lists "the forward-value change is larger than the model owner will

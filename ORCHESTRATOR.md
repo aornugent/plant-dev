@@ -86,8 +86,10 @@ In this order, and in full rather than by grep:
 5. `docs/implementation-notes.md`'s Phase 1 audit section — what the merged tree got wrong, what
    was fixed, and the five spikes that killed four design ideas. The close review it came from is
    archived; this is the live account.
-6. `docs/reports/00`–`04`, `07`. **Read them twice: once for the design, and again at review time
-   against the code.** Report 01 §3 names the carried boundary density that sank three attempts at
+6. `docs/reports/00`–`04`, `07`, `10`. **Read them twice: once for the design, and again at review
+   time against the code.** Report 10 supersedes report 04's *conclusion* — read 04 for its
+   derivations and measurements, which stand, and 10 for what they do and do not license.
+   Report 01 §3 names the carried boundary density that sank three attempts at
    the trajectory store; it was read at session start, and its relevance only became visible when a
    measurement demanded an explanation. A report read once is orientation; a report read against a
    diff is a review tool.
@@ -536,7 +538,7 @@ blocked on one decision that is the owner's, not the orchestrator's.
                             offspring 42.192676883315706, 4 854 steps, +0.039%
                             23.90 ms/step against a 22.76 baseline, so +5.0%
     plant   p2/p2-hermite   numerics pass; withdraws two shading models
-    plant   p2/p2-stencil   correct by its own identity; moves offspring 10.3x
+    plant   transport/cohort-grid-stencil   OUT OF SCOPE, not pending work
 
 The superproject pointer stays at Phase 1 on purpose: the phase is not closed, ten assertions await
 one re-blessing, and pointing at it would say otherwise.
@@ -548,9 +550,15 @@ one re-blessing, and pointing at it would say otherwise.
    over a step is not obviously the right object. P2.2 refuses them; P2.3 then stops them running at
    all. Either they are withdrawn, or the field falls back to a value-only build for them — which is
    two evaluators and a new mechanism. FF16 and K93 only; TF24 already rejects both.
-2. **P2.4's 10.3× offspring move.** Report 04 §8's own falsifier. Two measurements would adjudicate it
-   and neither has been taken: §2.2's conservation diagnostic under both stencils, and §8's K93
-   comparison with the transport derivative present and absent.
+2. ~~**P2.4's 10.3× offspring move.**~~ **Resolved as out of scope, not as a decision.** Both
+   adjudicating measurements were taken and neither settled it: the conservation claim holds (six
+   orders) and the K93 comparison exonerates the discretisation. The cause is that on a strategy
+   carrying physiological state the two stencils are *different operators*, converging to limits ~370
+   apart. That is a forward-model question for plant's maintainers — `aornugent/plant#69` — and it is
+   off this build's critical path. `docs/reports/10-density-transport-and-carried-physiology.md` is the
+   account; the code is on plant `transport/cohort-grid-stencil`. **Phase 2 is three value-movers, not
+   four.** The cost of deferring is in report 10 §6; the load-bearing item is that P3.5's transport
+   adjoint needs two block recordings per cohort per stage on develop's sub-grid probe.
 3. **The two `test-patch.R` assertions** at 1e-21, where the patch's node and an externally-seeded one
    are now seeded in different fields.
 4. **Whether M3's 1.7e-03 band is absolute or relative.** P2.1's step (2) is inside it read one way

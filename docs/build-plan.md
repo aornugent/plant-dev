@@ -396,7 +396,11 @@ disagreement attributable without it.
 
 **Resident, with invasion following from it** (§2.7 below is the only part with no report home).
 
-**The transport stencil differences across neighbouring cohorts**, not on a `1e-6` sub-grid.
+**The transport stencil is unresolved and the build does not depend on it** (see P2.4's banner and
+report 10). What follows is the argument for differencing across neighbouring cohorts rather than on a
+`1e-6` sub-grid, and it is retained because every measurement in it stands; what it lacks is the
+condition under which `d(log dh)/dt` is the compression term of a density in height, which TF24 fails.
+The build proceeds on develop's sub-grid probe.
 Report 04 §2.1: the cohort-grid difference is not an approximation to `dg/dh` — it is exactly
 `d(log dh)/dt`, because the spacing between two characteristics has an exact rate. So it is the
 same discretisation as transporting counts, without changing the state or any consumer, and it
@@ -1203,22 +1207,29 @@ wrong by 60×.
 
 ### Phase 2 — the four changes that move forward numbers
 
-They land together so there is one re-blessing rather than four, and P0.6's ecology decisions
-belong in the same conversation with the owner (§10). **P2.4 must complete before P2.6**:
-report 04 §5 records that the sub-grid probe survives differencing a staircase only because the
-comparison pattern is locally constant at the current bracket, and P2.6 widens that bracket a
-hundredfold — interleaved, P2.4 step (2)'s bit-identity gate is asserted against a moving leaf
-and M4 stops being attributable. The four are the light interpolant's
-coordinate (P2.1), the transport stencil (P2.4), the collar operating point's polish (P2.6), and
-the boundary node's lag (P2.7).
+They land together so there is one re-blessing rather than several, and P0.6's ecology decisions
+belong in the same conversation with the owner (§10).
 
-**Corrected after Phase 1: P2.7 must also precede P2.4.** Both restructure
-`Species::compute_rates`, and the boundary reordering moves `Node::compute_initial_conditions` out
-of it into the field build — which is where report 04 §7.2 wants the boundary node, because the
-lowest cohort differences against it. Landing P2.4 first places that call inside `compute_rates`
-and then moves it out again, restructuring one function twice and voiding the first restructure's
-bit-identity gate. Taking P2.7 first also supplies the more current boundary neighbour the stencil
-wants. Preserved on plant `spike/boundary-acyclic`; see `implementation-notes.md`.
+**P2.4 is out of scope, and Phase 2 is three changes rather than four.** The transport stencil turned
+out to be a forward-model modelling question rather than a discretisation choice: on a strategy whose
+growth rate carries physiological state, the cohort-grid difference and the sub-grid probe are
+*different operators*, not two resolutions of one, and they converge to limits about 370 apart on
+TF24 offspring. That is `aornugent/plant#69` and it is the maintainers'.
+**[`reports/10-density-transport-and-carried-physiology.md`](reports/10-density-transport-and-carried-physiology.md)
+is the whole account**; the implementation and every probe are preserved on plant
+`transport/cohort-grid-stencil`. The build proceeds on develop's sub-grid probe — report 04 §5 records
+that differentiating it at the active scalar is bit-identical and yields the derivative of the
+discretisation actually solved — at the cost report 10 §6 states, of which the load-bearing one is
+that the reverse pass's transport adjoint needs **two** block recordings per cohort per stage rather
+than one (P3.5).
+
+So the three are the light interpolant's coordinate (P2.1), the collar operating point's polish
+(P2.6), and the boundary node's lag (P2.7). **P2.6 no longer waits on P2.4**, since the ordering
+constraint between them was about keeping M4 attributable against a moving leaf.
+
+*(A Phase 1 correction sequencing P2.7 before P2.4 is moot now that P2.4 is out of scope. It stands
+if P2.4 is ever revived: both restructure `Species::compute_rates`, and the boundary reordering moves
+`Node::compute_initial_conditions` into the field build, which is where report 04 §7.2 wants it.)*
 
 ---
 
@@ -1333,7 +1344,22 @@ recorded beside it.
 
 ---
 
-**P2.4 — the transport stencil across cohorts.** Report 04 §2 and §7.
+**P2.4 — the transport stencil across cohorts.** ~~Report 04 §2 and §7.~~
+
+> **Out of scope, and this task is retained as a specification rather than as work.** It was built and
+> gated: the two-pass restructure is bit-identical, the cohort-grid stencil satisfies report 04 §2.1's
+> identity at all four model pairs, it removes a measured conservation defect and 37% of forward time
+> per accepted step. It also moves TF24 offspring by **10.3x**, which is report 04 §8's own falsifier,
+> and the reason is that on a strategy carrying physiological state the two stencils are **different
+> operators** rather than two resolutions of one — `cor` 0.05 on TF24 against 0.96 on K93, converging
+> to limits about 370 apart. That is a forward-model question for plant's maintainers,
+> `aornugent/plant#69`.
+>
+> **[`reports/10-density-transport-and-carried-physiology.md`](reports/10-density-transport-and-carried-physiology.md)**
+> carries the derivation, every measurement, the two smaller findings about the inflow boundary node,
+> and what deferring costs. The implementation, the four replacement tests and every probe are on plant
+> `transport/cohort-grid-stencil`. Nothing below is superseded — it is what to do *if* the maintainers
+> choose the cohort-grid reading — but it is not Phase 2's, and the build does not wait on it (§6).
 
 ```cpp
 // species.h -- g comes from the neighbours' already-computed rates
@@ -1647,12 +1673,27 @@ not remove it has not addressed the cause.
 
 ---
 
-**P3.5 — the stencil's adjoint, and drive from the stepper.** `lambda_g` is formed in step (a),
-before any block is swept, because a block cannot be swept until every output adjoint exists
-(§2.4). Under report 04 §7's staggering each cohort pairs with the interval **below** it, so
-`g_i` appears in `growth_rate_gradient(i)` and in `growth_rate_gradient(i-1)`: **two**
-contributions per cohort, not the three a centred difference would give. Then `Step::step_adjoint`
-drives `Patch::ode_rates_adjoint`.
+**P3.5 — the stencil's adjoint, and drive from the stepper.** Then `Step::step_adjoint` drives
+`Patch::ode_rates_adjoint`.
+
+**Corrected after Phase 2: this task's shape depends on which transport stencil the model carries, and
+P2.4 being out of scope means it is now the sub-grid probe.** The text below is written for the
+cohort-grid form and is retained for the case where `aornugent/plant#69` chooses it.
+
+*As written, for the cohort grid:* `lambda_g` is formed in step (a), before any block is swept, because
+a block cannot be swept until every output adjoint exists (§2.4). Under report 04 §7's staggering each
+cohort pairs with the interval **below** it, so `g_i` appears in `growth_rate_gradient(i)` and in
+`growth_rate_gradient(i-1)`: **two** contributions per cohort, not the three a centred difference would
+give.
+
+*For develop's sub-grid probe, which is what the build now targets:* `log_density_dt` reads `g` at the
+cohort's own height **and** at `h - node_gradient_eps`, and the second reading is the output of a
+*second evaluation of the cohort block at a different input*. So `lambda_g` is not a closed-form seed —
+it requires **two block recordings and two sweeps per cohort per stage**, and step (a) loses one of its
+three sources while step (b) doubles. Report 10 §6 states this as the load-bearing cost of deferring
+P2.4; it is symmetric with the forward cost, which is two leaf solves per cohort per stage for the same
+reason. **Budget §8b's record-and-sweep term at twice its stated value until this is designed**, and
+design it before P3.2 fixes the block's boundary rather than after.
 
 **`Patch::set_ode_state` needs its first four lines callable on their own, and this task exposes
 them.** It is `{ load states; set time; check finite; compute_environment; compute_rates }` in that
@@ -1860,7 +1901,10 @@ goes further than `1e-1` or `dR_dcollar` is reused across the two steps, which i
 them. Budget it as **up to +10% on the forward run**, and take the measurement at P2.6 step (1).
 
 **The reverse pass, per gradient evaluation.** Three terms, against a post-P2.4 forward pass of
-about 63 s:
+about 63 s. **Corrected after Phase 2: P2.4 is out of scope, so there is no 63 s forward pass — the
+leaf solve count stays at two per cohort per stage. Re-read the table against a forward pass of about
+115 s, and budget the record-and-sweep term at twice its value below, because the sub-grid probe needs
+two block recordings per cohort per stage (P3.5, report 10 §6).**
 
 | term | count | unit | total |
 |---|---|---|---|
@@ -1942,8 +1986,9 @@ aux transfer and `step_adjoint` are the same either way.
    whose closed arm spans four to five orders so that no one smoothing scale fits it. With P2.1 and P2.4 also changing forward numbers, there is a case for
    taking respiration to the owner in that same conversation.
 
-**Order: M1, M2, M3's accuracy half and M5 are done. M4 remains, and it lands with P2.4 step (1);
-(4) before P3.2; (5) before anything is verified against TF24's numbers.**
+**Order: M1, M2, M3's accuracy half, M5, M7 and M8 are done, and M4 is now taken — report 10 §3, where
+it is also the finding that took P2.4 out of scope. So (4) before P3.2, and (5) before anything is
+verified against TF24's numbers.**
 
 ---
 
@@ -2050,11 +2095,20 @@ tibble to one vector censused times, step indices, patch densities and knot heig
 light values, so the "minimum exactly 0" was the ground knot's *height*. Both P0.5 floor rows now
 read zero, by two independent routes.
 
-**11.3 Density transport. Settled — report 04 now states it as the design.** The cohort-grid
-stencil is exactly `d(log dh)/dt`, so it is the same discretisation as transporting counts without
-changing the state or any consumer; it makes the scheme conserve individuals up to mortality; it is
-consistent with the flux boundary condition in the collapsing-interval limit; and it removes about
-half of TF24's leaf solves.
+**11.3 Density transport. Re-opened, and no longer this build's to settle.** This thread read as
+settled on report 04's derivation: the cohort-grid stencil is exactly `d(log dh)/dt`, so it is the same
+discretisation as transporting counts without changing the state or any consumer; it makes the scheme
+conserve individuals up to mortality (**measured, and it does** — report 10 §4); it is consistent with
+the flux boundary condition in the collapsing-interval limit; and it removes about half of TF24's leaf
+solves (**measured at 37% per accepted step**).
+
+**What the derivation never stated is its scope.** `d(log dh)/dt` is the compression term of a density
+in height only if `g` is a function of height alone. TF24's is not, so the two candidate stencils are
+different operators — `cor` 0.05 against K93's 0.96 — and they converge to limits about 370 apart in
+offspring. That is a modelling question, `aornugent/plant#69`, and
+[`reports/10-density-transport-and-carried-physiology.md`](reports/10-density-transport-and-carried-physiology.md)
+is the account. **The build carries on with develop's sub-grid probe**, at the costs report 10 §6
+lists, the load-bearing one being P3.5's doubled block recording.
 
 **The staggering is decided** (report 04 §7): pair each cohort with the interval **below** it. It
 is the upwind direction, it is develop's `node_gradient_direction = -1`, it is the staggering

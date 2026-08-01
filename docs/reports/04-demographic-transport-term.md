@@ -4,6 +4,25 @@ The size-density equation's compression term, how plant discretises it, and the
 discretisation this design uses instead. Numbers are measured on plant `develop`
 `141dc8df` against odelia `854a8e18` unless attributed otherwise.
 
+> **Correction: §2.1's identity is right and its scope was never stated, which changes this report's
+> conclusion but none of its derivations or measurements.** `d(log dh)/dt` is the compression term of a
+> density in height only if `g` is a function of height alone. When a cohort carries physiological
+> state, the two-node difference is a *total* derivative along the cohort grid,
+> `∂g/∂h + Σ_k (∂g/∂s_k)(ds_k/dh)`, and TF24's growth rate reads the NSC storage pool through a reserve
+> gate. Measured: the two candidate stencils correlate at 0.96 on K93 and **0.05 on TF24**, with
+> opposite signs over most of the grid, and they converge to offspring limits about 370 apart under
+> schedule refinement — so they are different operators rather than two resolutions of one, and §8's
+> "the forward-value change is larger than the model owner will accept" fired at 10.3x.
+>
+> §2.2's conservation claim was measured and **holds** (six orders on TF24, four on K93), as does §7.1's
+> one-degenerate-interval-per-introduction prediction and §3's leaf-solve saving, at 37% per accepted
+> step. What did not survive is the inference that the cohort-grid form is therefore the right
+> discretisation for this model.
+>
+> The live thread is `aornugent/plant#69`, a forward-model question for plant's maintainers.
+> **[`10-density-transport-and-carried-physiology.md`](10-density-transport-and-carried-physiology.md)**
+> carries the derivation, the measurements and what deferring costs. This report is not edited further.
+
 ---
 
 ## 1. The term, and why it exists
