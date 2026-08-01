@@ -1951,6 +1951,91 @@ stands. And two comment-only edits may post-date the object they were compiled i
 because the first is a real hazard: **editing a worktree while it is building silently relabels which
 arm you measured.**
 
+## P2.4 — the transport stencil moves offspring by 10.3×, and is not merged
+
+`03558de8`, `783ccc28`, `e820456e` on `p2/p2-stencil`. **Written, gated, and held out of
+`p2/phase-2`.** Report 04 §8 lists "the forward-value change is larger than the model owner will
+accept" as a falsifier of the whole change. This is that number.
+
+| arm | offspring | steps | ms/step |
+|---|---|---|---|
+| baseline | `42.133087152116609` | 4 730 | 33.43 |
+| step (2), two passes, still sub-grid | `42.133087152116609` | 4 730 | 33.15 |
+| step (3), cohort grid | **`434.77155652828418`** | **1 248** | 21.40 |
+| step (4), deletions | `434.77155652828418` | 1 248 | 21.07 |
+
+**Step (2) is bit-identical**, which is what makes the rest attributable: the loop restructure moves
+nothing, so the 10.3× belongs to the stencil and to nothing else.
+
+**It is not an implementation error, and that was checked before it was reported.** Report 04 §2.1's
+identity holds at all four model pairs — the hand-computed quotient `(g_i − g_{i+1})/(h_i − h_{i+1})`,
+`log_density_dt + mortality_rate`, and `−d(log dh)/dt` from a short integration agree to every printed
+digit. Sign, pairing and staggering are right.
+
+**Why M4 did not predict it.** M4's mean(cohort − sub-grid) is −0.0620 with sd 1.878, which reads as a
+modest perturbation. But the census also records **max |cohort| = 142.85 against max |sub-grid| =
+1.51** — the tail is two orders larger than the body, and the tail is what drives the trajectory. A
+mean and an sd were the wrong summary for a quantity whose effect is set by its extremes. The
+per-step cost falls 37% as predicted, and the 6× wall clock is mostly the accepted step count falling
+3.8×, which says the right-hand side became markedly less stiff once a `1e-6`-probe derivative left
+it.
+
+**The evidence that would adjudicate this was not taken, and it is named in the plan.** Report 04 §3
+says baselines need re-blessing "alongside §2.2's conservation diagnostic, **which is the number worth
+presenting with it**": log `sum_j N_j` against its analytic mortality loss under both stencils, where
+a sub-grid probe should leak at `O(dh g'')` and the cohort grid should not. That diagnostic is the
+forward-model argument for the change and it has never been run — it was not in this packet's gates,
+which is my omission. Report 04 §8 also names a second unrun check: a K93 census gradient with the
+transport term's derivative present and absent, K93 having no leaf and so no staircase — "that is the
+number that should have been taken before any of it was designed".
+
+**So the decision is the owner's and the phase does not carry it.** A 10.3× change in offspring
+production is a different model, not a re-blessing. What is owed before it can be judged: §2.2's
+conservation diagnostic under both stencils, and report 04 §8's K93 comparison.
+
+### What the packet closed, and it was an open question here
+
+A tally over one production run, 1 078 893 guarded pairs:
+
+    zero-width       141, every one the boundary pair
+    non-descending    12, every one the boundary pair, min dh -0.0273 m
+    interior grid     never non-descending
+
+So the 141 zero-width pairs are report 04 §7.1's one-per-introduction prediction, now attributed; and
+**the negative spacing is the newborn crossing below `height_0`, never an interior crossing.** This
+file recorded that attribution as open. 12 in 1.08 M, so the guard's reading does not affect the
+forward number either way.
+
+**The guard reading taken:** `dh == 0.0` became `!(dh > 0.0)`, treating a non-descending pair exactly
+as a zero-width one, which also catches NaN. The alternative — re-pairing by sorted height — was
+rejected on a good argument: it would change *which interval a node owns* discontinuously in time,
+and that node's `log_density` was established as `N/dh` for the interval it has held since birth, so
+the right-hand side would jump at a crossing.
+
+### My packet contradicted the corpus, and the packet was right to stop
+
+I instructed it to drop `Species::compute_rates`'s `birth_rate` parameter. Doing so requires removing
+`new_node.compute_initial_conditions` from that function — **which this file records as wrong**, caught
+as a silent wrong value by 18 assertions, and explicitly restored. The packet identified the conflict,
+implemented the corpus's reading and reported both. I wrote that instruction from my own superseded
+version of the code, which is the second time this phase a packet has caught a stale premise in its
+own brief.
+
+### Owed if it is ever taken up
+
+- `transport_census.h` becomes unreferenced once the sub-grid probe goes; its caller was the census
+  hook whose subject was that probe.
+- `test-control.R` and `test-support.R` reference the four removed `node_gradient_*` fields
+  (3 failures), and `_snaps/model-version.md` lists their names.
+- `test-scm.R`'s profiling comment attributing 50.1% of runtime to `growth_rate_gradient()` is now
+  wrong, and the benchmark above supersedes it.
+- `test-patch.R:89` pins a hard-coded FF16 `ode_rates` vector ending `-0.78726`, the old sub-grid
+  boundary value.
+- The boundary node's `log_density_dt` is now `0.0` — a node with no interval below it has no
+  transport term — and the §2.1 identity test had to be restricted to interior intervals because the
+  boundary node sits at `height_0` permanently and is not a transported characteristic. **That is a
+  real asymmetry in the staggering** and it deserves a decision of its own.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
