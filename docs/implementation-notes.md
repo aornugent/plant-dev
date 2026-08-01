@@ -1534,13 +1534,36 @@ Forward effect, at the pinned build:
 is mostly the controller re-rolling on 34 fewer steps.** That is Phase 0's lesson reused as an
 attribution tool rather than relearned.
 
-**Two things owed, both stated rather than papered over.** The commit bundles the reordering with
-the removal of the second boundary-node evaluation, and their forward effects are not separately
-attributed; separating them costs one build. And the light-field shift at the boundary node — the
-bound the plan asks this task to be verified against, at most 3.5e-04 — was measured on
-`spike/boundary-acyclic`, whose formulation evaluates the boundary node twice where this one
-evaluates it once. **I did not re-measure it here, and say so rather than imply otherwise.** The
-purity gate is measured on this tree and is the stronger claim.
+### Removing the second boundary-node evaluation was wrong, and the reason is worth keeping
+
+The first version of this task also deleted `new_node.compute_initial_conditions` from
+`Species::compute_rates`, on the argument that the field build had already evaluated the boundary
+node and that one evaluation carries one adjoint where two carry two. **That argument is false, and
+the test suite caught it as a silent wrong value rather than as a shifted one.**
+`test-species.R`'s `sp$compute_competition(0)` returned **exactly 0.0** where it asserts a positive
+leaf area, because a `Species` used without a `Patch` then has nothing to seed `new_node`'s
+density: it stays at `log_density = -Inf`, `exp(-Inf) = 0`, and the reduction's closing trapezium
+contributes nothing. 18 assertions in `test-species.R` and 2 in `test-patch.R`.
+
+The two evaluations are **the same function at different arguments, not one function computed
+twice.** The field build needs the boundary condition in A0, the field excluding the boundary
+interval, because that is what makes the field a function of the state. An introduced node inherits
+the boundary node as it stands after `compute_rates`, which is the boundary condition in A — the
+field the patch actually experiences. Removing either one loses a distinct quantity. `#66`'s P0.11
+lesson, that two evaluations of one function have two adjoints, does not apply where the arguments
+differ.
+
+Restored, and the spike's arrangement turns out to have been right for a reason it did not state.
+The purity gate is unaffected: the field reads its boundary density before `compute_rates` runs, so
+what `compute_rates` writes afterwards cannot reach it. The benefit of restoring it is also an
+attribution one — P2.7 is now the reordering alone, so its forward shift belongs to the reordering
+and to nothing else.
+
+**One thing owed, stated rather than papered over.** The light-field shift at the boundary node —
+the bound the plan asks this task to be verified against, at most 3.5e-04 — was measured on
+`spike/boundary-acyclic` with its environment-variable diagnostics, which this merge-ready version
+drops. **I did not re-measure it on this tree, and say so rather than imply otherwise.** The purity
+gate is measured here and is the stronger claim.
 
 ## The derivs-twice probe measures idempotence, not history independence
 
