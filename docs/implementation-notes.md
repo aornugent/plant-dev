@@ -2630,6 +2630,42 @@ Four, and three are mine:
 fixed trait. The same reachability gap the corpus already flags, now blocking instrumentation by state
 as well as inspection from R.
 
+## The active build is larger than the census said, because the census was too narrow
+
+**`Individual` holds `Internals<double> vars` (`individual.h:205`), not `Internals<S>`.** So the whole
+per-cohort state surface is passive — `state(int) -> double`, `rate(int) -> double`,
+`set_state(int, double)`, `compute_competition(double) -> double`, `consumption_rate(int) -> double` —
+and instantiating `Individual` at an active scalar fails at **seven** sites, every one handing `vars` to
+a strategy that wants `Internals<S>&`.
+
+**This is Phase 1's group B, and it is not closed.** That census named "the `double` state and aux
+boundary: 12 sites" and this is what it meant. What made it look closed is that Phase 1 read the funnel
+as narrow — "the single place `S` must be dropped is the plant's water draw" — which is true of
+`consumption_rates` and not of `vars` as a whole.
+
+**Why my own census could not see it, which is the lesson worth more than the finding.**
+`template class plant::TF24_Strategy<active_scalar>` **never instantiates `Individual`**, so the probe
+that reported 34 errors and then 24 was structurally blind to the container holding the state the block
+differentiates. I wrote §0.6's rule into a packet — *ask what would make the gate pass vacuously* — and
+then shipped a gate that could not distinguish "correct" from "not instantiated". Measured by
+instantiating `Node` instead, which pulls `Individual` in: seven more sites.
+
+So the block's remaining surface is three tasks, not one:
+
+| | what | reaches |
+|---|---|---|
+| 1 | `QK` carrying a scalar, `util::is_finite`, the consumption funnel, the leaf seam | `qk.h`, `util.h`, `internals.h`, `tf24_strategy.h` — in flight |
+| 2 | **`Individual`'s state store carries `S`** | `individual.h`, and every caller of its accessors in `node.h`, `species.h`, `patch.h` |
+| 3 | the transport probe made scalar-generic | `node.h`, `individual.h`, and `gradient.h`'s generic helpers |
+
+**And the probe's severance is compile-caught rather than silent, which is the one piece of luck here.**
+`Individual::growth_rate_given_height` appears in the failing instantiation chain at `individual.h:167`,
+required from `Node::growth_rate_gradient` at `node.h:212` — so the passive transport path does not
+quietly return a zero derivative, it fails to build. That is only true while the state store is
+`double`; **once task 2 lands, the `-> double` lambda becomes a silent passivation rather than an
+error**, so task 3 must land with task 2 and not after it. Recorded because the ordering is the whole
+risk: the compiler is currently doing the work that the sweep's new check will have to do afterwards.
+
 ## P3.5's transport adjoint, designed — and the probe has no active path at all
 
 The design §11.2 of `ORCHESTRATOR.md` puts before P3.2, because P3.2 freezes the block's boundary and

@@ -461,6 +461,13 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
        |
     the leaf seam, HELD-CONSTANT form ── P3.2 step (1)'s, and V1 cannot be taken before it
        |
+    Individual's state store carries S ── Internals<double> today, so the block's own
+       |                                 inputs are passive. Phase 1's group B, not closed
+       |
+    the transport probe made scalar-generic ── MUST land with the line above, not after:
+       |                                      today the severance fails to compile; once
+       |                                      the store carries S it passivates silently
+       |
     Patch::rebind_from ── step_adjoint static_asserts on it; P3.5 cannot run without it
        |
     P3.5's transport adjoint ── DESIGNED, and the probe turned out to have no active
@@ -477,8 +484,11 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
     P3.6  census<Psi>, the entry point, agents.md §13                           V4
 ```
 
-**Two of the three are §11.3b's prerequisites, above P3.1 in the diagram and absent from the plan
-entirely.** The third is an ordering constraint inside the plan's own task list:
+**Five items now sit above P3.1 and the plan names none of them.** Each was found by running the
+pre-flight against the tree, and the last two were found by *widening a census that was too narrow* —
+§0.6's rule turned on my own gate, which is where it earns most.
+
+**Two of the three constraints are those prerequisites.** The third is an ordering constraint inside the plan's own task list:
 
 **P3.5's transport adjoint is now designed, and designing it found that the plan's premise was
 false.** Report 04 §5 says differentiating develop's sub-grid probe at an active scalar "is
