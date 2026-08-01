@@ -1829,6 +1829,11 @@ both; the exposure is FF16 and K93.** Worth one decision covering both rather th
 
 ## The phase so far, merged
 
+*A snapshot taken with three items outstanding, kept because this file is append-only and the numbers
+below were the ones gates were read against at the time. **Superseded by "Phase 2, closed"** — P2.3
+landed, P2.5 is answered and P2.4 went out of scope, so neither the offspring value nor the failing-test
+list here is the phase's.*
+
 `p2/phase-2` carries P2.7, P2.6, P2.1 and P2.2. Built once at the pinned build, 0 occurrences of
 `-O0`, and every gate below re-run in the orchestrator's own worktree rather than taken from a
 packet's report.
@@ -2368,6 +2373,70 @@ wrong trade. **No capability withdrawn, no fallback mechanism, no runtime branch
   back through `value_and_slope` and a slope returns as `fl(fl(m·h)·fl(1/h))` — up to an ulp from what
   was supplied. Adding the accessors belongs to odelia and would also let `spline` be R-facing again.
 - The dead `ResourceSpline` constructor arguments, which now select nothing.
+
+## The close-out review, and what reading the diff found that the sweep did not
+
+Run at `5fd351e9` as the phase's review pass: the reports re-read against the code, the merged diff
+read in full, and `style-sweep.sh` over it.
+
+**The keystone gate re-run in the phase's own worktree, no rebuild.** `derivs(y, t)` twice, bitwise:
+**0 of 1137** (TF24), 0 of 987 (FF16), 0 of 705 (K93). TF24 reproduces `42.179817344974609` and K93
+`0.030538172107758225` to the last bit against the closure above. *The FF16 arm of this check was
+configured differently from the phase's — one strategy added on top of a base that already carries
+one — so its offspring is not comparable and only its purity count is quoted.*
+
+**The sweep's three hits are all candidates rather than violations**, as §7 says to expect. The `#253`
+issue tag in `resource_spline.h` is pre-existing — 2 occurrences in the base, 2 in the tip, so the
+phase added none and only reworded the line. `transport_census.h` is not a dead file: it is referenced
+from `species.h`. The generated-file hits are the yml regeneration, disclosed by the packets.
+
+**What reading the diff found instead, and the sweep structurally could not.** Three comments told the
+reader to prefer a code path P2.1 deleted — two `NOTE: We should probably prefer to rescale when this
+is called through the ode stepper` and one `probably worth just doing a rescale there?`. A comment that
+was true when written and false after a deletion is invisible to every grep in the sweep, because
+nothing about the line changed. Removed in `0abc7873`, comments only, token-identical.
+
+**And one thing in the merged tree reads as P2.4 having landed.** `Species::growth_rate_gradient(i)` —
+the cohort-grid stencil — and `transport_census.h` are both on `p2/phase-2`, because the census is M4's
+instrument and the stencil is what it compares against. Neither is on the rate path: the census is
+behind `PLANT_TRANSPORT_CENSUS` and the stencil's only caller is the census, which is why the reference
+run reproduces exactly. But **the merged tree's guard is `dh == 0.0`, where the reading actually taken
+on `transport/cohort-grid-stencil` is `!(dh > 0.0)`** so that a non-descending pair and a NaN are caught
+too — so the two copies of the stencil differ, and the one in the shipped tree is the superseded one.
+M4 is answered, so the census's subject is closed. Recorded in `build-plan.md`'s Phase 2 preamble and
+left in place rather than removed, because removing it is a code change with a rebuild and a re-gate
+after the phase was closed.
+
+### Four reports carried claims Phase 2 settled, and none of them said so
+
+Corrected at the head of each, with the evidence here. Reports 00 and 07 needed nothing — report 00
+§4.3 records TF24's inline growth-gate smoothing correctly (it was this file and `ORCHESTRATOR.md` that
+carried the false "hard and un-smoothed" premise, already corrected above), and report 07's floor
+censuses were confirmed rather than moved.
+
+- **Report 03 §4's "already correct for every strategy" was false**, and it is the one load-bearing
+  error in the report the whole interpolant change rests on. `q` is the exact negative derivative of
+  the *Yokozawa* kernel; FF16 and K93 also accept two box models that reach competition through
+  `leaf_area_above`. Also superseded there: §5.5's unattributed 91% was never attributed but was
+  *deleted*, C2 and C5 are void with `rescale_spline` gone, and §1b's bit-identity premise is
+  arithmetically false.
+- **Report 02 §4's zero pinned-solve count predates P0.1, P0.2 and P0.12** and is unverified against
+  the leaf that now exists, while a Phase 2 probe at TF24's own defaults found every state pinned.
+  P3.2's shape depends on which is right. §6.5's polish prediction was beaten (9.587e-09 against a
+  forecast 1.6e-08..4.7e-07).
+- **Report 01 §3.1's 3.5e-04 bound held** — 0 of 66 290 field builds exceed it — and both of its
+  conclusions were right about the numerics. "The lag is not a defect to fix" was wrong about the
+  consequence, and the mechanism that closed it is a reordering rather than the Picard step this corpus
+  proposed.
+- **Report 04** already carried its banner.
+
+**The lesson, and it is about this corpus rather than this phase.** A report is corrected when its
+*conclusion* is replaced — report 04 got a banner within the session that replaced it. What nothing
+was catching is a report whose conclusion stands while a sub-claim inside it is falsified, because no
+document is looking at it: the finding lands in this file, the plan gets its correction, and the report
+keeps stating the false thing to whoever reads it next as the section that owns the mechanism.
+**Reading the reports against the code is the pass that catches those, and it belongs at phase close
+rather than at phase start.**
 
 ## Corrections to what was recorded here
 

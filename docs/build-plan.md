@@ -891,8 +891,8 @@ None on the critical path; each can kill or confirm one choice in §2.
 |---|---|---|---|
 | **M1** | **A block with a moving integration bound — run.** `scripts/m1_moving_bound.cpp` | whether the block boundary closes, including the moving bound, and **it does**: the height adjoint matches a central difference to 1.2e-11 … 7.4e-10 at heights 0.3442, 2, 8 and 17.9429, and the knot-value channel to 8 digits. It also found the one thing that has to be added — `hermite_interpolator::eval` takes `double`, and with the query frozen `d(I)/d(height)` is **exactly zero at 4 of 4**, because after `z = h·ξ` the Yokozawa weight carries no height and the query position is height's only route in. The fix is the `value + slope·(u − value_of_u)` graft odelia's older `Interpolator` already owns as `eval_with_query_derivative`, one line over hermite's `value_and_slope`; measured identical to re-evaluating the span polynomial actively | done |
 | **M2** | **`CanopyShape<S>` against develop's — run.** `scripts/m2_canopy_shape.cpp` and its `.sh`, which holds both versions in one translation unit rather than porting one | §2.1's shape, and it confirms it. **Bit-identical**: 0 differences over 2 048 (height, position) pairs for each of `q`, `Q`, `leaf_area_above` and `Qp` at eight etas, so the switch on a stored kind costs no digits against the function-pointer dispatch. **The eta channel is live**: `d(Q)/d(eta)` matches a central difference to 7–9 digits at 6 of 8 states, the other two at the reference's floor. **No forward cost**: 59.8 ms against develop's 88.3 ms for 12.8 M `q+Q` at eta 12 — read as an upper bound on the risk, not as the model's number, since P1.2's whole-run benchmark is the gate. And it found that a **`double` position with an active eta does not compile** (XAD's `pow` expression will not convert), so the severance cannot be silent — but every gradient-path caller must reach the profile with an S-valued position, the field build's run-constant knot positions included. Same conclusion as M1 from the other side. P0.12 is what gives TF24 a consumer for it | done |
-| **M3** | **The normalised light coordinate, accuracy half — run.** `scripts/m3_fixed_fractions.R`, four candidate fraction sets plus a uniform refinement sweep | §2.6, and it **closes the open choice**: the shift is resolution rather than placement (about `h^2.5`, since `A` breaks in derivative at every cohort height), so uniform fractions at 65 knots give a worst-case crown-mean light shift of 1.7e-03 and a median of 1.6e-06, beating both refinement-derived sets — one of which, at 115 knots, is worse than uniform at 58. What remains is the **bit-identity half**: `x_k = u_k · height_max` is exact arithmetic within an introduction interval, and that is a statement to check against the built interpolant rather than against develop's recorded knots | accuracy half done |
-| **M4** | **The transport stencil across neighbouring cohorts.** Value change against the sub-grid stencil on one production run; conditioning of both against a finite difference | §2.6, and the size of the forward-value change to re-bless | `double` for the value; M1 and M2 for the derivative |
+| **M3** | **The normalised light coordinate, accuracy half — run.** `scripts/m3_fixed_fractions.R`, four candidate fraction sets plus a uniform refinement sweep | §2.6, and it **closes the open choice**: the shift is resolution rather than placement (about `h^2.5`, since `A` breaks in derivative at every cohort height), so uniform fractions at 65 knots give a worst-case crown-mean light shift of 1.7e-03 and a median of 1.6e-06, beating both refinement-derived sets — one of which, at 115 knots, is worse than uniform at 58. ~~What remains is the **bit-identity half**~~ **Both halves closed at P2.1, and the bit-identity half closed by being disproved:** `x_k = u_k · height_max` is *not* exact arithmetic, because `u_k = x_k / height_max` is itself a rounding — 572 of 8 256 positions land 1–2 ulp apart. What is bit-identical, and is the assertion that bites, is `x == u · height_max` against one fixed uniform `u`. M3's 1.7e-03 is **relative** (the script's own line), against P2.1's measured 2.04e-03 | done |
+| **M4** | **The transport stencil across neighbouring cohorts — run**, as one instrumented census over 3 785 061 (stage, node) records, `PLANT_TRANSPORT_CENSUS` | §2.6, and **it took P2.4 out of the build.** mean(cohort − sub-grid) −0.0620, sd 1.878 — which reads as a modest perturbation and is the wrong summary: max \|cohort\| **142.85** against max \|sub-grid\| **1.51**, and the tail is what drives the trajectory. Offspring moved **10.3×**, and the cause is that the two stencils are *different operators* on a strategy carrying physiological state (`cor` 0.05 on TF24 against 0.96 on K93), converging to limits ~370 apart. Report 10; `aornugent/plant#69`. It also answered the gated-neighbour question — the feared O(1e5) term does not occur, 0 records above 1e3 — and confirmed `dh == 0` at exactly 141, one per introduction | done |
 | **M5** | **The scratch — run.** `scripts/m5_scratch.R` with `docs/reports/m5-scratch-arms.patch`: `thread_local`, a `Node` member, and a fresh copy per call, selected at runtime so one build serves all three | §2.3's last paragraph, and it settles it more simply than the prior did. Min-of-three: 86.1–86.8 s for the `thread_local`, 87.6 s for both others — **at most ~1.5%**, against a 1.9% spread between two runs of the same arm, and all three reproduce offspring `42.140173575095666` exactly. So no arm is worth choosing on speed, *including the one with no scratch at all*: the `thread_local` can go and nothing has to replace it. The prior — a member is no slower and possibly warmer — is wrong in its second half and irrelevant in its first | done |
 
 | **M6** | **The leaf's boundary — run.** `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`, `leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`, `leaf_recover_a.R`, against develop at 5 and 20 layers and two species | report 02 §6, and it confirmed it: the envelope row exact for a leaf trait, the waist's joint residual 2.6e-04 to 9.2e-04 over 41 directions, `waist_b` against its closed form to 0.16–1.04%, `waist_a` recovered to 1e-05, both translation defects exact, and the stationarity gap that makes P2.6 a prerequisite | done |
@@ -1205,10 +1205,36 @@ wrong by 60×.
 
 ---
 
-### Phase 2 — the four changes that move forward numbers
+### Phase 2 — the three changes that move forward numbers
 
 They land together so there is one re-blessing rather than several, and P0.6's ecology decisions
 belong in the same conversation with the owner (§10).
+
+**Landed and closed.** Commits are on plant branches off `p1/audit-fixes` (`076ae24f`), merged into
+`p2/phase-2`. The evidence — gates as run, and the shift where numbers moved — is in
+[`implementation-notes.md`](implementation-notes.md) under *Phase 2*, not here.
+
+| | commit | forward effect |
+|---|---|---|
+| P2.7 | `f0338c06`, `29643ebe` | `derivs(y, t)` twice bitwise, 0 of 753 against 92 before; offspring `42.249808414392021`, 5 071 steps (+0.174%) |
+| P2.6 | `831194bc`, `45a83b8f` | `\|R\|` worst 9.587e-09 against 1e-07; both steps together −1% per step, step (1) alone +42% |
+| P2.1 | `aa3d2ee7`, `d4a9e338`, `931d9b4c` | 65 knots at every build against 28 distinct counts; history independence bitwise 0; worst crown-mean light shift 2.04e-03 |
+| P2.2 | `f3c0e088`, `78394cb5` | bit-identical — the fused value equals `compute_competition` bitwise; +25 assertions |
+| P2.3 | `145a7140`, `b0255fc5`, `f5b97a44`, `0ae475f0` | O(h⁴) value, O(h³) slope on a smooth field; offspring −0.030%, about +3% per step |
+| P2.5 | — | a measurement, answered below |
+| P2.4 | — | **out of scope**, see the banner below and report 10 |
+| **all six, `p2/phase-2`** | `5fd351e9` | **offspring `42.179817344974609`, 4 798 steps (+0.0085%)** — smaller than any single item's. FF16 `19.834058960443031` (+0.043%), K93 `0.030538172107758225` (−0.028%). Suite 1 309 pass, 0 fail |
+
+**Two things in the merged tree read as P2.4 having landed, and neither is.**
+`Species::growth_rate_gradient(i)` — the cohort-grid stencil — and `transport_census.h` are both in
+`p2/phase-2`, because the census is M4's instrument and the stencil is what it compares against. The
+census is behind `PLANT_TRANSPORT_CENSUS` and inert unless it is set, which the reference run
+reproducing exactly is the proof of; the stencil's only caller is the census. **Neither is on the rate
+path and the forward model does not read either.** Two consequences worth knowing before touching
+them: the merged tree's guard is `dh == 0.0`, where the reading actually taken on
+`transport/cohort-grid-stencil` is `!(dh > 0.0)` so that a non-descending pair and a NaN are caught
+too (report 10 §8); and M4 is answered, so the census's subject is closed and it is a candidate for
+removal rather than a facility to build on.
 
 **P2.4 is out of scope, and Phase 2 is three changes rather than four.** The transport stencil turned
 out to be a forward-model modelling question rather than a discretisation choice: on a strategy whose
@@ -1340,7 +1366,10 @@ heights, where `Q(z/h)` breaks the field's derivative, so the observed rate ther
 cohort tops (M3b, §2.6). So the gate is the scheme's rate on a smooth target, with the production rate
 recorded beside it.
 *Note* the R-facing state changes shape — the fitted cubic reports (x, y), a Hermite carries
-(x, y, m). That is a `NEWS.md` entry.
+(x, y, m). That is a `NEWS.md` entry. **Landed, and it is two entries rather than one**: the field's
+state gained a third column and `ResourceSpline$spline` is gone with no replacement, and
+`GSS_tol_abs`'s default moved from `1e-3` to `1e-1` (P2.6), which changes numbers for an unchanged
+call. Both are in plant's `NEWS.md` under "Breaking changes" with `old -> new` migrations.
 
 ---
 
@@ -1495,6 +1524,13 @@ at `-O2`, so the share needs re-taking against the gate number before it means a
 knowing whether P2.1 recovers the time or whether it was somewhere else.
 
 *Closes on* the forward benchmark after P2.1, with the difference attributed.
+
+**Answered: P2.1 recovers the time rather than losing it.** 24.3 → 21.6 ms/step, −11%, taken as four
+runs on four already-built worktrees in one session. Removing the adaptive refiner and the rescale
+remap recovers more than the 6.6% report 03 §5.5 attributed to the interpolant build, so part of the
+unattributed 175 µs per build was the refinement machinery. **The 3.5 s share itself is still not
+re-taken against a gate number** and remains anchored to a 59.5 s pre-`#517` run, so what is settled
+is the sign and rough size, not the share. `aornugent/plant#68`.
 
 ---
 
@@ -1948,8 +1984,8 @@ aux transfer and `step_adjoint` are the same either way.
 |---|---|---|
 | the block boundary does not close around a moving integration bound | the height adjoint disagrees with a finite difference | **M1 — closed.** It matches to 1e-11, and the one failure mode it found is not a disagreement but a severance: a frozen query position gives exactly zero (§2.8). So the guard is that the crown integral reads the field through the active-position overload, and a test that seeds height alone catches it |
 | the forward model slows under templating | benchmark outside the accepted band, or reference numbers move | **M2 — closed for one file**: bit-identical and 0.677x the forward cost at production eta. Then P1.2, gated on the templated build against a develop build **in the same session on the same machine** (§8b). The AD branch's comparison was 49.57 s against 50.31 s — a +1.5% templating cost, and it is the ratio that transfers |
-| the normalised coordinate is not bit-identical to `rescale_spline` | a forward shift where none was expected | **M3's remaining half**, at P2.1. Its accuracy half is closed: uniform-65 shifts crown-mean light by at most 1.7e-03 against develop, which is the number to re-bless |
-| differencing across cohorts changes the forward value more than expected | `log_density_dt` and offspring move | **M4** |
+| the normalised coordinate is not bit-identical to `rescale_spline` | a forward shift where none was expected | **Closed at P2.1, by being disproved.** It cannot be — `u_k = x_k / height_max` is a rounding, so 572 of 8 256 positions move 1–2 ulp. The shift re-blessed is a worst crown-mean light shift of 2.04e-03 against M3's predicted 1.7e-03 |
+| differencing across cohorts changes the forward value more than expected | `log_density_dt` and offspring move | **M4 — fired.** Offspring moved 10.3x, which is report 04 §8's own falsifier, and P2.4 left the build. Report 10 |
 | removing the scratch slows the forward pass | benchmark | **M5 — closed.** At most 1.5%, inside the same-arm spread |
 | a channel exists that templating cannot reach | a derivative obtainable only through a second implementation | P3.1's V1 |
 | the decomposition is wrong | V1 fails at one state, with nothing else in the way | P3.1 |
@@ -1959,9 +1995,9 @@ aux transfer and `step_adjoint` are the same either way.
 | the knot **slopes** are not declared as block inputs | the light channel is a fixed fraction of itself, correct sign, nothing thrown — the same shape as the trait case. T5 covers it only if it seeds both data vectors | P3.1's V1, and T5 written over values *and* slopes |
 | the leaf's boundary is wider than §2.3 and report 02 §6.8 declare | P3.2 grows an output nobody declared | P3.2; P0.5's inventory should predict it |
 | the leaf's waist does not hold where it has not been measured | the joint residual over the `2n + 1` directions leaves the 1e-04 band, or `dR_dflux` recovered from two potential directions disagrees | P3.2 step (3), and report 02 §11's last two falsifiers |
-| the envelope row is used at an unpolished operating point | carbon is right and every uptake row is wrong at first order in the displacement | report 02 §6.5; the polish lands with Phase 2 |
+| the envelope row is used at an unpolished operating point | carbon is right and every uptake row is wrong at first order in the displacement | **P2.6 — closed.** Worst `|R|` 9.587e-09 against 8.8e-05–1.2e-03 unpolished, and the polished point is bracket-independent to 1.044e-09 |
 | the gradient is right and too slow to use | the whole-gradient wall clock against §8b's budget. Nothing else catches it: every other gate is a value | P3.6, and partially at P3.2 — one block's sweep times the block count is most of it |
-| the boundary node's lag is still open when the reverse pass is written | `step_adjoint` needs a per-species scalar carried across step boundaries, which it cannot have | P2.7, before P3.5. If it slips, `Trajectory` grows a field (P1.4) |
+| the boundary node's lag is still open when the reverse pass is written | `step_adjoint` needs a per-species scalar carried across step boundaries, which it cannot have | **P2.7 — closed.** `derivs(y, t)` twice is bitwise pure at all three models, so no scalar is carried and `Trajectory` needs no field |
 | the value-reproduction check is read as an acceptance test | a 0.2% difference in value has produced a sign-flipped gradient | every gate compares AD against an independent reference — a re-run finite difference everywhere except the leaf's flux rows, where §2.5 says why an identity is the better one |
 
 ---
@@ -1972,23 +2008,33 @@ aux transfer and `step_adjoint` are the same either way.
    **M1** answers it without plant.
 2. **Does the scalar belong on the types that own the parameters, with `<T,E>` unchanged?**
    **M2** for one file; P1.2 for TF24.
-3. **Is the normalised light coordinate bit-identical to `rescale_spline`?** Only in P2.1's first
-   step, and deliberately not in its second. M3's accuracy half settles the fractions — uniform at
-   65 — and prices the switch at a 1.7e-03 crown-mean light shift, so the interpolant change *is* a
-   model change and Phase 2 needs the owner for it. The bit-identity to check is step (1)'s.
+3. ~~**Is the normalised light coordinate bit-identical to `rescale_spline`?**~~ **Closed at P2.1.**
+   Not in either step: step (1)'s bit-identity is arithmetically impossible, and step (2)'s shift is
+   deliberate. The interpolant change *is* a model change, the owner accepted it, and the measured
+   worst crown-mean light shift is 2.04e-03 against M3's predicted 1.7e-03.
 4. **Is the leaf's boundary as report 02 §6.8 states it** — `2n + 3` geometry and soil inputs
    plus twelve of its own parameters, out to profit and one uptake per rooted layer? A thirteenth
    parameter or a sixth output kind changes P3.2's shape. Note the output arity is
    state-dependent through `max_soil_layer`, so an assertion must read it rather than the layer
    count.
-5. **Does either P0.6 decision bump `scientific_version`?** Both halves are open and both are the
-   owner's: the double-counted photosynthetic-nitrogen respiration, and the establishment gate,
-   whose closed arm spans four to five orders so that no one smoothing scale fits it. With P2.1 and P2.4 also changing forward numbers, there is a case for
-   taking respiration to the owner in that same conversation.
+5. **Does either P0.6 decision bump `scientific_version`?** Both halves are still open and both are
+   the owner's: the double-counted photosynthetic-nitrogen respiration, and the establishment gate,
+   whose closed arm spans four to five orders so that no one smoothing scale fits it. **Phase 2 was
+   the re-blessing window and neither rode it**, so they now wait for the next one — as does the
+   `max(S, 0)` storage clamp, which has no task in any phase (`tf24-correctness.md` P0.5, and
+   `ORCHESTRATOR.md`'s Phase 2 tail under *Carried in*).
 
-**Order: M1, M2, M3's accuracy half, M5, M7 and M8 are done, and M4 is now taken — report 10 §3, where
-it is also the finding that took P2.4 out of scope. So (4) before P3.2, and (5) before anything is
-verified against TF24's numbers.**
+**Order: every measurement M1–M8 is now taken.** M4 is the one that changed the plan — report 10 §3,
+the finding that took P2.4 out of scope. So (4) before P3.2, and (5) before anything is verified
+against TF24's numbers.
+
+**One measurement Phase 2 added to this list, and it is (4)'s.** Every production-like leaf state
+sampled at `TF24_Strategy`'s own defaults came back **pinned at the wet bound**, against report 02 §4's
+measured zero pinned solves in 4 372 101 at the production driver. The two disagree and the
+hand-assembled leaf is the more likely error — but **nobody has re-measured pinned incidence since
+P0.1, P0.2 and P0.12 changed what the leaf computes**, and report 02's count predates all three. If the
+pinned regime is in fact common, P3.2's bound branch stops being insurance and becomes the path. One
+instrumented production run settles it, the same shape as the transport census.
 
 ---
 

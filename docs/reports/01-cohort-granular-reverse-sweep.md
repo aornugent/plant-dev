@@ -314,6 +314,19 @@ Two consequences.
 the difference between its lagged and its converged value is smaller again. So closing the fixed
 point buys no accuracy, and the lag is not a defect to fix.
 
+> **Both statements held, and the lag was closed anyway for a structural reason — landed as P2.7.**
+> This bound was confirmed on the built change: the shift against the lag is at most **1.464e-06**
+> relative and **0 of 66 290** field builds exceed the 3.5e-04 predicted here. So closing it bought no
+> accuracy, exactly as stated. What it bought is that `derivs(y, t)` is now a **bitwise** pure function
+> of `(y, t)` — 0 of 1137 components against 92 of 753 before — which is what lets the trajectory store
+> keep one state per accepted step and lets the reverse pass rebuild stage states by re-running a step.
+> **The mechanism is not the Picard step this corpus first proposed:** one extra evaluation only
+> attenuates the carried dependence by the contraction modulus, whereas forming the boundary density in
+> a field that *excludes its own interval* and then adding the interval back is exact. Same cost, one
+> extra field build per stage. And "the lag is not a defect to fix" was right about the numerics and
+> wrong about the consequence — with it open, a per-species scalar has to be carried backwards through
+> `step_adjoint`, which is odelia's and knows nothing about species.
+
 **Dropping the boundary node from the field is forward-safe, and it is not free.** The value change
 is at the fitting tolerance. What it deletes is the channel through which `birth_rate` and
 `pr_estab` reach the field at all, and that channel's *derivative* is unmeasured — a term small in

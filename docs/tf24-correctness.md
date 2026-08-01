@@ -535,7 +535,16 @@ is the same instant at which the transport stencil's bottom interval has zero wi
 boundary density is stale, so **one fix removes three symptoms**.
 
 **Gate.** At every introduction, `ode_rates` immediately after `introduce_new_nodes` equals
-`ode_rates` after a further `compute_rates()`. Re-bless with P0.8, P2.1 and P2.4 in one pass.
+`ode_rates` after a further `compute_rates()`. ~~Re-bless with P0.8, P2.1 and P2.4 in one pass.~~
+**Re-blessed with P0.8 in Phase 0 and with P2.1 in Phase 2; P2.4 is out of scope** (`build-plan.md`
+P2.4, report 10).
+
+**One prediction here was checked and did not hold.** This section reads the bimodal error
+distribution as the sub-grid stencil amplifying a small field change, and says "that predicts the
+error mostly disappears once the transport stencil moves to the cohort grid — worth checking rather
+than assuming." Checked: the two stencils are *different operators* on TF24 rather than two
+resolutions of one, so the cohort grid does not reduce this error, it replaces the quantity. Report 10
+§2.
 
 ---
 

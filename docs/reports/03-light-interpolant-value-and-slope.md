@@ -5,6 +5,41 @@ of an interpolant and reserves *node* for plant's meaning. `A(z)` is total proje
 leaf area above height `z` per patch area — the optical depth — and `L(z) = exp(-A(z))`
 is light availability, which is what `ResourceSpline` stores.
 
+> **Built as P2.1, P2.2 and P2.3. This report's proposal is upheld; four of its statements are
+> superseded and one was false.** Evidence in `../implementation-notes.md` under *Phase 2*.
+>
+> **§4's "already correct for every strategy" is false, and it is this report's one load-bearing
+> error.** `q` is the exact negative vertical derivative of the *Yokozawa* kernel, which is what §4
+> differentiates — but FF16 and K93 also accept `flat-top-box` and `flat-top-soft-box`, which route
+> competition through `leaf_area_above` rather than through `Q`. For those two `-k_I · a · q` is the
+> slope of a profile the field does not use. TF24 rejects both, which is why the claim held everywhere
+> it was checked. Resolved in the code rather than by restriction: the soft box is a cubic smoothstep,
+> so its slope is the exact one-line `q = 6t(1 − t) / ((1 − lo)·H)`, and the hard box is a documented
+> teaching device whose own test asserts it does not run.
+>
+> **§5.5's unattributed 91%, §8's step 5 and §9's fourth falsifier are answered from the other side.**
+> The 91% was never attributed; instead `rescale_spline` and the adaptive refiner were deleted outright,
+> and the measurement is that P2.1 *recovers* 11% per step. So more than §5.5's 6.6% came back, part of
+> the unattributed 175 µs was the refinement machinery, and the +0.33%..+5.3% build-cost bracket
+> resolved at about **+3% per step** for the Hermite (P2.3) inside a phase that costs +5.0% overall.
+> The 3.5 s share itself is still anchored to a 59.5 s pre-`#517` run and is still not re-taken.
+>
+> **C2 and C5 are void, not resolved.** Both are about the cohort-top knot set and `rescale`'s reuse:
+> the production set is uniform at **65** fixed fractions (§1b), and `rescale_spline` is deleted, so
+> there is no knot-count doubling and nothing to reuse. §5.3's O(h⁴)/O(h³) rates belong to the
+> cohort-top placement and the production rate is about `h^2.5`, which §5.3 and C3 already state.
+>
+> **§1b's premise about bit-identity does not hold.** `x_k = u_k · height_max` is *not* bit-identical
+> to `rescale_spline` between introductions: `u_k = x_k / height_max` is itself a rounding, so the
+> rebuild computes `fl(fl(x/H₀) · H₁)` against `fl(x · fl(H₁/H₀))` and 572 of 8 256 positions land 1–2
+> ulp apart. §1b's own hedge — "up to performing one division rather than an affine remap" — is exactly
+> where it hides. What *is* bitwise is `x == u · height_max` against one fixed uniform `u`.
+>
+> **Confirmed as written:** the locality claim (`d(eval)/d(knot)` exactly 0 two spans away, re-verified
+> on a live tape), the convergence rates on a smooth target, the fused-sweep requirement in §1b (the
+> fused value equals `compute_competition` bitwise, and reversing a two-term sum was found to be an
+> invalid test of it — only association matters), and C6b's ground-knot limit.
+
 ---
 
 ## 1. The proposal
@@ -312,7 +347,9 @@ Differentiating the first with respect to `z`, with `u = z/H`:
 
 using `u^(eta-1)/H = u^eta/(uH) = u^eta/z`. So **`q(z, H)` is exactly the negative
 vertical derivative of the competition kernel** — already declared, already called by
-both mean-light and deep-crown, already correct for every strategy.
+both mean-light and deep-crown, ~~already correct for every strategy~~ **and correct for
+every strategy that reaches the profile through `Q`, which is not all of them: see the
+correction at the head of this report.**
 
 The field's vertical derivative is therefore a second reduction of the same shape as
 `Patch::compute_competition`:

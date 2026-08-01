@@ -92,7 +92,8 @@ In this order, and in full rather than by grep:
    Report 01 §3 names the carried boundary density that sank three attempts at
    the trajectory store; it was read at session start, and its relevance only became visible when a
    measurement demanded an explanation. A report read once is orientation; a report read against a
-   diff is a review tool.
+   diff is a review tool. **Start with the head of each: reports 01, 02, 03 and 04 now carry
+   corrections there**, and report 03's is a claim its own three Phase 2 tasks rested on.
 
 **Items 1–5 are decisions and are read in full; item 6 is evidence and is read by the section.**
 Two sessions ran out of context reading the corpus and had none left to execute with, so the
@@ -168,16 +169,22 @@ So:
   namespace-bearing form is `testthat::test_dir(dir, package = "odelia", load_package = "installed")`.
   Before shipping a gate command, break the thing it checks and confirm the command notices.
 
-**This section's economy inverts when the phase moves numbers, and Phase 2 does.** Phase 1's gates
+**This section's economy inverts when the phase moves numbers, and Phase 2 did.** Phase 1's gates
 were blind *because* the phase was bit-identical by construction — templating at `S = double`
 generates the same object code, so no value gate could see the hazards, and reading found what six
-gates could not. Phase 2 is the opposite: every task changes a forward number, and the plan's step
-decompositions exist precisely so that a bit-identity gate discriminates. P2.1 step (1) is
-bit-identical and step (2) is deliberately not; P2.4 step (2) is bit-identical and step (3) is where
-the value moves. **Skipping the bit-identical intermediate throws away the attribution the
-decomposition was bought for** — it is the only thing separating "I broke the loop" from "the value
-moved by the predicted amount". So in Phase 2 what gets batched is the **re-blessing**, and a step
-whose own claim is bit-identity has earned its run.
+gates could not. Phase 2 was the opposite: three tasks changed a forward number, and the tasks' step
+decompositions existed precisely so that a bit-identity gate discriminates. **Skipping the
+bit-identical intermediate throws away the attribution the decomposition was bought for** — it is the
+only thing separating "I broke the loop" from "the value moved by the predicted amount". Phase 2 paid
+that twice over: the two-pass transport restructure was bit-identical, which is the whole reason a
+10.3× move could be attributed to the stencil and to nothing else, and P2.6's step (1) measured at
++42% per step where step (1) and (2) together cost −1%. So in a value-moving phase what gets batched
+is the **re-blessing**, and a step whose own claim is bit-identity has earned its run.
+
+**And a step whose claim is bit-identity has to be checked for whether it can be.** P2.1's step (1)
+was specified as bit-identical and arithmetically could not be — `u_k = x_k / height_max` is itself a
+rounding, so the rebuild computes `fl(fl(x/H₀) · H₁)` against `fl(x · fl(H₁/H₀))`, and 572 of 8 256
+knot positions land 1–2 ulp apart. That is §0.5 in the one place a phase like this invites it.
 
 ## 4. Sequence and fan-out, decided by dependency
 
@@ -268,6 +275,17 @@ same SHA. The bullets below are how that principle has cashed out in practice, n
   <base>` covers doc-section references, issue tags, decorative nouns, banners, `xad::` inside
   `plant`, deduced-return-type lambdas, comment runs over two lines, and touched baselines or
   generated files — **plus reading every comment line the orchestrator did not write.**
+- **The sweep cannot see a comment the phase made false, and that is the one to read the diff for.**
+  Phase 2 deleted the light interpolant's rescale path and left three comments telling the reader to
+  prefer it. Nothing about those lines changed, so every grep in the sweep passes them; only reading
+  the neighbourhood of a deletion finds them. **A deletion's blast radius is prose as well as code.**
+- **Read the reports against the code at phase close, not only at phase start.** §1 item 6 says to
+  read them twice and this is the second time. The failure mode it catches is specific: a report whose
+  *conclusion* stands while a sub-claim inside it has been falsified. A replaced conclusion gets a
+  banner from the session that replaced it, but a falsified sub-claim lands in the notes and the plan
+  and leaves the report — the section that owns the mechanism, the thing §0.2 sends packets to read —
+  still asserting it. Phase 2 found one in each of reports 01, 02 and 03, and report 03's was the
+  claim its own three tasks rested on.
 - **The sweep reports candidates, not verdicts.** A hit on a line a diff merely *moved* is not a
   violation, and the arithmetic settles it: when a file move relocated 15 issue tags into a header,
   7 in the base header plus 8 in the base source equalled 15 in the tip, so the phase added none.
@@ -342,8 +360,26 @@ become `320`. A citation is only stable if it names something that cannot move:
 The cheapest way to stop a citation drifting is to delete the second copy of the fact it
 supports, which is what one home per fact is for.
 
-**Re-bless nothing** — recording a shift is the job, accepting it is the owner's. Phase 1 ended
-bit-identical, including the one shift the plan had sanctioned, so there was nothing to accept.
+**Re-bless nothing until the owner accepts the shift** — recording it is the job, accepting it is
+theirs. Phase 1 ended bit-identical, including the one shift the plan had sanctioned, so there was
+nothing to accept. **Phase 2 is where the rule met its case, and what it resolved to is worth
+stating**: every moved assertion was recorded with both readings and left *failing* through the
+phase, the owner accepted, and the re-blessing then went in as one pass at the end. So the rule is
+about ordering rather than prohibition — a re-blessing is a deliverable of a value-moving phase, and
+what may never happen is a baseline moving before the shift that moved it has been recorded and
+accepted.
+
+**Three kinds of failing assertion come out of a value-moving phase and only one of them is a
+re-blessing.** Phase 2 hit all three and conflating two of them cost a rebuild.
+
+| | what it is | what it takes |
+|---|---|---|
+| a moved baseline | the same assertion, a shifted number | re-bless, with the shift recorded |
+| a subject that stopped existing | the assertion can no longer express what it tested | **migrate the test**, and check first whether a capability went with it |
+| a design choice | two readings, and the assertion encodes one | leave failing, record both, the owner's |
+
+`spline$size` returning NULL is the first kind. `spline <- interpolator` erroring is the second, and
+reading it as the first shipped a segfault and a lost R capability into a re-blessing pass.
 
 Recording is part of "done", not a pass afterwards. `implementation-notes.md` takes the commit, the
 build, the gates as run, the shift where numbers moved, and **anything the item revealed that the
@@ -391,201 +427,118 @@ Model and code:
 
 ---
 
-## 11. Phase 2, in one turn
-
-Seven tasks, four of which move forward numbers, landing as **one re-blessing**. That is the plan's
-own requirement and it is what makes the phase a single unit of work rather than a sequence of
-sessions: a per-task re-bless would bless four times against a moving baseline.
-
-### 11.1 The order is forced, and one constraint is not in the plan
-
-```
-    measure  ── one instrumented build, one run: the gate-crossing census AND M4's value half
-       |
-    P2.7  boundary reordering (from spike/boundary-acyclic)
-       |
-    P2.1  step (1) fractions ── step (2) uniform-65 ── step (3) delete rescale_spline
-       |                                                    |
-       |                                              P2.2  slope reduction
-       |                                                    |
-       |                                              P2.3  Hermite in ResourceSpline
-       |                                                    |
-    P2.4  step (1) done above ── (2) two passes ── (3) cohort grid ── (4) delete + NEWS
-       |
-    P2.6  collar polish          P2.5  attribute rescale_spline's cost
-       |
-    one re-bless + the cross-model tripwire
-```
-
-**P2.7 must precede P2.4, and the plan does not say so.** The plan gives only "P2.4 before P2.6".
-But both tasks restructure `Species::compute_rates`, and `spike/boundary-acyclic` has already moved
-`Node::compute_initial_conditions` out of it into the field build via `Patch::compute_boundary_nodes`
-— which is exactly where report 04 §7.2's two-pass pseudocode wants the boundary node to sit, because
-the lowest cohort differences against it. Landing P2.4 first means placing that call inside
-`compute_rates` and then moving it out again, restructuring one function twice and invalidating the
-first restructure's bit-identity gate. Taking P2.7 first also hands P2.4 the *more current* boundary
-neighbour its stencil wants, which `implementation-notes.md` records the spike as supplying.
-
-**P2.4 before P2.6 is about measurement order, not files.** P2.6 touches `leaf_model.cpp` alone, so
-it can be written in parallel with everything above it and merged last. What it may not do is land
-before P2.4's numbers are taken: it widens the golden-section bracket a hundredfold, and report 04
-§5 records that develop's probe survives differencing a staircase only because the comparison
-pattern is locally constant at the *current* bracket. Interleaved, P2.4 step (2)'s bit-identity gate
-is asserted against a moving leaf and M4 stops being attributable.
-
-### 11.2 Three things are already done that the plan or this document records as owed
-
-Checked in the tree, not inferred — §0.6's rule run in the opposite direction.
-
-- **`hermite_interpolator` is complete.** It has the `set_nodes`/`set_data` split P2.1 asks for, and
-  the active-position read in *both* `eval` and `value_and_slope`, grafted as
-  `value + slope · (u − to_passive(u))` with a `static_assert` that rejects an active position
-  against `S = double` — the silent-severance case M1 measured as exactly zero. It is one
-  type-dispatched function rather than §2.8's `eval`/`eval_with_query_derivative` pair, which is
-  better: there is no wrong overload to call. **This document's Phase 1 tail recorded it as
-  outstanding and was wrong.**
-- **P0.1 has landed**, so P2.4's two-pass restructure is value-neutral (report 04 §7.3) and the
-  leaf is order-independent.
-- **P0.7 has landed**, so P2.2's reduction may query the field's slope at the ground knot.
-
-### 11.3 Two measurements before any code, and they share one build
-
-Both are instrumentation-only additions to `species.h`, both want one production run, and neither
-needs the other's output. **One build, one run, two answers** — the §6 economy applied where it
-actually pays.
-
-1. **How large does the cohort-grid stencil get where the spacing is small?** This was framed as
-   "does a gate crossing land beside a sub-`1e-4` spacing", on the premise that TF24's growth gate is
-   hard and un-smoothed. **That premise is false, and the framing goes with it.** `TF24_Strategy`'s
-   growth path is `Ppos = ½(P + √(P² + storage_prod_eps²))` times a logistic reserve gate, with
-   `storage_prod_eps = 1e-4` — the hard `net > 0` cutoff was replaced by `#517` and report 00 §4.3
-   records it. The corpus said otherwise because it grepped for the *helper* `smooth_positive`, which
-   exists nowhere in plant's headers; report 02 C1 attributes those sites to the **AD branch**, and
-   the claim was carried across to a develop-tree conclusion. TF24's only hard `net > 0` gate is
-   inside `establishment_probability`, which is P0.6's, and it sets the boundary node's density
-   rather than any cohort's `g`. `test-node.R` states the smoothing in its own comment.
-   So there is no switch for two neighbours to sit on opposite sides of, and what remains is the
-   quantitative question: the spacing's measured minimum is 8.2095e-06 with 23.5% below 1e-4, and a
-   large enough growth-rate difference over that divisor is still an O(1e5) term develop's sub-grid
-   probe cannot produce, because both its evaluations are the same cohort. **That question is
-   answered by M4's own census**, so the two measurements are one run and not two.
-2. **M4's value half** — `Species::growth_rate_gradient(i)` beside the existing `Node` one, both
-   logged on one production run. This is P2.4 step (1) and it is the number the re-blessing is
-   argued against.
-
-### 11.4 The gates, and the two that would otherwise be unsatisfiable
-
-| | gate | note |
-|---|---|---|
-| P2.7 | `derivs(y, t)` twice, **bitwise**, 0 of 753 components; a third evaluation moves ground light < 1e-6 relative; light-field shift within the boundary term's own 3.5e-04 | verify in **light at the boundary node**, never in offspring — the predicted effect is two orders below the 0.145% the controller re-rolls offspring by |
-| P2.1 (1) | bit-identical **within an introduction interval** | **not whole-run.** Across an introduction `construct_spline` re-refines and the count runs 33–129, mean 58.4 (report 03 §1b). A whole-run bit-identity gate here cannot pass, and asserting one costs a rewrite and a rebuild |
-| P2.1 (2) | crown-mean light shift within M3's band — worst 1.7e-03, median 1.6e-06 | the deliberate re-bless; this is the step that removes the carried knot set |
-| P2.1 (3) | the purity probe **bitwise** at all three models | with rescaling gone and P2.7 landed, both path dependences are closed; neither alone is sufficient |
-| P2.2 | agreement with a tight central difference of `compute_competition` across `eta` ∈ {1,2,4,8,10,12} and one non-integer | plus: the two sums add the same terms in the same order, **checked rather than asserted** — a value and a slope from differently-associated sums disagree in their last bits, which is this report's own defect reappearing in floating-point association |
-| P2.3 | O(h⁴) on value, O(h³) on slope, **on a smooth test field** | the production fraction set is uniform and does not align with the cohort tops where `Q(z/h)` breaks the field's derivative, so the production rate is about `h^2.5`. Record it beside the gate; it is a rate, not a penalty — uniform beats cohort tops 22× at matched count |
-| P2.4 (2) | bit-identical | the step that separates "I broke the loop" from "the value moved" |
-| P2.4 (3) | `log_density_dt` matching M4, with report 04 §2.2's conservation diagnostic presented alongside | a sub-grid probe leaks individuals at `O(dh g'')` and the cohort grid does not — that is the forward-model argument the re-bless rests on |
-| P2.4 (4) | two pinned tests **rewritten, not relaxed** | `test-node.R`'s backward-difference assertion *is* the sub-grid stencil's definition, so it has no subject under the new one. Four properties replace them, and the identity `log_density_dt + mortality_rate == -d(log dh)/dt` is the only one that reads the dynamics rather than the arithmetic, so it is the one that would catch a staggering error |
-| P2.6 | `\|R\|` < 1e-07 at every sampled state; the polished point independent of the bracket tolerance; benchmark no worse | two traps: `dprofit_droot_collar_psi` leaves the operating-point outputs at its own probe point, so the loop must restore them, and it reads `psi_soil_inverted_`, which only `prepare_collar_solve` refreshes |
-| P2.5 | the forward benchmark after P2.1, with the difference attributed | **the 3.5 s share is anchored to a 59.5 s pre-`#517` run and means nothing until re-taken** against the gate number. This is `aornugent/plant#68` |
-
-### 11.5 One re-bless, and the tripwire is part of it
-
-Everything above lands together, at the pinned build, and the composite shift is recorded with the
-per-item shifts beside it. Phase 0 is the reason to expect the composite to be *smaller* than its
-parts: four individually positive shifts summing to ~1.9% composed to +0.0856%, because most of each
-individual figure is the adaptive controller re-rolling rather than biology.
-
-**FF16 and K93 run whole-lifetime in the same pass, not at the end of the phase** (§7). P2.4, P2.7
-and P2.1 are all family-wide, and Phase 0's offspring-to-zero regression survived three steps
-because the other two models ran only once, at the end. A green TF24 suite is not evidence about
-shared code.
-
-### 11.6 The budget
-
-About **nine builds and ten production runs** if nothing is built twice: one for the shared
-measurement, one for P2.7, three across P2.1's steps (P2.2 and P2.3 ride the third, since their
-gates are unit-level and need no production run), two across P2.4's, one for P2.6, one for the
-merged tree. At ~95 s a build and ~90 s an idle TF24 lifetime — FF16 and K93 are 209 and 240 steps
-and nearly free — that is well under an hour **serially**. It is several hours as three concurrent
-lanes, per §4. Build one at a time.
-
-### 11.7 Carried into the phase, and not covered by any task
-
-- **`max(S, 0)` on storage is a derivative discontinuity active on 13.96% of records, and no task
-  fixes it.** Report 00 §9b measures it: storage genuinely goes negative (min −2.249e-03 against a
-  median 1.756e-04), and develop's own comment claiming the outflow gate floors storage at zero
-  **does not hold** — once `S < 0` and `|S|` is comparable to `1e-3·S_max`, the factor approaches 1
-  or changes sign and the deficit drains at full rate. The clamp zeroes the carbon → mortality →
-  survival → density channel on all 14%, which is squarely on every census metric's gradient. Report
-  00 §10 lists fixing it as its second priority; `tf24-correctness.md` P0.5 carries the incidence in
-  its table but **omits it from its own summary of rows with nonzero incidence and no recorded
-  treatment**, which is how it fell through. Phase 2 is the re-blessing window, so it rides here or
-  waits for the next one — and that is the owner's call, alongside the establishment gate and the
-  respiration double-count.
-- **Aux has two owners** — the operating-point transfer and the diagnostics a user reads. A
-  functional reading `E_up_` through aux would give the cohort block a seventh output row.
-
----
-
 ## Where Phase 2 left things
 
-`p2/phase-2` carries **P2.7, P2.1, P2.2 and P2.6**; P2.5 is a measurement and is answered. **P2.3 and
-P2.4 are written, gated and pushed to their own branches, and deliberately not merged** — each is
-blocked on one decision that is the owner's, not the orchestrator's.
+**The phase is closed.** `p2/phase-2` (plant, `5fd351e9`, pushed) carries **P2.7, P2.1, P2.2, P2.6
+and P2.3**, fourteen commits off `p1/audit-fixes`. P2.5 is a measurement and is answered. **P2.4 is
+out of scope** — not deferred work — with `docs/reports/10-density-transport-and-carried-physiology.md`
+as its home and the code preserved on plant `transport/cohort-grid-stencil`. Six tasks; three of them
+move a forward number.
 
-    plant   p2/phase-2      derivs(y,t) bitwise pure at all three models
-                            offspring 42.192676883315706, 4 854 steps, +0.039%
-                            23.90 ms/step against a 22.76 baseline, so +5.0%
-    plant   p2/p2-hermite   numerics pass; withdraws two shading models
-    plant   transport/cohort-grid-stencil   OUT OF SCOPE, not pending work
+    derivs(y, t) twice, bitwise:  TF24 0 of 1137   FF16 0 of 686   K93 0 of 490
 
-The superproject pointer stays at Phase 1 on purpose: the phase is not closed, ten assertions await
-one re-blessing, and pointing at it would say otherwise.
+| | offspring | accepted steps | shift |
+|---|---|---|---|
+| plant `p1/audit-fixes`, before the phase | `42.176246845059751` | 5 105 | — |
+| **`p2/phase-2`, everything merged** | **`42.179817344974609`** | **4 798** | **+0.0085%** |
+| FF16 | `19.834058960443031` | 209 | +0.043% |
+| K93 | `0.030538172107758225` | 240 | −0.028% |
 
-**Four decisions are owed, and none is a baseline.**
+Three value-movers composing to under a twentieth of a percent, with both simpler models holding
+their exact step counts — so their figures are the change itself rather than the controller
+re-rolling. Suite **1 309 pass, 0 fail**, plus one environmental error (`FF16_generate_stand_report`
+needs pandoc). The evidence, gate by gate, is `implementation-notes.md` under *Phase 2*; the
+per-item commits are tagged in `build-plan.md`'s Phase 2 preamble.
 
-1. **The box shading models.** `flat-top-box` and `flat-top-soft-box` route competition through
-   `leaf_area_above`, a step and a smoothstep, so `q` is not their kernel's derivative and a Hermite
-   over a step is not obviously the right object. P2.2 refuses them; P2.3 then stops them running at
-   all. Either they are withdrawn, or the field falls back to a value-only build for them — which is
-   two evaluators and a new mechanism. FF16 and K93 only; TF24 already rejects both.
-2. ~~**P2.4's 10.3× offspring move.**~~ **Resolved as out of scope, not as a decision.** Both
-   adjudicating measurements were taken and neither settled it: the conservation claim holds (six
-   orders) and the K93 comparison exonerates the discretisation. The cause is that on a strategy
-   carrying physiological state the two stencils are *different operators*, converging to limits ~370
-   apart. That is a forward-model question for plant's maintainers — `aornugent/plant#69` — and it is
-   off this build's critical path. `docs/reports/10-density-transport-and-carried-physiology.md` is the
-   account; the code is on plant `transport/cohort-grid-stencil`. **Phase 2 is three value-movers, not
-   four.** The cost of deferring is in report 10 §6; the load-bearing item is that P3.5's transport
-   adjoint needs two block recordings per cohort per stage on develop's sub-grid probe.
-3. **The two `test-patch.R` assertions** at 1e-21, where the patch's node and an externally-seeded one
-   are now seeded in different fields.
-4. ~~**Whether M3's 1.7e-03 band is absolute or relative.**~~ **Resolved by reading `scripts/m3_fixed_fractions.R`: it is relative.** P2.1's worst relative shift is 2.04e-03 against a *predicted* 1.7e-03 — and M3 predicted rather than bounded, from a standalone script against a different reference. A prediction and a measurement agreeing to 20%. Not a decision.
-   and 20% over read the other, and M3 does not say which it measured.
+**The superproject pointer moves to this branch**, because the phase is closed and the re-blessing
+is done. It stayed at Phase 1 while ten assertions were awaiting one pass, and pointing at it then
+would have said otherwise.
 
-**What the phase taught about running one, beyond the tasks.**
+### What Phase 3 inherits, and one item is load-bearing
+
+- **P3.5's transport adjoint is the sub-grid probe's, not the cohort grid's.** `log_density_dt` reads
+  `g` at the cohort's height *and* at `h − node_gradient_eps`, and the second is the output of a
+  second evaluation of the block at a different input — so `lambda_g` stops being a closed-form seed
+  and the reverse pass needs **two block recordings and two sweeps per cohort per stage**. Budget
+  §8b's record-and-sweep term at twice its stated value, and **design this before P3.2 fixes the
+  block's boundary**, not after. Report 10 §6.
+- **A stage is now a pure function of `(y, t)`, bitwise, at all three models.** That is what P1.4's
+  one-state-per-step store and P3.5's stage rebuild rest on, and it needed both P2.7's reordering and
+  P2.1's fixed fractions — neither alone was sufficient.
+- **The light field's input count is now fixed at 65 knot values and 65 slopes**, so §2.3's `141 + n`
+  is well defined and T4's size assertion is statable.
+- **The polished collar operating point is a stationary point** (`|R|` worst 9.587e-09), which is
+  what makes P3.2's envelope row valid.
+- **Every production-like leaf state sampled at TF24's own defaults came back pinned at the wet
+  bound**, against report 02 §4's measured zero in 4.37 M at the production driver. Nobody has
+  re-measured pinned incidence since P0.1, P0.2 and P0.12 changed what the leaf computes. **Take
+  that measurement before P3.2** — it decides whether the bound branch is insurance or the path.
+
+### Carried in, not covered by any task, and the owner's
+
+- **`max(S, 0)` on storage is a derivative discontinuity active on 13.96% of records, and no task
+  fixes it.** Storage genuinely goes negative (min −2.249e-03 against a median 1.756e-04), and
+  develop's own comment claiming the outflow gate floors it at zero does not hold. The clamp zeroes
+  the carbon → mortality → survival → density channel on all 14%, which is squarely on every census
+  metric's gradient. Phase 2 was the re-blessing window and it did not ride; it now waits for the
+  next one.
+- **The establishment gate** and **the double-counted photosynthetic-nitrogen respiration** — both
+  P0.6, both the owner's, both wanting a `scientific_version` bump.
+- **`aornugent/plant#69`** — the transport term. Report 10 is the account.
+- **Aux has two owners**: the operating-point transfer and the diagnostics a user reads. A functional
+  reading `E_up_` through aux would give the cohort block a seventh output row.
+- **Report 02's zero pinned-leaf count predates P0.1, P0.2 and P0.12** and needs re-measuring (above).
+
+### Owed, recorded rather than done
+
+Each was deliberately not taken, and the reason is worth keeping in each case.
+
+- **A newborn should probably inherit the boundary condition in the completed field A**, not in A0
+  which excludes the boundary interval. A recruiting cohort does shade its own crown, and unlike the
+  field build itself that is not circular. It is a modelling change, and a re-blessing pass is the
+  wrong place for one. The 1e-21 `test-patch.R` assertion relaxed with a comment is what it would
+  restore.
+- **`hermite_interpolator` has no accessor for its knot values or slopes**, so `r_get_state` reads
+  them back through `value_and_slope` and a slope returns as `fl(fl(m·h)·fl(1/h))` — up to an ulp
+  from what was supplied. The fix belongs to odelia and would also let `spline` be R-facing again.
+- **`ResourceSpline`'s dead constructor arguments** now select nothing.
+- **`dR_dcollar` could be reused across the second Newton step** (7 evaluations per solve to 5). The
+  first thing to try if the forward benchmark ever refuses the polish.
+
+### What the phase taught about running one, beyond the tasks
 
 - **A mean and an sd are the wrong summary for a quantity whose effect is set by its tail.** M4 read
-  as a modest perturbation at mean −0.062, sd 1.878; the census's own max of 142.85 against the
-  sub-grid's 1.51 is what actually drove a 10.3× move. The census recorded both and the packet was
-  briefed on the wrong one — by me.
-- **A packet boundary can manufacture a regression.** P2.6 step (1) without step (2) is +42% per step;
-  with it, −1%. The plan says the four value-movers land together, and this is why.
-- **Two packets caught stale premises in their own briefs.** A reference number from before a commit
+  as a modest perturbation at mean −0.062, sd 1.878; its own census recorded a max of 142.85 against
+  the sub-grid's 1.51, and that tail drove a 10.3× move. The census held both numbers and the packet
+  was briefed on the wrong one — by me.
+- **A packet boundary can manufacture a regression.** P2.6 step (1) without step (2) is +42% per
+  step; with it, −1%. The plan's insistence that the value-movers land together is why.
+- **A test that can no longer express its subject is not a moved baseline.** `spline$size` returning
+  NULL is a renamed accessor; `spline <- interpolator` erroring is a capability gone. Reading the
+  second as the first shipped a segfault and a lost R capability into a re-blessing pass, and both
+  were missed because `test-scm.R` and `test-environment.R` were not in the gate list I wrote.
+  **Name the files whose subject the change removes, not only the files it moves numbers in.**
+- **Two packets caught stale premises in their own briefs** — a reference number from before a commit
   the tree already carried, and an instruction to remove code this corpus records as wrongly removed.
   §2.9's "its own baseline first" caught the first; reading the notes caught the second.
 - **Test a property, not a configuration.** P2.6's bracket-independence test gated a changed default
   without being touched, because it was written against the residual. My own derivs-twice gate was
-  vacuous for P2.1 for the opposite reason.
-- **Editing a worktree while it is building silently relabels which arm you measured.** Same family as
-  the mid-write `.so`.
+  vacuous for P2.1 for the mirror-image reason: `rescale_spline`'s remap is by exactly 1 when one
+  state is evaluated twice, so the probe measured idempotence and never history independence.
+- **Editing a worktree while it is building silently relabels which arm you measured.** Same family
+  as the mid-write `.so`.
 - **Function-pointer identity is not a discriminator** in a header-inline codebase without LTO: the
-  weak-symbol addresses did not merge across translation units.
+  weak-symbol addresses did not merge across translation units. A stored enum replaced it.
 - **Name the arm a ratio is against, every time.** I reported the phase as faster than baseline by
-  quoting it against P2.7's 24.3 rather than the pre-phase 22.76. It is +5.0%, inside the band and
-  not a saving. §8b already insists every timing gate is a ratio measured in one session; what this
-  adds is that the *denominator* has to be named as carefully as the numerator.
+  quoting it against P2.7's 24.3 ms/step rather than the pre-phase 22.76. §8b already insists every
+  timing gate is a ratio measured in one session; what this adds is that the *denominator* has to be
+  named as carefully as the numerator. And this session's wall clocks for comparable trees ran 97 s
+  to 164 s depending on build contention, so **no phase-level ms/step is quotable from them at all** —
+  only each packet's own same-session ratio.
+- **A phase does fit one turn, and what makes it fit is the build count.** Six tasks landed on about
+  a dozen builds because the writing fanned out and the building was serial (§4). The two things that
+  cost extra builds were both mine: a gate that could not pass as written, and a gate list that
+  omitted two files.
 
 ---
 
@@ -618,11 +571,16 @@ Owed, all recorded with evidence in `implementation-notes.md`, none blocking:
   exactly-zero is this design's worst failure mode.
 - **Two unguarded `pow` sites** — `CanopyShape::Qp`'s `eta_inverse_` and the soil curves' `n_psi`.
   Neither exponent may be registered as a target until guarded.
-- **`ResourceSpline<S>` promises an active height its interpolant cannot accept**, which is the seam
-  the Phase 2 interpolant swap lands on rather than a defect to patch.
+- ~~**`ResourceSpline<S>` promises an active height its interpolant cannot accept.**~~ **Closed by
+  P2.3**: the Hermite is the evaluator and carries the active-position read.
 - **`Solver::run()` serves two operations through one door** — a recorded trajectory and a
   caller-supplied time grid — and the vector alone does not say which. Two entry points are owed.
   These are not superseded stubs: the three `Solver_*` entry points were introduced in the same
   commit as `compute_jacobian` as one deliberate layering, and that commit retired the actual spike.
 - **`ARCHITECTURE.md`** is still silent on this phase. *(The second half of this item — that the
-  hermite lacked its pair of query readings — was checked against the tree and is false; §11.2.)*
+  hermite lacked its pair of query readings — was checked against the tree and is false: it has the
+  `set_nodes`/`set_data` split and the active-position read in both `eval` and `value_and_slope`,
+  with a `static_assert` rejecting an active position against `S = double`.)*
+- **`hermite_interpolator` has no accessor for its knot values or slopes** — added by Phase 2, and
+  odelia's to fix. `plant`'s `r_get_state` reads them back through `value_and_slope`, so a slope
+  returns as `fl(fl(m·h)·fl(1/h))`, up to an ulp from what was supplied.

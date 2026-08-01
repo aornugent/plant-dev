@@ -277,6 +277,29 @@ describes develop `141dc8df`, where the defect is still present.)
 
 ## 4. Measured incidence of every branch
 
+> **This section's zero pinned-solve count is unverified against the current leaf, and P3.2's shape
+> depends on it.** The census below predates **P0.1, P0.2 and P0.12**, all three of which changed what
+> the leaf computes, and nobody has re-measured since. A Phase 2 probe assembling a `Leaf` from
+> `TF24_Strategy`'s own defaults — `beta_R_H = 3.4e2`, `root_b = 3.898`, `root_c = 2.680`,
+> `g1_TF24 = 7.5`, `a_r1 = 0.07` — found **every** state pinned at the wet bound across `psi_soil`
+> 0.015–0.17 and heights 1, 5, 10 and 20 m, with `|R|` of 0.06 to 1.6.
+>
+> The two disagree and the hand-assembled leaf is the more likely error — `PPFD = 900` passed as
+> absorbed radiation is the prime suspect, since the model forms `radiation = k_I · max(L, 1e-4) · PPFD`
+> and both factors are below one. But this census is an instrumented count on the real SCM at a leaf
+> that no longer exists. **If the pinned regime is in fact common at the production driver, §6's bound
+> branch stops being insurance and becomes the path, and the envelope row's argmax machinery is not what
+> most solves need.** One instrumented production run settles it, and it is owed before P3.2. That no
+> `Leaf` is reachable from a `TF24_Strategy` or an `Individual` through RcppR6 is why this is a question
+> rather than a measurement, and is worth fixing on its own account.
+>
+> **§6.5's polish is built as P2.6 and came out better than predicted**: `|R|` at the returned point is
+> **9.587e-09** against the 1.6e-08..4.7e-07 forecast here, the polished point is bracket-independent to
+> 1.044e-09, and with golden section loosened to `1e-1` the polish **costs less than nothing** — the
+> nine profit evaluations the loosened search no longer does more than cover the two extra `dprofit`
+> calls. §7.2's plateau reappeared in a second place: `R_tol = 1e-11` is below `R`'s own resolution,
+> because the `ci` root-find inside it carries `ci_abs_tol = 1e-6`.
+
 Counters were added to the five exits and the boundary case in a worktree on develop
 at `96941d3b`. Runs used `scm_base_parameters("TF24", "TF24_Env")` with
 `add_strategies(p0, trait_matrix(0.1978791, "lma"))`, default `Environment("TF24")`,
