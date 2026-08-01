@@ -2008,10 +2008,17 @@ building further on the stated total.
 `vector_jacobian_product` constructs a `Tape` per call: construct-and-destroy alone measures
 **10.4 us**, which is **22%** of arm R at the block's size, and an empty record-seed-sweep at 171
 inputs is 13.1 us — so registering, seeding and sweeping a trivial recording costs under 3 us on top of
-the tape. Hoisting the tape and reusing it with `newRecording()`, which `compute_jacobian` already
-does, takes roughly **108 s** off the figure above and moves R/D at block size from 10.6 toward ~8.2.
-Phase 1 recorded this as "the first thing to measure when the sweep's cost is taken"; it is now
-measured and it is the first thing to fix.
+the tape. **Taken, and it is worth about twice that forecast.** odelia `p3/vjp-tape-reuse`: the caller owns the
+tape, and `clearAll()` — not `newRecording()` alone, which leaks a derivative slot per input per call —
+returns it empty with its capacity retained. Measured 10.22 to **5.56** at block size, marginal 8.45 to
+**5.51**, a 21.8 us cut against a 10.1 us tape, because a fresh tape also grows its containers to 52 kB
+every call. So the reverse term falls to **~260 s** and a gradient to **~430-460 s, 3.7 to 4.0 forward
+runs**, with the saving against a central difference rising to about **26x**.
+
+**It is demonstrated and not yet realised**: nothing calls the primitive outside its tests, so the
+consumer that writes the cohort loop must hold one tape across it. Calling the tape-less overload inside
+that loop restores the old cost with no test complaining, which makes this P3.2's note rather than a
+closed item.
 
 Everything else in the table is measured or is arithmetic on measured quantities.
 

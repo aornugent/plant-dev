@@ -2690,6 +2690,68 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
+## The tape hoisted out of the product — and my predicted failure mode was the wrong one
+
+odelia `2c3159c` on `p3/vjp-tape-reuse`. `vector_jacobian_product` takes the tape from its caller and
+reuses it; the four-argument form is kept, constructing an **inactive** tape and delegating, so a
+foreign active tape is still caught in one place. The stopping guarantee moves from "no tape is active"
+to "the tape handed in is the active one", which is the ownership reading rather than a weakening.
+
+**Re-verified in this session**: suite **330 pass, 0 fail, 0 error, 2 skip** from a fresh install into
+my own library, verified by grepping the installed header; probe reproduced at mid **T/D 5.56**
+against the packet's 5.47.
+
+| mid size, 171 inputs | before | after |
+|---|---|---|
+| arm R — record and sweep | 47.9 us | — |
+| arm T — the same on a reused tape | — | **26.1 us** |
+| ratio against one `double` evaluation | 10.22 | **5.56** |
+| marginal multiplier | 8.45 | **5.51** |
+
+**The saving is about twice what I forecast, and the reason is instructive.** I predicted 10.6 to ~8.2
+from the 10.1 us a tape costs to construct and destroy. Measured: 10.2 to 5.56, a **21.8 us** cut
+against a **10.1 us** tape — so the hoisted cost is **2.2x the tape alone**. A fresh tape also grows its
+containers to 52 kB from nothing on every call, where `clearAll()` empties the recording and keeps the
+capacity. **The 21% tape-construction share was a floor, not the answer.**
+
+Re-costed: the reverse term falls from ~496 s to **~260 s**, a gradient from ~670 s to **~430–460 s, so
+3.7 to 4.0 forward runs**, and the saving against 51 traits by central difference rises to about
+**26x**. The hoist alone is **~236 s**.
+
+### The gate I specified would have passed a change that leaks
+
+I told the packet that an unreset tape "silently accumulates the previous call's adjoints". **It does
+not.** `newRecording()` clears the derivative flag, so `initDerivatives()` zero-fills and **the adjoints
+stay correct**. The real fault is unbounded growth: destroying a registered input releases its
+derivative slot only when the slot is the last one, and a `std::vector` is destroyed front to back, so
+no slot is ever released. Measured on a standalone probe with `newRecording()` alone: memory
+**276 → 332 → 388 → 444 → 500** and variable count **7 → 14 → 21 → 28 → 35** over five calls, **with
+identical adjoints throughout**. Over 3.9 M calls that is the whole gradient's memory. `tape.clearAll()`
+is the fix.
+
+**So a gate 2 written the way I specified it — compare the adjoints of a reused tape against a single
+call — passes on a change that leaks the entire budget.** What caught it is that the packet also
+asserted the **recording size** is constant across reused calls, and its negative control shows the
+sizes climbing 276, 324, 372, 420 with `clearAll()` removed. This is §0.6 again, from the inside: I
+asked for a gate that could not distinguish "correct" from "correct and leaking", and the right
+discriminator was a quantity I had not thought to name. **When a change is about reuse, assert the
+resource, not only the answer.**
+
+### Also from this packet
+
+- **My baseline suite count was stale.** I said 322; it is **327**. Both figures are in this file — 322
+  at Phase 1's close and 327 after the audit that followed it — and I quoted the earlier line. A
+  packet-facing baseline must be the count at the tip it is given, not the count at a phase boundary.
+- **The saving is demonstrated and not yet realised.** Nothing in odelia calls the primitive outside its
+  tests, so **no consumer holds the reused tape yet**. Whoever writes the cohort loop must hold one tape
+  across it; calling the four-argument form inside that loop restores the old cost **with no test
+  complaining**. That is now the load-bearing note for P3.2, and it belongs in the packet that writes
+  the loop.
+- Not measured: whether a narrower reset than `clearAll()` — restoring to a stored position — is cheaper
+  still. `clearAll()` is correct and gets the ratio to 5.5.
+- A trap in that test file: the bodies live inside a single-quoted R string passed to `sourceCpp`, so an
+  apostrophe in a C++ comment is a parse error before any test runs.
+
 ## The active build is larger than the census said, because the census was too narrow
 
 **`Individual` holds `Internals<double> vars` (`individual.h:205`), not `Internals<S>`.** So the whole

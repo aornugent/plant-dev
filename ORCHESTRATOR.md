@@ -603,10 +603,17 @@ at the block's own size, the difference being a large fixed per-call cost. Re-co
 **5 to 6 forward runs rather than 2 to 3** and the saving against a central difference is ~17x rather
 than 30-50x. `odelia/scripts/vjp_cost.cpp`; `build-plan.md` §8b now carries the table.
 
-**And it found the cheapest win on the whole budget.** `vector_jacobian_product` builds a `Tape` per
-call, and construct-and-destroy alone is **10.4 us — 22% of arm R**. Hoisting it and reusing with
-`newRecording()` takes ~108 s off a ~670 s gradient. Phase 1 recorded the tape-per-call as "the first
-thing to measure when the sweep's cost is taken"; it is measured, and it is now the first thing to fix.
+**And it found the cheapest win on the whole budget, which is now TAKEN.** `vector_jacobian_product`
+built a `Tape` per call; it now takes one from its caller. Measured 10.22 to **5.56** at block size —
+about twice the forecast, because a fresh tape also grows its containers to 52 kB each call, so the 22%
+construct-and-destroy share was a floor. **A gradient is now ~430-460 s, 3.7 to 4.0 forward runs, and
+the saving against a central difference ~26x.** odelia `p3/vjp-tape-reuse`.
+
+**Two things to carry forward from it.** The reset must be `clearAll()`, not `newRecording()` alone,
+which leaves adjoints *correct* while leaking a derivative slot per input per call — so the gate is the
+recording **size** across reused calls, not the adjoints. And the saving is **demonstrated, not
+realised**: no consumer holds the reused tape yet, and calling the tape-less overload inside the cohort
+loop restores the old cost with nothing failing. That is P3.2's note.
 
 *What it was, and why it needed taking:* §8b names 3–5×
 as "the one soft number" and "the term that could double the total", and says T1's harness in P1.1
@@ -664,14 +671,16 @@ size**. With two recordings per (stage, cohort):
 |---|---|---|
 | rebuild the stage states in `double` | one forward RHS per stage | ~115 s |
 | the leaf's partial derivatives | 3.9 M, 14–21 µs | 55–82 s |
-| record and sweep, **twice** | 3.9 M × 6 µs × 10.6 × 2 | **~496 s** |
-| | | **~670 s** |
+| record and sweep, **twice**, per-call tape | 3.9 M × 6 µs × 10.6 × 2 | ~496 s |
+| the same on a **reused** tape (taken) | 3.9 M × 6 µs × 5.56 × 2 | **~260 s** |
+| | | **~430–460 s** |
 
-**A gradient is 5 to 6 forward runs, and the saving against 51 traits by central difference is ~17x.**
+**A gradient is 3.7 to 4.0 forward runs, and the saving against 51 traits by central difference is
+~26x.**
 Decisive, and the deliverable's economics are unchanged — V4's re-run finite difference is still the
 expensive half of the acceptance test. What changed is that the reverse term now dominates the budget
-rather than sharing it, so **the tape hoist in §11.4 is worth taking before P3.2 rather than after**:
-it is ~108 s, one odelia change, already recorded as owed since Phase 1.
+rather than sharing it, so the tape hoist was taken before P3.2 rather than after — ~236 s, one
+odelia change, recorded as owed since Phase 1.
 
 **Peak is the claim to hold, and it is unaffected.** 46 MB of trajectory plus one block's recording —
 the measurement puts a block's recording at **52 kB**, flat in the number of output adjoints seeded (1
