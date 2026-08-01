@@ -1603,6 +1603,71 @@ history of previous builds, which is the property P2.1 removes and which only sh
 state is reached two ways. A gate that cannot distinguish "pure" from "rescaled by one" is not
 P2.1's gate.
 
+## P2.6 — the collar operating point polished to a stationary point
+
+`831194bc` on `p2/p2-leafpolish`. Newton on `R = dprofit_droot_collar_psi` from the golden-section
+answer, `dR_dcollar` a central difference of that analytic gradient, capped at five iterations.
+
+| gate | required | measured |
+|---|---|---|
+| `\|R\|` at the returned point, 24 states | < 1e-07 | **worst 1.128e-13** |
+| the polished point is bracket-independent | — | **worst 1.044e-09** between `GSS_tol_abs` 1e-3 and 1e-1, against bracket-driven displacements of 8.9e-03 |
+| `test-leaf.r` | passes | 383 pass, 0 fail, from a 214-pass baseline |
+
+**The pinned case needs no tolerance test, and trying to give it one broke the second gate.** A first
+version skipped the polish when the search returned within `GSS_tol_abs` of a bracket end. That
+criterion is itself tolerance-dependent: at `GSS_tol_abs = 1e-1` almost every state looks pinned, and
+two states came back with `|R|` of 0.034 and 0.394. The committed version tests nothing — Newton
+runs, and the bound case falls out of the guards that already have to be there (no room for the `±h`
+probe, a step landing outside the bracket, or a measured curvature that is not negative). **That
+absence is what makes the polished point tolerance-independent.**
+
+**`R_tol = 1e-11` is below `R`'s own resolution, and the second gate is stated in the right currency
+because of it.** Asserting agreement against the *achieved* residuals (~1e-15, so an allowance of
+~1e-14) fails at 1.044e-09 while both residuals read ~1e-15: `R` is flat within its own evaluation
+noise over that width, because the `ci` root-find inside it carries `ci_abs_tol = 1e-6`. So the gate
+is stated against the residual the packet asks for — `2 × 1e-7 / 0.1723`, using `|Π_pp|`'s measured
+floor — and the honest floor to quote is **~1e-9 in a potential of 0.2–0.6 MPa**. This is report 02
+§7.2's plateau in a second place: tightening a tolerance past the resolution of the thing it bounds
+buys nothing. The substance is unaffected — the flux error is first order in the displacement, so
+1e-9 against the 8.8e-05 to 1.2e-03 unpolished residual is five to six orders of margin.
+
+**The polish costs more than §8b budgeted, measured rather than projected.** Counted with a trace:
+**7.25 `dprofit` evaluations** per solve at `GSS_tol_abs = 1e-3` (7 in 22 states, 10 in 2), 9.1 at
+`1e-1`. At 3.5 µs each that is ~25 µs on a 10 µs solve, against §8b's "roughly +9 µs" and its "budget
+it as up to +10% on the forward run". Seven is two Newton steps at three evaluations each plus the
+closing check. **`dR_dcollar` is recomputed at every step; reusing it across the second step takes
+the common case to five.** §8b names that reuse and this packet was not asked to do it, so it is
+owed and it is the first thing to try if the forward benchmark refuses the change.
+
+### Every production-like state sampled came back pinned, and that contradicts two documents
+
+The gate's leaf is the test file's, with `root_b = 1.29`, `g1_TF24 = 46.3` and 10 kg of root mass;
+it gives interior maxima at all 24 states. Assembled instead with `TF24_Strategy`'s own defaults —
+`beta_R_H = 3.4e2`, `root_b = 3.898`, `root_c = 2.680`, `g1_TF24 = 7.5`, `a_r1 = 0.07` — **every
+state tried across `psi_soil` 0.015 to 0.17 and heights 1, 5, 10 and 20 m is pinned at the wet
+bound**, with `|R|` of 0.06 to 1.6, profit slightly negative and root hydraulic resistance
+dominating.
+
+Report 02 §4 measures **zero** pinned solves in 4 372 101 at the production driver, and
+`build-plan.md` §8 records that no pinned state is inside the default driver's `psi_soil` range. If
+the pinned regime is in fact the common case there, P3.2's shape changes: the bound branch stops
+being insurance and becomes the path, and the envelope row's argmax machinery is not what most
+solves need.
+
+**Two readings, and neither is taken here.** Report 02's is an instrumented count on the real SCM
+and the packet's is a hand-assembled `Leaf`, so the hand-assembly is the more likely error —
+`PPFD = 900` passed as absorbed radiation is the prime suspect, since the model forms
+`radiation = k_I · max(L, 1e-4) · PPFD` and both factors are below one. Against that: **nobody has
+re-measured pinned incidence since P0.1, P0.2 and P0.12 changed what the leaf computes**, and report
+02's count predates all three. The check is cheap and worth taking before P3.2 — instrument the
+selector and run one production lifetime, which is the same shape as the transport census above.
+
+**Why it could not be settled from R:** no `Leaf` is reachable from a `TF24_Strategy` or an
+`Individual` through RcppR6, so a production state cannot be sampled without either instrumenting
+C++ or adding a binding. That is the reason this is a question rather than a measurement, and it is
+worth fixing on its own account.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
