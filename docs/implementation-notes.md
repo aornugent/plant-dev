@@ -2036,6 +2036,66 @@ own brief.
   boundary node sits at `height_0` permanently and is not a transported characteristic. **That is a
   real asymmetry in the staggering** and it deserves a decision of its own.
 
+## P2.3 — the Hermite evaluator: the numerics pass, and it forces the box-model decision
+
+Three commits on `p2/p2-hermite`. **Written, gated, and held out of `p2/phase-2`**, for one reason
+that is not about its numerics.
+
+| gate | result |
+|---|---|
+| convergence on a smooth target | value ratios **15.906, 15.969, 15.991**; slope **7.957, 7.986, 7.993** — O(h⁴) and O(h³) |
+| the production rate, recorded beside it | mean-normalised orders **2.9 value, 1.9 slope**, so about `h^2.5`, matching M3 |
+| `slope(u)` is the exact derivative of `eval(u)` | worst 3.221e-10 against a central difference — truncation |
+| locality on a live tape | `d(eval)/d(knot_2)` is 0.5 in a span touching knot 2 and **exactly 0** two spans away |
+
+The locality gate is the one the reverse pass rests on: a C2 fit makes one light read depend on every
+knot through a band solve, and this makes it depend on two.
+
+**Forward effect: offspring `42.179817344974609` at 4 798 steps, −0.030%, and ms/step regresses about
+3%** (24.14 → 24.80 and 25.07 on two runs of the new arm; the base arm was timed once, so the last
+point of that 3% has no variance estimate). Report 03 §5.4's "6% faster on value, 2.6× on the pair"
+are *query-side* at matched knot count; what this adds is build-side, because the fused reduction runs
+at all 65 knots at every stage. Inside the +10% band, and P2.4 would more than repay it.
+
+**Five pinned assertions move, and every one moves *toward* its blessed value** — `test-strategy-ff16.R`'s
+offspring 16.872 → 16.8846 against a blessed 16.88946, and similarly for the other four. None
+re-blessed.
+
+### The box models stop running, and that is the decision this phase kept deferring
+
+`test-canopy-methods.R:108` asserts `flat-top-soft-box` **runs**. It now raises "Vertical canopy slope
+is defined only for the smooth Yokozawa profile", because the field asks for a slope at every knot and
+P2.2's `Q_and_q` refuses the box models. **A supported FF16/K93 shading model ceases to work.**
+
+This is the same decision P2.1 and P2.2 each reached from their own side, now forced rather than
+owed. Two readings, and the packet took neither:
+
+- **The refusal stands and the box models are withdrawn.** What the code does today, and the direct
+  consequence of P2.2's already-landed guard.
+- **The field falls back to a value-only build for those models.** That means two evaluators live at
+  once, which is a new mechanism and so a design choice.
+
+Worth adding to the argument: a box profile is a *step*, so its slope is zero almost everywhere and
+undefined at the step. A Hermite over it is not obviously the right object regardless, which is a
+reason the first reading may be the honest one — but it withdraws a shipped capability from two
+models, and that is the owner's to weigh.
+
+### An odelia gap this exposed, and the R-API break that follows from it
+
+`hermite_interpolator` exposes no accessor for its knot values or slopes. So `r_get_state()` reads the
+data back through `value_and_slope(x_k, …)`: the value at a knot is exact, but the slope returns as
+`fl(fl(m·h)·fl(1/h))` and can differ from the supplied `m` by an ulp. And `ResourceSpline$spline`
+could not stay R-facing at all — RcppR6 needs a registered class, which would need `get_x`, `get_y`,
+`eval` over a vector and `xy` on odelia's type. The field was replaced by a three-column `state`
+matrix.
+
+**So the R-API break is a consequence of the odelia gap, not of the Hermite.** The packet correctly
+refused to change odelia, that being a cross-package change outside its allowlist. Adding those
+accessors is the fix and it belongs to odelia.
+
+`test-environment.R` loses four more assertions to the removed `spline<-` setter; the `#253` floor it
+guarded is unchanged in `get_value_at_height` and simply no longer reachable by that route.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not

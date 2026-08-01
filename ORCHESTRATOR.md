@@ -526,6 +526,56 @@ lanes, per §4. Build one at a time.
 
 ---
 
+## Where Phase 2 left things
+
+`p2/phase-2` carries **P2.7, P2.1, P2.2 and P2.6**; P2.5 is a measurement and is answered. **P2.3 and
+P2.4 are written, gated and pushed to their own branches, and deliberately not merged** — each is
+blocked on one decision that is the owner's, not the orchestrator's.
+
+    plant   p2/phase-2      derivs(y,t) bitwise pure at all three models
+                            23.98 ms/step against a 24.3 pre-phase baseline
+    plant   p2/p2-hermite   numerics pass; withdraws two shading models
+    plant   p2/p2-stencil   correct by its own identity; moves offspring 10.3x
+
+The superproject pointer stays at Phase 1 on purpose: the phase is not closed, ten assertions await
+one re-blessing, and pointing at it would say otherwise.
+
+**Four decisions are owed, and none is a baseline.**
+
+1. **The box shading models.** `flat-top-box` and `flat-top-soft-box` route competition through
+   `leaf_area_above`, a step and a smoothstep, so `q` is not their kernel's derivative and a Hermite
+   over a step is not obviously the right object. P2.2 refuses them; P2.3 then stops them running at
+   all. Either they are withdrawn, or the field falls back to a value-only build for them — which is
+   two evaluators and a new mechanism. FF16 and K93 only; TF24 already rejects both.
+2. **P2.4's 10.3× offspring move.** Report 04 §8's own falsifier. Two measurements would adjudicate it
+   and neither has been taken: §2.2's conservation diagnostic under both stencils, and §8's K93
+   comparison with the transport derivative present and absent.
+3. **The two `test-patch.R` assertions** at 1e-21, where the patch's node and an externally-seeded one
+   are now seeded in different fields.
+4. **Whether M3's 1.7e-03 band is absolute or relative.** P2.1's step (2) is inside it read one way
+   and 20% over read the other, and M3 does not say which it measured.
+
+**What the phase taught about running one, beyond the tasks.**
+
+- **A mean and an sd are the wrong summary for a quantity whose effect is set by its tail.** M4 read
+  as a modest perturbation at mean −0.062, sd 1.878; the census's own max of 142.85 against the
+  sub-grid's 1.51 is what actually drove a 10.3× move. The census recorded both and the packet was
+  briefed on the wrong one — by me.
+- **A packet boundary can manufacture a regression.** P2.6 step (1) without step (2) is +42% per step;
+  with it, −1%. The plan says the four value-movers land together, and this is why.
+- **Two packets caught stale premises in their own briefs.** A reference number from before a commit
+  the tree already carried, and an instruction to remove code this corpus records as wrongly removed.
+  §2.9's "its own baseline first" caught the first; reading the notes caught the second.
+- **Test a property, not a configuration.** P2.6's bracket-independence test gated a changed default
+  without being touched, because it was written against the residual. My own derivs-twice gate was
+  vacuous for P2.1 for the opposite reason.
+- **Editing a worktree while it is building silently relabels which arm you measured.** Same family as
+  the mid-write `.so`.
+- **Function-pointer identity is not a discriminator** in a header-inline codebase without LTO: the
+  weak-symbol addresses did not merge across translation units.
+
+---
+
 ## Where Phase 1 left things
 
 Both integration branches are pushed and the superproject pointers reference them.
