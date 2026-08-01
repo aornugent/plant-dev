@@ -450,10 +450,14 @@ So plan Phase 3 as **several turns with one task each**, and treat the per-task 
 product. What one turn can hold is a task plus its check, not the phase. The thing that must not
 happen is a turn that lands two tasks and can attribute a V-failure to neither.
 
-### 11.2 The order, and one constraint is not in the plan
+### 11.2 The order, and three constraints are not in the plan
 
 ```
     measure  ── the record-and-sweep multiplier (odelia only), and pinned-leaf incidence
+       |
+    the active build ── the member bodies instantiate; V1 cannot be taken without it (§11.3b)
+       |
+    Patch::rebind_from ── step_adjoint static_asserts on it; P3.5 cannot run without it
        |
     P3.5's transport adjoint, DESIGNED ── not built; it fixes the block's boundary
        |
@@ -467,6 +471,9 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
        |
     P3.6  census<Psi>, the entry point, agents.md §13                           V4
 ```
+
+**Two of the three are §11.3b's prerequisites, above P3.1 in the diagram and absent from the plan
+entirely.** The third is an ordering constraint inside the plan's own task list:
 
 **P3.5's transport adjoint must be *designed* before P3.2, and the plan orders it after.** This is
 Phase 2's bequest and report 10 §6 states it: with P2.4 out of scope the model carries develop's
@@ -515,6 +522,53 @@ should constrain it the way
 its five siblings in `ode_interface.hpp` are constrained. **`Species::census<Psi>` and
 `Patch::ode_rates_adjoint` do not exist**; nothing in plant is named `*_adjoint` at all. That is
 correct — they are P3.6's and P3.1's — and it is worth stating so nobody looks for a stub.
+
+### 11.3b Two prerequisites Phase 3 has that the plan does not list, both measured here
+
+Found by running §0.3 and §0.6 against the tree at `0abc7873` rather than reading the task list.
+Neither is a defect; both are work with no task, which is the category §9 says the integrator owns.
+
+**1. `Patch` has no `rebind_from`, and `step_adjoint` hard-asserts on it.** The signature carries
+`static_assert(has_rebind_from<System>::value, "step_adjoint needs the System's rebind_from() hook to
+lift it to the adjoint scalar")`, and `grep -rn 'rebind_from' plant/inst/include` returns **nothing**.
+So P3.5 cannot call `step_adjoint` on a `Patch` at all until the hook exists. The plan mentions
+`SCM::rebind_from<S>()` only in passing, as something the *retired* AD branch had (§2.7), and §3's
+"what we take" does not list it. Two riders: `has_rebind_from` is a SFINAE detection struct where the
+style rules ask for a concept, which Phase 1 recorded as owed and which this makes live; and the hook
+has to construct the whole active `Patch`, so it is downstream of prerequisite 2.
+
+**2. The active build is a prerequisite for V1, and the plan has no task for it.** V1 compares steps
+(a)–(d) against *one whole-`Patch` recording at one state*, and a recording requires
+`Patch::compute_rates` to instantiate at an active scalar. Phase 1 closed P1.2b on the **class bodies**
+instantiating and recorded explicitly that the **member bodies do not**. Re-censused on the merged tree
+with `scripts/tf24-active-probe.cpp` at `-fsyntax-only -fmax-errors=200` — one invocation, about three
+seconds, the §6 economy where it pays most:
+
+| group | sites | who owns it |
+|---|---|---|
+| `std::`-qualified math on an active argument | **10** | one cause, one decision. **`std::max`/`std::min` are not a requalification** — they are homogeneous templates, so the literal must be promoted to `S` first |
+| DeepCrown's `std::vector<double>` accumulators | **17** | a shading model TF24 does not default to (`MeanLight` does) and the gradient path never takes. Template it or refuse it — but decide, because the choice is whether a future active DeepCrown fails loudly or compiles something wrong |
+| `QK::integrate` not templated | 2 | the crown integral; §3 lists it as taken from the AD branch |
+| the `Leaf` boundary — constructor, `set_physiology` | 2 | the designed `double` boundary. P3.2's supplied Jacobian, not a defect |
+| `util::is_finite(double)`, and one conversion | 2 | their own decisions |
+| `uniroot` refusing an active bracket | 1 | **the design working.** `height_seed`'s residual is `-> S`, so the bracket's derivative cannot leak; `implicit_value` is the eventual route |
+
+**34 in plant headers, 40 with the libstdc++ consequences.** Two things about the distribution matter
+more than the count. **It is concentrated in two files** — `tf24_strategy.h` and `canopy_shape.h` —
+with nothing in `patch.h`, `species.h`, `node.h`, `individual.h`, `environment.h` or
+`resource_spline.h`. And **half of it is in a branch off the gradient path**, so the work on the
+critical path is about a dozen sites rather than forty.
+
+**So "the probe compiles clean" is unsatisfiable and must not be written as a gate** (§0.5). One error
+*is* the design holding, and two more are a boundary the design puts there deliberately. The gate is
+that the mean-light path instantiates and everything else refuses legibly.
+
+**Phase 2 improved this position, which is worth recording because nobody was watching it.** Phase 1's
+census carried a sixth group: `ResourceSpline<S>::get_value_at_height` was declared to take `S` while
+the interpolant could only accept a `double` abscissa, so *a differentiable height was not reachable
+through the light field at all*. P2.3's Hermite carries the active-position read, and the re-census
+shows **no errors in `resource_spline.h`**. A phase that was not aiming at the active build closed one
+of its groups.
 
 ### 11.4 Three measurements before code, and two need no plant
 
