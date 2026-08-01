@@ -1544,6 +1544,43 @@ is the sign and rough size, not the share. `aornugent/plant#68`.
 
 Ordered so that each task closes on one of §2.5's checks and a failure has one cause.
 
+**Five prerequisites had no task here, and all five are now landed.** None was a defect; each was work the
+task list did not name, and they are recorded together because a reader of P3.1 needs to know the model
+already carries an active scalar end to end. Commits are on plant branches merged into `p3/phase-3`
+(`c9914ffb`) and odelia branches merged into `p3/odelia-integration` (`fdccd7b`). Evidence is in
+[`implementation-notes.md`](implementation-notes.md) under *Phase 3*.
+
+| | commit | what it was |
+|---|---|---|
+| the library math | plant `c0037d9a` | `std::`-qualified math on an active argument, 10 sites, one cause and three fix shapes; `std::max`/`min` are homogeneous templates so ADL cannot rescue a mismatched pair |
+| the quadrature, uptake, leaf seam | plant `1e045de7` | `QK::integrate` carries the caller's scalar in its limits and integrand values while the rule's abscissae stay `double`; the uptake carries it because it is five of the block's eleven seeded outputs; the leaf hands back constants, declared |
+| the cohort state store | plant `5b229e64` | `Individual` held `Internals<double>`, so the block's own inputs were passive. Landed with the transport probe, which compiled *only because* the store was passive |
+| the container sweep | plant `672cd702` | `Species`, `Patch` and the stochastic containers; and `integrand_of`, a concept refusing a passive integrand at an active point |
+| the odelia surface | odelia `2c3159c`, `25619be` | the tape reused across calls; `active_scalar` at namespace scope; `Rebindable` replacing a SFINAE struct |
+
+**The result, and it is what P3.1 starts from.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>`
+**instantiates at the adjoint active scalar** — 61 probe errors to 19, and all 19 are deliberate: 17 in the
+DeepCrown branch, one at the `Leaf` boundary, one at `height_seed`'s root-find, each refusing by a named
+`static_assert`. **The whole phase so far is bit-identical**: TF24 `42.179817344974609` at 4 798 steps,
+FF16 `19.834058960443031` at 209, K93 `0.030538172107758225` at 240, and `derivs(y, t)` twice is still
+bitwise pure.
+
+**Two prerequisites remain before P3.1, and neither is in the task list either.** `Patch::rebind_from`,
+which `Step::step_adjoint` hard-asserts on and which does not exist; and §2.3's cohort-reads triple on
+`Environment`, without which five of the block's 141 declared inputs — the soil water potentials — are
+passive, so `d(uptake)/d(psi)` has nothing for the leaf's supplied partial to attach to.
+
+**One ordering correction inside the task list.** ~~P3.1 before P3.2.~~ **V1 cannot be taken before P3.2
+step (1)'s held-constant leaf exists**, because V1 compares against a whole-`Patch` recording and the
+recording needs the block to instantiate. The held-constant seam is landed above, so the constraint is
+discharged rather than outstanding — but the plan's stated order was wrong and would have blocked P3.1 on
+its own gate.
+
+**And one open ruling that V1 is the instrument for.** The competition family's `height` argument stays
+`double`. The argument is sound — the callers pass knot positions from a grid that is passive by a
+committed decision, and the field's slope is analytic rather than differenced in `z` — but nothing yet
+distinguishes it from a dropped `d/dz` channel, and only a numeric derivative would.
+
 ---
 
 **P3.1 — the closed-form steps.** Steps (a), (c), (d), with step (b) a stub returning zeros.
@@ -1654,6 +1691,14 @@ first order, so it lands with Phase 2's re-blessing rather than here.
 *Requires P0.1 and P0.10.* The first line of the signature calls the block a pure function of its
 declared inputs, and P0.10 is what makes that a checked fact rather than a read-derived one.
 
+**Step (1)'s seam is already in the tree** (plant `1e045de7`): the active branch hands the leaf the
+values of its inputs, solves in `double`, and its outputs enter the active chain as constants, so the
+derivative through the leaf is exactly zero **and says so in a comment at the site**. Each of the nine
+outputs enters at one expression — the seven `vars.set_aux` calls, `leaf.profit_` in
+`net_mass_production_dt`, and `leaf.soil_consumption_[a]` in `evapotranspiration_dt` — which is where a
+supplied partial attaches. No no-op wrappers were added at those nine sites, deliberately: they would
+constrain nothing until the Jacobian's form is fixed.
+
 *Order.* (1) The block with the leaf held constant, so **V2** exercises the allometry, storage and
 demographic chain alone. (2) The envelope row and the explicit flux rows. (3) `dR_dflux_slope` from
 its closed form, then `dR_dflux` recovered — verified by recovering it from several potential
@@ -1728,6 +1773,19 @@ not remove it has not addressed the cause.
 **Corrected after Phase 2: this task's shape depends on which transport stencil the model carries, and
 P2.4 being out of scope means it is now the sub-grid probe.** The text below is written for the
 cohort-grid form and is retained for the case where `aornugent/plant#69` chooses it.
+
+**Corrected again in Phase 3, and the premise of report 04 §5 does not hold for the code.** That section
+records that differentiating develop's sub-grid probe at an active scalar "is bit-identical and yields the
+derivative of the discretisation actually solved" — true of the *scheme*, false of the *code as it stood*:
+the probe was passive at three points, a `double` perturbed height, a `-> double` lambda and
+`double`-typed quotient helpers, so the transport term would have carried **exactly zero**. Landed in
+Phase 3 with the state store: the probe now carries the scalar, and `util::gradient_fd` and its siblings
+**require** the integrand's return scalar to match the point's, so the severance is a compile error at the
+call for every caller. **Design decision, recorded rather than built:** record both evaluations and let the
+tape form the quotient, so `lambda_g` needs no hand-written seed. The conditioning — about `1e-10`
+absolute, from differencing two nearly-equal partials and dividing by `1e-6` — is inherited either way, so
+**gate the transport channel against a finite difference of the same quotient, never against an analytic
+`dg/dh`**.
 
 *As written, for the cohort grid:* `lambda_g` is formed in step (a), before any block is swept, because
 a block cannot be swept until every output adjoint exists (§2.4). Under report 04 §7's staggering each

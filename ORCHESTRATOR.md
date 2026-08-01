@@ -452,57 +452,40 @@ Model and code:
 
 ## 11. Phase 3, and why it is not Phase 2's shape
 
-Phase 3 is the reverse pass: five tasks that build one gradient, verified against §2.5's V1–V4. It
-differs from Phase 2 in the way that decides how to run it, so that comes first.
+Phase 3 is the reverse pass: five tasks that build one gradient, verified against §2.5's V1–V4.
+**"Where Phase 3 stands", below, is the state; this section is the method and the order.** P3.4 landed in
+Phase 1, so the task list is five and not six.
 
 ### 11.1 It does not fit one turn, and the constraint is dependency rather than size
 
 Phase 2 fitted one turn because six tasks were **independent to write** and only their builds were
 serial — §4's "write in parallel, build serially" was available. Phase 3 is a chain: P3.1's closed-form
-steps are step (b)'s stub's callers, P3.2 fills the stub, P3.5 drives the whole thing from the stepper,
-and P3.6 seeds it. Fanning that out thrashes, because each downstream agent rebases onto a moving base
-and its gate measures the rebase.
+steps are step (b)'s stub's callers, P3.2 fills the stub, P3.5 drives it from the stepper, and P3.6 seeds
+it. Fanning that out thrashes, because each downstream agent rebases onto a moving base and its gate
+measures the rebase.
 
 **And every gate is an instrument that does not exist yet.** Phase 2's gates were a forward run and a
 suite. V1 needs a whole-`Patch` recording; V2 needs the trajectory store plus a block; V3 needs
 `step_adjoint` driving plant; V4 needs a re-run finite difference at production lifetime, which for 51
-traits is **102 forward runs**. §8b is explicit that V4's verification is the expensive half of the
+traits is **102 forward runs** — §8b is explicit that V4's verification is the expensive half of the
 acceptance test rather than the cheap one.
 
-So plan Phase 3 as **several turns with one task each**, and treat the per-task V-check as the turn's
-product. What one turn can hold is a task plus its check, not the phase. The thing that must not
-happen is a turn that lands two tasks and can attribute a V-failure to neither.
+So plan it as **several turns with one task each**, and treat the per-task V-check as the turn's product.
+The thing that must not happen is a turn that lands two tasks and can attribute a V-failure to neither.
+*Evidence that this is the right reading: the phase's prerequisites alone took six packets and about
+fifteen builds, and none of them was one of the five tasks.*
 
-### 11.2 The order, and three constraints are not in the plan
+### 11.2 The order, and the plan names none of the first four steps
 
 ```
-    measure  ── the record-and-sweep multiplier (odelia only), and pinned-leaf incidence
+    the prerequisites ── ALL LANDED, bit-identical, integrated (see the state section below)
        |
-    the active build, group A ── LANDED, bit-identical (plant p3/active-instantiation)
-       |
-    QK, the uptake, is_finite, the leaf seam ── LANDED, bit-identical (plant p3/block)
-       |                                        24 probe errors to 19, the set exactly
-       |                                        the deliberate refusals
-       |
-    Individual's state store carries S ── Internals<double> today, so the block's own
-       |                                 inputs are passive. Phase 1's group B, not closed.
-       |                                 NINE sites in individual.h, measured before and
-       |                                 after p3/block: unchanged either side
-       |
-    the transport probe made scalar-generic ── MUST land with the line above, not after:
-       |                                      today it compiles *because* the store is
-       |                                      passive; once the store carries S the
-       |                                      -> double lambda becomes a silent zero
+    Patch::rebind_from ── step_adjoint hard-asserts on it and it does not exist
        |
     Environment's cohort-reads triple ── n_cohort_reads/cohort_reads/set_cohort_reads,
        |                                unwritten. Five of the block's 141 declared inputs
        |                                are soil potentials and today they are passive, so
        |                                d(uptake)/d(psi) has nothing to attach a partial to
-       |
-    Patch::rebind_from ── step_adjoint static_asserts on it; P3.5 cannot run without it
-       |
-    P3.5's transport adjoint ── DESIGNED, and the probe turned out to have no active
-       |                          path at all: three severances, so it is a rewrite
        |
     P3.1  (a) soil ── (c) light knots ── (d) allometry,  step (b) stubbed        V1
        |
@@ -510,256 +493,90 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
        |                                                                        V2, V2L, T4-T6
     P3.3  the leaf's own parameter rows
        |
-    P3.5  built: the stencil's adjoint, driven from Step::step_adjoint           V3
+    P3.5  the stencil's adjoint, driven from Step::step_adjoint                  V3
        |
     P3.6  census<Psi>, the entry point, agents.md §13                           V4
 ```
 
-**Five items now sit above P3.1 and the plan names none of them.** Each was found by running the
-pre-flight against the tree, and the last two were found by *widening a census that was too narrow* —
-§0.6's rule turned on my own gate, which is where it earns most.
+**P3.5's transport adjoint is designed and its premise was false**, which is the one correction inside the
+task list worth carrying forward. Report 04 §5 says differentiating develop's sub-grid probe at an active
+scalar yields the derivative of the discretisation actually solved: true of the scheme, false of the code,
+which was passive at three points. The probe now carries the scalar and the quotient helpers refuse a
+passive integrand. **The design to build: record both evaluations and let the tape form the quotient**, so
+`lambda_g` needs no hand-written seed — two block recordings per cohort per stage, which is report 10 §6's
+cost. The conditioning is inherited and is about `1e-10` absolute, so **gate that channel against a finite
+difference of the same quotient, never against an analytic `dg/dh`**.
 
-**Two of the three constraints are those prerequisites.** The third is an ordering constraint inside the plan's own task list:
-
-**P3.5's transport adjoint is now designed, and designing it found that the plan's premise was
-false.** Report 04 §5 says differentiating develop's sub-grid probe at an active scalar "is
-bit-identical and yields the derivative of the discretisation actually solved". True of the scheme,
-false of the code: the probe is passive at three independent points — a `double` perturbed height, a
-`-> double` lambda, and `double`-typed difference-quotient helpers — so the transport term would carry
-**exactly zero** derivative. The recommendation is to make the probe scalar-generic and let the tape
-record both evaluations, so `lambda_g` needs no hand-written seed; the conditioning (about 1e-10
-absolute, from dividing differenced partials by `1e-6`) is inherited either way and is the number to
-watch. `implementation-notes.md` carries the design.
-
-**The original constraint stands as an ordering fact:** This is
-Phase 2's bequest and report 10 §6 states it: with P2.4 out of scope the model carries develop's
-sub-grid probe, so `log_density_dt` reads `g` at the cohort's height **and** at `h − eps`, and the
-second reading is the output of a *second evaluation of the cohort block at a different input*. So
-`lambda_g` stops being a closed-form seed in step (a) — it becomes **two block recordings and two
-sweeps per cohort per stage**. P3.2 is the task that fixes the block's boundary and its pack/unpack
-layout; discovering afterwards that the boundary is evaluated twice per cohort per stage means
-redesigning what P3.2 froze. **Design it first and build it in its own place.**
-
-`Patch::ode_rates_adjoint`'s precondition is a *separable* one and P3.5 owns that too — but the shape
-has moved since the plan described it, so cite the symbol rather than the line (§9).
-`Patch::set_ode_state(It, double)` is now six steps, not five: set the species states, set the
-environment state, set the time, `check_finite_ode_state`, `compute_environment(true)` **and**
-`environment_ptr = &environment`, then `compute_rates`. The sweep needs everything up to and including
-the field, and not the rate evaluation — the recordings are the rate evaluation. **And the field
-refresh is now two field builds rather than one**, because P2.7 forms the boundary density in A0 and
-then rebuilds as A; §2.8's 15 µs against a full rate evaluation's 2.9 ms should be read as about 30 µs.
-Still three orders clear, so the conclusion holds and only the figure moves.
-
-### 11.3 Five things the plan lists as work that are already done
-
-Checked in the tree, not inferred — §0.6's rule run in the opposite direction, which is what caught
-three such items before Phase 2.
-
-- **P3.4 is complete, and it landed in Phase 1.** `grep -rn 'xad::' plant/inst plant/src` returns
-  nothing, from five lines in `src/leaf_model.cpp`; `odelia::ode::forward_derivative` replaced
-  `xad::fwd` and `xad::derivative`, with plant bit-identical and the two hand-checked values equal to
-  the last bit. **`build-plan.md` still carries it as a Phase 3 task with a gate.** Phase 3 has five
-  tasks, not six. The rule the design states — that no plant file spells `xad::` — is a property of
-  the *merged* tree and needs re-checking at integration (§7), not a closed item.
-- **The trajectory store exists and carries the step size.** `ode_step_record { time, step_size,
-  state }`, so §2.8's `(t, h, y)` is what is stored and `fl(fl(t+h) − t) ≠ h` is already paid for.
-- **A stage is a bitwise pure function of `(y, t)`** at all three models, which is P3.5's rebuild
-  precondition rather than a nicety. It took both of Phase 2's path-dependence fixes.
-- **The aux transfer is complete in both directions**, including on the environment, which publishes
-  its per-layer uptake — so the soil guard's condition is recomputable on the sweep.
-- **`step_adjoint`, `vector_jacobian_product`, `implicit_value` and `hermite_interpolator` are all in
-  odelia** and each is gated on an independent reference, not just on a suite count.
-
-Two names in the plan do not exist and one of them never will. **`OdeElement` was replaced during the
-Phase 1 audit** by a per-helper `requires requires` clause on the one member each helper calls — the
-case the concept was introduced for and could not see. So `build-plan.md`'s §3 table and its own §11.1
-are stale on that name — both now corrected there — and a Phase 3 author writing `ode_rates_adjoint`
-should constrain it the way
-its five siblings in `ode_interface.hpp` are constrained. **`Species::census<Psi>` and
-`Patch::ode_rates_adjoint` do not exist**; nothing in plant is named `*_adjoint` at all. That is
-correct — they are P3.6's and P3.1's — and it is worth stating so nobody looks for a stub.
-
-### 11.3b Two prerequisites Phase 3 has that the plan does not list, both measured here
-
-Found by running §0.3 and §0.6 against the tree at `0abc7873` rather than reading the task list.
-Neither is a defect; both are work with no task, which is the category §9 says the integrator owns.
-
-**1. `Patch` has no `rebind_from`, and `step_adjoint` hard-asserts on it.** The signature carries
-`static_assert(has_rebind_from<System>::value, "step_adjoint needs the System's rebind_from() hook to
-lift it to the adjoint scalar")`, and `grep -rn 'rebind_from' plant/inst/include` returns **nothing**.
-So P3.5 cannot call `step_adjoint` on a `Patch` at all until the hook exists. The plan mentions
-`SCM::rebind_from<S>()` only in passing, as something the *retired* AD branch had (§2.7), and §3's
-"what we take" does not list it. Two riders: ~~`has_rebind_from` is a SFINAE detection struct~~ — **now a
-`Rebindable` concept constraining the *return* scalar, not just the member's presence, so a wrong
-rebind fails at the call rather than deep inside `step_adjoint`** (odelia `p3/odelia-surface`); and the
-hook has to construct the whole active `Patch`, so it is downstream of prerequisites 2 and 3.
-
-**2. The active build is a prerequisite for V1, and the plan has no task for it.** V1 compares steps
-(a)–(d) against *one whole-`Patch` recording at one state*, and a recording requires
-`Patch::compute_rates` to instantiate at an active scalar. Phase 1 closed P1.2b on the **class bodies**
-instantiating and recorded explicitly that the **member bodies do not**. Re-censused on the merged tree
-with `scripts/tf24-active-probe.cpp` at `-fsyntax-only -fmax-errors=200` — one invocation, about three
-seconds, the §6 economy where it pays most:
-
-| group | sites | who owns it |
-|---|---|---|
-| `std::`-qualified math on an active argument | **10** | one cause, one decision. **`std::max`/`std::min` are not a requalification** — they are homogeneous templates, so the literal must be promoted to `S` first |
-| DeepCrown's `std::vector<double>` accumulators | **17** | a shading model TF24 does not default to (`MeanLight` does) and the gradient path never takes. Template it or refuse it — but decide, because the choice is whether a future active DeepCrown fails loudly or compiles something wrong |
-| `QK::integrate` not templated | 2 | the crown integral; §3 lists it as taken from the AD branch |
-| the `Leaf` boundary — constructor, `set_physiology` | 2 | the designed `double` boundary. P3.2's supplied Jacobian, not a defect |
-| `util::is_finite(double)`, and one conversion | 2 | their own decisions |
-| `uniroot` refusing an active bracket | 1 | **the design working.** `height_seed`'s residual is `-> S`, so the bracket's derivative cannot leak; `implicit_value` is the eventual route |
-
-**34 in plant headers, 40 with the libstdc++ consequences.** Two things about the distribution matter
-more than the count. **It is concentrated in two files** — `tf24_strategy.h` and `canopy_shape.h` —
-with nothing in `patch.h`, `species.h`, `node.h`, `individual.h`, `environment.h` or
-`resource_spline.h`. And **half of it is in a branch off the gradient path**, so the work on the
-critical path is about a dozen sites rather than forty.
-
-**So "the probe compiles clean" is unsatisfiable and must not be written as a gate** (§0.5). One error
-*is* the design holding, and two more are a boundary the design puts there deliberately. The gate is
-that the mean-light path instantiates and everything else refuses legibly.
-
-**Phase 2 improved this position, which is worth recording because nobody was watching it.** Phase 1's
-census carried a sixth group: `ResourceSpline<S>::get_value_at_height` was declared to take `S` while
-the interpolant could only accept a `double` abscissa, so *a differentiable height was not reachable
-through the light field at all*. P2.3's Hermite carries the active-position read, so **that** defect is
-closed — a phase not aiming at the active build closed one of its groups.
-
-**But "no errors in `resource_spline.h`" was too strong, and it was the narrow census again.** Measured
-through an `Individual` instantiation rather than a strategy one, the file has **three**, and they are
-two different problems — which is the useful part. `:124` and `:125` are the **R boundary correctly
-refusing**: `r_get_state()` assigns into an `Rcpp::NumericMatrix`, whose storage type is `double` by
-definition, and only `double` crosses that boundary, so they convert and must not carry `S`.
-`Individual::r_internals()` is the same shape. `:51` is a real seam — `std::vector<double> x = {0,
-height_max/2.0, height_max}` with `height_max` active — and it also converts, because knot **positions**
-are structure and stay passive. So the file needs three conversions and no templating, and **none of the
-three is the Phase 1 defect.**
-
-**Three times now a claim of mine has been measured through a probe too narrow to see its own subject.**
-The common factor is worth stating because it is not the same as §0.6: I censused **the type I was
-changing** rather than **the type that consumes it**. A strategy-level instantiation cannot see the
-container that holds the state; a container-level one cannot see the R boundary above it. **Census from
-the outermost consumer inward.**
-
-### 11.4 Three measurements before code, and two need no plant
-
-**1. ~~The record-and-sweep multiplier~~ — TAKEN, and it is 8x rather than 3-5x.** Marginal ratio 8.20
-and 8.37 across a 4x and a 16x size step, so **flat in block size** as the budget assumed; **R/D 10.6**
-at the block's own size, the difference being a large fixed per-call cost. Re-costed, a gradient is
-**5 to 6 forward runs rather than 2 to 3** and the saving against a central difference is ~17x rather
-than 30-50x. `odelia/scripts/vjp_cost.cpp`; `build-plan.md` §8b now carries the table.
-
-**And it found the cheapest win on the whole budget, which is now TAKEN.** `vector_jacobian_product`
-built a `Tape` per call; it now takes one from its caller. Measured 10.22 to **5.56** at block size —
-about twice the forecast, because a fresh tape also grows its containers to 52 kB each call, so the 22%
-construct-and-destroy share was a floor. **A gradient is now ~430-460 s, 3.7 to 4.0 forward runs, and
-the saving against a central difference ~26x.** odelia `p3/vjp-tape-reuse`.
-
-**Two things to carry forward from it.** The reset must be `clearAll()`, not `newRecording()` alone,
-which leaves adjoints *correct* while leaking a derivative slot per input per call — so the gate is the
-recording **size** across reused calls, not the adjoints. And the saving is **demonstrated, not
-realised**: no consumer holds the reused tape yet, and calling the tape-less overload inside the cohort
-loop restores the old cost with nothing failing. That is P3.2's note.
-
-*What it was, and why it needed taking:* §8b names 3–5×
-as "the one soft number" and "the term that could double the total", and says T1's harness in P1.1
-"times a block-shaped System against its own double evaluation — so P1.1 closes on it and the budget is
-re-taken then". **P1.1 gated the product on a central finite difference and on the recording-size
-invariant, and never timed it.** So the dominant uncertain term in the whole Phase 3 budget is still a
-guess — and P2.4's deferral doubles whatever it is. It is measurable today, in odelia, with no plant
-code: one block-shaped System, timed recorded-and-swept against its own `double` evaluation.
-
-**2. Pinned-leaf incidence, re-measured, because P3.2's shape depends on it.** Report 02 §4 counts
-**zero** pinned solves in 4 372 101 at the production driver, and that census predates P0.1, P0.2 and
-P0.12 — all three of which changed what the leaf computes. A Phase 2 probe at `TF24_Strategy`'s own
-defaults found **every** sampled state pinned at the wet bound. If the pinned regime is common, P3.2's
-bound branch stops being insurance and becomes the path, and the envelope row's argmax machinery is not
-what most solves need. One instrumented production run, the same shape as Phase 2's transport census.
-The reason this is a question rather than a measurement — no `Leaf` is reachable from a
-`TF24_Strategy` or an `Individual` through RcppR6 — is worth fixing on its own account.
-
-**3. C1's convergence, which report 03 §8 step 4 asks for and nobody has taken.** The knot-position
-channel against knot density at production width, measured at 8.7e-04 on a coarse 20-knot toy. It
-decides nothing structural now that the fractions are fixed, so take it only if step (c)'s adjoint
-disagrees with V1 by about that much — which is the one situation where knowing the number saves a
-bisect.
-
-### 11.5 The gates, and the four that would otherwise be unsatisfiable or vacuous
+### 11.3 The gates, and the four that would otherwise be unsatisfiable or vacuous
 
 §0.5 and §0.6, applied before anything is sent.
 
 | | gate | the trap |
 |---|---|---|
-| V1 | steps (a), (c), (d) against the matching part of one whole-`Patch` recording at one state, blocks stubbed | add the three contributions **one at a time** — they are separable contributions to one accumulator that is nonzero without any of them, so a dropped term gives a plausible gradient. V1 catches it only because the recording contains it |
+| V1 | steps (a), (c), (d) against the matching part of one whole-`Patch` recording at one state, blocks stubbed | add the three contributions **one at a time** — they are separable contributions to one accumulator that is nonzero without any of them, so a dropped term gives a plausible gradient |
 | V2 | one cohort's block at one stored step against a finite difference of the same block, **leaf held constant** | **stage 0 only.** A block lives at a stage and stage states are rebuilt, so verifying above stage 0 needs the rebuild working first — which is V3's subject |
-| V2L | the leaf's partials against report 02 §6.9's three identities | **not a finite difference, and this is not a preference.** A re-run FD resolves the collar's response to about four digits and the residue under test is 4–9% of it, so a disagreement reports the reference rather than the scheme |
-| V3 | one step's `lambda_y` against a finite difference of one step | a lost tableau term is **silent and has no measured signature**, which is the argument for checking one step rather than the whole run — a whole-run disagreement would not localise it and there is no magnitude to recognise it by |
-| V4 | census and R0 at `max_patch_lifetime = 105.32` against a re-run FD, under 2 GB peak | **the reference straddles the establishment gate.** P0.6's gate closes on 23.1% of boundary-node stage evaluations, confined to `t ∈ [3.22, 8.54]`, and a `1e-9` trait perturbation flips it. Choose states and step sizes outside that window, or difference a metric evaluated outside it. This is a property of the reference, not of the scheme |
-| T4 | `in.size() == state_size() + n_cohort_reads() + ad_parameters().size()`, and a pack/unpack round trip | it must assert the **dependent aux slots** too — `competition_effect` and `height_inverse` are derived by `set_state`, not packed, and an unpack that bypasses `set_state` leaves `area_leaf` stale and severs every trait reaching the rates through leaf area |
-| T5, T6 | knot-adjoint and trait-adjoint accumulation, **asserted as values** | a finiteness check passes on the failure these exist for. The trait case has a measured signature — **41–51%** of the truth, correct sign, nothing thrown; the knot case has none, which is the argument for writing it as a value assertion rather than the argument against |
+| V2L | the leaf's partials against report 02 §6.9's three identities | **not a finite difference, and not a preference.** A re-run FD resolves the collar's response to about four digits and the residue under test is 4–9% of it, so a disagreement reports the reference rather than the scheme |
+| V3 | one step's `lambda_y` against a finite difference of one step | a lost tableau term is **silent and has no measured signature** — a whole-run disagreement would not localise it and there is no magnitude to recognise it by |
+| V4 | census and R0 at `max_patch_lifetime = 105.32` against a re-run FD, under 2 GB peak | **the reference straddles the establishment gate**, which closes on 23.1% of boundary-node stage evaluations confined to `t ∈ [3.22, 8.54]`, and a `1e-9` trait perturbation flips it. Choose states and step sizes outside that window. A property of the reference, not the scheme |
+| T4 | `in.size() == state_size() + n_cohort_reads() + ad_parameters().size()`, and a pack/unpack round trip | it must assert the **dependent aux slots** too — `competition_effect` and `height_inverse` are derived by `set_state`, not packed, and an unpack bypassing `set_state` leaves `area_leaf` stale |
+| T5, T6 | knot-adjoint and trait-adjoint accumulation, **asserted as values** | a finiteness check passes on the failure these exist for. The trait case has a measured signature — **41–51%** of the truth, correct sign, nothing thrown; the knot case has none, which is the argument for a value assertion rather than against |
 
-**The vacuous-gate question, asked concretely.** §0.6's original case was a concept left unsatisfied so
-the recording hook never fired and every downstream assertion passed on an empty store. Phase 3's
-version of that is sharper, because **exactly zero is this design's worst failure mode** — it reads as
-an answer. Two ways to get it: registering a tape's inputs *after* `newRecording()` gives silently zero
-adjoints, and a `double`-typed intermediate anywhere on a channel passivates it. So for every gate,
-ask what it reports when the channel under test returns exactly zero. Where the answer is "it passes",
-the gate needs an explicit assertion that the adjoint is **not** zero — which is what odelia's own
-active-position test already does, and it is the right precedent to copy.
+**The vacuous-gate question, asked concretely for this phase.** **Exactly zero is this design's worst
+failure mode**, because it reads as an answer. Two ways to get one: registering a tape's inputs *after*
+`newRecording()`, and a `double` intermediate anywhere on a channel. So for every gate, ask what it reports
+when the channel under test returns exactly zero — and where the answer is "it passes", the gate needs an
+explicit assertion that the adjoint is **not** zero. odelia's own active-position test already does this
+and is the precedent to copy. **Phase 3's prerequisites shipped four gates that failed this test; §0 now
+carries the three rules that come out of it.**
 
-### 11.6 The budget, re-costed from measurement
+### 11.4 The budget, re-costed from measurement
 
-§8b was written against a post-P2.4 forward pass of about 63 s and a record-and-sweep multiplier of
-3–5x. Neither holds: there is no 63 s pass, and the multiplier is **8x marginal, 10.6x at the block's
-size**. With two recordings per (stage, cohort):
+Both of §8b's soft numbers are now measured. The multiplier is **8x marginal, 5.56x at the block's size
+with the tape reused** — flat in block size, which the budget assumed correctly, but not at the assumed
+value.
 
 | term | | |
 |---|---|---|
 | rebuild the stage states in `double` | one forward RHS per stage | ~115 s |
 | the leaf's partial derivatives | 3.9 M, 14–21 µs | 55–82 s |
-| record and sweep, **twice**, per-call tape | 3.9 M × 6 µs × 10.6 × 2 | ~496 s |
-| the same on a **reused** tape (taken) | 3.9 M × 6 µs × 5.56 × 2 | **~260 s** |
+| record and sweep, **twice** per (stage, cohort) | 3.9 M × 6 µs × 5.56 × 2 | ~260 s |
 | | | **~430–460 s** |
 
-**A gradient is 3.7 to 4.0 forward runs, and the saving against 51 traits by central difference is
-~26x.**
-Decisive, and the deliverable's economics are unchanged — V4's re-run finite difference is still the
-expensive half of the acceptance test. What changed is that the reverse term now dominates the budget
-rather than sharing it, so the tape hoist was taken before P3.2 rather than after — ~236 s, one
-odelia change, recorded as owed since Phase 1.
+**A gradient is 3.7 to 4.0 forward runs, and the saving against 51 traits by central difference is ~26x.**
+V4's re-run finite difference remains the expensive half of the acceptance test. **Peak is unaffected and
+now measured**: 46 MB of trajectory plus a block's recording of **52 kB**, flat in the number of output
+adjoints seeded, so the 2 GB gate has four orders of headroom.
 
-**Peak is the claim to hold, and it is unaffected.** 46 MB of trajectory plus one block's recording —
-the measurement puts a block's recording at **52 kB**, flat in the number of output adjoints seeded (1
-and 11 give the same bytes). The 2 GB gate has four orders of headroom and exists to catch a recording
-that is not released.
+**One caveat that is live work, not a note.** The reused tape is **demonstrated, not realised** — nothing
+holds one yet, and calling the tape-less overload inside the cohort loop restores the old cost with no test
+complaining. Whoever writes P3.2's loop must hold one tape across it.
 
-### 11.7 The documents the plan assigns, and Phase 1 missed one
+### 11.5 The documents the plan assigns, and Phase 1 missed one
 
-§9's "some work has no packet, and it is the integrator's". Every Phase 1 allowlist was code and tests,
-so nothing updated `odelia/AUTODIFF.md` — which the plan makes the home for the System requirements
-that phase *changed*. Check each of these against what lands, before closing the phase:
+§9's "some work has no packet, and it is the integrator's". Every Phase 1 allowlist was code and tests, so
+nothing updated `odelia/AUTODIFF.md` — which the plan makes the home for the System requirements that phase
+*changed*. Check each before closing the phase:
 
 | document | what Phase 3 owes it |
 |---|---|
-| `odelia/AUTODIFF.md` | the System requirements including `ode_rates_adjoint`, and **Phase 1's arrears** |
-| `odelia/ARCHITECTURE.md` | still silent on the `Tape` link across the DLL boundary as this build uses it |
-| `plant/agents.md` §13 | P3.6 requires it explicitly, and the acceptance test is partly a **count**: a developer reads §13 and adds a fourth census metric without touching tape code |
+| `odelia/AUTODIFF.md` | the System requirements including `ode_rates_adjoint`, **plus Phase 1's arrears**, and now `active_scalar` and `Rebindable` |
+| `odelia/ARCHITECTURE.md` | still silent on the `Tape` link as this build uses it |
+| `plant/agents.md` §13 | P3.6 requires it, and the acceptance test is partly a **count**: a developer reads §13 and adds a fourth census metric without touching tape code |
 | `plant/NEWS.md` | `stand_gradient` is new R surface, so it is an entry even though nothing breaks |
 
-### 11.8 Carried in, and none of it is Phase 3's to decide
+### 11.6 Carried in, and none of it is Phase 3's to decide
 
-The list is in the Phase 2 tail below rather than repeated here — the storage clamp, the establishment
-gate, the respiration double-count, `aornugent/plant#69`, aux's two owners. Two of them bite *inside*
-Phase 3 rather than waiting for a re-blessing window, and both land on P3.6:
+The list is in the Phase 2 tail — the storage clamp, the establishment gate, the respiration double-count,
+`aornugent/plant#69`, aux's two owners. Two bite *inside* Phase 3 rather than waiting for a re-blessing
+window, and both land on P3.6:
 
-- **The establishment gate is V4's reference problem** (§11.5), so P3.6 cannot be verified without a
+- **The establishment gate is V4's reference problem** (§11.3), so P3.6 cannot be verified without a
   position on it, even though the decision is the owner's.
 - **The `mortality = Inf` cohorts carry a zeroed derivative into the census.** 327 of 10 153 records at
-  survival exactly zero, `mortality_dt` returning an exact `0.0`, from `t = 7` on. The zero is genuine
-  — the cohort is dead — rather than a severance to smooth, and the proposed treatment is to drop such
-  a cohort from the reduction. That **changes the census value**, not only its gradient, so it wants the
-  owner and a re-bless *before* V4, and it must not become a quiet guard inside `census<Psi>`.
+  survival exactly zero, from `t = 7` on. The zero is genuine — the cohort is dead — and the proposed
+  treatment, dropping such a cohort from the reduction, **changes the census value** and not only its
+  gradient. So it wants the owner and a re-bless *before* V4, and it must not become a quiet guard inside
+  `census<Psi>`.
 
 ---
 

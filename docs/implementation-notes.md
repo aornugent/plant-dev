@@ -2534,7 +2534,7 @@ guard does not protect a caller reaching the general form directly.
 
 ## The collar polish, censused over a production lifetime
 
-`5b4316aa` on `p3/collar-census`. The measurement §11.4 asks for before P3.2, because report 02 §4's
+`5b4316aa` on `p3/collar-census`. The measurement owed before P3.2, because report 02 §4's
 zero pinned solves predates P0.1, P0.2 and P0.12 and a Phase 2 probe at TF24's own defaults disagreed
 with it at every state. Gated on `PLANT_COLLAR_CENSUS`, moments and extremes rather than 7.35 M rows.
 **Both arms re-run in the orchestrator's own session**, in the packet's worktree with nothing building
@@ -2690,119 +2690,341 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
-## Phase 3 integrated, and verified on the merged tree
+## P3.5's transport adjoint, designed — and the probe has no active path at all
 
-    plant   p3/phase-3            c9914ffb   five packets
-    odelia  p3/odelia-integration fdccd7b    two packets
+The design `ORCHESTRATOR.md` puts before P3.2 in its Phase 3 order, because P3.2 freezes the block's boundary and
+this decides how many times the block is evaluated. Read from the code rather than from the plan, and
+the plan's premise does not hold.
 
-Verified by a pass that changed no source file, in a worktree neither it nor I had experimented in.
+**Report 04 §5 records that "differentiating develop's sub-grid probe at the active scalar is
+bit-identical and yields the derivative of the discretisation actually solved". That is true of the
+*scheme* and false of the *code*.** The probe is passive end to end, at three independent points:
 
-| | expected | measured |
+| site | what it does |
+|---|---|
+| `Individual::growth_rate_given_height(double height, env) -> double` | takes the perturbed height as a **passive** `double`, so `d/dh` is structurally zero, and returns `double`, converting the active rate away |
+| the lambda in `Node::growth_rate_gradient`, `node.h:211` | declared `[&] (double h) -> double` |
+| every `util::gradient_fd*` and `gradient_richardson` overload | `double` in the parameter, the value and the return |
+
+So there is no active path to differentiate. `log_density_dt = -growth_rate_gradient - mortality` would
+carry **exactly zero** derivative through its transport term — the failure mode this design exists to
+prevent, in the one channel report 10 already named as the load-bearing cost of deferring P2.4.
+
+**What P3.5 needs, and the choice is bookkeeping rather than mathematics.** Either way the block is
+evaluated twice per cohort per stage, which is report 10 §6's figure and is confirmed here:
+
+- **Record both evaluations.** Make the probe scalar-generic — `growth_rate_given_height(S, env) -> S`,
+  the lambda `-> S`, and a scalar-generic difference quotient — and let the tape record
+  `(g(h) − g(h−eps))/eps` with both evaluations on it. `lambda_g` then reaches both automatically and
+  step (a) needs no hand-written seed at all.
+- **Seed it by hand.** Keep the probe `double` for the value and supply the transport term's adjoint as
+  two seeds, `−lambda_ldd/eps` on the block at `h` and `+lambda_ldd/eps` on the block at `h−eps`. The
+  second block still has to be recorded, so this buys no evaluations — only explicitness.
+
+**Recommend the first**, because the second writes by hand a chain rule the tape already gets right, and
+the corpus's own measured failure mode is a hand-written accumulation that is a fixed fraction of the
+truth with the correct sign. What the first costs is that a `1/eps` amplification sits inside the tape
+rather than in a seed, which is a conditioning fact and not a correctness one.
+
+**The conditioning is inherited and is the same under either reading, and it is the number to watch.**
+The derivative of the quotient with respect to a trait is
+`(∂g(h)/∂θ − ∂g(h−eps)/∂θ)/eps` — two nearly-equal partials differenced and divided by `1e-6`. Report
+10 §6 prices it at about **1e-10 of absolute error before any non-smoothness**, against a cohort-grid
+divisor 3 470× larger at the median spacing. **So V3 must not be read as a check on the transport
+channel's accuracy**: it verifies the tableau, and the transport term's conditioning is a property of
+the discretisation the model carries, not of the adjoint. Gate the transport channel against a finite
+difference *of the same quotient*, never against an analytic `dg/dh`.
+
+**Not decided here:** whether making the probe scalar-generic reaches `util::gradient_fd`'s other
+callers. It is generic numerics used beyond this path, so a scalar-generic version wants adding beside
+the `double` one rather than replacing it, and that is a task-sized change rather than a line.
+
+### The style sweep could not see this, and now can
+
+`ORCHESTRATOR.md` §10 names the hazard — "beware `-> double` on a lambda in templated code, which
+silently passivates" — and `style-sweep.sh` checked only for the *opposite* case, a lambda with **no**
+declared return type. So an explicitly `double`-returning lambda in scalar-generic code read as
+compliant, which is the more dangerous of the two because it looks deliberate. The sweep now greps for
+`-> double` in added lines as well; confirmed to bite on `node.h:211` and one site in `individual.h`.
+**A rule in a document that the sweep cannot check is a rule that is not enforced**, and the two lists
+are worth diffing against each other once rather than discovering the gaps one at a time.
+
+## The active build is larger than the census said, because the census was too narrow
+
+**`Individual` holds `Internals<double> vars` (`individual.h:205`), not `Internals<S>`.** So the whole
+per-cohort state surface is passive — `state(int) -> double`, `rate(int) -> double`,
+`set_state(int, double)`, `compute_competition(double) -> double`, `consumption_rate(int) -> double` —
+and instantiating `Individual` at an active scalar fails at **seven** sites, every one handing `vars` to
+a strategy that wants `Internals<S>&`.
+
+**This is Phase 1's group B, and it is not closed.** That census named "the `double` state and aux
+boundary: 12 sites" and this is what it meant. What made it look closed is that Phase 1 read the funnel
+as narrow — "the single place `S` must be dropped is the plant's water draw" — which is true of
+`consumption_rates` and not of `vars` as a whole.
+
+**Why my own census could not see it, which is the lesson worth more than the finding.**
+`template class plant::TF24_Strategy<active_scalar>` **never instantiates `Individual`**, so the probe
+that reported 34 errors and then 24 was structurally blind to the container holding the state the block
+differentiates. I wrote §0.6's rule into a packet — *ask what would make the gate pass vacuously* — and
+then shipped a gate that could not distinguish "correct" from "not instantiated". Measured by
+instantiating `Node` instead, which pulls `Individual` in: seven more sites.
+
+So the block's remaining surface is three tasks, not one:
+
+| | what | reaches |
 |---|---|---|
-| TF24 / FF16 / K93 forward values | the phase-2 closure values | **bit-identical, all three, step counts included** |
-| stage purity, `derivs(y, t)` twice bitwise | 0 differing | **TF24 0 of 1137, K93 0 of 705** |
-| the active probe | 19, all in one file | **19, all in `tf24_strategy.h`** |
-| plant suite | ≥ 1 309 pass | **2 857 pass, 0 fail**, 6 errors (below), 10 skip |
-| odelia suite | 331 | **334 pass, 0 fail, 0 error, 2 skip** — 327 + 3 + 4, so the merge lost and duplicated nothing |
+| 1 | `QK` carrying a scalar, `util::is_finite`, the consumption funnel, the leaf seam | `qk.h`, `util.h`, `internals.h`, `tf24_strategy.h` — in flight |
+| 2 | **`Individual`'s state store carries `S`** | `individual.h`, and **33 call sites across six headers** — measured, below |
+| 3 | the transport probe made scalar-generic | `node.h`, `individual.h`, and `gradient.h`'s generic helpers |
 
-**So the whole phase is bit-identical**, which was not a goal — three packets moved type declarations
-through the containers and every one of them held the forward model exactly. The purity property the next
-phase depends on survives the merge.
+**Task 2's surface, measured rather than estimated**, so the packet can be costed: eleven accessors on
+`Individual` return or take `double` (`state`, `rate`, `set_state`, `aux`, `consumption_rate`,
+`compute_competition`, `compute_competition_and_slope`, in their name and index forms), and their callers
+are **`node.h` 16, `species.h` 8, `stochastic_node.h` 3, `stochastic_species.h` 3, `patch.h` 2,
+`stochastic_patch.h` 1 — 33 in total**. The three stochastic headers never carry an active scalar but
+share the plumbing, so they are in the sweep for the same reason the plumbing sweep took them in Phase 1.
 
-**Two of the six suite errors were not on my known list, and they are pre-existing.** `test-mutant.R` at
-lines 40 and 126 both throw `Run a resident first to generate a competitve landscape`, from
-`Patch::set_mutant()` guarding an empty `environment_history`. The only thing that populates that member
-is `Patch::cache_ode_step`, which **has no callers anywhere in plant**: its caller was an odelia hook
-removed in `1773fe3`, long before this phase, and no Phase 3 commit touches it. Same category as the three
-`test-stochastic-patch.R` errors — a dead mechanism whose test still runs — and it is now on the list.
-This is the corpus's own record that the mutant replay path is dead, meeting its test suite for the first
-time.
+**One line must stay `double` and it is the seam that makes this safe:** `Internals<double>
+r_internals() const` is the R boundary, and only `double` crosses it. So the change is
+`Internals<S> vars` with `r_internals` converting, not `Internals<S>` all the way out.
 
-**One brief defect of mine, and it is a gap in a rule I rely on.** My verification setup exported
-`R_LIBS_USER` for the odelia *install* and never for the plant *build*, so the first build resolved
-`-I/usr/local/lib/R/site-library/odelia/include` — a stale July odelia with no `hermite_interpolator.hpp`
-at all. It died on a fatal include rather than producing a mixed `.so`, so nothing escaped. **The
-install-verification rule checks the install; it does not check which library the build actually used.**
-Those can differ. The check that closes it is one line on the build log:
+**And the probe's severance is compile-caught rather than silent, which is the one piece of luck here.**
+`Individual::growth_rate_given_height` appears in the failing instantiation chain at `individual.h:167`,
+required from `Node::growth_rate_gradient` at `node.h:212` — so the passive transport path does not
+quietly return a zero derivative, it fails to build. That is only true while the state store is
+`double`; **once task 2 lands, the `-> double` lambda becomes a silent passivation rather than an
+error**, so task 3 must land with task 2 and not after it. Recorded because the ordering is the whole
+risk: the compiler is currently doing the work that the sweep's new check will have to do afterwards.
 
-    grep -o "\-I'[^']*odelia[^']*'" <build log> | sort -u
+## The tape hoisted out of the product — and my predicted failure mode was the wrong one
 
-**A behavioural fix rode inside a plumbing packet**, and it deserves its own line: `Patch::r_at` and
-`StochasticPatch::r_at` read `at(species_index.check_bounds(size()));` — a call to a member that does not
-exist, with no `return`, so the function fell off its end. Neither is in the yml, so neither had ever been
-compiled. Fixed to `return species[...]`, keeping the bounds check. Correct, and not scalar plumbing.
+odelia `2c3159c` on `p3/vjp-tape-reuse`. `vector_jacobian_product` takes the tape from its caller and
+reuses it; the four-argument form is kept, constructing an **inactive** tape and delegating, so a
+foreign active tape is still caught in one place. The stopping guarantee moves from "no tape is active"
+to "the tape handed in is the active one", which is the ownership reading rather than a weakening.
 
-**And I moved a submodule pointer four times without saying so.** The odelia gitlink advanced inside
-`c4422ba`, `4e51514`, `08ada4a` and `419a9a3` — all commits whose messages describe documentation —
-because I staged with `git add -A` from the superproject root while the submodule sat on a moved branch.
-The end state is right and verified, but the history says otherwise. **A submodule pointer is a semantic
-change and must not ride in a docs commit**; stage the superproject's paths explicitly, or check
-`git status` before committing rather than after.
+**Re-verified in this session**: suite **330 pass, 0 fail, 0 error, 2 skip** from a fresh install into
+my own library, verified by grepping the installed header; probe reproduced at mid **T/D 5.56**
+against the packet's 5.47.
 
-## The container sweep, and the light channel it found silently severed
+| mid size, 171 inputs | before | after |
+|---|---|---|
+| arm R — record and sweep | 47.9 us | — |
+| arm T — the same on a reused tape | — | **26.1 us** |
+| ratio against one `double` evaluation | 10.22 | **5.56** |
+| marginal multiplier | 8.45 | **5.51** |
 
-plant `672cd702` on `p3/sweep`. Nine files. **`Patch<TF24_Strategy<S>, TF24_Environment<S>>` now
-instantiates at the active scalar: 61 error lines to 19, all 19 in `tf24_strategy.h`** and line-for-line
-the same site set as the baseline — the 17 DeepCrown sites plus the two `prepare_strategy` asserts.
-TF24, FF16 and K93 all bit-identical; suites 0 fail beyond the three known pre-existing errors.
+**The saving is about twice what I forecast, and the reason is instructive.** I predicted 10.6 to ~8.2
+from the 10.1 us a tape costs to construct and destroy. Measured: 10.2 to 5.56, a **21.8 us** cut
+against a **10.1 us** tape — so the hoisted cost is **2.2x the tape alone**. A fresh tape also grows its
+containers to 52 kB from nothing on every call, where `clearAll()` empties the recording and keeps the
+capacity. **The 21% tape-construction share was a floor, not the answer.**
 
-**The failed gate is now an invariant.** `gradient.h` carries
-`integrand_of<Function, S> = std::same_as<std::invoke_result_t<Function&, const S&>, S>`, a `requires` on
-all seven difference-quotient helpers. Patch the transport lambda back to `-> double` and **both call
-sites fail, named by constraint**, with the concept's unsatisfied requirement printed. That replaces a
-type assertion that passed in both worlds.
+Re-costed: the reverse term falls from ~496 s to **~260 s**, a gradient from ~670 s to **~430–460 s, so
+3.7 to 4.0 forward runs**, and the saving against 51 traits by central difference rises to about
+**26x**. The hoist alone is **~236 s**.
 
-**And the same hazard was live on the main light channel.** `Patch::compute_environment_once`'s field-build
-lambda returned `std::pair<double, double>` into `TF24_Environment::compute_environment`, which wants
-`std::pair<S, S>` — it converts silently, so **all 65 knot values and all 65 knot slopes would have been
-passive constants.** That is the entire light channel, which is step (c) of the reverse pass and the whole
-resident gradient. `StochasticPatch` had the identical lambda.
+### The gate I specified would have passed a change that leaks
 
-Three things about that find are worth keeping. It was **invisible from an `Individual`-level probe** — the
-outermost-consumer rule, now five-for-five. **No type assertion on the outer result would have caught it**,
-for the same reason mine did not: the builder's parameter is what converts. And it is the second instance
-of one shape found by one census, which is the argument for making the *constraint* the check rather than
-the assertion: a `requires` clause finds every site, an assertion finds the site you thought of.
+I told the packet that an unreset tape "silently accumulates the previous call's adjoints". **It does
+not.** `newRecording()` clears the derivative flag, so `initDerivatives()` zero-fills and **the adjoints
+stay correct**. The real fault is unbounded growth: destroying a registered input releases its
+derivative slot only when the slot is the last one, and a `std::vector` is destroyed front to back, so
+no slot is ever released. Measured on a standalone probe with `newRecording()` alone: memory
+**276 → 332 → 388 → 444 → 500** and variable count **7 → 14 → 21 → 28 → 35** over five calls, **with
+identical adjoints throughout**. Over 3.9 M calls that is the whole gradient's memory. `tape.clearAll()`
+is the fix.
 
-Also surfaced: **`Patch::r_at` and `StochasticPatch::r_at` were both broken** —
-`at(species_index.check_bounds(size()))`, calling a member that does not exist, with no `return`. Neither
-is in the yml, so neither had ever been compiled. And `util::trapezium` and `util::to_string` were silent
-narrowing points for any active caller.
+**So a gate 2 written the way I specified it — compare the adjoints of a reused tape against a single
+call — passes on a change that leaks the entire budget.** What caught it is that the packet also
+asserted the **recording size** is constant across reused calls, and its negative control shows the
+sizes climbing 276, 324, 372, 420 with `clearAll()` removed. This is §0.6 again, from the inside: I
+asked for a gate that could not distinguish "correct" from "correct and leaking", and the right
+discriminator was a quantity I had not thought to name. **When a change is about reuse, assert the
+resource, not only the answer.**
 
-### The one ruling that wants challenging, and it is recorded as open
+### Also from this packet
 
-**The `height` argument of the whole competition family stays `double`.** §2.2 says a field query's
-position carries `S`, which argues for widening it. The packet did not, and its reasoning is sound as far
-as it goes: every call site passes a knot position from the interpolant's grid, which is `double` by a
-committed decision; §2.3 declares the block's inputs as the knot **values and slopes**, not the positions;
-and the slope is computed analytically by the fused reduction rather than by differencing `z`, so nothing
-needs `d/dz`. What must flow is `d(competition)/d(cohort state)`, and that travels through the *node's own*
-height, which is active.
+- **My baseline suite count was stale.** I said 322; it is **327**. Both figures are in this file — 322
+  at Phase 1's close and 327 after the audit that followed it — and I quoted the earlier line. A
+  packet-facing baseline must be the count at the tip it is given, not the count at a phase boundary.
+- **The saving is demonstrated and not yet realised.** Nothing in odelia calls the primitive outside its
+  tests, so **no consumer holds the reused tape yet**. Whoever writes the cohort loop must hold one tape
+  across it; calling the four-argument form inside that loop restores the old cost **with no test
+  complaining**. That is now the load-bearing note for P3.2, and it belongs in the packet that writes
+  the loop.
+- Not measured: whether a narrower reset than `clearAll()` — restoring to a stored position — is cheaper
+  still. `clearAll()` is correct and gets the ratio to 5.5.
+- A trap in that test file: the bodies live inside a single-quoted R string passed to `sourceCpp`, so an
+  apostrophe in a C++ comment is a parse error before any test runs.
 
-**Nothing in the packet distinguishes "correct" from "a dropped `d/dz` channel that happens not to matter
-yet", and only a numeric derivative would.** So it is recorded as the open ruling of this sweep, to be
-settled at V1 — where a whole-`Patch` recording compared against the decomposition is exactly the
-instrument that would show it. It halved the diff, which is a real argument for taking it now and checking
-it then, but it is a judgement and not a measurement.
+## Four of the block's five sites, and a gate of mine that could not fail
 
-Two smaller rulings, both stated with their reason: `Species::height_max()` carries `S` and the drop
-happens on **one commented line** in `resource_spline.h` rather than being hidden inside `height_max`, so
-a later active consumer cannot silently receive a constant; and `HeightScan`'s cache now holds an active
-value across tape lifetimes, invalidated by every mutator so a stale one is never read — the same
-arrangement `Internals<S>` already has, noted rather than changed.
+plant `1e045de7` on `p3/block`. **Every gate re-run in the orchestrator's own session.**
 
-### Two gate gaps in my brief, one of which the packet closed itself
+| gate | measured |
+|---|---|
+| the probe's plant errors | **24 → 19**, and the set is *exactly* the 17 DeepCrown sites plus the two `prepare_strategy` `static_assert`s |
+| TF24, bit-identity at the pinned build | **`42.179817344974609` / 4 798**, 0 occurrences of `-O0` |
+| FF16 and K93, whole lifetime | **`19.834058960443031` / 209** and **`0.030538172107758225` / 240** — the phase-2 closure values to the last bit |
+| `test-individual.R`, `test-strategy-tf24.R`, `test-canopy-methods.R` | 131, 54, 185 pass; 0 fail |
+| style sweep, including the new passivation check | clean |
 
-- **`stochastic_species.h` and `stochastic_patch.h` are in the allowlist but in no gate's instantiation
-  set** — the deterministic `Patch` never reaches them. That is the same "work without a gate" the previous
-  packet correctly refused, and I reintroduced it. The packet built the gate itself in a scratch TU and
-  measured **19 refusals + 9 sites before, 19 + 2 after**; the two remaining are the same
-  `*it++ = <active>` R-boundary seam in `individual.h:130` and `stochastic_node.h:73`, both outside its
-  allowlist. Two one-line changes, now owed. **A standing gate wants a `StochasticPatch` instantiation in
-  the probe**, at the cost of changing the expected 19.
-- **The probe costs ~30 s here, not the ~3 s I quoted** — the odelia/Rcpp/BH include set dominates. Still
-  cheap, but it changes how a packet batches edits, and the packet front-loaded rather than iterating
-  site by site because of it.
+**`QK`: only `integrate` is templated, and that was the right call rather than a compromise.** Templating
+the class was not available — `QK()`, `initialise`, `rescale_error`, `integrate_vector*` and `r_integrate`
+are defined in `src/qk.cpp` — so `S integrate(Function, const S& a, const S& b)` deduces from the limits.
+FF16, K93 and `qag.h` are untouched because all-`double` arguments deduce `S = double` to the same
+function; TF24's two call sites gained `S(0.0)` on the lower limit, which also reads as "this limit is a
+position, not a fraction". Positions and integrand values carry the scalar; `xgk`, `wg`, `wgk` and the
+four `last_*` diagnostics stay `double`.
+
+**`fv1`/`fv2` stayed `double` against my instruction, and the packet was right.** They are written once
+and read once, in the `result_asc` loop, which is a diagnostic that stays `double`; they never reach
+`result_kronrod`, so they are not on the gradient path. Making them active would have forced either a
+class template (blocked) or a per-call heap allocation of active scalars inside the crown-integral hot
+path, for nothing. My own rule that `last_result_asc` stays `double` implied it and I did not follow the
+implication.
+
+**The leaf seam is written so a partial attaches at one expression per output.** The `double` branch is
+the original call character for character, which is what makes the bit-identity gate cheap to trust; the
+active branch converts the inputs, solves in `double`, and the leaf's outputs enter as constants because
+they *are* `double` members. Each of the nine outputs enters the active chain at exactly one place — the
+seven `vars.set_aux` calls, `leaf.profit_` in `net_mass_production_dt`, and `leaf.soil_consumption_[a]`
+in `evapotranspiration_dt`. The packet deliberately did **not** add no-op wrappers at those nine sites:
+they would change nothing and would not constrain the injection's shape, which cannot be pinned until the
+Jacobian's form is fixed. Correct restraint.
+
+### My tripwire gate was vacuous, and it is the third of this phase
+
+I gave the packet an FF16/K93 whole-lifetime tripwire, called it "not optional", and justified it with
+the real regression that once sent a model's offspring silently to zero while the other model's suite
+stayed green. **The snippet omits `add_strategies`, so both models run with no strategies at all.** Run on
+the *unmodified* tree it produces no numbers whatever — it prints the two model names and nothing else,
+because `sprintf` on an empty `offspring_production` returns `character(0)`. **It could not have failed,
+for any change.** The tell was in my own text: the step counts I quoted beside it, 209 and 240, could only
+have come from a different script, and `/home/user/p0/ff16k93.R` is that script.
+
+**Three vacuous gates in one phase, all mine, and they share one shape.** The strategy-level instantiation
+that could not see the `Individual` seam; the reused-tape gate that compared adjoints and so could not see
+a leak; and now a tripwire with no population. In each case I specified *the quantity I was thinking
+about* rather than **the quantity that changes when the thing I fear happens**. §0.6 says to look for the
+version of each gate that passes when nothing happened — the discipline that actually works is narrower
+and worth writing down: **run the gate on the unmodified tree and confirm it produces a number you
+recognise, before sending it.** All three would have died in the ten seconds that takes.
+
+### Two facts now on the record, and one corrects me
+
+**XAD's conversion to `double` is explicit and there is no `operator double` at all** — only
+`explicit operator` for the integral types and `bool`. So a `double`-declared function that would drop an
+active value **fails to compile** rather than silently passivating, and the direct evidence is
+`individual.h:97`, where `establishment_probability` returning `double` from an active expression is a
+hard error. This is materially the better position and it means the compiler currently does the work the
+sweep's new check was added for.
+
+**But `growth_rate_given_height` does not error today, and my correction to the packet said it would.**
+It compiles *because* `vars` is passive: `set_state(HEIGHT_INDEX, height)` and `rate(HEIGHT_INDEX)` both
+go through `Internals<double>` and never meet the scalar. It becomes the error I described only once the
+state store is templated — which sharpens the ordering already recorded: **the transport probe must be
+made scalar-generic in the same change as the state store**, because that change is what converts a
+clean compile into a silent zero.
+
+**And the `Internals` change covers none of the `Individual` seam.** Measured, before and after, with a
+throwaway whole-class instantiation: **nine** errors in `individual.h`, identical either side. `vars` is
+`Internals<double>`, so every accessor resolves to the `double` specialisation and the new
+`S consumption_rate(int)` is invisible from `Individual` until `vars` carries the scalar. So the seam is
+nine sites rather than the seven I recorded, and `Internals::consumption_rate` returning `S` is
+**unreachable and therefore untested** until that task lands.
+
+## The environment's half-templating is a prerequisite, not a deferred decision
+
+Read from the code while the state-store packet was in flight, and it moves an item Phase 1 recorded as
+"a decision owed before anything differentiates through the soil" onto the critical path.
+
+`Environment` holds `Internals<double> vars` (`environment.h:112`) — that store **is** the soil water
+state — and `TF24_Environment::get_soil_water_potential_state()` returns
+`const std::vector<double>&`. `TF24_Strategy::compute_rates` reads it at `:949` as
+`const std::vector<double>& psi_soil`.
+
+**Why that is not benign for the block.** `build-plan.md` §2.3 declares the block's inputs as 6 own
+states + 65 knot values + 65 knot slopes + **5 soil water potentials** + traits, and §2.4 step (a)
+transposes the soil's bidiagonal drainage cascade by hand. The two halves meet at the block's boundary:
+the cascade's adjoint needs `lambda_psi` *out of* the block's sweep, and a passive input produces no
+adjoint. So five of the declared 141 inputs cannot carry one, and the channel that goes silent is
+**d(uptake)/d(psi)** — precisely the row report 02 §6.2 derives as "uptake's direct dependence on its own
+layer's potential".
+
+**And it is the same row the leaf's supplied Jacobian is meant to inject.** The leaf is `double` by
+design and its partials arrive across the seam rather than by taping — but a partial has to be *attached
+to something*. `∂uptake/∂psi` can only attach if `psi` is an active value on the block's tape. So the
+environment's store is not merely untemplated, it is **the thing that makes the leaf's water rows
+unreachable**.
+
+**The mechanism the plan names for this does not exist yet.** `grep -rn 'cohort_reads' plant/inst/include`
+returns nothing: §2.3's triple — `n_cohort_reads()`, `cohort_reads(It)`, `set_cohort_reads(It)`, by which
+the block unpacks the environment values it reads from its own active input vector — is unwritten. That
+triple is what would let the block inject active soil potentials without templating the whole soil
+balance, and it is the narrower change of the two.
+
+**So the ordering, and it is now four deep before P3.1:** the state store, then the cohort-reads triple
+on `Environment` (which subsumes the soil-potential question for the block, whether or not the soil's own
+ODE rates ever carry `S`), then `Patch::rebind_from`, then P3.1. Report 00 §7 classifies the soil's own
+channels as free or closed-form — `dθ/dφ` because moisture is ODE state, `dψ/dθ` because it is analytic —
+so **the seam may be right for the soil's rates and wrong for the block's reads**, and those are separable.
+That distinction is what the triple buys and it is the reason not to template `Environment` wholesale.
+
+## Two owed odelia items, taken — and a style rule that cannot be followed as written
+
+odelia `25619be` on `p3/odelia-surface`, off `p1/audit-fixes`. Both were recorded as owed since Phase 1
+and both stopped being housekeeping: the alias is how a consumer names the adjoint scalar without
+spelling `xad::`, and the concept is what `Patch::rebind_from` will fail against two tasks from now.
+
+**Verified in this session** by installing into my own library and grepping the *installed* headers:
+suite **331 pass, 0 fail, 0 error, 2 skip**, the alias at `ode_interface.hpp:24`, `Rebindable` at three
+sites, and `has_rebind_from` in **zero** files.
+
+**The alias is `odelia::ode::active_scalar<T = double>` in `ode_interface.hpp`**, defined from the same
+expression the `Solver` member used, which now reads `active_scalar<double>` — one definition, no second
+spelling to drift. Templated because `step_adjoint` needs the layer over `value_type`, which is
+`AReal<double>` under an outer fit, so a hard-coded `double` alias would have forced a second spelling
+at the one site that most needs the first.
+
+**`ode_util.hpp` stays XAD-free and the include runs the safe way** — `ode_interface.hpp` includes
+`ode_util.hpp`, not the reverse — so `to_passive`'s ADL trick is intact. **My allowlist suggested
+`ode_util.hpp` as a candidate home and that was a trap**, which the packet caught: putting an XAD type
+in the one header deliberately kept clear of XAD would have undone a documented choice.
+
+**The concept constrains the return type, not just the member's presence, and the diagnostic is the
+whole point.** A `rebind_from` returning the wrong scalar satisfies a presence check and then fails deep
+inside `step_adjoint`; `Rebindable` requires the rebound type's `value_type` to *be* the requested
+scalar. Confirmed by compiling a System without the hook — the error is at the `static_assert` with
+`the required expression 's.rebind_from<U>()' is invalid` and `nested requirement ... is not satisfied`
+underneath it, and nothing downstream. That is a call-site diagnostic where the struct gave a boolean.
+
+### The style rule "a concept plus `if constexpr`" cannot be followed for a pure refusal in C++20
+
+The packet did not use `if constexpr` and was right not to. `step_adjoint` has no alternative branch to
+select — the rule is *refuse* — and `if constexpr (!C) { static_assert(false, ...); }` is **ill-formed in
+C++20 even in the discarded branch**; P2593 fixes that only in C++23. Following the rule literally would
+have meant adding a `dependent_false` helper: a new piece of generic machinery to express a plain
+refusal, which is the opposite of what the rule is for. What landed is `static_assert` with a *concept*
+as its predicate rather than a struct's `::value`.
+
+**So the rule wants a clause.** It exists to forbid SFINAE detection structs and runtime capability
+flags; it should say that a compile-time **choice** is a concept plus `if constexpr`, and a compile-time
+**refusal** is a concept in a `static_assert`. Both are concepts; only one has a branch.
+
+### My baseline was wrong again, and it is the same mistake twice
+
+I gave 330 as the odelia suite's baseline. It is **327** on `p1/audit-fixes`; 330 is the tip of
+`p3/vjp-tape-reuse`, which adds three tests. Two packets ago I gave 322, which was the count at Phase 1's
+close, before the audit took it to 327. **Both times I quoted a number from a different commit than the
+one the packet was given.** The corpus holds all three figures correctly; what it does not hold is which
+tip each belongs to, and that is the thing a packet actually needs. A baseline is a property of a commit
+and should be written as one.
+
+Also from this packet: `R_LIBS_USER` alone does not make a standalone `-fsyntax-only` compile work
+against odelia — Rcpp's and R's include paths have to be assembled by hand, because
+`ode_util.hpp` reaches `RcppCommon.h`. The same tax the cost probe reported, now hit twice.
 
 ## Individual's state store carries the scalar — and my passivation gate does not work
 
@@ -2899,341 +3121,119 @@ the style rule against a parallel near-copy, and that a `double` caller then ins
 function* rather than resolving to a second candidate — strictly stronger than what I asked for, and the
 pattern `QK::integrate` already set. `test-gradient.R` passes 7/7 on `expect_identical`.
 
-## Two owed odelia items, taken — and a style rule that cannot be followed as written
+## The container sweep, and the light channel it found silently severed
 
-odelia `25619be` on `p3/odelia-surface`, off `p1/audit-fixes`. Both were recorded as owed since Phase 1
-and both stopped being housekeeping: the alias is how a consumer names the adjoint scalar without
-spelling `xad::`, and the concept is what `Patch::rebind_from` will fail against two tasks from now.
+plant `672cd702` on `p3/sweep`. Nine files. **`Patch<TF24_Strategy<S>, TF24_Environment<S>>` now
+instantiates at the active scalar: 61 error lines to 19, all 19 in `tf24_strategy.h`** and line-for-line
+the same site set as the baseline — the 17 DeepCrown sites plus the two `prepare_strategy` asserts.
+TF24, FF16 and K93 all bit-identical; suites 0 fail beyond the three known pre-existing errors.
 
-**Verified in this session** by installing into my own library and grepping the *installed* headers:
-suite **331 pass, 0 fail, 0 error, 2 skip**, the alias at `ode_interface.hpp:24`, `Rebindable` at three
-sites, and `has_rebind_from` in **zero** files.
+**The failed gate is now an invariant.** `gradient.h` carries
+`integrand_of<Function, S> = std::same_as<std::invoke_result_t<Function&, const S&>, S>`, a `requires` on
+all seven difference-quotient helpers. Patch the transport lambda back to `-> double` and **both call
+sites fail, named by constraint**, with the concept's unsatisfied requirement printed. That replaces a
+type assertion that passed in both worlds.
 
-**The alias is `odelia::ode::active_scalar<T = double>` in `ode_interface.hpp`**, defined from the same
-expression the `Solver` member used, which now reads `active_scalar<double>` — one definition, no second
-spelling to drift. Templated because `step_adjoint` needs the layer over `value_type`, which is
-`AReal<double>` under an outer fit, so a hard-coded `double` alias would have forced a second spelling
-at the one site that most needs the first.
+**And the same hazard was live on the main light channel.** `Patch::compute_environment_once`'s field-build
+lambda returned `std::pair<double, double>` into `TF24_Environment::compute_environment`, which wants
+`std::pair<S, S>` — it converts silently, so **all 65 knot values and all 65 knot slopes would have been
+passive constants.** That is the entire light channel, which is step (c) of the reverse pass and the whole
+resident gradient. `StochasticPatch` had the identical lambda.
 
-**`ode_util.hpp` stays XAD-free and the include runs the safe way** — `ode_interface.hpp` includes
-`ode_util.hpp`, not the reverse — so `to_passive`'s ADL trick is intact. **My allowlist suggested
-`ode_util.hpp` as a candidate home and that was a trap**, which the packet caught: putting an XAD type
-in the one header deliberately kept clear of XAD would have undone a documented choice.
+Three things about that find are worth keeping. It was **invisible from an `Individual`-level probe** — the
+outermost-consumer rule, now five-for-five. **No type assertion on the outer result would have caught it**,
+for the same reason mine did not: the builder's parameter is what converts. And it is the second instance
+of one shape found by one census, which is the argument for making the *constraint* the check rather than
+the assertion: a `requires` clause finds every site, an assertion finds the site you thought of.
 
-**The concept constrains the return type, not just the member's presence, and the diagnostic is the
-whole point.** A `rebind_from` returning the wrong scalar satisfies a presence check and then fails deep
-inside `step_adjoint`; `Rebindable` requires the rebound type's `value_type` to *be* the requested
-scalar. Confirmed by compiling a System without the hook — the error is at the `static_assert` with
-`the required expression 's.rebind_from<U>()' is invalid` and `nested requirement ... is not satisfied`
-underneath it, and nothing downstream. That is a call-site diagnostic where the struct gave a boolean.
+Also surfaced: **`Patch::r_at` and `StochasticPatch::r_at` were both broken** —
+`at(species_index.check_bounds(size()))`, calling a member that does not exist, with no `return`. Neither
+is in the yml, so neither had ever been compiled. And `util::trapezium` and `util::to_string` were silent
+narrowing points for any active caller.
 
-### The style rule "a concept plus `if constexpr`" cannot be followed for a pure refusal in C++20
+### The one ruling that wants challenging, and it is recorded as open
 
-The packet did not use `if constexpr` and was right not to. `step_adjoint` has no alternative branch to
-select — the rule is *refuse* — and `if constexpr (!C) { static_assert(false, ...); }` is **ill-formed in
-C++20 even in the discarded branch**; P2593 fixes that only in C++23. Following the rule literally would
-have meant adding a `dependent_false` helper: a new piece of generic machinery to express a plain
-refusal, which is the opposite of what the rule is for. What landed is `static_assert` with a *concept*
-as its predicate rather than a struct's `::value`.
+**The `height` argument of the whole competition family stays `double`.** §2.2 says a field query's
+position carries `S`, which argues for widening it. The packet did not, and its reasoning is sound as far
+as it goes: every call site passes a knot position from the interpolant's grid, which is `double` by a
+committed decision; §2.3 declares the block's inputs as the knot **values and slopes**, not the positions;
+and the slope is computed analytically by the fused reduction rather than by differencing `z`, so nothing
+needs `d/dz`. What must flow is `d(competition)/d(cohort state)`, and that travels through the *node's own*
+height, which is active.
 
-**So the rule wants a clause.** It exists to forbid SFINAE detection structs and runtime capability
-flags; it should say that a compile-time **choice** is a concept plus `if constexpr`, and a compile-time
-**refusal** is a concept in a `static_assert`. Both are concepts; only one has a branch.
+**Nothing in the packet distinguishes "correct" from "a dropped `d/dz` channel that happens not to matter
+yet", and only a numeric derivative would.** So it is recorded as the open ruling of this sweep, to be
+settled at V1 — where a whole-`Patch` recording compared against the decomposition is exactly the
+instrument that would show it. It halved the diff, which is a real argument for taking it now and checking
+it then, but it is a judgement and not a measurement.
 
-### My baseline was wrong again, and it is the same mistake twice
+Two smaller rulings, both stated with their reason: `Species::height_max()` carries `S` and the drop
+happens on **one commented line** in `resource_spline.h` rather than being hidden inside `height_max`, so
+a later active consumer cannot silently receive a constant; and `HeightScan`'s cache now holds an active
+value across tape lifetimes, invalidated by every mutator so a stale one is never read — the same
+arrangement `Internals<S>` already has, noted rather than changed.
 
-I gave 330 as the odelia suite's baseline. It is **327** on `p1/audit-fixes`; 330 is the tip of
-`p3/vjp-tape-reuse`, which adds three tests. Two packets ago I gave 322, which was the count at Phase 1's
-close, before the audit took it to 327. **Both times I quoted a number from a different commit than the
-one the packet was given.** The corpus holds all three figures correctly; what it does not hold is which
-tip each belongs to, and that is the thing a packet actually needs. A baseline is a property of a commit
-and should be written as one.
+### Two gate gaps in my brief, one of which the packet closed itself
 
-Also from this packet: `R_LIBS_USER` alone does not make a standalone `-fsyntax-only` compile work
-against odelia — Rcpp's and R's include paths have to be assembled by hand, because
-`ode_util.hpp` reaches `RcppCommon.h`. The same tax the cost probe reported, now hit twice.
+- **`stochastic_species.h` and `stochastic_patch.h` are in the allowlist but in no gate's instantiation
+  set** — the deterministic `Patch` never reaches them. That is the same "work without a gate" the previous
+  packet correctly refused, and I reintroduced it. The packet built the gate itself in a scratch TU and
+  measured **19 refusals + 9 sites before, 19 + 2 after**; the two remaining are the same
+  `*it++ = <active>` R-boundary seam in `individual.h:130` and `stochastic_node.h:73`, both outside its
+  allowlist. Two one-line changes, now owed. **A standing gate wants a `StochasticPatch` instantiation in
+  the probe**, at the cost of changing the expected 19.
+- **The probe costs ~30 s here, not the ~3 s I quoted** — the odelia/Rcpp/BH include set dominates. Still
+  cheap, but it changes how a packet batches edits, and the packet front-loaded rather than iterating
+  site by site because of it.
 
-## The environment's half-templating is a prerequisite, not a deferred decision
+## Phase 3 integrated, and verified on the merged tree
 
-Read from the code while the state-store packet was in flight, and it moves an item Phase 1 recorded as
-"a decision owed before anything differentiates through the soil" onto the critical path.
+    plant   p3/phase-3            c9914ffb   five packets
+    odelia  p3/odelia-integration fdccd7b    two packets
 
-`Environment` holds `Internals<double> vars` (`environment.h:112`) — that store **is** the soil water
-state — and `TF24_Environment::get_soil_water_potential_state()` returns
-`const std::vector<double>&`. `TF24_Strategy::compute_rates` reads it at `:949` as
-`const std::vector<double>& psi_soil`.
+Verified by a pass that changed no source file, in a worktree neither it nor I had experimented in.
 
-**Why that is not benign for the block.** `build-plan.md` §2.3 declares the block's inputs as 6 own
-states + 65 knot values + 65 knot slopes + **5 soil water potentials** + traits, and §2.4 step (a)
-transposes the soil's bidiagonal drainage cascade by hand. The two halves meet at the block's boundary:
-the cascade's adjoint needs `lambda_psi` *out of* the block's sweep, and a passive input produces no
-adjoint. So five of the declared 141 inputs cannot carry one, and the channel that goes silent is
-**d(uptake)/d(psi)** — precisely the row report 02 §6.2 derives as "uptake's direct dependence on its own
-layer's potential".
-
-**And it is the same row the leaf's supplied Jacobian is meant to inject.** The leaf is `double` by
-design and its partials arrive across the seam rather than by taping — but a partial has to be *attached
-to something*. `∂uptake/∂psi` can only attach if `psi` is an active value on the block's tape. So the
-environment's store is not merely untemplated, it is **the thing that makes the leaf's water rows
-unreachable**.
-
-**The mechanism the plan names for this does not exist yet.** `grep -rn 'cohort_reads' plant/inst/include`
-returns nothing: §2.3's triple — `n_cohort_reads()`, `cohort_reads(It)`, `set_cohort_reads(It)`, by which
-the block unpacks the environment values it reads from its own active input vector — is unwritten. That
-triple is what would let the block inject active soil potentials without templating the whole soil
-balance, and it is the narrower change of the two.
-
-**So the ordering, and it is now four deep before P3.1:** the state store, then the cohort-reads triple
-on `Environment` (which subsumes the soil-potential question for the block, whether or not the soil's own
-ODE rates ever carry `S`), then `Patch::rebind_from`, then P3.1. Report 00 §7 classifies the soil's own
-channels as free or closed-form — `dθ/dφ` because moisture is ODE state, `dψ/dθ` because it is analytic —
-so **the seam may be right for the soil's rates and wrong for the block's reads**, and those are separable.
-That distinction is what the triple buys and it is the reason not to template `Environment` wholesale.
-
-## Four of the block's five sites, and a gate of mine that could not fail
-
-plant `1e045de7` on `p3/block`. **Every gate re-run in the orchestrator's own session.**
-
-| gate | measured |
-|---|---|
-| the probe's plant errors | **24 → 19**, and the set is *exactly* the 17 DeepCrown sites plus the two `prepare_strategy` `static_assert`s |
-| TF24, bit-identity at the pinned build | **`42.179817344974609` / 4 798**, 0 occurrences of `-O0` |
-| FF16 and K93, whole lifetime | **`19.834058960443031` / 209** and **`0.030538172107758225` / 240** — the phase-2 closure values to the last bit |
-| `test-individual.R`, `test-strategy-tf24.R`, `test-canopy-methods.R` | 131, 54, 185 pass; 0 fail |
-| style sweep, including the new passivation check | clean |
-
-**`QK`: only `integrate` is templated, and that was the right call rather than a compromise.** Templating
-the class was not available — `QK()`, `initialise`, `rescale_error`, `integrate_vector*` and `r_integrate`
-are defined in `src/qk.cpp` — so `S integrate(Function, const S& a, const S& b)` deduces from the limits.
-FF16, K93 and `qag.h` are untouched because all-`double` arguments deduce `S = double` to the same
-function; TF24's two call sites gained `S(0.0)` on the lower limit, which also reads as "this limit is a
-position, not a fraction". Positions and integrand values carry the scalar; `xgk`, `wg`, `wgk` and the
-four `last_*` diagnostics stay `double`.
-
-**`fv1`/`fv2` stayed `double` against my instruction, and the packet was right.** They are written once
-and read once, in the `result_asc` loop, which is a diagnostic that stays `double`; they never reach
-`result_kronrod`, so they are not on the gradient path. Making them active would have forced either a
-class template (blocked) or a per-call heap allocation of active scalars inside the crown-integral hot
-path, for nothing. My own rule that `last_result_asc` stays `double` implied it and I did not follow the
-implication.
-
-**The leaf seam is written so a partial attaches at one expression per output.** The `double` branch is
-the original call character for character, which is what makes the bit-identity gate cheap to trust; the
-active branch converts the inputs, solves in `double`, and the leaf's outputs enter as constants because
-they *are* `double` members. Each of the nine outputs enters the active chain at exactly one place — the
-seven `vars.set_aux` calls, `leaf.profit_` in `net_mass_production_dt`, and `leaf.soil_consumption_[a]`
-in `evapotranspiration_dt`. The packet deliberately did **not** add no-op wrappers at those nine sites:
-they would change nothing and would not constrain the injection's shape, which cannot be pinned until the
-Jacobian's form is fixed. Correct restraint.
-
-### My tripwire gate was vacuous, and it is the third of this phase
-
-I gave the packet an FF16/K93 whole-lifetime tripwire, called it "not optional", and justified it with
-the real regression that once sent a model's offspring silently to zero while the other model's suite
-stayed green. **The snippet omits `add_strategies`, so both models run with no strategies at all.** Run on
-the *unmodified* tree it produces no numbers whatever — it prints the two model names and nothing else,
-because `sprintf` on an empty `offspring_production` returns `character(0)`. **It could not have failed,
-for any change.** The tell was in my own text: the step counts I quoted beside it, 209 and 240, could only
-have come from a different script, and `/home/user/p0/ff16k93.R` is that script.
-
-**Three vacuous gates in one phase, all mine, and they share one shape.** The strategy-level instantiation
-that could not see the `Individual` seam; the reused-tape gate that compared adjoints and so could not see
-a leak; and now a tripwire with no population. In each case I specified *the quantity I was thinking
-about* rather than **the quantity that changes when the thing I fear happens**. §0.6 says to look for the
-version of each gate that passes when nothing happened — the discipline that actually works is narrower
-and worth writing down: **run the gate on the unmodified tree and confirm it produces a number you
-recognise, before sending it.** All three would have died in the ten seconds that takes.
-
-### Two facts now on the record, and one corrects me
-
-**XAD's conversion to `double` is explicit and there is no `operator double` at all** — only
-`explicit operator` for the integral types and `bool`. So a `double`-declared function that would drop an
-active value **fails to compile** rather than silently passivating, and the direct evidence is
-`individual.h:97`, where `establishment_probability` returning `double` from an active expression is a
-hard error. This is materially the better position and it means the compiler currently does the work the
-sweep's new check was added for.
-
-**But `growth_rate_given_height` does not error today, and my correction to the packet said it would.**
-It compiles *because* `vars` is passive: `set_state(HEIGHT_INDEX, height)` and `rate(HEIGHT_INDEX)` both
-go through `Internals<double>` and never meet the scalar. It becomes the error I described only once the
-state store is templated — which sharpens the ordering already recorded: **the transport probe must be
-made scalar-generic in the same change as the state store**, because that change is what converts a
-clean compile into a silent zero.
-
-**And the `Internals` change covers none of the `Individual` seam.** Measured, before and after, with a
-throwaway whole-class instantiation: **nine** errors in `individual.h`, identical either side. `vars` is
-`Internals<double>`, so every accessor resolves to the `double` specialisation and the new
-`S consumption_rate(int)` is invisible from `Individual` until `vars` carries the scalar. So the seam is
-nine sites rather than the seven I recorded, and `Internals::consumption_rate` returning `S` is
-**unreachable and therefore untested** until that task lands.
-
-## The tape hoisted out of the product — and my predicted failure mode was the wrong one
-
-odelia `2c3159c` on `p3/vjp-tape-reuse`. `vector_jacobian_product` takes the tape from its caller and
-reuses it; the four-argument form is kept, constructing an **inactive** tape and delegating, so a
-foreign active tape is still caught in one place. The stopping guarantee moves from "no tape is active"
-to "the tape handed in is the active one", which is the ownership reading rather than a weakening.
-
-**Re-verified in this session**: suite **330 pass, 0 fail, 0 error, 2 skip** from a fresh install into
-my own library, verified by grepping the installed header; probe reproduced at mid **T/D 5.56**
-against the packet's 5.47.
-
-| mid size, 171 inputs | before | after |
+| | expected | measured |
 |---|---|---|
-| arm R — record and sweep | 47.9 us | — |
-| arm T — the same on a reused tape | — | **26.1 us** |
-| ratio against one `double` evaluation | 10.22 | **5.56** |
-| marginal multiplier | 8.45 | **5.51** |
+| TF24 / FF16 / K93 forward values | the phase-2 closure values | **bit-identical, all three, step counts included** |
+| stage purity, `derivs(y, t)` twice bitwise | 0 differing | **TF24 0 of 1137, K93 0 of 705** |
+| the active probe | 19, all in one file | **19, all in `tf24_strategy.h`** |
+| plant suite | ≥ 1 309 pass | **2 857 pass, 0 fail**, 6 errors (below), 10 skip |
+| odelia suite | 331 | **334 pass, 0 fail, 0 error, 2 skip** — 327 + 3 + 4, so the merge lost and duplicated nothing |
 
-**The saving is about twice what I forecast, and the reason is instructive.** I predicted 10.6 to ~8.2
-from the 10.1 us a tape costs to construct and destroy. Measured: 10.2 to 5.56, a **21.8 us** cut
-against a **10.1 us** tape — so the hoisted cost is **2.2x the tape alone**. A fresh tape also grows its
-containers to 52 kB from nothing on every call, where `clearAll()` empties the recording and keeps the
-capacity. **The 21% tape-construction share was a floor, not the answer.**
+**So the whole phase is bit-identical**, which was not a goal — three packets moved type declarations
+through the containers and every one of them held the forward model exactly. The purity property the next
+phase depends on survives the merge.
 
-Re-costed: the reverse term falls from ~496 s to **~260 s**, a gradient from ~670 s to **~430–460 s, so
-3.7 to 4.0 forward runs**, and the saving against 51 traits by central difference rises to about
-**26x**. The hoist alone is **~236 s**.
+**Two of the six suite errors were not on my known list, and they are pre-existing.** `test-mutant.R` at
+lines 40 and 126 both throw `Run a resident first to generate a competitve landscape`, from
+`Patch::set_mutant()` guarding an empty `environment_history`. The only thing that populates that member
+is `Patch::cache_ode_step`, which **has no callers anywhere in plant**: its caller was an odelia hook
+removed in `1773fe3`, long before this phase, and no Phase 3 commit touches it. Same category as the three
+`test-stochastic-patch.R` errors — a dead mechanism whose test still runs — and it is now on the list.
+This is the corpus's own record that the mutant replay path is dead, meeting its test suite for the first
+time.
 
-### The gate I specified would have passed a change that leaks
+**One brief defect of mine, and it is a gap in a rule I rely on.** My verification setup exported
+`R_LIBS_USER` for the odelia *install* and never for the plant *build*, so the first build resolved
+`-I/usr/local/lib/R/site-library/odelia/include` — a stale July odelia with no `hermite_interpolator.hpp`
+at all. It died on a fatal include rather than producing a mixed `.so`, so nothing escaped. **The
+install-verification rule checks the install; it does not check which library the build actually used.**
+Those can differ. The check that closes it is one line on the build log:
 
-I told the packet that an unreset tape "silently accumulates the previous call's adjoints". **It does
-not.** `newRecording()` clears the derivative flag, so `initDerivatives()` zero-fills and **the adjoints
-stay correct**. The real fault is unbounded growth: destroying a registered input releases its
-derivative slot only when the slot is the last one, and a `std::vector` is destroyed front to back, so
-no slot is ever released. Measured on a standalone probe with `newRecording()` alone: memory
-**276 → 332 → 388 → 444 → 500** and variable count **7 → 14 → 21 → 28 → 35** over five calls, **with
-identical adjoints throughout**. Over 3.9 M calls that is the whole gradient's memory. `tape.clearAll()`
-is the fix.
+    grep -o "\-I'[^']*odelia[^']*'" <build log> | sort -u
 
-**So a gate 2 written the way I specified it — compare the adjoints of a reused tape against a single
-call — passes on a change that leaks the entire budget.** What caught it is that the packet also
-asserted the **recording size** is constant across reused calls, and its negative control shows the
-sizes climbing 276, 324, 372, 420 with `clearAll()` removed. This is §0.6 again, from the inside: I
-asked for a gate that could not distinguish "correct" from "correct and leaking", and the right
-discriminator was a quantity I had not thought to name. **When a change is about reuse, assert the
-resource, not only the answer.**
+**A behavioural fix rode inside a plumbing packet**, and it deserves its own line: `Patch::r_at` and
+`StochasticPatch::r_at` read `at(species_index.check_bounds(size()));` — a call to a member that does not
+exist, with no `return`, so the function fell off its end. Neither is in the yml, so neither had ever been
+compiled. Fixed to `return species[...]`, keeping the bounds check. Correct, and not scalar plumbing.
 
-### Also from this packet
-
-- **My baseline suite count was stale.** I said 322; it is **327**. Both figures are in this file — 322
-  at Phase 1's close and 327 after the audit that followed it — and I quoted the earlier line. A
-  packet-facing baseline must be the count at the tip it is given, not the count at a phase boundary.
-- **The saving is demonstrated and not yet realised.** Nothing in odelia calls the primitive outside its
-  tests, so **no consumer holds the reused tape yet**. Whoever writes the cohort loop must hold one tape
-  across it; calling the four-argument form inside that loop restores the old cost **with no test
-  complaining**. That is now the load-bearing note for P3.2, and it belongs in the packet that writes
-  the loop.
-- Not measured: whether a narrower reset than `clearAll()` — restoring to a stored position — is cheaper
-  still. `clearAll()` is correct and gets the ratio to 5.5.
-- A trap in that test file: the bodies live inside a single-quoted R string passed to `sourceCpp`, so an
-  apostrophe in a C++ comment is a parse error before any test runs.
-
-## The active build is larger than the census said, because the census was too narrow
-
-**`Individual` holds `Internals<double> vars` (`individual.h:205`), not `Internals<S>`.** So the whole
-per-cohort state surface is passive — `state(int) -> double`, `rate(int) -> double`,
-`set_state(int, double)`, `compute_competition(double) -> double`, `consumption_rate(int) -> double` —
-and instantiating `Individual` at an active scalar fails at **seven** sites, every one handing `vars` to
-a strategy that wants `Internals<S>&`.
-
-**This is Phase 1's group B, and it is not closed.** That census named "the `double` state and aux
-boundary: 12 sites" and this is what it meant. What made it look closed is that Phase 1 read the funnel
-as narrow — "the single place `S` must be dropped is the plant's water draw" — which is true of
-`consumption_rates` and not of `vars` as a whole.
-
-**Why my own census could not see it, which is the lesson worth more than the finding.**
-`template class plant::TF24_Strategy<active_scalar>` **never instantiates `Individual`**, so the probe
-that reported 34 errors and then 24 was structurally blind to the container holding the state the block
-differentiates. I wrote §0.6's rule into a packet — *ask what would make the gate pass vacuously* — and
-then shipped a gate that could not distinguish "correct" from "not instantiated". Measured by
-instantiating `Node` instead, which pulls `Individual` in: seven more sites.
-
-So the block's remaining surface is three tasks, not one:
-
-| | what | reaches |
-|---|---|---|
-| 1 | `QK` carrying a scalar, `util::is_finite`, the consumption funnel, the leaf seam | `qk.h`, `util.h`, `internals.h`, `tf24_strategy.h` — in flight |
-| 2 | **`Individual`'s state store carries `S`** | `individual.h`, and **33 call sites across six headers** — measured, below |
-| 3 | the transport probe made scalar-generic | `node.h`, `individual.h`, and `gradient.h`'s generic helpers |
-
-**Task 2's surface, measured rather than estimated**, so the packet can be costed: eleven accessors on
-`Individual` return or take `double` (`state`, `rate`, `set_state`, `aux`, `consumption_rate`,
-`compute_competition`, `compute_competition_and_slope`, in their name and index forms), and their callers
-are **`node.h` 16, `species.h` 8, `stochastic_node.h` 3, `stochastic_species.h` 3, `patch.h` 2,
-`stochastic_patch.h` 1 — 33 in total**. The three stochastic headers never carry an active scalar but
-share the plumbing, so they are in the sweep for the same reason the plumbing sweep took them in Phase 1.
-
-**One line must stay `double` and it is the seam that makes this safe:** `Internals<double>
-r_internals() const` is the R boundary, and only `double` crosses it. So the change is
-`Internals<S> vars` with `r_internals` converting, not `Internals<S>` all the way out.
-
-**And the probe's severance is compile-caught rather than silent, which is the one piece of luck here.**
-`Individual::growth_rate_given_height` appears in the failing instantiation chain at `individual.h:167`,
-required from `Node::growth_rate_gradient` at `node.h:212` — so the passive transport path does not
-quietly return a zero derivative, it fails to build. That is only true while the state store is
-`double`; **once task 2 lands, the `-> double` lambda becomes a silent passivation rather than an
-error**, so task 3 must land with task 2 and not after it. Recorded because the ordering is the whole
-risk: the compiler is currently doing the work that the sweep's new check will have to do afterwards.
-
-## P3.5's transport adjoint, designed — and the probe has no active path at all
-
-The design §11.2 of `ORCHESTRATOR.md` puts before P3.2, because P3.2 freezes the block's boundary and
-this decides how many times the block is evaluated. Read from the code rather than from the plan, and
-the plan's premise does not hold.
-
-**Report 04 §5 records that "differentiating develop's sub-grid probe at the active scalar is
-bit-identical and yields the derivative of the discretisation actually solved". That is true of the
-*scheme* and false of the *code*.** The probe is passive end to end, at three independent points:
-
-| site | what it does |
-|---|---|
-| `Individual::growth_rate_given_height(double height, env) -> double` | takes the perturbed height as a **passive** `double`, so `d/dh` is structurally zero, and returns `double`, converting the active rate away |
-| the lambda in `Node::growth_rate_gradient`, `node.h:211` | declared `[&] (double h) -> double` |
-| every `util::gradient_fd*` and `gradient_richardson` overload | `double` in the parameter, the value and the return |
-
-So there is no active path to differentiate. `log_density_dt = -growth_rate_gradient - mortality` would
-carry **exactly zero** derivative through its transport term — the failure mode this design exists to
-prevent, in the one channel report 10 already named as the load-bearing cost of deferring P2.4.
-
-**What P3.5 needs, and the choice is bookkeeping rather than mathematics.** Either way the block is
-evaluated twice per cohort per stage, which is report 10 §6's figure and is confirmed here:
-
-- **Record both evaluations.** Make the probe scalar-generic — `growth_rate_given_height(S, env) -> S`,
-  the lambda `-> S`, and a scalar-generic difference quotient — and let the tape record
-  `(g(h) − g(h−eps))/eps` with both evaluations on it. `lambda_g` then reaches both automatically and
-  step (a) needs no hand-written seed at all.
-- **Seed it by hand.** Keep the probe `double` for the value and supply the transport term's adjoint as
-  two seeds, `−lambda_ldd/eps` on the block at `h` and `+lambda_ldd/eps` on the block at `h−eps`. The
-  second block still has to be recorded, so this buys no evaluations — only explicitness.
-
-**Recommend the first**, because the second writes by hand a chain rule the tape already gets right, and
-the corpus's own measured failure mode is a hand-written accumulation that is a fixed fraction of the
-truth with the correct sign. What the first costs is that a `1/eps` amplification sits inside the tape
-rather than in a seed, which is a conditioning fact and not a correctness one.
-
-**The conditioning is inherited and is the same under either reading, and it is the number to watch.**
-The derivative of the quotient with respect to a trait is
-`(∂g(h)/∂θ − ∂g(h−eps)/∂θ)/eps` — two nearly-equal partials differenced and divided by `1e-6`. Report
-10 §6 prices it at about **1e-10 of absolute error before any non-smoothness**, against a cohort-grid
-divisor 3 470× larger at the median spacing. **So V3 must not be read as a check on the transport
-channel's accuracy**: it verifies the tableau, and the transport term's conditioning is a property of
-the discretisation the model carries, not of the adjoint. Gate the transport channel against a finite
-difference *of the same quotient*, never against an analytic `dg/dh`.
-
-**Not decided here:** whether making the probe scalar-generic reaches `util::gradient_fd`'s other
-callers. It is generic numerics used beyond this path, so a scalar-generic version wants adding beside
-the `double` one rather than replacing it, and that is a task-sized change rather than a line.
-
-### The style sweep could not see this, and now can
-
-`ORCHESTRATOR.md` §10 names the hazard — "beware `-> double` on a lambda in templated code, which
-silently passivates" — and `style-sweep.sh` checked only for the *opposite* case, a lambda with **no**
-declared return type. So an explicitly `double`-returning lambda in scalar-generic code read as
-compliant, which is the more dangerous of the two because it looks deliberate. The sweep now greps for
-`-> double` in added lines as well; confirmed to bite on `node.h:211` and one site in `individual.h`.
-**A rule in a document that the sweep cannot check is a rule that is not enforced**, and the two lists
-are worth diffing against each other once rather than discovering the gaps one at a time.
+**And I moved a submodule pointer four times without saying so.** The odelia gitlink advanced inside
+`c4422ba`, `4e51514`, `08ada4a` and `419a9a3` — all commits whose messages describe documentation —
+because I staged with `git add -A` from the superproject root while the submodule sat on a moved branch.
+The end state is right and verified, but the history says otherwise. **A submodule pointer is a semantic
+change and must not ride in a docs commit**; stage the superproject's paths explicitly, or check
+`git status` before committing rather than after.
 
 ## Corrections to what was recorded here
 
