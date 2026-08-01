@@ -611,9 +611,24 @@ that the mean-light path instantiates and everything else refuses legibly.
 **Phase 2 improved this position, which is worth recording because nobody was watching it.** Phase 1's
 census carried a sixth group: `ResourceSpline<S>::get_value_at_height` was declared to take `S` while
 the interpolant could only accept a `double` abscissa, so *a differentiable height was not reachable
-through the light field at all*. P2.3's Hermite carries the active-position read, and the re-census
-shows **no errors in `resource_spline.h`**. A phase that was not aiming at the active build closed one
-of its groups.
+through the light field at all*. P2.3's Hermite carries the active-position read, so **that** defect is
+closed — a phase not aiming at the active build closed one of its groups.
+
+**But "no errors in `resource_spline.h`" was too strong, and it was the narrow census again.** Measured
+through an `Individual` instantiation rather than a strategy one, the file has **three**, and they are
+two different problems — which is the useful part. `:124` and `:125` are the **R boundary correctly
+refusing**: `r_get_state()` assigns into an `Rcpp::NumericMatrix`, whose storage type is `double` by
+definition, and only `double` crosses that boundary, so they convert and must not carry `S`.
+`Individual::r_internals()` is the same shape. `:51` is a real seam — `std::vector<double> x = {0,
+height_max/2.0, height_max}` with `height_max` active — and it also converts, because knot **positions**
+are structure and stay passive. So the file needs three conversions and no templating, and **none of the
+three is the Phase 1 defect.**
+
+**Three times now a claim of mine has been measured through a probe too narrow to see its own subject.**
+The common factor is worth stating because it is not the same as §0.6: I censused **the type I was
+changing** rather than **the type that consumes it**. A strategy-level instantiation cannot see the
+container that holds the state; a container-level one cannot see the R boundary above it. **Census from
+the outermost consumer inward.**
 
 ### 11.4 Three measurements before code, and two need no plant
 
