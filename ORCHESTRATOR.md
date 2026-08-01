@@ -455,7 +455,11 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
 ```
     measure  ── the record-and-sweep multiplier (odelia only), and pinned-leaf incidence
        |
-    the active build ── the member bodies instantiate; V1 cannot be taken without it (§11.3b)
+    the active build, group A ── LANDED, bit-identical (plant p3/active-instantiation)
+       |
+    QK templated ── two of the block's five remaining blockers are the crown integral
+       |
+    the leaf seam, HELD-CONSTANT form ── P3.2 step (1)'s, and V1 cannot be taken before it
        |
     Patch::rebind_from ── step_adjoint static_asserts on it; P3.5 cannot run without it
        |
@@ -703,10 +707,11 @@ would have said otherwise.
   is well defined and T4's size assertion is statable.
 - **The polished collar operating point is a stationary point** (`|R|` worst 9.587e-09), which is
   what makes P3.2's envelope row valid.
-- **Every production-like leaf state sampled at TF24's own defaults came back pinned at the wet
-  bound**, against report 02 §4's measured zero in 4.37 M at the production driver. Nobody has
-  re-measured pinned incidence since P0.1, P0.2 and P0.12 changed what the leaf computes. **Take
-  that measurement before P3.2** — it decides whether the bound branch is insurance or the path.
+- ~~**Every production-like leaf state sampled came back pinned.**~~ **Measured in Phase 3 and
+  settled: 0 pinned of 7 353 330** at the production driver, with a dry arm returning 990 724 so the
+  zero is not a dead counter. The bound branch is insurance; the interior envelope case is the path.
+  What the census added instead is that **80.9% of solves exhaust five Newton steps at `|R|` up to
+  1.0019e-06**, so P3.2's envelope row budgets against 1e-6 and not against P2.6's 1e-13.
 
 ### Carried in, not covered by any task, and the owner's
 
@@ -721,7 +726,8 @@ would have said otherwise.
 - **`aornugent/plant#69`** — the transport term. Report 10 is the account.
 - **Aux has two owners**: the operating-point transfer and the diagnostics a user reads. A functional
   reading `E_up_` through aux would give the cohort block a seventh output row.
-- **Report 02's zero pinned-leaf count predates P0.1, P0.2 and P0.12** and needs re-measuring (above).
+- ~~**Report 02's zero pinned-leaf count predates P0.1, P0.2 and P0.12.**~~ Re-measured in Phase 3 and
+  it holds; report 02 §4 now carries the confirmation and the two caveats on it.
 
 ### Owed, recorded rather than done
 

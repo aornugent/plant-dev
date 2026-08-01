@@ -109,8 +109,16 @@ only (section 3.3). The input side is the arguments to `set_physiology` that car
 derivatives, plus whichever of TF24's 51 declared differentiation targets reach the
 leaf (section 6.2).
 
-**What this does not fix**, and both matter: TF24's growth gate is a hard un-smoothed
-switch immediately downstream of `profit_`, and one of develop's derivative helpers
+**What this does not fix**, and both matter: ~~TF24's growth gate is a hard un-smoothed
+switch immediately downstream of `profit_`~~ — **corrected against the tree: it is smoothed
+inline.** `TF24_Strategy::compute_rates` forms
+`Ppos = 0.5 (P + sqrt(P^2 + storage_prod_eps^2))` at `storage_prod_eps = 1e-4`, times a
+logistic reserve gate, which is what replaced the hard `net > 0` cutoff; report 00 §4.3
+records it. This report's C1 attributes four `smooth_positive` sites to plant, and that
+helper exists at **no** site in plant's headers — the four are the AD branch's, and the
+claim was carried across to a develop-tree conclusion. TF24's one remaining hard
+`net > 0` gate is inside `establishment_probability`, which sets the boundary node's
+density rather than any cohort's growth rate. And one of develop's derivative helpers
 falls back to a finite difference at a layer kink. Section 8.
 
 ---
@@ -277,7 +285,18 @@ describes develop `141dc8df`, where the defect is still present.)
 
 ## 4. Measured incidence of every branch
 
-> **This section's zero pinned-solve count is unverified against the current leaf, and P3.2's shape
+> **Re-measured in Phase 3 and this section's zero holds: 0 pinned of 7 353 330**, against its own 0 of
+> 4 372 101, with a dry arm returning 990 724 to prove the counter alive. So P3.2's interior envelope
+> case is what production solves need and the bound branch is insurance. Two caveats on the agreement.
+> The Phase 3 census classifies on the polish's own control flow and counts a guard (`pinned_step_outside`)
+> that did not exist when this table was taken, so **the two zeros are not the same measurement** even
+> though they agree. And it found a class this table has no column for: **80.9% of production solves
+> exhaust five Newton steps with `|R|` up to 1.0019e-06**, which is the number to budget §6's envelope row
+> against rather than the 1e-13 P2.6's own sample reports.
+>
+> The rest of this note is the question as it stood, retained because it is why the measurement was taken.
+>
+> **This section's zero pinned-solve count was unverified against the current leaf, and P3.2's shape
 > depends on it.** The census below predates **P0.1, P0.2 and P0.12**, all three of which changed what
 > the leaf computes, and nobody has re-measured since. A Phase 2 probe assembling a `Leaf` from
 > `TF24_Strategy`'s own defaults — `beta_R_H = 3.4e2`, `root_b = 3.898`, `root_c = 2.680`,

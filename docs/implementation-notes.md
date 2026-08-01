@@ -2438,6 +2438,198 @@ keeps stating the false thing to whoever reads it next as the section that owns 
 **Reading the reports against the code is the pass that catches those, and it belongs at phase close
 rather than at phase start.**
 
+# Phase 3
+
+Branch off plant `p2/phase-2` (`0abc7873`), against odelia `p1/audit-fixes` (`43c8561`) installed
+into a per-packet library and verified by grepping the installed header. The reference run reproduces
+in each worktree at the pinned build: offspring `42.179817344974609`, 4 798 `ode_times`.
+
+## The active build, group A — the library math reached by name
+
+`c0037d9a` on `p3/active-instantiation`. `std::pow`, `std::max`, `std::min`, `std::exp` and
+`std::sqrt` are constrained to arithmetic types, so on an active scalar XAD's overloads are found only
+by argument-dependent lookup. Ten sites, one cause, **three fix shapes** — which is one more than the
+packet's brief predicted:
+
+- a block-scope `using std::X;` plus an unqualified call, at seven member-body sites;
+- `S(0.0001)` promoting a literal at the light floor, because `std::max`/`std::min` are *homogeneous*
+  templates and ADL cannot rescue a mismatched pair;
+- `TF24_Pars::power`, a static helper, at the three **default member initialisers** — an NSDMI has no
+  block to put a `using` in. This is the only genuinely new construct in the diff.
+
+| gate | required | measured |
+|---|---|---|
+| the probe's plant errors | group A gone | **34 → 24**, and the 6 libstdc++ consequence errors with them |
+| `TF24_Strategy<double>` still instantiates | 0 errors | **0** |
+| the gate bites | more errors when re-qualified | 24 → **26** on re-qualifying one `sqrt` |
+| **bit-identity at the pinned build** | `42.179817344974609` / 4 798 | **exact**, 0 occurrences of `-O0` |
+
+**The value gate was the orchestrator's to take and the packet said so.** With no build in its budget
+the packet argued structurally — for `double` arguments there are no associated namespaces, so ADL
+contributes no candidate and the overload set stays `{std::X}` — and flagged that `TF24_Pars::power`
+moves the argument *types* at three sites and so wanted measuring. It does not move the value: measured
+bit-identical. **A structural argument plus a measurement is the right division here**; the argument is
+what made the measurement worth one build rather than a bisect.
+
+**Two boundaries now refuse by name instead of through a wall of overload-resolution errors.** `Leaf`
+carries `double` and wants a supplied local Jacobian; `height_seed` finds its root by iteration and must
+be declared through its residual. Each is an `if constexpr` whose `double` branch is the original text
+verbatim, so nothing reaches codegen that did not before, and each `static_assert` names the reason. A
+reader meeting these now gets one sentence where they previously got forty lines about
+`__gnu_cxx::__promote`.
+
+### What the census implies for the phase's order, and it inverts one of the plan's dependencies
+
+The packet flagged a tension between two of its own sections and was right; run down, it is bigger than
+it looked. **Of the 24 remaining errors, five are on the block's own path** — and the block is what a
+whole-`Patch` recording records.
+
+| site | cause | on the block's path? |
+|---|---|---|
+| `:840` | `QK::integrate` takes `double` limits, returns `double` | **yes** — this is `compute_average_light_environment`, the mean-light path itself |
+| `:1054` | the same, in `net_mass_production_dt` | **yes** |
+| `:1023` | `optimise_at` → `Leaf::set_physiology` | **yes** |
+| `:744` | the consumption-rate funnel's conversion | **yes** |
+| `:1272` | `util::is_finite(double)` | **yes**, through `mortality_dt` |
+| `:1406`, `:1456` | `height_seed`'s `uniroot`, the `Leaf` constructor | **no** — both are `prepare_strategy`, which the design forbids inside a block |
+| 17 sites, `:1057`–`:1090` | DeepCrown's `std::vector<double>` accumulators | **no** — a shading model TF24 does not default to |
+
+**So V1 is not available when the plan says it is.** V1 compares steps (a)–(d) against one whole-`Patch`
+recording, P3.1 closes on V1, and the plan orders P3.1 before P3.2. But a recording cannot be taken
+until the block instantiates, and the block does not instantiate until the leaf boundary exists in at
+least some form. **The leaf boundary is P3.2's.**
+
+The resolution is already in the plan and is not a new mechanism: **P3.2 step (1) is "the block with the
+leaf held constant"**, and that held-constant form is exactly what makes the block instantiate — the
+leaf's inputs converted to passive, the leaf solved in `double`, its outputs entering the tape as
+constants. Its derivative is then zero by construction, which is *correct* for step (1) and is what V2
+step (1) already asks for. So:
+
+**the leaf seam in its held-constant form comes before P3.1, not after it** — and it is the one item on
+the critical path that the plan places on the wrong side of its own verification. Nothing else moves:
+P3.2's steps (2)–(5) then add the partials that make the seam carry a derivative.
+
+`QK` templating joins it, since two of the five are the crown integral, and `build-plan.md` §3 already
+lists `QK` templated as taken from the AD branch. Neither is a design question; both are prerequisites
+that the task list does not name.
+
+### Declared deviations, and what the brief got wrong
+
+The packet reported three, and two are mine:
+
+- **My document pointers were wrong.** `docs/implementation-notes.md` is at the *superproject* root, not
+  inside the plant worktree, and `agents.md` is at the worktree root rather than under `plant/`. Cost the
+  packet a few minutes of searching. **A packet works inside a worktree and the corpus lives above it**;
+  cite absolute paths.
+- **My §1 target was unreachable as written** — "the mean-light path instantiates" — because group D sits
+  on that path and my own §3 ruled it out of scope. The packet identified the contradiction, implemented
+  the reachable half and said so, which is the wanted behaviour. §3 was the section that was right.
+- The "ten errors, one cause" framing undersold it at one cause with **three** fix shapes.
+
+`TF24_Pars::power(base, exponent)` is two same-typed arguments of unrelated meaning, which the style
+rules name as a silent-swap hazard. Accepted here — the argument order mirrors `pow` universally and
+there are three call sites — but recorded, because that is how the corpus asks for it. Also recorded by
+the packet: `pow_eta_general` still takes `eta` as an unguarded active exponent, so `pow_eta`'s `u <= 0`
+guard does not protect a caller reaching the general form directly.
+
+## The collar polish, censused over a production lifetime
+
+`5b4316aa` on `p3/collar-census`. The measurement §11.4 asks for before P3.2, because report 02 §4's
+zero pinned solves predates P0.1, P0.2 and P0.12 and a Phase 2 probe at TF24's own defaults disagreed
+with it at every state. Gated on `PLANT_COLLAR_CENSUS`, moments and extremes rather than 7.35 M rows.
+**Both arms re-run in the orchestrator's own session**, in the packet's worktree with nothing building
+in it.
+
+**Classified on the polish's own control flow, never on a distance to the bracket end** — that test is
+tolerance-dependent and Phase 2 measured it reporting nearly every state as pinned at
+`GSS_tol_abs = 1e-1`.
+
+| class | production count | share | `\|R\|` max |
+|---|---|---|---|
+| interior — `\|R\| <= R_tol` | 1 402 905 | 19.1% | 9.9999e-12 |
+| **pinned, all four causes** | **0** | **0.00%** | — |
+| exhausted — five Newton steps taken | 5 950 425 | 80.9% | **1.0019e-06** |
+| | **7 353 330** | | |
+
+`max_patch_lifetime = 105.32`, rainfall 1, one species, `lma = 0.1978791`, five layers,
+`GSS_tol_abs = 1e-3`, mean-light. `min_bracket` 1.3518. States: `psi_wet` 0.0137–0.1691, radiation
+149–900, `area_leaf` 8.8e-05–49.40.
+
+**The zero is a real zero, and the third gate is what makes it publishable.** A census reporting zero
+is indistinguishable from a dead counter, so the same instrument was driven where pinning is known to
+occur — `max_patch_lifetime = 20`, rainfall 0.05 — and returns **990 724 pinned of 1 333 130 (74.3%)**.
+Without that arm the production zero would carry no information at all.
+
+**So today's tree agrees with report 02, at 0 in 7.35 M against its 0 in 4.37 M**, and P3.2's shape
+follows report 02: the interior envelope case is what production solves need, and the bound branch is
+insurance. Report 02 §4's correction note can be settled.
+
+### The packet killed my explanation of the contradiction, from the census
+
+I proposed that the Phase 2 probe's `PPFD = 900` passed as *absorbed* radiation was the error, since
+the model forms `radiation = k_I · max(L, 1e-4) · PPFD` and both factors are below one. **The census
+rules that out:** production radiation reaches **exactly 900** with a mean of 359, so 900 is the bright
+end of the production range rather than ten times it. Nor is soil potential the discriminator — the
+probe's 0.015–0.17 is almost exactly production's 0.0137–0.1691, and production is interior across all
+of it at radiation up to 900.
+
+The axis that does separate them is **leaf area against root capacity**: production `area_leaf` runs to
+49 m² with a mean of 17, and every pinned state in either arm sits below 0.56. A hand-assembled `Leaf`
+gets whatever root mass an assumed height implies, where production co-varies root mass with leaf area
+through the actual allocation — and "root hydraulic resistance dominating, profit slightly negative" is
+the signature of too little root for the leaf area. So the hand-assembly is still the error and **the
+mis-set input is the root side, not the radiation.** Consistent with the census rather than measured,
+because confirming it needs the hand-assembly the packet was forbidden.
+
+### A correction to P2.6's record, which this phase's measurement forces
+
+**P2.6's gate — `|R|` below 1e-07 at every sampled state, measured worst 1.128e-13 and later 9.587e-09
+— passes on its own sample and does not hold in production.** 80.9% of production solves exhaust five
+Newton steps with `|R|` up to **1.0019e-06**, mean 2.4e-08. Same cause the notes already record from the
+other side: `R_tol = 1e-11` is below `R`'s own resolution, because the `ci` root-find inside it carries
+`ci_abs_tol = 1e-6`. What was wrong was the *scope* of the number, not the number — P2.6's 24 states
+come from the test file's leaf (`root_b = 1.29`, `g1_TF24 = 46.3`, 10 kg of root mass), and that leaf
+polishes three orders finer than the strategy's own defaults do.
+
+Two consequences, and the first is the one that matters.
+
+- **Budget the envelope row against `|R| ~ 1e-6`, not 1e-13.** With `|Π_pp| >= 0.1723` the displacement
+  from the true stationary point is at most about **5.8e-06 MPa**, against 5e-05..2.8e-04 unpolished. So
+  the polish still buys one and a half to two orders on the displacement, and on `R` itself two to three
+  orders against the 8.8e-05..1.2e-03 it started from. **The "five to six orders of margin" recorded for
+  P2.6 is overstated and is corrected here to two to three.** The envelope row remains valid at first
+  order in the displacement; what changes is the tolerance a later gate may state.
+- `pinned_step_outside` is a guard that exists only since P2.6, and it dominates the dry arm at 990 719
+  against 4 for `bound_b`. So **report 02's "pinned at bound_b" column is not the same measurement as
+  this one**, even where both read zero. Two zeros agreeing is weaker evidence than it looks.
+
+**This is the third time a figure in this corpus has been quoted outside the configuration it was taken
+in** — after the transport census's mean-versus-tail and the ratio quoted against P2.7's arm. The
+pattern is specific enough to name: **a gate taken on a hand-assembled or test-fixture object is not a
+statement about production**, and the two are worth separating in the wording every time.
+
+### Declared deviations, and what the brief got wrong
+
+Four, and three are mine:
+
+- **My run and build caps were arithmetically wrong.** §8 said "one clean build" where a baseline of the
+  untouched worktree plus an instrumented build is two; §4 said "two runs total, do not run more" and §5
+  then mandated a third. The packet ran four runs and two builds, correctly, and reported the
+  contradiction rather than silently obeying the cap. **Cost every gate, then count them again after
+  adding the last one.**
+- **`docs/` is not in the worktree**, the same error as the other packet in this wave. Cite absolute
+  paths into the superproject.
+- **`grep -c -- '-O0' log` exits 1 when the count is 0**, so the recipe's own success condition returns
+  a failing shell status and the packet's first build read as failed when it had completed. Use
+  `|| true`. This is in the build recipe every packet gets, so it is worth fixing at the source.
+- `env$rainfall <- rain` is not the API; it is
+  `env$extrinsic_drivers_set_constant("rainfall", rain)`.
+
+**Not recorded: height.** `Leaf` never receives it — `set_physiology` takes `area_leaf` and
+`sapwood_volume_per_leaf_area` — so the census records `area_leaf_`, which is monotone in height at
+fixed trait. The same reachability gap the corpus already flags, now blocking instrumentation by state
+as well as inspection from R.
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
