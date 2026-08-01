@@ -2690,6 +2690,101 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
+## Individual's state store carries the scalar — and my passivation gate does not work
+
+plant `p3/store` (worktree `wt-p3-store`, off `1e045de7`). `Individual` holds `Internals<value_type>`,
+and the transport probe carries the scalar through `growth_rate_given_height`, the lambda and
+`gradient.h`'s difference quotients. Six files.
+
+| gate | measured, re-run here |
+|---|---|
+| the probe's errors | **31 → 19**, and *every* remaining one is in `tf24_strategy.h` — the 17 DeepCrown sites and the two `prepare_strategy` asserts. `individual.h` and `resource_spline.h` clean |
+| style sweep, including the passivation check | clean |
+| bit-identity and the family tripwire | **`42.179817344974609` / 4 798**, FF16 **`19.834058960443031` / 209**, K93 **`0.030538172107758225` / 240** — all exact, 0 occurrences of `-O0` |
+
+**My first re-run said bit-identity had failed, and the fault was mine.** It reported TF24
+`42.331929065361905` at 4 776 steps — a plausible-looking +0.36% with 22 fewer steps — and K93 differing
+in its last digits. The cause: I had patched `node.h` twice while investigating the gate above, and
+`pkgload::load_all()` then partially rebuilt, so the `.so` I measured was a **mixture of translation
+units**, some compiled while the lambda read `-> double`. R's make does not track header dependencies, so
+a header edit rebuilds some units and not others. `rm -f src/*.o src/*.so` and a clean rebuild reproduce
+all three values exactly.
+
+This is the standing rule earning itself for the third time in this project — *if a number moves
+unexpectedly, clean-rebuild and re-measure before believing or reporting it* — and it is the Phase 2
+lesson **"editing a worktree while it is building silently relabels which arm you measured"** in a new
+costume: I edited a worktree holding a build I was about to measure. **A verification worktree must not
+be a worktree you have been experimenting in**, which is a sharper statement than "the orchestrator needs
+its own worktree", because this one *was* mine.
+| suites | individual 131, node 74, species 207, patch 162, scm 125, stochastic-species 172, stochastic-patch-runner 84, gradient 7 — 0 fail |
+
+**`test-stochastic-patch.R`'s 3 errors are pre-existing and now measured as such**, by rebuilding the
+stashed baseline: `pass=60 fail=0 error=3` either side. All three read
+`patch$environment$light_availability$spline`, which is NULL — and `spline` appears **zero** times in the
+yml and both generated files, so it was never an R accessor. Test rot, and unrelated.
+
+### The passivation gate I specified does not catch an inner passivation
+
+The type assertion I wrote — that `growth_rate_gradient` returns the strategy's scalar — **passes with the
+inner lambda reverted to `-> double`.** Measured: patch the lambda, and the probe still reports 19 errors,
+unchanged, with the assertion silent.
+
+The reason is structural and worth keeping. `util::gradient_fd` deduces its return type from **the point
+the derivative is taken at**, which is active, not from the integrand's return. So a `-> double` lambda
+leaves the *outer* type active while the derivative through it is zero — and the assertion only ever
+looked at the outer type. **It checks a type, where the thing that fails is a flow.**
+
+What it does catch is the coarse case: on the unmodified tree `growth_rate_gradient` returns `double`
+outright and the assertion fires. So it is a real gate for the case the plan feared and not for the case
+that would actually survive review.
+
+**The structural fix belongs in the numerics, not in the probe.** `util::gradient_fd` and
+`gradient_richardson` should *require* the integrand's return scalar to match the point's, so a `-> double`
+lambda at an active point is a compile error at the call site for every caller, forever. That is one
+`requires` clause on two function templates, and it converts my failed gate into an invariant. It is the
+next packet's, with the test I have already run as its proof: patch the lambda, expect a compile error.
+
+**Fourth gate of this phase in the same family, and the sharpest instance.** The others compared the
+wrong quantity; this one compared a quantity that is *correct in both worlds*. The rule that would have
+caught it is not "run it on the unmodified tree" — I did, and it passed there for the right reason. It is:
+**when the failure is a derivative reading zero, the gate has to be a derivative.** A type assertion can
+witness the shape of a channel and never its content.
+
+### And the sweep stopped four files short, for the right reason
+
+`species.h`, `patch.h`, `stochastic_species.h` and `stochastic_patch.h` are untouched. The packet swept
+`stochastic_node.h` and stopped, because **nothing in its probe instantiated the other four, so it had no
+gate that would distinguish a correct sweep from a wrong one** — ~275 `double`s interlocking with sort
+comparators, caches and R-facing vectors, each needing the fraction-versus-position ruling case by case.
+Writing that unverified would have been worse than not writing it. §8 in practice, and the brief's fault:
+**I gave it the work without the gate.**
+
+The gate exists and I have now measured it — instantiate from the outermost consumer:
+
+    template class plant::Patch<TF24_Strategy<active>, TF24_Environment<active>>;   61 error lines
+
+split `species.h` **28 sites**, `tf24_strategy.h` 19 (the refusals), `node.h` **4**, `patch.h` 2,
+`gradient.h` 2, `util.h` 1, `resource_spline.h` 1. Two things in that split are the point. `node.h` shows
+**4 after being swept**, and `gradient.h` and `util.h` appear at all — neither was visible from the
+`Individual`-level probe. **Census from the outermost consumer inward**, for the fourth time.
+
+### Two more brief defects, both mine
+
+- **My baseline was 29 where the packet measured 31, and both are right.** Mine came from a probe
+  instantiating `Individual` alone; the packet's from the probe I *told* it to build, which keeps the
+  strategy instantiation and so also sees the two `prepare_strategy` asserts that `Individual` never
+  reaches. **I measured a baseline on a probe I did not hand over.** The split in my own table — "17
+  refusals" — is the DeepCrown count with the two asserts dropped, which this file records correctly two
+  sections above.
+- **My gate 2 snippet did not compile**: it targets `growth_rate_gradient`, which is `private`. The packet
+  retargeted it at the public `r_growth_rate_gradient` that forwards to it.
+
+**And the packet overrode one instruction, correctly.** I said to add scalar-generic `gradient.h` helpers
+*beside* the `double` ones; it templated them in place, on the grounds that my instruction contradicted
+the style rule against a parallel near-copy, and that a `double` caller then instantiates *the same
+function* rather than resolving to a second candidate — strictly stronger than what I asked for, and the
+pattern `QK::integrate` already set. `test-gradient.R` passes 7/7 on `expect_identical`.
+
 ## Two owed odelia items, taken — and a style rule that cannot be followed as written
 
 odelia `25619be` on `p3/odelia-surface`, off `p1/audit-fixes`. Both were recorded as owed since Phase 1
