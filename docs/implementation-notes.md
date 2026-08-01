@@ -1814,6 +1814,67 @@ both; the exposure is FF16 and K93.** Worth one decision covering both rather th
 - `test-patch.R:86` was not shown failing identically on the base tree, because the base `.so` had been
   overwritten; the pandoc failure at `test-strategy-ff16.R:238` is environmental.
 
+## The phase so far, merged
+
+`p2/phase-2` carries P2.7, P2.6, P2.1 and P2.2. Built once at the pinned build, 0 occurrences of
+`-O0`, and every gate below re-run in the orchestrator's own worktree rather than taken from a
+packet's report.
+
+**The keystone holds on the merged tree.** `derivs(y, t)` twice, bitwise: 0 of 1137 (TF24), 0 of 686
+(FF16), 0 of 490 (K93).
+
+| | offspring | steps | shift from the P1 base |
+|---|---|---|---|
+| plant `p1/audit-fixes` | `42.176246845059751` | 5 105 | — |
+| P2.7 alone | `42.249808414392021` | 5 071 | +0.174% |
+| P2.7 + P2.1 | `42.63017390650149` | 5 465 | +1.076% |
+| **all four merged** | **`42.133087152116609`** | **4 730** | **−0.102%** |
+| FF16 | `19.806714238717067` | 210 | −0.0949% |
+| K93 | `0.030552896191851354` | 234 | +0.0203% |
+
+**The composite is smaller in magnitude than P2.1 alone, and that is Phase 0's lesson reused rather
+than relearned.** Four changes, three of which move a number, compose to −0.102% where one of them
+alone moves +1.076%. Most of each individual figure is the adaptive controller re-rolling, not
+biology, so the composite and the step counts are the robust quantities. The step count falls 7.3%,
+which is the polish changing the trajectory rather than noise.
+
+**The tripwire is clean:** all three models run to completion, none goes to zero, none blows up, and
+the two simpler models move by 0.02% to 0.09%.
+
+### The suite, and every failure accounted for
+
+    test-leaf.r              383 pass   0 fail
+    test-canopy-methods.R    181 pass   2 fail
+    test-species.R           207 pass   0 fail
+    test-patch.R             160 pass   2 fail
+    test-node.R               74 pass   0 fail
+    test-scm.R               122 pass   0 fail
+    test-strategy-tf24.R      54 pass   0 fail
+    test-strategy-ff16.R      49 pass   4 fail   1 error
+    test-strategy-k93.R       21 pass   0 fail
+
+Ten failures and one error, none unexplained:
+
+- **Four in `test-strategy-ff16.R`** — pinned offspring and `ode_times` baselines, moved by 1.6e-05
+  to 5.4e-04. Re-blessing.
+- **One error in `test-strategy-ff16.R`** — `FF16_generate_stand_report` needs pandoc. Environmental.
+- **One in `test-canopy-methods.R`** — the deep-crown baseline, 16.8990 → 16.8821. Re-blessing.
+- **One in `test-canopy-methods.R`** — `flat-top-box cannot build a light environment`. **Not a
+  re-blessing:** a lost guard, and the owner's, together with P2.2's box-model stop.
+- **Two in `test-patch.R`** — the 1e-21 `offspring_produced_survival_weighted_dt` difference. **Not a
+  re-blessing:** a design choice, recorded above with both readings.
+
+**Nothing is re-blessed here.** The re-blessing is one pass over the whole phase, and the phase is not
+complete: P2.3, P2.4 and P2.5 have not landed.
+
+### What remains, with its prerequisites now measured
+
+| | needs | state |
+|---|---|---|
+| **P2.3** the Hermite in `ResourceSpline` | P2.1 | landed, so unblocked. odelia's `hermite_interpolator` is complete, including the active-position graft |
+| **P2.4** the transport stencil | P0.1, the gated-neighbour measurement | both done. `Species::growth_rate_gradient(i)` is in the tree with no caller; M4's value half is measured; **and it needs a guard on non-descending pairs**, which is new |
+| **P2.5** attribute `rescale_spline`'s cost | P2.1 | landed. The 3.5 s share must be re-taken against a gate number, since 59.5 s is a pre-`#517` run |
+
 ## Corrections to what was recorded here
 
 - The `static_assert(Replayable<Patch<...>>)` this file credited to a Phase 1 packet **was not
