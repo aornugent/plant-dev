@@ -1993,6 +1993,57 @@ number that should have been taken before any of it was designed".
 production is a different model, not a re-blessing. What is owed before it can be judged: §2.2's
 conservation diagnostic under both stencils, and report 04 §8's K93 comparison.
 
+### Diagnosis, part one: the conservation claim holds, and it does not explain the 10.3×
+
+Both adjudicators report 04 names are now run. Two arms, `03558de8` (sub-grid, bit-identical to
+baseline) and `e820456e` (cohort grid), each reproducing its recorded offspring exactly, both probes
+pure R over `collect = TRUE` history so nothing was instrumented.
+
+**Report 04 §2.2's claim is confirmed.** `log N_j(t) + mortality_j(t)` is constant if
+`dN_j/dt = −mortality_j N_j`, and `mortality` is a state, so the check needs no rate instrumentation:
+
+| | max \|step drift\| | cumulative | worst node violation |
+|---|---|---|---|
+| TF24 sub-grid | 5.983e-01 | **+3.992** | 1.223 |
+| TF24 cohort grid | 3.706e-06 | **−2.97e-06** | 6.62e-05 |
+| K93 sub-grid | 9.676e-02 | −0.135 | 0.811 |
+| K93 cohort grid | 1.459e-05 | −6.91e-06 | 2.48e-04 |
+
+The sub-grid probe carries a spurious source, growing monotonically through the run; the cohort
+grid's residual is at integrator tolerance and does not accumulate. Six orders on TF24, four on K93.
+**So the forward-model argument for the change now exists**, where before it was asserted. Worded to
+§2.2's own caveat: this is about the *dynamics* of `N_j`, not about how well `sum_j N_j` estimates
+the true total — the rectangle quadrature error is untouched by either arm.
+
+**But it does not explain the 10.3×, and the second measurement is why.**
+
+| model | offspring change | steps |
+|---|---|---|
+| K93 — no leaf, no staircase, no reserve gate | **+1.39%** | 234 → 169 |
+| FF16 — a leaf, no hydraulic optimisation | **+16.4%** | 210 → 236 |
+| TF24 | **+932%** | 4 730 → 1 248 |
+
+The defect being removed is the same kind and roughly the same per-node size in both models — worst
+node violation 1.22 against 0.81, a factor of 1.5, cumulative 3.99 against 0.135, a factor of 30. The
+*response* differs by about 670×. **A 30× difference in the defect cannot produce a 670× difference in
+the response linearly**, and the gradient across the three models tracks physiological complexity
+rather than the size of the conservation defect. This is report 04 §8's own "that is the number that
+should have been taken before any of it was designed", and it exonerates the discretisation while
+leaving TF24 unexplained.
+
+**The most striking number in the diagnosis, and it was nearly buried.** `sum_j N_j` — the stand
+count — peaks at **176.5** at `t = 12` under the cohort grid against **0.107** under the sub-grid
+probe. A four-order excursion in population, in exactly the window where §5 records interior spacings
+down to 8.2e-06. An `O(dh)` rectangle estimate on a grid that tight is where an amplification would
+live, so **a discretisation exact in the count's dynamics can still be badly resolved as a density
+field**. That is the distinction the conservation diagnostic cannot see, by construction.
+
+**Two readings survive and the measurements do not separate them.** Either the cohort grid is the
+correct dynamics and TF24's trajectory was held down by a spurious sink — the 3.8× drop in accepted
+steps supports a less stiff right-hand side — or 434.77 is a coarse-grid artefact of the transient.
+**The grid-refinement study is what separates them**: refine the node schedule two or three times and
+ask whether the arms converge toward each other or the cohort-grid arm converges toward 42. Running.
+
 ### What the packet closed, and it was an open question here
 
 A tally over one production run, 1 078 893 guarded pairs:
