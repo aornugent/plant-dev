@@ -561,7 +561,7 @@ one re-blessing, and pointing at it would say otherwise.
    adjoint needs two block recordings per cohort per stage on develop's sub-grid probe.
 3. **The two `test-patch.R` assertions** at 1e-21, where the patch's node and an externally-seeded one
    are now seeded in different fields.
-4. **Whether M3's 1.7e-03 band is absolute or relative.** P2.1's step (2) is inside it read one way
+4. ~~**Whether M3's 1.7e-03 band is absolute or relative.**~~ **Resolved by reading `scripts/m3_fixed_fractions.R`: it is relative.** P2.1's worst relative shift is 2.04e-03 against a *predicted* 1.7e-03 — and M3 predicted rather than bounded, from a standalone script against a different reference. A prediction and a measurement agreeing to 20%. Not a decision.
    and 20% over read the other, and M3 does not say which it measured.
 
 **What the phase taught about running one, beyond the tasks.**

@@ -1777,13 +1777,26 @@ change the *adaptive* knot count at 46 of 142 introductions and offspring by 4.6
 reported the gate failing rather than redefining it, which is the wanted behaviour: a 2-ulp position
 move is a passing transcription check by every reading except the literal one.
 
-### Step (2)'s shift, and one unresolved ambiguity
+### Step (2)'s shift, and the ambiguity resolved by reading M3's script
 
-10 011 crown means over 142 states: worst absolute **4.94e-04** against M3's ~1.7e-03, median
-**9.74e-07** against ~1.6e-06 — both inside the band. But the worst *relative* shift is **2.04e-03**,
-marginally above 1.7e-03. **M3's figure does not say whether it is absolute or relative**, and mean
-crown openness is dimensionless in [0,1] so both readings parse. Recorded rather than chosen; if M3
-meant relative, step (2) is 20% over band and wants the owner.
+Recorded here as an open question for the owner. **It was not one — it was archaeology, and the answer
+is in the script.** `scripts/m3_fixed_fractions.R` measures `|candidate - develop| / develop` in
+crown-mean light (its own line: "crown-mean light: |candidate - develop| / develop, over every cohort
+record"). **M3's 1.7e-03 is relative**, so P2.1's relative figure is the one to compare and its
+absolute 4.94e-04 is beside the point.
+
+10 011 crown means over 142 states: worst relative **2.04e-03** against M3's 1.7e-03, median
+**2.62e-06** against 1.6e-06.
+
+**That is not over a band, because M3 was never a band.** The script's own caveat: *"these are shifts
+relative to develop — which is what re-blessing needs — and not accuracy against the true field."* M3
+**predicted** the shift uniform-65 would produce, using a standalone R spline against develop's
+recorded knot data. P2.1 **measured** it on the built implementation against `p2/phase-2`, which
+already carries the boundary reordering. So a prediction and a measurement, taken against different
+references, agreeing to 20%. The measurement is the one that counts and nothing is out of tolerance.
+
+**The lesson is the ordinary one:** a figure quoted without its normalisation reads as either, and one
+line of the script that produced it settles what a paragraph of argument could not.
 
 Forward value after step (3): offspring **`42.63017390650149`** at 5 465 steps, bit-identical between
 steps (2) and (3).
