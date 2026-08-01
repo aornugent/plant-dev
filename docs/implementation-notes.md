@@ -1559,6 +1559,34 @@ what `compute_rates` writes afterwards cannot reach it. The benefit of restoring
 attribution one — P2.7 is now the reordering alone, so its forward shift belongs to the reordering
 and to nothing else.
 
+### Two assertions in `test-patch.R` are pinned to the old coupling, and the decision is the owner's
+
+`test-patch.R`'s "Basics FF16" and "Basics TF24" build a standalone `Node`, seed it with
+`compute_initial_conditions` in the patch's *current* environment, and assert `patch$ode_rates` is
+**identical** to it. Under the reordering those two nodes are seeded in different fields — the
+patch's in A0, the comparison node in A — so bitwise identity is no longer the right assertion. It
+was pinned to the arrangement where `compute_rates` seeded the boundary node in the same field the
+patch held.
+
+The differing component is `offspring_produced_survival_weighted_dt`, at **4.469e-22 against
+4.511e-22** for FF16 and **1.1188e-21 against 1.1206e-21** for TF24: about 1% relative on the
+smallest rate a just-introduced cohort has, and the one most sensitive to *when* the node was
+seeded, because `pr_patch_survival_at_birth` divides it and is fixed at seeding. Every other
+component is identical.
+
+**Two readings, and this is a design choice rather than a baseline, so it is not taken here.**
+
+- *The test is pinned to the old coupling.* The replacement asserts equality up to the boundary
+  interval's own contribution, which is bounded and measured, rather than bitwise identity between
+  two nodes seeded in different fields. Same category as the two `test-node.R` assertions P2.4 must
+  rewrite rather than relax.
+- *An introduced node should inherit the condition in A, not A0*, because A is the field it will
+  actually experience — in which case `introduce_new_node` should re-seed after the field is built,
+  and the test is right as it stands.
+
+Left failing and documented rather than re-blessed. Nothing downstream depends on which way it
+goes at 1e-21.
+
 **One thing owed, stated rather than papered over.** The light-field shift at the boundary node —
 the bound the plan asks this task to be verified against, at most 3.5e-04 — was measured on
 `spike/boundary-acyclic` with its environment-variable diagnostics, which this merge-ready version
