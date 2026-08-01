@@ -66,6 +66,23 @@ the tree** — the notes recorded a claim, not a commit, and it took a `grep` to
 has a second half: a gate you recorded is a gate you should be able to point at. §7's "re-run every
 gate" covers the ones you ran; this covers the ones you were told about.
 
+**And the third half, which Phase 3 paid for three times: run the gate on the unmodified tree before
+you send it, and confirm it produces a number you recognise.** Asking "what would make this pass
+vacuously" is not enough, because it is answered from the same understanding that wrote the gate. Phase
+3 shipped three gates that could not fail, all the orchestrator's, and they share one shape — each
+specified *the quantity the author was thinking about* rather than **the quantity that moves when the
+feared thing happens**:
+
+| the gate | what it could not see |
+|---|---|
+| `template class TF24_Strategy<active_scalar>` as the active-build census | it never instantiates `Individual`, so it was blind to the container holding the state the block differentiates |
+| a reused tape's adjoints against a single call's | `newRecording()` leaves adjoints **correct** while leaking a slot per input per call; the discriminator was the recording *size* |
+| an FF16/K93 whole-lifetime tripwire | written without `add_strategies`, so both models ran empty and it printed no numbers at all |
+
+Each would have died in the ten seconds a baseline run takes. The second is the one to remember, because
+it was gating a change whose whole purpose was reuse: **when a change is about reuse, assert the
+resource, not only the answer.**
+
 ---
 
 ## 1. Rebuild context before designing anything
@@ -457,16 +474,19 @@ happen is a turn that lands two tasks and can attribute a V-failure to neither.
        |
     the active build, group A ── LANDED, bit-identical (plant p3/active-instantiation)
        |
-    QK templated ── two of the block's five remaining blockers are the crown integral
-       |
-    the leaf seam, HELD-CONSTANT form ── P3.2 step (1)'s, and V1 cannot be taken before it
+    QK, the uptake, is_finite, the leaf seam ── LANDED, bit-identical (plant p3/block)
+       |                                        24 probe errors to 19, the set exactly
+       |                                        the deliberate refusals
        |
     Individual's state store carries S ── Internals<double> today, so the block's own
-       |                                 inputs are passive. Phase 1's group B, not closed
+       |                                 inputs are passive. Phase 1's group B, not closed.
+       |                                 NINE sites in individual.h, measured before and
+       |                                 after p3/block: unchanged either side
        |
     the transport probe made scalar-generic ── MUST land with the line above, not after:
-       |                                      today the severance fails to compile; once
-       |                                      the store carries S it passivates silently
+       |                                      today it compiles *because* the store is
+       |                                      passive; once the store carries S the
+       |                                      -> double lambda becomes a silent zero
        |
     Patch::rebind_from ── step_adjoint static_asserts on it; P3.5 cannot run without it
        |

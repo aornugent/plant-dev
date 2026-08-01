@@ -2690,6 +2690,83 @@ tries to compile an odelia probe standalone. The packet also noticed that this c
 recording-size invariant as "one adjoint versus three" in one place and "one versus eleven" in another;
 both pass, and the two wordings should agree.
 
+## Four of the block's five sites, and a gate of mine that could not fail
+
+plant `1e045de7` on `p3/block`. **Every gate re-run in the orchestrator's own session.**
+
+| gate | measured |
+|---|---|
+| the probe's plant errors | **24 → 19**, and the set is *exactly* the 17 DeepCrown sites plus the two `prepare_strategy` `static_assert`s |
+| TF24, bit-identity at the pinned build | **`42.179817344974609` / 4 798**, 0 occurrences of `-O0` |
+| FF16 and K93, whole lifetime | **`19.834058960443031` / 209** and **`0.030538172107758225` / 240** — the phase-2 closure values to the last bit |
+| `test-individual.R`, `test-strategy-tf24.R`, `test-canopy-methods.R` | 131, 54, 185 pass; 0 fail |
+| style sweep, including the new passivation check | clean |
+
+**`QK`: only `integrate` is templated, and that was the right call rather than a compromise.** Templating
+the class was not available — `QK()`, `initialise`, `rescale_error`, `integrate_vector*` and `r_integrate`
+are defined in `src/qk.cpp` — so `S integrate(Function, const S& a, const S& b)` deduces from the limits.
+FF16, K93 and `qag.h` are untouched because all-`double` arguments deduce `S = double` to the same
+function; TF24's two call sites gained `S(0.0)` on the lower limit, which also reads as "this limit is a
+position, not a fraction". Positions and integrand values carry the scalar; `xgk`, `wg`, `wgk` and the
+four `last_*` diagnostics stay `double`.
+
+**`fv1`/`fv2` stayed `double` against my instruction, and the packet was right.** They are written once
+and read once, in the `result_asc` loop, which is a diagnostic that stays `double`; they never reach
+`result_kronrod`, so they are not on the gradient path. Making them active would have forced either a
+class template (blocked) or a per-call heap allocation of active scalars inside the crown-integral hot
+path, for nothing. My own rule that `last_result_asc` stays `double` implied it and I did not follow the
+implication.
+
+**The leaf seam is written so a partial attaches at one expression per output.** The `double` branch is
+the original call character for character, which is what makes the bit-identity gate cheap to trust; the
+active branch converts the inputs, solves in `double`, and the leaf's outputs enter as constants because
+they *are* `double` members. Each of the nine outputs enters the active chain at exactly one place — the
+seven `vars.set_aux` calls, `leaf.profit_` in `net_mass_production_dt`, and `leaf.soil_consumption_[a]`
+in `evapotranspiration_dt`. The packet deliberately did **not** add no-op wrappers at those nine sites:
+they would change nothing and would not constrain the injection's shape, which cannot be pinned until the
+Jacobian's form is fixed. Correct restraint.
+
+### My tripwire gate was vacuous, and it is the third of this phase
+
+I gave the packet an FF16/K93 whole-lifetime tripwire, called it "not optional", and justified it with
+the real regression that once sent a model's offspring silently to zero while the other model's suite
+stayed green. **The snippet omits `add_strategies`, so both models run with no strategies at all.** Run on
+the *unmodified* tree it produces no numbers whatever — it prints the two model names and nothing else,
+because `sprintf` on an empty `offspring_production` returns `character(0)`. **It could not have failed,
+for any change.** The tell was in my own text: the step counts I quoted beside it, 209 and 240, could only
+have come from a different script, and `/home/user/p0/ff16k93.R` is that script.
+
+**Three vacuous gates in one phase, all mine, and they share one shape.** The strategy-level instantiation
+that could not see the `Individual` seam; the reused-tape gate that compared adjoints and so could not see
+a leak; and now a tripwire with no population. In each case I specified *the quantity I was thinking
+about* rather than **the quantity that changes when the thing I fear happens**. §0.6 says to look for the
+version of each gate that passes when nothing happened — the discipline that actually works is narrower
+and worth writing down: **run the gate on the unmodified tree and confirm it produces a number you
+recognise, before sending it.** All three would have died in the ten seconds that takes.
+
+### Two facts now on the record, and one corrects me
+
+**XAD's conversion to `double` is explicit and there is no `operator double` at all** — only
+`explicit operator` for the integral types and `bool`. So a `double`-declared function that would drop an
+active value **fails to compile** rather than silently passivating, and the direct evidence is
+`individual.h:97`, where `establishment_probability` returning `double` from an active expression is a
+hard error. This is materially the better position and it means the compiler currently does the work the
+sweep's new check was added for.
+
+**But `growth_rate_given_height` does not error today, and my correction to the packet said it would.**
+It compiles *because* `vars` is passive: `set_state(HEIGHT_INDEX, height)` and `rate(HEIGHT_INDEX)` both
+go through `Internals<double>` and never meet the scalar. It becomes the error I described only once the
+state store is templated — which sharpens the ordering already recorded: **the transport probe must be
+made scalar-generic in the same change as the state store**, because that change is what converts a
+clean compile into a silent zero.
+
+**And the `Internals` change covers none of the `Individual` seam.** Measured, before and after, with a
+throwaway whole-class instantiation: **nine** errors in `individual.h`, identical either side. `vars` is
+`Internals<double>`, so every accessor resolves to the `double` specialisation and the new
+`S consumption_rate(int)` is invisible from `Individual` until `vars` carries the scalar. So the seam is
+nine sites rather than the seven I recorded, and `Internals::consumption_rate` returning `S` is
+**unreachable and therefore untested** until that task lands.
+
 ## The tape hoisted out of the product — and my predicted failure mode was the wrong one
 
 odelia `2c3159c` on `p3/vjp-tape-reuse`. `vector_jacobian_product` takes the tape from its caller and
