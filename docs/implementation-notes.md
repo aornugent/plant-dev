@@ -2715,8 +2715,19 @@ So the block's remaining surface is three tasks, not one:
 | | what | reaches |
 |---|---|---|
 | 1 | `QK` carrying a scalar, `util::is_finite`, the consumption funnel, the leaf seam | `qk.h`, `util.h`, `internals.h`, `tf24_strategy.h` — in flight |
-| 2 | **`Individual`'s state store carries `S`** | `individual.h`, and every caller of its accessors in `node.h`, `species.h`, `patch.h` |
+| 2 | **`Individual`'s state store carries `S`** | `individual.h`, and **33 call sites across six headers** — measured, below |
 | 3 | the transport probe made scalar-generic | `node.h`, `individual.h`, and `gradient.h`'s generic helpers |
+
+**Task 2's surface, measured rather than estimated**, so the packet can be costed: eleven accessors on
+`Individual` return or take `double` (`state`, `rate`, `set_state`, `aux`, `consumption_rate`,
+`compute_competition`, `compute_competition_and_slope`, in their name and index forms), and their callers
+are **`node.h` 16, `species.h` 8, `stochastic_node.h` 3, `stochastic_species.h` 3, `patch.h` 2,
+`stochastic_patch.h` 1 — 33 in total**. The three stochastic headers never carry an active scalar but
+share the plumbing, so they are in the sweep for the same reason the plumbing sweep took them in Phase 1.
+
+**One line must stay `double` and it is the seam that makes this safe:** `Internals<double>
+r_internals() const` is the R boundary, and only `double` crosses it. So the change is
+`Internals<S> vars` with `r_internals` converting, not `Internals<S>` all the way out.
 
 **And the probe's severance is compile-caught rather than silent, which is the one piece of luck here.**
 `Individual::growth_rate_given_height` appears in the failing instantiation chain at `individual.h:167`,
