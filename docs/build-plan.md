@@ -858,11 +858,10 @@ pass is order-dependent.
 specification.
 
 P0.5 is the input Phase 3 needs: you cannot choose which switches to smooth before knowing
-which fire. **P0.6's establishment gate is now settled: the hard gate stays.** Measured on both
-sides, its argument's negative values are comparable to its positive ones — the most negative is
-about twice the open arm's median — so it separates two real carbon states rather than deciding on
-noise, and develop's `storage_prod_eps = 1e-4` would be six times too large to smooth it with. What
-survives for Phase 3 is narrower: a re-run finite difference of a census gradient crosses the gate in
+which fire. **P0.6's establishment gate is unresolved, and `tf24-correctness.md` P0.6 carries why:** its
+closed arm spans four to five orders, so it separates real carbon states at one end and decides on
+a numerical zero at the other, and no single smoothing scale covers both. What Phase 3 needs from
+it either way: a re-run finite difference of a census gradient crosses the gate in
 the recruitment window, so V4 chooses states and step sizes that avoid it. **P0.6's respiration half
 remains the owner's.**
 
@@ -1923,9 +1922,9 @@ aux transfer and `step_adjoint` are the same either way.
    parameter or a sixth output kind changes P3.2's shape. Note the output arity is
    state-dependent through `max_soil_layer`, so an assertion must read it rather than the layer
    count.
-5. **Does P0.6's respiration decision bump `scientific_version`?** The establishment gate is
-   already decided (it stays); only the double-counted photosynthetic-nitrogen respiration is open,
-   and it is the owner's. With P2.1 and P2.4 also changing forward numbers, there is a case for
+5. **Does either P0.6 decision bump `scientific_version`?** Both halves are open and both are the
+   owner's: the double-counted photosynthetic-nitrogen respiration, and the establishment gate,
+   whose closed arm spans four to five orders so that no one smoothing scale fits it. With P2.1 and P2.4 also changing forward numbers, there is a case for
    taking respiration to the owner in that same conversation.
 
 **Order: M1, M2, M3's accuracy half and M5 are done. M4 remains, and it lands with P2.4 step (1);

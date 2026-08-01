@@ -9,6 +9,53 @@ pointer to an entry here or to a commit, so no number is restated in two places.
 Numerical changes are recorded as they land and re-blessed together at the end of the phase, so a
 failing baseline assertion is expected between here and there and is not a defect.
 
+
+## The standing lessons, and where their evidence is
+
+This file is append-only and long because it is the one home for a number: nothing else
+restates a measurement, so nothing else can disagree with one. But most of it is evidence for
+work that has landed, which a reader needs only when auditing a past claim. **These are the
+entries that change how the next piece of work is done.** One line each, pointing at the section
+that carries the measurement.
+
+*Building and measuring*
+
+- `pkgbuild::compile_dll()` appends `-O0` after your flags, so pass `debug = FALSE` and check a
+  compile line ends at `-O2`. The same tree at `-O0` differs by 0.145% in offspring. — *The build, pinned*
+- `rm -f src/*.o src/*.so` before every build: R's make does not track header dependencies and
+  the core is header-inline, so a header edit otherwise fails to compile in. — *The build, pinned*
+- Absolute times belong to the machine; only same-session ratios transfer. — *The build, pinned*
+- **A mid-write `.so` loads and returns plausible wrong numbers.** Verify in a worktree nothing
+  else is building in. — *A mid-write `.so`*
+- **An install can silently not take.** Verify by grepping the installed header, never the log. — *Still owed at the close of this phase*
+- A bare `testthat::test_file` gives no package namespace and can report `FAIL 0 | PASS 0` at
+  **exit 0**. Use `test_dir(dir, package =, load_package = "installed")`. — *A stated gate command*
+- A plant base paired with the wrong odelia bit three times in one phase; confirm the pairing
+  compiles before sending work. — *A base paired with the wrong odelia*
+- Gate cost depends on how many packets are running: 90 s idle, about 7 minutes under a wave. — *The cost of a gate*
+- **Ranking configurations at a short lifetime does not predict which is hardest at production.** — *five spikes*
+- A composite forward-value change below about 0.15% in offspring needs a mechanism, not a
+  before-and-after pair. — *The whole phase, merged*
+
+*Getting a derivative wrong*
+
+- **Exactly zero is this design's worst failure mode**, because it reads as an answer. Thirteen
+  leaf parameters and eleven registered-but-unread ones each produce one. — *Thirteen registered parameters*, *What the audit fixed*
+- Register a tape's inputs **before** `newRecording()`, or the adjoints are silently zero. — *Registering a tape's inputs*
+- Never a deduced return type on anything returning an active value. A grep found three `-> double`
+  lambdas that no `double` build could ever have caught. — *A grep found three lambdas*
+- `fl(fl(t + h) − t) ≠ h`: a step size is not recoverable by differencing recorded times. — *Two items Phase 1 gained*
+- **The stage is not a pure function of `(y, t)`** — it is not even idempotent, differing at 92 of
+  753 components when `derivs` is called twice. — *The trajectory store*, *The spikes*
+- Two like-typed positional arguments of unrelated meaning shipped a regression once, silently. — *A two-argument signature*
+
+*Reading this corpus*
+
+- **A gate recorded here is not necessarily a gate in the tree.** One `static_assert` was credited
+  to a packet and had never landed. — *Corrections to what was recorded here*
+- Severity, and sometimes sign, is probe-dependent: one defect read as `1e-23` on one probe and
+  `+0.28%` on another. — *`reset()` restores the soil state*
+
 ---
 
 ## The build, pinned
@@ -86,10 +133,11 @@ edited to track them.
   bit-identical route was the alternative; the shift is accepted and re-blessed with the rest.
 - **P0.4 sizes by an explicit `n_resources()`** on `Environment` rather than by shrinking the
   vector at the call site, so the count has one source of truth.
-- **P0.6's establishment gate keeps its hard switch**, on the measurement in
-  `scripts/establishment_gate.R`: its two arms are on one scale, so the sign test separates real
-  carbon states and there is nothing to mollify. The measurement also rules out the obvious scale —
-  `storage_prod_eps = 1e-4` is six times the open arm's median.
+- **P0.6's establishment gate was recorded as decided and is not.** `scripts/establishment_gate.R`
+  measured the closed arm against the open arm's median and read the two as one scale; the switch
+  census measured the same construct's smallest magnitude and read it as a numerical zero. Both are
+  properties of one distribution spanning four to five orders, and `tf24-correctness.md` P0.6 now
+  states it that way. The decision is the owner's and open.
 - **The crown density's ground limit is a branch, not a reformulation.** The rewrite over
   `u^(eta-1)` reached the same value but needed a second chain family and moved two models this phase
   was not changing. Chains supply values, not derivatives, so they were never the route to a valid
@@ -1385,11 +1433,10 @@ which makes the leaf's supplied Jacobian an instance rather than a mechanism of 
 
 **Two for the owner.** 91% of `rescale_spline`'s 193.2 µs per build is unattributed over 20 160
 builds — 3.5 s of a 59.5 s run, with LTO tested and rejected as the cause — and it is a task
-nowhere. And the establishment gate: `tf24-correctness.md` keeps the hard switch because "the
-arms are on one scale", while `reports/p0.5-switch-census.md` reports the closed arm reaching
-−2.283012e-09, seven orders below the resident median `|P|` and five below the scale develop
-already uses to smooth the same quantity one function away. Same distribution, opposite
-conclusions, different denominators.
+nowhere. And the establishment gate, where two documents each picked one end of one distribution and
+reported it as settled. Reconciled in `tf24-correctness.md` P0.6 and now recorded there as open:
+the closed arm spans four to five orders, real carbon deficit at the top and a numerical zero at
+the bottom, so no single smoothing scale fits and the call is the owner's.
 
 ## Corrections to what was recorded here
 

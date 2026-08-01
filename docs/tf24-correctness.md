@@ -371,8 +371,8 @@ a recorded decision rather than an artefact of writing an `if`. develop already 
 both the precedent (`P_pos`) and the method for sizing a smoothing scale against data
 (`storage_prod_eps`, measured well-sized).
 
-**Decided: keep the hard gate. It is not a numerical artefact, and this is measured on
-both sides.** The gate takes its closed arm on **8 112 of 35 133 boundary-node stage
+**Unresolved, and the reason is that one scale cannot serve the argument's range.** The
+gate takes its closed arm on **8 112 of 35 133 boundary-node stage
 evaluations (23.1%)**, confined to `t` in **[3.22, 8.54]** — the recruitment window, and
 no later decile. `scripts/establishment_gate.R` measures the argument's whole
 distribution rather than only the closed side:
@@ -382,19 +382,23 @@ distribution rather than only the closed side:
 | closed arm, 8 112 calls | −3.344298e-05 … −7.886865e-09 |
 | open arm, 27 021 calls | p01 2.539e-06, p10 8.219e-06, **median 1.611e-05**, p90 4.571e-05, max 3.112e-04 |
 
-**The negative values are comparable to the positive ones** — the most negative is about
-twice the open arm's median — so the sign test separates two genuinely different carbon
-states at the scale a seedling operates at, and a zero derivative there is the model's
-statement that such a seedling does not establish.
+**At the top of that range the sign test separates real carbon states.** The most negative
+value is about twice the open arm's median, so a seedling there is genuinely in carbon
+deficit and a zero derivative is the model's statement that it does not establish. Against
+the seedling's own distribution — not the whole cohort population's median `|P|` of 7.3e-2,
+which is dominated by large trees — the gate is deciding something real.
 
-**Smoothing it with develop's existing scale would be a mistake, and that is the useful
-finding.** `storage_prod_eps = 1e-4` is **six times the open arm's median** and three
-times the most negative value, so it would smear the entire distribution rather than
-mollify an edge. A scale sized against *this* argument would have to be about `1e-6`, an
-order below the open arm's first percentile. An earlier version of this row compared the
-closed arm against report 00 §9b's median `|P|` of 7.3e-2 and concluded the threshold was
-numerically unresolvable; that denominator is the whole cohort population, dominated by
-large trees, and against the seedling's own distribution the comparison inverts.
+**At the bottom of the same range it decides on a quantity indistinguishable from zero.**
+The closed arm reaches `−2.28e-09` (`reports/p0.5-switch-census.md`, a second probe arm of
+the same construct), five orders below `storage_prod_eps = 1e-4` and seven below that
+population median. A perturbation of `1e-9` in net production flips the arm.
+
+**So the closed arm spans four to five orders, and neither answer covers it.** Develop's
+existing scale is three times the *largest* magnitude in the arm, so smoothing with it
+would smear the whole distribution; a scale sized to the *smallest*, around `1e-9`, would
+mollify nothing. Any single scale is too wide for one end or too narrow for the other, and
+that — rather than either end on its own — is what makes this the owner's call. Two earlier
+versions of this row each picked one end and reported it as settled.
 
 Two consequences stand regardless. `node.h:182-185`'s entire active set is downstream of
 this gate, so it is one decision and not two. And **a re-run finite difference of a census
