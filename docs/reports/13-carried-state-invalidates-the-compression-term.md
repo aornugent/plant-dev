@@ -285,6 +285,48 @@ value is in the constant environment (−2.249 × 10⁻³ in height coordinates)
 0.7. It returns negative only at full light amplitude, at −6.82 × 10⁻⁵, still some thirty times
 smaller than the constant-environment baseline.
 
+### 6.4 Adaptive schedule refinement works in the new coordinate; its cost advantage does not
+
+`SCM::refine_schedule` flags cohorts whose integration error exceeds `schedule_eps` and bisects the
+interval below them. It combines two error metrics. The reproduction one was already measured over
+introduction times. The competition one was measured over the height grid, which is the wrong
+abscissa once the competition integral is taken over introduction times, so it was measuring the
+error of a quadrature it was not performing. It now uses `Species::quadrature_abscissae()`, whichever
+abscissa the integral uses. `local_error_integration` takes absolute differences, so the height
+branch's sign convention leaves it bit-identical, verified on FF16 and K93.
+
+With that in place, adaptive refinement terminates normally in both coordinates for all three
+strategies:
+
+| arm | adaptive result | own fixed-schedule value at 561 | introductions | ODE steps |
+|---|---|---|---|---|
+| K93, height | 0.0305966 | 0.03056925 | 181 | 360 |
+| K93, birth-date | 0.0306323 | 0.03057363 | 173 | 183 |
+| FF16, height | 19.9888 | 20.01218 | 147 | 216 |
+| FF16, birth-date | 20.0357 | 20.03607 | 157 | 225 |
+| TF24, height | 60.3519 | 59.059 | 204 | 6 233 |
+| TF24, birth-date | 401.317 | 400.9166 | 357 | 4 468 |
+
+Three readings, one of them unfavourable.
+
+**It works, including on TF24.** That was the open question, and both arms complete.
+
+**In the corrected coordinate the adaptive result is close to the converged one.** TF24's birth-date
+arm reaches 401.317 with 357 introductions against a fixed-schedule limit of 400.9166 — 0.10%. FF16's
+reaches 20.0357 against 20.03607, 0.002%. The height arm's TF24 figure cannot be read as an error,
+because its own fixed-schedule series is still climbing at 561 introductions; that adaptive placement
+reaches 60.35 with 204 nodes where 561 evenly-inserted nodes reach only 59.06 is a point in favour of
+adaptive refinement, not a measure of accuracy.
+
+**The corrected coordinate asks for more nodes, not fewer.** On TF24 it refines to 357 introductions
+against the height arm's 204 at the same `schedule_eps`, and on FF16 to 157 against 147; only on K93
+does it ask for fewer, 173 against 181, and there it lands less accurately (0.19% from its limit
+against 0.089%). The error criterion is evaluated over introduction times, and the default schedule
+is far more uneven in time than in height, so more intervals are flagged. Any per-run saving from
+deleting the perturbation (§6.5) is therefore not guaranteed to survive adaptive refinement. The two
+arms were run at equal `schedule_eps` and reached different accuracies, so this is not a cost
+comparison at matched accuracy; that experiment was not run.
+
 ## Appendix A. The transport term derived
 
 Let individual state be `x`, evolving as `dx/dt = v(x, E(t))`, with height `h = x₁` and growth rate
