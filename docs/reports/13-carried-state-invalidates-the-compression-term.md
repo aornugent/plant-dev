@@ -532,7 +532,8 @@ The ensemble mean varies by 12.8% at age 2 across a sixteenfold range of patch a
 177 individuals at ages 1, 2 and 3. Only two replicates were run at 64 m², so per-area standard
 deviations there are not usable and the pooled ensemble is quoted. The comparison is not exact — the
 solvers differ in finite population, discrete deaths and nonlinear averaging over replicates — so it
-separates a 2.7-fold discrepancy from a 1.2-fold one.
+separates a 2.7-fold discrepancy from a 1.2-fold one. The corrected solver's residual 6% to 21%
+excess is not schedule resolution and remains unexplained; see §6.2.
 
 The individual-based solver cannot discriminate on the mature stand: after canopy closure its leaf
 area agrees with both coordinates within its replicate spread, and its living stem density is too
