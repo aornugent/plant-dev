@@ -1,0 +1,5 @@
+rainfall  amp=0    height      offspring=42.1402     pairs=10011  cross=0   min_dh=8.21e-06   bnd_cross=0   min_stor=-0.00225     104s
+rainfall  amp=0    birth-date  offspring=395.441     pairs=10011  cross=0   min_dh=1.22e-06   bnd_cross=0   min_stor=-0.00138      57s
+rainfall  amp=0.3  height      offspring=40.2662     pairs=10011  cross=0   min_dh=8.21e-06   bnd_cross=0   min_stor=-0.000848    111s
+rainfall  amp=0.3  birth-date  offspring=374.881     pairs=10011  cross=0   min_dh=1.26e-06   bnd_cross=0   min_stor=-0.00052      60s
+rainfall  amp=0.7  height      offspring=0.166081    pairs=10011  cross=0   min_dh=8.56e-08   bnd_cross=0   min_stor=2.93e-07     346s

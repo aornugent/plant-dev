@@ -1,0 +1,6 @@
+ode_tol_abs=0.0001 offspring=42.1402      min storage=-0.002249    frac<0=0.1396  min S/Smax=-0.1014    max S/Smax=0.8000  104.5s
+            median Smax=0.03601  (ode_tol_abs is 0.00278 x median capacity)
+ode_tol_abs=1e-06  offspring=42.3479      min storage=-2.766e-06   frac<0=0.1324  min S/Smax=-0.01718   max S/Smax=0.8000  422.6s
+            median Smax=0.03687  (ode_tol_abs is 2.71e-05 x median capacity)
+Error: Cannot achieve the desired accuracy
+Execution halted
