@@ -16,8 +16,8 @@ from growth **within TF24**, changing nothing else, removes 98% of the disagreem
 The error is invisible to every diagnostic a mature stand provides: after canopy closure the two
 agree on leaf area to a ratio of 1.005 and on canopy height to 0.8%. It is removable without altering
 a biological equation, by carrying the population as a density per unit **birth date** rather than per
-unit height — a coordinate in which the transport term is mortality alone, and in which the
-perturbation is never taken. Disabled, the solver is bit-identical to the original.
+unit height — a coordinate in which the transport term is mortality alone. Disabled, the solver is
+bit-identical to the original.
 
 ---
 
