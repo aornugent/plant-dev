@@ -3607,3 +3607,277 @@ type-widening, without compiling the thing that would have said otherwise**:
 | the standing probe gates the containers it names | member templates are not instantiated by a class-template instantiation, so three serialisers were gated by nothing |
 | `stochastic_patch.h` is missing one name, 27 errors | 82 errors and three names, from a translation unit that includes it first |
 | the 17 DeepCrown sites are a scalar widening | `Leaf` is untemplated and launders the crown means back through it, so it is a data-flow relocation into P3.2's seam |
+
+# Phase 3, wave 2 — P3.2 steps (1)–(4), and V1
+
+Base: plant `p3/phase-3` `b16068c1` against odelia `fdccd7b`, installed read-only at
+`/home/user/lib-p3-int`. Three packets, one integration branch.
+
+| | commit | what it was |
+|---|---|---|
+| `p3/leafjac` | `5f239452`, 4 commits (`adf721b4` as merged) | `Leaf::inputs()`, `input_adjoints`, `layer_flux_partials`, `dR_dcollar_at`, `dR_dflux_from_layer`, `translation_partials`; `dR_dcollar_` and `collar_pinned_` promoted to members. Bit-identical; `test-leaf.r` 383, `test-strategy-tf24.R` 54; standing probe 2 |
+| `p3/cohort-block` | `772031e2`, `8ecb3fca` | `Individual::block_inputs` / `set_block_inputs` / `block_outputs`; `Patch::cohort_block_adjoint` wired into step (b); `trait_adjoint` on `Patch`. **185 in (6 + 135 + 44), 11 out.** Bit-identical; probe 2 |
+| integration | plant `893e8ad5` | both packets, the wiring that makes the leaf's partials reach the block, and the `dR_dcollar_` fix below |
+
+The superproject pointer moved in `f486ce9`, staged alone. Both merges were clean fast-forwards.
+
+## Wave 2 integrated, and verified on the merged tree
+
+Everything below was run **twice at `p3/wave2` = `893e8ad5`, pre-fix and post-fix**, and the two
+passes are character-identical.
+
+| gate | result |
+|---|---|
+| TF24 / FF16 / K93 forward | `42.179817344974609` / 4 798, `19.834058960443031` / 209, `0.030538172107758225` / 240 — **all bit-identical**, FF16 at its own `ff16k93.R` configuration, which is the discriminating arm |
+| stage purity, `derivs(y, t)` twice | 0 of 1137 |
+| standing active probe | **2** |
+| plant suite | 2 924 pass, 0 fail, 6 errors, 10 skip — the named pre-existing set (`test-mutant.R:40` and `:126`, `test-stochastic-patch.R:54` ×3, `test-strategy-ff16.R:238` pandoc) |
+| odelia suite | 334 pass, 0 fail, 0 error, 2 skip, from the submodule source at `fdccd7b` |
+| style sweep | zero violations in every category |
+| `grep -rn 'xad::' inst src` | empty |
+| `grep -rn 'const_cast' inst src` | empty — the check that `Leaf::input_adjoints` stayed non-`const` rather than being made to look const |
+| `grep -rn 'isnan'` over the adjoint scatter | empty — the check that no NaN filter was added to hide a row |
+
+**The fix is confirmed forward-invisible by measurement, not by argument.** The post-fix numbers are
+character-identical to the pre-fix ones on a **fresh clean build**, rather than carried over on the
+structural claim that the member is adjoint-only. The structural claim is true and was also checked;
+it is not what licenses the numbers.
+
+**And the probe's reach was confirmed by reading the emitted symbols**, not by appealing to the
+member-template rule — `graft` and `graft_leaf_outputs` are both there. That is the better standard,
+and it is the one wave 1 learned the hard way when three `Individual` serialisers turned out to be
+gated by nothing: a rule says which members *should* be instantiated, the symbol table says which
+were.
+
+## V1 closes at 2.32e-12, and only the incremental readout says so
+
+V1 was taken exactly as §11.3 demands — one contribution at a time into one accumulator, against
+one whole-`Patch` recording at one state:
+
+| contributions added | relative agreement |
+|---|---|
+| (a) soil | 1 |
+| (a) + offspring | 1 |
+| (b) + cohort blocks | 1.29e-05 |
+| (c) + knot pullback | 1.29e-05 |
+| (d) + allometry | **2.32e-12** |
+
+**(a) alone reads rel 1.** That is the trap §11.3 named, fired and caught: the accumulator is
+nonzero before the blocks arrive, so a dropped term would have handed back a plausible gradient.
+Only adding the contributions one at a time localises it. A single end-to-end V1 reading 2.32e-12
+would have been the same number with none of the attribution.
+
+**Two channels V1 cannot see, and both are excluded by construction rather than by tolerance.**
+Naming them is the point; a tolerance wide enough to swallow them would have hidden the 1.29e-05
+step as well.
+
+- **The soil.** The recording has no soil channel, because the soil store is a *declared* passive
+  boundary — the wave-1 decision recorded above under *The soil store: declared a passive boundary*,
+  whose stated cost was precisely that V1 verifies (c) and (d) against the recording and (a) against
+  a separate finite difference. That consequence was predicted here and I then failed to carry it
+  into the V1 brief, which asked for a comparison the two models cannot both express.
+- **The transport stencil.** The recording carries it and the decomposition omits it until P3.5, so
+  `lambda_g` is outside V1's scope by the same ordering §2.4's correction already records.
+
+So the honest statement of V1 is: **it closes at 2.32e-12 on the channels the recording and the
+decomposition both contain**, with those two named exclusions.
+
+## T5, V2, and the light channel live for the first time
+
+**T5 exact** over all 65 knots, asserted as a value rather than as finiteness. The discrimination is
+there: changing the accumulation's `=` to `+=` — or back — moves 55 of the 65 entries, and the worst
+knot goes from 0.2548 to exactly zero. T5 had no non-vacuous form in wave 1 (`lambda_knot` was
+identically zero by construction until the leaf partials were wired) and now has one.
+
+**V2 on all eleven outputs**, stage 0, trajectory record 680: six strategy rates 7.9e-14 … 2.2e-07,
+five uptake outputs 1.6e-09 … 3.7e-07. The uptake figures are post-fix; see below for what they read
+before it.
+
+**The light channel is live for the first time.** Every knot and `psi_soil` row on the uptake outputs
+was identically zero before the wiring — the exactly-zero failure mode §11.3 calls this design's
+worst, here as the honest by-construction version of itself. After the wiring, 68 of 130 knots are
+nonzero.
+
+**The tape-reuse resource gate, and it bit.** The tree holds one tape across the cohort loop and
+calls `clearAll()`; **nothing leaks in the tree**. The gate's number is its **negative control**:
+remove the fix and it reports **13 800 bytes leaked per sweep** with the adjoints identical to the
+last bit. That is §0's second unfailable gate in its natural habitat — the answer is right and the
+resource is not, so a gate on the adjoints alone reports nothing, and this one was written to assert
+the resource.
+
+## The defect: `dR_dcollar_` published a step-stale divisor
+
+`Leaf::polish_root_collar_psi` published the Newton loop's **step-length divisor**, which is allowed
+to lag an iterate, and `input_adjoints` divided by it.
+
+At the block's operating point the converged curvature is **−6.03575512** and the published value was
+**−5.91355275**. Their ratio is **1.020664798**, and it matches the adjoint-to-difference ratio to
+**eight significant figures**. So: a 2% multiplicative error on every uptake row, with the mechanism
+identified by the match rather than guessed at.
+
+The code comment at the site was the confession: *"it enters only as the divisor of a step length, so
+its error shortens or lengthens a step and does not move the point the steps converge to."* True of
+Newton. False the moment the same member is republished as the curvature **at** the converged point,
+which is what §6.2's single divide needs.
+
+**Two readings, and (b) was taken.** (a) recompute the curvature inside the polish, so the published
+member is converged; (b) drop the member and have `input_adjoints` call `dR_dcollar_at(p, 1e-6)` at
+the point the solve left. (b) was chosen because the polish is on the **forward** path: (a) adds two
+`dprofit` calls to every solve, about +30% on the solve, for a quantity no forward number reads.
+Dropping the member also removes an `isfinite` fallback that silently preferred the stale value.
+
+**Blast radius is adjoint-only, and it was confirmed rather than assumed**: `dR_dcollar_` is not in
+the yml, not in the generated bindings, and unreachable from R.
+
+| uptake output | before | after |
+|---|---|---|
+| `state_height` | 1.41e-03 | **1.6e-09** |
+| `knot_value` | 2.02464e-02 | **1.2e-08** |
+| `knot_slope` | 2.02461e-02 | **2.4e-07** |
+| `psi_soil0` | 2.02462e-02 | **2.3e-07** |
+
+The adjoint moved to meet the difference, not the other way round. Strategy rates are unchanged to
+every printed digit, which is the attribution: the divisor is on the water path only.
+
+### What did not catch it, which is the more useful half
+
+Four instruments were pointed at this block. None of them stopped it, and each failed differently.
+
+1. **Stationarity passed, bit-for-bit the same before and after, at 4.54e-10.** `dp*/du` is formed
+   *from* `Π_pp`, so a wrong `Π_pp` cancels out of `∂R/∂u + Π_pp · dp*/du` and the identity passes
+   for the wrong reason. Report 02 §6.9 offers this as the gate that "checks itself at any state";
+   what this wave measures is that it cannot discriminate a wrong `Π_pp`. Recorded on report 02's
+   head.
+2. **The finite difference could not referee it, and §2.5 says so correctly.** The residue under test
+   is four to nine percent of a response the difference resolves to about four digits. So a reader
+   handed the 2% disagreement could have cited the corpus, accurately, to dismiss it. That is the
+   sharpest thing this wave has to say about the corpus: a correct caveat is also a correct-sounding
+   excuse.
+3. **My own reference-limit explanation is excluded by four to five orders.** The two solves entering
+   the difference sit **1.75e-12** apart in residual, where about **5e-9** would be needed for the
+   reference to account for the gap.
+4. **`FULLSOLVE uptake0` was correct, pointed at exactly the right quantity, and did register the
+   defect** — 1.06e-05 among neighbours reading 1e-11 — and it was read as noise. It missed because
+   at its hand-built states the defect is **1700× smaller than at a state the model visits**: stale
+   divisor −20.4449 against a converged −20.4446599, ratio 1.0000117, against 1.0206648 at the
+   block's own state. The staleness scales with how hard the collar solve is, and a gate seeded at
+   easy operating points cannot size it. A one-order outlier among 1e-11 rows is exactly the shape a
+   reader dismisses.
+
+I recorded this at first as three instruments, none discriminating. Rebuilding the pre-fix gate says
+there were four and one of them worked. **"A measurement carries its configuration" applies to a
+gate, not only to a baseline** — third instance this phase, after P2.6's `|R|` gate passing on the
+test fixture's leaf and failing in production, and wave 1's FF16 configuration false alarm. §0 now
+carries it.
+
+**And a plausible constant factor is worse than an exact zero.** The corpus has spent this whole
+phase guarding against exactly-zero, because it reads as an answer. A uniform 2% reads as a *result*:
+every row finite, every sign right, the ratios stable across rows. Nothing in the shape of it asks to
+be looked at.
+
+## The near miss: no active value may outlive a recording
+
+`clearAll()` resets the tape's slot counter, so an active object held across the cohort loop
+**aliases whatever takes its slot next**. The first implementation held one active
+strategy/environment/individual per species across the loop — the natural reading of "hold one tape",
+which is what §11.4 asks P3.2's loop to do. Result: **only the very first block of the run was
+correct.** Later blocks had most trait rows exactly zero and a few spuriously large, with nothing
+thrown — and **V2 passed, because its first call was the clean one.** The fix is a per-block copy
+from a never-recorded template.
+
+Neither my brief nor `vector_jacobian_product`'s own comment states this. It is trap 2 (hold one
+tape) colliding with trap 4 (exactly zero), and I did not see the collision when I wrote both.
+
+## The structural finding wave 1's T5 was waiting on
+
+Of the 130 knot data entries, **13 move an output, 13 move the leaf, and 0 move an output without the
+leaf.** The light field reaches a cohort's rates only as `radiation` into `Leaf::set_physiology`,
+which the held-constant branch passivates. So at step (1) `lambda_knot` was identically zero *by
+construction* and T5 had no non-vacuous form — my brief gated step (1) on it. P3.1's step (c) carries
+cohort states into the field; the return path did not exist until `d(profit)/d(radiation)` was wired,
+and that is where the two packets meet.
+
+## The three leaf invariants, all better than report 02 forecast
+
+| | interior | pinned |
+|---|---|---|
+| stationarity | 4.5e-10 … 5.1e-09 | 1.28 — correctly; the selector fires and the rows are NaN |
+| continuity, value / derivative | 3.9e-07 / 4.5e-07 | 3.7e-06 / −5.8e-07 |
+| waist residual over `2n + 1` | 8.3e-09 … 2.6e-08 | 2.6e-08 |
+| `a` recovered per layer, spread | 3.5e-09 … 9.4e-09 | 1.8e-08 |
+
+The waist figures are four orders better than report 02 §6.3's 2.6e-04 … 9.2e-04, and the reason is
+that the construction is not a fit: `a` and `b` are exact partials of `R` in two variables, so any
+direction identifies `a` once `b` is known. The report's residual is its own fitting procedure's
+noise. Recorded on report 02's head.
+
+## Corrections to my briefs from this wave
+
+- **"Nine sites" was two.** Seven of the nine were `set_aux` diagnostics — not block outputs, with no
+  supplied partial, so grafting them is `value + Σ 0·(…)`. The two that carry a partial are
+  `leaf.profit_` in `net_mass_production_dt` and `leaf.soil_consumption_[a]` in
+  `evapotranspiration_dt`. Report 02 §3.3 already said "six output rows carry the rates". I took the
+  count from a stale code comment instead of from the section that owns the claim, which is §0.1 in
+  one line.
+- **V1 as briefed compares two different models** on the soil and transport channels, above.
+- **Parameters must be seeded before states.** `area_leaf(height)` reads `lma`, so a states-then-
+  parameters order puts leaf area on the previous block's trait. §2.3 states the `set_state` rule and
+  not the ordering; the wrong order leaves `set_state` visibly in the code and severs
+  `lma -> area_leaf`.
+- **`ode_rates_adjoint(lambda_dydt, lambda_y)` has nowhere for trait adjoints.** §2.4's signature
+  carries state adjoints only, and the plan says "the run-level accumulator" without giving it a
+  home. Put on `Patch` as `trait_adjoint`, species-major in `ad_parameters()` order, cleared by the
+  caller. A plan gap rather than a contested choice.
+- **`Leaf::input_adjoints` cannot be `const`.** Every evaluator on the path writes operating-point
+  members, and `E_from_Soil_to_Root_Collar` overwrites `soil_consumption_`, which feeds the patch
+  water balance — so a `const_cast` implementation would have silently corrupted the forward water
+  budget. Declared non-const, with save and restore of ten outputs.
+- **The polish caps are function-local `const`s**, unreachable from any harness, so the tightened-
+  polish test I asked for could not be run without editing a committed default. The agent stopped
+  rather than edit one, and settled the fork with two free measurements instead. That is §8 working.
+
+## Measured cost, and it re-prices §8b from a different direction
+
+| | |
+|---|---|
+| one `Patch::cohort_block_adjoint` call | **65 µs/block** |
+| one forward `compute_rates` | 31 µs |
+| ratio | **2.1×** |
+| of which per-block template copies | 12.7 µs, 20% |
+| a naive per-block `rebind_from` | 274 µs |
+| copying an already-rebound strategy | 4 µs |
+| the tape-less overload, here | 1.19× |
+
+So the cost of correctness for the near miss above is the **copy**, not the rebind. And the tape-less
+overload costs 1.19× here rather than the corpus's 10.2× marginal / 5.56× at the block's size,
+**because this block is dominated by the leaf solve rather than by recorded arithmetic**. §8b's
+multiplier applies to recorded arithmetic, and the block is not that. The total in §11.4 wants
+re-costing from this direction rather than reassurance: 2.1× measured against a term budgeted at
+5.56× is not a margin until somebody re-derives the sum.
+
+## Owed out of this wave
+
+Each was deliberately not taken and the reason is the part worth keeping.
+
+- **The twelve leaf-parameter rows.** P3.3's. NaN by design, with the slots already declared in
+  `Leaf::inputs()`, so P3.3 fills them rather than renumbering.
+- **The bound-pinned rows, P3.2 step (5).** The selector is built and discriminating and the rows are
+  NaN when pinned, but `d(bound)/du` is **not computed**. Incidence is 0 of 7.35 M at the production
+  driver, so it is insurance — unbuilt insurance, and step (5) is not done.
+- **`∂R/∂PPFD` and `∂R/∂κ` are residual pairs, not §6.4's closed forms.** A flagged substitution,
+  carried rather than hidden.
+- **`Environment::cohort_reads`' `as_iterator_scalar` fix is TF24-only.** Base, FF16 and K93 are
+  no-ops and untested at the active scalar.
+- **Three stale comments, all left as found**, listed here so they are findable:
+  `models/tf24_strategy.h` above `optimise_at` still claims nine sites and now also says the leaf
+  derivative is "exactly zero here", which the graft made false; `models/tf24_environment.h` above
+  `rebind_from` still says "everything but the light spline is double" (wave 1's cross-branch
+  artefact, still unfixed); and `patch.h`'s "with the leaf held constant at its declared boundary" on
+  `cohort_block_adjoint`, which is **merge-only stale** — true on each branch alone.
+- **Two tracked gate harnesses landed under `scratch/`** and belong in `scripts/` beside the active
+  probe.
+- **`have_dR` in `polish_root_collar_psi` now has no outward consumer**, since the member it guarded
+  was dropped. A dead flag to remove, not a question to answer.
+- **odelia's `vector_jacobian_product` header should say that no active value may outlive a
+  recording.** The hazard itself is now in `ORCHESTRATOR.md` §10; putting it where the caller reads
+  it is a code change and stays owed.

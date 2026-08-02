@@ -79,6 +79,15 @@ recorded develop baseline 56.279/214. The corpus even records which script the o
 from — `ff16k93.R`, with its own hyperpar and lifetime. Quote the SHA, the configuration and the
 script, or the number means nothing. Third baseline error of mine in that phase.
 
+**A measurement carries its configuration — and so does a gate.** A gate seeded at hand-built or
+fixture states is not a statement about production. Wave 2's collar-curvature gate was correct,
+pointed at exactly the right quantity, and **did** register the defect — at 1.06e-05 among neighbours
+reading 1e-11 — but at its hand-built states the defect is **1700× smaller** than at a state the
+model visits, and a one-order outlier among 1e-11 rows is the shape a reader dismisses. Third
+instance this phase, after P2.6's `|R|` gate passing on the test fixture's leaf and failing in
+production, and wave 1's FF16 configuration false alarm. **Seed a gate at a state the model visits,
+and say which state it was seeded at.**
+
 **A census reaches only what it names.** Explicit instantiation of a class template instantiates its
 **non-template members only**, and odr-use from a container reaches only the members it calls. So a
 member template is gated only by naming it. Wave 1 found three ungated seams that way —
@@ -459,6 +468,11 @@ Model and code:
   `t ≈ 100` the low four decimal digits are gone. Record `h`.
 - Registering a tape's inputs **after** `newRecording()` gives silently zero adjoints. Register
   first.
+- **No active value may outlive a recording.** `clearAll()` resets the tape's slot counter, so an
+  active object held across the cohort loop aliases whatever takes its slot next. Measured: only the
+  very first block of a run was correct, later blocks had most trait rows exactly zero and a few
+  spuriously large, nothing thrown, and **V2 passed because its first call was the clean one.** The
+  fix is a per-block copy from a never-recorded template.
 - Never give a deduced return type to anything returning an active value; and beware `-> double` on a
   lambda in templated code, which silently passivates.
 
@@ -596,16 +610,18 @@ window, and both land on P3.6:
 
 ## Where Phase 3 stands
 
-**Integrated and verified, but not closed.** Every prerequisite is done, **P3.1 is written**, and
-P3.2 through P3.6 are not started.
+**Integrated and verified, but not closed.** Every prerequisite is done, **P3.1 is written**,
+**P3.2 steps (1)–(4) are landed and V1 closes**, and P3.2 step (5), P3.3, P3.5 and P3.6 remain.
 
-    plant   p3/phase-3             b16068c1   ten packets, pushed (wave 1 fast-forwarded from p3/wave1)
-    odelia  p3/odelia-integration  fdccd7b    two packets, pushed, unchanged by wave 1
+    plant   p3/phase-3             893e8ad5   wave 2: p3/leafjac + p3/cohort-block + the wiring
+    odelia  p3/odelia-integration  fdccd7b    two packets, pushed, unchanged by either wave
 
-The superproject pointer moved in `6b5238b`, staged alone. **The whole phase is still bit-identical** —
+The superproject pointer moved in `6b5238b` for wave 1 and in `f486ce9` for wave 2, staged alone each
+time. **The whole phase is still bit-identical** —
 TF24 `42.179817344974609` / 4 798, FF16 `19.834058960443031` / 209, K93 `0.030538172107758225` / 240 —
 and `derivs(y, t)` twice is bitwise pure, 0 of 1137. plant 2 924 pass / 0 fail with 6 named pre-existing
-errors and 10 skip; odelia 334 pass / 0 fail / 2 skip.
+errors and 10 skip; odelia 334 pass / 0 fail / 2 skip. Those figures are wave 1's, measured at
+`b16068c1`; **both wave-2 packets reported bit-identical** against them, with the standing probe at 2.
 
 **What the phase has bought.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>` instantiates at the
 adjoint active scalar, and **the active forward rate path now compiles: the ordinary-use probe reads
@@ -620,11 +636,19 @@ gated against a finite difference of the forward quantity it transposes, agreeme
 The cost model remains **~430–460 s, 3.7 to 4.0 forward runs, a ~26x saving**; the pinned-leaf question
 is settled at 0 in 7.35 M.
 
-**What remains.** P3.2 through P3.6. **V1 is available once step (b) exists** — it compares against a
-whole-`Patch` recording, and the recording needs the block, which is P3.2 step (1)'s held-constant leaf.
-So V1 is not taken and is not claimed, and P3.1's finite differences are the weaker instrument standing
-in for it: they verify each transpose against its own forward quantity and say nothing about the
-decomposition adding up.
+**What wave 2 added.** P3.2 steps (1) to (4): the leaf's supplied Jacobian, the cohort block (185 in,
+11 out), step (b) wired, and `trait_adjoint` on `Patch`. **V1 closes at 2.32e-12**, added one
+contribution at a time — (a) alone reads rel 1, so the incremental readout is what localises it, and
+the two channels V1 cannot see (the soil, a declared passive boundary; the transport stencil, P3.5's)
+are excluded by construction and named rather than toleranced. **T5 exact** over all 65 knots, **V2 on
+all eleven outputs**, and the light channel is live for the first time. The wave also found a real 2%
+multiplicative defect in `dR_dcollar_` that four instruments failed to stop, one of which was correct
+and was read as noise. Evidence in `docs/implementation-notes.md`, *Phase 3, wave 2*.
+
+**What remains.** **P3.2 step (5)** — the bound-pinned rows: the selector is built and discriminating
+and the rows are NaN when pinned, but `d(bound)/du` is not computed. 0 of 7.35 M at the production
+driver, so insurance, and it is unbuilt. Then **P3.3** (the twelve leaf-parameter rows, NaN by design
+with their slots already declared, so P3.3 fills rather than renumbers), **P3.5** and **P3.6**.
 
 **One ruling taken, with a number and a falsifier.** The knot grid stays fixed and passive — report 03
 C1's reason, committed at P2.1 — so the plan's `height_max` term does not exist. The measured cost is a
@@ -641,14 +665,31 @@ cohort-reads triple's pre-build state, which reports 135 against un-rebuilt knot
 `tf24_environment.h` comment that only the merge makes false; and `FF16_Strategy()$eta_c` printing
 nothing, the third instance of `sprintf`-on-empty silence.
 
-**Three things carried into it, each with the reason it is not yet decided.**
+**Owed out of wave 2, same terms:** P3.2 step (5)'s `d(bound)/du`, above; the twelve leaf-parameter
+rows, which are P3.3's; `∂R/∂PPFD` and `∂R/∂κ` carried as residual pairs rather than §6.4's closed
+forms, a flagged substitution; `Environment::cohort_reads`' `as_iterator_scalar` fix being TF24-only,
+with base, FF16 and K93 no-op and untested at the active scalar; **three stale comments left as
+found** — `tf24_strategy.h`'s nine-site claim above `optimise_at`, which now also says the leaf
+derivative is "exactly zero here", `tf24_environment.h`'s wave-1 artefact, and `patch.h`'s
+held-constant-leaf line on `cohort_block_adjoint`, which is stale only on the merge; two tracked gate
+harnesses landed under `scratch/` that belong in `scripts/` beside the active probe; and `have_dR` in
+`polish_root_collar_psi`, which now has no outward consumer.
+
+**Three things carried into it.**
 
 - **The competition family's `height` argument stays `double`.** A sound argument, ungated: only a
-  numeric derivative distinguishes it from a dropped `d/dz` channel, and V1 is that instrument.
-- **The leaf's derivative is exactly zero by construction and declared.** Every output enters the active
-  chain at one expression, which is where P3.2's supplied partials attach.
-- **The reused tape is demonstrated, not realised.** No consumer holds one; calling the tape-less
-  overload inside the cohort loop restores the old cost with nothing failing.
+  numeric derivative distinguishes it from a dropped `d/dz` channel, and V1 is that instrument. V1
+  now exists.
+- ~~**The leaf's derivative is exactly zero by construction and declared.**~~ **No longer true after
+  wave 2's graft**, which is what makes the `tf24_strategy.h` comment above stale. The supplied
+  partials attach at two sites, not the nine that comment claims.
+- ~~**The reused tape is demonstrated, not realised.**~~ **Realised in wave 2's cohort loop**, and it
+  brought the trap with it: `clearAll()` resets the slot counter, so **no active value may outlive a
+  recording** — an object held across the loop aliases whatever takes its slot next, and only the
+  first block of the run is correct, with V2 passing because its first call is the clean one. Fixed
+  by a per-block copy from a never-recorded template, and §10 now carries the hazard. The tape's
+  resource gate bit: with the fix removed it reads 13 800 bytes leaked per sweep while the adjoints
+  are identical to the last bit. Nothing leaks in the tree.
 
 **Owed, small:** two `*it++ = <active>` R-boundary seams in `individual.h` and `stochastic_node.h`; a
 `StochasticPatch` instantiation in the probe so those containers have a standing gate; and the mutant
@@ -698,6 +739,30 @@ Two further rules the wave earned, beyond §0's two. **A missing-include measure
 order** — the same shape as "a measurement carries its configuration", in a place the rule had not been
 applied. And **an aggregate can quietly stop being a count**: `grep -c` over compiler output undercounts
 as soon as `-fmax-errors` bails, so read the raw error list.
+
+**Wave 2 continues the tally, and the tally is now the finding: every packet in this phase has found
+a real defect in the orchestrator's brief.** Wave 2's were the nine-site count taken from a
+stale comment rather than from report 02 §3.3, a V1 specified to compare two models that do not carry
+the same channels, and a step (1) gated on a T5 that was vacuous by construction.
+
+**A plausible constant factor is worse than an exact zero.** This phase has spent itself guarding
+against exactly-zero because a zero reads as an answer. Wave 2's `dR_dcollar_` defect was a **uniform
+2%** on every uptake row: every entry finite, every sign right, the ratios stable across rows.
+**A zero looks like nothing; 2% looks like a result**, and nothing in its shape asks to be looked at.
+
+**And the four-instrument story, which is the sharpest thing the phase has produced about gates.**
+Four instruments were pointed at that block and none stopped it:
+
+| the instrument | why it did not discriminate |
+|---|---|
+| report 02 §6.9's stationarity identity | passed at 4.54e-10, **bit-for-bit the same before and after** — `dp*/du` is formed from `Π_pp`, so a wrong `Π_pp` cancels and the identity passes for the wrong reason |
+| a finite difference of the leaf solve | cannot referee it, and **§2.5 says so correctly** — so a reader could have cited the corpus, accurately, to dismiss a real 2% |
+| the reference-limit explanation I proposed | excluded by four to five orders: the two solves sit 1.75e-12 apart in residual where ~5e-9 would be needed |
+| the `FULLSOLVE uptake0` gate | **correct, and pointed at the right quantity** — it read 1.06e-05 among neighbours at 1e-11 and was dismissed, because at its hand-built states the defect is 1700× smaller than at a state the model visits |
+
+The second row is the one to carry forward. **A correct caveat is also a correct-sounding excuse**,
+and a corpus that records why an instrument cannot referee a question has handed the next reader a
+citation for ignoring the answer.
 
 **And the cross-model tripwire's power is concentrated in one model.** K93 returns the identical value
 under both configurations that wave 1 mixed up, so only FF16 caught the error — as in Phase 0, where FF16

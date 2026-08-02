@@ -399,6 +399,15 @@ No report owns this, and it is what pays for going at TF24 first.
 | **V3** | one step's `lambda_y` against a finite difference of one step | the stage recursion | one step |
 | **V4** | whole-run gradient against a re-run finite difference at production lifetime | the deliverable | everything |
 
+**Corrected in Phase 3, wave 2: V1's row is not achievable as written.** "One whole-`Patch`
+recording against the sum of steps (a)–(d)" compares two models that do not contain the same
+channels. The recording has **no soil channel**, because the soil store is a declared passive
+boundary — the wave-1 decision whose recorded cost was exactly this — and the recording **carries the
+transport stencil**, which the decomposition omits until P3.5. The honest form: **V1 closes on the
+channels both models contain, and the two excluded channels are named** rather than absorbed into a
+tolerance. Taken at **2.32e-12**, added one contribution at a time, in
+[`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*.
+
 **V2 verifies at stage 0 only.** A block lives at a stage, and stage states are rebuilt rather
 than stored, so verifying at stage > 0 would need the rebuild working before it could check
 anything. At stage 0 the state *is* the stored trajectory state, exactly. V3 covers the rebuild
@@ -1677,6 +1686,15 @@ gradient. **V1** catches them only because it compares against a recording that 
 
 **P3.2 — the cohort block and the leaf's boundary.** The largest reverse-pass task.
 
+> **Steps (1)–(4) landed** — plant `5f239452` (the leaf's Jacobian), `772031e2` and `8ecb3fca` (the
+> cohort block and step (b)'s wiring), integrated at `893e8ad5`; superproject pointer `f486ce9`.
+> **Step (5) is not built**: the selector is built and discriminating and the rows are NaN when
+> pinned, but `d(bound)/du` is not computed. Incidence is 0 of 7.35 M at the production driver, so it
+> is insurance — unbuilt insurance.
+> **V1, V2, T4, T5 and T6 are all taken**, and the wave found a 2% defect in `dR_dcollar_` that four
+> instruments failed to stop. Evidence in [`implementation-notes.md`](implementation-notes.md),
+> *Phase 3, wave 2*.
+
 ```cpp
 // the block: a pure function of its declared inputs
 template <class S>
@@ -1754,6 +1772,12 @@ outputs enters at one expression — the seven `vars.set_aux` calls, `leaf.profi
 supplied partial attaches. No no-op wrappers were added at those nine sites, deliberately: they would
 constrain nothing until the Jacobian's form is fixed.
 
+~~**Nine sites.**~~ **Two.** The seven `set_aux` calls are diagnostics rather than block outputs and
+take no supplied partial, so grafting them is `value + Σ 0·(…)`; the sites a partial attaches at are
+`leaf.profit_` and `leaf.soil_consumption_[a]`. Report 02 §3.3 already said six output rows carry the
+rates. The nine came from a stale code comment, which is still in `models/tf24_strategy.h` above
+`optimise_at` — see [`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*.
+
 *Order.* (1) The block with the leaf held constant, so **V2** exercises the allometry, storage and
 demographic chain alone. (2) The envelope row and the explicit flux rows. (3) `dR_dflux_slope` from
 its closed form, then `dR_dflux` recovered — verified by recovering it from several potential
@@ -1794,6 +1818,10 @@ through `Leaf`'s constructor and `set_physiology`: parameter derivatives of `ass
 and `hydraulic_cost_ad`, both already templated on their scalar in develop, and of the
 transpiration and root-vulnerability interpolants, whose control points are fixed at construction
 so the parameter is carried by the values (report 03's arrangement, second consumer).
+
+> **The slots are already declared.** P3.2 left the twelve leaf-parameter rows **NaN by design**,
+> with their slots in `Leaf::inputs()`, so P3.3 fills them rather than renumbering the input vector
+> ([`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*).
 
 *Why it is separate from P3.2.* P3.2's rows are the same for every model with an inner optimum;
 these are TF24's leaf physiology and nothing else shares them. Splitting them means a failure here
@@ -2056,6 +2084,14 @@ bound, because the extra probes reuse caches the first one fills. The test suite
 note says 50.1% (report 04 §3). The three agree in order and the arithmetic sits between the two
 measurements.
 
+**Measured in Phase 3, wave 2, and it re-prices this section from a different direction.** One
+`Patch::cohort_block_adjoint` call is 2.1× a forward `compute_rates`, and the tape-less overload
+costs 1.19× here rather than the 10.2× marginal / 5.56× recorded above. The multiplier applies to
+**recorded arithmetic**, and this block is dominated by the leaf solve rather than by recorded
+arithmetic. So the total wants **re-costing**, not reassurance: a term budgeted at 5.56× measured at
+2.1× is not a margin until the sum is re-derived. Numbers in
+[`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*.
+
 **The polish pays for itself.** Loosening the bracket from `1e-3` to `1e-1` saves 4.6 µs; two Newton
 steps, each taking `R` and `dR_dcollar` by one difference, cost about four `dprofit` calls, 14 µs.
 So P2.6 is not free at these tolerances — it is roughly +9 µs on a 10 µs solve unless the loosening
@@ -2184,11 +2220,15 @@ aux transfer and `step_adjoint` are the same either way.
    Not in either step: step (1)'s bit-identity is arithmetically impossible, and step (2)'s shift is
    deliberate. The interpolant change *is* a model change, the owner accepted it, and the measured
    worst crown-mean light shift is 2.04e-03 against M3's predicted 1.7e-03.
-4. **Is the leaf's boundary as report 02 §6.8 states it** — `2n + 3` geometry and soil inputs
-   plus twelve of its own parameters, out to profit and one uptake per rooted layer? A thirteenth
-   parameter or a sixth output kind changes P3.2's shape. Note the output arity is
-   state-dependent through `max_soil_layer`, so an assertion must read it rather than the layer
-   count.
+4. ~~**Is the leaf's boundary as report 02 §6.8 states it** — `2n + 3` geometry and soil inputs
+   plus twelve of its own parameters, out to profit and one uptake per rooted layer?~~ **Closed in
+   Phase 3, wave 2: wider boundary, unchanged shape.** Five inputs were missing from §6.8 —
+   `root_b`, `root_c`, `root_psi_crit`, `beta_R_H`, `beta_R_V`. Four of them factor through the same
+   waist pair at the same tolerance as the classic directions, and the fifth, `root_psi_crit`, sets
+   `bound_b` and so is bound-branch rather than flux — live only where the point is pinned, which is
+   nowhere at the production driver. So P3.2's shape does not change. The output arity remains state-dependent through `max_soil_layer`,
+   so an assertion must read it rather than the layer count. Report 02's head carries the correction;
+   the measurements are in [`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*.
 5. **Does either P0.6 decision bump `scientific_version`?** Both halves are still open and both are
    the owner's: the double-counted photosynthetic-nitrogen respiration, and the establishment gate,
    whose closed arm spans four to five orders so that no one smoothing scale fits it. **Phase 2 was

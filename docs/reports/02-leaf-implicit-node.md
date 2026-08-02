@@ -24,6 +24,33 @@
 > leaf node is therefore two branches and a selector on `|∂Π/∂p|`, and this report's
 > section 1 already has the right shape for the bound branch: pinned means `p*` *is* the
 > bound, so its derivative is the bound's derivative, analytic and exact.
+>
+> **Four sub-claims falsified by building the node (Phase 3, wave 2). The conclusions stand; these
+> four do not.** Evidence in `../implementation-notes.md`, *Phase 3, wave 2*.
+>
+> **§6.8's input table is incomplete.** Five inputs are missing: `root_b`, `root_c`,
+> `root_psi_crit`, `beta_R_H` and `beta_R_V`. The last two are the only multiplicative scale on the
+> root resistance network, so under the declared table a strategy varying either would have got
+> **exactly zero** — this design's worst failure mode. What blunts it is that `beta_R_H` and
+> `beta_R_V` are **not user-seedable**, so the hazard does not bite through them; `root_b` and
+> `root_c` are, and it does. The boundary is wider and its shape is unchanged: four of the five
+> factor through §6.3's waist pair at the same tolerance as the classic directions, and the fifth,
+> `root_psi_crit`, sets `bound_b`, so it belongs to §6.7's bound branch rather than to the flux and
+> is live only where the point is pinned — zero at the production driver, where every such row is
+> NaN in any case.
+>
+> **§6.3 understates by four orders, and the construction is not a fit.** `a` and `b` are exact
+> partials of `R` in two variables, so any direction identifies `a` once `b` is known; the quoted
+> 2.6e-04 … 9.2e-04 is the fitting procedure's own noise, not the waist's residual. Measured over
+> `2n + 1` directions the residual is 8.3e-09 … 2.6e-08.
+>
+> **§6.6's sign holds only under a drying-magnitude convention** the section never states.
+>
+> **§6.9's stationarity identity cannot discriminate a wrong `Π_pp`**, and this is a limitation of
+> the invariant the report offers as a gate. `dp*/du` is formed *from* `Π_pp`, so it cancels out of
+> `∂R/∂u + Π_pp · dp*/du` and the identity passes for the wrong reason. It is not a hypothetical: a
+> real 2% error in the published curvature survived it, with the identity reading 4.54e-10
+> **bit-for-bit the same before and after the fix**.
 
 ## 1. The proposal
 
