@@ -1,0 +1,50 @@
+diff --git a/src/tf24_strategy.cpp b/src/tf24_strategy.cpp
+index 6921cb0c..d1a237da 100644
+--- a/src/tf24_strategy.cpp
++++ b/src/tf24_strategy.cpp
+@@ -3,6 +3,21 @@
+ 
+ namespace plant {
+ 
++// P0.11 instrumentation, not for commit.
++long n_leaf_solve = 0;
++long n_net_mass_production_dt = 0;
++long n_stage = 0;
++struct instr_report {
++  ~instr_report() {
++    fprintf(stderr, "INSTR stages=%ld net_mass_production_dt=%ld leaf_solve=%ld"
++                    " nmp_per_stage=%f solve_per_stage=%f\n",
++            n_stage, n_net_mass_production_dt, n_leaf_solve,
++            (double)n_net_mass_production_dt / (double)n_stage,
++            (double)n_leaf_solve / (double)n_stage);
++  }
++};
++static instr_report instr_report_;
++
+ // --- Hard-coded root-distribution constants (review #9) ---------------------
+ // Named here for clarity; promotion to user-tunable traits (RcppR6) is a
+ // deliberate follow-up (see vignettes/models/code_review_leaf_tf24.qmd #9).
+@@ -347,6 +362,7 @@ double TF24_Strategy::net_mass_production_dt_A(double assimilation, double respi
+ double TF24_Strategy::net_mass_production_dt(const TF24_Environment& environment,
+                                 double height, double area_leaf_,
+                                 double height_inverse) {
++  ++n_net_mass_production_dt;
+   // height_inverse (= 1/height) is supplied by the shared individual.h interface
+   // (cached aux); unused here as the TF24 root-water path works in height directly.
+   (void)height_inverse;
+@@ -519,6 +535,7 @@ double TF24_Strategy::net_mass_production_dt(const TF24_Environment& environment
+ 
+ // Base TF24: optimise the root-collar water potential from scratch each call.
+ void TF24_Strategy::solve_leaf() {
++  ++n_leaf_solve;
+   leaf.find_root_collar_psi();
+ }
+ 
+@@ -693,6 +710,7 @@ double TF24_Strategy::storage_capacity(double area_leaf_, double height) const {
+ // reserves rather than starting empty (which would kill them immediately).
+ void TF24_Strategy::set_initial_states(const TF24_Environment& environment,
+                                        Internals& vars) {
++  ++n_stage;
+   (void)environment;
+   const double height = vars.state(HEIGHT_INDEX);
+   const double area_leaf_ = area_leaf(height);

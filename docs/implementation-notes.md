@@ -561,8 +561,9 @@ both enter every order equally.
 ### P0.5 — the switch inventory, measured
 
 `scripts/demographic_switches.R` with `/home/user/p0/p0.5-instrumentation.patch`, commit `3b34dcf`.
-*(Unlike the build and gate assets now under `scripts/build/`, that patch was never committed and
-the container holding it is gone, so this row is not re-runnable as written.)*
+*(That patch lived only in a container home directory and had never been committed. It was
+recovered before the container was reclaimed and is now `scripts/build/p0.5-instrumentation.patch`,
+alongside P0.9's and P0.11's, so this row is re-runnable again.)*
 Counters behind `PLANT_SWITCH_PROBE`; the patch is not committed to the model. Rows integrated into
 `tf24-correctness.md` P0.5.
 
