@@ -10,7 +10,7 @@ Everything below is measured on `plant` `develop` at `141dc8df` in an environmen
 what reports 10 and 11 lacked. Probe scripts and raw outputs are in
 [`probes/`](../../probes); the implementation is `plant` `claude/nsc-density-measurements-efiolz`.
 
-[Report 13](13-when-two-plants-the-same-height-differ.md) is the self-contained version of the same
+[Report 13](13-carried-state-invalidates-the-compression-term.md) is the self-contained version of the same
 work, written for a reader coming to it cold: it derives the argument rather than answering the
 question as posed, and carries measurements this report does not.
 
@@ -288,8 +288,11 @@ As a ratio to the area-64 mean:
 | birth-date arm | 1.17 | 1.23 | **1.26** | **1.28** | **1.28** | 1.19 | 1.01 |
 
 The IBM is stable across a 16x range of patch area (at age 2: 0.0855, 0.0878, 0.0771), so this is
-not a finite-population artefact; it carries 58 to 177 individuals through the window. The height
-arm sits about twelve replicate standard deviations above it; the birth-date arm sits within two.
+not a finite-population artefact; it carries 58 to 177 individuals through the window. Only two
+replicates were run at 64 m², so the per-area standard deviation there is not usable; pooling all 16
+runs, the height arm sits 3.8 to 5.8 standard deviations above the ensemble mean at ages 2 to 3 and
+the birth-date arm within 0.7. Ratios to the pooled mean are 2.69, 2.95, 2.82 against 1.14, 1.17,
+1.21.
 
 **The oracle rules out the height arm and is consistent with the birth-date arm.** This is the
 measurement report 10 §10 and report 11 §8.2 both named as the only one that adjudicates from
@@ -314,7 +317,7 @@ stand reports.
 At these parameters `g` at birth never goes non-positive (minimum 0.0959, median 0.821), so the
 cliff is latent rather than active. It still costs conditioning: the newborn density spans **16.8x**
 under the height arm against **3.03x** under the birth-date arm, and the maximum `log_density`
-reached is 1.564 against -0.002 against a guard ceiling of 50
+over all cohorts and recorded times is +2.4168 against -0.0015, against a guard ceiling of 50
 (`Patch::check_finite_node_densities`). Under birth-date coordinates `log density` is bounded above
 by `log(birth_rate * pr_estab)` and that guard can never fire.
 

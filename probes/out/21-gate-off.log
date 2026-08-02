@@ -1,0 +1,6 @@
+gate threshold a_st2 = 0.1 is the shipped value; -10 puts G within 1e-43 of 1 for all r.
+
+gate active            lev0 n=141  height=42.1402      birth=395.441       relative gap=8.384e+00
+gate active            lev1 n=281  height=54.7988      birth=399.085       relative gap=6.283e+00
+gate removed from g    lev0 n=141  height=2.09638e-15  birth=2.0958e-15    relative gap=2.753e-04
+gate removed from g    lev1 n=281  height=2.09547e-15  birth=2.09539e-15   relative gap=3.732e-05
