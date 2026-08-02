@@ -47,8 +47,8 @@ for the whole run; it stops reaching demography after about patch age 5 (§10).
 bit-identical to the original. On the two strategies whose growth is a function of size, the two
 coordinate systems converge to each other under refinement at approximately second order. On TF24
 they do not: the gap falls by factors of 1.3 and then 1.1 and remains near 5.8. Decoupling the store
-from growth within TF24, changing nothing else, removes 92% of that gap and leaves a residual that
-does refine away (§12, §12.1).
+from growth within TF24, changing nothing else, removes 92% of that gap at the production schedule
+and 98% at four times the resolution, and leaves a residual that refines away (§12, §12.1).
 
 ## 2. The premise, and what ended it
 
@@ -475,10 +475,19 @@ Its residual disagreement refines away, where the shipped configuration's does n
 |---|---|---|---|
 | as shipped | 8.38 | 6.28 | 5.79 |
 | growth reads reserves, mortality does not | 642 | 509 | not run |
-| store reads nothing | 0.645 | 0.357 | not run |
+| store reads nothing | 0.645 | 0.357 | **0.0966** |
 
 Both configurations in which growth reads the reserve fraction hold their disagreement under
-refinement; the one in which it does not halves it.
+refinement: the shipped one falls by a factor of 1.45 across two halvings of the cohort spacing. The
+configuration in which growth does not read reserves falls by a factor of 6.7 across the same two.
+Decoupling the store therefore removes 92% of the disagreement at the production schedule, 94% at
+double the resolution and 98% at quadruple it.
+
+The underlying trajectories make the same point. With the store decoupled, the birth-date arm gives
+32.577, 32.653 and 32.655 across the three levels — converged at the coarsest — while the height arm
+gives 19.801, 24.072 and 29.778, approaching that same value from below and still 9% short at 561
+introductions. The height coordinate converges to what the birth-date coordinate reports at 141
+introductions.
 
 This qualifies two statements above. TF24's height-coordinate arm converges slowly whether or not
 the store is coupled — it moves +21.6% between the first two levels with the store decoupled against
@@ -595,9 +604,9 @@ correction removes the ordering requirement holds for the state and not for that
 written against the height grid. The structure carries over to a birth-date abscissa; the work has
 not been done, and all runs here use `refine_schedule = FALSE`.
 
-**The §12.1 control was not taken to a third refinement level.** Both configurations were run at 141
-and 281 introductions but not at 561, so the claim that the decoupled residual refines away rests on
-one halving rather than two.
+**One cell of the §12.1 control was not refined to the third level.** The gate-active,
+mortality-decoupled configuration was run at 141 and 281 introductions but not at 561. The
+decoupled configuration and the shipped one were run at all three.
 
 **Crossings were censused at one parameter set.** §9 covers a single trait value and a single
 environment. The drought sweep that motivated the storage pool has not been instrumented, and no run
@@ -650,7 +659,8 @@ in both integrals the model forms. Carrying the population as a density per unit
 the term. On the two strategies whose growth is a function of size, the two coordinate systems
 converge to each other at approximately second order under refinement; on TF24 they do not.
 Decoupling the store from growth within TF24, changing nothing else, removes 92% of the disagreement
-and leaves a residual that refines away. An independent individual-based solver, which has no
+at the production schedule and 98% at four times the resolution, and leaves a residual that refines
+away. An independent individual-based solver, which has no
 transport term, places the corrected result within 0.7 standard deviations of its ensemble mean and
 the uncorrected result 3.8 to 5.8 above.
 
