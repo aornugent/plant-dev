@@ -35,6 +35,17 @@ is light availability, which is what `ResourceSpline` stores.
 > ulp apart. §1b's own hedge — "up to performing one division rather than an affine remap" — is exactly
 > where it hides. What *is* bitwise is `x == u · height_max` against one fixed uniform `u`.
 >
+> **§1b's `height_max` selector claim is false, and C1's dropped channel now has a measurement
+> against it.** `Species::height_max()` is no longer `nodes.front().height()`: it is an O(n) scan,
+> because TF24 broke the descending-height invariant — reserve-gated growth lets cohorts cross, which
+> Phase 2's transport census measured at −0.0334 m. So a selector *and* a tie exist within a species,
+> not only across them. And C1's dropped knot-position channel, recorded there at 8.7e-04 on a coarse
+> 20-knot run with its convergence unmeasured, is measured on the model at a gap of **1.891e+01 —
+> about 87% of the tallest cohort's height adjoint**. C1's ruling stands (positions stay passive, by a
+> committed choice at P2.1), but its size assumption does not, and **the unmeasured
+> convergence-with-knot-density is now the falsifier**. Evidence in `../implementation-notes.md` under
+> *Phase 3, wave 1*.
+>
 > **Confirmed as written:** the locality claim (`d(eval)/d(knot)` exactly 0 two spans away, re-verified
 > on a live tape), the convergence rates on a smooth target, the fused-sweep requirement in §1b (the
 > fused value equals `compute_competition` bitwise, and reversing a two-term sum was found to be an

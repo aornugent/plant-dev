@@ -3242,3 +3242,368 @@ change and must not ride in a docs commit**; stage the superproject's paths expl
   is now in `SCM::store_trajectory`, where the dependency is.
 - The **60× wrong-gradient figure has no source** — no commit, test or note records the
   measurement, and it appears only as a sentence repeated across documents. Treat as unverified.
+
+# Phase 3, wave 1 — the two remaining prerequisites, and P3.1
+
+Base: plant `p3/phase-3` `c9914ffb` against odelia `p3/odelia-integration` `fdccd7b`, installed at
+`/home/user/lib-p3-int` and verified by grepping the installed artifact — `active_scalar` present,
+`Rebindable` at three sites. Every packet read that library read-only and none installs into it.
+Verification happened in worktree `wt-p3-int`, which nothing else builds in.
+
+**One build in the wave, not six.** Five packets, and only `p3/reads` was given a build. The rest
+close on syntax probes, because their bit-identity claim is structural — new members, a missing
+include, an `if constexpr` whose `double` arm is the original text — and structural bit-identity is
+worth one measurement at integration rather than five. The probe recipe:
+
+    g++ -std=c++20 -fsyntax-only -fmax-errors=200 -I inst/include \
+        -isystem /home/user/lib-p3-int/odelia/include -isystem <Rcpp> -isystem <BH> -isystem <R>
+
+**It costs about 7 s, not the ~30 s this file records from the sweep packet** — the difference is
+that no odelia install is paid for inside the measurement. The earlier figure stands for what it
+measured; this is the figure to cost a packet against.
+
+Two probes, and they are different instruments. The **explicit-instantiation** probe
+(`template class plant::Patch<TF24_Strategy<active>, TF24_Environment<active>>`) read **19** at the
+wave's base; the **ordinary-use** probe, which calls the rate path the way a consumer does, read
+**18** — 17 in `tf24_strategy.h` and one in `environment.h` at `Environment::set_ode_state`. The
+second number had never been taken before this wave, and it is the one that says whether the thing
+the reverse pass actually runs compiles.
+
+## The baseline, and a configuration failure that was mine
+
+Re-measured at `c9914ffb` / `lib-p3-int` by an independent agent in its own session:
+
+| | value | steps | configuration |
+|---|---|---|---|
+| TF24 | `42.179817344974609` | 4 798 | TF24 config, `max_patch_lifetime` 105.32, `lma` 0.1978791 |
+| FF16 | `19.834058960443031` | 209 | `ff16k93.R`: `lma` 0.0825 + `FF16_hyperpar`, default lifetime, `sum()` |
+| K93 | `0.030538172107758225` | 240 | `ff16k93.R`: `b_0` 0.059 + `K93_hyperpar` |
+
+plus purity 0 of 1137, plant 2 924 pass / 0 fail / 6 named pre-existing errors / 10 skip, and odelia
+334 pass / 0 fail / 2 skip against the submodule source at `fdccd7b` (the INSTALL ships no `tests/`).
+
+**A baseline is a property of a commit *and a configuration and the script that produced it*.** I
+handed TF24's configuration to all three models. FF16 came back `56.30` / 214 — which is not a
+regression, it is FF16 at its own defaults, and it has the shape of the recorded develop baseline
+`56.279` / 214. §0 already carries the first half of this rule from the odelia suite counts (322 /
+327 / 330); what this adds is that the configuration and the script are as much a part of the number
+as the SHA, and the corpus even recorded which script the other two came from. **Third baseline
+error of mine this phase**, after those counts and the probe's 19.
+
+**K93 is not a discriminating arm of the cross-model tripwire.** It returns the identical value under
+both configurations, so only FF16 caught the error. Phase 0's silent offspring-to-zero regression was
+likewise caught by FF16 alone. The tripwire's power is concentrated in one model, which is worth
+knowing before anyone drops an arm for cost: dropping K93 costs little, dropping FF16 costs the
+tripwire.
+
+**Third instance of one failure mode.** `FF16_Strategy()$eta_c` printed nothing: `sprintf` on a
+NULL or empty value returns `character(0)` and `cat` then prints silence. Same mechanism as this
+phase's vacuous FF16 tripwire and as the gate that could not fail. **A field that is silently not
+R-visible looks exactly like one that is.** Unchased — recorded because it is the third, not because
+it blocked anything.
+
+## `p3/seams` — the two `*it++` seams, and what a census does not reach
+
+`4b9bae31`, `eacbbd92`. Two `*it++ = <active>` R-boundary seams closed — one is a boundary that
+genuinely converts, one was a hand-rolled duplicate whose deletion removes the seam rather than
+guarding it. `stochastic_patch.h` and `stochastic_patch_runner.h` made self-contained.
+`scripts/tf24-active-probe.cpp` becomes a **committed standing probe** covering `Patch`,
+`StochasticPatch` and the three `Individual` serialisers, still reading 19 in one file, and carrying
+a comment recording what it does not cover.
+
+**What the plan did not predict: a census reaches only what it names.** Explicit instantiation of a
+class template instantiates its **non-template members only** — member templates are excluded — and
+odr-use through a container reaches only the members that container calls. So `Individual`'s three
+`template <typename It> ode_*(It)` serialisers were gated by **nothing**, through no fault of the
+consumer chosen. "Census from the outermost consumer inward" is necessary and is not sufficient: **a
+member template is gated only by naming it.** Fixed with three explicit member-template
+instantiations at the `double` iterator; the count stayed at 19, so the coverage was free.
+
+**And a missing-include measurement carries its include order.** My "27 errors" for
+`stochastic_patch.h` was taken from a translation unit that reached it late. From a translation unit
+where it is the *first* include it is **82**, and three names are missing rather than one. This is
+"a measurement carries its configuration" in a place the rule had not been applied.
+
+**A third measurement rule, smaller and sharper.** An aggregate can quietly stop being a count:
+`grep -c` over compiler output undercounts as soon as `-fmax-errors` bails. Use the raw error list.
+
+## `p3/deepcrown` — refused at the active scalar rather than carried
+
+`019379d6`, one commit. **I changed the approach** from carrying `S` through the 17 DeepCrown sites
+to refusing at the active scalar with `if constexpr`, and the reason is that carrying `S` there is
+not a type-widening at all.
+
+`Leaf` is untemplated, and DeepCrown launders its crown means back **through** it — `leaf.profit_`,
+`leaf.soil_consumption_` — before they re-enter the active chain. So widening the type relocates a
+data flow through `net_mass_production_dt`, `evapotranspiration_dt` and seven `set_aux` calls, which
+is exactly the seam P3.2 must rework for the leaf's supplied Jacobian. Building it now builds it
+twice, the second time against a boundary whose shape is not yet fixed. Nine of the 17 sites also
+need `qk.h`'s `integrate_vector` and `integrate_vector_x` made scalar-generic, which my brief listed
+as a contingency while citing a `qk.h` edit as its precedent.
+
+| probe | before | after |
+|---|---|---|
+| explicit instantiation | 19 | **2** |
+| ordinary-use rate path | 18 | **1** |
+| `double` | 0 | **0** |
+
+The 2 are the `prepare_strategy` refusals; the 1 is `Environment::set_ode_state`, which `p3/reads`
+owns. **The expected probe counts for every later packet are 2 and 1, not 19.** Bit-identity of the
+`double` arm was proved by md5 of the whitespace-stripped body — 36 lines in, 36 out — re-verified
+after the commit message was amended. One style-sweep hit is the known false positive: a four-line
+pre-existing comment that the two-space reindent rewrites, inside the md5-identical body.
+
+**Scope reduction, recorded as a reduction.** Deep-crown shading is now **refused** at the active
+scalar. It becomes differentiable only when `qk.h`'s two vector members are scalar-generic **and**
+the `Leaf` write-back is relocated. Neither is useful alone, and the second is P3.2's boundary.
+
+*Owed:* `tf24_strategy.h`'s `throw std::invalid_argument` in `prepare_strategy` is now the odd one
+out in that file and should probably become `util::stop`. Not taken: it is observable behaviour on
+the passive path — a caller could be catching the exception type — so it needs its own gate.
+
+## `p3/rebind` — `Patch::rebind_from`
+
+`3a9f4b60`, then `9b594564` merging deepcrown, then `48395cb2`. `Step::step_adjoint` hard-asserts on
+this and it did not exist.
+
+Gate 3, the value round trip: **33 components bitwise**, `lma` survived, and all three *prepared*
+members survived — `eta_c`, `height_0`, `area_leaf_0` — which a states-only round trip would have
+missed. Re-running `prepare_strategy` fires both `static_assert`s, confirmed by the packet hitting it
+on its first attempt.
+
+**The active leg is measured, not merely type-checked.** After the deepcrown merge `gate3_active`
+compiles clean: 33 of 33 state values equal the double patch's, `value_type` is the active scalar,
+`lma` survives. The standing probe reads **2** and now gates `rebind_from` by a **named
+member-template instantiation** — the census rule from `p3/seams`, applied to the thing it was found
+on.
+
+**What the plan did not predict, and it is why `rebind_from` has to carry what it carries.**
+`prepare_strategy` is refused at the active scalar and the rate path does not odr-use it. So an
+active `Patch` can only be produced by `rebind_from` from a prepared `double` patch, and
+`rebind_from` must carry `eta_c`, `height_0`, `area_leaf_0`, the `Leaf`, the quadrature rule and the
+resolved shading model across, never re-run `prepare_strategy`. Independently the same answer as
+`build-plan.md` §2.3, which forbids `prepare_strategy` inside a block on cost grounds — two
+arguments, one conclusion.
+
+*Owed, with the shape decided so it need not be re-derived.* `field_ptrs()` (59 fields) and
+`ad_parameters()` / `ad_parameter_names()` (55) are two hand-maintained lists of one fact, and the
+`sizeof` guard catches an addition but not a reorder or a same-size swap. Make one canonical ordered
+`{name, pointer}` table on `TF24_Pars`: `field_ptrs()` is its pointers, `ad_parameters()` is the
+table filtered by a small named exclusion set (`eta`, `root_depth_shape_eta`, `vcmax_25`, `jmax_25`,
+plus the eleven nothing reads). **The yml is canonical for order** — P1.3 established it as the
+authority on which field a name means rather than a second list — so the table is ordered to match it
+and the existing yml-agreement test guards the one table. It wants a base or macro home so it reaches
+`strategy.h` and `parameters.h`. Not done: it has no numerical content, and a prerequisite wave is
+the wrong place for a refactor. Related brief defect of mine: my allowlist excluded `parameters.h`
+and `strategy.h`, which forced per-model boilerplate to be copied inline.
+
+## `p3/reads` — the cohort-reads triple
+
+`bdbba466`. All four gates, and **bit-identical on the first try**. `n_cohort_reads()` reads **135**
+for TF24 — 65 knot values, 65 slopes, five soil potentials — and 0 for base, FF16 and K93. The
+derivative gate reads exactly 1 on a knot value, on a knot slope and on a soil potential, with the
+knots reaching a real field query; `d(uptake)/d(psi)` is correctly still zero at the leaf boundary,
+which is the declared boundary and not a defect.
+
+**Two things about the triple's shape, recorded as design notes rather than as measurements — no gate
+in this wave reads either.**
+
+**The triple cannot be uniformly virtual, and the plan's shape implies it can.** `n_cohort_reads()` is virtual; `cohort_reads` and `set_cohort_reads` are member templates
+on the iterator and **member templates cannot be virtual**. So a derived environment's versions
+*hide* rather than override, and correctness depends on every caller holding the concrete type rather
+than a base reference. That is safe as the callers stand and it is not a property the type system is
+enforcing.
+
+**And the pre-build state is undeclared.** Between construction and the first field build the count
+reports 135 while the field still holds its initial knots, so the triple is inconsistent with itself.
+It currently throws. That is a defensible answer and it is not a decided one.
+
+## The soil store: declared a passive boundary
+
+`Environment::set_ode_state` writes `vars.states[i] = *it++` into an `Internals<double> vars`, which
+**is** the soil water state — the one ordinary-use probe error left after deepcrown. Two readings
+were put up and the decision was mine to take.
+
+- **(a) Template `Environment<S>`.** FF16 and K93 environments derive from `Environment<double>` and
+  stay bit-identical. Cost: the soil arithmetic must compile at the active scalar, including three
+  `pow` sites with unguarded `n_psi` exponents (recorded in Phase 1). Buys: V1's whole-`Patch`
+  recording would include the soil, so step (a)'s hand-written bidiagonal transpose is checkable
+  against a tape of the same thing — the strongest form of V1.
+- **(b) Declare the soil store a passive boundary**, as the leaf boundary and `height_seed` are
+  declared, with a named `static_assert`. Cost: V1 then verifies (c) and (d) against the recording
+  and (a) against a separate finite difference of the soil rates.
+
+**Chosen: (b).** Report 00 §7 classifies the soil channels as free — `dθ/dφ` because moisture is ODE
+state carried by the adjoint ODE, `dψ/dθ` because it is analytic — and `build-plan.md` §2.4 step (a)
+transposes the drainage cascade **by hand**, so no recording needs a soil adjoint. P3.1 already gates
+step (a) against a finite difference of `Environment::compute_rates`. Templating would buy a channel
+that is already carried, at the cost of three unguarded `n_psi` `pow` sites.
+
+**The condition attached to the choice:** it must be declared at the site, with `to_passive` and a
+two-line declaration matching the other boundaries. A silent passivation of soil state is
+indistinguishable from a defect to anyone who later expects a nonzero soil adjoint out of a recording.
+
+## `p3/adjoint` — P3.1 steps (a), (c) and (d)
+
+`2260f1ad` the soil water balance transposed in the soil state, `f2b54d0a` the two cohort reductions
+and the leaf-area allometry, `b8d9bc2f` `Patch::ode_rates_adjoint` assembled from its closed-form
+steps, then `93c9beb2` and `495849ca` shortening comment runs the style sweep flags. 536 lines added,
+**zero deleted**. Step (b) is a stub returning zeros. Every closed-form contribution
+is gated against a finite difference of the forward quantity it transposes, with vacuity assertions
+throughout:
+
+| contribution | agreement with the finite difference |
+|---|---|
+| soil ∂/∂θ | 7.68e-11 |
+| soil ∂/∂U | 1.98e-10 |
+| soil, guard fired | 1.92e-08 — and the **guarded rows are exactly zero** where the unguarded ones are not |
+| step (c)+(d) ∂/∂height | 1.02e-09 |
+| step (c)+(d) ∂/∂log_density | 4.24e-11 |
+| allometry | 1.24e-10 … 1.04e-08 |
+| offspring | 3.1e-11 … 6.9e-11 |
+| water quadrature | 9.04e-11 |
+
+Knot values and knot slopes were gated separately. **Gate 3 bites hard**: dropping `dL/dA = −L` flips
+every sign and moves magnitudes by 10 to 10⁴×, which is the discrimination §2.3 says that term needs.
+
+**V1 is not taken and is not claimed.** V1 compares the closed-form steps against a whole-`Patch`
+recording, and there is no recording until step (b) exists. What this packet has is per-contribution
+finite differences, which is a weaker instrument by design: it verifies each transpose against its
+own forward quantity and says nothing about the decomposition adding up.
+
+### Three corrections to `build-plan.md` §2.4 step (a), all implemented and FD-confirmed
+
+1. **The layer-0 inflow is not `K_{−1}`.** It is `rainfall · max(0, 1 − a_infil (θ₀/θ_sat)^b_infil)`,
+   so the top row carries a **second, self-referential θ₀ term** through saturation-excess runoff,
+   with its own `max(0, ·)`. Omitting it is a wrong diagonal on the wettest layer.
+2. **The environment carries four cumulative-flux aux states beyond the five layers.** Two of their
+   rates read θ, so `∂(soil rates)/∂θ` is bidiagonal **plus two aux rows**; and `rate[n+3] = Σ U_i`
+   adds `+λ_{n+3}` to **every** uptake adjoint — including the layers the positivity guard zeroed,
+   which is why `adj_uptake` is nonzero there while `adj_theta` is exactly 0. Report 00 §7 lists the
+   four cumulative-flux states as write-only with identically zero adjoints; that is the claim this
+   measurement contradicts.
+3. **The trapezium weights are per-species**, from `Species::consumption_rate`. `Patch::compute_rates`
+   then sums species and divides by area with no further weighting. Report 00 §6.3's `w_k` is right
+   but it is one trapezium *per species*, not a patch-level one.
+
+### The `height_max` ruling I owed: the fixed-grid transpose is correct
+
+`build-plan.md` §2.4 and P3.1 say every knot query carries `1/height_max` and `−z/height_max²` onto
+the tallest cohort. **The code has no such channel:** `ResourceSpline::rebuild_spline` lays knots at
+`u_k * to_passive(height_max)`, deliberately passivated, with a comment saying so.
+
+**Ruling: keep the fixed-grid transpose.** Report 03 C1 already decided this and gives the reason —
+moving a knot changes the interpolant, not the interpolated function — and it is the treatment plant
+already gives adaptive knot sets. P2.1 committed to it. The plan's term belongs to a moving-grid
+discretisation this model does not have.
+
+**But the packet measured what the choice costs, and it is far larger than C1 assumed.** Letting the
+knots move gives `−2.905e+00` on the tallest cohort where the fixed-knot reference and the adjoint
+both give `−2.1816e+01`: a gap of **1.891e+01, about 87% of the tallest cohort's height adjoint**,
+against C1's 8.7e-04 at 20 knots. C1's own words are *"It should shrink with knot density; that
+convergence was not measured and should be, at production counts."* **It still has not been.**
+
+So the falsifier is now sharp and V1 is the instrument. If the gap does not shrink with knot count,
+C1's premise is wrong and the passive-position treatment needs revisiting — which would be a
+forward-model decision rather than a gradient one. This is the same open ruling the Phase 3 preamble
+records as *"the competition family's `height` argument stays `double` … nothing yet distinguishes it
+from a dropped `d/dz` channel"*, and it now has a number attached for the first time.
+
+### A doc desync the packet found
+
+**`Species::height_max()` is no longer `nodes.front().height()`.** It is an O(n) scan, because TF24
+broke the descending-height invariant: reserve-gated growth lets cohorts cross, which Phase 2's
+transport census independently measured at **−0.0334 m**. So a selector, and a tie, **do** exist
+within a species. `build-plan.md` §2.4, report 03 §1b and `tf24-correctness.md` P0.5 all asserted
+otherwise and now carry one-line corrections pointing here. Note that M8 measured 0 of 10 011
+non-descending pairs on the default driver with a largest gap of −8.209404e-06; the census that finds
+the crossing is the transport one, so the invariant is configuration-dependent and the code no longer
+relies on it either way.
+
+### A C++ trap worth keeping
+
+**A member's return type is formed at class instantiation.** So an ordinary member returning
+`typename strategy_type::competition_partials` breaks every model that lacks the type — it killed
+`src/scm_utils.cpp` on FF16 and K93. The fix is a defaulted template parameter, so the return type is
+formed on use. Bodies are lazy either way; return types are not.
+
+### Two forward kinks the gates had to be steered around, both real
+
+- At `z == height_max` the reduction switches off, so a central difference of the tallest cohort's
+  height reports **exactly half** (ratio 2.000).
+- A soil layer sitting exactly at `soil_moist_residual` has a discontinuous rate, so a finite
+  difference there reports **−6.7e+07** against a correct adjoint of 0.
+
+Neither is a defect in the adjoint; both are places where the finite-difference reference is not the
+oracle.
+
+### A correction I issued into the packet
+
+`build-plan.md` §2.4 puts the transport stencil's `lambda_g` in step (a) as a closed-form seed. That
+text predates P2.4 going out of scope: under develop's sub-grid probe `lambda_g` needs two block
+recordings per cohort per stage and is **P3.5's**, not P3.1's. The adjoint packet was told so
+explicitly.
+
+## Wave 1 integrated, and verified on the merged tree
+
+    plant        p3/phase-3            b16068c1   fast-forwarded from p3/wave1, pushed
+    odelia       p3/odelia-integration fdccd7b    unchanged
+    superproject pointer moved in 6b5238b, staged alone
+
+14 files, +944 / −54. Merge conflicts in `scripts/tf24-active-probe.cpp` only, resolved keeping all
+three coverage additions; a mechanical lost-merge detector over every added line found nothing
+dropped but the one stale comment deliberately reconciled.
+
+| gate | result |
+|---|---|
+| TF24 / FF16 / K93 forward | `42.179817344974609` / 4 798, `19.834058960443031` / 209, `0.030538172107758225` / 240 — **all bit-identical** |
+| stage purity, `derivs(y, t)` twice | 0 of 1137 |
+| committed probe | **2**, both `prepare_strategy` refusals |
+| **ordinary-use rate path** | **0 errors — the active forward rate path compiles for the first time** |
+| plant suite | 2 924 pass, 0 fail, 6 named pre-existing errors, 10 skip |
+| odelia suite | 334 pass, 0 fail, 2 skip |
+| `grep -rn 'xad::' inst src` | empty — and it is a property of the merge only |
+| style sweep | 1 candidate, 0 violations (the known reindent false positive) |
+
+**The probe nuance, recorded because it is architecture and not a gate failure.** Constructing a
+`Patch` inside the probe reports **2**, because construction calls `prepare_strategy`, which refuses
+at the active scalar by design. Taking the patch **by reference** isolates the rate path and gives
+**0**. So: 0 on the rate path, 2 at construction, and the 2 are the known pair. That is independent
+confirmation that `rebind_from` is the only route to an active `Patch` — the same conclusion the
+rebind packet reached from the other side.
+
+**One comment the wave made false, and it is a genuine cross-branch artefact** — true on each branch
+alone. `tf24_environment.h` above `rebind_from` says "everything but the light spline is double".
+`p3/reads` then made `psi_soil_cache_` carry `S`. The code is right and the sentence is stale. **Not
+fixed** — recorded here so the next reader of that comment does not trust it.
+
+### Owed out of this wave
+
+Each was deliberately not taken and the reason is the part worth keeping.
+
+- **`field_ptrs()` and `ad_parameters()` unified onto one yml-ordered table** (`p3/rebind`, above).
+  No numerical content, and a prerequisite wave is the wrong place for a refactor.
+- **`prepare_strategy`'s `throw std::invalid_argument` → `util::stop`** (`p3/deepcrown`). Observable
+  behaviour on the passive path, so it needs its own gate.
+- **Deep-crown shading restored as a differentiable arm.** Needs `qk.h`'s `integrate_vector` and
+  `integrate_vector_x` scalar-generic **and** the `Leaf` write-back relocated. Neither is useful
+  alone, and the second is P3.2's boundary, so doing it now means doing it twice.
+- **C1's convergence with knot density.** The 87% gap above makes it the falsifier of the
+  passive-knot ruling, and V1 is the instrument. Not measurable in this wave, which has no recording.
+- **The stale `tf24_environment.h` comment.** A cross-branch artefact, left as found.
+- **The cohort-reads triple's pre-build state.** Reports 135 against un-rebuilt knots, and throws.
+  Undeclared rather than decided.
+- **`FF16_Strategy()$eta_c` printing nothing.** The third `sprintf`-on-empty silence. Unchased.
+- **V1 itself**, which needs step (b) and therefore P3.2 step (1).
+
+### What this wave taught about briefs, and it is one mistake three times
+
+**Six for six: every packet in Phase 3 has found a real defect in the orchestrator's brief**, and
+three of this wave's were the same mistake — **asserting that something was reachable, gated, or a
+type-widening, without compiling the thing that would have said otherwise**:
+
+| what I asserted | what compiling said |
+|---|---|
+| the standing probe gates the containers it names | member templates are not instantiated by a class-template instantiation, so three serialisers were gated by nothing |
+| `stochastic_patch.h` is missing one name, 27 errors | 82 errors and three names, from a translation unit that includes it first |
+| the 17 DeepCrown sites are a scalar widening | `Leaf` is untemplated and launders the crown means back through it, so it is a data-flow relocation into P3.2's seam |

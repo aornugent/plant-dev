@@ -229,6 +229,15 @@ template <typename It> It set_cohort_reads(It it);
 Not speculative — something has to pack TF24's 65 + 5 regardless. Naming it as that triple means
 the next model implements a pattern it has already seen.
 
+**Landed** (plant `bdbba466`), with two wrinkles — both design notes rather than measurements, since no
+gate in the wave reads either. `n_cohort_reads()`
+is virtual and the two iterator members **cannot be**, because member templates cannot be virtual. A
+derived environment's versions therefore *hide* rather than override, and safety depends on callers
+holding the concrete type rather than a base reference. And the **pre-build state is undeclared** —
+between construction and the first field build the count reports 135 while the field still holds its
+initial knots — which currently throws. Evidence in [`implementation-notes.md`](implementation-notes.md),
+*`p3/reads` — the cohort-reads triple*.
+
 **The block removes `growth_rate_gradient`'s scratch, and this has no report home.** Today
 `Node::growth_rate_gradient` holds `thread_local std::optional<individual_type> scratch` so it
 has a mutable `Individual` to perturb height on. Under §2.1 that is a `thread_local` holding
@@ -283,6 +292,22 @@ d  allometry adjoint       closed form
 The soil guard is `if theta_i <= theta_r and !(rate_i > 0): rate_i = 0`, so where it fired the
 forward row is identically zero and the transposed row must be too. Closed form does not mean
 unconditional.
+
+**Step (a) is wrong in three ways, all measured and corrected when it was built** (evidence in
+[`implementation-notes.md`](implementation-notes.md), *Three corrections to `build-plan.md` §2.4 step (a)*):
+
+- the layer-0 inflow is not `K_{−1}`, so the top row carries a **second, self-referential θ₀ term**
+  through saturation-excess runoff, with its own `max(0, ·)`;
+- the environment carries **four cumulative-flux aux states** beyond the five layers, so
+  `∂(soil rates)/∂θ` is bidiagonal **plus two aux rows**, and `rate[n+3] = Σ U_i` adds a term to
+  **every** uptake adjoint, including the guard-zeroed layers;
+- the trapezium weights are **per-species**, from `Species::consumption_rate`, not patch-level.
+
+**And `height_max` above is a channel the code does not have.** `ResourceSpline::rebuild_spline` lays
+knots at `u_k * to_passive(height_max)`, passivated by a committed choice (P2.1) for report 03 C1's
+reason. **The fixed-grid transpose is correct and the plan's term belongs to a moving-grid
+discretisation this model does not have.** Its measured cost, and the falsifier that would overturn
+it, are under P3.1 below.
 
 These four letters are this plan's. Report 01 §1 splits the same work into five, its (e) being the
 assembly `lambda_y_j = direct + field`, which is folded into (c) and (d) here.
@@ -1557,6 +1582,11 @@ already carries an active scalar end to end. Commits are on plant branches merge
 | the cohort state store | plant `5b229e64` | `Individual` held `Internals<double>`, so the block's own inputs were passive. Landed with the transport probe, which compiled *only because* the store was passive |
 | the container sweep | plant `672cd702` | `Species`, `Patch` and the stochastic containers; and `integrand_of`, a concept refusing a passive integrand at an active point |
 | the odelia surface | odelia `2c3159c`, `25619be` | the tape reused across calls; `active_scalar` at namespace scope; `Rebindable` replacing a SFINAE struct |
+| the R-boundary seams and the standing probe | plant `4b9bae31`, `eacbbd92` | two `*it++ = <active>` seams; `stochastic_patch.h` and `stochastic_patch_runner.h` self-contained; `scripts/tf24-active-probe.cpp` committed, and gating the member templates a class-template instantiation does not reach |
+| deep-crown refused at the active scalar | plant `019379d6` | the 17 DeepCrown sites refuse by `if constexpr` rather than carrying `S`; probes 19 → 2 and 18 → 1. A **scope reduction**, below |
+| `Patch::rebind_from` | plant `3a9f4b60`, `9b594564`, `48395cb2` | the only route to an active `Patch`, since `prepare_strategy` refuses at the active scalar |
+| the cohort-reads triple | plant `bdbba466` | §2.3's triple on `Environment`; 135 for TF24. Two wrinkles recorded at §2.3 |
+| P3.1 steps (a), (c), (d) | plant `2260f1ad`, `f2b54d0a`, `b8d9bc2f` | see P3.1 below |
 
 **The result, and it is what P3.1 starts from.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>`
 **instantiates at the adjoint active scalar** — 61 probe errors to 19, and all 19 are deliberate: 17 in the
@@ -1565,10 +1595,19 @@ DeepCrown branch, one at the `Leaf` boundary, one at `height_seed`'s root-find, 
 FF16 `19.834058960443031` at 209, K93 `0.030538172107758225` at 240, and `derivs(y, t)` twice is still
 bitwise pure.
 
-**Two prerequisites remain before P3.1, and neither is in the task list either.** `Patch::rebind_from`,
-which `Step::step_adjoint` hard-asserts on and which does not exist; and §2.3's cohort-reads triple on
-`Environment`, without which five of the block's 141 declared inputs — the soil water potentials — are
-passive, so `d(uptake)/d(psi)` has nothing for the leaf's supplied partial to attach to.
+~~**Two prerequisites remain before P3.1, and neither is in the task list either.**~~ **Both are now
+landed** — `Patch::rebind_from` and §2.3's cohort-reads triple, in the table above. With them, and with
+deep-crown refused, **the active forward rate path compiles: the ordinary-use probe reads 0.** The
+standing probe reads 2, and both are `prepare_strategy` refusals reached at *construction* rather than
+on the rate path, which is architecture rather than a residual error. Wave still bit-identical at all
+three models; the numbers and the probe nuance are in
+[`implementation-notes.md`](implementation-notes.md), *Wave 1 integrated*.
+
+**A scope reduction rode in with it.** Deep-crown shading is **refused** at the active scalar rather
+than carried, because `Leaf` is untemplated and DeepCrown launders its crown means back through it, so
+widening the type relocates a data flow into the very seam P3.2 must rework. Restoring it needs
+`qk.h`'s `integrate_vector` and `integrate_vector_x` scalar-generic **and** the `Leaf` write-back
+relocated; neither is useful alone.
 
 **One ordering correction inside the task list.** ~~P3.1 before P3.2.~~ **V1 cannot be taken before P3.2
 step (1)'s held-constant leaf exists**, because V1 compares against a whole-`Patch` recording and the
@@ -1584,6 +1623,11 @@ distinguishes it from a dropped `d/dz` channel, and only a numeric derivative wo
 ---
 
 **P3.1 — the closed-form steps.** Steps (a), (c), (d), with step (b) a stub returning zeros.
+
+> **Written** (plant `2260f1ad`, `f2b54d0a`, `b8d9bc2f`). Every closed-form contribution is gated
+> against a finite difference of the forward quantity it transposes. **V1 is not taken and is not
+> claimed**: it needs a whole-`Patch` recording and therefore step (b), which is P3.2 step (1)'s.
+> Evidence in [`implementation-notes.md`](implementation-notes.md), *`p3/adjoint`*.
 
 ```cpp
 template <class ItIn, class ItOut>
@@ -1602,11 +1646,22 @@ Beyond that: the two data vectors are linked by `m_k = -y_k s_k` (§2.3), so `la
 `lambda_y` and the slope sum before either is distributed. the
 reduction's lower limit is the boundary node at `height_0`, so it contributes one evaluation of the
 integrand there times `d(height_0)/d(trait)`, which `implicit_value` supplies through `height_seed`
-(P1.1). And under P2.1 the knot fractions are held on `u = z / height_max`, so every query carries
+(P1.1). ~~And under P2.1 the knot fractions are held on `u = z / height_max`, so every query carries
 `1/height_max` and `-z/height_max^2`, and that adjoint lands on the tallest cohort's height —
 `Species::height_max()` is `nodes.front().height()` and relies on the descending order, so within a
 species there is no selector; the `max`, and the tie, exist only across species in
-`Patch::height_max` (`patch.h:424`).
+`Patch::height_max` (`patch.h:424`).~~
+
+**Both halves of that are now corrected, and the first is a ruling.** The code passivates knot
+positions by a committed choice (P2.1) and report 03 C1 gives the reason, so **the fixed-grid
+transpose is correct and there is no `height_max` term to carry.** Its measured cost is a gap of
+**about 87% of the tallest cohort's height adjoint**, far larger than C1 assumed — and **C1's
+convergence-with-knot-density claim is still unmeasured**, which makes it the falsifier: if the gap
+does not shrink with knot count, the passive-position treatment needs revisiting as a forward-model
+decision. And `Species::height_max()` is **no longer `nodes.front().height()`** but an O(n) scan, so a
+selector and a tie do exist within a species. Both in
+[`implementation-notes.md`](implementation-notes.md) under *The `height_max` ruling I owed* and *A doc
+desync the packet found*.
 
 *Order.* The soil adjoint first, because it is checkable on its own: **V1** with the blocks
 stubbed compares the closed-form part against the matching part of a whole-`Patch` recording at one

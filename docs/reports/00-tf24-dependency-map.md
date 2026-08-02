@@ -1,5 +1,20 @@
 # TF24, mapped: the physical reading, the forward pass, the reverse pass, and where every partial goes
 
+> **§7's treatment of the four cumulative-flux soil states is falsified. The classification stands
+> otherwise.** §7 lists them as *free* — "write-only; nothing reads them, so their adjoints are
+> identically zero" — and lists `∂(anything)/∂C_{1..4}` under *blocked*. Building P3.1 step (a)
+> measured the opposite: **two of the four rates read θ**, so `∂(soil rates)/∂θ` is bidiagonal **plus
+> two aux rows** rather than bidiagonal alone, and **`rate[n+3] = Σ U_i` adds `+λ_{n+3}` to every
+> uptake adjoint** — including the layers the positivity guard zeroed, which is why `adj_uptake` is
+> nonzero there while `adj_theta` is exactly 0. So the accumulators are read, their adjoints are not
+> identically zero, and the channel is not blocked. Confirmed against a finite difference of
+> `Environment::compute_rates`. Evidence in `../implementation-notes.md` under *Phase 3, wave 1*, and
+> the corrected step (a) is `../build-plan.md` §2.4.
+>
+> **§6.3's `w_k` is right and is at the wrong level.** The trapezium weights are **per-species**, from
+> `Species::consumption_rate`; `Patch::compute_rates` then sums species and divides by area with no
+> further weighting. Same evidence.
+
 ## 0. What this report is, and how to read it
 
 This report does one thing: it writes out TF24's forward computation as maths and

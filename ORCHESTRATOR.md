@@ -72,6 +72,20 @@ audit), 327 (`p1/audit-fixes`), 330 (the tape branch, which adds three tests). A
 correctly; what was not recorded is which tip each belongs to, which is the only part a packet needs.
 Quote the SHA beside the number.
 
+**And a baseline is a property of a commit *and a configuration and the script that produced it*.**
+Phase 3's wave 1 raised a false alarm because I handed TF24's configuration to all three models:
+FF16 came back 56.30/214, which is not a regression but FF16 at its own defaults, the shape of the
+recorded develop baseline 56.279/214. The corpus even records which script the other two numbers came
+from — `ff16k93.R`, with its own hyperpar and lifetime. Quote the SHA, the configuration and the
+script, or the number means nothing. Third baseline error of mine in that phase.
+
+**A census reaches only what it names.** Explicit instantiation of a class template instantiates its
+**non-template members only**, and odr-use from a container reaches only the members it calls. So a
+member template is gated only by naming it. Wave 1 found three ungated seams that way —
+`Individual`'s three iterator serialisers — and one of my own standing probes was blind to the very
+packet it was gating. "Census from the outermost consumer inward" is necessary and not sufficient;
+name the member templates explicitly.
+
 **And the third half, which Phase 3 paid for three times: run the gate on the unmodified tree before
 you send it, and confirm it produces a number you recognise.** Asking "what would make this pass
 vacuously" is not enough, because it is answered from the same understanding that wrote the gate. Phase
@@ -582,27 +596,50 @@ window, and both land on P3.6:
 
 ## Where Phase 3 stands
 
-**Integrated and verified, but not closed.** The phase's prerequisites are done and its six tasks are
-not started.
+**Integrated and verified, but not closed.** Every prerequisite is done, **P3.1 is written**, and
+P3.2 through P3.6 are not started.
 
-    plant   p3/phase-3             c9914ffb   five packets, pushed
-    odelia  p3/odelia-integration  fdccd7b    two packets, pushed
+    plant   p3/phase-3             b16068c1   ten packets, pushed (wave 1 fast-forwarded from p3/wave1)
+    odelia  p3/odelia-integration  fdccd7b    two packets, pushed, unchanged by wave 1
 
-Both submodule pointers moved onto them. **The whole phase is bit-identical** — TF24
-`42.179817344974609` / 4 798, FF16 `19.834058960443031` / 209, K93 `0.030538172107758225` / 240 — and
-`derivs(y, t)` twice is still bitwise pure, 0 of 1137 and 0 of 705. plant 2 857 pass / 0 fail, odelia 334
-pass / 0 fail.
+The superproject pointer moved in `6b5238b`, staged alone. **The whole phase is still bit-identical** —
+TF24 `42.179817344974609` / 4 798, FF16 `19.834058960443031` / 209, K93 `0.030538172107758225` / 240 —
+and `derivs(y, t)` twice is bitwise pure, 0 of 1137. plant 2 924 pass / 0 fail with 6 named pre-existing
+errors and 10 skip; odelia 334 pass / 0 fail / 2 skip.
 
-**What the phase has bought so far.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>` **instantiates at
-the adjoint active scalar**: 61 error lines down to 19, and all 19 are deliberate — 17 in a shading model
-the gradient path never takes, one at the leaf's `double` boundary, one at `height_seed`'s root-find.
-The reverse pass's cost model is measured rather than assumed, and it is **~430–460 s, 3.7 to 4.0 forward
-runs, a ~26x saving** against a central difference. The pinned-leaf question is settled at 0 in 7.35 M.
+**What the phase has bought.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>` instantiates at the
+adjoint active scalar, and **the active forward rate path now compiles: the ordinary-use probe reads
+0**, from 18 at the wave's base. The standing explicit-instantiation probe reads **2**, and both are
+`prepare_strategy` refusals reached at *construction* — take the patch by reference and the rate path
+gives 0. That is architecture rather than a residual error, and it is independent confirmation that
+`rebind_from` is the only route to an active `Patch`. Deep-crown shading is **refused** at the active
+scalar rather than carried, which is a scope reduction with its restoration conditions recorded.
+`Patch::rebind_from` and the cohort-reads triple (135 reads for TF24) are landed, so the soil potentials
+are no longer passive. P3.1's steps (a), (c) and (d) are written and each closed-form contribution is
+gated against a finite difference of the forward quantity it transposes, agreements 3.1e-11 to 1.04e-08.
+The cost model remains **~430–460 s, 3.7 to 4.0 forward runs, a ~26x saving**; the pinned-leaf question
+is settled at 0 in 7.35 M.
 
-**What remains before P3.1.** `Patch::rebind_from`, which `step_adjoint` hard-asserts on; the
-cohort-reads triple on `Environment`, without which five of the block's 141 declared inputs are passive
-and `d(uptake)/d(psi)` has nothing to attach a partial to. Then P3.1 through P3.6, and V1 is the first
-gate the phase has that reads a derivative rather than a type.
+**What remains.** P3.2 through P3.6. **V1 is available once step (b) exists** — it compares against a
+whole-`Patch` recording, and the recording needs the block, which is P3.2 step (1)'s held-constant leaf.
+So V1 is not taken and is not claimed, and P3.1's finite differences are the weaker instrument standing
+in for it: they verify each transpose against its own forward quantity and say nothing about the
+decomposition adding up.
+
+**One ruling taken, with a number and a falsifier.** The knot grid stays fixed and passive — report 03
+C1's reason, committed at P2.1 — so the plan's `height_max` term does not exist. The measured cost is a
+gap of about **87% of the tallest cohort's height adjoint**, far larger than C1 assumed, and **C1's
+convergence-with-knot-density claim is still unmeasured and is now the falsifier**. V1 is the
+instrument. Evidence for all of the above is in `docs/implementation-notes.md` under *Phase 3, wave 1*.
+
+**Owed out of wave 1, each with the reason it was not taken**, and none of it blocking: the
+`field_ptrs()` / `ad_parameters()` unification onto one yml-ordered table (a refactor, wrong wave);
+`prepare_strategy`'s `throw` becoming `util::stop` (observable on the passive path, wants its own gate);
+deep-crown restored as a differentiable arm (needs `qk.h`'s two vector members scalar-generic *and* the
+`Leaf` write-back relocated, and the second is P3.2's boundary); C1's convergence measurement; the
+cohort-reads triple's pre-build state, which reports 135 against un-rebuilt knots and throws; a stale
+`tf24_environment.h` comment that only the merge makes false; and `FF16_Strategy()$eta_c` printing
+nothing, the third instance of `sprintf`-on-empty silence.
 
 **Three things carried into it, each with the reason it is not yet decided.**
 
@@ -646,6 +683,26 @@ Three rules come out of it, in increasing order of how much they cost to learn:
    not yet available, **constrain the callee instead of asserting at the call**. A `requires` clause finds
    every site; an assertion finds the site you thought of. That is what turned the failed transport gate
    into `integrand_of`, and it is what would have caught the light channel.
+
+**Wave 1 makes it six packets for six**, and its three were one mistake in three costumes: **I asserted
+that something was reachable, gated, or a type-widening, without compiling the thing that would have
+said otherwise.**
+
+| what I asserted | what compiling said |
+|---|---|
+| the standing probe gates the containers it names | a class-template instantiation does not instantiate member templates, so three `Individual` serialisers were gated by nothing |
+| `stochastic_patch.h` is missing one name, 27 errors | 82 errors and three names, from a translation unit that includes it first |
+| the 17 DeepCrown sites are a scalar widening | `Leaf` is untemplated and DeepCrown launders its crown means back through it, so it is a data-flow relocation into P3.2's seam |
+
+Two further rules the wave earned, beyond §0's two. **A missing-include measurement carries its include
+order** — the same shape as "a measurement carries its configuration", in a place the rule had not been
+applied. And **an aggregate can quietly stop being a count**: `grep -c` over compiler output undercounts
+as soon as `-fmax-errors` bails, so read the raw error list.
+
+**And the cross-model tripwire's power is concentrated in one model.** K93 returns the identical value
+under both configurations that wave 1 mixed up, so only FF16 caught the error — as in Phase 0, where FF16
+alone caught the offspring-to-zero regression. **K93 is not a discriminating arm.** Worth knowing before
+anyone drops an arm for cost.
 
 ---
 
