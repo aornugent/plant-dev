@@ -2,24 +2,22 @@
 
 ### Measured in the `plant` size-structured solver after a carbohydrate store was added to TF24
 
-A solver that tracks a population as a density over size must transport that density, and the
+A solver that carries a population as a density over size must transport that density, and the
 transport term needs the rate of change of growth with respect to size. The standard estimate
 perturbs one individual's size and re-evaluates its rates. **That estimate stops computing the
 required quantity — not approximately, but at all — as soon as growth depends on any state other
 than size.**
 
-The consequence in `plant` is an order of magnitude. Lifetime offspring production for a
-single-species TF24 stand is 42.14 as the solver computes it and 400.92 in a corrected coordinate,
-and only the corrected figure converges under schedule refinement. Leaf area during recruitment is up
-to 2.5 times too high. Decoupling the carbohydrate store from growth **within TF24**, changing
-nothing else, removes 98% of the disagreement, so the attribution does not rest on comparing
-strategies.
+The consequence here is an order of magnitude. Lifetime offspring production is 42.14 as the solver
+computes it and 400.92 in a corrected coordinate, and only the corrected value converges under
+schedule refinement. Leaf area during recruitment is up to 2.5 times too high. Decoupling the store
+from growth **within TF24**, changing nothing else, removes 98% of the disagreement.
 
-The error is invisible to the diagnostics a mature stand provides: after canopy closure the two agree
-on leaf area to a ratio of 1.005 and on canopy height to 0.8%. It is also removable without altering
-a biological equation, by carrying the population as a density per unit **birth date** instead of per
-unit height — a coordinate in which the transport term is mortality alone. With the correction
-disabled the solver is bit-identical to the original.
+The error is invisible to every diagnostic a mature stand provides: after canopy closure the two
+agree on leaf area to a ratio of 1.005 and on canopy height to 0.8%. It is removable without altering
+a biological equation, by carrying the population as a density per unit **birth date** rather than per
+unit height — a coordinate in which the transport term is mortality alone, and in which the
+perturbation is never taken. Disabled, the solver is bit-identical to the original.
 
 ---
 
