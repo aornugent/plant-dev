@@ -331,23 +331,34 @@ comparison at matched accuracy; that experiment was not run.
 
 Earlier work in this project claimed that deleting the single-individual perturbation roughly halves
 runtime, and elsewhere that it gives a sixfold wall-clock saving. Those timings were taken with other
-work on the machine. Measured on an idle machine, three repeats per arm, TF24 at the production
-schedule of 141 introductions:
+work on the machine. Measured on an idle machine, three repeats per arm, TF24 at two schedule
+resolutions:
 
-| arm | median | repeats | accepted ODE steps |
-|---|---|---|---|
-| density in height | 105.0 s | 105.0, 103.8, 105.3 | 5 055 |
-| density in birth date | 55.1 s | 55.0, 56.0, 55.1 | 4 013 |
+| introductions | arm | median | repeats | accepted ODE steps |
+|---|---|---|---|---|
+| 141 | density in height | 105.0 s | 105.0, 103.8, 105.3 | 5 055 |
+| 141 | density in birth date | 55.1 s | 55.0, 56.0, 55.1 | 4 013 |
+| 281 | density in height | 259.6 s | 259.0, 262.2, 259.6 | 7 253 |
+| 281 | density in birth date | 108.6 s | 108.2, 109.1, 108.6 | 4 646 |
 
-**Speed-up 1.91x**, with a repeat-to-repeat spread near 1%. It divides into 1.26x from taking fewer
-accepted steps — the right-hand side no longer carries a term built from a `10⁻⁶` divisor — and
-1.51x from each step being cheaper, since the perturbation is one extra full rate evaluation per
-cohort per Runge-Kutta stage and for TF24 that includes a leaf hydraulic optimisation.
+**Speed-up 1.91x at 141 introductions and 2.39x at 281**, with a repeat-to-repeat spread near 1% at
+both. The decomposition is the informative part:
 
-So "roughly halves the runtime" is close to right and "sixfold" is not. Two qualifications. The
-per-step factor is 1.51 rather than 2 because the perturbed evaluation is not the whole cost of a
-step. And §6.4 shows adaptive refinement asking for more introductions in the corrected coordinate,
-so this figure is the saving at a fixed schedule and not a guaranteed end-to-end one.
+| | 141 | 281 |
+|---|---|---|
+| from taking fewer accepted steps | 1.26x | 1.56x |
+| from each step being cheaper | 1.51x | 1.53x |
+
+The per-step factor is stable, as it should be: it is the deleted rate evaluation, one per cohort per
+Runge-Kutta stage, which for TF24 includes a leaf hydraulic optimisation. It is 1.5 rather than 2
+because the perturbed evaluation is not the whole cost of a step. The step-count factor grows with
+resolution, because the term built from a `10⁻⁶` divisor costs the adaptive controller relatively
+more as cohorts are packed closer together.
+
+So "roughly halves the runtime" is close to right at the production schedule and conservative at
+finer ones; "sixfold" is not supported. One qualification: §6.4 shows adaptive refinement asking for
+more introductions in the corrected coordinate, so these are savings at a fixed schedule and not a
+guaranteed end-to-end result.
 
 ## Appendix A. The transport term derived
 

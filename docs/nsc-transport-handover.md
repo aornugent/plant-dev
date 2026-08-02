@@ -67,7 +67,8 @@ Baselines to confirm the build is right, all bit-identical with the flag off: TF
 - **The correction is bit-identical with the flag off** and the suite passes: 2 363 assertions,
   48 files.
 - **Wall-clock figures in reports 10 and 11 are not trustworthy** — taken on a contended machine. The
-  measured speed-up is 1.91x at a fixed schedule (§6.5).
+  measured speed-up is 1.91x at 141 introductions and 2.39x at 281, at a fixed schedule (§6.5). The
+  per-step component is a stable 1.5x; the step-count component grows with resolution.
 
 ## 4. What is open, in the order worth attacking
 
