@@ -113,6 +113,24 @@ member template is gated only by naming it. Wave 1 found three ungated seams tha
 packet it was gating. "Census from the outermost consumer inward" is necessary and not sufficient;
 name the member templates explicitly.
 
+**A gate can fail because its reference is not differentiable, and the tell is the absence of a
+plateau.** V3 looked like a four-order missing term on one row and was five entries of a
+non-Lipschitz `y_end`: `sqrt(62.42² + 13.78² + 45.07² + 29.84² + 32.70²) = 89.87`, five numbers
+that mean nothing. **Before believing a disagreement, sweep the difference step and look for a
+plateau.** A bad reference *improves* as the step grows while a clean row degrades — that much the
+corpus already carried — and the stronger reading is the one wave 4 measured: **no plateau at all
+means the reference and not the subject.** With the reference repaired all 64 rows closed with
+nothing excluded and no tolerance widened.
+
+**A tolerance that was loosened for speed can make a model non-differentiable.** P2.6 loosened
+`GSS_tol_abs` to 1e-1 on a measurement that the collar polish made the answer bracket-independent
+to 1.044e-09 — true, and true only on the 24.7% of solves that converge; the other three-quarters
+exhaust a five-iteration cap. The spread of one step's `y_end` over 1e-5 input displacements is
+1.141e-03 at production against 1.586e-10 at `GSS_tol_abs = 1e-6`, where the true derivative is
+9.21e-08, so the noise exceeded its own signal by nine orders. **Loosening an iterative tolerance
+is safe for a value and can be fatal for a derivative, and the check is a jitter measurement
+rather than a residual** — a residual is what passed here.
+
 **And the third half, which Phase 3 paid for three times: run the gate on the unmodified tree before
 you send it, and confirm it produces a number you recognise.** Asking "what would make this pass
 vacuously" is not enough, because it is answered from the same understanding that wrote the gate. Phase
@@ -543,17 +561,20 @@ fifteen builds, and none of them was one of the five tasks.*
     DONE  P3.3  the leaf's own parameter rows ── fifteen filled, finiteness 0 of 28 /
        |        0 of 34 / 0 of 28 across four states
        |
-  IN FLIGHT  P3.5  the stencil's adjoint, driven from Step::step_adjoint         V3 FAILS
-       |          built on odelia 6734260 / plant 4fff1e22, NOT merged. The failing row
-       |          is node 1 slot 8, the tallest cohort's transport row: adjoint
-       |          0.0024128 against a difference of 89.875, four orders short, and not
-       |          the traversal
+    DONE  P3.5  the stencil's adjoint, driven from Step::step_adjoint    V3 taken, at a
+       |          stated configuration. Merged into p3/wave4. All 64 rows close, worst
+       |          1.36e-02 at node 2 slot 8, at GSS_tol_abs = 1e-6, node_gradient_eps =
+       |          1e-3, fd_eps = 1e-7 (scripts/v3-driver.R). The recorded failure was
+       |          reference noise: five entries of a non-Lipschitz y_end, not a term
        |
-    DONE  P3.6  census<Psi>, the entry point, agents.md §13         except V4, whose
-                harness is written and unrun: scripts/v4-census-gradient.R
+    DONE  P3.6  census<Psi>, the entry point, agents.md §13         V4 attempted and
+                NOT takeable: the reference is computed and committed, and its
+                difference does not converge in the step. §2.5's V4 is not achievable
+                on this forward model as it stands
 ```
 
-So the remaining work is **P3.5's V3, and then V4**, in that order.
+So the remaining work is **not a task**: V4 is blocked on a forward-model property, and what
+remains is the owner's.
 The state, with its numbers, is in "Where Phase 3 stands" below; the evidence is
 `docs/implementation-notes.md`, *Phase 3, wave 1* and *Phase 3, wave 2*.
 
@@ -568,7 +589,7 @@ rather than a projection: two recordings per cohort per stage of a `Patch::cohor
 figures are in §11.4. The conditioning is inherited and is about `1e-10` absolute, so **gate that channel
 against a finite difference of the same quotient, never against an analytic `dg/dh`**.
 
-### 11.3 The gates: five taken, two remaining
+### 11.3 The gates: six taken, and the seventh has no valid instrument
 
 §0.5 and §0.6, applied before anything is sent. Every reading below is in
 `docs/implementation-notes.md`, *Phase 3, wave 2*; what is here is what each gate turned out to be.
@@ -584,12 +605,12 @@ against a finite difference of the same quotient, never against an analytic `dg/
 | T5 | knot-adjoint accumulation, asserted as a value — **exact over all 65 knots**, and `=` for `+=` moves 55 of 65 | but it was **ungateable at P3.2 step (1)**: the light channel into a cohort is 100% leaf-mediated — of 130 knot entries, 13 move an output, 13 move the leaf, 0 move an output without the leaf — so `lambda_knot` was identically zero by construction until the leaf partials were wired. A step gated on it was gated on nothing. **And wave 3 did not reproduce it** — the same cause as V1's retraction, an uncommitted harness configuration. Recorded as a non-reproduction rather than a refutation; the accumulation itself is unchanged, and re-running it needs the configuration written into the tree first |
 | T6 | trait-adjoint accumulation, asserted as a value — passes | the discrimination is there: `=` for `+=` gives **0 of 21 rows agreeing**, ratios 0.0009 to 0.9859, the sign right on most of them and nothing thrown |
 
-**Remaining.**
+**V3 taken, V4 not takeable.**
 
 | | gate | where it stands |
 |---|---|---|
-| V3 | one step's `lambda_y` against a finite difference of one step | **taken in wave 3 and it fails**, on `p3/stepadj` (odelia `6734260`, plant `4fff1e22`), which is therefore **not merged**. Localised to one row: `node 1 slot 8`, the tallest cohort's transport row, adjoint `0.0024128` against a difference of `89.875` — about four orders short, so the channel is connected. 16 of 48 columns nonzero, identity term 0.9903. **Not the traversal**: driving `ode_rates_adjoint` at the exact tableau weight stage 5 receives reproduces the shortfall. The hypothesis to test first is the `z == height_max` half-signature — node 1 slot 8 reads 0.4982 under `|a-b|/|b|`, which is what `a = b/2` gives, so the probe may be displacing `height_max` itself, the knot grid's passive upper bound. If so, this row and wave 1's owed C1 measurement are one item. **Also: state the fd step.** V3's `fd_eps = 1e-6` sat inside the cancellation region of a column carrying a second derivative of 4.8e9, which produced one wrong attribution before it was caught |
-| V4 | census and R0 at `max_patch_lifetime = 105.32` against a re-run FD, under 2 GB peak | **the harness is written and unrun**: `plant/scripts/v4-census-gradient.R`, a **9-trait subset costing 18 production runs rather than 88** — `lma`, `rho`, `hmat`, `theta`, `a_l1`, `k_I`, `a_dG1`, `K_s`, `psi_crit`, each chosen for a channel it isolates, with covered and not-covered printed explicitly. **The reference straddles the establishment gate**, which closes on 23.1% of boundary-node stage evaluations confined to `t ∈ [3.22, 8.54]`; the harness checks the census time against `[3.222267, 8.544184]` and **stops** if it falls inside rather than mollifying. **And the boundary-node channel is absent at `t = T`**: the boundary node's density and its neighbour's have both underflowed by then, so the interval is genuinely zero and a V4 differenced at the end of the run carries no boundary-node channel at all. The harness names that rather than hiding it. Two forward-model questions want the owner before it runs: the `mortality = Inf` treatment and the vulnerability-integral knot count |
+| V3 | one step's `lambda_y` against a finite difference of one step | **taken in wave 4, at a stated configuration**, and merged into `p3/wave4`. All 64 rows close normwise with nothing excluded and no tolerance widened, worst **1.36e-02 at `node 2 slot 8`**, at `scripts/v3-driver.R`'s pinned reference configuration: `GSS_tol_abs = 1e-6`, `node_gradient_eps = 1e-3`, `fd_eps = 1e-7`. Wave 3's failure was **entirely reference noise** — at production `Control()` the collar bracket makes one step's `y_end` non-Lipschitz at the difference scale, and the `89.875` that looked like a missing term is five such entries, `sqrt(62.42² + 13.78² + 45.07² + 29.84² + 32.70²)`. **Two limitations beside the pass, not underneath it**: `node_gradient_eps = 1e-3` is the sub-grid probe's own discretisation and not a harness knob, so V3 verifies the transpose of a slightly different operator than production runs; and 1.36e-02 is loose next to V1's 3.33e-15 — reference-limited, the non-transport floor being 1.26e-03 at the same step in every configuration tried, which does not prove the row carries no adjoint error |
+| V4 | census and R0 at `max_patch_lifetime = 105.32` against a re-run FD, under 2 GB peak | **attempted in wave 4 and not takeable, and the reason is measured.** The reference was computed in full and committed — nine traits × four outputs at relative step 1e-5, on plant `4f9bda64`, TF24 at `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`, `refine_schedule = FALSE`, census at `t = 105.32`, 26 production runs all confirming 4 798 steps — as `scripts/v4-reference.rds`, `.csv` and `scripts/v4-reference.R`. At this lifetime the boundary node **is** live, density 4.737, so the reference does carry a boundary-node channel; what it cannot see is 6 of 95 cohorts at density exactly zero. **But the difference does not converge in the step**: `d(leaf_area)/d(lma)` reads -155.6, -9.356, -207.3, -35.19, -1424.6 at relative steps 1e-2 to 1e-6, non-monotone by factors of 5 to 40, with `psi_crit` changing sign between steps and the base bit-reproducible three times. **The reference cannot referee an adjoint to better than about 100% per entry.** Three obstructions: the step non-convergence itself; schedule pinning not self-consistent even at cap 5, shifting `leaf_area` by ~5e-4 relative and R0 by 0.24, so the one-sided arrays mix a free base against pinned arms; and the two halves of V4 pointed at different models — `scripts/v4-census-gradient.R` at `lma = 0.0825` with `refine_schedule()`, `scripts/v4-reference.R` at `lma = 0.1978791` pinned. Two candidate causes tested, **neither supported**: the collar staircase is **unconfirmed rather than refuted** (the cap-20 sweep invalidated itself — a `h = 0` control collapsed 210 orders with zero perturbation, so it measured a pinning artefact), and the establishment gate is **excluded at `h = 1e-5`** by a node-level proxy, the zero-establishment set identical across base and both arms and the one surviving in-window node smooth in `lma`. **So §2.5's V4 — a whole-run gradient against a re-run finite difference at production `Control()` — is not achievable on this forward model as it stands** |
 
 **The vacuous-gate question, asked concretely for this phase.** **Exactly zero is this design's worst
 failure mode**, because it reads as an answer. Two ways to get one: registering a tape's inputs *after*
@@ -674,8 +695,17 @@ Operational facts two waves accumulated that the plan does not carry.
   That driver is now `plant/scripts/v1-driver.R`, taking the plant worktree as its first argument
   — `Rscript scripts/v1-driver.R <plant worktree> [max_patch_lifetime]`. **A gate's configuration
   must be a file in the tree, not a paragraph.**
+- **`plant/scripts/v3-driver.R` is V3's harness**, taking the plant worktree as its first
+  argument, with a second argument sweeping the difference step instead of printing the 64-row
+  table. **Its two loosened-from-default `Control` values belong to the reference and not to the
+  adjoint**, and the file says why: `GSS_tol_abs = 1e-6` and `node_gradient_eps = 1e-3`. Both are
+  forward settings, so the adjoint and the difference are taken at the same operator.
 - **`plant/scripts/v4-census-gradient.R` is V4's harness**, written and unrun; its subset and its
-  refusals are in §11.3.
+  refusals are in §11.3. **`plant/scripts/v4-reference.R` is the other half** — the re-run finite
+  difference — with its computed reference committed beside it as `scripts/v4-reference.rds` and
+  `scripts/v4-reference.csv`, each carrying its full configuration. **The two halves are pointed
+  at different models** (§11.3) and reconciling them is the first thing anyone re-attempting V4
+  owes.
 - **One worktree and one branch per packet**, and **the verification worktree must not be one anything has
   been experimenting in** (§5).
 
@@ -685,12 +715,14 @@ Operational facts two waves accumulated that the plan does not carry.
 nothing updated `odelia/AUTODIFF.md` — which the plan makes the home for the System requirements that phase
 *changed*. Check each before closing the phase:
 
+Each was checked against the tree in wave 4, not against the last record of it.
+
 | document | what Phase 3 owes it |
 |---|---|
-| `odelia/AUTODIFF.md` | the System requirements including `ode_rates_adjoint`, **plus Phase 1's arrears**, and now `active_scalar` and `Rebindable` |
-| `odelia/ARCHITECTURE.md` | still silent on the `Tape` link as this build uses it |
-| `plant/agents.md` §13 | P3.6 requires it, and the acceptance test is partly a **count**: a developer reads §13 and adds a fourth census metric without touching tape code |
-| `plant/NEWS.md` | `stand_gradient` is new R surface, so it is an entry even though nothing breaks |
+| `odelia/AUTODIFF.md` | **`ode_rates_adjoint` and `AdjointRates` landed in wave 4**, under *Carrying your own rate transpose* in the System contract, with `set_ode_state_and_field`, the aux family's role, the `if constexpr` choice, the RODAS refusal and `Solver::solve_adjoint`. **Phase 1's arrears are still open**: `active_scalar` and `Rebindable` are named nowhere in the file, and `Rebindable` is what the default branch's `static_assert` fires on, so a reader who hits that error has no document to go to |
+| `odelia/ARCHITECTURE.md` | **still silent on the `Tape` link as this build uses it**, and wave 4 widens the gap: the tape is now created inside `step_adjoint`'s default branch and destroyed with the stage loop, which is the lifetime §10's hazard is about. Unowed by any packet and still nobody's |
+| `plant/agents.md` §13 | **landed in wave 3** and holds — a fourth census metric is 14 lines in one file, no tape code, no odelia, a 40-second rebuild. Nothing owed |
+| `plant/NEWS.md` | **`stand_gradient` is there**, with the `Control` it records and `stand_gradient_compare`. What is **not** there is P3.5: `Patch::set_ode_state_and_field` and the transport term becoming a block output are internal, so nothing breaks, but the polish-cap finding below is the kind of thing NEWS is read for and it is not an entry because nothing was changed |
 
 ### 11.7 Carried in, and none of it is Phase 3's to decide
 
@@ -710,41 +742,111 @@ window, and both land on P3.6:
 
 ## Where Phase 3 stands
 
-**Integrated and verified. The phase does not close.** All five tasks are written, but **P3.5's
-V3 fails** and **V4 has not been run**, so two of the seven gates are open and the acceptance
-test is incomplete.
+**Everything is built, and everything is verified for which a valid instrument exists. The phase
+does not close.** All five tasks are written and merged, six of the seven gates are taken, and
+**V4 is blocked on a property of the forward model rather than on any part of this build** — a
+re-run finite difference at production `Control()` does not converge in its step, so §2.5's V4
+has no reference. There is a **named one-line candidate fix and it belongs to the owner**:
+`Leaf::polish_root_collar_psi`'s `max_iter = 5`.
 
-    plant   p3/wave3               wave 3: harness-recipes + v1-driver + leafrows + census
-    odelia  p3/odelia-integration  fdccd7b    unchanged by any of the three waves
-    plant   p3/stepadj  4fff1e22 } P3.5, built and NOT merged: V3 fails
-    odelia  p3/stepadj  6734260  }
+    plant   p3/wave4               wave 4: P3.5 + the V4 reference half
+    odelia  p3/odelia-integration  wave 4: p3/stepadj merged, first move since fdccd7b
 
-The superproject pointer moved in `6b5238b` for wave 1, `f486ce9` for wave 2 and again for
-wave 3, staged alone each time. Wave 3 merged four branches into `p3/wave3` off plant
-`893e8ad5` with **zero conflicts**: 21 files, 1 718 insertions, 37 deletions, and the
-insertion arithmetic closes exactly — 46 + 84 + 636 + 952 = 1 718.
+The superproject pointer moved in `6b5238b` for wave 1, `f486ce9` for wave 2, again for wave 3
+and again for wave 4, staged alone each time. Wave 4 merged two branches into `p3/wave4` off
+plant `4f9bda64` with **zero conflicts**: 12 files, 1 876 insertions, 36 deletions, and the
+insertion arithmetic closes exactly — 1 658 + 218 = 1 876. Odelia's merge is 5 files, 498
+insertions, 75 deletions, identical to `git diff fdccd7b 6734260` to the line.
 
 **The whole phase is still bit-identical.** TF24 `42.179817344974609` / 4 798 at TF24's own
-configuration (`max_patch_lifetime = 105.32`, `lma = 0.1978791`, `refine_schedule = FALSE`);
-FF16 `19.834058960443031` / 209 and K93 `0.030538172107758225` / 240 via
-`scripts/build/ff16k93.R` at its own configuration; `derivs(y, t)` twice bitwise pure, 0 of
-1 137; the standing probe at 2. plant **2 944 pass / 0 fail / 6 named pre-existing errors / 10
-skip**, with the merge arithmetic 2 924 + 20 + 0 = 2 944; odelia 334 / 0 / 2. `xad::` and
-`const_cast` both empty on the merge, and the style sweep is clean.
+configuration (`max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`,
+`refine_schedule = FALSE`); FF16 `19.834058960443031` / 209 and K93 `0.030538172107758225` / 240
+via `scripts/build/ff16k93.R` at its own configuration; `derivs(y, t)` twice bitwise pure, 0 of
+1 137 at the production patch; the standing probe at 2, both `tf24_strategy.h` static assertions.
+odelia **346 / 0 / 2** — 334 + 12 from `p3/stepadj`. `xad::` and `const_cast` both empty on the
+merge, and the style sweep's six candidates are all comments the diff moved or hazards the rule
+exempts.
 
-**What remains, and it is two items.**
+**plant reads 2 877 / 0 / 6 / 10, and the recorded 2 944 is a non-reproduction rather than a
+regression.** Under `library(odelia)`, `pkgload::load_all(worktree)`, then
+`testthat::test_dir(dir, package = "plant", load_package = "source")`, the merged tree and
+`4f9bda64` read the **same** 2 877 / 0 / 6 / 10 — from separate worktrees and separate libraries
+— which is what the gate is for, since `p3/stepadj` adds no plant tests. The gap is 67, the same
+67 that separates the corpus's 2 924 from its 2 857, and the skip count is 10 either way, so the
+three `is_pkgload_dll_plant()` files are not where it lives. **A suite count carries its
+invocation** and 2 944 was recorded without one. Third non-reproduction of a recorded number this
+phase, after V1's `2.32e-12` and T5, with the same cause each time.
 
-1. **P3.5's V3.** The transport adjoint is built and its negative control is the strongest in
-   the phase — 8 of 73 rows changed, all `log_density`, 65 bit-identical, and **the eight
-   changed rows were identically zero before**, so the exactly-zero failure mode was sitting
-   in the tree by construction and the severed control is `893e8ad5` itself. V3 nevertheless
-   fails on one row, `node 1 slot 8`, four orders short and localised away from the traversal.
-   §11.3 carries the row, the numbers and the hypothesis to test first.
-2. **V4.** The harness is written and unrun (§11.3). Two forward-model questions want the
-   owner before it goes: the `mortality = Inf` treatment, which changes the census **value**
-   by up to 6.19e-06 relative at lifetime 12 and by exactly 0 at lifetime 20 — the latter only
-   because that state's dead set is contiguous at the bottom — and the vulnerability-integral
-   knot count below.
+**What remains, and none of it is a task.** In priority order, for the next session:
+
+1. **Put the polish cap to the owner.** `Leaf::polish_root_collar_psi` carries
+   `R_tol = 1e-11, max_iter = 5`, and at production `Control()` **75.3% of 2 206 526 solves
+   exhaust the cap** rather than converging, exiting at `|R|` up to 9.9986e-07 against 2.07e-12
+   for the quarter that converge. Cap 20 takes the one-step non-smooth residual spread from
+   7.820e-05 to 8.626e-08 and the exhausted fraction to 5.05%; **tightening the bracket instead
+   reaches the same floor, 6.192e-08, from an independent direction**, which makes it a mechanism
+   and not a correlate. It moves forward numbers — offspring 42.411799695604159 / 4 644 at cap 20,
+   42.440891828033472 / 4 683 at cap 100, against 42.179817344974609 / 4 798 — so it needs a
+   re-bless, and it carries a `scientific_version` question this phase does not decide: a
+   convergence cap is numerics, but a model that does not solve its own stated optimisation on
+   three-quarters of calls is arguably a correctness fix. **It also qualifies a committed
+   claim**: P2.6's bracket-independence to 1.044e-09 holds on the 24.7% that converge.
+2. **Reconcile the two halves of V4 onto one configuration.**
+   `scripts/v4-census-gradient.R` builds its stand at `lma = 0.0825` and calls
+   `refine_schedule()`; `scripts/v4-reference.R` uses `lma = 0.1978791` with the schedule pinned
+   and no refinement. Neither half can be believed against the other until they name the same
+   model. **A harness brief that does not state the model configuration is the defect** and it
+   was mine.
+3. **Resolve the schedule-pinning inconsistency.** Pinning the base run's own schedule and
+   `ode_times` shifts `leaf_area` by ~5e-4 relative and R0 by 0.24 **at cap 5**, so
+   `run_on_schedule` is not self-consistent with its own base. The committed reference's central
+   differences survive this because both arms are pinned identically; its one-sided arrays mix a
+   free base against pinned arms and are suspect, and an adjoint taken on the free trajectory is a
+   fourth way for the two halves to compare different models.
+4. **Rebase `p0.5-instrumentation.patch`.** It targets develop `141dc8df` and expects
+   `src/tf24_strategy.cpp`, which does not exist here; `node.h`, `patch.h`, `species.h` and
+   `leaf_model.cpp` all fail. Recovered as an asset in `02bfc4e`. **A recovered asset that cannot
+   be applied is not an asset**, and it was being counted as a gate arm.
+5. **Then re-attempt V4**, and not before 1–3. The reference is computed and committed
+   (`scripts/v4-reference.rds`, `.csv`, `scripts/v4-reference.R`, with its configuration) and its
+   step non-convergence is measured: `d(leaf_area)/d(lma)` reads -155.6, -9.356, -207.3, -35.19,
+   -1424.6 at relative steps 1e-2 to 1e-6, `psi_crit` changing sign between steps, the base
+   bit-reproducible three times. Only `lma` and `psi_crit` were step-checked; **assume the other
+   seven are equally unconverged until checked.** The two candidate causes stand as: the collar
+   staircase **unconfirmed rather than refuted** — the cap-20 sweep invalidated itself, its `h = 0`
+   control collapsing 210 orders with zero perturbation — and the establishment gate **excluded at
+   `h = 1e-5`** by a node-level proxy, not at 1e-4 or 1e-6 and not against the 23.1%
+   stage-evaluation count.
+
+Carried in from earlier and still the owner's: the `mortality = Inf` treatment, which changes the
+census **value** by up to 6.19e-06 relative at lifetime 12 and by exactly 0 at lifetime 20 — the
+latter only because that state's dead set is contiguous at the bottom — and the
+vulnerability-integral knot count below.
+
+**What wave 4 added.** P3.5 merged and V3 taken at a stated configuration: all 64 rows close
+normwise with nothing excluded and no tolerance widened, worst **1.36e-02 at node 2 slot 8** at
+`GSS_tol_abs = 1e-6`, `node_gradient_eps = 1e-3`, `fd_eps = 1e-7`, committed in
+`scripts/v3-driver.R`. **Wave 3's failure was entirely reference noise**: at production
+`Control()` the collar bracket makes one step's `y_end` non-Lipschitz at the difference scale —
+spread 1.141e-03 against 1.586e-10 at `GSS_tol_abs = 1e-6`, where the true derivative is
+9.21e-08 — and the `89.874514855298955` that looked like a missing term four orders large is
+exactly five such entries, `sqrt(62.42² + 13.78² + 45.07² + 29.84² + 32.70²) = 89.87`. Report 04
+§5 predicted the staircase and nobody had connected it, because P2.6's polish was believed to
+have removed it. The step sweep has a **plateau at 1e-08 to 3.16e-07 flat at 1.36e-02**, and at
+production `Control()` the same sweep has **no plateau at all**, which is itself the signature
+that the reference and not the adjoint was at fault. **Two limitations recorded beside the pass,
+not underneath it** (§11.3). **Two earlier attributions were overturned by the packets that made
+them**, both index errors rather than code errors, and **there is no pre-existing defect
+underneath P3.5.**
+
+**Three diagnostics in this wave overturned their own hypotheses** — the cap-20 sweep, node 2's
+height column and the establishment-gate candidate. That is the wave's character rather than a
+defect in it.
+
+**And one file in the merge has no business in the tree.** `build.log`, 1 177 lines, committed on
+plant `4fff1e22` and carried in. The style sweep's generated-files category does not name it, and
+the pinned build recipe writes over it, so a verification build leaves the tree dirty against a
+file nobody meant to track. Not removed in wave 4 — nothing in the wave required it.
 
 **What wave 3 added.** P3.3 and P3.2 step (5): fifteen leaf parameter rows plus the bound
 rows, finiteness from 15 of 28 and 34 of 34 non-finite down to **0 of 28 / 0 of 34 / 0 of
@@ -881,6 +983,14 @@ the same channels, and a step (1) gated on a T5 that was vacuous by construction
 `Step::step_adjoint` did not exist when it did — with the evidence sitting in my own handoff notes —
 and I propagated a wrong index map that a packet then had to be corrected out of mid-flight.
 `Patch::ode_state` writes species first and environment last.
+
+**Wave 4 makes it fourteen**, and two of its four had consequences. I briefed the failing V3 row
+as **the tallest cohort's and localised** — it was every row, and the localisation was an artefact
+of the statistic that reported it. And I briefed a V4 harness **without stating the model
+configuration**, so its two halves were built against different `lma` values, `0.0825` with
+`refine_schedule()` against `0.1978791` pinned. The second is §0's "a measurement carries its
+configuration" reaching a *specification* rather than a number: a harness brief that does not name
+the model has not specified a harness.
 
 **A plausible constant factor is worse than an exact zero.** This phase has spent itself guarding
 against exactly-zero because a zero reads as an answer. Wave 2's `dR_dcollar_` defect was a **uniform

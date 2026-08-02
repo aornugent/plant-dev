@@ -408,6 +408,13 @@ channels both models contain, and the two excluded channels are named** rather t
 tolerance. Taken at **2.32e-12**, added one contribution at a time, in
 [`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*.
 
+**Corrected in Phase 3, wave 4: V4's re-run finite difference is not a valid reference at
+production `Control()`.** The difference does not converge in its step — `d(leaf_area)/d(lma)`
+reads -155.6, -9.356, -207.3, -35.19, -1424.6 at relative steps 1e-2 to 1e-6 — so the row's
+reference cannot referee an adjoint to better than about 100% per entry. Evidence in
+[`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 4*, and the computed reference
+is committed at `plant/scripts/v4-reference.R` with `v4-reference.rds` and `.csv`.
+
 **V2 verifies at stage 0 only.** A block lives at a stage, and stage states are rebuilt rather
 than stored, so verifying at stage > 0 would need the rebuild working before it could check
 anything. At stage 0 the state *is* the stored trajectory state, exactly. V3 covers the rebuild
@@ -1258,6 +1265,11 @@ belong in the same conversation with the owner (§10).
 |---|---|---|
 | P2.7 | `f0338c06`, `29643ebe` | `derivs(y, t)` twice bitwise, 0 of 753 against 92 before; offspring `42.249808414392021`, 5 071 steps (+0.174%) |
 | P2.6 | `831194bc`, `45a83b8f` | `\|R\|` worst 9.587e-09 against 1e-07; both steps together −1% per step, step (1) alone +42% |
+
+**Corrected in Phase 3, wave 4: the polished collar point is bracket-independent only on the 24.7%
+of solves that converge.** At production `Control()` 75.3% of 2 206 526 solves exhaust
+`polish_root_collar_psi`'s `max_iter = 5` rather than reaching `R_tol = 1e-11`. Evidence in
+[`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 4*.
 | P2.1 | `aa3d2ee7`, `d4a9e338`, `931d9b4c` | 65 knots at every build against 28 distinct counts; history independence bitwise 0; worst crown-mean light shift 2.04e-03 |
 | P2.2 | `f3c0e088`, `78394cb5` | bit-identical — the fused value equals `compute_competition` bitwise; +25 assertions |
 | P2.3 | `145a7140`, `b0255fc5`, `f5b97a44`, `0ae475f0` | O(h⁴) value, O(h³) slope on a smooth field; offspring −0.030%, about +3% per step |
@@ -1596,6 +1608,7 @@ already carries an active scalar end to end. Commits are on plant branches merge
 | `Patch::rebind_from` | plant `3a9f4b60`, `9b594564`, `48395cb2` | the only route to an active `Patch`, since `prepare_strategy` refuses at the active scalar |
 | the cohort-reads triple | plant `bdbba466` | §2.3's triple on `Environment`; 135 for TF24. Two wrinkles recorded at §2.3 |
 | P3.1 steps (a), (c), (d) | plant `2260f1ad`, `f2b54d0a`, `b8d9bc2f` | see P3.1 below |
+| P3.5 | plant `4fff1e22`, `f6d640a0`; odelia `6734260` | see P3.5 below |
 
 **The result, and it is what P3.1 starts from.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>`
 **instantiates at the adjoint active scalar** — 61 probe errors to 19, and all 19 are deliberate: 17 in the

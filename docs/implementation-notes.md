@@ -4231,3 +4231,276 @@ brief, and wave 3 makes it ten.** The two that had consequences were asserting t
 `Step::step_adjoint` did not exist when it did — with the evidence sitting in the
 orchestrator's own handoff notes — and propagating a wrong index map that a packet then had to
 be corrected out of mid-flight.
+
+# Phase 3, wave 4 — P3.5, V3, and why V4 is not takeable
+
+Base: plant `p3/wave3` `4f9bda64` against odelia `p3/odelia-integration` `fdccd7b`. Two
+merges into `p3/wave4` and one into odelia, zero conflicts.
+
+| | commit | what it was |
+|---|---|---|
+| plant `p3/stepadj` | `f6d640a0` | P3.5 — the transport adjoint and the stage recursion driven from the stepper, plus `scripts/v3-driver.R` |
+| plant `p3/v4-reference` | `2747ded2` | `scripts/v4-reference.R`, `scripts/v4-reference.rds`, `scripts/v4-reference.csv` |
+| odelia `p3/stepadj` | `6734260` | the `AdjointRates` concept, `Step::step_adjoint`'s branch on it, `Solver::solve_adjoint` |
+
+Plant: 12 files, **1 876 insertions, 36 deletions**, and the insertion arithmetic closes
+exactly — 1 658 + 218 = 1 876. Odelia: 5 files, **498 insertions, 75 deletions**, identical
+to `git diff fdccd7b 6734260` to the line, so the merge lost nothing.
+
+## What integrated
+
+plant `p3/stepadj`: `Patch::set_ode_state_and_field` as the part of `set_ode_state` that
+precedes the rate evaluation; the transport probe moved from `Node` to `Individual`;
+`log_density_rate` as a block output, so one recording holds both evaluations of the sub-grid
+probe and the tape forms the quotient. odelia `p3/stepadj`: an `AdjointRates` concept in
+`ode_interface.hpp`, `Step::step_adjoint` branching on it with `if constexpr`,
+`Solver::solve_adjoint` over `recorded_steps()`, RODAS refused in `ode_solver_internal.hpp`.
+
+**`Step::step_adjoint` already existed at `fdccd7b`**, with the Cash-Karp general inner loop,
+six stage evaluations, index-addressed stages and a bit-identity test on the rebuilt stage
+states. The packet extended it with a concept plus `if constexpr` rather than writing a second
+one, so that existing test now covers both paths.
+
+## Wave 4 integrated, and verified on the merged tree
+
+| gate | result |
+|---|---|
+| TF24 forward | `42.179817344974609` / 4 798, at TF24's own configuration: `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`, `refine_schedule = FALSE` |
+| FF16 / K93 forward | `19.834058960443031` / 209 and `0.030538172107758225` / 240, both via `scripts/build/ff16k93.R` at its own configuration. FF16 is the discriminating arm |
+| stage purity, `derivs(y, t)` twice | 0 of 1 137, at the production TF24 patch at `t = 105.32`, 141 nodes |
+| standing active probe | **2**, both `tf24_strategy.h` static assertions (`height_seed`'s iteration, and `Leaf` carrying `double`), read as the raw error list |
+| `scripts/v1-driver.R` | normwise **3.33e-15**, pointwise **2.05e-11**, at lifetime 2, on the strategy columns |
+| `scripts/v3-driver.R` | all 64 rows close; worst **1.36e-02** normwise at row 16, `node 2 slot 8`, at the driver's pinned reference configuration |
+| `scratch/leaf_jac_gate.cpp` | 0 non-finite rows at every state — 0 of 28, 0 of 28, 0 of 34, 0 of 28 |
+| plant suite | 2 877 pass / 0 fail / 6 errors / 10 skip, and the base reads the same — see below |
+| odelia suite | **346** pass / 0 fail / 2 skip, from the merged source, `load_package = "installed"` against `/home/user/lib-wave4`: 334 + 12 |
+| `grep -rn 'xad::' inst src` | empty, and it is a property of the merge only |
+| `grep -rn 'const_cast' inst src` | empty, likewise |
+| style sweep | six candidates, no violations — the judgements are below |
+
+**The plant suite count is a non-reproduction of a recorded number, not a regression, and the
+base settles it.** Under `library(odelia)`, `pkgload::load_all("<worktree>")`, then
+`testthat::test_dir(dir, package = "plant", load_package = "source")`, the merged tree reads
+**2 877 / 0 / 6 / 10** — and `4f9bda64` reads **2 877 / 0 / 6 / 10** under the identical
+invocation, from its own worktree and its own library. So the tree is unchanged, which is what
+the gate is for: `p3/stepadj` adds no plant tests. The recorded 2 944 differs by **67**, the
+same 67 that separates the corpus's 2 924 from its 2 857, so it is the invocation and not the
+tree — and the skip count is 10 either way, so the three `is_pkgload_dll_plant()` files are not
+where the 67 live. **A suite count carries its invocation**, and the corpus records 2 944
+without one. Third non-reproduction of a recorded number this phase, after V1's `2.32e-12` and
+T5, and the same cause each time: a number recorded without the thing that produced it.
+
+The six errors are the named pre-existing set and no other: `test-mutant.R` "mutant method
+works" and "mutant method densities", `test-stochastic-patch.R` "non empty" ×3, and
+`test-strategy-ff16.R` "Report generation" (pandoc).
+
+## V3 — taken, at a stated configuration, and the finding is larger than the gate
+
+**The reported failure was entirely reference noise.** `Control()$GSS_tol_abs = 1e-1` —
+loosened to that by P2.6 — makes one step's `y_end` non-Lipschitz at the difference scale,
+because the collar bracket lands differently under a tiny input change. Measured as the spread
+of `y_end[8]` over 1e-5 displacements of one cohort's storage:
+
+| configuration | spread |
+|---|---|
+| production `Control()` | **1.141e-03** |
+| `GSS_tol_abs = 1e-6` | **1.586e-10** |
+| `ci_abs_tol = 1e-10` | **1.141e-03** |
+
+So `ci_abs_tol` is not implicated and the bracket is the whole of it. The jumps are
+deterministic and path-independent, so it is a real property of the forward model rather than
+harness state. The true derivative in the worst column is **9.21e-08**, so the reference's
+noise exceeded its own signal by nine orders.
+
+**The `|difference| = 89.874514855298955` that started this is exactly five such entries:**
+`sqrt(62.42^2 + 13.78^2 + 45.07^2 + 29.84^2 + 32.70^2) = 89.87`. Not a missing term four
+orders large — five numbers that mean nothing.
+
+Report 04 section 5 predicted this staircase — "affine in its bracket within a comparison
+pattern, jumping when the pattern changes … bracket-scale rather than tolerance-scale" — and
+nobody had connected it, because P2.6's polish was believed to have removed it.
+
+**With the reference repaired, all 64 rows close with nothing excluded and no tolerance
+widened.** The configuration is `GSS_tol_abs = 1e-6`, `node_gradient_eps = 1e-3`,
+`fd_eps = 1e-7`, committed in `scripts/v3-driver.R`. `node 1 slot 8` goes from
+`|adj| 0.0024128 / |fd| 89.875` to `0.002457 / 0.002460`. The worst row is **node 2 slot 8 at
+1.36e-02**, not node 1; node 1 is the third best of the eight transport rows. The step sweep
+has a plateau at **1e-08 to 3.16e-07 flat at 1.36e-02**, and at production `Control()` the same
+sweep has **no plateau at all** — which is itself the signature that the reference and not the
+adjoint was at fault.
+
+**Two limitations, recorded beside the pass rather than underneath it.**
+`node_gradient_eps = 1e-3` is not a harness knob — it is the sub-grid probe's own
+discretisation — so V3 verifies the transpose of a slightly different operator than production
+runs. And 1.36e-02 is loose next to V1's 3.33e-15; it is reference-limited, the non-transport
+floor being 1.26e-03 at the same step in every configuration tried, but that does not prove it
+contains no adjoint error.
+
+**Two earlier attributions were overturned by the packets that made them, and both were index
+errors rather than code errors.** A `0.2469` disagreement was attributed to a pre-existing
+defect in node 2's height column; measured properly that column is the **most** accurate of
+three at rel 6.32e-06, localised entirely to allometry. The `0.2469` was a **row** carried
+across to a **column**, two different objects joined by a shared index. And V3's original
+`fd_eps = 1e-6` sat inside a cancellation region: the column carries a second derivative of
+about 4.8e9, so at 1e-8 the difference reads -118895 against a true 631.9987. **There is no
+pre-existing defect underneath P3.5.**
+
+## The forward-model finding, and it is the owner's
+
+`Leaf::polish_root_collar_psi` in `plant/src/leaf_model.cpp` carries
+`const double R_tol = 1e-11; const int max_iter = 5;`. At production `Control()`, **75.3% of
+2 206 526 solves exhaust that cap** rather than converging, exiting at `|R|` up to 9.9986e-07;
+24.7% converge at mean `|R|` 2.07e-12; zero pinned, zero non-finite. So every non-converged
+solve is a cap exhaustion.
+
+One-step non-smooth residual spread against the cap, at the production bracket:
+
+| | spread | exhausted fraction |
+|---|---|---|
+| cap 5 (production) | **7.820e-05** | 75.3% |
+| cap 20 | **8.626e-08** | 5.05% |
+| cap 100 | **7.367e-08** | 3.60% |
+| cap 5, bracket tightened to 1e-6 | **6.192e-08** | — |
+
+**Raising the cap at the production bracket recovers the same floor that tightening the bracket
+recovers, from two independent directions** — that is a mechanism, not a correlate. Cap 20 gets
+essentially all of it.
+
+Whole-run effect: cap 20 gives offspring **42.411799695604159** at **4 644** steps and cap 100
+gives **42.440891828033472** at **4 683**, against **42.179817344974609** at **4 798**. Forward
+cost is **1.21x** at cap 100, which is an upper bound for cap 20.
+
+**This qualifies a corpus claim.** P2.6's record says the polished collar point is
+bracket-independent to 1.044e-09. It is — *when it converges*, which is 24.7% of the time. The
+other three-quarters return wherever five Newton steps reached from wherever golden section
+stopped.
+
+**It is the owner's and was not taken.** It moves forward numbers by 0.62% and changes the step
+count, so it needs a re-bless, and it carries a `scientific_version` question this phase does
+not decide: a convergence cap is numerics, but a model that does not solve its own stated
+optimisation on three-quarters of calls is arguably a correctness fix.
+
+## V4 — attempted, not takeable, and the reason is measured
+
+The reference was computed in full: nine traits x four outputs at relative step 1e-5, on
+`4f9bda64`, TF24 at `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`,
+`refine_schedule = FALSE`, census at `t = 105.32`, with every one of 26 production runs
+confirming 4 798 steps and a matched schedule. Committed as `scripts/v4-reference.rds` and
+`.csv` with its full configuration, plus `scripts/v4-reference.R`.
+
+Base values: leaf_area **3.18274544**, mass_above_ground **100.36552509**, area_stem
+**0.01138625**, R0 **42.17981734**. Cohort split at the census state: **6 of 95 at density
+exactly zero**, boundary node live at density **4.737** — so at this lifetime the closing
+trapezium **is** live, unlike the measured lifetimes 5 and 20, and the reference does carry a
+boundary-node channel. What it cannot see is the 6 underflowed cohorts.
+
+**But the difference does not converge in the step.** `d(leaf_area)/d(lma)` at relative steps
+1e-2 to 1e-6: **-155.6, -9.356, -207.3, -35.19, -1424.6** — non-monotone, factors of 5 to 40.
+`psi_crit` changes sign between steps. The base is bit-reproducible three times, so this is
+roughness of the trait-to-output map, not run-to-run noise. **The reference cannot referee an
+adjoint to better than about 100% per entry.** Only `lma` and `psi_crit` were step-checked;
+assume the other seven are equally unconverged until checked.
+
+**Two candidate causes were tested and neither is supported.**
+
+- **The collar staircase.** A cap-20 sweep was attempted and invalidated itself: the perturbed
+  arms collapsed to `leaf_area` of order 1e-207 against a free base of 3.177, and the `h = 0`
+  control showed `run_on_schedule`'s pinning is not self-consistent with its own base at cap
+  20, collapsing 210 orders with zero perturbation. So that sweep measured a pinning artefact
+  and not a derivative, and candidate A is **unconfirmed rather than refuted**.
+- **The establishment gate: excluded at `h = 1e-5`**, by a node-level proxy. The set of
+  zero-establishment cohorts is identical across base and both arms — 6 nodes, introduction
+  times 3.5, 4.0, 4.5, 5.0, 6.0, 7.0, all inside the window — with the one surviving in-window
+  node's `log_density` smooth and monotone in `lma`: -8.9648 / -8.5709 / -8.3282. Not tested at
+  1e-4 or 1e-6, and it is a proxy rather than the 23.1% stage-evaluation count.
+
+**A third obstruction, on nobody's list.** Schedule pinning is not self-consistent even at cap
+5: pinning the base run's own schedule and `ode_times` shifts `leaf_area` by about **5e-4
+relative** and R0 by **0.24**. The committed reference's central differences are internally
+consistent because both arms are pinned identically, but its one-sided arrays mix a free base
+against pinned arms and are suspect, and an adjoint taken on the free trajectory is a fourth
+way for the two halves to be comparing different models.
+
+**And the two halves of V4 are pointed at different models.**
+`scripts/v4-census-gradient.R` builds its stand with `lma = 0.0825` and calls
+`refine_schedule()`; `scripts/v4-reference.R` uses `lma = 0.1978791` with the schedule pinned
+and no refinement. That must be reconciled before either is believed.
+
+**So the honest statement: V4 as build-plan section 2.5 specifies it — a whole-run gradient
+against a re-run finite difference at production `Control()` — is not achievable on this
+forward model as it stands.** The corpus already records that a finite difference cannot referee
+the leaf's rows (report 02 section 6.9, build-plan section 2.5). What this wave establishes is
+that the same objection reaches the whole run, and it went untested because nobody had run V4
+before.
+
+## The style sweep's candidates, and the arithmetic settles four of them
+
+Six hits, none a violation. The sweep reports candidates, not verdicts.
+
+| hit | judgement |
+|---|---|
+| `patch.h` "which is a block output rather than a closed-form seed" flagged as a negative definition | not one. It names what the quantity **is**, and the line it replaces already carried the same contrast ("before the closed-form steps add to them"); the diff moved a contrast rather than introducing one |
+| `individual.h` "the copy shares this strategy, so the rates already read must be off the strategy first" | three lines spelling out a genuine silent-failure hazard — read in the wrong order this returns the probe's rates. Inside the rule's exception |
+| `individual.h` "Differencing the growth rate needs a mutable Individual …" | **moved** from `node.h`, where three lines were deleted, and extended by the sentence that says both evaluations carry the scalar. The extension is the exactly-zero hazard; the move is not a violation |
+| `individual.h` "The lambda carries value_type in and out …" | **verbatim moved** from `node.h`, four lines for four. Not a violation |
+| `patch.h` "The state and the field … a rate evaluation in double would repeat all of it" | three lines where two would carry it. A cost note rather than a silent-failure hazard, so this is the weakest of the six and the one a reader may disagree about. Recorded, not fixed |
+| `patch.h` "The transport term inside block_outputs evaluates the cohort a second time …" | three lines, and that the recording holds two evaluations is the whole of P3.5's design. Inside the exception |
+
+**And one thing the sweep cannot see: `build.log` is a committed build artefact.** 1 177 lines,
+committed on plant `4fff1e22` and carried into `p3/wave4` by the merge. The sweep's
+"baselines and generated files" category does not name it. It is not removed here — nothing in
+this wave requires it — but it is the one file in the merge that has no business in the tree,
+and the pinned build recipe writes over it, so a verification build leaves the tree dirty
+against a file nobody meant to track.
+
+## The three known-stale comments, read and left as found
+
+- **`models/tf24_strategy.h` above `optimise_at`.** Its "nine sites" half is gone, as the
+  corpus records. Its `d(rates)/d(leaf inputs)` **"is exactly zero here"** sentence is still
+  there and still false — the graft made it false at P3.2.
+- **`models/tf24_environment.h` above `rebind_from`.** "Everything but the light spline is
+  double" is unchanged and still stale: the cohort-reads triple made the five soil potentials
+  declared inputs.
+- **`patch.h` on `cohort_block_adjoint`.** The corpus describes this one as "with the leaf held
+  constant at its declared boundary", and that sentence is **no longer in the tree**; what is
+  there is "seeded from the block output adjoints the closed-form steps left in `seeds`". Wave
+  4 makes that half-false in a new way: `seeds.transport` is filled from `lambda_in`, from the
+  stage recursion, not from the closed-form steps. So the comment's state is *stale for a
+  different reason than the one recorded*, which is the second time this phase the corpus's
+  description of a stale comment has itself been stale.
+
+## Also record
+
+- **`p0.5-instrumentation.patch` does not apply to this tree.** It targets develop `141dc8df`
+  and expects `src/tf24_strategy.cpp`, which does not exist here; `node.h`, `patch.h`,
+  `species.h` and `leaf_model.cpp` all fail. It was recovered as an asset in `02bfc4e` and
+  needs rebasing before it can count gate arms. **A recovered asset that cannot be applied is
+  not an asset.**
+- **The V4 harness's establishment-window check is necessary and not sufficient.** It confirms
+  the census time is outside `[3.222267, 8.544184]` — it is, by 96.78 — but the trajectory
+  still integrates through the window, so a perturbation can flip the gate mid-run and reach
+  the census. P0.6 says this; the check does not cover it.
+
+## What wave 4 taught, beyond the tasks
+
+1. **A gate can fail because its reference is not differentiable, and the tell is the absence
+   of a plateau.** V3 looked like a four-order missing term and was five noise entries. Before
+   believing a disagreement, sweep the difference step and look for a plateau: a bad reference
+   **improves** as the step grows while a clean row degrades, and **no plateau at all** means
+   the reference, not the subject.
+2. **A tolerance that was loosened for speed can make a model non-differentiable.** P2.6
+   loosened `GSS_tol_abs` to 1e-1 on a measurement that the polish made the answer
+   bracket-independent — true on the 24.7% of solves that converge. Loosening an iterative
+   tolerance is safe for a value and can be fatal for a derivative, and the check is a jitter
+   measurement, not a residual.
+3. **A row is not a column**, and an index map shared between two measurements does not make
+   them the same object.
+4. **Three diagnostics in this wave overturned their own hypotheses** — the cap-20 sweep, the
+   node 2 height column, and the establishment-gate candidate. That is the wave's character
+   rather than a defect in it.
+
+**And the tally: every packet in this phase has found a real defect in the orchestrator's
+brief, and wave 4 makes it fourteen.** The two with consequences this wave were a hypothesis
+that the failing V3 row was the tallest cohort's and localised — it was every row, and the
+localisation came from a statistic — and a V4 harness brief that did not state the model
+configuration, so the two halves were built against different `lma` values.

@@ -62,6 +62,21 @@
 > with drying. The ruling is to hold the grid and let the values carry the parameter, which is the
 > arrangement §6.4 describes; **the forward model still carries the discontinuity**, and that is the
 > owner's. Evidence in `../implementation-notes.md`, *Phase 3, wave 3*.
+>
+> **The polish mostly does not converge, and that qualifies P2.6 rather than this report (Phase 3,
+> wave 4).** `Leaf::polish_root_collar_psi` carries `R_tol = 1e-11` and `max_iter = 5`, and at
+> production `Control()` **75.3% of 2 206 526 solves exhaust the cap** rather than reaching the
+> tolerance, exiting at `|R|` up to 9.9986e-07 against a mean 2.07e-12 for the 24.7% that converge;
+> zero pinned, zero non-finite, so every non-converged solve is a cap exhaustion. So P2.6's recorded
+> bracket-independence to 1.044e-09 holds on the quarter that converge, and the rest return wherever
+> five Newton steps reached from wherever golden section stopped. It shows up as a **derivative**
+> problem and not a value problem: the spread of one step's `y_end` over 1e-5 input displacements is
+> 1.141e-03 at production against 1.586e-10 at `GSS_tol_abs = 1e-6`, where the true derivative is
+> 9.21e-08. `max_iter = 20` takes the one-step non-smooth spread from 7.820e-05 to 8.626e-08 and the
+> exhausted fraction to 5.05%, and **tightening the bracket instead reaches the same floor from an
+> independent direction**, which makes it a mechanism. It moves forward numbers — offspring
+> 42.411799695604159 over 4 644 steps at cap 20 against 42.179817344974609 over 4 798 — so it is the
+> owner's and was not taken. Evidence in `../implementation-notes.md`, *Phase 3, wave 4*.
 
 ## 1. The proposal
 
