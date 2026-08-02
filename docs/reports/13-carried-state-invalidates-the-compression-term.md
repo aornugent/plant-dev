@@ -211,6 +211,36 @@ proportional violations sit where `S_max` is smallest — the recruits. And offs
 the 0.5% level. This defect is independent of everything else in this report; the fix is to make the
 rate restoring below zero rather than pinned, which requires reading the unclamped state.
 
+### 6.2 The corrected solver's excess over the individual-based ensemble is not schedule resolution
+
+Appendix E records that the corrected solver's leaf area sits 6% to 21% above the individual-based
+ensemble mean at patch ages 1 to 3. The obvious candidate is that its birth-date quadrature is
+under-resolved at the production schedule of 141 introductions. It is not.
+
+Excess over the pooled 16-run ensemble mean, at three schedule resolutions:
+
+| introductions | age 1 | 1.5 | 2 | 2.5 | 3 |
+|---|---|---|---|---|---|
+| 141 | +5.94% | +8.80% | +14.13% | +17.17% | +21.31% |
+| 281 | +5.67% | +8.52% | +13.83% | +16.87% | +21.03% |
+| 561 | +5.60% | +8.45% | +13.75% | +16.80% | +20.96% |
+| Richardson limit | +5.58% | +8.42% | +13.73% | +16.77% | +20.94% |
+
+Quartering the cohort spacing lowers leaf area by 0.29% to 0.33% and reduces the excess by about
+0.35 percentage points. Schedule resolution accounts for 6.0%, 4.3%, 2.9%, 2.3% and 1.7% of the
+excess at the five ages; **at least 94% of it survives complete refinement.**
+
+The convergence is clean and bounds what is left: successive-difference ratios are 3.98 to 3.99 at
+all five ages, an observed order of 1.99 to 2.00, so the birth-date trapezium on leaf area is second
+order and already converged to within about 0.3% at 141 introductions. (Offspring production
+converges first order in the same coordinate — §1's +0.92% then +0.46% — because it is a further
+integral over patch age; the two quantities need not share an order.)
+
+So the excess is real and is not a quadrature artefact. The remaining named candidate is that the
+mean over stochastic replicates of a nonlinear functional is not the deterministic value, which
+would not require the two to agree. That has not been tested, and the excess is recorded here as
+unexplained rather than attributed.
+
 ## Appendix A. The transport term derived
 
 Let individual state be `x`, evolving as `dx/dt = v(x, E(t))`, with height `h = x₁` and growth rate
