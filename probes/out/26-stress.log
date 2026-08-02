@@ -6,3 +6,7 @@ rainfall  amp=0.7  height      offspring=0.166081    pairs=10011  cross=0   min_
 rainfall  amp=0.7  birth-date  offspring=1.1016      pairs=10011  cross=0   min_dh=6.39e-08   bnd_cross=0   min_stor=2.93e-07     160s
 rainfall  amp=1    height      offspring=0.0181662   pairs=10011  cross=0   min_dh=5.55e-08   bnd_cross=0   min_stor=2.93e-07     266s
 rainfall  amp=1    birth-date  offspring=0.152653    pairs=10011  cross=0   min_dh=4.84e-08   bnd_cross=0   min_stor=2.93e-07     154s
+PPFD      amp=0.7  height      offspring=2.0765      pairs=10011  cross=0   min_dh=2.87e-07   bnd_cross=0   min_stor=2.57e-07     201s
+PPFD      amp=0.7  birth-date  offspring=14.1408     pairs=10011  cross=0   min_dh=1.47e-07   bnd_cross=0   min_stor=2.58e-07     108s
+PPFD      amp=1    height      offspring=0.000104361 pairs=10011  cross=66  min_dh=-0.00398   bnd_cross=0   min_stor=-6.82e-05    234s
+PPFD      amp=1    birth-date  offspring=0.000137174 pairs=10011  cross=0   min_dh=4.43e-08   bnd_cross=0   min_stor=-2.85e-05    123s

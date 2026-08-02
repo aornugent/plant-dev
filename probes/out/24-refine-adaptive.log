@@ -2,3 +2,4 @@ K93   height      offspring=0.0305966     schedule 141 -> 181    steps=360      
 K93   birth-date  offspring=0.0306323     schedule 141 -> 173    steps=183       0.3s
 FF16  height      offspring=19.9888       schedule 141 -> 147    steps=216       0.7s
 FF16  birth-date  offspring=20.0357       schedule 141 -> 157    steps=225       0.7s
+TF24  height      offspring=60.3519       schedule 141 -> 204    steps=6233    1528.8s
