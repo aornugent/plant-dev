@@ -241,6 +241,50 @@ mean over stochastic replicates of a nonlinear functional is not the determinist
 would not require the two to agree. That has not been tested, and the excess is recorded here as
 unexplained rather than attributed.
 
+### 6.3 Under a strong seasonal light cycle, cohorts do cross
+
+Every result above is measured in a constant environment, where no cohort crossing occurs
+(Appendix D). Twelve further runs add an annual sinusoidal cycle — in rainfall at amplitudes 0, 0.3,
+0.7 and 1.0 as a fraction of the mean, and in incident light at 0.7 and 1.0, trough clamped at zero
+— in both coordinate systems. All twelve completed; none failed.
+
+**One cell of the twelve produces interior crossings.** Under a full-amplitude light cycle, the
+height coordinate records 66 crossings among 10 011 interior pairs, with a minimum gap of
+−0.00398 m. The other eleven cells record none. No cell produces a crossing at the inflow boundary.
+
+The approach is visible in the gaps. In a constant environment the smallest interior gap is
+8.21 × 10⁻⁶ m in height coordinates and 1.22 × 10⁻⁶ m in birth-date coordinates; under stress the
+smallest positive gaps fall to 4.43 × 10⁻⁸, 4.84 × 10⁻⁸ and 5.55 × 10⁻⁸ m — two orders of magnitude
+tighter — before the one cell that crosses.
+
+**This is the condition for a density in height failing, observed.** It is also observed in a stand
+that has almost ceased to exist: at full light amplitude offspring production is 1.04 × 10⁻⁴ in
+height coordinates against 1.37 × 10⁻⁴ in birth-date coordinates, four orders below the
+constant-environment values. The crossing is a demonstration that the requirement can fail in the
+intended parameter envelope, not a claim that it governs any stand of interest here.
+
+**The coordinate disagreement shrinks with stress, but only as the stand disappears.**
+
+| forcing | height | birth-date | ratio |
+|---|---|---|---|
+| none | 42.1402 | 395.441 | 9.38 |
+| rainfall, amplitude 0.3 | 40.2662 | 374.881 | 9.31 |
+| rainfall, 0.7 | 0.166081 | 1.10160 | 6.63 |
+| rainfall, 1.0 | 0.0181662 | 0.152653 | 8.40 |
+| light, 0.7 | 2.07650 | 14.1408 | 6.81 |
+| light, 1.0 | 1.04361 × 10⁻⁴ | 1.37174 × 10⁻⁴ | 1.31 |
+
+The ratio holds near 9.3 through mild seasonality, sits between 6.6 and 8.4 at higher amplitude, and
+collapses to 1.31 only where both solvers report near-extinction. Convergence toward agreement at
+the last row is not evidence that the coordinates agree; it accompanies a four-order collapse in the
+quantity being compared.
+
+**The storage excursion of §6.1 improves under stress rather than worsening.** The most negative
+value is in the constant environment (−2.249 × 10⁻³ in height coordinates); it rises to
+−8.48 × 10⁻⁴ at rainfall amplitude 0.3 and becomes positive at rainfall 0.7 and 1.0 and at light
+0.7. It returns negative only at full light amplitude, at −6.82 × 10⁻⁵, still some thirty times
+smaller than the constant-environment baseline.
+
 ## Appendix A. The transport term derived
 
 Let individual state be `x`, evolving as `dx/dt = v(x, E(t))`, with height `h = x₁` and growth rate
@@ -361,13 +405,22 @@ small gaps occur where recruits grow fastest.
 
 ## Appendix D. Alternative explanations excluded
 
-**Cohorts crossing in height.** A carried state makes it possible for two cohorts to reach the same
-height, at which point `J = 0` and a density in height is undefined. Across 37 patch states and 3 459
-interior pairs there are zero crossings; the minimum gap is 1.6 × 10⁻⁵ m, with 14.2% of gaps below
-10⁻⁴ m. 46% of interior pairs are closing at any instant; extrapolating each linearly at frozen rates,
-the earliest crossing would be 4.05 years away and none is realised. The height growth rate was
-non-negative at every one of 6 390 sampled cohort-times across the three strategies and at a further
-3 497 for TF24, with a TF24 minimum of +2.6 × 10⁻¹² m yr⁻¹. §6 extends this census to seasonal stress.
+**Cohorts crossing in height — not the explanation here, though the condition can fail.** A carried
+state makes it possible for two cohorts to reach the same height, at which point `J = 0` and a
+density in height is undefined. That would invalidate the coordinate outright rather than merely
+make its transport term hard to compute, so it has to be excluded before the rest of this report
+stands. In the constant environment every result above is measured in, it does not occur: across 37
+patch states and 3 459 interior pairs there are zero crossings; the minimum gap is 1.6 × 10⁻⁵ m,
+with 14.2% of gaps below 10⁻⁴ m. 46% of interior pairs are closing at any instant; extrapolating
+each linearly at frozen rates, the earliest crossing would be 4.05 years away and none is realised.
+The height growth rate was non-negative at every one of 6 390 sampled cohort-times across the three
+strategies and at a further 3 497 for TF24, with a TF24 minimum of +2.6 × 10⁻¹² m yr⁻¹.
+
+**Under a strong seasonal light cycle it does occur** — 66 crossings among 10 011 interior pairs
+(§6.3). So the height coordinate's requirement is not merely tight in the intended envelope, it can
+be violated. That does not bear on §1 to §5, which are constant-environment results, and the
+observed crossings are in a near-extinct stand; it is recorded because the requirement is one the
+birth-date coordinate does not carry at all.
 
 **Divergence of the omitted term at a growth stall.** `(∂g/∂S)(f/g)` appears to diverge as `g → 0`. It
 does not: `∂g/∂S` carries a factor of `g` that cancels the `f/g` exactly (Appendix A). Measured, the
@@ -443,11 +496,14 @@ never scale with area and the binning interval is set to the area. Passing it by
 correcting it makes that file roughly fifty times heavier and requires its parameters and baselines to
 be revisited. Recorded and left unfixed.
 
-**A height-ordering dependence remains in the competition loop.** The density state no longer requires
-cohorts to stay ordered by height, but `Species::compute_competition` keeps a height-ordered early
-exit (`if (h0 < height) break;`) and an early return on `height_max()`. No crossings occur in the runs
-measured (Appendix D, §6), so this is not active, but the correction removes the ordering requirement
-for the state and not for that loop.
+**A height-ordering dependence remains in the competition loop, and it is now a live one.** The
+density state no longer requires cohorts to stay ordered by height, but
+`Species::compute_competition` keeps a height-ordered early exit (`if (h0 < height) break;`) and an
+early return on `height_max()`. Out-of-order cohorts could therefore terminate the loop early and
+drop contributions. No crossing occurs in the constant environment, but §6.3 finds 66 under a
+full-amplitude seasonal light cycle, so this is a hazard that can be reached rather than a
+theoretical one. The correction removes the ordering requirement for the state and not for that
+loop, and closing it is outstanding work.
 
 ## References
 
