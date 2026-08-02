@@ -317,7 +317,7 @@ same SHA. The bullets below are how that principle has cashed out in practice, n
 - **Distinguish an agent's harness from its tree.** Several Phase 1 baselines were contaminated by
   the namespace problem in §3; the agents' comparisons were still sound because they used one form on
   both sides, but their absolute numbers were not. Re-measure on the namespace-bearing form.
-- **A mechanical sweep over every diff before it lands** — `/home/user/p0/style-sweep.sh <worktree>
+- **A mechanical sweep over every diff before it lands** — `scripts/build/style-sweep.sh <worktree>
   <base>` covers doc-section references, issue tags, decorative nouns, banners, `xad::` inside
   `plant`, deduced-return-type lambdas, comment runs over two lines, and touched baselines or
   generated files — **plus reading every comment line the orchestrator did not write.**
@@ -493,9 +493,10 @@ it. Fanning that out thrashes, because each downstream agent rebases onto a movi
 measures the rebase.
 
 **And every gate is an instrument that does not exist yet.** Phase 2's gates were a forward run and a
-suite. V1 needs a whole-`Patch` recording; V2 needs the trajectory store plus a block; V3 needs
-`step_adjoint` driving plant; V4 needs a re-run finite difference at production lifetime, which for 51
-traits is **102 forward runs** — §8b is explicit that V4's verification is the expensive half of the
+suite. **V1 and V2 have since been built and taken** — their harnesses are named in §11.5 — and each
+cost a wave's worth of instrument-building before it read a number. What remains is the same shape:
+V3 needs `step_adjoint` driving plant; V4 needs a re-run finite difference at production lifetime,
+which for 51 traits is **102 forward runs** — §8b is explicit that V4's verification is the expensive half of the
 acceptance test rather than the cheap one.
 
 So plan it as **several turns with one task each**, and treat the per-task V-check as the turn's product.
@@ -615,13 +616,32 @@ Operational facts two waves accumulated that the plan does not carry.
 - **odelia is already installed and verified at `/home/user/lib-p3-int`.** Packets read it **read-only and
   install nothing**. That removed an entire class of failure across two waves, and §5's per-packet library
   applies only to a packet that changes odelia.
+- **The build and gate assets are committed at `scripts/build/`**, with a `README.md` giving the
+  pinned build's recipe and the two greps that confirm it took: `Makevars-O2` (the flags every value
+  gate in this project is stated against), `style-sweep.sh` (§7's mechanical pass) and `ff16k93.R`
+  (the FF16/K93 tripwire). All three previously lived only in a container home directory and were
+  lost whenever it was reclaimed, while the corpus cited them by absolute path.
+- **`ff16k93.R` hardcoded a Phase 0 worktree** (`/home/user/wt-canopy-shape`), so it was already
+  broken before it moved. It now takes the plant worktree as its first argument —
+  `Rscript scripts/build/ff16k93.R <plant worktree> [tag]` — and **every model parameter is
+  unchanged**: the per-model trait, the per-model hyperpar, the default lifetime and
+  `sum(offspring_production)`. Only the path handling moved, so the reference numbers it prints
+  still belong to the configuration below.
 - **The three models use three different configurations, and mixing them cost a false alarm.** TF24 at
-  `lma = 0.1978791` with `max_patch_lifetime = 105.32`; FF16 and K93 at `plant/../p0/ff16k93.R`'s
+  `lma = 0.1978791` with `max_patch_lifetime = 105.32`; FF16 and K93 at `scripts/build/ff16k93.R`'s
   settings — its own per-model trait *and* hyperpar, the default lifetime, and
   `sum(offspring_production)`. **FF16 is the only discriminating arm**: K93 returns the same value under
   either configuration.
 - **The V1, T5 and V2 harnesses are committed** under `plant/scratch/`, so those gates are re-runnable
-  rather than needing rebuilding. (They belong in `scripts/` beside the probe, which is owed.)
+  rather than needing rebuilding, and it is one file of the two:
+  **`plant/scratch/wire_gates.cpp` holds all three** — the decomposition against one whole-`Patch`
+  recording one contribution at a time (V1), one cohort's block against a finite difference of the
+  same block (V2), and the per-cohort knot contributions against their sum (T5) — plus the collar
+  residual and curvature probes. **`plant/scratch/leaf_jac_gate.cpp` is the leaf's own gates**,
+  standalone against `Leaf::input_adjoints`: stationarity, continuity, the waist, the translation
+  partials, the `inputs()`/`input_adjoints` size identity and `FULLSOLVE`. Neither file holds T6;
+  its harness was the `p3/cohort-block` packet's and is not in the tree.
+  (Both belong in `scripts/` beside the probe, which is owed.)
 - **One worktree and one branch per packet**, and **the verification worktree must not be one anything has
   been experimenting in** (§5).
 

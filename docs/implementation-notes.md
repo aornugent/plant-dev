@@ -72,6 +72,11 @@ R_MAKEVARS_USER=/home/user/p0/Makevars-O2 Rscript -e 'pkgbuild::compile_dll(".",
 
 with `/home/user/p0/Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`.
 
+*(That path was a container home directory and was lost every time the container was reclaimed. The
+same file is now committed at `scripts/build/Makevars-O2`, with the recipe and the two greps that
+confirm it took in `scripts/build/README.md`. The flags are unchanged, so every gate below still
+names the build it was taken at.)*
+
 Three things about this that cost time to establish:
 
 - **`debug = FALSE` is required.** `pkgbuild::compile_dll()` appends `-UNDEBUG -g -O0` *after* any
@@ -556,6 +561,8 @@ both enter every order equally.
 ### P0.5 — the switch inventory, measured
 
 `scripts/demographic_switches.R` with `/home/user/p0/p0.5-instrumentation.patch`, commit `3b34dcf`.
+*(Unlike the build and gate assets now under `scripts/build/`, that patch was never committed and
+the container holding it is gone, so this row is not re-runnable as written.)*
 Counters behind `PLANT_SWITCH_PROBE`; the patch is not committed to the model. Rows integrated into
 `tf24-correctness.md` P0.5.
 
@@ -2902,7 +2909,9 @@ stayed green. **The snippet omits `add_strategies`, so both models run with no s
 the *unmodified* tree it produces no numbers whatever — it prints the two model names and nothing else,
 because `sprintf` on an empty `offspring_production` returns `character(0)`. **It could not have failed,
 for any change.** The tell was in my own text: the step counts I quoted beside it, 209 and 240, could only
-have come from a different script, and `/home/user/p0/ff16k93.R` is that script.
+have come from a different script, and `/home/user/p0/ff16k93.R` is that script. *(That script is
+now committed at `scripts/build/ff16k93.R`, unchanged in every model parameter and taking the plant
+worktree as its first argument instead of hardcoding one.)*
 
 **Three vacuous gates in one phase, all mine, and they share one shape.** The strategy-level instantiation
 that could not see the `Individual` seam; the reused-tape gate that compared adjoints and so could not see
@@ -3704,6 +3713,38 @@ remove the fix and it reports **13 800 bytes leaked per sweep** with the adjoint
 last bit. That is §0's second unfailable gate in its natural habitat — the answer is right and the
 resource is not, so a gate on the adjoints alone reports nothing, and this one was written to assert
 the resource.
+
+## T6, asserted as a value, and what breaking the accumulation actually looked like
+
+From the `p3/cohort-block` packet. T6 asserts trait-adjoint accumulation across cohorts **as a
+value** — `Patch::trait_adjoint` after the seeded sweep, against a central finite difference of the
+same seeded sum over all 8 cohorts of the harness patch. Passing: **28 live traits, of which 21 are
+leaf-free and all 21 agree, 0 disagree.**
+
+**The gate bites.** With `=` substituted for `+=` in the accumulation — each cohort treated as a
+separate input rather than a contribution to one — **0 of the 21 agree and 21 disagree**, ratios
+**0.0009 to 0.9859**, the sign right on most of them and nothing thrown. Two of the rows:
+
+| trait | adjoint with `=` | central difference | ratio |
+|---|---|---|---|
+| `a_st1` | 9.8878 | 9.498001 | 0.9606 |
+| `a_bio` | 132.5537 | 1.169478 | 0.0088 |
+
+**This is not `build-plan.md`'s T6 row.** That row carries report 01 §6.2's **41–51%**, which is the
+*feared* failure's signature measured elsewhere; both stand, and they are different measurements.
+41–51% is what the corpus predicted the failure would look like; the range above is what it looked
+like here. A reader who expects a tight fraction of the truth will not recognise `a_bio` at 0.9%.
+
+**The five traits that reach the rates only through the leaf are reported, not asserted**, because
+they carry the declared truncation: `theta` −3.129×, `a_r1` −4.110×, and `k_I`, `K_s` and
+`rooting_depth_max` exactly 0.
+
+**The packet's first T6 was invalid and the packet caught that itself.** It compared the accumulator
+against a rearrangement of the adjoint's own per-cohort sweeps, so both sides came from the code
+under test — and it **passed on the broken code**. It was rewritten against an independent central
+difference, which is the form above. The lesson is worth having on its own: **a gate built out of
+the thing it is testing cannot fail**, and it is a different fault from the vacuous gates §0 already
+carries — those measure nothing, this one measures the subject against itself and agrees.
 
 ## The defect: `dR_dcollar_` published a step-stale divisor
 
