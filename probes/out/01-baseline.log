@@ -1,0 +1,4 @@
+Error in sprintf("%-5s offspring=%.6g  steps=%d  ntimes=%d  elapsed=%.1fs\n",  : 
+  unsupported type
+Calls: cat -> sprintf
+Execution halted

@@ -1,0 +1,5 @@
+# Regenerable from the scripts, and large: the full collected histories.
+analytic-*.rds
+baseline-*.rds
+counts-*.rds
+divergence-*.rds
