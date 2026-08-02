@@ -327,6 +327,28 @@ deleting the perturbation (§6.5) is therefore not guaranteed to survive adaptiv
 arms were run at equal `schedule_eps` and reached different accuracies, so this is not a cost
 comparison at matched accuracy; that experiment was not run.
 
+### 6.5 The speed-up is 1.91x, not the sixfold once claimed
+
+Earlier work in this project claimed that deleting the single-individual perturbation roughly halves
+runtime, and elsewhere that it gives a sixfold wall-clock saving. Those timings were taken with other
+work on the machine. Measured on an idle machine, three repeats per arm, TF24 at the production
+schedule of 141 introductions:
+
+| arm | median | repeats | accepted ODE steps |
+|---|---|---|---|
+| density in height | 105.0 s | 105.0, 103.8, 105.3 | 5 055 |
+| density in birth date | 55.1 s | 55.0, 56.0, 55.1 | 4 013 |
+
+**Speed-up 1.91x**, with a repeat-to-repeat spread near 1%. It divides into 1.26x from taking fewer
+accepted steps — the right-hand side no longer carries a term built from a `10⁻⁶` divisor — and
+1.51x from each step being cheaper, since the perturbation is one extra full rate evaluation per
+cohort per Runge-Kutta stage and for TF24 that includes a leaf hydraulic optimisation.
+
+So "roughly halves the runtime" is close to right and "sixfold" is not. Two qualifications. The
+per-step factor is 1.51 rather than 2 because the perturbed evaluation is not the whole cost of a
+step. And §6.4 shows adaptive refinement asking for more introductions in the corrected coordinate,
+so this figure is the saving at a fixed schedule and not a guaranteed end-to-end one.
+
 ## Appendix A. The transport term derived
 
 Let individual state be `x`, evolving as `dx/dt = v(x, E(t))`, with height `h = x₁` and growth rate
