@@ -1688,9 +1688,10 @@ gradient. **V1** catches them only because it compares against a recording that 
 
 > **Steps (1)–(4) landed** — plant `5f239452` (the leaf's Jacobian), `772031e2` and `8ecb3fca` (the
 > cohort block and step (b)'s wiring), integrated at `893e8ad5`; superproject pointer `f486ce9`.
-> **Step (5) is not built**: the selector is built and discriminating and the rows are NaN when
-> pinned, but `d(bound)/du` is not computed. Incidence is 0 of 7.35 M at the production driver, so it
-> is insurance — unbuilt insurance.
+> **Step (5) landed in wave 3**, plant `0de32721`: `bound_partials` is the implicit function theorem
+> on the residual defining the endpoint, gated against a tight bisection on `E_up(x) = 0` at 2.13e-10
+> to 9.5e-09. `bound_b`'s arm is written and never exercised — 24 configurations swept and every
+> pinned state pins at `bound_a`.
 > **V1, V2, T4, T5 and T6 are all taken**, and the wave found a 2% defect in `dR_dcollar_` that four
 > instruments failed to stop. Evidence in [`implementation-notes.md`](implementation-notes.md),
 > *Phase 3, wave 2*.
@@ -1819,9 +1820,20 @@ and `hydraulic_cost_ad`, both already templated on their scalar in develop, and 
 transpiration and root-vulnerability interpolants, whose control points are fixed at construction
 so the parameter is carried by the values (report 03's arrangement, second consumer).
 
-> **The slots are already declared.** P3.2 left the twelve leaf-parameter rows **NaN by design**,
-> with their slots in `Leaf::inputs()`, so P3.3 fills them rather than renumbering the input vector
-> ([`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*).
+**Correction: the root-vulnerability interpolant's control points are not fixed at construction.**
+`build_cumulative_vulnerability_integral` sets `psi_max = b*log(100)^(1/c)` and
+`step = psi_max/resolution` under a `psi <= psi_max` loop bound, so the knot **count** steps between
+100 and 101 as `b` or `root_b` moves by 1e-6 relative — up to 10 245x on `d(bound_a)/d(root_b)` at the
+driest state. Report 02 §6.4's premise is false in the tree. The rows above are differenced **on a held
+grid**; the forward model still carries the discontinuity, which is the owner's
+([`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 3*).
+
+> **Landed in wave 3**, plant `0de32721`. Fifteen rows filled, not twelve: seven analytic, four
+> differenced at the frozen operating point on a held knot grid, four structurally zero. Finiteness
+> from 15 of 28 and 34 of 34 non-finite to **0 of 28 / 0 of 34 / 0 of 28** across four states.
+> `beta_R_H` and `beta_R_V` still have no row and read exactly zero.
+> P3.2 left the leaf-parameter rows **NaN by design** with their slots in `Leaf::inputs()`, so P3.3
+> filled them rather than renumbering the input vector.
 
 *Why it is separate from P3.2.* P3.2's rows are the same for every model with an inner optimum;
 these are TF24's leaf physiology and nothing else shares them. Splitting them means a failure here
@@ -1912,6 +1924,16 @@ magnitude to recognise it by.
 ---
 
 **P3.6 — the census metrics and the entry point.**
+
+> **Landed in wave 3 except V4**, plant `p3/census`, integrated on `p3/wave3`. `Species::census` from
+> the boundary node, `namespace census_metric` with a `tf24_census` tuple, `[[Rcpp::export]]` free
+> functions typed to the TF24 instantiation, `stand_gradient` recording the `Control` it
+> differentiated at, `agents.md` §13 and NEWS. Census against an independent R reduction at 1e-12, and
+> **the quadrature-weight term is 101.3% of the total with the integrand-only derivative of the
+> opposite sign**. The yml route was refused: it instantiates `Species`/`SCM` for K93, which has no
+> `area_leaf`/`area_stem`/`mass_above_ground`, so a fixed-tuple census member would not compile there;
+> Phase 4's shape is the yml with a concept plus `if constexpr`. **V4's harness is written and unrun**
+> ([`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 3*).
 
 ```cpp
 // A weighted reduction over the size distribution, from the boundary node up (P0.8).
@@ -2163,6 +2185,12 @@ returns it empty with its capacity retained. Measured 10.22 to **5.56** at block
 **5.51**, a 21.8 us cut against a 10.1 us tape, because a fresh tape also grows its containers to 52 kB
 every call. So the reverse term falls to **~260 s** and a gradient to **~430-460 s, 3.7 to 4.0 forward
 runs**, with the saving against a central difference rising to about **26x**.
+
+**Correction: the trait count is 44, not 51.** `ad_parameter_names()` returns 44 as measured in wave 3,
+against report 01 §4.2's 51 and wave 1's 55 for `ad_parameters()`. Every figure above that divides by a
+trait count — 102 forward runs, the 17x, the ~26x — is computed from 51 and wants re-deriving. The
+discrepancy is recorded and not resolved ([`implementation-notes.md`](implementation-notes.md),
+*Phase 3, wave 3*).
 
 **It is demonstrated and not yet realised**: nothing calls the primitive outside its tests, so the
 consumer that writes the cohort loop must hold one tape across it. Calling the tape-less overload inside

@@ -51,6 +51,17 @@
 > `∂R/∂u + Π_pp · dp*/du` and the identity passes for the wrong reason. It is not a hypothetical: a
 > real 2% error in the published curvature survived it, with the identity reading 4.54e-10
 > **bit-for-bit the same before and after the fix**.
+>
+> **§6.4's premise is false in the tree (Phase 3, wave 3).** The section says the vulnerability
+> interpolant's control points are fixed at construction and the parameter is carried by the values.
+> `build_cumulative_vulnerability_integral` sets `psi_max = b*log(100)^(1/c)` and
+> `step = psi_max/resolution` under a `psi <= psi_max` loop bound, so the knot **count** steps between
+> 100 and 101 as `b` or `root_b` moves by 1e-6 relative. Held grid against moving grid:
+> `dR/d(root_b)` 3.541221 against 168.3776 (47x), `d(profit)/d(root_b)` -2.2215 against -290.86
+> (131x), `d(bound_a)/d(root_b)` 1.68651 against 17279.08 (10245x) — invisible at wet states, growing
+> with drying. The ruling is to hold the grid and let the values carry the parameter, which is the
+> arrangement §6.4 describes; **the forward model still carries the discontinuity**, and that is the
+> owner's. Evidence in `../implementation-notes.md`, *Phase 3, wave 3*.
 
 ## 1. The proposal
 

@@ -3923,3 +3923,311 @@ Each was deliberately not taken and the reason is the part worth keeping.
 - **odelia's `vector_jacobian_product` header should say that no active value may outlive a
   recording.** The hazard itself is now in `ORCHESTRATOR.md` §10; putting it where the caller reads
   it is a code change and stays owed.
+
+# Phase 3, wave 3 — P3.3, P3.2 step (5), P3.6 less V4, and V1 re-established
+
+Base: plant `p3/phase-3` `893e8ad5` against odelia `fdccd7b`, installed read-only at
+`/home/user/lib-p3-int`. Four merges into `p3/wave3`, zero conflicts: 21 files,
+1 718 insertions, 37 deletions, and the insertion arithmetic closes exactly —
+46 + 84 + 636 + 952 = 1 718.
+
+| | commit | what it was |
+|---|---|---|
+| `p3/harness-recipes` | `54504c0f` | `scratch/README.md`: the two gate harnesses' build recipes, so V1, V2, T5 and the leaf gates can be rebuilt by someone who was not there |
+| `p3/v1-driver` | `f9789ea8` | `scripts/v1-driver.R` — V1's configuration committed for the first time |
+| `p3/leafrows` | `0de32721` | P3.3 and P3.2 step (5) |
+| `p3/census` | — | P3.6 less V4 |
+
+**`p3/stepadj` (P3.5) is not merged. Its gate V3 fails**, localised to one row, and the
+branch is left on its own tips — odelia `6734260`, plant `4fff1e22` — for the next session
+to take up. Nothing else in the wave depends on it.
+
+## Wave 3 integrated, and verified on the merged tree
+
+| gate | result |
+|---|---|
+| TF24 forward | `42.179817344974609` / 4 798, at TF24's own configuration: `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `refine_schedule = FALSE` |
+| FF16 / K93 forward | `19.834058960443031` / 209 and `0.030538172107758225` / 240, both via `scripts/build/ff16k93.R` at its own configuration |
+| stage purity, `derivs(y, t)` twice | 0 of 1 137 |
+| standing active probe | **2** |
+| plant suite | 2 944 pass, 0 fail, 6 named pre-existing errors, 10 skip — merge arithmetic 2 924 + 20 + 0 = 2 944 |
+| odelia suite | 334 pass, 0 fail, 2 skip |
+| `grep -rn 'xad::' inst src` | empty, and it is a property of the merge only |
+| `grep -rn 'const_cast' inst src` | empty, likewise |
+| style sweep | clean, apart from one `// ---- Census ----` banner in `scm.h` that the wave itself had added; removed |
+
+## P3.3 and P3.2 step (5) — the leaf's remaining rows
+
+Fifteen parameter rows filled, plus the bound rows, through a now fully templated
+`assim_colimited_ad` / `hydraulic_cost_ad`.
+
+- **Analytic:** `vcmax_25`, `jmax_25`, `a`, `curv_fact_elec_trans`, `curv_fact_colim`,
+  `g1_TF24`, `beta2`.
+- **Differenced at the frozen operating point on a held knot grid:** `b`, `c`, `root_b`,
+  `root_c`. The held grid is not incidental; see the next subsection.
+- **Structurally zero:** `rho` and `a_bio`, which `set_physiology` stores and nothing reads,
+  and at an interior point `psi_crit` and `root_psi_crit`.
+- `bound_partials` is the implicit function theorem on the residual defining the endpoint.
+
+The finiteness gate went from **15 of 28 non-finite at an interior state and 34 of 34 at a
+pinned one, to 0 of 28 / 0 of 34 / 0 of 28** across four states. Interior invariants are
+character-identical.
+
+Profit rows against a whole-solve central difference run **1e-6 to 4e-10**. The 1e-6 rows
+are limited by the `ci` root-find's own `ci_abs_tol` rather than by the row, and the two
+rows with a clean reference land at 4e-10. `d(uptake_0)/d(vcmax_25)` is **7.39165997e-09**,
+nonzero, matching the difference at 9.86e-08 — the vacuity check that matters here, because
+uptake has no direct dependence on `vcmax_25`, so a severed argmax channel would read
+exactly zero rather than small. Bound rows against a tight bisection on `E_up(x) = 0` agree
+at 2.13e-10 to 9.5e-09.
+
+## Report 02 section 6.4's premise is false in the tree
+
+`build_cumulative_vulnerability_integral` sets `psi_max = b*log(100)^(1/c)` and
+`step = psi_max/resolution`, with a `psi <= psi_max` loop bound. So **the knot count steps
+between 100 and 101** as `b` or `root_b` moves by 1e-6 relative. Report 02 section 6.4 says
+the control points are fixed at construction and the parameter is carried by the values.
+They are not.
+
+| | held grid | moving grid | factor |
+|---|---|---|---|
+| `dR/d(root_b)`, dry 8-layer | 3.541221 | 168.3776 | 47x |
+| `d(profit)/d(root_b)`, dry 5-layer | -2.2215 | -290.86 | 131x |
+| `d(bound_a)/d(root_b)`, driest | 1.68651 | 17279.08 | 10245x |
+
+Invisible at wet states — 0.1612 either way — and growing with drying.
+
+**And it invalidated a number already in the corpus.** The committed harness's `WAIST-EXT`
+row at the pinned state reads `pred 168.401 meas 168.378 rel 1.37e-04`, recorded in wave 2
+as passing. Both sides are wrong by 47x, and they agree because both were built from the
+same poisoned pair. That is the second instance this phase of a gate built out of the thing
+it is testing, after the T6 the `p3/cohort-block` packet caught itself.
+
+**Ruling: hold the grid, let the values carry the parameter.** `plant/agents.md` section 13
+already forbids a knot count that depends on an active value, and report 03's rule is that
+positions are structure while values carry derivatives. The step is an artefact of
+`psi_max/resolution`, not physics.
+
+**But the forward model still carries the discontinuity.** TF24's output is genuinely
+discontinuous in `b` and `root_b` at the count step, so any finite difference on those
+traits hits it. Fixing it moves forward numbers and needs a re-bless, so it is the owner's:
+recorded, not absorbed.
+
+## P3.6 — the census and the entry point
+
+`Species::census` starting at the boundary node; `namespace census_metric` with a
+`tf24_census` tuple; `[[Rcpp::export]]` free functions typed to the TF24 instantiation;
+`stand_gradient` on the R side, recording the `Control` it differentiated at; `agents.md`
+section 13; a `NEWS.md` entry.
+
+The census value against an independent R reduction of TF24's allometry agrees to **1e-12**.
+
+**The quadrature-weight term is 101.3% of the total and the integrand-only derivative has
+the opposite sign.** At node 23, `d_full = -0.2180587`, `d_integrand_only = +0.0029333`,
+`weight_term = -0.2209920`. Report 00 section 6.3 called it the term most likely to be
+dropped by hand; what this measures is that dropping it does not shrink the answer, it flips
+it. Section 13's acceptance test is partly a count, and it holds: adding a fourth metric is
+14 lines in one file, no tape code, no odelia, and a 40-second rebuild rather than a full
+one.
+
+**The boundary-node gate is vacuous at end-of-run states.** At lifetime 12 the reldiff is
+1.28e-04; at lifetimes 5 and 20 it is exactly 0, because the boundary node's density and its
+neighbour's have both underflowed. The reduction is correct and the interval is genuinely
+zero. The consequence is the part to carry: **a V4 differenced at `t = T` carries no
+boundary-node channel at all**, which the V4 harness names rather than hides.
+
+**`ad_parameter_names()` returns 44, not 51.** The corpus states this three ways — report 01
+section 4.2's 51, wave 1's 55 for `ad_parameters()`, and this measurement's 44 — and section
+8b's cost model and its ~26x saving are computed from 51. The discrepancy is recorded here
+and is not resolved; resolving it moves a headline cost figure and wants its own measurement.
+
+**The yml route was not taken, and the ruling is recorded.** The yml instantiates `Species`
+and `SCM` for K93, which has no `area_leaf`, `area_stem` or `mass_above_ground`, so a
+fixed-tuple census member would not compile there. Taken instead: `[[Rcpp::export]]` free
+functions typed to TF24, the same route `src/strategy_expand.cpp` already uses. Phase 4's
+shape, when FF16 and K93 arrive, is the yml with a concept plus `if constexpr`.
+
+**The `mortality = Inf` question: both readings measured, no guard shipped.** Dropping dead
+cohorts changes the census **value** by up to **6.19e-06 relative** at lifetime 12, where 9
+of 95 cohorts are dead, and by exactly 0 at lifetime 20 — the latter only because the dead
+set is contiguous at the bottom, which is a coincidence of that state and not an argument
+that the treatment is free. It is a forward-model change, it is the owner's, and it wants a
+re-bless before V4. `census` is written without a guard, which is what section 11.7 asks
+for.
+
+**The V4 harness is written and runnable**: `scripts/v4-census-gradient.R`, 9 named traits
+and **18 production runs rather than 88**. It prints covered and not-covered explicitly, it
+checks the census time against the establishment window `[3.222267, 8.544184]`, and it
+**stops** if the time falls inside rather than mollifying. The traits are `lma`, `rho`,
+`hmat`, `theta`, `a_l1`, `k_I`, `a_dG1`, `K_s` and `psi_crit`, each chosen for a channel it
+isolates.
+
+## V1 — retracted as recorded, and re-established
+
+**The recorded `2.32e-12` is not reproducible, and its configuration was never committed.**
+Every gate in `scratch/wire_gates.cpp` is an `[[Rcpp::export]]` taking the patch as a `SEXP`,
+so the state and the seed lived in an R driver that no one committed. Two packets
+independently failed to reproduce the number — one swept eight states and watched the
+`(b) + blocks` entry move over seven orders, the other read 1.88.
+
+**The cause was the comparison, not the code.** Seeding only the strategy rows removes
+**rows** of the Jacobian and not **columns**: the recording still returns nonzero `lambda_y`
+in the `log_density` and environment columns, because strategy rates depend on those states,
+while the decomposition returns exactly zero there by construction. So a residual taken over
+all components is pinned at exactly 1 at every state under every seed. **The exclusion is
+seed-side and comparison-side**, and wave 2 carried only the first half.
+
+The layout also needed correcting, and two packets and the orchestrator had it wrong:
+`Patch::ode_state` writes **species first, environment last**, so the 9 environment slots are
+**trailing**. `node = index0 / 8`, `slot = index0 % 8`, environment iff
+`index0 >= 8 * node_count`.
+
+Re-established on the strategy columns, seed = the six strategy-rate slots per node:
+
+| lifetime | normwise | pointwise |
+|---|---|---|
+| 0.5 | 1.56e-16 | |
+| 2 | **3.33e-15** | **2.05e-11** |
+| 3 | 7.35e-12 | |
+| 20 | 4.30e-09 | |
+
+**Ruling: normwise is the headline, pointwise printed beside it.** Report 03 section 5.2
+already normalises globally in a neighbouring place, and says why: a pointwise relative error
+is unbounded where the quantity passes through zero, so it reports the reference's magnitude
+rather than the scheme's. Pointwise alone would also hide nothing here — 0 of 486 strategy
+columns exceed 1e-8 at lifetime 2, and the worst twelve are scattered at 1.2 to 2.0e-11,
+which is the roundoff floor of a 486-column reverse pass and the signature of a correct
+decomposition.
+
+**`(d) + allometry` buys eleven orders at every state measured**, with
+`max|upto5 - upto3|` running 5.7 to 1.0e+07 and 65 of 65 knot values nonzero. An earlier
+reading of "live but orthogonal" was the pinned-at-1 artefact above. So the incremental
+readout's attribution — the argument for taking V1 one contribution at a time — stands.
+
+**V1 degrades with lifetime**, 1.56e-16 at 0.5 to 4.30e-09 at 20. It is a decomposition check
+at short lifetime and says nothing about production. V4 covers that.
+
+## P3.5 — built, V3 fails, localised
+
+odelia `p3/stepadj` `6734260`: an `AdjointRates` concept in `ode_interface.hpp`,
+`Step::step_adjoint` branching on it with `if constexpr`, `Solver::solve_adjoint` over
+`recorded_steps()`, RODAS refused. **`Step::step_adjoint` already existed at `fdccd7b`**,
+with the Cash-Karp general inner loop, six stage evaluations, index-addressed stages and a
+bit-identity test on the rebuilt stage states. The packet extended it rather than writing a
+second one, so that test now covers both paths.
+
+plant `p3/stepadj` `4fff1e22`: `Patch::set_ode_state_and_field` as the first four lines of
+`set_ode_state`; the transport probe moved from `Node` to `Individual`; `log_density_rate` as
+block output 7, so one recording holds both evaluations and the tape forms the quotient.
+
+**Ruling on two documents that disagreed.** Report 10 section 6 says two block recordings and
+two sweeps per cohort per stage; `build-plan.md`'s P3.5 says record both evaluations and let
+the tape form the quotient, so `lambda_g` needs no hand-written seed. Under two sweeps
+`lambda_g` **is** hand-written, which contradicts the same decision, and P3.5 also says "step
+(a) loses one of its three sources", which is only true if `lambda_g` leaves step (a)
+entirely. **Build-plan's is the decision; report 10 section 6's is a cost projection written
+before the design existed.**
+
+**The negative control is the best of the wave.** The full 73x73 `ode_rates_adjoint` matrix
+before and after: 8 rows changed, all `log_density`, 65 bit-identical,
+`max|change| = 114524`, **and the eight changed rows were identically zero before**. The
+exactly-zero failure mode was sitting in the tree by construction, and the severed control is
+`893e8ad5` itself.
+
+**V3 fails, and it is localised.** `node 1 slot 8` — the tallest cohort's transport row —
+reads an adjoint of `0.0024128` against a difference of `89.875`, so the channel is connected
+but about four orders short. 16 of 48 columns are nonzero and the identity term is a healthy
+0.9903. **It is not the traversal**: driving `ode_rates_adjoint` directly at the exact tableau
+weight stage 5 receives reproduces the same shortfall.
+
+**The shape of the answer, from the same matrix.** Node 1 slot 8 reads 0.4982 and node 2 slot
+8 reads 0.00359. Node 1 is the tallest cohort, and `0.4982` under `|a-b|/|b|` is what
+`a = b/2` gives — the recorded `z == height_max` half-signature, where the field reduction
+switches off at the canopy top and a central difference reports exactly half.
+
+**Hypothesis for the next session to test first, recorded as a hypothesis and not a
+conclusion: the transport probe displaces the cohort's height by `-eps`, and for the tallest
+cohort that displaces `height_max` itself**, which is the knot grid's upper bound and passive
+by the committed P2.1 ruling. Wave 1 measured that passivation costing about 87% of the
+tallest cohort's height adjoint and named C1's unmeasured convergence-with-knot-density as its
+falsifier. If this is that channel, P3.5's failing row and wave 1's owed measurement are one
+item.
+
+**One attribution was made and then overturned by its own author**, which is worth recording
+as method. A `0.2469` disagreement was first attributed to a pre-existing defect in node 2's
+height column. Measured properly, node 2's height column is the **most** accurate of three at
+rel 6.32e-06, localised entirely to allometry, and agreeing to every printed digit. The
+`0.2469` was a **row** — seeding node 2's height rate against a whole-patch recording, which
+is the incomplete model V1's exclusions already describe — carried across to a **column**
+disagreement in V3, a different object with a different reference. And V3's own
+`fd_eps = 1e-6` sat inside a cancellation region: the column carries a second derivative of
+about 4.8e9, so at `1e-8` the difference reads -118895 against a true 631.9987, and node 2's
+residual improves five-fold as the step grows while a clean row degrades. **There is no
+pre-existing defect underneath P3.5.**
+
+## Owed out of this wave
+
+Each was deliberately not taken and the reason is the part worth keeping.
+
+- **`beta_R_H` and `beta_R_V` still have no row**, so a strategy varying either reads
+  **exactly zero** — the last such hole in the leaf boundary, and they are the only
+  multiplicative scale on the root resistance network. Not taken because adding rows
+  renumbers the input vector and the packet's allowlist forbade it. The existing gate shows
+  they factor through the waist pair at 6e-10 to 3.5e-09, so they are cheap for whoever may
+  renumber.
+- **`bound_b`'s arm is written and never exercised.** 24 configurations swept — conductance
+  x1 to x1000, two PPFDs, soil to 4.0 MPa — and every pinned state pins at `bound_a`. Also
+  flagged: `bound_b = max(-root_crit, -root_psi_crit)` compares a positive against a
+  negative, so one arm looks unreachable; it is implemented on the actual values rather than
+  on that assumption.
+- **The aux saving is not taken.** The transfer is implemented and odelia's test asserts six
+  distinct aux values arriving in reverse, but `cohort_block_adjoint` still re-solves the leaf
+  inside the recording, so section 2.9's 1 µs against 10.2 µs is unrealised and the
+  linearisation point is re-derived rather than restored.
+- **Report 02 C3 fired live.** `set_physiology` keys the `vcmax_` / `jmax_` block on
+  `(leaf_temp_, atm_o2_kpa_)` alone, so changing `vcmax_25` on a warm `Leaf` never reaches the
+  model, and the reference read exactly zero until the flag was cleared. Recorded as a
+  prerequisite since Phase 1 and never taken. It does **not** block V4, because a re-run
+  difference constructs a fresh `Leaf`.
+- **The recorded stationarity band `4.5e-10 … 5.1e-09` never covered a row that reads
+  2.83e-10.** The base tree at `893e8ad5` prints it too, so nothing moved: this is a corpus
+  correction, not a re-bless.
+- **`psi_crit` at a pinned state publishes 0 against a whole-solve reading of -2.39e-04**,
+  because it moves `bound_b`, which moves golden section's bracket, which moves the returned
+  point affinely even though the polish does not run when pinned. Same class as `b`'s pinned
+  uptake row. The `GSS_tol_abs/2` displacement, recorded rather than hidden.
+- **Two of the three known-stale comments are still stale, and the corpus's description of
+  the third is itself half-stale.** `tf24_strategy.h`'s "nine sites" claim is already gone,
+  while its "exactly zero here" sentence remains and is false. `tf24_environment.h`'s and
+  `patch.h`'s are unchanged.
+- **`dprofit_droot_collar_psi`'s NaN-kink fallback (C2) is now inside more rows than before**
+  — every `∂R/∂θ` residual pair goes through it. Incidence is still uncounted.
+
+## What this wave taught, beyond the tasks
+
+1. **A gate's configuration must be committed, not merely recorded.** V1's number, its
+   readout and its discrimination were all written down; its state and its seed were in an
+   uncommitted R driver, so the phase's headline verification was not re-runnable by anybody.
+   "A measurement carries its configuration" is not satisfied by prose — the configuration has
+   to be a file in the tree. Fourth instance of that rule this phase, and the first on a
+   headline number.
+2. **A suite count carries its invocation.** One packet measured 2 857 where two others
+   measured 2 924, and the cause is `load_package = "none"` over a `pkgload::load_all` tree:
+   several test files gate on `is_pkgload_dll_plant()` and take the skip branch under one
+   loading mode and run under the other. So "2 924" is a number plus a way of loading.
+3. **State the definition of a relative error alongside it.** One packet used `|a-b|/|b|`
+   throughout while the corpus's other numbers use `|a-b|/max(|a|,|b|)`. Under the first,
+   "rel 1" means *a is negligible against b*; under the second it means one side is exactly
+   zero. Two different diagnoses out of one number.
+4. **A row is not a column.** An attribution was carried from a row disagreement to a column
+   disagreement joined only by a shared index, and it was wrong. Its author found it.
+5. **A finite difference has a step size, and a curved column has a cancellation floor.** V3
+   failed partly because its `fd_eps = 1e-6` sat inside the cancellation region of a column
+   with a second derivative of 4.8e9. The signature that tells you which side is wrong: a bad
+   reference **improves** as the step grows, while a clean row degrades.
+
+**And the tally: every packet in this phase has found a real defect in the orchestrator's
+brief, and wave 3 makes it ten.** The two that had consequences were asserting that
+`Step::step_adjoint` did not exist when it did — with the evidence sitting in the
+orchestrator's own handoff notes — and propagating a wrong index map that a packet then had to
+be corrected out of mid-flight.
