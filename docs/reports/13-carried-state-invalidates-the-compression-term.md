@@ -474,7 +474,11 @@ Its residual disagreement refines away, where the shipped configuration's does n
 | relative gap between coordinate systems | 141 introductions | 281 | 561 |
 |---|---|---|---|
 | as shipped | 8.38 | 6.28 | 5.79 |
+| growth reads reserves, mortality does not | 642 | 509 | not run |
 | store reads nothing | 0.645 | 0.357 | not run |
+
+Both configurations in which growth reads the reserve fraction hold their disagreement under
+refinement; the one in which it does not halves it.
 
 This qualifies two statements above. TF24's height-coordinate arm converges slowly whether or not
 the store is coupled — it moves +21.6% between the first two levels with the store decoupled against
@@ -591,9 +595,9 @@ correction removes the ordering requirement holds for the state and not for that
 written against the height grid. The structure carries over to a birth-date abscissa; the work has
 not been done, and all runs here use `refine_schedule = FALSE`.
 
-**Two cells of the §12.1 control were not refined.** The decoupled configuration was run at 141 and
-281 introductions but not 561, and the gate-active/mortality-decoupled configuration only at 141.
-The claim that the decoupled residual refines away rests on one halving, not two.
+**The §12.1 control was not taken to a third refinement level.** Both configurations were run at 141
+and 281 introductions but not at 561, so the claim that the decoupled residual refines away rests on
+one halving rather than two.
 
 **Crossings were censused at one parameter set.** §9 covers a single trait value and a single
 environment. The drought sweep that motivated the storage pool has not been instrumented, and no run

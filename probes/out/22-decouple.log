@@ -1,3 +1,4 @@
 storage carried, reads nothing     lev0 n=141  height=19.8012      birth=32.5773       relative gap=6.452e-01
 storage carried, reads nothing     lev1 n=281  height=24.0716      birth=32.653        relative gap=3.565e-01
 gate active, no storage mortality  lev0 n=141  height=0.0455057    birth=29.2839       relative gap=6.425e+02
+gate active, no storage mortality  lev1 n=281  height=0.0579422    birth=29.5627       relative gap=5.092e+02
