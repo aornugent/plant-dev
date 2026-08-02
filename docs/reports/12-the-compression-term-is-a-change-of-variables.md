@@ -10,6 +10,10 @@ Everything below is measured on `plant` `develop` at `141dc8df` in an environmen
 what reports 10 and 11 lacked. Probe scripts and raw outputs are in
 [`probes/`](../../probes); the implementation is `plant` `claude/nsc-density-measurements-efiolz`.
 
+[Report 13](13-when-two-plants-the-same-height-differ.md) is the self-contained version of the same
+work, written for a reader coming to it cold: it derives the argument rather than answering the
+question as posed, and carries measurements this report does not.
+
 ---
 
 ## 1. What the measurements say
