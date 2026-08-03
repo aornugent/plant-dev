@@ -5092,3 +5092,73 @@ the values themselves are the incomplete-gamma evaluations.
 **Tally: twenty-three, and this wave's three were all the orchestrator's** — the stale
 `lib-p3-int`, `block_sweeps` advancing by `node_count` rather than 1, blocks counted as calls,
 and now a cost hypothesis contradicted by the memo's single reader.
+
+## Wave 6, third pass: the first production gradient, and V4's reference indicted by mechanism
+
+**`stand_gradient` at production, for one trait.** Plant `p3/trait-mask` `1a06e4c5`, TF24's own
+configuration — `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`,
+`refine_schedule = FALSE`, confirmed from the run's own output as **nodes 141, `ode_size` 1137,
+4 644 accepted steps**:
+
+    leaf_area          lma    -54.645884494714252
+    mass_above_ground  lma  -171240.8953584742
+    area_stem          lma   -225.66682848410557
+    exactly-zero 0 of 3      peak RSS 274 980 kB = 0.262 GiB   forward 138.6 s, gradient 2 995.4 s
+
+**This is the first whole-run trait gradient this project has produced at production lifetime**,
+and the 2 GB peak-memory gate of report 01 section 1 is met with an order of headroom. It is a
+subject, not a verification: nothing yet refereees it.
+
+**The guard fix.** The two `build_cumulative_vulnerability_integral` calls in `Leaf::input_adjoints`
+and `Leaf::bound_partials` now sit under `par_wanted(PAR_B) || par_wanted(PAR_C) ||
+par_wanted(PAR_ROOT_B) || par_wanted(PAR_ROOT_C)`, which is exactly `rebuilds_transport`'s set and
+exactly the condition under which `set_parameter` reads the knots. Grid contents untouched.
+
+| gate | result |
+|---|---|
+| `traits = "lma"` | 3 entries, **0 differing**, max abs and rel 0 |
+| `traits = b, c, root_b, root_c, lma` | 15 entries, **0 differing** — the lazy build does fire |
+| forward at 105.32 | `42.411799695604159` / 4 644, and all three census metrics bit-identical |
+| speed, `lma`, pinned 0.2 | 3.455 s -> 0.605 s, **5.71x** |
+| speed, all 44 traits | 25.613 s -> 25.475 s, **1.005x**, as intended |
+
+Predicted 7x and 14%; measured 5.71x and 17%. Close enough to confirm the mechanism and not so
+close as to suggest the model was fitted to it.
+
+**V4's reference is invalid for `lma` at production, and now for a stated reason.** Central
+difference, schedule and ODE times pinned on every arm, all arms confirmed at 141 / 1137 / 4 644:
+
+| rel. step | leaf_area | mass_above_ground | area_stem |
+|---|---|---|---|
+| 1e-3 | -8 044.13 | -253 983.74 | -28.8127 |
+| 1e-4 | +80 388.79 | +2 540 774.43 | +288.159 |
+| 1e-5 | +1 624.61 | -4 695.32 | +5.60624 |
+| 1e-6 | 4.44e-204 | 1.70e-202 | 1.94e-206 |
+| 1e-7 | +583 583.65 | +411 339 293.40 | +50 517.35 |
+
+No plateau in magnitude or in sign. **The cause is diagnosed rather than assumed: in several arms
+the whole stand collapses**, returning census metrics at underflow and running 42 s instead of
+112 s, and the 42/112 split tracks the collapse across all ten arms of two independent sweeps. At
+1e-3 and 1e-4 exactly one arm collapses, so the reported "difference" is `base/2h` — check it:
+`8044.13 x 2 x 1.9788e-4 = 3.184` against a base `leaf_area` of `3.1775`. The two arms that do not
+collapse still disagree with each other by 360x.
+
+**So a relative `lma` perturbation of 2e-7 flips a 105-year stand between alive and identically
+zero.** That is a discontinuity in TF24's forward output at production, in the trait this project
+uses as its worked case, and it is the owner's. **A re-run finite difference cannot referee this
+gradient**, and the adjoint above is neither confirmed nor contradicted by the sweep.
+
+**A defect in two committed scripts, found on the way.** `scripts/v4-census-gradient.R` and
+`scripts/v4-reference.R` perturb via `pp$strategies[[1]]$pars[["lma"]] <- v`, which writes the
+parameter list without recomputing the derived strategy quantities. The correct route is
+`add_strategies(p, trait_matrix(v, "lma"))`, which reproduces base to the last bit at an
+unperturbed value. Both routes give the same collapse, so this is not the cause of the
+non-convergence — but the scripts are wrong and any figure taken through them is suspect.
+
+**Three of the orchestrator's own instructions were wrong and are corrected in `ORCHESTRATOR.md`:**
+the schedule-taking tell (`node_schedule_times[[1]]` reads 0 on every run on this build, so it
+discriminates nothing — use the node count), the claim that background work cannot progress across
+tool rounds (a detached run plus successive waits completed a 2 995 s gradient; what is true is a
+600 s cap on one call), and the peak-memory recipe (`/usr/bin/time` is absent, and
+`pgrep -f "Rscript ..."` matches the bash wrapper, reading 4 976 kB where the R process read
+274 900 kB).

@@ -760,11 +760,25 @@ Operational facts two waves accumulated that the plan does not carry.
 - **A configuration can fail to take, and this one moves a timing by 18x.** Assigning
   `p$node_schedule_times` and not verifying it silently runs the **default, denser** schedule:
   pinned at `max_patch_lifetime = 0.2` a one-trait gradient is **3.1 s**, unpinned it is
-  **76.89 s**. The tell is that `scm$state$node_schedule_times[[1]]` has **length 0**, and the
-  shape tell is the node count — 8 nodes pinned against 65 on the default. Two packets this wave
-  reported "lifetime 0.2" for runs whose schedule had not taken. **"A measurement carries its
-  configuration" is not satisfied by naming the configuration in the brief; the run has to be
-  asked what it actually used, and the node count is the cheapest question.**
+  **76.89 s**. **Confirm it by the node count, which discriminates: 8 nodes and `ode_size` 73
+  pinned at 0.2, against 65 unpinned; 141 and 1137 at the production default.**
+  `length(scm$state$node_schedule_times[[1]])` does **not** discriminate — two packets disagree
+  about it, one reporting it 0 only on the default arm and one reporting it 0 on every run
+  including verifiably pinned ones, so **a 0 there proves nothing** and an earlier version of this
+  bullet was wrong to offer it as the tell. **"A measurement carries its configuration" is not
+  satisfied by naming the configuration in the brief; the run has to be asked what it used, and
+  the node count is the cheapest question that answers.**
+- **Background work does make progress across tool rounds, and section 6 says otherwise.** A
+  detached `timeout 3600 Rscript ...` driven by successive foreground waits completed a 2 995 s
+  gradient. What is true is that the Bash tool caps a **single call** at 600 s, so a longer run
+  needs detach-plus-wait rather than one blocking call. Section 6's "background processes are
+  frozen between tool calls" is too strong; the 71-s-of-CPU-after-40-minutes observation it rests
+  on has not been reconciled with this one, and until it is, **measure the CPU counter rather than
+  assuming either.**
+- **`/usr/bin/time` is not installed here, and an in-process `VmHWM` read returns the shell's
+  value.** `pgrep -f "Rscript <script>"` matches the bash wrapper first: it read `VmHWM 4976 kB`
+  where the R process read `274 900 kB` at the same instant. Poll `/proc/<child pid>/status` from
+  outside, having resolved the child pid, or the peak-memory gate measures a shell.
 - **Build with `R CMD INSTALL`, never `pkgload::load_all`, and this is not a preference.**
   `load_all` forces its own `-O0 -g` build and **ignores `R_MAKEVARS_USER`** (a 36 MB `.so`
   against 5.6 MB), and mixing that non-`NDEBUG` `.so` with an `-DNDEBUG` `sourceCpp`
