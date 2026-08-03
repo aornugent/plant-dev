@@ -9,9 +9,10 @@ required quantity — not approximately, but at all — as soon as growth depend
 than size.**
 
 The consequence here is an order of magnitude. Lifetime offspring production — the integral `plant`
-uses to decide whether a strategy persists — is 42.14 as the solver computes it and 400.92 in a
-corrected coordinate, and only the corrected value converges under schedule refinement. An
-individual-based solver that carries no transport term agrees with the corrected coordinate to within
+uses to decide whether a strategy persists — is 42.14 at the production schedule and 400.92 in a
+corrected coordinate. Refined to convergence the two do not approach each other: they reach 60.29 and
+401.72, a factor of 6.66 apart, so the shipped value is 85% low and no amount of resolution recovers it.
+An individual-based solver that carries no transport term agrees with the corrected coordinate to within
 0.6% at every patch age and sits 1.6 to 2.5 times below the uncorrected one.
 
 The error is absent on the two strategies whose growth is a function of size, so it does not cancel
@@ -28,15 +29,16 @@ Four tests, each able to fail independently, none sharing an assumption with ano
 
 | test | uncorrected | corrected |
 |---|---|---|
-| **Schedule refinement.** Offspring production at 141, 281 and 561 cohort introductions | 42.14, 54.80, 59.06 — moving +30.0% then +7.8% | 395.44, 399.08, 400.92 — moving +0.92% then +0.46% |
+| **Schedule refinement.** Offspring production at 141, 281, 561 and 1121 cohort introductions, and the Richardson limit | 42.14, 54.80, 59.06, 60.02 → **60.29** | 395.44, 399.08, 400.92, 401.48 → **401.72** |
 | **Step size.** Distance of the estimate from the required quantity, against its own variation across five decades of finite-difference step | 0.302 against 0.0055 — a factor of 55 | not applicable; no derivative is taken |
 | **Coupling removed within TF24.** Relative gap between the two coordinates, store integrated but read by nothing, at the same three resolutions | 8.38, 6.28, 5.79 | 0.645, 0.357, 0.0966 |
 | **Independent solver.** Leaf area at patch ages 1 to 3 against an individual-based solver that has no transport term | 1.6 to 2.5 times its value | agrees to within 0.6% at every age, inside the solver's own standard error |
 
-The first says the uncorrected value is not converged and the corrected one is. The second says the
-discrepancy is not a resolution error, so an analytic or automatically differentiated derivative
-would not remove it. The third attributes the discrepancy to the carried state within a single
-strategy. The fourth compares both against a solver that counts individuals and cannot prefer either.
+The first says both coordinates converge, and to different answers, so the shipped result is not merely
+under-resolved. The second says the perturbation that produces it is itself fully resolved, so an
+analytic or automatically differentiated derivative would return the same wrong number. The third
+attributes the discrepancy to the carried state within a single strategy. The fourth compares both
+against a solver that counts individuals and cannot prefer either.
 
 ![Figure 1](figures/fig-01-schedule-convergence.svg)
 
@@ -54,11 +56,12 @@ range the SCM occupies: (a) absolute values, the oracle drawn as a band and the 
 labelled with its factor at each age; (b) the same as a ratio to the centre of the bracket, magnified,
 showing the soil bracket and the bracket widened by one standard error.
 
-**On the two strategies whose growth is a function of size, the two coordinates converge to each
-other**, which is the check that this is a change of coordinate and not a change of model. The
-relative gap falls by factors of 4.5 and 4.1 on K93 across successive halvings of the cohort spacing,
-and by 2.4 and 3.6 on FF16 — approximately the second order that two second-order quadratures of one
-integral should show. On TF24 it falls by 1.3 and then 1.1 and remains near 5.8.
+**On the two strategies whose growth is a function of size, the two coordinates converge to the same
+limit**, which is the check that this is a change of coordinate and not a change of model. Extrapolated,
+FF16's two limits agree to 5.3 × 10⁻⁵ relative and K93's to 5.6 × 10⁻⁷. The relative gap falls between
+successive halvings of the cohort spacing at approximately the second order two second-order quadratures
+of one integral should show — factors of 4.5 and 4.1 on K93, 2.4 and 3.6 on FF16. On TF24 it falls by
+1.3 and then 1.1, stalls near 5.8, and the two limits differ by a factor of 6.66.
 
 ![Figure 3](figures/fig-03-coordinate-gap.svg)
 
@@ -263,7 +266,7 @@ rate, as on FF16 and K93 where the two agree to 1.2 × 10⁻³ and 1.4 × 10⁻�
 reported drop is therefore not established. Its sign is not addressed here: the pre- and post-storage
 runs use different parameter sets, and no run was made at the pull request's configuration.
 
-## 6. Five follow-through measurements
+## 6. Cost, convergence and robustness
 
 ### 6.1 The storage state's excursion below zero is a step overshoot the tolerance cannot remove
 
@@ -354,7 +357,7 @@ value is in the constant environment (−2.249 × 10⁻³ in height coordinates)
 0.7. It returns negative only at full light amplitude, at −6.82 × 10⁻⁵, still some thirty times
 smaller than the constant-environment baseline.
 
-### 6.4 Adaptive schedule refinement works in the new coordinate; its cost advantage does not
+### 6.4 Adaptive refinement keeps the cost advantage, once `schedule_eps` is chosen for the coordinate
 
 `SCM::refine_schedule` flags cohorts whose integration error exceeds `schedule_eps` and bisects the
 interval below them. It combines two error metrics. The reproduction one was already measured over
@@ -367,41 +370,69 @@ branch's sign convention leaves it bit-identical, verified on FF16 and K93.
 With that in place, adaptive refinement terminates normally in both coordinates for all three
 strategies:
 
-| arm | adaptive result | own fixed-schedule value at 561 | introductions | ODE steps |
+| arm | adaptive result | own Richardson limit | introductions | ODE steps |
 |---|---|---|---|---|
-| K93, height | 0.0305966 | 0.03056925 | 181 | 360 |
-| K93, birth-date | 0.0306323 | 0.03057363 | 173 | 183 |
-| FF16, height | 19.9888 | 20.01218 | 147 | 216 |
-| FF16, birth-date | 20.0357 | 20.03607 | 157 | 225 |
-| TF24, height | 60.3519 | 59.059 | 204 | 6 233 |
-| TF24, birth-date | 401.317 | 400.9166 | 357 | 4 468 |
+| K93, height | 0.0305966 | 0.030570516 | 181 | 360 |
+| K93, birth-date | 0.0306323 | 0.030570499 | 173 | 183 |
+| FF16, height | 19.9888 | 20.03723 | 147 | 216 |
+| FF16, birth-date | 20.0357 | 20.036170 | 157 | 225 |
+| TF24, height | 60.35 | 60.294 | 204 | 6 233 |
+| TF24, birth-date | 401.317 | 401.722 | 357 | 4 468 |
 
-Three readings, one of them unfavourable.
+**The corrected coordinate asks for more nodes and is still cheaper.** On TF24 it refines to 357
+introductions against the height arm's 204 at the same `schedule_eps`. Cost is not the node count but
+the number of rate evaluations, which is the sum over accepted steps of the live node count; on that
+measure the corrected arm is 1.06 times cheaper at equal `schedule_eps` despite 75% more nodes, and its
+cheapest setting is 1.13 times cheaper than the height arm's cheapest while being 861 times more
+accurate. Measured wall clock confirms it: 146.72 s against 142.43 s at equal `schedule_eps` (§6.5).
 
-**It works, including on TF24.** That was the open question, and both arms complete.
+**Equal `schedule_eps` is the only well-defined common setting, and matched accuracy is unattainable for
+the height arm.** `local_error_integration` returns the area the trapezium loses if a node is deleted,
+divided by the same integral, and that ratio is exactly invariant under any affine change of abscissa —
+verified numerically to 1.9 × 10⁻¹⁵ across six decades of rescaling. Metres against years therefore
+cannot matter and no scalar remapping of `schedule_eps` between coordinates exists. What differs is not
+affine: `dh = g dt`, so the two metrics agree where the growth rate is constant across a stencil (median
+ratio 1.11 where `g` varies by under 12%) and diverge in proportion to its variation (median 9 × 10¹⁰
+where `g` varies by more than 1.6-fold). Since `g` spans some eleven orders of magnitude across nodes, a
+like-for-like mapping would have to be node-local. The height arm's error against the correct answer is
+84.9% to 85.9% at every `schedule_eps` tested and does not improve with refinement, so there is no
+setting at which the two are equally accurate.
 
-**In the corrected coordinate the adaptive result is close to the converged one.** TF24's birth-date
-arm reaches 401.317 with 357 introductions against a fixed-schedule limit of 400.9166 — 0.10%. FF16's
-reaches 20.0357 against 20.03607, 0.002%. The height arm's TF24 figure cannot be read as an error,
-because its own fixed-schedule series is still climbing at 561 introductions; that adaptive placement
-reaches 60.35 with 204 nodes where 561 evenly-inserted nodes reach only 59.06 is a point in favour of
-adaptive refinement, not a measure of accuracy.
+**Why the corrected coordinate asks for more.** Not because the schedule is more uneven in time — the
+height grid is the more uneven of the two, with a coefficient of variation of 2.05 to 5.93 against 1.24,
+and on a given state the height metric is the stricter. The difference is that bisection reduces the
+birth-date arm's errors and does not reduce the height arm's. Tracing pass by pass on TF24, the height
+arm's worst node error moves 0.560 → 1.230 → 0.378 as the interval below it is bisected, always at the
+same introduction time near 0.0117 yr, because `n_h = n_t/g` is near-singular where growth stalls:
+bisection makes the error worse before it makes it better, and the criterion is eventually satisfied by
+a schedule that has resolved nothing.
 
-**The corrected coordinate asks for more nodes, not fewer.** On TF24 it refines to 357 introductions
-against the height arm's 204 at the same `schedule_eps`, and on FF16 to 157 against 147; only on K93
-does it ask for fewer, 173 against 181, and there it lands less accurately (0.19% from its limit
-against 0.089%). The error criterion is evaluated over introduction times, and the default schedule
-is far more uneven in time than in height, so more intervals are flagged. Any per-run saving from
-deleting the perturbation (§6.5) is therefore not guaranteed to survive adaptive refinement. The two
-arms were run at equal `schedule_eps` and reached different accuracies, so this is not a cost
-comparison at matched accuracy; that experiment was not run.
+**The corrected coordinate's accuracy saturates at about 200 nodes.** Its relative error reaches
+7.8 × 10⁻⁴ at 180 introductions and then sits between 7.6 × 10⁻⁴ and 1.16 × 10⁻³ all the way to 507.
+The default `schedule_eps` of 0.02 buys 357 nodes for no more accuracy than 0.2 buys with 203, at 1.86
+times the cost, and 0.00632 is marginally worse again at 2.88 times. Below about 200 nodes the adaptive
+placement is genuinely good — three to six times more node-efficient than uniform bisection — and above
+it roughly 40% of the requested nodes are wasted. **TF24 in the corrected coordinate should be run at
+`schedule_eps = 0.2`, not the inherited default.** Almost all the extra nodes land in the first year,
+the establishment window, with a secondary cluster between 5 and 20 years and none after 20.
 
-### 6.5 The speed-up is 1.91x, not the sixfold once claimed
+The two strategies whose growth is a function of size are the control. On FF16 at a relative error of
+10⁻³ the corrected coordinate is 6.8 times cheaper, and the height arm cannot reach 3 × 10⁻⁴ at any
+`schedule_eps` tested while the corrected arm reaches 2.1 × 10⁻⁴ at its loosest. On K93 the two are
+comparable — the corrected arm 3.3 times cheaper at 10⁻², the height arm marginally cheaper at 10⁻³ —
+which is the right answer for a model whose two limits agree to 5.6 × 10⁻⁷, and shows the comparison
+does not manufacture an advantage where none exists.
 
-Earlier work in this project claimed that deleting the single-individual perturbation roughly halves
-runtime, and elsewhere that it gives a sixfold wall-clock saving. Those timings were taken with other
-work on the machine. Measured on an idle machine, three repeats per arm, TF24 at two schedule
-resolutions:
+### 6.5 The correction deletes an inner solve, and the saving grows with resolution
+
+What the correction removes is not an arithmetic term but a complete rate evaluation.
+`Node::growth_rate_gradient` copies the individual, perturbs its height and recomputes every rate, once
+per cohort per Runge-Kutta stage; for TF24 each of those evaluations runs a leaf hydraulic optimisation.
+Appendix A shows that the Jacobian this term exists to maintain cancels out of both integrals the model
+forms from the density. The solver was running an inner numerical solve in its hot loop to produce a
+number its own arithmetic then undid.
+
+Measured on an idle machine, three repeats per arm, TF24 at two schedule resolutions:
 
 | introductions | arm | median | repeats | accepted ODE steps |
 |---|---|---|---|---|
@@ -411,23 +442,50 @@ resolutions:
 | 281 | density in birth date | 108.6 s | 108.2, 109.1, 108.6 | 4 646 |
 
 **Speed-up 1.91x at 141 introductions and 2.39x at 281**, with a repeat-to-repeat spread near 1% at
-both. The decomposition is the informative part:
+both. The decomposition shows why the second figure is the larger one:
 
 | | 141 | 281 |
 |---|---|---|
 | from taking fewer accepted steps | 1.26x | 1.56x |
 | from each step being cheaper | 1.51x | 1.53x |
 
-The per-step factor is stable, as it should be: it is the deleted rate evaluation, one per cohort per
-Runge-Kutta stage, which for TF24 includes a leaf hydraulic optimisation. It is 1.5 rather than 2
-because the perturbed evaluation is not the whole cost of a step. The step-count factor grows with
-resolution, because the term built from a `10⁻⁶` divisor costs the adaptive controller relatively
-more as cohorts are packed closer together.
+The per-step factor is the deleted evaluation itself, stable at 1.5 — not 2, because the perturbed
+evaluation is not the whole cost of a step. The step-count factor is separate: the omitted term is built
+from a `10⁻⁶` divisor that the adaptive controller has to resolve, and it costs relatively more as
+cohorts pack closer together. The saving is therefore not a fixed factor. **It grows with resolution,
+and resolution is what a converged answer costs.**
 
-So "roughly halves the runtime" is close to right at the production schedule and conservative at
-finer ones; "sixfold" is not supported. One qualification: §6.4 shows adaptive refinement asking for
-more introductions in the corrected coordinate, so these are savings at a fixed schedule and not a
-guaranteed end-to-end result.
+Under adaptive refinement the saving is realised provided `schedule_eps` is chosen for the coordinate
+rather than inherited. At the inherited default the corrected arm requests 75% more nodes and still
+comes out 1.03 times faster; because its accuracy saturates by about 200 nodes, a looser
+`schedule_eps` reaches the same accuracy with 203 nodes and is **1.87 times faster** (§6.4).
+
+Cost tracks the number of rate evaluations, which is the sum over accepted steps of the live node count
+and not the step count alone — an RK stage evaluates every live node. Measured seconds per node-step are
+constant to 3% across all three configurations, and give the per-step factor independently as 1.46 to
+1.50.
+
+Earlier work in this project reported a sixfold saving and, separately, a halving, both on a contended
+machine. The halving is close to right at the production schedule and conservative at finer ones; the
+sixfold is not supported.
+
+### 6.6 The uncorrected coordinate does not reproduce on re-run
+
+Running the same 204-node schedule three times within one process returns offspring production 60.1972,
+60.3377 and 60.3392, a spread of 0.24%, with accepted step counts of 6 110, 6 281 and 6 196. The same
+test on the corrected coordinate at 357 nodes returns 401.3049, 401.3175 and 401.3172 — a spread of
+0.0031%, some 76 times smaller.
+
+Two consequences. The height arm's run-to-run spread is comparable to its own accuracy at the default
+`schedule_eps`, 0.097%, so height-arm values cannot be compared across runs at more than three
+significant figures. And the bit-identity check of §3 is unaffected, because it compares first runs in
+fresh processes rather than repeated runs within one.
+
+`Node::growth_rate_gradient` holds a `thread_local` scratch individual reused across calls and is
+invoked only in the height branch, which makes it the natural suspect, but this has not been bisected
+and is recorded as an observation rather than an attribution. The corrected arm's residual 0.0031% shows
+at least one further warm-start path exists independent of it. Deleting the perturbation removes the
+larger effect either way.
 
 ## Appendix A. The transport term derived
 
@@ -680,6 +738,18 @@ maximum. Both shortcuts are sound only while the node list is ordered by height 
 density state no longer requires, and one §2.1 records being violated 66 times under a full-amplitude
 seasonal light cycle. The minimal fix is to take a true maximum and delete the early exit, which
 costs a full walk of the node list per query height. Outstanding.
+
+**`refine_schedule` cannot tell a caller whether it converged.** It returns without reporting whether it
+met `schedule_eps` or exhausted `schedule_nsteps`, and it installs the bisected schedule into
+`parameters.node_schedule_times` while `offspring_production` still reflects the coarser schedule it last
+ran. Every refinement in §6.4 converged on tolerance, so no result here depends on the distinction, but a
+caller cannot currently draw it.
+
+**The quadrature error of the youngest segment is never measured.** `Species::compute_competition`
+includes a final trapezium segment running from the youngest resident cohort to the birth boundary, but
+`r_compute_competition_effect_by_nodes_error` and `quadrature_abscissae` iterate the resident nodes only.
+That segment carries a median 2.3% of the competition integral and up to 16.5%, so the refinement
+criterion is blind to a term of that size. The omission is symmetric across both coordinates.
 
 ## References
 

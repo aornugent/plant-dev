@@ -80,24 +80,28 @@ cost_A = accepted ODE steps x per-step factor (the brief's proxy; valid only at 
 cost_B = node-steps x per-step factor, node-steps = sum over accepted steps of the live node count
 
 -- TF24 / height   own limit 60.29358216 | birth-date limit 401.7221457 --
-    eps iters conv   n steps node_steps   value  relerr_own relerr_bd  cost_A
- 0.2000     5 TRUE 146  5078     560959 56.9101 0.056116285  0.858335 7667.78
- 0.0632     7 TRUE 153  5159     596877 56.6778 0.059969799  0.858913 7790.09
- 0.0200     9 TRUE 204  6233     973499 60.3519 0.000967411  0.849767 9411.83
+     eps iters conv   n steps node_steps   value  relerr_own relerr_bd   cost_A
+ 0.20000     5 TRUE 146  5078     560959 56.9101 0.056116285  0.858335  7667.78
+ 0.06320     7 TRUE 153  5159     596877 56.6778 0.059969799  0.858913  7790.09
+ 0.02000     9 TRUE 204  6233     973499 60.3519 0.000967411  0.849767  9411.83
+ 0.00632     8 TRUE 311  7028    1661487 60.6790 0.006392012  0.848953 10612.28
   cost_B
   847048
   901284
  1469983
+ 2508845
 
 -- TF24 / birth-date   own limit 401.7221457 | birth-date limit 401.7221457 --
-    eps iters conv   n steps node_steps   value  relerr_own   relerr_bd cost_A
- 0.2000    11 TRUE 203  4355     746756 401.322 0.000996553 0.000996553   4355
- 0.0632    11 TRUE 267  4622    1069115 401.415 0.000765389 0.000765389   4622
- 0.0200    12 TRUE 357  4468    1389747 401.317 0.001009148 0.001009148   4468
+     eps iters conv   n steps node_steps   value  relerr_own   relerr_bd cost_A
+ 0.20000    11 TRUE 203  4355     746756 401.322 0.000996553 0.000996553   4355
+ 0.06320    11 TRUE 267  4622    1069115 401.415 0.000765389 0.000765389   4622
+ 0.02000    12 TRUE 357  4468    1389747 401.317 0.001009148 0.001009148   4468
+ 0.00632    12 TRUE 507  4848    2153998 401.258 0.001155344 0.001155344   4848
   cost_B
   746756
  1069115
  1389747
+ 2153998
 
 -- FF16 / height   own limit 20.03722962 | birth-date limit 20.03617028 --
       eps iters conv   n steps node_steps   value  relerr_own   relerr_bd
@@ -178,6 +182,8 @@ TF24  bd  eps=0.02      n=357   extra vs default per bin [0,.1] (.1,1] (1,5] (5,
 TF24  ht  eps=0.2       n=146   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):     5     0     0     0     0     0
 TF24  ht  eps=0.0632    n=153   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):     8     0     0     4     0     0
 TF24  ht  eps=0.02      n=204   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):    27     2     0    27     7     0
+TF24  bd  eps=0.00632   n=507   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):   154   147     2    63     0     0
+TF24  ht  eps=0.00632   n=311   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):    68     9     0    61    30     2
 FF16  ht  eps=0.2       n=141   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):     0     0     0     0     0     0
 FF16  ht  eps=0.0632    n=141   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):     0     0     0     0     0     0
 FF16  ht  eps=0.02      n=147   extra vs default per bin [0,.1] (.1,1] (1,5] (5,20] (20,60] (60,+):     0     0     4     2     0     0
@@ -218,6 +224,14 @@ default schedule per bin:    60    16    12    10    20    23
  adaptive n:relerr  141:3.01e-01 143:7.45e-02 144:6.52e-02 145:6.55e-02 146:5.61e-02 147:5.80e-02 149:6.32e-02 150:5.92e-02 152:5.99e-02 153:6.00e-02 155:8.73e-02 167:6.69e-02 177:1.12e-02 187:2.45e-04 195:4.70e-04 200:4.22e-04 203:2.73e-04 204:9.67e-04
  uniform  n:relerr  141:3.01e-01 281:9.11e-02 561:2.05e-02 1121:4.60e-03
 
+-- TF24 birth-date (limit 401.7221457) --
+ adaptive n:relerr  141:1.56e-02 168:6.55e-03 208:2.17e-03 271:7.04e-04 352:8.60e-04 423:1.08e-03 460:1.12e-03 475:1.14e-03 486:1.15e-03 496:1.15e-03 503:1.15e-03 507:1.16e-03
+ uniform  n:relerr  141:1.56e-02 281:6.56e-03 561:2.01e-03 1121:6.13e-04
+
+-- TF24 height (limit 60.29358216) --
+ adaptive n:relerr  141:3.01e-01 173:8.71e-02 203:5.81e-02 231:5.30e-03 256:1.05e-02 285:5.73e-03 307:6.26e-03 311:6.39e-03
+ uniform  n:relerr  141:3.01e-01 281:9.11e-02 561:2.05e-02 1121:4.60e-03
+
 -- FF16 height (limit 20.03722962) --
  adaptive n:relerr  141:1.06e-02 147:2.42e-03 157:6.90e-03 160:4.13e-03 190:6.22e-03 207:3.42e-03 222:5.16e-03 228:4.50e-03 275:2.67e-03 291:1.81e-03 333:1.60e-03 380:7.78e-04 386:6.76e-04
  uniform  n:relerr  141:1.06e-02 281:4.41e-03 561:1.25e-03 1121:3.55e-04
@@ -237,11 +251,12 @@ default schedule per bin:    60    16    12    10    20    23
 ############ 5. matched-accuracy comparison (Pareto lower envelope) ############
 
 == TF24, error measured against the birth-date limit 401.7221457 ==
-        arm    eps   n steps node_steps    value      relerr  cost_A  cost_B
-     height 0.2000 146  5078     560959  56.9101 0.858334595 7667.78  847048
-     height 0.0200 204  6233     973499  60.3519 0.849767031 9411.83 1469983
- birth-date 0.2000 203  4355     746756 401.3218 0.000996553 4355.00  746756
- birth-date 0.0632 267  4622    1069115 401.4147 0.000765389 4622.00 1069115
+        arm     eps   n steps node_steps    value      relerr   cost_A  cost_B
+     height 0.20000 146  5078     560959  56.9101 0.858334595  7667.78  847048
+     height 0.02000 204  6233     973499  60.3519 0.849767031  9411.83 1469983
+     height 0.00632 311  7028    1661487  60.6790 0.848952864 10612.28 2508845
+ birth-date 0.20000 203  4355     746756 401.3218 0.000996553  4355.00  746756
+ birth-date 0.06320 267  4622    1069115 401.4147 0.000765389  4622.00 1069115
   target relerr 1e-02:  height cost_B NA            birth-date cost_B 746756        ratio n/a
   target relerr 3e-03:  height cost_B NA            birth-date cost_B 746756        ratio n/a
   target relerr 1e-03:  height cost_B NA            birth-date cost_B 746756        ratio n/a

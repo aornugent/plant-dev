@@ -12,7 +12,8 @@ load_sweep <- function(f) {
     node_steps = if (is.null(r$final)) NA_real_ else node_steps(r$final$times, r$final$ode_times),
     value = r$value, secs = r$total_s)))
 }
-files <- c(list.files("/home/user/plant-dev/probes/out", "^42-eps-.*rds$", full.names = TRUE),
+files <- c(list.files("/home/user/plant-dev/probes/out", "^42-eps-TF24-(ht|bd)-3eps.rds$", full.names = TRUE),
+           list.files("/home/user/plant-dev/probes/out", "^42-eps-TF24-(ht|bd)-extra.rds$", full.names = TRUE),
            list.files("/home/user/plant-dev/probes/out", "^44-.*rds$", full.names = TRUE))
 sw <- do.call(rbind, lapply(files, load_sweep))
 fixed <- do.call(rbind, lapply(

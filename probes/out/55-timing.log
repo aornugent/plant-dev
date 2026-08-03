@@ -1,0 +1,16 @@
+height      eps=0.02    rep=1 n=204  steps=6110   node_steps=950833    val=60.1972008       155.00s (busy=1)
+birth-date  eps=0.02    rep=1 n=357  steps=4449   node_steps=1383666   val=401.304923       145.59s (busy=1)
+birth-date  eps=0.2     rep=1 n=203  steps=4346   node_steps=744632    val=401.308027        78.46s (busy=1)
+height      eps=0.02    rep=2 n=204  steps=6110   node_steps=950833    val=60.1972008       146.72s (busy=1)
+birth-date  eps=0.02    rep=2 n=357  steps=4449   node_steps=1383666   val=401.304923       140.90s (busy=1)
+birth-date  eps=0.2     rep=2 n=203  steps=4346   node_steps=744632    val=401.308027        79.79s (busy=1)
+height      eps=0.02    rep=3 n=204  steps=6110   node_steps=950833    val=60.1972008       143.57s (busy=1)
+birth-date  eps=0.02    rep=3 n=357  steps=4449   node_steps=1383666   val=401.304923       142.43s (busy=1)
+birth-date  eps=0.2     rep=3 n=203  steps=4346   node_steps=744632    val=401.308027        76.11s (busy=1)
+
+--- medians (3 repeats) ---
+         arm  eps   n steps node_steps     secs s_per_nodestep
+1 birth-date 0.20 203  4346     744632  78.4603    0.000105368
+2     height 0.02 204  6110     950833 146.7190    0.000154306
+3 birth-date 0.02 357  4449    1383666 142.4324    0.000102938
+DONE

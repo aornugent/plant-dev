@@ -17,6 +17,13 @@ compression terms on one patch state.
 | `13-arms.R` `14-refine.R` | Forward runs and refinement in both coordinates |
 | `16-eps.R` | The probe is resolved; its error is not resolution |
 | `17-stand.R` `18-adjudicate.R` | Stand structure, the birth boundary, and the oracle comparison |
+| `40-lib.R` `41-validate.R` | Refinement loop re-driven from R (traced per iteration); checked bit-identical to `SCM::refine_schedule` |
+| `42-eps-sweep.R` `44-ff16-control.R` | The `schedule_eps` accuracy/cost Pareto sweep, TF24 and the FF16/K93 controls |
+| `43-fixed-series.R` `53-ht-k3.R` | Fixed-schedule convergence series (141 -> 1121) and the Richardson limits |
+| `46-criterion-scale.R` `49-scale-analyse.R` | Both error metrics evaluated on the same state: the criterion's coordinate rescaling |
+| `50-stall.R` | Which nodes stay flagged pass by pass; the height arm's error is not reducible by bisection |
+| `48-report.R` | Assembles the Pareto tables, limits, node placement and matched-accuracy verdict |
+| `55-timing.R` `56-repro.R` | Idle-machine wall clock at the operating points; run-to-run reproducibility |
 
 Large collected histories are gitignored (see `out/.gitignore`); rerun
 `01-baseline.R` to regenerate them.
