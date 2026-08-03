@@ -714,8 +714,9 @@ All results are measured on `plant` `develop` at commit `141dc8df`: single speci
 introductions, five soil layers, `refine_schedule = FALSE` unless stated, compiled `-O2 -DNDEBUG`.
 Comparison runs use FF16 at `lma = 0.0825` and K93 at `b_0 = 0.059`. Refinement is by midpoint
 insertion into the introduction schedule, so both coordinates see byte-identical schedules at each
-level. Scripts and outputs are in [`probes/`](../../probes); the implementation is `plant` branch
-`claude/nsc-density-measurements-efiolz`.
+level. Scripts and outputs are in [`probes/`](../../probes), whose
+[index](../../probes/README.md) names the script behind each result and figure in this
+report. The implementation is `plant` branch `claude/nsc-density-measurements-efiolz`.
 
 **What this branch changes.** Three things, and nothing else. The `node_density_in_birth_date` flag and
 the coordinate it selects (§3). `SpeciesBase::control()`, immediately below. And the schedule-refinement
