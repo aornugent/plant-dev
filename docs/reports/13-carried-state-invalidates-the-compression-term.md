@@ -27,12 +27,12 @@ mortality alone. Disabled, the solver is bit-identical to the original.
 
 Four tests, each able to fail independently, none sharing an assumption with another.
 
-| test | uncorrected | corrected |
+| test | what is measured | result |
 |---|---|---|
-| **Schedule refinement.** Offspring production at 141, 281, 561 and 1121 cohort introductions, and the Richardson limit | 42.14, 54.80, 59.06, 60.02 → **60.29** | 395.44, 399.08, 400.92, 401.48 → **401.72** |
-| **Step size.** Distance of the estimate from the required quantity, against its own variation across five decades of finite-difference step | 0.302 against 0.0055 — a factor of 55 | not applicable; no derivative is taken |
-| **Coupling removed within TF24.** Relative gap between the two coordinates, store integrated but read by nothing, at the same three resolutions | 8.38, 6.28, 5.79 | 0.645, 0.357, 0.0966 |
-| **Independent solver.** Leaf area at patch ages 1 to 3 against an individual-based solver that has no transport term | 1.6 to 2.5 times its value | agrees to within 0.6% at every age, inside the solver's own standard error |
+| **Schedule refinement.** The cohort schedule is refined through 141, 281, 561 and 1121 introductions and each coordinate extrapolated to its own limit. | lifetime offspring production | density in height 42.14 → 60.02, limit **60.29**; density in birth date 395.44 → 401.48, limit **401.72**. Both converge, to limits **6.66×** apart. |
+| **Step size.** The finite-difference step of the perturbation is varied over five decades. | how far the shipped estimate sits from the quantity the transport term requires | **0.302** away, against its own drift of only 0.0055 across those five decades — a factor of 55. The corrected coordinate takes no derivative at all. |
+| **Store decoupled inside TF24.** The store is integrated as before but nothing reads it, at three schedule resolutions. | relative gap between the two coordinates | **8.38, 6.28, 5.79** while growth and mortality read the store; **0.645, 0.357, 0.0966** once they do not, and falling with resolution. |
+| **Independent solver.** A finite-population solver that follows individuals and has no transport term at all. | leaf area above ground level, patch ages 1 to 3 | density in height **1.6 to 2.5×** the individual-based value; density in birth date within **0.6%** of it at every age, inside that solver's own standard error. |
 
 The first says both coordinates converge, and to different answers, so the shipped result is not merely
 under-resolved. The second says the perturbation that produces it is itself fully resolved, so an
@@ -666,9 +666,12 @@ is permanently drier, grows more slowly, and reports less leaf area. `FF16_Envir
 `K93_Environment` have `ode_size` zero, so the omission is exact for every strategy the solver had
 previously been used on and wrong only for the one that carries a store.
 
-Supplying the missing state is what makes the comparison possible. The runs below hold soil water at
-each end of the range the SCM itself occupies, which brackets the answer instead of asserting one
-value. Protocol: 128 m², regular arrivals at spacing 1/(birth rate × area) placed at interval
+The defect is also what makes the comparison possible. Because the environment is never integrated,
+setting its initial soil water pins it for the whole run, so the runs below are made twice, at each end
+of the range the SCM itself occupies. That removes the feedback by which a growing stand draws its own
+soil down, so the two runs bound the answer under the SCM's soil trajectory rather than under the
+oracle's own. What justifies treating them as a bound is the agreement reported below: the two stands
+end up within 0.6% of each other and would therefore draw the soil down almost identically. Protocol: 128 m², regular arrivals at spacing 1/(birth rate × area) placed at interval
 midpoints, establishment as a Bernoulli draw on the same probability, ten paired mortality seeds,
 log-linear interpolation between snapshots. The SCM arms are truncated at patch age 3.5 and twice
 midpoint-refined to 340 introductions; the truncation is exact, reproducing the published

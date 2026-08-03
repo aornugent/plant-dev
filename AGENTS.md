@@ -56,8 +56,7 @@ header in `plant/inst/include/` invalidates every translation unit that includes
 it and triggers a near-full `plant/src` recompile. Build optimised once
 (`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
 `load_all()` without `make` builds unoptimised and makes every slow test several
-times slower (the difference between a ~3 min suite and the ">8 min" quoted in
-`docs/ad-handover.md`).
+times slower — the difference between a ~3 min suite and over 8 minutes.
 
 **Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
 `Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`
@@ -292,17 +291,17 @@ Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
 ## PR workflow
 
 Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
-entry in a planning doc such as [`docs/ad-issues.md`](docs/ad-issues.md). PRs are opened
-against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
-upstream is a separate, user-driven step (see *Workflow for Agents* above).
+entry in a planning doc under [`docs/`](docs). PRs are opened against the submodule's
+`origin` fork (`aornugent/*`); propagation to the `traitecoevo` upstream is a separate,
+user-driven step (see *Workflow for Agents* above).
 
 - **One PR per issue.** Each PR is a small, self-contained change that closes exactly one
   issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
   mapping is unambiguous.
 - **Stacked diffs where issues depend on each other.** When working through several
-  interdependent issues at once — the dependency chains in `docs/ad-issues.md` are the
-  common case — branch each PR on top of the one it builds on rather than off the base
-  branch, and target that parent branch. Reviewers then see only the incremental diff and
+  interdependent issues at once — branch each PR on top of the one it builds on rather
+  than off the base branch, and target that parent branch. Reviewers then see only the
+  incremental diff and
   the PRs merge in order down to the submodule's default branch (`master`/`main`).
   Independent issues branch straight off the default branch and can merge in any order.
 - **Fix in the branch that owns the issue; don't stack a fix on top.** When review or a
