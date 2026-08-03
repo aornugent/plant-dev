@@ -46,13 +46,6 @@ schedule: (a) absolute values, with the corrected arm's own fixed-schedule limit
 uncorrected arm has reached 0.71 of its own value at 561 and is still climbing; the corrected arm is
 at 0.986.
 
-![Figure 2](figures/fig-02-oracle-comparison.svg)
-
-**Figure 2.** Leaf area above ground level over patch ages 0.5 to 5 years: (a) the 16 individual-based
-replicates and their pooled mean against both deterministic coordinates; (b) each coordinate as a
-ratio to the pooled ensemble mean, with the ensemble's ±1 s.d. envelope. The uncorrected coordinate
-leaves the replicate bundle between ages 1.5 and 3.5; the corrected one stays inside it throughout.
-
 **On the two strategies whose growth is a function of size, the two coordinates converge to each
 other**, which is the check that this is a change of coordinate and not a change of model. The
 relative gap falls by factors of 4.5 and 4.1 on K93 across successive halvings of the cohort spacing,

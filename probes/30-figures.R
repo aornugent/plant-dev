@@ -10,7 +10,7 @@
 # script; `Rscript probes/30-figures.R` prints the checks and stops on failure.
 #
 # ONE EXCEPTION to "regenerated from data on disk": the five extra
-# finite-difference step sizes in Figure 6 come from the report's Appendix B
+# finite-difference step sizes in Figure 7 come from the report's Appendix B
 # table, because probes/16-eps.R prints its sweep and persists nothing.  The
 # 1e-6 estimate and the required quantity that anchor that figure ARE read from
 # probes/out/window-TF24.rds and are checked against Appendix B (see VERIFY).
@@ -174,9 +174,9 @@ tag("(b)")
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 2.  Gap between the two coordinates under refinement (section 1).
+## Figure 3.  Gap between the two coordinates under refinement (section 1).
 ## ======================================================================== ##
-f2 <- dev_open("fig-03-coordinate-gap", 3.5, 3.3, pointsize = 8)
+f3 <- dev_open("fig-03-coordinate-gap", 3.5, 3.3, pointsize = 8)
 panel(mar = c(2.9, 3.6, 0.7, 0.6))
 
 gap_of <- function(m) abs(off_of(m, TRUE) - off_of(m, FALSE)) / abs(off_of(m, FALSE))
@@ -207,9 +207,9 @@ legend("bottomleft", inset = c(0.005, 0.005), bty = "n", cex = 0.78, seg.len = 1
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 3.  The individual-based comparison (Appendix E).
+## Figure 2.  The individual-based comparison (Appendix E).
 ## ======================================================================== ##
-f3 <- dev_open("fig-02-oracle-comparison", 7.0, 3.1, pointsize = 9)
+f2 <- dev_open("fig-02-oracle-comparison", 7.0, 3.1, pointsize = 9)
 par(mfrow = c(1, 2))
 
 kw   <- ibm_grid >= 0.5 & ibm_grid <= 5
@@ -256,9 +256,9 @@ tag("(b)")
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 4.  Where the error lives, over the whole run (section 4).
+## Figure 5.  Where the error lives, over the whole run (section 4).
 ## ======================================================================== ##
-f4 <- dev_open("fig-05-error-window", 3.5, 4.3, pointsize = 8)
+f5 <- dev_open("fig-05-error-window", 3.5, 4.3, pointsize = 8)
 par(mfrow = c(2, 1))
 
 kk  <- h_arm$time >= 0.3
@@ -301,9 +301,9 @@ tag("(b)")
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 5.  The three operators through the run (section 2.2).
+## Figure 4.  The three operators through the run (section 2.2).
 ## ======================================================================== ##
-f5 <- dev_open("fig-04-operators", 3.5, 3.3, pointsize = 8)
+f4 <- dev_open("fig-04-operators", 3.5, 3.3, pointsize = 8)
 panel(mar = c(2.9, 3.4, 0.7, 0.6))
 
 o <- op_by_state
@@ -329,9 +329,9 @@ legend("topright", inset = c(0.01, 0.02), bty = "n", cex = 0.8, seg.len = 1.8,
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 6.  The perturbation is resolved but wrong (Appendix B).
+## Figure 7.  The perturbation is resolved but wrong (Appendix B).
 ## ======================================================================== ##
-f6 <- dev_open("fig-07-step-size", 7.0, 2.8, pointsize = 9)
+f7 <- dev_open("fig-07-step-size", 7.0, 2.8, pointsize = 9)
 par(mfrow = c(1, 2))
 
 panel(mar = c(2.9, 3.8, 1.1, 0.6))
@@ -378,9 +378,9 @@ tag("(b)")
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 7.  The corrected solver's residual excess is not resolution (6.2).
+## Figure 6.  The corrected solver's residual excess is not resolution (6.2).
 ## ======================================================================== ##
-f7 <- dev_open("fig-06-excess-refinement", 7.0, 2.9, pointsize = 9)
+f6 <- dev_open("fig-06-excess-refinement", 7.0, 2.9, pointsize = 9)
 par(mfrow = c(1, 2))
 
 lty_n <- c("141" = 1, "281" = 2, "561" = 3)
