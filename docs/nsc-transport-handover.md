@@ -17,7 +17,7 @@ How to pick this work up without redoing it. Written at the end of the session t
 
 Reports 10 and 11 are kept for provenance. **Two of report 11's central claims are refuted** — the
 omitted term does not diverge at a growth stall, and the reserve-dilution effect is not a defect
-separate from the omitted term — so do not build on them without reading report 13 §2 and
+separate from the omitted term — so do not build on them without reading report 13 §2.2 and
 Appendix D.
 
 ## 2. Rebuilding the environment
@@ -62,8 +62,9 @@ Baselines to confirm the build is right, all bit-identical with the flag off: TF
   cancels. Predicted zero, measured `1.1 × 10⁻¹¹` (Appendix D).
 - **Schedule resolution is not the cause of the 6–21% excess over the individual-based ensemble.**
   At least 94% survives refinement to 561 introductions (§6.2). Do not re-run this.
-- **No cohort crossing occurs in a constant environment** (Appendix D); one cell of the seasonal
-  sweep does cross (§6.3).
+- **No cohort crossing occurs in a constant environment**, so the density in height exists throughout
+  the results that matter (§2.1). One cell of the seasonal sweep does cross (§6.3), which is why §2.1
+  now leads the report's diagnosis rather than sitting in an appendix.
 - **The correction is bit-identical with the flag off** and the suite passes: 2 363 assertions,
   48 files.
 - **Wall-clock figures in reports 10 and 11 are not trustworthy** — taken on a contended machine. The
@@ -88,7 +89,7 @@ a fixed tolerance of its own converged value, then compare node counts and runti
 measurement that decides whether the correction is a performance win or only a correctness one.
 
 **3. The height-ordered early exit in `Species::compute_competition`.** `if (h0 < height) break;` and
-the `height_max()` early return assume descending heights. §6.3 found 66 crossings under a
+the `height_max()` early return assume descending heights. §2.1 and §6.3 record 66 crossings under a
 full-amplitude light cycle, so this is reachable, not theoretical. Out-of-order cohorts can terminate
 the loop early and silently drop contributions. Fix before anyone runs a seasonal regime in anger.
 

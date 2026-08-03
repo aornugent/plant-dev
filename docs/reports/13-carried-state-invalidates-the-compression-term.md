@@ -43,19 +43,52 @@ relative gap falls by factors of 4.5 and 4.1 on K93 across successive halvings o
 and by 2.4 and 3.6 on FF16 — approximately the second order that two second-order quadratures of one
 integral should show. On TF24 it falls by 1.3 and then 1.1 and remains near 5.8.
 
-## 2. Why the estimate fails
+## 2. What a density in height requires, and where it fails
 
-The expected explanation is that a store lets neighbouring cohorts differ physiologically, so one
-individual cannot speak for the pair. That is not what produces the error.
+A density in height has to satisfy two conditions. It has to exist, which requires that no two
+cohorts occupy the same height. And its transport term has to be computable, which requires the rate
+of change of growth with height. A carried state puts both at risk, and the first is the more severe.
 
-Over the 405 interior cohort pairs at patch ages 1.5 to 3, the interval in which the two coordinates
-diverge, neighbours are near-identical: median gap 2.44 mm, both growth rates 2.398 m yr⁻¹ to four
-figures, and reserve fractions differing by a median of 1.1 × 10⁻⁵ against a fraction of 0.457 — at
-most 4.3% in relative terms anywhere in the interval, and under 0.044% for three quarters of pairs.
-At the same 405 pairs the single-individual estimate has median **−0.2312** and the required quantity
-median **+0.0674**: opposite in sign, and 3.4 times larger in magnitude.
+### 2.1 Cohorts can reach the same height, and the density then does not exist
 
-The cause is the direction in which the perturbation moves. TF24 gates growth on the reserve
+The map from birth date to height must be invertible for a density in height to be defined: if two
+cohorts meet, the Jacobian `J` of Appendix A passes through zero and `n = ν/J` is undefined. Under
+pure size structure that cannot happen, because two individuals at the same height in the same
+environment grow at the same rate, so cohorts preserve their order. A carried state removes the
+guarantee.
+
+In the constant environment the rest of this report measures, it does not happen. Across 37 patch
+states and 3 459 interior pairs there are zero crossings; the minimum gap is 1.6 × 10⁻⁵ m, with 14.2%
+of gaps below 10⁻⁴ m; and the height growth rate was non-negative at every one of 6 390 sampled
+cohort-times across the three strategies, and at a further 3 497 for TF24, with a TF24 minimum of
++2.6 × 10⁻¹² m yr⁻¹. 46% of interior pairs are closing at any instant, but extrapolating each
+linearly at frozen rates the earliest crossing would be 4.05 years away, and none is realised.
+
+Under an annual light cycle at full amplitude it does happen: **66 crossings among 10 011 interior
+pairs, with a minimum gap of −0.00398 m** (§6.3). The smallest positive gaps in the other stress
+cells fall to 4.4 × 10⁻⁸ m, two orders of magnitude below the constant-environment value. The
+requirement is therefore not merely tight within the intended parameter envelope; it can be violated
+inside it.
+
+Two things follow. §1 and §3 to §5 are constant-environment results and are unaffected, because the
+density exists throughout them. And the birth-date coordinate carries no equivalent requirement: an
+individual's birth date is fixed at birth, so the map is the identity and there is nothing to
+invert.
+
+### 2.2 The perturbation moves in a direction no individual travels
+
+Take the 405 interior cohort pairs at patch ages 1.5 to 3, the interval in which the two coordinates
+diverge. Neighbouring cohorts there are physiologically near-identical: median gap 2.44 mm, both
+growth rates 2.398 m yr⁻¹ to four figures, and reserve fractions differing by a median of
+1.1 × 10⁻⁵ against a fraction of 0.457 — at most 4.3% in relative terms anywhere in the interval, and
+under 0.044% for three quarters of pairs.
+
+The two estimates of the transport term nonetheless disagree in sign. The single-individual estimate
+has median **−0.2312** and the required quantity median **+0.0674**, the estimate being 3.4 times
+larger in magnitude. Since the neighbours are interchangeable, whatever is wrong cannot be that a
+store lets them differ.
+
+What is wrong is the direction in which the perturbation moves. TF24 gates growth on the reserve
 **fraction** `r = S/S_max`, and capacity `S_max = a_st1 · mass_sapwood` increases with height. The
 perturbation raises height while holding the absolute pool constant, which lowers `r` although no
 carbon has moved. Along a trajectory the pool grows with capacity — which is what the measured
@@ -241,29 +274,22 @@ mean over stochastic replicates of a nonlinear functional is not the determinist
 would not require the two to agree. That has not been tested, and the excess is recorded here as
 unexplained rather than attributed.
 
-### 6.3 Under a strong seasonal light cycle, cohorts do cross
+### 6.3 The seasonal stress sweep
 
-Every result above is measured in a constant environment, where no cohort crossing occurs
-(Appendix D). Twelve further runs add an annual sinusoidal cycle — in rainfall at amplitudes 0, 0.3,
-0.7 and 1.0 as a fraction of the mean, and in incident light at 0.7 and 1.0, trough clamped at zero
-— in both coordinate systems. All twelve completed; none failed.
+Twelve runs add an annual sinusoidal cycle — in rainfall at amplitudes 0, 0.3, 0.7 and 1.0 as a
+fraction of the mean, and in incident light at 0.7 and 1.0, trough clamped at zero — in both
+coordinate systems. All twelve completed; none failed. Three results.
 
-**One cell of the twelve produces interior crossings.** Under a full-amplitude light cycle, the
-height coordinate records 66 crossings among 10 011 interior pairs, with a minimum gap of
-−0.00398 m. The other eleven cells record none. No cell produces a crossing at the inflow boundary.
+**Cohorts cross in one cell of the twelve.** Under a full-amplitude light cycle the height coordinate
+records 66 crossings among 10 011 interior pairs, with a minimum gap of −0.00398 m. The other eleven
+record none, and no cell produces a crossing at the inflow boundary. The approach is visible in the
+gaps: the smallest positive interior gaps under stress are 4.43 × 10⁻⁸, 4.84 × 10⁻⁸ and
+5.55 × 10⁻⁸ m, against 8.21 × 10⁻⁶ m in the constant environment. §2.1 takes this up, because it is
+a condition the height coordinate requires rather than a property of the sweep. Note that the
+crossings occur where the stand has almost ceased to exist: at full light amplitude offspring
+production is 1.04 × 10⁻⁴ against 1.37 × 10⁻⁴, four orders below the constant-environment values.
 
-The approach is visible in the gaps. In a constant environment the smallest interior gap is
-8.21 × 10⁻⁶ m in height coordinates and 1.22 × 10⁻⁶ m in birth-date coordinates; under stress the
-smallest positive gaps fall to 4.43 × 10⁻⁸, 4.84 × 10⁻⁸ and 5.55 × 10⁻⁸ m — two orders of magnitude
-tighter — before the one cell that crosses.
-
-**This is the condition for a density in height failing, observed.** It is also observed in a stand
-that has almost ceased to exist: at full light amplitude offspring production is 1.04 × 10⁻⁴ in
-height coordinates against 1.37 × 10⁻⁴ in birth-date coordinates, four orders below the
-constant-environment values. The crossing is a demonstration that the requirement can fail in the
-intended parameter envelope, not a claim that it governs any stand of interest here.
-
-**The coordinate disagreement shrinks with stress, but only as the stand disappears.**
+**The coordinate disagreement holds through mild seasonality and collapses only with the stand.**
 
 | forcing | height | birth-date | ratio |
 |---|---|---|---|
@@ -480,22 +506,9 @@ small gaps occur where recruits grow fastest.
 
 ## Appendix D. Alternative explanations excluded
 
-**Cohorts crossing in height — not the explanation here, though the condition can fail.** A carried
-state makes it possible for two cohorts to reach the same height, at which point `J = 0` and a
-density in height is undefined. That would invalidate the coordinate outright rather than merely
-make its transport term hard to compute, so it has to be excluded before the rest of this report
-stands. In the constant environment every result above is measured in, it does not occur: across 37
-patch states and 3 459 interior pairs there are zero crossings; the minimum gap is 1.6 × 10⁻⁵ m,
-with 14.2% of gaps below 10⁻⁴ m. 46% of interior pairs are closing at any instant; extrapolating
-each linearly at frozen rates, the earliest crossing would be 4.05 years away and none is realised.
-The height growth rate was non-negative at every one of 6 390 sampled cohort-times across the three
-strategies and at a further 3 497 for TF24, with a TF24 minimum of +2.6 × 10⁻¹² m yr⁻¹.
-
-**Under a strong seasonal light cycle it does occur** — 66 crossings among 10 011 interior pairs
-(§6.3). So the height coordinate's requirement is not merely tight in the intended envelope, it can
-be violated. That does not bear on §1 to §5, which are constant-environment results, and the
-observed crossings are in a near-extinct stand; it is recorded because the requirement is one the
-birth-date coordinate does not carry at all.
+**Cohorts crossing in height.** This would invalidate the coordinate outright rather than merely make
+its transport term hard to compute, so it is taken first rather than here: see §2.1 for the census in
+the constant environment and §6.3 for the one cell of the stress sweep that crosses.
 
 **Divergence of the omitted term at a growth stall.** `(∂g/∂S)(f/g)` appears to diverge as `g → 0`. It
 does not: `∂g/∂S` carries a factor of `g` that cancels the `f/g` exactly (Appendix A). Measured, the
@@ -576,7 +589,7 @@ be revisited. Recorded and left unfixed.
 density state no longer requires cohorts to stay ordered by height, but
 `Species::compute_competition` keeps a height-ordered early exit (`if (h0 < height) break;`) and an
 early return on `height_max()`. Out-of-order cohorts could therefore terminate the loop early and
-drop contributions. No crossing occurs in the constant environment, but §6.3 finds 66 under a
+drop contributions. No crossing occurs in the constant environment, but §2.1 records 66 under a
 full-amplitude seasonal light cycle, so this is a hazard that can be reached rather than a
 theoretical one. The correction removes the ordering requirement for the state and not for that
 loop, and closing it is outstanding work.
