@@ -399,14 +399,43 @@ same cost, measured rather than argued.
 skipping all fifteen perturbation cycles moved nothing to the last bit through 78 steps of an
 adaptive solve. So the present rows do not depend on the order of perturbations.
 
-**Two findings that correct this report's earlier text.** `Leaf::bound_partials` carries a **second**
-transport differencing loop over the same four parameters, so the pinned-collar branch pays the
-tabulation independently of `input_adjoints`; a function-level profile cannot separate the two
-because both land in the same leaf functions. And **after masking, per-block cost is still 842 us
-at lifetime 0.2 and 1 573 us at lifetime 2**, i.e. 13x to 24x the 65 us figure, with every leaf
-parameter row skipped. Either that figure is not a fair target — it was measured while
-`graft_leaf_outputs` truncated all fifteen rows — or a further cost centre is unidentified. This
-report does not claim to know which.
+**`Leaf::bound_partials` carries a second transport differencing loop** over the same four
+parameters, so the pinned-collar branch pays the tabulation independently of `input_adjoints`. A
+function-level profile cannot separate the two, because both land in the same leaf functions.
+
+**The residual cost after masking is the same tabulation, not a new one.** Profiled on the masked
+build with `traits = "lma"`, 60 samples, 60 usable: **50 of 60 are in
+`Leaf::build_cumulative_vulnerability_integral` called from `Leaf::input_adjoints`**, 49 of them
+inside boost's `long double` incomplete gamma. The two base grid builds sit **above** the mask's
+guards — at `src/leaf_model.cpp` lines 1456-1458 before the `transport_pars` loop whose body checks
+`par_wanted(k)` at 1465, and again at 1704-1706 before the loop guarded at 1813 — so they run
+unconditionally on every call while the per-row work is suppressed.
+
+The arithmetic closes: 14 tabulations per call reduced to 2 is 7x, and the spike measured 6.68x;
+2 of 14 is 14% of the cost, and 842 us against 5 620 us is 15%. **Building the grids only when a
+transport row is wanted is a two-line change and should take the tabulation to zero for a
+non-leaf trait.**
+
+Two predictions were refuted by the same profile and are recorded because they were wrong for
+instructive reasons. The residual evaluations are **not** the cost — `dprofit_droot_collar_psi`
+4/60, `dR_dcollar_at` **0**/60, `dR_dflux_from_layer` 1/60 — so an argument from counting call
+sites in the source gave the wrong answer. And the pinned branch is not involved here:
+`bound_partials` 0/60, `prepare_collar_solve` 0/60.
+
+**What becomes visible once the tabulation is masked: the forward leaf solve.**
+`find_root_collar_psi` 5/60 and `polish_root_collar_psi` 3/60, against 0 of 30 before masking,
+reached through `Individual::growth_rate_gradient`'s finite difference on the forward path —
+29 of 60 samples carry that frame. So the next cost centre after C3 and C4 is the sub-grid probe
+re-solving the leaf, which is report 10's deferred saving of 37% per accepted step and
+`aornugent/plant#69`.
+
+**An unresolved 18x, and every absolute figure in this report depends on it.** The same call at the
+same configuration on the same build read **76.8 s** from a harness using
+`pkgload::load_all(export_all = TRUE)` and **4.2 s** from one using `library(plant)` plus the
+`asNamespace` attach. Section 11.5 of `ORCHESTRATOR.md` records that `load_all` forces its own
+`-O0 -g` build and ignores `R_MAKEVARS_USER`. If that is the cause, then 202 s, 512.9 s, 19.9 ms
+and 842 us per block are all measurements of an unoptimised build. **The ratios in this report are
+same-session and survive either way; the absolute values do not.** Being resolved separately.
 
 ### C5 — skip exactly-zero cohorts
 
