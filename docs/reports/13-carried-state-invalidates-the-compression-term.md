@@ -8,16 +8,16 @@ perturbs one individual's size and re-evaluates its rates. **That estimate stops
 required quantity — not approximately, but at all — as soon as growth depends on any state other
 than size.**
 
-The consequence here is an order of magnitude. Lifetime offspring production is 42.14 as the solver
-computes it and 400.92 in a corrected coordinate, and only the corrected value converges under
-schedule refinement. Leaf area during recruitment is up to 2.5 times too high. Decoupling the store
-from growth **within TF24**, changing nothing else, removes 98% of the disagreement.
+The consequence here is an order of magnitude. Lifetime offspring production — the integral `plant`
+uses to decide whether a strategy persists — is 42.14 as the solver computes it and 400.92 in a
+corrected coordinate, and only the corrected value converges under schedule refinement. The error is
+absent on the two strategies whose growth is a function of size and tenfold on the one that carries a
+store, so it does not cancel when strategies are compared.
 
-The error is invisible to every diagnostic a mature stand provides: after canopy closure the two
-agree on leaf area to a ratio of 1.005 and on canopy height to 0.8%. It is removable without altering
-a biological equation, by carrying the population as a density per unit **birth date** rather than per
-unit height — a coordinate in which the transport term is mortality alone. Disabled, the solver is
-bit-identical to the original.
+After canopy closure the two coordinates agree on the quantities that feed back into the model: leaf
+area to a ratio of 1.005 and canopy height to 0.8%. The correction alters no biological equation —
+carry the population as a density per unit **birth date** rather than per unit height, a coordinate in
+which the transport term is mortality alone. Disabled, the solver is bit-identical to the original.
 
 ---
 
@@ -70,10 +70,17 @@ cells fall to 4.4 × 10⁻⁸ m, two orders of magnitude below the constant-envi
 requirement is therefore not merely tight within the intended parameter envelope; it can be violated
 inside it.
 
-Two things follow. §1 and §3 to §5 are constant-environment results and are unaffected, because the
-density exists throughout them. And the birth-date coordinate carries no equivalent requirement: an
-individual's birth date is fixed at birth, so the map is the identity and there is nothing to
-invert.
+A violation does not stop the run. `Species::compute_competition` walks the node list from the front
+assuming heights descend: it returns zero whenever the query height exceeds `nodes.front().height()`,
+and it breaks out of the sum at the first cohort shorter than the query height. Out of order, both
+shortcuts discard cohorts that do shade, so the light profile is underestimated and growth
+overestimated, with no error raised. The correction removes the ordering requirement from the density
+state but not from that loop; closing it is outstanding work (Appendix F).
+
+Two things follow for this report. §1 and §3 to §5 are constant-environment results and are
+unaffected, because the density exists throughout them. And the birth-date coordinate carries no
+equivalent requirement: an individual's birth date is fixed at birth, so the map is the identity and
+there is nothing to invert.
 
 ### 2.2 The perturbation moves in a direction no individual travels
 
@@ -154,11 +161,17 @@ run when `log_density` exceeds 50; that guard cannot fire in birth-date coordina
 **The size distribution becomes an output.** `n = ν/J` is evaluated when a run is reported rather
 than integrated over a cohort's lifetime.
 
-## 4. Where the discrepancy is generated
+## 4. The error is confined to recruitment, which is why nothing caught it
+
+The discrepancy is large for about three years and then stops reaching demography. Beyond patch age 25
+the two coordinates agree on leaf area to a mean ratio of 1.005 (range 0.977 to 1.038) and on canopy
+height to a mean ratio of 0.993 (0.992 to 0.995). Any check run on a closed-canopy stand therefore
+passes.
 
 Recruits are seeded at `a_st3 = 0.8` of capacity and are small, so their capacity rises steeply with
 height. The omitted term is largest among fresh recruits, and its absence inflates their density.
-Density reaches demography only through the two integrals of Appendix A. Leaf area above ground level:
+Density reaches demography only through the two integrals of Appendix A, and during recruitment those
+integrals are dominated by the cohorts whose density is wrong. Leaf area above ground level:
 
 | patch age | uncorrected | corrected | ratio |
 |---|---|---|---|
@@ -169,12 +182,13 @@ Density reaches demography only through the two integrals of Appendix A. Leaf ar
 | 3.0 | 1.360 | 0.586 | 2.32 |
 | 5.0 | 1.762 | 1.676 | 1.05 |
 
-Beyond patch age 25 the two agree on leaf area to a mean ratio of 1.005 (range 0.977 to 1.038) and on
-canopy height to a mean ratio of 0.993 (range 0.992 to 0.995). They do not agree on stem density: the
-ratio there has mean 1.35 and ranges from 0.37 to 1.96, because stem density counts the suppressed
-recruits whose density is misestimated and those individuals contribute almost nothing to either
-integral. The error persists in the size distribution for the whole run and stops reaching demography
-once the canopy closes, which is why no downstream diagnostic detected it.
+The error does not go away when the canopy closes; it stops being visible in the quantities the model
+feeds back on. The two coordinates never agree on stem density — mean ratio 1.35, range 0.37 to 1.96 —
+because stem density counts the suppressed recruits whose density is misestimated, and those
+individuals contribute almost nothing to either integral. That disagreement runs the length of the
+simulation and is not adjudicated here: the individual-based solver's stem density varies too much
+between replicates to say which coordinate is right (Appendix E). The size distribution is wrong for
+the whole run; only its effect on demography is transient.
 
 ## 5. Consequences
 
@@ -585,14 +599,13 @@ never scale with area and the binning interval is set to the area. Passing it by
 correcting it makes that file roughly fifty times heavier and requires its parameters and baselines to
 be revisited. Recorded and left unfixed.
 
-**A height-ordering dependence remains in the competition loop, and it is now a live one.** The
-density state no longer requires cohorts to stay ordered by height, but
-`Species::compute_competition` keeps a height-ordered early exit (`if (h0 < height) break;`) and an
-early return on `height_max()`. Out-of-order cohorts could therefore terminate the loop early and
-drop contributions. No crossing occurs in the constant environment, but §2.1 records 66 under a
-full-amplitude seasonal light cycle, so this is a hazard that can be reached rather than a
-theoretical one. The correction removes the ordering requirement for the state and not for that
-loop, and closing it is outstanding work.
+**A height-ordering dependence remains in the competition loop.** `Species::compute_competition`
+breaks out of its sum at the first cohort shorter than the query height, and returns zero when the
+query height exceeds `height_max()`, which reads `nodes.front().height()` rather than taking a
+maximum. Both shortcuts are sound only while the node list is ordered by height — a property the
+density state no longer requires, and one §2.1 records being violated 66 times under a full-amplitude
+seasonal light cycle. The minimal fix is to take a true maximum and delete the early exit, which
+costs a full walk of the node list per query height. Outstanding.
 
 ## References
 
