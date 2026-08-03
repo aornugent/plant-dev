@@ -597,17 +597,22 @@ fifteen builds, and none of them was one of the five tasks.*
                 and the reverse sweep across node introductions (report 01's C5)
                                                                 V4 NOT ATTEMPTABLE
        |
-    BLOCKER  census_trait_gradient does not terminate. stand_gradient compiles, links,
-             sweeps across introductions and does not finish: five attempts across three
-             packets, three lifetime-2 runs abandoned at 18m44s, 31m and 57m38s of
-             full-core CPU, and test-census.R's entry-point test stalled at 31 minutes on
-             the base build and 21 on the fixed one at the identical dot count. It hangs
-             on the base tree too, so no part of this build causes it. There is no
-             verified whole-run gradient, so V4 has no subject as well as no reference
+    DONE  wave 6  the blocker was never non-termination. stand_gradient RETURNS: 202.0 s
+             at lifetime 2 against the installed -O2 library, one trait, 0 exactly-zero of
+             3, two calls bit-identical, 119.7 MB peak, 8 width changes crossed. What is
+             real is a COST defect of about 300x -- 18.5 ms per block against wave 2's
+             measured 65 us, reproduced at 19.9 ms on an 81-node patch. The tape is not
+             leaking (block_recording_size flat at 79 744 over 1 000 calls) and the owner
+             is Leaf::input_adjoints, re-tabulating two 100-knot vulnerability
+             interpolants in long-double incomplete gamma ~10x per call. 30/30 gdb
+             samples, 0 of them inside any leaf solve. At 65 us a production gradient is
+             ~516 s against section 8b's ~430-460 s projection, so the budget is real and
+             the sweep misses it by ~300x. V4 now needs a fix, not a diagnosis
 ```
 
-**Every task is built as code. The phase does not close, and the single blocker is one
-non-terminating gradient** — not a forward-model property and not the owner's. The
+**Every task is built as code. The phase does not close, and the single blocker is a
+gradient that costs ~300x its measured budget** — not a non-terminating one, which is what
+this was recorded as for three waves on the strength of five abandoned runs. The
 superseded V4 reference and the two forward-model repairs are below.
 The state, with its numbers, is in "Where Phase 3 stands" below; the evidence is
 `docs/implementation-notes.md`, *Phase 3, wave 1* through *wave 5*.
@@ -809,8 +814,19 @@ window, and both land on P3.6:
 
 ## Where Phase 3 stands
 
-**Every task is built. The phase does not close. The single blocker is that
-`census_trait_gradient` does not terminate.**
+**Every task is built. The phase does not close. The single blocker is that the whole-run
+gradient costs about 300x its measured budget — it terminates, and the earlier record of
+non-termination is refuted.**
+
+**Wave 6 (diagnosis only, zero builds).** `stand_gradient` returns in **202.0 s** at lifetime
+2 against the installed `-O2` library, one trait, **0 exactly-zero of 3**, two calls
+bit-identical, 119.7 MB peak. The defect is **18.5 ms per block against wave 2's measured
+65 us** (reproduced at 19.9 ms on an 81-node patch), the tape is **not** leaking
+(`block_recording_size` flat at 79 744 over 1 000 calls), and the owner is
+**`Leaf::input_adjoints`** in long-double incomplete gamma — 30/30 gdb samples, **0 inside any
+leaf solve**. At 65 us a production gradient is ~516 s, matching section 8b's ~430-460 s, so
+the budget is real. Details, and the two classes of fix, in
+`docs/implementation-notes.md` under *Phase 3, wave 6*.
 
 All five tasks are written, merged and verified for the parts a valid instrument reaches: P3.1,
 P3.2 including step (5), P3.3, P3.5 and P3.6, plus report 01's C5 — the reverse sweep across node
@@ -874,10 +890,19 @@ moving by exactly 0 is the alignment evidence.
 
 **What remains, in priority order for the next session.**
 
-1. **Diagnose why `census_trait_gradient` does not terminate. Profile it.** It is the only thing
-   between the project and V4, it reproduces on the base tree, and
-   `scripts/stand-gradient-smoke.R` is the reproducer. Nothing else on this list is worth doing
-   first.
+1. ~~**Diagnose why `census_trait_gradient` does not terminate. Profile it.**~~ **Done in
+   wave 6, and the premise was false: it terminates.** 202.0 s at lifetime 2, one trait, 0
+   exactly-zero of 3, two calls bit-identical. What replaces it is a **fix**, and the target
+   is measured: **`Leaf::input_adjoints` costs ~300x wave 2's 65 us per block**, spending
+   28/30 gdb samples in `boost::math` long-double incomplete gamma while it re-tabulates two
+   100-knot vulnerability interpolants ~10x per call — two base builds plus a two-sided
+   central difference over `b`, `c`, `root_b`, `root_c`. **Two classes of fix and only one is
+   a packet's**: `input_adjoints` is reached only from the active `graft_leaf_outputs`, so a
+   change to the precision or method of its perturbation rebuilds is **bit-identical in the
+   forward model**; changing `vulnerability_curve_ncontrol` or the shared builders moves every
+   simulated number and is the owner's. And it is the same builder whose knot count steps
+   100 <-> 101 under a 1e-6 relative move in `b`, so design the two together. Half the calls
+   arrive through `growth_rate_gradient`'s `dx = 1e-6` probe, which no cost model priced.
 2. **Recompute the V4 reference on the repaired forward model and answer the convergence
    question.** The committed `scripts/v4-reference.rds` and `.csv` are **superseded and must not
    be used**: their payload says cap 5, unpinned base, `plant_commit 4f9bda64`, base R0 42.1798.

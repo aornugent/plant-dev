@@ -4728,6 +4728,17 @@ zero is unconditional.
 
 ## The blocking defect: the whole-run gradient does not terminate
 
+> **Refuted in wave 6, and the refutation is one run. `stand_gradient` terminates.** At
+> `max_patch_lifetime = 2` against the installed `-O2 -DNDEBUG` library it returns in
+> **202.0 s** for one trait — 201.2 s of it user CPU, so compute-bound rather than blocked —
+> with `leaf_area -6.70186099136280244`, `mass_above_ground 1.12361030349850299`,
+> `area_stem -0.11748175616343265`, **0 exactly-zero of 3**, two successive calls agreeing to
+> the last bit, peak RSS 119.7 MB, and 8 width changes crossed so the introductions sweep
+> genuinely ran. What is real is a **cost defect of about 300x**, diagnosed below under
+> *Wave 6*. **Every one of the five attempts below was abandoned rather than instrumented,
+> and an abandoned run cannot distinguish hung from slow** — the section that follows records
+> the abandonments as a property of the code, which they never were.
+
 `stand_gradient` compiles, links, sweeps across introductions and does not finish. Five
 attempts across three packets: three lifetime-2 runs abandoned at 18m44s, 31m and 57m38s of
 full-core CPU, and `test-census.R`'s "the trait gradient entry point is reachable" — which
@@ -4855,3 +4866,143 @@ brief, and wave 5 makes it nineteen.** The costly ones this wave: relaying the
 thirteen-zeros explanation unchecked; specifying a block-level finite difference for grafted
 inputs, which is unsatisfiable by construction; taking "bump 2 -> 3" from a stale
 `agents.md` line; and reporting a 183 s whole-run gradient that does not reproduce.
+
+---
+
+# Phase 3, wave 6: the blocker was a cost defect, and it is measured
+
+No code changed in this wave. It is a diagnosis, taken with **zero builds** against a library
+that was already on disk, and it overturns the phase's recorded blocker.
+
+## What was claimed, and what is true
+
+The corpus recorded `census_trait_gradient` as **not terminating**, on the strength of five
+abandoned runs. It terminates.
+
+| | |
+|---|---|
+| `stand_gradient(scm, traits = "lma")` at lifetime 2 | **202.0 s elapsed, 201.2 s user** |
+| gradient | `leaf_area -6.70186099136280244`, `mass_above_ground 1.12361030349850299`, `area_stem -0.11748175616343265` |
+| exactly-zero entries | **0 of 3** |
+| two successive calls | agree **bit for bit** (max difference 0), so the sweep widens the system back |
+| peak RSS | 119.7 MB, against a 2 GB gate |
+| shape | 8 nodes, `ode_size` 73, 110 recorded steps, widths `9 17 25 33 41 49 57 65 73`, **8 width changes crossed** |
+
+Measured against the installed `-O2 -DNDEBUG` library `/home/user/lib-wave5`, built from
+`dad51118`, with `library(plant)` plus the `asNamespace` attach and **no `pkgload::load_all`**.
+
+**The lesson is about the instrument, not the gradient. Absence of a return is not
+non-termination**, and five abandoned runs are evidence of cost only. The claim went into
+three documents and a priority list on that evidence.
+
+## The real defect: about 300x per block
+
+    110 steps, nodes 0..8 over the width series, 3 metrics = 3 sweeps
+    blocks = SUM(nodes x steps) x 6 stages x 3 metrics = 607 x 6 x 3 = 10 926
+    202.0 s / 10 926 = 18.5 ms per block, against wave 2's measured 65 us  =  284x
+
+Reproduced independently on an 81-node patch at **19 943 us per block, 307x**. Two patch
+sizes, two harnesses, one conclusion. **The cost model is vindicated by the same
+arithmetic**: at 65 us per block a production gradient is ~516 s, against section 8b's
+~430-460 s projection. At 19.9 ms it is **~41 hours per trait**, which is indistinguishable
+from never — which is what five packets found.
+
+## The tape is not leaking, and that is measured rather than argued
+
+`Patch::block_recording_size` and `block_sweeps` exist for exactly this failure mode and had
+**never been read** — neither is in `RcppR6_classes.yml`, and neither appears in
+`names(scm$patch)`. Read from a `sourceCpp` harness over 1 000 consecutive calls:
+
+    block_sweeps          0 -> 81 000, advancing by exactly node_count (81) per call
+    block_recording_size  79 744 throughout: delta 0, min = max
+    per-call time         first 1 577 274 us, last 1 561 736 us, ratio 0.990
+                          lm slope 27.6 us/call on a 1.6 s baseline, cor 0.062
+
+Flat, with both counters proven live rather than dead. So the overshoot is a **constant factor
+inside one block recording**, not growth with block count, and the reused tape introduced in
+wave 2 is behaving as designed.
+
+## Where the time goes: `Leaf::input_adjoints`, in long-double incomplete gamma
+
+Thirty gdb samples on a quiet box, 30 usable, every one carrying a plant frame.
+
+    12  Leaf::set_transpiration_at                     28/30 inside
+    11  Leaf::set_root_vulnerability_at                boost::math::gamma_incomplete_imp<long double>
+     5  Leaf::build_cumulative_vulnerability_integral   24/30 in glibc __ieee754_powl / logl
+
+Every one is the immediate callee of **`Leaf::input_adjoints`**, and **no sample has an `xad::`
+function as a frame**, so this is not recording overhead. The zeros are what decide it:
+
+    0 samples  find_root_collar_psi   polish_root_collar_psi   prepare_collar_solve
+    0 samples  optimise_psi_stem      assim_colimited          E_from_Soil_to_Root_Collar
+    0 samples  dR_dcollar
+
+**Not one sample is inside any leaf solve.** The cost is re-tabulating two 100-knot
+vulnerability interpolants in `long double` incomplete gamma about **ten times per
+`input_adjoints` call** — two base builds plus a two-sided central difference over the four
+parameters that rebuild transport (`b`, `c`, `root_b`, `root_c`), roughly a thousand
+`tgamma_lower(long double)` evaluations per call.
+
+**The orchestrator's hypothesis was refuted on mechanism and it was the right thing to send.**
+The brief predicted ~28 leaf re-solves at a few hundred microseconds each — the right order by
+accident, the wrong cause. It was deliberately withheld until after the stacks were recorded,
+so the packet sampled first and compared second.
+
+## Two things the stacks found that outrank the headline
+
+**Half the cost is the sub-grid probe re-entering the chain.** 14 of 30 samples arrive through
+`plant::util::gradient_fd` at `dx = 1e-6` — `Individual::growth_rate_gradient` re-running
+`net_mass_production_dt` and therefore `input_adjoints` a second time per node. Report 10's
+"two leaf solves per accepted step" appears in the adjoint as **two Jacobian rebuilds per
+node**, and no design document costed it there.
+
+**The function that owns the cost is the one already known to poison derivatives through it.**
+`build_cumulative_vulnerability_integral`'s knot **count** steps 100 <-> 101 as `b` or `root_b`
+move by 1e-6 relative — the finding that invalidated a recorded passing gate at 47x, 131x and
+10 245x. So the performance defect and that differentiation defect live in the same builder,
+and **neither should be designed without the other in view**.
+
+## What a fix may and may not touch, from the stacks
+
+`input_adjoints` is reached **only** from `TF24_Strategy<xad::AReal<double,1ul>>::graft_leaf_outputs`;
+the `double` forward path never calls it. So:
+
+- A change confined to the **precision or method of the perturbation rebuilds inside
+  `input_adjoints`** moves derivatives only and is **bit-identical in the forward model** — no
+  re-bless, no `scientific_version` bump.
+- A change to `vulnerability_curve_ncontrol`, or to the shared builders on the forward path,
+  **moves every simulated number** and is the owner's, not a packet's.
+
+Those are two different classes of change and the phase has already paid for conflating them
+once.
+
+## Owed out of this wave
+
+- **`block_recording_size` and `block_sweeps` should be R-readable.** They are the instrument
+  for the phase's stated worst failure mode and reading them needed a C++ harness.
+- **A gradient cost gate.** There is no assertion anywhere that a block VJP costs what wave 2
+  measured, which is why a 300x regression sat behind green gates for three waves.
+- The reference forward numbers were **not re-measured in this session**: the packet that would
+  have done it stopped on a bad environment premise (below) and the lane was redirected to the
+  blocker.
+
+## The environment defect this wave started with, and it was the orchestrator's
+
+The first packet was pointed at `/home/user/lib-p3-int`, which section 11.5 records as "already
+installed and verified". It carries **no `solve_adjoint`** — its `ode_solver.hpp` is 296 lines
+against the pinned commit's 334, missing exactly the two overloads — so plant `dad51118`
+**cannot compile against it at all**, and the packet died in `census_gradient.cpp` at
+`scm.h:706`. The certifying grep in the brief was for `step_sizes`, which passes; the grep that
+mattered was for the symbol the build needs. **A census must name the thing under test**, and
+an install is certified per-symbol or not at all.
+
+`/home/user/lib-wave5` was the correct library and was on disk the whole time, holding a 5.6 MB
+`-O2` plant `.so` and an odelia carrying `solve_adjoint`. Five packets paid for builds they did
+not need.
+
+**Tally: every packet in this wave found a real defect in the orchestrator's brief, and the
+count is now twenty-two.** This wave's: the stale library above; asserting `block_sweeps`
+advances by 1 when it advances by `node_count`; and calling 10 926 a count of
+`cohort_block_adjoint` calls when it is a count of blocks — 1 980 calls at ~102 ms each. The
+284x survived all three because wave 2's 65 us was one block VJP, so the comparison was
+like-for-like by luck rather than by care.
