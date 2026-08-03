@@ -437,6 +437,67 @@ same configuration on the same build read **76.8 s** from a harness using
 and 842 us per block are all measurements of an unoptimised build. **The ratios in this report are
 same-session and survive either way; the absolute values do not.** Being resolved separately.
 
+### C2b — call the leaf once with the arrived seed, not six times with unit seeds
+
+**This supersedes C2 and is measured.** `Leaf::input_adjoints(lambda_profit, lambda_uptake, row)`
+already **takes the seed**, so it is a vector-Jacobian product. It is called six times with unit
+vectors only because `graft_leaf_outputs` must hand the tape its partials *before* the reverse
+sweep exists. XAD's `CheckpointCallback` removes the "before": `computeAdjoint(Tape*)` runs during
+the sweep with the adjoint arrived.
+
+**The premise, measured on the real leaf.** One general-seed call against the six unit rows
+contracted, 4 states x 28 inputs, `lp = 0.37`, `lu = (0.11, -0.29, 0.53, 0.07, -0.83)`:
+
+| | |
+|---|---|
+| max relative difference | **4.4e-16** — one to two ulp, summation order |
+| entries above 1e-14 relative | **0** of 112 |
+| branches covered | two interior (`pinned = 0`) and two pinned (early return through `bound_partials`) |
+| timing | one general call 1.73-2.72 ms against six unit calls 10.5-16.2 ms, ratio **5.97-6.11** |
+
+The cost is seed-independent, so the saving is exactly the call count: 12 calls per block
+(21-33 ms) become 2 (3.5-5.5 ms).
+
+**The mechanism, read from `Tape.cpp` and prototyped.** Two containers:
+
+    std::vector<chkpt_type> checkpoints_;               // registration: position -> cb
+    std::vector<CheckpointCallback<Tape>*> callbacks_;  // ownership
+
+`insertCallback` writes only `checkpoints_`; `pushCallback` writes only `callbacks_`. Both
+`clearAll()` and `newRecording()` clear `checkpoints_` and touch neither `callbacks_` nor the
+object, so a callback survives as an object and stops firing. **That is safe here only by
+ordering**: `vector_jacobian_product` calls `clearAll()` and `newRecording()` on entry, before `f`
+runs, so a callback inserted during `f` is live for that sweep.
+
+**One callback can span all six outputs.** `getAndResetOutputAdjoint` takes an arbitrary slot with
+only a bounds check, and `computeAdjointsTo` sweeps everything recorded after the insertion point
+**before** firing the callback, so all six adjoints have arrived when it does. `SuppliedDerivative`'s
+single `output_` is its own choice, not an interface constraint.
+
+**Prototyped**: a 3-input, 2-output function with a known Jacobian, attached by the algebraic graft
+and by a lazy multi-output callback, one reverse sweep, one tape reused across four states with
+`clearAll()`/`newRecording()` between. Input adjoints **bitwise identical** — max abs and max rel
+difference exactly 0 — and VJP invocations **2 against 1**, the ratio being the output count.
+
+**A constraint that is mandatory, not a refinement.** `callbacks_` is never pruned; the only
+`delete` is `~Tape`. Measured across four reuses of one tape, `getNumCallbacks()` read 1, 2, 3, 4.
+At production, 2 grafts x 7.94M blocks is on the order of **16 million callback objects** held on
+the cached tape until it dies, each carrying a slot and two 28-element vectors — gigabytes, against
+a 2 GB gate the current gradient meets at 0.26 GiB. The fix follows from the same two containers:
+**`pushCallback` once at workspace creation, `insertCallback` per recording.**
+`odelia::ode::supplied_derivative` calls both together, which is correct for a one-shot graft and
+wrong for a hot loop.
+
+**What this does not change.** The leaf stays `double`; the solve stays untaped; report 02's
+boundary is not relaxed at all. So C2b needs no re-bless, no `scientific_version` bump and no
+owner decision, and it makes C3 and C4 optional rather than load-bearing.
+
+**Owed before building it**: the same measurement end to end on a real patch rather than on a toy,
+and a decision on callback pruning. Also unexplained: two dry leaf states (`psi_soil` approaching
+`psi_crit`) **segfaulted** inside the solve during the linearity harness, before `input_adjoints`
+was reached. That is not the `psi_stem_to_ci` `util::stop` already recorded — it is a crash, and it
+is undiagnosed.
+
 ### C5 — skip exactly-zero cohorts
 
 **Mechanism.** `soil_adjoint` already skips resources whose adjoint is exactly zero. Cohorts at
