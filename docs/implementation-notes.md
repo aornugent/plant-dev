@@ -5006,3 +5006,89 @@ advances by 1 when it advances by `node_count`; and calling 10 926 a count of
 `cohort_block_adjoint` calls when it is a count of blocks — 1 980 calls at ~102 ms each. The
 284x survived all three because wave 2's 65 us was one block VJP, so the comparison was
 like-for-like by luck rather than by care.
+
+## Wave 6, second pass: the stopgap was refuted, and the reference is verified
+
+The narrowing the orchestrator specified — invalidate `transpiration_cached_` only for the
+parameters that reach the transpiration integral — is **correct, safe, and buys nothing.**
+Measured ratio over 200 calls at each of eight states, on a quiet box: **0.9913**, which is
+noise. Branch discarded rather than carried; a comment and a predicate are not worth a 0.99x.
+
+**The brief's premise was wrong and the packet found it by reading.** `transpiration_cached_`
+is a one-entry memo read in exactly one place, `Leaf::transpiration`, and it gates **no**
+interpolant rebuild. The re-tabulations are called from `set_parameter` under
+`rebuilds_transport(k)` — `PAR_B`, `PAR_C`, `PAR_ROOT_B`, `PAR_ROOT_C` — and narrowing the memo
+cannot reach them. **The target is those eight re-tabulations per call** (4 parameters x 2
+sides, ~100 long-double incomplete-gamma knots each), which is where all 28 usable gdb samples
+sit.
+
+What the pass did establish, and all of it is gate output rather than inference:
+
+| | |
+|---|---|
+| full leaf Jacobian, 8 states incl. production-like | **0 of 1482 entries differ, bitwise**; `%.17g` text compared, checksum `16699.037715269842` unchanged |
+| TF24 forward at its own configuration | **`42.411799695604159` / 4 644 accepted steps, bit-identical** |
+| the pinned build | `grep -c -- '-O0'` = 0 on the log, installed `.so` 5 634 288 bytes |
+| per-block cost, 60-node run | **5 513 us**, i.e. **85x** the 65 us target |
+| production projection | 7 941 240 blocks x 5 513 us = **43 778 s = 12.16 hours per trait** |
+
+**The reference forward numbers are therefore verified in this session** — the first
+independent confirmation of `42.411799695604159 / 4 644` since wave 5 recorded it, and the
+`/home/user/lib-p3-int` failure earlier in the wave had left it unmeasured.
+
+**V4 is still not attemptable, and now the reason is a number rather than a mystery.** 12.16
+hours per trait against a ~516 s budget. The packet was instructed not to launch a run its own
+projection said could not finish, and did not: abandoning a multi-hour run is the exact
+evidence that manufactured the false non-termination claim.
+
+Two limits on the Jacobian gate, recorded because they bound what it proves. Every *interior*
+production-like state built for it aborts inside `input_adjoints` through `util::stop` in
+`Leaf::psi_stem_to_ci` under the parameter perturbations — pre-existing and unchanged by the
+edit, but it means the four production-like states in the set are all collar-pinned, and
+"interior and production-like" is uncovered. And peak RSS was not measured against the 2 GB
+gate; the in-process `VmHWM` read returned the shell's value.
+
+## What the corpus already says about the real fix, read in full this wave
+
+Report 00 §6.2 step 5 says `∂Π/∂p` is "already available in closed form on develop" and that
+"differentiating that expression once gives the entire argmax channel for every input at
+once". **That is the mathematics, not a capability**, and the same report qualifies it twice:
+§7 *Genuinely open* lists `∇(∂Π/∂p)` as "the one genuinely new expression the design needs",
+§9 lists "whether `∇(∂Π/∂p)` is well conditioned anywhere" as still inferred, and §10 orders it
+**last** — "the single new piece of code the whole design needs". **The orchestrator quoted
+§6.2 and had not read §7, §9 or §10**: the section that mentions a thing is not the section
+that owns its status.
+
+**No second-order AD is needed, and none is possible as written.**
+`Leaf::dprofit_droot_collar_psi` is `double(double)`, untemplated, and
+`odelia::ode::forward_derivative` hardcodes `xad::fwd<double>` with a `double -> double`
+signature. Report 02's design is that the leaf stays `double` and hands back numbers, so
+`∂²Π/∂p∂param` is wanted as a hand derivation — one more chain rule on a `double` expression,
+including the `ci` root-find's implicit term. The central differences are **not** a workaround
+for a missing capability; they stand in for a derivation the corpus orders last.
+
+Classification of what is built, read off `Leaf::input_adjoints`:
+
+| | route | status |
+|---|---|---|
+| the `2n+1` state directions | §6.3's waist, `a` and `b` two shared scalars | **built, exact** (`dR_dflux_slope`, `dR_dflux`) |
+| profit rows, 7 of 15 parameters | `forward_derivative` on the two templated evaluators | **built, exact** |
+| pinned-leaf rows | §6.7's IFT on the bound, `bound_partials` | **built, exact** |
+| `∂²Π/∂p∂param`, all 11 reaching rows | §6.2/§10's `∇R` | **not built** — each is a residual pair |
+| `b`, `c`, `root_b`, `root_c` profit and uptake rows | §6.4's fixed-position interpolant | **not built, and §6.4's premise is false in the tree** |
+
+**The sequencing consequence, which the orchestrator had backwards.** The cost is concentrated
+in the four transport parameters — eight of the ~ten re-tabulations. Their analytic route is
+§6.4's, whose premise is that the knot positions do not move, and report 02's own banner
+records that the forward model moves them and that **"the forward model still carries the
+discontinuity, and that is the owner's"**. So deriving `∇R` for the eleven rows is
+derivative-only and forward-bit-identical but removes the *residual pairs*, not the
+*re-tabulations*; removing those is entangled with the knot grid, which is a forward-model
+change wanting a `scientific_version` bump. A middle option — holding the base grid positions
+on the derivative path only — is confined to `input_adjoints` and would kill the 47x / 131x /
+10 245x straddling outright, but it is an **accuracy** fix that may buy little speed, because
+the values themselves are the incomplete-gamma evaluations.
+
+**Tally: twenty-three, and this wave's three were all the orchestrator's** — the stale
+`lib-p3-int`, `block_sweeps` advancing by `node_count` rather than 1, blocks counted as calls,
+and now a cost hypothesis contradicted by the memo's single reader.
