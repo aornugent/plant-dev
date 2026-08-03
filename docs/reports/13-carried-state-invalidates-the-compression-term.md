@@ -446,7 +446,7 @@ predicts exactly zero and the measured value is 1.1 × 10⁻¹¹.
 `Node::growth_rate_gradient` copies the individual, changes its height by `node_gradient_eps = 1e-6`
 in a one-sided backward difference, re-runs the complete rate calculation — for TF24 including the
 leaf hydraulic optimisation — and differences the growth rates. Evaluated on one patch state at age 2,
-where neighbouring cohorts are near-identical (§2) so the neighbour difference `C` is a sound estimate
+where neighbouring cohorts are near-identical (§2.2) so the neighbour difference `C` is a sound estimate
 of the total derivative:
 
 | step size | estimate | change from the `1e-6` value | distance from `C` |
@@ -514,8 +514,8 @@ the constant environment and §6.3 for the one cell of the stress sweep that cro
 does not: `∂g/∂S` carries a factor of `g` that cancels the `f/g` exactly (Appendix A). Measured, the
 closed form is zero at stalls and the drift rate is 1.1 × 10⁻¹¹.
 
-**The perturbation direction as a defect separate from the omitted term.** The three estimates in §2
-are estimates of one operator, not two errors in sequence. Correcting the direction removes 86.7% of
+**The perturbation direction as a defect separate from the omitted term.** The three estimates in
+§2.2 are estimates of one operator, not two errors in sequence. Correcting the direction removes 86.7% of
 the total absolute disagreement (`Σ|A−C| = 623.7`, `Σ|A−B| = 541`, `Σ|B−C| = 121`) without removing the
 condition that produced it, because a fixed-fraction perturbation is still a partial derivative.
 

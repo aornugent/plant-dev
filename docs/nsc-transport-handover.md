@@ -57,7 +57,7 @@ Baselines to confirm the build is right, all bit-identical with the flag off: TF
   quantity (Appendix B). **An analytic or AD derivative therefore cannot help** — this closes off the
   most obvious line of attack.
 - **The mechanism is the perturbation direction**, not physiological divergence between neighbours;
-  neighbours in the damaging interval are identical to four decimal places in reserve fraction (§2).
+  neighbours in the damaging interval are identical to four decimal places in reserve fraction (§2.2).
 - **The omitted term does not diverge at a growth stall.** `∂g/∂S` carries a factor of `g` that
   cancels. Predicted zero, measured `1.1 × 10⁻¹¹` (Appendix D).
 - **Schedule resolution is not the cause of the 6–21% excess over the individual-based ensemble.**
