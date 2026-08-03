@@ -838,7 +838,99 @@ of the closed form.
 
 ---
 
-## 8b. Adversarial review of this design
+## 8a. Ideas already in the design, not in the code
+
+Every one of this wave's largest findings is an idea the project had already designed, built, or
+named as owed — and had not wired in. The catalogue matters more than any single item, because it
+says where to look first next time.
+
+| the idea | where it lives | state |
+|---|---|---|
+| `odelia::incomplete_gamma` | odelia `f3598304`, July | **built and verified**; absent from `p3/odelia-integration`, referenced nowhere in plant |
+| `odelia::ode::supplied_derivative` / `xad::CheckpointCallback` | `odelia/inst/include/odelia/supplied_derivative.hpp` | **built**; unused in plant, while `graft_leaf_outputs` hand-rolls the same edge |
+| `odelia::implicit_value` | `odelia/inst/include/odelia/implicit_node.hpp` | **built**; one occurrence in plant, inside a `static_assert` **message**. Its absence is the measured ~3% `d(height_0)/d(trait)` bias |
+| the aux / operating-point carry | report 01 §3 step 1; `scripts/aux_round_trip.R` measured the round trip **bit-identical at 8 of 9 states** | recorded as "transferred but unrealised"; `cohort_block_adjoint` still re-solves the leaf |
+| `Species::set_birth_state` | `species.h`; report 01 C6 says the reverse pass **must** restore `pr_patch_survival_at_birth` | exists, **called by no test** |
+| `Patch::cache_ode_step`, `cache_RK45_step`, `load_ode_step` | `patch.h` | declared and defined, **no caller in either repository** — and that is the two known `test-mutant.R` errors |
+| `Patch::has_recorded_field`, `record_stage`, `replay_step` | `patch.h` | hooks with empty bodies, correct per report 01 §1, and the natural home for the within-step field cache below |
+| `block_recording_size`, `block_sweeps` | `patch.h` | the instrument for this design's stated worst failure mode, **not exported to R** |
+| `Leaf::translation_partials` | report 02 §6.6 | implemented; called only by `scratch/leaf_jac_gate.cpp` |
+| `hermite_interpolator` knot accessors | Phase 2 tail | owed to odelia; `r_get_state` reads slopes back through `value_and_slope` |
+| the parameter half of `∇(∂Π/∂p)` | report 00 §7, §9, §10 — "the single new piece of code the whole design needs", ordered **last** | never built. The per-parameter central difference standing in for it **is** the cost centre |
+| a trait selection reaching C++ | implied by `stand_gradient(scm, traits = ...)` | `traits` was an R matrix subset; `ad_parameters()` unconditional |
+
+**The pattern is not that the design was wrong.** It is that a deferred item acquired a placeholder,
+and no document priced the placeholder. Report 00 §10 deferred `∇R`'s parameter half deliberately
+and correctly; the implementation shipped a finite difference in its place; and a stand-in for a
+deliberately deferred item is exactly the thing to cost.
+
+## 8b. The performance design, with the memory dial
+
+Three of the four changes below cost **no memory** — the data is produced and consumed inside one
+`step_adjoint` call. Only the fourth needs a budget, and it is the dial.
+
+**1. Reuse the leaf operating point instead of re-solving it. Free.** `ode::derivs` at stage `i`
+solves every cohort's leaf to build `k_i`; `cohort_block_adjoint` at stage `i` then re-solves the
+same cohort's leaf at the same inputs. Both loops are inside **one** `step_adjoint` call, so the
+operating points do not need storing across steps — six stages x 141 cohorts x ~15 doubles is
+**~101 kB of transient scratch**. `aux_round_trip.R` has already measured that restoring inputs and
+the stored operating point reproduces 14 leaf outputs bit-identically at 8 of 9 states, the ninth
+being P0.1, which is fixed. This is exact restoration, not the warm start report 01 C7 forbids, and
+the probe is what distinguishes them.
+
+Removes both leaf solves per block: **35 us of a 216 us block, and 35 of 101 us after C2b.**
+
+**2. Cache the six stage fields within a step. Free.** The rebuild loop calls
+`stage_state(i, y, h)` then `ode::derivs`, building the field at stage `i`; `sweep_stages` then
+calls `stage_state(i, y, h)` again and `set_ode_state_and_field` at the **same** stage state. Six
+fields at ~140 doubles is **~7 kB**, and `aux` is already retained per stage in exactly this way, so
+the precedent and the storage pattern both exist.
+
+**3. One sweep carrying `M` seeds (C1) and one leaf call per graft (C2b).** As above. Free.
+
+**4. Store the stage rates, and skip the rebuild. This is the dial.** The only remaining
+recomputation is the six `ode::derivs` per step, ~30 ms of a ~88 ms step. Avoiding it means having
+`k1..k6` without computing them, which means storing them — and then also storing the operating
+points, since the rebuild was what produced them.
+
+    stage rates       6 x 1137 doubles per step
+    operating points  6 x 141 x ~15 doubles per step
+                      = ~156 kB per step, 724 MB for all 4 644 steps
+
+**The dial is monotone and there is no clever interior point.** Storing a window of `W` steps and
+re-running the forward pass to refill costs exactly one forward step per step refilled — which is
+what the rebuild already costs. So windowing buys nothing over the present scheme; the saving comes
+only from `W = N`. **The honest statement is that this is a memory-for-time purchase with a linear
+exchange rate: take as much as the budget allows.**
+
+Measured baseline peak is **0.262 GiB against a 2 GB gate**. At `W = N` the peak becomes roughly
+**1.0 GiB** — half the gate, against eight-fold headroom today. And report 01's original decision —
+"storage is independent of the stage count, which is what makes rebuilding preferable to storing" —
+was correct reasoning taken **before peak memory was ever measured**, which is what makes it
+revisitable rather than wrong.
+
+### What the chain gives
+
+| | per step per metric | at production | memory |
+|---|---|---|---|
+| as measured now | 215 ms | **2 995 s** | 0.262 GiB |
+| + C1, one sweep for `M` metrics | 215 ms | 998 s | + 0 |
+| + C2b, one leaf call per graft | 101 ms | 543 s | + 0 |
+| + operating-point reuse | 88 ms | 407 s | + ~101 kB |
+| + within-step field cache | 87 ms | ~403 s | + ~7 kB |
+| + stored stage rates, no rebuild | 58 ms | **268 s** | **+ 724 MB** |
+
+**7.4x of the 11.2x costs no memory at all.** The last step buys 1.5x for 724 MB and should be built
+as a bounded window with recompute as the fallback, so a longer lifetime or a second species
+degrades to the present behaviour rather than to an allocation failure.
+
+**Every figure above is arithmetic on measured factors** — 2 995 s and 215 ms/step measured;
+5.97-6.11x for one leaf call against six measured; 17.7 us per leaf solve derived from the 138.6 s
+forward run over 4 644 steps at 282 solves per stage; the field share derived, not measured in the
+reverse pass. **None of the composed totals has been measured**, and the composition is where this
+wave's predictions have failed.
+
+## 8c. Adversarial review of this design
 
 Five defects and one omission found by re-tracing the design against the code rather than against
 itself. Two would have failed a build; one changes which components are optional.
