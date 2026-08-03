@@ -4,3 +4,21 @@ K93   ht  eps=0.02      iters=4   conv=TRUE  n_run=181   n_final=181   ode=360  
 K93   ht  eps=0.00632   iters=5   conv=TRUE  n_run=217   n_final=217   ode=452    val=0.03060102692       2.7s
 K93   ht  eps=0.002     iters=5   conv=TRUE  n_run=265   n_final=265   ode=534    val=0.03059916579       4.0s
 K93   ht  eps=0.000632  iters=8   conv=TRUE  n_run=357   n_final=357   ode=669    val=0.03058135824      12.6s
+K93   ht  eps=0.0002    iters=12  conv=TRUE  n_run=477   n_final=477   ode=866    val=0.03057812708      30.6s
+K93   bd  eps=0.2       iters=3   conv=TRUE  n_run=149   n_final=149   ode=159    val=0.03063093048       0.3s
+K93   bd  eps=0.0632    iters=5   conv=TRUE  n_run=162   n_final=162   ode=172    val=0.03063315307       0.7s
+K93   bd  eps=0.02      iters=4   conv=TRUE  n_run=173   n_final=173   ode=183    val=0.03063228051       0.5s
+K93   bd  eps=0.00632   iters=5   conv=TRUE  n_run=200   n_final=200   ode=210    val=0.03062532563       0.7s
+K93   bd  eps=0.002     iters=5   conv=TRUE  n_run=232   n_final=232   ode=242    val=0.03061330467       0.8s
+K93   bd  eps=0.000632  iters=7   conv=TRUE  n_run=296   n_final=296   ode=306    val=0.03059046337       2.4s
+K93   bd  eps=0.0002    iters=7   conv=TRUE  n_run=379   n_final=379   ode=404    val=0.03058110355       3.6s
+DONE
+K93   height      k=0 n=141   ode=238    val=0.03054664703       0.2s
+K93   birth-date  k=0 n=141   ode=153    val=0.03062748567       0.1s
+K93   height      k=1 n=281   ode=404    val=0.03056527901       1.9s
+K93   birth-date  k=1 n=281   ode=290    val=0.030583312         0.4s
+K93   height      k=2 n=561   ode=699    val=0.03056924971      13.8s
+K93   birth-date  k=2 n=561   ode=571    val=0.03057363004      11.4s
+K93   height      k=3 n=1121  ode=1274   val=0.03057019467     136.5s
+K93   birth-date  k=3 n=1121  ode=1131   val=0.03057127362     148.4s
+K93   height      k=4 n=2241  ode=2399   val=0.03057043448    1192.9s

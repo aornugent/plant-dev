@@ -1,0 +1,30 @@
+ode_names: height mortality fecundity area_heartwood mass_heartwood storage 
+
+=== rate('height') at the SCM's own node state, SCM env vs fixed open env ===
+    time     height      dh/dt SCM    dh/dt fixed    ratio |    storage SCM      dS/dt SCM
+   0.047    0.38447   8.915877e-01   8.651729e-01   1.0305 |     3.7085e-07     4.1753e-06
+   0.250    0.59942   1.228612e+00   1.190050e+00   1.0324 |     2.7205e-06     2.3594e-05
+   0.500    0.95839   1.635397e+00   1.581205e+00   1.0343 |     1.9380e-05     1.3789e-04
+   1.000    1.93432   2.206591e+00   2.122817e+00   1.0395 |     3.6456e-04     1.7427e-03
+   1.500    3.10822   2.442683e+00   2.335460e+00   1.0459 |     2.6716e-03     8.8355e-03
+   2.000    4.34267   2.470958e+00   2.345681e+00   1.0534 |     1.0936e-02     2.6259e-02
+   2.500    5.56216   2.395484e+00   2.256119e+00   1.0618 |     3.1108e-02     5.6642e-02
+   3.000    6.73031   2.272093e+00   2.121558e+00   1.0710 |     6.9683e-02     9.9583e-02
+
+=== re-integrate the SCM's birth state with plant's individual runner ===
+SCM node-1 state at t=1e-05: height=3.442030e-01  mortality=1.603230e-03  fecundity=1.108136e-26  area_heartwood=5.178375e-14  mass_heartwood=9.603193e-12  storage=3.840304e-07
+     age        h SCM     h re-int    ratio |        a SCM     a re-int    ratio
+    0.24      0.58740      0.57865   1.0151 |   3.4783e-04   3.3010e-04   1.0537
+    0.50      0.95840      0.93330   1.0269 |   1.7169e-03   1.5743e-03   1.0906
+    1.00      1.93433      1.86179   1.0390 |   1.7038e-02   1.5038e-02   1.1331
+    1.50      3.10823      2.97852   1.0436 |   8.0274e-02   6.9835e-02   1.1495
+    2.00      4.34269      4.15368   1.0455 |   2.3946e-01   2.0705e-01   1.1565
+    2.50      5.56217      5.31448   1.0466 |   5.3764e-01   4.6327e-01   1.1605
+    2.98      6.68360      6.38231   1.0472 |   9.8383e-01   8.4275e-01   1.1674
+
+=== SCM node-1 ode_state vs its individual's states (layout check) ===
+species ode_size = 608  n nodes = 76  per-node = 8 
+node ode_names  : height mortality fecundity area_heartwood mass_heartwood storage offspring_produced_survival_weighted log_density 
+first 8 of species ode_state: 1.934316e+00 1.183792e-02 3.243954e-18 3.299168e-07 2.726789e-04 3.645581e-04 1.342446e-18 -1.382735e+01 
+node-1 individual states    : height=1.934316e+00 mortality=1.183792e-02 fecundity=3.243954e-18 area_heartwood=3.299168e-07 mass_heartwood=2.726789e-04 storage=3.645581e-04 
+node-1 log_density          : -13.82735 

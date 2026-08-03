@@ -7,3 +7,8 @@
 --> TF24-ht eps=0.2       iters=5   conv=TRUE  n_run=146   n_final=146   ode=5078   val=56.9101303       1107.0s
 === TF24-ht eps=0.0632 ===
   [TF24 ht eps=0.0632   ] iter  1  n=141   ode=5055   val=42.140174    flag=2     214.5s
+  [TF24 ht eps=0.0632   ] iter  2  n=143   ode=5176   val=55.801764    flag=4     256.8s
+  [TF24 ht eps=0.0632   ] iter  3  n=147   ode=5146   val=56.794318    flag=2     315.0s
+  [TF24 ht eps=0.0632   ] iter  4  n=149   ode=5147   val=56.483531    flag=1     343.0s
+  [TF24 ht eps=0.0632   ] iter  5  n=150   ode=5108   val=56.726513    flag=2     351.9s
+  [TF24 ht eps=0.0632   ] iter  6  n=152   ode=5132   val=56.68001     flag=1     294.4s

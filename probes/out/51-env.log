@@ -1,0 +1,26 @@
+=== fresh / fixed environments ===
+fresh Environment          time=  0.0000  soil_water=0.214,0.214,0.214,0.214,0.214  cumflux=0,0,0,0  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+set_fixed_environment      time=  0.0000  soil_water=0.214,0.214,0.214,0.214,0.214  cumflux=0,0,0,0  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+driver names: leaf_temp ca atm_vpd rainfall atm_kpa atm_o2_kpa PPFD 
+
+=== SCM, open canopy (birth_rate_y = 1e-6) ===
+SCM patch t=0.05           time=  0.0469  soil_water=0.309679,0.26656,0.215409,0.214004,0.214  cumflux=0.04688,0.045,0.0001058,8.336e-14  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+SCM patch t=0.50           time=  0.5000  soil_water=0.310613,0.310613,0.310613,0.310613,0.310583  cumflux=0.5,0.4633,0.3184,4.136e-11  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+SCM patch t=1.00           time=  1.0000  soil_water=0.310613,0.310613,0.310613,0.310615,0.310587  cumflux=1,0.9248,0.7799,8.375e-10  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+SCM patch t=2.00           time=  2.0000  soil_water=0.310613,0.310613,0.310613,0.31062,0.31049  cumflux=2,1.848,1.703,3.413e-08  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+SCM patch t=3.00           time=  3.0000  soil_water=0.310613,0.310613,0.310613,0.310618,0.310537  cumflux=3,2.771,2.626,3.135e-07  ode_size=9  light(0,1,5)=0.999999,0.999999,1.000000
+
+=== IBM, open canopy (one individual per 1e5 m2) ===
+IBM patch t=0.06           time=  0.0600  soil_water=0.214,0.214,0.214,0.214,0.214  cumflux=0,0,0,0  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+IBM patch t=0.50           time=  0.5000  soil_water=0.214,0.214,0.214,0.214,0.214  cumflux=0,0,0,0  ode_size=9  light(0,1,5)=1.000000,1.000000,1.000000
+IBM patch t=1.00           time=  1.0000  soil_water=0.214,0.214,0.214,0.214,0.214  cumflux=0,0,0,0  ode_size=9  light(0,1,5)=0.999998,0.999998,1.000000
+IBM patch t=2.00           time=  2.0000  soil_water=0.214,0.214,0.214,0.214,0.214  cumflux=0,0,0,0  ode_size=9  light(0,1,5)=0.999957,0.999957,1.000000
+IBM patch t=3.00           time=  3.0000  soil_water=0.214,0.214,0.214,0.214,0.214  cumflux=0,0,0,0  ode_size=9  light(0,1,5)=0.999724,0.999725,0.999884
+
+=== dh/dt for the SAME state under each environment ===
+state: height=1.93432e+00  mortality=1.18379e-02  fecundity=3.24395e-18  area_heartwood=3.29917e-07  mass_heartwood=2.72679e-04  storage=3.64558e-04
+  fresh    dh/dt = 2.122817e+00    ratio to SCM node's own rate = 0.9620
+  fixed    dh/dt = 2.122817e+00    ratio to SCM node's own rate = 0.9620
+  scm@1    dh/dt = 2.206591e+00    ratio to SCM node's own rate = 1.0000
+  ibm@1    dh/dt = 2.122817e+00    ratio to SCM node's own rate = 0.9620
+  SCM node's own reported dh/dt = 2.206591e+00
