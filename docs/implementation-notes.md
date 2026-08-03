@@ -5155,6 +5155,21 @@ parameter list without recomputing the derived strategy quantities. The correct 
 unperturbed value. Both routes give the same collapse, so this is not the cause of the
 non-convergence — but the scripts are wrong and any figure taken through them is suspect.
 
+**Owed out of this pass, and none of it is optional if V4 is to be re-attempted.**
+
+- **The production subject and reference harnesses are not in the tree.** They were written into
+  `plant-dev/scratch-p3/` — the repository root, not the scratchpad — and are preserved in the
+  session scratchpad under `wave6-v4-scratch/` rather than committed, because what landed there is
+  a mix of intermediate logs, output dumps and the **defective** first reference harness. A gate's
+  configuration must be a committed file, so a deliberate `scripts/v4-lma-reference.R` carrying the
+  `add_strategies(p, trait_matrix(v, "lma"))` route and the pinned schedule is owed. Promoting
+  scratch would have committed the bug.
+- **Fix the perturbation route in `scripts/v4-census-gradient.R` and `scripts/v4-reference.R`**,
+  which write `pars[["lma"]]` directly.
+- **Diagnose the stand collapse.** A relative `lma` step of 2e-7 taking a 105-year stand to
+  underflow is the obstruction to every finite-difference reference at production, and it is
+  undiagnosed. The 42 s against 112 s wall clock is the cheap discriminator for finding it.
+
 **Three of the orchestrator's own instructions were wrong and are corrected in `ORCHESTRATOR.md`:**
 the schedule-taking tell (`node_schedule_times[[1]]` reads 0 on every run on this build, so it
 discriminates nothing — use the node count), the claim that background work cannot progress across
