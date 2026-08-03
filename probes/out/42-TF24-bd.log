@@ -34,3 +34,9 @@
   [TF24 bd eps=0.02     ] iter  7  n=330   ode=4441   val=401.32877    flag=9     127.2s
   [TF24 bd eps=0.02     ] iter  8  n=339   ode=4427   val=401.32097    flag=8     133.7s
   [TF24 bd eps=0.02     ] iter  9  n=347   ode=4420   val=401.31853    flag=5     140.4s
+  [TF24 bd eps=0.02     ] iter 10  n=352   ode=4465   val=401.31673    flag=4     141.8s
+  [TF24 bd eps=0.02     ] iter 11  n=356   ode=4458   val=401.31697    flag=1     150.2s
+  [TF24 bd eps=0.02     ] iter 12  n=357   ode=4468   val=401.31675    flag=0     145.1s
+--> TF24-bd eps=0.02      iters=12  conv=TRUE  n_run=357   n_final=357   ode=4468   val=401.316748       1471.8s
+=== TF24-bd eps=0.00632 ===
+  [TF24 bd eps=0.00632  ] iter  1  n=141   ode=4013   val=395.44149    flag=27     44.1s

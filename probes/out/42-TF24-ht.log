@@ -29,3 +29,5 @@
   [TF24 ht eps=0.00632  ] iter  1  n=141   ode=5055   val=42.140174    flag=32     79.8s
   [TF24 ht eps=0.00632  ] iter  2  n=173   ode=6011   val=55.039677    flag=30    124.4s
   [TF24 ht eps=0.00632  ] iter  3  n=203   ode=6560   val=56.792821    flag=28    152.7s
+  [TF24 ht eps=0.00632  ] iter  4  n=231   ode=6636   val=59.973941    flag=25    192.0s
+  [TF24 ht eps=0.00632  ] iter  5  n=256   ode=6662   val=60.923905    flag=29    204.6s

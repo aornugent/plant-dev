@@ -83,7 +83,21 @@ decouple_gap <- function() {
   abs(d$birth - d$height) / abs(d$height)
 }
 
-## Pooled individual-based ensemble: 8 replicates at 4 m2, 6 at 16 m2, 2 at 64 m2.
+## The soil-corrected oracle (Figure 2).  56-oracle128.rds: 128 m2, regular
+## arrivals at midpoint placement, 10 mortality seeds paired between two frozen
+## soil-water levels that bracket the SCM's own range.  54-final.rds carries the
+## matching SCM values at 85, 170 and 340 introductions in both coordinates.
+or128   <- readRDS("probes/out/56-oracle128.rds")
+final   <- readRDS("probes/out/54-final.rds")
+or_ages <- or128$ages
+se_of   <- function(m) apply(m, 2, sd) / sqrt(nrow(m))
+or_wet  <- colMeans(or128$res$wet); or_wse <- se_of(or128$res$wet)
+or_dry  <- colMeans(or128$res$dry); or_dse <- se_of(or128$res$dry)
+scm_ht  <- final$S[["ht_340"]]; scm_bd <- final$S[["bd_340"]]
+
+## The pre-correction ensemble, kept only for Figure 6, whose y quantity is the
+## excess over it.  That oracle ran with soil water frozen at its initial 0.214,
+## so this ensemble is systematically dry: see the note on Figure 6 below.
 ibm_leaf <- rbind(oracle$out[["4"]]$L[, , 1],
                   oracle$out[["16"]]$L[, , 1],
                   oracle$out[["64"]]$L[, , 1])
@@ -174,6 +188,70 @@ tag("(b)")
 invisible(dev.off())
 
 ## ======================================================================== ##
+## Figure 2.  The individual-based comparison (Appendix E).
+##
+## Rebuilt on the soil-corrected oracle.  `StochasticPatch::ode_size()` omits
+## `environment.ode_size()` and none of its three ODE accessors forward to the
+## environment, so TF24's nine environment states -- five soil layers and four
+## cumulative fluxes -- were never integrated and soil water stayed frozen at its
+## initial 0.214 for the whole run.  probes/56-oracle128.R runs the oracle at
+## 128 m2 with regular arrivals at midpoint placement, 10 mortality seeds paired
+## between two soil levels, and soil water frozen at each end of the SCM's own
+## range (0.310613 and 0.299220) so the two runs bracket the answer.  The SCM
+## columns are at 340 introductions (truncated at 3.5 yr, then twice refined),
+## not the 141 of the section 4 table.
+## ======================================================================== ##
+f2 <- dev_open("fig-02-oracle-comparison", 7.0, 3.0, pointsize = 9)
+par(mfrow = c(1, 2))
+
+OA    <- or_ages
+or_m  <- (or_wet + or_dry) / 2                    # centre of the soil bracket
+band  <- function(lo, hi, col) polygon(c(OA, rev(OA)), c(lo, rev(hi)),
+                                       col = col, border = NA)
+
+panel()
+plot(NA, xlim = c(0.9, 3.1), ylim = c(3e-3, 2.6), log = "y", axes = FALSE,
+     xlab = "patch age (yr)",
+     ylab = expression("leaf area above ground level  (" * m^2 ~ m^-2 * ")"))
+axis(1, at = OA)
+axis(2, at = 10^(-2:0), labels = log10lab(-2:0))
+## The oracle is drawn as a wide sheath so that the corrected coordinate lying on
+## top of it stays visible as coincidence rather than hiding it.
+band(or_dry - or_dse, or_wet + or_wse, fade(COL_REF, 0.20))
+lines(OA, or_m, col = fade(COL_REF, 0.45), lwd = 3.6)
+lines(OA, scm_ht, col = COL_H, lwd = 1.9); points(OA, scm_ht, col = COL_H, pch = PCH_H, cex = 0.85)
+lines(OA, scm_bd, col = COL_B, lwd = 1.5); points(OA, scm_bd, col = COL_B, pch = PCH_B, cex = 0.7)
+ha <- c(0, 0.5, 0.5, 0.5, 1); vo <- c(2.1, 1.6, 1.6, 1.6, 1.6)
+for (k in seq_along(OA))
+  text(OA[k], scm_ht[k] * vo[k], sprintf("%.2f", (scm_ht / or_m)[k]),
+       col = COL_H, cex = 0.75, adj = c(ha[k], 0))
+legend("bottomright", inset = c(0.01, 0.02), bty = "n", cex = 0.82, seg.len = 1.8,
+       legend = c("oracle (individual-based)", "height (uncorrected)",
+                  "birth date (corrected)"),
+       col = c(fade(COL_REF, 0.45), COL_H, COL_B), pch = c(NA, PCH_H, PCH_B),
+       lwd = c(3.6, 1.9, 1.5))
+tag("(a)")
+
+panel()
+plot(NA, xlim = c(0.95, 3.05), ylim = c(0.9895, 1.0105), axes = FALSE,
+     xlab = "patch age (yr)", ylab = "leaf area / oracle")
+axis(1, at = OA)
+yt <- seq(0.99, 1.01, by = 0.005); axis(2, at = yt, labels = sprintf("%.3f", yt))
+band((or_dry - or_dse) / or_m, (or_wet + or_wse) / or_m, fade(COL_REF, 0.10))
+band(or_dry / or_m, or_wet / or_m, fade(COL_REF, 0.22))
+lines(OA, rep(1, length(OA)), col = COL_REF, lwd = 1.4)
+lines(OA, scm_bd / or_m, col = COL_B, lwd = 1.9)
+points(OA, scm_bd / or_m, col = COL_B, pch = PCH_B, cex = 0.8)
+arrows(1.9, 1.0072, 1.9, 1.0098, length = 0.045, col = COL_H, lwd = 1.3)
+text(1.9, 1.0069, sprintf("uncorrected: %.2f to %.2f", min(scm_ht / or_m), max(scm_ht / or_m)),
+     col = COL_H, cex = 0.8, adj = c(0.5, 1))
+legend("bottomleft", inset = c(0.01, 0.01), bty = "n", cex = 0.78,
+       legend = c("soil-water bracket", expression("bracket" %+-% "1 s.e.")),
+       fill = c(fade(COL_REF, 0.22), fade(COL_REF, 0.10)), border = NA)
+tag("(b)")
+invisible(dev.off())
+
+## ======================================================================== ##
 ## Figure 3.  Gap between the two coordinates under refinement (section 1).
 ## ======================================================================== ##
 f3 <- dev_open("fig-03-coordinate-gap", 3.5, 3.3, pointsize = 8)
@@ -207,52 +285,31 @@ legend("bottomleft", inset = c(0.005, 0.005), bty = "n", cex = 0.78, seg.len = 1
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 2.  The individual-based comparison (Appendix E).
+## Figure 4.  The three operators through the run (section 2.2).
 ## ======================================================================== ##
-f2 <- dev_open("fig-02-oracle-comparison", 7.0, 3.1, pointsize = 9)
-par(mfrow = c(1, 2))
+f4 <- dev_open("fig-04-operators", 3.5, 3.3, pointsize = 8)
+panel(mar = c(2.9, 3.4, 0.7, 0.6))
 
-kw   <- ibm_grid >= 0.5 & ibm_grid <= 5
-gw   <- ibm_grid[kw]
-mw   <- colMeans(ibm_leaf[, kw])
-sw   <- apply(ibm_leaf[, kw], 2, sd)
-tw   <- h_arm$time >= 0.5 & h_arm$time <= 5
-
-panel()
-plot(NA, xlim = c(0.5, 5), ylim = c(1e-5, 3), log = "y", axes = FALSE,
+o <- op_by_state
+plot(NA, xlim = c(0.5, 110), ylim = c(-0.36, 1.02), log = "x", axes = FALSE,
      xlab = "patch age (yr)",
-     ylab = expression("leaf area above ground level  (" * m^2 ~ m^-2 * ")"))
-axis(1, at = c(0.5, 1, 2, 3, 4, 5))
-axis(2, at = 10^(-5:0), labels = log10lab(-5:0))
-for (k in seq_len(nrow(ibm_leaf)))
-  lines(gw, ibm_leaf[k, kw], col = fade(COL_REF, 0.22), lwd = 0.6)
-lines(gw, mw, col = COL_REF, lwd = 2.1)
-lines(h_arm$time[tw], h_arm$lai0[tw], col = COL_H, lwd = 1.9)
-lines(b_arm$time[tw], b_arm$lai0[tw], col = COL_B, lwd = 1.9)
-legend("bottomright", inset = c(0.01, 0.02), bty = "n", cex = 0.82, seg.len = 1.8,
-       legend = c("individual-based replicates (16)", "ensemble mean",
-                  "density in height (uncorrected)", "density in birth date (corrected)"),
-       col = c(fade(COL_REF, 0.4), COL_REF, COL_H, COL_B),
-       lwd = c(0.8, 2.1, 1.9, 1.9))
-tag("(a)")
-
-panel()
-ar <- gw >= 1
-plot(NA, xlim = c(1, 5), ylim = c(0, 3.2), axes = FALSE,
-     xlab = "patch age (yr)", ylab = "leaf area / ensemble mean")
-axis(1, at = 1:5); axis(2, at = 0:3)
-polygon(c(gw[ar], rev(gw[ar])),
-        c((mw + sw)[ar] / mw[ar], rev((mw - sw)[ar] / mw[ar])),
-        col = fade(COL_REF, 0.10), border = NA)
-abline(h = 1, col = COL_REF, lwd = 1.2)
-lines(gw[ar], at(h_arm, "lai0", gw[ar]) / mw[ar], col = COL_H, lwd = 1.9)
-points(gw[ar], at(h_arm, "lai0", gw[ar]) / mw[ar], col = COL_H, pch = PCH_H, cex = 0.8)
-lines(gw[ar], at(b_arm, "lai0", gw[ar]) / mw[ar], col = COL_B, lwd = 1.9)
-points(gw[ar], at(b_arm, "lai0", gw[ar]) / mw[ar], col = COL_B, pch = PCH_B, cex = 0.75)
-legend("topright", inset = c(0.01, 0.02), bty = "n", cex = 0.82,
-       legend = expression("ensemble mean" %+-% "1 s.d."),
-       fill = fade(COL_REF, 0.10), border = NA)
-tag("(b)")
+     ylab = expression("estimate of " * d * italic(g) / d * italic(h) ~ "(" * yr^-1 * ")"))
+sg <- o$A50 * o$C50 < 0
+rect(min(o$time[sg]), -0.36, max(o$time[sg]), 1.02, col = "#F2F2F2", border = NA)
+axis(1, at = c(0.5, 1, 3, 10, 30, 100), labels = c("0.5", "1", "3", "10", "30", "100"))
+axis(2, at = seq(-0.25, 1.0, by = 0.25))
+polygon(c(o$time, rev(o$time)), c(o$C25, rev(o$C75)), col = fade(COL_REF, 0.12), border = NA)
+polygon(c(o$time, rev(o$time)), c(o$A25, rev(o$A75)), col = fade(COL_H, 0.14), border = NA)
+abline(h = 0, col = COL_GRY, lty = 3)
+lines(o$time, o$C50, col = COL_REF, lwd = 2.0)
+lines(o$time, o$B50, col = COL_AUX, lwd = 1.5, lty = 2)
+lines(o$time, o$A50, col = COL_H,   lwd = 2.0)
+text(sqrt(min(o$time[sg]) * max(o$time[sg])), 1.0, "opposite sign",
+     cex = 0.8, col = COL_GRY, adj = c(0.5, 1))
+legend("topright", inset = c(0.01, 0.02), bty = "n", cex = 0.8, seg.len = 1.8,
+       legend = c("required quantity", "fraction-preserving perturbation",
+                  "single-individual perturbation"),
+       col = c(COL_REF, COL_AUX, COL_H), lty = c(1, 2, 1), lwd = c(2.0, 1.5, 2.0))
 invisible(dev.off())
 
 ## ======================================================================== ##
@@ -301,37 +358,9 @@ tag("(b)")
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 4.  The three operators through the run (section 2.2).
+## Figure 6.  The perturbation is resolved but wrong (Appendix B).
 ## ======================================================================== ##
-f4 <- dev_open("fig-04-operators", 3.5, 3.3, pointsize = 8)
-panel(mar = c(2.9, 3.4, 0.7, 0.6))
-
-o <- op_by_state
-plot(NA, xlim = c(0.5, 110), ylim = c(-0.36, 1.02), log = "x", axes = FALSE,
-     xlab = "patch age (yr)",
-     ylab = expression("estimate of " * d * italic(g) / d * italic(h) ~ "(" * yr^-1 * ")"))
-sg <- o$A50 * o$C50 < 0
-rect(min(o$time[sg]), -0.36, max(o$time[sg]), 1.02, col = "#F2F2F2", border = NA)
-axis(1, at = c(0.5, 1, 3, 10, 30, 100), labels = c("0.5", "1", "3", "10", "30", "100"))
-axis(2, at = seq(-0.25, 1.0, by = 0.25))
-polygon(c(o$time, rev(o$time)), c(o$C25, rev(o$C75)), col = fade(COL_REF, 0.12), border = NA)
-polygon(c(o$time, rev(o$time)), c(o$A25, rev(o$A75)), col = fade(COL_H, 0.14), border = NA)
-abline(h = 0, col = COL_GRY, lty = 3)
-lines(o$time, o$C50, col = COL_REF, lwd = 2.0)
-lines(o$time, o$B50, col = COL_AUX, lwd = 1.5, lty = 2)
-lines(o$time, o$A50, col = COL_H,   lwd = 2.0)
-text(sqrt(min(o$time[sg]) * max(o$time[sg])), 1.0, "opposite sign",
-     cex = 0.8, col = COL_GRY, adj = c(0.5, 1))
-legend("topright", inset = c(0.01, 0.02), bty = "n", cex = 0.8, seg.len = 1.8,
-       legend = c("required quantity", "fraction-preserving perturbation",
-                  "single-individual perturbation"),
-       col = c(COL_REF, COL_AUX, COL_H), lty = c(1, 2, 1), lwd = c(2.0, 1.5, 2.0))
-invisible(dev.off())
-
-## ======================================================================== ##
-## Figure 7.  The perturbation is resolved but wrong (Appendix B).
-## ======================================================================== ##
-f7 <- dev_open("fig-07-step-size", 7.0, 2.8, pointsize = 9)
+f6 <- dev_open("fig-06-step-size", 7.0, 2.8, pointsize = 9)
 par(mfrow = c(1, 2))
 
 panel(mar = c(2.9, 3.8, 1.1, 0.6))
@@ -378,56 +407,12 @@ tag("(b)")
 invisible(dev.off())
 
 ## ======================================================================== ##
-## Figure 6.  The corrected solver's residual excess is not resolution (6.2).
-## ======================================================================== ##
-f6 <- dev_open("fig-06-excess-refinement", 7.0, 2.9, pointsize = 9)
-par(mfrow = c(1, 2))
-
-lty_n <- c("141" = 1, "281" = 2, "561" = 3)
-pch_n <- c("141" = 16, "281" = 17, "561" = 15)
-
-panel()
-plot(NA, xlim = c(0.9, 3.1), ylim = c(0, 23), axes = FALSE,
-     xlab = "patch age (yr)",
-     ylab = "excess over the ensemble mean (%)")
-axis(1, at = EX_AGES); axis(2, at = seq(0, 20, by = 5))
-abline(h = 0, col = "#CFCFCF", lwd = 0.8)
-for (nm in names(lty_n)) {
-  lines(EX_AGES, ex_pct[[nm]], col = COL_B, lwd = 1.7, lty = lty_n[[nm]])
-  points(EX_AGES, ex_pct[[nm]], col = COL_B, pch = pch_n[[nm]], cex = 0.85)
-}
-lines(EX_AGES, ex_rich_pct, col = COL_REF, lwd = 1.0, lty = 1)
-legend("topleft", inset = c(0.02, 0.0), bty = "n", cex = 0.82, seg.len = 1.9,
-       legend = c("141 introductions", "281", "561", "Richardson limit"),
-       col = c(COL_B, COL_B, COL_B, COL_REF), lty = c(lty_n, 1),
-       pch = c(pch_n, NA), lwd = c(1.7, 1.7, 1.7, 1.2))
-tag("(a)")
-
-panel()
-plot(NA, xlim = c(0.9, 3.1), ylim = c(0.012, 1.0), log = "y", axes = FALSE,
-     xlab = "patch age (yr)",
-     ylab = "distance from the Richardson limit (% points)")
-axis(1, at = EX_AGES)
-axis(2, at = c(0.02, 0.05, 0.1, 0.2, 0.5, 1), labels = c("0.02", "0.05", "0.1", "0.2", "0.5", "1"))
-for (nm in names(lty_n)) {
-  y <- ex_pct[[nm]] - ex_rich_pct
-  lines(EX_AGES, y, col = COL_B, lwd = 1.7, lty = lty_n[[nm]])
-  points(EX_AGES, y, col = COL_B, pch = pch_n[[nm]], cex = 0.85)
-}
-for (nm in c("141", "281", "561"))
-  text(3.06, (ex_pct[[nm]] - ex_rich_pct)[5], nm, col = COL_B, cex = 0.8, adj = c(1, -0.6))
-tag("(b)")
-invisible(dev.off())
-
-## ======================================================================== ##
 ## VERIFY.  Every plotted value against the report's own tables.
 ## ======================================================================== ##
 FAIL <- 0L
 ## `sig`: the report prints this value to `sig` significant figures, so half a
 ## unit in the last printed place is the whole tolerance the comparison allows.
-## `ulp = 1` allows a full unit, and is used only where the report has clearly
-## rounded twice (to four figures, then to three) -- see the three cells noted
-## below.  Nothing here is loosened to make a real disagreement pass.
+## Nothing here is loosened to make a real disagreement pass.
 chk <- function(what, got, want, tol = NULL, sig = NULL, ulp = 0.5) {
   if (is.null(tol))
     tol <- ulp * 10^(floor(log10(abs(want))) - sig + 1) * (1 + 1e-9)
@@ -440,15 +425,59 @@ cat("\nverification against docs/reports/13-carried-state-invalidates-the-compre
 
 cat(" Figure 1 / section 1, schedule refinement\n")
 chk("offspring, height arm (42.14, 54.80, 59.06)", hh, c(42.14, 54.80, 59.06), 5e-3)
-## Report prints 399.09; the datum is 399.0849, i.e. 399.085 to five figures and
-## then 399.09.  Double-rounded, so a full unit in the last place is allowed.
-chk("offspring, birth-date arm (395.44, 399.09, 400.92)", bb,
-    c(395.44, 399.09, 400.92), sig = 5, ulp = 1)
+chk("offspring, birth-date arm (395.44, 399.08, 400.92)", bb,
+    c(395.44, 399.08, 400.92), sig = 5)
 chk("height moves (+30.0%, +7.8%)", 100 * diff(hh) / hh[-3], c(30.0, 7.8), 0.05)
 chk("birth-date moves (+0.92%, +0.46%)", 100 * diff(bb) / bb[-3], c(0.92, 0.46), 5e-3)
 chk("section 6.4 birth-date fixed-schedule limit 400.9166", bb[3], 400.9166, 5e-4)
 
-cat(" Figure 2 / section 1, relative gap between coordinates\n")
+cat(" Figure 2 / Appendix E, the soil-corrected individual-based oracle\n")
+chk("oracle, soil wet", or_wet,
+    c(0.003823, 0.024858, 0.096986, 0.270120, 0.582605), 5e-7)
+chk("oracle, soil dry", or_dry,
+    c(0.003812, 0.024774, 0.096644, 0.269167, 0.580676), 5e-7)
+chk("oracle standard error (wet)", or_wse,
+    c(0.000008, 0.000058, 0.000429, 0.001000, 0.002645), 5e-7)
+chk("SCM height coordinate, 340 introductions", scm_ht,
+    c(0.006269, 0.050238, 0.228720, 0.680940, 1.359107), 5e-7)
+chk("SCM birth-date coordinate, 340 introductions", scm_bd,
+    c(0.003817, 0.024795, 0.097054, 0.270304, 0.584000), 5e-7)
+chk("height / oracle wet (1.64 .. 2.33)", scm_ht / or_wet,
+    c(1.64, 2.02, 2.36, 2.52, 2.33), 5e-3)
+chk("height / oracle dry (1.64 .. 2.34)", scm_ht / or_dry,
+    c(1.64, 2.03, 2.37, 2.53, 2.34), 5e-3)
+chk("birth-date / oracle wet (0.998 .. 1.002)", scm_bd / or_wet,
+    c(0.998, 0.997, 1.001, 1.001, 1.002), 5e-4)
+chk("birth-date / oracle dry (1.001 .. 1.006)", scm_bd / or_dry,
+    c(1.001, 1.001, 1.004, 1.004, 1.006), 5e-4)
+## The claim the figure's panel (b) makes: the corrected coordinate lies inside
+## the oracle's own uncertainty -- soil bracket widened by one standard error --
+## at every one of the five ages, and the uncorrected one at none of them.
+chk("corrected inside the oracle band, 5 of 5 ages",
+    sum(scm_bd > or_dry - or_dse & scm_bd < or_wet + or_wse), 5, 0)
+chk("uncorrected inside the oracle band, 0 of 5 ages",
+    sum(scm_ht > or_dry - or_dse & scm_ht < or_wet + or_wse), 0, 0)
+chk("10 paired mortality seeds at 128 m2",
+    c(nrow(or128$res$wet), nrow(or128$res$dry), or128$area), c(10, 10, 128), 0)
+chk("soil-water bracket 0.310613 and 0.299220",
+    unname(or128$soil), c(0.310613, 0.299220), 5e-7)
+## The ratios annotated on panel (a) are against the centre of the bracket, so
+## each must fall inside the table's own wet-to-dry range at that age.
+chk("panel (a) ratio labels inside the table's ranges, 5 of 5",
+    sum(round(scm_ht / ((or_wet + or_dry) / 2), 2) >= round(scm_ht / or_wet, 2) &
+        round(scm_ht / ((or_wet + or_dry) / 2), 2) <= round(scm_ht / or_dry, 2)), 5, 0)
+## The three sentences Appendix E draws from the table.
+chk("corrected agrees to within 0.6% at every age",
+    100 * max(abs(c(scm_bd / or_wet, scm_bd / or_dry) - 1)), 0.6, 0.05)
+chk("uncorrected is 1.6 to 2.5 times above",
+    c(min(scm_ht / or_wet), max(scm_ht / or_dry)), c(1.6, 2.5), 0.05)
+chk("standard error 0.45% at age 3", 100 * or_wse[5] / or_wet[5], 0.45, 5e-3)
+## Appendix E says the bracket is "0.30% to 0.35%" wide; the widths are 0.288%
+## to 0.353%, so the lower end should read 0.29%.
+chk("soil-water bracket 0.29% to 0.35% wide",
+    range(100 * (1 - or_dry / or_wet)), c(0.29, 0.35), 5e-3)
+
+cat(" Figure 3 / section 1, relative gap between coordinates\n")
 chk("TF24 as shipped (8.38, 6.28, 5.79)", g_tf, c(8.38, 6.28, 5.79), 5e-3)
 chk("TF24 store decoupled (0.645, 0.357, 0.0966)", g_dec, c(0.645, 0.357, 0.0966), 1e-3)
 chk("TF24 gap falls by 1.3 then 1.1", g_tf[-3] / g_tf[-1], c(1.3, 1.1), 0.05)
@@ -456,49 +485,7 @@ chk("FF16 falls by 2.4 then 3.6", g_ff[-3] / g_ff[-1], c(2.4, 3.6), 0.05)
 chk("K93 falls by 4.5 then 4.1", g_k9[-3] / g_k9[-1], c(4.5, 4.1), 0.05)
 chk("FF16 and K93 agree to 1.2e-3 and 1.4e-4", c(g_ff[3], g_k9[3]), c(1.2e-3, 1.4e-4), 5e-5)
 
-cat(" Figure 3 / Appendix E, individual-based ensemble\n")
-ea <- c(1, 1.5, 2, 2.5, 3)
-em <- vapply(ea, function(a) mean(ibm_leaf[, which.min(abs(ibm_grid - a))]), 0)
-es <- vapply(ea, function(a) sd(ibm_leaf[, which.min(abs(ibm_grid - a))]), 0)
-chk("ensemble mean", em, c(0.00361, 0.02286, 0.08532, 0.23143, 0.48279), 5e-6)
-chk("ensemble s.d.", es, c(0.00225, 0.01204, 0.03773, 0.08486, 0.15192), 5e-6)
-chk("uncorrected", at(h_arm, "lai0", ea), c(0.00628, 0.05035, 0.22926, 0.68229, 1.35999), 5e-6)
-chk("corrected",   at(b_arm, "lai0", ea), c(0.00383, 0.02488, 0.09738, 0.27117, 0.58568), 5e-6)
-chk("uncorrected ratio (1.74 .. 2.82)", at(h_arm, "lai0", ea) / em,
-    c(1.74, 2.20, 2.69, 2.95, 2.82), 5e-3)
-chk("corrected ratio (1.06 .. 1.21)", at(b_arm, "lai0", ea) / em,
-    c(1.06, 1.09, 1.14, 1.17, 1.21), 5e-3)
-chk("uncorrected z (1.2 .. 5.8)", (at(h_arm, "lai0", ea) - em) / es,
-    c(1.2, 2.3, 3.8, 5.3, 5.8), 0.05)
-chk("corrected z (0.1 .. 0.7)", (at(b_arm, "lai0", ea) - em) / es,
-    c(0.1, 0.2, 0.3, 0.5, 0.7), 0.05)
-chk("16 replicates", nrow(ibm_leaf), 16, 0)
-
-cat(" Figure 4 / section 4, where the discrepancy is generated\n")
-sa <- c(0.75, 1.5, 2.0, 2.5, 3.0, 5.0)
-## Two cells of this table are double-rounded: 5.0349e-2 -> 5.035e-2 -> 5.04e-2,
-## and 1.1446e-3 -> 1.145e-3 -> 1.15e-3.  The table's own ratio column is
-## computed from the unrounded values and matches exactly, below.
-chk("leaf area, uncorrected", at(h_arm, "lai0", sa),
-    c(1.66e-3, 5.04e-2, 2.29e-1, 6.82e-1, 1.360, 1.762),
-    sig = c(3, 3, 3, 3, 4, 4), ulp = 1)
-chk("leaf area, corrected", at(b_arm, "lai0", sa),
-    c(1.15e-3, 2.49e-2, 9.74e-2, 2.71e-1, 0.586, 1.676),
-    sig = c(3, 3, 3, 3, 3, 4), ulp = 1)
-chk("leaf area ratio (1.45 .. 1.05)", at(h_arm, "lai0", sa) / at(b_arm, "lai0", sa),
-    c(1.45, 2.02, 2.35, 2.52, 2.32, 1.05), sig = 3)
-mt <- h_arm$time > 25
-chk("mature leaf-area ratio mean 1.005, range 0.977-1.038",
-    c(mean((h_arm$lai0 / b_arm$lai0)[mt]), range((h_arm$lai0 / b_arm$lai0)[mt])),
-    c(1.005, 0.977, 1.038), 5e-4)
-chk("mature canopy-height ratio mean 0.993, range 0.992-0.995",
-    c(mean((h_arm$hmax / b_arm$hmax)[mt]), range((h_arm$hmax / b_arm$hmax)[mt])),
-    c(0.993, 0.992, 0.995), 5e-4)
-chk("mature stem-density ratio mean 1.35, range 0.37-1.96",
-    c(mean((h_arm$stems / b_arm$stems)[mt]), range((h_arm$stems / b_arm$stems)[mt])),
-    c(1.35, 0.37, 1.96), 5e-3)
-
-cat(" Figure 5 / section 2.2, the three operators\n")
+cat(" Figure 4 / section 2.2, the three operators\n")
 era <- cut(interior$time, c(0.5, 1, 2, 3))
 for (e in levels(era)) {
   k <- which(era == e)
@@ -521,6 +508,43 @@ chk("section 2.1: 37 states, 3459 interior pairs",
 chk("min gap 1.6e-5 m, 14.2% below 1e-4 m",
     c(min(cen$dh), 100 * mean(cen$dh < 1e-4)), c(1.6e-5, 14.2), c(5e-7, 0.05))
 
+cat(" Figure 5 / section 4, where the discrepancy is generated\n")
+sa <- c(0.75, 1.5, 2.0, 2.5, 3.0, 5.0)
+chk("leaf area, uncorrected", at(h_arm, "lai0", sa),
+    c(1.66e-3, 5.03e-2, 2.29e-1, 6.82e-1, 1.360, 1.762),
+    sig = c(3, 3, 3, 3, 4, 4))
+chk("leaf area, corrected", at(b_arm, "lai0", sa),
+    c(1.14e-3, 2.49e-2, 9.74e-2, 2.71e-1, 0.586, 1.676),
+    sig = c(3, 3, 3, 3, 3, 4))
+chk("leaf area ratio (1.45 .. 1.05)", at(h_arm, "lai0", sa) / at(b_arm, "lai0", sa),
+    c(1.45, 2.02, 2.35, 2.52, 2.32, 1.05), sig = 3)
+mt <- h_arm$time > 25
+chk("mature leaf-area ratio mean 1.005, range 0.977-1.038",
+    c(mean((h_arm$lai0 / b_arm$lai0)[mt]), range((h_arm$lai0 / b_arm$lai0)[mt])),
+    c(1.005, 0.977, 1.038), 5e-4)
+chk("mature canopy-height ratio mean 0.993, range 0.992-0.995",
+    c(mean((h_arm$hmax / b_arm$hmax)[mt]), range((h_arm$hmax / b_arm$hmax)[mt])),
+    c(0.993, 0.992, 0.995), 5e-4)
+chk("mature stem-density ratio mean 1.35, range 0.37-1.96",
+    c(mean((h_arm$stems / b_arm$stems)[mt]), range((h_arm$stems / b_arm$stems)[mt])),
+    c(1.35, 0.37, 1.96), 5e-3)
+
+## Section 6.2 has been rewritten and no longer tabulates the excess, so the four
+## checks against that table are gone.  What remains are its rewritten sentences,
+## which are properties of the corrected solver alone: a constant bias in whatever
+## it is compared against cancels in the differences between resolutions.
+##
+## Figure 6 still plots the excess and is no longer referenced from the report.
+## It is left generating pending the verdict on it; nothing below verifies it.
+cat(" Section 6.2, the corrected coordinate\'s leaf-area quadrature\n")
+chk("refinement lowers leaf area by 0.29% to 0.33% in total",
+    range(100 * (ex_scm[["141"]] - ex_scm[["561"]]) / ex_scm[["141"]]),
+    c(0.29, 0.33), 5e-3)
+chk("successive-difference ratios 3.98-3.99", range(ex_ratio), c(3.98, 3.99), 5e-3)
+chk("observed order 1.99-2.00", range(log2(ex_ratio)), c(1.99, 2.00), 5e-3)
+chk("141 introductions within about 0.3% of its own limit",
+    range(100 * (ex_scm[["141"]] - ex_rich) / ex_rich), c(0.31, 0.36), 5e-3)
+
 cat(" Figure 6 / Appendix B, the step-size study\n")
 chk("estimate at 1e-6 from window-TF24.rds vs Appendix B -0.270178",
     EPS_A_1E6, eps_tab$estimate[4], 5e-7)
@@ -531,21 +555,6 @@ chk("distance 0.302 against variation 0.0055, a factor of 55",
     c(eps_tab$distance[4], eps_tab$change[1], eps_tab$distance[1] / eps_tab$change[1]),
     c(0.302, 0.0055, 55), c(5e-4, 5e-5, 0.5))
 
-cat(" Figure 7 / section 6.2, the residual excess\n")
-chk("excess at 141 (+5.94 .. +21.31)", ex_pct[["141"]],
-    c(5.94, 8.80, 14.13, 17.17, 21.31), 5e-3)
-chk("excess at 281 (+5.67 .. +21.03)", ex_pct[["281"]],
-    c(5.67, 8.52, 13.83, 16.87, 21.03), 5e-3)
-chk("excess at 561 (+5.60 .. +20.96)", ex_pct[["561"]],
-    c(5.60, 8.45, 13.75, 16.80, 20.96), 5e-3)
-chk("Richardson limit (+5.58 .. +20.94)", ex_rich_pct,
-    c(5.58, 8.42, 13.73, 16.77, 20.94), 5e-3)
-chk("successive-difference ratios 3.98-3.99", range(ex_ratio), c(3.98, 3.99), 5e-3)
-chk("observed order 1.99-2.00", range(log2(ex_ratio)), c(1.99, 2.00), 5e-3)
-chk("resolution accounts for 6.0, 4.3, 2.9, 2.3, 1.7 % of the excess",
-    100 * (ex_scm[["141"]] - ex_rich) / (ex_scm[["141"]] - ex_pool),
-    c(6.0, 4.3, 2.9, 2.3, 1.7), 0.05)
-
 cat(sprintf("\n%d check(s) failed\n", FAIL))
-cat("figures written:\n"); cat(paste0("  ", c(f1, f2, f3, f4, f5, f6, f7), "\n"), sep = "")
+cat("figures written:\n"); cat(paste0("  ", c(f1, f2, f3, f4, f5, f6), "\n"), sep = "")
 if (FAIL > 0L) quit(status = 1L)

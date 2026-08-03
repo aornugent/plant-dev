@@ -46,6 +46,14 @@ schedule: (a) absolute values, with the corrected arm's own fixed-schedule limit
 uncorrected arm has reached 0.71 of its own value at 561 and is still climbing; the corrected arm is
 at 0.986.
 
+![Figure 2](figures/fig-02-oracle-comparison.svg)
+
+**Figure 2.** Leaf area above ground level over patch ages 1 to 3 against the soil-corrected
+individual-based solver at 128 m², ten paired mortality seeds, with soil water held at each end of the
+range the SCM occupies: (a) absolute values, the oracle drawn as a band and the uncorrected coordinate
+labelled with its factor at each age; (b) the same as a ratio to the centre of the bracket, magnified,
+showing the soil bracket and the bracket widened by one standard error.
+
 **On the two strategies whose growth is a function of size, the two coordinates converge to each
 other**, which is the check that this is a change of coordinate and not a change of model. The
 relative gap falls by factors of 4.5 and 4.1 on K93 across successive halvings of the cohort spacing,
@@ -286,23 +294,28 @@ proportional violations sit where `S_max` is smallest — the recruits. And offs
 the 0.5% level. This defect is independent of everything else in this report; the fix is to make the
 rate restoring below zero rather than pinned, which requires reading the unclamped state.
 
-### 6.2 The corrected coordinate's leaf-area quadrature is second order and converged
+### 6.2 The corrected coordinate's leaf-area quadrature is second order; the uncorrected one is not
 
-Before the individual-based solver's frozen soil water was identified as the source of the residual
-disagreement in Appendix E, the candidate explanation was that the corrected coordinate's own
-quadrature was under-resolved at the production schedule of 141 introductions. Excluding that is what
-sent the investigation to the other solver, and the exclusion stands independently of what it excluded.
+Before the individual-based solver's frozen soil water was identified (Appendix E), the candidate
+explanation for the residual disagreement was that the corrected coordinate's own quadrature was
+under-resolved. Excluding that is what sent the investigation to the other solver, and the exclusion
+does not depend on the solver it exonerated: these are properties of one arm measured against itself,
+with no ensemble anywhere in the derivation.
 
-Refining the schedule from 141 to 281 to 561 introductions lowers leaf area by 0.29% to 0.33% in total
-across the five ages. Successive-difference ratios are 3.98 to 3.99 at every age, an observed order of
-1.99 to 2.00, so the trapezium over introduction times is second order in the cohort spacing and is
-already within about 0.3% of its limit at the production schedule. Offspring production converges first
-order in the same coordinate — §1's +0.92% then +0.46% — because it is a further integral over patch
-age; the two quantities need not share an order.
+Refining through 85, 170 and 340 introductions, the corrected coordinate's leaf area approaches its own
+Richardson limit by 0.34%, then 0.087%, then 0.022%. Successive-difference ratios are 3.980 to 3.994
+across the five ages, an observed order of 1.993 to 1.998, so the trapezium over introduction times is
+second order in the cohort spacing. The production schedule of 141, 281 and 561 introductions gives the
+same orders and a total change of 0.29% to 0.33%.
 
-These are properties of the corrected solver alone. A constant bias in whatever it is compared against
-cancels in the differences between resolutions, so this result is unaffected by the defect Appendix E
-reports, and a quadrature converged to 0.3% cannot generate a 13% discrepancy.
+**The uncorrected coordinate's leaf-area series is not cleanly second order.** Its observed orders at
+the five ages are 1.96, 1.97, 1.97, 1.89 and 0.96 — falling to first order by age 3, which is where the
+discrepancy between the coordinates is largest.
+
+Offspring production converges first order in the corrected coordinate — §1's +0.92% then +0.46% —
+because it is a further integral over patch age; the two quantities need not share an order. A
+quadrature converged to 0.3% cannot generate a 13% discrepancy, which is what made the other solver the
+remaining candidate.
 
 ### 6.3 The seasonal stress sweep
 
@@ -488,9 +501,9 @@ of the total derivative:
 | `1e-7` | −0.270179 | 5.0 × 10⁻⁶ | 0.3020 |
 | `1e-8` | −0.270178 | 5.2 × 10⁻⁶ | 0.3020 |
 
-![Figure 7](figures/fig-07-step-size.svg)
+![Figure 6](figures/fig-06-step-size.svg)
 
-**Figure 7.** `Node::growth_rate_gradient` evaluated at the patch state of age 2 across five decades of
+**Figure 6.** `Node::growth_rate_gradient` evaluated at the patch state of age 2 across five decades of
 finite-difference step: (a) the estimate against the required quantity; (b) the distance from the
 required quantity against the estimate's own sensitivity to the step.
 
@@ -603,7 +616,7 @@ midpoint-refined to 340 introductions; the truncation is exact, reproducing the 
 uncorrected one is 1.6 to 2.5 times above it.** The agreement is inside the solver's own standard
 error, 0.45% at age 3 over ten mortality seeds.
 
-Four approximations remain, each measured rather than assumed. The soil-water bracket is 0.30% to
+Four approximations remain, each measured rather than assumed. The soil-water bracket is 0.29% to
 0.35% wide, so tracking the decline instead of holding it fixed cannot account for more than that. For
 the first 0.19 years the SCM's soil is still recharging from 0.214, so the earliest cohort is treated
 as slightly too wet at both ends of the bracket; weighted by that cohort's share of age-3 leaf area and
