@@ -377,6 +377,37 @@ uncomputed row, and returned columns that are absent rather than zeroed — neve
 **Gate.** The requested column bitwise identical to the unrestricted build's, plus a
 demonstration that reading an unrequested row fails loudly.
 
+**Built and measured** on plant `p3/trait-mask` (`5fb631a1`), as a spike rather than a shipping
+design. Trait selection did not reach C++ at all: `R/stand_gradient.R` computed the whole matrix
+and subset it, `census_trait_gradient_tf24` took one argument, and `Leaf::input_adjoints` had no
+notion of a request.
+
+| gate | result |
+|---|---|
+| `traits = "lma"`, all 15 leaf rows skipped | **0 of 3 entries differ**, dumps byte-identical |
+| `traits = b, c, root_b, root_c, lma`, 11 of 15 skipped | **0 of 15 differ** |
+| requesting a masked row | refused by name; requesting it properly returns the real column |
+| forward run | `42.411799695604159` / 4 644, bit-identical |
+| speed, lifetime 0.2, same box, back to back | 512.9 s -> 76.8 s, **6.68x** |
+| **control: all four transport rows requested** | 509.4 s -> 513.9 s, **1.00x** |
+
+**The control is the result.** Masking buys 6.68x when the transport rows are not wanted and
+nothing when they are, so **the whole cost is those four rows**. C3 and C4 are substitutes for the
+same cost, measured rather than argued.
+
+**`set_parameter`'s restore is bit-exact**, which the exactness gate establishes as a side effect:
+skipping all fifteen perturbation cycles moved nothing to the last bit through 78 steps of an
+adaptive solve. So the present rows do not depend on the order of perturbations.
+
+**Two findings that correct this report's earlier text.** `Leaf::bound_partials` carries a **second**
+transport differencing loop over the same four parameters, so the pinned-collar branch pays the
+tabulation independently of `input_adjoints`; a function-level profile cannot separate the two
+because both land in the same leaf functions. And **after masking, per-block cost is still 842 us
+at lifetime 0.2 and 1 573 us at lifetime 2**, i.e. 13x to 24x the 65 us figure, with every leaf
+parameter row skipped. Either that figure is not a fair target — it was measured while
+`graft_leaf_outputs` truncated all fifteen rows — or a further cost centre is unidentified. This
+report does not claim to know which.
+
 ### C5 — skip exactly-zero cohorts
 
 **Mechanism.** `soil_adjoint` already skips resources whose adjoint is exactly zero. Cohorts at
