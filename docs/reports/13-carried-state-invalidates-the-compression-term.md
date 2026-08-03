@@ -714,6 +714,14 @@ insertion into the introduction schedule, so both coordinates see byte-identical
 level. Scripts and outputs are in [`probes/`](../../probes); the implementation is `plant` branch
 `claude/nsc-density-measurements-efiolz`.
 
+**What this branch changes.** Three things, and nothing else. The `node_density_in_birth_date` flag and
+the coordinate it selects (§3). `SpeciesBase::control()`, immediately below. And the schedule-refinement
+error metric, which now runs over the abscissa the integral is actually taken over (§6.4). Every other
+defect recorded here is left unfixed, including the stochastic solver's ODE omission that Appendix E
+rests on: repairing it moves TF24's stochastic numerics and requires seed-pinned baselines to be
+regenerated deliberately, which is a decision for the maintainers rather than a side effect of this
+measurement.
+
 **A latent compilation defect, fixed here.** `SpeciesBase::control()` called
 `strategy->get_control()`, which no strategy defines. The member had never been instantiated, so the
 error had never been compiled.
