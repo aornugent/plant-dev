@@ -42,11 +42,13 @@ against a solver that counts individuals and cannot prefer either.
 
 ![Figure 1](figures/fig-01-schedule-convergence.svg)
 
-**Figure 1.** Lifetime offspring production for TF24 under midpoint refinement of the introduction
-schedule: (a) absolute values, with the corrected arm's own fixed-schedule limit of 400.92 marked;
-(b) each arm as a fraction of its own value at 561 introductions. At 141 introductions the
-uncorrected arm has reached 0.71 of its own value at 561 and is still climbing; the corrected arm is
-at 0.986.
+**Figure 1.** Lifetime offspring production for TF24 under uniform midpoint refinement of the
+introduction schedule, extended to 1121 introductions: (a) both coordinates against their
+Richardson-extrapolated limits, which differ by a factor of 6.66; (b) the change over each halving,
+normalised by each arm's own limit, against a second-order reference slope; (c) the relative gap between
+the two extrapolated limits for each strategy. The uncorrected coordinate converges, at an observed tail
+order of 2.15, to a limit 85.0% below the corrected one; on the two strategies whose growth is a function
+of size the two limits coincide to 5.3 × 10⁻⁵ and 5.6 × 10⁻⁷.
 
 ![Figure 2](figures/fig-02-oracle-comparison.svg)
 
@@ -379,6 +381,11 @@ strategies:
 | TF24, height | 60.35 | 60.294 | 204 | 6 233 |
 | TF24, birth-date | 401.317 | 401.722 | 357 | 4 468 |
 
+The adaptive results come from a solver reused across refinement iterations, which §6.6 shows is not the
+same regime as a freshly built one: a fresh solver on TF24's 204-node schedule returns 60.1972 rather than
+60.3519, 0.257% lower. Distances from the uncorrected arm's own limit are therefore good to about 10⁻³
+and no finer. The factor of 6.66 between the limits does not depend on this.
+
 **The corrected coordinate asks for more nodes and is still cheaper.** On TF24 it refines to 357
 introductions against the height arm's 204 at the same `schedule_eps`. Cost is not the node count but
 the number of rate evaluations, which is the sum over accepted steps of the live node count; on that
@@ -469,23 +476,28 @@ Earlier work in this project reported a sixfold saving and, separately, a halvin
 machine. The halving is close to right at the production schedule and conservative at finer ones; the
 sixfold is not supported.
 
-### 6.6 The uncorrected coordinate does not reproduce on re-run
+### 6.6 State survives `SCM::reset()`, and the uncorrected coordinate is far more sensitive to it
 
-Running the same 204-node schedule three times within one process returns offspring production 60.1972,
-60.3377 and 60.3392, a spread of 0.24%, with accepted step counts of 6 110, 6 281 and 6 196. The same
-test on the corrected coordinate at 357 nodes returns 401.3049, 401.3175 and 401.3172 — a spread of
-0.0031%, some 76 times smaller.
+Building a fresh solver for each run is reproducible: three repeats of TF24's 204-node schedule return
+6 110 accepted steps and 60.1972008 every time. Reusing one solver and calling `reset()` between runs is
+not. The first run on the object reproduces the fresh-object value exactly; every run after that returns
+6 281 or 6 196 accepted steps and 60.3377 or 60.3392, values agreeing with each other to 1.5 × 10⁻⁵. This
+is not scatter but two reproducible regimes, and the accepted step count moving between them points at the
+integrator's step-size history surviving the reset.
 
-Two consequences. The height arm's run-to-run spread is comparable to its own accuracy at the default
-`schedule_eps`, 0.097%, so height-arm values cannot be compared across runs at more than three
-significant figures. And the bit-identity check of §3 is unaffected, because it compares first runs in
-fresh processes rather than repeated runs within one.
+**The asymmetry is the informative part.** Across the same schedules the uncorrected coordinate moves
+2.33 × 10⁻³ between the two regimes and the corrected one 3.12 × 10⁻⁵, a factor of 75. The uncorrected
+answer depends on the sequence of accepted steps because its transport term is a finite difference over a
+`10⁻⁶` divisor; the corrected coordinate takes no derivative and barely registers the change. This is the
+mechanism §6.5 identifies behind the step-count saving, showing up as sensitivity of the answer rather
+than of the cost.
 
-`Node::growth_rate_gradient` holds a `thread_local` scratch individual reused across calls and is
-invoked only in the height branch, which makes it the natural suspect, but this has not been bisected
-and is recorded as an observation rather than an attribution. The corrected arm's residual 0.0031% shows
-at least one further warm-start path exists independent of it. Deleting the perturbation removes the
-larger effect either way.
+Two consequences for this report. The convergence series of §1 and the timings of §6.5 build a fresh
+solver for every point, so the extrapolated limits carry no uncertainty from this; their uncertainty is
+the assumed extrapolation order, which moves the uncorrected limit by 6.9 × 10⁻⁴ and the corrected one by
+1.5 × 10⁻⁴. The adaptive sweep of §6.4 reuses one solver, so its values are post-reset ones and distances
+from the uncorrected arm's own limit are quoted no finer than 10⁻³. The bit-identity check of §3 compares
+first runs in fresh processes and is unaffected.
 
 ## Appendix A. The transport term derived
 
