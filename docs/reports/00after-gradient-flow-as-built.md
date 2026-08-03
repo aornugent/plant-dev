@@ -530,6 +530,99 @@ remove its purpose. C5 is independent and small.
 
 ---
 
+## 6b. The design, and its static profile
+
+### What each component is, in build order
+
+**1. The guard fix — built, `p3/trait-mask` `1a06e4c5`.** The two
+`build_cumulative_vulnerability_integral` calls in `Leaf::input_adjoints` and
+`Leaf::bound_partials` move under `par_wanted(PAR_B) || par_wanted(PAR_C) ||
+par_wanted(PAR_ROOT_B) || par_wanted(PAR_ROOT_C)`, which is exactly `rebuilds_transport`'s set and
+exactly the condition under which `set_parameter` reads the knots. Grid contents unchanged.
+
+**2. Trait masking — built as a spike, `p3/trait-mask` `5fb631a1`, needs shipping rework.** A
+requested-trait set reaches C++ and `Leaf` skips the parameter rows nobody asked for. Section 5's
+rule is why this is large rather than marginal: a trait that is not one of the fifteen leaf
+parameter names needs **no leaf parameter row at all**, and 33 of the 44 registered traits are in
+that position.
+
+Three properties the spike established and any shipping version must keep:
+- **absent, not zero** — masked rows are poisoned with NaN, and `x` and the partials row are
+  compacted so the NaN cannot enter arithmetic; the boundary refuses an absent column by name;
+- both `Leaf::input_adjoints` **and** `Leaf::bound_partials` are masked, or the pinned branch pays;
+- `set_parameter`'s restore is bit-exact, so skipping perturbation cycles moves nothing else —
+  measured, 0 of 3 and 0 of 15 entries differing, dumps byte-identical.
+
+What the spike did for expedience and a shipping version should not: `census_trait_gradient` takes
+two name lists (`traits` and `want`) so the refusal is testable, and the mask is not
+species-qualified.
+
+**3. Call the leaf once with the arrived seed — designed and prototyped, not built.** C2b above.
+`Leaf::input_adjoints` is already a vector-Jacobian product; a lazy multi-output
+`CheckpointCallback` replaces the algebraic graft so it is called once per graft with the true seed
+instead of six times with unit vectors. `input_adjoints`' signature does not change.
+
+Two things this needs that the prototype settled:
+- **one callback for all six outputs**, reading all six arrived adjoints in one `computeAdjoint`
+  and calling `input_adjoints` once. Legal: `getAndResetOutputAdjoint` takes an arbitrary slot, and
+  `computeAdjointsTo` sweeps everything after the insertion point before firing.
+- **`pushCallback` once at workspace creation, `insertCallback` per recording.** `callbacks_` is
+  never pruned by `clearAll()` or `newRecording()`, so registering ownership per graft would
+  accumulate about 16 million objects at production.
+  `odelia::ode::supplied_derivative` calls both together, which suits a one-shot graft and not a
+  hot loop.
+
+It also enables something the unit-seed form cannot: **when `lambda_uptake` arrives as exactly
+zero, `Pi_pp`, `grad R` and the parameter rows are not needed at all** — `soil_adjoint` already
+skips resources whose adjoint is exactly zero, so the case occurs.
+
+**4. The transport algebra in closed form — conditional on requirements.** `odelia::incomplete_gamma`
+replaces the tabulation for `b`, `c`, `root_b`, `root_c`. **Its case is correctness, not speed.**
+Those four rows are differenced across a grid whose knot *count* steps 100 to 101 under a 1e-6
+relative parameter move, with measured errors of 47x, 131x and 10 245x — so when those columns are
+computed today they are unreliable. The closed form makes them exact: value agrees to 1.7e-15, the
+Leibniz endpoint `dG/dm = exp(-(m/b)^c)` to 1e-13, and the shape channel matches a **plateauing**
+reference to 1e-11.
+
+So the decision is a requirements one. **If no gradient with respect to a hydraulic vulnerability
+parameter is ever wanted, mask those four and do not build this.** If one is wanted, they are
+broken now. Two further pieces come with it: the inverse `psi_from_transpiration` wants
+`odelia::implicit_value` on its residual, whose derivative is then `1/G'(psi) = exp((psi/b)^c)`;
+and the closed form should become the definition with the forward spline a cache built from it, or
+it is the parallel near-copy `build-plan.md` section 2.1 rules out.
+
+### Static profile, per cohort block
+
+Each factor is measured; the composition is arithmetic on measured factors and is **not** itself
+measured. Provenance is given for every number because they come from sessions whose absolute
+speeds differ by up to 30%, so only the ratios transfer.
+
+| configuration | per-block | how obtained |
+|---|---|---|
+| as built, unmasked | **19.9 ms** | measured, 1 000-call loop, 81-node patch |
+| masked, grids still built | **842 us** | measured, `elapsed / (steps x nodes x 6 x 3)` |
+| masked + guard fix, non-leaf trait | **~147 us** | 842 us divided by the **measured 5.71x** |
+| the above + one call per graft | **~25 us** | 147 us divided by the **measured 5.97-6.11x** |
+| leaf trait requested, + one call per graft | **~940 us** | 5 620 us unmasked at that config, divided by 6 |
+| leaf trait requested, + closed form | **~150 us** | 16 tabulations at ~110 us replaced by ~110 closed-form evaluations at 0.68 us |
+
+**An inconsistency in these numbers that is not resolved.** The microbenchmark puts one tabulation
+at **121 us**; the masked build's 842 us per block cannot contain 24 tabulations at that price, and
+implies about **35 us** each. A factor of three. Candidate causes: the per-block divisor uses the
+*final* node count while the node count grows through a run; cache warmth, since the microbenchmark
+rebuilds its vectors each call; and the 30% box-speed difference between sessions. **Nobody has
+separated them**, so the table's absolute values carry that uncertainty and its ratios do not.
+
+### What the design does not touch
+
+The leaf stays `double`. The solve stays untaped. `Leaf::input_adjoints`' signature is unchanged.
+Report 02's boundary is not relaxed by components 1 to 3, so none of them needs a re-bless, a
+`scientific_version` bump or an owner decision, and each is gated by bitwise equality against the
+build before it. Only component 4 touches the forward path, and only if the spline becomes a cache
+of the closed form.
+
+---
+
 ## 7. What remains open, and what each open item blocks
 
 - **`∇(∂Π/∂p)` is still the design's one unbuilt expression.** Report 00 §10: "It is one
