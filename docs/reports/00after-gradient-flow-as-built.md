@@ -1,5 +1,48 @@
 # The gradient, end to end: the flow as built and the flow to build
 
+> **STOP, recorded 2026-08-03. The adjoint disagrees with a forward tangent and with a converged
+> finite difference on two of three census metrics, and the two references agree with each other.**
+> At `max_patch_lifetime = 2`, trait `lma`:
+>
+> | metric | tangent | adjoint | central FD (1e-5) |
+> |---|---|---|---|
+> | `leaf_area` | −6.70320364069075 | −6.7018609913628 | −6.89018062193 |
+> | `mass_above_ground` | −5.00502106067521 | **+1.1236103034985** | −5.18146726765 |
+> | `area_stem` | −0.00178853862026 | **−0.117481756163** | −0.00183969234031 |
+>
+> `mass_above_ground` has the **wrong sign**; `area_stem` is **65x too large**. The finite
+> difference is stable across steps 1e-4, 1e-5 and 1e-6 and corroborates the tangent on all three
+> metrics to 2.8-3.5%. `leaf_area` agrees to 2.00e-4, which is three orders above the 1.2e-10
+> pinned-replay noise, so it is not roundoff either.
+>
+> **The failure shape localises it to the seed rather than the sweep.** The sweep machinery is shared
+> across metrics, so a defect there would move all three. What differs per metric is
+> `SCM::census_state_adjoint`'s seed — and a wrong seed breaks the adjoint while leaving the tangent
+> correct, because the tangent carries derivatives *through* the census evaluation instead of seeding
+> `d(census)/dy` at `T`. Leading hypothesis, unconfirmed: `reduce` calls `set_ode_state`, and
+> `leaf_area`'s functional is `area_leaf(height)` which `update_dependent_aux` refreshes, while
+> `mass_above_ground` and `area_stem` run through the mass cascade and may read an aux slot the
+> reload leaves stale — P0.1's class, one level up.
+>
+> **Everything about cost in this report stands and is now subordinate.** A faster wrong gradient is
+> worth nothing. The performance design below should not be built until the two columns are
+> explained.
+>
+> **A second, separate finding of the same measurement.** The tangent and the finite difference differ
+> by ~3% *at every step size*, so it is not truncation. `rebind_from` carries `height_0`,
+> `area_leaf_0` and `eta_c` as **values**, because `prepare_strategy` and `height_seed`
+> `static_assert` against an active scalar — so **both** AD paths drop `d(height_0)/d(trait)` and only
+> the finite difference contains it. This confirms report 01's banner by measurement and makes the
+> missing `implicit_value` for `height_seed` a **quantified ~3% bias** rather than a tidy-up.
+>
+> **The tangent reference itself is sound and is the instrument that found this.** The twin compiles,
+> `rebound_system` resolves to a real `FReal<double,1>` patch rather than the identity fallback, it
+> replays the recorded 4 644-step discretisation with the step count matching exactly, and its
+> census agrees with the double run to 1.2e-10. It costs >20x a double run at production, so it
+> belongs at short lifetime. **What it cannot referee** is the leaf's supplied partials:
+> `graft_leaf_outputs` fires for `FReal` and `AReal` alike and both read the same `double` rows from
+> `Leaf::input_adjoints`, so a wrong row cancels between them.
+
 A complete map of the reverse pass — every level from the R entry point to the leaf's supplied
 Jacobian — followed by the design that changes it, with the interactions between the changes
 worked out rather than listed.
