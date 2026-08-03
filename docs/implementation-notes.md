@@ -4504,3 +4504,354 @@ brief, and wave 4 makes it fourteen.** The two with consequences this wave were 
 that the failing V3 row was the tallest cohort's and localised — it was every row, and the
 localisation came from a statistic — and a V4 harness brief that did not state the model
 configuration, so the two halves were built against different `lma` values.
+
+# Phase 3, wave 5 — the four remaining branches integrated, and the gradient that will not finish
+
+Base: plant `p3/wave4` `f733f893` against odelia `p3/odelia-integration` `a3db76a`. Three
+merges into `p3/wave5` and one into odelia. One conflict, in `NEWS.md`, where two branches
+add a bullet to the same list.
+
+| | commit | what it was |
+|---|---|---|
+| plant `p3/polish-cap` | `2b540777` | the collar polish's iteration cap 5 -> 20, `scientific_version` 4 -> 5, NEWS, and two `model_id` snapshot strings |
+| plant `p3/pin-by-size` | `3d69d14d` | recorded step sizes carried through `NodeSchedule`, `SCM` and `run_scm`, with guards, and two `test-scm.R` tests |
+| plant `p3/introductions` | `1da1ff9b` | stacked on `p3/gradient-entry` `6c27f270`, so it brings both: the `census_trait_gradient_tf24` export, per-step state recording, the reverse sweep across node introductions, and the leaf-parameter graft fix |
+| odelia `p3/introductions` | `ffa9fc3` | `solve_adjoint(states, lambda, k_first, k_last)`, the old signature delegating, and `SolverInternal::step_adjoint` sizing its stage buffers from the adjoint it is handed |
+
+Plant: 22 files, **810 insertions, 29 deletions**, and the insertion arithmetic closes
+exactly — 28 + 344 + 438 = 810, with 4 + 16 + 9 = 29 on the other side. `p3/introductions`'
+438 is itself `p3/gradient-entry`'s 159 plus 279 of its own. Odelia: 3 files, **81
+insertions, 1 deletion**, a fast-forward, so identical to `git diff a3db76a ffa9fc3` by
+construction. `p3/wave5-fwd` was not merged: it is a merge of the first two branches and
+adds nothing.
+
+**The one conflict was resolved by keeping both bullets, and the resolution has an
+arithmetic gate.** 17 added lines from `p3/polish-cap` plus 12 from `p3/pin-by-size` is 29
+added lines against `f733f893`'s `NEWS.md` and **zero removed**, and each side's added block
+appears verbatim in the result. That is section 7's "hold your own edits to packet
+discipline" on a hand-resolved conflict.
+
+## What integrated, read off the merged tree rather than the auto-merge
+
+`max_iter = 20` in `src/leaf_model.cpp`; `scientific_version = 5` in `models/tf24_strategy.h`
+with `TF24@v5` and `TF24f@v5.1` in the two `model-version.md` snapshot strings;
+`ode_step_sizes` in `node_schedule.h`, `src/node_schedule.cpp`, `scm.h` and `R/scm_support.R`;
+`leaf_parameter_address` present and **zero occurrences of `row.resize(x.size())`**;
+`Patch::set_ode_state_and_field`, `Patch::introduction_adjoint`,
+`Species::remove_newest_node`, `SCM::widen_over_introductions`; `scripts/v3-driver.R` and
+`scripts/stand-gradient-smoke.R`. On odelia, the four-argument `solve_adjoint` with the
+two-argument one delegating to it. Every one of those greps was repeated against the
+**installed** artifact rather than the build log.
+
+## Wave 5 integrated, and verified on the merged tree
+
+Built with `R CMD INSTALL` and `Makevars-O2` into a fresh `/home/user/lib-wave5`, after
+`make RcppR6 && make attributes` (both reported up to date, so the committed generated files
+match the yml) and `rm -f src/*.o src/*.so`. `-O0` appears 0 times in the build log and the
+`.so` is 5 634 288 bytes.
+
+| gate | result |
+|---|---|
+| TF24 forward | **`42.411799695604159`** / **4 644**, the new baseline, at TF24's own configuration: `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`, `refine_schedule = FALSE` |
+| FF16 / K93 forward | `19.834058960443031` / 209 and `0.030538172107758225` / 240, **both unchanged**, via `scripts/build/ff16k93.R` at its own configuration. FF16 is the discriminating arm and it is nowhere near 56.30/214 |
+| stage purity, `derivs(y, t)` twice | **0 of 1 137**, at the production TF24 patch at `t = 105.32` |
+| pinned replay | **bitwise** at `max_patch_lifetime` 105.32 and 20: `identical()` TRUE for `ode_times`, `ode_step_sizes`, the reproduction ratios, the whole `ode_state` and `area_leaf`. And at both lifetimes the sizes are **not** recoverable by differencing the times, which is what makes the gate discriminating |
+| standing active probe | **2**, the raw error list: `tf24_strategy.h:1641` (`height_seed` finds its root by iteration) and `:1691` (`Leaf` carries `double`). Line numbers moved from wave 4's; `grep -c` would undercount once `-fmax-errors` bails |
+| `scripts/v1-driver.R` | normwise **3.33e-15**, pointwise **2.05e-11**, at lifetime 2, on the strategy columns |
+| `scripts/v3-driver.R` | all 64 rows close; worst **1.36e-02** at row 16, `node 2 slot 8`, at the driver's own pinned reference configuration |
+| `scratch/leaf_jac_gate.cpp` | **0 non-finite rows** at all four states — 0 of 28, 0 of 28, 0 of 34, 0 of 28 |
+| the block discriminator | `n_out` **12**; the nine restored leaf-parameter columns all nonzero and `psi_crit` and `root_psi_crit` **exactly 0**. See below |
+| plant suite | **2 877** pass / 0 fail / 6 errors / 7 skip, against **2 862 / 0 / 6 / 7** on `f733f893` under the identical invocation from its own worktree and its own library. **`test-census.R` excluded** — see below |
+| odelia suite | **365** pass / 0 fail / 2 skip, from the merged source, `load_package = "installed"` against `/home/user/lib-wave5` |
+| `grep -rn 'xad::' inst src` | empty, and it is a property of the merge only |
+| `grep -rn 'const_cast' inst src` | empty, likewise |
+| style sweep | four categories of candidate, no violation. The judgements are below |
+
+**`test-census.R` is excluded from every suite count in this wave, and that exclusion is
+not cosmetic.** It does not terminate on any tree, base or tip: it stalls in "the trait
+gradient entry point is reachable", which calls `stand_gradient` at lifetime 5, measured at
+31 minutes of full core with no progress. The counts above are `filter = "^census$",
+invert = TRUE` on both sides. **They are not full-suite results.**
+
+**The suite arithmetic closes and attributes.** 2 862 + 15 = 2 877, and a per-file diff of
+the two summary reporters shows the whole delta in one file: `scm` 125 -> 140. That is
+`p3/pin-by-size`'s two tests and nothing else; every other file's assertion count is
+identical on the two trees. `p3/introductions`' 17 added test lines are all in
+`test-census.R` and contribute 0, by the exclusion. The six errors are the named
+pre-existing set and no other: `test-mutant.R:40` and `:126`, `test-stochastic-patch.R:54`
+x3, and `test-strategy-ff16.R:238` (pandoc). The 7 skips are the four `model-version`
+snapshots, the scenario gateway, `#571`'s arid corner and a missing `patchwork`.
+
+The invocation is `R CMD INSTALL`ed library plus `library(plant)` plus
+`attach(asNamespace("plant"), name = "plant-internals")` — without the attach the corpus
+errors about 117 times on `could not find function "SCM"` — with `TESTTHAT_PARALLEL="FALSE"`,
+because `test_dir` goes parallel by default and `callr` cannot start a subprocess here.
+
+## The collar polish cap — an owner-approved forward-model change
+
+`Leaf::polish_root_collar_psi` carried `R_tol = 1e-11` and `max_iter = 5`. At production
+`Control()` the cap was exhausted on **80.92% of 7 353 330 polished solves** — 5 950 425 of
+them — at mean `|R|` at exit **2.4088e-08** and max **1.0019e-06**. At cap 20 it is
+**1.586%**, 115 062 of 7 255 998, with 98.41% converging.
+
+One-step non-smooth residual spread over 1e-5 displacements:
+
+| | spread |
+|---|---|
+| cap 5 (production) | **7.820e-05** |
+| cap 20 | **8.626e-08** |
+| cap 100 | **7.367e-08** |
+| cap 5, bracket tightened to `GSS_tol_abs = 1e-6` instead | **6.192e-08** |
+
+**The same floor from two independent directions**, which is what makes it a mechanism
+rather than a correlate. Forward: offspring `42.179817344974609` / 4 798 ->
+`42.411799695604159` / 4 644, **+0.55%**, at a same-session cost ratio of **1.08x**.
+`scientific_version` 4 -> 5, so `TF24@v5` and `TF24f@v5.1`. **FF16 and K93 are
+bit-identical**, and that is the attribution: the polish lives in `Leaf` and only TF24 has
+one.
+
+Three things belong beside it.
+
+**`agents.md` section 7 said "Current: TF24@v2" and was stale by two**, which is where the
+orchestrator's "bump 2 -> 3" instruction came from. The packet bumped 4 -> 5 and was right
+not to stop for the instruction.
+
+**The census figures in the orchestrator's brief did not reproduce.** 2 206 526 solves
+against the measured 7 353 330, 75.3% against 80.92%, mean `|R|` 6.80e-08 against 2.4088e-08
+— because `scripts/collar_census.R` hardcodes `pkgload::load_all("/home/user/wt-p3-pinned")`,
+so the brief's figures came from a tree nobody could name. The measured figures are the
+production ones.
+
+**And the leaf gate is blind to this change.** Its own census inside the gate binary reads
+**484 solves, 0 exhausted**, 246 of 484 pinned, so its four hand-built states never reach
+the cap and its invariants are bit-identical before and after. That is the third instance
+this phase of a gate seeded at hand-built states being unable to size a production defect,
+after wave 2's collar-curvature gate and P2.6's `|R|` gate.
+
+## Step-size pinning, and a Phase 1 rule that was never applied backwards
+
+`SolverInternal::step_to` recovered the step size by differencing recorded times while the
+free run accumulates, and **`fl(fl(t + h) - t) != h`** — which `ORCHESTRATOR.md` section 10
+has carried since Phase 1, and which P1.4's trajectory store was built to. **4 645 of 4 797
+steps did not difference back bitwise.** First divergence at step 17, from a one-ulp step
+size: 6.22e-16 in state, amplified about 1e12 into a 4.6e-4 endpoint gap in `leaf_area` and
+0.24 in R0.
+
+odelia already had `advance_fixed_steps`, `step_by` and `Solver::step_sizes()`; plant never
+reached them. The run is now pinned by size, and `h = 0` **reproduces bitwise** at
+`max_patch_lifetime` 105.32 and 20. **The interval's final step is still taken by
+differencing, deliberately**, because the free run assigns `time = time_max` there and that
+is exactly where differencing is bitwise-exact. Guards refuse a size vector that does not
+match its times.
+
+**`run_mutant` is NOT fixed and cannot be fixed from here: nothing anywhere in plant or
+odelia calls `cache_ode_step`, `cache_RK45_step` or `load_ode_step`.** All three are
+declared and defined in `patch.h` and have no caller in either repository. The hooks lost
+their caller in the odelia port, `step_history` stays `{0.0}`, and that is precisely the two
+known `test-mutant.R` errors, which fail on "Run a resident first to generate a competitve
+landscape". Phase 4 owns invasion gradients and would have inherited it.
+
+## The reverse sweep across node introductions — report 01's C5, built at last
+
+C5 has been recorded as a constraint since the design document and was never built.
+`Solver::solve_adjoint` held one System at one width and asserted the recorded state's width
+at every step; every run widens at each introduction, with measured widths `9 17 25 33 41 49
+57 65 73` at lifetime 5.
+
+odelia now takes a segment range and plant owns the between-segment structure, and the split
+is forced rather than chosen: **a width alone under-determines the narrowing.**
+`Patch::ode_state` is species-major, so "drop the last node" is wrong when an earlier
+species shed it, and the argument has to be a per-species list that odelia cannot form.
+
+**`Patch::introduction_adjoint` records the boundary condition at the active scalar rather
+than hand-differentiating it**, so one vector-Jacobian product delivers both terms of
+build-plan section 2.4's two-term derivative plus the state channel. odelia's suite gains
+tests that every interior split of a recording sweeps **bit-identically** to the whole
+sweep. **Peak memory for the entire sweep is 1.5 MB** — 129.9 MB to 131.4 MB — the design's
+central claim, measured for the first time.
+
+## The defect of the wave: fifteen correct rows computed and thrown away
+
+`TF24_Strategy::graft_leaf_outputs` built its graft input vector from only the first
+`2n + 3` of `Leaf::inputs()`, and then `row.resize(x.size())` **truncated all 15
+leaf-parameter rows away**. The comment above it said "Its parameter rows are not built yet
+and are left off rather than read as NaN", which had been true and was not any more.
+
+So **P3.3's fifteen rows — landed two waves earlier and gated at 4e-10 against a central
+difference of the whole leaf solve — were computed correctly and discarded**, and eleven
+trait columns of the whole-run gradient read exactly zero. **Exactly zero is this design's
+stated worst failure mode**, because it reads as an answer.
+
+**It survived every instrument in the tree.** The standing probe reads 2. The leaf gate's
+invariants are clean. V1 closes at 3.33e-15. The plant suite passes. **And a block-level
+finite difference cannot detect it either**, which is the part that matters: the block's
+forward value is *deliberately* independent of a grafted input, because the graft is
+`value + Σ partial_i * (x_i - to_passive(x_i))`, zero in value by construction. So the gate
+the orchestrator asked for was unsatisfiable, which is report 02 section 6.9's lesson one
+level up — there the identity could not referee `Π_pp`; here the difference cannot referee
+the graft at all.
+
+**Ruling taken: adjoint-only.** Extend the graft's inputs with the seeded parameters; do
+**not** route them into `Leaf`. Rejected and recorded: making the forward map depend on them
+dissolves the graft idiom, changes the production `double` path for anyone mutating `pars`
+after `prepare_strategy`, and lands on the `Leaf::photo_temp_cached_` staleness that is
+exactly why `vcmax_25` and `jmax_25` are excluded from `ad_parameters()`.
+
+**After the fix, nine of eleven columns are nonzero:** `a` 2.2729,
+`curv_fact_elec_trans` 1.1927, `curv_fact_colim` 16.786, `b` 0.52361, `c` 0.33627,
+`beta2` 0.57991, `g1_TF24` -0.08170, `root_b` 4.4621e-03, `root_c` 7.1688e-03. `psi_crit`
+and `root_psi_crit` remain **exactly 0 because the leaf's own rows are 0 there**. That 1:1
+correspondence — nine nonzero where the leaf is nonzero, two exactly zero where the leaf is
+exactly zero — with all 29 non-leaf rows x 12 outputs moving by exactly 0 and the `lma`,
+`omega` and `a_f3` controls bit-identical, is the alignment evidence. The mapping is
+**name-driven off `Leaf::inputs()` with a hard `util::stop`** on an unmapped name, and both
+`row.resize` calls are **deleted** rather than left as no-ops, so `graft`'s own length check
+hard-fails instead of silently dropping a tail.
+
+**Corrections the fix packet made to the diagnosis it was given.** `rho` and `a_bio` did
+**not** move by exactly 0: adjoint and central difference both read 0 at the leaf, so the
+claimed "structurally incomplete, omission below 1e-7" is wrong and the omission is nil.
+And the diagnosing packet's control values — `lma` -19.77278, `omega` and `a_f3`
+-3.295518e-06 — do not reproduce; the fix packet measured -10.4159632 and -3.554907769e-09
+at its own operating point.
+
+## `omega` and `a_f3` are correctly zero, and one of them conditionally
+
+Their only active channel is `fecundity_dt`, and fecundity is a terminal accumulator that no
+rate and no census metric reads, so `d(census)/d(omega)` through it is genuinely 0.
+
+`omega` has a second forward path that is **passive by declaration**:
+`height_0 = height_seed()` is the boundary node's height and **is** in the census trapezium,
+but `height_0` is declared `double` and `height_seed()` static_asserts against an active
+scalar — the second of the standing probe's two errors. `a_f3` has no second path and its
+zero is unconditional.
+
+## The blocking defect: the whole-run gradient does not terminate
+
+`stand_gradient` compiles, links, sweeps across introductions and does not finish. Five
+attempts across three packets: three lifetime-2 runs abandoned at 18m44s, 31m and 57m38s of
+full-core CPU, and `test-census.R`'s "the trait gradient entry point is reachable" — which
+calls `stand_gradient` at lifetime 5 — stalled at **31 minutes on the base build and 21 on
+the fixed build, parked at the identical dot count**.
+
+**It hangs on the base tree too, so it is not caused by the graft fix.** One packet reported
+a lifetime-2 gradient in 183.3 s; that figure does not reproduce and the numbers taken with
+it are withdrawn.
+
+**So there is no verified whole-run gradient, and V4 is not attemptable until this is
+diagnosed.** `test-census.R` cannot be run at all and is excluded from every suite count in
+this wave.
+
+## V4 was not recomputed
+
+Its packet merged the two forward branches, edited `scripts/v4-reference.R` without
+committing it, and died when the container was reclaimed — producing no new reference, no
+step sweep and no convergence verdict.
+
+The committed `scripts/v4-reference.rds` and `.csv` belong to **cap 5 with an unpinned
+base**: their own payload says `plant_commit 4f9bda64`, `odelia_lib /home/user/lib-p3-int`,
+base R0 42.1798. They are **superseded and must not be used**. Whether the finite difference
+converges once the cap and the pinning are fixed is **unanswered**.
+
+## Also record
+
+- **`implicit_value` exists in odelia (`implicit_node.hpp`) and is used nowhere in plant** —
+  one occurrence in the whole tree, inside a `static_assert` message. So build-plan
+  section 3's "three names cross from odelia into plant" is one short, and **P3.1 step (c)'s
+  `d(height_0)/d(trait)` term through `height_seed` does not exist**.
+- **`ad_parameters()` and `ad_parameter_names()` are 44 and 44, aligned**, read off the
+  merged tree. 15 of TF24_Pars' 59 fields are excluded, documented in the comment above
+  `ad_parameter_names()`, with `vcmax_25` and `jmax_25` excluded because
+  `Leaf::photo_temp_cached_`'s key omits them — report 02 C3, recorded since Phase 1 and
+  still unfixed.
+- **A leaf-level gap inside P3.3's own rows.** At pinned leaf states `psi_crit`'s adjoint
+  reads 0 against a whole-solve difference of −2.39e-04 and −8.25e-04, rel 1.0. It is
+  upstream of the graft, and it now propagates a zero column wherever a cohort is pinned.
+- **`scratch/README.md` said `block_vjp` takes an 11-output seed; the real `n_out` is 12**,
+  and a length-11 seed reliably corrupts the heap. Corrected, and the merged tree's
+  `block_vjp` reports 12.
+- **`pkgload::load_all` forces its own `-O0 -g` build and ignores `R_MAKEVARS_USER`** — a
+  36 MB `.so` against 5.6 MB — and mixing that non-`NDEBUG` `.so` with an `-DNDEBUG`
+  `sourceCpp` **corrupts the heap** ("corrupted size vs. prev_size"). The working recipe is
+  `R CMD INSTALL` with `Makevars-O2` into a fresh library, then `library(plant)`, plus
+  `attach(asNamespace("plant"))` or the corpus errors about 117 times on `could not find
+  function "SCM"`. And `test_dir` goes parallel by default while `callr` cannot start a
+  subprocess here.
+- **Two of the corpus's four suite counts were never evidence for the invocation rule.**
+  2 944 is testthat's banner and 2 877 the sum of per-file passes, **from the same run**.
+  The rule still holds for the loading mode; two of the four data points did not support it.
+- **`p0.5-instrumentation.patch` does not apply** to this tree — it targets develop
+  `141dc8df` and expects `src/tf24_strategy.cpp`; `node.h`, `patch.h`, `species.h` and
+  `leaf_model.cpp` all fail. And **`scripts/collar_census.R` hardcodes
+  `/home/user/wt-p3-pinned`**, like `ff16k93.R` and `v1-driver.R` before they were fixed.
+- **The `GSS_tol_abs` `0.001 -> 0.1` snapshot drift in `test-model-version.R` is Phase 2
+  arrears of an already-accepted shift**, on all four models: `src/control.cpp` sets
+  `GSS_tol_abs = 1e-1` and all four committed surfaces record `"0.001"`. It went unnoticed
+  because snapshot tests skip on CRAN. Blessable, but by a packet that does it deliberately.
+  **The drift guard and the scenario gateway are both dormant in the invocation this corpus
+  quotes** — all five skip "On CRAN" in the run above — so a `scientific_version` bump has
+  no live gate.
+
+## The style sweep's candidates, and none is a violation
+
+| hit | judgement |
+|---|---|
+| ten hits on the local reference `patch_type& live` in `scm.h`, under decorative nouns and borrowed mechanism words | **`live` is on the ban list and the identifier predates the wave.** `patch_type& live = solver.get_system_ref();` is already at `f733f893` in `scm.h`, and the arithmetic settles it: 8 occurrences of the word in the base file against 19 at the tip, all of them uses of a name the file already had. The wave continued a file, which is what the style rule asks. Whoever renames it renames all 19; not this wave's to do |
+| three "rather than" hits under banners and negative definitions | none defines a thing by what it is not. "a hard failure rather than a silently dropped tail", "a grid rather than a recorded run", "landed on the interval end rather than accumulating" — each states a positive fact and names the contrast it is being distinguished from |
+| thirteen hits on comment runs over two lines | ten spell out a genuine silent-failure hazard and are inside the exception: the graft's "the block's value is deliberately independent of them and a block-level difference cannot referee them" (the whole subject of this wave), `introduction_adjoint`'s "returns a gradient that is finite, correctly signed and wrong", "the traits go in before the state: `area_leaf(height)` reads `lma`", the `fl(fl(t + h) - t) != h` note in `step_to`, and `ode_step_sizes`' "setting `ode_times` clears it, so the two can never be paired across different runs". Two are explanatory rather than hazards and are the weakest of the set — the five-line `v5` note above `scientific_version`, which is where a version note belongs, and the three-line accessor comment on `SCM::ode_step_sizes`. Recorded, not fixed. One, on `// [[Rcpp::export]]`, is the sweep miscounting an attribute as a comment |
+| five generated files touched — `R/RcppExports.R`, `R/RcppR6.R`, `man/run_scm.Rd`, `src/RcppExports.cpp`, `src/RcppR6.cpp` | legitimate and required: `run_scm` gained an argument, `NodeSchedule` and `SCM` gained `ode_step_sizes`, and there is a new export. `make RcppR6 && make attributes` on the merged tree reports both up to date, so the committed generated files are what the yml produces |
+
+One thing the sweep does not flag and is worth recording: `tests/testthat/_snaps/model-version.md`
+is a touched baseline, and it is the re-blessing `p3/polish-cap` carries with the version bump.
+
+## The four stale comments, read and left as found except one
+
+- **`models/tf24_strategy.h` above `optimise_at`.** Its `d(rates)/d(leaf inputs)` **"is
+  exactly zero here"** sentence is still there and still false — the graft made it false at
+  P3.2, and this wave's graft fix makes it false about eleven more columns. Left as found.
+- **`models/tf24_environment.h` above `rebind_from`.** "Everything but the light spline is
+  double" is unchanged and still stale: the cohort-reads triple made the five soil
+  potentials declared inputs. Left as found.
+- **`patch.h` on `cohort_block_adjoint`, and the corpus's description of it was wrong
+  again.** There are **two** comments, not one. Wave 4 recorded that "with the leaf held
+  constant at its declared boundary" is "no longer in the tree"; it **is** in the tree,
+  above the out-of-line definition, and wave 4 read the declaration-site comment instead —
+  "seeded from the block output adjoints the closed-form steps left in `seeds`", which is
+  the one wave 4's own change made half-false through `seeds.transport`. So both are stale,
+  for two different reasons, and the corpus has now described this comment wrongly twice.
+  Left as found.
+- **`inst/include/plant/collar_census.h`'s `COLLAR_EXHAUSTED // five steps taken, none of
+  them closing`. Fixed here**, and it is the only comment this wave touches: it is a
+  factual statement about a constant that changed from 5 to 20.
+
+## What wave 5 taught, beyond the tasks
+
+1. **Verify an agent's explanation, not only its numbers.** Thirteen exactly-zero gradient
+   columns arrived with a plausible account — all reach the census only through the leaf, so
+   the declared `Leaf`-carries-`double` boundary explains them — and the orchestrator
+   relayed it. One `grep` of `ad_parameter_names()` refuted it: all thirteen are seeded
+   traits, and two of them never touch the leaf. **A reassuring explanation for the failure
+   mode you fear most deserves more scrutiny than an alarming one, not less.**
+2. **Elapsed time is not progress, and a long packet needs a liveness check.** A packet with
+   a 45-production-run budget ran seven hours, produced nothing but a merge commit, and died
+   with the container. Absence of a completion notification is indistinguishable from work.
+   Check file mtimes and CPU-time against elapsed; and give a multi-hour packet checkpoints,
+   so a reclaim leaves something behind.
+3. **Contention is self-inflicted, so do not read your own scheduling as an environment
+   limit.** A packet reported the box throttling R to 4–7% of a core and the orchestrator
+   repeated it as fact and excused five unrun gates by it. With one packet running, a single
+   process gets 99.9% of a core at load 1.00 — the forward runs in this wave read
+   `user 2m29.1s` against `real 2m29.9s`. Section 4 already says a wave loses to a queue
+   when the lanes contend; four lanes were run anyway.
+4. **A rule learned in one phase must be applied backwards to code that predates it.**
+   `fl(fl(t + h) - t) != h` has been in section 10 since Phase 1 and P1.4 was built to it;
+   the pinned replay path violated it for two more phases because nobody re-read the old
+   path against the new lesson.
+5. **A reported SHA is not a reference.** A packet reported committing `2604c8a2`; its
+   branch was at `2b540777` after an amend. Resolve refs yourself before quoting them.
+
+**And the tally: every packet in this phase has found a real defect in the orchestrator's
+brief, and wave 5 makes it nineteen.** The costly ones this wave: relaying the
+thirteen-zeros explanation unchecked; specifying a block-level finite difference for grafted
+inputs, which is unsatisfiable by construction; taking "bump 2 -> 3" from a stale
+`agents.md` line; and reporting a 183 s whole-run gradient that does not reproduce.

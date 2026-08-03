@@ -77,6 +77,35 @@
 > independent direction**, which makes it a mechanism. It moves forward numbers — offspring
 > 42.411799695604159 over 4 644 steps at cap 20 against 42.179817344974609 over 4 798 — so it is the
 > owner's and was not taken. Evidence in `../implementation-notes.md`, *Phase 3, wave 4*.
+>
+> **The cap change was taken, and the census that sized it was larger than wave 4 could see (Phase
+> 3, wave 5).** Measured on the production tree rather than through a script hardcoded to a
+> different worktree, the cap was exhausted on **80.92% of 7 353 330 polished solves** — mean `|R|`
+> at exit 2.4088e-08, max 1.0019e-06 — not 75.3% of 2 206 526. At `max_iter = 20` it is **1.586%**,
+> with 98.41% converging, so §6.5's polish now does what the section says it does and **P2.6's
+> bracket-independence holds on 98.41% rather than 19.08%**. `scientific_version` is 5 and TF24's
+> forward numbers moved by 0.55%; FF16 and K93 are bit-identical, which attributes the shift to the
+> leaf. **What this report's own gate could not see is the whole of it**: `leaf_jac_gate.cpp`'s
+> internal census reads 484 solves and **0 exhausted** at its four hand-built states, and every
+> invariant in it is bit-identical before and after the change.
+>
+> **§6.8's rows were built and then thrown away, and no gate this report offers could have found
+> it (Phase 3, wave 5).** `TF24_Strategy::graft_leaf_outputs` assembled its graft input vector from
+> only the state-dependent `2n + 3` of `Leaf::inputs()` and then `row.resize(x.size())` truncated
+> all **15** parameter rows away — so P3.3's rows, gated at 4e-10 against a central difference of
+> the whole leaf solve, were computed correctly and discarded, and eleven trait columns of the
+> whole-run gradient read **exactly zero** for two waves. §6.9's identities are clean throughout,
+> the finiteness gate is 0 non-finite rows at every state, and **a finite difference of the block
+> cannot referee it either**: the graft is `value + Σ partial_i * (x_i - to_passive(x_i))`, so the
+> block's forward value is deliberately independent of a grafted input and the difference is
+> identically zero on those columns whether the rows are present or not. That is §6.9's lesson one
+> level up — a grafted row is refereed against the leaf's own difference and against nothing else.
+> Nine of the eleven columns are now nonzero; `psi_crit` and `root_psi_crit` remain exactly 0
+> **because the leaf's own rows are 0 there**, which is §6.7's bound branch and not a hole. Two
+> claims about it are corrected: `rho` and `a_bio` are **not** an omission of any size — adjoint
+> and central difference both read 0 at the leaf — and the `psi_crit` pinned-state gap is real and
+> upstream of the graft, its adjoint reading 0 against a whole-solve −2.39e-04 and −8.25e-04.
+> Evidence in `../implementation-notes.md`, *Phase 3, wave 5*.
 
 ## 1. The proposal
 

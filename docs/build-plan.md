@@ -143,6 +143,17 @@ is closed form in a rate the block already emits.
 | soil water potential per layer | 5 | | |
 | seeded traits | up to 51 | | |
 
+**Corrected in Phase 3, wave 5: `graft_leaf_outputs` truncated the leaf's parameter rows, and a
+block-level difference cannot referee a grafted input.** It built its graft input vector from only
+the first `2n + 3` of `Leaf::inputs()` and then `row.resize(x.size())` discarded all 15 of P3.3's
+parameter rows, so eleven trait columns read **exactly zero** for two waves with every instrument
+in the tree passing. The gate that would have caught it does not exist: the graft is
+`value + Σ partial_i * (x_i - to_passive(x_i))`, so the block's forward value is *deliberately*
+independent of a grafted input and a finite difference of the block is identically zero on those
+columns whether the rows are there or not. **A grafted row is refereed against the leaf's own
+difference, never against the block's.** The trait count in the table is also 44, not 51 (§8b).
+Evidence in [`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 5*.
+
 **The knots hold `L`, not `A`.** `TF24_Environment::compute_environment` splines
 `exp(-f_compute_competition(height))` (`tf24_environment.h:469-479`), so Beer's law is applied at
 the field build and the block reads transmittance. Step (c) therefore chains `dL/dA = -L` before
@@ -284,6 +295,7 @@ c  light knot adjoints -> (area_leaf, density, height)   two summed reductions, 
      slope to value       `m_k = -y_k s_k`, so lambda_m reaches lambda_y and lambda_s (§2.3)
      lower limit          the reductions close on the boundary node, so
                           `d(height_0)/d(trait)` through `height_seed` (P3.1)
+                          -- NOT BUILT: `implicit_value` is unused in plant, §3
      height_max           the knot fractions are held on `u = z / height_max`, so every
                           query carries `1/height_max` and `-z/height_max^2` (P2.1, P3.1)
 d  allometry adjoint       closed form
@@ -407,6 +419,13 @@ transport stencil**, which the decomposition omits until P3.5. The honest form: 
 channels both models contain, and the two excluded channels are named** rather than absorbed into a
 tolerance. Taken at **2.32e-12**, added one contribution at a time, in
 [`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 2*.
+
+**Corrected in Phase 3, wave 5: V4 has no subject either — the whole-run gradient does not
+terminate.** `stand_gradient` compiles, links, sweeps across introductions and does not finish, on
+the base tree as well as the tip; five attempts across three packets, the longest 57m38s of
+full-core CPU. And the reference below is **superseded**: it was taken at collar cap 5 on an
+unpinned base, both now repaired in the tree, and the recompute never ran. Evidence in
+[`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 5*.
 
 **Corrected in Phase 3, wave 4: V4's re-run finite difference is not a valid reference at
 production `Control()`.** The difference does not converge in its step — `d(leaf_area)/d(lma)`
@@ -770,7 +789,7 @@ names, two jobs, and only one of them is on the gradient path.
 |---|---|---|
 | `vector_jacobian_product` | `preaccumulate` (deleted) solved a different problem — it grafted partials back onto an enclosing tape. There is no enclosing tape here, so the graft, its first-order-only property and its return-type `static_assert` are all beside the point | step (b): the cohort block |
 | ~~`OdeElement`~~ | **Superseded during the Phase 1 audit and never landed under that name.** A concept on the *element* checked it against an iterator over its own `value_type`, not the one the helper threads — so it could not see the case it was introduced for, an element whose state moves through another scalar's iterator. Each of the five range helpers now carries a `requires requires` clause on the one member it calls, and rejects that case at the call | every container's ODE plumbing |
-| `implicit_value(y*, F)` | AD branch, `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1` |
+| `implicit_value(y*, F)` | AD branch, `implicit_node.hpp` | `height_seed`'s `uniroot` on `mass_live_given_height - omega`, so `height_0` and `area_leaf_0` carry the derivatives of `omega`, `lma`, `rho`, `a_l1`, `a_l2`, `theta`, `a_b1` and `a_r1`. **Corrected in Phase 3, wave 5: it is used nowhere in plant** — one occurrence in the tree, inside a `static_assert` message — so this section's three names are two, and **§2.4 step (c)'s `d(height_0)/d(trait)` term does not exist**. It is also `omega`'s only non-fecundity channel, so `omega`'s exactly-zero column is conditional on this being unbuilt. Evidence in [`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 5* |
 | `CanopyShape<S>` | **P0.12 landed: TF24 is now on develop's `CanopyShape`** (function-pointer chains, a crown-base branch in `q_from_height`, a shared static `eta_c`; `aornugent/plant#66`). The AD branch's enum-kind `CanopyShape<S>` is a second reference, not the file to lift — P1.2b templates the one on the branch and adds the double/active split | FF16, K93 and TF24 today at `double`; P1.2b templates the class and finalises the split |
 | `hermite_interpolator<S>` | AD branch, `hermite_interpolator.hpp`, **plus an active-position read** — it takes `double u` today, and M1 measures the crown integral's height adjoint as exactly zero without one. `Interpolator`'s `eval` / `eval_with_query_derivative` pair is the shape to copy | the light interpolant's evaluation (§2.6), and the crown integral's abscissae (§2.8) |
 | a forward-derivative helper | new, small | `dprofit_droot_collar_psi`, so `src/leaf_model.cpp` stops spelling `xad::fwd` |
@@ -1609,6 +1628,11 @@ already carries an active scalar end to end. Commits are on plant branches merge
 | the cohort-reads triple | plant `bdbba466` | §2.3's triple on `Environment`; 135 for TF24. Two wrinkles recorded at §2.3 |
 | P3.1 steps (a), (c), (d) | plant `2260f1ad`, `f2b54d0a`, `b8d9bc2f` | see P3.1 below |
 | P3.5 | plant `4fff1e22`, `f6d640a0`; odelia `6734260` | see P3.5 below |
+| the collar polish cap | plant `2b540777` | `Leaf::polish_root_collar_psi`'s `max_iter` 5 -> 20, `scientific_version` 4 -> 5. Moves TF24 forward numbers; FF16 and K93 bit-identical |
+| the step-size pinning fix | plant `3d69d14d` | recorded step sizes carried through `NodeSchedule`, `SCM` and `run_scm`, so a pinned replay reproduces its free run bitwise |
+| the census trait-gradient entry point | plant `6c27f270` | `census_trait_gradient_tf24`, per-step state recording, and `scripts/stand-gradient-smoke.R` |
+| the reverse sweep across node introductions | plant `1da1ff9b`; odelia `ffa9fc3` | report 01's C5: `Solver::solve_adjoint` takes a segment range, `Patch::introduction_adjoint`, `Species::remove_newest_node`, `SCM::widen_over_introductions` |
+| the leaf-parameter graft fix | plant `1da1ff9b` | `graft_leaf_outputs` was truncating all 15 of P3.3's rows away; nine of eleven trait columns restored from exactly zero |
 
 **The result, and it is what P3.1 starts from.** `Patch<TF24_Strategy<S>, TF24_Environment<S>>`
 **instantiates at the adjoint active scalar** — 61 probe errors to 19, and all 19 are deliberate: 17 in the
@@ -2202,8 +2226,11 @@ runs**, with the saving against a central difference rising to about **26x**.
 **Correction: the trait count is 44, not 51.** `ad_parameter_names()` returns 44 as measured in wave 3,
 against report 01 §4.2's 51 and wave 1's 55 for `ad_parameters()`. Every figure above that divides by a
 trait count — 102 forward runs, the 17x, the ~26x — is computed from 51 and wants re-deriving. The
-discrepancy is recorded and not resolved ([`implementation-notes.md`](implementation-notes.md),
-*Phase 3, wave 3*).
+discrepancy is resolved in wave 5: **`ad_parameters()` and `ad_parameter_names()` are 44 and 44,
+aligned**, read off the merged tree, with 15 of `TF24_Pars`' 59 fields excluded and the exclusions
+documented in the comment above `ad_parameter_names()`. So 44 is the number and 51 and 55 are both
+wrong; **every figure above that divides by a trait count wants re-deriving**, and that work has no
+packet ([`implementation-notes.md`](implementation-notes.md), *Phase 3, waves 3 and 5*).
 
 **It is demonstrated and not yet realised**: nothing calls the primitive outside its tests, so the
 consumer that writes the cohort loop must hold one tape across it. Calling the tape-less overload inside
@@ -2244,7 +2271,7 @@ aux transfer and `step_adjoint` are the same either way.
 | the knot **slopes** are not declared as block inputs | the light channel is a fixed fraction of itself, correct sign, nothing thrown — the same shape as the trait case. T5 covers it only if it seeds both data vectors | P3.1's V1, and T5 written over values *and* slopes |
 | the leaf's boundary is wider than §2.3 and report 02 §6.8 declare | P3.2 grows an output nobody declared | P3.2; P0.5's inventory should predict it |
 | the leaf's waist does not hold where it has not been measured | the joint residual over the `2n + 1` directions leaves the 1e-04 band, or `dR_dflux` recovered from two potential directions disagrees | P3.2 step (3), and report 02 §11's last two falsifiers |
-| the envelope row is used at an unpolished operating point | carbon is right and every uptake row is wrong at first order in the displacement | **P2.6 — closed.** Worst `|R|` 9.587e-09 against 8.8e-05–1.2e-03 unpolished, and the polished point is bracket-independent to 1.044e-09 |
+| the envelope row is used at an unpolished operating point | carbon is right and every uptake row is wrong at first order in the displacement | **P2.6 — closed, and qualified twice.** Worst `|R|` 9.587e-09 against 8.8e-05–1.2e-03 unpolished. **Corrected in Phase 3, wave 5: the polished point is bracket-independent to 1.044e-09 only on the solves that converge, which was 19.08% before the cap change** — at production `Control()` the five-iteration cap was exhausted on 80.92% of 7 353 330 polished solves, and those return wherever five Newton steps reached from wherever golden section stopped. At cap 20 (plant `2b540777`) the exhausted fraction is 1.586%, so the claim now holds on 98.41%. Evidence in [`implementation-notes.md`](implementation-notes.md), *Phase 3, wave 5* |
 | the gradient is right and too slow to use | the whole-gradient wall clock against §8b's budget. Nothing else catches it: every other gate is a value | P3.6, and partially at P3.2 — one block's sweep times the block count is most of it |
 | the boundary node's lag is still open when the reverse pass is written | `step_adjoint` needs a per-species scalar carried across step boundaries, which it cannot have | **P2.7 — closed.** `derivs(y, t)` twice is bitwise pure at all three models, so no scalar is carried and `Trajectory` needs no field |
 | the value-reproduction check is read as an acceptance test | a 0.2% difference in value has produced a sign-flipped gradient | every gate compares AD against an independent reference — a re-run finite difference everywhere except the leaf's flux rows, where §2.5 says why an identity is the better one |

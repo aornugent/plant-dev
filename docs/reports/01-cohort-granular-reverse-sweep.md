@@ -848,6 +848,33 @@ was measured to lie on the ODE grid (141/141 and 233/233 for K93, 141/141 and 16
 for FF16, 141/141 for TF24), so a step boundary is always available; the ordering
 still has to be deliberate.
 
+> **C5 is built (Phase 3, wave 5), and the ordering the section asked to be deliberate is now
+> split across the two repositories for a reason the section does not give.**
+> `Solver::solve_adjoint` held one System at one width and asserted the recorded state's width at
+> every step, so a sweep across an introduction was impossible rather than merely wrong; every run
+> widens at each introduction, measured widths `9 17 25 33 41 49 57 65 73` at lifetime 5. odelia now
+> takes a segment range — `solve_adjoint(states, lambda, k_first, k_last)`, with the old signature
+> delegating — and plant owns the between-segment structure, because **a width alone
+> under-determines the narrowing**: `Patch::ode_state` is species-major, so "drop the last node" is
+> wrong when an earlier species shed it, and the argument has to be a per-species list that odelia
+> cannot form. `Patch::introduction_adjoint` **records the inflow boundary condition at the active
+> scalar rather than hand-differentiating it**, so one vector-Jacobian product delivers both terms
+> of the two-term derivative plus the state channel — which is also the answer to this section's
+> "19% error, correct sign, silent": the newcomers' rows are contracted rather than dropped, and
+> dropping them narrows the width just as well and returns a gradient that is finite, correctly
+> signed and wrong. odelia's suite gains tests that every interior split of a recording sweeps
+> **bit-identically** to the whole sweep. **Peak memory for the entire sweep is 1.5 MB**, 129.9 MB
+> to 131.4 MB — §1's central claim, measured for the first time.
+>
+> **`implicit_value` is absent from plant, so §2.4's `d(height_0)/d(trait)` term does not exist.**
+> It is in odelia at `implicit_node.hpp` and has **one** occurrence in the whole plant tree, inside
+> a `static_assert` message, so the design's "three names cross from odelia into plant" is two.
+> `height_seed` still refuses at an active scalar — it is one of the standing probe's two errors —
+> and `height_0` is declared `double`, which is why `omega`'s gradient column is exactly zero
+> conditionally rather than structurally: its only other channel is `fecundity_dt`, a terminal
+> accumulator no rate and no census metric reads. Evidence in `../implementation-notes.md`,
+> *Phase 3, wave 5*.
+
 **C6. The stored trajectory is not sufficient on its own.** Each `Node` carries
 `pr_patch_survival_at_birth`, a plain `double` set at birth, not part of `ode_state`,
 which **divides** the fecundity rate (`node.h:74` states this; the division is at
