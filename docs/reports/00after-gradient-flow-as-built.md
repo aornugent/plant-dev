@@ -229,6 +229,26 @@ either.
 The `long double` is not deliberate: no policy argument is passed and no `BOOST_MATH_*` macro
 exists in the package, so it is boost's default `promote_double<true>`.
 
+**Report 01 §4.1 already forbade this, by name and with the count.** It is a hard constraint on
+the block:
+
+> **`prepare_strategy()` must not run inside the block.** It builds the `Leaf`'s four 100-knot
+> interpolators and runs `height_seed()`'s root-find, and doing that per cohort per stage is
+> **about 4 million of each**.
+
+`input_adjoints` builds those same four interpolators twelve times per block. It does not go
+through `prepare_strategy`, which is why no reader connected the constraint to the site that
+violates it. **The design did not miss this; the implementation reached it through a different
+door.**
+
+**Report 01 §10 rule 3 also settles how a cache here must be written**: "A cache must be keyed
+on everything its value depends on, or not exist… wrong the moment it is not, and a
+differentiation target is exactly a parameter someone intends to vary." The corpus already
+carries two caches keyed on less than they depend on (§5, C1: `photo_temp_cached_` omits
+`vcmax_25` and `jmax_25`, "safe only because those parameters are constant within a run").
+**That is an argument against adding a third**, and it is the reason the closed form below is
+better than any cache: a function has no key to get wrong.
+
 **Report 02 §6.4 already specified the invariance**, in words this project read past twice:
 
 > The transpiration and root-vulnerability interpolants are **built once per `Leaf`** from `b`,
@@ -278,11 +298,41 @@ result, and it is the reason to write the trace before choosing a fix.
 
 Stated as candidates with their evidence, not as a plan.
 
-**A. Hoist the parameter-only tabulations out of the inner loop.** Cache the perturbed spline
-sets on the `Leaf`, keyed on `(b, c, root_b, root_c, vulnerability_curve_ncontrol)`, and build
-them once per gradient rather than once per call. Justified by §4: they carry no state.
-Derivative-only, forward bit-identical, needs no new mathematics and no owner decision. It
-addresses the site holding 28 of 30 samples.
+**A0. Delete the tabulation rather than cache it, and the tool already exists.** The object being
+tabulated is the lower incomplete gamma. `odelia::incomplete_gamma<S>(a, x)` implements it as an
+everywhere-convergent series **in elementary operations**, so a tape reads value, `d/dx` and
+`d/da` off the same code. Its header names the exact identity the leaf tabulates:
+
+> with `a = 1/c` and `X = (m/b)^c`, `integral_0^m exp(-(s/b)^c) ds = (b/c) * gamma(1/c, X)`
+> … so AD reads value, `d/dx` (which is the integrand, the Leibniz endpoint derivative) and
+> `d/da` (the shape channel a differentiated trait needs) off the same code — no
+> special-function derivative, and none is available from the tape library.
+
+It was written in July as P1c, verified against `pgamma`, against the integrand for `d/dx`, and
+with `dG/dm == exp(-(m/b)^c)` exactly. **It is on an odelia branch, absent from
+`p3/odelia-integration`, and referenced nowhere in plant.**
+
+What it replaces:
+
+| | today | with the closed form |
+|---|---|---|
+| `G(psi)` | 100-knot table + spline | one call |
+| `dG/dpsi` | spline `.deriv()` | `exp(-(psi/b)^c)` exactly, free by Leibniz |
+| `dG/db`, `dG/dc` | two-sided central difference **with a full re-tabulation** | the `d/da` channel, same code |
+| `psi(G)`, the inverse spline | tabulated inverse | declare by residual through `odelia::implicit_value` |
+| knot count | steps 100 <-> 101, up to 10 245x error | **there is no grid** |
+
+Consequences: the four transport rows join the seven already exact, so **all fifteen parameter
+rows become exact and the differencing loop disappears**; the 47x / 131x / 10 245x defect becomes
+structurally impossible rather than repaired; there is no cache and therefore no key to get wrong
+(§10 rule 3); and `implicit_value` gets its first use in plant, which is also what
+`TF24_Strategy::height_seed`'s `static_assert` message already instructs a reader to do.
+
+**A. Cache the tabulations, if A0 is judged too large.** Key on
+`(b, c, root_b, root_c, vulnerability_curve_ncontrol)` and build once per gradient. Justified by
+§4: they carry no state. Derivative-only and forward bit-identical. Strictly worse than **A0**
+because it adds a third under-keyed-cache risk to a corpus that already documents two, but it is
+smaller.
 
 **A′. Contract one leaf Jacobian against all six seeds** instead of rebuilding it per seed
 (§3a). The differencing loop's outputs are seed-independent; only the final combination is not.
@@ -294,10 +344,13 @@ Under the current control defaults it compounds with the probe's second evaluati
 only `out_adjoint` does. Record once, contract `M` times — or seed all `M` at once in vector
 mode. A factor of `M`, today 3, for no change in mathematics.
 
-**C. Stop rebuilding the field twice per step.** `M · S · 12` field builds against the forward
-run's `S · 6`. Six are the stage-rate rebuild and six are `set_ode_state_and_field` in the
-sweep, at the same stage states. Whether they can share is a design question about
-`has_recorded_field()`, which is currently `false` with `record_stage()` an empty body.
+**C. The per-metric multiplication of the stage rebuild, and only that.** The 2× per stage is
+**deliberate** — report 01 §1: "the backward pass rebuilds those stage states by re-running the
+step in `double` rather than storing them… **Storage is independent of the stage count, which is
+what makes rebuilding preferable to storing.**" So `has_recorded_field()` being `false` and
+`record_stage()` being an empty body are correct, not unfinished. What no report prices is the
+`×M`: the design's budget is `S · 6 · 2`, and the code spends `M · S · 6 · 2`. **B** removes that
+factor without touching the rebuild decision.
 
 **D. Make the sub-grid probe pay once.** Half the `input_adjoints` calls come from
 `growth_rate_gradient` re-running everything at `h − 1e-6`. The two evaluations differ by a
@@ -340,3 +393,37 @@ reading.
   3.33e-15 and a green suite for three waves.
 - **`Patch::block_recording_size` and `block_sweeps` are not exported to R.** They are the
   instrument for this design's stated worst failure mode and reading them needed a C++ harness.
+
+---
+
+## 9. The boundary, stated once
+
+Four subsystems, and three of them already represent their physics the same way:
+
+| | representation | status |
+|---|---|---|
+| light | 65 knots at fixed fractions; **positions `double`, values and slopes carry `S`** | works |
+| soil | closed form, bidiagonal, transposed analytically | works |
+| cohorts | elementary arithmetic on a tape | works |
+| **leaf** | **a table rebuilt from the parameters being differentiated, on a grid that is itself a function of them** | every expensive defect of this phase |
+
+The leaf's defects are not a list, they are one representational choice seen five ways: the 300x
+cost, the 47x / 131x / 10 245x straddling, the collar cap exhausted on 80.9% of solves,
+`psi_crit`'s zero column, and the `psi_stem_to_ci` abort that makes interior production states
+ungateable.
+
+**Four documents say the same thing from four directions**, and none of them was read against the
+others until now:
+
+- report 01 §4.1 — do not build the four 100-knot interpolators per cohort per stage.
+- report 01 §10 rule 3 — a cache must be keyed on everything it depends on, or not exist.
+- report 02 §6.4 — the interpolants' positions are constant and their values carry the parameter.
+- report 03 — that arrangement, built and working, for the light field.
+
+**And the reframing that makes the boundary simpler rather than more complex.** Report 02's
+load-bearing argument is *never differentiate the iteration that found the root*. That is correct
+and it is why the leaf must not be taped. It was implemented as the stronger *the leaf stays
+`double`* — and the stronger claim is what forces the parameter rows to be differenced. **The
+solve must stay `double`; the transport algebra need not.** Separating them is a smaller claim
+than report 02 defends, not a larger one, and it is the boundary at which the tabulation, the
+differencing, the grid and the cache all cease to exist rather than being made faster.
