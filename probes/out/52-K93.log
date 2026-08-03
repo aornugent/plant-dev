@@ -1,0 +1,6 @@
+K93   ht  eps=0.2       iters=2   conv=TRUE  n_run=148   n_final=148   ode=266    val=0.0305587357        0.6s
+K93   ht  eps=0.0632    iters=3   conv=TRUE  n_run=163   n_final=163   ode=315    val=0.03058303378       0.7s
+K93   ht  eps=0.02      iters=4   conv=TRUE  n_run=181   n_final=181   ode=360    val=0.03059658723       1.3s
+K93   ht  eps=0.00632   iters=5   conv=TRUE  n_run=217   n_final=217   ode=452    val=0.03060102692       2.7s
+K93   ht  eps=0.002     iters=5   conv=TRUE  n_run=265   n_final=265   ode=534    val=0.03059916579       4.0s
+K93   ht  eps=0.000632  iters=8   conv=TRUE  n_run=357   n_final=357   ode=669    val=0.03058135824      12.6s

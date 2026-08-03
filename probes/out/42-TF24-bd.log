@@ -6,3 +6,4 @@
   [TF24 bd eps=0.2      ] iter  5  n=187   ode=4461   val=401.35339    flag=5     210.7s
   [TF24 bd eps=0.2      ] iter  6  n=192   ode=4449   val=401.34569    flag=3     250.8s
   [TF24 bd eps=0.2      ] iter  7  n=195   ode=4364   val=401.33786    flag=3     305.7s
+  [TF24 bd eps=0.2      ] iter  8  n=198   ode=4367   val=401.32773    flag=2     195.3s
