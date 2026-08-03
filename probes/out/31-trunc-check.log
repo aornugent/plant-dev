@@ -1,0 +1,17 @@
+birth_rate_y = 1 
+max_patch_lifetime (default) = 105.32 
+
+=== truncation reproducibility: area 4, seeds 4001..4003, MPL=3.5 vs stored MPL=105.32 ===
+seed 4001 (0.2s): new 0.005645 0.039645 0.137886 0.405239 0.678596
+              old 0.005935 0.038534 0.131123 0.393587 0.683476   maxreldiff 5.16e-02
+seed 4002 (0.2s): new 0.002135 0.012231 0.048012 0.168808 0.376964
+              old 0.002685 0.013599 0.054215 0.175036 0.389592   maxreldiff 2.05e-01
+seed 4003 (0.2s): new 0.004849 0.039528 0.206045 0.420326 0.810994
+              old 0.004486 0.038751 0.175691 0.351295 0.678109   maxreldiff 1.97e-01
+
+=== truncated cost by area (1 rep each, MPL=3.5) ===
+area 4         0.08s   nsteps=12     Nc(3)=2.099  L(3)=0.1334
+area 16        0.77s   nsteps=41     Nc(3)=2.077  L(3)=0.3388
+area 64       12.63s   nsteps=225    Nc(3)=3.011  L(3)=0.5230
+area 128      48.07s   nsteps=477    Nc(3)=3.259  L(3)=0.5079
+area 256     160.45s   nsteps=897    Nc(3)=2.997  L(3)=0.4841

@@ -1,0 +1,13 @@
+FF16  ht  eps=0.2       iters=1   conv=TRUE  n_run=141   n_final=141   ode=212    val=19.82440415         0.5s
+FF16  ht  eps=0.0632    iters=1   conv=TRUE  n_run=141   n_final=141   ode=212    val=19.82440415         0.3s
+FF16  ht  eps=0.02      iters=2   conv=TRUE  n_run=147   n_final=147   ode=216    val=19.98883814         0.6s
+FF16  ht  eps=0.00632   iters=3   conv=TRUE  n_run=160   n_final=160   ode=223    val=19.95452171         1.2s
+FF16  ht  eps=0.002     iters=3   conv=TRUE  n_run=207   n_final=207   ode=252    val=19.96866663         2.1s
+FF16  ht  eps=0.000632  iters=4   conv=TRUE  n_run=291   n_final=291   ode=308    val=20.00094579         5.2s
+FF16  ht  eps=0.0002    iters=5   conv=TRUE  n_run=386   n_final=386   ode=399    val=20.02369168        13.0s
+FF16  bd  eps=0.2       iters=1   conv=TRUE  n_run=141   n_final=141   ode=210    val=20.03187863         0.2s
+FF16  bd  eps=0.0632    iters=2   conv=TRUE  n_run=145   n_final=145   ode=213    val=20.01648424         0.5s
+FF16  bd  eps=0.02      iters=2   conv=TRUE  n_run=157   n_final=157   ode=225    val=20.0357008          0.7s
+FF16  bd  eps=0.00632   iters=3   conv=TRUE  n_run=185   n_final=185   ode=252    val=20.03401531         1.0s
+FF16  bd  eps=0.002     iters=4   conv=TRUE  n_run=220   n_final=220   ode=281    val=20.0354615          1.6s
+FF16  bd  eps=0.000632  iters=4   conv=TRUE  n_run=301   n_final=301   ode=352    val=20.03786439         4.0s
