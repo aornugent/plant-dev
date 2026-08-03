@@ -10,14 +10,15 @@ than size.**
 
 The consequence here is an order of magnitude. Lifetime offspring production — the integral `plant`
 uses to decide whether a strategy persists — is 42.14 as the solver computes it and 400.92 in a
-corrected coordinate, and only the corrected value converges under schedule refinement. The error is
-absent on the two strategies whose growth is a function of size and tenfold on the one that carries a
-store, so it does not cancel when strategies are compared.
+corrected coordinate, and only the corrected value converges under schedule refinement. An
+individual-based solver that carries no transport term agrees with the corrected coordinate to within
+0.6% at every patch age and sits 1.6 to 2.5 times below the uncorrected one.
 
-After canopy closure the two coordinates agree on the quantities that feed back into the model: leaf
-area to a ratio of 1.005 and canopy height to 0.8%. The correction alters no biological equation —
-carry the population as a density per unit **birth date** rather than per unit height, a coordinate in
-which the transport term is mortality alone. Disabled, the solver is bit-identical to the original.
+The error is absent on the two strategies whose growth is a function of size, so it does not cancel
+when strategies are compared, and after canopy closure the two coordinates agree on the quantities
+that feed back into the model. The correction alters no biological equation — carry the population as a
+density per unit **birth date** rather than per unit height, a coordinate in which the transport term is
+mortality alone. Disabled, the solver is bit-identical to the original.
 
 ---
 
@@ -30,7 +31,7 @@ Four tests, each able to fail independently, none sharing an assumption with ano
 | **Schedule refinement.** Offspring production at 141, 281 and 561 cohort introductions | 42.14, 54.80, 59.06 — moving +30.0% then +7.8% | 395.44, 399.08, 400.92 — moving +0.92% then +0.46% |
 | **Step size.** Distance of the estimate from the required quantity, against its own variation across five decades of finite-difference step | 0.302 against 0.0055 — a factor of 55 | not applicable; no derivative is taken |
 | **Coupling removed within TF24.** Relative gap between the two coordinates, store integrated but read by nothing, at the same three resolutions | 8.38, 6.28, 5.79 | 0.645, 0.357, 0.0966 |
-| **Independent solver.** Leaf area at patch ages 2 to 3 against a 16-run individual-based ensemble that has no transport term | 2.69 to 2.95 times the mean; 3.8 to 5.8 standard deviations above | 1.14 to 1.21 times the mean; within 0.7 standard deviations |
+| **Independent solver.** Leaf area at patch ages 1 to 3 against an individual-based solver that has no transport term | 1.6 to 2.5 times its value | agrees to within 0.6% at every age, inside the solver's own standard error |
 
 The first says the uncorrected value is not converged and the corrected one is. The second says the
 discrepancy is not a resolution error, so an analytic or automatically differentiated derivative
@@ -292,41 +293,23 @@ proportional violations sit where `S_max` is smallest — the recruits. And offs
 the 0.5% level. This defect is independent of everything else in this report; the fix is to make the
 rate restoring below zero rather than pinned, which requires reading the unclamped state.
 
-### 6.2 The corrected solver's excess over the individual-based ensemble is not schedule resolution
+### 6.2 The corrected coordinate's leaf-area quadrature is second order and converged
 
-Appendix E records that the corrected solver's leaf area sits 6% to 21% above the individual-based
-ensemble mean at patch ages 1 to 3. The obvious candidate is that its birth-date quadrature is
-under-resolved at the production schedule of 141 introductions. It is not.
+Before the individual-based solver's frozen soil water was identified as the source of the residual
+disagreement in Appendix E, the candidate explanation was that the corrected coordinate's own
+quadrature was under-resolved at the production schedule of 141 introductions. Excluding that is what
+sent the investigation to the other solver, and the exclusion stands independently of what it excluded.
 
-Excess over the pooled 16-run ensemble mean, at three schedule resolutions:
+Refining the schedule from 141 to 281 to 561 introductions lowers leaf area by 0.29% to 0.33% in total
+across the five ages. Successive-difference ratios are 3.98 to 3.99 at every age, an observed order of
+1.99 to 2.00, so the trapezium over introduction times is second order in the cohort spacing and is
+already within about 0.3% of its limit at the production schedule. Offspring production converges first
+order in the same coordinate — §1's +0.92% then +0.46% — because it is a further integral over patch
+age; the two quantities need not share an order.
 
-| introductions | age 1 | 1.5 | 2 | 2.5 | 3 |
-|---|---|---|---|---|---|
-| 141 | +5.94% | +8.80% | +14.13% | +17.17% | +21.31% |
-| 281 | +5.67% | +8.52% | +13.83% | +16.87% | +21.03% |
-| 561 | +5.60% | +8.45% | +13.75% | +16.80% | +20.96% |
-| Richardson limit | +5.58% | +8.42% | +13.73% | +16.77% | +20.94% |
-
-![Figure 6](figures/fig-06-excess-refinement.svg)
-
-**Figure 6.** Excess of the corrected solver's leaf area over the pooled 16-run individual-based
-ensemble mean, at three schedule resolutions and at the Richardson limit: (a) the excess itself, where
-the four curves coincide; (b) each resolution's distance from the limit.
-
-Quartering the cohort spacing lowers leaf area by 0.29% to 0.33% and reduces the excess by about
-0.35 percentage points. Schedule resolution accounts for 6.0%, 4.3%, 2.9%, 2.3% and 1.7% of the
-excess at the five ages; **at least 94% of it survives complete refinement.**
-
-The convergence is clean and bounds what is left: successive-difference ratios are 3.98 to 3.99 at
-all five ages, an observed order of 1.99 to 2.00, so the birth-date trapezium on leaf area is second
-order and already converged to within about 0.3% at 141 introductions. (Offspring production
-converges first order in the same coordinate — §1's +0.92% then +0.46% — because it is a further
-integral over patch age; the two quantities need not share an order.)
-
-So the excess is real and is not a quadrature artefact. The remaining named candidate is that the
-mean over stochastic replicates of a nonlinear functional is not the deterministic value, which
-would not require the two to agree. That has not been tested, and the excess is recorded here as
-unexplained rather than attributed.
+These are properties of the corrected solver alone. A constant bias in whatever it is compared against
+cancels in the differences between resolutions, so this result is unaffected by the defect Appendix E
+reports, and a quadrature converged to 0.3% cannot generate a 13% discrepancy.
 
 ### 6.3 The seasonal stress sweep
 
@@ -593,36 +576,57 @@ neighbour more alike. The neighbour difference also divides by a gap whose measu
 ## Appendix E. The individual-based comparison
 
 `plant` carries a stochastic finite-population solver in which individuals arrive and die as discrete
-events. It tracks individuals, not a density, and has no transport term, so it cannot favour either
-coordinate. Both solvers divide leaf area by patch area in `Patch::compute_competition`, so the
-quantities are directly comparable. Protocol: Poisson arrivals at the same birth rate, establishment
-as a Bernoulli draw on the same probability, three patch areas (4 m², 8 replicates; 16 m², 6; 64 m²,
-2), run to the same patch lifetime. Its own schedule builder was not used, because it passes patch
-area into the arrival function's `delta_t` argument; the probes construct the schedule directly
-(Appendix F).
+events. It tracks individuals, not a density, and has no transport term, so in principle it cannot
+favour either coordinate. Both solvers divide leaf area by patch area in `Patch::compute_competition`,
+so the quantities are directly comparable.
 
-Leaf area above ground level, pooled over all 16 runs, plotted as Figure 2:
+**As shipped it is not a valid check on TF24.** `Patch::ode_size` adds `environment.ode_size()` to the
+species' ODE size, and forwards `set_ode_state`, `ode_state` and `ode_rates` to the environment.
+`StochasticPatch` does neither: its ODE system is the species alone. TF24's environment carries nine
+ODE states — five soil moisture layers and four cumulative fluxes — so its soil water is never
+integrated and holds its initial 0.214 for the whole run, while the same configuration under the SCM
+recharges to 0.310613 by patch age 0.19 and is drawn down to 0.299220 by age 3. The stochastic stand
+is permanently drier, grows more slowly, and reports less leaf area. `FF16_Environment` and
+`K93_Environment` have `ode_size` zero, so the omission is exact for every strategy the solver had
+previously been used on and wrong only for the one that carries a store.
 
-| patch age | mean | s.d. | uncorrected | ratio | z | corrected | ratio | z |
-|---|---|---|---|---|---|---|---|---|
-| 1.0 | 0.00361 | 0.00225 | 0.00628 | 1.74 | 1.2 | 0.00383 | 1.06 | 0.1 |
-| 1.5 | 0.02286 | 0.01204 | 0.05035 | 2.20 | 2.3 | 0.02488 | 1.09 | 0.2 |
-| 2.0 | 0.08532 | 0.03773 | 0.22926 | 2.69 | 3.8 | 0.09738 | 1.14 | 0.3 |
-| 2.5 | 0.23143 | 0.08486 | 0.68229 | 2.95 | 5.3 | 0.27117 | 1.17 | 0.5 |
-| 3.0 | 0.48279 | 0.15192 | 1.35999 | 2.82 | 5.8 | 0.58568 | 1.21 | 0.7 |
+Supplying the missing state is what makes the comparison possible. The runs below hold soil water at
+each end of the range the SCM itself occupies, which brackets the answer instead of asserting one
+value. Protocol: 128 m², regular arrivals at spacing 1/(birth rate × area) placed at interval
+midpoints, establishment as a Bernoulli draw on the same probability, ten paired mortality seeds,
+log-linear interpolation between snapshots. The SCM arms are truncated at patch age 3.5 and twice
+midpoint-refined to 340 introductions; the truncation is exact, reproducing the published
+141-introduction values to every digit. Plotted as Figure 2.
 
-The ensemble mean varies by 12.8% at age 2 across a sixteenfold range of patch area, far less than the
-2.7-fold discrepancy, so patch size is not the limiting factor; the largest patch carries 58, 112 and
-177 individuals at ages 1, 2 and 3. Only two replicates were run at 64 m², so per-area standard
-deviations there are not usable and the pooled ensemble is quoted. The comparison is not exact — the
-solvers differ in finite population, discrete deaths and nonlinear averaging over replicates — so it
-separates a 2.7-fold discrepancy from a 1.2-fold one. The corrected solver's residual 6% to 21%
-excess is not schedule resolution and remains unexplained; see §6.2.
+| patch age | oracle, soil 0.3106 | oracle, soil 0.2992 | s.e. | uncorrected | ratio | corrected | ratio |
+|---|---|---|---|---|---|---|---|
+| 1.0 | 0.003823 | 0.003812 | 0.000008 | 0.006269 | 1.64 | 0.003817 | 0.998 – 1.001 |
+| 1.5 | 0.024858 | 0.024774 | 0.000058 | 0.050238 | 2.02 – 2.03 | 0.024795 | 0.997 – 1.001 |
+| 2.0 | 0.096986 | 0.096644 | 0.000429 | 0.228720 | 2.36 – 2.37 | 0.097054 | 1.001 – 1.004 |
+| 2.5 | 0.270120 | 0.269167 | 0.001000 | 0.680940 | 2.52 – 2.53 | 0.270304 | 1.001 – 1.004 |
+| 3.0 | 0.582605 | 0.580676 | 0.002645 | 1.359107 | 2.33 – 2.34 | 0.584000 | 1.002 – 1.006 |
 
-The individual-based solver cannot discriminate on the mature stand: after canopy closure its leaf
-area agrees with both coordinates within its replicate spread, and its living stem density is too
-variable to separate them, its own largest-patch value moving 7.2, 5.1, 5.0, 6.3 and 2.0 individuals
-per m² across patch ages 20 to 100.
+**The corrected coordinate agrees with the individual-based solver to within 0.6% at every age; the
+uncorrected one is 1.6 to 2.5 times above it.** The agreement is inside the solver's own standard
+error, 0.45% at age 3 over ten mortality seeds.
+
+Four approximations remain, each measured rather than assumed. The soil-water bracket is 0.30% to
+0.35% wide, so tracking the decline instead of holding it fixed cannot account for more than that. For
+the first 0.19 years the SCM's soil is still recharging from 0.214, so the earliest cohort is treated
+as slightly too wet at both ends of the bracket; weighted by that cohort's share of age-3 leaf area and
+the measured sensitivity of growth to soil water, that is under 0.2%. Snapshots fall at introduction
+events rather than on a fixed grid, and interpolating a convex trajectory between them biases early
+ages upward — 16.3% at age 1 on a 4 m² patch, which is why 128 m² is used, where the same measurement
+gives 0.015%. And replacing regular arrivals with Poisson arrivals at the same rate moves the result by
+at most 0.9%, below the mortality-seed spread, so the conclusion does not rest on regularising the
+arrival process.
+
+The solver's own schedule builder was not used, because it passes patch area into the arrival
+function's `delta_t` argument (Appendix F); the probes construct the schedule directly.
+
+The individual-based solver cannot discriminate on the mature stand in any case: its living stem
+density is too variable to separate the coordinates, its own largest-patch value moving 7.2, 5.1, 5.0,
+6.3 and 2.0 individuals per m² across patch ages 20 to 100.
 
 ## Appendix F. Configuration, and defects found alongside
 
@@ -644,6 +648,24 @@ never scale with area and the binning interval is set to the area. Passing it by
 `test-stochastic-patch-runner.R` runs at `patch_area = 50` with seed-dependent expectations, so
 correcting it makes that file roughly fifty times heavier and requires its parameters and baselines to
 be revisited. Recorded and left unfixed.
+
+**The stochastic solver does not integrate the environment.** `StochasticPatch::ode_size` returns the
+species' size alone, and its `set_ode_state`, `ode_state` and `ode_rates` do not forward to the
+environment, where `Patch`'s do. Any environment carrying ODE state is therefore held at its initial
+value for the whole run, which is the defect Appendix E measures. The fix mirrors `patch.h`: add
+`environment.ode_size()` to the size and chain the three accessors through the environment. Closing the
+water balance additionally needs the resource accumulation `Patch::compute_rates` performs, which
+requires per-node and per-species `consumption_rate` forwarders the stochastic classes do not have. The
+four ODE-interface lines carry the whole 13%; the consumption coupling is worth a further 0.35% at age
+3 and grows with leaf area. FF16 and K93 have no environment ODE state, so their stochastic systems are
+bit-identical either way; TF24's are not, so three length assertions and one seed-pinned survivor count
+across `test-stochastic-patch-runner.R` and `test-stochastic-patch.R` move and would need regenerating
+deliberately. Recorded and left unfixed.
+
+**Newly introduced stochastic nodes never have their initial states set.**
+`StochasticSpecies::introduce_new_node` computes rates without first calling `set_initial_states`, which
+is what gives a TF24 recruit its birth reserve fill, so stochastic seedlings are born with an empty
+store. Worth 0.45% of leaf area at patch age 1 and 0.13% at age 3. Recorded and left unfixed.
 
 **A height-ordering dependence remains in the competition loop.** `Species::compute_competition`
 breaks out of its sum at the first cohort shorter than the query height, and returns zero when the

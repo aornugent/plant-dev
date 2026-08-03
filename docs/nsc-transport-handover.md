@@ -60,8 +60,14 @@ Baselines to confirm the build is right, all bit-identical with the flag off: TF
   neighbours in the damaging interval are identical to four decimal places in reserve fraction (§2.2).
 - **The omitted term does not diverge at a growth stall.** `∂g/∂S` carries a factor of `g` that
   cancels. Predicted zero, measured `1.1 × 10⁻¹¹` (Appendix D).
-- **Schedule resolution is not the cause of the 6–21% excess over the individual-based ensemble.**
-  At least 94% survives refinement to 561 introductions (§6.2). Do not re-run this.
+- **The corrected solver agrees with an individual-based solver to within 0.6% at every patch age**
+  (§1, Appendix E). The residual once attributed to the corrected solver was the stochastic solver's own
+  defect: it never integrates the environment, so TF24's soil water is frozen at its initial 0.214 while
+  the SCM recharges to 0.3106. Nonlinear averaging was tested and **refuted** — the excess does not
+  scale with patch area, and the direct curvature estimate fails by an order of magnitude. Do not
+  re-open either question.
+- **The corrected coordinate's leaf-area quadrature is second order and converged** to 0.3% at the
+  production schedule (§6.2). This is reference-independent and unaffected by the defect above.
 - **No cohort crossing occurs in a constant environment**, so the density in height exists throughout
   the results that matter (§2.1). One cell of the seasonal sweep does cross (§6.3), which is why §2.1
   now leads the report's diagnosis rather than sitting in an appendix.
@@ -73,14 +79,16 @@ Baselines to confirm the build is right, all bit-identical with the flag off: TF
 
 ## 4. What is open, in the order worth attacking
 
-**1. The 6–21% excess over the individual-based ensemble is unexplained.** The only named remaining
-candidate is that the mean over stochastic replicates of a nonlinear functional is not the
-deterministic value. The experiment: re-run `probes/12-oracle.R` at patch areas 256 and 1024 m² with
-two or three replicates and see whether the ensemble mean rises toward the deterministic value as the
-population grows. Cost scales roughly quadratically with area — 64 m² took about 10 minutes per
-replicate — so budget several hours and run it detached. If the mean does rise, the excess is
-explained and the corrected solver is vindicated outright; if it does not, something outside both
-candidates is in play.
+**1. Fix the stochastic solver's ODE system.** `StochasticPatch::ode_size` omits
+`environment.ode_size()` and its three ODE accessors do not forward to the environment, so any
+environment carrying ODE state is frozen for the whole run. Four lines mirroring `patch.h`, plus
+per-node and per-species `consumption_rate` forwarders to close the water balance (report 13
+Appendix F). It moves TF24's stochastic numerics — three length assertions and one seed-pinned survivor
+count need regenerating deliberately — and leaves FF16 and K93 bit-identical, since their environments
+carry no ODE state. Call `set_initial_states` on newly introduced stochastic nodes in the same change.
+This is the highest-value item here: it makes the individual-based solver a valid check on any strategy
+whose environment carries state, and until it lands every stochastic TF24 result in the package is run
+at a fixed soil moisture.
 
 **2. Cost at matched accuracy.** §6.4 compares the two coordinates at equal `schedule_eps`, and they
 reach different accuracies, so the comparison does not answer whether the corrected coordinate is
