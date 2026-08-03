@@ -155,7 +155,61 @@ them rather than trust the design.
 
 ---
 
-## 5. The design to build
+## 5. Which terms `d(census)/d(trait)` needs
+
+A census is `Σ_k n_k ψ(state_k)`, a trapezium over the cohort heights at one time. A trait reaches
+it through every cohort's rates at every step. Not every term in the leaf's Jacobian is needed for
+every trait, and the difference decides how much work a gradient does.
+
+**The leaf has two kinds of input and they cost different amounts.**
+
+| kind | count | how the row is obtained | cost |
+|---|---|---|---|
+| state: `PPFD`, `psi_soil[n]`, `area_leaf`, `mass_root[n]`, `leaf_specific_conductance_max` | `2n + 3` = 13 | envelope row for profit; two shared scalars plus `∂E_i/∂area_leaf = −E_i/area_leaf` for uptake | cheap, and exact today |
+| parameter: the fifteen names `Leaf::inputs()` declares | 15 | one two-sided difference **per parameter** | expensive; four of them rebuild a tabulation |
+
+**Most registered traits are not leaf parameters, and need no parameter row at all.** `lma` is the
+worked case. It is absent from the fifteen names. It reaches the leaf only through
+`area_leaf(height)`, which is a state input, so the tape records `area_leaf` as a function of
+`lma` and the graft supplies `∂output/∂area_leaf`. **A gradient with respect to `lma` therefore
+needs none of the fifteen parameter rows**, and none of the tabulation that four of them cause.
+
+Eleven of the 44 registered traits are leaf parameters — `b`, `c`, `psi_crit`, `beta2`,
+`g1_TF24`, `a`, `curv_fact_elec_trans`, `curv_fact_colim`, `root_b`, `root_c`, `root_psi_crit`.
+Only for these does a parameter row have to exist.
+
+**Where the design's cost promise breaks.** Reverse mode makes the trait count free on the tape,
+and that is verified: `ad_parameters()` is unconditional and there is no per-trait loop. Inside
+the leaf it is not free, because the parameter rows are computed one parameter at a time by
+differencing. **The leaf's supplied Jacobian is the one place in the whole gradient where cost is
+proportional to the number of traits**, and C3 and C4 are the two ways to remove that.
+
+### `∇(∂Π/∂p)`: needed, partly built, and needed for one reason only
+
+`R = ∂Π/∂p` is the derivative of profit with respect to the collar potential, and `∇R` is its
+gradient with respect to the leaf's inputs. It is needed **only for the uptake rows**:
+
+- **Profit does not need it.** `profit_` is evaluated at its own maximiser, so `dΠ/dp = 0` there
+  and the row is `∂Π/∂u` at frozen `p*`, with no `dp*/du` term. This is the envelope theorem and
+  it is why the profit row is cheap.
+- **Uptake does need it.** `E_i` consumes `p*` rather than being stationary in it, so it carries
+  `dp*/du = −(∂²Π/∂p∂u) / Π_pp`. Every layer shares one `p*`, so the whole channel is one scalar
+  `μ_j = dE_dr[j] / Π_pp` times one shared vector `∇R`.
+
+Its two halves have different status:
+
+| directions of `∇R` | status |
+|---|---|
+| the `2n + 1` state directions | **built and exact.** `dR/du = a·dE_up/du + b·d(dE_up/dr)/du`, two scalars shared across all of them; `b` closed form, `a` from one extra residual pair. In the code as `dR_dflux_slope` and `dR_dflux` |
+| the 15 parameter directions | **not built.** Each is a two-sided difference of the residual. This is what report 00 §10 means by "the single new piece of code the whole design needs" |
+
+So report 00 §10's item is the parameter half of `∇R`, and C3 supplies the transport part of it in
+closed form. The remaining parameter directions are the seven already exact through the templated
+evaluators plus the four that are structurally zero.
+
+---
+
+## 6. The design to build
 
 Five components. Each states its mechanism, what it must not break, and the gate that
 discriminates it.
@@ -201,7 +255,8 @@ economy:
 dPi_du     (28)        the envelope row
 dE_du      (n x 28)    explicit and sparse: diagonal in psi, lower triangular in root mass,
                        exactly -E_i/area_leaf for leaf area
-gradR      (28)        the waist: a * dE_up/du + b * d(dE_up/dr)/du
+gradR      (28)        a * dE_up/du + b * d(dE_up/dr)/du, two scalars shared
+                       across all 2n+1 state directions
 Pi_pp      (1)         negative at every state sampled, -1.09 to -198
 dE_dr      (n)         from which mu_j = dE_dr[j] / Pi_pp
 ```
@@ -239,9 +294,11 @@ by AD match a central difference of the closed form **with a clean plateau in al
 floor 3.3e-12 to 2.3e-10. Cost per call: one 100-knot tabulation **121.2 us**; one closed-form
 value **0.074 us**; one value-plus-`d/da`-plus-`d/dx` on a reused tape **0.68 us**.
 
-**Why closed form rather than a cache.** A tabulation is amortisation. The forward solve
-amortises it over many Newton iterations times layers, so a spline is right there. **The
-derivative path queries `n + 2` points and throws the table away** — it never amortises. A cache
+**Why closed form rather than a cache.** A 100-knot table costs 100 gamma evaluations to build
+and then answers each query with a spline lookup. The forward solve makes many queries per solve —
+one per Newton iteration per layer — so the build cost is spread over them and the table is the
+cheaper choice. **The derivative path makes `n + 2` queries and then discards the table**, so it
+pays 100 evaluations to answer seven. A cache
 keyed on `(b, c, root_b, root_c, resolution)` would comply with report 01 §10 rule 3 and would
 help, but it is the wrong shape: it makes a mis-sized structure cheap instead of removing it, and
 it adds a third cache to a corpus that already documents two keyed on less than they depend on.
@@ -271,7 +328,7 @@ than report 02 defends.
 out a parallel near-copy of an existing path, and a closed form beside a tabulation of the same
 function is exactly that. The resolution: **the closed form is the definition and the forward
 spline is a cache built from it.** Then there is one expression of the physics, the forward hot
-path keeps its amortisation, and the knot grid becomes an implementation detail of a cache rather
+path keeps the table it needs for its many queries, and the knot grid becomes part of a cache rather
 than a second definition.
 
 **What it must not break.** The forward model must be bit-identical: `42.411799695604159` and
@@ -294,15 +351,22 @@ disappointed.
 
 ### C4 — compute only the rows the caller asked for
 
-**Mechanism.** `traits` does not reach C++; `ad_parameters()` is unconditional. The four
-expensive rows are needed only when a hydraulic trait is requested, and the rows are independent
-columns, so not computing them is exact rather than approximate.
+**Mechanism.** `traits` does not reach C++; `ad_parameters()` is unconditional. Section 5 gives
+the rule: a trait that is not one of the fifteen leaf parameter names needs **no leaf parameter
+row at all**. So for `lma`, and for the 33 other registered traits that are not leaf parameters,
+all fifteen parameter rows can be skipped — the eleven residual pairs and the tabulation together.
+The rows are independent columns of the Jacobian, so not computing them is exact rather than
+approximate.
 
-**Interaction, and it is the important one: C4 and C3 are substitutes, not complements.** If C3
-lands, the transport rows are cheap and C4's cost argument evaporates. C4's residual value is then
-API honesty — one trait costs one trait's work — and a narrower blast radius for the forward
-model's knot-count defect, since a caller who never requests `b` never differences across the
-moving grid. **Do not build both for the same reason.**
+This is larger than skipping the four transport rows. It removes the whole parameter loop for the
+common case.
+
+**Interaction: C4 and C3 are substitutes for the same cost, not complements.** If C3 lands, a
+requested leaf parameter is cheap and C4 saves little. If C4 lands, an unrequested leaf parameter
+costs nothing and C3 matters only to callers who ask for `b`, `c`, `root_b` or `root_c`. **Decide
+which one to build for cost; do not build both for cost.** They differ in what else they give: C3
+makes the four transport rows *exact*, which C4 does not; C4 makes the API honest about what a
+gradient costs, which C3 does not.
 
 **The hazard that governs it.** A skipped row must be **absent, never zero**. Exactly-zero reads
 as an answer and is this design's worst failure mode; it has already cost two waves here, when
@@ -354,7 +418,7 @@ remove its purpose. C5 is independent and small.
   conditioning as never measured, which is a gate problem as much as a maths one.
 - **`Π_pp` cannot be refereed by report 02 §6.9's stationarity identity**, because `dp*/du` is
   formed from `Π_pp` and cancels — a real 2% error survived it at 4.54e-10, bit-for-bit unchanged
-  before and after the fix. So none of the gates above may lean on that identity.
+  before and after the fix. So no gate above may use that identity as its reference.
 - **The 65 us per-block figure is not a fair target.** It was measured before P3.3's leaf
   parameter rows were wired, when `graft_leaf_outputs` truncated all fifteen with `row.resize` —
   so it is very likely the cost of a block whose leaf parameter Jacobian was *absent*. The cost
@@ -375,15 +439,24 @@ remove its purpose. C5 is independent and small.
 
 ---
 
-## 8. The shape of the whole thing, in one paragraph
+## 9. Summary
 
-Light, soil and the cohort blocks each represent their physics in a form that differentiates
-cleanly: a fixed-position interpolant whose values carry the scalar, a closed-form bidiagonal
-cascade, and elementary arithmetic on a tape. The leaf alone represents its transport as a table
-rebuilt from the parameters being differentiated, on a grid that is itself a function of them —
-and the table is rebuilt inside the innermost loop of a five-deep nest, to answer seven queries,
-twelve times per cohort block, once per census metric. The design's own documents forbid this from
-four directions: report 01 §4.1 forbids building those interpolators per cohort per stage, report
-01 §10 rule 3 forbids the cache that would paper over it, report 02 §6.4 specifies constant
-positions with values carrying the parameter, and report 03 has that arrangement built and working
-for the light field. The work is to make the leaf conform.
+Three of the four subsystems represent their physics in a form a tape can differentiate directly.
+The light field is an interpolant with `double` knot positions and values and slopes carrying `S`.
+The soil cascade is closed form and its transpose is written out. A cohort block is elementary
+arithmetic recorded on a tape.
+
+The leaf represents its transport as a table of 100 knots, built from the four parameters whose
+derivatives are wanted, on a grid whose spacing and count are functions of those parameters. The
+table is built inside the innermost loop: 14 tables per `Leaf::input_adjoints` call, 12 calls per
+cohort block, one set of blocks per census metric. Each table is built to answer `n + 2` = seven
+queries and is then discarded.
+
+Four existing documents state what the leaf should do instead:
+
+- report 01 §4.1 — do not build the four 100-knot interpolators per cohort per stage.
+- report 01 §10 rule 3 — a cache must be keyed on everything its value depends on, or not exist.
+- report 02 §6.4 — the interpolant positions are constant and the values carry the parameter.
+- report 03 — that arrangement, built and working, for the light field.
+
+The work in §6 makes the leaf match them.
