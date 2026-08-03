@@ -106,10 +106,19 @@ shortcuts discard cohorts that do shade, so the light profile is underestimated 
 overestimated, with no error raised. The correction removes the ordering requirement from the density
 state but not from that loop; closing it is outstanding work (Appendix F).
 
-Two things follow for this report. §1 and §3 to §5 are constant-environment results and are
-unaffected, because the density exists throughout them. And the birth-date coordinate carries no
-equivalent requirement: an individual's birth date is fixed at birth, so the map is the identity and
-there is nothing to invert.
+§1 and §3 to §5 are constant-environment results and are unaffected, because the density exists
+throughout them.
+
+The birth-date coordinate does not remove the precondition so much as weaken it. A birth date is fixed
+at birth, so the map is the identity and there is nothing to invert — but the quadrature still needs the
+introduction times to be **distinct**, and zero width is as fatal to a trapezium as inverted order is to
+a height-ordered walk. A scheduled run guarantees distinctness; a resumed one does not.
+`Patch::set_initial_state` introduces its initial cohorts through the boundary node and stamps per-node
+birth dates only when a caller supplies them, so a patch seeded without them gives every node the same
+date, every interval zero width, and a competition profile of zero with no error raised. The difference
+between the two coordinates is not that one has a precondition and the other does not; it is that the
+height coordinate's is violated by the model's own dynamics, while the birth-date coordinate's is
+violated only by a caller that omits the times.
 
 ### 2.2 The perturbation moves in a direction no individual travels
 
@@ -760,8 +769,11 @@ breaks out of its sum at the first cohort shorter than the query height, and ret
 query height exceeds `height_max()`, which reads `nodes.front().height()` rather than taking a
 maximum. Both shortcuts are sound only while the node list is ordered by height — a property the
 density state no longer requires, and one §2.1 records being violated 66 times under a full-amplitude
-seasonal light cycle. The minimal fix is to take a true maximum and delete the early exit, which
-costs a full walk of the node list per query height. Outstanding.
+seasonal light cycle. Since the commit these results are measured at, `develop` has gained
+`heights_are_decreasing()`, `scan_heights()` and a competition profile built over a sorted node grid, so
+the machinery to close this now exists. What remains is to route the birth-date coordinate past it
+rather than through it: a sort by height silently swaps the coordinate wherever cohorts cross, which is
+the regime §6.3 measures.
 
 **`refine_schedule` cannot tell a caller whether it converged.** It returns without reporting whether it
 met `schedule_eps` or exhausted `schedule_nsteps`, and it installs the bisected schedule into
