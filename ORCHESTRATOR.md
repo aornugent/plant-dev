@@ -748,6 +748,23 @@ Operational facts two waves accumulated that the plan does not carry.
 - **`plant/scripts/stand-gradient-smoke.R` is the whole-run gradient's smoke driver**, added in
   wave 5 with the trait-gradient export. **It does not finish** — see the blocker in §11.2 — so
   what it currently is is the reproducer for that, and the first thing to profile.
+- **`pkgload::load_all`'s `-O0` hazard is conditional on the `.so` being stale, and the rule below
+  states it too strongly.** Measured on `p3/trait-mask`: with `src/plant.so` already newer than
+  every source, `load_all` **skipped the build entirely** and `dyn.load`ed a temp-directory copy of
+  the pinned 5 648 272-byte `-O2 -DNDEBUG` object. `getLoadedDLLs()[["plant"]]$path` is the evidence
+  and the only evidence — not the size on disk, not the install log. A `library()` arm and a
+  `load_all` arm of the same gradient then ran at **3.017 s and 3.145 s, ratio 0.96**, with
+  identical answers to 17 digits. So `load_all` is still the wrong tool, because *when* it does
+  build it builds at `-O0`; what it is not is an automatic explanation for a slow measurement.
+  **Twice this phase a slow number was attributed to it and twice that was wrong.**
+- **A configuration can fail to take, and this one moves a timing by 18x.** Assigning
+  `p$node_schedule_times` and not verifying it silently runs the **default, denser** schedule:
+  pinned at `max_patch_lifetime = 0.2` a one-trait gradient is **3.1 s**, unpinned it is
+  **76.89 s**. The tell is that `scm$state$node_schedule_times[[1]]` has **length 0**, and the
+  shape tell is the node count — 8 nodes pinned against 65 on the default. Two packets this wave
+  reported "lifetime 0.2" for runs whose schedule had not taken. **"A measurement carries its
+  configuration" is not satisfied by naming the configuration in the brief; the run has to be
+  asked what it actually used, and the node count is the cheapest question.**
 - **Build with `R CMD INSTALL`, never `pkgload::load_all`, and this is not a preference.**
   `load_all` forces its own `-O0 -g` build and **ignores `R_MAKEVARS_USER`** (a 36 MB `.so`
   against 5.6 MB), and mixing that non-`NDEBUG` `.so` with an `-DNDEBUG` `sourceCpp`
