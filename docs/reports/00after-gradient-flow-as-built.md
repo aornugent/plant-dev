@@ -795,6 +795,115 @@ of the closed form.
 
 ---
 
+## 8b. Adversarial review of this design
+
+Five defects and one omission found by re-tracing the design against the code rather than against
+itself. Two would have failed a build; one changes which components are optional.
+
+### A. The callback reads leaf state that has been overwritten by the time it fires
+
+**This is a correctness defect, not a cost one, and it invalidates the naive form of C2b.**
+
+`supply_leaf_derivatives` runs during the block's forward recording, while the `Leaf` holds the
+operating point the graft belongs to. `computeAdjoint` runs later, on the reverse sweep. Between
+those two moments the same `Leaf` object is re-solved: `Individual::log_density_rate` calls
+`growth_rate_gradient`, which copies the `Individual`, **shares the strategy and therefore the
+`Leaf`**, and re-solves it at `height - 1e-6`. So a lazily-computed Jacobian for the *first* graft
+would be evaluated at the *probe's* operating point.
+
+The algebraic graft is immune because it materialises its partials immediately, while the operating
+point is still correct. The corpus records the sibling hazard — "no active value may outlive a
+recording" — and this is its off-tape twin: **no off-tape state a callback reads may be mutated
+between the recording and the sweep.**
+
+**The fix, and it keeps the saving.** The callback captures the leaf's operating point at
+registration and restores it before calling `input_adjoints`. That is a handful of scalars plus
+three short vectors — `p*`, `psi_stem`, `ci`, `E_up_`, `soil_consumption_`, `psi_soil_inverted_`,
+`root_vuln_integral_soil_`, `vcmax_`, `jmax_`, `electron_transport_`, `R_d_`, `area_leaf_`, `PPFD_`,
+`leaf_specific_conductance_max_`, `max_soil_layer`, `collar_pinned_` — on the order of a hundred
+bytes per graft, against six vector-Jacobian products. `Leaf::input_adjoints` already saves and
+restores its outputs for the same reason, so the precedent and the field list both exist.
+
+**Gate for it**: a block with two grafts must give adjoints bitwise equal to the algebraic graft's.
+A single-graft test would pass with the defect present, so the gate has to be a block whose
+`log_density_rate` probe fires — which is every real block, and no toy.
+
+### B. The callback is reverse-only; the graft is mode-agnostic
+
+`CheckpointCallback` is a `Tape` concept. It does not exist in forward mode. The algebraic graft
+works for **both** active types, because `graft_leaf_outputs` is guarded only by
+`if constexpr (!std::is_same_v<S, double>)` and its arithmetic is valid for `FReal` as for `AReal`.
+
+So **deleting the graft removes the ability to differentiate the block in forward mode**, which is
+the one exact referee available for the whole-run accumulation. The claim in §6b that `graft` is
+deleted is wrong if a tangent mode is ever wanted.
+
+**Resolution**: dispatch on the mode — callback for reverse, algebraic graft for forward — which
+keeps both paths and means the concept count does **not** fall. That is a real cost of C2b and §6b
+overstated its cleanliness.
+
+### C. The profile omits the field-rebuild term, and Amdahl bounds C2b well below 6x
+
+§6b divides the whole 254 us per block by the measured 5.97-6.11x. That is wrong, because a
+significant share of the gradient is not in the block at all.
+
+`Step::step_adjoint` does **12 field builds per step per metric** — six `ode::derivs` to rebuild the
+stage rates and six `set_ode_state_and_field` in the sweep. From the measured forward run, 138.6 s
+over 4 644 steps is 29.8 ms per step for six stages, so a stage costs about **5 ms** at 141 cohorts.
+Twelve per step over 4 644 steps and three metrics is **on the order of 600-840 s of the 2 995 s**,
+i.e. **20-28%**, and C2b does not touch any of it.
+
+    C2b alone:  0.25 + 0.75/6  =  0.375  ->  about 2.7x, not 6x
+    C1 + C2b:   (0.25 + 0.75/6) / 3      ->  about 8x
+
+**So C1 — one sweep carrying `M` seeds — is not optional, it is what makes C2b worth having.** It
+divides the field term by `M` as well as everything else. §6b's projections should be read as:
+
+| | projected | note |
+|---|---|---|
+| `lma`, + C2b only | ~1 100 s | Amdahl-bounded by the field term |
+| `lma`, + C1 and C2b | **~375 s** | |
+| a hydraulic parameter, + C1, C2b, closed form | ~450 s | |
+
+These are arithmetic on measured factors, and the field share is derived from a forward-run
+timing rather than measured in the reverse pass, so treat 20-28% as a bracket.
+
+### D. Report 02 §6.8 under-counts the leaf's parameter inputs, and misses the costly ones
+
+§6.8's table lists **12**: `vcmax_25`, `jmax_25`, `a`, `curv_fact_elec_trans`, `curv_fact_colim`,
+`b`, `c`, `psi_crit`, `beta2`, `g1_TF24`, `rho`, `a_bio`. The code has **15** — it adds `root_b`,
+`root_c`, `root_psi_crit`, and two of those three are among the four that rebuild a tabulation.
+
+And §6.8's scaling claim covers only the state directions: *"Nor does it grow with the layer count
+in the expensive direction: the `2n + 1` potential, root-mass and leaf-area directions cost the two
+scalars of §6.3 however large `n` is."* True as written, and **silent on the parameter directions**,
+which cost one residual pair each. **The design asserted a scaling property for the cheap half of
+the bundle and said nothing about the expensive half.**
+
+### E. `Leaf::translation_partials` is not dead, and an earlier note here was wrong
+
+It is called by `scratch/leaf_jac_gate.cpp`, the committed gate harness — §6.9 verification
+machinery rather than a production channel. An earlier version of this report called it dead on a
+grep of `src/` and `inst/` only.
+
+### F. The positive-sum item: the ecologically meaningful census costs the same as this one
+
+`census_trait_gradient` differentiates the census **at one patch age**. The stand-level quantity is
+the disturbance-weighted integral over patch ages, `integral rho(t) census(t) dt`, which is what
+`R0` already is for fecundity — and it is what an ecologist would want a sensitivity of.
+
+For an adjoint that is **the same single sweep**. A functional distributed in time changes the
+adjoint ODE from `lambda' = -lambda^T df/dy` to `lambda' = -lambda^T df/dy - dg/dy`, i.e. inject
+`rho(t) d(census)/dy` as a source at each step of the sweep the code already runs. The trait
+accumulation is unchanged. **A time-integrated census gradient therefore costs the same as a
+terminal one**, where a finite difference would pay for it again at every age.
+
+`Patch` already carries the disturbance weighting (`r_density`, `pr_survival`,
+`survival_weighting_cdf`), and `SCM::census_state_adjoint` already builds the seed at one time, so
+the change is a seed injected per step rather than once. Recorded as an opportunity, not scoped.
+
+---
+
 ## 9. Summary
 
 Three of the four subsystems represent their physics in a form a tape can differentiate directly.
