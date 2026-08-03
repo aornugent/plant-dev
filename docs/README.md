@@ -34,6 +34,13 @@ Read it for the transport-term (`∂ₓg`) gradient specifically.
 [`ad-issues.md`](./ad-issues.md) is the separate work breakdown — scoped items,
 dependencies, and build order — not part of the design proper.
 
+[`inverse-framework.md`](./inverse-framework.md) is a separate design: the **statistical
+framework for fitting cohort recruitment histories and a shared plant strategy to real
+multi-site forest structure**, driven by rainfall and anchored by sparse
+dendrochronology. It is downstream of the AD work — its `θ`-gradient (§8.4) is an
+adjoint through the SCM's self-consistent field — and it names one blocking defect in
+plant (the storage restoring-rate clamp, §11.1).
+
 [`oracle-consultation-guide.md`](./oracle-consultation-guide.md) is general practice for
 framing a hard problem to an external expert reasoner so it surfaces structure you cannot
 see — distilled from this project, applicable to any.
