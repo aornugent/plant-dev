@@ -644,6 +644,111 @@ not measured. C2b's factor applies to the whole block only if that inference hol
 sampling run settles it. Three predictions of this shape have been made in this wave and all three
 were wrong, so **that measurement should precede the build, not follow it.**
 
+### What registering a supplied derivative is, precisely
+
+The mechanism is worth stating exactly, because the name `graft_leaf_outputs` describes an
+algebraic trick rather than what happens, and the trick is what goes away.
+
+**The leaf's outputs are tape leaves, not tape results.** The tape holds no operations connecting
+the leaf's inputs to its outputs — the leaf was solved in `double`, off tape. Four steps:
+
+1. the six output values become fresh tape leaves (`registerInput`, which reads oddly: they are
+   inputs *from the tape's point of view*);
+2. the input slots are recorded;
+3. a checkpoint edge is inserted **at the current tape position**, after the inputs are registered
+   and before any downstream use of the outputs;
+4. on the reverse sweep, `computeAdjointsTo` sweeps everything recorded after that position, so by
+   the time the edge fires all six output adjoints have arrived; the edge reads them, asks the leaf
+   for one vector-Jacobian product, and increments the input slots.
+
+Two consequences follow from step 1 and should be kept in `plant/agents.md` §13. The block's forward
+value stays independent of a supplied input, so **a block-level finite difference still cannot
+referee these partials** — that property belongs to the off-tape solve, not to the algebra, and it
+survives the change. And the edge's position is load-bearing: inserted before the inputs are
+registered it would fire too early.
+
+### Naming
+
+`graft` and its identity `value + Σ partial_i·(x_i − to_passive(x_i))` are deleted. What replaces
+them:
+
+| | |
+|---|---|
+| odelia | `supplied_derivative(tape, y_values, inputs, vjp)` — a **multi-output overload** of the existing `supplied_derivative`, taking a callable instead of a constant partials vector, and returning the active outputs. The existing single-output, constant-partials form stays for one-shot use. |
+| plant | `TF24_Strategy::supply_leaf_derivatives(radiation, area_leaf, psi_soil, kappa)` — replaces `graft_leaf_outputs`. It states what happens: the leaf supplies the derivatives of its own outputs. |
+| plant | `Leaf::input_adjoints` — **unchanged**, signature and body. It is already the vector-Jacobian product the callable needs. |
+
+Net effect on concept count: one hand-rolled idiom in plant is deleted, one odelia primitive gains
+an overload, and nothing new is introduced. `odelia/AGENTS.md` asks for exactly this — "AD code is
+glue around the vendored XAD facilities … invoke them, don't re-implement them."
+
+### Forward spline, closed-form reverse, and how they stay one thing
+
+The two paths want different structures for the same function, and that is not a duplication if it
+is arranged as a definition and a cache.
+
+`G(psi) = (b/c)·gamma(1/c, (psi/b)^c)`, the cumulative Weibull vulnerability integral.
+
+| path | structure | why |
+|---|---|---|
+| forward solve, `double` | 100-knot spline, built once per `Leaf` at construction | many queries per solve — one per Newton iteration per layer — so a 100-evaluation build is amortised and a lookup is the right cost |
+| reverse, derivative | **no table**; evaluate the closed form at the points actually needed | the code's own comment says the queries "resolve to exactly one of `{-psi_soil[i], -P_x_r, 0}`", and `refresh_soil_potentials` does `n` of them, so the derivative path makes **`n + 2` = 7 queries** and never amortises a build |
+
+**The measured consequence.** One tabulation is **121 us**; seven closed-form evaluations are
+**0.5 us** value-only or **4.8 us** carrying value, `d/dx` and `d/da` on a reused tape — 25x to
+250x for the same information. The derivative path also stops needing a central difference at all:
+`d/db` and `d/dc` come from the same evaluation, so the four hydraulic rows become exact and can no
+longer straddle the knot-count step that gives them errors of 47x, 131x and 10 245x today.
+
+**One expression of the physics.** `Leaf::set_transpiration_at`,
+`Leaf::set_root_vulnerability_at` and `Leaf::build_cumulative_vulnerability_integral` all evaluate
+`boost::math::tgamma_lower` per knot. Those become calls to `odelia::incomplete_gamma`, so the
+spline is built **from** the closed form and there is one definition with a cache in front of it,
+rather than the parallel near-copy `build-plan.md` §2.1 rules out.
+
+**And that unification moves a forward number, so it is staged.** `incomplete_gamma` agrees with
+`tgamma_lower` to **1.7e-15**, not to the last bit, and the adaptive controller amplifies last-bit
+differences into a different accepted grid. So:
+
+- **stage A, no re-bless**: the reverse path uses the closed form; the forward tabulation keeps
+  `boost::math`. The forward model is bit-identical by construction because nothing on the `double`
+  path changes. Two expressions of `G` exist, agreeing to 1.7e-15 — a duplication that is measured
+  rather than assumed, and recorded as owed.
+- **stage B, with a re-bless**: the forward tabulation is rebuilt from `incomplete_gamma`, leaving
+  one definition. This moves offspring and the accepted step count by roughly the 0.145% that
+  report 01 §2 measures between two builds of one tree, so it needs the owner and a
+  `scientific_version` bump.
+
+**Open, and it is the one thing that could enlarge stage A**: `psi_from_transpiration` is the
+*inverse* of `G`, and if the reverse path reads it then it needs `odelia::implicit_value` on the
+residual, with `dpsi/dG = 1 / G'(psi) = exp((psi/b)^c)` closed form. It is read by
+`find_psi_stem_from_psi_root`, which is part of the `double` forward solve, so it may not be on the
+derivative path at all. **Check before scoping; do not assume either way.**
+
+### The three properties this is trying to hold together
+
+**Clean.** One primitive replaces one hand-rolled idiom; `graft` and its identity are deleted;
+`Leaf::input_adjoints` is untouched; `G` has one definition with a cache in front of it. Concept
+count goes down, not up.
+
+**Performant.** Every factor below is measured; the products are arithmetic on them and are marked
+as such.
+
+| | per block | at production |
+|---|---|---|
+| as built, all traits | 19.9 us x 1000 = 19.9 ms | — |
+| guard fix + mask, `lma` | **254 us** (measured) | **2 995 s** (measured) |
+| + one call per graft | ~40-80 us | ~700-900 s |
+| a hydraulic parameter, as built | ~14 ms | ~46 hours |
+| + one call per graft | ~2.3 ms | ~7.7 hours |
+| + closed-form reverse | ~128 us | **~1 500 s** |
+
+**Stable.** The leaf stays `double` and its solve stays untaped, so report 02's boundary does not
+move. Stage A changes no forward number, so every gate is bitwise equality against the build before
+it rather than a new tolerance. `pushCallback` once and `insertCallback` per recording bounds
+callback allocation, which the naive registration does not. And the four hydraulic columns go from
+*silently wrong* to exact, which is a stability improvement that no timing shows.
+
 ### What the design does not touch
 
 The leaf stays `double`. The solve stays untaped. `Leaf::input_adjoints`' signature is unchanged.
