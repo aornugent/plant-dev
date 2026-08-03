@@ -606,12 +606,43 @@ speeds differ by up to 30%, so only the ratios transfer.
 | leaf trait requested, + one call per graft | **~940 us** | 5 620 us unmasked at that config, divided by 6 |
 | leaf trait requested, + closed form | **~150 us** | 16 tabulations at ~110 us replaced by ~110 closed-form evaluations at 0.68 us |
 
-**An inconsistency in these numbers that is not resolved.** The microbenchmark puts one tabulation
-at **121 us**; the masked build's 842 us per block cannot contain 24 tabulations at that price, and
-implies about **35 us** each. A factor of three. Candidate causes: the per-block divisor uses the
-*final* node count while the node count grows through a run; cache warmth, since the microbenchmark
-rebuilds its vectors each call; and the 30% box-speed difference between sessions. **Nobody has
-separated them**, so the table's absolute values carry that uncertainty and its ratios do not.
+**The apparent inconsistency in these numbers is resolved, and it corrects the whole table's
+denominator.** `graft_leaf_outputs` calls `input_adjoints` **`1 + max_soil_layer`** times, not six:
+
+    const size_t n = static_cast<size_t>(leaf.max_soil_layer);
+    for (size_t j = 0; j < n_layer; ++j) {
+      if (j >= n) { leaf_soil_consumption_[j] = leaf.soil_consumption_[j]; continue; }  // no call
+
+`max_soil_layer` is the last layer carrying root mass, set from rooting depth `min(height, 1.5)`.
+At `max_patch_lifetime = 0.2` cohorts are 0.34-0.5 m tall and root into one or two of five layers,
+so a block makes **4 to 6 calls, not 12**. Dividing correctly, `1090 us / (4 to 6 calls x 2
+tabulations)` is **91 to 136 us per tabulation**, bracketing the microbenchmark's **121 us**. The
+earlier reading of a factor of three came from assuming twelve calls at every configuration.
+
+**So the leaf's call count scales with rooting depth, hence with plant size, hence with lifetime**,
+and per-block cost is not a constant of the model. A packet had already observed the symptom — two
+per-block figures disagreeing by 1.9x — and attributed it to the node-count divisor; this is the
+cause. **C2b's saving is therefore `1 + max_soil_layer`**: close to 6x for fully rooted trees at
+production, 2-3x for seedlings.
+
+### The production figure, and what it does and does not license
+
+The production `lma` gradient of **2 995 s** was taken on the guard-fixed build, so its tabulations
+were already near zero. Over `4644 x 141 x 6 x 3 = 11.8M` blocks that is **254 us per block**, and
+at production every cohort roots to 1.5 m so the count is 12 calls — about **21 us per
+`input_adjoints` call**, which is residual-evaluation cost rather than tabulation.
+
+| | projected | basis |
+|---|---|---|
+| `lma` at production, + C2b | **~700-900 s** | 254 us/block reduced by the measured 5.97-6.11x |
+| a leaf parameter, + C2b only | **~6 hours** | tabulations return: 2 calls x 8 tabulations x ~110 us |
+| a leaf parameter, + C2b + closed form | **~700-900 s** | tabulations removed |
+
+**The limit on this: there is no profile of the guard-fixed build.** The 50-of-60 histogram was
+taken before the guard fix, so what dominates the 254 us is **inferred** to be `input_adjoints` and
+not measured. C2b's factor applies to the whole block only if that inference holds, and one
+sampling run settles it. Three predictions of this shape have been made in this wave and all three
+were wrong, so **that measurement should precede the build, not follow it.**
 
 ### What the design does not touch
 
@@ -640,6 +671,12 @@ of the closed form.
 - **Interior production-like leaf states abort** inside `input_adjoints` through `util::stop` in
   `Leaf::psi_stem_to_ci` when TOMS748 fails to bracket. So no gate above can currently be seeded
   at a state that is both interior and production-like, which is a hole under every one of them.
+- **The four hydraulic vulnerability columns are incorrect as computed, and are recorded as a known
+  defect rather than fixed.** `b`, `c`, `root_b` and `root_c` are obtained by a central difference
+  across a grid whose knot **count** steps between 100 and 101 under a 1e-6 relative parameter move,
+  with measured errors of **47x, 131x and 10 245x**. A gradient requested for any of those four
+  should be treated as unreliable until the closed form lands. The other 40 registered traits are
+  unaffected: 33 are not leaf parameters at all, and the remaining seven have exact profit rows.
 - **`beta_R_H` and `beta_R_V` have no row**, so a strategy varying either reads exactly zero.
 - **`psi_crit` and `root_psi_crit`** are zero except when pinned, and the pinned-state gap —
   adjoint 0 against a whole-solve difference of −2.39e-04, rel 1.0 — is unexplained.
