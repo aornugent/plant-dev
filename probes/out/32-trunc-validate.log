@@ -13,3 +13,4 @@ A=64   k=2  10.41s  maxreldiff(L)=0.000e+00  maxdiff(Nc)=0.000e+00  narr<=3=174 
 A=4     nrep=12      1.83s (  0.153 s/rep)  L(3) mean=0.4934 sd=0.2489  sd*sqrt(A)=0.498  Nc(3) mean=2.732
 A=16    nrep=12     15.03s (  1.253 s/rep)  L(3) mean=0.4893 sd=0.0902  sd*sqrt(A)=0.361  Nc(3) mean=2.914
 A=64    nrep=5      70.88s ( 14.176 s/rep)  L(3) mean=0.5413 sd=0.0793  sd*sqrt(A)=0.635  Nc(3) mean=3.158
+A=128   nrep=3     126.48s ( 42.159 s/rep)  L(3) mean=0.4948 sd=0.0177  sd*sqrt(A)=0.201  Nc(3) mean=2.921

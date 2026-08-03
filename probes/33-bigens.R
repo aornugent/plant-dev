@@ -44,7 +44,7 @@ one_rep <- function(p, area, seed) {
 
 p <- add_strategies(scm_base_parameters("TF24","TF24_Env"), trait_matrix(0.1978791,"lma"))
 
-spec <- list(c(4, 600), c(16, 400), c(64, 150), c(128, 60))
+spec <- list(c(4, 600), c(16, 400), c(64, 180), c(128, 50))
 res <- list()
 for (s in spec) {
   A <- s[1]; R <- s[2]

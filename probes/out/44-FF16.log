@@ -11,3 +11,5 @@ FF16  bd  eps=0.02      iters=2   conv=TRUE  n_run=157   n_final=157   ode=225  
 FF16  bd  eps=0.00632   iters=3   conv=TRUE  n_run=185   n_final=185   ode=252    val=20.03401531         1.0s
 FF16  bd  eps=0.002     iters=4   conv=TRUE  n_run=220   n_final=220   ode=281    val=20.0354615          1.6s
 FF16  bd  eps=0.000632  iters=4   conv=TRUE  n_run=301   n_final=301   ode=352    val=20.03786439         4.0s
+FF16  bd  eps=0.0002    iters=9   conv=TRUE  n_run=415   n_final=415   ode=444    val=20.03694558        32.5s
+DONE

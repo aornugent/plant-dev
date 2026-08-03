@@ -1,0 +1,20 @@
+a_st3 = 0.8   height_0 = 0.3441948 
+SCM  new_node at t=1 : height=0.344195 storage=3.841082e-07 leafarea=6.044223e-05
+[1] 1
+IBM  individual #1 just after introduction: t=0.04688 height=0.369127 storage=2.991122e-07 leafarea=7.596133e-05
+bare TF24_Individual()                    : height=0.344195 storage=0.000000e+00
+
+free growth in an open canopy (storage at birth: full=3.8411e-07, empty=0)
+   age      a_full     a_empty   ratio |     h_full    h_empty   ratio
+  0.10  1.2642e-04  1.2532e-04  1.0087 |    0.43139    0.43024  1.0027
+  0.24  3.3008e-04  3.2744e-04  1.0080 |    0.57864    0.57723  1.0025
+  0.50  1.5742e-03  1.5637e-03  1.0067 |    0.93328    0.93138  1.0020
+  0.74  5.1994e-03  5.1708e-03  1.0055 |    1.34523    1.34296  1.0017
+  1.00  1.5037e-02  1.4970e-02  1.0045 |    1.86177    1.85921  1.0014
+  1.50  6.9833e-02  6.9616e-02  1.0031 |    2.97850    2.97566  1.0010
+  2.00  2.0705e-01  2.0658e-01  1.0023 |    4.15365    4.15079  1.0007
+  2.50  4.6327e-01  4.6248e-01  1.0017 |    5.31445    5.31168  1.0005
+  3.00  8.6155e-01  8.6039e-01  1.0013 |    6.42553    6.42290  1.0004
+Error in xy.coords(x, y, setLab = FALSE) : 'x' and 'y' lengths differ
+Calls: approxfun -> regularize.values -> xy.coords
+Execution halted

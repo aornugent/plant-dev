@@ -1,0 +1,70 @@
+
+############ node_density_in_birth_date = TRUE ############
+
+t=1.0000  nnode=76  total=0.003829  trap(nodes only)=0.003816  boundary=+0.000013 (+0.4% of total)
+  abscissa range [0.00000, 0.87500]   f_last=1.546e-04  f_boundary=6.035e-05  h_boundary=0.34419
+  implied x0 = 1.000004   (birth-date closure should be t=1.0000; -h0 closure = -0.34419)
+  boundary term if x0=t      : +0.000013  -> total 0.003829
+  boundary term if x0=0      : -0.000094  -> total 0.003721
+  last 4 abscissae: 0.56250 0.62500 0.75000 0.87500
+  last 4 f        : 1.195e-03 8.220e-04 3.691e-04 1.546e-04
+  last 4 density  : 0.9941 0.9947 0.9960 0.9972
+  first 4 abscissae: 0.00000 0.00001 0.00002 0.00003
+  first 4 f        : 1.684e-02 1.683e-02 1.683e-02 1.683e-02
+
+t=2.0000  nnode=81  total=0.097378  trap(nodes only)=0.097325  boundary=+0.000052 (+0.1% of total)
+  abscissa range [0.00000, 1.75000]   f_last=3.557e-04  f_boundary=6.035e-05  h_boundary=0.34419
+  implied x0 = 2.000004   (birth-date closure should be t=2.0000; -h0 closure = -0.34419)
+  boundary term if x0=t      : +0.000052  -> total 0.097378
+  boundary term if x0=0      : -0.000364  -> total 0.096961
+  last 4 abscissae: 1.12500 1.25000 1.50000 1.75000
+  last 4 f        : 9.936e-03 5.768e-03 1.629e-03 3.557e-04
+  last 4 density  : 0.9896 0.9909 0.9934 0.9959
+  first 4 abscissae: 0.00000 0.00001 0.00002 0.00003
+  first 4 f        : 2.336e-01 2.336e-01 2.336e-01 2.336e-01
+
+t=3.0000  nnode=84  total=0.585681  trap(nodes only)=0.585409  boundary=+0.000273 (+0.0% of total)
+  abscissa range [0.00000, 2.50000]   f_last=1.031e-03  f_boundary=6.027e-05  h_boundary=0.34419
+  implied x0 = 3.000004   (birth-date closure should be t=3.0000; -h0 closure = -0.34419)
+  boundary term if x0=t      : +0.000273  -> total 0.585681
+  boundary term if x0=0      : -0.001364  -> total 0.584045
+  last 4 abscissae: 1.75000 2.00000 2.25000 2.50000
+  last 4 f        : 2.657e-02 1.069e-02 3.628e-03 1.031e-03
+  last 4 density  : 0.9857 0.9882 0.9907 0.9931
+  first 4 abscissae: 0.00000 0.00001 0.00002 0.00003
+  first 4 f        : 9.558e-01 9.558e-01 9.558e-01 9.558e-01
+
+############ node_density_in_birth_date = FALSE ############
+
+t=1.0000  nnode=76  total=0.006281  trap(nodes only)=0.006267  boundary=+0.000014 (+0.2% of total)
+  abscissa range [-1.93421, -0.45913]   f_last=1.661e-04  f_boundary=7.153e-05  h_boundary=0.34419
+  implied x0 = -0.344195   (birth-date closure should be t=1.0000; -h0 closure = -0.34419)
+  boundary term if x0=t      : +0.000173  -> total 0.006441
+  boundary term if x0=0      : +0.000055  -> total 0.006322
+  last 4 abscissae: -0.85912 -0.76609 -0.59942 -0.45913
+  last 4 f        : 1.031e-03 7.317e-04 3.569e-04 1.661e-04
+  last 4 density  : 0.8587 0.8861 0.9636 1.0720
+  first 4 abscissae: -1.93421 -1.93419 -1.93417 -1.93414
+  first 4 f        : 1.429e-02 1.429e-02 1.429e-02 1.429e-02
+
+t=2.0000  nnode=81  total=0.229261  trap(nodes only)=0.229211  boundary=+0.000050 (+0.0% of total)
+  abscissa range [-4.33485, -0.58246]   f_last=3.428e-04  f_boundary=7.744e-05  h_boundary=0.34419
+  implied x0 = -0.344195   (birth-date closure should be t=2.0000; -h0 closure = -0.34419)
+  boundary term if x0=t      : +0.000543  -> total 0.229754
+  boundary term if x0=0      : +0.000122  -> total 0.229334
+  last 4 abscissae: -1.61810 -1.36733 -0.92596 -0.58246
+  last 4 f        : 7.646e-03 4.424e-03 1.317e-03 3.428e-04
+  last 4 density  : 0.8042 0.8067 0.8584 1.0164
+  first 4 abscissae: -4.33485 -4.33483 -4.33480 -4.33478
+  first 4 f        : 2.567e-01 2.567e-01 2.567e-01 2.567e-01
+
+t=3.0000  nnode=84  total=1.359992  trap(nodes only)=1.359911  boundary=+0.000080 (+0.0% of total)
+  abscissa range [-6.64466, -0.55697]   f_last=5.020e-04  f_boundary=2.540e-04  h_boundary=0.34419
+  implied x0 = -0.344195   (birth-date closure should be t=3.0000; -h0 closure = -0.34419)
+  boundary term if x0=t      : +0.001344  -> total 1.361256
+  boundary term if x0=0      : +0.000211  -> total 1.360122
+  last 4 abscissae: -1.62190 -1.16448 -0.80494 -0.55697
+  last 4 f        : 8.018e-03 2.926e-03 1.076e-03 5.020e-04
+  last 4 density  : 0.8369 0.9017 1.1090 1.7229
+  first 4 abscissae: -6.64466 -6.64463 -6.64461 -6.64458
+  first 4 f        : 1.201e+00 1.201e+00 1.201e+00 1.201e+00

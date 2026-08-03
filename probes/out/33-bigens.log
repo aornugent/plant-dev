@@ -1,0 +1,2 @@
+A=4     R=600     113.8s (  0.190 s/rep, wall w/2 cores)  fail=0  L(3) mean=0.50835 sd=0.21839 se=0.00892  Nc(3) mean=2.8368
+A=16    R=400     866.0s (  2.165 s/rep, wall w/2 cores)  fail=0  L(3) mean=0.50485 sd=0.10859 se=0.00543  Nc(3) mean=2.9375

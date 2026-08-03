@@ -1,0 +1,4 @@
+TF24  height      k=0 n=141   ode=5055   val=42.14017358       105.6s
+TF24  birth-date  k=0 n=141   ode=4013   val=395.4414873        49.2s
+TF24  height      k=1 n=281   ode=7253   val=54.79882568       311.6s
+TF24  birth-date  k=1 n=281   ode=4646   val=399.0849227       163.1s

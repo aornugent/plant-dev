@@ -1,1 +1,8 @@
 === TF24-bd eps=0.2 ===
+  [TF24 bd eps=0.2      ] iter  1  n=141   ode=4013   val=395.44149    flag=11     63.8s
+  [TF24 bd eps=0.2      ] iter  2  n=152   ode=3971   val=399.10764    flag=17     69.3s
+  [TF24 bd eps=0.2      ] iter  3  n=169   ode=4046   val=400.84038    flag=11     80.9s
+  [TF24 bd eps=0.2      ] iter  4  n=180   ode=4416   val=401.4072     flag=7     140.4s
+  [TF24 bd eps=0.2      ] iter  5  n=187   ode=4461   val=401.35339    flag=5     210.7s
+  [TF24 bd eps=0.2      ] iter  6  n=192   ode=4449   val=401.34569    flag=3     250.8s
+  [TF24 bd eps=0.2      ] iter  7  n=195   ode=4364   val=401.33786    flag=3     305.7s

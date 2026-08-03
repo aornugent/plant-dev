@@ -1,0 +1,8 @@
+FF16  height      k=0 n=141   ode=212    val=19.82440415         0.5s
+FF16  birth-date  k=0 n=141   ode=210    val=20.03187863         0.2s
+FF16  height      k=1 n=281   ode=301    val=19.94896318         2.4s
+FF16  birth-date  k=1 n=281   ode=302    val=20.03524097         0.9s
+FF16  height      k=2 n=561   ode=571    val=20.01217649        22.0s
+FF16  birth-date  k=2 n=561   ode=571    val=20.03606677        20.4s
+FF16  height      k=3 n=1121  ode=1131   val=20.03011866       209.1s
+FF16  birth-date  k=3 n=1121  ode=1130   val=20.03615875       265.7s

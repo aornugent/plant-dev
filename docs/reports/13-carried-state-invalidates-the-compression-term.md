@@ -27,7 +27,7 @@ Four tests, each able to fail independently, none sharing an assumption with ano
 
 | test | uncorrected | corrected |
 |---|---|---|
-| **Schedule refinement.** Offspring production at 141, 281 and 561 cohort introductions | 42.14, 54.80, 59.06 — moving +30.0% then +7.8% | 395.44, 399.09, 400.92 — moving +0.92% then +0.46% |
+| **Schedule refinement.** Offspring production at 141, 281 and 561 cohort introductions | 42.14, 54.80, 59.06 — moving +30.0% then +7.8% | 395.44, 399.08, 400.92 — moving +0.92% then +0.46% |
 | **Step size.** Distance of the estimate from the required quantity, against its own variation across five decades of finite-difference step | 0.302 against 0.0055 — a factor of 55 | not applicable; no derivative is taken |
 | **Coupling removed within TF24.** Relative gap between the two coordinates, store integrated but read by nothing, at the same three resolutions | 8.38, 6.28, 5.79 | 0.645, 0.357, 0.0966 |
 | **Independent solver.** Leaf area at patch ages 2 to 3 against a 16-run individual-based ensemble that has no transport term | 2.69 to 2.95 times the mean; 3.8 to 5.8 standard deviations above | 1.14 to 1.21 times the mean; within 0.7 standard deviations |
@@ -37,11 +37,33 @@ discrepancy is not a resolution error, so an analytic or automatically different
 would not remove it. The third attributes the discrepancy to the carried state within a single
 strategy. The fourth compares both against a solver that counts individuals and cannot prefer either.
 
+![Figure 1](figures/fig-01-schedule-convergence.svg)
+
+**Figure 1.** Lifetime offspring production for TF24 under midpoint refinement of the introduction
+schedule: (a) absolute values, with the corrected arm's own fixed-schedule limit of 400.92 marked;
+(b) each arm as a fraction of its own value at 561 introductions. At 141 introductions the
+uncorrected arm has reached 0.71 of its own value at 561 and is still climbing; the corrected arm is
+at 0.986.
+
+![Figure 2](figures/fig-02-oracle-comparison.svg)
+
+**Figure 2.** Leaf area above ground level over patch ages 0.5 to 5 years: (a) the 16 individual-based
+replicates and their pooled mean against both deterministic coordinates; (b) each coordinate as a
+ratio to the pooled ensemble mean, with the ensemble's ±1 s.d. envelope. The uncorrected coordinate
+leaves the replicate bundle between ages 1.5 and 3.5; the corrected one stays inside it throughout.
+
 **On the two strategies whose growth is a function of size, the two coordinates converge to each
 other**, which is the check that this is a change of coordinate and not a change of model. The
 relative gap falls by factors of 4.5 and 4.1 on K93 across successive halvings of the cohort spacing,
 and by 2.4 and 3.6 on FF16 — approximately the second order that two second-order quadratures of one
 integral should show. On TF24 it falls by 1.3 and then 1.1 and remains near 5.8.
+
+![Figure 3](figures/fig-03-coordinate-gap.svg)
+
+**Figure 3.** Relative gap between the two coordinates against schedule resolution, for the two
+strategies whose growth is a function of size, for TF24 as shipped, and for TF24 with the store
+integrated but read by nothing; the dashed guide has the slope of second-order convergence.
+Decoupling the store inside TF24 returns it to the converging family.
 
 ## 2. What a density in height requires, and where it fails
 
@@ -118,6 +140,12 @@ along the trajectory's own direction — recovers the required quantity to withi
 That is a diagnostic, not a proposal: the two agree because `r` happens to be close to stationary
 along trajectories at these parameters, which was measured rather than assumed and is not structural.
 
+![Figure 4](figures/fig-04-operators.svg)
+
+**Figure 4.** The three estimates of the transport term for TF24, as the median over interior cohort
+pairs at each of 37 recorded patch states, with interquartile bands for the single-individual
+perturbation and the required quantity; shading marks the states whose medians have opposite signs.
+
 ## 3. The correction
 
 The transport term exists only to maintain a density in height, and the Jacobian it computes cancels
@@ -175,12 +203,18 @@ integrals are dominated by the cohorts whose density is wrong. Leaf area above g
 
 | patch age | uncorrected | corrected | ratio |
 |---|---|---|---|
-| 0.75 | 1.66 × 10⁻³ | 1.15 × 10⁻³ | 1.45 |
-| 1.5 | 5.04 × 10⁻² | 2.49 × 10⁻² | 2.02 |
+| 0.75 | 1.66 × 10⁻³ | 1.14 × 10⁻³ | 1.45 |
+| 1.5 | 5.03 × 10⁻² | 2.49 × 10⁻² | 2.02 |
 | 2.0 | 2.29 × 10⁻¹ | 9.74 × 10⁻² | 2.35 |
 | 2.5 | 6.82 × 10⁻¹ | 2.71 × 10⁻¹ | 2.52 |
 | 3.0 | 1.360 | 0.586 | 2.32 |
 | 5.0 | 1.762 | 1.676 | 1.05 |
+
+![Figure 5](figures/fig-05-error-window.svg)
+
+**Figure 5.** Ratio of the uncorrected to the corrected solver over the whole run: (a) leaf area above
+ground level and canopy height; (b) stem density. Shading marks patch ages beyond 25 years. The two
+quantities that reach demography return to 1 once the canopy closes; stem density does not.
 
 The error does not go away when the canopy closes; it stops being visible in the quantities the model
 feeds back on. The two coordinates never agree on stem density — mean ratio 1.35, range 0.37 to 1.96 —
@@ -272,6 +306,12 @@ Excess over the pooled 16-run ensemble mean, at three schedule resolutions:
 | 281 | +5.67% | +8.52% | +13.83% | +16.87% | +21.03% |
 | 561 | +5.60% | +8.45% | +13.75% | +16.80% | +20.96% |
 | Richardson limit | +5.58% | +8.42% | +13.73% | +16.77% | +20.94% |
+
+![Figure 6](figures/fig-06-excess-refinement.svg)
+
+**Figure 6.** Excess of the corrected solver's leaf area over the pooled 16-run individual-based
+ensemble mean, at three schedule resolutions and at the Richardson limit: (a) the excess itself, where
+the four curves coincide; (b) each resolution's distance from the limit.
 
 Quartering the cohort spacing lowers leaf area by 0.29% to 0.33% and reduces the excess by about
 0.35 percentage points. Schedule resolution accounts for 6.0%, 4.3%, 2.9%, 2.3% and 1.7% of the
@@ -472,6 +512,12 @@ of the total derivative:
 | `1e-7` | −0.270179 | 5.0 × 10⁻⁶ | 0.3020 |
 | `1e-8` | −0.270178 | 5.2 × 10⁻⁶ | 0.3020 |
 
+![Figure 7](figures/fig-07-step-size.svg)
+
+**Figure 7.** `Node::growth_rate_gradient` evaluated at the patch state of age 2 across five decades of
+finite-difference step: (a) the estimate against the required quantity; (b) the distance from the
+required quantity against the estimate's own sensitivity to the step.
+
 Converged to five decimal places across five decades. The distance from the total derivative is
 0.302, which is 55 times its own variation across that range, and the total derivative's median
 magnitude at that state is 0.0318. An analytic derivative, or one obtained by automatic
@@ -555,7 +601,7 @@ as a Bernoulli draw on the same probability, three patch areas (4 m², 8 replica
 area into the arrival function's `delta_t` argument; the probes construct the schedule directly
 (Appendix F).
 
-Leaf area above ground level, pooled over all 16 runs:
+Leaf area above ground level, pooled over all 16 runs, plotted as Figure 2:
 
 | patch age | mean | s.d. | uncorrected | ratio | z | corrected | ratio | z |
 |---|---|---|---|---|---|---|---|---|

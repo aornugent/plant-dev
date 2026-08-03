@@ -1,0 +1,103 @@
+################ fixed-schedule convergence series ################
+ model    arm k    n steps      value         diff       ratio       order
+  FF16 height 0  141   212 19.8244042           NA          NA          NA
+  FF16 height 1  281   301 19.9489632 0.1245590275          NA          NA
+  FF16 height 2  561   571 20.0121765 0.0632133124 0.507496836 0.978529266
+  FF16 height 3 1121  1131 20.0301187 0.0179421644 0.283835220 1.816874476
+ richardson
+         NA
+         NA
+ 20.0773143
+ 20.0372296
+
+ model        arm k    n steps      value           diff       ratio      order
+  FF16 birth-date 0  141   210 20.0318786             NA          NA         NA
+  FF16 birth-date 1  281   302 20.0352410 3.36234251e-03          NA         NA
+  FF16 birth-date 2  561   571 20.0360668 8.25800044e-04 0.245602594 2.02560229
+  FF16 birth-date 3 1121  1130 20.0361588 9.19827431e-05 0.111386217 3.16635737
+ richardson
+         NA
+         NA
+ 20.0363356
+ 20.0361703
+
+ model    arm k   n steps      value       diff ratio order richardson
+  TF24 height 0 141  5055 42.1401736         NA    NA    NA         NA
+  TF24 height 1 281  7253 54.7988257 12.6586521    NA    NA         NA
+
+ model        arm k   n steps      value       diff ratio order richardson
+  TF24 birth-date 0 141  4013 395.441487         NA    NA    NA         NA
+  TF24 birth-date 1 281  4646 399.084923 3.64343537    NA    NA         NA
+
+    FF16 height FF16 birth-date     TF24 height TF24 birth-date 
+    20.03722962     20.03617028     54.79882568    399.08492269 
+
+################ Pareto ################
+
+--- TF24 / height   (own limit 54.79882568, birth-date limit 399.0849227) ---
+ eps iters converged   n steps node_steps   value relerr_own relerr_bd    cost
+ 0.2     5      TRUE 146  5078     560959 56.9101  0.0385283  0.857398 7667.78
+ cost_ns
+  847048
+
+--- FF16 / height   (own limit 20.03722962, birth-date limit 20.03617028) ---
+      eps iters converged   n steps node_steps   value  relerr_own   relerr_bd
+ 0.200000     1      TRUE 141   212      17422 19.8244 0.010621501 0.010569192
+ 0.063200     1      TRUE 141   212      17422 19.8244 0.010621501 0.010569192
+ 0.020000     2      TRUE 147   216      18418 19.9888 0.002415078 0.002362335
+ 0.006320     3      TRUE 160   223      20455 19.9545 0.004127712 0.004075059
+ 0.002000     3      TRUE 207   252      28556 19.9687 0.003421780 0.003369089
+ 0.000632     4      TRUE 291   308      44989 20.0009 0.001810821 0.001758045
+ 0.000200     5      TRUE 386   399      77039 20.0237 0.000675639 0.000622804
+   cost  cost_ns
+ 320.12  26307.2
+ 320.12  26307.2
+ 326.16  27811.2
+ 336.73  30887.0
+ 380.52  43119.6
+ 465.08  67933.4
+ 602.49 116328.9
+
+--- FF16 / birth-date   (own limit 20.03617028, birth-date limit 20.03617028) ---
+      eps iters converged   n steps node_steps   value  relerr_own   relerr_bd
+ 0.200000     1      TRUE 141   210      17193 20.0319 2.14195e-04 2.14195e-04
+ 0.063200     2      TRUE 145   213      17870 20.0165 9.82525e-04 9.82525e-04
+ 0.020000     2      TRUE 157   225      20466 20.0357 2.34319e-05 2.34319e-05
+ 0.006320     3      TRUE 185   252      26833 20.0340 1.07554e-04 1.07554e-04
+ 0.002000     4      TRUE 220   281      34939 20.0355 3.53749e-05 3.53749e-05
+ 0.000632     4      TRUE 301   352      57759 20.0379 8.45525e-05 8.45525e-05
+ 0.000200     9      TRUE 415   444      95098 20.0369 3.86952e-05 3.86952e-05
+ cost cost_ns
+  210   17193
+  213   17870
+  225   20466
+  252   26833
+  281   34939
+  352   57759
+  444   95098
+
+################ node placement (final adaptive schedule vs default) ################
+FF16  ht          eps=0.02     n=147   added by bin [0,.1](.1,1](1,5](5,20](20,60](60,+):    0    0    4    2    0    0   (default:   60   16   12   10   20   23)
+FF16  ht          eps=0.002    n=207   added by bin [0,.1](.1,1](1,5](5,20](20,60](60,+):    1   13   19   18   15    0   (default:   60   16   12   10   20   23)
+FF16  bd          eps=0.02     n=157   added by bin [0,.1](.1,1](1,5](5,20](20,60](60,+):    0   10    4    2    0    0   (default:   60   16   12   10   20   23)
+FF16  bd          eps=0.002    n=220   added by bin [0,.1](.1,1](1,5](5,20](20,60](60,+):    2   41   21   13    2    0   (default:   60   16   12   10   20   23)
+
+################ adaptive vs uniform: does placement earn accuracy? ################
+
+-- TF24 height (limit 54.79882568) --
+ adaptive: n:relerr
+  141:2.31e-01  143:1.83e-02  144:2.86e-02  145:2.82e-02  146:3.85e-02
+ uniform : n:relerr
+  141:2.31e-01  281:0.00e+00
+
+-- FF16 height (limit 20.03722962) --
+ adaptive: n:relerr
+  141:1.06e-02  147:2.42e-03  157:6.90e-03  160:4.13e-03  190:6.22e-03  207:3.42e-03  222:5.16e-03  228:4.50e-03  275:2.67e-03  291:1.81e-03  333:1.60e-03  380:7.78e-04  386:6.76e-04
+ uniform : n:relerr
+  141:1.06e-02  281:4.41e-03  561:1.25e-03  1121:3.55e-04
+
+-- FF16 birth-date (limit 20.03617028) --
+ adaptive: n:relerr
+  141:2.14e-04  145:9.83e-04  157:2.34e-05  168:7.29e-05  180:4.89e-05  185:1.08e-04  192:3.60e-05  202:1.78e-05  213:1.10e-05  220:3.54e-05  256:1.00e-04  288:4.72e-05  301:8.46e-05  383:4.75e-05  408:3.87e-05  410:3.87e-05  412:3.87e-05  414:3.87e-05  415:3.87e-05
+ uniform : n:relerr
+  141:2.14e-04  281:4.64e-05  561:5.17e-06  1121:5.75e-07

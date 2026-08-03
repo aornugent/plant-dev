@@ -1,1 +1,8 @@
 === TF24-ht eps=0.2 ===
+  [TF24 ht eps=0.2      ] iter  1  n=141   ode=5055   val=42.140174    flag=2     108.9s
+  [TF24 ht eps=0.2      ] iter  2  n=143   ode=5176   val=55.801764    flag=1     141.6s
+  [TF24 ht eps=0.2      ] iter  3  n=144   ode=5074   val=56.364144    flag=1     201.5s
+  [TF24 ht eps=0.2      ] iter  4  n=145   ode=5027   val=56.346622    flag=1     293.8s
+  [TF24 ht eps=0.2      ] iter  5  n=146   ode=5078   val=56.91013     flag=0     361.2s
+--> TF24-ht eps=0.2       iters=5   conv=TRUE  n_run=146   n_final=146   ode=5078   val=56.9101303       1107.0s
+=== TF24-ht eps=0.0632 ===
