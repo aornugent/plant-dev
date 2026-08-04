@@ -32,9 +32,20 @@ The shape of the failure puts the cause in the seed and not in the sweep. The
 sweep is shared between the metrics. A defect in the sweep moves all three
 metrics.
 
-Task 6 gives one cause. Task 6 explains `mass_above_ground` and it does not
-explain `area_stem` or `k_I`. Therefore at least one more cause exists. Keep the
-tangent referee until each metric agrees.
+**Diagnosed 2026-08-04. Three separate causes, and Task 6 is none of them.**
+
+1. **The seed is aliased for every metric except the first.** Task 15. This explains
+   `mass_above_ground`, `area_stem`, and why `leaf_area` is right: `leaf_area` is row 0
+   of `tf24_census`, and only row 0 is sound.
+2. **The traits of the field build reach no accumulator.** Task 16. This explains
+   `k_I`.
+3. **The direct term of the census is absent.** Task 6. This is real and it is
+   masked by cause 1. **It explains none of the three numbers above**:
+   `d(mass_above_ground)/d(lma)` at fixed state is the `leaf_area` census value,
+   `+1.9636` at this configuration, so adding it makes the adjoint more negative and
+   not `+1.12`, and it is exactly zero for both `leaf_area` and `area_stem`.
+
+Keep the tangent referee until each metric agrees.
 
 **A separate finding of the same measurement.** The tangent and the finite
 difference differ by about 3 percent at each step size. Therefore the difference
@@ -284,24 +295,29 @@ this too, because the guard moves into the function.
 **The build order is not the number order.** The numbers name the tasks; this list
 orders them, and each departure has a reason that was checked against the code.
 
-1. **Task 3's plumbing before Task 2.** Task 2's condition is written with
+1. **Task 15 first, before every other correctness task.** It is the cause of two of
+   the three wrong metrics, and until it is fixed no other seed defect can be measured:
+   a second sweep reads aliased values whatever else is right.
+2. **Task 16 next**, because it is the only cause of `k_I` and it is independent of
+   everything else.
+3. **Task 3's plumbing before Task 2.** Task 2's condition is written with
    `par_wanted`, which does not exist. `leaf_model.cpp` has `rebuilds_transport` and
    no notion of a parameter being wanted. Task 3 builds that notion.
-2. **Task 1 before Task 2 and before Task 3's leaf half**, because both edit
+4. **Task 1 before Task 2 and before Task 3's leaf half**, because both edit
    `output_rows`, which Task 1 creates.
-3. **Task 5 before Task 4.** `reaches_operating_point` excludes only `psi_crit`,
+5. **Task 5 before Task 4.** `reaches_operating_point` excludes only `psi_crit`,
    `root_psi_crit`, `rho` and `a_bio`, so `b`, `c`, `root_b` and `root_c` are among
    Task 4's eleven parameters. Task 4's gate is the central difference it replaces,
    and Measurement E shows that difference is wrong by 47 to 10 245 times for those
    four. **Four of Task 4's eleven rows would be gated against a poisoned
    reference.**
-4. **Task 0b before every gate**, and its own gate must expect the pinned rows to
+6. **Task 0b before every gate**, and its own gate must expect the pinned rows to
    move. At the `bound_a` pin `psi_stem` equals the collar potential, so the forward
    guard `psi_upstream >= psi_stem` fires and the forward path reports
    `gamma * umol_per_mol_to_Pa` while `input_adjoints` runs the root-find. The two
    disagree there today. Making them agree changes the pinned rows, so **Task 1's
    bitwise baseline must be taken after Task 0b, not before.**
-5. **Take Measurement A again after Task 10.** Every factor in Section 11 is quoted
+7. **Take Measurement A again after Task 10.** Every factor in Section 11 is quoted
    against 10.64 `input_adjoints` calls for each block, and Task 10 removes the second
    leaf solve.
 
@@ -309,6 +325,85 @@ orders them, and each departure has a reason that was checked against the code.
 including the implicit-function term of the `ci` root-find, is design. A packet may
 not make a design choice. Write the eleven expressions first; then a packet
 transcribes and gates them.
+
+### Task 15: give each recording its own active values
+
+Type: **correctness**. It is the largest cause of the stop in Section 1.
+
+**Why.** `SCM::census_state_adjoint` builds the active twin one time,
+`auto active = patch.template rebind_from<scalar>();`, and then calls
+`odelia::ode::vector_jacobian_product` one time for each metric.
+`vector_jacobian_product` starts with `tape.clearAll()`, which returns the tape's
+derivative-slot counter to zero. Therefore every active value inside `active` — the
+`Internals<scalar>` states, rates and auxs of each node, `new_node`, the knot values of
+the spline, the cached `HeightScan` — carries a slot from recording `m` into recording
+`m + 1`, where that slot now means something else. **The first metric is sound and each
+later metric reads aliased storage.**
+
+Two places in this code already state the rule this breaks.
+`Patch::cohort_block_adjoint` says "No active value does: `clearAll()` returns the
+tape's slot counter to zero, so a value outliving a recording aliases", and builds a
+fresh active strategy for each cohort. `Step::step_adjoint` says "an input carrying a
+slot from the previous recording registers as a variable with no dependencies, and its
+adjoint sweeps to zero". `census_state_adjoint` is the one place that keeps the value
+across recordings.
+
+**Measured, and this is the evidence that ranks it first.** `tf24_census` is
+`{leaf_area, mass_above_ground, area_stem}`, so `leaf_area` is row 0. Against a central
+difference of the same reduction R computes: `leaf_area` agrees to 2e-5 on both the
+height and the `log_density` columns; `mass_above_ground` reads `-0.0077` where the
+reference is `+1.2396`; `area_stem` is 52 times too large on height and 283 times too
+large on `log_density`; and the heartwood columns of both later rows are **exactly
+zero** against a reference of `4.2743`. Rows 1 and 2 correlate with row 0 at 0.04 to
+0.17, so this is aliased storage and not a scale error. The census **values** agree to
+1e-12, so the forward reduction is sound.
+
+**This also predicts the magnitudes.** `area_stem` is
+`theta * (1 + a_b1) * area_leaf + area_heartwood` with `theta = 2.14e-4`, so its true
+seed is about 2.5e-4 of `leaf_area`'s. A seed contaminated at `leaf_area` scale is then
+about 50 to 300 times too large, which brackets the 65 times of Section 1. For
+`mass_above_ground` the contamination is comparable to its own size, which flips a sign
+instead of inflating a magnitude.
+
+**Steps.** Build the active twin inside the reduction, so each recording gets values
+with no slot from the previous one. Do not move `clearAll` and do not keep the twin.
+
+**Task 11 is the same fix done properly.** Recording one time and re-sweeping with
+`clearDerivativesAfter()` removes the repeated recording and the aliasing together.
+Task 15 is the small correct fix that unblocks measurement now; Task 11 supersedes it.
+
+**How to check.** The single decisive test is cheap: reorder `tf24_census` to put
+`area_stem` first and rebuild. Under aliasing `area_stem` becomes exact and `leaf_area`
+becomes wrong. Under any cause that belongs to the metric, `area_stem` stays wrong.
+Then, with the fix in, require all three rows to agree with the central difference of
+the R reduction.
+
+### Task 16: carry the traits of the field build into the accumulator
+
+Type: **correctness**. It is the only cause of `k_I`.
+
+**Why.** `trait_adjoint` is written in two places, `Patch::cohort_block_adjoint` and
+`Patch::introduction_adjoint`. **The field build is in neither.** The block takes the
+field as `cohort_reads` inputs, and the transpose of the field itself runs through
+`Patch::light_knot_adjoint` into `Species::compute_competition_and_slope_adjoint`,
+which returns `node_size_adjoints{height, area_leaf, log_density}` — a structure with
+no trait slot. `allometry_adjoint` then scatters it into height and `log_density` only.
+
+`k_I` enters the model **only** through
+`TF24_Strategy::compute_competition(z, area_leaf_, height_inverse)`, which is
+`pars.k_I * area_leaf_ * canopy_shape.Q(z * height_inverse)`. That is inside the field
+build. Therefore its adjoint has nowhere to go and is dropped whole, for every metric,
+including the metric whose seed is exact.
+
+**The same loss applies to `eta`**, through `canopy_shape`, and partly to `a_l1` and
+`a_l2`, which the field build reads again.
+
+**Steps.** Give `node_size_adjoints` a trait accumulator, or return the trait
+contribution beside it, and scatter it into `trait_adjoint` from `light_knot_adjoint`.
+
+**How to check.** Take the gradient for `leaf_area` only, whose seed Task 15 makes
+exact, and compare the `k_I` column against a central difference. Before the fix the
+adjoint reads zero or near zero and the difference does not.
 
 ### Task 1: compute the rows of the leaf one time
 
@@ -662,9 +757,11 @@ metric reads the strategy directly. `area_leaf` reads `a_l1` and `a_l2`.
 reaches the census through `mass_leaf`. Use `k_I`, which does not reach the census
 algebra, and make sure its result does not change.
 
-This task explains `mass_above_ground`. It does not explain `area_stem`, whose
-inputs are functions of `area_leaf` only, and it does not explain `k_I`. Continue
-to look for the second cause. Section 9 gives the places to look.
+**This task explains none of the three metrics of Section 1.** Task 15 and Task 16
+do. The direct term is real and absent, and its size is checkable: after Task 15, the
+residual on `mass_above_ground` for `lma` should be exactly the `leaf_area` census
+value, `+1.9636` at the configuration of Section 1. Do this task after Task 15, or its
+gate reads aliased storage.
 
 ### Task 7: assert that the sweep covers the trajectory
 
@@ -769,7 +866,9 @@ work is inside the 2 percent, and after them it is about a third of the total.
 
 ### Task 11: sweep one recording with many seeds
 
-Type: cost. Do it last of the cost tasks, because it is the only one that changes odelia.
+Type: cost, **and it supersedes Task 15**. Do it last of the cost tasks, because it is
+the only one that changes odelia. Recording one time and re-sweeping removes both the
+repeated recording and the aliasing Task 15 patches.
 
 **Why.** `SCM::census_trait_gradient` runs one complete reverse pass for each
 census metric. The expensive part of a pass is the record step and not the sweep
@@ -881,11 +980,12 @@ Each item below blocks something. Do not treat the list as background.
   exists. Decide what a row holds at a kink before Task 1 fixes its bit patterns in
   place. Also check whether the `bound_a` pin meets the equal-potential condition by
   construction, which would make this reachable on every pinned block.
-- **The second cause of the stop in Section 1.** Task 6 explains one column.
-  `area_stem` and `k_I` need another cause. Both wrong metrics run through the
-  mass and area cascade. `leaf_area` does not. Look at what
-  `set_ode_state` refreshes through `update_dependent_aux` and what the cascade
-  reads that the reload leaves stale. That is P0.1's class, one level up.
+- **The environment columns of the census seed are exactly zero in all three rows.**
+  `n_b = birth_rate * pr_estab / g` is evaluated in the field, which depends on the soil
+  state, so a non-zero column is expected. This is a fourth candidate and it is not
+  confirmed. It is too small at lifetime 2 to spoil the `leaf_area` row. Discriminating
+  it needs a difference of the census against a perturbed environment state, which R
+  does not expose today.
 - **The conditioning of `grad(dPi/dp)` has never been measured.** Task 4 builds the
   expression. Report 00 section 9 lists "whether `grad(dPi/dp)` is well conditioned
   anywhere" as inferred and not measured, so Task 4 must measure it and not only

@@ -316,9 +316,13 @@ Done: the develop merge on `p3/wave5` at `d3392ea3`, the odelia merge at `a3bcf5
 
 ### Wave 1 — correctness, lane D, and it outranks every cost task
 
-Task 6, then 7, then 8. Task 6 explains one column of the stop; the second cause is
-undiagnosed, so Wave 1 opens with a diagnosis packet and not an implementation one.
-Waves 2 and 3 may proceed in lane L concurrently, because the file sets are disjoint.
+**Task 15, then 16, then 6, then 7, then 8.** Task 15 first because until the aliasing
+is fixed no other seed defect can be measured — a second sweep reads aliased values
+whatever else is right, so Task 6's gate would read garbage. Wave 3 may proceed in lane
+L concurrently, because the file sets are disjoint.
+
+Task 15's decisive test costs one recompile: reorder `tf24_census` to put `area_stem`
+first, and see whether correctness follows row 0 rather than the metric.
 
 ### Wave 2 — #590's arrival, lanes D and B
 
@@ -361,9 +365,14 @@ Correctness does not close, because **four defects have no task**:
    cannot run at production because a relative `lma` step of 2e-7 flips the stand to
    zero. Fixing this needs `odelia::implicit_value` on `height_seed` *and* a new
    referee. Nothing schedules either.
-2. **The second cause of the stop is undiagnosed.** `area_stem` and `k_I` stay wrong
-   after Task 6. An unknown defect cannot be scheduled, so Wave 1 must open with a
-   diagnosis packet.
+2. **DIAGNOSED. The stop has three causes and Task 6 is none of them.** The seed is
+   aliased for every metric after the first, because `census_state_adjoint` builds the
+   active twin once and `vector_jacobian_product` calls `tape.clearAll()` on each of its
+   three calls, resetting the slot counter under values that outlive it. `leaf_area` is
+   right only because it is row 0 of `tf24_census`. Separately, the traits of the field
+   build reach no accumulator, which is the whole of `k_I`. Both are now tasks 15 and
+   16, and **Task 11 supersedes Task 15**, which moves it from a cost task to the
+   correct end-state of a correctness fix. Wave 1 no longer needs a diagnosis packet.
 3. **Four trait columns are wrong or absent with no owner.** `beta_R_H` and
    `beta_R_V` have no row at all; `psi_crit` and `root_psi_crit` read zero except when
    pinned, and the pinned gap is unexplained. Task 5 fixes the other four hydraulic
@@ -426,12 +435,27 @@ Correctness does not close, because **four defects have no task**:
 - **Task 5's scope is unknown until `psi_from_transpiration` is settled.** The task
   says to check whether the derivative path reads it and not to assume. That makes it
   two packets: an investigation, then an implementation sized by its answer.
-- **Task 3's masked NaN and Task 1's kink NaN are indistinguishable.** Task 1 must
-  keep `0.0 * NaN` giving NaN in the profit row. Task 3 poisons a masked row with NaN
-  deliberately. A grafted NaN row multiplies into `partial * (x - to_passive(x))`,
-  which is zero in value but NaN times zero, so a masked row would poison the forward
-  value. Task 3's answer is to compact `x` and the row — **which changes the graft
-  loop, and no step says so.**
+- **Task 3's masked NaN was in the wrong place. RESOLVED: mark the column.** A row is
+  read by nothing but the two `graft` calls, so a marker there is invisible to the
+  consumer that matters, and compaction cannot protect against the NaN actually feared,
+  which lives in state columns that are never masked. The marker now goes on the output
+  column in `clear_trait_adjoint`, the rows stay clean, and `graft` does not change.
+- **A branch kink already makes both AD paths NaN, and this is a live defect nothing
+  records.** `layer_flux_partials` returns with every entry NaN at an equal-potential,
+  gravity-balance or near-zero-collar condition, no caller tests for it, and
+  `partial * (x - to_passive(x))` puts `NaN * 0.0` into the **value** of `leaf_profit_`.
+  The plain `double` run is safe, because the graft is under
+  `if constexpr (!std::is_same_v<S, double>)`; the tangent and the adjoint are not, so
+  one kink NaNs the gradient and its referee together. Decide what a row holds at a kink
+  before Task 1 freezes its bit patterns.
+- **Two counts in the plan did not reproduce.** 13 of the 15 leaf parameters are
+  registered, not 11, and nine of those also reach the operating point; "4 residual
+  pairs" is 4 evaluations. So the registration list alone removes 2 of 15, and nearly all
+  of Task 3's value comes from the requested subset — which the task's own WARNING, read
+  literally, forbade.
+- **`Patch::cohort_block_adjoint` never resets `block_workspace`.** A mask set after the
+  first block never reaches the leaf, and two `stand_gradient` calls with different trait
+  sets silently reuse the first mask.
 - **Task 3 crosses the R boundary and no step mentions the generated code.** Making
   the trait set reach C++ changes `inst/RcppR6_classes.yml` and needs
   `make RcppR6 && make attributes`.
