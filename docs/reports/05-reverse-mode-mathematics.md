@@ -193,14 +193,65 @@ Nothing currently asserts the second.
 The unit of the reverse pass is one evaluation of `Individual::compute_rates` for one
 cohort at one Runge–Kutta stage, recorded at the active scalar type. Its inputs are
 
-$$u_k = \big(\underbrace{h_k, \ell_k, m^{\mathrm{hw}}_k, a^{\mathrm{hw}}_k, r_k}_{\text{own state}},\ \underbrace{\Lambda, \Lambda'}_{\text{field},\ 2K},\ \underbrace{\theta_{1:L}}_{\text{soil}},\ \underbrace{\varphi}_{P}\big)$$
+$$u_k = \big(\underbrace{h_k,\ \mu^{\mathrm{cum}}_k,\ F_k,\ a^{\mathrm{hw}}_k,\ m^{\mathrm{hw}}_k,\ r_k}_{\texttt{ode\_state},\ \text{6 states}},\ \underbrace{\Lambda, \Lambda'}_{\text{field},\ 2K},\ \underbrace{\theta_{1:L}}_{\text{soil}},\ \underbrace{\varphi}_{P}\big)$$
+
+**Read from `Individual::block_inputs`**, which is `ode_state`, then
+`environment.cohort_reads`, then `ad_parameters()`; and from
+`block_input_size() = state_size() + n_cohort_reads() + ad_parameters().size()`.
+`TF24_Strategy::state_names()` gives the six as height, mortality, fecundity,
+area_heartwood, mass_heartwood, storage — so the own-state block is **six**, and the two
+this document had omitted are the cumulative mortality $\mu^{\mathrm{cum}}$ and the
+cumulative fecundity $F$.
+
+**$\ell_k$ is not an input.** It is a `Node` member, not an `Individual` state, and
+`ode_state` does not carry it: `compute_rates` never reads the density. An earlier form of
+this section listed it, and report 01 section 4.1 is **right** about that. It is wrong about
+the output — see below.
 
 and its outputs are
 
-$$v_k = \big(\underbrace{\dot h_k, \dot m^{\mathrm{hw}}_k, \dot a^{\mathrm{hw}}_k, \dot r_k, \dot{(\text{fecundity})}, \mu_k}_{\text{rates}},\ \underbrace{\dot \ell_k}_{\text{density rate}},\ \underbrace{U_{k,1:L}}_{\text{consumption}}\big).$$
+$$v_k = \big(\underbrace{\dot h_k,\ \mu_k,\ \dot F_k,\ \dot a^{\mathrm{hw}}_k,\ \dot m^{\mathrm{hw}}_k,\ \dot r_k}_{\texttt{ode\_rates},\ \text{6}},\ \underbrace{\dot \ell_k}_{\text{density rate}},\ \underbrace{U_{k,1:L}}_{\text{consumption}}\big).$$
 
-For TF24 with $K = 65$ and $L = 5$ this is $5 + 2K + L + P = 184$ inputs and 12 outputs, and the reverse
-pass forms $\big(\partial v_k / \partial u_k\big)^{\!\top} \bar v_k$.
+**Read from `block_output_size() = state_size() + 1 + n_resources()`** and from
+`block_outputs`, which emits `ode_rates`, then `log_density_rate(environment)`, then the
+consumption rates. **So $\dot\ell_k$ *is* an output** — the `+1` — and report 01 section
+4.1 is wrong about that half.
+
+With $K = 65$ (`ResourceSpline::knot_count_ = 65`) and $L = 5$, and
+`n_cohort_reads() = 2 * knot_count() + soil_number_of_depths = 135`:
+
+$$6 + 135 + 44 = \mathbf{185}\ \text{inputs}, \qquad 6 + 1 + 5 = \mathbf{12}\ \text{outputs}.$$
+
+**Both counts are configuration-dependent.** 12 holds at five soil layers only, and the
+input count moves with the layer count and the knot count. An earlier form of this section
+gave 184 from a five-state own block; the six-state read above is the correct one.
+
+The reverse pass forms $\big(\partial v_k / \partial u_k\big)^{\!\top} \bar v_k$.
+
+### 5.2 The field's 130 inputs reach the leaf through one number
+
+This is the economy that makes the design affordable and this document omitted it.
+
+**Read from `TF24_Strategy::net_mass_production_dt`.** There are three shading modes; the
+default is `MeanLight`. `DeepCrown` is guarded by
+`if constexpr (std::is_same_v<S, double>)` with a `util::stop` in its `else`, so it is not
+available at an active type. In each of the two that are, the whole physiology is driven by
+a **single** scalar handed to a local `optimise_at(const S& radiation)`:
+
+- `CrownCentre`: `optimise_at(radiation_at(environment.get_environment_at_height(height * eta_c)))`
+  — one query.
+- `MeanLight`: `optimise_at(radiation_at(function_integrator.integrate(f, S(0.0), height)))`
+  with `f` calling `compute_average_light_environment` — a crown integral.
+
+Therefore for any leaf output $v$,
+
+$$\frac{\partial v}{\partial \Lambda_q} = \frac{\partial v}{\partial \mathcal{R}}\cdot\frac{\partial \mathcal{R}}{\partial \Lambda_q},$$
+
+so the $12 \times 130$ block is $12 + 130$ numbers rather than 1560 — **rank one.** It is
+already exploited: `graft_leaf_outputs` receives radiation as one active scalar, so the
+supplied derivatives are a row over $2n+3$ inputs, and the tape carries the second factor
+through the recorded spline query. Report 07 section 1 develops the sparsity of that
+factor, which differs between the two modes.
 
 ### 5.1 The density rate is where the coordinate choice bites
 
@@ -455,28 +506,33 @@ additionally only $\partial\gamma/\partial x$, equation (7.3), which is elementa
 $\partial\gamma/\partial a$, equation (7.4).** An earlier form of this sentence said $b$ needs only the
 elementary derivative, which would invite an implementer to skip the series in that row.
 
-**WARNING: the series is convergent everywhere and usable only for small $x$.** The term
-ratio is $x/(a+n)$, so convergence begins near $n \approx x$; and the factored form
-$x^{a}e^{-x}\Sigma$ separates an overflowing factor from an underflowing one. In double
-precision, $X = 3125$ — which is $m/b = 5$ at $c = 5$, inside this model's range — makes
-$\Sigma$ overflow to infinity and $e^{-X}$ underflow to zero, so $\gamma$ evaluates to
-**NaN**. Verified numerically.
+**The series' argument is bounded here, and by construction.** The series does overflow in
+double precision for large $x$ — $\Sigma$ to infinity while $e^{-x}$ underflows, giving NaN —
+and **that range is unreachable in this model.** Read from
+`Leaf::build_cumulative_vulnerability_integral`:
 
-Therefore an implementation must switch: the series for $x \lesssim a+1$, and the continued
-fraction for the upper incomplete $Q(a,x)$ with $\gamma = \Gamma(a)\,(1-Q)$ above it. **Never
-form $x^{a}e^{-x}$ and $\Sigma$ separately** — accumulate logarithms, or scale the recursion.
-Closing the gap below from the series alone replaces a wrong derivative with a NaN.
+```cpp
+double psi_max = b * pow(log(1.0 / 0.01), 1.0 / c);
+```
+
+so $X(\psi_{\max}) = (\psi_{\max}/b)^{c} = \log 100$ **identically, for every $b$ and
+$c$**, and $x \le 4.605$ wherever this integral is evaluated. Write the assertion; do not
+add an argument switch this model cannot reach. An earlier form of this section demanded
+one.
 
 The calculus above is separately verified: all seven quantities agree with an independent
 high-precision integral and with central differences of that integral to better than
 1e-23, over $c$ from 0.4 to 12 and $m/b$ from 0.075 to 8.
 
-> **Gap.** The implementation tabulates $G$ on a grid of 100 knots whose upper limit is
-> $b\,(\log 100)^{1/c}$ and whose spacing is that limit over the resolution, under a loop
-> bound $\psi \le \psi_{\max}$. The knot *count* therefore steps between 100 and 101 under
-> a relative perturbation of $10^{-6}$ in $b$ or $c$, and a finite difference across that
-> step is not a derivative. Measured errors are 47, 131 and 10,245 times the correct
-> values. The closed forms above remove the grid, not merely its cost.
+> **Gap.** The implementation tabulates $G$ on a grid. Read from
+> `build_cumulative_vulnerability_integral`: `psi_max = b * pow(log(1.0/0.01), 1.0/c)`,
+> `step = psi_max / resolution`, and the loop is `for (double psi = step; psi <= psi_max;
+> psi += step)`. The knot **count** therefore steps by one under a relative perturbation of
+> $10^{-6}$ in $b$ or $c$, because the accumulated `psi` crosses `psi_max` on a different
+> iteration, and a finite difference across that step is not a derivative. Measured errors
+> are 47, 131 and 10,245 times the correct values. The resolution is the caller's
+> `vulnerability_curve_ncontrol`, not a literal 100. The closed forms above remove the grid,
+> not merely its cost.
 
 ---
 
