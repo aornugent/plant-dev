@@ -740,11 +740,10 @@ longer const.
 
 **What this branch changes.** Three things, and nothing else. The `node_density_in_birth_date` flag and
 the coordinate it selects (§3). `SpeciesBase::control()`, immediately below. And the schedule-refinement
-error metric, which now runs over the abscissa the integral is actually taken over (§6.4). Every other
-defect recorded here is left unfixed, including the stochastic solver's ODE omission that Appendix E
-rests on: repairing it moves TF24's stochastic numerics and requires seed-pinned baselines to be
-regenerated deliberately, which is a decision for the maintainers rather than a side effect of this
-measurement.
+error metric, which now runs over the abscissa the integral is actually taken over (§6.4). The two
+stochastic-path defects that Appendix E rests on are fixed separately, because they change TF24's
+stochastic numerics and require its seed-pinned baselines to be regenerated — that belongs in its own
+change, not carried along by a measurement. Three defects below remain open.
 
 **A latent compilation defect, fixed here.** `SpeciesBase::control()` called
 `strategy->get_control()`, which no strategy defines. The member had never been instantiated, so the
@@ -757,7 +756,7 @@ never scale with area and the binning interval is set to the area. Passing it by
 correcting it makes that file roughly fifty times heavier and requires its parameters and baselines to
 be revisited. Recorded and left unfixed.
 
-**The stochastic solver does not integrate the environment.** `StochasticPatch::ode_size` returns the
+**The stochastic solver did not integrate the environment; fixed separately.** `StochasticPatch::ode_size` returns the
 species' size alone, and its `set_ode_state`, `ode_state` and `ode_rates` do not forward to the
 environment, where `Patch`'s do. Any environment carrying ODE state is therefore held at its initial
 value for the whole run, which is the defect Appendix E measures. The fix mirrors `patch.h`: add
@@ -767,24 +766,23 @@ requires per-node and per-species `consumption_rate` forwarders the stochastic c
 four ODE-interface lines carry the whole 13%; the consumption coupling is worth a further 0.35% at age
 3 and grows with leaf area. FF16 and K93 have no environment ODE state, so their stochastic systems are
 bit-identical either way; TF24's are not, so three length assertions and one seed-pinned survivor count
-across `test-stochastic-patch-runner.R` and `test-stochastic-patch.R` move and would need regenerating
-deliberately. Recorded and left unfixed.
+across `test-stochastic-patch-runner.R` and `test-stochastic-patch.R` move and were regenerated
+deliberately. Soil water now follows the deterministic trajectory to about 3 × 10⁻⁴, and the leaf-area
+agreement of Appendix E holds without pinning the soil.
 
-**Newly introduced stochastic nodes never have their initial states set.**
+**Newly introduced stochastic nodes had no initial states set; fixed separately.**
 `StochasticSpecies::introduce_new_node` computes rates without first calling `set_initial_states`, which
 is what gives a TF24 recruit its birth reserve fill, so stochastic seedlings are born with an empty
-store. Worth 0.45% of leaf area at patch age 1 and 0.13% at age 3. Recorded and left unfixed.
+store. Worth 0.45% of leaf area at patch age 1 and 0.13% at age 3.
 
-**A height-ordering dependence remains in the competition loop.** `Species::compute_competition`
-breaks out of its sum at the first cohort shorter than the query height, and returns zero when the
-query height exceeds `height_max()`, which reads `nodes.front().height()` rather than taking a
-maximum. Both shortcuts are sound only while the node list is ordered by height — a property the
-density state no longer requires, and one §2.1 records being violated 66 times under a full-amplitude
-seasonal light cycle. Since the commit these results are measured at, `develop` has gained
-`heights_are_decreasing()`, `scan_heights()` and a competition profile built over a sorted node grid, so
-the machinery to close this now exists. What remains is to route the birth-date coordinate past it
-rather than through it: a sort by height silently swaps the coordinate wherever cohorts cross, which is
-the regime §6.3 measures.
+**A height-ordering dependence in the competition loop, since closed.** At the commit these results are
+measured at, `Species::compute_competition` broke out of its sum at the first cohort shorter than the
+query height and returned zero when the query height exceeded `nodes.front().height()`. Both shortcuts
+are sound only while the node list is ordered by height — a property the density state no longer
+requires, and one §2.1 records being violated 66 times under a full-amplitude seasonal light cycle. The
+early exit is now conditioned on the ordering holding, and the birth-date coordinate is routed past the
+sorted-height path rather than through it, since a sort by height would silently swap the coordinate
+wherever cohorts cross.
 
 **`refine_schedule` cannot tell a caller whether it converged.** It returns without reporting whether it
 met `schedule_eps` or exhausted `schedule_nsteps`, and it installs the bisected schedule into
