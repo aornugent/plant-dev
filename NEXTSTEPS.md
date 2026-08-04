@@ -1266,6 +1266,43 @@ organ: where it sits and how steep it is. An ecologist fits those two to measure
 Reporting three gradient entries per organ for a two-parameter curve is over-parameterised,
 and the third answers a counterfactual that does not exist.
 
+**Decided 2026-08-04: the C++ derivation is the one that counts.** Reverse-mode drivers
+interface with `TF24_Pars` directly and not through `make_TF24_hyperpar`. So `J` is built
+from the member initialisers, and Task 28's instruction to keep it beside
+`ad_parameters()` is the right pairing after all.
+
+**And that ruling settles which relations are constraints, because at the `TF24_Pars` level
+the initialisers are defaults.** They run once, at construction, from other defaults; after
+that every member is independently settable. So the test is not "does an initialiser
+reference another member" but **"is the derived quantity definitionally a function of the
+others, or merely conventionally equal to one?"**
+
+| relation | verdict |
+|---|---|
+| `psi_crit = b * (log 20)^(1/c)` | **constraint.** There is no vulnerability curve with an independent critical potential |
+| `root_psi_crit = root_b * (log 20)^(1/root_c)` | **constraint**, same reason |
+| `c` from `p_50` | **default.** A fitted trade-off, not a definition — two curves can share a `p_50` and differ in steepness |
+| `jmax_25 = 1.64 * vcmax_25` | **default.** A convention |
+| `r_b = 2 * r_s` | **default.** Its own comment says "assumed" |
+
+**Therefore `J` has exactly two constraint relations, the free hydraulic set is
+`{b, c, root_b, root_c}`, and the two organs are symmetric — two degrees of freedom each,
+which is what report 06 section 7 says the ecology requires.** An earlier reading made the
+stem a one-parameter family through `p_50`; that follows only if the `c`-from-`p_50`
+trade-off is treated as binding, and under this ruling it is not.
+
+**`p_50` stays refused, and the ruling makes the reason sharper.** A gradient with respect
+to `p_50` would be the derivative of a model in which setting `p_50` re-derives `c`, `b`
+and `psi_crit`. **No such model is implemented** — the initialiser has already run — so a
+pulled-back `p_50` column would be a correct derivative of something that does not exist.
+Task 19 refuses it and Task 28 does not offer it. Report 07 section 3's suggestion that the
+pullback recovers `p_50` for free is withdrawn: it recovers a number, and the number
+describes an unimplemented model.
+
+**`K_s`'s incomplete row is resolved by the ruling.** On the C++ path `K_s` reaches only
+`leaf_specific_conductance_max` and does not set `p_50`, so the row is complete. The
+incompleteness was an artefact of the R route.
+
 **Do not remove anything from `ad_parameters()`. Build the pullback instead.** An earlier
 form of this task said to remove `psi_crit` and `root_psi_crit` and let them follow by the
 chain rule. Report 07 section 3 gives a better form of the same idea: **keep every internal
@@ -1301,17 +1338,24 @@ Task 3's warning applies: the list is the authority on the layout.
 **How to check.** Gate each entry of `J` against a central difference of the derivation itself.
 Measured to 5e-10 relative or better on every entry of the C++ graph, and it needs no build.
 
-**WARNING: the identity an earlier form gave as the gate is the wrong gate.** It said the
-post-task `b` row must equal the pre-task `b` row plus the `psi_crit` row times `psi_crit / b`.
-That identity is true, and it is the derivative **holding `c` fixed** — but `c` is not free, so on
-the C++ graph there is no independent `b` row to gate, only a `p_50` row whose gate is a
-three-term sum containing `dc/dp_50`. **As written the gate passes on a `J` with the wrong number
-of columns.**
+**The identity is the right gate, and the ruling above is what makes it right.** The
+post-task `b` row must equal the pre-task `b` row plus the `psi_crit` row times
+`psi_crit / b` — the derivative **holding `c` fixed**, which is legitimate because `c` is
+free under this ruling. Measured: `d(psi_crit)/db = psi_crit/b = 2.736305999004` against a
+central difference of `2.736305999119`.
 
-**And build `J` from `make_TF24_hyperpar`, not from the member initialisers.** Report 07
-section 3 records that the two derivations disagree: `c` is 1.09 by one and 2.04 by the other,
-and `p_50` is free in one and derived from `K_s` in the other. **A `J` written beside
-`ad_parameters()` is the wrong `J` for any run built through `add_strategies`.**
+**Gate the four columns and nothing else.** `J` is 44 rows by 4 hydraulic columns plus the
+identity on every other registered parameter. A rank check on `J` is still required, because
+a rank-deficient `J` makes the residual of report 07 section 3 meaningless.
+
+**WARNING: `make_TF24_hyperpar` derives these quantities differently and is not the
+authority here.** It computes `c` as `B_c1 * exp(-B_c2 * p_50)` — 2.04 at defaults against
+the initialiser's 1.09 — and derives `p_50` from `K_s`. **A run built through
+`add_strategies(p, trait_matrix(...))` therefore has a strategy the reverse-mode driver's
+`J` does not describe.** Under the ruling, reverse-mode drivers do not use that route. **Say
+so at the boundary: refuse a gradient request on a strategy built through the hyperparameter
+path**, or the two derivations silently disagree in the answer. The disagreement itself is a
+forward-model defect and it belongs to the owner.
 
 ### Task 6: add the direct trait term of the census
 
@@ -1691,11 +1735,11 @@ Each item below blocks something. Do not treat the list as background.
   `prepare_collar_solve` returned false.
   Whether the recorded −2.39e-04 arm was in shutdown or at `bound_b` is not established. Log
   `collar_pinned_` and `prepare_collar_solve`'s return at the perturbed arm to discriminate.
-- **`K_s` is registered and its row is incomplete.** In C++ it reaches only
-  `leaf_specific_conductance_max`. On the production R route it **also** sets `p_50`, hence `b`
-  and `psi_crit`, so the reported row holds the whole vulnerability curve fixed — the same
-  functional-independence failure Task 28 exists for, on a parameter whose row is **non-zero and
-  therefore looks trustworthy.**
+- **~~`K_s`'s row is incomplete~~ — resolved by the ruling in Task 28.** On the C++ path
+  `K_s` reaches only `leaf_specific_conductance_max`, so its row is complete. The
+  incompleteness existed only on the `make_TF24_hyperpar` route, where `K_s` also sets
+  `p_50`. **What remains is the boundary refusal**: a strategy built through the
+  hyperparameter path has a derivation the reverse-mode `J` does not describe.
 - **`Patch::cache_ode_step`, `cache_RK45_step` and `load_ode_step` have no caller**
   in either repository, and they are the two known `test-mutant.R` errors.
 - **The light field reaches each cohort through one number, and 126 of 130 columns are
