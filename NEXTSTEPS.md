@@ -1176,8 +1176,8 @@ Each item below blocks something. Do not treat the list as background.
   `Leaf::layer_flux_partials` returns with every entry NaN when any layer meets one of
   three conditions: equal potentials, gravity balance, or a collar potential within 1e-8
   of zero. No caller of it tests for that. The NaN reaches the row, and `graft` computes
-  `partial * (x - to_passive(x))`, whose second factor is exactly zero in value, so `NaN
-  * 0.0` puts NaN in the **value** of `leaf_profit_` and therefore in
+  `partial * (x - to_passive(x))`, whose second factor is exactly zero in value, so
+  `NaN * 0.0` puts NaN in the **value** of `leaf_profit_` and therefore in
   `net_mass_production_dt`. **The plain `double` run is safe**, because
   `graft_leaf_outputs` is called under `if constexpr (!std::is_same_v<S, double>)`.
   **Both AD paths are not**, so one kink in one cohort makes the gradient and the
