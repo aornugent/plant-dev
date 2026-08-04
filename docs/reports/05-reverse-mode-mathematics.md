@@ -889,11 +889,26 @@ also writes $h_0$, zeroes the heartwood states, and sets the initial reserve
 $r_0 = a_{st3} S_{\max}$, which reads $\varphi$. That reserve channel is real, non-zero, and
 was unlisted.
 
-**Treat this as the paths found so far, not as a closed set.** The implementation has the
-cohort-step term and the introduction term; the census direct term is section 9's gap and
-the light reduction is section 6.1's. Whether the water reduction and the initial condition
-are implemented has not been established — reading `Patch::ode_rates_adjoint` and
-`TF24_Environment::compute_rates_adjoint` against section 6.2 would decide it.
+**The enumeration is now closed, and it is two writers.** An exhaustive search of the
+superproject for `trait_adjoint` finds exactly two accumulating sites —
+`Patch::cohort_block_adjoint` at `patch.h:1582` and `Patch::introduction_adjoint` at
+`patch.h:1684`. Everything else is a declaration, a sizer, a clear, a read, or scratch. Both
+are reachable in every run. There is no third accumulator hiding behind an adjacent struct:
+`node_size_adjoints` and `node_uptake_adjoints` (`node.h:14-26`) have three members each and no
+parameter member, so nothing in the reduction transposes can route to a trait row.
+
+**Two things this section left open are now settled, and both are absences.**
+
+- **The water reduction's parameter half is not implemented.** `consumption_rate_adjoint`
+  writes only through `node_uptake_adjoints` (`species.h:1061-1088`), which has no parameter
+  member, and neither writer is on its path. ~~reading `TF24_Environment::compute_rates_adjoint`
+  would decide it~~ — **that function does not exist**; this section prescribed reading something
+  that is not there.
+- **The initial-condition term is not implemented.** `census_trait_gradient` sweeps segments
+  `[boundary[j], k_last]` only, and after the last iteration (`j == 0`) it assigns
+  `lambda = narrowed;` and **never reads `narrowed` again** (`scm.h:704-712`). So
+  $\bar y(0)^\top \partial y(0)/\partial\varphi$ is computed and discarded. The reserve channel
+  above is real and it has no path.
 
 ### 10.1 One term is absent from every path
 
@@ -924,13 +939,37 @@ is imposed on both AD paths, forward and reverse.
 | 3 | Census direct term not registered | 9 |
 | 4 | No guard on the $c^{\mathrm{i}}$ bracket at a non-producing individual | 7.5 |
 | 5 | NaN supplied derivative at a branch kink corrupts the value | 8 |
-| 6 | Transport derivatives differenced across a grid whose knot count moves | 7.6 |
+| 6 | ~~Transport derivatives differenced across a grid whose knot count moves~~ — **struck, the grid is held**; what survives is that the transport derivative is the spline's `deriv` and not the closed form | 7.6 |
 | 7 | $\Pi_{pu}$'s parameter half differenced, conditioning unmeasured | 7.3 |
 | 8 | Consumption adjoint not the transpose of a sorted forward grid | 6.2 |
-| 9 | $\partial h_0/\partial\varphi$ imposed zero on both AD paths; no available reference | 10.1 |
+| 9 | $\partial h_0/\partial\varphi$ imposed zero; **no forward tangent exists at the SCM level to reference** | 10.1 |
+| 10 | **The light reduction is not the transpose of its forward function on the birth-date coordinate** — four line-level discrepancies: the trapezium width, the weight-derivative term, the closing boundary trapezium, and a stop that fires where the forward runs | 6.1 |
+| 11 | The water reduction's parameter half, and the initial-condition term, are absent | 10 |
+
+**Two corrections to the order.** **Item 8 must precede item 2**, and this table had them the
+other way round: item 2's fix adds parameter rows to a reduction transpose, and adding rows to a
+transpose that is not the transpose of its forward function gives wrong rows in the new channel
+with no signal about which of the two defects produced them. Fix the transposes, then extend
+them. **By the same argument item 10 precedes item 2**, on the light side.
+
+**And item 10's status needs stating plainly.** `node_density_in_birth_date` defaults to
+**`false`** (`control.cpp:34`), so those four discrepancies are latent in production SCM and
+live only under the opt-in — **which is the coordinate this gradient is scoped to.** They are
+pre-work for the gradient, not a defect in the forward model, and that is why they belong in
+this table rather than in section 6.1's prose alone.
 
 Items 1 to 3 are missing summations or misplaced constructions and each is a small
-change. Items 4 and 5 are missing guards. Items 6 and 7 replace a difference with
-algebra this document gives in closed form. Item 8 is a transpose that stopped matching
-its forward function. Item 9 is the only one that needs a new instrument before it can
-be closed, and it is therefore the only one whose scope is genuinely open.
+change. Items 4 and 5 are missing guards. Item 7 replaces a difference with algebra this document gives in closed form, and item 6 now
+does so for cost rather than for correctness. Items 8 and 10 are transposes that stopped
+matching their forward functions. Item 11 is two absent summations.
+
+Item 9 is the only one that needs a new instrument before it can be closed, and it is
+therefore the only one whose scope is genuinely open. **It is more firmly closed than this
+document said**: $h_0$ is `double` **by declaration**, not by a copy that could be tightened
+(`tf24_strategy.h:611`, `:625`, and `height_seed()` returns `double` for every `S` at `:1616`),
+so equation (10.1) is imposed structurally. `eta_c` and `area_leaf_0` are `S` and passive only
+by *value*, so if (10.1) is ever attacked those two are the tractable pair and $h_0$ is not.
+**And there is no assembled forward tangent at the SCM level at all** — no
+`jacobian_vector_product` or forward driver exists in `scm.h`; `forward_derivative` appears only
+inside `Leaf` as a local device. So the reference this gap calls equally blind does not exist to
+be blind.
