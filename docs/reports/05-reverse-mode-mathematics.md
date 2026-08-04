@@ -676,6 +676,106 @@ of `TF24_Environment` (`:298-320`), absent from both `TF24_Pars::field_ptrs()` a
 because they are not strategy members. That is the larger of the two water-side omissions, and
 it is a stronger statement than the sorting gap below.
 
+### 6.2b The soil is seven cases, and the cap is a runaway rather than a benign clamp
+
+Companion to sections 5.1b, 6.1b and 7.0. Thirty-six code-distinguishable regimes, **seven** honest
+cases: a smooth flux; a physical clamp with a flat forward; a removable kink where the code refuses;
+a discrete change in which layers participate; a numerical guard that must refuse (**five**
+instances, three more than the leaf had); a wrong transpose; and an absent channel.
+
+**First, the axis, because every incidence claim about the soil is a claim about where moisture
+sat.** The default driver's entire potential range, 0.015 to 0.170 MPa, is
+$\theta$ within about $\pm 25$ percent of its initial value. The clamps live at $\theta = 0.1215$,
+$0.0571$ and $0.0100$. **"Incidence zero for the soil clamps" is the statement that the soil never
+moved.** And conductivity at the driver's operating moisture is $2.26\times10^{-3}$ m/yr against
+rainfall of order 1 m/yr — **the drainage cascade is a thousandth of the forcing**, so the layers are
+independent buckets, rain reaches layer 0 only, and **the only resupply a deep layer has is a plant
+pushing water into it.**
+
+**The hand transpose that exists is correct, term for term.** `dpsi_from_soil_moist_dtheta`
+(`tf24_environment.h:609-619`) returns zero below the residual floor, zero above the potential cap,
+and $-n_\psi\psi/\theta$ between — exactly the derivative of the forward, drawing $n_\psi$ from the
+same per-layer accessor. **At the clamps the analytic zero is right for the soil and wrong for the
+loop**: it carries **soil → plant** only. The **plant → soil** direction runs through
+`lambda_uptake`, which no clamp touches. So at the cap the feedback is cut in exactly one direction —
+a plant can go on changing a capped layer's moisture and the layer can never signal back.
+
+> **Gap, and it overturns a ruling: the potential cap is not "uptake stays near zero". It is an
+> unbounded plant-to-soil sink.** The stated rationale for the cap is that "root conductance is
+> already ~0 far below this, so clamping to `soil_psi_max_` leaves uptake at ~0"
+> (`tf24_environment.h:497-501`). **That is false, and three further comments assert an
+> extrapolation the code does not perform.**
+>
+> `root_vuln_integral_from_psi` is built on a grid ending at
+> $b_{\text{root}}(\log 100)^{1/c_{\text{root}}} = 6.892$ MPa, where $f_r$ is exactly 0.01.
+> `set_extrapolate(true)` disables the *error*, not the extrapolation: past the last knot
+> `basic_spline` returns $(m_b h + m_c)h + y_{n-1}$ with $m_c[n-1]$ set to **the slope at the last
+> knot** (`spline.hpp:321`, `:407`). For the *integral* spline that slope is
+> $f_r(\psi_{\max}) = 0.01 > 0$, so **the integral keeps growing past its grid — it does not clamp
+> to its last value.** Therefore $r_R^H = r_R^{H,\min}\cdot\text{span}/\text{integral}$ does not
+> diverge; it **saturates**. And then
+> $E_i = (\psi_i - p - g_z)\,/(\text{area}\cdot r_R)$ has a numerator growing **linearly** in
+> $\lvert\psi_i\rvert$ over a bounded denominator: $E_i$ grows linearly and **negative** — flow
+> from plant to soil.
+>
+> **Every net that would catch it is the wrong net.** The flux is **finite**, so the post-loop
+> `isfinite(E_up_)` check passes. $E^{\mathrm{up}}$ is a **sum over layers**, so a positive total
+> hides it. And a negative depletion makes the layer's rate positive, so **the positivity guard
+> permits it**: the model rewets a capped layer out of a plant that has nothing. Raising
+> `soil_psi_max_` makes it worse linearly.
+>
+> **Reachability, and this is the shape section 3b warns about.** It begins at $\psi_i > 6.892$ MPa,
+> and shutdown is decided on the **wettest** layer. So a wet top layer plus any layer below 28
+> percent of saturation is a live plant with a poisoned layer — under real rainfall, with rain
+> reaching only layer 0 and drainage a thousandth of the forcing, that is the ordinary dry-season
+> profile. Even under uniform drying there is a live **0.193 MPa window**, because the root grid ends
+> *before* the stem's $\psi_{\text{crit}} = 7.085$.
+>
+> **The magnitude is not established** — whether the saturated $r_R^H$ dominates the vertical term
+> decides whether the wrong-way flux is ten times a healthy layer's uptake or a tenth of it. **The
+> measurement that settles it is $\min_i$ `soil_consumption_` and $\max_i$ `psi_soil` over a real
+> rainfall series**, and $E^{\mathrm{up}}$'s sign cannot substitute for it.
+
+> **Gap: `Patch::introduction_adjoint` is missing the hand transpose, and this is now confirmed three
+> ways.** `set_ode_state` reads the soil rows at their value, the boundary node takes $\psi$ from a
+> cache built as `S(double)`, and **nothing in that function multiplies by
+> `dpsi_from_soil_moist_dtheta`.** So **the newcomer's dependence on soil moisture is identically
+> zero.** Establishment is the most moisture-sensitive event in the life cycle, and the gradient says
+> drought does not touch it — at every introduction. Section 6.2's warning about a passive forward
+> with a hand-written derivative beside it, "correct here and the shape of a defect elsewhere",
+> named this without knowing it: **this is the elsewhere.**
+
+**Three rulings to move, and one measurement that was formed so it could not see its subject.**
+
+- **Per-layer $E_i < 0$ is hydraulic redistribution and it needs no branch** — the same smooth
+  expression covers it, so it belongs under *free* rather than *sidestepped*. Report 00 files it
+  unreached on the evidence that $E^{\mathrm{up}} < 0$ never occurs. **$E^{\mathrm{up}}$ is the
+  sum.** A layered root system's normal state is per-layer negatives inside a positive total, so the
+  statistic cannot see the phenomenon. $\min_i E_i$ was never measured — and given the cascade is a
+  thousandth of the forcing, redistribution is a deep layer's **only** resupply.
+- **The residual floor and the potential cap are one behaviour, not two clamps with two rationales**,
+  because the cap always fires first: at the floor the retention curve gives $9.3\times10^{7}$ MPa
+  and the cap has bound long since.
+- **The equal-potentials and gravity-balance windows are removable**, and the code refuses both. The
+  first is the l'Hôpital limit of span/integral, continuous in value; the second has a numerator that
+  vanishes while its derivative does not. `layer_flux_partials` returns **all** entries NaN on the
+  first offending layer, and `input_adjoints` contains **no finiteness test anywhere**, so one layer
+  within $10^{-8}$ of the collar makes every potential row, every root-mass row, the area row and the
+  argmax multiplier NaN, and `graft` writes it onto the tape.
+
+**And a sub-claim of this audit is refuted, recorded because the reasoning is instructive.** It held
+that a non-finite moisture is *laundered* into a physical state, on the grounds that
+`std::min(NaN, 1000)` returns 1000. It does not: `std::min(a,b)` is `b < a ? b : a`, and `1000 < NaN`
+is false, so **NaN propagates**. The forward returns NaN and `set_physiology`'s finiteness check
+catches it. The laundering hazard is real in shape and absent here.
+
+**Two absent channels that make a question unaskable.** No soil parameter has a derivative row at
+all — `K_sat`, `a_psi`, `n_psi`, `soil_moist_sat`, `soil_moist_residual`, `soil_psi_max_`, `a_infil`
+and `b_infil` are environment members in neither parameter list, and with per-layer vectors that is
+$4n$ unaskable parameters, so **"what if the soil were sandier" cannot be asked.** And
+`root_depth_shape_eta` — the parameter setting the whole vertical structure of the coupling — has no
+row either, while `rooting_depth_max` has one that is exactly zero for every plant under 1.5 m.
+
 > **Gap.** `Species::consumption_rate` now sorts the cohort grid when the abscissa order
 > inverts; `consumption_rate_adjoint` still transposes the unsorted trapezium. On an
 > inverted grid the two are not transposes of each other, the gradient is finite, and
