@@ -357,7 +357,10 @@ Task 0.
 
 **WARNING: `layer_flux_partials` gives NaN at a branch kink. Today the profit row
 computes `0.0 * NaN`, which is NaN. If you remove the multiplication, the result
-becomes 0.0. This change is silent, and a test that uses `==` accepts it.**
+becomes 0.0. This change is silent, and a test that uses `==` accepts it.** Keep the
+multiplication, so the gate of this task compares like with like. **The NaN itself is
+a defect and Section 9 owns it.** Do not try to fix it here: this task must be
+bit-identical, and that fix is not.
 
 **How to check.** Compare the bit pattern of each value. Do not use `==`.
 
@@ -411,42 +414,83 @@ be 0. Each row must keep its bit pattern.
 
 Type: cost.
 
-**Why.** The leaf differentiates all 15 of its parameters on each call. Only 11 of
-the 44 registered traits are leaf parameters. `lma` is not one of them: it reaches
-the leaf through `area_leaf`, which is a state input, so the graft supplies its
-row. Therefore a gradient for `lma` needs no parameter row at all.
+**Why.** The leaf differentiates all 15 of its parameters on each call. `lma` is not
+one of them: it reaches the leaf through `area_leaf`, which is a state input, so the
+graft supplies its row. Therefore a gradient for `lma` needs no parameter row at all.
 
-`ad_parameters()` has 44 entries and it does not include `vcmax_25` or `jmax_25`.
-The graft term of those two is zero by structure. Therefore the code computes 2
-analytic partials and 4 residual pairs for no result on each call today.
+**Counted from the code.** 13 of the 15 leaf parameters are in
+`ad_parameter_names()`; the two that are not are `vcmax_25` and `jmax_25`, whose graft
+term is zero by structure, so the code computes 2 analytic partials and 4 evaluations
+of `dprofit_droot_collar_psi` for no result on every call. Of the 13, nine also pass
+`reaches_operating_point`. **An earlier form of this task said 11, and that number
+reproduces from nothing.** Therefore the registration list alone removes 2 of 15, and
+every larger saving comes from the set the caller asked for.
 
 **Steps.**
 
 1. Make the requested trait set reach C++. Today `stand_gradient(scm, traits =)`
-   subsets a matrix in R and `census_trait_gradient_tf24` takes one argument.
-2. Add a trailing argument `const std::vector<bool>& par_active` to `output_rows`.
-   An empty vector means all parameters are active.
+   subsets a matrix in R and `census_trait_gradient_tf24` takes one argument. The
+   signature changes in `R/stand_gradient.R`, `src/census_gradient.cpp` and
+   `SCM::census_trait_gradient`. **`inst/RcppR6_classes.yml` does not change**:
+   `census_trait_gradient_tf24` is a free `Rcpp::export`, so `make attributes` alone
+   regenerates `src/RcppExports.cpp` and `R/RcppExports.R`. `make RcppR6` should
+   produce no diff.
+2. Add a trailing argument `const std::vector<bool>& par_active` to `output_rows`,
+   always of length 15 and indexed by the parameter loop's `k`. **An empty vector must
+   not mean "all active"**: that is a capability flag on an argument, and it leaves
+   `par_active[k]` undefined for the default. Pass all-true instead.
 3. Build the vector one time in `graft_leaf_outputs`. Test each parameter name
    from `Leaf::inputs()` against the names from
    `TF24_Strategy::ad_parameter_names()`.
 4. Extend the `reaches_operating_point(k)` guard on the parameter loop with
    `|| !par_active[k]`. Add the same guard to the seven analytic partials that
    `forward_derivative` supplies above that loop.
-5. Mask `Leaf::bound_partials` in the same way.
+5. Mask `Leaf::bound_partials` in the same way, with one exception. **Guard only the
+   writes, never the early `return`.** `bound_partials` returns early when
+   `p_bound == -root_psi_crit`, and that `return` encodes that no other input moves
+   the bound. Guarding the block would fall through and compute a full set of rows,
+   changing every other column. `out[i_kappa]` sits inside the same branch as
+   `out[i_par0 + PAR_PSI_CRIT]` and is a state column, so it must not be masked with
+   it.
 
-**WARNING: A masked row must be absent and never zero. A row of exactly zero reads
-as an answer. This is the worst failure mode of the design. Poison a masked row
-with NaN. Compact `x` and the row so the NaN cannot enter arithmetic. Refuse an
-absent column by name at the boundary.**
+**Put the marker on the output column and not on the row.** The failure this guards
+against is a gradient column that reads as an answer. A row is read by nothing except
+the two `graft` calls in `graft_leaf_outputs`, so a marker there is invisible to the
+consumer that matters. Therefore:
 
-**WARNING: Take the mask from the registration list `ad_parameter_names()`. Do not
-take the mask from an opinion about which parameters are important. A parameter
-that is registered and masked gives a gradient row of exactly zero, and nothing
-reports it.**
+1. Do not write a masked parameter at all. `dprofit_dpar[k]`, `dR_dpar[k]` and
+   `dE_dpar[k]` keep their initialised zero, and `graft` multiplies that zero by a
+   term that is zero in value. The leaf then contributes nothing to that trait.
+2. Make `Patch::clear_trait_adjoint` seed a masked trait's accumulator with NaN, so
+   the column that reaches R cannot be read as a number.
+3. **Do not poison the row and do not compact `x`.** Both were in an earlier form of
+   this task. Compaction needs a change to `graft`'s loop that no step authorises, it
+   drops the `util::check_length` guarantee, and it puts a second NaN in the rows that
+   cannot be told apart from the kink NaN of Task 1.
 
-Read `Patch::cohort_block_adjoint` first. Make sure that no other code path
-registers a smaller set of parameters. If another path exists, pass the mask from
-the place that chooses the targets.
+**WARNING: masking a leaf parameter does not zero that trait's column. It makes the
+column understated and finite, which is worse than zero, because zero looks
+suspicious.** The 44 entries of `ad_parameters()` all stay in the block's input
+vector, and `rho`, `b`, `c` and `a_bio` also reach `compute_rates` through equations
+outside the leaf. Only the marker of step 2 catches this.
+
+**WARNING: `Patch::cohort_block_adjoint` never resets `block_workspace`.** It builds
+`strategy_template` under `if (!block_workspace)` and nothing invalidates it.
+Therefore a mask set after the first block never reaches the leaf, and two
+`stand_gradient` calls on one `scm` with different trait sets silently reuse the first
+mask. Add a reset and call it where the targets are chosen.
+`Patch::introduction_adjoint` does not have this defect, because it rebinds on each
+call.
+
+**Take the mask's names from `ad_parameter_names()` and its width from what the
+caller asked for.** The registration list is the authority on which names exist; it is
+not the authority on which the caller wants. A name that is not in the registration
+list must be refused, not masked.
+
+**No other path registers a smaller parameter set.** `cohort_block_adjoint` and
+`Patch::introduction_adjoint` both use the full 44 in the same species-major order, and
+`trait_adjoint_size()` sums over species. Therefore `ad_parameters()` must not shrink,
+or the trait-adjoint layout and `census_trait_names_tf24` drift apart.
 
 **How to check.** Set every entry of `par_active` to true. Each row must keep the
 bit pattern from Task 1. Then request a masked row and make sure the code refuses
@@ -823,6 +867,20 @@ was measured. That is why it can be revisited.
 
 Each item below blocks something. Do not treat the list as background.
 
+- **A branch kink makes the whole gradient NaN, and nothing falls back.**
+  `Leaf::layer_flux_partials` returns with every entry NaN when any layer meets one of
+  three conditions: equal potentials, gravity balance, or a collar potential within
+  1e-8 of zero. No caller of it tests for that. The NaN reaches the row, and `graft`
+  computes `partial * (x - to_passive(x))`, whose second factor is exactly zero in
+  value, so `NaN * 0.0` puts NaN in the **value** of `leaf_profit_` and therefore in
+  `net_mass_production_dt`. **The plain `double` run is safe**, because
+  `graft_leaf_outputs` is called under `if constexpr (!std::is_same_v<S, double>)`.
+  **Both AD paths are not**, so one kink in one cohort makes the gradient and the
+  tangent referee NaN together. `Leaf::dE_from_soil_dpsi_collar` says its NaN means
+  "the caller falls back to finite differences", and on the graft path no such fallback
+  exists. Decide what a row holds at a kink before Task 1 fixes its bit patterns in
+  place. Also check whether the `bound_a` pin meets the equal-potential condition by
+  construction, which would make this reachable on every pinned block.
 - **The second cause of the stop in Section 1.** Task 6 explains one column.
   `area_stem` and `k_I` need another cause. Both wrong metrics run through the
   mass and area cascade. `leaf_area` does not. Look at what
