@@ -1,6 +1,6 @@
 # TF24 forward-model correctness: the prerequisites
 
-Phase 0 of [`build-plan.md`](build-plan.md), separated because none of it is AD work.
+Phase 0 of [`archive/build-plan.md`](archive/build-plan.md), separated because none of it is AD work.
 These are defects and undecided questions in TF24's forward model on develop
 `141dc8df`. They are prerequisites for two different reasons, and the distinction
 matters when scheduling them:
@@ -27,7 +27,7 @@ matters when scheduling them:
 
 Commits are on plant branches off `develop` `141dc8df`, merged into `p0/phase-0` and raised as
 `aornugent/plant#66`. The evidence — gates as run, and the shift where numbers moved — is in
-[`implementation-notes.md`](implementation-notes.md), not here.
+[`archive/implementation-notes.md`](archive/implementation-notes.md), not here.
 
 | | commit | forward effect |
 |---|---|---|
@@ -46,7 +46,7 @@ Commits are on plant branches off `develop` `141dc8df`, merged into `p0/phase-0`
 | **all eight, `p0/phase-0`** | `1a89087a` | **offspring `42.176246845059751`, 5 105 steps (+0.0856%)** — smaller than any single item's. FF16 +0.0034%, K93 +0.000038%, both through P0.9 alone |
 
 Every item's mechanism, measurement and provenance is in
-[`reports/07-tf24-develop-audit.md`](reports/07-tf24-develop-audit.md). This file is
+[`archive/07-tf24-develop-audit.md`](archive/07-tf24-develop-audit.md). This file is
 the work list, not the argument. Probes: `scripts/leaf_state_carryover.R`,
 `scripts/uncounted_switches.R`, `scripts/light_floor.R`, `scripts/boundary_node.R`,
 `scripts/cohort_spacing.R`, `scripts/aux_round_trip.R`, `scripts/descending_heights.R`,
@@ -190,7 +190,7 @@ source of truth.
 **The same vector is what the reverse pass needs published.** `Patch::resource_depletion` is a member
 rebuilt per `compute_rates` and overwritten by the next stage, and the soil's positivity guard is
 closed form in the soil state and that vector — so the sweep cannot recover which rows fired unless the
-environment carries its per-layer uptake in aux (`build-plan.md` §2.8). Sizing it by resource count and
+environment carries its per-layer uptake in aux (`archive/build-plan.md` §2.8). Sizing it by resource count and
 publishing it are the same edit at the same site.
 
 ---
@@ -241,7 +241,7 @@ growth-rate gradient's probes and the collar root-find's iterates.
 
 | construct | where | incidence | what it decides |
 |---|---|---|---|
-| `Species::height_max()` returns `nodes.front().height()`, **not a max** | `species.h:167` | no selector within a species | it relies on the descending-height invariant, so within a species the derivative is 1 for the first node unconditionally and there is no tie. The `max` — and the tie — exist only **across** species in `Patch::height_max` (`patch.h:424`). This is a cheaper selector than report 03 §1b assumes, and single-species runs have no selector at all. **Now false**: `height_max()` is an O(n) scan, because TF24 broke the descending-height invariant — reserve-gated growth lets cohorts cross, measured at −0.0334 m by Phase 2's transport census — so a selector and a tie do exist within a species ([`implementation-notes.md`](implementation-notes.md), *A doc desync the packet found*) |
+| `Species::height_max()` returns `nodes.front().height()`, **not a max** | `species.h:167` | no selector within a species | it relies on the descending-height invariant, so within a species the derivative is 1 for the first node unconditionally and there is no tie. The `max` — and the tie — exist only **across** species in `Patch::height_max` (`patch.h:424`). This is a cheaper selector than report 03 §1b assumes, and single-species runs have no selector at all. **Now false**: `height_max()` is an O(n) scan, because TF24 broke the descending-height invariant — reserve-gated growth lets cohorts cross, measured at −0.0334 m by Phase 2's transport census — so a selector and a tie do exist within a species ([`archive/implementation-notes.md`](archive/implementation-notes.md), *A doc desync the packet found*) |
 | `if (size() == 1 \|\| f_h1 > 0)` | `species.h:220` | **74 060 of 3 075 900 calls (2.41%)** enter the interval — 627 via `size() == 1`, 73 433 via `f_h1 > 0`. Smallest positive `f_h1` that took the arm **2.714503e-11** | whether the boundary node's trapezium interval enters the light field. **The row with no scale at all**: the term it switches on is `(h1 - h0)(f_h1 + f_h0)`, which vanishes as `f_h1 -> 0` only if `f_h0` does, and `f_h0` is the boundary node's own competition, which does not. So the field reduction is discontinuous in the resident state at a threshold sitting where the comparison decides on rounding — against `storage_prod_eps = 1e-4` sized against a median `\|P\|` of 7.3e-2 |
 | `if (h0 < height) break;` | `species.h:215` | **2 989 227 of 3 075 900 calls (97.18%)** break early; 86 574 run to the end, 99 return early. 216 594 704 trapezium terms, at most 141 in one call | where the descending sweep stops. The term count of the field reduction is state-dependent, which is the same class as an adaptive knot count. Almost always taken because the field is queried well below the canopy top, so this is a term count rather than a severance — and the exposure is report 00 §8 item 3's, that the trapezium weights are functions of state, over 216 M terms |
 | `new_node.height()` as the field trapezium's **lower integration limit** | `species.h:221` | every field build | a moving integration bound in the field reduction itself, equal to `height_0` and therefore trait-dependent through `height_seed`. Not a switch; listed here because it is the other thing that sweep reads which is not ODE state |
@@ -536,7 +536,7 @@ boundary density is stale, so **one fix removes three symptoms**.
 
 **Gate.** At every introduction, `ode_rates` immediately after `introduce_new_nodes` equals
 `ode_rates` after a further `compute_rates()`. ~~Re-bless with P0.8, P2.1 and P2.4 in one pass.~~
-**Re-blessed with P0.8 in Phase 0 and with P2.1 in Phase 2; P2.4 is out of scope** (`build-plan.md`
+**Re-blessed with P0.8 in Phase 0 and with P2.1 in Phase 2; P2.4 is out of scope** (`archive/build-plan.md`
 P2.4, report 10).
 
 **One prediction here was checked and did not hold.** This section reads the bimodal error
@@ -606,7 +606,7 @@ use `CanopyShape`. The `eta_c` formula is written three times — `tf24_strategy
 **Three things follow, and only one of them is a style question.**
 
 *Two copies of one equation with nothing keeping them equal.* This is the
-`ff16_production_kernel.h` pattern [`build-plan.md`](build-plan.md) §2.1 rules out, in the
+`ff16_production_kernel.h` pattern [`archive/build-plan.md`](archive/build-plan.md) §2.1 rules out, in the
 model the gradient is being built for.
 
 *`pow` has a NaN derivative at `u = 0`, and the field's lowest knot is exactly `z = 0`.*
@@ -641,7 +641,7 @@ which fixes the NaN and leaves the duplication and the 4%.
 from one formula: `CanopyShape` already computes it, so expose it and have both strategies
 read it.
 
-**Why before Phase 1.** [`build-plan.md`](build-plan.md) P1.2b templates TF24. Doing this
+**Why before Phase 1.** [`archive/build-plan.md`](archive/build-plan.md) P1.2b templates TF24. Doing this
 first means one implementation is templated rather than two, and `CanopyShape<S>` is
 already what §3 takes.
 

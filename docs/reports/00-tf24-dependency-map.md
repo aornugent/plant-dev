@@ -8,8 +8,8 @@
 > uptake adjoint** — including the layers the positivity guard zeroed, which is why `adj_uptake` is
 > nonzero there while `adj_theta` is exactly 0. So the accumulators are read, their adjoints are not
 > identically zero, and the channel is not blocked. Confirmed against a finite difference of
-> `Environment::compute_rates`. Evidence in `../implementation-notes.md` under *Phase 3, wave 1*, and
-> the corrected step (a) is `../build-plan.md` §2.4.
+> `Environment::compute_rates`. Evidence in `../archive/implementation-notes.md` under *Phase 3, wave 1*, and
+> the corrected step (a) is `../archive/build-plan.md` §2.4.
 >
 > **§6.3's `w_k` is right and is at the wrong level.** The trapezium weights are **per-species**, from
 > `Species::consumption_rate`; `Patch::compute_rates` then sums species and divides by area with no
@@ -321,7 +321,7 @@ radiation driving one cohort's leaf depends on **many** light knots, not one. It
 form has three parts: the knot values it reads, the `q(z,h)` weighting, and the upper bound
 `h`, which is itself an active state. Recording the interpolation and the quadrature inside
 the cohort's own block puts all three on that block's tape, so the aggregation's adjoint is
-not written out here — `../build-plan.md` §2.3 declares the block's inputs as the knot data rather
+not written out here — `../archive/build-plan.md` §2.3 declares the block's inputs as the knot data rather
 than sampled light for exactly this reason.
 
 ### 4.2 The leaf solve
@@ -656,7 +656,7 @@ The deliverable. Read §8 before relying on it.
 |---|---|
 | `∂c_{k,i}/∂ψ_j` | **diagonal + rank one**: diagonal because `E_i` reads only its own layer's `ψ_i`; rank one because all five layers share the single scalar `p*_k`. |
 | cohort ↔ soil | rank `ode_size()` = 9. The whole population talks to the soil through nine numbers. |
-| cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h:220-223`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed** on develop: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). `../build-plan.md` §2.6 fixes the fractions, at which point the rank is 65 values plus 65 slopes. |
+| cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h:220-223`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed** on develop: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). `../archive/build-plan.md` §2.6 fixes the fractions, at which point the rank is 65 values plus 65 slopes. |
 | the trait channel | separable from the state channel, and both are pulled back by the *same* `μ_k`, so adding traits does not add solves. |
 | a trait read **twice**, once per cohort and once by the field | `k_I` is the absorption coefficient in `radiation = k_I · L · PPFD` and the extinction coefficient in `comp(z) = k_I · a · (1 − u^η)²`; `η` is the crown quadrature weight, `η_c`, *and* that same shading kernel. Both contributions are wanted and they arrive in different steps of the reverse pass, so the trait adjoint is a sum over steps as well as over cohorts. |
 
@@ -872,7 +872,7 @@ So the cancellation identity holds on develop: absolute error in `dp*/dψ` divid
 
 **`Π_pp` was later measured directly and is not `1.1 × 10⁵`.** A central difference of
 `dprofit_droot_collar_psi` about the solved point gives `|Π_pp|` of **0.17 to 15.6 at five layers**
-and **14.4 to 198 at twenty** (`../build-plan.md` §8, `../../scripts/curvature_probe.R`), negative
+and **14.4 to 198 at twenty** (`../archive/build-plan.md` §8, `../../scripts/curvature_probe.R`), negative
 at every state sampled. The ratio route is sound — at matched states `R`/displacement reproduces the
 direct value to three or four digits — but the pair used here does not belong to one state: at five
 layers over six production states `|R|` at `GSS_tol_abs = 1e-3` is 8.8e-05 to 1.2e-03, not 11–23.
@@ -959,7 +959,7 @@ neither is in any existing kink inventory.
 
 ## 10. What to do next, in order
 
-**The live work list is `../build-plan.md` §5–§6.** What follows is this report's own
+**The live work list is `../archive/build-plan.md` §5–§6.** What follows is this report's own
 reading of the order, kept because it is the map's conclusion rather than a plan.
 
 1. **Build the bound branch and the regime selector** (§7). `Π_pp` is measured and well

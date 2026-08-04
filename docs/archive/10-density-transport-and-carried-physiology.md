@@ -1,3 +1,24 @@
+> **Archived. Its conclusion stands and its subject is not this build's.**
+>
+> This report replaced report 04's conclusion: the two-node difference is exactly
+> `d(log dh)/dt`, and that equals the compression term of a density in height **only
+> when `g` is a function of height alone.** TF24's growth rate reads the NSC storage pool
+> through a reserve gate, so the two candidate stencils are different operators — `cor`
+> 0.05 on TF24 against 0.96 on K93 — converging to offspring limits about 370 apart.
+> That is a forward-model question, `aornugent/plant#69`, and the implementation and
+> every probe are preserved on plant `transport/cohort-grid-stencil`.
+>
+> **plant #590 resolves it from the other side and this report does not know that.**
+> Carrying the density in birth date removes the compression term outright:
+> `log_density_dt` becomes `-mortality`, so no stencil is needed and the sub-grid probe
+> leaves the rate path. `NEXTSTEPS.md` Task 10 carries what that gives the reverse pass —
+> the second leaf solve and the second graft per block both go.
+>
+> Read it for the derivation and for its conservation diagnostic, which is the
+> forward-model argument the change always needed and which nothing else states.
+
+---
+
 # The density transport term when a plant carries physiology
 
 The size-density equation's compression term, what it is when a cohort carries state beyond its

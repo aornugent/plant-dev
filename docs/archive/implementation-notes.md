@@ -1,3 +1,24 @@
+> **Archived. This was the one home for a number, and nobody is re-deriving these numbers.**
+>
+> It records what was built, at which commit, against which build, and what each number
+> moved, across Phase 0 to Phase 3 wave 6. Read it for archaeology — to audit a past
+> claim — and cite it by commit and path.
+>
+> What has been lifted out and is live elsewhere:
+>
+> * **The standing lessons** — the build hazards, the gate failures, the measurement
+>   rules — are in `METHOD.md`, which is where a fresh session should read them.
+> * **The reference forward numbers and the three model configurations** are in
+>   `METHOD.md` §5. They are the **pre-#590** numbers.
+> * **The wave 6 cost diagnosis** — `Leaf::input_adjoints` at about 300x its budget —
+>   is the subject of `NEXTSTEPS.md`, measured again there by a direct timer.
+>
+> One warning for anyone quoting from it: several figures here were later found to
+> belong to a different configuration than the section quoting them. Where a number
+> matters, read the sentence that states its configuration, not the summary.
+
+---
+
 # Implementation notes
 
 What was built, at what commit, against which build, and what each number moved. The plan

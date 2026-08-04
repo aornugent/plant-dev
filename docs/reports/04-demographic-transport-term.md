@@ -20,7 +20,7 @@ discretisation this design uses instead. Numbers are measured on plant `develop`
 > discretisation for this model.
 >
 > The live thread is `aornugent/plant#69`, a forward-model question for plant's maintainers.
-> **[`10-density-transport-and-carried-physiology.md`](10-density-transport-and-carried-physiology.md)**
+> **[`10-density-transport-and-carried-physiology.md`](../archive/10-density-transport-and-carried-physiology.md)**
 > carries the derivation, the measurements and what deferring costs. This report is not edited further.
 
 ---
@@ -133,7 +133,7 @@ the soil and photosynthesis caches the first one fills. Arithmetic from the othe
 higher — 7.8 M solves at a measured **10.2 us** each (`../../scripts/leaf_call_cost.R`) is 80 s, and
 against the 102.9 s production run measured beside it the leaf is about 78% of forward time and the
 probe about 39% of it. Both sit below the profiling note quoted next. **The share is anchored to that
-one wall clock**: the same tree later ran 86.1 s (`../build-plan.md` §5b M5), against which 80 s would
+one wall clock**: the same tree later ran 86.1 s (`../archive/build-plan.md` §5b M5), against which 80 s would
 be 93%, so the percentage needs re-taking with its own timing in one session. The structural ratio —
 two solves per cohort per stage, one of them the probe — does not depend on it, and that is what this
 section's argument uses.
@@ -148,7 +148,7 @@ different direction than the leaf-solve arithmetic above.
 nothing else does.
 
 **It changes the forward value.** `log_density_dt` changes, so offspring and every census metric
-move. The size is unmeasured (`../build-plan.md` §5b, M4). Baselines need re-blessing, alongside
+move. The size is unmeasured (`../archive/build-plan.md` §5b, M4). Baselines need re-blessing, alongside
 §2.2's conservation diagnostic, which is the number worth presenting with it.
 
 ---
@@ -321,7 +321,7 @@ runs 8.2094e-06 to 3.8097e-01 with a median of 2.6756e-02, and it is exactly zer
 8.2095e-06 — the same probe, a different population, and the two differ only in the fifth digit.
 Either the global minimum is this boundary interval reported twice with a rounding difference, or
 it is a coincidence; no argument here depends on it, and a third measurement now favours the first
-reading: `../build-plan.md` M8 scans 10 011 neighbouring pairs over 142 output steps and reports a
+reading: `../archive/build-plan.md` M8 scans 10 011 neighbouring pairs over 142 output steps and reports a
 minimum of **8.209404e-06**, which is §7.1's figure to seven digits and not §5's. By the time the solver has advanced to the next recorded state
 the newborn has grown away from `height_0`.
 
@@ -330,7 +330,7 @@ the newborn has grown away from `height_0`.
 seeds `dydt_in` from the stored rates and marks them clean (`ode_solver_internal.hpp:146-152`), and
 for the newborn those come from `compute_initial_conditions` at the configuration where its interval
 below has zero width. **That is the same seam as the stale first-same-as-last `k1`**
-(`../build-plan.md` §2.9): one place, at the introduction, where three separate findings meet.
+(`../archive/build-plan.md` §2.9): one place, at the introduction, where three separate findings meet.
 
 So the rule is not a floor on `dh`, and §7.2's stencil carries it in one branch, guarded on the
 divisor itself. The seam is shared:
@@ -460,7 +460,7 @@ Stated as checks, so the answer is a number.
   not.
 - **The forward-value change is larger than the model owner will accept.** `log_density_dt`
   changes, so offspring and the three census metrics move. Measured before it lands
-  (`../build-plan.md` M4).
+  (`../archive/build-plan.md` M4).
 - **The dropped channel is negligible.** Take a K93 census gradient with the transport term's
   derivative present and absent. K93 has no leaf, so no staircase and no amplification. If the
   difference is small, none of this matters; that is the number that should have been taken

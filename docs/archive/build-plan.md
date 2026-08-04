@@ -1,3 +1,27 @@
+> **Archived. Every task in this plan is built; the live plan is `NEXTSTEPS.md`.**
+>
+> What survives, and what to read it for:
+>
+> * **§2 is the architecture as built.** The code is now the authority. Read §2.3, §2.4,
+>   §2.8 and §2.9 for *why* the cohort block, the four reverse-pass steps, the stage
+>   rebuild and the storage choice have the shape they do — those arguments are not
+>   restated anywhere else.
+> * **§2.5's V1-V4 are the verification design.** Six of the seven gates were taken;
+>   V4 is not achievable against a re-run finite difference, and `METHOD.md` §2 carries
+>   the measured reason.
+> * **§8b's cost model is superseded and should not be quoted.** It divides by 51
+>   traits where the number is 44, and its record-and-sweep multiplier is a multiplier
+>   on recorded arithmetic where the block is dominated by the leaf solve. `NEXTSTEPS.md`
+>   §4 carries measurements instead.
+> * **§5-§6's task list, §11's four design threads and §7's exclusions are history.**
+>   P2.4 is out of scope (`aornugent/plant#69`); P3.4 landed in Phase 1.
+> * **Line citations in this file have drifted** while the claims they support have not.
+>   Cite the symbol, or a commit and a path.
+>
+> Do not design from it.
+
+---
+
 # Build plan: exact resident gradients for TF24
 
 **Baselines.** plant `develop` @ `141dc8df`. odelia @ `854a8e183b0eab99c68fdb4d3aa5e5e6f6e1a060`.

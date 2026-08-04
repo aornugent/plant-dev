@@ -403,7 +403,7 @@ For TF24 on develop, where `state_size()` is 6:
 
 **76 + n in, 11 out** on develop's value-only field; **141 + n** once the field carries a slope per
 knot as well, which a cubic Hermite does and a value-fitted spline does not
-(`../build-plan.md` §2.3, report 03). The slopes come from their own reduction over cohorts, so a
+(`../archive/build-plan.md` §2.3, report 03). The slopes come from their own reduction over cohorts, so a
 block cannot derive them. Three things that are *not* on either side, and each
 was wrong in an earlier version of this table. `log_density` and `offspring` are not inputs,
 because `Individual::compute_rates` never reads them; density reaches the world one level up,
@@ -434,7 +434,7 @@ set (`lma`, `rho`, `hmat`, `eta`, ... `vcmax_25`, `p_50`, `K_s`, `jmax_25`, ...)
 a soil-specific subset. `Species::ad_parameters()` returns
 `strategy->field_ptrs()`, pointers into the strategy's `pars`, generated from that
 one macro list alongside `field_names()` so the two cannot disagree in membership or
-order. That is the AD branch's arrangement; `../build-plan.md` P1.3 keeps the property and moves the
+order. That is the AD branch's arrangement; `../archive/build-plan.md` P1.3 keeps the property and moves the
 source to the RcppR6 yml, which is already the one place names and pointers are declared. K93 declares 11 and FF16 32.
 
 So the realistic target count is **tens**, and for a calibration workflow plausibly
@@ -590,7 +590,7 @@ This is the whole additional memory the proposal requires.
 > `Species::compute_competition` closes its trapezium on `new_node` at every stage. §3.1 carries
 > the mathematics — the forward inflow boundary is the adjoint's outflow boundary, one term,
 > `lambda_n(x_b,t) / g(x_b)`, and that part stands. What does not stand is the inference that
-> `SCM` therefore needs no `Solver` members; `../build-plan.md` §2.4 records that the reason is
+> `SCM` therefore needs no `Solver` members; `../archive/build-plan.md` §2.4 records that the reason is
 > void and asserts no replacement.
 
 Section 1's steps (a) to (e), per step, walking the trajectory backwards. Step (b) in
@@ -872,7 +872,7 @@ still has to be deliberate.
 > `height_seed` still refuses at an active scalar — it is one of the standing probe's two errors —
 > and `height_0` is declared `double`, which is why `omega`'s gradient column is exactly zero
 > conditionally rather than structurally: its only other channel is `fecundity_dt`, a terminal
-> accumulator no rate and no census metric reads. Evidence in `../implementation-notes.md`,
+> accumulator no rate and no census metric reads. Evidence in `../archive/implementation-notes.md`,
 > *Phase 3, wave 5*.
 
 **C6. The stored trajectory is not sufficient on its own.** Each `Node` carries
@@ -958,7 +958,7 @@ from convention into compile-time or assertion-time facts.
 
 ## 11. Implementation order
 
-The ordered work list is `../build-plan.md`. It differs from an earlier draft of this section in
+The ordered work list is `../archive/build-plan.md`. It differs from an earlier draft of this section in
 two ways worth stating here, because both change what this design has to prove.
 
 **TF24 first, not K93.** K93 was the natural first witness — no leaf, no soil, closed-form

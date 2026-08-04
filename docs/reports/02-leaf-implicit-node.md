@@ -26,7 +26,7 @@
 > bound, so its derivative is the bound's derivative, analytic and exact.
 >
 > **Four sub-claims falsified by building the node (Phase 3, wave 2). The conclusions stand; these
-> four do not.** Evidence in `../implementation-notes.md`, *Phase 3, wave 2*.
+> four do not.** Evidence in `../archive/implementation-notes.md`, *Phase 3, wave 2*.
 >
 > **§6.8's input table is incomplete.** Five inputs are missing: `root_b`, `root_c`,
 > `root_psi_crit`, `beta_R_H` and `beta_R_V`. The last two are the only multiplicative scale on the
@@ -61,7 +61,7 @@
 > (131x), `d(bound_a)/d(root_b)` 1.68651 against 17279.08 (10245x) — invisible at wet states, growing
 > with drying. The ruling is to hold the grid and let the values carry the parameter, which is the
 > arrangement §6.4 describes; **the forward model still carries the discontinuity**, and that is the
-> owner's. Evidence in `../implementation-notes.md`, *Phase 3, wave 3*.
+> owner's. Evidence in `../archive/implementation-notes.md`, *Phase 3, wave 3*.
 >
 > **The polish mostly does not converge, and that qualifies P2.6 rather than this report (Phase 3,
 > wave 4).** `Leaf::polish_root_collar_psi` carries `R_tol = 1e-11` and `max_iter = 5`, and at
@@ -76,7 +76,7 @@
 > exhausted fraction to 5.05%, and **tightening the bracket instead reaches the same floor from an
 > independent direction**, which makes it a mechanism. It moves forward numbers — offspring
 > 42.411799695604159 over 4 644 steps at cap 20 against 42.179817344974609 over 4 798 — so it is the
-> owner's and was not taken. Evidence in `../implementation-notes.md`, *Phase 3, wave 4*.
+> owner's and was not taken. Evidence in `../archive/implementation-notes.md`, *Phase 3, wave 4*.
 >
 > **The cap change was taken, and the census that sized it was larger than wave 4 could see (Phase
 > 3, wave 5).** Measured on the production tree rather than through a script hardcoded to a
@@ -105,7 +105,7 @@
 > claims about it are corrected: `rho` and `a_bio` are **not** an omission of any size — adjoint
 > and central difference both read 0 at the leaf — and the `psi_crit` pinned-state gap is real and
 > upstream of the graft, its adjoint reading 0 against a whole-solve −2.39e-04 and −8.25e-04.
-> Evidence in `../implementation-notes.md`, *Phase 3, wave 5*.
+> Evidence in `../archive/implementation-notes.md`, *Phase 3, wave 5*.
 
 ## 1. The proposal
 
@@ -352,7 +352,7 @@ soil moisture.
 `max_soil_layer` untouched on an ordinary solve, so a shallow-rooted cohort following a deeper one
 carries that cohort's deep-layer uptake with no branch taken at all — 33.78% of production records
 (report 01 §5, `../tf24-correctness.md` P0.1), against zero incidence for this section's shutdown
-route. `../build-plan.md` M7 measures the consequence for the reverse pass: restoring a leaf's inputs
+route. `../archive/build-plan.md` M7 measures the consequence for the reverse pass: restoring a leaf's inputs
 and its stored operating point reproduces every output bit-for-bit at 8 of 9 states, and the ninth is
 this defect. So P0.1 and P0.2 are one fault with two entrances, and P0.1's is the one the production
 driver uses.
@@ -360,7 +360,7 @@ driver uses.
 The fix is two lines in `set_shutdown_state` — `soil_consumption_.assign(n, 0.0)` and
 `E_up_ = 0.0`. Section 4 establishes the blast radius: unreachable on the production driver, 199
 occurrences in 330 021 solves at a twentyfold rainfall reduction. (**Landed as P0.2**,
-`aornugent/plant#66`; `../tf24-correctness.md` and `../implementation-notes.md` carry it. This report
+`aornugent/plant#66`; `../tf24-correctness.md` and `../archive/implementation-notes.md` carry it. This report
 describes develop `141dc8df`, where the defect is still present.)
 
 ---
@@ -868,7 +868,7 @@ should be a recorded decision rather than an artefact of writing an `if`.
 
 ## 10. Implementation order
 
-**The live work list is `../build-plan.md` §5–§6; this is the report's own reading, kept as its
+**The live work list is `../archive/build-plan.md` §5–§6; this is the report's own reading, kept as its
 conclusion.** Two of the steps below have since landed on `aornugent/plant#66` as Phase 0: step 3
 (`set_shutdown_state`, as P0.2), and step 5 is moot — report 01 §11.1 found `ode_util.hpp` already
 includes XAD at the `854a8e18` baseline, so no include is owed.

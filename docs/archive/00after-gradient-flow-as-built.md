@@ -1,3 +1,27 @@
+> **Archived and superseded by `NEXTSTEPS.md`, which carries its measurements and its
+> design as an executable plan.**
+>
+> This report traced the composition of the reverse pass — the thing no other document
+> did — and its diagnosis was right: the cost is `Leaf::input_adjoints`, called far more
+> often than the design intends, rebuilding a Jacobian that does not depend on the seed
+> it was passed. That diagnosis was reproduced independently by a direct timer at
+> **98.16 percent** of the reverse pass, and the measurements it collected are now in
+> `NEXTSTEPS.md` §4.
+>
+> Three things to know before reading it:
+>
+> * **Its STOP still stands.** The adjoint disagrees with the forward tangent on two of
+>   three census metrics. `NEXTSTEPS.md` §1 carries it, and Task 6 carries one cause.
+> * **Its C2b — a lazy `CheckpointCallback` — is not the design that was chosen.**
+>   Its own §8c found the defect: the callback fires after the shared `Leaf` has been
+>   re-solved by the transport probe, so it reads the probe's operating point. The
+>   eager form in `NEXTSTEPS.md` Task 1 gets the same measured factor, cannot have that
+>   defect, and keeps the forward-mode graft the tangent referee needs.
+> * **Its §6b projections are arithmetic on measured factors and none of the composed
+>   totals was measured.** It says so itself. Use `NEXTSTEPS.md` §11.
+
+---
+
 # The gradient, end to end: the flow as built and the flow to build
 
 > **STOP, recorded 2026-08-03. The adjoint disagrees with a forward tangent and with a converged

@@ -4,22 +4,32 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-**Read [`ORCHESTRATOR.md`](ORCHESTRATOR.md) section 1 first** — it orders the whole reading
-list and says what each document is for — then [`docs/build-plan.md`](docs/build-plan.md) before
-designing anything. In short:
+Three live documents, in this order:
 
-- [`docs/build-plan.md`](docs/build-plan.md) — the plan: the architecture decision, the salvage
-  manifest for both AD branches, the tasks, the gates. Baselines are plant `develop` and
-  odelia `854a8e18`.
-- [`docs/tf24-correctness.md`](docs/tf24-correctness.md) — the TF24 forward-model prerequisites.
+- [`NEXTSTEPS.md`](NEXTSTEPS.md) — **the plan of record.** What to build, in what order, and
+  the gate for each step, with the measurements that set the order. Written in Simplified
+  Technical English.
+- [`METHOD.md`](METHOD.md) — **how to know you built it.** The gate rules, the standing
+  hazards, the build recipe, the reference forward numbers with their configurations, and
+  where each harness lives. Read it before you write a gate or take a measurement.
+- [`ORCHESTRATOR.md`](ORCHESTRATOR.md) — how to run implementation work through subagents:
+  the packet, isolation, sequencing, and review. Read it only if you are directing packets.
+
+Then the reference material:
+
 - [`docs/reports/00-tf24-dependency-map.md`](docs/reports/00-tf24-dependency-map.md) — **the
   first reading.** Its physical reading gives the five facts TF24's gradient follows from, and
   its end-to-end walk states the flow forwards and backwards in prose. Read it before the
   others; they are its detail.
-- `docs/reports/01`–`04`, `07` — the derivations and measurements the plan rests on.
-  **Reference material, not status**; they are never edited to track progress.
-- `docs/archive/` — documents whose conclusions are stale, superseded or
-  configuration-dependent, each bannered with what survives. **Do not design from them.**
+- `docs/reports/01`–`04` — the derivations and measurements the design rests on.
+  **Reference material, not status**; they are never edited to track progress. Read the head
+  of each first: several carry corrections to their own sub-claims.
+- [`docs/tf24-correctness.md`](docs/tf24-correctness.md) — the TF24 forward-model prerequisites.
+- `docs/archive/` — documents whose conclusions are stale, superseded or configuration-dependent,
+  each bannered with what survives. **Do not design from them.** The build plan and the
+  implementation notes are here: every task in the plan is built, and the notes were the one
+  home for numbers nobody is re-deriving. Read them for archaeology and cite them by commit
+  and path.
 
 **The provenance rule is mandatory:** a claim earns a place in a live document only on a passing
 test, a re-runnable probe, or a code location read directly — **never on another document's

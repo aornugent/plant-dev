@@ -6,7 +6,7 @@ leaf area above height `z` per patch area — the optical depth — and `L(z) = 
 is light availability, which is what `ResourceSpline` stores.
 
 > **Built as P2.1, P2.2 and P2.3. This report's proposal is upheld; four of its statements are
-> superseded and one was false.** Evidence in `../implementation-notes.md` under *Phase 2*.
+> superseded and one was false.** Evidence in `../archive/implementation-notes.md` under *Phase 2*.
 >
 > **§4's "already correct for every strategy" is false, and it is this report's one load-bearing
 > error.** `q` is the exact negative vertical derivative of the *Yokozawa* kernel, which is what §4
@@ -43,7 +43,7 @@ is light availability, which is what `ResourceSpline` stores.
 > 20-knot run with its convergence unmeasured, is measured on the model at a gap of **1.891e+01 —
 > about 87% of the tallest cohort's height adjoint**. C1's ruling stands (positions stay passive, by a
 > committed choice at P2.1), but its size assumption does not, and **the unmeasured
-> convergence-with-knot-density is now the falsifier**. Evidence in `../implementation-notes.md` under
+> convergence-with-knot-density is now the falsifier**. Evidence in `../archive/implementation-notes.md` under
 > *Phase 3, wave 1*.
 >
 > **Confirmed as written:** the locality claim (`d(eval)/d(knot)` exactly 0 two spans away, re-verified
@@ -180,7 +180,7 @@ depend on the state.
 which is `x_k = u_k * height_max` for fixed fractions `u_k`.
 
 **Which fractions, measured.** This section assumed they would be inherited from the one adaptive
-`construct` at the start of the run. `../build-plan.md` M3 measured that choice against three others
+`construct` at the start of the run. `../archive/build-plan.md` M3 measured that choice against three others
 and it is the worst of them: at the first step the stand is one seedling, the field is flat, and the
 refiner returns an equally spaced set, so the first state's refinement carries no information — its
 crown-mean light error reproduces a uniform 33-knot set to every digit. The error is resolution
@@ -397,7 +397,7 @@ Knot positions are `double`; values and slopes carry the working scalar `S`. The
 mirrors `basic_interpolator` so `ResourceSpline` can hold one in place of the other,
 with a slope vector added at `init`. `init` validates the positions, scans them for uniformity and
 fills every span, so a caller whose positions never change re-derives structure per call;
-`../build-plan.md` P2.1 splits it into setting the nodes once and refreshing the data per stage.
+`../archive/build-plan.md` P2.1 splits it into setting the nodes once and refreshing the data per stage.
 (odelia's older value-fitted `Interpolator` spells the same operation `deriv`; this type uses `slope`
 throughout for consistency with `value_and_slope`.)
 
@@ -463,7 +463,7 @@ achieve them.
 **Those rates belong to this knot placement, and the production one gives up the rate but not the
 accuracy.** The table subdivides *cohort-top* spans, so every span is smooth and the breaks fall on
 knots. Fixed uniform fractions (§1b) do not align with the cohort heights, so a break sits inside a
-span and the observed rate on the production field is about `h^2.5` (`../build-plan.md` M3). That
+span and the observed rate on the production field is about `h^2.5` (`../archive/build-plan.md` M3). That
 sounds like a price and measurement says it is not: at a matched knot count on a real stand, uniform
 fractions are **22x more accurate** than knots at the cohort tops (M3b), because cohort heights
 cluster — minimum spacing 8.2e-06 m on a 17.9 m domain — so a knot per cohort top crowds a bunch and
@@ -648,7 +648,7 @@ anything that asks the field for a slope at the ground gets NaN. The `u -> 0` li
 `eta > 1` and `2/H` at `eta = 1` — `q = 2(1 - u)u/z = 2(1 - u)/H`, so the constant is 2.
 
 **Landed as P0.7, and as a branch rather than the reformulation this paragraph first proposed**
-(`aornugent/plant#66`; `../tf24-correctness.md`, `../implementation-notes.md`). Rewriting `q` over
+(`aornugent/plant#66`; `../tf24-correctness.md`, `../archive/implementation-notes.md`). Rewriting `q` over
 `u^(eta-1)/H` reaches the same finite value and drops a division, but on develop's function-pointer
 chains it needs a *second* chain family to supply `u^(eta-1)`, which moved every model sharing the
 class for no gradient benefit — a chain carries no `eta` term, so it is never the route to a valid

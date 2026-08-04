@@ -1,3 +1,21 @@
+> **Archived. A close reading of TF24 at develop `141dc8df`, which is four phases behind
+> the tree.**
+>
+> Its method is the part worth remembering: the six design reports were each scoped to
+> one mechanism, and **the seams between mechanisms held most of what was wrong**. Every
+> numbered finding was measured, and its two probes are committed
+> (`scripts/leaf_state_carryover.R`, `scripts/uncounted_switches.R`).
+>
+> What it found has landed or moved on: the shared-leaf carry-over is P0.1, the light
+> floor and the switch censuses are confirmed by two independent routes, and the
+> forward-model items it raised are in `docs/tf24-correctness.md`. Its §1.8 light-floor
+> census is the one that corrected a four-orders disagreement elsewhere in the corpus.
+>
+> Read it for the seam-reading method and for its incidence numbers, with the caveat
+> that they carry develop's configuration and not the current tree's.
+
+---
+
 # TF24 at develop: what the six reports do not cover
 
 **What this is.** A close reading of every line of TF24's compute path on develop
