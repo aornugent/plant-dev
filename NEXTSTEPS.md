@@ -247,6 +247,23 @@ third across a factor of two in rainfall.
    drought sequence is simultaneously where the pin fires, where the reference is weakest, and
    where the ecology cares most.
 
+**The same defect is in the light evidence, and it is starker there.** Every light measurement in
+this corpus comes from the same run, and on it the minimum knot value is 0.1657 with a
+**ground-level median of 0.9997** — peak optical depth about 1.8. **That is an open woodland. The
+measured stand never closes its canopy.** A closed forest floor sits at a transmittance of about
+0.01 to 0.02, optical depth 4 to 6. So **nothing in this corpus has ever run a plant in shade**, and
+the entire understorey physiology — the sign of `assim_max_`, the reserve drawdown, the
+shade-mortality exit that report 06 calls the most under-measured state in the model — lies between
+the darkest light ever measured here and the light a real forest floor receives. At the median, on
+the measured stand, **the forest floor is in full sun.**
+
+**One clamp is retired permanently by a better argument, and this is the shape to copy.** Report 03's
+C7 shows the `1e-4` light floor never binds and argues it needs "about five times this stand's
+optical depth" — a statement about one driver. The driver-independent statement is stronger:
+**a transmittance of `1e-4` is two orders of magnitude darker than the darkest measured forest floor
+on Earth**, so the floor is unreachable in any stand this model could be asked to represent. Where a
+clamp can be retired by physics rather than by incidence, retire it that way.
+
 **What this asks for.** Re-take the branch census on a real rainfall sequence, on the birth-date
 coordinate, and report the incidence of every one of the thirteen classifications. Until that
 exists, **no ruling in this document may cite an incidence zero as evidence.** The instrument is

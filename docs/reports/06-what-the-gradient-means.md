@@ -175,13 +175,33 @@ in the mean, which is not the same plant: photosynthesis saturates, so averaging
 and then photosynthesising overestimates the gain relative to photosynthesising and then
 averaging.
 
-**That overestimate has been measured, and it is not small: mean-light overestimates lifetime
-offspring production by a factor of 3.33, or 233 percent** — 8.276245764 against 2.483491938
-under `deep-crown`. Say the number rather than the word "overestimates".
+**The overestimate has been measured at a factor of 3.33** — lifetime offspring production
+8.276245764 against 2.483491938 under `deep-crown`, at `max_patch_lifetime = 20`, one trait, one
+species.
 
-Caveat: measured at `max_patch_lifetime = 20`, one trait, one species, because `deep-crown`
-took 2 682 s even there. That is not the production configuration and **the ratio may not be
-lifetime-invariant.**
+**But read what that number is, because an earlier form of this paragraph invited the wrong
+reading.** It is a ratio of **lifetime offspring**, not a carbon bias. Offspring is a strongly
+non-linear functional of carbon: it passes through the hard establishment gate — where 23.1 percent
+of boundary evaluations sit on the closed arm — and then compounds for twenty years. So 3.33 is a
+**stand-level demographic amplification of a per-plant carbon bias that has never been measured.**
+Both readings agree the bias is upward; only this one is supported by the measurement.
+
+**And this section had the wrong plant.** The picture above — upper leaves in sun, lower leaves in
+deep shade — is not TF24's crown. With `eta = 12`, $\tilde Q(u) = (1-u^{12})^2$, so **86.7 percent
+of a crown's leaf area sits in the top 20 percent of its height and 99.95 percent above $0.5H$.**
+The crown is nearly a flat top. So averaging is nearly exact for an emergent, whose whole leaf shell
+is in full sun, **and** nearly exact for a fully suppressed plant, whose shell sits in one nearly
+uniform understorey light. **The plants it misrepresents are the mid-canopy and gap-edge
+individuals**, whose leaf shell straddles the top of the canopy below them — which is exactly the
+cohort whose fate decides whether a stem reaches the canopy or dies suppressed. The direction is
+unambiguous, because photosynthesis saturates: averaging overestimates carbon, hence growth, hence
+height, hence escape.
+
+**So the honest disclosure is not "the objective is biased by 3.33 times".** It is that **the
+sensitivities are taken about an operating point that overestimates carbon for mid-canopy stems, by
+an amount nobody has measured per plant, and the only mode that would measure it has no
+derivative.** That is a scope limit on the question, not on the arithmetic — and it is measurable
+*forward*, at a handful of states, which is affordable and has not been done.
 
 **That overestimate has been measured, and it is large: mean light overestimates lifetime
 offspring production by a factor of 3.33, +233 percent** — 8.276245764 against 2.483491938 for
