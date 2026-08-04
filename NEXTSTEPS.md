@@ -195,6 +195,66 @@ term of automatic differentiation. Section 12 lists them.
 
 ---
 
+## 3b. The incidence zeros are a property of one driver, and the plan is not run on that driver
+
+**Decided 2026-08-04, and it inverts a conclusion this corpus has carried since report 02.**
+
+Reports 00 and 02 rest a great deal on measured incidence. Report 02 section 4 counts **zero**
+pinned solves in 4 372 101 at "the production driver", re-measured at **0 of 7 353 330**, with
+all five `prepare_collar_solve` exits unvisited and the narrowest feasibility bracket 1 342 times
+the tolerance that would collapse it. From that, report 02 concludes the interior treatment is
+the production path and **the bound branch is insurance**, and report 00 section 7 files the
+bracket-pinned derivatives, the zero-flux branch, the `psi_crit` shutdown and root-mediated
+redistribution under *sidestepped* — "needed in principle, not on the production path".
+
+**That driver is the default rainfall driver. The intended use is real rainfall sequences.**
+
+Every one of those zeros is conditional on a driver whose `psi_soil` range is 0.015 to 0.17 MPa.
+The corpus states the conditions itself, in three places that must now be read together:
+
+- Report 00's curvature sweep finds the operating point **pinned at a bound in 15 of 52 states**,
+  and "every pinned state is at `psi_soil >= 1.5 MPa` **and** `height >= 2 m`: dry and tall. None
+  is inside the default driver's `psi_soil` range, which is why section 9's production census
+  finds zero corner incidence; **the committed stress banks reach 1.5+ MPa, so the regime is live
+  there.**"
+- Report 02 section 4 measures the transition directly: at fivefold rainfall reduction nothing
+  changes; at tenfold, 267 of 343 779 solves pin; at twentyfold, **110 984 of 330 021 — 33.6
+  percent** — plus 199 hits on the E2 shutdown exit.
+- Report 00 section 8 item 2 says the light floor "is a hazard for a drier stand rather than for
+  this one", and section 9 lists the incidence of that floor as **inferred, not measured**.
+
+**So under real rainfall the dry-and-tall regime is not a corner. It is a season.** A rainfall
+sequence with a drought year reaches `psi_soil >= 1.5 MPa` in exactly the tall stand where the
+pin was measured, and report 02's own drought arms show the pinned fraction going from 0 to a
+third across a factor of two in rainfall.
+
+**Four consequences, and each reverses a ruling.**
+
+1. **The bound branch is not insurance. It is the path**, for part of every run with a dry
+   season. Report 02 section 4's own banner anticipates this: "**If the pinned regime is in fact
+   common at the production driver, section 6's bound branch stops being insurance and becomes
+   the path, and the envelope row's argmax machinery is not what most solves need.**"
+2. **Report 00 section 7's *sidestepped* row must be re-read as *unbuilt*.** The zero-flux branch,
+   the `psi_crit` shutdown, root-mediated redistribution and the bracket derivatives are all
+   filed on this driver's evidence.
+3. **The thirteen operating-point classifications are a live correctness problem, not a latent
+   one.** Nine of them take an adjoint branch whose mathematics does not apply, and the argument
+   that this is tolerable was the incidence zero.
+4. **The dry states are where the leaf's expensive machinery is least valid and most needed.**
+   Report 00 fact 2: the uptake channel is near-singular in the uniform drying direction, with
+   amplification 15 to 26 times, and "a whole-solve finite difference resolves the collar's
+   response to about four digits, so it **cannot** measure that one-percent residue". So a
+   drought sequence is simultaneously where the pin fires, where the reference is weakest, and
+   where the ecology cares most.
+
+**What this asks for.** Re-take the branch census on a real rainfall sequence, on the birth-date
+coordinate, and report the incidence of every one of the thirteen classifications. Until that
+exists, **no ruling in this document may cite an incidence zero as evidence.** The instrument is
+already in the tree: `plant/inst/include/plant/collar_census.h` reports per-class counts and
+extremes behind `PLANT_COLLAR_CENSUS`, and nothing reads it.
+
+---
+
 ## 4. The measurements that set the order
 
 Each number below is measured. Section 11 gives the values that are calculated

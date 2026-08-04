@@ -293,7 +293,127 @@ capability.
 
 ---
 
-## 8. Where the state lives
+## 8. What the design asks of a model author
+
+Every one of reports 01, 02, 03 and 04 closes with a section called "what this asks of a Strategy
+author". Those four lists overlap heavily, they are the best engineering in the corpus, and until
+now they lived only in reports whose headline subject is something else. **They are collected here
+because they are the standing rules, not findings** — and because most of the defects this project
+keeps finding are a rule below being broken somewhere nobody looked.
+
+The engine cannot check most of them. That is the point: each is held by discipline, and each is
+paired with the construct that motivated it, so a reviewer can look for the pattern rather than
+the instance.
+
+**On purity, because the reverse pass re-runs one cohort in isolation**
+
+1. **Per-cohort state belongs in `Internals`, and nothing may carry between cohorts.** Anything
+   the forward pass leaves on the shared `Strategy` and reads back is invisible to a sweep that
+   re-runs one cohort alone. *`Leaf::soil_consumption_` carried the previous cohort's deep-layer
+   uptake on 33.78 percent of production records, because `resize` does not fill existing
+   elements.*
+2. **The safe pattern for a shared mutable member is write-before-read, and it is not enforced.**
+   A member read before being written in the same call is a cross-cohort channel, and **no test
+   would catch it**: the forward pass is order-deterministic, so a stale read reproduces exactly.
+   *`mass_root_prop_` is safe because it is `.assign`ed at the top of every call; the `Leaf` is
+   safe only because `set_physiology` re-seats it.*
+3. **A cache must be keyed on everything its value depends on, or not exist.** *`photo_temp_cached_`
+   caches `vcmax_` on a key omitting `vcmax_25` — correct only while that parameter is run-constant,
+   and a differentiation target is exactly a parameter someone intends to vary.*
+4. **Every early exit sets an operating point — set all of it.** An exit that writes a partial state
+   is a cross-cohort channel. *`set_shutdown_state` set three members and left a fourth stale.*
+
+**On inner solves, because a search is not a function**
+
+5. **Return the solution, expose the residual, never expose the search.** For an implicitly defined
+   quantity the differentiable object is the defining equation. *`golden_section_max`'s argmax is an
+   exact affine function of its bracket and independent of the objective's values, so taping the
+   search yields the derivative of the bracket.*
+6. **An objective at its own optimum is free; its other consumers are not.** Ask of every output
+   whether it *is* the objective or merely reads the argument that maximised it. *The envelope
+   theorem covers `profit_` completely and `soil_consumption_` not at all; the measured cost of
+   conflating them is 4 to 12 percent.*
+7. **A feasibility bound is part of the model, so its derivative is part of the answer** — and that
+   branch is *exact and cheaper* than the interior one, which is the opposite of what one expects.
+8. **A search's stopping tolerance is not the accuracy of a derivative built on its answer.** An
+   argmax consumed by anything but the objective must be polished to a stationary point before it
+   is used as a linearisation point. *Unpolished at `GSS_tol_abs = 1e-3` the error is 3.5 percent;
+   polished it is 4.5e-10 at every tolerance, and tightening the search instead plateaus at 6e-6.*
+9. **A guard that returns NaN and falls back to a finite difference is a severance in disguise** —
+   invisible in the value, wrong in the derivative.
+
+**On aggregation, because the domain moves**
+
+10. **If you integrate over your own size, you need the integrand's slope.** Easy to miss because
+    the value is correct and only the derivative is wrong. *Applies to any aggregation with a
+    state-dependent domain — a crown, and equally TF24's root mass over soil layers with
+    `rooting_depth = min(height, 1.5)`.*
+11. **If you declare a cumulative form, declare its density too — and check they agree.** *`q` is
+    exactly `-dQ/dz`, which is what makes the slope reduction free; nothing currently ties them, so
+    they could drift apart silently.*
+12. **Value and slope must come from one construct.** Two constructs agree nowhere except by
+    accident and the disagreement is invisible in the value.
+13. **Know where your field is non-smooth, and put knots there** — or accept the rate you get. *`A(z)`
+    is C1 and not C2, with a curvature break at every cohort top, and a refiner chasing value error
+    clusters near the breaks rather than landing on them.*
+14. **Narrow the environment interface.** The cost of differentiating a cohort scales with how many
+    environment values it reads. *A Strategy querying the environment at state-dependent points
+    chosen by a search would be materially more expensive.*
+15. **A reduction over the size distribution begins at the inflow boundary, not at the smallest
+    cohort.** *The light reduction integrates from `height_0` and the water reduction from the
+    smallest cohort, so recruits between the two transpire without being billed; and
+    `consumption_rate` returns exactly zero for `size() < 2`, so the water channel switches on
+    discontinuously at the second cohort.*
+
+**On what carries a derivative**
+
+16. **Positions are structure; values carry derivatives.** Knot positions, quadrature abscissae and
+    cohort orderings are decided on passive values and are `double` by type. **Letting a knot *count*
+    depend on an active value makes the recorded computation state-dependent.**
+17. **Fixed quadrature rules are structure; adaptive ones are not.** *`quadrature::QK` places nodes
+    as a deterministic affine function of its bounds, so an active bound tapes correctly.*
+18. **Never define a rate as a numerical derivative of an active quantity.** The stencil may be a
+    legitimate discretisation — often it is the upwind form and the analytic alternative is
+    unstable — but evaluated in `double` on a differentiated path it **silently drops the channel it
+    discretises**.
+19. **Difference on a grid the model already has, not on one you invent.** In a
+    method-of-characteristics scheme the cohorts *are* the grid and their spacing has an exact rate.
+    A probe distance is a tolerance chosen for roundoff, and dividing by it amplifies roundoff by
+    its reciprocal whether or not the differenced quantity is smooth.
+20. **If you difference something, know its smoothness at your step size.** *A probe distance of
+    1e-6 against a quantity moving in steps of 1e-3 is safe only because the steps are locally flat,
+    and nothing records that dependency.*
+21. **Anything defined as a small difference of large quantities must be computed as itself.** *The
+    uptake's response to uniform drying is about one percent of what the potentials do, and a
+    whole-solve finite difference resolves the collar to four digits — so it cannot measure the
+    residue it would be verifying.*
+
+**On kinks and switches**
+
+22. **Say whether a switch is a kink you mean.** A zero derivative may be exactly the biology. The
+    point is that it should be a recorded decision rather than an artefact of writing an `if`.
+23. **A clamp is a derivative severance; say whether you mean it.** *Sometimes it is the model;
+    sometimes it papers over an interpolant that undershoots, which is a different problem with a
+    different fix.*
+24. **A declared smoothing scale must be sized against the spread of its argument.** Much smaller
+    and it is a hard switch wearing a smooth coat — and then its derivative is a **spike**, which for
+    a gradient is worse than the switch was. *`storage_prod_eps = 1e-4` is the one place in this
+    model where a mollification was sized against data: 3.6 percent of records sit within one scale
+    length and 29 percent within ten.*
+25. **Count your branches before designing around them, and say which driver you counted on.** *Five
+    exits were documented as four, the sixth case was not documented at all, and it was the only one
+    that appeared. All six then measured zero on the default driver — and that zero is a property of
+    the driver, not of the model.* A counter behind an environment variable is cheap and it is the
+    difference between designing for the model and designing for a worry.
+
+**One meta-rule, which is this project's own experience.** Rules 1 to 3 could plausibly be made
+structural rather than conventional, and doing so would convert the riskiest of them from discipline
+into compile-time or assertion-time facts. That is the highest-value engineering item in the corpus
+that nobody has scheduled.
+
+---
+
+## 9. Where the state lives
 
 | what | where |
 |---|---|
@@ -314,7 +434,7 @@ archaeology, cite them by commit and path, and do not design from them.
 
 ---
 
-## 9. Dry-run every wave before you commission it
+## 10. Dry-run every wave before you commission it
 
 **A dry run is one packet per task in the wave, told to write the code and throw it
 away.** Its deliverable is not the diff. Its deliverable is a list of the places the
