@@ -243,10 +243,21 @@ value with `d/da` and `d/dx` on a reused tape costs **0.68 us**. A new tape for 
 call costs **34.8 us**. Task 5 takes the two derivatives by hand instead, so no tape
 enters the leaf; these figures are what that choice avoids.
 
-**Measurement E, the four hydraulic columns are wrong.** The tabulation builder
-sets `psi_max = b * log(100)^(1/c)` and `step = psi_max / resolution`, under a loop
-bound of `psi <= psi_max`. Therefore the knot **count** steps between 100 and 101
-when `b` or `root_b` moves by 1e-6 relative. Held grid against moving grid:
+**Measurement E — retired. It does not reproduce, and the numbers below are the
+justification for a guard and not the cost of its absence.** The tabulation builder does set
+`psi_max = b * log(100)^(1/c)` under a loop bound of `psi <= psi_max`, so a moving grid
+*would* step between 100 and 101 knots. **But the grid does not move.**
+`Leaf::input_adjoints:1689-1692` and `Leaf::bound_partials:1455-1459` call
+`build_cumulative_vulnerability_integral` **once, before any perturbation**, and every
+perturbation afterwards goes through `set_transpiration_at(b, c, knots_stem)` and
+`set_root_vulnerability_at(...)`, which re-evaluate the knot **values** on the caller's fixed
+abscissae. `setup_transpiration` and `setup_root_vulnerability` are reached from the
+constructors only. **No grid is rebuilt after construction.**
+
+The table below is the measurement that *motivated* the capture, recorded in the comment at
+`leaf_model.cpp:1682-1685`. It is kept as the reason the guard must stay, and **it must not be
+quoted as a live defect.** This is the fourth time this project has read a comment describing
+a hazard as evidence of the hazard, when the comment sits above the guard that removes it.
 
 | quantity | held grid | moving grid | ratio |
 |---|---|---|---|
@@ -1272,13 +1283,15 @@ removes the tabulations. Measurement A shows both are present.
 
 ### Task 5: put the transport algebra in closed form
 
-Type: **correctness**. Measurement E shows the four hydraulic columns are wrong
-now.
+Type: **cost, and cleanliness**. ~~correctness~~ — **this task's correctness premise is
+withdrawn.** Measurement E is retired: the grid is captured before any perturbation and held,
+so `b`, `c`, `root_b` and `root_c` are **not** differenced across a moving grid and the 47,
+131 and 10 245 figures are the justification for the existing capture, not the error it leaves.
 
-**Why.** `b`, `c`, `root_b` and `root_c` get their rows from a central difference
-across a grid whose knot count changes with the parameter. The errors are 47, 131
-and 10 245 times. Task 2 and Task 3 make those columns cheap to skip. They do not
-make them correct. Only this task does.
+**Why it is still worth doing.** The derivative used downstream is the **spline's** `deriv`
+and not the closed form, so the grid is still an approximation and still costs what a
+tabulation costs. The closed forms remove the grid rather than merely its cost. That is a real
+gain and it is not a correctness fix.
 
 The object in the tabulation is the lower incomplete gamma function. With
 `a = 1/c` and `X = (m/b)^c`:

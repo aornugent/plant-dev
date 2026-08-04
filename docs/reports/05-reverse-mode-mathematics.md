@@ -374,6 +374,22 @@ inside any cohort step.
 > `ad_parameters()`, excluded there because $u^{k}\log u$ is NaN at a base of zero. Closing
 > this gap gives $\eta$ nothing until it is registered, which is separate work.
 >
+> **This gap is four parameters wide and not two, on one reading, and that reading is
+> contested.** A trace of `Patch::allometry_adjoint` (`patch.h:1735-1740`) finds it folds
+> `sizes[k].area_leaf` onto height through `darea_leaf_dheight()` alone:
+> `lambda_state[... HEIGHT_INDEX] += sizes[k].height + sizes[k].area_leaf * darea_leaf_dheight;`
+> — which is the chain $\partial A/\partial h$, **not** the explicit
+> $\partial A/\partial a_{l1}$, $\partial A/\partial a_{l2}$ at fixed $h$. On that reading
+> `a_l1` and `a_l2` carry the same structural gap as $k_I$: a non-zero row from the cohort step,
+> and the reduction's contribution missing.
+>
+> **A second trace disagreed**, holding that `a_l1` and `a_l2` arrive through the size-space
+> adjoint, which already works, and that this gap's reach is one row and one conditional.
+> **The two are not reconciled and this is the one open contradiction in section 6.** The
+> line-level argument above is the more specific of the two and should be assumed correct until
+> someone measures the `a_l1` column against a central difference, which is the check that
+> settles it.
+>
 > Both right-hand sides above are already computed as intermediate products inside the
 > existing transpose, so what is missing is a summation and not a derivative.
 
@@ -386,6 +402,26 @@ $$\mathcal{U}_j = \sum_s \sum_k w_k \, n_k \, U_{kj},$$
 and the soil state responds through the retention curve $\psi_j = \psi(\theta_j)$. Its
 transpose scatters $\bar{\mathcal{U}}_j$ back onto $\bar U_{kj}$, $\bar \ell_k$ and, on
 the height coordinate, the weights.
+
+**$\partial\psi/\partial\theta$ is transposed, and correctly — say so, because the passive
+signature invites the opposite conclusion.** `psi_from_soil_moist` takes and returns `double`
+(`tf24_environment.h:484-507`) and the cache stores a tape constant (`:556-560`), so the tape
+carries nothing. The derivative is then **restored by hand** in `Patch::cohort_block_adjoint`
+(`patch.h:1578-1582`), which multiplies the incoming adjoint by
+`environment.dpsi_from_soil_moist_dtheta(...)` — an exact analytic $-n_\psi\psi/\theta$ that
+returns 0 in both clamped regions (`tf24_environment.h:609-619`), consistently with the
+forward's `soil_moist_residual` floor and `soil_psi_max_` cap.
+
+**Note the pattern, because nothing enforces it:** a passive forward function with a
+hand-written derivative beside it, tied together only by a comment
+(`tf24_environment.h:621-622`). It is correct here and it is the shape of a defect elsewhere.
+
+**And the soil retention parameters have no row anywhere, by construction.** `K_sat`, `a_psi`,
+`n_psi`, `soil_moist_sat`, `soil_moist_residual` and `soil_psi_max_` are plain `double` members
+of `TF24_Environment` (`:298-320`), absent from both `TF24_Pars::field_ptrs()` and
+`ad_parameters()`. **The `static_assert` at `tf24_strategy.h:147-149` cannot catch this**,
+because they are not strategy members. That is the larger of the two water-side omissions, and
+it is a stronger statement than the sorting gap below.
 
 > **Gap.** `Species::consumption_rate` now sorts the cohort grid when the abscissa order
 > inverts; `consumption_rate_adjoint` still transposes the unsorted trapezium. On an
@@ -467,6 +503,8 @@ and it must include the implicit-function term of the $c^{\mathrm{i}}$ root-find
 > This costs **22 of the 30** evaluations of `dprofit_droot_collar_psi` per call on the
 > interior path — 11 parameters passing `reaches_operating_point`, two sides each, against 2
 > in `dR_dcollar_at`, 2 in `dR_dflux_from_layer`, 2 for radiation and 2 for the conductance.
+>  **30 is the maximum and not an invariant**: a parameter sitting at exactly zero is skipped
+> (`:1798-1800`, `if (!(h > 0.0)) continue;`).
 > An earlier form said 35, which reconciles with no count in the source. Its conditioning has
 > never been measured.
 
@@ -507,6 +545,27 @@ $R(c^{\mathrm{a}}) = A(c^{\mathrm{a}}) = A_{\max}$ and $g_c \propto E$, the brac
 fails when either $A_{\max} < 0$ or $E < 0$ — both of which describe an individual that
 is not producing. Those are exactly the states at which the forward model substitutes
 $c^{\mathrm{i}} = \Gamma^\star$ with zero flux rather than solving.
+
+> **Gap, and it is new.** Section 7.4's dichotomy — $p^\star = B(u)$ with $B$ either $p_a$ or
+> $p_b$ — **covers two of the four pinned classes.** `polish_root_collar_psi:984-987` sets
+> `collar_pinned_` for `COLLAR_BOUND_A`, `COLLAR_BOUND_B`, **`COLLAR_BOUND_STEP` and
+> `COLLAR_BOUND_CURVATURE`**, and the last two fire on a *rejected Newton step* or a
+> *non-negative curvature* (`:968-971`), not on running out of bracket. `bound_partials`
+> nonetheless attributes the point to whichever bound is nearer
+> (`:1401-1403`, `const bool at_bound_a = (p - bound_a) < (bound_b - p);`). So for those two
+> classes $\partial B/\partial u$ is the derivative of a bound **the operating point is not
+> sitting on**, and the adjoint is wrong in a way no bound-detection test would notice.
+>
+> **And TF24f never pins at all.** `tf24f_strategy.h:148,183-199` uses `prepare_collar_solve`
+> and `profit_at_collar_psi` and never calls `polish_root_collar_psi`, while
+> `prepare_collar_solve:740` **clears** the flag. TF24f inherits `net_mass_production_dt` and
+> so inherits `graft_leaf_outputs` and `input_adjoints`, but its operating point is a
+> **tracked ODE state clamped into `[bound_a, bound_b]`** (`:1032`) and not an argmax.
+> Therefore on TF24f **section 7.1's stationarity and section 7.2's
+> $\Pi_{pp}\,\partial p^\star/\partial u + \Pi_{pu} = 0$ are both false**, `collar_pinned_`
+> is `false` even when the clamp lands exactly on a bound, and `input_adjoints` takes the
+> interior branch and divides by a differenced $\Pi_{pp}$ that has no defining relation
+> there. **Section 7 does not mention TF24f anywhere.**
 
 > **Gap.** The forward path tests both conditions; the derivative path tests one; the
 > reverse path tests neither and calls the solver, which raises. The consequence is not a
@@ -568,15 +627,27 @@ The calculus above is separately verified: all seven quantities agree with an in
 high-precision integral and with central differences of that integral to better than
 1e-23, over $c$ from 0.4 to 12 and $m/b$ from 0.075 to 8.
 
-> **Gap.** The implementation tabulates $G$ on a grid. Read from
-> `build_cumulative_vulnerability_integral`: `psi_max = b * pow(log(1.0/0.01), 1.0/c)`,
-> `step = psi_max / resolution`, and the loop is `for (double psi = step; psi <= psi_max;
-> psi += step)`. The knot **count** therefore steps by one under a relative perturbation of
-> $10^{-6}$ in $b$ or $c$, because the accumulated `psi` crosses `psi_max` on a different
-> iteration, and a finite difference across that step is not a derivative. Measured errors
-> are 47, 131 and 10,245 times the correct values. The resolution is the caller's
-> `vulnerability_curve_ncontrol`, not a literal 100. The closed forms above remove the grid,
-> not merely its cost.
+> **Gap.** The implementation tabulates $G$ on a grid — `build_cumulative_vulnerability_integral`
+> at `leaf_model.cpp:1944-1956`, and the derivative used downstream is the **spline's** `deriv`
+> and not the closed form. So the closed forms above remove the grid, not merely its cost, and
+> that part of this gap stands.
+>
+> **But the knot-count defect this gap claimed does not exist, and the claim is withdrawn.**
+> An earlier form said the knot **count** steps by one under a relative perturbation of
+> $10^{-6}$ in $b$ or $c$, with measured errors of 47, 131 and 10,245 times the correct values.
+> **The grid is captured once and held.** `input_adjoints:1689-1692` and
+> `bound_partials:1455-1459` call `build_cumulative_vulnerability_integral` **before any
+> perturbation**, to capture the abscissae; every perturbation afterwards goes through
+> `set_transpiration_at(b, c, knots_stem)` and `set_root_vulnerability_at(...)`
+> (`:1981-1996`, `:1997-2013`), which re-evaluate the knot **values** at the perturbed
+> parameter on the caller's fixed `x`, with `y.size() == x.size()`. `setup_transpiration` and
+> `setup_root_vulnerability` are reached from the constructors only, so **no grid is rebuilt
+> after construction at all.**
+>
+> **The 47 is the justification comment at `:1682-1685`, explaining why the capture exists.**
+> This is the fourth time this project has recorded a comment describing a hazard as evidence
+> of the hazard, when the comment sits above the guard that removes it. The rule that follows
+> is: **a comment is never evidence of behaviour.**
 
 ---
 
