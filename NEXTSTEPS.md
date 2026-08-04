@@ -457,9 +457,27 @@ cohort's height, so the severance is untouched.
 **How to check.** A difference in `height_max` against the assembled adjoint, and the
 knot-density convergence as a table rather than a single number.
 
-### Task 23: invalidate the soil-potential cache under an active soil state
+### Task 23: ~~invalidate the soil-potential cache~~ — **retired, do not build this**
 
-Type: correctness. It is the other half of report 01 constraint C1.
+**The cache is sound and the hazard was recorded backwards.** `psi_soil_cache_state_` is
+`std::vector<double>` compared against `vars.state(i)`, and `vars` is `Internals<double>`: the
+key is `double` by design and the code says so. `psi_from_soil_moist` returns `double` from
+`double` constants, so the cached `S` is built from a passive value and **no derivative flows
+through the soil potential at all**, cached or not.
+
+**And the hazard is inverted.** The key is compared against the quantity that produced the
+cached value, so a finite-difference perturbation changes the key's bits and **forces a miss** —
+the safe direction. `NaN != NaN` misses too, and the floor at `soil_moist_residual = 1e-2`
+removes the only `-0.0 == 0.0` case. **There is no false-hit path.** Report 00 section 8 item 10
+describes a real hazard and names the wrong cache: the one keyed on something other than the
+perturbed quantity is `photo_temp_cached_`.
+
+**Therefore this does not block Task 0 or Task 4**, and an earlier form said it did. **Task 0b's
+stale `assim_max_` is the live instance of this class.**
+
+What survives is not a cache defect: the soil state is not differentiable in this environment,
+which is the fact Section 9's "environment columns of the census seed are exactly zero" entry is
+circling.
 
 **Why.** C1 names two caches. Task 20 fixes `photo_temp_cached_`. The second is
 `psi_soil_cache_`, whose key is **an exact `double` comparison on the soil state**. Report
@@ -596,8 +614,22 @@ finite result at `u = 0` and `u = 1`.
 
 Type: correctness. It closes the gap between absent and zero.
 
-**Why.** Twelve registered-looking parameters reach no equation on this path, and an
-absent column is indistinguishable from a zero column at the boundary.
+**Why.** **Eleven** registered-looking parameters reach no equation on this path, and an absent
+column is indistinguishable from a zero column at the boundary. An earlier form said twelve;
+`ad_parameter_names()`'s own comment carries the same ambiguity.
+
+**Two names belong at the `Leaf` boundary, not the strategy's.** `beta_R_H` and `beta_R_V` are
+plain `double` members of `TF24_Strategy`, not `S` members of `TF24_Pars`, so they sit outside
+`field_ptrs()` and **no registration alone can give them a row**; that needs moving them into
+`TF24_Pars` and into `leaf_parameter_slots`. They are settable through `Leaf$new` from R and read
+exactly zero, so refuse them there.
+
+**Two of the eleven are read, and the conclusion holds while the stated reason does not.** `S_D`
+is read by `Species::net_reproduction_ratio_by_node_weighted`, and `a_p1`/`a_p2` by
+`assimilation_leaf` — but only through `to_passive` reporting paths, and `assimilation()`'s call
+site is commented out and headed "not in use for TF24". Write "read only through `to_passive`",
+because **if a census metric is ever built on offspring production, `S_D` gains a live row and
+the refusal becomes wrong.**
 
 **`p_50` is out of scope by decision, not by defect.** The gradient is taken through the
 low-level parameters `b` and `c`, which `TF24_Pars` derives from `p_50` in its own
@@ -622,10 +654,25 @@ either. That is a forward-model defect and it is not this plan's to fix.
 
 Type: correctness. A cache key, not a derivative.
 
-**Why.** Both are absent from `ad_parameters()`, and the recorded reason is that
-`Leaf::photo_temp_cached_` keys on `(leaf_temp_, atm_o2_kpa_)` only, so a changed
-`vcmax_25` hits the cache and the derived `vcmax_` is reused rather than computed again.
-That is a wrong cache key. It is not a mathematical obstruction.
+**WARNING: the recorded reason is false and this task is two list entries.** The comment on
+`ad_parameter_names()` blames `Leaf::photo_temp_cached_`'s key. **The derivative machinery for
+both already exists and runs**: `leaf_parameter_address` maps both, both are in
+`Leaf::inputs()`, `dprofit_dpar[PAR_VCMAX_25]` and `[PAR_JMAX_25]` are computed **analytically**
+by `forward_derivative`, and `graft_leaf_outputs` grafts the rows. They land on unregistered
+members and are discarded.
+
+**So: add two entries to `ad_parameters()` and two strings to `ad_parameter_names()`.** 44
+becomes 46 consistently in both, and `trait_adjoint_size()` and `census_trait_names_tf24` follow,
+because those two lists are the single authority.
+
+**The cache key is still wrong and it is a separate, latent defect.** It is unreachable today:
+`Leaf` is `double` throughout, `pars.vcmax_25` reaches it at construction only, and the one
+writer afterwards — `Leaf::set_parameter` — recomputes `vcmax_`, `R_d_`, `jmax_` and
+`electron_transport_` by hand without consulting the cache. Fix the key, and correct the comment.
+
+**`jmax_25` is not derived from `vcmax_25` on the production route.** The 1.64 ratio is a C++
+initialiser artefact; `make_TF24_hyperpar` takes both as independent inputs. So it is no
+constraint for Task 28's `J`, and registration is required either way.
 
 **Steps.** Put `vcmax_25` and `jmax_25` in the cache key, or invalidate the cache when
 either is written. Then register both. Check `Leaf::set_parameter`, which recomputes
@@ -1251,9 +1298,20 @@ part of Task 20 unnecessary. Read report 07 section 3 before starting Task 20.
 `trait_adjoint_size()` sums over species and `census_trait_names_tf24` must agree with it.
 Task 3's warning applies: the list is the authority on the layout.
 
-**How to check.** The `b` row after this task must equal the `b` row before it plus the
-`psi_crit` row times `d(psi_crit)/db`, which is `psi_crit / b`. That is an exact identity and
-it is the gate.
+**How to check.** Gate each entry of `J` against a central difference of the derivation itself.
+Measured to 5e-10 relative or better on every entry of the C++ graph, and it needs no build.
+
+**WARNING: the identity an earlier form gave as the gate is the wrong gate.** It said the
+post-task `b` row must equal the pre-task `b` row plus the `psi_crit` row times `psi_crit / b`.
+That identity is true, and it is the derivative **holding `c` fixed** — but `c` is not free, so on
+the C++ graph there is no independent `b` row to gate, only a `p_50` row whose gate is a
+three-term sum containing `dc/dp_50`. **As written the gate passes on a `J` with the wrong number
+of columns.**
+
+**And build `J` from `make_TF24_hyperpar`, not from the member initialisers.** Report 07
+section 3 records that the two derivations disagree: `c` is 1.09 by one and 2.04 by the other,
+and `p_50` is free in one and derived from `K_s` in the other. **A `J` written beside
+`ad_parameters()` is the wrong `J` for any run built through `add_strategies`.**
 
 ### Task 6: add the direct trait term of the census
 
@@ -1617,9 +1675,27 @@ Each item below blocks something. Do not treat the list as background.
 - **`beta_R_H` and `beta_R_V` have no row**, so a strategy that varies either reads
   exactly zero. Neither is user-seedable today, which is what stops this from
   biting.
-- **`psi_crit` and `root_psi_crit` read zero except when pinned.** The pinned gap
-  is unexplained: the adjoint reads 0 against a whole-solve difference of
-  −2.39e-04.
+- **`psi_crit`'s interior zero is correct; the defect is the shutdown branch.** An earlier
+  form recorded the zero as unexplained. On an interior optimum `psi_crit` appears only as a
+  bracket endpoint the optimum satisfies strictly, so the derivative is zero **exactly, by
+  complementary slackness**, and `reaches_operating_point`'s exclusion is right. A genuinely
+  pinned collar does get a row, from `bound_partials`.
+  **`set_shutdown_state` is where it breaks.** It puts `psi_crit` directly into
+  `profit_ = -R_d_ - hydraulic_cost_TF(psi_crit)` while `prepare_collar_solve` has already
+  cleared `collar_pinned_ = false`, so `input_adjoints` takes the interior branch and the row
+  stays zero although the profit genuinely depends on it. **Worse: in shutdown the whole interior
+  parameter block is evaluated at a stale linearisation point**, because `set_shutdown_state`
+  never goes through `profit_psi_stem_TF`, so `ci`, `psi_stem`, `supply_share` and `Pi_pp` are
+  whatever the last real solve left. Shutdown needs a third branch: it is a pin to `psi_crit`,
+  and neither the envelope argument nor `bound_partials` applies — the latter raises when
+  `prepare_collar_solve` returned false.
+  Whether the recorded −2.39e-04 arm was in shutdown or at `bound_b` is not established. Log
+  `collar_pinned_` and `prepare_collar_solve`'s return at the perturbed arm to discriminate.
+- **`K_s` is registered and its row is incomplete.** In C++ it reaches only
+  `leaf_specific_conductance_max`. On the production R route it **also** sets `p_50`, hence `b`
+  and `psi_crit`, so the reported row holds the whole vulnerability curve fixed — the same
+  functional-independence failure Task 28 exists for, on a parameter whose row is **non-zero and
+  therefore looks trustworthy.**
 - **`Patch::cache_ode_step`, `cache_RK45_step` and `load_ode_step` have no caller**
   in either repository, and they are the two known `test-mutant.R` errors.
 - **The light field reaches each cohort through one number, and 126 of 130 columns are
