@@ -337,7 +337,17 @@ $\partial w_k/\partial h_k = 0$ and the term vanishes.
 while the forward reduction integrates over `abscissa_of` — `introduction_time()` on the
 birth-date branch. **So the adjoint carries this term live on a coordinate where the forward
 function has no such dependence, and neither reduction is the transpose of its forward
-function there.** `consumption_rate_adjoint` has the same defect. Report 00 section 8 names
+function there.** `consumption_rate_adjoint` has the same defect.
+
+**This warning understates the defect. A close read found three parts, not one.** The extra
+weight term is only the first. **The trapezium *widths* themselves are wrong** on the
+birth-date branch, because they too are built from heights. **The boundary condition drops
+`|| birth_date`.** And **the `!scan.decreasing` stop fires where the forward runs**, because it
+tests height ordering with no coordinate condition while the forward tolerates inverted heights
+on birth date.
+
+**And one channel nobody has named: `A0 → n_b → A`** — the boundary condition evaluated in the
+boundary-excluded field. It is transposed nowhere. Report 00 section 8 names
 the weight term as the one a reader is most likely to forget; the coordinate change removes
 the need to remember it *once the reductions follow the coordinate*.
 

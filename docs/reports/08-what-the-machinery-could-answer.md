@@ -31,7 +31,7 @@ boundary of the adjoint and keep the adjoint itself canonical.
 | boundary | the map | what it replaces | plan item |
 |---|---|---|---|
 | parameters in | $J = \partial\Phi/\partial\phi$, 44 × (free) | differentiating the derivation | Task 28, report 07 §3 |
-| field in | $W$, cohorts × 130, at most 44 non-zeros per row **[read]** | treating 130 inputs as 130 channels | Task 22, report 07 §1 |
+| field in | $W$, cohorts × 130, at most 78 non-zeros per row, measured **[read]** | treating 130 inputs as 130 channels | Task 22, report 07 §1 |
 | censuses out | the seed matrix, metrics × states | one sweep per metric | Task 11, report 07 §4 |
 | time out | a per-step source $\rho(t)$ instead of a terminal seed | one run per patch age | plan §9, unscoped |
 

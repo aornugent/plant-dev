@@ -190,12 +190,42 @@ layers, `GSS_tol_abs = 1e-1`, `-O2 -DNDEBUG -g0`, one Xeon at 2.80 GHz.**
 | Quantity | Value |
 |---|---|
 | `Leaf::input_adjoints` calls | 144 072 |
-| `input_adjoints` calls for each recorded cohort step | 10.64 |
+| `input_adjoints` calls for each recorded cohort step | 10.64 — **do not use, see below** |
 | `dprofit_droot_collar_psi` calls for each `input_adjoints` call | 35.0 |
 | root-finds for each `input_adjoints` call | 100.0 |
 | rebuilds of the 100-knot vulnerability table for each call | 2.0007 |
 | share of the reverse pass inside `input_adjoints` | **98.16 percent** |
 | gradient wall clock | 292.35 s, this machine only |
+
+**Measurement A has been re-taken on the birth-date coordinate**, same configuration, and it
+reproduces the step count exactly (139 to 140 accepted steps, 8 nodes, `ode_size = 73`).
+
+| Quantity | Value |
+|---|---|
+| `Leaf::input_adjoints` calls | 81 468 |
+| for each accepted step | 543.1 |
+| for each cohort-step | 74.81 |
+| for each cohort-stage | 12.47 |
+| for each cohort-stage-metric | 4.16 |
+| share of the reverse pass inside `input_adjoints` | **99.2 percent**, 119 of 120 stack samples |
+
+**The share did not fall. It rose.** So the ceiling on everything outside `input_adjoints` is
+**0.8 percent** on the birth-date coordinate too, and #590 did not relax it.
+
+**"10.64 for each recorded cohort step" is unreproducible and must not be quoted.**
+144 072 / 10.64 = 13 541 and no product of that configuration's step, node and stage counts
+equals 13 541. Any restatement of a per-step count must carry its denominator, as the four
+rows above do. The 4.16 figure is the one the code explains: `graft_leaf_outputs` calls
+`input_adjoints` `1 + max_soil_layer` times, and at lifetime 3 most cohorts root to one or
+two layers.
+
+**Wall clock cannot give the coordinate ratio on a shared machine.** The same arm ran in
+138.00 s, 241.50 s and 305.25 s. Per recorded step the birth-date coordinate is between
+**1.8 and 3.2 times cheaper**, which is at least the expected halving. Do not quote a figure.
+
+**And the two coordinates are visibly different functions**, which is Task 0's warning made
+concrete: `d(leaf_area)/d(lma)` is -24.302 on height and -30.443 on birth date, and
+`d(mass_above_ground)/d(lma)` **changes sign**, +0.602 against -10.484.
 
 **Measurement B, the same tree at production.** `max_patch_lifetime = 105.32`,
 `lma`, 141 nodes, 1 137 states, 4 644 accepted steps: **2 995 s**, peak memory
@@ -240,8 +270,9 @@ whole parameter rows; G skips only the tabulation those rows need. Do not read
 either as a general speedup: both are near 1.00 when a hydraulic row is requested.
 
 **What the measurements mean for the order, and this is the one place it is
-stated.** `input_adjoints` is 98.16 percent of the reverse pass, so **everything
-outside it can give 2 percent at the most today**. Tasks 1 to 5 all act inside it
+stated.** `input_adjoints` is 98.16 percent of the reverse pass on the height coordinate and
+**99.2 percent on the birth-date coordinate**, so **everything outside it can give 0.8 percent
+at the most today**. Tasks 1 to 5 all act inside it
 and together make it roughly 30 times cheaper. **Then the work outside it is about a
 third of the total, and the same tasks become worth doing.** That is the whole reason
 Section 8 exists and the whole reason Section 10 forbids its work for now.
@@ -271,11 +302,15 @@ section 5 records them. They remain the cross-model tripwire.
 a commit hash can show. A number without `node_density_in_birth_date` beside it cannot be
 checked against anything.
 
-**Re-take the gradient measurements here.** Measurement A's calls for each recorded
-cohort step, the share inside `input_adjoints`, and the stop table of Section 1 were all
-measured on the height coordinate. Expect Measurement A's 10.64 to fall to about 5.3 on
-the birth-date coordinate before any task is applied, because `growth_rate_gradient` no
-longer runs.
+**Re-take the gradient measurements here.** ~~Measurement A's calls for each recorded cohort
+step and the share inside `input_adjoints`~~ — **both re-taken; see Section 4.** The share is
+99.2 percent, not lower. **The stop table of Section 1 was measured on the height coordinate
+and has not been re-taken.**
+
+The prediction that the count would halve was wrong in its factor: `growth_rate_gradient`
+adds **one** further active `compute_rates` for each cohort-stage at the default
+(`node_gradient_richardson = FALSE`), so about 1.5 times, not 2. The height-coordinate count
+was not measured, so "did the count halve" is unanswered as a count.
 
 The forward tangent costs more than 20 times a `double` run at production.
 Therefore use it at a short lifetime.
@@ -391,8 +426,9 @@ orders them, and each departure has a reason that was checked against the code.
    disagree there today. Making them agree changes the pinned rows, so **Task 1's
    bitwise baseline must be taken after Task 0b, not before.**
 8. **Take Measurement A again after Task 10.** Every factor in Section 11 is quoted
-   against 10.64 `input_adjoints` calls for each recorded cohort step, and Task 10
-   removes the second leaf solve.
+   against a per-step call count that Section 4 now shows is unreproducible, and Task 10
+   removes the second leaf solve. Re-quote them against **74.81 for each cohort-step**, with
+   the denominator stated.
 
 **The derivation of Task 4 is not a packet's work.** Eleven mixed second derivatives,
 including the implicit-function term of the `ci` root-find, is design. A packet may
@@ -401,7 +437,8 @@ transcribes and gates them.
 
 ### Task 22: restore the light field's geometry channel, or price its absence
 
-Type: **correctness**, and it is the largest single defect this plan has found.
+Type: **correctness**, and it is **smaller than this plan claimed**. It was called "the
+largest single defect this plan has found". A dry run measured it and it is not.
 
 **Why.** The light field's knot positions are `u_k * height_max`. They are held as
 `double`: `ResourceSpline::set_fixed_value` takes
@@ -411,13 +448,31 @@ positions are the interpolant's grid and stay double, so a position built from a
 its **positions**, and `Species::height_max()` is the tallest cohort's height, a state
 variable.
 
-**Report 03 contradicts itself about this and one branch of the contradiction is
-severe.** Its section 1b says the channel "disappears" and arrives instead as ordinary
-chain-rule terms. Its head correction says the channel is dropped and measures the gap at
-**1.891e+01, about 87 percent of the tallest cohort's height adjoint**, against the
-8.7e-04 that constraint C1 assumed. **The code settles it: the positions are passive, so
-section 1b is wrong and the head is right.** C1's ruling stands as a choice; C1's estimate
-of what the choice costs does not.
+**Report 03 appears to contradict itself about this, and the earlier ruling in this task
+was backwards.** Its section 1b says the channel "disappears" and arrives instead as
+ordinary chain-rule terms. Its head correction says the channel is dropped and measures the
+gap at 1.891e+01.
+
+**This task previously read: "The code settles it: the positions are passive, so section 1b
+is wrong and the head is right." That is wrong.** Passive knot positions do **not** imply a
+lost channel. Section 1b's chain-rule reading is the correct mathematics: with the grid
+frozen, the assembled transpose over the knot values equals the exact `dL/d(height)` at
+fixed query height, up to interpolation error only. A dry run measured that error at
+**5.0e-04 relative at the production knot count K = 65** — the order C1 assumed, not the
+order the head correction reports.
+
+**Read the caveat before you rely on the number.** It was measured on a **1-D model problem
+in Python**, not in plant: exact knot data, a smooth competition profile, no light floor, no
+boundary node, one perturbed cohort. It establishes the mechanism and the order of magnitude.
+It does not reproduce or refute the 1.891e+01, and **the 1.891e+01 remains unexplained and
+must not be scheduled against.** The leading hypothesis is that the probe that produced it
+added `dI/dz_q * u_q` without the compensating `L'(z_q) * u_q`, which would make it an
+artefact. Settling it means re-taking that measurement with the moving-grid variant's
+`dy_q/dH` written out in full.
+
+What the frozen grid does lose is a **discretisation** term, not a channel: the knots move
+with `height_max` and the transpose does not see them move. That is bounded by interpolation
+error and it converges with `K`.
 
 **This survives the coordinate change.** Section 2b moves the density's abscissa to birth
 date. The light field is still indexed on height, and `height_max` is still the tallest
@@ -425,11 +480,23 @@ cohort's height, so the severance is untouched.
 
 **Three parts, and they are one channel.**
 
-1. **Measure the convergence.** C1's own falsifier: the error should shrink with knot
-   density, and that was never measured. Measure it at production knot counts. If it
-   converges, the choice is defensible and its cost is bounded. If it does not, it is a
-   defect.
-2. **Overturn the choice, by normalising the coordinate.** C1's ruling is a choice and a
+1. **Measure the convergence.** ~~Never measured.~~ **Measured: 5.0e-04 relative at
+   K = 65.** It converges, so C1's choice is defensible and its cost is bounded. Report the
+   table across `K` anyway, because the bound is the whole defence. **A second dry run located the channel in the code, by
+   sweeping the difference step over every node's height row at one step of `h = 0.02`.**
+   Seven of eight nodes show a V — falling to 1e-6 to 2e-5 and turning up at 1e-9 — which is
+   a correct transpose against a reference at its cancellation limit. **Node 1 is flat at
+   5.4e-04 across seven decades, in both absolute and relative regimes, and node 1 is the
+   node that sets `height_max`.** Structurally consistent: `light_knot_adjoints` carries
+   `value` and `slope` and no position term.
+
+   That figure is a **per-step** price at `h = 0.02`. Whether it accumulates to the
+   1.891e+01 over a trajectory was not measured. The alternative hypothesis the sweep could
+   not exclude is the transport term's displaced second evaluation, which is also
+   height-directional; the discriminator is a re-run with the field pinned to a fixed grid
+   well above the tallest cohort. **Do not restate 1.891e+01 as this task's error.**
+2. **Normalise the coordinate — now optional, not required.** With the error at 5.0e-04
+   this is cleanliness and convergence rate, not correctness. Build part 3 first. C1's ruling is a choice and a
    choice whose price was mis-estimated by four orders is a choice to revisit. There is a fix
    that needs no active grid, and report 03 section 1b describes it: **hold the grid at the
    fixed fractions `u_k` in a normalised coordinate, and query the field at
@@ -502,8 +569,25 @@ differentiating it differentiates the controller and not the model. It must be a
 constant on the reverse pass, **and therefore the recorded trajectory must store it rather
 than recompute it.**
 
-**Steps.** Assert that the reverse pass reads the stored step size for each step and never
-re-derives it, and that no step size reaches an active type. Task 7 asserts that the
+**A dry run established all three properties, more strongly than this task asks.** It is
+**stored, not recomputed**: `SolverInternal::prev_steps` is written once for each accepted step
+and `get_step_sizes()` returns `std::vector<double>`. (`ode_step_record` is **plant's**, at
+`patch.h:31`, not odelia's — this plan said otherwise.) The reverse pass **reads the stored
+one**: `Solver::solve_adjoint` takes `const std::vector<double> h = step_sizes()` and passes
+`h[k]` as a `double`. And **no step size reaches an active type on either path**: in the
+generic branch the stage states are computed in `value_type` and lifted afterwards, so `h`
+never enters a recording, and the forward tangent's `advance_fixed_steps` and
+`replay_schedule_` are `double` too.
+
+**Steps.** So this is now a gate and not a change. Assert per step that the stored size is
+finite and positive and closes `[t[k-1], t[k]]` to 1e-8 relative — which is what moves if a
+caller re-derives a size or the record and the times fall out of step. Mirror it in R: the
+first stored entry is **NaN**, because no step reached the initial time, and a recomputed size
+could not have a NaN first entry, so the NaN is the signature of a stored record.
+
+**The honest limit:** a `static_assert` at one call site is a type witness, not a `requires`
+clause on the callee. The real guarantee is that `get_step_sizes()` is **declared**
+`std::vector<double>`, so drift is a compile error at every use. Task 7 asserts that the
 segments cover every recorded step, which is a different requirement.
 
 ### Task 25: gate that the trait adjoint accumulates
@@ -531,9 +615,23 @@ predecessor, not three special cases. An earlier form of this task presented the
 present.
 
 **What survives is C2's falsifier, which is a gate and not a change.** C2 records that this
-failure has no measured signature, so nothing would announce a regression. **Steps.** Add
-the comparison — one step's state adjoint against a finite difference of one step on the
-full tableau, at the birth-date coordinate. Change no code unless the gate fails.
+failure has no measured signature, so nothing would announce a regression.
+
+**The premise is stale in two places, not one.** The *forward* rebuild is general too:
+`Step::stage_state` computes a sum over every earlier stage, with `i == 1` split out only to
+keep `step()`'s grouping `b21 * h * k1` bit for bit. Both halves of the stage recursion are
+already general.
+
+**Steps.** Add the comparison — one step's state adjoint against a finite difference of one
+step on the full tableau, at the birth-date coordinate. Change no code unless the gate fails.
+
+**A dry run ran it, and the tableau passes: the reverse arithmetic transposes `step()` to
+1e-8 or better on six of seven state families.** The seventh is the height row of the tallest
+cohort, which is Task 22's channel and not the tableau — the tableau is shared by every
+family. **Sweep the difference step; do not take one.** The first reading of this gate printed
+FAIL at 6.5e-03 because it used an absolute step of 1e-7 against states as small as 4.3e-06 —
+a 2 percent perturbation. A correct transpose shows a **V**; a dropped term shows a **flat**
+row whose plateau is the term's size.
 
 ### Task 27: land the permutation gate for the leaf's purity
 
@@ -545,8 +643,26 @@ property **has no structural defence**, and that `docs/tf24-correctness.md` P0.1
 executable form: permute a census of production states and require every leaf output to be
 bit-identical. **It is the only check a reordering can fail and a re-run cannot.**
 
-**Steps.** Land that harness. It is the companion to Task 12's round-trip probe and it
-costs no build of its own.
+**Steps.** Land that harness. It is the companion to Task 12's round-trip probe.
+
+**A dry run wrote and ran it, and it passes: `FAIL 0, PASS 326`, in 1.58 s.** No leaf output
+was non-bit-identical under any permutation. It covers a 36-state census of production
+`(height, psi_soil, PPFD)` — heights 0.3/1/5/20 m, `psi_soil` 0.05/0.5/1.5, PPFD 150/900/1800
+— comparing twelve outputs by `identical()` over four arms: natural order against a fresh
+`Leaf` for each state; six seeded random permutations; reverse order; and a re-solve of one
+state immediately after every other state, which is the arm that catches a cache keyed on a
+proper subset of its dependencies. Anti-vacuity checks ran first: all 36 profits finite and
+more than 18 distinct.
+
+**It is cheaper than this task said: it needs no C++ at all.** `Leaf` is fully R-bound, so the
+harness is pure R.
+
+**Two scope limits, stated plainly.** This is `Leaf`'s purity, not `Individual::compute_rates`'
+purity, which is what C7 states — `Leaf` is where all four known carriers lived, so it is the
+right first target, but a carrier in `TF24_Strategy` or `Internals` outside `Leaf` would not be
+seen. And **the `photo_temp_cached_` arm is close to vacuous**: the census holds `leaf_temp` and
+`atm_o2_kpa` fixed at 25 and 21, so that cache's key is constant across the whole census.
+Varying leaf temperature is the obvious extension and it was not run.
 
 ### Task 17: refuse the height coordinate at every reverse-mode entry point
 
@@ -594,6 +710,9 @@ The hazard is real in the functions TF24 does call: `Q(u) = (1 - u^eta)^2` gives
 `z <= 0` limit branch to `q_from_height`, which is a guard at exactly that endpoint.
 
 **The guard already exists, in the one place that covers every caller.**
+**A dry run confirmed this against the code**, so this task reduces to registering
+`&pars.eta` and correcting the comment: `CanopyShape::Qp` is called nowhere but
+`ff16_strategy.cpp:513`, and `Q`, `Q_and_q` and `q` all route through `pow_eta`.
 `CanopyShape::pow_eta` returns `S(0.0)` when `to_passive(u) <= 0.0` for a non-`double` `S`,
 under a comment naming this exact hazard. `Q`, `Q_and_q` and `q` all route through it. **So
 an earlier form of this task asked for work that is done, by a better mechanism than it
@@ -771,8 +890,29 @@ Task 15 is the small correct fix that unblocks measurement now; Task 11 supersed
 **How to check.** The single decisive test is cheap: reorder `tf24_census` to put
 `area_stem` first and rebuild. Under aliasing `area_stem` becomes exact and `leaf_area`
 becomes wrong. Under any cause that belongs to the metric, `area_stem` stays wrong.
-Then, with the fix in, require all three rows to agree with the central difference of
-the R reduction.
+
+**The accumulation gate this task specified cannot fail, and the reason is sharper than "it
+is built out of the thing it tests".** C4's failure is a **missing accumulation**, and a
+missing term is missing from **both sides** of "a two-cohort gradient against the sum of its
+own per-cohort contributions", because both sides come out of the same accumulator. A gate can
+see a missing term only if the reference does not share the accumulator. Two arms that do not:
+
+- **Arm A — the R finite difference.** All rows of `census_state_adjoint` against central
+  differences of the census reduction **recomputed in R from TF24's written-out equations** at
+  fixed state, over every `height`, `log_density`, `area_heartwood` and `mass_heartwood`
+  column. This is the only reference available that does not share the accumulator. Include an
+  explicit non-zero assertion and a count of the comparisons actually made, so it cannot pass
+  by skipping.
+- **Arm B — repeatability.** Two successive `census_trait_gradient_tf24` calls must be
+  `identical()`. This catches the failure that actually produces a constant factor: an
+  accumulator not cleared between passes, so every row is a running total.
+
+**What neither arm catches, and do not paper over it.** A term absent from the accumulation
+altogether. Report 05 section 4 says phi-bar has 6M contributions and (4.1) is the only place
+they enter, so nothing internal can count them. The only reference that can is a finite
+difference of the whole solve with respect to a trait, which Section 9 records as unavailable
+at production. **So Task 25's real gate is Task 0's forward tangent.** The two arms above are
+what can be run without it. That is a scope limit, not a pass.
 
 ### Task 16: carry the traits of the field build into the accumulator
 
@@ -792,8 +932,16 @@ runs through `Patch::light_knot_adjoint` into
 build. Therefore its adjoint has nowhere to go and is dropped whole, for every metric,
 including the metric whose seed is exact.
 
-**The same loss applies to `eta`**, through `canopy_shape`, and partly to `a_l1` and
-`a_l2`, which the field build reads again.
+**The same loss applies to `eta`**, through `canopy_shape`. ~~and partly to `a_l1` and
+`a_l2`~~ — **not to those two.** A dry run established that `a_l1` and `a_l2` arrive through
+the **size-space adjoint**, which already works. This task's reach is **one row and one
+conditional**, and it does **nothing** for the soil retention parameters, which report 07
+section 2 wrongly groups with it: those are `double` members of the environment and appear in
+no parameter list.
+
+**And every row this task adds is zero on an invasion gradient** (`is_mutant_run`), because a
+mutant does not contribute to the field it reads. That is a limit on the task's value, not an
+argument against it — the resident gradient is the one that needs it.
 
 **Steps.** Give `node_size_adjoints` a trait accumulator, or return the trait
 contribution beside it, and scatter it into `trait_adjoint` from `light_knot_adjoint`.
@@ -1602,6 +1750,8 @@ seeds becomes less strict, because no seed reads a neighbour.
 This also removes the second leaf solve from each recorded cohort step, because
 `growth_rate_gradient` no longer runs. Therefore the calls in Task 1 fall from
 about 10.64 for each recorded cohort step to about 5.3 before Task 1 is applied.
+**Both numbers are withdrawn — see Section 4. The measured share on the birth-date
+coordinate is 99.2 percent, so this section's ceiling is 0.8 percent, not 2.**
 
 ---
 
@@ -1626,12 +1776,32 @@ step. Therefore the code records the same cohort step three times. It also runs
 1. Add a seeds-plural form of `odelia::ode::vector_jacobian_product`. Record one
    time. Then, for each seed set: clear the derivatives, set the output adjoints,
    call `computeAdjoints()`, read the input adjoints.
-2. Use `getPosition()` and `clearDerivativesAfter()`. XAD gives both. Note that
+2. Use `getPosition()` and **`clearDerivatives()`**. Note that
    `vector_jacobian_product` calls `clearAll()` and `newRecording()` on entry
    today, which destroys the recording this task must reuse.
-3. Carry `K` columns through `Solver::solve_adjoint` and `Step::step_adjoint`.
-4. Carry `K` columns through `Patch::ode_rates_adjoint` and
-   `Patch::cohort_block_adjoint`. Record one time and sweep `K` times.
+
+   **WARNING: do not use `clearDerivativesAfter()` between columns.** It truncates the
+   tape rather than zeroing the derivative slots, so column `c` would return the sum of
+   columns 0 to `c`. The columns would all be wrong and all plausible. `clearDerivatives()`
+   zeroes and keeps the recording, which is what re-sweeping needs.
+3. Carry `K` columns through `Solver::solve_adjoint` and `Step::step_adjoint`, **and also
+   `SolverInternal::step_adjoint` and `Step::sweep_stages`, which this task did not name.**
+   **You need a new concept** — `AdjointRatesColumns`, being `AdjointRates` plus
+   `ode_rates_adjoint_columns`. Without one, `step_adjoint` silently takes the singular hook
+   in a loop and sums every column's trait contributions into one row. Add
+   `static_assert(AdjointRatesColumns<patch_type>)` at the call site and print the concept's
+   value before anything is compared, or the failure is silent.
+4. Carry `K` columns through `Patch::cohort_block_adjoint` and
+   **`Patch::introduction_adjoint`**, which this task did not name and which silently sums
+   the metrics into one row without them. Record one time and sweep `K` times.
+
+   **The diff is smaller than this task implies. Only those two hold recordings.**
+   `soil_adjoint`, `offspring_adjoint`, `light_knot_adjoint` and `allometry_adjoint` are
+   closed-form transposes with column-independent coefficients and no tape, so **leave them
+   singular** and loop them for each column: it costs nothing. A dry run wrote the whole task
+   at 289 insertions in odelia over 5 headers, every signature change additive, and 429 in
+   plant, of which the one genuinely breaking member is `Patch::trait_adjoint` becoming
+   `K` rows.
 5. Make `trait_adjoint` hold `K` accumulators. Run `widen_over_introductions` one
    time.
 6. Remove the metric loop from `census_trait_gradient`.
@@ -1643,44 +1813,134 @@ shared between the columns.**
 **WARNING: This task changes signatures in odelia. odelia calls such a change
 `cross-package` and `breaking`.**
 
-**How to check.** Each column bitwise equal to the single-seed sweep for that
-metric. Linearity makes exact agreement the expectation and not a tolerance.
+**How to check.** This task's original gate — "each column bitwise equal to the single-seed
+sweep for that metric" — is **worse than vacuous. It is inverted.** The single-seed sweep for
+metric `m > 0` **is the aliased one**, so bitwise agreement demands reproducing the aliasing
+and only the broken implementation passes.
+
+Three arms. **None discriminates alone, and that is the point.**
+
+**Arm A — external correctness.** All `K` rows of `census_state_adjoint` against central
+differences of the census reduction **recomputed in R from TF24's written-out equations** at
+fixed state, over every `height`, `log_density`, `area_heartwood` and `mass_heartwood` column.
+The reference never touches the tape, so no arrangement of recordings can make it pass — only
+a correct Jacobian can. This is `test-census.R`'s G4 extended from `leaf_area`, the one metric
+the aliasing leaves correct, to all three rows. Under aliasing rows 1 and 2 fail by 50 to 300
+times with 33 of 52 columns exactly zero. Include a non-zero assertion and a count of
+comparisons made, so it cannot pass by skipping. **A dry run reached 854 assertions passed and
+7 failed before its session limit cut the run, and could not attribute the 7. So the decisive
+correctness result is unconfirmed: 854 of 861 is encouraging and is not a pass. Re-run this
+file first.**
+
+**Arm B — bitwise, relocated to one step.** At the census level bitwise is inverted; **at one
+step there is no aliasing to reproduce**, because `step_adjoint`'s per-stage recordings were
+already fresh for each stage. So the bitwise comparison is recoverable there, it is not
+vacuous, and it exercises the whole column plumbing. A dry run passed it: state and trait
+bitwise identical on every column, `max|diff| 0.000e+00`, columns distinct, trait rows
+distinct.
+
+**Arm C — cost, structural.** No gradient *value* distinguishes "one recording, `K` sweeps"
+from "`K` recordings, `K` sweeps". The quantity that moves is the recording count, which is
+why Section 9 asks for `block_records`. A dry run measured 48 records against 144 for `K`
+singular sweeps, with sweeps at 144 either way — 48 being 8 cohorts by 6 stages, exactly
+`1/K`.
+
+**Arm A cannot see whether the record was shared. Arm C cannot see a wrong number. Arm B
+cannot see rows 1 and 2 of the census.** The triple discriminates; no member does. Linearity
+makes exact agreement the expectation and not a tolerance in arms A and B.
 
 ### Task 12: reuse the leaf operating point
 
-Type: cost. Memory: about 101 kB of transient scratch.
+Type: cost. Memory: **zero incremental**. Build this one; do not build 13; defer 14.
 
 **Why.** `ode::derivs` at stage `i` solves every cohort's leaf to build the stage
 rate. `cohort_block_adjoint` at stage `i` then solves the same leaf again at the
 same inputs. Both loops are inside one `step_adjoint` call. Therefore the
-operating points do not cross a step boundary. Six stages by 141 cohorts by about
-15 doubles is about 101 kB.
+operating points do not cross a step boundary.
 
-`scripts/aux_round_trip.R` measured that restoring the inputs and the stored
-operating point reproduces 14 leaf outputs bit-identically at 8 of 9 states. The
-ninth state was P0.1, which is fixed.
+**The memory is already spent, so this task costs none.** odelia's `step_adjoint`, on the
+`AdjointRates` branch plant takes, already runs `aux.assign(6, state_type(system.aux_size()))`,
+fills each stage with `system.ode_aux(...)` in the rebuild loop, and hands it back with
+`system.set_ode_aux(...)` before `ode_rates_adjoint`. This task reads storage that exists.
+The aux carrying the operating point is **11 doubles for each cohort**, not 15
+(`TF24_Strategy::aux_names()`), plus `environment.aux_size()` = 5 for each stage.
+
+**A dry run measured the population this converts: 15 120 of 46 624 leaf solves in one
+gradient, 32.4 percent.** Priced at the probe's own per-call figures — 10.2 us for a search
+and 1.0 us for an evaluation — the saving is about **0.14 s of a 138 to 305 s gradient**.
+That is 0.05 to 0.1 percent. Re-price it after Tasks 1 to 5 and do not expect more before
+then.
+
+**This task is not correct as written. Two things are owed.**
+
+1. **Carry `collar_pinned_` in the stored operating point.** `collar_pinned_` is set true
+   only in `polish_root_collar_psi`, which only `find_root_collar_psi` reaches.
+   `evaluate_root_collar_psi` goes through `prepare_collar_solve`, which sets it **false**,
+   and nothing sets it back. `Leaf::input_adjoints` **branches on it** — the pinned branch is
+   the one where the envelope theorem fails at a bound and the profit term reappears through
+   `Leaf::bound_partials`. So restoring the point without its classification makes the
+   adjoint take the interior branch at cohorts whose forward solve was pinned. A dry run
+   measured the consequence: **120 of 132 gradient entries differ, worst 1.134e-08, on the
+   `root_c` column.** That is a missing term, not float reordering. Storing it needs a new
+   aux slot, which changes `aux_size()` and what R sees.
+2. **Add `collar_pinned_` to `scripts/aux_round_trip.R`'s compared set** and require a
+   **bit-identical gradient** as the gate.
 
 **WARNING: This is exact restoration and not a warm start. Report 01 constraint C7
 forbids a warm start. The difference is that a restored operating point is the one
-the forward pass computed, and a warm start is a guess. Keep the round-trip probe
-as the gate that tells them apart.**
+the forward pass computed, and a warm start is a guess.**
 
-### Task 13: cache the six stage fields inside a step
+**WARNING: the round-trip probe cannot tell them apart today.** Its 14 compared quantities
+are all leaf values and `collar_pinned_` is not among them, so its restoration arms pass 9
+of 9 while the gradient moves at 1e-8.
 
-Type: cost. Memory: about 7 kB.
+**Two corrections to what this task claimed the probe measured.** The probe's arms are: A1
+restore after an intervening solve, **9 of 9**; A3 one evaluation at the stored point, **9 of
+9**; A2 a fresh leaf with no carried caches, **8 of 9**. This task read A2's figure as
+restoration's. Restoration is 9 of 9. And **A2's ninth state is not fixed** at `600e3ebd`:
+soil layers 3 to 5 keep the previous cohort's uptake across `set_physiology`, reproducibly,
+which a dry run could not reconcile with `src/leaf_model.cpp:328`
+(`soil_consumption_.assign(soil_number_of_depths_, 0.0);`, unconditional as read). **Resolve
+that before Task 1 fixes row bit patterns in place**, because report 01 section 5 makes
+cohort-order independence a precondition of the whole reverse sweep.
 
-**Why.** The rebuild loop calls `stage_state(i, y, h)` and then `ode::derivs`,
-which builds the field at stage `i`. `sweep_stages` then calls
-`stage_state(i, y, h)` again and `set_ode_state_and_field` at the same stage
-state. Six fields at about 140 doubles is about 7 kB. `aux` is already held for
-each stage in this way, so the pattern exists.
+### Task 13: ~~cache the six stage fields inside a step~~ — **retired, do not build this**
 
-Use `Patch::has_recorded_field`, `record_stage` and `replay_step`. They are hooks
-with empty bodies today and this is their purpose.
+The duplication is real: the rebuild loop's `ode::derivs` builds the field at stage `i`, and
+`sweep_stages` then calls `set_ode_state_and_field` at the same stage state. Five reasons not
+to remove it this way.
+
+1. **The named hooks cannot reach it.** `record_stage` and `has_recorded_field` are consulted
+   only by the indexed `ode::derivs(system, y, dydt, time, index)` — the rebuild loop. The
+   second build is `sweep_stages`'s own direct `set_ode_state_and_field` call, which has no
+   hook. Removing it needs an odelia change this task did not price.
+2. **The indexed overload covers stages 1 to 5 only.** Stage 0 takes the unindexed overload,
+   so at most 5 of 6 builds are reachable.
+3. **7 kB is really about 29 MB.** `record_stage` is called from the forward `step()`, so a
+   field recorded through it crosses the step boundary and must be held for every accepted
+   step: 6 x 130 x 8 B x 4 644. The 7 kB figure is true only of a cache built and discarded
+   inside one `step_adjoint`, which these hooks do not give.
+4. **It would zero the field's derivative.** The `Replayable` concept documents that
+   `has_recorded_field() == true` means the recorded values are reused as fixed doubles.
+5. **plant already has a per-stage field cache** for mutant runs — `cache_RK45_step(int)`,
+   `environment_history`, `environment_cache`, `set_ode_state(It, int index)`,
+   `rate_environment()` — and it stores a whole environment for each stage. Any future
+   attempt starts there, not from the empty hooks.
+
+**And report 07 section 1's closing bullet does not delete this task, because it is about a
+different object.** It says the field-to-cohort coupling is assemblable analytically from
+stored heights. That is `dR/d(Lambda)`, the transpose weights. Task 13's object is `Lambda`
+itself, whose **values** the leaf still needs: its scalar is
+`pars.k_I * std::max(light, S(0.0001)) * PPFD`, so the coupling carries `k_I` (a live
+registered row), `PPFD` (an extrinsic driver), and a **floor at 1e-4 that branches on the
+field value itself** — which makes the assembly circular without `Lambda`. Report 07 is right
+about its own object and mis-aimed at this one.
+
+The deciding reason is neither: **the ceiling is 0.8 percent.**
 
 ### Task 14: store the stage rates, and do not rebuild them
 
-Type: cost. Memory: about 724 MB. **Optional.**
+Type: cost. Memory: **about 600 MB**. **Deferred — do not build before Tasks 1 to 5.**
 
 **Why.** The last repeated work is the six `ode::derivs` for each step. To avoid
 it you must hold `k1` to `k6` without computing them, which means storing them,
@@ -1688,19 +1948,42 @@ and then storing the operating points as well.
 
 ```
 stage rates       6 x 1137 doubles for each step
-operating points  6 x 141 x about 15 doubles for each step
-                  = about 156 kB for each step, 724 MB for 4 644 steps
+operating points  6 x 141 x 11 doubles for each step, plus 5 for the environment
+                  = 6 x 16 158 doubles = about 129 kB for each step
+                  = about 600 MB for 4 644 steps
 ```
 
-**The exchange is linear and there is no better interior point.** A window of `W`
-steps with a forward re-run to refill costs one forward step for each step
-refilled, which is what the rebuild costs now. Therefore a window buys nothing and
-the saving comes only from `W = N`.
+**This task subsumes Tasks 12 and 13.** With `k1` to `k6` stored the rebuild loop runs no
+`derivs`, so neither its leaf solves nor its field builds happen. The sweep-side solve
+remains and needs an operating point, which this task stores anyway. So Task 12 is the free
+half of this one and Task 13 is a proper subset of it.
 
-Measurement B gives a peak of 0.262 GiB against a 2 GB limit. At `W = N` the peak
-is about 1.0 GiB. Build it as a bounded window with recompute as the fallback, so
-a longer lifetime or a second species degrades to the present behaviour and not to
-an allocation failure.
+**The exchange is linear and it is uniform, so a window buys its pro-rata share.** Memory for
+each step and time for each step both scale with the same cohort count, so saving-per-byte is
+flat across the run and no subset of steps is a better buy than any other. There is no
+interior optimum in **which** steps to store. **This task previously read "a window buys
+nothing and the saving comes only from `W = N`". That reads as a threshold and there is
+none.** The interior point that does exist is in **what** you store: the operating points are
+81 percent of the 129 kB and the stage rates are 19 percent — but storing rates alone does
+**not** let you skip the rebuild, because `sweep_stages` needs each stage's aux and the
+trajectory holds no stage aux.
+
+**The deeper reason a window cannot beat the rebuild, which this task did not state.**
+Checkpointing pays only when a refill must re-run from a distant checkpoint.
+`Patch::record_ode_step` stores **every** accepted step's start state and
+`Solver::solve_adjoint` passes `states[k-1]` to `step_adjoint`, so each rebuild is already
+one step's six `derivs`. The recompute is already minimal and already local. There is nothing
+to amortise.
+
+**The ceiling sits between one species and two.** Measurement B gives 0.262 GiB at one
+species. At `W = N` this adds 600 MB, so 0.86 GiB and 2.3x headroom. Two species roughly
+doubles the cohort count, so both terms double: about 1.7 GiB against 2 GB, **15 percent
+headroom** — and a longer lifetime multiplies the step count linearly with no cap. So this is
+affordable exactly at the configuration already measured and nowhere past it. Build it as a
+bounded window with recompute as the fallback, and expect the fallback to be the common case.
+
+**These figures are arithmetic from the code's sizes, not measured. Measurement B has not
+been re-taken.**
 
 Report 01 section 1 chose rebuild over store because "storage is independent of
 the stage count". That reasoning was correct and it was taken before peak memory
@@ -1776,7 +2059,17 @@ Each item below blocks something. Do not treat the list as background.
   three waves. **Land each task in this document with a cost gate.**
 - **`Patch::block_recording_size` and `block_sweeps` are not exported to R**, so
   the instrument for the worst failure mode needs a C++ harness to read. Export
-  them.
+  them. **And neither is sufficient**: neither is a *recording count*, which is the quantity
+  Task 11 moves, so export a **`block_records`** counter beside them. **Read them from the
+  live patch.** `SCM::r_patch()` is a snapshot whose accumulators are zero, so a cost gate
+  reading it could not fail; add **`SCM::r_live_patch()`**.
+- **A default `Control()` makes a one-step finite difference unusable, and this is a trap
+  every gate in this document can fall into.** `scripts/v3-driver.R` documents it: at
+  `GSS_tol_abs = 1e-1` one step's `y_end` is not Lipschitz at the difference step, and
+  `node_gradient_eps` multiplies the growth rate's irreproducibility by a million. A dry run's
+  first gate script used the defaults and **would have produced a confident false alarm.**
+  Pin every finite-difference gate to v3-driver's values — `GSS_tol_abs = 1e-6`,
+  `node_gradient_eps = 1e-3` — and put the reason in the script's header.
 - **`Species::set_birth_state` is called by no test**, and report 01 constraint C6
   says the reverse pass must restore `pr_patch_survival_at_birth`, which divides
   the fecundity rate.

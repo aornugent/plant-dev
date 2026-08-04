@@ -176,9 +176,15 @@ is negligible against `b`; under the second, one side is exactly zero.
 ```sh
 make RcppR6 && make attributes          # both should report up to date
 rm -f src/*.o src/*.so                  # not optional -- see below
-R_MAKEVARS_USER=scripts/build/Makevars-O2 R CMD INSTALL --library=<fresh> .
+R_MAKEVARS_USER=/home/user/plant-dev/scripts/build/Makevars-O2 R CMD INSTALL --library=<fresh> .
 ```
 
+- **The path must be absolute.** R builds from `src/`, so a relative `R_MAKEVARS_USER`
+  resolves to nothing **and R reports no error** — it uses its own
+  `-g -O2 -fno-omit-frame-pointer` instead. The file also lives at the workspace root and
+  **not** inside the plant worktree, so a relative path fails there twice.
+- `grep -m1 -o 'fpic.*' <log>` must show `-O2 -DNDEBUG -g0`. This is the gate that catches
+  an ignored `R_MAKEVARS_USER`; the `-O0` grep below passes such a build.
 - `grep -c -- '-O0' <log>` must read **0**, and the `.so` is about 5.6 MB. Append
   `|| true`: `grep -c` exits 1 when the count is 0, so the success condition
   returns a failing shell status.

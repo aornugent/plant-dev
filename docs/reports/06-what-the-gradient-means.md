@@ -173,7 +173,13 @@ responds to an average of the light it sits in, not to the profile.** A plant wh
 leaves are in sun and lower leaves in deep shade is modelled as though all its leaves were
 in the mean, which is not the same plant: photosynthesis saturates, so averaging the light
 and then photosynthesising overestimates the gain relative to photosynthesising and then
-averaging. TF24 has a `deep-crown` mode that does it the other way round, one optimisation
+averaging.
+
+**That overestimate has been measured, and it is large: mean light overestimates lifetime
+offspring production by a factor of 3.33, +233 percent** — 8.276245764 against 2.483491938 for
+`deep-crown`. **Caveat:** measured at `max_patch_lifetime = 20`, one trait, one species, not
+the production configuration, and the ratio may not be lifetime-invariant (`deep-crown` took
+2 682 s even at lifetime 20). TF24 has a `deep-crown` mode that does it the other way round, one optimisation
 per crown-depth point — **and that mode raises an error on the differentiated path.** So
 the gradient is available only under the averaging assumption, and any conclusion drawn from
 it inherits that assumption. This is a scope limit an ecologist should be told about, not a
