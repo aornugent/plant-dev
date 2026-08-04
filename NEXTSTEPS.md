@@ -131,11 +131,16 @@ caller that has already paid for a recording.
 
 What this buys, and each item is a task that gets smaller:
 
-- **Task 8 needs no transpose.** The introduction time cannot invert, so the
-  `util::stop` in `Species::compute_competition_and_slope_adjoint` is unreachable.
-  It becomes a correct assertion instead of a defect.
+- **Task 8 still needs the transpose. An earlier form of this section said the coordinate
+  change made it unreachable, and the code says the opposite.** The stop is
+  `if (!scan.decreasing) util::stop(...)` — a test on **height** ordering with no coordinate
+  condition. The forward twin diverts only when `!birth_date && !scan.decreasing`, because
+  "the birth-date grid is monotone whatever the heights do". **So on this coordinate the
+  forward integrates happily over inverted heights and the adjoint stops.** The coordinate
+  change makes that state more common, not unreachable.
 - **Task 9 has one coordinate to serve, not two.** No flag reading inside a reduction.
-- **Task 10 may delete `Patch::transport_adjoint` and `seeds.transport` outright.**
+- **Task 10 may delete `seeds.transport` outright.** There is no `Patch::transport_adjoint`
+  — `git log --all -S` finds it on no branch.
 - **The second leaf solve goes away by the coordinate change itself**, because
   `log_density_dt` is `-mortality` and `growth_rate_gradient` no longer runs.
 
@@ -501,15 +506,16 @@ accumulation happens.
 
 Type: correctness. Report 01 constraint C2's remaining gap.
 
-**Why.** C2: the recursion was written against a tableau in which each stage depends only
-on its predecessor. Cash-Karp's is denser, so the inner loop must be a general
-`sum over l > i` and not three special cases — which is what report 05 section 4's
-transpose states. C2's own falsifier adds that **this failure has no measured signature**,
-so the check has to be a comparison and not an inspection.
+**C2's premise is stale: the general form is already built.** `Step::sweep_stages` runs
+`const double* const b = stage_row(i); for (int m = 0; m < i; ++m) { for (q) lambda_k[m][q]
++= h * b[m] * lambda_stage[q]; }` — the full Cash-Karp row, one accumulation per
+predecessor, not three special cases. An earlier form of this task presented the defect as
+present.
 
-**Steps.** Read `Step::step_adjoint` in odelia and establish whether the general form is
-already there. Then one step's state adjoint against a finite difference of one step, on
-the full tableau, at the birth-date coordinate.
+**What survives is C2's falsifier, which is a gate and not a change.** C2 records that this
+failure has no measured signature, so nothing would announce a regression. **Steps.** Add
+the comparison — one step's state adjoint against a finite difference of one step on the
+full tableau, at the birth-date coordinate. Change no code unless the gate fails.
 
 ### Task 27: land the permutation gate for the leaf's purity
 
@@ -569,9 +575,16 @@ The hazard is real in the functions TF24 does call: `Q(u) = (1 - u^eta)^2` gives
 `dQ/d(eta)` a factor `u^eta * log(u)`, which is NaN at `u = 0`. But #590 added a
 `z <= 0` limit branch to `q_from_height`, which is a guard at exactly that endpoint.
 
-**Steps.** Guard the endpoint in `Q` and `Q_and_q` as `q_from_height` now guards it,
-then add `&pars.eta` to `ad_parameters()`. Correct the comment: name the functions TF24
-reaches.
+**The guard already exists, in the one place that covers every caller.**
+`CanopyShape::pow_eta` returns `S(0.0)` when `to_passive(u) <= 0.0` for a non-`double` `S`,
+under a comment naming this exact hazard. `Q`, `Q_and_q` and `q` all route through it. **So
+an earlier form of this task asked for work that is done, by a better mechanism than it
+proposed.**
+
+**Steps.** Add `&pars.eta` to `ad_parameters()`. Correct the `ad_parameter_names()` comment:
+it blames `CanopyShape::Qp`, which only FF16 calls, and the guard it says is missing is in
+`pow_eta`. Where a function must be named, `CanopyShape::Q` is meant, not
+`TF24_Strategy::Q`, which is the root-depth profile with a different exponent.
 
 **`eta` also needs Task 16**, because `CanopyShape` is inside the field build, so its
 row has nowhere to go until the field build has a parameter accumulator.
@@ -1097,15 +1110,13 @@ in elementary operations. It agrees with the tabulation to 1.42e-15 for the stem
 `dG/dm = exp(-(m/b)^c)` is recovered to 9.0e-14 and 2.3e-13. `dG/db` and `dG/dc`
 match a central difference of the closed form with a clean plateau in all 16 cases.
 
-**WARNING: the series is convergent everywhere and usable only for small `x`.** The term
-ratio is `x / (a + n)`, so convergence begins near `n = x`, and the factored form
-`x^a e^-x * Sigma` separates an overflowing factor from an underflowing one. In double
-precision `X = 3125` — which is `m/b = 5` at `c = 5`, inside this model's range — overflows
-`Sigma` to infinity and underflows `e^-X` to zero, so the value is **NaN**. Verified
-numerically. **Switch on the argument: the series for `x` up to about `a + 1`, and the
-continued fraction for the upper incomplete function above it, with
-`gamma = Gamma(a) * (1 - Q)`. Never form `x^a e^-x` and `Sigma` separately.** Closing this
-task from the series alone replaces a wrong derivative with a NaN.
+**On the series' range, and an earlier form of this task was wrong in both directions.** The
+series does overflow in double precision for large `x`: `Sigma` goes to infinity while
+`e^-x` underflows, and the value is NaN. That is a true fact about the series and it is
+**unreachable here**, because `build_cumulative_vulnerability_integral` sets
+`psi_max = b * pow(log(1/0.01), 1/c)`, so `X = (psi_max/b)^c = log(100)` identically for
+every `b` and `c` and `x <= 4.605`. The warning further down states that correctly. **Write
+the assertion it asks for; do not add an argument switch this model cannot reach.**
 
 **This task makes the four columns derivatives. Task 28 makes them answerable.** The closed
 forms remove the knot-count discontinuity; `psi_crit` being registered beside `b` and `c`
@@ -1330,11 +1341,27 @@ the node heights are not descending. The forward path has
 `compute_competition_unordered` for exactly that state, because reserve-gated
 growth lets cohorts cross. Therefore the forward model runs and the adjoint stops.
 
-**Section 2b resolves this task without a transpose.** The gradient runs on the
-birth-date coordinate only, where the abscissa is the introduction time and cannot
-invert. Therefore the `stop` is unreachable and it becomes a correct assertion. Keep it,
-and give it a message that names the coordinate. An earlier form of this task asked for
-the unordered transpose; do not write one.
+**WARNING: an earlier form of this task said Section 2b made the `stop` unreachable. That
+was wrong, in the direction that costs most.** The stop is `if (!scan.decreasing)
+util::stop("The competition adjoint needs the node heights in decreasing order; the
+sorted-view reduction has no transpose here")`. **It tests height ordering and takes no
+coordinate argument.** The forward guards with `if (!birth_date && !scan.decreasing) return
+compute_competition_and_slope_unordered(...)`, whose comment says the birth-date grid stays
+monotone whatever the heights do.
+
+Therefore on the birth-date coordinate the forward proceeds and the adjoint stops — and that
+is the coordinate the gradient is scoped to. Reserve-gated growth makes crossing common, so
+the state is reachable in ordinary use.
+
+**Write the transpose.** Either transpose the ordered birth-date reduction the forward runs
+there, in which case the heights' order is irrelevant to it, or make the guard
+coordinate-aware so it refuses only where the forward refuses. **Do not leave a `stop` on a
+path the forward model survives.**
+
+**Two further divergences from the forward function that Task 9 does not name.** The adjoint
+lacks the forward's `if (scan.decreasing && h0 < height) break`, and its boundary condition
+is `size() == 1 || f_h1 > 0` where the forward's is `size() == 1 || birth_date || f1 > 0`.
+Both must move with the abscissa.
 
 **The same defect has a second instance, and this one is silent.**
 `Species::consumption_rate_adjoint` is no longer the transpose of
@@ -1406,7 +1433,15 @@ transport output repeats an output that exists.
 
 1. Remove the transport output from `Individual::block_outputs`.
 2. Add the transport seed to `seeds.rate[MORTALITY_INDEX]` with a minus sign.
-3. Delete `Patch::transport_adjoint` and `seeds.transport`.
+3. Delete `seeds.transport`, a `block_seeds` member written in `Patch::ode_rates_adjoint`.
+   **There is no `Patch::transport_adjoint`**; an earlier form of this step named one and it
+   exists on no branch. Find the write site, not a function.
+
+**WARNING: this task inverts a standing warning in `METHOD.md` section 6**, which records
+that `block_vjp`'s output-adjoint seed is length 12 for TF24 and that a length-11 seed
+reliably corrupts the heap. After this task 11 is correct. **Update that warning in the same
+change.** Both numbers are configuration-dependent: the count is
+`state_size + 1 + n_resources`, so 12 holds at five soil layers only.
 
 **Result.** The recorded cohort step has 11 outputs and not 12. Report 01 section 1 step
 (a) gives `lambda_g` for each cohort. That seed has no source now. The order of the
