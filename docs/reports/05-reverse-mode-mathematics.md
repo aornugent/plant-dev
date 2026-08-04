@@ -62,25 +62,32 @@ implementation.
 | $q$ | knot of the light field | $1 \dots K$ |
 | $i$ | Runge–Kutta stage | $1 \dots 6$ |
 | $n$ | accepted step of the solver | $1 \dots M$ |
-| $p$ | component of $\varphi$ | $1 \dots P$ |
+| $\alpha$ | component of $\varphi$ | $1 \dots P$ |
+
+**$p$ is the stem water potential throughout, never a parameter index.** Section 7's
+$\Pi_{pp}$ and $\Pi_{pu}$ depend on that reading. Other symbols carry more than one meaning
+across sections — $s$ is a species index and also the scalar of section 7.2; $b$ and $c$ are
+a birth date and a growth rate index in section 2 and the vulnerability-curve parameters in
+section 7.6; $a$ is a Runge–Kutta coefficient, a heartwood area, an allometric constant and
+$1/c$. Read them by section.
 
 ### State
 
 | Symbol | Code | Meaning |
 |---|---|---|
 | $h_k$ | `HEIGHT_INDEX` | height of cohort $k$ |
-| $\ell_k = \log n_k$ | `state(LOG_DENSITY_INDEX)` | log of the density carried by cohort $k$ |
+| $\ell_k = \log n_k$ | `Node::log_density` | log of the density carried by cohort $k$. **Not an `Individual` state slot**: it is a `Node` member, with `log_density_dt` and `set_log_density_rate` beside it |
 | $b_k$ | `introduction_time()` | the time cohort $k$ was introduced |
-| $m^{\mathrm{hw}}_k,\ a^{\mathrm{hw}}_k$ | `MASS_HEARTWOOD`, `AREA_HEARTWOOD` | accumulated heartwood |
-| $r_k$ | `NSC_INDEX` | non-structural carbon reserve |
-| $\theta_j$ | `soil_moist` | water content of layer $j$ |
+| $m^{\mathrm{hw}}_k,\ a^{\mathrm{hw}}_k$ | `MASS_HEARTWOOD_INDEX`, `AREA_HEARTWOOD_INDEX` | accumulated heartwood |
+| $r_k$ | state named `"storage"`, index 5 of `TF24_Strategy::state_names()` | non-structural carbon reserve. **There is no `*_INDEX` constant for it** |
+| $\theta_j$ | `Environment::vars.state(j)`, written by `set_soil_water_state` | water content of layer $j$. `soil_moist` is a local variable and an R output key, not the carrier |
 | $y$ | `Patch::ode_state` | all of the above, species-major |
 
 The quadrature abscissa is
 
 $$x_k = \begin{cases} b_k & \text{birth-date coordinate} \\ -h_k & \text{height coordinate} \end{cases}$$
 
-which is `Species::abscissa_of`. It increases with $k$ in both cases. The reverse-mode
+which is `Species::abscissa_of`. It increases with $k$ in both cases **given the ordering convention** — for $-h_k$ only because a larger $k$ is younger and therefore shorter, which is the convention section 6.2's gap describes breaking. The reverse-mode
 gradient is scoped to the birth-date coordinate, where $x_k = b_k$ is fixed at birth and
 carries no derivative. This is the single most consequential simplification in the
 design and section 6 shows why.
@@ -99,7 +106,15 @@ design and section 6 shows why.
 | $c^{\mathrm{i}}_k$ | `ci_` | intercellular CO₂, itself a root of a residual |
 | $G(\cdot)$ | `build_cumulative_vulnerability_integral` | cumulative vulnerability integral |
 | $g_k$ | `rate(HEIGHT_INDEX)` | height growth rate |
-| $\mu_k$ | mortality rate | |
+| $\mu_k$ | `rate(MORTALITY_INDEX)` | mortality rate |
+| $w_k$ | trapezium weights | the quadrature weight cohort $k$ carries on the abscissa $x_k$ |
+| $z,\ z_q$ | heights, knot heights | the vertical coordinate the light field is indexed on |
+| $\tilde Q(\nu)$ | `CanopyShape::Q` | fraction of a crown's leaf area above the relative height $\nu$ |
+| $\eta$ | `pars.eta` | how top-heavy a crown is |
+| $k_I$ | `pars.k_I` | light extinction through a unit of leaf area |
+| $\mathcal{C}$ | `Species::census` | the scalar summary being differentiated |
+| $\mathfrak{m}$ | a `census_metric` functor | the per-individual quantity the census sums |
+| $\varphi$ | `ad_parameters()` | the differentiable parameters, $P = 44$ |
 
 ---
 
@@ -184,7 +199,7 @@ and its outputs are
 
 $$v_k = \big(\underbrace{\dot h_k, \dot m^{\mathrm{hw}}_k, \dot a^{\mathrm{hw}}_k, \dot r_k, \dot{(\text{fecundity})}, \mu_k}_{\text{rates}},\ \underbrace{\dot \ell_k}_{\text{density rate}},\ \underbrace{U_{k,1:L}}_{\text{consumption}}\big).$$
 
-For TF24 with $K = 65$ and $L = 5$ this is 185 inputs and 12 outputs, and the reverse
+For TF24 with $K = 65$ and $L = 5$ this is $5 + 2K + L + P = 184$ inputs and 12 outputs, and the reverse
 pass forms $\big(\partial v_k / \partial u_k\big)^{\!\top} \bar v_k$.
 
 ### 5.1 The density rate is where the coordinate choice bites
@@ -199,11 +214,15 @@ axis and
 $$\dot \ell_k = -\mu_k - \frac{\partial g}{\partial h}\Big|_{h_k}. \tag{5.2}$$
 
 Equation (5.2) is why the height coordinate is expensive to differentiate:
-$\partial g/\partial h$ requires a *second* solve of the whole individual at a displaced
-height, so every recorded cohort step contains two complete leaf maximisations, and the
-reverse pass must transpose both. Equation (5.1) needs neither: $\mu_k$ is already an
-output of the same step. Choosing the birth-date coordinate therefore halves the
-recorded work before any optimisation is applied.
+$\partial g/\partial h$ requires further solves of the whole individual at displaced
+heights, and the count depends on a `Control` field. `node_gradient_richardson` defaults to
+false, and the one-sided difference then reuses the rate already computed and costs **one**
+extra solve. Under Richardson at the default depth of 4 it costs **eight**. Equation (5.1)
+needs none of them: $\mu_k$ is already an output of the same step.
+
+So the birth-date coordinate removes one extra individual solve per recorded step at the
+default, and eight under Richardson. **Do not read that as halving the recorded tape work**:
+solve count and tape work are different quantities and only the first has been counted.
 
 ---
 
@@ -213,7 +232,7 @@ recorded work before any optimisation is applied.
 
 The competition profile at height $z$ sums over every cohort of every species:
 
-$$E^{\mathrm{comp}}(z) = \sum_s \sum_k w_k \, n_k \, k_I^{(s)} \, A_k \, \tilde{Q}\!\left(\frac{z}{h_k}\right), \tag{7.1}$$
+$$E^{\mathrm{comp}}(z) = \sum_s \sum_k w_k \, n_k \, k_I^{(s)} \, A_k \, \tilde{Q}\!\left(\frac{z}{h_k}\right), \tag{6.1}$$
 
 where $\tilde{Q}(\nu) = (1 - \nu^{\eta})^2$ for $\nu \le 1$ and $0$ above, and $w_k$ are
 the trapezium weights on the abscissa $x_k$. The field is then a spline through $K$
@@ -222,24 +241,24 @@ $E^{\mathrm{comp}}$ directly.
 
 Given knot adjoints $\bar\Lambda_q$, the transpose of (7.1) scatters:
 
-$$\bar\ell_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \, A_k \, \tilde{Q}(z_q/h_k) \tag{7.2}$$
+$$\bar\ell_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \, A_k \, \tilde{Q}(z_q/h_k) \tag{6.2}$$
 
-$$\bar h_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \left[ A_k' \, \tilde{Q}(z_q/h_k) - A_k \, \tilde{Q}'(z_q/h_k) \frac{z_q}{h_k^2} \right] \;+\; \underbrace{\sum_q \bar\Lambda_q \, n_k \, k_I A_k \tilde{Q} \, \frac{\partial w_k}{\partial h_k}}_{\text{zero on the birth-date coordinate}} \tag{7.3}$$
+$$\bar h_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \left[ A_k' \, \tilde{Q}(z_q/h_k) - A_k \, \tilde{Q}'(z_q/h_k) \frac{z_q}{h_k^2} \right] \;+\; \underbrace{\sum_q \bar\Lambda_q \, n_k \, k_I A_k \tilde{Q} \, \frac{\partial w_k}{\partial h_k}}_{\text{zero on the birth-date coordinate}} \tag{6.3}$$
 
 $$\bar{k_I} \mathrel{+}= \sum_q \bar\Lambda_q \sum_k w_k \, n_k \, A_k \, \tilde{Q}(z_q/h_k) \tag{7.4}$$
 
-$$\bar\eta \mathrel{+}= \sum_q \bar\Lambda_q \sum_k w_k \, n_k \, k_I A_k \, \frac{\partial \tilde{Q}}{\partial \eta} \tag{7.5}$$
+$$\bar\eta \mathrel{+}= \sum_q \bar\Lambda_q \sum_k w_k \, n_k \, k_I A_k \, \frac{\partial \tilde{Q}}{\partial \eta} \tag{6.5}$$
 
 Two things to read off this.
 
-The braced term in (7.3) is the weight-derivative term. It exists only because the
+The braced term in (6.3) is the weight-derivative term. It exists only because the
 height coordinate makes the quadrature abscissa a function of the state. On the
 birth-date coordinate $x_k = b_k$ is fixed at birth and passive, so
 $\partial w_k/\partial h_k = 0$ and the term vanishes identically. Report 00 section 8
 names this as the term a reader is most likely to forget; the coordinate change removes
 the need to remember it.
 
-Equations (7.4) and (7.5) are trait contributions that arise *inside the reduction*, not
+Equations (6.4) and (6.5) are trait contributions that arise *inside the reduction*, not
 inside any cohort step.
 
 > **Gap.** The implementation has no path for (7.4) or (7.5).
@@ -284,7 +303,7 @@ $u$, without differentiating the search.
 
 Suppose $p^\star$ is interior, so stationarity holds:
 
-$$g(p^\star, u) \;\equiv\; \frac{\partial \Pi}{\partial p}(p^\star, u) \;=\; 0. \tag{8.1}$$
+$$g(p^\star, u) \;\equiv\; \frac{\partial \Pi}{\partial p}(p^\star, u) \;=\; 0. \tag{7.1}$$
 
 Let $\Pi^\star(u) = \Pi(p^\star(u), u)$. Then
 
@@ -296,7 +315,7 @@ derivative of profit needs no sensitivity of the optimiser at all.**
 ### 7.2 The argmax channel is rank one
 
 Other outputs are not stationary in $p$. Uptake $E(p^\star, u)$ is one. For those we
-need $\partial p^\star/\partial u$. Differentiating (7.1a),
+need $\partial p^\star/\partial u$. Differentiating (7.1),
 
 $$\Pi_{pp} \, \frac{\partial p^\star}{\partial u} + \Pi_{pu} = 0 \qquad\Longrightarrow\qquad \frac{\partial p^\star}{\partial u} = -\frac{\Pi_{pu}}{\Pi_{pp}},$$
 
@@ -310,7 +329,7 @@ $$s = \bar{v}^{\!\top} \frac{\partial f}{\partial p}, \qquad m = -\frac{s}{\Pi_{
 
 and then
 
-$$\bar u = \bar{v}^{\!\top}\frac{\partial f}{\partial u} \;+\; m \, \Pi_{pu}. \tag{8.2}$$
+$$\bar u = \bar{v}^{\!\top}\frac{\partial f}{\partial u} \;+\; m \, \Pi_{pu}. \tag{7.2}$$
 
 Because $p$ is a **scalar**, the whole optimiser channel is the outer product
 $m \otimes \Pi_{pu}$ — rank one. In the code $s$ is `s_adjoint` and $m$ is `mu`; the
@@ -332,7 +351,7 @@ and it must include the implicit-function term of the $c^{\mathrm{i}}$ root-find
 ### 7.4 The pinned optimum: the envelope theorem does not apply
 
 If the maximiser sits at a bound, $p^\star = B(u)$ with $B$ either the zero-uptake
-potential $p_a$ or the critical potential $p_b$, then (7.1a) is false:
+potential $p_a$ or the critical potential $p_b$, then (7.1) is false:
 $\partial \Pi/\partial p \ne 0$ there. Instead $p^\star$ follows the bound,
 $\partial p^\star/\partial u = \partial B/\partial u$, and the profit term reappears in
 the adjoint. With
@@ -387,12 +406,12 @@ $$\gamma(a, x) = x^{a} e^{-x} \sum_{n \ge 0} \frac{x^{n}}{a(a+1)\cdots(a+n)} \;\
 
 both derivatives are available in closed form. The $x$ derivative is the integrand,
 
-$$\frac{\partial \gamma}{\partial x} = x^{a-1} e^{-x}, \tag{8.3}$$
+$$\frac{\partial \gamma}{\partial x} = x^{a-1} e^{-x}, \tag{7.3}$$
 
 and the $a$ derivative follows from $\partial_a$ of each term, since the $n$th term is
 $x^n$ over $\prod_{l=0}^{n}(a+l)$:
 
-$$\frac{\partial \gamma}{\partial a} = \log(x)\,\gamma(a,x) + x^{a} e^{-x} \sum_{n\ge 0} \left(-\,t_n \sum_{l=0}^{n} \frac{1}{a+l}\right), \qquad t_n = \frac{x^{n}}{a(a+1)\cdots(a+n)}. \tag{8.4}$$
+$$\frac{\partial \gamma}{\partial a} = \log(x)\,\gamma(a,x) + x^{a} e^{-x} \sum_{n\ge 0} \left(-\,t_n \sum_{l=0}^{n} \frac{1}{a+l}\right), \qquad t_n = \frac{x^{n}}{a(a+1)\cdots(a+n)}. \tag{7.4}$$
 
 So one loop with one extra accumulator gives value and both derivatives. Chaining to the
 parameters with $\partial X/\partial b = -cX/b$, $\partial X/\partial c = X \log(m/b)$
@@ -404,14 +423,32 @@ $$\frac{\partial G}{\partial b} = \frac{\gamma}{c} - X \,\frac{\partial \gamma}{
 
 $$\frac{\partial G}{\partial c} = -\frac{b}{c^{2}}\gamma + \frac{b}{c}\left( X \log(m/b)\, \frac{\partial \gamma}{\partial x} - \frac{1}{c^{2}}\, \frac{\partial \gamma}{\partial a} \right)$$
 
-Note that $b$ needs only (7.3a), which is elementary; only $c$ reaches the series
-derivative (7.4a).
+Note what each parameter needs. Both need the series **value** $\gamma(a,X)$. $b$ needs
+additionally only $\partial\gamma/\partial x$, equation (7.3), which is elementary; **only $c$ reaches
+$\partial\gamma/\partial a$, equation (7.4).** An earlier form of this sentence said $b$ needs only the
+elementary derivative, which would invite an implementer to skip the series in that row.
+
+**WARNING: the series is convergent everywhere and usable only for small $x$.** The term
+ratio is $x/(a+n)$, so convergence begins near $n \approx x$; and the factored form
+$x^{a}e^{-x}\Sigma$ separates an overflowing factor from an underflowing one. In double
+precision, $X = 3125$ — which is $m/b = 5$ at $c = 5$, inside this model's range — makes
+$\Sigma$ overflow to infinity and $e^{-X}$ underflow to zero, so $\gamma$ evaluates to
+**NaN**. Verified numerically.
+
+Therefore an implementation must switch: the series for $x \lesssim a+1$, and the continued
+fraction for the upper incomplete $Q(a,x)$ with $\gamma = \Gamma(a)\,(1-Q)$ above it. **Never
+form $x^{a}e^{-x}$ and $\Sigma$ separately** — accumulate logarithms, or scale the recursion.
+Closing the gap below from the series alone replaces a wrong derivative with a NaN.
+
+The calculus above is separately verified: all seven quantities agree with an independent
+high-precision integral and with central differences of that integral to better than
+1e-23, over $c$ from 0.4 to 12 and $m/b$ from 0.075 to 8.
 
 > **Gap.** The implementation tabulates $G$ on a grid of 100 knots whose upper limit is
-> $b\,\log(100)^{1/c}$ and whose spacing is that limit over the resolution, under a loop
+> $b\,(\log 100)^{1/c}$ and whose spacing is that limit over the resolution, under a loop
 > bound $\psi \le \psi_{\max}$. The knot *count* therefore steps between 100 and 101 under
 > a relative perturbation of $10^{-6}$ in $b$ or $c$, and a finite difference across that
-> step is not a derivative. Measured errors are 47, 131 and 10 245 times the correct
+> step is not a derivative. Measured errors are 47, 131 and 10,245 times the correct
 > values. The closed forms above remove the grid, not merely its cost.
 
 ---
@@ -422,7 +459,7 @@ The maximisation of section 7 is solved in double precision and is not recorded 
 tape. Its derivatives are supplied instead. For an output $v$ whose value the solver has
 already produced, the recorded expression is
 
-$$\tilde{v} = v + \sum_i \left(\frac{\partial v}{\partial u_i}\right)\big(u_i - \mathrm{passive}(u_i)\big), \tag{9.1}$$
+$$\tilde{v} = v + \sum_i \left(\frac{\partial v}{\partial u_i}\right)\big(u_i - \mathrm{passive}(u_i)\big), \tag{8.1}$$
 
 where $\mathrm{passive}(\cdot)$ strips the derivative and returns the value. Two
 properties:
@@ -430,9 +467,27 @@ properties:
 1. $\tilde{v} = v$ **exactly**, in value, because every bracket is zero.
 2. $\partial \tilde v/\partial u_i$ is the supplied $\partial v/\partial u_i$.
 
-So the tape carries the correct number and the hand-derived derivative, and the same
-construction serves forward and reverse mode. This is `TF24_Strategy::graft` and
-`odelia::ode::supplied_derivative`.
+So the tape carries the correct number and the hand-derived derivative, and **this
+construction serves forward and reverse mode alike**, which is what keeps a forward tangent
+available as a reference. It is `TF24_Strategy::graft`.
+
+**`odelia::ode::supplied_derivative` is a different mechanism and the two must not be
+conflated.** It registers the output as a fresh tape input and attaches a checkpoint
+callback overriding the reverse sweep only. Three consequences differ: it carries **no
+forward tangent**, because a freshly registered input has no incoming derivative; a NaN
+supplied partial corrupts only the adjoint and not the value, because the value never meets
+the partials; and it needs no zero-valued bracket at all.
+
+**Three preconditions of property 1**, none stated by (8.1) alone:
+
+1. **$v$ must enter passively.** `graft` takes a `double`, so it does. If $v$ were an active
+   expression, property 2 fails by double counting.
+2. **A NaN or infinite *value* of $u_i$ also poisons $\tilde v$**, since $\infty - \infty$ is
+   NaN. The gap below covers a NaN derivative; this is a second route.
+3. **The $u_i$ must be functionally independent**, or the supplied partials double count.
+   They are independent *at this cut* — radiation, the soil potentials, leaf area, the root
+   mass fractions, the conductance — even though several are functions of height further
+   upstream. **The cut is what makes property 2 true.**
 
 Property 1 has a sharp consequence for verification: **a finite difference of the
 recorded step cannot see an error in a supplied derivative**, because perturbing $u_i$
@@ -459,7 +514,7 @@ $$\mathcal{C} = \sum_s \sum_k w_k \, n_k \, \mathfrak{m}(h_k, \varphi),$$
 with $\mathfrak{m}$ one of leaf area, above-ground mass, or stem area. Because
 $\mathfrak{m}$ reads $\varphi$ directly, the total derivative has two terms:
 
-$$\frac{\partial \mathcal{C}}{\partial \varphi} = \underbrace{\sum_s \sum_k w_k \, n_k \, \frac{\partial \mathfrak{m}}{\partial \varphi}}_{\text{direct, at fixed state}} \;+\; \underbrace{\left(\frac{\partial \mathcal{C}}{\partial y}\right)^{\!\top} \frac{\partial y}{\partial \varphi}}_{\text{through the trajectory, by section 4}} \tag{10.1}$$
+$$\frac{\partial \mathcal{C}}{\partial \varphi} = \underbrace{\sum_s \sum_k w_k \, n_k \, \frac{\partial \mathfrak{m}}{\partial \varphi}}_{\text{direct, at fixed state}} \;+\; \underbrace{\left(\frac{\partial \mathcal{C}}{\partial y}\right)^{\!\top} \frac{\partial y}{\partial \varphi}}_{\text{through the trajectory, by section 4}} \tag{9.1}$$
 
 The second term is what the adjoint sweep computes, seeded with
 $\bar y(T) = \partial \mathcal{C}/\partial y$. The first is not a sensitivity of the
@@ -488,7 +543,7 @@ the record dominates.
 > outlives a sweep refers to a slot that now belongs to something else. The first
 > functional is correct and every later one reads unrelated storage. Measured: rows agree
 > with an independent reference for the first metric and, for the later ones, have the
-> wrong sign, a magnitude wrong by 180 times, and 33 of 52 columns exactly zero. This is
+> wrong sign, a magnitude wrong by 180 times, and 33 of the 52 state columns of that configuration exactly zero — a state count, not the 44 parameters. This is
 > the rule stated in the project's own method document and obeyed at the two other sites
 > that build such copies.
 
@@ -500,8 +555,29 @@ Collecting the paths by which $\varphi$ reaches $\mathcal{C}$:
 
 $$\bar\varphi = \underbrace{\sum_s\sum_k w_k n_k \frac{\partial \mathfrak{m}}{\partial \varphi}}_{\text{census, direct}} + \underbrace{\sum_n \sum_i \left(\frac{\partial f}{\partial \varphi}\right)^{\!\top}\!\bar k_i}_{\text{cohort steps, all stages}} + \underbrace{\sum_{\text{intro}} \frac{\partial \ell_{\text{new}}}{\partial \varphi}\,\bar\ell_{\text{new}}}_{\text{boundary}} + \underbrace{\sum_q \bar\Lambda_q \frac{\partial E^{\mathrm{comp}}}{\partial \varphi}}_{\text{field reduction}}$$
 
-The four terms are the four places $\varphi$ is read. The implementation has the second
-and the third; the first is section 10's gap and the fourth is section 7.1's.
+**An earlier form of this section claimed these four were every place $\varphi$ is read.
+That claim was wrong, and a completeness claim is exactly where a document like this does
+damage.** At least two further paths exist:
+
+$$+ \underbrace{\sum_j \bar{\mathcal{U}}_j \frac{\partial \mathcal{U}_j}{\partial \varphi} + \sum_j \bar\theta_j \frac{\partial \psi_j}{\partial \varphi}}_{\text{the water reduction and the retention curve}} + \underbrace{\bar y(0)^{\!\top} \frac{\partial y(0)}{\partial \varphi}}_{\text{the initial condition}}$$
+
+The water term is structurally identical to the light term, and section 6.2 omitted it: the
+retention curve $\psi_j = \psi(\theta_j)$ reads parameters directly, and the aggregation
+reads $\varphi$ through $A_k$ and the weights — all outside any cohort step.
+
+The initial-condition term is the one section 10.1 then spends a paragraph inside, so the
+document discussed a component of a term it had just declared absent.
+
+**And the introduction term above is written for the density slot only.** An introduction
+also writes $h_0$, zeroes the heartwood states, and sets the initial reserve
+$r_0 = a_{st3} S_{\max}$, which reads $\varphi$. That reserve channel is real, non-zero, and
+was unlisted.
+
+**Treat this as the paths found so far, not as a closed set.** The implementation has the
+cohort-step term and the introduction term; the census direct term is section 9's gap and
+the light reduction is section 6.1's. Whether the water reduction and the initial condition
+are implemented has not been established — reading `Patch::ode_rates_adjoint` and
+`TF24_Environment::compute_rates_adjoint` against section 6.2 would decide it.
 
 ### 10.1 One term is absent from every path
 
@@ -509,11 +585,11 @@ and the third; the first is section 10's gap and the fourth is section 7.1's.
 `prepare_strategy` and the seed height refuse an active scalar, so $h_0$, $A_0$ and
 $\eta_c$ enter as values. Hence
 
-$$\frac{\partial h_0}{\partial \varphi} = 0 \tag{11.1}$$
+$$\frac{\partial h_0}{\partial \varphi} = 0 \tag{10.1}$$
 
 is imposed on both AD paths, forward and reverse.
 
-> **Gap.** Equation (10.1a) is false. The seed height solves an implicit condition on the
+> **Gap.** Equation (10.1) is false. The seed height solves an implicit condition on the
 > strategy and does depend on $\varphi$. Measured as about 3 per cent for
 > $\mathrm{lma}$. **No instrument in the present design can referee a fix**: the forward
 > tangent imposes the same equation, and a re-run finite difference cannot referee at
