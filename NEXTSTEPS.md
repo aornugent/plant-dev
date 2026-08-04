@@ -894,8 +894,10 @@ with a few spuriously large — against a **prebuilt library with no code change
 gets values with no slot from the previous one. Do not move `clearAll` and do not keep
 the copy.
 
-**Task 11 is the same fix done properly.** Recording one time and re-sweeping with
-`clearDerivativesAfter()` removes the repeated recording and the aliasing together.
+**Task 11 is the same fix done properly.** Recording one time and re-sweeping removes the
+repeated recording and the aliasing together — **with `clearDerivatives()`, not
+`clearDerivativesAfter()`, which this line used to name. See Task 11's warning: the truncating
+form returns the sum of columns 0 to `c`.**
 Task 15 is the small correct fix that unblocks measurement now; Task 11 supersedes it.
 
 **How to check.** The single decisive test is cheap: reorder `tf24_census` to put
@@ -1688,8 +1690,30 @@ asserts that `boundary[0]` is 0. Nothing asserts that the segments join. If
 `boundary` is empty, the loop body never runs, and the function returns a row of
 exactly zero with nothing raised.
 
-**Steps.** Assert that the swept segments cover every recorded step. Refuse an
-empty segment list. Do not return a zero row.
+**Steps.** Assert that the swept segments cover every recorded step. Do not return a zero row.
+
+**But do not refuse an empty segment list, and an earlier form of this task said to.** A run
+with no introductions is a legitimate run, and its correct sweep is the whole range —
+`solve_adjoint(sweep_states, lambda, 0, states.size() - 1)`, which odelia already supports as
+its two-argument overload. Refusing it converts a computable gradient into an error. Assert and
+refuse for `boundary[0] != 0` and for a narrowing event; **sweep** for an empty list.
+
+**And `tests/testthat/test-census.R:171-184` is stale and this task breaks it.** It accepts an
+error only if it matches `"widens the ODE state"`, a string that exists nowhere in the tree, and
+its comment still describes the pre-segmented behaviour. Any refusal message this task adds
+fails its `expect_match`. **Rewrite it in the same change**, and per `ORCHESTRATOR.md` section 7
+say which of the three kinds of failing assertion it is.
+
+**One further hole, and it shares a line with this one.** `census_trait_gradient` ends the
+segment loop with `lambda = narrowed;` (`scm.h:711`) and **never reads `narrowed` again**. So
+`ybar(0)` — the adjoint of the initial state — is computed and discarded, and with it
+`ybar(0)^T * d(y(0))/d(trait)`, which report 05 section 10 lists as a term of the assembly.
+**On a fresh run the discarded vector is genuinely `ybar(0)`; on a resumed run, where
+`boundary[0] > 0`, it is `ybar` at an interior step and the discard is the coverage gap above,
+one order worse.** Either contract it, or assert at that line that `y(0)` is trait-independent
+by construction and record why. **Whether the term is a real zero is not established**: the
+initial patch has no nodes, but nobody has followed `Patch::reset`'s `initial_state` path to a
+conclusion. Discarding it silently is neither of the two acceptable answers.
 
 ### Task 8: give the competition adjoint the unordered path, or refuse it clearly
 
