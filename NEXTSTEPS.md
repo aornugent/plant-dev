@@ -68,7 +68,10 @@ Do all five of these before Task 1.
    `p3/wave5` is at `d3392ea3`.
 2. Merge `origin/master` into the odelia branch `p3/odelia-integration`. Done at
    odelia `a3bcf58`.
-3. Land plant #590 in `develop`. Then merge `develop` again.
+3. Merge plant #590. It landed upstream at `53d0a200`, "Integrate by age instead of
+   height - opt-in flag (#590)". The fork's `develop` is not synced, so fetch it from the
+   upstream repository directly. The fresh merge base is `7b5012c2`. Six files conflict;
+   two of them are generated and must be regenerated, not merged.
 4. Make the new reference data. Task 0 tells you how.
 5. Add the guard of Task 0b, which decides which leaf states a gate may use.
 
@@ -102,6 +105,39 @@ For the merge at `d3392ea3` this check was done and all eight upstream changes
 were already in the templated header, so no code moved. Two other fixes were
 absent and were transplanted by hand: the rates-on-read change in `patch.h`, and
 the sort guard in `Species::consumption_rate` for an inverted height grid.
+
+---
+
+## 2b. The reverse gradient runs on the birth-date coordinate only
+
+**Decided 2026-08-04.** #590 adds `Control::node_density_in_birth_date` and
+`src/control.cpp` sets it **false**, so the height coordinate stays the forward
+default. **The reverse-mode gradient supports the birth-date coordinate only. Every
+reverse-mode entry point refuses the height coordinate with an error.**
+
+Refuse at the entry points, not deep in a reduction: `SCM::census_trait_gradient`,
+`SCM::census_state_adjoint`, `Patch::cohort_block_adjoint`,
+`Patch::introduction_adjoint` and `stand_gradient`. A refusal below those reaches a
+caller that has already paid for a recording.
+
+What this buys, and each item is a task that gets smaller:
+
+- **Task 8 needs no transpose.** The introduction time cannot invert, so the
+  `util::stop` in `Species::compute_competition_and_slope_adjoint` is unreachable.
+  It becomes a correct assertion instead of a defect.
+- **Task 9 has one coordinate to serve, not two.** No flag reading inside a reduction.
+- **Task 10 may delete `Patch::transport_adjoint` and `seeds.transport` outright.**
+- **The second leaf solve goes away by the coordinate change itself**, because
+  `log_density_dt` is `-mortality` and `growth_rate_gradient` no longer runs.
+
+What it costs:
+
+- **The forward model keeps both coordinates**, so the forward references at the
+  default flag stay valid and no wholesale re-blessing is needed.
+- **Every gradient measurement must be taken again with the flag on.** Measurements A
+  to G and the stop of Section 1 were taken on the height coordinate, which the
+  gradient no longer supports. Their ratios are likely to carry; their absolute
+  numbers are not gradient references any more. Task 0 owns re-taking them.
 
 ---
 
@@ -194,8 +230,12 @@ Section 8 exists and the whole reason Section 10 forbids its work for now.
 
 Do this task after #590 lands. Do not do it before.
 
-#590 changes the coordinate of the size distribution. TF24 offspring production
-moves from 42.14 to 400.9. Each earlier reference number is then wrong.
+**Take every reference with `node_density_in_birth_date = TRUE`**, because Section 2b
+scopes the gradient to that coordinate. TF24 offspring production is expected to move to
+about 400 there; that is an expectation and not a measurement.
+
+**The forward references at the default flag are unaffected** and stay as `METHOD.md`
+section 5 records them. They remain the cross-model tripwire.
 
 1. Check out the branch `p3/tangent-referee`.
 2. Run `scripts/tangent-reference-driver.R` on the merged tree.
@@ -203,9 +243,14 @@ moves from 42.14 to 400.9. Each earlier reference number is then wrong.
 4. Make sure the header records the plant commit, the odelia commit, the lifetime,
    the node count, the step count and the `Control` values.
 
-**WARNING: If you make the reference data before #590 lands, the reference refutes
-correct code. The old file records its own plant commit. Use that record to see
-the difference.**
+**WARNING: a reference must record the flag.** Two configurations now differ in nothing
+a commit hash can show. A number without `node_density_in_birth_date` beside it cannot be
+checked against anything.
+
+**Re-take the gradient measurements here.** Measurement A's calls for each block, the
+share inside `input_adjoints`, and the stop table of Section 1 were all measured on the
+height coordinate. Expect Measurement A's 10.64 to fall to about 5.3 on the birth-date
+coordinate before any task is applied, because `growth_rate_gradient` no longer runs.
 
 The forward tangent costs more than 20 times a `double` run at production.
 Therefore use it at a short lifetime.
@@ -864,17 +909,18 @@ empty segment list. Do not return a zero row.
 
 ### Task 8: give the competition adjoint the unordered path, or refuse it clearly
 
-Type: correctness. Check whether #590 removes the need.
+Type: correctness, and Section 2b shrinks it to its second instance.
 
 **Why.** `Species::compute_competition_and_slope_adjoint` raises `util::stop` when
 the node heights are not descending. The forward path has
 `compute_competition_unordered` for exactly that state, because reserve-gated
 growth lets cohorts cross. Therefore the forward model runs and the adjoint stops.
 
-Under #590 the abscissa is the introduction time, which cannot invert. Therefore
-this path is unreachable on the birth-date coordinate. Check that first. If the
-height coordinate stays supported, write the transpose. Do not leave a `stop` on a
-path the forward model survives.
+**Section 2b resolves this task without a transpose.** The gradient runs on the
+birth-date coordinate only, where the abscissa is the introduction time and cannot
+invert. Therefore the `stop` is unreachable and it becomes a correct assertion. Keep it,
+and give it a message that names the coordinate. An earlier form of this task asked for
+the unordered transpose; do not write one.
 
 **The same defect has a second instance, and this one is silent.**
 `Species::consumption_rate_adjoint` is no longer the transpose of
@@ -882,8 +928,9 @@ path the forward model survives.
 heights invert. The adjoint still transposes the unsorted trapezium. Therefore the
 two disagree on an inverted grid, and nothing raises an error: the gradient is
 finite and wrong. This is the one place where the upstream fix and the reverse-mode
-surface are not independent of each other. Make the adjoint read the same sorted
-order that the forward function uses, or refuse the state as this task refuses it.
+surface are not independent of each other. **This instance survives Section 2b**, because sorting is about the grid the forward
+function builds and not about which abscissa names it. Make the adjoint read the same
+sorted order the forward function uses.
 
 ---
 
@@ -892,20 +939,32 @@ order that the forward function uses, or refuse the state as this task refuses i
 ### Task 9: move the reductions to the birth-date abscissa
 
 **Why.** #590 carries the size distribution as a density in birth date. The two
-resource integrals then use the introduction time as the abscissa. The reductions
-of the AD branch still use height. #590 cannot change them, because they do not
-exist in `develop`.
+resource integrals then use the introduction time as the abscissa. The reductions of the
+AD branch still use height. #590 cannot change them, because they do not exist in
+`develop`.
 
-**Steps.** Change the abscissa in each of these to `Species::abscissa_of`:
+**#590 already supplies the machinery, so do not build it.** It adds
+`Species::abscissa_of(node, bool birth_date)`, `Species::quadrature_abscissa(node)`
+which reads the flag, `Species::density_in_birth_date()`,
+`Species::birth_dates_are_distinct()` and `Species::set_new_node_birth_date(time)`.
+
+**WARNING: `abscissa_of` returns `birth_date ? n.introduction_time() : -n.height()`.**
+The height branch is negated, so the forward integrals were rewritten around an
+ascending abscissa in both coordinates. The AD reductions transpose the descending one.
+Under Section 2b only the birth-date branch has to be served, and it is already
+ascending — but **do not carry the old descending order across; the transpose must match
+the order the forward function now uses.**
+
+**Steps.** Change the abscissa in each of these to `Species::quadrature_abscissa`:
 
 1. `Species::census`
 2. `Species::consumption_rate_adjoint`
 3. `Species::compute_competition_and_slope_adjoint`
 4. the census seed in `SCM::census_state_adjoint`
 
-**Result.** The quadrature weights become constants, because the introduction time
-is fixed at birth and it is passive. Therefore the weight derivative term is
-exactly zero. Report 00 section 6.3 gives it as `h_bar_k += sum_i U_bar_i n_k
+**Result.** The quadrature weights become constants, because the introduction time is
+fixed at birth and it is passive. Therefore the weight derivative term is exactly zero.
+Section 2b is what makes this an outright deletion and not a branch. Report 00 section 6.3 gives it as `h_bar_k += sum_i U_bar_i n_k
 c_ki d(w_k)/d(h_k)`. Remove it. Report 00 section 8 item 3 names it as the term a
 person is most likely to forget.
 
