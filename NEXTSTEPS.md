@@ -943,12 +943,58 @@ runs through `Patch::light_knot_adjoint` into
 build. Therefore its adjoint has nowhere to go and is dropped whole, for every metric,
 including the metric whose seed is exact.
 
-**The same loss applies to `eta`**, through `canopy_shape`. ~~and partly to `a_l1` and
-`a_l2`~~ — **not to those two.** A dry run established that `a_l1` and `a_l2` arrive through
-the **size-space adjoint**, which already works. This task's reach is **one row and one
-conditional**, and it does **nothing** for the soil retention parameters, which report 07
-section 2 wrongly groups with it: those are `double` members of the environment and appear in
-no parameter list.
+**The same loss applies to `eta`**, through `canopy_shape`, **and to `a_l1` and `a_l2`.**
+
+**An earlier form of this task said `a_l1` and `a_l2` arrive through the size-space adjoint,
+which already works, and that this task's reach is one row and one conditional. Every clause of
+that is false, and the refutation is a proof and not an argument.** `Patch::trait_adjoint` has
+exactly **two** writers in the tree — `patch.h:1582` and `patch.h:1684` — and **neither is on
+the light reduction's path.** That path is `light_knot_adjoint` ->
+`Species::compute_competition_and_slope_adjoint` -> `node_size_adjoints` ->
+`allometry_adjoint`, and `allometry_adjoint` (`patch.h:1727-1743`) writes **only**
+`lambda_state`:
+
+```
+lambda_state[k*node_stride + HEIGHT_INDEX] += sizes[k].height + sizes[k].area_leaf * darea_leaf_dheight;
+lambda_state[k*node_stride + T::state_size() + 1] += sizes[k].log_density;
+```
+
+`node_size_adjoints` (`node.h:14-18`) is three `double` members with no parameter slot. So the
+question is settled by the accumulator's write set: **no** parameter receives anything from the
+light reduction.
+
+**The earlier reading mistook the state pullback for a parameter pullback.**
+`allometry_adjoint` folding `sizes[k].area_leaf` onto height through `darea_leaf_dheight` is
+the correct transpose of the forward map `h -> A`. It is not a pullback to traits, and nothing
+downstream of it is either. Report 07 section 2 makes the same mistake in its second half.
+
+**The dropped term is the same order as the term that is carried.**
+`area_leaf(height) = pow(height / pars.a_l1, 1.0 / pars.a_l2)` (`tf24_strategy.h:832-833`), so
+at fixed height `d(A)/d(a_l1) = -(1/a_l2) * A / a_l1`, which at the defaults `a_l1 = 5.44` and
+`a_l2 = 0.306` is `-3.27 * A / a_l1`. So `a_l1` and `a_l2` have exactly `k_I`'s pathology: a
+non-zero row from the recorded cohort step, because `compute_rates` recomputes `area_leaf`
+actively, and the reduction's contribution dropped. Report 06 section 6.1's phrase for it —
+right in its self-shading, silent about its shading of others — applies to `a_l1` verbatim.
+
+**Therefore this task is mispriced and it is not one row.** It needs **four** new derivative
+expressions: `d/d(k_I)`, which is the value over `k_I`; `d/d(eta)` through `CanopyShape`; and
+`d/d(a_l1)` and `d/d(a_l2)` at fixed height.
+`Node::compute_competition_and_slope_partials` (`node.h:63-75`) and its strategy counterpart
+(`tf24_strategy.h:532-544`) return four partials, in `A` and in `h`, and **none in a
+parameter**. It also needs a per-species trait offset threaded into `light_knot_adjoint`, and
+`light_knot_adjoint` and `allometry_adjoint` made non-`const` or given an out-parameter. Report
+05 section 6.1's "what is missing is a summation and not a derivative" **is true for `k_I`
+only.**
+
+**It does nothing for the soil retention parameters**, which report 07 section 2 wrongly
+groups with it: those are `double` members of the environment and appear in no parameter list.
+See Section 9, which now carries them as work nobody has written.
+
+**And it does not finish `eta`.** `rebind_from` copies `eta_c` at its value
+(`tf24_strategy.h:590`, `out.eta_c = U(eta_c)`), and `eta_c` is read both by the allometry at
+`tf24_strategy.h:1390` and by the `CrownCentre` query position. So Task 18 plus this task give
+`eta` its direct row and leave the `eta_c` channel severed. Either make `eta_c` active, or
+assert and document that `eta`'s row is the direct one only. **No task carries this.**
 
 **And every row this task adds is zero on an invasion gradient** (`is_mutant_run`), because a
 mutant does not contribute to the field it reads. That is a limit on the task's value, not an
@@ -957,9 +1003,16 @@ argument against it — the resident gradient is the one that needs it.
 **Steps.** Give `node_size_adjoints` a trait accumulator, or return the trait
 contribution beside it, and scatter it into `trait_adjoint` from `light_knot_adjoint`.
 
-**How to check.** Take the gradient for `leaf_area` only, whose seed Task 15 makes
-exact, and compare the `k_I` column against a central difference. Before the fix the
-adjoint reads zero or near zero and the difference does not.
+**How to check, and the obvious gate is the wrong one.** A central difference of the `k_I` or
+`a_l1` column cannot attribute a discrepancy: that column is contaminated at the same time by
+Task 15's aliasing, Task 22 part 3, Task 8's stop and the introduction transpose's severed soil
+channel, so a disagreement says nothing about this task.
+
+**Use an internal gate instead.** Instrument `light_knot_adjoint` to accumulate
+`sum over k of lambda_A[k] * d(A_k)/d(a_l1)` into a scratch scalar, and print it beside
+`trait_adjoint[a_l1]`. A non-zero scratch scalar beside an accumulator that never received it
+**is** the defect, and it needs one line and one run with no reference gradient at all. Then,
+after the fix, the same scalar must equal the difference between the two accumulator values.
 
 ### Task 1: compute the rows of the leaf one time
 
@@ -2062,12 +2115,27 @@ Each item below blocks something. Do not treat the list as background.
   on the birth-date grid, and **cohorts the height quadrature shades to death survive and
   reproduce** — fecundity 4.40 against 2.03e-07 at one node. So 395.45 is a better-resolved
   answer to the same question, not an artefact. **Which is right is not established.**
-- **The environment columns of the census seed are exactly zero in all three rows.**
-  `n_b = birth_rate * pr_estab / g` is evaluated in the field, which depends on the soil
-  state, so a non-zero column is expected. This is a fourth candidate and it is not
-  confirmed. It is too small at lifetime 2 to spoil the `leaf_area` row. Discriminating
-  it needs a difference of the census against a perturbed environment state, which R
-  does not expose today.
+- **The environment columns of the census seed are exactly zero in all three rows, and the
+  mechanism is now located.** `n_b = birth_rate * pr_estab / g` is evaluated in the field, which
+  depends on the soil state, so a non-zero column is expected.
+  **`Patch::introduction_adjoint` scatters its state adjoint with no soil chain factor at all**:
+  `for (size_t j = 0; j < n_state; ++j) { lambda_before[j] += in_adjoint[j]; }`
+  (`patch.h:1679-1681`), where `Patch::cohort_block_adjoint` multiplies the soil slots by
+  `environment.dpsi_from_soil_moist_dtheta(...)` (`patch.h:1575-1580`). So one transpose carries
+  the retention curve's derivative and the other does not.
+
+  **The fix is not the three lines of `cohort_block_adjoint`, and this correction matters.**
+  Those three lines work because the recorded block takes **psi** as a tape input, so the
+  incoming adjoint is with respect to `psi` and needs one chain factor. `introduction_adjoint`
+  takes the **`ode_state`**, which holds `theta`, and the recording reaches `psi` through
+  `psi_from_soil_moist`, which is `double` — so the tape returns exactly zero for those slots and
+  there is no `in_adjoint` entry to multiply. Restoring this channel means either registering
+  `psi` as an input of that recording or supplying the whole internal derivative by hand. **Price
+  it before scheduling it.**
+
+  This is the shape report 05 section 6.2 warned about — a passive forward function with a
+  hand-written derivative beside it, tied together only by a comment — and the second instance is
+  fifty lines from the first.
 - **The conditioning of `grad(dPi/dp)` has never been measured.** Task 4 builds the
   expression. Report 00 section 9 lists "whether `grad(dPi/dp)` is well conditioned
   anywhere" as inferred and not measured, so Task 4 must measure it and not only
