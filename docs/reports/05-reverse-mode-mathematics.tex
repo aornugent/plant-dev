@@ -1,0 +1,723 @@
+% Reverse-mode differentiation of the TF24 size- and trait-structured model.
+% Written 2026-08-04. NOT COMPILED: no TeX toolchain in the authoring container,
+% so this source has not been typeset and may carry syntax errors.
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\adj}[1]{\bar{#1}}
+\newcommand{\dd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\ddd}[3]{\frac{\partial^2 #1}{\partial #2 \, \partial #3}}
+\newcommand{\gap}[1]{\textcolor{red}{\textbf{Gap:} #1}}
+
+\title{Reverse-mode differentiation of the TF24 model:\\
+the variables, the intermediaries, and the transposes}
+\author{}
+\date{2026-08-04}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document states the mathematics of the reverse-mode trait gradient for the
+TF24 size- and trait-structured model, with every intermediate quantity named and
+mapped to the symbol that carries it in the code. Report 00 states the dependency
+structure and walks the flow in prose; this states the derivatives. Its purpose is
+that a reader can check a line of code against a line of algebra, in both
+directions. Sections marked \gap{} are places where the algebra and the
+implementation disagree today.
+\end{abstract}
+
+\tableofcontents
+
+\section{What is being differentiated, and why the structure matters}
+
+The model carries a density of individuals over a size coordinate, for each of
+$S$ species, coupled to a shared light field and a shared soil water column. The
+solver advances a state vector $y(t)$ by an embedded Runge--Kutta method, and
+inserts new degrees of freedom as cohorts are introduced, so $\dim y$ grows during
+a run.
+
+We want
+\begin{equation}
+\nabla_\varphi \mathcal{C}
+\qquad\text{where}\qquad
+\mathcal{C} = \mathcal{C}\big(y(T), \varphi\big)
+\label{eq:goal}
+\end{equation}
+is a scalar summary of the stand at time $T$ --- a census --- and
+$\varphi \in \mathbb{R}^{P}$ collects the trait and physiological parameters. For
+TF24, $P = 44$ per species.
+
+Three properties of this problem set everything that follows.
+
+\paragraph{Reverse mode is the only affordable direction.} A forward tangent costs
+one solve per component of $\varphi$; the adjoint costs one solve plus one sweep
+regardless of $P$. With $P = 44$ that is the difference between a feasible
+computation and an infeasible one.
+
+\paragraph{One layer of the model is an implicit function.} Each individual's
+carbon gain is the value of a maximisation over its own stem water potential,
+solved numerically. Differentiating through the solver is neither necessary nor
+accurate; the envelope theorem and the implicit function theorem give the
+derivatives in closed form, and Section~\ref{sec:leaf} does that.
+
+\paragraph{The state grows.} An introduction widens $y$, so the adjoint is not a
+single backward solve over a fixed space but a sequence of backward segments,
+each narrower than the one after it.
+
+\section{Notation, and the symbol that carries each quantity}
+\label{sec:notation}
+
+Every quantity below is either a state, a parameter, or an intermediary. The
+third column is the name in the code; this table is the contract between the
+algebra and the implementation.
+
+\subsection{Indices}
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+Symbol & Meaning & Range \\
+\midrule
+$s$ & species & $1 \dots S$ \\
+$k$ & cohort, ordered by the quadrature abscissa & $1 \dots N_s$ \\
+$j$ & soil layer & $1 \dots L$ \\
+$q$ & knot of the light field & $1 \dots K$ \\
+$i$ & Runge--Kutta stage & $1 \dots 6$ \\
+$n$ & accepted step of the solver & $1 \dots M$ \\
+$p$ & component of $\varphi$ & $1 \dots P$ \\
+\bottomrule
+\end{longtable}
+
+\subsection{State}
+
+\begin{longtable}{@{}llp{0.42\textwidth}@{}}
+\toprule
+Symbol & Code & Meaning \\
+\midrule
+$h_k$ & \code{HEIGHT\_INDEX} & height of cohort $k$ \\
+$\ell_k = \log n_k$ & \code{state(LOG\_DENSITY\_INDEX)} & log of the density carried by cohort $k$ \\
+$b_k$ & \code{introduction\_time()} & the time cohort $k$ was introduced \\
+$m^{\mathrm{hw}}_k, a^{\mathrm{hw}}_k$ & \code{MASS\_HEARTWOOD}, \code{AREA\_HEARTWOOD} & accumulated heartwood \\
+$r_k$ & \code{NSC\_INDEX} & non-structural carbon reserve \\
+$\theta_j$ & \code{soil\_moist} & water content of layer $j$ \\
+$y$ & \code{Patch::ode\_state} & all of the above, species-major \\
+\bottomrule
+\end{longtable}
+
+The quadrature abscissa is
+\begin{equation}
+x_k =
+\begin{cases}
+b_k & \text{birth-date coordinate} \\
+-h_k & \text{height coordinate}
+\end{cases}
+\label{eq:abscissa}
+\end{equation}
+which is \code{Species::abscissa\_of}. It increases with $k$ in both cases. The
+reverse-mode gradient is scoped to the birth-date coordinate, where $x_k = b_k$ is
+fixed at birth and carries no derivative. This is the single most consequential
+simplification in the design and Section~\ref{sec:reductions} shows why.
+
+\subsection{Intermediaries: the ones that matter}
+
+\begin{longtable}{@{}llp{0.40\textwidth}@{}}
+\toprule
+Symbol & Code & Meaning \\
+\midrule
+$A_k$ & \code{area\_leaf} & leaf area of cohort $k$, $\;(h_k/a_{l1})^{1/a_{l2}}$ \\
+$E^{\mathrm{comp}}(z)$ & \code{compute\_competition} & competition experienced at height $z$ \\
+$\Lambda_q, \Lambda'_q$ & knot values and slopes & the light field, as a spline \\
+$p^\star_k$ & \code{opt\_psi\_stem\_}, \code{root\_collar\_psi\_} & the maximising stem water potential \\
+$\Pi_k$ & \code{Leaf::profit\_} & carbon profit at the optimum \\
+$U_{kj}$ & \code{soil\_consumption\_} & water cohort $k$ draws from layer $j$ \\
+$\kappa_k$ & \code{leaf\_specific\_conductance\_max\_} & maximum leaf-specific conductance \\
+$c^{\mathrm{i}}_k$ & \code{ci\_} & intercellular CO\textsubscript{2}, itself a root of a residual \\
+$G(\cdot)$ & \code{build\_cumulative\_vulnerability\_integral} & cumulative vulnerability integral \\
+$g_k$ & \code{rate(HEIGHT\_INDEX)} & height growth rate \\
+$\mu_k$ & mortality rate & \\
+\bottomrule
+\end{longtable}
+
+\section{The forward model as a composition}
+\label{sec:forward}
+
+Within one evaluation of the rates at one time, the model is a directed acyclic
+graph. Writing it as a composition is what makes the transpose mechanical.
+
+\begin{equation}
+\varphi
+\;\xrightarrow{\;\text{(a)}\;}\;
+\text{strategy}
+\;\xrightarrow{\;\text{(b)}\;}\;
+\{A_k, \kappa_k\}
+\;\xrightarrow{\;\text{(c)}\;}\;
+\Lambda
+\;\xrightarrow{\;\text{(d)}\;}\;
+\{p^\star_k, \Pi_k, U_{kj}\}
+\;\xrightarrow{\;\text{(e)}\;}\;
+\dot y
+\label{eq:composition}
+\end{equation}
+
+\begin{description}
+\item[(a) \code{prepare\_strategy}] derives the strategy's dependent quantities
+  from $\varphi$.
+\item[(b) allometry] gives each cohort's size-dependent quantities from $h_k$ and
+  $\varphi$.
+\item[(c) the field reductions] aggregate over cohorts to give the shared
+  environment. This is the only \emph{many-to-few} map in the chain, and therefore
+  the only place a transpose scatters rather than gathers.
+\item[(d) the individual] solves its own maximisation given the field. This is the
+  only implicit step.
+\item[(e) assembly] writes the rates back into $\dot y$.
+\end{description}
+
+The important structural fact is that (c) is a reduction and (d) is a
+\emph{per-cohort independent} map. So the reverse pass is: transpose (e)
+cohort-by-cohort, transpose (d) cohort-by-cohort, then transpose (c) once, which
+scatters the field's adjoint back over every cohort.
+
+\section{The discrete adjoint of the solver}
+\label{sec:solver}
+
+Let the solver advance $y_n \mapsto y_{n+1}$ by
+\begin{align}
+Y_i &= y_n + \Delta t_n \sum_{l<i} a_{il} k_l,
+&
+k_i &= f(Y_i, \varphi, t_n + c_i \Delta t_n),
+\\
+y_{n+1} &= y_n + \Delta t_n \sum_i \beta_i k_i .
+\end{align}
+
+Given the adjoint $\adj{y}_{n+1}$ of the state after the step, the step's
+transpose is
+\begin{equation}
+\adj{k}_i = \Delta t_n \beta_i \adj{y}_{n+1}
+  + \Delta t_n \sum_{l>i} a_{li} \adj{Y}_l,
+\qquad
+\adj{Y}_i = \left(\dd{f}{y}\Big|_{Y_i}\right)^{\!\!\top} \adj{k}_i ,
+\label{eq:stageadj}
+\end{equation}
+swept for $i$ descending, and then
+\begin{equation}
+\adj{y}_n = \adj{y}_{n+1} + \sum_i \adj{Y}_i,
+\qquad
+\adj{\varphi} \mathrel{+}= \sum_i \left(\dd{f}{\varphi}\Big|_{Y_i}\right)^{\!\!\top}
+\adj{k}_i .
+\label{eq:paramaccum}
+\end{equation}
+
+Two consequences that the implementation must respect.
+
+\paragraph{The step size is held.} $\Delta t_n$ was chosen by the adaptive
+controller using an error estimate. Treating it as a differentiable function of
+$\varphi$ would differentiate the controller, which is not the model. So
+$\Delta t_n$ is a recorded constant on the reverse pass. This is why a recorded
+trajectory must store its step sizes rather than recompute them.
+
+\paragraph{$\adj\varphi$ accumulates over every step and every stage.} There are
+$6M$ contributions, and \eqref{eq:paramaccum} is the only place they enter. In the
+code that accumulator is \code{Patch::trait\_adjoint}.
+
+\subsection{Introductions: the state changes dimension}
+
+Let the run have widths $d_1 < d_2 < \dots < d_B$ over $B$ segments, with an
+introduction between consecutive segments. The adjoint sweeps segment $B$ first.
+At the boundary between segment $\sigma+1$ and segment $\sigma$, the newly
+introduced components have no predecessor in $y$: their adjoints leave the state
+and enter $\adj\varphi$ through the boundary condition
+\begin{equation}
+n_{\text{new}} = \frac{\text{birth\_rate} \cdot \text{pr\_estab}}{g},
+\qquad
+\ell_{\text{new}} = \log n_{\text{new}} ,
+\label{eq:boundary}
+\end{equation}
+which reads $\varphi$ directly and is \code{Patch::introduction\_adjoint}. Then
+$\adj y$ is narrowed to $d_\sigma$ and the sweep continues.
+
+\emph{Requirement.} The narrowing must be applied to every column when several
+functionals are swept together, and the segment list must cover every recorded
+step with no gap. Nothing currently asserts the second.
+
+\section{The recorded cohort step}
+\label{sec:block}
+
+The unit of the reverse pass is one evaluation of
+\code{Individual::compute\_rates} for one cohort at one Runge--Kutta stage,
+recorded at the active scalar type. Write its inputs as
+\begin{equation}
+u_k = \big(\underbrace{h_k, \ell_k, m^{\mathrm{hw}}_k, a^{\mathrm{hw}}_k, r_k}_{\text{own state}},\;
+\underbrace{\Lambda, \Lambda'}_{\text{field, } 2K},\;
+\underbrace{\theta_{1:L}}_{\text{soil}},\;
+\underbrace{\varphi}_{P}\big)
+\label{eq:blockin}
+\end{equation}
+and its outputs as
+\begin{equation}
+v_k = \big(\underbrace{\dot h_k, \dot m^{\mathrm{hw}}_k, \dot a^{\mathrm{hw}}_k, \dot r_k, \dot{(\text{fecundity})}, \mu_k}_{\text{rates}},\;
+\underbrace{\dot \ell_k}_{\text{density rate}},\;
+\underbrace{U_{k,1:L}}_{\text{consumption}}\big).
+\label{eq:blockout}
+\end{equation}
+
+For TF24 with $K = 65$ and $L = 5$ this is $185$ inputs and $12$ outputs, and the
+reverse pass forms $\big(\partial v_k / \partial u_k\big)^{\!\top} \adj v_k$.
+
+\subsection{The density rate is where the coordinate choice bites}
+
+On the birth-date coordinate,
+\begin{equation}
+\dot \ell_k = -\mu_k ,
+\label{eq:densbirth}
+\end{equation}
+whereas on the height coordinate the density is compressed by the growth of the
+size axis and
+\begin{equation}
+\dot \ell_k = -\mu_k - \dd{g}{h}\Big|_{h_k} .
+\label{eq:densheight}
+\end{equation}
+
+Equation~\eqref{eq:densheight} is why the height coordinate is expensive to
+differentiate: $\partial g/\partial h$ requires a \emph{second} solve of the whole
+individual at a displaced height, so every recorded cohort step contains two
+complete leaf maximisations, and the reverse pass must transpose both. Equation
+\eqref{eq:densbirth} needs neither: $\mu_k$ is already an output of the same step.
+Choosing the birth-date coordinate therefore halves the recorded work before any
+optimisation is applied.
+
+\section{The environment reductions and their transposes}
+\label{sec:reductions}
+
+\subsection{Light}
+
+The competition profile at height $z$ sums over every cohort of every species:
+\begin{equation}
+E^{\mathrm{comp}}(z) = \sum_s \sum_k w_k \, n_k \, k_I^{(s)} \, A_k \,
+\tilde{Q}\!\left(\frac{z}{h_k}\right),
+\label{eq:light}
+\end{equation}
+where $\tilde{Q}(\nu) = (1 - \nu^{\eta})^2$ for $\nu \le 1$ and $0$ above, and
+$w_k$ are the trapezium weights on the abscissa $x_k$ of \eqref{eq:abscissa}. The
+field is then a spline through $K$ knots, so the recorded cohort step reads
+$(\Lambda_q, \Lambda'_q)$ and not $E^{\mathrm{comp}}$ directly.
+
+Given knot adjoints $\adj\Lambda_q$, the transpose of \eqref{eq:light} scatters:
+\begin{align}
+\adj\ell_k &\mathrel{+}= \sum_q \adj\Lambda_q \, w_k \, n_k \, k_I \, A_k \,
+  \tilde{Q}(z_q/h_k),
+\label{eq:lightadj_ell}\\
+\adj h_k &\mathrel{+}= \sum_q \adj\Lambda_q \, w_k \, n_k \, k_I
+  \left[ A_k' \, \tilde{Q}(z_q/h_k)
+        - A_k \, \tilde{Q}'(z_q/h_k) \frac{z_q}{h_k^2} \right]
+  \;+\; \underbrace{\sum_q \adj\Lambda_q \, n_k \, k_I A_k \tilde{Q}
+        \dd{w_k}{h_k}}_{\text{\emph{zero on the birth-date coordinate}}},
+\label{eq:lightadj_h}\\
+\adj{k_I} &\mathrel{+}= \sum_q \adj\Lambda_q \sum_k w_k \, n_k \, A_k \,
+  \tilde{Q}(z_q/h_k),
+\label{eq:lightadj_kI}\\
+\adj\eta &\mathrel{+}= \sum_q \adj\Lambda_q \sum_k w_k \, n_k \, k_I A_k \,
+  \dd{\tilde{Q}}{\eta} .
+\label{eq:lightadj_eta}
+\end{align}
+
+Two things to read off this.
+
+The braced term in \eqref{eq:lightadj_h} is the weight-derivative term. It exists
+only because the height coordinate makes the quadrature abscissa a function of the
+state. On the birth-date coordinate $x_k = b_k$ is fixed at birth and passive, so
+$\partial w_k/\partial h_k = 0$ and the term vanishes identically. Report 00
+section 8 names this as the term a reader is most likely to forget; the coordinate
+change removes the need to remember it.
+
+Equations \eqref{eq:lightadj_kI} and \eqref{eq:lightadj_eta} are trait
+contributions that arise \emph{inside the reduction}, not inside any cohort step.
+
+\gap{The implementation has no path for \eqref{eq:lightadj_kI} or
+\eqref{eq:lightadj_eta}. \code{Species::compute\_competition\_and\_slope\_adjoint}
+returns \code{node\_size\_adjoints}, a structure with exactly three members ---
+\code{area\_leaf}, \code{height}, \code{log\_density} --- and no parameter member,
+and \code{Patch::trait\_adjoint} is written only from the cohort step and from the
+introduction boundary. Since $k_I$ enters the model \emph{only} through
+\eqref{eq:light}, its gradient is identically zero for every functional. The same
+holds for $\eta$. This is a missing summation, not a hard derivative: both
+right-hand sides are already computed as intermediate products inside the existing
+transpose.}
+
+\subsection{Water}
+
+Total draw from layer $j$ aggregates the same way,
+\begin{equation}
+\mathcal{U}_j = \sum_s \sum_k w_k \, n_k \, U_{kj},
+\label{eq:water}
+\end{equation}
+and the soil state responds through the retention curve
+$\psi_j = \psi(\theta_j)$. Its transpose scatters $\adj{\mathcal{U}}_j$ back onto
+$\adj U_{kj}$, $\adj \ell_k$ and, on the height coordinate, the weights.
+
+\gap{\code{Species::consumption\_rate} now sorts the cohort grid when the
+abscissa order inverts; \code{consumption\_rate\_adjoint} still transposes the
+unsorted trapezium. On an inverted grid the two are not transposes of each other,
+the gradient is finite, and nothing raises an error.}
+
+\section{The individual's maximisation}
+\label{sec:leaf}
+
+This is the mathematical core. Each cohort chooses a stem water potential $p$ to
+maximise profit,
+\begin{equation}
+p^\star = \arg\max_{p \in [p_a, p_b]} \Pi(p; u),
+\qquad
+\Pi = A\big(c^{\mathrm{i}}(p; u)\big) - \Theta(p; u),
+\label{eq:argmax}
+\end{equation}
+with $A$ the assimilation and $\Theta$ the hydraulic cost. Everything downstream
+--- profit, uptake, and hence growth --- is evaluated at $p^\star$, which is
+computed numerically. We need derivatives of quantities at $p^\star$ with respect
+to every input $u$, without differentiating the search.
+
+\subsection{The interior optimum: profit is free}
+
+Suppose $p^\star$ is interior, so stationarity holds:
+\begin{equation}
+g(p^\star, u) \;\equiv\; \dd{\Pi}{p}(p^\star, u) \;=\; 0 .
+\label{eq:stationarity}
+\end{equation}
+Let $\Pi^\star(u) = \Pi(p^\star(u), u)$. Then
+\begin{equation}
+\dd{\Pi^\star}{u}
+= \underbrace{\dd{\Pi}{p}}_{=\,0} \dd{p^\star}{u} + \dd{\Pi}{u}
+= \dd{\Pi}{u} .
+\label{eq:envelope}
+\end{equation}
+This is the envelope theorem, and it is the single largest economy in the design:
+\textbf{the derivative of profit needs no sensitivity of the optimiser at all}.
+
+\subsection{The argmax channel is rank one}
+
+Other outputs are not stationary in $p$. Uptake $E(p^\star, u)$ is one. For those
+we need $\partial p^\star/\partial u$. Differentiating \eqref{eq:stationarity},
+\begin{equation}
+\Pi_{pp} \, \dd{p^\star}{u} + \Pi_{pu} = 0
+\qquad\Longrightarrow\qquad
+\dd{p^\star}{u} = -\frac{\Pi_{pu}}{\Pi_{pp}} ,
+\label{eq:argmaxsens}
+\end{equation}
+with $\Pi_{pp} = \partial^2\Pi/\partial p^2$ a scalar and
+$\Pi_{pu} = \partial^2 \Pi/\partial p \, \partial u$ a row vector over the inputs.
+
+In reverse mode we never form $\partial p^\star/\partial u$. Given an output
+adjoint $\adj v$ on outputs $v = f(p^\star, u)$, define the scalar
+\begin{equation}
+s = \adj{v}^{\!\top} \dd{f}{p},
+\qquad
+m = -\frac{s}{\Pi_{pp}} ,
+\label{eq:mu}
+\end{equation}
+and then
+\begin{equation}
+\adj u = \adj{v}^{\!\top}\dd{f}{u} \;+\; m \, \Pi_{pu}.
+\label{eq:argmaxadj}
+\end{equation}
+Because $p$ is a \emph{scalar}, the whole optimiser channel is the outer product
+$m \otimes \Pi_{pu}$ --- rank one. In the code $s$ is \code{s\_adjoint} and $m$ is
+\code{mu}; the divisor $\Pi_{pp}$ is \code{dR\_dcollar\_at}.
+
+\subsection{$\Pi_{pu}$ is the one genuinely new object}
+
+Everything else in this section reuses derivatives the forward model already
+needs. $\Pi_{pu}$ does not: it is a mixed second derivative of the profit, one
+entry per input, and it must include the implicit-function term of the
+$c^{\mathrm{i}}$ root-find (Section~\ref{sec:ci}). Report 00 calls it the single
+new piece of code the design needs.
+
+\gap{The implementation substitutes a two-sided finite difference of
+$\partial \Pi/\partial p$ in $\varphi$ for the parameter half of $\Pi_{pu}$: for
+each of the parameters that reach the operating point it perturbs the parameter and
+re-evaluates. This costs $22$ of the $35$ residual evaluations per call, and its
+conditioning has never been measured.}
+
+\subsection{The pinned optimum: the envelope theorem does not apply}
+
+If the maximiser sits at a bound, $p^\star = B(u)$ with $B$ either the
+zero-uptake potential $p_a$ or the critical potential $p_b$, then
+\eqref{eq:stationarity} is false: $\partial \Pi/\partial p \ne 0$ there. Instead
+$p^\star$ follows the bound,
+\begin{equation}
+\dd{p^\star}{u} = \dd{B}{u},
+\label{eq:pinnedsens}
+\end{equation}
+and the profit term reappears in the adjoint. With
+\begin{equation}
+w = \adj\Pi \, \dd{\Pi}{p} + s ,
+\qquad
+\adj u = \adj{v}^{\!\top}\dd{f}{u} + w \, \dd{B}{u},
+\label{eq:pinnedadj}
+\end{equation}
+where $\partial B/\partial u$ is \code{Leaf::bound\_partials}. This is why the
+pinned branch of the code carries a profit contribution that the interior branch
+correctly omits: it is not an inconsistency, it is the envelope theorem failing at
+a boundary.
+
+The bound itself is implicit. $p_a$ is the collar potential at which uptake
+vanishes, $E(p_a, u) = 0$, so
+\begin{equation}
+\dd{p_a}{u} = -\left(\dd{E}{p}\right)^{\!-1} \dd{E}{u} .
+\label{eq:bounda}
+\end{equation}
+
+\subsection{The $c^{\mathrm{i}}$ root-find}
+\label{sec:ci}
+
+Intercellular CO\textsubscript{2} solves a supply-equals-demand residual
+\begin{equation}
+R(c^{\mathrm{i}}; p, u) = A(c^{\mathrm{i}})
+  - \frac{g_c(p,u)\,(c^{\mathrm{a}} - c^{\mathrm{i}})}{P_{\mathrm{atm}}} = 0,
+\label{eq:ci}
+\end{equation}
+bracketed on $[\Gamma^\star, c^{\mathrm{a}}]$. By the implicit function theorem
+\begin{equation}
+\dd{c^{\mathrm{i}}}{\bullet} = -\left(\dd{R}{c^{\mathrm{i}}}\right)^{\!-1}
+\dd{R}{\bullet},
+\label{eq:ciadj}
+\end{equation}
+and this term must be carried into every derivative that passes through
+assimilation, including $\Pi_{pu}$.
+
+The bracket is valid only when the endpoints straddle zero. Since
+$R(c^{\mathrm{a}}) = A(c^{\mathrm{a}}) = A_{\max}$ and $g_c \propto E$, the
+bracket fails when either $A_{\max} < 0$ or $E < 0$ --- both of which describe an
+individual that is not producing. Those are exactly the states at which the
+forward model substitutes $c^{\mathrm{i}} = \Gamma^\star$ with zero flux rather
+than solving.
+
+\gap{The forward path tests both conditions; the derivative path tests one; the
+reverse path tests neither and calls the solver, which raises. The consequence is
+not a bracket that is too narrow --- in the $A_{\max}$ case no root exists in the
+domain at all --- but a missing guard.}
+
+\subsection{The transport integral in closed form}
+\label{sec:transport}
+
+Flux from soil to collar integrates a stretched-exponential vulnerability curve,
+\begin{equation}
+G(m) = \int_0^m \exp\!\left(-\left(\frac{\sigma}{b}\right)^{c}\right)
+\mathrm{d}\sigma
+= \frac{b}{c}\, \gamma\!\left(\frac{1}{c},\, X\right),
+\qquad
+X = \left(\frac{m}{b}\right)^{c},
+\label{eq:G}
+\end{equation}
+with $\gamma$ the lower incomplete gamma function, and $E = \kappa\,[\,G(\psi_{\mathrm{stem}}) - G(\psi_{\mathrm{up}})\,]$.
+
+Writing $a = 1/c$ and using the everywhere-convergent series
+\begin{equation}
+\gamma(a, x) = x^{a} e^{-x} \sum_{n \ge 0}
+\frac{x^{n}}{a(a+1)\cdots(a+n)}
+\;\equiv\; x^{a} e^{-x} \, \Sigma(a,x),
+\label{eq:gammaseries}
+\end{equation}
+both derivatives are available in closed form. The $x$ derivative is the
+integrand,
+\begin{equation}
+\dd{\gamma}{x} = x^{a-1} e^{-x},
+\label{eq:dgdx}
+\end{equation}
+and the $a$ derivative follows from $\partial_a$ of each term, since the $n$th
+term is $x^n$ over $\prod_{l=0}^{n}(a+l)$:
+\begin{equation}
+\dd{\gamma}{a} = \log(x)\,\gamma(a,x)
+  + x^{a} e^{-x} \sum_{n\ge 0}
+    \left(-\,t_n \sum_{l=0}^{n} \frac{1}{a+l}\right),
+\qquad
+t_n = \frac{x^{n}}{a(a+1)\cdots(a+n)} .
+\label{eq:dgda}
+\end{equation}
+So one loop with one extra accumulator gives value and both derivatives. Chaining
+to the parameters with $\partial X/\partial b = -cX/b$,
+$\partial X/\partial c = X \log(m/b)$ and $\partial a/\partial c = -1/c^2$:
+\begin{align}
+\dd{G}{m} &= \exp\!\left(-\left(m/b\right)^{c}\right),
+\label{eq:dGdm}\\
+\dd{G}{b} &= \frac{\gamma}{c} - X \,\dd{\gamma}{x},
+\label{eq:dGdb}\\
+\dd{G}{c} &= -\frac{b}{c^{2}}\gamma
+  + \frac{b}{c}\left( X \log(m/b) \dd{\gamma}{x}
+  - \frac{1}{c^{2}} \dd{\gamma}{a} \right).
+\label{eq:dGdc}
+\end{align}
+Note that $b$ needs only \eqref{eq:dgdx}, which is elementary; only $c$ reaches
+the series derivative \eqref{eq:dgda}.
+
+\gap{The implementation tabulates $G$ on a grid of $100$ knots whose upper limit
+is $b\,\log(100)^{1/c}$ and whose spacing is that limit over the resolution, under
+a loop bound $\psi \le \psi_{\max}$. The knot \emph{count} therefore steps between
+$100$ and $101$ under a relative perturbation of $10^{-6}$ in $b$ or $c$, and a
+finite difference across that step is not a derivative. Measured errors are $47$,
+$131$ and $10{,}245$ times the correct values. Equations
+\eqref{eq:dGdm}--\eqref{eq:dGdc} remove the grid, not merely its cost.}
+
+\section{Supplying the individual's derivatives by hand}
+\label{sec:supplied}
+
+The maximisation of Section~\ref{sec:leaf} is solved in double precision and is
+not recorded on the tape. Its derivatives are supplied instead. For an output
+$v$ whose value the solver has already produced, the recorded expression is
+\begin{equation}
+\tilde{v} = v + \sum_i \left(\dd{v}{u_i}\right)
+\big(u_i - \mathrm{passive}(u_i)\big),
+\label{eq:supplied}
+\end{equation}
+where $\mathrm{passive}(\cdot)$ strips the derivative and returns the value. Two
+properties:
+\begin{enumerate}
+\item $\tilde{v} = v$ \emph{exactly}, in value, because every bracket is zero.
+\item $\partial \tilde v/\partial u_i$ is the supplied $\partial v/\partial u_i$.
+\end{enumerate}
+So the tape carries the correct number and the hand-derived derivative, and the
+same construction serves forward and reverse mode. This is
+\code{TF24\_Strategy::graft} and \code{odelia::ode::supplied\_derivative}.
+
+Property 1 has a sharp consequence for verification: \textbf{a finite difference
+of the recorded step cannot see an error in a supplied derivative}, because
+perturbing $u_i$ changes $v$ through the solver, not through the bracket. The
+supplied derivatives must be checked against the individual's own algebra, never
+against a difference of the step that consumes them.
+
+\gap{Property 1 also means a non-finite supplied derivative corrupts the
+\emph{value}: if $\partial v/\partial u_i$ is NaN then $\mathrm{NaN} \times 0$ is
+NaN and $\tilde v$ is NaN. \code{Leaf::layer\_flux\_partials} returns all entries
+NaN at a branch kink --- equal potentials, gravity balance, or a collar potential
+within $10^{-8}$ of zero --- with no caller testing for it, so a kink makes the
+gradient and the forward tangent NaN together. The plain double path is unaffected
+because \eqref{eq:supplied} is only assembled at an active type.}
+
+\section{The census functional and its two terms}
+\label{sec:census}
+
+A census is a quadrature over the size distribution of a per-individual metric,
+\begin{equation}
+\mathcal{C} = \sum_s \sum_k w_k \, n_k \, \mathfrak{m}(h_k, \varphi),
+\label{eq:census}
+\end{equation}
+with $\mathfrak{m}$ one of leaf area, above-ground mass, or stem area. Because
+$\mathfrak{m}$ reads $\varphi$ directly, the total derivative has two terms:
+\begin{equation}
+\dd{\mathcal{C}}{\varphi}
+= \underbrace{\sum_s \sum_k w_k \, n_k \, \dd{\mathfrak{m}}{\varphi}}
+  _{\text{direct, at fixed state}}
+\;+\;
+\underbrace{\left(\dd{\mathcal{C}}{y}\right)^{\!\top}
+  \dd{y}{\varphi}}_{\text{through the trajectory, by Section~\ref{sec:solver}}} .
+\label{eq:censustwo}
+\end{equation}
+
+The second term is what the adjoint sweep computes, seeded with
+$\adj y(T) = \partial \mathcal{C}/\partial y$. The first is not a sensitivity of
+the state at all and no sweep produces it.
+
+For the concrete metrics: $\mathfrak{m} = A(h)$ reads $a_{l1}, a_{l2}$;
+$\mathfrak{m} = m^{\text{leaf}} = A(h)\,\mathrm{lma}$ reads $\mathrm{lma}$;
+stem area reads $\theta$ and $a_{b1}$ through sapwood and bark.
+
+\gap{\code{SCM::census\_state\_adjoint} registers only $y$ as an input, so the
+direct term of \eqref{eq:censustwo} is absent. Note also that the seed's support
+is wider than the metric algebra suggests: the recording calls
+\code{set\_ode\_state}, which rebuilds the boundary node \eqref{eq:boundary},
+whose density is a full physiology evaluation through the light field. So most of
+$\varphi$ takes a non-zero direct term, not only the parameters that appear in
+$\mathfrak{m}$.}
+
+\subsection{Several functionals share one recording}
+
+For $F$ functionals the record is common and only the seed differs. Recording
+once and sweeping $F$ times costs one record plus $F$ sweeps, against $F$ records
+and $F$ sweeps; the record dominates.
+
+\gap{The implementation records $F$ times, and worse: it constructs the copy at
+the active type \emph{once, outside} the loop, while each sweep begins by clearing
+the tape. Clearing returns the derivative-slot counter to zero, so every active
+value that outlives a sweep refers to a slot that now belongs to something else.
+The first functional is correct and every later one reads unrelated storage.
+Measured: rows agree with an independent reference for the first metric and, for
+the later ones, have the wrong sign, a magnitude wrong by $180$ times, and $33$ of
+$52$ columns exactly zero. This is the rule stated in the project's own method
+document and obeyed at the two other sites that build such copies.}
+
+\section{Where the trait gradient is assembled}
+
+Collecting the paths by which $\varphi$ reaches $\mathcal{C}$:
+\begin{equation}
+\adj\varphi =
+\underbrace{\sum_s\sum_k w_k n_k \dd{\mathfrak{m}}{\varphi}}_{\text{census, direct}}
++ \underbrace{\sum_n \sum_i \left(\dd{f}{\varphi}\right)^{\!\top}\!\adj k_i}
+  _{\text{cohort steps, all stages}}
++ \underbrace{\sum_{\text{intro}} \dd{\ell_{\text{new}}}{\varphi}\,\adj\ell_{\text{new}}}
+  _{\text{boundary}}
++ \underbrace{\sum_q \adj\Lambda_q \dd{E^{\mathrm{comp}}}{\varphi}}
+  _{\text{field reduction}} .
+\label{eq:assemble}
+\end{equation}
+
+The four terms are the four places $\varphi$ is read. The implementation has the
+second and the third; the first is Section~\ref{sec:census}'s gap and the fourth
+is Section~\ref{sec:reductions}'s.
+
+\subsection{One term is absent from every path}
+
+\code{rebind\_from} constructs the copy at the active type by copying the
+strategy, but \code{prepare\_strategy} and the seed height refuse an active
+scalar, so $h_0$, $A_0$ and $\eta_c$ enter as values. Hence
+\begin{equation}
+\dd{h_0}{\varphi} = 0
+\label{eq:heightseed}
+\end{equation}
+is imposed on both AD paths, forward and reverse.
+
+\gap{Equation \eqref{eq:heightseed} is false. The seed height solves an implicit
+condition on the strategy and does depend on $\varphi$. Measured as about $3$ per
+cent for $\mathrm{lma}$. \textbf{No instrument in the present design can referee a
+fix}: the forward tangent imposes the same equation, and a re-run finite difference
+cannot referee at production because a relative step of $2\times 10^{-7}$ in
+$\mathrm{lma}$ moves a mature stand between alive and identically zero. Closing it
+needs an implicit-value treatment of the seed height \emph{and} a new reference.}
+
+\section{Summary of the gaps, in dependency order}
+
+\begin{longtable}{@{}rp{0.52\textwidth}l@{}}
+\toprule
+& Gap & Section \\
+\midrule
+1 & Copy at the active type outlives a cleared tape; every functional after the
+    first reads unrelated storage & \ref{sec:census} \\
+2 & Field reduction has no parameter accumulator, so $k_I$ and $\eta$ are
+    identically zero & \ref{sec:reductions} \\
+3 & Census direct term not registered & \ref{sec:census} \\
+4 & No guard on the $c^{\mathrm{i}}$ bracket at a non-producing individual &
+    \ref{sec:ci} \\
+5 & NaN supplied derivative at a branch kink corrupts the value &
+    \ref{sec:supplied} \\
+6 & Transport derivatives differenced across a grid whose knot count moves &
+    \ref{sec:transport} \\
+7 & $\Pi_{pu}$'s parameter half differenced, conditioning unmeasured &
+    \ref{sec:leaf} \\
+8 & Consumption adjoint not the transpose of a sorted forward grid &
+    \ref{sec:reductions} \\
+9 & $\mathrm{d}h_0/\mathrm{d}\varphi$ imposed zero on both AD paths; no
+    available reference & \ref{eq:heightseed} \\
+\bottomrule
+\end{longtable}
+
+Items 1 to 3 are missing summations or misplaced constructions and each is a small
+change. Items 4 and 5 are missing guards. Items 6 and 7 replace a difference with
+algebra this document gives in closed form. Item 8 is a transpose that stopped
+matching its forward function. Item 9 is the only one that needs a new instrument
+before it can be closed, and it is therefore the only one whose scope is genuinely
+open.
+
+\end{document}
