@@ -445,6 +445,97 @@ inside any cohort step.
 > Both right-hand sides above are already computed as intermediate products inside the
 > existing transpose, so what is missing is a summation and not a derivative.
 
+### 6.1b The field is twenty-four regimes and six objects, and the value is the robust output
+
+**The mirror of section 7.0, and the asymmetry runs the other way.** For the leaf the profit row
+survived every degeneracy and the uptake row ceased to exist. For the field **the value is robust
+and the slope is fragile**: $L$ is continuous in the field's own arguments everywhere — at the cap
+(where $A(H_{\max}) = 0$ exactly), at the crown-top cutoff, across the boundary-interval switch,
+across the sorted-view fallback, under both clamps, and at the ground knot for every $\eta$. The
+**slope** is the output that ceases to exist. **The field has no folds and no jumps in its value at
+all**; every honest refusal here is about $L'$ or about a transpose.
+
+**Consequence for the interface.** `ResourceSpline::get_value_at_height` must keep working when
+`get_value_and_slope_at_height` refuses. The paired accessor cannot express that, and refusing both
+together would stop a forward model that has no derivative problem.
+
+**Six objects.** **A** a smooth reduction with a moving domain — twelve of the twenty-four regimes,
+including four the reports treat as hazards that are not: the crown-top cutoff, the species'
+above-canopy exit, the cap, and the boundary-interval switch are each a $C^1$ join where value *and*
+slope vanish exactly, so dropping the branch indicator's derivative is **exact**. **B** a
+discretisation whose structure depends on state — the grid. **C** a clamp whose severance is an
+artefact. **D** an exogenous field that solves no reduction. **E** a refusal, warranted or not.
+**F** the slope of a profile the model does not use.
+
+**Report 03 section 1's central claim is discharged, and the plan should stop carrying it as owed.**
+Its premise is that $L'$ is the one quantity plant cannot supply for a crown integral whose domain
+moves. It is supplied, structurally rather than by a call site: `QK::integrate` takes its bounds as
+the **active** scalar and forms `center` and `half_length` on it (`qk.h:70-72`), so every abscissa is
+$z = u_k H$ with the affine map on the tape; and `hermite_interpolator`'s read at an active position
+returns `graft(value_at(up), slope_at(up), u, up)` (`hermite_interpolator.hpp:113`, `:165`), which is
+`value + \mathrm{d}y/\mathrm{d}u \cdot (u - u_p)`. So
+
+$$\frac{d\Phi}{dH} = \int_0^1\Big[L'(uH)\,u\,q(uH,H) + L(uH)\,\partial_H q\Big]du + \int_0^1 L\,q\,du$$
+
+is complete on the tape, and the Leibniz boundary term is absorbed because the rule is *mapped*
+rather than truncated. **Nothing on the physiology path needs to call `slope()`.** Abscissae are
+strictly interior, so the crown integral never touches the ground singularity and never touches the
+cap.
+
+> **Gap: report 03 section 1b's normalised coordinate does not exist in the code, and its third
+> consequence is void.** It rules that holding the field on $u = z/H_{\max}$ turns C1's dropped
+> position channel into ordinary chain-rule terms, $\partial/\partial z \to 1/H_{\max}$ and
+> $\partial/\partial H_{\max} \to -z/H_{\max}^2$. **Neither term is anywhere in the query path.**
+> `rebuild_spline` lays knots at `knot_fractions_[k] * to_passive(height_max)` and
+> `get_value_at_height` queries at **absolute** height. Since $u_k = k/64$ is exact, `x.back()`
+> equals `height_max` bitwise and the rebuild guard is false only while `height_max` is bit-unchanged
+> — so the grid is relaid essentially every stage and the channel is re-formed and re-dropped every
+> stage, at the measured 1.891e+01. The correct statement is that the field is held on an **absolute**
+> grid whose positions are an affine, passive function of an active `height_max`.
+
+> **Gap, and it is a hazard class this document does not have: the gradient's own consumer can drive
+> the model into the region where the gradient is wrong.** $Q(0) = 1$ for every $\eta$, so the
+> field's minimum over its whole domain is at the ground knot and equals
+> $L(0) = \exp(-k_I\,\mathrm{LAI})$. The $10^{-4}$ floor therefore binds when
+> $k_I\,\mathrm{LAI} \ge \ln 10^4 = 9.2103$. Measured on the one stand this corpus has run,
+> $A(0) = -\ln(0.1657209) = 1.7975$ at $k_I = 0.5$, so $\mathrm{LAI} = 3.595$ and **the floor binds
+> at $k_I \ge 2.562$ at this stand, or $\mathrm{LAI} \ge 18.42$ at this $k_I$.** `k_I` is a
+> **registered, free parameter**, so a calibration or a gradient-ascent run that walks it upward
+> walks the field into the severed region — where the row it is ascending goes to zero. **Note
+> $\eta$ is not a lever**: it reshapes the profile and leaves $A(0)$ untouched, so report 03's
+> "denser canopy or a larger $k_I$" is right and any implicit inclusion of canopy shape is not.
+>
+> **The undershoot guard is on the same lever, and report 03 treats the two as independent zeros.**
+> At the ground knot $m_0 = -L\,A'(0) = 0$ exactly for $\eta > 1$, so the first span undershoots
+> below $y_0$ when $m_1 h > 3(y_1 - y_0)$ — a Fritsch–Carlson violation, live precisely when a
+> recruit bunch sits inside the first span, whose width is $H_{\max}/64 \approx 0.28$ m at
+> production, which is where recruits are. It cannot reach below zero while $y_0 = 0.166$; it can
+> once $y_0 \sim 10^{-4}$. **Both clamps fire together, under one parameter change.**
+>
+> Where either binds the severance is an **artefact and not the model** — $L$ is smooth there, and
+> the code records that the floor's "original rationale was never recorded". So the honest action is
+> to **refuse the slope row with its incidence counted**, not to return the clamped zero.
+
+**And one clamp is dead code.** $\int_0^H q\,dz = Q(0) - Q(H) = 1$, so the crown mean of
+already-floored values is at least $10^{-4}$ identically: the outer `max(light, 1e-4)` in
+`radiation_at` **can never bind under `MeanLight`**. It binds only where the argument is a single
+point query. Two clamps, one comment asserting they match, one structurally unreachable on the
+default path.
+
+**A third model reaches the wrong pair, and report 03's own correction banner does not name it.**
+That banner resolves `flat-top-box` and `flat-top-soft-box`. `PPA` routes to `leaf_above_deep`, so
+`Q_and_q` hands back the smooth Yokozawa pair while FF16's environment builds a **stepped** profile
+— the slope of a field the model does not use. And `Q_and_q_dheight` **throws** for
+`FlatTopSoftBox`, whose forward field builds happily, so that model's transpose cannot run although
+$\partial q/\partial H$ is one line.
+
+**The ground knot at $\eta \le 1$ is a value defect in plain `double`.**
+$q(z \to 0) = 2\eta z^{\eta-1}/H^{\eta}$, whose limit is $0$ for $\eta > 1$, $2/H$ at
+$\eta = 1$, and $+\infty$ for $\eta < 1$. The code implements the first two by an exact comparison
+on $\eta$ and returns $0$ for the third. And $\partial/\partial\eta$ of the ground-knot slope
+does not exist at $\eta = 1$, where the guard hard-codes zero. Latent only because $\eta$ is
+absent from `ad_parameters()` — **so Task 18 makes it live.**
+
 ### 6.2 Water
 
 Total draw from layer $j$ aggregates the same way,
