@@ -23,8 +23,21 @@ agree with each other.** At `max_patch_lifetime = 2`, trait `lma`:
 | `mass_above_ground` | −5.00502106067521 | **+1.1236103034985** | −5.18146726765 |
 | `area_stem` | −0.00178853862026 | **−0.117481756163** | −0.00183969234031 |
 
-**WARNING: the `mass_above_ground` entry of this table is not reproducible and its
-configuration is not recorded.** A dry run on `d3392ea3` at the same lifetime, through
+**WARNING — withdrawn. The table is sourced, and this document said it was not.** It is
+`plant/scripts/tangent-reference.csv` on branch **`p3/tangent-referee`** at `6b0a49fb`, with a
+header recording the plant commit (`1a06e4c5`), `max_patch_lifetime 2`, the eight
+`node_schedule_times`, `ode_size 73`, 110 accepted steps and `Control defaults, non-default
+fields: none`. Every one of the four numbers below is primary, and `-0.117482 / -0.0017885` is
+65.68, so "65 times" is right.
+
+**The `-14906.6` re-reading is not a failed reproduction; it is a different model.** `1a06e4c5`
+is not an ancestor of `d3392ea3`; they differ by `7b5012c2`, the #585 forward-model correctness
+merge, which touches the census, the field build and the leaf. **Do not compare them.**
+
+**But every number in this table is on the height coordinate**, which Section 2b says the
+gradient no longer supports, so they are not gradient references any more — see Task 0.
+
+**The old warning, kept for the record:** A dry run on `d3392ea3` at the same lifetime, through
 `scripts/stand-gradient-smoke.R`, reads `-14906.6` where this table records `+1.1236`.
 The `leaf_area` entry does reproduce, to 1.9e-6. Both numbers are consistent with the
 aliasing of Task 15, which corrupts every metric after the first in a way that depends on
@@ -46,8 +59,13 @@ metrics.
 1. **The seed is aliased for every metric except the first.** Task 15. This explains
    `mass_above_ground`, `area_stem`, and why `leaf_area` is right: `leaf_area` is row 0
    of `tf24_census`, and only row 0 is sound.
-2. **The traits of the field build reach no accumulator.** Task 16. This explains
-   `k_I`.
+2. ~~**The traits of the field build reach no accumulator.** Task 16. This explains `k_I`.~~
+   **Refuted by the reference csv, and this was the plan's own diagnosis.** `k_I`'s `leaf_area`
+   adjoint measures **1.06132747437707** against a tangent of **1.03000327614671** and a central
+   difference of **1.0290354528486** — non-zero, and agreeing with both references to about
+   3 percent, which is the `height_0` bias and nothing else. **`k_I` has no zero to explain.**
+   Its rows 1 and 2 *are* wrong (`-0.305` and `-0.0316` against `+0.845` and `+0.000274`), which
+   is cause 1's aliasing, not a missing accumulator. See Task 16, whose premise this refutes.
 3. **The direct term of the census is absent.** Task 6. This is real and it is
    masked by cause 1. **It explains none of the three numbers above**:
    `d(mass_above_ground)/d(lma)` at fixed state is the `leaf_area` census value,
@@ -929,10 +947,27 @@ what can be run without it. That is a scope limit, not a pass.
 
 ### Task 16: carry the traits of the field build into the accumulator
 
-Type: **correctness**. It is the only cause of `k_I`.
+Type: **correctness**. ~~It is the only cause of `k_I`.~~ **It is not — see the warning below.**
+
+**WARNING: this task's premise is refuted and the task must be re-derived before it is built.
+Its gate would fail on a correct tree.**
+
+**`k_I` does not read zero.** `plant/scripts/tangent-reference.csv` on `p3/tangent-referee`
+measures its `leaf_area` adjoint at **1.06132747437707** against a tangent of
+**1.03000327614671**. And the code says why: **`Patch::introduction_adjoint` carries the field
+build.** It appends `ad_parameters()` to its input vector (`patch.h:1640-1646`), assigns them
+into the active twin, and then calls `active.set_ode_state_and_field(x.begin(), time_before)`
+(`patch.h:1659`), which runs the whole field build **at the active scalar** — including
+`TF24_Strategy::compute_competition`, where `k_I` lives. Its adjoint lands at `patch.h:1684`.
+
+**What this task would actually add** is the field build's trait contribution *inside the swept
+cohort blocks*, which the introduction path does not cover. That is a real gap and it is
+probably a smaller one. **Re-derive the task against that, and delete "it is the only cause of
+`k_I`".**
 
 **Why.** `trait_adjoint` is written in two places, `Patch::cohort_block_adjoint` and
-`Patch::introduction_adjoint`. **The field build is in neither.** The recorded cohort
+`Patch::introduction_adjoint`. **The field build is in the second, once per introduction, and
+not in the first.** The recorded cohort
 step takes the field as `cohort_reads` inputs, and the transpose of the field itself
 runs through `Patch::light_knot_adjoint` into
 `Species::compute_competition_and_slope_adjoint`, which returns
