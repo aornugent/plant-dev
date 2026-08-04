@@ -2142,6 +2142,19 @@ Each item below blocks something. Do not treat the list as background.
   `height * eta_c` only, and a cubic Hermite query reads four knots. The sweep does not pay
   for the zeros; the scatter of `in_adjoint` does, at 130 entries per cohort per stage where
   four are live. Not in any measurement.
+- **The scope beyond this plan, which no other live document carries.** Invasion gradients
+  omit the light knot pullback — they are the resident pass with one step left out — but
+  `run_mutant` is broken and cannot be fixed from adjacent work: **nothing in plant or odelia
+  calls `cache_ode_step`, `cache_RK45_step` or `load_ode_step`**, all three declared and
+  defined with no caller, which is exactly the two known `test-mutant.R` errors. Then FF16 and
+  K93 (the templating plus the existing census reduction), two species (two `Leaf` objects, and
+  a per-species `eta` inside the light reduction — **every incidence number in this corpus is
+  single-species**), calibration (which reads intermediate trajectory states as active values,
+  and a `double` trajectory breaks it with no message), and TF24f. **TF24f needs its own
+  design, not a port**: its operating point is a tracked ODE state clamped into
+  `[bound_a, bound_b]` and not an argmax, so report 05 section 7's envelope theorem and
+  rank-one argmax relation are both false there while `input_adjoints` still takes the interior
+  branch.
 - **An opportunity, not scoped.** `census_trait_gradient` differentiates the census
   at one patch age. The quantity an ecologist wants is the disturbance-weighted
   integral over patch ages. For an adjoint that is the same single sweep: inject

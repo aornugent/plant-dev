@@ -61,6 +61,30 @@ the ranking back.
 >
 > GOOD `I have not measured which group is largest. Report the groups by count.`
 
+### Six rules for writing a claim into a packet
+
+Each of these was learnt from a packet or a dry run that followed a specification
+faithfully and produced the wrong thing. They are cheap to apply and they are where the
+orchestrator's errors actually live.
+
+1. **Name the object, not the operation.** "The seed writes `live.trait_adjoint`" is
+   checkable, and it was false. "The seed leaves the term in the accumulator" is neither
+   checkable nor false, so it survived unexamined and a packet was told to break working code.
+2. **When you assert a defect, state the symptom it produces in a number.** A claimed bug
+   with no stated signature cannot be tested against the code, and it will be taken on trust.
+3. **Argue a control from every path that reaches the quantity, not from the equation you
+   are thinking about.** A trait absent from the algebra still reaches the answer if the
+   recording rebuilds anything.
+4. **When you cite a symbol as available, check it is reachable from a landed branch.**
+   "Designed", "built" and "landed" are three states, and a reader takes all three as
+   available.
+5. **When a gate asserts that state is unchanged, check the code restores by assignment and
+   not by arithmetic.** A restore-by-arithmetic is a silent one-way ratchet, and it is
+   invisible at the round values a hand-built harness picks.
+6. **A comment is never evidence of behaviour.** A comment describing a hazard usually sits
+   directly above the guard that removes it. This project has recorded such a comment as a
+   live defect four times, and twice it reached the plan of record as a measurement.
+
 ---
 
 ## 2. The packet
@@ -189,6 +213,13 @@ read finds those; a bit-identity run cannot.
 - **Prove a gate command fails when it should.** Break the thing it checks and
   confirm the command notices. This is the cheapest check in this document and it
   subsumes most of §1's advice about gates.
+- **Ask whether the gate can pass at all, and whether only the broken implementation can
+  pass it.** Both have happened here. A gate that compares a new result against the old
+  result for a quantity the old code got wrong *requires* the defect to be reproduced.
+- **A bitwise gate is not automatically the strict one.** Re-associating a sum, adding terms
+  that are exactly zero, or removing a multiplication by zero all move bits without changing
+  the mathematics — and `0.0 * NaN` becoming `0.0` changes the mathematics without failing a
+  test that uses `==`.
 
 **This economy inverts when the phase moves numbers.** Then a step whose own claim is
 bit-identity has earned its run, because it is the only thing separating "I broke the
@@ -281,17 +312,6 @@ The last two are **archived**: every task in that plan is built, and the ledger'
 was to be the one home for numbers nobody is now re-deriving. Read them for
 archaeology, cite them by commit and path, and do not design from them.
 
-**Phase 4, which no live document else carries.** Invasion gradients omit the light
-knot pullback — the resident pass with one step left out — but `run_mutant` is broken
-and cannot be fixed from adjacent work: **nothing in plant or odelia calls
-`cache_ode_step`, `cache_RK45_step` or `load_ode_step`**, all three declared and
-defined with no caller, which is exactly the two known `test-mutant.R` errors. Then
-FF16 and K93 (the templating plus the existing census reduction), two species (two
-`Leaf` objects, per-species eta inside the light reduction; every incidence number in
-this corpus is single-species), calibration (which reads intermediate trajectory
-states as active values, and a `double` trajectory breaks it without a message), and
-TF24f.
-
 ---
 
 ## 9. Dry-run every wave before you commission it
@@ -309,7 +329,8 @@ thing a careful reading finds:
 | use `odelia::incomplete_gamma` | the function is on an abandoned branch and exists in neither repository |
 | the leaf state after one call matches the state after `1 + n` calls | one member restores by accumulating arithmetic, so it does not return to its value |
 | `clear_trait_adjoint()` runs after the seed and removes the term | it runs on a different object; moving it would have summed three functionals into one row |
-| `k_I` does not reach the census, so use it as the control | the recording rebuilds the boundary node, so 36 of 44 parameters reach it |
+| `k_I` does not reach the census, so use it as the control | the recording rebuilds the boundary node, so parameters the metric algebra never names reach the census |
+| the transport derivative is differenced across a grid whose knot count moves | the grid is captured before any perturbation and held; the figure quoted was the comment justifying the capture |
 
 Each of these would have cost a packet its whole cycle, and two of them would have
 produced a plausible wrong answer rather than a failure. **The cheapest way to find them
@@ -337,308 +358,8 @@ dry run has changed what the task is, and the task should be re-scoped.
 
 A dry run that finds nothing is evidence the wave is ready. That has not happened yet.
 
----
-
-## 10. The wave plan
-
-Written as a dry run, not yet executed. `NEXTSTEPS.md` owns each task; this owns the
-order, the lane, and what each wave may spend.
-
-**Lanes are file regions, because that is the only axis along which parallel packets
-do not thrash.** Four nearly disjoint sets:
-
-| lane | files | tasks |
-|---|---|---|
-| L (leaf) | `leaf_model.{h,cpp}`, `models/tf24_strategy.h` | 0b, 1, 2, 3 leaf half, 4, 5 |
-| D (demography) | `scm.h`, `species.h`, `patch.h`, `individual.h` | 6, 7, 8, 9, 10 |
-| O (odelia) | `ode_solver*.hpp`, `gradient.hpp` | 11 |
-| B (boundary) | `RcppR6_classes.yml`, `R/`, `stand_gradient` | 3 plumbing half, the exports |
-
-Lane L is a queue, not a fan-out: tasks 2 to 5 all edit what task 1 creates. Lane L
-is therefore the critical path, and lane D holds the correctness work that outranks
-it.
-
-### Wave 0 — state and instruments
-
-Done: the develop merge on `p3/wave5` at `d3392ea3`, the odelia merge at `a3bcf58`,
-69 stale worktrees removed. Remaining, and none of it needs #590:
-
-1. **The cost harness, lane B.** Export `Patch::block_recording_size` and
-   `block_sweeps` to R. Nothing asserts that a recorded cohort step —
-   `Individual::compute_rates` at the active scalar type, recorded for one cohort at
-   one Runge-Kutta stage — costs what it was measured to cost, which is how a factor
-   of 300 sat behind a green suite. **Every later task claims a factor; without this
-   harness no packet can prove its own claim.** Build
-   this before any task that quotes one.
-2. **Task 0b, lane L.** The guard. It decides which leaf states every later gate may
-   be seeded at, so it precedes all of them.
-3. **The wave fingerprint.** One production baseline, taken by the integrator; a
-   short-lifetime number for the packets. Section 4.
-
-**Every wave below opens with a dry run of its own tasks, per section 9.** The wave is
-not commissioned until the plan has been corrected from it.
-
-### Wave 1 — correctness, lane D, and it outranks every cost task
-
-**Task 15, then 16, then 6, then 7, then 8.** Task 15 first because until the aliasing
-is fixed no other seed defect can be measured — a second sweep reads aliased values
-whatever else is right, so Task 6's gate would read garbage. Wave 3 may proceed in lane
-L concurrently, because the file sets are disjoint.
-
-Task 15's decisive test costs one recompile: reorder `tf24_census` to put `area_stem`
-first, and see whether correctness follows row 0 rather than the metric.
-
-### Wave 2 — #590's arrival, lanes D and B
-
-Tasks 9 and 10, then Task 0 for the reference data. Task 10 removes the second leaf
-solve, so take Measurement A again after it: every factor in lane L is quoted against
-10.64 calls for each recorded cohort step, and Task 10 halves that number.
-
-### Wave 3 — the leaf, lane L, strictly serial
-
-Task 3's plumbing first (lane B, and Task 2 cannot be written without it), then Task
-1, Task 2, Task 3's leaf half, Task 5, Task 4. **Task 5 precedes Task 4**, not the
-order the task numbers imply: see section 11.
-
-### Wave 4 — the rest of the cost work
-
-Task 11 in lane O, then 12 and 13, then 14 if the memory allows.
-
----
-
-## 11. What the first dry run found, and what the plan now says
-
-Walked task by task before execution, in the manner section 9 now requires of every
-wave. These are defects in the plan, not in the code, and each has been fixed in
-`NEXTSTEPS.md`. They are kept here as the evidence for section 9.
-
-### The plan reaches fast. It does not reach correct.
-
-The arithmetic for speed closes. For 44 traits the chain is Task 1 (5.3) times Task 10
-(2) times Task 11 (3) times Tasks 12 and 13 (1.2) times Task 14 (1.5), with Tasks 4
-and 5 inside the leaf, against an Amdahl share that moves from 98.16 percent to about
-a third. **Tasks 2 and 3 contribute nothing to this number**: their figures are 1.005
-and 1.00 for all 44 traits, and 44 traits is what V4 asks for. Composition has never
-been measured, so treat the total as a hypothesis.
-
-Correctness does not close, because **four defects have no task**:
-
-1. **`height_seed` carries no derivative.** `rebind_from` passes `height_0`,
-   `area_leaf_0` and `eta_c` as values, so `d(height_0)/d(trait)` is absent from both
-   AD paths. Measured as about 3 percent for `lma`. **No instrument in this plan can
-   referee a fix**: the forward tangent loses the same term, and a finite difference
-   cannot run at production because a relative `lma` step of 2e-7 flips the stand to
-   zero. Fixing this needs `odelia::implicit_value` on `height_seed` *and* a new
-   referee. Nothing schedules either.
-2. **DIAGNOSED. The stop has three causes and Task 6 is none of them.** The seed is
-   aliased for every metric after the first, because `census_state_adjoint` builds the
-   copy at the active type once and `vector_jacobian_product` calls `tape.clearAll()` on
-   each of its three calls, resetting the slot counter under values that outlive it.
-   `leaf_area` is right only because it is row 0 of `tf24_census`. Separately, the
-   traits of the field build reach no accumulator, which is the whole of `k_I`. Both are
-   now tasks 15 and 16, and **Task 11 supersedes Task 15**, which moves it from a cost
-   task to the correct end-state of a correctness fix. Wave 1 no longer needs a
-   diagnosis packet.
-3. **Four trait columns are wrong or absent with no owner.** `beta_R_H` and
-   `beta_R_V` have no row at all; `psi_crit` and `root_psi_crit` read zero except when
-   pinned, and the pinned gap is unexplained. Task 5 fixes the other four hydraulic
-   columns and not these.
-4. **V4's own harness is broken.** `scripts/v4-census-gradient.R` and
-   `scripts/v4-reference.R` perturb `pars[["lma"]]` directly, which never recomputes
-   the derived strategy quantities, and `scripts/v4-reference.rds` belongs to a
-   superseded configuration. **A passing V4 needs the harness rewritten through
-   `add_strategies`, and no task does that.** Write it in Wave 0, next to the cost
-   harness: it is the acceptance test the whole plan is aimed at.
-
-### Ordering defects, each verified against the code
-
-- **Task 2 cannot precede Task 3.** Task 2's condition is written with `par_wanted`,
-  which does not exist. `leaf_model.cpp` has `rebuilds_transport` and no notion of a
-  parameter being wanted; that notion is what Task 3 builds. Task 2 is two lines only
-  after Task 3's plumbing lands.
-- **Task 5 must precede Task 4.** `reaches_operating_point` excludes only `psi_crit`,
-  `root_psi_crit`, `rho` and `a_bio`, so `b`, `c`, `root_b` and `root_c` are among
-  Task 4's eleven parameters. Task 4's gate is the central difference it replaces, and
-  Measurement E shows that difference is wrong by 47 to 10 245 times for exactly those
-  four. **Four of Task 4's eleven rows would be gated against a poisoned reference.**
-- **Task 0b moves the pinned rows, so it must be measured before Task 1.** At the
-  `bound_a` pin `psi_stem` equals the collar potential, so the forward guard
-  `psi_upstream >= psi_stem` fires and the forward path reports
-  `gamma * umol_per_mol_to_Pa`, while `input_adjoints` root-finds. They disagree
-  there today. Making them agree changes the pinned rows. Task 1's gate is bitwise
-  equality of rows against the previous build, so its baseline must be taken **after**
-  Task 0b, and Task 0b's own gate must expect the pinned rows to move.
-- **The stop table of section 1 expires when #590 lands.** It was taken at
-  `max_patch_lifetime = 2` on the height coordinate. Task 0 says each earlier
-  reference number is then wrong. Task 6's gate reads that table, so the stop has to
-  be measured again on the new coordinate before Task 6 can be gated.
-- **Task 10 invalidates every factor in lane L.** They are all quoted against 10.64
-  `input_adjoints` calls for each recorded cohort step, and Task 10 removes the second
-  leaf solve. Take Measurement A again after Task 10, before quoting a factor to a
-  packet.
-
-### Task 1 was written against a leaf that restores itself, and it does not
-
-**The gate I specified could not pass.** It required the leaf state after one
-`output_rows` call to match the state after `1 + n` `input_adjoints` calls. `PPFD_` is
-restored by accumulating arithmetic rather than by assignment —
-`h = PPFD_*1e-6; PPFD_ += h; PPFD_ -= 2h; PPFD_ += h` — and `fl(fl(fl(P+h)-2h)+h)` is
-not `P`. It returns at 900, 1000 and 800 and drifts one unit in the last place at 1500,
-1200 and 1e-3. So the old code takes each row at a slightly different `PPFD_`, **its
-rows are not the rows of one Jacobian**, and at `PPFD = 1500` forty of 810 entries
-disagree to 2.087e-06. The gate now compares against **one** old call, and the task is
-recorded as removing a defect and moving its gradient rows.
-
-The general lesson, which is cheap to apply and would have caught this: **when a gate
-asserts that state is unchanged, check that the code restores by assignment and not by
-arithmetic.** A restore-by-arithmetic is a silent one-way ratchet, and the value that
-made it visible, 900, is the one a hand-built harness picks.
-
-Three more from the same dry run, each a trap a reasonable reading falls into:
-
-- **`input_adjoints[i_par0 + k]` is written with `=`, not `+=`.** A row loop that
-  hoists the assignment out loses the parameter columns of every row but the last, and
-  they read exactly zero — the failure mode this plan's own warning describes.
-- **`mu * (R_pm[0] - R_pm[1]) / (2h)` may not be hoisted as a quotient**, because that
-  re-associates. Lift the raw pair. This is the one place where a reasonable reading of
-  the steps silently fails the steps' own bitwise gate.
-- **"Keep the order of the statements" is not satisfiable with "put the branch above
-  the row loops".** The instruction has to be "keep the order of the calls that move the
-  leaf"; a pure write may move, a perturbing call may not.
-
-And step 8 is confirmed deleted: `bound_partials` takes no seed, so it has nothing to
-bundle, and step 7 already reduces it to one call for each recorded cohort step. Its own
-four-parameter loop and **two further tabulation builds that Measurement A never
-counted** belong to Tasks 2 and 3.
-
-### Task 6's step 4 was an instruction to break working code
-
-I specified "move `clear_trait_adjoint()` to a point before the seed is taken. Today it
-runs after the seed and it removes the term." Every clause of that is false.
-`clear_trait_adjoint()` runs inside the per-metric loop on `live`; the seed is taken above
-the loop on `patch`, a different object, by a `const` function that writes no accumulator
-at all. Moving the clear would have taken it out of the loop and summed three metrics into
-one row. **A packet that followed the step would have broken a correct ordering and the
-gate I gave it would not have noticed.**
-
-Two habits would have caught it, and both are cheap. **Name the object, not the
-operation**: "the seed writes `live.trait_adjoint`" is checkable and false, where "the
-seed leaves the term in the accumulator" is neither. And **when a step says a bug exists,
-state the symptom it produces**; I asserted a term was being removed without ever saying
-what that looked like in a number, which is how the claim survived unexamined.
-
-### Two more of my expectations that the code refuted
-
-- **`k_I` is not an available control for Task 6.** I gave it as the trait that must not
-  change, because it is absent from the metric functors. But the recording calls
-  `set_ode_state`, which rebuilds the boundary node, and `Species::census` reads that
-  node's density — `birth_rate * pr_estab / g`, a physiology evaluation through the light
-  field, which reads `k_I`. Measured: **36 of 44 columns take a direct term, not the four
-  the algebra names.** A control has to be argued from every path that reaches the
-  quantity, not from the equation you are thinking about.
-- **`area_stem`'s inputs are not functions of `area_leaf` only.** `area_sapwood` reads
-  `theta` and `area_bark` reads `a_b1` and `theta`. The conclusion I drew from the wrong
-  premise happened to hold; that is luck, not method.
-
-### A number in the plan of record that nobody can reproduce
-
-Section 1's stop table records `mass_above_ground` at `+1.1236103034985`. A dry run on
-the same commit at the same lifetime, through the tree's own driver, reads `-14906.6`,
-while the `leaf_area` row reproduces to 1.9e-6. The table never recorded which driver or
-configuration produced it. **A measurement carries its configuration is not satisfied by
-a lifetime and a trait name** — and a corrupted row is exactly the kind of number that
-cannot be reproduced later, because what it reads depends on what took a freed tape slot.
-
-### Underspecified for a packet
-
-- **Task 4 is a derivation, not an implementation.** Eleven mixed second derivatives
-  including the implicit-function term of the `ci` root-find. A packet may not make
-  design choices, and a derivation is one. The architect writes the eleven
-  expressions; a packet transcribes and gates them.
-- **Task 5 named a function that does not exist. RESOLVED, plan updated.**
-  `odelia::incomplete_gamma` is in neither repository. It lives on the odelia branch
-  `claude/odelia-ad-tape-reverse-496fuf` at `f359830`, an ancestor of neither `master`
-  nor `p3/odelia-integration` — built in Phase 1, never landed. The agreement figures
-  the task quotes come from that commit's own tests. This is `NEXTSTEPS.md` section 11's "price the
-  placeholder" pattern applied to the plan that names it: **"designed, built, or named
-  as owed" collapses three states, and a reader takes it as available.** When you cite
-  a symbol as available, check it is reachable from a landed branch.
-- **Task 5's tape was unnecessary. RESOLVED: hand-differentiate.** The design keeps
-  `Leaf` at `double`, which is what lets the supplied derivative serve the forward type
-  and keeps the tangent referee; a tape inside the leaf needed `block_state::tape`
-  threaded from `Patch::cohort_block_adjoint` through `Strategy`, and that plumbing was
-  in no step. Both derivatives are closed form for one extra accumulator: `dgamma/dx` is
-  the integrand `x^(a-1) e^-x`, and `dgamma/da` is `log(x) * gamma` plus the same series
-  with `-term_n * sum of 1/(a+k)`. `b` and `root_b` need only the first, so two of the
-  four wrong columns need no series derivative at all.
-- **Task 5's scope is unknown until `psi_from_transpiration` is settled.** The task
-  says to check whether the derivative path reads it and not to assume. That makes it
-  two packets: an investigation, then an implementation sized by its answer.
-- **Task 3's masked NaN was in the wrong place. RESOLVED: mark the column.** A row is
-  read by nothing but the two `graft` calls, so a marker there is invisible to the
-  consumer that matters, and compaction cannot protect against the NaN actually feared,
-  which lives in state columns that are never masked. The marker now goes on the output
-  column in `clear_trait_adjoint`, the rows stay clean, and `graft` does not change.
-- **A branch kink already makes both AD paths NaN, and this is a live defect nothing
-  records.** `layer_flux_partials` returns with every entry NaN at an equal-potential,
-  gravity-balance or near-zero-collar condition, no caller tests for it, and
-  `partial * (x - to_passive(x))` puts `NaN * 0.0` into the **value** of `leaf_profit_`.
-  The plain `double` run is safe, because the supplied derivative is under
-  `if constexpr (!std::is_same_v<S, double>)`; the tangent and the adjoint are not, so
-  one kink NaNs the gradient and its referee together. Decide what a row holds at a kink
-  before Task 1 freezes its bit patterns.
-- **Two counts in the plan did not reproduce.** 13 of the 15 leaf parameters are
-  registered, not 11, and nine of those also reach the operating point; "4 residual
-  pairs" is 4 evaluations. So the registration list alone removes 2 of 15, and nearly all
-  of Task 3's value comes from the requested subset — which the task's own WARNING, read
-  literally, forbade.
-- **`Patch::cohort_block_adjoint` never resets `block_workspace`.** A mask set after the
-  first recorded cohort step never reaches the leaf, and two `stand_gradient` calls with
-  different trait sets silently reuse the first mask.
-- **Task 3 crosses the R boundary and no step mentions the generated code.** Making
-  the trait set reach C++ changes `inst/RcppR6_classes.yml` and needs
-  `make RcppR6 && make attributes`.
-- **Task 9 has no gate.** It deletes the weight-derivative term. Deleting a term moves
-  numbers, so it needs the tangent of Task 0 and an explicit expectation.
-- **Task 1 step 8 belongs to Task 3.** `bound_partials` has no seed dependence, so
-  there is nothing in it to bundle; what it needs is the mask. As written the step
-  forces the packet to guess which change is meant.
-
-### What stays dead, and should be said so
-
-Task 2's guard is unreachable after Task 5 Stage A, because nothing calls
-`build_cumulative_vulnerability_integral` from the reverse path any more. Land Task 2
-as insurance, and label it as insurance Task 5 deletes. Task 1 keeps
-`input_adjoints` as a contraction over the rows; after Task 1 its only caller is the
-gate. Keep it for that and say so, or it reads as a live path.
-
----
-
-## 12. A wave in flight: four dry runs stopped by a session limit
-
-**Recorded 2026-08-04.** Batches B, C, D and F below stopped mid-run on an API session
-limit, not on their work. **Two of six batches completed and their findings are landed in
-`NEXTSTEPS.md` and reports 06 and 07.** The other four have measured artefacts on disk and
-should be **resumed, not restarted** — each holds a certified odelia install, a built plant,
-and measurements a restart would have to pay for again.
-
-| batch | tasks | worktree | scratch | last known step |
-|---|---|---|---|---|
-| A — leaf algebra | 2, 4, 5 | `/home/user/wt-dryA` | `scratchpad/dryA/` | **complete, landed** |
-| B — reductions | 8, 9, 10, 17, 21 | `/home/user/wt-dryB` | `scratchpad/dryB/` | census-invariance measured (`invariance.rds`, `inv.log`); was starting Task 21 |
-| C — field | 16, 18, 22 | `/home/user/wt-dryC` | `scratchpad/dryC/` | grid-channel and sparsity probes written; shading-bias run started |
-| D — sweep | 11, 24, 25, 26, 27 | `/home/user/wt-dryD` | `scratchpad/dryD/` | plant built; **`purity.log` is 76 kB** (Task 27's permutation gate), `task26.log`, `height-rows.log`, `eps-sweep.log` |
-| E — parameters | 19, 20, 23, 28 | none needed | `scratchpad/dryE/` | **complete, landed** |
-| F — memory | 12, 13, 14 | `/home/user/wt-dryF` | `scratchpad/dryF/` | Task 12 measured both arms (`t12_off.log`, `t12_on.log`); `runTRUE3.log` |
-
-**How to resume.** Send each agent a message rather than spawning a new one — a send resumes
-it from its own transcript, so it keeps the worktree, the install and the reasoning. Ask only
-for the write-up from artefacts it already has, and tell it not to re-measure. A fresh packet
-would repeat four builds and lose the measurements above.
-
-**Do not clean up those four worktrees or scratch directories** until the write-ups are in.
-
-**The scheduling lesson, which is mine.** Six concurrent agents each authorised two builds is
-twelve builds and a large token draw in one window. Section 4 says to fan out the writing and
-take the builds one at a time; I fanned out both. **A wave sized to a session's limit is part
-of costing a gate** — the limit is a resource like a core, and it was not in my count.
+**Give a dry run the standing to overturn its own brief, and mean it.** The instruction that
+produced the most value was to report both readings and implement neither. The one that
+produced the most *correction* was to check every claim in the brief against the code before
+relying on it — a mechanical pass over every named symbol has found more, and more severe,
+defects than careful reasoning about the design has.
