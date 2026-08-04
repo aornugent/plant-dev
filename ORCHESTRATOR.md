@@ -556,7 +556,7 @@ cannot be reproduced later, because what it reads depends on what took a freed t
   `odelia::incomplete_gamma` is in neither repository. It lives on the odelia branch
   `claude/odelia-ad-tape-reverse-496fuf` at `f359830`, an ancestor of neither `master`
   nor `p3/odelia-integration` — built in Phase 1, never landed. The agreement figures
-  the task quotes come from that commit's own tests. This is section 11's "price the
+  the task quotes come from that commit's own tests. This is `NEXTSTEPS.md` section 11's "price the
   placeholder" pattern applied to the plan that names it: **"designed, built, or named
   as owed" collapses three states, and a reader takes it as available.** When you cite
   a symbol as available, check it is reachable from a landed branch.
