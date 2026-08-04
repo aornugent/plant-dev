@@ -1584,6 +1584,31 @@ gate reads aliased storage.
 
 ### Task 7: assert that the sweep covers the trajectory
 
+**A trace found the specific hole, so this task now has a named failure and not only a
+principle.** `census_trait_gradient`'s loop covers `[boundary[0], states.size()-1]`
+(`scm.h:701-711`) and **nothing checks `boundary[0] == 0`.** So every accepted step before the
+first width change is silently never swept, and the `lambda` returned is the adjoint of
+`states[boundary[0]]` rather than of the initial state. `solve_adjoint`'s own guards only check
+that the range is well formed (`ode_solver.hpp:279-282`). **Assert `boundary[0] == 0`.**
+
+**And the boundary detector fires on any width change** (`states[k].size() != states[k-1].size()`,
+`scm.h:675-678`) while the handling is introduction-only. A *narrowing* event would be
+mis-handled rather than refused. Refuse it by name.
+
+**Two further holes for this document, found in the same pass. Neither has a task.**
+
+- **`height_0` has a silently zero derivative.** `prepare_strategy` carries
+  `static_assert(std::is_same_v<S, double>)` (`tf24_strategy.h:1682-1694`), so the reverse pass
+  uses `rebind_from` (`:565-605`), which copies the derived quantities **at their values**, and
+  `set_block_inputs` never calls `prepare_strategy` or `refresh_indices`. `height_0 =
+  height_seed()` depends on `omega` and `lma`, both registered. So those two columns are short
+  by the seed-height term and nothing says so.
+- **The water channel from cohorts back into the soil state is cut.** `patch.h:1101-1104` is
+  `resource_depletion.push_back(odelia::util::to_passive(resource_consumed / area));`. The
+  environment's store is `Internals<double>`, so this is deliberate — but it means the second
+  reduction in the model carries **no** derivative, and report 05 section 3's composition
+  diagram did not show the reduction at all.
+
 Type: correctness. Small.
 
 **Why.** `SCM::census_trait_gradient` builds the segment list from the width
