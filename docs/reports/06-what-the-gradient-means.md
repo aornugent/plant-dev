@@ -372,6 +372,21 @@ number answers a counterfactual that does not exist. The critical potential's se
 real, but it belongs *inside* the position and steepness rows, which is where someone reading
 the output would look for it.
 
+**This is now settled, and settled in the ecology's favour.** The model's own construction
+ties the stem curve's steepness to its position by a fitted trade-off — so on one reading a
+stem curve has only *one* degree of freedom, and the two organs would be described
+inconsistently. The ruling is that the trade-off is a **default for choosing initial values,
+not a constraint on the curve**: two species can share a $p_{50}$ and differ in how sharply
+they lose conductivity, which is what the measurements show. So both organs get two numbers,
+and the critical potential follows from them.
+
+**What is *not* offered, and the reason is worth understanding.** $p_{50}$ — the potential at
+which half of conductivity is lost, and the single most reported number in plant hydraulics —
+is refused. Not because it does not matter, but because **setting it in this model changes
+nothing**: the curve was built from it once, and afterwards the curve is what it is. A
+sensitivity to $p_{50}$ would describe a model that re-derived the curve when you moved it,
+and no such model is implemented. Asking for a curve's position is asking for $b$.
+
 This is the clearest case in the model where the ecology dictates the output format rather
 than merely interpreting it.
 
