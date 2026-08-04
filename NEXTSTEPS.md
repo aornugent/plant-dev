@@ -424,10 +424,24 @@ cohort's height, so the severance is untouched.
    density, and that was never measured. Measure it at production knot counts. If it
    converges, the choice is defensible and its cost is bounded. If it does not, it is a
    defect.
-2. **Decide the channel.** Either make the positions active — which makes the spline's
-   grid depend on an active value, and report 03 section 1b describes what that costs — or
-   keep them passive and add the query-side chain-rule terms `d/d(height_max) = -z/height_max^2`
-   that section 1b claims are already there. Read whether they are.
+2. **Overturn the choice, by normalising the coordinate.** C1's ruling is a choice and a
+   choice whose price was mis-estimated by four orders is a choice to revisit. There is a fix
+   that needs no active grid, and report 03 section 1b describes it: **hold the grid at the
+   fixed fractions `u_k` in a normalised coordinate, and query the field at
+   `nu = z / height_max`.** Then the knot positions are literally constant, `height_max`
+   enters only through the query argument, and its derivative is ordinary arithmetic:
+   `dF/d(height_max) = (dF/d nu) * (-z / height_max^2)`. Exact, and no spline grid becomes
+   active.
+
+   Section 1b describes this as though it were built. **It is not.** `ResourceSpline` lays
+   its knots at `to_passive(height_max)` and queries at absolute height, in both
+   `set_fixed_value` and `rebuild_spline`. So section 1b states the design and the head
+   states the tree, and both are right about different things.
+
+   **A third bit-equality cache lives here.** `rebuild_spline` rebuilds only when
+   `spline.size() != knot_fractions_.size() || spline.max() != height_max`. That is an exact
+   comparison on an active value, in the same family as Task 23's. Under normalisation the
+   condition disappears, because the grid stops depending on `height_max` at all.
 3. **Add the field's own Leibniz term.** Report 03 section 1b and report 01 section 3 both
    require it: the reduction's lower limit is `height_0`, so the field carries
    `integrand(height_0) * d(height_0)/d(trait)`. It is closed form and it belongs with the
@@ -1083,6 +1097,20 @@ in elementary operations. It agrees with the tabulation to 1.42e-15 for the stem
 `dG/dm = exp(-(m/b)^c)` is recovered to 9.0e-14 and 2.3e-13. `dG/db` and `dG/dc`
 match a central difference of the closed form with a clean plateau in all 16 cases.
 
+**WARNING: the series is convergent everywhere and usable only for small `x`.** The term
+ratio is `x / (a + n)`, so convergence begins near `n = x`, and the factored form
+`x^a e^-x * Sigma` separates an overflowing factor from an underflowing one. In double
+precision `X = 3125` — which is `m/b = 5` at `c = 5`, inside this model's range — overflows
+`Sigma` to infinity and underflows `e^-X` to zero, so the value is **NaN**. Verified
+numerically. **Switch on the argument: the series for `x` up to about `a + 1`, and the
+continued fraction for the upper incomplete function above it, with
+`gamma = Gamma(a) * (1 - Q)`. Never form `x^a e^-x` and `Sigma` separately.** Closing this
+task from the series alone replaces a wrong derivative with a NaN.
+
+**This task makes the four columns derivatives. Task 28 makes them answerable.** The closed
+forms remove the knot-count discontinuity; `psi_crit` being registered beside `b` and `c`
+means the row still answers a counterfactual that cannot happen. Both are needed.
+
 **Take the two derivatives by hand. Do not put a tape inside the leaf.** The leaf is
 `double` and gives back rows of numbers, and that is what lets the supplied derivative
 serve the forward type and keeps the tangent referee. A tape inside the leaf needs
@@ -1158,6 +1186,45 @@ exactly what this task rewrites. State it as an exact identity, not a tolerance.
 stationarity identity of report 02 section 6.9 as a reference.** `dp*/du` is formed
 from `Pi_pp`, so it cancels, and a real 2 percent error in `Pi_pp` passed that
 identity with the same bits before and after the fix.
+
+### Task 28: report the vulnerability curve in its own parameterisation
+
+Type: **correctness**, and it is the half of the hydraulic columns that closed forms do not
+fix.
+
+**Why.** `TF24_Pars` derives `psi_crit` from `b` and `c`:
+`psi_crit = b * power(log(1/0.05), 1/c)`, and `root_psi_crit` from `root_b` and `root_c` the
+same way. **All six are in `ad_parameters()`.** Therefore the gradient's `d/db` is taken with
+`psi_crit` held fixed — and `psi_crit` is not an independent property of a plant, it is
+defined by the curve that `b` and `c` describe. **No plant can be perturbed that way, so the
+number answers a question nobody can ask.**
+
+This is the functional-independence precondition of report 05 section 8 failing one level
+up, in `ad_parameters()` rather than in the leaf's input list. It is also the likely reason
+Section 9 records `psi_crit` and `root_psi_crit` reading zero except when pinned.
+
+**The ecology sets the right output.** A vulnerability curve has two degrees of freedom per
+organ: where it sits and how steep it is. An ecologist fits those two to measured data.
+Reporting three gradient entries per organ for a two-parameter curve is over-parameterised,
+and the third answers a counterfactual that does not exist.
+
+**Steps.**
+
+1. Decide which parameters carry the curve. Section 2b's companion decision is that the
+   gradient goes through the low-level parameters, so `b` and `c` carry it, per organ.
+2. Remove `psi_crit` and `root_psi_crit` from `ad_parameters()` and let them follow `b` and
+   `c` by the chain rule, as derived quantities. **Their contribution does not disappear** —
+   it moves into the `b` and `c` rows, which is where an ecologist would look for it.
+3. Refuse `psi_crit` and `root_psi_crit` by name at the boundary, as Task 19 refuses `p_50`,
+   and for the same reason: they are derived, not free.
+
+**WARNING: removing an entry from `ad_parameters()` changes the trait-adjoint layout.**
+`trait_adjoint_size()` sums over species and `census_trait_names_tf24` must agree with it.
+Task 3's warning applies: the list is the authority on the layout.
+
+**How to check.** The `b` row after this task must equal the `b` row before it plus the
+`psi_crit` row times `d(psi_crit)/db`, which is `psi_crit / b`. That is an exact identity and
+it is the gate.
 
 ### Task 6: add the direct trait term of the census
 
