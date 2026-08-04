@@ -139,6 +139,13 @@ What this buys, and each item is a task that gets smaller:
 - **The second leaf solve goes away by the coordinate change itself**, because
   `log_density_dt` is `-mortality` and `growth_rate_gradient` no longer runs.
 
+**One consequence that is easy to miss.** On this coordinate the quadrature abscissa is
+the introduction time, so **the introduction schedule and the quadrature grid are the
+same object**. Refining the schedule changes the abscissa the resource integrals are
+taken over. Under the height coordinate the two were separate concerns. Therefore a
+converged schedule is a precondition for any reference number here, and not a
+housekeeping task.
+
 What it costs:
 
 - **The forward model keeps both coordinates**, so the forward references at the
@@ -353,29 +360,32 @@ this too, because the guard moves into the function.
 **The build order is not the number order.** The numbers name the tasks; this list
 orders them, and each departure has a reason that was checked against the code.
 
-1. **Task 15 first, before every other correctness task.** It is the cause of two of
+1. **Task 17 first.** It is the only thing that stops a wrong gradient being returned
+   silently on the coordinate the design targets, and it does not depend on anything.
+   Task 21 follows it immediately, because Task 17 breaks every reverse-mode test.
+2. **Task 15 next, before every other correctness task.** It is the cause of two of
    the three wrong metrics, and until it is fixed no other seed defect can be measured:
    a second sweep reads aliased values whatever else is right.
-2. **Task 16 next**, because it is the only cause of `k_I` and it is independent of
+3. **Task 16 next**, because it is the only cause of `k_I` and it is independent of
    everything else.
-3. **Task 3's plumbing before Task 2.** Task 2's condition is written with
+4. **Task 3's plumbing before Task 2.** Task 2's condition is written with
    `par_wanted`, which does not exist. `leaf_model.cpp` has `rebuilds_transport` and
    no notion of a parameter being wanted. Task 3 builds that notion.
-4. **Task 1 before Task 2 and before Task 3's leaf half**, because both edit
+5. **Task 1 before Task 2 and before Task 3's leaf half**, because both edit
    `output_rows`, which Task 1 creates.
-5. **Task 5 before Task 4.** `reaches_operating_point` excludes only `psi_crit`,
+6. **Task 5 before Task 4.** `reaches_operating_point` excludes only `psi_crit`,
    `root_psi_crit`, `rho` and `a_bio`, so `b`, `c`, `root_b` and `root_c` are among
    Task 4's eleven parameters. Task 4's gate is the central difference it replaces,
    and Measurement E shows that difference is wrong by 47 to 10 245 times for those
    four. **Four of Task 4's eleven rows would be gated against a poisoned
    reference.**
-6. **Task 0b before every gate**, and its own gate must expect the pinned rows to
+7. **Task 0b before every gate**, and its own gate must expect the pinned rows to
    move. At the `bound_a` pin `psi_stem` equals the collar potential, so the forward
    guard `psi_upstream >= psi_stem` fires and the forward path reports
    `gamma * umol_per_mol_to_Pa` while `input_adjoints` runs the root-find. The two
    disagree there today. Making them agree changes the pinned rows, so **Task 1's
    bitwise baseline must be taken after Task 0b, not before.**
-7. **Take Measurement A again after Task 10.** Every factor in Section 11 is quoted
+8. **Take Measurement A again after Task 10.** Every factor in Section 11 is quoted
    against 10.64 `input_adjoints` calls for each recorded cohort step, and Task 10
    removes the second leaf solve.
 
@@ -383,6 +393,125 @@ orders them, and each departure has a reason that was checked against the code.
 including the implicit-function term of the `ci` root-find, is design. A packet may
 not make a design choice. Write the eleven expressions first; then a packet
 transcribes and gates them.
+
+### Task 17: refuse the height coordinate at every reverse-mode entry point
+
+Type: **correctness**, and it is urgent because the wrong answer is silent.
+
+**Why.** Section 2b scopes the gradient to the birth-date coordinate. Nothing enforces
+it. **Measured on the merged tree at `node_density_in_birth_date = TRUE`, the gradient
+returns a finite, plausible, wrong number:** `sum(abs)` of the census state adjoint is
+1.404 against 3.516 at the default. It does not raise.
+`Species::compute_competition_and_slope_adjoint` still forms its width from heights and
+exits on `h0 < height`; `consumption_rate_adjoint` mirrors only the height branch of
+`consumption_rate`. So the reductions transpose one coordinate while the forward model
+integrates the other.
+
+This is the failure `METHOD.md` section 1 calls worse than an exact zero: every entry
+finite, every sign plausible, nothing in its shape asking to be looked at.
+
+**Steps.** Refuse when `!density_in_birth_date()` in `SCM::census_trait_gradient`,
+`SCM::census_state_adjoint`, `Patch::cohort_block_adjoint`,
+`Patch::introduction_adjoint` and `stand_gradient`. Refuse at those five and nowhere
+below them: a refusal inside a reduction reaches a caller that has already paid for a
+recording. Name the coordinate in the message.
+
+**Also refuse a non-distinct birth date.** Under this coordinate `x_k = b_k` is the
+quadrature abscissa, so two cohorts sharing a birth date give a zero-width trapezium.
+#590 supplies `Species::birth_dates_are_distinct()` and
+`Patch::check_birth_dates_distinct()`. Use them; do not write a third check.
+
+**Do this before Task 9, not after.** Task 9 makes the reductions correct on this
+coordinate. Until then the refusal is the only thing between a user and a wrong number,
+and it is worth landing on its own.
+
+### Task 18: register `eta`
+
+Type: correctness. Small, and the recorded reason for its absence is wrong.
+
+**Why.** `eta` is absent from `ad_parameters()`. The comment gives the reason as
+`CanopyShape::Qp`, where the exponent reaches a base of 0 and the recorded derivative
+`u^k * log(u)` is NaN. **`CanopyShape::Qp` is called only by FF16.** TF24 reaches
+`Q_and_q`, `q_from_height`, `Q_from_height` and `Q`. So the recorded reason names a
+function this model never calls.
+
+The hazard is real in the functions TF24 does call: `Q(u) = (1 - u^eta)^2` gives
+`dQ/d(eta)` a factor `u^eta * log(u)`, which is NaN at `u = 0`. But #590 added a
+`z <= 0` limit branch to `q_from_height`, which is a guard at exactly that endpoint.
+
+**Steps.** Guard the endpoint in `Q` and `Q_and_q` as `q_from_height` now guards it,
+then add `&pars.eta` to `ad_parameters()`. Correct the comment: name the functions TF24
+reaches.
+
+**`eta` also needs Task 16**, because `CanopyShape` is inside the field build, so its
+row has nowhere to go until the field build has a parameter accumulator.
+
+**How to check.** `dQ/d(eta)` against a central difference at `u` in the interior, and a
+finite result at `u = 0` and `u = 1`.
+
+### Task 19: refuse a parameter that reaches nothing, by name
+
+Type: correctness. It closes the gap between absent and zero.
+
+**Why.** Twelve registered-looking parameters reach no equation on this path, and an
+absent column is indistinguishable from a zero column at the boundary.
+
+**`p_50` is out of scope by decision, not by defect.** The gradient is taken through the
+low-level parameters `b` and `c`, which `TF24_Pars` derives from `p_50` in its own
+default initialisers. So `p_50` is read once at construction and a value set afterwards
+reaches nothing. **Do not add a row for it.** A gradient with respect to `p_50` would
+mean differentiating the derivation, and this design differentiates `b` and `c`
+directly.
+
+The others reach nothing for a plainer reason: `a_p1` and `a_p2` belong to the
+light-response curve the Farquhar leaf replaced, and `beta1`, `S_D`,
+`var_sapwood_volume_cost`, `nmass_l`, `nmass_s`, `nmass_b`, `nmass_r` and `dmass_dN` are
+declared, carried, and read by nothing here.
+
+**Steps.** Refuse each of these by name at the boundary, with a message saying why. Do
+not register them and do not return a zero column.
+
+**`p_50` deserves a separate report to the owner.** It is settable from R, it is the
+trait an ecologist would set, and setting it changes nothing in the forward model
+either. That is a forward-model defect and it is not this plan's to fix.
+
+### Task 20: let `vcmax_25` and `jmax_25` register
+
+Type: correctness. A cache key, not a derivative.
+
+**Why.** Both are absent from `ad_parameters()`, and the recorded reason is that
+`Leaf::photo_temp_cached_` keys on `(leaf_temp_, atm_o2_kpa_)` only, so a changed
+`vcmax_25` hits the cache and the derived `vcmax_` is reused rather than computed again.
+That is a wrong cache key. It is not a mathematical obstruction.
+
+**Steps.** Put `vcmax_25` and `jmax_25` in the cache key, or invalidate the cache when
+either is written. Then register both. Check `Leaf::set_parameter`, which recomputes
+`vcmax_`, `R_d_`, `jmax_` and `electron_transport_` by hand and is the reason the
+difference path works today; the registered path must reach the same state.
+
+**How to check.** The row for each against a central difference of the whole solve, and
+`assim_max_` recomputed — see Task 0b's warning, which is the same staleness one level
+down.
+
+### Task 21: move the reverse-mode tests to the birth-date coordinate
+
+Type: correctness of the instruments, not of the model.
+
+**Why.** Every existing reverse-mode test runs at the default `Control()`, which is the
+height coordinate. Task 17 refuses that coordinate. **Therefore Task 17 breaks every one
+of them, and the breakage is correct.**
+
+By `ORCHESTRATOR.md` section 7 this is the middle row of the three kinds: the assertion
+can no longer express what it tested, so **migrate the test and check first whether a
+capability went with it.** Do not delete an assertion and do not accept a new number for
+one.
+
+**Steps.** Set `node_density_in_birth_date = TRUE` in each reverse-mode test's
+`Control`. Take each new reference from the migrated test itself, on a converged
+schedule. For any assertion that cannot be expressed on this coordinate, say which
+capability it covered and report it rather than removing it.
+
+**Count them before you start**, so the arithmetic is checkable afterwards.
 
 ### Task 15: give each recording its own active values
 
