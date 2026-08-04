@@ -486,21 +486,31 @@ Earlier work in this project reported a sixfold saving and, separately, a halvin
 machine. The halving is close to right at the production schedule and conservative at finer ones; the
 sixfold is not supported.
 
-### 6.6 State survives `SCM::reset()`, and the uncorrected coordinate is far more sensitive to it
+### 6.6 State survived `SCM::reset()`, and the uncorrected coordinate is far more sensitive to it
 
 Building a fresh solver for each run is reproducible: three repeats of TF24's 204-node schedule return
 6 110 accepted steps and 60.1972008 every time. Reusing one solver and calling `reset()` between runs is
 not. The first run on the object reproduces the fresh-object value exactly; every run after that returns
-6 281 or 6 196 accepted steps and 60.3377 or 60.3392, values agreeing with each other to 1.5 × 10⁻⁵. This
-is not scatter but two reproducible regimes, and the accepted step count moving between them points at the
-integrator's step-size history surviving the reset.
+6 281 or 6 196 accepted steps and 60.3377 or 60.3392, values agreeing with each other to 1.5 × 10⁻⁵.
 
-**The asymmetry is the informative part.** Across the same schedules the uncorrected coordinate moves
-2.33 × 10⁻³ between the two regimes and the corrected one 3.12 × 10⁻⁵, a factor of 75. The uncorrected
-answer depends on the sequence of accepted steps because its transport term is a finite difference over a
-`10⁻⁶` divisor; the corrected coordinate takes no derivative and barely registers the change. This is the
-mechanism §6.5 identifies behind the step-count saving, showing up as sensitivity of the answer rather
-than of the cost.
+The carrier is TF24's soil water, which is part of the patch's ODE state. At the commit measured here
+`TF24_Environment::clear_environment()` cleared the light profile and nothing else, so `Environment::clear()`
+left every moisture layer and all four flux accumulators at their end-of-run values, and `solver.reset()`
+loaded those straight back in. Each run therefore began from the previous run's final soil: the second run
+starts from the first run's end, the third from the second's, which is why the later values agree closely
+without being equal rather than scattering. The integrator is not implicated — `SolverInternal::reset()`
+sets `step_size_last` back to `control.step_size_initial` and clears its time history.
+
+**This is fixed.** The forward-model correctness fixes merged into `develop` after these measurements record
+the initial states and restore them in `clear_environment()`, and ship a regression test asserting that a
+second run on one solver reproduces the first.
+
+**The asymmetry outlives the defect.** Both coordinates resume from the same perturbed soil, and across the
+same schedules the uncorrected one moves 2.33 × 10⁻³ while the corrected one moves 3.12 × 10⁻⁵ — a factor
+of 75. What differs is how much each amplifies a perturbed state: the uncorrected transport term is a
+finite difference over a `10⁻⁶` divisor, and the corrected coordinate takes no derivative at all. That is
+the same sensitivity §6.5 identifies behind the step-count saving, appearing in the answer rather than in
+the cost, and it is a property of the coordinate rather than of the defect that exposed it.
 
 Two consequences for this report. The convergence series of §1 and the timings of §6.5 build a fresh
 solver for every point, so the extrapolated limits carry no uncertainty from this; their uncertainty is
