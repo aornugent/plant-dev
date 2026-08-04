@@ -32,7 +32,7 @@ The shape of the failure puts the cause in the seed and not in the sweep. The
 sweep is shared between the metrics. A defect in the sweep moves all three
 metrics.
 
-Task 5 gives one cause. Task 5 explains `mass_above_ground` and it does not
+Task 6 gives one cause. Task 6 explains `mass_above_ground` and it does not
 explain `area_stem` or `k_I`. Therefore at least one more cause exists. Keep the
 tangent referee until each metric agrees.
 
@@ -147,7 +147,7 @@ saving is those four rows. The forward run stayed bit-identical at
 **What the measurements mean for the order.** Today everything outside
 `input_adjoints` can give 2 percent at the most. After Task 1 and Task 2,
 `input_adjoints` is about 30 times cheaper. Then the work outside it is about a
-third of the total. Therefore Task 9 is forbidden now and useful later. Read
+third of the total. Therefore Section 8's tasks are forbidden now and useful later. Read
 Section 10 before you do work outside `input_adjoints`.
 
 ---
@@ -251,7 +251,14 @@ of work for this reason. The rows of the leaf are the only referee.**
 
 ### Task 2: build the tabulation only when a hydraulic row is wanted
 
-Type: cost. Factor: about 5.7. Two lines of code.
+Type: cost. Factor: **5.71 measured for a trait that is not a leaf parameter, and 1.005
+for all 44 traits.** Two lines of code.
+
+**Read the second figure before you plan around the first.** The saving is the whole of
+the tabulation cost, and the tabulation is wanted whenever any of `b`, `c`, `root_b` or
+`root_c` is requested. Therefore this task makes a single non-leaf trait fast and does
+nothing for a run that asks for every trait. Task 5 is what makes the hydraulic rows
+themselves cheap.
 
 **Why.** `Leaf::input_adjoints` builds two tabulations on each call, at lines 1689
 and 1691. `Leaf::bound_partials` builds two more, at lines 1456 and 1458. Only
@@ -313,7 +320,39 @@ the place that chooses the targets.
 bit pattern from Task 1. Then request a masked row and make sure the code refuses
 it by name.
 
-### Task 4: put the transport algebra in closed form
+### Task 4: derive the mixed second derivative, and delete the residual pairs
+
+Type: cost, and it is the one expression the design has always named as owed.
+
+**Why.** Each of the 11 parameter rows that reach the operating point takes a two-sided
+central difference of `dprofit_droot_collar_psi`. That is 22 of the 35 residual evaluations
+in Measurement A. Each one stands in for `d2(profit)/dp d(parameter)`, which report 00
+calls "the single new piece of code the whole design needs" and orders **last**. The
+implementation shipped a difference in its place, and no document priced the placeholder.
+
+**This is a hand derivation and no automatic route exists.** `dprofit_droot_collar_psi` is
+`double(double)` and is not templated. `odelia::ode::forward_derivative` fixes
+`xad::fwd<double>` with a `double` to `double` signature. The leaf stays `double` and hands
+back numbers, so `d2(profit)/dp d(parameter)` is one more chain rule on a `double`
+expression. It must include the implicit-function term of the `ci` root-find.
+
+**Steps.**
+
+1. Write `d2(profit)/dp d(parameter)` for each of the 11 parameters, following the chain
+   `dprofit_droot_collar_psi` already writes for `d(profit)/dp`.
+2. Replace the `R_pm` pair in the loop at lines 1794 to 1825 of `src/leaf_model.cpp` with
+   the closed form.
+3. Keep the difference under a build flag or in the test only, as the reference for step 4.
+
+**How to check.** Each closed-form row against the difference it replaces, with the
+difference step swept and a plateau required. **Report 00 records that the conditioning of
+this expression has never been measured.** Measure it: if a row is ill-conditioned, say so
+rather than reporting the value.
+
+Task 5 and this task are not substitutes. This one removes the residual pairs. Task 5
+removes the tabulations. Measurement A shows both are present.
+
+### Task 5: put the transport algebra in closed form
 
 Type: **correctness**. Measurement E shows the four hydraulic columns are wrong
 now.
@@ -377,7 +416,7 @@ stationarity identity of report 02 section 6.9 as a reference.** `dp*/du` is for
 from `Pi_pp`, so it cancels, and a real 2 percent error in `Pi_pp` passed that
 identity with the same bits before and after the fix.
 
-### Task 5: add the direct trait term of the census
+### Task 6: add the direct trait term of the census
 
 Type: **correctness**. One cause of the stop in Section 1.
 
@@ -410,7 +449,7 @@ This task explains `mass_above_ground`. It does not explain `area_stem`, whose
 inputs are functions of `area_leaf` only, and it does not explain `k_I`. Continue
 to look for the second cause. Section 9 gives the places to look.
 
-### Task 6: assert that the sweep covers the trajectory
+### Task 7: assert that the sweep covers the trajectory
 
 Type: correctness. Small.
 
@@ -423,7 +462,7 @@ exactly zero with nothing raised.
 **Steps.** Assert that the swept segments cover every recorded step. Refuse an
 empty segment list. Do not return a zero row.
 
-### Task 7: give the competition adjoint the unordered path, or refuse it clearly
+### Task 8: give the competition adjoint the unordered path, or refuse it clearly
 
 Type: correctness. Check whether #590 removes the need.
 
@@ -444,13 +483,13 @@ heights invert. The adjoint still transposes the unsorted trapezium. Therefore t
 two disagree on an inverted grid, and nothing raises an error: the gradient is
 finite and wrong. This is the one place where the upstream fix and the reverse-mode
 surface are not independent of each other. Make the adjoint read the same sorted
-order that the forward function uses, or refuse the state as Task 7 refuses it.
+order that the forward function uses, or refuse the state as this task refuses it.
 
 ---
 
 ## 7. Tasks that #590 requires
 
-### Task 8: move the reductions to the birth-date abscissa
+### Task 9: move the reductions to the birth-date abscissa
 
 **Why.** #590 carries the size distribution as a density in birth date. The two
 resource integrals then use the introduction time as the abscissa. The reductions
@@ -484,7 +523,7 @@ this condition holds:
 The condition is correct mathematics, because the Jacobian cancels. Keep it true.
 Do not put a metric that reads `height_jacobian` on the gradient path.
 
-### Task 9: remove the transport seed
+### Task 10: remove the transport seed
 
 **Why.** With a density in birth date, `log_density_dt` is `-mortality` alone. The
 block already gives the mortality rate as an output. Therefore the transport
@@ -511,7 +550,7 @@ about 10.64 for each block to about 5.3 before Task 1 is applied.
 Do these after Task 1 and Task 3. Before those tasks they give 2 percent at the
 most. After them, the work outside `input_adjoints` is about a third of the total.
 
-### Task 10: sweep one recording with many seeds
+### Task 11: sweep one recording with many seeds
 
 Type: cost. Factor: 3.0 for three metrics. Do it last of the cost tasks.
 
@@ -545,7 +584,7 @@ shared between the columns.**
 **How to check.** Each column bitwise equal to the single-seed sweep for that
 metric. Linearity makes exact agreement the expectation and not a tolerance.
 
-### Task 11: reuse the leaf operating point
+### Task 12: reuse the leaf operating point
 
 Type: cost. Memory: about 101 kB of transient scratch.
 
@@ -564,7 +603,7 @@ forbids a warm start. The difference is that a restored operating point is the o
 the forward pass computed, and a warm start is a guess. Keep the round-trip probe
 as the gate that tells them apart.**
 
-### Task 12: cache the six stage fields inside a step
+### Task 13: cache the six stage fields inside a step
 
 Type: cost. Memory: about 7 kB.
 
@@ -577,7 +616,7 @@ each stage in this way, so the pattern exists.
 Use `Patch::has_recorded_field`, `record_stage` and `replay_step`. They are hooks
 with empty bodies today and this is their purpose.
 
-### Task 13: store the stage rates, and do not rebuild them
+### Task 14: store the stage rates, and do not rebuild them
 
 Type: cost. Factor: about 1.5. Memory: about 724 MB. **Optional.**
 
@@ -611,17 +650,27 @@ was measured. That is why it can be revisited.
 
 Each item below blocks something. Do not treat the list as background.
 
-- **The second cause of the stop in Section 1.** Task 5 explains one column.
+- **The second cause of the stop in Section 1.** Task 6 explains one column.
   `area_stem` and `k_I` need another cause. Both wrong metrics run through the
   mass and area cascade. `leaf_area` does not. Look at what
   `set_ode_state` refreshes through `update_dependent_aux` and what the cascade
   reads that the reload leaves stale. That is P0.1's class, one level up.
-- **The parameter half of `grad(dPi/dp)` is the design's one unbuilt expression.**
-  Report 00 section 10 calls it "the single new piece of code the whole design
-  needs" and ordered it last. The implementation put a per-parameter central
-  difference in its place, and that stand-in is the cost centre. Task 4 supplies
-  the transport part. The rest is a derivation. Its conditioning has never been
-  measured.
+- **The conditioning of `grad(dPi/dp)` has never been measured.** Task 4 builds the
+  expression. Report 00 section 9 lists "whether `grad(dPi/dp)` is well conditioned
+  anywhere" as inferred and not measured, so Task 4 must measure it and not only
+  agree with the difference it replaces.
+- **A relative `lma` step of 2e-7 flips a 105-year stand between alive and
+  identically zero.** Measured: several arms of a pinned central difference return
+  census metrics at underflow and run 42 s instead of 112 s. Therefore **no re-run
+  finite difference can referee this gradient at production**, and the forward
+  tangent of Task 0 is the only referee. The collapse is a forward-model
+  discontinuity and it is the owner's. Diagnose it: the 42 s against 112 s wall
+  clock is the cheap discriminator.
+- **`scripts/v4-census-gradient.R` and `scripts/v4-reference.R` perturb
+  `pars[["lma"]]` directly**, which does not compute the derived strategy quantities
+  again. The correct route is `add_strategies(p, trait_matrix(v, "lma"))`. Any figure
+  taken through those scripts is suspect. `scripts/v4-reference.rds` belongs to
+  polish cap 5 with an unpinned base and **must not be used**.
 - **Interior production-like leaf states stop inside `input_adjoints`**, through
   `util::stop` in `Leaf::psi_stem_to_ci` when TOMS748 fails to bracket. Therefore
   no gate in this document can be seeded at a state that is both interior and
@@ -679,19 +728,25 @@ Each factor below is calculated from a measurement in Section 4. **No composed
 total has been measured.** Composition is where this project's predictions have
 failed. Measure each step.
 
-| Task | Factor | Moves forward numbers? |
-|---|---|---|
-| 1, bundle | about 5.3 | no |
-| 2, tabulation guard | about 5.7 for a hydraulic row | no |
-| 3, mask | 6.68 measured, for a non-leaf trait | no |
-| 4, closed form, stage A | removes the tabulation from the reverse path | no |
-| 4, closed form, stage B | — | **yes**, needs the owner |
-| 9, transport seed | about 2 | #590 moves them, not this task |
-| 10, many seeds | 3.0 | no |
-| 11 and 12 | about 1.2 together | no |
-| 13, stored stage rates | about 1.5 | no |
+| Task | Factor | What it removes | Moves forward numbers? |
+|---|---|---|---|
+| 1, bundle | about 5.3 | repeated Jacobian builds | no |
+| 2, tabulation guard | **5.71 measured** for a non-leaf trait, **1.005** for all 44 | tabulations, when no hydraulic row is wanted | no |
+| 3, mask | 6.68 measured, for a non-leaf trait | whole parameter rows nobody asked for | no |
+| 4, mixed second derivative | 22 of 35 residual evaluations | the residual pairs | no |
+| 5, closed form, stage A | the tabulation cost itself | 8 of 10 tabulations for a hydraulic row | no |
+| 5, closed form, stage B | — | the second definition of `G` | **yes**, needs the owner |
+| 10, transport seed | about 2 | the second leaf solve per block | #590 moves them, not this task |
+| 11, many seeds | 3.0 | repeated recordings per metric | no |
+| 12 and 13 | about 1.2 together | repeated leaf solves and field builds | no |
+| 14, stored stage rates | about 1.5 | the stage rebuild | no |
 
-Only stage B of Task 4 needs a new forward baseline. #590 needs one, and Task 0
+**Task 4 and Task 5 attack different halves of one call, and Measurement A shows both
+halves are present.** Task 4 removes the 22 residual evaluations. Task 5 removes the two
+tabulations, and the eight more that a hydraulic row adds. A plan that builds only one of
+them leaves the other in place.
+
+Only stage B of Task 5 needs a new forward baseline. #590 needs one, and Task 0
 makes it. Each other task is a change of structure or a term that is absent, so
 each gate is bitwise equality against the build before it.
 
