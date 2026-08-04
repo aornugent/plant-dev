@@ -51,7 +51,7 @@ gradient has no value.
 
 ## 2. Conditions before you start
 
-Do all four of these before Task 1.
+Do all five of these before Task 1.
 
 1. Merge `origin/develop` into the AD branch `p3/wave5`. **Done and pushed.**
    `p3/wave5` is at `d3392ea3`.
@@ -139,8 +139,8 @@ is **5.97 to 6.11**.
 cumulative vulnerability integral that `build_cumulative_vulnerability_integral`
 writes. One build costs **121.2 us**. One closed-form value costs **0.074 us**. One
 value with `d/da` and `d/dx` on a reused tape costs **0.68 us**. A new tape for each
-call costs **34.8 us**. Therefore the rows of the leaf need a tape that lives longer
-than one call.
+call costs **34.8 us**. Task 5 takes the two derivatives by hand instead, so no tape
+enters the leaf; these figures are what that choice avoids.
 
 **Measurement E, the four hydraulic columns are wrong.** The tabulation builder
 sets `psi_max = b * log(100)^(1/c)` and `step = psi_max / resolution`, under a loop
@@ -281,6 +281,35 @@ this too, because the guard moves into the function.
 
 ## 6. Tasks that correct the gradient
 
+**The build order is not the number order.** The numbers name the tasks; this list
+orders them, and each departure has a reason that was checked against the code.
+
+1. **Task 3's plumbing before Task 2.** Task 2's condition is written with
+   `par_wanted`, which does not exist. `leaf_model.cpp` has `rebuilds_transport` and
+   no notion of a parameter being wanted. Task 3 builds that notion.
+2. **Task 1 before Task 2 and before Task 3's leaf half**, because both edit
+   `output_rows`, which Task 1 creates.
+3. **Task 5 before Task 4.** `reaches_operating_point` excludes only `psi_crit`,
+   `root_psi_crit`, `rho` and `a_bio`, so `b`, `c`, `root_b` and `root_c` are among
+   Task 4's eleven parameters. Task 4's gate is the central difference it replaces,
+   and Measurement E shows that difference is wrong by 47 to 10 245 times for those
+   four. **Four of Task 4's eleven rows would be gated against a poisoned
+   reference.**
+4. **Task 0b before every gate**, and its own gate must expect the pinned rows to
+   move. At the `bound_a` pin `psi_stem` equals the collar potential, so the forward
+   guard `psi_upstream >= psi_stem` fires and the forward path reports
+   `gamma * umol_per_mol_to_Pa` while `input_adjoints` runs the root-find. The two
+   disagree there today. Making them agree changes the pinned rows, so **Task 1's
+   bitwise baseline must be taken after Task 0b, not before.**
+5. **Take Measurement A again after Task 10.** Every factor in Section 11 is quoted
+   against 10.64 `input_adjoints` calls for each block, and Task 10 removes the second
+   leaf solve.
+
+**The derivation of Task 4 is not a packet's work.** Eleven mixed second derivatives,
+including the implicit-function term of the `ci` root-find, is design. A packet may
+not make a design choice. Write the eleven expressions first; then a packet
+transcribes and gates them.
+
 ### Task 1: compute the rows of the leaf one time
 
 Type: cost, and it also removes a hazard, so do it first.
@@ -313,8 +342,8 @@ mature stand, and per-block cost is not a constant of the model.
    Do not remove a multiplication because one factor is zero.
 6. Keep `input_adjoints`. Make it a contraction over `rows`.
 7. Change `graft_leaf_outputs` to call `output_rows` one time. Graft each row.
-8. Mask `Leaf::bound_partials` in the same way, or the pinned branch pays the cost
-   again. It carries its own loop over the same four parameters.
+`Leaf::bound_partials` is **not** part of this task. It has no seed dependence, so
+it has nothing to bundle. What it needs is the mask, which is Task 3.
 
 **Compute the rows during the record step. Do not compute them later.** A lazy
 form is possible and it is not safe here. `Individual::log_density_rate` calls
@@ -353,7 +382,8 @@ of work for this reason. The rows of the leaf are the only referee.**
 
 ### Task 2: build the tabulation only when a hydraulic row is wanted
 
-Type: cost. Two lines of code.
+Type: cost. Two lines of code, **after Task 3's plumbing exists**. `par_wanted` is
+not in the tree today; Task 3 builds it. Section 6 gives the order.
 
 **Read both of Measurement G's figures.** The saving is the whole of the tabulation cost,
 and the tabulation is wanted whenever any of `b`, `c`, `root_b` or `root_c` is requested.
@@ -471,12 +501,54 @@ The object in the tabulation is the lower incomplete gamma function. With
 integral from 0 to m of exp(-(s/b)^c) ds = (b/c) * gamma(1/c, X)
 ```
 
-`odelia::incomplete_gamma<S>(a, x)` computes this as a series of elementary
-operations. Therefore a tape reads the value, `d/dx` and `d/da` from the same
-code. It agrees with the tabulation to 1.42e-15 for the stem and 1.67e-15 for the
-root, over 4 001 points. The endpoint derivative `dG/dm = exp(-(m/b)^c)` is
-recovered to 9.0e-14 and 2.3e-13. `dG/db` and `dG/dc` match a central difference
-of the closed form with a clean plateau in all 16 cases.
+**WARNING: `odelia::incomplete_gamma` is not in either repository.** It is on the
+odelia branch `claude/odelia-ad-tape-reverse-496fuf` at `f359830`, "incomplete
+gamma: exact Weibull antiderivative (P1c)", which is an ancestor of neither `master`
+nor `p3/odelia-integration`. It was built in Phase 1 and never landed. The agreement
+figures below come from that commit's own tests. **Land the header first, or this
+task has no subject.**
+
+The function computes `gamma(a, x)` by the everywhere-convergent series
+
+```
+gamma(a, x) = x^a e^-x * sum over n >= 0 of x^n / (a (a+1) ... (a+n))
+```
+
+in elementary operations. It agrees with the tabulation to 1.42e-15 for the stem and
+1.67e-15 for the root, over 4 001 points. The endpoint derivative
+`dG/dm = exp(-(m/b)^c)` is recovered to 9.0e-14 and 2.3e-13. `dG/db` and `dG/dc`
+match a central difference of the closed form with a clean plateau in all 16 cases.
+
+**Take the two derivatives by hand. Do not put a tape inside the leaf.** The leaf is
+`double` and gives back rows of numbers, and that is what lets the graft serve the
+forward type and keeps the tangent referee. A tape inside the leaf needs
+`block_state::tape` threaded from `Patch::cohort_block_adjoint` through `Strategy`,
+which is a cross-cutting change for a result that three lines of algebra give:
+
+```
+G(m)      = (b/c) * gamma(a, X),   a = 1/c,   X = (m/b)^c
+dgamma/dx = x^(a-1) e^-x                     the integrand, exact, no series
+dgamma/da = log(x) * gamma(a, x)
+            + x^a e^-x * sum over n of (-term_n * sum over k <= n of 1/(a+k))
+```
+
+The third line is the same loop as the value with one more accumulator, because
+`term_n` is `x^n` over the product of `(a+k)`, so `d(term_n)/da` is
+`-term_n * sum of 1/(a+k)`. Then the chain rule to the parameters, using
+`dX/db = -c X / b` and `dX/dc = X log(m/b)` and `da/dc = -1/c^2`:
+
+```
+dG/dm = exp(-(m/b)^c)
+dG/db = gamma/c - X * dgamma/dx
+dG/dc = -(b/c^2) * gamma + (b/c) * (X log(m/b) * dgamma/dx - dgamma/da / c^2)
+```
+
+**`b` and `root_b` need only `dgamma/dx`, which is closed form.** Only `c` and
+`root_c` reach the series derivative. Therefore two of the four wrong columns need
+no new series code at all.
+
+This route is also cheaper than the tape. Measurement D's 0.68 us is a reused tape;
+the value alone is 0.074 us, and the three quantities share one loop.
 
 **Why closed form and not a cache.** The forward solve makes many queries for each
 solve, so a 100-evaluation build is spread over them and the table is correct
@@ -498,10 +570,9 @@ cheap. It does not remove it.
 by construction, because `X(psi_max) = log(100)` for any `b` and `c`, so
 `x <= 4.605`. Write an assertion. Do not rely on the argument.**
 
-Use a tape that lives longer than one call. Measurement D gives 34.8 us for a new
-tape against 0.68 us for a reused one. `Patch::cohort_block_adjoint` already holds
-one as `block_state::tape`. Follow it. No active value may outlive a recording,
-because `clearAll()` returns the slot counter to zero.
+**Scope this task as two packets, because its size is not known yet.** The first
+answers the question below and writes no production code. The second implements what
+the answer allows.
 
 **Read this before you scope the task.** `psi_from_transpiration` is the inverse of
 the same integral. If the derivative path reads it, it needs
