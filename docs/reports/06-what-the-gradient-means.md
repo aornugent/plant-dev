@@ -306,10 +306,27 @@ plant hydraulics and among the most ecologically interesting, because they set w
 species sits on the drought-tolerance spectrum.
 
 **The four gradient entries for these parameters are currently wrong by factors of 47 to
-10 245.** The mechanism is numerical — a lookup table whose number of entries changes
-when the parameter moves — but the consequence is ecological: the gradient's answer for
-"how much does drought tolerance matter here" is not merely imprecise, it is not a
-derivative of anything. Report 05 gives the closed forms that remove the table.
+10,245.** The mechanism is numerical — a lookup table whose number of entries changes when
+the parameter moves — but the consequence is ecological: the answer to "how much does drought
+tolerance matter here" is not merely imprecise, it is not a derivative of anything. Report 05
+gives the closed forms that remove the table.
+
+**And a second problem that closed forms do not touch, which is about the question rather
+than the arithmetic.** The model derives the critical potential from the curve's position and
+steepness — it is a property of the same curve, not an independent trait — and then registers
+all three as differentiable parameters. So the reported sensitivity to curve position is
+taken *with the critical potential held fixed*, which is not a perturbation any plant can
+undergo.
+
+A vulnerability curve has **two** degrees of freedom per organ, and that is what a
+physiologist measures: where the curve sits and how sharply it falls. A gradient reporting
+three numbers per organ for a two-parameter curve is over-parameterised, and the third
+number answers a counterfactual that does not exist. The critical potential's sensitivity is
+real, but it belongs *inside* the position and steepness rows, which is where someone reading
+the output would look for it.
+
+This is the clearest case in the model where the ecology dictates the output format rather
+than merely interpreting it.
 
 ---
 
@@ -328,10 +345,25 @@ The second is a one-line calculation at the final state. It is easy to forget pr
 because it is trivial, and forgetting it is silent: the answer stays finite and
 plausible.
 
-Report 05 section 10 then enumerates every path from a trait to the census, and there
-are four: the measurement formula, each plant's physiology, germination, and the shared
-canopy. **That list is a completeness claim** — it says there is nowhere else to look —
-and the implementation currently has two of the four.
+Report 05 section 10 enumerates the paths from a trait to the census. **An earlier form of
+that section said there were four and that the list was complete. It was wrong, and the
+correction matters ecologically.**
+
+Six are now known. Four are the ones a reader would guess: the measurement formula, each
+plant's physiology, germination, and the shared canopy. Two were missed:
+
+- **The soil.** Water aggregates across plants exactly as light does, and the retention curve
+  — how tightly a soil holds water at a given potential — reads parameters directly. So
+  belowground traits reach the census by a route structurally identical to the canopy's, and
+  it has the same missing accumulator. **Every ecological statement about $k_I$ and $\eta$
+  reading zero applies to the soil parameters too**, and nobody had looked.
+- **What a seed starts as.** The initial reserve is a trait times the storage capacity, so
+  how much a seedling is provisioned reaches the census directly. That is a real
+  establishment strategy and it was unlisted.
+
+**The general lesson for anyone reading a sensitivity from this machinery.** A completeness
+claim in a design document licenses a reader to stop looking, and this one was wrong by two
+paths out of six. Treat the list as the routes found so far.
 
 ### One assumption is imposed rather than derived
 
