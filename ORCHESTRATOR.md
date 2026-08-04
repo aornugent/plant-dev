@@ -407,14 +407,22 @@ Correctness does not close, because **four defects have no task**:
   including the implicit-function term of the `ci` root-find. A packet may not make
   design choices, and a derivation is one. The architect writes the eleven
   expressions; a packet transcribes and gates them.
-- **Task 5 contradicts the architecture it sits in, and the plan does not price it.**
-  The design keeps `Leaf` at `double` and has it hand back rows. Task 5 asks for
-  `odelia::incomplete_gamma<S>` on a tape that lives longer than one call, and the
-  only long-lived tape is `block_state::tape` in `Patch::cohort_block_adjoint` —
-  three levels above the leaf, through `Strategy`. **That plumbing is in no step.**
-  Price the alternative before choosing: `dG/dx` is `exp(-x) * x^(a-1)` in closed
-  form, and `dG/da` is a series, so hand-differentiating needs no tape and no
-  plumbing. Measurement D's 0.68 us assumed the tape; nobody costed the hand form.
+- **Task 5 named a function that does not exist. RESOLVED, plan updated.**
+  `odelia::incomplete_gamma` is in neither repository. It lives on the odelia branch
+  `claude/odelia-ad-tape-reverse-496fuf` at `f359830`, an ancestor of neither `master`
+  nor `p3/odelia-integration` — built in Phase 1, never landed. The agreement figures
+  the task quotes come from that commit's own tests. This is section 11's "price the
+  placeholder" pattern applied to the plan that names it: **"designed, built, or named
+  as owed" collapses three states, and a reader takes it as available.** When you cite
+  a symbol as available, check it is reachable from a landed branch.
+- **Task 5's tape was unnecessary. RESOLVED: hand-differentiate.** The design keeps
+  `Leaf` at `double`, which is what lets the graft serve the forward type and keeps the
+  tangent referee; a tape inside the leaf needed `block_state::tape` threaded from
+  `Patch::cohort_block_adjoint` through `Strategy`, and that plumbing was in no step.
+  Both derivatives are closed form for one extra accumulator: `dgamma/dx` is the
+  integrand `x^(a-1) e^-x`, and `dgamma/da` is `log(x) * gamma` plus the same series
+  with `-term_n * sum of 1/(a+k)`. `b` and `root_b` need only the first, so two of the
+  four wrong columns need no series derivative at all.
 - **Task 5's scope is unknown until `psi_from_transpiration` is settled.** The task
   says to check whether the derivative path reads it and not to assume. That makes it
   two packets: an investigation, then an implementation sized by its answer.
