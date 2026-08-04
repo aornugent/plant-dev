@@ -250,6 +250,21 @@ green TF24 suite is not evidence about the shared canopy.
 These are the **pre-#590** numbers. #590 moves TF24 offspring to about 400.9, so
 they are the baseline to re-take, not to defend.
 
+**The `test-scm.R` numbers are the branch's and not the ones #585 blessed**, measured
+on `p3/wave5` at `d3392ea3` with odelia `a3bcf58`: one-species offspring
+`16.88458559`, `ode_times[100]` `4.215204677`, two-species `11.99577762` and
+`16.47192484`, 307 accepted steps. Upstream blesses `16.88950` and 293 steps for the
+same assertions. **Both are right, for different trees.** Every forward-model change
+of `7b5012c2` is present in the merged tree, so the branch's numbers are not a lost
+fix — they are the branch's own scalar templating and fused light reduction. Which
+commit moves them has not been measured; do not write a cause for it here until it
+is.
+
+**Two branches hold the provenance of a measurement and must not be deleted.**
+`p3/tangent-referee` carries `6b0a49fb`, the whole-run tangent reference Task 0 starts
+from. `p3/trait-mask` carries `5fb631a1` and `1a06e4c5`, which are Measurements F and
+G of `NEXTSTEPS.md`.
+
 **A baseline is a property of a commit, a configuration, and the script that
 produced it.** Quote all three or the number means nothing. A composite forward
 change below about **0.15 percent** in offspring needs a mechanism, not a

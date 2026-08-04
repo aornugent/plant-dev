@@ -53,12 +53,27 @@ gradient has no value.
 
 Do all four of these before Task 1.
 
-1. Merge `origin/develop` into the AD branch `p3/wave5`. Done on
-   `p3/wave5-develop` at `d3392ea3`, not yet pushed and not yet merged back.
+1. Merge `origin/develop` into the AD branch `p3/wave5`. **Done and pushed.**
+   `p3/wave5` is at `d3392ea3`.
 2. Merge `origin/master` into the odelia branch `p3/odelia-integration`. Done at
    odelia `a3bcf58`.
 3. Land plant #590 in `develop`. Then merge `develop` again.
 4. Make the new reference data. Task 0 tells you how.
+5. Add the guard of Task 0b, which decides which leaf states a gate may use.
+
+**The merge keeps the branch's forward numbers and not the numbers that #585
+blessed.** Each of the 39 changes of `7b5012c2` that can move a forward number is
+present at `d3392ea3`, so no fix was lost. The branch had most of them already by an
+earlier route, and the merge supplied the two that were absent: `rate_environment`
+with `cached_environment_index` in place of `environment_ptr`, and the `std::is_sorted`
+guard in `Species::consumption_rate`. Therefore the two sets of numbers are two
+configurations and not two roundings: 16.88459 against 16.88950 is 4.9e-3 across a
+1.7e-3 band, and 307 accepted steps against 293.
+
+**What is bounded and not attributed.** The remaining difference is the branch's own
+work, most plausibly the active-scalar templating and the fused light reduction, which
+change the knot and slope computation. **Nobody has measured which commit moves it.**
+Do not state a cause for it in a document until someone does.
 
 **WARNING: Compute the merge base again after each fetch. Do not reuse an earlier
 value. `git merge-base p3/wave5 origin/develop` returned `141dc8df` before the
