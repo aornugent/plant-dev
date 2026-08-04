@@ -494,6 +494,107 @@ profit, uptake, and hence growth — is evaluated at $p^\star$, which is compute
 numerically. We need derivatives of quantities at $p^\star$ with respect to every input
 $u$, without differentiating the search.
 
+### 7.0 Five cases, and the selector is not a comparison on the residual
+
+**Establish this before reading anything below it.** Sections 7.1 to 7.6 derive the sensitivity of
+an interior stationary maximum and of a pinned bound. The implementation can terminate the choice
+in **thirteen** distinguishable ways and the design models **two**. Both counts are wrong, and the
+design's two is wrong in the more dangerous direction: the thirteen classify *which guard broke the
+polish loop*, and several are one mathematical object, while the design's two omit three whole
+categories — and in each omitted category the code currently fabricates a finite number.
+
+**The taxonomy is the sensitivity theory, and it is the only thing that should branch.**
+
+| | case | what kind of point it is | the profit row | the uptake row |
+|---|---|---|---|---|
+| **S** | interior stationary maximum, $\Pi_{pp}<0$ | unconstrained stationary point | envelope: $\partial\Pi/\partial u$, free | IFT on $R=0$: $m = -s/\Pi_{pp}$, then $m\,\Pi_{pu}$ |
+| **K** | constrained optimum, one bound active | KKT point, multiplier $\nu = \lvert R\rvert$ | **not** an envelope: $\partial\Pi/\partial u + \nu\,\partial B/\partial u$ | $\partial E_i/\partial u + (\partial E_i/\partial p)\,\partial B/\partial u$ |
+| **B** | a feasible point that is not an optimum | substituted, still solves a relation in $u$ | plain chain rule; the $p$-channel is the substituted expression's own derivative | same form as K, with $\partial p/\partial u$ from the bound(s) |
+| **X** | exogenous operating point — solves no optimisation | a substituted constant, or an ODE state | closed form in a strict subset of inputs, **exactly zero** in the rest | shutdown: identically zero. TF24f: at fixed $p$, plus a $\tilde p$ row |
+| **N** | no derivative exists | a fold, a jump, or nothing defined | valid at a fold, one-sided at a jump, absent otherwise | **does not exist** |
+
+**The mapping, and five of the thirteen collapse.** `COLLAR_INTERIOR` and `COLLAR_EXHAUSTED` are
+both **S** — the cap is the same object with a displaced linearisation point, error $\lvert
+R\rvert/\lvert\Pi_{pp}\rvert$, so carry the bar rather than a branch. `COLLAR_BOUND_A`,
+`COLLAR_BOUND_B` and `COLLAR_BOUND_STEP` are **K**. `E4` and `E5` are **B**. **`E1`, `E2` and `E3`
+are one function of $u$ for every output that carries a rate** — all three route through
+`set_shutdown_state`, which writes the same `profit_` and the same zeroed uptake, and they differ
+only in `root_collar_psi_`, which reaches an aux slot. `COLLAR_BOUND_CURVATURE` and
+`COLLAR_R_NONFINITE` are **N**.
+
+**The selector must be a decision tree on what defines the point, not a comparison on $\lvert
+R\rvert$.** Ask in this order: did `prepare_collar_solve` return false (→ X or B, by which exit); is
+this TF24f (→ X interior, or K when the clamp binds, never S); is the class `R_NONFINITE` or
+`BOUND_CURVATURE` (→ N, refuse); is it `INTERIOR` **and** the guard at `leaf_model.cpp:1081`
+false (→ S; if the guard is true, → N); is it `BOUND_A`/`BOUND_B` (→ K); is it `BOUND_STEP` (→ K
+*after* snapping the forward point to the bound the step's sign names).
+
+> **Gap: there is a fourteenth terminal case, it is not in `collar_class`, and it is on the good
+> path.** `dprofit_droot_collar_psi` returns a hard sentinel `0.0` when `psi >= psi_stem` or
+> `psi_stem` is non-finite (`:1081-1083`) — its own comment records the state as reproduced at
+> `theta = 0.005–0.03` under 1 m/yr rainfall. The polish's convergence test is
+> `!std::isfinite(R) || std::abs(R) <= R_tol` (`:930`), which cannot distinguish a sentinel zero
+> from stationarity, so it records **`COLLAR_INTERIOR`**. So class S as the code detects it contains
+> a subclass in which the leaf is in a no-flow or infeasible state, $\Pi$ is not stationary, and
+> $\Pi_{pp} = 0$ by the same sentinel. **$\lvert R\rvert \le R_{\text{tol}}$ is not a sufficient
+> test for S**; it must be conjoined with that guard evaluating false, and the guard firing needs its
+> own counter.
+>
+> **And the consequence in the shutdown case is a division by an exact zero.** `E1` to `E5` all
+> return `false` from `prepare_collar_solve`, which **clears** `collar_pinned_` (`:740`), and
+> `graft_leaf_outputs` runs unconditionally at an active scalar with no test of how the solve
+> terminated. So every X and B case takes the **interior** branch. At `E1` the whole soil is drier
+> than $\psi_{\text{crit}}$, so both evaluations inside `dR_dcollar_at(p, 1e-6)` return the
+> sentinel, **$\Pi_{pp} = 0$ exactly**, and $m = -s/0$ with $s$ generically non-zero. A two-branch
+> selector on $\lvert R\rvert$ cannot detect this, because $R$ *is* zero there — that is the whole
+> problem.
+
+> **Gap: report 00 section 7's curvature measurement cannot falsify a fold, and this is the third
+> instance of the pattern.** It reports $\Pi_{pp}$ negative at 52 of 52 states — measured by
+> differencing about **the solved operating point**, i.e. only at points where a maximum was found,
+> where $\Pi_{pp}\le 0$ holds by the second-order necessary condition. **The sample is conditioned
+> on the conclusion.** That is structurally the same defect as report 02 section 6.9's stationarity
+> identity, which cannot referee $\Pi_{pp}$ because it is formed from it. The sweep that would
+> settle it runs $p$ across the *whole* feasible interval at dry states.
+>
+> There is a structural reason to expect folds exactly where the plan says the pin lives. The cost
+> $C = g_1(1-e^{-(\sigma/b)^c})^{\beta_2}$ is sigmoid in $\sigma$ for $c>1$, so $-C$ contributes
+> **positive** curvature below its inflexion and negative above, while $A(c^{\mathrm i}(p))$ is
+> concave-increasing. A difference of a concave gain and an S-shaped cost generically has a region of
+> positive curvature **on the dry flank** once the cost's inflexion enters the feasible span — and
+> drying moves the span onto that flank. `COLLAR_BOUND_CURVATURE` exists, has a census slot, and
+> fires on nothing else; **its incidence is the single number the whole $\Pi_{pp}$ question turns
+> on.**
+>
+> **The right guard is on the amplification, not on $\Pi_{pp}$.** Near a fold
+> $\partial p^\star/\partial u$ is $O(\lvert\delta u\rvert^{-1/2})$ and does not exist, so a
+> bracketed fallback would return a number where none does. Refuse the **uptake** rows when
+> $\lvert m\rvert = \lvert s\rvert/\lvert\Pi_{pp}\rvert$ exceeds a declared ceiling — report 00
+> measured its benign value at 5.8 times — and **emit the profit row regardless**, because it is
+> valid at a fold. `bound_partials` has its own unguarded version of the same denominator,
+> $\partial E^{\mathrm{up}}/\partial p - \kappa S'(b_b)$ at a stem sitting at
+> $\psi_{\text{crit}}$ where $S'$ has collapsed (`:1441-1443`).
+
+**The asymmetry the design inherited from report 00's fact 1 is stronger than stated, and it is the
+one thing the two-branch model got right.** The profit row survives every degeneracy in this list
+except a jump of the argmax and an undefined objective. **The uptake row is the one that ceases to
+exist.** So the two output kinds must be refusable **independently**, not as a pair.
+
+**These are not five unrelated corner cases. They are consecutive segments of one drydown**, and a
+real rainfall sequence traverses them in order: **S → K** as the stand goes dry and tall → **B** as
+the feasible window closes with $b_a \to \psi_{\text{crit}}$ → **X** once the window is gone.
+Report 02 section 4's own trend is that ordering seen from outside: the minimum bracket falls
+monotonically 1.381 to 0.716 with rainfall, and `E2` first appears at the same arm as 110 984
+`bound_b` pins.
+
+**One case is the best-conditioned in the model and the plan treats it as a corner.** At `E4` the
+operating point is the root of zero *total* uptake, so the per-layer $E_i$ are individually non-zero
+and sum to zero: **pure root-mediated redistribution**, and the emitted uptake vector is entirely
+the symmetry-breaking residue of report 00's fact 2. Its derivative exists in closed form, and its
+relative accuracy under any differencing scheme is the worst in the model, because the output *is*
+the residue. Report 00 section 7 files root-mediated redistribution under *sidestepped* on measured
+incidence; on a drying driver it is live, and it is the case that most needs the exact route.
+
 ### 7.1 The interior optimum: profit is free
 
 Suppose $p^\star$ is interior, so stationarity holds:
@@ -559,6 +660,89 @@ and it must include the implicit-function term of the $c^{\mathrm{i}}$ root-find
 > (`:1798-1800`, `if (!(h > 0.0)) continue;`).
 > An earlier form said 35, which reconciles with no count in the source. Its conditioning has
 > never been measured.
+
+### 7.3b The waist: $\Pi_{pu}$ is rank two over the state directions, exactly
+
+**This section is the structure the design's cost claim rests on, and until now it appeared
+nowhere in this report.** It was derived in report 00 section 6.2 step 5 and report 02 section
+6.3, measured there, and never carried forward — so section 7.3 above presents $\Pi_{pu}$ as an
+undifferentiated row vector while the code implements the factorisation at
+`leaf_model.cpp:1859-1878`.
+
+**The claim.** For every one of the $2n+1$ state directions — the $n$ soil potentials, the $n$
+per-layer root masses, and leaf area —
+
+$$\frac{\partial R}{\partial u} \;=\; a\,\frac{\partial E^{\mathrm{up}}}{\partial u} \;+\; b\,\frac{\partial}{\partial u}\!\left(\frac{\partial E^{\mathrm{up}}}{\partial r}\right), \qquad R = \frac{\partial\Pi}{\partial p},$$
+
+with $a$ and $b$ two scalars shared across all of them.
+
+**It is exact, and it is a chain rule rather than a fit.** Trace every read of $\psi$, root mass
+and leaf area in `dprofit_droot_collar_psi` (`:1060-1146`): `psi_stem` is
+`transpiration_to_psi_stem(E_up_, psi_root)`, so it reads them only through $E^{\mathrm{up}}$;
+`ci` reads only `psi_stem` on a state-free bracket; $A'$, $C'$, $g_c$ and the conductance
+derivatives are functions of $(c^{\mathrm i}, \psi_{\text{stem}}, p, \varphi)$; and
+`dpsistem_dpsi` (`:1128-1136`) reads them through $E^{\mathrm{up}}$ and
+$\partial E^{\mathrm{up}}/\partial r$ and nothing else. `area_leaf_` is read at four sites, all
+inside the transport chain. So $R = F(E^{\mathrm{up}}, \partial E^{\mathrm{up}}/\partial r;\, p,
+\varphi)$ **identically**, and rank two is a chain rule through a two-dimensional intermediate.
+An earlier residual figure of 2.6e-04 was the fitting procedure's own noise; the true residual is
+8.3e-09 to 2.6e-08.
+
+**$b$ is closed form and the code agrees term for term.** $R$ sees
+$\partial E^{\mathrm{up}}/\partial r$ only through `dpsistem_dpsi`, and
+$\partial R/\partial(\texttt{dpsistem\_dpsi}) = A'\,\partial c^{\mathrm i}/\partial\psi_{\text{stem}} - C'$,
+which is `dprofit_dpsistem`, while
+$\partial(\texttt{dpsistem\_dpsi})/\partial(\partial E^{\mathrm{up}}/\partial r) = -P'/\kappa$.
+So $b = -\,\texttt{dprofit\_dpsistem}\cdot P'/\kappa$, which is `:1861` verbatim. **$a$ is not
+closed form** — $E^{\mathrm{up}}$ moves $\psi_{\text{stem}}$ and hence $c^{\mathrm i}$, $A'$,
+$C'$, $P'$ and $S'$ — which is why the code recovers it from one residual pair.
+
+**Two things leave the waist, and both are discrete rather than smooth.** `max_soil_layer` is the
+deepest rooted layer, so root mass changes the row's **arity**; and `bound_a`/`bound_b` are
+root-finds over the potentials which enter no row on the interior branch and *are* the whole row on
+the pinned branch.
+
+> **Gap, and it is the conditioning question section 7.3 says has never been measured.** $a$ and
+> $b$ **cannot be separated along the direction the ecology cares about.** Report 02 section 6.3
+> justifies recovering $a$ from a single layer on the grounds that the potential family's second
+> singular value is $1.3\times10^{-5}$ of the first — the $n$ vectors
+> $(\partial E^{\mathrm{up}}/\partial\psi_j,\ \partial^2 E^{\mathrm{up}}/\partial\psi_j\partial r)$
+> are numerically **collinear**. That is simultaneously why one direction suffices *given* $b$ and
+> why any error in $b$ is absorbed into $a$ at a ratio of about $10^5$. **The joint residual cannot
+> detect it**, because a compensating $(a,b)$ pair fits every potential row equally well — so
+> report 02's third invariant checks $a$ at fixed $b$ and not the pair.
+>
+> $b$'s only independent validation is agreement with a noisy joint fit at 1.04 percent and 0.16
+> percent. By report 00's fact 2 the uniform drying direction is a near-symmetry whose true
+> response is a 1 percent residue amplified 15 to 26 times, so **a 1 percent error in $b$ is a 15
+> to 26 times error in the quantity of interest.** $b$ is therefore unvalidated *for the direction
+> it matters in.*
+>
+> **And the object that would fix it is already in the tree and unused.**
+> `Leaf::translation_partials` (`:1303-1337`) computes $\partial E_i/\partial d$ from the
+> symmetry-breaking term directly. The $2n+1$ waist rows do not route through it, so the
+> near-cancellation is performed by subtraction in the caller — which is exactly what report 00's
+> fact 2 forbids: *anything defined as a small difference of large quantities must be computed as
+> itself.*
+
+**In the dry regime the waist does not degrade. It collapses.**
+
+| regime | the argmax object | rank over $2n+1$ |
+|---|---|---|
+| interior, wet | $a\,\partial E^{\mathrm{up}}/\partial u + b\,\partial(\partial E^{\mathrm{up}}/\partial r)/\partial u$ | 2 |
+| pinned at `bound_a`, zero uptake | $-(\partial E^{\mathrm{up}}/\partial u)\,/\,(\partial E^{\mathrm{up}}/\partial x)$ | **1** |
+| pinned at `bound_b` = stem critical | $-(\partial E^{\mathrm{up}}/\partial u)\,/\,(\partial E^{\mathrm{up}}/\partial x - \kappa S'(p_b))$ | **1** |
+| pinned at `bound_b` = **root** critical | early return; every state row left at zero | **0** |
+
+The $b$ channel dropping out at a bound is legitimate — there the operating point is defined by a
+residual in $E^{\mathrm{up}}$ alone. **The rank-zero row is not.** `bound_partials:1406-1409`
+writes `out[i_par0 + PAR_ROOT_PSI_CRIT] = -1.0` and returns, on the stated reasoning that the
+root's ceiling "is an input in its own right and nothing else moves it". But
+$\psi^{\text{root}}_{\text{crit}} = b_{\text{root}}(\log 20)^{1/c_{\text{root}}}$, so
+**`root_b` and `root_c` read exactly zero there** — at the dry-and-tall states where drought
+tolerance is the whole question. That row is correct only under Task 28's pullback, which supplies
+those two columns from the $\psi_{\text{crit}}$ column through $J$. **Task 28 is therefore
+load-bearing for the drought regime and not a reporting convenience.**
 
 ### 7.4 The pinned optimum: the envelope theorem does not apply
 
