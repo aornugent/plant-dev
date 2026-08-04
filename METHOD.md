@@ -245,7 +245,7 @@ invocation**: the same tree reads 2 857 or 2 924 depending on the loading mode.
 
 | model | configuration | value | steps |
 |---|---|---|---|
-| TF24 | `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`, `refine_schedule = FALSE` | `42.411799695604159` | 4 644 |
+| TF24 | `max_patch_lifetime = 105.32`, `lma = 0.1978791`, `Control()`, `refine_schedule = FALSE` | **does not reproduce — see below** | |
 | FF16 | `scripts/build/ff16k93.R`, its own trait and hyperpar, default lifetime, `sum(offspring_production)` | `19.834058960443031` | 209 |
 | K93 | the same script, its own trait and hyperpar | `0.030538172107758225` | 240 |
 
@@ -254,6 +254,15 @@ either configuration, so it caught neither the offspring-to-zero regression nor 
 configuration false alarm. Dropping K93 costs little; dropping FF16 costs the
 tripwire. **Run the cross-model tripwire on every merge, not at phase end** — a
 green TF24 suite is not evidence about the shared canopy.
+
+**WARNING: the TF24 row does not reproduce and the recorded value is not usable.** It
+records `42.411799695604159` over 4 644 accepted steps. Measured on `p3/wave5` at both
+`d3392ea3` and the #590 merge `600e3ebd`, at the configuration stated in the row:
+**`42.411495358228734` over 4 648 accepted steps.** The two trees agree with each other
+to the last bit, so the difference belongs to the recorded number or to an unrecorded
+part of its invocation, and not to either merge. Do not defend the recorded value and do
+not gate against it. Take this arm again on a converged schedule and record what
+produced it.
 
 These are the **pre-#590** numbers. #590 moves TF24 offspring to about 400.9, so
 they are the baseline to re-take, not to defend.
@@ -277,6 +286,28 @@ produced it.** Quote all three or the number means nothing. A composite forward
 change below about **0.15 percent** in offspring needs a mechanism, not a
 before-and-after pair — that is what the adaptive controller re-rolls by between
 two builds of one tree.
+
+---
+
+## 5b. Run one test file per R session
+
+**Looping several test files in one R session produces false failures that look
+exactly like a regression.** Measured: eight files in one session reported 14 failures
+— locked-environment errors on `NodeSchedule$ode_step_sizes`, a NULL
+`light_availability$state`, a second run failing to reproduce the first, and an offspring
+production of `16.925` where the tree produces `16.884585587`. **Every one was cross-file
+contamination and every one was a false alarm.** A reviewer who trusted that output would
+have hunted a regression that does not exist.
+
+Two separate harness facts, and you need both:
+
+- One R session per file.
+- `env = new.env(parent = asNamespace("plant"))` for any file that uses an unexported
+  name — `test-scm.R` does — or you get "could not find function" errors that are also
+  an artefact.
+
+`AGENTS.md`'s test-selection tiers assume `test_file` per file, which is correct; the
+hazard appears when someone writes a loop to save startup time.
 
 ---
 
