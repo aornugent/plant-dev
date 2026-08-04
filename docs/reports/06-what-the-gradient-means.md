@@ -342,10 +342,18 @@ conductivity is lost, $c$ how abruptly. These are among the most-measured traits
 plant hydraulics and among the most ecologically interesting, because they set where a
 species sits on the drought-tolerance spectrum.
 
-**Four gradient entries for these parameters are differenced across a discontinuity, and
-three measured ratios of the error are 47x, 131x and 10,245x.** The four rows are the stem
-and root curve parameters; the three ratios are all of one of them, measured on different
-quantities. No per-entry error range has been measured. The mechanism is numerical — a lookup table whose number of entries changes when
+**An earlier form of this section said these four entries are "not a derivative of
+anything". That is false, and the correction matters for what to prioritise.** The code
+already holds the interpolant's knot grid still across each parameter perturbation, so the
+knot-count discontinuity that would have made them meaningless is defended against. Measured,
+the held-grid difference reproduces the closed form to 5.1e-9, and held against moving
+differs by at most 8 percent — not the 47 to 10,245 times recorded.
+
+**So the hydraulic rows are approximately right, and the thing that makes them
+uninterpretable is not arithmetic but the question.** Read on: the critical potential is
+derived from the curve and registered beside it, so the reported sensitivity to curve
+position holds fixed a quantity that cannot be held fixed. **That** is what makes a
+drought-tolerance sensitivity untrustworthy today, and closed forms do not touch it. The mechanism is numerical — a lookup table whose number of entries changes when
 the parameter moves — but the consequence is ecological: the answer to "how much does drought
 tolerance matter here" is not merely imprecise, it is not a derivative of anything. Report 05
 gives the closed forms that remove the table.
