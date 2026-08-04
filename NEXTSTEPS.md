@@ -23,6 +23,15 @@ agree with each other.** At `max_patch_lifetime = 2`, trait `lma`:
 | `mass_above_ground` | −5.00502106067521 | **+1.1236103034985** | −5.18146726765 |
 | `area_stem` | −0.00178853862026 | **−0.117481756163** | −0.00183969234031 |
 
+**WARNING: the `mass_above_ground` entry of this table is not reproducible and its
+configuration is not recorded.** A dry run on `d3392ea3` at the same lifetime, through
+`scripts/stand-gradient-smoke.R`, reads `-14906.6` where this table records `+1.1236`.
+The `leaf_area` entry does reproduce, to 1.9e-6. Both numbers are consistent with the
+aliasing of Task 15, which corrupts every metric after the first in a way that depends on
+what took the freed slot — so **treat the sign and the magnitude of rows 2 and 3 of this
+table as evidence that they are wrong, and not as values to reproduce.** Task 15 first,
+then measure again.
+
 `mass_above_ground` has the wrong sign. `area_stem` is 65 times too large. The
 finite difference is stable at steps 1e-4, 1e-5 and 1e-6. It agrees with the
 tangent on all three metrics to 2.8 percent to 3.5 percent. `leaf_area` agrees to
@@ -410,8 +419,19 @@ about 50 to 300 times too large, which brackets the 65 times of Section 1. For
 `mass_above_ground` the contamination is comparable to its own size, which flips a sign
 instead of inflating a magnitude.
 
-**Steps.** Build the active twin inside the reduction, so each recording gets values
-with no slot from the previous one. Do not move `clearAll` and do not keep the twin.
+**`METHOD.md` section 3 already forbids this, and the code does it anyway.** The
+standing hazard is recorded there with its own measured signature: only the first block
+correct, later blocks with most trait rows exactly zero and a few spuriously large,
+nothing thrown. `Patch::cohort_block_adjoint` documents the fix in its comments and
+copies from a never-recorded template per block; `Patch::introduction_adjoint` builds its
+twin fresh per call. `census_state_adjoint` does neither.
+
+**It is pre-existing, and that is settled without a build.** A second dry run reproduced
+the same signature — 33 of the 52 columns non-zero in row 0 are exactly zero in row 1,
+with a few spuriously large — against a **prebuilt library with no code change**.
+
+**Steps.** Build the active twin inside the reduction, so each recording gets values with
+no slot from the previous one. Do not move `clearAll` and do not keep the twin.
 
 **Task 11 is the same fix done properly.** Recording one time and re-sweeping with
 `clearDerivativesAfter()` removes the repeated recording and the aliasing together.
@@ -881,15 +901,44 @@ metric reads the strategy directly. `area_leaf` reads `a_l1` and `a_l2`.
    `census_state_adjoint`, with the ODE state.
 2. Return the trait columns beside the state columns.
 3. Add the trait columns to `trait_adjoint` before the sweep starts.
-4. Move `clear_trait_adjoint()` to a point before the seed is taken. Today it runs
-   after the seed and it removes the term.
+4. **Add the seed's trait columns to `trait_adjoint` immediately after
+   `clear_trait_adjoint()`, inside the per-metric loop.**
 
-**How to check.** Compare against the tangent from Task 0. Use `lma`, which
-reaches the census through `mass_leaf`. Use `k_I`, which does not reach the census
-algebra, and make sure its result does not change.
+**WARNING: do not move `clear_trait_adjoint()`.** An earlier form of this task said it
+runs after the seed and removes the term. It does not. `clear_trait_adjoint()` runs at
+the top of the per-metric loop on `live`, and the seed is taken above the loop by
+`census_state_adjoint`, which is `const` and works on `patch` — the snapshot the run
+copies out — and then on a second copy, `active`. Neither is `live`, and
+`census_state_adjoint` writes no accumulator at all: `Patch::trait_adjoint` is written
+only in `cohort_block_adjoint` and `introduction_adjoint`. **Moving the clear above the
+seed takes it out of the per-metric loop, and then the accumulator sums all three metrics
+into one row.** The current position is correct.
 
-**This task explains none of the three metrics of Section 1.** Task 15 and Task 16
-do. The direct term is real and absent, and its size is checkable: after Task 15, the
+**How to check.** Compare against the tangent from Task 0, on the birth-date
+coordinate. Use `lma`, which reaches the census through `mass_leaf`.
+
+**WARNING: `k_I` is not a control for this task.** An earlier form said `k_I` does not
+reach the census algebra, so its result must not change. `k_I` is indeed absent from the
+metric functors, but `census_state_adjoint`'s recording calls
+`active.set_ode_state(x, time())`, which rebuilds the boundary node, and
+`Species::census` reads `new_node.get_density()`, which is
+`birth_rate * pr_estab / g` — a physiology evaluation through the light field, which
+reads `k_I`. **Measured: 36 of the 44 columns take a non-zero direct term, not the four
+the algebra names.** That is not a double count, because the final boundary node is not
+ODE state and `introduction_adjoint` covers earlier introductions only. There is no
+trait that is guaranteed unchanged, so use the tangent and not a control.
+
+**Measured on a dry run, for the one metric whose seed is sound.** `leaf_area`'s direct
+term is `a_l1` `-0.2583`, `a_l2` `+2.1914` — both inside `area_leaf` — and `lma`
+`+5.3168e-04`, which is small and non-zero for the right reason: `area_leaf` does not
+read `lma`, and that entry comes from the boundary node.
+
+**This task explains none of the three metrics of Section 1.** Task 15 and Task 16 do.
+
+**One premise of Section 1 was wrong and the conclusion survives.** `area_stem`'s inputs
+are not functions of `area_leaf` only: `area_sapwood` reads `pars.theta` and `area_bark`
+reads `pars.a_b1` and `pars.theta`, so `area_stem` does take direct terms — for `theta`
+and `a_b1`, not for `lma`. Its `lma` column still does not move from this task. The direct term is real and absent, and its size is checkable: after Task 15, the
 residual on `mass_above_ground` for `lma` should be exactly the `leaf_area` census
 value, `+1.9636` at the configuration of Section 1. Do this task after Task 15, or its
 gate reads aliased storage.
@@ -1152,6 +1201,9 @@ Each item below blocks something. Do not treat the list as background.
   `input_adjoints`, and these two are a different site. The candidates are the
   `util::stop` calls in `Leaf::prepare_collar_solve` and `Leaf::profit_at_collar_psi`.
   A run is needed to say which.
+- **`test-census.R`'s G4 checks the census seed for `leaf_area` only**, which is metric
+  0 — the one metric the aliasing of Task 15 leaves correct. Therefore it is a gate that
+  cannot fail for the two broken metrics. Extend it to all three.
 - **There is no cost gate anywhere.** Nothing asserts that a block costs what it
   was measured to cost. That is how a factor of 300 sat behind a green suite for
   three waves. **Land each task in this document with a cost gate.**
