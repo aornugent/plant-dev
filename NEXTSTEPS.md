@@ -424,12 +424,18 @@ about 50 to 300 times too large, which brackets the 65 times of Section 1. For
 instead of inflating a magnitude.
 
 **`METHOD.md` section 3 already forbids this, and the code does it anyway.** The
-standing hazard is recorded there with its own measured signature: only the first
-recorded cohort step correct, later steps with most trait rows exactly zero and a few
-spuriously large, nothing thrown. `Patch::cohort_block_adjoint` documents the fix in its
-comments and copies from a never-recorded template for each recorded cohort step;
-`Patch::introduction_adjoint` builds its copy at the active type fresh on each call.
-`census_state_adjoint` does neither.
+standing hazard is recorded there with the same measured signature: the first recording
+correct, the later ones with most rows exactly zero and a few spuriously large, nothing
+thrown.
+
+**The loop here is the loop over functionals, not the loop over cohorts, and that
+distinction matters because only one of the two is broken.**
+`Patch::cohort_block_adjoint` loops over cohorts and copies a never-recorded template for
+each one, which is correct; `Patch::introduction_adjoint` builds its copy at the active
+type fresh on each call, which is also correct. `census_state_adjoint` loops over
+functionals and builds one copy above the loop. **It is the only remaining site.** The
+two signatures are indistinguishable from the numbers alone, so name the loop whenever
+you record one.
 
 **It is pre-existing, and that is settled without a build.** A second dry run reproduced
 the same signature — 33 of the 52 columns non-zero in row 0 are exactly zero in row 1,
