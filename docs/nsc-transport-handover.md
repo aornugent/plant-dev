@@ -150,3 +150,58 @@ Large collected histories are gitignored; rerun `01-baseline.R` to regenerate th
 schedules at each level. And timings are only meaningful on an idle machine — check
 `ps -eo cmd | grep -c '[e]xec/R'` returns zero first; the repeat spread should be about 1%, and if it
 is not, something else is running.
+
+## 6. Prior art on the schedule, and what it reframes
+
+Zhang, Dieckmann & Brännström (2017), *On the performance of four methods for the numerical
+solution of ecologically realistic size-structured population models*, Methods in Ecology and
+Evolution 8:948–956, [doi:10.1111/2041-210X.12741](https://doi.org/10.1111/2041-210X.12741).
+Local copy in `docs/reference/`. Read this before designing anything about the schedule.
+
+**Their third reference problem is `plant`'s own model** — a simplified single-patch version of
+Falster et al. (2010) — so this benchmarks the method we are working on, not an analogue.
+
+**They report that the characteristics method fails on it.** Their diagnosis, in their words: sharp
+changes in the size distribution, and "the significant divergence of individual growth trajectories as
+a consequence of size-asymmetric competition for light. This divergence detrimentally leads to an
+uneven resolution of the size distribution, as well as to the numerical aggregation of individuals at
+both small and large body size." The Escalator Boxcar Train fails on the same problem for the same
+reason: divergence "widens gaps between cohorts and thus undermines the numerical approximation."
+
+Two things follow, and they matter more than anything else in this file.
+
+**The vulnerability was known, and it is not specific to a carried state.** Report 13 §2.1 measures
+cohort gaps closing and, under seasonal forcing, crossing. Zhang et al. attribute the same class of
+failure to asymmetric light competition alone. A carried physiological state adds a mechanism; it did
+not create the exposure. Any claim that this is new should be checked against them first.
+
+**They name our schedule as the untested remedy and decline to test it.** Verbatim: "The problem of
+diverging characteristic curves can be overcome with an adaptive time schedule for their introduction
+(Falster et al. 2016), but this recently developed improvement of the CM is outside the scope of the
+present work." So the published record says the characteristics method fails on this model, and that
+`plant`'s adaptive schedule is the fix nobody has evaluated. That is the gap the refinement work sits
+in, and it is a stronger framing than "we would like the solver to be faster."
+
+**Their recommendation for this model class is mesh relocation.** The moving-mesh upwind method wins
+where asymmetric competition drives growth rates, by relocating mesh points toward steep gradients in
+the size distribution. We cannot relocate — a cohort's birth date is fixed once it exists. But the
+distortion relocation exists to repair is a distortion of the *size* mesh, and the birth-date mesh does
+not distort: no process moves an individual along the birth-date axis. So the corrected coordinate
+obtains structurally what MMU buys by relocation. That is the sharpest available answer to what the
+coordinate change unlocked, and it is grounded in their diagnosis rather than ours.
+
+Also from the literature search, and load-bearing for the endpoint-correction idea: Gregory's
+correction coefficients alternate in sign and go negative early — `A₂ = −1/12`, `A₃ = +1/24`,
+`A₄ = −19/720` (Encyclopedia of Mathematics, "Gregory formula"). A rule with a negative weight is not
+positivity-preserving, which would be fatal for a competition integral that cannot go negative.
+**Unresolved and cheap to settle:** expand the corrections into effective per-node weights and check
+the signs at third and fourth order. Coefficient signs are not node-weight signs, and the negativity
+may only arrive at orders far above what we need. No literature connects this to density integrands in
+either direction, so it needs our own check.
+
+`plant`'s own [cohort spacing vignette](https://traitecoevo.github.io/plant/articles/cohort_spacing.html)
+documents the current rule — drop each cohort in turn, keep it if removing it pushes the error in leaf
+area or seed rain over `schedule_eps` — and **cites no external literature at all**. It also reports 4×
+cohorts costing about 6× runtime and 8× about 26×, which is an exponent near 1.3–1.6 and disagrees with
+a separate measurement of roughly N³. That disagreement is unresolved; do not design against either
+number until it is.
