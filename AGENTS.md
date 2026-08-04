@@ -32,6 +32,10 @@ Then the reference material:
 - [`docs/reports/07-structure-worth-exploiting.md`](docs/reports/07-structure-worth-exploiting.md)
   — where the system is narrower than it looks, and what each narrowing buys. Read it before
   scoping any cost work.
+- [`docs/reports/08-what-the-machinery-could-answer.md`](docs/reports/08-what-the-machinery-could-answer.md)
+  — what the adjoint is a short step from answering beyond the trait gradient, with every
+  claim labelled read, derived, inferred or speculative. Read it before deciding what to
+  expose to users.
 - `docs/reports/01`–`04` — the derivations and measurements the design rests on.
   **Reference material, not status**; they are never edited to track progress. Read the head
   of each first: several carry corrections to their own sub-claims.
