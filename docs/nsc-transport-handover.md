@@ -201,7 +201,31 @@ either direction, so it needs our own check.
 
 `plant`'s own [cohort spacing vignette](https://traitecoevo.github.io/plant/articles/cohort_spacing.html)
 documents the current rule — drop each cohort in turn, keep it if removing it pushes the error in leaf
-area or seed rain over `schedule_eps` — and **cites no external literature at all**. It also reports 4×
-cohorts costing about 6× runtime and 8× about 26×, which is an exponent near 1.3–1.6 and disagrees with
-a separate measurement of roughly N³. That disagreement is unresolved; do not design against either
-number until it is.
+area or seed rain over `schedule_eps` — and **cites no external literature at all**. It also reports 4× cohorts
+costing about 6× runtime and 8× about 26×. That figure is FF16 timed *with* output collection: fitting
+`a + b·N^p` to its two ratios requires a negative overhead for any p near 1.3–1.5, while p ≈ 2.3 fits
+both almost exactly and matches FF16 solve-only measured directly at 2.32.
+
+**The cost scaling is settled: N^1.30 for TF24 at production configuration**, fitted on node-steps and
+confirmed on an idle machine (birth-date 106.45 µs per node-step at 141 introductions, 106.99 at 281 —
+0.5% across a doubling). A separate N³ measurement was contended elapsed time; the same runs on user CPU
+give 2.32.
+
+The decomposition matters more than the exponent. Growth comes from **one factor**: mean live nodes per
+step, N^0.99. Accepted steps contribute N^0.30 and work per node per step is flat at N^0.04. The reason
+is that **TF24 is accuracy-limited, not schedule-limited** — steps per introduction falls 36 → 8.7 across
+the ladder, because the ODE tolerance against the stiff soil and hydraulic subsystems sets the step
+count, so refining the schedule adds nodes without adding steps. FF16 and K93 are the opposite (steps per
+introduction 1.48 → 1.01), so there the schedule *is* the step sequence and cost goes as N^2.3. That one
+distinction explains every disagreement in the record.
+
+**Two consequences for design.** Halving the node count saves about 2.5×, not 8× — so raising the
+quadrature order to need fewer nodes is a modest lever, not a dominant one. And the accepted step count
+is an independent lever of comparable size, set by `ode_tol` and TF24's stiff subsystems rather than by
+the schedule; it was never examined. The query-height count is **not** a lever: it does not scale with N
+(+1.4% across a doubling) and loosening the light tolerance 3.4-fold changes runtime by 4.8%.
+
+One correction to an earlier claim in this file: "seconds per node-step constant to 3%" covered only the
+two birth-date configurations. Height is 179.6 µs against birth-date's 106.5 — the constant is
+coordinate-specific, and the birth-date coordinate is 1.68× cheaper per node-step as well as taking
+fewer steps.
