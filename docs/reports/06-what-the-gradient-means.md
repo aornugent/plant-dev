@@ -139,11 +139,15 @@ many it will need. Report 05 section 4.1 treats this as the state changing dimen
 Ecologically, each introduction is a germination event, and its size is
 $n_{\text{new}} = \text{birth\_rate} \times \text{pr\_estab} / g$: how many seeds arrive,
 what fraction establish, divided by how fast a seedling grows out of the smallest size
-class. The division by growth rate is a bookkeeping consequence of carrying a density
-rather than a count — a seedling that grows quickly spends less time being a seedling,
-so it contributes less to the density there.
+class. The division by growth rate is a bookkeeping consequence of carrying a density in **height**
+rather than a count: a seedling that grows quickly spends less time being that tall, so it
+contributes less to the density there. **On the birth-date coordinate that division is
+absent** — nothing moves a plant along a germination-date axis — so on the coordinate the
+gradient runs on, the boundary condition is simply the seed arrival times the establishment
+probability.
 
-This is a real path from traits to the census and one of only four (section 8). A trait
+This is a real path from traits to the census — one of the six section 8 lists, and that
+list is the paths found so far rather than a closed set. A trait
 affecting germination or establishment reaches the stand *here*, not through any plant's
 physiology.
 
@@ -208,41 +212,53 @@ count at the default and is not a statement about the recorded tape.
 
 ### 6.1 Light
 
-Report 05's equation (7.1) in section 6.1 is the canopy. Read it right to left: each
+Report 05's equation (6.1) in section 6.1 is the canopy. Read it right to left: each
 cohort casts shade according to its leaf area $A_k$, distributed vertically by a shape
 function $\tilde Q$ that says what fraction of that leaf sits above height $z$; the
 shading is scaled by an extinction coefficient $k_I$; and the contributions are summed
 over every cohort weighted by how many stems it represents.
 
-The transposes, equations (7.2)–(7.5), answer the question "if the canopy at this height
+The transposes, equations (6.2)–(6.5), answer the question "if the canopy at this height
 mattered, who is responsible?" — and the answer has three parts: **how many** stems a
 cohort has (7.2), **how tall** they are (7.3), and **what kind of plant** they are
-(7.4)–(7.5).
+(6.4)–(6.5).
 
-**The third part is missing from the implementation, and it is the one an ecologist would
-most want.** $k_I$ is how opaque a canopy of this species is. It is a light-capture
-strategy, not a bookkeeping constant. A gradient that reports zero for it says "how
-opaque your leaves are does not affect the stand", which is false and would be believed,
-because a zero looks like an answer. Report 05 section 6.1 records why: the structure
-that carries the reverse pass through the canopy has slots for size and number and no
-slot for a trait.
+**The third part is missing from the implementation, and the shape of the failure is worse
+than a zero.** $k_I$ is how opaque a canopy of this species is — a light-capture strategy,
+not a bookkeeping constant. The structure carrying the reverse pass through the canopy has
+slots for size and number and none for a trait, so the reduction's contribution is lost.
 
-The same applies to $\eta$, the vertical distribution of leaf area — whether a crown is
-top-heavy or evenly spread. That is a well-studied axis of tree architecture and it
-currently reports zero.
+**But $k_I$'s reported sensitivity is not zero.** It also appears inside each plant's own
+physiology, as a self-shading coefficient on the radiation it absorbs, and that path is
+differentiated correctly. So the number an ecologist reads is **real, plausible, and short
+by the competitive half** — the part that says how much this species' opacity matters *to
+its neighbours*. A zero at least looks suspicious. A number that is right in its
+self-shading and silent about its shading of others looks like a finding.
+
+**$\eta$ — the vertical distribution of leaf area, whether a crown is top-heavy or evenly
+spread — is a different case: it has no row at all**, because it is not among the
+differentiated parameters. It is excluded for a numerical reason (a derivative that is NaN
+where a crown's relative height reaches zero), so closing the reduction's gap gives $\eta$
+nothing until that exclusion is lifted. A well-studied axis of tree architecture is
+currently not a question this machinery can be asked.
 
 ### 6.2 Water
 
-Equation (7.6)'s reading is the same shape: total draw from a soil layer is summed over
+The water aggregate of section 6.2's reading is the same shape: total draw from a soil layer is summed over
 plants, and the soil responds by drying. The transpose asks which plants were
 responsible for a layer mattering.
 
 The defect recorded there is worth an ecological gloss. The forward model was taught to
-handle cohorts in a jumbled size order; the reverse pass was not. On a stand where
-cohorts have crossed — which happens whenever reserves let a younger plant overtake an
-older one — the two disagree, and **the gradient is finite and wrong rather than
-absent**. Under the birth-date coordinate the crossing cannot happen, which is why the
-scope decision closes this without a fix.
+handle cohorts in a jumbled size order; the reverse pass was not. On a stand where cohorts have
+crossed — which happens whenever reserves let a younger plant overtake an older one — the
+two disagree, and **the gradient is finite and wrong rather than absent**.
+
+**And the coordinate choice does not rescue this.** The forward reduction was extended to
+tolerate crossed heights *on the birth-date coordinate*, because germination order stays
+monotone whatever the heights do. The adjoint's guard tests height order and knows nothing
+about the coordinate. So on the coordinate the gradient is scoped to, the forward model runs
+and the adjoint stops — and crossing is *more* common there, not less. An earlier form of
+this section said the scope decision closed it. It does the opposite.
 
 ---
 
@@ -326,8 +342,10 @@ conductivity is lost, $c$ how abruptly. These are among the most-measured traits
 plant hydraulics and among the most ecologically interesting, because they set where a
 species sits on the drought-tolerance spectrum.
 
-**The four gradient entries for these parameters are currently wrong by factors of 47 to
-10,245.** The mechanism is numerical — a lookup table whose number of entries changes when
+**Four gradient entries for these parameters are differenced across a discontinuity, and
+three measured ratios of the error are 47x, 131x and 10,245x.** The four rows are the stem
+and root curve parameters; the three ratios are all of one of them, measured on different
+quantities. No per-entry error range has been measured. The mechanism is numerical — a lookup table whose number of entries changes when
 the parameter moves — but the consequence is ecological: the answer to "how much does drought
 tolerance matter here" is not merely imprecise, it is not a derivative of anything. Report 05
 gives the closed forms that remove the table.

@@ -78,9 +78,10 @@ $1/c$. Read them by section.
 | $h_k$ | `HEIGHT_INDEX` | height of cohort $k$ |
 | $\ell_k = \log n_k$ | `Node::log_density` | log of the density carried by cohort $k$. **Not an `Individual` state slot**: it is a `Node` member, with `log_density_dt` and `set_log_density_rate` beside it |
 | $b_k$ | `introduction_time()` | the time cohort $k$ was introduced |
-| $m^{\mathrm{hw}}_k,\ a^{\mathrm{hw}}_k$ | `MASS_HEARTWOOD_INDEX`, `AREA_HEARTWOOD_INDEX` | accumulated heartwood |
-| $r_k$ | state named `"storage"`, index 5 of `TF24_Strategy::state_names()` | non-structural carbon reserve. **There is no `*_INDEX` constant for it** |
-| $\theta_j$ | `Environment::vars.state(j)`, written by `set_soil_water_state` | water content of layer $j$. `soil_moist` is a local variable and an R output key, not the carrier |
+| $m^{\mathrm{hw}}_k,\ a^{\mathrm{hw}}_k$ | `state_idx_mass_heartwood`, `state_idx_area_heartwood` | accumulated heartwood. TF24 caches these from the `state_names()` map; `MASS_HEARTWOOD_INDEX` and `AREA_HEARTWOOD_INDEX` are **FF16's** macros |
+| $r_k$ | `state_idx_storage` | non-structural carbon reserve, addressed exactly as the heartwood pair is. Only `HEIGHT_INDEX`, `MORTALITY_INDEX` and `FECUNDITY_INDEX` exist as macros |
+| $\theta_j$ | `Environment::vars.state(j)` | water content of layer $j$. **Not what the recorded step reads** — see section 5 |
+| $\psi_j$ | `get_soil_water_potential_state()`, seated in `psi_soil_cache_` | soil water **potential** of layer $j$: this is what `cohort_reads` pushes |
 | $y$ | `Patch::ode_state` | all of the above, species-major |
 
 The quadrature abscissa is
@@ -177,7 +178,15 @@ boundary between segment $\sigma+1$ and segment $\sigma$, the newly introduced
 components have no predecessor in $y$: their adjoints leave the state and enter
 $\bar\varphi$ through the boundary condition
 
-$$n_{\text{new}} = \frac{\text{birth\_rate} \cdot \text{pr\_estab}}{g}, \qquad \ell_{\text{new}} = \log n_{\text{new}}, \tag{4.2}$$
+$$\ell_{\text{new}} = \begin{cases}
+\log\!\big(\text{birth\_rate}\cdot\text{pr\_estab}\big) & \text{birth-date coordinate} \\
+\log\!\big(\text{birth\_rate}\cdot\text{pr\_estab}\,/\,g\big) & \text{height coordinate}
+\end{cases} \tag{4.2}$$
+
+**Read from `Node::compute_initial_conditions`.** The division by the growth rate is the
+**height** branch only: on the birth-date coordinate there is no $1/g$, because nothing moves
+an individual along the birth-date axis. An earlier form gave the divided form
+unconditionally, and the gradient runs on the coordinate that does not have it.
 
 which reads $\varphi$ directly and is `Patch::introduction_adjoint`. Then $\bar y$ is
 narrowed to $d_\sigma$ and the sweep continues.
@@ -193,7 +202,7 @@ Nothing currently asserts the second.
 The unit of the reverse pass is one evaluation of `Individual::compute_rates` for one
 cohort at one Runge–Kutta stage, recorded at the active scalar type. Its inputs are
 
-$$u_k = \big(\underbrace{h_k,\ \mu^{\mathrm{cum}}_k,\ F_k,\ a^{\mathrm{hw}}_k,\ m^{\mathrm{hw}}_k,\ r_k}_{\texttt{ode\_state},\ \text{6 states}},\ \underbrace{\Lambda, \Lambda'}_{\text{field},\ 2K},\ \underbrace{\theta_{1:L}}_{\text{soil}},\ \underbrace{\varphi}_{P}\big)$$
+$$u_k = \big(\underbrace{h_k,\ \mu^{\mathrm{cum}}_k,\ F_k,\ a^{\mathrm{hw}}_k,\ m^{\mathrm{hw}}_k,\ r_k}_{\texttt{ode\_state},\ \text{6 states}},\ \underbrace{\Lambda, \Lambda'}_{\text{field},\ 2K},\ \underbrace{\psi_{1:L}}_{\text{soil potentials}},\ \underbrace{\varphi}_{P}\big)$$
 
 **Read from `Individual::block_inputs`**, which is `ode_state`, then
 `environment.cohort_reads`, then `ad_parameters()`; and from
@@ -249,7 +258,7 @@ $$\frac{\partial v}{\partial \Lambda_q} = \frac{\partial v}{\partial \mathcal{R}
 
 so the $12 \times 130$ block is $12 + 130$ numbers rather than 1560 — **rank one.** It is
 already exploited: `graft_leaf_outputs` receives radiation as one active scalar, so the
-supplied derivatives are a row over $2n+3$ inputs, and the tape carries the second factor
+supplied derivatives are a row over `2*max_soil_layer + 3 + n_leaf_parameter_inputs` = 28 inputs at five layers, and the tape carries the second factor
 through the recorded spline query. Report 07 section 1 develops the sparsity of that
 factor, which differs between the two modes.
 
@@ -290,13 +299,13 @@ the trapezium weights on the abscissa $x_k$. The field is then a spline through 
 knots, so the recorded cohort step reads $(\Lambda_q, \Lambda'_q)$ and not
 $E^{\mathrm{comp}}$ directly.
 
-Given knot adjoints $\bar\Lambda_q$, the transpose of (7.1) scatters:
+Given knot adjoints $\bar\Lambda_q$, the transpose of (6.1) scatters:
 
 $$\bar\ell_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \, A_k \, \tilde{Q}(z_q/h_k) \tag{6.2}$$
 
 $$\bar h_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \left[ A_k' \, \tilde{Q}(z_q/h_k) - A_k \, \tilde{Q}'(z_q/h_k) \frac{z_q}{h_k^2} \right] \;+\; \underbrace{\sum_q \bar\Lambda_q \, n_k \, k_I A_k \tilde{Q} \, \frac{\partial w_k}{\partial h_k}}_{\text{zero on the birth-date coordinate}} \tag{6.3}$$
 
-$$\bar{k_I^{(s)}} \mathrel{+}= \sum_q \bar\Lambda_q \sum_{k \in s} w_k \, n_k \, A_k \, \tilde{Q}(z_q/h_k) \tag{6.4}$$
+$$\bar{k}_I^{(s)} \mathrel{+}= \sum_q \bar\Lambda_q \sum_{k \in s} w_k \, n_k \, A_k \, \tilde{Q}(z_q/h_k) \tag{6.4}$$
 
 $$\bar\eta^{(s)} \mathrel{+}= \sum_q \bar\Lambda_q \sum_{k \in s} w_k \, n_k \, k_I^{(s)} A_k \, \frac{\partial \tilde{Q}}{\partial \eta}, \qquad \frac{\partial \tilde{Q}}{\partial \eta} = -2(1-\nu^{\eta})\,\nu^{\eta}\log\nu \ \ (\nu \le 1),\ \ 0 \text{ above} \tag{6.5}$$
 
@@ -320,21 +329,43 @@ Two things to read off this.
 The braced term in (6.3) is the weight-derivative term. It exists only because the
 height coordinate makes the quadrature abscissa a function of the state. On the
 birth-date coordinate $x_k = b_k$ is fixed at birth and passive, so
-$\partial w_k/\partial h_k = 0$ and the term vanishes identically. Report 00 section 8
-names this as the term a reader is most likely to forget; the coordinate change removes
-the need to remember it.
+$\partial w_k/\partial h_k = 0$ and the term vanishes.
+
+**WARNING: that is the intended state and not the built one.**
+`Species::compute_competition_and_slope_adjoint` builds its trapezium widths from node
+**heights**, unconditionally, and writes `out[upper].height += edge; out[k].height -= edge;`,
+while the forward reduction integrates over `abscissa_of` — `introduction_time()` on the
+birth-date branch. **So the adjoint carries this term live on a coordinate where the forward
+function has no such dependence, and neither reduction is the transpose of its forward
+function there.** `consumption_rate_adjoint` has the same defect. Report 00 section 8 names
+the weight term as the one a reader is most likely to forget; the coordinate change removes
+the need to remember it *once the reductions follow the coordinate*.
 
 Equations (6.4) and (6.5) are trait contributions that arise *inside the reduction*, not
 inside any cohort step.
 
-> **Gap.** The implementation has no path for (7.4) or (7.5).
-> `Species::compute_competition_and_slope_adjoint` returns `node_size_adjoints`, a
-> structure with exactly three members — `area_leaf`, `height`, `log_density` — and no
-> parameter member, and `Patch::trait_adjoint` is written only from the cohort step and
-> from the introduction boundary. Since $k_I$ enters the model *only* through (7.1), its
-> gradient is identically zero for every functional. The same holds for $\eta$. This is a
-> missing summation, not a hard derivative: both right-hand sides are already computed as
-> intermediate products inside the existing transpose.
+> **Gap.** The implementation has no path for (6.4) or (6.5).
+> `Species::compute_competition_and_slope_adjoint` writes through a `node_size_adjoints*`
+> with exactly three members — `area_leaf`, `height`, `log_density` — and no parameter
+> member, and `Patch::trait_adjoint` is written only from the cohort step and from the
+> introduction boundary. **So this reduction's parameter terms reach no accumulator.**
+>
+> **For $k_I$ that is incompleteness and not a zero, and an earlier form of this gap had it
+> inverted.** `net_mass_production_dt` contains
+> `radiation_at = [&](S light) -> S { return pars.k_I * std::max(light, S(0.0001)) * PPFD; }`
+> — inside `compute_rates`, inside the recorded step, with `pars.k_I` seated from the step's
+> parameter segment. So the cohort-step term carries a non-zero
+> $\partial(\text{rates})/\partial k_I$ and the accumulator receives it. $k_I$ is a
+> self-shading coefficient on absorbed radiation **as well as** an extinction coefficient in
+> the reduction, and only the second contribution is missing. **A row that is non-zero and
+> short is worse than a zero, because nothing about it looks wrong.**
+>
+> **$\eta$ has no row at all, for a different reason.** It is absent from
+> `ad_parameters()`, excluded there because $u^{k}\log u$ is NaN at a base of zero. Closing
+> this gap gives $\eta$ nothing until it is registered, which is separate work.
+>
+> Both right-hand sides above are already computed as intermediate products inside the
+> existing transpose, so what is missing is a summation and not a derivative.
 
 ### 6.2 Water
 
@@ -423,8 +454,11 @@ and it must include the implicit-function term of the $c^{\mathrm{i}}$ root-find
 > **Gap.** The implementation substitutes a two-sided finite difference of
 > $\partial \Pi/\partial p$ in $\varphi$ for the parameter half of $\Pi_{pu}$: for each
 > parameter that reaches the operating point it perturbs the parameter and re-evaluates.
-> This costs 22 of the 35 residual evaluations per call, and its conditioning has never
-> been measured.
+> This costs **22 of the 30** evaluations of `dprofit_droot_collar_psi` per call on the
+> interior path — 11 parameters passing `reaches_operating_point`, two sides each, against 2
+> in `dR_dcollar_at`, 2 in `dR_dflux_from_layer`, 2 for radiation and 2 for the conductance.
+> An earlier form said 35, which reconciles with no count in the source. Its conditioning has
+> never been measured.
 
 ### 7.4 The pinned optimum: the envelope theorem does not apply
 
