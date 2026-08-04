@@ -25,6 +25,10 @@ Then the reference material:
   — **the derivatives**, with every intermediate quantity mapped to the symbol that
   carries it. Read it beside report 00: 00 states the dependency structure, 05 states
   the algebra, and its section 11 lists where the algebra and the code disagree.
+- [`docs/reports/06-what-the-gradient-means.md`](docs/reports/06-what-the-gradient-means.md)
+  — the ecology behind those derivatives, section for section, and what it would be wrong
+  to conclude from a number this machinery produces. Read it if you are deciding whether a
+  defect matters.
 - `docs/reports/01`–`04` — the derivations and measurements the design rests on.
   **Reference material, not status**; they are never edited to track progress. Read the head
   of each first: several carry corrections to their own sub-claims.

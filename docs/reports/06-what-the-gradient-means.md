@@ -1,0 +1,371 @@
+# What the gradient means: the ecology behind the derivatives
+
+Written 2026-08-04. Companion to
+[`05-reverse-mode-mathematics.md`](05-reverse-mode-mathematics.md), section for section.
+
+Report 05 says what each derivative *is*. This says what each one *means*, and what it
+would be wrong to conclude from it. The intended reader is an ecologist deciding whether
+a number this machinery produces answers their question, and a developer deciding
+whether a defect matters.
+
+Its second purpose is to make the ecological content of the design falsifiable. Several
+choices in report 05 are defensible mathematically and carry an ecological commitment
+that is easier to argue about when stated in words.
+
+---
+
+## 1. What question the gradient answers
+
+The model grows a patch of forest from bare ground: seeds arrive, individuals compete
+for light and water, they grow and die, and the stand assembles itself. A **census** is
+a summary of that stand at some age — its leaf area, its above-ground mass, its basal
+area.
+
+The gradient answers: **if one plant trait were slightly different, how would the stand
+differ?** Not one plant — the whole assembled stand, including every consequence that
+runs through competition. A leaf that is slightly cheaper to build shades its neighbours
+slightly more, so they grow slightly less, so they shade it back slightly less, and the
+stand that emerges is different in ways no single-plant calculation reaches.
+
+That is why the derivative is worth this much machinery. The quantity is not
+$\partial(\text{one plant's growth})/\partial(\text{trait})$, which is calculus on a
+formula. It is the derivative of an **emergent** property through a hundred years of
+feedback.
+
+### Why 44 traits at once, and why that forces reverse mode
+
+The traits are not a shortlist. They are the whole physiological parameterisation: leaf
+economics, wood density, allocation, hydraulic vulnerability, photosynthetic capacity,
+mortality and reserve dynamics. An ecologist asking "which traits does this outcome
+depend on, and how strongly" wants all of them, ranked.
+
+Getting that by re-running the model once per trait costs 44 runs. The adjoint costs
+one run and one sweep, whatever the number of traits. **This is the whole reason the
+project exists**, and it is why report 05 section 1 puts the choice of direction first.
+
+The practical consequence is that the gradient is only useful if it is *complete*: a
+ranked list of 44 sensitivities with four of them silently zero is worse than no list,
+because the zeros read as "this trait does not matter" — which is exactly the kind of
+conclusion an ecologist would publish.
+
+---
+
+## 2. What the state variables mean
+
+| Report 05 | What it is ecologically |
+|---|---|
+| $h_k$ | the height of a cohort — every other size follows from it by allometry, so height *is* the size coordinate |
+| $\ell_k = \log n_k$ | how many stems that cohort represents, per unit ground area, in logs because densities span orders of magnitude and go to near-zero without reaching it |
+| $b_k$ | when that cohort germinated |
+| $m^{\mathrm{hw}}_k, a^{\mathrm{hw}}_k$ | heartwood: wood that has stopped respiring. It accumulates and is never lost, which is why it is a state and not a function of size |
+| $r_k$ | stored sugars. The buffer between carbon gain and growth, and what lets a shaded plant survive a bad year instead of dying in it |
+| $\theta_j$ | how wet each soil layer is |
+
+**The coordinate choice is an ecological statement, not a numerical one.** A density in
+height says "here is how many stems are this tall". A density in birth date says "here
+is how many stems germinated then, and here is how tall they now are". The two describe
+the same stand.
+
+They differ in what can go wrong. In height, two cohorts can *cross*: a plant with more
+reserves can overtake one that germinated earlier, so the size ordering stops matching
+the age ordering, and the density has to be re-sorted. In birth date, germination order
+is fixed once and for all and nothing can reorder it. Report 05 section 2 records this
+as "the abscissa cannot invert". Ecologically it is the observation that **plants can
+change their relative size but not their relative age.**
+
+That is why the reverse-mode gradient is scoped to birth date. The height coordinate is
+not wrong; it is a coordinate in which a legitimate biological event — the overtaking of
+one cohort by another, which reserve-gated growth makes common — turns into a numerical
+special case.
+
+---
+
+## 3. Why the model is a composition, and what that means for feedback
+
+Report 05 section 3 writes the model as a chain: traits, then each plant's size, then
+the shared environment, then each plant's physiology, then the rates.
+
+The ecologically important feature is the *shape* of that chain. Two arrows point
+differently:
+
+- **Every plant reads the same environment.** The light profile and the soil water are
+  shared. One arrow, many readers.
+- **Every plant writes into that environment.** Its leaves shade, its roots draw water.
+  Many writers, one sum.
+
+Competition is exactly the second arrow. There is no direct plant-to-plant term
+anywhere in the model — no plant knows about any other plant. They interact *only*
+through their contributions to a shared field. This is what makes the model tractable
+and it is what makes the adjoint tractable too: the reverse pass handles each plant
+independently and then does one pass to redistribute the environment's sensitivity.
+
+**A consequence worth stating plainly.** When the gradient tells you a trait matters,
+part of that is the direct physiological effect and part is the competitive one, and the
+machinery does not separate them. A trait that makes a plant grow faster in isolation
+may show a small stand-level gradient because everything else grows faster too.
+Interpreting a sensitivity as a physiological effect is a mistake the number cannot
+warn you about.
+
+---
+
+## 4. What the solver's adjoint means, and the one thing it deliberately ignores
+
+The forward model steps through time. The adjoint runs the same trajectory backwards,
+carrying "how much does the final census care about this quantity, at this moment".
+
+The ecological reading of report 05 section 4: **influence accumulates backwards along
+the trajectory.** A trait acts on the stand at every instant, and the gradient is the
+sum of those actions weighted by how much each one still mattered by the end. Early
+actions matter through everything they set in motion; late actions matter directly.
+That is the integral in report 05's equation (4.1).
+
+### The step size is held fixed, and that is a modelling decision
+
+The solver chooses its own time steps adaptively, taking small ones when the stand is
+changing fast. Report 05 section 4 holds those step sizes constant on the reverse pass.
+
+This is worth being explicit about, because it looks like an approximation and is not.
+The step sizes are a property of the *numerical method*, not of the forest. Letting the
+gradient flow through them would compute how the error controller responds to a trait
+change, which is not an ecological quantity and would contaminate the answer with the
+solver's internals. **Holding them is the choice that makes the gradient a derivative of
+the model rather than of the program.**
+
+### Cohorts appear during the run, and that is where seed production enters
+
+New cohorts are introduced as the run proceeds — the model does not know in advance how
+many it will need. Report 05 section 4.1 treats this as the state changing dimension.
+
+Ecologically, each introduction is a germination event, and its size is
+$n_{\text{new}} = \text{birth\_rate} \times \text{pr\_estab} / g$: how many seeds arrive,
+what fraction establish, divided by how fast a seedling grows out of the smallest size
+class. The division by growth rate is a bookkeeping consequence of carrying a density
+rather than a count — a seedling that grows quickly spends less time being a seedling,
+so it contributes less to the density there.
+
+This is a real path from traits to the census and one of only four (section 8). A trait
+affecting germination or establishment reaches the stand *here*, not through any plant's
+physiology.
+
+---
+
+## 5. What one recorded step is
+
+Report 05 section 5's unit is one plant's physiology evaluated once: it reads its own
+size, the light and water available to it, and the traits, and it produces its growth,
+its mortality, its seed output, and how much water it drew from each layer.
+
+185 inputs and 12 outputs. The inputs are mostly *environment* — 130 of them describe
+the light profile — which is the numerical face of the ecological fact that a plant's
+performance depends far more on the shape of the canopy above it than on anything about
+itself.
+
+### Why the coordinate change halves the work
+
+Report 05 section 5.1 is worth reading twice, because it is the one place where an
+ecological choice buys a large numerical saving.
+
+In the height coordinate, the density obeys
+$\dot\ell = -\mu - \partial g/\partial h$. The second term says that where growth
+accelerates with size, cohorts spread apart and the density thins; where growth
+decelerates, they pile up. It is a real effect — the compression of the size
+distribution — and computing it requires asking "how fast would this plant grow if it
+were slightly taller", which means solving its entire physiology a second time.
+
+In the birth-date coordinate, $\dot\ell = -\mu$: **the density changes only because
+plants die.** Nothing about growth appears, because germination dates do not spread
+apart or pile up. The compression is still there in the model — it reappears when you
+convert back to a distribution over height — but it is no longer something the rate
+equation has to compute.
+
+So the coordinate change removes one whole physiological solve per plant per step. The
+ecology is unchanged; the bookkeeping is halved.
+
+---
+
+## 6. What the environment reductions mean
+
+### 6.1 Light
+
+Report 05's equation (7.1) in section 6.1 is the canopy. Read it right to left: each
+cohort casts shade according to its leaf area $A_k$, distributed vertically by a shape
+function $\tilde Q$ that says what fraction of that leaf sits above height $z$; the
+shading is scaled by an extinction coefficient $k_I$; and the contributions are summed
+over every cohort weighted by how many stems it represents.
+
+The transposes, equations (7.2)–(7.5), answer the question "if the canopy at this height
+mattered, who is responsible?" — and the answer has three parts: **how many** stems a
+cohort has (7.2), **how tall** they are (7.3), and **what kind of plant** they are
+(7.4)–(7.5).
+
+**The third part is missing from the implementation, and it is the one an ecologist would
+most want.** $k_I$ is how opaque a canopy of this species is. It is a light-capture
+strategy, not a bookkeeping constant. A gradient that reports zero for it says "how
+opaque your leaves are does not affect the stand", which is false and would be believed,
+because a zero looks like an answer. Report 05 section 6.1 records why: the structure
+that carries the reverse pass through the canopy has slots for size and number and no
+slot for a trait.
+
+The same applies to $\eta$, the vertical distribution of leaf area — whether a crown is
+top-heavy or evenly spread. That is a well-studied axis of tree architecture and it
+currently reports zero.
+
+### 6.2 Water
+
+Equation (7.6)'s reading is the same shape: total draw from a soil layer is summed over
+plants, and the soil responds by drying. The transpose asks which plants were
+responsible for a layer mattering.
+
+The defect recorded there is worth an ecological gloss. The forward model was taught to
+handle cohorts in a jumbled size order; the reverse pass was not. On a stand where
+cohorts have crossed — which happens whenever reserves let a younger plant overtake an
+older one — the two disagree, and **the gradient is finite and wrong rather than
+absent**. Under the birth-date coordinate the crossing cannot happen, which is why the
+scope decision closes this without a fix.
+
+---
+
+## 7. What the plant's decision means
+
+This is the ecologically richest part of the design and it is worth understanding before
+trusting anything downstream.
+
+### The decision itself
+
+A plant with leaves and roots faces a trade-off. Opening its stomata lets in CO₂ to
+photosynthesise, and lets out water. Losing water pulls its internal water potential
+more negative, and past a point the water columns in its xylem break — embolism — which
+costs it conductive tissue it cannot cheaply replace.
+
+So it chooses. Report 05's equation in section 7 is that choice:
+$\Pi = A(c^{\mathrm{i}}) - \Theta$, gain minus hydraulic cost, maximised over how hard
+the plant is willing to pull. Every TF24 plant solves this optimisation at every moment
+of its life. **It is a model of behaviour, not a formula**, which is why the derivative
+needs care.
+
+### Why profit is free, and what that means biologically
+
+Report 05 section 7.1's envelope theorem has a clean ecological reading. **At the
+optimum, the plant is indifferent to small changes in its own decision** — that is what
+being at a maximum means. So if the environment shifts slightly, the resulting change in
+profit is entirely the direct effect of the environment; the plant's re-optimisation
+contributes nothing to first order.
+
+This is not a numerical trick. It is the statement that a well-adapted plant's
+performance is insensitive to small errors in its own behaviour, and it is why the most
+expensive part of the model — the optimisation — costs nothing to differentiate for the
+quantity that matters most.
+
+### Why water use is not free
+
+The plant is indifferent about *profit*. It is not indifferent about *water*. Report 05
+section 7.2's argmax sensitivity says: shift the environment, and the plant re-optimises,
+and its water use changes as a result — and that change is a real effect on every other
+plant sharing the soil.
+
+So the expensive derivative is needed for exactly the quantity that mediates
+competition. The design's economy is to notice that this channel is *one number wide*:
+the plant makes a single scalar decision, so all its knock-on effects flow through that
+one decision. Report 05 calls this rank one.
+
+### The pinned plant, which is a real biological state
+
+Sometimes the optimum is not interior: the plant would like to transpire less than zero,
+or more than its hydraulics allow. Then it sits at a limit, and report 05 section 7.4
+notes that the envelope theorem stops applying.
+
+This is not an edge case to be tolerated. It is **drought**. A plant pinned at its
+zero-uptake bound is a plant that has closed down; a plant pinned at its critical
+potential is one operating at the edge of hydraulic failure. Both are states the model
+exists to represent, and they are the states in which the derivative is structurally
+different — the plant is no longer indifferent to its own behaviour, because it is not
+choosing freely.
+
+The practical implication: **any conclusion about drought sensitivity depends on the
+pinned branch being right.** The bound's own derivative, `Leaf::bound_partials`, is
+carrying the ecology in that regime.
+
+### The bracket failure is a non-producing plant
+
+Report 05 section 7.5 records that the CO₂ root-find loses its bracket when either
+assimilation at saturation is negative or water flux is negative. Both describe a plant
+that is not making a living: respiring more than it fixes, or unable to move water at
+all. The forward model recognises those states and substitutes shut-down. The gradient
+path does not, and raises instead.
+
+So the defect is confined to the states where the answer is ecologically trivial — a
+plant doing nothing — which is why it is a guard and not a derivation.
+
+### The vulnerability curve
+
+Report 05 section 7.6's integral is the hydraulic vulnerability curve: what fraction of
+conductivity survives at a given water potential, integrated to give total flow. The
+parameters $b$ and $c$ are the curve's position and steepness — $b$ near where half of
+conductivity is lost, $c$ how abruptly. These are among the most-measured traits in
+plant hydraulics and among the most ecologically interesting, because they set where a
+species sits on the drought-tolerance spectrum.
+
+**The four gradient entries for these parameters are currently wrong by factors of 47 to
+10 245.** The mechanism is numerical — a lookup table whose number of entries changes
+when the parameter moves — but the consequence is ecological: the gradient's answer for
+"how much does drought tolerance matter here" is not merely imprecise, it is not a
+derivative of anything. Report 05 gives the closed forms that remove the table.
+
+---
+
+## 8. What the census means, and the four ways a trait reaches it
+
+Report 05 section 9 splits the census gradient into two terms, and the split has a clean
+reading.
+
+A stand's leaf area changes with a trait for two reasons. **The stand is different** —
+different plants, different sizes, different numbers, because the trait changed how they
+grew and competed. And **the measurement is different** — the same plant, converted to
+leaf area by a formula that itself contains the trait.
+
+The first is the trajectory term and it is what the whole adjoint machinery computes.
+The second is a one-line calculation at the final state. It is easy to forget precisely
+because it is trivial, and forgetting it is silent: the answer stays finite and
+plausible.
+
+Report 05 section 10 then enumerates every path from a trait to the census, and there
+are four: the measurement formula, each plant's physiology, germination, and the shared
+canopy. **That list is a completeness claim** — it says there is nowhere else to look —
+and the implementation currently has two of the four.
+
+### One assumption is imposed rather than derived
+
+Report 05 section 10.1 records that the seed's initial height is treated as independent
+of the traits. Ecologically that says **every species starts at the same size regardless
+of its traits**, which is false: seed size and seedling establishment size are traits,
+and they covary with the leaf and wood economics the gradient is differentiating.
+
+The measured consequence is about 3 per cent for leaf mass per area. What makes it worth
+flagging beyond its size is that **neither available reference can detect it**: the
+forward tangent makes the same assumption, and a re-run finite difference cannot be used
+at production because the stand collapses discontinuously under a tiny trait
+perturbation. So this is the one defect where "we cannot currently tell" is the honest
+statement.
+
+---
+
+## 9. What would make this gradient trustworthy to an ecologist
+
+Not a green test suite. Three things, in order:
+
+1. **No zeros that are not real zeros.** A trait reading zero must be a trait the model
+   genuinely does not use, and the boundary must refuse a trait it cannot answer for
+   rather than returning zero. Right now $k_I$ and $\eta$ read zero because of a missing
+   accumulator, and that is indistinguishable from an ecological finding.
+2. **Agreement with an independent method on a case small enough to check by hand.** A
+   forward tangent on a two-cohort stand, agreeing to solver tolerance, is worth more
+   than any amount of internal consistency — because internal consistency is exactly
+   what a transposed-wrongly reduction preserves.
+3. **A stated domain.** Which coordinate, which traits have rows, which states are
+   refused, and what the known biases are. A gradient with an honest domain is usable; a
+   gradient that answers every question is not trustworthy.
+
+The largest current risk is not any single defect in report 05's table. It is that
+**every defect in that table produces a finite, plausible number** — wrong signs, wrong
+magnitudes, silent zeros — and none of them produces an error. An ecologist reading the
+output has no way to tell.

@@ -270,6 +270,7 @@ capability.
 | how to verify, build, measure; the reference numbers; the harnesses | `METHOD.md` |
 | the derivations the plan rests on | `docs/reports/00`–`04` |
 | the derivatives, and the symbol that carries each quantity | `docs/reports/05` |
+| what the derivatives mean ecologically, and what a defect costs | `docs/reports/06` |
 | re-runnable probes and spike patches | `docs/probes/` |
 | what was built, at which commit, and what each number moved | `docs/archive/implementation-notes.md` |
 | the plan the build was run against | `docs/archive/build-plan.md` |
