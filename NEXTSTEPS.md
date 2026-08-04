@@ -412,7 +412,22 @@ Type: cost, and it also removes a hazard, so do it first.
 **Why.** `Leaf::input_adjoints` computes the full local Jacobian of the leaf. Only
 five quantities in the function use the seed: `uptake_dm`, `s_adjoint`, the interior
 branch's `mu`, the pinned branch's `w`, and the sums that write the result. Each of
-the five is linear in the seed. All other work is independent of the seed.
+the five is linear in the seed. All other work is independent of the seed. Verified by
+reading every use of `lambda_profit` and `lambda_uptake`; the list is complete, and
+`mu` is not independent, being `-s_adjoint / Pi_pp`.
+
+**The list names what varies with the seed. It does not name what you must lift, and
+the second set is the saving.** Six blocks are seed-free and move the leaf, so each has
+to run above the row loop:
+
+1. `Pi_pp`, being `dR_dcollar_at(p, 1e-6)`, which is three `dprofit_droot_collar_psi`
+   calls.
+2. The parameter difference loop, up to 11 parameters by 2 sides, of which 4 rebuild
+   the interpolants.
+3. `dR_dflux_from_layer`.
+4. The PPFD residual pair, with its step `h = PPFD_ * 1e-6`.
+5. The conductance residual pair, with its step `h = kappa * 1e-6`.
+6. On the pinned branch, `dprofit_droot_collar_psi(p)` and `bound_partials`.
 
 `TF24_Strategy::graft_leaf_outputs` calls the function `1 + max_soil_layer` times,
 one time for each output row. Therefore the code computes one Jacobian
@@ -426,17 +441,53 @@ mature stand, and per-block cost is not a constant of the model.
    `inst/include/plant/leaf_model.h`.
 2. Move the body of `input_adjoints` into `output_rows`. Keep the order of the
    statements. Do not move a statement that reads leaf state.
-3. Change `dE_dm` to an `n` x `n` matrix. The `uptake_dm` accumulation inside the
-   root-mass loop is the only seed contraction in a loop that is otherwise
-   independent of the seed. **Do not scale the matrix**: the loop scales `dEup_dm`
-   and `dslope_dm` by `kg_per_mol_h2o` after it closes, and `uptake_dm` reads the
-   raw value.
+3. Change `dE_dm` to an `n` by `n` matrix **indexed by the `(j, i)` pair of the
+   existing double loop, with only the `i >= j` triangle written and read** — `n(n+1)/2`
+   live entries. It is a function of the pair because `q` and `fx.num[i]` both depend on
+   `j` and `i`. "An `n` by `n` matrix" alone permits a shape that compiles and is wrong.
+   The `uptake_dm` accumulation inside the root-mass loop is the only seed contraction in
+   a loop that is otherwise independent of the seed. `d2E_dm` is not contracted, so keep
+   one matrix only. **Do not scale the matrix**: the loop scales `dEup_dm` and
+   `dslope_dm` by `kg_per_mol_h2o` after it closes, and `uptake_dm` reads the raw value.
 4. Put the branch on `collar_pinned_` above the row loop. Write two row loops. Do
    not put the branch inside one row loop.
 5. Write the seed as a literal value in each row: use `(q == j + 1 ? 1.0 : 0.0)`.
    Do not remove a multiplication because one factor is zero.
-6. Keep `input_adjoints`. Make it a contraction over `rows`.
+6. Keep `input_adjoints`. Make it a contraction over `rows`. **After step 7 nothing in
+   the model calls it and no test calls it**; the two harnesses in `scratch/` do.
+   **The contraction does not have the old bit pattern**, because it re-associates the
+   sum and adds terms that are exactly zero, so a `-0.0` entry becomes `+0.0`. Decide
+   whether the harnesses need the old bits before you write it.
 7. Change `graft_leaf_outputs` to call `output_rows` one time. Graft each row.
+   **`rows.size()` is `1 + max_soil_layer`, not `1 + soil_consumption_.size()`.**
+   `graft_leaf_outputs` loops to `n_layer`, which is the larger, and takes a flat path
+   above `max_soil_layer`. Getting this wrong reads past the end of a live vector.
+
+**WARNING: the parameter columns are written with `=` and not `+=`.**
+`input_adjoints[i_par0 + k] = ...` assigns. A row loop must keep that assignment inside
+each row, or every row but the last loses its parameter columns and reads exactly zero
+— the failure mode the last warning of this task describes.
+
+**WARNING: `mu * (R_pm[0] - R_pm[1]) / (2.0 * h)` may not be hoisted as a quotient.**
+Hoisting `diff / (2h)` and multiplying by `mu` in the row re-associates and moves bits.
+Lift the raw pair and the step; keep the whole expression inside the row loop. **This is
+the one place where a reasonable reading of these steps silently fails this task's own
+gate.**
+
+**Keep the order of the calls that move the leaf, and not the order of the
+statements.** The two are different instructions and only the first is satisfiable
+together with step 4: the original interleaves pure writes with state-perturbing
+evaluators, and bundling requires each perturbing call to run before any row is
+written. A write touches no leaf state, so a write may move. The perturbing calls may
+not: `psi_stem_to_ci`, `E_from_Soil_to_Root_Collar`, `layer_flux_partials`, the
+parameter loop, `dR_dcollar_at`, `dR_dflux_from_layer`, the PPFD pair, the conductance
+pair. Read step 2's rule as "do not move a statement whose value depends on a leaf
+member that a later statement writes"; read literally it forbids the change, because
+almost every statement reads leaf state.
+
+**`uptake_dm` may be separated from the loop that carries it.** Its terms are disjoint
+from `dEup_dm`'s and `dslope_dm`'s, so a `j`-then-`i` loop with `i` ascending from `j`
+gives the same bits.
 `Leaf::bound_partials` is **not** part of this task. It has no seed dependence, so
 it has nothing to bundle. What it needs is the mask, which is Task 3.
 
@@ -457,21 +508,52 @@ multiplication, so the gate of this task compares like with like. **The NaN itse
 a defect and Section 9 owns it.** Do not try to fix it here: this task must be
 bit-identical, and that fix is not.
 
-**How to check.** Compare the bit pattern of each value. Do not use `==`.
+**WARNING: the old code does not restore `PPFD_`, so its rows are not the rows of one
+Jacobian.** The PPFD residual pair restores by accumulating arithmetic and not by
+assignment:
 
-1. Record `input_adjoints(1.0, 0, v0)` and `input_adjoints(0.0, e_j, v_j+1)` on the
-   old build.
-2. Call `output_rows(rows)` on the new build at the same leaf state.
-3. Make sure each `rows[q][i]` has the same bit pattern as `v_q[i]`.
-4. Make sure the leaf state after one `output_rows` call has the same bit pattern
-   as the leaf state after `1 + n` old calls. Compare `ci_`, `profit_`, `E_up_`,
+```
+h = PPFD_ * 1e-6;  PPFD_ += h;  PPFD_ -= 2h;  PPFD_ += h;
+```
+
+`fl(fl(fl(P + h) - 2h) + h)` is not `P`. It returns at `PPFD = 900`, 1000 and 800, and
+it drifts one unit in the last place at 1500, 1200 and 1e-3. Therefore the old code
+takes row 0 at `P`, row 1 at `P` plus one step, row 2 at `P` plus two steps, and so on.
+Measured at `PPFD = 1500`: **40 of 810 entries disagree, to 2.087e-06 relative**, in the
+columns that read `PPFD_` or its step — `PPFD`, `jmax_25`, `a`,
+`curv_fact_elec_trans`, `leaf_specific_conductance_max`. `electron_transport_` hides it,
+because it rounds back to the same double.
+
+**Therefore this task removes a defect and its gradient rows move.** Every other member
+is restored by assignment and is exact, so `PPFD_` is the only one.
+
+**How to check. Compare the bit pattern of each value; do not use `==`.**
+
+1. Record `input_adjoints(1.0, 0, v0)` and `input_adjoints(0.0, e_j, v_j+1)` on the old
+   build, **each from a leaf freshly seated at the same state — one old call per row, not
+   `1 + n` calls in sequence.** A sequence drifts `PPFD_`, so it is not a reference.
+2. Call `output_rows(rows)` on the new build at that state.
+3. Require each `rows[q][i]` to have the bit pattern of `v_q[i]`.
+4. Require the leaf state after one `output_rows` call to have the bit pattern of the
+   leaf state after **one** `input_adjoints` call. Compare `ci_`, `profit_`, `E_up_`,
    `soil_consumption_`, `opt_psi_stem_`, `root_collar_psi_`, `PPFD_`,
    `leaf_specific_conductance_max_`, `collar_pinned_`, the 15 parameter members,
-   `psi_soil_`, `vcmax_`, `R_d_`, `jmax_` and `electron_transport_`.
-5. Do the check at three states: an interior operating point, a pinned operating
-   point, and a state where `layer_flux_partials` gives NaN.
-6. Do the check on a block that has two grafts. A block with one graft passes even
-   when the operating point is wrong.
+   `psi_soil_`, `vcmax_`, `R_d_`, `jmax_`, `electron_transport_` and `assim_max_`.
+   **Do not compare against `1 + n` calls: that gate cannot pass wherever `PPFD_` fails
+   to return.**
+5. Do the check at four states: an interior operating point, a pinned one, a state where
+   `layer_flux_partials` gives NaN, and **an interior state at a `PPFD` that does not
+   round back, 1500 being one.** The fourth is what makes the drift visible.
+6. Do the check on a block that has two grafts. A block with one graft passes even when
+   the operating point is wrong.
+
+**Measured on a dry run of these steps**, at `d3392ea3`: 642 of 642 row entries
+bit-identical at an interior, a pinned and a kink state; all 168 entries of the kink
+state NaN on both builds, which is the evidence that `0.0 * NaN` was not simplified
+away; and 0 of 46 members differing against one old call at every state, including
+`PPFD = 1500`. `scratch/leaf_jac_gate.cpp` does not fit this gate — it checks
+invariants and never records a row — so a new harness is needed and it links standalone
+without an R build.
 
 **WARNING: A finite difference of the block cannot check these rows. The graft is
 zero in value for each grafted input. Therefore the value of the block does not
@@ -495,6 +577,10 @@ and only for `b`, `c`, `root_b` and `root_c`. Measurement A gives 2.0007 rebuild
 for each call. Therefore they run always.
 
 **Steps.**
+
+**`Leaf::bound_partials` has two more builder calls that Measurement A's 2.0007 does
+not count**, and they run unconditionally on the pinned branch. Guard those too, and its
+own 4-parameter difference loop belongs to Task 3's mask.
 
 1. Put the two calls in each function under one condition. The condition is
    `par_wanted(PAR_B) || par_wanted(PAR_C) || par_wanted(PAR_ROOT_B) ||
@@ -1061,7 +1147,7 @@ does and how to check it, and not its size.
 
 | Task | Factor | Source | What it removes | Moves forward numbers? |
 |---|---|---|---|---|
-| 1, `output_rows` | about 5.3 | calculated from A and C | repeated Jacobian builds | no |
+| 1, `output_rows` | about 5.3 | calculated from A and C | repeated Jacobian builds | no, and it moves gradient rows to 2.1e-6 by removing the `PPFD_` drift |
 | 2, tabulation guard | 5.71 for a non-leaf trait, 1.005 for all 44 | **measured, G** | tabulations, when no hydraulic row is wanted | no |
 | 3, mask | 6.68 for a non-leaf trait, 1.00 for all four hydraulic rows | **measured, F** | whole parameter rows nobody asked for | no |
 | 4, mixed second derivative | 22 of 35 residual evaluations | counted, A | the residual pairs | no |
