@@ -1443,6 +1443,18 @@ the node heights are not descending. The forward path has
 `compute_competition_unordered` for exactly that state, because reserve-gated
 growth lets cohorts cross. Therefore the forward model runs and the adjoint stops.
 
+**Both instances of this task dissolve into Task 9, and an earlier form said the second one
+survives.** `Species::consumption_rate` opens with
+`if (control().node_density_in_birth_date) { ... return util::trapezium(times, rates); }` and
+**returns before the `std::is_sorted` / `std::sort` block entirely** — the sort exists only on
+the height branch. So on the birth-date coordinate there is no sorted forward grid for the
+adjoint to fail to mirror.
+
+And once the light transpose reads the introduction time, nothing in it needs descending
+heights: the width *is* the abscissa, the `h_max` test is order-free, and the integrand's own
+height dependence through `compute_competition_and_slope_partials` is a per-node scatter. **So
+the `stop` becomes genuinely removable — for the reason below, applied through Task 9.**
+
 **WARNING: an earlier form of this task said Section 2b made the `stop` unreachable. That
 was wrong, in the direction that costs most.** The stop is `if (!scan.decreasing)
 util::stop("The competition adjoint needs the node heights in decreasing order; the
@@ -1479,7 +1491,39 @@ sorted order the forward function uses.
 
 ## 7. Tasks that #590 requires
 
+### Task 9a: `Species::census` is wrong on the birth-date coordinate by 12 to 15 times
+
+Type: **forward-model correctness, and it is not reverse-mode work.** Highest priority here.
+
+**Measured on the unmodified tree at `600e3ebd`**, TF24, `lma = 0.0825`,
+`max_patch_lifetime = 20`, 98 nodes on identical `node_times` in both coordinates:
+`stand_census` leaf area reads **55.098** on the birth-date coordinate against an R reduction
+over birth date of **3.559** — a factor of **12.33**. Mass above ground: 15.48 times.
+
+**Why.** `Species::census` builds its grid from `new_node.height()` and `it->height()`
+**unconditionally** while the state is a density in birth date, so it computes
+`integral of n_b dh` — a growth-rate-weighted moment of no ecological meaning. `cpp_leaf_area`
+equals the R height-reduction *exactly* on both coordinates, which is the proof.
+
+**This is a forward defect on the #590 path.** Task 9 lists `Species::census` among four
+reverse-mode substitutions; it is the one that is wrong before any adjoint runs.
+
+**Steps.** Give it the abscissa `quadrature_abscissa` supplies.
+**How to check.** The R reduction over the same abscissa, which is what measured the 12.33.
+
 ### Task 9: move the reductions to the birth-date abscissa
+
+**Three edit sites, not four, and step 2 is more than a substitution.**
+`SCM::census_state_adjoint` differentiates by tape, so it follows `Species::census`
+automatically and is not an edit site. Moving `consumption_rate_adjoint` **reverses its slot
+mapping**: the forward's birth-date branch appends `new_node` last, while the adjoint puts the
+boundary node in slot 0 and reverses the interior, so the boundary moves to slot `n-1`.
+
+**The transpose gains an exactly-zero row that must be asserted, not discovered.** With a
+passive abscissa, `consumption_rate_adjoint`'s abscissa channel has no counterpart and
+`out[k].height` receives nothing from that reduction. That is correct — height reaches the
+adjoint through the recorded cohort step — but `METHOD.md` section 1 requires an exactly-zero
+row to be deliberate.
 
 **Why.** #590 carries the size distribution as a density in birth date. The two
 resource integrals then use the introduction time as the abscissa. The reductions of the
@@ -1536,6 +1580,12 @@ transport output repeats an output that exists.
 1. Remove the transport output from `Individual::block_outputs`.
 2. Add the transport seed to `seeds.rate[MORTALITY_INDEX]` with a minus sign.
 3. Delete `seeds.transport`, a `block_seeds` member written in `Patch::ode_rates_adjoint`.
+   **Three further sites an earlier form missed**: `block_output_size()` becomes
+   `state_size() + n_resources()`; `Patch::cohort_block_adjoint` has **two** places, the
+   `check_length` on `seeds.transport` and `out_adjoint.assign(n_state + 1 + n_resource, ...)`
+   with its offsets; and **`scripts/wire-gates.R::transport_block_gate` changes meaning without
+   failing** — its `rep(0, 12)` seed becomes merely over-long while `row <- n_strategy_states + 1L`
+   then seeds the first consumption output and is compared against a transport difference.
    **There is no `Patch::transport_adjoint`**; an earlier form of this step named one and it
    exists on no branch. Find the write site, not a function.
 
@@ -1677,6 +1727,20 @@ Each item below blocks something. Do not treat the list as background.
   patterns in place. Also check whether the `bound_a` pin meets the equal-potential
   condition by construction, which would make this reachable on every pinned recorded
   cohort step.
+- **`schedule_eps` alone refines nothing.** `refine_schedule` is off by default: six runs at
+  `schedule_eps` 1e-3, 1e-4 and 1e-5 gave 98 nodes and identical values. **Any plan reaching a
+  converged schedule through `schedule_eps` silently runs the default**, and Section 2b makes
+  convergence a precondition. Drive `refine_schedule` and confirm by node count.
+- **Neither offspring number is converged, and the coordinate move is a real change in the
+  answer.** The census *is* coordinate-invariant in exact arithmetic —
+  `Node::compute_initial_conditions` carries `n_b = n_h * g` at birth and nowhere else — and
+  two discretisations on the same 98 nodes agree to **5.3 percent** for leaf area and 11 percent
+  for mass. Offspring moves by 12.3 times, and the cause is grid conditioning: on the height
+  coordinate 37 nodes sit within 0.02 m of each other at 17.53 m, so the trapezium has
+  near-zero widths where the density is largest. Understorey light is 15 to 18 percent brighter
+  on the birth-date grid, and **cohorts the height quadrature shades to death survive and
+  reproduce** — fecundity 4.40 against 2.03e-07 at one node. So 395.45 is a better-resolved
+  answer to the same question, not an artefact. **Which is right is not established.**
 - **The environment columns of the census seed are exactly zero in all three rows.**
   `n_b = birth_rate * pr_estab / g` is evaluated in the field, which depends on the soil
   state, so a non-zero column is expected. This is a fourth candidate and it is not
