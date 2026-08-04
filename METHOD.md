@@ -130,12 +130,18 @@ is negligible against `b`; under the second, one side is exactly zero.
 
 - Register a tape's inputs **before** `newRecording()`, or the adjoints are
   silently zero.
-- **No active value may outlive a recording.** `clearAll()` resets the slot
-  counter, so an active object held across the cohort loop aliases whatever takes
-  its slot next. Measured: only the first recorded cohort step of a run was correct,
-  later steps had most trait rows exactly zero and a few spuriously large, nothing
-  thrown. The fix is a copy from a never-recorded template for each recorded cohort
-  step.
+- **No active value may outlive a recording.** `clearAll()` resets the slot counter,
+  so an active object held across **any** loop that records more than once aliases
+  whatever takes its slot next. The signature is the same at every granularity: the
+  first recording correct, the later ones with most rows exactly zero and a few
+  spuriously large, nothing thrown.
+  **This project has two such loops and only one of them is fixed.**
+  `Patch::cohort_block_adjoint` loops over cohorts and copies a never-recorded
+  template for each one, which is correct. `SCM::census_state_adjoint` loops over
+  functionals and builds its copy once, outside the loop, which is
+  `NEXTSTEPS.md` Task 15. When you read a measured signature of this defect, **say
+  which loop it was measured on**: a per-cohort signature and a per-functional
+  signature look identical and have different fixes.
 - Never give a deduced return type to anything returning an active value: XAD
   operators return expression templates holding references to their operands. And
   beware `-> double` on a lambda in templated code, which silently passivates.
