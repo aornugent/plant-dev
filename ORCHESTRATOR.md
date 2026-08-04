@@ -291,7 +291,52 @@ TF24f.
 
 ---
 
-## 9. The wave plan
+## 9. Dry-run every wave before you commission it
+
+**A dry run is one packet per task in the wave, told to write the code and throw it
+away.** Its deliverable is not the diff. Its deliverable is a list of the places the
+specification was wrong.
+
+**Why this is a standing step and not a one-off.** A dry run over four task
+specifications found a defect in **four of four**, and none of the four was the kind of
+thing a careful reading finds:
+
+| what the specification said | what the code said |
+|---|---|
+| use `odelia::incomplete_gamma` | the function is on an abandoned branch and exists in neither repository |
+| the leaf state after one call matches the state after `1 + n` calls | one member restores by accumulating arithmetic, so it does not return to its value |
+| `clear_trait_adjoint()` runs after the seed and removes the term | it runs on a different object; moving it would have summed three functionals into one row |
+| `k_I` does not reach the census, so use it as the control | the recording rebuilds the boundary node, so 36 of 44 parameters reach it |
+
+Each of these would have cost a packet its whole cycle, and two of them would have
+produced a plausible wrong answer rather than a failure. **The cheapest way to find them
+was to try to write the code.**
+
+### What to put in a dry-run packet
+
+The ordinary packet fields of section 2, plus:
+
+1. **Say it is a dry run and that nothing lands.** Own worktree, no commit, no push.
+2. **Name the claims in the specification you most doubt**, and ask for each to be
+   checked against the code before it is relied on. Be specific: "verify that only these
+   five quantities depend on the seed, and name anything else you find."
+3. **Ask where the specification forced a choice it did not authorise.** This is the
+   field that produced the most value. Instruct it to report both readings and implement
+   neither.
+4. **Bound the builds.** One or two. A dry run's value is in the reading, not the running.
+5. **Ask what the gate cannot see**, and whether the gate as written can pass at all.
+
+### What to do with the result
+
+Fix the plan, then commission the wave. **Do not hand a corrected specification to the
+same agent as a continuation** — resume it only if the correction is small; otherwise the
+dry run has changed what the task is, and the task should be re-scoped.
+
+A dry run that finds nothing is evidence the wave is ready. That has not happened yet.
+
+---
+
+## 10. The wave plan
 
 Written as a dry run, not yet executed. `NEXTSTEPS.md` owns each task; this owns the
 order, the lane, and what each wave may spend.
@@ -327,6 +372,9 @@ Done: the develop merge on `p3/wave5` at `d3392ea3`, the odelia merge at `a3bcf5
 3. **The wave fingerprint.** One production baseline, taken by the integrator; a
    short-lifetime number for the packets. Section 4.
 
+**Every wave below opens with a dry run of its own tasks, per section 9.** The wave is
+not commissioned until the plan has been corrected from it.
+
 ### Wave 1 — correctness, lane D, and it outranks every cost task
 
 **Task 15, then 16, then 6, then 7, then 8.** Task 15 first because until the aliasing
@@ -347,7 +395,7 @@ solve, so take Measurement A again after it: every factor in lane L is quoted ag
 
 Task 3's plumbing first (lane B, and Task 2 cannot be written without it), then Task
 1, Task 2, Task 3's leaf half, Task 5, Task 4. **Task 5 precedes Task 4**, not the
-order the task numbers imply: see section 10.
+order the task numbers imply: see section 11.
 
 ### Wave 4 — the rest of the cost work
 
@@ -355,10 +403,11 @@ Task 11 in lane O, then 12 and 13, then 14 if the memory allows.
 
 ---
 
-## 10. What a dry run of section 9 found
+## 11. What the first dry run found, and what the plan now says
 
-Walked task by task before execution. These are defects in the plan, not in the code.
-Fix the plan first: each one costs more after a packet has been sent.
+Walked task by task before execution, in the manner section 9 now requires of every
+wave. These are defects in the plan, not in the code, and each has been fixed in
+`NEXTSTEPS.md`. They are kept here as the evidence for section 9.
 
 ### The plan reaches fast. It does not reach correct.
 
