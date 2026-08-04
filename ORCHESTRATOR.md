@@ -277,3 +277,166 @@ FF16 and K93 (the templating plus the existing census reduction), two species (t
 this corpus is single-species), calibration (which reads intermediate trajectory
 states as active values, and a `double` trajectory breaks it without a message), and
 TF24f.
+
+---
+
+## 9. The wave plan
+
+Written as a dry run, not yet executed. `NEXTSTEPS.md` owns each task; this owns the
+order, the lane, and what each wave may spend.
+
+**Lanes are file regions, because that is the only axis along which parallel packets
+do not thrash.** Four nearly disjoint sets:
+
+| lane | files | tasks |
+|---|---|---|
+| L (leaf) | `leaf_model.{h,cpp}`, `models/tf24_strategy.h` | 0b, 1, 2, 3 leaf half, 4, 5 |
+| D (demography) | `scm.h`, `species.h`, `patch.h`, `individual.h` | 6, 7, 8, 9, 10 |
+| O (odelia) | `ode_solver*.hpp`, `gradient.hpp` | 11 |
+| B (boundary) | `RcppR6_classes.yml`, `R/`, `stand_gradient` | 3 plumbing half, the exports |
+
+Lane L is a queue, not a fan-out: tasks 2 to 5 all edit what task 1 creates. Lane L
+is therefore the critical path, and lane D holds the correctness work that outranks
+it.
+
+### Wave 0 — state and instruments
+
+Done: the develop merge on `p3/wave5` at `d3392ea3`, the odelia merge at `a3bcf58`,
+69 stale worktrees removed. Remaining, and none of it needs #590:
+
+1. **The cost harness, lane B.** Export `Patch::block_recording_size` and
+   `block_sweeps` to R. Nothing asserts that a block costs what it was measured to
+   cost, which is how a factor of 300 sat behind a green suite. **Every later task
+   claims a factor; without this harness no packet can prove its own claim.** Build
+   this before any task that quotes one.
+2. **Task 0b, lane L.** The guard. It decides which leaf states every later gate may
+   be seeded at, so it precedes all of them.
+3. **The wave fingerprint.** One production baseline, taken by the integrator; a
+   short-lifetime number for the packets. Section 4.
+
+### Wave 1 — correctness, lane D, and it outranks every cost task
+
+Task 6, then 7, then 8. Task 6 explains one column of the stop; the second cause is
+undiagnosed, so Wave 1 opens with a diagnosis packet and not an implementation one.
+Waves 2 and 3 may proceed in lane L concurrently, because the file sets are disjoint.
+
+### Wave 2 — #590's arrival, lanes D and B
+
+Tasks 9 and 10, then Task 0 for the reference data. Task 10 removes the second leaf
+solve, so take Measurement A again after it: every factor in lane L is quoted against
+10.64 calls per block, and Task 10 halves that number.
+
+### Wave 3 — the leaf, lane L, strictly serial
+
+Task 3's plumbing first (lane B, and Task 2 cannot be written without it), then Task
+1, Task 2, Task 3's leaf half, Task 5, Task 4. **Task 5 precedes Task 4**, not the
+order the task numbers imply: see section 10.
+
+### Wave 4 — the rest of the cost work
+
+Task 11 in lane O, then 12 and 13, then 14 if the memory allows.
+
+---
+
+## 10. What a dry run of section 9 found
+
+Walked task by task before execution. These are defects in the plan, not in the code.
+Fix the plan first: each one costs more after a packet has been sent.
+
+### The plan reaches fast. It does not reach correct.
+
+The arithmetic for speed closes. For 44 traits the chain is Task 1 (5.3) times Task 10
+(2) times Task 11 (3) times Tasks 12 and 13 (1.2) times Task 14 (1.5), with Tasks 4
+and 5 inside the leaf, against an Amdahl share that moves from 98.16 percent to about
+a third. **Tasks 2 and 3 contribute nothing to this number**: their figures are 1.005
+and 1.00 for all 44 traits, and 44 traits is what V4 asks for. Composition has never
+been measured, so treat the total as a hypothesis.
+
+Correctness does not close, because **four defects have no task**:
+
+1. **`height_seed` carries no derivative.** `rebind_from` passes `height_0`,
+   `area_leaf_0` and `eta_c` as values, so `d(height_0)/d(trait)` is absent from both
+   AD paths. Measured as about 3 percent for `lma`. **No instrument in this plan can
+   referee a fix**: the forward tangent loses the same term, and a finite difference
+   cannot run at production because a relative `lma` step of 2e-7 flips the stand to
+   zero. Fixing this needs `odelia::implicit_value` on `height_seed` *and* a new
+   referee. Nothing schedules either.
+2. **The second cause of the stop is undiagnosed.** `area_stem` and `k_I` stay wrong
+   after Task 6. An unknown defect cannot be scheduled, so Wave 1 must open with a
+   diagnosis packet.
+3. **Four trait columns are wrong or absent with no owner.** `beta_R_H` and
+   `beta_R_V` have no row at all; `psi_crit` and `root_psi_crit` read zero except when
+   pinned, and the pinned gap is unexplained. Task 5 fixes the other four hydraulic
+   columns and not these.
+4. **V4's own harness is broken.** `scripts/v4-census-gradient.R` and
+   `scripts/v4-reference.R` perturb `pars[["lma"]]` directly, which never recomputes
+   the derived strategy quantities, and `scripts/v4-reference.rds` belongs to a
+   superseded configuration. **A passing V4 needs the harness rewritten through
+   `add_strategies`, and no task does that.** Write it in Wave 0, next to the cost
+   harness: it is the acceptance test the whole plan is aimed at.
+
+### Ordering defects, each verified against the code
+
+- **Task 2 cannot precede Task 3.** Task 2's condition is written with `par_wanted`,
+  which does not exist. `leaf_model.cpp` has `rebuilds_transport` and no notion of a
+  parameter being wanted; that notion is what Task 3 builds. Task 2 is two lines only
+  after Task 3's plumbing lands.
+- **Task 5 must precede Task 4.** `reaches_operating_point` excludes only `psi_crit`,
+  `root_psi_crit`, `rho` and `a_bio`, so `b`, `c`, `root_b` and `root_c` are among
+  Task 4's eleven parameters. Task 4's gate is the central difference it replaces, and
+  Measurement E shows that difference is wrong by 47 to 10 245 times for exactly those
+  four. **Four of Task 4's eleven rows would be gated against a poisoned reference.**
+- **Task 0b moves the pinned rows, so it must be measured before Task 1.** At the
+  `bound_a` pin `psi_stem` equals the collar potential, so the forward guard
+  `psi_upstream >= psi_stem` fires and the forward path reports
+  `gamma * umol_per_mol_to_Pa`, while `input_adjoints` root-finds. They disagree
+  there today. Making them agree changes the pinned rows. Task 1's gate is bitwise
+  equality of rows against the previous build, so its baseline must be taken **after**
+  Task 0b, and Task 0b's own gate must expect the pinned rows to move.
+- **The stop table of section 1 expires when #590 lands.** It was taken at
+  `max_patch_lifetime = 2` on the height coordinate. Task 0 says each earlier
+  reference number is then wrong. Task 6's gate reads that table, so the stop has to
+  be measured again on the new coordinate before Task 6 can be gated.
+- **Task 10 invalidates every factor in lane L.** They are all quoted against 10.64
+  `input_adjoints` calls per block, and Task 10 removes the second leaf solve. Take
+  Measurement A again after Task 10, before quoting a factor to a packet.
+
+### Underspecified for a packet
+
+- **Task 4 is a derivation, not an implementation.** Eleven mixed second derivatives
+  including the implicit-function term of the `ci` root-find. A packet may not make
+  design choices, and a derivation is one. The architect writes the eleven
+  expressions; a packet transcribes and gates them.
+- **Task 5 contradicts the architecture it sits in, and the plan does not price it.**
+  The design keeps `Leaf` at `double` and has it hand back rows. Task 5 asks for
+  `odelia::incomplete_gamma<S>` on a tape that lives longer than one call, and the
+  only long-lived tape is `block_state::tape` in `Patch::cohort_block_adjoint` —
+  three levels above the leaf, through `Strategy`. **That plumbing is in no step.**
+  Price the alternative before choosing: `dG/dx` is `exp(-x) * x^(a-1)` in closed
+  form, and `dG/da` is a series, so hand-differentiating needs no tape and no
+  plumbing. Measurement D's 0.68 us assumed the tape; nobody costed the hand form.
+- **Task 5's scope is unknown until `psi_from_transpiration` is settled.** The task
+  says to check whether the derivative path reads it and not to assume. That makes it
+  two packets: an investigation, then an implementation sized by its answer.
+- **Task 3's masked NaN and Task 1's kink NaN are indistinguishable.** Task 1 must
+  keep `0.0 * NaN` giving NaN in the profit row. Task 3 poisons a masked row with NaN
+  deliberately. A grafted NaN row multiplies into `partial * (x - to_passive(x))`,
+  which is zero in value but NaN times zero, so a masked row would poison the forward
+  value. Task 3's answer is to compact `x` and the row — **which changes the graft
+  loop, and no step says so.**
+- **Task 3 crosses the R boundary and no step mentions the generated code.** Making
+  the trait set reach C++ changes `inst/RcppR6_classes.yml` and needs
+  `make RcppR6 && make attributes`.
+- **Task 9 has no gate.** It deletes the weight-derivative term. Deleting a term moves
+  numbers, so it needs the tangent of Task 0 and an explicit expectation.
+- **Task 1 step 8 belongs to Task 3.** `bound_partials` has no seed dependence, so
+  there is nothing in it to bundle; what it needs is the mask. As written the step
+  forces the packet to guess which change is meant.
+
+### What stays dead, and should be said so
+
+Task 2's guard is unreachable after Task 5 Stage A, because nothing calls
+`build_cumulative_vulnerability_integral` from the reverse path any more. Land Task 2
+as insurance, and label it as insurance Task 5 deletes. Task 1 keeps
+`input_adjoints` as a contraction over the rows; after Task 1 its only caller is the
+gate. Keep it for that and say so, or it reads as a live path.
