@@ -21,6 +21,10 @@ Then the reference material:
   first reading.** Its physical reading gives the five facts TF24's gradient follows from, and
   its end-to-end walk states the flow forwards and backwards in prose. Read it before the
   others; they are its detail.
+- [`docs/reports/05-reverse-mode-mathematics.md`](docs/reports/05-reverse-mode-mathematics.md)
+  — **the derivatives**, with every intermediate quantity mapped to the symbol that
+  carries it. Read it beside report 00: 00 states the dependency structure, 05 states
+  the algebra, and its section 11 lists where the algebra and the code disagree.
 - `docs/reports/01`–`04` — the derivations and measurements the design rests on.
   **Reference material, not status**; they are never edited to track progress. Read the head
   of each first: several carry corrections to their own sub-claims.
