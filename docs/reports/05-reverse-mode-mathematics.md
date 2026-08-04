@@ -126,11 +126,37 @@ Writing it as a composition is what makes the transpose mechanical.
 
 $$\varphi \;\xrightarrow{\ (a)\ }\; \text{strategy} \;\xrightarrow{\ (b)\ }\; \{A_k, \kappa_k\} \;\xrightarrow{\ (c)\ }\; \Lambda \;\xrightarrow{\ (d)\ }\; \{p^\star_k, \Pi_k, U_{kj}\} \;\xrightarrow{\ (e)\ }\; \dot y$$
 
-- **(a) `prepare_strategy`** derives the strategy's dependent quantities from $\varphi$.
+- **(a) `prepare_strategy`** derives the strategy's dependent quantities from $\varphi$ —
+  **and this stage is not on the differentiated chain at all.**
+  `TF24_Strategy<S>::prepare_strategy()` **cannot be instantiated at an active scalar**:
+  `tf24_strategy.h:1682-1694` carries
+  `static_assert(std::is_same_v<S, double>, "Leaf carries double; an active strategy must
+  supply the leaf's local Jacobian across this boundary, not template Leaf.")` in its `else`
+  branch. What the reverse pass does instead is `rebind_from` (`:565-605`), which copies the
+  already-derived quantities **at their `double` values**:
+  `out.eta_c = U(eta_c); out.height_0 = height_0; out.area_leaf_0 = U(area_leaf_0);`. And
+  `set_block_inputs` (`individual.h:207-224`) writes the parameters and re-applies the states
+  but **never calls `prepare_strategy` or `refresh_indices`**. So every
+  $\varphi \to$ derived-quantity edge is a **tape constant**, and `height_0 = height_seed()`
+  (`:1677`) — which depends on `omega` and `lma`, both in $\varphi$ — has a **silently zero
+  derivative**. Stage (a) runs once, at `double`, outside the recording, in
+  `make_strategy_ptr` (`:1699-1702`). Read it as a boundary condition on the chain and not a
+  link in it.
 - **(b) allometry** gives each cohort's size-dependent quantities from $h_k$ and $\varphi$.
 - **(c) the field reductions** aggregate over cohorts to give the shared environment.
-  This is the only *many-to-few* map in the chain, and therefore the only place a
-  transpose scatters rather than gathers.
+
+  **This is not the only many-to-few map, and the correction matters because the second one
+  is downstream, not upstream.** `patch.h:1090-1100` sums every cohort of every species'
+  `consumption_rate(i)` into one number per soil layer and hands it to
+  `env.compute_rates(resource_depletion)` (`:1103`). Its transpose scatters too. It sits
+  **after** (d), because $U_{kj}$ is a block *output*, so the diagram
+  $\{p^\star,\Pi,U\} \to \dot y$ hides a whole reduction.
+
+  **And on the current tree that forward edge is cut, not merely undrawn.** `patch.h:1101-1104`
+  is `resource_depletion.push_back(odelia::util::to_passive(resource_consumed / area));`, with
+  the in-place comment that the environment's own store is `Internals<double>` so the uptake is
+  read at its value. So the water channel from cohorts back into the soil state carries no
+  derivative at all.
 - **(d) the individual** solves its own maximisation given the field. This is the only
   implicit step.
 - **(e) assembly** writes the rates back into $\dot y$.
@@ -138,7 +164,15 @@ $$\varphi \;\xrightarrow{\ (a)\ }\; \text{strategy} \;\xrightarrow{\ (b)\ }\; \{
 The important structural fact is that (c) is a reduction and (d) is a *per-cohort
 independent* map. So the reverse pass is: transpose (e) cohort by cohort, transpose (d)
 cohort by cohort, then transpose (c) once, which scatters the field's adjoint back over
-every cohort.
+every cohort. **That is the correct transpose of the forward order for the light channel and
+it is incomplete for the water channel**, per the second reduction above.
+
+**Six hops of the implementation are named nowhere in sections 3 and 4.** In descending order:
+`Solver::solve_adjoint` (`ode_solver.hpp:268`), `SolverInternal::step_adjoint`
+(`ode_solver_internal.hpp:51`), `Step::step_adjoint` (`ode_step.hpp:259`),
+`sweep_stages`/`stage_state`/`stage_row` (`:224`, `:195`, `:184`),
+`Patch::ode_rates_adjoint` (`patch.h:1747`) and `Patch::cohort_block_adjoint` (`patch.h:1478`).
+The mathematics below is right; a reader cannot get from it to the code without this list.
 
 ---
 
@@ -256,9 +290,27 @@ Therefore for any leaf output $v$,
 
 $$\frac{\partial v}{\partial \Lambda_q} = \frac{\partial v}{\partial \mathcal{R}}\cdot\frac{\partial \mathcal{R}}{\partial \Lambda_q},$$
 
-so the $12 \times 130$ block is $12 + 130$ numbers rather than 1560 — **rank one.** It is
+so the $12 \times 130$ block is $12 + 130$ numbers rather than 1560 — **rank one for the leaf's
+outputs.**
+
+**It is not rank one for the whole 12-output block at the default coordinate, and the
+correction sharpens section 5.1 rather than weakening it.** Output row 7 is
+`log_density_rate`, and at `node_density_in_birth_date = false` that contains
+`-growth_rate_gradient(environment)`, which runs `compute_rates` again **at a displaced
+height** on a copy (`individual.h:257-273`, `:288-296`). The second evaluation makes its own
+field query — `get_environment_at_height(height' * eta_c)`, or under `MeanLight` an integral to
+a **different upper limit**, which is not a multiple of the first. So the block has **rank at
+least 2** at the default and up to 9 under Richardson at depth 4. `cohort_block_adjoint`
+concedes the mechanism in place (`patch.h:1555-1557`). **Rank one is exact on the birth-date
+coordinate**, where `log_density_rate` is `-rate(MORTALITY_INDEX)` with no second solve — so
+the coordinate choice buys the factorisation as well as the solve.
+
+It is
 already exploited: `graft_leaf_outputs` receives radiation as one active scalar, so the
-supplied derivatives are a row over `2*max_soil_layer + 3 + n_leaf_parameter_inputs` = 28 inputs at five layers, and the tape carries the second factor
+supplied derivatives are a row over `2*max_soil_layer + 3 + n_leaf_parameter_inputs` = 28 inputs **when all five layers are
+rooted** — `max_soil_layer` is not the layer count but the number of layers carrying non-zero
+root mass, recomputed per call (`leaf_model.cpp:278-281`), so the row length varies within a
+run and `graft`'s length check is what refuses a mismatch — and the tape carries the second factor
 through the recorded spline query. Report 07 section 1 develops the sparsity of that
 factor, which differs between the two modes.
 
@@ -719,17 +771,60 @@ $\bar y(T) = \partial \mathcal{C}/\partial y$. The first is not a sensitivity of
 state at all and no sweep produces it.
 
 For the concrete metrics: $\mathfrak{m} = A(h)$ reads $a_{l1}, a_{l2}$;
-$\mathfrak{m} = m^{\text{leaf}} = A(h)\,\mathrm{lma}$ reads $\mathrm{lma}$; stem area
+the second metric is **`mass_above_ground`** and **not** $m^{\text{leaf}}$: `species.h:36-49`
+sums `mass_leaf + mass_bark + mass_sapwood + mass_heartwood`, with `mass_bark` and
+`mass_sapwood` both $\text{area}\cdot\text{height}\cdot\eta_c\cdot\rho$ and
+$A^{\text{bark}} = a_{b1}A\theta$. So its direct-term support is
+$\{\mathrm{lma}, \rho, \theta, a_{b1}, \eta_c, a_{l1}, a_{l2}\}$ — an earlier form named
+$A(h)\,\mathrm{lma}$, which is not the metric and understates the support; stem area
 reads $\theta$ and $a_{b1}$ through sapwood and bark.
 
+> **Correction, and it is substantive.** The claim that the newly introduced components
+> "have no predecessor in $y$, so their adjoints leave the state and enter $\bar\varphi$" is
+> **wrong**. `Patch::introduction_adjoint` records `set_ode_state_and_field(x.begin(), ...)`
+> **followed by** `introduce_new_node()` (`patch.h:1657-1660`), so the newcomer rows are a
+> function of the pre-introduction state — through the field build and the boundary node — as
+> well as of $\varphi$. Its input vector is `state_before` **plus** the traits
+> (`patch.h:1631-1640`) and **both halves of the result are used**:
+> `lambda_before[j] += in_adjoint[j]` (`patch.h:1681`) and
+> `trait_adjoint[p] += in_adjoint[...]` (`patch.h:1684`). **An implementation written to the
+> original sentence would drop $\partial(\text{newcomer})/\partial y_{\text{before}}$
+> entirely.**
+>
+> Two consequences. **Section 4's "(4.1) is the only place the $6M$ contributions enter" is
+> false**: `trait_adjoint` has two write sites, `patch.h:1582` and `patch.h:1684`. And **the
+> narrowing is interleaved, not a truncation** — newcomers sit at the end of each species'
+> node block, so every later species and the environment shift by one node stride
+> (`patch.h:1610-1611`).
+>
+> **And the widening side is omitted from this report entirely.** Before each metric's sweep
+> the run must replay every introduction forward to rebuild the states the blocks' first steps
+> ran from, because those states are not recorded: `SCM::widen_over_introductions`
+> (`scm.h:723-742`), called at `scm.h:702` for each metric and again at `:717` to leave the
+> system repeatable, plus the boundary discovery at `:673-688`. **The segment picture below
+> cannot be implemented without it.**
+>
 > **Gap.** `SCM::census_state_adjoint` registers only $y$ as an input, so the direct term
 > of (9.1) is absent. Note also that the seed's support is wider than the metric algebra
 > suggests: the recording calls `set_ode_state`, which rebuilds the boundary node (4.2),
 > whose density is a full physiology evaluation through the light field. So most of
 > $\varphi$ takes a non-zero direct term, not only the parameters that appear in
-> $\mathfrak{m}$. Measured: 36 of 44 columns.
+> $\mathfrak{m}$. ~~Measured: 36 of 44 columns.~~ **The 36 is unsupported — it appears in no
+> log in `docs/` or `logpile/`.** 44 is confirmed as the per-species trait count. Settle the 36
+> by counting the non-zero direct columns in a run and citing the log.
+>
+> **Where the term would go, read from the code that already does it.**
+> `Patch::introduction_adjoint` is the pattern: append `ad_parameters()` to the input vector
+> (`patch.h:1626-1636`) and assign them back inside the recorded lambda **before** the state
+> (`patch.h:1650-1655`, whose ordering comment — `area_leaf(height)` reads `lma` — applies
+> verbatim). The extra columns then land beside the trajectory term at `scm.h:713`.
 
 ### 9.1 Several functionals share one recording
+
+**Name the loop, because the fix depends on which one it is.** `SCM::census_state_adjoint`'s
+only loop is **over functionals** (`scm.h:635-639`); the species loop lives inside
+`census_over` and no cohort loop is present. `METHOD.md` states the rule and names this site,
+and a per-cohort signature is numerically identical with a different fix.
 
 For $F$ functionals the record is common and only the seed differs. Recording once and
 sweeping $F$ times costs one record plus $F$ sweeps, against $F$ records and $F$ sweeps;
@@ -741,7 +836,30 @@ the record dominates.
 > outlives a sweep refers to a slot that now belongs to something else. The first
 > functional is correct and every later one reads unrelated storage. Measured: rows agree
 > with an independent reference for the first metric and, for the later ones, have the
-> wrong sign, a magnitude wrong by 180 times, and 33 of the 52 state columns of that configuration exactly zero — a state count, not the 44 parameters. This is
+> wrong sign — `mass_above_ground` adjoint $+1.1236$ against a tangent of $-5.0050$.
+>
+> **Two other figures in an earlier form of this gap were wrong, and one was fabricated. Both
+> are withdrawn.** "A magnitude wrong by 180 times" is **65.7**: `area_stem` adjoint
+> $-0.117482$ against a tangent of $-0.0017885$, and the archive states it as 65 times. **"33
+> of the 52 state columns exactly zero" corresponds to no measurement that exists.** The
+> archive's "33 of 44" is a *trait-masking* count and the "52" is the $\Pi_{pp}$ curvature
+> probe's population. Two unrelated measurements were combined into a third that was never
+> taken. Settle it, if it is wanted, with `stand_census_state_adjoint` at the stated
+> configuration, reporting the state width and the per-row zero count, logged.
+>
+> **And the causal attribution is a hypothesis, not a measurement.** The aliasing mechanism is
+> established in XAD — `clearAll()` pushes a fresh `SubRecording` whose `iDerivative_` is
+> value-initialised while a surviving `AReal` keeps its old slot (`odelia/src/Tape.cpp:106-119`,
+> `XAD/Tape.hpp:266-300`) — but the only recorded measurement localises the failure to the seed
+> and labels its cause an unconfirmed hypothesis, of a **stale aux slot** rather than aliasing.
+> Fix only the twin's placement and re-measure the three rows against the tangent; that
+> separates the two.
+>
+> **One obstacle this gap does not state.** `vector_jacobian_product` calls `clearAll()` and
+> `newRecording()` on entry (`gradient.hpp:178-185`), so record-once-sweep-$F$-times **is not
+> expressible through the present API**: the shared driver must change first. And `reduce`
+> already computes **all** $F$ outputs in every recording, so the present waste is larger than
+> "$F$ records" suggests. This is
 > the rule stated in the project's own method document and obeyed at the two other sites
 > that build such copies.
 
