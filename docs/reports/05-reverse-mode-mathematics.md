@@ -271,6 +271,116 @@ gave 184 from a five-state own block; the six-state read above is the correct on
 
 The reverse pass forms $\big(\partial v_k / \partial u_k\big)^{\!\top} \bar v_k$.
 
+### 5.1b One cohort is thirty-three regimes and ten objects, three of which are not plants
+
+Companion to sections 7.0 and 6.1b, for everything between "this plant has a size and a carbon
+balance" and "these are its rates". Ten objects; the three that are not plants are the reserve
+deficit, a zero-sapwood state, and two numerical guards. Two findings below **close open questions**
+and two are defects in the quantity being differentiated rather than in its derivative.
+
+**The reserve deficit freezes; it does not drain, and report 00 section 9b's mechanism is wrong.**
+9b says that once $S<0$ the outflow factor "approaches 1 or changes sign, so the deficit drains at
+full rate". Read the two lines together: `storage` is the **already-clamped**
+`std::max(vars.state(...), S(0.0))` (`tf24_strategy.h:958`), and `floor_gate` is built from that
+same `storage` (`:1014`). So $S<0$ gives `floor_gate` $= 0/(0+\texttt{gate\_ref}) = 0$ **exactly**,
+and `dS/dt` $= 0$ on the deficit arm. The state is an **absorbing flat region**: $S$ sits where the
+overshoot left it, $r = 0$, mortality pinned at its maximum, and **every** derivative out of the
+storage state is exactly zero — $\partial r/\partial S = 0$ and
+$\partial(\mathrm{d}S/\mathrm{d}t)/\partial S = 0$ — until $\texttt{net\_flux} > 0$ releases it at
+full rate. 9b's conclusion that the consequence is bounded survives; its mechanism and its gradient
+consequence do not.
+
+**So read the 13.96 percent correctly.** It is not "a kink on 14 percent of records". It is **a flat
+spot with no gradient at all on 14 percent of records**, on the channel carbon → $r$ → mortality →
+survival → density → every census metric. For a gradient that is worse than draining, because a
+draining state at least has self-sensitivity. And it is a **stepper artefact**, so refining the step
+changes the answer: this is a forward-model defect and not a regime whose derivative anyone should
+compute. Report 00 section 10 ranks fixing it second; on this reading it is first. A drought year
+raises the fraction one-for-one — $S \le 0$ is 13.96 percent and $P \le 0$ is 14.04 percent, so
+effectively the same set — which means **differentiating a drought is differentiating a flat
+region.**
+
+> **Gap: the reserve gate admits growth at empty reserves, and its width was never measured against
+> its argument.** $G(0) = 1/(1+e^{(0-0.1)/-0.1}) = \mathbf{0.2689}$, so a plant with **empty**
+> reserves still grows at 27 percent of its production rate. The comment beside it says the gate is
+> "~0 at low relative reserves". That is a **behavioural** error, not merely a stated invariant that
+> fails, and it is the fifth comment in this project recorded as evidence of behaviour it does not
+> have.
+>
+> And the failure mode is the opposite of the one this corpus warns about.
+> `storage_prod_eps = 1e-4` *was* sized against the spread of $|P|$ and its derivative is bounded
+> — $\mathrm{d}P_{\text{pos}}/\mathrm{d}P \in (0,1)$, exactly $\tfrac12$ at zero — so no spike.
+> **`storage_gate_width = 0.1` was never measured against the spread of $r$**, and it cannot be too
+> narrow: centred at $a_{st2} = 0.1$ on $r \in [0,1]$, its transition occupies **40 percent of the
+> whole domain**, with $\mathrm{d}G/\mathrm{d}r \approx 2$ through the band, falling to 0.18 at
+> $r = 0.5$ and $1.2\times10^{-3}$ at $r = 1$. So it is **not a hard switch wearing a smooth coat but
+> a mollifier so wide it has replaced the model** — and it blocks the gradient wherever reserves are
+> high. **The distribution of $r$ is the one number this turns on and it appears nowhere in the
+> corpus.**
+
+**Establishment is not a switch, and report 00 section 10 item 4 closes with no forward change.**
+The corpus calls it "the model's last hard un-smoothed switch" and proposes the `storage_prod_eps`
+treatment. Both premises are wrong. `establishment_probability` returns
+$P^2/(P^2+k^2)\cdot\text{decay}$ above the threshold and $0$ below, with
+$k = a_{d0}\,a_0 = 1.209\times10^{-5}$. As $P \to 0^+$ **both the value and the first derivative
+tend to zero**, so `pr_estab` is $C^1$ at $P = 0$ and the `else 0` arm is its correct $C^1$
+extension. Mollifying it would be **actively harmful**: the biology's own transition scale is
+**8.3 times narrower** than `storage_prod_eps`, so the sibling's scale would widen a transition the
+model already resolves and change recruitment.
+
+What is true is that the region is **stiff rather than discontinuous**: the derivative peaks at
+$0.65/k \approx 5.4\times10^{4}$ at $P = k/\sqrt3$. That is a conditioning fact, not a smoothing
+argument.
+
+> **And the apparent singularity is a coordinate artefact, which tells you where the fix goes.**
+> $M(\text{birth}) = -\log(\text{pr\_estab})$ and
+> $\ell(\text{birth}) = \log(\text{birth\_rate}\cdot\text{pr\_estab}/g)$ both diverge
+> logarithmically as $P\to0^+$, and $\partial\ell/\partial P = 2/P \to \infty$. But $\ell$ reaches
+> everything downstream only through $n = e^{\ell}$, and on **either** coordinate
+> $\partial n/\partial P = 2P/k^2 g \to 0$ — with $g$ bounded away from zero, because
+> $P_{\text{pos}} \ge \varepsilon/2$ and $G \ge 0.269$. So $n$ and $\partial n/\partial\varphi$
+> are both $C^1$ and both tend to zero, the census carries $n$ **linearly**, and every census
+> gradient through a marginal recruit exists, is finite, and tends to zero from both sides. **The
+> zero belongs in the derivative**: a recruit that cannot pay for itself contributes $O(P^2)$, so
+> exactly zero is the correct first-order answer.
+>
+> **The implementation must therefore neither smooth nor refuse. It must seed the boundary node's
+> adjoint in $n$ rather than in $\ell$** — the seed $n\,\partial\ell/\partial\varphi$ is
+> $0\cdot\infty$ and has to be evaluated as $\partial n/\partial\varphi$.
+
+> **Gap: `Species::census` sorts nothing, and it is the objective.** Reserve-gated growth lets a
+> younger cohort overtake an older one — a documented, fixed forward bug — so the height grid can be
+> non-monotone. `compute_competition` falls back to a sorted view (`species.h:709`, `:755`),
+> `consumption_rate` sorts (`:931`), and the light transpose **refuses** (`:997`, which is the right
+> behaviour and the precedent worth generalising). **`census` does neither**: it builds its grid from
+> the node list and hands it straight to `util::trapezium`, so on a crossed grid neighbouring
+> trapezia **cancel instead of accumulating**. Leaf area, above-ground biomass and basal area are
+> therefore computed on a possibly non-monotone grid, while the two reductions that were fixed for
+> exactly this reason were fixed. **This is a defect in the quantity being differentiated, not only
+> in its derivative** — the same family as Task 9a, and it needs the same treatment.
+
+> **Gap: eight trait rows are exactly zero through birth size and nothing declares it.**
+> `height_seed()` is found by iteration and its active branch is a `static_assert` that never fires,
+> because `prepare_strategy` refuses at an active type first; `rebind_from` copies `height_0` as a
+> `double` member and `area_leaf_0` as a value. So $\partial h_0/\partial\varphi = 0$ and
+> $\partial a_0/\partial\varphi = 0$ **by construction**, for the eight traits that reach birth
+> size — `omega`, `lma`, `a_l1`, `a_l2`, `rho`, `theta`, `a_r1`, `a_b1` — on every census metric, and
+> through both `pr_estab`, which reads `area_leaf_0` explicitly, and $\ell(\text{birth})$. It is the
+> safer failure mode, a zero rather than a plausible wrong number, and it is undeclared. **Report 00
+> section 7 files $h_0$ under *Solved*, "a trait reaches birth size through it". No trait reaches
+> birth size today.**
+
+**Two closures and one dead branch, so the manifest gets shorter.** `rooting_depth_max` is a
+registered differentiable trait with **no consistency guard against the soil column's depth** — push
+it past the depth and distributed root mass silently vanishes. That is the sixth member of the family
+`root_psi_crit` heads: a parameterisation a gradient-driven trait search walks into, which must
+refuse by name. Against that, **the `size() < 2` water switch no longer exists** in the form report
+00 section 10 item 3 lists: `consumption_rate` guards `size() == 0` and then always includes the
+boundary node, so the grid has at least two points whenever the species is non-empty — reducing that
+item to the light floor alone. And **`g > 0 ? \log(\cdot) : \log(0)` is dead code**: since
+$P_{\text{pos}} \ge \varepsilon/2$ and $G \ge 0.269$, height growth is **strictly positive
+always**, which also closes one of report 04's three routes to a zero-width transport interval.
+
 ### 5.2 The field's 130 inputs reach the leaf through one number
 
 This is the economy that makes the design affordable and this document omitted it.
