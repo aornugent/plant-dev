@@ -611,3 +611,34 @@ Task 2's guard is unreachable after Task 5 Stage A, because nothing calls
 as insurance, and label it as insurance Task 5 deletes. Task 1 keeps
 `input_adjoints` as a contraction over the rows; after Task 1 its only caller is the
 gate. Keep it for that and say so, or it reads as a live path.
+
+---
+
+## 12. A wave in flight: four dry runs stopped by a session limit
+
+**Recorded 2026-08-04.** Batches B, C, D and F below stopped mid-run on an API session
+limit, not on their work. **Two of six batches completed and their findings are landed in
+`NEXTSTEPS.md` and reports 06 and 07.** The other four have measured artefacts on disk and
+should be **resumed, not restarted** — each holds a certified odelia install, a built plant,
+and measurements a restart would have to pay for again.
+
+| batch | tasks | worktree | scratch | last known step |
+|---|---|---|---|---|
+| A — leaf algebra | 2, 4, 5 | `/home/user/wt-dryA` | `scratchpad/dryA/` | **complete, landed** |
+| B — reductions | 8, 9, 10, 17, 21 | `/home/user/wt-dryB` | `scratchpad/dryB/` | census-invariance measured (`invariance.rds`, `inv.log`); was starting Task 21 |
+| C — field | 16, 18, 22 | `/home/user/wt-dryC` | `scratchpad/dryC/` | grid-channel and sparsity probes written; shading-bias run started |
+| D — sweep | 11, 24, 25, 26, 27 | `/home/user/wt-dryD` | `scratchpad/dryD/` | plant built; **`purity.log` is 76 kB** (Task 27's permutation gate), `task26.log`, `height-rows.log`, `eps-sweep.log` |
+| E — parameters | 19, 20, 23, 28 | none needed | `scratchpad/dryE/` | **complete, landed** |
+| F — memory | 12, 13, 14 | `/home/user/wt-dryF` | `scratchpad/dryF/` | Task 12 measured both arms (`t12_off.log`, `t12_on.log`); `runTRUE3.log` |
+
+**How to resume.** Send each agent a message rather than spawning a new one — a send resumes
+it from its own transcript, so it keeps the worktree, the install and the reasoning. Ask only
+for the write-up from artefacts it already has, and tell it not to re-measure. A fresh packet
+would repeat four builds and lose the measurements above.
+
+**Do not clean up those four worktrees or scratch directories** until the write-ups are in.
+
+**The scheduling lesson, which is mine.** Six concurrent agents each authorised two builds is
+twelve builds and a large token draw in one window. Section 4 says to fan out the writing and
+take the builds one at a time; I fanned out both. **A wave sized to a session's limit is part
+of costing a gate** — the limit is a resource like a core, and it was not in my count.
