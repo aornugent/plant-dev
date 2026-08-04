@@ -110,6 +110,16 @@ Rscript -e 'install.packages("<odelia worktree>", repos = NULL, type = "source")
 commit SHA that nothing else touches. Two concurrent builds in one worktree leave a
 half-written `.so`, and **loading one succeeds and returns plausible wrong numbers**.
 
+**A documentation packet needs isolation too, and this is easy to get wrong.** An
+agent editing only Markdown looks like it cannot collide with anything, so it is
+tempting to point it at the main checkout. Do not. It still runs `git` there, and a
+`git reset` or a `git stash` in the shared checkout moves the branch under whoever else
+is working in it — including you. Measured: a prose-only sweep ran `git reset --mixed`
+to restore its own uncommitted state and silently reverted a commit that had already
+been pushed. **The rule is about the checkout, not about the file type.** Give every
+packet a worktree and its own scratch subdirectory, and say which subdirectory in the
+packet, or two agents will write `notes.txt` over each other.
+
 **Remove a worktree when its packet closes.** A worktree holds its branch checked
 out, so a stale one makes `git checkout` of that branch fail elsewhere and pushes
 the next agent onto a detached HEAD without saying so.
