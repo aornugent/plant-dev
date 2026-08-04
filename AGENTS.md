@@ -29,6 +29,9 @@ Then the reference material:
   — the ecology behind those derivatives, section for section, and what it would be wrong
   to conclude from a number this machinery produces. Read it if you are deciding whether a
   defect matters.
+- [`docs/reports/07-structure-worth-exploiting.md`](docs/reports/07-structure-worth-exploiting.md)
+  — where the system is narrower than it looks, and what each narrowing buys. Read it before
+  scoping any cost work.
 - `docs/reports/01`–`04` — the derivations and measurements the design rests on.
   **Reference material, not status**; they are never edited to track progress. Read the head
   of each first: several carry corrections to their own sub-claims.

@@ -1208,15 +1208,33 @@ organ: where it sits and how steep it is. An ecologist fits those two to measure
 Reporting three gradient entries per organ for a two-parameter curve is over-parameterised,
 and the third answers a counterfactual that does not exist.
 
+**Do not remove anything from `ad_parameters()`. Build the pullback instead.** An earlier
+form of this task said to remove `psi_crit` and `root_psi_crit` and let them follow by the
+chain rule. Report 07 section 3 gives a better form of the same idea: **keep every internal
+parameter registered, and put the parameterisation in a small matrix.**
+
+Let `phi` be the free parameters and `varphi = Phi(phi)` the derivation the initialisers
+write. Then `grad_phi(C) = J^T grad_varphi(C)` with `J = d(Phi)/d(phi)`, applied one time
+after the sweep. Nothing in the adjoint changes.
+
 **Steps.**
 
-1. Decide which parameters carry the curve. Section 2b's companion decision is that the
-   gradient goes through the low-level parameters, so `b` and `c` carry it, per organ.
-2. Remove `psi_crit` and `root_psi_crit` from `ad_parameters()` and let them follow `b` and
-   `c` by the chain rule, as derived quantities. **Their contribution does not disappear** —
-   it moves into the `b` and `c` rows, which is where an ecologist would look for it.
-3. Refuse `psi_crit` and `root_psi_crit` by name at the boundary, as Task 19 refuses `p_50`,
-   and for the same reason: they are derived, not free.
+1. Write `J` as a function beside `ad_parameters()`, so the two cannot drift.
+2. Report the gradient in the free parameterisation: two entries for each organ's
+   vulnerability curve, not three.
+3. Gate each entry of `J` against a central difference of `Phi` itself. That is cheap,
+   because `Phi` is `double` arithmetic with no model in it. **A `J` that disagrees with the
+   derivation is a silently wrong answer.**
+
+**What this buys, and it is why the pullback beats the removal.** `p_50` becomes free
+instead of skipped: `d(C)/d(p_50)` is three multiplications against rows the sweep already
+produced. Task 19 keeps refusing it *as a registered parameter* and the answer comes back
+anyway. And any other parameterisation — a trait-spectrum axis, a calibration's free vector,
+a fixed ratio imposed or relaxed — is a different `J` against the same gradient, with no
+second sweep. Report 07 section 3 lists them.
+
+**`jmax_25` is derived too**, `jmax_25 = 1.64 * vcmax_25`. It belongs in `J`, which may make
+part of Task 20 unnecessary. Read report 07 section 3 before starting Task 20.
 
 **WARNING: removing an entry from `ad_parameters()` changes the trait-adjoint layout.**
 `trait_adjoint_size()` sums over species and `census_trait_names_tf24` must agree with it.
@@ -1569,6 +1587,11 @@ Each item below blocks something. Do not treat the list as background.
   −2.39e-04.
 - **`Patch::cache_ode_step`, `cache_RK45_step` and `load_ode_step` have no caller**
   in either repository, and they are the two known `test-mutant.R` errors.
+- **The light field reaches each cohort through one number, and 126 of 130 columns are
+  structurally zero.** Report 07 section 1: mean-light mode queries the field at
+  `height * eta_c` only, and a cubic Hermite query reads four knots. The sweep does not pay
+  for the zeros; the scatter of `in_adjoint` does, at 130 entries per cohort per stage where
+  four are live. Not in any measurement.
 - **An opportunity, not scoped.** `census_trait_gradient` differentiates the census
   at one patch age. The quantity an ecologist wants is the disturbance-weighted
   integral over patch ages. For an adjoint that is the same single sweep: inject
