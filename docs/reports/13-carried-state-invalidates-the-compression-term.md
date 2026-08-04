@@ -94,8 +94,13 @@ cohort-times across the three strategies, and at a further 3 497 for TF24, with 
 +2.6 × 10⁻¹² m yr⁻¹. 46% of interior pairs are closing at any instant, but extrapolating each
 linearly at frozen rates the earliest crossing would be 4.05 years away, and none is realised.
 
-Under an annual light cycle at full amplitude it does happen: **66 crossings among 10 011 interior
-pairs, with a minimum gap of −0.00398 m** (§6.3). The smallest positive gaps in the other stress
+Under an annual light cycle at full amplitude it does happen. **One interior pair of about 140 inverts
+at patch age 0.9 years and stays inverted for the remaining 104** (§6.3): the cohort introduced at
+patch age 0.75 is overtaken by the one introduced at 0.875, and the gap never recovers. It is a
+permanent order violation, not a transient one, and it is resolution-invariant — refining the schedule
+3.5-fold and 4.2-fold leaves the same pair inverting at the same age to the same depth. It also
+originates where the schedule is at its densest, so it is not an artefact of the coarse tail. The
+smallest positive gaps in the other stress
 cells fall to 4.4 × 10⁻⁸ m, two orders of magnitude below the constant-environment value. The
 requirement is therefore not merely tight within the intended parameter envelope; it can be violated
 inside it.
@@ -338,9 +343,13 @@ Twelve runs add an annual sinusoidal cycle — in rainfall at amplitudes 0, 0.3,
 fraction of the mean, and in incident light at 0.7 and 1.0, trough clamped at zero — in both
 coordinate systems. All twelve completed; none failed. Three results.
 
-**Cohorts cross in one cell of the twelve.** Under a full-amplitude light cycle the height coordinate
-records 66 crossings among 10 011 interior pairs, with a minimum gap of −0.00398 m. The other eleven
-record none, and no cell produces a crossing at the inflow boundary. The approach is visible in the
+**Cohorts cross in one cell of the twelve.** Under a full-amplitude light cycle one interior pair
+inverts and never recovers. The census counted 66 crossings among 10 011 pair-times, but all 66 are the
+same pair — the cohort introduced at patch age 0.75 overtaken by the one introduced at 0.875 — observed
+at every recorded state from patch age 1 onward. Refining the schedule 3.5-fold and 4.2-fold returns
+the same pair at the same age and the same depth, with the count rising only because more states are
+recorded. The physical content is one permanent inversion, not a 0.66% incidence. The other eleven
+cells record none, and no cell produces a crossing at the inflow boundary. The approach is visible in the
 gaps: the smallest positive interior gaps under stress are 4.43 × 10⁻⁸, 4.84 × 10⁻⁸ and
 5.55 × 10⁻⁸ m, against 8.21 × 10⁻⁶ m in the constant environment. §2.1 takes this up, because it is
 a condition the height coordinate requires rather than a property of the sweep. Note that the
@@ -363,11 +372,28 @@ collapses to 1.31 only where both solvers report near-extinction. Convergence to
 the last row is not evidence that the coordinates agree; it accompanies a four-order collapse in the
 quantity being compared.
 
-**The storage excursion of §6.1 improves under stress rather than worsening.** The most negative
-value is in the constant environment (−2.249 × 10⁻³ in height coordinates); it rises to
-−8.48 × 10⁻⁴ at rainfall amplitude 0.3 and becomes positive at rainfall 0.7 and 1.0 and at light
-0.7. It returns negative only at full light amplitude, at −6.82 × 10⁻⁵, still some thirty times
-smaller than the constant-environment baseline.
+**The schedule samples one phase of the forcing, so the levels in the table above are not converged.**
+The default introduction times follow `dt = 2^floor(log2(0.2 t))` capped at 2 years. That ladder is
+commensurate with an annual period, so every cohort introduced after patch age 2.5 years — 58 of 141 —
+is born at exactly `sin(2πt) = 0`, the mean of the forcing. None is ever born at a peak or a trough,
+and halving the cap does not break the lock. Nyquist on an annual cycle is met only before patch age 5,
+which is 4.7% of the run; 47 of 105 years receive no introduction at all.
+
+The consequence is measured. At full light amplitude, refining the late schedule moves offspring
+production −34% to −48% and it is still falling at 599 introductions, while sliding the late block by
+0.75 years **at unchanged node count** moves it −60%: the default sits 1.8 times above the resolved
+value and the trough-phase schedule 0.27 times below it. **The ratios in the table are robust and the
+levels are not** — the coordinate ratio moves only 1.314 → 1.235 across that same refinement, and
+9.22 → 9.38 at rainfall amplitude 0.3. Read the table as ratios, and treat the high-amplitude levels as
+one-phase samples.
+
+A claim made here in an earlier draft, that the storage excursion of §6.1 improves under stress, does
+not survive. It reverses under refinement and under a pure phase slide at fixed cost, reaching
+−2.1 × 10⁻³ to −3.2 × 10⁻³ against the constant-environment −2.249 × 10⁻³. It is withdrawn.
+
+The sweep therefore tested seasonality in the cohorts' trajectories and never in recruitment, which for
+TF24 under a light cycle is where it bites hardest: a newborn's establishment probability is exactly
+zero over 19.9% of the year, and the single sampled phase overstates the phase-mean by 27.1%.
 
 ### 6.4 Adaptive refinement keeps the cost advantage, once `schedule_eps` is chosen for the coordinate
 
