@@ -410,6 +410,40 @@ Correctness does not close, because **four defects have no task**:
   `input_adjoints` calls per block, and Task 10 removes the second leaf solve. Take
   Measurement A again after Task 10, before quoting a factor to a packet.
 
+### Task 1 was written against a leaf that restores itself, and it does not
+
+**The gate I specified could not pass.** It required the leaf state after one
+`output_rows` call to match the state after `1 + n` `input_adjoints` calls. `PPFD_` is
+restored by accumulating arithmetic rather than by assignment —
+`h = PPFD_*1e-6; PPFD_ += h; PPFD_ -= 2h; PPFD_ += h` — and `fl(fl(fl(P+h)-2h)+h)` is
+not `P`. It returns at 900, 1000 and 800 and drifts one unit in the last place at 1500,
+1200 and 1e-3. So the old code takes each row at a slightly different `PPFD_`, **its
+rows are not the rows of one Jacobian**, and at `PPFD = 1500` forty of 810 entries
+disagree to 2.087e-06. The gate now compares against **one** old call, and the task is
+recorded as removing a defect and moving its gradient rows.
+
+The general lesson, which is cheap to apply and would have caught this: **when a gate
+asserts that state is unchanged, check that the code restores by assignment and not by
+arithmetic.** A restore-by-arithmetic is a silent one-way ratchet, and the value that
+made it visible, 900, is the one a hand-built harness picks.
+
+Three more from the same dry run, each a trap a reasonable reading falls into:
+
+- **`input_adjoints[i_par0 + k]` is written with `=`, not `+=`.** A row loop that
+  hoists the assignment out loses the parameter columns of every row but the last, and
+  they read exactly zero — the failure mode this plan's own warning describes.
+- **`mu * (R_pm[0] - R_pm[1]) / (2h)` may not be hoisted as a quotient**, because that
+  re-associates. Lift the raw pair. This is the one place where a reasonable reading of
+  the steps silently fails the steps' own bitwise gate.
+- **"Keep the order of the statements" is not satisfiable with "put the branch above
+  the row loops".** The instruction has to be "keep the order of the calls that move the
+  leaf"; a pure write may move, a perturbing call may not.
+
+And step 8 is confirmed deleted: `bound_partials` takes no seed, so it has nothing to
+bundle, and step 7 already reduces it to one call per block. Its own four-parameter loop
+and **two further tabulation builds that Measurement A never counted** belong to Tasks 2
+and 3.
+
 ### Underspecified for a packet
 
 - **Task 4 is a derivation, not an implementation.** Eleven mixed second derivatives
