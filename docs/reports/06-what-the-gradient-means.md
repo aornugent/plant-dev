@@ -319,6 +319,57 @@ competition. The design's economy is to notice that this channel is *one number 
 the plant makes a single scalar decision, so all its knock-on effects flow through that
 one decision. Report 05 calls this rank one.
 
+### The repricing, which is the one expression the design owes and the only account of it
+
+Report 05 section 7.3 calls $\Pi_{pu} = \partial^2\Pi/\partial p\,\partial u$ "the one genuinely
+new object" the design needs. **It has had no ecological account anywhere in this corpus until
+now, which is why it could sit unbuilt behind a placeholder for two waves.** Here it is.
+
+$\partial\Pi/\partial p$ is **the plant's marginal water-for-carbon exchange rate**: how much
+extra carbon it buys per unit of extra xylem tension it agrees to carry. At the optimum that
+quantity is zero — the last unit of risk exactly pays for itself. This is the marginal cost of
+water, and it is what every optimal-stomata theory since Cowan and Farquhar has been about.
+
+$\Pi_{pu}$ is **the rate at which the environment reprices that exchange.** When the soil dries,
+or the light above shifts, or a trait moves, by how much does the plant's marginal willingness to
+pay in water change? Three readings, and each is a statement an ecologist would recognise.
+
+**1. It is stomatal sensitivity, and it is where isohydry lives.** $\partial p^\star/\partial u$ —
+how far the operating point moves — is what a gas-exchange campaign measures. $\Pi_{pu}$ is *why*
+it moves: from $\Pi_{pp}\,\partial p^\star/\partial u + \Pi_{pu} = 0$, the response is the
+repricing divided by the curvature. A plant with strong repricing and flat profit swings its
+stomata widely; one with weak repricing and sharp curvature holds its potential nearly constant.
+**Isohydry against anisohydry is a statement about $\Pi_{pu}/\Pi_{pp}$**, and nothing in this
+corpus said so.
+
+**2. It is acclimation, and on TF24f it is literally the acclimation coefficient.** TF24f makes the
+collar potential an ODE state ascending $\partial\Pi/\partial p$. The forcing on that state *is*
+$\partial\Pi/\partial p$; the rate at which the forcing changes when the environment changes *is*
+$\Pi_{pu}$. So it decides whether an acclimating plant tracks the weather or lags it. In the base
+model, where the optimisation is instantaneous, the same number is the implicit assumption that
+acclimation is infinitely fast.
+
+**3. It is competition, and this is what makes it worth the code.** Section 3 and report 00's fact
+4 agree that plants interact only through two shared fields. The water field is depleted by uptake,
+and uptake sits downstream of $p^\star$. So the causal chain by which one plant's drinking changes
+another's behaviour is: my uptake lowers the soil potential, which **reprices your exchange rate
+($\Pi_{pu}$)**, which moves your operating point (divided by $\Pi_{pp}$), which moves your uptake.
+**$\Pi_{pu}$ is the first link of the only belowground competitive coupling this model has.** A
+stand where it is large is one where water competition is a behavioural cascade; where it is small,
+plants draw down a common pool without responding to each other at all. That is the difference
+between two qualitatively different forests, and it is one mixed second derivative.
+
+**And now the warning, which follows from report 00's fact 2.** Water moves on *differences* of
+potential while tissue fails on *absolutes*, so along the uniform drying direction the model is a
+near-symmetry: the true flux response is a residue of one to nine percent on a channel amplified 15
+to 26 times. $\Pi_{pu}$ along that direction is therefore **a small difference of large
+quantities**, and report 00's own rule is that such a thing must be computed as itself. The
+implementation spends 22 of its 30 marginal-profit evaluations finite-differencing exactly that,
+and **its conditioning has never been measured.** So the single number that carries belowground
+competition in this model is computed by the one method the corpus says cannot compute it. That is
+the highest-value unquantified risk in the leaf, and it is why report 05 section 7.3's gap is a
+correctness item and not a cost item.
+
 ### The pinned plant, which is a real biological state
 
 Sometimes the optimum is not interior: the plant would like to transpire less than zero,
@@ -335,6 +386,37 @@ choosing freely.
 The practical implication: **any conclusion about drought sensitivity depends on the
 pinned branch being right.** The bound's own derivative, `Leaf::bound_partials`, is
 carrying the ecology in that regime.
+
+### Four more states this section did not have, and two of them are not plants
+
+This section knew **two** pinned cases — the plant that would transpire less than nothing, and the
+plant at its hydraulic ceiling. The implementation distinguishes **four**, and the two it added are
+not biology:
+
+- **A rejected Newton step** and **a non-negative curvature** are the solver reporting that it could
+  not move. No plant is described. They matter because the code files them as *pinned* and
+  `Leaf::bound_partials` then attributes the point to whichever bound is **nearer**, so the adjoint
+  returns the derivative of a bound the plant is not sitting on — a finite, plausible, wrong number,
+  which is the failure mode section 9 names as the largest risk. **These two should refuse, and they
+  are one case, not two.**
+- **The iteration cap** is a plant physiologically identical to the interior case whose optimum was
+  not resolved to the tolerance the envelope theorem needs. It was measured at **80.9 percent of
+  production solves** before the cap was raised, exiting at $|R|$ up to 1.0e-06 where the envelope
+  row is budgeted against 1e-13. **This, not the pinned branch, is the most common non-clean exit on
+  the production driver**, and its error budget has never been set.
+- **A trait-consistency failure** — the root's critical potential drier than the stem's — is not a
+  soil state at all. It is a parameterisation in which root hydraulics fail before stem hydraulics,
+  and **a gradient-driven trait search is exactly the thing that will walk into it.** It must refuse
+  loudly, naming the inconsistency, or a sensitivity walk silently changes model.
+
+**And one case is the same plant as a case this section already has.** The zero-transpiration exit
+at $A_{\max} < 0$ — gross assimilation at ambient CO₂ cannot cover dark respiration — and the
+pin at zero uptake are the same plant approached from opposite sides of one threshold: **there is no
+tension at which water pays for carbon.** The code's separation is control-flow history. Note this
+is the *shade*-mortality regime rather than a drought one, so it is governed by light and is
+invisible to any rainfall sweep — and the mean-light assumption of section 5, which overestimates
+carbon gain by 3.33 times, overestimates precisely the quantity whose sign defines it. **It is
+probably the most under-measured state in this model.**
 
 ### The bracket failure is a non-producing plant
 
