@@ -175,6 +175,14 @@ in the mean, which is not the same plant: photosynthesis saturates, so averaging
 and then photosynthesising overestimates the gain relative to photosynthesising and then
 averaging.
 
+**That overestimate has been measured, and it is not small: mean-light overestimates lifetime
+offspring production by a factor of 3.33, or 233 percent** — 8.276245764 against 2.483491938
+under `deep-crown`. Say the number rather than the word "overestimates".
+
+Caveat: measured at `max_patch_lifetime = 20`, one trait, one species, because `deep-crown`
+took 2 682 s even there. That is not the production configuration and **the ratio may not be
+lifetime-invariant.**
+
 **That overestimate has been measured, and it is large: mean light overestimates lifetime
 offspring production by a factor of 3.33, +233 percent** — 8.276245764 against 2.483491938 for
 `deep-crown`. **Caveat:** measured at `max_patch_lifetime = 20`, one trait, one species, not
