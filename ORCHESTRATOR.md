@@ -444,6 +444,44 @@ bundle, and step 7 already reduces it to one call per block. Its own four-parame
 and **two further tabulation builds that Measurement A never counted** belong to Tasks 2
 and 3.
 
+### Task 6's step 4 was an instruction to break working code
+
+I specified "move `clear_trait_adjoint()` to a point before the seed is taken. Today it
+runs after the seed and it removes the term." Every clause of that is false.
+`clear_trait_adjoint()` runs inside the per-metric loop on `live`; the seed is taken above
+the loop on `patch`, a different object, by a `const` function that writes no accumulator
+at all. Moving the clear would have taken it out of the loop and summed three metrics into
+one row. **A packet that followed the step would have broken a correct ordering and the
+gate I gave it would not have noticed.**
+
+Two habits would have caught it, and both are cheap. **Name the object, not the
+operation**: "the seed writes `live.trait_adjoint`" is checkable and false, where "the
+seed leaves the term in the accumulator" is neither. And **when a step says a bug exists,
+state the symptom it produces**; I asserted a term was being removed without ever saying
+what that looked like in a number, which is how the claim survived unexamined.
+
+### Two more of my expectations that the code refuted
+
+- **`k_I` is not an available control for Task 6.** I gave it as the trait that must not
+  change, because it is absent from the metric functors. But the recording calls
+  `set_ode_state`, which rebuilds the boundary node, and `Species::census` reads that
+  node's density — `birth_rate * pr_estab / g`, a physiology evaluation through the light
+  field, which reads `k_I`. Measured: **36 of 44 columns take a direct term, not the four
+  the algebra names.** A control has to be argued from every path that reaches the
+  quantity, not from the equation you are thinking about.
+- **`area_stem`'s inputs are not functions of `area_leaf` only.** `area_sapwood` reads
+  `theta` and `area_bark` reads `a_b1` and `theta`. The conclusion I drew from the wrong
+  premise happened to hold; that is luck, not method.
+
+### A number in the plan of record that nobody can reproduce
+
+Section 1's stop table records `mass_above_ground` at `+1.1236103034985`. A dry run on
+the same commit at the same lifetime, through the tree's own driver, reads `-14906.6`,
+while the `leaf_area` row reproduces to 1.9e-6. The table never recorded which driver or
+configuration produced it. **A measurement carries its configuration is not satisfied by
+a lifetime and a trait name** — and a corrupted row is exactly the kind of number that
+cannot be reproduced later, because what it reads depends on what took a freed tape slot.
+
 ### Underspecified for a packet
 
 - **Task 4 is a derivation, not an implementation.** Eleven mixed second derivatives
