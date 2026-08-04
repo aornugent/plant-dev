@@ -155,10 +155,25 @@ Report 05 section 5's unit is one plant's physiology evaluated once: it reads it
 size, the light and water available to it, and the traits, and it produces its growth,
 its mortality, its seed output, and how much water it drew from each layer.
 
-185 inputs and 12 outputs. The inputs are mostly *environment* — 130 of them describe
-the light profile — which is the numerical face of the ecological fact that a plant's
-performance depends far more on the shape of the canopy above it than on anything about
-itself.
+185 inputs and 12 outputs, of which **130 describe the light profile** — the numerical
+face of the ecological fact that a plant's performance depends far more on the shape of the
+canopy above it than on anything about itself.
+
+**But the plant does not read 130 numbers; it reads one.** Its whole physiology is driven by
+a single scalar — the light at its crown centre, or the leaf-area-weighted mean over its
+crown, depending on the shading model. Everything the canopy does to a plant, it does
+through that one number.
+
+That is worth stating ecologically as well as numerically. **The model assumes a plant
+responds to an average of the light it sits in, not to the profile.** A plant whose upper
+leaves are in sun and lower leaves in deep shade is modelled as though all its leaves were
+in the mean, which is not the same plant: photosynthesis saturates, so averaging the light
+and then photosynthesising overestimates the gain relative to photosynthesising and then
+averaging. TF24 has a `deep-crown` mode that does it the other way round, one optimisation
+per crown-depth point — **and that mode raises an error on the differentiated path.** So
+the gradient is available only under the averaging assumption, and any conclusion drawn from
+it inherits that assumption. This is a scope limit an ecologist should be told about, not a
+numerical detail.
 
 ### Why the coordinate change halves the work
 
@@ -168,9 +183,13 @@ ecological choice buys a large numerical saving.
 In the height coordinate, the density obeys
 $\dot\ell = -\mu - \partial g/\partial h$. The second term says that where growth
 accelerates with size, cohorts spread apart and the density thins; where growth
-decelerates, they pile up. It is a real effect — the compression of the size
-distribution — and computing it requires asking "how fast would this plant grow if it
-were slightly taller", which means solving its entire physiology a second time.
+decelerates, they pile up. It is a real effect — the compression of the size distribution —
+and computing it requires asking "how fast would this plant grow if it were slightly
+taller", which means solving its entire physiology again at a displaced height.
+
+**How many times again depends on a setting.** With `node_gradient_richardson` false, which
+is the default, a one-sided difference reuses the rate already computed and costs **one**
+extra solve. With Richardson extrapolation at its default depth of four it costs **eight**.
 
 In the birth-date coordinate, $\dot\ell = -\mu$: **the density changes only because
 plants die.** Nothing about growth appears, because germination dates do not spread
@@ -178,8 +197,10 @@ apart or pile up. The compression is still there in the model — it reappears w
 convert back to a distribution over height — but it is no longer something the rate
 equation has to compute.
 
-So the coordinate change removes one whole physiological solve per plant per step. The
-ecology is unchanged; the bookkeeping is halved.
+So the coordinate change removes one extra physiological solve per plant per step at the
+default, and eight under Richardson. The ecology is unchanged; only the bookkeeping moves.
+**An earlier form of this section said the work was halved**, which is right for the solve
+count at the default and is not a statement about the recorded tape.
 
 ---
 
@@ -349,7 +370,7 @@ Report 05 section 10 enumerates the paths from a trait to the census. **An earli
 that section said there were four and that the list was complete. It was wrong, and the
 correction matters ecologically.**
 
-Six are now known. Four are the ones a reader would guess: the measurement formula, each
+Six are known, and "six" is a count of paths found rather than a closed set. Four are the ones a reader would guess: the measurement formula, each
 plant's physiology, germination, and the shared canopy. Two were missed:
 
 - **The soil.** Water aggregates across plants exactly as light does, and the retention curve
