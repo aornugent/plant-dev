@@ -1656,11 +1656,29 @@ mis-handled rather than refused. Refuse it by name.
   `set_block_inputs` never calls `prepare_strategy` or `refresh_indices`. `height_0 =
   height_seed()` depends on `omega` and `lma`, both registered. So those two columns are short
   by the seed-height term and nothing says so.
-- **The water channel from cohorts back into the soil state is cut.** `patch.h:1101-1104` is
-  `resource_depletion.push_back(odelia::util::to_passive(resource_consumed / area));`. The
-  environment's store is `Internals<double>`, so this is deliberate — but it means the second
-  reduction in the model carries **no** derivative, and report 05 section 3's composition
-  diagram did not show the reduction at all.
+- **~~The water channel from cohorts back into the soil state is cut.~~ Withdrawn: it is
+  transposed by hand, and I recorded the cut tape edge as a missing derivative.** The forward
+  edge *is* cut — `patch.h:1101-1104` is
+  `resource_depletion.push_back(odelia::util::to_passive(resource_consumed / area));`, because
+  the environment's store is `Internals<double>`. **The derivative is then supplied by hand, two
+  functions away.** `Patch::soil_adjoint` (`patch.h:1386-1429`) calls
+  `environment.compute_rates_adjoint(...)`, which is a live closed-form transpose of the soil
+  column at `tf24_environment.h:638-690` — carrying `dsoil_K_dtheta` and the saturation-excess
+  `dinfiltration_dtheta` — and then scatters `lambda_uptake` back over every cohort through
+  `Species::consumption_rate_adjoint` into `seeds.uptake`, the height slot and the `log_density`
+  slot (`patch.h:1400-1428`). One audit reported this function as not existing; it does, and I
+  verified the call site.
+
+  **What is genuinely uncovered is its verification.** Nothing in this document gates
+  `TF24_Environment::compute_rates_adjoint` against a difference of `compute_rates`, term by
+  term — the saturation-excess branch, the residual-moisture `continue` and the layer coupling.
+  A hand transpose with no gate is the same class of risk as the `dpsi/dtheta` factor above:
+  correct today because someone was careful, and nothing holds it there. **Write that gate.**
+
+  And note the *third* undrawn cut in the same function: `light_knot_adjoint` opens with
+  `if (is_mutant_run) { return; }` (`patch.h:1698-1700`), which drops the light channel's
+  contribution to `sizes` and hence to `lambda_state` through `allometry_adjoint`. Task 16
+  records the trait-row consequence; **this is also a state-adjoint loss**, and nothing says so.
 
 Type: correctness. Small.
 
@@ -2205,11 +2223,27 @@ Each item below blocks something. Do not treat the list as background.
   hyperparameter path has a derivation the reverse-mode `J` does not describe.
 - **`Patch::cache_ode_step`, `cache_RK45_step` and `load_ode_step` have no caller**
   in either repository, and they are the two known `test-mutant.R` errors.
-- **The light field reaches each cohort through one number, and 126 of 130 columns are
-  structurally zero.** Report 07 section 1: mean-light mode queries the field at
-  `height * eta_c` only, and a cubic Hermite query reads four knots. The sweep does not pay
-  for the zeros; the scatter of `in_adjoint` does, at 130 entries per cohort per stage where
-  four are live. Not in any measurement.
+- **The light field reaches each cohort through one number, and most of the 130 columns are
+  structurally zero — but every count this entry has carried has been wrong, and the reason is
+  always a dropped precondition.**
+
+  **"126 of 130" attributed a `CrownCentre` fact to `MeanLight`, citing report 07 as its
+  authority while 07 says the opposite.** `height * eta_c` is the `CrownCentre` query
+  (`tf24_strategy.h:1267-1268`). The default is `MeanLight`, which integrates over the crown
+  with `function_integration_rule = 21` (`tf24_strategy.h:1276`), so it reads far more than four
+  knots.
+
+  **And the replacement figures — a measured maximum of 78 of 130 and a mean of 58.7 — were
+  taken on the height coordinate and do not apply to the coordinate this gradient is scoped
+  to.** They are twice the single-rule bound because the transport term evaluates the field a
+  second time, and **that second evaluation is `growth_rate_gradient`, which does not run at
+  `node_density_in_birth_date = TRUE`**. On the scoped coordinate the bound reverts to about 44
+  of 130 from one 21-point rule. **The number is unmeasured there. Task 0 must re-take it, and
+  its re-take list does not name it.**
+
+  Reports 07 and 08 both carry 78 with no coordinate beside it; fix both when the re-take lands.
+  The cost of the scatter is still in no measurement, and the 0.8 percent ceiling of Section 4
+  says it can stay that way.
 - **The scope beyond this plan, which no other live document carries.** Invasion gradients
   omit the light knot pullback — they are the resident pass with one step left out — but
   `run_mutant` is broken and cannot be fixed from adjacent work: **nothing in plant or odelia
