@@ -9,9 +9,10 @@ required quantity — not approximately, but at all — as soon as growth depend
 than size.**
 
 The consequence here is an order of magnitude. Lifetime offspring production — the integral `plant`
-uses to decide whether a strategy persists — is 42.14 at the production schedule and 400.92 in a
-corrected coordinate. Refined to convergence the two do not approach each other: they reach 60.29 and
-401.72, a factor of 6.66 apart, so the shipped value is 85% low and no amount of resolution recovers it.
+uses to decide whether a strategy persists — is 42.14 at the production schedule against 395.44 in a
+corrected coordinate at that same schedule. Refined to convergence the two do not approach each other:
+they reach 60.29 and 401.72, a factor of 6.66 apart, so the shipped value is 85% low and no amount of
+resolution recovers it.
 An individual-based solver that carries no transport term agrees with the corrected coordinate to within
 0.6% at every patch age and sits 1.6 to 2.5 times below the uncorrected one.
 
@@ -726,6 +727,16 @@ insertion into the introduction schedule, so both coordinates see byte-identical
 level. Scripts and outputs are in [`probes/`](../../probes), whose
 [index](../../probes/README.md) names the script behind each result and figure in this
 report. The implementation is `plant` branch `claude/nsc-density-measurements-efiolz`.
+
+**Reproducing these figures on a later commit.** Eight commits on, with the forward-model correctness
+fixes and the sorted competition grid merged, the same configuration gives TF24 **42.5772** in height
+coordinates and **395.4377** in birth-date coordinates at the production schedule. The height arm has
+moved +1.04% and the birth-date arm −0.001%; both coordinates on FF16 and K93 move by under
+6 × 10⁻⁵. The gap between the coordinates is therefore stable — 8.29 against 8.38 on TF24, 1.04 × 10⁻²
+against 1.05 × 10⁻² on FF16, 2.64 × 10⁻³ on K93 either way — and only the uncorrected arm is
+materially sensitive to the intervening changes, which is what §6.6 predicts. That build needs odelia
+at or after the commit taking the ODE system by mutable reference, because `Patch::ode_rates` is no
+longer const.
 
 **What this branch changes.** Three things, and nothing else. The `node_density_in_birth_date` flag and
 the coordinate it selects (§3). `SpeciesBase::control()`, immediately below. And the schedule-refinement
