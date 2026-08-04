@@ -12,60 +12,66 @@ The division of labour exists because an agent cannot assess its own completenes
 What replaces self-assessment is that **every packet's gate is a command whose
 output the orchestrator re-runs**.
 
-**The evidence for where the risk sits.** Across four phases, subagents corrected
-the architect **twenty-three times** and stopped on real contradictions rather than
-papering over them. Every expensive failure was the orchestrator's: an unguarded
-edit, an unread document, an unpriced gate, an unverified environment. So the
-discipline below applies hardest to your own hands.
-
-**The organising fact.** Every costly failure traced back to a cheap check that was
-skipped. Reading one section — five minutes — saved three attempts at one task.
-Confirming two repositories compile together — thirty seconds — saved three dead
-first cycles. **Slow is smooth and smooth is fast.**
-
 ---
 
-## 1. Before you send anything
+## 1. The orchestrator's four failure modes, and what to do instead
 
-Six checks, none longer than a few minutes. Each one, skipped, cost real time.
+An implementer works inside one file with one claim to defend, and reads it closely
+because that is the whole job. The orchestrator holds the design and writes about
+code it is not reading at that moment. So the errors are not symmetric, and neither
+are the defences. These four are the orchestrator's, and each has a cheap
+counter-move.
 
-1. **Read the section that owns the thing, not the section that mentions it.** Two
-   sections of the design disagreed about whether a trajectory record carries the
-   step size; two packets written from the wrong one both failed. **When two
-   documents disagree, that is the finding and it outranks the task.**
-2. **Never cite a document in a packet you have not read.** Packets have been
-   pointed at sections by line number by someone who had read neither, and the
-   agents were then better informed than the person directing them.
-3. **Prove the packet's environment compiles.** A plant base paired with the wrong
-   odelia bit three times — 56, 68 and an unbuildable pairing. Build it yourself, or
-   state which incompatibility the packet will hit and why that is acceptable. **A
-   packet's environment is part of its specification.**
-4. **Cost every gate, and write the cost in the packet.** One gate ran an hour and
-   was retracted; a cheaper configuration exercised the same defect *better*.
-5. **Check the gate is satisfiable.** One packet was told an active value must equal
-   a `double` value to the last bit, which this project had already measured to be
-   impossible. **Ask what would make the gate impossible, not just what would make
-   it fail.**
-6. **Run the gate on the unmodified tree and confirm it prints a number you
-   recognise.** `METHOD.md` §1 is the whole of this rule and it is the one that
-   caught five unfailable gates.
+**The unread document.** Cite the section that *owns* the thing, never the section
+that mentions it. Two sections may disagree, and a packet written from the wrong one
+fails in a way that looks like an implementation problem.
 
-**And do not tell an agent which obstruction will be largest unless you have
-measured it.** A guess stated as an expectation is a bias the agent spends evidence
-to overturn. One packet was told to expect the untemplated environment; the largest
-group was `std::`-qualified math, which has nothing to do with it.
+> BAD — pointing at a document you have not opened.
+> `See report 01 §4 for the trajectory record format.`
+>
+> GOOD — the claim, then where you read it.
+> `The trajectory record carries the step size (report 01 §3.2, "each entry holds
+> h"). Report 04 §2 says it does not; §3.2 owns the format, and 04 is wrong.`
+
+The second form does the work of reading in advance. It also means a disagreement
+you walked past becomes visible to the implementer instead of invisible.
+
+**When two documents disagree, that is the finding and it outranks the task.** Stop
+and resolve it against the code. Do not pick the reading that fits the packet.
+
+**The unverified environment.** A packet's base commit, its sibling install, and the
+fact that the two compile together are part of its specification. Prove the pairing
+builds, or name the incompatibility it will hit and why that is acceptable. `plant`
+reaches `odelia` through the *installed* package, so a stale install is not visible
+in any diff — certify it per symbol, as `METHOD.md` §4 requires.
+
+**The unpriced gate.** Write the cost in the packet, in seconds, beside the command.
+A gate whose cost you did not write down is a gate you did not choose. Section 4 is
+how to choose.
+
+**The unguarded edit.** Every packet gets a file allowlist, its own worktree and its
+own R library. Section 3.
+
+**And do not tell an agent which obstruction will be largest unless you measured
+it.** A guess stated as an expectation is a bias the agent spends evidence to
+overturn. State what you know, mark what you are guessing as a guess, and ask for
+the ranking back.
+
+> BAD `The hard part will be the untemplated environment.`
+>
+> GOOD `I have not measured which group is largest. Report the groups by count.`
 
 ---
 
 ## 2. The packet
 
-A packet is a bounded change whose gate someone who was not there can re-run. If
-the gate cannot be written as a command with an expected answer, the packet is not
-ready. Every field, every time:
+A packet is a bounded change whose gate someone who was not there can re-run. If the
+gate cannot be written as a command with an expected answer, the packet is not ready.
+Every field, every time:
 
 1. **The change in one sentence, plus an explicit file allowlist.** Touching
    anything else is a deviation to report, not initiative.
-2. **The gate as a command, its expected answer, and its cost.**
+2. **The gate as a command, its expected answer, and its cost in seconds.**
 3. **The environment, proven** — which base, which sibling install, and that they
    build together.
 4. **What it may not do:** no baseline regeneration, no adjacent tidying, no new
@@ -76,22 +82,22 @@ ready. Every field, every time:
 7. **The style rules verbatim**, plus one before-and-after exemplar from the file
    being edited.
 8. **Its own worktree, its own R library, its own scratch directory.**
-9. **Its own baseline first** — take the base tree's reference number in the
-   packet's own worktree before the first edit, and stop if it does not reproduce.
+9. **The fingerprint it must reproduce before its first edit** — see §4. Give the
+   number; do not make the packet discover it.
 10. **Report format:** the diff, each gate's output pasted verbatim, and an explicit
     "what I could not do". Say plainly: *do not report a gate as passing that you
     did not run.*
 
-**A baseline is a property of a commit, a configuration and the script that
-produced it.** Quote all three. Suite counts were handed to packets from the wrong
-tip three times, and one model's configuration was handed to all three models once.
+**A baseline is a property of a commit, a configuration and the script that produced
+it.** Quote all three, every time you hand a number to a packet. A number without
+its configuration is how one model's arm gets handed to three models.
 
 ---
 
 ## 3. Isolation
 
 Each packet gets its own worktree, its own R library when it touches `odelia`, and
-its own scratch directory. plant reaches odelia through the *installed* package, so
+its own scratch directory. `plant` reaches `odelia` through the installed package, so
 two agents installing into one library overwrite each other's headers.
 
 ```sh
@@ -102,78 +108,99 @@ Rscript -e 'install.packages("<odelia worktree>", repos = NULL, type = "source")
 
 **Your own verification needs its own worktree too** — a detached checkout at the
 commit SHA that nothing else touches. Two concurrent builds in one worktree leave a
-half-written `.so`, and **loading one succeeds and returns plausible wrong
-numbers**. See `METHOD.md` §4.
+half-written `.so`, and **loading one succeeds and returns plausible wrong numbers**.
+
+**Remove a worktree when its packet closes.** A worktree holds its branch checked
+out, so a stale one makes `git checkout` of that branch fail elsewhere and pushes
+the next agent onto a detached HEAD without saying so.
 
 ---
 
-## 4. Sequence, fan-out and cost
+## 4. Spend verification where it discriminates
 
-**Fan out the writing; take the builds one at a time in dependency order.** These
-are separable. Authoring costs context, not CPU. Building and running are the
-contended resources, and a production run goes from about 90 s idle to about 7
-minutes under a wave — so three concurrent build lanes make every gate in every
-lane five times slower, and a wave *loses* to a queue whenever the lanes are not
-genuinely independent.
+The costs here span four orders of magnitude, so *which* check runs matters far more
+than how many.
 
-**Fanning out a dependency chain thrashes**: the downstream agent rebases onto a
-moving base and its bit-identity gate measures the rebase.
+| check | cost | what it can establish |
+|---|---|---|
+| read the diff; `scripts/build/style-sweep.sh` | seconds | a dropped guard, a deduced return type, a comment made false |
+| one test file | 1–2 s | the component's own behaviour |
+| a build | ~95 s idle, up to 10 min contended | that it compiles at all |
+| short-lifetime run | seconds to ~10 s | a fingerprint: did the numbers move |
+| full serial suite | ~3 min | nothing regressed |
+| production run | ~90 s idle, ~7 min under a wave | a cost factor, a production-state gradient |
 
-**Count the builds before starting.** A phase's wall clock is roughly its build
-count times one build. A clean build is about 95 s here and up to ten minutes on a
-loaded box, so the way to fit a phase in one turn is to reduce the count rather
-than to overlap it.
+Four rules follow.
 
-**Contention is self-inflicted — do not read your own scheduling as an environment
-limit.** With one packet running, a single process gets 99.9 percent of a core.
+**Give each packet a fingerprint, not a baseline.** A packet must know its tree is
+sound before it edits, but that does not need a production run. Take **one**
+production baseline per wave, yourself, in your own worktree, and hand every packet a
+short-lifetime number instead — same tree, seconds to reproduce, and it moves for
+every change that matters. A packet that cannot reproduce its fingerprint stops. A
+packet that reproduces it has earned the right to edit, and has not spent seven
+minutes doing so.
 
-**Elapsed time is not progress.** A packet ran seven hours, produced one merge
-commit and died with its container. **Absence of a completion notification is
-indistinguishable from work**: check file mtimes and CPU time against elapsed, and
-give a multi-hour packet checkpoints so a reclaim leaves something behind.
+**Batch the expensive checks at the wave boundary, one lane at a time.** Production
+runs, cost gates and the full suite belong to the integrator, after the merge, on one
+tree. Running them per packet multiplies the cost by the packet count *and* makes
+each one slower, because concurrent lanes contend. Contention is self-inflicted: with
+one packet running, a single process gets essentially a whole core.
 
-**An expensive gate makes an agent unreachable.** A queued correction lands only at
-the agent's next tool round. Bound the cost when writing the packet; failing that,
-kill by PID, which returns the call and delivers the message.
+**Fan out the writing; take the builds one at a time in dependency order.** Authoring
+costs context, not CPU. Building and running are the contended resources. A wave of
+three lanes loses to a queue whenever the lanes are not genuinely independent — and
+fanning out a dependency chain is worse than serial, because the downstream agent
+rebases onto a moving base and its bit-identity gate then measures the rebase.
+
+**Count the builds before starting.** A phase's wall clock is roughly its build count
+times one build. To fit a phase in one turn, reduce the count; overlapping does not
+help.
+
+**Elapsed time is not progress, and absence of a completion notification is
+indistinguishable from work.** Check file mtimes and CPU time against elapsed. Give
+any packet that may run long an explicit checkpoint, so a reclaimed container leaves
+something behind. And bound a gate's cost when writing the packet: while an
+expensive gate runs the agent is unreachable, and a queued correction lands only at
+its next tool round.
 
 ---
 
 ## 5. Gate what the gate can see
 
-**Six bit-identity gates on a type-level refactor found nothing, and a grep found
-three real defects.** Templating at `S = double` generates identical object code, so
-a value gate there is blind to a deduced return type, a swapped like-typed argument
-or a missing guard. So:
+Templating at `S = double` generates identical object code. So a value gate on a
+type-level refactor is blind to a deduced return type, a swapped like-typed argument,
+or a dropped guard — the defects that class of change actually produces. A static
+read finds those; a bit-identity run cannot.
 
 - **Write the change in full, review it statically and adversarially, then build
   once.** Keep commits as a structure for reading, not as a schedule of gates.
 - **Put the real check where the errors surface.** For scalar templating that is the
   active build, not the `double` suite.
 - **Prove a gate command fails when it should.** Break the thing it checks and
-  confirm the command notices.
+  confirm the command notices. This is the cheapest check in this document and it
+  subsumes most of §1's advice about gates.
 
-**This economy inverts when the phase moves numbers.** Then a step whose own claim
-is bit-identity has earned its run, because it is the only thing separating "I broke
-the loop" from "the value moved by the predicted amount". One restructure being
-bit-identical is the whole reason a 10.3x move could be attributed to one stencil.
-In a value-moving phase what gets batched is the **re-blessing**, not the
-intermediate gates.
+**This economy inverts when the phase moves numbers.** Then a step whose own claim is
+bit-identity has earned its run, because it is the only thing separating "I broke the
+loop" from "the value moved by the predicted amount" — attributing a large move to
+one change requires that everything around it was proven inert. Most of
+`NEXTSTEPS.md` is such a phase. What gets batched there is the **re-blessing**, not
+the intermediate gates.
 
 ---
 
 ## 6. Stopping is the product
 
-Five packets stopped without finishing and every one was right to; two falsified
-statements in the plan. **A stopped packet with a diagnosis is worth more than a
-finished one that papered over a contradiction** — and the practice only works if
-that is true in fact and not just in the packet's wording.
+A stopped packet with a diagnosis is worth more than a finished one that papered over
+a contradiction — and the practice only works if that is true in fact and not just in
+the packet's wording.
 
 - **Say so when the packet was wrong.** An agent told "your environment was broken
   and it was mine" reports the next problem faster.
-- **Ask for the cost.** "Which of my gates were uneconomic" is how the
-  90 s-versus-7 minutes fact surfaced.
+- **Ask what the packet cost, and which gates were uneconomic.** The implementer is
+  the only one who watched them run.
 - **Prefer a resume to a fresh packet.** An agent resumed with its context intact
-  fixed a defect in one round.
+  keeps everything it learned; a new one pays for that ground again.
 - **Do not reward a weakened gate.** When a gate fails, the wanted output is the
   numbers and a stop — not a tolerance that lets it through. Say this in the packet,
   then honour it.
@@ -193,8 +220,8 @@ not** — and the two are only distinguishable if the gates were written down fi
 - **Re-run every gate in your own session and your own worktree.** A false pass is
   worse than a gate not run.
 - **When an agent reports a contradiction, investigate against the code before
-  overriding it.** Five times the agent was right and the plan or the packet was
-  wrong.
+  overriding it.** Treat the report as evidence about the plan, not about the agent.
+  Overriding one costs a rebuild; being wrong about one costs the wave.
 - **Distinguish an agent's harness from its tree.** Comparisons taken with one
   harness on both sides are sound; the absolute numbers may not be.
 - **A mechanical sweep over every diff before it lands** —
@@ -202,20 +229,20 @@ not** — and the two are only distinguishable if the gates were written down fi
   line you did not write.** The sweep reports candidates, not verdicts, and it cannot
   see a comment the change made false.
 - **The cross-model tripwire on every merge, not at phase end.** `METHOD.md` §5.
-- **One integration branch per repository.** After each merge, verify every change
-  is present by **reading the merged tree** rather than trusting the auto-merge, and
-  check the arithmetic: if four packets added 4, 11, 27 and 7 assertions to a
-  264-pass baseline, the merged tree shows 313, and anything else means the merge
-  lost or duplicated something.
+- **One integration branch per repository.** After each merge, verify every change is
+  present by **reading the merged tree** rather than trusting the auto-merge, and
+  check the arithmetic: four packets adding 4, 11, 27 and 7 assertions to a 264-pass
+  baseline must show 313, and anything else means the merge lost or duplicated
+  something.
 - **Some work has no packet and it is the integrator's.** Before closing, list the
-  documents the change touches and check each against what landed. This has been
-  missed once, on `odelia/AUTODIFF.md`.
+  documents the change touches and check each against what landed.
 - **Re-bless nothing until the owner accepts the shift.** Recording it is the job;
   accepting it is theirs. Leave a moved assertion *failing* through the work and put
   the re-blessing in as one pass at the end.
 
 **Three kinds of failing assertion come out of a value-moving change and only one is
-a re-blessing.** Conflating two of them shipped a segfault and a lost R capability.
+a re-blessing.** Conflating the first two ships a segfault or silently drops a
+capability.
 
 | | what it is | what it takes |
 |---|---|---|
@@ -232,11 +259,12 @@ a re-blessing.** Conflating two of them shipped a segfault and a lost R capabili
 | what to build, in order, with its gates | `NEXTSTEPS.md` |
 | how to verify, build, measure; the reference numbers; the harnesses | `METHOD.md` |
 | the derivations the plan rests on | `docs/reports/00`–`04` |
+| re-runnable probes and spike patches | `docs/probes/` |
 | what was built, at which commit, and what each number moved | `docs/archive/implementation-notes.md` |
 | the plan the build was run against | `docs/archive/build-plan.md` |
 
-The last two are **archived**: every task in the plan is built, and the ledger's job
-was to be the one home for a number nobody is now re-deriving. Read them for
+The last two are **archived**: every task in that plan is built, and the ledger's job
+was to be the one home for numbers nobody is now re-deriving. Read them for
 archaeology, cite them by commit and path, and do not design from them.
 
 **Phase 4, which no live document else carries.** Invasion gradients omit the light

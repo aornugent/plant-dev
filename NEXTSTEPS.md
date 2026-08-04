@@ -79,17 +79,15 @@ the sort guard in `Species::consumption_rate` for an inverted height grid.
 
 ---
 
-## 3. Technical names in this document
+## 3. Two names that are not the name of a symbol
 
-| Name | Meaning |
-|---|---|
-| the block | `Individual::compute_rates` at the active scalar, recorded one time for one cohort at one Runge-Kutta stage |
-| the bundle | the local Jacobian of the leaf at its operating point, with one row for each output |
-| the graft | `value + sum_i partial_i * (x_i - to_passive(x_i))`, which is zero in value |
-| the seed | the output adjoints that start one reverse sweep |
-| the census | a sum of one quantity over the size distribution |
-| birth date | the time when the solver introduced a cohort |
-| the tabulation | a 100-knot table of the cumulative vulnerability integral |
+Each other term in this document is either the name of a C++ symbol or a standard
+term of automatic differentiation. Section 12 lists them.
+
+- **the block** — `Individual::compute_rates` at the active scalar, recorded one
+  time for one cohort at one Runge-Kutta stage. It is the unit of the reverse pass.
+- **the graft** — `value + sum_i partial_i * (x_i - to_passive(x_i))`. It is zero in
+  value, and that property is why a finite difference of a block cannot see it.
 
 ---
 
@@ -109,7 +107,7 @@ layers, `GSS_tol_abs = 1e-1`, `-O2 -DNDEBUG -g0`, one Xeon at 2.80 GHz.**
 | `input_adjoints` calls for each block | 10.64 |
 | `dprofit_droot_collar_psi` calls for each `input_adjoints` call | 35.0 |
 | root-finds for each `input_adjoints` call | 100.0 |
-| tabulation rebuilds for each `input_adjoints` call | 2.0007 |
+| rebuilds of the 100-knot vulnerability table for each call | 2.0007 |
 | share of the reverse pass inside `input_adjoints` | **98.16 percent** |
 | gradient wall clock | 292.35 s, this machine only |
 
@@ -122,10 +120,12 @@ seeds.** Four states, 28 inputs, two interior and two pinned. The largest relati
 difference is **4.4e-16**. No entry of 112 is above 1e-14. The ratio of the times
 is **5.97 to 6.11**.
 
-**Measurement D, the tabulation.** One 100-knot tabulation costs **121.2 us**. One
-closed-form value costs **0.074 us**. One value with `d/da` and `d/dx` on a reused
-tape costs **0.68 us**. A new tape for each call costs **34.8 us**. Therefore the
-bundle needs a tape that lives longer than one call.
+**Measurement D, the tabulation.** The tabulation is the 100-knot table of the
+cumulative vulnerability integral that `build_cumulative_vulnerability_integral`
+writes. One build costs **121.2 us**. One closed-form value costs **0.074 us**. One
+value with `d/da` and `d/dx` on a reused tape costs **0.68 us**. A new tape for each
+call costs **34.8 us**. Therefore the rows of the leaf need a tape that lives longer
+than one call.
 
 **Measurement E, the four hydraulic columns are wrong.** The tabulation builder
 sets `psi_max = b * log(100)^(1/c)` and `step = psi_max / resolution`, under a loop
@@ -191,7 +191,7 @@ in Task 1 for those rows.
 
 ## 6. Tasks that correct the gradient
 
-### Task 1: give the leaf one bundle
+### Task 1: compute the rows of the leaf one time
 
 Type: cost, and it also removes a hazard, so do it first.
 
@@ -231,9 +231,10 @@ form is possible and it is not safe here. `Individual::log_density_rate` calls
 `growth_rate_gradient`, which copies the individual, shares the strategy and
 therefore the leaf, and solves the leaf again at `height − 1e-6`. Therefore a
 Jacobian computed after the record step reads the operating point of the probe and
-not the operating point of the graft. An eager bundle cannot have this defect.
-The graft also works for the forward type, and a tape callback does not, so an
-eager bundle keeps the tangent referee of Task 0.
+not the operating point of the graft. Rows computed during the record step cannot
+have this defect. The graft also works for the forward type, and a tape callback
+does not, so computing them during the record step keeps the tangent referee of
+Task 0.
 
 **WARNING: `layer_flux_partials` gives NaN at a branch kink. Today the profit row
 computes `0.0 * NaN`, which is NaN. If you remove the multiplication, the result
@@ -743,7 +744,7 @@ does and how to check it, and not its size.
 
 | Task | Factor | Source | What it removes | Moves forward numbers? |
 |---|---|---|---|---|
-| 1, bundle | about 5.3 | calculated from A and C | repeated Jacobian builds | no |
+| 1, `output_rows` | about 5.3 | calculated from A and C | repeated Jacobian builds | no |
 | 2, tabulation guard | 5.71 for a non-leaf trait, 1.005 for all 44 | **measured, G** | tabulations, when no hydraulic row is wanted | no |
 | 3, mask | 6.68 for a non-leaf trait, 1.00 for all four hydraulic rows | **measured, F** | whole parameter rows nobody asked for | no |
 | 4, mixed second derivative | 22 of 35 residual evaluations | counted, A | the residual pairs | no |

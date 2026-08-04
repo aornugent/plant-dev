@@ -3,11 +3,9 @@
 `NEXTSTEPS.md` says what to build. This says how to know you built it. Read this
 before you write a gate, take a measurement, or send work to a subagent.
 
-Every rule below was learned by a failure that cost real time. The failures were
-not varied: **twenty-three of twenty-three subagent packets found a real defect in
-the brief they were given**, and most of those defects were one mistake — a gate
-that measured the quantity its author was thinking about rather than the quantity
-that moves when the feared thing happens.
+Nearly every rule below traces to one mistake, made repeatedly: **a gate that
+measured the quantity its author was thinking about, rather than the quantity that
+moves when the feared thing happens.** Section 1 is that mistake and its counter.
 
 ---
 
