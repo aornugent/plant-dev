@@ -394,6 +394,122 @@ including the implicit-function term of the `ci` root-find, is design. A packet 
 not make a design choice. Write the eleven expressions first; then a packet
 transcribes and gates them.
 
+### Task 22: restore the light field's geometry channel, or price its absence
+
+Type: **correctness**, and it is the largest single defect this plan has found.
+
+**Why.** The light field's knot positions are `u_k * height_max`. They are held as
+`double`: `ResourceSpline::set_fixed_value` takes
+`const double top = odelia::util::to_passive(height_max)` under the comment "Knot
+positions are the interpolant's grid and stay double, so a position built from an active
+`height_max` is read at its value." So `height_max` reaches the field's **values** and not
+its **positions**, and `Species::height_max()` is the tallest cohort's height, a state
+variable.
+
+**Report 03 contradicts itself about this and one branch of the contradiction is
+severe.** Its section 1b says the channel "disappears" and arrives instead as ordinary
+chain-rule terms. Its head correction says the channel is dropped and measures the gap at
+**1.891e+01, about 87 percent of the tallest cohort's height adjoint**, against the
+8.7e-04 that constraint C1 assumed. **The code settles it: the positions are passive, so
+section 1b is wrong and the head is right.** C1's ruling stands as a choice; C1's estimate
+of what the choice costs does not.
+
+**This survives the coordinate change.** Section 2b moves the density's abscissa to birth
+date. The light field is still indexed on height, and `height_max` is still the tallest
+cohort's height, so the severance is untouched.
+
+**Three parts, and they are one channel.**
+
+1. **Measure the convergence.** C1's own falsifier: the error should shrink with knot
+   density, and that was never measured. Measure it at production knot counts. If it
+   converges, the choice is defensible and its cost is bounded. If it does not, it is a
+   defect.
+2. **Decide the channel.** Either make the positions active — which makes the spline's
+   grid depend on an active value, and report 03 section 1b describes what that costs — or
+   keep them passive and add the query-side chain-rule terms `d/d(height_max) = -z/height_max^2`
+   that section 1b claims are already there. Read whether they are.
+3. **Add the field's own Leibniz term.** Report 03 section 1b and report 01 section 3 both
+   require it: the reduction's lower limit is `height_0`, so the field carries
+   `integrand(height_0) * d(height_0)/d(trait)`. It is closed form and it belongs with the
+   knot adjoints in `Patch::light_knot_adjoint`, not inside a recorded cohort step. **This
+   is a different object from Section 1's 3 percent bias**, which is the factor
+   `d(height_0)/d(trait)` itself; this is the term that factor multiplies.
+
+**How to check.** A difference in `height_max` against the assembled adjoint, and the
+knot-density convergence as a table rather than a single number.
+
+### Task 23: invalidate the soil-potential cache under an active soil state
+
+Type: correctness. It is the other half of report 01 constraint C1.
+
+**Why.** C1 names two caches. Task 20 fixes `photo_temp_cached_`. The second is
+`psi_soil_cache_`, whose key is **an exact `double` comparison on the soil state**. Report
+00 section 8 item 10 states the consequence independently: a cache keyed on bit-equality is
+a hazard for anything that perturbs state slightly, **including a finite difference of the
+gradient this plan verifies against**. Report 01 section 11 asks for it to be re-read
+against the resident path, where the soil state is active at every stage.
+
+**Steps.** Audit the invalidation under an active soil state. Use the pattern the branch
+already uses: mark the cache stale under
+`if constexpr (!std::is_same_v<S, double>)`. Gate that every stage recomputes the
+potential.
+
+**This blocks Task 0 and Task 4**, whose references are finite differences.
+
+### Task 24: hold the step size, and read the stored one
+
+Type: correctness. Small, and its failure is silent.
+
+**Why.** Report 05 section 4: the step size was chosen by the adaptive controller, so
+differentiating it differentiates the controller and not the model. It must be a recorded
+constant on the reverse pass, **and therefore the recorded trajectory must store it rather
+than recompute it.**
+
+**Steps.** Assert that the reverse pass reads the stored step size for each step and never
+re-derives it, and that no step size reaches an active type. Task 7 asserts that the
+segments cover every recorded step, which is a different requirement.
+
+### Task 25: gate that the trait adjoint accumulates
+
+Type: correctness. Report 01 constraint C4, whose failure is a plausible constant factor.
+
+**Why.** C4: trait-adjoint accumulation is untested in plant, and the recorded signature of
+its failure is a gradient that is **41 to 51 percent** of the reference with the correct
+sign. One trait is a single input read by every cohort at every stage, so the accumulation
+is the only thing making the sum right. Report 01 section 6.2 records that the knot
+accumulator has the same shape and the same silent failure.
+
+**Steps.** Compare a two-cohort gradient against the sum of its own per-cohort
+contributions, per trait and per knot. Task 16 adds an accumulator; this gates that
+accumulation happens.
+
+### Task 26: generalise the stage recursion to the whole tableau
+
+Type: correctness. Report 01 constraint C2's remaining gap.
+
+**Why.** C2: the recursion was written against a tableau in which each stage depends only
+on its predecessor. Cash-Karp's is denser, so the inner loop must be a general
+`sum over l > i` and not three special cases — which is what report 05 section 4's
+transpose states. C2's own falsifier adds that **this failure has no measured signature**,
+so the check has to be a comparison and not an inspection.
+
+**Steps.** Read `Step::step_adjoint` in odelia and establish whether the general form is
+already there. Then one step's state adjoint against a finite difference of one step, on
+the full tableau, at the birth-date coordinate.
+
+### Task 27: land the permutation gate for the leaf's purity
+
+Type: correctness of the instruments. Report 01 constraint C7's executable form.
+
+**Why.** The whole recorded-cohort-step design rests on the leaf's outputs depending on its
+inputs and on nothing else — no order dependence, no carried state. C7 records that this
+property **has no structural defence**, and that `docs/tf24-correctness.md` P0.10 is its
+executable form: permute a census of production states and require every leaf output to be
+bit-identical. **It is the only check a reordering can fail and a re-run cannot.**
+
+**Steps.** Land that harness. It is the companion to Task 12's round-trip probe and it
+costs no build of its own.
+
 ### Task 17: refuse the height coordinate at every reverse-mode entry point
 
 Type: **correctness**, and it is urgent because the wrong answer is silent.
@@ -810,6 +926,14 @@ one of them: it reaches the leaf through `area_leaf`, which is a state input, so
 supplied derivative gives its row. Therefore a gradient for `lma` needs no parameter
 row at all.
 
+**This task contradicts report 01 section 4.2, and the contradiction is resolved in
+report 01's favour about its own subject.** Section 4.2 says a reverse sweep's cost is flat
+in the number of targets, because one sweep yields every trait adjoint together. That is
+true of the sweep. Measurement F is 6.68 times because the cost is not in the sweep: it is
+in the leaf's supplied derivatives, which report 01 treats as a boundary rather than as a
+cost, as its own head banner concedes. **This task is motivated by Measurement F and G and
+by no reference document.**
+
 **Counted from the code.** 13 of the 15 leaf parameters are in `ad_parameter_names()`;
 the two that are not are `vcmax_25` and `jmax_25`, whose supplied-derivative term is
 zero by structure, so the code computes 2 analytic partials and 4 evaluations of
@@ -914,7 +1038,10 @@ expression. It must include the implicit-function term of the `ci` root-find.
 3. Keep the difference under a build flag or in the test only, as the reference for step 4.
 
 **How to check.** Each closed-form row against the difference it replaces, with the
-difference step swept and a plateau required. **Report 00 records that the conditioning of
+difference step swept and a plateau required. **Add report 02 section 6.9's waist
+residual** over all `2n+1` directions under one shared coefficient pair; it is the one
+invariant of section 6.9 that this task can use, and the plan dropped all three when it
+refused the stationarity identity. **Report 00 records that the conditioning of
 this expression has never been measured.** Measure it: if a row is ill-conditioned, say so
 rather than reporting the value.
 
@@ -1021,7 +1148,13 @@ all. Check. Do not assume either answer.
 **How to check.** Compare all 15 rows against the differenced rows at
 production-like states, with the difference step swept and a plateau required.
 Check the four hydraulic rows against the closed form's own AD as well. That is
-the only reference that does not cross the knot-count step. **Do not use the
+the only reference that does not cross the knot-count step. **Add report 02 section 6.9's continuity invariant to this gate.** `E_up` computed from
+the soil side is identically `kappa * (S(psi_stem) - S(p))` computed from the stem side.
+Two different interpolant chains produce the same number, so their derivatives must agree
+— and that is **the only reference for the interpolant derivative chain**, which is
+exactly what this task rewrites. State it as an exact identity, not a tolerance.
+
+**Do not use the
 stationarity identity of report 02 section 6.9 as a reference.** `dp*/du` is formed
 from `Pi_pp`, so it cancels, and a real 2 percent error in `Pi_pp` passed that
 identity with the same bits before and after the fix.
