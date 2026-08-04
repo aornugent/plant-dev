@@ -245,9 +245,24 @@ $$\bar\ell_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \, A_k \, \t
 
 $$\bar h_k \mathrel{+}= \sum_q \bar\Lambda_q \, w_k \, n_k \, k_I \left[ A_k' \, \tilde{Q}(z_q/h_k) - A_k \, \tilde{Q}'(z_q/h_k) \frac{z_q}{h_k^2} \right] \;+\; \underbrace{\sum_q \bar\Lambda_q \, n_k \, k_I A_k \tilde{Q} \, \frac{\partial w_k}{\partial h_k}}_{\text{zero on the birth-date coordinate}} \tag{6.3}$$
 
-$$\bar{k_I} \mathrel{+}= \sum_q \bar\Lambda_q \sum_k w_k \, n_k \, A_k \, \tilde{Q}(z_q/h_k) \tag{7.4}$$
+$$\bar{k_I^{(s)}} \mathrel{+}= \sum_q \bar\Lambda_q \sum_{k \in s} w_k \, n_k \, A_k \, \tilde{Q}(z_q/h_k) \tag{6.4}$$
 
-$$\bar\eta \mathrel{+}= \sum_q \bar\Lambda_q \sum_k w_k \, n_k \, k_I A_k \, \frac{\partial \tilde{Q}}{\partial \eta} \tag{6.5}$$
+$$\bar\eta^{(s)} \mathrel{+}= \sum_q \bar\Lambda_q \sum_{k \in s} w_k \, n_k \, k_I^{(s)} A_k \, \frac{\partial \tilde{Q}}{\partial \eta}, \qquad \frac{\partial \tilde{Q}}{\partial \eta} = -2(1-\nu^{\eta})\,\nu^{\eta}\log\nu \ \ (\nu \le 1),\ \ 0 \text{ above} \tag{6.5}$$
+
+**$k_I$ and $\eta$ are per-species, so each sum runs over that species' cohorts only.**
+Summing over every cohort of every species collapses the species into one scalar. This
+matters because closing the gap below means writing these two lines.
+
+**The slope channel is a further set of terms this section does not write.** Section 5 lists
+$(\Lambda, \Lambda')$ as $2K$ inputs, so the transpose must also contract $\bar\Lambda'_q$
+against
+
+$$\partial_z E^{\mathrm{comp}}(z_q) = \sum_s \sum_k w_k \, n_k \, k_I^{(s)} A_k \, \tilde{Q}'(z_q/h_k)\,\frac{1}{h_k},$$
+
+whose $h_k$ transpose carries a $\tilde{Q}''$ term appearing nowhere above. The
+implementation has this channel — its function is `compute_competition_and_slope_adjoint` —
+so a reader checking that function against (6.2) and (6.3) will find terms with no
+counterpart here. **Writing them out is owed.**
 
 Two things to read off this.
 
@@ -323,7 +338,8 @@ with $\Pi_{pp} = \partial^2\Pi/\partial p^2$ a scalar and
 $\Pi_{pu} = \partial^2 \Pi/\partial p\, \partial u$ a row vector over the inputs.
 
 In reverse mode we never form $\partial p^\star/\partial u$. Given an output adjoint
-$\bar v$ on outputs $v = f(p^\star, u)$, define the scalar
+$\bar v$ on the outputs $v = f(p^\star, u)$ that are **not** stationary in $p$ — the uptake
+rows, and explicitly *not* profit — define the scalar
 
 $$s = \bar{v}^{\!\top} \frac{\partial f}{\partial p}, \qquad m = -\frac{s}{\Pi_{pp}},$$
 
@@ -331,9 +347,20 @@ and then
 
 $$\bar u = \bar{v}^{\!\top}\frac{\partial f}{\partial u} \;+\; m \, \Pi_{pu}. \tag{7.2}$$
 
-Because $p$ is a **scalar**, the whole optimiser channel is the outer product
-$m \otimes \Pi_{pu}$ — rank one. In the code $s$ is `s_adjoint` and $m$ is `mu`; the
-divisor $\Pi_{pp}$ is `dR_dcollar_at`.
+**Profit is excluded from $s$ deliberately.** Its $p$-channel is zero at an interior
+optimum by section 7.1, and at a bound section 7.4 handles it. `s_adjoint` in the code
+accumulates the uptake rows only, and the pinned branch adds the profit term separately; a
+definition of $s$ including profit would double-count it there.
+
+**Why rank one, stated carefully.** $\partial v/\partial u$ picks up
+$(\partial f/\partial p)(\partial p^\star/\partial u)$, a column times a row, which is a
+rank-one matrix **because $p$ is a scalar**. In reverse mode that matrix never forms: it
+collapses to the two scalars $s$ and $m$. $m$ is itself a scalar, so it has no outer product
+with anything, and $m\,\Pi_{pu}$ is a scaled row vector.
+
+In the code $s$ is `s_adjoint` and $m$ is `mu`; the divisor $\Pi_{pp}$ is `dR_dcollar_at`
+— **which is itself a central difference** at $h = 10^{-6}$, sitting in a denominator. The
+gap below concerns the parameter half of $\Pi_{pu}$; $\Pi_{pp}$ is differenced as well.
 
 ### 7.3 $\Pi_{pu}$ is the one genuinely new object
 
