@@ -19,9 +19,23 @@ discretisation this design uses instead. Numbers are measured on plant `develop`
 > step. What did not survive is the inference that the cohort-grid form is therefore the right
 > discretisation for this model.
 >
-> The live thread is `aornugent/plant#69`, a forward-model question for plant's maintainers.
+> The live thread was `aornugent/plant#69`, a forward-model question for plant's maintainers.
 > **[`10-density-transport-and-carried-physiology.md`](../archive/10-density-transport-and-carried-physiology.md)**
-> carries the derivation, the measurements and what deferring costs. This report is not edited further.
+> carries the derivation, the measurements and what deferring costs; it is archived alongside
+> this one.
+>
+> **And plant #590 removes the subject rather than settling the argument.** Carrying the size
+> distribution as a density in **birth date** eliminates the compression term outright:
+> nothing moves an individual along the birth-date axis, so `log_density_dt` is `-mortality`
+> alone and no stencil of either kind is needed. The sub-grid probe leaves the rate path with
+> it, which is this report's §3 saving arriving by a different route. `NEXTSTEPS.md` Task 10
+> carries what that gives the reverse pass.
+>
+> So read this report for §2's derivation, §5's conditioning argument and §7's staggering
+> analysis — all of which stand as mathematics — and not for a decision anybody now has to
+> make. Its scope condition is the durable finding: `d(log dh)/dt` is the compression term of
+> a density in height **only when `g` is a function of height alone**, and that is exactly the
+> condition #590's coordinate change makes irrelevant.
 
 ---
 

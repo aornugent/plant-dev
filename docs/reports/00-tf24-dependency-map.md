@@ -1,5 +1,20 @@
 # TF24, mapped: the physical reading, the forward pass, the reverse pass, and where every partial goes
 
+> **This is the first reading, and it is the one report whose framing survived the build
+> intact.** Its five physical facts and its five-way classification are what the gradient was
+> built from, and §6.2's derivation — the flux adjoints collapsing onto one scalar, one divide
+> by `Π_pp`, one gradient of `∂Π/∂p` — is the design as implemented.
+>
+> Two things to carry while reading it. **It describes develop `141dc8df`, which has no
+> automatic differentiation at all**, so every section is about the computation a gradient had
+> to be built *onto*. And **§10 item 5 is still owed**: `∇(∂Π/∂p)`'s parameter half is "the
+> single new piece of code the whole design needs", it was ordered last, the implementation
+> put a central difference in its place, and that stand-in is now the whole cost of a
+> gradient. §7's *Genuinely open* and §9's "still inferred" are the sections that own its
+> status — not §6.2, which owns its mathematics.
+>
+> One correction follows.
+
 > **§7's treatment of the four cumulative-flux soil states is falsified. The classification stands
 > otherwise.** §7 lists them as *free* — "write-only; nothing reads them, so their adjoints are
 > identically zero" — and lists `∂(anything)/∂C_{1..4}` under *blocked*. Building P3.1 step (a)

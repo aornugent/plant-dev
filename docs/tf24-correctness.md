@@ -50,7 +50,7 @@ Every item's mechanism, measurement and provenance is in
 the work list, not the argument. Probes: `scripts/leaf_state_carryover.R`,
 `scripts/uncounted_switches.R`, `scripts/light_floor.R`, `scripts/boundary_node.R`,
 `scripts/cohort_spacing.R`, `scripts/aux_round_trip.R`, `scripts/descending_heights.R`,
-`scripts/k1_arms.R` with `reports/introduction-k1.patch`, and
+`scripts/k1_arms.R` with `probes/introduction-k1.patch`, and
 the leaf-boundary set `scripts/leaf_bundle.R`, `leaf_waist.R`, `leaf_waist2.R`,
 `leaf_waist3.R`, `leaf_translation.R`, `leaf_translation_R.R`, `leaf_uniform_check.R`,
 `leaf_recover_a.R`.
@@ -397,7 +397,7 @@ the seedling's own distribution — not the whole cohort population's median `|P
 which is dominated by large trees — the gate is deciding something real.
 
 **At the bottom of the same range it decides on a quantity indistinguishable from zero.**
-The closed arm reaches `−2.28e-09` (`reports/p0.5-switch-census.md`, a second probe arm of
+The closed arm reaches `−2.28e-09` (`probes/p0.5-switch-census.md`, a second probe arm of
 the same construct), five orders below `storage_prod_eps = 1e-4` and seven below that
 population median. A perturbation of `1e-9` in net production flips the arm.
 
@@ -504,7 +504,7 @@ widened state under the rebuilt field. odelia records the doubt in place — *"N
 this is the right thing here; should just be able to look up the correct dydt rates because
 we've already set state?"*
 
-**Measured** (`scripts/k1_arms.R`, instrumented by `reports/introduction-k1.patch`; 141 introductions, `-O2`):
+**Measured** (`scripts/k1_arms.R`, instrumented by `probes/introduction-k1.patch`; 141 introductions, `-O2`):
 
 | max abs |Δrate| at an introduction | median | max |
 |---|---|---|

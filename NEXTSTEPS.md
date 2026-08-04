@@ -138,17 +138,27 @@ when `b` or `root_b` moves by 1e-6 relative. Held grid against moving grid:
 | `d(profit)/d(root_b)` | −2.2215 | −290.86 | 131 |
 | `d(bound_a)/d(root_b)` | 1.68651 | 17279.08 | 10 245 |
 
-**Measurement F, trait masking.** A spike on `p3/trait-mask` (`5fb631a1`,
-`1a06e4c5`) gave **6.68 times** for `traits = "lma"` at lifetime 0.2, and
+**Measurement F, masking the parameter rows.** A spike on `p3/trait-mask`
+(`5fb631a1`) gave **6.68 times** for `traits = "lma"` at lifetime 0.2, and
 **1.00 times** when all four hydraulic rows were requested. Therefore the whole
-saving is those four rows. The forward run stayed bit-identical at
-`42.411799695604159` over 4 644 accepted steps.
+saving is those four rows.
 
-**What the measurements mean for the order.** Today everything outside
-`input_adjoints` can give 2 percent at the most. After Task 1 and Task 2,
-`input_adjoints` is about 30 times cheaper. Then the work outside it is about a
-third of the total. Therefore Section 8's tasks are forbidden now and useful later. Read
-Section 10 before you do work outside `input_adjoints`.
+**Measurement G, guarding the tabulation.** A second spike (`1a06e4c5`) put the four
+`build_cumulative_vulnerability_integral` calls under the condition that a hydraulic
+row is wanted. Pinned at lifetime 0.2 it gave **5.71 times** for `traits = "lma"`
+(3.455 s to 0.605 s) and **1.005 times** for all 44 traits. Both spikes left the
+forward run bit-identical at `42.411799695604159` over 4 644 accepted steps.
+
+**F and G are two different changes and their figures are not comparable.** F skips
+whole parameter rows; G skips only the tabulation those rows need. Do not read
+either as a general speedup: both are near 1.00 when a hydraulic row is requested.
+
+**What the measurements mean for the order, and this is the one place it is
+stated.** `input_adjoints` is 98.16 percent of the reverse pass, so **everything
+outside it can give 2 percent at the most today**. Tasks 1 to 5 all act inside it
+and together make it roughly 30 times cheaper. **Then the work outside it is about a
+third of the total, and the same tasks become worth doing.** That is the whole reason
+Section 8 exists and the whole reason Section 10 forbids its work for now.
 
 ---
 
@@ -183,13 +193,12 @@ in Task 1 for those rows.
 
 ### Task 1: give the leaf one bundle
 
-Type: cost. Factor: about 5.3. It also removes a hazard, so do it first.
+Type: cost, and it also removes a hazard, so do it first.
 
 **Why.** `Leaf::input_adjoints` computes the full local Jacobian of the leaf. Only
-five quantities in the function use the seed: `uptake_dm` at line 1617,
-`s_adjoint` at lines 1670 to 1673, `mu` at line 1854, `w` at line 1840, and the
-sums that write the result. Each of the five is linear in the seed. All other work
-is independent of the seed.
+five quantities in the function use the seed: `uptake_dm`, `s_adjoint`, the interior
+branch's `mu`, the pinned branch's `w`, and the sums that write the result. Each of
+the five is linear in the seed. All other work is independent of the seed.
 
 `TF24_Strategy::graft_leaf_outputs` calls the function `1 + max_soil_layer` times,
 one time for each output row. Therefore the code computes one Jacobian
@@ -203,9 +212,11 @@ mature stand, and per-block cost is not a constant of the model.
    `inst/include/plant/leaf_model.h`.
 2. Move the body of `input_adjoints` into `output_rows`. Keep the order of the
    statements. Do not move a statement that reads leaf state.
-3. Change `dE_dm` to an `n` x `n` matrix. Line 1617 of `src/leaf_model.cpp` is the
-   only seed contraction inside a loop that is independent of the seed. Do not
-   scale the matrix. Line 1619 scales `dEup_dm` after the loop.
+3. Change `dE_dm` to an `n` x `n` matrix. The `uptake_dm` accumulation inside the
+   root-mass loop is the only seed contraction in a loop that is otherwise
+   independent of the seed. **Do not scale the matrix**: the loop scales `dEup_dm`
+   and `dslope_dm` by `kg_per_mol_h2o` after it closes, and `uptake_dm` reads the
+   raw value.
 4. Put the branch on `collar_pinned_` above the row loop. Write two row loops. Do
    not put the branch inside one row loop.
 5. Write the seed as a literal value in each row: use `(q == j + 1 ? 1.0 : 0.0)`.
@@ -251,19 +262,18 @@ of work for this reason. The rows of the leaf are the only referee.**
 
 ### Task 2: build the tabulation only when a hydraulic row is wanted
 
-Type: cost. Factor: **5.71 measured for a trait that is not a leaf parameter, and 1.005
-for all 44 traits.** Two lines of code.
+Type: cost. Two lines of code.
 
-**Read the second figure before you plan around the first.** The saving is the whole of
-the tabulation cost, and the tabulation is wanted whenever any of `b`, `c`, `root_b` or
-`root_c` is requested. Therefore this task makes a single non-leaf trait fast and does
-nothing for a run that asks for every trait. Task 5 is what makes the hydraulic rows
-themselves cheap.
+**Read both of Measurement G's figures.** The saving is the whole of the tabulation cost,
+and the tabulation is wanted whenever any of `b`, `c`, `root_b` or `root_c` is requested.
+Therefore this task makes a single non-leaf trait fast and does nothing for a run that
+asks for every trait. Task 5 is what makes the hydraulic rows themselves cheap.
 
-**Why.** `Leaf::input_adjoints` builds two tabulations on each call, at lines 1689
-and 1691. `Leaf::bound_partials` builds two more, at lines 1456 and 1458. Only
-`set_parameter` reads them, and only for `b`, `c`, `root_b` and `root_c`.
-Measurement A gives 2.0007 rebuilds for each call. Therefore they run always.
+**Why.** `Leaf::input_adjoints` calls `build_cumulative_vulnerability_integral`
+twice on every call, once for the stem curve and once for the root curve, and
+`Leaf::bound_partials` calls it twice more. Only `set_parameter` reads the knots,
+and only for `b`, `c`, `root_b` and `root_c`. Measurement A gives 2.0007 rebuilds
+for each call. Therefore they run always.
 
 **Steps.**
 
@@ -278,7 +288,7 @@ be 0. Each row must keep its bit pattern.
 
 ### Task 3: mask the parameters of the leaf
 
-Type: cost. Factor: 6.68 measured, for a trait that is not a leaf parameter.
+Type: cost.
 
 **Why.** The leaf differentiates all 15 of its parameters on each call. Only 11 of
 the 44 registered traits are leaf parameters. `lma` is not one of them: it reaches
@@ -298,8 +308,9 @@ analytic partials and 4 residual pairs for no result on each call today.
 3. Build the vector one time in `graft_leaf_outputs`. Test each parameter name
    from `Leaf::inputs()` against the names from
    `TF24_Strategy::ad_parameter_names()`.
-4. Extend the guard at line 1794 of `src/leaf_model.cpp` with `|| !par_active[k]`.
-   Add the same guard to the seven analytic partials at lines 1743 to 1792.
+4. Extend the `reaches_operating_point(k)` guard on the parameter loop with
+   `|| !par_active[k]`. Add the same guard to the seven analytic partials that
+   `forward_derivative` supplies above that loop.
 5. Mask `Leaf::bound_partials` in the same way.
 
 **WARNING: A masked row must be absent and never zero. A row of exactly zero reads
@@ -340,8 +351,8 @@ expression. It must include the implicit-function term of the `ci` root-find.
 
 1. Write `d2(profit)/dp d(parameter)` for each of the 11 parameters, following the chain
    `dprofit_droot_collar_psi` already writes for `d(profit)/dp`.
-2. Replace the `R_pm` pair in the loop at lines 1794 to 1825 of `src/leaf_model.cpp` with
-   the closed form.
+2. Replace the `R_pm` central-difference pair in the parameter loop with the closed
+   form.
 3. Keep the difference under a build flag or in the test only, as the reference for step 4.
 
 **How to check.** Each closed-form row against the difference it replaces, with the
@@ -547,12 +558,12 @@ about 10.64 for each block to about 5.3 before Task 1 is applied.
 
 ## 8. Tasks for cost, after Task 1 and Task 3
 
-Do these after Task 1 and Task 3. Before those tasks they give 2 percent at the
-most. After them, the work outside `input_adjoints` is about a third of the total.
+Do these after Tasks 1 to 5. Section 4 gives the reason: before those tasks this
+work is inside the 2 percent, and after them it is about a third of the total.
 
 ### Task 11: sweep one recording with many seeds
 
-Type: cost. Factor: 3.0 for three metrics. Do it last of the cost tasks.
+Type: cost. Do it last of the cost tasks, because it is the only one that changes odelia.
 
 **Why.** `SCM::census_trait_gradient` runs one complete reverse pass for each
 census metric. The expensive part of a pass is the record step and not the sweep
@@ -618,7 +629,7 @@ with empty bodies today and this is their purpose.
 
 ### Task 14: store the stage rates, and do not rebuild them
 
-Type: cost. Factor: about 1.5. Memory: about 724 MB. **Optional.**
+Type: cost. Memory: about 724 MB. **Optional.**
 
 **Why.** The last repeated work is the six `ode::derivs` for each step. To avoid
 it you must hold `k1` to `k6` without computing them, which means storing them,
@@ -707,9 +718,8 @@ Each item below blocks something. Do not treat the list as background.
 
 ## 10. Work you must not do now
 
-Do not do this work for speed. Measurement A shows it gives 2 percent at the most
-on the present build. Read Section 8 first: after Task 1 and Task 3 some of it
-becomes worth doing.
+Do not do this work for speed **on the present build** — Section 4 says why, and
+Section 8 is where the same work becomes worth doing.
 
 1. Do not hoist `dpsi_from_soil_moist_dtheta` out of the cohort loop for speed.
 2. Do not change `Species::height_max()` to use the height scan for speed.
@@ -728,18 +738,21 @@ Each factor below is calculated from a measurement in Section 4. **No composed
 total has been measured.** Composition is where this project's predictions have
 failed. Measure each step.
 
-| Task | Factor | What it removes | Moves forward numbers? |
-|---|---|---|---|
-| 1, bundle | about 5.3 | repeated Jacobian builds | no |
-| 2, tabulation guard | **5.71 measured** for a non-leaf trait, **1.005** for all 44 | tabulations, when no hydraulic row is wanted | no |
-| 3, mask | 6.68 measured, for a non-leaf trait | whole parameter rows nobody asked for | no |
-| 4, mixed second derivative | 22 of 35 residual evaluations | the residual pairs | no |
-| 5, closed form, stage A | the tabulation cost itself | 8 of 10 tabulations for a hydraulic row | no |
-| 5, closed form, stage B | — | the second definition of `G` | **yes**, needs the owner |
-| 10, transport seed | about 2 | the second leaf solve per block | #590 moves them, not this task |
-| 11, many seeds | 3.0 | repeated recordings per metric | no |
-| 12 and 13 | about 1.2 together | repeated leaf solves and field builds | no |
-| 14, stored stage rates | about 1.5 | the stage rebuild | no |
+**This table is the one home for these factors.** A task's own section states what it
+does and how to check it, and not its size.
+
+| Task | Factor | Source | What it removes | Moves forward numbers? |
+|---|---|---|---|---|
+| 1, bundle | about 5.3 | calculated from A and C | repeated Jacobian builds | no |
+| 2, tabulation guard | 5.71 for a non-leaf trait, 1.005 for all 44 | **measured, G** | tabulations, when no hydraulic row is wanted | no |
+| 3, mask | 6.68 for a non-leaf trait, 1.00 for all four hydraulic rows | **measured, F** | whole parameter rows nobody asked for | no |
+| 4, mixed second derivative | 22 of 35 residual evaluations | counted, A | the residual pairs | no |
+| 5, closed form, stage A | 121 us to 0.68 us per evaluation | **measured, D** | the tabulation cost itself | no |
+| 5, closed form, stage B | — | — | the second definition of `G` | **yes**, needs the owner |
+| 10, transport seed | about 2 | calculated from A | the second leaf solve per block | #590 moves them, not this task |
+| 11, many seeds | 3.0 | counted: three metrics, three sweeps | repeated recordings per metric | no |
+| 12 and 13 | about 1.2 together | calculated | repeated leaf solves and field builds | no |
+| 14, stored stage rates | about 1.5 | calculated | the stage rebuild | no |
 
 **Task 4 and Task 5 attack different halves of one call, and Measurement A shows both
 halves are present.** Task 4 removes the 22 residual evaluations. Task 5 removes the two

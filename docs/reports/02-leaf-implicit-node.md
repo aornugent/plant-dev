@@ -1,12 +1,27 @@
 # The TF24 leaf as a single differentiable node
 
+> **Built, and its thesis holds: the leaf stays `double` and the tape gets one node whose
+> local Jacobian is supplied. Eight corrections follow, and they are stacked oldest-first.
+> Three of them are load-bearing — read those and skip the rest until you need a section.**
+>
+> | | the correction that matters |
+> |---|---|
+> | **§6.8's input table is incomplete** | 15 inputs, not 12. Two of the missing five are the only multiplicative scale on the root resistance network |
+> | **§6.4's premise is false in the tree** | the vulnerability interpolant's knot **count** moves with the parameter, so four rows are differenced across a discontinuity at 47x, 131x and 10 245x |
+> | **§6.9's stationarity identity cannot referee `Π_pp`** | it is formed *from* `Π_pp`, so a wrong one cancels. A real 2% defect passed it bit-for-bit unchanged |
+>
+> **And the polish was built, which the first banner below predates.**
+> `Leaf::polish_root_collar_psi` is in the tree with `max_iter = 20`, and §6.5's case for it
+> was right: at cap 5 the cap was exhausted on 80.92% of 7 353 330 production solves, at cap
+> 20 on 1.586%. What report 00 §6.2 replaces is not the forward polish but the *derivative*
+> construction on top of it — the five flux adjoints collapse onto one scalar and one divide,
+> with no second root-find. The two are different objects and the banner below reads as
+> though they were one.
+
 > **Read `00-tf24-dependency-map.md` §6 alongside this.** On the production path the
 > collar operating point is a stationary interior maximum (`|∂Π/∂p| ~ 1e-5 … 1e-7` at tight
 > tolerance) and the envelope theorem holds to 0.006–0.9% on `d(profit)/dψ`, so this
-> report's premise is the right one. What replaces its **Newton polish** is not a
-> correction to the geometry but a cheaper construction: report 00 §6.2 collapses the five
-> flux adjoints onto one scalar, divides once by `Π_pp`, and takes one gradient of
-> `∂Π/∂p` — no root-find at all. The polish figure quoted below (4.541e-10) is a toy
+> report's premise is the right one. The polish figure quoted below (4.541e-10) is a toy
 > measurement and is not a production number.
 >
 > **The branch census below undercounts, and that stands.** It enumerates five early exits
@@ -405,7 +420,7 @@ Counters were added to the five exits and the boundary case in a worktree on dev
 at `96941d3b`. Runs used `scm_base_parameters("TF24", "TF24_Env")` with
 `add_strategies(p0, trait_matrix(0.1978791, "lma"))`, default `Environment("TF24")`,
 `Control()`, `refine_schedule = FALSE`. The instrumentation is preserved as
-`docs/reports/leaf-branch-census.patch`.
+`docs/probes/leaf-branch-census.patch`.
 
 One obstacle was recorded here, and it has since been shown to be branch-local: develop's plant
 failing to compile against the installed odelia, because `odelia/ode_util.hpp` called `xad::value`

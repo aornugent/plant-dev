@@ -7,7 +7,7 @@ plant-dev `AGENTS.md`, "Testing plant".
 `../docs/build-plan.md` §5b is the measurement list and says what each decides. `M1`
 (`m1_moving_bound.cpp`), `M2` (`m2_canopy_shape.cpp` with `m2_canopy_shape.sh`), `M3`'s accuracy half
 (`m3_fixed_fractions.R`, with `m3b_cohort_tops.R` pricing the placement it rejects), `M5` (`m5_scratch.R`, which needs
-`../docs/reports/m5-scratch-arms.patch` applied to the tree it loads), `M6`, `M7`
+`../docs/probes/m5-scratch-arms.patch` applied to the tree it loads), `M6`, `M7`
 (`aux_round_trip.R`) and `M8` (`descending_heights.R`) are run. `M4` is not, and `M3`'s bit-identity
 half waits on P2.1.
 

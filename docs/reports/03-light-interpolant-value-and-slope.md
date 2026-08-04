@@ -135,7 +135,7 @@ run, 6.6%**. Production takes the `rescale` path (20 160 calls) rather than the 
 **65** knots.
 
 An earlier version of this section projected **+11.8%**, from a knot count of **142**
-against 65. `interpolant-cost.md` measures the three things that count did not separate,
+against 65. `../probes/interpolant-cost.md` measures the three things that count did not separate,
 and the projection does not survive them:
 
 - The slope is not a second sweep. `q` is exactly `-dQ/dz` and both are written in terms
@@ -152,7 +152,7 @@ On the 65-knot set the forward cost is between **+0.33% and +5.3%**, and the bra
 width is one unmeasured quantity: the sweep and the band solve together account for
 17.6 us of the measured 193.2 us per build, leaving **91% unattributed**. The obvious
 candidate — plant's missing LTO — was tested and rejected. Section 5.5 carries the
-detail; `interpolant-cost.md` carries the measurements and the build line.
+detail; `../probes/interpolant-cost.md` carries the measurements and the build line.
 
 **This is the only one of the three proposals that changes forward-model numbers**, at
 roughly the fitting tolerance, so baselines need re-blessing. It is also the only one
@@ -530,7 +530,7 @@ in `initialise()`.
 An earlier version of this section stopped here, counted kernel evaluations as the
 dominant term, and projected `142 knots x 1.3` against `65 x 1.0` = about **2.8x**, or
 **+11.8%** on the run. Two of that projection's three inputs were wrong, and the third
-was never a requirement. `interpolant-cost.md` measures them:
+was never a requirement. `../probes/interpolant-cost.md` measures them:
 
 | | measured | what the projection assumed |
 |---|---|---|
@@ -766,7 +766,7 @@ work.
   section 5.3's convergence argument has to be re-made at that density.
 
 - **The Hermite loses to the cubic on the 65-knot set for a real stand.** Section 4 of
-  `interpolant-cost.md` used a synthetic top-heavy stand with uniform knots, where
+  `../probes/interpolant-cost.md` used a synthetic top-heavy stand with uniform knots, where
   plant's are adaptively refined then affinely rescaled. Better-placed knots help both
   interpolants, but not necessarily equally. Re-run the matched-knot comparison on a
   knot set and cohort population dumped from a real production step. If the Hermite's

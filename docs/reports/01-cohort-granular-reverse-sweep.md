@@ -1,5 +1,35 @@
 # Cohort-granular reverse-mode gradients for the SCM
 
+> **Built, and the central claim is measured. Read the body for the design; four of its
+> numbers are superseded and the corrections are inline at the section that owns each.**
+>
+> **The proposal holds.** Peak memory for an entire production reverse sweep is **1.5 MB**
+> (129.9 MB to 131.4 MB against a 2 GB gate), and a whole-run gradient has been produced at
+> production lifetime. §1's "peak is one cohort-step, flat in run length, stage count and
+> trait count" is the design's central promise and it is the one thing here that was
+> verified rather than argued.
+>
+> **What is superseded:**
+>
+> * **§4.2's trait count is 51 and the number is 44.** `ad_parameters()` and
+>   `ad_parameter_names()` are 44 and 44, aligned, with 15 of `TF24_Pars`' 59 fields excluded
+>   for reasons documented at `ad_parameter_names()`. Every figure in §8 that divides by a
+>   trait count wants re-deriving.
+> * **§8's wall-clock ratio of 1.4–1.6x is the toy's**, against a whole-run tape, and the
+>   report says so. It is not a TF24 figure and no TF24 equivalent supports it.
+> * **§2's 490 GB is a projection from 86 kB per node-state per step** and is the argument
+>   for the design rather than a measurement of it.
+> * **C5 is built** (the reverse sweep across node introductions) and **C1's two caches are
+>   not**: `photo_temp_cached_`'s key still omits `vcmax_25` and `jmax_25`, which is why both
+>   are excluded from `ad_parameters()`. **C6's `Species::set_birth_state` is still called by
+>   no test.**
+> * **C2's "the stage is a pure function of `(y, t)`" needed two changes to become true** —
+>   the boundary-node reordering and fixed knot fractions — and neither alone was sufficient.
+>
+> **What §1 does not anticipate: the cost is not where this report looks.** The decomposition
+> is correct and cheap; the expense is inside the leaf's supplied Jacobian, which §1 treats as
+> a boundary rather than as a cost. `NEXTSTEPS.md` is the live plan.
+
 A proposal for obtaining exact trait gradients of SCM outputs at production
 lifetime, addressed to plant maintainers.
 
