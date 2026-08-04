@@ -228,8 +228,9 @@ one call.
   slot; the reverse sweep dereferences it and segfaults far from the cause.
   Valgrind cannot see it — the dangling storage is stack, not heap. Declare the
   scalar return type (`-> S`, `-> T`) on every such lambda, including one-line
-  helpers. This cost a session to find (plant TF24's `anchor` graft). The one
-  structural defence is `odelia::implicit_value`'s `static_assert` on its
+  helpers. This cost a session to find (plant TF24's `anchor` supplied-derivative
+  lambda). The one structural defence is `odelia::implicit_value`'s `static_assert`
+  on its
   residual's return type, which turns the mistake into a compile error at the
   one site that most invites it.
 

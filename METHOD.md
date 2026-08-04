@@ -18,7 +18,7 @@ understood the change:
 
 | the gate | what it could not see |
 |---|---|
-| `template class TF24_Strategy<active>` as the active-build census | it never instantiates `Individual`, so it was blind to the container holding the state the block differentiates |
+| `template class TF24_Strategy<active>` as the active-build census | it never instantiates `Individual`, so it was blind to the container holding the state that the recorded cohort step — `Individual::compute_rates` at the active scalar type, recorded for one cohort at one Runge-Kutta stage — differentiates |
 | a reused tape's adjoints against a single call's | `newRecording()` leaves the adjoints **correct** while leaking a derivative slot per input per call. The discriminator was the recording **size** |
 | an FF16/K93 tripwire without `add_strategies` | both models ran with no strategies, so it printed no numbers at all |
 | a type assertion that the transport probe returns `S` | it passes with the inner lambda at `-> double`, because the difference quotient deduces its result from the point, not from the integrand |
@@ -108,7 +108,7 @@ Measured: the spread of one step's `y_end` over 1e-5 input displacements is
 1.141e-03 at production against 1.586e-10 at `GSS_tol_abs = 1e-6`, where the true
 derivative is 9.21e-08. The noise exceeded its own signal by nine orders.
 
-**Two forward kinks are places where a finite difference is not the oracle.** At
+**Two forward kinks are places where a finite difference is not the reference.** At
 `z == height_max` the field reduction switches off, so a central difference of the
 tallest cohort's height reports exactly **half**. A soil layer sitting exactly at
 `soil_moist_residual` has a discontinuous rate, so a difference there reads
@@ -132,15 +132,17 @@ is negligible against `b`; under the second, one side is exactly zero.
   silently zero.
 - **No active value may outlive a recording.** `clearAll()` resets the slot
   counter, so an active object held across the cohort loop aliases whatever takes
-  its slot next. Measured: only the first block of a run was correct, later blocks
-  had most trait rows exactly zero and a few spuriously large, nothing thrown. The
-  fix is a per-block copy from a never-recorded template.
+  its slot next. Measured: only the first recorded cohort step of a run was correct,
+  later steps had most trait rows exactly zero and a few spuriously large, nothing
+  thrown. The fix is a copy from a never-recorded template for each recorded cohort
+  step.
 - Never give a deduced return type to anything returning an active value: XAD
   operators return expression templates holding references to their operands. And
   beware `-> double` on a lambda in templated code, which silently passivates.
-- A finite difference of a block **cannot** referee a grafted input. The graft is
-  `value + sum_i partial_i * (x_i - to_passive(x_i))`, zero in value by
-  construction, so the block's forward value does not change when a row is wrong.
+- A finite difference of a recorded cohort step **cannot** referee a supplied input.
+  The supplied derivative is `value + sum_i partial_i * (x_i - to_passive(x_i))`, zero
+  in value by construction, so the forward value of the recorded cohort step does not
+  change when a row is wrong.
 
 **Numerics.**
 
@@ -250,15 +252,14 @@ green TF24 suite is not evidence about the shared canopy.
 These are the **pre-#590** numbers. #590 moves TF24 offspring to about 400.9, so
 they are the baseline to re-take, not to defend.
 
-**The `test-scm.R` numbers are the branch's and not the ones #585 blessed**, measured
-on `p3/wave5` at `d3392ea3` with odelia `a3bcf58`: one-species offspring
-`16.88458559`, `ode_times[100]` `4.215204677`, two-species `11.99577762` and
-`16.47192484`, 307 accepted steps. Upstream blesses `16.88950` and 293 steps for the
-same assertions. **Both are right, for different trees.** Every forward-model change
-of `7b5012c2` is present in the merged tree, so the branch's numbers are not a lost
-fix — they are the branch's own scalar templating and fused light reduction. Which
-commit moves them has not been measured; do not write a cause for it here until it
-is.
+**The `test-scm.R` numbers are the branch's and not the ones #585 accepted**, measured
+on `p3/wave5` at `d3392ea3` with odelia `a3bcf58`: one-species offspring `16.88458559`,
+`ode_times[100]` `4.215204677`, two-species `11.99577762` and `16.47192484`, 307
+accepted steps. Upstream records `16.88950` and 293 steps as its references for the same
+assertions. **Both are right, for different trees.** Every forward-model change of
+`7b5012c2` is present in the merged tree, so the branch's numbers are not a lost fix —
+they are the branch's own scalar templating and fused light reduction. Which commit
+moves them has not been measured; do not write a cause for it here until it is.
 
 **Two branches hold the provenance of a measurement and must not be deleted.**
 `p3/tangent-referee` carries `6b0a49fb`, the whole-run tangent reference Task 0 starts
@@ -281,7 +282,7 @@ two builds of one tree.
 | the style sweep | `plant/scripts/build/style-sweep.sh <worktree> <base>` | candidates, not verdicts |
 | the cross-model tripwire | `plant/scripts/build/ff16k93.R <worktree> [tag]` | §5's FF16 and K93 rows |
 | the active-instantiation probe | `plant/scripts/tf24-active-probe.cpp` | **2**, both `prepare_strategy` / `height_seed` refusals. Any other number is the finding. About 7 s |
-| the decomposition, one block, knot accumulation | `plant/scratch/wire_gates.cpp` with `plant/scripts/v1-driver.R` | V1 normwise 3.33e-15 at lifetime 2 |
+| the decomposition, one recorded cohort step, knot accumulation | `plant/scratch/wire_gates.cpp` with `plant/scripts/v1-driver.R` | V1 normwise 3.33e-15 at lifetime 2 |
 | the leaf's own invariants | `plant/scratch/leaf_jac_gate.cpp` | stationarity, continuity, the waist, `FULLSOLVE`. 0 non-finite rows |
 | one step's adjoint | `plant/scripts/v3-driver.R` | all 64 rows close, worst 1.36e-02 |
 | the whole-run gradient | `plant/scripts/stand-gradient-smoke.R` | it returns; it is slow |
@@ -321,11 +322,11 @@ scripts do this and any figure taken through them is suspect.
 - **Read the diff, not the file.** Current state is self-justifying; it never shows
   the guarantee that was dropped mid-refactor. A `resize` where `assign` was meant
   discarded fifteen correct rows.
-- **A deletion's blast radius is prose as well as code.** Nothing about a comment's
+- **What a deletion affects is prose as well as code.** Nothing about a comment's
   line changes when the code it describes is deleted, so every grep passes it. Three
   comments survived telling readers to prefer a path that had been removed.
 - **Count multiplicities, not just correctness.** `1 + max_soil_layer` calls, twice
-  per block, is 12 — and every one of them is individually correct.
+  for each recorded cohort step, is 12 — and every one of them is individually correct.
 - **Ask what a function is a function *of*.** Partitioning one function by which
   arguments its work depends on found that 98 percent of a reverse pass was a
   Jacobian being rebuilt for a seed it did not use.

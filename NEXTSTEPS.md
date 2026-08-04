@@ -85,7 +85,7 @@ Do all five of these before Task 1.
 5. Add the guard of Task 0b, which decides which leaf states a gate may use.
 
 **The merge keeps the branch's forward numbers and not the numbers that #585
-blessed.** Each of the 39 changes of `7b5012c2` that can move a forward number is
+accepted.** Each of the 39 changes of `7b5012c2` that can move a forward number is
 present at `d3392ea3`, so no fix was lost. The branch had most of them already by an
 earlier route, and the merge supplied the two that were absent: `rate_environment`
 with `cached_environment_index` in place of `environment_ptr`, and the `std::is_sorted`
@@ -142,7 +142,8 @@ What this buys, and each item is a task that gets smaller:
 What it costs:
 
 - **The forward model keeps both coordinates**, so the forward references at the
-  default flag stay valid and no wholesale re-blessing is needed.
+  default flag stay valid and no wholesale update of the reference numbers is
+  needed.
 - **Every gradient measurement must be taken again with the flag on.** Measurements A
   to G and the stop of Section 1 were taken on the height coordinate, which the
   gradient no longer supports. Their ratios are likely to carry; their absolute
@@ -150,15 +151,17 @@ What it costs:
 
 ---
 
-## 3. Two names that are not the name of a symbol
+## 3. Two terms this document uses in a particular sense
 
 Each other term in this document is either the name of a C++ symbol or a standard
 term of automatic differentiation. Section 12 lists them.
 
-- **the block** — `Individual::compute_rates` at the active scalar, recorded one
-  time for one cohort at one Runge-Kutta stage. It is the unit of the reverse pass.
-- **the graft** — `value + sum_i partial_i * (x_i - to_passive(x_i))`. It is zero in
-  value, and that property is why a finite difference of a block cannot see it.
+- **the recorded cohort step** — `Individual::compute_rates` at the active scalar
+  type, recorded one time for one cohort at one Runge-Kutta stage. It is the unit of
+  the reverse pass.
+- **the supplied derivative** — `value + sum_i partial_i * (x_i - to_passive(x_i))`.
+  odelia calls this `odelia::ode::supplied_derivative`. It is zero in value, and that
+  property is why a finite difference of a recorded cohort step cannot see it.
 
 ---
 
@@ -175,7 +178,7 @@ layers, `GSS_tol_abs = 1e-1`, `-O2 -DNDEBUG -g0`, one Xeon at 2.80 GHz.**
 | Quantity | Value |
 |---|---|
 | `Leaf::input_adjoints` calls | 144 072 |
-| `input_adjoints` calls for each block | 10.64 |
+| `input_adjoints` calls for each recorded cohort step | 10.64 |
 | `dprofit_droot_collar_psi` calls for each `input_adjoints` call | 35.0 |
 | root-finds for each `input_adjoints` call | 100.0 |
 | rebuilds of the 100-knot vulnerability table for each call | 2.0007 |
@@ -256,10 +259,11 @@ section 5 records them. They remain the cross-model tripwire.
 a commit hash can show. A number without `node_density_in_birth_date` beside it cannot be
 checked against anything.
 
-**Re-take the gradient measurements here.** Measurement A's calls for each block, the
-share inside `input_adjoints`, and the stop table of Section 1 were all measured on the
-height coordinate. Expect Measurement A's 10.64 to fall to about 5.3 on the birth-date
-coordinate before any task is applied, because `growth_rate_gradient` no longer runs.
+**Re-take the gradient measurements here.** Measurement A's calls for each recorded
+cohort step, the share inside `input_adjoints`, and the stop table of Section 1 were all
+measured on the height coordinate. Expect Measurement A's 10.64 to fall to about 5.3 on
+the birth-date coordinate before any task is applied, because `growth_rate_gradient` no
+longer runs.
 
 The forward tangent costs more than 20 times a `double` run at production.
 Therefore use it at a short lifetime.
@@ -372,8 +376,8 @@ orders them, and each departure has a reason that was checked against the code.
    disagree there today. Making them agree changes the pinned rows, so **Task 1's
    bitwise baseline must be taken after Task 0b, not before.**
 7. **Take Measurement A again after Task 10.** Every factor in Section 11 is quoted
-   against 10.64 `input_adjoints` calls for each block, and Task 10 removes the second
-   leaf solve.
+   against 10.64 `input_adjoints` calls for each recorded cohort step, and Task 10
+   removes the second leaf solve.
 
 **The derivation of Task 4 is not a packet's work.** Eleven mixed second derivatives,
 including the implicit-function term of the `ci` root-find, is design. A packet may
@@ -384,7 +388,7 @@ transcribes and gates them.
 
 Type: **correctness**. It is the largest cause of the stop in Section 1.
 
-**Why.** `SCM::census_state_adjoint` builds the active twin one time,
+**Why.** `SCM::census_state_adjoint` builds the copy at the active type one time,
 `auto active = patch.template rebind_from<scalar>();`, and then calls
 `odelia::ode::vector_jacobian_product` one time for each metric.
 `vector_jacobian_product` starts with `tape.clearAll()`, which returns the tape's
@@ -420,18 +424,20 @@ about 50 to 300 times too large, which brackets the 65 times of Section 1. For
 instead of inflating a magnitude.
 
 **`METHOD.md` section 3 already forbids this, and the code does it anyway.** The
-standing hazard is recorded there with its own measured signature: only the first block
-correct, later blocks with most trait rows exactly zero and a few spuriously large,
-nothing thrown. `Patch::cohort_block_adjoint` documents the fix in its comments and
-copies from a never-recorded template per block; `Patch::introduction_adjoint` builds its
-twin fresh per call. `census_state_adjoint` does neither.
+standing hazard is recorded there with its own measured signature: only the first
+recorded cohort step correct, later steps with most trait rows exactly zero and a few
+spuriously large, nothing thrown. `Patch::cohort_block_adjoint` documents the fix in its
+comments and copies from a never-recorded template for each recorded cohort step;
+`Patch::introduction_adjoint` builds its copy at the active type fresh on each call.
+`census_state_adjoint` does neither.
 
 **It is pre-existing, and that is settled without a build.** A second dry run reproduced
 the same signature — 33 of the 52 columns non-zero in row 0 are exactly zero in row 1,
 with a few spuriously large — against a **prebuilt library with no code change**.
 
-**Steps.** Build the active twin inside the reduction, so each recording gets values with
-no slot from the previous one. Do not move `clearAll` and do not keep the twin.
+**Steps.** Build the copy at the active type inside the reduction, so each recording
+gets values with no slot from the previous one. Do not move `clearAll` and do not keep
+the copy.
 
 **Task 11 is the same fix done properly.** Recording one time and re-sweeping with
 `clearDerivativesAfter()` removes the repeated recording and the aliasing together.
@@ -448,11 +454,12 @@ the R reduction.
 Type: **correctness**. It is the only cause of `k_I`.
 
 **Why.** `trait_adjoint` is written in two places, `Patch::cohort_block_adjoint` and
-`Patch::introduction_adjoint`. **The field build is in neither.** The block takes the
-field as `cohort_reads` inputs, and the transpose of the field itself runs through
-`Patch::light_knot_adjoint` into `Species::compute_competition_and_slope_adjoint`,
-which returns `node_size_adjoints{height, area_leaf, log_density}` — a structure with
-no trait slot. `allometry_adjoint` then scatters it into height and `log_density` only.
+`Patch::introduction_adjoint`. **The field build is in neither.** The recorded cohort
+step takes the field as `cohort_reads` inputs, and the transpose of the field itself
+runs through `Patch::light_knot_adjoint` into
+`Species::compute_competition_and_slope_adjoint`, which returns
+`node_size_adjoints{height, area_leaf, log_density}` — a structure with no trait slot.
+`allometry_adjoint` then scatters it into height and `log_density` only.
 
 `k_I` enters the model **only** through
 `TF24_Strategy::compute_competition(z, area_leaf_, height_inverse)`, which is
@@ -498,7 +505,7 @@ to run above the row loop:
 one time for each output row. Therefore the code computes one Jacobian
 `1 + max_soil_layer` times. `max_soil_layer` follows the rooting depth
 `min(height, 1.5)`. Therefore the count is 4 to 6 for seedlings and 12 for a
-mature stand, and per-block cost is not a constant of the model.
+mature stand, and the cost of a recorded cohort step is not a constant of the model.
 
 **Steps.**
 
@@ -523,7 +530,8 @@ mature stand, and per-block cost is not a constant of the model.
    **The contraction does not have the old bit pattern**, because it re-associates the
    sum and adds terms that are exactly zero, so a `-0.0` entry becomes `+0.0`. Decide
    whether the harnesses need the old bits before you write it.
-7. Change `graft_leaf_outputs` to call `output_rows` one time. Graft each row.
+7. Change `graft_leaf_outputs` to call `output_rows` one time. Supply each row as a
+   derivative.
    **`rows.size()` is `1 + max_soil_layer`, not `1 + soil_consumption_.size()`.**
    `graft_leaf_outputs` loops to `n_layer`, which is the larger, and takes a flat path
    above `max_soil_layer`. Getting this wrong reads past the end of a live vector.
@@ -561,10 +569,10 @@ form is possible and it is not safe here. `Individual::log_density_rate` calls
 `growth_rate_gradient`, which copies the individual, shares the strategy and
 therefore the leaf, and solves the leaf again at `height − 1e-6`. Therefore a
 Jacobian computed after the record step reads the operating point of the probe and
-not the operating point of the graft. Rows computed during the record step cannot
-have this defect. The graft also works for the forward type, and a tape callback
-does not, so computing them during the record step keeps the tangent referee of
-Task 0.
+not the operating point of the supplied derivative. Rows computed during the record
+step cannot have this defect. The supplied derivative also works for the forward type,
+and a tape callback does not, so computing them during the record step keeps the
+tangent referee of Task 0.
 
 **WARNING: `layer_flux_partials` gives NaN at a branch kink. Today the profit row
 computes `0.0 * NaN`, which is NaN. If you remove the multiplication, the result
@@ -609,8 +617,9 @@ is restored by assignment and is exact, so `PPFD_` is the only one.
 5. Do the check at four states: an interior operating point, a pinned one, a state where
    `layer_flux_partials` gives NaN, and **an interior state at a `PPFD` that does not
    round back, 1500 being one.** The fourth is what makes the drift visible.
-6. Do the check on a block that has two grafts. A block with one graft passes even when
-   the operating point is wrong.
+6. Do the check on a recorded cohort step that has two supplied derivatives. A recorded
+   cohort step with one supplied derivative passes even when the operating point is
+   wrong.
 
 **Measured on a dry run of these steps**, at `d3392ea3`: 642 of 642 row entries
 bit-identical at an interior, a pinned and a kink state; all 168 entries of the kink
@@ -620,10 +629,11 @@ away; and 0 of 46 members differing against one old call at every state, includi
 invariants and never records a row — so a new harness is needed and it links standalone
 without an R build.
 
-**WARNING: A finite difference of the block cannot check these rows. The graft is
-zero in value for each grafted input. Therefore the value of the block does not
-change when a row is wrong. Eleven trait columns read exactly zero for two waves
-of work for this reason. The rows of the leaf are the only referee.**
+**WARNING: A finite difference of the recorded cohort step cannot check these rows. The
+supplied derivative is zero in value for each supplied input. Therefore the value of the
+recorded cohort step does not change when a row is wrong. Eleven trait columns read
+exactly zero for two waves of work for this reason. The rows of the leaf are the only
+referee.**
 
 ### Task 2: build the tabulation only when a hydraulic row is wanted
 
@@ -662,12 +672,13 @@ Type: cost.
 
 **Why.** The leaf differentiates all 15 of its parameters on each call. `lma` is not
 one of them: it reaches the leaf through `area_leaf`, which is a state input, so the
-graft supplies its row. Therefore a gradient for `lma` needs no parameter row at all.
+supplied derivative gives its row. Therefore a gradient for `lma` needs no parameter
+row at all.
 
-**Counted from the code.** 13 of the 15 leaf parameters are in
-`ad_parameter_names()`; the two that are not are `vcmax_25` and `jmax_25`, whose graft
-term is zero by structure, so the code computes 2 analytic partials and 4 evaluations
-of `dprofit_droot_collar_psi` for no result on every call. Of the 13, nine also pass
+**Counted from the code.** 13 of the 15 leaf parameters are in `ad_parameter_names()`;
+the two that are not are `vcmax_25` and `jmax_25`, whose supplied-derivative term is
+zero by structure, so the code computes 2 analytic partials and 4 evaluations of
+`dprofit_droot_collar_psi` for no result on every call. Of the 13, nine also pass
 `reaches_operating_point`. **An earlier form of this task said 11, and that number
 reproduces from nothing.** Therefore the registration list alone removes 2 of 15, and
 every larger saving comes from the set the caller asked for.
@@ -694,7 +705,8 @@ every larger saving comes from the set the caller asked for.
 5. Mask `Leaf::bound_partials` in the same way, with one exception. **Guard only the
    writes, never the early `return`.** `bound_partials` returns early when
    `p_bound == -root_psi_crit`, and that `return` encodes that no other input moves
-   the bound. Guarding the block would fall through and compute a full set of rows,
+   the bound. Guarding the whole branch would fall through and compute a full set of
+   partial derivatives,
    changing every other column. `out[i_kappa]` sits inside the same branch as
    `out[i_par0 + PAR_PSI_CRIT]` and is a state column, so it must not be masked with
    it.
@@ -716,13 +728,13 @@ consumer that matters. Therefore:
 
 **WARNING: masking a leaf parameter does not zero that trait's column. It makes the
 column understated and finite, which is worse than zero, because zero looks
-suspicious.** The 44 entries of `ad_parameters()` all stay in the block's input
-vector, and `rho`, `b`, `c` and `a_bio` also reach `compute_rates` through equations
-outside the leaf. Only the marker of step 2 catches this.
+suspicious.** The 44 entries of `ad_parameters()` all stay in the input vector of the
+recorded cohort step, and `rho`, `b`, `c` and `a_bio` also reach `compute_rates` through
+equations outside the leaf. Only the marker of step 2 catches this.
 
 **WARNING: `Patch::cohort_block_adjoint` never resets `block_workspace`.** It builds
 `strategy_template` under `if (!block_workspace)` and nothing invalidates it.
-Therefore a mask set after the first block never reaches the leaf, and two
+Therefore a mask set after the first recorded cohort step never reaches the leaf, and two
 `stand_gradient` calls on one `scm` with different trait sets silently reuse the first
 mask. Add a reset and call it where the targets are chosen.
 `Patch::introduction_adjoint` does not have this defect, because it rebinds on each
@@ -810,8 +822,8 @@ in elementary operations. It agrees with the tabulation to 1.42e-15 for the stem
 match a central difference of the closed form with a clean plateau in all 16 cases.
 
 **Take the two derivatives by hand. Do not put a tape inside the leaf.** The leaf is
-`double` and gives back rows of numbers, and that is what lets the graft serve the
-forward type and keeps the tangent referee. A tape inside the leaf needs
+`double` and gives back rows of numbers, and that is what lets the supplied derivative
+serve the forward type and keeps the tangent referee. A tape inside the leaf needs
 `block_state::tape` threaded from `Patch::cohort_block_adjoint` through `Strategy`,
 which is a cross-cutting change for a result that three lines of algebra give:
 
@@ -1034,8 +1046,8 @@ Do not put a metric that reads `height_jacobian` on the gradient path.
 ### Task 10: remove the transport seed
 
 **Why.** With a density in birth date, `log_density_dt` is `-mortality` alone. The
-block already gives the mortality rate as an output. Therefore the transport
-output repeats an output that exists.
+recorded cohort step already gives the mortality rate as an output. Therefore the
+transport output repeats an output that exists.
 
 **Steps.**
 
@@ -1043,13 +1055,13 @@ output repeats an output that exists.
 2. Add the transport seed to `seeds.rate[MORTALITY_INDEX]` with a minus sign.
 3. Delete `Patch::transport_adjoint` and `seeds.transport`.
 
-**Result.** The block has 11 outputs and not 12. Report 01 section 1 step (a) gives
-`lambda_g` for each cohort. That seed has no source now. The order of the seeds
-becomes less strict, because no seed reads a neighbour.
+**Result.** The recorded cohort step has 11 outputs and not 12. Report 01 section 1 step
+(a) gives `lambda_g` for each cohort. That seed has no source now. The order of the
+seeds becomes less strict, because no seed reads a neighbour.
 
-This also removes the second leaf solve from each block, because
+This also removes the second leaf solve from each recorded cohort step, because
 `growth_rate_gradient` no longer runs. Therefore the calls in Task 1 fall from
-about 10.64 for each block to about 5.3 before Task 1 is applied.
+about 10.64 for each recorded cohort step to about 5.3 before Task 1 is applied.
 
 ---
 
@@ -1066,7 +1078,7 @@ repeated recording and the aliasing Task 15 patches.
 
 **Why.** `SCM::census_trait_gradient` runs one complete reverse pass for each
 census metric. The expensive part of a pass is the record step and not the sweep
-step. Therefore the code records the same block three times. It also runs
+step. Therefore the code records the same cohort step three times. It also runs
 `widen_over_introductions` and the stage rebuild three times.
 
 **Steps.**
@@ -1162,18 +1174,19 @@ Each item below blocks something. Do not treat the list as background.
 
 - **A branch kink makes the whole gradient NaN, and nothing falls back.**
   `Leaf::layer_flux_partials` returns with every entry NaN when any layer meets one of
-  three conditions: equal potentials, gravity balance, or a collar potential within
-  1e-8 of zero. No caller of it tests for that. The NaN reaches the row, and `graft`
-  computes `partial * (x - to_passive(x))`, whose second factor is exactly zero in
-  value, so `NaN * 0.0` puts NaN in the **value** of `leaf_profit_` and therefore in
+  three conditions: equal potentials, gravity balance, or a collar potential within 1e-8
+  of zero. No caller of it tests for that. The NaN reaches the row, and `graft` computes
+  `partial * (x - to_passive(x))`, whose second factor is exactly zero in value, so `NaN
+  * 0.0` puts NaN in the **value** of `leaf_profit_` and therefore in
   `net_mass_production_dt`. **The plain `double` run is safe**, because
   `graft_leaf_outputs` is called under `if constexpr (!std::is_same_v<S, double>)`.
   **Both AD paths are not**, so one kink in one cohort makes the gradient and the
-  tangent referee NaN together. `Leaf::dE_from_soil_dpsi_collar` says its NaN means
-  "the caller falls back to finite differences", and on the graft path no such fallback
-  exists. Decide what a row holds at a kink before Task 1 fixes its bit patterns in
-  place. Also check whether the `bound_a` pin meets the equal-potential condition by
-  construction, which would make this reachable on every pinned block.
+  tangent referee NaN together. `Leaf::dE_from_soil_dpsi_collar` says its NaN means "the
+  caller falls back to finite differences", and on the supplied-derivative path no such
+  fallback exists. Decide what a row holds at a kink before Task 1 fixes its bit
+  patterns in place. Also check whether the `bound_a` pin meets the equal-potential
+  condition by construction, which would make this reachable on every pinned recorded
+  cohort step.
 - **The environment columns of the census seed are exactly zero in all three rows.**
   `n_b = birth_rate * pr_estab / g` is evaluated in the field, which depends on the soil
   state, so a non-zero column is expected. This is a fourth candidate and it is not
@@ -1204,8 +1217,8 @@ Each item below blocks something. Do not treat the list as background.
 - **`test-census.R`'s G4 checks the census seed for `leaf_area` only**, which is metric
   0 — the one metric the aliasing of Task 15 leaves correct. Therefore it is a gate that
   cannot fail for the two broken metrics. Extend it to all three.
-- **There is no cost gate anywhere.** Nothing asserts that a block costs what it
-  was measured to cost. That is how a factor of 300 sat behind a green suite for
+- **There is no cost gate anywhere.** Nothing asserts that a recorded cohort step costs
+  what it was measured to cost. That is how a factor of 300 sat behind a green suite for
   three waves. **Land each task in this document with a cost gate.**
 - **`Patch::block_recording_size` and `block_sweeps` are not exported to R**, so
   the instrument for the worst failure mode needs a C++ harness to read. Export
@@ -1243,7 +1256,7 @@ Section 8 is where the same work becomes worth doing.
 Correct the calls to `ad_parameters()` at `individual.h:182`, `individual.h:195`,
 `individual.h:213` and `patch.h:1479` for a different reason. The comment on
 `ad_parameters()` says to call it one time for each gradient and not one time for
-each block. The code does not obey its own comment.
+each recorded cohort step. The code does not obey its own comment.
 
 ---
 
@@ -1264,7 +1277,7 @@ does and how to check it, and not its size.
 | 4, mixed second derivative | 22 of 35 residual evaluations | counted, A | the residual pairs | no |
 | 5, closed form, stage A | 121 us to 0.68 us per evaluation | **measured, D** | the tabulation cost itself | no |
 | 5, closed form, stage B | — | — | the second definition of `G` | **yes**, needs the owner |
-| 10, transport seed | about 2 | calculated from A | the second leaf solve per block | #590 moves them, not this task |
+| 10, transport seed | about 2 | calculated from A | the second leaf solve for each recorded cohort step | #590 moves them, not this task |
 | 11, many seeds | 3.0 | counted: three metrics, three sweeps | repeated recordings per metric | no |
 | 12 and 13 | about 1.2 together | calculated | repeated leaf solves and field builds | no |
 | 14, stored stage rates | about 1.5 | calculated | the stage rebuild | no |
@@ -1292,10 +1305,11 @@ placeholder.**
 
 ASD-STE100 permits Technical Names and Technical Verbs. This document uses these
 as Technical Names: the names of C++ types, functions, members, files, branches
-and commits; `adjoint`, `gradient`, `Jacobian`, `tangent`, `seed`, `sweep`,
-`tape`, `cohort`, `census`, `abscissa`, `quadrature`, `trapezium`, `scalar`,
-`coordinate`, `mortality`, `trait`, `tabulation` and `birth date`. Section 3
-defines the terms this project uses in a special way.
+and commits; `adjoint`, `derivative`, `gradient`, `Jacobian`, `tangent`, `seed`,
+`sweep`, `tape`, `cohort`, `stage`, `census`, `reference`, `abscissa`, `quadrature`,
+`trapezium`, `scalar`, `coordinate`, `mortality`, `trait`, `tabulation` and
+`birth date`. Section 3 defines the two terms this document uses in a particular
+sense: `the recorded cohort step` and `the supplied derivative`.
 
 Two other deviations:
 

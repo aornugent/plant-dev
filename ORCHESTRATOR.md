@@ -184,8 +184,8 @@ read finds those; a bit-identity run cannot.
 bit-identity has earned its run, because it is the only thing separating "I broke the
 loop" from "the value moved by the predicted amount" — attributing a large move to
 one change requires that everything around it was proven inert. Most of
-`NEXTSTEPS.md` is such a phase. What gets batched there is the **re-blessing**, not
-the intermediate gates.
+`NEXTSTEPS.md` is such a phase. What gets batched there is the **updating of the
+reference numbers**, not the intermediate gates.
 
 ---
 
@@ -236,17 +236,17 @@ not** — and the two are only distinguishable if the gates were written down fi
   something.
 - **Some work has no packet and it is the integrator's.** Before closing, list the
   documents the change touches and check each against what landed.
-- **Re-bless nothing until the owner accepts the shift.** Recording it is the job;
-  accepting it is theirs. Leave a moved assertion *failing* through the work and put
-  the re-blessing in as one pass at the end.
+- **Change no reference number until the owner accepts the shift.** Recording it is
+  the job; accepting it is theirs. Leave a moved assertion *failing* through the work
+  and put the reference updates in as one pass at the end.
 
 **Three kinds of failing assertion come out of a value-moving change and only one is
-a re-blessing.** Conflating the first two ships a segfault or silently drops a
+a reference update.** Conflating the first two ships a segfault or silently drops a
 capability.
 
 | | what it is | what it takes |
 |---|---|---|
-| a moved baseline | the same assertion, a shifted number | re-bless, with the shift recorded |
+| a moved baseline | the same assertion, a shifted number | update the reference, with the shift recorded |
 | a subject that stopped existing | the assertion can no longer express what it tested | **migrate the test**, and check first whether a capability went with it |
 | a design choice | two readings, and the assertion encodes one | leave failing, record both, the owner's |
 
@@ -305,9 +305,11 @@ Done: the develop merge on `p3/wave5` at `d3392ea3`, the odelia merge at `a3bcf5
 69 stale worktrees removed. Remaining, and none of it needs #590:
 
 1. **The cost harness, lane B.** Export `Patch::block_recording_size` and
-   `block_sweeps` to R. Nothing asserts that a block costs what it was measured to
-   cost, which is how a factor of 300 sat behind a green suite. **Every later task
-   claims a factor; without this harness no packet can prove its own claim.** Build
+   `block_sweeps` to R. Nothing asserts that a recorded cohort step —
+   `Individual::compute_rates` at the active scalar type, recorded for one cohort at
+   one Runge-Kutta stage — costs what it was measured to cost, which is how a factor
+   of 300 sat behind a green suite. **Every later task claims a factor; without this
+   harness no packet can prove its own claim.** Build
    this before any task that quotes one.
 2. **Task 0b, lane L.** The guard. It decides which leaf states every later gate may
    be seeded at, so it precedes all of them.
@@ -328,7 +330,7 @@ first, and see whether correctness follows row 0 rather than the metric.
 
 Tasks 9 and 10, then Task 0 for the reference data. Task 10 removes the second leaf
 solve, so take Measurement A again after it: every factor in lane L is quoted against
-10.64 calls per block, and Task 10 halves that number.
+10.64 calls for each recorded cohort step, and Task 10 halves that number.
 
 ### Wave 3 — the leaf, lane L, strictly serial
 
@@ -367,12 +369,13 @@ Correctness does not close, because **four defects have no task**:
    referee. Nothing schedules either.
 2. **DIAGNOSED. The stop has three causes and Task 6 is none of them.** The seed is
    aliased for every metric after the first, because `census_state_adjoint` builds the
-   active twin once and `vector_jacobian_product` calls `tape.clearAll()` on each of its
-   three calls, resetting the slot counter under values that outlive it. `leaf_area` is
-   right only because it is row 0 of `tf24_census`. Separately, the traits of the field
-   build reach no accumulator, which is the whole of `k_I`. Both are now tasks 15 and
-   16, and **Task 11 supersedes Task 15**, which moves it from a cost task to the
-   correct end-state of a correctness fix. Wave 1 no longer needs a diagnosis packet.
+   copy at the active type once and `vector_jacobian_product` calls `tape.clearAll()` on
+   each of its three calls, resetting the slot counter under values that outlive it.
+   `leaf_area` is right only because it is row 0 of `tf24_census`. Separately, the
+   traits of the field build reach no accumulator, which is the whole of `k_I`. Both are
+   now tasks 15 and 16, and **Task 11 supersedes Task 15**, which moves it from a cost
+   task to the correct end-state of a correctness fix. Wave 1 no longer needs a
+   diagnosis packet.
 3. **Four trait columns are wrong or absent with no owner.** `beta_R_H` and
    `beta_R_V` have no row at all; `psi_crit` and `root_psi_crit` read zero except when
    pinned, and the pinned gap is unexplained. Task 5 fixes the other four hydraulic
@@ -407,8 +410,9 @@ Correctness does not close, because **four defects have no task**:
   reference number is then wrong. Task 6's gate reads that table, so the stop has to
   be measured again on the new coordinate before Task 6 can be gated.
 - **Task 10 invalidates every factor in lane L.** They are all quoted against 10.64
-  `input_adjoints` calls per block, and Task 10 removes the second leaf solve. Take
-  Measurement A again after Task 10, before quoting a factor to a packet.
+  `input_adjoints` calls for each recorded cohort step, and Task 10 removes the second
+  leaf solve. Take Measurement A again after Task 10, before quoting a factor to a
+  packet.
 
 ### Task 1 was written against a leaf that restores itself, and it does not
 
@@ -440,9 +444,9 @@ Three more from the same dry run, each a trap a reasonable reading falls into:
   leaf"; a pure write may move, a perturbing call may not.
 
 And step 8 is confirmed deleted: `bound_partials` takes no seed, so it has nothing to
-bundle, and step 7 already reduces it to one call per block. Its own four-parameter loop
-and **two further tabulation builds that Measurement A never counted** belong to Tasks 2
-and 3.
+bundle, and step 7 already reduces it to one call for each recorded cohort step. Its own
+four-parameter loop and **two further tabulation builds that Measurement A never
+counted** belong to Tasks 2 and 3.
 
 ### Task 6's step 4 was an instruction to break working code
 
@@ -497,11 +501,11 @@ cannot be reproduced later, because what it reads depends on what took a freed t
   as owed" collapses three states, and a reader takes it as available.** When you cite
   a symbol as available, check it is reachable from a landed branch.
 - **Task 5's tape was unnecessary. RESOLVED: hand-differentiate.** The design keeps
-  `Leaf` at `double`, which is what lets the graft serve the forward type and keeps the
-  tangent referee; a tape inside the leaf needed `block_state::tape` threaded from
-  `Patch::cohort_block_adjoint` through `Strategy`, and that plumbing was in no step.
-  Both derivatives are closed form for one extra accumulator: `dgamma/dx` is the
-  integrand `x^(a-1) e^-x`, and `dgamma/da` is `log(x) * gamma` plus the same series
+  `Leaf` at `double`, which is what lets the supplied derivative serve the forward type
+  and keeps the tangent referee; a tape inside the leaf needed `block_state::tape`
+  threaded from `Patch::cohort_block_adjoint` through `Strategy`, and that plumbing was
+  in no step. Both derivatives are closed form for one extra accumulator: `dgamma/dx` is
+  the integrand `x^(a-1) e^-x`, and `dgamma/da` is `log(x) * gamma` plus the same series
   with `-term_n * sum of 1/(a+k)`. `b` and `root_b` need only the first, so two of the
   four wrong columns need no series derivative at all.
 - **Task 5's scope is unknown until `psi_from_transpiration` is settled.** The task
@@ -516,7 +520,7 @@ cannot be reproduced later, because what it reads depends on what took a freed t
   records.** `layer_flux_partials` returns with every entry NaN at an equal-potential,
   gravity-balance or near-zero-collar condition, no caller tests for it, and
   `partial * (x - to_passive(x))` puts `NaN * 0.0` into the **value** of `leaf_profit_`.
-  The plain `double` run is safe, because the graft is under
+  The plain `double` run is safe, because the supplied derivative is under
   `if constexpr (!std::is_same_v<S, double>)`; the tangent and the adjoint are not, so
   one kink NaNs the gradient and its referee together. Decide what a row holds at a kink
   before Task 1 freezes its bit patterns.
@@ -526,8 +530,8 @@ cannot be reproduced later, because what it reads depends on what took a freed t
   of Task 3's value comes from the requested subset — which the task's own WARNING, read
   literally, forbade.
 - **`Patch::cohort_block_adjoint` never resets `block_workspace`.** A mask set after the
-  first block never reaches the leaf, and two `stand_gradient` calls with different trait
-  sets silently reuse the first mask.
+  first recorded cohort step never reaches the leaf, and two `stand_gradient` calls with
+  different trait sets silently reuse the first mask.
 - **Task 3 crosses the R boundary and no step mentions the generated code.** Making
   the trait set reach C++ changes `inst/RcppR6_classes.yml` and needs
   `make RcppR6 && make attributes`.
