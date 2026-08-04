@@ -162,7 +162,9 @@ Section 8 exists and the whole reason Section 10 forbids its work for now.
 
 ---
 
-## 5. Task 0: make the new reference data
+## 5. Prepare the tree, the guard and the reference data
+
+### Task 0: make the new reference data
 
 Do this task after #590 lands. Do not do it before.
 
@@ -186,6 +188,79 @@ Therefore use it at a short lifetime.
 and the reverse type. Both read the same `double` rows from
 `Leaf::input_adjoints`. Therefore a wrong row cancels between them. Use the gate
 in Task 1 for those rows.
+
+### Task 0b: give `input_adjoints` the guard its two callers have
+
+Type: correctness. Small. Do it before any gate, because it decides which leaf
+states a gate may be seeded at.
+
+**Why.** `Leaf::psi_stem_to_ci` gives TOMS748 the bracket
+`[gamma * umol_per_mol_to_Pa, ca_]`. Boost refuses same-sign endpoints. Two
+conditions on the leaf make the endpoints agree in sign:
+
+- `assim_max_ < 0`. The upper endpoint is `assim_colimited(ca_)`, which is
+  `assim_max_` itself.
+- `psi_stem < psi_upstream`. Then `stom_cond_CO2` is negative, which turns the
+  supply term over and lifts the lower endpoint above zero.
+
+Each condition means a leaf that does not produce. Therefore the failing states are
+the shutdown states, and `Leaf::prepare_collar_solve` exits early on each of them
+through `set_shutdown_state`.
+
+`Leaf::set_leaf_states_rates_from_psi_stem` tests both conditions and substitutes
+`ci_ = gamma * umol_per_mol_to_Pa` with zero flux. `dprofit_droot_collar_psi` tests
+`psi >= psi_stem` only and returns 0. `Leaf::input_adjoints` tests neither: its call
+is bare. **The hole is a missing guard and not a bracket that is too narrow.** In
+the `assim_max_` mode no root exists in the domain at all, so a wider bracket cannot
+help.
+
+**Steps.**
+
+1. Extend the guard inside `psi_stem_to_ci`, which today refuses only
+   `!std::isfinite(stom_cond_CO2_fixed)`. Refuse a negative conductance and a
+   negative `assim_max_` in the same place, and return
+   `gamma * umol_per_mol_to_Pa`. This makes the contract of the function agree with
+   the answer its forward caller already substitutes, and it covers each call site
+   at one time.
+2. Add the `assim_max_` condition to `dprofit_droot_collar_psi`, which carries half
+   of the guard now.
+3. Make `set_parameter` and the PPFD block compute `assim_max_` again. See the
+   warning below.
+
+**WARNING: `assim_max_` is stale under each finite difference of the leaf.** It is
+assigned in one place, the last line of `set_physiology`. `set_parameter` computes
+`vcmax_`, `R_d_`, `jmax_` and `electron_transport_` again and does not compute
+`assim_max_`. The PPFD block computes only `electron_transport_`. Therefore each
+displacement of `vcmax_25`, `jmax_25`, `a`, `curv_fact_elec_trans` or `PPFD_` leaves
+the guard reading the value before the step while the endpoint reads the value after
+it. Near `assim_max_ = 0` a step of `|keep| * 1e-6` makes the guard admit a state
+that does not bracket.
+
+**A silent disagreement in the same place, which is worse than the stop.** On the
+`-wettest_soil_layer >= psi_crit` branch of `prepare_collar_solve`,
+`set_shutdown_state` puts `psi_stem` and the collar potential both at `psi_crit`.
+The conductance is then exactly 0, the bracket is valid, and `psi_stem_to_ci`
+returns the `ci` at which assimilation is zero. The forward path reports
+`gamma * umol_per_mol_to_Pa` for that same state. Therefore the two paths disagree
+on a reachable state and nothing raises an error. Step 1 removes this as well.
+
+**How to check.** Seed `input_adjoints` at each of the four early-exit branches of
+`prepare_collar_solve` and require a finite result. Then require that `ci` from the
+guarded path has the same bit pattern as `ci_` from
+`set_leaf_states_rates_from_psi_stem` at each of those states. An interior state
+must keep every row bit-identical, because the guard cannot fire there.
+
+**What this changes for the gates in this document.** An interior operating point
+excludes both conditions by construction: `prepare_collar_solve` has already passed
+`assim_max_ >= 0`, and an interior collar potential has `E_up_ > 0`, therefore
+`psi_stem > p`, therefore a positive conductance. The `bound_a` pin has a
+conductance of exactly 0 and still brackets. **Therefore an interior,
+producing state is the safe class to seed a gate at, and a shutdown or dry state is
+the class that needs this task.** Say which class a gate is seeded at.
+
+**`scratch/leaf_jac_gate.cpp` calls `psi_stem_to_ci` directly** before it calls
+`input_adjoints`. Seeded at a shutdown state it stops on its own line. Step 1 fixes
+this too, because the guard moves into the function.
 
 ---
 
@@ -683,13 +758,11 @@ Each item below blocks something. Do not treat the list as background.
   again. The correct route is `add_strategies(p, trait_matrix(v, "lma"))`. Any figure
   taken through those scripts is suspect. `scripts/v4-reference.rds` belongs to
   polish cap 5 with an unpinned base and **must not be used**.
-- **Interior production-like leaf states stop inside `input_adjoints`**, through
-  `util::stop` in `Leaf::psi_stem_to_ci` when TOMS748 fails to bracket. Therefore
-  no gate in this document can be seeded at a state that is both interior and
-  production-like. This is a hole under every gate. Fix it before you trust one.
 - **Two dry leaf states crashed** inside the solve during the linearity harness,
-  before `input_adjoints` was reached. The cause is not known. It is not the
-  `util::stop` above.
+  before `input_adjoints` was reached. Task 0b explains the states that stop inside
+  `input_adjoints`, and these two are a different site. The candidates are the
+  `util::stop` calls in `Leaf::prepare_collar_solve` and `Leaf::profit_at_collar_psi`.
+  A run is needed to say which.
 - **There is no cost gate anywhere.** Nothing asserts that a block costs what it
   was measured to cost. That is how a factor of 300 sat behind a green suite for
   three waves. **Land each task in this document with a cost gate.**
