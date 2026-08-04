@@ -378,12 +378,12 @@ orders them, and each departure has a reason that was checked against the code.
    no notion of a parameter being wanted. Task 3 builds that notion.
 5. **Task 1 before Task 2 and before Task 3's leaf half**, because both edit
    `output_rows`, which Task 1 creates.
-6. **Task 5 before Task 4.** `reaches_operating_point` excludes only `psi_crit`,
-   `root_psi_crit`, `rho` and `a_bio`, so `b`, `c`, `root_b` and `root_c` are among
-   Task 4's eleven parameters. Task 4's gate is the central difference it replaces,
-   and Measurement E shows that difference is wrong by 47 to 10 245 times for those
-   four. **Four of Task 4's eleven rows would be gated against a poisoned
-   reference.**
+6. ~~**Task 5 before Task 4.**~~ **Void: the reason has no basis in the code.** It rested on
+   Measurement E, and both `input_adjoints` and `bound_partials` already hold the knot grid
+   across their difference loops, so those four rows are not gated against a poisoned
+   reference. **Tasks 2, 4 and 5 should instead be re-issued as one design task — the
+   second-order jet of the leaf's profit map — whose first deliverable is a kink policy.**
+   See the head of Task 4.
 7. **Task 0b before every gate**, and its own gate must expect the pinned rows to
    move. At the `bound_a` pin `psi_stem` equals the collar potential, so the forward
    guard `psi_upstream >= psi_stem` fires and the forward path reports
