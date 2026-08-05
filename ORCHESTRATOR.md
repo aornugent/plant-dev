@@ -148,6 +148,36 @@ packet, or two agents will write `notes.txt` over each other.
 out, so a stale one makes `git checkout` of that branch fail elsewhere and pushes
 the next agent onto a detached HEAD without saying so.
 
+> **A fresh worktree has EMPTY submodules, and git then reads the wrong repository in silence.**
+> Measured: of five dry-run packets given their own worktrees, **two found `plant/` and `odelia/`
+> unpopulated.** That alone would be survivable — an empty directory is visible. What is not
+> survivable is what git does next: with no submodule `.git`, `git log` and `git grep` run inside
+> `plant/` **fall through to the superproject's own repository** by git's upward directory search, and
+> answer confidently about the wrong tree. **Every "I checked this against the code" step becomes
+> silently vacuous, and the packet reports success.**
+>
+> This is the failure mode of §1's unread document, produced mechanically rather than by
+> carelessness, and it defeats the one defence that has found the most defects here — a mechanical
+> pass over named symbols.
+>
+> **So every packet touching submodule code must begin by initialising them and certifying the
+> commit:**
+>
+> ```sh
+> git submodule update --init plant odelia
+> git -C plant rev-parse --short HEAD    # must match the packet's stated pairing
+> git -C odelia rev-parse --short HEAD
+> ```
+>
+> **And certify per symbol, not per directory.** A populated directory is not a correct commit.
+> `METHOD.md` §4's rule applies to worktrees as well as to installs: grep for the symbol the packet
+> needs.
+>
+> **Two related traps, both hit in the same wave.** `.claude/worktrees/` inside a submodule is
+> untracked content in *someone else's upstream repository* — exclude it locally rather than
+> committing it. And `git add -A` at the superproject will happily commit an agent worktree as an
+> **embedded git repository**, which a later clone cannot populate; ignore the path instead.
+
 ---
 
 ## 4. Spend verification where it discriminates

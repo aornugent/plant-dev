@@ -583,15 +583,42 @@ supported — it is assumed.**
 | 11 | the potential cap's wrong-way flux is bounded | a per-layer consumption large against a healthy layer's uptake | minimum per-layer consumption and maximum layer potential over a rainfall series | — | 9.2 |
 | 12 | the four field-reduction rows are short by a knowable amount | the allometric column disagreeing with a central difference by more than the missing channel predicts | one column against a difference | L3 | small lifetime |
 
-**Row 4 is the highest value in the programme for its cost.** The claim it tests carries the only
-belowground competitive coupling in the model; the quantity is a small difference of large
-quantities amplified fifteen- to twenty-six-fold; the existing validation is a joint fit that
-cannot detect the error; and **the instrument that computes it correctly already exists in the tree
-and is not called.** Nothing else here is that lopsided.
+**Row 4 is the highest value in the programme for its cost, and the dry run made it more lopsided,
+not less.** The claim carries the only belowground competitive coupling in the model; the quantity is
+a small difference of large quantities amplified fifteen- to twenty-six-fold; and the instrument that
+computes it *directly* — `Leaf::translation_partials`, writing the uniform-drying response as itself
+rather than by differencing — is in the tree. It is reachable only from a hand-compiled standalone
+harness, not from R or any shipped path.
 
-**Row 9 replaces a number rather than adding one.** The 3.33 is a stand-level demographic
-amplification quoted where a per-plant carbon bias is meant. Measuring the carbon bias forward, at
-a handful of states, is affordable and separates the two permanently.
+**And that harness already runs the wrong comparison.** It perturbs along the drying direction and
+checks the **joint** prediction against a difference of the residual — which is exactly the residual
+that cannot detect an error in the closed-form scalar, because a compensating pair fits every row. In
+the shipped code that scalar is closed form and the other is a two-sided difference, and **the closed
+one is never checked along the direction that matters.** So the fixture exists, wired to the one test
+that cannot falsify the claim. Rewiring it is the measurement.
+
+**Row 9 replaces a number rather than adding one, and its obvious fixture cannot fail.** The 3.33 is
+a stand-level demographic amplification quoted where a per-plant carbon bias is meant. Both shading
+modes run at plain double and cost hundredths of a second at one state, so the comparison is cheap —
+**but the fixed environment the interface offers sets a *spatially constant* light level, and under
+constant light the two modes are mathematically identical.** A dry run confirmed it empirically: every
+output bit-identical, a clean "bias = 0" that would have read as a finding. That is §9.0's
+axis-never-moved failure, caught before it was reported.
+
+So row 9 carries a fixture requirement: **the field must vary with depth**, which means building it
+through the canopy machinery rather than through the fixed-environment call. Still one state, still
+cheap. The quadrature is confirmed apples-to-apples — the same rule and the same abscissae in both
+modes — so the only difference is the number of hydraulic solves, which is inherent to the honest
+calculation rather than a confound.
+
+**Row 7's existing figure is withdrawn.** The 78-of-130 occupancy cites no script and none exists in
+the tree; its structural twin was already retired for that. The *bound* is a read and stands; the
+occupancy must be re-taken with a committed script on the birth-date coordinate.
+
+**Rows 6 and 12 are unblocked, and cheaply.** One cohort's block can be assembled by twelve calls to
+an existing `sourceCpp` probe with unit basis vectors — so the matrix is reachable without new
+production code, which is the opposite of what row 6 assumed. Its output-adjoint argument must be at
+least twelve long or it corrupts the heap.
 
 ### 9.5 What not to measure yet, and why
 

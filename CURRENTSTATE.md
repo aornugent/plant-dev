@@ -253,10 +253,55 @@ scoped to.** They are pre-work for the gradient, not a defect in the forward mod
 - **The last narrowed vector is discarded.** `census_trait_gradient` sweeps `[boundary[j], k_last]`
   and after `j == 0` assigns `lambda = narrowed;` and never reads it again (`scm.h:704-712`). That
   vector is $\bar y(0)$.
-- **`Leaf::translation_partials` (`:1303-1337`) exists and is unused.** It computes
-  $\partial E_i/\partial d$ from the symmetry-breaking term directly, which is what report 05 §7.3
-  says the near-cancellation requires. The waist rows do not route through it, so the cancellation
-  is performed by subtraction in the caller.
+- **`Leaf::translation_partials` exists and is unreachable from the shipped model.** Signature:
+  `void translation_partials(std::vector<double>& dE_dd, double& dpsistem_dd)`. It writes the
+  per-layer uptake sensitivity and the stem-potential sensitivity **to a uniform drying of soil and
+  collar together, computed directly rather than by differencing** — exactly what report 05 §7.3
+  says the near-cancellation requires. It needs a `Leaf` that has already solved, since it refreshes
+  the soil potentials and calls the per-layer flux partials internally.
+
+  **It is not called by nothing — it is called from one place, and that place is not the model.**
+  `plant/scratch/leaf_jac_gate.cpp` is a standalone `main()` compiled by hand against plant's
+  sources: outside `src/`, no Rcpp export, in no test, unreachable from R.
+
+  **And that harness performs the wrong version of the check.** It perturbs the soil potentials
+  along the uniform-drying direction and compares against a central difference — but it compares the
+  **joint** prediction $a\,\partial E/\partial u + b\,\partial(\partial E/\partial r)/\partial u$
+  against a difference of the residual. **That is precisely the residual report 05 §7.3 proves cannot
+  detect an error in $b$**, because a compensating pair fits every row. A prototype of the right
+  fixture exists, wired to the one comparison that cannot falsify the claim.
+
+  In the shipped path: $b$ = `dR_dflux_slope`, closed form as
+  $-\texttt{dprofit\_dpsistem}\cdot P'/\kappa$; $a$ = `dR_dflux` via `dR_dflux_from_layer` at a
+  two-sided difference of $10^{-6}$. **$b$ is never checked against anything along the drying
+  direction.**
+
+- **One cohort's block can be materialised without new production code.**
+  `plant/scratch/wire_gates.cpp` exports `block_vjp(obj, species_index, node_index, out_adjoint)`,
+  which builds the block as `Patch::cohort_block_adjoint` does and returns the full input-adjoint
+  vector for a given output adjoint. Twelve calls with unit basis vectors assemble the
+  $12 \times 130$ Jacobian by rows. It is `sourceCpp`-only — nothing exposes the block through
+  `RcppR6_classes.yml` or the R surface. **Hazard: the output-adjoint vector must have length at
+  least 12, or the call overruns and corrupts the heap.**
+
+- **`Species::census` never branches on the coordinate.** It builds its grid from node **heights**,
+  descending-reversed, with no sort check, whatever `node_density_in_birth_date` is set to — while
+  `consumption_rate_by_node` does guard a non-monotone grid by sorting. **So departure 13 is
+  coordinate-independent**, and it is live in the gradient's own scope rather than latent there.
+  Both orders are observable from R (`heights` and `node_times` are active bindings), and the
+  per-node census value is readable, so **a sorted-against-as-built comparison is an R-level probe
+  and needs no C++ change.**
+
+- **Relative reserve is not exposed anywhere.** It is a local inside `compute_rates`, and
+  `storage_capacity`, `mass_sapwood` and `area_sapwood` are all unbound in `RcppR6_classes.yml` —
+  `TF24_Strategy`'s R surface carries no methods at all. Absolute `storage` *is* readable as a
+  state. So the distribution the reserve gate's width turns on costs either **re-deriving the
+  capacity formula in R**, which is a reimplementation and not a read, or **a one-line auxiliary
+  output in C++.** The second is preferable and it is a code change, however small.
+
+- **`k_I \cdot \mathrm{LAI}$ is directly callable and needs nothing new.** Since the crown shape is
+  1 at the ground, `Species::compute_competition(0)` sums density times $k_I$ times leaf area over
+  every node — which *is* $k_I\,\mathrm{LAI}$ exactly. It is bound as a method.
 - **`odelia::ode::supplied_derivative` is used nowhere in `plant`.** Report 05 §8 contrasts it with
   the live construction; it is a facility, not a mechanism in play. `HermiteInterpolator::graft` is
   the third instance and it is live, on the census's path through the light field.
@@ -616,7 +661,7 @@ not a measurement.**
 | birth size is imposed to zero | about **3 percent** for `lma` | — |
 | no reference can referee it | a relative step of **2e-7** in `lma` moves a mature stand between alive and identically zero | production |
 | the record-once economy's precondition is violated | see the nine-row table below | |
-| the light row is under half full, bounded by the rule | maximum **78 of 130** columns, mean **58.7** (45.1 percent); structurally-zero fraction **55 percent** | default `MeanLight`, **height coordinate only**, `function_integration_rule = 21`, field evaluated twice per step |
+| ~~the light row is under half full, bounded by the rule~~ **— demoted, see below** | maximum 78 of 130 columns, mean 58.7 (45.1 percent); structurally-zero fraction 55 percent | default `MeanLight`, **height coordinate only**, `function_integration_rule = 21`, field evaluated twice per step |
 | the dominant's height adjoint is short | by about **87 percent** of that adjoint | knot positions passive. **Whether it shrinks with knot density has never been checked** |
 | a registered trait reaching nothing returns a number | three rows at **1e-18 to 1e-22** | the reference labels them "no response" |
 
@@ -723,6 +768,20 @@ failed reproduction.
    width turns on.
 8. **Per-plant carbon bias under `deep-crown`, forward, at a handful of states.** Affordable, and it
    separates the 3.33 from the quantity it is quoted as.
+
+### Demoted to unverified
+
+**The 78-of-130 column census cites no script, and its structural twin is already retired for exactly
+that.** A search of `plant/scripts/` and `plant/scratch/` finds nothing that computes a column
+census — `wire-gates.R` mentions non-zero adjoints in a comment and computes no such thing. The
+retired "36 of 44 non-zero direct columns" below failed the same way, in the same corpus, and this
+figure sat in the load-bearing table while its sibling sat in the retired list.
+
+**So do not cite 78 of 130.** The *structural* bound stands on its own — a fixed $n$-point rule
+touches at most $n$ spans of an interpolant with local support, and `function_integration_rule`
+defaults to 21, which is a read — so "the row's width is bounded by the rule and not by the canopy"
+survives as an argument. The measured occupancy does not, and it was on the wrong coordinate anyway.
+Re-take it with a committed script, on the birth-date coordinate, per METHOD §9.4 row 7.
 
 ### Retired
 
