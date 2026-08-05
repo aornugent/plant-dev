@@ -372,6 +372,24 @@ hazard appears when someone writes a loop to save startup time.
 
 ---
 
+> **`test-census.R` does not complete on this machine, on any build, and it is not a usable gate
+> here.** Measured: no testthat output at all in **30 minutes** against a build of the census fix, and
+> none in 240 s against an unmodified build of the parent commit — so the behaviour is independent of
+> that change.
+>
+> **And it is not simply seven slow stands.** Its `solved_stand()` helper runs one lifetime-20 stand at
+> `lma = 0.0825` with no `hmat` and the default birth rate; timed alone it takes **27.5 s** and
+> completes, at 1 165 steps and 7.8232 offspring. Seven of those is about three minutes. **So the cost
+> is elsewhere in the file and has not been located.** Find it before relying on this file, and do not
+> read a timeout here as a regression.
+>
+> **Its G1 reference also cannot detect a wrong abscissa.** The test compares the C++ census against
+> `trapezium_r(height, density * psi)` — so both sides integrate over height, and both make the same
+> choice. It agrees on the height coordinate and is blind, in either direction, to the birth-date
+> measure error that `Species::census` carried. That is §1's "a gate built out of the thing it tests",
+> sitting in the suite.
+
+
 ## 6. Where the harnesses are
 
 | what | where | reads |
