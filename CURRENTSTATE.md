@@ -160,9 +160,33 @@ whose `iDerivative_` is value-initialised while a surviving `AReal` keeps its ol
   shape and not merely the observed error.
 
 **Consequence for the plan:** record-once-sweep-many is **not expressible through the present API**,
-because the driver clears the tape on entry. The shared driver changes first. And `reduce` already
-computes all three outputs in every recording, so the present waste exceeds what "three recordings"
-suggests.
+because the driver clears the tape on entry. The shared driver changes first.
+
+**Three refinements from a dry run, and the first changes where the fix goes.**
+
+- **A record-once-sweep-many primitive already exists in the same header.** `compute_jacobian`
+  (`gradient.hpp`) wraps `xad::computeJacobian`, which registers inputs once and produces every
+  codomain row from **one** recording. `census_state_adjoint` does not use it — it reinvents a
+  weaker per-row loop around `vector_jacobian_product`. So the minimal change is either to route the
+  census through the existing primitive, or to add a sibling that separates *record* from *sweep* so
+  the sweep can run F times without a clear between. Both are additions to the shared driver rather
+  than call-site edits in `plant`, but the first is much smaller than designing the economy from
+  scratch.
+- **The waste is quadratic in the metric count, not linear.** `reduce` computes **all** metric
+  outputs on every call while only one seed is non-zero, and the driver is called once per metric.
+  So the wasted forward work scales like $F^2$ metric evaluations. "F recordings" undercounts it.
+- **The aliasing fix is not one line, and the two in-tree precedents show why.**
+  `Patch::cohort_block_adjoint` builds a **passive** template once, while no tape is active so it
+  holds no slots, and then constructs a **fresh active object from that template inside the innermost
+  loop.** `Step::step_adjoint` keeps its rebound twin outside the loop and is safe only because it is
+  never mutated — it serves purely as a source of passive parameters, and what it rebuilds per stage
+  is the set of actual tape inputs. **`census_state_adjoint`'s copy matches neither:** it is built
+  once, outside the loop, and then *mutated in place* through `set_ode_state` each iteration — the
+  pattern both precedents exist to avoid. The fix is at minimum "reconstruct from a pristine,
+  never-tape-touched copy per iteration", and **whether that is sufficient is unresolved**: it
+  depends on `set_ode_state` overwriting every active-typed field the census subsequently reads,
+  which has not been read. **And it is a separate change from the economy** — reconstructing per
+  iteration fixes correctness while still paying one record per metric.
 
 **One earlier attribution is superseded.** This was recorded as a stale-aux-slot hypothesis. The
 mechanism above is read, and it predicts the zero columns. Treat the aliasing as established.

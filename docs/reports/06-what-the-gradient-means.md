@@ -484,7 +484,15 @@ two-parameter curve is over-parameterised, and the third answers a counterfactua
 exist. The critical potential's sensitivity is real, but it belongs *inside* the position and
 steepness rows, which is where someone reading the output would look for it.
 
-**This is settled, and settled in the ecology's favour.** The model's construction also ties the
+> **One half of this is settled and the other is reopened, by the model's own stated intent.** The
+> code exposes the **root's** critical potential as independently settable on purpose: its comment
+> records that the fitted default pins root shutoff too conservatively for taxa operating below it,
+> naming *Acacia aneura*. So a species may have a root curve and a shutoff the curve does not
+> predict — which would make the root a **three**-parameter organ and the two organs asymmetric after
+> all. That is an ecological question for the model's owner, and it decides the output format, so it
+> should be answered before the format is built. Report 07 §3 states both readings.
+
+**This is settled for the stem, and settled in the ecology's favour.** The model's construction also ties the
 stem curve's steepness to its position by a fitted trade-off, which on one reading would leave a
 stem curve with only *one* degree of freedom and describe the two organs inconsistently. The ruling
 is that the trade-off is a **default for choosing initial values, not a constraint on the curve**:
