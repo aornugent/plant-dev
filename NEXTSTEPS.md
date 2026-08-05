@@ -502,8 +502,17 @@ per-plant carbon bias has never been measured.
 heights whatever the coordinate is. So this defect is live in the scope of the
 gradient, and it is not latent there.
 
-Both orders are readable from R, and so is the per-node census value. **So this
-is a probe in R and not a change in C++.** Task 9a is the fix.
+Both orders are readable from R, and so is the per-node census value. **So this is a probe in R and
+not a change in C++.**
+
+**The error is measured and it is about 4 percent.** A dry start at a soil moisture of 0.10 inverts
+heights in 57 of 99 steps, with up to 18 inversions in one step, and still gives 525 offspring — so
+it is a live stand. **Use that configuration; it needs no search for a crossed state.**
+
+**And the fix is owed at two sites, not one.** Task 9a repairs the C++ census.
+`integrate_over_size_distribution` in `plant/R/tidy_outputs.R` has the same defect and is the path a
+user's output takes. Neither sorts. Fix both, or the boundary reports an error the model does not
+make.
 
 ### Task M9: bind the termination census, then build the driver set
 

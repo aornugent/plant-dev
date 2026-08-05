@@ -564,10 +564,19 @@ the shared canopy. Two were missed by an enumeration that declared itself comple
 a design document licenses a reader to stop looking, and this one was wrong by two routes out of
 six. Treat the list as the routes found so far.
 
-**And the census itself must be taken on a monotone grid.** A quadrature over a crossed size
-distribution has neighbouring trapezia cancelling instead of accumulating, so leaf area,
-above-ground mass and basal area can be wrong *before* any derivative is taken. The two field
-reductions each guard this. The objective is the first link in the chain and the least guarded.
+**And the census itself must be taken on a monotone grid, which costs about 4 percent when it is
+not.** A quadrature over a crossed size distribution has neighbouring trapezia cancelling instead of
+accumulating, so leaf area, above-ground mass and basal area can be wrong *before* any derivative is
+taken. Measured on a stand that inverts in more than half its steps while producing a healthy
+offspring count: the leaf-area census differs by 3.95 percent between the as-ordered and the sorted
+integration of one identical state.
+
+**The two field reductions each guard this and they work** — the light profile stays monotone in
+every step of the same run. **The census does not, and neither does the routine that integrates the
+size distribution for a user's output.** So the objective is the least guarded link in the chain, and
+it is the first: an ecologist reading a leaf-area trajectory is reading a number that carries this
+error, with no derivative involved at all.
+
 
 ### One assumption is imposed rather than derived
 

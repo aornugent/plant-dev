@@ -125,7 +125,7 @@ them.
 | 10 | The light reduction is not the transpose of its forward function on the birth-date coordinate — four discrepancies | §6.1 | read |
 | 11 | The water reduction's parameter half and the initial-condition term are absent | §10 | read |
 | 12 | The bound is the maximum of two magnitudes and one can never win, so the root-critical branch is dead | §7.3 | read |
-| 13 | The census is a quadrature on a possibly non-monotone grid | §9 | read — **a defect in the objective** |
+| 13 | **Two** census quadratures run on a possibly non-monotone grid — one in C++, one in R — and neither guards | §9 | read; **error measured at about 4 percent** — a defect in the objective |
 
 **Item 8 precedes item 2, and item 10 precedes item 2.** Item 2 adds parameter rows to reduction
 transposes; items 8 and 10 are those transposes not matching their forward functions. Extend a
@@ -136,10 +136,41 @@ bound past the root grid is a correct derivative of an extrapolated wrong-way fl
 selector before fixing the sign would validate the new branch and lock the poisoning in. It is one
 line.
 
-**Item 13 precedes all of them**, because it is a defect in the quantity being differentiated. The
-two field reductions each fall back to a sorted view or refuse; `Species::census` builds its grid
-from the node list and hands it to `util::trapezium` unsorted, so neighbouring trapezia cancel
-instead of accumulating on a crossed grid.
+**Item 13 precedes all of them**, because it is a defect in the quantity being differentiated. **And
+it is two paths, on opposite sides of the R boundary.** The guard status across the four quadratures
+over the size distribution:
+
+| quadrature | guards a non-monotone grid? |
+|---|---|
+| `Species::compute_competition_unordered` | **yes** — falls back to a sorted view |
+| `Species::consumption_rate` | **yes** — sorts |
+| `Species::census` (C++) | **no**, and it does not branch on the coordinate either |
+| `integrate_over_size_distribution` (`plant/R/tidy_outputs.R`) | **no** — `trapezium` on whatever order the tidy frame carries |
+
+**Read:** the R helper calls `-trapezium(.data$height, density * .x)` inside a `reframe` over grouped
+rows, and there is **no sort anywhere in that file.** It is the path a user's output goes through.
+
+**Measured, and this is the first size this defect has had.** From a dry start at
+$\theta = 0.10$ — a legitimate initial condition — heights invert in **57 of 99 steps**, with up to
+**18 inversions in one step**, while the stand produces **525 offspring**, so this is a live stand and
+not a degenerate one. Integrating the final state as-ordered against height-sorted:
+
+| census | as-ordered | height-sorted | error |
+|---|---|---|---|
+| $\sum w n h$ | 22.997032 | 22.130695 | **+3.91 %** |
+| $\sum w n A_{\text{leaf}}$ | 4.2544257 | 4.0929236 | **+3.95 %** |
+| $\sum w n m^{\mathrm{hw}}$ | 9.1955007 | 8.8415611 | **+4.00 %** |
+
+**Same cohorts, same densities, only the row order differs.** So it is pure quadrature error in the
+objective, before any derivative exists. Reports 05 §9 and 06 §8 call this the chain's first link and
+the least guarded; the number on this stand is about **4 percent**.
+
+**And the sorted fallback demonstrably works where it is applied:** the C++ light profile from the
+same run is monotone in 99 of 99 steps.
+
+**This dry-start configuration is the fixture Task M8 needs.** It inverts heavily and stays alive, so
+it does not require hunting for a crossed state at default settings.
+
 
 ### Item 1: the aliasing, and what makes it certain
 
