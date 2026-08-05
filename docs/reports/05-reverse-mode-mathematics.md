@@ -290,9 +290,23 @@ $\partial(\mathrm{d}S/\mathrm{d}t)/\partial S = 0$ — until $\texttt{net\_flux}
 full rate. 9b's conclusion that the consequence is bounded survives; its mechanism and its gradient
 consequence do not.
 
-**So read the 13.96 percent correctly.** It is not "a kink on 14 percent of records". It is **a flat
-spot with no gradient at all on 14 percent of records**, on the channel carbon → $r$ → mortality →
-survival → density → every census metric. For a gradient that is worse than draining, because a
+**So read the 13.96 percent correctly — and not more strongly than it deserves.** It is not "a kink
+on 14 percent of records": it is a flat spot on the channel carbon → $r$ → mortality → survival →
+density.
+
+> **But the cohort does not go gradient-dark, and an earlier form of this section read as though it
+> did.** The leaf's rows feed **two** channels and only one is flat. At $S \le 0$ the storage state's
+> self-sensitivity and the $P \to$ storage row are exactly zero — but
+> $\texttt{growth\_flux} = P_{\text{pos}}\cdot G$ is **not**, because $G(0) = 0.2689$ is bounded
+> away from zero, and the height, fecundity and both heartwood rates all read it, with
+> $\mathrm{d}P_{\text{pos}}/\mathrm{d}P = \tfrac12$ at $P = 0$. **So the expensive interior-case
+> rows are neither wasted nor wrong at a frozen cohort: they are the only live channel out of it.**
+>
+> **And the 13.96 against 14.04 percent is an identity, not a coincidence of one driver.** Release
+> from the absorbing region needs
+> $\texttt{net\_flux} = P - 0.2689\,P_{\text{pos}} > 0$, which for $P > 0$ is
+> $\approx 0.731P > 0$ — **immediate**. So $\{S \le 0\}$ and $\{P \le 0\}$ agree up to a
+> measure-zero transient, forced by the algebra, on **any** driver. For a gradient that is worse than draining, because a
 draining state at least has self-sensitivity. And it is a **stepper artefact**, so refining the step
 changes the answer: this is a forward-model defect and not a regime whose derivative anyone should
 compute. Report 00 section 10 ranks fixing it second; on this reading it is first. A drought year
@@ -758,10 +772,12 @@ a plant can go on changing a capped layer's moisture and the layer can never sig
   and the cap has bound long since.
 - **The equal-potentials and gravity-balance windows are removable**, and the code refuses both. The
   first is the l'Hôpital limit of span/integral, continuous in value; the second has a numerator that
-  vanishes while its derivative does not. `layer_flux_partials` returns **all** entries NaN on the
-  first offending layer, and `input_adjoints` contains **no finiteness test anywhere**, so one layer
-  within $10^{-8}$ of the collar makes every potential row, every root-mass row, the area row and the
-  argmax multiplier NaN, and `graft` writes it onto the tape.
+  vanishes while its derivative does not. `layer_flux_partials` assigns NaN to every entry up front and then fills in
+  ascending order, so layers **before** the offender hold real values and layers from the offender
+  onward are NaN — an earlier form of this section said all entries, which would mislead anyone
+  writing the guard. The downstream consequence is unchanged: `input_adjoints` contains **no
+  finiteness test anywhere**, so the NaN enters the sums, reaches the argmax multiplier, and `graft`
+  writes it onto the tape.
 
 **And a sub-claim of this audit is refuted, recorded because the reasoning is instructive.** It held
 that a non-finite moisture is *laundered* into a physical state, on the grounds that
@@ -887,6 +903,20 @@ the feasible window closes with $b_a \to \psi_{\text{crit}}$ → **X** once the 
 Report 02 section 4's own trend is that ordering seen from outside: the minimum bracket falls
 monotonically 1.381 to 0.716 with rainfall, and `E2` first appears at the same arm as 110 984
 `bound_b` pins.
+
+> **Gap: a single-layer plant at a `bound_a` pin writes NaN to the tape deterministically, and this
+> is a composition neither this section nor 6.2b sees alone.** `layer_flux_partials` refuses when
+> $\lvert(\psi_i - p) - g_{z,i}\rvert < 10^{-8}$ — **per-layer zero flux**. And `bound_a` is the
+> collar potential of zero **total** uptake, which is also where case B sits. **For a plant rooted in
+> one layer, total and per-layer are the same quantity, so the condition is satisfied identically —
+> not approximately.** `max_soil_layer` is the deepest layer carrying root mass, layer thickness is
+> $1.5/5 = 0.30$ m, so any plant under 0.30 m is single-layer. With no finiteness test in
+> `input_adjoints` and `graft` writing the row onto the tape, this is a **derived, guaranteed** NaN.
+>
+> This section calls B the best-conditioned case in the model; 6.2b calls the gravity-balance window
+> a removable kink the code refuses. **For a shallow-rooted plant they are the same point**, and the
+> composition is a NaN gradient rather than a refusal. Whether recruits fall below 0.30 m is
+> unmeasured and is the cheapest thing on this list to check.
 
 **One case is the best-conditioned in the model and the plan treats it as a corner.** At `E4` the
 operating point is the root of zero *total* uptake, so the per-layer $E_i$ are individually non-zero
@@ -1036,14 +1066,44 @@ the pinned branch.
 | pinned at `bound_b` = **root** critical | early return; every state row left at zero | **0** |
 
 The $b$ channel dropping out at a bound is legitimate — there the operating point is defined by a
-residual in $E^{\mathrm{up}}$ alone. **The rank-zero row is not.** `bound_partials:1406-1409`
-writes `out[i_par0 + PAR_ROOT_PSI_CRIT] = -1.0` and returns, on the stated reasoning that the
-root's ceiling "is an input in its own right and nothing else moves it". But
-$\psi^{\text{root}}_{\text{crit}} = b_{\text{root}}(\log 20)^{1/c_{\text{root}}}$, so
-**`root_b` and `root_c` read exactly zero there** — at the dry-and-tall states where drought
-tolerance is the whole question. That row is correct only under Task 28's pullback, which supplies
-those two columns from the $\psi_{\text{crit}}$ column through $J$. **Task 28 is therefore
-load-bearing for the drought regime and not a reporting convenience.**
+residual in $E^{\mathrm{up}}$ alone.
+
+> **Correction: the rank-zero row is dead code, and the real defect is a sign.** An earlier form of
+> this section said `bound_partials:1406-1409` leaves `root_b` and `root_c` reading zero at the
+> dry-and-tall states, and inferred that Task 28's pullback is load-bearing for the drought regime.
+> **That state does not occur.**
+>
+> `bound_b = std::max(-root_crit, -root_psi_crit)` (`leaf_model.cpp:807`). `root_crit` comes from
+> `find_root_psi`, which searches `[-psi_crit, wettest_soil_layer]` — **both non-positive** — so
+> `-root_crit` is **positive**. And `root_psi_crit = root_b·(log 20)^{1/c_{\text{root}}}` is a
+> positive **magnitude**, 5.8703 at the defaults, so `-root_psi_crit` is **negative and can never win
+> the max.** The clamp the comment at `:656` describes never fires, and the early return at
+> `:1406-1409` is **unreachable**.
+>
+> **Three consequences, and they are worse than the claim they replace.**
+>
+> 1. **This is the mechanism for section 6.2b's 0.193 MPa window**, which that section attributed to
+>    a coincidence of two constants. It is not a coincidence: with the clamp dead, the golden-section
+>    search probes collar magnitudes up to $\psi_{\text{crit}} = 7.0855$, past the root vulnerability
+>    integral's last knot at **6.8918**, into the linear extrapolation. **So the wrong-way
+>    plant-to-soil flux is reachable through the leaf's own bracket on a uniformly drying profile**,
+>    not only through a capped layer. That strengthens 6.2b's reachability and gives it a cause.
+> 2. **`root_psi_crit` has no derivative row anywhere, ever.** `:1407` is the **only** write to
+>    `PAR_ROOT_PSI_CRIT` in the file, and `reaches_operating_point` explicitly excludes it from the
+>    differenced loop (`:1729`). It is a **registered** AD parameter. So
+>    $\partial(\text{anything})/\partial\psi^{\text{root}}_{\text{crit}}$ is identically zero on
+>    every metric — a third absent channel beside section 6.2b's two, and it is the parameter that
+>    section 6.2b names as *heading the family a gradient-driven trait search walks into*.
+> 3. **The dead branch was mathematically right.** Had the pin landed there, `bound_b` would be an
+>    input and $\partial B/\partial u = -e_{\psi^{\text{root}}_{\text{crit}}}$ exactly, so zeros in
+>    every state direction would be the true derivative of a constant bound. The defect is that the
+>    pin lands on the *other* bound, whose $\partial B/\partial u$ is dense **and evaluated past the
+>    grid.**
+>
+> **Fix the sign first.** It is one line, and three other tasks' correctness depends on it: a correct
+> `K` row evaluated at a `bound_b` past the root grid is a correct derivative of the extrapolated
+> wrong-way flux, so building section 7.0's selector before this would validate the new branch and
+> lock the poisoning in.
 
 ### 7.4 The pinned optimum: the envelope theorem does not apply
 
