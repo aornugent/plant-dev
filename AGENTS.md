@@ -22,20 +22,18 @@ Then the reference material:
   its end-to-end walk states the flow forwards and backwards in prose. Read it before the
   others; they are its detail.
 - [`docs/reports/05-reverse-mode-mathematics.md`](docs/reports/05-reverse-mode-mathematics.md)
-  — **the derivatives**, with every intermediate quantity mapped to the symbol that
-  carries it. Read it beside report 00: 00 states the dependency structure, 05 states
-  the algebra, and its section 11 lists where the algebra and the code disagree.
+  — **the derivatives**, and what a correct implementation of them must satisfy. Read it
+  beside report 00: 00 states the dependency structure, 05 states the algebra. It names no
+  code; where the implementation departs from it, `CURRENTSTATE.md` records the departure.
 - [`docs/reports/06-what-the-gradient-means.md`](docs/reports/06-what-the-gradient-means.md)
   — the ecology behind those derivatives, section for section, and what it would be wrong
   to conclude from a number this machinery produces. Read it if you are deciding whether a
-  defect matters.
+  defect matters, and read its closing section as the domain that must accompany any number
+  the machinery produces.
 - [`docs/reports/07-structure-worth-exploiting.md`](docs/reports/07-structure-worth-exploiting.md)
-  — where the system is narrower than it looks, and what each narrowing buys. Read it before
-  scoping any cost work.
-- [`docs/reports/08-what-the-machinery-could-answer.md`](docs/reports/08-what-the-machinery-could-answer.md)
-  — what the adjoint is a short step from answering beyond the trait gradient, with every
-  claim labelled read, derived, inferred or speculative. Read it before deciding what to
-  expose to users.
+  — where the system is narrower than it looks, and what each narrowing buys. Its test is
+  whether resident trait gradients, calibration, invasion and equilibrium are one machinery
+  with different adapters. Read it before scoping any cost work, or any interface.
 - `docs/reports/01`–`04` — the derivations and measurements the design rests on.
   **Reference material, not status**; they are never edited to track progress. Read the head
   of each first: several carry corrections to their own sub-claims.
