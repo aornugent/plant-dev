@@ -13,7 +13,11 @@
 > gradient. §7's *Genuinely open* and §9's "still inferred" are the sections that own its
 > status — not §6.2, which owns its mathematics.
 >
-> One correction follows.
+> Corrections follow. **The five physical facts and the five-way classification are what
+> survived; several of §7's *dispositions* and §9b's mechanism did not.** Where a correction
+> names a current statement, it lives in `../../CURRENTSTATE.md` or in reports 05 and 06.
+
+### Corrections to the classification
 
 > **§7's treatment of the four cumulative-flux soil states is falsified. The classification stands
 > otherwise.** §7 lists them as *free* — "write-only; nothing reads them, so their adjoints are
@@ -23,12 +27,121 @@
 > uptake adjoint** — including the layers the positivity guard zeroed, which is why `adj_uptake` is
 > nonzero there while `adj_theta` is exactly 0. So the accumulators are read, their adjoints are not
 > identically zero, and the channel is not blocked. Confirmed against a finite difference of
-> `Environment::compute_rates`. Evidence in `../archive/implementation-notes.md` under *Phase 3, wave 1*, and
-> the corrected step (a) is `../archive/build-plan.md` §2.4.
+> `Environment::compute_rates`.
 >
 > **§6.3's `w_k` is right and is at the wrong level.** The trapezium weights are **per-species**, from
 > `Species::consumption_rate`; `Patch::compute_rates` then sums species and divides by area with no
-> further weighting. Same evidence.
+> further weighting.
+
+> **§7 files `h_0` under *Solved*, "a trait reaches birth size through it". No trait reaches birth
+> size today.** The seed height is `double` by declaration and the strategy's preparation refuses an
+> active scalar, so eight trait rows — `omega`, `lma`, `a_l1`, `a_l2`, `rho`, `theta`, `a_r1`, `a_b1`
+> — are **exactly zero by construction** on every census metric, undeclared. Report 05 §10.1 states
+> the term; it belongs under *blocked* until an implicit-value treatment exists, and closing it needs
+> a new reference as well as new code.
+
+> **§7's *Sidestepped* row for root-mediated redistribution rests on a statistic that cannot see its
+> subject.** The evidence given is that `E_up < 0` never occurs. **`E_up` is the sum over layers.** A
+> layered root system's normal state is per-layer negatives inside a positive total, so the
+> phenomenon is invisible to that test; `min_i E_i` was never measured. And since conductivity at
+> operating moisture is about a thousandth of the rainfall forcing, **redistribution is a deep
+> layer's only resupply** — so this is an ordinary behaviour of the model rather than a corner, and
+> it needs no branch: the same smooth expression covers it. It belongs under *free*.
+
+> **§7's *Sidestepped* row for the soil clamps is wrong twice.** "Not reached on the sampled
+> envelope" is the statement that **the soil never moved**: the driver's maximum potential *is* its
+> initial state, and its whole range is θ within about ±25 percent of that. And the potential cap is
+> **not a benign clamp but an unbounded plant-to-soil sink** — past the root vulnerability grid the
+> integral extrapolates linearly upward rather than clamping, so mean root conductance saturates and
+> the flux grows linearly and negative. Every guard that would catch it is the wrong guard.
+> `CURRENTSTATE.md` §5 gives the mechanism and the θ axis.
+
+> **§7's curvature measurement cannot falsify a fold, and the conclusion drawn from it is
+> unsupported.** `Π_pp` negative at 52 of 52 states was measured by differencing **about the solved
+> operating point** — that is, only at points where a maximum was found, where the second-order
+> necessary condition already forces `Π_pp ≤ 0`. **The sample is conditioned on the conclusion.**
+> There is also a structural reason to expect folds where the pin lives: the hydraulic cost is
+> sigmoid in tension, so a difference of a concave gain and an S-shaped cost generically has positive
+> curvature on the dry flank once the cost's inflexion enters the feasible span, and drying moves the
+> span onto that flank. So "the one-scalar solve needs no bracketed fallback" does not follow. Report
+> 05 §7.0 gives the guard that does follow — a ceiling on the amplification, not a test on `Π_pp` —
+> and the sweep that would settle it runs `p` across the whole feasible interval at dry states.
+
+> **§7's interior / bound-pinned selector must not be a comparison on `|∂Π/∂p|`.** The marginal-profit
+> function returns a hard sentinel zero in a no-flow or infeasible state, and a convergence test on
+> the residual cannot distinguish that from stationarity — so such a state is recorded as an interior
+> optimum with `Π_pp = 0` by the same sentinel, and the argmax multiplier divides by an exact zero.
+> **The selector must be a decision tree on what defines the point.** And two regimes are one
+> mathematical object while three whole categories are missing: report 05 §7.0 gives five kinds of
+> point, and `CURRENTSTATE.md` §3 maps the fourteen terminations onto them.
+
+> **§7's *Genuinely open* row for `∂(pr_estab)/∂φ` is closed, and closed with no forward change.**
+> `establishment_probability` is **already `C¹`** at zero net production: both the value and the first
+> derivative tend to zero, so the hard `else 0` arm is its correct `C¹` extension rather than an
+> un-smoothed switch. Mollifying it would be **actively harmful** — the biology's own transition
+> scale is 8.3 times narrower than `storage_prod_eps`, so the sibling's scale would widen a
+> transition the model already resolves and change recruitment. What is true is a conditioning fact,
+> not a smoothing argument: the derivative peaks at about `5.4e4`. This retires §10 item 4.
+
+### The correction to §9b, which changes §10's order
+
+> **§9b's mechanism is wrong, and the gradient consequence is the opposite of what it states.** §9b
+> holds that once `S < 0` the outflow factor "approaches 1 or changes sign, so the deficit drains at
+> full rate". Read the two expressions together: `storage` is the **already-clamped**
+> `std::max(vars.state(...), 0)`, and the gate is built from that same clamped value. So `S < 0`
+> gives the gate `0/(0 + gate_ref) = 0` **exactly**, and `dS/dt = 0` on the deficit arm. **The state
+> is an absorbing flat region, not a draining one:** `S` sits where the overshoot left it, `r = 0`,
+> mortality pinned at its maximum, and every derivative out of the storage state is exactly zero
+> until net production turns positive and releases it at full rate.
+>
+> §9b's conclusion that the consequence is bounded survives. Its mechanism and its gradient reading
+> do not. Three consequences:
+>
+> - **Read the 13.96 percent correctly.** It is not "a derivative discontinuity active on 14 percent
+>   of records"; it is a **flat spot** on the channel from carbon through reserves to mortality to
+>   survival to density. For a gradient that is worse than a kink, because a draining state at least
+>   has self-sensitivity.
+> - **But the cohort does not go gradient-dark.** Growth flux reads a reserve gate bounded away from
+>   zero — `G(0) = 0.2689` — so height, fecundity and both heartwood rates keep a live channel. The
+>   expensive interior-case rows are not wasted at a frozen cohort; they are the only live channel out
+>   of it.
+> - **`{S ≤ 0}` and `{P ≤ 0}` are the same set, forced by algebra rather than by this driver.**
+>   Release needs `P − 0.2689·P_pos > 0`, which for positive `P` is immediate. So the 13.96 and 14.04
+>   percent figures agree up to a measure-zero transient on **any** driver, and a drought raises the
+>   fraction one-for-one: **differentiating a drought is partly differentiating a flat region.** It is
+>   also a stepper artefact, so refining the step changes the answer — which makes it a forward-model
+>   defect rather than a regime whose derivative anyone should compute.
+
+> **§9b checked one of develop's two smoothing scales against its argument, not both.**
+> `storage_prod_eps = 1e-4` was sized against the spread of `|P|`, and §9b's praise of it stands. But
+> **`storage_gate_width = 0.1` was never measured against the spread of `r`** — and centred at
+> `a_st2 = 0.1` on `r ∈ [0,1]` its transition occupies **40 percent of the whole domain**, with
+> `dG/dr ≈ 2` through the band falling to `1.2e-3` at `r = 1`. So it is not a hard switch wearing a
+> smooth coat but **a mollifier wide enough to be the model**, and it damps the gradient wherever
+> reserves are high. The distribution of `r` across a stand is the one number this turns on and it
+> appears nowhere in this corpus.
+
+### §10's order, revised
+
+> **Item 2 becomes item 1.** On the freezing reading above, the storage floor is not merely a cheap
+> forward-model correctness item — it is a flat region coinciding exactly with negative production,
+> so it is where a drought gradient goes to die. §10 ranks it second; it is first.
+>
+> **Item 3 is half retired.** The `size() < 2` water switch **no longer exists** in the form §10
+> lists: `consumption_rate` guards `size() == 0` and then always includes the boundary node, so the
+> grid has at least two points whenever the species is non-empty. Item 3 reduces to the light floor
+> alone — and that floor shares its lever with the interpolant's monotonicity guard, so the two fire
+> together under one change in `k_I`, which is a registered free parameter.
+>
+> **Item 4 is retired**, per the `pr_estab` correction above.
+>
+> **Item 1 stands but must be rebuilt to the five-case taxonomy**, not to the two-regime selector §7
+> describes.
+>
+> **Item 5 is still owed**, and it is now the whole cost of a gradient: `∇(∂Π/∂p)`'s parameter half
+> is differenced, at 22 of 30 marginal-profit evaluations per call, with its conditioning unmeasured.
+> Report 05 §7.3 also shows it is **rank two over the state directions**, exactly, which §6.2 step 5
+> derived and no later document carried forward.
 
 ## 0. What this report is, and how to read it
 
@@ -229,7 +342,7 @@ through two shared objects, both rebuilt once per right-hand-side evaluation:
    depletes it.
 
 Everything else is per-cohort and independent. Concretely, `Patch::compute_rates`
-(`patch.h:575`) does:
+(`patch.h`) does:
 
 ```
 for each species s:  s.compute_rates(env, pr_survival, birth_rate)   # per-cohort work
@@ -295,7 +408,7 @@ This is the long section. It is where the coupling lives.
 ### 4.1 From height to the leaf's inputs
 
 Given `h` and the shared light profile `L`, `net_mass_production_dt`
-(`tf24_strategy.cpp:347`) assembles everything the leaf needs:
+(`tf24_strategy.cpp`) assembles everything the leaf needs:
 
 ```
 a        = area_leaf(h)                                  # cached aux
@@ -397,7 +510,7 @@ turn    = turnover(m_leaf, m_bark, m_sap, m_root)
 P_net   = a_bio · a_y · (assim − resp) − turn            # net mass production
 ```
 
-Now the storage block (`tf24_strategy.cpp:187–252`), which is where develop differs most
+Now the storage block (`tf24_strategy.cpp`), which is where develop differs most
 from older descriptions of TF24:
 
 ```
@@ -671,7 +784,7 @@ The deliverable. Read §8 before relying on it.
 |---|---|
 | `∂c_{k,i}/∂ψ_j` | **diagonal + rank one**: diagonal because `E_i` reads only its own layer's `ψ_i`; rank one because all five layers share the single scalar `p*_k`. |
 | cohort ↔ soil | rank `ode_size()` = 9. The whole population talks to the soil through nine numbers. |
-| cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h:220-223`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed** on develop: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). `../archive/build-plan.md` §2.6 fixes the fractions, at which point the rank is 65 values plus 65 slopes. |
+| cohort ↔ cohort | via the light spline, **and via the boundary node one stage later**. `Species::compute_competition` closes its trapezium on `new_node` (`species.h`), whose density is `log(birth_rate · pr_estab / g)` at the current field — so cohorts also reach each other through the boundary condition, at every stage and not only at introductions. The rank is the knot count, which is **not fixed** on develop: `introduce_new_node` passes `rescale = false`, so the refiner re-chooses the fraction set at each of the 141 introductions and the count runs 33 to 129, mean 58.4 (report 03 §1b). `../archive/build-plan.md` §2.6 fixes the fractions, at which point the rank is 65 values plus 65 slopes. |
 | the trait channel | separable from the state channel, and both are pulled back by the *same* `μ_k`, so adding traits does not add solves. |
 | a trait read **twice**, once per cohort and once by the field | `k_I` is the absorption coefficient in `radiation = k_I · L · PPFD` and the extinction coefficient in `comp(z) = k_I · a · (1 − u^η)²`; `η` is the crown quadrature weight, `η_c`, *and* that same shading kernel. Both contributions are wanted and they arrive in different steps of the reverse pass, so the trait adjoint is a sum over steps as well as over cohorts. |
 

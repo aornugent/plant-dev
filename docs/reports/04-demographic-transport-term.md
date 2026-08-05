@@ -36,6 +36,21 @@ discretisation this design uses instead. Numbers are measured on plant `develop`
 > make. Its scope condition is the durable finding: `d(log dh)/dt` is the compression term of
 > a density in height **only when `g` is a function of height alone**, and that is exactly the
 > condition #590's coordinate change makes irrelevant.
+>
+> **One of the three routes to a zero-width transport interval is closed by algebra.** Height growth
+> is **strictly positive always**, because the positive part of net production is bounded below by
+> half the smoothing scale and the reserve gate is bounded below by `G(0) = 0.2689`. So the
+> `g > 0 ? log(·) : log(0)` branch is dead code and the degenerate interval cannot arise that way.
+> The remaining two routes stand.
+>
+> **And the cost of the term is one solve at the default, not eight.** `node_gradient_richardson`
+> defaults to false, so a one-sided difference reuses the rate already computed and costs **one**
+> extra individual solve per recorded step; Richardson extrapolation at its default depth of four
+> costs **eight**. The birth-date coordinate removes whichever applies. That is a solve count and
+> not a statement about tape size — the two are different quantities and only the first has been
+> counted, so "the work is halved" is not supported for the recording.
+>
+> **§5b's M4 size is still unmeasured**, and it is the one number this report leaves open.
 
 ---
 
@@ -123,7 +138,7 @@ re-blessing this change needs.
 ### 2.3 It is consistent with the boundary condition
 
 The equation closes at the birth size with a flux, `g(x_b) n(x_b) = B(t)`, so
-`n(x_b) = B/g` — which is `log(birth_rate * pr_estab / g)` at `node.h:177`. As a newborn
+`n(x_b) = B/g` — which is `log(birth_rate * pr_estab / g)` at `node.h`. As a newborn
 interval collapses at introduction, `N -> 0` and `n = N/dh -> B/g`. The degenerate interval is
 the limit that recovers the boundary condition, not an edge case to guard.
 Report 01 §3.1 carries the boundary condition's reverse-mode treatment.
@@ -133,9 +148,9 @@ Report 01 §3.1 carries the boundary condition's reverse-mode treatment.
 ## 3. What it costs and what it buys
 
 **It removes about half of every TF24 leaf solve in a production run.** `Node::compute_rates`
-calls `growth_rate_gradient` *after* `individual.compute_rates` (`node.h:132-140`), and
+calls `growth_rate_gradient` *after* `individual.compute_rates` (`node.h`), and
 `growth_rate_given_height` runs a complete `compute_rates` including the hydraulic optimisation
-(`individual.h:138-143`). So every cohort costs **two** leaf solves per Runge-Kutta stage.
+(`individual.h`). So every cohort costs **two** leaf solves per Runge-Kutta stage.
 Against report 02's instrumented count on the pre-`#517` tree: 141 cohorts x 6 stages x 2 829
 steps x 2 is about 4.8 million against **4 372 101** measured, the remainder being the stand
 growing from one cohort to 141. The ratio is structural and holds on any tree.
@@ -311,7 +326,7 @@ an upwind difference takes it from below; in the descending order `Species` stor
 `gradient_fd_backward`, backward in height.
 
 *It is the staggering the field reduction already uses.* `Species::compute_competition` closes its
-descending trapezium on `new_node` (`species.h:220-223`), so the boundary node is already the bottom
+descending trapezium on `new_node` (`species.h`), so the boundary node is already the bottom
 endpoint of the cohort grid. Using it here puts the transport stencil and the field's quadrature on
 one grid with one boundary.
 
@@ -341,7 +356,7 @@ the newborn has grown away from `height_0`.
 
 **But a rate is read at the degenerate configuration, exactly once per introduction.**
 `SCM::run_next_impl` calls `introduce_new_nodes` and then `solver.set_state_from_system()`, which
-seeds `dydt_in` from the stored rates and marks them clean (`ode_solver_internal.hpp:146-152`), and
+seeds `dydt_in` from the stored rates and marks them clean (`ode_solver_internal.hpp`), and
 for the newborn those come from `compute_initial_conditions` at the configuration where its interval
 below has zero width. **That is the same seam as the stale first-same-as-last `k1`**
 (`../archive/build-plan.md` §2.9): one place, at the introduction, where three separate findings meet.
@@ -364,7 +379,7 @@ transpire without being billed.
 ### 7.2 `Species::compute_rates` becomes two passes
 
 Today `Node::compute_rates` computes the individual's rates and then, in the same call,
-`log_density_dt` (`node.h:132-140`). A cohort cannot form `log_density_dt` until its neighbour's
+`log_density_dt` (`node.h`). A cohort cannot form `log_density_dt` until its neighbour's
 growth rate exists, so the loop splits — and the boundary node has to be in the first pass, because
 the lowest cohort differences against it:
 
@@ -430,7 +445,7 @@ That gives the task its order, with each step checkable before the next:
 
 ### 7.4 It is an R-interface change, and two tests are pinned to the old stencil
 
-`Node::growth_rate_gradient` is exposed in `inst/RcppR6_classes.yml:556` for all four model pairs,
+`Node::growth_rate_gradient` is exposed in `inst/RcppR6_classes.yml` for all four model pairs,
 so `plant/agents.md` §3.3 applies: a machine-actionable `NEWS.md` mapping, and a **loud** flag,
 because this is a case where the meaning changes rather than the name.
 
@@ -454,7 +469,7 @@ that reads the *dynamics* rather than the arithmetic.
 ### 7.5 The newborn acquires a neighbour it does not have today
 
 `Node::compute_initial_conditions` computes the boundary node's rates in isolation and reads
-`individual.rate(HEIGHT_INDEX)` for `log_density` (`node.h:164-189`), before the species has
+`individual.rate(HEIGHT_INDEX)` for `log_density` (`node.h`), before the species has
 recomputed anyone. The newborn is the shortest cohort, so it is the bottom boundary and one-sided
 against the cohort above it — a coupling develop does not have.
 

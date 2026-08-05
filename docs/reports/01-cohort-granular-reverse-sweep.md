@@ -29,6 +29,23 @@
 > **What §1 does not anticipate: the cost is not where this report looks.** The decomposition
 > is correct and cheap; the expense is inside the leaf's supplied Jacobian, which §1 treats as
 > a boundary rather than as a cost. `NEXTSTEPS.md` is the live plan.
+>
+> **§4.1 is right about the inputs and wrong about one output, on the tree as built.** Its ruling
+> that `log_density` and `offspring` are **not inputs** is correct and worth keeping — the block
+> never reads the density, which is why density reaches the world one level up. But
+> `log_density_dt` **is** an output: the block emits the strategy's rates, then the density rate,
+> then the per-layer consumption, so the output count is **12** and not 11 — the `+1` in
+> `block_output_size() = state_size() + 1 + n_resources()`. §4.1's input arithmetic is otherwise
+> exact: 6 states, 65 knot values, 65 slopes, 5 soil potentials and 44 traits is **185**, which is
+> its own `141 + n` at the corrected trait count. Report 05 §5 states both vectors.
+>
+> **And §4.1's reason for excluding the density rate no longer applies on the coordinate the
+> gradient runs on.** It excludes it because the rate needs a *neighbour's* growth rate under the
+> cohort-grid stencil. On the birth-date coordinate the density rate is `−mortality` alone, with no
+> stencil and no second solve, so the exclusion's premise is gone — which is why the output belongs
+> inside the block after all. Report 05 §5.1 and §5.2 give the consequence: the field block is rank
+> one on that coordinate and rank at least two on the height coordinate, so the coordinate choice
+> buys the factorisation as well as the solve.
 
 A proposal for obtaining exact trait gradients of SCM outputs at production
 lifetime, addressed to plant maintainers.
@@ -151,7 +168,7 @@ At TF24 production settings the run has:
 |---|---|---|
 | node ODE states | **1 128** | 987 |
 | cohorts | **141** | 141 |
-| states per cohort | **8** = `state_size()` 6 + log-density + offspring (`node.h:79`) | 7 |
+| states per cohort | **8** = `state_size()` 6 + log-density + offspring (`node.h`) | 7 |
 | environment ODE states | **9** | 9 |
 | accepted ODE steps | **5 055** | 2 829 |
 | leaf optimisations | ~8 M (projected: 141 x 6 stages x 5 055 x 2) | **4 372 101** (instrumented) |
@@ -160,7 +177,7 @@ At TF24 production settings the run has:
 | per accepted step | **17.8 ms** | 21.0 ms |
 
 **The right-hand column predates the NSC storage state.** `TF24_Strategy::state_size()` is a
-compile-time `6` on develop (`tf24_strategy.h:125`), so 987 = 141 x 7 can only come from a
+compile-time `6` on develop (`tf24_strategy.h`), so 987 = 141 x 7 can only come from a
 five-state TF24 — the storage pool arrived with `#517` and report 00 §1 records it as new.
 Adding a sixth state with its own dynamics also moved the error control, hence 5 055 accepted
 steps rather than 2 829. The left-hand column was measured this session on develop `141dc8df`
@@ -228,7 +245,7 @@ Two remedy families have been tried and measured, and both are closed:
 ## 3. State at develop
 
 `SCM::run_next()` advances the ODE solver, which calls `Patch::set_ode_state(it,
-time)` at every Runge-Kutta stage. That function (`patch.h:679-702`) is the whole
+time)` at every Runge-Kutta stage. That function (`patch.h`) is the whole
 per-stage computation, in a fixed order:
 
 ```
@@ -262,10 +279,10 @@ Two facts that the decomposition rests on, both read directly from the above:
 
 **`compute_environment` reads the ODE state just loaded, plus one lagged scalar per
 species.** Step 1 refreshes each cohort's auxiliary slots as it loads each state, through
-`update_dependent_aux` (`individual.h:104-110`, `tf24_strategy.cpp:140-147`), and step 5
+`update_dependent_aux` (`individual.h`, `tf24_strategy.cpp`), and step 5
 reads exactly those. It also reads `Species::new_node` — the inflow boundary node — whose
 density is written by step 6 of the *previous* evaluation. `Species::compute_competition`
-(`species.h:196-224`) closes its descending trapezium on the boundary node:
+(`species.h`) closes its descending trapezium on the boundary node:
 
 ```cpp
 if (size() == 1 || f_h1 > 0) {
@@ -277,7 +294,7 @@ if (size() == 1 || f_h1 > 0) {
 That interval is not optional and not a defect: it is the size-density equation's inflow
 boundary, and its width is the gap between the smallest cohort and `height_0`. What is
 lagged is the boundary node's **density**, `exp(log(birth_rate * pr_estab / g))`
-(`node.h:177`), which needs the growth rate at `height_0`, which needs the field. The
+(`node.h`), which needs the growth rate at `height_0`, which needs the field. The
 relation is implicit, and develop resolves it by one stage of Picard: the field at a stage
 uses the boundary density from the stage before.
 
@@ -296,7 +313,7 @@ that closed-form step (c) must include.
 
     g(x_b) n(x_b, t) = B(t)      so      n(x_b) = B / g(x_b)
 
-which is exactly `log(birth_rate * pr_estab / g)` at `node.h:177`. The division is not an
+which is exactly `log(birth_rate * pr_estab / g)` at `node.h`. The division is not an
 artefact: it converts a flux, which is what the ecology measures, into the density the state
 happens to store. Two things follow. The `g -> 0` singularity is **representational** — the code
 writes `log(0)` and then zeroes the rate on a finiteness check, where the ecology has recruits
@@ -511,7 +528,7 @@ The decomposition is valid only if `Individual::compute_rates` is a pure functio
 it carried information from one cohort to the next, re-running one cohort in
 isolation would not reproduce the forward pass.
 
-The risk is concrete. `Individual` holds a `strategy_type_ptr` (`individual.h:179`),
+The risk is concrete. `Individual` holds a `strategy_type_ptr` (`individual.h`),
 a `std::shared_ptr`, so **every cohort of a species writes into the same
 `TF24_Strategy` object.** That object has three mutable members every cohort touches:
 
@@ -532,7 +549,7 @@ it is carried by design:
 The `Leaf` is clean for a specific and slightly fragile reason.
 `net_mass_production_dt` reaches it only through the local lambda `optimise_at`,
 which calls `leaf.set_physiology(...)` **before** `solve_leaf()` on every invocation
-(`tf24_strategy.cpp:401`). `Leaf::set_physiology` re-seats every per-solve field: it
+(`tf24_strategy.cpp`). `Leaf::set_physiology` re-seats every per-solve field: it
 assigns `psi_soil_`, rebuilds `grav_head_z_`, `.assign`s `c_r_V_` and `c_r_H_`,
 resizes `soil_consumption_`, and sets `transpiration_cached_ = false`. And
 `find_root_collar_psi` takes its bracket from `prepare_collar_solve` off the current
@@ -542,17 +559,17 @@ it last.
 
 Two exceptions were found. Both are correct in value today; both are prerequisites:
 
-1. **`photo_temp_cached_`** (`leaf_model.h:250-252`) persists across cohorts and
+1. **`photo_temp_cached_`** (`leaf_model.h`) persists across cohorts and
    across the whole run, keyed on `(leaf_temp_, atm_o2_kpa_)`. The members it caches
    include `vcmax_` and `jmax_`, which depend on `pars.vcmax_25` and `pars.jmax_25` —
    **both declared entries of `TF24_AD_FIELDS`**. The key is a proper subset of the
    cached values' dependencies. This is safe only because those parameters are
    constant within a run.
-2. **`psi_soil_cache_`** (`tf24_environment.h:304-328`) invalidates on
+2. **`psi_soil_cache_`** (`tf24_environment.h`) invalidates on
    `psi_soil_cache_state_[i] != vars.state(i)`, an exact `double` comparison against
    soil state. The AD branch closes the analogous hazard elsewhere with
    `if constexpr (!std::is_same_v<S, double>) cache_stale = true;`
-   (`tf24_environment.h:394-400` on that branch).
+   (`tf24_environment.h` on that branch).
 
 **Conclusion.** The cohort is the right unit, and on develop one cohort's rates are a pure
 function of its boundary **after `../tf24-correctness.md` P0.1 lands** — before that,
@@ -907,13 +924,13 @@ still has to be deliberate.
 
 **C6. The stored trajectory is not sufficient on its own.** Each `Node` carries
 `pr_patch_survival_at_birth`, a plain `double` set at birth, not part of `ode_state`,
-which **divides** the fecundity rate (`node.h:74` states this; the division is at
-`node.h:217`). Omitting it puts the error exclusively in
+which **divides** the fecundity rate (`node.h` states this; the division is at
+`node.h`). Omitting it puts the error exclusively in
 `offspring_produced_survival_weighted`, verified by discriminating prediction on both
 K93 and FF16. It is recoverable deterministically from the schedule and the
 disturbance regime, so no derivative is needed, but the reverse pass must restore it.
 `Species::set_birth_state(times, patch_density, pr_survival)` exists
-(`species.h:132`) and is called by no test.
+(`species.h`) and is called by no test.
 
 **C7. The purity property has no structural defence.** Section 5 establishes it by
 reading the current code. A future warm start in any inner solver would break it

@@ -51,6 +51,55 @@ is light availability, which is what `ResourceSpline` stores.
 > fused value equals `compute_competition` bitwise, and reversing a two-term sum was found to be an
 > invalid test of it — only association matters), and C6b's ground-knot limit.
 
+### Three later corrections, from report 05
+
+> **§1's central claim is discharged, and the plan should stop carrying it as owed.** Its premise is
+> that the vertical light gradient is the one quantity `plant` cannot supply for a crown integral
+> whose domain moves. **It is supplied — structurally, rather than by a call site.**
+> `quadrature::QK::integrate` takes its bounds as the **active** scalar and forms the centre and
+> half-length on it, so every abscissa carries the affine map on the tape; and the Hermite
+> interpolant's read at an active position returns a grafted value-plus-slope. So the full derivative
+> of a crown integral with respect to the crown's top is complete on the tape, and the Leibniz
+> boundary term is absorbed because the rule is **mapped rather than truncated**. Abscissae are
+> strictly interior, so the crown integral touches neither the ground singularity nor the cap.
+> **Nothing on the physiology path needs to call `slope()`.** What remains true is the interface
+> requirement: the value accessor must keep working where the slope accessor refuses, because the
+> field's value is continuous everywhere it is evaluated and only its slope ceases to exist.
+
+> **§1b's normalised coordinate does not exist in the code, and its third consequence is void.** §1b
+> rules that holding the field on `u = z/H_max` turns C1's dropped position channel into ordinary
+> chain-rule terms, `∂/∂z → 1/H_max` and `∂/∂H_max → −z/H_max²`. **Neither term is anywhere in the
+> query path.** `rebuild_spline` lays knots at `knot_fractions_[k] * to_passive(height_max)` and
+> `get_value_at_height` queries at **absolute** height. Since `u_k = k/64` is exact, `x.back()` equals
+> `height_max` bitwise and the rebuild guard is false only while `height_max` is bit-unchanged — so
+> the grid is relaid essentially every stage, and the channel is re-formed and re-dropped every stage,
+> at the 1.891e+01 gap recorded above. The correct statement is that the field is held on an
+> **absolute** grid whose positions are an affine, passive function of an active `height_max`.
+
+> **The light floor and the undershoot guard are one lever, not two independent zeros.** `Q(0) = 1`
+> for every `eta`, so the field's minimum over its whole domain is at the ground knot and equals
+> `exp(−k_I · LAI)`. The `1e-4` floor therefore binds when `k_I · LAI ≥ ln 1e4 = 9.2103`. The
+> undershoot guard is on the **same** lever: at the ground knot the slope is exactly zero for
+> `eta > 1`, so the first span violates monotonicity once the knot values fall far enough — which
+> cannot reach below zero while the ground value is 0.166 and can once it approaches 1e-4. **So both
+> clamps fire together under one parameter change**, and `k_I` is a registered free parameter, so a
+> calibration or an ascent run walks the field into the severed region where the row it is ascending
+> goes to zero. Measured on the one stand this corpus has run: the ground optical depth is 1.7975 at
+> `k_I = 0.5`, so `LAI = 3.595` and the floor binds at `k_I ≥ 2.562` here, or `LAI ≥ 18.42` at this
+> `k_I`. **`eta` is not a lever** — it reshapes the profile and leaves the ground value untouched — so
+> this report's "a denser canopy or a larger `k_I`" is right and any implicit inclusion of crown shape
+> is not. Where either binds the severance is an **artefact and not the model**, since the field is
+> smooth there, so the honest action is to refuse the slope row with its incidence counted rather than
+> to return the clamped zero.
+
+> **And one canopy model reaches the wrong pair, which this report's own correction banner does not
+> name.** That banner resolves `flat-top-box` and `flat-top-soft-box`. **`PPA` routes to
+> `leaf_above_deep`**, so `Q_and_q` hands back the smooth Yokozawa pair while FF16's environment
+> builds a **stepped** profile — the slope of a field the model does not use, which is the same defect
+> the banner corrects for the two box models. And `Q_and_q_dheight` **throws** for `FlatTopSoftBox`,
+> whose forward field builds happily, so that model's transpose cannot run although its
+> `∂q/∂H` is one line.
+
 ---
 
 ## 1. The proposal
@@ -205,7 +254,7 @@ knot positions must be passive and that dropping `d(position)/d(trait)` costs 8.
 coarse 20-knot coupled run. On develop that channel is worse than C1 makes it look, because
 `rescale` is not a one-off adaptive placement: the positions are an affine function of
 `height_max` recomputed **every stage**, and `height_max` is `max` over active cohort heights
-(`patch.h:424`). So the chain
+(`patch.h`). So the chain
 
     tallest cohort's height -> height_max -> all 65 knot positions -> every crown integral
 
@@ -218,16 +267,16 @@ sensitivity arrives as ordinary chain-rule terms in the *query* instead:
 Recorded arithmetic, not a structural approximation.
 
 **`height_max`'s selector remains, and it is smaller than it looks.** `Species::height_max()`
-returns `nodes.front().height()` (`species.h:167`), not a `max` — it relies on the
+returns `nodes.front().height()` (`species.h`), not a `max` — it relies on the
 descending-height invariant, so *within* a species the derivative is 1 for the first node
 unconditionally and there is no tie. The `max`, and the tie, live only in `Patch::height_max`
-across species (`patch.h:424`). A single-species run therefore has no selector at all, and
+across species (`patch.h`). A single-species run therefore has no selector at all, and
 every incidence number in this corpus is single-species. On the normalised coordinate what
 remains sits in the arithmetic rather than in the knot placement.
 
 **The field reduction has a moving lower bound of its own, and it is `height_0`.**
 `Species::compute_competition` closes its descending trapezium on the inflow boundary node at
-`new_node.height()` (`species.h:221`), so the reduction integrates over `[height_0, H_max]`
+`new_node.height()` (`species.h`), so the reduction integrates over `[height_0, H_max]`
 and `height_0` comes from `height_seed`'s root-find — trait-dependent. This report's section 1
 makes the case for a crown integral's moving bound; the same argument applies one level up, to
 the field's own quadrature, and the term is one evaluation of the integrand at `height_0`

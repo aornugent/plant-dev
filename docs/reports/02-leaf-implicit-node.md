@@ -7,7 +7,7 @@
 > | | the correction that matters |
 > |---|---|
 > | **§6.8's input table is incomplete** | 15 inputs, not 12. Two of the missing five are the only multiplicative scale on the root resistance network |
-> | **§6.4's premise is false in the tree** | the vulnerability interpolant's knot **count** moves with the parameter, so four rows are differenced across a discontinuity at 47x, 131x and 10 245x |
+> | ~~**§6.4's premise is false in the tree**~~ | **withdrawn — the grid is captured once and held.** See the correction below; the 47x was never a measurement |
 > | **§6.9's stationarity identity cannot referee `Π_pp`** | it is formed *from* `Π_pp`, so a wrong one cancels. A real 2% defect passed it bit-for-bit unchanged |
 >
 > **And the polish was built, which the first banner below predates.**
@@ -31,6 +31,52 @@
 > production run and the jump across it is exactly `R_d`. `../tf24-correctness.md` P0.5 is
 > the full manifest.
 >
+### Four later corrections, from reports 05 and 06
+
+> **§6.4's knot-count defect does not exist, and the banner row above is withdrawn.** The claim was
+> that the vulnerability interpolant's knot **count** steps by one under a relative perturbation of
+> `1e-6` in `b` or `c`, so four rows are differenced across a discontinuity. **The grid is captured
+> once, before any perturbation, and held.** Both `input_adjoints` and `bound_partials` build the
+> cumulative integral first to capture the abscissae, and every perturbation afterwards re-evaluates
+> the knot **values** at the perturbed parameter on the caller's fixed grid; the setup functions are
+> reached from the constructors only, so no grid is rebuilt after construction at all. Measured, the
+> held grid reproduces the closed form to 5.1e-9 and differs from a moving grid by at most 8 percent.
+> **The 47x, 131x and 10 245x were the justification comment above the guard, not a measurement of
+> the hazard** — the fourth time this project has read a comment as evidence of the behaviour it
+> warns about. What survives is a cost item: the derivative used downstream is the spline's, not the
+> closed form, and report 05 §7.6 gives the closed forms that remove the table.
+
+> **§6.3's waist is exact rather than fitted, and its conditioning is worse than the invariant can
+> see.** The rank-two factorisation of `∂R/∂u` over the `2n+1` state directions is a **chain rule
+> through a two-dimensional intermediate**, not an empirical fit: `R` reads the potentials, the root
+> masses and leaf area only through total uptake and through uptake's sensitivity to root mass. So it
+> is an identity. The residual is 8.3e-9 to 2.6e-8; the earlier 2.6e-04 was the fitting procedure's
+> own noise. But the `n` potential-family vectors are numerically **collinear** — second singular
+> value 1.3e-5 of the first — which is simultaneously why one direction suffices to recover `a` given
+> `b`, and why **any error in `b` is absorbed into `a` at a ratio of about 1e5.** A joint residual
+> cannot detect that, because a compensating pair fits every potential row equally well, so §6.3's
+> third invariant checks `a` at fixed `b` and **not the pair**. Since the uniform drying direction is
+> a near-symmetry whose true response is a one-percent residue amplified 15 to 26 times, a
+> one-percent error in `b` is a 15 to 26 times error in the quantity of interest: **`b` is
+> unvalidated for the direction it matters in.** And `Leaf::translation_partials` — which computes the
+> symmetry-breaking term directly, as report 00's fact 2 requires — is in the tree and **unused**, so
+> the cancellation is performed by subtraction in the caller.
+
+> **The `Π_pp` measurement below cannot falsify a fold.** It differences about **the solved operating
+> point**, where the second-order necessary condition already forces `Π_pp ≤ 0`, so the sample is
+> conditioned on its own conclusion — structurally the same defect as §6.9's stationarity identity
+> being formed from the quantity it referees. A difference of a concave gain and an S-shaped
+> hydraulic cost generically has positive curvature on the dry flank once the cost's inflexion enters
+> the feasible span, and drying moves the span onto that flank. The sweep that settles it runs `p`
+> across the whole feasible interval at dry states.
+
+> **The selector cannot be a comparison on `|∂Π/∂p|`.** The marginal-profit function returns a hard
+> sentinel zero in a no-flow or infeasible state, which a residual test cannot distinguish from
+> stationarity — so such a state is recorded as interior with `Π_pp = 0` by the same sentinel, and the
+> multiplier divides by an exact zero. Two branches are also too few: report 05 §7.0 gives five kinds
+> of point, `CURRENTSTATE.md` §3 maps the fourteen terminations onto them, and two of the fourteen are
+> the solver failing to move rather than any plant.
+
 > **`Π_pp` is measured** (`scripts/curvature_probe.R`): negative at 52 of 52 states over
 > the argmax's whole feasible domain, `|Π_pp|` from 0.1723 to 15.61, so the single divide
 > in §6.2 amplifies a flux adjoint by at most 5.8×. The same sweep finds 15 of those 52
