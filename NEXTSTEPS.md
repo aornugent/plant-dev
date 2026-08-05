@@ -272,6 +272,121 @@ extremes behind `PLANT_COLLAR_CENSUS`, and nothing reads it.
 
 ---
 
+## 3c. Refusal: the ruling
+
+**Decided by the architect, 2026-08-04.** The six taxonomies each conclude that some cases admit no
+derivative and the only correct act is to refuse. The tree's only refusal mechanism is `util::stop`,
+which aborts the whole gradient, and **there is no finiteness test anywhere between a cohort block
+and the trait accumulator** — the three in `patch.h` are all on forward state. So this had to be
+ruled on before any of the per-case work can be commissioned.
+
+### The composition result, which settles the policy independently of any mechanism
+
+A trait's adjoint is a sum over every cohort, every stage and every step —
+`trait_adjoint[trait_at + p] += ws.in_adjoint[at++]` at `patch.h:1582`, plus `patch.h:1684` per
+introduction. **If one term is undefined the sum is undefined, and it cannot be localised.** Three
+obstructions, each sufficient:
+
+1. **The accumulator has no provenance.** `trait_adjoint` is cleared once per metric (`scm.h:700`)
+   and read once after the whole sweep (`scm.h:713`); between them are of order 355 000 `+=`
+   operations per column. A refused term cannot be subtracted back out.
+2. **The refusal is not local to the term containing it.** A cohort's seeds come from `lambda_in`,
+   which came from later steps' sweeps, which read every cohort through the light knots and the soil
+   rows. So a refusal at one cohort, one stage, one step contaminates **everything swept after it**.
+   The coupling is total.
+3. **A stage cannot be separated from its step.** The six stage adjoints compose into one fixed
+   linear combination; dropping one does not give the adjoint of a five-stage method, it gives the
+   adjoint of nothing.
+
+**Two tempting answers are refused.** *Summing the defined terms* is a claim about a model in which
+the parts of the trajectory where the derivative failed did not happen — and it is the failure
+`patch.h:200-205` already warns about in this exact shape: dropping the newcomers' rows "narrows the
+width just as well and returns a gradient that is finite, correctly signed and wrong". *One-sided
+derivatives* work where the two-sided derivative already exists — the storage flat spot,
+`pr_estab`'s C¹ join — which are not refusals; at a genuine fold the one-sided limits **diverge**,
+so there is no one-sided number.
+
+**What separation does exist is the metric axis and nothing finer.** The trait accumulator is a
+**sink** — two writes, one read, verified — so contamination flows into columns from the sweep and
+never between them. But every column is a contraction against the same contaminated `lambda_state`
+and `lambda_knot`, and every leaf parameter is handed the same input block, so **no trait column is
+independent of a refusal.** The three census metrics are three independent sweeps with a clear
+between them, so a refusal in one says nothing about another. **That is a factor of three, not a
+factor of 355 000.**
+
+> **Ruling 1. A refusal anywhere in a metric's sweep makes that metric's entire gradient undefined.
+> Refuse the metric. Never return a poisoned column, and never return a column with a caveat
+> attached.** This holds regardless of which mechanism is built and needs no measurement.
+
+### Mechanism: attribution first, selectivity only when the rate is known
+
+> **Ruling 2. Build a throw with attribution. Do not build a status flag on the accumulator yet.**
+
+The analysis recommended row-selective refusal plus a refusal counter on `Patch`, and then made the
+argument against itself that I find decisive. A counter beside `trait_adjoint` is a public member
+whose consistency is maintained **by convention** across five call sites and two widening paths, and
+`scm.h:713` reads `trait_adjoint` directly, so nothing prevents a future caller from ignoring it.
+The moment one does, the mechanism degrades into a finite, plausible, correctly-signed, wrong
+gradient — **the failure this project has now recorded seven times in comments asserting behaviour
+the code lacks.** A throw cannot fail that way. And a rate reduction cannot be priced before the rate
+is measured: under the drought evidence of Section 3b, refusal may fire on a third of leaf solves,
+in which case selectivity buys nothing and the machinery is dead weight in the hottest loop in the
+codebase.
+
+**What the throw must carry**, in the house style already set by `patch.h:663-687`: the species, the
+node index, the stage, the step time, and the **name of the case** from the taxonomy. All of those
+are in scope at `cohort_block_adjoint`, so no signature changes and no accumulator invariant.
+
+> **Ruling 3. Row-selectivity is not an alternative to whole-metric refusal. It is what reduces how
+> often refusal fires.** Reading them as competitors is the error most available here. Selectivity is
+> cheap where the taxonomies demand it — `graft_leaf_outputs` calls `input_adjoints` **once per
+> output row**, so the row identity *is* the call and needs no new argument — but it is a rate
+> reduction and it is scheduled after the rate is measured.
+
+### Two items that are not refusal mechanism, and go first
+
+> **Ruling 4. Give the removable windows their limits.** The equal-potentials and gravity-balance
+> windows are removable — the first is the l'Hôpital limit of `span/integral`, continuous in value;
+> the second has a numerator that vanishes while its derivative does not. Supplying those limits
+> **removes two of the twelve refusal cases by making the derivative exist.** Pure gain, no policy
+> content, and it shrinks the problem before any mechanism is chosen.
+
+> **Ruling 5. Add the finiteness tripwire between the block and the accumulator.** Not as a refusal
+> mechanism — as a tripwire. Today a NaN produced in `layer_flux_partials` reaches
+> `trait_adjoint[...] += NaN` with **nothing in between**, and once there it poisons that column for
+> the rest of the sweep, permanently and invisibly. One layer within `1e-8` of the collar does this
+> to every potential row, every root-mass row, the area row and the argmax multiplier. This is
+> independent of every other ruling here and it is cheap.
+
+> **WARNING: do not thread a status through `ode_rates_adjoint`, and this is the sharpest hazard in
+> the whole chain.** `odelia`'s `AdjointRates` concept requires
+> `{ s.ode_rates_adjoint(in, out) } -> std::same_as<decltype(out)>`
+> (`ode_interface.hpp:63-73`), and `Step::step_adjoint` selects on
+> `if constexpr (AdjointRates<System>)` (`ode_step.hpp:270`). **A changed signature there does not
+> fail to compile — it makes the concept unsatisfied and silently takes the other branch, so the
+> gradient changes method with no error.** Verified.
+>
+> **No odelia change is needed and none should be made.** A status that is only ever *accumulated*
+> travels around odelia on the `Patch` object, exactly as `trait_adjoint` already does — accumulated
+> deep inside odelia's sweep and read by `SCM` afterwards, with odelia knowing nothing about it. A
+> status that must **divert control flow mid-sweep** is `cross-package` and `breaking`, and walks
+> into the trap above. That distinction is the whole cost question.
+
+### What must be measured before Ruling 2 is revisited
+
+The refusal rate, and nothing else decides it. In this order, because each makes the next
+interpretable: the branch census on a **real rainfall sequence** on the birth-date coordinate,
+covering all thirteen classes **and the fourteenth** — the sentinel inside `COLLAR_INTERIOR`, which
+has no counter and is today counted as the healthy path; then `COLLAR_BOUND_CURVATURE`'s incidence,
+which Section 7.0 calls the single number the whole `Pi_pp` question turns on; then the distribution
+of the amplification `|m| = |s|/|Pi_pp|` against report 00's benign 5.8 times, without which "refuse
+above a declared ceiling" has no declarable ceiling. `collar_census.h` already counts per class
+behind an environment variable and nothing reads it — **it is the right instrument to measure the
+rate and the wrong one to decide the refusal**, because it is off by default, process-global, and
+reports at destruction, after the wrong number has reached R.
+
+---
+
 ## 4. The measurements that set the order
 
 Each number below is measured. Section 11 gives the values that are calculated
