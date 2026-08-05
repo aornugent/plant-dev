@@ -579,3 +579,82 @@ The largest current risk is not any single defect in report 05's table. It is th
 **every defect in that table produces a finite, plausible number** — wrong signs, wrong
 magnitudes, silent zeros — and none of them produces an error. An ecologist reading the
 output has no way to tell.
+
+---
+
+## 10. The domain, stated — which is section 9's third condition, discharged
+
+Section 9 asks for three things and calls the third **a stated domain**: which coordinate, which
+traits have rows, which states are refused, and what the known biases are. That was unbuildable when
+section 9 was written, because it is a product of six separate accounts — the leaf's operating point,
+the light field, the soil water state, one cohort's dynamics, the solver's adjoint, and the census
+boundary. All six now exist, in report 05 sections 7.0, 6.1b, 6.2b, 5.1b, 4.0b and 9.0b. **This is
+them multiplied.**
+
+**Read this as the text that must accompany any number this machinery produces.** It is not a defect
+list; the defects are the plan's business. It is what the answer is *about*.
+
+### The coordinate
+
+**The birth-date coordinate only.** The gradient refuses the height coordinate at every entry point,
+and it must, because on the height coordinate the reductions transpose one coordinate while the
+forward model integrates the other and the result is finite, plausible and wrong. Two consequences an
+ecologist should know: the two coordinates are **different functions**, not two discretisations —
+`d(leaf_area)/d(lma)` differs by a quarter and `d(mass_above_ground)/d(lma)` **changes sign** — and on
+the birth-date coordinate the introduction schedule *is* the quadrature grid, so refining the
+schedule changes the abscissa the resource integrals are taken over.
+
+### Which traits have rows
+
+| | traits | status |
+|---|---|---|
+| **complete** | most of the 44 registered parameters, through the recorded cohort step | the gradient is theirs |
+| **short, and by a measured amount** | `k_I` — **live but 3.041 percent low**, missing the field-build half of its own definition | a finite number that is wrong in a stated direction: more `k_I` shades neighbours more, so the missing channel is negative and the row is too large |
+| **short, unmeasured** | `a_l1`, `a_l2`, and `eta` once it is registered — the reduction's contribution is dropped | same shape as `k_I`, size unknown |
+| **exactly zero by construction, undeclared** | `omega`, `lma`, `a_l1`, `a_l2`, `rho`, `theta`, `a_r1`, `a_b1` **through birth size** — the seed height is found by iteration and carried as a passive value | a real channel, imposed to zero. Worth about 3 percent for `lma` |
+| **absent — no row anywhere, ever** | `root_psi_crit`; every soil parameter (`K_sat`, `a_psi`, `n_psi`, and the saturation, residual and ceiling constants — **times the layer count** if per-layer vectors are used); `root_depth_shape_eta`; `beta_R_H`, `beta_R_V` | **"What if the soil were sandier" cannot be asked.** Nor can the vertical structure of the root coupling |
+| **refused by name** | eleven registered-looking parameters that reach no equation, and `p_50`, which the model reads once at construction | correct behaviour: a refusal, not a zero |
+| **over-parameterised** | the vulnerability curves carry three registered numbers per organ for a two-degree-of-freedom curve | the third answers a counterfactual no plant can be subjected to |
+
+### Which states are refused, and which are silently answered instead
+
+The gradient is valid at an **interior stationary optimum** and at a **genuine bound**, where the
+answer is a Lagrangian rather than a free envelope. It is **not** valid, and today is not refused, at:
+a rejected Newton step or a non-concave point (neither is a plant — the solver failing to move); a
+non-finite residual; the **fourteenth case**, a sentinel zero recorded as a converged optimum, where
+the curvature is exactly zero and the argmax multiplier divides by it; the four shutdown and
+zero-transpiration substitutions, which solve no optimisation at all; a collapsed feasibility window;
+and the acclimating variant, whose operating point is a tracked state rather than an argmax.
+
+**Refusal is metric-level.** A refusal anywhere in one census metric's sweep makes that metric's
+entire gradient undefined — the sum has no defined value with an undefined term, and no localisation
+is available. The three metrics are independent.
+
+### The biases, and their sizes where known
+
+- **Mean-light averaging.** One physiology at the crown's mean light. It is nearly exact for an
+  emergent and nearly exact for a fully suppressed plant, and it misrepresents the **mid-canopy and
+  gap-edge** stems whose leaf shell straddles the canopy below them — the cohort whose fate decides
+  whether a stem escapes or dies suppressed. Direction certain, per-plant size unmeasured. The mode
+  that would measure it has no derivative.
+- **Birth size.** Imposed to zero; about 3 percent for `lma`.
+- **`k_I`.** 3.041 percent, direction known.
+- **The dominant's height.** The knot positions are passive, so the plant that sets every other
+  plant's light has a height adjoint short by a term measured at about 87 percent of that adjoint —
+  though whether it shrinks with knot density has never been checked.
+- **What no measurement covers at all.** **No plant in this corpus has ever been run in shade**
+  (ground-level transmittance median 0.9997 — an open woodland) or in drought (soil potential never
+  above 0.17 MPa). Every incidence figure quoted anywhere is a property of that one driver.
+
+### And the sentence that matters most, about drought
+
+An ecologist asking about drought is asking about a **response**: what changes when the water runs
+out. What this machinery computes in a drying stand is a derivative **holding the active set fixed** —
+the bound active, the reserves frozen, the clamp engaged. That is a legitimate object, a one-sided
+directional derivative on one stratum of a piecewise-smooth map, and it is a usable local trait
+sensitivity *within* that stratum.
+
+**But the drought response is precisely the stratum change.** So the composed drought gradient is
+valid and it is the wrong instrument for the question, and the failure is one of **domain, not of
+correctness**. The honest interface emits it **with its active set attached** — which is what the
+selector amounts to, generalised across all six components.

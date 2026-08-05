@@ -412,6 +412,68 @@ reports at destruction, after the wrong number has reached R.
 
 ---
 
+## 3d. The composed order, and what is jointly unreachable
+
+**The six taxonomies each proposed a fix order and they are not mutually consistent.** Composing
+them along a single drydown settles the sequence and, as valuable, strikes work that cannot be
+reached.
+
+### The ordering conflict Section 3b created, and its resolution
+
+Section 3b rules that no incidence zero counts as evidence until the branch census is re-taken on a
+real rainfall sequence. **But class membership depends on the forward defects the other taxonomies
+want fixed.** The dead bracket clamp decides which bound a pin lands on; the soil's potential cap
+moves the potentials, which moves the critical-potential root-find, which moves the bracket *and*
+the shutdown test; the frozen-reserve region moves height trajectories, and height is half the pin's
+condition. **So a census taken now measures a distribution the fixes will move.**
+
+**Resolution: take it twice.** Once now as a baseline, once after the forward fixes, and treat only
+the second as evidence. The instrument is cheap; the trap is treating the first run as the answer.
+
+### The order
+
+1. **Fix the bracket's sign.** `bound_b = std::max(-root_crit, -root_psi_crit)` can never select the
+   second term, so the clamp never fires and the search probes past the root vulnerability grid. One
+   line, and **three other tasks' correctness depends on it** — a correct pinned row evaluated past
+   the grid is a correct derivative of the extrapolated wrong-way flux, so building the selector
+   first would validate the new branch and lock the poisoning in.
+2. **Task 0b, the finiteness guard**, raised from prudence to necessity: a single-layer plant at the
+   lower bracket bound satisfies the gravity-balance refusal *identically*, so without the guard it
+   writes NaN to the tape deterministically.
+3. **The soil's potential cap, as a forward defect.** It is the **only** fix that is safe in
+   isolation — the cap fires three orders of magnitude outside the leaf's whole operating range, so
+   removing it cannot move a leaf class. It removes the one-way subsidy.
+4. **The frozen-reserve region, as a forward defect.** A stepper artefact, and its incidence is an
+   identity with the negative-production fraction on any driver.
+5. **Baseline and post-fix censuses** on a real rainfall sequence, on the birth-date coordinate,
+   covering all thirteen classes **and the fourteenth** — the sentinel inside `COLLAR_INTERIOR`,
+   which has no counter and is today counted as the healthy path.
+6. **Section 7.0's decision-tree selector**, now that the classes it branches on are stable.
+7. **The transposes** — the coordinate mismatches, before anything is added to them.
+8. **The parameter accumulators**, last, per the rule that a transpose must match its forward
+   function before rows are added to it.
+
+### Jointly unreachable, so do not build it
+
+| combination | why |
+|---|---|
+| the soil's potential cap **and** any leaf case, on the same layer | the cap needs 1000 MPa; the stem's critical potential is 7.085. A factor of 141. Reachable only as a **stand-level** composition: a capped deep layer beside a wet layer 0 |
+| the light floor **and** any drought state | the floor is two orders darker than the darkest measured forest floor on Earth, and drought *reduces* leaf area index, so drying moves the light field **away** from its interesting cases |
+| the first-span undershoot **and** drought | same lever as the floor; both clamps fire together under one parameter change, and neither fires under drying |
+| the outer light clamp under the default shading model | dead by construction: the crown mean of floored values is at least the floor |
+| the bracket's root-ceiling early return | **dead code** — see item 1 |
+| a pin at a bound **and** the shade route to a feasible non-optimum, **in one plant** | the pin needs full-light emergent geometry; the shade route needs negative maximum assimilation. Simultaneous **across a stand**, never within a plant |
+| frozen reserves **and** positive production | measure-zero: release is immediate |
+| leaf shutdown **and** a live uptake adjoint channel | shutdown zeroes the consumption vector, so the soil transpose skips that resource. The channel is **absent, not wrong** |
+
+**And one correction to how the taxonomies are indexed, which is why they could not be composed by
+inspection.** They are not indexed by the same variable: the leaf's cases by soil potential **and**
+height jointly, the soil's by per-layer moisture, the cohort's by the sign of production, and the
+light field's by a **parameter product**. Only one light regime is drought-coupled at all, and it
+couples through the plant's response to shade rather than through the field's own regime.
+
+---
+
 ## 4. The measurements that set the order
 
 Each number below is measured. Section 11 gives the values that are calculated

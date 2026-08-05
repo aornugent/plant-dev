@@ -204,6 +204,49 @@ sizes rather than recompute them.
 contributions, and (4.1) is the only place they enter. In the code that accumulator is
 `Patch::trait_adjoint`.
 
+### 4.0b The solver's adjoint is fifteen terminations and six objects
+
+Companion to sections 7.0, 6.1b, 6.2b and 5.1b, completing the set. Six objects: **the step
+transpose** (an accepted step, a rejected step, and the first-same-as-last stage — the last is a
+cost case and not a mathematical one); **the widening boundary**; **the unswept prefix and the
+discarded residual**; **explicit refusal**; **silent zeros**; and **silent bias**.
+
+**What the code gets right, and it is most of it.** A rejected step is correctly excluded — the
+reject branch restores the state and time and calls neither `record_ode_step` nor
+`save_dydt_out_as_in`, so neither the trajectory nor the first-same-as-last carry is poisoned.
+Stage 0 is re-derived at this step's own start state rather than inherited, at the cost of one
+evaluation. $c_2 = c_5 = 0$ in Cash-Karp, so two stage accumulators correctly start at zero. A
+narrowing segment, a `rodas` method, a missing recording and a non-range segment are all **explicit
+refusals**.
+
+> **Gap: an empty segment list returns exact zeros for every metric and nothing is thrown.** The
+> loop is `for (j = boundary.size(); j-- > 0;)`, so with no width change anywhere it never runs,
+> `solve_adjoint` is never called, and `ret.push_back(live.trait_adjoint)` returns the freshly
+> cleared accumulator. The only guard is on `states.size() < 2`. **At the R boundary that is
+> indistinguishable from a genuinely insensitive stand** — the failure report 06 section 9 names as
+> the largest risk, in its purest form.
+
+> **Gap: a mutant run is silently biased rather than refused.** `compute_environment` returns early
+> on `is_mutant_run`, so no boundary node and no field build; `light_knot_adjoint` returns
+> immediately. The rows are finite and the light channel of $\bar\varphi$ is simply missing. Note
+> the *object* is legitimate and different — invasion fitness at a fixed resident environment is the
+> selection gradient of adaptive dynamics, not this document's full-feedback derivative — but nothing
+> says which one is being returned.
+
+> **Gap: two introductions with no accepted step between them are recorded as one.** Both newcomers
+> carry the same unchanged environment time, so `nodes_introduced_at` collects both and
+> `introduction_adjoint` records a single simultaneous introduction — while the forward ran two
+> `introduce_new_nodes` calls, each with its own field build and rate evaluation. The same species
+> introduced twice at one time is a **hard stop** instead, on a length check.
+
+> **Gap: a fixed-step Euler run is refused with the wrong message.** `step_euler` never calls
+> `record_ode_step`, so the step-size list grows while the trajectory does not, and the refusal comes
+> from a length check that names neither Euler nor recording.
+
+**The zero-width newborn interval is consistent with the forward, and on this coordinate that is by
+construction.** `set_new_node_birth_date(environment.time)` puts the boundary node on the newcomer's
+abscissa at every introduction, which is exactly the configuration `introduction_adjoint` records at.
+
 ### 4.1 Introductions: the state changes dimension
 
 Let the run have widths $d_1 < d_2 < \dots < d_B$ over $B$ segments, with an
@@ -1363,6 +1406,35 @@ reads $\theta$ and $a_{b1}$ through sapwood and bark.
 > (`patch.h:1626-1636`) and assign them back inside the recorded lambda **before** the state
 > (`patch.h:1650-1655`, whose ordering comment — `area_leaf(height)` reads `lma` — applies
 > verbatim). The extra columns then land beside the trajectory term at `scm.h:713`.
+
+### 9.0b The census boundary is five objects, and one of them is the R-side naming
+
+The three metric functors are **one object** — a per-cohort read of state and strategy, differing
+only in support. Beside them: the seed; the absent direct term; the recording and slot discipline of
+section 9.1; and the naming at the R boundary.
+
+> **Gap: a two-species stand silently returns species 1's columns twice.**
+> `census_trait_names_tf24` concatenates each species' `ad_parameter_names()` **with no species
+> prefix**, so a two-species run yields 88 columns with all 44 names duplicated. Character indexing
+> of a matrix with duplicated `dimnames` resolves each name to its **first** match, so
+> `gradient[metrics, traits]` returns species 1's column for every named trait and the unknown-trait
+> validation cannot see it. Every gate in the tree adds exactly one strategy, which is why nothing
+> catches it.
+
+**A zero and an absence are different at this boundary, and only one is handled.** An unknown trait
+is **correctly refused** by name. A trait that is registered but reaches nothing comes back as a
+number: three rows return at $10^{-18}$ to $10^{-22}$ — round-off, which the reference itself labels
+"no response" — and the R surface reports them as gradient entries. In this code an exact `0.0` is
+the signature of a missing accumulator, never of true insensitivity, so **a zero needs a mark and an
+absence needs a refusal.**
+
+**And section 8 names two mechanisms where three exist, only two of which are live.**
+`HermiteInterpolator::graft` is the same supplied-derivative construction with the value and the
+slope **active** — which violates section 8's precondition 1 as stated, deliberately and correctly,
+because property 1 survives on the *bracket* being zero in value rather than on the value being
+passive. **The right precondition is about the bracket.** That mechanism is live and on the census's
+path through the light field. `odelia::ode::supplied_derivative` is used **nowhere in plant**, so the
+three consequences section 8 draws from it describe a facility not in play.
 
 ### 9.1 Several functionals share one recording
 
