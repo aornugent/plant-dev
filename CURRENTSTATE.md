@@ -472,6 +472,14 @@ $k_I\,\mathrm{LAI} \ge \ln 10^4 = 9.2103$.
 to seven times the baseline of 0.5. Configuration `scripts/measure/kI-lai-invariance.R`, lifetime
 30, `lma = 0.0825`, `add_strategies` route, against the certified pairing:
 
+> **Caveat on this configuration, added after the fact.** It sets `lma` and leaves `hmat` at its
+> default, which produces about **3 offspring** where the reference configuration produces 445. The
+> leaf-area index it reports is plausible, but the stand is far sparser than the reference. **The
+> sweep should be re-taken at `hmat = 5`** before the crossing point is quoted as a property of the
+> model rather than of this fixture. The qualitative finding — that the product rises close to
+> proportionally with $k_I$ and does reach the floor — is unlikely to reverse, because it is driven
+> by the arithmetic of the exponential and not by stand density.
+
 | $k_I$ | $k_I\,\mathrm{LAI}$ | implied LAI | |
 |---|---|---|---|
 | 0.5 | 1.8498 | 3.6995 | |
@@ -679,7 +687,9 @@ not a measurement.**
 | what it establishes | figure | configuration |
 |---|---|---|
 | the two coordinates are different functions | `d(leaf_area)/d(lma)` differs by a quarter; `d(mass_above_ground)/d(lma)` **changes sign** | birth-date against height, same stand |
-| the mean-light bias, and its demographic amplification | lifetime offspring 8.276245764 against 2.483491938 for `deep-crown` — **3.33×, +233 percent** | `max_patch_lifetime = 20`, one trait, one species. **Not production.** `deep-crown` took 2 682 s even at lifetime 20, and the ratio may not be lifetime-invariant |
+| ~~the mean-light bias, and its demographic amplification~~ **— superseded below** | lifetime offspring 8.276245764 against 2.483491938 for `deep-crown` — 3.33x | `max_patch_lifetime = 20`, one trait, one species. **Not production**, and the ratio does not carry to the reference configuration |
+| the mean-light bias at the reference configuration | offspring **445.37** mean-light, **369.31** deep-crown, **537.95** crown-centre — **ratio 1.206**, crown-centre over deep-crown 1.457 | `lma = 0.0825`, `hmat = 5`, lifetime 20, birth rate 20, 5 layers; 11 s, 143 s, 8 s |
+| the **per-plant** carbon bias, which this register said was unmeasured | profit ratio, mean-light over deep-crown, against focal height in a 20 m canopy at 6 m2/m2: **1.0000** from 0.5 to 12 m, 1.0020 at 16 m, 1.0376 at 18 m, **1.2829 at 20 m**, 1.2745 at 21 m, 1.0347 at 25 m, 1.0038 at 30 m | leaf submodel aggregated over a crown as the production path does, k_I*LAI = 3 |
 | which plants the averaging misrepresents | at $\eta = 12$, $\tilde Q(u) = (1-u^{12})^2$: **86.7 percent** of crown leaf area in the top 20 percent of height, **99.95 percent** above $0.5H$ | arithmetic from the shape function |
 | the transport closed forms are sound | agree with an independent high-precision integral and with central differences of it to better than **1e-23** | $c \in [0.4, 12]$, $m/b \in [0.075, 8]$ — the best-established derivation in the corpus |
 | the waist is ill-conditioned in the direction the ecology cares about | second singular value **1.3e-5** of the first; drying response amplified **15 to 26×**; $b$ validated only to 1.04 percent and 0.16 percent against a noisy joint fit | report 02 §6.3, five states |
@@ -776,8 +786,34 @@ failed reproduction.
 
 - **No plant in this corpus has ever been run in shade.** Ground-level transmittance median 0.9997 —
   an open woodland.
-- **Or in drought.** Soil potential never drier than 0.170 MPa, which *is* the initial state.
-- So **every incidence figure above is a property of that one driver**, and the five operating-point
+- **The drought claim is REFUTED, and the refutation is measured.** This register said soil potential
+  is never drier than 0.170 MPa, which *is* the initial condition — correctly identified, and the
+  claim built on it is false. **The model dries well past it under its own dynamics.** At the
+  reference configuration — `lma = 0.0825`, `hmat = 5`, birth rate 20, lifetime 20, this pairing —
+  the mature stand settles at:
+
+  | layer | 1 | 2 | 3 | 4 | 5 |
+  |---|---|---|---|---|---|
+  | $\theta$ | 0.1545 | 0.1429 | 0.1429 | 0.1429 | 0.1429 |
+  | $\psi$ (MPa) | 1.4355 | 2.4060 | 2.4065 | 2.4055 | 2.4062 |
+
+  Reported independently as reaching 2.46 MPa and settling at 1.38 to 2.37, with 4.54 MPa at half
+  rainfall and 5.21 MPa at a twentieth. **Reproduced here to 0.04 percent on offspring** — 445.57
+  against 445.37 — so it is the same configuration on the same tree.
+
+  **The consequence outruns the correction.** The leaf's optimum stops being interior at about
+  1.34 MPa, so **the mature stand's own equilibrium sits past the transition this corpus treated as
+  unvisited.** The five kinds of operating point are not segments of a drydown the driver never
+  performs. The driver performs it.
+
+  **Two failed refutations of this were mine, and both failed the same way.** I measured the soil at
+  birth rate 1 and at birth rate 20, read 0.029 to 0.034 MPa — wetter than the initial state — and
+  nearly recorded the finding as not reproducing. Both runs left `hmat` at its default and produced
+  **2.98 offspring against 445**. An almost-empty stand does not transpire, so the probe could not
+  have dried the soil whatever the model does. **Offspring production is the tell: check it before
+  trusting any soil reading.**
+- So **an incidence figure is a property of the driver it was taken on** — but "the axis never moved"
+  is now specific to **light**, and is no longer true of water. The five operating-point
   cases are consecutive segments of a drydown the driver never performs.
 
 ### Open checks, cheapest first

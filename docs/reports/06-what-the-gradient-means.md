@@ -175,24 +175,48 @@ percent of its height, and 99.95 percent above half its height. The crown is nea
 averaging is nearly exact for an emergent, whose whole leaf shell is in full sun, **and** nearly
 exact for a fully suppressed plant, whose shell sits in one nearly uniform understorey light.
 
-**The plants it misrepresents are the mid-canopy and gap-edge individuals**, whose leaf shell
-straddles the top of the canopy below them. That is exactly the cohort whose fate decides whether a
-stem reaches the canopy or dies suppressed, and the bias runs in the direction that matters:
-averaging overestimates carbon, hence growth, hence height, hence escape.
+**The plants it misrepresents are the ones just reaching the canopy top**, and the per-plant bias has
+now been measured. Aggregating the leaf submodel over a crown exactly as the production path does, in
+a 20 m canopy carrying 6 m² of leaf per m²:
 
-**What has been measured is a demographic amplification, not the carbon bias.** Mean light gives
-lifetime offspring production 3.33 times the deep-crown mode's — 8.28 against 2.48 — at a patch
-lifetime of 20, one trait, one species. But offspring is a strongly non-linear functional of carbon:
-it passes the establishment gate and then compounds for twenty years. So **3.33 is a stand-level
-demographic amplification of a per-plant carbon bias that has never been measured**, at a
-configuration that is not production, and the ratio may not be lifetime-invariant.
+| focal height | mean crown light | profit ratio, mean-light over deep-crown |
+|---|---|---|
+| 0.5 to 12 m | 0.0498–0.0500 | **1.0000** |
+| 16 m | 0.0572 | 1.0020 |
+| 18 m | 0.0898 | 1.0376 |
+| **20 m** | 0.3166 | **1.2829** |
+| 21 m | 0.5434 | 1.2745 |
+| 25 m | 0.9332 | 1.0347 |
+| 30 m | 0.9922 | 1.0038 |
 
-**So the honest disclosure is not "the objective is biased by 3.33 times".** It is that the
-sensitivities are taken about an operating point that overestimates carbon for mid-canopy stems, by
-an amount nobody has measured per plant — and **the only mode that would measure it has no
-derivative**, so the gradient is available only under the averaging assumption. That is a scope
-limit on the question rather than on the arithmetic, and it is measurable *forward*, at a handful of
-states, which is affordable and has not been done.
+**The bias is confined to a narrow band at the canopy top, and the reason is this section's own
+observation about crown shape applied twice.** Because $\tilde Q$ is near 1 below four-fifths of
+relative height, the light profile is nearly flat through the bottom three-fifths of the canopy — the
+field is 0.0498 at the ground and 0.0504 at three-fifths of canopy height. **A plant is misrepresented
+only where its own leaf band overlaps the canopy's gradient band**: its leaf sits in the top fifth of
+*its* height, and the light gradient sits in the top fifth of *canopy* height. Those coincide exactly
+once, for the cohort arriving at the canopy top.
+
+So a suppressed plant sees a uniform light and its bias is under a tenth of a percent, and a
+**well**-emergent plant is in full sun and its bias is under half a percent. **"Nearly exact for an
+emergent" is true only of a well-emergent plant** — the plant that is *only just* emergent is the
+worst case in the model, at 28 percent.
+
+**The ecological conclusion survives and sharpens.** The biased cohort is still the one whose fate
+decides whether a stem escapes or dies suppressed — it is *only* that cohort, which makes the bias
+more targeted than a diffuse "mid-canopy" reading suggests, not less consequential.
+
+**And the direction is now guaranteed rather than argued.** Profit is concave in absorbed radiation
+across the whole openness range, with monotonically decreasing slope, so Jensen's inequality applies
+to the TF24 value function itself and not merely to photosynthesis. Averaging overestimates.
+
+**The stand-level ratio at the reference configuration is 1.206, not 3.33.** Offspring production is
+445.37 under mean light, 369.31 under deep crown and 537.95 under crown centre. The earlier factor of
+3.33 was measured at a configuration that is not the reference and **should not be carried forward.**
+What survives is the structural claim, and it is now quantified: the stand-level ratio of 1.21 exceeds
+the stand-average per-plant bias of about 1.00 to 1.03, because only canopy-top cohorts are biased —
+**so the demographic amplification is real, and its magnitude is configuration-specific.**
+
 
 ### Why the coordinate change removes work
 
@@ -672,11 +696,14 @@ is available. The metrics are independent of one another.
 
 ### The biases, and their sizes where known
 
-- **Mean-light averaging.** One physiology at the crown's mean light. Nearly exact for an emergent
-  and for a fully suppressed plant; it misrepresents the **mid-canopy and gap-edge** stems whose
-  leaf shell straddles the canopy below them — the cohort whose fate decides whether a stem escapes
-  or dies suppressed. Direction certain, per-plant size unmeasured. The mode that would measure it
-  has no derivative.
+- **Mean-light averaging.** One physiology at the crown's mean light. **Measured per plant**: under a
+  tenth of a percent for a suppressed stem, under half a percent for a well-emergent one, and **28
+  percent for the stem just arriving at the canopy top** — which is the cohort whose fate decides
+  escape. The band is narrow because the light profile is nearly flat below four-fifths of canopy
+  height. Direction guaranteed, because profit is concave in absorbed radiation. At the reference
+  configuration the stand-level offspring ratio is **1.206**, and the earlier factor of 3.33 belongs
+  to a configuration that is not the reference.
+
 - **Birth size.** Imposed to zero; about 3 percent for leaf mass per area.
 - **The extinction coefficient.** 3.041 percent, direction known.
 - **The dominant's height.** The knot positions are passive, so the plant that sets every other
@@ -685,10 +712,12 @@ is available. The metrics are independent of one another.
 - **The reserve gate.** A mollifier occupying 40 percent of the reserve's domain, damping the
   gradient at high reserves and admitting growth at empty ones. Direction and size both unstated,
   because the distribution of relative reserve across a stand has never been reported.
-- **What no measurement covers at all.** **No plant in this corpus has ever been run in shade** —
-  ground-level transmittance median 0.9997, an open woodland — **or in drought**: soil potential
-  never drier than 0.17 MPa, which is the initial condition. Every incidence figure quoted anywhere
-  is a property of that one driver.
+- **What no measurement covers.** **No plant in this corpus has been run in shade** — ground-level
+  transmittance median 0.9997, an open woodland. **The drought half of this caveat is withdrawn:** the
+  mature stand at the reference configuration settles at 1.4 to 2.4 MPa, which is past the potential
+  where the leaf's optimum stops being interior. So the stand does visit the dry regime under its own
+  dynamics, and an incidence figure taken on a wet *transient* says nothing about it.
+
 
 ### And the sentence that matters most, about drought
 

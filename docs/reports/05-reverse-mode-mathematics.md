@@ -181,10 +181,12 @@ a recorded trajectory must store its step sizes rather than recompute them.
 trajectory. Excluding them is exact, not an approximation: the state and time are restored, so
 neither the trajectory nor any first-same-as-last carry is affected.
 
-**Stages whose abscissa is zero start their accumulators at zero.** In Cash–Karp $c_2 = c_5 = 0$,
-so those two stage sums begin empty. This is arithmetic, not a special case, but it is worth
-stating because an implementation that seeds them otherwise is wrong in a way no test on a smooth
-problem detects.
+**Two stage accumulators start empty, and it is the output weights that vanish, not the abscissae.**
+In the Cash–Karp pair $\beta_2 = \beta_5 = 0$, so those two stage sums begin with no terminal
+contribution. **No abscissa is zero.** The distinction matters because the two enter (4.1)
+differently: a vanishing **weight** still couples through the $a_{li}$ sum, so the stage is not
+inert, whereas a vanishing **abscissa** would change where $f$ is evaluated. An implementation that
+seeds these accumulators from the abscissae is wrong in a way no test on a smooth problem detects.
 
 **$\bar\varphi$ accumulates over every step and every stage, and over the introduction boundaries
 of section 4.1.** There are $6M$ contributions from (4.1) and one per introduction. Both sets are
@@ -251,9 +253,16 @@ $$6 + (2\cdot 65 + 5) + 44 = \mathbf{185}\ \text{inputs}, \qquad 6 + 1 + 5 = \ma
 **Both counts are configuration-dependent** — they move with the knot count and the layer count —
 and neither is a property of the model. What is a property of the model is the *shape*: the input
 vector is dominated by the field, and the output vector is six rates, one density rate and one
-consumption vector.
+consumption vector. **The knot count is a compile-time constant, so $K$ does not vary within a run.**
 
-The reverse pass forms $\big(\partial v_k / \partial u_k\big)^{\!\top} \bar v_k$.
+**One rate the stand's fitness is measured from sits outside this block.** The survival-weighted
+offspring rate is a cohort-level state whose rate reads the fecundity rate, the cumulative mortality
+*state* and the patch survival ratio. It is correctly not one of the twelve outputs, because the block
+stops at one individual's physiology. **But a fitness functional's seed does not reach it through the
+twelve either** — so a seed built from the six rates, the density rate and the consumption vector
+cannot express a question about fitness. That is a limit on what this block can be seeded for, and it
+is not a missing output.
+
 
 ### 5.1 The density rate is where the coordinate choice bites
 
@@ -444,12 +453,25 @@ over every cohort, but $\tilde Q$ vanishes above a cohort's own height. Under th
 only cohorts taller than knot $q$ contribute, so the reduction is triangular; under crown-centre
 only the cohorts whose crown brackets the knot do, so it is banded.
 
-**The field's dependence on any one cohort is sparse, and bounded by the quadrature rule rather
-than by the cohort's height.** A cubic interpolant with local support means a single query loads
-one span — four non-zeros. A crown integral under a fixed $n$-point rule touches at most $n$ spans,
-so at most $n+1$ knot values and $n+1$ slopes. The bound is therefore twice the rule's point count
-when the field is evaluated twice per step, and it does **not** grow with height: a canopy tree and
-a seedling have rows of the same bounded width. Report 07 §1 develops what this buys.
+**The recorded step's dependence on the field is sparse, and bounded by the quadrature rule rather
+than by the cohort's height.** The field's slopes are **supplied, not solved**: the reduction
+evaluates a value and a slope at each knot, and the interpolant stores both as given. So it is a
+Hermite interpolant with genuinely local support, and a query inside one span reads exactly two knot
+values and two slopes — **four non-zeros.** A crown integral under a fixed $n$-point rule touches at
+most $n$ spans, so at most $n+1$ values and $n+1$ slopes; the bound is twice the rule's point count
+where the field is read twice per step, and it does **not** grow with height.
+
+> **This sparsity is a property of the recorded step's inputs, and that qualification is
+> load-bearing.** An *interpolating* spline — one that solves a tridiagonal system for its slopes —
+> has no local support at all: every knot value influences every query, decaying geometrically. Such
+> a spline makes "four non-zeros" false, and the distinction is not academic, because this model
+> contains both kinds. The vulnerability tabulation is the solved kind. **The light field is not.**
+>
+> The composed dependence on *cohort state* is a different object and it is **not** four-sparse,
+> because each supplied slope is itself a reduction over every cohort. Section 5 lists
+> $(\Lambda, \Lambda')$ as $2K$ independent inputs, and the sparsity claim is about the Jacobian with
+> respect to **those**. Report 07 §1 exploits it at that boundary, which is where it holds.
+
 
 **The value of the field is robust; its slope is what ceases to exist.** $E^{\mathrm{comp}}$ is
 continuous in its own arguments everywhere it is evaluated — at the crown-top cutoff, at the
@@ -506,14 +528,26 @@ were sandier."** The vertical structure of the root coupling is in the same posi
 
 #### Two facts about the soil that change how its clamps read
 
-**The layers are independent buckets on the relevant timescale.** Conductivity at operating
-moisture is of order $10^{-3}$ of the rainfall forcing, so the drainage cascade is negligible:
-rain reaches the top layer only, and **the only resupply a deep layer has is a plant pushing water
-into it.** That makes per-layer negative flux — hydraulic redistribution — a normal state of a
-layered root system rather than a corner case, and it needs no branch: the same smooth expression
-covers it. It also means a statistic formed on the *total* uptake cannot see it. A layered root
-system's ordinary condition is per-layer negatives inside a positive total, so the total's sign is
-the wrong instrument.
+**The layers decouple at equilibrium and couple strongly in a wet transient, and the two differ by
+sixteen orders of magnitude.** Conductivity is
+$K_{\text{sat}}(\theta/\theta_{\text{sat}})^{2n_\psi+3}$ with the exponent about **16**, so no
+single operating moisture characterises it. Near saturation $K$ exceeds the rainfall forcing; at the
+mature stand's own equilibrium it is about $10^{-6}$ of it.
+
+So **"the drainage cascade is negligible" is true of the equilibrium and false of any wet transient.**
+Measured: a run started uniformly dry refills **every** layer by drainage alone within half a year,
+with no plant involvement in the deep layers, and cumulative drainage is a few percent of rainfall
+rather than a tenth of a percent.
+
+**One ecological inference is withdrawn.** "The only resupply a deep layer has is a plant pushing
+water into it" holds only where the profile is already dry — which is where the mature stand sits, so
+it is not vacuous, but it describes one regime and not the model.
+
+**What survives without qualification is the instrument point.** Hydraulic redistribution needs no
+branch, because the same smooth expression covers a negative per-layer flux — and **a statistic formed
+on the total uptake cannot see it**, because a layered root system's ordinary condition is per-layer
+negatives inside a positive total.
+
 
 **The potential ceiling is an unbounded plant-to-soil sink, not a benign clamp.** The usual
 rationale — that root conductance is already near zero far below the ceiling, so clamping leaves
@@ -764,9 +798,17 @@ a search result over an interval of non-positive potentials, so its negation is 
 second is a positive magnitude, so its negation is negative and **can never win the maximum.** The
 root-critical clamp is therefore unreachable, with two consequences that matter mathematically.
 
-First, the search probes collar magnitudes up to the *stem's* critical potential, which lies past
-the root vulnerability integral's last knot — so **section 6.2's wrong-way plant-to-soil flux is
-reachable through the leaf's own bracket on a uniformly drying profile**, and not only through a
+First, the search probes collar magnitudes up to the *stem's* critical potential, which lies past the
+root vulnerability integral's last knot. **But this route is narrow, and it is not the one that
+matters.** The excursion is about 0.19 MPa — under three percent past the grid — where the
+extrapolation error is of order a tenth of a percent. **The route that reaches the badly extrapolated
+region is a dry layer**, not the leaf's bracket: any layer past the grid's end is read in
+extrapolation, and at the potential ceiling the argument is two orders of magnitude beyond the grid's
+domain. So section 6.2's mechanism is the live one and this bracket gives it a second cause of
+negligible size. Worth recording alongside: the **stem's** own grid extends beyond its critical
+potential, and both stem splines disable extrapolation, so the stem side is never extrapolated.
+
+
 capped layer. Second, the root's critical potential has no derivative row anywhere: it is a
 registered parameter whose only write site is the unreachable branch, and it is excluded from the
 differenced parameter loop besides. So its sensitivity is identically zero on every metric — and it
