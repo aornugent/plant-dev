@@ -59,13 +59,38 @@ metrics.
 1. **The seed is aliased for every metric except the first.** Task 15. This explains
    `mass_above_ground`, `area_stem`, and why `leaf_area` is right: `leaf_area` is row 0
    of `tf24_census`, and only row 0 is sound.
-2. ~~**The traits of the field build reach no accumulator.** Task 16. This explains `k_I`.~~
-   **Refuted by the reference csv, and this was the plan's own diagnosis.** `k_I`'s `leaf_area`
-   adjoint measures **1.06132747437707** against a tangent of **1.03000327614671** and a central
-   difference of **1.0290354528486** — non-zero, and agreeing with both references to about
-   3 percent, which is the `height_0` bias and nothing else. **`k_I` has no zero to explain.**
-   Its rows 1 and 2 *are* wrong (`-0.305` and `-0.0316` against `+0.845` and `+0.000274`), which
-   is cause 1's aliasing, not a missing accumulator. See Task 16, whose premise this refutes.
+2. **The traits of the field build reach no accumulator — and `k_I`'s row is live, short by
+   3.041 percent. This entry has now been wrong twice, in opposite directions.**
+
+   **`k_I` reaches the model by two routes.** The cohort-step half —
+   `pars.k_I * std::max(light, S(0.0001)) * PPFD` inside `compute_rates` — **is** accumulated by
+   `cohort_block_adjoint`. The field-build half — `scale = pars.k_I * area_leaf_` in
+   `compute_competition_and_slope` — is **absent**, because
+   `compute_competition_and_slope_partials` returns exactly four members
+   (`tf24_strategy.h:540-543`), every one of them multiplied **by** `k_I` and none of them a
+   derivative **with respect to** it, and `node_size_adjoints` has no parameter member.
+
+   **So the original entry was wrong** — `k_I` does not read zero, because the cohort-step half
+   carries it. **And the correction I then landed was also wrong**, in its attribution: it read the
+   3 percent as the `height_0` bias. It is not. The reference csv's own header settles it: *"The
+   tangent and the adjoint share the leaf's supplied partials and both drop `d(height_0)/d(trait)`,
+   so agreement between them is not evidence over either… 0.09% for `k_I`."* An identically imposed
+   zero **cannot** produce an adjoint-versus-tangent gap.
+
+   Arithmetic on the csv's own row, recomputed: adjoint `1.06132747437707`, tangent
+   `1.03000327614671`, central difference `1.0290354528486`. **Adjoint against tangent: +3.041
+   percent. Tangent against central difference: +0.094 percent.** The second is the `height_0`
+   channel, exactly as the header says. **The first is the missing field-build half.**
+
+   **The sign confirms the mechanism.** More `k_I` means more extinction, so more self-shading of
+   neighbours, so the missing channel is negative — and the adjoint, lacking it, is too large.
+   1.061 against 1.030.
+
+   **Task 16's fix is needed and its premise was wrong.** The derivative is one line per node: the
+   contribution is `k_I * area_leaf * Q`, so `d(value)/d(k_I) = value / k_I` and
+   `d(slope)/d(k_I) = slope / k_I`, **exactly**. Sequence it behind the transposes, per Section 3c's
+   composed order — do not add rows to a transpose that is not yet the transpose of its forward
+   function.
 3. **The direct term of the census is absent.** Task 6. This is real and it is
    masked by cause 1. **It explains none of the three numbers above**:
    `d(mass_above_ground)/d(lma)` at fixed state is the `leaf_area` census value,
@@ -1096,9 +1121,21 @@ functionals and builds one copy above the loop. **It is the only remaining site.
 two signatures are indistinguishable from the numbers alone, so name the loop whenever
 you record one.
 
-**It is pre-existing, and that is settled without a build.** A second dry run reproduced
-the same signature — 33 of the 52 columns non-zero in row 0 are exactly zero in row 1,
-with a few spuriously large — against a **prebuilt library with no code change**.
+**It is pre-existing, and the mechanism settles that without a build or a measurement.** ~~A second
+dry run reproduced the same signature, 33 of the 52 columns…~~ **Struck: that figure corresponds to
+no run that ever happened**, and 52 matches neither the state width of this configuration (73, from
+the reference csv's header) nor the trait count (44). It was assembled from a trait-masking count of
+33 of 44 and the curvature probe's population of 52. **Do not restate it and do not gate on it.**
+
+**And the mechanism is worse than a wrong number.** `AReal`'s copy-assignment keeps an existing slot
+— `if (slot_ == INVALID_SLOT) slot_ = s->registerVariable();` then `pushLhs(slot_)` — so on recording
+`m > 0` every surviving member of the twin is **re-assigned, not re-registered**, keeping a slot from
+a numbering that `clearAll()` has reset. The reverse sweep indexes `derivatives_[slot]` with **no
+bounds check**; only the public accessor throws. So a stale slot inside the new range is a silent
+misroute and one above `maxDerivative_` is an out-of-bounds **read and write** on a
+`std::vector<double>`. **Rows `m > 0` are not wrong numbers, they are undefined behaviour** — which
+is why the `+1.1236` of Section 1 is not a reproducible quantity, and why no test should assert any
+figure taken from a row above 0.
 
 **Steps.** Build the copy at the active type inside the reduction, so each recording
 gets values with no slot from the previous one. Do not move `clearAll` and do not keep
@@ -2183,6 +2220,9 @@ Three arms. **None discriminates alone, and that is the point.**
 **Arm A — external correctness.** All `K` rows of `census_state_adjoint` against central
 differences of the census reduction **recomputed in R from TF24's written-out equations** at
 fixed state, over every `height`, `log_density`, `area_heartwood` and `mass_heartwood` column.
+**Do not encode a pre-fix signature as an expectation** — an earlier form of this arm prescribed
+asserting "33 of 52 columns exactly zero", a figure that corresponds to no run. Assert only that the
+rows agree with the reference after the fix, and that they disagree before it.
 The reference never touches the tape, so no arrangement of recordings can make it pass — only
 a correct Jacobian can. This is `test-census.R`'s G4 extended from `leaf_area`, the one metric
 the aliasing leaves correct, to all three rows. Under aliasing rows 1 and 2 fail by 50 to 300
