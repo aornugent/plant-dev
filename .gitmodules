@@ -8,3 +8,6 @@
 [submodule "odelia"]
 	path = odelia
 	url = https://github.com/aornugent/odelia.git
+[submodule "phylloptim"]
+	path = phylloptim
+	url = https://github.com/aornugent/phylloptim.git
