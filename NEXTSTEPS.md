@@ -11,106 +11,39 @@ columns. It does not change the design.
 
 ---
 
-## 1. The stop, which outranks each cost task
+## 1. The order of work, and what outranks what
 
-**Recorded 2026-08-03. The adjoint disagrees with a forward tangent and with a
-converged finite difference on two of three census metrics. The two references
-agree with each other.** At `max_patch_lifetime = 2`, trait `lma`:
+**This document says what to build. It does not say what the code does now.**
+`CURRENTSTATE.md` says that, and it carries every measurement with its
+configuration. If you want the state of a defect, read that file. If the two
+disagree, that is a finding.
 
-| metric | tangent | adjoint | central difference (1e-5) |
-|---|---|---|---|
-| `leaf_area` | −6.70320364069075 | −6.7018609913628 | −6.89018062193 |
-| `mass_above_ground` | −5.00502106067521 | **+1.1236103034985** | −5.18146726765 |
-| `area_stem` | −0.00178853862026 | **−0.117481756163** | −0.00183969234031 |
+Three things outrank each cost task. Do them in this order.
 
-**WARNING — withdrawn. The table is sourced, and this document said it was not.** It is
-`plant/scripts/tangent-reference.csv` on branch **`p3/tangent-referee`** at `6b0a49fb`, with a
-header recording the plant commit (`1a06e4c5`), `max_patch_lifetime 2`, the eight
-`node_schedule_times`, `ode_size 73`, 110 accepted steps and `Control defaults, non-default
-fields: none`. Every one of the four numbers below is primary, and `-0.117482 / -0.0017885` is
-65.68, so "65 times" is right.
+**First, there is no referee.** No forward tangent exists at the level of the
+SCM. The one blessed whole-run tangent reference is on the height coordinate,
+which this gradient no longer supports, and it was taken at a commit that is not
+an ancestor of this tree. **So no claim about the assembled gradient can be
+checked today.** Section 4b builds the referee. Do not gate a correctness task
+against a reference that does not exist.
 
-**The `-14906.6` re-reading is not a failed reproduction; it is a different model.** `1a06e4c5`
-is not an ancestor of `d3392ea3`; they differ by `7b5012c2`, the #585 forward-model correctness
-merge, which touches the census, the field build and the leaf. **Do not compare them.**
+**Second, the objective is wrong before any derivative runs.** `Species::census`
+builds its quadrature grid from node heights, and it does not sort them. Reserve
+gated growth lets a younger cohort pass an older one, so the grid can be
+non-monotone. Then neighbouring trapezia cancel instead of adding. The two field
+reductions each guard this. The census does not, and the census is the first link
+in the chain. Task 9a.
 
-**But every number in this table is on the height coordinate**, which Section 2b says the
-gradient no longer supports, so they are not gradient references any more — see Task 0.
+**Third, four columns of the gradient are wrong and two are short.** Section 6
+holds those tasks.
 
-**The old warning, kept for the record:** A dry run on `d3392ea3` at the same lifetime, through
-`scripts/stand-gradient-smoke.R`, reads `-14906.6` where this table records `+1.1236`.
-The `leaf_area` entry does reproduce, to 1.9e-6. Both numbers are consistent with the
-aliasing of Task 15, which corrupts every metric after the first in a way that depends on
-what took the freed slot — so **treat the sign and the magnitude of rows 2 and 3 of this
-table as evidence that they are wrong, and not as values to reproduce.** Task 15 first,
-then measure again.
-
-`mass_above_ground` has the wrong sign. `area_stem` is 65 times too large. The
-finite difference is stable at steps 1e-4, 1e-5 and 1e-6. It agrees with the
-tangent on all three metrics to 2.8 percent to 3.5 percent. `leaf_area` agrees to
-2.00e-4, which is three orders above the 1.2e-10 replay noise.
-
-The shape of the failure puts the cause in the seed and not in the sweep. The
-sweep is shared between the metrics. A defect in the sweep moves all three
-metrics.
-
-**Diagnosed 2026-08-04. Three separate causes, and Task 6 is none of them.**
-
-1. **The seed is aliased for every metric except the first.** Task 15. This explains
-   `mass_above_ground`, `area_stem`, and why `leaf_area` is right: `leaf_area` is row 0
-   of `tf24_census`, and only row 0 is sound.
-2. **The traits of the field build reach no accumulator — and `k_I`'s row is live, short by
-   3.041 percent. This entry has now been wrong twice, in opposite directions.**
-
-   **`k_I` reaches the model by two routes.** The cohort-step half —
-   `pars.k_I * std::max(light, S(0.0001)) * PPFD` inside `compute_rates` — **is** accumulated by
-   `cohort_block_adjoint`. The field-build half — `scale = pars.k_I * area_leaf_` in
-   `compute_competition_and_slope` — is **absent**, because
-   `compute_competition_and_slope_partials` returns exactly four members
-   (`tf24_strategy.h:540-543`), every one of them multiplied **by** `k_I` and none of them a
-   derivative **with respect to** it, and `node_size_adjoints` has no parameter member.
-
-   **So the original entry was wrong** — `k_I` does not read zero, because the cohort-step half
-   carries it. **And the correction I then landed was also wrong**, in its attribution: it read the
-   3 percent as the `height_0` bias. It is not. The reference csv's own header settles it: *"The
-   tangent and the adjoint share the leaf's supplied partials and both drop `d(height_0)/d(trait)`,
-   so agreement between them is not evidence over either… 0.09% for `k_I`."* An identically imposed
-   zero **cannot** produce an adjoint-versus-tangent gap.
-
-   Arithmetic on the csv's own row, recomputed: adjoint `1.06132747437707`, tangent
-   `1.03000327614671`, central difference `1.0290354528486`. **Adjoint against tangent: +3.041
-   percent. Tangent against central difference: +0.094 percent.** The second is the `height_0`
-   channel, exactly as the header says. **The first is the missing field-build half.**
-
-   **The sign confirms the mechanism.** More `k_I` means more extinction, so more self-shading of
-   neighbours, so the missing channel is negative — and the adjoint, lacking it, is too large.
-   1.061 against 1.030.
-
-   **Task 16's fix is needed and its premise was wrong.** The derivative is one line per node: the
-   contribution is `k_I * area_leaf * Q`, so `d(value)/d(k_I) = value / k_I` and
-   `d(slope)/d(k_I) = slope / k_I`, **exactly**. Sequence it behind the transposes, per Section 3c's
-   composed order — do not add rows to a transpose that is not yet the transpose of its forward
-   function.
-3. **The direct term of the census is absent.** Task 6. This is real and it is
-   masked by cause 1. **It explains none of the three numbers above**:
-   `d(mass_above_ground)/d(lma)` at fixed state is the `leaf_area` census value,
-   `+1.9636` at this configuration, so adding it makes the adjoint more negative and
-   not `+1.12`, and it is exactly zero for both `leaf_area` and `area_stem`.
-
-Keep the tangent referee until each metric agrees.
-
-**A separate finding of the same measurement.** The tangent and the finite
-difference differ by about 3 percent at each step size. Therefore the difference
-is not truncation. `rebind_from` carries `height_0`, `area_leaf_0` and `eta_c` as
-values, because `prepare_strategy` and `height_seed` refuse an active scalar. Both
-AD paths lose `d(height_0)/d(trait)`. Only the finite difference has it. The
-absent `odelia::implicit_value` for `height_seed` is therefore a bias of about 3
-percent for `lma` and about 0.09 percent for `k_I`.
-
-**Do not build a cost task before the two columns are explained.** A faster wrong
-gradient has no value.
+**The cost tasks come last, and Section 8 holds them.** The value of a faster
+wrong gradient is not defined. Do not measure a cost factor again until the
+correctness tasks are closed, because each factor must be re-taken on the
+configuration that Section 4b blesses.
 
 ---
+
 
 ## 2. Conditions before you start
 
@@ -220,82 +153,25 @@ term of automatic differentiation. Section 12 lists them.
 
 ---
 
-## 3b. The incidence zeros are a property of one driver, and the plan is not run on that driver
+## 3b. The incidence numbers are a property of one driver
 
-**Decided 2026-08-04, and it inverts a conclusion this corpus has carried since report 02.**
+Each incidence number in this project was taken on one driver. That driver does
+not close its canopy, and it does not dry. Its ground-level transmittance has a
+median of 0.9997, which is an open woodland. Its maximum soil water potential
+**is its own initial state**.
 
-Reports 00 and 02 rest a great deal on measured incidence. Report 02 section 4 counts **zero**
-pinned solves in 4 372 101 at "the production driver", re-measured at **0 of 7 353 330**, with
-all five `prepare_collar_solve` exits unvisited and the narrowest feasibility bracket 1 342 times
-the tolerance that would collapse it. From that, report 02 concludes the interior treatment is
-the production path and **the bound branch is insurance**, and report 00 section 7 files the
-bracket-pinned derivatives, the zero-flux branch, the `psi_crit` shutdown and root-mediated
-redistribution under *sidestepped* — "needed in principle, not on the production path".
+So "incidence zero" has been the statement that the axis did not move.
 
-**That driver is the default rainfall driver. The intended use is real rainfall sequences.**
+`CURRENTSTATE.md` Section 7 lists each of these numbers and the driver it belongs
+to. `METHOD.md` Section 9.2 says why one fixture makes eight of them meaningful,
+and Task M9 builds it.
 
-Every one of those zeros is conditional on a driver whose `psi_soil` range is 0.015 to 0.17 MPa.
-The corpus states the conditions itself, in three places that must now be read together:
-
-- Report 00's curvature sweep finds the operating point **pinned at a bound in 15 of 52 states**,
-  and "every pinned state is at `psi_soil >= 1.5 MPa` **and** `height >= 2 m`: dry and tall. None
-  is inside the default driver's `psi_soil` range, which is why section 9's production census
-  finds zero corner incidence; **the committed stress banks reach 1.5+ MPa, so the regime is live
-  there.**"
-- Report 02 section 4 measures the transition directly: at fivefold rainfall reduction nothing
-  changes; at tenfold, 267 of 343 779 solves pin; at twentyfold, **110 984 of 330 021 — 33.6
-  percent** — plus 199 hits on the E2 shutdown exit.
-- Report 00 section 8 item 2 says the light floor "is a hazard for a drier stand rather than for
-  this one", and section 9 lists the incidence of that floor as **inferred, not measured**.
-
-**So under real rainfall the dry-and-tall regime is not a corner. It is a season.** A rainfall
-sequence with a drought year reaches `psi_soil >= 1.5 MPa` in exactly the tall stand where the
-pin was measured, and report 02's own drought arms show the pinned fraction going from 0 to a
-third across a factor of two in rainfall.
-
-**Four consequences, and each reverses a ruling.**
-
-1. **The bound branch is not insurance. It is the path**, for part of every run with a dry
-   season. Report 02 section 4's own banner anticipates this: "**If the pinned regime is in fact
-   common at the production driver, section 6's bound branch stops being insurance and becomes
-   the path, and the envelope row's argmax machinery is not what most solves need.**"
-2. **Report 00 section 7's *sidestepped* row must be re-read as *unbuilt*.** The zero-flux branch,
-   the `psi_crit` shutdown, root-mediated redistribution and the bracket derivatives are all
-   filed on this driver's evidence.
-3. **The thirteen operating-point classifications are a live correctness problem, not a latent
-   one.** Nine of them take an adjoint branch whose mathematics does not apply, and the argument
-   that this is tolerable was the incidence zero.
-4. **The dry states are where the leaf's expensive machinery is least valid and most needed.**
-   Report 00 fact 2: the uptake channel is near-singular in the uniform drying direction, with
-   amplification 15 to 26 times, and "a whole-solve finite difference resolves the collar's
-   response to about four digits, so it **cannot** measure that one-percent residue". So a
-   drought sequence is simultaneously where the pin fires, where the reference is weakest, and
-   where the ecology cares most.
-
-**The same defect is in the light evidence, and it is starker there.** Every light measurement in
-this corpus comes from the same run, and on it the minimum knot value is 0.1657 with a
-**ground-level median of 0.9997** — peak optical depth about 1.8. **That is an open woodland. The
-measured stand never closes its canopy.** A closed forest floor sits at a transmittance of about
-0.01 to 0.02, optical depth 4 to 6. So **nothing in this corpus has ever run a plant in shade**, and
-the entire understorey physiology — the sign of `assim_max_`, the reserve drawdown, the
-shade-mortality exit that report 06 calls the most under-measured state in the model — lies between
-the darkest light ever measured here and the light a real forest floor receives. At the median, on
-the measured stand, **the forest floor is in full sun.**
-
-**One clamp is retired permanently by a better argument, and this is the shape to copy.** Report 03's
-C7 shows the `1e-4` light floor never binds and argues it needs "about five times this stand's
-optical depth" — a statement about one driver. The driver-independent statement is stronger:
-**a transmittance of `1e-4` is two orders of magnitude darker than the darkest measured forest floor
-on Earth**, so the floor is unreachable in any stand this model could be asked to represent. Where a
-clamp can be retired by physics rather than by incidence, retire it that way.
-
-**What this asks for.** Re-take the branch census on a real rainfall sequence, on the birth-date
-coordinate, and report the incidence of every one of the thirteen classifications. Until that
-exists, **no ruling in this document may cite an incidence zero as evidence.** The instrument is
-already in the tree: `plant/inst/include/plant/collar_census.h` reports per-class counts and
-extremes behind `PLANT_COLLAR_CENSUS`, and nothing reads it.
+**Read this before you use an incidence number to rank work.** The five kinds of
+operating point are consecutive parts of one drydown. A driver that stays wet
+reaches the first part and reports the other four as unreached.
 
 ---
+
 
 ## 3c. Refusal: the ruling
 
@@ -474,118 +350,185 @@ couples through the plant's response to shade rather than through the field's ow
 
 ---
 
-## 4. The measurements that set the order
+## 4. Where the measurements are, and which of them set the order
 
-Each number below is measured. Section 11 gives the values that are calculated
-from them. A number moves to a different machine only if it is a count or a
-ratio.
+**The measurement programme is `METHOD.md` Section 9. The values are
+`CURRENTSTATE.md` Section 7.** This document does not hold them, because a plan
+that carries its own evidence goes out of date silently.
 
-**Measurement A, plant `dad51118`, odelia `3bb2e46`, TF24, one species,
-`max_patch_lifetime = 3`, 8 nodes, `ode_size = 73`, 140 accepted steps, 5 soil
-layers, `GSS_tol_abs = 1e-1`, `-O2 -DNDEBUG -g0`, one Xeon at 2.80 GHz.**
+Three facts from that register change the order of work, so they are here.
 
-| Quantity | Value |
-|---|---|
-| `Leaf::input_adjoints` calls | 144 072 |
-| `input_adjoints` calls for each recorded cohort step | 10.64 — **do not use, see below** |
-| `dprofit_droot_collar_psi` calls for each `input_adjoints` call | 35.0 |
-| root-finds for each `input_adjoints` call | 100.0 |
-| rebuilds of the 100-knot vulnerability table for each call | 2.0007 |
-| share of the reverse pass inside `input_adjoints` | **98.16 percent** |
-| gradient wall clock | 292.35 s, this machine only |
+**A cost measurement expires when its task lands.** Four of the seven lettered
+measurements exist to show that one optimisation pays. Each is evidence for a
+task and not knowledge of the model. Re-take them one time, after the correctness
+tasks close, on the blessed configuration.
 
-**Measurement A has been re-taken on the birth-date coordinate**, same configuration, and it
-reproduces the step count exactly (139 to 140 accepted steps, 8 nodes, `ode_size = 73`).
+**One measurement does not reproduce, and one figure was never taken.**
+Measurement E is retired. "36 of 44 non-zero direct columns" matches no
+measurement anywhere. The column occupancy of the light row cites no script and
+none is in the tree, so its figure is withdrawn and its structural bound stands.
 
-| Quantity | Value |
-|---|---|
-| `Leaf::input_adjoints` calls | 81 468 |
-| for each accepted step | 543.1 |
-| for each cohort-step | 74.81 |
-| for each cohort-stage | 12.47 |
-| for each cohort-stage-metric | 4.16 |
-| share of the reverse pass inside `input_adjoints` | **99.2 percent**, 119 of 120 stack samples |
-
-**The share did not fall. It rose.** So the ceiling on everything outside `input_adjoints` is
-**0.8 percent** on the birth-date coordinate too, and #590 did not relax it.
-
-**"10.64 for each recorded cohort step" is unreproducible and must not be quoted.**
-144 072 / 10.64 = 13 541 and no product of that configuration's step, node and stage counts
-equals 13 541. Any restatement of a per-step count must carry its denominator, as the four
-rows above do. The 4.16 figure is the one the code explains: `graft_leaf_outputs` calls
-`input_adjoints` `1 + max_soil_layer` times, and at lifetime 3 most cohorts root to one or
-two layers.
-
-**Wall clock cannot give the coordinate ratio on a shared machine.** The same arm ran in
-138.00 s, 241.50 s and 305.25 s. Per recorded step the birth-date coordinate is between
-**1.8 and 3.2 times cheaper**, which is at least the expected halving. Do not quote a figure.
-
-**And the two coordinates are visibly different functions**, which is Task 0's warning made
-concrete: `d(leaf_area)/d(lma)` is -24.302 on height and -30.443 on birth date, and
-`d(mass_above_ground)/d(lma)` **changes sign**, +0.602 against -10.484.
-
-**Measurement B, the same tree at production.** `max_patch_lifetime = 105.32`,
-`lma`, 141 nodes, 1 137 states, 4 644 accepted steps: **2 995 s**, peak memory
-**0.262 GiB** against a 2 GB limit.
-
-**Measurement C, one leaf call with a general seed against six calls with unit
-seeds.** Four states, 28 inputs, two interior and two pinned. The largest relative
-difference is **4.4e-16**. No entry of 112 is above 1e-14. The ratio of the times
-is **5.97 to 6.11**.
-
-**Measurement D, the tabulation.** The tabulation is the 100-knot table of the
-cumulative vulnerability integral that `build_cumulative_vulnerability_integral`
-writes. One build costs **121.2 us**. One closed-form value costs **0.074 us**. One
-value with `d/da` and `d/dx` on a reused tape costs **0.68 us**. A new tape for each
-call costs **34.8 us**. Task 5 takes the two derivatives by hand instead, so no tape
-enters the leaf; these figures are what that choice avoids.
-
-**Measurement E — retired. It does not reproduce, and the numbers below are the
-justification for a guard and not the cost of its absence.** The tabulation builder does set
-`psi_max = b * log(100)^(1/c)` under a loop bound of `psi <= psi_max`, so a moving grid
-*would* step between 100 and 101 knots. **But the grid does not move.**
-`Leaf::input_adjoints:1689-1692` and `Leaf::bound_partials:1455-1459` call
-`build_cumulative_vulnerability_integral` **once, before any perturbation**, and every
-perturbation afterwards goes through `set_transpiration_at(b, c, knots_stem)` and
-`set_root_vulnerability_at(...)`, which re-evaluate the knot **values** on the caller's fixed
-abscissae. `setup_transpiration` and `setup_root_vulnerability` are reached from the
-constructors only. **No grid is rebuilt after construction.**
-
-The table below is the measurement that *motivated* the capture, recorded in the comment at
-`leaf_model.cpp:1682-1685`. It is kept as the reason the guard must stay, and **it must not be
-quoted as a live defect.** This is the fourth time this project has read a comment describing
-a hazard as evidence of the hazard, when the comment sits above the guard that removes it.
-
-| quantity | held grid | moving grid | ratio |
-|---|---|---|---|
-| `dR/d(root_b)` | 3.541221 | 168.3776 | 47 |
-| `d(profit)/d(root_b)` | −2.2215 | −290.86 | 131 |
-| `d(bound_a)/d(root_b)` | 1.68651 | 17279.08 | 10 245 |
-
-**Measurement F, masking the parameter rows.** A spike on `p3/trait-mask`
-(`5fb631a1`) gave **6.68 times** for `traits = "lma"` at lifetime 0.2, and
-**1.00 times** when all four hydraulic rows were requested. Therefore the whole
-saving is those four rows.
-
-**Measurement G, guarding the tabulation.** A second spike (`1a06e4c5`) put the four
-`build_cumulative_vulnerability_integral` calls under the condition that a hydraulic
-row is wanted. Pinned at lifetime 0.2 it gave **5.71 times** for `traits = "lma"`
-(3.455 s to 0.605 s) and **1.005 times** for all 44 traits. Both spikes left the
-forward run bit-identical at `42.411799695604159` over 4 644 accepted steps.
-
-**F and G are two different changes and their figures are not comparable.** F skips
-whole parameter rows; G skips only the tabulation those rows need. Do not read
-either as a general speedup: both are near 1.00 when a hydraulic row is requested.
-
-**What the measurements mean for the order, and this is the one place it is
-stated.** `input_adjoints` is 98.16 percent of the reverse pass on the height coordinate and
-**99.2 percent on the birth-date coordinate**, so **everything outside it can give 0.8 percent
-at the most today**. Tasks 1 to 5 all act inside it
-and together make it roughly 30 times cheaper. **Then the work outside it is about a
-third of the total, and the same tasks become worth doing.** That is the whole reason
-Section 8 exists and the whole reason Section 10 forbids its work for now.
+**No number on the height coordinate transfers.** The two coordinates are
+different functions and not two discretisations of one. One sensitivity differs
+by a quarter, and another changes sign.
 
 ---
+
+## 4b. Wave 0: the referee, and the measurements the design rests on
+
+**Do this wave first.** Each task here either builds an instrument or takes a
+measurement that a later task needs. `METHOD.md` Section 9 gives the reason for
+each one, and Section 9.4 gives the claim that each one can refute.
+
+**Two rules apply to every task in this wave.**
+
+1. **Say what would make the probe unable to fail, before you run it.** Six of
+   eight failed measurements in this project were instruments that were run
+   carefully, reported honestly, and could not have produced a refutation. Three
+   more were found in one dry-run wave.
+2. **Put the configuration in a file in the tree.** Prose is not a
+   configuration. `scripts/measure/kI-lai-invariance.R` is the pattern: it
+   asserts that the parameter it varies reached the model, and it refuses to
+   report a result where every arm agrees.
+
+### Task M1: build the forward tangent driver
+
+`odelia` already has forward mode. `ode_jacobian.hpp` builds a twin system at the
+forward active scalar and seeds one state tangent at a time, and the Rosenbrock
+stepper uses it today. The lift from `double` to an active scalar is proven in
+two places. **What is absent is a driver, and not the machinery.**
+
+**Do this read first, because it decides the size.** Establish whether the
+adaptive stepper and the schedule control logic are safe at a tangent scalar that
+is carried through a cohort introduction. A control decision that compares an
+active quantity through an unguarded passive cast breaks the cheap route. This
+read needs no build.
+
+Then build the driver. Two shapes are open, and the read above decides between
+them. A fresh run at the tangent scalar from time zero passes through each
+introduction live, and needs none of the widening replay that the reverse sweep
+uses to fill its storage gap. A rebind of a finished `double` trajectory needs
+the mirror of that replay, and about two more packets.
+
+**One term this referee cannot check.** Both automatic paths impose a zero
+derivative of the seed height, so the tangent shares that blind spot. A second
+candidate is open: the birth growth rate is cast to a passive value at every node
+birth, on both coordinates. Establish whether that reaches a census row.
+
+### Task M2: bless the two-cohort fixture
+
+Make a stand on the birth-date coordinate that is small enough to check by hand.
+Put its configuration in a file. Force the schedule to two introductions, and
+**confirm the schedule took by the node count and the ODE size.** An assignment
+to the schedule that does not take runs the default schedule and says nothing.
+
+This fixture is the reference for Task M1 and for Task M6.
+
+### Task M3: check the closed-form scalar along the drying direction
+
+**This task has the best ratio of value to cost in the wave.** The scalar carries
+the only belowground competitive coupling in the model. Its quantity is a small
+difference of large quantities, amplified 15 to 26 times. Its present validation
+is a joint fit, and a joint fit cannot detect the error, because a compensating
+pair fits each row equally well.
+
+`Leaf::translation_partials` computes the uniform-drying response directly, and
+not by a difference. It is in the tree. One standalone harness calls it, and that
+harness compares the **joint** prediction against a difference of the residual —
+which is the one comparison that cannot refute the claim.
+
+**So rewire the existing harness. Compare the closed-form scalar against
+`translation_partials` alone, along the uniform-drying direction.** Do not
+compare the pair.
+
+### Task M4: emit the relative reserve, then take the four distributions
+
+The relative reserve is a local value inside `compute_rates`. Nothing exposes it,
+and the capacity it needs is unbound. **Add it as one auxiliary output.** Do not
+re-derive the capacity formula in R, because that is a second implementation and
+it will drift.
+
+Then take four distributions on one instrumented run. Each one unblocks a claim.
+
+- The relative reserve, across a stand. The reserve gate is a smoothing that
+  occupies 40 percent of its own domain. This distribution is the only thing that
+  says whether the gate has replaced the model.
+- Cohort height, at recruitment and after. A plant below 0.30 m roots in one
+  layer, and a single-layer plant at the lower bound writes a non-finite row by
+  construction. **Birth height at the reference configuration is 0.344 m, which is
+  just above the threshold.** So report the configuration with the number.
+- The product of the extinction coefficient and the leaf area index.
+  `Species::compute_competition(0)` returns it directly.
+- The frequency of cohort crossing on the birth-date coordinate.
+
+### Task M5: re-take the column occupancy of the light row
+
+Take it on the birth-date coordinate, and commit the script. The structural bound
+needs no measurement: a fixed rule of `n` points touches at most `n` spans of an
+interpolant that has local support, and the rule defaults to 21 points. **The
+occupancy figure this project carried is withdrawn**, because no script produced
+it and its structural twin is already retired for the same reason.
+
+### Task M6: assemble one cohort's block, and measure its rank
+
+`plant/scratch/wire_gates.cpp` exports `block_vjp`. Call it 12 times with unit
+basis vectors to assemble the block by rows. **This needs no new production
+code.** Give the output adjoint a length of at least 12, or the call writes past
+its buffer and damages the heap.
+
+Measure the rank in the field directions on both coordinates. The design says the
+block is rank one on the birth-date coordinate, and rank two or more on the
+height coordinate.
+
+### Task M7: measure the carbon bias of the averaging assumption
+
+Both shading modes run at plain `double`, and one state costs hundredths of a
+second. **But the fixed-environment interface sets a light level that is constant
+in space, and under a constant light the two modes are identical.** A dry run
+confirmed this: each output was identical to the last bit. That probe cannot
+fail.
+
+**So build a field that varies with depth**, through the canopy machinery, and
+keep it to one state. The quadrature is the same rule and the same abscissae in
+both modes, so the only difference is the number of hydraulic solves.
+
+This measurement replaces a number rather than adding one. The factor of 3.33
+that this project quotes is a stand-level demographic amplification, and the
+per-plant carbon bias has never been measured.
+
+### Task M8: compare the census on a sorted and an as-built grid
+
+`Species::census` does not branch on the coordinate. It builds its grid from
+heights whatever the coordinate is. So this defect is live in the scope of the
+gradient, and it is not latent there.
+
+Both orders are readable from R, and so is the per-node census value. **So this
+is a probe in R and not a change in C++.** Task 9a is the fix.
+
+### Task M9: bind the termination census, then build the driver set
+
+**This task became infrastructure work, and that is why it is last.** The census
+of leaf terminations exists. It is behind an environment variable, it accumulates
+in a global, and it writes text only when the process exits. Nothing binds it.
+**So bind it first.**
+
+Then build the driver set of `METHOD.md` Section 9.2, and take the incidence
+figures on it.
+
+**Two fixtures, and not one.** The shade-mortality regime is governed by light,
+so no rainfall sweep can reach it. A closed canopy and a drydown test different
+things.
+
+**Rainfall is configurable.** `extrinsic_drivers_set_variable` takes an
+interpolated series and it is bound.
+
+**The canopy closes.** Measured: the light floor is reached between an extinction
+coefficient of 3.0 and 3.5, which is six to seven times the default. Self-shading
+lowers the equilibrium leaf area from about 3.8 to about 2.9, which is real and
+which does not cancel the change.
+
+---
+
 
 ## 5. Prepare the tree, the guard and the reference data
 
@@ -611,9 +554,13 @@ a commit hash can show. A number without `node_density_in_birth_date` beside it 
 checked against anything.
 
 **Re-take the gradient measurements here.** ~~Measurement A's calls for each recorded cohort
-step and the share inside `input_adjoints`~~ — **both re-taken; see Section 4.** The share is
-99.2 percent, not lower. **The stop table of Section 1 was measured on the height coordinate
-and has not been re-taken.**
+step and the share inside `input_adjoints`~~ — **both re-taken; the values are in
+`CURRENTSTATE.md` Section 7.** The share is 99.2 percent, not lower.
+
+**And the tangent reference table is no longer a reference.** `CURRENTSTATE.md` Section 7
+holds it with its provenance. Each number in it is on the **height** coordinate, which this
+gradient no longer supports, and it was taken at a commit that is not an ancestor of this
+tree. Do not compare against it. Task M1 and Task M2 make the reference that replaces it.
 
 The prediction that the count would halve was wrong in its factor: `growth_rate_gradient`
 adds **one** further active `compute_rates` for each cohort-stage at the default
@@ -1079,6 +1026,15 @@ either. That is a forward-model defect and it is not this plan's to fix.
 
 ### Task 20: let `vcmax_25` and `jmax_25` register
 
+> **The obstruction is a cache key, and not the registration.** Both parameters
+> are absent from `ad_parameters()` because a temperature cache keys on quantities
+> that do not include them. So a changed value is reused in silence, and the row
+> reads exactly zero.
+>
+> **So fix the key first.** A registration that lands before the key is fixed
+> produces the failure mode `METHOD.md` Section 1 names as the worst one: an exact
+> zero that reads as an answer.
+
 Type: correctness. A cache key, not a derivative.
 
 **WARNING: the recorded reason is false and this task is two list entries.** The comment on
@@ -1131,6 +1087,23 @@ capability it covered and report it rather than removing it.
 **Count them before you start**, so the arithmetic is checkable afterwards.
 
 ### Task 15: give each recording its own active values
+
+> **The fix is not one line, and this task is not the same change as Task 11.** Two
+> places in the tree defend against this hazard and the census matches neither.
+> `Patch::cohort_block_adjoint` builds a **passive** template while no tape is
+> active, so it holds no slots, and then makes a fresh active object from that
+> template inside the innermost loop. `Step::step_adjoint` keeps its twin outside
+> the loop and is safe only because nothing mutates it. **The census builds its
+> copy once, outside the loop, and then mutates it in place at each iteration.**
+>
+> So reconstruct the copy from a pristine copy that no tape has touched, at each
+> iteration. **Whether that is enough is not established.** It depends on
+> `set_ode_state` overwriting every active field that the census then reads, and
+> nobody has read that function for this purpose. Read it.
+>
+> **This task fixes correctness and gives no economy.** A reconstruction at each
+> iteration still pays one recording for each metric. Task 11 is the economy, and
+> it is a different change.
 
 Type: **correctness**. It is the largest cause of the stop in Section 1.
 
@@ -1789,6 +1762,33 @@ identity with the same bits before and after the fix.
 
 ### Task 28: report the vulnerability curve in its own parameterisation
 
+> **This task is blocked on one ecological decision, and the decision is the model
+> owner's.** The code exposes the root's critical potential as independently
+> settable **on purpose**. Its own comment records that the fitted default holds
+> root shutoff too high for taxa that operate below it, and it names *Acacia
+> aneura*. So the model was built to let a root's shutoff disagree with its own
+> vulnerability curve.
+>
+> Two readings, and they give different output formats.
+>
+> 1. **The critical potential is definitional.** Both organs give two numbers, the
+>    map carries two relations, and a disagreement is an unsupported
+>    configuration.
+> 2. **The root has three degrees of freedom.** The map carries one relation, the
+>    two organs are described differently, and report 06 Section 7 is wrong about
+>    the root.
+>
+> **Answer this before you build the format.**
+>
+> **Two corrections to this task's size.** The map is 44 by 41 or 42, so the
+> redundancy is two or three columns and not twenty; an earlier "44 by about 20"
+> is withdrawn. And two relations that this project used as examples are not live:
+> the ratio between the photosynthetic capacities is outside the registered set,
+> and the half-loss potential reaches the curve only at construction.
+>
+> **The value of this task was never the column count.** It is that the adjoint
+> stops caring which parameterisation the question uses.
+
 Type: **correctness**, and it is the half of the hydraulic columns that closed forms do not
 fix.
 
@@ -2221,6 +2221,21 @@ work is inside the 2 percent, and after them it is about a third of the total.
 
 ### Task 11: sweep one recording with many seeds
 
+> **A record-once primitive already exists in the same header, and this task does
+> not use it.** `compute_jacobian` in `gradient.hpp` wraps `xad::computeJacobian`,
+> which registers the inputs one time and produces every row of the codomain from
+> **one** recording. `SCM::census_state_adjoint` reinvents a weaker loop around
+> `vector_jacobian_product`, which clears the tape at each entry.
+>
+> **So route the census through the primitive that is there, or add a sibling that
+> separates the record from the sweep.** Either is a change to the shared driver.
+> The first is much smaller than a design from nothing.
+>
+> **And the present waste is quadratic in the number of metrics, not linear.** The
+> reduction computes **every** output at each call while only one seed is
+> non-zero, and the driver runs one time for each metric. So "three recordings"
+> understates it.
+
 Type: cost, **and it supersedes Task 15**. Do it last of the cost tasks, because it is
 the only one that changes odelia. Recording one time and re-sweeping removes both the
 repeated recording and the aliasing Task 15 patches.
@@ -2638,9 +2653,14 @@ each recorded cohort step. The code does not obey its own comment.
 
 ## 11. What each task gives
 
-Each factor below is calculated from a measurement in Section 4. **No composed
-total has been measured.** Composition is where this project's predictions have
-failed. Measure each step.
+Each factor below is calculated from a measurement in `CURRENTSTATE.md` Section
+7. **No composed total has been measured.** Composition is where this project's
+predictions have failed. Measure each step.
+
+**Each factor in this table is task evidence and it expires when its task
+lands.** Re-take them one time, after the correctness tasks close, on the
+configuration that Task M2 blesses. Do not rank work by a factor that was
+measured on a gradient with four wrong columns.
 
 **This table is the one home for these factors.** A task's own section states what it
 does and how to check it, and not its size.
