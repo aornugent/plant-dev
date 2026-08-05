@@ -4,11 +4,15 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-Three live documents, in this order:
+Four live documents, in this order:
 
 - [`NEXTSTEPS.md`](NEXTSTEPS.md) — **the plan of record.** What to build, in what order, and
-  the gate for each step, with the measurements that set the order. Written in Simplified
-  Technical English.
+  the gate for each step. Written in Simplified Technical English.
+- [`CURRENTSTATE.md`](CURRENTSTATE.md) — **what the code does today**, where it departs from
+  reports 05–07, and every measurement with its configuration attached. It goes out of date on
+  each commit, and that is its purpose. Read it before believing any number, and before
+  reading a report as a description of the code — the reports describe the design, this
+  describes the build.
 - [`METHOD.md`](METHOD.md) — **how to know you built it.** The gate rules, the standing
   hazards, the build recipe, the reference forward numbers with their configurations, and
   where each harness lives. Read it before you write a gate or take a measurement.
