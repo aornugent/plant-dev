@@ -9,6 +9,12 @@ tested against `plant` at `origin/develop` (`7b5012c2`, TF24@v4).
 Every number below was measured, not read. Scripts are transient; the commands that
 produce each figure are named in the text so they can be re-run.
 
+**§6 re-runs all of it against the leaf refactor** — `traitecoevo/plant` develop at
+`74b10ed7` (TF24@v8), where the leaf model has moved out to the standalone `phylloptim`
+package. Sections 1–5 are the review as first written, against `aornugent/plant`
+`7b5012c2`; §6 says which findings survived, which were fixed, and what the refactor
+changed.
+
 ---
 
 ## 0. What was tested, and how
@@ -574,3 +580,133 @@ here either.
    default drivers, unbounded consequence when reached.
 6. **D7/D9** — dead parameters and contradictory comments; cheap, and both mislead a reader
    into thinking a lever exists.
+
+---
+
+## 6. Re-run against the leaf refactor (plant `74b10ed7`, TF24@v8, phylloptim 0.1.0)
+
+`traitecoevo/plant` develop is 7 commits ahead of the `aornugent` fork's develop and is a
+clean fast-forward of it. Those commits move the leaf gas-exchange and hydraulics model
+out to **`phylloptim`** (#591), pin `odelia (>= 0.2.1)` (#597), add the birth-date
+coordinate as an opt-in `Control` flag (#590), and integrate the environment in the
+stochastic solver (#593). Build chain: `odelia` 0.2.1 → `phylloptim` 0.1.0 → `plant`.
+
+The strategy header records the science the swap carried, and the accounting is worth
+reading in full because it inverts its own expectation: **v5** derives the leaf's
+ppm→Pa conversion from `atm_kpa` instead of the hard-coded 0.1013 (= 101.3 kPa), which
+moved one-species SCM offspring +2.4% because `TF24_Environment`'s `atm_kpa` default was
+**100.5** — "an artefact, not a site elevation" — so **v8** pins the driver to 101.3 and
+the whole branch collapses to **−0.20%** against develop, with the seeded stochastic
+counts matching bit for bit. The pressure fix was ~25× the rest of the swap put together.
+
+### Fixed by the refactor
+
+**D8 (dead root-critical clamp) — fixed, and by the same diagnosis.** v7's note:
+"the clamp was written as a std::max against a *signed* root_psi_crit, so it could never
+bind and the solver optimised over a collar the root system cannot supply. **The window
+is 1.2 MPa wide at TF24's defaults** — psi_crit = 7.085493 against root_psi_crit =
+5.870283". Those are exactly the numbers in §1 D8/C7 (phylloptim #24, plant #584).
+
+**The sentinel zero is now documented and reportable.** `dprofit_droot_collar_psi` gained
+a `feasible` out-parameter precisely so a caller root-finding on `dprofit == 0` can tell
+a stationary point from a shut-down sentinel — report 05 §7.0's requirement, met. Its
+comment measures the trap: profit at the sentinel is −1.897 against 2.516 at the true
+optimum, and the region is "at most 3.46e-07 MPa into the bracket, median 1.22e-08",
+"which is exactly why it would survive casual testing."
+
+**D2 is corroborated independently.** phylloptim's own golden-grid measurement:
+constrained (pinned) optima are "**42 of the 240 feasible golden-grid rows** … a branch
+that has to be written rather than a corner case". Measured again here through the plant
+path, the stem pins at `psi_crit` from θ = 0.155 (ψ_soil = 1.41 MPa) and shuts down at
+θ = 0.121 (ψ = 7.16 MPa) — the same transition as §1 D2, which put the interior/pinned
+boundary at 1.34 MPa.
+
+### Still open, verified on the refactored tree
+
+**D1 — survives byte-identically.** A TF24f individual at 5 m on **wet** soil
+(θ = 0.214, ψ_soil = 0.169 MPa) still aborts the run for canopy openness ≤ 0.0295, with
+the same message and the same `psi_stem = 0.170872` against `psi_upstream = 0.170867`:
+
+| openness | TF24@v8 result |
+|---|---|
+| 0.05 | net −0.90214, dψ/dt −3.55e−15 |
+| 0.03 | net −1.017, dψ/dt −0.0746815 |
+| **0.029 and below** | **THROWS `psi_stem_to_ci failed: … a and b do not bracket the root`** |
+
+Upstream has this as **#576** with two fix branches, neither merged into develop. I built
+`fix/tf24f-shutdown-gradient-576-v2` and tested it: **it does close this route** —
+openness 0.029 and below return dψ/dt = 0 with no throw, because `assim_max_ < 0` is one
+of `prepare_collar_solve`'s early exits and the new guard bails on all of them.
+
+One thing to keep when that branch lands. Its comment explains the abort as hydraulic
+shutdown — "the collar sits where the soil cannot supply the demanded flux at all, so
+uptake there is negative … phylloptim's `find_psi_stem_from_psi_root` throws". That is a
+*different* route from the one reproduced here: this plant is on wet soil, is not in
+hydraulic shutdown, and the throw is in `psi_stem_to_ci`, not
+`find_psi_stem_from_psi_root`. The guard catches both because it is placed at
+`prepare_collar_solve`, but the recorded reason covers only one, and the new coverage
+lives in `test-tf24-arid-corner.R` — so a later narrowing of the guard to "only
+shutdown" would silently reopen the shade route. A shade case (θ = 0.214, openness
+0.02) belongs in that test file beside the arid ones.
+
+**D3 — unchanged.** `integrate_over_size_distribution` still has no `sort`/`order`, while
+the C++ reductions still sort. Same dry-start run (θ₀ = 0.10, patch lifetime 20), same
+outcome: **57 of 99 steps invert**, max 18 inversions in a step, and on the final step
+
+| census | as-ordered | height-sorted | error |
+|---|---|---|---|
+| Σ w n h | 23.010621 | 22.145727 | **+3.91 %** |
+| Σ w n A_leaf | 4.2563058 | 4.0950784 | **+3.94 %** |
+| Σ w n m_heartwood | 9.1977289 | 8.8444089 | **+3.99 %** |
+
+**D4 — unchanged, and re-verified against odelia 0.2.1.** `phylloptim/roots.hpp` still
+builds the root grid to the 1 % point and still sets `set_extrapolate(true)` on both root
+splines; the odelia 0.2.1 spline still extrapolates linearly past the last knot, slope
+**0.010360**, against an exact integral that has converged: 13.74976 vs 3.46578 at
+m = 1000, i.e. **3.97× inflated**. The dry-start run reaches ψ_soil = 25.061 MPa, so the
+extrapolated region is live in it.
+
+**D5, D6, D7 — unchanged.** C++ c = 1.089985 against the R hyperpar's 2.040000 (**ratio
+1.8716**), psi_crit 7.085493 against 5.919880; `pars$p_50 <- 3.5` is still inert;
+`pars$b <- 1.2*b` still leaves `psi_crit` stale at 7.085493 where consistency requires
+8.502591. `TF24_Pars` is now **61** fields (was 59) and every dead parameter named in D7
+is still there — `p_50`, `beta1`, `var_sapwood_volume_cost`, the four `nmass_*`,
+`dmass_dN`, `a_p1`, `a_p2`, `root_psi_crit`.
+
+**D9 — unchanged.** `roots.hpp:259` still says `set_extrapolate(true); // clamp to last
+value beyond range`, which is not what the spline does.
+
+### What #590 does to the review's framing
+
+§0 said the birth-date coordinate does not exist in this model. **It does now**, as
+`Control$node_density_in_birth_date`, defaulting to off. So reports 05–07's coordinate is
+implementable here, and the two can be compared directly. On the same configuration
+(lma 0.0825, hmat 5, patch lifetime 5, birth rate 20, the same node schedule):
+
+| coordinate | offspring production | steps | wall clock |
+|---|---|---|---|
+| height (default) | 81.853869 | 89 | 6 s |
+| birth date | 466.914500 | 89 | 3 s |
+
+**A factor of 5.70 in the objective, not in a sensitivity.** Report 06 §11 warns that the
+two coordinates are different functions and quantifies it in sensitivities (a quarter for
+leaf-area/lma, a sign change for above-ground mass); measured here the *objective itself*
+moves 5.7×. The likely reason is the one report 06 §11 names — on the birth-date
+coordinate the introduction schedule **is** the quadrature grid, and this schedule was
+refined for the height coordinate — which makes the schedule non-transferable rather than
+either answer wrong. Whichever it is, a birth-date run needs its own schedule refinement
+before its offspring production means anything, and the flag being opt-in and off by
+default is the right default until that exists.
+
+### Practical notes for the workspace
+
+- `phylloptim` is header-only for consumers: `plant/inst/include/plant/leaf_model.h` is
+  now a thin re-export (`#include <phylloptim.hpp>`, `using Leaf = ::phylloptim::Leaf`),
+  so `plant` compiles its headers and links no phylloptim objects. It must still be
+  *installed* for `LinkingTo` to find them.
+- `plant` needs `odelia >= 0.2.1`, which exists only in `traitecoevo/odelia`; the
+  `aornugent` fork's master is 0.1.0 and has diverged (an equivalent, differently-hashed
+  commit for #46). The submodule pointer can still name the upstream SHA — GitHub fork
+  networks share objects, and `git fetch <fork-url> <upstream-sha>` was verified to
+  succeed for both `plant` and `odelia` — so `.gitmodules` keeps its fork URLs.
+- `aornugent/phylloptim` is in sync with `traitecoevo/phylloptim` (both `e265c6b`).

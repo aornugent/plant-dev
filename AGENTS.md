@@ -1,6 +1,6 @@
 # Developer Guide for Agents (plant-dev Workspace)
 
-This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, and `odelia`.
+This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, `phylloptim`, and `odelia`.
 
 ## Session Start (do this first, every session)
 Before doing anything else, add the sibling package repos to the session's GitHub
@@ -8,16 +8,24 @@ scope so their issues and PRs are readable — `git submodule update --init` clo
 code, but issue/PR access is a separate grant:
 
 1. Initialize submodules: `git submodule update --init --recursive`
-2. Add each fork to the session scope (via `add_repo`): `aornugent/odelia` and
-   `aornugent/plant`. Work items like `odelia#19` live in these trackers, not in
-   `plant-dev`, so without this step the issues are inaccessible.
+2. Add each fork to the session scope (via `add_repo`): `aornugent/odelia`,
+   `aornugent/plant` and `aornugent/phylloptim`. Work items like `odelia#19` live in
+   these trackers, not in `plant-dev`, so without this step the issues are inaccessible.
 
 ## Workspace Structure
 - `logpile/`: Submodule pointing to `https://github.com/aornugent/logpile.git`, default branch `main`
 - `plant/`: Submodule pointing to `https://github.com/aornugent/plant.git`, tracks `develop` (pinned via `branch = develop` in `.gitmodules`)
+- `phylloptim/`: Submodule pointing to `https://github.com/aornugent/phylloptim.git`, default branch `master` — the leaf gas-exchange and hydraulics model, moved out of `plant`'s TF24 strategy (plant#591) so it can be tested, profiled and embedded on its own
 - `odelia/`: Submodule pointing to `https://github.com/aornugent/odelia.git`, default branch `master`
 
-Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/odelia`, `traitecoevo/logpile`).
+Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/phylloptim`, `traitecoevo/odelia`, `traitecoevo/logpile`).
+
+**A submodule pointer may name a commit that exists only upstream.** `plant` currently
+requires `odelia (>= 0.2.1)`, which lives in `traitecoevo/odelia`; the `aornugent` fork's
+master is 0.1.0 and has diverged from it. That is fine and needs no URL change: GitHub
+fork networks share objects, so `git fetch <fork-url> <upstream-sha>` — which is exactly
+what `git submodule update` runs — serves it. Keep the fork URLs (they are what you push
+feature branches to) and record whichever SHA the build needs.
 
 System deps and R packages (including `gh`, `logger`, and `RcppR6`) are installed by the environment setup script — you don't need to install them by hand.
 
@@ -26,15 +34,18 @@ Submodules are not populated by a plain `git clone` of `plant-dev`. After clonin
 ```bash
 git submodule update --init --recursive
 ```
-Dependency order is `odelia` → `plant` → `logpile` (`plant` links `odelia`'s C++ headers; `logpile` imports `plant`). Build/install in that order.
+Dependency order is `odelia` → `phylloptim` → `plant` → `logpile` (`phylloptim` links `odelia`'s headers; `plant` links both `odelia`'s and `phylloptim`'s; `logpile` imports `plant`). Build/install in that order — a `plant` build fails at `#include <phylloptim.hpp>` if `phylloptim` is not installed, because `LinkingTo` resolves against the *installed* package, not the sibling checkout.
+
+`phylloptim`'s model is header-only and R-free (`inst/include/phylloptim/*.hpp`, no R, no Rcpp, Boost + the header-only parts of `odelia` only), and `plant/inst/include/plant/leaf_model.h` is now a thin re-export of it (`using Leaf = ::phylloptim::Leaf`). So `plant` compiles those headers into its own objects and links no `phylloptim` library — but the package still has to be installed for the headers to be found.
 
 ## Local Development
 Iterate with `pkgload::load_all()` (or `devtools::load_all(".")`) rather than a full install — it picks up live R edits without a reinstall/reload cycle:
 ```r
 library(odelia)              # must be a real install — see caveat
-pkgload::load_all("plant")
+pkgload::load_all("plant")   # after R CMD INSTALL phylloptim
 pkgload::load_all("logpile")
 ```
+Editing `phylloptim`'s headers means reinstalling `phylloptim` and then recompiling `plant` (`cd plant && make compile`) — `load_all("plant")` will not notice a changed header in another package's include tree on its own.
 `load_all()` still compiles a package's own C++ on first load / after C++ edits, so a `plant` C++ change is still a real (incremental) compile.
 
 **Caveat — load `odelia` with `library()`, never `load_all()`.** `plant` resolves `odelia`'s compiled XAD `Tape` symbols at load time via `odelia`'s `.onLoad` (which needs a real installed package). Under `load_all("odelia")` this breaks with `undefined symbol: ...xad4Tape...`. So reinstall `odelia` (`install.packages("odelia", repos=NULL, type="source")`) after editing its C++, and `load_all()` freely for `plant`/`logpile`.
