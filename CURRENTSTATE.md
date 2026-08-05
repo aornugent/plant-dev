@@ -243,9 +243,27 @@ scoped to.** They are pre-work for the gradient, not a defect in the forward mod
   `double` **by declaration** (`:611`, `:625`, and `height_seed()` returns `double` for every `S` at
   `:1616`); `eta_c` and `area_leaf_0` are `S` and passive only by *value*, so they are the tractable
   pair if item 9 is ever attacked.
-- **There is no assembled forward tangent at the SCM level.** No `jacobian_vector_product` and no
-  forward driver exists in `scm.h`; `forward_derivative` appears only inside `Leaf` as a local
-  device. So the reference item 9 needs does not exist to be blind.
+- **There is no assembled forward tangent at the SCM level, but the machinery to build one exists
+  and is load-bearing.** No `jacobian_vector_product` and no forward driver exists in `scm.h`;
+  `forward_derivative` appears only inside `Leaf` as a local device. **What is missing is a driver,
+  not infrastructure.** `odelia`'s `ode_jacobian.hpp` implements a real forward-mode facility:
+  `Jacobian<System>` builds a twin system at `xad::fwd<value_type>::active_type` through
+  `rebind_from`, seeds one state coordinate's tangent at a time, and reads the derivative back — and
+  the Rosenbrock stepper uses it today for its exact Jacobian. The double-to-active lift is proven
+  in production at `Patch::rebind_from` and at `SCM::census_state_adjoint`. So the tangent scalar
+  and the lift are both live; what does not exist is a whole-run driver that seeds a tangent and
+  carries it through `SCM::run()`.
+
+- **A second term enters passively on every path, and it was not on report 05 §10.1's list.**
+  `Node::compute_initial_conditions` assigns `birth_growth_rate = odelia::util::to_passive(g)` at
+  **every** node birth, on both coordinates — a code-level severance rather than a comment. And
+  `Species::height_jacobian()` returns `std::vector<double>`, so it is always passive, and it is
+  consumed as a plain divisor when building the birth-date log density. **Whether that channel
+  reaches any census row is unresolved**, and it needs the same algebraic check the waist needs: it
+  may be provably inert because it enters only as a structural quadrature weight, or it may be a
+  second imposed zero beside the seed height. Report 05 §10.1 names the seed height as *the*
+  imposed-zero term. **It may not be the only one, and until this is settled that section's claim is
+  narrower than it reads.**
 - **The water channel from cohorts into the soil state carries no derivative.**
   `patch.h:1101-1104` is `resource_depletion.push_back(odelia::util::to_passive(resource_consumed /
   area));`, with an in-place comment that the environment's store is `Internals<double>`.

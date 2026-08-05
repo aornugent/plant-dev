@@ -498,6 +498,27 @@ not interchangeable.
 
 1. **Build the SCM-level forward tangent.** It is the referee this document already assumes. Until
    it exists, no claim about the assembled gradient can be checked at all.
+
+   **The missing piece is a driver, not infrastructure — established by dry run.** `odelia`'s
+   `ode_jacobian.hpp` already implements forward-mode: a twin system at
+   `xad::fwd<value_type>::active_type` built through `rebind_from`, one state tangent seeded at a
+   time, used today by the Rosenbrock stepper for its exact Jacobian. The double-to-active lift is
+   proven in production. So this is about four packets rather than a project, and **two readings of
+   it are open.** Integrating fresh at the tangent scalar from time zero passes through every
+   introduction live and needs none of the reverse pass's widening machinery — that apparatus exists
+   only to fill the backward sweep's storage gap. Re-binding a completed double trajectory mid-run
+   would need the mirror of it, and about two packets more.
+
+   **The one read that settles the estimate, and it needs no build:** whether the adaptive stepper
+   and the node-schedule control logic are safe at a tangent scalar carried through cohort
+   introductions. If a control decision compares an active quantity through an unguarded passive
+   cast, the cheap reading is wrong. Do that read before writing any driver.
+
+   **And a cheaper instrument may referee the same claims.** A hand-differentiated closed form on
+   the two-cohort fixture is an L0/L1 check on a stand that is *by design* small enough to check by
+   hand, so it may not need a general driver at all. A complex-step variant buys nothing, because the
+   forward scalar is already exact at the same cost, and no Taylor-mode facility exists in `odelia`
+   to build on.
 2. **Bless a two-cohort stand on the birth-date coordinate**, small enough to check by hand, with
    its configuration as a file in the tree. This is the L2/L3 fixture and it is what makes "agrees
    to solver tolerance" a sentence with content.
