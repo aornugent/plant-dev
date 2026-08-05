@@ -1,6 +1,6 @@
 # Developer Guide for Agents (plant-dev Workspace)
 
-This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, and `odelia`.
+This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, `phylloptim`, and `odelia`.
 
 ## Session Start (do this first, every session)
 Before doing anything else, add the sibling package repos to the session's GitHub
@@ -8,16 +8,17 @@ scope so their issues and PRs are readable — `git submodule update --init` clo
 code, but issue/PR access is a separate grant:
 
 1. Initialize submodules: `git submodule update --init --recursive`
-2. Add each fork to the session scope (via `add_repo`): `aornugent/odelia` and
-   `aornugent/plant`. Work items like `odelia#19` live in these trackers, not in
-   `plant-dev`, so without this step the issues are inaccessible.
+2. Add each fork to the session scope (via `add_repo`): `aornugent/odelia`,
+   `aornugent/plant`, and `aornugent/phylloptim`. Work items like `odelia#19` live in
+   these trackers, not in `plant-dev`, so without this step the issues are inaccessible.
 
 ## Workspace Structure
 - `logpile/`: Submodule pointing to `https://github.com/aornugent/logpile.git`, default branch `main`
 - `plant/`: Submodule pointing to `https://github.com/aornugent/plant.git`, tracks `develop` (pinned via `branch = develop` in `.gitmodules`)
+- `phylloptim/`: Submodule pointing to `https://github.com/aornugent/phylloptim.git`, default branch `master`
 - `odelia/`: Submodule pointing to `https://github.com/aornugent/odelia.git`, default branch `master`
 
-Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/odelia`, `traitecoevo/logpile`).
+Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/phylloptim`, `traitecoevo/odelia`, `traitecoevo/logpile`).
 
 System deps and R packages (including `gh`, `logger`, and `RcppR6`) are installed by the environment setup script — you don't need to install them by hand.
 
@@ -26,7 +27,7 @@ Submodules are not populated by a plain `git clone` of `plant-dev`. After clonin
 ```bash
 git submodule update --init --recursive
 ```
-Dependency order is `odelia` → `plant` → `logpile` (`plant` links `odelia`'s C++ headers; `logpile` imports `plant`). Build/install in that order.
+Dependency order is `odelia` → `phylloptim` → `plant` → `logpile` (`phylloptim` links `odelia`'s C++ headers; `plant` links `odelia`'s and `phylloptim`'s headers; `logpile` imports `plant`). Build/install in that order. `plant` links `phylloptim` at compile time and only `Suggests` it, so — unlike `odelia` — it need not be loaded at `plant` runtime.
 
 ## Local Development
 Iterate with `pkgload::load_all()` (or `devtools::load_all(".")`) rather than a full install — it picks up live R edits without a reinstall/reload cycle:
@@ -56,8 +57,8 @@ header in `plant/inst/include/` invalidates every translation unit that includes
 it and triggers a near-full `plant/src` recompile. Build optimised once
 (`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
 `load_all()` without `make` builds unoptimised and makes every slow test several
-times slower (the difference between a ~3 min suite and the ">8 min" quoted in
-`docs/ad-handover.md`).
+times slower (the difference between a ~3 min suite and the >8 min it takes
+unoptimised).
 
 **Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
 `Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`
@@ -291,8 +292,7 @@ Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
 
 ## PR workflow
 
-Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
-entry in a planning doc such as [`docs/ad-issues.md`](docs/ad-issues.md). PRs are opened
+Work is tracked as **issues** — a numbered work item in a submodule's tracker. PRs are opened
 against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
 upstream is a separate, user-driven step (see *Workflow for Agents* above).
 
@@ -300,8 +300,8 @@ upstream is a separate, user-driven step (see *Workflow for Agents* above).
   issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
   mapping is unambiguous.
 - **Stacked diffs where issues depend on each other.** When working through several
-  interdependent issues at once — the dependency chains in `docs/ad-issues.md` are the
-  common case — branch each PR on top of the one it builds on rather than off the base
+  interdependent issues at once — a common case — branch each PR on top of the one it
+  builds on rather than off the base
   branch, and target that parent branch. Reviewers then see only the incremental diff and
   the PRs merge in order down to the submodule's default branch (`master`/`main`).
   Independent issues branch straight off the default branch and can merge in any order.
