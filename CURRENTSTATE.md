@@ -168,6 +168,34 @@ the least guarded; the number on this stand is about **4 percent**.
 **And the sorted fallback demonstrably works where it is applied:** the C++ light profile from the
 same run is monotone in 99 of 99 steps.
 
+**And on the birth-date coordinate the wrong-order grid is the second defect, not the first. The
+first is the wrong measure.** Three reads settle it:
+
+1. **`Species::census` integrates over `height()` and never consults the coordinate.** An exhaustive
+   search of its body for `abscissa_of` and `quadrature_abscissa` returns **zero** hits.
+2. **`abscissa_of` returns `introduction_time()` on the birth-date branch** and `-height()` otherwise.
+3. **The boundary condition omits the growth-rate divisor on the birth-date branch and includes it on
+   the height branch**, verbatim in `Node::compute_initial_conditions`:
+   `set_log_density(log(birth_rate * pr_estab))` against
+   `set_log_density(g > 0 ? log(birth_rate * pr_estab / g) : log(0.0))`.
+
+Read (3) with (1): **the $1/g$ factor is exactly what makes the height-coordinate density a density
+with respect to height.** Without it, the birth-date density is a density with respect to *birth
+date*. So integrating it over height applies the wrong measure, and the two differ by the Jacobian
+$\lvert \mathrm{d}h/\mathrm{d}\tau \rvert$ — which is the transport term reports 04 and 05 §5.1
+discuss. **Sorting by height fixes the cancellation and leaves this error untouched.**
+
+**The right fix is to integrate over the abscissa, and it closes both defects at once.** On the
+birth-date coordinate the abscissa is monotone **by construction** — nodes are introduced in time
+order and nothing can reorder a germination date — so a trapezium over it needs no ordering guard at
+all. On the height coordinate the abscissa is $-h$, which is monotone only when the heights are, so
+the guard is still owed *there*; that is the coordinate the gradient does not support.
+
+**So the measured 4 percent is a lower bound on the birth-date coordinate.** It was obtained by
+re-sorting one state, which holds the measure fixed, so it sizes the ordering error alone. The
+measure error is separate and unmeasured.
+
+
 **This dry-start configuration is the fixture Task M8 needs.** It inverts heavily and stays alive, so
 it does not require hunting for a crossed state at default settings.
 
