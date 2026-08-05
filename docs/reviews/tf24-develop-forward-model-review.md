@@ -704,9 +704,14 @@ default is the right default until that exists.
   now a thin re-export (`#include <phylloptim.hpp>`, `using Leaf = ::phylloptim::Leaf`),
   so `plant` compiles its headers and links no phylloptim objects. It must still be
   *installed* for `LinkingTo` to find them.
-- `plant` needs `odelia >= 0.2.1`, which exists only in `traitecoevo/odelia`; the
-  `aornugent` fork's master is 0.1.0 and has diverged (an equivalent, differently-hashed
-  commit for #46). The submodule pointer can still name the upstream SHA — GitHub fork
-  networks share objects, and `git fetch <fork-url> <upstream-sha>` was verified to
-  succeed for both `plant` and `odelia` — so `.gitmodules` keeps its fork URLs.
+- `plant` needs `odelia >= 0.2.1`. Both forks were behind when this section was written
+  and have since been brought current: `aornugent/plant` develop fast-forwarded 7 commits
+  to `74b10ed7` (which is where #590 and the refactor land), and `aornugent/odelia` master
+  reset to upstream's `4b9668e` (v0.2.1) — it had diverged by one commit, an
+  equivalent, differently-hashed change for #46, which upstream supersedes and which
+  remains reachable from `p0/ode-rates-mutable` and `p3/odelia-integration`. Both
+  submodule pointers are now reachable from the forks' own default branches.
+- A pointer naming an upstream-only SHA would have worked anyway: GitHub fork networks
+  share objects, and `git fetch <fork-url> <upstream-sha>` was verified to succeed for
+  both `plant` and `odelia` before the forks were moved.
 - `aornugent/phylloptim` is in sync with `traitecoevo/phylloptim` (both `e265c6b`).

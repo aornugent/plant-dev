@@ -20,12 +20,20 @@ code, but issue/PR access is a separate grant:
 
 Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/phylloptim`, `traitecoevo/odelia`, `traitecoevo/logpile`).
 
-**A submodule pointer may name a commit that exists only upstream.** `plant` currently
-requires `odelia (>= 0.2.1)`, which lives in `traitecoevo/odelia`; the `aornugent` fork's
-master is 0.1.0 and has diverged from it. That is fine and needs no URL change: GitHub
-fork networks share objects, so `git fetch <fork-url> <upstream-sha>` — which is exactly
-what `git submodule update` runs — serves it. Keep the fork URLs (they are what you push
-feature branches to) and record whichever SHA the build needs.
+**Keep the forks current with upstream, and check which kind of move it is.** A fork's
+default branch falls behind while work happens upstream, and a stale fork is how a
+submodule pointer ends up naming a commit the fork's own branches do not reach. Bring one
+forward with `git fetch upstream && git push origin upstream/<branch>:refs/heads/<branch>`
+— a plain push, so git refuses anything that is not a fast-forward, which is the check you
+want. When the fork has diverged (it carries a commit upstream does not), that push is
+refused: work out whether the fork's commit is superseded upstream before choosing between
+a `--force-with-lease` reset and a merge, and confirm with the user first — a force-push to
+a shared default branch is not yours to decide.
+
+**A pointer may still name a commit that exists only upstream.** That is fine and needs no
+URL change: GitHub fork networks share objects, so `git fetch <fork-url> <upstream-sha>` —
+exactly what `git submodule update` runs — serves it. Keep the fork URLs (they are what you
+push feature branches to) and record whichever SHA the build needs.
 
 System deps and R packages (including `gh`, `logger`, and `RcppR6`) are installed by the environment setup script — you don't need to install them by hand.
 
