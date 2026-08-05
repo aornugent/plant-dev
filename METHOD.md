@@ -7,6 +7,11 @@ Nearly every rule below traces to one mistake, made repeatedly: **a gate that
 measured the quantity its author was thinking about, rather than the quantity that
 moves when the feared thing happens.** Section 1 is that mistake and its counter.
 
+Sections 1 to 8 are technique: how to write a gate, which reference to trust, where the
+harnesses live. **Section 9 is strategy** — which measurements the design needs, in what
+order, and which of the existing ones to stop citing. Read section 9 before planning a wave;
+read the rest before writing a line of it.
+
 ---
 
 ## 1. The one rule about gates
@@ -72,10 +77,29 @@ ignoring the answer.**
 
 ### A gate built out of the thing it tests cannot fail
 
-Two instances. One compared an accumulator against a rearrangement of the
-adjoint's own per-cohort sweeps and passed on broken code. One predicted a waist
-coefficient from a pair that was itself wrong by 47 times, and both sides agreed
-because both came from the same poisoned source.
+The rule is the most productive one here and two of its three recorded instances need
+restating.
+
+**Instance 1 stands.** A gate compared an accumulator against a rearrangement of the adjoint's
+own per-cohort sweeps, and passed on broken code.
+
+**Instance 2 is withdrawn, and its withdrawal is itself an example.** It held that a gate
+predicted a waist coefficient from a pair wrong by 47 times, both sides agreeing because both
+came from one poisoned source. **The 47 was never a measurement** — it is the justification
+comment above the guard that captures the vulnerability grid before any perturbation, and the
+grid is held, so the poisoning does not occur. A rule was illustrated with a number that
+described the hazard a guard had already removed.
+
+**Instance 3 is the one to remember, because it is structural rather than accidental.** The
+curvature of the leaf's profit is measured by differencing **about the solved operating point** —
+that is, only at points where a maximum was found, where the second-order necessary condition
+already forces the sign the measurement reports. Negative at 52 of 52 states is what the sample
+was constructed to find. Its sibling has the same shape: a stationarity identity used to referee
+that same curvature is **formed from** it, so a wrong value cancels, and a real 2 percent defect
+passed it bit-for-bit unchanged.
+
+**So the test is not "could this gate pass vacuously" but "does this gate's population exclude
+the failure".** A sample conditioned on success cannot see failure, however many points it has.
 
 ### A gate's configuration must be a file in the tree
 
@@ -116,7 +140,16 @@ tallest cohort's height reports exactly **half**. A soil layer sitting exactly a
 
 **A relative `lma` step of 2e-7 flips a 105-year stand between alive and
 identically zero.** So no re-run finite difference can referee this gradient at
-production. The forward tangent is the referee.
+production.
+
+> **WARNING: the referee this section names does not exist.** "The forward tangent is the
+> referee" was written against an intention. There is **no assembled forward tangent at the SCM
+> level** — no `jacobian_vector_product`, no forward driver in `scm.h`; `forward_derivative`
+> appears only inside `Leaf` as a local device. And the blessed whole-run tangent reference on
+> `p3/tangent-referee` is on the **height** coordinate, which the gradient no longer supports,
+> taken at a commit that is not an ancestor of the current tree. **So the gradient currently has
+> no valid external reference at any level**, and building one is a prerequisite rather than a
+> task. Section 9.1 designs it.
 
 **State the definition of a relative error beside it.** `|a-b|/|b|` and
 `|a-b|/max(|a|,|b|)` give two different diagnoses of "rel 1": under the first, `a`
@@ -396,3 +429,176 @@ scripts do this and any figure taken through them is suspect.
 `NEXTSTEPS.md` is written in Simplified Technical English. This document is not:
 it is written for a reader deciding how to work rather than following a procedure,
 and it uses ordinary English throughout.
+
+---
+
+## 9. The measurement programme
+
+Sections 1 to 8 say how to take a measurement well. This says **which measurements the design
+needs**, and it exists because the corpus was rebuilt rather than extended. The reason is worth
+stating plainly: the existing measurements do not fail for being too few. They fail for being
+carved wrong.
+
+### 9.0 Eight ways a measurement in this project has failed
+
+Each row has an instance, and every instance passed review at the time.
+
+| failure | instance |
+|---|---|
+| **conditioned on the conclusion** — the population excludes the failure | profit's curvature differenced about *solved* operating points, where the second-order condition forces the sign. 52 of 52 is what the sample was built to find |
+| **the statistic cannot see its subject** | per-layer hydraulic redistribution ruled unreached because *total* uptake never goes negative. The total is a sum; the phenomenon is per-layer negatives inside a positive total |
+| **the axis never moved** | every incidence figure in the corpus, taken on a driver whose ground-level transmittance is 0.9997 and whose maximum soil potential *is* its initial state. "Incidence zero" was a property of the driver |
+| **a comment read as a measurement** | four times, most damagingly a 47-fold error quoted from the justification comment above the guard that prevents it |
+| **the amplified output measured, and the quantity reported** | mean-light bias quoted as 3.33, which is *lifetime offspring* — a per-plant carbon bias compounded through an establishment gate for twenty years. The carbon bias has never been measured |
+| **no configuration, so no reproduction** | one measurement retired outright; one figure ("36 of 44") corresponds to nothing anywhere; one stated as 180 times where the arithmetic gives 65.7 |
+| **a compensating pair fits every row** | the waist's two scalars are numerically collinear, so an error in one is absorbed by the other at about 1e5 and the joint residual is blind to it. The invariant checks one at the other's fixed value, not the pair |
+| **the reference invalidated by its own scope** | the blessed tangent table is on a coordinate the gradient no longer supports, across a commit that is not an ancestor |
+
+**The rule that follows, and it is the only one in this section.**
+
+> **A measurement earns its place by being able to falsify a claim the design rests on.**
+
+Two questions before taking one, in this order:
+
+1. **What observation would refute the claim?** If nothing would, there is no measurement to take
+   — there is a definition, and it belongs in a report.
+2. **Can this instrument produce that observation?** If the instrument's population is conditioned
+   on the claim holding, or its statistic aggregates away the failure, or its axis does not move
+   where the failure lives — redesign the instrument. Do not take the reading and caveat it.
+
+The second question is the one this project has skipped. Six of the eight failures above are
+instruments that could not have produced a refutation, run carefully and reported honestly.
+
+### 9.1 The reference problem, which gates most of the programme
+
+**There is no valid external reference for this gradient today.** Four levels are available and
+each refutes something different. State which level a claim is being checked at, because they are
+not interchangeable.
+
+| level | instrument | what it can refute | what it cannot |
+|---|---|---|---|
+| **L0** | closed form against a high-precision independent evaluation | an algebraic derivation | anything about the code path that consumes it |
+| **L1** | a supplied derivative against the individual's own algebra | the leaf's hand-written rows | nothing, if checked against a difference of the step — see below |
+| **L2** | a forward tangent through the same trajectory | the whole assembled gradient, at any lifetime | a term both modes impose identically |
+| **L3** | a re-run finite difference of the census | the model-level answer | anything at production, and anything through a supplied derivative |
+
+**Three constraints make this harder than it looks, and all three are established.**
+
+- **A finite difference of the recorded step cannot see an error in a supplied derivative.** The
+  grafting construction is exact in value, so perturbing an input changes the output through the
+  solver rather than through the bracket carrying the derivative. **L1 must be checked against
+  algebra, never against a difference of the step that consumes it.**
+- **L3 is unavailable at production.** A relative `lma` step of 2e-7 moves a mature stand between
+  alive and identically zero.
+- **L2 shares one blind spot with the gradient by construction.** The seed height's derivative is
+  imposed zero on *both* automatic paths, so a forward tangent cannot referee it. That term needs
+  L3 at a lifetime small enough to survive a step, or a new instrument.
+
+**So the first work item in the programme is not a measurement.** It is:
+
+1. **Build the SCM-level forward tangent.** It is the referee this document already assumes. Until
+   it exists, no claim about the assembled gradient can be checked at all.
+2. **Bless a two-cohort stand on the birth-date coordinate**, small enough to check by hand, with
+   its configuration as a file in the tree. This is the L2/L3 fixture and it is what makes "agrees
+   to solver tolerance" a sentence with content.
+
+**And re-bless the cross-model tripwire.** All three rows in section 5 are unusable: the TF24 row
+does not reproduce, and FF16 and K93 are pre-#590 baselines to re-take rather than defend.
+
+### 9.2 The axis problem: one fixture repairs eight measurements
+
+**Every incidence figure in this corpus is a measurement of the default driver**, and that driver
+never closes its canopy and never dries. Ground-level transmittance is 0.9997 — an open woodland.
+Soil potential never goes drier than its own initial state.
+
+This matters more than any single reading, because the five kinds of operating point are
+**consecutive segments of one drydown**: an interior optimum while wet, a constrained optimum as
+the stand dries and grows tall, a substituted point as the feasible window closes, a shutdown once
+it is gone. A driver that stays wet visits the first and reports the rest as unreached.
+
+**So build the driver set before taking any incidence figure.** Two fixtures:
+
+- **A closed canopy.** Enough leaf area index that the light floor's lever is in range, since the
+  floor and the interpolant's monotonicity guard fire together under one change in `k_I` and `k_I`
+  is a registered free parameter a search will walk.
+- **A real drydown**, traversing the four segments in order, deep enough to pass the root
+  vulnerability grid's end — because that is where the plant-to-soil sink begins, and the ordinary
+  dry-season profile reaches it while the plant stays alive.
+
+Eight figures become meaningful only against these fixtures: every operating-point incidence, the
+curvature question, the soil clamps, the frozen-reserve fraction, the pinned-bound counts, the
+bracket trend, the wrong-way flux magnitude, and the refusal counters. Taking any of them on the
+present driver produces a number about the present driver.
+
+### 9.3 Distributions before incidences
+
+An incidence answers one question on one driver. A distribution answers several and exposes the
+next question. Four are missing, all cheap, and each one currently blocks a claim:
+
+| distribution | what it decides |
+|---|---|
+| relative reserve `r` across a stand | whether the reserve gate — a mollifier occupying 40 percent of `r`'s domain — has replaced the model it smooths. Nothing else can tell |
+| cohort height, at recruitment and after | whether recruits fall below the single-layer rooting depth, which decides whether a **derived, guaranteed** non-finite gradient row is reachable. **The cheapest item in the programme** |
+| `k_I · LAI` over a run | how far the light floor's lever is from binding, and therefore whether an ascent run can walk into the severed region |
+| cohort crossing, on the birth-date coordinate | how often the census quadrature sits on a non-monotone grid — the objective's own correctness, upstream of every derivative |
+
+### 9.4 The core set: claim, falsifier, instrument
+
+Each row is a claim the design rests on. **If the falsifier cannot be produced, the claim is not
+supported — it is assumed.**
+
+| # | design claim | what would refute it | instrument | level | blocked by |
+|---|---|---|---|---|---|
+| 1 | the gradient is a derivative of the model | disagreement beyond solver tolerance on a hand-checkable stand | forward tangent, two-cohort, birth-date | L2 | 9.1 — **instrument absent** |
+| 2 | the objective is correct before any derivative | a census differing from the same census on a sorted grid | sort-and-compare at a crossed state | L3 | 9.3, to find a crossed state |
+| 3 | every state the theory excludes is refused | a state in the no-derivative, exogenous or substituted classes returning a finite number | classifier counters, one per kind | — | 9.2 |
+| 4 | the waist's second scalar is right **in the drying direction** | disagreement with the symmetry-breaking term computed directly, along the uniform direction | `Leaf::translation_partials` — **in the tree and unused** | L1 | — |
+| 5 | profit's curvature does not vanish in the feasible region | a sign change | sweep `p` across the **whole** feasible interval at dry states | L1 | 9.2 |
+| 6 | the field block is rank one on the birth-date coordinate | a second singular value above round-off | singular values of the block, both coordinates | L1 | — |
+| 7 | the light row's width is bounded by the quadrature rule, not the canopy | a row wider than twice the rule's point count | column census per recorded step, **on the birth-date coordinate** | — | existing figure is height-coordinate |
+| 8 | recording once and sweeping many is close to `F`-fold | sweep cost not dominated by record cost | record and sweep timings separately | — | the aliasing fix, and the driver API |
+| 9 | the averaging bias is a scope limit of stated direction | — the direction is certain; the **magnitude** is unknown | deep-crown against mean light at fixed states, **forward** | L0/L1 | — |
+| 10 | the parameterisation map expresses the model's sensitivity | a large fraction of the internal gradient orthogonal to the map's range | the orthogonal residual, per metric | — | the map itself |
+| 11 | the potential cap's wrong-way flux is bounded | a per-layer consumption large against a healthy layer's uptake | minimum per-layer consumption and maximum layer potential over a rainfall series | — | 9.2 |
+| 12 | the four field-reduction rows are short by a knowable amount | the allometric column disagreeing with a central difference by more than the missing channel predicts | one column against a difference | L3 | small lifetime |
+
+**Row 4 is the highest value in the programme for its cost.** The claim it tests carries the only
+belowground competitive coupling in the model; the quantity is a small difference of large
+quantities amplified fifteen- to twenty-six-fold; the existing validation is a joint fit that
+cannot detect the error; and **the instrument that computes it correctly already exists in the tree
+and is not called.** Nothing else here is that lopsided.
+
+**Row 9 replaces a number rather than adding one.** The 3.33 is a stand-level demographic
+amplification quoted where a per-plant carbon bias is meant. Measuring the carbon bias forward, at
+a handful of states, is affordable and separates the two permanently.
+
+### 9.5 What not to measure yet, and why
+
+**The cost measurements.** Four of the seven lettered measurements exist to show that an
+optimisation pays: the tabulation's cost, the masking spike, the tabulation guard. Each is real and
+each is evidence for a task rather than understanding of the model — and **the value of making a
+wrong gradient faster is not defined.** Re-take them once, after the correctness items close, on
+the blessed configuration of 9.1. Until then they motivate tasks; they do not rank them.
+
+**Anything on the height coordinate.** It is out of scope, the two coordinates are different
+functions rather than two discretisations of one — one sensitivity differs by a quarter and another
+**changes sign** — and a figure taken there cannot be carried across.
+
+**Anything across the forward-model correctness merge.** It touches the census, the field build and
+the leaf. Numbers either side of it are not comparable and the corpus has already produced one
+false alarm that way.
+
+### 9.6 The order
+
+1. **Build the forward tangent and bless the small fixture** (9.1). Nothing in the correctness
+   half of the programme can be checked without it.
+2. **Row 4**, the directional check of the waist. It needs no new fixture and no new code, and it
+   is the largest unquantified correctness risk in the leaf.
+3. **The four distributions** (9.3). Cheap, and each unblocks a claim; the height distribution
+   decides whether a guaranteed non-finite row is reachable.
+4. **Build the driver set** (9.2). Every incidence figure waits on it, and taking them earlier
+   produces numbers about the old driver.
+5. **Rows 5, 3 and 11** against that driver, in that order — the curvature question first, because
+   the operating-point selector's design depends on its answer.
+6. **Rows 2, 6, 7 and 12**, which are independent of the driver and can run in parallel with it.
+7. **Rows 8 and 10** last, because each waits on code the plan has not built.
