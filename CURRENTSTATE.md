@@ -466,9 +466,35 @@ branch indicator's derivative is **exact**.
 
 **Both clamps sit on one lever.** $\tilde Q(0) = 1$ for every $\eta$, so the field's minimum is at
 the ground knot and equals $\exp(-k_I\,\mathrm{LAI})$. The $10^{-4}$ floor binds when
-$k_I\,\mathrm{LAI} \ge \ln 10^4 = 9.2103$. **Measured on the one stand this corpus has run:**
-$A(0) = -\ln(0.1657209) = 1.7975$ at $k_I = 0.5$, so $\mathrm{LAI} = 3.595$ and the floor binds at
-$k_I \ge 2.562$ at this stand, or $\mathrm{LAI} \ge 18.42$ at this $k_I$. The monotonicity guard is
+$k_I\,\mathrm{LAI} \ge \ln 10^4 = 9.2103$.
+
+**Measured, and the hazard is real: the floor is reached between $k_I = 3.0$ and $k_I = 3.5$**, six
+to seven times the baseline of 0.5. Configuration `scripts/measure/kI-lai-invariance.R`, lifetime
+30, `lma = 0.0825`, `add_strategies` route, against the certified pairing:
+
+| $k_I$ | $k_I\,\mathrm{LAI}$ | implied LAI | |
+|---|---|---|---|
+| 0.5 | 1.8498 | 3.6995 | |
+| 1.0 | 3.8386 | 3.8386 | |
+| 2.0 | 7.1862 | 3.5931 | |
+| 3.0 | 8.8580 | 2.9527 | |
+| 3.5 | 11.3054 | 3.2301 | **floor binds** |
+| 6.0 | 17.4539 | 2.9090 | **floor binds** |
+
+**The earlier fixed-LAI estimate of $k_I \ge 2.562$ is optimistic and is superseded.** It held
+$\mathrm{LAI} = 3.595$ fixed while varying $k_I$. Self-shading does suppress equilibrium leaf area as
+extinction rises — from about 3.8 to about 2.9 — so the true threshold is **higher** than the
+fixed-LAI arithmetic predicts, by roughly a fifth to a third. The suppression is real but nowhere near
+enough to cancel: $k_I\,\mathrm{LAI}$ rises close to proportionally with $k_I$.
+
+**So an ascent or calibration run walking $k_I$ upward does reach the severed region**, and it needs
+an excursion of six- to sevenfold rather than fivefold. A dry run reading a single arm concluded the
+opposite — that self-shading cancels and the floor is unreachable — from one measurement compared
+against a *computed* baseline rather than a measured one. **And the first version of this probe could
+not have failed:** `k_I` lives at `pars$k_I`, and assigning `strategy$k_I` silently creates an R list
+element the C++ side never reads, so every arm returned the same number to four decimals with
+identical step counts. That reads as "self-shading exactly cancels" and means "nothing was varied."
+The script now asserts the parameter took and refuses to report an all-arms-identical result. The monotonicity guard is
 on the same lever: at the ground knot $m_0 = -L\,A'(0) = 0$ exactly for $\eta > 1$, so the first
 span undershoots when $m_1 h > 3(y_1 - y_0)$ — live precisely where a recruit bunch sits inside the
 first span, whose width is $H_{\max}/64 \approx 0.28$ m at production. It cannot reach below zero

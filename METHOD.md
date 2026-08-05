@@ -101,6 +101,28 @@ passed it bit-for-bit unchanged.
 **So the test is not "could this gate pass vacuously" but "does this gate's population exclude
 the failure".** A sample conditioned on success cannot see failure, however many points it has.
 
+### Assigning a parameter by the obvious name can be a silent no-op
+
+**A registered parameter lives one level below the strategy, at `pars$<name>`.** Assigning
+`strategy$<name>` does not fail, does not warn, and does not reach the model: the R object is a list,
+so the assignment **creates a new element** the C++ side never reads. Reading it back returns the
+value you just set, so the obvious check passes too.
+
+Measured: a sweep of the light extinction coefficient over a twelvefold range returned
+$k_I\,\mathrm{LAI}$ identical **to four decimal places in every arm, with identical step counts.**
+That reads as a striking ecological result — self-shading exactly cancelling a change in extinction —
+and it means nothing was varied. With the assignment corrected, the same sweep spans 1.85 to 17.45
+and crosses the threshold it was written to test.
+
+**So any probe that varies a parameter needs two guards**, and both are cheap:
+
+1. **Assert the parameter took**, by reading it back off the object the run will actually consume —
+   not off the one you assigned to.
+2. **Refuse to report an all-arms-identical result.** If every arm agrees to the printed precision
+   *and* the step counts match, suspect the harness rather than the ecology, and say so in the
+   failure message. Identical step counts are the tell: a real parameter change perturbs the adaptive
+   controller.
+
 ### A gate's configuration must be a file in the tree
 
 Not a paragraph. A headline verification number had to be retracted because its
