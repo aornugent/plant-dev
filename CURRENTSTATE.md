@@ -23,7 +23,7 @@ Every claim below is stated against:
 | | commit | branch |
 |---|---|---|
 | superproject | `459e262` | `claude/odelia-ad-tape-reverse-496fuf` |
-| `plant` | `600e3ebd` (`v1.2.1-427`) | — |
+| `plant` | `66029469` — `600e3ebd` (`v1.2.1-427`) plus the census abscissa fix | — |
 | `odelia` | `a3bcf58` | `p3/odelia-integration` |
 | `logpile` | `cdef780f` | `main` |
 
@@ -125,7 +125,7 @@ them.
 | 10 | The light reduction is not the transpose of its forward function on the birth-date coordinate — four discrepancies | §6.1 | read |
 | 11 | The water reduction's parameter half and the initial-condition term are absent | §10 | read |
 | 12 | The bound is the maximum of two magnitudes and one can never win, so the root-critical branch is dead | §7.3 | read |
-| 13 | **Two** census quadratures run on a possibly non-monotone grid — one in C++, one in R — and neither guards | §9 | read; **error measured at about 4 percent** — a defect in the objective |
+| 13 | Two census quadratures took the wrong abscissa. **The C++ half is FIXED at `66029469`; the R half is outstanding** | §9 | read; error measured at about 4 percent — a defect in the objective |
 
 **Item 8 precedes item 2, and item 10 precedes item 2.** Item 2 adds parameter rows to reduction
 transposes; items 8 and 10 are those transposes not matching their forward functions. Extend a
@@ -137,7 +137,24 @@ selector before fixing the sign would validate the new branch and lock the poiso
 line.
 
 **Item 13 precedes all of them**, because it is a defect in the quantity being differentiated. **And
-it is two paths, on opposite sides of the R boundary.** The guard status across the four quadratures
+it is two paths, on opposite sides of the R boundary — of which the C++ one is now closed.**
+
+> **`Species::census` is fixed at `66029469`.** It integrates over `quadrature_abscissa()` rather than
+> `height()`, which corrects the measure on the birth-date coordinate and removes the ordering hazard
+> there at the same time, since birth dates cannot invert. Gated two ways against a build of the
+> parent commit: the **height** coordinate is unchanged to every printed digit — leaf area
+> 4.1526002307, above-ground mass 12.3501592205, stem area 0.0041602088 — and the **birth-date**
+> coordinate moves, leaf area 12.8932796075 to 3.5059067337. Offspring is unchanged in both arms, so
+> the reproduction integral is undisturbed. Configuration
+> `scripts/measure/census-abscissa-gate.R`, lifetime 20, `lma = 0.0825`, `hmat = 5`, birth rate 20.
+> `test-scm.R` passes 140 of 140.
+>
+> **The height coordinate keeps the ordering hazard**, because its abscissa is $-h$, which is monotone
+> only while the heights are. That coordinate is out of the gradient's scope and still wants the
+> sorted-view treatment the two reductions already apply.
+>
+> **`integrate_over_size_distribution` in `plant/R/tidy_outputs.R` is unfixed** and carries both halves
+> of the defect. It is the path a user's output takes. The guard status across the four quadratures
 over the size distribution:
 
 | quadrature | guards a non-monotone grid? |
