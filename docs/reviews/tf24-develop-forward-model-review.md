@@ -607,6 +607,22 @@ bind and the solver optimised over a collar the root system cannot supply. **The
 is 1.2 MPa wide at TF24's defaults** — psi_crit = 7.085493 against root_psi_crit =
 5.870283". Those are exactly the numbers in §1 D8/C7 (phylloptim #24, plant #584).
 
+Confirmed by experiment rather than from the note. At θ = 0.140 (ψ_soil = 2.748 MPa) the
+unclamped collar is 3.9094 MPa, and lowering `root_psi_crit` through it now changes the
+operating point, which on the old code it could not:
+
+| `root_psi_crit` | collar | transpiration | net production |
+|---|---|---|---|
+| 5.870283 (default) | 3.9094 | 1.72e−05 | +0.1333 |
+| 4.000 | 3.9094 | 1.72e−05 | +0.1333 |
+| 3.000 | **3.0000** | 3.92e−06 | −1.1235 |
+| 2.000 | **2.0000** | 0 | −2.7208 |
+
+Both regimes v7 names are visible: the interval tightens with the plant still transpiring
+at a wetter collar (3.000), then shutdown once `root_psi_crit` falls below the zero-uptake
+collar (2.000). The default does not bind at TF24 defaults, which is why v7 reports no
+tested scenario moving.
+
 **The sentinel zero is now documented and reportable.** `dprofit_droot_collar_psi` gained
 a `feasible` out-parameter precisely so a caller root-finding on `dprofit == 0` can tell
 a stationary point from a shut-down sentinel — report 05 §7.0's requirement, met. Its
@@ -659,12 +675,26 @@ outcome: **57 of 99 steps invert**, max 18 inversions in a step, and on the fina
 | Σ w n A_leaf | 4.2563058 | 4.0950784 | **+3.94 %** |
 | Σ w n m_heartwood | 9.1977289 | 8.8444089 | **+3.99 %** |
 
-**D4 — unchanged, and re-verified against odelia 0.2.1.** `phylloptim/roots.hpp` still
-builds the root grid to the 1 % point and still sets `set_extrapolate(true)` on both root
-splines; the odelia 0.2.1 spline still extrapolates linearly past the last knot, slope
-**0.010360**, against an exact integral that has converged: 13.74976 vs 3.46578 at
-m = 1000, i.e. **3.97× inflated**. The dry-start run reaches ψ_soil = 25.061 MPa, so the
-extrapolated region is live in it.
+**D4 — unchanged, and nothing in flight anywhere.** `phylloptim/roots.hpp` still builds the
+root grid to the 1 % point and still sets `set_extrapolate(true)` on both root splines; the
+odelia 0.2.1 spline still extrapolates linearly past the last knot, slope **0.010360**,
+against an exact integral that has converged: 13.74976 vs 3.46578 at m = 1000, i.e.
+**3.97× inflated**. The dry-start run reaches ψ_soil = 25.061 MPa, so the extrapolated
+region is live in it.
+
+Searched for existing work and found none: no phylloptim PR or branch touches those two
+`set_extrapolate` calls or the grid, up to and including master at `27c5dcb` (0.2.0), and
+no plant PR concerns the root integral. phylloptim #63/#66/#67 changed what the caller
+supplies to the supply path — root resistances rather than root carbon — which sits
+upstream of `r_R_H_min`/`r_R_V_sum` and leaves the integral, its grid and its extrapolation
+untouched.
+
+Worth noting what *is* being worked on next to it: plant #607 and phylloptim #65 both name
+the transport spline that leaves its domain. That is the stem-side pair
+(`transpiration_from_psi`, `psi_from_transpiration`), built with
+`set_extrapolate(false)`, which **throws** when asked outside its knots — so the spline
+that refuses is getting better diagnostics while the root spline that silently extrapolates
+is untouched. The two have opposite policies, and only the loud one has attention.
 
 **D5, D6, D7 — unchanged.** C++ c = 1.089985 against the R hyperpar's 2.040000 (**ratio
 1.8716**), psi_crit 7.085493 against 5.919880; `pars$p_50 <- 3.5` is still inert;
