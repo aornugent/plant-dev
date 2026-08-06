@@ -1,6 +1,6 @@
 # Developer Guide for Agents (plant-dev Workspace)
 
-This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, `phylloptim`, and `odelia`.
+This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, `phylloptim`, `odelia` and `regnans`.
 
 ## Session Start (do this first, every session)
 Before doing anything else, add the sibling package repos to the session's GitHub
@@ -9,16 +9,18 @@ code, but issue/PR access is a separate grant:
 
 1. Initialize submodules: `git submodule update --init --recursive`
 2. Add each fork to the session scope (via `add_repo`): `aornugent/odelia`,
-   `aornugent/plant` and `aornugent/phylloptim`. Work items like `odelia#19` live in
-   these trackers, not in `plant-dev`, so without this step the issues are inaccessible.
+   `aornugent/plant`, `aornugent/phylloptim` and `aornugent/regnans`. Work items like
+   `odelia#19` live in these trackers, not in `plant-dev`, so without this step the
+   issues are inaccessible.
 
 ## Workspace Structure
 - `logpile/`: Submodule pointing to `https://github.com/aornugent/logpile.git`, default branch `main`
 - `plant/`: Submodule pointing to `https://github.com/aornugent/plant.git`, tracks `develop` (pinned via `branch = develop` in `.gitmodules`)
 - `phylloptim/`: Submodule pointing to `https://github.com/aornugent/phylloptim.git`, default branch `master` — the leaf gas-exchange and hydraulics model, moved out of `plant`'s TF24 strategy (plant#591) so it can be tested, profiled and embedded on its own
 - `odelia/`: Submodule pointing to `https://github.com/aornugent/odelia.git`, default branch `master`
+- `regnans/`: Submodule pointing to `https://github.com/aornugent/regnans.git`, default branch `master` — community assembly on top of `plant`. This is the former `plant.assembly`, renamed. **It holds the equilibrium machinery `plant` no longer has**: `equilibrium_birth_rate` and the `equilibrium_*` controls were removed from `plant` in `2f54741b` (plant#388) and live here. `plant` provides the map — `run_scm` at a fixed exogenous birth rate, reporting `net_reproduction_ratios` — and `regnans` finds its fixed point. Anything about demographic equilibrium therefore spans both repos.
 
-Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/phylloptim`, `traitecoevo/odelia`, `traitecoevo/logpile`).
+Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/phylloptim`, `traitecoevo/odelia`, `traitecoevo/logpile`, `traitecoevo/regnans`).
 
 **Keep the forks current with upstream, and check which kind of move it is.** A fork's
 default branch falls behind while work happens upstream, and a stale fork is how a

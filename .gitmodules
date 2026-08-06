@@ -11,3 +11,6 @@
 [submodule "phylloptim"]
 	path = phylloptim
 	url = https://github.com/aornugent/phylloptim.git
+[submodule "regnans"]
+	path = regnans
+	url = https://github.com/aornugent/regnans.git
