@@ -1,23 +1,8 @@
 # Developer Guide for Agents (plant-dev Workspace)
 
-This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, and `odelia`.
+This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `odelia`, `plant`, `phylloptim`, `regnans`, `logpile`.
 
 ## Session Start (do this first, every session)
-
-Four live documents, in this order:
-
-- [`NEXTSTEPS.md`](NEXTSTEPS.md) — **the plan of record.** What to build, in what order, and
-  the gate for each step. Written in Simplified Technical English.
-- [`CURRENTSTATE.md`](CURRENTSTATE.md) — **what the code does today**, where it departs from
-  reports 05–07, and every measurement with its configuration attached. It goes out of date on
-  each commit, and that is its purpose. Read it before believing any number, and before
-  reading a report as a description of the code — the reports describe the design, this
-  describes the build.
-- [`METHOD.md`](METHOD.md) — **how to know you built it.** The gate rules, the standing
-  hazards, the build recipe, the reference forward numbers with their configurations, and
-  where each harness lives. Read it before you write a gate or take a measurement.
-- [`ORCHESTRATOR.md`](ORCHESTRATOR.md) — how to run implementation work through subagents:
-  the packet, isolation, sequencing, and review. Read it only if you are directing packets.
 
 Then the reference material:
 
@@ -41,23 +26,8 @@ Then the reference material:
 - `docs/reports/01`–`04` — the derivations and measurements the design rests on.
   **Reference material, not status**; they are never edited to track progress. Read the head
   of each first: several carry corrections to their own sub-claims.
-- [`docs/tf24-correctness.md`](docs/tf24-correctness.md) — the TF24 forward-model prerequisites.
 - `docs/archive/` — documents whose conclusions are stale, superseded or configuration-dependent,
-  each bannered with what survives. **Do not design from them.** The build plan and the
-  implementation notes are here: every task in the plan is built, and the notes were the one
-  home for numbers nobody is re-deriving. Read them for archaeology and cite them by commit
-  and path.
-
-**The provenance rule is mandatory:** a claim earns a place in a live document only on a passing
-test, a re-runnable probe, or a code location read directly — **never on another document's
-say-so**. That rule exists because a recorded blocker outlived its fix across four documents.
-Its companion: **a measurement carries its configuration** — layer count, driver, tolerances,
-lifetime, trait set — because a conclusion inherits its probe's degeneracies.
-
-**The old probe corpus and ledgers are not deleted, only unlinked.** Recover them with
-`git checkout archive/v3-docs-and-probes -- docs/reference` (and `-- scripts` for the `gate0-*`
-harnesses). Current probes are in `scripts/`, each stating its configuration; see
-`scripts/README.md`.
+  each bannered with what survives. **Do not design from them.** 
 
 Then, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the
@@ -68,21 +38,9 @@ code, but issue/PR access is a separate grant:
    `aornugent/plant`. Work items like `odelia#19` live in these trackers, not in
    `plant-dev`, so without this step the issues are inaccessible.
 
-## Workspace Structure
-- `logpile/`: Submodule pointing to `https://github.com/aornugent/logpile.git`, default branch `main`
-- `plant/`: Submodule pointing to `https://github.com/aornugent/plant.git`, tracks `develop` (pinned via `branch = develop` in `.gitmodules`)
-- `odelia/`: Submodule pointing to `https://github.com/aornugent/odelia.git`, default branch `master`
-
 Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/odelia`, `traitecoevo/logpile`).
 
 System deps and R packages (including `gh`, `logger`, and `RcppR6`) are installed by the environment setup script — you don't need to install them by hand.
-
-## Repo Setup
-Submodules are not populated by a plain `git clone` of `plant-dev`. After cloning, run:
-```bash
-git submodule update --init --recursive
-```
-Dependency order is `odelia` → `plant` → `logpile` (`plant` links `odelia`'s C++ headers; `logpile` imports `plant`). Build/install in that order.
 
 ## Local Development
 Iterate with `pkgload::load_all()` (or `devtools::load_all(".")`) rather than a full install — it picks up live R edits without a reinstall/reload cycle:
@@ -118,11 +76,6 @@ R_MAKEVARS_USER=/path/to/Makevars-O2 Rscript -e 'pkgbuild::compile_dll(".", debu
 with `Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`. Confirm it took by checking that the
 compile line for one translation unit in the log ends at `-O2` with no trailing `-O0`.
 
-**Absolute times belong to the machine; only same-session ratios transfer.** The same tree at `-O2`
-runs a production TF24 lifetime in 89.9 s on one box and 102.9 s on another, both reproducing offspring
-`42.14017357509567` and the same 5 055 accepted steps. The value and the step count are properties of
-the tree and the flags. Gate on a ratio measured against a develop build in the same session.
-
 **The per-iteration tax is the rebuild, not the tests.** An R-only change under
 `pkgload::load_all("plant")` skips compilation; a C++ change recompiles
 incrementally — but the strategy/environment core is header-inline, so editing a
@@ -132,21 +85,6 @@ it and triggers a near-full `plant/src` recompile. Build optimised once
 `load_all()` without `make` builds unoptimised and makes every slow test several
 times slower (the difference between a ~3 min suite and the ">8 min" quoted in
 an earlier handover note, now recoverable from `archive/v3-docs-and-probes`).
-
-**Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
-`Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`
-in fresh subprocesses, which fails under `load_all()` (`attempt to use
-zero-length variable name`). So set `Sys.setenv(TESTTHAT_PARALLEL = "false")` (as
-the AD handover already does). File-parallelism only works from an *installed*
-package (`cd plant && make test`, or CI) — it is not a lever for interactive
-work. That leaves **test selection** as the real lever, and the runtime is
-heavily skewed (serial, `-O2`):
-
-| Files | Serial cost | What |
-|---|---|---|
-| 3 heavy | **~143 s (76%)** | `test-mutant.R` (82 s, several full `run_scm`), `test-strategy-tf24.R` (43 s, TF24 hydraulics), `test-strategy-tf24f.R` (19 s) |
-| ~6 medium | ~28 s | `test-patch.R` 10 s, `test-initial-state.R` 6 s, `test-individual.R` 4 s, `test-strategy-ff16.R` 4 s, `test-canopy-methods.R` 4 s, `test-stochastic-patch-runner.R` 2 s |
-| ~33 rest | ~17 s | each **< 1 s** |
 
 Tiers of the loop, cheapest first:
 
@@ -168,9 +106,6 @@ Tiers of the loop, cheapest first:
                 c("test-mutant.R", "test-strategy-tf24.R", "test-strategy-tf24f.R"))
    for (x in f) testthat::test_file(file.path(d, x))
    ```
-4. **Full serial sweep before you push — ~3 min on an `-O2` build.** The heavy
-   files exist for a reason; never let a branch land without them. Or run the
-   installed parallel path — `cd plant && make test` — which is what CI does.
 
 **Always cheap, run it when numerics move:** the FF16 bit-identity guard
 (`test-strategy-ff16.R` ~4 s, plus `test-strategy-ff16-reference-comparison.R`)
