@@ -782,21 +782,51 @@ $$\frac{\partial R}{\partial u} \;=\; a\,\frac{\partial E^{\mathrm{up}}}{\partia
 
 with $a$ and $b$ two scalars shared across all of them.
 
-**This is a chain rule, not a fit.** The marginal profit reads the potentials, the root masses and
-leaf area *only* through total uptake and through the sensitivity of total uptake to root mass:
-stem potential is a function of uptake and root potential; intercellular CO₂ reads only the stem
-potential, on a state-free bracket; and the assimilation, cost and conductance derivatives are
-functions of the intercellular concentration, the stem potential, $p$ and $\varphi$. So
-$R = F(E^{\mathrm{up}},\ \partial E^{\mathrm{up}}/\partial r;\ p, \varphi)$ **identically**, and
+**This is a chain rule, not a fit.** Writing $\sigma$ for the stem potential, $\kappa$ for the
+maximum leaf-specific conductance, $P$ for the transport spline and $S_t$ for the stem's own head
+term,
+
+$$\sigma = P\!\left(\tfrac{1}{\kappa}E^{\mathrm{up}} + S_t(p)\right), \qquad
+R = G(\sigma, p, \varphi)\; P'(x)\left[\tfrac{1}{\kappa}\frac{\partial E^{\mathrm{up}}}{\partial p} + S_t'(p)\right]$$
+
+with $G = \partial\Pi/\partial\sigma$ and $x$ the spline's argument. The state enters $\sigma$ and
+$x$ **only through $E^{\mathrm{up}}$**, and $\partial E^{\mathrm{up}}/\partial p$ enters directly;
+intercellular CO₂ reads only $\sigma$, on a state-free bracket, and the assimilation, cost and
+conductance derivatives are functions of $c^{\mathrm{i}}$, $\sigma$, $p$ and $\varphi$. So
+$R = F(E^{\mathrm{up}},\ \partial E^{\mathrm{up}}/\partial p;\ p, \varphi)$ **identically**, and
 rank two is a chain rule through a two-dimensional intermediate.
 
-**And it is unverified.** The derivation above is an identity, so it either holds or the reading of
-what $R$ depends on is wrong — but no one has measured the residual of the two-coefficient fit over
-all $2L+1$ directions on the current model, at states that include a pin and a layer crossing the
-equal-potentials branch. **This is the load-bearing claim for the entire water channel**: if the
-factorisation does not hold, the argmax channel is not two scalars times closed-form vectors and the
-cost argument for the whole design changes. It is the cheapest unclosed check in this document —
-one state, $2L+1$ directions, no gradient run — and it should not stay open.
+**The second intermediate is the sensitivity of uptake to the collar, not to root mass.** An earlier
+form of this section said root mass, and the closed form for $b$ it gives is the collar one:
+$\partial R/\partial(\partial E^{\mathrm{up}}/\partial p) = G\,P'/\kappa$ exactly, with
+$G = \partial\Pi/\partial\psi_{\text{stem}}$. The rank-two claim and $b$ were right; the sentence
+naming the intermediate was not.
+
+**And it is now verified, out of sample.** Solving $(a,b)$ from two directions of *different
+families* — one soil potential and one layer resistance, condition number 2.6 to 6.7 — and then
+**predicting** the remaining nine of the $2L+1$:
+
+| state | $p^\star$ | stationarity | worst predicted | $\psi$-family sv ratio |
+|---|---|---|---|---|
+| wet | 2.408 | 1.7e-11 | 2.4e-05 | 9.0e-05 |
+| dry | 2.858 | 1.1e-15 | **1.0e-06** | 3.9e-04 |
+| shaded | 2.175 | 1.4e-15 | 2.8e-05 | 6.1e-05 |
+| near-uniform | 2.570 | 1.4e-16 | 2.5e-06 | 1.6e-04 |
+
+The residual scales as $1/h$ over three decades of step with no minimum — round-off rather than
+truncation — so the true residual is below those figures, and $(a,b)$ are stable to four significant
+figures across them. The uniform-drying direction, which §7.3's conditioning discussion and report
+06 §7 both single out, fits best of the four. **The load-bearing claim for the water channel holds.**
+
+**One route to $\partial R/\partial u$ that does not work, because the failure is instructive.**
+$R = \partial\Pi/\partial p$, so $\partial R/\partial u$ is the *collar* derivative of
+$\partial\Pi/\partial u$ — and $\partial\Pi/\partial u$ has an analytic form: a price times a supply
+derivative. Differencing that in the collar would give every direction from two evaluations and no
+re-driving. **It is wrong by a factor of 1.40**, because the price is
+$\lambda_{\text{multi}} - \lambda_{\text{stem}}$ and the multilayer $\lambda$ is the one the collar
+solve *equalises*. The analytic profit row is therefore an expression for $\partial\Pi/\partial u$
+**at** the operating point and not away from it. $\partial R/\partial u$ has to come from the
+marginal profit itself, which is what makes the factorisation necessary rather than merely cheap.
 
 **One of the two scalars is closed form and the other is not.** $R$ sees the uptake–root-mass
 sensitivity only through the stem-potential response, so
@@ -1129,13 +1159,19 @@ state as-ordered against height-sorted moves the leaf-area census by 3.95 percen
 by 3.91 percent and the heartwood moment by 4.00 percent. **Same cohorts, same densities, only the
 row order differs.** So the whole discrepancy is quadrature error in the objective.
 
-**Every reduction that guards this works, and every census that does not is unguarded on both sides
-of the language boundary.** The two field reductions fall back to a sorted view — and demonstrably
-succeed, since the light profile stays monotone in every step of the same run. The census does not
-guard, and neither does the helper that integrates the size distribution for a user's output. **A
-guard is therefore owed at two sites and not one**, and the requirement is on the quadrature rather
-than on the language: integrate over the abscissa the density is a density *in*, and sort or refuse
-only where that abscissa can invert.
+**Guarding the crossing and integrating over the right axis are two requirements, and a reduction
+can meet the first while failing the second.** The field reductions fall back to a sorted view and
+demonstrably succeed at that — the light profile stays monotone in every step of the same run — and
+that says nothing about which variable their trapezium widths are gaps in. Measured on the model:
+the value reduction took its widths from the abscissa and the **fused value-and-slope reduction that
+actually builds the field** took its widths from heights, so on the birth-date coordinate the two
+disagreed by 100 percent relative while agreeing bit for bit on the height coordinate. The census
+took heights on either coordinate, as did the transposes of both resource reductions.
+
+**So the requirement is on the quadrature and not on the language, and it is two things:** integrate
+over the abscissa the density is a density *in*, and sort or refuse only where that abscissa can
+invert. The first is the one that is wrong on every stand rather than only on a crossed one, and a
+sorted view is no evidence of it.
 
 **Those two sites need different guards, and reaching for the same one at both is a mistake in
 opposite directions.** A census is a quadrature of a density, so its weights must be gaps in the
@@ -1169,6 +1205,12 @@ single-species test suite never detects this.
 For $F$ functionals the record is common and only the seed differs. Recording once and sweeping $F$
 times costs one record plus $F$ sweeps, against $F$ records and $F$ sweeps; **the record
 dominates**, so the saving is close to $F$-fold.
+
+**The precondition is that the record really is common, and for one reduction here it is not.** The
+census is recorded as a function of the state, so the recording *sets* that state inside itself; each
+metric's recording is then a different one and there is nothing to share. Where that holds the
+economy is unavailable, and the shape of the mistake is to take it anyway — hoisting the active copy
+out of the loop to avoid rebuilding it, which is exactly the aliasing the next paragraph describes.
 
 **The economy has a precondition that is easy to violate and expensive to detect.** Clearing a tape
 returns its derivative-slot counter to zero. So any active value constructed *outside* the sweep

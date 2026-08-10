@@ -142,21 +142,27 @@ The reference consumes the **same supplied leaf rows** the sweep does. That is l
 having refereed them independently — and the licence is weaker than it looks in the one place it
 matters most.
 
-The water rows are built on report 05 §7.3's rank-two factorisation, which is **untested**, and whose
-natural check *provably cannot referee it*: the potential-family vectors are numerically collinear,
-so a compensating `(a, b)` pair fits every row equally well and an error in `b` is absorbed into `a`
-at a ratio of about `10⁵`. Since the uniform-drying direction is a near-symmetry whose true response
-is amplified fifteen- to twenty-six-fold, a one-percent error in `b` is a fifteen- to twenty-six-fold
-error in the quantity the ecology cares about.
+The water rows are built on report 05 §7.3's rank-two factorisation. The collinearity that makes this
+seam awkward is real and has now been measured: the potential-family vectors have a second singular
+value `10⁻⁴` to `10⁻⁵` of the first, so a compensating `(a, b)` pair fits every row of **that family**
+equally well and an error in `b` is absorbed into `a`. Since the uniform-drying direction is a
+near-symmetry whose true response is amplified fifteen- to twenty-six-fold, a one-percent error in
+`b` would be a fifteen- to twenty-six-fold error in the quantity the ecology cares about, sitting in
+the sweep and in the reference alike, with every rung above passing.
 
-**A wrong `b` therefore sits in the sweep and in the reference, and every rung above passes.** This
-is a common-mode failure on the channel report 00's fact 1 names as the entire difficulty — the
-carbon half is free and the water half is the problem.
+**This section used to say that no check could referee it, and that was too strong. The objection is
+to a *fit*, not to a *prediction*.** Solve `(a, b)` from two directions of different families — a
+soil potential and a layer resistance, which are not collinear with each other — and predict the
+rest. The collinear family is then what is predicted rather than what is fitted, and `b` is pinned
+by having to work across both families at once.
 
-**Pass:** `b` checked against its own closed form *at fixed `a`*, and the factorisation's residual
-taken over all `2L+1` directions at states including a pin and a layer near the equal-potentials
-branch. One state, no gradient run, no stand. **It is the cheapest high-leverage check in the corpus
-and it gates the meaning of everything above it.**
+**Pass, and it now does:** the out-of-sample residual over all `2L+1` directions, with the condition
+number of the solved-from pair reported beside it. Report 05 §7.3 carries the result — worst
+`2.4e-05` over four interior states including a near-uniform profile, round-off limited, `(a, b)`
+stable to four significant figures across three decades of step. The condition number is the guard
+that keeps it honest: 2.6 to 6.7 for a cross-family pair against `10⁴` for two potentials, so a
+degenerate pairing is refused rather than absorbed. One state, no gradient run, no stand. **It was
+the cheapest high-leverage check in the corpus and it is closed.**
 
 ---
 
