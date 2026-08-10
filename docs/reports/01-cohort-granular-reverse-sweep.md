@@ -279,12 +279,12 @@ stencil can be a legitimate discretisation — the one-sided height difference i
 the advection term — but evaluated in plain `double` on a differentiated path it silently drops the
 channel it discretises.
 
-**7. Say whether a switch is a kink you mean.**
+**7. Say whether a switch is a kink you mean.** Report 02 §6.
 
-**8. Fixed quadrature rules are structure; adaptive ones are not.** A rule that places nodes as a
-deterministic affine function of its bounds tapes correctly at an active bound. A rule whose node
-*count* depends on an active value makes the recorded computation state-dependent — and the same
-applies to an interpolant whose knot count is chosen by a refiner.
+**8. Positions are structure; values carry derivatives.** A quadrature rule placing nodes as a
+deterministic affine function of its bounds tapes correctly at an active bound; a rule whose node
+*count* depends on an active value makes the recorded computation state-dependent, and so does an
+interpolant whose knot count a refiner chooses. Report 03 §6 states the general form.
 
 ---
 

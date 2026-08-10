@@ -212,9 +212,11 @@ merge order.
 cohort orderings are decided on passive values. Breaking this — sorting on an active key, or letting
 a knot *count* depend on an active value — makes the recorded computation state-dependent.
 
-**5. A clamp is a derivative severance; say whether you mean it.** Sometimes it is the model.
-Sometimes it is papering over an interpolant that undershoots, which is a different problem with a
-different fix.
+**5. A clamp is a derivative severance, and the two reasons for one are different problems.**
+Sometimes the severance is the model. Sometimes it is papering over an interpolant that undershoots,
+which needs a different fix — and where the field is smooth underneath, the honest action is to
+refuse the row with its incidence counted rather than return the clamped zero. Report 02 §6 carries
+the general rule about meaning a kink.
 
 **6. If you integrate over your own size, you need the integrand's slope** — or a quadrature that
 carries its bounds actively (§5). The same shape appears wherever an aggregation has a

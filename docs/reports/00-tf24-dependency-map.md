@@ -14,6 +14,15 @@ mean, and what it would be wrong to conclude from one.
 `plant`'s `develop`. A claim here is wrong if the model disagrees with it; that a particular
 branch has or has not built something is not a fact about this map.
 
+**One scope statement, because it removes a branch from everything downstream: the reverse-mode
+gradient runs on the birth-date coordinate only.** The size distribution can be carried as a density
+in height or in birth date, and the forward model supports both; only the second is differentiated.
+On it, nothing moves an individual along the abscissa, so the density's compression term does not
+exist, the quadrature abscissa is fixed at birth and carries no derivative, and the ordering cannot
+invert. §4.4 gives the reason that is a correctness argument rather than a convenience. **Every
+derivative statement below is on that coordinate**, and the height coordinate is named only where
+the forward model differs.
+
 The point of mapping the flow by hand is that a tape records operation flow *uniformly* —
 every multiply costs the same to record and to sweep. Mapping it manually shows where the
 structure is not uniform: where a channel is provably zero, where a block is diagonal plus
@@ -93,9 +102,7 @@ step of the trajectory in reverse, the adjoint of the right-hand side goes in fo
 
 1. **The closed-form seeds** — everything a cohort's sweep needs before it can run. The soil's
    drainage cascade is bidiagonal, so transposing it is free. Offspring contributes a mortality
-   adjoint directly, because it reads that state and not only a rate. On the height coordinate
-   the transport stencil supplies each cohort's growth-rate adjoint, which is why it is a seed
-   rather than a consumer; on the birth-date coordinate there is no such term.
+   adjoint directly, because it reads that state and not only a rate.
 2. **One sweep per cohort** of its own rate chain, from its states, the light profile's knot
    values and slopes, the layer potentials and the traits, to its six rates and its per-layer
    draws. The leaf sits inside this with a boundary rather than a tape: its carbon row is free by
@@ -298,8 +305,9 @@ Feasible interval:
                                                           # collar at which the stem reaches its
                                                           # critical potential and the root's own
 
-The choice:
-    p* = argmax_{p ∈ [b_a, b_b]} Π(p)                     # golden section, then a Newton polish
+The choice, obtained from the condition that defines it rather than by searching Π:
+    p* : the root of  ∂Π/∂p = 0  in [b_a, b_b]            # safeguarded, and pinned to a bound
+                                                          # where no interior root exists
 ```
 
 Then the outputs, of which exactly two kinds matter downstream:
@@ -320,13 +328,15 @@ factor at all** — fact 3.
 *The uptake vector and the total carry different units by design.* One stays in mol, the other is
 converted to kg. Anything forming a Jacobian across the pair has to respect that.
 
-*The argmax is a search, and a search is not a function of its objective's values.* Golden section
-shrinks its bracket by a fixed ratio and returns the midpoint; the objective enters only through
-which half is kept. So for a fixed comparison pattern the returned argmax is an **exact affine
-function of the bracket endpoints and independent of the objective's values.** Differentiating
-through the search yields the derivative of the bracket, not of the argmax. Report 02 §5 is the
-long form, and the consequence is that the operating point must be reached by its defining
-condition, never by taping the search.
+*The operating point is defined by a condition, and it must be obtained from that condition.* A
+comparison search over `Π` terminates on bracket width, so it resolves `p*` only to a tolerance and
+the offset inside that width moves discontinuously as the comparison sequence flips — the argmax is
+piecewise constant at fine scales, and a derivative taken through it comes back exactly zero or
+sign-inverted. Solving `∂Π/∂p = 0` resolves it to solver precision instead, and does so **faster**,
+because a superlinear root-find reaches a far tighter tolerance in fewer evaluations. Report 02 §1
+is the long form. What the map needs from it is that **`p*` is a solved implicit quantity like `ci`
+and `σ`, not a search result** — which is what puts it in §6's *solved* row rather than making it a
+hazard.
 
 ### 4.3 From the leaf to the rates
 
@@ -389,34 +399,38 @@ a hard switch wearing a smooth coat but a mollifier wide enough to be the model,
 gradient wherever reserves are high. The distribution of `r` across a stand is the one number this
 turns on, and it has never been reported.
 
-### 4.4 The demographic states, and the coordinate
+### 4.4 The demographic states
 
-The density obeys one of two equations, and which one is a `Control` setting:
+On the coordinate the gradient runs on, the density changes only because plants die:
 
 ```
-height coordinate:      dℓ/dt = − ∂g/∂h  −  dM/dt
-birth-date coordinate:  dℓ/dt =            − dM/dt
+dℓ/dt = − dM/dt
 ```
 
-**The compression term `∂g/∂h` is the size axis stretching, and it is only the compression term of
-a density in height when `g` is a function of height alone.** TF24's growth rate reads the storage
-pool through the reserve gate, so a two-node difference along the cohort grid is a *total*
-derivative, `∂g/∂h + Σ_k (∂g/∂s_k)(ds_k/dh)`, and the sub-grid probe and the cohort-grid difference
-are **different operators rather than two resolutions of one** — they correlate at 0.96 on K93 and
-at 0.05 on TF24, with opposite signs over most of the grid. Carried physiological state invalidates
-the compression term in height.
+**That is not a simplification, and the reason is a correctness argument rather than a cost one.**
+Carried as a density in height the equation acquires a compression term, the size axis stretching
+where growth accelerates with size — but `∂g/∂h` is the compression term of a density in height
+*only when `g` is a function of height alone*. TF24's growth rate reads the storage pool through the
+reserve gate, so a difference along the cohort grid is a **total** derivative,
+`∂g/∂h + Σ_k (∂g/∂s_k)(ds_k/dh)`, and the two candidate stencils are **different operators rather
+than two resolutions of one** — they correlate at 0.96 on K93 and at 0.05 on TF24, with opposite
+signs over most of the grid. **Carried physiological state invalidates the compression term in
+height**, so the choice of coordinate is not a choice of discretisation.
 
-That is why the coordinate change is the resolution rather than a better stencil. **On the
-birth-date coordinate nothing moves an individual along the abscissa**, so the term does not exist,
-no second physiology solve is needed, and the ordering cannot invert. Report 05 §5.1 and §6.1 give
-what that buys the reverse pass; report 06 §2 gives what it means.
+Carrying the density in birth date removes the term rather than discretising it better: nothing
+moves an individual along a germination-date axis. It also removes the second physiology solve the
+term needed, and it fixes the quadrature abscissa at birth, so the weights carry no derivative.
+Report 05 §5.1 and §6.1 give what that buys the reverse pass; report 06 §2 gives what it means.
 
 Two further facts about this axis, both properties of the model:
 
 **Heights can invert, and germination dates cannot.** Reserve-gated growth lets a younger cohort
-overtake an older one, so the descending-height ordering the reductions once assumed is not
-maintained. The field reductions now sort or fall back to a sorted view; a quadrature that does not
-has neighbouring trapezia cancelling instead of accumulating.
+overtake an older one, so the descending-height ordering the model once relied on is not maintained.
+That is the *second* reason this coordinate is the safe one — its abscissa is monotone by
+construction — and it is also a trap, because crossing is **more** common here, not less. Any
+quantity still taken over height needs a sorted view or it has neighbouring trapezia cancelling
+instead of accumulating, and any guard written against *height* order will refuse a stand the
+forward model handles correctly. §7 item 4.
 
 **Height growth is strictly positive.** `P_pos` is bounded below by half the smoothing scale and
 `G` by `G(0)`, so the `g > 0 ? log(·) : log(0)` arm at the boundary is unreachable.
@@ -427,15 +441,18 @@ And birth:
 pr_estab = net_mass_production_dt(env, h_0, a_0) > 0
              ? 1/((a_d0·a_0/P_net)² + 1) · exp(−recruitment_decay · t)
              : 0
-ℓ(birth) = height coordinate:      log(birth_rate · pr_estab / g)
-           birth-date coordinate:  log(birth_rate · pr_estab)
-M(birth) = −log(pr_estab)
+ℓ(birth) = log( birth_rate · pr_estab )
+M(birth) = −log( pr_estab )
 ```
 
-**The division by `g` is the height branch only**, and it is not an artefact: it converts a flux —
-which is what the ecology measures — into the density the state happens to store. The reverse-mode
-treatment of a flux boundary condition is standard and is one term: the forward problem's *inflow*
-boundary is the adjoint problem's *outflow* boundary, and an outflow boundary needs no condition.
+**This is a flux boundary condition, and its reverse-mode treatment is standard and is one term:**
+the forward problem's *inflow* boundary is the adjoint problem's *outflow* boundary, and an outflow
+boundary needs no condition. It enters the gradient as the adjoint at the boundary times the
+boundary condition's own derivative.
+
+Carried in height the same condition acquires a division by the growth rate, which converts the
+flux — what the ecology measures — into the density that coordinate stores. That division is where
+the boundary's singularity at vanishing growth comes from, and it is absent here.
 
 **The apparent hard switch in `pr_estab` is not one.** The expression is `P²/(P² + k²)` above
 threshold and zero below, and as `P → 0⁺` both the value and the first derivative tend to zero. So
@@ -456,10 +473,12 @@ U_i                             = ( Σ_species … ) / area
 
 Then `U` closes the loop into §3, and `θ` feeds back into `ψ` and hence every leaf solve.
 
-**The quadrature weights are built from the abscissa, so they are state on the height
-coordinate and constant on the birth-date one.** A trait that moves heights moves the quadrature,
-not just the integrand — a term it is easy to forget, because the forward code hides it inside one
-`trapezium` call. Both `U_i` and the census inherit it.
+**The quadrature weights are built from the abscissa, which is fixed at birth, so they carry no
+derivative.** The trapezium's widths are gaps between introduction times, not between heights, and a
+transpose must build them that way and omit the weight term entirely. Both `U_i` and the census
+inherit that requirement — and the failure mode is a transpose that is internally consistent while
+integrating over the wrong axis, which report 05 §6.1 states as four separate conditions because it
+is easy to satisfy three of them.
 
 ### 4.6 The census functional
 
@@ -494,13 +513,14 @@ build L(z) = exp(−Σ_k n_k · comp(h_k))                    # one spline over 
 for each cohort k:                                         # independent given (L, ψ)
     x_k ← geometry(h_k), root distribution, κ, v
     r_k ← ∫ light over crown  (mean-light)
-    p*_k ← argmax Π( · ; ψ, x_k, r_k, φ)                   # golden section + polish + 2 root-finds
+    p*_k ← root of ∂Π/∂p = 0 on [b_a, b_b]                 # 1 root-find + 2 for the bounds
     Π_k, c_{k,i} ← leaf outputs at p*_k
     P_net,k ← a_bio a_y (Π_k a_k C − resp) − turn
     growth_k ← P_pos(P_net,k) · G(r_k)
     rates for h, F, A_hw, m_hw, S, M
-    dℓ_k/dt ← −dM/dt          (− ∂g/∂h on the height coordinate, a second full solve)
-U_i ← Σ_k n_k c_{k,i} w_k / area                           # trapezium from the boundary node up
+    dℓ_k/dt ← −dM/dt
+U_i ← Σ_k n_k c_{k,i} w_k / area                           # trapezium from the boundary node up,
+                                                           # weights from introduction times
 dθ_i/dt ← (w_in,i − K_i − U_i)/dz_i
 ────────────────────────────────────────────────────────────────────────────
 ```
@@ -521,14 +541,14 @@ marked *solved*.
 | `∂(soil rates)/∂θ` | bidiagonal by construction, plus the two accumulator rows of §3. Transposing a bidiagonal is free. |
 | `dp̃/dφ` **in TF24f** | the collar potential is state, so the adjoint carries it. TF24f pays no implicit-function cost at all. |
 | root-mediated redistribution | the same smooth expression covers a negative per-layer flux, so **no branch is needed** — and a statistic formed on the *total* cannot see one, because signed fluxes sum. It is uncommon and runs downward under gravity head, so it is a free row rather than an important one; what makes it worth listing is that the wet bound of the feasible interval is defined by exactly this cancellation. |
-| `∂w_k/∂h_k` **on the birth-date coordinate** | the abscissa is fixed at birth, so the quadrature-weight term vanishes identically. On the height coordinate it is live and easy to drop. |
+| the quadrature weights | the abscissa is fixed at birth and passive, so `∂w_k/∂(state)` vanishes identically and the weight term is not written at all. The requirement it leaves behind is that the widths come from introduction times (§4.5). |
 
 ### Blocked — provably zero, so the channel is deleted
 
 | partial | why |
 |---|---|
 | `∂Π/∂p` at an interior `p*` | envelope theorem: `p*` maximises `Π`, so the argmax channel contributes **nothing** to the carbon output. This deletes the largest-looking term in the whole map. |
-| the golden-section search's internals | never differentiated. For a fixed comparison pattern the argmax is an exact affine function of the bracket endpoints and independent of the objective's values (§4.2). |
+| the collar solve's iterations | never differentiated. The operating point is defined by `∂Π/∂p = 0`, and the implicit function theorem supplies its derivative from that condition, so how the root was reached carries no information (§4.2). The same holds for `ci` and for the two bounds. |
 | `ℓ_k →` own cohort's physiology | density enters no cohort rate. It reaches the world only through `U` and through `L`. |
 | `∂(anything)/∂C_{1..4}` | the accumulator **states** are never read. Their *rates* are not blocked — see §3 and the *split* row below. |
 | `∂h_0/∂φ` | the seed height is `double` by declaration and the strategy's preparation refuses an active scalar, so eight trait rows are **exactly zero by construction** on every census metric. This is imposed, not derived; report 05 §10.1 states the term and what closing it needs. |
@@ -573,6 +593,10 @@ states the consequence: **"what if the soil were sandier" cannot be asked.**
 An oversimplified dependency map is worse than none, because it licenses deleting channels that are
 load-bearing. Each item is a way the map could be **wrong**, not merely incomplete.
 
+**Most are live. Two — items 5 and 13 — describe a shape the forward model has since closed**, and
+are kept because the shape recurs rather than because the instance is open; they are marked. The
+rest are properties of the model and do not close.
+
 **1. "Diagonal in the layer index" is not quite the simple form it looks.** `r_R,i` depends on
 `span_i = |p − ψ_i|` and on the vulnerability integral over that span, so `∂E_i/∂ψ_i` carries a term
 through `r_R,i` as well as through the numerator. It is still diagonal — layer `i`'s resistance
@@ -588,15 +612,25 @@ walk. Where either binds the severance is an artefact rather than the model, bec
 smooth there; the honest treatment is to refuse the row with its incidence counted, not to return a
 clamped zero.
 
-**3. The quadrature weights depend on state on the height coordinate.** §4.5 notes it, and it is the
-term most likely to be dropped by someone writing the transpose by hand.
+**3. A transpose can integrate over the wrong axis and stay internally consistent.** The weights are
+constant here, so there is no weight term to forget — the hazard is the opposite one, a transpose
+that builds its trapezium widths from heights because that is what the height coordinate needed.
+Nothing about the arithmetic complains; the reduction simply becomes the transpose of a function the
+forward model is not computing. §4.5 states the requirement and report 05 §6.1 breaks it into the
+four conditions it decomposes into.
 
-**4. Cohorts can cross in height.** Reserve-gated growth makes it a normal event rather than a
-degeneracy, so any reduction, transpose or census that assumes a descending order is wrong on a
-stand the forward model handles correctly. The failure is silent: neighbouring trapezia cancel
-instead of accumulating.
+**4. Cohorts can cross in height, and this coordinate inverts the failure rather than removing it.**
+Reserve-gated growth makes crossing a normal event, and on the birth-date abscissa it is *more*
+common than on the height one. Two opposite mistakes follow, and a design can make either. Anything
+still integrating over **height** — the census, and any user-facing reduction over the size
+distribution — needs a sorted view, or neighbouring trapezia cancel instead of accumulating, which
+is an error in the objective before any derivative is taken. And any **guard** written as a test of
+height ordering will refuse exactly the stands the forward model runs correctly, because the
+quantity that must stay monotone here is the abscissa and the abscissa is not height. Both failures
+are silent, and they are silent in opposite directions.
 
 **5. The shared `Leaf` is a cross-cohort channel unless every exit writes every field it owns.**
+*(Instance closed; the shape is the point.)*
 Every cohort of a species writes into one strategy object and therefore one leaf. A buffer sized but
 not cleared, or an early exit that sets three members and leaves a fourth stale, makes one plant's
 rates depend on the plant solved before it — which breaks the per-cohort independence claimed in §5
@@ -628,11 +662,11 @@ finite-difference verification of the very gradient this map is for.
 
 **11. The envelope argument depends on `p*` actually being stationary.** The envelope theorem
 protects `Π` — the error is second order in the displacement — and it does **not** protect the
-fluxes. So the *blocked* row for the carbon channel and the *solved* row's linearisation point have
-different exposures to the same search tolerance, and conflating them is the error this map most
-invites. An argmax consumed by anything other than the objective must be polished to a stationary
-point before it is used as a linearisation point, and the accuracy required is set by the
-derivative, not by the value.
+fluxes, where the error is first order. So the *blocked* row for the carbon channel and the *solved*
+row's linearisation point have very different exposures to the same imprecision, and conflating them
+is the error this map most invites. **How well the operating point is determined is therefore set by
+the derivative that consumes it, never by what the value needs** — and it is why `p*` is solved to a
+tolerance far below the one at which anything else here is called a difference.
 
 **12. The operating point is not always an interior maximum, and the states where it is not are
 drought.** Report 05 §7.0's five kinds are consecutive segments of one drydown, so **incidence
@@ -643,8 +677,9 @@ tree on what defines the point and never a comparison on the residual, because t
 function returns a hard sentinel zero in a no-flow state that no residual test can distinguish from
 stationarity.
 
-**13. The birth path runs a full leaf solve at birth size on the shared leaf,** at a different height
-from the cohort loop. Ordering matters.
+**13. The birth path evaluates a plant at birth size on the shared leaf,** at a different height from
+the cohort loop, so ordering matters. *(Instance closed — the newborn is now solved once per stage —
+and the ordering constraint remains.)*
 
 ---
 

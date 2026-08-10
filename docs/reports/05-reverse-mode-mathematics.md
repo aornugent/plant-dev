@@ -611,8 +611,11 @@ This is the mathematical core. Each cohort chooses a stem water potential $p$ to
 $$p^\star = \arg\max_{p \in [p_a, p_b]} \Pi(p; u), \qquad \Pi = A\big(c^{\mathrm{i}}(p; u)\big) - \Theta(p; u),$$
 
 with $A$ the assimilation and $\Theta$ the hydraulic cost. Everything downstream — profit, uptake,
-and hence growth — is evaluated at $p^\star$, which is computed numerically. We need derivatives of
-quantities at $p^\star$ with respect to every input $u$, without differentiating the search.
+and hence growth — is evaluated at $p^\star$, which is obtained numerically from the condition that
+defines it. We need derivatives of quantities at $p^\star$ with respect to every input $u$,
+**without differentiating the solve that found it** — and, equally, without obtaining $p^\star$ by a
+method that determines it less precisely than those derivatives require. Report 02 §1 states why
+that second requirement rules out searching the objective.
 
 ### 7.0 Five kinds of point, and the taxonomy is the sensitivity theory
 
@@ -652,6 +655,17 @@ Then the profit is not stationary, the curvature is zero by the same sentinel, a
 multiplier $m = -s/\Pi_{pp}$ divides by an exact zero with a generically non-zero numerator. **The
 test for S must be conjoined with the sentinel's guard evaluating false**, and the guard's own
 firing needs a counter.
+
+**And the sentinel's position is structural rather than incidental, which is what makes it
+dangerous.** The lower bound of the feasible interval **is** the potential at which total uptake
+vanishes — which is exactly the no-flow state the marginal-profit function refuses to differentiate.
+So the sentinel does not lurk in the interior waiting to be met: **it sits on one endpoint of the
+bracket, by construction, on every solve.** Two consequences follow and they are at different
+levels. Any method that evaluates the marginal profit *at* that endpoint is handed a zero that is
+not a derivative, so a solve that brackets naively returns the zero-transpiration point as the
+optimum — an error in profit of the same order as the profit. And any classifier reaching the same
+endpoint inherits the same ambiguity. **A guard placed where the sentinel is produced serves both;
+a guard placed at either consumer serves one.**
 
 **The asymmetry between the two output kinds is the one thing a two-branch model gets right.** The
 profit row survives every degeneracy in this table except a jump of the argmax and an undefined
@@ -1120,7 +1134,22 @@ of the language boundary.** The two field reductions fall back to a sorted view 
 succeed, since the light profile stays monotone in every step of the same run. The census does not
 guard, and neither does the helper that integrates the size distribution for a user's output. **A
 guard is therefore owed at two sites and not one**, and the requirement is on the quadrature rather
-than on the language: sort by the abscissa the integral is taken over, or refuse.
+than on the language: integrate over the abscissa the density is a density *in*, and sort or refuse
+only where that abscissa can invert.
+
+**Those two sites need different guards, and reaching for the same one at both is a mistake in
+opposite directions.** A census is a quadrature of a density, so its weights must be gaps in the
+coordinate the state is carried on. Where that is the birth date, a census whose grid is built from
+**heights** is integrating a density in one variable against the spacing of another — wrong in value
+on any stand, and merely more visibly wrong on a crossed one. The fix there is the **abscissa**, and
+once it is right, monotonicity is free: birth dates are strictly increasing by construction, so the
+guard is an assertion and no sort is needed. The user-facing helper that reconstructs a distribution
+over height is the other case: it genuinely integrates over height, crossing is real, and it needs a
+sort or a refusal.
+
+**And a sort by height on the first site would be actively wrong**, by §6.1's fourth condition: a
+guard testing height order refuses exactly where the forward model runs correctly, and on this
+coordinate crossing is *more* common, not less.
 
 
 **A zero and an absence are different at this boundary, and the difference is not cosmetic.** An

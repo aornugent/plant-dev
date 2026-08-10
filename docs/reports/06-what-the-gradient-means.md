@@ -639,6 +639,13 @@ size distribution for a user's output.** So the objective is the least guarded l
 it is the first: an ecologist reading a leaf-area trajectory is reading a number that carries this
 error, with no derivative involved at all.
 
+**And for the census the deeper fault is which axis it integrates over.** A census sums a density
+against the gaps between neighbouring plants, so those gaps must be measured along the axis the
+density is carried on. Where the stand is carried by germination date, gaps measured in *height*
+answer a different question — and that is wrong on any stand, not only a crossed one. Fixing the axis
+also removes the crossing problem, because germination dates cannot invert. Report 05 §9 states the
+requirement and why the obvious remedy, sorting by height, is the wrong one here.
+
 
 ### One assumption is imposed rather than derived
 
