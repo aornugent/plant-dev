@@ -3,7 +3,66 @@
 This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, `phylloptim`, `odelia` and `regnans`.
 
 ## Session Start (do this first, every session)
-Before doing anything else, add the sibling package repos to the session's GitHub
+
+Five live documents, in this order:
+
+- [`V4-INTEGRATION.md`](V4-INTEGRATION.md) — **read first on this branch.** What base the work
+  now sits on, why it changed, where the leaf derivatives come from, and which parts of the
+  register below still have to be re-established. It scopes everything that follows.
+- [`NEXTSTEPS.md`](NEXTSTEPS.md) — **the plan of record.** What to build, in what order, and
+  the gate for each step. Written in Simplified Technical English.
+- [`CURRENTSTATE.md`](CURRENTSTATE.md) — **what the code does today**, where it departs from
+  reports 05–07, and every measurement with its configuration attached. It goes out of date on
+  each commit, and that is its purpose. Read it before believing any number, and before
+  reading a report as a description of the code — the reports describe the design, this
+  describes the build.
+- [`METHOD.md`](METHOD.md) — **how to know you built it.** The gate rules, the standing
+  hazards, the build recipe, the reference forward numbers with their configurations, and
+  where each harness lives. Read it before you write a gate or take a measurement.
+- [`ORCHESTRATOR.md`](ORCHESTRATOR.md) — how to run implementation work through subagents:
+  the packet, isolation, sequencing, and review. Read it only if you are directing packets.
+
+Then the reference material:
+
+- [`docs/reports/00-tf24-dependency-map.md`](docs/reports/00-tf24-dependency-map.md) — **the
+  first reading.** Its physical reading gives the five facts TF24's gradient follows from, and
+  its end-to-end walk states the flow forwards and backwards in prose. Read it before the
+  others; they are its detail.
+- [`docs/reports/05-reverse-mode-mathematics.md`](docs/reports/05-reverse-mode-mathematics.md)
+  — **the derivatives**, and what a correct implementation of them must satisfy. Read it
+  beside report 00: 00 states the dependency structure, 05 states the algebra. It names no
+  code; where the implementation departs from it, `CURRENTSTATE.md` records the departure.
+- [`docs/reports/06-what-the-gradient-means.md`](docs/reports/06-what-the-gradient-means.md)
+  — the ecology behind those derivatives, section for section, and what it would be wrong
+  to conclude from a number this machinery produces. Read it if you are deciding whether a
+  defect matters, and read its closing section as the domain that must accompany any number
+  the machinery produces.
+- [`docs/reports/07-structure-worth-exploiting.md`](docs/reports/07-structure-worth-exploiting.md)
+  — where the system is narrower than it looks, and what each narrowing buys. Its test is
+  whether resident trait gradients, calibration, invasion and equilibrium are one machinery
+  with different adapters. Read it before scoping any cost work, or any interface.
+- `docs/reports/01`–`04` — the derivations and measurements the design rests on.
+  **Reference material, not status**; they are never edited to track progress. Read the head
+  of each first: several carry corrections to their own sub-claims.
+- [`docs/tf24-correctness.md`](docs/tf24-correctness.md) — the TF24 forward-model prerequisites.
+- `docs/archive/` — documents whose conclusions are stale, superseded or configuration-dependent,
+  each bannered with what survives. **Do not design from them.** The build plan and the
+  implementation notes are here: every task in the plan is built, and the notes were the one
+  home for numbers nobody is re-deriving. Read them for archaeology and cite them by commit
+  and path.
+
+**The provenance rule is mandatory:** a claim earns a place in a live document only on a passing
+test, a re-runnable probe, or a code location read directly — **never on another document's
+say-so**. That rule exists because a recorded blocker outlived its fix across four documents.
+Its companion: **a measurement carries its configuration** — layer count, driver, tolerances,
+lifetime, trait set — because a conclusion inherits its probe's degeneracies.
+
+**The old probe corpus and ledgers are not deleted, only unlinked.** Recover them with
+`git checkout archive/v3-docs-and-probes -- docs/reference` (and `-- scripts` for the `gate0-*`
+harnesses). Current probes are in `scripts/`, each stating its configuration; see
+`scripts/README.md`.
+
+Then, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the
 code, but issue/PR access is a separate grant:
 
@@ -70,6 +129,24 @@ them per edit is wasteful. The cost is dominated by the **C++ rebuild** and by
 odelia-reinstall mechanics are under *Local Development* above; paths below are
 from the `plant-dev` root.)
 
+**Build at `-O2` deliberately: `pkgbuild::compile_dll()` defaults to `-O0`.** It appends
+`-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars` asking for `-O2`
+is silently overridden — a timing taken that way measures the debug build, which is roughly twice as
+slow. Pass `debug = FALSE`:
+
+```sh
+cd plant   # or a develop worktree
+R_MAKEVARS_USER=/path/to/Makevars-O2 Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
+```
+
+with `Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`. Confirm it took by checking that the
+compile line for one translation unit in the log ends at `-O2` with no trailing `-O0`.
+
+**Absolute times belong to the machine; only same-session ratios transfer.** The same tree at `-O2`
+runs a production TF24 lifetime in 89.9 s on one box and 102.9 s on another, both reproducing offspring
+`42.14017357509567` and the same 5 055 accepted steps. The value and the step count are properties of
+the tree and the flags. Gate on a ratio measured against a develop build in the same session.
+
 **The per-iteration tax is the rebuild, not the tests.** An R-only change under
 `pkgload::load_all("plant")` skips compilation; a C++ change recompiles
 incrementally — but the strategy/environment core is header-inline, so editing a
@@ -78,7 +155,7 @@ it and triggers a near-full `plant/src` recompile. Build optimised once
 (`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
 `load_all()` without `make` builds unoptimised and makes every slow test several
 times slower (the difference between a ~3 min suite and the ">8 min" quoted in
-`docs/ad-handover.md`).
+an earlier handover note, now recoverable from `archive/v3-docs-and-probes`).
 
 **Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
 `Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`
@@ -174,12 +251,37 @@ one call.
 
 - No parallel near-copy of an existing type or path; modify what exists.
 - No re-implementing what vendored XAD provides.
-- No runtime capability flags or SFINAE detection structs — a concept +
-  `if constexpr`.
+- No runtime capability flags or SFINAE detection structs. A compile-time
+  **choice** is a concept plus `if constexpr`; a compile-time **refusal** is a
+  concept inside a `static_assert`. Both are concepts, only one has a branch —
+  and `if constexpr (!C) { static_assert(false); }` is ill-formed in C++20 even
+  in the discarded branch, so writing a refusal that way needs a helper for a
+  false predicate, which is the machinery this rule exists to avoid.
 - No storing what can be derived; no passing a count that can disagree with
   its source of truth.
 - No dropping a guarantee (bounds check, cleanup path) during a refactor; no
   demo code compiled into the shipped .so; no dead files after a rename.
+- **Never let a function or lambda that returns an AD value use a deduced return
+  type.** XAD operators return *expression templates* holding references to their
+  operands, so a deduced return type hands the caller references to temporaries
+  and by-value parameters that die on return. The caller then materialises a
+  dangling expression and records whatever the reused stack now holds as a tape
+  slot; the reverse sweep dereferences it and segfaults far from the cause.
+  Valgrind cannot see it — the dangling storage is stack, not heap. Declare the
+  scalar return type (`-> S`, `-> T`) on every such lambda, including one-line
+  helpers. This cost a session to find (plant TF24's `anchor` supplied-derivative
+  lambda). The one structural defence is `odelia::implicit_value`'s `static_assert`
+  on its
+  residual's return type, which turns the mistake into a compile error at the
+  one site that most invites it.
+
+      // BAD  -- returns a dangling expression template
+      auto anchor = [](double v, S x) { return S(v) + (x - to_passive(x)); };
+      // GOOD -- the same arithmetic, materialised while its operands are alive
+      auto anchor = [](double v, const S& x) -> S { return S(v) + (x - to_passive(x)); };
+
+  The two forms differ only in `-> S` and taking `x` by reference, and that is
+  the whole lesson: the fix is the declared return type, not a helper.
 
 ### Defaults to unlearn
 
@@ -313,7 +415,7 @@ Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
 ## PR workflow
 
 Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
-entry in a planning doc such as [`docs/ad-issues.md`](docs/ad-issues.md). PRs are opened
+entry in the session task list. PRs are opened
 against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
 upstream is a separate, user-driven step (see *Workflow for Agents* above).
 
@@ -321,8 +423,7 @@ upstream is a separate, user-driven step (see *Workflow for Agents* above).
   issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
   mapping is unambiguous.
 - **Stacked diffs where issues depend on each other.** When working through several
-  interdependent issues at once — the dependency chains in `docs/ad-issues.md` are the
-  common case — branch each PR on top of the one it builds on rather than off the base
+  interdependent issues at once, which is the common case — branch each PR on top of the one it builds on rather than off the base
   branch, and target that parent branch. Reviewers then see only the incremental diff and
   the PRs merge in order down to the submodule's default branch (`master`/`main`).
   Independent issues branch straight off the default branch and can merge in any order.
