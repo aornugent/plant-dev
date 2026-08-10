@@ -1,3 +1,40 @@
+> **Archived 2026-08-10.** Established against plant `600e3ebd` and odelia `a3bcf58` — the
+> commits this branch still pins, so the reads are current. The leaf has since moved to
+> `phylloptim`, and the register is being replaced by a shorter one scoped to the verification
+> ladder.
+>
+> What survives, and what to read it for:
+>
+> * **Departures 2, 8, 10 and 11 are where the damage concentrates.** They are the two
+>   reduction transposes — light and water — and the parameter channel neither of them
+>   carries. Those transposes are hand-written closed forms with no tape and no gate, so
+>   nothing structural defends them. Read §2's item 10 for the four discrepancies and item 2
+>   for the four parameters.
+> * **Departure 1, the aliasing, is established.** The mechanism is read, not inferred, and it
+>   predicts the exactly-zero heartwood columns rather than merely the observed error. §7's
+>   census seed table is its evidence.
+> * **Departure 13 is open on both halves.** The R half is verified live on every base:
+>   `integrate_over_size_distribution` in `plant/R/tidy_outputs.R` trapeziums over `height`
+>   with no sort anywhere in the file. The C++ half's fix was lost with `66029469`; the
+>   recorded acceptance numbers here are the specification for redoing it.
+> * **§1 is navigation and stays true while the code does.** The report-05-to-symbol mapping
+>   and the six-hop reverse-pass call order are not written down anywhere else.
+> * **§3's operating-point taxonomy and §5's moisture axis are physical readings.** The
+>   fourteenth case — the sentinel inside `COLLAR_INTERIOR` — has no counter and is counted as
+>   the healthy path.
+>
+> What does not survive:
+>
+> * **Departures 4, 5, 7 and 12 are `phylloptim`'s**, addressed by its own PRs and its own
+>   tests. Do not carry them as plant defects.
+> * **§7's measurement register is mostly spent.** Most figures are on the height coordinate,
+>   which the gradient does not support; the document demotes or retires several itself. Do not
+>   quote a figure from it without re-taking it.
+>
+> Do not design from it.
+
+---
+
 # Current state: what the code does, and where it departs from the design
 
 This is the register of **fact about the implementation**. It is the third of three documents and

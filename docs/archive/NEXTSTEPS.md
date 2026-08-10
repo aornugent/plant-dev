@@ -1,3 +1,46 @@
+> **Archived 2026-08-10.** Written against plant `p3/wave5` and odelia `p3/odelia-integration`,
+> which this branch still builds on. It is replaced by a verification ladder: the smallest
+> fixture that carries a genuine endogenous feedback, checked against a reference that shares
+> no machinery with it, then one channel added per rung.
+>
+> What survives, and what to read it for:
+>
+> * **§1's ordering argument is the reason the ladder exists.** No forward tangent exists at
+>   the level of the SCM, and a relative `lma` step of 2e-7 flips a production stand between
+>   alive and identically zero — so no re-run finite difference can referee the assembled
+>   gradient *at production*. That qualifier is the opening: finite differences are a valid
+>   referee on a two-cohort fixture, which is what the ladder's lower rungs use.
+> * **§2b scopes the gradient to the birth-date coordinate**, and Task 17 refuses the height
+>   coordinate at five named entry points. Measured, the height coordinate returns a finite,
+>   plausible, wrong number and does not raise. This is still the first thing to land.
+> * **§3c's four rulings on refusal hold whatever is built.** A refusal anywhere in a metric's
+>   sweep makes that metric undefined; throw with attribution rather than a status flag; and
+>   the `AdjointRates` hazard — a changed signature in odelia's concept does not fail to
+>   compile, it silently selects the other branch.
+> * **§3d's composed order and its jointly-unreachable table** strike work that cannot be
+>   reached, which is worth as much as the ordering.
+> * **The plant-side correctness tasks stand** — 6, 7, 8, 9, 9a, 15, 16, 17, 18, 21, 22 — and
+>   they name the reduction transposes, the census, the aliasing and the assembly.
+> * **§4b's two rules on probes are the most reusable thing here.** Say what would make the
+>   probe unable to fail, before you run it; and put the configuration in a file in the tree.
+>   Six of eight failed measurements in this project were instruments that could not have
+>   produced a refutation.
+>
+> What does not survive:
+>
+> * **The leaf tasks — 0b, 1, 2, 3, 4, 5, 12, 20, 27, and parts of 19 and 28 — are gone.** They
+>   optimise or guard the O(P) finite-difference `supplied_derivative` seam, which is retired.
+>   `phylloptim` computes those derivatives analytically as its own deliverable, with its own
+>   tests, which also closes the hole that no finite difference of a recorded cohort step could
+>   ever check.
+> * **Every cost task and §11's factor table are deferred, not scheduled.** The document's own
+>   rule: the value of a faster wrong gradient is not defined, and each factor was measured on a
+>   gradient with four wrong columns.
+>
+> Do not design from it.
+
+---
+
 # Next steps: make the reverse-mode gradient agree with its design
 
 This document is the plan of record for the reverse-mode gradient. It tells you
