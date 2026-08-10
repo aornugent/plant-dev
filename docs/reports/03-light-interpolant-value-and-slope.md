@@ -1,823 +1,236 @@
-# A light interpolant that carries its own slope
+# A light field that carries its own slope
 
-**Terminology.** `plant::Node` is a cohort, so this report says **knot** for a point
-of an interpolant and reserves *node* for plant's meaning. `A(z)` is total projected
-leaf area above height `z` per patch area — the optical depth — and `L(z) = exp(-A(z))`
-is light availability, which is what `ResourceSpline` stores.
+**Terminology.** A cohort is a cohort; **knot** is a point of an interpolant. `A(z)` is total
+projected leaf area above height `z` per patch area — the optical depth — and `L(z) = exp(−A(z))`
+is light availability, which is what the field stores.
 
-> **Built as P2.1, P2.2 and P2.3. This report's proposal is upheld; four of its statements are
-> superseded and one was false.** Evidence in `../archive/implementation-notes.md` under *Phase 2*.
->
-> **§4's "already correct for every strategy" is false, and it is this report's one load-bearing
-> error.** `q` is the exact negative vertical derivative of the *Yokozawa* kernel, which is what §4
-> differentiates — but FF16 and K93 also accept `flat-top-box` and `flat-top-soft-box`, which route
-> competition through `leaf_area_above` rather than through `Q`. For those two `-k_I · a · q` is the
-> slope of a profile the field does not use. TF24 rejects both, which is why the claim held everywhere
-> it was checked. Resolved in the code rather than by restriction: the soft box is a cubic smoothstep,
-> so its slope is the exact one-line `q = 6t(1 − t) / ((1 − lo)·H)`, and the hard box is a documented
-> teaching device whose own test asserts it does not run.
->
-> **§5.5's unattributed 91%, §8's step 5 and §9's fourth falsifier are answered from the other side.**
-> The 91% was never attributed; instead `rescale_spline` and the adaptive refiner were deleted outright,
-> and the measurement is that P2.1 *recovers* 11% per step. So more than §5.5's 6.6% came back, part of
-> the unattributed 175 µs was the refinement machinery, and the +0.33%..+5.3% build-cost bracket
-> resolved at about **+3% per step** for the Hermite (P2.3) inside a phase that costs +5.0% overall.
-> The 3.5 s share itself is still anchored to a 59.5 s pre-`#517` run and is still not re-taken.
->
-> **C2 and C5 are void, not resolved.** Both are about the cohort-top knot set and `rescale`'s reuse:
-> the production set is uniform at **65** fixed fractions (§1b), and `rescale_spline` is deleted, so
-> there is no knot-count doubling and nothing to reuse. §5.3's O(h⁴)/O(h³) rates belong to the
-> cohort-top placement and the production rate is about `h^2.5`, which §5.3 and C3 already state.
->
-> **§1b's premise about bit-identity does not hold.** `x_k = u_k · height_max` is *not* bit-identical
-> to `rescale_spline` between introductions: `u_k = x_k / height_max` is itself a rounding, so the
-> rebuild computes `fl(fl(x/H₀) · H₁)` against `fl(x · fl(H₁/H₀))` and 572 of 8 256 positions land 1–2
-> ulp apart. §1b's own hedge — "up to performing one division rather than an affine remap" — is exactly
-> where it hides. What *is* bitwise is `x == u · height_max` against one fixed uniform `u`.
->
-> **§1b's `height_max` selector claim is false, and C1's dropped channel now has a measurement
-> against it.** `Species::height_max()` is no longer `nodes.front().height()`: it is an O(n) scan,
-> because TF24 broke the descending-height invariant — reserve-gated growth lets cohorts cross, which
-> Phase 2's transport census measured at −0.0334 m. So a selector *and* a tie exist within a species,
-> not only across them. And C1's dropped knot-position channel, recorded there at 8.7e-04 on a coarse
-> 20-knot run with its convergence unmeasured, is measured on the model at a gap of **1.891e+01 —
-> about 87% of the tallest cohort's height adjoint**. C1's ruling stands (positions stay passive, by a
-> committed choice at P2.1), but its size assumption does not, and **the unmeasured
-> convergence-with-knot-density is now the falsifier**. Evidence in `../archive/implementation-notes.md` under
-> *Phase 3, wave 1*.
->
-> **Confirmed as written:** the locality claim (`d(eval)/d(knot)` exactly 0 two spans away, re-verified
-> on a live tape), the convergence rates on a smooth target, the fused-sweep requirement in §1b (the
-> fused value equals `compute_competition` bitwise, and reversing a two-term sum was found to be an
-> invalid test of it — only association matters), and C6b's ground-knot limit.
+Every cohort reads the light field and every cohort builds it, so the field is the one object the
+reverse pass transposes rather than sweeps. This report states what the field has to be for that
+transpose to be local, exact and refinable — and what it costs when it is not.
 
-### Three later corrections, from report 05
-
-> **§1's central claim is discharged, and the plan should stop carrying it as owed.** Its premise is
-> that the vertical light gradient is the one quantity `plant` cannot supply for a crown integral
-> whose domain moves. **It is supplied — structurally, rather than by a call site.**
-> `quadrature::QK::integrate` takes its bounds as the **active** scalar and forms the centre and
-> half-length on it, so every abscissa carries the affine map on the tape; and the Hermite
-> interpolant's read at an active position returns a grafted value-plus-slope. So the full derivative
-> of a crown integral with respect to the crown's top is complete on the tape, and the Leibniz
-> boundary term is absorbed because the rule is **mapped rather than truncated**. Abscissae are
-> strictly interior, so the crown integral touches neither the ground singularity nor the cap.
-> **Nothing on the physiology path needs to call `slope()`.** What remains true is the interface
-> requirement: the value accessor must keep working where the slope accessor refuses, because the
-> field's value is continuous everywhere it is evaluated and only its slope ceases to exist.
-
-> **§1b's normalised coordinate does not exist in the code, and its third consequence is void.** §1b
-> rules that holding the field on `u = z/H_max` turns C1's dropped position channel into ordinary
-> chain-rule terms, `∂/∂z → 1/H_max` and `∂/∂H_max → −z/H_max²`. **Neither term is anywhere in the
-> query path.** `rebuild_spline` lays knots at `knot_fractions_[k] * to_passive(height_max)` and
-> `get_value_at_height` queries at **absolute** height. Since `u_k = k/64` is exact, `x.back()` equals
-> `height_max` bitwise and the rebuild guard is false only while `height_max` is bit-unchanged — so
-> the grid is relaid essentially every stage, and the channel is re-formed and re-dropped every stage,
-> at the 1.891e+01 gap recorded above. The correct statement is that the field is held on an
-> **absolute** grid whose positions are an affine, passive function of an active `height_max`.
-
-> **The light floor and the undershoot guard are one lever, not two independent zeros.** `Q(0) = 1`
-> for every `eta`, so the field's minimum over its whole domain is at the ground knot and equals
-> `exp(−k_I · LAI)`. The `1e-4` floor therefore binds when `k_I · LAI ≥ ln 1e4 = 9.2103`. The
-> undershoot guard is on the **same** lever: at the ground knot the slope is exactly zero for
-> `eta > 1`, so the first span violates monotonicity once the knot values fall far enough — which
-> cannot reach below zero while the ground value is 0.166 and can once it approaches 1e-4. **So both
-> clamps fire together under one parameter change**, and `k_I` is a registered free parameter, so a
-> calibration or an ascent run walks the field into the severed region where the row it is ascending
-> goes to zero. Measured on the one stand this corpus has run: the ground optical depth is 1.7975 at
-> `k_I = 0.5`, so `LAI = 3.595` and the floor binds at `k_I ≥ 2.562` here, or `LAI ≥ 18.42` at this
-> `k_I`. **`eta` is not a lever** — it reshapes the profile and leaves the ground value untouched — so
-> this report's "a denser canopy or a larger `k_I`" is right and any implicit inclusion of crown shape
-> is not. Where either binds the severance is an **artefact and not the model**, since the field is
-> smooth there, so the honest action is to refuse the slope row with its incidence counted rather than
-> to return the clamped zero.
-
-> **And one canopy model reaches the wrong pair, which this report's own correction banner does not
-> name.** That banner resolves `flat-top-box` and `flat-top-soft-box`. **`PPA` routes to
-> `leaf_above_deep`**, so `Q_and_q` hands back the smooth Yokozawa pair while FF16's environment
-> builds a **stepped** profile — the slope of a field the model does not use, which is the same defect
-> the banner corrects for the two box models. And `Q_and_q_dheight` **throws** for `FlatTopSoftBox`,
-> whose forward field builds happily, so that model's transpose cannot run although its
-> `∂q/∂H` is one line.
+Report 00 §2 is why the field is the coupling; report 05 §6.1 is the transpose and its sparsity.
 
 ---
 
 ## 1. The proposal
 
-A plant's crown occupies heights `0` to `H`, and `H` is a differentiable state. So
-every quantity TF24 aggregates over a crown is an integral whose **domain moves when a
-trait changes**, and the sensitivity of such an integral needs the integrand's
-derivative along the direction the domain moves. For a light-dependent integrand that
-means the vertical light gradient, `dL/dz`.
-
-This is not a deep-crown problem. `quadrature::QK` maps its fixed rule affinely onto
-the integration bounds, so every abscissa is `z = u_k * H` for fixed `u_k`, and all
-three shading models therefore read the light field at heights proportional to the
-plant's own:
+**1. Compute `dA/dz` exactly. It is already in the model.** Every strategy declares the leaf-area
+density `q(z, h)` next to the cumulative shape function, and differentiating the cumulative form
+gives
 
 ```
-CrownCentre  L(H * eta_c)
-MeanLight    integral over [0, H] of  max(L(z), 1e-4) * q(z, H) dz      (TF24's default)
-DeepCrown    one leaf solve per abscissa of [0, H]
+d/dz [ k_I · a · (1 − (z/h)^η)² ]  =  − k_I · a · q(z, h)
 ```
 
-Writing the mean-light case with `z = u H`:
+exactly. So the field's vertical gradient is a **second reduction over cohorts of the same shape as
+the competition reduction**, using a function both supported shading models already call. No new
+mathematics, no separable-field algebra, no per-`η` condition — each cohort contributes with its own
+crown shape and a sum is a sum.
 
-    Phi(H) = H * integral over u in [0,1] of  L(u H) * q(u H, H) du
+**2. Interpolate with a scheme that carries a value and a slope at each knot**, so the slope
+accessor returns the exact derivative of what the value accessor returns, and neither is a
+by-product of a fit.
 
-`d(Phi)/dH` has three parts. The explicit `H` in `q` and the outer factor are closed
-form. For deep-crown there is also the leaf's sensitivity to its radiation input,
-`d(profit_)/d(radiation)`, which the leaf's supplied local Jacobian provides (report 2).
-The remaining part is `d/dH L(u H) = L'(u H) * u`, and **`L'` is the one quantity plant
-cannot currently supply.**
+The identity in part 1 is now checked in the forward model, and holds wherever a difference can
+verify it. That matters more than it sounds: **the cumulative form and the density are an exact
+derivative pair only as long as nobody edits one of them**, and nothing about declaring both ties
+them together.
 
-`ResourceSpline` holds a cubic fitted to `L` values with an adaptive knot set refined
-against a tolerance on the value. It exposes no slope accessor on the production path,
-and a slope taken from it would not be pinned to anything: the knot set is chosen to
-satisfy a value tolerance, so the fitting polynomial's derivative is whatever the fit
-produced. Worse, `A(z)` is **C1 but not C2**, with a curvature break at every cohort
-top — 141 of them at production — and a refiner chasing value error clusters knots near
-those breaks rather than landing on them (section 3).
+### Which strategies the identity covers
 
-**The proposal, in three parts:**
-
-**1. Compute `dA/dz` exactly. It is already in plant.** Every strategy declares the
-leaf-area density `q(z, height)` next to the cumulative form, and differentiating the
-cumulative form gives
-
-    d/dz [ k_I * a * (1 - (z/H)^eta)^2 ]  =  -k_I * a * q(z, H)
-
-exactly (section 4). So `dA/dz` is a second reduction over cohorts of the same shape as
-`Patch::compute_competition`, using a function both mean-light and deep-crown already
-call. No new mathematics, no separable-field algebra, no per-eta condition — each
-cohort contributes with its own `pars.eta` and a sum is a sum.
-
-**2. Put the knots at the cohort tops**, so the curvature breaks fall on knot
-boundaries and every span's target is genuinely smooth.
-
-**3. Interpolate with a cubic Hermite carrying a value and a slope at each knot**, so
-`slope(u)` is the exact derivative of what `eval(u)` returns and neither is a by-product
-of a fit.
-
-**Measured.** Doing 2 and 3 gives the textbook convergence rates — **O(h^4)** on the
-value and **O(h^3)** on the slope, ratios of 16.0 and 8.0 under subdivision — which is
-the direct evidence that the breaks are resolved. The value-fitted cubic on the same
-knots does not converge on the slope at all: 1.21e-03, 1.13e-03, 2.95e-04 over the same
-refinement. At 565 knots the Hermite slope is **100x** better and the margin widens.
-**That is the case:** not that the fitted slope is unusable at its current density, but
-that slope accuracy is *purchasable with knots* in one scheme and not in the other, and
-a quantity you cannot refine cannot be given an error budget.
-
-**A third benefit, which is what report 1 depends on.** A C2 fit enforces
-second-derivative continuity through a band solve over all knots, so one light read
-depends on **every** knot value and its adjoint is a transposed band solve of
-run-dependent width. A Hermite span depends on exactly **two** knots. Verified on a
-live tape: `d(eval)/d(knot_2)` is 0.55 for a query in a span touching knot 2 and
-**exactly 0** two spans away.
-
-**Cost.** Query cost is fine: at matched knot count the Hermite is 6% faster per value
-and 2.6x faster when value and slope are both wanted. The build was the open issue.
-Measured on a production TF24 run, the light interpolant is rebuilt **20 304 times** —
-once per Runge-Kutta stage, not once per accepted step — costing **3.92 s of a 59.5 s
-run, 6.6%**. Production takes the `rescale` path (20 160 calls) rather than the adaptive
-`construct` (144 calls), and rescale re-evaluates the competition kernel at each of its
-**65** knots.
-
-An earlier version of this section projected **+11.8%**, from a knot count of **142**
-against 65. `../probes/interpolant-cost.md` measures the three things that count did not separate,
-and the projection does not survive them:
-
-- The slope is not a second sweep. `q` is exactly `-dQ/dz` and both are written in terms
-  of one `pow_eta_(u, eta)`, so a fused sweep costs **1.5-1.9x** the value sweep where
-  two sweeps cost **2.1-2.8x**.
-- The Hermite build step is **10x cheaper** than the cubic's band solve (0.258 us against
-  2.556 us at 65 knots), a credit of 2.30 us per build.
-- **The 142-knot premise is wrong.** On plant's own 65-knot set the Hermite is already
-  better than the cubic on value (1.47x) *and* on slope (1.48x). The cohort-top set buys
-  far more slope accuracy and remains available, but it is a choice rather than a
-  precondition.
-
-On the 65-knot set the forward cost is between **+0.33% and +5.3%**, and the bracket's
-width is one unmeasured quantity: the sweep and the band solve together account for
-17.6 us of the measured 193.2 us per build, leaving **91% unattributed**. The obvious
-candidate — plant's missing LTO — was tested and rejected. Section 5.5 carries the
-detail; `../probes/interpolant-cost.md` carries the measurements and the build line.
-
-**This is the only one of the three proposals that changes forward-model numbers**, at
-roughly the fitting tolerance, so baselines need re-blessing. It is also the only one
-that delivers something on its own without the other two.
+`q` is the exact negative vertical derivative of the **Yokozawa** kernel, which is what the algebra
+above differentiates. A model that routes competition through a different profile — a box, a soft
+box, a stepped plan-area profile — reaches the field by another path, and there `−k_I · a · q` is
+the slope of a profile the field does not use. The identity is a property of the kernel, not of the
+declaration, so **a strategy that declares both forms without checking them against each other can
+have them drift apart silently, and the value will not show it.**
 
 ---
 
-## 1b. The decision: hold the interpolant on a normalised coordinate
+## 2. Why the value is easy and the slope is not
 
-This is what the proposal above becomes once the workflow is settled, and it changes where
-`height_max` enters.
+The optical depth sums each cohort's contribution over `z ≤ h_j` and zero above. With `u = z/h_j`
+the term is `(1 − u^η)²`, and near `u = 1` we have `(1 − u^η) ~ η(1 − u)`, so the term is `O((1−u)²)`
+and its `z`-derivative is `O(1−u)`. The **second** derivative does not vanish. Therefore:
 
-**Why `rescale_spline` exists.** It is not cheaper than building adaptively — 193.2 us per
-call against `construct_spline`'s 143.0 (section 5.5). Its purpose is to keep the **knot count
-fixed across stages**. An adaptive refiner re-run every stage would return a different number
-of knots at different positions, so the field's discretisation would jitter between stages and
-the ODE step controller would see error that is not in the solution. That is also exactly what
-a gradient needs: a knot *count* that depends on an active value makes the recorded computation
-depend on the state.
+> **`A(z)` is C¹ but not C², with a curvature break at every distinct cohort height.**
 
-**What it actually computes.** With `spline.min() = 0`, its affine remap is
+That single fact explains the asymmetry. A cubic fitted to values converges at `O(h⁴)` and its
+derivative at `O(h³)`, *on a span where the target is smooth*. A refiner chasing value error places
+knots where the value error is worst, which is near the breaks: it clusters around them rather than
+landing on them. The value survives, because a C¹ function is well approximated in value by a smooth
+interpolant. The slope does not, and refining further does not help, because each new knot still
+sits inside a span containing a curvature jump.
 
-    x_new = x_old * height_max / height_max_old
-
-which is `x_k = u_k * height_max` for fixed fractions `u_k`.
-
-**Which fractions, measured.** This section assumed they would be inherited from the one adaptive
-`construct` at the start of the run. `../archive/build-plan.md` M3 measured that choice against three others
-and it is the worst of them: at the first step the stand is one seedling, the field is flat, and the
-refiner returns an equally spaced set, so the first state's refinement carries no information — its
-crown-mean light error reproduces a uniform 33-knot set to every digit. The error is resolution
-rather than placement (about `h^2.5`, set by the derivative breaks at the cohort heights), a mid-run
-refinement at 115 knots is worse than uniform at 58, and the decision is **uniform at 65**.
-
-**So hold the interpolant on `u = z / height_max`, with the fractions fixed.** Bit-identical to
-what `rescale_spline` already produces *between introductions*, up to performing one division
-rather than an affine remap over the whole knot vector.
-
-**Across introductions it is a change, and the knot count is not 65.** `introduce_new_node` passes
-`rescale = false`, so `construct_spline` re-refines adaptively at each of the 141 introductions and
-chooses a fresh fraction set. Measured over 142 output steps: **33 to 129 knots, mean 58.4**
-(`../../scripts/light_floor.R`). So fixing the fractions once is a genuine reparameterisation, not a
-restatement — M3's gate has to expect bit-identity within an introduction interval and a recorded
-shift across one.
-
-Three things follow.
-
-**The knot positions become constant, so C1's dropped channel disappears.** C1 records that
-knot positions must be passive and that dropping `d(position)/d(trait)` costs 8.7e-04 on a
-coarse 20-knot coupled run. On develop that channel is worse than C1 makes it look, because
-`rescale` is not a one-off adaptive placement: the positions are an affine function of
-`height_max` recomputed **every stage**, and `height_max` is `max` over active cohort heights
-(`patch.h`). So the chain
-
-    tallest cohort's height -> height_max -> all 65 knot positions -> every crown integral
-
-is re-formed per stage and `to_passive` drops all of it. On the normalised coordinate the same
-sensitivity arrives as ordinary chain-rule terms in the *query* instead:
-
-    d/d(z)          ->  1 / height_max
-    d/d(height_max) ->  -z / height_max^2
-
-Recorded arithmetic, not a structural approximation.
-
-**`height_max`'s selector remains, and it is smaller than it looks.** `Species::height_max()`
-returns `nodes.front().height()` (`species.h`), not a `max` — it relies on the
-descending-height invariant, so *within* a species the derivative is 1 for the first node
-unconditionally and there is no tie. The `max`, and the tie, live only in `Patch::height_max`
-across species (`patch.h`). A single-species run therefore has no selector at all, and
-every incidence number in this corpus is single-species. On the normalised coordinate what
-remains sits in the arithmetic rather than in the knot placement.
-
-**The field reduction has a moving lower bound of its own, and it is `height_0`.**
-`Species::compute_competition` closes its descending trapezium on the inflow boundary node at
-`new_node.height()` (`species.h`), so the reduction integrates over `[height_0, H_max]`
-and `height_0` comes from `height_seed`'s root-find — trait-dependent. This report's section 1
-makes the case for a crown integral's moving bound; the same argument applies one level up, to
-the field's own quadrature, and the term is one evaluation of the integrand at `height_0`
-times `d(height_0)/d(trait)`. It is closed form and it belongs with the knot adjoints, not
-inside a cohort block. The boundary node's *density* is the other thing that sweep reads which
-is not ODE state; report 01 §3 sets out why it is lagged and what that costs.
-
-**A fixed absolute grid is the wrong alternative.** It would also make positions constant, and
-`height_max` runs from 0.34 m at the first cohort to 17.94 m at production, so most of 65 knots
-would sit above the canopy for the first decades of every run.
-
-### Two interpolants, two jobs
-
-| | type | job |
-|---|---|---|
-| knot fractions | fixed, uniform at 65 (M3) | positions only, and no refiner chooses them |
-| evaluation | `hermite_interpolator<S>` | value and slope at those fractions, carrying the working scalar |
-
-The Hermite has no refiner, so it cannot replace the fitted cubic; it is an addition with one
-consumer. It is also not a candidate for the leaf's four vulnerability and transpiration curves
-or for the extrinsic drivers: those call `set_extrapolate(false)` and rely on it, while a
-Hermite extends linearly by construction (section 5).
-
-### The slope reduction must merge in the same order as the value reduction
-
-`hermite_interpolator::init` takes `dydx`, and section 4 supplies it as a second reduction over
-cohorts. `Patch::compute_competition` merges sources in descending height with ties broken on
-the flat concatenated index, so the value sum adds the same terms in the same order on every
-rebuild (C6.6). **The slope reduction has to use that same order**, or the value and the slope
-come from sums that differ in their last bits — which is the detached-derivative pattern this
-report exists to remove, reintroduced at the level of floating-point association rather than of
-construct.
-
-Fusing the two sweeps is what section 5.5 measures at 1.5-1.9x against 2.1-2.8x for two
-separate sweeps, so one pass returning a pair is both cheaper and the only form in which the
-order is guaranteed identical.
+**The consequence is not that a fitted slope is unusable at its current density.** It is that slope
+accuracy is *purchasable with knots* in one scheme and not in the other, and **a quantity you cannot
+refine cannot be given an error budget.**
 
 ---
 
-## 2. State at develop
+## 3. The three properties the transpose needs
 
-`TF24_Environment::compute_environment` fits the interpolant to light availability:
+### 3.1 Locality — and it depends on which interpolant, not on the word "spline"
 
-```cpp
-auto f_light_availability = [&](double height) -> double
-  { return exp(-f_compute_competition(height)); };
-light_availability.compute_environment(f_light_availability, height_max, rescale);
-```
+A scheme carrying a value and a slope at each knot has genuinely local support: a query inside one
+span reads exactly two knot values and two slopes, **four non-zeros**, and its adjoint is `O(1)` per
+query.
 
-`light_availability` is a `ResourceSpline` constructed with
-`(tol = 1e-4, nbase = 17, max_depth = 16, rescale_usually = true)`. It holds an
-`odelia::interpolator::Interpolator` built by `interpolator::AdaptiveInterpolator`,
-which bisects intervals until the fitted **value** meets `tol`. The read is
+An *interpolating* spline that solves a tridiagonal system for its slopes has **no local support at
+all** — every knot value influences every query, decaying geometrically — so its adjoint is a
+transposed band solve of run-dependent width. The distinction is not academic, because the model
+contains both kinds: the vulnerability tabulation is the solved kind and the light field must not
+be.
 
-```cpp
-double get_value_at_height(double height, double cap) const {
-  return height <= cap ? std::max(0.0, spline(height)) : 1.0;
-}
-```
+Two qualifications, both load-bearing:
 
-The `std::max(0.0, ...)` guards a real defect, documented in place: the cubic can
-undershoot below zero between knots — notably the K93 light interpolant at high `k_I` —
-which is non-physical for a resource availability.
+**The sparsity is a property of the recorded step's *field inputs*, not of the composed dependence
+on cohort state.** Each supplied slope is itself a reduction over every cohort. Report 05 §6.1
+states the claim at the boundary where it holds, and report 07 §1 exploits it there.
 
-Three properties follow, and together they are the case for changing it:
+**The row's width is set by the quadrature rule, not by the canopy.** A crown integral under a fixed
+`n`-point rule touches at most `n` spans, hence at most `n+1` values and `n+1` slopes. **The bound
+does not grow with the stand or with the tree** — which is the fact that makes the coupling's cost
+independent of stand size.
 
-- **No slope accessor exists on the production path.** `odelia`'s `Interpolator` has a
-  `deriv`, but nothing in develop calls it for the light field.
-- **A slope from this construct is unpinned.** The knot set satisfies a value
-  tolerance; the derivative is not constrained by it, not measured, and not bounded by
-  `tol`.
-- **The target is not smooth at the knot scale.** Section 3.
+### 3.2 Value and slope must come from one construct
 
----
+Two constructs — a fitted value and a separately computed slope — agree nowhere except by accident,
+and the disagreement is invisible in the value.
 
-## 3. Why the value is easy and the slope is not
+This extends below the interface. If the slope is supplied by its own reduction over cohorts, that
+reduction must **merge its terms in the same order as the value reduction**, or the two come from
+sums differing in their last bits. That is the detached-derivative pattern this report exists to
+remove, reintroduced at the level of floating-point association. Forming both in one pass is the
+only arrangement in which the order is guaranteed identical, and it is also cheaper, because the
+two share the expensive power.
 
-From `TF24_Strategy::compute_competition`, the optical depth is
+### 3.3 The knot positions are structure, and the channel they drop must be bounded
 
-    A(z) = sum over species, over cohorts of
-             density_j * k_I * a_j * (1 - (z/H_j)^eta)^2 / area      for z <= H_j, else 0
+Cohort heights are ODE state carrying derivatives, so knot positions are taken passively. Dropping
+that channel is the right treatment — moving a knot changes the interpolant, not the interpolated
+function — and it is what any adaptive knot set already gets.
 
-Each cohort's contribution and its first derivative both vanish as `z -> H_j`: with
-`u = z/H_j` the term is `(1-u^eta)^2`, and near `u = 1` we have `(1 - u^eta) ~ eta(1-u)`,
-so the term is O((1-u)^2) and its `z`-derivative is O(1-u). The **second** derivative
-does not vanish. Therefore:
-
-> **`A(z)` is C1 but not C2, with a curvature break at every distinct cohort height** —
-> 141 of them at production.
-
-That single fact explains the asymmetry. A cubic fitted to values converges at O(h^4),
-and its derivative at O(h^3), *on a span where the target is smooth*. An adaptive
-refiner chasing value error places knots where the value error is worst, which is near
-the breaks: it clusters around them rather than landing on them. The value survives
-because a C1 function is well approximated in value by a smooth interpolant. The slope
-does not, and refining further does not help, because each new knot still sits inside a
-span containing a curvature jump.
-
-Hence the two design consequences in section 1: knots **at** the cohort heights, and a
-slope **supplied** rather than inferred.
-
----
-
-## 4. The vertical gradient, in closed form
-
-Every strategy already declares the leaf-area density alongside the cumulative form:
-
-```cpp
-double TF24_Strategy::compute_competition(double z, double area_leaf_,
-                                          double height_inverse) const {
-  const double u = z * height_inverse;
-  if (u > 1.0) return 0.0;
-  const double tmp = 1.0 - pow(u, pars.eta);
-  return pars.k_I * area_leaf_ * tmp * tmp;
-}
-
-double TF24_Strategy::q(double z, double height) const {
-  const double tmp = pow(z / height, pars.eta);
-  return 2 * pars.eta * (1 - tmp) * tmp / z;
-}
-```
-
-Differentiating the first with respect to `z`, with `u = z/H`:
-
-    d/dz [ k_I a (1-u^eta)^2 ]  =  k_I a * 2 (1-u^eta) * ( -eta u^(eta-1) / H )
-                                =  -k_I a * 2 eta (1-u^eta) u^eta / z
-                                =  -k_I a * q(z, H)
-
-using `u^(eta-1)/H = u^eta/(uH) = u^eta/z`. So **`q(z, H)` is exactly the negative
-vertical derivative of the competition kernel** — already declared, already called by
-both mean-light and deep-crown, ~~already correct for every strategy~~ **and correct for
-every strategy that reaches the profile through `Q`, which is not all of them: see the
-correction at the head of this report.**
-
-The field's vertical derivative is therefore a second reduction of the same shape as
-`Patch::compute_competition`:
+But it is a real channel, and where the field is held on a grid whose positions are an affine
+function of the tallest cohort's height, the chain
 
 ```
-Patch::compute_competition_slope(z)
-  = - sum over species, over cohorts of  density_j * k_I * a_j * q(z, H_j) / area
+tallest cohort's height  ->  every knot position  ->  every crown integral
 ```
 
-and `dL/dz = -L(z) * dA/dz`. The two reductions share `pow(z/H_j, eta)`, which
-dominates both, so they should be formed in one pass; section 5.5 quantifies the cost
-of not doing so.
+is re-formed at every stage and dropped at every stage. **Measured on the model, the dropped term is
+a large fraction of the tallest cohort's own height adjoint** — the plant that sets every other
+plant's light is the plant whose height adjoint is most affected. Whether it shrinks with knot
+density has never been checked, and **that convergence is the falsifier for the passive-position
+treatment**: if it does not shrink, the treatment is a floor rather than a discretisation error.
+
+A **fixed absolute grid** is not the alternative it looks like. The canopy grows by two orders of
+magnitude over a run, so most knots would sit above it for decades.
 
 ---
 
-## 5. The interpolant, and what it measures
+## 4. What the field's own non-smoothness costs
 
-`odelia/inst/include/odelia/hermite_interpolator.hpp`:
+**The value of the field is robust; its slope is what ceases to exist.** The competition profile is
+continuous in its own arguments everywhere it is evaluated — at the crown-top cutoff, at the canopy
+cap where leaf area is exactly zero, and at the ground knot for every crown shape. Each is a C¹ join
+where value *and* slope vanish exactly, so dropping the branch indicator's derivative is **exact**
+rather than an approximation.
 
-```cpp
-template <typename S> class hermite_interpolator {
-  void init(const std::vector<double>& x, const std::vector<S>& y,
-                                         const std::vector<S>& dydx);
-  S    eval(double u) const;              // value
-  S    operator()(double u) const;
-  S    slope(double u) const;             // the exact derivative of eval's polynomial
-  void value_and_slope(double u, S& value, S& dydu) const;   // one lookup, one span load
-  double min() const;  double max() const;  std::size_t size() const;
-  const std::vector<double>& knots() const;  void clear();
-};
-```
+The consequence for an interface: **a value accessor must keep working when a slope accessor
+refuses.** Pairing them forces a forward model with no derivative problem to stop.
 
-Knot positions are `double`; values and slopes carry the working scalar `S`. The surface
-mirrors `basic_interpolator` so `ResourceSpline` can hold one in place of the other,
-with a slope vector added at `init`. `init` validates the positions, scans them for uniformity and
-fills every span, so a caller whose positions never change re-derives structure per call;
-`../archive/build-plan.md` P2.1 splits it into setting the nodes once and refreshing the data per stage.
-(odelia's older value-fitted `Interpolator` spells the same operation `deriv`; this type uses `slope`
-throughout for consistency with `value_and_slope`.)
+### The ground knot is the hazard, and it has two separate faults
 
-On span `[x_k, x_{k+1}]` with `h = x_{k+1} - x_k` and `t = (u - x_k)/h`, the Hermite
-basis is rearranged into a cubic in `t` and stored per span as one contiguous record
-`{x0, inv_h, y0, c1, c2, c3}`, so a query touches a single cache line. Outside the knot
-range the end slope is extended linearly, which keeps the read C1 across the boundary
-rather than letting a cubic diverge — and removes the need for the undershoot guard of
-section 2, since a Hermite interpolant between two non-negative knots with the correct
-end slopes does not undershoot the way a C2 fit does.
+**The density divides by height, so it is `0/0` at the crown base** — which is the field's lowest
+sample point, at every height. That is a value defect with no AD involved, and it is fixed by taking
+the limit there: zero above crown-shape exponent 1, and `2/h` at 1.
 
-### 5.1 Exactness and locality
+**And the shape function's derivative with respect to the crown shape is `0^η · log 0` at that same
+knot**, which is not a number. In a coupled system this produced a NaN gradient for exactly one
+trait while every other trait stayed finite and plausible. At `z = 0` the cohort contributes its
+full amplitude with `u = 0` and no power is needed, so the fix is a guard rather than a
+reformulation — and until it exists, the crown shape cannot be a differentiation target.
 
-| check | result |
-|---|---|
-| a cubic target reproduced, value | 2.84e-14 max absolute |
-| a cubic target reproduced, slope | 1.42e-14 max absolute |
-| `d(eval)/d(knot_2)`, query in a span touching knot 2 | 0.55 |
-| `d(eval)/d(knot_2)`, query two spans away | **exactly 0** |
+### The light floor and the monotonicity guard are one lever
 
-The last two are the locality claim, verified on a live XAD tape with the knot value
-registered as an input rather than argued from the basis functions.
+The crown shape satisfies `Q(0) = 1` for every exponent, so **the field's minimum over its whole
+domain is at the ground and equals `exp(−k_I · LAI)`.** A floor on the light therefore binds when
+`k_I · LAI` exceeds the floor's log.
 
-### 5.2 Accuracy against the real profile
+The interpolant's undershoot guard sits on the **same** lever: at the ground knot the slope is
+exactly zero for exponents above 1, so the first span undershoots once the knot values fall far
+enough — which cannot happen while the ground value is far above the floor, and can once it
+approaches it.
 
-Harness `scratchpad/interp_probe.cpp` at `-O2`. Target `L(z) = exp(-A(z))` over 141
-cohorts with `eta = 12`, heights distributed as an SCM produces them, probed at 20 001
-points chosen to avoid the knots — where every scheme is pinned and none can be
-distinguished.
+**So both clamps fire under one parameter change, and `k_I` is a free parameter a gradient-driven
+search will walk.** The crown shape is *not* a lever here: it reshapes the profile and leaves the
+ground value untouched. Where either binds the severance is an **artefact and not the model**, since
+the field is smooth there, so the honest action is to refuse the row with its incidence counted
+rather than to return the clamped zero.
 
-Errors are normalised to the largest value the quantity takes over the domain. This is
-deliberate: `dL/dz` passes through zero at the canopy top and wherever crown
-contributions cancel, so a **pointwise** relative error is unbounded there and its mean
-and maximum report the reference magnitude rather than the interpolant. A global
-normalisation is the meaningful measure for a quantity entering a chain rule.
-
-| knots | scheme | value (mean) | slope (mean) | slope (max) |
-|---|---|---|---|---|
-| 142 | Hermite at cohort tops | **6.57e-06** | **1.89e-04** | **2.46e-03** |
-| 73 | value-fitted cubic, adaptive at `tol = 1e-4` | 1.04e-05 | 4.29e-04 | 1.73e-02 |
-| 142 | value-fitted cubic, same knots as the Hermite | 3.05e-05 | 1.21e-03 | 6.64e-02 |
-
-At its production configuration the fitted interpolant settles on 73 knots with a mean
-slope error of 4.3e-04 and a maximum of 1.7e-02. The Hermite is better on every column,
-but at a single knot density the margin is a factor of two to seven — not, on its own,
-a compelling argument.
-
-### 5.3 Convergence — the argument
-
-Subdividing each cohort-top span uniformly:
-
-| knots | Hermite value | Hermite slope | fitted cubic slope, same knots |
-|---|---|---|---|
-| 142 | 6.57e-06 | 1.89e-04 | 1.21e-03 |
-| 283 | 4.09e-07 | 2.35e-05 | 1.13e-03 |
-| 565 | 2.56e-08 | 2.94e-06 | 2.95e-04 |
-
-Hermite ratios: **16.0 and 16.0** on the value, which is O(h^4); **8.0 and 8.0** on the
-slope, which is O(h^3). Those are the textbook rates, and obtaining them *is* the
-evidence that the breaks are resolved — a scheme smoothing over curvature jumps cannot
-achieve them.
-
-**Those rates belong to this knot placement, and the production one gives up the rate but not the
-accuracy.** The table subdivides *cohort-top* spans, so every span is smooth and the breaks fall on
-knots. Fixed uniform fractions (§1b) do not align with the cohort heights, so a break sits inside a
-span and the observed rate on the production field is about `h^2.5` (`../archive/build-plan.md` M3). That
-sounds like a price and measurement says it is not: at a matched knot count on a real stand, uniform
-fractions are **22x more accurate** than knots at the cohort tops (M3b), because cohort heights
-cluster — minimum spacing 8.2e-06 m on a 17.9 m domain — so a knot per cohort top crowds a bunch and
-leaves the gaps between bunches unresolved. The same measurement puts the worst span at 1.3e-06 of the
-domain against uniform's 7.0e-03, which is section 5.1's locality argument turning into a conditioning
-hazard, and confirms on the model what report 01 §7.6 could only refute in a toy. P2.3's gate is
-therefore stated on a smooth target, with the production rate recorded beside it.
-
-The fitted cubic on the same knots goes 1.21e-03, 1.13e-03, 2.95e-04: essentially flat,
-then erratic. At 565 knots the Hermite slope is 100x better and the margin widens with
-refinement.
-
-At `eta = 4` every scheme improves and the ordering is unchanged (Hermite slope
-6.82e-05 at 142 knots against the fitted 7.48e-04), so the conclusion is not an
-artefact of TF24's sharp default canopy shape.
-
-### 5.4 Query cost
-
-4 000 000 queries in the access pattern of a crown integral — abscissae inside each
-cohort's crown in turn — best of seven runs:
-
-| scheme | knots | value | value + slope |
-|---|---|---|---|
-| value-fitted cubic | 73–81 | 19.5 ns | 33.4 ns |
-| value-fitted cubic | 142 | 42.2 ns | 78.0 ns |
-| **Hermite** | 142 | **39.0 ns** | **29.7 ns** |
-
-At matched knot count the Hermite is 6% faster for a value and **2.6x faster** when
-both are wanted, because `value_and_slope` shares one knot lookup and one span load.
-The interpolant is not slower; a larger knot set is. Going from 73–81 to 142 knots costs
-roughly 2x on value-only queries, and that cost is real and not tunable — the knot set
-is determined by the stand.
-
-### 5.5 Build cost — measured on plant, and unfavourable
-
-The interpolant is rebuilt inside every `Patch::set_ode_state`. That is called at every
-Runge-Kutta **stage**, not once per accepted step, which was worth measuring rather than
-assuming. Instrumenting `ResourceSpline::compute_environment` on a production TF24 run
-(`max_patch_lifetime = 105.32`, 2 829 accepted steps, 59.5 s — **pre-`#517` counts**, see
-report 01 §2; develop takes 5 055 steps, so the call counts below scale by about 1.8 and
-the percentage-of-run figures need re-measuring):
-
-| path | calls | total | per call | knots |
-|---|---|---|---|---|
-| `construct_spline` (adaptive refinement) | 144 | 0.021 s | 143.0 us | — |
-| `rescale_spline` (reuse the knot set, re-evaluate) | **20 160** | **3.895 s** | 193.2 us | 65 |
-| both | 20 304 | **3.916 s = 6.6% of the run** | | |
-
-Three things follow, and the first two were wrong in an earlier version of this report.
-
-**The multiplier is 7.13, not 1.** 20 160 rescales against 2 829 accepted steps: the
-field is rebuilt per stage because it depends on state, and state changes per stage.
-Any per-build cost is multiplied by that.
-
-**Production takes the `rescale` path, 140 times more often than `construct`.** The 144
-`construct` calls come from `introduce_new_node`, which passes `rescale = false`; the
-20 160 rescales come from `set_ode_state`, which passes `true`. So the baseline to beat
-is `rescale`, not the adaptive build.
-
-**`rescale` is not cheap, and it is the closest analogue to a Hermite build.** It
-re-evaluates the competition kernel at each of its 65 knots and then runs the band solve
-in `initialise()`.
-
-An earlier version of this section stopped here, counted kernel evaluations as the
-dominant term, and projected `142 knots x 1.3` against `65 x 1.0` = about **2.8x**, or
-**+11.8%** on the run. Two of that projection's three inputs were wrong, and the third
-was never a requirement. `../probes/interpolant-cost.md` measures them:
-
-| | measured | what the projection assumed |
-|---|---|---|
-| slope as a second sweep | **1.5-1.9x** fused | 1.3x per-knot, folded into the knot ratio |
-| the build step itself | Hermite **10x cheaper** (2.30 us credit per build) | ignored |
-| knots needed to beat the cubic | **65** — the set plant already has | 142, the cohort tops |
-
-The third is the one that mattered. At 65 knots the Hermite is better than the cubic on
-value (4.465e-04 against 6.574e-04) and on slope (1.949e-02 against 2.894e-02), both
-normalised on the target's global range. So the knot count is not forced by accuracy;
-142 knots buys *more* slope accuracy, and section 5.3's 100x margin needs them, but
-beating develop's interpolant does not.
-
-On the 65-knot set:
-
-    upper bound (all 193.2 us scales by 1.8):   59.5 - 3.92 + 7.05  =  62.6 s  = +5.3%
-    lower bound (only the measured parts):      59.5 - 3.92 + 4.11  =  59.7 s  = +0.33%
-
-**What is still not counted, and it is the whole width of that bracket.** The kernel
-sweep accounts for 15 us of the 193.2 us per build and the band solve for 2.6 us —
-**17.6 us, so 91% is unattributed.** The candidate was plant's missing LTO, since
-`Individual::compute_competition` cannot inline into the templated sweep; that was
-tested against a real two-translation-unit build and **rejected** — the call boundary
-moved the sweep from 14.0 to 15.2 us, not to 190. The mechanism is open. It is also
-worth chasing on develop's own account: if 175 us per build is avoidable, that is 3.5 s
-of a 59.5 s run with no AD work involved.
-
-**The honest position: the query side is settled and favourable, and the build side is
-now bracketed rather than blocking.** Closing the bracket means attributing the missing
-91% and then wiring a Hermite build into `ResourceSpline` on the 65-knot set alongside
-the existing one, timing both on the same run. That measurement should be made before the
-proposal is accepted, but it is no longer being asked to rescue a projection that put the
-cost above the forward-path budget.
-
-Two things are removed from the build side in exchange and are not counted above: the
-adaptive refinement loop disappears entirely — the knot set is the cohort heights, known
-without searching — and with it `spline_tol`, `spline_nbase` and `spline_max_depth` cease
-to influence any gradient.
+Report 06 §6.1 states what this means for a user: a calibration that walks `k_I` upward walks the
+field into the region where the row it is ascending goes to zero. That is a closed loop between the
+answer and the question, and it has no analogue elsewhere in the design.
 
 ---
 
-## 6. Constraints
+## 5. One argument that is discharged, and why it is worth recording
 
-**C1. Knot positions must be passive, and that drops a channel.** Cohort heights are
-ODE state carrying derivatives, so knot positions are `to_passive(H_j)`. A cohort's
-height then enters `A` through the physics — its amplitude and its `(1-(z/H_j)^eta)`
-shape, both carried — and through the knot position, which is dropped. Dropping the
-second is correct: moving a knot changes the interpolant, not the interpolated
-function, and it is the same treatment plant already gives adaptive knot sets. The size
-of what is dropped was measured in the coupled system of report 1 at **8.7e-04,
-independent of the finite-difference step** — so real, not noise — at a coarse 20 knots.
-It should shrink with knot density; that convergence was not measured and should be, at
-production counts.
+An earlier form of this report was organised around a different claim: that a crown integral's
+domain moves with the plant's height, so the reverse pass needs `dL/dz` to carry the moving bound,
+and that the vertical gradient is the one quantity the model cannot supply.
 
-**C2. Knot count roughly doubles**, 142 against 73–81. That is the 2x on value-only
-queries in section 5.4, and it is set by the stand rather than by a tolerance.
+**That is handled structurally rather than by any call site.** A quadrature rule that takes its
+bounds as the active scalar and forms the centre and half-length on it puts the affine map on the
+tape, so every abscissa carries it; and an interpolant read at an active position returns a value
+and slope pair. The Leibniz boundary term is absorbed because the rule is **mapped rather than
+truncated**, and the abscissae are strictly interior, so a crown integral touches neither the ground
+singularity nor the canopy cap.
 
-**C3. Cohorts converging in height — and this is the scheme's weak point after all.** Knots
-at cohort tops means spans narrow as cohorts converge, and a span far below the domain
-scale makes the Hermite coefficients a difference of near-equal numbers divided by that
-span. An earlier version of this constraint reported the hazard as measured and absent, on
-a minimum span of 3.7e-02 taken in report 01 §7.6's synthetic stand. **On the model it is
-present.** Measured over 9 870 interior cohort intervals from 141 recorded states
-(`../../scripts/cohort_spacing.R`):
-
-| | |
-|---|---|
-| minimum spacing | **8.2095e-06** |
-| median | 3.4726e-03 |
-| below `1e-4` | **2 323 of 9 870 (23.5%)** |
-
-Against a domain of up to 17.9 m, a span of 8.2e-06 is a relative scale of 5e-07, and
-nearly a quarter of spans are below 1e-4. The tight ones are all in the initial transient,
-where the schedule introduces cohorts `1e-5` apart in time and they have barely grown apart.
-A merge tolerance is not cheap insurance here; it would be doing real work.
-
-**This is an argument for §1b's fixed fractions rather than for cohort-top knots.** On the
-normalised coordinate the knot positions are chosen once and do not track converging
-cohorts, so the conditioning hazard does not arise. Choosing the cohort-top set would buy
-the slope accuracy of section 5.3 and take this on.
-
-**C4. Numbers move and baselines need re-blessing.** Replacing an interpolant fitted to
-`tol = 1e-4` with one exact at 142 knots changes light values at approximately that
-order. `test-strategy-tf24.R`, `test-canopy-methods.R` and the FF16 references under
-`tests/testthat/FF16_reference/` are affected.
-
-**C5. `rescale_usually` has no analogue, and it is the production path.** Measured:
-20 160 rescales against 144 constructs on a production run (section 5.5).
-`rescale_spline` reuses the existing knot set — rescaled affinely to the new
-`height_max` — and re-evaluates. With knots at cohort heights the knot set changes
-whenever a cohort grows, so there is nothing to reuse and every build is a full build.
-
-This was recorded as the largest open cost, at +11.8% against a measured 6.6%. It is
-smaller than that and it is no longer the binding constraint: on plant's existing
-65-knot set — where the Hermite already beats the cubic on both value and slope — the
-cost is bracketed at **+0.33% to +5.3%** (section 5.5). Keeping the 65-knot set also
-keeps `rescale`'s reuse intact, since the knots are then still positions rather than
-cohort tops. Choosing the cohort-top set instead gives up that reuse *and* pays the
-knot-count multiplier, so it should be chosen for the slope accuracy it buys, not by
-default.
-
-**C6. `pow(0, eta)` is a live hazard at the ground knot.** `d/d(eta) 0^eta =
-0^eta log(0)`, which is NaN. `A(0)` and `dA/dz(0)` are the natural first knot, and
-`Patch::compute_competition(0.0)` is already called on the production path by
-`Node::compute_competition`. In the coupled system of report 1 this produced a NaN
-gradient for exactly one trait while every other trait stayed finite and plausible. At
-`z = 0` the cohort contributes its full amplitude with `u = 0` and no `pow` is needed,
-so the fix is a guard rather than a reformulation.
-
-**C6b. The ground knot breaks `q` too, and that one is a defect in develop.** Separately
-from the `eta` derivative: `q(u,z) = 2 eta (1 - u^eta) u^eta / z` divides by `z`, so
-`q(0,0)` is `0/0` — **NaN in plain `double`, with no AD involved**. Measured. Since the
-field's lowest knot is exactly `z = 0` (`construct_spline` sets `lower_bound = 0.0`),
-anything that asks the field for a slope at the ground gets NaN. The `u -> 0` limit is 0 for every
-`eta > 1` and `2/H` at `eta = 1` — `q = 2(1 - u)u/z = 2(1 - u)/H`, so the constant is 2.
-
-**Landed as P0.7, and as a branch rather than the reformulation this paragraph first proposed**
-(`aornugent/plant#66`; `../tf24-correctness.md`, `../archive/implementation-notes.md`). Rewriting `q` over
-`u^(eta-1)/H` reaches the same finite value and drops a division, but on develop's function-pointer
-chains it needs a *second* chain family to supply `u^(eta-1)`, which moved every model sharing the
-class for no gradient benefit — a chain carries no `eta` term, so it is never the route to a valid
-derivative. A `z <= 0` branch in `q_from_height` taking the limit above fixes the value in the one
-place it arises, on develop's arithmetic untouched. The seeded-`eta` derivative NaN at the same knot
-is a separate matter, handled when `CanopyShape` is templated (build-plan P1.2b). This report
-describes develop `141dc8df`, where the value defect is present and latent — nothing reads the
-field's slope until P2.2.
-
-**C7. The `1e-4` light floor does not bind, and this is now measured.** The clamp in
-`compute_average_light_environment` and `radiation_at` would sever `dL/dz` wherever it bound.
-Over 8 292 light knot values from a production run, **none is at or below `1e-4` and the minimum
-is 0.1657209** (`../../scripts/light_floor.R`, report 07 §1.8). It is structural rather than
-lucky: `L = exp(-A)` with `A` the leaf area *above* `z`, so `L` is minimised at the ground, and
-reaching `1e-4` needs about five times this stand's optical depth. The argument is about optical
-depth, so a denser canopy or a larger `k_I` would change it — the zero carries this driver.
-
-**And the `std::max(0.0, spline(height))` undershoot guard is not firing:** no knot value is
-negative. Section 2 documents the guard against a cubic undershooting between knots, notably K93
-at high `k_I`; on TF24 at these settings it has nothing to catch, which removes one of the two
-reasons section 5 gives for preferring a Hermite. The slope argument is untouched.
+So nothing on the physiology path needs to ask the field for a slope. What survives is §3: the
+slope must exist, be exact, be local, and come from the same construct as the value — because that
+is what the *transpose* needs, not because a crown integral cannot be closed without it.
 
 ---
 
-## 7. What this asks of a Strategy author
+## 6. What this asks of a strategy author
 
-A Strategy that aggregates anything over a spatial extent it controls — a crown, a
-rooting depth, a canopy layer — has obligations the engine cannot check. Stated as
-guidance, each rule with the construct that motivates it:
+**1. If you declare a cumulative form, declare its density too — and check they agree.** They are an
+exact derivative pair, which is what makes §1 free. A strategy declaring only the cumulative form
+forces its slope to be approximated; one declaring both without checking can have them drift apart
+silently.
 
-**1. If you integrate over your own size, you need the integrand's slope.** This is the
-whole of section 1. It is easy to miss because the value is correct and only the
-derivative is wrong, and it applies to any aggregation with a state-dependent domain —
-TF24's root mass distribution over soil layers has exactly the same shape, with
-`rooting_depth = min(height, 1.5)` as the moving bound.
+**2. Know where your field is non-smooth.** The breaks are at the cohort tops, which are ODE state,
+so their location is data rather than a tuning choice. A refiner chasing a value tolerance will not
+find them.
 
-**2. If you declare a cumulative form, declare its density too — and check they
-agree.** `compute_competition` and `q` are an exact derivative pair, which is what
-makes section 4 free. A strategy that declared only the cumulative form would force its
-slope to be approximated; one that declared both without checking could have them drift
-apart silently, since nothing currently ties them.
+**3. Value and slope must come from one construct**, and if they come from two reductions, from one
+merge order.
 
-**3. Know where your field is non-smooth, and put knots there.** The breaks in `A(z)`
-are at the cohort tops, which are ODE state — so the knot set is data, not a tuning
-choice. A refiner chasing a value tolerance will not find them (section 3).
+**4. Positions are structure; values carry derivatives.** Knot positions, quadrature abscissae and
+cohort orderings are decided on passive values. Breaking this — sorting on an active key, or letting
+a knot *count* depend on an active value — makes the recorded computation state-dependent.
 
-**4. Value and slope must come from one construct.** Two constructs — a fitted value and
-a separately computed slope — agree nowhere except by accident, and the disagreement is
-invisible in the value. This is what `value_and_slope` on a Hermite basis guarantees
-structurally.
+**5. A clamp is a derivative severance; say whether you mean it.** Sometimes it is the model.
+Sometimes it is papering over an interpolant that undershoots, which is a different problem with a
+different fix.
 
-**5. Positions are structure; values carry derivatives.** Knot positions, quadrature
-abscissae and cohort orderings are decided on passive values and are `double` by type.
-Only the values at those positions carry `S`. Breaking this — sorting on an active key,
-or letting a knot *count* depend on an active value — makes the recorded computation
-state-dependent.
-
-**6. A clamp is a derivative severance; say whether you mean it.** C7's `1e-4` floor and
-the `std::max(0.0, spline(height))` undershoot guard both zero a derivative on one side.
-Sometimes that is the model. Sometimes it is papering over an interpolant that
-undershoots, which is a different problem with a different fix.
+**6. If you integrate over your own size, you need the integrand's slope** — or a quadrature that
+carries its bounds actively (§5). The same shape appears wherever an aggregation has a
+state-dependent domain, including the root mass distribution over soil layers.
 
 ---
 
-## 8. Implementation order
+## 7. What would falsify this
 
-1. **Add `Patch::compute_competition_slope(z)`** — section 4's reduction, fused with
-   `compute_competition` so `pow(z/H_j, eta)` is computed once. Verify against a tight
-   central difference of `compute_competition`, covering both the eta-specialised
-   multiply chains in `CanopyShape` and the general `std::pow` path.
-2. **Guard `z = 0`** per C6, in `compute_competition` and the new reduction.
-3. **Hold a `hermite_interpolator` inside `ResourceSpline`** beside the existing one,
-   built on the cohort heights from the two reductions, and add
-   `get_value_and_slope_at_height`. Keep the fitted interpolant initially so the two can
-   be compared on live runs.
-4. **Measure C1's convergence** — the knot-position channel against knot density at
-   production width. This decides whether cohort-top knots suffice or spans need
-   subdividing.
-5. **Attribute the 91% of `rescale_spline` that section 5.5 cannot account for**, then
-   time a Hermite build against it on one production run, both wired into
-   `ResourceSpline` on the 65-knot set. That collapses the +0.33%..+5.3% bracket to one
-   number. It is also worth doing for develop alone: 175 us of unattributed cost per
-   build is 3.5 s of a 59.5 s run.
-6. **Switch the read**, re-bless the baselines, confirm the forward benchmark is within
-   the accepted band.
-7. **Then** wire the slope into the crown integral's height channel, which is where the
-   gradient benefit is realised.
-
-Steps 1, 2 and 4 need no AD and no gradient run. Step 1 alone is worth having: an exact
-`dA/dz` is a legitimate diagnostic of the light field independent of any derivative
-work.
-
----
-
-## 9. What would falsify this
-
-- **The `q` identity does not hold numerically.** Compare `-k_I * a * q(z, H)` against a
-  tight central difference of `compute_competition(z, ...)` across `eta` in
-  {1, 2, 4, 8, 10, 12} and a general non-integer `eta`. The specialised multiply chains
-  and the `std::pow` path must agree; if they do not, the slope inherits the
-  discrepancy.
-- **The Hermite does not converge at production density.** Section 5.3 used a synthetic
-  stand. Repeat it on knot sets and amplitudes taken from a real
-  `Patch::compute_environment` call at `max_patch_lifetime = 105.32`. Loss of the O(h^3)
-  rate means the breaks are not where section 3 says they are.
-- **The knot-position channel does not shrink with knot density.** Then C1 is a floor
-  rather than a discretisation error, and the passive-position treatment needs
-  revisiting.
-- **The build cost exceeds the forward-performance budget.** Section 5.5 brackets it at
-  +0.33%..+5.3% on the 65-knot set, against a rejected earlier projection of +11.8%.
-  Settle it by wiring a Hermite build into `ResourceSpline` beside the existing one and
-  timing both on one production run. The bracket lands at its upper end if the
-  unattributed 91% of each build turns out to scale with the cohort sweep; if the run
-  then sits outside the accepted band, the fallback is fewer knots than 65, and
-  section 5.3's convergence argument has to be re-made at that density.
-
-- **The Hermite loses to the cubic on the 65-knot set for a real stand.** Section 4 of
-  `../probes/interpolant-cost.md` used a synthetic top-heavy stand with uniform knots, where
-  plant's are adaptively refined then affinely rescaled. Better-placed knots help both
-  interpolants, but not necessarily equally. Re-run the matched-knot comparison on a
-  knot set and cohort population dumped from a real production step. If the Hermite's
-  value advantage disappears there, the 65-knot argument in section 5.5 goes with it and
-  the cost returns to the cohort-top figure.
+- **The `q` identity does not hold numerically.** Compare `−k_I · a · q(z, h)` against a tight
+  central difference of the cumulative form across a range of crown-shape exponents, covering both
+  the specialised multiplication chains and the general power path. If they disagree, the slope
+  inherits it.
+- **The knot-position channel does not shrink with knot density** (§3.3). Then it is a floor rather
+  than a discretisation error, and the passive-position treatment needs revisiting.
+- **The scheme does not converge at production knot density.** Loss of the expected rate means the
+  breaks are not where §2 says they are.
+- **The light floor binds on a stand anyone runs.** Then the light coupling is mostly severed, and
+  §4's refusal-with-incidence becomes the production path rather than a guard.

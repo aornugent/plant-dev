@@ -4,10 +4,11 @@ This document states the mathematics of the reverse-mode trait gradient for the 
 trait-structured model. Report 00 states the dependency structure and walks the flow in prose;
 this states the derivatives.
 
-It is written to stand on its own. Where the implementation departs from the algebra below, the
-departure is recorded in `CURRENTSTATE.md` and the work to close it in `NEXTSTEPS.md`; neither is
-described here. What is here is what the derivatives *are*, and what a correct implementation of
-them must satisfy.
+It is written to stand on its own, and it names no code deliberately. Nothing here tracks what has
+been built or where an implementation departs from the algebra below; that is a different kind of
+claim, with a different lifetime, and mixing the two is what makes a document like this go stale.
+What is here is what the derivatives *are*, and what a correct implementation of them must satisfy.
+Where it disagrees with the code, one of them is wrong and the disagreement is the finding.
 
 ---
 
@@ -526,51 +527,66 @@ any strategy, so they appear in no parameter list. With per-layer vectors that i
 with no derivative row, and the consequence is a question that cannot be asked: **"what if the soil
 were sandier."** The vertical structure of the root coupling is in the same position.
 
-#### Two facts about the soil that change how its clamps read
+#### Three facts about the soil that change how its clamps read
 
-**The layers decouple at equilibrium and couple strongly in a wet transient, and the two differ by
-sixteen orders of magnitude.** Conductivity is
-$K_{\text{sat}}(\theta/\theta_{\text{sat}})^{2n_\psi+3}$ with the exponent about **16**, so no
-single operating moisture characterises it. Near saturation $K$ exceeds the rainfall forcing; at the
-mature stand's own equilibrium it is about $10^{-6}$ of it.
+**The profile drains, and that cascade is where a deep layer's water comes from.** Each layer's
+inflow is the conductivity of the layer above it, so water moves down the column explicitly. Rain
+enters at the top and reaches depth by drainage, with no plant involved. Measured on a mature stand,
+the median inflow to the deepest of five layers is about $0.10\ \mathrm{m\,yr^{-1}}$ against
+$6\times10^{-7}$ of uptake — **five orders of magnitude, in favour of drainage.**
 
-So **"the drainage cascade is negligible" is true of the equilibrium and false of any wet transient.**
-Measured: a run started uniformly dry refills **every** layer by drainage alone within half a year,
-with no plant involvement in the deep layers, and cumulative drainage is a few percent of rainfall
-rather than a tenth of a percent.
+**"Conductivity is negligible at operating moisture" is an artefact of where the ratio was taken.**
+Conductivity is $K_{\text{sat}}(\theta/\theta_{\text{sat}})^{2n_\psi+3}$ with the exponent about
+**16**, so it spans many orders over the moisture range and no single value characterises it. Taken
+at the half-saturated state the model is *initialised* in, the ratio to the rainfall forcing is
+small — but the model leaves that state within weeks, and at the free-drainage steady state the
+definition settles it: $K(\theta_{\text{eq}})$ **is** the rainfall, so the operating ratio is **1**.
+Measured: five layers rise from 0.250 to 0.311 in 0.14 yr with total uptake still $4\times10^{-5}$,
+which is drainage filling the profile while the plants are irrelevant to it.
 
-**One ecological inference is withdrawn.** "The only resupply a deep layer has is a plant pushing
-water into it" holds only where the profile is already dry — which is where the mature stand sits, so
-it is not vacuous, but it describes one regime and not the model.
+So the layers are **not** independent buckets, and any argument resting on their being so — including
+the reading that a deep layer's only resupply is a plant pushing water into it — does not hold.
 
-**What survives without qualification is the instrument point.** Hydraulic redistribution needs no
-branch, because the same smooth expression covers a negative per-layer flux — and **a statistic formed
-on the total uptake cannot see it**, because a layered root system's ordinary condition is per-layer
-negatives inside a positive total.
+**Hydraulic redistribution is real and deliberately coded, and it is rare and runs downward.** It
+occurs on a small minority of steps and carries a vanishing share of total uptake, it is absent
+altogether from wet and seasonal runs, and where it occurs it moves water **down** into dry
+mid-profile layers under gravity head. It is not deep roots lifting water to a dry surface, and an
+ecological reading built on that picture is describing a different model.
+
+**What survives, and it is the instrument point rather than the ecology.** Redistribution needs no
+branch, because the same smooth expression covers a negative per-layer flux — and **a statistic
+formed on the total uptake cannot see it**, because signed per-layer fluxes sum. That is a claim
+about what a measurement can detect, and it holds whether the phenomenon is common or rare. Its
+derivative exists in closed form, and its relative accuracy under any differencing scheme is the
+worst in the model, precisely because the output *is* the residue of a near-cancellation.
 
 
-**The potential ceiling is an unbounded plant-to-soil sink, not a benign clamp.** The usual
-rationale — that root conductance is already near zero far below the ceiling, so clamping leaves
-uptake near zero — does not hold, and the reason is structural. The root vulnerability integral is
-tabulated on a grid ending where the vulnerability function reaches a small positive value, and a
-natural-boundary spline extrapolates linearly past its last knot with the slope *at* that knot. For
-the integral that slope is positive, so **the integral keeps growing past its grid rather than
-clamping.** The mean root resistance therefore *saturates* rather than diverging, so a flux with a
-numerator growing linearly in the layer's potential over a bounded denominator grows linearly and
-**negative** — flow from plant to soil.
+**The root vulnerability integral must be bounded past the end of its grid, and the requirement is
+not cosmetic.** The integral is tabulated on a grid ending where the vulnerability function reaches
+a small positive value. A natural-boundary spline extrapolates linearly past its last knot with the
+slope *at* that knot, and for this integral that slope is positive — so an unbounded lookup **keeps
+growing past its grid rather than approaching its own limit.** The mean root resistance then
+*saturates* rather than diverging, and a flux with a numerator growing linearly in the layer's
+potential over a bounded denominator grows linearly and **negative**: flow from plant to soil,
+without limit.
 
-Every net that would catch this is the wrong net. The flux is **finite**, so a finiteness test
-passes. Total uptake is a **sum over layers**, so a positive total hides it. And a negative
-depletion makes the layer's rate positive, so a positivity guard permits it. Raising the ceiling
-makes it worse linearly.
+The integral has a closed-form limit — the complete gamma with the same prefactor — and past the
+grid that limit is the value the integral *has* rather than an approximation to it, because the
+tabulation is already within a fraction of a percent of it at the last knot. So the correct
+treatment is a ceiling at that limit, and it costs nothing.
+
+**Every net that would catch the unbounded form is the wrong net**, which is why the requirement has
+to be stated rather than left to a guard. The flux is **finite**, so a finiteness test passes. Total
+uptake is a **sum over layers**, so a positive total hides it. And a negative depletion makes the
+layer's rate positive, so a positivity guard permits it.
 
 **Its reachability is ordinary, not extreme.** It begins where a layer's potential passes the root
-grid's end, and whole-plant shutdown is decided on the **wettest** layer. So a wet top layer plus
-any sufficiently dry layer below is a live plant with a poisoned layer — which, with rain reaching
-only the top layer and drainage a thousandth of the forcing, is the ordinary dry-season profile.
-Even under uniform drying there is a live window, because the root grid ends *before* the stem's
-critical potential. Section 7.3 shows that the leaf's own bracket reaches into the same region, so
-the window has a second cause.
+grid's end, and whole-plant shutdown is decided on the **wettest** layer. So a wet top layer over
+any sufficiently dry layer below is a live plant with a poisoned layer, and a drying profile
+produces exactly that arrangement. Note what the route is *not*: the leaf's own feasible bracket
+does not reach past the root grid, because the dry bound is the **lesser** of the two critical
+potentials and therefore sits inside it (§7.3). **A dry layer is the route, and it is the only
+one.**
 
 **The two clamps are one behaviour.** The potential ceiling always binds before the residual
 content floor, because at the floor the retention curve gives a potential many orders of magnitude
@@ -618,6 +634,15 @@ which exit); is the operating point a tracked state rather than an argmax (→ X
 its clamp binds, never S); is the residual non-finite or the curvature non-negative (→ N, refuse);
 is the point interior *and* the marginal-profit evaluation genuinely defined there (→ S); is it at
 a bound (→ K).
+
+**Five is the coarsest useful classification and not the natural one.** Three of the five carry an
+internal distinction that changes what a caller should do, so a tree that records the branch taken
+will find them: **K** splits by *which* bound, since the two endpoints are different functions of
+the inputs; **X** splits by *cause* — no tension pays for water, no light pays for respiration, or
+feasibility fixed the point with nothing left to optimise — because the first is governed by water,
+the second by light, and no rainfall sweep can see the second; and **N** splits by *fault*, an
+undefined partial being recoverable where a refused search is not. Reporting the branch is free at
+the point of decision and unrecoverable afterwards, which is the whole argument for the tree.
 
 **A small residual is not sufficient for S, and this is the sharpest requirement in the section.**
 The marginal-profit function returns a hard sentinel zero in a no-flow or infeasible state. A
@@ -751,6 +776,14 @@ functions of the intercellular concentration, the stem potential, $p$ and $\varp
 $R = F(E^{\mathrm{up}},\ \partial E^{\mathrm{up}}/\partial r;\ p, \varphi)$ **identically**, and
 rank two is a chain rule through a two-dimensional intermediate.
 
+**And it is unverified.** The derivation above is an identity, so it either holds or the reading of
+what $R$ depends on is wrong — but no one has measured the residual of the two-coefficient fit over
+all $2L+1$ directions on the current model, at states that include a pin and a layer crossing the
+equal-potentials branch. **This is the load-bearing claim for the entire water channel**: if the
+factorisation does not hold, the argmax channel is not two scalars times closed-form vectors and the
+cost argument for the whole design changes. It is the cheapest unclosed check in this document —
+one state, $2L+1$ directions, no gradient run — and it should not stay open.
+
 **One of the two scalars is closed form and the other is not.** $R$ sees the uptake–root-mass
 sensitivity only through the stem-potential response, so
 
@@ -792,35 +825,38 @@ must be computed as itself**, never by subtraction in a caller.
 The second channel dropping out at a bound is legitimate: there the operating point is defined by a
 residual in total uptake alone.
 
-**The upper bound is the maximum of two magnitudes and only one of them can win.** The bound is
-$\max$ of the negated stem critical potential and the negated root critical potential. The first is
-a search result over an interval of non-positive potentials, so its negation is positive; the
-second is a positive magnitude, so its negation is negative and **can never win the maximum.** The
-root-critical clamp is therefore unreachable, with two consequences that matter mathematically.
+**The dry bound is the lesser of the two critical potentials, and that ordering is what keeps the
+bracket inside the grid.** It is $\min$ of the collar at which the stem reaches its critical
+potential and the root's own critical potential, so it is at or wetter than the root's — which sits
+comfortably inside the root vulnerability integral's tabulated domain, the grid running on to a
+smaller conductivity fraction than the shutoff does. **So the search does not probe past the grid,
+and the leaf's bracket is not a route into the extrapolated region.** Section 6.2's dry layer is the
+only route.
 
-First, the search probes collar magnitudes up to the *stem's* critical potential, which lies past the
-root vulnerability integral's last knot. **But this route is narrow, and it is not the one that
-matters.** The excursion is about 0.19 MPa — under three percent past the grid — where the
-extrapolation error is of order a tenth of a percent. **The route that reaches the badly extrapolated
-region is a dry layer**, not the leaf's bracket: any layer past the grid's end is read in
-extrapolation, and at the potential ceiling the argument is two orders of magnitude beyond the grid's
-domain. So section 6.2's mechanism is the live one and this bracket gives it a second cause of
-negligible size. Worth recording alongside: the **stem's** own grid extends beyond its critical
-potential, and both stem splines disable extrapolation, so the stem side is never extrapolated.
+**The exposure is at the *wet* bound instead, and it is worse there.** The wet bound is the collar
+potential at which the per-layer fluxes **sum to zero** — so its position is set by the very
+signed-flux cancellation that a badly extrapolated integral inflates, and the sensitivity of uptake
+to the collar reads that same tabulation. A bound defined by a cancellation among quantities one of
+which is wrong is not approximately right; it moves by whatever the wrong term contributes. And this
+is where the pins actually are: **of the pinned operating points on a representative sweep, more
+than half sit at the wet bound rather than the dry one.**
 
+So the ordering ruling stands, with its mechanism replaced. **A correct constrained-optimum row
+evaluated at a bound whose own position is set by a corrupted flux is a correct derivative of the
+wrong thing**, and it will pass every invariant the row has, because the row and the bound are
+consistent with each other. Bounding the integral therefore precedes building the selector of
+section 7.0; doing them the other way round validates the new branch against the defect and locks it
+in.
 
-capped layer. Second, the root's critical potential has no derivative row anywhere: it is a
-registered parameter whose only write site is the unreachable branch, and it is excluded from the
-differenced parameter loop besides. So its sensitivity is identically zero on every metric — and it
-is the parameter heading the family that a gradient-driven trait search walks into.
-
-**The unreachable branch was mathematically correct.** Had the pin landed there, the bound would be
-an input and $\partial B/\partial u$ would be exactly minus the corresponding unit vector, so zeros
-in every state direction would be the true derivative of a constant bound. The defect is that the
-pin lands on the *other* bound, whose $\partial B/\partial u$ is dense **and evaluated past the
-grid.** The ordering consequence is sharp: **a correct K row evaluated at a bound past the root
-grid is a correct derivative of the extrapolated wrong-way flux**, so building the selector of
-section 7.0 before fixing the bound would validate the new branch and lock the poisoning in.
+**And the dry bound is now two different rows, not one.** Which of the two magnitudes wins the
+minimum decides the derivative. Where the stem's critical collar wins, the bound is a search result
+and $\partial B/\partial u$ is dense, as the table above gives it. Where the **root's** critical
+potential wins, the bound is a registered constant: $\partial B/\partial u$ is then **exactly zero
+in every state direction** and minus the unit vector in its own parameter direction. That is the
+whole row, it is exact, and it is the cheapest branch in the section — but it only exists if the
+parameter carries a row at all. Excluded on the old grounds that its branch was unreachable, its
+sensitivity reads identically zero on every metric while being genuinely live, and it is the
+parameter heading the family a gradient-driven trait search walks into.
 
 ### 7.4 The pinned optimum: the envelope theorem does not apply
 
@@ -918,15 +954,72 @@ vulnerability function reaches a fixed small fraction, so
 $X = \log(1/\text{fraction})$ **identically, for every $b$ and $c$**, and $x \le 4.61$ wherever
 this integral is evaluated. Assert the bound; do not add an argument switch the model cannot reach.
 
-**These closed forms replace a tabulation, and the reason is cost rather than correctness.** The
-grid is captured once and held across parameter perturbations, so a differenced derivative on it is
-not differentiating a moving grid. What the closed forms remove is the table itself, together with
-the difference of a spline's own derivative standing in for the analytic one.
+**These closed forms replace a tabulation, and what they must replace is the tabulation itself —
+not merely its derivative.** The distinction is the sharpest deployment rule in this document.
+Where the forward solve evaluates a table, the derivative belonging on the tape is the **table's**,
+because a gradient must differentiate the model being evaluated and not the model that model
+approximates. Substituting the closed form for the derivative alone is the more accurate derivative
+of a *different function*, and it introduces a systematic disagreement — parts in a thousand, for
+this integral — that no invariant on the gradient can attribute, because both routes are internally
+consistent and neither is refereeing the other.
+
+So the closed forms above are a change to the **forward** model, made once and re-blessed once, after
+which the derivative and the value describe the same function. Until then the honest derivative of a
+tabulated curve is the tabulation's own, and the grid must be captured once and held across
+parameter perturbations so that a differenced derivative is not differentiating a moving grid.
 
 The calculus above is separately verified: all seven quantities agree with an independent
 high-precision integral and with central differences of that integral to better than $10^{-23}$,
 over $c$ from 0.4 to 12 and $m/b$ from 0.075 to 8. It is the best-established derivation in this
 corpus.
+
+### 7.7 The value function's curvature, which the same two numbers already give
+
+The envelope theorem kills the argmax's contribution to profit's **first** derivative. It does not
+kill it in the **second**, and the difference is one term built from quantities section 7.2 already
+computes.
+
+Differentiate the envelope result $\mathrm{d}\Pi^\star/\mathrm{d}u = \partial\Pi/\partial u$ once
+more, remembering that the partial is evaluated at a moving $p^\star$:
+
+$$\frac{\mathrm{d}^2 \Pi^\star}{\mathrm{d}u^2} = \Pi_{uu} + \Pi_{pu}\,\frac{\partial p^\star}{\partial u} = \Pi_{uu} - \frac{\Pi_{pu}^2}{\Pi_{pp}} \;=\; \Pi_{uu} + B, \qquad B \equiv \frac{\Pi_{pu}^2}{\lvert \Pi_{pp}\rvert}. \tag{7.7}$$
+
+**$B$ is non-negative always**, because $\Pi_{pp} < 0$ at a maximum and the numerator is a square.
+So **re-optimisation is unconditionally convexifying**: the value function is less concave than the
+profit surface at frozen behaviour, never more. That is the same fact that makes a maximum over a
+family of functions convex, specialised to one scalar choice.
+
+**It costs one multiply.** Since $\partial p^\star/\partial u = -\Pi_{pu}/\Pi_{pp}$ is the operating
+point's own row — already reported wherever the collar's sensitivity is — equation (7.7) rearranges
+to
+
+$$B = \lvert \Pi_{pp}\rvert \left(\frac{\partial p^\star}{\partial u}\right)^{\!2},$$
+
+so a caller holding the curvature and the collar column has $B$ without a further evaluation. This
+is the third use of the pair $(\Pi_{pp}, \Pi_{pu})$: the multiplier $m$ of section 7.2, the
+factorisation of section 7.3, and now the curvature correction.
+
+**The correction is the same order as the thing it corrects, and it can invert it.** Measured over
+an ordinary moisture-by-vapour-pressure-deficit envelope at shipped parameters, $B$ has a median of
+about **0.74 of the fixed-behaviour curvature**, and over roughly **a third** of that envelope it
+exceeds it — so $\Pi_{uu} + B$ and $\Pi_{uu}$ **have opposite signs**. A response that is concave
+with behaviour held still is convex once the plant re-optimises. Anything that reads a curvature to
+decide a direction — a Jensen argument about environmental variability, a second-order expansion, a
+concavity assumption in an optimiser — gets the sign wrong on a third of the domain if it uses the
+frozen one.
+
+**And $B$ does not taper into a pin; it falls off one.** The interior expression is smooth right up
+to the bound and then stops applying, because at a pin $\partial p^\star/\partial u$ is the bound's
+derivative rather than $-\Pi_{pu}/\Pi_{pp}$. A curvature still exists there — the bound moves, and
+the value follows it — but it is a different expression. **So pinning is a cliff in this quantity,
+not a taper**, and section 7.0's selector governs it exactly as it governs the uptake rows. An
+implementation that computes (7.7) wherever the curvature is finite will return a large finite
+number just past the point where it ceased to mean anything.
+
+**What this is not.** $B$ is a curvature of one individual's profit with respect to its own inputs.
+It is not a curvature of fitness, and the two are separated by the whole of sections 4 to 6 — the
+demography, both reductions, and the feedback. Report 06 §7 states the ecological reading and its
+limit.
 
 ---
 

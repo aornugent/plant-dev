@@ -4,30 +4,49 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-Then the reference material:
+Read the reference material. It divides into two layers, and the division is what keeps it true:
+
+**The model — what TF24 is.** Its referee is `plant`'s `develop`. These name no code and no
+commit, and a claim in them is wrong if the model disagrees with it, not if some branch does.
 
 - [`docs/reports/00-tf24-dependency-map.md`](docs/reports/00-tf24-dependency-map.md) — **the
-  first reading.** Its physical reading gives the five facts TF24's gradient follows from, and
-  its end-to-end walk states the flow forwards and backwards in prose. Read it before the
-  others; they are its detail.
+  first reading.** Its physical reading gives the five facts TF24's gradient follows from, its
+  end-to-end walk states the flow forwards and backwards in prose, and §6 classifies every
+  partial. Read it before the others; they are its detail.
 - [`docs/reports/05-reverse-mode-mathematics.md`](docs/reports/05-reverse-mode-mathematics.md)
   — **the derivatives**, and what a correct implementation of them must satisfy. Read it
-  beside report 00: 00 states the dependency structure, 05 states the algebra. It names no
-  code; where the implementation departs from it, `CURRENTSTATE.md` records the departure.
+  beside report 00: 00 states the dependency structure and where each partial goes, 05 states
+  the algebra.
 - [`docs/reports/06-what-the-gradient-means.md`](docs/reports/06-what-the-gradient-means.md)
   — the ecology behind those derivatives, section for section, and what it would be wrong
   to conclude from a number this machinery produces. Read it if you are deciding whether a
   defect matters, and read its closing section as the domain that must accompany any number
   the machinery produces.
+
+**The design — what follows from the model.** Its referee is the mathematics plus the objective:
+correct, performant and stable reverse-mode gradients of a TF24 stand, with the feedbacks through
+light and soil intact.
+
+- [`docs/reports/01-cohort-granular-reverse-sweep.md`](docs/reports/01-cohort-granular-reverse-sweep.md)
+  — the decomposition that makes peak memory one cohort-step, its forced ordering, and what it
+  demands of the model it decomposes.
+- [`docs/reports/02-leaf-implicit-node.md`](docs/reports/02-leaf-implicit-node.md) — the leaf as
+  one node whose local Jacobian is supplied, and the contract a boundary carrying it must meet.
+- [`docs/reports/03-light-interpolant-value-and-slope.md`](docs/reports/03-light-interpolant-value-and-slope.md)
+  — what the light field has to be for its transpose to be local, exact and refinable.
 - [`docs/reports/07-structure-worth-exploiting.md`](docs/reports/07-structure-worth-exploiting.md)
   — where the system is narrower than it looks, and what each narrowing buys. Its test is
   whether resident trait gradients, calibration, invasion and equilibrium are one machinery
   with different adapters. Read it before scoping any cost work, or any interface.
-- `docs/reports/01`–`04` — the derivations and measurements the design rests on.
-  **Reference material, not status**; they are never edited to track progress. Read the head
-  of each first: several carry corrections to their own sub-claims.
-- `docs/archive/` — documents whose conclusions are stale, superseded or configuration-dependent,
-  each bannered with what survives. **Do not design from them.** 
+
+**None of these tracks progress**, and none is edited to record what has been built. If a report
+disagrees with the code, one of them is wrong and the disagreement is the finding. There is no
+report 04: it argued which discretisation the density's compression term should use, and the
+birth-date coordinate removed the question rather than settling it — what survives is report 00
+§4.4.
+
+`docs/archive/` holds documents whose conclusions are stale, superseded or
+configuration-dependent. **Do not design from them.**
 
 Then, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the

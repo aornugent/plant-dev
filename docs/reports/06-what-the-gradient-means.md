@@ -96,6 +96,14 @@ gradient because everything else grows faster too. Interpreting a sensitivity as
 effect is a mistake the number cannot warn you about. Section 9 describes the one object in this
 machinery that does not have that problem.
 
+**The size of that effect is not a rounding correction, and it is not even sign-preserving.**
+Measured by taking the same trait gradient with the environmental response suppressed and then
+restored: leaf mass per area is suppressed by a factor of about **7.4**, and the seed-mass trait
+**changes sign**. So the feedback is not a modest damping of a physiological signal — for at least
+one trait it is the whole of the answer, and a reader shown the frozen-environment number would draw
+the opposite conclusion. This is the concrete reason the endogenous feedback is worth the machinery
+rather than an assumption worth making.
+
 **There are two shared fields and they are not symmetric.** Plants read the light field *before*
 they decide anything, and write into the water field *as a consequence of* deciding. So the light
 coupling is a competition for a resource already allocated, and the water coupling is a competition
@@ -327,22 +335,32 @@ potential.
 
 **Two facts about this soil change how a drought reads.**
 
-The layers are **independent buckets** on the relevant timescale: conductivity at operating moisture
-is about a thousandth of the rainfall forcing, so rain reaches the top layer only and drainage
-between layers is negligible. **The only resupply a deep layer has is a plant pushing water into
-it.** That makes hydraulic redistribution — roots moving water from wet layers to dry ones — a
-normal feature of a layered root system in this model rather than an exotic case. And it means a
-statistic formed on a plant's *total* uptake cannot see it: the ordinary condition is per-layer
-negatives inside a positive total.
+**The profile drains, and drainage is where a deep layer's water comes from.** Rain enters at the
+top and moves down the column explicitly, layer by layer. It is tempting to read the conductivity as
+negligible and conclude that the layers are independent buckets fed only by roots — and that is an
+artefact of evaluating conductivity at the half-saturated state the model is *initialised* in, which
+it leaves within weeks. At the draining steady state the conductivity **is** the rainfall, by
+definition of the steady state. Measured on a mature stand, drainage into the deepest layer exceeds
+uptake from it by about five orders of magnitude.
 
-And the model's potential ceiling is **not a benign clamp but an unbounded plant-to-soil sink.**
-Past a certain dryness, the root resistance saturates instead of diverging, so the flux grows
-linearly in the layer's potential and runs the wrong way: the model rewets a very dry layer out of a
-plant that has nothing to give. Its reachability is ordinary rather than extreme — a wet top layer
-with a dry layer beneath it is the standard dry-season profile, and whole-plant shutdown is decided
-on the *wettest* layer, so the plant stays alive while one of its layers is poisoned. **This is a
-defect in the forest being modelled, not in its derivative**, and an ecologist reading a drought
-sensitivity is reading a derivative of it.
+So **hydraulic redistribution is not this model's normal condition.** It is real and it is
+deliberately coded, and it happens on a small minority of steps, carries a vanishing share of total
+uptake, and is absent altogether from wet and seasonal runs. Where it does occur it moves water
+**downward**, into dry mid-profile layers, under gravity head. The picture it invites — deep roots
+lifting water to a parched surface — is a different model's, and an ecological claim resting on it
+does not hold here. What survives is narrower and is about instruments rather than plants: a
+statistic formed on a plant's *total* uptake cannot see per-layer reversal at all, because signed
+fluxes sum.
+
+**And the model's potential ceiling is a clamp whose treatment has to be right.** Past a certain
+dryness the root resistance can saturate rather than diverging, and then the flux grows linearly in
+the layer's potential and runs the wrong way: the model rewets a very dry layer out of a plant that
+has nothing to give. Its reachability is ordinary rather than extreme — a wet top layer over a dry
+one is the standard dry-season profile, and whole-plant shutdown is decided on the *wettest* layer,
+so the plant stays alive while one of its layers is poisoned. **That would be a defect in the forest
+being modelled rather than in its derivative**, and an ecologist reading a drought sensitivity would
+be reading a derivative of it. Report 05 §6.2 states what a correct treatment requires; the reason
+it is worth stating is that every obvious guard passes.
 
 **A crossed stand is where the reverse pass and the forward model part company.** The forward
 reductions were taught to handle cohorts in a jumbled size order; a transpose that tests height
@@ -435,6 +453,39 @@ that such a thing must be computed as itself rather than by subtraction. So the 
 carries belowground competition is the one most exposed to being computed the one way that cannot
 compute it — which is why report 05 treats it as a correctness item and not a cost item.
 
+### What re-optimisation does to the *shape* of a response, and why the sign matters
+
+The repricing has a second use, and it answers a question an ecologist asks more often than the
+first one. There are two curvatures of profit against an environmental variable, and they are
+different questions:
+
+- **with behaviour held still** — how profit bends as the soil dries, for a plant that does not
+  adjust its stomata;
+- **with the plant re-optimising** — how it bends for a plant that does.
+
+They differ by exactly one term, report 05 §7.7's `B`, built from the two numbers the water channel
+already needs. And `B` is **never negative**: re-optimisation is unconditionally convexifying, so a
+plant that can adjust always has the less concave response. That is the value of behavioural
+flexibility, written as a number.
+
+**The reason to care about the sign rather than the size is Jensen's inequality.** A response that is
+concave in a fluctuating driver means variability *lowers* the average outcome — a plant does worse
+in a variable environment than in a constant one with the same mean. A convex response means the
+opposite. So the curvature's sign decides whether environmental variability is a cost or a benefit to
+a given plant, which is one of the oldest questions in the field.
+
+**And the correction flips that sign over about a third of an ordinary moisture-by-humidity
+envelope.** With behaviour frozen the response is concave and variability looks costly; once the
+plant re-optimises it is convex and variability looks beneficial. **The two accounts disagree about
+the direction of the effect, not its magnitude** — and the frozen one is the one a reader gets by
+default, because it is what a curvature of the profit expression gives without the argmax term.
+
+**One limit, and it is not a small one.** This is a curvature of one individual's *profit*, and
+questions about selection are curvatures of *fitness*. Between them sit the demography, both
+reductions, and the whole feedback — §3's warning applies here with more force than anywhere else,
+because a curvature is a second-order quantity and the intervening map is not linear. §10 lists the
+bridge as open.
+
 ### The pinned plant, which is a real biological state
 
 Sometimes the optimum is not interior: the plant would like to transpire less than zero, or more
@@ -448,6 +499,14 @@ because it is not choosing freely.
 
 The practical implication: **any conclusion about drought sensitivity depends on the pinned branch
 being right**, and the bound's own derivative is carrying the ecology in that regime.
+
+**And the flexibility of the section above does not fade out as a plant approaches its limit — it
+stops.** The convexifying correction is flat right up to the bound and then ceases to apply, because
+a pinned plant is not choosing. So the ecological reading is a threshold rather than a gradual loss:
+a plant retains the full benefit of being able to adjust until the moment it cannot adjust at all.
+For anyone computing the quantity, that means the interior expression returns a large finite number
+just past the point where it stopped meaning anything, which is the same failure shape as every
+other case in this model — plausible, finite, wrong.
 
 ### Some terminal states are not plants at all
 
@@ -486,10 +545,12 @@ a dry one.
 
 At the operating point of zero *total* uptake, the per-layer fluxes are individually non-zero and
 sum to zero. That is **pure root-mediated redistribution** — a plant moving water between layers
-without taking any up — and given that a deep layer's only resupply is a plant pushing water into
-it, this is a real and important behaviour rather than a degenerate case. Its derivative exists in
-closed form. Its relative accuracy under any differencing scheme is the worst in the model,
-precisely because the output *is* the residue of a near-cancellation.
+without taking any up. It is uncommon (§6.2), so the case matters for a different reason than
+frequency: **it is the wet bound of the plant's own feasible interval**, so the model visits its
+neighbourhood whenever a plant is close to giving up on water, and more than half of all pinned
+operating points sit there. Its derivative exists in closed form, and its relative accuracy under any
+differencing scheme is the worst in the model, precisely because the output *is* the residue of a
+near-cancellation.
 
 ### The vulnerability curve, and the one parameter that is refused
 
@@ -508,13 +569,14 @@ two-parameter curve is over-parameterised, and the third answers a counterfactua
 exist. The critical potential's sensitivity is real, but it belongs *inside* the position and
 steepness rows, which is where someone reading the output would look for it.
 
-> **One half of this is settled and the other is reopened, by the model's own stated intent.** The
-> code exposes the **root's** critical potential as independently settable on purpose: its comment
-> records that the fitted default pins root shutoff too conservatively for taxa operating below it,
-> naming *Acacia aneura*. So a species may have a root curve and a shutoff the curve does not
-> predict — which would make the root a **three**-parameter organ and the two organs asymmetric after
-> all. That is an ecological question for the model's owner, and it decides the output format, so it
-> should be answered before the format is built. Report 07 §3 states both readings.
+> **This holds for the stem and not for the root, and the asymmetry is deliberate.** The root's
+> critical potential was made independently settable *on purpose*: the fitted default pins root
+> shutoff too conservatively for taxa that operate below it, *Acacia aneura* among them. So a
+> species may carry a root curve and a shutoff the curve does not predict, and **the root is a
+> three-parameter organ.** The two organs are therefore asymmetric — the stem's critical potential
+> follows from its curve, the root's does not — and the ecology decided it rather than the
+> bookkeeping. Report 07 §3 carries the consequence for the output format: one derived relation to
+> report, not two.
 
 **This is settled for the stem, and settled in the ecology's favour.** The model's construction also ties the
 stem curve's steepness to its position by a fitted trade-off, which on one reading would leave a
@@ -658,6 +720,18 @@ The largest current risk is not any single defect. It is that **every defect pro
 plausible number** — wrong signs, wrong magnitudes, silent zeros — and none of them produces an
 error. An ecologist reading the output has no way to tell.
 
+### And one question this machinery does not answer
+
+**The bridge from a leaf's profit to a stand's fitness is open, and it is not a pass-through.** The
+optimisation reasoning in section 7 — the envelope theorem, the repricing, the convexifying
+correction — is about one individual's carbon profit with respect to its own inputs. The conditions
+an evolutionary argument wants are about *invasion fitness*, and between the two sit the demography,
+both reductions and the whole feedback. Section 3's measurement is the warning made concrete: the
+feedback suppresses one trait's sensitivity sevenfold and reverses another's sign, so a map that
+carried curvature through unchanged would have to be linear in exactly the place this one is not.
+**Nothing here licenses reading a profit curvature as a selection gradient**, and the work that
+would license it has not been done.
+
 ---
 
 ## 11. The domain, stated — which is section 10's third condition, discharged
@@ -687,7 +761,7 @@ abscissa the resource integrals are taken over.
 | **exactly zero by construction, undeclared** | eight parameters **through birth size** — leaf mass per area, seed mass fraction, both allometric constants, wood density, and the stem-area, root and bark constants | a real channel imposed to zero. Worth about 3 percent for leaf mass per area |
 | **absent — no row anywhere, ever** | the root's critical potential; every soil parameter — saturated conductivity, the retention curve's scale and exponent, the saturation, residual and ceiling constants, the infiltration pair, **times the layer count** if per-layer; the root depth shape; the two root-allocation constants | **"What if the soil were sandier" cannot be asked.** Nor can the vertical structure of the root coupling |
 | **refused by name** | eleven registered-looking parameters that reach no equation, and the half-loss potential, which the model reads once at construction | correct behaviour: a refusal, not a zero |
-| **over-parameterised** | the vulnerability curves carry three registered numbers per organ for a two-degree-of-freedom curve | the third answers a counterfactual no plant can be subjected to |
+| **over-parameterised, stem only** | the stem's vulnerability curve carries three registered numbers for a two-degree-of-freedom curve | the third answers a counterfactual no plant can be subjected to. **The root's third number is not this** — it is a genuine degree of freedom and it is missing a row, not carrying a spurious one |
 
 ### Which states are refused, and which are silently answered instead
 
