@@ -647,18 +647,20 @@ also removes the crossing problem, because germination dates cannot invert. Repo
 requirement and why the obvious remedy, sorting by height, is the wrong one here.
 
 
-### One assumption is imposed rather than derived
+### The seed's own size follows from its traits
 
-The seed's initial height is treated as independent of the traits. Ecologically that says **every
-species starts at the same size regardless of its traits**, which is false: seed size and seedling
-establishment size are traits, and they covary with the leaf and wood economics the gradient is
-differentiating. Eight parameters are affected, through both the establishment probability and the
-density boundary condition.
+A seedling's height is not a constant of the model. It is the height at which its live mass equals
+the seed mass, so every parameter setting leaf, sapwood, bark or root mass moves it. Treating it as
+independent of the traits would say **every species starts at the same size regardless of its
+traits**, which is false: seed size and establishment size are themselves traits, and they covary
+with the leaf and wood economics the gradient is differentiating. Eight parameters reach the census
+this way, through both the establishment probability and the density boundary condition.
 
-**No differentiated reference can detect it** — a forward tangent makes the same assumption, so it
-agrees for free — and for a while that made "we cannot currently tell" the honest statement. It is
-no longer: an instrument that *rebuilds* the species from its traits and runs the model twice
-inherits the assumption from neither path, and it prices the channel.
+**No differentiated reference can price this channel** — a forward tangent resolves the seed's height
+the same way a sweep does, so if either declares it away the two agree for free and the agreement
+reads as a pass. The instrument that can is one that *rebuilds* the species from its traits and runs
+the model twice, inheriting the declaration from neither path. What follows is what it reported while
+the channel was imposed to zero, which is the measurement of what that imposition cost.
 
 What it reports is not one number but a split. For the traits that reach birth size only through the
 seedling's **height**, the answer is a common effect of about ten per cent on a young stand, falling
@@ -668,10 +670,14 @@ carries — it is a factor of **two to three**, and for one of them it does not 
 Those two also fix the seedling's leaf area directly, not only its height, so they lose two channels
 where the others lose one.
 
-**The honest reading is that this is the largest known error in the gradient**, that it is confined
-to traits acting through the seed, and that it is a stated assumption rather than a mistake — the
-model is being asked what happens if a trait changes while every species still germinates at the
-same size.
+**The reading that survives is about instruments, not about the size of an error.** A factor of two to
+three sat on two columns, at every stand age, while every differentiated check agreed to round-off —
+because the quantity was resolved before the traits were differentiable inputs and both paths received
+the answer. The split itself was the diagnosis: parameters reaching birth size through the height
+alone clustered, the two that also set the seedling's leaf area did not, and a channel that is one
+quantity cannot be recovered a piece at a time. Solving the condition where the newborn's state is
+written collapses the split, and the seed mass — which enters that condition and reaches these three
+metrics through nothing else — goes from an exactly zero column to a live one.
 
 ---
 
@@ -775,9 +781,9 @@ abscissa the resource integrals are taken over.
 | | traits | status |
 |---|---|---|
 | **complete** | most of the 44 registered parameters, through the recorded cohort step, and the extinction coefficient through the field build | the gradient is theirs. The extinction coefficient's field-build half is closed: it was 3.041 percent short and is now within a part in ten million of a tangent |
-| **short, and by a measured amount** | the two allometric constants | the reduction's own rows are formed and correct, so what is left is a different defect from the one that used to sit here: they disagree with a tangent by up to 3.4e-03 once a species carries a **second cohort**, and the whole of it is in the trajectory term |
+| **short, and by a measured amount** | the second allometric constant | the reduction's own rows are formed and correct and birth size now carries a row, so what is left is narrower than either defect that used to sit here: at four years it is **0.924** of a rebuilding reference, against 1.000 at four tenths of a year, and 2.6e-04 from a trajectory tangent. It grows with run length and the cause is not established. The first allometric constant reaches 1.000 at both ages |
 | **correct as a registered row, and not the trait an ecologist means** | leaf mass per area, wood density, the accessory-cost trait, sapwood conductivity | a hyperparameter function derives *other registered parameters* from each of these — leaf mass per area sets leaf turnover and leaf dark respiration — and the row holds those fixed. That is a perturbation no leaf admits, because the coupling of leaf mass per area to lifespan and maintenance **is** the leaf economics spectrum. Measured on leaf mass per area at four years the two differ by a factor of **3.2**, same sign |
-| **exactly zero by construction, undeclared** | eight parameters **through birth size** — leaf mass per area, seed mass fraction, both allometric constants, wood density, and the stem-area, root and bark constants | a real channel imposed to zero, and **two groups rather than one**. Through the seed's *height* only: about 11 percent on a young stand, falling to 1.4 percent (leaf mass per area) and 0.3 percent (the first allometric constant) by four years. Through the seed's *leaf area* as well — the two allometric constants: a factor of **2.1 to 2.7**, and the second **does not fall with stand age**. The largest known error in the gradient |
+| **complete through birth size** | eight parameters **through the seed's own size** — leaf mass per area, seed mass fraction, both allometric constants, wood density, and the stem-area, root and bark constants | the seed's height solves its own condition where the newborn's state is written, so this channel carries a row. Against a rebuilding reference the eight agree to 0.999–1.000 at four tenths of a year, with no group standing apart; the imposition it replaced was worth 11 percent on a young stand for the six that reach birth size through the height alone, and a factor of **2.1 to 2.7** for the two that also set the seedling's leaf area. One residual survives at four years, and it is the second row of this table |
 | **declared zero at an interior optimum** | the stem's and the root's critical potentials | correct, and not a missing row: they set the dry bound of a feasible interval the operating point is inside, so complementary slackness makes them zero there. They become live at a pinned point |
 | **absent — no row anywhere, ever** | every soil parameter — saturated conductivity, the retention curve's scale and exponent, the saturation, residual and ceiling constants, the infiltration pair, **times the layer count** if per-layer; the root depth shape; the two root-allocation constants; the crown shape | **"What if the soil were sandier" cannot be asked.** Nor can the vertical structure of the root coupling. The crown shape is excluded for a numerical reason rather than a structural one — its derivative is `0^η · log 0` at the ground knot |
 | **refused by name** | none; the set is empty | every trait the strategy declares as differentiable now carries a row. A trait that loses one belongs here rather than returning a zero |
@@ -813,14 +819,14 @@ is available. The metrics are independent of one another.
   configuration the stand-level offspring ratio is **1.206**, and the earlier factor of 3.33 belongs
   to a configuration that is not the reference.
 
-- **Birth size.** Imposed to zero. Through the seed's height alone: about 11 percent at four tenths
-  of a year, falling to 1.4 percent by four years as accumulated biomass comes to dominate a census
-  that a young stand takes mostly from the seed and the boundary node. **Quote the run length beside
-  it.** Through the seed's leaf area as well — the two allometric constants — a factor of 2.1 to 2.7,
-  and the second of them does not fall with stand age. Any figure quoted for this channel must also
-  say which of the two groups it is for, and must be taken with the trait moved on its own: a
-  difference that rebuilds a species from a hyperparameterisation moves several registered
-  parameters at once and prices a different question.
+- **Birth size.** Derived from its condition, not imposed. Against a rebuilding reference the eight
+  agree to 0.999–1.000 at four tenths of a year and the two allometric constants stop being a
+  separate population. **Quote the run length beside any figure here**, because the channel's share of
+  a census falls as accumulated biomass comes to dominate it, and take the trait on its own: a
+  difference that rebuilds a species from a hyperparameterisation moves several registered parameters
+  at once and prices a different question. What remains at four years is the second allometric
+  constant, at 0.924, and the cause is not established — the inflow boundary's own dropped adjoints
+  have since been consumed and account for 4e-5 of it.
 - **The parameterisation.** A row is a derivative with respect to one registered parameter holding
   the others fixed. Where a hyperparameter function derives some of them from others, that is not
   the trait sensitivity it looks like — see the third row of the table above.

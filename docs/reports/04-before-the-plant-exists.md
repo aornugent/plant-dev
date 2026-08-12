@@ -200,8 +200,10 @@ of them moves the seed height about six times more than leaf mass per area does.
 **The discrepancy is present with a single cohort and is flat in time.** It is
 therefore not demographic: it does not need an introduction, it does not accumulate,
 and it will not be found by any check that varies the stand. That is what makes a
-rebuilding reference the only instrument for it, and what makes its size — a factor
-of two to three on two columns — the largest known error in the gradient.
+rebuilding reference the only instrument for it, and it is why a factor of two to
+three could sit on two columns while every differentiated check agreed to
+round-off. What this table prices is the imposition; §6.1 is the construction that
+removes it, and §6.4's criterion is what says whether it has been removed.
 
 ### 4.3 Only one instrument can see it
 
@@ -254,9 +256,19 @@ factor of forty over the same range, from round-off to round-off.
 
 So the onset and the growth are different phenomena, and only the onset is a defect.
 It is localised to the introduction and to the two parameters that read the
-allometry at fixed height, and **no mechanism for it is established.** Stated here
-because the localisation is worth recording and the explanation is not yet available
-to be recorded.
+allometry at fixed height.
+
+**Most of the onset was the seed height, and reading it as a separate defect was the
+mistake.** It was recorded here as an observation about the introduction because its
+onset sits at an introduction, and the seed's height is what an introduction hands a
+newborn — so a channel absent from construction and a channel absent from the
+boundary produce the same localisation. Deriving the height from its condition moved
+this residual by five to ten times, on columns whose construction defect it was
+supposed to be independent of. **Two defects sharing a symptom are one defect until
+an instrument separates them**, and the localisation was not that instrument. What
+survives of the reading is the ordering: the onset and the growth are still
+different, and the extinction coefficient's round-off-to-round-off growth is still
+what says the second is not a defect at all.
 
 ---
 
@@ -340,6 +352,23 @@ suggests the unconsumed ones are redundant rather than dropped, because the trai
 rows are delivered elsewhere first — but that is an argument, and §5's onset is
 exactly what such an argument would fail to see. **Switch each unconsumed accumulator
 into the seed and require the residual to move or the row to be provably redundant.**
+
+Run, and it separates the accumulators rather than the phenomena. The boundary
+node's height and leaf-area adjoints are a **dropped** row: consuming them moves the
+answer, and toward the rebuilding reference, so the argument from "the trait rows
+arrive elsewhere" was wrong about them. Its size is `4e-5` on a residual of `7.6e-2`,
+so it is three orders below what it was reached for. The extinction accumulator is
+genuinely the redundant case — the reduction takes that row from the same value one
+line earlier — and consuming it would double the row rather than add one.
+
+**Two lessons, and the second is the reusable one.** The height and the leaf area are
+one pull-back and not two, for §6.1's reason: the seed's leaf area is the allometry
+at the seed's height, so the leaf-area adjoint converts to a height adjoint and sums
+with it. Seeding it as a second output instead delivers its partials at fixed height
+a second time. And **"written and never read" is an observation, not a conclusion** —
+whether a dropped accumulator matters depends on whether its upstream quantity
+carries a derivative, which a later declaration can change. An accumulator is dead
+only relative to a set of declarations, and this corpus keeps closing those.
 
 Only then is there a defect to fix, or an exclusion to record.
 
