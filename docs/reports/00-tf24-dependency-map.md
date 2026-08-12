@@ -88,6 +88,46 @@ while it did.
 
 ## The gradient, end to end
 
+**The computation has lifetimes, and the reverse pass covers some of them.** This is the outer
+structure, and it is worth holding before the per-evaluation flow below, because two of the rows
+here are where an imposed zero can live.
+
+| what runs | how often | scalar |
+|---|---|---|
+| a parameterisation, mapping the inputs a question is asked in onto the traits the model carries | once, before anything | plain |
+| a strategy's derived quantities — the crown constant, the seed height, the seed's leaf area | once per species | plain, and **refused** at an active scalar |
+| the shared field, built by a reduction over cohorts | per stage, per step | active |
+| one cohort's rates | per cohort, per stage, per step | active |
+| the inflow boundary, building a plant from the derived quantities | per introduction | active |
+| the census | once, at the end | active |
+
+The reverse pass has a term for each of the last four and **none for the first two**:
+
+    census            ->  the seed on the states it reads, plus its direct term in the traits
+    one cohort's rates ->  the recorded block, swept
+    the reductions     ->  transposed by hand, once per stage
+    the boundary       ->  a segment boundary, and one vector-Jacobian product on the condition
+    the initial state  ->  the last narrowed state adjoint
+    ------------------------------------------------------------------------------------
+    derived quantities ->  nothing
+    the parameterisation -> nothing
+
+**So the reverse pass mirrors the run and not the construction**, and that asymmetry has a
+consequence sharper than a missing term usually has. A channel lost inside the run is lost on one
+path and can be found by comparing two. A channel lost in construction is **exactly zero on every
+differentiated path at once** — a forward tangent imposes what the sweep imposes, and the two agree
+there for free. Finding one needs an instrument that rebuilds rather than seeds, and report 04 is
+that subject.
+
+**One structural flip comes with the reversal, and it is where the bug class lives.** Forward, a
+strategy is a shared *reader* at the bottom of the tree: one object, read by every individual of a
+species. Backwards, the trait adjoint is a shared *writer* at the top: one accumulator, written by
+every cohort's sweep, every stage and every step. The reverse of a fan-out is a fan-in, and **the
+fan-in point has to exist** — a transpose whose output structure holds only size and density slots
+has nowhere to put a parameter row, however correct its arithmetic (report 05 §10). So a trait term
+is lost in two distinguishable ways: the arithmetic is wrong, or there is nowhere for a correct row
+to land.
+
 **Forward, once per right-hand-side evaluation.** The soil holds one moisture state per layer,
 and a retention curve turns each into a water potential. Every cohort's height and density
 together build one light profile. Each cohort then reads that profile over its own crown and the
@@ -551,7 +591,7 @@ marked *solved*.
 | the collar solve's iterations | never differentiated. The operating point is defined by `∂Π/∂p = 0`, and the implicit function theorem supplies its derivative from that condition, so how the root was reached carries no information (§4.2). The same holds for `ci` and for the two bounds. |
 | `ℓ_k →` own cohort's physiology | density enters no cohort rate. It reaches the world only through `U` and through `L`. |
 | `∂(anything)/∂C_{1..4}` | the accumulator **states** are never read. Their *rates* are not blocked — see §3 and the *split* row below. |
-| `∂h_0/∂φ` | the seed height is `double` by declaration and the strategy's preparation refuses an active scalar, so eight trait rows are **exactly zero by construction** on every census metric. This is imposed, not derived; report 05 §10.1 states the term and what closing it needs. |
+| a derivation among the traits themselves | where a hyperparameterisation fixes several registered parameters from one input, a row is the partial with the others held still, not the sensitivity to the input. That is not a blocked channel but a different question, and it is blocked only in the sense that the map from one to the other does not exist (report 04 §1, report 07 §3). |
 
 ### Split — a block that looks dense and is not
 
@@ -571,6 +611,16 @@ marked *solved*.
 | `p*` (TF24) | `∂Π/∂p = 0` at an interior optimum | one scalar divide by `Π_pp`, then one gradient of `∂Π/∂p`. **Five kinds of point, not one** — report 05 §7.0. |
 | `ci` | the stomatal supply–demand balance | one implicit-function term, carried into every derivative passing through assimilation |
 | `σ` (stem potential) | the transport splines | analytic spline derivatives |
+| `h_0`, the seed height | live mass equals the seed mass | one derivative of the residual in `h`, one in each trait, one divide. **This is a state's own value at birth**, so it is an initial-condition sensitivity rather than a rate one, and it enters through the boundary term of report 05 §10 rather than through any cohort's rates. |
+| `a_0`, the seed's leaf area | the allometry at `h_0` | free once `h_0` carries its derivative: the allometry supplies both its own partials at fixed height and the chain through the height. **The two are one quantity for this purpose** — taking either against the other held fixed mixes the channels instead of summing them. |
+
+**Why these two are *solved* and not *free*.** Every other entry in the free table is a state the
+adjoint ODE already carries. These are not: they are the values a state is *given* at birth, resolved
+once by a root-find outside any trajectory. The distinction matters because it decides where the
+derivative has to be formed — a quantity resolved before the traits become differentiable inputs
+carries nothing, however correctly it is derived, so the condition must be differentiated at the
+point the newborn's state is written and not where the root was found. Report 04 §2.1 states that as
+a requirement; report 05 §10.1 states the algebra.
 
 ### Sidestepped — needed in principle, not on the production path
 
@@ -680,6 +730,12 @@ stationarity.
 **13. The birth path evaluates a plant at birth size on the shared leaf,** at a different height from
 the cohort loop, so ordering matters. *(Instance closed — the newborn is now solved once per stage —
 and the ordering constraint remains.)*
+
+**14. §6 classifies the rate path, and two of the model's lifetimes are not on it.** The opening
+section states the asymmetry; the risk it leaves here is narrower and worth naming on its own: **a
+partial absent from §6's table may be absent because the table stops at the rates, not because the
+model lacks the channel.** The seed's leaf area was absent for exactly that reason while §4.4's
+establishment expression read it in plain sight.
 
 ---
 

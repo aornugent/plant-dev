@@ -655,11 +655,23 @@ establishment size are traits, and they covary with the leaf and wood economics 
 differentiating. Eight parameters are affected, through both the establishment probability and the
 density boundary condition.
 
-The measured consequence is about 3 per cent for leaf mass per area. What makes it worth flagging
-beyond its size is that **neither available reference can detect it**: the forward tangent makes the
-same assumption, and a re-run finite difference cannot be used at production because the stand
-collapses discontinuously under a tiny trait perturbation. So this is the one defect where "we
-cannot currently tell" is the honest statement.
+**No differentiated reference can detect it** — a forward tangent makes the same assumption, so it
+agrees for free — and for a while that made "we cannot currently tell" the honest statement. It is
+no longer: an instrument that *rebuilds* the species from its traits and runs the model twice
+inherits the assumption from neither path, and it prices the channel.
+
+What it reports is not one number but a split. For the traits that reach birth size only through the
+seedling's **height**, the answer is a common effect of about ten per cent on a young stand, falling
+to one or two per cent as the stand accumulates biomass and the seed stops dominating the census.
+For the **two allometric constants** — the pair that sets how much leaf area a stem of a given height
+carries — it is a factor of **two to three**, and for one of them it does not fall with stand age.
+Those two also fix the seedling's leaf area directly, not only its height, so they lose two channels
+where the others lose one.
+
+**The honest reading is that this is the largest known error in the gradient**, that it is confined
+to traits acting through the seed, and that it is a stated assumption rather than a mistake — the
+model is being asked what happens if a trait changes while every species still germinates at the
+same size.
 
 ---
 
@@ -762,23 +774,30 @@ abscissa the resource integrals are taken over.
 
 | | traits | status |
 |---|---|---|
-| **complete** | most of the 44 registered parameters, through the recorded cohort step | the gradient is theirs |
-| **short, and by a measured amount** | the extinction coefficient — live but 3.041 percent low, missing the field-build half of its own definition | a finite number wrong in a stated direction: more opacity shades neighbours more, so the missing channel is negative and the row is too large |
-| **short, unmeasured** | the two allometric constants, and the crown shape once registered — the reduction's contribution is dropped | same shape as above, size unknown |
-| **exactly zero by construction, undeclared** | eight parameters **through birth size** — leaf mass per area, seed mass fraction, both allometric constants, wood density, and the stem-area, root and bark constants | a real channel imposed to zero. Worth about 3 percent for leaf mass per area |
-| **absent — no row anywhere, ever** | the root's critical potential; every soil parameter — saturated conductivity, the retention curve's scale and exponent, the saturation, residual and ceiling constants, the infiltration pair, **times the layer count** if per-layer; the root depth shape; the two root-allocation constants | **"What if the soil were sandier" cannot be asked.** Nor can the vertical structure of the root coupling |
-| **refused by name** | eleven registered-looking parameters that reach no equation, and the half-loss potential, which the model reads once at construction | correct behaviour: a refusal, not a zero |
-| **over-parameterised, stem only** | the stem's vulnerability curve carries three registered numbers for a two-degree-of-freedom curve | the third answers a counterfactual no plant can be subjected to. **The root's third number is not this** — it is a genuine degree of freedom and it is missing a row, not carrying a spurious one |
+| **complete** | most of the 44 registered parameters, through the recorded cohort step, and the extinction coefficient through the field build | the gradient is theirs. The extinction coefficient's field-build half is closed: it was 3.041 percent short and is now within a part in ten million of a tangent |
+| **short, and by a measured amount** | the two allometric constants | the reduction's own rows are formed and correct, so what is left is a different defect from the one that used to sit here: they disagree with a tangent by up to 3.4e-03 once a species carries a **second cohort**, and the whole of it is in the trajectory term |
+| **correct as a registered row, and not the trait an ecologist means** | leaf mass per area, wood density, the accessory-cost trait, sapwood conductivity | a hyperparameter function derives *other registered parameters* from each of these — leaf mass per area sets leaf turnover and leaf dark respiration — and the row holds those fixed. That is a perturbation no leaf admits, because the coupling of leaf mass per area to lifespan and maintenance **is** the leaf economics spectrum. Measured on leaf mass per area at four years the two differ by a factor of **3.2**, same sign |
+| **exactly zero by construction, undeclared** | eight parameters **through birth size** — leaf mass per area, seed mass fraction, both allometric constants, wood density, and the stem-area, root and bark constants | a real channel imposed to zero, and **two groups rather than one**. Through the seed's *height* only: about 11 percent on a young stand, falling to 1.4 percent (leaf mass per area) and 0.3 percent (the first allometric constant) by four years. Through the seed's *leaf area* as well — the two allometric constants: a factor of **2.1 to 2.7**, and the second **does not fall with stand age**. The largest known error in the gradient |
+| **declared zero at an interior optimum** | the stem's and the root's critical potentials | correct, and not a missing row: they set the dry bound of a feasible interval the operating point is inside, so complementary slackness makes them zero there. They become live at a pinned point |
+| **absent — no row anywhere, ever** | every soil parameter — saturated conductivity, the retention curve's scale and exponent, the saturation, residual and ceiling constants, the infiltration pair, **times the layer count** if per-layer; the root depth shape; the two root-allocation constants; the crown shape | **"What if the soil were sandier" cannot be asked.** Nor can the vertical structure of the root coupling. The crown shape is excluded for a numerical reason rather than a structural one — its derivative is `0^η · log 0` at the ground knot |
+| **refused by name** | none; the set is empty | every trait the strategy declares as differentiable now carries a row. A trait that loses one belongs here rather than returning a zero |
+| **over-parameterised, stem only** | the stem's vulnerability curve carries three registered numbers for a two-degree-of-freedom curve | the third answers a counterfactual no plant can be subjected to. **The root's third number is not this** — it is a genuine degree of freedom, and it now carries a row |
 
 ### Which states are refused, and which are silently answered instead
 
-The gradient is valid at an **interior stationary optimum** and at a **genuine bound**, where the
-answer is a Lagrangian rather than a free envelope. It is **not** valid, and today is not refused,
-at: a rejected search step or a non-concave point (neither is a plant); a non-finite residual; a
-sentinel zero recorded as a converged optimum, where the curvature is exactly zero and the argmax
-multiplier divides by it; the shutdown and zero-transpiration substitutions, which solve no
-optimisation at all; a collapsed feasibility window; and the acclimating variant, whose operating
-point is a tracked state rather than an argmax.
+The gradient is valid at an **interior stationary optimum**, and that is now the only state it will
+answer in. The leaf classifies its operating point by the branch taken and reports the kind; the
+stand's boundary refuses anything that is not interior, naming it. So a rejected search step, a
+non-concave point, a non-finite residual, the shutdown and zero-transpiration substitutions, a
+collapsed feasibility window and a determined-but-not-optimal point all **refuse** rather than
+returning a plausible number, and the sentinel zero that used to be recorded as a converged optimum
+is classified by its own exit instead.
+
+**What that buys is honesty, not coverage.** The pinned branch is where drought lives (§7), and
+refusing it is not the same as answering it: a **genuine bound** is a state the gradient ought to
+have and does not. So the refusal converts the corpus's worst failure shape into a stated absence,
+and the absence is now the limit. The acclimating variant is in the same position — its operating
+point is a tracked state rather than an argmax, and it is refused rather than answered.
 
 **Refusal is metric-level.** A refusal anywhere in one census metric's sweep makes that metric's
 entire gradient undefined — a sum has no defined value with an undefined term, and no localisation
@@ -794,11 +813,22 @@ is available. The metrics are independent of one another.
   configuration the stand-level offspring ratio is **1.206**, and the earlier factor of 3.33 belongs
   to a configuration that is not the reference.
 
-- **Birth size.** Imposed to zero; about 3 percent for leaf mass per area.
-- **The extinction coefficient.** 3.041 percent, direction known.
+- **Birth size.** Imposed to zero. Through the seed's height alone: about 11 percent at four tenths
+  of a year, falling to 1.4 percent by four years as accumulated biomass comes to dominate a census
+  that a young stand takes mostly from the seed and the boundary node. **Quote the run length beside
+  it.** Through the seed's leaf area as well — the two allometric constants — a factor of 2.1 to 2.7,
+  and the second of them does not fall with stand age. Any figure quoted for this channel must also
+  say which of the two groups it is for, and must be taken with the trait moved on its own: a
+  difference that rebuilds a species from a hyperparameterisation moves several registered
+  parameters at once and prices a different question.
+- **The parameterisation.** A row is a derivative with respect to one registered parameter holding
+  the others fixed. Where a hyperparameter function derives some of them from others, that is not
+  the trait sensitivity it looks like — see the third row of the table above.
 - **The dominant's height.** The knot positions are passive, so the plant that sets every other
-  plant's light has a height adjoint short by a term measured at about 87 percent of that adjoint —
-  though whether it shrinks with knot density has never been checked.
+  plant's light has a height adjoint short by a term measured at about 87 percent of that adjoint.
+  Whether it shrinks with knot density is no longer open: built at 33, 65 and 129 knots the
+  extinction coefficient's residual falls from 2.22e-10 to 4.58e-11, so the treatment converges and
+  the term is a discretisation error rather than a floor.
 - **The reserve gate.** A mollifier occupying 40 percent of the reserve's domain, damping the
   gradient at high reserves and admitting growth at empty ones. Direction and size both unstated,
   because the distribution of relative reserve across a stand has never been reported.

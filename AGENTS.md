@@ -39,11 +39,17 @@ light and soil intact.
   whether resident trait gradients, calibration, invasion and equilibrium are one machinery
   with different adapters. Read it before scoping any cost work, or any interface.
 
+- [`docs/reports/04-before-the-plant-exists.md`](docs/reports/04-before-the-plant-exists.md) —
+  parameterisation, construction and the inflow boundary: the three places upstream of a
+  cohort's rates where a derivative is decided, and where an imposed zero is
+  indistinguishable from a channel the model does not have. Read it before touching a
+  derived quantity, a declared zero, or the seed.
+
 **None of these tracks progress**, and none is edited to record what has been built. If a report
-disagrees with the code, one of them is wrong and the disagreement is the finding. There is no
-report 04: it argued which discretisation the density's compression term should use, and the
-birth-date coordinate removed the question rather than settling it — what survives is report 00
-§4.4.
+disagrees with the code, one of them is wrong and the disagreement is the finding. Report 04's
+number was previously vacant: it had argued which discretisation the density's compression term
+should use, and the birth-date coordinate removed that question rather than settling it — what
+survives of the original is report 00 §4.4, and the number now carries the subject above.
 
 `docs/archive/` holds documents whose conclusions are stale, superseded or
 configuration-dependent. **Do not design from them.**

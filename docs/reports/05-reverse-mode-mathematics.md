@@ -561,32 +561,24 @@ derivative exists in closed form, and its relative accuracy under any differenci
 worst in the model, precisely because the output *is* the residue of a near-cancellation.
 
 
-**The root vulnerability integral must be bounded past the end of its grid, and the requirement is
-not cosmetic.** The integral is tabulated on a grid ending where the vulnerability function reaches
-a small positive value. A natural-boundary spline extrapolates linearly past its last knot with the
-slope *at* that knot, and for this integral that slope is positive — so an unbounded lookup **keeps
-growing past its grid rather than approaching its own limit.** The mean root resistance then
-*saturates* rather than diverging, and a flux with a numerator growing linearly in the layer's
-potential over a bounded denominator grows linearly and **negative**: flow from plant to soil,
-without limit.
+**The root vulnerability integral is bounded above by its own closed-form limit, and that ceiling is
+a requirement rather than a guard.** The integral is read from a grid ending where the vulnerability
+function reaches a small positive value, and a natural-boundary spline extrapolates past its last
+knot with the slope *at* that knot — positive, for this integral. Unbounded, the lookup keeps
+growing past its grid instead of approaching its limit; the mean root resistance then saturates, and
+a flux with a numerator growing linearly in the layer's potential over a bounded denominator grows
+linearly and **negative**: flow from plant to soil, without limit. The complete gamma with the same
+prefactor is the value the integral *has* out there rather than an approximation to it, so capping
+the value at it is continuous, monotone, and identical to a bare lookup everywhere on the grid.
 
-The integral has a closed-form limit — the complete gamma with the same prefactor — and past the
-grid that limit is the value the integral *has* rather than an approximation to it, because the
-tabulation is already within a fraction of a percent of it at the last knot. So the correct
-treatment is a ceiling at that limit, and it costs nothing.
-
-**Every net that would catch the unbounded form is the wrong net**, which is why the requirement has
-to be stated rather than left to a guard. The flux is **finite**, so a finiteness test passes. Total
-uptake is a **sum over layers**, so a positive total hides it. And a negative depletion makes the
-layer's rate positive, so a positivity guard permits it.
-
-**Its reachability is ordinary, not extreme.** It begins where a layer's potential passes the root
-grid's end, and whole-plant shutdown is decided on the **wettest** layer. So a wet top layer over
-any sufficiently dry layer below is a live plant with a poisoned layer, and a drying profile
-produces exactly that arrangement. Note what the route is *not*: the leaf's own feasible bracket
-does not reach past the root grid, because the dry bound is the **lesser** of the two critical
-potentials and therefore sits inside it (§7.3). **A dry layer is the route, and it is the only
-one.**
+**The reason it is a requirement is that every net which would catch its absence is the wrong net.**
+The flux is **finite**, so a finiteness test passes. Total uptake is a **sum over layers**, so a
+positive total hides it. And a negative depletion makes the layer's rate positive, so a positivity
+guard permits it. **A dry layer is the route, and it is the only one** — the leaf's own feasible
+bracket does not reach past the root grid, because the dry bound is the **lesser** of the two
+critical potentials and therefore sits inside it (§7.3). Whole-plant shutdown is decided on the
+**wettest** layer, so a wet top layer over a sufficiently dry one below is a live plant whose
+deepest layer is out on the extrapolation, and a drying profile produces exactly that arrangement.
 
 **The two clamps are one behaviour.** The potential ceiling always binds before the residual
 content floor, because at the floor the retention curve gives a potential many orders of magnitude
@@ -1256,27 +1248,53 @@ by coincidence.
 every introduction and then discards the final narrowed vector has computed
 $\bar y(0)$ and thrown it away. The reserve channel above has no other path.
 
-### 10.1 One term is imposed rather than derived
+### 10.1 The seed's own quantities, and why they are solved rather than carried
 
-The seed's height solves an implicit condition on the strategy, and the strategy's preparation
-stage (3a) is evaluated in double precision. So
+The boundary term of (10.1) contains $\partial h_0/\partial\varphi$, and that derivative is not of
+the same kind as the rest of this document. Everything else here differentiates a *rate*. This
+differentiates the value a state is **given at birth** — an initial-condition sensitivity, resolved
+once outside any trajectory.
 
-$$\frac{\partial h_0}{\partial \varphi} = 0 \tag{10.2}$$
+The seed's height is defined implicitly. With $\omega$ the seed mass and
+$F(h;\varphi) = \mathrm{mass}_{\mathrm{live}}(h;\varphi) - \omega$,
 
-is imposed on both automatic-differentiation paths, forward and reverse, for every parameter
-reaching birth size — the leaf-mass-per-area, the seed mass fraction, both allometric constants,
-wood density, and the stem-area, root and bark constants. Eight parameters, on every census metric,
-through both the establishment probability and the density boundary condition (4.2).
+$$F(h_0;\varphi) = 0, \qquad \frac{\partial h_0}{\partial \varphi} = -\left(\frac{\partial F}{\partial h}\right)^{-1}\frac{\partial F}{\partial \varphi} \tag{10.2}$$
 
-Equation (10.2) is **false as mathematics**: the seed height does depend on $\varphi$. Its measured
-consequence is about 3 per cent for leaf mass per area. It is the safer failure shape — a zero
-rather than a plausible wrong number — and it is the one term in this document that **no available
-instrument can referee**: a forward tangent imposes the same equation, and a re-run finite
-difference cannot referee at production because a relative step of $2\times10^{-7}$ in leaf mass
-per area moves a mature stand between alive and identically zero. Closing it needs an
-implicit-value treatment of the seed height *and* a new reference.
+which is the implicit function theorem applied exactly as §7.2 applies it to the operating point.
+Eight parameters reach it — the leaf-mass-per-area, the seed mass fraction, both allometric
+constants, wood density, and the stem-area, root and bark constants — and they reach the census
+through it on every metric, by both the establishment probability and the density boundary condition
+(4.2).
 
-**Which of the three quantities is tractable is a matter of declaration, not of copying.** The seed
-height is double by declaration, so (10.2) is structural for it. The crown constant and the seed
-leaf area are active values that are passive only *by value* — so if (10.2) is ever attacked, those
-two are the tractable pair and the seed height is not.
+**The search must not be recorded.** A bracketing root-find for $h_0$ is affine in its bracket and
+blind to the residual's values, so recording it returns the derivative of the *bracket* rather than of
+the height at which the condition holds. That is report 02 §1's ruling — a search is not a definition
+— and it applies to construction as squarely as to the leaf. Differentiate the condition.
+
+**The seed's leaf area is not a second quantity.** It is the allometry at $h_0$, so once the height
+carries its derivative the leaf area follows, picking up both the allometry's own partials at fixed
+height and the chain through the height. Only the two allometric constants have a non-zero partial at
+fixed height; every other parameter reaches leaf area through the height alone. **Taking either
+against the other held fixed mixes the two channels instead of summing them**, so for this purpose
+they are one quantity.
+
+**Where the derivative is formed decides whether it exists.** Preparation resolves $h_0$ before the
+traits are differentiable inputs, and a strategy at an active scalar receives that result rather than
+re-deriving it. So (10.2) evaluated at construction carries nothing — not incorrectly, but
+identically zero, on the forward tangent and the reverse sweep alike. The condition has to be
+differentiated where the newborn's state is written, which is inside the recording. Report 04 §2.1
+states the requirement and why satisfying it in form is not satisfying it in fact.
+
+**Two consequences for the assembly.** The boundary term's three channels — the density slot, the
+initial reserve, and the seed height — are all initial-condition sensitivities, and the third was the
+last of them to be obtained from its condition rather than declared. And because the seed height is a
+*state's* value, its derivative propagates through the whole of that cohort's subsequent trajectory
+rather than acting once: it is the one quantity in this section whose contribution compounds with run
+length.
+
+**What no differentiated instrument can referee.** A quantity declared away in construction is zero
+on the sweep and on the tangent together, so they agree there for free. Only a reference that
+*rebuilds* the strategy from its parameters inherits neither declaration. Its validity is per-fixture
+rather than assumed — at production a relative step of $2\times10^{-7}$ in leaf mass per area moves a
+mature stand between alive and identically zero — so it is a small-fixture instrument, and report 08
+§5 makes it the completeness axis.
