@@ -737,6 +737,18 @@ partial absent from §6's table may be absent because the table stops at the rat
 model lacks the channel.** The seed's leaf area was absent for exactly that reason while §4.4's
 establishment expression read it in plain sight.
 
+**15. The inflow boundary is on the table once and runs every step.** The lifetimes
+table gives the boundary as "per introduction", and for the plant it makes that is
+right. But the boundary *node* is rebuilt at every step: its condition is re-evaluated
+at the current time, so it stands at the seed's height for the whole run and is the
+lower endpoint both field reductions and the census integrate from (fact 5). So a
+trait reaching the seed's size has a continuous channel as well as a per-introduction
+one, and the continuous one is nowhere in §6 because §6 stops at a cohort's rates and
+this node has none — it is never integrated. **A row can therefore be correct per
+evaluation and wrong in what it is multiplied by**, which is a different failure from
+any in §6's table, and neither a forward tangent nor a sweep can see it, because both
+apply the same multiplier. Report 04 §5 carries the measurement.
+
 ---
 
 ## 8. What would falsify this map

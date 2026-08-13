@@ -145,6 +145,16 @@ or **non-zero with a magnitude**.
 parameter reaching no equation comes back as round-off at `10⁻¹⁸` to `10⁻²²`, which reads as a
 gradient — so the check is a two-sided band, not a test against zero.
 
+**And the classification runs over columns, which is narrower than over rows.** A quantity with
+no column of its own can still carry a row, and an exact zero there is invisible to every check
+above. The auxiliary slots a state determines are the instance: they are functions of a state
+rather than states themselves, nothing is named after them, and a state written past the setter
+that re-derives them leaves their rows at exactly zero while every value is unchanged — so no
+forward test moves either. **The zero census therefore needs a second half over the derived
+slots**, asserted where they are written rather than inferred from a column, and it is cheap:
+each slot's row against a difference of the function that defines it. Report 04 §5.1 prices the
+one that was missing at a factor of 154 on a boundary row.
+
 ---
 
 ## 4. The correctness axis
@@ -315,6 +325,79 @@ lies in the stiff band** and report where in it. **Fault:** seed the boundary no
 log density rather than the density — the product is `0·∞` and the injected version must diverge.
 
 ---
+
+### 4.7 One introduction is the sharpest fixture, and three scaling traps
+
+Adversariality (§6) widens a fixture until it can fail in every way at once. That is right for
+catching a defect and wrong for *localising* one, and the two want opposite fixtures.
+
+**A stand carrying one introduction makes a parameter a single-channel probe.** With one
+introduction the seed mass reaches a size-moment census through the seed's height and through
+nothing else, so its whole column is one channel and a discrepancy cannot be apportioned away.
+The same stand at four introductions dilutes that channel to a fifth of its size, and at twelve
+it is invisible. **The widest fixture is the worst place to measure a channel**, and a rung that
+only ever runs the adversarial one will see a defect and never localise it.
+
+**Its discriminator is free and it is a two-sided test.** Every parameter whose seed-height slope
+is zero must come back at *exactly* 1.000 against a rebuilding reference; every parameter with a
+non-zero slope carries the channel in proportion. Measured on such a stand: the reserve constant,
+the establishment constant and the extinction coefficient all read 1.0000 to four decimals while
+the seed mass read 0.84 — which locates the channel before any mechanism is proposed. A defect
+that moved all of them would be a different defect.
+
+**Trap one: a matrix residual normalised by the matrix.** §4.2 asks for the Jacobian entry by
+entry, and the entry that matters may be small. Scaled by the largest entry anywhere in the
+matrix, a diagonal wrong by a tenth of a percent reads as `10⁻⁵` when the largest entry is four
+orders above it. **Scale each cell by itself**, and report the offending cell's own value beside
+the residual.
+
+**Trap two: a difference whose step has an absolute floor.** A step sized `max(|state|, 1)·rel`
+is relative for a state of order one and absolute below it. At early trajectory states the
+reserve and heartwood accumulators are `10⁻¹¹` and smaller, so such a step moves them by many
+orders and the row it returns is not a derivative of anything. Those rows read as enormous
+Jacobian errors and are the instrument. **A difference over state needs a relative floor**, and
+a rung forming this matrix along a trajectory must report which rows its step was valid for.
+
+**Trap three: refereeing a partial against a total.** A row read where a quantity is
+formed is a partial derivative at fixed state. A whole-run difference of the same
+quantity is a total, because a changed parameter moves the state the quantity is
+evaluated in. The two differ by however much the trajectory responds, which for a
+parameter setting birth size is two orders — enough to make a correct row read as
+wrong by a hundred and an incorrect one read as right. **A row check must hold the
+state and re-derive only what construction derives**, and the free check that it did
+is that both sides agree on the *value*. Report them side by side; a value mismatch
+invalidates the derivative comparison above it.
+
+**Trap four: reading the quantity off the wrong plant.** A per-node reader returns a
+vector, and which end the boundary node sits at is a convention. A threshold that
+divides by the carbon a *seedling* makes, refereed against the carbon a grown cohort
+makes, is off by three orders in the denominator — which was enough here to hide a
+cancellation of 0.65 percent behind an apparent residue of 75. **Assert the value
+you differenced is the value the expression used**, by comparing it against the same
+read on the path side, before believing any ratio built from it.
+
+**Trap five: a reference that is stable and still wrong.** §5.1's step-stability guard varies
+the *perturbation*, so it cannot see an error that is flat in it. A whole-run difference that
+holds four figures across two orders of perturbation can still be dominated by round-off two
+orders further down, and the plateau reads as convergence. Take the difference at four steps
+spanning three orders, not three spanning two, and say which end the plateau is at.
+
+### 4.8 Two paths can agree because they share a multiplier
+
+§1's corollary is that agreement with a tangent is not evidence of completeness, and its
+mechanism there is a shared *declaration* — a channel imposed to zero in construction is zero on
+both paths. There is a second mechanism and it is not covered by that argument.
+
+**A term both paths multiply by the same wrong factor agrees between them and is wrong in both.**
+The value can be independently confirmed correct — a rebuilding reference agreeing with the
+recorded path on the quantity itself — while what the paths do with it downstream is over-weighted.
+Then the tangent and the sweep agree to round-off, every rung of §4 passes, the quantity's own
+check passes, and only a reference that never forms the product disagrees.
+
+Two consequences for this report. **Confirming a derivative is not confirming its use**, so a
+check on a supplied or derived quantity needs a companion check on what multiplies it. And where
+a channel acts once per step rather than once per plant, the count is part of the row: a rung
+should assert the number of times a boundary term enters, not only its value.
 
 ## 5. The completeness axis
 

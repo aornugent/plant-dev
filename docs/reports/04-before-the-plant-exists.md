@@ -231,6 +231,62 @@ the density the boundary condition sets, the initial reserve — a parameter tim
 storage capacity, so how well a seedling is provisioned is a real establishment
 strategy and enters nowhere else — and the seed height of §4.
 
+**And a fourth, which is not an introduction at all.** The three above act once, when
+a plant is made. The boundary node is re-evaluated **every step**: its condition is
+recomputed at the current time, so it stands at the seed's height with the seed's leaf
+area for the whole run, and it is the lower endpoint both field reductions and the
+census integrate from. So a parameter reaching the seed's size reaches the census a
+second way — continuously, through a node that is never introduced and never
+integrated.
+
+It is small and it is not zero. Measured on a single-species stand carrying one
+introduction, with the seed mass as the probe, the boundary node's own term in the
+leaf-area census carries **2.48 at four tenths of the run and 2.20 at its end**,
+against a total of 571 and 6055 — a fifth of a percent falling to a twentieth. The
+term is nearly flat in run length while the census grows, which is what a node whose
+size never changes contributes.
+
+### 5.1 Writing a state is not writing what it determines
+
+A newborn's height is written where the parameters are live (§2.1), and some slots are
+**functions of that height** rather than states of their own — the leaf area every rate
+at birth size is scaled by, and the height's reciprocal. They are re-derived by the
+one call a state setter makes on the way past, so **a height written straight into the
+state store leaves them holding what the plain construction height derived: the same
+number, carrying nothing.**
+
+That is the whole hazard, and it is invisible twice over. The *value* is right, because
+the two heights are the same number — so no forward test moves. And the slot is an
+aux rather than a state, so no gradient column is named after it and its exact zero is
+never listed among the zeros a suite classifies (report 08 §3.4 counts columns, and
+this is not one).
+
+**What it cost, measured, is the fourth channel above.** The threshold divides the
+seed's leaf area by the carbon a seedling makes, and production scales with leaf area,
+so the two logarithmic derivatives cancel to a residue of **0.65 percent** — 24367
+against 24208. With the leaf area's row reading zero the cancellation cannot happen,
+the denominator's row comes back with the wrong sign and about 150 times too small,
+and the boundary density's row is **154 times** the truth. The condition itself is
+innocent: the establishment constant's row through the very same expression is exact.
+
+Two requirements follow, and the second is the reusable one.
+
+**Re-derive a state's dependent slots wherever that state is written**, or write it
+through the setter that does. This is an invariant the individual's own interface
+states and a strategy can quietly break, because breaking it changes no number.
+
+**A row is a partial derivative and must be refereed by one.** A whole-run difference
+of the same quantity is a total — a changed parameter moves the stand the quantity is
+evaluated in — and comparing the two makes a correct row read as wrong by two orders
+and an incorrect one read as right. The referee holds the state and re-derives only
+what construction derives; the free check that it did is that both sides agree on the
+**value**.
+
+**And a channel that acts once per step is a different object from one that acts once
+per plant**, even carrying the same derivative. This section had a place only for the
+second, which is why an error in a row belonging to a quantity that never changes
+accumulated over a run.
+
 **The map is checkable and the check is strong.** The introduction is a function
 from the pre-introduction state and the parameters to the widened state, and it can
 be formed entirely and compared forward against reverse. A map verified that way
@@ -436,6 +492,36 @@ itself complete.
   at one introduction and its growth at fixed schedule. If it is per-introduction,
   a production run's total is set by the schedule rather than by duration, and the
   extrapolations from short fixtures are wrong in the other direction.
+
+- **The boundary node's leverage is a step-count artefact.** The obvious reading of
+  §5's over-weighting is that a term belonging to one introduction is accumulated
+  once per step. **Measured false**: the census-level ratio runs 141, 138, 130, 107
+  as the run lengthens while the step count runs 59, 83, 102, 111, so it is neither
+  the step count nor a constant. The per-step evaluation is how the error
+  *accumulates*, not how it arises.
+
+- **A partial can be refereed against a total.** The boundary condition's row is a
+  partial derivative at fixed state; a whole-run difference of the same quantity is a
+  total, because a changed parameter moves the stand the condition is evaluated in.
+  Comparing the two makes a correct row look wrong by two orders and an incorrect one
+  look right. The referee must re-derive the seed's size and hold the state, and the
+  cheap check that it does is that both sides agree on the **value**.
+
+- **The channel is a difference of large quantities — and it is.** The establishment
+  probability reads the seed's leaf area directly and again through the carbon a
+  seedling produces at birth size. Production scales with leaf area, so the two
+  logarithmic derivatives very nearly cancel: measured on the boundary node, 24367
+  against 24208, leaving a residue of **0.65 percent**. This is exactly the shape
+  §1's rule exists for, and the threshold is therefore built by subtraction from two
+  terms that agree to three figures.
+
+  **The measurement that appears to deny this reads the wrong plant.** Production at
+  birth size belongs to the boundary node, and a stand's per-node carbon reader
+  returns the *cohort's* first. Taken that way the residue looks like
+  three-quarters of the larger term and the channel looks well conditioned. **The
+  quantity a seedling's threshold divides by is the seedling's**, and a comparison
+  that substitutes a grown plant's is off by three orders in the denominator — which
+  is enough to hide a cancellation entirely.
 
 - **A row recovered by deriving a quantity at live parameters reads exactly zero.**
   Then the derivation is upstream of the seeding and §2.1's requirement has been
