@@ -11,19 +11,29 @@ parts are removable.
 
 ## 1. Start here
 
-**The state.** One right-hand-side adjoint of an 88-cohort patch is **115.9 ms**,
-of which `cohort_blocks` is 99.5 — about **1.12 ms per block** against 0.018 ms
-for the same cohort's rates in plain double. Five changes have landed and two
-designs have been withdrawn after being built and measured; §10 lists both, and
-§5 is the withdrawal that matters, because the reasoning behind it is the kind
-that survives review and fails a reference.
+**The state.** One right-hand-side adjoint of an 88-cohort patch is **111.7 ms**,
+down from 126.8 at the start of this work and with three trait rows *added*
+along the way. `cohort_blocks` is 95.5 of it — about **1.07 ms per block**
+against 0.018 ms for the same cohort's rates in plain double. §10 lists what
+landed, what was withdrawn, and what is next.
 
-**What is left is four traits.** A vulnerability-curve drive costs 92–97 µs and
-every other trait's costs 2.3, so `b`, `c`, `root_b` and `root_c` are most of the
-block. The route out is **not** a held grid — that is §5, twice refuted — but the
-seeding: boost's incomplete gamma is 80.2 µs per rebuild where this package's own
-series gives the value and both trait partials for 13.2. §10 has the arithmetic
-and the one thing it costs.
+**Two items are next, and they are independent of each other.**
+
+1. **Seed the vulnerability knots from the package's own series** rather than
+   boost's incomplete gamma. This is the last large cost item: 80.2 µs against
+   13.2 for the same 100 knots, which takes a curve drive from ~93 µs to ~26 and
+   is on the order of **1.8×** on the whole adjoint. It changes the seeding
+   arithmetic and **not** which function is differentiated, so it is not §5's
+   mistake — but it moves the golden file and needs a re-blessing.
+2. **The photosynthesis family's rows.** `a`, `curv_fact_elec_trans` and
+   `curv_fact_colim`, six drives. The profit row is derived and verified in §10;
+   the marginal row needs `A''` and a mixed second partial, and both need a trait
+   scalar threaded through kernels that reach assimilation through a `double`
+   member. Read §4 before starting: that threading *is* §4's prescription.
+
+**Read §5 before touching the vulnerability curve at all.** A held grid has been
+proposed twice, built twice, and refuted twice by the same instrument, and the
+reasoning behind it survives review every time.
 
 **What to read, and nothing else.** The corpus is large and almost none of it
 bears on this.
@@ -36,6 +46,9 @@ bears on this.
 | the tabulation rule that governs the vulnerability rows | report 02 §5, report 05 §7.6, then §5 here |
 | which traits have rows, and the domain a number carries | report 06 §11 |
 | the per-cohort decomposition — **confirmed not the cost, do not redesign it** | report 01 |
+| whether a grid may be held across a perturbation | report 05 §7.6, corrected — the test is whether the forward model rebuilds it |
+| why a pair of coefficients must be anchored in the family it serves | report 05 §7.3 |
+| why the completeness fixture needs two species | report 08 §5.4 |
 
 **The build, and the one trap in it.**
 
@@ -58,17 +71,32 @@ rebuild happened before believing any comparison.
 
 Load with `library(odelia)` — never `load_all` — then `pkgload::load_all("plant")`.
 
-**How to verify a change here.** Every change in §10 replaces a differenced
-quantity with an analytic one, so the acceptance test is the differenced value
-it replaces, at wet, dry and shaded states. That reference exists today and
-**stops existing the moment the differencing is deleted**, so capture it first.
+**How to verify a change here, and this is the part the session that wrote it
+kept getting wrong.** Three instruments, in increasing order of what they can
+see, and the cheap ones cannot substitute for the dear one:
 
-The two changes already landed were held to a stronger test, and anything
-claiming to be a pure cost removal should be too: gradients **bit-identical**
-on `ladder_stand_two_by_two()`, `ladder_stand_introductions()` and an 88-cohort
-production stand. Not "within tolerance" — `max abs diff 0.000e+00`. A
-tolerance widened around a disagreement is how the defect in
-`docs/issue-B-root-cause.md` §6 survived for months.
+1. **Against differencing at the leaf**, at wet, dry and shaded states, with a
+   probe under `docs/probes/`. Fast, and it settles whether an expression is the
+   derivative of what it claims. It cannot settle whether the claim is the right
+   one — two routes to the same wrong function agree here perfectly.
+2. **Against the differenced rows it replaces, at the stand.** Bit-identity for a
+   pure cost removal (`max abs diff 0.000e+00`, never a tolerance), and otherwise
+   a column-by-column comparison. This localises a change; **88 of 90 columns
+   bit-identical says a change is confined, not that it is right.**
+3. **Against `ladder_run_difference_pair()`** — a difference that rebuilds the
+   strategy and re-runs, on the stand where the species compete. **This is the
+   only one that has ever caught anything here**, and it caught three separate
+   things. A single-species reference agreed to `1e-06` with rows that were six
+   per cent out.
+
+⚠️ **It carries a step-stability guard and the guard is the point.** Read at one
+step, that same reference gave 0.275, 0.131, 0.122 and 0.126 across four — a
+factor of two — and a reading taken at `1e-5` was used to reverse a decision
+before the guard existed. Report 08 §4.7's fifth trap is exactly this.
+
+**And capture the reference before deleting the differencing.** Every analytic
+row's acceptance test is the differenced value it replaces, and that value stops
+existing the moment the differencing is deleted.
 
 **The instruments, both already committed.** `ladder_rhs_adjoint_timing_tf24`
 times the eight components of one right-hand-side adjoint in situ and reports
@@ -77,11 +105,23 @@ block's preamble from its recorded arithmetic. Between them they are how §2's
 table was measured, and a per-block cost obtained by dividing a total instead
 is attributed by construction rather than measured.
 
-**Two habits worth keeping.** Attribute before optimising — three hypotheses
-died here (the tape, the per-block copies, the reduction transposes) before
-instrumenting the boundaries settled it. And check a claim against the code
-before acting on it: §5's recommendation was reversed once, because a function
-that looked unused turned out to be deliberately unwired.
+**Four habits, each of which was learned by not having it.**
+
+**Attribute before optimising.** Three hypotheses about where the cost was died
+before instrumenting the boundaries settled it.
+
+**Check a claim against the code before acting on it.** §5's first recommendation
+was reversed because a function that looked unused was deliberately unwired.
+
+**A design that survives review can still fail a reference.** Two did here, and
+both were built, landed behind a measurement, and withdrawn. Neither was
+careless; both were refuted only by the instrument that shares no assumption with
+them. Budget for that outcome rather than treating it as failure.
+
+**An exact ingredient does not make a correct row.** The closed-form second
+coefficient is right to `5e-10` and using it made a stand column *worse*, because
+it moved where the remaining error landed. That was the diagnosis, not a puzzle
+— see report 05 §7.3.
 
 ---
 
