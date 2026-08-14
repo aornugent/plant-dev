@@ -169,7 +169,7 @@ handing over resistances built from absolute carbon gets a silently wrong uptake
 error, because five vectors of positive numbers look the same either way. §4 item 7 states the
 general form.
 
-### 3.3 The rank-one collapse is verified, independently
+### 3.4 The rank-one collapse is verified, independently
 
 The identity a correct transpose must satisfy is `⟨v, J u⟩ = ⟨Jᵀ v, u⟩` for arbitrary `v` and `u`.
 An implementation of exactly the construction above — the two scalars and the scaled row, with the
@@ -182,7 +182,7 @@ because it needs no reference gradient and no differencing: it is a property the
 has or does not. And the two constants in it are the whole of §2's first two facts, so an error in
 the envelope reasoning shows up here rather than as a plausible wrong gradient downstream.
 
-### 3.4 The bound case
+### 3.5 The bound case
 
 The operating point is the argmax over an interval whose endpoints are themselves root-finds — the
 potential at which total uptake vanishes, and the drier of the stem's and the root's critical
@@ -193,7 +193,7 @@ This branch is exact where the interior branch is only as good as its linearisat
 the opposite of what one might expect. Report 06 §7 states what it means: **a pinned plant is
 drought**, and any conclusion about drought sensitivity depends on this branch being right.
 
-### 3.5 What the first-order solve has to guard
+### 3.6 What the first-order solve has to guard
 
 Why the accuracy matters at all is worth stating, because it is what makes §1 a correctness argument
 rather than a tidiness one. **A displacement of the operating point moves profit at second order and
@@ -266,7 +266,7 @@ they meet the brackets; there is nowhere downstream to put one.
 forward value independent of a grafted input, so differencing the block returns identically zero on
 exactly the columns a supplied row occupies — whether the row is right, wrong, or absent. Supplied
 derivatives must be checked against the solver's own algebra, or against the transpose identity of
-§3.3, and never against a difference of the step that consumes them.
+§3.4, and never against a difference of the step that consumes them.
 
 **4. The input list must be derivable, not maintained.** A list assembled by reading a function
 signature becomes silently incomplete when the signature grows, and the failure is a trait column
@@ -345,7 +345,7 @@ contracts through one scalar instead of carrying its own copy of the argmax mach
 **3. An objective at its own optimum is free; its other consumers are not** (§2). Ask of every output
 whether it *is* the objective or merely reads the argument that maximised it.
 
-**4. A feasibility bound is part of the model, so its derivative is part of the answer** (§3.4).
+**4. A feasibility bound is part of the model, so its derivative is part of the answer** (§3.5).
 
 **5. Count your branches before designing around them — on a driver that reaches the regime in
 question.** Report 05 §7.0's five kinds are consecutive segments of one drydown, so a census taken on
@@ -365,7 +365,7 @@ rather than restating it.
   than by evaluating the objective at the returned operating point breaks the envelope argument
   there. The shutdown exits are such paths, and they are case X in report 05 §7.0 rather than an
   interior optimum.
-- **The transpose identity fails at a state the forward model reaches.** §3.3 establishes it over
+- **The transpose identity fails at a state the forward model reaches.** §3.4 establishes it over
   interior and pinned points; a fold, a collapsed feasibility window or a tracked operating point
   are where to look next.
 - **The rank-one collapse is not the only route from the operating point into a layer's flux.** Then

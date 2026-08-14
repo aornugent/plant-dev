@@ -164,7 +164,7 @@ Report 02 §1 is often read as forbidding this. It does not. What it rejects is 
 per-solve scratch with no boundary between them, caches keyed on exact
 comparison, an integrator and a nested root-find. Each is a separate correctness
 question under an active scalar." Every one of those objections is about the
-*solver*. None of them is about a three-line pure kernel. And report 02 §4.1
+*solver*. None of them is about a three-line pure kernel. And report 02 §4 item 1
 sanctions the remedy by name: the solver "may differentiate itself internally by
 any means it likes -- **forward-mode on its own kernels**, analytic spline
 derivatives, the implicit function theorem at an inner root-find".
