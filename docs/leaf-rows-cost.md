@@ -9,7 +9,75 @@ parts are removable.
 
 ---
 
-## 1. What a call costs
+## 1. Start here
+
+**The state.** A census gradient on 88 cohorts runs in 378 s against 753 s
+before, from two changes that are each bit-identical — `deda52f5` (a rebound
+patch builds its boundary node, not every cohort's rates) and `c5e3a5f9` (the
+two critical potentials stop being driven, and the phylloptim merge's `R_d_25`
+is wired). What is left is one function, and §2 measures it.
+
+**What to read, and nothing else.** The corpus is large and almost none of it
+bears on this.
+
+| question | read |
+|---|---|
+| what a supplied row is, and what the boundary must guarantee | report 02 §3, §4 |
+| why the leaf is entered passively at a solved point | report 02 §1 |
+| the rank-two factorisation this work extends | report 05 §7.3, and report 08 §4.1 for its check |
+| the tabulation rule that governs the vulnerability rows | report 02 §5, report 05 §7.6 |
+| which traits have rows, and the domain a number carries | report 06 §11 |
+| the per-cohort decomposition — **confirmed not the cost, do not redesign it** | report 01 |
+
+**The build, and the one trap in it.**
+
+```sh
+cd plant
+MAKEFLAGS=-j$(nproc) R_MAKEVARS_USER=<Makevars-O2> \
+  Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
+```
+
+with `Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`. `compile_dll`
+defaults to `-O0`, and `MAKEFLAGS` is empty by default so it builds one
+translation unit at a time — a header edit is 25 of them.
+
+⚠️ **`compile_dll` does not treat the INSTALLED phylloptim headers as
+dependencies.** After changing phylloptim you must reinstall it *and* force
+plant's translation units to rebuild; otherwise nothing recompiles and every
+check you run afterwards passes against the old binary. This cost a full
+verification cycle and produced a result that had to be withdrawn. Confirm a
+rebuild happened before believing any comparison.
+
+Load with `library(odelia)` — never `load_all` — then `pkgload::load_all("plant")`.
+
+**How to verify a change here.** Every change in §9 replaces a differenced
+quantity with an analytic one, so the acceptance test is the differenced value
+it replaces, at wet, dry and shaded states. That reference exists today and
+**stops existing the moment the differencing is deleted**, so capture it first.
+
+The two changes already landed were held to a stronger test, and anything
+claiming to be a pure cost removal should be too: gradients **bit-identical**
+on `ladder_stand_two_by_two()`, `ladder_stand_introductions()` and an 88-cohort
+production stand. Not "within tolerance" — `max abs diff 0.000e+00`. A
+tolerance widened around a disagreement is how the defect in
+`docs/issue-B-root-cause.md` §6 survived for months.
+
+**The instruments, both already committed.** `ladder_rhs_adjoint_timing_tf24`
+times the eight components of one right-hand-side adjoint in situ and reports
+whether the parts sum to the whole; `ladder_block_copy_cost_tf24` separates a
+block's preamble from its recorded arithmetic. Between them they are how §2's
+table was measured, and a per-block cost obtained by dividing a total instead
+is attributed by construction rather than measured.
+
+**Two habits worth keeping.** Attribute before optimising — three hypotheses
+died here (the tape, the per-block copies, the reduction transposes) before
+instrumenting the boundaries settled it. And check a claim against the code
+before acting on it: §4's recommendation was reversed once, because a function
+that looked unused turned out to be deliberately unwired.
+
+---
+
+## 2. What a call costs
 
 Measured on a single species, `ladder_traits()$fast`, birth rate 1.10, schedule
 refined once at a five-year lifetime (88 cohorts), `-O2 -DNDEBUG -g0`.
@@ -31,7 +99,7 @@ hand-built Jacobian of the leaf, and the tape is a rounding error beside it.
 
 ---
 
-## 2. Where the drives go
+## 3. Where the drives go
 
 The call re-drives the leaf about **forty-six** times, in six families the
 corpus treats very differently.
@@ -67,7 +135,117 @@ this function makes.
 
 ---
 
-## 3. Why it is differenced, and what is missing
+## 4. The root cause, in one sentence
+
+**The leaf's kernels are generic in the variable and concrete in the trait**, so
+the leaf can differentiate itself with respect to what it *solves for* and never
+with respect to what it *holds*.
+
+```cpp
+template <typename T> T assim_rubisco_limited_kernel(T ci) const {
+  return (vcmax_ * (ci - gamma_ * umol_per_mol_to_Pa_)) / (ci + km_);
+}
+template <typename T> T proportion_of_conductivity_kernel(T psi) const {
+  return exp(-pow((psi / stem_b), stem_c));
+}
+```
+
+`T` is the argument. `vcmax_`, `stem_b`, `stem_c` are `double` members. Forward
+mode through these yields `dprofit/dpsi` and `d/dci` -- exactly the state
+directions the collar solve needs, which is why the leaf already differentiates
+itself there and why `dprofit_droot_collar_psi` is exact. It cannot yield
+`d/dvcmax` or `d/db` by any amount of forward mode, because the trait is not on
+the scalar. **So every trait row has to be obtained by moving a member and
+re-solving, and that is the whole of the cost.**
+
+Report 02 §1 is often read as forbidding this. It does not. What it rejects is an
+**active leaf** -- "it holds interpolators on fixed grids, loose parameters and
+per-solve scratch with no boundary between them, caches keyed on exact
+comparison, an integrator and a nested root-find. Each is a separate correctness
+question under an active scalar." Every one of those objections is about the
+*solver*. None of them is about a three-line pure kernel. And report 02 §4.1
+sanctions the remedy by name: the solver "may differentiate itself internally by
+any means it likes -- **forward-mode on its own kernels**, analytic spline
+derivatives, the implicit function theorem at an inner root-find".
+
+**The kernels are the "own kernels".** They contain no interpolator, no cache, no
+root-find and no integrator; they are the one part of the leaf where an active
+scalar raises no correctness question at all.
+
+### And two of the three trait families need no new derivation whatsoever
+
+| family | traits | the exact route, and where it already is |
+|---|---|---|
+| photosynthesis and cost | `vcmax_25`, `jmax_25`, `a`, both `curv_fact_*`, `beta2`, `g1_TF24` | forward mode on the kernels, once they carry the trait scalar. The `ci` chain is already available: the implicit-function term on the `ci` residual is what `dprofit_at_collar_psi` already uses |
+| vulnerability | `c`, `b`, `root_c`, `root_b` | **not the closed form, and a live defect in what is there** -- see below |
+| critical potentials | `psi_crit`, `root_psi_crit` | **provably zero here.** Report 06 §11: they set the dry bound of an interval the operating point is inside, so complementary slackness makes their rows zero at an interior optimum, and interior is the only state the sweep answers |
+
+The third row is the sharpest. Four drives per cohort per stage are spent
+measuring two numbers the corpus proves are zero in the only regime the gradient
+is scoped to.
+
+### The vulnerability row, corrected
+
+An earlier revision of this document said the closed-form derivatives were
+implemented and unused, and recommended wiring them. **That was wrong, and
+wiring them would introduce the defect report 02 §5 exists to prevent.**
+
+The root supply path does not evaluate the closed form. It evaluates a spline
+whose knots are *samples* of it, capped at the closed form's limit:
+
+```cpp
+double root_vuln_integral_at(double psi) const {
+  return std::min(root_vuln_integral_from_psi.eval(psi),   // a spline
+                  root_vuln_integral_limit_);              // the closed form, as a cap
+}
+```
+
+with `y_integral.push_back(cumulative_vulnerability_integral_at(psi, b, c))`
+building the knots. So report 02 §5's ruling applies exactly as written: the
+derivative belonging on the tape is the **spline's**, and substituting the closed
+form's is the more accurate derivative of a different function. phylloptim says
+so at the definition — *"this is deliberately not wired into anything that reads
+a spline"* — and that sentence is the design, not an omission.
+
+**What the differenced rows do instead is a defect, and report 05 §7.6 named it
+in advance.** `set_traits` rebuilds the curve when a curve trait moves:
+
+```cpp
+if (stem_curve_moved) setup_transpiration(vulnerability_curve_ncontrol);
+if (root_curve_moved) setup_root_vulnerability(vulnerability_curve_ncontrol);
+```
+
+and the grid is laid out as `psi_max = vulnerability_psi_max(b, c)` with
+`step = psi_max / resolution`, so **the knot positions themselves move with `b`
+and `c`**. The four vulnerability rows are therefore central differences taken
+across a moving grid, which is precisely what report 05 §7.6 rules out:
+
+> the grid must be captured once and held across parameter perturbations so that
+> a differenced derivative is not differentiating a moving grid.
+
+The spurious term is the change in the spline's own approximation error over the
+perturbation, divided by the step. Report 02 §5 measures the table-against-closed-form
+disagreement at parts in a thousand, and the step here is `1e-3` relative, so it
+is not obviously small against the row it contaminates. **It has not been
+measured, and measuring it comes before any decision about these four rows.**
+
+Two ways out, and they are not equivalent:
+
+- **Hold the grid.** Capture it once and re-use it across the perturbation, so
+  the difference sees the same interpolant on both sides. Cheap, and it makes the
+  existing rows the honest derivative of the model actually evaluated.
+- **Retire the spline**, replacing it with the closed form in the forward model —
+  report 05 §7.6's own prescription, "a change to the forward model, made once
+  and re-blessed once, after which the derivative and the value describe the same
+  function." Only after that is the closed-form derivative the right one to wire.
+
+The first is a correctness fix and buys no speed. The second is what makes the
+analytic route legitimate, and it is a forward-model change with a re-blessing,
+not a wiring job.
+
+---
+
+## 5. The root-carbon family, and the one accessor it is missing
 
 Not an oversight in the arithmetic: the supply side has no accessor for the
 direction. `roots.hpp` exposes analytic derivatives of uptake with respect to
@@ -195,138 +373,7 @@ today, because the differenced version is what is running.
 
 ---
 
-## 3c. Why this is written down rather than built
-
-The two changes already landed — the rebound patch's boundary node, and the two
-critical potentials — are **provable no-ops**: both were verified bit-identical
-against the fixtures and a production stand, because neither changes what is
-computed, only how much is computed to get there.
-
-Everything in §3z and §3b is a different kind of change. Each replaces a
-differenced quantity with an analytic one, so each changes how a number is
-produced, and an error in any of them returns a finite, plausible, wrong
-gradient rather than a failure. That is the failure mode this whole corpus is
-organised against, and the defence against it is a verification campaign per
-change, not a passing suite.
-
-So the sequencing rule for whoever picks this up: **land one family at a time,
-and hold each to the differenced values it replaces before moving on.** The
-differenced implementation is the reference, it exists today, and it stops being
-available the moment it is deleted.
-
----
-
-## 3z. The root cause, in one sentence
-
-**The leaf's kernels are generic in the variable and concrete in the trait**, so
-the leaf can differentiate itself with respect to what it *solves for* and never
-with respect to what it *holds*.
-
-```cpp
-template <typename T> T assim_rubisco_limited_kernel(T ci) const {
-  return (vcmax_ * (ci - gamma_ * umol_per_mol_to_Pa_)) / (ci + km_);
-}
-template <typename T> T proportion_of_conductivity_kernel(T psi) const {
-  return exp(-pow((psi / stem_b), stem_c));
-}
-```
-
-`T` is the argument. `vcmax_`, `stem_b`, `stem_c` are `double` members. Forward
-mode through these yields `dprofit/dpsi` and `d/dci` -- exactly the state
-directions the collar solve needs, which is why the leaf already differentiates
-itself there and why `dprofit_droot_collar_psi` is exact. It cannot yield
-`d/dvcmax` or `d/db` by any amount of forward mode, because the trait is not on
-the scalar. **So every trait row has to be obtained by moving a member and
-re-solving, and that is the whole of the cost.**
-
-Report 02 §1 is often read as forbidding this. It does not. What it rejects is an
-**active leaf** -- "it holds interpolators on fixed grids, loose parameters and
-per-solve scratch with no boundary between them, caches keyed on exact
-comparison, an integrator and a nested root-find. Each is a separate correctness
-question under an active scalar." Every one of those objections is about the
-*solver*. None of them is about a three-line pure kernel. And report 02 §4.1
-sanctions the remedy by name: the solver "may differentiate itself internally by
-any means it likes -- **forward-mode on its own kernels**, analytic spline
-derivatives, the implicit function theorem at an inner root-find".
-
-**The kernels are the "own kernels".** They contain no interpolator, no cache, no
-root-find and no integrator; they are the one part of the leaf where an active
-scalar raises no correctness question at all.
-
-### And two of the three trait families need no new derivation whatsoever
-
-| family | traits | the exact route, and where it already is |
-|---|---|---|
-| photosynthesis and cost | `vcmax_25`, `jmax_25`, `a`, both `curv_fact_*`, `beta2`, `g1_TF24` | forward mode on the kernels, once they carry the trait scalar. The `ci` chain is already available: the implicit-function term on the `ci` residual is what `dprofit_at_collar_psi` already uses |
-| vulnerability | `c`, `b`, `root_c`, `root_b` | **not the closed form, and a live defect in what is there** -- see below |
-| critical potentials | `psi_crit`, `root_psi_crit` | **provably zero here.** Report 06 §11: they set the dry bound of an interval the operating point is inside, so complementary slackness makes their rows zero at an interior optimum, and interior is the only state the sweep answers |
-
-The third row is the sharpest. Four drives per cohort per stage are spent
-measuring two numbers the corpus proves are zero in the only regime the gradient
-is scoped to.
-
-### The vulnerability row, corrected
-
-An earlier revision of this document said the closed-form derivatives were
-implemented and unused, and recommended wiring them. **That was wrong, and
-wiring them would introduce the defect report 02 §5 exists to prevent.**
-
-The root supply path does not evaluate the closed form. It evaluates a spline
-whose knots are *samples* of it, capped at the closed form's limit:
-
-```cpp
-double root_vuln_integral_at(double psi) const {
-  return std::min(root_vuln_integral_from_psi.eval(psi),   // a spline
-                  root_vuln_integral_limit_);              // the closed form, as a cap
-}
-```
-
-with `y_integral.push_back(cumulative_vulnerability_integral_at(psi, b, c))`
-building the knots. So report 02 §5's ruling applies exactly as written: the
-derivative belonging on the tape is the **spline's**, and substituting the closed
-form's is the more accurate derivative of a different function. phylloptim says
-so at the definition — *"this is deliberately not wired into anything that reads
-a spline"* — and that sentence is the design, not an omission.
-
-**What the differenced rows do instead is a defect, and report 05 §7.6 named it
-in advance.** `set_traits` rebuilds the curve when a curve trait moves:
-
-```cpp
-if (stem_curve_moved) setup_transpiration(vulnerability_curve_ncontrol);
-if (root_curve_moved) setup_root_vulnerability(vulnerability_curve_ncontrol);
-```
-
-and the grid is laid out as `psi_max = vulnerability_psi_max(b, c)` with
-`step = psi_max / resolution`, so **the knot positions themselves move with `b`
-and `c`**. The four vulnerability rows are therefore central differences taken
-across a moving grid, which is precisely what report 05 §7.6 rules out:
-
-> the grid must be captured once and held across parameter perturbations so that
-> a differenced derivative is not differentiating a moving grid.
-
-The spurious term is the change in the spline's own approximation error over the
-perturbation, divided by the step. Report 02 §5 measures the table-against-closed-form
-disagreement at parts in a thousand, and the step here is `1e-3` relative, so it
-is not obviously small against the row it contaminates. **It has not been
-measured, and measuring it comes before any decision about these four rows.**
-
-Two ways out, and they are not equivalent:
-
-- **Hold the grid.** Capture it once and re-use it across the perturbation, so
-  the difference sees the same interpolant on both sides. Cheap, and it makes the
-  existing rows the honest derivative of the model actually evaluated.
-- **Retire the spline**, replacing it with the closed form in the forward model —
-  report 05 §7.6's own prescription, "a change to the forward model, made once
-  and re-blessed once, after which the derivative and the value describe the same
-  function." Only after that is the closed-form derivative the right one to wire.
-
-The first is a correctness fix and buys no speed. The second is what makes the
-analytic route legitimate, and it is a forward-model change with a re-blessing,
-not a wiring job.
-
----
-
-## 3a. The largest family is also a second copy of phylloptim's gradient module
+## 6. The largest family is also a second copy of phylloptim's gradient module
 
 Twenty-six of the forty-six drives move one leaf trait at a time. The code says
 what it is doing and why:
@@ -400,7 +447,7 @@ this one.
 
 ---
 
-## 4. A second cost, independent of the first
+## 7. A second cost, independent of the first
 
 Every drive calls `Leaf::evaluate_root_collar_psi`, and that runs
 `prepare_collar_solve` on entry — `supply_begin_solve()`, then **two root-finds**
@@ -423,7 +470,7 @@ has to be argued per family rather than applied to the loop.
 
 ---
 
-## 5. What upstream has that this side does not
+## 8. What upstream has that this side does not
 
 `traitecoevo/phylloptim` carries three commits this branch has not merged, and
 one of them is a requirement rather than an improvement.
@@ -470,7 +517,7 @@ selective rebuild, this side has the environment rows.
 
 ---
 
-## 6. What follows
+## 9. What follows
 
 Ordered by measured share, not by ease.
 
@@ -523,6 +570,29 @@ Argue the families one at a time; a blanket hoist is wrong for the supply ones.
 decomposition of report 01. Measured, they are 0.6 per cent of a block, and the
 peak-memory property that decomposition buys is intact. The cost is the leaf's
 hand-built Jacobian and nothing else.
+
+---
+
+## 10. Why this is written down rather than built
+
+The two changes already landed — the rebound patch's boundary node, and the two
+critical potentials — are **provable no-ops**: both were verified bit-identical
+against the fixtures and a production stand, because neither changes what is
+computed, only how much is computed to get there.
+
+Everything in §3z and §3b is a different kind of change. Each replaces a
+differenced quantity with an analytic one, so each changes how a number is
+produced, and an error in any of them returns a finite, plausible, wrong
+gradient rather than a failure. That is the failure mode this whole corpus is
+organised against, and the defence against it is a verification campaign per
+change, not a passing suite.
+
+So the sequencing rule for whoever picks this up: **land one family at a time,
+and hold each to the differenced values it replaces before moving on.** The
+differenced implementation is the reference, it exists today, and it stops being
+available the moment it is deleted.
+
+---
 
 ---
 
