@@ -431,6 +431,66 @@ about **eight to nine times** on the part of the block that dominates it, and it
 arrives with the speed rather than costing extra. `b` and `root_b` are cheaper
 still, needing no `init` at all.
 
+### ⚠️ Arbitrated against a rebuilding reference, and the design above is WRONG
+
+Everything from "The structural fact" to here was built, landed behind a flag and
+measured, and **the measurement reverses it.** It is kept rather than deleted
+because the reasoning is exactly the reasoning report 02 §5 exists to catch, and
+it survived two rounds of verification before an independent instrument killed it.
+
+The route was tried first for `b`, where the identity is exact and needs no
+derivative spline at all. Landed, it gave **1.18× on the whole right-hand-side
+adjoint** — 185.3 µs saved per block against a predicted 186 — with the census
+value unchanged and **88 of 90 gradient columns bit-identical**, the two moved
+columns being exactly the two the change touches. Every check that reads the
+sweep against itself passed.
+
+Then the two routes were arbitrated against `ladder_run_difference`, which
+perturbs the parameter, **rebuilds the strategy** and re-runs the model, so it
+uses neither route:
+
+| the `b` column | ratio to the rebuilding reference |
+|---|---|
+| rebuild (what is there) | **1.000002** |
+| homogeneity rescale | 0.99981 |
+
+**The rescale is a hundred times further from the reference.** And the reason is
+the one this document already carries about the vulnerability integral: *the
+forward model rebuilds*. `set_traits` rebuilds the spline when a curve trait
+moves, so the function plant evaluates as a function of `b` **has the grid moving
+with `b` inside it**. The rescale differentiates a different function — the base
+spline stretched — and the difference is the interpolation error's own dependence
+on the trait, which is not spurious here because the grid is *defined by* the
+parameter.
+
+**So the moving grid is part of the model, not an artefact of differencing it**,
+and the derivative-spline route for `c` fails for the same reason: it computes the
+fixed-grid derivative, and the fixed grid is not the model's.
+
+**This contradicts report 05 §7.6 as applied to this grid**, and the disagreement
+is the finding. That rule — capture the grid once and hold it across parameter
+perturbations — is right where a grid is a discretisation choice made independently
+of the parameter, which is report 03 §3.3's knot positions tied to canopy height.
+It is wrong where the grid is a function of the parameter itself, as
+`psi_max = b * log(100)^(1/c)` is. The two cases need separating in the corpus, and
+the test is whether the forward model rebuilds the grid when the parameter moves.
+
+**What survives.** The linearity of the interpolant in its knot values is a real
+structural fact, measured, and it stays true — it is simply the derivative of the
+wrong function here. The series being six times cheaper than boost's value is also
+real and is worth taking on its own: it would make the *rebuild* cheaper, which is
+the route that is correct. That is the route worth pricing next, and it needs no
+identity and no held grid — seed the rebuilt knots from the series rather than from
+boost, and the 80.2 µs becomes 13.2 with the grid still moving as the model moves
+it.
+
+**And the general lesson, which cost this session two rounds.** A leaf-level check
+that the two routes agree to 3.9e-13 was not evidence: it compared the routes to
+*each other*. Eighty-eight bit-identical columns were not evidence either — they
+say the change is localised, not that it is right. **Only the instrument that
+shares neither route could tell**, and it is the completeness axis report 08 §5
+already names for exactly this.
+
 ### The one hole in it, and how it closes
 
 `psi_from_transpiration` is built as `init(y, x)`: its knot **values** are the
