@@ -258,27 +258,71 @@ scalar raises no correctness question at all.
 | family | traits | the exact route, and where it already is |
 |---|---|---|
 | photosynthesis and cost | `vcmax_25`, `jmax_25`, `a`, both `curv_fact_*`, `beta2`, `g1_TF24` | forward mode on the kernels, once they carry the trait scalar. The `ci` chain is already available: the implicit-function term on the `ci` residual is what `dprofit_at_collar_psi` already uses |
-| vulnerability | `c`, `b`, `root_c`, `root_b` | **already implemented and unused.** `cumulative_vulnerability_integral_derivatives_at` returns `{value, dpsi, db, dc}` -- report 05 §7.6's closed forms, which that report calls the best-established derivation in the corpus. Nothing in either package calls it but its own tests |
+| vulnerability | `c`, `b`, `root_c`, `root_b` | **not the closed form, and a live defect in what is there** -- see below |
 | critical potentials | `psi_crit`, `root_psi_crit` | **provably zero here.** Report 06 §11: they set the dry bound of an interval the operating point is inside, so complementary slackness makes their rows zero at an interior optimum, and interior is the only state the sweep answers |
 
 The third row is the sharpest. Four drives per cohort per stage are spent
 measuring two numbers the corpus proves are zero in the only regime the gradient
 is scoped to.
 
-**The second row also discharges the objection that used to block it.** Report 02
-§5 rules that where the forward solve reads a *table*, the derivative on the tape
-must be the table's, because a gradient must differentiate the model being
-evaluated. The integral is no longer a table:
+### The vulnerability row, corrected
+
+An earlier revision of this document said the closed-form derivatives were
+implemented and unused, and recommended wiring them. **That was wrong, and
+wiring them would introduce the defect report 02 §5 exists to prevent.**
+
+The root supply path does not evaluate the closed form. It evaluates a spline
+whose knots are *samples* of it, capped at the closed form's limit:
 
 ```cpp
-inline double cumulative_vulnerability_integral_at(double psi, double b, double c) {
-  return (b / c) * boost::math::tgamma_lower(1.0 / c, pow(psi / b, c));
+double root_vuln_integral_at(double psi) const {
+  return std::min(root_vuln_integral_from_psi.eval(psi),   // a spline
+                  root_vuln_integral_limit_);              // the closed form, as a cap
 }
 ```
 
-The forward model evaluates the closed form, so the closed-form derivative beside
-it is the derivative of the function actually evaluated. The re-blessing report 02
-§5 asks for has already happened.
+with `y_integral.push_back(cumulative_vulnerability_integral_at(psi, b, c))`
+building the knots. So report 02 §5's ruling applies exactly as written: the
+derivative belonging on the tape is the **spline's**, and substituting the closed
+form's is the more accurate derivative of a different function. phylloptim says
+so at the definition — *"this is deliberately not wired into anything that reads
+a spline"* — and that sentence is the design, not an omission.
+
+**What the differenced rows do instead is a defect, and report 05 §7.6 named it
+in advance.** `set_traits` rebuilds the curve when a curve trait moves:
+
+```cpp
+if (stem_curve_moved) setup_transpiration(vulnerability_curve_ncontrol);
+if (root_curve_moved) setup_root_vulnerability(vulnerability_curve_ncontrol);
+```
+
+and the grid is laid out as `psi_max = vulnerability_psi_max(b, c)` with
+`step = psi_max / resolution`, so **the knot positions themselves move with `b`
+and `c`**. The four vulnerability rows are therefore central differences taken
+across a moving grid, which is precisely what report 05 §7.6 rules out:
+
+> the grid must be captured once and held across parameter perturbations so that
+> a differenced derivative is not differentiating a moving grid.
+
+The spurious term is the change in the spline's own approximation error over the
+perturbation, divided by the step. Report 02 §5 measures the table-against-closed-form
+disagreement at parts in a thousand, and the step here is `1e-3` relative, so it
+is not obviously small against the row it contaminates. **It has not been
+measured, and measuring it comes before any decision about these four rows.**
+
+Two ways out, and they are not equivalent:
+
+- **Hold the grid.** Capture it once and re-use it across the perturbation, so
+  the difference sees the same interpolant on both sides. Cheap, and it makes the
+  existing rows the honest derivative of the model actually evaluated.
+- **Retire the spline**, replacing it with the closed form in the forward model —
+  report 05 §7.6's own prescription, "a change to the forward model, made once
+  and re-blessed once, after which the derivative and the value describe the same
+  function." Only after that is the closed-form derivative the right one to wire.
+
+The first is a correctness fix and buys no speed. The second is what makes the
+analytic route legitimate, and it is a forward-model change with a re-blessing,
+not a wiring job.
 
 ---
 
@@ -443,10 +487,13 @@ is by evidence already in hand rather than by size.
    refuses everything that is not interior. The row must be a *declared* zero on
    report 08 §3.4's list, not an undeclared one, because an exact zero with no
    named cause is the shape this corpus refuses.
-2. **Wire `cumulative_vulnerability_integral_derivatives_at`.** Eight drives,
-   nothing to derive, nothing to bless — closed forms verified to `1e-23`
-   (report 05 §7.6), evaluated by the same function the forward model evaluates.
-   Today they are dead code with tests.
+2. **Measure what the moving grid costs the four vulnerability rows**, then
+   hold the grid. Eight drives are differenced across an interpolant whose knots
+   move with the trait, which report 05 §7.6 rules out; holding it is cheap and
+   makes them the honest derivative of the model evaluated. It buys no speed.
+   Wiring the closed-form derivatives instead is **wrong** while the forward
+   model reads a spline, and retiring the spline is a forward-model change with
+   a re-blessing rather than a wiring job.
 3. **Give the kernels their trait scalar**, and take the photosynthesis and cost
    family by forward mode. Fourteen drives. This is the only one of the three
    that is a change to the leaf rather than a wiring, and it is confined to
