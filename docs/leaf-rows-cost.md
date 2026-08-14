@@ -956,13 +956,46 @@ prescribes for this curve — just not the change §5 tried to make.
   collar a carbon-side trait moves no water, and the difference was returning
   bit-identical uptake either side. So that half of the exactness was never
   available to win, which is worth knowing before pricing the rest of the family.
-- **`a`, `curv_fact_elec_trans` and `curv_fact_colim` remain.** Harder than the
-  cost pair, because they reach profit through the `ci` root-find as well, so the
-  row carries the implicit-function term: at a frozen collar
-  `dPi/dtheta = dA/dtheta * (1 - A'/g_ci)`, with `g_ci` the residual's own slope
-  the leaf already forms. The marginal row needs `A''`, which is forward-over-
-  forward on a kernel with no interpolator, cache or root-find in it (§4). Six
-  drives at 2.3 µs.
+- **`a`, `curv_fact_elec_trans` and `curv_fact_colim` remain, and their profit
+  row is derived and measured.** At a frozen collar these three move nothing but
+  assimilation — the stem potential, the stomatal conductance and the hydraulic
+  cost are all fixed, and the only thing that responds is the intercellular CO2
+  the residual places. Writing the residual as the model does,
+  `g = A_net * umol_to_mol - gc (ca - ci) inv_atm`, the implicit-function term
+  collapses:
+
+      dci/dtheta = -(dA/dtheta) umol_to_mol / g_ci
+      dPi/dtheta = dA/dtheta (1 - A' umol_to_mol / g_ci)
+                 = dA/dtheta * gc * inv_atm / g_ci
+
+  because `g_ci = A' umol_to_mol + gc inv_atm` by definition. **One kernel partial
+  at fixed `ci`, times a factor the solve already forms** — no solve, no root-find,
+  no supply. Measured against differencing the solve at wet, dry and shaded, with
+  `dA/dtheta` itself taken by differencing the *kernel* at fixed `ci`:
+
+  | trait | wet | dry | shaded |
+  |---|---|---|---|
+  | `a` | 4.7e-08 | 4.8e-07 | 7.4e-11 |
+  | `curv_fact_elec_trans` | 5.8e-10 | 8.3e-09 | 2.1e-09 |
+  | `curv_fact_colim` | 9.4e-06 | 1.8e-06 | 3.9e-10 |
+
+  **What is not done is the marginal row, and it is the half that gates the
+  drives.** `dcollar/dtheta` needs `dR/dtheta`, and with
+  `dci/dp = D K`, `D = dgc/dpsi_stem * dpsi_stem/dp + dgc/dp`,
+  `K = (ca - ci) inv_atm / g_ci`, and `R = A' D K - C' dpsi_stem/dp`:
+
+      dR/dtheta = D [ (dA'/dtheta) K + A' dK/dtheta ]
+      dA'/dtheta = d2A/dtheta dci + A'' dci/dtheta
+      dK/dtheta  = -[ (dci/dtheta) inv_atm g_ci + (ca - ci) inv_atm umol dA'/dtheta ] / g_ci^2
+
+  so it needs `A''` and the mixed `d2A/dtheta dci`. Both are on a kernel with no
+  interpolator, cache or root-find in it, so report 02 §4 item 1 sanctions taking
+  them by forward mode — but the kernels are §4's problem exactly: `a` and the
+  electron-transport curvature reach `A` only through `electron_transport_`, a
+  `double` member, so a trait scalar has to be threaded before forward mode can
+  see them. **Until both halves are done there is no drive to remove**, and the
+  profit half alone replaces a difference accurate to about `1e-6` with a
+  prediction accurate to about `1e-6`, which is not worth landing on its own.
 - **Hoist `prepare_collar_solve`** for the families whose perturbation cannot move
   the feasible interval, using the entry point phylloptim provides. Argue the
   families one at a time; a blanket hoist is wrong for the supply ones (§8).
