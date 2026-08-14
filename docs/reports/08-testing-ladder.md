@@ -399,6 +399,28 @@ check on a supplied or derived quantity needs a companion check on what multipli
 a channel acts once per step rather than once per plant, the count is part of the row: a rung
 should assert the number of times a boundary term enters, not only its value.
 
+**The instance, because this section was written without one.** The introduction map's whole
+Jacobian is formed both ways at §4.6 and agreed to `7.5e-16` over all 3729 cells — while the map's
+seed-mass column was wrong, because the seed's dependent auxiliaries were not re-derived where its
+grafted height is written and the leaf area every rate at birth size is scaled by therefore carried
+no derivative. **Both sides of that check reach the newcomer's state through the same code**, so
+each inherited the same missing row and the check could not see it: it is §1's "disjointness of
+code is not disjointness of assumptions" applied to a reference that shares the *object's* forward
+function, which is exactly the reference a transpose check is supposed to have.
+
+What did see it was a rebuilding difference — the one instrument that never forms the product. On
+the seed-mass column of a leaf-area census the sweep read 0.99 of that reference at a lifetime of
+one and **0.38 at a lifetime of three**, while sweep and tangent agreed with each other to
+`5e-07`. So the two differentiated paths were three to eight parts in a thousand apart, both about
+one per cent to sixty per cent below the reference, and every rung of §4 passed.
+
+Two readings worth keeping. **A tolerance widened around a disagreement hides the class it was
+widened for**: the two columns held to a looser bound were the only two of their eight-parameter
+class the ladder compared at all, so the other six were unrefereed and the two that were had room
+to be wrong. And **the sharpest probe was the smallest fixture**, per §4.7: the seed mass reaches a
+size-moment census through birth size and almost nothing else, so it localised in one column what
+two amplified columns had carried for months.
+
 ## 5. The completeness axis
 
 This axis asks a different question and needs the other reference. It is not a rung above §4: it can
@@ -456,6 +478,20 @@ per cent against a discrepancy over a hundred times that.
 
 **Its fixture must be small, so a term that only appears at production scale is invisible.** The
 guarantee is "complete on this fixture", and that is weaker than it sounds given §9.
+
+**And a one-species fixture is blind to a whole class of defect, which "small" does not imply.**
+Where a row is built on coefficients read at one operating point, a stand with no competition keeps
+every cohort near that point, so a row that is wrong only *far* from it reads as correct. Measured:
+the root-carbon rows agreed with a single-species reference to `1e-06` for both trait sets while the
+suppressed species' root allometry was six per cent out on a stand where the two compete. **So this
+axis needs a fixture with competition as well as a small one**, and they are different fixtures.
+
+**The step-stability guard of §5.1 is not optional on that fixture, and skipping it once reversed a
+decision here.** A suppressed species contributes less, so its columns sit nearer the difference's own
+floor: the same column read at four steps from `1e-6` to `1e-3` gave 0.275, 0.131, 0.122 and 0.126 —
+a factor of two — converging only at the coarse end. A single reading at `1e-5` was taken as evidence
+and was wrong by that factor. §4.7's fifth trap is this exact failure, and the guard now lives inside
+the fixture rather than beside it.
 
 **It gives per-column totals, not per-route localisation.** A disagreement says a term is missing for
 a parameter, not where. Report 05 §10's enumeration is the localisation aid, and its own caveat

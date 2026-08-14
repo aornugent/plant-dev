@@ -845,6 +845,23 @@ $b$ is absorbed into $a$ at a ratio of about $10^5$. **A joint residual cannot d
 a compensating $(a,b)$ pair fits every potential row equally well. So an invariant that checks $a$
 at fixed $b$ does not check the pair.
 
+**So the pair must be anchored in the family it will be applied to, and that is an operational rule
+rather than an observation.** A pair recovered from two directions reproduces their own span and
+nothing outside it, so applying it to a family the fit never saw returns the compensation as an error.
+Measured on the root-carbon rows, against a difference that rebuilds the strategy and re-runs on a
+stand where two species compete:
+
+| how the pair was obtained | the row it was applied to |
+|---|---|
+| fitted from a soil potential and a layer resistance | 1.06 of the reference |
+| $b$ closed form, $a$ solved along a **potential** | 0.83 |
+| $b$ closed form, $a$ solved along a **carbon** direction | **0.990**, which is what a direct difference of that row also gives |
+
+The middle row is the instructive one. $b$ there is *exact* — it reproduces a difference of the profit
+to $5\times10^{-10}$ — and pinning it makes the answer **worse**, because $a$ is then carried by one
+differenced direction and takes all of that direction's error. **An exact coefficient in a badly placed
+pair is worse than two inexact ones**, and no residual formed on the fitted directions can see it.
+
 **And the direction the ecology cares about is the direction that conditioning is worst in.** Water
 moves on *differences* of potential while tissue fails on *absolutes*, so along the uniform drying
 direction the model is a near-symmetry and the true response is a small residue on a strongly
@@ -1004,8 +1021,29 @@ consistent and neither is refereeing the other.
 
 So the closed forms above are a change to the **forward** model, made once and re-blessed once, after
 which the derivative and the value describe the same function. Until then the honest derivative of a
-tabulated curve is the tabulation's own, and the grid must be captured once and held across
-parameter perturbations so that a differenced derivative is not differentiating a moving grid.
+tabulated curve is the tabulation's own.
+
+**And whether the grid may be held across a parameter perturbation depends on who owns the grid.**
+An earlier form of this section said it must be — capture it once, so that a differenced derivative is
+not differentiating a moving grid. That is right for a grid chosen **independently** of the parameter,
+which is report 03 §3.3's case: knot positions tied to a canopy height are a discretisation choice, the
+term they contribute is discretisation error, and declining to carry it introduces nothing.
+
+It is **wrong** for a grid the parameter itself defines. Here $\psi_{\max} = b\,\log(100)^{1/c}$, so the
+knot positions are a function of the curve's own parameters and the forward model rebuilds them
+whenever either moves. The grid is then part of what the parameter *means*, and a derivative taken on a
+held grid answers a different question. Measured: a row taken by rescaling the base spline — exact for
+the continuum, and reproducing a rebuilt spline to $3\times10^{-13}$ in the leaf's own outputs — sits at
+0.99981 of a reference that rebuilds the strategy and re-runs, where the rebuilt row sits at 1.000002.
+
+**The test is one question: does the forward model rebuild the grid when the parameter moves?** If it
+does, the moving grid is the model and must be carried; if it does not, the grid is discretisation and
+holding it declines an error rather than introducing one. Two consequences follow for this curve. The
+knot *count* is decided by round-off — the builder accumulates `psi += step` against a `<=` test, so a
+$10^{-5}$ move in $c$ can give 100 knots on one side of a central difference and 101 on the other — so a
+rebuilt difference carries a discrete artefact that a rescale cannot. And making the *rebuild* cheaper
+is legitimate where holding the grid is not: reseeding the same knots by a different but equivalent
+route changes the arithmetic's cost, not the function being differentiated.
 
 The calculus above is separately verified: all seven quantities agree with an independent
 high-precision integral and with central differences of that integral to better than $10^{-23}$,
