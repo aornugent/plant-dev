@@ -102,7 +102,73 @@ form as `b = -(dPi/dpsi_stem) * P' / kappa`. Nothing new has to be derived.
 
 ---
 
-## 3a. The largest family is a second copy of phylloptim's gradient module
+## 3z. The root cause, in one sentence
+
+**The leaf's kernels are generic in the variable and concrete in the trait**, so
+the leaf can differentiate itself with respect to what it *solves for* and never
+with respect to what it *holds*.
+
+```cpp
+template <typename T> T assim_rubisco_limited_kernel(T ci) const {
+  return (vcmax_ * (ci - gamma_ * umol_per_mol_to_Pa_)) / (ci + km_);
+}
+template <typename T> T proportion_of_conductivity_kernel(T psi) const {
+  return exp(-pow((psi / stem_b), stem_c));
+}
+```
+
+`T` is the argument. `vcmax_`, `stem_b`, `stem_c` are `double` members. Forward
+mode through these yields `dprofit/dpsi` and `d/dci` -- exactly the state
+directions the collar solve needs, which is why the leaf already differentiates
+itself there and why `dprofit_droot_collar_psi` is exact. It cannot yield
+`d/dvcmax` or `d/db` by any amount of forward mode, because the trait is not on
+the scalar. **So every trait row has to be obtained by moving a member and
+re-solving, and that is the whole of the cost.**
+
+Report 02 §1 is often read as forbidding this. It does not. What it rejects is an
+**active leaf** -- "it holds interpolators on fixed grids, loose parameters and
+per-solve scratch with no boundary between them, caches keyed on exact
+comparison, an integrator and a nested root-find. Each is a separate correctness
+question under an active scalar." Every one of those objections is about the
+*solver*. None of them is about a three-line pure kernel. And report 02 §4.1
+sanctions the remedy by name: the solver "may differentiate itself internally by
+any means it likes -- **forward-mode on its own kernels**, analytic spline
+derivatives, the implicit function theorem at an inner root-find".
+
+**The kernels are the "own kernels".** They contain no interpolator, no cache, no
+root-find and no integrator; they are the one part of the leaf where an active
+scalar raises no correctness question at all.
+
+### And two of the three trait families need no new derivation whatsoever
+
+| family | traits | the exact route, and where it already is |
+|---|---|---|
+| photosynthesis and cost | `vcmax_25`, `jmax_25`, `a`, both `curv_fact_*`, `beta2`, `g1_TF24` | forward mode on the kernels, once they carry the trait scalar. The `ci` chain is already available: the implicit-function term on the `ci` residual is what `dprofit_at_collar_psi` already uses |
+| vulnerability | `c`, `b`, `root_c`, `root_b` | **already implemented and unused.** `cumulative_vulnerability_integral_derivatives_at` returns `{value, dpsi, db, dc}` -- report 05 §7.6's closed forms, which that report calls the best-established derivation in the corpus. Nothing in either package calls it but its own tests |
+| critical potentials | `psi_crit`, `root_psi_crit` | **provably zero here.** Report 06 §11: they set the dry bound of an interval the operating point is inside, so complementary slackness makes their rows zero at an interior optimum, and interior is the only state the sweep answers |
+
+The third row is the sharpest. Four drives per cohort per stage are spent
+measuring two numbers the corpus proves are zero in the only regime the gradient
+is scoped to.
+
+**The second row also discharges the objection that used to block it.** Report 02
+§5 rules that where the forward solve reads a *table*, the derivative on the tape
+must be the table's, because a gradient must differentiate the model being
+evaluated. The integral is no longer a table:
+
+```cpp
+inline double cumulative_vulnerability_integral_at(double psi, double b, double c) {
+  return (b / c) * boost::math::tgamma_lower(1.0 / c, pow(psi / b, c));
+}
+```
+
+The forward model evaluates the closed form, so the closed-form derivative beside
+it is the derivative of the function actually evaluated. The re-blessing report 02
+§5 asks for has already happened.
+
+---
+
+## 3a. The largest family is also a second copy of phylloptim's gradient module
 
 Twenty-six of the forty-six drives move one leaf trait at a time. The code says
 what it is doing and why:
@@ -163,6 +229,16 @@ one. Whether that lands as a sixth output, a caller-supplied sink, or a batch
 variant is upstream's design call, and report 02 §3.0's rule says which question
 decides it — enumerate the outputs from the consumer's equations, not from what
 the solver happens to expose.
+
+**But this is the second-best answer, and it is worth saying why.** Upstream's
+composite is *itself* two perturbed evaluations per parameter — its own comment
+says so. Calling it would buy one shared collar solve, a selective rebuild, and
+one implementation under one set of tests, which is real. It would not buy
+exactness, and it would not remove a single re-solve from the arithmetic; it
+would move them behind a better-tested boundary. §3z's routes remove them. The
+two are complementary — take the composite for whatever stays differenced, and
+shrink what stays differenced first — but if only one is done, it should not be
+this one.
 
 ---
 
@@ -244,19 +320,39 @@ Ordered by measured share, not by ease.
 and `1d1f6c3` changes what a drive costs. Tuning drive counts against a leaf that
 is about to grow a temperature solve prices the wrong object.
 
-**Then wire the leaf-trait family to phylloptim's composite** (§3a). It is
-twenty-six of forty-six drives, it is a second implementation of a module that
-now ships, and the gap is one frozen-collar uptake partial rather than a
-derivation. Doing this before the root-carbon work is deliberate: the composite
-also covers the conductance and resistance directions, so what is left for the
-factorisation is smaller and better defined once it lands.
+**Then take the exact routes, cheapest first.** All three are §3z, and the order
+is by evidence already in hand rather than by size.
+
+1. **Declare the two critical potentials zero** and stop driving them. Four
+   drives, and report 06 §11 already carries the proof and the domain: zero at an
+   interior optimum by complementary slackness, live at a pin, and the sweep
+   refuses everything that is not interior. The row must be a *declared* zero on
+   report 08 §3.4's list, not an undeclared one, because an exact zero with no
+   named cause is the shape this corpus refuses.
+2. **Wire `cumulative_vulnerability_integral_derivatives_at`.** Eight drives,
+   nothing to derive, nothing to bless — closed forms verified to `1e-23`
+   (report 05 §7.6), evaluated by the same function the forward model evaluates.
+   Today they are dead code with tests.
+3. **Give the kernels their trait scalar**, and take the photosynthesis and cost
+   family by forward mode. Fourteen drives. This is the only one of the three
+   that is a change to the leaf rather than a wiring, and it is confined to
+   functions with no interpolator, cache or root-find in them.
+
+That is twenty-six of the forty-six drives, all of them replaced by exact
+derivatives rather than by cheaper differences.
 
 **Then give the supply side its resistance-direction derivatives**, and route the
 root-carbon family through the factorisation exactly as the soil-potential family
-already is. This is ten more drives, and the corpus has already verified the
-prediction it relies on (report 08 §4.1). The acceptance test is the one that
-check already uses: predict the family out of sample and require the worst
-direction to stay at round-off.
+already is. Ten more drives, and the corpus has already verified the prediction
+it relies on (report 08 §4.1). The acceptance test is the one that check already
+uses: predict the family out of sample and require the worst direction to stay at
+round-off.
+
+**Between them these are thirty-six of forty-six drives, and what is left —
+the curvature, the radiation row, and the two directions the pair is fitted
+from — is the part that genuinely has no closed form.** That is where §3a's
+composite belongs, and it is a much smaller surface to hand over than the one it
+would have taken on before.
 
 **Then hoist `prepare_collar_solve`** for the families whose perturbation cannot
 move the feasible interval, using the entry point phylloptim provides for it.
