@@ -377,7 +377,19 @@ rooted layer `i`, with `num_i = T - psi_i - grav_i`:
 
 `A_i` and `B_i` carry the whole of the carbon dependence; `f_i` and `g_i` carry
 the whole of the collar dependence. That separation is what makes the rest
-mechanical.
+mechanical, and it is verified in the loop rather than assumed: `span`,
+`integral` and `dinteg_dT` read the collar, the layer's potential and the root
+vulnerability curve, and none of them reads the carbon.
+
+**The sharpest consequence is why these rows cannot be recovered from the collar
+rows.** In the collar derivative `dr_i/dT` reduces to `A_i * g_i` exactly, because
+`B_i` is the cumulative vertical resistance and has no collar dependence at all --
+the vertical term drops out. The carbon direction reaches **both** `A_i` and
+`B_i`. So the collar column, however exactly it is known, carries no information
+about the vertical half of the network, and that half is the cumulative one that
+makes the block lower-triangular. A design that tried to get the carbon rows by
+scaling the collar rows would recover the horizontal term and silently lose the
+vertical.
 
 **The carbon partials of the two resistances.** Both are proportional to
 `1/rc`, and the vertical one is summed over layers at or above `i`:
