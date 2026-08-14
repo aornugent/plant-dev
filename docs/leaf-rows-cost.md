@@ -11,18 +11,19 @@ parts are removable.
 
 ## 1. Start here
 
-**The state.** A census gradient on 88 cohorts runs in 378 s against 753 s
-before, from two changes that are each bit-identical — `deda52f5` (a rebound
-patch builds its boundary node, not every cohort's rates) and `c5e3a5f9` (the
-two critical potentials stop being driven). Since then dark respiration has
-gained a parameter and a row (`d6a51304`), also with every prior column
-bit-identical. What is left is one function, and §2 measures it.
+**The state.** One right-hand-side adjoint of an 88-cohort patch is **115.9 ms**,
+of which `cohort_blocks` is 99.5 — about **1.12 ms per block** against 0.018 ms
+for the same cohort's rates in plain double. Five changes have landed and two
+designs have been withdrawn after being built and measured; §10 lists both, and
+§5 is the withdrawal that matters, because the reasoning behind it is the kind
+that survives review and fails a reference.
 
-**What is left is four traits, not the whole loop.** A vulnerability-curve
-drive costs 92–97 µs and every other trait's costs 2.3, so `b`, `c`, `root_b`
-and `root_c` are most of the remaining block. Half of them can be made free by
-an identity that already exists upstream; the other half cannot. §5 has the
-measurements and §10 the order.
+**What is left is four traits.** A vulnerability-curve drive costs 92–97 µs and
+every other trait's costs 2.3, so `b`, `c`, `root_b` and `root_c` are most of the
+block. The route out is **not** a held grid — that is §5, twice refuted — but the
+seeding: boost's incomplete gamma is 80.2 µs per rebuild where this package's own
+series gives the value and both trait partials for 13.2. §10 has the arithmetic
+and the one thing it costs.
 
 **What to read, and nothing else.** The corpus is large and almost none of it
 bears on this.
@@ -897,77 +898,73 @@ selective rebuild, this side has the environment rows.
 
 ## 10. What follows
 
-Ordered by measured share, not by ease. Two items that stood at the head of this
-list are **done**, and the drive counts everywhere in this note are the ones
-before them:
+### Done
 
 - **Merging upstream** (`35d70d2`). `507b337` was a stated requirement of report
-  05 §6.2, and `1d1f6c3` changes what a drive costs — tuning drive counts against
-  a leaf about to grow a temperature solve would have priced the wrong object.
-- **Declaring the two critical potentials zero** (`c5e3a5f9`), four drives, with
-  the row declared rather than silently absent. Report 06 §11 carries the proof
-  and the domain: zero at an interior optimum by complementary slackness, live at
-  a pin, and the sweep refuses everything that is not interior.
+  05 §6.2, and `1d1f6c3` changes what a drive costs.
+- **The two critical potentials declared zero** (`c5e3a5f9`), four drives, with
+  the row declared rather than silently absent.
+- **Dark respiration at 25 °C given a parameter and a row** (`d6a51304`). It was
+  carried by the leaf, not taken by its constructor, so it ran at the leaf's
+  default with nothing able to move it.
+- **Photosynthetic capacity and the electron-transport maximum given rows**
+  (`11fa956b`). Both were withheld because the leaf's temperature block once
+  cached their derived values under a key of the drivers alone; that key now
+  covers every input of the block. Each of these three landed with the census
+  values and **every prior column bit-identical**.
+- **The root-carbon family taken analytically** (`5a5e3984`, with
+  `duptake_droot_carbon` and `dmarginal_profit_duptake_slope` upstream). Twelve
+  drives per cohort per stage become two. §6 carries the derivation, the
+  arbitration and the two failed attempts that preceded it.
 
-**Ranked by measured share, which is not how this list used to be ordered.** A
-curve trait's drive is 92–97 µs and every other trait's is 2.3, so the four
-vulnerability traits are roughly 760 µs of a 1230 µs block and everything else in
-the trait loop is about two per cent. §4 carries the table and §5 the route out.
+### Withdrawn, and §5 says why
 
-1. **Take `b` and `root_b` by the homogeneity rescale.** Four drives at 95 µs
-   become four at 2. The identity is exact, holds for the spline because the knot
-   grid scales with `b`, and is verified here against a rebuild of the quantities
-   plant reads at **3.9e-13**. `perturb_stem_b` already exists upstream and skips
-   `set_physiology` as well, since nothing it derives reads `b`. The root curve
-   needs the same accessor written against the same identity.
-2. **Seed `c` and `root_c` from the derivative spline instead of rebuilding.**
-   There is no rescale identity for the steepness, but the interpolant is exactly
-   linear in its knot values, so a perturbed spline is `y_i ± h * dy_i/dc` at the
-   base grid — one `init` at 3.4 µs against 80 µs of incomplete gammas. The knots'
-   derivatives come from the series in `cumulative_vulnerability_integral_derivatives_at`,
-   which returns value and both trait partials for **13.2 µs** against boost's
-   **80.2 µs** for the value alone. §5 has the verification, the arithmetic
-   (744 µs → 86 µs) and the one hole — the inverse spline, whose knot *positions*
-   are what move, closed by implicit differentiation rather than a second spline.
-   **This also removes the moving-grid term rather than measuring it**, so the
-   correctness fix arrives with the speed.
-3. **Give the kernels their trait scalar** for the photosynthesis and cost family
-   — `beta2`, `a`, both `curv_fact_*`, `g1_TF24`. Ten drives, and they are the
-   cheap ones: about 23 µs of a 1230 µs block. Worth doing for exactness, not for
-   speed, and it is the only item here that changes the leaf rather than a wiring.
+- **The homogeneity rescale for `b` and `root_b`**, and **the derivative-spline
+  seeding for `c` and `root_c`**. Both were built and measured — the first landed
+  at **1.18× on the whole right-hand-side adjoint** with 88 of 90 columns
+  bit-identical — and both differentiate the wrong function. `set_traits` rebuilds
+  the curve when a curve trait moves, so the grid moving with the trait is part of
+  the model rather than an artefact of differencing it, and a reference that
+  rebuilds says so.
 
-**Then the two rows nobody drives, which are a completeness item rather than a
-cost one.** `vcmax_25` and `jmax_25` are carried, passed to the leaf, and absent
-from the differentiable set because the leaf's temperature block once cached its
-derived values under a key of the drivers alone. That key now covers every input
-of the block, both among them, and each moves profit — measured at 3.5e-02 and
-3.9e-03 per unit. They sit in the 2.3 µs bucket, so two more rows cost about four
-microseconds of a block, and they are photosynthetic capacity. Report 06 §11 now
-records the absence and that its stated cause has gone.
+### What is left, by measured share
 
-**And one is done: dark respiration at 25 °C** (`d6a51304`). It was in the same
-position — carried by the leaf, not taken by its constructor, so it ran at the
-leaf's default with no parameter able to move it. It is now carried at that
-default and driven with the other leaf traits, with the census values and all 88
-pre-existing columns **bit-identical** and two columns added.
+**One item is most of the remaining cost, and it is not a gradient change.**
+A curve trait's drive is 92–97 µs against every other trait's 2.3, so `b`, `c`,
+`root_b` and `root_c` are still about 700 µs of a 1120 µs block. The rebuild
+decomposes as **80.2 µs of boost's incomplete gamma** plus 3.4 µs per interpolator,
+and the package's own everywhere-convergent series returns the value **and both
+trait partials** for **13.2 µs**. So seeding the knots from the series instead of
+boost takes a curve drive from ~93 µs to ~26 µs — **on the order of 1.8× on the
+right-hand-side adjoint**, with the grid still moving exactly as the model moves
+it, so it is not §5's mistake.
 
-**Then give the supply side its resistance-direction derivatives**, and route the
-root-carbon family through the factorisation exactly as the soil-potential family
-already is. Ten drives, at 2.3 µs each rather than 95, so this is now a
-correctness and exactness item and not a cost one — the earlier ranking had it as
-the second-largest saving. The corpus has already verified the prediction it
-relies on (report 08 §4.1), and the acceptance test is the one that check uses:
-predict the family out of sample and require the worst direction to stay at
-round-off.
+What it costs is a **re-blessing**: the two routes agree to `1.2e-15` per knot, and
+the nested solves amplify that to the solver's own floor, so the golden file moves.
+That is a forward-model change made once, which is the shape report 05 §7.6
+prescribes for this curve — just not the change §5 tried to make.
 
-**Then hoist `prepare_collar_solve`** for the families whose perturbation cannot
-move the feasible interval, using the entry point phylloptim provides for it.
-Argue the families one at a time; a blanket hoist is wrong for the supply ones.
+**Then the exactness items, which are not cost items.**
 
-**What not to do.** Do not attack the tape, the per-cohort recording, or the
-decomposition of report 01. Measured, they are 0.6 per cent of a block, and the
-peak-memory property that decomposition buys is intact. The cost is the leaf's
-hand-built Jacobian and nothing else.
+- **Give the kernels their trait scalar** for `beta2`, `a`, both `curv_fact_*` and
+  `g1_TF24`. Ten drives at 2.3 µs, so about 23 µs of a block. The one item here
+  that changes the leaf rather than a wiring, and it is confined to functions with
+  no interpolator, cache or root-find in them (§4).
+- **Hoist `prepare_collar_solve`** for the families whose perturbation cannot move
+  the feasible interval, using the entry point phylloptim provides. Argue the
+  families one at a time; a blanket hoist is wrong for the supply ones (§8).
+- **§7's composite** for whatever stays differenced, which after the above is the
+  curvature, the radiation row, the conductance row and the single carbon anchor.
+
+### What not to do
+
+Do not attack the tape, the per-cohort recording, or the decomposition of report
+01. Measured, they are **0.6 per cent of a block**, and the peak-memory property
+that decomposition buys is intact.
+
+Do not re-derive a held grid for the vulnerability curve without reading §5 first.
+It has now been proposed twice, built twice, and refuted twice by the same
+instrument.
 
 ---
 
