@@ -102,7 +102,8 @@ hand-built Jacobian of the leaf, and the tape is a rounding error beside it.
 ## 3. Where the drives go
 
 The call re-drives the leaf about **forty-six** times, in six families the
-corpus treats very differently.
+corpus treats very differently. That count and the table below are as measured,
+*before* `c5e3a5f9` removed four of them; forty-two remain.
 
 | family | directions | drives | how the row is obtained |
 |---|---|---|---|
@@ -178,11 +179,11 @@ scalar raises no correctness question at all.
 |---|---|---|
 | photosynthesis and cost | `vcmax_25`, `jmax_25`, `a`, both `curv_fact_*`, `beta2`, `g1_TF24` | forward mode on the kernels, once they carry the trait scalar. The `ci` chain is already available: the implicit-function term on the `ci` residual is what `dprofit_at_collar_psi` already uses |
 | vulnerability | `c`, `b`, `root_c`, `root_b` | **not the closed form, and a live defect in what is there** -- see below |
-| critical potentials | `psi_crit`, `root_psi_crit` | **provably zero here.** Report 06 §11: they set the dry bound of an interval the operating point is inside, so complementary slackness makes their rows zero at an interior optimum, and interior is the only state the sweep answers |
+| critical potentials | `psi_crit`, `root_psi_crit` | **provably zero here — done, `c5e3a5f9`.** Report 06 §11: they set the dry bound of an interval the operating point is inside, so complementary slackness makes their rows zero at an interior optimum, and interior is the only state the sweep answers |
 
-The third row is the sharpest. Four drives per cohort per stage are spent
-measuring two numbers the corpus proves are zero in the only regime the gradient
-is scoped to.
+The third row was the sharpest: four drives per cohort per stage spent measuring
+two numbers the corpus proves are zero in the only regime the gradient is scoped
+to. That one is done (`c5e3a5f9`), and the row is declared rather than absent.
 
 ### The vulnerability row, corrected
 
@@ -397,7 +398,7 @@ So about thirty-eight of the drives are re-deriving what one upstream call
 produces, and it produces them better:
 
 - **one `prepare_collar_solve` for the whole composite**, where this side pays
-  two root-finds per drive (§4);
+  two root-finds per drive (§7);
 - **selective rebuild** — `apply(l, th, d, single, p, fast_stem_curve)` is told
   *which* parameter moved, and `takes_shortcut` skips the stem curve for the one
   that does not need it. This side's `drive` lambda passes no such hint, so every
@@ -440,7 +441,7 @@ composite is *itself* two perturbed evaluations per parameter — its own commen
 says so. Calling it would buy one shared collar solve, a selective rebuild, and
 one implementation under one set of tests, which is real. It would not buy
 exactness, and it would not remove a single re-solve from the arithmetic; it
-would move them behind a better-tested boundary. §3z's routes remove them. The
+would move them behind a better-tested boundary. §4's routes remove them. The
 two are complementary — take the composite for whatever stays differenced, and
 shrink what stays differenced first — but if only one is done, it should not be
 this one.
@@ -472,8 +473,10 @@ has to be argued per family rather than applied to the loop.
 
 ## 8. What upstream has that this side does not
 
-`traitecoevo/phylloptim` carries three commits this branch has not merged, and
-one of them is a requirement rather than an improvement.
+`traitecoevo/phylloptim` carried three commits this branch did not have. They are
+merged (`35d70d2`), and one of them was a requirement rather than an improvement.
+What follows is what came in, because both of the first two change what the
+routes below are priced against.
 
 **`507b337`, bounding the root vulnerability curves past the grid.** Report 05
 §6.2 states this as a requirement and gives the reason every obvious guard misses
@@ -519,35 +522,35 @@ selective rebuild, this side has the environment rows.
 
 ## 9. What follows
 
-Ordered by measured share, not by ease.
+Ordered by measured share, not by ease. Two items that stood at the head of this
+list are **done**, and the drive counts everywhere in this note are the ones
+before them:
 
-**First, merge upstream.** `507b337` is a stated requirement of report 05 §6.2,
-and `1d1f6c3` changes what a drive costs. Tuning drive counts against a leaf that
-is about to grow a temperature solve prices the wrong object.
+- **Merging upstream** (`35d70d2`). `507b337` was a stated requirement of report
+  05 §6.2, and `1d1f6c3` changes what a drive costs — tuning drive counts against
+  a leaf about to grow a temperature solve would have priced the wrong object.
+- **Declaring the two critical potentials zero** (`c5e3a5f9`), four drives, with
+  the row declared rather than silently absent. Report 06 §11 carries the proof
+  and the domain: zero at an interior optimum by complementary slackness, live at
+  a pin, and the sweep refuses everything that is not interior.
 
-**Then take the exact routes, cheapest first.** All three are §3z, and the order
-is by evidence already in hand rather than by size.
+**The exact routes that remain, cheapest first.** Both are §4, and the order is
+by evidence already in hand rather than by size.
 
-1. **Declare the two critical potentials zero** and stop driving them. Four
-   drives, and report 06 §11 already carries the proof and the domain: zero at an
-   interior optimum by complementary slackness, live at a pin, and the sweep
-   refuses everything that is not interior. The row must be a *declared* zero on
-   report 08 §3.4's list, not an undeclared one, because an exact zero with no
-   named cause is the shape this corpus refuses.
-2. **Measure what the moving grid costs the four vulnerability rows**, then
+1. **Measure what the moving grid costs the four vulnerability rows**, then
    hold the grid. Eight drives are differenced across an interpolant whose knots
    move with the trait, which report 05 §7.6 rules out; holding it is cheap and
    makes them the honest derivative of the model evaluated. It buys no speed.
    Wiring the closed-form derivatives instead is **wrong** while the forward
    model reads a spline, and retiring the spline is a forward-model change with
    a re-blessing rather than a wiring job.
-3. **Give the kernels their trait scalar**, and take the photosynthesis and cost
-   family by forward mode. Fourteen drives. This is the only one of the three
-   that is a change to the leaf rather than a wiring, and it is confined to
-   functions with no interpolator, cache or root-find in them.
+2. **Give the kernels their trait scalar**, and take the photosynthesis and cost
+   family by forward mode. Fourteen drives. This is the one of the two that is a
+   change to the leaf rather than a wiring, and it is confined to functions with
+   no interpolator, cache or root-find in them.
 
-That is twenty-six of the forty-six drives, all of them replaced by exact
-derivatives rather than by cheaper differences.
+That is twenty-two of the forty-two drives that remain, all of them replaced by
+exact derivatives rather than by cheaper differences.
 
 **Then give the supply side its resistance-direction derivatives**, and route the
 root-carbon family through the factorisation exactly as the soil-potential family
@@ -556,9 +559,9 @@ it relies on (report 08 §4.1). The acceptance test is the one that check alread
 uses: predict the family out of sample and require the worst direction to stay at
 round-off.
 
-**Between them these are thirty-six of forty-six drives, and what is left —
-the curvature, the radiation row, and the two directions the pair is fitted
-from — is the part that genuinely has no closed form.** That is where §3a's
+**Between them these are thirty-two of the forty-two, and what is left — the
+curvature, the radiation row, the conductance row and the two directions the pair
+is fitted from — is the part that genuinely has no closed form.** That is where §6's
 composite belongs, and it is a much smaller surface to hand over than the one it
 would have taken on before.
 
@@ -580,7 +583,7 @@ critical potentials — are **provable no-ops**: both were verified bit-identica
 against the fixtures and a production stand, because neither changes what is
 computed, only how much is computed to get there.
 
-Everything in §3z and §3b is a different kind of change. Each replaces a
+Everything in §4 and §5 is a different kind of change. Each replaces a
 differenced quantity with an analytic one, so each changes how a number is
 produced, and an error in any of them returns a finite, plausible, wrong
 gradient rather than a failure. That is the failure mode this whole corpus is
