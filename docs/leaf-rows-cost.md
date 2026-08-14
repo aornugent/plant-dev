@@ -591,6 +591,56 @@ no collar solve, no `ci` root-find, no profit evaluation — against a full leaf
 re-drive, so it keeps a difference but moves it off the expensive object. It is
 the right first step if the mixed partial's derivation is not wanted immediately.
 
+### ⚠️ Built, refereed and put back — what is exact and what is not
+
+The whole of this section was implemented and measured. **The per-layer supply
+derivatives are exact and are kept; routing the collar's own response through them
+is not, and was reverted.**
+
+`MultiLayerRoots::duptake_droot_carbon` gives `dE_i/drc_a` and `d(dE_i/dp)/drc_a`
+as two lower-triangular blocks. Against differencing the rebuilt network at wet,
+dry and shaded states: **worst 1.0e-10 to 3.5e-10**, the central difference's own
+accuracy, with the strictly upper entries exactly zero. The derivation above is
+right, the triangularity is right, and the three obligations are real.
+
+**What failed is the step this section does not derive: `dR/drc`.** The
+implementation took it from report 05 §7.3's factorisation,
+`dR/drc = a·dE_up/drc + b·d(dE_up/dp)/drc`, which is exact in principle — `R` does
+depend on the state through only those two intermediates. It fails in practice
+because **the pair is fitted from nearly collinear directions** (measured
+determinant `1.8e-14`), so a compensating `(a,b)` reproduces every direction
+inside their span and none outside it. Root carbon is outside it.
+
+Refereed on the two-species stand against a difference that rebuilds the strategy
+and re-runs — which needed building, because the existing helper makes only
+single-species stands:
+
+| species 2's `a_r1` | ratio to the reference |
+|---|---|
+| **differenced** | **0.955 / 0.981 / 0.909** |
+| analytic, fitted pair | worse |
+| analytic, closed-form second scalar | 0.80 / 0.91 / 0.60 |
+
+**And the second scalar was not the fault.** Report 05 §7.3 says one of the two is
+closed form; it now is, on the leaf, and it is right — it reproduces a difference
+of the profit to **5e-10** where the fitted one carried `1e-03`. Using it made the
+stand-level column *worse*, which is what says the error is elsewhere.
+
+**Three things worth carrying.**
+
+A single-species arbitration is not evidence for this family. Both trait sets
+passed at **1e-06** against the rebuilding reference on single-species stands and
+the defect is only visible with competition — because without it no cohort sits
+far from the direction the pair was fitted in.
+
+A sign error hid inside all of this, and it is now corrected in report 05 §7.3:
+the second scalar is `G·P'/κ` as the prose says, not its negative as the display
+said. A profit row built on the display comes back as a clean factor of `-1`.
+
+And the arithmetic never justified the risk: this family is ten drives at 2.3 µs
+against a 1230 µs block, so the whole prize was **1.03×**. The measurements were
+worth taking; landing it was not.
+
 ### The derivation, in full, so it does not have to be done twice
 
 Read off `duptake_dpsi_impl`, which is the one loop both public forms use. Per
