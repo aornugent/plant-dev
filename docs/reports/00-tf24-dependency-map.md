@@ -223,6 +223,16 @@ soil through nine numbers, and the soil reaches the entire population through fi
 makes a hand-built coupling Jacobian tractable: it is small in the direction that matters, and
 the per-cohort work fans out from it.
 
+**The light side is narrow in the same sense and cheap in a different one, and the two are easy to
+conflate.** Its *rank* is the knot count, which is what §6's split row records. Its *cost* is a
+separate quantity: the profile is a reduction over every cohort and it is evaluated at every knot,
+so stated naively the build is the product of the two per stage. Measured, that product is 62 to 88
+percent of a right-hand side in the carbon-only model and about a sixth of one where the physiology
+carries a water solve — because the per-cohort work is linear in cohorts and the build is not. So
+**the light field is the dominant cost of a stand whose cohorts are cheap and a minor one where they
+are not**, and any claim about what a knot costs has to name the model it was taken in. Report 03 §1
+gives the property of the crown kernel that makes the product avoidable.
+
 ---
 
 ## 3. The soil, forward

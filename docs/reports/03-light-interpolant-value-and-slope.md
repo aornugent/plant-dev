@@ -45,6 +45,33 @@ the slope of a profile the field does not use. The identity is a property of the
 declaration, so **a strategy that declares both forms without checking them against each other can
 have them drift apart silently, and the value will not show it.**
 
+### What the reduction costs, and why it need not cost the product
+
+Both reductions run over every cohort at every knot, so stated naively the field costs knots times
+cohorts per stage. **Measured, that product is 62 to 88 percent of a right-hand side in the
+carbon-only model, rising with stand size** — because the per-cohort physiology is linear in cohorts
+and the field build is not. Where the physiology carries a water solve the same build is about a
+sixth of the step, so *how much a knot costs is a property of the model it is built for*, and a
+knot-count argument taken from one does not transfer to the other.
+
+It need not be a product, and the reason is a property of the kernel rather than of any grid. The
+Yokozawa profile is a polynomial in `u^η`:
+
+```
+(1 − u^η)²  =  1 − 2 u^η + u^(2η)
+```
+
+so every dependence on the query height is `z^η` or `z^(2η)` and every dependence on a cohort is
+`c_k`, `c_k h_k^-η` or `c_k h_k^-2η`, where `c_k` collects the quadrature weight, the density and
+the competition effect. Three running sums over cohorts ordered by height therefore give every knot
+at once, and both the value and the slope come off the same three, which is what §3.2 asks for.
+
+Two conditions, and both are load-bearing. **The sums must be carried already scaled by the height
+they were last read at** — written unscaled, `h^-η` at `η = 12` spans nineteen orders over one
+stand's heights and the sum annihilates its own small terms. And **the expansion is the kernel's
+property, not the field's**: a profile that is not a polynomial in `u^η` reaches the field by the
+per-height sum, which is the same statement as the identity's scope above.
+
 ---
 
 ## 2. Why the value is easy and the slope is not
@@ -111,21 +138,55 @@ Cohort heights are ODE state carrying derivatives, so knot positions are taken p
 that channel is the right treatment — moving a knot changes the interpolant, not the interpolated
 function — and it is what any adaptive knot set already gets.
 
-But it is a real channel, and where the field is held on a grid whose positions are an affine
-function of the tallest cohort's height, the chain
+**And the treatment is better than "acceptable", which an earlier reading of this section missed.**
+Write the discretised rates as `f(y; x(y))` against the true rates `F(y)`, with `e` the
+interpolation error:
 
 ```
-tallest cohort's height  ->  every knot position  ->  every crown integral
+df/dy  =  ∂F/∂y  +  ∂e/∂y  +  ∂e/∂x · ∂x/∂y
+                    kept        dropped
 ```
 
-is re-formed at every stage and dropped at every stage. **Measured on the model, the dropped term is
-a large fraction of the tallest cohort's own height adjoint** — the plant that sets every other
-plant's light is the plant whose height adjoint is most affected. Whether it shrinks with knot
-density has never been checked, and **that convergence is the falsifier for the passive-position
-treatment**: if it does not shrink, the treatment is a floor rather than a discretisation error.
+Both of the last two terms are error *relative to the gradient wanted*. Taking positions passively
+does not introduce an error; it declines to carry one. So a difference of the rates, which carries
+both, is the **less** faithful of the two — and any comparison that treats it as the reference is
+measuring the size of a discretisation term and not the correctness of a gradient.
 
-A **fixed absolute grid** is not the alternative it looks like. The canopy grows by two orders of
-magnitude over a run, so most knots would sit above it for decades.
+What the dropped term costs is therefore not accuracy but two other things.
+
+**A difference of the rates cannot referee the column it lands in.** Where positions are an affine
+function of the tallest cohort's height, the chain from that height through every knot position into
+every crown integral is re-formed at every stage, so sweep and difference disagree on that one
+column by construction. Measured, the tallest cohort's height column sits three orders above every
+other height column on that grid and falls to the difference's own floor when the positions are held.
+That is a permanent hole in what a difference can check, and it is the honest reason to want
+positions that do not move.
+
+**The discretisation error is state-sensitive at the scale of the dropped term.** That is a
+statement about the forward model rather than the gradient: the rates carry an artefact that moves
+as the canopy moves, which reaches the step-size controller and the smoothness of any objective
+built on the run.
+
+**The channel shrinks, but only at first order, so refinement does not close it.** Measured against
+the field's own error on one stand, holding the profile and moving only the grid:
+
+| knots | dropped channel | field error | ratio |
+|---|---|---|---|
+| 33 | 2.5e-01 | 2.2e-03 | 113 |
+| 129 | 5.8e-02 | 1.3e-04 | 437 |
+| 1025 | 7.6e-03 | 1.6e-06 | 4698 |
+
+The channel falls as `1/K` and the error as `K^-2.2`, so **refining a canopy-tied grid makes the
+dropped term larger relative to the accuracy it is bought with.** The falsifier this section used to
+name is therefore answered, and answered against the grid rather than against the treatment.
+
+A **fixed absolute grid** is not what the objection above imagines. A grid of fixed *extent* would
+indeed leave most knots above the canopy for decades, since the canopy grows by two orders of
+magnitude over a run. A fixed *lattice* whose extent grows — positions at multiples of one spacing,
+populated as far as the canopy reaches — has neither problem: the positions are constants of every
+run, so the channel is identically zero rather than small, and knots above the canopy are exactly
+inert because value and slope both vanish at `u = 1`. What it costs is knots, and §1's cost
+statement is what decides whether that is a price worth paying.
 
 ---
 
@@ -230,8 +291,15 @@ state-dependent domain, including the root mass distribution over soil layers.
   central difference of the cumulative form across a range of crown-shape exponents, covering both
   the specialised multiplication chains and the general power path. If they disagree, the slope
   inherits it.
-- **The knot-position channel does not shrink with knot density** (§3.3). Then it is a floor rather
-  than a discretisation error, and the passive-position treatment needs revisiting.
+- **The knot-position channel does not shrink with knot density** (§3.3). *Answered: it shrinks at
+  first order while the field's error falls at better than second, so on a canopy-tied grid it grows
+  relative to the accuracy it is bought with. What that refutes is the grid, not the treatment —
+  §3.3 gives the decomposition showing the dropped term is itself discretisation error.* What would
+  still falsify the treatment is a **channel that survives on a grid of constants**, where
+  `∂x/∂y` is identically zero: that would mean positions are reaching the field by some route other
+  than the interpolant.
+- **The reduction's cost is not the share §1 measures it to be**, on a configuration anyone runs.
+  Then a knot is priced differently and the grid argument reopens on different numbers.
 - **The scheme does not converge at production knot density.** Loss of the expected rate means the
   breaks are not where §2 says they are.
 - **The light floor binds on a stand anyone runs.** Then the light coupling is mostly severed, and
