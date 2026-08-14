@@ -823,9 +823,12 @@ marginal profit itself, which is what makes the factorisation necessary rather t
 **One of the two scalars is closed form and the other is not.** $R$ sees the uptake–root-mass
 sensitivity only through the stem-potential response, so
 
-$$b = -\,\frac{\partial\Pi}{\partial\psi_{\text{stem}}}\cdot\frac{P'}{\kappa},$$
+$$b = \frac{\partial\Pi}{\partial\psi_{\text{stem}}}\cdot\frac{P'}{\kappa},$$
 
-which is elementary. $a$ is not closed form, because total uptake moves the stem potential and
+which is elementary. **The sign is the one the prose above gives**, not its
+negative: an earlier form of this line carried a leading minus, and a profit row
+built on it comes back as a clean factor of $-1$ against a difference of the
+profit at wet, dry and shaded states. $a$ is not closed form, because total uptake moves the stem potential and
 hence the intercellular concentration and every derivative built on it; it must be recovered from a
 residual.
 
