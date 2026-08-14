@@ -93,6 +93,33 @@ sits inside a span containing a curvature jump.
 accuracy is *purchasable with knots* in one scheme and not in the other, and **a quantity you cannot
 refine cannot be given an error budget.**
 
+### Measured, and the purchasable claim does not survive
+
+Both schemes at the same knots on real stands, so nothing but the interpolant differs — a
+value-and-slope scheme reading `2n` exact numbers against a solved-slope cubic reading `n` and
+inferring the rest:
+
+| | value error | slope error | crown-mean a cohort reads |
+|---|---|---|---|
+| value+slope, gain over solved | 1.3–2.6× | 1.0–2.1× | nothing consistent |
+
+**Neither slope converges.** Over an eightfold refinement the observed order is 0.7 to 1.6 against
+the 3 a smooth span would give, for *both* schemes. The reason is this section's own fact taken to
+its conclusion: a hundred cohorts across three hundred spans put a curvature break in roughly a
+third of them, so exactness *at* the knots does not rescue the interior of a span that holds one.
+Slope accuracy is therefore not purchasable with knots in **either** scheme on a stand the model
+reaches, and the sentence above overstates the asymmetry.
+
+**What that does and does not touch.** It is a statement about the interpolated slope *as a
+function of height*. The transpose does not read that: it reads the slope **at the knots**, which is
+exact by construction because it comes from the reduction rather than from a fit (§3.2). So §3's
+requirements are unaffected, and what fails is only the claim that refinement buys a slope.
+
+It also removes the accuracy argument for the scheme in the **forward** model, where the field is
+read for its value and never asked for a slope (§5). A value gain of 1.3–2.6× at matched knots is
+worth having and is not a case on its own; what the scheme buys forward is locality (§3.1), and what
+it buys backwards is a transpose that is local and exact.
+
 ---
 
 ## 3. The three properties the transpose needs
@@ -108,6 +135,23 @@ all** — every knot value influences every query, decaying geometrically — so
 transposed band solve of run-dependent width. The distinction is not academic, because the model
 contains both kinds: the vulnerability tabulation is the solved kind and the light field must not
 be.
+
+**Measured, by moving one knot value and asking how far the field responds:**
+
+| | response reaches | in spans |
+|---|---|---|
+| value and slope at each knot | 0.098–0.099 m | **2.0** |
+| slopes from a tridiagonal solve | 2.07 m | **41.4** |
+
+At a young stand that 41 spans is **half the column**, and the figure is the same at maturity
+because it is a property of the solve rather than of the stand. So one cohort's change moves a
+solved field almost everywhere, and this is the sharpest statement of what the transpose would have
+to carry.
+
+**It is also the forward model's reason for the scheme**, which §2's measurement leaves as the only
+one: a build can hand over a whole grid at once precisely because each span is determined by its own
+two endpoints, where a solved scheme has to be given every value before it can answer anywhere. §1's
+cost statement is what that enables.
 
 Two qualifications, both load-bearing:
 
@@ -301,6 +345,10 @@ state-dependent domain, including the root mass distribution over soil layers.
 - **The reduction's cost is not the share §1 measures it to be**, on a configuration anyone runs.
   Then a knot is priced differently and the grid argument reopens on different numbers.
 - **The scheme does not converge at production knot density.** Loss of the expected rate means the
-  breaks are not where §2 says they are.
+  breaks are not where §2 says they are. *Answered, and the breaks are exactly where §2 says: the
+  slope's observed order is 0.7 to 1.6 rather than 3, in both schemes, because a third of the spans
+  hold a break. What that falsifies is the purchasable-with-knots claim rather than the location of
+  the breaks — §2 carries the correction.* The value still converges, and a slope read **at** a knot
+  is exact rather than fitted, so nothing §3 requires depends on the rate.
 - **The light floor binds on a stand anyone runs.** Then the light coupling is mostly severed, and
   §4's refusal-with-incidence becomes the production path rather than a guard.
