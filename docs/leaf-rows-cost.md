@@ -127,6 +127,11 @@ it moved where the remaining error landed. That was the diagnosis, not a puzzle
 
 ## 2. What a call costs
 
+⚠️ **This table is the attribution, taken before any of §10's changes landed.**
+It is kept at that state on purpose: it is what established *where* the cost is,
+and re-taking it after each change would lose the comparison. For the current
+figure read §1, which is 111.7 ms against the 126.8 here.
+
 Measured on a single species, `ladder_traits()$fast`, birth rate 1.10, schedule
 refined once at a five-year lifetime (88 cohorts), `-O2 -DNDEBUG -g0`.
 
@@ -314,9 +319,10 @@ per perturbed evaluation at an interior point:
 
 A curve trait's drive is **forty times** a non-curve trait's, because it reseeds
 101 incomplete gammas and rebuilds two interpolators. Eight such drives per
-cohort per stage is about **760 µs against a measured block of 1230**, so the
-four vulnerability traits are most of the block and the photosynthesis family is
-about two per cent of it. **The previous revision had this backwards**, ranking
+cohort per stage is about **740 µs**, against a block of 1230 µs when this was
+taken and 1070 now — so the four vulnerability traits were most of the block then
+and are a larger share of it now, every other family having been cheapened around
+them. The photosynthesis family is about two per cent either way. **The previous revision had this backwards**, ranking
 the vulnerability rows as a correctness item that "buys no speed" and the
 photosynthesis rows as the cost win.
 
