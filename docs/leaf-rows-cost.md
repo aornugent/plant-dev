@@ -613,18 +613,38 @@ inside their span and none outside it. Root carbon is outside it.
 
 Refereed on the two-species stand against a difference that rebuilds the strategy
 and re-runs — which needed building, because the existing helper makes only
-single-species stands:
+single-species stands — **and read at the step where that difference has
+converged**, which is not where it was first read:
 
-| species 2's `a_r1` | ratio to the reference |
+| species 2's `a_r1` | ratio to the reference, step `1e-3` |
 |---|---|
-| **differenced** | **0.955 / 0.981 / 0.909** |
-| analytic, fitted pair | worse |
-| analytic, closed-form second scalar | 0.80 / 0.91 / 0.60 |
+| **differenced** | **0.990 / 0.996 / 0.981** |
+| analytic, fitted pair | 1.062 / 1.029 / 1.134 |
+| analytic, closed-form second scalar | 0.830 / 0.927 / 0.649 |
 
-**And the second scalar was not the fault.** Report 05 §7.3 says one of the two is
-closed form; it now is, on the leaf, and it is right — it reproduces a difference
-of the profit to **5e-10** where the fitted one carried `1e-03`. Using it made the
-stand-level column *worse*, which is what says the error is elsewhere.
+> ⚠️ **The first reading of this table was taken at `1e-5` and was wrong.** That
+> column's reference runs 0.275, 0.131, 0.122, 0.126 over steps `1e-6` to `1e-3` —
+> a factor of two — and only settles at the coarse end. Report 08 §5.1 requires
+> step-stability as the check on this reference and §4.7's fifth trap names this
+> exact failure; the guard is now inside `ladder_run_difference_pair` so it cannot
+> be skipped again. **The ordering above survived the correction and the
+> magnitudes did not**, which is the good case: a decision made on a bad number
+> that happened to be right is still a decision that has to be re-made.
+
+**And the second scalar was not the fault — it is the first.** Report 05 §7.3 says
+one of the two is closed form; it now is, on the leaf, and it is right — it
+reproduces a difference of the profit to **5e-10** where the fitted one carried
+`1e-03`. Using it makes the stand column **worse**, and that is the diagnosis
+rather than a puzzle: with `b` pinned to its exact value, `a` is solved from one
+differenced potential direction, so the whole of that direction's differencing
+error lands in `a` instead of being spread across the pair. The fitted pair looks
+better on the fitted directions for the same reason it fails off them.
+
+**So the route to close this is an accurate `a`, not a better fit.** Either
+difference `dR/dpsi` far more accurately than the `1e-3` step the call uses, or
+derive `a = dR/dE_up` in closed form as `b` now is — it needs `P''` and the stem's
+own second derivative, which is more work than `b` was but is the same kind of
+work.
 
 **Three things worth carrying.**
 
