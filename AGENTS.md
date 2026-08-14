@@ -82,11 +82,22 @@ If a rebuild throws `undefined symbol` on load, clear stale build artifacts firs
 
 ## Testing plant — a short feedback loop
 
-`plant` carries ~2000 testthat assertions across 42 files, but running all of
-them per edit is wasteful. The cost is dominated by the **C++ rebuild** and by
-**three slow files**; scope every run to what you changed. (Build / `load_all` /
-odelia-reinstall mechanics are under *Local Development* above; paths below are
-from the `plant-dev` root.)
+`plant` carries about 3700 testthat assertions across 68 files, but running all of
+them per edit is wasteful. Measured at `-O2`: the gradient ladder is **1172 s of CPU
+over 13 files**, everything else is **339 s over 55**, and no file outside the ladder
+exceeds 63 s.
+
+**Read those as CPU, not as wall clock.** `Config/testthat/parallel: true` is already
+set, so `devtools::test()` runs files concurrently and **the number that decides how
+long a run takes is the slowest single file, not the total.** Measured on sixteen
+cores, the whole ladder is **184 s of wall**. It was 719 s before three files of about
+700 s each were split and the sweeps they repeated were shared; what bought that was
+rebalancing and de-duplication, not removing a single check.
+
+Two costs to scope against, then: the **C++ rebuild** for any change, and **the
+ladder** for anything touching the reverse sweep. (Build / `load_all` /
+odelia-reinstall mechanics are under *Local Development* above; paths below are from
+the `plant-dev` root.)
 
 **Build at `-O2` deliberately: `pkgbuild::compile_dll()` defaults to `-O0`.** It appends
 `-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars` asking for `-O2`
@@ -124,13 +135,34 @@ Tiers of the loop, cheapest first:
    testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
                       stop_on_failure = FALSE)
    ```
-3. **Fast pre-commit sweep — everything except the 3 heavies (~45 s, 39/42 files):**
+3. **Fast pre-commit sweep — everything except the ladder (~339 s, 55/68 files):**
    ```r
    d <- "plant/tests/testthat"
-   f <- setdiff(list.files(d, "^test-.*\\.[Rr]$"),
-                c("test-mutant.R", "test-strategy-tf24.R", "test-strategy-tf24f.R"))
+   f <- grep("^test-gradient", list.files(d, "^test-.*\\.[Rr]$"),
+             invert = TRUE, value = TRUE)
    for (x in f) testthat::test_file(file.path(d, x))
    ```
+4. **The gradient ladder, in three tiers.** Its files are named so `filter` selects a
+   tier, and the whole ladder is 184 s of wall if you just run it concurrently.
+
+   *Structure, no trajectory (~40 s of CPU, ~12 s of wall).* Where the assurance is
+   concentrated: the exhaustive block Jacobian and its rank structure, the same
+   Jacobian at the states a trajectory reached, ten injected corruptions, the water
+   channel's factorisation, and the completeness reference. Run this per edit.
+   ```r
+   testthat::test_dir("plant/tests/testthat",
+                      filter = "gradient-ladder-(injection|rung3|factorisation|declared-zero)")
+   ```
+   *Trajectory (~1130 s of CPU, ~184 s of wall).* floor, identity, rung4, columns,
+   rung5, recruit, sweep, switches — accumulation across cohorts and species, the
+   stage recursion, introductions, the boundary channels, and refusal. Run before
+   landing sweep work, concurrently.
+   ```r
+   testthat::test_dir("plant/tests/testthat", filter = "gradient")
+   ```
+   *One file when you know what you touched.* `identity` for anything that changes
+   how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
+   per-column contraction; `switches` for a channel's route to a census.
 
 **Always cheap, run it when numerics move:** the FF16 bit-identity guard
 (`test-strategy-ff16.R` ~4 s, plus `test-strategy-ff16-reference-comparison.R`)
@@ -138,9 +170,38 @@ is the tripwire for the scalar-templating AD work — a changed reference number
 means bit-identity broke. Include it in tiers 1–2 whenever you touch a strategy,
 environment, the ODE path, or anything the active scalar `S` threads through.
 
-**Only pay for the heavy files when you touched what they cover:** `test-mutant.R`
-for resident/mutant density machinery, and the two TF24 files for TF24/leaf
-hydraulics. Editing K93 or FF16 plumbing does not require paying their ~143 s.
+**What the ladder's cost actually is, so it can be scoped rather than guessed.** A
+sweep of one four-node stand at the fixtures' two-year lifetime is **43.6 s**, one
+trajectory tangent column is **4.8 s**, and building the stand is **0.13 s** — the
+run is free and the sweep is everything. Sweeping one metric costs the same as
+sweeping three, so the record is shared across them already. The cost is linear in
+the fixture's step count: 102 steps at lifetime 2 against 35 at lifetime 0.5, 43.6 s
+against 14.1 s. So a ladder file's runtime is its sweep count times 43.6 s, and
+nothing else moves it. **Memoising the stands is not a speedup** — it was tried and
+measured at 3.6 s of 2333 s, because the run was never the cost. What did work was
+sharing one sweep per fixture between the checks that only READ it
+(`ladder_shared()`), and putting the checks whose assertion is an exact identity or a
+limit on a short fixture: neither re-blesses anything, because bit-identity and a
+limit do not depend on run length.
+
+**And the stand fixtures damp what they measure, which bears on what the slow tier is
+worth.** A run stand sits at a reserve-gate slope of **0.040** against the declared
+floor of 0.4, and at a relative reserve of 0.45 to 0.56 against the band 0.02 to
+0.30, where a constructed patch sits at 0.99. So every growth-mediated channel is
+tested at about a tenth of its sensitivity on a stand and at full sensitivity on a
+patch. The regime table reports both rather than enforcing the stand's, and any
+margin taken on a stand carries that qualification.
+
+**The heaviest non-ladder files, and what they cover:** `test-census.R` (63 s),
+`test-strategy-tf24.R` (59 s), `test-density-coordinate.R` (33 s),
+`test-tf24-arid-corner.R` (32 s), `test-canopy-methods.R` (26 s). Editing K93 or FF16
+plumbing does not require paying the TF24 ones.
+
+**Three files fail on `ad/v3-forward` for reasons that predate the gradient work**
+and are not a signal about a sweep change: `test-mutant.R` errors with "Run a
+resident first to generate a competitive landscape", `test-stochastic-patch.R` takes
+a range over an empty competition interval, and `test-stochastic-patch-runner.R`
+misses its seeded baseline.
 
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 
