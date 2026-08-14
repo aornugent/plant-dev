@@ -640,11 +640,33 @@ differenced potential direction, so the whole of that direction's differencing
 error lands in `a` instead of being spread across the pair. The fitted pair looks
 better on the fitted directions for the same reason it fails off them.
 
-**So the route to close this is an accurate `a`, not a better fit.** Either
-difference `dR/dpsi` far more accurately than the `1e-3` step the call uses, or
-derive `a = dR/dE_up` in closed form as `b` now is — it needs `P''` and the stem's
-own second derivative, which is more work than `b` was but is the same kind of
-work.
+**So what had to improve is the first coefficient — and it did not need deriving.**
+The two coefficients are definite numbers, so any two independent directions
+recover them in exact arithmetic; the choice of directions decides only where the
+arithmetic's error lands. The fix is therefore not a more accurate `a` but a
+better-placed one: **read `b` in closed form and solve `a` along a CARBON
+direction**, whose supply derivatives the soil side now answers analytically, so
+the direction costs two evaluations and no more. The potentials then absorb
+whatever is left, and they are the family that cannot see it — collinear to a part
+in `10^4`, so a compensating pair fits them equally well.
+
+Refereed on the competing stand, at the converged step:
+
+| species 2's `a_r1` | ratio to the reference |
+|---|---|
+| differenced, what it replaces | 0.990 / 0.996 / 0.981 |
+| **carbon-anchored, analytic** | **0.990 / 0.996 / 0.981** |
+| potential-anchored, closed `b` | 0.830 / 0.927 / 0.649 |
+| fitted pair | 1.062 / 1.029 / 1.134 |
+
+Every one of the ninety-four columns is within `1.1e-04` of the version it
+replaces and the census values are identical. **Twelve drives per cohort per stage
+become two**, and the family's rows stop being differences at all bar the single
+anchor.
+
+**The reason deriving `a` was not needed is worth keeping**, because it generalises
+past this row: when a factorisation is exact and the trouble is conditioning, the
+cheap fix is to move the directions, not to remove the differencing.
 
 **Three things worth carrying.**
 
