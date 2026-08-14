@@ -84,21 +84,135 @@ and both are elementary. Flux through a layer is a quotient,
 
     E_i = (p - psi_i - g_i) / r_R,i          so      dE_i/dr_R,i = -E_i / r_R,i
 
-and only layer `a`'s resistance moves when layer `a`'s carbon does, so the block
-is **diagonal**. The chain from carbon to resistance is the architecture model's
-own, and report 02 §3.3 already states its shape: a resistance network is
-homogeneous of degree −1 in the root carbon it is built from, so scaling carbon
-by `1/A` scales resistances by exactly `A`.
+and the chain from carbon to resistance is the architecture model's own, which
+report 02 §3.3 already characterises: a resistance network is homogeneous of
+degree −1 in the root carbon it is built from. Read off `root_network_from_carbon`,
+
+    r_R_H_min[i] = beta_R_H / (rc_i * 2/3)        proportional to 1 / rc_i
+    r_R_V[i]     = beta_R_V * dz^2 / (rc_i / 3)   proportional to 1 / rc_i
+    r_R_V_sum[i] = sum of r_R_V over layers 0..i
+
+so each partial is the resistance itself over the carbon, with a sign.
+
+**The block is lower-triangular rather than diagonal**, and the vertical sum is
+why: water leaving layer `i` travels up through every shallower layer, so
+`r_R_V_sum` is cumulative and layer `a`'s carbon reaches every `i >= a`. Only
+the horizontal term is diagonal. An implementation that assumes diagonality
+gets the shallow layers right and loses the deep ones, which on a drying profile
+is the half that carries the flux.
 
 The two quantities the *other* rows in this family need are reachable by the
-same chain. Per-layer uptake at a frozen collar is the derivative above. The
-profit row is an envelope row, and profit sees root carbon only through the stem
-potential, so it is
+same chain, and one of them collapses to a scalar already in hand.
+
+**The profit row is free.** At a frozen collar, profit sees root carbon only
+through total uptake and thence the stem potential:
 
     dPi/dr_a = (dPi/dpsi_stem) * (dpsi_stem/dE_up) * (dE_up/dr_a)
 
-whose first two factors are exactly the product report 05 §7.3 gives in closed
-form as `b = -(dPi/dpsi_stem) * P' / kappa`. Nothing new has to be derived.
+Since `sigma = P(E_up/kappa + S_t)`, the middle factor is `P'/kappa`, so the
+first two multiply to exactly the product report 05 §7.3 gives in closed form as
+`b = -(dPi/dpsi_stem) * P'/kappa`. Hence
+
+    dPi/dr_a  =  -b * dE_up/dr_a
+
+with `b` already fitted from the two directions the call takes anyway. **No
+evaluation, no derivation.**
+
+**The frozen per-layer row is the quotient above**, `-E_i/r_R,i` times the
+resistance partial, summed over `i` to give `dE_up/dr_a`.
+
+**One term is left and it is the only real work: `d/dr_a (dE_up/dp)`**, the
+mixed partial the factorisation's second scalar multiplies. Writing a layer's
+resistance as
+
+    r_R,i = A_i * f_i(p) + B_i        A_i = r_R_H_min[i],  B_i = r_R_V_sum[i]
+
+with `f_i(p) = span_i / integral_i`, both `A_i` and `B_i` carry the whole of the
+carbon dependence and `f_i` carries the whole of the collar dependence. So
+`dE_i/dp` is an elementary function of `(A_i, B_i, f_i, f_i')`, and the mixed
+partial follows by differentiating it in `A_i` and `B_i` — two scalars per layer
+— and chaining through the two partials above. It is a quotient rule, not a new
+model.
+
+**A cheaper intermediate exists and is worth naming**, because it needs no
+derivation and is exact to differencing accuracy on a smooth function: difference
+`duptake_dpsi_by_layer` itself, rebuilding only the network. That is arithmetic —
+no collar solve, no `ci` root-find, no profit evaluation — against a full leaf
+re-drive, so it keeps a difference but moves it off the expensive object. It is
+the right first step if the mixed partial's derivation is not wanted immediately.
+
+### The derivation, in full, so it does not have to be done twice
+
+Read off `duptake_dpsi_impl`, which is the one loop both public forms use. Per
+rooted layer `i`, with `num_i = T - psi_i - grav_i`:
+
+    A_i = r_R_H_min[i]        f_i = span_i / integral_i        B_i = r_R_V_sum[i]
+    r_i = A_i * f_i + B_i     E_i = num_i / r_i
+    D_i = dE_i/dT = (r_i - num_i * A_i * g_i) / r_i^2        g_i = df_i/dT
+
+`A_i` and `B_i` carry the whole of the carbon dependence; `f_i` and `g_i` carry
+the whole of the collar dependence. That separation is what makes the rest
+mechanical.
+
+**The carbon partials of the two resistances.** Both are proportional to
+`1/rc`, and the vertical one is summed over layers at or above `i`:
+
+    dA_i/drc_a = -(A_i / rc_a) * [i == a]
+    dB_i/drc_a = -(r_R_V[a] / rc_a) * [a <= i]
+
+`r_R_V[a]` is the per-layer vertical resistance, which the network already
+stores beside its cumulative sum. **This is where the lower-triangularity comes
+from**, and it is the only part of the block that is not diagonal.
+
+**The resistance and flux partials follow by the quotient rule:**
+
+    dr_i/drc_a = f_i * dA_i/drc_a + dB_i/drc_a
+    dE_i/drc_a = -(E_i / r_i) * dr_i/drc_a
+
+**And the mixed partial, by differentiating `D_i` in its two carbon-bearing
+scalars:**
+
+    dD_i/dA = [ (f_i - num_i * g_i) * r_i - 2 * f_i * (r_i - num_i * A_i * g_i) ] / r_i^3
+    dD_i/dB = [ -r_i + 2 * num_i * A_i * g_i ] / r_i^3
+    dD_i/drc_a = dD_i/dA * dA_i/drc_a + dD_i/dB * dB_i/drc_a
+
+Summing `dE_i/drc_a` and `dD_i/drc_a` over `i` gives the two quantities the
+factorisation multiplies, and the profit row is `-b` times the first. Nothing
+here needs a leaf evaluation.
+
+**Three implementation obligations, none optional.** The loop must keep
+`duptake_dpsi`'s kink contract — NaN where the general branch does not hold, so
+a caller falls back rather than reading a number the branch cannot supply.
+Internal work is in mol and the public form multiplies by `kg_per_mol_h2o`, and
+these rows feed a value already in mol, so the conversion has to be applied at
+the same place the existing accessors apply it. And a layer with zero carbon has
+no resistance and must contribute nothing rather than divide by its carbon.
+
+**The acceptance test is unusually good and should be the whole of it:** the
+analytic rows must reproduce the differenced ones they replace, at wet, dry and
+shaded states, to the accuracy of the difference. That comparison is available
+today, because the differenced version is what is running.
+
+---
+
+## 3c. Why this is written down rather than built
+
+The two changes already landed — the rebound patch's boundary node, and the two
+critical potentials — are **provable no-ops**: both were verified bit-identical
+against the fixtures and a production stand, because neither changes what is
+computed, only how much is computed to get there.
+
+Everything in §3z and §3b is a different kind of change. Each replaces a
+differenced quantity with an analytic one, so each changes how a number is
+produced, and an error in any of them returns a finite, plausible, wrong
+gradient rather than a failure. That is the failure mode this whole corpus is
+organised against, and the defence against it is a verification campaign per
+change, not a passing suite.
+
+So the sequencing rule for whoever picks this up: **land one family at a time,
+and hold each to the differenced values it replaces before moving on.** The
+differenced implementation is the reference, it exists today, and it stops being
+available the moment it is deleted.
 
 ---
 
