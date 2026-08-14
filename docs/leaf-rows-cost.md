@@ -33,13 +33,14 @@ hand-built Jacobian of the leaf, and the tape is a rounding error beside it.
 
 ## 2. Where the drives go
 
-The call re-drives the leaf about twenty times. They fall into four families,
-and the corpus treats them very differently.
+The call re-drives the leaf about **forty-six** times, in six families the
+corpus treats very differently.
 
 | family | directions | drives | how the row is obtained |
 |---|---|---|---|
+| **leaf traits** | **13** | **26** | central differences, one trait at a time |
+| root carbon | `L` | 10 | central differences, per layer |
 | soil potential | `L` | **0** | the rank-two factorisation |
-| root carbon | `L` | **10** | central differences, per layer |
 | conductance | 1 | 2 | central difference |
 | radiation | 1 | 2 | central difference |
 | curvature | — | 2 | central difference of the marginal profit |
@@ -52,7 +53,8 @@ dcollar_dpsi[j] = -(a * dEup_dpsi[j] + b * d2Eup_dcollar_dpsi[j]) / curvature;
 ```
 
 Five directions, no drives, because report 05 §7.3's factorisation supplies them
-from two scalars that two drives already fixed.
+from two scalars that two drives already fixed. **It is the only family that
+takes that route**, and the two largest families do not.
 
 **The root-carbon family is in the same span and does not use it.** Report 05
 §7.3 states the factorisation over `2L+1` state directions — the `L` soil
@@ -97,6 +99,70 @@ potential, so it is
 
 whose first two factors are exactly the product report 05 §7.3 gives in closed
 form as `b = -(dPi/dpsi_stem) * P' / kappa`. Nothing new has to be derived.
+
+---
+
+## 3a. The largest family is a second copy of phylloptim's gradient module
+
+Twenty-six of the forty-six drives move one leaf trait at a time. The code says
+what it is doing and why:
+
+> *The leaf's own traits. It holds them, so the only route to their rows is to
+> move one and re-solve: two evaluations each, which is what phylloptim's own
+> gradient module pays, and for its reason — these have no closed form.*
+
+The reasoning is right and the conclusion no longer follows, because that module
+is now a thing this side can call. Every one of the thirteen is in its parameter
+list, and the list is wider than the thirteen:
+
+| this side | `phylloptim::gradient::par_names()` |
+|---|---|
+| `vcmax_25`, `c`, `b`, `psi_crit`, `root_c`, `root_b`, `root_psi_crit`, `beta2`, `jmax_25`, `a`, both `curv_fact_*`, `g1_TF24` | the same thirteen, as `stem_c`/`stem_b`/`cost_scale_TF24` |
+| the conductance direction, differenced | `leaf_specific_conductance_max` |
+| the root-carbon directions, differenced per layer | `resistance` |
+| — | `R_d_25` |
+
+So about thirty-eight of the drives are re-deriving what one upstream call
+produces, and it produces them better:
+
+- **one `prepare_collar_solve` for the whole composite**, where this side pays
+  two root-finds per drive (§4);
+- **selective rebuild** — `apply(l, th, d, single, p, fast_stem_curve)` is told
+  *which* parameter moved, and `takes_shortcut` skips the stem curve for the one
+  that does not need it. This side's `drive` lambda passes no such hint, so every
+  drive re-seats the whole physiology;
+- **`M` and `H` returned rather than consumed**, which is report 05 §7.2's
+  `Pi_pu` and `Pi_pp`. This side differences the curvature separately, and its
+  own comment on `Result` names `traitecoevo/plant#614` as the consumer, so the
+  two sides were already designed toward each other.
+
+**What blocks a straight substitution is the output set, and report 02 §3.0
+already named this exact hazard.** Upstream differentiates five outputs — `A`,
+`gc`, `psi_stem`, `collar`, `profit` — which is what a gas-exchange calibration
+observes plus the one thing plant bills. A stand adjoint needs the sixth,
+per-layer uptake, and upstream says why it is absent: *"`uptake` is one R sums
+over the finite soil layers, so adding it means reproducing that summation — and
+its order — on this side too."* That is report 02 §3.0's two consumers wanting
+different output sets, overlapping in exactly one entry, arrived at
+independently from the other side.
+
+The composition is nonetheless nearly complete, because the uptake row splits
+into a part upstream has and a part it does not:
+
+    dE_i/dtheta  =  dE_i/dtheta |_collar fixed   +   dE_i/dp * dpsi*/dtheta
+
+The second factor **is** upstream's `collar` column — its comment states that
+`dcollar/dtheta` equals `dpsi*/dtheta` by construction — and `dE_i/dp` is
+`dE_from_soil_dpsi_collar_by_layer`, which this side already reads analytically.
+What is missing is only the frozen-collar partial, one per layer per parameter.
+
+So the wiring has a shape rather than a wish: **let the composite emit per-layer
+uptake at the perturbed points it is already evaluating.** It performs the two
+evaluations regardless; `soil_consumption_` is a member sitting there at each
+one. Whether that lands as a sixth output, a caller-supplied sink, or a batch
+variant is upstream's design call, and report 02 §3.0's rule says which question
+decides it — enumerate the outputs from the consumer's equations, not from what
+the solver happens to expose.
 
 ---
 
@@ -178,12 +244,19 @@ Ordered by measured share, not by ease.
 and `1d1f6c3` changes what a drive costs. Tuning drive counts against a leaf that
 is about to grow a temperature solve prices the wrong object.
 
+**Then wire the leaf-trait family to phylloptim's composite** (§3a). It is
+twenty-six of forty-six drives, it is a second implementation of a module that
+now ships, and the gap is one frozen-collar uptake partial rather than a
+derivation. Doing this before the root-carbon work is deliberate: the composite
+also covers the conductance and resistance directions, so what is left for the
+factorisation is smaller and better defined once it lands.
+
 **Then give the supply side its resistance-direction derivatives**, and route the
 root-carbon family through the factorisation exactly as the soil-potential family
-already is. This is ten of about twenty drives, and the corpus has already
-verified the prediction it relies on (report 08 §4.1). The acceptance test is the
-one that check already uses: predict the family out of sample and require the
-worst direction to stay at round-off.
+already is. This is ten more drives, and the corpus has already verified the
+prediction it relies on (report 08 §4.1). The acceptance test is the one that
+check already uses: predict the family out of sample and require the worst
+direction to stay at round-off.
 
 **Then hoist `prepare_collar_solve`** for the families whose perturbation cannot
 move the feasible interval, using the entry point phylloptim provides for it.
