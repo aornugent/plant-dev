@@ -14,8 +14,15 @@ parts are removable.
 **The state.** A census gradient on 88 cohorts runs in 378 s against 753 s
 before, from two changes that are each bit-identical — `deda52f5` (a rebound
 patch builds its boundary node, not every cohort's rates) and `c5e3a5f9` (the
-two critical potentials stop being driven, and the phylloptim merge's `R_d_25`
-is wired). What is left is one function, and §2 measures it.
+two critical potentials stop being driven). Since then dark respiration has
+gained a parameter and a row (`d6a51304`), also with every prior column
+bit-identical. What is left is one function, and §2 measures it.
+
+**What is left is four traits, not the whole loop.** A vulnerability-curve
+drive costs 92–97 µs and every other trait's costs 2.3, so `b`, `c`, `root_b`
+and `root_c` are most of the remaining block. Half of them can be made free by
+an identity that already exists upstream; the other half cannot. §4 has the
+measurements and §9 the order.
 
 **What to read, and nothing else.** The corpus is large and almost none of it
 bears on this.
@@ -103,11 +110,13 @@ hand-built Jacobian of the leaf, and the tape is a rounding error beside it.
 
 The call re-drives the leaf about **forty-six** times, in six families the
 corpus treats very differently. That count and the table below are as measured,
-*before* `c5e3a5f9` removed four of them; forty-two remain.
+*before* `c5e3a5f9` removed four of them and `d6a51304` added two; forty-four
+remain. **The drive counts here are not the cost**, because the families differ
+by a factor of forty per drive — §4's table is what to price against.
 
 | family | directions | drives | how the row is obtained |
 |---|---|---|---|
-| **leaf traits** | **13** | **26** | central differences, one trait at a time |
+| **leaf traits** | **14** | **20** | central differences, one trait at a time. Of the fourteen, two carry no row (`vcmax_25`, `jmax_25`) and two are declared zero, so ten are driven — and four of those ten cost forty times the rest |
 | root carbon | `L` | 10 | central differences, per layer |
 | soil potential | `L` | **0** | the rank-two factorisation |
 | conductance | 1 | 2 | central difference |
@@ -177,7 +186,7 @@ scalar raises no correctness question at all.
 
 | family | traits | the exact route, and where it already is |
 |---|---|---|
-| photosynthesis and cost | `vcmax_25`, `jmax_25`, `a`, both `curv_fact_*`, `beta2`, `g1_TF24` | forward mode on the kernels, once they carry the trait scalar. The `ci` chain is already available: the implicit-function term on the `ci` residual is what `dprofit_at_collar_psi` already uses |
+| photosynthesis and cost | `a`, both `curv_fact_*`, `beta2`, `g1_TF24` — **five, not seven**: `vcmax_25` and `jmax_25` are carried but not differentiable, so they cost no drives and are a completeness item instead (§9) | forward mode on the kernels, once they carry the trait scalar. The `ci` chain is already available: the implicit-function term on the `ci` residual is what `dprofit_at_collar_psi` already uses |
 | vulnerability | `c`, `b`, `root_c`, `root_b` | **not the closed form, and a live defect in what is there** -- see below |
 | critical potentials | `psi_crit`, `root_psi_crit` | **provably zero here — done, `c5e3a5f9`.** Report 06 §11: they set the dry bound of an interval the operating point is inside, so complementary slackness makes their rows zero at an interior optimum, and interior is the only state the sweep answers |
 
@@ -208,8 +217,9 @@ form's is the more accurate derivative of a different function. phylloptim says
 so at the definition — *"this is deliberately not wired into anything that reads
 a spline"* — and that sentence is the design, not an omission.
 
-**What the differenced rows do instead is a defect, and report 05 §7.6 named it
-in advance.** `set_traits` rebuilds the curve when a curve trait moves:
+**The grid moves with a curve trait, and that is a defect for two of the four and
+the opposite of one for the other two.** `set_traits` rebuilds the curve when a
+curve trait moves:
 
 ```cpp
 if (stem_curve_moved) setup_transpiration(vulnerability_curve_ncontrol);
@@ -217,32 +227,68 @@ if (root_curve_moved) setup_root_vulnerability(vulnerability_curve_ncontrol);
 ```
 
 and the grid is laid out as `psi_max = vulnerability_psi_max(b, c)` with
-`step = psi_max / resolution`, so **the knot positions themselves move with `b`
-and `c`**. The four vulnerability rows are therefore central differences taken
-across a moving grid, which is precisely what report 05 §7.6 rules out:
+`step = psi_max / resolution`, so the knot positions move with `b` and with `c`.
+An earlier revision of this document read that as one defect across all four
+rows. **It is not, and the difference decides what to build.**
+
+**For `b` and `root_b` the moving grid is what makes the row exact.** Because
+every knot position is proportional to `b`, the family of splines indexed by `b`
+is exactly self-similar:
+
+    G(psi; s*b, c) = s * G(psi/s; b, c)
+
+which holds for the **spline** and not merely for the integral it approximates,
+*because* the grid scales too. So there is no spurious approximation-error term
+in `b` at all, and the row can be taken without rebuilding anything — move the
+scale and read the same spline at a rescaled argument. Upstream has this as
+`perturb_stem_b`, measured against a rebuild at 0–3e-16. Measured here against
+a rebuild of the quantities plant actually reads — profit, the marginal profit,
+per-layer uptake — the two rows agree to **3.9e-13** at the `1e-3` step this
+call uses, and the jitter between neighbouring steps is identical, so the two
+routes are the same row.
+
+**For `c` and `root_c` there is no such identity**, the grid moves in shape
+rather than scale, and the spurious term is real. Report 05 §7.6 named it:
 
 > the grid must be captured once and held across parameter perturbations so that
 > a differenced derivative is not differentiating a moving grid.
 
-The spurious term is the change in the spline's own approximation error over the
-perturbation, divided by the step. Report 02 §5 measures the table-against-closed-form
-disagreement at parts in a thousand, and the step here is `1e-3` relative, so it
-is not obviously small against the row it contaminates. **It has not been
-measured, and measuring it comes before any decision about these four rows.**
+**It is now measured, and it is small.** Holding the knot positions and reseeding
+the values at the perturbed `c` moves `dprofit/dstem_c` by **9.6e-06 relative**,
+systematically, at every step from `1e-2` down to `1e-6`. That is three orders
+below the `3.5e-3` at which substituting the closed form disagrees with the
+spline, and far below the step's own truncation. So the row is contaminated, the
+contamination is a bias rather than noise, and **it is not big enough to justify
+a change on correctness grounds** — which is the answer to the question the
+previous revision left open.
 
-Two ways out, and they are not equivalent:
+**What is not small is the cost, and it is the whole of what remains.** Measured
+per perturbed evaluation at an interior point:
 
-- **Hold the grid.** Capture it once and re-use it across the perturbation, so
-  the difference sees the same interpolant on both sides. Cheap, and it makes the
-  existing rows the honest derivative of the model actually evaluated.
-- **Retire the spline**, replacing it with the closed form in the forward model —
-  report 05 §7.6's own prescription, "a change to the forward model, made once
-  and re-blessed once, after which the derivative and the value describe the same
-  function." Only after that is the closed-form derivative the right one to wire.
+| family | µs per drive |
+|---|---|
+| `b`, `c`, `root_b`, `root_c` | **92–97** |
+| `beta2`, `a`, both `curv_fact_*`, `g1_TF24`, `vcmax_25` | **2.3** |
+| `b` by the homogeneity rescale | **2.0** |
 
-The first is a correctness fix and buys no speed. The second is what makes the
-analytic route legitimate, and it is a forward-model change with a re-blessing,
-not a wiring job.
+A curve trait's drive is **forty times** a non-curve trait's, because it reseeds
+101 incomplete gammas and rebuilds two interpolators. Eight such drives per
+cohort per stage is about **760 µs against a measured block of 1230**, so the
+four vulnerability traits are most of the block and the photosynthesis family is
+about two per cent of it. **The previous revision had this backwards**, ranking
+the vulnerability rows as a correctness item that "buys no speed" and the
+photosynthesis rows as the cost win.
+
+Two routes follow, and only the first is cheap:
+
+- **Take `b` and `root_b` by the rescale.** Exact, verified against the rebuild,
+  and it removes half the curve drives. `perturb_stem_b` exists; the root curve
+  needs the same accessor, and the identity is the same one.
+- **`c` and `root_c` have no identity and must rebuild.** Retiring the spline for
+  the closed form is report 05 §7.6's own prescription and would cover them, but
+  it is a forward-model change with a re-blessing rather than a wiring job — and
+  upstream built exactly that, measured it disagreeing with the spline by
+  `3.5e-3`, and rejected it for report 02 §5's reason.
 
 ---
 
@@ -534,36 +580,51 @@ before them:
   and the domain: zero at an interior optimum by complementary slackness, live at
   a pin, and the sweep refuses everything that is not interior.
 
-**The exact routes that remain, cheapest first.** Both are §4, and the order is
-by evidence already in hand rather than by size.
+**Ranked by measured share, which is not how this list used to be ordered.** A
+curve trait's drive is 92–97 µs and every other trait's is 2.3, so the four
+vulnerability traits are roughly 760 µs of a 1230 µs block and everything else in
+the trait loop is about two per cent. §4 carries the table.
 
-1. **Measure what the moving grid costs the four vulnerability rows**, then
-   hold the grid. Eight drives are differenced across an interpolant whose knots
-   move with the trait, which report 05 §7.6 rules out; holding it is cheap and
-   makes them the honest derivative of the model evaluated. It buys no speed.
-   Wiring the closed-form derivatives instead is **wrong** while the forward
-   model reads a spline, and retiring the spline is a forward-model change with
-   a re-blessing rather than a wiring job.
-2. **Give the kernels their trait scalar**, and take the photosynthesis and cost
-   family by forward mode. Fourteen drives. This is the one of the two that is a
-   change to the leaf rather than a wiring, and it is confined to functions with
-   no interpolator, cache or root-find in them.
+1. **Take `b` and `root_b` by the homogeneity rescale.** Four drives at 95 µs
+   become four at 2. The identity is exact, holds for the spline because the knot
+   grid scales with `b`, and is verified here against a rebuild of the quantities
+   plant reads at **3.9e-13**. `perturb_stem_b` already exists upstream and skips
+   `set_physiology` as well, since nothing it derives reads `b`. The root curve
+   needs the same accessor written against the same identity.
+2. **`c` and `root_c` keep their rebuild.** There is no identity for the steepness,
+   the closed-form substitute was built upstream and rejected at a systematic
+   `3.5e-3`, and the moving-grid contamination measured here is 9.6e-06 — real,
+   systematic, and too small to act on. **This is the floor on the leaf's cost
+   until the forward model stops reading a spline**, which is a re-blessing rather
+   than a wiring job.
+3. **Give the kernels their trait scalar** for the photosynthesis and cost family
+   — `beta2`, `a`, both `curv_fact_*`, `g1_TF24`. Ten drives, and they are the
+   cheap ones: about 23 µs of a 1230 µs block. Worth doing for exactness, not for
+   speed, and it is the only item here that changes the leaf rather than a wiring.
 
-That is twenty-two of the forty-two drives that remain, all of them replaced by
-exact derivatives rather than by cheaper differences.
+**Then the two rows nobody drives, which are a completeness item rather than a
+cost one.** `vcmax_25` and `jmax_25` are carried, passed to the leaf, and absent
+from the differentiable set because the leaf's temperature block once cached its
+derived values under a key of the drivers alone. That key now covers every input
+of the block, both among them, and each moves profit — measured at 3.5e-02 and
+3.9e-03 per unit. They sit in the 2.3 µs bucket, so two more rows cost about four
+microseconds of a block, and they are photosynthetic capacity. Report 06 §11 now
+records the absence and that its stated cause has gone.
+
+**And one is done: dark respiration at 25 °C** (`d6a51304`). It was in the same
+position — carried by the leaf, not taken by its constructor, so it ran at the
+leaf's default with no parameter able to move it. It is now carried at that
+default and driven with the other leaf traits, with the census values and all 88
+pre-existing columns **bit-identical** and two columns added.
 
 **Then give the supply side its resistance-direction derivatives**, and route the
 root-carbon family through the factorisation exactly as the soil-potential family
-already is. Ten more drives, and the corpus has already verified the prediction
-it relies on (report 08 §4.1). The acceptance test is the one that check already
-uses: predict the family out of sample and require the worst direction to stay at
+already is. Ten drives, at 2.3 µs each rather than 95, so this is now a
+correctness and exactness item and not a cost one — the earlier ranking had it as
+the second-largest saving. The corpus has already verified the prediction it
+relies on (report 08 §4.1), and the acceptance test is the one that check uses:
+predict the family out of sample and require the worst direction to stay at
 round-off.
-
-**Between them these are thirty-two of the forty-two, and what is left — the
-curvature, the radiation row, the conductance row and the two directions the pair
-is fitted from — is the part that genuinely has no closed form.** That is where §6's
-composite belongs, and it is a much smaller surface to hand over than the one it
-would have taken on before.
 
 **Then hoist `prepare_collar_solve`** for the families whose perturbation cannot
 move the feasible interval, using the entry point phylloptim provides for it.
@@ -601,8 +662,32 @@ available the moment it is deleted.
 
 ### Provenance
 
-Measured at `444bcf1a` plus the inflow-boundary change, on `ad/v3-forward`, with
-`ladder_rhs_adjoint_timing_tf24` and a temporary counter in `record_leaf_outputs`
-since reverted. Component times are per whole right-hand-side adjoint, averaged
-over five repetitions; the parts sum to the total to within 0.01 per cent. Drive
-counts are read from the source, not measured.
+The block decomposition of §2 was measured at `444bcf1a` plus the inflow-boundary
+change, on `ad/v3-forward`, with `ladder_rhs_adjoint_timing_tf24` and a temporary
+counter in `record_leaf_outputs` since reverted. Component times are per whole
+right-hand-side adjoint, averaged over five repetitions; the parts sum to the
+total to within 0.01 per cent.
+
+**§4's per-drive costs, the rescale equivalence and the moving-grid term are
+measured by `docs/probes/probe_leaf_rows.cpp`**, which runs against phylloptim
+directly with no R and no stand — one interior operating point, three soil
+layers, `-O2`. Build it as:
+
+```sh
+cd phylloptim/tests/cpp
+c++ -std=c++20 -O2 -I../../inst/include -I. \
+  -I$(Rscript -e 'cat(system.file("include", package="BH"))') \
+  -I$(Rscript -e 'cat(system.file("include", package="odelia"))') \
+  ../../../docs/probes/probe_leaf_rows.cpp -o /tmp/probe && /tmp/probe
+```
+
+It answers four questions and prints numbers rather than verdicts: whether the
+homogeneity rescale gives the same row as a rebuild, what the moving knot grid
+costs the steepness row, what a drive costs by trait family, and whether the
+three traits the leaf holds but plant does not differentiate can be moved at all.
+Timings are per drive over 2000 repetitions and will differ between machines; the
+**ratio** of 40 between the curve and non-curve families is the durable part, and
+the equivalence and contamination figures are properties of the arithmetic.
+
+Drive counts are read from the source, not measured, and §3 says why they are the
+wrong thing to price against.
