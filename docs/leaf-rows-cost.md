@@ -21,8 +21,8 @@ bit-identical. What is left is one function, and §2 measures it.
 **What is left is four traits, not the whole loop.** A vulnerability-curve
 drive costs 92–97 µs and every other trait's costs 2.3, so `b`, `c`, `root_b`
 and `root_c` are most of the remaining block. Half of them can be made free by
-an identity that already exists upstream; the other half cannot. §4 has the
-measurements and §9 the order.
+an identity that already exists upstream; the other half cannot. §5 has the
+measurements and §10 the order.
 
 **What to read, and nothing else.** The corpus is large and almost none of it
 bears on this.
@@ -32,7 +32,7 @@ bears on this.
 | what a supplied row is, and what the boundary must guarantee | report 02 §3, §4 |
 | why the leaf is entered passively at a solved point | report 02 §1 |
 | the rank-two factorisation this work extends | report 05 §7.3, and report 08 §4.1 for its check |
-| the tabulation rule that governs the vulnerability rows | report 02 §5, report 05 §7.6 |
+| the tabulation rule that governs the vulnerability rows | report 02 §5, report 05 §7.6, then §5 here |
 | which traits have rows, and the domain a number carries | report 06 §11 |
 | the per-cohort decomposition — **confirmed not the cost, do not redesign it** | report 01 |
 
@@ -57,7 +57,7 @@ rebuild happened before believing any comparison.
 
 Load with `library(odelia)` — never `load_all` — then `pkgload::load_all("plant")`.
 
-**How to verify a change here.** Every change in §9 replaces a differenced
+**How to verify a change here.** Every change in §10 replaces a differenced
 quantity with an analytic one, so the acceptance test is the differenced value
 it replaces, at wet, dry and shaded states. That reference exists today and
 **stops existing the moment the differencing is deleted**, so capture it first.
@@ -79,7 +79,7 @@ is attributed by construction rather than measured.
 **Two habits worth keeping.** Attribute before optimising — three hypotheses
 died here (the tape, the per-block copies, the reduction transposes) before
 instrumenting the boundaries settled it. And check a claim against the code
-before acting on it: §4's recommendation was reversed once, because a function
+before acting on it: §5's recommendation was reversed once, because a function
 that looked unused turned out to be deliberately unwired.
 
 ---
@@ -292,7 +292,172 @@ Two routes follow, and only the first is cheap:
 
 ---
 
-## 5. The root-carbon family, and the one accessor it is missing
+## 5. The vulnerability curve, traced op by op
+
+The four curve traits are most of the block (§4), and the route out is neither the
+closed-form substitution report 02 §5 forbids nor a resignation to rebuilding.
+This section traces every operation the traits reach, forwards and backwards, and
+the design falls out of one structural fact about the interpolant.
+
+### Forward, stem side: `b` and `c` reach profit twice, and only one route is a table
+
+`set_traits` rebuilds when either moves, and the rebuild is three steps:
+
+1. **The grid.** `psi_max = b * log(100)^(1/c)`, `step = psi_max / resolution`, then
+   `x = {0}` and `for (psi = step; psi <= psi_max; psi += step) x.push_back(psi)`.
+
+   ⚠️ **The knot count is decided by round-off.** The loop accumulates and tests
+   `<=`, so whether the last knot lands inside `psi_max` depends on the drift of
+   99 additions. Measured: a `1e-5` relative move in `c` gives **100 knots on one
+   side of a central difference and 101 on the other**, with the extra knot a
+   whole step further out. The grid does not merely move — its cardinality jumps.
+2. **The knot values**, `y_i = (b/c) * gamma_lower(1/c, (x_i/b)^c)`, from boost.
+   Measured at 100 knots: **80.2 µs**, and this is the whole of the rebuild's cost.
+3. **Two interpolators**, `transpiration_from_psi.init(x, y)` and
+   `psi_from_transpiration.init(y, x)` — the second is the *inverse*, the same pair
+   swapped. Both with extrapolation off. **3.40 µs each.**
+
+Every read goes through four accessors that apply `s = stem_b / stem_b_spline_`,
+so the transport channel is: `transpiration = kmax * (G(psi_stem) - G(psi_up))`,
+`transpiration_to_psi_stem = G^-1(E/kmax + G(psi_up))`, and
+`stem_curve_integral_deriv` inside the marginal-profit and conductance chains.
+
+**And there is a second channel that is not a table at all.** The hydraulic cost is
+
+    C(psi) = cost_scale * (1 - exp(-(psi/b)^c))^beta2
+
+evaluated as a closed-form kernel, with no spline anywhere in it. So `b` and `c`
+reach profit through **the transport integral, which is tabulated, and the cost,
+which is not** — and forward mode on the cost kernel already gives its half
+exactly. Any design that treats "the vulnerability rows" as one problem is
+treating two.
+
+> ⚠️ One inconsistency found while tracing, worth recording because it is
+> invisible. `lambda_TF24` forms `dE/dpsi` as `kmax * f(psi)` from the **closed
+> form**, while the solve forms the same quantity from
+> `stem_curve_integral_deriv` — the **spline's** derivative. The two differ by the
+> spline's approximation error. `lambda` is a reported diagnostic and not on the
+> solve path, so this is a reporting mismatch rather than a defect; it becomes one
+> the moment anything referees one against the other.
+
+### Forward, root side: three objects and a closed-form constant
+
+`setup_vulnerability` builds, from `root_b` and `root_c`: the conductivity spline
+`root_vuln_from_psi` with knots `exp(-(x_i/root_b)^root_c)` and extrapolation
+**off**, its argument clamped to the last knot on read; the integral spline
+`root_vuln_integral_from_psi` with extrapolation **on** and its *value* capped;
+`root_vuln_last_knot_`; and `root_vuln_integral_limit_ = (b/c) * Gamma(1/c)`, which
+is closed form. The two splines are bounded by different mechanisms — argument
+clamp against value cap — and §6's flux loop reads both.
+
+### The homogeneity in `b`, verified across all four root objects
+
+Because every knot position is proportional to `b`, the whole apparatus is exactly
+self-similar in it: `G` scales by `s` with its argument divided by `s`; **`f_r`'s
+knot values do not move at all**, since `x_i / b` is `b`-independent; the last knot
+scales; the limit scales. Measured, `f_r`'s knots are identical to **4.6e-15** and
+the limit scales to **1e-16**.
+
+**But measured between two independently rebuilt curves the last knot disagrees by
+`1e-2`, not `1e-16`** — because the knot count jumped 100 → 101. At `s = 1.2`,
+where the two counts happen to match, every one of the four agrees to round-off.
+So the identity holds for the continuum, and for the *spline* only at equal knot
+count. **A rebuild can break it; a rescale cannot, because a rescale never
+rebuilds.** That makes `perturb_stem_b` strictly better than the rebuild it
+replaces rather than merely cheaper.
+
+### Backward: what a row needs
+
+Per curve trait, plant needs the profit row at a frozen collar (which the envelope
+makes the total), `dR/dtheta` for `R = dprofit/dcollar` so the collar's own
+response follows as `-(dR/dtheta)/curvature`, and each layer's `dE_i/dtheta` at a
+frozen collar. Today each is one central difference over two full solves, and each
+solve pays a rebuild.
+
+### The structural fact, and the design that follows
+
+**The interpolant is exactly linear in its knot values.** odelia's spline
+assembles its band matrix from the knot positions alone, applies it to the
+right-hand side, and takes natural boundary conditions; every coefficient is
+linear in `y`. Its own header says so — the solve is *"a constant-double band
+matrix applied to an active RHS"*. So at a fixed grid
+
+    G_spline(psi; theta) = SUM_i L_i(psi) * y_i(theta)
+    dG_spline/dtheta     = SUM_i L_i(psi) * dy_i/dtheta
+
+— **the derivative of the spline is the spline through the knots' own
+derivatives, on the same grid.** Measured against a central difference of a
+reseeded value spline, worst over nine points across the domain:
+
+| step in `c` | worst relative disagreement |
+|---|---|
+| `1e-3` | 5.1e-06 |
+| `1e-5` | **1.0e-09** |
+| `1e-7` | 3.4e-08 |
+
+`h^2` down to `1e-5` and round-off below it. **A vanishing-with-`h` disagreement is
+the signature of an identity; an approximation would leave a floor.**
+
+Two consequences, and together they are the design.
+
+**A perturbed spline costs one `init`, not 80 µs of gammas.** At a fixed grid
+`y_i(theta ± h) = y_i(theta) ± h * dy_i/dtheta` exactly, so a perturbed evaluation
+needs no incomplete gamma at all.
+
+**And the knots' derivatives are cheaper than the knots.**
+`cumulative_vulnerability_integral_derivatives_at` sums its own
+everywhere-convergent series and returns the value, `dG/dpsi`, `dG/db` and `dG/dc`
+together: **13.2 µs for 100 knots, against 80.2 µs for boost's value alone.**
+Seeding the derivative grid is six times cheaper than seeding the value grid is
+today.
+
+**This is not the substitution report 02 §5 forbids, and the distinction is
+exact.** That rule forbids replacing the *table's* derivative with the *closed
+form's*. Here the table stays the value, and the closed form is used only for how
+the table's knots move — which is how the forward model computes those knots in
+the first place. The function differentiated is the function evaluated. What
+upstream built and rejected was the other thing: reading `G` itself from the
+closed form, which disagreed with the spline by a systematic `3.5e-3`.
+
+**The arithmetic.** Four traits, two sides each:
+
+| | per cohort per stage |
+|---|---|
+| today | 8 × (80.2 gammas + 2 × 3.40 init + 2.3 solve) ≈ **744 µs** |
+| designed | 13.2 once + 8 × (2 × 3.40 init + 2.3 solve) ≈ **86 µs** |
+
+about **eight to nine times** on the part of the block that dominates it, and it
+**removes** the grid-motion term rather than measuring it — the correctness fix
+arrives with the speed rather than costing extra. `b` and `root_b` are cheaper
+still, needing no `init` at all.
+
+### The one hole in it, and how it closes
+
+`psi_from_transpiration` is built as `init(y, x)`: its knot **values** are the
+potentials, which do not move with a trait at a fixed grid, and its knot
+**positions** are `y`, which do. **So the linearity argument does not cover the
+inverse spline**, and a design that assumed it did would leave the inverse
+transport channel differentiating a moving grid while believing it had stopped.
+
+It closes without a second spline. The inverse is defined by `G(psi; theta) = w`,
+so implicit differentiation gives
+
+    dG^-1/dtheta |_w  =  -(dG/dtheta) / (dG/dpsi),   both evaluated at psi = G^-1(w)
+
+with `dG/dtheta` from the derivative spline and `dG/dpsi` from the accessor the
+model already reads. Exact, and it needs no rebuild either.
+
+### What this does not do
+
+It removes the rebuild, not the differencing. The row is still a central
+difference over two solves, so it keeps that difference's truncation and its
+step-choice question. Making the row analytic is a further step — forward mode
+through the leaf with the trait carried on the scalar, which the derivative spline
+would supply the tangent for — and it is not needed to collect the eight-fold.
+
+---
+
+## 6. The root-carbon family, and the one accessor it is missing
 
 Not an oversight in the arithmetic: the supply side has no accessor for the
 direction. `roots.hpp` exposes analytic derivatives of uptake with respect to
@@ -432,7 +597,7 @@ today, because the differenced version is what is running.
 
 ---
 
-## 6. The largest family is also a second copy of phylloptim's gradient module
+## 7. The largest family is also a second copy of phylloptim's gradient module
 
 Twenty-six of the forty-six drives move one leaf trait at a time. The code says
 what it is doing and why:
@@ -456,7 +621,7 @@ So about thirty-eight of the drives are re-deriving what one upstream call
 produces, and it produces them better:
 
 - **one `prepare_collar_solve` for the whole composite**, where this side pays
-  two root-finds per drive (§7);
+  two root-finds per drive (§8);
 - **selective rebuild** — `apply(l, th, d, single, p, fast_stem_curve)` is told
   *which* parameter moved, and `takes_shortcut` skips the stem curve for the one
   that does not need it. This side's `drive` lambda passes no such hint, so every
@@ -499,14 +664,14 @@ composite is *itself* two perturbed evaluations per parameter — its own commen
 says so. Calling it would buy one shared collar solve, a selective rebuild, and
 one implementation under one set of tests, which is real. It would not buy
 exactness, and it would not remove a single re-solve from the arithmetic; it
-would move them behind a better-tested boundary. §4's routes remove them. The
+would move them behind a better-tested boundary. §4 and §5's routes remove them. The
 two are complementary — take the composite for whatever stays differenced, and
 shrink what stays differenced first — but if only one is done, it should not be
 this one.
 
 ---
 
-## 7. A second cost, independent of the first
+## 8. A second cost, independent of the first
 
 Every drive calls `Leaf::evaluate_root_collar_psi`, and that runs
 `prepare_collar_solve` on entry — `supply_begin_solve()`, then **two root-finds**
@@ -529,7 +694,7 @@ has to be argued per family rather than applied to the loop.
 
 ---
 
-## 8. What upstream has that this side does not
+## 9. What upstream has that this side does not
 
 `traitecoevo/phylloptim` carried three commits this branch did not have. They are
 merged (`35d70d2`), and one of them was a requirement rather than an improvement.
@@ -578,7 +743,7 @@ selective rebuild, this side has the environment rows.
 
 ---
 
-## 9. What follows
+## 10. What follows
 
 Ordered by measured share, not by ease. Two items that stood at the head of this
 list are **done**, and the drive counts everywhere in this note are the ones
@@ -595,7 +760,7 @@ before them:
 **Ranked by measured share, which is not how this list used to be ordered.** A
 curve trait's drive is 92–97 µs and every other trait's is 2.3, so the four
 vulnerability traits are roughly 760 µs of a 1230 µs block and everything else in
-the trait loop is about two per cent. §4 carries the table.
+the trait loop is about two per cent. §4 carries the table and §5 the route out.
 
 1. **Take `b` and `root_b` by the homogeneity rescale.** Four drives at 95 µs
    become four at 2. The identity is exact, holds for the spline because the knot
@@ -603,12 +768,17 @@ the trait loop is about two per cent. §4 carries the table.
    plant reads at **3.9e-13**. `perturb_stem_b` already exists upstream and skips
    `set_physiology` as well, since nothing it derives reads `b`. The root curve
    needs the same accessor written against the same identity.
-2. **`c` and `root_c` keep their rebuild.** There is no identity for the steepness,
-   the closed-form substitute was built upstream and rejected at a systematic
-   `3.5e-3`, and the moving-grid contamination measured here is 9.6e-06 — real,
-   systematic, and too small to act on. **This is the floor on the leaf's cost
-   until the forward model stops reading a spline**, which is a re-blessing rather
-   than a wiring job.
+2. **Seed `c` and `root_c` from the derivative spline instead of rebuilding.**
+   There is no rescale identity for the steepness, but the interpolant is exactly
+   linear in its knot values, so a perturbed spline is `y_i ± h * dy_i/dc` at the
+   base grid — one `init` at 3.4 µs against 80 µs of incomplete gammas. The knots'
+   derivatives come from the series in `cumulative_vulnerability_integral_derivatives_at`,
+   which returns value and both trait partials for **13.2 µs** against boost's
+   **80.2 µs** for the value alone. §5 has the verification, the arithmetic
+   (744 µs → 86 µs) and the one hole — the inverse spline, whose knot *positions*
+   are what move, closed by implicit differentiation rather than a second spline.
+   **This also removes the moving-grid term rather than measuring it**, so the
+   correctness fix arrives with the speed.
 3. **Give the kernels their trait scalar** for the photosynthesis and cost family
    — `beta2`, `a`, both `curv_fact_*`, `g1_TF24`. Ten drives, and they are the
    cheap ones: about 23 µs of a 1230 µs block. Worth doing for exactness, not for
@@ -649,14 +819,14 @@ hand-built Jacobian and nothing else.
 
 ---
 
-## 10. Why this is written down rather than built
+## 11. Why this is written down rather than built
 
 The two changes already landed — the rebound patch's boundary node, and the two
 critical potentials — are **provable no-ops**: both were verified bit-identical
 against the fixtures and a production stand, because neither changes what is
 computed, only how much is computed to get there.
 
-Everything in §4 and §5 is a different kind of change. Each replaces a
+Everything in §4, §5 and §6 is a different kind of change. Each replaces a
 differenced quantity with an analytic one, so each changes how a number is
 produced, and an error in any of them returns a finite, plausible, wrong
 gradient rather than a failure. That is the failure mode this whole corpus is
