@@ -946,10 +946,23 @@ prescribes for this curve — just not the change §5 tried to make.
 
 **Then the exactness items, which are not cost items.**
 
-- **Give the kernels their trait scalar** for `beta2`, `a`, both `curv_fact_*` and
-  `g1_TF24`. Ten drives at 2.3 µs, so about 23 µs of a block. The one item here
-  that changes the leaf rather than a wiring, and it is confined to functions with
-  no interpolator, cache or root-find in them (§4).
+- **`beta2` and `g1_TF24` are done.** They reach profit through the hydraulic
+  cost and nothing else, so with `q = 1 - f(psi_stem)` and `C = cost_scale * q^beta2`
+  every row is elementary: `dC/dscale = C/scale`, `dC/dbeta2 = C log q`, and the
+  same two over `C'` for the marginal row. Four drives gone, verified at 2.5e-13
+  against differencing and 0.9997–0.9999 against the two-species reference.
+
+  **Their frozen-collar uptake rows were already exactly zero** — at a fixed
+  collar a carbon-side trait moves no water, and the difference was returning
+  bit-identical uptake either side. So that half of the exactness was never
+  available to win, which is worth knowing before pricing the rest of the family.
+- **`a`, `curv_fact_elec_trans` and `curv_fact_colim` remain.** Harder than the
+  cost pair, because they reach profit through the `ci` root-find as well, so the
+  row carries the implicit-function term: at a frozen collar
+  `dPi/dtheta = dA/dtheta * (1 - A'/g_ci)`, with `g_ci` the residual's own slope
+  the leaf already forms. The marginal row needs `A''`, which is forward-over-
+  forward on a kernel with no interpolator, cache or root-find in it (§4). Six
+  drives at 2.3 µs.
 - **Hoist `prepare_collar_solve`** for the families whose perturbation cannot move
   the feasible interval, using the entry point phylloptim provides. Argue the
   families one at a time; a blanket hoist is wrong for the supply ones (§8).
