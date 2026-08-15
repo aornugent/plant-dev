@@ -872,6 +872,29 @@ choice is settled by drift and not by cost. And the *next* cost question is not 
 all, it is why a whole-ensemble recording per stage per step per functional is taken to read two
 densities and a height out of it.
 
+**That question has been answered, and answering it deleted the reductions' transposes.** The
+boundary condition is evaluated *in* the field, so the knots are a strict intermediate of its own
+recording — one dependency chain, not two — and a reverse sweep is linear in its seed. Registering
+the knots as outputs of that recording therefore delivers the field's rows **in the same recording
+and the same sweep**: they were already being computed, already being swept as zero-adjoint
+arithmetic, and dropped, while the identical rows were formed a second time by hand beside them.
+Seeding them costs nothing and retires the light reduction's whole transpose — the knot pull-back,
+the size-space scatter, the species-level trapezium transpose, both carriers, the strategy's slot
+lookup and trait rows. Measured after: the component shares are unchanged and the worst block
+Jacobian cell is 3.75e-16, which is what it was before.
+
+**Two of §8's entries are deleted by not needing the concept at all.** The size-space adjoint is
+§7's second waist and §8's `node_size_adjoints` — the struct where a new parameter meant a new field
+and two more hand partials. A tape carries whatever the forward reads, including a parameter nobody
+has registered yet, so the waist does not need widening; it needs not existing.
+
+**And the cost fork is now explicit, which is what makes rung B worth more than this report argued.**
+Consuming those rows *requires* all 65 knots on the tape. Narrowing the recording to the two or three
+spans the newborn actually reads — its queries are all at or below the seed's height, and a Hermite
+query touches one span — would take most of the 62.9%, but only while the hand transposes still
+exist to supply the rest. **Correctness and cost are available separately here and together only
+under rung B**, which records the shared field once per stage and hangs every transpose off it.
+
 **`ȳ(0)` is computed and discarded** — report 05 §10's sixth path, zero-valued here because the first
 recorded state reads no parameter, live for any model whose initial state does.
 
