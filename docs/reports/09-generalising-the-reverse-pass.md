@@ -296,6 +296,32 @@ scaling error into a length mismatch. The growth boundary is where the argument 
 it is a second out-of-band writer to the same channel and its contribution is exactly what a missing
 segment corrupts by a fraction (§9).
 
+### 6.1 A detection-based protocol loses its caller silently — and that has already happened
+
+Every hook in this design is discovered rather than declared: SFINAE detectors, then C++20 concepts.
+A System that provides a hook gets the behaviour; one that does not gets a default. **Nothing checks
+the converse — that a hook the model provides is still called by anyone.**
+
+It is not a hypothetical. The engine once drove three caching hooks; a commit replaced that detection
+protocol with a concept and deleted the three call sites. The model kept its half. Those three
+functions are still defined, still compile, and are called by nothing, so the container they fill
+stays empty forever and the one feature built on it — replaying a completed run's environment against
+a different parameter set — throws on its first statement, for every model, always. **It has been
+dead for over a month and the suite does not say so**, because the test that asserts the failure
+message asserts it on an object that has not been run, where the message is also correct.
+
+Two things follow that bear directly on §6's proposal.
+
+**A missing hook must be a compile error, not a silent default.** Every noun added to
+`ode_interface.hpp` widens this surface. The existing concepts already show the shape: one of them is
+four hooks where the real consumer needs one, satisfied with three empty bodies — a model opting into
+a contract it does not mean, and no way to say so.
+
+**And the deleted half is not the half anyone guards.** The recording protocol carries a
+`static_assert` that the concept is satisfied; the caching protocol carried nothing, and the caching
+protocol is the one that broke. A concept asserts that a *type* is adequate. What went missing was a
+*call*.
+
 **The reduction primitive**, read off what the code actually needs: a **passive** coordinate accessor
 (passive by return type, which is what makes the coordinate conditions unviolatable); a contribution
 returning a **tuple**, so the value-and-slope walk, the per-resource walk and the per-metric walk are
@@ -474,6 +500,30 @@ refined for the other two.
 scheduled path calls the distinctness guard. Zero-width intervals are silently valid arithmetic —
 measured at **>10%** on one reduction — and no comparison of integral *values* can detect it, because
 a by-hand reference walks the same defective grid.
+
+**Seven index spaces, every one a bare `size_t`.** Strategy state slot, node ODE row, flat ODE row,
+reduction grid slot, block input row, block output row, aux slot — plus resource and parameter slots.
+Conversions are hand-written, and the two-counter idiom that converts grid slots to ODE rows is
+documented at one of the four sites that use it. The node's ODE layout — *states, then offspring, then
+log density* — is written out as `state_size()` and `state_size() + 1` at four separate places and
+exposed as a named constant nowhere. **The block interface already subsumes two of these**; declaring
+its segments (§4.1's split, §6's reduction) would subsume two more.
+
+**A tolerance that gates a branch rather than terminating a search.** One control entry's documented
+justification describes a search that no longer uses it; its live role is a width comparison that
+decides whether an operating point is optimised at all. It has since moved by two orders while the
+measured widths it is compared against sit an order *inside* the resulting window. Report 05 §7.0
+forbids classifying by a residual comparison; this is the same hazard one level out, on a width.
+
+**Fifteen clamp sites, zero incidence counters.** Report 03 §4 and report 05 §6.2 both rule that where
+a clamp masks a smooth function the honest action is to refuse the row *with its incidence counted*.
+No clamp in the production path counts anything. The instrumentation that does exist is behind an
+environment variable, inside an error formatter, and in a stall report.
+
+**The gradient's own Control fingerprint omits the knobs that move the trajectory.** It carries four
+entries, one of which is provably inert on the only supported coordinate, and none of the seven
+ODE-control entries that set the recorded step times and sizes the sweep replays. Two runs differing
+only in an ODE tolerance compare as gradients of the same function.
 
 ---
 
