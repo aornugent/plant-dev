@@ -622,6 +622,27 @@ DX argument in miniature: association order is not a modelling decision, it is a
 decision, and a model author is currently required to get it right in four places to keep two sums
 agreeing in their last bits (report 03 §3.2).
 
+**Half of this is now built, and building it corrected the specification.**
+`odelia::quadrature::trapezium_weights` takes the grid through a callable returning `double` — so a
+width cannot carry a derivative however the caller stores its grid, which is passivity by type rather
+than by discipline — and owns the stopping rule and the closing interval. Both of plant's reduction
+transposes now walk it. What is not yet migrated is the *forward*, and the reason is a constraint the
+design did not have:
+
+> **A per-slot weight vector cannot serve the forward.** `Σ wₖ fₖ` and `(Σ widthᵢ(f_lo + f_hi))/2` are
+> the same map with a different association, and the forward's association is asserted **bit-exactly**
+> — the fused value-and-slope reduction against the plain value reduction, over 200 heights and seven
+> crown shapes, with a control pinning the patch-level order too. So the primitive has to be
+> **interval-major**, and a caller keeps its own accumulator. It is, which is why the transposes could
+> take it; the forward needs a summing entry point on the same walk, and a re-blessing budget.
+
+**The counts in §8 were wrong and the walk is more duplicated than they say.** There are **two**
+hand-written trapezium transposes, not five — the census transpose is taped, and the offspring
+transpose has no grid at all. But the half-factor has **six spellings across eight lines**, the early
+exit is written **four** times, and the closing predicate **five**. Migrating the forward sites
+removes about **288 lines of walk code out of 505**, and that is where this primitive pays for itself:
+on the transposes alone it roughly breaks even in lines and buys only the hardening.
+
 ### 7.2 The growth primitive
 
 `apply`, `undo`, and the map as one scalar-templated function of `(y⁻ ++ θ) → y⁺` used by the tape,
@@ -831,6 +852,25 @@ assertion is one of the obligations a growth primitive would own.
 rebuild plus a boundary evaluation per unit group, once per stage per step per functional. Its skip
 guard only fires when no boundary channel is seeded. Report 01's "peak is one unit" is true of the
 unit block and false of the stage.
+
+**Measured, and it is the sweep.** Component shares of one right-hand-side transpose, taken in
+process so they are immune to machine drift:
+
+| | share |
+|---|---|
+| boundary condition | **62.9%** |
+| unit blocks | 32.7% |
+| the shared-part build | 1.5% |
+| the boundary nodes | 1.3% |
+| **both reduction transposes and the environment cascade** | **1.1%** |
+
+**So this report has been arguing about the wrong 1.1%.** The hand-written reductions are the
+maintenance problem and they are nearly free; the object that costs is the one already written the
+way §5.3 recommends — by tape. Two consequences. Any argument that taping a reduction is too
+expensive is answered before it is made: it is a rounding error on this profile either way, so the
+choice is settled by drift and not by cost. And the *next* cost question is not the reductions at
+all, it is why a whole-ensemble recording per stage per step per functional is taken to read two
+densities and a height out of it.
 
 **`ȳ(0)` is computed and discarded** — report 05 §10's sixth path, zero-valued here because the first
 recorded state reads no parameter, live for any model whose initial state does.
