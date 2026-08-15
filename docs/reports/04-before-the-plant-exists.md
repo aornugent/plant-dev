@@ -393,14 +393,30 @@ belongs beside the columns.
 
 ### 6.3 The introduction: instrument before deciding
 
-§5's onset has a localisation and no mechanism, so the next step is measurement and
-not a change. Two things distinguish the candidates, and neither has been run:
+§5's onset had a localisation and no mechanism, so the next step was measurement and
+not a change. Two things distinguish the candidates, and **both have now been run**:
 
-**Introduction count against duration.** The onset is measured at one introduction
-and its growth at a fixed schedule stretched in time. If the total scales with the
-number of introductions, a production schedule's error is set by the schedule; if
-with duration, by run length. These predict different things at a hundred years and
-the experiment is one sweep over schedules at fixed lifetime.
+**Introduction count against duration. Run, and the answer is duration.** The
+experiment is one sweep over schedules at fixed lifetime, and it was taken on the
+seed mass, whose whole column is the birth-size channel. At a lifetime of one, the
+disagreement between the two differentiated paths reads 2.87e-03, 2.74e-03 and
+2.69e-03 at two, three and four introductions — flat, and falling slightly. Held at
+two introductions and stretched instead, it reads 2.87e-03, 4.88e-03 and 8.35e-03 at
+lifetimes one, two and three. **So a production schedule's error is set by run
+length and not by the schedule**, and §8's falsifier "the introduction onset scales
+with introduction count" is answered in the negative.
+
+One earlier elimination has to be re-read in that light. The residual was argued not
+to track the size distribution's interior interval because moving the second
+introduction later, from 0.02 to 0.38 of a four-tenths run, made it *fall*. Moving
+that introduction later also shortens the time after it, so the experiment varied two
+things at once and the fall is what the duration scaling predicts.
+
+**And what the sweep was measuring has since been fixed**, so these figures price a
+closed defect rather than an open one: the seed's dependent auxiliaries were not
+re-derived where its grafted height is written, which left the leaf area every rate at
+birth size is scaled by carrying no derivative. The scaling law above is a property of
+how a per-step boundary row accumulates and survives the fix; the magnitudes do not.
 
 **The seeding of the boundary condition's own product.** The boundary node
 accumulates more adjoints than the vector–Jacobian product consumes. Reading the code
@@ -488,10 +504,13 @@ itself complete.
   height's own channel is far larger for these two than the cluster suggests, or a
   third channel exists at the boundary.
 
-- **The introduction onset scales with introduction count.** §5's onset is measured
-  at one introduction and its growth at fixed schedule. If it is per-introduction,
-  a production run's total is set by the schedule rather than by duration, and the
-  extrapolations from short fixtures are wrong in the other direction.
+- **The introduction onset scales with introduction count.** *(Run, and measured
+  false — §6.3 carries it.)* Held at a fixed lifetime the disagreement is flat in the
+  count and falls slightly; stretched at a fixed count it grows about linearly. So a
+  production run's total is set by duration, and an extrapolation from a short fixture
+  under-reports rather than over-reports. The shape is kept because the next defect on
+  this boundary will need the same discrimination, and because the experiment is one
+  sweep.
 
 - **The boundary node's leverage is a step-count artefact.** The obvious reading of
   §5's over-weighting is that a term belonging to one introduction is accumulated
