@@ -6,7 +6,7 @@ effort — and what to build so the next model does not pay it again.
 
 Reports 00 to 08 state what the derivatives are and what a correct implementation must satisfy. They
 are written from the model's side. **This one is written from the solver's**, and the discipline is
-explicit: §1, §4 and §6 use no ecological vocabulary at all. No cohort, plant, light, soil, seed,
+explicit: §1, §4 and §5 use no ecological vocabulary at all. No cohort, plant, light, soil, seed,
 species, census, trait. Where a property cannot be stated without one of those words, that is
 recorded as a finding rather than worked around — because it marks exactly where a solver-level
 primitive would under-determine the model.
@@ -238,7 +238,118 @@ times exactly.
 
 ---
 
-## 5. Three rungs, not two
+## 5. The design: a structural declaration in place of a derivative obligation
+
+Everything above is diagnosis. This is the proposal, and it rests on one move.
+
+> **`AdjointRates` asks a model for the transpose of its own right-hand side. Ask it instead for the
+> shape of its right-hand side, and derive the transpose.**
+
+Every line of scaffolding in the model exists to discharge a *derivative* obligation. A model that
+declares its *structure* has no derivative obligation left, and what remains is the forward pass.
+
+### 5.1 The shape, which is not model-specific
+
+```
+per stage:
+    R₀      = reduce(units)                    # the closing element omitted
+    closing = boundary(R₀, y, t, φ)            # the inflow condition
+    R       = R₀ ⊕ close(closing)              # the shared part
+    rates_u = F(u.state, read(R, u), φ)        # per unit, independent
+    R'      = reduce₂(unit outputs)            # the downstream reduction
+    dydt    = assemble(rates, R')
+```
+
+with insertions at passive event times. That is the model's stage, and nothing in it names the model.
+
+### 5.2 Three layers, and an author only writes the first
+
+**L1 — the forward pass.** `rates(state, reads, params) → rates`, scalar-templated. That is all.
+No rebind, no parameter address list, no hand-derived partials, no `passive()`, no
+`if constexpr (double)`, no adjoint scatter, no graft.
+
+**L2 — the declaration.** Roughly fifty lines: the parameter list as `{name, &field}` pairs; each
+reduction as `{position, contribution, kernel}`; the read; the boundary condition; the growth map.
+Every entry is a thing the model already computes — the declaration names them, it does not
+re-derive them.
+
+**L3 — the engine.** The tape, the blocking, both reduction transposes, the segment sweep, the
+parameter accumulator, the refusal channel, and the harness.
+
+### 5.3 The rule that decides what is taped and what is supplied
+
+> **Tape everything whose operations you can afford to record. Supply rows only where recording is
+> impossible — an opaque solver — or unaffordable — the whole trajectory.**
+
+By that rule the reductions are taped: they are `O(NK)` of cheap arithmetic, and the evidence they
+are affordable is that the boundary transpose **already records the entire shared-part build at the
+active scalar, once per stage.** The tape exists in the innermost loop; it is simply not seeded to
+yield the reduction's adjoints. The ~440 hand-mirrored lines beside it, the twelve drift sites and
+the latent closing-interval defect all go with them.
+
+The current split has no cost principle behind it — the taped set includes a full shared-part rebuild,
+more expensive than the reduction transpose written by hand next to it. It is history.
+
+### 5.4 The opaque node, which is what makes TF24 expressible
+
+A model with an inner solve declares the solve, not its calculus:
+
+- the residual `R(p; u)`, with **feasibility as a separate channel and never a sentinel value**;
+- which output **is** `p` (its `p`-channel is exactly 1) and which **is** the objective (exactly 0);
+- `∂y/∂p` for the ordinary outputs, and `∂B/∂u` per bound.
+
+The primitive owns the envelope theorem, the implicit function theorem, the rank-one collapse, the
+amplification ceiling, the classification, the graft, and the transpose identity. **The
+classification becomes structural** — a consumer cannot fail to consult it, which is the defect that
+currently applies the interior formula at pins.
+
+One generalisation falls out for free: let the node carry **M operating points instead of one**. The
+collapse is then rank `M`, the deep-crown mode stops needing a refusal, and the scalar case is `M=1`.
+
+### 5.5 Correctness by construction, or abort
+
+Every defect in this corpus returns a finite, plausible number. The design's test is that each one
+moves out of that class — into *impossible to express*, *a compile error*, or *an abort*.
+
+| failure | today | under the design |
+|---|---|---|
+| transpose drifts from its forward | prose comment | **impossible** — one function |
+| weight-derivative term on a passive grid | `if` in two files | **impossible** — position type is passive |
+| a position used as a value | silent zero | **compile error** |
+| parameter list and name list disagree | none | **compile error** — one list, completeness assert |
+| a hook loses its caller | silent, for a month | **compile error** — asserted at the point of use |
+| a rebind drops a subclass's state | silent slicing | **compile error** |
+| non-finite supplied partial *or input* | partial only | **abort**, inside the graft |
+| amplification through a near-fold | none | **abort** on `\|s\|/\|R_p\|`, objective row still emitted |
+| interior formula at a pinned point | not checked | **abort** — classification is the primitive's |
+| state carried between units | undetectable by re-run | **abort** — permutation is the harness's |
+| segment list does not cover the recording | none | **abort** — coverage assert |
+| an undefined metric | not representable | **abort** — the return type carries it |
+
+Two entries are the whole argument. *Impossible* is where a hand-written transpose goes when it stops
+being hand-written. *Abort* is where a plausible number goes when the engine, rather than the model,
+owns the decision.
+
+### 5.6 What it cannot guarantee, and what it does instead
+
+Three things no primitive can check, and the honest response to each.
+
+**Whether a kink is meant.** Undecidable. But it can be *declared*: a branch on an active value is
+either a severance the model intends or a guard, and the position type makes an undeclared one a
+compile error. Guards then carry an incidence counter by construction — today fifteen clamp sites
+carry none.
+
+**A derived input's convention.** Resistances per unit area and resistances absolute are both vectors
+of positive numbers, and the receiving side cannot tell. The primitive requires the convention to be
+declared and asserted on the **caller's** side, where the inputs to the derivation are still visible.
+
+**A model-specific factorisation.** The hook is general; the residual check is the primitive's; the
+*states it runs on* are the model's — and the branch's own history says they must come from a
+competing stand, because without competition no unit sits far from where the coefficients were fitted.
+
+---
+
+## 6. Three rungs, not two
 
 **Route A — tape the trajectory.** A System declares a forward pass and `compute_jacobian` records
 the whole run. The author writes no derivative code. The exemplar is 235 lines, none of them adjoint.
@@ -274,7 +385,7 @@ is too large, and it is the difference between declaring a decomposition and imp
 
 ---
 
-## 6. The nouns odelia does not have
+## 7. The nouns odelia does not have
 
 odelia has the hard algorithms and none of the vocabulary. A parameter row has no route out of
 `ode_rates_adjoint(λ_dydt, λ_y)`, so the model made the accumulator a mutable System member the
@@ -339,7 +450,7 @@ representable an event that changes no width at all.
 
 ---
 
-## 7. What gets deleted
+## 8. What gets deleted
 
 Great abstractions are measured in concepts removed.
 
@@ -368,7 +479,7 @@ absent output has no column.
 
 ---
 
-## 8. The implicit node
+## 9. The implicit node
 
 One package's gradient header is the implicit-node pattern written once against one model's
 fifteen-wide parameter vector; the model's own `record_leaf_outputs` is the same pattern written a
@@ -405,7 +516,7 @@ regime report 05 §7.0 lists among the states the gradient is not valid at and d
 
 ---
 
-## 9. Order, and the fences still standing
+## 10. Order, and the fences still standing
 
 You do not move a fence until you know why it is there. Four are still there, and one that looked
 like a fence is a hole.
@@ -470,7 +581,7 @@ assertion is one of the obligations a growth primitive would own.
 
 ---
 
-## 10. Costs and gaps the design does not price
+## 11. Costs and gaps the design does not price
 
 **The boundary transpose records a whole-ensemble tape in the innermost loop** — the full shared-part
 rebuild plus a boundary evaluation per unit group, once per stage per step per functional. Its skip
@@ -527,7 +638,7 @@ only in an ODE tolerance compare as gradients of the same function.
 
 ---
 
-## 11. The corpus has drifted, and six of its claims would misdirect this work
+## 12. The corpus has drifted, and six of its claims would misdirect this work
 
 Reports 00 to 08 are this project's memory, and a stale claim in them propagates into every decision
 taken from them. A systematic audit against the code found the following. They are listed here rather
@@ -570,7 +681,7 @@ the strongest argument in this report for §5's measurement coming before §6's 
 
 ---
 
-## 12. What would falsify this
+## 13. What would falsify this
 
 - **The interiors are not model-shaped.** If a second model with an inner solve needs a materially
   different *schedule* — not different kernels, a different order — the six-step interior is this
