@@ -197,11 +197,26 @@ margin taken on a stand carries that qualification.
 `test-tf24-arid-corner.R` (32 s), `test-canopy-methods.R` (26 s). Editing K93 or FF16
 plumbing does not require paying the TF24 ones.
 
-**Three files fail on `ad/v3-forward` for reasons that predate the gradient work**
-and are not a signal about a sweep change: `test-mutant.R` errors with "Run a
-resident first to generate a competitive landscape", `test-stochastic-patch.R` takes
-a range over an empty competition interval, and `test-stochastic-patch-runner.R`
-misses its seeded baseline.
+**Six files fail on `ad/v3-forward` for reasons that predate the gradient work**
+and are not a signal about a sweep change. Counts measured at `plant@cdf3f0c9`,
+so a differing count is yours:
+
+| file | fails | what |
+|---|---|---|
+| `test-leaf.r` | 5 | lines 620, 704, 705, 706, 865 |
+| `test-strategy-tf24.R` | 1 | line 83 |
+| `test-strategy-tf24f.R` | 1 | line 86 |
+| `test-mutant.R` | 2 | "Run a resident first to generate a competitive landscape" |
+| `test-stochastic-patch.R` | 3 | a range over an empty competition interval |
+| `test-stochastic-patch-runner.R` | 1 | misses its seeded baseline |
+
+The first three were absent from this list and cost a session's worth of doubt to
+attribute. `test-stochastic-patch-runner.R`'s pass count varies run to run; its
+one failure does not.
+
+**`testthat`'s parallel workers cannot see a `pkgload::load_all()`ed package**, so
+every invocation below needs `TESTTHAT_PARALLEL=false` — which makes the ladder
+serial, and its wall time its CPU time.
 
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 

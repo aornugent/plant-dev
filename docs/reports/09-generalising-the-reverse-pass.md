@@ -505,8 +505,30 @@ multiplier. Route A at the same width is ≈ 101 GiB, which is report 01 §0's r
 stage records the System's own `derivs` — which for this model *is* the state-and-field rebuild
 followed by the rates. That is rung B verbatim, and it is still there at this reading, now behind a
 `static_assert` on the rebind hook that names what a System has to provide to take it. The model
-satisfies `AdjointRates`, so the `if constexpr` takes the other branch. **Deleting
-`ode_rates_adjoint` routes it into code that already exists.**
+satisfies `AdjointRates`, so the `if constexpr` takes the other branch.
+
+**~~Deleting `ode_rates_adjoint` routes it into code that already exists.~~ Tried, and it does not.**
+The sentence was the strongest claim in this report and it is false in four ways, each of which was
+read off the branch rather than argued:
+
+- **There is no parameter channel.** The branch registers the stage state as its only tape inputs and
+  reads back only state adjoints. The twin is constructed *before* the tape, so every parameter in it
+  is born without a slot and stays a constant for the recording. plant's entire gradient is a *trait*
+  gradient; routed here, all 47 columns come back absent.
+- **There is no batched form.** `step_adjoint_batched` opens with a hard assertion on the batched
+  concept and the generic branch has no batched twin, so three metrics would become three recordings
+  — giving back the economy §5.3 and §6 both credit.
+- **It costs more, not less.** The branch *retakes the whole step* in double and then records six
+  active evaluations: thirteen model evaluations per step, against six plus six hand transposes.
+- **It is barely exercised.** One step of a three-state toy, never through the segment sweep, never
+  batched, never with a parameter.
+
+**And the premise underneath was wrong, which is the more useful finding.** This report reads plant
+as hand-writing its interiors. It is not: `cohort_block_adjoint` *is* odelia's own
+`vector_jacobian_products`, at cohort granularity. **plant is already on a taped design** — what it
+hand-writes is the two reductions, the environment cascade and the light/allometry scatter, about
+440 lines, which is §3's number and not §2's 1,225. The gap between rung A and rung D is real; the
+claim that one end of it is already built is not.
 
 **One rung-B-adjacent economy has landed since, and it is the first noun in §7 to arrive.** odelia
 now carries a `BatchedAdjointRates` concept and plant a batched entry point: a block is recorded
