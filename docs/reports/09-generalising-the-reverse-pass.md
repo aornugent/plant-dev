@@ -16,7 +16,15 @@ The claim in one line:
 > **The engine offers two ways to get a gradient and nothing between them. Every line the project is
 > unhappy about is the cost of the gap.**
 
-The reading is of `plant` at `5a5e3984`, `odelia` at `0a2e26b`, `phylloptim` at `9c61fd9`.
+The reading is of `plant` at `cdf3f0c9`, `odelia` at `8ac1da2`, `phylloptim` at `1b0b468` — the
+triple the superproject points at, seven, two and fourteen commits past the one this report was
+first written against.
+
+**This reading is a build.** The previous one was not, and said so: §10's first fence recorded that
+the tip called symbols no available ref of its dependency carried. That fence is down — the triple
+above compiles at `-O2` and runs — so every number below is measured on a tree that works rather
+than inferred from source. Where the re-reading moved a figure, the old one is kept beside it,
+because the size of the movement is what says whether a claim was structural or incidental.
 
 ---
 
@@ -61,12 +69,24 @@ recorded in prose; a *blocked* row and a missing row are the same number.
 | **model-shaped — the target** | **~1,225** | the six interiors, the reduction transposes, the block interface, the functional seeds |
 | genuinely model-specific | ~128 | the retention derivative, the seed geometry, the coordinate branch |
 
-Within the model-shaped bulk the concentration is stark: `cohort_block_adjoint` (135),
-`boundary_condition_adjoint` (110) and the light reduction transpose (89) are a quarter of it. And in
-`tf24_strategy.h`, **810 of 2,300 lines are AD scaffolding — 35% of the file, 40% of the code**, the
-largest single artefact being a 389-line hand-assembled Jacobian of a sub-model the strategy does not
-own. The independent measure agrees: the file went from 1,426 lines split header/impl to 2,300
-header-only across this branch, **+61%**.
+Within the model-shaped bulk the concentration is stark: `cohort_block_adjoint` (**152**),
+`boundary_condition_adjoint` (**131**) and the light reduction transpose (**92**) are a quarter of
+it. Each of the three grew — 135, 110 and 89 at the previous reading — and **they grew for one
+reason, which is the batching of §5.3**: the two block entry points now take a vector of seed sets
+and carry a metric index through, so record-once-sweep-many cost them a dimension. That is a real
+economy paid for in exactly the place this report says the lines are.
+
+And in `tf24_strategy.h`, **2,356 lines** against 2,300, still header-only against the 1,426 the
+file held split header/impl before this branch. The AD share was measured at 810 lines then and has
+not been re-derived on the same classification here, so treat 35% of the file as the previous
+reading's figure rather than this one's; what is re-measured is the total, and the total moved by
+2.4%.
+
+**The reverse-pass surface in `plant` totals about 1,520 lines**, summed over the function spans
+rather than estimated: ~779 in `patch.h`, ~145 in `species.h` and ~574 in `scm.h`. That is within a
+few percent of the previous reading's 325 + 1,225 = 1,550 for the same territory, so **the bulk has
+not shrunk — it has been re-apportioned.** Nothing in the intervening twenty-three commits deleted a
+transpose; two of them added a dimension to three.
 
 The undifferentiated ergonomics are already good — K93 is 330 lines of C++ and ~250 of that is
 biology. **All of the cost is the AD delta**, and none of it is visible to the scaffolder, which has
@@ -126,11 +146,25 @@ argument."* The two values differ by more than `1e-6` relative and a test assert
 > **The general rule: when a fixed point is resolved by staging, the number of accumulator slots a
 > quantity needs equals the number of stages it is read at.** Nothing in the type system counts them.
 
-**The forward model never made that distinction.** It holds one closing element and one slot; which
-evaluation it is carrying is a property of what was last done to it. The reverse side was forced to
-name the roles apart, and its five-field accumulator is the honest schema. That asymmetry is the
-whole reason the boundary transpose costs 110 lines: **it is reconstructing a distinction the forward
-model does not represent.**
+**The forward model now makes that distinction, and it did not when this was first written.** The
+staging above is three named functions rather than a sequence a reader has to reconstruct: one
+builds the field with the closing interval omitted *and keeps each species' partial reduction*, one
+places the closing element in it, and one rebuilds the field closing from what the first kept. The
+kept partial is the object the middle step needs, and holding it is what makes the third step a
+close rather than a re-derivation.
+
+So the sharpest form of this section's old claim is withdrawn. It said the reverse side was forced
+to name apart a distinction the forward model does not represent, and that this asymmetry was the
+whole reason the boundary transpose cost its lines. The forward model represents it now. **What
+survives is the accumulator count**, which is the part that was actually load-bearing: the reverse
+side still carries two density slots for one quantity, for the reason the struct's own comment
+gives — one accumulator would transpose one derivative through the other's argument — and nothing
+in the type system counts read points even though the forward model now stages them. The
+distinction being representable did not make it *counted*.
+
+**And the staging costs two full field builds per environment computation**, which §5.3's tape
+arithmetic has to carry and did not: the value the first build returns is kept, but the interpolant
+it fits is fitted twice.
 
 So the generalisation is a *split*, not a new abstraction. The object is three things sharing a
 struct — a re-derived cache of an algebraic condition, a quadrature node of every reduction, and the
@@ -451,9 +485,19 @@ multiplier. Route A at the same width is ≈ 101 GiB, which is report 01 §0's r
 **And rung B is already written, in odelia.** `step_adjoint` has two branches, and the `else` of
 `if constexpr (AdjointRates<System>)` lifts the System to the active scalar, makes one tape, and per
 stage records the System's own `derivs` — which for this model *is* the state-and-field rebuild
-followed by the rates. That is rung B verbatim. The model satisfies `AdjointRates`, so the `if
-constexpr` takes the other branch. **Deleting `ode_rates_adjoint` routes it into code that already
-exists.** Two gaps in that branch, both nameable: it seeds state adjoints only, so parameters must be
+followed by the rates. That is rung B verbatim, and it is still there at this reading, now behind a
+`static_assert` on the rebind hook that names what a System has to provide to take it. The model
+satisfies `AdjointRates`, so the `if constexpr` takes the other branch. **Deleting
+`ode_rates_adjoint` routes it into code that already exists.**
+
+**One rung-B-adjacent economy has landed since, and it is the first noun in §7 to arrive.** odelia
+now carries a `BatchedAdjointRates` concept and plant a batched entry point: a block is recorded
+once and swept once per metric, where the loop it replaces recorded it once per metric. **The
+economy report 05 §9.1 describes is therefore real rather than proposed**, and it arrived by adding
+a dimension to the existing hand-written interiors rather than by taping a stage. That is worth
+holding onto, because it is the counterfactual this report is arguing against: the same saving was
+available by declaring the structure once, and was instead bought by widening three transposes and
+threading a metric index through them. Two gaps in that branch, both nameable: it seeds state adjoints only, so parameters must be
 registered as extra tape inputs (§7's missing noun); and it shares one tape across six stages without
 releasing the slot array, which costs ~1.8× one stage's peak until a clear-and-re-register per stage.
 
@@ -464,8 +508,9 @@ Three results that were not expected:
   the interpolant's span data for every unit, where a stage does it once.
 - **The whole-shared-part transpose is correct by tape**, checked against a central difference of its
   own forward at `1.3e-10`, `2.7e-06`, `3.7e-08`. That is the object the ~440 hand-mirrored lines
-  transpose, transposing itself. And the stage tape delivers the parameter rows — 44 registered, 27
-  non-zero, all finite — out of the tape rather than an out-of-band mutable member.
+  transpose, transposing itself. And the stage tape delivers the parameter rows — **47** registered,
+  27 non-zero, all finite — out of the tape rather than an out-of-band mutable member. The count was
+  written 44 here, which is §12's own fourth finding landing in the report that reports it.
 - **Time is neither a win nor a loss and must not be claimed as either.** One stage's record-and-sweep
   is 1.4× the per-unit block loop it replaces. Both are ~100× below the ~0.98 s per stage §12
   measures, because that is the opaque node's supplied rows, which rung B leaves untouched.
@@ -497,7 +542,7 @@ sign and no error raised*, is unpoliceable by construction.
 
 | noun | what it is | today |
 |---|---|---|
-| **parameter adjoint** | a parameter row's route out of a transpose | a mutable System member, now **six** writers, four defensive re-zero guards |
+| **parameter adjoint** | a parameter row's route out of a transpose | a mutable System member, now **six** writers, four defensive re-zero guards — and since the batching, a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route |
 | **seed** | `∂C/∂y` at `T` | model-side |
 | **reduction transpose** | a weighted sum over a grid with a passive coordinate | written five times by hand |
 | **growth event** | an insertion, its map, and the segmented sweep | model-side; odelia has the range only |
@@ -623,12 +668,15 @@ regime report 05 §7.0 lists among the states the gradient is not valid at and d
 You do not move a fence until you know why it is there. Four are still there, and one that looked
 like a fence is a hole.
 
-**1. The branch tip does not build, and the report's own stated triple is not a buildable one.** It
-calls symbols absent from every available ref of its dependency — confirmed by checking all twelve
-branches after a fetch: one carries half of what is needed and another carries the other half, and no
-branch carries both. **The newest commit that builds is the one the superproject already points at.**
-The other half of the root-carbon anchor is unpushed, and every reading above — this report included
-— is a reading rather than a build. Nothing below can be validated until it lands.
+**1. ~~The branch tip does not build.~~ This fence is down.** It recorded that the tip called symbols
+absent from every available ref of its dependency, that the newest buildable commit was the one the
+superproject pointed at, and that every reading in this report was therefore a reading rather than a
+build. The missing half has landed, the two packages' XAD build flags were matched from both sides,
+and the stated triple now compiles at `-O2` and runs. **This report's numbers are measured on it.**
+
+The fence is kept rather than deleted because of what it gated: it said nothing below could be
+validated until the build landed, and that was right — the cost premise of §12, which is the
+strongest conclusion in this report, reversed the moment it became measurable.
 
 **2. The upstream reduction has no isolated referee.** The probe is written and exported and **called
 by no test**, so that transpose is checked only *through* the composed right-hand side, where a
@@ -647,11 +695,15 @@ competing one.
 
 ### And one live defect
 
-**The first segment is never swept.** The sweep loop descends over the event boundaries and covers
+**The first segment is never swept**, and it is still not swept at this reading — re-checked
+against the current tip rather than carried forward, because the file it lives in changed by 113
+lines in between. The sweep loop descends over the event boundaries and covers
 recorded steps above the *first* boundary only; steps below it are never visited, and the loop exits
-with their adjoint contribution simply missing. The forward references do not have this asymmetry —
-their replay loops run one more segment than the sweep does — and the diagnostic counter agrees with
-the loop rather than with the trajectory.
+with their adjoint contribution simply missing. The boundary list is built from the width changes
+between consecutive recorded states, so the lowest index the loop ever passes to the sweep is the
+one before the *first* width change, and everything under it is silently outside the traversal. The
+forward references do not have this asymmetry — their replay loops run one more segment than the
+sweep does — and the diagnostic counter agrees with the loop rather than with the trajectory.
 
 It is invisible on every fixture, because a run from bare ground introduces before it steps, so the
 un-swept range is empty. It is reachable two ways: a resumed run, which integrates a gap before the
@@ -677,7 +729,10 @@ assertion is one of the obligations a growth primitive would own.
    parent and silently drops its own extra state. Latent only because no export names it — and
    inheriting `rebind` is exactly what the documented variant recipe produces. Three lines, at compile
    time, for every model, forever.
-4. **Measure the stage recording** before designing anything (§5). The instrument exists.
+4. ~~**Measure the stage recording** before designing anything.~~ **Done** — §6 carries the law, the
+   per-unit constant and the production-width figure, and the answer was that a stage fits. What
+   replaces it as the gating measurement is nothing: §12's cost premise, which was the other reason
+   to measure before designing, has since been taken and does not oppose the design.
 5. **The parameter channel in-band**, then the block interface, then the reduction primitive, then
    growth. Design the implicit node against **both** the argmax and the tracked-state case (§8.1).
 6. **Refusal.** The gradient returns a plain matrix; report 08 §9's requirement that an undefined
@@ -739,7 +794,10 @@ environment variable, inside an error formatter, and in a stall report.
 **The gradient's own Control fingerprint omits the knobs that move the trajectory.** It carries four
 entries, one of which is provably inert on the only supported coordinate, and none of the seven
 ODE-control entries that set the recorded step times and sizes the sweep replays. Two runs differing
-only in an ODE tolerance compare as gradients of the same function.
+only in an ODE tolerance compare as gradients of the same function. **Re-checked by reading what a
+gradient returns**: the four are the collar search tolerance, the intercellular tolerance, the node
+gradient step and the schedule epsilon — a solver knob, a solver knob, a differencing step and a
+grid epsilon, and not one of them a property of the trajectory the sweep replays.
 
 ---
 
@@ -748,6 +806,13 @@ only in an ODE tolerance compare as gradients of the same function.
 Reports 00 to 08 are this project's memory, and a stale claim in them propagates into every decision
 taken from them. A systematic audit against the code found the following. They are listed here rather
 than in a defect log because each one changes what a reader would *do*.
+
+**Four of the six were re-checked against the current tip and hold; the sixth reversed.** The trait
+slot, the leaf-area channel and the parameter count were re-read in the code and are unchanged; the
+cost premise is corrected below and is the reason this section is worth re-reading rather than
+re-citing. The two not re-derived are the factorisation check's scoping and report 08 §5.2's
+assertions, which are claims about the *test suite* rather than about the model — they need the
+ladder run, not the source read, and this reading did not run it.
 
 **The top-ranked correctness item is already done.** Report 07 §7 ranks "give the size-space adjoint
 its trait slot" first and calls it a correctness matter — rows that do not arrive at all. They arrive:
@@ -776,13 +841,42 @@ step's input width follows it — 185 in three reports where the code gives 188.
 contradicts report 00 §6: it asserts the per-layer soil block's off-diagonal cells are *exactly zero*
 where report 00 says *diagonal plus rank one*, which is what the code has and what the suite measures.
 
-**And the cost premise is not currently met.** The design exists because an adjoint answers every
-parameter for one run and one sweep. Measured on this tree at 81 units and 171 accepted steps: the
-forward run is 6.2 s and one gradient 1006 s, against roughly 291 s for re-running once per parameter.
-The scaling argument stands and re-runs are not a usable alternative at production step sizes — but
-the constant currently inverts the conclusion, **and nothing in the ladder measures time at all.** The
-flatness guarantees the design rests on are about memory and target count; both are checked. That is
-the strongest argument in this report for §5's measurement coming before §6's design.
+**~~And the cost premise is not currently met.~~ It is met, and this is the largest correction the
+re-reading makes.** The design exists because an adjoint answers every parameter for one run and one
+sweep. The previous reading, taken on a tree that did not build, put the forward run at 6.2 s and one
+gradient at 1006 s over 81 units and 171 accepted steps, against roughly 291 s for re-running once
+per parameter — and concluded that the constant inverted the design's own argument.
+
+Re-measured on the built tree, on the refined schedule, at **84 units and 204 accepted steps** — a
+fixture slightly *wider and longer* than the one that produced those figures:
+
+| | previous reading | this reading |
+|---|---|---|
+| forward run | 6.2 s | **1.11 s** |
+| one gradient, three metrics | 1006 s | **15.67 s** |
+| gradient ÷ forward | 162 | **14.1** |
+| 47 re-runs | ~291 s | **52.2 s** |
+| adjoint against re-running | **3.5× worse** | **3.3× better** |
+
+**The ratio is fourteen and it is flat**: 14.0, 13.9 and 14.1 at lifetimes of a half, one and three.
+So the gradient costs about fourteen forward runs whatever the run length, break-even sits at
+fourteen parameters, and the model carries forty-seven. **The premise is met with a factor of three
+to spare, and the flatness is the part worth keeping** — it says the sweep's cost tracks the run
+rather than compounding with it.
+
+**What moved it is not established, and should not be guessed from the commit subjects.** The
+plant-side leaf boundary still differences fourteen traits at two evaluations each, exactly as
+before, so the saving is not there. The likely home is the dependency's shared curve caches, since
+§11 records that each block copies the whole model object *tabulations included* and that one
+differenced family rebuilds a tabulation every time — but that is an attribution and what is
+measured is the effect.
+
+Two things survive intact. **Nothing in the ladder measures time**, so this figure is nobody's
+regression test and the next change to the leaf can move it by another order with no failure
+anywhere. And the flatness guarantees the design rests on are about memory and target count, which
+are checked. What is withdrawn is the conclusion drawn from the constant: **this is no longer an
+argument for measurement before design, because the measurement has been taken and it does not
+oppose the design.**
 
 ---
 
