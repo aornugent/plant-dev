@@ -1,8 +1,22 @@
-# Generalising the reverse pass: the general system, and the concepts it deletes
+# Generalising the reverse pass: the primitives that would make it ergonomic
 
 The stand-scale reverse mode is correct on the birth-date coordinate and it cost more code than it
-should have. This report says **why** it cost that much — a structural answer rather than a matter of
-effort — and what to build so the next model does not pay it again.
+should have. **This report is about what odelia should offer so that writing a differentiable model
+in `plant` stops being a derivative-engineering exercise.** It says why the cost was structural
+rather than a matter of effort, and it specifies the primitives that remove it — for the model that
+exists and for the next one.
+
+The measure it is written against is a developer's, not a benchmark's:
+
+> **What does an author of a new model have to write before they get a correct gradient, and how
+> much of it can be wrong without anything saying so?**
+
+Today the answer is about **1,520 lines** of reverse-pass code in `plant` (§2), of which ~440 are a
+hand-mirrored transpose held against its forward function by a comment (§3), and the honest answer
+to the second half is *most of it* — the corpus's recurring failure shape is a finite, plausible,
+correctly-signed wrong number. The target is a forward pass plus a **structural declaration of about
+thirty lines** (§5.2), with every transpose derived and the remaining mistakes turned into compile
+errors or aborts.
 
 Reports 00 to 08 state what the derivatives are and what a correct implementation must satisfy. They
 are written from the model's side. **This one is written from the solver's**, and the discipline is
@@ -15,6 +29,10 @@ The claim in one line:
 
 > **The engine offers two ways to get a gradient and nothing between them. Every line the project is
 > unhappy about is the cost of the gap.**
+
+§7 is the deliverable — seven primitives, each with what an author writes today, what they would
+write instead, and how it fails when they get it wrong. Everything before it is the evidence that
+those seven are the right seven; everything after it is what they delete and what they do not fix.
 
 The reading is of `plant` at `cdf3f0c9`, `odelia` at `8ac1da2`, `phylloptim` at `1b0b468` — the
 triple the superproject points at, seven, two and fourteen commits past the one this report was
@@ -532,7 +550,7 @@ is too large, and it is the difference between declaring a decomposition and imp
 
 ---
 
-## 7. The nouns odelia does not have
+## 7. The seven primitives — the deliverable
 
 odelia has the hard algorithms and none of the vocabulary. A parameter row has no route out of
 `ode_rates_adjoint(λ_dydt, λ_y)`, so the model made the accumulator a mutable System member the
@@ -540,21 +558,67 @@ driver clears and reads around a sweep — an out-of-band channel the solver can
 §6's failure signature, *a gradient that is a fixed fraction of the right answer with the correct
 sign and no error raised*, is unpoliceable by construction.
 
-| noun | what it is | today |
-|---|---|---|
-| **parameter adjoint** | a parameter row's route out of a transpose | a mutable System member, now **six** writers, four defensive re-zero guards — and since the batching, a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route |
-| **seed** | `∂C/∂y` at `T` | model-side |
-| **reduction transpose** | a weighted sum over a grid with a passive coordinate | written five times by hand |
-| **growth event** | an insertion, its map, and the segmented sweep | model-side; odelia has the range only |
-| **refusal** | a gradient-validity channel, metric-level | **does not exist in C++ at all** |
-| **graft** | `v + Σ ∂v/∂uᵢ·(uᵢ − passive(uᵢ))` | written **four** times |
+**Each entry below is a noun odelia does not have, and the reason it belongs there rather than in a
+model is the same in every case: it is the same object for every model, and writing it per model is
+what produces the drift.** The DX claim is the third column — what an author writes instead — and the
+robustness claim is the fourth, because a primitive that removes work and keeps the silent failures
+has not earned its place.
 
-Adding the parameter channel in-band is the one that matters most: it turns report 01 §6's silent
-scaling error into a length mismatch. The growth boundary is where the argument is strongest, because
-it is a second out-of-band writer to the same channel and its contribution is exactly what a missing
-segment corrupts by a fraction (§9).
+| primitive | what an author writes today | what they would write | how a mistake surfaces |
+|---|---|---|---|
+| **parameter adjoint** | a mutable System member, **six** writers, four defensive re-zero guards; since the batching a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route | nothing — the row leaves the transpose in-band | a **length mismatch**, where today it is a fixed fraction of the right answer with the correct sign |
+| **graft** | `v + Σ ∂v/∂uᵢ·(uᵢ − passive(uᵢ))`, written **four** times, only one copy carrying the finiteness guard report 05 §8 says it needs | the partials and the inputs | **abort** inside the graft on a non-finite partial *or input*, once, for all four sites |
+| **reduction** | a forward walk and a hand-mirrored transpose, five times, held together by a comment | position, contribution, kernel, stage | a transpose cannot drift from its forward because there is one function |
+| **seed** | `∂C/∂y` at `T`, model-side | the functional | — (already taped; it is here because it is the one the reduction primitive must also cover, §13) |
+| **growth event** | insertion, map, narrowing, widening, replay, and a segment list **inferred from width diffs** | `apply`, `undo`, and the map | **abort** on a segment list that does not partition the recording — which is §10's live defect |
+| **refusal** | nothing; it **does not exist in C++ at all** | which points are answerable | an undefined metric is a distinct value in the return type, not a plausible number |
+| **opaque node** (§5.4) | ~200 lines forming `∂p*/∂u` explicitly per input family, plus four parallel trait arrays keyed by position to a fourteen-argument setter | the residual, the bounds, which output *is* `p` | the classification is the primitive's, so the interior formula **cannot** be applied at a pin |
 
-### 6.1 A detection-based protocol loses its caller silently — and that has already happened
+**Two of the seven carry most of the DX gain and they are not the same two that carry most of the
+robustness gain.** The reduction and the opaque node are where the lines are — five hand-mirrored
+transposes and a two-hundred-line explicit Jacobian. The parameter adjoint and refusal are where the
+silence is: one turns a scaling error into a length mismatch, the other turns "the gradient is
+undefined here" from a thing no type can say into a thing the caller cannot ignore. **Build for lines
+and you keep the silent failures; build for silence and the model stays as big as it is.**
+
+Adding the parameter channel in-band is the one that matters most, and the growth boundary is where
+the argument for it is strongest: it is a second out-of-band writer to the same channel, and its
+contribution is exactly what a missing segment corrupts by a fraction (§10's live defect).
+
+### 7.1 The reduction primitive, read off what the code needs
+
+A **passive** coordinate accessor — passive by return type, which is what makes report 05 §6.1's
+coordinate conditions unviolatable rather than testable. A contribution returning a **tuple**, so the
+value-and-slope walk, the per-resource walk and the per-metric walk are one function with a codomain
+parameter. Passive predicates for the early exit and the closing interval, evaluated by the driver so
+forward and transpose cannot see different ones. And a declared `coordinate_is_state` flag in one
+place instead of four `if` blocks in two files.
+
+**The driver owns the weights, the traversal, the association order and the half-factor** — which
+today lands in four different places, and one consumer traverses backwards. That last point is the
+DX argument in miniature: association order is not a modelling decision, it is a floating-point
+decision, and a model author is currently required to get it right in four places to keep two sums
+agreeing in their last bits (report 03 §3.2).
+
+### 7.2 The growth primitive
+
+`apply`, `undo`, and the map as one scalar-templated function of `(y⁻ ++ θ) → y⁺` used by the tape,
+by a forward-tangent reference and by the replay alike. Plus a recording hook so the event list is
+**declared by the run** rather than inferred from width diffs — which alone removes the newest-first
+recovery walk and the exact-float time matching, and makes representable an event that changes no
+width at all.
+
+**And it owns the coverage assertion.** §10's live defect — the first segment never swept — exists
+because the segment list is inferred and nothing checks that the ranges partition the recording. That
+assertion has no home in a model; it is a property of the primitive's own output, and it is the
+clearest single case in this report of a bug that exists *because* the noun is missing.
+
+### 7.3 A detection-based protocol loses its caller silently — and that has already happened
+
+**This is the constraint every primitive above is built under**, so it is stated once here rather
+than repeated seven times: a hook that a model provides and nothing calls is invisible, and adding
+nouns is exactly what widens that surface. A primitive set that makes the reverse pass ergonomic and
+loses a call silently has moved the failure rather than removed it.
 
 Every hook in this design is discovered rather than declared: SFINAE detectors, then C++20 concepts.
 A System that provides a hook gets the behaviour; one that does not gets a default. **Nothing checks
@@ -579,21 +643,6 @@ a contract it does not mean, and no way to say so.
 `static_assert` that the concept is satisfied; the caching protocol carried nothing, and the caching
 protocol is the one that broke. A concept asserts that a *type* is adequate. What went missing was a
 *call*.
-
-**The reduction primitive**, read off what the code actually needs: a **passive** coordinate accessor
-(passive by return type, which is what makes the coordinate conditions unviolatable); a contribution
-returning a **tuple**, so the value-and-slope walk, the per-resource walk and the per-metric walk are
-one function with a codomain parameter; passive predicates for the early exit and the closing
-interval, evaluated by the driver so forward and transpose cannot see different ones; and a declared
-`coordinate_is_state` flag in one place instead of four `if` blocks in two files. The driver owns the
-weights, the traversal, the association order and the half-factor — which today lands in four
-different places, and one consumer traverses backwards.
-
-**The growth primitive**: `apply`, `undo`, and the map as one scalar-templated function of
-`(y⁻ ++ θ) → y⁺` used by the tape, by a forward-tangent reference and by the replay alike. Plus a
-recording hook so the event list is **declared by the run** rather than inferred from width diffs —
-which alone removes the newest-first recovery walk and the exact-float time matching, and makes
-representable an event that changes no width at all.
 
 ---
 
@@ -626,7 +675,10 @@ absent output has no column.
 
 ---
 
-## 9. The implicit node
+## 9. The implicit node — §7's seventh primitive, specified
+
+*§5.4 states what it owns and §7 states what an author writes instead; this is the interface read off
+what the code actually consumes.*
 
 One package's gradient header is the implicit-node pattern written once against one model's
 fifteen-wide parameter vector; the model's own `record_leaf_outputs` is the same pattern written a
@@ -646,7 +698,7 @@ and no differencing** — it is a property the transpose either has or does not 
 to `1.4e-14` over 294 operating points. A primitive that ships it gives every future node the one
 check internal consistency cannot fake.
 
-### 8.1 The cheapest branch has never been run
+### 9.1 The cheapest branch has never been run
 
 The variant that **has already dissolved the argmax** is not on the gradient path at all: its tracked
 operating point is passed into a `double` evaluation and clamped against `double` bounds, so it does
@@ -733,8 +785,18 @@ assertion is one of the obligations a growth primitive would own.
    per-unit constant and the production-width figure, and the answer was that a stage fits. What
    replaces it as the gating measurement is nothing: §12's cost premise, which was the other reason
    to measure before designing, has since been taken and does not oppose the design.
-5. **The parameter channel in-band**, then the block interface, then the reduction primitive, then
-   growth. Design the implicit node against **both** the argmax and the tracked-state case (§8.1).
+5. **Then the primitives, in the order §7 argues for.** The **parameter channel in-band** first: it
+   is the smallest, it is the one that converts report 01 §6's silent scaling error into a length
+   mismatch, and every primitive after it writes through it. Then the **block interface**, then the
+   **reduction** (§7.1), then **growth** (§7.2) — which brings the coverage assertion that closes the
+   live defect above as a by-product rather than as a patch. Design the **opaque node** against
+   **both** the argmax and the tracked-state case (§9.1); designing it against only the hard case
+   gives it the hard case's shape.
+
+   **The order is by dependency and by blast radius, not by size.** The reduction is the biggest
+   single win in lines and it is third, because a reduction primitive writing parameter rows through
+   an out-of-band accumulator inherits the failure the first item exists to remove — and then the
+   drift it fixes and the silence it kept would be indistinguishable in any disagreement.
 6. **Refusal.** The gradient returns a plain matrix; report 08 §9's requirement that an undefined
    metric be distinguishable from a zero one is **not representable in the return type**, and no
    adjoint-path code tests finiteness. A type change, cheaper before the interiors move than after.
@@ -897,3 +959,14 @@ oppose the design.**
 - **The closing element cannot be split into three.** §4.1 claims the cache, the grid point and the
   growth template are separable. If some consumer genuinely needs them fused, the two-slot accumulator
   is essential rather than a symptom.
+- **The declaration is not shorter than what it replaces, for a model that is not this one.** The DX
+  claim is ~1,520 lines of transpose against a ~31-line structural core plus a parameter list, and
+  that core was counted for the model the primitives were read off. **A declaration is not a saving if
+  every new model needs a new field in it.** The probe is to write the declaration for the simplest
+  existing strategy — which has an empty parameter list — and then for one that is genuinely
+  different in shape, and ask whether the second needed the primitive to grow. If it did, §7 has
+  described this model in a general vocabulary rather than found a general object.
+- **The seven do not compose into a gradient without a model writing anything else.** Each entry in
+  §7 is specified against the site it was read off, and nothing here has assembled all seven end to
+  end. The residue — whatever a model still has to write once every primitive exists — is the real
+  measure of this report, and it is currently unmeasured.
