@@ -436,17 +436,49 @@ intermediate rungs, and one of them is already half-built.
 reduce` once, at the active scalar, and take one VJP. That *is* `ode_rates_adjoint`, obtained rather
 than written, and every hand-mirrored transpose disappears.
 
-Two pieces of evidence that this is within reach rather than speculative. The whole-state-and-field
-rebuild **is already recorded at the active scalar once per stage**, inside the boundary transpose —
-so a tape traversing the entire upstream reduction exists in the innermost loop today; it simply is
-not seeded to yield the reduction's adjoints. And the peak is bounded by construction: one stage is
-`1/6M` of the whole trajectory, four to five orders below the number report 01 §0 rejects.
+**This is measured, not argued.** An instrumented build records the whole stage and reports:
 
-**What it trades away must be said plainly.** Report 01's *peak is flat in the unit count* is a design
-commitment, asserted by a test on the recording size. A stage tape gives that up deliberately for
-*peak is one stage*, which grows linearly in the unit count and needs an absolute number rather than
-the same flatness test. **The instrument already exists** — the VJP returns the recording size and the
-suite already reads it — so this is measurable today, before anything is designed.
+```
+stage tape (bytes) = 206,162 + 64,952 · N          R² = 1.0000000, every point within 0.08%
+```
+
+**65.0 kB per unit.** At production width — a full-lifetime stand, refined schedule, **164 units** —
+one stage is **10.4 MiB**; two species is 20.6 MiB. One gigabyte is not reached until N ≈ 16,500, and
+sixteen until N ≈ 264,000. Peak RSS tracked the logical tape, so there is no hidden allocator
+multiplier. Route A at the same width is ≈ 101 GiB, which is report 01 §0's rejected figure —
+**four orders, not the four-to-five claimed above.**
+
+**And rung B is already written, in odelia.** `step_adjoint` has two branches, and the `else` of
+`if constexpr (AdjointRates<System>)` lifts the System to the active scalar, makes one tape, and per
+stage records the System's own `derivs` — which for this model *is* the state-and-field rebuild
+followed by the rates. That is rung B verbatim. The model satisfies `AdjointRates`, so the `if
+constexpr` takes the other branch. **Deleting `ode_rates_adjoint` routes it into code that already
+exists.** Two gaps in that branch, both nameable: it seeds state adjoints only, so parameters must be
+registered as extra tape inputs (§7's missing noun); and it shares one tape across six stages without
+releasing the slot array, which costs ~1.8× one stage's peak until a clear-and-re-register per stage.
+
+Three results that were not expected:
+
+- **A stage records *less* per unit than a block does.** 22.9 kB inside a stage against 55.9 kB
+  standalone — 41% — because the per-unit block re-registers the whole 135-wide read and re-derives
+  the interpolant's span data for every unit, where a stage does it once.
+- **The whole-shared-part transpose is correct by tape**, checked against a central difference of its
+  own forward at `1.3e-10`, `2.7e-06`, `3.7e-08`. That is the object the ~440 hand-mirrored lines
+  transpose, transposing itself. And the stage tape delivers the parameter rows — 44 registered, 27
+  non-zero, all finite — out of the tape rather than an out-of-band mutable member.
+- **Time is neither a win nor a loss and must not be claimed as either.** One stage's record-and-sweep
+  is 1.4× the per-unit block loop it replaces. Both are ~100× below the ~0.98 s per stage §12
+  measures, because that is the opaque node's supplied rows, which rung B leaves untouched.
+
+**What it trades away.** Report 01's *peak is flat in the unit count* is a design commitment asserted
+by a test. A stage tape gives it up deliberately for *peak is 65.0 kB per unit*, which needs an
+absolute number rather than a flatness test.
+
+**One correction to how this was first put.** "The instrument already exists" was true of the
+per-unit block and false of the stage: the one call that records the whole shared-part build
+**discards its return value**, so the number it already computes is thrown away. That branch is
+taking a 3.4 MiB whole-patch recording per stage today — **65% of a full stage tape** — to read two
+densities and a height out of it.
 
 **Rung C — blocked, over a declared structure.** When a stage does not fit, block it: but let odelia
 block over a structure the System *declares* — units, reductions, reads, growth maps — taping each
@@ -591,9 +623,12 @@ regime report 05 §7.0 lists among the states the gradient is not valid at and d
 You do not move a fence until you know why it is there. Four are still there, and one that looked
 like a fence is a hole.
 
-**1. The branch tip does not build.** It calls seven symbols absent from every available ref of its
-dependency; the superproject's pointer is the last commit that compiles. **The other half of the
-root-carbon anchor is unpushed.** Nothing below can be validated until it lands.
+**1. The branch tip does not build, and the report's own stated triple is not a buildable one.** It
+calls symbols absent from every available ref of its dependency — confirmed by checking all twelve
+branches after a fetch: one carries half of what is needed and another carries the other half, and no
+branch carries both. **The newest commit that builds is the one the superproject already points at.**
+The other half of the root-carbon anchor is unpushed, and every reading above — this report included
+— is a reading rather than a build. Nothing below can be validated until it lands.
 
 **2. The upstream reduction has no isolated referee.** The probe is written and exported and **called
 by no test**, so that transpose is checked only *through* the composed right-hand side, where a
