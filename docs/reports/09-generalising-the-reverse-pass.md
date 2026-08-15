@@ -252,26 +252,53 @@ declares its *structure* has no derivative obligation left, and what remains is 
 
 ```
 per stage:
-    R₀      = reduce(units)                    # the closing element omitted
-    closing = boundary(R₀, y, t, φ)            # the inflow condition
-    R       = R₀ ⊕ close(closing)              # the shared part
-    rates_u = F(u.state, read(R, u), φ)        # per unit, independent
-    R'      = reduce₂(unit outputs)            # the downstream reduction
-    dydt    = assemble(rates, R')
+    R₀       = reduce(units)                   # the closing element omitted
+    closing₁ = boundary(R₀, y, t, φ)           # the inflow condition, in R₀
+    R        = R₀ ⊕ close(closing₁)            # the shared part
+    rates_u  = F(u.state, read(R, u), φ)       # per unit, independent
+    closing₂ = boundary(R,  y, t, φ)           # the SAME condition, in R
+    R'       = reduce₂(unit outputs ⊕ closing₂)# the downstream reduction
+    dydt     = assemble(rates, R')
 ```
 
 with insertions at passive event times. That is the model's stage, and nothing in it names the model.
 
+**The two boundary evaluations are the shape, not a detail.** The condition is the same function at
+different arguments, the upstream reduction reads the first and the downstream reduction reads the
+second, and they differ by more than `1e-6` relative with a test asserting it. A declaration listing
+"the boundary condition" in the singular gives the downstream reduction a transpose linearised at the
+wrong operating point — so what a model declares is a **read-point list**, and §4.1's rule (one
+accumulator slot per stage a quantity is read at) is then counted by the engine rather than by the
+reader.
+
 ### 5.2 Three layers, and an author only writes the first
 
-**L1 — the forward pass.** `rates(state, reads, params) → rates`, scalar-templated. That is all.
-No rebind, no parameter address list, no hand-derived partials, no `passive()`, no
-`if constexpr (double)`, no adjoint scatter, no graft.
+**L1 — the forward pass.** `rates(state, reads, params) → rates`. No rebind, no parameter address
+list, no hand-derived partials, no `passive()`, no `if constexpr (double)`, no adjoint scatter, no
+graft.
 
-**L2 — the declaration.** Roughly fifty lines: the parameter list as `{name, &field}` pairs; each
-reduction as `{position, contribution, kernel}`; the read; the boundary condition; the growth map.
-Every entry is a thing the model already computes — the declaration names them, it does not
-re-derive them.
+**Not necessarily scalar-templated, and this matters.** There are two ways to make a model
+differentiable in this tree and the cheaper one is not the one the reference model took. *Lifting*
+templates the whole strategy on the scalar and hand-supplies a Jacobian wherever it will not lift —
++61% file size, a 47-line rebind, eight dual-path branches, two parallel parameter lists. *Extracting*
+leaves the model alone and pulls the differentiable arithmetic into scalar-templated free functions
+that the `double` model then **delegates to**, so the existing forward suite validates faithfulness.
+The second is 125 lines and changes the strategy's shape not at all. A declaration that demands a
+rebind over the whole strategy accepts neither of the other two strategies in this tree — one has no
+template parameter at all. **L2 must support a partially-lifted model.**
+
+**L2 — the declaration.** The parameter list as `{name, &field, role}` pairs; each reduction as
+`{position, contribution, kernel, stage}`; the read layout as typed segments; the read-point list;
+the growth map; and, for a model with an inner solve, the opaque node.
+
+**Its size splits, and the split is the honest number.** The structural core — reductions, read,
+boundary, growth — is **~31 lines** for the reference model and shorter for the simplest one, whose
+parameter list is *empty*. The parameter list adds ~60 one-line entries. **The opaque node's
+declaration is a few hundred lines**, because a curvature, a two-coefficient factorisation with a
+model-chosen anchor direction, and fourteen traits with a complementary-slackness mask all have to be
+named, and none of them exists on the forward path. §2's 389-line artefact therefore **moves into the
+declaration rather than disappearing** — around 86% of its body is the primitive's, but what survives
+is a declaration and not a deletion.
 
 **L3 — the engine.** The tape, the blocking, both reduction transposes, the segment sweep, the
 parameter accumulator, the refusal channel, and the harness.
@@ -281,14 +308,26 @@ parameter accumulator, the refusal channel, and the harness.
 > **Tape everything whose operations you can afford to record. Supply rows only where recording is
 > impossible — an opaque solver — or unaffordable — the whole trajectory.**
 
-By that rule the reductions are taped: they are `O(NK)` of cheap arithmetic, and the evidence they
-are affordable is that the boundary transpose **already records the entire shared-part build at the
-active scalar, once per stage.** The tape exists in the innermost loop; it is simply not seeded to
-yield the reduction's adjoints. The ~440 hand-mirrored lines beside it, the twelve drift sites and
-the latent closing-interval defect all go with them.
+By that rule the reductions are taped, and the number rather than the precedent is the argument.
+Counted on the source: two shared-part builds per stage at 65 query points, over ~81 units with an
+early exit, at ~19 recorded operations per contribution — **≈10⁵ recorded operations, order 3 MB of
+tape per stage.** That is roughly *one existing block's* tape. The reduction is not what is expensive;
+the supplied-row assembly is. The ~440 hand-mirrored lines, the twelve drift sites and the latent
+closing-interval defect all go, and the direct saving is the extra plain-`double` shared-part build
+one of those transposes performs per stage.
 
-The current split has no cost principle behind it — the taped set includes a full shared-part rebuild,
-more expensive than the reduction transpose written by hand next to it. It is history.
+**Two corrections to how this was first argued.** Citing the boundary transpose as *evidence of
+affordability* is circular — §11 lists that same object as an unpriced cost, and an expensive thing
+already being done is not proof that expensive things are affordable. And it is not "in the innermost
+loop": it runs once per stage, after the per-unit loop.
+
+**The reduction tape is also not separable from rung B.** The closing element is evaluated **twice**
+per stage and the two reductions are linearised at different evaluations (§5.1). A tape of the
+reductions alone cannot recover that ordering; only a tape over the whole stage records the sequence
+and gets it right by construction.
+
+The current split still has no cost principle behind it — the taped set includes a full shared-part
+rebuild, more expensive than the reduction transpose written by hand next to it. That part stands.
 
 ### 5.4 The opaque node, which is what makes TF24 expressible
 
@@ -303,32 +342,63 @@ amplification ceiling, the classification, the graft, and the transpose identity
 classification becomes structural** — a consumer cannot fail to consult it, which is the defect that
 currently applies the interior formula at pins.
 
-One generalisation falls out for free: let the node carry **M operating points instead of one**. The
-collapse is then rank `M`, the deep-crown mode stops needing a refusal, and the scalar case is `M=1`.
+One generalisation follows, and it is **not** free: let the node carry **M operating points instead
+of one**. The collapse is then `M` independent rank-one collapses — cheap, `O(M)`, block-diagonal
+because the solves are independent. But `M` is not small. The shipped integration rule gives **21
+points**, and each needs its own supplied-row assembly, which is ~36 re-solves of the opaque solver.
+Priced against §12's measurement — one block VJP is ~3.9 ms against ~73 µs for a forward rate
+evaluation, so the graft is ~54× the thing it differentiates — `M = 21` multiplies the dominant term
+and takes one gradient from 1006 s to roughly **six hours**.
 
-### 5.5 Correctness by construction, or abort
+**And the refusal it would remove is not about rank.** The multi-point mode is refused because its
+crown means pass through a submodel that carries `double` and is not scalar-templated at all. That is
+a fact about a dependency, not about the primitive. The honest claim: M operating points make the
+mode *expressible*, at M× the dominant cost, once that dependency is lifted.
+
+### 5.5 Correctness by construction, or abort — with the four rows that do not survive
 
 Every defect in this corpus returns a finite, plausible number. The design's test is that each one
-moves out of that class — into *impossible to express*, *a compile error*, or *an abort*.
+moves out of that class. **An adversarial pass against this table struck or downgraded four of twelve
+rows**, and the two the section originally called "the whole argument" are the two that failed
+hardest. The corrected table, with each row marked *promotion* (the mechanism is already written in
+this tree at one site and missing at another) or *invention*:
 
-| failure | today | under the design |
+| failure | under the design | |
 |---|---|---|
-| transpose drifts from its forward | prose comment | **impossible** — one function |
-| weight-derivative term on a passive grid | `if` in two files | **impossible** — position type is passive |
-| a position used as a value | silent zero | **compile error** |
-| parameter list and name list disagree | none | **compile error** — one list, completeness assert |
-| a hook loses its caller | silent, for a month | **compile error** — asserted at the point of use |
-| a rebind drops a subclass's state | silent slicing | **compile error** |
-| non-finite supplied partial *or input* | partial only | **abort**, inside the graft |
-| amplification through a near-fold | none | **abort** on `\|s\|/\|R_p\|`, objective row still emitted |
-| interior formula at a pinned point | not checked | **abort** — classification is the primitive's |
-| state carried between units | undetectable by re-run | **abort** — permutation is the harness's |
-| segment list does not cover the recording | none | **abort** — coverage assert |
-| an undefined metric | not representable | **abort** — the return type carries it |
+| transpose drifts from its forward | **impossible — given a rebind asserted complete** (see below) | promotion |
+| parameter list and name list disagree | **compile error** — one list of pairs, completeness by `sizeof` | promotion |
+| non-finite supplied partial *or input* | **abort**, inside the graft; the input half is one line | promotion |
+| interior formula at a pinned point | **abort** — classification is the primitive's, by branch taken | promotion |
+| segment list does not cover the recording | **abort** — coverage assert, enabled by a declared event | promotion |
+| a hook loses its *caller* | **compile error** at the point of use — but a concept asserts a *type* | half |
+| a rebind drops a subclass's state | **compile error** | invention |
+| amplification through a near-fold | **abort** on `\|s\|/\|R_p\|`, objective row emitted regardless | invention |
+| an undefined metric | **abort** — the return type carries validity | invention |
+| ~~weight-derivative on a passive grid~~ | **struck** — already true today, bought by a return type | — |
+| ~~a position used as a value~~ | **struck** — the named failure does not occur; the converse does, and must stay legal | — |
+| state carried between units | **downgraded to a harness fixture**, not an abort | — |
 
-Two entries are the whole argument. *Impossible* is where a hand-written transpose goes when it stops
-being hand-written. *Abort* is where a plausible number goes when the engine, rather than the model,
-owns the decision.
+**Why the two struck rows were wrong.** Passivity bought by a return type is not a proposal — it is
+deployed, in the accessor every reduction but one already uses, and its guarantee survives every
+downstream mistake because the conversion happens at the source. Claiming it as a gain double-counts.
+And the failure the position type was supposed to prevent runs the wrong way: a *value used as a
+position* is the construction the height coordinate legitimately needs, where the position **is** the
+state. A type forbidding it would make the correct model inexpressible and close the unsupported
+coordinate permanently rather than fixing it.
+
+**Why the permutation row is a fixture and not an abort.** The invariant only exists on a grid whose
+weights coincide, and the suite's fixture is hand-built to make two of them coincide. At an arbitrary
+state a swap changes the answer, so there is nothing to compare — and the check reads *forward* rates,
+while the state that could actually carry between units on the reverse side is the parameter
+accumulator and the boundary slots. The harness is the right home; the engine cannot abort on it.
+
+**And the first row needs an obligation the design did not list.** "One function" is one *source
+text* evaluated on **two objects** — the value path's, and a hand-copied active twin. That copy omits
+nine members, one of which decides whether the shared part is built at all, so the tape would be the
+transpose of a function the value path never evaluated. One omission of exactly this kind has already
+been found and patched by hand, with a comment saying so. **A rebind asserted complete is a new engine
+obligation**, and the pattern that would discharge it — a completeness assert against an invariant the
+compiler already computes — is written 180 lines away in the same file, for a different aggregate.
 
 ### 5.6 What it cannot guarantee, and what it does instead
 
