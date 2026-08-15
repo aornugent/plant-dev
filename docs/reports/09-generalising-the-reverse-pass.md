@@ -527,7 +527,50 @@ only in an ODE tolerance compare as gradients of the same function.
 
 ---
 
-## 11. What would falsify this
+## 11. The corpus has drifted, and six of its claims would misdirect this work
+
+Reports 00 to 08 are this project's memory, and a stale claim in them propagates into every decision
+taken from them. A systematic audit against the code found the following. They are listed here rather
+than in a defect log because each one changes what a reader would *do*.
+
+**The top-ranked correctness item is already done.** Report 07 §7 ranks "give the size-space adjoint
+its trait slot" first and calls it a correctness matter — rows that do not arrive at all. They arrive:
+the carrier grew a fourth field, three of the four reduction-borne parameters now have rows, and the
+shortfall report 06 §11 quotes as 3.041 percent is measured at 3.3e-02. Read as a work order today it
+spends the budget on a closed row.
+
+**The one it displaces is mis-scoped in both directions.** Report 08 §3.1 specifies the factorisation
+check as *"one state, no gradient run, no stand"*, and the branch's own revert records that the
+failure was **invisible** on exactly that fixture — no competition means no unit sits far from where
+the pair was fitted. The coefficient it asks to check against a closed form *is* the closed form now,
+so that half is vacuous; and the shipped test measures only the family the report itself says cannot
+detect the error.
+
+**A channel the dependency map deletes is live and linear.** Report 00 §4.2's third physical fact —
+leaf area cancels out of the water channel — does not hold at this commit. Leaf area appears nowhere
+in the root network; the resistances are intensive by construction and the conversion multiplies by
+area afterwards, so per-unit uptake is **exactly linear in leaf area**. That is a first-order channel
+from the allometric constants and height into the shared soil state, deleted from the map that §2 of
+that same report calls the most important structural fact in the model.
+
+**The count is 47, not 44.** Every report that states the parameter count states 44, and the recorded
+step's input width follows it — 185 in three reports where the code gives 188.
+
+**Three of report 08 §5.2's five structural assertions are unimplementable as written**, and one
+contradicts report 00 §6: it asserts the per-layer soil block's off-diagonal cells are *exactly zero*
+where report 00 says *diagonal plus rank one*, which is what the code has and what the suite measures.
+
+**And the cost premise is not currently met.** The design exists because an adjoint answers every
+parameter for one run and one sweep. Measured on this tree at 81 units and 171 accepted steps: the
+forward run is 6.2 s and one gradient 1006 s, against roughly 291 s for re-running once per parameter.
+The scaling argument stands and re-runs are not a usable alternative at production step sizes — but
+the constant currently inverts the conclusion, **and nothing in the ladder measures time at all.** The
+flatness guarantees the design rests on are about memory and target count; both are checked. That is
+the strongest argument in this report for §5's measurement coming before §6's design.
+
+---
+
+## 12. What would falsify this
 
 - **The interiors are not model-shaped.** If a second model with an inner solve needs a materially
   different *schedule* — not different kernels, a different order — the six-step interior is this
