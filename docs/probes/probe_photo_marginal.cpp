@@ -183,21 +183,19 @@ int main() {
            jet.A_J, jet.A_J_ci, jet.A_cv, jet.A_cv_ci);
     printf("    dJ/da %.8e  dJ/dcurv_elec %.8e\n", dJ_da, dJ_dce);
 
-    for (int k = 0; k < 3; ++k) {
-      // The two ingredients, routed through the waist.
-      double dA_dt = 0, dAci_dt = 0;
-      if (k == 0)      { dA_dt = jet.A_J * dJ_da;  dAci_dt = jet.A_J_ci * dJ_da; }
-      else if (k == 1) { dA_dt = jet.A_J * dJ_dce; dAci_dt = jet.A_J_ci * dJ_dce; }
-      else             { dA_dt = jet.A_cv;         dAci_dt = jet.A_cv_ci; }
+    // The accessor under test, read once at the operating point.
+    const phylloptim::Leaf::PhotoTraitRows R = l.photo_trait_rows();
+    const double pi_pred[3] = {R.dprofit_da, R.dprofit_dcurv_elec,
+                               R.dprofit_dcurv_colim};
+    const double r_pred[3] = {R.dmarginal_da, R.dmarginal_dcurv_elec,
+                              R.dmarginal_dcurv_colim};
+    static_cast<void>(D); static_cast<void>(K); static_cast<void>(g_ci);
+    static_cast<void>(gc); static_cast<void>(inv_atm); static_cast<void>(dJ_da);
+    static_cast<void>(dJ_dce); static_cast<void>(J);
 
-      // The rows.
-      const double dci_dt = -dA_dt * phylloptim::umol_to_mol / g_ci;
-      const double dAprime_dt = dAci_dt + jet.A_cici * dci_dt;
-      const double dg_ci_dt = phylloptim::umol_to_mol * dAprime_dt;
-      const double dK_dt = -(dci_dt * inv_atm * g_ci +
-                             (l.ca_ - ci) * inv_atm * dg_ci_dt) / (g_ci * g_ci);
-      const double dR_pred = dAprime_dt * D * K + jet.A_ci * D * dK_dt;
-      const double dPi_pred = dA_dt * gc * inv_atm / g_ci;
+    for (int k = 0; k < 3; ++k) {
+      const double dR_pred = r_pred[k];
+      const double dPi_pred = pi_pred[k];
 
       // Against differencing the whole solve at a frozen collar, which is what
       // plant does today.
@@ -246,9 +244,10 @@ int main() {
     const double ci = l.ci_;
 
     printf("\n=== cost, per cohort per stage ===\n");
-    const double t_jet = time_us([&] { volatile double v = assim_jet(l, ci).A_J; (void)v; }, 20000);
-    double a1 = 0, a2 = 0;
-    const double t_dJ = time_us([&] { dJ_dtraits(l, a1, a2); }, 20000);
+    static_cast<void>(ci);
+    const double t_jet = time_us([&] {
+      volatile double v = l.photo_trait_rows().dmarginal_da; (void)v; }, 20000);
+    const double t_dJ = 0.0;
     int side = 0;
     const double t_drive = time_us([&] {
       T t = kBase;
