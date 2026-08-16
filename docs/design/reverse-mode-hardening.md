@@ -258,7 +258,28 @@ uninformative.
     three checks at scales 0.75, 1.0 and 1.4: a scaled spline reproduces a **rebuilt** one to 4.4e-16
     in value, the Euler identity holds to **1.9e-16**, and the row agrees with a **rebuilt central
     difference** to **6.7e-09**. `stem_c` is untouched and keeps rebuild-and-difference.
-11. **`bound_row(Wet)`**, then **`bound_row(DryRootCrit)`** (§4.3).
+11. **`bound_row(Wet)`**, then **`bound_row(DryRootCrit)`** (§4.3). — **DERIVED AND REFEREED; NOT YET
+    CONSUMED.** All three arms are built: `Leaf::bound_row(WhichBound)` returns the row, the residual
+    slope and where it was taken. `dR/dstem_b` comes from item 10's identity rather than a rebuild.
+
+    **No `d_dstem_c` field, deliberately.** `stem_c` reshapes the curve rather than scaling it, so it
+    has no identity and its row needs the grid rebuilt; a field for it here would invite reading a
+    number nothing filled. A consumer takes it from the rebuild path that already exists.
+
+    *Refereed against a central difference of `find_root_psi`, which shares no code with the rows:*
+    worst **3.6e-07** on a mild soil gradient and **4.4e-05** on a strong one, for both the wet and the
+    dry arm. The `DryRootPsiCrit` arm is exact by inspection — `−1` in its own direction, zero
+    everywhere else.
+
+    ⚠️ **A uniform soil profile cannot referee the wet bound**, and this is a property of that bound
+    rather than of the fixture. It is where the per-layer fluxes *sum to zero*, which on a uniform
+    profile lands on top of every layer's own potential — exactly where each layer's span `|x − ψ_j|`
+    has its kink. The central difference straddles the kink while the row takes the side the model is
+    on, and they disagree by **5.5e-02** with neither being wrong. The dry bound is unaffected, which
+    is what identifies the cause. `test-bound-row.R` asserts the degeneracy rather than avoiding it.
+
+    **What is left is the consumption.** Nothing calls these yet, so the pinned branch still refuses —
+    items 12–14 are what turn a derived row into an answered one.
 12. **The `proportion_of_conductivity_kernel` overload** (§4.4), closing the zero-flux pieces.
 13. **The branch-dependent graft mask** (§4.5), then `Determined`.
 14. **The parity test** (§5) as the acceptance gate.
