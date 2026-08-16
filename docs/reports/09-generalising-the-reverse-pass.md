@@ -116,14 +116,18 @@ recorded in prose; a *blocked* row and a missing row are the same number.
 
 That was the reading this report was written from, and the middle row is the one it was aimed at.
 
-**Measured after: `plant`'s reverse-pass surface is −1,559 lines against +219, across thirteen
+**Measured after: `plant`'s reverse-pass surface is −1,576 lines against +246, across thirteen
 files.** `patch.h` goes 2,409 → 1,729 and `species.h` 1,448 → 1,181; `species.h`,
 `tf24_environment.h` and `node.h` carry no adjoint code at all. The three functions this section named
 as a quarter of the bulk — `cohort_block_adjoint`, `boundary_condition_adjoint`, and the light
 reduction's transpose — are all gone, together with the soil cascade, the offspring rate, the uptake
-trapezium, the environment's rate transpose, and the carriers between them. `odelia` is −286 against
-+216 over the same span, and it gained two primitives while losing one file and one corner of XAD's
-tape API.
+trapezium, the environment's rate transpose, and the carriers between them.
+
+**`odelia` went the other way, and that is the shape the exchange should have.** Its shipped headers
+are −140 against +133 — two primitives gained, one file and one corner of XAD's tape API lost, for
+seven lines net — while its tests are +280 against −145, because the primitives arrived with referees
+and seventeen probes stopped restating their own build flags. **A thousand-line deletion in the model
+cost the solver seven lines of header.**
 
 **The bucket that did not move is the one worth looking at.** The graft is 412 lines in the strategy,
 and only its last twenty moved: the *construction* is now odelia's, but the partials fed to it are
