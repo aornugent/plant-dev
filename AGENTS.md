@@ -243,10 +243,20 @@ to match `src/Makevars`: the XAD defines (`XAD_NO_THREADLOCAL`,
 against a symbol of the same mangled name in the other storage class — *"TLS
 reference ... mismatches non-TLS definition"*. A probe missing the second reads
 every `concept` in odelia's headers as a syntax error — *"'concept' does not name a
-type"*. `odelia_cppflags()` in `tests/testthat/helper-load-odelia.R` is where both
-live; a new probe takes its flags from there and nowhere else.
+type"*. **The two are set in different places and only one of them can be
+shared.** `odelia_cppflags()` in `tests/testthat/helper-load-odelia.R` carries the
+include path and the defines, and a new probe takes those from there and nowhere
+else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
+`-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
+each snippet. A probe including any odelia header that names a concept needs it.
 
-At `odelia@bed3bc5` the suite is **369 passing, 0 failing, 3 skipped**.
+At `odelia@7615401` the suite is **384 passing, 0 failing, 3 skipped**.
+
+**One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
+takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
+once in five full-suite runs, and never when that file is run on its own. If a run
+aborts there, re-run before investigating; if you are changing the leaf example or
+the AD driver, run the whole suite several times, because once is not evidence.
 
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 

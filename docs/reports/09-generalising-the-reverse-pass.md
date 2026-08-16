@@ -733,7 +733,15 @@ suite reported them as errors and nobody was reading it, because seven more of i
 dead far longer for a plainer reason: they never asked for the language standard their own includes
 require, so every `concept` in them read as a syntax error. **odelia's AD tests — including the one
 refereeing `vector_jacobian_product`, which the whole stage recording rests on — were 142 passing
-assertions out of 369.** They are 369 now.
+assertions out of 369.** They are 369 now, and 384 with the new primitive's own.
+
+**And running them turned up something none of them was written to find.** With the suite whole, the
+leaf-thermal AD example takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` —
+**once in five full runs**, and never in three runs of that file alone. It is nothing this work
+touched and it is not in the reverse pass; it was invisible because those tests had not built. It is
+recorded rather than fixed because a rare memory fault in an example's solver is its own piece of
+work — and because a fault that needs the whole suite to appear is one more thing that only an
+instrument nobody was reading could have been hiding.
 
 The shape is the same as the caching hooks and the same as the four hand-walks of the parameter
 order: **a rule restated at every site drifts at every site, and the instrument that would say so is
@@ -886,11 +894,25 @@ struck through were done in the pass this section was last rewritten for.
    exists without being recognised as one** and needs only a run that resumes from a populated state
    to become the referee.
 
-2. **Cache the twin and the tape.** The stage transpose rebinds a whole `Patch` per call — six times
-   per step, each running the parameter validation and the reset — and constructs a tape per call
-   where odelia's own docstring prices one at about a fifth of the product. The design just deleted
-   cached both, in the `block_workspace` its per-unit blocks carried. This is the largest remaining
-   avoidable cost and it is a pattern the tree has already written once.
+2. **Cache the tape. Caching the twin is not the same job, and this report had them as one.** The
+   stage transpose rebinds a whole `Patch` per call — six times per step, each running the parameter
+   validation and the reset — and constructs a tape per call where odelia's own docstring prices one
+   at about a fifth of the product. The design just deleted cached both, in the `block_workspace` its
+   per-unit blocks carried, so this looked like a pattern the tree had already written once.
+
+   **It is not, and a test written for the new primitive found why.** The twin's parameters are
+   written *from the recorded inputs*, so a twin carried into a second call arrives holding scalars
+   from a recording that has since been cleared, and the sweep comes back wrong. Measured on a
+   two-state, two-parameter block: three products through one reused twin return the second seed's
+   rows as `(15, −7)` and `(44, 56)` where three exact products give `(7, 5)` and `(12, 0)` — while
+   **the first seed's rows are exact in both.** A partial, silent corruption, which is report 01 §6's
+   signature again and is why the requirement is now stated on the primitive and pinned by a test.
+
+   So the two halves split. The tape is the caller's already and caching it is a member and a line.
+   The twin needs its scalars fresh by some route other than not reusing it, and until that route
+   exists the rebind is load-bearing rather than waste. **The measured cost of the whole product is
+   8.46 ms against 0.18 ms for the forward field build it repeats**, so what the rebind costs inside
+   that is worth measuring before it is optimised.
 
 3. **One field build per stage is computed and thrown away.** The stepper sets state *and field* on
    the double system immediately before the transpose, which rebuilds the field at an active scalar
