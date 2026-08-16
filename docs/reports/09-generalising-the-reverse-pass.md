@@ -893,13 +893,20 @@ layer, and 1e-6 of the block's largest entry in absolute terms. The previous bou
 floor across layers that differ by three orders in convergence and by excusing one of them. No
 acceptance number is declared for the sharper reading, so the check reports it and says so.
 
-**The uniform-drying direction is not reachable on the fixtures the check runs on.** Measured
-amplification: **1.1× on both patch fixtures**, against report 05's fifteen to twenty-six. That
-report measured it on a *competing stand*, where the collar tracks the soil closely enough for the
-row sum to be a small residue of its terms; a constructed patch does not reproduce it. So the
-direction is formed and reported, its regime precondition is asserted, and the check declares itself
-unavailable rather than passing vacuously. **Closing this fence needs a stand fixture, which is
-trajectory-tier work** — and that is a sharper statement of what remains than the fence had.
+**The uniform-drying direction is reached by the root network's hydraulics, and by nothing a
+trajectory develops.** The amplification is **1.1× on both patch fixtures** at the shipped traits —
+and, measured at every node of every run stand, between 1.03 and 1.14, the competing stand included
+at 1.143. Competition, shade, drought, cohort count, species count and run length each move it by
+under a tenth. What moves it is the collar's tracking of a uniform soil shift, which is set by the
+share of the hydraulic path lying between soil and collar: root conductance, and root mass spread
+over the column rather than concentrated at the surface. At sixty times the root conductance and the
+same root carbon, a one-cohort patch measures **16.3×** in a quarter of a second.
+
+**So the attribution to a competing stand was this report's own, and it was wrong.** Report 05 §7.3
+asserts fifteen to twenty-six with no measurement and no fixture behind it; its one "competing
+stand" is a different table, about the pair's transfer to the root-carbon rows. A stand cannot reach
+this regime, and a stand run with the traits that do reach it ends at 1.00× because the root carbon
+that buys the conductance is a mass constant and the plant cannot grow.
 
 **4. The transposes themselves are fixed.** All four coordinate conditions hold on the supported
 coordinate. **This fence is down**, which is why generalisation is the next move rather than a
@@ -945,22 +952,35 @@ Re-derived from the tree, not from what this report used to plan. **Three of the
 built** — the graft, the parameter adjoint, and the growth event — and building them changed what the
 rest of this list says.
 
-**1. Two numbers with no acceptance number, both found by checking something else.** The
-factorisation's residual is **20.9, 18.9, 17.5, 0.5, 1.4** times its own reference, per layer; and the
-seed height's `omega` row disagrees with a rebuilt root-find by **5.8×** where the other seven land
-inside a tenth. Both are small in absolute terms and neither is inside the reference's error, which is
-what the previous readings implied by pooling. Someone has to decide what these are allowed to be.
+**1. Both of the numbers that had no acceptance number were artefacts of their estimators, and the
+lesson generalises.** Neither was a defect in the rows. The factorisation's five per-layer ratios are
+**one** error — the difference matrix is rank one, so every layer is wrong by the same relative
+amount — read through a statistic that scaled each layer by the whole block's largest entry and took
+its floor from a round-off gap, which is why one scalar printed as five numbers and why the first of
+them moves with the build. The seed height's `omega` row is *right*: `height_seed()` bisects at
+`offspring_production_tol`, passed as both the absolute and the relative tolerance, and returns the
+bracket's midpoint, so every rebuild is quantised at `tol·(1+root)/2` and a central difference
+carries that whole width over its step. Against a reference that averages the quantisation rather
+than differencing it, `omega` is the *best* of the eight.
 
-**2. Fence 3 needs a stand.** The uniform-drying direction is now formed and checked, and the check
-declares itself unavailable: the amplification that makes the direction matter is **1.1× on both
-patch fixtures** against the fifteen to twenty-six report 05 measured on a *competing* stand. No
-patch-tier fixture can close this however it is written. A stand fixture is trajectory-tier work and
-it is the largest correctness item left.
+**Both floors failed the same way, and it is worth stating once: a floor taken as the gap between
+two step sizes measures how far a difference has CONVERGED, not how accurate it is.** Where the
+dominant error rises as the step falls — which is what a quantised root-find gives — that statistic
+reads the opposite of the error, and it tightens exactly where the check gets sharper. Every
+remaining tolerance in this suite of that shape is suspect.
 
-**3. The first segment's fix is unrefereed.** The sweep runs the right segments now, but the un-swept
-range was empty on every fixture, so nothing can tell. Needed: a run whose first segment is not empty,
-and a way to read the sweep's final lambda — which is a member and an export, because the exact
-forward reference for that quantity is already written and now wired.
+**2. Fence 3 is patch-tier work, not the stand this report asked for.** See above: no stand reaches
+the regime, and the fixture that does is a one-cohort patch given sixty times the root conductance at
+constant root carbon. What bounds the direction is the per-entry bound times the measured
+amplification — the composition IS the point, since a systematic error adds coherently across the
+entries while the answer cancels.
+
+**3. The first segment's fix is refereed.** What it needed was a run resumed from a patch that
+already carries cohorts, which puts half the recording below the first widening, plus the sweep's
+final lambda as a member and an export. It is refereed against the forward tangent from the same
+state over the same steps. Reconstructed, the broken walk would have left `W0ᵀB` there — and its
+log-density columns come back at ratio **1.000**, so a contracted or subset-seeded check would have
+passed with the bug in place. The whole matrix has to be formed.
 
 **4. Cache the tape.** Not the twin: a twin carried into a second call arrives holding scalars from a
 recording since cleared, and the sweep comes back partly wrong — one seed exact, another not. Stated
@@ -1134,10 +1154,12 @@ was fitted. The coefficient it asks to check against a closed form *is* the clos
 half is vacuous; and the shipped test measures only the family the report itself says cannot detect
 the error.
 
-**Measured, and the scoping objection is now a number.** The amplification that makes the direction
-matter is **1.1× on both patch fixtures** against the fifteen to twenty-six report 05 measured on a
-competing stand. So "no stand" does not merely weaken the check — it removes the regime the check is
-about, and a patch-tier fixture cannot close this however it is written.
+**Measured, and the scoping objection turned out to point the wrong way.** The amplification that
+makes the direction matter is **1.1× on both patch fixtures** — but also 1.03 to 1.14 at every node
+of every run stand, so a stand does not supply the regime either. It is set by the root network's
+hydraulics, which a patch can be given directly: at sixty times the root conductance and the same
+root carbon, **16.3×**. The fence is patch-tier work costing a quarter of a second, not
+trajectory-tier work costing a sweep.
 
 **A channel the dependency map deletes is live and linear.** Report 00 §4.2's third physical fact —
 leaf area cancels out of the water channel — does not hold at this commit. Leaf area appears nowhere
