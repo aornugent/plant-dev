@@ -941,105 +941,69 @@ is still the thing that would prove it, and is still not written.
 
 ### Then, in order
 
-Re-derived from a scan of the tree as it now stands, not from what this report used to plan. Items
-struck through were done in the pass this section was last rewritten for.
+Re-derived from the tree, not from what this report used to plan. **Three of the seven primitives are
+built** — the graft, the parameter adjoint, and the growth event — and building them changed what the
+rest of this list says.
 
-1. ~~**The first segment is never swept.**~~ **Done**, as described above. What remains of it is the
-   fixture: the recruit rung already asserts the boundary term is asked for once per stage per step
-   per metric, which holds only if the sweep visits every recorded step, so **the coverage assertion
-   exists without being recognised as one** and needs only a run that resumes from a populated state
-   to become the referee. **The exact reference for the same quantity is also already written and
-   also uncalled** — see item 5 — so what item 1 still needs is a fixture whose first segment is not
-   empty, and a way to read the sweep's final lambda, and not a new instrument.
+**1. Two numbers with no acceptance number, both found by checking something else.** The
+factorisation's residual is **20.9, 18.9, 17.5, 0.5, 1.4** times its own reference, per layer; and the
+seed height's `omega` row disagrees with a rebuilt root-find by **5.8×** where the other seven land
+inside a tenth. Both are small in absolute terms and neither is inside the reference's error, which is
+what the previous readings implied by pooling. Someone has to decide what these are allowed to be.
 
-2. **Cache the tape. Caching the twin is not the same job, and this report had them as one.** The
-   stage transpose rebinds a whole `Patch` per call — six times per step, each running the parameter
-   validation and the reset — and constructs a tape per call where odelia's own docstring prices one
-   at about a fifth of the product. The design just deleted cached both, in the `block_workspace` its
-   per-unit blocks carried, so this looked like a pattern the tree had already written once.
+**2. Fence 3 needs a stand.** The uniform-drying direction is now formed and checked, and the check
+declares itself unavailable: the amplification that makes the direction matter is **1.1× on both
+patch fixtures** against the fifteen to twenty-six report 05 measured on a *competing* stand. No
+patch-tier fixture can close this however it is written. A stand fixture is trajectory-tier work and
+it is the largest correctness item left.
 
-   **It is not, and a test written for the new primitive found why.** The twin's parameters are
-   written *from the recorded inputs*, so a twin carried into a second call arrives holding scalars
-   from a recording that has since been cleared, and the sweep comes back wrong. Measured on a
-   two-state, two-parameter block: three products through one reused twin return the second seed's
-   rows as `(15, −7)` and `(44, 56)` where three exact products give `(7, 5)` and `(12, 0)` — while
-   **the first seed's rows are exact in both.** A partial, silent corruption, which is report 01 §6's
-   signature again and is why the requirement is now stated on the primitive and pinned by a test.
+**3. The first segment's fix is unrefereed.** The sweep runs the right segments now, but the un-swept
+range was empty on every fixture, so nothing can tell. Needed: a run whose first segment is not empty,
+and a way to read the sweep's final lambda — which is a member and an export, because the exact
+forward reference for that quantity is already written and now wired.
 
-   So the two halves split. The tape is the caller's already and caching it is a member and a line.
-   The twin needs its scalars fresh by some route other than not reusing it, and until that route
-   exists the rebind is load-bearing rather than waste. **The measured cost of the whole product is
-   8.46 ms against 0.18 ms for the forward field build it repeats**, so what the rebind costs inside
-   that is worth measuring before it is optimised.
+**4. Cache the tape.** Not the twin: a twin carried into a second call arrives holding scalars from a
+recording since cleared, and the sweep comes back partly wrong — one seed exact, another not. Stated
+on the primitive and pinned by a test. The tape is the caller's already; caching it is a member and a
+line.
 
-3. **One field build per stage is computed and thrown away.** The stepper sets state *and field* on
-   the double system immediately before the transpose, which rebuilds the field at an active scalar
-   inside its own recording; nothing reads the double one. Three builds per stage where two are
-   needed. It is a joint change — the stepper has to be told the System rebuilds internally — which
-   is why it ranks below the plant-only items.
+**5. One field build per stage is computed and thrown away.** The stepper sets state *and* field on
+the double system immediately before the transpose, which rebuilds the field at an active scalar
+inside its own recording. Three builds per stage where two are needed. A joint change: the stepper has
+to be told the System rebuilds internally.
 
-4. ~~**A trait vector.**~~ **Done**, and it turned out not to be a vector type. The rule — write the
-   parameters before the state, because a quantity the state determines reads them while deriving —
-   is now enforced rather than documented: the primitive writes the parameters itself and hands the
-   caller only the state, so writing the state first is not something a caller can express. What is
-   left of the item is that the accumulator is still a System member (§7).
+**6. The opaque node — where the lines are, and untouched.** `record_leaf_outputs` is **406 lines, 47
+hand-named partials, 8 hand-written central differences, 13 refusal guards**. Over a third of the
+model-specific gradient surface, and the boundary the tape stops at: it removes every transpose whose
+forward it can record, and none of the place where a submodel's answer is put onto the tape by hand.
+No further work on the *sweep* touches this.
 
-5. **Relabel the block referee rather than delete it.** The block interface has no production caller
-   and its probes are the corpus's strongest entry-by-entry check — but of the *graft*, not of the
-   sweep. One of them differences the plain-double path, which is the only instrument that can see a
-   wrong supplied leaf row, because the graft makes every taped path insensitive to one by
-   construction. Keep it; ~~fix the file's own header, which still says it checks the sweep~~ —
-   **done**, and the correction was larger than a label: taking the block forward and backward does
-   not check a supplied row at all, because both modes read that row from the same place and agree
-   whether it is right or wrong. What it checks is that the two modes traverse one recording. Still
-   open is decoupling it from the live-path tests it gates, or the production sweep's checks skip
-   silently the day the block interface stops recording.
+**7. The reduction primitive is smaller than this report says.** The five hand-mirrored transposes it
+was aimed at are gone with the stage recording. What remains is four forward competition walks wanting
+one codomain parameter — perhaps thirty lines, against a bit-identity tripwire. Worth doing last, or
+not at all.
 
-   **The count of exported referees nothing called was six, not one, and four of them are wired
-   now.** Two are timing harnesses and are meant to be run by hand. The four that were checks:
-   `ladder_seed_geometry_tangent_tf24`, which declares itself the referee for the `implicit_value`
-   seed-height graft; and `ladder_census_initial_state_tangent_tf24`,
-   `ladder_census_initial_state_replay_tf24` and `ladder_segment_base_state_tf24`, which are a
-   matched set — an exact tangent, a plain-double replay to difference it against, and the base state
-   both index their arguments to — for **d(census)/d(the state a segment starts from), per segment**.
-   Beside them, `ladder_block_difference_tf24` is called at exactly one line over the soil columns
-   only, so the trait and conductance columns of the graft are differenced by nothing.
+**8. Refusal does not exist.** An undefined metric is still a plausible number. Unstarted.
 
-   That matched set is the machinery item 1's missing fixture needs and it was already written. It
-   runs now, at segment 0, where an exact tangent of the whole remaining trajectory meets a
-   plain-double replay of it — nine components, every one inside a tenth of its reference's error.
-   The seed geometry's row runs against a rebuilt root-find over all eight parameters that reach it.
+**And the standing qualification on every gradient this tree produces.** `refine_schedule` bisects on
+errors that depend on the traits, so the introduction schedule is a function of the parameters, and
+the reverse pass treats it as a constant. The gradients are partial derivatives **at a fixed
+discretisation**. That is defensible and it is not what a reader assumes; nothing in C++ can check it,
+so it belongs written down beside the numbers.
 
-   **What is still missing is only the reverse side.** The sweep never returns its final lambda, so
-   the segment-0 tangent has nothing to be compared *to*, and item 1's fix stays unrefereed. That is
-   a member and an export, and it is smaller than this report had been assuming — the instrument it
-   would feed is built, wired and passing.
+**Three things about the instruments, which cost more time this pass than the code did.**
 
-6. ~~**Five parallel trait arrays into one struct.**~~ **Half done, and the half that was possible.**
-   Three of the five were booleans, one of them true at every entry, and the loop read all three as a
-   single disjunction; they are one array now, named for the question the loop asks. The remaining two
-   — the values and the addresses — key by position to a **fourteen**-argument setter that belongs to
-   phylloptim, so collapsing them is a change to that package's interface rather than to this one.
-   **The scan also found the disagreement is worse than "the two packages disagree about arity".**
-   Slot thirteen is `g1_TF24` in plant and `cost_scale_TF24` in phylloptim, and plant contradicts
-   itself: its own index constant for that slot is `k_cost_scale`, the value written into it comes
-   from `dprofit_dcost_scale`, and the documentation string plant ships describes a cost parameter —
-   while the name on the gradient column R sees is a stomatal-slope name. That is a rename across an
-   R-facing surface, which is why it is recorded here rather than done.
-
-7. ~~**One graft.**~~ **Done**, and see §7: it was three copies, not four, and one of the three was a
-   different construction that should not be folded in.
-
-**And one thing that was not a build.** ~~`supplied_derivative.hpp` has no production consumer~~ —
-retired. It is superseded inside odelia by the graft, which does the same job in arithmetic at any
-scalar, and by `implicit_value`, which takes the residual rather than hand-computed partials.
-Retiring it removed the corner of XAD's tape API that nothing else here touches.
-
-**And one that was not on the list at all**, because the instrument that would have raised it was
-itself broken: odelia's own test suite was running 142 of its 369 assertions (§7.3). It runs all of
-them now. Nothing in this report's numbers changes as a result — the plant ladder was never affected
-— but every claim about an odelia primitive made before this pass was made against a suite that was
-not checking it.
+- **The ladder converted a broken sweep into a skip.** Both trajectory gates caught every error and
+  reported it as "does not run on this stand". Measured: a deliberately wrong `narrow()` gave six
+  skips in rung 5 and no failures, while the assertion that caught it fired correctly. Now only a
+  *declared* refusal skips and the list is pinned by a test. **Any green trajectory-tier result from
+  before this change means "passed or did not run".**
+- **odelia's own suite was running 142 of 369 assertions** (§7.3), and running it again turned up an
+  intermittent fault in the leaf-thermal example — about one full run in five, never alone.
+- **The R user library is shared across worktrees and sessions.** A parallel session's odelia was
+  installed over this tree's mid-run, and a stale install lock removed the package outright while
+  tests ran. Both are silent: the build compiles against whatever is there. This tree now installs
+  odelia into a private library and asserts the resolved one is its own before compiling.
 
 ## 11. Costs and gaps the design does not price
 
