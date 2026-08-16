@@ -896,7 +896,9 @@ struck through were done in the pass this section was last rewritten for.
    fixture: the recruit rung already asserts the boundary term is asked for once per stage per step
    per metric, which holds only if the sweep visits every recorded step, so **the coverage assertion
    exists without being recognised as one** and needs only a run that resumes from a populated state
-   to become the referee.
+   to become the referee. **The exact reference for the same quantity is also already written and
+   also uncalled** — see item 5 — so what item 1 still needs is a fixture whose first segment is not
+   empty, and a way to read the sweep's final lambda, and not a new instrument.
 
 2. **Cache the tape. Caching the twin is not the same job, and this report had them as one.** The
    stage transpose rebinds a whole `Patch` per call — six times per step, each running the parameter
@@ -934,13 +936,27 @@ struck through were done in the pass this section was last rewritten for.
    and its probes are the corpus's strongest entry-by-entry check — but of the *graft*, not of the
    sweep. One of them differences the plain-double path, which is the only instrument that can see a
    wrong supplied leaf row, because the graft makes every taped path insensitive to one by
-   construction. Keep it; fix the file's own header, which still says it checks the sweep. And
-   decouple it from the live-path tests it currently gates, or the production sweep's checks skip
-   silently the day the block interface stops recording. **Two more of the same kind surfaced in the
-   scan**: `ladder_seed_geometry_tangent_tf24` is exported, declares itself the referee for the
-   `implicit_value` seed-height graft, and is called by nothing; and `ladder_block_difference_tf24`
-   is called at exactly one line, over the soil columns only, so the trait and conductance columns of
-   the graft are differenced by nothing.
+   construction. Keep it; ~~fix the file's own header, which still says it checks the sweep~~ —
+   **done**, and the correction was larger than a label: taking the block forward and backward does
+   not check a supplied row at all, because both modes read that row from the same place and agree
+   whether it is right or wrong. What it checks is that the two modes traverse one recording. Still
+   open is decoupling it from the live-path tests it gates, or the production sweep's checks skip
+   silently the day the block interface stops recording.
+
+   **And the count of exported referees nothing calls is six, not one.** Two are timing harnesses and
+   are meant to be run by hand. The other four are checks:
+   `ladder_seed_geometry_tangent_tf24`, which declares itself the referee for the `implicit_value`
+   seed-height graft; and `ladder_census_initial_state_tangent_tf24`,
+   `ladder_census_initial_state_replay_tf24` and `ladder_segment_base_state_tf24`, which are a
+   matched set — an exact tangent, a plain-double replay to difference it against, and the base state
+   both index their arguments to — for **d(census)/d(the state a segment starts from), per segment**.
+   Beside them, `ladder_block_difference_tf24` is called at exactly one line over the soil columns
+   only, so the trait and conductance columns of the graft are differenced by nothing.
+
+   That matched set is the machinery item 1's missing fixture needs and it is already written. What
+   it does not yet have is a reverse side: the sweep never returns its final lambda, so there is
+   nothing for the tangent at segment 0 to be compared *to*. Exposing that lambda is the smaller half
+   of the fixture, and it is smaller than this report has been assuming.
 
 6. ~~**Five parallel trait arrays into one struct.**~~ **Half done, and the half that was possible.**
    Three of the five were booleans, one of them true at every entry, and the loop read all three as a
