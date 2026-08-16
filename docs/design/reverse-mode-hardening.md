@@ -50,12 +50,12 @@ Ordered by severity, which is not the order of the work — see §3 for that.
 | 1 | FD probe crosses a feasibility boundary | **closed** | one entry point serves two consumers; `evaluate_root_collar_psi` clamps by design for the acclimating FD, wrongly for a frozen-collar partial | **production drought** — guaranteed at any pin | yes |
 | 2 | no amplification ceiling | open | the guard tests the curvature's **sign**; the divergence is in its **magnitude** | `stem_c` 2.68 → 0.6 — **4.5×, a search reaches this** | yes |
 | 3 | forward tangent non-finite | **closed** | boundary node carries `log(birth_rate·pr_estab) = −Inf`; the tangent works in `ℓ` where the sweep works in `n` | any stand where establishment fails | yes |
-| 4 | clamp severs a row | counted, not yet refused | the floor clamps at the **read**; the field stores values to 1e-117 underneath | `k_I` 0.5 → 40 — **80×** | yes |
+| 4 | clamp severs a row | **closed** — counted and refused, guard unexercised | the floor clamps at the **read**; the field stores values to 1e-117 underneath | `k_I` 0.5 → 40 — **80×** | yes |
 | 5 | ambiguous exact zeros | **closed** | three correct zeros, three different causes, no way to say which | every run | yes |
 | 6 | non-finite input poisons the value | **closed** | the graft guards its derivatives, not its inputs | latent; widens with the pinned branch | yes |
 | 7 | ghost cohort | **closed** | `check_birth_dates_distinct()` is called on the seeding path, never the scheduled one | any duplicated schedule time | yes |
 | 8 | refusal misnamed | **closed** | one tag covers a dry plant and a broken parameterisation; `GSS_tol_abs` has two defaults | `root_psi_crit` below `root_zero_E` | partly |
-| 9 | pinned refusal | half — arm named, bounds still discarded | the bounds are locals, discarded; `PinnedDry` never said which arm | **production drought** | no |
+| 9 | pinned refusal | half — arm named, rows built and wired to the leaf; stand does not consume | the bounds are locals, discarded; `PinnedDry` never said which arm | **production drought** | no |
 | 10 | raw error escapes | **closed** | no refusal channel exists in C++ | every failure above | wrongly |
 | 11 | forward run dies | upstream | real, and **already largely fixed** upstream *(corpus: #599 went 17/40 → 5/40)* | did not fire in 14 runs | no |
 | 12 | resource | other branch | the forward `O(K·N)` field build, inherited by the sweep's replay | every multi-species run | no |
@@ -303,10 +303,18 @@ uninformative.
 13. **The branch-dependent graft mask** (§4.5), then `Determined`. — **THE NEXT WORK, and the only
     remaining change that flips a result from refuse to answer.** Three parts, in this order:
 
-    a. **`profit_env_derivatives` must stop returning `usable = false` at a pin** and supply the case-K
-       rows instead: `∂Π/∂u + ν·∂B/∂u` for profit, and `∂E_i/∂u + (∂E_i/∂p)·∂B/∂u` for uptake, with
-       `∂B/∂u` from `bound_row(...)` and the arm from `dry_bound_arm()`. Everything on the right-hand
-       side of both exists and is refereed.
+    a. ~~**`profit_env_derivatives` must stop returning `usable = false` at a pin**~~ — **DONE.** It
+       supplies `∂Π/∂u + ν·∂B/∂u` for the soil rows, selecting the arm from the classification, and
+       reports `pinned` so a caller cannot read a bound-following row as an envelope row. The light
+       row gains nothing: neither bound reads radiation, so `∂B/∂light` is exactly zero.
+
+       **The stand still refuses**, now on that flag rather than on `usable`. Everything after the
+       environment rows in `record_leaf_outputs` is the interior derivation, and the substitution is
+       mechanical but wide: `dcollar_d<family> = −dR_d<family>/curvature` at **ten sites** becomes the
+       matching `bound_row` entry, `dcollar_dlight` becomes exactly zero, and the profit rows for the
+       families other than soil need their own `ν·∂B/∂u` term. That is the remaining work, and it
+       changes production numbers, so it wants the before/after incidence and a reference at a pinned
+       state — neither of which exists yet.
     b. **The multiplier is already computed and thrown away.** `marginal` at `tf24_strategy.h:1013`,
        discarded at 1338. `w = λ_Π·marginal + s` is what the pinned branch needs it for.
     c. **`lt_zero_at_interior` becomes a function of the classification** (§4.5's table). `psi_crit` and
@@ -553,7 +561,16 @@ Four numbers gate decisions and none is derivable.
    re-solve) against a 14.6× baseline. This is a kill condition for the phase. **The pinned fraction
    is now measured at 0.29% on a refusing run**, so the bound is small — but the *ceiling* still has
    to be checked against a run, because that fraction is one driver's.
-3. ~~**Clamp and classification incidence.**~~ **Measured — see Phase 2 above.** Classification: a
+3. ~~**Clamp and classification incidence.**~~ **Measured — see Phase 2 above.** **#4's refusal now
+   goes with its counting**, on the differentiated path alone: a compile-time choice, because which
+   path this is is a property of the scalar rather than of the state. The forward model is untouched —
+   at `k_I` = 40 the census is still 0.2206 while the gradient refuses.
+
+   ⚠️ **The refusal is implemented and unexercised.** On every configuration reached, the floor only
+   binds once the canopy has closed, and by then some operating point has also left the interior
+   branch — so the gate refuses first and wins the race. At lifetime 1 the floor does not fire even at
+   `k_I` = 150. Treat it as a guard nothing has yet fired, the same standing as the graft's input
+   test. Classification: a
    refusing production run is **99.71% interior and 0.29% pinned-dry**, and that 0.29% costs the whole
    gradient. Clamp: the light floor fires **0% at shipped `k_I` and 7.5% at `k_I` = 40**. Fourteen
    clamp sites still carry no counter.
