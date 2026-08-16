@@ -1242,3 +1242,104 @@ oppose the design.**
   §7 is specified against the site it was read off, and nothing here has assembled all seven end to
   end. The residue — whatever a model still has to write once every primitive exists — is the real
   measure of this report, and it is currently unmeasured.
+
+---
+
+## 14. The collapsed transpose
+
+§7 asks which primitives odelia is missing. Read against the code as it now stands, the question
+has changed shape: the pieces are nearly all there, in odelia, and what is missing is that the
+model still owns the assembly. This section maps what a collapse would look like and what it costs.
+
+### 14.1 Four things the code already says
+
+**The single-seed path has no production caller.** The sweep runs
+`solve_adjoint_over_widenings` → `solve_adjoint_batched` → `step_adjoint_batched` →
+`ode_rates_adjoint_batched`. Every caller of the single-seed ladder — `Solver::solve_adjoint`,
+`Step::step_adjoint`, `Patch::ode_rates_adjoint` — is in odelia's own step-adjoint test. And the
+model's single form is the batched one already: it packs one seed, calls the batched form and
+unpacks it, in thirty-one lines of adapter.
+
+**The Runge-Kutta adjoint recursion is written twice.** `sweep_stages` and `sweep_stages_batched`
+are the same backward walk — the same stage rebuild, the same `lambda_in` accumulation, the same
+`h·b[m]` redistribution into the earlier stages — differing by an index loop. The seeding of
+`lambda_k` from `lambda_out` is likewise four coefficient lines written twice. One copy is
+exercised in production. This is exactly §3's shape: two transposes of one Butcher tableau, held
+together by nothing but the intention that they agree.
+
+**The model's transpose IS the generic branch plus two things odelia now has.** The
+non-`AdjointRates` branch of `step_adjoint` lifts the System to the adjoint scalar, registers the
+stage state, opens a recording, calls `derivs`, registers the rates, seeds and sweeps. The model's
+own version does the same, with a loader and a rate call in place of `derivs` — and `derivs` on
+that model resolves to precisely those two calls, because its state loader forwards to the one that
+builds the field. The generic branch is missing a parameter channel and batching. Both now exist,
+in one primitive, which already records once and sweeps per seed with the parameters packed in
+band.
+
+**The recording strategy is already declared, and it is not a missing concept.** `ReplaysField`
+plus `has_recorded_field` is the resident/invasion switch. `derivs` routes on it: reload the
+recorded field, in which case the derivative through the field is structurally zero — which is what
+a mutant at vanishing density *means*, not an approximation of it — or rebuild the field at the
+current state, in which case it flows, which is what a resident's endogenous feedback means. One
+function, two models, chosen by a declaration the model owns. It predates the reverse pass, and it
+answers the question §5.3 poses about what is taped and what is supplied.
+
+### 14.2 What that leaves of the transpose concept
+
+`AdjointRates` asks for five members and is doing two jobs. One is *"I carry my own transpose"* —
+the hand-rolled gradient this report exists to remove, and which the generic branch already does.
+The other is *"here is my stage's operating point"* — the aux triple, which moves the point the
+rates were evaluated at from the forward pass into the reverse one. Nothing generic can derive
+that; a rate evaluation is not a pure function of the state alone once a submodel has solved
+something at it.
+
+**The first job disappears. The second is irreducible and deserves a concept of its own.** That is
+the whole of the collapse, and it is why the answer is not "delete a concept" but "the concept was
+two concepts".
+
+### 14.3 The shape after
+
+**odelia owns** the tape; the twin, through `Rebindable` — and it already caches one, with the
+fallback that makes it nameable for a System that cannot rebind at all; the stage recursion, once;
+the record-once-sweep-many product with its parameter channel; and the recording function, which
+is `derivs` and therefore already carries the resident/invasion routing.
+
+**A model declares** how to rebind itself, which of its scalars are parameters, how to load a
+state, its stage's operating point, and — where it has a field worth freezing — the record and
+replay hooks. Nothing about tapes, seeds, recordings or Butcher coefficients.
+
+### 14.4 What it deletes
+
+One copy of the stage recursion and its tableau seeding; the single-seed stepper and the solver
+pair above it; the model's single-seed adapter; the model's batched transpose, which becomes
+odelia's; and the two adjoint concepts collapse into one aux concept. Then, once the model adopts
+the field hooks for its mutant runs, its *second* caching system goes with them — the per-stage
+environment cache that predates all of this and does the same job the replay hooks were written to
+do.
+
+### 14.5 What has to be solved before any of it
+
+- **Freshness is per recording, not per step.** A twin carried into a second recording holds
+  scalars from one since cleared, and the sweep comes back partly wrong. There are six recordings
+  per step. So a cached twin needs re-seating that often, and the re-seat must cover every scalar
+  that is neither a declared parameter nor written by the state loader. The parameter block's own
+  enumeration is complete and compiler-enforced, which is what makes this provable rather than
+  hopeful.
+- **The generic branch carries no aux at all.** Today the stepper sets aux on the double System and
+  the rebind copies it across. With a twin that is not rebuilt per stage, aux has to be set on the
+  twin.
+- **The instrumentation has to find a home.** The recording size is already the primitive's return
+  value. The boundary-condition counters are incremented per seed inside the model's transpose and
+  are derivable as stages × steps × metrics, which a trajectory check already asserts.
+
+### 14.6 Order, and the one that pays first
+
+1. **Collapse the single-seed path into the batched one.** Largest deletion, removes the duplicated
+   recursion, and shrinks the surface everything else has to move through.
+2. **Move the recording into odelia** — twin, product, `derivs`.
+3. **Reduce the transpose concept to the aux carriage.**
+4. **Adopt the field hooks in the model's mutant path**, which deletes the older cache and makes a
+   reverse-mode invasion gradient cost nothing beyond what resident gradients already pay.
+
+Steps 1 to 3 change no number. The acceptance test is bit-identity of the gradient, not a
+tolerance, because none of it alters what is computed — only how much and by whom.
