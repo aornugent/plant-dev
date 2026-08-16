@@ -6,14 +6,21 @@ The reverse-mode census gradient is correct where it answers and has thirteen kn
 thirteen are root-caused and each one's reachability is measured. This document is the specification
 for closing them and the handoff for the session that does it.
 
-Reading: `plant` at `cdf3f0c9`, `odelia` and `phylloptim` as installed. Every number here was measured
-on that tree unless marked *(corpus)*, meaning it comes from `docs/reports/00`–`09` or
-`plant/notes/gradient-development-record.md`.
+Every number here was measured rather than argued, unless marked *(corpus)* — meaning it comes from
+`docs/reports/00`–`09` or `plant/notes/gradient-development-record.md`. Figures from before the work
+below were taken at `plant` `cdf3f0c9`.
 
-**Phases 0 and 1 have landed in the working tree, and Phase 2's instruments with them. All of it is
-uncommitted.** Start by reading §3 for what each phase did and what it deliberately did not do.
-**The Phase 3 gate is now satisfied** — its two numbers are in §3's Phase 2 and §6. What remains in
-Phase 2 is the two detectors that change which states answer, and they are listed there.
+**Phases 0, 1 and 2's instruments are landed and committed, and so are four of Phase 3's six items.**
+`plant` is at `0a1576a3` on `ad/v3-forward`, `phylloptim` at `b8a822b`; nothing is pushed. Read §3 for
+what each phase did and — as important — what it deliberately did not do.
+
+**Eight of the thirteen defects are closed and two are half-closed.** The Phase 3 gate is satisfied,
+and its numbers are in §3's Phase 2 and in §6.
+
+**One thing to hold before starting.** Every row Phase 3 has built is *derived and refereed but not
+yet consumed*: nothing calls them, so the pinned branch still refuses exactly as it did. Item 13 is
+what turns a correct row into an answered one, and it is the only remaining change that flips results
+at pinned points from refuse to answer.
 
 ---
 
@@ -25,7 +32,7 @@ Phase 2 is the two detectors that change which states answer, and they are liste
 | cost | **14.6× the forward run**, flat across L = 2/10/30/60; extrapolates to ~520 s at century scale against the cost memo's measured 463 s |
 | where it stops | first non-interior operating point anywhere in the trajectory — refusal is metric-level and total, and since Phase 1 it is *returned* rather than thrown |
 | what refuses | `pinned-dry-root-crit` under drought or any seasonal amplitude ≥ 0.5; `shade-death` at leaf temp 45 °C; `infeasible-bracket` on an inverted interval |
-| what is silent | seven of the thirteen defects below; five of the seven are closed by Phases 0 and 1 |
+| what is silent | seven of the thirteen defects below; six of the seven are now closed or counted |
 
 **Build with the working tree, never the installed package.** The installed `plant` segfaults inside
 `census_trait_gradient_tf24`. Load with `library(odelia)` then `pkgload::load_all("plant")`.
@@ -36,7 +43,7 @@ Phase 2 is the two detectors that change which states answer, and they are liste
 
 Ordered by severity, which is not the order of the work — see §3 for that.
 
-**Status** marks what Phases 0 and 1 have closed in the working tree; everything unmarked is open.
+**Status** is against the committed tree. Unmarked means open.
 
 | # | defect | status | root cause | reachable at | silent |
 |---|---|---|---|---|---|
@@ -47,7 +54,7 @@ Ordered by severity, which is not the order of the work — see §3 for that.
 | 5 | ambiguous exact zeros | **closed** | three correct zeros, three different causes, no way to say which | every run | yes |
 | 6 | non-finite input poisons the value | **closed** | the graft guards its derivatives, not its inputs | latent; widens with the pinned branch | yes |
 | 7 | ghost cohort | **closed** | `check_birth_dates_distinct()` is called on the seeding path, never the scheduled one | any duplicated schedule time | yes |
-| 8 | refusal misnamed | half — names split, cause split open | one tag covers a dry plant and a broken parameterisation; `GSS_tol_abs` has two defaults | `root_psi_crit` below `root_zero_E` | partly |
+| 8 | refusal misnamed | **closed** | one tag covers a dry plant and a broken parameterisation; `GSS_tol_abs` has two defaults | `root_psi_crit` below `root_zero_E` | partly |
 | 9 | pinned refusal | half — arm named, bounds still discarded | the bounds are locals, discarded; `PinnedDry` never said which arm | **production drought** | no |
 | 10 | raw error escapes | **closed** | no refusal channel exists in C++ | every failure above | wrongly |
 | 11 | forward run dies | upstream | real, and **already largely fixed** upstream *(corpus: #599 went 17/40 → 5/40)* | did not fire in 14 runs | no |
@@ -293,17 +300,39 @@ uninformative.
     *Refereed against a rebuilt difference of the curve in every direction: worst **9.6e-10**.*
     `d(cost)/d(stem_c)` **changes sign** across the curve's inflexion (−0.556 at ψ 3, +0.720 at ψ 5),
     which the test pins — a row taking its sign from the value rather than the derivative would not.
-13. **The branch-dependent graft mask** (§4.5), then `Determined`.
-14. **The parity test** (§5) as the acceptance gate.
+13. **The branch-dependent graft mask** (§4.5), then `Determined`. — **THE NEXT WORK, and the only
+    remaining change that flips a result from refuse to answer.** Three parts, in this order:
+
+    a. **`profit_env_derivatives` must stop returning `usable = false` at a pin** and supply the case-K
+       rows instead: `∂Π/∂u + ν·∂B/∂u` for profit, and `∂E_i/∂u + (∂E_i/∂p)·∂B/∂u` for uptake, with
+       `∂B/∂u` from `bound_row(...)` and the arm from `dry_bound_arm()`. Everything on the right-hand
+       side of both exists and is refereed.
+    b. **The multiplier is already computed and thrown away.** `marginal` at `tf24_strategy.h:1013`,
+       discarded at 1338. `w = λ_Π·marginal + s` is what the pinned branch needs it for.
+    c. **`lt_zero_at_interior` becomes a function of the classification** (§4.5's table). `psi_crit` and
+       `root_psi_crit` are slack at an interior point and **live at a pin** — that is the whole reason
+       their zero is declared `zero-slack` rather than structural, and answering a pin without lifting
+       the mask returns two zeros that are no longer correct.
+
+    **Measure the incidence before and after.** The counters exist; a refusing drought run is
+    99.71% interior and 0.29% pinned-dry-root-crit, so this should convert a total refusal into an
+    answer while leaving every run that already answered bit-identical. If a previously-answering run
+    moves, the mask is wrong rather than the rows.
+14. **The parity test** (§5) as the acceptance gate. *For every state the forward model returns a
+    number for, the reverse returns a row or names a violated constraint.* Not before 13 — until the
+    pinned rows are consumed the test measures the gap rather than gating it.
 
 ### Do not
 
-- **Do not delete the interior gate** at `gradient.hpp:1162`. It is correct, and it currently does
-  double duty — it also keeps the FD probes away from the feasibility discontinuity. Removing it before
-  §4.1 lands makes #1 a production path.
-- **Do not answer `HydraulicShutdown` before #8's cause split.** The same tag covers a dry plant and a
-  parameterisation the model cannot represent; answering it as it stands returns a trait error as though
-  it were drought.
+- **Do not delete the interior gate** at `gradient.hpp:1162` yet. §4.1 has landed, so the FD probes no
+  longer depend on it — a crossing arm now refuses on its own. But the gate is still what keeps the
+  interior formula off a pinned point, and until item 13 supplies the pinned rows, deleting it would
+  answer a pin with the wrong theory rather than refusing it.
+- ~~**Do not answer `HydraulicShutdown` before #8's cause split.**~~ **Discharged:** the inverted
+  interval is now `InfeasibleBracket`, so what remains under `HydraulicShutdown` is the three exits
+  that are one ecological statement. The counter reports them apart, so whether the split matters in
+  production is now measurable rather than assumed — and it has zero incidence on every driver run
+  so far.
 - **Do not mollify the feasibility branches.** They are model, not artefact *(corpus: report 06 §7 —
   a pinned plant is drought; report 05 §5.3 — mollifying establishment would be actively harmful)*.
 - **Do not keep `SolverRefused` or `NonFiniteGradient` answerable.** No plant is described.
