@@ -32,11 +32,15 @@ result at a pinned point from refuse to answer. **No forward number moves, in an
 Everything below is committed on `ad/v3-forward` and unpushed. Each item names what to change, and
 what has to be true before it counts.
 
-### A — fold §11 into report 08 *(no code)*
+### A — ~~fold the verification strategy into report 08~~ **DONE**
 
-Report 08 has two reference classes and two axes; this work needed a third and broke two of its own
-checks. §11 is the six additions and the one correction. **Done when** report 08 names the
-defining-relation referee as an axis and §11 is deleted from here.
+Report 08 now carries it: a third reference class and a **locality axis** (§5A) for refereeing one
+supplied row against a difference of its own defining relation; the requirement that every invariant
+name what it is blind to (§2 item 2); incidence as the acceptance criterion for a change that narrows
+what the gradient answers (§2 item 6); degenerate fixtures asserted rather than avoided (§6); a guard
+census beside the zero census (§7); measured incidence beside every refusal claim (§8); and the
+correction that a coverage check is not an acceptance gate while a branch is refused rather than
+answered (§9).
 
 ### B — finish the pinned branch. Six steps, and the order is forced
 
@@ -107,7 +111,7 @@ clamp's.
 
 - **Two guards are implemented and have never fired**: the graft's input finiteness test, and the
   light floor's refusal (the interior gate wins the race). Neither is evidence of anything until it
-  does. §11's guard census is the fix.
+  does. Report 08 §7's guard census is the fix.
 - **`root_psi_crit` never binds at shipped defaults**, so `bound_row(DryRootPsiCrit)` is unreachable
   without a deliberately-lowered fixture. §5's non-vacuity requirement is not optional.
 - **`R CMD INSTALL --no-multiarch --preclean odelia` before every `plant` build.** Installing
@@ -918,61 +922,3 @@ thing.
 Everything else for the pinned branch is ready: the bound rows are refereed in all three arms and both
 halves, `root_b` included; `profit_env_derivatives` supplies the case-K profit rows; and the ten
 `dcollar_d<family>` sites are a direct substitution once `root_c` has a row.
-
----
-
-## 11. The verification strategy report 08 should carry
-
-Report 08 has two reference classes and two axes. This work needed a third, and it broke two of its
-own checks in ways the report does not currently warn about. Six additions, in the order they earn
-their place.
-
-**1. A third reference: the defining relation, differenced.** Neither axis fits a per-quantity check.
-A tangent shares the object's declarations; a rebuild costs two model runs per column and needs a
-stand. But an implicitly-defined quantity can be refereed against a **central difference of its own
-residual** — no gradient machinery, no stand, no tape. Used here on the Euler row (6.7e-09), all three
-bound rows (3.6e-07) and the hydraulic cost row (9.6e-10). **It is the cheapest referee in the corpus
-and the only one that localises to a single quantity**, and report 08 should name it as an axis rather
-than leaving it as something rungs improvise.
-
-**2. Every invariant must state what it cannot see.** An identity assembled from the quantity it
-checks is not a check on it. Injected here: a misread scale in `∂G/∂ψ` leaves the Euler identity at
-**exactly 0.00e+00** while the differenced referee reads **47×**, because `∂G/∂b` is *built from* `G'`
-and the error cancels. §2 currently asks for fault injection; it should also require each check to
-name the fault class it is blind to, because "the injection passed" and "the check is sensitive" are
-different claims.
-
-**3. A fixture must be shown to reach the branch, and a degenerate fixture must be asserted
-degenerate.** Two instances, both now pinned as measurements rather than avoided:
-- the stem curve at a fresh leaf has scale **exactly 1.0**, so a misread scale is invisible; every
-  stem-curve fixture must perturb `stem_b` first.
-- a **uniform** soil profile puts the wet bound on top of every layer's own potential — its kink — so
-  a central difference straddles what the analytic row takes one side of. They disagree by 5.5e-02
-  with neither wrong.
-
-The rule: **assert the degeneracy in the suite**, so it cannot silently return. A fixture that quietly
-avoids a degenerate case teaches nothing; one that asserts it is a permanent statement about where
-the referee is valid.
-
-**4. Incidence is a verification instrument, not a diagnostic.** "This regime refuses" is not
-actionable without "and it is 0.29% of the run". The classification and clamp counters turned three
-open questions into numbers in one afternoon, and they are what says whether a branch is worth
-building. **Every refusal claim in report 08 should carry its measured incidence**, and §9's list of
-what a pinned interior pass does not establish should be a table of counts rather than of names.
-
-**5. For a change that adds refusals, before/after incidence is the acceptance gate.** Stronger and
-cheaper than a tolerance: *no run that previously answered has started refusing, and the run that
-already refused refuses for a better-localised reason.* That is what licensed both the #1 fix and the
-light-floor refusal, and neither needed a reference gradient.
-
-**6. Count the guards that have never fired, and print it.** §7 says to count injections. The dual
-matters as much: two guards here are implemented and **unexercised** — the graft's input finiteness
-test and the light floor's refusal, the latter because the interior gate always wins the race to
-refuse first. A suite that does not distinguish "guard held" from "guard never reached" reports the
-same green for both. **The zero census of §3.4 should have a companion: a guard census.**
-
-**And one thing report 08 should stop implying.** §5's completeness axis is described as needing a
-small fixture *and* a competing stand. Both are true, and neither reaches a pinned operating point,
-which is where the drought answer lives. **Parity (§5 rung 4) cannot be an acceptance gate until the
-pinned branch answers**; until then it measures the gap. It should be stated that way, or it reads as
-a test that is passing when it is merely not yet applicable.

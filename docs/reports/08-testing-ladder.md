@@ -1,4 +1,4 @@
-# Assuring the reverse sweep: two questions, two references, and the rungs between
+# Assuring the reverse sweep: three questions, three references, and the rungs between
 
 The objective is correct reverse-mode gradients of a TF24 patch on the birth-date coordinate, with
 the light and soil feedbacks live and introductions occurring. This report specifies **what would
@@ -7,31 +7,36 @@ make that believable**, in the order the guarantees should be acquired.
 It is organised around one distinction, and getting it wrong is how a suite comes to pass while a
 gradient is wrong:
 
-> **A reference can establish that a transpose is the transpose of its forward function, or that no
-> term is missing. These are different questions, and no single reference answers both.**
+> **A reference can establish that a transpose is the transpose of its forward function, that no term
+> is missing, or that one supplied row is the derivative of the relation defining it. These are
+> different questions, and no single reference answers more than one.**
 
 Everything else follows. §1 states the distinction and why it is a property of *lifetimes* rather
-than of code. §2 restates what any check must carry. §3 is the floor. §4 is the correctness axis and
-§5 the completeness axis — the two are not rungs of one ladder, they are independent and one can
-pass entirely while the other fails. §6 to §10 are the fixture, the switches, refusal, the scope
-limits, and the order.
+than of code. §2 restates what any check must carry. §3 is the floor. §4 is the correctness axis,
+§5 the completeness axis and §5A the locality axis — the three are not rungs of one ladder, they are
+independent and any one can pass entirely while another fails. §6 to §10 are the fixture, the
+switches, refusal, the scope limits, and the order.
 
 ---
 
-## 1. Two questions, and why one reference cannot answer both
+## 1. Three questions, and why one reference cannot answer more than one
 
 The computation has lifetimes. Report 00's opening section gives them; what matters here is that a
 reference covers exactly the lifetimes it **re-runs**, and inherits every declaration made in the
 lifetimes it does not.
 
-| lifetime | runs | a tangent re-runs it? | a rebuild re-runs it? |
-|---|---|---|---|
-| the parameterisation above the carried traits | once | no | yes |
-| a strategy's derived quantities | once per species | no | **yes** |
-| the shared field | per stage | yes | yes |
-| one cohort's rates | per cohort per stage | yes | yes |
-| the inflow boundary | per introduction | yes | yes |
-| the census | once | yes | yes |
+| lifetime | runs | a tangent re-runs it? | a rebuild re-runs it? | a differenced definition re-runs it? |
+|---|---|---|---|---|
+| the parameterisation above the carried traits | once | no | yes | no |
+| a strategy's derived quantities | once per species | no | **yes** | **only the one it differences** |
+| the shared field | per stage | yes | yes | no |
+| one cohort's rates | per cohort per stage | yes | yes | no |
+| the inflow boundary | per introduction | yes | yes | no |
+| the census | once | yes | yes | no |
+
+The third column is nearly empty on purpose. **It is the point of that reference: it re-runs one
+definition and nothing else**, which is why it localises where the other two cannot, and why it can
+say nothing about anything but the quantity it names.
 
 **A forward tangent seeds an already-constructed strategy.** It is exact, tape-free, and traverses
 the forward reductions while the transposes under test are not on its path — so it settles whether
@@ -48,6 +53,18 @@ of completeness and never was.** A channel imposed to zero in construction is ex
 sweep and on the tangent simultaneously; they agree there for free, and the agreement reads as a
 pass. Measured: the sweep and the tangent agree on the two allometric constants to `1.5e-03` while
 both disagree with a rebuild by a factor of **two to three**.
+
+**A central difference of the defining relation re-runs neither path.** Where a quantity is defined
+implicitly — a root of a residual, an integral the model tabulates, a bound a feasibility condition
+sets — its supplied row can be refereed against a difference of **that relation**, taken by solving
+or evaluating it again either side. It needs no tape, no stand, no gradient run and no seeded
+strategy, and it inherits no declaration from either differentiated path because it uses neither.
+**That is the locality axis**, and what it buys is the one thing the other two cannot give:
+attribution to a single quantity.
+
+What it cannot settle is whether that quantity is *used* correctly. A row can be right and multiplied
+by the wrong factor downstream (§4.8), and this reference never forms the product. It is necessary
+and not sufficient, exactly as the other two are.
 
 **And completeness has a property correctness does not: it needs no enumeration.** The census is a
 function of the carried parameters, and a rebuild-difference computes its derivative by definition,
@@ -77,6 +94,14 @@ because the injection is then the only evidence the check works. **A defect that
 other check already compares needs one injection per class.** Record the margin: a fault detected at
 3× is a check about to stop working.
 
+**And every invariant must name the fault class it is blind to**, because "the injection passed" and
+"the check is sensitive" are different claims. **An identity assembled from the quantity it checks is
+not a check on that quantity.** Measured on the stem curve's homogeneity: `ψ·G′ + b·∂G/∂b = G` holds
+to round-off, and a misread scale in `∂G/∂ψ` leaves it at **exactly 0.00e+00** — because `∂G/∂b` is
+*built from* `G′` and the error cancels — while a difference of the defining relation catches the
+same fault at **47×**. The identity is worth keeping; it catches a dropped factor in the expression.
+It must simply say what it cannot see.
+
 **3. Non-vacuity — the null control.** Zero the channel the check exists for and require the result
 to move. §7 raises this from a habit to an obligation.
 
@@ -88,6 +113,14 @@ silently. A bias quoted without its run length is not a bias, it is a reading.
 
 **5. Tolerance provenance — a measured floor, not a round number.** Every tolerance derived from a
 floor measured on the fixture itself, and every check reports its margin.
+
+**6. For a change that narrows what the gradient answers, the acceptance criterion is incidence, not
+a tolerance.** A guard that begins refusing states the model already visits is a correctness
+improvement and a coverage loss at once, and a tolerance cannot express either. The statement that
+can is a before-and-after count over the same drivers: **every run that answered still answers, with
+a bit-identical gradient, and the runs that now refuse are named with their share of operating
+points.** It needs no reference gradient, and it is the only form in which "this guard was worth
+adding" is falsifiable.
 
 ---
 
@@ -507,6 +540,52 @@ only the tangent.**
 
 ---
 
+## 5A. The locality axis
+
+The other two axes answer about a whole gradient. This one answers about **one quantity**, and it is
+the only one that can.
+
+### 5A.1 The reference
+
+**A central difference of the relation that defines the quantity.** Where the model resolves
+something implicitly — a root of a residual, a bound a feasibility condition sets, an integral it
+tabulates — evaluate or re-solve *that relation* either side and difference it. No tape, no stand, no
+gradient run, no seeded strategy.
+
+It is cheap enough to run per quantity rather than per column, and it inherits nothing from either
+differentiated path. **A supplied row that disagrees with it is wrong on its own terms**, before any
+question about what consumes it.
+
+### 5A.2 What it establishes, and what it cannot
+
+It settles that the row is the derivative of the relation. It says nothing about whether the relation
+is the one the model uses, and nothing about the row's use downstream (§4.8). Both remain the other
+axes' work.
+
+**And it is the referee for a supplied row, which report 02 §4 item 3 otherwise leaves without one.**
+A difference of the recorded step cannot see an error in a supplied derivative, because the graft's
+value is independent of the grafted input — so differencing the block returns identically zero on
+exactly the columns a supplied row occupies, whether the row is right, wrong or absent. Report 05 §8
+requires such rows to be checked against the individual's own algebra; this is what that means
+operationally.
+
+### 5A.3 Two failure modes, both of which have occurred
+
+**The step is on the wrong side of the plateau, and the reference is the weak side.** A difference
+that rebuilds a tabulated curve moves the curve's own knot grid, so it carries a discrete artefact the
+analytic row cannot. Measured on a curve-position row: the ratio to the analytic value reads **1.20 at
+a relative step of 1e-8, 0.998 at 1e-6, and 1.0000 across 1e-5 to 1e-3**. A single reading at 1e-6
+would have reported a correct row as 0.17 percent wrong. **Take the difference at four steps spanning
+three orders and say which end the plateau is at** — §4.7's fifth trap, in the one place it bites
+hardest.
+
+**The quantity is degenerate at the fixture's state, and neither side is wrong.** Where a bound is
+defined by a cancellation, a state that puts it on top of a kink makes the central difference straddle
+what the analytic row takes one side of. Measured: **5.5e-02 apart on a uniform soil profile, against
+3.6e-07 on a mild gradient**, with the row correct in both. §6 carries the rule that follows.
+
+---
+
 ## 6. The fixture
 
 One fixture serves every rung, widened at each. Its assertions are part of the check, and a violated
@@ -537,6 +616,20 @@ stands at 0.04 to 0.12 against a declared floor of 0.4 — an order of magnitude
 the fixtures the trajectory rungs use. **Report it at both levels.** Where it cannot be enforced,
 the run is not thereby valid; it is a run whose growth-mediated channels are tested at a tenth of
 their sensitivity, and any margin taken there carries that qualification.
+
+**A fixture must be shown to reach the branch it tests, and a degenerate one must be asserted
+degenerate rather than avoided.** Two shapes, and both were found by a check quietly passing:
+
+- **A parameter at its identity value hides an error in the thing it scales.** A freshly built curve
+  has its scale factor at exactly 1.0, so dividing by it is the identity and a misread scale is
+  invisible. Every fixture for such a quantity must move the parameter first.
+- **A state that lands on a kink makes the referee wrong, not the row.** Where a bound is defined by a
+  cancellation, a fixture that puts it on top of that cancellation makes the difference straddle a
+  kink (§5A.3).
+
+**The rule is to assert the degeneracy in the suite, not to steer around it.** A fixture that quietly
+avoids a degenerate case teaches nothing and can silently return; one that asserts the disagreement is
+a permanent statement about where the referee is valid.
 
 **Adversariality, by construction:** heights mutually non-commensurate; **at least one pair crossed**,
 so birth-date order and height order disagree; the two species differing by O(1) factors in every
@@ -569,6 +662,14 @@ right.**
 fault and never invokes it has switches on paper. **Count the injections; a rung whose faults have
 not been injected has not been climbed.**
 
+**And count the guards that have never fired, which is the dual and matters as much.** A guard that
+held and a guard nothing reached report the same green. The distinction is not academic: a guard can
+be unreachable because a *different* guard always refuses first, which is a fact about the order of
+the checks rather than about the state of the model, and it changes what a passing suite means. **The
+zero census of §3.4 therefore needs a companion — a guard census: every guard, its firing count over
+the fixtures, and a named reason for each zero.** A guard with no firings and no reason is in the same
+position as an exact zero with no declared cause.
+
 ---
 
 ## 8. Refusal, plumbed to metric level
@@ -588,6 +689,18 @@ of the argmax and an undefined objective; **the uptake row is the one that cease
 seeded only on size states survives a fold that kills a water-coupled one, so refusing them as a pair
 throws away the surviving metric for nothing.
 
+**A refusal claim without its incidence is not actionable, and the incidence is not recoverable
+afterwards.** The classification is decided by the branch taken and overwritten by the next
+individual, so a run's share of each kind survives nowhere unless it is counted while the run
+happens. "This regime refuses" and "this regime is three tenths of one percent of the operating
+points, and it costs every metric its gradient" are different statements, and only the second says
+whether answering the branch is worth building. **Every refusing branch carries a measured incidence,
+on a driver that reaches it** — which is §9's requirement stated as a number rather than a name.
+
+**The same holds for a clamp.** Where a clamp masks a smooth function the ruling is to refuse the row
+*with its incidence counted*; a counter that has never fired and one that fires on a tenth of the
+solves justify opposite decisions about the same guard.
+
 **Checks:** inject a refusal at one cohort at one stage and require exactly the water-coupled metrics
 to come back undefined; require an undefined metric distinguishable from a zero one at the boundary;
 assert the aggregation is not per-parameter, since a partly-populated gradient vector is the shape
@@ -598,6 +711,12 @@ that reads as an answer.
 ## 9. What a pinned interior pass does not establish
 
 The pin is a scoping choice, so its price is coverage rather than the reference.
+
+**A coverage check is not an acceptance gate while a branch is refused rather than answered.** The
+statement *for every state the forward model returns a number for, the reverse returns a row or names
+a violated constraint* is the right end point, and it is satisfied trivially by a sweep that refuses
+everything. Until a branch answers, such a check **measures the gap** and must be labelled that way,
+or a suite reports it passing when it is merely not yet applicable.
 
 **Unrefereed by anything here:** the constrained-optimum row at either bound, and the wet bound in
 particular, where more than half of all pins sit; the substituted-feasible and shutdown branches; the
@@ -637,7 +756,12 @@ residual over all state directions, predicted out of sample from a cross-family 
 stand, no gradient run — and until it passes, every rung above shares a possible common-mode error on
 the water channel.
 
-**Then the two axes, and they are independent.**
+**Then the locality axis (§5A), because it is the cheapest and it gates the meaning of the others.**
+A supplied row that is not the derivative of its own defining relation makes every rung above it a
+comparison between two things that are wrong together. It needs no stand and no gradient run, so
+there is no reason to order it after anything.
+
+**Then the two whole-gradient axes, and they are independent.**
 
 On the correctness axis: §4.2's full Jacobian, state block first, then the whole object, at
 constructed **and** trajectory states; then §4.3's structural assertions, free once the matrix exists;
