@@ -855,16 +855,51 @@ The fence is kept rather than deleted because of what it gated: it said nothing 
 validated until the build landed, and that was right — the cost premise of §12, which is the
 strongest conclusion in this report, reversed the moment it became measurable.
 
-**2. The upstream reduction has no isolated referee.** The probe is written and exported and **called
-by no test**, so that transpose is checked only *through* the composed right-hand side, where a
-cancelling pair of errors passes. Wiring it is an hour. Refactoring a transpose whose only check is
-composed is refactoring without a net.
+**2. ~~The upstream reduction has no isolated referee.~~ This fence is down, and it did not move.**
+The probe it named was deleted together with the transpose it refereed, in the commit that replaced
+that transpose with the stage recording — so there is no isolated reduction transpose left to
+referee. What checks the reduction now is *stronger* than what the fence asked for: the composed
+right-hand side is no longer checked by a contraction but entry by entry over the whole state
+Jacobian, and a cancelling pair of errors — the fence's actual worry — cannot pass that.
 
-**3. One factorisation coefficient is unchecked in the direction that decides the answer.** The
-residual runs over the potential family only — which report 05 §7.3 says is precisely the family that
-*cannot* detect an error in it, the vectors being collinear. Report 08 §3.1 prices it: one percent
-becomes fifteen- to twenty-six-fold in the direction the ecology cares about, and it sits in the
-sweep **and** in its reference.
+The fence is kept for the same reason fence 1 is: it gated refactoring the reduction, and the
+refactor removed the thing rather than the check.
+
+**3. One factorisation coefficient is unchecked in the direction that decides the answer.** Report
+05 §7.3 says the soil potentials' sensitivity pairs are collinear to about one part in 10⁴, so a
+compensating pair of coefficients fits every one of them; report 08 **§4.1** prices the consequence at
+fifteen- to twenty-six-fold along the uniform-drying direction, and it sits in the sweep **and** in
+its reference. (Both this report and §12 cited §3.1, which is a different section.)
+
+**The fence stands, and checking it moved it.** Two of its clauses turned out stale and the third
+turned out to be the whole of it:
+
+- *The residual runs over the potential family only* — still true, and the reason matters more than
+  it did. The pair is no longer fitted from a potential; it is anchored in root carbon. So **no
+  potential layer is in sample**, and the check's exemption of one of them — carried over from when
+  the anchor was a potential — was excusing the layer that most needed checking.
+- *The pair cannot be separated by a residual on the fitted family* — no longer the mechanism here,
+  because the anchor is outside the potentials' span. The **anchoring family is now checked**, at
+  7.1e-08 against the fit step's own 1e-05, which is the premise every predicted layer rests on and
+  was untested.
+- *The direction that decides the answer* — **this is the fence.** No check formed it. One does now,
+  by perturbing along the direction rather than summing per-column differences, because a direction
+  whose answer is a cancellation among its columns cannot be had from the columns.
+
+**And measuring it produced two numbers this report did not have.** Per layer against its *own*
+reference rather than a pooled one, the factorisation's residual is **20.9, 18.9, 17.5, 0.5, 1.4**
+times the difference's error — a consistent factor on the three best-converged layers, not one bad
+layer, and 1e-6 of the block's largest entry in absolute terms. The previous bound held by pooling a
+floor across layers that differ by three orders in convergence and by excusing one of them. No
+acceptance number is declared for the sharper reading, so the check reports it and says so.
+
+**The uniform-drying direction is not reachable on the fixtures the check runs on.** Measured
+amplification: **1.1× on both patch fixtures**, against report 05's fifteen to twenty-six. That
+report measured it on a *competing stand*, where the collar tracks the soil closely enough for the
+row sum to be a small residue of its terms; a constructed patch does not reproduce it. So the
+direction is formed and reported, its regime precondition is asserted, and the check declares itself
+unavailable rather than passing vacuously. **Closing this fence needs a stand fixture, which is
+trajectory-tier work** — and that is a sharper statement of what remains than the fence had.
 
 **4. The transposes themselves are fixed.** All four coordinate conditions hold on the supported
 coordinate. **This fence is down**, which is why generalisation is the next move rather than a
@@ -960,8 +995,8 @@ struck through were done in the pass this section was last rewritten for.
    open is decoupling it from the live-path tests it gates, or the production sweep's checks skip
    silently the day the block interface stops recording.
 
-   **And the count of exported referees nothing calls is six, not one.** Two are timing harnesses and
-   are meant to be run by hand. The other four are checks:
+   **The count of exported referees nothing called was six, not one, and four of them are wired
+   now.** Two are timing harnesses and are meant to be run by hand. The four that were checks:
    `ladder_seed_geometry_tangent_tf24`, which declares itself the referee for the `implicit_value`
    seed-height graft; and `ladder_census_initial_state_tangent_tf24`,
    `ladder_census_initial_state_replay_tf24` and `ladder_segment_base_state_tf24`, which are a
@@ -970,10 +1005,15 @@ struck through were done in the pass this section was last rewritten for.
    Beside them, `ladder_block_difference_tf24` is called at exactly one line over the soil columns
    only, so the trait and conductance columns of the graft are differenced by nothing.
 
-   That matched set is the machinery item 1's missing fixture needs and it is already written. What
-   it does not yet have is a reverse side: the sweep never returns its final lambda, so there is
-   nothing for the tangent at segment 0 to be compared *to*. Exposing that lambda is the smaller half
-   of the fixture, and it is smaller than this report has been assuming.
+   That matched set is the machinery item 1's missing fixture needs and it was already written. It
+   runs now, at segment 0, where an exact tangent of the whole remaining trajectory meets a
+   plain-double replay of it — nine components, every one inside a tenth of its reference's error.
+   The seed geometry's row runs against a rebuilt root-find over all eight parameters that reach it.
+
+   **What is still missing is only the reverse side.** The sweep never returns its final lambda, so
+   the segment-0 tangent has nothing to be compared *to*, and item 1's fix stays unrefereed. That is
+   a member and an export, and it is smaller than this report had been assuming — the instrument it
+   would feed is built, wired and passing.
 
 6. ~~**Five parallel trait arrays into one struct.**~~ **Half done, and the half that was possible.**
    Three of the five were booleans, one of them true at every entry, and the loop read all three as a
@@ -1122,12 +1162,18 @@ the carrier grew a fourth field, three of the four reduction-borne parameters no
 shortfall report 06 §11 quotes as 3.041 percent is measured at 3.3e-02. Read as a work order today it
 spends the budget on a closed row.
 
-**The one it displaces is mis-scoped in both directions.** Report 08 §3.1 specifies the factorisation
-check as *"one state, no gradient run, no stand"*, and the branch's own revert records that the
-failure was **invisible** on exactly that fixture — no competition means no unit sits far from where
-the pair was fitted. The coefficient it asks to check against a closed form *is* the closed form now,
-so that half is vacuous; and the shipped test measures only the family the report itself says cannot
-detect the error.
+**The one it displaces is mis-scoped in both directions.** Report 08 **§10** specifies the
+factorisation check as *"one state, no gradient run, no stand"* (§4.1 is where the pricing is; this
+report cited §3.1 for both, which is neither), and the branch's own revert records that the failure
+was **invisible** on exactly that fixture — no competition means no unit sits far from where the pair
+was fitted. The coefficient it asks to check against a closed form *is* the closed form now, so that
+half is vacuous; and the shipped test measures only the family the report itself says cannot detect
+the error.
+
+**Measured, and the scoping objection is now a number.** The amplification that makes the direction
+matter is **1.1× on both patch fixtures** against the fifteen to twenty-six report 05 measured on a
+competing stand. So "no stand" does not merely weaken the check — it removes the regime the check is
+about, and a patch-tier fixture cannot close this however it is written.
 
 **A channel the dependency map deletes is live and linear.** Report 00 §4.2's third physical fact —
 leaf area cancels out of the water channel — does not hold at this commit. Leaf area appears nowhere
