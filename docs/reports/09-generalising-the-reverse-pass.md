@@ -58,6 +58,11 @@ reads, including a parameter nobody has registered yet. So the size-space carrie
 waist — a struct of named slots where each new parameter meant a new field and two more hand
 partials — is not widened. It stops existing.
 
+**Two of §7's seven primitives are now built** — the graft and the transpose taken over state and
+parameters together — and §7, §8 and §10 record which parts of their entries survived contact and
+which were wrong. Neither changed a number: the ladder is 445 passing before and after, and the
+non-ladder suite's six known failures are unmoved.
+
 The reading is of `plant` on `ad/reverse-pass-simplify` and `odelia` on `ad/quadrature-primitive`,
 which build at `-O2` and run. Every figure here is measured on that tree. Where an earlier reading of
 this report is corrected the old figure is kept beside the new one, because the size of the movement
@@ -109,17 +114,20 @@ recorded in prose; a *blocked* row and a missing row are the same number.
 
 That was the reading this report was written from, and the middle row is the one it was aimed at.
 
-**Measured after: `plant`'s reverse-pass surface is −1,393 lines against +122, across twelve files.**
-`patch.h` goes 2,409 → 2,000 and `species.h` 1,448 → 1,181; `species.h` and `tf24_environment.h`
-carry no adjoint code at all. The three functions this section named as a quarter of the bulk —
-`cohort_block_adjoint`, `boundary_condition_adjoint`, and the light reduction's transpose — are all
-gone, together with the soil cascade, the offspring rate, the uptake trapezium, the environment's
-rate transpose, and the carriers between them.
+**Measured after: `plant`'s reverse-pass surface is −1,559 lines against +219, across thirteen
+files.** `patch.h` goes 2,409 → 1,729 and `species.h` 1,448 → 1,181; `species.h`,
+`tf24_environment.h` and `node.h` carry no adjoint code at all. The three functions this section named
+as a quarter of the bulk — `cohort_block_adjoint`, `boundary_condition_adjoint`, and the light
+reduction's transpose — are all gone, together with the soil cascade, the offspring rate, the uptake
+trapezium, the environment's rate transpose, and the carriers between them. `odelia` is −286 against
++216 over the same span, and it gained two primitives while losing one file and one corner of XAD's
+tape API.
 
-**The bucket that did not move is the one worth looking at.** The graft is 412 lines in the strategy
-and was not touched: it is *inside* the recorded stage, so the tape consumes it rather than replacing
-it. That is the honest shape of the result — a tape removes every transpose whose forward it can
-record, and none of the boundary where a solver's answer is put onto the tape by hand. **The
+**The bucket that did not move is the one worth looking at.** The graft is 412 lines in the strategy,
+and only its last twenty moved: the *construction* is now odelia's, but the partials fed to it are
+model-specific and stay. It is *inside* the recorded stage, so the tape consumes it rather than
+replacing it. That is the honest shape of the result — a tape removes every transpose whose forward it
+can record, and none of the boundary where a solver's answer is put onto the tape by hand. **The
 model-specific row was ~128 lines and is really ~430**, because the graft belongs in it.
 
 ---
@@ -600,13 +608,27 @@ has not earned its place.
 
 | primitive | what an author writes today | what they would write | how a mistake surfaces |
 |---|---|---|---|
-| **parameter adjoint** | a mutable System member, **six** writers, four defensive re-zero guards; since the batching a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route | nothing — the row leaves the transpose in-band | a **length mismatch**, where today it is a fixed fraction of the right answer with the correct sign |
-| **graft** | `v + Σ ∂v/∂uᵢ·(uᵢ − passive(uᵢ))`, written **four** times, only one copy carrying the finiteness guard report 05 §8 says it needs | the partials and the inputs | **abort** inside the graft on a non-finite partial *or input*, once, for all four sites |
+| **parameter adjoint** — ***built*** | a mutable System member, **six** writers, four defensive re-zero guards; since the batching a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route | the state, the seeds and where to accumulate | a **length mismatch**, where before it was a fixed fraction of the right answer with the correct sign |
+| **graft** — ***built*** | `v + Σ ∂v/∂uᵢ·(uᵢ − passive(uᵢ))`, written **four** times, only one copy carrying the finiteness guard report 05 §8 says it needs | the partials and the inputs | **abort** inside the graft on a non-finite partial, once, for every site |
 | **reduction** | a forward walk and a hand-mirrored transpose, five times, held together by a comment | position, contribution, kernel, stage | a transpose cannot drift from its forward because there is one function |
 | **seed** | `∂C/∂y` at `T`, model-side | the functional | — (already taped; it is here because it is the one the reduction primitive must also cover, §13) |
 | **growth event** | insertion, map, narrowing, widening, replay, and a segment list **inferred from width diffs** | `apply`, `undo`, and the map | **abort** on a segment list that does not partition the recording — which is §10's live defect |
 | **refusal** | nothing; it **does not exist in C++ at all** | which points are answerable | an undefined metric is a distinct value in the return type, not a plausible number |
 | **opaque node** (§5.4) | ~200 lines forming `∂p*/∂u` explicitly per input family, plus four parallel trait arrays keyed by position to a fourteen-argument setter | the residual, the bounds, which output *is* `p` | the classification is the primitive's, so the interior formula **cannot** be applied at a pin |
+
+**Two of the seven are now built, and building them corrected the count in the second row.** The
+graft was said to be written four times. It is written three, and the third is not the same
+construction: `hermite_interpolator::graft` carries a slope the tape computed, where the other two
+carry a number supplied from outside it. That distinction is the whole of why the finiteness guard
+exists — a supplied partial can be `NaN` while the model is healthy, and `NaN × 0` then poisons the
+*value* — so folding the interpolant in would have put a guard on the hottest read in the model to
+catch a condition that cannot arise there. The fourth was `supplied_derivative.hpp`, which was not a
+copy but a rival mechanism, and is retired rather than unified: the graft does its job in arithmetic
+at any scalar, where it needed a tape slot and an XAD checkpoint callback.
+
+The parameter adjoint is in-band but not yet *only* in-band: the accumulator is still a System member,
+now passed to the primitive as the destination rather than found there. That is the half of the row
+that turns a scaling error into a length mismatch; the remaining half is removing the member.
 
 **Two of the seven carry most of the DX gain and they are not the same two that carry most of the
 robustness gain.** The reduction and the opaque node are where the lines are — five hand-mirrored
@@ -699,6 +721,23 @@ a contract it does not mean, and no way to say so.
 protocol is the one that broke. A concept asserts that a *type* is adequate. What went missing was a
 *call*.
 
+**It happened again during this work, one level down, and the mechanism is worth recording because it
+is not a concept at all.** The two packages must agree on two XAD build flags — one sets the storage
+class of the variable XAD reaches its active tape through, and the storage class does not change the
+mangled name. Matching the defining side to the reading side is correct and was done. But odelia's
+own tests compile their probes standalone, each restating its own compile flags, and **not one of the
+seventeen sites carried either define**. Sixteen of odelia's tests stopped building that hour. The
+suite reported them as errors and nobody was reading it, because seven more of its probes had been
+dead far longer for a plainer reason: they never asked for the language standard their own includes
+require, so every `concept` in them read as a syntax error. **odelia's AD tests — including the one
+refereeing `vector_jacobian_product`, which the whole stage recording rests on — were 142 passing
+assertions out of 369.** They are 369 now.
+
+The shape is the same as the caching hooks and the same as the four hand-walks of the parameter
+order: **a rule restated at every site drifts at every site, and the instrument that would say so is
+itself a site.** A primitive set that adds nouns to `ode_interface.hpp` without noticing that its own
+referees are compiled seventeen different ways is building on an instrument it has not checked.
+
 ---
 
 ## 8. What gets deleted
@@ -707,15 +746,15 @@ Great abstractions are measured in concepts removed.
 
 | delete | why |
 |---|---|
-| `supplied_derivative.hpp` | **zero production consumers** anywhere. The construction the model needs is the other one |
-| three of four grafts | one idea, four spellings. Only the model's copy has the finiteness guard report 05 §8 says the construction *needs* |
+| ~~`supplied_derivative.hpp`~~ **done** | **zero production consumers** anywhere. The construction the model needs is the other one |
+| ~~three of four grafts~~ **done, and it was two of three** | one idea, three spellings, one of which turned out to be a different idea (§7). Only the model's copy had the finiteness guard report 05 §8 says the construction *needs*, and that copy is now the only one |
+| ~~six copies of "seed parameters before state"~~ **done** | one primitive, which writes the parameters itself so a caller cannot write the state first |
+| ~~the four parallel trait arrays~~ **partly**: three booleans are one | one of the three was true at every entry and decided nothing. The values and addresses still key by position to a **fourteen**-argument setter, which is phylloptim's signature and not plant's to change |
 | `node_size_adjoints`, `node_uptake_adjoints` | structs of **named** slots. One parameter got a row by *adding a field*; each further one wants another field plus two hand-written partials |
 | `light_reduction_slots` | the right idea named for one reduction |
 | four competition walks | value / value-and-slope × ordered / unordered — one walk with a codomain parameter |
 | five trapezium transposes | one driver, four integrands |
 | six copies of the unit×(elements+1) walk | an iterator yielding `(slot, optional<state_row>, parameter_base, element&)` |
-| six copies of "seed parameters before state" | one recorded map |
-| the four parallel trait arrays | values, addresses, seeded flags and zero-at-interior flags, keyed by position to a **fourteen**-argument setter. The signature has already grown once; the two packages disagree about its arity today |
 | `gradient::Status` | four values derived **from residual magnitude**, which report 05 §7.0 forbids. The correct ten-branch decision tree sits beside it, unused by the gradient entry point |
 | the five explicit `∂p*/∂u` vectors | see below |
 | `narrow_over_introductions`, `widen_over_introductions`, `narrow_to_segment`, the segment loop | odelia's, once growth is a declared event |
@@ -800,11 +839,11 @@ sweep **and** in its reference.
 coordinate. **This fence is down**, which is why generalisation is the next move rather than a
 competing one.
 
-### And one live defect
+### And one live defect — ***now fixed***
 
-**The first segment is never swept**, and it is still not swept at this reading — re-checked
-against the current tip rather than carried forward, because the file it lives in changed by 113
-lines in between. The sweep loop descends over the event boundaries and covers
+**The first segment was never swept.** It is swept as of this reading, and the fix is described at
+the end of this section; what follows is the defect as it stood, kept because the shape of it is the
+argument for the growth primitive. The sweep loop descended over the event boundaries and covered
 recorded steps above the *first* boundary only; steps below it are never visited, and the loop exits
 with their adjoint contribution simply missing. The boundary list is built from the width changes
 between consecutive recorded states, so the lowest index the loop ever passes to the sweep is the
@@ -819,25 +858,31 @@ setters validate no such thing. The branch's own comment asserts the invariant t
 safe, and nothing enforces it.
 
 The failure shape is report 01 §6's worst: finite, correctly signed, a fraction of the right answer,
-nothing raised. The fix is one line. **The structural point is that the segment list is inferred and
-never checked for coverage** — no code asserts the ranges partition the recording — and that
-assertion is one of the obligations a growth primitive would own.
+nothing raised. **The structural point is that the segment list is inferred and never checked for
+coverage** — no code asserts the ranges partition the recording — and that assertion is one of the
+obligations a growth primitive would own.
+
+**The fix was not a guard but a shape.** The sweep now runs the same decomposition the tangent runs:
+one segment per width, so there is one more segment than there are widenings and the lowest runs down
+to the initial state. Written that way, the second hole closes with the first — an empty boundary list
+used to make the loop a no-op that returned the direct term alone, and now sweeps the whole
+trajectory, because "no widenings" is one segment rather than none. A widening at the very first
+recorded step leaves that lowest segment with no step in it, which is exactly what a run from bare
+ground gives, so **every existing fixture is bit-identical and the ladder is unchanged at 445
+passing**. That is the honest status of the fix: the shape is right and no fixture can currently tell.
+The referee named below — the recruit rung's count, on a fixture that resumes from a populated state —
+is still the thing that would prove it, and is still not written.
 
 ### Then, in order
 
-Re-derived from a scan of the tree as it now stands, not from what this report used to plan.
+Re-derived from a scan of the tree as it now stands, not from what this report used to plan. Items
+struck through were done in the pass this section was last rewritten for.
 
-1. **The first segment is never swept.** `census_trait_gradient`'s loop descends the event
-   boundaries and its lowest sweep starts at the first one, so recorded steps below it are never
-   visited and the final narrowed adjoint — which is `d(census)/d(y0)` — is discarded. Invisible on
-   every fixture, because a run from bare ground records its pre-introduction state first and makes
-   that range empty; reachable by a resumed run, or any schedule whose first time is not the initial
-   time. **And the coverage assertion already exists without being recognised as one**: the recruit
-   rung asserts the boundary term is asked for once per stage per step per metric, which holds only
-   if the sweep visits every recorded step. One fixture that resumes from a populated state turns
-   that into the referee for the fix. Three lines, plus a refusal on an empty boundary list, which
-   is a second hole of the same kind: with no width change anywhere the loop is a no-op and the
-   gradient comes back as its direct term alone.
+1. ~~**The first segment is never swept.**~~ **Done**, as described above. What remains of it is the
+   fixture: the recruit rung already asserts the boundary term is asked for once per stage per step
+   per metric, which holds only if the sweep visits every recorded step, so **the coverage assertion
+   exists without being recognised as one** and needs only a run that resumes from a populated state
+   to become the referee.
 
 2. **Cache the twin and the tape.** The stage transpose rebinds a whole `Patch` per call — six times
    per step, each running the parameter validation and the reset — and constructs a tape per call
@@ -851,10 +896,11 @@ Re-derived from a scan of the tree as it now stands, not from what this report u
    needed. It is a joint change — the stepper has to be told the System rebuilds internally — which
    is why it ranks below the plant-only items.
 
-4. **A trait vector.** "Write the parameters before the state, because a quantity derived from the
-   state reads them while deriving" is now spelled out at eight sites, six of them preceded by their
-   own copy of the loop that flattens the parameter list. This is §10's parameter channel, and it is
-   the smallest of the primitives: pack, unpack, size, names.
+4. ~~**A trait vector.**~~ **Done**, and it turned out not to be a vector type. The rule — write the
+   parameters before the state, because a quantity the state determines reads them while deriving —
+   is now enforced rather than documented: the primitive writes the parameters itself and hands the
+   caller only the state, so writing the state first is not something a caller can express. What is
+   left of the item is that the accumulator is still a System member (§7).
 
 5. **Relabel the block referee rather than delete it.** The block interface has no production caller
    and its probes are the corpus's strongest entry-by-entry check — but of the *graft*, not of the
@@ -862,21 +908,37 @@ Re-derived from a scan of the tree as it now stands, not from what this report u
    wrong supplied leaf row, because the graft makes every taped path insensitive to one by
    construction. Keep it; fix the file's own header, which still says it checks the sweep. And
    decouple it from the live-path tests it currently gates, or the production sweep's checks skip
-   silently the day the block interface stops recording.
+   silently the day the block interface stops recording. **Two more of the same kind surfaced in the
+   scan**: `ladder_seed_geometry_tangent_tf24` is exported, declares itself the referee for the
+   `implicit_value` seed-height graft, and is called by nothing; and `ladder_block_difference_tf24`
+   is called at exactly one line, over the soil columns only, so the trait and conductance columns of
+   the graft are differenced by nothing.
 
-6. **Five parallel trait arrays into one struct.** The leaf's fourteen traits are keyed by position
-   through five arrays into a fourteen-argument setter, and the two packages already disagree about
-   what slot thirteen is called. The next parameter makes it six arrays.
+6. ~~**Five parallel trait arrays into one struct.**~~ **Half done, and the half that was possible.**
+   Three of the five were booleans, one of them true at every entry, and the loop read all three as a
+   single disjunction; they are one array now, named for the question the loop asks. The remaining two
+   — the values and the addresses — key by position to a **fourteen**-argument setter that belongs to
+   phylloptim, so collapsing them is a change to that package's interface rather than to this one.
+   **The scan also found the disagreement is worse than "the two packages disagree about arity".**
+   Slot thirteen is `g1_TF24` in plant and `cost_scale_TF24` in phylloptim, and plant contradicts
+   itself: its own index constant for that slot is `k_cost_scale`, the value written into it comes
+   from `dprofit_dcost_scale`, and the documentation string plant ships describes a cost parameter —
+   while the name on the gradient column R sees is a stomatal-slope name. That is a rename across an
+   R-facing surface, which is why it is recorded here rather than done.
 
-7. **One graft.** The construction is written three times across the family and only one copy tests
-   the quantity that has to be tested — the supplied partial, before it meets the zero-valued
-   bracket, because a non-finite one poisons the *value* and not just the adjoint. The other two
-   guard a type and a denominator. The fix is to move the guard that exists upward, not to copy it.
+7. ~~**One graft.**~~ **Done**, and see §7: it was three copies, not four, and one of the three was a
+   different construction that should not be folded in.
 
-**And one thing not to do.** `supplied_derivative.hpp` has no production consumer and is superseded
-inside odelia by `implicit_value`, which does the same job at any scalar and takes the residual
-rather than hand-computed partials. Retiring it removes an XAD facility that has to keep working
-across upgrades. That is a deletion, not a build, which is why it is here rather than above.
+**And one thing that was not a build.** ~~`supplied_derivative.hpp` has no production consumer~~ —
+retired. It is superseded inside odelia by the graft, which does the same job in arithmetic at any
+scalar, and by `implicit_value`, which takes the residual rather than hand-computed partials.
+Retiring it removed the corner of XAD's tape API that nothing else here touches.
+
+**And one that was not on the list at all**, because the instrument that would have raised it was
+itself broken: odelia's own test suite was running 142 of its 369 assertions (§7.3). It runs all of
+them now. Nothing in this report's numbers changes as a result — the plant ladder was never affected
+— but every claim about an odelia primitive made before this pass was made against a suite that was
+not checking it.
 
 ## 11. Costs and gaps the design does not price
 
