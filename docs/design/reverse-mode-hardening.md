@@ -280,7 +280,19 @@ uninformative.
 
     **What is left is the consumption.** Nothing calls these yet, so the pinned branch still refuses —
     items 12–14 are what turn a derived row into an answered one.
-12. **The `proportion_of_conductivity_kernel` overload** (§4.4), closing the zero-flux pieces.
+12. **The `proportion_of_conductivity_kernel` overload** (§4.4), closing the zero-flux pieces. —
+    **LANDED.** The kernel took only `psi` as its scalar argument and read `stem_b`/`stem_c` off the
+    object, so forward mode reached `d/dpsi` and nothing else. The overload takes them as arguments,
+    and `Leaf::hydraulic_cost_row(psi_stem)` returns
+    `dC/d(psi_stem, stem_b, stem_c, beta2, cost_scale)`.
+
+    A zero-flux point pays only respiration and this cost — `profit = −R_d − C(psi_crit)`, reading
+    neither soil nor light — so **these five numbers are the whole of its trait row** and every
+    environment row there is exactly zero.
+
+    *Refereed against a rebuilt difference of the curve in every direction: worst **9.6e-10**.*
+    `d(cost)/d(stem_c)` **changes sign** across the curve's inflexion (−0.556 at ψ 3, +0.720 at ψ 5),
+    which the test pins — a row taking its sign from the value rather than the derivative would not.
 13. **The branch-dependent graft mask** (§4.5), then `Determined`.
 14. **The parity test** (§5) as the acceptance gate.
 
@@ -624,6 +636,19 @@ stand_gradient(scm)
   compiles against the *installed* library's headers via `LinkingTo`, not against the working tree, and
   no `.cpp` timestamp moves — so the build succeeds and runs the old model. `rm -f src/*.o src/*.so` in
   both, reinstall `phylloptim`, then rebuild `plant`. This is defect #13 met in practice.
+- **⚠️ Installing `phylloptim` can silently break `plant`, and the error names neither.** Its
+  `DESCRIPTION` carries `LinkingTo: odelia` with `Remotes: traitecoevo/odelia`, so
+  `install.packages(".")` may replace the locally built fork `odelia` with one fetched from
+  **upstream** — and upstream's lacks the `Replayable` concept `plant`'s `store_trajectory`
+  static-asserts on. The build then fails with `'Replayable' is not a member of 'odelia::ode'`,
+  pointing at `scm.h` in a session that never touched `odelia`. Hit once here, mid-session, after
+  several successful builds.
+
+  **The fix, and it is worth running unconditionally after any `phylloptim` install:**
+  `R CMD INSTALL --no-multiarch odelia` from the superproject root, which takes the pinned worktree
+  and resolves no dependencies. Confirm with
+  `grep -c "concept Replayable" $(Rscript -e 'cat(find.package("odelia"))')/include/odelia/ode_interface.hpp`
+  — it must be 1.
 - **`phylloptim`'s C++ suite needs `make -C tests/cpp CXX=g++`** — the Makefile's default reaches for a
   `clang++-12` that is not installed here.
 - **`phylloptim`'s own R suite has pre-existing failures too**, measured against a stashed baseline:
