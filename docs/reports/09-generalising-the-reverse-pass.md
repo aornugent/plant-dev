@@ -1308,7 +1308,75 @@ is `derivs` and therefore already carries the resident/invasion routing.
 state, its stage's operating point, and — where it has a field worth freezing — the record and
 replay hooks. Nothing about tapes, seeds, recordings or Butcher coefficients.
 
-### 14.4 What it deletes
+### 14.4 The final shape, and the size of it
+
+**What a model declares, in full.** Six things, and only two of them exist for the gradient:
+
+| | who else wants it |
+|---|---|
+| `rebind_from<U>()` | the forward Jacobian already |
+| `ad_parameters()` | the forward Jacobian already |
+| `ode_rates()` | the forward run |
+| **a stage loader** | the reverse pass only |
+| **the aux triple** | the reverse pass only |
+| the field record/replay hooks | *optional*; it is the resident/invasion declaration, not gradient machinery |
+
+So the reverse-mode residue in a model is **a state loader and an aux triple**. Nothing about
+tapes, seeds, recordings, twins or Butcher coefficients.
+
+**What it replaces, measured.**
+
+| removed | lines |
+|---|---|
+| the single-seed stepper and its stage recursion | 109 + 23 |
+| the solver's single-seed pair | ~15 |
+| the model's single-seed adapter | 25 |
+| the model's batched transpose (moves to the solver, does not vanish) | 48 |
+| the two adjoint concepts, replaced by one aux concept | 33 → ~10 |
+| the model's second recorder: step cache, stage cache, loader | 6 + 8 + 27 |
+| the third and fourth spellings of "can this rebind" | 5 aliases + 2 helpers + 6 sites |
+
+Roughly **250 lines net**, against about fifty added where the generic path grows a parameter
+channel and an aux carriage. But the line count is the smaller half. The larger half is that after
+it, **no model owns any part of the gradient except the two rows above** — which is the claim §7
+makes and has never been able to state as a number.
+
+**What is NOT in this accounting, and should not be confused with it.** The opaque node — the
+leaf's supplied rows — is untouched by all of the above. It is model calculus, not solver
+machinery, and it is where the remaining hand-written derivative lines actually live.
+
+### 14.5 Two things that collapse, and one that looks like it should and does not
+
+**"Can this rebind" is asked four ways, and three are derivable.** A type alias on the model; a
+wrapper that applies it; a fallback helper in the solver that keys on the same alias; and a concept
+plus a type function that key instead on the rebind *factory*. The last pair is the general one —
+the type is `decltype` of the factory call, with the same not-rebindable fallback — so the alias,
+the wrapper and the older helper all go.
+
+**And the older helper is not merely redundant, it is wrong here.** Every type that declares the
+alias also has the factory; the patch has the factory *only*. So the helper resolves the patch's
+"active twin" to the **double** patch, and the solver member named for the active twin would hold a
+passive one. It does not bite today because that path is not instantiated for this model, but it is
+a silent degradation of exactly the kind §7.3 is about, and collapsing the four spellings to one
+closes it.
+
+**The step recorder and the field recorder are not the same thing, and one cannot replace the
+other.** They look alike — both record on the forward pass and are read on a later one — but the
+payload, the granularity and the consumer all differ: the step recorder keeps the **state** at each
+accepted step, for a reverse walk that needs somewhere to run from; the field recorder keeps the
+**field** at each stage, for a replay that must not recompute the resident. What the field recorder
+replaces is the model's *other* recorder, the per-stage environment cache that predates it.
+
+What can move, though, is the step recorder's driver. Toggling the recording, running, harvesting
+the records and attaching the step sizes is twenty lines with nothing model-specific in it, and the
+record itself is a time, a step size and a state. Both belong beside the concept that dispatches
+them.
+
+**One caution on the mutant flag.** It is doing two jobs — *use the cached field* and *this is an
+invader: compute no boundary node, build no field, feed nothing back*. Only the first is what the
+replay hooks replace. Fifteen sites in the model test that flag; most are the second job and stay.
+
+### 14.6 What it deletes
 
 One copy of the stage recursion and its tableau seeding; the single-seed stepper and the solver
 pair above it; the model's single-seed adapter; the model's batched transpose, which becomes
@@ -1317,7 +1385,7 @@ the field hooks for its mutant runs, its *second* caching system goes with them 
 environment cache that predates all of this and does the same job the replay hooks were written to
 do.
 
-### 14.5 What has to be solved before any of it
+### 14.7 What has to be solved before any of it
 
 - **Freshness is per recording, not per step.** A twin carried into a second recording holds
   scalars from one since cleared, and the sweep comes back partly wrong. There are six recordings
@@ -1332,7 +1400,7 @@ do.
   value. The boundary-condition counters are incremented per seed inside the model's transpose and
   are derivable as stages × steps × metrics, which a trajectory check already asserts.
 
-### 14.6 Order, and the one that pays first
+### 14.8 Order, and the one that pays first
 
 1. **Collapse the single-seed path into the batched one.** Largest deletion, removes the duplicated
    recursion, and shrinks the surface everything else has to move through.
