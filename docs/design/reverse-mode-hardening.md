@@ -2,8 +2,10 @@
 
 **Read this first, build in the order given, and do not reorder without reading the gates.**
 
-The reverse-mode census gradient is correct where it answers and has thirteen known defects. All
-thirteen are root-caused and each one's reachability is measured. This document is the specification
+The reverse-mode census gradient is correct where it answers and has fourteen known defects. All
+fourteen are root-caused and each one's reachability is measured — #14 was found by refereeing a row
+nothing tested, which is the case for §5's table being part of the specification rather than beside
+it. This document is the specification
 for closing them and the handoff for the session that does it.
 
 Every number here was measured rather than argued, unless marked *(corpus)* — meaning it comes from
@@ -14,16 +16,13 @@ below were taken at `plant` `cdf3f0c9`.
 and — as important — what it deliberately did not do; §4 the specifications; §10 the two open
 derivations and why they were decided the way they were.
 
-**Eight of the thirteen defects are closed, one is half-closed (#9), two are open (#2, #13), and two
-are not this work's (#11 upstream, #12 another branch).** Phases 0, 1 and 2's instruments are
-committed, and four of Phase 3's six items with them. The Phase 3 gate is satisfied and its numbers
-are in §3's Phase 2 and in §6. `plant` is at `e5ceef1e` on `ad/v3-forward`, `phylloptim` at `b825d56`;
-**nothing is pushed.**
+**Ten of the fourteen defects are closed, two are open (#2, #13), and two are not this work's (#11
+upstream, #12 another branch).** #9 is closed: a pinned operating point answers. `plant` is at
+`17e98c70` on `ad/v3-forward`, `phylloptim` at `4456785`; **nothing is pushed.**
 
-**One thing to hold before starting.** Every row Phase 3 has built is *derived and refereed but not
-yet consumed* — nothing calls them, so the pinned branch refuses exactly as it did. §0's step B is
-what turns a correct row into an answered one, and it is the only remaining change that flips a
-result at a pinned point from refuse to answer. **No forward number moves, in any of it.**
+**One thing to hold before starting.** The pinned rows are consumed now, so this is the first change
+in the sequence that moves a gradient. It moves only gradients that were **refused** — every run that
+answered is bit-identical, measured against a build without it — and **no forward number moves**.
 
 ---
 
@@ -42,50 +41,104 @@ census beside the zero census (§7); measured incidence beside every refusal cla
 correction that a coverage check is not an acceptance gate while a branch is refused rather than
 answered (§9).
 
-### B — finish the pinned branch. Six steps, and the order is forced
+### B — ~~finish the pinned branch~~ **DONE**, and not by the six steps below
 
-Everything B needs exists and is refereed except B1.
+A pinned operating point now answers. What it took was not B1–B6, and the reason is a measurement
+this document had wrong.
 
-**B1. Four steepness bound reads.** In `record_leaf_outputs`'s driven-trait loop, alongside the
-marginal, read the bound — `leaf.find_root_psi(leaf.supply_begin_solve(), psi_value, which)`, both
-public — for `stem_c` and `root_c`, both bounds.
+**⚠️ THE §10 TABLE WAS TAKEN AT A WET PIN AND DOES NOT HOLD AT A DRY ONE.** It records `root_b` and
+`root_c` as the only driven traits whose finite-difference arm crosses the feasible interval. At a
+**dry** pin — which is where every pin measured in production sits — **five of the six cross**:
 
-**Reuse the loop's own `h_t`; add no constant.** `fit_step` is already `1e-3`, and §10's plateau runs
-1e-6 to 1e-3, so the existing step is on it. (`root_b` needed care because 1e-6 was off its edge; the
-steepnesses do not.)
+| at a dry pin, `fit_step` = 1e-3 | up arm | down arm |
+|---|---|---|
+| `stem_c` | **crosses** | ok |
+| `stem_b` | ok | **crosses** |
+| `psi_crit` | ok | **crosses** |
+| `root_c` | ok | **crosses** |
+| `root_b` | **crosses** | ok |
+| `root_psi_crit` | ok | ok |
 
-Read it **after `drive()` and before `seat_at`** — `seat_at` refuses an infeasible arm, and the bound
-is defined either way. **Not in `bound_row`**: `set_traits` loses the supply state, so a
-rebuild-difference cannot be taken on a seated leaf (§10).
-*Done when* the four match a rebuilt difference to 1e-4 at a mild soil gradient.
+So B1's two extra bound reads would not have been enough: it is the *frozen* profit and uptake
+partials that cannot be centred, not only the bound.
 
-**B2. Substitute the ten `dcollar_d<family>` sites.** Each is `−dR_d<family>/curvature`; at a pin each
-becomes the matching `bound_row` entry — `d_dpsi_soil[j]`, `d_droot_carbon[k]`, `d_dkappa`,
-`d_dpsi_crit`, `d_droot_psi_crit`, `d_dstem_b`, `d_droot_b`, and B1's two.
-*Done when* an interior run is **bit-identical** to before.
+**What replaced it: follow the bound.** Each differenced arm is taken at the **perturbed bound plus
+the step-in the solve leaves between the bound and the collar**. The difference is then the TOTAL
+derivative directly, it is feasible by construction, and the family needs no collar term at all.
+Measured against re-solving the leaf, all twelve arms agree to **1.00000**.
 
-**B3. `dcollar_dlight = 0` at a pin.** Neither bound reads radiation. Not "small" — exactly zero.
+**The step-in is load-bearing, not a detail.** At the wet bound total uptake is exactly zero, so
+evaluating at the bare bound is a degenerate point: omitting the offset read **268.561** for a
+derivative that is **−0.0814**.
 
-**B4. Add `ν·∂B/∂u` to the non-soil profit rows.** The soil rows already carry it, inside
-`profit_env_derivatives`. `ν = dprofit_droot_collar_psi(collar)`; the families are kmax, root carbon
-and the leaf traits.
+So the families split by how they are READ rather than by what they are:
 
-**B5. Lift the graft mask** (§4.5). `lt_zero_at_interior` becomes a function of the classification:
-`psi_crit` and `root_psi_crit` are slack at an interior point and **live at a pin**. Answering a pin
-without lifting it returns two zeros that are no longer correct.
+| read | at a pin |
+|---|---|
+| differenced — the four curve traits, `psi_crit`, `root_psi_crit`, kmax | arms follow the bound; the collar term is **0** |
+| analytic — soil layers, layer carbon | the matching `bound_row` entry, plus `ν·∂B/∂u` on carbon's profit row |
+| light | exactly **0** — neither bound reads radiation |
+| the eight closed-form traits | exactly **0** — neither residual reads them |
 
-**B6. Delete the `env.pinned` refusal** in `record_leaf_outputs`. It exists only to hold B open.
+B3, B5 and B6 landed as written. B4 turned out to be one family, not three: kmax and the traits get
+the bound's movement from following it, so only the layer carbon adds `ν·∂B/∂u` by hand.
 
-**Acceptance for B, and it is measurable rather than a tolerance.** Run §8's three drivers with the
-counters cleared: **every run that answered before still answers, with a bit-identical gradient**, and
-the `rain 0.25, L=10` run — 99.71% interior, 0.29% `pinned-dry-root-crit` — **answers instead of
-refusing**. If a previously-answering run moves, the mask (B5) is wrong, not the rows.
+**And one thing outside B had to move with it.** An **interior** point can sit within a trait-step of
+a bound, and there the step is *reduced* rather than the point refused: the margin is strictly
+positive and the bound's movement is proportional to the step, so a small enough step always exists.
+Bounded at `fit_step/100` — two decades, between the step chosen for conditioning and the step where
+a difference stops moving total uptake above the solve's own floor — and it still refuses below that.
+Without this the pinned branch is unreachable on a stand, because a crossing at an interior point
+refuses first.
 
-### C — the parity gate (§5 rung 4)
+**Acceptance, measured against a build without the change:**
+
+| driver | before | after |
+|---|---|---|
+| `rain 2.00, L=10` (100% interior) | answered | answered, **bit-identical** |
+| `rain 0.28, L=10` | answered | answered, **bit-identical** |
+| `rain 0.27, L=10` | answered | answered, **bit-identical** |
+| `rain 0.26, L=10` | **refused** | **answered** |
+
+**And `rain 0.26` provably reaches the pinned branch**, which is what makes the other three
+bit-identity rather than an untested claim: a probe that refuses on the pinned branch refuses that
+run and leaves `0.27` and `0.28` answering. `rain 0.25, L=10` — the driver this section originally
+named — still refuses, on a crossing the step reduction cannot close.
+
+Gradient ladder **465/465**. Non-ladder **3244 pass with the same 13 pre-existing problems in the
+same six files**.
+
+**⚠️ The operating-point counters do not measure this.** They count forward solves; the gradient path
+visits only the recorded steps. `rain 0.30, L=10` reports 172 `pinned-dry-root-crit` and answered
+*before* this change, because none of those pins is on the gradient path. A run's pinned count is
+therefore not a prediction of whether its gradient needs the pinned branch, and report 08 §7's guard
+census cannot be built from these counters — a counter on the strategy is lost anyway, because a
+block copies the strategy per unit and discards it.
+
+### C — the crossing at an interior point, which is what still refuses
+
+**This is now the binding constraint, and it is not the pinned branch.** `rain 0.25, L=10` refuses on
+a finite-difference arm that leaves the feasible interval at an **interior** point, and the step
+reduction B added closes some of those and not all: it moved the refusal from node 78 (`stem_b`) to
+79 (kmax) to 82 (`stem_b` again, below the step floor).
+
+The shape of the remaining case is a point so close to a bound that even `fit_step/100` steps across
+it. Two routes, and the choice needs its own measurement:
+
+- **A one-sided difference on the feasible arm.** Correct in the limit — the interior and the
+  bound-following derivatives agree at the transition, because `∂Π/∂p` vanishes there — but O(h)
+  rather than O(h²), so it needs its own step study.
+- **Follow the bound, as at a pin.** Defensible for a point within a step of the bound, and it makes
+  the treatment continuous across the classification rather than discontinuous at it.
+
+**Do not reach for the clamp.** §7's 184.7 measurement is what clamping does at a pin, and the reason
+`profit_at_fixed_collar` exists.
+
+### C2 — the parity gate (§5 rung 4)
 
 *For every state the forward model returns a number for, the reverse returns a row or names a violated
-constraint.* **Not before B** — until the pinned branch answers this measures the gap rather than
-gating it, and it should be labelled that way if run early.
+constraint.* **Not before C** — the pinned branch answers now, but the crossing above still refuses,
+so this measures that gap rather than gating it.
 
 ### D — #2, the amplification ceiling. Two halves, and the structural one is independent of the value
 
@@ -151,11 +204,26 @@ Ordered by severity, which is not the order of the work — see §3 for that.
 | 6 | non-finite input poisons the value | **closed** | the graft guards its derivatives, not its inputs | latent; widens with the pinned branch | yes |
 | 7 | ghost cohort | **closed** | `check_birth_dates_distinct()` is called on the seeding path, never the scheduled one | any duplicated schedule time | yes |
 | 8 | refusal misnamed | **closed** | one tag covers a dry plant and a broken parameterisation; `GSS_tol_abs` has two defaults | `root_psi_crit` below `root_zero_E` | partly |
-| 9 | pinned refusal | half — arm named, rows built and wired to the leaf; stand does not consume | the bounds are locals, discarded; `PinnedDry` never said which arm | **production drought** | no |
+| 9 | pinned refusal | **closed** — the stand follows the bound and answers | the bounds are locals, discarded; `PinnedDry` never said which arm | **production drought** | no |
 | 10 | raw error escapes | **closed** | no refusal channel exists in C++ | every failure above | wrongly |
 | 11 | forward run dies | upstream | real, and **already largely fixed** upstream *(corpus: #599 went 17/40 → 5/40)* | did not fire in 14 runs | no |
 | 12 | resource | other branch | the forward `O(K·N)` field build, inherited by the sweep's replay | every multi-species run | no |
 | 13 | build provenance | open | header changes move no `.cpp` timestamp; storage-class flags must pair | any rebuild | varies |
+| 14 | pinned profit rows priced by the interior condition | **closed** | `marginal_price_water` is `λκf(p)/S`, which is `∂Π/∂E_up` **only once `∂Π/∂p = 0`** — the first-order condition is inside the expression rather than beside it | every pinned point | yes |
+
+**#14 was not in this list and was found by refereeing a row nothing tested.** The pinned rows landed
+with no test and no R binding; against a central difference of the profit at a **re-solved** operating
+point they read **1.08** of it at a wet pin and **0.85** and **0.53** at two dry ones. The fix is to
+take the price from `dmarginal_profit_duptake_slope`, which builds `∂Π/∂E_up` from the cost and
+assimilation kernels with no stationarity in it at all — so it is the frozen-collar price wherever the
+point sits. The interior branch keeps the interior price: the two agree there by the condition, differ
+in the last bits, and a gradient that already answers must not move.
+
+⚠️ **A wet pin cannot referee it.** The wet residual is total uptake alone, so `∂B/∂ψ_j` is exactly
+`−(∂E_up/∂ψ_j)/S` and the bound term cancels the whole difference between the two prices — the
+interior formula lands on the right answer there whichever price is used. **Only a dry pin is
+evidence**, and `test-profit-env-row.R` asserts that blindness as a measured ratio rather than
+describing it.
 
 **Two of these need no work here.** #11 is upstream and mostly closed. #12 is a forward-model cost shape
 with the running-sums reduction already in flight on another branch — the reverse RHS is *sub*-linear in
@@ -618,6 +686,27 @@ This chain is already assembled inline at `leaf_model.hpp:2405–2406`. Lift it 
    reverse returns a row or names a violated constraint.* Sweep a driver across the regimes; require
    `stand_gradient` to answer wherever `run_scm` answered.
 
+**What is refereed now, and against what.** Each row added in this work has a check whose reference is
+a difference of the relation that *defines* it — report 08 §5A's locality axis:
+
+| row | referee | worst |
+|---|---|---|
+| the bound row's soil half | a differenced `find_root_psi` | 3.6e-07 mild, 4.4e-05 strong |
+| its `kappa`, `psi_crit`, `stem_b` half | a rebuilt difference of the bound | 1e-4 |
+| its `root_b` entry | a rebuilt difference, both bounds | 1.69e-05 |
+| **its root-carbon half** | a **rebuilt network** and a re-solved bound | 3.0e-06 wet, 5.5e-04 dry |
+| **that a bound row moves no output** | `E_up_`, uptake, collar, `psi_stem`, profit, kind | **bit-identical** |
+| the hydraulic cost row | a rebuilt difference of the curve | 9.6e-10 |
+| the stem curve's `stem_b` row | Euler, then a rebuilt difference at three scales | 6.7e-09 |
+| **the root curve's `root_b` row** | Euler (**0.00e+00**), then a rebuilt difference | 2.8e-06 |
+| **the pinned profit environment rows** | a **re-solved** profit difference | 4.8e-08 wet, 3.1e-04 dry |
+
+**One residual is open and is recorded rather than absorbed.** The dry pin's environment rows sit at
+**2e-04 to 3e-04** where the wet pin sits at 4.8e-08. `λ`, `f`, `ν`, `S` and `∂E_up/∂ψ_j` were each
+refereed separately and are good to **2e-05 or better**, so it is in the composition rather than in a
+factor. The measurable symptom: at the dry bound `psi_stem` **overshoots `psi_crit` by 3e-04 to
+7e-04**, where the bound is *defined* as the collar at which the two are equal.
+
 **Fault injections, each of which must be caught:**
 
 | injection | expected | run? |
@@ -834,6 +923,10 @@ The substitution is mechanical and the obstacle is not where it looked. Measured
 | `stem_c`, `stem_b`, `psi_crit`, `root_psi_crit` | **no — exactly 0** | yes | n/a |
 | `root_b` | −1.6e-05 / +1.6e-05 | **no**, the down arm crosses | **yes — closed form** |
 | `root_c` | −5.9e-07 / +5.9e-07 | **no**, the down arm crosses | no — needs a rebuild |
+
+**⚠️ THIS TABLE IS A WET PIN'S, AND §0's B RECORDS WHAT IT MISSES.** At a dry pin — every pin measured
+in production — five of the six cross, not two. What follows is still the right reading of the wet
+arm and the wrong basis for a plan.
 
 **Ten of the twelve arms are fine. Exactly two cross, and only on one side.** They are the two root
 vulnerability parameters, and they cross for the reason the table gives: they are the only driven
