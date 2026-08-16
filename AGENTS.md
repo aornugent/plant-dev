@@ -218,6 +218,36 @@ one failure does not.
 every invocation below needs `TESTTHAT_PARALLEL=false` — which makes the ladder
 serial, and its wall time its CPU time.
 
+## Testing odelia — and the two ways it lies to you
+
+`odelia` must be installed rather than `load_all()`ed (see *Local Development*), so
+run its suite against the install, in an environment that can see the package's
+internals:
+
+```r
+library(odelia)
+testthat::test_dir("odelia/tests/testthat",
+                   env = new.env(parent = asNamespace("odelia")))
+```
+
+**Both halves of that `env` matter and each fails differently.** A plain
+`test_dir()` cannot see the `.Call` wrappers several tests invoke by name, and
+reports them as *"could not find function"* — an error that looks like broken code
+and is broken invocation. Passing `asNamespace("odelia")` itself instead of a child
+fails at the first helper with *"cannot add bindings to a locked environment"*.
+
+**The suite compiles its probes with `sourceCpp`, and a probe that does not agree
+with the shipped library fails in ways that read as unrelated.** Two settings have
+to match `src/Makevars`: the XAD defines (`XAD_NO_THREADLOCAL`,
+`XAD_USE_STRONG_INLINE`) and the C++20 standard. A probe missing the first links
+against a symbol of the same mangled name in the other storage class — *"TLS
+reference ... mismatches non-TLS definition"*. A probe missing the second reads
+every `concept` in odelia's headers as a syntax error — *"'concept' does not name a
+type"*. `odelia_cppflags()` in `tests/testthat/helper-load-odelia.R` is where both
+live; a new probe takes its flags from there and nowhere else.
+
+At `odelia@bed3bc5` the suite is **369 passing, 0 failing, 3 skipped**.
+
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 
 
