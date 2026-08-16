@@ -16,13 +16,16 @@ below were taken at `plant` `cdf3f0c9`.
 and — as important — what it deliberately did not do; §4 the specifications; §10 the two open
 derivations and why they were decided the way they were.
 
-**Ten of the fourteen defects are closed, two are open (#2, #13), and two are not this work's (#11
-upstream, #12 another branch).** #9 is closed: a pinned operating point answers. `plant` is at
-`17e98c70` on `ad/v3-forward`, `phylloptim` at `4456785`; **nothing is pushed.**
+**Eleven of the fourteen defects are closed, two are open (#2, #13), and two are not this work's (#11
+upstream, #12 another branch).** #1 and #9 are both closed: a pinned operating point answers, and a
+finite-difference arm is taken from inside the feasible interval rather than refused. `plant` is at
+`d30ad318` on `ad/v3-forward`, `phylloptim` at `dc378a8`; **nothing is pushed.**
 
-**One thing to hold before starting.** The pinned rows are consumed now, so this is the first change
-in the sequence that moves a gradient. It moves only gradients that were **refused** — every run that
-answered is bit-identical, measured against a build without it — and **no forward number moves**.
+**One thing to hold before starting.** The gradient answers on every driver tried, including the two
+this document had recorded as refusing. Every run that answered before is **bit-identical**, measured
+against a build carrying neither change, and **no forward number moves**. What is not yet established
+is that it answers *everywhere* — that is C2, and it is now a gate rather than a measurement of a
+known gap.
 
 ---
 
@@ -115,30 +118,69 @@ therefore not a prediction of whether its gradient needs the pinned branch, and 
 census cannot be built from these counters — a counter on the strategy is lost anyway, because a
 block copies the strategy per unit and discards it.
 
-### C — the crossing at an interior point, which is what still refuses
+### C — ~~the crossing at an interior point~~ **DONE**
 
-**This is now the binding constraint, and it is not the pinned branch.** `rain 0.25, L=10` refuses on
-a finite-difference arm that leaves the feasible interval at an **interior** point, and the step
-reduction B added closes some of those and not all: it moved the refusal from node 78 (`stem_b`) to
-79 (kmax) to 82 (`stem_b` again, below the step floor).
+**The room, not the classification, is what decides this.** The refusal now reports both: at the
+point that blocked `rain 0.25` the collar sat **1.1e-05 MPa** inside the dry bound while classified
+**interior**, so no usable step is small enough. A leaf-level fixture cannot reproduce it — there the
+solve pins as soon as it gets that close, and the margin jumps from 2.856e-03 straight to zero.
 
-The shape of the remaining case is a point so close to a bound that even `fit_step/100` steps across
-it. Two routes, and the choice needs its own measurement:
+**The collar's response was never the problem.** The interior formula `−dR/du / curvature` is correct
+at such a point; what breaks is the *frozen-collar difference*, which needs the held collar to be
+feasible in the perturbed state. So only the arms changed:
 
-- **A one-sided difference on the feasible arm.** Correct in the limit — the interior and the
-  bound-following derivatives agree at the transition, because `∂Π/∂p` vanishes there — but O(h)
-  rather than O(h²), so it needs its own step study.
-- **Follow the bound, as at a pin.** Defensible for a point within a step of the bound, and it makes
-  the treatment continuous across the classification rather than discontinuous at it.
+1. **Centred** wherever both sides stay inside — almost everywhere, and the branch every already-answering run takes.
+2. **One-sided, second order**, on the side that stays inside. One extra evaluation, same order, and it never asks the profit algebra for a point below the wet bound.
+3. **Then** reduce the step, floored at `fit_step/100`.
+4. Refuse.
 
-**Do not reach for the clamp.** §7's 184.7 measurement is what clamping does at a pin, and the reason
-`profit_at_fixed_collar` exists.
+**The order matters and it is not the obvious one.** Shrinking is *last*, because the reads carry the
+solve's own floor: dividing them by a step two decades smaller costs more than the one-sided formula's
+truncation.
+
+**Why second order is worth the extra evaluation, measured on the leaf:**
+
+| | worst over the four driven traits |
+|---|---|
+| one-sided **second** order vs centred | **1.6e-05** |
+| one-sided **first** order vs centred | **2.4e-03** |
+
+and the first-order error carries a **sign that follows the side**, so the row would depend on which
+bound the point drifted toward rather than on the trait. The second-order form gives the same answer
+from either side to six digits, which is what `test-fixed-collar.R` asserts.
+
+**The centred branch is written out rather than run through the weights.** `(a − b)/(2h)` and
+`0.5/h·a − 0.5/h·b` differ in the last bit.
+
+**Acceptance, measured against a build carrying neither B nor C:**
+
+| driver | before | after | pins |
+|---|---|---|---|
+| `rain 2.00, L=10` | answered | answered, **bit-identical** | 0 |
+| `rain 0.28, L=10` | answered | answered, **bit-identical** | — |
+| `rain 0.27, L=10` | answered | answered, **bit-identical** | — |
+| `rain 0.26, L=10` | refused | **answered** | — |
+| **`rain 0.25, L=10`** | refused | **answered** | 629 of 216,014 (**0.29%**) |
+| **`rain 0.28, L=20`** | refused | **answered** | 99,645 of 363,767 (**27.4%**) |
+
+Ladder **466/466**. Non-ladder **3244 pass, the same 13 pre-existing problems in the same six files**.
+
+**One test had to change, and it is report 08 §9's ruling in practice.**
+`test-gradient-incidence.R` asserted that `rain 0.25` comes back **refused**. That was the gap
+recorded as a gate; it now asserts the run answers, and the incidence is what the answer rests on
+rather than what it costs.
 
 ### C2 — the parity gate (§5 rung 4)
 
 *For every state the forward model returns a number for, the reverse returns a row or names a violated
-constraint.* **Not before C** — the pinned branch answers now, but the crossing above still refuses,
-so this measures that gap rather than gating it.
+constraint.* **Now it gates rather than measures** — the pinned branch answers and the crossings are
+differenced from inside the interval, so a refusal left in a sweep is a finding rather than a known
+gap. This is the next item.
+
+**What it should sweep**, given what B and C turned up: rainfall down to where the forward model
+itself fails, at two lifetimes, and the seasonal driver §7 records as refusing from a trough the run
+recovered from. **`shade-death` is still unanswered** — it has 90,044 incidences at `k_I` = 40 and no
+rows, and it is governed by light rather than water, so no rainfall sweep reaches it.
 
 ### D — #2, the amplification ceiling. Two halves, and the structural one is independent of the value
 
@@ -196,7 +238,7 @@ Ordered by severity, which is not the order of the work — see §3 for that.
 
 | # | defect | status | root cause | reachable at | silent |
 |---|---|---|---|---|---|
-| 1 | FD probe crosses a feasibility boundary | **closed** | one entry point serves two consumers; `evaluate_root_collar_psi` clamps by design for the acclimating FD, wrongly for a frozen-collar partial | **production drought** — guaranteed at any pin | yes |
+| 1 | FD probe crosses a feasibility boundary | **closed** — refused, then differenced from inside | one entry point serves two consumers; `evaluate_root_collar_psi` clamps by design for the acclimating FD, wrongly for a frozen-collar partial | **production drought** — guaranteed at any pin | yes |
 | 2 | no amplification ceiling | open | the guard tests the curvature's **sign**; the divergence is in its **magnitude** | `stem_c` 2.68 → 0.6 — **4.5×, a search reaches this** | yes |
 | 3 | forward tangent non-finite | **closed** | boundary node carries `log(birth_rate·pr_estab) = −Inf`; the tangent works in `ℓ` where the sweep works in `n` | any stand where establishment fails | yes |
 | 4 | clamp severs a row | **closed** — counted and refused, guard unexercised | the floor clamps at the **read**; the field stores values to 1e-117 underneath | `k_I` 0.5 → 40 — **80×** | yes |
