@@ -10,17 +10,109 @@ Every number here was measured rather than argued, unless marked *(corpus)* — 
 `docs/reports/00`–`09` or `plant/notes/gradient-development-record.md`. Figures from before the work
 below were taken at `plant` `cdf3f0c9`.
 
-**Phases 0, 1 and 2's instruments are landed and committed, and so are four of Phase 3's six items.**
-`plant` is at `0a1576a3` on `ad/v3-forward`, `phylloptim` at `b8a822b`; nothing is pushed. Read §3 for
-what each phase did and — as important — what it deliberately did not do.
+**§0 is the work list. Read it first and it will send you to the rest.** §3 is what each phase did
+and — as important — what it deliberately did not do; §4 the specifications; §10 the two open
+derivations and why they were decided the way they were.
 
-**Eight of the thirteen defects are closed and two are half-closed.** The Phase 3 gate is satisfied,
-and its numbers are in §3's Phase 2 and in §6.
+**Eight of the thirteen defects are closed, one is half-closed (#9), two are open (#2, #13), and two
+are not this work's (#11 upstream, #12 another branch).** Phases 0, 1 and 2's instruments are
+committed, and four of Phase 3's six items with them. The Phase 3 gate is satisfied and its numbers
+are in §3's Phase 2 and in §6. `plant` is at `e5ceef1e` on `ad/v3-forward`, `phylloptim` at `b825d56`;
+**nothing is pushed.**
 
 **One thing to hold before starting.** Every row Phase 3 has built is *derived and refereed but not
-yet consumed*: nothing calls them, so the pinned branch still refuses exactly as it did. Item 13 is
-what turns a correct row into an answered one, and it is the only remaining change that flips results
-at pinned points from refuse to answer.
+yet consumed* — nothing calls them, so the pinned branch refuses exactly as it did. §0's step B is
+what turns a correct row into an answered one, and it is the only remaining change that flips a
+result at a pinned point from refuse to answer. **No forward number moves, in any of it.**
+
+---
+
+## 0. Do these, in this order
+
+Everything below is committed on `ad/v3-forward` and unpushed. Each item names what to change, and
+what has to be true before it counts.
+
+### A — fold §11 into report 08 *(no code)*
+
+Report 08 has two reference classes and two axes; this work needed a third and broke two of its own
+checks. §11 is the six additions and the one correction. **Done when** report 08 names the
+defining-relation referee as an axis and §11 is deleted from here.
+
+### B — finish the pinned branch. Six steps, and the order is forced
+
+Everything B needs exists and is refereed except B1.
+
+**B1. Four steepness bound reads.** In `record_leaf_outputs`'s driven-trait loop, alongside the
+marginal, read the bound — `leaf.find_root_psi(leaf.supply_begin_solve(), psi_value, which)`, both
+public — for `stem_c` and `root_c`, both bounds.
+
+**Reuse the loop's own `h_t`; add no constant.** `fit_step` is already `1e-3`, and §10's plateau runs
+1e-6 to 1e-3, so the existing step is on it. (`root_b` needed care because 1e-6 was off its edge; the
+steepnesses do not.)
+
+Read it **after `drive()` and before `seat_at`** — `seat_at` refuses an infeasible arm, and the bound
+is defined either way. **Not in `bound_row`**: `set_traits` loses the supply state, so a
+rebuild-difference cannot be taken on a seated leaf (§10).
+*Done when* the four match a rebuilt difference to 1e-4 at a mild soil gradient.
+
+**B2. Substitute the ten `dcollar_d<family>` sites.** Each is `−dR_d<family>/curvature`; at a pin each
+becomes the matching `bound_row` entry — `d_dpsi_soil[j]`, `d_droot_carbon[k]`, `d_dkappa`,
+`d_dpsi_crit`, `d_droot_psi_crit`, `d_dstem_b`, `d_droot_b`, and B1's two.
+*Done when* an interior run is **bit-identical** to before.
+
+**B3. `dcollar_dlight = 0` at a pin.** Neither bound reads radiation. Not "small" — exactly zero.
+
+**B4. Add `ν·∂B/∂u` to the non-soil profit rows.** The soil rows already carry it, inside
+`profit_env_derivatives`. `ν = dprofit_droot_collar_psi(collar)`; the families are kmax, root carbon
+and the leaf traits.
+
+**B5. Lift the graft mask** (§4.5). `lt_zero_at_interior` becomes a function of the classification:
+`psi_crit` and `root_psi_crit` are slack at an interior point and **live at a pin**. Answering a pin
+without lifting it returns two zeros that are no longer correct.
+
+**B6. Delete the `env.pinned` refusal** in `record_leaf_outputs`. It exists only to hold B open.
+
+**Acceptance for B, and it is measurable rather than a tolerance.** Run §8's three drivers with the
+counters cleared: **every run that answered before still answers, with a bit-identical gradient**, and
+the `rain 0.25, L=10` run — 99.71% interior, 0.29% `pinned-dry-root-crit` — **answers instead of
+refusing**. If a previously-answering run moves, the mask (B5) is wrong, not the rows.
+
+### C — the parity gate (§5 rung 4)
+
+*For every state the forward model returns a number for, the reverse returns a row or names a violated
+constraint.* **Not before B** — until the pinned branch answers this measures the gap rather than
+gating it, and it should be labelled that way if run early.
+
+### D — #2, the amplification ceiling. Two halves, and the structural one is independent of the value
+
+**D1 (structural).** The present guard refuses the **whole leaf** when the curvature is unusable. The
+profit row is valid at a fold; only the uptake rows cease to exist. Make the two output kinds
+refusable independently. This needs no ceiling value.
+
+**D2 (the value).** §6.1 is still unknown, and it is **not** falsifiable from solved operating points —
+the second-order condition already forces `Π_pp ≤ 0` there. It needs a sweep of `p` across the whole
+feasible interval at states a trait search reaches. Guard on `|s|/|Π_pp|`, and **emit the profit row
+regardless**.
+
+### E — the remaining fourteen clamp sites
+
+One of fifteen is instrumented (the light floor, defect #4's own site). The rest take the same
+`clamp_site` enum and the same counter: the soil potential ceiling and residual floor, the
+conductivity clamp, the rainfall and infiltration `max(0, ·)`, the collar clamp, the leaf-temperature
+clamp, and the root vulnerability integral's ceiling. **Counting is cheap and refusing is not
+automatic** — refuse only where the clamp masks a *smooth* function, which is #4's test, not every
+clamp's.
+
+### Standing, and not to be lost
+
+- **Two guards are implemented and have never fired**: the graft's input finiteness test, and the
+  light floor's refusal (the interior gate wins the race). Neither is evidence of anything until it
+  does. §11's guard census is the fix.
+- **`root_psi_crit` never binds at shipped defaults**, so `bound_row(DryRootPsiCrit)` is unreachable
+  without a deliberately-lowered fixture. §5's non-vacuity requirement is not optional.
+- **`R CMD INSTALL --no-multiarch --preclean odelia` before every `plant` build.** Installing
+  `phylloptim` can replace the fork `odelia` with upstream's; it happened three times in one session
+  (§8).
 
 ---
 
@@ -71,7 +163,7 @@ species (0.0130 / 0.0232 / 0.0352 s at 1/2/3 species).
 
 **Each phase makes the next observable. The gates are not optional.**
 
-### Phase 0 — unconditional, no design needed — **LANDED, uncommitted**
+### Phase 0 — unconditional, no design needed — **LANDED** (`plant` b7876f03, `phylloptim` 44dad1b)
 
 All four are in the working tree of `plant` and `phylloptim`. No regression: the same 7 pre-existing
 failures before and after, every pass count identical, and the gradient structure tier clean at 165
@@ -107,7 +199,7 @@ assertions. Each was checked live rather than assumed.
    unchanged at −Inf either way. The mechanism is that `log()` reaches −Inf from an exact zero
    through 0/0, so it recorded a NaN derivative beside a correct value.
 
-### Phase 1 — the status channel — **LANDED, uncommitted**
+### Phase 1 — the status channel — **LANDED** (`plant` b7876f03)
 
 ```
 census_trait_gradient  ->  { gradient[m][t], status[m][t], refusal[m] }
@@ -228,7 +320,7 @@ uninformative.
   that arm is ever exercised. The 576-point golden grid agrees: zero on that arm at both
   temperatures, and bit-identical through the split.
 
-### Phase 2 — the original specification
+#### Phase 2, as originally specified
 
 5. **#1 detection:** compare `operating_point_kind()` and the returned collar across each FD arm; on a
    change, `refused(branch_crossed, …)`.
@@ -712,6 +804,22 @@ stand_gradient(scm)
 
 ---
 
+## 9. Corpus corrections
+
+Carry these forward; they change what a reader would do.
+
+- **Report 09 §10's "first segment is never swept" does not reproduce at `cdf3f0c9`.** Sweep and
+  trajectory tangent agree to ≤2.7e-09 with first introductions at 0.0 through 1.0, including 104
+  recorded steps below the first event. The structural point survives: nothing asserts the segment
+  ranges partition the recording.
+- **Report 09 §12's inverted cost premise is stale.** 14.6× flat, not 162×.
+- **The parameter count is 47, not the 44 every report states** *(report 09 §12 already flags this)*.
+- **The development record's mode-3 discriminator is wrong.** It says "the rates that read `growth`";
+  the soil rows are non-finite and read no growth. The discriminator is the light field.
+- **`tf24_environment.h:62–63`** annotates `a_psi`/`n_psi` as "not currently being used". They are.
+
+---
+
 ## 10. What "finish the pinned branch" turned out to require
 
 The substitution is mechanical and the obstacle is not where it looked. Measured at a pinned state
@@ -868,19 +976,3 @@ small fixture *and* a competing stand. Both are true, and neither reaches a pinn
 which is where the drought answer lives. **Parity (§5 rung 4) cannot be an acceptance gate until the
 pinned branch answers**; until then it measures the gap. It should be stated that way, or it reads as
 a test that is passing when it is merely not yet applicable.
-
----
-
-## 9. Corpus corrections
-
-Carry these forward; they change what a reader would do.
-
-- **Report 09 §10's "first segment is never swept" does not reproduce at `cdf3f0c9`.** Sweep and
-  trajectory tangent agree to ≤2.7e-09 with first introductions at 0.0 through 1.0, including 104
-  recorded steps below the first event. The structural point survives: nothing asserts the segment
-  ranges partition the recording.
-- **Report 09 §12's inverted cost premise is stale.** 14.6× flat, not 162×.
-- **The parameter count is 47, not the 44 every report states** *(report 09 §12 already flags this)*.
-- **The development record's mode-3 discriminator is wrong.** It says "the rates that read `growth`";
-  the soil rows are non-finite and read no growth. The discriminator is the light field.
-- **`tf24_environment.h:62–63`** annotates `a_psi`/`n_psi` as "not currently being used". They are.
