@@ -446,7 +446,7 @@ this tree at one site and missing at another) or *invention*:
 | transpose drifts from its forward | **impossible — given a rebind asserted complete** (see below) | promotion |
 | parameter list and name list disagree | **compile error** — one list of pairs, completeness by `sizeof` | promotion |
 | non-finite supplied partial *or input* | **abort**, inside the graft; the input half is one line | promotion |
-| interior formula at a pinned point | **abort** — classification is the primitive's, by branch taken | promotion |
+| ~~interior formula at a pinned point~~ | **already an abort**, one layer up — see below | — |
 | segment list does not cover the recording | **abort** — coverage assert, enabled by a declared event | promotion |
 | a hook loses its *caller* | **compile error** at the point of use — but a concept asserts a *type* | half |
 | a rebind drops a subclass's state | **compile error** | invention |
@@ -455,6 +455,23 @@ this tree at one site and missing at another) or *invention*:
 | ~~weight-derivative on a passive grid~~ | **struck** — already true today, bought by a return type | — |
 | ~~a position used as a value~~ | **struck** — the named failure does not occur; the converse does, and must stay legal | — |
 | state carried between units | **downgraded to a harness fixture**, not an abort | — |
+
+**Why the pinned-point row is struck, and what checking it cost.** The rows this report's model records
+are interior-optimum formulae: two trait rows are exactly zero by complementary slackness, and the
+factorisation divides by a curvature that only exists at a stationary point. The strategy assumes all
+of that and never asks — so this row read as a live silent-zero. It is not, because the submodel that
+supplies the environment rows refuses first: it reads the operating point's *kind*, which its solve
+records by the branch it took, and declines with *"the environment rows are an envelope step, which
+needs an interior optimum"*. **Measured by walking two directions out of the fixtures' regime — soil
+water from 0.40 down to 0.002, and leaf temperature from 25 to 50 — the refusal fires in both, at 0.1
+and at 45 respectively, and the interior formula is never reached.** A guard added in the strategy on
+top of that is a second copy of a check that already holds, so it was written, measured, and removed.
+
+Two things survive it. The row was right that a residual test cannot do this job — an infeasible
+point and a stationary one return the same number — and the mechanism that does work is the one the
+row named: classification by the branch taken. And the check lives in the *submodel*, which is where
+the classification is, not in the primitive this report proposes. That is the seam holding correctly,
+and it is worth recording that the corpus found the row before it found the code discharging it.
 
 **Why the two struck rows were wrong.** Passivity bought by a return type is not a proposal — it is
 deployed, in the accessor every reduction but one already uses, and its guarantee survives every
