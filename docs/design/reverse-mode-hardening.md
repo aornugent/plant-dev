@@ -40,7 +40,7 @@ Ordered by severity, which is not the order of the work — see §3 for that.
 
 | # | defect | status | root cause | reachable at | silent |
 |---|---|---|---|---|---|
-| 1 | FD probe crosses a feasibility boundary | open | one entry point serves two consumers; `evaluate_root_collar_psi` clamps by design for the acclimating FD, wrongly for a frozen-collar partial | **production drought** — guaranteed at any pin | yes |
+| 1 | FD probe crosses a feasibility boundary | **closed** | one entry point serves two consumers; `evaluate_root_collar_psi` clamps by design for the acclimating FD, wrongly for a frozen-collar partial | **production drought** — guaranteed at any pin | yes |
 | 2 | no amplification ceiling | open | the guard tests the curvature's **sign**; the divergence is in its **magnitude** | `stem_c` 2.68 → 0.6 — **4.5×, a search reaches this** | yes |
 | 3 | forward tangent non-finite | **closed** | boundary node carries `log(birth_rate·pr_estab) = −Inf`; the tangent works in `ℓ` where the sweep works in `n` | any stand where establishment fails | yes |
 | 4 | clamp severs a row | counted, not yet refused | the floor clamps at the **read**; the field stores values to 1e-117 underneath | `k_I` 0.5 → 40 — **80×** | yes |
@@ -236,7 +236,21 @@ uninformative.
 ### Phase 3 — answer the pinned branch
 
 9. **`profit_at_fixed_collar`** (§4.1). **This is item zero of Phase 3 and nothing else in it is safe
-   first.**
+   first.** — **LANDED**, and it closed #1 with it.
+
+   `Leaf::profit_at_fixed_collar(collar)` returns `{profit, uptake, feasible}` with no clamp and no
+   projection, and **does not evaluate** an infeasible collar. `seat_at` in `record_leaf_outputs` now
+   goes through it, so **the feasibility flag is the detection** — which is a better instrument than
+   Phase 2 item 5's proposed comparison of `operating_point_kind()` across arms, because it is the
+   condition itself rather than a proxy for it.
+
+   *Measured, and it reproduces §7's figure to four significant figures.* At ψ_soil 5.0 the collar is
+   held 2.6e-07 off the wet bound while a 1e-3 step in `root_b` moves that bound by 2.3e-06 — so one
+   arm crosses. The clamped route silently reseats and returns `dprofit/droot_b` = **184.699**, against
+   **0.00564** for the same difference well inside the interval. Both finite; a factor of 33,000 apart.
+
+   *Incidence of the change:* no new refusals on either run that previously answered. The refusing
+   drought run now stops at the crossing (node 78) rather than at the interior gate (node 79).
 10. **Euler-derived accessors** (§4.2), checked by the identity in §5. — **LANDED.**
     `Leaf::stem_curve_integral_dstem_b(psi)` returns `(G − ψG′)/b` with **no spline rebuild**, and is
     bound to R alongside `stem_curve_integral` and `_deriv` so the homogeneity it rests on can be
