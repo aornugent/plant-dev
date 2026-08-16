@@ -1,22 +1,15 @@
-# Generalising the reverse pass: the primitives that would make it ergonomic
+# Generalising the reverse pass: one recording per stage
 
-The stand-scale reverse mode is correct on the birth-date coordinate and it cost more code than it
-should have. **This report is about what odelia should offer so that writing a differentiable model
-in `plant` stops being a derivative-engineering exercise.** It says why the cost was structural
-rather than a matter of effort, and it specifies the primitives that remove it — for the model that
-exists and for the next one.
+The stand-scale reverse mode is correct on the birth-date coordinate, and it is now **one recording
+per Runge-Kutta stage**. Everything between the state and the rates -- the shared field and both its
+reductions, the inflow condition, every unit's physiology, the downstream aggregation and the
+environment it feeds -- is an intermediate of that recording, and the transpose is one
+vector-Jacobian product against the rate adjoints.
 
-The measure it is written against is a developer's, not a benchmark's:
-
-> **What does an author of a new model have to write before they get a correct gradient, and how
-> much of it can be wrong without anything saying so?**
-
-Today the answer is about **1,520 lines** of reverse-pass code in `plant` (§2), of which ~440 are a
-hand-mirrored transpose held against its forward function by a comment (§3), and the honest answer
-to the second half is *most of it* — the corpus's recurring failure shape is a finite, plausible,
-correctly-signed wrong number. The target is a forward pass plus a **structural declaration of about
-thirty lines** (§5.2), with every transpose derived and the remaining mistakes turned into compile
-errors or aborts.
+**This report is why that is the only sensible answer, and what it leaves a model to write.** The
+design it replaced hand-wrote six transposes, and the argument against them is not that they were
+long. It is that they could not be checked: a hand transpose is a claim about a forward function
+written somewhere else, and nothing holds the two together.
 
 Reports 00 to 08 state what the derivatives are and what a correct implementation must satisfy. They
 are written from the model's side. **This one is written from the solver's**, and the discipline is
@@ -25,24 +18,51 @@ species, census, trait. Where a property cannot be stated without one of those w
 recorded as a finding rather than worked around — because it marks exactly where a solver-level
 primitive would under-determine the model.
 
-The claim in one line:
+## The argument, in six steps
 
-> **The engine offers two ways to get a gradient and nothing between them. Every line the project is
-> unhappy about is the cost of the gap.**
+Each follows from the one before, and the third is a fact about the model rather than a choice.
 
-§7 is the deliverable — seven primitives, each with what an author writes today, what they would
-write instead, and how it fails when they get it wrong. Everything before it is the evidence that
-those seven are the right seven; everything after it is what they delete and what they do not fix.
+1. **The model is an ensemble ODE.** The state is a list of units plus a shared part; units are
+   independent given the shared part; reductions build the shared part from the units; each unit
+   reads it through a contraction of small fixed width (§1).
 
-The reading is of `plant` at `cdf3f0c9`, `odelia` at `8ac1da2`, `phylloptim` at `1b0b468` — the
-triple the superproject points at, seven, two and fourteen commits past the one this report was
-first written against.
+2. **So a transpose is three kinds of work** — per unit, the reductions, and the inflow boundary
+   where the list grows. The design that preceded this one wrote all three by hand and kept them
+   consistent by ordering: each had to be linearised at the evaluation its own forward pass saw.
 
-**This reading is a build.** The previous one was not, and said so: §10's first fence recorded that
-the tip called symbols no available ref of its dependency carried. That fence is down — the triple
-above compiles at `-O2` and runs — so every number below is measured on a tree that works rather
-than inferred from source. Where the re-reading moved a figure, the old one is kept beside it,
-because the size of the movement is what says whether a claim was structural or incidental.
+3. **But the inflow condition is evaluated *in* the shared part.** It is a whole physiology at the
+   seed's size and it reads the field, so transposing it *requires* recording the field's build —
+   and that recording was already being taken, once per stage, with every row but three discarded.
+
+4. **Given the shared part is on a tape anyway, a hand-written reduction transpose is a second copy
+   of rows already present.** Registering the field's knots as outputs of that recording delivers
+   them in the same recording and the same sweep, because a reverse sweep is linear in its seed.
+   Measured: the block Jacobian's worst cell is unchanged at `3.75e-16`.
+
+5. **Given the units read that same shared part, recording them in the same tape costs less than
+   recording each separately.** A per-unit block re-registers the whole field read for every unit; a
+   stage reads it once. Measured: four units record 586,260 slots where four separate blocks would
+   cost four times the one-unit 212,088.
+
+6. **Therefore the whole stage is one recording.** Not as an economy — it is marginally faster, 13.1
+   forward runs against 13.6 — but because at that point there is nothing left for a hand transpose
+   to be a transpose *of* that the tape is not already carrying.
+
+**What this costs is a commitment, and it was made deliberately.** Report 01 asks for peak memory
+flat in the unit count, and that flatness was bought by writing every transpose between the state and
+the rates by hand. Peak now holds the stage: linear in the unit count, 10.4 MiB at production width.
+The rung that asserted flatness asserts the amortisation instead.
+
+**The corollary is the part worth carrying to the next model.** A tape carries whatever the forward
+reads, including a parameter nobody has registered yet. So the size-space carrier report 07 calls a
+waist — a struct of named slots where each new parameter meant a new field and two more hand
+partials — is not widened. It stops existing.
+
+The reading is of `plant` on `ad/reverse-pass-simplify` and `odelia` on `ad/quadrature-primitive`,
+which build at `-O2` and run. Every figure here is measured on that tree. Where an earlier reading of
+this report is corrected the old figure is kept beside the new one, because the size of the movement
+is what says whether a claim was structural or incidental — and because §12 is an audit of what this
+corpus got wrong, which is not a section that may quietly improve its own record.
 
 ---
 
@@ -78,7 +98,7 @@ recorded in prose; a *blocked* row and a missing row are the same number.
 
 ---
 
-## 2. Where the lines are
+## 2. Where the lines were
 
 | bucket | lines | where |
 |---|---|---|
@@ -87,32 +107,24 @@ recorded in prose; a *blocked* row and a missing row are the same number.
 | **model-shaped — the target** | **~1,225** | the six interiors, the reduction transposes, the block interface, the functional seeds |
 | genuinely model-specific | ~128 | the retention derivative, the seed geometry, the coordinate branch |
 
-Within the model-shaped bulk the concentration is stark: `cohort_block_adjoint` (**152**),
-`boundary_condition_adjoint` (**131**) and the light reduction transpose (**92**) are a quarter of
-it. Each of the three grew — 135, 110 and 89 at the previous reading — and **they grew for one
-reason, which is the batching of §5.3**: the two block entry points now take a vector of seed sets
-and carry a metric index through, so record-once-sweep-many cost them a dimension. That is a real
-economy paid for in exactly the place this report says the lines are.
+That was the reading this report was written from, and the middle row is the one it was aimed at.
 
-And in `tf24_strategy.h`, **2,356 lines** against 2,300, still header-only against the 1,426 the
-file held split header/impl before this branch. The AD share was measured at 810 lines then and has
-not been re-derived on the same classification here, so treat 35% of the file as the previous
-reading's figure rather than this one's; what is re-measured is the total, and the total moved by
-2.4%.
+**Measured after: `plant`'s reverse-pass surface is −1,393 lines against +122, across twelve files.**
+`patch.h` goes 2,409 → 2,000 and `species.h` 1,448 → 1,181; `species.h` and `tf24_environment.h`
+carry no adjoint code at all. The three functions this section named as a quarter of the bulk —
+`cohort_block_adjoint`, `boundary_condition_adjoint`, and the light reduction's transpose — are all
+gone, together with the soil cascade, the offspring rate, the uptake trapezium, the environment's
+rate transpose, and the carriers between them.
 
-**The reverse-pass surface in `plant` totals about 1,520 lines**, summed over the function spans
-rather than estimated: ~779 in `patch.h`, ~145 in `species.h` and ~574 in `scm.h`. That is within a
-few percent of the previous reading's 325 + 1,225 = 1,550 for the same territory, so **the bulk has
-not shrunk — it has been re-apportioned.** Nothing in the intervening twenty-three commits deleted a
-transpose; two of them added a dimension to three.
-
-The undifferentiated ergonomics are already good — K93 is 330 lines of C++ and ~250 of that is
-biology. **All of the cost is the AD delta**, and none of it is visible to the scaffolder, which has
-no notion of `ad_parameters`, `rebind`, or a scalar template parameter.
+**The bucket that did not move is the one worth looking at.** The graft is 412 lines in the strategy
+and was not touched: it is *inside* the recorded stage, so the tape consumes it rather than replacing
+it. That is the honest shape of the result — a tape removes every transpose whose forward it can
+record, and none of the boundary where a solver's answer is put onto the tape by hand. **The
+model-specific row was ~128 lines and is really ~430**, because the graft belongs in it.
 
 ---
 
-## 3. Two idioms, and only one of them can drift
+## 3. Two idioms, and only one of them could drift
 
 The codebase already contains the answer to its own problem, applied unevenly.
 
@@ -813,38 +825,58 @@ assertion is one of the obligations a growth primitive would own.
 
 ### Then, in order
 
-1. **Carry the seed closure outward.** Report 05 §10.1's declared-zero rows are **already closed** at
-   the tip, by one call to a primitive that already existed — **which is this report's thesis
-   demonstrated rather than argued.** Another strategy still freezes its birth size and still has the
-   defect. The work is not to close it again; it is to make the closure the interface, so a model
-   cannot declare a solved quantity `double` by accident.
-2. **One parameter registration list.** Two lists of 47, paired by position, no guard, and they are
-   the input to the column naming report 05 §9 warns about.
-3. **Assert `rebind<double>` is the type itself.** A subclass inheriting `rebind` resolves to its
-   parent and silently drops its own extra state. Latent only because no export names it — and
-   inheriting `rebind` is exactly what the documented variant recipe produces. Three lines, at compile
-   time, for every model, forever.
-4. ~~**Measure the stage recording** before designing anything.~~ **Done** — §6 carries the law, the
-   per-unit constant and the production-width figure, and the answer was that a stage fits. What
-   replaces it as the gating measurement is nothing: §12's cost premise, which was the other reason
-   to measure before designing, has since been taken and does not oppose the design.
-5. **Then the primitives, in the order §7 argues for.** The **parameter channel in-band** first: it
-   is the smallest, it is the one that converts report 01 §6's silent scaling error into a length
-   mismatch, and every primitive after it writes through it. Then the **block interface**, then the
-   **reduction** (§7.1), then **growth** (§7.2) — which brings the coverage assertion that closes the
-   live defect above as a by-product rather than as a patch. Design the **opaque node** against
-   **both** the argmax and the tracked-state case (§9.1); designing it against only the hard case
-   gives it the hard case's shape.
+Re-derived from a scan of the tree as it now stands, not from what this report used to plan.
 
-   **The order is by dependency and by blast radius, not by size.** The reduction is the biggest
-   single win in lines and it is third, because a reduction primitive writing parameter rows through
-   an out-of-band accumulator inherits the failure the first item exists to remove — and then the
-   drift it fixes and the silence it kept would be indistinguishable in any disagreement.
-6. **Refusal.** The gradient returns a plain matrix; report 08 §9's requirement that an undefined
-   metric be distinguishable from a zero one is **not representable in the return type**, and no
-   adjoint-path code tests finiteness. A type change, cheaper before the interiors move than after.
+1. **The first segment is never swept.** `census_trait_gradient`'s loop descends the event
+   boundaries and its lowest sweep starts at the first one, so recorded steps below it are never
+   visited and the final narrowed adjoint — which is `d(census)/d(y0)` — is discarded. Invisible on
+   every fixture, because a run from bare ground records its pre-introduction state first and makes
+   that range empty; reachable by a resumed run, or any schedule whose first time is not the initial
+   time. **And the coverage assertion already exists without being recognised as one**: the recruit
+   rung asserts the boundary term is asked for once per stage per step per metric, which holds only
+   if the sweep visits every recorded step. One fixture that resumes from a populated state turns
+   that into the referee for the fix. Three lines, plus a refusal on an empty boundary list, which
+   is a second hole of the same kind: with no width change anywhere the loop is a no-op and the
+   gradient comes back as its direct term alone.
 
----
+2. **Cache the twin and the tape.** The stage transpose rebinds a whole `Patch` per call — six times
+   per step, each running the parameter validation and the reset — and constructs a tape per call
+   where odelia's own docstring prices one at about a fifth of the product. The design just deleted
+   cached both, in the `block_workspace` its per-unit blocks carried. This is the largest remaining
+   avoidable cost and it is a pattern the tree has already written once.
+
+3. **One field build per stage is computed and thrown away.** The stepper sets state *and field* on
+   the double system immediately before the transpose, which rebuilds the field at an active scalar
+   inside its own recording; nothing reads the double one. Three builds per stage where two are
+   needed. It is a joint change — the stepper has to be told the System rebuilds internally — which
+   is why it ranks below the plant-only items.
+
+4. **A trait vector.** "Write the parameters before the state, because a quantity derived from the
+   state reads them while deriving" is now spelled out at eight sites, six of them preceded by their
+   own copy of the loop that flattens the parameter list. This is §10's parameter channel, and it is
+   the smallest of the primitives: pack, unpack, size, names.
+
+5. **Relabel the block referee rather than delete it.** The block interface has no production caller
+   and its probes are the corpus's strongest entry-by-entry check — but of the *graft*, not of the
+   sweep. One of them differences the plain-double path, which is the only instrument that can see a
+   wrong supplied leaf row, because the graft makes every taped path insensitive to one by
+   construction. Keep it; fix the file's own header, which still says it checks the sweep. And
+   decouple it from the live-path tests it currently gates, or the production sweep's checks skip
+   silently the day the block interface stops recording.
+
+6. **Five parallel trait arrays into one struct.** The leaf's fourteen traits are keyed by position
+   through five arrays into a fourteen-argument setter, and the two packages already disagree about
+   what slot thirteen is called. The next parameter makes it six arrays.
+
+7. **One graft.** The construction is written three times across the family and only one copy tests
+   the quantity that has to be tested — the supplied partial, before it meets the zero-valued
+   bracket, because a non-finite one poisons the *value* and not just the adjoint. The other two
+   guard a type and a denominator. The fix is to move the guard that exists upward, not to copy it.
+
+**And one thing not to do.** `supplied_derivative.hpp` has no production consumer and is superseded
+inside odelia by `implicit_value`, which does the same job at any scalar and takes the residual
+rather than hand-computed partials. Retiring it removes an XAD facility that has to keep working
+across upgrades. That is a deletion, not a build, which is why it is here rather than above.
 
 ## 11. Costs and gaps the design does not price
 
