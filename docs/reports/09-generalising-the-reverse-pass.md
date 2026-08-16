@@ -1317,12 +1317,19 @@ replay hooks. Nothing about tapes, seeds, recordings or Butcher coefficients.
 | `rebind_from<U>()` | the forward Jacobian already |
 | `ad_parameters()` | the forward Jacobian already |
 | `ode_rates()` | the forward run |
-| **a stage loader** | the reverse pass only |
 | **the aux triple** | the reverse pass only |
-| the field record/replay hooks | *optional*; it is the resident/invasion declaration, not gradient machinery |
+| the record/replay hooks | *optional*; it is the resident/invasion declaration, not gradient machinery |
 
-So the reverse-mode residue in a model is **a state loader and an aux triple**. Nothing about
-tapes, seeds, recordings, twins or Butcher coefficients.
+So the reverse-mode residue in a model is **the aux triple**. Nothing about tapes, seeds,
+recordings, twins, Butcher coefficients -- or a loader.
+
+**The loader was a symptom of the transpose being in the wrong place.** A separate one exists today
+only because the STEPPER positions the double System immediately before calling the model's own
+transpose, and that position is not the one the transpose is taken from. Once the recording belongs
+to the solver, it positions the twin from inside the recording, through the same `derivs` the
+forward pass uses -- which already chooses between rebuilding and restoring. The double System is
+never positioned for the transpose at all, and the loader collapses back into the pair the forward
+pass already needed.
 
 **What it replaces, measured.**
 
@@ -1376,7 +1383,44 @@ them.
 invader: compute no boundary node, build no field, feed nothing back*. Only the first is what the
 replay hooks replace. Fifteen sites in the model test that flag; most are the second job and stay.
 
-### 14.6 What it deletes
+### 14.6 The replay concept, co-designed
+
+Not built yet, and deliberately: residents with endogenous feedbacks are the priority and an
+invasion gradient is not. What follows is the shape the resident work must not foreclose.
+
+```
+concept Replays = requires(System s, std::size_t step, int stage, const_iterator in) {
+  s.replay_step(step);          // restore that step's record
+  s.set_ode_state(in, stage);   // load state against a recorded stage
+};
+```
+
+Two members, and three deliberate absences.
+
+**No mode query.** Whether a pass replays is the DRIVER's, not the System's, and it is not a
+property of the type either. The driver counts the steps and knows which pass it is running, so it
+takes the branch itself rather than asking the System every stage. This is the difference between a
+resident gradient that cannot accidentally replay and one that silently returns a gradient with the
+water feedback missing -- finite, plausible, and with no error raised, which is the failure this
+corpus exists to prevent.
+
+**No time lookup.** The step is handed in. Today it is recovered by searching the record for an
+exact float match, with an abort when the time does not round-trip; the driver already has the
+index, and passing it deletes the search, the sequential fast path, the cursor and the abort.
+
+**No "field" in the name.** For this model the replayed object is a derived light field AND the
+soil states it was integrated from, which are ODE state. The state half is the one that matters: a
+System replaying part of its state is asserting that part is exogenous on this pass -- an invader
+does not move the stand it invades -- and therefore that **its adjoint through that part is zero**.
+That is a modelling claim, not an optimisation, and it is why this is not a cache.
+
+**And the payload differs by pass, which is where the saving is.** A resident integrates its soil
+moisture because the stand's water balance is endogenous. An invader integrates its own hydraulics
+in response to a soil moisture it does not move -- so on that pass the soil is supplied rather than
+integrated, and leaves the state vector. The two passes therefore run states of different width,
+which is a fact about the model and not a detail of the record.
+
+### 14.7 What it deletes
 
 One copy of the stage recursion and its tableau seeding; the single-seed stepper and the solver
 pair above it; the model's single-seed adapter; the model's batched transpose, which becomes
@@ -1385,7 +1429,7 @@ the field hooks for its mutant runs, its *second* caching system goes with them 
 environment cache that predates all of this and does the same job the replay hooks were written to
 do.
 
-### 14.7 What has to be solved before any of it
+### 14.8 What has to be solved before any of it
 
 - **Freshness is per recording, not per step.** A twin carried into a second recording holds
   scalars from one since cleared, and the sweep comes back partly wrong. There are six recordings
@@ -1400,7 +1444,7 @@ do.
   value. The boundary-condition counters are incremented per seed inside the model's transpose and
   are derivable as stages × steps × metrics, which a trajectory check already asserts.
 
-### 14.8 Order, and the one that pays first
+### 14.9 Order, and the one that pays first
 
 1. **Collapse the single-seed path into the batched one.** Largest deletion, removes the duplicated
    recursion, and shrinks the surface everything else has to move through.
