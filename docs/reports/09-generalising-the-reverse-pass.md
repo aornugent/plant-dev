@@ -558,9 +558,10 @@ read off the branch rather than argued:
   reads back only state adjoints. The twin is constructed *before* the tape, so every parameter in it
   is born without a slot and stays a constant for the recording. plant's entire gradient is a *trait*
   gradient; routed here, all 47 columns come back absent.
-- **There is no batched form.** `step_adjoint_batched` opens with a hard assertion on the batched
-  concept and the generic branch has no batched twin, so three metrics would become three recordings
-  — giving back the economy §5.3 and §6 both credit.
+- **It has to record once and sweep per seed.** A branch that records per metric gives back the
+  economy §5.3 and §6 both credit — three metrics becoming three recordings of the same stage. The
+  branch has to reach the same record-once-sweep-many product the model's own transpose uses, which
+  is also what supplies the parameter rows the bullet above is about.
 - **It costs more, not less.** The branch *retakes the whole step* in double and then records six
   active evaluations: thirteen model evaluations per step, against six plus six hand transposes.
 - **It is barely exercised.** One step of a three-state toy, never through the segment sweep, never
@@ -1260,12 +1261,13 @@ model still owns the assembly. This section maps what a collapse would look like
 model's single form is the batched one already: it packs one seed, calls the batched form and
 unpacks it, in thirty-one lines of adapter.
 
-**The Runge-Kutta adjoint recursion is written twice.** `sweep_stages` and `sweep_stages_batched`
-are the same backward walk — the same stage rebuild, the same `lambda_in` accumulation, the same
-`h·b[m]` redistribution into the earlier stages — differing by an index loop. The seeding of
-`lambda_k` from `lambda_out` is likewise four coefficient lines written twice. One copy is
-exercised in production. This is exactly §3's shape: two transposes of one Butcher tableau, held
-together by nothing but the intention that they agree.
+**The Runge-Kutta adjoint recursion must exist once.** It was written twice — a single-seed
+traversal and a batched one that were the same backward walk, the same stage rebuild, the same
+`lambda_in` accumulation and the same `h·b[m]` redistribution, differing by an index loop, with the
+seeding of `lambda_k` four coefficient lines written twice on top. Only one copy was ever exercised
+by a model, and it was not the one a reader meets first. This is §3's shape exactly: two transposes
+of one Butcher tableau, held together by nothing but the intention that they agree. A single-seed
+sweep is the batched one at one seed and has no other claim on the tableau.
 
 **The model's transpose IS the generic branch plus two things odelia now has.** The
 non-`AdjointRates` branch of `step_adjoint` lifts the System to the adjoint scalar, registers the
