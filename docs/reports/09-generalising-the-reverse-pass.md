@@ -1288,16 +1288,25 @@ answers the question §5.3 poses about what is taped and what is supplied.
 
 ### 14.2 What that leaves of the transpose concept
 
-`AdjointRates` asks for five members and is doing two jobs. One is *"I carry my own transpose"* —
-the hand-rolled gradient this report exists to remove, and which the generic branch already does.
-The other is *"here is my stage's operating point"* — the aux triple, which moves the point the
-rates were evaluated at from the forward pass into the reverse one. Nothing generic can derive
-that; a rate evaluation is not a pure function of the state alone once a submodel has solved
-something at it.
+`AdjointRates` asks for five members and looks like it is doing two jobs. One is *"I carry my own
+transpose"* — the hand-rolled gradient this report exists to remove, and which the generic branch
+already does. The other looks like *"here is my stage's operating point"* — the aux triple, moving
+the point the rates were evaluated at from the forward pass into the reverse one.
 
-**The first job disappears. The second is irreducible and deserves a concept of its own.** That is
-the whole of the collapse, and it is why the answer is not "delete a concept" but "the concept was
-two concepts".
+**The second job turned out not to exist, and the argument for it was wrong.** The claim was that a
+rate evaluation stops being a function of the state alone once a submodel has solved something at
+it. For this model it does not: the state loader rebuilds the field, re-derives every dependent
+auxiliary and re-solves the inner problem, so the operating point *is* a function of the state and
+the time. The aux was never carried to the twin at all — the environment rebind zeroes the uptake
+accumulators and the auxiliaries are re-derived on load — so the round trip was dead code that
+looked load-bearing. Deleting the whole concept leaves the gradient bit-identical, which is the
+proof.
+
+**So both jobs disappear**, and what was actually needed is the thing §14.8 lists as a
+precondition rather than a member: the re-seat. The aux triple is not wrong as an idea — a model
+whose operating point is *not* re-derivable from the state would need exactly it, and would pay for
+it in a re-solve this one performs. It is simply not load-bearing here, and a concept that is not
+load-bearing is one nobody checks.
 
 ### 14.3 The shape after
 
@@ -1319,11 +1328,12 @@ replay hooks. Nothing about tapes, seeds, recordings or Butcher coefficients.
 | `rebind_from<U>()` | the forward Jacobian already |
 | `ad_parameters()` | the forward Jacobian already |
 | `ode_rates()` | the forward run |
-| **the aux triple** | the reverse pass only |
+| **`seat_from`** | the reverse pass only -- and it is the value half of the rebind above |
 | the record/replay hooks | *optional*; it is the resident/invasion declaration, not gradient machinery |
 
-So the reverse-mode residue in a model is **the aux triple**. Nothing about tapes, seeds,
-recordings, twins, Butcher coefficients -- or a loader.
+So the reverse-mode residue in a model is **one member, and it is half of one it already had**.
+Nothing about tapes, seeds, recordings, twins, Butcher coefficients, an operating point -- or a
+loader.
 
 **The loader was a symptom of the transpose being in the wrong place.** A separate one exists today
 only because the STEPPER positions the double System immediately before calling the model's own
