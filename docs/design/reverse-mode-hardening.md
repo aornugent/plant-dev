@@ -717,11 +717,11 @@ stand_gradient(scm)
 The substitution is mechanical and the obstacle is not where it looked. Measured at a pinned state
 (soil profile 2.6–3.4 MPa scaled to a pin, margin 5.07e-07):
 
-| driven trait | does it move the wet bound? | both FD arms feasible? |
-|---|---|---|
-| `stem_c`, `stem_b`, `psi_crit`, `root_psi_crit` | **no — exactly 0** | yes |
-| `root_c` | −5.9e-07 / +5.9e-07 | **no**, the down arm crosses |
-| `root_b` | −1.6e-05 / +1.6e-05 | **no**, the down arm crosses |
+| driven trait | does it move the wet bound? | both FD arms feasible? | has a row now? |
+|---|---|---|---|
+| `stem_c`, `stem_b`, `psi_crit`, `root_psi_crit` | **no — exactly 0** | yes | n/a |
+| `root_b` | −1.6e-05 / +1.6e-05 | **no**, the down arm crosses | **yes — closed form** |
+| `root_c` | −5.9e-07 / +5.9e-07 | **no**, the down arm crosses | no — needs a rebuild |
 
 **Ten of the twelve arms are fine. Exactly two cross, and only on one side.** They are the two root
 vulnerability parameters, and they cross for the reason the table gives: they are the only driven
@@ -732,25 +732,37 @@ from under a held collar.
 `BoundRow` has no `d_droot_c` / `d_droot_b` entry, and the frozen-collar partial for those two cannot
 be centred because one arm is infeasible.
 
-**Three ways to close it, and the choice changes what a pinned answer means.**
+**Option 3 was taken, and it closed `root_b`.** The root vulnerability curve is built by the **same**
+Weibull routine as the stem's, so it has the same homogeneity: `G` is homogeneous of degree one in
+`(ψ, root_b)`, and Euler gives `∂G/∂root_b = (G − ψ·G′)/root_b` with **no rebuild**. `root_b` reaches
+uptake through exactly one quantity — the layer mean-conductivity integral — so `duptake_droot_b` is
+the quotient rule with a single moving part, and it reaches **both** bounds by that route because the
+stem half of the dry residual does not read it.
 
-1. **Refuse on any crossing arm** — §4.1's own ruling. Correct, and it buys nothing: at the pin
-   measured, two arms cross, so the point still refuses. Most pins would stay refused.
-2. **One-sided on the feasible arm.** Defensible — a tangent takes branches as the model takes them,
-   and the feasible side is the branch in force — but it changes the truncation order for two columns
-   and the specification declines it explicitly.
-3. **Derive the root curve's parameter derivatives**, as the stem's were derived here: Euler for
-   `stem_b`, a scalar-templated overload for the cost. The root curve is the same Weibull shape, so
-   `∂E_up/∂root_b` and `∂E_up/∂root_c` are the same kind of object and would close both halves at
-   once — the bound row's missing entries *and* the frozen partial.
+*Refereed against a rebuilt difference at **1.69e-05**, worst over both bounds and two soil profiles.*
 
-**Recommendation: 3.** It is the only one that leaves the pinned row the same kind of object as the
-interior one, it removes a differenced family rather than adding a one-sided one, and it is bounded —
-the same derivation already done twice in this document.
+⚠️ **The step is the finding, not a detail.** A rebuild in `root_b` moves the curve's own knot grid,
+so a differenced row carries a discrete artefact the analytic one cannot. At the wet bound the ratio
+reads **1.20 at 1e-8, 0.998 at 1e-6, and 1.0000 across 1e-5 to 1e-3** — my first measurement used 1e-6
+and read a 0.17% error that was the referee's, not the row's. This is §4.7's fifth trap, and the only
+way to see it is to take the difference at several steps and say which end the plateau is at.
 
-Everything else for the pinned branch is ready: the bound rows are refereed in all three arms and in
-both halves, `profit_env_derivatives` supplies the case-K profit rows, and the ten
-`dcollar_d<family>` sites are a direct substitution once the two traits have rows.
+**What is left is `root_c` alone**, and it is the same object as `stem_c`: both are curve *steepness*
+parameters, both reshape rather than scale, so neither has an identity and both need the grid rebuilt.
+That symmetry is worth keeping — the two curve *positions* now have closed forms and the two
+*steepnesses* do not, which is a statement about the Weibull family rather than about this code.
+
+**Two ways to finish, and they are no longer symmetric in risk.**
+
+1. **Difference the bound in `root_c` by rebuild**, as the interior path already differences it. Cheap,
+   consistent with existing practice, and it inherits the knot-grid artefact above — so it needs the
+   step chosen on a plateau rather than by habit.
+2. **Derive `∂G/∂root_c`** from report 05 §7.6's closed form, which gives `∂γ/∂a` and therefore the
+   steepness row for *both* curves at once. More work, and it closes `stem_c` with it.
+
+Everything else for the pinned branch is ready: the bound rows are refereed in all three arms and both
+halves, `root_b` included; `profit_env_derivatives` supplies the case-K profit rows; and the ten
+`dcollar_d<family>` sites are a direct substitution once `root_c` has a row.
 
 ---
 
