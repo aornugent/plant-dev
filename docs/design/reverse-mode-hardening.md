@@ -752,13 +752,60 @@ parameters, both reshape rather than scale, so neither has an identity and both 
 That symmetry is worth keeping — the two curve *positions* now have closed forms and the two
 *steepnesses* do not, which is a statement about the Weibull family rather than about this code.
 
-**Two ways to finish, and they are no longer symmetric in risk.**
+**Decision: difference both steepnesses by rebuild.** Not a shortcut — it is the *correct* treatment,
+and the closed form is the one that would be wrong here.
 
-1. **Difference the bound in `root_c` by rebuild**, as the interior path already differences it. Cheap,
-   consistent with existing practice, and it inherits the knot-grid artefact above — so it needs the
-   step chosen on a plateau rather than by habit.
-2. **Derive `∂G/∂root_c`** from report 05 §7.6's closed form, which gives `∂γ/∂a` and therefore the
-   steepness row for *both* curves at once. More work, and it closes `stem_c` with it.
+**Why.** Report 05 §7.6's ruling: *differentiate the model being evaluated, not the model it
+approximates.* The forward solve reads a **spline**, so the derivative belonging on the tape is the
+spline's. Substituting the closed form for the derivative alone gives the more accurate derivative of
+a **different function** — a systematic disagreement of parts in a thousand that no invariant can
+attribute, because both routes are internally consistent and neither referees the other. A rebuilt
+difference of the spline *is* the spline's derivative, so it is faithful by construction.
+
+**And this is why the position rows are not an inconsistency.** `∂G/∂b` for both curves is Euler
+applied to `G` and `G′` **as the splines return them**, so it too is the table's derivative rather
+than the continuum's. Position is closed-form because the *identity* holds on the tabulated function;
+steepness is differenced because no identity does.
+
+**Measured plateau, so the step is chosen rather than inherited** (soil profile 3.12–4.08 MPa):
+
+| | 1e-7 | 1e-6 | 1e-5 | 1e-4 | 1e-3 | 1e-2 |
+|---|---|---|---|---|---|---|
+| wet, `∂B/∂root_c` | −4.051512e-04 | −4.051512e-04 | −4.051512e-04 | −4.051577e-04 | −4.051512e-04 | −4.051521e-04 |
+| dry, `∂B/∂stem_c` | −0.22113536 | −0.22113532 | −0.22113535 | −0.22113535 | −0.22113532 | −0.22113163 |
+| dry, `∂B/∂root_c` | −2.404843e-04 | −2.404835e-04 | −2.404834e-04 | −2.404834e-04 | −2.404834e-04 | −2.404828e-04 |
+
+**`∂B/∂stem_c` at the wet bound is exactly 0.0 at every step** — its residual is total uptake and does
+not read the stem curve, the same reason `∂B/∂stem_b` is zero there.
+
+**Take 1e-4.** The plateau is broad — unlike `root_b`, where 1e-6 was already off the edge — and the
+only degradation is `stem_c` at 1e-2.
+
+**⚠️ Where the code can go, which is not where it looks.** `set_traits` **does not preserve the supply
+state**: after it, `find_root_psi` returns the wettest layer rather than the bound (3.12 against
+3.4252, measured). So a rebuild-difference **cannot** be taken in place on a seated leaf, and
+`bound_row` must not grow one. It has to live where the drivers are re-supplied — plant's driven-trait
+loop in `record_leaf_outputs`, which already differences these four traits through `drive()` for the
+marginal. Reading the bound in the same arms is a two-line addition **to that loop**, so it lands with
+the substitution rather than before it.
+
+**The closed form, kept because it is the route not taken and the reason matters.** With `a = 1/c`,
+`X = (m/b)^c` and `γ(a,x) = x^a e^{−x} Σ(a,x)`:
+
+```
+∂γ/∂a = log(x)·γ(a,x) + x^a e^{−x} · Σ_n ( −t_n · Σ_{l=0..n} 1/(a+l) ),   t_n = x^n / [a(a+1)···(a+n)]
+∂G/∂c = −(b/c²)·γ  +  (b/c)·( X·log(m/b)·∂γ/∂x  −  (1/c²)·∂γ/∂a )
+```
+
+**Only the steepness reaches `∂γ/∂a`**; position needs `∂γ/∂x` alone, which is elementary. The series
+argument is bounded by construction — `X = log(1/fraction)` identically, so `x ≤ 4.61` wherever this
+integral is evaluated — and the calculus is verified to better than 1e-23 against an independent
+high-precision integral.
+
+**It becomes the right route the moment the forward model stops reading a table.** Report 05 §7.6
+calls that a change to the *forward* model, made once and re-blessed once, after which the value and
+the derivative describe the same function. Until then it would be more accurate about the wrong
+thing.
 
 Everything else for the pinned branch is ready: the bound rows are refereed in all three arms and both
 halves, `root_b` included; `profit_env_derivatives` supplies the case-K profit rows; and the ten
