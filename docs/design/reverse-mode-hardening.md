@@ -712,6 +712,106 @@ stand_gradient(scm)
 
 ---
 
+## 10. What "finish the pinned branch" turned out to require
+
+The substitution is mechanical and the obstacle is not where it looked. Measured at a pinned state
+(soil profile 2.6–3.4 MPa scaled to a pin, margin 5.07e-07):
+
+| driven trait | does it move the wet bound? | both FD arms feasible? |
+|---|---|---|
+| `stem_c`, `stem_b`, `psi_crit`, `root_psi_crit` | **no — exactly 0** | yes |
+| `root_c` | −5.9e-07 / +5.9e-07 | **no**, the down arm crosses |
+| `root_b` | −1.6e-05 / +1.6e-05 | **no**, the down arm crosses |
+
+**Ten of the twelve arms are fine. Exactly two cross, and only on one side.** They are the two root
+vulnerability parameters, and they cross for the reason the table gives: they are the only driven
+traits that enter the wet bound's residual at all, so they are the only ones that move the bound out
+from under a held collar.
+
+**So the remaining gap is two traits, not the whole branch** — and it is the same gap twice over:
+`BoundRow` has no `d_droot_c` / `d_droot_b` entry, and the frozen-collar partial for those two cannot
+be centred because one arm is infeasible.
+
+**Three ways to close it, and the choice changes what a pinned answer means.**
+
+1. **Refuse on any crossing arm** — §4.1's own ruling. Correct, and it buys nothing: at the pin
+   measured, two arms cross, so the point still refuses. Most pins would stay refused.
+2. **One-sided on the feasible arm.** Defensible — a tangent takes branches as the model takes them,
+   and the feasible side is the branch in force — but it changes the truncation order for two columns
+   and the specification declines it explicitly.
+3. **Derive the root curve's parameter derivatives**, as the stem's were derived here: Euler for
+   `stem_b`, a scalar-templated overload for the cost. The root curve is the same Weibull shape, so
+   `∂E_up/∂root_b` and `∂E_up/∂root_c` are the same kind of object and would close both halves at
+   once — the bound row's missing entries *and* the frozen partial.
+
+**Recommendation: 3.** It is the only one that leaves the pinned row the same kind of object as the
+interior one, it removes a differenced family rather than adding a one-sided one, and it is bounded —
+the same derivation already done twice in this document.
+
+Everything else for the pinned branch is ready: the bound rows are refereed in all three arms and in
+both halves, `profit_env_derivatives` supplies the case-K profit rows, and the ten
+`dcollar_d<family>` sites are a direct substitution once the two traits have rows.
+
+---
+
+## 11. The verification strategy report 08 should carry
+
+Report 08 has two reference classes and two axes. This work needed a third, and it broke two of its
+own checks in ways the report does not currently warn about. Six additions, in the order they earn
+their place.
+
+**1. A third reference: the defining relation, differenced.** Neither axis fits a per-quantity check.
+A tangent shares the object's declarations; a rebuild costs two model runs per column and needs a
+stand. But an implicitly-defined quantity can be refereed against a **central difference of its own
+residual** — no gradient machinery, no stand, no tape. Used here on the Euler row (6.7e-09), all three
+bound rows (3.6e-07) and the hydraulic cost row (9.6e-10). **It is the cheapest referee in the corpus
+and the only one that localises to a single quantity**, and report 08 should name it as an axis rather
+than leaving it as something rungs improvise.
+
+**2. Every invariant must state what it cannot see.** An identity assembled from the quantity it
+checks is not a check on it. Injected here: a misread scale in `∂G/∂ψ` leaves the Euler identity at
+**exactly 0.00e+00** while the differenced referee reads **47×**, because `∂G/∂b` is *built from* `G'`
+and the error cancels. §2 currently asks for fault injection; it should also require each check to
+name the fault class it is blind to, because "the injection passed" and "the check is sensitive" are
+different claims.
+
+**3. A fixture must be shown to reach the branch, and a degenerate fixture must be asserted
+degenerate.** Two instances, both now pinned as measurements rather than avoided:
+- the stem curve at a fresh leaf has scale **exactly 1.0**, so a misread scale is invisible; every
+  stem-curve fixture must perturb `stem_b` first.
+- a **uniform** soil profile puts the wet bound on top of every layer's own potential — its kink — so
+  a central difference straddles what the analytic row takes one side of. They disagree by 5.5e-02
+  with neither wrong.
+
+The rule: **assert the degeneracy in the suite**, so it cannot silently return. A fixture that quietly
+avoids a degenerate case teaches nothing; one that asserts it is a permanent statement about where
+the referee is valid.
+
+**4. Incidence is a verification instrument, not a diagnostic.** "This regime refuses" is not
+actionable without "and it is 0.29% of the run". The classification and clamp counters turned three
+open questions into numbers in one afternoon, and they are what says whether a branch is worth
+building. **Every refusal claim in report 08 should carry its measured incidence**, and §9's list of
+what a pinned interior pass does not establish should be a table of counts rather than of names.
+
+**5. For a change that adds refusals, before/after incidence is the acceptance gate.** Stronger and
+cheaper than a tolerance: *no run that previously answered has started refusing, and the run that
+already refused refuses for a better-localised reason.* That is what licensed both the #1 fix and the
+light-floor refusal, and neither needed a reference gradient.
+
+**6. Count the guards that have never fired, and print it.** §7 says to count injections. The dual
+matters as much: two guards here are implemented and **unexercised** — the graft's input finiteness
+test and the light floor's refusal, the latter because the interior gate always wins the race to
+refuse first. A suite that does not distinguish "guard held" from "guard never reached" reports the
+same green for both. **The zero census of §3.4 should have a companion: a guard census.**
+
+**And one thing report 08 should stop implying.** §5's completeness axis is described as needing a
+small fixture *and* a competing stand. Both are true, and neither reaches a pinned operating point,
+which is where the drought answer lives. **Parity (§5 rung 4) cannot be an acceptance gate until the
+pinned branch answers**; until then it measures the gap. It should be stated that way, or it reads as
+a test that is passing when it is merely not yet applicable.
+
+---
+
 ## 9. Corpus corrections
 
 Carry these forward; they change what a reader would do.
