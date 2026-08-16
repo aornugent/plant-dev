@@ -41,8 +41,10 @@ Each follows from the one before, and the third is a fact about the model rather
 
 5. **Given the units read that same shared part, recording them in the same tape costs less than
    recording each separately.** A per-unit block re-registers the whole field read for every unit; a
-   stage reads it once. Measured: four units record 586,260 slots where four separate blocks would
-   cost four times the one-unit 212,088.
+   stage reads it once. Measured: four units record 586,708 slots where four separate blocks would
+   cost four times the one-unit 212,312 — 1.45× less, and the margin grows with the unit count
+   because only the per-unit part of the recording scales. (Re-measured on the current tree; the
+   figures were 586,260 and 212,088 two commits earlier, which is the same claim to three digits.)
 
 6. **Therefore the whole stage is one recording.** Not as an economy — it is marginally faster, 13.1
    forward runs against 13.6 — but because at that point there is nothing left for a hand transpose
