@@ -60,10 +60,10 @@ reads, including a parameter nobody has registered yet. So the size-space carrie
 waist — a struct of named slots where each new parameter meant a new field and two more hand
 partials — is not widened. It stops existing.
 
-**Two of §7's seven primitives are now built** — the graft and the transpose taken over state and
-parameters together — and §7, §8 and §10 record which parts of their entries survived contact and
-which were wrong. Neither changed a number: the ladder is 445 passing before and after, and the
-non-ladder suite's six known failures are unmoved.
+**§14 states where this ended up and what is left.** The entries in §7, §8 and §10 record which
+parts of their claims survived contact and which were wrong; that record is kept, because the size
+of a movement is what says whether a claim was structural. No step of it changed a number — the
+gradient is bit-identical throughout — and the non-ladder suite's six known failures are unmoved.
 
 The reading is of `plant` on `ad/reverse-pass-simplify` and `odelia` on `ad/quadrature-primitive`,
 which build at `-O2` and run. Every figure here is measured on that tree. Where an earlier reading of
@@ -543,12 +543,11 @@ sixteen until N ≈ 264,000. Peak RSS tracked the logical tape, so there is no h
 multiplier. Route A at the same width is ≈ 101 GiB, which is report 01 §0's rejected figure —
 **four orders, not the four-to-five claimed above.**
 
-**And rung B is already written, in odelia.** `step_adjoint` has two branches, and the `else` of
-`if constexpr (AdjointRates<System>)` lifts the System to the active scalar, makes one tape, and per
-stage records the System's own `derivs` — which for this model *is* the state-and-field rebuild
-followed by the rates. That is rung B verbatim, and it is still there at this reading, now behind a
-`static_assert` on the rebind hook that names what a System has to provide to take it. The model
-satisfies `AdjointRates`, so the `if constexpr` takes the other branch.
+**And rung B was already written, in odelia**, as the `else` of a branch on whether the System
+carried its own transpose: lift to the active scalar, make one tape, and per stage record the
+System's own `derivs` — which for this model *is* the state-and-field rebuild followed by the rates.
+That is rung B verbatim. The model took the other branch, so it never ran on anything but a toy;
+§14 is what happened when the branch was made to carry both and the model was routed through it.
 
 **~~Deleting `ode_rates_adjoint` routes it into code that already exists.~~ Tried, and it does not.**
 The sentence was the strongest claim in this report and it is false in four ways, each of which was
@@ -632,16 +631,16 @@ has not earned its place.
 
 | primitive | what an author writes today | what they would write | how a mistake surfaces |
 |---|---|---|---|
-| **parameter adjoint** — ***built*** | a mutable System member, **six** writers, four defensive re-zero guards; since the batching a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route | the state, the seeds and where to accumulate | a **length mismatch**, where before it was a fixed fraction of the right answer with the correct sign |
-| **graft** — ***built*** | `v + Σ ∂v/∂uᵢ·(uᵢ − passive(uᵢ))`, written **four** times, only one copy carrying the finiteness guard report 05 §8 says it needs | the partials and the inputs | **abort** inside the graft on a non-finite partial, once, for every site |
+| **parameter adjoint** | a mutable System member, **six** writers, four defensive re-zero guards; since the batching a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route | the state, the seeds and where to accumulate | a **length mismatch**, where before it was a fixed fraction of the right answer with the correct sign |
+| **graft** | `v + Σ ∂v/∂uᵢ·(uᵢ − passive(uᵢ))`, written **four** times, only one copy carrying the finiteness guard report 05 §8 says it needs | the partials and the inputs | **abort** inside the graft on a non-finite partial, once, for every site |
 | **reduction** | a forward walk and a hand-mirrored transpose, five times, held together by a comment | position, contribution, kernel, stage | a transpose cannot drift from its forward because there is one function |
 | **seed** | `∂C/∂y` at `T`, model-side | the functional | — (already taped; it is here because it is the one the reduction primitive must also cover, §13) |
-| **growth event** — ***built*** | insertion, map, narrowing, widening, replay, and a segment list **inferred from width diffs** | `apply`, `undo`, and the map | **abort** on a segment list that does not partition the recording — which is §10's live defect |
+| **growth event** | insertion, map, narrowing, widening, replay, and a segment list **inferred from width diffs** | `apply`, `undo`, and the map | **abort** on a segment list that does not partition the recording — which is §10's live defect |
 | **refusal** | nothing; it **does not exist in C++ at all** | which points are answerable | an undefined metric is a distinct value in the return type, not a plausible number |
 | **opaque node** (§5.4) | ~200 lines forming `∂p*/∂u` explicitly per input family, plus four parallel trait arrays keyed by position to a fourteen-argument setter | the residual, the bounds, which output *is* `p` | the classification is the primitive's, so the interior formula **cannot** be applied at a pin |
 
-**Two of the seven are now built, and building them corrected the count in the second row.** The
-graft was said to be written four times. It is written three, and the third is not the same
+**Building them corrected the count in the second row.** The graft was said to be written four
+times. It is written three, and the third is not the same
 construction: `hermite_interpolator::graft` carries a slope the tape computed, where the other two
 carry a number supplied from outside it. That distinction is the whole of why the finiteness guard
 exists — a supplied partial can be `NaN` while the model is healthy, and `NaN × 0` then poisons the
@@ -657,7 +656,7 @@ is now a length mismatch where it used to be a fixed fraction of the right answe
 **And the list is incomplete in a way worth naming here rather than at the end.** Every entry is a
 piece of derivative *calculus*. None of them is the *machinery* a model writes around that calculus
 — the recording, the seeding, the sweep, the twin, the tape, the traversal — which turned out to be
-the larger half and to reduce to a single member. §15.2 states what follows from that.
+the larger half and to reduce to a single member. §14 states what followed from it.
 
 **Two of the seven carry most of the DX gain and they are not the same two that carry most of the
 robustness gain.** The reduction and the opaque node are where the lines are — five hand-mirrored
@@ -783,10 +782,10 @@ Great abstractions are measured in concepts removed.
 
 | delete | why |
 |---|---|
-| ~~`supplied_derivative.hpp`~~ **done** | **zero production consumers** anywhere. The construction the model needs is the other one |
-| ~~three of four grafts~~ **done, and it was two of three** | one idea, three spellings, one of which turned out to be a different idea (§7). Only the model's copy had the finiteness guard report 05 §8 says the construction *needs*, and that copy is now the only one |
-| ~~six copies of "seed parameters before state"~~ **done** | one primitive, which writes the parameters itself so a caller cannot write the state first |
-| ~~the four parallel trait arrays~~ **partly**: three booleans are one | one of the three was true at every entry and decided nothing. The values and addresses still key by position to a **fourteen**-argument setter, which is phylloptim's signature and not plant's to change |
+| `supplied_derivative.hpp` | **zero production consumers** anywhere. The construction the model needs is the other one |
+| three of four grafts — **and it was two of three** | one idea, three spellings, one of which turned out to be a different idea (§7). Only the model's copy had the finiteness guard report 05 §8 says the construction *needs*, and that copy is now the only one |
+| six copies of "seed parameters before state" | one primitive, which writes the parameters itself so a caller cannot write the state first |
+| the four parallel trait arrays — three booleans are one | one of the three was true at every entry and decided nothing. The values and addresses still key by position to a **fourteen**-argument setter, which is phylloptim's signature and not plant's to change |
 | `node_size_adjoints`, `node_uptake_adjoints` | structs of **named** slots. One parameter got a row by *adding a field*; each further one wants another field plus two hand-written partials |
 | `light_reduction_slots` | the right idea named for one reduction |
 | four competition walks | value / value-and-slope × ordered / unordered — one walk with a codomain parameter |
@@ -894,10 +893,11 @@ turned out to be the whole of it:
 
 **And measuring it produced two numbers this report did not have.** Per layer against its *own*
 reference rather than a pooled one, the factorisation's residual is **20.9, 18.9, 17.5, 0.5, 1.4**
-times the difference's error — a consistent factor on the three best-converged layers, not one bad
-layer, and 1e-6 of the block's largest entry in absolute terms. The previous bound held by pooling a
-floor across layers that differ by three orders in convergence and by excusing one of them. No
-acceptance number is declared for the sharper reading, so the check reports it and says so.
+times the difference's error — which is one error, not five: the difference matrix is rank one, so
+every layer is wrong by the same relative amount and that spread is one scalar seen through a
+normaliser that divides by the block's largest entry rather than the column's. The previous bound
+held by pooling a floor across layers that differ by three orders in convergence and by excusing one
+of them. It is now bounded two ways, on the structure and on the size, at the fit's own truncation.
 
 **The uniform-drying direction is reached by the root network's hydraulics, and by nothing a
 trajectory develops.** The amplification is **1.1× on both patch fixtures** at the shipped traits —
@@ -947,10 +947,11 @@ to the initial state. Written that way, the second hole closes with the first �
 used to make the loop a no-op that returned the direct term alone, and now sweeps the whole
 trajectory, because "no widenings" is one segment rather than none. A widening at the very first
 recorded step leaves that lowest segment with no step in it, which is exactly what a run from bare
-ground gives, so **every existing fixture is bit-identical and the ladder is unchanged at 445
-passing**. That is the honest status of the fix: the shape is right and no fixture can currently tell.
-The referee named below — the recruit rung's count, on a fixture that resumes from a populated state —
-is still the thing that would prove it, and is still not written.
+ground gives, so **every existing fixture was bit-identical and no fixture could tell**. The referee
+that would prove it was named here as the recruit rung's count on a fixture resuming from a populated
+state; it is written, and it separates the two walks by three counts — swept ranges, boundary
+evaluations, and the adjoint the walk ends holding, which matches a forward tangent from the same
+state to `1.11e-10` where the old walk would have read `0.878`.
 
 ## 11. Costs and gaps the design does not price
 
@@ -1065,7 +1066,8 @@ slot, the leaf-area channel and the parameter count were re-read in the code and
 cost premise is corrected below and is the reason this section is worth re-reading rather than
 re-citing. The two not re-derived are the factorisation check's scoping and report 08 §5.2's
 assertions, which are claims about the *test suite* rather than about the model — they need the
-ladder run, not the source read, and this reading did not run it.
+ladder run, not the source read; the ladder has since been run and the factorisation half is
+settled below.
 
 **The top-ranked correctness item is already done.** Report 07 §7 ranks "give the size-space adjoint
 its trait slot" first and calls it a correctness matter — rows that do not arrive at all. They arrive:
@@ -1172,125 +1174,63 @@ oppose the design.**
 
 ---
 
-## 14. The collapsed transpose
+## 14. Where this ended up, and what is left
 
-§7 asks which primitives odelia is missing. Read against the code as it now stands, the question
-has changed shape: the pieces are nearly all there, in odelia, and what is missing is that the
-model still owns the assembly. This section maps what a collapse would look like and what it costs.
+§7 asks which primitives the solver is missing. Answered against the code, the question changed
+shape twice: most of the pieces were already there, and the largest one was not on the list at all.
+This section states the arrangement that resulted and gives the remaining work as instructions.
 
-### 14.1 Four things the code already says
+### 14.1 The arrangement, stated once
 
-**The single-seed path has no production caller.** The sweep runs
-`solve_adjoint_over_widenings` → `solve_adjoint_batched` → `step_adjoint_batched` →
-`ode_rates_adjoint_batched`. Every caller of the single-seed ladder — `Solver::solve_adjoint`,
-`Step::step_adjoint`, `Patch::ode_rates_adjoint` — is in odelia's own step-adjoint test. And the
-model's single form is the batched one already: it packs one seed, calls the batched form and
-unpacks it, in thirty-one lines of adapter.
+**The solver owns the reverse pass entire.** The tape, one for a walk. The twin, one for a
+segment, re-seated before every recording because freshness is per recording and there are six a
+step. The Runge-Kutta adjoint recursion, written once, batched, with the single-seed form an
+adapter over it at one seed. The record-once-sweep-many product, with the parameter channel in
+band. The stage recording itself, through the same rate call the forward pass uses — which is also
+the one place a replay pass diverges from a resident one. The segment walk across widenings, with
+its partition assertion and its narrow-widen round trip.
 
-**The Runge-Kutta adjoint recursion must exist once.** It was written twice — a single-seed
-traversal and a batched one that were the same backward walk, the same stage rebuild, the same
-`lambda_in` accumulation and the same `h·b[m]` redistribution, differing by an index loop, with the
-seeding of `lambda_k` four coefficient lines written twice on top. Only one copy was ever exercised
-by a model, and it was not the one a reader meets first. This is §3's shape exactly: two transposes
-of one Butcher tableau, held together by nothing but the intention that they agree. A single-seed
-sweep is the batched one at one seed and has no other claim on the tableau.
+**A model declares five things, and four of them it already had.** How to rebind itself at another
+scalar. How to seat an existing twin from itself. Which of its scalars are parameters. How to load
+a state. How to compute rates. Only the seat is new, and it is the value half of the rebind.
 
-**The model's transpose IS the generic branch plus two things odelia now has.** The
-non-`AdjointRates` branch of `step_adjoint` lifts the System to the adjoint scalar, registers the
-stage state, opens a recording, calls `derivs`, registers the rates, seeds and sweeps. The model's
-own version does the same, with a loader and a rate call in place of `derivs` — and `derivs` on
-that model resolves to precisely those two calls, because its state loader forwards to the one that
-builds the field. The generic branch is missing a parameter channel and batching. Both now exist,
-in one primitive, which already records once and sweeps per seed with the parameters packed in
-band.
+**Nothing else.** No tape, no seed vectors, no recordings, no Butcher coefficients, no operating
+point carried forward to reverse, no adjoint-specific loader, no transpose.
 
-**The recording strategy is already declared, and it is not a missing concept.** `ReplaysField`
-plus `has_recorded_field` is the resident/invasion switch. `derivs` routes on it: reload the
-recorded field, in which case the derivative through the field is structurally zero — which is what
-a mutant at vanishing density *means*, not an approximation of it — or rebuild the field at the
-current state, in which case it flows, which is what a resident's endogenous feedback means. One
-function, two models, chosen by a declaration the model owns. It predates the reverse pass, and it
-answers the question §5.3 poses about what is taped and what is supplied.
+### 14.2 What it replaced, measured
 
-### 14.2 What that leaves of the transpose concept
-
-`AdjointRates` asks for five members and looks like it is doing two jobs. One is *"I carry my own
-transpose"* — the hand-rolled gradient this report exists to remove, and which the generic branch
-already does. The other looks like *"here is my stage's operating point"* — the aux triple, moving
-the point the rates were evaluated at from the forward pass into the reverse one.
-
-**The second job turned out not to exist, and the argument for it was wrong.** The claim was that a
-rate evaluation stops being a function of the state alone once a submodel has solved something at
-it. For this model it does not: the state loader rebuilds the field, re-derives every dependent
-auxiliary and re-solves the inner problem, so the operating point *is* a function of the state and
-the time. The aux was never carried to the twin at all — the environment rebind zeroes the uptake
-accumulators and the auxiliaries are re-derived on load — so the round trip was dead code that
-looked load-bearing. Deleting the whole concept leaves the gradient bit-identical, which is the
-proof.
-
-**So both jobs disappear**, and what was actually needed is the thing §14.8 lists as a
-precondition rather than a member: the re-seat. The aux triple is not wrong as an idea — a model
-whose operating point is *not* re-derivable from the state would need exactly it, and would pay for
-it in a re-solve this one performs. It is simply not load-bearing here, and a concept that is not
-load-bearing is one nobody checks.
-
-### 14.3 The shape after
-
-**odelia owns** the tape; the twin, through `Rebindable` — and it already caches one, with the
-fallback that makes it nameable for a System that cannot rebind at all; the stage recursion, once;
-the record-once-sweep-many product with its parameter channel; and the recording function, which
-is `derivs` and therefore already carries the resident/invasion routing.
-
-**A model declares** how to rebind itself, which of its scalars are parameters, how to load a
-state, its stage's operating point, and — where it has a field worth freezing — the record and
-replay hooks. Nothing about tapes, seeds, recordings or Butcher coefficients.
-
-### 14.4 The final shape, and the size of it
-
-**What a model declares, in full.** Six things, and only two of them exist for the gradient:
-
-| | who else wants it |
+| removed | |
 |---|---|
-| `rebind_from<U>()` | the forward Jacobian already |
-| `ad_parameters()` | the forward Jacobian already |
-| `ode_rates()` | the forward run |
-| **`seat_from`** | the reverse pass only -- and it is the value half of the rebind above |
-| the record/replay hooks | *optional*; it is the resident/invasion declaration, not gradient machinery |
+| the single-seed stepper and its own copy of the stage recursion | net **−79** in the header core, 239 out against 160 in |
+| the model's transpose, its adjoint loader, its tape and its four counters | model **−148**, solver **+26**, net **−122** |
+| both adjoint concepts | deleted outright, not reduced — see below |
+| the third and fourth spellings of "can this rebind" | 5 aliases, 2 helpers, 14 sites |
 
-So the reverse-mode residue in a model is **one member, and it is half of one it already had**.
-Nothing about tapes, seeds, recordings, twins, Butcher coefficients, an operating point -- or a
-loader.
+**The concepts went entirely, and that was not the prediction.** The transpose concept looked like
+two obligations — *I carry my own transpose*, which the generic path absorbs, and *here is my
+stage's operating point*, which looked irreducible. The second does not exist: the state loader
+rebuilds the field, re-derives every dependent auxiliary and re-solves the inner problem, so the
+operating point **is** a function of the state and the time. The carriage never reached the twin at
+all. Deleting it leaves the gradient bit-identical, which is the proof.
 
-**The loader was a symptom of the transpose being in the wrong place.** A separate one exists today
-only because the STEPPER positions the double System immediately before calling the model's own
-transpose, and that position is not the one the transpose is taken from. Once the recording belongs
-to the solver, it positions the twin from inside the recording, through the same `derivs` the
-forward pass uses -- which already chooses between rebuilding and restoring. The double System is
-never positioned for the transpose at all, and the loader collapses back into the pair the forward
-pass already needed.
+It is not wrong as an idea — a model whose operating point is *not* re-derivable would need exactly
+it, and would save the re-solve this one performs — but it is not load-bearing here, and a concept
+that is not load-bearing is one nobody checks.
 
-**What it replaces, measured.**
+**The loader was a symptom of the transpose being in the wrong place.** A separate one existed only
+because the stepper positioned the double System immediately before calling the model's own
+transpose, and that is not the position the transpose is taken from. With the recording in the
+solver, it positions the twin from inside the recording, through the same rate call the forward pass
+uses. The double System is never positioned for the transpose at all.
 
-| removed | lines |
-|---|---|
-| the single-seed stepper and its stage recursion | 109 + 23 |
-| the solver's single-seed pair | ~15 |
-| the model's single-seed adapter | 25 |
-| the model's batched transpose (moves to the solver, does not vanish) | 48 |
-| the two adjoint concepts, replaced by one aux concept | 33 → ~10 |
-| the model's second recorder: step cache, stage cache, loader | 6 + 8 + 27 |
-| the third and fourth spellings of "can this rebind" | 5 aliases + 2 helpers + 6 sites |
+**The line count is the smaller half.** The larger half is that no model owns any part of the
+gradient machinery — one member, and it is the value half of a rebind it already had.
 
-Roughly **250 lines net**, against about fifty added where the generic path grows a parameter
-channel and an aux carriage. But the line count is the smaller half. The larger half is that after
-it, **no model owns any part of the gradient except the two rows above** — which is the claim §7
-makes and has never been able to state as a number.
+**And what is NOT in this accounting.** The opaque node is untouched by all of it. That is model
+calculus rather than solver machinery, and it is where the remaining hand-written derivative lines
+actually live.
 
-**What is NOT in this accounting, and should not be confused with it.** The opaque node — the
-leaf's supplied rows — is untouched by all of the above. It is model calculus, not solver
-machinery, and it is where the remaining hand-written derivative lines actually live.
-
-### 14.5 Two things that collapse, and one that looks like it should and does not
+### 14.3 Two things that collapse, and one that looks like it should and does not
 
 **"Can this rebind" is asked four ways, and three are derivable.** A type alias on the model; a
 wrapper that applies it; a fallback helper in the solver that keys on the same alias; and a concept
@@ -1321,7 +1261,7 @@ them.
 invader: compute no boundary node, build no field, feed nothing back*. Only the first is what the
 replay hooks replace. Fifteen sites in the model test that flag; most are the second job and stay.
 
-### 14.6 The replay concept, co-designed
+### 14.4 The replay concept, co-designed
 
 Not built yet, and deliberately: residents with endogenous feedbacks are the priority and an
 invasion gradient is not. What follows is the shape the resident work must not foreclose.
@@ -1357,43 +1297,7 @@ moisture because the stand's water balance is endogenous. An invader integrates 
 in response to a soil moisture it does not move -- so on that pass the soil is supplied rather than
 integrated, and leaves the state vector. The two passes therefore run states of different width,
 which is a fact about the model and not a detail of the record.
-
----
-
-## 15. The end state, and what is left to reach it
-
-Everything above argues towards one arrangement. This states it, and then states the work that
-remains as instructions rather than as considerations.
-
-### 15.1 The arrangement, stated once
-
-**The solver owns the reverse pass entire.** The tape, one for a walk. The twin, one for a
-segment, re-seated before every recording because freshness is per recording and there are six a
-step. The Runge-Kutta adjoint recursion, written once, batched, with the single-seed form an
-adapter over it at one seed. The record-once-sweep-many product, with the parameter channel in
-band. The stage recording itself, through the same rate call the forward pass uses — which is also
-the one place a replay pass diverges from a resident one. The segment walk across widenings, with
-its partition assertion and its narrow-widen round trip.
-
-**A model declares five things, and four of them it already had.** How to rebind itself at another
-scalar. How to seat an existing twin from itself. Which of its scalars are parameters. How to load
-a state. How to compute rates. Only the seat is new, and it is the value half of the rebind.
-
-**Nothing else.** No tape, no seed vectors, no recordings, no Butcher coefficients, no operating
-point carried forward to reverse, no adjoint-specific loader, no transpose.
-
-### 15.2 What the list of primitives missed, and it was the largest one
-
-Every entry in §7 is a piece of *derivative calculus* a model writes. None of them is the
-*machinery* the model writes around that calculus — the recording, the seeding, the sweep, the
-twin, the tape, the traversal. That machinery was the larger half by line count and by risk, and it
-had exactly one irreducible residue.
-
-The lesson generalises past this report: **enumerate what a model writes, not what it computes.**
-A primitive named for a derivative will be found by asking what is hard. A primitive named for a
-mechanism will only be found by asking what is repeated, and repetition is what drifts.
-
-### 15.3 What is left
+### 14.5 What is left
 
 Four items. Each says what to do, why, and what would show it done.
 
@@ -1431,7 +1335,7 @@ its own accumulator.
 
 *Done when:* the bit-identity guard on the fused value-and-slope reduction still holds.
 
-**4. The replay concept, which deletes the model's second recorder.** §14.6 settles the shape: two
+**4. The replay concept, which deletes the model's second recorder.** §14.4 settles the shape: two
 members, the mode owned by the driver, the step index handed in, and a payload that may include
 state — because an invader integrates its own hydraulics against a soil moisture it does not move,
 so that soil is supplied rather than integrated and leaves the state vector.
@@ -1448,7 +1352,7 @@ finite and plausible and unraised.
 attach the step sizes — is twenty lines with nothing model-specific in them, and the record is a
 time, a size and a state. It belongs beside the concept that dispatches it.
 
-### 15.4 The standing qualification, which none of the above removes
+### 14.6 The standing qualification, which none of the above removes
 
 The introduction schedule is refined by bisecting on errors that depend on the traits, so the
 schedule is a function of the parameters and the reverse pass treats it as constant. **Every
