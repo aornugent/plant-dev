@@ -320,7 +320,7 @@ else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
 `-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
 each snippet. A probe including any odelia header that names a concept needs it.
 
-At `odelia@d1af586` the suite is **397 passing, 0 failing, 3 skipped**.
+At `odelia@ef705ee` the suite is **397 passing, 0 failing, 3 skipped**.
 
 **One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
 takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
