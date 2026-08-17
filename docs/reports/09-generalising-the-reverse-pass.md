@@ -1403,11 +1403,32 @@ which is a fact about the model and not a detail of the record.
 
 Five items. Each says what to do, why, and what would show it done.
 
-**1. The opaque node — the last hand-written derivative surface, and the only one that is model
-calculus rather than solver machinery.** The leaf's supplied rows form the collar's response to
-every input family by hand: hundreds of lines, dozens of named partials, several central
-differences and a set of refusal guards. It is not reached by any further work on the sweep, and no
-sweep-side change will shrink it.
+**1. The opaque node — the last hand-written derivative surface, and mostly not what it looks like.**
+Measured: **≈880 lines of TF24 exist only because of AD** — 766 in the strategy against 116 in the
+environment, or 31% of `tf24_strategy.h` — and **460 of them are one function**, the leaf's supplied
+rows.
+
+**Split that function by what it actually is, because the split is the surprise.** Of 422 lines of
+body, only **~70 are model calculus** — the implicit-function assembly, the rank-two `(a,b)` fit and
+its unit conversions. **~121 are one mechanism written five times**: perturb, re-seat, harvest,
+restore, guard, for the curvature, the carbon anchor, the conductance, the four driven traits and
+the radiation. **~190 are plumbing** — a flat copy of twelve rows made only to loop over them for
+finiteness before they are read again field by field, and three assemblies of the same five-segment
+column order. **Plumbing is the largest bucket, calculus the smallest**, which is the reverse of how
+this section has described it throughout.
+
+Three details worth carrying into the work:
+
+- **The five differences use three step conventions** — `max(|x|,1)·1e-6`, `x·1e-3`, `x·1e-6` — and
+  only two of the five record why. A primitive owning the differencing owns the convention.
+- **The trait order exists in four places**: this model's table, the leaf package's own index
+  enumeration, eight local integer literals, and the fourteen-argument setter whose argument list
+  *is* the order. Nothing enforces agreement. **Position 12 already disagrees in name** — it is the
+  stomatal slope here and the cost scale there — and that alias is written down nowhere.
+- **The three output assemblies repeat one column order.** A change must be made in three places and
+  nothing catches a divergence, which is report 01 §6's failure signature exactly.
+
+It is not reached by any further work on the sweep, and no sweep-side change will shrink it.
 
 *Do:* give the solver an implicit node — the residual, the bounds, which output *is* the implicit
 quantity, and the ordinary partials — so the model declares a solve rather than its calculus, and
@@ -1507,6 +1528,16 @@ than with state loading.
 
 *Done when:* a model missing any of the three fails at a `static_assert` naming the member, and the
 gradient is bit-identical across the change.
+
+**And the concept boundary stops a level too high, which is what makes item 5 worth doing.** Every
+concept in the solver is checked against the patch. **Not one of the model's own AD members is
+checked by anything** — the parameter list, the rebind, the environment's block interface and the
+name list are all reached by duck typing one or two levels below the boundary, so a misspelling
+surfaces as a template error inside the patch rather than as a diagnostic naming the member. The
+seat is the sharpest case: it is asked of the patch, the patch has it, and **the strategies and the
+environment do not** — the patch discharges its own seat by *rebinding* each of them, which
+constructs the objects the seat exists to avoid constructing, on every recording, six times a step.
+Either the seat reaches one level down or it is buying less than §14.1 claims.
 
 **And one that is not a primitive.** The step recorder's driver — toggle recording, run, harvest,
 attach the step sizes — is twenty lines with nothing model-specific in them, and the record is a
