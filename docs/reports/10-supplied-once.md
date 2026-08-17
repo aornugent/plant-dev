@@ -248,6 +248,28 @@ be **one node** that every output hangs off, so the tape holds `n_output + n_inp
 parameters to outputs + parameters" — and it is exactly what the reverse-pass branch's
 `implicit_root` already does. At 6 outputs and 26 inputs it is 156 terms against 32.
 
+**Two of this section's four deliverables are load-bearing for the consumer and were not
+obvious from the shape.** Roles and rows-in-parts can be built and verified against `at()` without
+either, and then the consumer cannot use any of it:
+
+- **Per-layer uptake has to be one of the outputs.** The five reported today are the calibration's
+  -- assimilation, conductance, stem potential, the collar and profit -- and a stand adjoint wants one
+  that is not among them. §3.2 says so in as many words; it is easy to read as motivation rather than
+  as an interface requirement, and it is the latter.
+- **And it interacts with the pinned convention, fatally if missed.** At a pin the condition's
+  gradient is zero for every input, so each of *these* outputs carries a total instead. An output
+  that is not one of them therefore has no route to any input at all, and its rows would come back
+  exactly zero at every pinned and shut point -- which is where the drought is, and where zero and
+  absent are the same number on the tape.
+
+- **Root carbon needs an owner, and this report does not name one.** The enumeration can carry it, but
+  the leaf is handed a root network that is *already built*, so nothing inside the package can move
+  the carbon behind it -- the boundary that made the leaf purely intensive put that reduction in the
+  caller. The map itself is still in the package and uncalled. So the choice is: hand the carbon and
+  the architecture in and let the package reduce it again on the derivative path only, or hand in a
+  rebuild the caller owns. The first re-crosses a boundary that was moved deliberately; the second
+  adds a mechanism. **Naming which is the work this section still owes.**
+
 **A pin is answerable but not in parts, and that is measured rather than argued.** §3.1's pinned row
 `∂Π/∂u + ν·∂p*/∂u` is right as mathematics and not evaluable as two halves: the held half needs the
 collar held at `p*`, and at a pin `p*` sits one step-in from the bound, so moving the bound carries
