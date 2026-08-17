@@ -140,6 +140,15 @@ R_MAKEVARS_USER=/path/to/Makevars-O2 Rscript -e 'pkgbuild::compile_dll(".", debu
 with `Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`. Confirm it took by checking that the
 compile line for one translation unit in the log ends at `-O2` with no trailing `-O0`.
 
+**And a build can report success without compiling anything.** `make` does not track the headers under
+`inst/include/` as prerequisites, so editing one — an `odelia` header, or `plant`'s own header-inline
+strategy core — leaves every object file looking current. `compile_dll` then does nothing, prints
+nothing, and **exits 0**, which reads as a clean build of the change you just made. A test run after it
+measures the old binary. Two habits: **compare `plant/src/plant.so`'s mtime against the header you
+edited** before believing any result, and `rm -f src/*.o src/*.so` after a header change rather than
+trusting the incremental path. An empty build log is the tell — a real build of this package prints
+25 compile lines.
+
 **The per-iteration tax is the rebuild, not the tests.** An R-only change under
 `pkgload::load_all("plant")` skips compilation; a C++ change recompiles
 incrementally — but the strategy/environment core is header-inline, so editing a
