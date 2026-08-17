@@ -474,26 +474,67 @@ does not need any of that.
 0.0089 of θ away, so not far — or `use_energy_balance` being switched on. Neither is reachable by
 rainfall alone, on the evidence above.
 
-**Two findings from that investigation are worth more than the decision, and neither is about counting.**
+**⚠️ THE DECISION ABOVE WAS SUPERSEDED: the sites ARE counted now, and the reason is
+that a counter reading zero and a counter that is not wired up are the same reading.**
+phylloptim carries its own `clamp_sites.hpp` — its own enum, because a header-only
+model cannot depend on the consumer that includes it — with four sites: the G(∞) cap,
+the argument clamp, the leaf temperature, the collar projection. plant folds them into
+its own list by offset.
 
-**⚠️ THE LEAF-TEMPERATURE CLAMP CARRIES A LATENT WRONG ROW, BEHIND THE FLAG.** Its own kill
+**The path split is by WHEN rather than by scalar, and that is forced.** The leaf
+solves in `double` on both paths, so `if constexpr` cannot separate them. What can:
+`rebind_from` does `out.leaf = leaf`, so every AD copy already **shares** the double
+leaf's tally — one tally accumulates everything, and a delta taken across
+`record_leaf_outputs` (by a destructor, so it survives the early returns) is the
+sweep's share. Forward is the total less that.
+
+**Measured: all four read zero on every driver**, which is what the reachability
+argument predicted, and **the non-vacuity proof is not in plant and cannot be.** A
+stand cannot reach them — a layer must be *rooted* to be evaluated and the plant must
+be alive, so the wettest rooted layer stays wetter than `psi_crit` while these need a
+deeper one past 6.82 or 7.31 MPa, a vertical gradient drainage opposes. Two attempts
+to force it through a stand failed: rainfall refills a layer set dry, and a
+shallow-rooted plant evaluates only the layers it roots. So the counters are exercised
+**directly, in phylloptim's own C++ suite**, in
+`test_root_vulnerability_is_bounded_past_its_grid` — including that a copy counts into
+the tally the original reads, which is the property plant depends on. Fault-injected
+there, and the golden file is unchanged (576 points, worst 1.82e-07 profit): the
+counters add branches, not arithmetic.
+
+**Two further findings from that investigation are now closed rather than recorded.**
+
+**The leaf-temperature clamp carried a latent wrong row, and it now refuses.** Its own kill
 (`*dT_dE = (clamped == Tleaf) ? … : 0.0`) is honoured by both *marginal* consumers, so the analytic path
-stays consistent. What is not guarded is plant's **differenced radiation row** (`marginal_at` at
+was always consistent. What was unguarded is plant's **differenced radiation row** (`marginal_at` at
 `radiation·(1 ± 1e-6)`): with both arms on the clamp, `dR_dlight` silently loses the thermal channel and
 keeps only the electron-transport one, and `crossed` never fires because both reads are finite and
 feasible. Reachable at PPFD 2000 with low wind and a large leaf dimension — about 87 °C against the 70 °C
-ceiling. **So switching `use_energy_balance` on is not a forward-only change; it opens a gradient defect
-this document has not costed.** That is the thing to know before anyone enables it.
+ceiling — but **only with `use_energy_balance` on, and it defaults to 0.0**.
 
-**And plant's branch-kink guards at the uptake sign splits are OVER-conservative.** The
+**The clamp's count is what makes it detectable**, since nothing about the two reads is anomalous: plant
+takes the leaf-temperature tally either side of the difference and, if it moved, loses the uptake rows
+by name. `dR_dlight` feeds `dcollar_dlight` alone, so the profit row is untouched. Zero incidence on
+every driver, as the flag's default requires — so **switching `use_energy_balance` on now narrows what
+answers rather than silently changing a number**, which is the honest form of what was previously an
+uncosted defect.
+
+**And plant's branch-kink refusals were over-conservative; they now step off instead.** The
 `T_src_min`/`T_src_max` and `T_pos_lo`/`T_neg_hi` pairs are integration-range **splits**, not clamps, and
-the kinks are **removable**: `span/integral = Δ/ΔG = 1/⟨f_r⟩`, an analytic function of Δ through zero,
-with the signs cancelling — so `r_R`, and hence `E_i`, is smooth across the split and its Δ→0 limit is
-exactly the special-case branch. The ψ = 0 split is dead anyway, because `psi_soil ≥ 0` is validated and
-the collar is bounded below by the wettest layer. So the two "sits on a branch kink" refusals lose rows
-for a function that **is** differentiable there. That costs **availability, not correctness** — which
-makes it the opposite of every other item in this document, and the one place where a guard could be
-removed rather than added.
+the kinks are **removable**: `span/integral = Δ/ΔG` is the *same analytic expression on both sides* —
+the two signs cancel — and equals `1/f_r` at coincidence. **So the not-a-number is arithmetic (0/0), not
+a property of the model**, which is also what phylloptim's own contract says: NaN from `duptake_dpsi`
+means *fall back to differencing*, and plant was refusing on a fallback signal.
+
+What that licenses is cheaper than a fallback. The kernels refuse inside a window of width `kink_tol`
+(1e-8), and a smooth derivative evaluated four tolerances outside it differs by order 4e-8 — orders
+below the solve's own floor and below every tolerance the model carries — where refusing costs the whole
+water channel. Retried in both directions, because stepping off one layer's coincidence can land on
+another's, and **counted** as `supply_kink_step_off`, because a row taken 4e-8 away is not the row at the
+point and that should be visible rather than assumed harmless. It refuses only if the read is still
+non-finite either side, which would make it the model's rather than the coincidence's.
+
+Zero incidence on every driver, so this is robustness rather than a repair — and it needed neither `G″`
+nor a new spline capability, and leaves TF24f's NaN-means-difference contract untouched.
 
 ### What is left, and it is smaller than what was closed
 
@@ -535,9 +576,11 @@ Nothing in §0 remains. What the work opened rather than closed:
    no mechanism.
 
    *A real fix is packaging work, not gradient work*: a stamp comparing the installed phylloptim's
-   header hash against the working tree's, refused at configure time. Until then the mitigation is the
-   procedure in §8 — and the `grep -c "concept Replayable"` check is the only thing that reports the
-   second mechanism at all.
+   header hash against the working tree's, refused at configure time. **Deliberately not built.** What
+   landed instead is the procedure, in **`AGENTS.md` under *Local Development*** — three numbered hazards,
+   each with the command that avoids it and the check that confirms it took. That is the whole of the
+   treatment for #13, by decision: the defect costs agent-time rather than published numbers, and a
+   documented sequence run unconditionally is worth more than a guard nobody reaches for.
 5. **The cost figure**, still 14.6× and now measured on a gradient that answers strictly more than the
    one that figure was taken on.
 
@@ -559,6 +602,18 @@ Nothing in §0 remains. What the work opened rather than closed:
   rows never recorded, and a zero row and a severed one are the same number. One consumer
   (`ladder_rhs_adjoint_tf24`) needed the report added and its numbers turned to NaN. Grep for callers
   before converting another guard.
+- **A NOT-A-NUMBER FROM A `duptake_*` KERNEL MEANS "DIFFERENCE IT", NOT "NO DERIVATIVE EXISTS."** That
+  is phylloptim's own documented contract and plant was refusing on it. Before treating a non-finite
+  supply read as a missing row, check whether the singularity is arithmetic: at a coincidence between
+  the collar and a layer potential it is, because `span/integral` is analytic through it. §0's G has the
+  treatment.
+- **`use_energy_balance` is off (0.0), and turning it on is not a forward-only change.** It opens the
+  leaf-temperature clamp, whose analytic kill cannot help a consumer *differencing* through it. plant now
+  refuses the water rows there, so the flag narrows what answers rather than moving a number — but
+  anyone enabling it should read §0's G first.
+- **A stand cannot reach the leaf's own clamps, and two attempts to force it failed.** Rainfall refills a
+  layer set dry, and a shallow-rooted plant evaluates only the layers it roots — so a positive control for
+  those counters has to be a direct call, and lives in phylloptim's C++ suite rather than in plant's.
 - **`root_psi_crit` never binds at shipped defaults**, so `bound_row(DryRootPsiCrit)` is unreachable
   without a deliberately-lowered fixture. §5's non-vacuity requirement is not optional.
 - **The operating-point counters do NOT measure the gradient path.** They count forward solves; the
@@ -1402,15 +1457,21 @@ otherwise.
 
   | suite | pass | problems |
   |---|---|---|
-  | `plant` gradient ladder | **570** | **0** |
+  | `plant` gradient family | **588** | **0** |
   | `plant`, everything else | **3244** | **13**, in six files: `test-leaf.r` (5), `test-mutant.R` (2 errors), `test-stochastic-patch.R` (3 errors), `test-stochastic-patch-runner.R` (1), `test-strategy-tf24.R` (1), `test-strategy-tf24f.R` (1) |
+  | `phylloptim` C++ golden | **576 points** within cross-platform tolerance | worst **1.82e-07** profit, **1.4e-04** argmax — the recorded figures unchanged |
   | `phylloptim` R | **1437** | **3**: `test-gradient.R` (1 fail, 1 error), `test-surface.R` (1 fail) |
 
-  The gradient family gained 75 assertions (495 → 570) and the non-ladder count is **unchanged at
+  The gradient family gained 93 assertions (495 → 588) and the non-ladder count is **unchanged at
   3244**, because every check added is in that family. The same **13 problems in the same six files**
-  remain — the figure to attribute against. `phylloptim` is unchanged **by construction**: nothing in it
-  was touched, so its numbers are carried rather than re-measured, and `git status` on it is the
-  evidence.
+  remain — the figure to attribute against.
+
+  ⚠️ **`phylloptim`'s C++ `test_leaf` aborts before its summary line prints, so redirect it and read the
+  failures.** The abort is pre-existing (a single-potential series resistance of zero) and stops
+  `make -C tests/cpp` before `test_golden` runs — but worse, `printf` is fully buffered when piped, so
+  the abort **discards every line already written** and a grep of the output finds nothing at all. Use
+  `stdbuf -oL ./test_leaf > log` and count `FAIL` lines; then run `./test_golden --cross-platform`
+  separately.
 
   **Two of this session's own changes broke a non-ladder test each, and both were the same shape.**
   Adding a `Control` field broke `test-control.R`'s default list and `test-census.R`'s

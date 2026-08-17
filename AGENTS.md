@@ -80,6 +80,64 @@ pkgload::load_all("logpile")
 
 If a rebuild throws `undefined symbol` on load, clear stale build artifacts first: `rm -f src/*.o src/*.so` in the package dir, then reinstall.
 
+### ⚠️ The build reports success without saying what it built
+
+Three hazards that cross a package boundary. None of them produces an error, and the
+first two have each cost a session. Do these unconditionally rather than when
+something looks wrong, because nothing will look wrong.
+
+**1. A `phylloptim` header edit is invisible to `plant` until `phylloptim` is
+reinstalled.** `plant` compiles `phylloptim`'s headers from the **installed** library
+via `LinkingTo`, not from your working tree — and editing them moves no `.cpp`
+timestamp in `plant`, so `make` finds nothing to do, the build succeeds, and the
+`.so` goes on running the **old model**. The only symptom is numbers that do not
+match what you just wrote. After any `phylloptim/inst/include/` edit:
+
+```sh
+rm -f phylloptim/src/*.o phylloptim/src/*.so plant/src/*.o plant/src/*.so
+R CMD INSTALL --no-multiarch --preclean phylloptim
+R CMD INSTALL --no-multiarch --preclean odelia          # see 2
+cd plant && R_MAKEVARS_USER=<O2 makevars> Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
+```
+
+The same trap exists one level down inside `phylloptim` itself: R does not track
+header dependencies, so `R CMD INSTALL` after editing `inst/include/` reuses a stale
+`src/RcppR6.o` and the R layer runs the old model. `--preclean` is what avoids it.
+
+**2. Installing `phylloptim` can replace the `odelia` fork with upstream's, and the
+error names neither package.** `phylloptim/DESCRIPTION` carries
+`Remotes: traitecoevo/odelia@v0.2.1`, so a **dependency-resolving** installer
+(`install.packages(".")`, `devtools::install()`, `pak`) fetches upstream odelia over
+the locally built fork. Upstream's lacks the `Replayable` concept `plant`'s
+`store_trajectory` static-asserts on, so the next `plant` build fails with
+`'Replayable' is not a member of 'odelia::ode'` pointing at `scm.h` — in a session
+that never touched odelia. Six occurrences across three sessions.
+
+`R CMD INSTALL` does **not** resolve `Remotes` and is therefore the safe form. Verify
+after any `phylloptim` install:
+
+```sh
+grep -c "concept Replayable" $(Rscript -e 'cat(find.package("odelia"))')/include/odelia/ode_interface.hpp
+# must print 1; if it prints 0, run: R CMD INSTALL --no-multiarch --preclean odelia
+```
+
+**3. The XAD storage-class flags must pair between `plant` and `odelia`, and a
+mismatch is undetectable.** Both `src/Makevars` set `-DXAD_NO_THREADLOCAL
+-DXAD_USE_STRONG_INLINE`; XAD's active tape is a `__thread` variable defined in
+odelia and read from plant, and **a storage-class mismatch does not change the
+mangled name**, so the linker resolves it and the behaviour is undefined. Change one
+and you must change the other.
+
+`phylloptim/src/Makevars` sets neither, and is **exempt** — it uses `xad::fwd` only
+and never references `Tape` or `xad::adj`, and forward mode is tapeless. That
+exemption is silent: **the moment `phylloptim` gains a reverse-mode path it needs both
+flags, and nothing will say so.**
+
+**And build at `-O2` deliberately** — `pkgbuild::compile_dll()` appends
+`-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars`
+asking for `-O2` is silently overridden. Pass `debug = FALSE` and confirm one compile
+line in the log ends at `-O2` with no trailing `-O0`. See *Testing plant* below.
+
 ## Testing plant — a short feedback loop
 
 `plant` carries about 3700 testthat assertions across 68 files, but running all of
