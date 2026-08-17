@@ -91,6 +91,19 @@ if [ ! -x "$EXEC" ]; then
   exit 1
 fi
 
+# Warm whatever the script wants to set up, in a process with no profiler attached.
+# A fixture that has to resolve something expensive before it can be measured --
+# plant's schedule refinement re-runs the whole model many times -- would otherwise
+# be sampled along with the work, and half the profile would be setup. The script
+# is expected to honour PLANT_PROFILE_PREPARE by stopping once it has cached.
+echo "preparing: $SCRIPT"
+(
+  cd "$ROOT" || exit 1
+  R_HOME="${R_HOME:-$(R RHOME)}" R_LIBS="$LIBS" \
+  OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PLANT_PROFILE_PREPARE=1 \
+    Rscript "$SCRIPT"
+) 2>&1 | tee "$OUT/prepare.log"
+
 echo "sampling: $SCRIPT"
 (
   cd "$ROOT" || exit 1

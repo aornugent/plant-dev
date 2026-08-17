@@ -25,6 +25,11 @@ library(odelia)
 library(plant)
 
 cache <- Sys.getenv("PLANT_PROFILE_CACHE", "refined-century.rds")
+# The harness runs this script twice: once to refine, in a process with no
+# profiler attached, and once to measure. Refining costs many model runs, so it
+# must not be sampled and must not be paid twice -- this mode stops as soon as the
+# schedule is cached, before any gradient.
+prepare_only <- nzchar(Sys.getenv("PLANT_PROFILE_PREPARE"))
 
 tr <- c(lma = 0.0825, hmat = 5.13, k_I = 0.5, a_l1 = 5.44, a_l2 = 0.306)
 ctrl <- Control(node_density_in_birth_date = TRUE)
@@ -41,9 +46,15 @@ if (file.exists(cache)) {
   p <- refined$parameters
   saveRDS(p, cache)
   cat("schedule          refined and cached\n")
-  # Refinement ran in this process, so its samples are in this profile. Say so
-  # rather than let the shares be read as the gradient's.
-  cat("WARNING           this profile includes the refinement; re-run to use the cache\n")
+  if (!prepare_only) {
+    # Reached only if this script is run by hand rather than through the harness,
+    # so the refinement is in these samples. Say so rather than let the shares be
+    # read as the gradient's.
+    cat("WARNING           these samples include the refinement\n")
+  }
+}
+if (prepare_only) {
+  quit(save = "no")
 }
 
 cat("max_patch_lifetime", p$max_patch_lifetime, "\n")

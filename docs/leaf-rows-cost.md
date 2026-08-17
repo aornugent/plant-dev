@@ -1,9 +1,15 @@
 # Where the reverse pass spends, how to find out, and what is left
 
-The reverse-mode stand gradient costs **14.1 times** a plain double forward run at
-century scale — 463 s against 33.0 s, on a refiner-chosen schedule of 165 nodes
-and 3197 steps. This states the method that locates that cost correctly, the
-principles that decide which lever to reach for, and the levers that remain.
+The reverse-mode stand gradient costs **9.7 times** a plain double forward run at
+century scale — **339 s against 35.1 s**, on a refiner-chosen schedule of 3,378
+steps. It was 14.1 (463 s against 33.0 s) before one recording came to span a whole
+Runge-Kutta step: the forward run is unmoved and the whole of the movement is the
+sweep's. **The ratio is also flat across two orders of run length** — 8.7 at a
+half-year lifetime, 9.0 at three years, 9.7 here — so the sweep's cost tracks the
+run rather than compounding with it.
+
+This states the method that locates that cost correctly, the principles that decide
+which lever to reach for, and the levers that remain.
 
 It is not a record of what was tried. Where a route is listed as closed, the
 reason is a property of the model and is stated as one.
@@ -165,7 +171,48 @@ A quantity the consumer discards need not be produced.
 
 ---
 
-## 3. Where the cost is — ⚠️ this table describes a design that no longer exists
+## 3. Where the cost is
+
+Measured on the step recording, century scale, one species, **3,378 accepted steps**
+and `ode_size` 1,361, three census metrics. Taken with
+`scripts/profile-gradient.sh`, 105,308 samples at 250 Hz over one forward run and
+one gradient; the forward run is 35.3 s of the 384 s sampled, so **about 91% of
+these samples are the gradient's**.
+
+| | share of the profile | symmetric? |
+|---|---|---|
+| **the leaf's supplied rows** (`TF24_Strategy::record_leaf_outputs`) | **35.9%** | **no** — exists only for AD |
+| XAD's tape machinery (sweep, slot pushes, register/unregister) | **~17%** flat | **no** |
+| the light spline's reads (`basic_spline::operator`, `deriv`, `eval`) | ~14% flat, over half of it inside the rows above | yes |
+| the water channel (`MultiLayerRoots::uptake_impl`, `duptake_dpsi_impl`) | 9.5% flat / 14.8% cumulative | yes |
+| the leaf's root-finds (`toms748_solve`, and `bracket` within it) | 41.5% / 31.9% cumulative — mostly *under* the rows above | mixed |
+
+**The ranking has inverted since the previous reading, and the two facts that moved
+are worth stating separately.**
+
+**The leaf's supplied rows are now the dominant cost, at about 39% of a gradient.**
+This is the ~460-line function that forms the opaque node's derivative rows by
+differencing, and it is **asymmetric** — the forward model does not pay it — which
+by §2's rule makes it the top lever by a wide margin. It is also the one place no
+sweep-side change can touch.
+
+**And the tape is no longer 30%.** The previous reading measured XAD's machinery at
+about 30% of the gradient when ~18,000 tapes were created and cleared per run, one
+per cohort per stage. One recording now spans a whole step and the tape is reused
+across the walk, so the per-recording fixed cost is paid 3,378 times rather than
+18,000, and the machinery measures **~17% flat**. §4.3's ruling that the tape is
+worth attacking was true of the earlier distribution and is now the *second*
+question, not the first.
+
+**Read every row as "which primitives are hot", never as what each costs.** At
+`-O2` an inlined callee has no frame and its samples land on its caller — which is
+exactly why `toms748_solve`'s 41.5% cumulative overlaps the rows above it rather
+than adding to them. The counts that pair with these prices are in the run log:
+**20,268 rate evaluations against 3,378 steps is exactly six per step, with three
+metrics asked for**, so the recording does not scale with the metric count at
+production width.
+
+### ⚠️ The historical table below describes a design that no longer exists
 
 **Read the table below as history.** Every row names an object the step recording
 deleted: there are no per-cohort block recordings, no separate inflow-boundary
