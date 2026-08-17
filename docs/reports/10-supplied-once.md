@@ -248,6 +248,24 @@ be **one node** that every output hangs off, so the tape holds `n_output + n_inp
 parameters to outputs + parameters" — and it is exactly what the reverse-pass branch's
 `implicit_root` already does. At 6 outputs and 26 inputs it is 156 terms against 32.
 
+**A pin is answerable but not in parts, and that is measured rather than argued.** §3.1's pinned row
+`∂Π/∂u + ν·∂p*/∂u` is right as mathematics and not evaluable as two halves: the held half needs the
+collar held at `p*`, and at a pin `p*` sits one step-in from the bound, so moving the bound carries
+the collar out of the feasible interval and an arm crosses. What is available is the total, by
+following the point. So at a pin the total goes where the held partial would, that input's entry in
+the condition's gradient is set to zero, and the assembly returns the total identically -- rather
+than recovering the held half as `total − ∂y/∂p · ∂p*/∂u`, a difference of large quantities this
+corpus requires be computed as itself.
+
+Two consequences, both forced. **The operating point is a passive node at a pin**, since the
+condition's gradient is then zero for every input, so the outputs' rows are independent totals and the
+`n_output + n_input` economy is an *interior* economy -- at a pin it is `n_output × n_input` again,
+which is what the consumer already pays there. And **`∂y/∂p` is not a number at a constrained state**
+for the three outputs whose collar channel cannot be centred on `p*`, so a consumer must skip that
+channel where an input's route to the point is zero: not-a-number times zero is not zero. A test that
+compares against not-a-number and reads the false as agreement will report a clean zero over columns
+it never checked.
+
 **The quotient and its refusal stay in odelia**, because they are properties of the implicit function
 theorem rather than of leaves. phylloptim returns `∇_u` of *whichever condition defines the point*
 and that condition's own slope; `implicit_root` divides and refuses. At a pin this is the same call
