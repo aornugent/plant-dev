@@ -37,9 +37,9 @@ supplied where recording was possible, or supplied by someone other than the own
 |---|---|---|
 | nine hand transposes inside a step | supplied where recordable | −2898 lines, already deleted |
 | `record_leaf_outputs` + its shut sibling | supplied by the **consumer**, not the owner | 980 lines; 35.9% of a gradient profile |
-| the trait order in 14 places | the pairing done by the consumer, positionally | 3 of the 14 disagree in name |
+| the trait order in two tables | the pairing done by the consumer, positionally | 1 of the 14 disagrees in name |
 | `stem_b`'s row | one derivative supplied twice, by two owners | the two packages contradict each other in code |
-| four quadratures over one grid | one grid supplied four times | 3 of the 4 take the wrong abscissa |
+| four quadratures over one grid | one grid supplied four times | closed: all four read one accessor |
 | two state loaders | one boundary evaluation supplied twice | a second loader, and a read-point list with one instance |
 | the `(a, b)` pair | a row supplied by fitting rather than by its condition | unvalidated in the direction that carries the ecology |
 
@@ -350,10 +350,29 @@ identity; the consequence for an interface is that **passivity is the property t
 mechanism is a return type**: a coordinate accessor returning `double` unconditionally makes both of
 report 05 §6.1's first two conditions unviolatable rather than testable.
 
-### 4.2 The measurement, which is why this is a correctness item
+### 4.2 The measurement, which was why this was a correctness item
 
-There are **four** instantiations — the two shared-part reductions, the census, and the fitness
-integral — and three of them take the wrong abscissa:
+**This section has been overtaken, and the overtaking is the finding.** Every quadrature over the
+size distribution now takes the coordinate the density is carried in, read through one accessor
+whose return type is `double`. The last of them was routed through it the day after this section
+was written, so what follows argued for work that is done rather than work that is left. Three
+consequences, each checked against the tree:
+
+- **The figures below describe code that is gone.** The census cannot be run on a crossed height
+  grid at all now — it refuses — and the fused reduction's "100% relative" disagreement with the
+  plain value reduction is unrepresentable, because the plain reduction *is* the fused one's first
+  entry. What is asserted in its place is `16.8846` against `17.1720`: the +1.70% the choice of
+  coordinate is itself worth.
+- **The one grid still built without the accessor was the resource reduction.** It spelled its own
+  passivity rationale in a comment and reversed its traversal to compensate for not negating
+  heights. It reads through the accessor now, and the two projections that existed only to feed
+  its two traversals are gone with it.
+- **The hand-written transposes these figures were taken on no longer exist**, so the defect
+  report 09 §4.1 parks on the unsupported branch — the closing interval's transpose writing only
+  one end — is moot at the source level rather than fenced.
+
+So §4's correctness case is spent. What survives is §4.3's abstraction question, and the
+interval-major argument, which still has teeth. For the record, the figures that made the case:
 
 | quantity | measured |
 |---|---|
@@ -409,9 +428,19 @@ transposes, so a degenerate interval costs nothing — and the guard is correspo
 monotonicity on the interior grid, non-strict at the closing point.
 
 Whether `Grid` lives in odelia or in plant is decided by whether odelia's general system has a
-coordinate on its unit list. It does — report 09 §1 says the state is a list of units and the
-reductions are over them — so it is odelia's, and the four witnesses satisfy the
-generalise-only-over-witnesses rule more strongly than anything else in this report.
+coordinate on its unit list. **It does not, and the citation was to prose rather than to code.**
+Report 09 §1's "units" is an English description of the model's shape; nothing in odelia's headers
+encodes it. What odelia knows about an element is seven members of state and rate plumbing, its
+state is a flat vector, and it keeps the growth event deliberately opaque — "what they mean, and
+how many one widening adds, is never read here". There is no coordinate, no position and no
+reduction anywhere in it.
+
+So the generalise-only-over-witnesses rule runs the other way: all four witnesses live in one
+plant class, `abscissa_of` is already the one accessor they read, and putting a `Grid` in odelia
+would be a new abstraction over a shape odelia has never named. If it is worth building, it is
+plant's. What odelia does have that is worth copying is the pattern rather than the object — its
+spline holds active knot *values* against `double` knot *positions*, which is the same passivity
+by return type, already generalised.
 
 ---
 
@@ -429,15 +458,33 @@ The exclusions are not one thing. They are two of `gradient_status`'s own kinds,
 already exists:
 
 ```cpp
-enum class Role {
-  differentiated,     // the gradient is this parameter's
-  zero_structural,    // reaches no equation this metric reads: zero for the whole
-                      // run, on any trajectory, and that is the answer
-  refused             // the model cannot answer for it, and says so by name
+enum class ad_role {
+  differentiated,   // a column; an exact zero there is undeclared
+  zero_slack,       // a column; an exact zero is complementary slackness
+  zero_structural,  // a column; an exact zero is structural, on any trajectory
+  refused,          // no column: the model cannot answer for it, and says so by name
+  unread            // no column: reaches no equation on this path
 };
-struct ad_parameter { S* value; const char* name; Role role; };
-#define PLANT_TF24_AD_PARAMETER(x, r) ad_parameter{&pars.x, #x, Role::r}
+struct ad_parameter { S* value; const char* name; ad_role role; };
+#define PLANT_TF24_AD_PARAMETER(x, r) ad_parameter{&x, #x, ad_role::r}
 ```
+
+**Five values, not three, and the correction matters.** Three cannot express what the table has to
+say: `zero_slack` and `zero_undeclared` are two of the five kinds the status channel already
+carries, and this step's own test is that the R-facing classification is *unchanged in value* — so
+the declaration those two zeros come from has to survive the move rather than wait for §3.3. It
+also has to distinguish the two reasons a parameter has no column, because one of them is a refusal
+the model should report by name and the other is a parameter no equation reads. Whether an entry
+has a column is then derived from the role rather than stored beside it.
+
+**And the table belongs on the parameters, not on the strategy**, because `field_ptrs()` is called
+on a bare `TF24_Pars` in the rebind, where no strategy exists to hold a table.
+
+One consequence to accept rather than work around: with one table there is one order, and the
+declaration's is the one the size assertion and the rebind already pair against. Two parameters that
+had been appended out of order move, so their gradient *column positions* shift while every name,
+value and zero class travels with them. A caller indexing a column by position feels that; there is
+one such caller and its index is user-supplied.
 
 One table. `field_ptrs()` is the whole of it; `ad_parameters()` is a filter on it; the `static_assert`
 on `sizeof(TF24_Pars<double>)` that makes a forgotten member a compile error stays as it is. The
@@ -498,9 +545,17 @@ The two evaluations are not a detail. The boundary node's density solves a scala
 $$n_b \;=\; B(t)\cdot \mathrm{pr\_estab}\bigl(L(h_0;\,n_b)\bigr),$$
 
 because the node contributes to the field it is placed in — it is the lower endpoint both field
-reductions integrate from. The model resolves it with **one Jacobi step** from `n_b = 0`: `b₁` is the
-iterate, `b₂` is the answer. They differ by more than `1e-6` relative, with a test asserting it, and
+reductions integrate from. They differ by more than `1e-6` relative, with a test asserting it, and
 `b₂` is what an introduced node inherits and what the census reads.
+
+**The model does not iterate that fixed point, and calling `b₁` an iterate from `n_b = 0` reads it
+the wrong way round.** `A₀` omits the closing interval entirely, not just the half of it that
+depends on `n_b`, so `A₀` is not `A` evaluated at `n_b = 0`; the reduction that builds it never
+reads the boundary node at all. That is what makes a stage a function of `(y, t)` and nothing else,
+and the code says so in as many words — the cycle is removed by ordering rather than closed by
+iteration, because iterating it "only attenuates the carried dependence by the contraction
+modulus, which is ~1e-3". The two evaluations are one sweep of a fixed point the model declines to
+close, which is a stronger statement than one step of it.
 
 ### 6.2 It is the un-re-derived-aux defect in a different costume
 
@@ -521,9 +576,35 @@ recording held.* That is checkable without a gradient — load a recorded state,
 derived slot bit for bit against what the run recorded — and it is strictly stronger than the current
 arrangement, which asserts the same thing by having two functions and a comment saying which to call.
 
-`set_recorded_state` then leaves the `Grows` concept, and report 09 §3's read-point list — a
-declaration with exactly one instance, whose own text concedes that "a second model with two read
-points is what forces the declaration" — is not built.
+`set_recorded_state` then leaves the concept — which is spelled `WidensState`, and which does name
+it and *is* asserted, gating five of odelia's own `requires` clauses — and report 09 §3's read-point
+list, a declaration with exactly one instance whose own text concedes that "a second model with two
+read points is what forces the declaration", is not built.
+
+**Three things measured against the tree, before this is built.**
+
+*The invariant's scope is larger than "every derived quantity" suggests, and part of it is not
+derived at all.* Three members are not functions of `(y, t)`: the survival weight and patch density
+a node was born at, and an introduced node's own birth date. They survive today only because the
+sweep narrows and widens the same live patch. Nine of TF24's aux and every rate are reproduced by
+*neither* loader — only the two that `update_dependent_aux` covers are. And the recording the
+comparison would be made against holds `ode_state()` only, which does not include the boundary
+node, so the instrument does not currently hold the thing the invariant is about.
+
+*The collapse is safe on the forward path, and that is checkable rather than hopeful.* Nothing is
+read between a load and the rates call that follows it, the field is never rebuilt from the second
+evaluation, and the reduction that forms `A₀` never reads the boundary node — so an appended `b₂`
+cannot reach the next stage either. What it costs is one test that asserts the two evaluations are
+distinct, six extra boundary leaf solves per step **on the forward path** — which by the cost
+document's own asymmetry rule raises the bar the ratio is measured against — and one bit-identity
+nobody has taken: whether the boundary evaluation alone reproduces what a full rates pass leaves on
+the node, given that every node of a species shares one leaf and its temperature memo. Today's
+second loader already rests on that identity, so the probe is worth taking whether or not the
+collapse is.
+
+*And the one-loader shape already exists in this tree.* The stochastic patch's loader runs the
+environment build and the rates, which reaches all of the list above — where a load plus a boundary
+evaluation reaches exactly one member of it. If one loader is the goal, that is its shape.
 
 ---
 
@@ -576,9 +657,9 @@ Each step is refereed by the one before it, and nothing is deleted before its re
 |---|---|---|---|
 | **1** | **Merge the branches.** Rebase the 13 hardening commits onto the 46 solver commits; re-author rather than merge the `patch.h`/`scm.h` hunks, which sit on deleted structures; re-home the soft refusal at metric grain. Appendix B. | the ladder passes on the joined tree, and the hardening's incidence and parity tests still hold | the ladder |
 | **2** | **Capture the reference.** `ladder_run_difference_pair` on the two-species competing stand, at every kind of operating point reachable, stored to disk. | every kind has a stored reference | — |
-| **3** | **§4: one `Grid`.** All four quadratures through it; the coordinate accessor returns `double`. | the census, both reductions and the fitness integral agree on the abscissa; the birth-date/height disagreement in §4.2 is gone | the 3.95% figure moves to zero; the field's monotonicity assertion still holds every step |
-| **4** | **§6: one loader.** `set_ode_state` reproduces every derived quantity; delete `set_recorded_state`. | the load/compare invariant holds bit for bit over a recorded run | bit-identity of the loaded state |
-| **5** | **§5: one parameter list with a role.** Delete `ad_parameter_zero_classes()`'s string comparison; the two crown-shape parameters become `refused` by name. | one table; the R-facing zero classification is unchanged in value | the declared-zero ladder rung |
+| **3** | **§4: the last grid through the one accessor.** Done, and smaller than this row assumed: every quadrature already took the density's own coordinate except the resource reduction, which now reads `abscissa_of` too. No `Grid` object; §4.3's argument for putting one in odelia does not hold. | one accessor, one traversal, and the two projections that fed the old one deleted | bit-identity of the gradient on the birth-date coordinate, which is the only one the sweep runs |
+| **4** | **§6: one loader.** *Probe first.* `set_ode_state` reproduces every derived quantity; delete `set_recorded_state`. The collapse is forward-safe, but it costs six boundary leaf solves a step on the forward path and rests on an identity nobody has measured -- that the boundary evaluation alone reproduces what a full rates pass leaves on a node whose leaf is shared with every other node of its species. Take that probe before writing anything. | the probe holds, then the load/compare invariant holds bit for bit over a recorded run | bit-identity of the loaded state, and the recording extended to hold the boundary node it does not hold today |
+| **5** | **§5: one parameter list with a role.** One table of 62 carrying `ad_role`, three hand-maintained lists collapsed to one, and `ad_parameter_zero_classes()`'s string comparison deleted. `eta` and the root-depth shape exponent become `refused` by name -- neither is a crown shape, and both would record a silently wrong zero rather than a NaN. | one table; the R-facing zero classification is unchanged in value | the declared-zero ladder rung, and the registered-versus-declared test, which was landed failing for exactly this reason |
 | **6** | **§3.5: replace the vulnerability table** with report 05 §7.6's closed forms, in the **forward** model, deleting the table. | the golden grid is re-blessed and the rebuild count is zero | the FF16 tripwire, then `ladder_run_difference_pair` against step 2 |
 | **7** | **§3.3: `rows_at` in phylloptim.** Roles, an observation-dependent output count, per-layer uptake as outputs, root carbon as inputs, rows in parts. Take plant's arm robustness and phylloptim's sentinel handling — each package has half. | one row layer; `transpose_at` and `rows_at` share `at()` | the transpose identity `⟨v,Ju⟩ = ⟨Jᵀv,u⟩`, which needs no reference gradient |
 | **8** | **§3.4: plant's leaf integration.** Delete `record_leaf_outputs`, `record_zero_flux_outputs`, the trait tables, the drives. | the six-line form in §3.4 is what is there | step 2's stored reference, at every kind |
