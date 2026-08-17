@@ -80,6 +80,32 @@ pkgload::load_all("logpile")
 
 If a rebuild throws `undefined symbol` on load, clear stale build artifacts first: `rm -f src/*.o src/*.so` in the package dir, then reinstall.
 
+**The installed library is shared, and another session can move it under you.**
+`plant` compiles against the *installed* `odelia` headers, and every worktree and
+background job on the machine installs into the same library. So a second session
+working on `odelia` replaces yours mid-run, and what you see is a compile error
+naming a symbol that has been in your tree all along — a defect in someone else's
+branch wearing your code's face. It happened twice in one hour during the reverse-
+pass work, once *during* a build.
+
+Two habits make it survivable:
+
+- **Check before you measure.** Grep the installed headers for something only your
+  branch has, immediately before a build and again before a timing or a test run.
+  A number taken across a swap is unattributable, and nothing announces the swap.
+- **Or take yourself out of the race.** Install your `odelia` into a private
+  library and put it *ahead* of the shared one:
+
+  ```sh
+  mkdir -p /tmp/mylib
+  R_LIBS="/tmp/mylib:$HOME/R/x86_64-pc-linux-gnu-library/4.6" \
+    R CMD INSTALL -l /tmp/mylib odelia
+  # then export that same R_LIBS for every build, Rscript and test run
+  ```
+
+  Use `R_LIBS`, which *prepends*. `R_LIBS_USER` **replaces** the user library and
+  hides Rcpp, BH, testthat and everything else with it.
+
 ## Testing plant — a short feedback loop
 
 `plant` carries about 3700 testthat assertions across 68 files, but running all of
