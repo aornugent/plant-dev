@@ -296,8 +296,11 @@ Three costs with three different fixes:
 `census_trait_gradient` opens by calling `store_trajectory()`, which re-runs the
 whole model to record per-step states. **The caller has just run it.** This is an
 **avoid**, not a cache: the work has a producer, and what is missing is that the
-first run does not record. The cost of making it record is memory, about 25 MB at
-century scale, against a step-recording peak that is already the binding term.
+first run does not record. The cost of making it record is memory, and the bound is
+arithmetic rather than measured: 3,378 steps at a final `ode_size` of 1,361 doubles
+is **37 MB** if the state were full width throughout, and less than that in fact
+because it widens as the run proceeds. Against a step-recording peak that is
+already the binding term, that is a decision and not an obstacle.
 
 The hazard is the validity key. A trajectory reused after any mutation is a
 gradient of a different model, and the failure is silent. Either the first run
