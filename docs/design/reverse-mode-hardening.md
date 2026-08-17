@@ -427,14 +427,73 @@ what nothing referees; this is it, now counted.
 
 The classification is asserted in `test-gradient-incidence.R` as data, because a document cannot fail.
 
-**What is NOT done, and it is a category rather than a remainder.** phylloptim's clamps — the collar
-clamp, the leaf-temperature clamp, the root vulnerability integral's ceiling and its argument clamp,
-and the per-layer sign splits in the uptake kernels — are **not** instrumented. They bind on the
-leaf's own solve, so they do not sever an AD row: they distort a **supplied** row computed by finite
-differences, which the `crossed` / `try_seat_at` arm machinery already guards. Counting them means
-counting inside phylloptim with plant's enum, which is the wrong dependency direction. Whoever takes
-them needs a phylloptim-side tally and a different test than the three-way one, because the question
-there is arm feasibility rather than a severed row.
+**phylloptim's clamps are NOT instrumented, and that is a decision rather than a remainder.** They were
+investigated to root cause and the answer is that counting them would buy less than the measurement
+already does. Four reasons, each read off the code:
+
+- **They already carry matching derivative kills.** `root_vuln_integral_deriv_at` returns zero exactly
+  where `root_vuln_integral_at` returns the cap — *"because there the value no longer depends on psi"* —
+  and the leaf-temperature clamp pairs the same way (`*dT_dE = (clamped == Tleaf) ? … : 0.0`). So these
+  yield a **correct declared zero**, not a wrong row. This is the treatment §0's E had to be argued
+  into; phylloptim had it already.
+- **The trait row survives the cap by construction.** `root_vuln_integral_droot_b`'s own comment: past
+  the ceiling `G` is the complete-gamma limit `(root_b/root_c)·Γ(1/root_c)`, **linear in `root_b`**, with
+  `dG/dψ` zero — so the Euler identity returns that limit's own derivative. Value, state row and trait
+  row are consistent under the clamp.
+- **The thresholds are not reached on any driver measured — but ⚠️ THE MARGIN IS THIN IN THE STATE
+  VARIABLE AND WIDE ONLY IN THE POTENTIAL.** Max layer potential over recorded steps, rainfall 2.00 down
+  to **0.01** and lifetimes to 20, is **4.5877 MPa** against 6.8229 (the curve's last knot) and 7.3132
+  (the integral's ceiling) — **zero** layer-steps over either, and no layer reaching `psi_crit` 5.87. But
+  the retention curve is steep, and in moisture those same numbers are **θ 0.12949 measured against
+  0.12062 at the cap: a margin of 0.0089, under 7%**, with the wilt point itself at 0.12472. So the
+  reassurance is "no driver dries a layer that far", not "the cap is far away".
+
+  What holds it back is a **feedback rather than a coincidence**, which is the part that makes it
+  durable: the **aridest** driver reaches a *lower* maximum than the moderate ones (4.11 against 4.59),
+  because an arid stand carries less biomass and so transpires less. Drying is limited by the vegetation,
+  so a harsher rainfall driver does not erase the margin — but a change that lets a layer dry while the
+  plant lives would, and 7% of θ is not much room.
+- **Two are off the path outright.** `profit_at_collar_psi` — the collar clamp, defect #1's site — is
+  called only from `tf24f_strategy.h`, never from TF24's; §4.1's `profit_at_fixed_collar` replaced it and
+  refuses rather than clamping, and TF24f is instantiated at `double` only, so the tape link is cut
+  regardless. And the leaf-temperature clamp is behind a flag that is **off**:
+  `use_energy_balance = 0.0` (`tf24_strategy.h:148`), so `Tleaf` is just the environment's 25 °C and the
+  whole energy-balance path — clamp included — is dead.
+
+**A counter here would read zero forever, which is weaker than the margin.** It would say the guard did
+not fire; it would not say why it cannot. So what is asserted instead is the **distance**, in
+`test-gradient-incidence.R`, over the recorded steps rather than at a terminal state — a layer that
+dried and rewetted is exactly the state a terminal reading misses.
+
+**And the cost of instrumenting them is the build loop, not the code — which is #13 in practice.** A
+phylloptim header edit needs a phylloptim reinstall, which needs a near-full `plant` recompile because
+the headers are inline, with the odelia clobber risk on each pass. A threshold on a readable quantity
+does not need any of that.
+
+*What would change this:* a driver that dries a layer past 5.87 MPa while the wettest stays below it —
+0.0089 of θ away, so not far — or `use_energy_balance` being switched on. Neither is reachable by
+rainfall alone, on the evidence above.
+
+**Two findings from that investigation are worth more than the decision, and neither is about counting.**
+
+**⚠️ THE LEAF-TEMPERATURE CLAMP CARRIES A LATENT WRONG ROW, BEHIND THE FLAG.** Its own kill
+(`*dT_dE = (clamped == Tleaf) ? … : 0.0`) is honoured by both *marginal* consumers, so the analytic path
+stays consistent. What is not guarded is plant's **differenced radiation row** (`marginal_at` at
+`radiation·(1 ± 1e-6)`): with both arms on the clamp, `dR_dlight` silently loses the thermal channel and
+keeps only the electron-transport one, and `crossed` never fires because both reads are finite and
+feasible. Reachable at PPFD 2000 with low wind and a large leaf dimension — about 87 °C against the 70 °C
+ceiling. **So switching `use_energy_balance` on is not a forward-only change; it opens a gradient defect
+this document has not costed.** That is the thing to know before anyone enables it.
+
+**And plant's branch-kink guards at the uptake sign splits are OVER-conservative.** The
+`T_src_min`/`T_src_max` and `T_pos_lo`/`T_neg_hi` pairs are integration-range **splits**, not clamps, and
+the kinks are **removable**: `span/integral = Δ/ΔG = 1/⟨f_r⟩`, an analytic function of Δ through zero,
+with the signs cancelling — so `r_R`, and hence `E_i`, is smooth across the split and its Δ→0 limit is
+exactly the special-case branch. The ψ = 0 split is dead anyway, because `psi_soil ≥ 0` is validated and
+the collar is bounded below by the wettest layer. So the two "sits on a branch kink" refusals lose rows
+for a function that **is** differentiable there. That costs **availability, not correctness** — which
+makes it the opposite of every other item in this document, and the one place where a guard could be
+removed rather than added.
 
 ### What is left, and it is smaller than what was closed
 
@@ -449,7 +508,36 @@ Nothing in §0 remains. What the work opened rather than closed:
    a reason to, since nothing reaches them either.
 3. **A water-independent census metric**, if one is ever wanted. F1's separation is built and correct
    and buys nothing until such a metric exists — see §0's F.
-4. **#13, build provenance** — untouched, and the one defect still open.
+4. **#13, build provenance** — the one defect still open, and now root-caused. It is **two mechanisms
+   with one shape: the build reports success without saying what it built.**
+
+   *A header edit across a package boundary is invisible.* `plant` compiles `phylloptim`'s headers from
+   the **installed** library via `LinkingTo`, not from the working tree, and editing them moves no
+   `.cpp` timestamp in `plant` — so `make` finds nothing to do, the build succeeds, and the `.so` runs
+   the old model. There is no error and no warning; the only symptom is numbers that do not match what
+   was just written.
+
+   *And a resolving installer replaces the fork.* `phylloptim/DESCRIPTION` carries
+   `Remotes: traitecoevo/odelia@v0.2.1`, so `install.packages(".")` or `devtools::install()` fetches
+   **upstream** odelia over the local fork — and upstream's lacks the `Replayable` concept `plant`'s
+   `store_trajectory` static-asserts on, surfacing as an error in `scm.h` in a session that never
+   touched odelia. `R CMD INSTALL` does not resolve `Remotes` and is therefore the safe form. Six
+   occurrences across three sessions, one of them this one.
+
+   **The storage-class half of this is NOT a live defect, and it is worth saying so before someone
+   "fixes" it.** `plant/src/Makevars` and `odelia/src/Makevars` both set `-DXAD_NO_THREADLOCAL
+   -DXAD_USE_STRONG_INLINE` and each comments that they must match the other exactly, because a
+   storage-class mismatch **does not change the mangled name** and so cannot be caught by the linker.
+   `phylloptim/src/Makevars` sets neither — and is exempt, because phylloptim uses `xad::fwd` only and
+   never references `Tape` or `xad::adj`. Forward mode is tapeless, so its `.so` never touches the
+   `__thread` variable the flags govern. **That exemption is silent and would break the moment
+   phylloptim gained a reverse-mode path**, which is the same defect again: a pairing requirement with
+   no mechanism.
+
+   *A real fix is packaging work, not gradient work*: a stamp comparing the installed phylloptim's
+   header hash against the working tree's, refused at configure time. Until then the mitigation is the
+   procedure in §8 — and the `grep -c "concept Replayable"` check is the only thing that reports the
+   second mechanism at all.
 5. **The cost figure**, still 14.6× and now measured on a gradient that answers strictly more than the
    one that figure was taken on.
 
@@ -557,7 +645,7 @@ Ordered by severity, which is not the order of the work — see §3 for that.
 | 10 | raw error escapes | **closed** | no refusal channel exists in C++ | every failure above | wrongly |
 | 11 | forward run dies | upstream | real, and **already largely fixed** upstream *(corpus: #599 went 17/40 → 5/40)* | did not fire in 14 runs | no |
 | 12 | resource | other branch | the forward `O(K·N)` field build, inherited by the sweep's replay | every multi-species run | no |
-| 13 | build provenance | open | header changes move no `.cpp` timestamp; storage-class flags must pair | any rebuild | varies |
+| 13 | build provenance | open — root-caused below, and it is packaging rather than model | a header change moves no `.cpp` timestamp, so `make` builds nothing and the `.so` runs the old model with no error; and `phylloptim`'s `Remotes: traitecoevo/odelia@v0.2.1` lets a resolving installer replace the local fork | **every** rebuild that crosses a package boundary — six occurrences in three sessions | **wrongly**: it reports success |
 | 14 | pinned profit rows priced by the interior condition | **closed** | `marginal_price_water` is `λκf(p)/S`, which is `∂Π/∂E_up` **only once `∂Π/∂p = 0`** — the first-order condition is inside the expression rather than beside it | every pinned point | yes |
 
 **#14 was not in this list and was found by refereeing a row nothing tested.** The pinned rows landed
