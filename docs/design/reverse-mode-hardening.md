@@ -17,9 +17,9 @@ and — as important — what it deliberately did not do; §4 the specifications
 derivations and why they were decided the way they were.
 
 **Eleven of the fourteen defects are closed, two are open (#2, #13), and two are not this work's (#11
-upstream, #12 another branch).** #1 and #9 are both closed: a pinned operating point answers, and a
-finite-difference arm is taken from inside the feasible interval rather than refused. `plant` is at
-`d30ad318` on `ad/v3-forward`, `phylloptim` at `dc378a8`; **nothing is pushed.**
+upstream, #12 another branch).** The gradient answers on every regime a driver has reached except one
+guard: pinned points, the crossings near a bound, and both shut branches all return rows. `plant` is at
+`a480d954` on `ad/v3-forward`, `phylloptim` at `e522ef0`; **nothing is pushed.**
 
 **One thing to hold before starting.** The gradient answers on every driver tried, including the two
 this document had recorded as refusing. Every run that answered before is **bit-identical**, measured
@@ -210,7 +210,45 @@ The gate requires the location to be wholly present or wholly absent, because a 
 shape that reads as an answer. **Answering `shade-death` removes this instance**; the seeding path
 keeps the shortcoming for whatever refuses there next.
 
-### D — #2, the amplification ceiling. Two halves, and the structural one is independent of the value
+### D — ~~shade death and hydraulic shutdown~~ **DONE**
+
+The last branches with no rows. A shut point is not an argmax, so it gets its own function rather than
+a branch inside the interior derivation, with which it shares nothing — no curvature, no envelope
+step, no bound, no collar.
+
+**Every row is a difference of the solve itself**, which is what makes one piece of code right for two
+kinds that carry opposite rows (§4.4). Three things are declared instead, each for a reason that is
+not economy:
+
+- **radiation and the maximum conductance** — neither appears in the profit on this branch. Radiation
+  decides *which* branch, and that is a kink rather than a derivative.
+- **the assimilation-side traits** — gross assimilation is identically zero, so they reach nothing;
+  and a step in one moves `assim_max_`, the quantity *deciding* the branch. Differencing them refused
+  at a boundary their own row does not depend on, which is what a shaded stand refused on first.
+
+**Respiration is the case that needs both.** `R_d_25` is live here *and* sits against the boundary,
+because `assim_max_` is net of it — so the arms are centred where both stay on the branch and
+one-sided second order where one does not, the same arrangement §0's C already uses.
+
+*Refereed at the leaf:* a shaded leaf's soil rows are `−C'(B)·∂B_wet/∂ψ_j`, and against a difference of
+the profit at a **re-solved** point the composition agrees to **3.6e-07**. Both factors already had
+their own referee, so a disagreement would have been the product's.
+
+| driver | before | after |
+|---|---|---|
+| `k_I 20, L=5` | refused | **answered** — 91,463 shade-death points |
+| seasonal `L=5` | answered | answered, now over its 6 hydraulic-shutdown points too |
+
+**What still refuses is the LIGHT FLOOR at `k_I` 40** — a guard rather than a regime, and one this
+document listed as *implemented and never fired*. **It has now fired**, which closes that entry of
+report 08 §7's guard census.
+
+**And three ladder checks had to be re-pointed**, the same shape as C2's: `test-gradient-ladder-sweep.R`
+asserted that a shutdown fixture *refuses*. That was the gap recorded as a gate. They now assert it
+answers with finite rows — and say what is still **not** discharged: the two output kinds are still not
+separable, because the fixture that would separate them is a fold and nothing here reaches one.
+
+### E — #2, the amplification ceiling. Two halves, and the structural one is independent of the value
 
 **D1 (structural).** The present guard refuses the **whole leaf** when the curvature is unusable. The
 profit row is valid at a fold; only the uptake rows cease to exist. Make the two output kinds
@@ -221,7 +259,7 @@ the second-order condition already forces `Π_pp ≤ 0` there. It needs a sweep 
 feasible interval at states a trait search reaches. Guard on `|s|/|Π_pp|`, and **emit the profit row
 regardless**.
 
-### E — the remaining fourteen clamp sites
+### F — the remaining fourteen clamp sites
 
 One of fifteen is instrumented (the light floor, defect #4's own site). The rest take the same
 `clamp_site` enum and the same counter: the soil potential ceiling and residual floor, the
@@ -691,17 +729,19 @@ today. Intensive, per unit leaf area; the leaf cannot check this, so assert it c
 | `PinnedDryRootPsiCrit` | `p = root_psi_crit` | exactly `(0,…,0,−1)` — **unreachable at shipped defaults** |
 | `PinnedDryRootCrit` | `p = root_crit` | `∂root_crit/∂u` — **every dry pin measured is this one** |
 | Determined | `p = ½(bound_a + bound_b)` | ½ of both, then `find_psi_stem_from_psi_root` (§4.6) |
-| HydraulicShutdown | stem at `psi_crit`, zero flux | trait rows closed form; env rows **through the wet bound**, not zero |
-| ShadeDeath | gross assimilation below `R_d` at `ci = ca` | as above — and it is the branch a parity sweep actually reaches |
+| HydraulicShutdown | stem held at `psi_crit`, every layer zeroed | env and uptake rows **exactly zero** — **ANSWERED** |
+| ShadeDeath | gross assimilation below `R_d` at `ci = ca` | env rows **through the wet bound**, uptake non-zero — **ANSWERED** |
 | *(Prescribed — TF24f)* | an ODE state | free from the adjoint |
 | SolverRefused, NonFiniteGradient | no plant described | **refuse** |
 
 Pinned rows: `w = λ_Π·marginal + s`, `ū = v̄ᵀ∂f/∂u + w·∂B/∂u`. The multiplier `marginal` is already
 computed at `tf24_strategy.h:1013` and discarded at 1338.
 
-**⚠️ ZERO FLUX IS NOT ZERO ROWS, and this table said it was.** Read off the branch: `ShadeDeath` seats
-**both** potentials at `root_zero_E` — the collar at which uptake is zero, which **is the wet bound** —
-and sets `profit = −R_d − C(root_zero_E)`. So profit reads the soil, through the bound, and the rows
+**⚠️ ZERO FLUX IS NOT ZERO ROWS — for ONE of the two.** This table said it was for both, and that is
+right for `HydraulicShutdown`: `set_shutdown_state` holds the stem at `psi_crit` whatever collar it is
+handed, and fills `soil_consumption_` with zeros. It is wrong for `ShadeDeath`, which seats **both**
+potentials at `root_zero_E` — the collar at which uptake is zero, which **is the wet bound** — and
+sets `profit = −R_d − C(root_zero_E)`. So that profit reads the soil, through the bound, and the rows
 are
 
 ```
