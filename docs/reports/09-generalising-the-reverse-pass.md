@@ -1529,8 +1529,20 @@ first, and the seventh, which was the smallest and corrected this section's own 
 the economy the first leaves open, and the fifth is withdrawn. Each says what to do, why, and what
 would show it done.
 
-**Three of the seven are therefore live: the opaque node, refusal, and the replay pass.** None of
-them is reached by further work on the sweep, which is the useful thing this ordering now says.
+**Three of the seven were left live — the opaque node, refusal, and the replay pass — and all three
+are now deferred, together with the second-model question §13 asks.** None of them is reached by
+further work on the sweep, which is what makes deferring them coherent rather than merely postponing
+them: the solver side of this report is finished, and each of the three is a piece of work whose
+subject is somewhere else. The opaque node and the leaf's rows are model calculus. Refusal is a
+return type crossing the whole stack. The replay pass is a modelling claim about what an invader
+does not move. A second model is a second model.
+
+**What that leaves as this report's own remaining scope is measurement, not construction**, and it
+is worth naming because a reader will otherwise read the deferral as completion: the step
+recording's peak tape is quoted from the per-stage figure rather than measured, §11's shares were
+withdrawn and not retaken, and §13's generality claims have been checked against exactly one model
+because only one is rebindable. **The design is discharged; the numbers behind two of its sentences
+are not.**
 
 **1. ~~Record the step, not the stage.~~ Done.** `Step::sweep_stages` walked the six stages
 backwards and split each stage's adjoint over the state and the earlier rates by the Butcher
@@ -1591,7 +1603,8 @@ assumed.
 *Done when:* one of the two is measured to dominate, and the loser is written down here so it is not
 re-derived.
 
-**3. The opaque node — the last hand-written derivative surface, and mostly not what it looks like.**
+**3. The opaque node — the last hand-written derivative surface, and mostly not what it looks like.
+Deferred.**
 Measured: **≈880 lines of TF24 exist only because of AD** — 766 in the strategy against 116 in the
 environment, or 31% of `tf24_strategy.h` — and **460 of them are one function**, the leaf's supplied
 rows.
@@ -1627,7 +1640,7 @@ against, and it is not the hard one.
 *Done when:* the classification cannot be bypassed by a consumer, which is the defect that lets an
 interior formula be applied at a pin; and the transpose identity holds without a reference gradient.
 
-**4. Refusal — which is built at one site, in the wrong package, and nowhere else.** §7 called this
+**4. Refusal — which is built at one site, in the wrong package, and nowhere else. Deferred.** §7 called this
 the row with nothing built at all; that overstates it. The dependency supplying the leaf's rows
 already returns validity beside its answer — a `usable` flag and a message — and already refuses an
 envelope step at a non-interior point, which is the mechanism §5.5 credits with striking the
@@ -1663,7 +1676,7 @@ traversal is the failure this report is about**, so the walks belong to that bra
 *Do:* nothing here. If a reduction transpose is ever hand-written again, it needs an interval-major
 walk with the caller keeping its own accumulator, and the deleted primitive is what one looks like.
 
-**6. The replay pass, which is now the only way an invasion run exists at all.** The model's second
+**6. The replay pass, which is now the only way an invasion run exists at all. Deferred.** The model's second
 recorder has been **deleted**, and what it was is worth stating precisely, because it is this
 report's own §7.3 finding arriving at its conclusion.
 

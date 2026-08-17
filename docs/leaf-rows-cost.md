@@ -65,10 +65,21 @@ through `R_MAKEVARS_USER` with `CXX20FLAGS = -O2 -DNDEBUG -g`, and confirm from
 the log that no `-O0` trails the `-O2`. `-g` changes no codegen and is what makes
 a profile readable.
 
-**Archive the binary.** `pkgload` copies the built `.so` to a temp directory and
-unlinks it at exit, so a profile outlives the binary it names. Copy `plant.so`
-aside after each build and resolve the profile against that copy, or the samples
-are unresolvable addresses.
+**~~Archive the binary.~~ Archiving is not enough — profile an INSTALLED plant.**
+`pkgload` copies the built `.so` to a temp directory and unlinks it *while it is
+still mapped*, so the profile's `/proc/self/maps` trailer records the path with a
+literal `(deleted)` suffix. **No archived copy can be substituted for that**,
+because what is wrong is the map entry and not the file: `pprof` looks for a name
+that never existed and every sample inside plant resolves to a bare hex address.
+Install the package and profile that, which is what `scripts/profile-gradient.sh`
+requires.
+
+**Refine the schedule in a different process from the one you sample.**
+Refinement bisects on trait-dependent errors and re-runs the whole model many
+times — **206 s against a ~30 s run at century scale** — so a profile that
+includes it spends about half its samples in the forward model and reads as if the
+reverse pass were cheap. It also silently changes what a gradient-to-run *ratio*
+means, because the denominator becomes many runs rather than one.
 
 **Snapshot the maps before killing a long run.** gperftools writes the
 `/proc/self/maps` trailer only at clean exit; a killed run leaves samples with
@@ -154,7 +165,24 @@ A quantity the consumer discards need not be produced.
 
 ---
 
-## 3. Where the cost is
+## 3. Where the cost is — ⚠️ this table describes a design that no longer exists
+
+**Read the table below as history.** Every row names an object the step recording
+deleted: there are no per-cohort block recordings, no separate inflow-boundary
+recording, and no plain-double stage rebuild. One recording now spans a whole
+Runge-Kutta step and is swept once per seed, so the phases these shares were
+attributed between are gone and the shares cannot be rescaled onto the current
+pass. The instrument that produced them has gone too.
+
+What survives is the *method* above and the *reasoning* below the table — the two
+facts about where reverse mode does and does not pay, and the observation that the
+inflow boundary was over-weight because it rebuilt the field at the active scalar.
+A replacement table has to be taken, not derived: see
+`scripts/profile-gradient.sh`.
+
+### The historical table
+
+
 
 Counts are from a 20-year fixture (2,214 stages), where the structure is
 identical and the run is short enough to instrument; shares are from the century

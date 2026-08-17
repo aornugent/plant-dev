@@ -328,6 +328,49 @@ once in five full-suite runs, and never when that file is run on its own. If a r
 aborts there, re-run before investigating; if you are changing the leaf example or
 the AD driver, run the whole suite several times, because once is not evidence.
 
+## Profiling — read the method before taking a number
+
+**[`docs/leaf-rows-cost.md`](docs/leaf-rows-cost.md) is the method**, and its §1 is
+the part to read first: three measurements are needed and any two of them mislead,
+because **share = count × price** and unit costs here differ by more than an order
+of magnitude. Rank by share, never by a count and never by a profiler's own
+attribution — at `-O2` an inlined callee has no frame of its own and its samples
+land on its caller. §2 states which lever is worth pulling; §5 states what not to
+do. Its §3 share table describes the per-cohort block design the step recording
+replaced, so treat those shares as history, not as the current distribution.
+
+**`scripts/profile-gradient.sh` is the harness**, and it automates the four guards
+§1 lists:
+
+```sh
+PLANT_TEST_LIB=<your lib> scripts/profile-gradient.sh scripts/profile-stand-gradient.R
+```
+
+It samples with gperftools' `libprofiler` (`perf` is unusable wherever
+`kernel.perf_event_paranoid` > 2, which is the default here), resolves with
+`google-pprof`, and prints a flat profile and a by-function one. Three things it
+knows that cost a session each to find:
+
+- **`libprofiler` is `LD_PRELOAD`ed onto the R *binary***, not the `R` wrapper and
+  not `Rscript`: via those the first `SIGPROF` arrives during the exec chain and
+  kills the process.
+- **Profile an INSTALLED plant, never a `load_all`ed one.** `pkgload` maps its own
+  copy of `plant.so` and unlinks it while it is still mapped, so the profile's maps
+  entry reads `plant.so (deleted)` — and **no archived copy can be substituted for
+  it**, because the map entry is what is wrong rather than the file. Every sample
+  inside plant then resolves to a bare hex address. Install with
+  `R CMD INSTALL -l $PLANT_TEST_LIB plant`.
+- **Refine the schedule in a separate process.** Refinement bisects on
+  trait-dependent errors and re-runs the whole model many times — measured at
+  **206 s against a ~30 s run at century scale** — so a profile including it spends
+  half its samples in the forward model, and a gradient-to-run ratio computed
+  against it flatters the sweep by using many runs as the denominator.
+  `scripts/profile-stand-gradient.R` caches the refined parameters beside its output
+  and says so when it had to refine.
+
+`google-pprof` comes from the `google-perftools` package, which the `-dev` libs do
+not pull in; install it explicitly.
+
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 
 
