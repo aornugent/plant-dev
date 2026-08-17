@@ -63,7 +63,17 @@ partials — is not widened. It stops existing.
 **§14 states where this ended up and what is left.** The entries in §7, §8 and §10 record which
 parts of their claims survived contact and which were wrong; that record is kept, because the size
 of a movement is what says whether a claim was structural. No step of it changed a number — the
-gradient is bit-identical throughout — and the non-ladder suite's six known failures are unmoved.
+gradient is bit-identical throughout, at 504 passing on the ladder.
+
+**Every checkable claim below has since been read back against the code, and the report was losing
+to the tree.** Most of what it proposes had been built while it went on describing the proposal:
+§7's "what an author writes today" column is a before-picture, §8's delete-list is discharged but
+for one row, §11's cost table names five components that no longer exist, and §2's most quotable
+sentence — that the solver gained seven lines of header — understated the gain by two orders. Those
+are corrected in place, with the old figure kept beside the new one wherever the movement is the
+lesson. **A design report that is not re-read against the code becomes a description of a tree
+nobody has, and the failure is quiet**, which is the same failure this report is about one level
+up.
 
 The reading is of `plant` on `ad/reverse-pass-simplify` and `odelia` on `ad/quadrature-primitive`,
 which build at `-O2` and run. Every figure here is measured on that tree. Where an earlier reading of
@@ -116,18 +126,31 @@ recorded in prose; a *blocked* row and a missing row are the same number.
 
 That was the reading this report was written from, and the middle row is the one it was aimed at.
 
-**Measured after: `plant`'s reverse-pass surface is −1,576 lines against +246, across thirteen
-files.** `patch.h` goes 2,409 → 1,729 and `species.h` 1,448 → 1,181; `species.h`,
-`tf24_environment.h` and `node.h` carry no adjoint code at all. The three functions this section named
-as a quarter of the bulk — `cohort_block_adjoint`, `boundary_condition_adjoint`, and the light
-reduction's transpose — are all gone, together with the soil cascade, the offspring rate, the uptake
-trapezium, the environment's rate transpose, and the carriers between them.
+**Measured after: `plant` sheds −2,080 lines against +661, across twelve files.** `patch.h` goes
+2,407 → 1,455 and `species.h` 1,419 → 1,180; `species.h`, `tf24_environment.h` and `node.h` carry
+no adjoint code at all. The three functions this section named as a quarter of the bulk —
+`cohort_block_adjoint`, `boundary_condition_adjoint`, and the light reduction's transpose — are all
+gone, together with the soil cascade, the offspring rate, the uptake trapezium, the environment's
+rate transpose, and the carriers between them.
 
-**`odelia` went the other way, and that is the shape the exchange should have.** Its shipped headers
-are −140 against +133 — two primitives gained, one file and one corner of XAD's tape API lost, for
-seven lines net — while its tests are +280 against −145, because the primitives arrived with referees
-and seventeen probes stopped restating their own build flags. **A thousand-line deletion in the model
-cost the solver seven lines of header.**
+*(An earlier reading gave −1,576 against +246 over thirteen files, with intermediate per-file
+figures. Neither the totals nor the endpoints reproduce against any base; they were taken
+mid-flight and are corrected here rather than carried. The direction and the order of magnitude
+were right, which is the part the argument used.)*
+
+**`odelia` went the other way, and the size of it was under-reported by two orders.** This section
+first put its shipped headers at −140 against +133 — *"a thousand-line deletion in the model cost
+the solver seven lines of header"* — which was the most quotable sentence in the report and is
+false. Measured across the whole branch, odelia's `inst/include` is **+994 against −329, net
++665**: a 341-line `adjoint.hpp` that did not exist, the batched stepper, the segment walk and its
+partition assert, against a 70-line file retired. Its tests are +528 against −256.
+
+**The exchange is still strongly in the model's favour and that is the claim worth keeping** —
+plant sheds far more than odelia gains, and the shed lines are the ones that could drift while the
+gained ones are checked in one place. But it is a transfer at roughly two lines out for one in, not
+a thousand for seven, and the difference matters because the original number invited the reading
+that a solver primitive is nearly free. It is not. It is cheaper than the drift, which is a
+different argument and the true one.
 
 **The bucket that did not move is the one worth looking at.** The graft is 412 lines in the strategy,
 and only its last twenty moved: the *construction* is now odelia's, but the partials fed to it are
@@ -181,11 +204,13 @@ entire replayed adjoint**: the trajectory store, the stage rebuild inside the st
 per-unit re-run all rest on it. The staging is not a numerical convenience; it is what makes the
 reverse pass expressible at all.
 
-**And the transpose inherits the staging.** Because the closing element is read at two different
-points — one consumer sees the `R0` evaluation, another the `R` one — each read point needs its own
-accumulator. `boundary_node_adjoints` carries `density_in_field` and `density_in_uptake` separately
-for exactly this reason: *"one accumulator would transpose one derivative through the other's
-argument."* The two values differ by more than `1e-6` relative and a test asserts they do.
+**And the transpose inherited the staging.** Because the closing element is read at two different
+points — one consumer sees the `R0` evaluation, another the `R` one — each read point needed its own
+accumulator, and the carrier held two density slots for one quantity so that one accumulator could
+not transpose one derivative through the other's argument. **That carrier no longer exists**: the
+stage recording holds the ordering itself, because it records the two evaluations in the order they
+happen. What survives is the fact underneath it — the two values differ by more than `1e-6` relative,
+and a test still asserts they do.
 
 > **The general rule: when a fixed point is resolved by staging, the number of accumulator slots a
 > quantity needs equals the number of stages it is read at.** Nothing in the type system counts them.
@@ -197,14 +222,14 @@ places the closing element in it, and one rebuilds the field closing from what t
 kept partial is the object the middle step needs, and holding it is what makes the third step a
 close rather than a re-derivation.
 
-So the sharpest form of this section's old claim is withdrawn. It said the reverse side was forced
-to name apart a distinction the forward model does not represent, and that this asymmetry was the
-whole reason the boundary transpose cost its lines. The forward model represents it now. **What
-survives is the accumulator count**, which is the part that was actually load-bearing: the reverse
-side still carries two density slots for one quantity, for the reason the struct's own comment
-gives — one accumulator would transpose one derivative through the other's argument — and nothing
-in the type system counts read points even though the forward model now stages them. The
-distinction being representable did not make it *counted*.
+So the sharpest form of this section's old claim is withdrawn, and then withdrawn a second time. It
+said the reverse side was forced to name apart a distinction the forward model does not represent,
+and that this asymmetry was the whole reason the boundary transpose cost its lines. The forward
+model represents it now. The first re-reading kept the accumulator count as the load-bearing
+residue — two slots for one quantity, uncounted by any type. **That is gone too, and by the route
+this report argues for**: a tape does not need to be told how many read points a quantity has,
+because it records each read where it happens. The rule in the box below is still true of any
+hand-written transpose. It is no longer true of anything in this tree, which is the point.
 
 **And the staging costs two full field builds per environment computation**, which §5.3's tape
 arithmetic has to carry and did not: the value the first build returns is kept, but the interpolant
@@ -421,8 +446,11 @@ A model with an inner solve declares the solve, not its calculus:
 
 The primitive owns the envelope theorem, the implicit function theorem, the rank-one collapse, the
 amplification ceiling, the classification, the graft, and the transpose identity. **The
-classification becomes structural** — a consumer cannot fail to consult it, which is the defect that
-currently applies the interior formula at pins.
+classification becomes structural** — a consumer cannot fail to consult it. ~~which is the defect
+that currently applies the interior formula at pins.~~ That defect does not occur: §5.5 records
+that the submodel supplying these rows refuses at a non-interior point before any consumer reaches
+the formula. What the primitive changes is not the outcome but where the guarantee lives — today it
+rests on one dependency choosing to check, and a second consumer would not inherit it.
 
 One generalisation follows, and it is **not** free: let the node carry **M operating points instead
 of one**. The collapse is then `M` independent rank-one collapses — cheap, `O(M)`, block-diagonal
@@ -570,6 +598,14 @@ read off the branch rather than argued:
 - **It is barely exercised.** One step of a three-state toy, never through the segment sweep, never
   batched, never with a parameter.
 
+**Two of those four have since been discharged, which is what "tried, and it does not" was worth.**
+The branch has a parameter channel — the accumulator is threaded through the stepper into the
+product — and it reaches record-once-sweep-many rather than recording per metric. Those were the
+two that made the objection structural rather than incidental, and closing them is most of what
+§14 records. The remaining two were always the weaker pair: whether it costs more is now the
+question §11 can no longer answer, and "barely exercised" was a statement about the suite, which
+has changed.
+
 **And the premise underneath was wrong, which is the more useful finding.** This report reads plant
 as hand-writing its interiors. It is not: `cohort_block_adjoint` *is* odelia's own
 `vector_jacobian_products`, at cohort granularity. **plant is already on a taped design** — what it
@@ -633,6 +669,13 @@ what produces the drift.** The DX claim is the third column — what an author w
 robustness claim is the fourth, because a primitive that removes work and keeps the silent failures
 has not earned its place.
 
+**Read the second column as "before", not as "today".** It was written against the tree this report
+opened on, and five of its seven rows have since been discharged — the paragraphs after the table
+say which and how. Two rows are wrong even as history: the parameter accumulator is described as a
+mutable System member with six writers, which the text below the table correctly says is gone; and
+refusal is described as not existing in C++ at all, which was never true of the dependency that
+supplies the leaf's rows (see §14.5 item 2).
+
 | primitive | what an author writes today | what they would write | how a mistake surfaces |
 |---|---|---|---|
 | **parameter adjoint** | a mutable System member, **six** writers, four defensive re-zero guards; since the batching a vector of them indexed by metric, so the out-of-band channel grew a dimension rather than acquiring a route | the state, the seeds and where to accumulate | a **length mismatch**, where before it was a fixed fraction of the right answer with the correct sign |
@@ -688,12 +731,14 @@ DX argument in miniature: association order is not a modelling decision, it is a
 decision, and a model author is currently required to get it right in four places to keep two sums
 agreeing in their last bits (report 03 §3.2).
 
-**Half of this is now built, and building it corrected the specification.**
-`odelia::quadrature::trapezium_weights` takes the grid through a callable returning `double` — so a
-width cannot carry a derivative however the caller stores its grid, which is passivity by type rather
-than by discipline — and owns the stopping rule and the closing interval. Both of plant's reduction
-transposes now walk it. What is not yet migrated is the *forward*, and the reason is a constraint the
-design did not have:
+**Half of this was built, and then deleted, and the deletion is the finding.**
+`odelia::quadrature::trapezium_weights` took the grid through a callable returning `double` — so a
+width could not carry a derivative however the caller stored its grid, which is passivity by type
+rather than by discipline — and owned the stopping rule and the closing interval. Both of plant's
+reduction transposes walked it. **Both transposes were deleted eight hours later** by the stage
+recording, which transposes the reduction along with everything else it reads, and the primitive
+went with them as a concept with nothing behind it. What it measured stands, and is the constraint
+the design did not have:
 
 > **A per-slot weight vector cannot serve the forward.** `Σ wₖ fₖ` and `(Σ widthᵢ(f_lo + f_hi))/2` are
 > the same map with a different association, and the forward's association is asserted **bit-exactly**
@@ -702,12 +747,18 @@ design did not have:
 > **interval-major**, and a caller keeps its own accumulator. It is, which is why the transposes could
 > take it; the forward needs a summing entry point on the same walk, and a re-blessing budget.
 
-**The counts in §8 were wrong and the walk is more duplicated than they say.** There are **two**
-hand-written trapezium transposes, not five — the census transpose is taped, and the offspring
-transpose has no grid at all. But the half-factor has **six spellings across eight lines**, the early
-exit is written **four** times, and the closing predicate **five**. Migrating the forward sites
-removes about **288 lines of walk code out of 505**, and that is where this primitive pays for itself:
-on the transposes alone it roughly breaks even in lines and buys only the hardening.
+**The counts in §8 were wrong, and re-counting them a second time reversed the conclusion.** The
+first re-count said the walk was *more* duplicated than §8 claimed: two hand-written trapezium
+transposes rather than five, but a half-factor in **six spellings across eight lines**, an early exit
+written **four** times and a closing predicate **five**, so that migrating the forward sites would
+remove about **288 lines of walk code out of 505**.
+
+**Counted against the tree as it now stands, that duplication is largely gone and was not removed by
+this work.** Inside the competition walks there are **two** trapezium walks, not four — the
+value-only path is a one-line delegation to the fused pair's first entry — **one** spelling of the
+half factor, **one** in-loop early exit, and **two** closing predicates, which differ by one clause
+and legitimately so. What is left is not a primitive's worth of duplication, and §14.5 records the
+item as withdrawn rather than pending.
 
 ### 7.2 The growth primitive
 
@@ -735,11 +786,19 @@ the converse — that a hook the model provides is still called by anyone.**
 
 It is not a hypothetical. The engine once drove three caching hooks; a commit replaced that detection
 protocol with a concept and deleted the three call sites. The model kept its half. Those three
-functions are still defined, still compile, and are called by nothing, so the container they fill
-stays empty forever and the one feature built on it — replaying a completed run's environment against
-a different parameter set — throws on its first statement, for every model, always. **It has been
-dead for over a month and the suite does not say so**, because the test that asserts the failure
-message asserts it on an object that has not been run, where the message is also correct.
+functions stayed defined, stayed compiling, and were called by nothing, so the container they fill
+stayed empty forever and the one feature built on it — replaying a completed run's environment
+against a different parameter set — threw on its first statement, for every model, always.
+
+**It stayed dead for four months, and the suite's silence moved rather than broke.** The suite does
+report it, as two failures; `AGENTS.md` lists them among six "known failures that predate the
+gradient work" and tells every reader they are not a signal. They are precisely a signal, and the
+attribution was wrong. Anything can be made quiet by being written down as expected.
+
+**The hooks are now deleted rather than reconnected** (§14.5), which is the only reading under which
+this section's rule holds: a hook nothing calls is not a contract, and the honest response to
+finding one is to remove it or to make its absence a compile error — never to leave it standing on
+the strength of the feature it was once for.
 
 Two things follow that bear directly on §6's proposal.
 
@@ -799,13 +858,23 @@ Great abstractions are measured in concepts removed.
 | the five explicit `∂p*/∂u` vectors | see below |
 | `narrow_over_introductions`, `widen_over_introductions`, `narrow_to_segment`, the segment loop | odelia's, once growth is a declared event |
 
-**The last two rows are the strongest evidence the primitives are missing.** The model does not use
-the rank-one collapse at all: it forms `∂p*/∂u` explicitly for every input family and multiplies each
-into every output row — precisely the outputs-by-parameters matrix report 02 §3.2 says is never
-formed, ~200 lines of it. The opaque node *already exposes* the collapse; its consumer could not use
-it, because the node's output set was enumerated from what the solver exposed rather than from the
-consumer's equations. **Report 02 §3.0's warning, realised exactly** — and undetectable, because an
-absent output has no column.
+**This table is now a list of things that happened, with one exception.** Checked against the tree,
+every row above has been discharged: the retired file, the grafts, the seeding order, the trait
+array (which is one array of structs carrying one boolean, not four arrays carrying three), both
+named-slot carriers, the reduction transposes, the walk copies, and the narrow/widen/segment trio,
+which are odelia's. **The exception is the classification enum**, which still derives four values
+from residual magnitude in the way report 05 §7.0 forbids, and still sits beside the correct
+decision tree unused by the gradient entry point. It is the only surviving deletion target here,
+and it belongs with the opaque node (§14.5 item 1) rather than on its own.
+
+**The last two rows were the strongest evidence the primitives were missing, and they are the two
+that moved furthest.** The claim was that the model never uses the rank-one collapse — that it
+forms `∂p*/∂u` explicitly for every input family, ~200 lines of precisely the outputs-by-parameters
+matrix report 02 §3.2 says is never formed. **It uses the collapse now**, through a primitive that
+takes the theorem's quotient once rather than once per layer per input, and the explicit vectors are
+gone. What the row got right was the diagnosis: the node's output set had been enumerated from what
+the solver exposed rather than from the consumer's equations, which is report 02 §3.0's warning
+realised exactly, and undetectable, because an absent output has no column.
 
 ---
 
@@ -959,13 +1028,8 @@ state to `1.11e-10` where the old walk would have read `0.878`.
 
 ## 11. Costs and gaps the design does not price
 
-**The boundary transpose records a whole-ensemble tape in the innermost loop** — the full shared-part
-rebuild plus a boundary evaluation per unit group, once per stage per step per functional. Its skip
-guard only fires when no boundary channel is seeded. Report 01's "peak is one unit" is true of the
-unit block and false of the stage.
-
-**Measured, and it is the sweep.** Component shares of one right-hand-side transpose, taken in
-process so they are immune to machine drift:
+**~~Measured, and it is the sweep.~~ This section's cost table no longer describes anything, and it
+is withdrawn rather than corrected.** It read:
 
 | | share |
 |---|---|
@@ -975,13 +1039,23 @@ process so they are immune to machine drift:
 | the boundary nodes | 1.3% |
 | **both reduction transposes and the environment cascade** | **1.1%** |
 
-**So this report has been arguing about the wrong 1.1%.** The hand-written reductions are the
-maintenance problem and they are nearly free; the object that costs is the one already written the
-way §5.3 recommends — by tape. Two consequences. Any argument that taping a reduction is too
-expensive is answered before it is made: it is a rounding error on this profile either way, so the
-choice is settled by drift and not by cost. And the *next* cost question is not the reductions at
-all, it is why a whole-ensemble recording per stage per step per functional is taken to read two
-densities and a height out of it.
+**Every row names an object that has since been deleted.** There is no boundary transpose taking a
+whole-ensemble tape, no per-unit block, no reduction transpose and no environment cascade: the
+stage recording replaced all five with one recording of `derivs`, swept once per seed. The
+instrument went with them — the timing harness that produced these eight entries now returns four
+keys, and its own source says why: *there are no components left to attribute between.*
+
+**So the table cannot be re-measured, only re-derived, and nothing here has done that.** Two
+inferences drawn from it elsewhere in this report fall with it: that the reductions were "the wrong
+1.1%" to argue about, and that narrowing the recorded field would "take most of the 62.9%". Both
+may still be true. Neither is now evidenced, and a share quoted from a profile of deleted code is
+worse than no number, because it reads as measurement.
+
+**What the section is still good for is the shape of the question.** The costs below it are read
+off source rather than off a profile, and those that name surviving code are checkable; each is
+marked where it is not. A fresh profile is its own piece of work, and the procedure for taking one
+— counts times prices, never a profiler's own attribution — is in the cost document rather than
+here.
 
 **That question has been answered, and answering it deleted the reductions' transposes.** The
 boundary condition is evaluated *in* the field, so the knots are a strict intermediate of its own
@@ -1006,17 +1080,23 @@ query touches one span — would take most of the 62.9%, but only while the hand
 exist to supply the rest. **Correctness and cost are available separately here and together only
 under rung B**, which records the shared field once per stage and hangs every transpose off it.
 
-**`ȳ(0)` is computed and discarded** — report 05 §10's sixth path, zero-valued here because the first
+**~~`ȳ(0)` is computed and discarded~~ — it is kept, exported and refereed** against a forward
+tangent from the same state, which is the first-segment referee §10 describes. What survives of the
+original claim is narrower and still true: it is not folded into the returned gradient, which sums
+the trait adjoint and the direct term only — report 05 §10's sixth path, zero-valued here because the first
 recorded state reads no parameter, live for any model whose initial state does.
 
-**The supplied rows are ~36 re-solves of the opaque node per block.** Five families are
+**The supplied rows are ~~~36~~ about 18 to 20 re-solves of the opaque node ~~per block~~ per
+boundary evaluation.** The count halved when the leaf stopped differencing all fourteen traits and
+drove only the four that need it; "per block" named a decomposition that no longer exists. Five families are
 finite-differenced, and one of them rebuilds a tabulation each time. Against one evaluation for the
 forward pass, per unit per stage per sweep. The differencing is deliberate and each step size is
 reasoned; what is unpriced is the total.
 
-**Each block copies the whole model object**, tabulations included, per unit per block. That is the
-right answer to report 01 §3's purity requirement — it makes the permutation check pass by
-construction rather than by discipline — and it is a per-unit allocation nobody has measured.
+**~~Each block copies the whole model object~~ — struck.** There is no per-unit block on the
+reverse path to do the copying; the stage recording replaced it. The copy that remains is a
+synthetic timing probe with no caller in the suite or the R surface, and it measures nothing in
+production.
 
 **An empty event list is still indistinguishable from an insensitive system**, except by a caller who
 reads the diagnostic counter.
@@ -1034,8 +1114,8 @@ a by-hand reference walks the same defective grid.
 reduction grid slot, block input row, block output row, aux slot — plus resource and parameter slots.
 Conversions are hand-written, and the two-counter idiom that converts grid slots to ODE rows is
 documented at one of the four sites that use it. The node's ODE layout — *states, then offspring, then
-log density* — is written out as `state_size()` and `state_size() + 1` at four separate places and
-exposed as a named constant nowhere. **The block interface already subsumes two of these**; declaring
+log density* — is written out at ~~four~~ two places, one of which is now a named function carrying
+the reason in a comment; the other two sites were in the deleted block transposes. **The block interface already subsumes two of these**; declaring
 its segments (§4.1's split, §6's reduction) would subsume two more.
 
 **A tolerance that gates a branch rather than terminating a search.** One control entry's documented
@@ -1132,11 +1212,11 @@ to spare, and the flatness is the part worth keeping** — it says the sweep's c
 rather than compounding with it.
 
 **What moved it is not established, and should not be guessed from the commit subjects.** The
-plant-side leaf boundary still differences fourteen traits at two evaluations each, exactly as
-before, so the saving is not there. The likely home is the dependency's shared curve caches, since
-§11 records that each block copies the whole model object *tabulations included* and that one
-differenced family rebuilds a tabulation every time — but that is an attribution and what is
-measured is the effect.
+reasoning offered here was that the leaf boundary *"still differences fourteen traits at two
+evaluations each, exactly as before, so the saving is not there"* — **and that premise is now
+false**: it differences four. The other ten are read in closed form, which is a real saving in
+exactly the place this paragraph ruled out. Whether it is *the* saving is still unestablished, and
+the honest position is unchanged: what is measured is the effect.
 
 Two things survive intact. **Nothing in the ladder measures time**, so this figure is nobody's
 regression test and the next change to the leaf can move it by another order with no failure
@@ -1149,21 +1229,26 @@ oppose the design.**
 
 ## 13. What would falsify this
 
-- **The interiors are not model-shaped.** If a second model with an inner solve needs a materially
-  different *schedule* — not different kernels, a different order — the six-step interior is this
-  model's and not a primitive. The cheapest probe is the simplest existing strategy: ask what its
-  `ode_rates_adjoint` would have to be.
-- **`Patch` cannot be made generic over its environment.** The reverse half names environment members
-  no other environment has, so it would not instantiate. **If reductions cannot become a declared list
-  the environment publishes, the primitive cannot live in odelia at all** — this is the precondition
-  for everything in §6.
-- **A stage recording does not fit.** §5's rung B rests on an unmeasured number, and the instrument
-  to measure it already exists. If it does not fit, rung C is the answer and rung B is a distraction.
-- **The reduction primitive does not cover the functional.** The functional is already transposed by
-  tape with no hand transpose. If the driver cannot express it, it is not the general object.
-- **The closing element cannot be split into three.** §4.1 claims the cache, the grid point and the
-  growth template are separable. If some consumer genuinely needs them fused, the two-slot accumulator
-  is essential rather than a symptom.
+Checked against the tree. Three are answered, one is moot, and the three that remain open are the
+ones about a *second* model — which is the shape of the whole risk here, and §14.6 says why.
+
+- **~~A stage recording does not fit.~~ Answered: it fits.** The number is measured and returned
+  beside the gradient. This was rung B's only load-bearing unknown.
+- **~~The reduction primitive does not cover the functional.~~ Moot.** There is no reduction
+  primitive: the transposes it would have served were deleted and the quadrature helper went with
+  them (§7.1).
+- **`Patch` cannot be made generic over its environment. Half answered, and the remaining half is
+  not the environment.** The reverse half no longer lives in `Patch` at all, and the block interface
+  the sweep needs is published by the base environment with defaults that the other two models
+  inherit unchanged — so it *would* instantiate. What blocks a second model is the strategy: only
+  one declares which of its scalars are parameters, and only one declares a rebind. The precondition
+  for §6 is discharged on the side this bullet named and live on the side it did not.
+- **The interiors are not model-shaped.** Still open, and the probe as written cannot be run — it
+  named a member that no longer exists. The equivalent question is what the simplest strategy's
+  parameter declaration would have to be.
+- **~~The closing element cannot be split into three.~~ Still open, and no longer costly.** The
+  fused object survives, but the two-slot accumulator that made the fusion expensive does not
+  (§4.1), so this now falsifies a claim about tidiness rather than about correctness.
 - **The declaration is not shorter than what it replaces, for a model that is not this one.** The DX
   claim is ~1,520 lines of transpose against a ~31-line structural core plus a parameter list, and
   that core was counted for the model the primitives were read off. **A declaration is not a saving if
@@ -1171,10 +1256,11 @@ oppose the design.**
   existing strategy — which has an empty parameter list — and then for one that is genuinely
   different in shape, and ask whether the second needed the primitive to grow. If it did, §7 has
   described this model in a general vocabulary rather than found a general object.
-- **The seven do not compose into a gradient without a model writing anything else.** Each entry in
-  §7 is specified against the site it was read off, and nothing here has assembled all seven end to
-  end. The residue — whatever a model still has to write once every primitive exists — is the real
-  measure of this report, and it is currently unmeasured.
+- **The seven do not compose into a gradient without a model writing anything else. Answered, and
+  the answer is worse than §14 first claimed.** The residue has been assembled and measured: it is
+  seven members, not five, and one of them — `set_recorded_state` — is an adjoint-specific loader
+  named by no concept, in a section that claimed no such thing exists (§14.1). The residue is the
+  real measure of this report, and it is now measured rather than asserted.
 
 ---
 
@@ -1194,12 +1280,23 @@ band. The stage recording itself, through the same rate call the forward pass us
 the one place a replay pass diverges from a resident one. The segment walk across widenings, with
 its partition assertion and its narrow-widen round trip.
 
-**A model declares five things, and four of them it already had.** How to rebind itself at another
-scalar. How to seat an existing twin from itself. Which of its scalars are parameters. How to load
-a state. How to compute rates. Only the seat is new, and it is the value half of the rebind.
+**A model declares ~~five~~ seven things, and six of them it already had.** How to rebind itself at
+another scalar. How to seat an existing twin from itself. Which of its scalars are parameters. How
+to compute rates. And **three** loaders, not one: `set_ode_state`, `set_ode_state_and_field`, and
+`set_recorded_state`. Only the seat is new, and it is the value half of the rebind.
+
+**The count was checked and it was wrong, and the way it was wrong is the interesting part.** This
+section first claimed five, and said in the next breath that a model writes *no adjoint-specific
+loader*. Both cannot hold: `set_recorded_state` exists **because** re-loading a state the ordinary
+way linearises a boundary node the trajectory never carried, which is a reverse-pass concern and
+nothing else. It is a hard requirement of the segment walk, called at three sites in the solver,
+and **no concept mentions it** — it is duck-typed, so a model that omits it fails deep inside a
+template rather than at a declaration. That is §7.3's own hazard, in the section claiming the
+hazard had been designed out.
 
 **Nothing else.** No tape, no seed vectors, no recordings, no Butcher coefficients, no operating
-point carried forward to reverse, no adjoint-specific loader, no transpose.
+point carried forward to reverse, no transpose. The loaders are the residue, and they are three
+where the argument wanted one.
 
 ### 14.2 What it replaced, measured
 
@@ -1304,7 +1401,7 @@ which is a fact about the model and not a detail of the record.
 
 ### 14.5 What is left
 
-Four items. Each says what to do, why, and what would show it done.
+Five items. Each says what to do, why, and what would show it done.
 
 **1. The opaque node — the last hand-written derivative surface, and the only one that is model
 calculus rather than solver machinery.** The leaf's supplied rows form the collar's response to
@@ -1321,37 +1418,95 @@ against, and it is not the hard one.
 *Done when:* the classification cannot be bypassed by a consumer, which is the defect that lets an
 interior formula be applied at a pin; and the transpose identity holds without a reference gradient.
 
-**2. Refusal — the only row of §7 with nothing built and nothing designed.** An undefined metric is
-still a plausible number. Every other silent failure in this corpus has been closed by making the
-wrong thing impossible to express; this one is still expressible and still silent.
+**2. Refusal — which is built at one site, in the wrong package, and nowhere else.** §7 called this
+the row with nothing built at all; that overstates it. The dependency supplying the leaf's rows
+already returns validity beside its answer — a `usable` flag and a message — and already refuses an
+envelope step at a non-interior point, which is the mechanism §5.5 credits with striking the
+pinned-point row. So the *construction* is proven and deployed.
 
-*Do:* make "the gradient is undefined here" a distinct value in the return type rather than a
-number a caller cannot distinguish from an answer.
+What is missing is that it stops there. **The gradient the machinery finally returns carries no such
+channel**: an undefined metric comes back as a plausible number, and a caller cannot distinguish it
+from an answer. Every other silent failure in this corpus has been closed by making the wrong thing
+impossible to express; this one is still expressible, and it is the outermost one, where it matters
+most.
 
-*Done when:* a caller cannot ignore it without saying so.
+*Do:* lift the construction the dependency already uses into the solver's own return type, so
+"undefined here" survives the whole way out rather than being flattened at the first boundary it
+crosses.
 
-**3. The reduction's forward walks.** The transposes are gone with the stage recording and the
-quadrature weights are a primitive; what remains is four forward competition walks wanting one
-codomain parameter. Smaller than §7.1 says, and the constraint there is real: the forward's
-association is asserted bit-exactly, so the primitive must stay interval-major and the caller keeps
-its own accumulator.
+*Done when:* a caller cannot ignore it without saying so, and the ladder has a rung that asks for a
+gradient at a state where one does not exist and is refused rather than answered.
 
-*Do:* migrate the forward walks onto the same traversal the transposes take.
+**3. ~~The reduction's forward walks.~~ Withdrawn, for three reasons that arrived together.** The
+item asked to migrate four forward competition walks onto the traversal the transposes take.
 
-*Done when:* the bit-identity guard on the fused value-and-slope reduction still holds.
+The transposes no longer exist — the stage recording deleted both. The primitive no longer exists
+either: `trapezium_weights` was dropped as a concept with no caller once they went, and its own
+commit records why it could never have served the forward, which is that a per-slot weight vector
+re-associates a sum whose association is asserted bit for bit. And the duplication has itself
+shrunk to two walks, one half-factor, one early exit and two closing predicates (§7.1), which is
+not a primitive's worth.
 
-**4. The replay concept, which deletes the model's second recorder.** §14.4 settles the shape: two
-members, the mode owned by the driver, the step index handed in, and a payload that may include
-state — because an invader integrates its own hydraulics against a soil moisture it does not move,
-so that soil is supplied rather than integrated and leaves the state vector.
+Against that, the walks are being rewritten on another branch, which builds the field in one
+descent rather than once per knot and touches every file this item would. **Two rewrites of one
+traversal is the failure this report is about**, so the walks belong to that branch.
 
-*Do:* adopt it for the mutant run, deleting the per-stage environment cache and the exact-float
-time search that addresses it. Residents are the priority; this is worth doing for the deletion,
-and it makes a reverse-mode invasion gradient cost nothing beyond what residents already pay.
+*Do:* nothing here. If a reduction transpose is ever hand-written again, it needs an interval-major
+walk with the caller keeping its own accumulator, and the deleted primitive is what one looks like.
 
-*Done when:* the mutant path holds no recorder of its own, and the mode cannot be set by anything
-but the driver — a resident gradient that replays returns one with the water feedback missing,
-finite and plausible and unraised.
+**4. The replay pass, which is now the only way an invasion run exists at all.** The model's second
+recorder has been **deleted**, and what it was is worth stating precisely, because it is this
+report's own §7.3 finding arriving at its conclusion.
+
+The per-stage environment cache — the one that kept a field per Runge-Kutta stage so an invader
+could integrate against a resident it does not move — was reached through three hooks the solver
+stopped calling. It had **zero call sites**: `cache_ode_step`, `cache_RK45_step` and
+`load_ode_step` were defined, compiled, and invoked by nothing. So the container they fill was
+never filled, and `set_mutant` refused on its first statement, for every model, always. The flag
+that switches an invasion run on is set on the line *after* that refusal, so it was permanently
+false and the nine guards reading it were all dead branches. **The whole feature, not merely its
+cache, was unreachable** — and two of the six failures `AGENTS.md` tells every reader to expect as
+pre-existing are exactly this, which is where the silence had moved to once the suite started
+reporting it.
+
+What was deleted: the three hooks, the two histories and the stage cache they filled, the cursor,
+the exact-float time search and its abort, the stage-indexed state loader, the `Control` knob that
+gated the write side, and the nine guards. `run_mutant` survives as the entry point and refuses
+with an accurate message rather than a misleading one; `test-mutant.R` keeps its expected fitnesses
+and skips, because those numbers are the specification for what replaces this.
+
+**Its replacement is `odelia::ode::ReplaysField`, which already exists** — `record_stage`,
+`replay_step`, `has_recorded_field` and a stage-indexed `set_ode_state`. Plant never satisfied it:
+it kept the older spellings, so the concept evaluated false and every dispatch site in the stepper
+compiled to nothing. That is the whole mechanism of the failure, and it is why re-implementing
+against the concept is the fix rather than resurrecting the names.
+
+*Do:* implement `ReplaysField` on the patch, and drive it from the solver. §14.4 settles the
+shape: two members, the mode owned by the driver rather than asked of the System, the step index
+handed in rather than searched for, and a payload that may include state — an invader integrates
+its own hydraulics against a soil moisture it does not move, so that soil is supplied rather than
+integrated and leaves the state vector.
+
+*Done when:* the concept is satisfied and a `static_assert` says so at the point of use, so the
+hooks cannot go quiet a second time; `test-mutant.R` stops skipping and meets the numbers it
+already carries; and the mode cannot be set by anything but the driver — a resident gradient that
+replays returns one with the water feedback missing, finite and plausible and unraised.
+
+**5. Name the three loaders, because one of them is the residue this report went looking for.** A
+model supplies `set_ode_state`, `set_ode_state_and_field` and `set_recorded_state`. Only the first
+is mentioned by any concept; the other two are called directly by the segment walk, so a model that
+omits one fails deep inside a template instead of at a declaration. `set_recorded_state` is the
+sharp case: it exists purely because reloading a state the ordinary way linearises a boundary node
+the trajectory never carried, which makes it an adjoint-specific loader — the thing §14.1 spent a
+paragraph claiming a model no longer writes.
+
+*Do:* put all three behind one concept, asserted where the walk uses them, and ask whether the
+third is a loader at all or the *second* of the two boundary evaluations §5.1 makes structural. If
+it is the latter, it is a read-point declaration and belongs with the reduction's staging rather
+than with state loading.
+
+*Done when:* a model missing any of the three fails at a `static_assert` naming the member, and the
+gradient is bit-identical across the change.
 
 **And one that is not a primitive.** The step recorder's driver — toggle recording, run, harvest,
 attach the step sizes — is twenty lines with nothing model-specific in them, and the record is a

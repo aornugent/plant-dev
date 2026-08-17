@@ -204,11 +204,28 @@ so a differing count is yours:
 | file | fails | what |
 |---|---|---|
 | `test-leaf.r` | 5 | lines 620, 704, 705, 706, 865 |
-| `test-strategy-tf24.R` | 1 | line 83 |
+| `test-strategy-tf24.R` | 2 | line 83; and the yml agreement, below |
 | `test-strategy-tf24f.R` | 1 | line 86 |
-| `test-mutant.R` | 2 | "Run a resident first to generate a competitive landscape" |
 | `test-stochastic-patch.R` | 3 | a range over an empty competition interval |
 | `test-stochastic-patch-runner.R` | 1 | misses its seeded baseline |
+
+**`test-strategy-tf24.R`'s second failure is newly visible, not new.** Its parameter probe is
+compiled by `sourceCpp` and was missing two things every such probe needs — the include paths of
+the packages `plant` LinkingTo's, and `// [[Rcpp::plugins(cpp20)]]`, which cannot go in
+`PKG_CPPFLAGS` because R places those before its own `-std=` and wins. So it failed to build and
+both checks it gates skipped. With it building, one passes and one reports that `vcmax_25` and
+`jmax_25` are registered as AD parameters while the test's `omitted` list says they are not. That
+disagreement is being fixed on a parallel branch and lands with the opaque node item; leave it
+failing until then. **A probe that does not compile is a check that does not run — and it reports
+as a skip, which reads like a choice.**
+
+**`test-mutant.R` was on this list for two failures and should not have been.** They did not
+predate the gradient work: the environment cache that feeds an invasion run was reached through
+solver hooks that a refactor stopped calling, so it filled nothing and every case errored. Listing
+them here as expected is what kept that quiet once the suite began reporting it. The unreachable
+half is deleted and the file now skips, carrying its expected fitnesses as the specification for
+the replay pass that replaces it — see report 09 §14.5. **A failure written down as expected stops
+being read; prefer a skip that names what it waits for.**
 
 The first three were absent from this list and cost a session's worth of doubt to
 attribute. `test-stochastic-patch-runner.R`'s pass count varies run to run; its
