@@ -16,16 +16,20 @@ below were taken at `plant` `cdf3f0c9`.
 and — as important — what it deliberately did not do; §4 the specifications; §10 the two open
 derivations and why they were decided the way they were.
 
-**Eleven of the fourteen defects are closed, two are open (#2, #13), and two are not this work's (#11
-upstream, #12 another branch).** The gradient answers on every regime a driver has reached except one
-guard: pinned points, the crossings near a bound, and both shut branches all return rows. `plant` is at
-`a480d954` on `ad/v3-forward`, `phylloptim` at `e522ef0`; **nothing is pushed.**
+**Twelve of the fourteen defects are closed, one is open (#13), and two are not this work's (#11
+upstream, #12 another branch).** The gradient answers on **every driver tried** — interior, both pins,
+the crossings near a bound, both shut branches, and now the light floor as well. `plant` is on
+`ad/v3-forward`, `phylloptim` at `e522ef0`; **nothing is pushed.**
 
-**One thing to hold before starting.** The gradient answers on every driver and every regime tried —
-interior, both pins, both shut branches, the crossings near a bound — and **one guard still refuses**:
-the light floor, at `k_I` 40 and above. That is §0's E, and it is a modelling call rather than a
-derivation. Every run that answered before this work is **bit-identical** to a build carrying none of
-it, and **no forward number has moved at any point.**
+**One thing to hold before starting, and it is the shape three findings here share.** A clamp, a
+guard and a fold all produce the same thing — a finite number with no reading attached — and this
+document has twice recorded a guard as the model's boundary when it was only the guard's. What
+separates them is *counting on the differentiated path*, and until this session **no counter observed
+that path at all**: `rebind_from` drops the tally and the block discards the per-unit copy it lands in.
+Every incidence figure taken before was the forward run's, on a different set of solves.
+
+**Every run that answered before still answers, bit-identically, and no forward number has moved at
+any point.**
 
 ---
 
@@ -248,86 +252,225 @@ asserted that a shutdown fixture *refuses*. That was the gap recorded as a gate.
 answers with finite rows — and say what is still **not** discharged: the two output kinds are still not
 separable, because the fixture that would separate them is a fold and nothing here reaches one.
 
-### E — the light floor, and it is a modelling call rather than a derivation
+### E — ~~the light floor~~ **DONE**, and it was two sites rather than one
 
-**This is the only thing that still refuses**, and closing it is one small change plus one decision
-that is not mine to take.
+The recommendation was taken — declare the zero, count it — but the reasoning it rested on was wrong
+in two places, and both had to be fixed before the declaration meant anything.
 
-**The measurement.** `radiation_at` computes `k_I · max(light, 1e-4) · PPFD` and refuses on the
-differentiated path where the floor binds. Incidence, swept on `k_I`: **0% at the shipped 0.5, 0% at
-5 and 20, 7.5% at 40, 11.5% at 80.** The parity gate's `clamped` driver (`k_I` 40) is the one refusing
-case left in it.
+**⚠️ THE FLOOR IS TWO SITES AT TWO DEPTHS AND THE UNINSTRUMENTED ONE BINDS FIRST.**
+`compute_average_light_environment` applies the **same `1e-4`** to *each quadrature point* of the
+mean-light integrand, with no counter and no refusal, and it is on the **shipped** shading model
+(`MeanLight`). `radiation_at` then floors the mean those points make. Since the crown shape integrates
+to one, a floored point cannot pull the mean below the floor, so the instrumented site was seeing a
+remnant of the severance rather than the severance:
 
-**The decision, stated so it can be taken rather than inherited.** The refusal rests on this document's
-own claim that *"the field is smooth here, so the severance is the guard's rather than the model's"*.
-Read the forward path and that is only half true:
+| `k_I` | solves | `light_floor` | `light_floor_crown` |
+|---|---|---|---|
+| 0.5 (shipped), 5, 20 | 226–288k | 0 | 0 |
+| **40** | 298,513 | 8,422 — 2.8% | **1,262,666** |
+| **80** | 294,061 | 23,782 — 8.1% | **3,426,598** |
 
-- the **light field** is smooth underneath — it stores values down to `5.1e-117`;
-- the **census** is not a function of light below the floor at all, because `radiation` is clamped, so
-  every light below `1e-4` gives a bit-identical forward answer.
+A factor of **150**, and per quadrature point it binds about four times per solve. So the shipped model
+**was already severing the light coupling silently on the gradient path** while a guard one level down
+refused loudly for the same reason. Refusing at one depth and declaring at the other is not a position
+that can be held; that is what settled the decision rather than a preference.
 
-So the model **as evaluated** genuinely does not depend on light there, and by report 05 §7.6 —
-*differentiate the model being evaluated, not the model it approximates* — the honest row is **exactly
-zero**, not a refusal.
+**⚠️ AND THE COUNTER THAT DISCHARGED THE OBJECTION COULD NOT SEE THE DIFFERENTIATED PATH.** The
+recommendation rested on "the clamp counter is the measurement, and it exists now". It did not measure
+this: `rebind_from` carries no tally and the block copies its strategy per unit and discards it, so
+every clamp the *sweep* hit landed in a temporary. `census_clamp_counts_tf24` reported the forward run
+only — the same defect this document already records for the operating-point counters, inherited by
+adjacency. Fixed by holding the differentiated half behind a `shared_ptr` the rebind copies, with the
+two paths kept as separate lanes so they cannot be conflated.
 
-**Recommended: return the zero, declared.** Mark it `zero-structural` with the clamp named, so it lands
-on report 08 §3.4's declared list rather than reading as an answer. The objection this document raised
-against exactly that — *"a row that is zero for a reason no measurement reveals"* — **is discharged**:
-the clamp counter is the measurement, and it exists now.
+**The referee, and what it does and does not establish.** Report 08 §5's completeness reference at
+`k_I` 40 — a whole-run rebuild difference, which re-runs the forward model and so carries the *same*
+clamp:
 
-**The counter-argument to weigh before taking it.** A trait search walking `k_I` up would be told the
-light sensitivity is zero where the *unclamped* model has some. That is correct for the objective the
-search is actually optimising, and wrong for the one someone thinks they are. If that is unacceptable,
-the alternative is a **model** change — lower or remove the floor — which moves forward numbers and
-needs a `scientific_version` bump and a re-bless, and is therefore not a gradient change at all.
+| column | sweep | ratio at rel 1e-6 / 1e-5 / **1e-4** / 1e-3 |
+|---|---|---|
+| `a_l1` | −0.14112536 | 1.000014 / 1.000001 / **0.999999** / 0.999995 |
+| `lma` | −0.12862541 | 0.998725 / 0.999929 / **0.999997** / 0.999995 |
+| `k_I` | −4.8228e−07 | 1.175752 / 0.992945 / **1.002680** / 1.004531 |
 
-*Done when* `k_I` 40 answers, the light column comes back `zero-structural` on the cohorts where the
-floor binds, `test-gradient-parity.R`'s `parity_known_gaps` is **empty**, and its non-vacuity check
-that something still refuses is either replaced or deliberately deleted with a note saying why.
+Agreement to **one part in a million** on the two well-conditioned columns; `k_I`'s own value is 5e−07,
+near the reference's floor, so it holds 0.3% and its 1e-6 reading is off the plateau's fine end —
+report 08 §5A.3's first failure mode, showing up where that section says to expect it.
 
-### F — #2, the amplification ceiling. Two halves, and the structural one has a known obstacle
+**Be precise about what this proves.** The reference differences the *clamped* census, so agreement is
+not evidence the clamp is harmless. It is evidence of the two things E needed: the census **is**
+differentiable here — stable across three decades of step, so there is no kink at the stand's scale
+even though each cohort's radiation has one — and the sweep returns that derivative. Refusing would
+have been right only if the derivative did not exist.
 
-**F1 (structural).** The present guard refuses the **whole leaf** when the curvature is unusable. The
-profit row is valid at a fold; only the uptake rows cease to exist.
+`k_I` 40 and 80 now answer: **135 answered, 3 zero-slack, 3 zero-structural, 0 refused, 0 undeclared**,
+carrying 7,145 + 1,052,596 declared severances the run reports. `parity_known_gaps` is empty and its
+non-vacuity check is re-pointed: the `clamped` driver must now answer **and report a severance**, since
+an answered gradient carrying a declared zero and one carrying no clamp at all are the same numbers.
 
-**⚠️ AND THE LADDER NOW SAYS WHY THIS IS NOT A SMALL CHANGE.** `test-gradient-ladder-sweep.R` measured
-it: the refusal is raised **while the block is being recorded**, which happens before any output
-adjoint is applied — so no seed can reach a decision already taken. Separating the two kinds means
-moving the decision after the seeding, or carrying it as data to be applied per seed. That is the
-work, and it is larger than a ceiling value.
+**The counter-argument stands unchanged and is not closed by any of this.** A trait search walking
+`k_I` up is told the light sensitivity is zero where the *unclamped* model has some. Removing the floor
+is a forward-model change needing a `scientific_version` bump and a re-bless, so it is not a gradient
+change at all — but it is now *visible*, which it was not before.
 
-**F2 (the value).** §6.1 is still unknown and is **not** falsifiable from solved operating points — the
-second-order condition already forces `Π_pp ≤ 0` there. It needs a sweep of `p` across the whole
-feasible interval at states a trait search reaches. Guard on `|s|/|Π_pp|`, and **emit the profit row
-regardless**.
+### F — ~~#2, the amplification ceiling~~ **DONE**, and the ceiling guards a state nothing reaches
 
-**A fixture exists now that did not before.** §7's measurement found `Π_pp ≥ 0` on 8.7% of the interval
-at `stem_c` = 0.6. Nothing in the suite drives a stand there; a parity driver that does is the cheapest
-way to make F1's separation observable rather than argued.
+Both halves landed, and each overturned something this document asserted.
 
-### G — the remaining fourteen clamp sites
+**F1's stated obstacle does not exist.** This document recorded that "the refusal is raised while the
+block is being recorded, which happens before any output adjoint is applied — so no seed can reach a
+decision already taken". The seeds are in fact fully assembled at `patch.h:1862-1872`, **immediately
+before** the recording, and the water-coupled outputs are a contiguous known range. Only **two** things
+are grafted at all — `leaf_profit_` and `leaf_soil_consumption_[i]`, one call each — and `curvature`
+feeds *only* the uptake block; the profit block is the envelope theorem's and reads no curvature. So
+five guards were already uptake-only in substance and merely refused everything.
 
-One of fifteen is instrumented (the light floor). The rest take the same `clamp_site` enum and the
-same counter: the soil potential ceiling and residual floor, the conductivity clamp, the rainfall and
-infiltration `max(0, ·)`, the collar clamp, the leaf-temperature clamp, and the root vulnerability
-integral's ceiling.
+What it took: the leaf now **records** that its water rows do not exist rather than throwing, leaves
+them off the tape, and the block loop asks each metric's own seed whether it reads an uptake output.
+Refusal became per-metric data on the patch instead of an exception that ends the sweep for every
+metric. Converted: the curvature guard, the per-layer branch kink, no-layer's-root-carbon, the water
+response's first coefficient, and `dR_dlight`. **Four others are genuinely fused** — `kmax`, the driven
+leaf traits, the hydraulic-cost traits and the photosynthesis traits each guard a profit half and an
+uptake half in one test — and still refuse the whole leaf. Splitting those means splitting the guard,
+not the plumbing.
 
-**Counting is cheap and refusing is not automatic.** Apply E's test to each, and it is a three-way
-answer rather than two:
+**⚠️ AND IT INTRODUCED A DEFECT THAT HAD TO BE CAUGHT: a probe returned the severed rows as ZEROS.**
+With the guard no longer throwing, `ladder_rhs_adjoint_tf24` handed back zeroed water rows and said
+nothing — a severed row and an answer as the same number, which is the one failure the status channel
+exists to prevent. It now reports `refused` with the reason **and** returns NaN, so a caller ignoring
+the flag still cannot read a severance as an answer. **Any consumer of a single-seed adjoint has to be
+checked for this**, and there was exactly one.
+
+**⚠️ REPORT 08 §8's PREMISE HAS NO INSTANCE IN THIS CENSUS.** *"A metric seeded only on size states
+survives a fold that kills a water-coupled one"* — the separation is real and demonstrated at **one
+right-hand-side evaluation**, where a seed on `height` or `mass_heartwood` answers while a seed on a
+soil layer refuses by name. Over a whole trajectory it saves **nothing**: all three metrics refuse,
+because all three are size moments but growth reads water, so sweeping backwards gives every metric a
+non-zero soil adjoint within a step or two of the census. **TF24's census contains no
+water-independent metric.** Asserted rather than noted, so adding one shows up there.
+
+**F2's ceiling exists and guards a state no solved operating point reaches.** Swept over 5,625 solved
+leaf states — `stem_c` 0.4–2.68, `stem_b` 2.5–6.0, `beta2` 0.5–3.0, radiation 15–2000, soil potentials
+0.1–5.5, uniform and graded profiles:
+
+| | |
+|---|---|
+| interior with a finite curvature | **1,351 — every one strictly negative, none non-negative** |
+| min \|Π_pp\| | **0.0623** (1% 0.285, median 1.79, max 7.38) |
+| the other 4,274 | 2,885 pinned-dry, 1,125 shade-death, 156 pinned-wet, 108 solver-refused |
+
+It reproduces §7 where §7 measured — at shipped `stem_c` the interval's min \|Π_pp\| is **0.672**
+against §7's 0.67, and at `stem_c` 0.6 the non-concave share is **11.2%** against §7's 8.7%. But the
+conclusion inverts: **the folds are real and the solve never lands on one.** At `stem_c` 0.4, 40% of
+the feasible interval has `Π_pp ≥ 0` and the operating point is still strictly concave — because where
+the interval goes non-concave the solve **pins**, and at a pin the curvature is never computed. §6.1
+said a sample about solved points cannot falsify a fold; the reason turns out to be structural rather
+than a sampling limit.
+
+So the floor is set from measurement at **1e-3**, sixty times below the observed minimum, and it lives
+on `Control` as `gradient_curvature_floor` — in `gradient_control()`, because it moves no forward number
+and still decides which rows exist. **The instrument matters more than the number**: a guard that held
+and a guard nothing reached report the same green, so `census_curvature_margin_tf24` carries out the
+smallest curvature the sweep met. Production margins:
+
+| driver | wet | drought | very-dry | seasonal | shaded | clamped | long |
+|---|---|---|---|---|---|---|---|
+| min \|Π_pp\| met | 2.51 | 0.731 | 0.726 | 0.740 | **0.119** | 0.158 | 2.17 |
+
+The tightest is **119× the floor**. And because nothing reaches the guard, **F1's separation could only
+be tested by injection** — raising the floor above every curvature the model produces, which is what
+`ladder_patch_fold` does and why it says so in its own comment.
+
+### G — ~~the remaining clamp sites~~ **DONE for plant's own; phylloptim's are a different category**
+
+**There are eleven, not fifteen**, and the corpus's list was both over- and under-counted. The enum,
+the names and the counter now live in `plant/inst/include/plant/clamp_sites.h`, reachable from the
+strategy *and* the environment, because the sites live in two objects and a tally should read the same
+however a site is reached. Names come from the enum, so a site cannot be counted under its neighbour's.
+
+**The census, over seven drivers — all seven answer:**
+
+| site | differentiated | forward | reading |
+|---|---|---|---|
+| **`rooting_depth`** | **1,295,396** | 1,671,760 | every driver, **including the wet control** |
+| `light_floor_crown` | 1,052,596 | 1,262,666 | `clamped` only |
+| **`storage_floor`** | **194,571** | 307,480 | every driver **except** wet |
+| `light_floor` | 7,145 | 8,422 | `clamped` only |
+| `reserve_ceiling` | 32 | 111 | |
+| `soil_moisture_floor` | 0 | 12 | forward only — never on a swept step |
+| `soil_potential_ceiling` | 0 | 13 | forward only |
+| `soil_conductivity` | 0 | 24 | forward only |
+| `soil_positivity` | 0 | 0 | never binds on any driver |
+| `rainfall` | 0 | 0 | never binds |
+| `infiltration` | 0 | 0 | never binds |
+
+**⚠️ THE THREE-WAY TEST'S FIRST CASE SPLITS IN TWO, and reading the code does not reveal it.** The
+table in the old §0 offered "masks a channel the model means to have" — and the largest site in the
+model does not *mask* anything. `min(height, rooting_depth_max)` **is** the model saying roots stop at
+a maximum depth, so its zero is the model's own. The light floor's zero is a numerical guard's. Both
+are declared zeros; only the second is a candidate for removal, and only by changing the forward
+model. The classification therefore has four outcomes:
 
 | the clamp | the row |
 |---|---|
-| masks a channel the model means to have, and the census still moves with it | refuse |
-| the census is bit-identical either side of it | **declared zero** — E's case |
-| never binds on any driver | count it and say so, which is report 08 §7's guard census |
+| **is** a modelling statement | declared zero, and **not** a candidate for removal — `rooting_depth` |
+| is a numerical guard, census bit-identical either side | declared zero, removable by a forward-model change — the light floors, `storage_floor`, `reserve_ceiling` |
+| binds forward but never on a swept step | counted, and kept **separate from "never"**: the guard is reachable, so a longer run or a finer schedule could put it on a recorded step |
+| never binds on any driver | counted, and reported as never having fired — the only thing separating a guard that held from one nothing reached |
 
-*Done when* every site has a counter, each is classified by that table with the incidence that decided
-it, and the classification is asserted in `test-gradient-incidence.R` rather than recorded here.
+**Two sites were not on the corpus's list and one of them is the largest severance in the model.**
+`rooting_depth` fires 1.3 million times on the differentiated path *including on the wet driver* — the
+fixture the corpus uses as its clean regression control — and where it binds the entire root profile
+stops depending on height. Nothing was counting it. `storage_floor` is a genuine **guard** severance
+carried silently on every drought driver, and report 08 §9 lists "the absorbing reserve region" among
+what nothing referees; this is it, now counted.
+
+The classification is asserted in `test-gradient-incidence.R` as data, because a document cannot fail.
+
+**What is NOT done, and it is a category rather than a remainder.** phylloptim's clamps — the collar
+clamp, the leaf-temperature clamp, the root vulnerability integral's ceiling and its argument clamp,
+and the per-layer sign splits in the uptake kernels — are **not** instrumented. They bind on the
+leaf's own solve, so they do not sever an AD row: they distort a **supplied** row computed by finite
+differences, which the `crossed` / `try_seat_at` arm machinery already guards. Counting them means
+counting inside phylloptim with plant's enum, which is the wrong dependency direction. Whoever takes
+them needs a phylloptim-side tally and a different test than the three-way one, because the question
+there is arm feasibility rather than a severed row.
+
+### What is left, and it is smaller than what was closed
+
+Nothing in §0 remains. What the work opened rather than closed:
+
+1. **phylloptim's clamps** — a category rather than a remainder, spelled out at the end of G. They
+   distort a *supplied* row rather than severing an AD one, so they need a phylloptim-side tally and a
+   test about arm feasibility.
+2. **The four fused guards** in `record_leaf_outputs` — `kmax`, the driven leaf traits, the
+   hydraulic-cost traits, the photosynthesis traits. Each tests a profit half and an uptake half
+   together, so each still refuses the whole leaf. The plumbing to split them exists; what does not is
+   a reason to, since nothing reaches them either.
+3. **A water-independent census metric**, if one is ever wanted. F1's separation is built and correct
+   and buys nothing until such a metric exists — see §0's F.
+4. **#13, build provenance** — untouched, and the one defect still open.
+5. **The cost figure**, still 14.6× and now measured on a gradient that answers strictly more than the
+   one that figure was taken on.
 
 ### Standing, and not to be lost
 
-- **One guard is implemented and has never fired**: the graft's input finiteness test. The light
-  floor's refusal has now fired — at `k_I` 40, in the parity gate — so it is off this list.
+- **Two guards are implemented and have never fired**: the graft's input finiteness test, and the
+  **curvature floor** — the second measured rather than assumed, over 5625 solved states, and its
+  distance from firing is now reported per run by `census_curvature_margin_tf24`. Three clamp sites
+  have also never fired on any driver (`soil_positivity`, `rainfall`, `infiltration`) and three more
+  fire forward but never on a swept step, which is a **weaker** claim and kept separate.
+- **A COUNTER ON A REBOUND OBJECT MEASURES NOTHING unless its storage is shared.** `rebind_from`
+  copies values, and the block copies its strategy and environment per unit and discards them — so a
+  plain member counts the sweep's severances into a temporary and reports zero. This is why the light
+  floor read 0 on the differentiated path while firing a million times. Both `clamp_counter` and
+  `curvature_margin` hold their differentiated half behind a `shared_ptr` the rebind copies; anything
+  new that counts on that path must do the same.
+- **A guard converted from a throw to a marker leaves every consumer of that path returning ZEROS.**
+  Removing a `throw` does not remove the obligation to say the row is gone: the tape returns zeros for
+  rows never recorded, and a zero row and a severed one are the same number. One consumer
+  (`ladder_rhs_adjoint_tf24`) needed the report added and its numbers turned to NaN. Grep for callers
+  before converting another guard.
 - **`root_psi_crit` never binds at shipped defaults**, so `bound_row(DryRootPsiCrit)` is unreachable
   without a deliberately-lowered fixture. §5's non-vacuity requirement is not optional.
 - **The operating-point counters do NOT measure the gradient path.** They count forward solves; the
@@ -356,10 +499,20 @@ Three measurements, in this order. Every item from B onwards was accepted this w
 3. **A referee for any new row**, against a difference of the relation that *defines* it — report 08
    §5A. A row that is only checked through what consumes it is not checked.
 
-And one habit worth keeping: **when a test fails after a branch starts answering, read it before
-fixing it.** Three checks so far asserted a refusal that was the gap rather than a gate — the incidence
-test, and three in the sweep ladder. Each one had to be re-pointed at what it now measures, not
-relaxed.
+And two habits worth keeping.
+
+**When a test fails after a branch starts answering, read it before fixing it.** Several checks have now
+asserted a refusal that was the gap rather than a gate — the incidence test, three in the sweep ladder,
+and the parity gate's whole non-vacuity clause, which existed to keep the known-gap list tested and
+became meaningless when the list emptied. Each had to be re-pointed at what it now measures, not
+relaxed. The parity gate's replacement is worth copying: it asserts the `rooting_depth` severance,
+which fires on **every** driver including the control, so a build that has lost the counter fails
+rather than reading as a cleaner stand.
+
+**A test written against a list of two does not survive the list growing to eleven.** Three of this
+session's own new checks failed on `all(counts > 0)` and `all(counts == 0)` the moment more sites
+existed — the assertions were about the sites that happened to be there. Index clamp checks **by name**,
+and assert the sites the block is about rather than the whole vector.
 
 ---
 
@@ -368,14 +521,16 @@ relaxed.
 | | |
 |---|---|
 | what works | one species or many, birth-date coordinate, **every operating-point kind a driver has reached**: interior, pinned wet, pinned dry, hydraulic shutdown, shade death |
-| cost | **14.6× the forward run** *(measured before the branches below were opened; a shut or pinned point costs more arms than an interior one and this has not been re-measured — see G's note)* |
-| where it stops | the **light floor**, and nothing else found. It severs a cohort's light coupling where it binds: 0% at the shipped `k_I`, 7.5% at 40 |
-| what a refusal is | metric-level and total, *returned* rather than thrown, named, and located — except from the census seeding, where it carries no node (C2) |
-| what is silent | nothing known. Every defect below is closed, counted, or named with its incidence |
+| cost | **14.6× the forward run** *(measured before the branches below were opened; a shut or pinned point costs more arms than an interior one and this has not been re-measured)* |
+| where it stops | **nothing found.** Every driver tried answers, `k_I` 40 and 80 included |
+| what a refusal is | metric-level, *returned* rather than thrown, named, and located. **Per metric where the missing row is located to the water outputs** — but see §0's F: on this census that spares no metric, because all three read water |
+| what is silent | nothing known. Eleven clamp sites are counted on both paths and classified; the curvature guard reports its margin |
 
-**The parity sweep is the summary, over seventeen drivers**: rainfall 2.00 down to 0.05, two
-lifetimes, a seasonal driver at full amplitude, and `k_I` up to 40. **Fifteen of seventeen answer**;
-the two that do not are the light floor's.
+**The parity sweep is the summary. Over the seven drivers of the clamp census — rainfall 2.00 down to
+0.05, lifetimes 5 to 20, a seasonal driver at full amplitude and `k_I` up to 40 — all seven answer**,
+and the five standing drivers in `test-gradient-parity.R` carry that as a check. What the sweep now
+reports beside "answered" is the **severance count**, because a gradient carrying a declared zero and
+one carrying no clamp at all are the same numbers.
 
 **Build with the working tree, never the installed package.** The installed `plant` segfaults inside
 `census_trait_gradient_tf24`. Load with `library(odelia)` then `pkgload::load_all("plant")`.
@@ -391,9 +546,9 @@ Ordered by severity, which is not the order of the work — see §3 for that.
 | # | defect | status | root cause | reachable at | silent |
 |---|---|---|---|---|---|
 | 1 | FD probe crosses a feasibility boundary | **closed** — refused, then differenced from inside | one entry point serves two consumers; `evaluate_root_collar_psi` clamps by design for the acclimating FD, wrongly for a frozen-collar partial | **production drought** — guaranteed at any pin | yes |
-| 2 | no amplification ceiling | open — §0's F, and F1 has a known obstacle | the guard tests the curvature's **sign**; the divergence is in its **magnitude** | `stem_c` 2.68 → 0.6 — **4.5×, a search reaches this** | yes |
+| 2 | no amplification ceiling | **closed** — guarded on magnitude, and the guard is measured to be unreachable | the guard tested the curvature's **sign**; the divergence is in its **magnitude** | **nothing reaches it**: over 5625 solved states every interior point is strictly concave, min \|Π_pp\| 0.0623 against a floor of 1e-3. Where the interval folds the solve PINS, and a pin computes no curvature | no — the margin is reported |
 | 3 | forward tangent non-finite | **closed** | boundary node carries `log(birth_rate·pr_estab) = −Inf`; the tangent works in `ℓ` where the sweep works in `n` | any stand where establishment fails | yes |
-| 4 | clamp severs a row | counted and refused; **the guard has now fired** — §0's E decides whether refusing is right | the floor clamps at the **read**; the field stores values to 1e-117 underneath | `k_I` 0.5 → 40 — **80×**, 7.5% of solves | no — counted |
+| 4 | clamp severs a row | **closed** — declared zero, counted on the path it severs on, and eleven sites rather than one | the floor clamps at the **read**; the field stores values to 1e-117 underneath. And the floor is **two sites**, of which the shipped path's was uncounted and bound 150× more often | `rooting_depth` on **every** driver including the control (1.3M); the light floors at `k_I` 40 (1.06M); `storage_floor` on every drought driver (195k) | no — counted, both paths apart |
 | 5 | ambiguous exact zeros | **closed** | three correct zeros, three different causes, no way to say which | every run | yes |
 | 6 | non-finite input poisons the value | **closed** | the graft guards its derivatives, not its inputs | latent; widens with the pinned branch | yes |
 | 7 | ghost cohort | **closed** | `check_birth_dates_distinct()` is called on the seeding path, never the scheduled one | any duplicated schedule time | yes |
@@ -556,18 +711,19 @@ uninformative.
 **What is left in Phase 2, and why it was not taken here.**
 
 - **Item 5 (#1, FD arm branch-crossing)** and **item 6 (#2, the amplification ceiling)** both *add
-  refusals*, so they narrow the answered set. They are correctness improvements and they change which
-  states answer, so they want their own change with their own before/after incidence — which the
-  counters above now make measurable.
-- **Item 6 carries a structural half that is worth separating from its value.** The present guard
-  refuses the whole leaf when the curvature is unusable, where the profit row is valid at a fold and
-  only the uptake rows cease to exist. Refusing them as a pair throws away a surviving metric for
-  nothing. That needs the two output kinds to be refusable independently, which is a larger change
-  than a ceiling.
-- **Item 7 is one clamp site of fifteen.** The other fourteen — the soil potential ceiling and
-  residual floor, the conductivity clamp, the infiltration and rainfall `max(0, ·)`, the collar clamp
-  of #1, the leaf-temperature clamp, the root vulnerability integral's ceiling — take the same
-  `clamp_site` enum and the same counter; none is instrumented yet.
+  refusals*, so they narrow the answered set. **Both have LANDED, and neither narrowed anything**:
+  the crossing detection refuses no driver that previously answered, and the ceiling is measured to be
+  unreachable. That is the before/after incidence the counters were built to make measurable, and the
+  answer was "no change" — which is only worth anything because it was measured rather than hoped.
+- **Item 6's structural half — LANDED, and its stated obstacle was not real.** See §0's F: the seeds
+  are assembled one frame above the recording and immediately before it, so nothing had to move. What
+  it needed was a channel from the leaf to that frame.
+- **Item 7 is one clamp site of fifteen.** — **LANDED, and the count was wrong in both directions.**
+  There are **eleven** on plant's differentiated path, not fifteen; the enum, names and counter moved
+  to `plant/inst/include/plant/clamp_sites.h` so the environment can reach them too. Two sites the
+  original list did not have (`rooting_depth`, and the *crown* light floor) turned out to be the two
+  largest severances in the model. What the list counted that is not here: phylloptim's clamps, which
+  distort a supplied row rather than severing an AD one — see §0's G.
 - **Item 8 (#8's cause and arm split) — LANDED.** `PinnedDry` is now `PinnedDryRootCrit` and
   `PinnedDryRootPsiCrit`, decided by a `DryBoundArm` recorded **where the `min` is taken**, because a
   `min` is the one operation that destroys what the consumer needs afterwards. The inverted-interval
@@ -917,6 +1073,8 @@ a difference of the relation that *defines* it — report 08 §5A's locality axi
 | the stem curve's `stem_b` row | Euler, then a rebuilt difference at three scales | 6.7e-09 |
 | **the root curve's `root_b` row** | Euler (**0.00e+00**), then a rebuilt difference | 2.8e-06 |
 | **the pinned profit environment rows** | a **re-solved** profit difference | 4.8e-08 wet, 3.1e-04 dry |
+| **the light floor's declared zero** | a **whole-run rebuild difference** at `k_I` 40 (report 08 §5) | 1e-06 on `a_l1` and `lma`, 0.3% on `k_I` |
+| **the profit curvature's own range** | 5625 solved leaf states, the interval swept at 240 points | min \|Π_pp\| 0.0623 interior, 0 in the interval at `stem_c` 0.4 |
 
 **One residual is open and is recorded rather than absorbed.** The dry pin's environment rows sit at
 **2e-04 to 3e-04** where the wet pin sits at 4.8e-08. `λ`, `f`, `ν`, `S` and `∂E_up/∂ψ_j` were each
@@ -955,9 +1113,13 @@ first**, and `phylloptim/tests/testthat/test-stem-curve.R` does.
 
 Four numbers gate decisions and none is derivable.
 
-1. **The amplification ceiling's value** (#2). Sizing it needs a sweep of `p` across the whole feasible
-   interval at states a trait search reaches — a sample about solved operating points cannot falsify a
-   fold, because the second-order condition already forces `Π_pp ≤ 0` there.
+1. ~~**The amplification ceiling's value** (#2).~~ **MEASURED, and the question was the wrong one.**
+   The advice here — sweep `p` across the interval rather than sampling solved points — was right and
+   was followed, over 5625 solved states and 240 interval points each. It found folds in the interval
+   (40% of it at `stem_c` 0.4) and **not one solved operating point on a fold**: where the interval
+   folds, the solve pins, and a pin computes no curvature. So the ceiling is set from the interior
+   range's own floor — min `|Π_pp|` **0.0623**, ceiling **1e-3** — and the number that matters is not
+   the ceiling but the **margin**, now reported per run. See §0's F.
 2. **Cost after Phase 3.** It will **rise**, not fall: pinned points are not differenced today, they
    throw, so answering them adds work. Bounded by (pinned fraction) × (one analytic bound row, no
    re-solve) against a 14.6× baseline. This is a kill condition for the phase. **The pinned fraction
@@ -968,14 +1130,15 @@ Four numbers gate decisions and none is derivable.
    path this is is a property of the scalar rather than of the state. The forward model is untouched —
    at `k_I` = 40 the census is still 0.2206 while the gradient refuses.
 
-   ⚠️ **The refusal is implemented and unexercised.** On every configuration reached, the floor only
-   binds once the canopy has closed, and by then some operating point has also left the interior
-   branch — so the gate refuses first and wins the race. At lifetime 1 the floor does not fire even at
-   `k_I` = 150. Treat it as a guard nothing has yet fired, the same standing as the graft's input
-   test. Classification: a
-   refusing production run is **99.71% interior and 0.29% pinned-dry**, and that 0.29% costs the whole
-   gradient. Clamp: the light floor fires **0% at shipped `k_I` and 7.5% at `k_I` = 40**. Fourteen
-   clamp sites still carry no counter.
+   ⚠️ **That reading was taken with the only instrument that could not see the answer.** The paragraph
+   this replaces said the light floor's refusal was "implemented and unexercised" and that a gate
+   refused first and won the race. Both halves came from a counter that measures the forward run: on the
+   differentiated path the *crown* floor was firing about a million times per shaded driver, uncounted
+   and unrefused, while the instrumented site downstream saw a remnant. Eleven sites now carry counters
+   on **both** paths, kept apart, and the classification is in
+   `test-gradient-incidence.R`. Classification of the operating points is unchanged and still worth
+   keeping: a run that used to refuse is **99.71% interior and 0.29% pinned-dry**, and that 0.29% cost
+   the whole gradient before §0's B.
 4. **What `collar_interval_min_width` should be.** Phase 0 split the name; the value is still the
    `1e-1` `plant::Control` delivers. Below that width `prepare_collar_solve` stops optimising and
    substitutes the interval's midpoint, which is what decides whether a state is reported as
@@ -1020,7 +1183,16 @@ adjoint are all finite. Not light: `k_I = 1.5` gives minimum light **0.054**, th
 failing case, with zero non-finite entries.
 
 **#4 — the floor.** Binds at `k_I ≈ 40`; the field then stores 1.1e-17 and, denser, **5.1e-117**, while
-the read clamps at 1e-4.
+the read clamps at 1e-4. **And it is two reads, not one** — see §0's E for the 150× the crown site
+binds by, and for the reason the instrumented one under-reported.
+
+**#2 — the fold, re-measured, and the reading has inverted.** §7's own sweep of the *interval* is
+reproduced exactly (min \|Π_pp\| 0.672 at shipped `stem_c`, 11.2% non-concave at `stem_c` 0.6 against
+the 8.7% recorded). What it did not ask is where the *operating point* sits. Over 5625 solved states,
+all 1351 interior ones are strictly concave with min \|Π_pp\| **0.0623**, and at `stem_c` 0.4 — where
+40% of the interval has `Π_pp ≥ 0` — the point is still concave at −0.33. **Where the interval folds,
+the solve pins**, and a pin computes no curvature at all. So the ceiling is real, correct, and
+unreachable, which is a guard-census entry rather than a coverage loss.
 
 **#5 — the zeros.** Three per species. `a_f3` occurs only in `fecundity_dt`'s denominator and no census
 metric reads fecundity; `psi_crit`/`root_psi_crit` are complementary slackness;
@@ -1099,6 +1271,20 @@ run since the last clear. Read it **after `scm$run()` and before `stand_gradient
 tally, or after both for forward-plus-sweep — and say which. Two figures in this document differ only
 because of that.
 
+**The clamp counters do not have that hazard and the reason is worth copying.** `clamp_counts_tf24` is
+the forward lane and `clamp_counts_differentiated_tf24` the sweep's, and they are separate storage
+rather than one tally read at two times — so neither can be mistaken for the other and the sweep's is
+readable only after `stand_gradient`. **The differentiated lane is the one that matters**: a clamp
+severs a row on that path and nowhere else, and the two lanes differ by about 15% because the sweep
+visits the recorded steps rather than every solve.
+
+**A third instrument, and it answers a question a count cannot.** `census_curvature_margin_tf24` gives
+the smallest profit curvature the sweep met, or −1 if it never reached the interior branch. A count says
+whether a guard fired; this says how close it came, which is the only way to tell a guard that held from
+a guard nothing approached. Set `Control$gradient_curvature_floor` above it to make the guard fire on
+demand — that is how F1's separation is tested at all, and there is no fixture that reaches it
+otherwise.
+
 ### The build and test loop, as it actually behaves here
 
 - **Rebuild at `-O2` explicitly.** `pkgbuild::compile_dll()` appends `-O0` after any user flags.
@@ -1128,9 +1314,27 @@ because of that.
 
   | suite | pass | problems |
   |---|---|---|
-  | `plant` gradient ladder | **495** | **0** |
-  | `plant`, everything else | **3244** | **13**, in six files: `test-leaf.r` (5), `test-mutant.R` (2), `test-stochastic-patch.R` (3), `test-stochastic-patch-runner.R` (1), `test-strategy-tf24.R` (1), `test-strategy-tf24f.R` (1) |
+  | `plant` gradient ladder | **570** | **0** |
+  | `plant`, everything else | **3244** | **13**, in six files: `test-leaf.r` (5), `test-mutant.R` (2 errors), `test-stochastic-patch.R` (3 errors), `test-stochastic-patch-runner.R` (1), `test-strategy-tf24.R` (1), `test-strategy-tf24f.R` (1) |
   | `phylloptim` R | **1437** | **3**: `test-gradient.R` (1 fail, 1 error), `test-surface.R` (1 fail) |
+
+  The gradient family gained 75 assertions (495 → 570) and the non-ladder count is **unchanged at
+  3244**, because every check added is in that family. The same **13 problems in the same six files**
+  remain — the figure to attribute against. `phylloptim` is unchanged **by construction**: nothing in it
+  was touched, so its numbers are carried rather than re-measured, and `git status` on it is the
+  evidence.
+
+  **Two of this session's own changes broke a non-ladder test each, and both were the same shape.**
+  Adding a `Control` field broke `test-control.R`'s default list and `test-census.R`'s
+  `gradient_control` names — tests that pin a list, correctly, and have to be extended when the list
+  is. Neither was a regression; both are named here because a reader re-measuring the baseline needs to
+  know they are expected to be at 3 and 27 rather than 2 and 25.
+
+  **Run the ladder fanned out over disjoint file sets rather than with `Config/testthat/parallel`.** The
+  runner dies inside its own queue poll on these files, but the files themselves are independent, so N
+  background `Rscript` processes over an `NR%N` split give the same speedup without it — the whole
+  ladder in about 35 s of wall against 1130 s of CPU. The fast structural tier
+  (`injection|rung3|factorisation|declared-zero`) is a few seconds and belongs in every build.
 
   `phylloptim`'s C++ `test_leaf` also aborts at HEAD, on a single-potential series resistance of zero —
   which stops `make -C tests/cpp` before `test_golden` runs. **Run `./test_golden --cross-platform`
@@ -1160,6 +1364,23 @@ Carry these forward; they change what a reader would do.
 - **The development record's mode-3 discriminator is wrong.** It says "the rates that read `growth`";
   the soil rows are non-finite and read no growth. The discriminator is the light field.
 - **`tf24_environment.h:62–63`** annotates `a_psi`/`n_psi` as "not currently being used". They are.
+- **Report 08 §8's independence requirement has no instance in TF24's census, and the report is not
+  wrong to state it.** *"A metric seeded only on size states survives a fold that kills a
+  water-coupled one"* is a correct design requirement and the separation now exists — demonstrated at
+  one right-hand-side evaluation. But **all three census metrics read water**: they are size moments,
+  growth reads water, and sweeping backwards gives every one of them a non-zero soil adjoint within a
+  step or two of the census. So the separation saves no metric until a water-independent metric exists.
+  The disagreement is between the report's *design* claim and this *census*, not between the report and
+  the code — which is why it is recorded here rather than by editing the report.
+- **Report 08 §7's guard census needs a fourth class, and the largest clamp in the model is in it.**
+  §0's G's table splits the "masks a channel" case: a clamp that **is** a modelling statement
+  (`min(height, rooting_depth_max)`) yields a zero that is the model's own and is not a candidate for
+  removal, where a numerical floor's zero is. Reading the code does not distinguish them — both are a
+  `min` — and filing them together would invite someone to "fix" the model by removing its own
+  boundary.
+- **`compute_average_light_environment`'s comment says the floor's "original rationale was never
+  recorded".** Still true, and now it matters more: this is the site that binds, 150× more often than
+  the one the corpus calls the light floor.
 
 ---
 
