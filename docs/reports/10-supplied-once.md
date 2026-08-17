@@ -281,30 +281,50 @@ differentiates a different function.
 
 Everything downstream follows from that one fact:
 
-- a rebuilding `set_traits` costs **21.8 µs** against **0.02 µs** when it does not rebuild and ~**3 µs**
-  for a whole leaf solve. Eight rebuilds per operating point is about **58 solves' worth**;
+- a rebuilding `set_traits` cost **21.8 µs** against **0.02 µs** when it does not rebuild and ~**3 µs**
+  for a whole leaf solve, so eight rebuilds per operating point looked like **58 solves' worth**.
+  **That reading is spent, by a later measurement in this same corpus.** The rebuild is memoised on
+  the pair that determines the curve, and nine `set_traits` over the four curve traits went
+  **194 µs to 2.2 µs**; in situ the whole drive family is **24 µs of a 278 µs cohort block**, which
+  is dominated by recording the cohort's rates at an active scalar — 271 of those 278. So the prize
+  here is about **a tenth**, not the 56% the per-drive cost implied, and the cost argument for this
+  step is not the one to lead with;
 - `a` had to be *fitted* from a differenced direction rather than differentiated;
 - and the two packages **contradict each other in code**: phylloptim claims `perturb_stem_b` is exact
   by homogeneity and worth 24.5×, plant measured that identity 1.9e-04 out against a rebuild's
   2e-06 and rejected it. Report 05 §7.6 agrees with plant and with the same numbers — the rescale
   sits at 0.99981 of a rebuilding reference where the rebuild sits at 1.000002.
 
-**The fix is in the corpus already, derived and verified, and unused.** The flux integrates a
+**The fix is in the corpus already, and half of it is already deployed.** The series is in code,
+returning the value, the integrand and both trait partials from one loop — and the value and the
+integrand now **seed the knot table**, so the substitution this section prescribes has landed for
+them. What is unused is `dG/db` and `dG/dc`, read by nothing but their own test. The flux integrates a
 stretched-exponential vulnerability curve,
 
 $$G(m) = \int_0^m \exp\!\Bigl[-\bigl(\tfrac{\sigma}{b}\bigr)^{c}\Bigr]\,\mathrm{d}\sigma
       = \frac{b}{c}\,\gamma\!\Bigl(\tfrac{1}{c},\,X\Bigr), \qquad X = \bigl(\tfrac{m}{b}\bigr)^{c},$$
 
 and report 05 §7.6 gives `∂G/∂m`, `∂G/∂b` and `∂G/∂c` in closed form from one series with one extra
-accumulator, verified against an independent high-precision integral to **better than 1e-23** over
-`c` from 0.4 to 12 and `m/b` from 0.075 to 8 — "the best-established derivation in this corpus". They
+accumulator. **The 1e-23 against an independent high-precision integral is not in code anywhere** —
+no script, probe or test computes it, so "the best-established derivation in this corpus" rests on a
+number nothing checks. What the code does assert, over the same domain, is 1e-7 against a central
+difference *of the same double-precision closed form* and 1.2e-15 against boost's value. Closing
+that gap is cheap and belongs before the derivation is leaned on for a re-blessing. They
 are unused because the only correct deployment is to replace the **table**, not its derivative:
 substituting a closed form for a tabulated derivative is the more accurate derivative of a different
 function, and introduces a systematic disagreement no invariant on the gradient can attribute.
 
 The series argument is bounded by construction: the grid runs to where the vulnerability function
 reaches a fixed small fraction, so `X = log(1/fraction)` identically and `x ≤ 4.61` wherever the
-integral is evaluated. Assert the bound; do not add an argument switch the model cannot reach.
+integral is evaluated — **for the stem curve, which `psi_crit` bounds. It is false for the root
+curve, and the instruction that follows from it is the wrong way round.** The root integral spline
+extrapolates past its last knot deliberately, under a `G(inf)` cap, because a layer drier than the
+grid is an ordinary state and the soil potential a caller may pass is bounded only by its own
+ceiling of 1000 MPa. At that potential `x` is about **2.9e6**, where this series overflows: its terms
+sum to `gamma(a,x) e^x / x^a`. So the bound holds only *because* the table absorbs those reads, and a
+closed form replacing the table has to carry the complete-gamma limit as a genuine branch — which is
+the same cap the accessor already applies, so the cost is a named switch rather than new
+mathematics. Assert the bound on the stem curve; give the root curve the limit.
 
 **Making that change removes the grid, and with it:** the rebuild cost; the four differenced traits,
 which become exact — `b` by the homogeneity `ψ ∂G/∂ψ + b ∂G/∂b = G`, `c` by the series' own
@@ -320,11 +340,25 @@ the closed form replaces the table as the model, and the table is deleted rather
 
 ### 3.6 The residue, named
 
-With the table gone, one thing still cannot be answered from the parts: **the conductivity spline is
-reachable from the residual, via `uptake_impl`'s equal-potentials branch, and has no derivative
-accessor at all.** It is the only spline read in the leaf without one. Either give it one or state
-the branch as a refusal; the honest interface says which, and a sentinel that reaches the caller is
-an interface where one absorbed before it is a severance.
+One thing cannot be answered from the parts: **the conductivity spline is reachable from the
+residual, via `uptake_impl`'s equal-potentials branch, and has no derivative accessor at all.** It is
+the only one of the leaf's four splines read without one.
+
+**Neither of the two options this section offers is the right one, and the code already says why.**
+The derivative path does not silently return a wrong number: it returns NaN for the whole vector on
+that window, under a stated contract that the caller falls back to a central difference. And plant
+already absorbs it — it steps off the coincidence by 4e-8, retries both directions, and tallies the
+step-off as a clamp — on the argument that the resistance there is `span/integral`, which *is*
+`1/f_r` at coincidence and **analytic through it**, because the two signs cancel and one expression
+serves both sides. The singularity is arithmetic, not a property of the model.
+
+So the honest move is neither an accessor nor a refusal: **make the equal-potentials branch read
+`span/integral` like the general branch.** That deletes the branch, deletes the only consumer of the
+conductivity spline, and deletes a NaN window a caller currently has to know about. The function is
+already available in closed form in the same file — the cost path evaluates `exp(-(psi/b)^c)`
+directly — so what the spline tabulates is something the leaf computes anyway, on a branch that
+fires only within 1e-8 MPa of coincidence. This is the one piece of §3.5's subject worth doing on
+its own, and it is a deletion rather than an addition.
 
 ---
 
@@ -660,7 +694,7 @@ Each step is refereed by the one before it, and nothing is deleted before its re
 | **3** | **§4: the last grid through the one accessor.** Done, and smaller than this row assumed: every quadrature already took the density's own coordinate except the resource reduction, which now reads `abscissa_of` too. No `Grid` object; §4.3's argument for putting one in odelia does not hold. | one accessor, one traversal, and the two projections that fed the old one deleted | bit-identity of the gradient on the birth-date coordinate, which is the only one the sweep runs |
 | **4** | **§6: one loader.** *Probe first.* `set_ode_state` reproduces every derived quantity; delete `set_recorded_state`. The collapse is forward-safe, but it costs six boundary leaf solves a step on the forward path and rests on an identity nobody has measured -- that the boundary evaluation alone reproduces what a full rates pass leaves on a node whose leaf is shared with every other node of its species. Take that probe before writing anything. | the probe holds, then the load/compare invariant holds bit for bit over a recorded run | bit-identity of the loaded state, and the recording extended to hold the boundary node it does not hold today |
 | **5** | **§5: one parameter list with a role.** One table of 62 carrying `ad_role`, three hand-maintained lists collapsed to one, and `ad_parameter_zero_classes()`'s string comparison deleted. `eta` and the root-depth shape exponent become `refused` by name -- neither is a crown shape, and both would record a silently wrong zero rather than a NaN. | one table; the R-facing zero classification is unchanged in value | the declared-zero ladder rung, and the registered-versus-declared test, which was landed failing for exactly this reason |
-| **6** | **§3.5: replace the vulnerability table** with report 05 §7.6's closed forms, in the **forward** model, deleting the table. | the golden grid is re-blessed and the rebuild count is zero | the FF16 tripwire, then `ladder_run_difference_pair` against step 2 |
+| **6** | **§3.5: mostly overtaken, and re-scoped.** The series already seeds the knots, so the value substitution has landed; the rebuild is memoised, so the prize is about a tenth rather than 56%; and deleting the table needs the complete-gamma limit as a real branch, because the root curve extrapolates past its grid by design. What is worth doing on its own is **§3.6: delete the equal-potentials branch** in favour of `span/integral`, which removes the conductivity spline's only consumer and a NaN window with it. Note a golden re-bless is **already owed** from an earlier commit, and only macOS/arm64 can settle it. | the branch is gone, the spline with it, and no NaN window is left for a caller to know about | a Linux-versus-Linux golden A/B, which is exact and has no noise floor -- `--cross-platform` cannot see an argmax-field change below ~5.5e-4 |
 | **7** | **§3.3: `rows_at` in phylloptim.** Roles, an observation-dependent output count, per-layer uptake as outputs, root carbon as inputs, rows in parts. Take plant's arm robustness and phylloptim's sentinel handling — each package has half. | one row layer; `transpose_at` and `rows_at` share `at()` | the transpose identity `⟨v,Ju⟩ = ⟨Jᵀv,u⟩`, which needs no reference gradient |
 | **8** | **§3.4: plant's leaf integration.** Delete `record_leaf_outputs`, `record_zero_flux_outputs`, the trait tables, the drives. | the six-line form in §3.4 is what is there | step 2's stored reference, at every kind |
 
