@@ -860,6 +860,22 @@ order: **a rule restated at every site drifts at every site, and the instrument 
 itself a site.** A primitive set that adds nouns to `ode_interface.hpp` without noticing that its own
 referees are compiled seventeen different ways is building on an instrument it has not checked.
 
+**Counted later, the section's own prediction came true in the file it is about.** An audit of every
+concept on these branches found six, all new, and three mechanisms coexisting for the single
+question *does this System have member X*: two SFINAE detection structs of exactly the shape this
+section blames, four one-member-ish concepts, and five anonymous inline `requires` clauses on the
+range helpers — of which two of the seven helpers carry no constraint at all. The detection structs
+are gone (§14.2), which leaves one mechanism and one exception.
+
+**And one concept was not merely unused but had drifted from its caller while nobody read it.**
+`WidensState` was referenced by nothing anywhere — its own definition was the only line naming it —
+and in the meantime the walk it describes had acquired a call to a member the concept does not
+mention, so a System satisfying it completely still failed inside that walk. **This is the section's
+hazard with the arrow reversed:** the earlier case was a model providing a hook nothing called, and
+this is a solver describing a requirement nothing checked, with the requirement itself going stale.
+Both are invisible for the same reason, and the same fix answers both — assert it where it is used,
+so the description and the call site cannot part company quietly.
+
 ---
 
 ## 8. What gets deleted
@@ -1291,10 +1307,13 @@ ones about a *second* model — which is the shape of the whole risk here, and �
   different in shape, and ask whether the second needed the primitive to grow. If it did, §7 has
   described this model in a general vocabulary rather than found a general object.
 - **The seven do not compose into a gradient without a model writing anything else. Answered, and
-  the answer is worse than §14 first claimed.** The residue has been assembled and measured: it is
-  seven members, not five, and one of them — `set_recorded_state` — is an adjoint-specific loader
-  named by no concept, in a section that claimed no such thing exists (§14.1). The residue is the
-  real measure of this report, and it is now measured rather than asserted.
+  the answer moved twice.** The residue was first asserted at five members, then assembled and
+  measured at seven — one of them, `set_recorded_state`, an adjoint-specific loader named by no
+  concept, in a section that claimed no such thing exists (§14.1). Re-counted after that: **six**,
+  because two of the seven were one function under two names. The remaining adjoint-specific member
+  is named by `WidensState` now, so the residue is six members and none of them is duck-typed. The
+  residue is the real measure of this report, and the useful part is that it moved down only when
+  someone opened the two names to see whether they differed.
 
 ---
 
@@ -1327,9 +1346,10 @@ walks once at six. **Built**, at a net −132 lines of shipped solver header.
 than being built by a caller and handed down. That placement is not an implementation detail; §14.3
 states why it is the only place it can go.
 
-**A model declares ~~five~~ ~~seven~~ six things, and five of them it already had.** How to assign
-itself from another scalar's copy. Which of its scalars are parameters. How to compute rates. And
-**three** loaders, not one: `set_ode_state`, `set_ode_state_and_field`, and `set_recorded_state`.
+**A model declares ~~five~~ ~~seven~~ ~~six~~ five things, and four of them it already had.** How to
+assign itself from another scalar's copy. Which of its scalars are parameters. How to compute rates.
+And **two** loaders, not one and not three: `set_ode_state`, and `set_recorded_state` for a state the
+run recorded.
 
 **Six rather than seven because the rebind stopped being a second thing to write.** It was a
 separate hand-written copy beside the assignment, and the two had already drifted -- in the
@@ -1343,13 +1363,22 @@ section first claimed five, and said in the next breath that a model writes *no 
 loader*. Both cannot hold: `set_recorded_state` exists **because** re-loading a state the ordinary
 way linearises a boundary node the trajectory never carried, which is a reverse-pass concern and
 nothing else. It is a hard requirement of the segment walk, called at three sites in the solver,
-and **no concept mentions it** — it is duck-typed, so a model that omits it fails deep inside a
-template rather than at a declaration. That is §7.3's own hazard, in the section claiming the
-hazard had been designed out.
+and **no concept mentioned it** — it was duck-typed, so a model that omitted it failed deep inside
+a template rather than at a declaration. That is §7.3's own hazard, in the section claiming the
+hazard had been designed out. It is named by `WidensState` now, which is where the walk that calls
+it states everything else it needs.
+
+**And then the count was checked a second time, and one of the three loaders was not a loader.**
+`set_ode_state` forwarded to `set_ode_state_and_field` and added no statement of its own, so the
+model offered two names for one function and a reader had to open both to find that out. The count
+was never three. It is two: the ordinary load, and the same load carrying the inflow condition's
+second evaluation — which is the distinction §5.1 makes structural, arriving here as the only
+difference between the two members a model writes.
 
 **Nothing else.** No tape, no seed vectors, no recordings, no Butcher coefficients, no operating
-point carried forward to reverse, no transpose. The loaders are the residue, and they are three
-where the argument wanted one.
+point carried forward to reverse, no transpose. The loaders are the residue, and they are two where
+the argument wanted one — the second earns its place, because a run genuinely carries more than it
+records.
 
 ### 14.2 What it replaced, measured
 
@@ -1366,6 +1395,10 @@ where the argument wanted one.
 | the hand-written stage recursion, and the double rebuild that fed it | one recording spans the step |
 | the tableau's second and third spellings | `stage_state` and `step_end` are one pair of scalar-templated functions; the forward step and the recording both step through them, so **−132** across the shipped headers |
 | the active System threaded through three layers to be reused, its concept, and the Solver member caching it | the primitive that needs it fresh builds it |
+| the second name for the state loader | `set_ode_state` forwarded to it and added no statement; a model writes two loaders, not three |
+| both SFINAE detection structs, and three of the four `enable_if` overload pairs they gated | concepts and one `if constexpr`, which is what the style rule asked for and what §7.3 blames the older idiom for |
+| a concept naming "not a built-in number" as though it were a property | one overload guard, stated where it breaks the tie |
+| `r_ode_time` | it was `ode_time` a second time, and calls it |
 
 **The concepts went entirely, and that was not the prediction.** The transpose concept looked like
 two obligations — *I carry my own transpose*, which the generic path absorbs, and *here is my
@@ -1491,8 +1524,13 @@ which is a fact about the model and not a detail of the record.
 
 ### 14.5 What is left
 
-Seven items, in the order they are worth doing. The first is done and is kept for what it cost; the
-second is the economy it leaves open. Each says what to do, why, and what would show it done.
+Seven items, in the order they are worth doing. Two are done and are kept for what they cost — the
+first, and the seventh, which was the smallest and corrected this section's own count. The second is
+the economy the first leaves open, and the fifth is withdrawn. Each says what to do, why, and what
+would show it done.
+
+**Three of the seven are therefore live: the opaque node, refusal, and the replay pass.** None of
+them is reached by further work on the sweep, which is the useful thing this ordering now says.
 
 **1. ~~Record the step, not the stage.~~ Done.** `Step::sweep_stages` walked the six stages
 backwards and split each stage's adjoint over the state and the earlier rates by the Butcher
@@ -1663,21 +1701,39 @@ hooks cannot go quiet a second time; `test-mutant.R` stops skipping and meets th
 already carries; and the mode cannot be set by anything but the driver — a resident gradient that
 replays returns one with the water feedback missing, finite and plausible and unraised.
 
-**7. Name the three loaders, because one of them is the residue this report went looking for.** A
-model supplies `set_ode_state`, `set_ode_state_and_field` and `set_recorded_state`. Only the first
-is mentioned by any concept; the other two are called directly by the segment walk, so a model that
-omits one fails deep inside a template instead of at a declaration. `set_recorded_state` is the
-sharp case: it exists purely because reloading a state the ordinary way linearises a boundary node
-the trajectory never carried, which makes it an adjoint-specific loader — the thing §14.1 spent a
-paragraph claiming a model no longer writes.
+**7. ~~Name the three loaders, because one of them is the residue this report went looking for.~~
+Done, and there were two.** The item asked which of `set_ode_state`,
+`set_ode_state_and_field` and `set_recorded_state` was really a loader. The answer arrived one step
+earlier than the question expected: **`set_ode_state` forwarded to `set_ode_state_and_field` and
+added no statement**, so two of the three were one function under two names, and the name is gone.
 
-*Do:* put all three behind one concept, asserted where the walk uses them, and ask whether the
-third is a loader at all or the *second* of the two boundary evaluations §5.1 makes structural. If
-it is the latter, it is a read-point declaration and belongs with the reduction's staging rather
-than with state loading.
+What survives is the distinction the item suspected. `set_recorded_state` is the ordinary load plus
+the inflow condition's *second* evaluation — so it is not a third kind of loading, it is §5.1's
+second read point, arriving as the one thing a model writes beyond loading its state. It is left
+spelled as a loader rather than promoted to a read-point declaration, because with one read point
+above the ordinary load there is nothing for a declaration to enumerate; a second model with two
+would be the thing that forces it.
 
-*Done when:* a model missing any of the three fails at a `static_assert` naming the member, and the
-gradient is bit-identical across the change.
+**And naming them turned up a concept that was worse than unused.** `WidensState` described the
+widening walk and was referenced by nothing at all — not a `static_assert`, not an `if constexpr`,
+not a constraint. It was also **incomplete against the one caller it was written for**: the walk
+reloads recorded states through `set_recorded_state`, which the concept did not name, so a System
+satisfying it in full still failed inside the walk. It names the loader now, the five walk functions
+are constrained on it, and the patch is asserted against it beside the assertion that it records
+steps. **A concept nobody checks does not merely fail to catch things; it drifts out of agreement
+with its own caller, and nothing reports that either.**
+
+*What it cost:* the walk's first recorded state was being reloaded through the loader that stops at
+the first evaluation, where the two walks beside it used the second. Harmless — the boundary node is
+not ODE state, so nothing downstream reads the difference, and on a bare-ground first state the two
+evaluations coincide because a patch with no cohorts has an empty closing interval. Made consistent
+anyway, and the gradient is bit-identical across the change.
+
+*Left open, and it is not in the solver:* a stand resumed **with** cohorts that also introduces at
+its initial time would widen before its first step, and the seeding at the active scalar would carry
+the first evaluation where the run carried the second. No fixture reaches it, because the one
+resumed fixture introduces later than its initial time. It lives in the model's own seeding, not in
+the walk, and it wants a fixture before it wants a fix.
 
 **And the concept boundary stops a level too high, which is what makes item 6 worth doing.** Every
 concept in the solver is checked against the patch. **Not one of the model's own AD members is
