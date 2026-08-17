@@ -1,0 +1,705 @@
+# Supplied once: what odelia, phylloptim and plant each own
+
+Report 09 states the solver's side of the reverse pass and leaves one item open — the inner solve's
+supplied rows, the last hand-written derivative surface and the largest single cost in a gradient.
+This report closes it, and in closing it finds that the same defect has three other instances.
+
+**The referee is the mathematics plus the objective.** Where this disagrees with the code, one of
+them is wrong and the disagreement is the finding. Nothing here tracks what has been built.
+
+**Scope.** §1 is the rule. §2 is the layer carving. §3 to §6 are the four instances, each with its
+mathematics, its ecology, its interface written out, and what it deletes. §7 is the solver's concept
+surface. §8 is the order to build in. §9 is what this is bad at, §10 what would falsify it. Appendix
+A records four routes that are closed, with the evidence, so they are not re-derived. Appendix B is
+the branch merge.
+
+---
+
+## 1. The rule
+
+> **A derivative is either recorded or supplied. Recording costs nothing to keep true. Supplying
+> costs a consistency obligation, so it is supplied exactly once, by whatever owns the value, and
+> handed back already paired with the input it belongs to.**
+
+The first sentence is report 09 §2's rule and is settled. The second is this report's subject, and
+the pairing clause is the half that makes it structural: **position must not be the interface.**
+Three constructs in this tree have converged on that independently — odelia's
+`input_and_derivative{input, derivative}`, whose comment says it is "kept as a pair so the two cannot
+be assembled from separate lists and paired by position"; plant's `ad_parameter{&pars.x, #x}` macro,
+which makes a name inseparable from the parameter it names; and the reverse-pass branch's
+`leaf_trait` struct, which replaced five parallel arrays after one of them "paired every later
+trait's value with another's address". The same move, found three times, never generalised.
+
+Every hand-written derivative surface left in this tree is that rule broken in one of two ways —
+supplied where recording was possible, or supplied by someone other than the owner:
+
+| the surface | broken how | what it costs, measured |
+|---|---|---|
+| nine hand transposes inside a step | supplied where recordable | −2898 lines, already deleted |
+| `record_leaf_outputs` + its shut sibling | supplied by the **consumer**, not the owner | 980 lines; 35.9% of a gradient profile |
+| the trait order in 14 places | the pairing done by the consumer, positionally | 3 of the 14 disagree in name |
+| `stem_b`'s row | one derivative supplied twice, by two owners | the two packages contradict each other in code |
+| four quadratures over one grid | one grid supplied four times | 3 of the 4 take the wrong abscissa |
+| two state loaders | one boundary evaluation supplied twice | a second loader, and a read-point list with one instance |
+| the `(a, b)` pair | a row supplied by fitting rather than by its condition | unvalidated in the direction that carries the ecology |
+
+§§3–6 take the four live instances in order of size.
+
+---
+
+## 2. The three layers
+
+The boundary positions are settled and this report does not move them. What it fixes is the shape of
+what crosses each one.
+
+```
+        ┌──────────────────────────────────────────────────┐
+        │ plant — the model                                │
+        │   TF24: states, rates, allometry, the two        │
+        │   reductions, the census, the growth map          │
+        └───────┬──────────────────────────────┬───────────┘
+                │                              │
+   rebind_from<S>()                  inputs (values) ──►
+   ad_parameters()                   ◄── rows, paired
+   ode_rates() etc.                  ◄── the classification
+                │                              │
+        scalar S (any)                      double only
+                │                              │
+        ┌───────▼──────────┐        ┌──────────▼─────────────┐
+        │ odelia — the     │        │ phylloptim — the leaf  │
+        │ solver           │        │                        │
+        │  the tape        │        │  the solve, in double  │
+        │  the step        │        │  its own forward-mode  │
+        │   recording      │        │   calculus (xad::fwd)  │
+        │  the segment     │        │  the classification    │
+        │   walk           │        │   by branch taken      │
+        │  the graft       │        │  the parameter and     │
+        │  the IFT + its   │        │   output enumerations  │
+        │   refusal        │        │                        │
+        └──────────────────┘        └────────────────────────┘
+```
+
+**odelia knows nothing about plants.** It records the model's own forward call, so the only thing a
+model owes it is the ability to be evaluated at any scalar. It owns one supplied-derivative
+primitive, `record_with_derivatives`, and one theorem, `implicit_root`.
+
+**phylloptim knows nothing about stands.** It solves in `double`, differentiates itself in forward
+mode, and hands back rows. That it never sees an active scalar is not a preference: `xad::adj`
+requires `Tape<double>`, which is defined only in odelia's `src/Tape.cpp`, and phylloptim carries
+`LinkingTo` with no `PKG_LIBS` and a CMake target that deliberately links nothing. Appendix A.2.
+
+**plant knows nothing about tapes.** It writes its rate function once, at `S`, and grafts the leaf's
+rows in.
+
+---
+
+## 3. The leaf
+
+### 3.1 The mathematics decides the interface, and it is one table
+
+Write `u` for the leaf's inputs, `p` for the root-collar water potential magnitude, `Π(p; u)` for
+carbon profit, and `y_j(p; u)` for the leaf's outputs. The operating point solves
+
+$$R(p; u) \;\equiv\; \frac{\partial \Pi}{\partial p} \;=\; 0 ,$$
+
+and every output is evaluated there. Differentiating the condition,
+
+$$\frac{\partial p^\star}{\partial u} \;=\; -\frac{\nabla_u R}{R_p}, \qquad R_p \equiv \Pi_{pp},$$
+
+and every output's total row is
+
+$$\frac{\mathrm{d} y_j}{\mathrm{d} u} \;=\; \underbrace{\frac{\partial y_j}{\partial u}\bigg|_p}_{\text{frozen}} \;+\; \frac{\partial y_j}{\partial p}\,\frac{\partial p^\star}{\partial u}. \tag{3.1}$$
+
+**Two of the three factors in (3.1) are fixed by the mathematics for two of the outputs, and getting
+either wrong is silent.** Profit is the objective at its own maximiser, so `∂Π/∂p = 0` — the
+envelope theorem. The operating point *is* `p`, so `∂p*/∂p = 1` and its frozen row is zero. Every
+other output supplies both factors ordinarily.
+
+That is the entire declaration a submodel with an inner solve owes a consumer:
+
+| role | frozen `∂y/∂u|_p` | `∂y/∂p` | the row (3.1) becomes |
+|---|---|---|---|
+| **Objective** — this output *is* what the point maximises | `∂Π/∂u` | **0** at an interior point; the multiplier `ν = ∂Π/∂p` at a pin | `∂Π/∂u + ν·∂p*/∂u` |
+| **Point** — this output *is* the operating point | **0** | **1** | `∂p*/∂u` |
+| **Ordinary** — this output merely consumes the point | supplied | supplied | both terms |
+
+Exactly one output may be Objective and exactly one may be Point.
+
+**Orthogonally, the kind of operating point decides `∂p*/∂u` and nothing else:**
+
+| kind | what defines `p*` | `∂p*/∂u` |
+|---|---|---|
+| interior stationary | `R(p) = 0` | `−∇_u R / R_p` |
+| pinned at a bound | `B(p; u) = 0` | `−∇_u B / B_p` — *the same quotient, a different condition* |
+| pinned at a registered constant | `p* = φ_k` | the unit vector in `φ_k`, exactly; zero in every state direction |
+| exogenous — shut down, or a tracked ODE state | nothing | zero (shut) or carried by the adjoint (tracked) |
+| fold, or a solve that could not move | — | **refuse** |
+
+**That factorisation is the whole design.** The current implementation entangles the two axes: it
+has one function per *kind* — `record_leaf_outputs` and `record_zero_flux_outputs`, whose own
+declaration admits "separate … because it shares none of it: no curvature, no envelope step, no
+bound, no collar" — and inside each, per-*role* special cases written as ten `pinned ? … : …`
+ternaries. Three kinds cost 980 lines and the growth law is ~230 lines per kind. phylloptim
+classifies **twelve** kinds; report 05 §7.0 names **five** that matter and observes they are
+consecutive segments of one drydown. Separated, a kind is one row of the second table and a role is
+one row of the first.
+
+### 3.2 What the ecology says about each row, and why the asymmetry is real
+
+**The Objective row is free, and that is a statement about adaptation.** At its own optimum a plant
+is indifferent to small changes in its own behaviour, so a shift in the environment moves profit only
+by its direct effect. This is why the most expensive part of the model costs nothing to differentiate
+for the quantity that matters most.
+
+**The Ordinary rows are not free, and that is where competition lives.** The plant is indifferent
+about profit; it is not indifferent about *water*. Per-layer uptake is set as a side effect **at**
+the operating point, so it consumes the argmax rather than being the objective, and the envelope
+theorem says nothing about it. Since plants interact only through two shared fields and the water
+field is depleted by uptake, `∇_u R` is the first link of **the only belowground competitive coupling
+this model has**: my uptake lowers the soil potential, which reprices your water-for-carbon exchange
+rate, which moves your operating point, which moves your uptake.
+
+**And the direction the ecology cares about is the worst-conditioned one.** Water moves on
+*differences* of potential while tissue fails on *absolutes*, so along the uniform drying direction
+the model is a near-symmetry: the true flux response is a small residue on a channel amplified
+fifteen- to twenty-six-fold. The corpus's own rule is that anything defined as a small difference of
+large quantities must be computed as itself, never by subtraction in a caller — which is why §3.5's
+`(a, b)` fit is a correctness item and not a cost item.
+
+**A pin is drought.** A plant pinned at its zero-uptake bound has closed down; one pinned at its
+critical potential is at the edge of hydraulic failure. Any conclusion about drought sensitivity
+rests on the pinned branch being right, and there `ν = ∂Π/∂p` is the constraint's shadow price — the
+carbon the plant would gain per unit of relaxation it cannot have.
+
+**Exposing the operating point as an output is what makes one machine serve two consumers.** A
+calibration fits a leaf against gas-exchange observations, so its outputs are the measured ones —
+assimilation, conductance, stem potential, profit. A stand adjoint wants none of those except profit
+and wants one the other does not: per-layer uptake. **The two sets overlap in exactly one entry.**
+With the operating point declared Point, both contract through the same scalar and neither needs its
+own copy of the argmax machinery.
+
+### 3.3 The interface, written out
+
+phylloptim gains one entry point. The enumerations are already its own; what is new is a role per
+output, an observation-dependent output count, and rows returned in **parts** rather than totals.
+
+```cpp
+namespace phylloptim::gradient {
+
+// How the operating point reaches an output. At most one Objective and at most
+// one Point; the caller's request is refused if it declares two of either.
+enum class Role { Objective, Point, Ordinary };
+
+// Why an entry is zero, where it is. A bare zero cannot say, and an exact zero
+// is the signature of a missing row far more often than of true insensitivity.
+enum class Zero { none, slack, structural };
+
+struct RowRequest {
+  const int*  output;  const Role* role;  std::size_t n_output;  // into output_names()
+  const int*  input;   std::size_t n_input;                      // into par_names(n_layers)
+};
+
+struct Rows {
+  OperatingPointKind kind;          // by the branch taken, never from a residual
+  bool               finite;
+  std::string        message;       // set only where finite is false
+
+  double point;                     // p*, the value the solve left
+  double residual_slope;            // R_p at an interior point; B_p at a pin;
+                                    // NaN where no condition defines the point
+  std::vector<double> dresidual;    // n_input: grad of whichever condition defines p*
+  std::vector<double> dy_dp;        // n_output: 0 for Objective at an interior
+                                    // point, nu at a pin, 1 for Point
+  std::vector<double> frozen;       // n_output * n_input, output-major
+  std::vector<Zero>   zero;         // n_output * n_input, output-major
+  double amplification;             // max_i |dresidual[i] / residual_slope|
+};
+
+Rows rows_at(Leaf&, const double* theta, const Drivers&,
+             const RowRequest&, const Settings&);
+}
+```
+
+**Rows come back in parts, and the reason is a cost bound rather than taste.** Returning totals would
+have the caller record `n_output × n_input` tape terms. Returning the parts lets the operating point
+be **one node** that every output hangs off, so the tape holds `n_output + n_input`. That is report
+02 §3.2's economy — "the matrix `(∂y/∂p)(∂p*/∂u)` is never formed, and the cost drops from outputs ×
+parameters to outputs + parameters" — and it is exactly what the reverse-pass branch's
+`implicit_root` already does. At 6 outputs and 26 inputs it is 156 terms against 32.
+
+**The quotient and its refusal stay in odelia**, because they are properties of the implicit function
+theorem rather than of leaves. phylloptim returns `∇_u` of *whichever condition defines the point*
+and that condition's own slope; `implicit_root` divides and refuses. At a pin this is the same call
+with the bound's residual — which is why the pinned case needs no second code path anywhere.
+
+### 3.4 What plant becomes
+
+The whole leaf integration, replacing 980 lines:
+
+```cpp
+// The inputs, in phylloptim's enumeration, built once (§5.2).
+const auto& u = leaf_inputs();                       // std::array<S*, N_INPUT>
+
+const auto r = phylloptim::gradient::rows_at(leaf, theta, drivers, request, settings);
+if (!r.finite) { throw gradient_refusal(r.message); }
+
+// The operating point: one node, whatever condition defines it.
+const S p = has_condition(r.kind)
+          ? odelia::implicit_root<S>(r.point, r.residual_slope, zip(u, r.dresidual))
+          : S(r.point);                              // exogenous: passive, rows are zero
+
+// Every output hangs off it. The roles are already in the numbers; plant does
+// not branch on them.
+for (std::size_t j = 0; j < n_output; ++j) {
+  auto terms = zip(u, span(r.frozen, j));
+  terms.push_back({p, r.dy_dp[j]});
+  out[j] = odelia::record_with_derivatives<S>(value[j], terms);
+}
+```
+
+**plant branches on the kind in exactly one place** — whether a condition defines the point at all —
+and never on the role. Every `pinned ? … : …` ternary, the shut sibling, the trait table, the drive
+loop, the arm chooser, the restores, the column order and its three reassemblies have nowhere left
+to live.
+
+**A refused Ordinary row is metric-level.** Report 05 §7.0: a sum has no defined value with an
+undefined term, so no localisation is available and refusal is per metric, never per cohort. The
+`zero` channel carries `slack` and `structural` outward into `gradient_status`, which is the right
+abstraction already and does not change.
+
+### 3.5 The root cause is the vulnerability tabulation
+
+Four traits — `stem_b`, `stem_c`, `root_b`, `root_c` — must currently be differenced by re-solving,
+because the curve's grid
+
+$$\psi_{\max} = b\,\bigl(\log 100\bigr)^{1/c}$$
+
+is a **function of the traits being differentiated**, and the forward model rebuilds it whenever
+either moves. Report 05 §7.6's test settles what that means: *does the forward model rebuild the grid
+when the parameter moves? If it does, the motion is the model.* So a row taken on a held grid
+differentiates a different function.
+
+Everything downstream follows from that one fact:
+
+- a rebuilding `set_traits` costs **21.8 µs** against **0.02 µs** when it does not rebuild and ~**3 µs**
+  for a whole leaf solve. Eight rebuilds per operating point is about **58 solves' worth**;
+- `a` had to be *fitted* from a differenced direction rather than differentiated;
+- and the two packages **contradict each other in code**: phylloptim claims `perturb_stem_b` is exact
+  by homogeneity and worth 24.5×, plant measured that identity 1.9e-04 out against a rebuild's
+  2e-06 and rejected it. Report 05 §7.6 agrees with plant and with the same numbers — the rescale
+  sits at 0.99981 of a rebuilding reference where the rebuild sits at 1.000002.
+
+**The fix is in the corpus already, derived and verified, and unused.** The flux integrates a
+stretched-exponential vulnerability curve,
+
+$$G(m) = \int_0^m \exp\!\Bigl[-\bigl(\tfrac{\sigma}{b}\bigr)^{c}\Bigr]\,\mathrm{d}\sigma
+      = \frac{b}{c}\,\gamma\!\Bigl(\tfrac{1}{c},\,X\Bigr), \qquad X = \bigl(\tfrac{m}{b}\bigr)^{c},$$
+
+and report 05 §7.6 gives `∂G/∂m`, `∂G/∂b` and `∂G/∂c` in closed form from one series with one extra
+accumulator, verified against an independent high-precision integral to **better than 1e-23** over
+`c` from 0.4 to 12 and `m/b` from 0.075 to 8 — "the best-established derivation in this corpus". They
+are unused because the only correct deployment is to replace the **table**, not its derivative:
+substituting a closed form for a tabulated derivative is the more accurate derivative of a different
+function, and introduces a systematic disagreement no invariant on the gradient can attribute.
+
+The series argument is bounded by construction: the grid runs to where the vulnerability function
+reaches a fixed small fraction, so `X = log(1/fraction)` identically and `x ≤ 4.61` wherever the
+integral is evaluated. Assert the bound; do not add an argument switch the model cannot reach.
+
+**Making that change removes the grid, and with it:** the rebuild cost; the four differenced traits,
+which become exact — `b` by the homogeneity `ψ ∂G/∂ψ + b ∂G/∂b = G`, `c` by the series' own
+`a`-derivative; the two packages' disagreement, which dissolves rather than needing adjudication; and
+the reason `a` could not be differentiated.
+
+**This is a forward-model change and must be re-blessed as one.** The discipline is phylloptim's own,
+established the last time it collapsed two implementations of one algebra: a hand-maintained parallel
+copy *had already drifted* — one associated a bracket differently and used `s*s` where the other used
+`pow(s,2)`, so "the AD derivative was the derivative of a slightly different function than the model
+evaluated" — and the measured cost of the fix was 4.98e-07 on the golden grid. **One body, not two:**
+the closed form replaces the table as the model, and the table is deleted rather than kept beside it.
+
+### 3.6 The residue, named
+
+With the table gone, one thing still cannot be answered from the parts: **the conductivity spline is
+reachable from the residual, via `uptake_impl`'s equal-potentials branch, and has no derivative
+accessor at all.** It is the only spline read in the leaf without one. Either give it one or state
+the branch as a refusal; the honest interface says which, and a sentinel that reaches the caller is
+an interface where one absorbed before it is a severance.
+
+---
+
+## 4. The grid
+
+### 4.1 The mathematics: the abscissa decides the weights
+
+A census, and each of the two field reductions, is a quadrature of a **density** against a
+per-individual quantity:
+
+$$\mathcal{C} \;=\; \sum_s \sum_k w_k \, n_k \, \mathfrak{m}(h_k, \varphi).$$
+
+`n_k` is a density *in the coordinate the distribution is carried on*, so `w_k` must be gaps in
+**that** coordinate. On the birth-date coordinate `w_k` is built from introduction times. Building it
+from heights computes `∫ n \,\mathrm{d}h` where `n` is a density in `b` — a different integral of a
+different density, **wrong on every stand and not only on a crossed one.**
+
+Two further facts follow from the same choice, and they are one fact seen from opposite ends. Because
+`b_k` is fixed at birth and passive, `∂w_k/∂(\text{state}) = 0`, so the transpose carries no weight
+term; and on the height coordinate the density acquires the compression term
+`∂g/∂h` while the transpose acquires the matching weight derivative. Report 09 §4.1 states the
+identity; the consequence for an interface is that **passivity is the property to enforce, and the
+mechanism is a return type**: a coordinate accessor returning `double` unconditionally makes both of
+report 05 §6.1's first two conditions unviolatable rather than testable.
+
+### 4.2 The measurement, which is why this is a correctness item
+
+There are **four** instantiations — the two shared-part reductions, the census, and the fitness
+integral — and three of them take the wrong abscissa:
+
+| quantity | measured |
+|---|---|
+| leaf-area census, as-ordered against height-sorted, same state | **3.95%** |
+| height moment, same | 3.91% |
+| heartwood moment, same | 4.00% |
+| the fused value-and-slope reduction against the plain value reduction, birth-date coordinate | **100% relative**, while agreeing bit for bit on the height coordinate |
+
+The last line is the sharp one: the value reduction took its widths from the abscissa and the fused
+reduction that **actually builds the field** took its widths from heights. Same map, two spellings,
+one wrong.
+
+**And the two failure modes are opposite, so one guard cannot serve both.** Where the grid is the
+birth date, monotonicity is free — birth dates are strictly increasing by construction, so the guard
+is an assertion and no sort is needed. Where a user-facing helper genuinely integrates over height,
+crossing is real and it needs a sort or a refusal. A sort by height at the first site would be
+*actively wrong*: reserve-gated growth makes crossing **more** common on the birth-date coordinate,
+not less, so a guard testing height order refuses exactly the stands the forward model runs
+correctly. Ecologically this is the observation that **plants can change their relative size but not
+their relative age.**
+
+### 4.3 The interface
+
+One object, owned by the model, used by all four:
+
+```cpp
+// The size distribution's quadrature grid. The coordinate is whatever the
+// density is a density in; the accessor returns double unconditionally, so a
+// width cannot carry a derivative however a caller stores its grid.
+class Grid {
+public:
+  double coordinate(std::size_t k) const;      // NOT the model's scalar type
+  std::size_t size() const;
+
+  // Interval-major, because the forward's association order is asserted
+  // bit-exactly and a per-slot weight vector cannot reproduce it: the caller
+  // keeps its own accumulator and is handed one interval at a time.
+  template <class Visit> void intervals(Visit&&) const;
+
+  bool monotone() const;                       // an assertion on this coordinate
+};
+```
+
+**Interval-major is forced, not chosen.** `Σ w_k f_k` and `(Σ width_i (f_lo + f_hi))/2` are the same
+map with a different association, and the forward's association is asserted bit-exactly against the
+plain value reduction over 200 heights and seven crown shapes. Association order is a floating-point
+decision, and it belongs to whatever owns the walk.
+
+**One degenerate interval per event is deliberate and must stay free.** An event stamps the inserted
+element and refreshes the closing element's coordinate to the same time, so the closing interval has
+exactly zero width at that instant. No width is divided by anywhere in the quadrature or its
+transposes, so a degenerate interval costs nothing — and the guard is correspondingly split: strict
+monotonicity on the interior grid, non-strict at the closing point.
+
+Whether `Grid` lives in odelia or in plant is decided by whether odelia's general system has a
+coordinate on its unit list. It does — report 09 §1 says the state is a list of units and the
+reductions are over them — so it is odelia's, and the four witnesses satisfy the
+generalise-only-over-witnesses rule more strongly than anything else in this report.
+
+---
+
+## 5. The parameter
+
+### 5.1 One list with a role, not two lists and a string comparison
+
+Today there are two enumerations of one thing: `field_ptrs()` with 62 entries — what a rebind carries
+— and `ad_parameters()` with 47 — what is differentiated. Fifteen are excluded for two stated
+reasons: two reach a base of zero in a `u^k` whose recorded derivative `u^k log u` is not a number,
+and thirteen are read by no equation on this path. On top of that, `ad_parameter_zero_classes()`
+re-derives slackness **by string comparison** on the parameter's own name.
+
+The exclusions are not one thing. They are two of `gradient_status`'s own kinds, and that structure
+already exists:
+
+```cpp
+enum class Role {
+  differentiated,     // the gradient is this parameter's
+  zero_structural,    // reaches no equation this metric reads: zero for the whole
+                      // run, on any trajectory, and that is the answer
+  refused             // the model cannot answer for it, and says so by name
+};
+struct ad_parameter { S* value; const char* name; Role role; };
+#define PLANT_TF24_AD_PARAMETER(x, r) ad_parameter{&pars.x, #x, Role::r}
+```
+
+One table. `field_ptrs()` is the whole of it; `ad_parameters()` is a filter on it; the `static_assert`
+on `sizeof(TF24_Pars<double>)` that makes a forgotten member a compile error stays as it is. The
+string comparison dies. And the two crown-shape parameters become `refused` **by name**, which
+discharges a standing want: report 06 §11's domain table lists "refused by name — none; the set is
+empty", with the note that a trait losing a row belongs there rather than returning a zero.
+
+**`zero_slack` is not a role.** Complementary slackness is a property of the *operating point* — the
+critical potentials are zero at an interior optimum because the point is not sitting on the bound
+they set, and live at a pin — so it is per-request and comes back in §3.3's `zero` channel from the
+package that knows which branch was taken.
+
+### 5.2 The leaf's input table is verified against phylloptim's names, once
+
+plant currently maintains its own copy of phylloptim's 14-trait enumeration in four parallel arrays
+plus three masks, restated again in the shut sibling — nine tables in the two AD functions, fourteen
+in the file, of which **three disagree in name**. Slot 12 is spelled `g1_TF24`, indexed as
+`k_cost_scale`, and *is* phylloptim's `cost_scale_TF24` — a hydraulic cost scale, not a stomatal
+slope — and every consistency check downstream agrees with the meaning rather than the name.
+
+The fix is the pairing clause across a package boundary. plant declares its inputs **once**, in
+phylloptim's order, and checks the names at construction:
+
+```cpp
+// The leaf's inputs, in phylloptim's own enumeration. Checked against its names
+// once, so position is verified rather than assumed everywhere after.
+static_assert(N_INPUT == phylloptim::gradient::n_pars_total(n_layer));
+for (std::size_t i = 0; i < N_INPUT; ++i) {
+  util::check_equal(input_name[i], phylloptim::gradient::par_name(int(i), n_layer));
+}
+```
+
+A mismatch becomes a startup error naming both spellings, where today it silently relabels every
+column after the insertion point.
+
+---
+
+## 6. The loader
+
+### 6.1 The stage, and why the boundary is evaluated twice
+
+```
+per stage, given y and t:
+
+  R₀ = reduce(units)                    the shared part, closing element omitted
+  b₁ = boundary(R₀, y, t, φ)            the inflow condition, evaluated in R₀
+  R  = R₀ ⊕ close(b₁)                   the shared part the rates read
+  ──────────────────────────────────────────────────────────────────────────
+  rates_u = F(u.state, read(R, u), φ)   per unit, independent
+  ──────────────────────────────────────────────────────────────────────────
+  b₂ = boundary(R, y, t, φ)             the SAME condition, evaluated in R
+  R' = reduce₂(unit outputs ⊕ close(b₂))
+  dydt = assemble(rates, R')
+```
+
+The two evaluations are not a detail. The boundary node's density solves a scalar fixed point,
+
+$$n_b \;=\; B(t)\cdot \mathrm{pr\_estab}\bigl(L(h_0;\,n_b)\bigr),$$
+
+because the node contributes to the field it is placed in — it is the lower endpoint both field
+reductions integrate from. The model resolves it with **one Jacobi step** from `n_b = 0`: `b₁` is the
+iterate, `b₂` is the answer. They differ by more than `1e-6` relative, with a test asserting it, and
+`b₂` is what an introduced node inherits and what the census reads.
+
+### 6.2 It is the un-re-derived-aux defect in a different costume
+
+`b₂` is a **pure function of `(y, t, φ)`** — deterministic, derived, carried by nothing. The second
+loader exists only because the ordinary loader stops after `b₁`, so a reverse pass reloading a
+recorded state linearises the boundary at the wrong argument.
+
+The corpus already has the rule and has already paid for breaking it. Report 04 §5.1: *re-derive a
+state's dependent slots wherever that state is written, or write it through the setter that does* —
+an invariant "a strategy can quietly break, because breaking it changes no number." When it was
+broken for the seed's leaf area the value was right, no forward test moved, and the boundary
+density's row came back **154 times** the truth.
+
+### 6.3 The prescription
+
+**One loader, and one invariant:** *loading a recorded state reproduces every derived quantity the
+recording held.* That is checkable without a gradient — load a recorded state, then compare every
+derived slot bit for bit against what the run recorded — and it is strictly stronger than the current
+arrangement, which asserts the same thing by having two functions and a comment saying which to call.
+
+`set_recorded_state` then leaves the `Grows` concept, and report 09 §3's read-point list — a
+declaration with exactly one instance, whose own text concedes that "a second model with two read
+points is what forces the declaration" — is not built.
+
+---
+
+## 7. The solver's concept surface is inverted
+
+Today the mandatory core is duck-typed and the optional extras are conceptualised. `ode_size`,
+`ode_state`, `ode_rates`, `set_ode_state` and `reset` are named by **no concept at all**, and
+`ad_parameters()` — the entire parameter half of every recording — is named by none either, so a
+System with `rebind_from` and no `ad_parameters` passes the codebase's only `static_assert` and fails
+deep inside the recording. Meanwhile `WidensState` is satisfied by nothing in odelia, asserted
+nowhere in odelia, and gates five functions.
+
+Three concepts, each asserted where it is used:
+
+```cpp
+template <class T> concept System =         // mandatory
+  requires { typename T::value_type; } && requires(T s, /*…*/) {
+    s.ode_size(); s.ode_state(it); s.set_ode_state(it); s.ode_rates(it); s.reset();
+  };
+
+template <class T, class U> concept Differentiable =    // reverse mode
+  System<T> && requires(const T& s) {
+    { s.template rebind_from<U>() };
+    requires std::same_as<typename decltype(s.template rebind_from<U>())::value_type, U>;
+    { std::declval<T&>().ad_parameters() };
+  };
+
+template <class T> concept Grows =          // dimension growth
+  System<T> && requires(T s, const typename T::widening& w, /*…*/) {
+    typename T::widening; s.widen(w); s.narrow(w); s.widened_state(w, time, in, out);
+  };
+```
+
+Optional hooks — `record_ode_step`, `ode_state_valid`, `ode_time` — stay detection-by-absence with
+`if constexpr`, because absence is a meaningful answer there and a concept with more members than its
+consumer needs invites a model to opt into a contract it does not mean.
+
+**Assert a concept where it is used, not where it is defined.** The instance worth remembering: a
+concept describing the widening walk was referenced by nothing, and meanwhile the walk had acquired a
+call to a member the concept did not name — so a System satisfying it in full still failed inside
+that walk.
+
+---
+
+## 8. The order to build in
+
+Each step is refereed by the one before it, and nothing is deleted before its reference is captured.
+
+| # | change | done when | refereed by |
+|---|---|---|---|
+| **1** | **Merge the branches.** Rebase the 13 hardening commits onto the 46 solver commits; re-author rather than merge the `patch.h`/`scm.h` hunks, which sit on deleted structures; re-home the soft refusal at metric grain. Appendix B. | the ladder passes on the joined tree, and the hardening's incidence and parity tests still hold | the ladder |
+| **2** | **Capture the reference.** `ladder_run_difference_pair` on the two-species competing stand, at every kind of operating point reachable, stored to disk. | every kind has a stored reference | — |
+| **3** | **§4: one `Grid`.** All four quadratures through it; the coordinate accessor returns `double`. | the census, both reductions and the fitness integral agree on the abscissa; the birth-date/height disagreement in §4.2 is gone | the 3.95% figure moves to zero; the field's monotonicity assertion still holds every step |
+| **4** | **§6: one loader.** `set_ode_state` reproduces every derived quantity; delete `set_recorded_state`. | the load/compare invariant holds bit for bit over a recorded run | bit-identity of the loaded state |
+| **5** | **§5: one parameter list with a role.** Delete `ad_parameter_zero_classes()`'s string comparison; the two crown-shape parameters become `refused` by name. | one table; the R-facing zero classification is unchanged in value | the declared-zero ladder rung |
+| **6** | **§3.5: replace the vulnerability table** with report 05 §7.6's closed forms, in the **forward** model, deleting the table. | the golden grid is re-blessed and the rebuild count is zero | the FF16 tripwire, then `ladder_run_difference_pair` against step 2 |
+| **7** | **§3.3: `rows_at` in phylloptim.** Roles, an observation-dependent output count, per-layer uptake as outputs, root carbon as inputs, rows in parts. Take plant's arm robustness and phylloptim's sentinel handling — each package has half. | one row layer; `transpose_at` and `rows_at` share `at()` | the transpose identity `⟨v,Ju⟩ = ⟨Jᵀv,u⟩`, which needs no reference gradient |
+| **8** | **§3.4: plant's leaf integration.** Delete `record_leaf_outputs`, `record_zero_flux_outputs`, the trait tables, the drives. | the six-line form in §3.4 is what is there | step 2's stored reference, at every kind |
+
+**Steps 3 to 5 are independent of 6 to 8** and each is worth landing alone. Step 6 is the largest
+single return and is the precondition for 7 being simple, because with the grid moving, four of the
+row layer's inputs cannot be answered analytically at all.
+
+**Do not delete the differenced implementation before step 2.** A change from differenced to analytic
+returns a finite, plausible, wrong gradient when it is wrong, and the differenced implementation is
+the only reference that exists today.
+
+---
+
+## 9. What this is bad at
+
+**It changes the forward model once, on purpose.** Step 6 replaces a tabulation, so the golden grid
+moves and must be re-blessed. The precedent measured the analogous collapse at 4.98e-07, and recorded
+that tightening the inner solve's tolerance *first* cut a later unification's blast radius by 1400×,
+"because the tolerance was the amplifier". Order the same way.
+
+**It gives phylloptim a consumer-shaped entry point.** `rows_at` takes a role per output, which is a
+concession to the stand; a calibration does not need it. The alternative — two entry points — is the
+duplication this report exists to remove, so the concession is deliberate and the cost is that
+phylloptim's interface now names a concept its own users do not use.
+
+**Two rows still cannot be recorded**, and they must be named rather than hidden: the conductivity
+spline has no derivative accessor (§3.6), and a tracked operating point in the acclimating variant
+needs its own row from the adjoint rather than from a condition.
+
+**The `Grid` is generality over four witnesses, not over a rumoured fifth.** If a fifth quadrature
+appears that is not over the size distribution, it does not belong in this object.
+
+---
+
+## 10. What would falsify this
+
+- **A kind of operating point is not a choice of `∂p*/∂u`.** If any of the five needs an expression
+  the chain rule does not produce from §3.1's two tables, the factorisation is false and a per-kind
+  body is honest after all. The cheapest place to check is the pin at a registered constant, where
+  §3.1 makes the row an identity and the current code derives it.
+- **A role is not a property of the output.** If an output is Objective at one state and Ordinary at
+  another, the declaration is state-dependent and belongs in the returned numbers instead.
+- **Rows in parts do not beat rows in totals.** The claim is `n_output + n_input` tape terms against
+  `n_output × n_input`; measure the recording size at production width.
+- **The abscissa fix does not move the 3.95%.** Then the census's error is not quadrature error and
+  §4.2's attribution is wrong.
+- **Deleting the table does not remove the rebuild.** If a curve trait still triggers a spline build
+  after step 6, some other grid is a function of it and §3.5 has missed a channel.
+- **The load/compare invariant fails on a quantity nobody listed.** Then the set of derived
+  quantities is larger than the model believes, and §6.3's check is the instrument that says so.
+- **`rows_at`'s transpose identity fails at a state the forward model reaches.** It holds today to
+  1.41e-14 over 294 operating points; a fold, a collapsed feasibility window or a tracked operating
+  point are where to look.
+
+---
+
+## Appendix A — closed routes, with the evidence
+
+Recorded so they are not re-derived. Each was pursued in this session and abandoned on evidence.
+
+**A.1 An `implicit_value` on a scalar-templated residual.** The idea: tape `R(p; u)` at an active
+scalar, so `∇_u R` arrives for every input from one recorded evaluation and the drives disappear.
+Closed by five obstacles, any one of which is sufficient: `basic_interpolator::eval` takes `double` at
+every level, so all seven spline accessors need graft wrappers; making the residual differentiable
+*in p* additionally needs `G″` and `(G⁻¹)″`, and `spline.hpp` has **no `deriv2`**; the transpiration
+memo hits on exact `double` equality and returns a stored `double`, so an active call that hits gets
+a plausible value with no derivative attached; `E_up_` and `soil_consumption_` are `double` members
+*because plant writes back into them by name*, so typing them breaks plant's bindings; and the eight
+temperature members are `double`, so a tangent through leaf temperature is severed at the assignment
+— typing them is `Leaf<T>`, recorded as "closed, superseded, not going to be built."
+
+**A.2 Reverse mode inside phylloptim.** `xad::adj` needs `Tape<double>`, declared `extern template`
+and **defined only in odelia's `src/Tape.cpp`**. phylloptim carries `LinkingTo` with no `PKG_LIBS`
+and a CMake target that records it deliberately links nothing. Reverse mode also puts a
+process-global thread-local active tape in play inside a class plant copies per cohort. This is the
+concrete form of the standing hazard that phylloptim's `Makevars` is exempt from the XAD storage-class
+flags **only while it uses forward mode**, and that nothing will say so when that stops being true.
+
+**A.3 Augmenting the state with the parameters** (`dθ/dt = 0`). Genuinely attractive: it deletes the
+parameter argument from five signatures, the replaced-versus-accumulated asymmetry, the aliasing
+refusal, the per-seed row pre-sizing, both width checks and `ad_parameters()` itself, and it unifies
+the trait gradient with the initial-condition term since both become `ȳ(0)`. Storage is ~1.3 MB and
+the arithmetic is nil. **Rejected because the error controller would then see 47 zero-rate
+components**, which either changes step sizes — perturbing the forward model for a bookkeeping win —
+or requires a new concept, *state that does not count for error*. That trades one seam for another.
+
+**A.4 An implicit-node facility in odelia**, per report 09 §8.1's ten-item interface. The solver has
+no stake in what an implicit node *is*: `record_with_derivatives` is the whole of its obligation, and
+`implicit_root` earns its 15 lines only because it owns the IFT quotient **and its refusal at a
+fold**, which are facts about the theorem rather than about leaves. The remaining nine items are
+either already inside phylloptim's `at()` or belong to the model. The one that does earn a place —
+naming which output is the implicit quantity and which is the objective — is §3.1's role, and it is a
+property of the *outputs*, not a solver hook.
+
+---
+
+## Appendix B — the branch merge
+
+`plant` forked at `cdf3f0c9`. `odelia`'s main-tree head is an **ancestor** of the worktree's and
+`phylloptim`'s main-tree head is 14 commits **ahead** of the worktree's pointer, so neither
+diverges: the merge is one package.
+
+| | commits | diff | concentrated in |
+|---|---|---|---|
+| `ad/v3-forward` — the hardened gradient | 13 | +2573 / −258 | `tf24_strategy.h` +858/−131 |
+| `ad/reverse-pass-simplify` — the step recording | 46 | +1580 / −2898 | `patch.h` +163/−1330 |
+
+**Direction is forced.** The hardening's hunks in `patch.h` (+111) and `scm.h` (+217) sit on
+structures the recording deleted (−1330, −287) — the per-cohort block workspace, its nine hand
+transposes, and the introduction inference — so they cannot be merged, only re-authored. Rebase the
+thirteen onto the forty-six.
+
+**One item is design rather than porting.** The hardening's soft refusal is enforced per cohort, by
+asking whether a given metric's seed reads an uptake output and refusing only those metrics. That
+question has no answer under a step recording spanning six stages and every cohort in them — and the
+coarser grain is the correct one, because report 05 §7.0 already rules that refusal is metric-level
+and has no localisation. The selectivity that is lost was finer than the mathematics ever licensed.
+
+**Two defects to fix in passing.** `tests/cpp/test_leaf.cpp:2690` and `:3101` initialise
+`theta[n_pars]` with **15** values against `n_pars == 16`, so every entry from `R_d_25` on is shifted
+and the transpose identity is verified at a point with essentially no dark respiration and a
+conductance five orders too large. And phylloptim's `gradient.hpp` says "fifteen" parameters and
+"four outputs" in six places where the constants are 16 and 5.

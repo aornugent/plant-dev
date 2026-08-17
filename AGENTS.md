@@ -82,7 +82,7 @@ If a rebuild throws `undefined symbol` on load, clear stale build artifacts firs
 
 ### ⚠️ The build reports success without saying what it built
 
-Three hazards that cross a package boundary. None of them produces an error, and the
+Four hazards that cross a package boundary. None of them produces an error, and the
 first two have each cost a session. Do these unconditionally rather than when
 something looks wrong, because nothing will look wrong.
 
@@ -133,6 +133,31 @@ and never references `Tape` or `xad::adj`, and forward mode is tapeless. That
 exemption is silent: **the moment `phylloptim` gains a reverse-mode path it needs both
 flags, and nothing will say so.**
 
+**4. The installed library is shared, and another session can move it under you.**
+`plant` compiles against the *installed* `odelia` headers, and every worktree and
+background job on the machine installs into the same library. So a second session
+working on `odelia` replaces yours mid-run, and what you see is a compile error
+naming a symbol that has been in your tree all along. It happened twice in one hour
+during the reverse-pass work, once *during* a build.
+
+Two habits make it survivable:
+
+- **Check before you measure.** Grep the installed headers for something only your
+  branch has, immediately before a build and again before a timing or a test run.
+  A number taken across a swap is unattributable, and nothing announces the swap.
+- **Or take yourself out of the race.** Install your `odelia` into a private
+  library and put it *ahead* of the shared one:
+
+  ```sh
+  mkdir -p /tmp/mylib
+  R_LIBS="/tmp/mylib:$HOME/R/x86_64-pc-linux-gnu-library/4.6" \
+    R CMD INSTALL -l /tmp/mylib odelia
+  # then export that same R_LIBS for every build, Rscript and test run
+  ```
+
+  Use `R_LIBS`, which *prepends*. `R_LIBS_USER` **replaces** the user library and
+  hides Rcpp, BH, testthat and everything else with it.
+
 **And build at `-O2` deliberately** — `pkgbuild::compile_dll()` appends
 `-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars`
 asking for `-O2` is silently overridden. Pass `debug = FALSE` and confirm one compile
@@ -145,11 +170,13 @@ them per edit is wasteful. Measured at `-O2`: the gradient ladder is **1172 s of
 over 13 files**, everything else is **339 s over 55**, and no file outside the ladder
 exceeds 63 s.
 
-**Read those as CPU, not as wall clock.** `Config/testthat/parallel: true` is already
-set, so `devtools::test()` runs files concurrently and **the number that decides how
-long a run takes is the slowest single file, not the total.** Measured on sixteen
-cores, the whole ladder is **184 s of wall**. It was 719 s before three files of about
-700 s each were split and the sweeps they repeated were shared; what bought that was
+**Read those as CPU, not as wall clock. Run them with `scripts/run-tests.sh`,
+which is the preferred way to run this suite** — one R process per file, so **the
+number that decides how long a run takes is the slowest single file, not the
+total**, and it works under `load_all()`, which `testthat`'s own parallel workers
+do not (see below). Measured on sixteen cores, the whole ladder is **17 s of
+wall** that way. The CPU figure was 719 s before three files of about 700 s each
+were split and the sweeps they repeated were shared; what bought that was
 rebalancing and de-duplication, not removing a single check.
 
 Two costs to scope against, then: the **C++ rebuild** for any change, and **the
@@ -169,6 +196,15 @@ R_MAKEVARS_USER=/path/to/Makevars-O2 Rscript -e 'pkgbuild::compile_dll(".", debu
 
 with `Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`. Confirm it took by checking that the
 compile line for one translation unit in the log ends at `-O2` with no trailing `-O0`.
+
+**And a build can report success without compiling anything.** `make` does not track the headers under
+`inst/include/` as prerequisites, so editing one — an `odelia` header, or `plant`'s own header-inline
+strategy core — leaves every object file looking current. `compile_dll` then does nothing, prints
+nothing, and **exits 0**, which reads as a clean build of the change you just made. A test run after it
+measures the old binary. Two habits: **compare `plant/src/plant.so`'s mtime against the header you
+edited** before believing any result, and `rm -f src/*.o src/*.so` after a header change rather than
+trusting the incremental path. An empty build log is the tell — a real build of this package prints
+25 compile lines.
 
 **The per-iteration tax is the rebuild, not the tests.** An R-only change under
 `pkgload::load_all("plant")` skips compilation; a C++ change recompiles
@@ -193,30 +229,28 @@ Tiers of the loop, cheapest first:
    testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
                       stop_on_failure = FALSE)
    ```
-3. **Fast pre-commit sweep — everything except the ladder (~339 s, 55/68 files):**
-   ```r
-   d <- "plant/tests/testthat"
-   f <- grep("^test-gradient", list.files(d, "^test-.*\\.[Rr]$"),
-             invert = TRUE, value = TRUE)
-   for (x in f) testthat::test_file(file.path(d, x))
+3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 55/68
+   files):**
+   ```sh
+   scripts/run-tests.sh '^test-gradient' "" invert
    ```
-4. **The gradient ladder, in three tiers.** Its files are named so `filter` selects a
-   tier, and the whole ladder is 184 s of wall if you just run it concurrently.
+4. **The gradient ladder, in three tiers.** Its files are named so the pattern
+   selects a tier, and the whole ladder is 17 s of wall run this way.
 
-   *Structure, no trajectory (~40 s of CPU, ~12 s of wall).* Where the assurance is
-   concentrated: the exhaustive block Jacobian and its rank structure, the same
-   Jacobian at the states a trajectory reached, ten injected corruptions, the water
-   channel's factorisation, and the completeness reference. Run this per edit.
-   ```r
-   testthat::test_dir("plant/tests/testthat",
-                      filter = "gradient-ladder-(injection|rung3|factorisation|declared-zero)")
+   *Structure, no trajectory (~40 s of CPU, a few seconds of wall).* Where the
+   assurance is concentrated: the exhaustive block Jacobian and its rank structure,
+   the same Jacobian at the states a trajectory reached, ten injected corruptions,
+   the water channel's factorisation, and the completeness reference. Run this per
+   edit.
+   ```sh
+   scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
    ```
-   *Trajectory (~1130 s of CPU, ~184 s of wall).* floor, identity, rung4, columns,
+   *Trajectory (~1130 s of CPU, 17 s of wall).* floor, identity, rung4, columns,
    rung5, recruit, sweep, switches — accumulation across cohorts and species, the
    stage recursion, introductions, the boundary channels, and refusal. Run before
-   landing sweep work, concurrently.
-   ```r
-   testthat::test_dir("plant/tests/testthat", filter = "gradient")
+   landing sweep work.
+   ```sh
+   scripts/run-tests.sh '^test-gradient'
    ```
    *One file when you know what you touched.* `identity` for anything that changes
    how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
@@ -255,11 +289,159 @@ margin taken on a stand carries that qualification.
 `test-tf24-arid-corner.R` (32 s), `test-canopy-methods.R` (26 s). Editing K93 or FF16
 plumbing does not require paying the TF24 ones.
 
-**Three files fail on `ad/v3-forward` for reasons that predate the gradient work**
-and are not a signal about a sweep change: `test-mutant.R` errors with "Run a
-resident first to generate a competitive landscape", `test-stochastic-patch.R` takes
-a range over an empty competition interval, and `test-stochastic-patch-runner.R`
-misses its seeded baseline.
+**Six files fail on `ad/v3-forward` for reasons that predate the gradient work**
+and are not a signal about a sweep change. Counts measured at `plant@cdf3f0c9`,
+so a differing count is yours:
+
+| file | fails | what |
+|---|---|---|
+| `test-leaf.r` | 5 | lines 620, 704, 705, 706, 865 |
+| `test-strategy-tf24.R` | 2 | line 83; and the yml agreement, below |
+| `test-strategy-tf24f.R` | 1 | line 86 |
+| `test-stochastic-patch.R` | 3 | a range over an empty competition interval |
+| `test-stochastic-patch-runner.R` | 1 | misses its seeded baseline |
+
+**`test-strategy-tf24.R`'s second failure is newly visible, not new.** Its parameter probe is
+compiled by `sourceCpp` and was missing two things every such probe needs — the include paths of
+the packages `plant` LinkingTo's, and `// [[Rcpp::plugins(cpp20)]]`, which cannot go in
+`PKG_CPPFLAGS` because R places those before its own `-std=` and wins. So it failed to build and
+both checks it gates skipped. With it building, one passes and one reports that `vcmax_25` and
+`jmax_25` are registered as AD parameters while the test's `omitted` list says they are not. That
+disagreement is being fixed on a parallel branch and lands with the opaque node item; leave it
+failing until then. **A probe that does not compile is a check that does not run — and it reports
+as a skip, which reads like a choice.**
+
+**`test-mutant.R` was on this list for two failures and should not have been.** They did not
+predate the gradient work: the environment cache that feeds an invasion run was reached through
+solver hooks that a refactor stopped calling, so it filled nothing and every case errored. Listing
+them here as expected is what kept that quiet once the suite began reporting it. The unreachable
+half is deleted and the file now skips, carrying its expected fitnesses as the specification for
+the replay pass that replaces it — see report 09 §10. **A failure written down as expected stops
+being read; prefer a skip that names what it waits for.**
+
+The first three were absent from this list and cost a session's worth of doubt to
+attribute. `test-stochastic-patch-runner.R`'s pass count varies run to run; its
+one failure does not.
+
+**`testthat`'s parallel workers cannot see a `pkgload::load_all()`ed package**, so
+every invocation below needs `TESTTHAT_PARALLEL=false` — which makes a single
+`test_dir()` serial, and its wall time its CPU time.
+
+**Get the concurrency back by running one R process per file rather than one
+`test_dir()`, and use `scripts/run-tests.sh` to do it.** `load_all()` costs about
+two seconds per process and the files are independent, so fanning them out is
+nearly free and wall time becomes the slowest single file.
+
+```sh
+scripts/run-tests.sh '^test-gradient-ladder'        # the whole ladder
+scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
+scripts/run-tests.sh '^test-gradient' "" invert     # the 55 non-ladder files
+```
+
+The first argument is an extended regex over the file names, so it selects a tier
+the same way `testthat`'s own `filter` does; `invert` runs everything that does
+*not* match. It prints a line per file and a total, exits non-zero if anything
+failed, and **names any file that produced no result line** — a crashed process
+is otherwise silent, which is the one way this loses information that
+`test_dir()` does not. Logs go to a temporary directory it prints, or to a second
+argument if you pass one.
+
+**Set `PLANT_TEST_LIB` to a private library holding your `odelia` build**, which
+is how you stay out of the race described above; it is prepended, so the user
+library is still visible.
+
+**Measured on sixteen cores: the whole gradient ladder is 17 s of wall this way,
+against about twenty minutes serial**, and the 55 non-ladder files are 86 s
+against about six minutes.
+
+## Testing odelia — and the two ways it lies to you
+
+`odelia` must be installed rather than `load_all()`ed (see *Local Development*), so
+run its suite against the install, in an environment that can see the package's
+internals:
+
+```r
+library(odelia)
+testthat::test_dir("odelia/tests/testthat",
+                   env = new.env(parent = asNamespace("odelia")))
+```
+
+**Both halves of that `env` matter and each fails differently.** A plain
+`test_dir()` cannot see the `.Call` wrappers several tests invoke by name, and
+reports them as *"could not find function"* — an error that looks like broken code
+and is broken invocation. Passing `asNamespace("odelia")` itself instead of a child
+fails at the first helper with *"cannot add bindings to a locked environment"*.
+
+**The suite compiles its probes with `sourceCpp`, and a probe that does not agree
+with the shipped library fails in ways that read as unrelated.** Two settings have
+to match `src/Makevars`: the XAD defines (`XAD_NO_THREADLOCAL`,
+`XAD_USE_STRONG_INLINE`) and the C++20 standard. A probe missing the first links
+against a symbol of the same mangled name in the other storage class — *"TLS
+reference ... mismatches non-TLS definition"*. A probe missing the second reads
+every `concept` in odelia's headers as a syntax error — *"'concept' does not name a
+type"*. **The two are set in different places and only one of them can be
+shared.** `odelia_cppflags()` in `tests/testthat/helper-load-odelia.R` carries the
+include path and the defines, and a new probe takes those from there and nowhere
+else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
+`-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
+each snippet. A probe including any odelia header that names a concept needs it.
+
+At `odelia@ef705ee` the suite is **397 passing, 0 failing, 3 skipped**.
+
+**One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
+takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
+once in five full-suite runs, and never when that file is run on its own. If a run
+aborts there, re-run before investigating; if you are changing the leaf example or
+the AD driver, run the whole suite several times, because once is not evidence.
+
+## Profiling — read the method before taking a number
+
+**[`docs/leaf-rows-cost.md`](docs/leaf-rows-cost.md) is the method**, and its §1 is
+the part to read first: three measurements are needed and any two of them mislead,
+because **share = count × price** and unit costs here differ by more than an order
+of magnitude. Rank by share, never by a count and never by a profiler's own
+attribution — at `-O2` an inlined callee has no frame of its own and its samples
+land on its caller. §2 states which lever is worth pulling, §3 is the measured
+distribution, §4 the remaining levers ranked by it, and §5 what not to do.
+
+**The current distribution, so it can be scoped without re-measuring:** the gradient
+is **9.7 forward runs** at century scale and flat across run length. The largest
+single cost is the leaf's supplied derivative rows at **35.9%** of a profile — AD-only,
+so nothing in the sweep touches it — and **16.3%** of that is one root-find re-run per
+perturbation, which §4.1 says is a legitimate per-family hoist. XAD's machinery is
+**~17%**, down from ~30% before one recording came to span a step.
+
+**`scripts/profile-gradient.sh` is the harness**, and it automates the four guards
+§1 lists:
+
+```sh
+PLANT_TEST_LIB=<your lib> scripts/profile-gradient.sh scripts/profile-stand-gradient.R
+```
+
+It samples with gperftools' `libprofiler` (`perf` is unusable wherever
+`kernel.perf_event_paranoid` > 2, which is the default here), resolves with
+`google-pprof`, and prints a flat profile and a by-function one. Three things it
+knows that cost a session each to find:
+
+- **`libprofiler` is `LD_PRELOAD`ed onto the R *binary***, not the `R` wrapper and
+  not `Rscript`: via those the first `SIGPROF` arrives during the exec chain and
+  kills the process.
+- **Profile an INSTALLED plant, never a `load_all`ed one.** `pkgload` maps its own
+  copy of `plant.so` and unlinks it while it is still mapped, so the profile's maps
+  entry reads `plant.so (deleted)` — and **no archived copy can be substituted for
+  it**, because the map entry is what is wrong rather than the file. Every sample
+  inside plant then resolves to a bare hex address. Install with
+  `R CMD INSTALL -l $PLANT_TEST_LIB plant`.
+- **Refine the schedule in a separate process.** Refinement bisects on
+  trait-dependent errors and re-runs the whole model many times — measured at
+  **206 s against a ~30 s run at century scale** — so a profile including it spends
+  half its samples in the forward model, and a gradient-to-run ratio computed
+  against it flatters the sweep by using many runs as the denominator.
+  `scripts/profile-stand-gradient.R` caches the refined parameters beside its output
+  and says so when it had to refine.
+
+`google-pprof` comes from the `google-perftools` package, which the `-dev` libs do
+not pull in; install it explicitly.
 
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 
