@@ -113,11 +113,13 @@ them per edit is wasteful. Measured at `-O2`: the gradient ladder is **1172 s of
 over 13 files**, everything else is **339 s over 55**, and no file outside the ladder
 exceeds 63 s.
 
-**Read those as CPU, not as wall clock.** `Config/testthat/parallel: true` is already
-set, so `devtools::test()` runs files concurrently and **the number that decides how
-long a run takes is the slowest single file, not the total.** Measured on sixteen
-cores, the whole ladder is **184 s of wall**. It was 719 s before three files of about
-700 s each were split and the sweeps they repeated were shared; what bought that was
+**Read those as CPU, not as wall clock. Run them with `scripts/run-tests.sh`,
+which is the preferred way to run this suite** — one R process per file, so **the
+number that decides how long a run takes is the slowest single file, not the
+total**, and it works under `load_all()`, which `testthat`'s own parallel workers
+do not (see below). Measured on sixteen cores, the whole ladder is **17 s of
+wall** that way. The CPU figure was 719 s before three files of about 700 s each
+were split and the sweeps they repeated were shared; what bought that was
 rebalancing and de-duplication, not removing a single check.
 
 Two costs to scope against, then: the **C++ rebuild** for any change, and **the
@@ -161,30 +163,28 @@ Tiers of the loop, cheapest first:
    testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
                       stop_on_failure = FALSE)
    ```
-3. **Fast pre-commit sweep — everything except the ladder (~339 s, 55/68 files):**
-   ```r
-   d <- "plant/tests/testthat"
-   f <- grep("^test-gradient", list.files(d, "^test-.*\\.[Rr]$"),
-             invert = TRUE, value = TRUE)
-   for (x in f) testthat::test_file(file.path(d, x))
+3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 55/68
+   files):**
+   ```sh
+   scripts/run-tests.sh '^test-gradient' "" invert
    ```
-4. **The gradient ladder, in three tiers.** Its files are named so `filter` selects a
-   tier, and the whole ladder is 184 s of wall if you just run it concurrently.
+4. **The gradient ladder, in three tiers.** Its files are named so the pattern
+   selects a tier, and the whole ladder is 17 s of wall run this way.
 
-   *Structure, no trajectory (~40 s of CPU, ~12 s of wall).* Where the assurance is
-   concentrated: the exhaustive block Jacobian and its rank structure, the same
-   Jacobian at the states a trajectory reached, ten injected corruptions, the water
-   channel's factorisation, and the completeness reference. Run this per edit.
-   ```r
-   testthat::test_dir("plant/tests/testthat",
-                      filter = "gradient-ladder-(injection|rung3|factorisation|declared-zero)")
+   *Structure, no trajectory (~40 s of CPU, a few seconds of wall).* Where the
+   assurance is concentrated: the exhaustive block Jacobian and its rank structure,
+   the same Jacobian at the states a trajectory reached, ten injected corruptions,
+   the water channel's factorisation, and the completeness reference. Run this per
+   edit.
+   ```sh
+   scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
    ```
-   *Trajectory (~1130 s of CPU, ~184 s of wall).* floor, identity, rung4, columns,
+   *Trajectory (~1130 s of CPU, 17 s of wall).* floor, identity, rung4, columns,
    rung5, recruit, sweep, switches — accumulation across cohorts and species, the
    stage recursion, introductions, the boundary channels, and refusal. Run before
-   landing sweep work, concurrently.
-   ```r
-   testthat::test_dir("plant/tests/testthat", filter = "gradient")
+   landing sweep work.
+   ```sh
+   scripts/run-tests.sh '^test-gradient'
    ```
    *One file when you know what you touched.* `identity` for anything that changes
    how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
@@ -262,26 +262,31 @@ every invocation below needs `TESTTHAT_PARALLEL=false` — which makes a single
 `test_dir()` serial, and its wall time its CPU time.
 
 **Get the concurrency back by running one R process per file rather than one
-`test_dir()`.** `load_all()` costs about two seconds per process and the files
-are independent, so fanning them out is nearly free and wall time becomes the
-slowest single file:
+`test_dir()`, and use `scripts/run-tests.sh` to do it.** `load_all()` costs about
+two seconds per process and the files are independent, so fanning them out is
+nearly free and wall time becomes the slowest single file.
 
 ```sh
-for f in $(ls plant/tests/testthat | grep -E '^test-gradient-ladder'); do
-  ( TESTTHAT_PARALLEL=false Rscript -e "
-      library(odelia); pkgload::load_all('plant', quiet = TRUE)
-      d <- as.data.frame(testthat::test_file('plant/tests/testthat/$f',
-                                             reporter = 'silent'))
-      cat(sprintf('$f pass=%d fail=%d error=%d\\n',
-                  sum(d\$passed), sum(d\$failed), sum(d\$error)))" ) &
-done; wait
+scripts/run-tests.sh '^test-gradient-ladder'        # the whole ladder
+scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
+scripts/run-tests.sh '^test-gradient' "" invert     # the 55 non-ladder files
 ```
+
+The first argument is an extended regex over the file names, so it selects a tier
+the same way `testthat`'s own `filter` does; `invert` runs everything that does
+*not* match. It prints a line per file and a total, exits non-zero if anything
+failed, and **names any file that produced no result line** — a crashed process
+is otherwise silent, which is the one way this loses information that
+`test_dir()` does not. Logs go to a temporary directory it prints, or to a second
+argument if you pass one.
+
+**Set `PLANT_TEST_LIB` to a private library holding your `odelia` build**, which
+is how you stay out of the race described above; it is prepended, so the user
+library is still visible.
 
 **Measured on sixteen cores: the whole gradient ladder is 17 s of wall this way,
 against about twenty minutes serial**, and the 55 non-ladder files are 86 s
-against about six minutes. Check for a file that produced no result line — a
-crashed process is otherwise silent, which is the one way this loses information
-that `test_dir()` does not.
+against about six minutes.
 
 ## Testing odelia — and the two ways it lies to you
 
