@@ -108,17 +108,20 @@ header dependencies, so `R CMD INSTALL` after editing `inst/include/` reuses a s
 error names neither package.** `phylloptim/DESCRIPTION` carries
 `Remotes: traitecoevo/odelia@v0.2.1`, so a **dependency-resolving** installer
 (`install.packages(".")`, `devtools::install()`, `pak`) fetches upstream odelia over
-the locally built fork. Upstream's lacks the `Replayable` concept `plant`'s
-`store_trajectory` static-asserts on, so the next `plant` build fails with
-`'Replayable' is not a member of 'odelia::ode'` pointing at `scm.h` — in a session
-that never touched odelia. Six occurrences across three sessions.
+the locally built fork. Upstream's carries none of the reverse-mode surface the
+sweep calls, so the next `plant` build fails on a name that has been in your tree
+all along — in a session that never touched odelia. Six occurrences across three
+sessions.
 
 `R CMD INSTALL` does **not** resolve `Remotes` and is therefore the safe form. Verify
-after any `phylloptim` install:
+after any `phylloptim` install, against the walk's own entry point rather than a
+concept name, because a concept can be renamed while the fork stays the fork:
 
 ```sh
-grep -c "concept Replayable" $(Rscript -e 'cat(find.package("odelia"))')/include/odelia/ode_interface.hpp
-# must print 1; if it prints 0, run: R CMD INSTALL --no-multiarch --preclean odelia
+ODE=$(Rscript -e 'cat(find.package("odelia"))')
+grep -c solve_adjoint_over_widenings "$ODE/include/odelia/gradient.hpp"
+# non-zero, or what is installed is not the fork:
+#   R CMD INSTALL --no-multiarch --preclean odelia
 ```
 
 **3. The XAD storage-class flags must pair between `plant` and `odelia`, and a

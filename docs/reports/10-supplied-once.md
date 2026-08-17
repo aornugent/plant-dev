@@ -693,13 +693,26 @@ transposes, and the introduction inference — so they cannot be merged, only re
 thirteen onto the forty-six.
 
 **One item is design rather than porting.** The hardening's soft refusal is enforced per cohort, by
-asking whether a given metric's seed reads an uptake output and refusing only those metrics. That
-question has no answer under a step recording spanning six stages and every cohort in them — and the
-coarser grain is the correct one, because report 05 §7.0 already rules that refusal is metric-level
-and has no localisation. The selectivity that is lost was finer than the mathematics ever licensed.
+asking whether a given metric's seed reads an uptake output and refusing only those metrics. Under a
+step recording that question has no operand rather than no answer: per-cohort uptake is an
+intermediate of the rate call, not an output of the recording, so no seed carries a component to
+test. The flag also sits on a strategy that is one per species shared by every node once the
+per-cohort copy that reset it is gone, so it must land in storage the run still owns.
+
+**The coarser grain is right, and the reason is measured rather than mathematical.** Refusal being
+metric-level is what *permits* the selectivity, not what forbids it, so the argument does not come
+from there: what report 05 §7.0 rules out is localisation *within* a metric, which is a different
+statement and is untouched by the grain. What settles it is that the selectivity saves nothing on
+this census — every metric is a size moment, growth reads water, and sweeping backwards gives every
+metric a non-zero soil adjoint within a step or two of the census, so there is no water-independent
+metric to spare. The ladder asserts that today, on the branch that has the finer grain.
 
 **Two defects to fix in passing.** `tests/cpp/test_leaf.cpp:2690` and `:3101` initialise
 `theta[n_pars]` with **15** values against `n_pars == 16`, so every entry from `R_d_25` on is shifted
-and the transpose identity is verified at a point with essentially no dark respiration and a
-conductance five orders too large. And phylloptim's `gradient.hpp` says "fifteen" parameters and
-"four outputs" in six places where the constants are 16 and 5.
+and the transpose identity is verified at a point with essentially no dark respiration — 3.14e-5
+against 1.44 — a conductance **8.5 orders** too large, and series resistance left at exactly zero by
+the zero-fill, which is the one parameter the six single-potential points exist to exercise. Sizing
+the array from its initialiser and asserting the count against `n_pars` is what makes a short list a
+compile error instead of a shift. And phylloptim's `gradient.hpp` says "fifteen" in six places and a
+stale "four" outputs in three, where the constants are 16 and 5; one of the three describes the state
+before profit became a reported output and contradicts its own next sentence.
