@@ -1123,14 +1123,23 @@ because of that.
   — it must be 1.
 - **`phylloptim`'s C++ suite needs `make -C tests/cpp CXX=g++`** — the Makefile's default reaches for a
   `clang++-12` that is not installed here.
-- **`phylloptim`'s own R suite has pre-existing failures too**, measured against a stashed baseline:
-  `test-gradient.R` (1 fail, 1 error), `test-gradient-batch.R` (4 errors), `test-surface.R` (1 fail).
-  Its C++ `test_leaf` also aborts at HEAD. `test-golden.R`, `test-cost.R` and
-  `test-temperature-response.R` are clean.
-- **Seven test failures pre-exist at `cdf3f0c9`** and are not a signal: `test-strategy-tf24.R::Defaults`,
-  `test-strategy-tf24f.R::Defaults`, and five in `test-leaf.r` (`Basic functions`, `Medlyn stomatal
-  model`, `psi_stem_to_ci supply=demand solve`). `phylloptim`'s own `test_leaf` also aborts at HEAD on a
-  single-potential series resistance of zero. **Establish the baseline before attributing anything.**
+- **The pre-existing failure baseline, re-measured repeatedly this session and stable throughout.**
+  Anything outside these is a signal; anything in them is not.
+
+  | suite | pass | problems |
+  |---|---|---|
+  | `plant` gradient ladder | **495** | **0** |
+  | `plant`, everything else | **3244** | **13**, in six files: `test-leaf.r` (5), `test-mutant.R` (2), `test-stochastic-patch.R` (3), `test-stochastic-patch-runner.R` (1), `test-strategy-tf24.R` (1), `test-strategy-tf24f.R` (1) |
+  | `phylloptim` R | **1437** | **3**: `test-gradient.R` (1 fail, 1 error), `test-surface.R` (1 fail) |
+
+  `phylloptim`'s C++ `test_leaf` also aborts at HEAD, on a single-potential series resistance of zero —
+  which stops `make -C tests/cpp` before `test_golden` runs. **Run `./test_golden --cross-platform`
+  directly**: on this platform the file is NOT bit-exact (it was generated on macOS/arm64) and the
+  correct reading is the summary line, worst 1.82e-07 profit and 1.4e-04 argmax against tolerances of
+  1e-05 and 5e-03.
+- **The parallel test runner crashes on the ladder.** Run the files in a loop with
+  `TESTTHAT_PARALLEL=false`; `test_dir(filter = "gradient")` dies inside the queue poll and the
+  traceback names `cli::cli_abort`, which looks like a test failure and is not.
 - **When attributing a failure, stash with `git -C <repo> stash`.** The shell's working directory
   persists between commands, so a bare `cd repo && git stash` followed by another `git stash` stashes
   the *first* repo twice and leaves the second untouched — which produces a "baseline" that still
