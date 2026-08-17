@@ -323,6 +323,10 @@ Everything above is diagnosis. This is the proposal, and it rests on one move.
 > **`AdjointRates` asks a model for the transpose of its own right-hand side. Ask it instead for the
 > shape of its right-hand side, and derive the transpose.**
 
+That concept is named throughout §5 and §6 as the thing the design argues against. It no longer
+exists in the tree — §14.2 records what happened to it — and it is kept here because the argument is
+about what it asked for.
+
 Every line of scaffolding in the model exists to discharge a *derivative* obligation. A model that
 declares its *structure* has no derivative obligation left, and what remains is the forward pass.
 
@@ -573,16 +577,16 @@ hand-writes is the two reductions, the environment cascade and the light/allomet
 440 lines, which is §3's number and not §2's 1,225. The gap between rung A and rung D is real; the
 claim that one end of it is already built is not.
 
-**One rung-B-adjacent economy has landed since, and it is the first noun in §7 to arrive.** odelia
-now carries a `BatchedAdjointRates` concept and plant a batched entry point: a block is recorded
-once and swept once per metric, where the loop it replaces recorded it once per metric. **The
-economy report 05 §9.1 describes is therefore real rather than proposed**, and it arrived by adding
-a dimension to the existing hand-written interiors rather than by taping a stage. That is worth
-holding onto, because it is the counterfactual this report is arguing against: the same saving was
-available by declaring the structure once, and was instead bought by widening three transposes and
-threading a metric index through them. Two gaps in that branch, both nameable: it seeds state adjoints only, so parameters must be
-registered as extra tape inputs (§7's missing noun); and it shares one tape across six stages without
-releasing the slot array, which costs ~1.8× one stage's peak until a clear-and-re-register per stage.
+**One rung-B-adjacent economy landed before any of this, and it is the first noun in §7 to arrive.**
+A block was recorded once and swept once per metric, where the loop it replaced recorded it once per
+metric. **The economy report 05 §9.1 describes is therefore real rather than proposed** — but it
+arrived by adding a dimension to the existing hand-written interiors rather than by taping a stage,
+which is the counterfactual this report is arguing against: the same saving was available by
+declaring the structure once, and was instead bought by widening three transposes and threading a
+metric index through them. Both concepts it was carried on are gone (§14.2), and so are the two gaps
+it had — it seeded state adjoints only, so parameters had to be registered as extra tape inputs
+(§7's missing noun), and it shared one tape across six stages without releasing the slot array, at
+~1.8× one stage's peak.
 
 Three results that were not expected:
 
@@ -1297,6 +1301,7 @@ moisture because the stand's water balance is endogenous. An invader integrates 
 in response to a soil moisture it does not move -- so on that pass the soil is supplied rather than
 integrated, and leaves the state vector. The two passes therefore run states of different width,
 which is a fact about the model and not a detail of the record.
+
 ### 14.5 What is left
 
 Four items. Each says what to do, why, and what would show it done.
