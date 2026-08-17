@@ -1,10 +1,11 @@
-# Generalising the reverse pass: one recording per stage
+# Generalising the reverse pass: one recording per step
 
 The stand-scale reverse mode is correct on the birth-date coordinate, and it is now **one recording
-per Runge-Kutta stage**. Everything between the state and the rates -- the shared field and both its
+per Runge-Kutta step**. Everything between the state and the rates -- the shared field and both its
 reductions, the inflow condition, every unit's physiology, the downstream aggregation and the
-environment it feeds -- is an intermediate of that recording, and the transpose is one
-vector-Jacobian product against the rate adjoints.
+environment it feeds -- is an intermediate of that recording, and so is the tableau that joins the
+six stages into a step. The transpose is one vector-Jacobian product against the adjoint of the
+state the step ends at.
 
 **This report is why that is the only sensible answer, and what it leaves a model to write.** The
 design it replaced hand-wrote six transposes, and the argument against them is not that they were
@@ -50,14 +51,20 @@ Each follows from the one before, and the third is a fact about the model rather
    as an economy — it is marginally faster, 13.1 forward runs against 13.6 — but because at that
    point there is nothing left for a hand transpose to be a transpose *of* that the tape is not
    already carrying. Except one: the arithmetic joining the stages, which a stage recording cannot
-   see and which the solver therefore transposes by hand. The same step taken once more makes the
-   recording span the step, and §14.5's first item is that step.
+   see and which the solver therefore transposed by hand. The same step taken once more makes the
+   recording span the step, and it is taken: there is now no hand-written transpose anywhere between
+   a parameter and the state a step ends at. **It is also the cheaper pass, which was not expected**
+   — a stage cannot be recorded until its own state exists, so recording per stage meant walking the
+   step in double first, at thirteen model evaluations. A step recording builds those states as
+   intermediates and walks once, at seven. One gradient of the two-species stand falls from 15.67 s
+   to 10.04 s against an unmoved forward run.
 
 **What this costs is a commitment, and it was made deliberately.** Report 01 asks for peak memory
 flat in the unit count, and that flatness was bought by writing every transpose between the state and
-the rates by hand. Peak now holds the stage: linear in the unit count, 10.4 MiB at production width,
-and about 62 MiB once the recording spans the step. The rung that asserted flatness asserts the
-amortisation instead.
+the rates by hand. Peak now holds the step: linear in the unit count, and six stages at once where
+one stage was 10.4 MiB at production width. **That six-fold is inferred from §6's per-stage
+measurement, not measured directly** — the figure to check is the step recording's own size, and
+nothing exports it. The rung that asserted flatness asserts the amortisation instead.
 
 **The corollary is the part worth carrying to the next model.** A tape carries whatever the forward
 reads, including a parameter nobody has registered yet. So the size-space carrier report 07 calls a
@@ -155,6 +162,14 @@ gained ones are checked in one place. But it is a transfer at roughly two lines 
 a thousand for seven, and the difference matters because the original number invited the reading
 that a solver primitive is nearly free. It is not. It is cheaper than the drift, which is a
 different argument and the true one.
+
+**And the solver's own count has since turned back down, which says something about when a primitive
+stops costing.** Recording the step rather than the stage took **−132** off the shipped headers
+(§14.2): the hand-written stage recursion, the double rebuild that fed it, the second and third
+spellings of the tableau, and the active System threaded through three layers to be reused. Every
+one of those was scaffolding around a primitive that was not yet general enough. **A primitive that
+is still growing is one that has not found its shape** — the deletions arrive when it does, and they
+arrive in the solver as well as the model.
 
 **The bucket that did not move is the one worth looking at.** The graft is 412 lines in the strategy,
 and only its last twenty moved: the *construction* is now odelia's, but the partials fed to it are
@@ -602,13 +617,17 @@ read off the branch rather than argued:
 - **It is barely exercised.** One step of a three-state toy, never through the segment sweep, never
   batched, never with a parameter.
 
-**Two of those four have since been discharged, which is what "tried, and it does not" was worth.**
-The branch has a parameter channel — the accumulator is threaded through the stepper into the
-product — and it reaches record-once-sweep-many rather than recording per metric. Those were the
-two that made the objection structural rather than incidental, and closing them is most of what
-§14 records. The remaining two were always the weaker pair: whether it costs more is now the
-question §11 can no longer answer, and "barely exercised" was a statement about the suite, which
-has changed.
+**All four have since been discharged, which is what "tried, and it does not" was worth.** The
+branch has a parameter channel — the accumulator is threaded through the stepper into the product —
+and it reaches record-once-sweep-many rather than recording per metric. Those were the two that made
+the objection structural rather than incidental, and closing them is most of what §14 records.
+
+**The third fell to the step recording and fell the other way.** Retaking the step in double was an
+artefact of recording per stage: a stage cannot be recorded until its state exists, so the step had
+to be walked in double first. A recording spanning the step builds those states as its own
+intermediates, so it walks once. **Six model evaluations a step, not thirteen** — cheaper than the
+hand-written transposes it replaces, not dearer. The fourth was always a statement about the suite,
+which has changed.
 
 **And the premise underneath was wrong, which is the more useful finding.** This report reads plant
 as hand-writing its interiors. It is not: `cohort_block_adjoint` *is* odelia's own
@@ -678,7 +697,7 @@ opened on, and five of its seven rows have since been discharged — the paragra
 say which and how. Two rows are wrong even as history: the parameter accumulator is described as a
 mutable System member with six writers, which the text below the table correctly says is gone; and
 refusal is described as not existing in C++ at all, which was never true of the dependency that
-supplies the leaf's rows (see §14.5 item 3).
+supplies the leaf's rows (see §14.5 item 4).
 
 | primitive | what an author writes today | what they would write | how a mistake surfaces |
 |---|---|---|---|
@@ -869,7 +888,7 @@ named-slot carriers, the reduction transposes, the walk copies, and the narrow/w
 which are odelia's. **The exception is the classification enum**, which still derives four values
 from residual magnitude in the way report 05 §7.0 forbids, and still sits beside the correct
 decision tree unused by the gradient entry point. It is the only surviving deletion target here,
-and it belongs with the opaque node (§14.5 item 2) rather than on its own.
+and it belongs with the opaque node (§14.5 item 3) rather than on its own.
 
 **The last two rows were the strongest evidence the primitives were missing, and they are the two
 that moved furthest.** The claim was that the model never uses the rank-one collapse — that it
@@ -1201,26 +1220,35 @@ per parameter — and concluded that the constant inverted the design's own argu
 Re-measured on the built tree, on the refined schedule, at **84 units and 204 accepted steps** — a
 fixture slightly *wider and longer* than the one that produced those figures:
 
-| | previous reading | this reading |
-|---|---|---|
-| forward run | 6.2 s | **1.11 s** |
-| one gradient, three metrics | 1006 s | **15.67 s** |
-| gradient ÷ forward | 162 | **14.1** |
-| 47 re-runs | ~291 s | **52.2 s** |
-| adjoint against re-running | **3.5× worse** | **3.3× better** |
+| | first reading | on the built tree | with the step recording |
+|---|---|---|---|
+| forward run | 6.2 s | **1.11 s** | **1.12 s** |
+| one gradient, three metrics | 1006 s | **15.67 s** | **10.04 s** |
+| gradient ÷ forward | 162 | **14.1** | **9.0** |
+| 47 re-runs | ~291 s | **52.2 s** | **52.6 s** |
+| adjoint against re-running | **3.5× worse** | **3.3× better** | **5.2× better** |
 
-**The ratio is fourteen and it is flat**: 14.0, 13.9 and 14.1 at lifetimes of a half, one and three.
-So the gradient costs about fourteen forward runs whatever the run length, break-even sits at
-fourteen parameters, and the model carries forty-seven. **The premise is met with a factor of three
-to spare, and the flatness is the part worth keeping** — it says the sweep's cost tracks the run
-rather than compounding with it.
+**The ratio is nine and it is flat**: 8.7, 8.9 and 9.0 at lifetimes of a half, one and three, where
+it was 14.0, 13.9 and 14.1. So the gradient costs about nine forward runs whatever the run length,
+break-even sits at nine parameters, and the model carries forty-seven. **The premise is met with a
+factor of five to spare, and the flatness is the part worth keeping** — it says the sweep's cost
+tracks the run rather than compounding with it.
 
-**What moved it is not established, and should not be guessed from the commit subjects.** The
-reasoning offered here was that the leaf boundary *"still differences fourteen traits at two
-evaluations each, exactly as before, so the saving is not there"* — **and that premise is now
-false**: it differences four. The other ten are read in closed form, which is a real saving in
-exactly the place this paragraph ruled out. Whether it is *the* saving is still unestablished, and
-the honest position is unchanged: what is measured is the effect.
+**The third column is a like-for-like measurement and the second was not.** The forward run is
+1.12 s against 1.11 s on the same fixture at 204 accepted steps, so the machine and the schedule
+are the same and the whole of the movement is the sweep's. **What moved it is established this
+time**: recording per stage meant each stage's state had to exist before it could be recorded, so
+the sweep walked the step in double first — thirteen model evaluations a step. A recording spanning
+the step builds those states as its own intermediates and walks it once, at seven. The measured
+1.56× is what dropping six of thirteen evaluations buys once the rest of the sweep is counted.
+
+**What moved the SECOND column is still not established, and should not be guessed from the commit
+subjects.** The reasoning offered here was that the leaf boundary *"still differences fourteen
+traits at two evaluations each, exactly as before, so the saving is not there"* — **and that premise
+is now false**: it differences four. The other ten are read in closed form, which is a real saving
+in exactly the place this paragraph ruled out. Whether it is *the* saving is still unestablished.
+The third column is different in kind, and the distinction is the lesson: a measurement whose
+counterfactual is held fixed attributes itself, and one taken across a rebuild does not.
 
 Two things survive intact. **Nothing in the ladder measures time**, so this figure is nobody's
 regression test and the next change to the leaf can move it by another order with no failure
@@ -1236,8 +1264,10 @@ oppose the design.**
 Checked against the tree. Three are answered, one is moot, and the three that remain open are the
 ones about a *second* model — which is the shape of the whole risk here, and §14.6 says why.
 
-- **~~A stage recording does not fit.~~ Answered: it fits.** The number is measured and returned
-  beside the gradient. This was rung B's only load-bearing unknown.
+- **~~A stage recording does not fit.~~ Answered: it fits, and so does a step's.** The number is
+  measured and returned beside the gradient. This was rung B's only load-bearing unknown. Holding
+  six stages at once rather than one costs about 62 MiB at production width against 10.4, which is
+  the same budget report 01's flatness was already given up for.
 - **~~The reduction primitive does not cover the functional.~~ Moot.** There is no reduction
   primitive: the transposes it would have served were deleted and the quadrature helper went with
   them (§7.1).
@@ -1277,11 +1307,12 @@ This section states the arrangement that resulted and gives the remaining work a
 ### 14.1 The arrangement, stated once
 
 **The solver owns the reverse pass entire.** The tape, one for a walk. The System at the adjoint
-scalar, one for a segment, assigned from the double System once per recording. **One recording per
-step**, spanning all six Runge-Kutta stages and the combination that closes them, taken through the
-same rate call the forward pass uses — which is also the one place a replay pass diverges from a
-resident one. The record-once-sweep-many product, with the parameter channel in band. The segment
-walk across widenings, with its partition assertion and its narrow-widen round trip.
+scalar, one per recording, lifted by the primitive that records on it. **One recording per step**,
+spanning all six Runge-Kutta stages and the combination that closes them, taken through the same
+rate call the forward pass uses — which is also the one place a replay pass diverges from a resident
+one. The tableau itself, written once and stepped through by the forward pass and the recording
+alike. The record-once-sweep-many product, with the parameter channel in band. The segment walk
+across widenings, with its partition assertion and its narrow-widen round trip.
 
 **The recording spans the step and not the stage, and that is the whole of the design.** A stage
 recording cannot see the arithmetic that joins the stages, so something has to transpose the
@@ -1290,9 +1321,11 @@ this report exists to remove, sitting in the solver rather than the model. A ste
 transposes the stepper's own arithmetic. It is also the cheaper pass: a stage recording has to
 rebuild each stage's state in double before it can record that stage, so it walks the step twice at
 thirteen model evaluations, where a step recording's stage states are its own intermediates and it
-walks once at six.
+walks once at six. **Built**, at a net −132 lines of shipped solver header.
 
-**It is per stage today, and §14.5's first item is how it stops being.**
+**And the System is lifted to the adjoint scalar inside the primitive that records on it**, rather
+than being built by a caller and handed down. That placement is not an implementation detail; §14.3
+states why it is the only place it can go.
 
 **A model declares ~~five~~ ~~seven~~ six things, and five of them it already had.** How to assign
 itself from another scalar's copy. Which of its scalars are parameters. How to compute rates. And
@@ -1330,6 +1363,9 @@ where the argument wanted one.
 | the branch choosing between rebinding and assigning, and its concept | nothing left to choose: the rebind **is** the assignment |
 | the invasion run's recorder, and the flag whose nine guards were dead branches | **−244** against +57, and it had never been reachable |
 | the dead competition profile and the `include_boundary` layer under it | six functions to two, **−124** |
+| the hand-written stage recursion, and the double rebuild that fed it | one recording spans the step |
+| the tableau's second and third spellings | `stage_state` and `step_end` are one pair of scalar-templated functions; the forward step and the recording both step through them, so **−132** across the shipped headers |
+| the active System threaded through three layers to be reused, its concept, and the Solver member caching it | the primitive that needs it fresh builds it |
 
 **The concepts went entirely, and that was not the prediction.** The transpose concept looked like
 two obligations — *I carry my own transpose*, which the generic path absorbs, and *here is my
@@ -1353,16 +1389,33 @@ gradient machinery, and that what it does own it writes once. The scalar copy wa
 maps on each of three classes, asserted equal by comment and unequal in fact; it is one map now,
 with the rebind a line over it, so the assertion is structural rather than remembered.
 
-**A copy of an active System has one obligation beyond its values, and it is the one that bites.**
-Every scalar it reaches has to arrive holding no tape slot. A rebind gets that free, because a fresh
-object's scalars start unregistered. An assignment does not: XAD's copy-assignment *keeps* a
-non-invalid slot and only its move-assignment swaps one out, so writing a copy member by member
-means every active member must be assigned through a prvalue, and the ones missed keep the last
-recording's slots and corrupt the next sweep with nothing raised. That is why the whole-object
-assignment stays: it swaps every slot at once, where the member-wise form is a rule with no check
-behind it. The same hazard put four vectors of active scalars in the light spline on the wrong side
-of a copy — a field rebuilt into a spline that had already recorded kept its slots — and those now
-hand over a fresh buffer instead, which is also the cheaper of the two.
+**A copy of an active System has one obligation beyond its values, it is the one that bites, and
+the previous reading of this paragraph got the conclusion backwards.** Every scalar the copy reaches
+has to arrive holding no tape slot: clearing the tape returns its slot counter to zero, so a scalar
+still holding the last recording's slot is handed the same number as some other variable in this
+one, their adjoints add together, and the sweep comes back finite, plausible and wrong.
+
+This section previously concluded that an assignment delivers that, because assigning a prvalue
+move-assigns and a move swaps the slot away. **It delivers it only for the scalars the copy writes,
+and a copy writes the members it lists.** Every quantity the System *derives* — a rate computed from
+the state it was just handed, a cached coefficient, an interpolant's knots — is written from an
+expression, and assigning from an expression KEEPS the slot the target already had. So the derived
+half of the System walks into the next recording still registered, and no signature can say so.
+
+**Six identical recordings a step hid this completely.** Recordings of the same shape hand out slots
+in the same order, so the stale slot a derived scalar carried in was exactly the slot it would have
+been given — self-consistent, and invisible. One recording spanning six stages writes those scalars
+six times from a slot carried in from the *last* stage of the previous step, and it then aliases a
+live variable. That is why the step recording failed on a run while passing on one step, and why it
+took a bisect rather than a reading: nothing about the arithmetic was wrong.
+
+**So the copy is taken where the requirement is.** `state_and_parameter_adjoints` lifts the System
+itself, per recording, and the stale case stops being expressible rather than being forbidden by a
+rule. That deleted the active System threaded through the stepper and the solver, the concept that
+named the assignment, and the Solver member that cached it. The same hazard had already put four
+vectors of active scalars in the light spline on the wrong side of a copy — a field rebuilt into a
+spline that had already recorded kept its slots — and those hand over a fresh buffer instead. **Two
+findings of one defect, a session apart, is what a rule with no check behind it costs.**
 
 **And what is NOT in this accounting.** The opaque node is untouched by all of it. That is model
 calculus rather than solver machinery, and it is where the remaining hand-written derivative lines
@@ -1438,49 +1491,69 @@ which is a fact about the model and not a detail of the record.
 
 ### 14.5 What is left
 
-Six items, in the order they are worth doing. Each says what to do, why, and what would show it
-done.
+Seven items, in the order they are worth doing. The first is done and is kept for what it cost; the
+second is the economy it leaves open. Each says what to do, why, and what would show it done.
 
-**1. Record the step, not the stage — which deletes the last hand-written transpose in the system.**
-`Step::sweep_stages` walks the six stages backwards and splits each stage's adjoint over the state
-and the earlier rates, by the Butcher coefficients, written out. That is a transpose of `step()`'s
-own arithmetic maintained beside it, and `stage_state`'s comments say how finely it has to agree:
-*"b21 * h * k1 and h * (b21 * k1) round differently"*, *"summed in ascending stage, then one h, as
-step() sums it"*. Nothing holds the two together. It is §3's hand-mirrored defect, in odelia.
+**1. ~~Record the step, not the stage.~~ Done.** `Step::sweep_stages` walked the six stages
+backwards and split each stage's adjoint over the state and the earlier rates by the Butcher
+coefficients, written out — a transpose of `step()`'s own arithmetic maintained beside it, agreeing
+with it only by discipline, down to which grouping each term was summed in. It was §3's
+hand-mirrored defect, sitting in the solver rather than the model. One recording now spans the step,
+so what the sweep transposes is the arithmetic the stepper performs. The tableau has one spelling
+rather than three — `stage_state` and `step_end` are scalar-templated, and the forward step and the
+recording both step through them — and the double rebuild that fed the old sweep is gone with it:
+**seven model evaluations a step where there were thirteen.**
 
-One recording over the whole step removes it. What the sweep then transposes is the arithmetic the
-stepper performs, so the two cannot disagree.
+**What it cost to land was one defect, and it is worth stating because it is general.** The prototype
+was exact on one step and wrong on a run. The arithmetic and the tableau were both right; what was
+wrong was that the active System was carried between recordings, and its DERIVED scalars arrived at
+each recording still holding tape slots. §14.3 states the mechanism and why six identical recordings
+a step concealed it. The fix is that the primitive which requires freshness now builds the System
+itself, so the stale case is unrepresentable. **The single-step referee could not have caught this,
+and neither could the multi-step one the suite had, because that one refereed the state channel
+only** — the state rows were out by about one percent at two steps and the parameter rows by fifteen.
+Both channels are now refereed over a run.
 
-*Do:* build the six stages and the closing combination inside a single `Evaluate` handed to
-`state_and_parameter_adjoints`, with inputs the step's start state and the parameters, and output
-`y_end`. Mirror `step()` term for term, including its grouping — the stage-1 term stays
-`b21 * h * k1`, and the dense rows sum in ascending stage before one `h`. Assign the active System
-once, at the top. Then delete `sweep_stages`, its declaration, and the `lambda_k` bookkeeping that
-feeds it.
+*What it costs:* peak, and only peak — it is **faster**, which the design did not predict and §12
+now measures: one gradient of the two-species stand at lifetime 3 falls from 15.67 s to 10.04 s
+against a forward run unmoved at 1.12 s, and the ratio of gradient to forward run goes from 14.1 to
+9.0, flat across run lengths. Six stages are held on the tape at once where one was. §6 measured
+65.0 kB per unit for one stage, 10.4 MiB at production width, so a step is about 62 MiB —
+**derived from the stage figure rather than measured, and worth measuring**, because it is the
+number report 01's abandoned flatness is being traded for.
 
-*What is already known, from a prototype that was built and reverted.* The counters move exactly as
-predicted: assignments per step **7 → 2**, sweeps **6 → 1**, double rate calls **7 → 1**. **The
-single-step adjoint matches its finite difference**, so the arithmetic and the tableau are right.
-**The multi-step run does not**, so the defect is in how the steps compose, not in the step. These
-were checked and are not the cause: copy-construction of an active scalar does record, the stage
-indices and tableau rows match `step()`, and the identity term is carried by `y_end = y0 + h·(…)`.
-Bisect the composition — one step against two, and the parameter accumulation across steps against a
-single-step run — rather than re-deriving the arithmetic.
+**2. Manage the tape instead of rebuilding the System — measured, viable, and not taken.** Lifting
+the System per recording is one construction per step. What it buys is slot freshness, and there is
+a second way to get that which costs no construction at all.
 
-*What it costs:* peak, and only peak. The same operations are recorded either way; six stages are
-held at once where one was. §6 measured 65.0 kB per unit for one stage, 10.4 MiB at production
-width, so a step is about 62 MiB. Report 01's flatness was already given up deliberately, and this
-spends the same budget again.
+The collision §14.3 describes needs `clearAll()`, which returns the tape's slot counter to zero.
+`newRecording()` alone does not reset it, so a scalar carried in from an earlier recording holds a
+slot permanently below the counter and can never be handed out twice. odelia's own comment says
+`newRecording()` is correct and leaky; the question is what leaks. **Measured on the
+Lotka-Volterra fixture, over 1, 2, 4, 8 and 16 steps: statements 90 and operations 170, flat — so
+`newRecording()` does discard the previous recording's operations — and variables growing by exactly
+six per recording, which is the System's own live scalars.** Every step count came back exact in
+both channels. The leak is bounded by what the System owns, not by what the recording writes.
 
-*Where to run it.* odelia's suite is the fast referee here and answers in about two minutes; the
-gradient ladder is the slow one at twenty. Install odelia into a private library and put it ahead of
-the shared one — `AGENTS.md` says how, and why: another session replacing the shared install
-mid-build cost two builds during this work before the cause was clear.
+That is the better trade if the construction ever bites, and it is the direction to take first,
+because it is where the tape's own semantics already point. **It was not taken because its
+correctness rests on an invariant no signature states: `clearAll()` must never be called while a
+System that has recorded is still alive.** That is a condition over every caller of that tape, it
+fails silently, and it is the same shape as the rule this item's own defect came from. The rebind
+makes the wrong thing unrepresentable instead, and that is worth one construction a step until it is
+measured to matter.
 
-*Done when:* odelia's suite passes including the multi-step finite-difference referee, the gradient
-ladder is 504 passing, and `sweep_stages` is gone rather than unused.
+*Do, if it does:* clear the tape once, where the System is known fresh, and `newRecording()` between
+recordings — then measure the derivative array's growth on a production-width sweep rather than on
+Lotka-Volterra, because the leak scales with the System's live scalar count and a Patch's is four
+orders larger. **Two numbers decide it**: that growth against the 62 MiB a step recording already
+holds, and the construction cost this would remove, measured as a share of a gradient rather than
+assumed.
 
-**2. The opaque node — the last hand-written derivative surface, and mostly not what it looks like.**
+*Done when:* one of the two is measured to dominate, and the loser is written down here so it is not
+re-derived.
+
+**3. The opaque node — the last hand-written derivative surface, and mostly not what it looks like.**
 Measured: **≈880 lines of TF24 exist only because of AD** — 766 in the strategy against 116 in the
 environment, or 31% of `tf24_strategy.h` — and **460 of them are one function**, the leaf's supplied
 rows.
@@ -1516,7 +1589,7 @@ against, and it is not the hard one.
 *Done when:* the classification cannot be bypassed by a consumer, which is the defect that lets an
 interior formula be applied at a pin; and the transpose identity holds without a reference gradient.
 
-**3. Refusal — which is built at one site, in the wrong package, and nowhere else.** §7 called this
+**4. Refusal — which is built at one site, in the wrong package, and nowhere else.** §7 called this
 the row with nothing built at all; that overstates it. The dependency supplying the leaf's rows
 already returns validity beside its answer — a `usable` flag and a message — and already refuses an
 envelope step at a non-interior point, which is the mechanism §5.5 credits with striking the
@@ -1535,7 +1608,7 @@ crosses.
 *Done when:* a caller cannot ignore it without saying so, and the ladder has a rung that asks for a
 gradient at a state where one does not exist and is refused rather than answered.
 
-**4. ~~The reduction's forward walks.~~ Withdrawn, for three reasons that arrived together.** The
+**5. ~~The reduction's forward walks.~~ Withdrawn, for three reasons that arrived together.** The
 item asked to migrate four forward competition walks onto the traversal the transposes take.
 
 The transposes no longer exist — the stage recording deleted both. The primitive no longer exists
@@ -1552,7 +1625,7 @@ traversal is the failure this report is about**, so the walks belong to that bra
 *Do:* nothing here. If a reduction transpose is ever hand-written again, it needs an interval-major
 walk with the caller keeping its own accumulator, and the deleted primitive is what one looks like.
 
-**5. The replay pass, which is now the only way an invasion run exists at all.** The model's second
+**6. The replay pass, which is now the only way an invasion run exists at all.** The model's second
 recorder has been **deleted**, and what it was is worth stating precisely, because it is this
 report's own §7.3 finding arriving at its conclusion.
 
@@ -1590,7 +1663,7 @@ hooks cannot go quiet a second time; `test-mutant.R` stops skipping and meets th
 already carries; and the mode cannot be set by anything but the driver — a resident gradient that
 replays returns one with the water feedback missing, finite and plausible and unraised.
 
-**6. Name the three loaders, because one of them is the residue this report went looking for.** A
+**7. Name the three loaders, because one of them is the residue this report went looking for.** A
 model supplies `set_ode_state`, `set_ode_state_and_field` and `set_recorded_state`. Only the first
 is mentioned by any concept; the other two are called directly by the segment walk, so a model that
 omits one fails deep inside a template instead of at a declaration. `set_recorded_state` is the

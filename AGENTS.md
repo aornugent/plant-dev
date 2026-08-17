@@ -258,8 +258,30 @@ attribute. `test-stochastic-patch-runner.R`'s pass count varies run to run; its
 one failure does not.
 
 **`testthat`'s parallel workers cannot see a `pkgload::load_all()`ed package**, so
-every invocation below needs `TESTTHAT_PARALLEL=false` — which makes the ladder
-serial, and its wall time its CPU time.
+every invocation below needs `TESTTHAT_PARALLEL=false` — which makes a single
+`test_dir()` serial, and its wall time its CPU time.
+
+**Get the concurrency back by running one R process per file rather than one
+`test_dir()`.** `load_all()` costs about two seconds per process and the files
+are independent, so fanning them out is nearly free and wall time becomes the
+slowest single file:
+
+```sh
+for f in $(ls plant/tests/testthat | grep -E '^test-gradient-ladder'); do
+  ( TESTTHAT_PARALLEL=false Rscript -e "
+      library(odelia); pkgload::load_all('plant', quiet = TRUE)
+      d <- as.data.frame(testthat::test_file('plant/tests/testthat/$f',
+                                             reporter = 'silent'))
+      cat(sprintf('$f pass=%d fail=%d error=%d\\n',
+                  sum(d\$passed), sum(d\$failed), sum(d\$error)))" ) &
+done; wait
+```
+
+**Measured on sixteen cores: the whole gradient ladder is 17 s of wall this way,
+against about twenty minutes serial**, and the 55 non-ladder files are 86 s
+against about six minutes. Check for a file that produced no result line — a
+crashed process is otherwise silent, which is the one way this loses information
+that `test_dir()` does not.
 
 ## Testing odelia — and the two ways it lies to you
 
@@ -293,7 +315,7 @@ else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
 `-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
 each snippet. A probe including any odelia header that names a concept needs it.
 
-At `odelia@7615401` the suite is **384 passing, 0 failing, 3 skipped**.
+At `odelia@7f3509a` the suite is **397 passing, 0 failing, 3 skipped**.
 
 **One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
 takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
