@@ -135,17 +135,16 @@ is short by one stage. The damage measures below `1e-6`, and that measurement is
 refresh: the interval is otherwise a function of the step size, which a spatial quadrature has no
 business depending on. It is the only place in the discretisation where one does.
 
-**Two defects live on the unsupported branch.** Both are the shape report 05 §6.1 warns about — a
-wrong transpose parked where no fixture reaches it:
+**Every reduction reads its grid through that one accessor**, including the fallback walk used when the
+ordering has broken and the downstream reduction, both of which used to build their own. That is what
+makes the passivity structural: a width cannot carry a derivative because no reduction has a route to
+an active position (§10 item 7).
 
-- **The closing interval's transpose writes only one end.** The interior loop emits the
-  position-derivative term at both ends of every interval; the closing interval emits only its upper
-  end. The slot is live and feeds a real accumulator.
-- **The reductions disagree about what a grid is.** One of them never uses the shared coordinate
-  accessor; it builds its own grid twice, and on the unsupported coordinate that grid is **active**
-  while the others are frozen — so its tape carries a weight-derivative term the others structurally
-  cannot have. The coordinate refusal is *a fence around that inconsistency, not a fix for it*, and
-  the same file states the opposite rule elsewhere and obeys it there (§10 item 8).
+**One defect remains on the unsupported branch**, and it is the shape report 05 §6.1 warns about — a
+wrong transpose parked where no fixture reaches it. **The closing interval's transpose writes only one
+end**: the interior loop emits the position-derivative term at both ends of every interval, the closing
+interval emits only its upper end, and the slot is live and feeds a real accumulator. The coordinate
+refusal is *a fence around it, not a fix for it.*
 
 ### 4.2 Dimension growth
 
@@ -470,8 +469,9 @@ is what a replay hook replaces; most of the sites testing that flag are the seco
 ## 10. What is left
 
 Items 1 to 3 are the design's remaining construction; 4 is a measurement; 5 to 9 are defects and
-residues found beside it. **Items 1, 2 and 3 and support for a second model are deferred**, so the
-live work is 4 onward.
+residues found beside it. **Items 1, 2 and 3 and support for a second model are deferred.** Items 5, 6
+and 7 are closed — 6 as a refusal rather than a change, and the reasoning is kept because the
+instinct it argues against is a recurring one.
 
 **1. The implicit node — the last hand-written derivative surface.** *Deferred.* Measured: **~976 lines
 exist only because of AD** — 853 in the strategy, 37% of its 2312, against 123 in the environment, 16%
@@ -591,24 +591,69 @@ the construction cost this would remove, measured as a share of a gradient rathe
 *Done when:* one of the two is measured to dominate, and the loser is written down here so it is not
 re-derived.
 
-**5. The environment's interface is half virtual and half template**, and a caller holding a base
-reference gets a silent no-op and a width of zero rather than a diagnostic. The two halves answer the
-same question about the same object, so which one a call site reaches decides whether it works, and
-nothing states which. This is §7's boundary problem one level in.
+**5. The environment's interface was half virtual and half template.** *Fixed by deletion.* One
+question — what a unit reads out of the shared part — had two answer mechanisms on the base: the
+**count** was `virtual`, and the two **fills** were templates, which cannot be. A base reference
+therefore got the derived count and the base's identity fill, so the width was right and the buffer was
+never written; the same split gave a width of zero where the fill was live.
 
-*Done when:* one mechanism answers it, or the base refuses at compile time what it cannot do.
+**The reachable half needed no base reference at all, and that is why it mattered.** Because the count
+is virtual, a new environment declaring it with `override` is spell-checked by the compiler. Because
+the fills are templates, they are joined by name hiding alone — so an environment that overrode the
+count and misspelled or omitted a fill compiled clean and inherited an identity that writes nothing.
+One member of an inseparable trio was checked and the other two were not.
 
-**6. `growth_rate_gradient` full-copy-constructs a unit per element per rate call on the forward
-path**, having lost the thread-local scratch it used to reuse. It is a forward-path cost paid by every
-gradient, and it is arithmetic-free — the fix is a scratch object, not a derivation.
+The three base members are gone, so the question has one answer, held by the class that knows it, and a
+type that cannot answer says so at the call site with the member named. **The self-consistent defaults
+beside them stay**: an environment with no integrated state answers zero width and returns every
+iterator where it found it, and those two agree. It was the count that could be overridden apart from
+its fill that had to go.
 
-*Done when:* the copy is out of the loop and the forward suite is bit-identical.
+*And the referee could not have caught it.* The buffer is value-initialised, so a fill that writes
+nothing reads exactly like one that writes zeros, and the check comparing two paths passed on two
+buffers neither had filled. It now holds the returned iterator against the declared width.
 
-**7. The unordered reduction walk still sorts and differences on an active key** — §4.1's second
-defect, live. The same file states the opposite rule elsewhere and obeys it there, which is what makes
-this a slip rather than a decision.
+**6. `growth_rate_gradient` copy-constructs a unit per element per rate call — and the scratch that
+would remove it must not come back.** *Closed, as a refusal rather than a change.* The copy is real:
+the sub-grid probe needs a mutable unit to perturb, and it takes one per call. Three things decide
+against caching it.
 
-*Done when:* the key is passive by return type, as §4.1 says the coordinate is.
+It measured **within 1.5%** of the alternatives when the scratch was removed, so the prize is small.
+It is **not on the gradient path at all** — the transport term calls it only on the height coordinate,
+and a density in birth date changes only by mortality, which is the coordinate the reverse pass
+requires. And the function has since moved down to the unit and become scalar-templated, so a cached
+scratch would exist **at the active scalar** and carry that recording's slots into the next one: the
+aliasing this report prices at §10 item 4, bought for 1.5% on a path no gradient runs.
+
+**The general rule is the finding, not the arithmetic.** A cache whose lifetime exceeds a recording is
+unsafe at an active scalar, and a function template gives no signature in which to say so — the
+instantiation that is unsafe is the one nobody wrote down. A scratch is safe only where it cannot exist
+actively: confined to the `double` instantiation, or owned by an object that is itself lifted per
+recording.
+
+*Done:* the three places that still described the scratch as present or desirable now say why it is
+not.
+
+**7. The reductions that built their own grid have been routed through the shared accessor** — §4.1's
+second defect. *Fixed, and the diagnosis needed correcting on the way.*
+
+**The sort was never the problem.** An active comparison returns a plain `bool` and records nothing, so
+ordering on an active key and ordering on its passive value produce the identical permutation and the
+identical tape. A comment claiming otherwise was overstating what passing the key through the value
+accessor buys in a comparator: nothing.
+
+**The differencing was the problem.** `(h₁ − h₀)` on two live scalars makes every interval width a
+differentiable function of two units' state, so the reduction carried a weight derivative that the walk
+it stands in for structurally cannot have — the same number with different derivatives. Two sites did
+it: the fallback walk used when the ordering has broken, which never called the shared accessor at all,
+and the downstream reduction's own grid, which is the site this section cites as the exemplar and which
+was building an active grid immediately below a passive one.
+
+Both now read positions through the accessor that returns `double`, so the widths are passive by return
+type rather than by discipline. **Bit-identical**, and provably so rather than by measurement: the
+value accessor returns the same bit pattern the active scalar carries, the negation the accessor applies
+is exact, and the permutation was already decided on values. What changed is only which tape edges
+exist.
 
 **8. The container's copy is unified one level and asymmetric at the next.** There is now one map,
 `assign_from`, with the rebind a line over it, and a referee that copies both ways and holds the
