@@ -623,8 +623,8 @@ uninformative.
     three checks at scales 0.75, 1.0 and 1.4: a scaled spline reproduces a **rebuilt** one to 4.4e-16
     in value, the Euler identity holds to **1.9e-16**, and the row agrees with a **rebuilt central
     difference** to **6.7e-09**. `stem_c` is untouched and keeps rebuild-and-difference.
-11. **`bound_row(Wet)`**, then **`bound_row(DryRootCrit)`** (§4.3). — **DERIVED AND REFEREED; NOT YET
-    CONSUMED.** All three arms are built: `Leaf::bound_row(WhichBound)` returns the row, the residual
+11. **`bound_row(Wet)`**, then **`bound_row(DryRootCrit)`** (§4.3). — **LANDED, and consumed by §0's
+    B and D.** All three arms are built: `Leaf::bound_row(WhichBound)` returns the row, the residual
     slope and where it was taken. `dR/dstem_b` comes from item 10's identity rather than a rebuild.
 
     **No `d_dstem_c` field, deliberately.** `stem_c` reshapes the curve rather than scaling it, so it
@@ -643,8 +643,9 @@ uninformative.
     on, and they disagree by **5.5e-02** with neither being wrong. The dry bound is unaffected, which
     is what identifies the cause. `test-bound-row.R` asserts the degeneracy rather than avoiding it.
 
-    **What is left is the consumption.** Nothing calls these yet, so the pinned branch still refuses —
-    items 12–14 are what turn a derived row into an answered one.
+    **Consumed since.** §0's B takes the soil and layer-carbon entries at a pin; §0's D takes the wet
+    arm's for a shaded leaf. The `root_c` gap this item left open never had to be filled: B's arms
+    follow the bound rather than reading it, so no `d_droot_c` field was needed.
 12. **The `proportion_of_conductivity_kernel` overload** (§4.4), closing the zero-flux pieces. —
     **LANDED.** The kernel took only `psi` as its scalar argument and read `stem_b`/`stem_c` off the
     object, so forward mode reached `d/dpsi` and nothing else. The overload takes them as arguments,
@@ -658,18 +659,20 @@ uninformative.
     *Refereed against a rebuilt difference of the curve in every direction: worst **9.6e-10**.*
     `d(cost)/d(stem_c)` **changes sign** across the curve's inflexion (−0.556 at ψ 3, +0.720 at ψ 5),
     which the test pins — a row taking its sign from the value rather than the derivative would not.
-13. **The branch-dependent graft mask** (§4.5), then `Determined`. — **THE NEXT WORK, and the only
-    remaining change that flips a result from refuse to answer.** Three parts, in this order:
+13. **The branch-dependent graft mask** (§4.5), then `Determined`. — **LANDED as part of §0's B**,
+    which is where the measurements are. `Determined` remains unreached: it has zero incidence on the
+    576-point golden grid and none has been seen on any driver. Three parts, as they were planned:
 
     a. ~~**`profit_env_derivatives` must stop returning `usable = false` at a pin**~~ — **DONE.** It
        supplies `∂Π/∂u + ν·∂B/∂u` for the soil rows, selecting the arm from the classification, and
        reports `pinned` so a caller cannot read a bound-following row as an envelope row. The light
        row gains nothing: neither bound reads radiation, so `∂B/∂light` is exactly zero.
 
-       **The stand still refuses**, now on that flag rather than on `usable`. Everything after the
-       environment rows in `record_leaf_outputs` is the interior derivation, and the substitution is
-       mechanical but wide: `dcollar_d<family> = −dR_d<family>/curvature` at **ten sites** becomes the
-       matching `bound_row` entry, `dcollar_dlight` becomes exactly zero, and the profit rows for the
+       ⚠️ **And the price it used was wrong**, which §0's B found and defect #14 records: it was the
+       interior price, which carries the very condition a pin violates. Everything after the
+       environment rows was then the interior derivation, and the substitution planned here —
+       `dcollar_d<family> = −dR_d<family>/curvature` at **ten sites** becoming the
+       matching `bound_row` entry, `dcollar_dlight` becoming exactly zero, and the profit rows for the
        families other than soil need their own `ν·∂B/∂u` term. That is the remaining work, and it
        changes production numbers, so it wants the before/after incidence and a reference at a pinned
        state — neither of which exists yet.
@@ -1033,11 +1036,14 @@ by ~3e-07.
 **#12 — the scaling.** Reverse RHS at 1/2/3 species: 0.0130 / 0.0232 / 0.0352 s — sub-linear.
 `boundary_condition_adjoint` is 25–32% of it at every species count.
 
-**Regime boundary.** Under constant forcing the gradient refuses from ψ_soil ≈ 4 MPa, against the
-plant's own limit of 5.87. Under a seasonal driver there is no terminal-state threshold at all: at
-amplitude 1.0 the profile finishes at 0.17 MPa — saturated — and still refuses, because the pin happened
-in a trough the run recovered from. **Nothing about a completed run predicts whether its gradient
-exists.**
+**Regime boundary — and this reading is now historical.** It recorded that the gradient refused from
+ψ_soil ≈ 4 MPa under constant forcing, and that a seasonal driver at amplitude 1.0 refused while
+finishing *saturated* at 0.17 MPa, because the pin happened in a trough the run recovered from. Both
+now answer, and the seasonal driver is in the parity gate for exactly the reason this paragraph gives.
+
+**What survives it is the general statement, and it is why the parity gate exists at all: nothing
+about a completed run predicts whether its gradient exists.** A terminal state says nothing about the
+branches a trajectory passed through, so coverage has to be swept rather than inferred.
 
 ---
 
