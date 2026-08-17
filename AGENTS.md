@@ -335,9 +335,15 @@ the part to read first: three measurements are needed and any two of them mislea
 because **share = count × price** and unit costs here differ by more than an order
 of magnitude. Rank by share, never by a count and never by a profiler's own
 attribution — at `-O2` an inlined callee has no frame of its own and its samples
-land on its caller. §2 states which lever is worth pulling; §5 states what not to
-do. Its §3 share table describes the per-cohort block design the step recording
-replaced, so treat those shares as history, not as the current distribution.
+land on its caller. §2 states which lever is worth pulling, §3 is the measured
+distribution, §4 the remaining levers ranked by it, and §5 what not to do.
+
+**The current distribution, so it can be scoped without re-measuring:** the gradient
+is **9.7 forward runs** at century scale and flat across run length. The largest
+single cost is the leaf's supplied derivative rows at **35.9%** of a profile — AD-only,
+so nothing in the sweep touches it — and **16.3%** of that is one root-find re-run per
+perturbation, which §4.1 says is a legitimate per-family hoist. XAD's machinery is
+**~17%**, down from ~30% before one recording came to span a step.
 
 **`scripts/profile-gradient.sh` is the harness**, and it automates the four guards
 §1 lists:
