@@ -170,17 +170,45 @@ Ladder **466/466**. Non-ladder **3244 pass, the same 13 pre-existing problems in
 recorded as a gate; it now asserts the run answers, and the incidence is what the answer rests on
 rather than what it costs.
 
-### C2 — the parity gate (§5 rung 4)
+### C2 — ~~the parity gate~~ **DONE**
 
 *For every state the forward model returns a number for, the reverse returns a row or names a violated
-constraint.* **Now it gates rather than measures** — the pinned branch answers and the crossings are
-differenced from inside the interval, so a refusal left in a sweep is a finding rather than a known
-gap. This is the next item.
+constraint.* **Read as written this is satisfied by a sweep that refuses everything**, so it is built
+as two checks, in `test-gradient-parity.R`:
 
-**What it should sweep**, given what B and C turned up: rainfall down to where the forward model
-itself fails, at two lifetimes, and the seasonal driver §7 records as refusing from a trough the run
-recovered from. **`shade-death` is still unanswered** — it has 90,044 incidences at `k_I` = 40 and no
-rows, and it is governed by light rather than water, so no rainfall sweep reaches it.
+- **the gate** — nothing escapes unnamed: no raw error, every status in the declared set, answered
+  rows finite, refused entries `NA` so an undefined metric cannot read as a zero one, and the
+  refusal's location wholly present or wholly absent.
+- **the coverage** — a named list of branches that have never answered. A regime that *stops*
+  answering and one that never did both come back `refused`; only the name separates them, so the
+  name is what is asserted.
+
+**Swept over seventeen drivers, and it found two causes.** One was the sweep's own to close: **root
+carbon was the last differenced family still holding the base collar**, and it is the family a drying
+stand crosses on.
+
+| driver | before | after | pins |
+|---|---|---|---|
+| `rain 0.20, L=10` | refused | **answered** | 24,744 |
+| `rain 0.15, L=10` | refused | **answered** | 48,554 |
+| `rain 0.10, L=10` | refused | **answered** | 95,975 |
+| `rain 0.05, L=10` | refused | **answered** | 151,935 — **62.7% of solves** |
+
+**Fifteen of seventeen answer.** Both `L=20` runs (137,814 and 99,645 pins) and the seasonal driver at
+full amplitude (118,847 pins, 304 shutdowns) are among them. `rain 2.00 / 0.28 / 0.27` stay
+**bit-identical** to a build carrying none of this work.
+
+**The two that refuse are `shade-death`**, at `k_I` 20 and 40 — 30,509 and 44,741 incidences. It is
+governed by light rather than water, so no rainfall sweep reaches it and the shaded driver is its only
+evidence. §4.4 now carries what its rows are, and they are **not** the "exactly zero" the corpus
+assumed.
+
+**And a second finding, asserted rather than fixed: that refusal is UNLOCATED.** It is raised while
+forming the census seeds — inside `set_recorded_state`, where there is no node loop to be caught in —
+so species, node and step range are all sentinels, where a refusal from the sweep carries all four.
+The gate requires the location to be wholly present or wholly absent, because a half-filled one is the
+shape that reads as an answer. **Answering `shade-death` removes this instance**; the seeding path
+keeps the shortcoming for whatever refuses there next.
 
 ### D — #2, the amplification ceiling. Two halves, and the structural one is independent of the value
 
@@ -663,16 +691,34 @@ today. Intensive, per unit leaf area; the leaf cannot check this, so assert it c
 | `PinnedDryRootPsiCrit` | `p = root_psi_crit` | exactly `(0,…,0,−1)` — **unreachable at shipped defaults** |
 | `PinnedDryRootCrit` | `p = root_crit` | `∂root_crit/∂u` — **every dry pin measured is this one** |
 | Determined | `p = ½(bound_a + bound_b)` | ½ of both, then `find_psi_stem_from_psi_root` (§4.6) |
-| HydraulicShutdown | stem at `psi_crit`, zero flux | env rows **exactly zero**; trait rows closed form |
-| ShadeDeath | `ci = Γ*`, zero flux | as above |
+| HydraulicShutdown | stem at `psi_crit`, zero flux | trait rows closed form; env rows **through the wet bound**, not zero |
+| ShadeDeath | gross assimilation below `R_d` at `ci = ca` | as above — and it is the branch a parity sweep actually reaches |
 | *(Prescribed — TF24f)* | an ODE state | free from the adjoint |
 | SolverRefused, NonFiniteGradient | no plant described | **refuse** |
 
 Pinned rows: `w = λ_Π·marginal + s`, `ū = v̄ᵀ∂f/∂u + w·∂B/∂u`. The multiplier `marginal` is already
 computed at `tf24_strategy.h:1013` and discarded at 1338.
 
-Zero-flux rows: `profit = −R_d − C(psi_crit)` reads neither soil nor light, so every environment and
-uptake row is exactly zero. `∂C/∂psi_crit` needs no derivation — `hydraulic_cost_TF_kernel` is
+**⚠️ ZERO FLUX IS NOT ZERO ROWS, and this table said it was.** Read off the branch: `ShadeDeath` seats
+**both** potentials at `root_zero_E` — the collar at which uptake is zero, which **is the wet bound** —
+and sets `profit = −R_d − C(root_zero_E)`. So profit reads the soil, through the bound, and the rows
+are
+
+```
+dProfit/du = −C'(B_wet) · dB_wet/du          for every u the wet bound reads
+dProfit/d(light) = 0                          the wet bound does not read radiation
+dProfit/d(R_d_25) = −dR_d/dR_d_25
+```
+
+with `C'` and the four cost-trait rows from `hydraulic_cost_row(B_wet)` and `dB_wet/du` from
+`bound_row(Wet)` — **both already built and refereed**. `psi_crit` and `root_psi_crit` are the ones
+that ARE exactly zero here, because the wet bound does not read them.
+
+**The uptake rows are not zero either.** `E_up` is zero at that collar; the per-layer consumptions are
+not — they sum to zero, so some layers take up while others release — and each carries
+`∂E_i/∂u|_B + (∂E_i/∂p)·∂B_wet/∂u`.
+
+`∂C/∂psi_crit` needs no derivation — `hydraulic_cost_TF_kernel` is
 scalar-templated (`leaf_model.hpp:1039`) and the file already does this at four sites:
 
 ```cpp
