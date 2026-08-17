@@ -1,18 +1,26 @@
 # Where the reverse pass spends, how to find out, and what is left
 
-The reverse-mode stand gradient costs **9.7 times** a plain double forward run at
-century scale — **339 s against 35.1 s**, on a refiner-chosen schedule of 3,378
+The reverse-mode stand gradient costs **12.8 times** a plain double forward run at
+century scale — **468 s against 36.5 s**, on a refiner-chosen schedule of 3,378
 steps, one species, `ode_size` 1,361, three census metrics.
 
-**The ratio is flat across two orders of run length** — 8.7 at a half-year
-lifetime, 9.0 at three years, 9.7 here — so the sweep's cost tracks the run rather
-than compounding with it. Break-even against re-running once per parameter sits at
-about ten parameters and the model carries forty-seven.
+**That is on the joined tree, and the ratio moved because of the join.** It was 9.7
+— 339 s against 35.1 s — before the hardened gradient's pinned and shut branches
+were replayed onto the step recording. Answering those branches is what the extra
+129 s buys, and where it lands is not spread: the leaf's own rows went from 35.9%
+of the profile to **49.1%**.
 
-**And the ranking has inverted.** The largest single cost is no longer the tape or
-any part of the sweep: it is the leaf's supplied derivative rows, at about 39% of a
-gradient, of which nearly half is one root-find re-run per perturbation. That is
-where §4 starts.
+**The ratio is flat across two orders of run length** — 8.7 at a half-year
+lifetime, 9.0 at three years — so the sweep's cost tracks the run rather than
+compounding with it. Break-even against re-running once per parameter sits at about
+ten parameters and the model carries forty-seven.
+
+**And the ranking has not merely inverted, it has concentrated.** The largest single
+cost is not the tape or any part of the sweep's own arithmetic: it is the leaf's
+supplied derivative rows, now about **half the profile** and some 53% of a gradient
+once the forward run's own 7% is taken out. The collar root-find nested inside them
+is 51.2% on its own. That is where §4 starts, and no sweep-side change reaches any
+of it.
 
 This document states the method that locates a cost correctly, the principles that
 decide which lever to reach for, and the levers that remain. It is not a record of
@@ -175,6 +183,28 @@ Measured with `scripts/profile-gradient.sh` on the fixture named at the top:
 
 Each share below is a `--focus` subtotal — the true share of stacks through that
 symbol — so they nest rather than sum.
+
+Two readings, so the join's effect is visible rather than folded in. The right-hand
+column is the solver branch before the hardened gradient was replayed onto it; the
+left is the joined tree. Both are `--focus` subtotals over one forward run and one
+gradient, so they nest rather than sum.
+
+| phase | joined | before the join | asymmetric? |
+|---|---|---|---|
+| **`Step::step_adjoint`** — record the step, sweep it per seed | **79.3%** | 74.1% | yes |
+| ⤷ **`record_leaf_outputs`** — the leaf's supplied rows | **49.1%** | 35.9% | **yes** |
+| ⤷⤷ `toms748_solve` — the collar root-find, inside those rows | **51.2%** | 41.5% | **yes** |
+| ⤷⤷ `root_vuln_integral_at` — the vulnerability table's reads | **15.1%** | — | no |
+| **`store_trajectory`** — a second full forward pass | **6.7%** | 8.5% | **yes** |
+
+⚠️ **The vulnerability table's 15.1% is an argument against replacing it, not for.**
+Report 10 §3.5 proposed deleting the table in favour of the closed-form series. The
+series costs 0.13 µs a call where these are spline evaluations, so substituting it on
+a path that is 15% of the profile would most likely cost time rather than save it —
+and the value substitution the report wanted has in any case already landed, in the
+knots themselves.
+
+The older reading, for the phases the join did not move:
 
 | phase | share of profile | asymmetric? |
 |---|---|---|
