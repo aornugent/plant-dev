@@ -520,7 +520,7 @@ while the state that could actually carry between units on the reverse side is t
 accumulator and the boundary slots. The harness is the right home; the engine cannot abort on it.
 
 **And the first row needs an obligation the design did not list.** "One function" is one *source
-text* evaluated on **two objects** — the value path's, and a hand-copied active twin. That copy omits
+text* evaluated on **two objects** — the value path's, and a hand-copied active System. That copy omits
 nine members, one of which decides whether the shared part is built at all, so the tape would be the
 transpose of a function the value path never evaluated. One omission of exactly this kind has already
 been found and patched by hand, with a comment saying so. **A rebind asserted complete is a new engine
@@ -586,7 +586,7 @@ The sentence was the strongest claim in this report and it is false in four ways
 read off the branch rather than argued:
 
 - **There is no parameter channel.** The branch registers the stage state as its only tape inputs and
-  reads back only state adjoints. The twin is constructed *before* the tape, so every parameter in it
+  reads back only state adjoints. The active System is constructed *before* the tape, so every parameter in it
   is born without a slot and stays a constant for the recording. plant's entire gradient is a *trait*
   gradient; routed here, all 47 columns come back absent.
 - **It has to record once and sweep per seed.** A branch that records per metric gives back the
@@ -702,7 +702,7 @@ is now a length mismatch where it used to be a fixed fraction of the right answe
 
 **And the list is incomplete in a way worth naming here rather than at the end.** Every entry is a
 piece of derivative *calculus*. None of them is the *machinery* a model writes around that calculus
-— the recording, the seeding, the sweep, the twin, the tape, the traversal — which turned out to be
+— the recording, the seeding, the sweep, the copy, the tape, the traversal — which turned out to be
 the larger half and to reduce to a single member. §14 states what followed from it.
 
 **Two of the seven carry most of the DX gain and they are not the same two that carry most of the
@@ -1272,18 +1272,24 @@ This section states the arrangement that resulted and gives the remaining work a
 
 ### 14.1 The arrangement, stated once
 
-**The solver owns the reverse pass entire.** The tape, one for a walk. The twin, one for a
-segment, re-seated before every recording because freshness is per recording and there are six a
-step. The Runge-Kutta adjoint recursion, written once, batched, with the single-seed form an
+**The solver owns the reverse pass entire.** The tape, one for a walk. The System at the adjoint
+scalar, one for a segment, assigned from the double System before every recording because freshness
+is per recording and there are six a step. The Runge-Kutta adjoint recursion, written once, batched, with the single-seed form an
 adapter over it at one seed. The record-once-sweep-many product, with the parameter channel in
 band. The stage recording itself, through the same rate call the forward pass uses — which is also
 the one place a replay pass diverges from a resident one. The segment walk across widenings, with
 its partition assertion and its narrow-widen round trip.
 
-**A model declares ~~five~~ seven things, and six of them it already had.** How to rebind itself at
-another scalar. How to seat an existing twin from itself. Which of its scalars are parameters. How
-to compute rates. And **three** loaders, not one: `set_ode_state`, `set_ode_state_and_field`, and
-`set_recorded_state`. Only the seat is new, and it is the value half of the rebind.
+**A model declares ~~five~~ ~~seven~~ six things, and five of them it already had.** How to assign
+itself from another scalar's copy. Which of its scalars are parameters. How to compute rates. And
+**three** loaders, not one: `set_ode_state`, `set_ode_state_and_field`, and `set_recorded_state`.
+
+**Six rather than seven because the rebind stopped being a second thing to write.** It was a
+separate hand-written copy beside the assignment, and the two had already drifted -- in the
+reference implementation, in the test that was supposed to referee them. It is now a line over
+`assign_from`, which is the whole of what a model writes. That also deleted the branch choosing
+between them and the concept the branch keyed on: a System that can be rebound can be assigned,
+because the rebind *is* the assignment.
 
 **The count was checked and it was wrong, and the way it was wrong is the interesting part.** This
 section first claimed five, and said in the next breath that a model writes *no adjoint-specific
@@ -1311,7 +1317,7 @@ where the argument wanted one.
 two obligations — *I carry my own transpose*, which the generic path absorbs, and *here is my
 stage's operating point*, which looked irreducible. The second does not exist: the state loader
 rebuilds the field, re-derives every dependent auxiliary and re-solves the inner problem, so the
-operating point **is** a function of the state and the time. The carriage never reached the twin at
+operating point **is** a function of the state and the time. The carriage never reached the copy at
 all. Deleting it leaves the gradient bit-identical, which is the proof.
 
 It is not wrong as an idea — a model whose operating point is *not* re-derivable would need exactly
@@ -1321,7 +1327,7 @@ that is not load-bearing is one nobody checks.
 **The loader was a symptom of the transpose being in the wrong place.** A separate one existed only
 because the stepper positioned the double System immediately before calling the model's own
 transpose, and that is not the position the transpose is taken from. With the recording in the
-solver, it positions the twin from inside the recording, through the same rate call the forward pass
+solver, it positions the active System from inside the recording, through the same rate call the forward pass
 uses. The double System is never positioned for the transpose at all.
 
 **The line count is the smaller half.** The larger half is that no model owns any part of the
@@ -1341,7 +1347,7 @@ the wrapper and the older helper all go.
 
 **And the older helper is not merely redundant, it is wrong here.** Every type that declares the
 alias also has the factory; the patch has the factory *only*. So the helper resolves the patch's
-"active twin" to the **double** patch, and the solver member named for the active twin would hold a
+active System to the **double** patch, and the solver member named for it would hold a
 passive one. It does not bite today because that path is not instantiated for this model, but it is
 a silent degradation of exactly the kind §7.3 is about, and collapsing the four spellings to one
 closes it.
@@ -1410,7 +1416,7 @@ rows.
 
 **Split that function by what it actually is, because the split is the surprise.** Of 422 lines of
 body, only **~70 are model calculus** — the implicit-function assembly, the rank-two `(a,b)` fit and
-its unit conversions. **~121 are one mechanism written five times**: perturb, re-seat, harvest,
+its unit conversions. **~121 are one mechanism written five times**: perturb, re-supply, harvest,
 restore, guard, for the curvature, the carbon anchor, the conductance, the four driven traits and
 the radiation. **~190 are plumbing** — a flat copy of twelve rows made only to loop over them for
 finiteness before they are read again field by field, and three assemblies of the same five-segment
@@ -1531,17 +1537,27 @@ gradient is bit-identical across the change.
 
 **And the concept boundary stops a level too high, which is what makes item 5 worth doing.** Every
 concept in the solver is checked against the patch. **Not one of the model's own AD members is
-checked by anything** — the parameter list, the rebind, the environment's block interface and the
-name list are all reached by duck typing one or two levels below the boundary, so a misspelling
-surfaces as a template error inside the patch rather than as a diagnostic naming the member. The
-seat is the sharpest case: it is asked of the patch, the patch has it, and **the strategies and the
-environment do not** — the patch discharges its own seat by *rebinding* each of them, which
-constructs the objects the seat exists to avoid constructing, on every recording, six times a step.
-Either the seat reaches one level down or it is buying less than §14.1 claims.
+checked by anything** — the parameter list, the copy, the environment's block interface and the name
+list are all reached by duck typing one or two levels below the boundary, so a misspelling surfaces
+as a template error inside the patch rather than as a diagnostic naming the member.
 
-**And one that is not a primitive.** The step recorder's driver — toggle recording, run, harvest,
-attach the step sizes — is twenty lines with nothing model-specific in them, and the record is a
-time, a size and a state. It belongs beside the concept that dispatches it.
+**The copy was the sharpest case, and it has been fixed one level.** A model wrote its scalar copy
+twice — once returning a new object, once writing into one that exists — with every comment in both
+packages asserting the two leave a System holding the same thing and nothing checking it. They had
+drifted. There is now one map, `assign_from`, with the rebind a line over it, so they cannot; and a
+referee that copies a patch both ways, puts both through the call every caller makes, and holds
+their widths, state, field and rates against each other.
+
+**What that referee cost by arriving second is the lesson worth keeping.** Unifying the two without
+it moved the trajectory columns by three orders and took three rebuilds to attribute, against the
+one minute the check takes to run. The order is not incidental: for a change that asserts two things
+are equal, the check that they are is the change's own premise, and writing it afterwards means
+testing the premise with the twenty-minute instrument instead of the one-minute one.
+
+**It still stops at the patch.** `Patch::assign_from` no longer builds an environment and a strategy
+per species per recording, but its rebind and its assignment remain separately written, because the
+rebind constructs through a constructor that runs `reset()` and the assignment does not. That
+asymmetry is the remaining half of this item.
 
 ### 14.6 The standing qualification, which none of the above removes
 
