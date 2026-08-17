@@ -201,8 +201,7 @@ struct RowRequest {
 
 struct Rows {
   OperatingPointKind kind;          // by the branch taken, never from a residual
-  bool               finite;
-  std::string        message;       // set only where finite is false
+  std::string        message;       // set only where the kind is one that refuses
 
   double point;                     // p*, the value the solve left
   double residual_slope;            // R_p at an interior point; B_p at a pin;
@@ -219,6 +218,28 @@ Rows rows_at(Leaf&, const double* theta, const Drivers&,
              const RowRequest&, const Settings&);
 }
 ```
+
+**Three corrections to the shape above, from reading it against the packages.**
+
+*`finite` is deleted.* The kind already says whether a row exists -- a fold and a
+solve that could not move are kinds -- and a second way to ask the same question is
+§3.3's own complaint about the five mechanisms, reintroduced one field lower.
+
+*The input enumeration has to gain root carbon, and until it does §5.2's assertion
+cannot be written.* `n_pars_total` counts `n_pars + 1 + n_layers` -- the sixteen, then
+light, then one soil potential per layer -- while plant's input vector is the fourteen
+traits plus two plus **two** per layer, the extra one being the layer's root carbon.
+The two arities are not equal and no `static_assert` between them can pass. §8's step 7
+already asks for root carbon as an input; that is what makes the count `16 + 1 + 2L`
+and the check expressible.
+
+*And the scarce resource here is not the 49.1%.* Four traits stay differenced under
+§3.5's own test, so eight re-solves an operating point are fixed in place and this
+interface cannot buy them back. What it buys is the number of independently-maintained
+statements about one physical point: 976 lines, two classifications, five feasibility
+mechanisms, one of fourteen trait names already disagreeing, and two packages
+contradicting each other in code about `stem_b`'s row. Cost is the reason to want the
+leaf faster; **agreement** is the reason to want this interface.
 
 **Rows come back in parts, and the reason is a cost bound rather than taste.** Returning totals would
 have the caller record `n_output × n_input` tape terms. Returning the parts lets the operating point
