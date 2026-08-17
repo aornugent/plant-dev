@@ -250,7 +250,7 @@ predate the gradient work: the environment cache that feeds an invasion run was 
 solver hooks that a refactor stopped calling, so it filled nothing and every case errored. Listing
 them here as expected is what kept that quiet once the suite began reporting it. The unreachable
 half is deleted and the file now skips, carrying its expected fitnesses as the specification for
-the replay pass that replaces it — see report 09 §14.5. **A failure written down as expected stops
+the replay pass that replaces it — see report 09 §10. **A failure written down as expected stops
 being read; prefer a skip that names what it waits for.**
 
 The first three were absent from this list and cost a session's worth of doubt to
