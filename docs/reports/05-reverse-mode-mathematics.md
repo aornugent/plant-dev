@@ -718,7 +718,15 @@ respiration, so
 
 $$\lim_{p \downarrow p_a} \Pi(p;u) \;-\; \Pi(p_a;u) \;=\; R_d \tag{7.0b}$$
 
-exactly. Three things follow, and none of them is numerical:
+and this is measured, at two leaf temperatures, in the quantity the identity predicts. At the cooler
+one the jump is $0.9999991$ of $R_d$; at the warmer one, where $R_d$ is $2.20$ times larger, it is
+$0.9999995$ of it, and on a well-conditioned row the agreement is eight significant figures. The
+mechanism is visible in the pair rather than inferred: at the endpoint the conductance is exactly zero
+and net assimilation is exactly $-R_d$, while one step inside the conductance is small but non-zero
+and net assimilation is $\sim\!10^{-7}$. **The whole jump is in the assimilation term**; the hydraulic
+cost is continuous across.
+
+Three things follow, and none of them is numerical:
 
 - **The jump is the model's own zero-flux substitution**, which section 7.5 names as case X. No
   tolerance, step or ordering removes it, and the endpoint's value is not the limit from inside — the
@@ -728,6 +736,14 @@ exactly. Three things follow, and none of them is numerical:
 - **It is one-sided.** The dry endpoint carries no such substitution and $\Pi$ is continuous across
   it — which is what identifies the cause. This boundary is discontinuous because of what the model
   does when flow stops, not because it is a boundary.
+
+**And the substituted region has width, which is the part that decides how a solve must return.** The
+reversal condition is on the *potentials*, not on the endpoint, so the substitution is already active
+for a sliver above $p_a$ rather than only at it — measured at about $10^{-6}$ of the interval's width.
+That is the same order as the step-in a solve leaves between the bound and the point it returns, and
+the coincidence is the reason the arrangement works: **a returned point one step-in inside the bound
+is a point just outside the substituted region**, so it carries a real derivative. A step-in chosen
+smaller would return points on the substituted branch while reporting them as constrained optima.
 
 **So stepping over the wet endpoint is a consequence and not a defence.** An evaluation at a $p$ the
 perturbed state does not admit returns the substituted branch — finite, plausible, and $R_d$ from the
@@ -894,6 +910,16 @@ $$\frac{\partial y_j}{\partial u}\bigg|_p \;=\; \frac{\partial y_j}{\partial E^{
 is the informative one:** $E_i$ is what the supply produces rather than something the leaf reads, so
 it depends on the state directly, and its row is the supply's own Jacobian, which section 3.3 of
 report 02 shows is diagonal in the potentials and lower-triangular in the layer masses.
+
+**(7.3a) is measured rather than argued, and the measurement is a scaling rather than a residual.**
+Hold the collar, move two layers in opposite directions with the ratio that cancels
+$\partial E^{\mathrm{up}}$ to first order, and read the outputs. Moving one layer alone shifts
+assimilation by $2.58\times10^{-4}$; the cancelling pair shifts it by $4.66\times10^{-10}$ —
+**five and a half orders down** — and each further decade of step divides that by a hundred where the
+one-layer control divides by ten. The residual is $1.000$ times what the leftover
+$\partial E^{\mathrm{up}}$ alone accounts for, on three pairs of layers and two soil profiles, until
+it reaches the outputs' own last bits. Meanwhile the per-layer draws move at **full first order** and
+do not cancel, which is the control that makes the test mean something.
 
 So the held block over the $2L+1$ state directions is **not** a matrix to be filled in column by
 column. It is one vector from the supply, one number per leaf output, and the supply's own Jacobian
@@ -1092,22 +1118,35 @@ $$w = \bar\Pi \, \frac{\partial \Pi}{\partial p} + s, \qquad \bar u = \bar{v}^{\
 So the pinned branch carrying a profit contribution that the interior branch omits is not an
 inconsistency; it is the envelope theorem failing at a boundary.
 
-**And (7.4) is a total that cannot be evaluated as two halves, for the reason §7.0 gives.** The held
-term of (7.0) needs $p$ fixed while $u$ moves, and at a pin $p^\star$ sits inside the bound by a
-fraction of the interval's width — so for every input the bound reads, a perturbation large enough to
-move the bound carries the held $p$ out of the perturbed interval, where §7.0b says there is no value
-to take. What *is* available is the total, by letting the point follow the bound.
+**The held term of (7.0) exists at a pin, and no finite difference of it does. The distinction is not
+pedantic — it decides whether (7.4) can be reported in parts.**
 
-Two consequences, and both are forced rather than chosen:
+At a pin $p^\star$ sits inside the bound by a fixed fraction $\delta$ of the interval's width. A
+perturbation $\mathrm{d}u$ moves the bound by $O(\mathrm{d}u)$, so for all sufficiently small
+$\mathrm{d}u$ the held $p^\star$ remains inside the perturbed interval and $\partial y/\partial u|_p$
+is an ordinary two-sided derivative. **What fails is the step.** A difference must use a step large
+enough to move the outputs above the solve's own floor, and at that step the bound moves further than
+$\delta$ — so the arm lands where §7.0b says there is no value, and $\delta$ is not free to enlarge
+because it is what keeps the returned point off the discontinuity.
 
-- **The operating point is a passive node at a pin.** Once each output's row is a total, the point's
-  own gradient must be reported as zero for those inputs, or a consumer assembling (7.0) counts the
-  bound's movement twice. So section 7.2's $n_{\text{output}} + n_{\text{input}}$ economy is an
-  **interior** economy; at a pin the block is dense again, which is what following the bound costs.
-- **Recovering the held half by subtraction is forbidden.** $\partial y/\partial u|_p =
-  \mathrm{d}y/\mathrm{d}u - (\partial y/\partial p)(\partial B/\partial u)$ is arithmetically true and
-  is a difference of two quantities that nearly cancel in the direction §7.3 says the ecology lives
-  in. The corpus's rule applies: compute the total as itself and report it as a total.
+So the two routes to a pinned row are not equivalent, and which one is used decides the shape of the
+answer:
+
+| how the row is obtained | what comes back | the economy |
+|---|---|---|
+| **differenced**, arms following the bound | the **total** directly, and the point must then be reported as not moving, or a consumer counts the bound's movement twice | dense: $n_{\text{output}} \times n_{\text{input}}$ |
+| **assembled from closed forms** | the two halves of (7.4) separately, each a formula evaluated at the base state | $n_{\text{output}} + n_{\text{input}}$, as at an interior point |
+
+**The parts economy is therefore a property of having closed forms, not of being interior.** An
+earlier reading of this section made it interior-only; that was a statement about the differenced
+route mistaken for one about the mathematics. Where the held partial is a formula, nothing is
+evaluated at a perturbed state, no arm can leave the feasible interval, and the bound's own row
+supplies $\partial B/\partial u$ — so a pin costs exactly what an interior point costs.
+
+**One thing stays forbidden either way.** Recovering the held half from the total by subtraction —
+$\partial y/\partial u|_p = \mathrm{d}y/\mathrm{d}u - (\partial y/\partial p)(\partial B/\partial u)$
+— is arithmetically true and is a difference of two quantities that nearly cancel in the direction
+§7.3 says the ecology lives in. Compute whichever half you report as itself.
 
 The bound itself is implicit. $p_a$ is the collar potential at which uptake vanishes,
 $E(p_a, u) = 0$, so
