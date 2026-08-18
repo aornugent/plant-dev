@@ -36,7 +36,7 @@ supplied where recording was possible, or supplied by someone other than the own
 | the surface | broken how | what it costs, measured |
 |---|---|---|
 | nine hand transposes inside a step | supplied where recordable | −2898 lines, already deleted |
-| `record_leaf_outputs` + its shut sibling | supplied by the **consumer**, not the owner | 980 lines; 35.9% of a gradient profile |
+| `record_leaf_outputs` + its shut sibling | supplied by the **consumer**, not the owner | 1023 lines, 1121 with what dies with them; 49.1% of a gradient profile |
 | the trait order in two tables | the pairing done by the consumer, positionally | 1 of the 14 disagrees in name |
 | `stem_b`'s row | one derivative supplied twice, by two owners | the two packages contradict each other in code |
 | four quadratures over one grid | one grid supplied four times | closed: all four read one accessor |
@@ -139,7 +139,7 @@ Exactly one output may be Objective and exactly one may be Point.
 has one function per *kind* — `record_leaf_outputs` and `record_zero_flux_outputs`, whose own
 declaration admits "separate … because it shares none of it: no curvature, no envelope step, no
 bound, no collar" — and inside each, per-*role* special cases written as ten `pinned ? … : …`
-ternaries. Three kinds cost 980 lines and the growth law is ~230 lines per kind. phylloptim
+ternaries. Three kinds cost 1023 lines and the growth law is ~230 lines per kind. phylloptim
 classifies **twelve** kinds; report 05 §7.0 names **five** that matter and observes they are
 consecutive segments of one drydown. Separated, a kind is one row of the second table and a role is
 one row of the first.
@@ -203,6 +203,11 @@ struct Rows {
   OperatingPointKind kind;          // by the branch taken, never from a residual
   std::string        message;       // set only where the kind is one that refuses
 
+  OutputValues value;               // read them HERE: this call re-supplies the
+                                    // base state without re-solving it, so the
+                                    // leaf's own members hold the last
+                                    // perturbed evaluation afterwards
+
   double point;                     // p*, the value the solve left
   double residual_slope;            // R_p at an interior point; B_p at a pin;
                                     // NaN where no condition defines the point
@@ -225,13 +230,10 @@ Rows rows_at(Leaf&, const double* theta, const Drivers&,
 solve that could not move are kinds -- and a second way to ask the same question is
 §3.3's own complaint about the five mechanisms, reintroduced one field lower.
 
-*The input enumeration has to gain root carbon, and until it does §5.2's assertion
-cannot be written.* `n_pars_total` counts `n_pars + 1 + n_layers` -- the sixteen, then
-light, then one soil potential per layer -- while plant's input vector is the fourteen
-traits plus two plus **two** per layer, the extra one being the layer's root carbon.
-The two arities are not equal and no `static_assert` between them can pass. §8's step 7
-already asks for root carbon as an input; that is what makes the count `16 + 1 + 2L`
-and the check expressible.
+*The input enumeration already carries root carbon, and the arity is already
+`n_pars + 1 + 2L`.* Both landed with `rows_at` itself; what was missing was a value
+reader and the perturbation, not the count. §5.2's assertion still cannot be written,
+but for a different reason: see there.
 
 *And the scarce resource here is not the 49.1%.* Four traits stay differenced under
 §3.5's own test, so eight re-solves an operating point are fixed in place and this
@@ -262,13 +264,20 @@ either, and then the consumer cannot use any of it:
   exactly zero at every pinned and shut point -- which is where the drought is, and where zero and
   absent are the same number on the tape.
 
-- **Root carbon needs an owner, and this report does not name one.** The enumeration can carry it, but
-  the leaf is handed a root network that is *already built*, so nothing inside the package can move
-  the carbon behind it -- the boundary that made the leaf purely intensive put that reduction in the
-  caller. The map itself is still in the package and uncalled. So the choice is: hand the carbon and
-  the architecture in and let the package reduce it again on the derivative path only, or hand in a
-  rebuild the caller owns. The first re-crosses a boundary that was moved deliberately; the second
-  adds a mechanism. **Naming which is the work this section still owes.**
+- **Root carbon needed neither owner this section offered, and the refusal was wider than the fact it
+  rested on.** The leaf is handed a network already built, so the reasoning went, and nothing here can
+  move the carbon behind it. But `duptake_droot_carbon` already recovers a layer's carbon as
+  `3 * c_r_V` and differentiates on `1/rc`, so the architecture model's form was inside the package the
+  whole time, shipped and tested. Both resistances the solve reads are proportional to `1/carbon`, so
+  each one's own constant cancels out of a relative perturbation: a perturbed network is an in-place
+  edit of the one in hand, needing neither of the two constants nor the layer thickness. The boundary
+  does not move and the drivers do not widen. Refereed against the architecture model run again from
+  moved carbon, which shares no code with it: bit-identical on all 45 values.
+
+  What is refused instead is narrower, and it is named rather than left as a zero: the
+  single-potential path, which builds its own one-element network and would report exact zeros for a
+  perturbation it never reads; and, per input, a layer the network holds no roots in, where a zero
+  would claim insensitivity to carbon that could be put there.
 
 **A pin is answerable but not in parts, and that is measured rather than argued.** §3.1's pinned row
 `∂Π/∂u + ν·∂p*/∂u` is right as mathematics and not evaluable as two halves: the held half needs the
@@ -295,31 +304,32 @@ with the bound's residual — which is why the pinned case needs no second code 
 
 ### 3.4 What plant becomes
 
-The whole leaf integration, replacing 980 lines:
+The whole leaf integration, replacing 1121 lines:
 
 ```cpp
-// The inputs, in phylloptim's enumeration, built once (§5.2).
-const auto& u = leaf_inputs();                       // std::array<S*, N_INPUT>
-
 const auto r = phylloptim::gradient::rows_at(leaf, theta, drivers, request, settings);
-if (!r.finite) { throw gradient_refusal(r.message); }
+// A not-a-number means the row does not exist, and that is the only thing it
+// means: an entry the arithmetic makes an identity comes back as the identity.
+// Profit's loss ends the gradient; a water row's leaves the value the balance
+// still needs.
+scan(r.held);
 
-// The operating point: one node, whatever condition defines it.
-const S p = has_condition(r.kind)
-          ? odelia::implicit_root<S>(r.point, r.residual_slope, zip(u, r.dresidual))
-          : S(r.point);                              // exogenous: passive, rows are zero
+// The operating point: one node, whatever defines it -- and where nothing does,
+// a unit slope beside a gradient of zeros IS a point that does not move.
+const S p = odelia::implicit_root<S>(r.point, r.residual_slope, zip(u, r.dresidual));
 
-// Every output hangs off it. The roles are already in the numbers; plant does
-// not branch on them.
 for (std::size_t j = 0; j < n_output; ++j) {
-  auto terms = zip(u, span(r.frozen, j));
+  auto terms = zip(u, row_of(r.held, j));
   terms.push_back({p, r.dy_dp[j]});
-  out[j] = odelia::record_with_derivatives<S>(value[j], terms);
+  *into[j] = odelia::record_with_derivatives<S>(r.value[output[j]], terms);
 }
 ```
 
-**plant branches on the kind in exactly one place** — whether a condition defines the point at all —
-and never on the role. Every `pinned ? … : …` ternary, the shut sibling, the trait table, the drive
+**plant does not branch on the kind at all**, which is stronger than this section first claimed and is
+what the identities buy. It could not have branched on it anyway: the kind is not a proxy for whether
+rows exist, since ten of a hundred and four pinned points come back with none while ninety-four
+answer. What plant reads is the numbers -- a not-a-number is the absent row, everywhere. It never
+branches on the role. Every `pinned ? … : …` ternary, the shut sibling, the trait table, the drive
 loop, the arm chooser, the restores, the column order and its three reassemblies have nowhere left
 to live.
 
@@ -604,16 +614,28 @@ The fix is the pairing clause across a package boundary. plant declares its inpu
 phylloptim's order, and checks the names at construction:
 
 ```cpp
-// The leaf's inputs, in phylloptim's own enumeration. Checked against its names
-// once, so position is verified rather than assumed everywhere after.
-static_assert(N_INPUT == phylloptim::gradient::n_pars_total(n_layer));
-for (std::size_t i = 0; i < N_INPUT; ++i) {
-  util::check_equal(input_name[i], phylloptim::gradient::par_name(int(i), n_layer));
-}
+struct ad_parameter { S* value; const char* name; ad_role role; int leaf_par; };
+#define PLANT_TF24_LEAF_PARAMETER(x, r, p) \
+  ad_parameter { &x, #x, ad_role::r, phylloptim::gradient::par_##p }
 ```
 
-A mismatch becomes a startup error naming both spellings, where today it silently relabels every
-column after the insertion point.
+**Not a second table, and not a name lookup.** The fourteen are already declared here, so what is
+missing is one field: the leaf's own index, and `-1` for a parameter the leaf has no input for.
+`theta` is then filled by SCATTER, so the leaf's order is never restated on this side, and the filter
+is one comparison.
+
+**And the assertion this section wanted cannot be written, for a reason that is not the arity.**
+`n_pars_total(L)` counts a series resistance belonging to the single-potential supply path, which
+this leaf is never on, so the two counts differ by one and always will. What can be written is
+`static_assert(n_pars == 16)`, which fails the day the leaf grows a parameter this file has not
+decided about -- the only drift a count could have caught.
+
+**A name lookup would catch the rest, and it has nowhere to run.** The layer count is not a property
+of the strategy; it arrives with the environment, inside the rate call. So resolution would run per
+unit per step, or be cached against a count that can disagree with its source. It buys nothing
+either: `par_cost_scale_TF24` IS a name, resolved by the compiler, so writing the leaf's spelling
+beside this file's in the declaration makes a rename on either side a compile error. Four of the
+fourteen differ, and that is where they are now written down.
 
 ---
 
@@ -756,8 +778,8 @@ Each step is refereed by the one before it, and nothing is deleted before its re
 | **4** | **§6: one loader.** *Probe first.* `set_ode_state` reproduces every derived quantity; delete `set_recorded_state`. The collapse is forward-safe, but it costs six boundary leaf solves a step on the forward path and rests on an identity nobody has measured -- that the boundary evaluation alone reproduces what a full rates pass leaves on a node whose leaf is shared with every other node of its species. Take that probe before writing anything. | the probe holds, then the load/compare invariant holds bit for bit over a recorded run | bit-identity of the loaded state, and the recording extended to hold the boundary node it does not hold today |
 | **5** | **§5: one parameter list with a role.** One table of 62 carrying `ad_role`, three hand-maintained lists collapsed to one, and `ad_parameter_zero_classes()`'s string comparison deleted. `eta` and the root-depth shape exponent become `refused` by name -- neither is a crown shape, and both would record a silently wrong zero rather than a NaN. | one table; the R-facing zero classification is unchanged in value | the declared-zero ladder rung, and the registered-versus-declared test, which was landed failing for exactly this reason |
 | **6** | **§3.5: mostly overtaken, and re-scoped.** The series already seeds the knots, so the value substitution has landed; the rebuild is memoised, so the prize is about a tenth rather than 56%; and deleting the table needs the complete-gamma limit as a real branch, because the root curve extrapolates past its grid by design. What is worth doing on its own is **§3.6: delete the equal-potentials branch** in favour of `span/integral`, which removes the conductivity spline's only consumer and a NaN window with it. Note a golden re-bless is **already owed** from an earlier commit, and only macOS/arm64 can settle it. | the branch is gone, the spline with it, and no NaN window is left for a caller to know about | a Linux-versus-Linux golden A/B, which is exact and has no noise floor -- `--cross-platform` cannot see an argmax-field change below ~5.5e-4 |
-| **7** | **§3.3: `rows_at` in phylloptim.** Roles, an observation-dependent output count, per-layer uptake as outputs, root carbon as inputs, rows in parts. Take plant's arm robustness and phylloptim's sentinel handling — each package has half. | one row layer; `transpose_at` and `rows_at` share `at()` | the transpose identity `⟨v,Ju⟩ = ⟨Jᵀv,u⟩`, which needs no reference gradient |
-| **8** | **§3.4: plant's leaf integration.** Delete `record_leaf_outputs`, `record_zero_flux_outputs`, the trait tables, the drives. | the six-line form in §3.4 is what is there | step 2's stored reference, at every kind |
+| **7** | **§3.3: `rows_at` in phylloptim.** Roles, an observation-dependent output count, per-layer uptake as outputs, root carbon as inputs, rows in parts. Take plant's arm robustness and phylloptim's sentinel handling — each package has half. **The arm robustness is three rungs, not one, and their ORDER is load-bearing:** centred, then one-sided to second order where a single arm is inside, then the bound followed where a re-solved arm leaves the branch, then shrink, then refuse. Following the bound must come after re-solving — where both arms stay on the branch the two placements are different rows, 3.82 relative apart on assimilation at a wet pin. | one row layer; `transpose_at` and `rows_at` share `at()` | the transpose identity `⟨v,Ju⟩ = ⟨Jᵀv,u⟩`, which needs no reference gradient |
+| **8** | **§3.4: plant's leaf integration.** Delete `record_leaf_outputs`, `record_zero_flux_outputs`, the trait tables, the drives. | §3.4's form is what is there, and it is not six lines: 1121 out and 221 in. What the count leaves out is that the rows are gone and what remains is a declaration — which is what report 09 predicted and this row did not | step 2's stored reference, at every kind |
 
 **Steps 3 to 5 are independent of 6 to 8** and each is worth landing alone. Step 6 is the largest
 single return and is the precondition for 7 being simple, because with the grid moving, four of the
@@ -784,6 +806,21 @@ phylloptim's interface now names a concept its own users do not use.
 **Two rows still cannot be recorded**, and they must be named rather than hidden: the conductivity
 spline has no derivative accessor (§3.6), and a tracked operating point in the acclimating variant
 needs its own row from the adjoint rather than from a condition.
+
+**It differences what the leaf can already answer in closed form, and pays twice for it.** The
+environment rows go through the same perturbed evaluations as everything else, where the leaf has
+`profit_env_derivatives` and the per-layer supply derivative and plant was reaching across the
+boundary to combine them by hand. Measured: the uniform-drying direction — the only belowground
+competitive coupling the model has, and the worst-conditioned one — reads 7.6e-04 against a bound of
+1.6e-04 derived from the fit's own truncation, and the input count roughly triples on a family that
+is half a gradient profile. Routing the row layer through the leaf's own closed forms is one change
+that fixes the accuracy and the cost together.
+
+**And it evaluates at collars it then discards.** A held row is probed at a collar the perturbed state
+may not admit, and the clamp is detected exactly and the arm refused — so no number is wrong, but the
+evaluation happened, on a branch where the profit algebra runs against a negative conductance. The
+surface that would not evaluate one exists; what it costs is a profit evaluation on the feasible path
+too, because the feasible interval's ends are locals the collar solve discards.
 
 **The `Grid` is generality over four witnesses, not over a rumoured fifth.** If a fifth quadrature
 appears that is not over the size distribution, it does not belong in this object.
