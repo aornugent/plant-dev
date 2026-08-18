@@ -72,11 +72,27 @@ for f in $FILES; do
       d <- as.data.frame(r)
       cat(sprintf('RESULT $f pass=%d fail=%d error=%d skip=%d\n',
                   sum(d\$passed), sum(d\$failed), sum(d\$error), sum(d\$skipped)))
+      # A silent reporter gives the count and not the reason, so a parallel run
+      # said WHICH file failed and nothing about WHY. Each failure prints its own
+      # message here, tagged so it survives being interleaved with every other
+      # file's output.
+      for (res in r) {
+        for (x in res\$results) {
+          if (inherits(x, 'expectation_failure') || inherits(x, 'expectation_error')) {
+            cat(sprintf('WHY $f [%s] %s\n', res\$test,
+                        gsub('\n', ' | ', conditionMessage(x))))
+          }
+        }
+      }
     " > "$OUT/$f.log" 2>&1
   ) &
 done
 wait
 
+if grep -qh "^WHY" "$OUT"/*.log 2>/dev/null; then
+  echo "--- why ---"
+  grep -h "^WHY" "$OUT"/*.log 2>/dev/null | sed 's/^WHY /  /' | sort
+fi
 echo "--- per file ---"
 grep -h "^RESULT" "$OUT"/*.log 2>/dev/null | sort
 echo "--- totals ---"
