@@ -453,6 +453,25 @@ that such a thing must be computed as itself rather than by subtraction. So the 
 carries belowground competition is the one most exposed to being computed the one way that cannot
 compute it — which is why report 05 treats it as a correctness item and not a cost item.
 
+**The good news, and it is structural rather than a matter of care.** The repricing is not something
+the model has to discover by nudging a soil layer and watching. Everything a soil layer does to a
+plant, it does by changing **how much water arrives at the collar** and **how fast that arrival
+changes as the plant pulls harder** — two numbers, whatever the number of layers. The root system
+knows both exactly, because they are its own arithmetic; the leaf knows exactly what a unit of
+arriving water is worth. So the whole belowground coupling is a product of things each side already
+knows in closed form, and nothing about it needs to be measured by perturbation.
+
+That matters ecologically and not only computationally. **It says the competitive coupling has a
+definite expression rather than a numerically-estimated one**, so a claim that one stand's water
+competition is a behavioural cascade and another's is not is a claim about two exactly-known numbers.
+And it removes the failure this section warns about at the source: a residue on an amplified channel
+is dangerous when it is obtained by subtracting two large numbers, and harmless when each factor is
+supplied by whoever owns it.
+
+**The one place a perturbation is still unavoidable is the *shape* of a plant's vulnerability
+curve**, which no identity reaches — see the curve discussion below. Everything the environment does
+is exact; part of what a *trait* does is not.
+
 ### What re-optimisation does to the *shape* of a response, and why the sign matters
 
 The repricing has a second use, and it answers a question an ecologist asks more often than the
@@ -499,6 +518,46 @@ because it is not choosing freely.
 
 The practical implication: **any conclusion about drought sensitivity depends on the pinned branch
 being right**, and the bound's own derivative is carrying the ecology in that regime.
+
+**And a pinned plant cannot be asked the question the interior derivation asks it.** The interior
+row is built from a partial taken with the plant's behaviour held still — what changes if the soil
+dries and the plant does not respond. That question has an answer while the plant is choosing
+freely, because holding its behaviour still describes a plant that *could* have moved and did not.
+At a pin it does not: the plant is at a limit, and holding it there while moving the limit describes
+a plant operating outside its own hydraulics. There is no such plant, so there is no number, and the
+only answer available is the total — what the plant does when the limit moves and it moves with it.
+This is why §7's asymmetry is not a technicality about which formula to use. **The pinned plant's
+sensitivity is a different question, not the same question answered differently.**
+
+### The plant that stops transpiring loses exactly its respiration, and that is a step
+
+Below the wet limit a plant would have to take up *negative* water — pushing it back into the soil
+faster than any layer can accept — so the model does what a real closed-stomata plant does: it stops.
+Conductance goes to zero, and the leaf pays only its maintenance.
+
+**The step down at that moment is exactly the dark respiration**, and the reason is a change in what
+the leaf's internal CO₂ is doing. Approaching the limit from the transpiring side, the stomata close
+gradually and the leaf settles where photosynthesis exactly pays for respiration — carbon balance
+zero. On the other side the model substitutes the state where *gross* photosynthesis is zero, and the
+leaf carries the respiration as a loss. The difference between "fixing just enough to break even" and
+"fixing nothing at all" is the respiration itself.
+
+Three readings follow, and they matter to different readers:
+
+- **The step is a modelling choice and not an artefact.** It is the same zero-flux substitution §7
+  already lists among the terminal states, seen at the moment it engages. No amount of numerical care
+  removes it, and a plant evaluated just past the limit is not "slightly wrong" — it is on the other
+  side of a step.
+- **It is bigger in a warmer forest.** Respiration rises with temperature, so the step is largest in
+  exactly the hot, dry conditions where a drought sensitivity is most likely to be asked for.
+- **The dry limit has no step.** A plant reaching its critical potential is still transpiring, so
+  nothing is substituted, and profit runs smoothly across. **So the two ends of a plant's feasible
+  range are not symmetric**, and a reader who thinks of them as two bounds of one interval will
+  expect a symmetry the model does not have.
+
+**And it is why "just outside" is not a place a plant can be evaluated.** Anything that asks the
+model about a plant at a water potential that plant's own hydraulics no longer admit gets the
+shut-down leaf's answer — a perfectly finite number, about a different plant, one respiration away.
 
 **And the flexibility of the section above does not fade out as a plant approaches its limit — it
 stops.** The convexifying correction is flat right up to the bound and then ceases to apply, because
@@ -585,6 +644,29 @@ is that the trade-off is a **default for choosing initial values, not a constrai
 two species can share a curve position and differ in how sharply they lose conductivity, which is
 what the measurements show. So both organs get two numbers and the critical potential follows from
 them.
+
+**The curve's two parameters are not equally easy to differentiate, and the reason is a property of
+the Weibull family rather than of any code.** Position *scales* the curve: doubling it stretches the
+whole thing along the potential axis, including the range over which the model tabulates it. So a
+sensitivity to position is available exactly, by an identity, with nothing rebuilt. Steepness
+*reshapes* it: no stretch of a curve at one steepness produces the curve at another, so a
+sensitivity to steepness has to be taken by rebuilding the curve and comparing. **The two
+most-measured hydraulic traits therefore sit on opposite sides of a divide the ecology does not
+create and cannot remove**, and the cost of a trait gradient is uneven across a curve for that reason
+alone.
+
+One consequence for anyone reading a disagreement between two ways of computing a position row: the
+rebuilt comparison is the *noisier* of the two, because a rebuild lays down a different number of
+tabulation points on either side of the comparison. Where an exact identity exists, a mismatch
+between it and a rebuild is evidence about the rebuild first.
+
+**And the critical potentials read zero in a wet forest for a reason a reader must not confuse with
+insensitivity.** They set the dry limit of the range the plant is choosing inside. While the plant is
+comfortably inside it, moving the limit changes nothing — not because hydraulic failure does not
+matter to a plant, but because *this* plant is not near it. The moment the stand dries enough to pin
+a plant against that limit, the same traits carry the whole of its response. **A zero here is a
+statement about the weather, not about the trait**, and reporting it as though the model simply does
+not use the parameter would be the most misleading thing this machinery could say about drought.
 
 **What is refused, and why the reason is worth understanding.** The potential at which half of
 conductivity is lost — the single most reported number in plant hydraulics — is not offered. Not

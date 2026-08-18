@@ -623,6 +623,42 @@ dangerous ones, because in each the wrong theory returns a finite number rather 
 | **X** | exogenous operating point — solves no optimisation | a substituted constant, or an ODE state: closed form in a strict subset of inputs, **exactly zero** in the rest | identically zero under shutdown; at a tracked potential, the row at fixed $p$ plus a tracking row |
 | **N** | no derivative exists — a fold, a jump, or nothing defined | valid at a fold, one-sided at a jump, absent otherwise | **does not exist** |
 
+#### The table is an outer product, and writing it out hides which axis each entry is on
+
+Every entry above is one instance of the same chain rule. For an output $y_j$ evaluated at the
+operating point,
+
+$$\frac{\mathrm{d}y_j}{\mathrm{d}u} \;=\; \underbrace{\frac{\partial y_j}{\partial u}\bigg|_p}_{\text{held}} \;+\; \frac{\partial y_j}{\partial p}\,\frac{\partial p^\star}{\partial u}, \tag{7.0}$$
+
+and the two axes of the table above enter (7.0) in **different factors**:
+
+- **What the output *is*** fixes $\partial y_j/\partial p$ and, for one of them, the held term.
+  Three cases, and they are properties of the output rather than of the state: the output that **is**
+  the objective, the output that **is** the operating point, and every output that merely reads it.
+- **What defines the point** fixes $\partial p^\star/\partial u$ and **nothing else**. Five cases,
+  one per row of the table above.
+
+So ten entries are three plus five, and the saving is not the arithmetic — it is that a reader can
+see which of the two axes an entry belongs to. A single body per kind, with the output cases written
+inside it as conditionals, states the same thing in a form where an error on one axis is
+indistinguishable from an error on the other.
+
+**One identity crosses the two axes, and it is the exception that decides the interface.** The
+objective's $\partial\Pi/\partial p = 0$ is **not** a property of being the objective. It *is* the
+interior stationarity condition, so it holds on kind S and nowhere else: at a pin the same output's
+$p$-channel is the multiplier $\nu$, and at an exogenous point it is whatever the substitution left.
+The envelope theorem is a statement about **S**, and reading it as a statement about the objective is
+how a pinned point comes to be priced by the interior condition.
+
+The consequence for anything supplying these rows is sharp. **The objective's $p$-channel must be a
+number that is supplied, not an identity that is assumed** — zero at S, $\nu$ at K, and whatever the
+substitution gives at X. An interface that lets a consumer infer it from the output's role is correct
+at an interior optimum and silently wrong at exactly the states section 7.4 exists for.
+
+**The other two output cases are genuine identities and hold at every kind.** The operating point's
+own $p$-channel is exactly one because it *is* $p$, and its held term is exactly zero because a
+partial at fixed $p$ cannot move $p$. Neither reads the state, so neither needs a kind.
+
 **The classification must be a decision tree on what defines the point, never a comparison on the
 residual.** Ask in order: did the solve fail to produce a feasible bracket at all (→ X or B, by
 which exit); is the operating point a tracked state rather than an argmax (→ X interior, or K when
@@ -658,6 +694,46 @@ not a derivative, so a solve that brackets naively returns the zero-transpiratio
 optimum — an error in profit of the same order as the profit. And any classifier reaching the same
 endpoint inherits the same ambiguity. **A guard placed where the sentinel is produced serves both;
 a guard placed at either consumer serves one.**
+
+#### The objective's domain moves with the inputs, and the held partial exists only inside it
+
+$\Pi(p; u)$ is defined on $[p_a(u), p_b(u)]$, and **both endpoints are functions of $u$.** Every
+derivative in sections 7.1 to 7.4 is taken strictly inside that interval, and the held partial
+$\partial y_j/\partial u|_p$ of (7.0) is a derivative **along a line of constant $p$** — so it exists
+only where the perturbed interval still contains the held $p$. That is a condition on the
+perturbation, not on the state, and nothing about the base point implies it.
+
+**At an interior point the condition is a margin; at a pin it is violated by construction**, because
+$p^\star$ sits a fixed fraction of the interval's width inside the bound it is pinned to, and any
+perturbation moving that bound by more than the fraction carries the held $p$ outside. So the held
+term of (7.0) is unavailable at a pin for exactly the inputs the bound reads — which is why section
+7.4's row is a total and not a sum of two halves.
+
+**And there is no continuous extension to evaluate instead.** Below $p_a$ the flux reverses, so the
+downstream potential is *wetter* than the collar and the model substitutes the zero-flux state:
+conductance identically zero, intercellular CO₂ at the point where **gross** assimilation vanishes.
+Approaching $p_a$ from inside, conductance tends to zero and section 7.5's supply-equals-demand
+condition forces **net** assimilation to zero instead. The two limits differ by the dark
+respiration, so
+
+$$\lim_{p \downarrow p_a} \Pi(p;u) \;-\; \Pi(p_a;u) \;=\; R_d \tag{7.0b}$$
+
+exactly. Three things follow, and none of them is numerical:
+
+- **The jump is the model's own zero-flux substitution**, which section 7.5 names as case X. No
+  tolerance, step or ordering removes it, and the endpoint's value is not the limit from inside — the
+  substitution *creates* the discontinuity rather than recording one.
+- **It scales with dark respiration**, so it widens with leaf temperature and with any trait raising
+  maintenance cost. It is largest exactly where a drought gradient is being asked for.
+- **It is one-sided.** The dry endpoint carries no such substitution and $\Pi$ is continuous across
+  it — which is what identifies the cause. This boundary is discontinuous because of what the model
+  does when flow stops, not because it is a boundary.
+
+**So stepping over the wet endpoint is a consequence and not a defence.** An evaluation at a $p$ the
+perturbed state does not admit returns the substituted branch — finite, plausible, and $R_d$ from the
+quantity it stands in for. Feasibility must therefore be established **before** evaluating rather
+than tested afterwards: a test afterwards is sound only if it can separate the substituted branch
+from the intended one, and the two return the same type.
 
 **The asymmetry between the two output kinds is the one thing a two-branch model gets right.** The
 profit row survives every degeneracy in this table except a jump of the argmax and an undefined
@@ -708,6 +784,25 @@ bracketed fallback would return a number where none does. Refuse the **uptake** 
 $\lvert m\rvert = \lvert s\rvert/\lvert\Pi_{pp}\rvert$ exceeds a declared ceiling, and **emit the
 profit row regardless**, because it is valid at a fold. The pinned branch has its own version of
 the same denominator and needs the same ceiling.
+
+**And that ceiling can be applied at exactly one place in the chain, which is a statement about who
+holds what.** $m$ contracts the output adjoints against the $p$-channel, so forming it needs
+$\bar v$. Whatever supplies the rows does not have $\bar v$; a primitive owning the quotient does not
+have it either, because the output sensitivities are applied to the value that primitive returns and
+therefore *after* it. Only the consumer assembling the block holds both. The ceiling is the
+consumer's, and the two quantities available earlier are not substitutes for it:
+
+- **The denominator alone.** $\Pi_{pp}$ small is necessary for $m$ large and not sufficient, and its
+  scale is the objective's — so a ceiling on it has to be re-measured under any reparameterisation
+  that rescales profit.
+- **$\max_i \lvert\partial p^\star/\partial u_i\rvert$.** This is available at the supplier and is
+  not a quantity: it is a maximum over inputs carrying different units — potentials, capacities,
+  masses, dimensionless exponents — so which input attains it is a choice of parameterisation rather
+  than a property of the operating point, and no single ceiling can be stated for it.
+
+The simplification that does hold is that $m$ is one scalar per seed, so a consumer sweeping several
+functionals gets one number each, stated in that functional's own units — which the consumer, and
+only the consumer, knows.
 
 **One composition produces a guaranteed non-finite row, and neither this section nor section 6.2
 sees it alone.** A per-layer flux derivative is undefined where that layer's flux is zero, and the
@@ -761,7 +856,7 @@ scalar**. In reverse mode that matrix never forms: it collapses to the two scala
 is itself a scalar, so it has no outer product with anything, and $m\,\Pi_{pu}$ is a scaled row
 vector.
 
-### 7.3 $\Pi_{pu}$ is the one genuinely new object, and it is rank two over the state directions
+### 7.3 The state reaches the leaf through one scalar, and the marginal profit through two
 
 Everything else in this section reuses derivatives the forward model already needs. $\Pi_{pu}$ does
 not: it is a mixed second derivative of the profit, one entry per input, and it must include the
@@ -788,15 +883,36 @@ conductance derivatives are functions of $c^{\mathrm{i}}$, $\sigma$, $p$ and $\v
 $R = F(E^{\mathrm{up}},\ \partial E^{\mathrm{up}}/\partial p;\ p, \varphi)$ **identically**, and
 rank two is a chain rule through a two-dimensional intermediate.
 
+**The outputs are rank ONE through the same waist, and the two facts are usually stated as one.**
+Only $R$ carries the second intermediate, because only $R$ differentiates in $p$. At a **fixed** $p$
+the state reaches the stem potential, the intercellular concentration, assimilation, conductance and
+profit through $E^{\mathrm{up}}$ **alone**, so for each of them
+
+$$\frac{\partial y_j}{\partial u}\bigg|_p \;=\; \frac{\partial y_j}{\partial E^{\mathrm{up}}}\;\frac{\partial E^{\mathrm{up}}}{\partial u} \tag{7.3a}$$
+
+— one number per output times one vector over the inputs. **Per-layer uptake is the exception and it
+is the informative one:** $E_i$ is what the supply produces rather than something the leaf reads, so
+it depends on the state directly, and its row is the supply's own Jacobian, which section 3.3 of
+report 02 shows is diagonal in the potentials and lower-triangular in the layer masses.
+
+So the held block over the $2L+1$ state directions is **not** a matrix to be filled in column by
+column. It is one vector from the supply, one number per leaf output, and the supply's own Jacobian
+for the uptake outputs — $n_{\text{output}} + n_{\text{input}}$ numbers where the block has
+$n_{\text{output}} \times n_{\text{input}}$ entries. That is the same economy section 7.2 takes on
+the operating point, applied to a second scalar, and the two compose: the supply is one node, the
+operating point is another, and every output hangs off both.
+
 **The second intermediate is the sensitivity of uptake to the collar, not to root mass.** An earlier
 form of this section said root mass, and the closed form for $b$ it gives is the collar one:
 $\partial R/\partial(\partial E^{\mathrm{up}}/\partial p) = G\,P'/\kappa$ exactly, with
 $G = \partial\Pi/\partial\psi_{\text{stem}}$. The rank-two claim and $b$ were right; the sentence
 naming the intermediate was not.
 
-**And it is now verified, out of sample.** Solving $(a,b)$ from two directions of *different
-families* — one soil potential and one layer resistance, condition number 2.6 to 6.7 — and then
-**predicting** the remaining nine of the $2L+1$:
+**The rank-two claim itself is verified out of sample, and that is worth separating from how the
+pair is obtained.** Solving $(a,b)$ from two directions of *different families* — one soil potential
+and one layer resistance, condition number 2.6 to 6.7 — and then **predicting** the remaining nine of
+the $2L+1$ tests whether the state really does reach $R$ through two intermediates and nothing else.
+It does:
 
 | state | $p^\star$ | stationarity | worst predicted | $\psi$-family sv ratio |
 |---|---|---|---|---|
@@ -820,17 +936,35 @@ solve *equalises*. The analytic profit row is therefore an expression for $\part
 **at** the operating point and not away from it. $\partial R/\partial u$ has to come from the
 marginal profit itself, which is what makes the factorisation necessary rather than merely cheap.
 
-**One of the two scalars is closed form and the other is not.** $R$ sees the uptake–root-mass
-sensitivity only through the stem-potential response, so
+**Both scalars are partials of a two-argument function, and that is what says how to get them.**
+Write $x = E^{\mathrm{up}}/\kappa + S_t(p)$ for the transport coordinate and $W = \partial x/\partial p$
+for its collar slope, so that $\sigma = P(x)$ and
 
-$$b = \frac{\partial\Pi}{\partial\psi_{\text{stem}}}\cdot\frac{P'}{\kappa},$$
+$$R \;=\; \Phi(x)\,W, \qquad \Phi(x) \;\equiv\; \frac{\partial\Pi}{\partial x} \;=\; G(\sigma)\,P'(x).$$
 
-which is elementary. **The sign is the one the prose above gives**, not its
-negative: an earlier form of this line carried a leading minus, and a profit row
-built on it comes back as a clean factor of $-1$ against a difference of the
-profit at wet, dry and shaded states. $a$ is not closed form, because total uptake moves the stem potential and
-hence the intercellular concentration and every derivative built on it; it must be recovered from a
-residual.
+Then
+
+$$b \;=\; \frac{\partial R}{\partial(\partial E^{\mathrm{up}}/\partial p)} \;=\; \frac{\Phi(x)}{\kappa} \;=\; \frac{\partial\Pi}{\partial\psi_{\text{stem}}}\cdot\frac{P'}{\kappa}, \qquad a \;=\; \frac{\partial R}{\partial E^{\mathrm{up}}} \;=\; \frac{\Phi'(x)\,W}{\kappa}. \tag{7.3b}$$
+
+**The sign is the one the prose above gives**, not its negative: an earlier form of this line carried
+a leading minus, and a profit row built on it comes back as a clean factor of $-1$ against a
+difference of the profit at wet, dry and shaded states.
+
+**$b$ is elementary and $a$ needs one more derivative of the transport curve — but both are functions
+of a single scalar.** $\Phi$ is a function of $x$ alone at fixed $p$ and $\varphi$. So $a$ is a
+derivative in **one** well-scaled argument, obtainable by perturbing $x$ itself: two evaluations of
+$\Phi$, once, for the whole state family, with no solve, no supply call and no feasibility question,
+because $x$ is a number the transport curve is read at rather than a state the model has to be put
+into.
+
+**The same $b$ answers the held profit row, and that is not a coincidence.** At fixed $p$ the state
+reaches profit only through $x$, so
+
+$$\frac{\partial\Pi}{\partial u}\bigg|_p \;=\; \frac{\partial\Pi}{\partial x}\cdot\frac{1}{\kappa}\cdot\frac{\partial E^{\mathrm{up}}}{\partial u} \;=\; b\;\frac{\partial E^{\mathrm{up}}}{\partial u}. \tag{7.3c}$$
+
+One scalar converts supply into carbon **and** supply-slope into repricing, because both are the same
+question asked of the same transport curve: what one unit of water arriving at the collar is worth.
+So the held profit row over every state direction costs one multiplication once $b$ is in hand.
 
 **Two things leave the waist, and both are discrete rather than smooth.** The deepest rooted layer
 sets the row's **arity**, so root mass changes the *length* of the vector rather than its entries.
@@ -845,11 +979,15 @@ $b$ is absorbed into $a$ at a ratio of about $10^5$. **A joint residual cannot d
 a compensating $(a,b)$ pair fits every potential row equally well. So an invariant that checks $a$
 at fixed $b$ does not check the pair.
 
-**So the pair must be anchored in the family it will be applied to, and that is an operational rule
-rather than an observation.** A pair recovered from two directions reproduces their own span and
-nothing outside it, so applying it to a family the fit never saw returns the compensation as an error.
-Measured on the root-carbon rows, against a difference that rebuilds the strategy and re-runs on a
-stand where two species compete:
+**But that conditioning belongs to a method rather than to the mathematics, and the distinction is
+the whole of this section.** $a$ and $b$ are partials of $F$ in its own two arguments, by (7.3b).
+Recovering them instead by *solving* for the pair that reproduces two observed state directions is a
+choice, and it is the choice that inherits the collinearity: the design matrix is exactly the
+near-degenerate one above. Perturbing the arguments has no design matrix at all.
+
+The measurements that follow are therefore a record of what the fitted route costs, and are the
+argument against it rather than a guide to using it. Against a difference that rebuilds the strategy
+and re-runs on a stand where two species compete:
 
 | how the pair was obtained | the row it was applied to |
 |---|---|
@@ -857,29 +995,57 @@ stand where two species compete:
 | $b$ closed form, $a$ solved along a **potential** | 0.83 |
 | $b$ closed form, $a$ solved along a **carbon** direction | **0.990**, which is what a direct difference of that row also gives |
 
-The middle row is the instructive one. $b$ there is *exact* — it reproduces a difference of the profit
-to $5\times10^{-10}$ — and pinning it makes the answer **worse**, because $a$ is then carried by one
-differenced direction and takes all of that direction's error. **An exact coefficient in a badly placed
-pair is worse than two inexact ones**, and no residual formed on the fitted directions can see it.
+The middle row is the one that shows the mechanism. $b$ there is *exact* — it reproduces a difference
+of the profit to $5\times10^{-10}$ — and pinning it makes the answer **worse**, because $a$ is then
+carried by one differenced state direction and takes all of that direction's error. **Under a fit, an
+exact coefficient in a badly placed pair is worse than two inexact ones**, and no residual formed on
+the fitted directions can see it. Three defences follow from that and all three are unnecessary: an
+anchor direction chosen out of the family the pair will serve, an out-of-sample check to detect the
+compensation, and a rule that the anchor must not be a soil potential. **Take the partials in the
+coordinates they are partials in and none of the three has anything to guard.**
 
 **And the direction the ecology cares about is the direction that conditioning is worst in.** Water
 moves on *differences* of potential while tissue fails on *absolutes*, so along the uniform drying
 direction the model is a near-symmetry and the true response is a small residue on a strongly
-amplified channel. A one percent error in $b$ is therefore a fifteen- to twenty-six-fold error in
-the quantity of interest. $b$ is unvalidated *for the direction it matters in*, and the general
-rule that applies is the corpus's own: **anything defined as a small difference of large quantities
-must be computed as itself**, never by subtraction in a caller.
+amplified channel. A one percent error in either scalar is therefore a fifteen- to twenty-six-fold
+error in the quantity of interest.
+
+**That amplification is a property of the state directions and no choice of method removes it** — but
+it is what decides how the row may be assembled. The general rule is the corpus's own: **anything
+defined as a small difference of large quantities must be computed as itself**, never by subtraction
+in a caller. Applied here it says the row is $a\,\partial E^{\mathrm{up}}/\partial u + b\,\partial^2
+E^{\mathrm{up}}/\partial u\,\partial p$ with each factor supplied by whatever owns it exactly — the
+two scalars from (7.3b), the two vectors from the supply — and never a difference taken along a
+state direction, because a difference *is* the subtraction the rule forbids, taken in the one
+direction where the cancellation is worst.
 
 **In the dry regime the factorisation does not degrade — it collapses.**
 
 | regime | the argmax object | rank over $2L+1$ |
 |---|---|---|
-| interior, wet | $a\,\partial E^{\mathrm{up}}/\partial u + b\,\partial(\partial E^{\mathrm{up}}/\partial r)/\partial u$ | 2 |
+| interior, wet | $a\,\partial E^{\mathrm{up}}/\partial u + b\,\partial(\partial E^{\mathrm{up}}/\partial p)/\partial u$ | 2 |
 | pinned at zero uptake | $-(\partial E^{\mathrm{up}}/\partial u)\,/\,(\partial E^{\mathrm{up}}/\partial x)$ | **1** |
 | pinned at the stem's critical potential | $-(\partial E^{\mathrm{up}}/\partial u)\,/\,(\partial E^{\mathrm{up}}/\partial x - \kappa S'(p_b))$ | **1** |
 
 The second channel dropping out at a bound is legitimate: there the operating point is defined by a
 residual in total uptake alone.
+
+**Which parameters are slack at an interior optimum is decided by one question, and it is not which
+bound they belong to.** A parameter is slack there exactly when it reaches the outputs through the
+bound's residual *and through nothing else*: the constraint is inactive, so its whole contribution is
+inactive with it, and the row is zero because of where the point sits rather than because the model
+cannot answer. **Both critical potentials meet that condition.** The flux integrates the vulnerability
+curve up to the *stem potential the plant is operating at*, not up to a critical potential; the
+critical potentials appear in the dry bound's residual, and — for the stem's — as the endpoint of the
+bracket the solve searches. Both are inactive strictly inside the interval.
+
+Two things follow that an implementation can get wrong in opposite directions. **A slack zero is not
+a structural zero**, because a structural zero claims the parameter reaches nothing on any trajectory
+while a slack zero says it goes live the moment the constraint binds — so recording one as the other
+tells a reader the model has no answer where it has a state-dependent one. And **slackness is a
+property of the point, not of the parameter**: the same parameter that is slack at an interior
+optimum carries the whole row at a pin, so a declaration made once per parameter is a claim about the
+regime as well.
 
 **The dry bound is the lesser of the two critical potentials, and that ordering is what keeps the
 bracket inside the grid.** It is $\min$ of the collar at which the stem reaches its critical
@@ -925,6 +1091,23 @@ $$w = \bar\Pi \, \frac{\partial \Pi}{\partial p} + s, \qquad \bar u = \bar{v}^{\
 
 So the pinned branch carrying a profit contribution that the interior branch omits is not an
 inconsistency; it is the envelope theorem failing at a boundary.
+
+**And (7.4) is a total that cannot be evaluated as two halves, for the reason §7.0 gives.** The held
+term of (7.0) needs $p$ fixed while $u$ moves, and at a pin $p^\star$ sits inside the bound by a
+fraction of the interval's width — so for every input the bound reads, a perturbation large enough to
+move the bound carries the held $p$ out of the perturbed interval, where §7.0b says there is no value
+to take. What *is* available is the total, by letting the point follow the bound.
+
+Two consequences, and both are forced rather than chosen:
+
+- **The operating point is a passive node at a pin.** Once each output's row is a total, the point's
+  own gradient must be reported as zero for those inputs, or a consumer assembling (7.0) counts the
+  bound's movement twice. So section 7.2's $n_{\text{output}} + n_{\text{input}}$ economy is an
+  **interior** economy; at a pin the block is dense again, which is what following the bound costs.
+- **Recovering the held half by subtraction is forbidden.** $\partial y/\partial u|_p =
+  \mathrm{d}y/\mathrm{d}u - (\partial y/\partial p)(\partial B/\partial u)$ is arithmetically true and
+  is a difference of two quantities that nearly cancel in the direction §7.3 says the ecology lives
+  in. The corpus's rule applies: compute the total as itself and report it as a total.
 
 The bound itself is implicit. $p_a$ is the collar potential at which uptake vanishes,
 $E(p_a, u) = 0$, so
@@ -1032,23 +1215,47 @@ term they contribute is discretisation error, and declining to carry it introduc
 It is **wrong** for a grid the parameter itself defines. Here $\psi_{\max} = b\,\log(100)^{1/c}$, so the
 knot positions are a function of the curve's own parameters and the forward model rebuilds them
 whenever either moves. The grid is then part of what the parameter *means*, and a derivative taken on a
-held grid answers a different question. Measured: a row taken by rescaling the base spline — exact for
-the continuum, and reproducing a rebuilt spline to $3\times10^{-13}$ in the leaf's own outputs — sits at
-0.99981 of a reference that rebuilds the strategy and re-runs, where the rebuilt row sits at 1.000002.
+**held** grid answers a different question.
 
-**The test is one question: does the forward model rebuild the grid when the parameter moves?** If it
-does, the moving grid is the model and must be carried; if it does not, the grid is discretisation and
-holding it declines an error rather than introducing one. Two consequences follow for this curve. The
-knot *count* is decided by round-off — the builder accumulates `psi += step` against a `<=` test, so a
-$10^{-5}$ move in $c$ can give 100 knots on one side of a central difference and 101 on the other — so a
-rebuilt difference carries a discrete artefact that a rescale cannot. And making the *rebuild* cheaper
-is legitimate where holding the grid is not: reseeding the same knots by a different but equivalent
-route changes the arithmetic's cost, not the function being differentiated.
+**But "held" and "not rebuilt" are different conditions, and the curve's two parameters fall on
+opposite sides of the difference.** The test to apply is not whether the grid was rebuilt; it is
+whether the perturbation carries the grid **to where a rebuild would have put it**. Two ways to
+satisfy that, and only one of them is a rebuild.
 
-The calculus above is separately verified: all seven quantities agree with an independent
-high-precision integral and with central differences of that integral to better than $10^{-23}$,
-over $c$ from 0.4 to 12 and $m/b$ from 0.075 to 8. It is the best-established derivation in this
-corpus.
+$G$ is homogeneous of degree one in $(\psi, b)$, so $G(\psi; sb, c) = s\,G(\psi/s; b, c)$ — and
+$\psi_{\max}$ carries the same factor $s$, so the rescaled read's domain **is** the rebuilt domain and
+its knots **are** the rebuilt knots. Rescaling the base curve is therefore not holding the grid; it is
+moving the grid analytically, and it is exact rather than approximate:
+
+$$b\,\frac{\partial G}{\partial b} \;=\; G(\psi) - \psi\,G'(\psi) \tag{7.6a}$$
+
+is Euler's identity applied to the **tabulated** $G$ and $G'$, so it is the table's own
+$b$-derivative and not the continuum's. Position is closed-form because the identity holds on the
+tabulated function.
+
+**The steepness has no such identity and is the case the ruling was written for.** $c$ reshapes the
+curve rather than scaling it: no rescaling of the base table reproduces the table a rebuild at a
+moved $c$ would produce, so its row needs the grid genuinely rebuilt and differenced. So the two curve
+*positions* have exact rows and the two *steepnesses* do not, and that is a statement about the
+Weibull family rather than about any implementation.
+
+**One consequence for which instrument referees which.** The knot *count* is decided by round-off —
+a builder accumulating `psi += step` against a `<=` test can give 100 knots on one side of a central
+difference and 101 on the other — so **a rebuilt difference carries a discrete artefact that an
+identity does not.** Where an identity is available, the rebuild is the noisier of the two and a
+disagreement between them is evidence about the reference before it is evidence about the row. Where
+no identity is available, the rebuilt difference is the only faithful route and its jitter is the
+floor to quote.
+
+The calculus above was verified against an independent high-precision integral and against central
+differences of it to better than $10^{-23}$, over $c$ from 0.4 to 12 and $m/b$ from 0.075 to 8.
+**Read that as a derivation checked once rather than as a standing guarantee**: a figure at
+$10^{-23}$ is below what double precision can carry, so it belongs to an arbitrary-precision
+computation done beside the model and not to anything the model can re-run. A claim at that
+magnitude is only as good as the artefact that produces it, and a corpus that quotes it without one
+is quoting a memory. What a double-precision suite can hold is the series against its own closed
+form and against a library's incomplete gamma; that is the check to keep current, and the $10^{-23}$
+is the reason to believe the algebra rather than evidence about any code.
 
 ### 7.7 The value function's curvature, which the same two numbers already give
 

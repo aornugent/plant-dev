@@ -147,6 +147,40 @@ needs.
 uptake rows and one that needs conductance rows then contract through the same scalar, and neither
 needs its own version of the argmax machinery.
 
+### 3.2a There are two such scalars, not one, and they nest
+
+The operating point is the collapse this report was written about. It is not the only one, and
+missing the second is what makes the environment rows look like they need work proportional to the
+number of soil layers.
+
+At a **fixed** operating point the whole soil state reaches the leaf through **total uptake at the
+collar** — one number, whatever the layer count. Report 05 §7.3 gives the chain: the stem potential
+is the transport curve read at total uptake over the conductance, and everything downstream reads the
+stem potential. So the held partials of §3.1 and §3.2 factor again:
+
+```
+∂y_j/∂u|_p  =  (∂y_j/∂E)·(∂E/∂u)          for every output that READS the supply
+∂E_i/∂u|_p  =  the supply's own Jacobian   for the per-layer draws, which ARE the supply
+```
+
+**The two collapses are different in kind and that is why both are needed.** The operating point is
+defined by a *condition*, so its row comes from the implicit function theorem and a slope has to be
+divided by. Total uptake is defined by a *formula*, so its row is direct and nothing is divided. A
+solver that owns an implicit node and a graft already owns both: the implicit node for the first, the
+graft for the second, with no third primitive.
+
+**What this buys is stated as a count.** With `L` layers there are `2L+1` state directions and a
+handful of outputs. Written as a block it is outputs × directions. Written through the two scalars it
+is outputs + directions, twice — once for the supply, once for the point. Nothing about the second
+collapse is specific to leaves: it is the general statement that **a submodel should declare its
+internal waists, not only its outputs**, and a consumer records against a waist exactly as it records
+against an output.
+
+**The marginal profit is the one quantity that needs the second intermediate too.** It differentiates
+in the operating point, so it reads both total uptake and *how total uptake responds to the collar* —
+rank two where the outputs are rank one. That asymmetry is not an inconvenience; it is what makes the
+water channel a chain rule rather than something to be estimated (report 05 §7.3).
+
 ### 3.3 The explicit part of the water channel is sparse, and one of its terms has left the model
 
 Per-layer uptake reads its own layer's potential and the collar, so `∂E_i/∂ψ_j` is **diagonal — and
@@ -219,10 +253,25 @@ profit of −1.90 returned against 2.52 at the true optimum. The infeasible sliv
 rather than evaluated. Report 05 §7.0 states the sentinel hazard for *classification*; this is the
 same sentinel one level down, corrupting the forward answer.
 
-**Profit is discontinuous across that same boundary**, not merely steep: below the feasibility edge
-the algebra runs on a negative conductance and returns a plausible number, and the jump across the
-edge has been measured at 1.44 in profit. So the bound must not be *returned* either — a pinned
-operating point sits just inside the boundary, not on it.
+**Profit is discontinuous across that same boundary**, not merely steep, and **the mechanism is the
+model's own zero-flux substitution rather than arithmetic running on a negative conductance.** Below
+the edge the flux would reverse, so the downstream potential comes out wetter than the collar and the
+model substitutes the shut state: conductance identically zero, intercellular CO₂ at the point where
+*gross* assimilation vanishes. Approaching from inside, conductance tends to zero and the inner
+supply-equals-demand solve drives *net* assimilation to zero instead. The two limits differ by
+exactly the dark respiration — report 05 §7.0b — which is what the measured jump of 1.44 is.
+
+Three things follow that a boundary has to respect:
+
+- **The endpoint's value is not the limit from inside.** So the bound must not be *returned* either —
+  a pinned operating point sits just inside the boundary, not on it.
+- **The substituted branch and the intended one return the same type.** A finite, plausible number
+  comes back either way, so a check applied *after* evaluating can only work if it can tell which
+  branch produced the number. **Establish feasibility before evaluating; do not evaluate and test.**
+  §4 item 9 states this as a requirement.
+- **A negative conductance is a real hazard and it is on a different path.** The marginal profit
+  reaches the inner CO₂ solve directly, without the substitution, and there a reversed gradient does
+  make the bracket fail. Naming that as the profit's mechanism sends a reader to the wrong guard.
 
 **And the two pin tests are not exhaustive; the leftover case is a failure, not a third pin.** If
 profit is falling away from *both* ends into the interval, the interior stationary point is a
@@ -240,8 +289,8 @@ and it sits where a calibration is most likely to wander.
 
 ## 4. What the boundary must guarantee
 
-The node is a contract between a passive solver and an active caller. Six requirements, each with
-the failure it prevents.
+The node is a contract between a passive solver and an active caller. Each requirement below is
+stated with the failure it prevents.
 
 **1. Only values cross, in both directions.** The caller hands doubles in and receives doubles and
 derivative rows back. Nothing active enters the solver, and no tape is live inside it. This is what
@@ -300,6 +349,32 @@ not a wrong number but an index: one channel ends up addressed through a contain
 other. **Where two rows have different derivations, give them different entry points**, and let the
 caller pay the small cost of knowing which is which.
 
+**9. Feasibility is established before an evaluation, never tested after one.** §3.6's substitution
+returns a finite, plausible number of the same type as the answer it stands in for, so a check
+applied afterwards has to distinguish two branches by their output alone. Where the substitution is
+detectable only by comparing the returned operating point against the requested one, the detection is
+sound but the evaluation has already run — and it ran the model on a state the model was declining to
+represent. A surface that **refuses without evaluating** is the one to expose, and the caller's own
+question ("would this state admit this operating point?") is the one to answer first.
+
+**10. A guard belongs where its quantity can be formed, and that is often not where the number is
+produced.** The amplification a fold makes dangerous is the output-adjoint-weighted response of the
+point; a supplier of rows has no output adjoints and a primitive owning the quotient applies them
+after it returns, so neither can form it (report 05 §7.0). What the supplier *can* form is a maximum
+over inputs of differing units, which is not a quantity a ceiling can be stated for. **Do not place a
+guard by proximity to the arithmetic it protects.** Ask which participant holds every factor, and put
+it there; where that is the caller, the supplier's obligation is to hand back the factors rather than
+a summary of them.
+
+**11. Rows obtained by different means are not interchangeable, and the difference has to survive the
+boundary.** A row that is an identity, a row assembled from closed forms, and a row taken by
+perturbing the model are three different objects with three different failure modes — exact, exact
+up to its factors, and carrying a step size, a feasibility question and a branch-stability question.
+A consumer given all three as one vector of doubles cannot tell which discipline applies to which
+entry, and will apply the weakest one it knows about to all of them. Where a boundary cannot carry
+that distinction in its types, it must at least not *create* the ambiguity — which means not
+perturbing to obtain a row the model can state.
+
 ---
 
 ## 5. Two rulings that are easy to get backwards
@@ -342,8 +417,18 @@ implicitly the differentiable object is the defining equation, and a search is n
 — and put the implicit quantity itself among them (§3.2), so every consumer that is not the objective
 contracts through one scalar instead of carrying its own copy of the argmax machinery.
 
+**2a. Declare your internal waists, not only your outputs** (§3.2a). Wherever a family of inputs
+reaches a family of outputs through one scalar, that scalar is worth naming at the boundary even
+though no consumer asked for it: naming it turns a block into two vectors, and the consumer records
+against it exactly as it records against an output. The operating point is one such waist and is
+easy to spot because it is implicit. **The ones defined by a formula are the ones that get missed**,
+because nothing about them looks like a node.
+
 **3. An objective at its own optimum is free; its other consumers are not** (§2). Ask of every output
-whether it *is* the objective or merely reads the argument that maximised it.
+whether it *is* the objective or merely reads the argument that maximised it — and note that the
+freedom is a property of the **state**, not of the output: it is the stationarity condition, so it
+holds where that condition holds and nowhere else. Supply the objective's response to the operating
+point as a number rather than letting a consumer infer zero from the output's identity.
 
 **4. A feasibility bound is part of the model, so its derivative is part of the answer** (§3.5).
 
@@ -370,6 +455,15 @@ rather than restating it.
   are where to look next.
 - **The rank-one collapse is not the only route from the operating point into a layer's flux.** Then
   the single scalar `s` is incomplete and the whole cost argument changes.
+- **The soil state reaches an output by some route other than total uptake, at a fixed operating
+  point.** §3.2a's second collapse rests on it, and it is checkable at one solved point without a
+  gradient: hold the collar, move two layers in opposite directions so that total uptake is unchanged
+  to round-off, and read every output that is not a per-layer draw. They must not move. If one does,
+  the waist is not a waist and the environment rows are outputs × layers after all.
+- **The wet-boundary jump is not the dark respiration.** §3.6 attributes it to the zero-flux
+  substitution, which predicts a specific size, a dependence on leaf temperature, and no counterpart
+  at the dry boundary. Any of the three failing means the discontinuity has a different cause and the
+  discipline built on it is defending against the wrong thing.
 - **The first-order condition has more than one root in the feasible interval.** §1's construction
   assumes the marginal profit crosses zero once. A second crossing is a second stationary point, and
   a bracketing solver returns whichever one its bracket contains — silently, and with a perfectly

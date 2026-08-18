@@ -38,10 +38,11 @@ supplied where recording was possible, or supplied by someone other than the own
 | nine hand transposes inside a step | supplied where recordable | −2898 lines, already deleted |
 | `record_leaf_outputs` + its shut sibling | supplied by the **consumer**, not the owner | 1023 lines, 1121 with what dies with them; 49.1% of a gradient profile |
 | the trait order in two tables | the pairing done by the consumer, positionally | 1 of the 14 disagrees in name |
-| `stem_b`'s row | one derivative supplied twice, by two owners | the two packages contradict each other in code |
+| `stem_b`'s row | ~~supplied twice, by two owners~~ **no instance: see §3.5** | the two spellings are one identity, and plant already consumes it |
 | four quadratures over one grid | one grid supplied four times | closed: all four read one accessor |
 | two state loaders | one boundary evaluation supplied twice | a second loader, and a read-point list with one instance |
-| the `(a, b)` pair | a row supplied by fitting rather than by its condition | unvalidated in the direction that carries the ecology |
+| the `(a, b)` pair | a row **fitted in coordinates it is not a partial in** | the fit's conditioning, and three defences against it, all unnecessary |
+| the leaf's environment rows | closed forms supplied, then differenced anyway | 44 of 109 leaf evaluations per call; 20–120 collar solves at a pin |
 
 §§3–6 take the four live instances in order of size.
 
@@ -124,6 +125,18 @@ That is the entire declaration a submodel with an inner solve owes a consumer:
 | **Ordinary** — this output merely consumes the point | supplied | supplied | both terms |
 
 Exactly one output may be Objective and exactly one may be Point.
+
+**Two of those three rows are identities and one is not, and the difference decides the interface.**
+Point's `0` and `1` are true at every kind: the operating point cannot move at a frozen operating
+point, and it is itself. **Objective's `0` is not a property of the output** — it *is* the interior
+stationarity condition, so it holds on one kind and fails on the other four. Report 05 §7.0 states
+it: the envelope theorem is a statement about the *state*, and reading it as a statement about the
+objective is how a pinned point comes to be priced by the interior condition.
+
+So the interface carries the objective's `∂y/∂p` as a **supplied number** — zero at an interior
+optimum, `ν` at a pin, whatever the substitution left at a shut point — and never lets a consumer
+infer it from the declared role. The role still earns its place, because it is what tells the
+producer *which* of the three rules to apply; what it must not do is let the consumer skip asking.
 
 **Orthogonally, the kind of operating point decides `∂p*/∂u` and nothing else:**
 
@@ -216,7 +229,6 @@ struct Rows {
                                     // point, nu at a pin, 1 for Point
   std::vector<double> frozen;       // n_output * n_input, output-major
   std::vector<Zero>   zero;         // n_output * n_input, output-major
-  double amplification;             // max_i |dresidual[i] / residual_slope|
 };
 
 Rows rows_at(Leaf&, const double* theta, const Drivers&,
@@ -224,7 +236,20 @@ Rows rows_at(Leaf&, const double* theta, const Drivers&,
 }
 ```
 
-**Three corrections to the shape above, from reading it against the packages.**
+**Four corrections to the shape above, from reading it against the packages.**
+
+*`amplification` is deleted, and the reason is a units argument that also disqualifies the two
+obvious substitutes.* Report 05 §7.0 puts the guard on `|m| = |s|/|Π_pp|`, and `s` contracts the
+output adjoints against the p-channel — which this call does not have, and which `implicit_root`
+does not have either, because the output sensitivities are applied to the value it returns and
+therefore after it. **Only the consumer holds both factors, so only the consumer can guard.** What a
+producer can form is `max_i |dresidual[i]/residual_slope|`, a maximum over potentials in MPa,
+capacities in µmol m⁻² s⁻¹, masses in kg m⁻², dimensionless curve exponents and a conductance: which
+input attains it is a choice of parameterisation rather than a property of the point, and no ceiling
+can be stated for it. Three further defects made it unreadable in any case — it is `0.0` at every pin
+and shut point, because every `dresidual` is `±0` there; `std::max(x, NaN)` returns `x`, so a refused
+input leaves no trace in it; and nothing in production ever read it. **Return the factors, not a
+summary of them.**
 
 *`finite` is deleted.* The kind already says whether a row exists -- a fold and a
 solve that could not move are kinds -- and a second way to ask the same question is
@@ -235,12 +260,12 @@ solve that could not move are kinds -- and a second way to ask the same question
 reader and the perturbation, not the count. §5.2's assertion still cannot be written,
 but for a different reason: see there.
 
-*And the scarce resource here is not the 49.1%.* Four traits stay differenced under
-§3.5's own test, so eight re-solves an operating point are fixed in place and this
-interface cannot buy them back. What it buys is the number of independently-maintained
+*And the scarce resource here is not the 49.1%.* **Two** traits stay differenced under
+§3.5's own test — the two curve steepnesses, the positions having exact identities — so
+four re-solves an operating point are fixed in place and this interface cannot buy them
+back. What it buys is the number of independently-maintained
 statements about one physical point: 976 lines, two classifications, five feasibility
-mechanisms, one of fourteen trait names already disagreeing, and two packages
-contradicting each other in code about `stem_b`'s row. Cost is the reason to want the
+mechanisms, and one of fourteen trait names already disagreeing. Cost is the reason to want the
 leaf faster; **agreement** is the reason to want this interface.
 
 **Rows come back in parts, and the reason is a cost bound rather than taste.** Returning totals would
@@ -340,8 +365,9 @@ abstraction already and does not change.
 
 ### 3.5 The root cause is the vulnerability tabulation
 
-Four traits — `stem_b`, `stem_c`, `root_b`, `root_c` — must currently be differenced by re-solving,
-because the curve's grid
+**Two traits — `stem_c` and `root_c` — must be differenced by rebuilding, and the two this section
+used to list beside them must not be**; see the third bullet below, and report 05 §7.6. What is true
+of all four is that the curve's grid
 
 $$\psi_{\max} = b\,\bigl(\log 100\bigr)^{1/c}$$
 
@@ -361,10 +387,28 @@ Everything downstream follows from that one fact:
   here is about **a tenth**, not the 56% the per-drive cost implied, and the cost argument for this
   step is not the one to lead with;
 - `a` had to be *fitted* from a differenced direction rather than differentiated;
-- and the two packages **contradict each other in code**: phylloptim claims `perturb_stem_b` is exact
-  by homogeneity and worth 24.5×, plant measured that identity 1.9e-04 out against a rebuild's
-  2e-06 and rejected it. Report 05 §7.6 agrees with plant and with the same numbers — the rescale
-  sits at 0.99981 of a rebuilding reference where the rebuild sits at 1.000002.
+- and the "two packages contradict each other in code" item **has no instance, which reading the two
+  spellings against each other settles rather than adjudicates.** They are not rival estimates of one
+  row; one is the exact derivative of the other. `perturb_stem_b` defines the perturbed family as
+  `G(ψ; b) = s·Ĝ(ψ/s)` with `s = b/b_spline`, and `stem_curve_integral_dstem_b` returns
+  `(G − ψG′)/b`, which is that family's `b`-derivative written out. **They cannot disagree about
+  anything, including any error the rescale carries** — so a measurement rejecting one rejects the
+  other, and plant already consumes the second, through `bound_row`'s `d_dstem_b`.
+
+  **And the rescale does not hold the grid**, which is what report 05 §7.6's objection was about. The
+  knot grid is `ψ_max = b·log(100)^(1/c)`, homogeneous in `b` exactly as the read is, so the rescaled
+  curve's domain and knots are the rebuilt curve's; measured, a rescaled spline reproduces a rebuilt
+  one to 0–3e-16. What remains is a difference between the two *references*, and the rebuild is the
+  noisier one: report 05 §7.6 records that the knot **count** is decided by round-off against a `<=`
+  test, and phylloptim measures the resulting jitter at up to 9e-05 between neighbouring steps where
+  the rescale route has none.
+
+  **Neither of the numbers this bullet used to rest on is computed anywhere in the tree.** `0.99981`
+  and `1.000002` come from `ladder_run_difference_pair()`, which exists and has no caller; plant,
+  credited with the measurement, contains no such measurement and does not spell the parameter
+  `stem_b`. The ruling that survives is report 05 §7.6's corrected one: **position has an identity
+  and steepness does not**, so `stem_b` and `root_b` are exact and `stem_c` and `root_c` are the two
+  — not four — traits that genuinely need a rebuild.
 
 **The fix is in the corpus already, and half of it is already deployed.** The series is in code,
 returning the value, the integrand and both trait partials from one loop — and the value and the
@@ -397,10 +441,10 @@ closed form replacing the table has to carry the complete-gamma limit as a genui
 the same cap the accessor already applies, so the cost is a named switch rather than new
 mathematics. Assert the bound on the stem curve; give the root curve the limit.
 
-**Making that change removes the grid, and with it:** the rebuild cost; the four differenced traits,
-which become exact — `b` by the homogeneity `ψ ∂G/∂ψ + b ∂G/∂b = G`, `c` by the series' own
-`a`-derivative; the two packages' disagreement, which dissolves rather than needing adjudication; and
-the reason `a` could not be differentiated.
+**Making that change removes the grid, and with it:** the rebuild cost; **the two steepnesses**,
+which become exact by the series' own `a`-derivative — the two positions are already exact, by the
+homogeneity `ψ ∂G/∂ψ + b ∂G/∂b = G`, on the tabulated curve and with no change to the forward model;
+and the reason the fitted coefficient could not be differentiated.
 
 **This is a forward-model change and must be re-blessed as one.** The discipline is phylloptim's own,
 established the last time it collapsed two implementations of one algebra: a hand-maintained parallel
@@ -781,6 +825,12 @@ Each step is refereed by the one before it, and nothing is deleted before its re
 | **7** | **§3.3: `rows_at` in phylloptim.** Roles, an observation-dependent output count, per-layer uptake as outputs, root carbon as inputs, rows in parts. Take plant's arm robustness and phylloptim's sentinel handling — each package has half. **The arm robustness is three rungs, not one, and their ORDER is load-bearing:** centred, then one-sided to second order where a single arm is inside, then the bound followed where a re-solved arm leaves the branch, then shrink, then refuse. Following the bound must come after re-solving — where both arms stay on the branch the two placements are different rows, 3.82 relative apart on assimilation at a wet pin. | one row layer; `transpose_at` and `rows_at` share `at()` | the transpose identity `⟨v,Ju⟩ = ⟨Jᵀv,u⟩`, which needs no reference gradient |
 | **8** | **§3.4: plant's leaf integration.** Delete `record_leaf_outputs`, `record_zero_flux_outputs`, the trait tables, the drives. | §3.4's form is what is there, and it is not six lines: 1121 out and 221 in. What the count leaves out is that the rows are gone and what remains is a declaration — which is what report 09 predicted and this row did not | step 2's stored reference, at every kind |
 
+| **9** | **§3.3 again: the row layer stops perturbing what the model states.** The environment block becomes the two-waist chain rule — the supply's own Jacobian, one `∂y/∂E_up` per output, and `(a, b)` as partials in the transport coordinate. `amplification` is deleted and the ceiling moves to the consumer, which is the only participant holding `s`. The differencing machinery survives for `stem_c` and `root_c`. | the environment family costs no leaf evaluation; the factorisation ladder's uniform-drying direction is inside its derived bound; `held_row`'s escalation is reachable only from the two steepnesses | the transpose identity, plus the waist check in §10 — both of which need no reference gradient |
+
+**Step 9 is the one that pays for itself twice**, because the accuracy item and the cost item have
+one cause. It is also the only step here that is a **deletion of mechanism rather than of lines**:
+what goes is not a function but the assumption that an input is something you perturb.
+
 **Steps 3 to 5 are independent of 6 to 8** and each is worth landing alone. Step 6 is the largest
 single return and is the precondition for 7 being simple, because with the grid moving, four of the
 row layer's inputs cannot be answered analytically at all.
@@ -807,20 +857,49 @@ phylloptim's interface now names a concept its own users do not use.
 spline has no derivative accessor (§3.6), and a tracked operating point in the acclimating variant
 needs its own row from the adjoint rather than from a condition.
 
-**It differences what the leaf can already answer in closed form, and pays twice for it.** The
-environment rows go through the same perturbed evaluations as everything else, where the leaf has
-`profit_env_derivatives` and the per-layer supply derivative and plant was reaching across the
-boundary to combine them by hand. Measured: the uniform-drying direction — the only belowground
-competitive coupling the model has, and the worst-conditioned one — reads 7.6e-04 against a bound of
-1.6e-04 derived from the fit's own truncation, and the input count roughly triples on a family that
-is half a gradient profile. Routing the row layer through the leaf's own closed forms is one change
-that fixes the accuracy and the cost together.
+**It differences what the leaf can already answer in closed form, and the count is worse than "pays
+twice".** Counted on the loops at five layers and twenty-six inputs, one call performs **one collar
+solve and about 109 leaf evaluations**, of which **44 are the eleven environment inputs** — inputs
+whose rows need no evaluation at all. At a *pinned* point every soil and carbon input moves the
+bound, so each is answered by re-solving the whole model twice: **20 collar solves at best and up to
+120**, for ten rows the leaf states in closed form. The accuracy follows the same cause: the
+uniform-drying direction — the only belowground competitive coupling the model has, and the
+worst-conditioned one — reads 7.6e-04 against a bound of 1.6e-04.
+
+**And the fix is not "call `profit_env_derivatives`", which answers six of the eleven and only for
+profit.** The general statement is report 05 §7.3's, and it is a chain rule through two waists rather
+than a list of accessors:
+
+```
+held[j][i]    = (∂y_j/∂E_up) · (∂E_up/∂u_i)     leaf outputs: rank one in the supply
+              = the supply's own Jacobian        uptake outputs: they ARE the supply
+dresidual[i]  = a · (∂E_up/∂u_i) + b · (∂²E_up/∂u_i∂p)
+```
+
+with `b = dmarginal_profit_duptake_slope()` already closed form, `a` a partial in the single
+transport coordinate, and both `∂E_up/∂u` and `∂²E_up/∂u∂p` owned by the roots layer
+(`duptake_dpsi_soil`, `duptake_droot_carbon`, `d2uptake_dpsi_dpsi_soil`). **`b` also gives the held
+profit row directly**, by report 05's (7.3c) — one scalar converts supply into carbon and
+supply-slope into repricing, because both ask the transport curve what one unit of arriving water is
+worth. So the environment family costs no leaf evaluations, and the differencing machinery — the
+arms, the step ladder, the one-sided rung, the follow-the-bound rung, the branch-stability check —
+is needed for **the two curve steepnesses and nothing else**.
 
 **And it evaluates at collars it then discards.** A held row is probed at a collar the perturbed state
-may not admit, and the clamp is detected exactly and the arm refused — so no number is wrong, but the
-evaluation happened, on a branch where the profit algebra runs against a negative conductance. The
-surface that would not evaluate one exists; what it costs is a profit evaluation on the feasible path
-too, because the feasible interval's ends are locals the collar solve discards.
+may not admit; the clamp is detected exactly and the arm refused, so no number is wrong, but the
+evaluation happened. **The branch it happened on is not a negative conductance**, which this report
+and three other places said: below the wet bound the flux reverses, the stem potential comes out
+wetter than the collar, and the model takes its zero-flux branch — conductance identically zero, `ci`
+pinned where *gross* assimilation vanishes. The negative conductance is real and lives on the
+marginal-profit path, which reaches the inner `ci` solve without that guard. What the profit path
+returns instead is the shut leaf's value, one dark respiration away from the limit it stands in for
+(report 05 §7.0b).
+
+That sharpens the cost rather than softening it. **The substituted branch and the intended one return
+the same type**, so detection after the fact is sound only because the returned operating point can
+be compared against the requested one — a proxy, not the condition. The surface that establishes
+feasibility *without* evaluating exists and has no caller; what it would cost is a profit evaluation
+on the feasible path too, because the feasible interval's ends are locals the collar solve discards.
 
 **The `Grid` is generality over four witnesses, not over a rumoured fifth.** If a fifth quadrature
 appears that is not over the size distribution, it does not belong in this object.
@@ -833,8 +912,19 @@ appears that is not over the size distribution, it does not belong in this objec
   the chain rule does not produce from §3.1's two tables, the factorisation is false and a per-kind
   body is honest after all. The cheapest place to check is the pin at a registered constant, where
   §3.1 makes the row an identity and the current code derives it.
-- **A role is not a property of the output.** If an output is Objective at one state and Ordinary at
-  another, the declaration is state-dependent and belongs in the returned numbers instead.
+- ~~**A role is not a property of the output.**~~ **This has fired, and the design absorbed it.** The
+  Objective's `∂y/∂p = 0` is the interior stationarity condition, not a property of the output, so it
+  holds at one kind of point and fails at four. What saves the factorisation is that the number is
+  *supplied* rather than inferred: the role selects which rule the producer applies, and the consumer
+  reads a number either way. Had the interface let a consumer infer zero from the role, this bullet
+  would have killed it. §3.1.
+- **The state reaches a leaf output by some route other than total uptake at a fixed collar.** §3.3's
+  environment rows are rank one through that waist. Checkable at one solved point with no gradient:
+  hold the collar, move two layers so total uptake is unchanged to round-off, and read every output
+  that is not a per-layer draw. If one moves, the waist is not a waist.
+- **A guard can be stated for `max_i |∂p*/∂u_i|`.** If a ceiling on it turns out to be meaningful,
+  the units argument that deleted `amplification` is wrong and the guard can live at the producer
+  after all.
 - **Rows in parts do not beat rows in totals.** The claim is `n_output + n_input` tape terms against
   `n_output × n_input`; measure the recording size at production width.
 - **The abscissa fix does not move the 3.95%.** Then the census's error is not quadrature error and
