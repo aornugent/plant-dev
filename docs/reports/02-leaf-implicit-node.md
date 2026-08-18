@@ -87,6 +87,141 @@ node relates its inputs to its outputs and the tape sees a small dense block.
 
 ---
 
+## 2.1 The paths through the leaf, and what each one does to a row
+
+Four maps, and they are orthogonal: which branch the *solve* took, what the *state* is afterwards,
+how each *input* reaches the answer, and which *supply* is in force. A gradient defect is nearly
+always a confusion between two of them.
+
+### 2.1.1 The solve's branches decide `∂p*/∂u` and nothing else
+
+```
+  set state
+     │
+     └─ bracket the feasible collar interval  [p_a, p_b]
+          p_a = collar at which TOTAL uptake is zero          (wet end)
+          p_b = min( collar at which the stem reaches its critical potential,
+                     the root's own critical potential )       (dry end)
+          │
+          ├─ interval inverted ──────────────────────► NO PLANT. Refuse.
+          │     the two limits have crossed: no collar both moves water and stays
+          │     inside the root's limit. Whether that is a dry soil or a
+          │     parameterisation the model cannot represent is a question the
+          │     branch can answer and a tag cannot.
+          │
+          ├─ wettest layer already drier than the stem's critical potential
+          │                              ─────────────► SHUTDOWN.  p* := psi_crit
+          │     no argmax. Every layer's draw is zero. Profit is respiration plus
+          │     the hydraulic cost at the critical potential, so it reads NEITHER
+          │     soil NOR light, and the traits reaching only assimilation reach
+          │     nothing.
+          │
+          ├─ gross assimilation cannot cover respiration
+          │                              ─────────────► SHADE DEATH. p* := p_a
+          │     also no argmax, but NOT the same rows: the collar sits at the wet
+          │     end, so profit reads the soil THROUGH THE BOUND and the per-layer
+          │     draws are individually non-zero while summing to zero.
+          │
+          ├─ interval narrower than the degeneracy threshold
+          │                              ─────────────► DETERMINED. p* := midpoint
+          │     feasibility fixed the point; nothing was optimised. Refuse: the
+          │     interior formula would divide by a curvature with no defining
+          │     relation, and the bound rows describe neither end.
+          │
+          └─ solve  ∂Π/∂p = 0  on the interval
+               ├─ root strictly inside ──────────────► INTERIOR
+               │     ∂p*/∂u = −(∂R/∂u)/Π_pp
+               ├─ pinned at the wet end ─────────────► PINNED WET
+               │     ∂p*/∂u = the wet bound's own row; dense in the state
+               └─ pinned at the dry end, and WHICH LIMIT WON IS THE ROW
+                    ├─ the stem's critical collar ───► PINNED DRY, searched
+                    │     dense: the bound is a root-find over the potentials
+                    └─ the root's critical potential ► PINNED DRY, constant
+                          exactly zero in every state direction, and minus the
+                          unit vector in its own parameter
+```
+
+**Read the tree as a map of `∂p*/∂u` and nothing else.** Every branch above changes that one factor;
+none of them changes what an output *is*, and none changes how an input reaches the leaf. That is
+report 05 §7.0's factorisation seen from the code's side, and it is why a body per branch is the wrong
+shape — a per-branch body has to restate the other three maps inside itself.
+
+**Three of the branches are refusals and they are refusals for different reasons**, which matters
+because only one of them is a state of a forest. An inverted interval and a determined point are the
+solver saying it could not choose; shutdown and shade death are plants, and they *answer*. Filing all
+five under "not interior" loses the distinction the boundary exists to carry.
+
+**And the two shut branches are one derivation with opposite rows.** Both have no argmax, so every row
+is a difference of the solve itself and one code path serves both — but one seats the collar at the
+critical potential and reads nothing, while the other seats it at the wet bound and reads the soil
+through it. A table saying "zero flux, zero rows" is right about the first and wrong about the second.
+
+### 2.1.2 After the solve, four ways to ask again — and three of them destroy something
+
+A gradient asks the leaf about *perturbed* states, which means re-evaluating without re-deciding.
+There are four ways to do that and they differ in what survives:
+
+| asking again | the infeasible case | what it destroys |
+|---|---|---|
+| **solve again** | re-decides; a new branch, legitimately | the previous classification, which was the point of asking |
+| **evaluate at a given collar, projecting** | silently moves the collar to the nearest end and evaluates there | **the classification** — the point is retagged as prescribed — and it returns §3.6's substituted branch |
+| **evaluate at a given collar, refusing** | returns a flag and does **not** evaluate | nothing, if it also restores what it moved while establishing feasibility |
+| **read the bound's analytic row** | reports non-finite | nothing: it restores the uptake state its own bracketing probes moved |
+
+**The second row is the trap and the fourth row is the pattern.** Establishing feasibility requires
+bracketing, bracketing probes collars, and every probe overwrites the uptake state — which *is* the
+operating point for whoever solved it. So any of these can leave a leaf whose profit is from one
+state and whose uptake is from another, and only the ones that save and restore do not. Report 00 §7
+item 5 is the general form: **a read that moves an output is a cross-individual channel**, because one
+solver serves every individual of a species.
+
+**And projecting is not a small sin.** §3.6 shows the projected evaluation returns the shut branch,
+one dark respiration away, with the same type and no error. Detecting it afterwards by comparing the
+returned collar against the requested one is sound but is a *proxy* for the condition; asking the
+condition first is the same information one step earlier, and costs the evaluation nothing because it
+was going to be refused.
+
+### 2.1.3 Each input reaches the answer one of three ways, and only one needs a perturbation
+
+This is the map that decides the cost, and it is orthogonal to the branch:
+
+| route | which inputs | what the row is |
+|---|---|---|
+| **through the supply** | the soil potentials, and each layer's root mass | §3.2a's waist: the supply's own Jacobian, times one number per output. The marginal profit needs a second waist and no more. |
+| **not through the supply at all** | radiation, the photosynthetic traits, the two cost traits, the maximum conductance, both critical potentials | a direct partial of a kernel, or the bound's own row. Nothing is re-solved. |
+| **through a tabulation's own grid** | the two vulnerability-curve **steepnesses** | the grid moves with the parameter and no identity carries it, so the curve is rebuilt and the answer differenced |
+
+**The curve *positions* are not in the third row, and that is the correction report 05 §7.6 carries.**
+Position scales the curve, and the tabulation's extent scales with it, so an identity moves the grid
+exactly. Steepness reshapes, and nothing scales.
+
+**So a perturbation is the exceptional case and not the rule.** Everything in rows one and two is a
+statement the model can make about itself; only row three requires putting the model into a different
+state and looking. Treating all three alike is what makes an environment row cost the same as a curve
+row, and it is also what puts a feasibility question in front of inputs that never needed one.
+
+### 2.1.4 The supply path changes the input list, not the algebra
+
+Two supplies exist. The multi-layer one has per-layer potentials, per-layer root mass, and branch
+kinks where the collar coincides with a layer's potential or the gravity balance; the single-potential
+one has one potential and a series resistance, no root mass, and **no kinks at all.**
+
+Three consequences worth keeping straight:
+
+- **The input list's arity is a property of the observation**, not of the leaf: the layer count comes
+  in with the state. An input index that means one thing at one layer count and another at a
+  different one is a defect the type system cannot see.
+- **A non-finite supply derivative means "difference it", not "no derivative exists."** At a coincidence
+  the general expression is `0/0`, and the quantity it stands for — a span over an integral — is
+  analytic through the point, because the two signs cancel. Refusing there discards a row the model
+  has. The single-potential path never produces one, so a consumer tested only on it will never
+  exercise the fallback.
+- **Which critical potential bounds the dry end differs between the two paths.** On the multi-layer
+  path the root's own limit does; on the single one the stem's does. So the *same* parameter is the
+  active constraint on one path and slack on the other, at the same state.
+
+---
+
 ## 3. The node
 
 The node has a set of outputs, an adjoint arrives on each, and they leave as contributions to the
