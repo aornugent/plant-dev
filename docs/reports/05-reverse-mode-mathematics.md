@@ -1056,6 +1056,36 @@ direction being asked about, and improving it means recovering one scalar better
 decomposing differently. It also means **a residual formed on a non-cancelling direction says nothing
 about a cancelling one**, which is the same trap as the fitted pair's in a new place.
 
+#### And that decides how the row should be computed, against the obvious reading
+
+The obvious reading of everything above is that $\partial R/\partial u$ should be *assembled* from the
+two scalars rather than differenced, since the structure is exact and one difference is cheaper than
+one per input. **That is the wrong conclusion, and the reason is the consumer rather than the row.**
+
+Assembling makes every input's row read the *same* two numbers. So whatever error those numbers carry
+is **coherent across inputs**, where differencing each input separately leaves errors that are
+**independent**. Contract the rows against a direction in which the answer nearly cancels — the
+uniform drying direction, which §7.3 and report 06 §7 both single out as the one the ecology reads —
+and the difference is decisive: independent errors partly cancel with the answer, and a coherent one
+does not cancel at all. It adds while the answer disappears.
+
+Measured, on the same rows and the same states: assembled from two scalars accurate to $10^{-5}$ per
+input, the uniform-drying direction reads **3.1 relative**; differenced per input, **7.6e-04**. Four
+orders, in the direction that matters, from a decomposition that is exact.
+
+**So state the two rules apart.** The factorisation is how the water channel is *understood* — two
+intermediates, a rank-two map, an economy of $n_{\text{output}} + n_{\text{input}}$ — and it is how the
+*frozen* rows should be computed, because those are products rather than sums and carry no
+cancellation. The condition's gradient is different: **its consumer sums it, so it must be computed in
+a form whose errors are independent.** That is the corpus's own rule about small differences of large
+quantities, applied one level up: not to the arithmetic within a row, but to the correlation *between*
+rows that a shared factor introduces.
+
+**The general form, for any supplied row.** Ask what the consumer contracts the row against. Where it
+reads entries one at a time, a shared factor costs nothing and buys exactness and economy. Where it
+sums them against a near-null direction, a shared factor converts a benign per-entry error into a
+systematic one, and the saving is paid for at the amplification of that direction.
+
 **And the direction the ecology cares about is the direction that conditioning is worst in.** Water
 moves on *differences* of potential while tissue fails on *absolutes*, so along the uniform drying
 direction the model is a near-symmetry and the true response is a small residue on a strongly

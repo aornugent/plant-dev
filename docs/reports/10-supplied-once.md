@@ -876,14 +876,27 @@ held[j][i]    = (∂y_j/∂E_up) · (∂E_up/∂u_i)     leaf outputs: rank one 
 dresidual[i]  = a · (∂E_up/∂u_i) + b · (∂²E_up/∂u_i∂p)
 ```
 
-with `b = dmarginal_profit_duptake_slope()` already closed form, `a` a partial in the single
-transport coordinate, and both `∂E_up/∂u` and `∂²E_up/∂u∂p` owned by the roots layer
-(`duptake_dpsi_soil`, `duptake_droot_carbon`, `d2uptake_dpsi_dpsi_soil`). **`b` also gives the held
-profit row directly**, by report 05's (7.3c) — one scalar converts supply into carbon and
-supply-slope into repricing, because both ask the transport curve what one unit of arriving water is
-worth. So the environment family costs no leaf evaluations, and the differencing machinery — the
-arms, the step ladder, the one-sided rung, the follow-the-bound rung, the branch-stability check —
-is needed for **the two curve steepnesses and nothing else**.
+with `b = dmarginal_profit_duptake_slope()` already closed form and both `∂E_up/∂u` and
+`∂²E_up/∂u∂p` owned by the roots layer (`duptake_dpsi_soil`, `duptake_droot_carbon`,
+`d2uptake_dpsi_dpsi_soil`). **`b` also gives the held profit row directly**, by report 05's (7.3c) —
+one scalar converts supply into carbon and supply-slope into repricing, because both ask the
+transport curve what one unit of arriving water is worth.
+
+**⚠️ AND THE SECOND LINE IS A TRAP, WHICH BUILDING IT ESTABLISHED RATHER THAN AVOIDED.** The held
+rows above are products and should be stated: exact, no evaluation, no held collar, no feasibility
+question. The **condition's gradient must still be differenced**, because assembling it from two
+shared scalars makes every input's error *coherent*, and its consumer sums the entries against a
+direction in which the answer nearly cancels. Measured on a stand, with scalars accurate to 1e-05 per
+input: assembled, the uniform-drying direction reads **3.1 relative**; differenced, **7.6e-04**.
+Report 05 §7.3 states the general form — ask what the consumer contracts the row against before
+sharing a factor across its entries.
+
+So the saving is smaller than this section first claimed and still real: the held block costs **no**
+leaf evaluation, and the residual costs **two marginal-profit reads** per supply input rather than the
+four `held_row` takes — with no evaluation seated at a collar the perturbed state may not admit. The
+differencing machinery that survives — the arms, the step ladder, the one-sided rung, the
+follow-the-bound rung, the branch-stability check — is then needed for **the two curve steepnesses and
+nothing else**.
 
 **And it evaluates at collars it then discards.** A held row is probed at a collar the perturbed state
 may not admit; the clamp is detected exactly and the arm refused, so no number is wrong, but the
