@@ -952,6 +952,15 @@ truncation — so the true residual is below those figures, and $(a,b)$ are stab
 figures across them. The uniform-drying direction, which §7.3's conditioning discussion and report
 06 §7 both single out, fits best of the four. **The load-bearing claim for the water channel holds.**
 
+**And it holds four orders tighter than that, once the pair is taken as partials rather than fitted.**
+The figures above are a *fit's* residual and were being read as the structure's. Recovering $a$
+directly — from the uniform scaling direction, from each soil potential and from each layer's root
+mass independently, each read at its own plateau — the recoveries agree to **2.4e-09** relative, with
+the mass directions sitting inside the potential ones rather than offset from them, and no dependence
+on layer count or on depth. So the state reaches the marginal profit through those two intermediates
+and nothing else, to nine figures; the earlier 1e-06 to 2.4e-05 was the recovery method's error and
+not the model's.
+
 **One route to $\partial R/\partial u$ that does not work, because the failure is instructive.**
 $R = \partial\Pi/\partial p$, so $\partial R/\partial u$ is the *collar* derivative of
 $\partial\Pi/\partial u$ — and $\partial\Pi/\partial u$ has an analytic form: a price times a supply
@@ -1029,6 +1038,23 @@ the fitted directions can see it. Three defences follow from that and all three 
 anchor direction chosen out of the family the pair will serve, an out-of-sample check to detect the
 compensation, and a rule that the anchor must not be a soil potential. **Take the partials in the
 coordinates they are partials in and none of the three has anything to guard.**
+
+**There is a second conditioning question, it is the opposite way round, and only it survives.** The
+one above is about *recovering* the pair and dissolves in the right coordinates. This one is about
+*applying* it: the two terms of
+
+$$\frac{\partial R}{\partial u} \;=\; a\,\frac{\partial E^{\mathrm{up}}}{\partial u} \;+\; b\,\frac{\partial^2 E^{\mathrm{up}}}{\partial u\, \partial p}$$
+
+can nearly cancel, and where they do, whatever error either scalar carries is amplified by the ratio
+of a term to the sum. Measured on one layer's root mass at a drying state: $-2.23\times10^{-2}$ and
+$+2.15\times10^{-2}$ for a sum of $-7.86\times10^{-4}$ — **a factor of 28.**
+
+**The two are different claims and must not be conflated.** The factorisation is *exact in structure*
+— nine figures, above — and *ill-conditioned in the directions that cancel*. So an error budget for
+the water channel is set by the accuracy of the two scalars divided into the cancellation of the
+direction being asked about, and improving it means recovering one scalar better rather than
+decomposing differently. It also means **a residual formed on a non-cancelling direction says nothing
+about a cancelling one**, which is the same trap as the fitted pair's in a new place.
 
 **And the direction the ecology cares about is the direction that conditioning is worst in.** Water
 moves on *differences* of potential while tissue fails on *absolutes*, so along the uniform drying
@@ -1395,6 +1421,27 @@ The trade is a reference against a robustness.
 cannot see an error in a supplied derivative**, because perturbing $u_i$ changes $v$ through the
 solver, not through the bracket. Supplied derivatives must be checked against the individual's own
 algebra, never against a difference of the step that consumes them.
+
+**And where the referee is a difference of the individual itself, one step will not do — its plateau
+is per output, and it can be one decade wide.** Two facts make this sharp rather than fussy. An output
+obtained through an inner solve inherits that solve's floor, so its difference has a noise arm two
+decades coarser than an output that is a closed-form read; measured on the same call at the same step,
+the outputs that read the inner concentration solve are refereed to $4\times10^{-4}$ where the ones
+that do not are refereed to $5\times10^{-9}$. And the plateau's *location* moves with the state: on the
+same row a step of $10^{-4}$ is right at one operating point and wrong at its neighbour, where
+$10^{-6}$ is right.
+
+Three consequences, and the third is the one that bites hardest:
+
+- **A single-step reference cannot referee a row spanning outputs of both kinds.** It will report its
+  own truncation, and the report will look like the supplied row's error.
+- **A plateau must be found rather than assumed.** The honest form of the check is: does the supplied
+  value agree with the difference at *some* step, tightly, where the steps disagree with each other by
+  orders? That is a statement about the plateau's existence, and it is sound in aggregate even where
+  no single step is trustworthy alone.
+- **Whatever is true of the referee is true of any consumer that differences.** A model differencing
+  these rows at one fixed step is off the plateau at most states by the same amount — which is the
+  case for supplying them, stated as a measurement rather than as a preference.
 
 ---
 

@@ -825,7 +825,7 @@ Each step is refereed by the one before it, and nothing is deleted before its re
 | **7** | **§3.3: `rows_at` in phylloptim.** Roles, an observation-dependent output count, per-layer uptake as outputs, root carbon as inputs, rows in parts. Take plant's arm robustness and phylloptim's sentinel handling — each package has half. **The arm robustness is three rungs, not one, and their ORDER is load-bearing:** centred, then one-sided to second order where a single arm is inside, then the bound followed where a re-solved arm leaves the branch, then shrink, then refuse. Following the bound must come after re-solving — where both arms stay on the branch the two placements are different rows, 3.82 relative apart on assimilation at a wet pin. | one row layer; `transpose_at` and `rows_at` share `at()` | the transpose identity `⟨v,Ju⟩ = ⟨Jᵀv,u⟩`, which needs no reference gradient |
 | **8** | **§3.4: plant's leaf integration.** Delete `record_leaf_outputs`, `record_zero_flux_outputs`, the trait tables, the drives. | §3.4's form is what is there, and it is not six lines: 1121 out and 221 in. What the count leaves out is that the rows are gone and what remains is a declaration — which is what report 09 predicted and this row did not | step 2's stored reference, at every kind |
 
-| **9** | **§3.3 again: the row layer stops perturbing what the model states.** The environment block becomes the two-waist chain rule — the supply's own Jacobian, one `∂y/∂E_up` per output, and `(a, b)` as partials in the transport coordinate. `amplification` is deleted and the ceiling moves to the consumer, which is the only participant holding `s`. The differencing machinery survives for `stem_c` and `root_c`. | the environment family costs no leaf evaluation; the factorisation ladder's uniform-drying direction is inside its derived bound; `held_row`'s escalation is reachable only from the two steepnesses | the transpose identity, plus the waist check in §10 — both of which need no reference gradient |
+| **9** | **§3.3 again: the row layer stops perturbing what the model states.** The environment block becomes the two-waist chain rule — the supply's own Jacobian, one `∂y/∂E_up` per output, and `(a, b)` as partials in the transport coordinate. `amplification` is deleted and the ceiling moves to the consumer, which is the only participant holding `s`. The differencing machinery survives for `stem_c` and `root_c`. | the environment family costs no leaf evaluation; `held_row`'s escalation is reachable only from the two steepnesses; and the water channel's error budget is stated as (the scalars' accuracy) ÷ (the direction's cancellation) rather than as one number, because that is the shape it has | the waist check in §10, which needs no reference gradient; and a differenced referee read at **several** steps rather than one, since its plateau is per output and can be a single decade wide |
 
 **Step 9 is the one that pays for itself twice**, because the accuracy item and the cost item have
 one cause. It is also the only step here that is a **deletion of mechanism rather than of lines**:
@@ -918,10 +918,16 @@ appears that is not over the size distribution, it does not belong in this objec
   *supplied* rather than inferred: the role selects which rule the producer applies, and the consumer
   reads a number either way. Had the interface let a consumer infer zero from the role, this bullet
   would have killed it. §3.1.
-- **The state reaches a leaf output by some route other than total uptake at a fixed collar.** §3.3's
-  environment rows are rank one through that waist. Checkable at one solved point with no gradient:
-  hold the collar, move two layers so total uptake is unchanged to round-off, and read every output
-  that is not a per-layer draw. If one moves, the waist is not a waist.
+- ~~**The state reaches a leaf output by some route other than total uptake at a fixed collar.**~~
+  **Measured, and it does not.** Holding the collar and moving two layers so that total uptake cancels
+  to first order shrinks assimilation's response from 2.58e-04 to 4.66e-10 — five and a half orders —
+  with each further decade of step dividing that by a hundred where the one-layer control divides by
+  ten, on three pairs of layers and two soil profiles. The per-layer draws move at full first order
+  throughout, which is the control that makes the test mean anything. Separately, the coefficients the
+  marginal profit reads the state through are recovered to 2.4e-09 from every supply direction
+  independently. **What remains open is not the structure but the conditioning of applying it** —
+  report 05 §7.3's second discussion, where a direction whose two terms cancel amplifies whatever
+  error the scalars carry.
 - **A guard can be stated for `max_i |∂p*/∂u_i|`.** If a ceiling on it turns out to be meaningful,
   the units argument that deleted `amplification` is wrong and the guard can live at the producer
   after all.
