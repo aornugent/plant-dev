@@ -381,8 +381,21 @@ has no consumer, because the crown shape carries no row.
 
 ### 6.2 The parameterisation: assert the invariant, defer the map
 
-`J` stays deferred on report 07 §3's terms — it is a post-multiplication and cannot
-be validated before the gradient it post-multiplies. What does not wait is §1's
+`J` stays deferred on three terms, and only the first is a scheduling call. **It is a
+post-multiplication** — one function and a rank check, applied after the sweep, changing
+nothing about the adjoint — so it cannot be validated before the gradient it
+post-multiplies, and taking it early means every disagreement has two homes. **Its
+trigger is a question actually asked in a parameterisation the sweep does not use**: a
+calibration's free vector, a trait-spectrum axis, or a measured parameter the model
+genuinely derives from. And **it has a hard mathematical precondition, which is the term
+easiest to lose**: the recovery is exact on the interior and *fails in shutdown*, which
+is the opposite of the intuitive reading. It needs the sensitivity to the critical
+potential, whose zero at an interior optimum is **correct** — complementary slackness,
+not a defect. What breaks it is the shutdown branch, where the critical potential enters
+the profit expression directly while the point is not flagged as pinned, so the interior
+branch runs and the row stays zero. **So report 05 §7.0's selector comes first**, and the
+failure sits in exactly the water-limited regime the ecology cares about. What does not
+wait is §1's
 invariant, because it costs one comparison and it is what keeps a reference honest:
 **any perturbation refereeing a column must move exactly one carried parameter**, and
 one that moves several must refuse rather than return a number.

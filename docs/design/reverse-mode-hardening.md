@@ -1508,8 +1508,9 @@ Carry these forward; they change what a reader would do.
   trajectory tangent agree to ≤2.7e-09 with first introductions at 0.0 through 1.0, including 104
   recorded steps below the first event. The structural point survives: nothing asserts the segment
   ranges partition the recording.
-- **Report 09 §12's inverted cost premise is stale.** 14.6× flat, not 162×.
-- **The parameter count is 47, not the 44 every report states** *(report 09 §12 already flags this)*.
+- **The corpus's inverted cost premise is stale.** 14.6× flat, not 162×.
+- **The parameter count is 47, not the 44 every report states**, and the recorded step's input width
+  follows it — 185 where the code gives 188.
 - **The development record's mode-3 discriminator is wrong.** It says "the rates that read `growth`";
   the soil rows are non-finite and read no growth. The discriminator is the light field.
 - **`tf24_environment.h:62–63`** annotates `a_psi`/`n_psi` as "not currently being used". They are.

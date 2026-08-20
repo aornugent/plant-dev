@@ -17,6 +17,12 @@ primitive would under-determine the model.
 §1 to §9 state the design. §10 is what is left, and §11 is the qualification that attaches to every
 number the machinery produces.
 
+**§9 is the newest part and it is where the design pays for §8.** §8 sends the opaque solver to a
+supplied row because recording it would differentiate a search. §9 observes that being off the tape is
+also what makes its *answer* restorable, so the pass that supplies its rows need not repeat its search
+— and that the same mechanism, with the payload's kind changed, is what an invasion run needs for the
+resource it does not move.
+
 ## 1. The general system
 
 Strip the model and what remains is one shape, which a solver could name.
@@ -49,8 +55,42 @@ So the rule, which decides every open question below:
 **The reductions are taped, and the number rather than the precedent is the argument.** Counted on the
 source: two shared-part builds per stage at 65 query points, over ~81 units with an early exit, at
 ~19 recorded operations per contribution — **≈10⁵ recorded operations, order 3 MB of tape per stage.**
-That is roughly *one* unit block's tape. The reduction is not what is expensive; the supplied-row
-assembly is, and §8 is the one place the rule's second clause bites.
+
+**And the conclusion drawn from that count was wrong, which §2.1 is about.** It read "roughly one unit
+block's tape" as "the reduction is not what is expensive", and priced the rule's first clause as free.
+Measured, the tape is most of the reverse pass and the reduction is most of the tape.
+
+### 2.1 What taping costs, measured
+
+The rule above says to tape whatever can be afforded. What that costs was never measured, so here it
+is, at the scale §9.6 is sized on — 3,381 recorded steps, a final state of 1,361, three functionals.
+
+**A recording is taken once and walked once per functional, so the two halves separate by asking for
+one functional instead of three.** One functional: 135.41 s. Three: 173.80 s. So **one walk is 19.2 s
+and three are 33% of the gradient**, and the recording with everything around it is the other 67%.
+
+**And the recording's own arithmetic is bounded by the pass that does it without a tape.** The forward
+run makes the same six rate evaluations a step in the passive scalar and takes 37 s, against 116 s for
+the recording. So **≈80% of a gradient is the tape: building it and walking it.** Sampling agrees
+independently — the walk's own frames are 29.5% of the gradient and the allocate/register/append/release
+frames another 10.9%, before counting the pushes the optimiser inlines into the model's own functions,
+which is most of them.
+
+Three things follow, and they are the whole of what the rest of this report can offer on cost:
+
+- **An operation removed is removed four times.** Once from the construction and once from each walk.
+  So a change to the forward model's *operation count* is a reverse-mode change with a multiplier, and
+  ranking one as a forward-model performance detail understates it by that factor.
+- **The walk is pure arithmetic over recorded edges.** No model evaluation reaches it, so its only
+  parameter is edge count — and the number of walks, which §5 revisits.
+- **The largest single term is the shared-part reduction**, at 19.0% of a gradient to build against
+  5.3% of a run to build the same number of times: **8.3× dearer per build inside a recording**, and
+  the difference is entirely tape. §4.1 states what follows for its algorithmic order.
+
+**What this does not overturn is the rule.** Hand-writing the reduction's transpose to keep it off the
+tape is still the wrong answer, and §4.1's one-ended closing interval is the standing proof of why.
+What it overturns is the idea that the forward reduction's *order* is somebody else's performance
+concern.
 
 **The two clauses can apply to one read, and the interpolant is where they do.** A field read at a
 position has two derivative channels and they are with respect to different independents, so they are
@@ -121,6 +161,24 @@ stores its grid.
 **Four instantiations, not three:** the two shared-part reductions, the functional, and the fitness
 integral, which already integrates over the passive coordinate unconditionally and excludes the
 closing element.
+
+**Its ORDER is a reverse-mode decision, not a forward-model one.** Written as it stands the reduction
+walks the element set once per query point, so it is `O(K·N)` in query points and elements. Where the
+kernel factorises — a function of the query position times a function of the element's own coordinate,
+summed — every query point is a partial sum of the same running totals over the elements in coordinate
+order, and the build is `O(K + N)`. That is a property of the kernel and nothing here can check it, so
+a model that has it declares it.
+
+Two things about what such a rewrite is worth, and the first is why it belongs in this report at all:
+
+- **The tape shrinks with the operation count, so the transpose comes out cheaper without being
+  written.** This is the one lever that reduces §2.1's dominant term while leaving §2's rule intact:
+  the reduction stays taped, there is no hand-mirrored transpose, and the sweep walks `O(K + N)` edges
+  because that is what the forward pass performed. Ranking it as symmetric — "the run pays the same
+  reduction" — understates it by §2.1's factor of four.
+- **It re-associates, and the forward association is asserted bit-exactly** (§2). So it is a
+  re-blessing of every reference the reduction's value reaches, which is the whole of its price and is
+  not negotiable down.
 
 **One degenerate interval per event is deliberate.** An event stamps the inserted element and then
 refreshes the closing element's coordinate to the same time, so the closing interval has exactly zero
@@ -218,6 +276,20 @@ recording is a second place for the seam between the state half and the paramete
 wrong. So three metrics cost one recording and three sweeps, not three recordings — which is why the
 recorded rate count at production width is exactly six per step whatever the metric count.
 
+**And the three sweeps are three walks of one tape, which is a batch the tape itself can carry.** The
+adjoint scalar is templated on a derivative width defaulted to one, so a slot holds one adjoint
+component and a batch of three is three passes over the same recorded operations. At width three each
+slot holds the batch and the operations are read **once**. What that removes is the reading, not the
+derivative storage — the same components are cleared and accumulated either way — so it is worth the
+part of the walk that is operation traffic and not the part that is slot traffic: **about 12% of a
+gradient**, measured against §2.1's split.
+
+It is also a deletion rather than an addition: the loop over seeds inside the record-once-sweep-many
+product goes, because the width carries what the loop was carrying. And the batch stops being able to
+disagree with itself — a width is a type, so a caller cannot hand in a batch of a different size from
+the one the recording was taken for, where a loop over rows can and the check for it is a length
+comparison.
+
 **The parameter channel is in band, and its two halves have opposite disciplines.** The accumulator is
 the caller's, passed as the last argument; the state adjoints are **replaced** and the parameter
 adjoints are **added to**, so the caller pre-sizes one row per seed and clears once per sweep, and
@@ -278,6 +350,14 @@ the width `widen` added and return the state it was given, or it is dropping som
 scalar's copy. Which of its scalars are parameters. How to compute rates. And **two** loaders, not one
 and not three: `set_ode_state`, and `set_recorded_state` for a state the run recorded.
 
+**A sixth arrives with §9 and it is the read-point list this section says would force one.** A model
+that replays anything declares its payloads — each one's kind and its extent — and the loader gains a
+stage index. That is not a new kind of declaration: §3's read-point list is what indexes it, so the
+model states *where a quantity is read* and the engine counts the slots. The sentence below still
+holds — **a second model with two read points is what forces the declaration** — and §9 is that
+declaration arriving from the other direction, because a payload has to be keyed by read point whether
+or not a second model exists.
+
 **Nothing else.** No tape, no seed vectors, no recordings, no Butcher coefficients, no operating point
 carried forward to reverse, no transpose. The loaders are the residue, and they are two where the
 argument wanted one — the second earns its place, because a run genuinely carries more than it
@@ -302,6 +382,35 @@ model alone and pulls the differentiable arithmetic into scalar-templated free f
 second is 125 lines and changes the strategy's shape not at all. A declaration demanding a rebind over
 the whole strategy accepts neither of the other two models in this tree — one has no template
 parameter at all. **L2 must support a partially-lifted model.**
+
+### 6.1 The one thing L1 has to know about the tape, and it is a signature
+
+An author writing L1 owes the tape nothing — except this, because nothing else can say it and the cost
+is §2.1's second-largest term.
+
+**With a tape active, a copy of an active value is not a copy.** It registers a variable, pushes a slot
+carrying a multiplier of one, pushes a statement, and unregisters on destruction — so it records a full
+`y = 1 · x` and the sweep walks it as one. **A by-value parameter of active type therefore costs an
+operation per call**, and so does a by-value return of a pair of them, and so does a local copy of an
+accessor's result. A `const&` costs nothing: it binds to what is already there.
+
+Two properties make this worth stating rather than leaving to taste:
+
+- **It is bit-identical.** A multiplier-one chain is exact, so removing it cannot move a number, which
+  means it is the one cost reduction in this report that needs no re-blessing of anything.
+- **It is invisible.** The passive instantiation of the same signature costs nothing, so the forward
+  suite reports the same time, the same numbers and the same everything. Only the recording pays, and
+  only an operation count can see it.
+
+Measured on the reference model: the allocate/register/append/release frames are 10.9% of a gradient
+and the active value's own constructor subtree is 19.4%, against a hot kernel — the one the shared-part
+reduction calls once per element per query point — whose entire signature set is by value, and which
+returns a pair of active values by value on top of that.
+
+**So the rule for L1 is: take active values by `const&` and return them by value once.** It is not a
+style preference; it is the difference between an operation and none, on the hottest arithmetic in the
+model, and no other layer can fix it — L2 declares what a model *is*, and this is a property of how its
+own functions are written.
 
 **L2 — the declaration.** The parameter list as `{name, &field, role}` pairs; each reduction as
 `{position, contribution, kernel, stage}`; the read layout as typed segments; the read-point list; the
@@ -390,6 +499,31 @@ healthy, and `NaN × 0` then poisons the value. Where the slope is one the tape 
 condition cannot arise and the guard would sit on the hottest read in the model to catch nothing. So
 the guard belongs to the supplied-partial form, and the two are not interchangeable.
 
+### 8.1a What the node must add for §9, and it is two members
+
+The interface above says what the node supplies. **It does not say that the solve can hand back what it
+found, or take it back**, and §9's Kind B payload is exactly that. Report 07 §9 states the same
+requirement from the model's side, where it is the last entry on the list of what the submodel must gain;
+here it is: a token carrying the operating
+point, the branch it was found on, and the feasible bounds, which the producer alone constructs and the
+producer's own restore alone consumes.
+
+Two properties make it a restore rather than an imposition, and both are load-bearing:
+
+- **The restore's closing arithmetic must be the solve's own.** Where the solve places its outputs and
+  the prescribed evaluation places its outputs by the same expressions, a restore at the solve's own
+  answer is bit-identical, and bit-identity is the only referee this payload can have. Where they are
+  two spellings of one placement, the restore drifts and nothing says so.
+- **The solve must close on the condition at the point it returns**, because that is what seats the
+  coefficients a row is read from. A restore evaluates the condition once at the recorded point and is
+  then seated exactly as a solve leaves it — so a boundary that already satisfies that precondition
+  needs nothing further, and one that does not cannot be restored at all. **The precondition that makes
+  the row layer a read is the same one that makes the restore possible.**
+
+**And a restore must decline the branches that never searched.** A point the solve reached by an early
+exit costs nothing to reach again, so the token says so and the caller solves — which keeps the cheap
+branches cheap and needs no flag.
+
 ### 8.2 Design against the branch that has never run
 
 The variant that **has already dissolved the argmax** is not on the gradient path at all: its tracked
@@ -428,43 +562,228 @@ fixture measures **16.3×**. **A stand cannot reach that regime** — run with t
 it, it ends at 1.00× because the carbon buying the conductance is a mass constant and the model cannot
 grow.
 
-## 9. The replay pass
+## 9. Replay: one mechanism, two kinds of payload
 
-A pass in which part of the state is supplied rather than integrated, because it is exogenous *on that
-pass*.
+A **replay** is a pass in which part of what a step needs is supplied from a record rather than
+recomputed. One mechanism serves every case; what differs between cases is not the mechanism but
+whether the supplied quantity is on the tape, and that single question decides where each is
+admissible.
+
+### 9.1 The two kinds, and the one rule
+
+**Kind A — a moved cut.** The payload is a quantity the recording would otherwise build as an
+*intermediate*. Supplying it does not restore an intermediate; it **registers the quantity as an
+input**, moving the cut the recording is taken across. The recording is then of the same function at
+the same point over a wider input set, so its transpose is correct and the payload's adjoint comes
+out of the sweep like any input's.
+
+**Kind B — a restored answer.** The payload is a quantity that never reaches the tape at all, because
+§2's rule sends it to a supplied row instead of a recorded one. Restoring it changes no tape edge,
+registers nothing, and asserts nothing.
+
+> **A payload is admissible on a pass if it is Kind B, or if it is Kind A and the pass's own model
+> declares that quantity exogenous.**
+
+That is the whole rule, and the reason is arithmetic rather than taste. A Kind A payload's adjoint
+has to go somewhere. Where the pass treats the quantity as exogenous the adjoint is discarded and the
+reduction that built it is not run — the saving is the whole reduction. Where the pass does not, the
+adjoint must be **scattered back onto the units**, and that scatter *is* the reduction's transpose,
+which requires the recording — **so on that pass there was never anything to save.** Supplying a Kind
+A payload where its adjoint is needed is not unsafe so much as pointless, and the failure it produces
+if the scatter is then skipped is a whole channel missing with every number finite.
+
+Kind B has no such condition because there is no adjoint to place: the rows were supplied either way.
+
+**This is why §2's rule and this section are the same statement.** §2 keeps an opaque solver off the
+tape because recording it would differentiate a search. Being off the tape is exactly what makes its
+answer restorable on every pass. **The design's most expensive exception is the only part of a step
+whose value can be reused without touching the transpose** — and the general form is: *whatever is
+supplied rather than taped can have its value restored; whatever is taped can only have its cut
+moved.*
+
+### 9.2 The concept
 
 ```
-concept Replays = requires(System s, std::size_t step, int stage, const_iterator in) {
-  s.replay_step(step);          // restore that step's record
-  s.set_ode_state(in, stage);   // load state against a recorded stage
+concept Replayable = requires(System s, std::size_t step, int stage, const_iterator in) {
+  s.record_stage(stage);        // per RK stage, on the recording run: keep this stage's payloads
+  s.replay_step(step);          // per step, on a replay pass: make that step's record current
+  s.set_ode_state(in, stage);   // load state against a stage rather than a time
 };
 ```
 
-Two members, and three deliberate absences.
+Three members, and **two of them the engine already calls**. The stepper calls `record_stage` at every
+stage — five inside the stage loop and one at the state the step ends at — so the record side is live
+wherever a run is stepping. And the rate call already carries a stage index and dispatches the loader on
+it, so the stage-indexed load is live too.
 
-**No mode query.** Whether a pass replays is the **driver's**, not the System's, and it is not a
-property of the type either. The driver counts the steps and knows which pass it is running, so it
-takes the branch itself rather than asking the System every stage. This is the difference between a
-resident gradient that *cannot* accidentally replay and one that silently returns a gradient with the
-water feedback missing — finite, plausible, and with no error raised.
+**`replay_step` is called on the two fixed-step paths and nowhere else, and that is half right.** A
+replay pass runs a schedule the run already fixed, so a fixed-step path is exactly where it belongs —
+record on the adaptive path, replay on the fixed one, which is a symmetry worth keeping. **What is
+missing is the call from the adjoint walk**, which is neither: it is driven by a descent over recorded
+steps, and it is where a Kind B payload has to be made current. So the additions are the step argument
+(§9.4), that one call site, the payload registry (§9.3), and one deletion.
 
-**No time lookup.** The step is handed in. Recovering it by searching the record for an exact float
-match needs a cursor, a sequential fast path and an abort when the time does not round-trip; the
-driver already has the index.
+**`has_recorded_field()` goes.** It is a **mode query on the System**, and whether a pass replays is
+the **driver's**, not the System's. The driver counts the steps and knows which pass it is running, so
+it takes the branch itself and hands over the live payload set. A System that can answer "am I
+replaying?" is a System that can accidentally replay, and the symptom is a resident gradient with a
+feedback silently missing — finite, plausible, nothing raised.
 
-**No "field" in the name.** The replayed object is a derived field AND the states it was integrated
-from, which are ODE state. The state half is the one that matters: a System replaying part of its
-state asserts that part is exogenous on this pass, and therefore that **its adjoint through that part
-is zero**. That is a modelling claim, not an optimisation, and it is why this is not a cache.
+**And no time lookup, and no "field" in the name.** The step is handed in, because recovering it by
+searching the record for an exact float match needs a cursor, a fast path and an abort when the time
+does not round-trip, and the driver already has the index. And the name drops "field" because the
+payload set is open: the two instances below are a field and an inner solve's answer, and neither is
+the other's special case.
 
-**The payload differs by pass, which is where the saving is.** A resident integrates the shared
-resource because the balance is endogenous. An invader responds to a resource it does not move — so on
-that pass the resource is supplied rather than integrated and leaves the state vector. The two passes
-run states of different width, which is a fact about the model and not a detail of the record.
+**Removing the query removes a branch, and the loader has to absorb it.** Today the rate call chooses
+between a stage-indexed load and a time load by asking the System whether it holds a record. With the
+query gone there is nothing to ask, so **the loader takes both and branches on neither**: the time,
+because a model has a clock, and the stage, because a model with live payloads indexes them by it and a
+model without ignores it. One signature, no dispatch, and a model that replays nothing is unaffected —
+which is the same shape as §4.1's coordinate accessor, where the guarantee is bought by the signature
+rather than by a rule about who calls what.
 
-**One caution on the flag that switches the pass on.** It does two jobs — *use the supplied resource*
-and *this is an invader: compute no boundary node, build no field, feed nothing back*. Only the first
-is what a replay hook replaces; most of the sites testing that flag are the second job and stay.
+**One hazard the current pair carries and the merged signature retires.** A stage-indexed loader and a
+time loader **overloaded on the same name**, one taking `int` and one taking `double`, are separated only
+by an implicit conversion — so a caller passing the wrong one of two numbers gets the other overload
+silently, and what comes back is a state loaded against the wrong argument. Two names or one signature;
+never two overloads whose arguments convert to each other.
+
+### 9.3 What a payload declares, and who selects
+
+Each payload declares two things and no more: **its kind**, which is a compile-time property of the
+quantity, and **its extent**, which is the number of values it holds at a given step's width.
+
+Selection is the **driver's**, at run time, and it cannot be otherwise: the pass is not a property of
+the type, so the same System serves a resident sweep and an invasion sweep. So the guard is a
+**refusal by name** rather than a `static_assert` — the engine, handed a payload set for a resident
+sweep, refuses any Kind A member in it and says which. That is a stated cost of the design: §7 wants a
+missing call to be a compile error, and this one cannot be, because what is wrong is a *pass* and not
+a *type*.
+
+**The kind is not settable, and one instance needs more than that.** Where a payload carries a
+**classification** the producer decided by the branch it took, a loose pair of values would let a
+caller invent one — and a tag that a caller can invent is a tag a caller can disagree with, which is
+the reason such tags are read-only in the first place. So a payload of that shape is an **opaque token
+the producer alone can construct and the producer's own restore alone can consume.** A caller can
+carry it and hand it back; it cannot make one up. That preserves the read-only guarantee exactly while
+making the restore expressible, and it is the difference between *restoring what the solve found* and
+*telling the solve what to think*.
+
+### 9.4 The index, and the off-by-one that would be silent
+
+The store is keyed by **(step, the stepper's own stage index)**. The stepper numbers six rate
+evaluations a step: five inside the stage loop, and one at the state the step ends at.
+
+**First-same-as-last is what makes that numbering not the one a reverse pass wants.** The forward step
+takes `k1` from the previous step's last evaluation, so the six slots a forward step writes are its
+five interior stages plus **the state its successor starts from**. A reverse traversal has not
+rebuilt that, so the recording re-derives `k1` at the step's own start state — and therefore
+
+> the recording of step *n* reads its `k1` from **(n − 1, last stage)**, and its remaining stages from
+> **(n, 0 …)**. The first step reads `k1` from the evaluation the solver makes before any step.
+
+Getting that wrong transposes a step at a **neighbouring state**: every number finite, every number
+plausible, and wrong by one stage's worth of drift. It is the same shape as every silent failure this
+report exists to remove, so the mapping is written here once and the walk derives it rather than each
+caller restating it.
+
+### 9.5 Rejected attempts, widening, and when nothing is written
+
+**A rejected attempt must not commit.** The stage hook fires on every *attempt*; the step hook fires
+only on acceptance. So the per-stage payloads are a scratch indexed by stage, overwritten by each
+retry, and committed by the step hook — which is what the two hooks already do, so this costs no new
+mechanism.
+
+**The payload is committed at the step's own width**, beside that step's state. So nothing has to be
+relocated through §4.2's embedding: each step's record is self-consistent, and a widening between
+steps changes the next record's extent rather than re-indexing the last one's.
+
+**And a run that is not recording writes nothing.** The store rides the same flag the trajectory does,
+so a plain forward run pays neither the memory nor the writes. That is what keeps this a cost the
+gradient's consumer opts into.
+
+### 9.6 The two instances
+
+| | payload | kind | extent | admissible | what it removes |
+|---|---|---|---|---|---|
+| **A** | the shared field's knot values and slopes | A — a moved cut | 2K per (step, stage) | an invasion sweep, where the resident's field is exogenous by definition | the whole `O(K·N)` reduction |
+| **B** | the inner solve's answer: the operating point, the branch it was found on, and the feasible bounds | B — a restored answer | one token per unit per read point per (step, stage) | **every pass** | the *search*, leaving one evaluation |
+
+**The field is already cut there.** §2 lists the interpolant's knot values and slopes as the
+independent inputs the sparsity claim is about, and the interpolant already holds them as members with
+a primitive that sets them. So Kind A costs no new state: restoring the field is writing the two
+vectors the build would have written.
+
+**The inner solve is Kind B for the reason §8 gives.** Its rows are supplied, so its value reaches the
+tape only through the graft, whose inputs are the ones the consumer holds. A restored operating point
+therefore changes no recorded operation — and it must arrive as §9.3's token, because the branch taken
+is part of what was found.
+
+**Both are sized, and neither is large against what a step recording already holds.** At the scale the
+reference model is profiled on — 3,381 recorded steps, a final state of 1,361, six stages a step, and
+seven state entries per unit so about 193 units at the end and roughly half that on average:
+
+| | extent | store | measured share it removes |
+|---|---|---|---|
+| **A** the field | 2 × 65 per (step, stage) | **21 MB** | **16.7%** of a sweep, on the pass that admits it |
+| **B** the inner solve, point and branch | ~2.0 × 10⁶ tokens | **20 MB** | **12%** of a sweep, on every pass |
+| **B** with the feasible bounds as well | + 2 values a token | + 16 MB | a further 2–4% |
+
+against the **62 MiB** one step recording already holds. And the two do not compete: A is the reduction
+and B is the inner solve, so a pass admitting both pays 41 MB and removes both shares.
+
+**One asymmetry decides which to build first, and it is not the size of the share.** B is priced
+*identically* on both passes — the inner solve runs at the passive scalar either way — so its whole
+share is recomputation, and a restore that reproduces the recorded value is refereed by bit-identity and
+nothing else. A's reduction is priced **16.7× dearer** inside a recording than in a run, because there
+the operation count *is* the tape and the sweep walks it twice; so where A cannot be admitted, the lever
+on that path is algorithmic rather than stored, and its ranking as a symmetric change is wrong by that
+factor.
+
+**A restored point carries the branch the solve took, never a "prescribed" one.** That distinction is
+load-bearing: a consumer that *imposes* a collar has no classification and must be refused, and a
+consumer that *restores* one has the original. So the row layer needs no relaxation and its refusal of
+an imposed point stays exactly as it is.
+
+**And a restore is only offered where a search happened.** The branches that exit before the search
+have nothing to save, so the restore declines them by returning false and the caller solves — no flag,
+no mode, and the cheap branches stay the cheap branches.
+
+### 9.7 What the payload differs by, which is where the invasion saving is
+
+A resident integrates the shared resource because the balance is endogenous. An invader responds to a
+resource it does not move — so on that pass the resource is supplied rather than integrated and
+**leaves the state vector**. The two passes therefore run states of different width, which is a fact
+about the model and not a detail of the record, and it is why the invader's field is Kind A
+*admissibly*: its adjoint is not part of the answer.
+
+**One caution on the flag that switches such a pass on.** It does two jobs — *use the supplied
+resource* and *this is an invader: compute no boundary node, build no field, feed nothing back*. Only
+the first is what a replay hook replaces; most of the sites testing that flag are the second job and
+stay.
+
+### 9.8 What this is bought with, and what would falsify it
+
+**The price is that a restore is only as exact as the record.** Kind B's whole claim is that the
+restored value is the one the pass would have computed, so the referee is bit-identity and nothing
+weaker. That holds because the recorded step state is exact, the step sizes are recorded, the tableau
+is shared, and the inner solve is deterministic — so every stage state is reproduced bit for bit and
+the search would find the same answer. **Make the record lossy in any of those and Kind B degrades
+into a warm start**, which carries a tolerance, is not bit-identical, and is refereed by nothing this
+corpus trusts.
+
+Three things would falsify the design:
+
+- **A Kind B payload whose restore is not bit-identical.** The check is direct and needs no reference:
+  restore, then solve, and compare every output. A disagreement means the payload is short of
+  something the branch reads.
+- **A Kind A payload whose adjoint turns out to be needed on the pass that declared it exogenous.**
+  Then the saving was a dropped channel. The check is the transpose identity of §8.1, which needs no
+  reference gradient.
+- **The stage mapping of §9.4 being wrong at the run's first or last step**, where the
+  first-same-as-last carry has no predecessor and no successor. Those two steps are where a fixture
+  built from the middle of a run cannot see a defect, so they want a fixture of their own.
 
 ## 10. What is left
 
@@ -550,18 +869,57 @@ crosses.
 *Done when:* a caller cannot ignore it without saying so, and the ladder has a rung that asks for a
 gradient at a state where one does not exist and is refused rather than answered.
 
-**3. The replay pass, which is the only way an invasion run exists at all.** *Deferred.* The model's
-second recorder is deleted: the per-stage cache it kept was reached through three hooks the solver had
-stopped calling, so the container was never filled and the entry point refused on its first statement
-for every model, always — §7's hazard at full size. The entry point survives and refuses with an
-accurate message; its test keeps its expected fitnesses and skips, because those numbers are the
-specification for what replaces it.
+**3. Replay — the concept is designed and the engine already calls most of it.** *Deferred, and no
+longer only about invasion.* The model's second recorder is deleted: the per-stage cache it kept was
+reached through three hooks the solver had stopped calling, so the container was never filled and the
+entry point refused on its first statement for every model, always — §7's hazard at full size. The
+entry point survives and refuses with an accurate message; its test keeps its expected fitnesses and
+skips, because those numbers are the specification for what replaces it.
 
-*Do:* implement §9's concept on the model's container and drive it from the solver.
+**What §9 changed about this item is its size and its beneficiary.** The stage hook is already called
+at every stage, the loader's stage index is already threaded through the rate call, and the step hook
+is already called where a step begins — so what is missing is the payload registry, the step argument,
+and the deletion of the System-side mode query. And the beneficiary is no longer only an invasion run:
+the **inner solve's answer is a Kind B payload admissible on every pass**, which is where the measured
+saving is, because a resident sweep re-searches for an operating point the run has already found.
 
-*Done when:* the concept is satisfied and a `static_assert` says so at the point of use, so the hooks
-cannot go quiet a second time; the test stops skipping and meets the numbers it already carries; and
-the mode cannot be set by anything but the driver.
+*Do:* the three members of §9.2 with the payload registry of §9.3, the token for the classification,
+and the stage mapping of §9.4 written once in the walk.
+
+*Done when:* a `static_assert` says the concept is satisfied at the point of use, so the hooks cannot
+go quiet a second time; the pass cannot be set by anything but the driver; a Kind A payload offered to
+a resident sweep is refused by name; and the Kind B restore is refereed by bit-identity against the
+solve it replaces.
+
+**3a. The forward model is run again for every consumer of one recording.** *Open, and the blocker is
+not what the code says it is.* A gradient opens by asking for the states its sweep walks, and the run
+that produced them has just finished. On the reference fixture that repeat is **38 s against a 176 s
+gradient — 22%** — and three consumers ask for the same recording, so a referee set pays it three times.
+
+**The reason given for the repeat was wrong and is now disproved.** It said the states had to be emptied
+as they were read, because they lived in one store and the step sizes that reached them in another, so a
+store left behind could be paired with a later run's sizes. That is fixed: the state, the time it was
+reached at and the size that reached it are one record, and one record cannot be mispaired.
+
+**The reason the repeat is still load-bearing is that a sweep is not re-entrant**, and that is the
+finding. The walk restores the *width* it borrowed — narrowing to the lowest as it descends and widening
+back at the tail — but a widening does more than widen: it inserts a unit, and what that unit carries
+which is **not ODE state** does not come back with the width. Sweep the same recording twice and the
+second insertion lands at a coordinate the first already occupies; the grid's own guard refuses, because
+two units at one coordinate span zero width (§4.1). **The repeat has been hiding that for as long as it
+has existed** — no second sweep of one recording has ever run.
+
+⚠️ **And §4.2's round-trip guard structurally cannot see it.** It widens, immediately narrows, and
+compares the state, on the argument that "the state is the only witness". The state is exactly what this
+bookkeeping is not, so the guard passes and the defect sits underneath it. Same shape as §4.1's one-ended
+closing transpose: a check whose witness does not cover what it guards.
+
+*Do:* make the insertion's non-state bookkeeping a function of the recorded step it is replayed at rather
+than of whatever the System last computed, so widening at a recorded step is idempotent. Then the repeat
+goes and the flag holding it goes with it.
+
+*Done when:* two sweeps of one recording run without a repeat and agree bit for bit — which is an
+assertion the suite already makes and which has only ever been reached through a fresh run.
 
 **4. Manage the tape instead of rebuilding the System — measured, viable, and not taken.** Lifting the
 System per recording is one construction per step, and there is a second way to get slot freshness
@@ -590,6 +948,37 @@ the construction cost this would remove, measured as a share of a gradient rathe
 
 *Done when:* one of the two is measured to dominate, and the loser is written down here so it is not
 re-derived.
+
+**4a. Four cost items, priced, and one open question about the rule they sit under.** *§2.1 has the
+measurement; this is the list.* In descending order of what each is worth on the reference fixture:
+
+| | what | worth | price |
+|---|---|---|---|
+| a | the shared-part reduction at `O(K + N)` rather than `O(K·N)` (§4.1) | 19.0% to build, plus its share of a 29.5% walk | re-associates, so a re-blessing |
+| b | the repeated forward run (item 3a) | 22% per extra consumer | a non-re-entrant sweep, above |
+| c | one walk at derivative width three rather than three walks (§5) | ~12% | a type change, and it deletes the seed loop |
+| d | active values by `const&` (§6.1) | targets 19.4% construction and 10.9% push/pop | none: bit-identical |
+
+**And the open question, which is about §2's rule rather than any of the four.** The rule says to tape
+whatever can be afforded and to supply rows only where recording is impossible or unaffordable. Every
+silent failure this report exists to remove is a hand-mirrored transpose, so the rule should not be
+relaxed — but "afforded" was never measured, and measured it is ~80% of the reverse pass, three quarters
+of that one reduction. Two things follow which the rule as written does not say:
+
+- **Affordability is a property of the forward algorithm, not of the tape.** The same map is affordable
+  at `O(K + N)` and not at `O(K·N)`, so the order at which a model writes a reduction is a reverse-mode
+  design decision. Ranking it as a forward-model performance detail understates it by four.
+- **The exception is not cheap either.** The one place the rule sends a row to be supplied costs 20.6% of
+  a gradient in the row layer alone — about what the dominant taped term costs. So "tape it or supply it"
+  is not a cheap-versus-dear choice; both are dear, and the case for taping is correctness, which is the
+  case it should be argued on.
+
+**What is genuinely open is whether there is a third thing to do with a reduction.** Taping it is correct
+and dear; hand-mirroring it is cheap and has failed every time it has been tried here. The candidate
+third is a reduction whose transpose is *derived* — a primitive owning the walk, so the forward and the
+transpose are one declaration and cannot drift, the way §8 proposes for the implicit node. Whether that
+is a real category or a hand-mirrored transpose with better manners is not settled here, and it should be
+settled before anything is built on it.
 
 **5. The environment's interface was half virtual and half template.** *Fixed by deletion.* One
 question — what a unit reads out of the shared part — had two answer mechanisms on the base: the

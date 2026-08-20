@@ -34,22 +34,77 @@ light and soil intact.
   one node whose local Jacobian is supplied, and the contract a boundary carrying it must meet.
 - [`docs/reports/03-light-interpolant-value-and-slope.md`](docs/reports/03-light-interpolant-value-and-slope.md)
   — what the light field has to be for its transpose to be local, exact and refinable.
-- [`docs/reports/07-structure-worth-exploiting.md`](docs/reports/07-structure-worth-exploiting.md)
-  — where the system is narrower than it looks, and what each narrowing buys. Its test is
-  whether resident trait gradients, calibration, invasion and equilibrium are one machinery
-  with different adapters. Read it before scoping any cost work, or any interface.
-
 - [`docs/reports/04-before-the-plant-exists.md`](docs/reports/04-before-the-plant-exists.md) —
   parameterisation, construction and the inflow boundary: the three places upstream of a
   cohort's rates where a derivative is decided, and where an imposed zero is
   indistinguishable from a channel the model does not have. Read it before touching a
   derived quantity, a declared zero, or the seed.
+- [`docs/reports/09-generalising-the-reverse-pass.md`](docs/reports/09-generalising-the-reverse-pass.md)
+  — **the solver's side**, written with no ecological vocabulary at all: the ensemble ODE the model is an
+  instance of, what is taped and what is supplied, dimension growth, the three layers, the implicit
+  node, and **§9's replay design — one mechanism, two kinds of payload, and the one rule that decides
+  where each is admissible.** Read it beside 07: 07 says what the leaf must supply, 09 says what the
+  solver does with it and when it need not ask twice.
+- [`docs/reports/07-what-the-leaf-must-supply.md`](docs/reports/07-what-the-leaf-must-supply.md)
+  — which derivatives the leaf boundary actually needs, input by input, and which of them
+  are hard. Read it beside report 02: 02 states the contract a boundary must meet, 07
+  states what has to cross it. Its census is the thing to check a change against — six
+  routes, four shapes of row, four branches, and every one of the twenty-six inputs read or
+  declared. **It is complete enough to work from**: §7 gives the boundary's shape and the
+  passivation rule, §8 what the forward pass already hands the reverse, §9 what the leaf must
+  gain, §11 the invariants to check, and **§12 the open items with what closes each — six closed,
+  and the sixth's closing opened a seventh** — start there. It states no ordering, deliberately.
+
+  ⚠️ **Two of its numbers were the instrument's, not the model's, and §12 closes with the
+  shapes to look for.** A differenced referee here is a *sweep* over steps, never one step: a
+  differenced root-find carries its own tolerance divided by the step, so the error GROWS as the
+  step shrinks (3.08e-07, 3.08e-06, 3.08e-05 over three decades); and a nested solve can change
+  its iterate count at one step alone, giving a clean wrong answer of 5.6e-06 there and 1e-10 at
+  its neighbours. Both were read as a closed form's error before the sweep was run.
+
+  ⚠️ **Its sharpest conclusion is about WHOSE CONSUMER an argument belongs to.** Three of the seven
+  things its invariant 1 called unwritten were not objects: they were a *calibration's* output set and
+  input list reaching into a *stand's* row layer, and they had put three of five arguments on it. No
+  derivation closed them — a named refusal in the read did, plus a separate entry point for the
+  consumer that wants a difference. **When a boundary's arguments will not come off, ask which
+  consumer names them** before looking for the mathematics that is missing.
+
+  ⚠️ **And derive that consumer's output set from ITS equations, never from what it requests.** §1.1
+  does it consumer-inward and the derivation is what licenses the refusals: a census reads no leaf
+  output at all, the recorded step's twelve read the leaf through **profit** and **per-layer uptake**
+  and nothing else, and a cohort's own height has no leaf input because it arrives through two
+  quantities the consumer computes actively. A set read off a caller's request cannot tell a complete
+  one from that caller's oversight — the first pass at this justified the refusals by what plant asks
+  for, which is the same tunnel vision one level out.
+
+  ⚠️ **And §12's other conclusion is about DRIVERS, not tolerances.** Three of its six items were
+  branches a grid had reported unreachable because the grid could not reach them, and in each case
+  the branch was one parameter away — shade death below 26.6 µmol where the grid's floor is 100; the
+  gravity balance, which needs a *single* soil layer; and the root's own critical potential binding,
+  which needs a plant whose root gives up before its stem and is impossible at phylloptim's defaults,
+  where that potential and the stem's are the same number. **Two of the three are not soil moisture,
+  and soil moisture is what gets swept.**
 
 **None of these tracks progress**, and none is edited to record what has been built. If a report
 disagrees with the code, one of them is wrong and the disagreement is the finding. Report 04's
 number was previously vacant: it had argued which discretisation the density's compression term
 should use, and the birth-date coordinate removed that question rather than settling it — what
 survives of the original is report 00 §4.4, and the number now carries the subject above.
+
+**Number 10 is vacant and will not be reused, and 09 has been taken by a design document.** They were the workplan — what to build,
+in what order, and what each step was refereed by — and a workplan is the one kind of document this
+set is not for. Their durable content was moved to its subject before they were removed: the
+derivative mathematics and the reduction's structure to 05, the ecology of equilibrium and of the
+water channel's conditioning to 06, and the leaf boundary's contract and its rulings to 02. **Do not
+reconstruct a workplan here.** Where a report and the code disagree, that is a finding for whoever is
+working; where a step needs sequencing, that belongs in the session's own task list, which is
+discarded when the work lands.
+
+**07 and 09 were vacated with them and have since been taken by design documents**, which are a
+different kind of claim: they say what the boundary needs and what each part of it is, not what to build
+next. 07 is the leaf's side, 09 the solver's. Neither names a commit or an ordering, and each is wrong if
+the mathematics disagrees with it rather than if some branch does. **10 stays vacant**: it was the
+supplied-once workplan and nothing about it is a design claim.
 
 `docs/archive/` holds documents whose conclusions are stale, superseded or
 configuration-dependent. **Do not design from them.**
@@ -112,6 +167,10 @@ the locally built fork. Upstream's carries none of the reverse-mode surface the
 sweep calls, so the next `plant` build fails on a name that has been in your tree
 all along — in a session that never touched odelia. Six occurrences across three
 sessions.
+
+**This fired again, and the check below is what caught it.** The installed `odelia` was upstream's at
+the start of a session that had not touched `odelia`, so a `plant` build would have failed on a symbol
+that had been in the tree throughout. Run the grep *before* believing any build, not after one fails.
 
 `R CMD INSTALL` does **not** resolve `Remotes` and is therefore the safe form. Verify
 after any `phylloptim` install, against the walk's own entry point rather than a
@@ -318,9 +377,13 @@ as a skip, which reads like a choice.**
 predate the gradient work: the environment cache that feeds an invasion run was reached through
 solver hooks that a refactor stopped calling, so it filled nothing and every case errored. Listing
 them here as expected is what kept that quiet once the suite began reporting it. The unreachable
-half is deleted and the file now skips, carrying its expected fitnesses as the specification for
-the replay pass that replaces it — see report 09 §10. **A failure written down as expected stops
-being read; prefer a skip that names what it waits for.**
+half is deleted and the file now skips, **carrying its expected fitnesses as the specification for the
+replay pass that replaces it** — those numbers are the spec, and there is no other. One design
+constraint travels with them, because getting it wrong is silent: **which pass is running is the
+driver's decision, not the System's.** A System that answers "am I replaying?" is one that can
+accidentally replay, and the symptom is a resident gradient with the water feedback missing —
+finite, plausible, no error raised. **A failure written down as expected stops being read; prefer a
+skip that names what it waits for.**
 
 The first three were absent from this list and cost a session's worth of doubt to
 attribute. `test-stochastic-patch-runner.R`'s pass count varies run to run; its
@@ -356,6 +419,56 @@ library is still visible.
 **Measured on sixteen cores: the whole gradient ladder is 17 s of wall this way,
 against about twenty minutes serial**, and the 55 non-ladder files are 86 s
 against about six minutes.
+
+## Testing phylloptim — and the invocation that hides half the suite
+
+The C++ suite is the fast loop and needs no R at all:
+
+```sh
+make -C phylloptim/tests/cpp CXX=g++            # builds and runs test_leaf and test_golden
+make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds these too
+```
+
+At `phylloptim@7367547` plus the uncommitted reverse-mode work: **test_leaf 2263 checks, 0
+failures**, and **test_golden 4320 bit-exact mismatches / 223 beyond the cross-platform
+tolerance**, which is the pre-existing Linux-versus-macOS state and the outstanding re-bless.
+`clang++-12` is gone from this image; `CXX=g++` reproduces the same counts.
+
+**The row layer has two entry points and they are not interchangeable.** `rows_at(Leaf&, const
+RowRequest&)` is a **read** of a leaf the caller has already solved — it takes no traits, no drivers
+and no step, and a caller that has not solved gets a refusal rather than a number. `rows_differenced`
+takes the other three and answers whatever the read declined, which the read names per input. Neither
+solves. A test or a probe that hands either an unsolved leaf is testing the refusal.
+
+**A `probe_*.cpp` there builds with the suite's own flags and is the right instrument for a
+measurement**, because it needs no install and no R: `make CXX=g++ probe_plateau`.
+
+⚠️ **The R suite needs the package namespace as its parent environment, and without it a
+third of the suite reports as broken code.** Several tests call internals by name, so a plain
+`test_dir()` reports *"could not find function"* — which reads like a missing binding and is a
+missing environment. Measured: the wrong invocation reported 10 failures where the right one
+reports 5.
+
+```sh
+Rscript -e 'library(phylloptim)
+  testthat::test_dir("tests/testthat",
+    env = new.env(parent = asNamespace("phylloptim")), stop_on_failure = FALSE)'
+```
+
+**Six known failures, and every one of them is the recorded expectation rather than the code.**
+Counts are 1434 passing / 5 failing / 1 error / 1 skipped; a differing count is yours.
+
+| file | what | why it is not a finding |
+|---|---|---|
+| `test-gradient-batch.R` ×2 | a status of `"pinned"` where `"error"` is expected | the expectation predates the constrained branch answering |
+| `test-gradient.R` | `H` expected `-8.9561`, reads `-8.9532` | the reading is bit-identical across the curvature's refactor — 243 of 243 states — so the recorded number is stale |
+| `test-gradient.R` | `root_b`'s profit row 0.0140 against 0.0137 | the arbitration's own spread |
+| `test-surface.R` | `A` differs in the 7th digit between two construction routes | one ULP class |
+| `test-gradient.R:332` **(error)** | `g$gradient["cost_scale_TF24", "A"]` is out of bounds | **the test asks for a parameter it did not request** — `pars` is `c("vcmax_25", "stem_b", "R_d_25")`, so this cannot depend on any C++ change, and the error aborts the test before its twelve-assertion loop over `analytic` ever runs. A test that errors early is a test that stops covering what follows. |
+
+⚠️ **Install with `R CMD INSTALL` only, and see the two hazards above** — a dependency-resolving
+installer replaces the `odelia` fork, and R does not track header dependencies, so
+`--preclean` is what stops the R layer running the old model.
 
 ## Testing odelia — and the two ways it lies to you
 

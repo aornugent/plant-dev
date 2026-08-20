@@ -425,6 +425,28 @@ coordinate makes the quadrature abscissa a function of the state. On the birth-d
 $x_k = b_k$ is fixed at birth and passive, so $\partial w_k/\partial h_k = 0$ and the term
 vanishes.
 
+**And it is the same fact as (5.2)'s compression term, seen from the opposite end.** The forward density
+equation acquires $\partial g/\partial h$ and the transpose acquires the weight derivative for one
+reason: the quadrature coordinate moves with the state. Either both terms are present or neither is, and
+an implementation carrying one without the other has a forward and a transpose of different functions.
+Reading them as two separate corrections is how that combination comes about.
+
+**The passivity is worth buying by a *return type* rather than by discipline.** A coordinate accessor
+that returns a passive scalar unconditionally makes conditions (1) and (2) above **unviolatable rather
+than testable** — a width cannot carry a derivative however a caller stores its grid, and no reduction
+has a route to an active position. That is the general pattern: where a quantity must not be
+differentiable, the cheapest guarantee is a type that cannot carry a derivative, not a rule that it must
+not be given one.
+
+**Two details of the grid follow, and both are consequences rather than choices.** Every quadrature over
+the size distribution must read the *same* coordinate — the two field reductions, the census, and any
+integral over the distribution a consumer forms — because a second grid built beside the first is where
+the two coordinates come to disagree. And **one degenerate interval per introduction is deliberate and
+free**: an introduction stamps the new node and refreshes the closing node's coordinate to the same
+instant, so the closing interval has exactly zero width there. No width is divided by anywhere in the
+quadrature or its transposes, so the guard splits accordingly — strict monotonicity on the interior
+grid, non-strict at the closing point.
+
 **This is a requirement on four separate quantities, and it is easy to satisfy three and miss the
 fourth.** A reduction transpose on the birth-date coordinate must:
 
@@ -452,7 +474,28 @@ Two facts about (6.1) that matter downstream.
 **The transpose is triangular or banded, not dense.** Equations (6.2) to (6.7) are written as sums
 over every cohort, but $\tilde Q$ vanishes above a cohort's own height. Under the mean-light mode
 only cohorts taller than knot $q$ contribute, so the reduction is triangular; under crown-centre
-only the cohorts whose crown brackets the knot do, so it is banded.
+only the cohorts whose crown brackets the knot do, so it is banded. That is an ecological statement as
+well as a numerical one: **shade is a one-way relation, and the adjoint of shade is one-way in the other
+direction.**
+
+**But triangularity is not permission to truncate, and the reason is what (6.1) *is*.** The reduction is
+a trapezium quadrature of a density integral, not a sum over trees. A cohort is a quadrature **node**,
+and its weight is built from the gap to its neighbours — so dropping a cohort does not remove its own
+contribution and leave the rest intact, it changes the weights of the cohorts on either side of it.
+**There is no "small term" to discard, because no term is attached to a tree.**
+
+**The signature is a Riemann sum's and it is unambiguous.** Refine the introduction schedule at fixed
+ecology and ask how many contributors are needed for a fixed remainder: the count is **a fixed fraction
+of the node count** rather than a constant — about three-quarters for a young stand and under a third
+for a mature one — and the largest single contributor's share falls as $1/n$. Both are what a
+converging quadrature does and neither is what a dominated sum does.
+
+**And the ecological reading that makes truncation tempting is exactly why it fails.** "Big trees shade
+little ones" is true *per capita*, and canopy cohorts pile up at near-identical heights — so their
+quadrature weights go to zero individually while the shading they collectively account for does not.
+Keeping the top few keeps almost none of it. So the economy in this section is the transpose row's
+**width**, bounded by the integration rule, and **not** its column count; those are different sparsities
+and only one of them is present.
 
 **The recorded step's dependence on the field is sparse, and bounded by the quadrature rule rather
 than by the cohort's height.** The field's slopes are **supplied, not solved**: the reduction
@@ -527,6 +570,18 @@ any strategy, so they appear in no parameter list. With per-layer vectors that i
 with no derivative row, and the consequence is a question that cannot be asked: **"what if the soil
 were sandier."** The vertical structure of the root coupling is in the same position.
 
+**The atmosphere is in the same position and it is five more quantities.** The individual reads a
+vapour-pressure deficit, an ambient CO₂ concentration, a leaf temperature, an oxygen partial pressure
+and an atmospheric pressure; none has a row, and the environment has no differentiable parameter list
+to put one in. **Radiation is the exception and the reason it is one is the whole distinction**: light
+is not merely a driver, it is what the shared field of §6.1 delivers, so a reduction transposes onto it
+and its row is what closes that transpose. The other five are exogenous, shared with nothing, and
+carried as a type that cannot hold a derivative — which is this section's own prescription rather than
+an omission. So a **trait** gradient needs none of them, and **"what if it were drier, or hotter, or
+CO₂-richer"** is the question that cannot be asked. The two lists together are the honest scope of this
+machinery: it differentiates a stand with respect to what its plants *are*, and with respect to the two
+resources they share, and with respect to nothing else about the world they sit in.
+
 #### Three facts about the soil that change how its clamps read
 
 **The profile drains, and that cascade is where a deep layer's water comes from.** Each layer's
@@ -559,6 +614,13 @@ formed on the total uptake cannot see it**, because signed per-layer fluxes sum.
 about what a measurement can detect, and it holds whether the phenomenon is common or rare. Its
 derivative exists in closed form, and its relative accuracy under any differencing scheme is the
 worst in the model, precisely because the output *is* the residue of a near-cancellation.
+
+**And that now has a number rather than an argument.** At the collar of zero *total* uptake — a wet pin —
+a differenced collar channel for the **top layer's own draw** disagrees with the closed form by up to
+**5.5 percent**, while at the same points every other layer's channel and every other branch's agree at
+1.8e-09 or better, and an interior point agrees at 1.6e-10. So the prediction holds in the sharpest
+available form: the one output this section calls the worst-conditioned to difference is the one output a
+difference gets wrong, and it is wrong on the branch a drought puts a plant on.
 
 
 **The root vulnerability integral is bounded above by its own closed-form limit, and that ceiling is
@@ -594,6 +656,51 @@ the l'Hôpital limit of a span over an integral, continuous in value. A gravity-
 numerator that vanishes while its derivative does not. Both have derivatives; refusing them
 discards a defined answer.
 
+**Measured, and the two are not alike in either respect that matters.** They differ in what vanishes and
+in whether anything reaches them:
+
+| window | what vanishes | the derivative | reached |
+|---|---|---|---|
+| equal potentials | the span **and** the integral over it | 0/0, and the limit is $Q\to 1/f_r$, $\partial Q/\partial s \to -f_r'/(2f_r^2)$ | **never**: 0 of 540 operating points |
+| gravity-balanced | the **numerator**, alone | $1/r_R$, with nothing to take a limit of | 30 of 540, all at one-layer shade death |
+
+So "both have derivatives" is right and understates the second: the gravity balance was never a
+singularity at all, and refusing there cost a consumer its whole water channel on a shaded stand. **A
+third window was being refused alongside them and is not a window** — a moving bound at atmospheric,
+where the integral's split into a below-surface part and a vulnerable part changes; the integrand is 1
+below the surface and $f_r(0) = 1$ above it, so both parts have the same slope and nothing happens
+there. Three conditions, one of them real, and the one that is real is the one nothing reaches.
+
+**The limit is worth writing down even unwritten**, because it says the whole family is elementary. The
+mean conductivity is the reciprocal of the cumulative integral's **divided difference** over the
+interval, $Q = 1/D$ with $D = \int_0^1 f_r(p + t(s-p))\,\mathrm{d}t$, so $D \to f_r$,
+$D_s, D_p \to \tfrac{1}{2}f_r'$, $D_{ss}, D_{pp} \to \tfrac{1}{3}f_r''$ and
+$D_{sp} \to \tfrac{1}{6}f_r''$ — one expansion serving all seven kernels, and $f_r$ elementary in the
+potential and in both curve parameters.
+
+### 6.3 Both reductions together make the interaction diagonal plus low rank
+
+Every cohort reads the shared environment and nothing else about its neighbours: **no plant-to-plant
+term exists anywhere in the model.** The interface is the field's $2K$ knot quantities plus the $L$ soil
+layers, and each cohort reduces the field to *one* scalar before any physiology runs. So the state
+Jacobian decomposes as
+
+$$\frac{\partial \dot y}{\partial y} \;=\; D \;+\; B\,C, \qquad \operatorname{rank}(BC) \;\le\; 2K + L$$
+
+with $D$ block diagonal over cohorts, $C$ mapping cohort states into the environment — the two
+reductions of §6.1 and §6.2 — and $B$ mapping the environment back into cohort rates.
+
+**The rank is bounded by the environment's width, not by the number of cohorts.** A stand of ten
+thousand cohorts still interacts through the same small set of values, so **the dimension of competition
+in this model is a property of how finely the environment is discretised rather than of how many plants
+there are.** That is a statement about the model and is worth knowing whether or not anything uses it.
+
+**What it buys is not in the adjoint**, which already exploits the same structure implicitly by
+transposing each reduction once rather than per cohort. It would be in anything wanting the Jacobian
+*itself* — the stability of a stand against perturbation, an implicit solver for a stiff configuration —
+where diagonal-plus-low-rank is a structure with standard methods. **Nothing in this document's scope
+uses it and its cost is unestablished**, so it is recorded as structure rather than as an economy.
+
 ---
 
 ## 7. The individual's maximisation
@@ -620,7 +727,7 @@ dangerous ones, because in each the wrong theory returns a finite number rather 
 | **S** | interior stationary maximum, $\Pi_{pp}<0$ | envelope: $\partial\Pi/\partial u$, free | IFT on $R=0$: $m = -s/\Pi_{pp}$, then $m\,\Pi_{pu}$ |
 | **K** | constrained optimum, one bound active, multiplier $\nu = \lvert R\rvert$ | **not** an envelope: $\partial\Pi/\partial u + \nu\,\partial B/\partial u$ | $\partial E_i/\partial u + (\partial E_i/\partial p)\,\partial B/\partial u$ |
 | **B** | a feasible point that is not an optimum, still solving a relation in $u$ | plain chain rule; the $p$-channel is the substituted expression's own derivative | same form as K, with $\partial p/\partial u$ from the bound |
-| **X** | exogenous operating point — solves no optimisation | a substituted constant, or an ODE state: closed form in a strict subset of inputs, **exactly zero** in the rest | identically zero under shutdown; at a tracked potential, the row at fixed $p$ plus a tracking row |
+| **X** | exogenous operating point — solves no optimisation | a substituted constant, or an ODE state: closed form in a strict subset of inputs, **exactly zero** in the rest | zero where the substitution seats the stem at its critical potential; **live where it seats the collar at the wet bound**, since the draws are then individually non-zero and sum to zero; at a tracked potential, the row at fixed $p$ plus a tracking row |
 | **N** | no derivative exists — a fold, a jump, or nothing defined | valid at a fold, one-sided at a jump, absent otherwise | **does not exist** |
 
 #### The table is an outer product, and writing it out hides which axis each entry is on
@@ -665,6 +772,22 @@ which exit); is the operating point a tracked state rather than an argmax (→ X
 its clamp binds, never S); is the residual non-finite or the curvature non-negative (→ N, refuse);
 is the point interior *and* the marginal-profit evaluation genuinely defined there (→ S); is it at
 a bound (→ K).
+
+**The forbidden comparison has a witness, and it is night.** A boundary that classifies by the residual's
+size over the curvature's is not merely inelegant: at zero radiation gross assimilation is identically
+zero, the marginal profit at the seated collar is the **sentinel** rather than a derivative, and the
+implied Newton step $|R/\Pi_{pp}|$ is therefore **exactly zero** — the stationary side of any cut. The
+curvature beside it is finite and large, $-2\times10^{4}$ to $-1\times10^{6}$, so the pair is
+indistinguishable from a well-conditioned interior optimum. Measured over 1620 points: 38 constrained
+points read as stationary from those two numbers alone, every one of them a zero-flux point at zero
+light.
+
+The band the comparison is usually defended by is real for the *optimiser's* pins — interior points reach
+$6.5\times10^{-12}$ against the mildest pin at $6\times10^{-3}$ — and says nothing about the kind whose
+residual is not a derivative. Where such a boundary has not yet produced a wrong answer, the reason is a
+**second, unrelated refusal**: a difference of the outputs across $p^\star$ cannot be centred on a point
+that sits on its bound, so the composite is abandoned and the kind is corrected after the fact. That is a
+mechanism to remove, not a safety net to rely on.
 
 **Five is the coarsest useful classification and not the natural one.** Three of the five carry an
 internal distinction that changes what a caller should do, so a tree that records the branch taken
@@ -971,26 +1094,88 @@ solve *equalises*. The analytic profit row is therefore an expression for $\part
 **at** the operating point and not away from it. $\partial R/\partial u$ has to come from the
 marginal profit itself, which is what makes the factorisation necessary rather than merely cheap.
 
-**Both scalars are partials of a two-argument function, and that is what says how to get them.**
-Write $x = E^{\mathrm{up}}/\kappa + S_t(p)$ for the transport coordinate and $W = \partial x/\partial p$
-for its collar slope, so that $\sigma = P(x)$ and
+**Both scalars are partials of a two-argument function, and naming the right two arguments is what
+makes them elementary.** The obvious pair is the transport coordinate
+$x = E^{\mathrm{up}}/\kappa + S_t(p)$ and its collar slope $W = \partial x/\partial p$, giving
+$\sigma = P(x)$ and $R = \Phi(x)\,W$ with $\Phi = G(\sigma)P'(x)$. **That form is incomplete, and the
+term it omits is not small.**
 
-$$R \;=\; \Phi(x)\,W, \qquad \Phi(x) \;\equiv\; \frac{\partial\Pi}{\partial x} \;=\; G(\sigma)\,P'(x).$$
+Stomatal conductance is proportional to transpiration, and transpiration is the stem integral's
+**difference** between the stem potential and the collar, $\kappa\,[S_t(\sigma) - S_t(p)]$. So the
+collar enters conductance **directly**, not only through $\sigma$ — and conductance is the supply side
+of the inner concentration balance. Writing $V = \partial\sigma/\partial p$ for the stem potential's
+collar response,
 
-Then
+$$R \;=\; G(\sigma)\,V \;+\; H(\sigma), \qquad G \;=\; \frac{\partial\Pi}{\partial\sigma}, \qquad H \;=\; \frac{\partial A}{\partial c^{\mathrm{i}}}\cdot\frac{\partial c^{\mathrm{i}}}{\partial p}\bigg|_{\sigma}$$
 
-$$b \;=\; \frac{\partial R}{\partial(\partial E^{\mathrm{up}}/\partial p)} \;=\; \frac{\Phi(x)}{\kappa} \;=\; \frac{\partial\Pi}{\partial\psi_{\text{stem}}}\cdot\frac{P'}{\kappa}, \qquad a \;=\; \frac{\partial R}{\partial E^{\mathrm{up}}} \;=\; \frac{\Phi'(x)\,W}{\kappa}. \tag{7.3b}$$
+with $H$'s second factor the part of the concentration's collar response that does **not** pass through
+the stem potential. At fixed $p$ and $\varphi$ both $G$ and $H$ are functions of $\sigma$ alone, so
+
+$$\frac{\partial R}{\partial V} \;=\; G(\sigma), \qquad \frac{\partial R}{\partial \sigma} \;=\; G'(\sigma)\,V \;+\; H'(\sigma). \tag{7.3b}$$
+
+**So the coordinates are $(\sigma, V)$ and not $(x, W)$, and the difference is one whole term.** In
+$(x, W)$ the second partial reads $\Phi'(x)\,W$, which is $\partial R/\partial\sigma$ carried through
+$P'$ **and missing $H'$**. Rank two survives either way — $H$ introduces no third intermediate,
+because it is a function of $\sigma$ and of a held $p$ — but a closed form written as
+$\Phi'(x)W/\kappa$ is short by a term, and a row built on it is wrong by whatever that term
+contributes. **An earlier form of this section gave exactly that expression, and it is why every
+attempt to obtain the first partial in closed form failed for a reason no measurement could localise:
+the target was a derivative of a residual this model does not evaluate.**
+
+**One of the two partials is already free and the other is the section's only new object.**
+$\partial R/\partial V$ *is* the profit's stem-potential derivative, which the forward model forms
+anyway from the assimilation derivative, the cost derivative and the concentration solve's
+implicit-function term. So the second intermediate's coefficient costs nothing, exactly as (7.3c)
+below says the held profit row does.
 
 **The sign is the one the prose above gives**, not its negative: an earlier form of this line carried
 a leading minus, and a profit row built on it comes back as a clean factor of $-1$ against a
 difference of the profit at wet, dry and shaded states.
 
-**$b$ is elementary and $a$ needs one more derivative of the transport curve — but both are functions
-of a single scalar.** $\Phi$ is a function of $x$ alone at fixed $p$ and $\varphi$. So $a$ is a
-derivative in **one** well-scaled argument, obtainable by perturbing $x$ itself: two evaluations of
-$\Phi$, once, for the whole state family, with no solve, no supply call and no feasibility question,
-because $x$ is a number the transport curve is read at rather than a state the model has to be put
-into.
+#### Every second derivative this needs is a derivative of the integrand, not of the integral
+
+$\partial R/\partial\sigma$ is a second derivative of the profit, so it reaches second derivatives of
+the transport curve — and that looked like the obstruction, because the curve is tabulated and a
+tabulation's second derivative is a property of the fit rather than of what was fitted. **It is not an
+obstruction, and the reason is Leibniz.**
+
+The transport curve is a cumulative integral, $S_t(\psi) = \int_0^{\psi} f(s)\,\mathrm{d}s$ with $f$
+the vulnerability function. Differentiating in the upper limit **removes the integral**:
+
+$$S_t' = f(\psi), \qquad S_t'' = f'(\psi), \qquad \frac{\partial^2 S_t}{\partial\psi\,\partial\theta} = \frac{\partial f}{\partial\theta}$$
+
+for any curve parameter $\theta$. And $f$ is an elementary function of $\psi$ and of both curve
+parameters. So **every mixed and second partial of the transport curve that carries a $\psi$ is
+elementary**, and the only quantities that genuinely need the integral are the value itself and its
+derivative with respect to the curve's **steepness** — one number, at first order, discussed in §7.6.
+
+Two consequences, and the second is what makes the requirement in report 02 §3.7 satisfiable.
+
+**The inverse curve's second derivative follows exactly, with no second derivative of a fit.** Since
+$P = S_t^{-1}$,
+
+$$P' = \frac{1}{S_t'(\sigma)}, \qquad P'' = -\frac{S_t''(\sigma)}{S_t'(\sigma)^{3}}$$
+
+so $P''$ is built from two elementary reads. **The precondition is that the tabulation's own first
+derivative agrees with $f$** — if the table's slope is inferred by a fit rather than supplied, $P'$ and
+$1/S_t'$ are two different numbers and combining them mixes two models. §7.6 states the ruling that
+makes them one.
+
+**And with the ruling taken, neither derivative of the inverse is read at all.** $V$ is the collar
+derivative of the flux balance $\kappa[G(\sigma) - G(p)] = E^{\mathrm{up}}(p)$, which gives
+$V = (S/\kappa + f(p))/f(\sigma)$ with no inverse in it, and one more collar derivative stays free of
+one too. So the two identities above hold and nothing needs them: the tabulation is required for
+$G$'s value, for the inverse's value, and for the steepness row, and for no derivative anywhere.
+Reading $P'$ instead makes $V$ a **value of the interpolant**, so a consumer differentiating $V$
+differentiates the fit's second derivative — which is the one thing supplied first-order data does not
+correct.
+
+**And the second derivative of the profit in $\sigma$ needs no tabulation at all.** The hydraulic cost
+is an elementary function of the vulnerability function evaluated at $\sigma$; the assimilation
+derivative is elementary in the intercellular concentration; and the concentration's second derivative
+follows from applying the implicit function theorem twice to an explicit algebraic residual. So
+$G'(\sigma)$ and $H'(\sigma)$ are compositions of elementary derivatives, and the curve enters them
+only through $f$, $f'$ and their parameter partials.
 
 **The same $b$ answers the held profit row, and that is not a coincidence.** At fixed $p$ the state
 reaches profit only through $x$, so
@@ -1005,6 +1190,30 @@ So the held profit row over every state direction costs one multiplication once 
 sets the row's **arity**, so root mass changes the *length* of the vector rather than its entries.
 And the two bounds are root-finds over the potentials, which enter no row on the interior branch
 and *are* the whole row on the pinned branch.
+
+**And the supply itself is not invertible in closed form, which is why the operating point is a solve
+at all.** Each layer draws $E_i = (p - \psi_i - g_i)/r_i$, and $r_i$ is the layer's minimum resistance
+divided by the **mean** conductivity over the interval between the collar and that layer — so $r_i$
+depends on *both* endpoints, through a ratio of the cumulative integral's span to the interval's width.
+Total uptake is therefore a sum of $L$ terms, each non-linear in $p$ through a different $\psi_i$, and
+no rearrangement gives $p$ in terms of $E^{\mathrm{up}}$.
+
+Two consequences, and the second is a boundary on how far the closed forms of this section can be
+pushed. **Single-layer and multi-layer supply are different problems, not one with a parameter.** With
+one layer and the collar held at zero the marginal cost of water is a power law in the potential to
+leading order, which inverts explicitly and gives the whole optimum in closed form — measured at an
+order of magnitude cheaper than the solve, and at a special relation between the cost exponent and the
+curve's steepness the potential cancels out of the price entirely and there is nothing left to solve.
+**None of that survives the sum.** So the existence of a closed-form single-layer optimum is not
+evidence that the multi-layer one is waiting to be found; the coupling of both endpoints inside every
+term is a structural obstruction rather than an unfinished derivation.
+
+**What is exact is every *derivative* of the supply**, which is the only thing this section needs. The
+per-layer draws' partials in the potentials are diagonal, their partials in root carbon are
+lower-triangular, and both have exact mixed partials in the collar, because a resistance built from an
+integral over an interval has elementary derivatives at each of its endpoints. So the supply supplies
+$\partial\sigma/\partial u$ and $\partial V/\partial u$ in closed form even though it cannot be
+inverted, and (7.3b)'s two scalars complete the row.
 
 **The factorisation's conditioning is where the difficulty is, and it is directional.** The $L$
 vectors $(\partial E^{\mathrm{up}}/\partial\psi_j,\ \partial^2 E^{\mathrm{up}}/\partial\psi_j
@@ -1056,50 +1265,80 @@ direction being asked about, and improving it means recovering one scalar better
 decomposing differently. It also means **a residual formed on a non-cancelling direction says nothing
 about a cancelling one**, which is the same trap as the fitted pair's in a new place.
 
-#### And that decides how the row should be computed, against the obvious reading
+#### What the cancellation amplifies is the *difference* between the two scalars' errors
 
-The obvious reading of everything above is that $\partial R/\partial u$ should be *assembled* from the
-two scalars rather than differenced, since the structure is exact and one difference is cheaper than
-one per input. **That is the wrong conclusion, and the reason is the consumer rather than the row.**
+The row is $\partial R/\partial u_i = A\,x_i + B\,W_i$ with $A$, $B$ the two partials of (7.3b) and
+$x_i$, $W_i$ the supply's own exact columns. Suppose the computed scalars carry relative errors
+$\alpha$ and $\beta$. Contract against a direction $d$ over the inputs, and write
+$X = \sum_i d_i x_i$, $Y = \sum_i d_i W_i$, so that the answer is $\Delta = AX + BY$ and the error is
+$\alpha AX + \beta BY$. Putting $Q = AX$, so that $BY = \Delta - Q$:
 
-Assembling makes every input's row read the *same* two numbers. So whatever error those numbers carry
-is **coherent across inputs**, where differencing each input separately leaves errors that are
-**independent**. Contract the rows against a direction in which the answer nearly cancels — the
-uniform drying direction, which §7.3 and report 06 §7 both single out as the one the ecology reads —
-and the difference is decisive: independent errors partly cancel with the answer, and a coherent one
-does not cancel at all. It adds while the answer disappears.
+$$\text{error} \;=\; (\alpha - \beta)\,Q \;+\; \beta\,\Delta, \qquad\text{so}\qquad \frac{\text{error}}{\Delta} \;=\; (\alpha - \beta)\,C \;+\; \beta, \qquad C \;\equiv\; \left\lvert \frac{AX}{\Delta} \right\rvert. \tag{7.3d}$$
 
-Measured, on the same rows and the same states: assembled from two scalars accurate to $10^{-5}$ per
-input, the uniform-drying direction reads **3.1 relative**; differenced per input, **7.6e-04**. Four
-orders, in the direction that matters, from a decomposition that is exact.
+**A relative error common to both scalars is not amplified at all.** It passes through as $\beta$, and
+the cancellation ratio $C$ multiplies only the part of the error that **differs** between the two
+terms. That is the whole of the conditioning question for an assembled row, and it inverts the obvious
+reading.
 
-**So state the two rules apart.** The factorisation is how the water channel is *understood* — two
-intermediates, a rank-two map, an economy of $n_{\text{output}} + n_{\text{input}}$ — and it is how the
-*frozen* rows should be computed, because those are products rather than sums and carry no
-cancellation. The condition's gradient is different: **its consumer sums it, so it must be computed in
-a form whose errors are independent.** That is the corpus's own rule about small differences of large
-quantities, applied one level up: not to the arithmetic within a row, but to the correlation *between*
-rows that a shared factor introduces.
+**So the rule is not "avoid a shared factor". It is the opposite: share it deliberately and
+completely.** A parameterisation that puts as much of the uncertainty as possible into a factor common
+to both terms leaves only the residual to be amplified. What must be avoided is an estimator that
+manufactures an *anticorrelated* error, and there is exactly one such estimator in play.
 
-**The general form, for any supplied row.** Ask what the consumer contracts the row against. Where it
-reads entries one at a time, a shared factor costs nothing and buys exactness and economy. Where it
-sums them against a near-null direction, a shared factor converts a benign per-entry error into a
-systematic one, and the saving is paid for at the amplification of that direction.
+**A fit is that estimator, and its absorption ratio is the amplification.** §7.3's design matrix — the
+$L$ vectors of a supply column and its collar derivative — has a second singular value of order
+$10^{-5}$ of the first, so solving for the pair that reproduces two observed state directions trades
+one scalar against the other along precisely the direction that maximises $\lvert\alpha-\beta\rvert$.
+An error of $10^{-5}$ in one is absorbed as an error of order unity in the other. **Partials have no
+design matrix**, so they carry no anticorrelation and (7.3d) reduces to $\beta$ plus round-off.
 
-**And the direction the ecology cares about is the direction that conditioning is worst in.** Water
-moves on *differences* of potential while tissue fails on *absolutes*, so along the uniform drying
-direction the model is a near-symmetry and the true response is a small residue on a strongly
-amplified channel. A one percent error in either scalar is therefore a fifteen- to twenty-six-fold
-error in the quantity of interest.
+**And differencing each input separately does not escape $C$ either.** Independent per-input errors of
+relative size $\rho$ contract to $\rho\,C/\sqrt{L}$ rather than to $\rho\,C$ — the answer cancels and
+the errors add in quadrature. So independence is worth a factor of $\sqrt{L}$, about $2.2$ at five
+layers, and **not** the orders that separate a good row from a bad one. Anything defined as a small
+difference of large quantities is still governed by $C$ whichever way it is obtained; what a method can
+change is the size of the error being amplified, not the amplification.
 
-**That amplification is a property of the state directions and no choice of method removes it** — but
-it is what decides how the row may be assembled. The general rule is the corpus's own: **anything
-defined as a small difference of large quantities must be computed as itself**, never by subtraction
-in a caller. Applied here it says the row is $a\,\partial E^{\mathrm{up}}/\partial u + b\,\partial^2
-E^{\mathrm{up}}/\partial u\,\partial p$ with each factor supplied by whatever owns it exactly — the
-two scalars from (7.3b), the two vectors from the supply — and never a difference taken along a
-state direction, because a difference *is* the subtraction the rule forbids, taken in the one
-direction where the cancellation is worst.
+The measurements bear this out and should be read in that light. Contracted along the uniform drying
+direction, a row assembled from a **fitted** pair reads **3.1 relative**, and the same row differenced
+per input reads **7.6e-04**. The gap is four orders and it is a statement about the two estimators, not
+about assembling: the fitted first scalar was recovered to between $2\times10^{-7}$ and
+$2\times10^{-5}$ depending on the state, against the $2.4\times10^{-9}$ the same scalar reaches when it
+is read as a partial at its own plateau. Measured directly, $C$ is about $28$ at a state where the two
+terms cancel, and up to $31$ where a composite mixes them — so a scalar at $2.4\times10^{-9}$ predicts
+a contracted row near $10^{-7}$, and a scalar at $2\times10^{-5}$ predicts one near $10^{-3}$. **The
+decomposition was never the defect; one of its two coefficients was.**
+
+**The general form, for any supplied row.** Ask what the consumer contracts the row against, and then
+ask which of the row's factors carry *correlated* error. Where the consumer reads entries one at a
+time, none of this matters. Where it sums them against a near-null direction, a factor whose error is
+common to every term is free, a factor whose error differs between terms is paid for at $C$, and an
+estimator that anticorrelates two factors is paid for at $C$ times its own absorption ratio. The
+prescription that follows is to take each factor as a **partial in the coordinates it is a partial
+in**, which is what removes the anticorrelation at the source rather than guarding against it.
+
+**And the direction the ecology cares about is the direction the conditioning is worst in — but how
+much worse is a property of the hydraulic regime and not of the model.** Water moves on *differences*
+of potential while tissue fails on *absolutes*, so along the uniform drying direction the response is
+a small residue: the collar tracks a uniform shift of the soil and most of the response cancels with
+it. **How completely it tracks is what sets $C$, and it varies by more than an order of magnitude
+across parameterisations that are all this model.** Where the collar follows $0.97$ of a uniform shift
+and root mass is spread over the layers, $C$ reaches the high twenties; where it follows $0.70$, $C$ is
+near $1.1$. Report 06 §7 states which of those a stand actually occupies, and it is the second — so
+**the load-bearing claim here is that this direction *matters*, not that it is amplified twenty-fold.**
+A figure of fifteen to twenty-six describes a corner of the hydraulic parameter space, and quoting it
+as a property of the water channel overstates the difficulty of every stand the model runs.
+
+**No choice of method removes $C$** — it is a property of the state directions, and (7.3d) shows both
+routes are governed by it. What a method changes is the size of the error being amplified. So the
+prescription is not "never difference" but the sharper one: **each factor supplied by whatever owns it,
+as a partial in the coordinates it is a partial in.** The row is
+$(\partial R/\partial\sigma)\,\partial\sigma/\partial u + (\partial R/\partial V)\,\partial V/\partial u$
+with the two scalars from (7.3b) and the two columns from the supply — and the reason to prefer that
+over a difference is that every one of the four is available exactly, not that a difference is
+forbidden. Where a factor is *not* available exactly, a difference of the whole row is the honest
+route and its error is $\rho\,C/\sqrt{L}$; what is never acceptable is a factor obtained by *fitting*,
+because that is the one estimator whose error $C$ amplifies twice.
 
 **In the dry regime the factorisation does not degrade — it collapses.**
 
@@ -1245,6 +1484,20 @@ separation between them is control-flow history rather than biology. Note this i
 mortality regime rather than a drought one — it is governed by light, so no rainfall sweep can see
 it.
 
+**Confirmed, and it turned out to be the row layer's answer rather than only a reading.** The forward
+model seats that exit at the collar where uptake vanishes and pays respiration plus the hydraulic cost
+there, so its rows are the pin's: the held partials a frozen collar makes, plus the wet bound's own
+movement priced by the cost's slope at the seat. All twenty-six inputs answer that way to
+$10^{-6}$ against a difference of the whole solve, where a boundary treating it as a zero-flux
+shutdown had four of them wrong by 0.69 to 1.79 relative and one **sign-inverted**.
+
+**But the OTHER zero-flux exit is a different plant, and that is where the control-flow reading
+stops.** A collar too dry to move water holds the stem at its critical potential and writes every
+flux to zero, so nothing it reads is a function of the soil and its whole soil block is exactly zero.
+The shade exit's seat *is* a function of the soil. Two exits, two seats, and the seat is what decides
+every row that differs between them — so a boundary carrying one flag for "no flux" has one of the two
+wrong whichever answer it gives.
+
 ### 7.6 The transport integral in closed form
 
 Flux from soil to collar integrates a stretched-exponential vulnerability curve,
@@ -1281,25 +1534,67 @@ Note what each parameter needs. Both need the series **value** $\gamma(a,X)$. Th
 $b$ needs additionally only $\partial\gamma/\partial x$, equation (7.5), which is elementary;
 **only the steepness $c$ reaches $\partial\gamma/\partial a$, equation (7.6).**
 
-**The series' argument is bounded here, and by construction.** The series does overflow in double
-precision for large $x$ — $\Sigma$ growing while $e^{-x}$ underflows — and that range is
-unreachable in this model. The integral's grid is laid out to the potential at which the
-vulnerability function reaches a fixed small fraction, so
-$X = \log(1/\text{fraction})$ **identically, for every $b$ and $c$**, and $x \le 4.61$ wherever
-this integral is evaluated. Assert the bound; do not add an argument switch the model cannot reach.
+**The series' argument is bounded on the grid, and the claim that the grid is where it is evaluated is
+false.** The series does overflow in double precision for large $x$ — $\Sigma$ growing while $e^{-x}$
+underflows — and that range is unreachable. The integral's grid is laid out to the potential at which the
+vulnerability function reaches a fixed small fraction, so $X = \log(1/\text{fraction})$ **identically, for
+every $b$ and $c$**, and $x \le 4.61$ *on the grid*.
 
-**These closed forms replace a tabulation, and what they must replace is the tabulation itself —
-not merely its derivative.** The distinction is the sharpest deployment rule in this document.
-Where the forward solve evaluates a table, the derivative belonging on the tape is the **table's**,
-because a gradient must differentiate the model being evaluated and not the model that model
-approximates. Substituting the closed form for the derivative alone is the more accurate derivative
-of a *different function*, and it introduces a systematic disagreement — parts in a thousand, for
-this integral — that no invariant on the gradient can attribute, because both routes are internally
-consistent and neither is refereeing the other.
+**But the integral is read past its grid, and §6.2 is where this document already says so.** Whole-plant
+shutdown keys off the *wettest* layer, so a wet top layer over a sufficiently dry one below is a live
+plant whose deepest layer is out on the extrapolation — the arrangement a drying profile produces. So
+"assert the bound; do not add an argument switch the model cannot reach" was the wrong prescription: the
+bound is reached, and an assertion there is a **throw where a refusal was wanted**. One refused row costs
+a row; a throw costs the whole census metric, because a metric's gradient is a sum.
 
-So the closed forms above are a change to the **forward** model, made once and re-blessed once, after
-which the derivative and the value describe the same function. Until then the honest derivative of a
-tabulated curve is the tabulation's own.
+The correct division is by *what needs the series*. The value has a closed-form limit past the grid and is
+capped at it (§6.2); the potential derivative is zero there, because the capped value no longer moves; the
+**position** derivative stays right past the cap, because the limit is homogeneous of degree one in $b$;
+and the **steepness** derivative is the limit's own,
+
+$$L = \frac{b}{c}\,\Gamma(a), \qquad \frac{\partial L}{\partial c} = -\frac{L}{c}\left(1 + a\,\psi_0(a)\right), \qquad a = \tfrac{1}{c},$$
+
+which needs a digamma and no series. **Only the band between the grid's last knot and the potential where
+the extrapolation crosses the limit is genuinely unserved**, and there the model's own integral is a
+linear extrapolation rather than either object — so the honest answer there is non-finite, and the honest
+repair is to the forward model rather than to the row.
+
+**These closed forms and a tabulation can be made the same object, and that is a third option the
+two obvious ones hide between them.** The deployment rule is real: where the forward solve evaluates a
+table, the derivative belonging on the tape is the **table's**, because a gradient must differentiate
+the model being evaluated and not the model that model approximates. Substituting a closed form for a
+*fitted* derivative is the more accurate derivative of a different function, and it introduces a
+systematic disagreement — parts in ten thousand, for this integral — that no invariant on the gradient
+can attribute, because both routes are internally consistent and neither is refereeing the other.
+
+But that disagreement is a property of how the table's slope is **obtained**, not of tabulating. A
+value-interpolating fit *infers* a slope from neighbouring values, and the inferred slope is what
+disagrees with $f$. **An interpolant built from the value and the closed-form slope at each knot has no
+such gap:** its derivative *is* $f$ at every knot, and between knots it is a cubic through two exact
+values and two exact slopes. The two objects the rule warns about keeping apart become one.
+
+Three things follow, and they replace the "change the forward model or accept the disagreement" choice
+the rule used to present.
+
+**The disagreement is not intrinsic and its size is a measurement.** Supplying the closed-form slope
+takes the gap from parts in ten thousand to a few parts in ten million between knots and to zero at
+them. That is below the solver floor of §8, so the derivative and the value describe the same function
+for every purpose this document has.
+
+**It is still a change to the forward model, and a small one.** The interpolant's value moves, because
+a different cubic passes through the same knots. Measured, the operating point's profit moves by under
+$2\times10^{-7}$ and most outputs by $10^{-8}$, with the argmax-evaluated fluxes at the driest corners
+moving by a few percent of a near-zero value. So it is a re-blessing, and the honest way to take one:
+one change, one measurement of its blast radius, split by cause.
+
+**And the cost is a continuity loss the model has to be asked about.** A value-interpolating cubic on a
+solved slope system is $C^2$; an interpolant on supplied slopes is $C^1$, with a curvature break at
+every knot. That matters here because the operating point is found by climbing this curve, so the
+question is not whether the second derivative is continuous but whether the argmax is still smooth
+enough in a trait to differentiate. It is: measured over a trait sweep the argmax moves at every step
+and its second differences stay at $3\times10^{-7}$, which is what the solved-slope interpolant gave.
+**Smoothness of the argmax is the constraint, and the curvature break does not violate it** — but it is
+the measurement to take, not an inference from the continuity class.
 
 **And whether the grid may be held across a parameter perturbation depends on who owns the grid.**
 An earlier form of this section said it must be — capture it once, so that a differenced derivative is
@@ -1328,11 +1623,37 @@ is Euler's identity applied to the **tabulated** $G$ and $G'$, so it is the tabl
 $b$-derivative and not the continuum's. Position is closed-form because the identity holds on the
 tabulated function.
 
-**The steepness has no such identity and is the case the ruling was written for.** $c$ reshapes the
-curve rather than scaling it: no rescaling of the base table reproduces the table a rebuild at a
-moved $c$ would produce, so its row needs the grid genuinely rebuilt and differenced. So the two curve
-*positions* have exact rows and the two *steepnesses* do not, and that is a statement about the
-Weibull family rather than about any implementation.
+**The steepness has no such identity, and that is where the two claims about it have to be
+separated.** $c$ reshapes the curve rather than scaling it: no rescaling of the base curve reproduces
+the curve at a moved $c$, so there is no analogue of (7.6a) and the *homogeneity* route is genuinely
+unavailable. That much is a statement about the Weibull family rather than about any implementation.
+
+**But "no identity" does not mean "must be differenced", and the series already carries the answer.**
+$\partial G/\partial c$ is (7.6)'s $\partial\gamma/\partial a$ chained through $a = 1/c$, and
+$\partial\gamma/\partial a$ comes out of the *same* loop as the value for the cost of one extra
+accumulator. So the steepness row is a closed form of the same standing as the position's — obtained
+differently, by a series rather than by an identity, and exact either way. **Nothing about a
+vulnerability trait requires the curve to be rebuilt and the answer differenced**, which is the
+opposite of what this section used to conclude, and it removes the last input in §7.3's family that a
+perturbation was needed for.
+
+Two consequences worth stating, because they are what makes the series safe to lean on here.
+
+**The series' argument is bounded by a number that does not depend on the traits.** The grid runs to the
+potential at which the vulnerability function reaches a fixed small fraction, so
+$x = (\psi_{\max}/b)^c = \log(1/\text{fraction})$ **identically, for every $b$ and every $c$** — the two
+parameters cancel exactly. That is why $x \le 4.61$ is an assertion rather than an observation, and why
+the series never meets the large-argument regime where its terms would overflow. A general-purpose
+incomplete gamma carries branch machinery for that regime; on this domain the branch is unreachable.
+
+**And the inverse map's steepness row needs no inversion.** Differentiating $G(\psi; b, c) = w$ at fixed
+$w$ gives
+
+$$\frac{\partial\psi}{\partial c}\bigg|_{w} \;=\; -\,\frac{\partial G/\partial c}{\partial G/\partial\psi} \;=\; -\,\frac{\partial G/\partial c}{f(\psi)}$$
+
+— a quotient of two numbers the same evaluation already produced. So a row through the *inverted*
+transport curve costs no root-find and no second table, which is the observation report 02 §3.7 turns
+into an interface.
 
 **One consequence for which instrument referees which.** The knot *count* is decided by round-off —
 a builder accumulating `psi += step` against a `<=` test can give 100 knots on one side of a central
@@ -1453,13 +1774,58 @@ solver, not through the bracket. Supplied derivatives must be checked against th
 algebra, never against a difference of the step that consumes them.
 
 **And where the referee is a difference of the individual itself, one step will not do — its plateau
-is per output, and it can be one decade wide.** Two facts make this sharp rather than fussy. An output
-obtained through an inner solve inherits that solve's floor, so its difference has a noise arm two
-decades coarser than an output that is a closed-form read; measured on the same call at the same step,
-the outputs that read the inner concentration solve are refereed to $4\times10^{-4}$ where the ones
-that do not are refereed to $5\times10^{-9}$. And the plateau's *location* moves with the state: on the
-same row a step of $10^{-4}$ is right at one operating point and wrong at its neighbour, where
-$10^{-6}$ is right.
+is per output, and it can be one decade wide.** An output obtained through an inner solve inherits that
+solve's floor, so its difference has a coarser noise arm than an output that is a closed-form read; and
+the plateau's *location* moves with the state, so on the same row a step of $10^{-4}$ is right at one
+operating point and wrong at its neighbour, where $10^{-6}$ is right.
+
+**How coarse that floor is, is a decision rather than a fact, and it has been taken twice.** The
+inner concentration solve's tolerance propagates to every output the solve reaches, amplified by the
+outer solve landing on a different point inside its own tolerance band. Measured by applying one
+identical perturbation at each setting:
+
+| inner tolerance | worst output disagreement against a converged solve |
+|---|---|
+| $10^{-7}$ | $1.8\times10^{-7}$ |
+| $10^{-8}$ | $3.2\times10^{-8}$ |
+| $10^{-10}$ | $5.4\times10^{-10}$ |
+| $10^{-13}$ | $7.5\times10^{-13}$ |
+
+with a cost of a few percent per three decades, and plateaus in the table — two settings giving the
+same figure — because a bracketing solver's iteration count is discrete, so tightening *between*
+plateaus costs without buying.
+
+**And two failure shapes a single step cannot be told apart from, both met while closing the leaf
+boundary's last differenced rows.** Neither is a plateau; each is what a one-step referee reports
+instead of one.
+
+| shape | signature | what it was |
+|---|---|---|
+| a **fixed offset** in the referee's numerator | the error grows as the step shrinks, exactly $\propto 1/h$ | a root-find returning its answer to its own tolerance, differenced: $3.08\times10^{-7}$, $3.08\times10^{-6}$, $3.08\times10^{-5}$ at $h = 10^{-4}, 10^{-5}, 10^{-6}$ |
+| a **hole** at one step | four decades agree at $10^{-10}$ and the fifth, between them, reads $5.6\times10^{-6}$ | the nested solve changing its iterate count at that step alone |
+
+The first is diagnosable from two steps and is the reason a differenced root-find should be refereed
+at the *largest* step truncation allows, not the smallest. The second is why two steps are not enough:
+it does not degrade toward the truth, so a referee that happens to sit in the hole reports a clean,
+plausible, wrong disagreement — and both of these were read, for a while, as the closed form's error.
+**A differenced referee is a sweep, and its best agreement is the answer.**
+
+**Three things follow, and the first corrects a figure this section used to carry.** A split of
+$4\times10^{-4}$ against $5\times10^{-9}$ between outputs that read the inner solve and outputs that do
+not **describes the loosest setting in that table, not the model.** At a floor of $5\times10^{-10}$ a
+central difference's best achievable relative error is of order $\varepsilon_f^{2/3}$, near $10^{-6}$ —
+so a differenced row is *not* floored out of usefulness, and a differenced row reading much worse than
+$10^{-6}$ is carrying truncation from too coarse a step, or an error that is not the floor at all.
+**Quote the tolerance beside any plateau figure**, because the figure is a reading of it.
+
+Second, **the tolerance is the amplifier, so it is the first thing to move and the cheapest.** Any
+argument that a differenced quantity cannot reach a required accuracy has to be taken at the tolerance
+in force, and tightening it costs percent where the accuracy it buys is orders.
+
+Third, the ladder of magnitudes this document's claims should be read against, which follows from the
+same table: **round-off and reassociation at $10^{-16}$, the solver floor at $10^{-9}$, and a real
+difference at $10^{-4}$.** A disagreement at the floor is not a finding; a disagreement four orders
+above it is.
 
 Three consequences, and the third is the one that bites hardest:
 
@@ -1584,6 +1950,17 @@ outputs in every recording wastes more than the $F$-records count suggests.
 ---
 
 ## 10. Where the trait gradient is assembled
+
+**One qualification governs every number in this section, and nothing in an implementation can check
+it.** The insertion schedule is refined by bisecting on errors that themselves depend on the
+parameters, so the schedule *is* a function of the parameters — and the reverse pass treats it as
+constant. **Every gradient this machinery produces is therefore a partial derivative at a fixed
+discretisation.** That is defensible: the schedule is a property of the numerical method rather than of
+the forest, exactly as §4's step sizes are, and differentiating through it would compute how the
+refinement responds to a trait change. But it is not what a reader assumes, and on the birth-date
+coordinate it is sharper than it sounds, because there the introduction schedule *is* the quadrature
+grid — so refining the schedule changes the abscissa the resource integrals are taken over. It belongs
+written beside any number the machinery produces.
 
 Collecting the paths by which $\varphi$ reaches $\mathcal{C}$:
 

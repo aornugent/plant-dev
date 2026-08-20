@@ -214,9 +214,12 @@ been refereed independently against the individual's own algebra.
 The water rows rest on report 05 §7.3's rank-two factorisation, and the collinearity that makes the
 seam awkward is real: the potential-family vectors have a second singular value `10⁻⁴` to `10⁻⁵` of
 the first, so a compensating pair fits every row of *that family* equally well. Since the
-uniform-drying direction is a near-symmetry amplified fifteen- to twenty-six-fold, a one-percent
-error there would be a fifteen- to twenty-six-fold error in the quantity the ecology cares about,
-sitting in the sweep and the reference alike.
+uniform-drying direction is a near-symmetry, an error there is amplified by however completely the
+collar tracks a uniform shift — **measured between 1.03 and 1.14 at every node of every run stand, and
+16.3 only on a fixture built at sixty times the root conductance** (report 06 §7). So the amplification
+is a property of the fixture and has to be reported with the margin it scales; a bound quoted without
+it says nothing, and a bound whose *own* amplification factor is read off the block under test flatters
+a route that inflates its entries.
 
 **The objection is to a fit, not to a prediction.** Solve the pair from two directions of different
 families — a soil potential and a layer resistance, which are not collinear with each other — and
@@ -225,6 +228,15 @@ states including a near-uniform profile, round-off limited, the pair stable to f
 figures across three decades of step, with the solved-from pair's condition number reported beside
 it — 2.6 to 6.7 against `10⁴` for two potentials, so a degenerate pairing is refused rather than
 absorbed.
+
+⚠️ **Read that `2.4e-05` as the *fit's* residual and not the structure's**, which is the distinction
+report 05 §7.3 now turns on. Recovering the two coefficients as **partials in their own coordinates**
+instead of solving for them agrees to `2.4e-09` from every supply direction independently — four orders
+tighter. So this check establishes that the map has **rank two** and says nothing about how well any
+particular recovery of the pair did. The two claims were conflated here, and the conflation is what let a
+fitted coefficient pass a structure test: a compensating pair reproduces every direction inside the
+fitted family's span, and the check's own out-of-sample directions are the ones that would have caught it
+only if the pair had been anchored outside that span.
 
 ### 4.2 Rung 3 — one cohort, and the Jacobian formed entirely
 

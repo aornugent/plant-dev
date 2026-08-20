@@ -157,7 +157,9 @@ Two qualifications, both load-bearing:
 
 **The sparsity is a property of the recorded step's *field inputs*, not of the composed dependence
 on cohort state.** Each supplied slope is itself a reduction over every cohort. Report 05 §6.1
-states the claim at the boundary where it holds, and report 07 §1 exploits it there.
+states the claim at the boundary where it holds. **It is exploited there already**, because a cohort
+receives its radiation as a *single* active scalar and the field query is recorded — so the tape carries
+the second factor of report 05 (5.3) and the whole field block is `12 + 2K` numbers rather than `24K`.
 
 **The row's width is set by the quadrature rule, not by the canopy.** A crown integral under a fixed
 `n`-point rule touches at most `n` spans, hence at most `n+1` values and `n+1` slopes. **The bound

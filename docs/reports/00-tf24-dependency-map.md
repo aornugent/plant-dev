@@ -56,10 +56,13 @@ hold, and the entire defect is the bend of the vulnerability curves across the o
 
 Three consequences, and report 05 §7.3 carries the numbers:
 
-- When the soil dries uniformly the collar follows it closely, so uptake changes by about one
-  percent of what the potentials do. The uptake channel is near-singular in the uniform
-  direction, amplified fifteen- to twenty-six-fold. A single layer's perturbation is far better
-  conditioned, so **a conditioning claim here is meaningless without its direction.**
+- When the soil dries uniformly the collar follows it, so uptake changes by much less than the
+  potentials do and the channel is near-singular in that direction. A single layer's perturbation is
+  far better conditioned, so **a conditioning claim here is meaningless without its direction** —
+  and, it turns out, meaningless without its **hydraulic regime** too. How completely the collar
+  tracks a uniform shift sets the amplification, and it ranges from about **1.1** on every stand this
+  model runs to the high twenties under a root system no trajectory develops. Report 06 §7 has the
+  measurements and which of the two a reader is in.
 - **Anything defined as a small difference of large quantities must be computed as itself**,
   from the term that breaks the symmetry — for the uptake, the cumulative root-vulnerability
   integral over an interval whose endpoints both slide. A whole-solve finite difference cannot
@@ -601,7 +604,7 @@ marked *solved*.
 | the collar solve's iterations | never differentiated. The operating point is defined by `∂Π/∂p = 0`, and the implicit function theorem supplies its derivative from that condition, so how the root was reached carries no information (§4.2). The same holds for `ci` and for the two bounds. |
 | `ℓ_k →` own cohort's physiology | density enters no cohort rate. It reaches the world only through `U` and through `L`. |
 | `∂(anything)/∂C_{1..4}` | the accumulator **states** are never read. Their *rates* are not blocked — see §3 and the *split* row below. |
-| a derivation among the traits themselves | where a hyperparameterisation fixes several registered parameters from one input, a row is the partial with the others held still, not the sensitivity to the input. That is not a blocked channel but a different question, and it is blocked only in the sense that the map from one to the other does not exist (report 04 §1, report 07 §3). |
+| a derivation among the traits themselves | where a hyperparameterisation fixes several registered parameters from one input, a row is the partial with the others held still, not the sensitivity to the input. That is not a blocked channel but a different question, and it is blocked only in the sense that the map from one to the other does not exist. The test for whether such a map *could* exist is whether the derived quantity is **definitionally** a function of the others rather than merely conventionally equal to one: these relations are set once at construction and every parameter is independently settable afterwards, so they run as **defaults, not invariants**. A sensitivity to the half-loss potential is the clearest case — it would be the derivative of a model in which setting it re-derives the curve, and that derivation runs once at construction, so no such model exists. The *shape* of the recovery holds for any **live** derivation: its gradient would be a sum of products of rows the sweep already produces. Report 04 §1. |
 
 ### Split — a block that looks dense and is not
 

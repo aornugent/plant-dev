@@ -445,13 +445,53 @@ cascade; where it is small, plants draw down a common pool without responding to
 That is the difference between two qualitatively different forests, and it is one mixed second
 derivative.
 
-**And now the warning.** Water moves on *differences* of potential while tissue fails on
-*absolutes*, so along the uniform drying direction the model is a near-symmetry: the true flux
-response is a small residue on a channel amplified fifteen- to twenty-six-fold. $\Pi_{pu}$ along
-that direction is therefore a **small difference of large quantities**, and the corpus's own rule is
-that such a thing must be computed as itself rather than by subtraction. So the single number that
-carries belowground competition is the one most exposed to being computed the one way that cannot
-compute it — which is why report 05 treats it as a correctness item and not a cost item.
+**And now the warning, which has to be stated more carefully than it used to be.** Water moves on
+*differences* of potential while tissue fails on *absolutes*. So when every layer dries by the same
+amount the plant's collar largely follows, most of the flux response cancels with it, and what survives
+is a small residue. Along that direction $\Pi_{pu}$ is a **small difference of large quantities**, and
+the corpus's rule is that such a thing must be computed as itself rather than by subtraction.
+
+**But how small the residue is — and therefore how exposed the number is — belongs to the root
+network's hydraulics, not to the model.** How completely the collar tracks a uniform shift decides the
+amplification, and it varies by more than an order of magnitude across parameterisations that are all
+this model. This is the correction that matters most in this section, because the old figure reads as a
+property of the water channel and is not one:
+
+| | collar's tracking of a uniform shift | amplification |
+|---|---|---|
+| every run stand measured, the competing stand included | — | **1.03 to 1.14** |
+| a stand at the *shipped* traits | 0.698 | 1.1 |
+| a construction with root mass scaled up sixty-fold and spread across the layers | 0.973 | **16.3** |
+
+The last row is reached by multiplying root mass by sixty while dividing root respiration and turnover
+by the same factor — so the root *carbon* budget is unchanged and only the hydraulics differ — and by
+spreading roots almost uniformly over the layers so the top layer does not already carry the tracking.
+**Neither is a state a trajectory develops: a run started at those very traits relaxes to 1.0.**
+
+Three readings, and they pull in different directions.
+
+**The ecologically load-bearing claim is that this direction *matters*, not that it is amplified
+twenty-fold.** A drydown moves every layer together, so the uniform direction is what a drought
+sensitivity actually reads, and $\Pi_{pu}$ along it is the first link of the belowground coupling
+whatever its conditioning. That survives intact. What does not survive is "amplified fifteen- to
+twenty-six-fold" as a general statement: on the stands this model runs, the row along this direction is
+an ordinary, well-conditioned quantity, and the error budget for real work is set by an amplification
+near one rather than near twenty.
+
+**A stand where the amplification is large is a genuinely different forest, and it is one this model
+can represent but does not reach.** Deep, hydraulically generous root systems whose collar tracks the
+soil almost exactly are the case where water competition is the behavioural cascade §7 describes; the
+stands here sit at the other end, where plants draw down a common pool and respond to each other only
+weakly. So the amplification is not a nuisance parameter — **it is the quantity that distinguishes the
+two forests**, and reporting it alongside a water-competition claim is the honest form of that claim.
+
+**And the corner is reachable by the gradient's own user, which is why it is worth hardening against
+even though no trajectory develops it.** Root conductance is a registered, differentiable trait. A
+calibration or a trait search ascending it walks the stand toward the regime where the row it is
+ascending is worst conditioned — the same closed loop between answer and question that §6.1 describes
+for the extinction coefficient, and the only other instance of it in the design. **Hardening against a
+reachable corner and specifying against the regime the model occupies are two different jobs**, and a
+figure taken in the corner should not be quoted as the second.
 
 **The good news, and it is structural rather than a matter of care.** The repricing is not something
 the model has to discover by nudging a soil layer and watching. Everything a soil layer does to a
@@ -468,9 +508,13 @@ And it removes the failure this section warns about at the source: a residue on 
 is dangerous when it is obtained by subtracting two large numbers, and harmless when each factor is
 supplied by whoever owns it.
 
-**The one place a perturbation is still unavoidable is the *shape* of a plant's vulnerability
-curve**, which no identity reaches — see the curve discussion below. Everything the environment does
-is exact; part of what a *trait* does is not.
+**And the last place a perturbation looked unavoidable — the *shape* of a plant's vulnerability curve —
+turns out not to need one either.** No identity reaches it, which is true and is why it was listed
+here; but the cumulative curve is an incomplete gamma function, and the derivative of an incomplete
+gamma with respect to its shape comes out of the same series that gives the value. So a steepness row is
+a closed form obtained differently from a position row rather than a measurement, and **nothing in this
+whole channel — environment or trait — has to be found by putting the plant in a different state and
+looking.** The curve discussion below states what that changes for a reader.
 
 ### What re-optimisation does to the *shape* of a response, and why the sign matters
 
@@ -645,20 +689,36 @@ two species can share a curve position and differ in how sharply they lose condu
 what the measurements show. So both organs get two numbers and the critical potential follows from
 them.
 
-**The curve's two parameters are not equally easy to differentiate, and the reason is a property of
-the Weibull family rather than of any code.** Position *scales* the curve: doubling it stretches the
-whole thing along the potential axis, including the range over which the model tabulates it. So a
-sensitivity to position is available exactly, by an identity, with nothing rebuilt. Steepness
-*reshapes* it: no stretch of a curve at one steepness produces the curve at another, so a
-sensitivity to steepness has to be taken by rebuilding the curve and comparing. **The two
-most-measured hydraulic traits therefore sit on opposite sides of a divide the ecology does not
-create and cannot remove**, and the cost of a trait gradient is uneven across a curve for that reason
-alone.
+**The curve's two parameters are differentiated by different routes, and that asymmetry is a property
+of the Weibull family rather than of any code.** Position *scales* the curve: doubling it stretches the
+whole thing along the potential axis, including the range over which the model tabulates it, so a
+sensitivity to position follows from a scaling identity with nothing rebuilt. Steepness *reshapes* it:
+no stretch of a curve at one steepness produces the curve at another, so no such identity exists.
 
-One consequence for anyone reading a disagreement between two ways of computing a position row: the
-rebuilt comparison is the *noisier* of the two, because a rebuild lays down a different number of
-tabulation points on either side of the comparison. Where an exact identity exists, a mismatch
-between it and a rebuild is evidence about the rebuild first.
+**What used to follow from that, and does not, is that a steepness sensitivity has to be measured.** The
+cumulative curve is an incomplete gamma function, and its derivative with respect to *shape* — which is
+what steepness controls — is available from the same everywhere-convergent series that gives the value,
+for the cost of carrying one extra running sum. So both of the two most-measured hydraulic traits have
+exact rows; they differ in the route, not in the standing of the answer. **The cost of a trait gradient
+is therefore even across a curve**, where the older reading had it lopsided, and the divide the ecology
+"does not create and cannot remove" turns out to be a divide between two derivations rather than between
+an answer and an estimate.
+
+Two consequences for a reader.
+
+**A disagreement between two ways of computing a curve row is evidence about the noisier instrument
+first.** A route that rebuilds the curve and compares lays down a slightly different number of
+tabulation points on either side of the comparison, so it carries a discrete artefact that a closed form
+does not. Where a closed form exists — and now one exists for all four curve parameters — a mismatch
+between it and a rebuild is a reading of the rebuild.
+
+**And the tabulated curve and its closed form need not be two different objects.** The rule that a
+gradient must differentiate the model being evaluated, not the model it approximates, is what kept the
+closed forms at arm's length: substituted for a *fitted* derivative they are the accurate derivative of
+a different function. But a tabulation can be built from the value *and the closed-form slope* at each
+point, and then its own derivative **is** the closed form. That collapses the two into one and removes
+the disagreement rather than managing it — at the price of one deliberate change to the forward model,
+whose measured size belongs in report 05 §7.6 rather than here.
 
 **And the critical potentials read zero in a wet forest for a reason a reader must not confuse with
 insensitivity.** They set the dry limit of the range the plant is choosing inside. While the plant is
@@ -839,6 +899,41 @@ carried curvature through unchanged would have to be linear in exactly the place
 **Nothing here licenses reading a profit curvature as a selection gradient**, and the work that
 would license it has not been done.
 
+**And for one tempting version of that bridge the question is settled, not open: the answer is no.** The
+hope would be that a stand at demographic equilibrium is a stationary point of something, so that the
+envelope economy §7 buys for one plant is available again one level up. **It is not, and the obstruction
+is the model's own stability mechanism.** The equilibrium condition is that lifetime offspring production
+equals one, and its derivative with respect to the resident's own abundance is **non-zero and negative** —
+that non-vanishing derivative is precisely the restoring force that makes the equilibrium stable. An
+envelope theorem needs the derivative to vanish. **So the very quantity that would make the economy
+available is the one whose absence would make the stand unstable, and there is no version of this model
+in which both hold.** A resident equilibrium is a fixed point, not a stationary point, and the
+distinction is not a technicality.
+
+Three measurements say the same thing from the ecology's side, and each is a claim an ecologist would
+recognise.
+
+**Nothing is equalised across the stand.** Per-cohort lifetime offspring production spans **more than
+twenty orders of magnitude** *at the exact fixed point*. A stand at equilibrium is not a population of
+individuals with equal success; it is a population in which the total happens to balance.
+
+**The marginal price of water is not equalised either.** It varies by roughly **a factor of two** across
+the cohorts of one stand. If the stand were optimising anything through a shadow price, that price would
+be common to its parts, and it is not.
+
+**And the equalisation that makes the analogy tempting is real, one level below.** A plant *does* equalise
+its marginal price of water — across its own soil layers, within a single individual. That is where the
+optimisation in this model is, and reading it as a stand-level property moves it up a level it does not
+occupy. **The stand is not optimising anything**, and that is a statement about the model rather than
+about any implementation of it.
+
+**One naming consequence, because the two objects are easy to confuse and both are legitimate.** A mutant
+run against a *fixed* resident environment computes the selection gradient of adaptive dynamics; what the
+rest of this report describes is a full-feedback derivative. They are **different objects**, so a
+structure returning one while its caller believes it asked for the other is carved wrong at the boundary
+however correct its arithmetic. If both are ever available they must be distinguishable by name at the
+interface.
+
 ---
 
 ## 11. The domain, stated — which is section 10's third condition, discharged
@@ -921,6 +1016,14 @@ is available. The metrics are independent of one another.
 - **The reserve gate.** A mollifier occupying 40 percent of the reserve's domain, damping the
   gradient at high reserves and admitting growth at empty ones. Direction and size both unstated,
   because the distribution of relative reserve across a stand has never been reported.
+- **The water channel's conditioning, which is a qualification rather than a bias.** A belowground
+  sensitivity read along the uniform drying direction is a small residue, and how small depends on how
+  completely the collar tracks a uniform shift of the soil. **Quote the stand's amplification beside any
+  water-competition claim**: every run stand measured sits at 1.03 to 1.14, where a construction with
+  root mass scaled sixty-fold and spread across the layers reaches 16.3 (§7). At the measured values the
+  row is well conditioned and the qualification is mild; the reason to state it anyway is that the
+  amplification is what distinguishes a stand where water competition is a behavioural cascade from one
+  where it is not, so a claim about the cascade is a claim about that number.
 - **What no measurement covers.** **No plant in this corpus has been run in shade** — ground-level
   transmittance median 0.9997, an open woodland. **The drought half of this caveat is withdrawn:** the
   mature stand at the reference configuration settles at 1.4 to 2.4 MPa, which is past the potential

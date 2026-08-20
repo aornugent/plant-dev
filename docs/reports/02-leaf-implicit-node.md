@@ -181,7 +181,7 @@ returned collar against the requested one is sound but is a *proxy* for the cond
 condition first is the same information one step earlier, and costs the evaluation nothing because it
 was going to be refused.
 
-### 2.1.3 Each input reaches the answer one of three ways, and only one needs a perturbation
+### 2.1.3 Each input reaches the answer one of three ways, and none of them needs a perturbation
 
 This is the map that decides the cost, and it is orthogonal to the branch:
 
@@ -189,16 +189,25 @@ This is the map that decides the cost, and it is orthogonal to the branch:
 |---|---|---|
 | **through the supply** | the soil potentials, and each layer's root mass | §3.2a's waist: the supply's own Jacobian, times one number per output. The marginal profit needs a second waist and no more. |
 | **not through the supply at all** | radiation, the photosynthetic traits, the two cost traits, the maximum conductance, both critical potentials | a direct partial of a kernel, or the bound's own row. Nothing is re-solved. |
-| **through a tabulation's own grid** | the two vulnerability-curve **steepnesses** | the grid moves with the parameter and no identity carries it, so the curve is rebuilt and the answer differenced |
+| **through the vulnerability curve's own shape** | the two curve **positions** and the two **steepnesses** | position: a scaling identity on the tabulated curve. Steepness: the cumulative curve's shape derivative, from the same series that gives its value. |
 
-**The curve *positions* are not in the third row, and that is the correction report 05 §7.6 carries.**
-Position scales the curve, and the tabulation's extent scales with it, so an identity moves the grid
-exactly. Steepness reshapes, and nothing scales.
+**The third row used to say "through a tabulation's own grid", list the steepnesses alone, and end in a
+rebuild and a difference. All three parts of that were wrong**, and the correction is report 05 §7.6's.
+Position and steepness are both curve parameters and both have exact rows; they differ in the *route* —
+an identity for one, a series for the other — not in the standing of the answer. What made steepness look
+different is that no *scaling* identity reaches it, which is true and does not imply a measurement.
 
-**So a perturbation is the exceptional case and not the rule.** Everything in rows one and two is a
-statement the model can make about itself; only row three requires putting the model into a different
-state and looking. Treating all three alike is what makes an environment row cost the same as a curve
-row, and it is also what puts a feasibility question in front of inputs that never needed one.
+**So no input's row requires a perturbation.** Every row above is a statement the model can make about
+itself at the state it is already in. That is stronger than the ordering this section used to give, and
+it changes what the boundary is for: there is no "exceptional case" whose machinery — a step size, a
+feasibility question at a displaced state, a branch-stability check — the other rows have to be routed
+around. **A row layer that perturbs the model is not paying for a hard case; it is declining to ask.**
+
+Two things follow that §3.7 makes into a requirement. Treating all three routes alike is what makes an
+environment row cost the same as a curve row, and it is what puts a feasibility question in front of
+inputs that never needed one. And the *reason* the third row can be exact — which is not obvious, since
+it reaches a tabulated integral — is that the only quantities needing the integral are its value and its
+shape derivative; everything else is a derivative of the **integrand**, and the integrand is elementary.
 
 ### 2.1.4 The supply path changes the input list, not the algebra
 
@@ -245,6 +254,20 @@ not there.
 The rule that follows is the one this whole report is an instance of: **enumerate the outputs from
 the consumer's equations, not from what the solver happens to expose.** For a stand adjoint the
 enumeration is report 00 §4.2's two kinds, and profit is the one they share.
+
+**This has now fired, and not in the direction the section warns about.** The failure described above is
+a consumer *under-served* — an absent output with no column. The one that happened is the mirror image
+and it is not silent in the numbers, it is silent in the **interface**: a row layer built to serve both
+consumers carried, for the calibration's benefit, three arguments the stand's equations never needed —
+a trait copy, a driver record and a step — because answering for assimilation, for the stomatal
+conductance and for a series resistance that belongs to the other supply path all require a
+perturbation. Nothing in any number showed it. Report 07 §7 has the count: three of five arguments, and
+what removed them was not a derivation but asking, of each, which consumer's equations name it.
+
+**So the rule has a second half.** Enumerating outputs from the consumer's equations is what stops a
+boundary under-serving; enumerating them *per consumer*, and giving each its own entry point, is what
+stops the harder consumer's machinery becoming every consumer's cost. That is §7 rule 7 — design against
+the easy case — applied to the argument list rather than to the return type.
 
 ### 3.1 Carbon is an envelope row
 
@@ -311,10 +334,32 @@ collapse is specific to leaves: it is the general statement that **a submodel sh
 internal waists, not only its outputs**, and a consumer records against a waist exactly as it records
 against an output.
 
-**The marginal profit is the one quantity that needs the second intermediate too.** It differentiates
-in the operating point, so it reads both total uptake and *how total uptake responds to the collar* —
-rank two where the outputs are rank one. That asymmetry is not an inconvenience; it is what makes the
-water channel a chain rule rather than something to be estimated (report 05 §7.3).
+**The marginal profit is the one quantity that needs a second intermediate too.** It differentiates in
+the operating point, so it reads both what the supply delivers and *how that delivery responds to the
+collar* — rank two where the outputs are rank one. That asymmetry is not an inconvenience; it is what
+makes the water channel a chain rule rather than something to be estimated.
+
+**And which two intermediates is a decision, not a description.** The natural-looking pair is total
+uptake and its collar slope. The pair that makes the coefficients elementary is the **stem potential and
+its collar response** — report 05 (7.3b). The difference is not cosmetic: in the first pair the
+condition's dependence on the state appears to factor through one function of one variable, and it does
+not, because the collar reaches stomatal conductance *directly* as well as through the stem potential.
+A closed form written in the first pair is short by a whole term, and a row built on it is wrong by
+whatever that term contributes — silently, since the structure is still rank two and every invariant
+formed on the pair still holds.
+
+**One of the two coefficients is free and the other is the only genuinely new number the design needs.**
+The coefficient on the collar response *is* the profit's stem-potential derivative, which the forward
+solve forms anyway. The coefficient on the stem potential is a second derivative of the profit, and §3.7
+is the requirement that makes it available.
+
+**Both coefficients must be partials, and this is the one place the design has a forbidden
+alternative.** They can also be *solved for*, from two observed state directions — and that route is
+available, cheap and wrong in a way no residual detects. The supply's columns are nearly collinear, so a
+fit trades one coefficient against the other along the direction the consumer's own contraction
+amplifies; report 05 (7.3d) prices it. **A fitted coefficient is the single worst way to obtain a number
+on this path**, worse than differencing the whole row, and a boundary cannot tell a caller which it
+received. §4 item 12.
 
 ### 3.3 The explicit part of the water channel is sparse, and one of its terms has left the model
 
@@ -422,10 +467,132 @@ and it sits where a calibration is most likely to wander.
 
 ---
 
+## 3.7 The one requirement that makes every row a statement, and where it falls
+
+Everything above says what the rows *are*. This says what a submodel has to be able to do to state
+them, and it reduces to one sentence.
+
+> **Every primitive the solve reads must supply one derivative order more than the row layer consumes.**
+
+That is the design's whole commitment, and the rest of this section is why it is the right one, why it
+is affordable, and where it binds.
+
+### Why one order more, and not the same order
+
+The rows the consumer needs are of two kinds. An output's row is a first derivative of the solve, so a
+first derivative of each primitive suffices for it. **But the operating point is defined by a
+condition, and that condition is *itself* a first derivative** — the profit's derivative in the
+operating point. So its gradient is a **second** derivative of the model, and every primitive on the
+chain has to go one order past what an output's row needs.
+
+This is the structural reason the condition's gradient is the hard part, and it is worth saying plainly
+because it is not a numerical difficulty that a better method removes. Any route to
+$\nabla_u(\partial\Pi/\partial p)$ — by hand, by forward-mode differentiation of the composition, or by
+differencing — needs those second derivatives. **What differs between the routes is only whether the
+primitives supply them or the consumer estimates them.** A row layer that perturbs the model is what
+happens when the primitives stop one order short: the missing order is recovered by putting the model
+in a nearby state and looking, which is the one operation that reintroduces a step size, a feasibility
+question at a state the model may not admit, and a branch-stability question — none of which the answer
+has anything to do with.
+
+### Why it is affordable, which is not obvious
+
+The chain reaches a **tabulated cumulative integral**, and a second derivative of a tabulation is a
+property of the fit rather than of what was fitted. That looks like a wall. It is not, and the reason
+is Leibniz: differentiating a cumulative integral in its upper limit **removes the integral**. So the
+transport curve's second derivative in a potential is the integrand's *first* derivative, and its mixed
+partials in a potential and a curve parameter are the integrand's parameter partials — and the
+integrand is an elementary function of the potential and of both curve parameters.
+
+**The consequence is a short inventory, and it is the design.** Of everything the row layer needs, only
+two quantities genuinely require the integral:
+
+| what a row needs | where it comes from |
+|---|---|
+| the curve's value | the tabulation — which *is* the model, by §5's first ruling |
+| its first derivative in a potential | the integrand: elementary |
+| its second derivative in a potential | the integrand's own derivative: elementary |
+| its mixed partial in a potential and a curve parameter | the integrand's parameter partial: elementary |
+| the **inverted** curve's first and second derivatives | the reciprocal and $-S''/(S')^3$: elementary, given the two above — **and read by nothing**, once the stem potential's collar response is taken off the flux balance rather than off $P'$ |
+| the curve's derivative in its **position** | a scaling identity on the tabulated curve: exact |
+| the curve's derivative in its **steepness** | the incomplete gamma's shape derivative, from the same series as the value |
+| the profit's second derivative in the stem potential | elementary compositions, plus the implicit function theorem applied twice to an explicit inner residual |
+
+**Nothing in that column is a perturbation, a fit, or an inversion**, and the last four rows are what
+turn §2.1.3's third route from a measurement into a statement.
+
+**One more row belongs in it, and it is written now**: the supply's **second** collar derivative. Each
+layer's flux is a numerator linear in the collar over a resistance built from the cumulative integral's
+span over its value, so one collar derivative reads the integrand and a second reads the integrand's own
+derivative — elementary, like everything else here. With it the profit's curvature in the operating
+point is a statement, agreeing with the difference it replaces to $1.5\times10^{-8}$ over the golden
+grid's interior points.
+
+**Two things it did not do, and both are worth stating because the first was expected.** It did not
+leave the boundary with no consumer of a step: the difference survives as the fallback on the branches
+the closed forms do not describe, and a fallback costs an argument where a refusal does not. And it did
+not need the tabulation's curvature — differentiating a cumulative integral in its upper limit leaves
+the integrand there, so one more derivative leaves the integrand's own slope, which is a closed form and
+not a difference of the fit's data. That is the rule in the row above doing its work: **every second
+derivative here is a derivative of an integrand, never of an integral.**
+
+### Where the requirement binds, and it is one place
+
+The requirement fails at exactly one point today, and it fails quietly. **A tabulation that *infers*
+its slope from neighbouring values does not supply the integrand — it supplies an approximation to it**,
+and the two disagree by parts in ten thousand. That is above the threshold at which this corpus calls a
+difference real, so combining a closed-form second derivative with a fitted first derivative is mixing
+two models, and the inventory above collapses: $-S''/(S')^3$ is not the inverted curve's second
+derivative if $S'$ is one function and $S''$ is another's.
+
+**So the requirement is not "add a second derivative" but "supply the first one exactly, and the second
+follows".** A tabulation built from the value **and the closed-form slope** at each knot has the
+integrand as its own derivative, and then every row in the table above is consistent with the model
+being evaluated. Report 05 §7.6 states the ruling, its measured cost as a forward-model change, and the
+one property that has to be re-measured rather than inferred — that the argmax stays smooth enough in a
+trait to differentiate, since the curve is what the operating point is found by climbing.
+
+### What the requirement is worth, stated as bounds rather than as a plan
+
+Two consequences, and both are properties of the design rather than of any implementation of it.
+
+**The row layer's evaluation count becomes independent of the input count.** Where every row is a
+statement, the only model evaluations a call makes are the ones the *forward* answer needed: one solve.
+Where rows are recovered by perturbation, the count is a small multiple of the number of inputs, and
+each perturbation re-runs the inner solve. **The gap between those two is the design's cost case**, and
+it is the larger of its two arguments — the held block dominates, because an output's row perturbs the
+whole operating point where the condition's row perturbs only the marginal profit.
+
+**And the amplified error becomes round-off.** Report 05 (7.3d) shows the consumer's contraction
+amplifies the *difference* between the two coefficients' relative errors. Where both are partials the
+difference is round-off; where one is estimated it is that estimate's error; where one is *fitted* it is
+that error times the fit's absorption ratio. **So the accuracy case and the cost case have one cause**,
+and a design that closes one closes the other.
+
+---
+
 ## 4. What the boundary must guarantee
 
 The node is a contract between a passive solver and an active caller. Each requirement below is
 stated with the failure it prevents.
+
+**The rule the whole contract is an instance of, first, because it says why the node exists at all.**
+There are exactly two ways to obtain a transpose, and only one of them can drift. **Derived by tape:**
+record the forward map at an active scalar and take one vector-Jacobian product — such a transpose
+*cannot* disagree with its forward, because there is only one function. **Hand-mirrored:** write the
+transpose beside the forward and hold the two together by a comment. Every silent failure this corpus has
+found is of the second kind — a term dropped on a branch no fixture reaches, an association order
+restated at four sites, one column order assembled three times — and a hand-mirrored transpose is
+routinely *larger* than the forward it transposes. So:
+
+> **Record everything whose operations you can afford to record. Supply rows only where recording is
+> impossible — an opaque solver — or unaffordable — the whole trajectory.**
+
+**The leaf is the one place in this model where the first exception bites**, and §1 is why: the solve is
+opaque not by accident but because recording it would differentiate a search rather than a definition.
+Everything else in the step — the shared field, both reductions, the inflow condition, the downstream
+aggregation — is recordable and should be recorded. **A supplied row is a debt**, and the reason to name
+the rule before the requirements is that most of them are the terms of that debt.
 
 **1. Only values cross, in both directions.** The caller hands doubles in and receives doubles and
 derivative rows back. Nothing active enters the solver, and no tape is live inside it. This is what
@@ -510,18 +677,62 @@ entry, and will apply the weakest one it knows about to all of them. Where a bou
 that distinction in its types, it must at least not *create* the ambiguity — which means not
 perturbing to obtain a row the model can state.
 
+**12. A coefficient shared across a row's entries must be a partial, never a fit — and the reason is
+the opposite of the obvious one.** Where a row factors as a few scalars times a few vectors, the
+tempting economy is to *recover* the scalars by solving for the pair that reproduces some observed
+directions. It fits, it is cheap, and its residual on the directions it was solved from is excellent.
+It is also the worst available estimator, because the directions available to solve from are nearly
+collinear, so the fit trades one scalar against the other along precisely the direction a consumer's
+contraction amplifies. Report 05 (7.3d) gives the arithmetic: the amplification acts on the
+**difference** between the two scalars' relative errors, and a fit is the one procedure that maximises
+it. Three defences suggest themselves — an anchor direction chosen from outside the family the pair will
+serve, an out-of-sample check, a rule about which direction may anchor — and **all three are unnecessary
+rather than insufficient**: take each factor as a partial in the coordinates it is a partial in, and
+there is nothing to guard.
+
+Note what this requirement does *not* say. **A shared factor is not the problem, and forbidding one
+would be the wrong lesson.** A relative error common to every entry of a row passes through a
+contraction unamplified; it is only the part that differs between entries that the cancellation
+multiplies. So a design should share a factor *deliberately and completely*, putting as much of the
+uncertainty as it can into something common, and reserve its care for the residual. The rule is about
+the estimator, not about the sharing.
+
+**13. Feasibility is a separate channel, never a sentinel value.** The marginal profit returns a hard
+zero in a no-flow or infeasible state, and that zero is the same number stationarity returns. §2's fourth
+bullet gives the consequence for classification and §3.6 gives it for the forward answer; as a
+requirement on the interface it is simpler than either. **A quantity and the report of whether it exists
+must not share a representation**, because every consumer then has to reconstruct the distinction from
+context and each will do it differently — one testing a tolerance, one testing exact equality, one not at
+all. The channel costs a bool per call and removes a whole class of failure, and the same applies one
+level out: a classification field that is *hard-coded empty* reads as "nothing was unanswerable" rather
+than as "this is not wired up", which is the same defect as a failing check written down as expected.
+
 ---
 
 ## 5. Two rulings that are easy to get backwards
 
-**Differentiate the model being evaluated, not the model it approximates.** Where the forward
-solve reads a tabulated curve, the derivative that belongs on the tape is the *table's*, not the
-closed form the table approximates. A closed form is the more accurate derivative of a different
-function, and substituting it introduces a systematic disagreement — measured at parts in a
-thousand for the vulnerability integral — that no invariant on the gradient can attribute. The
-closed forms are still worth having, and report 05 §7.6 derives them; what they are for is
-replacing the *table*, in the forward model, as one change with one re-blessing. They are not a
-drop-in for its derivative.
+**Differentiate the model being evaluated, not the model it approximates — and note that the two can
+be made the same object.** Where the forward solve reads a tabulated curve, the derivative that belongs
+on the tape is the *table's*, not the closed form the table approximates. A closed form substituted for
+a **fitted** derivative is the more accurate derivative of a different function, and it introduces a
+systematic disagreement — measured at parts in ten thousand for the vulnerability integral — that no
+invariant on the gradient can attribute, because both routes are internally consistent and neither
+referees the other.
+
+**The ruling used to present two options and there are three.** Accept the disagreement, or replace the
+table with the closed form as a forward-model change — or **build the table from the value and the
+closed-form slope**, so that the table's own derivative *is* the closed form. The third collapses the
+two objects into one: exact at every knot, a cubic through exact values and exact slopes between them,
+and no gap left for an invariant to be unable to attribute. Report 05 §7.6 has the measured cost, which
+is a forward-model change and therefore a re-blessing, and the one property that must be re-measured
+rather than inferred — the argmax's smoothness in a trait, since the continuity class of the curve drops
+while the quantity that matters is what the operating point climbs.
+
+**Which is also the precondition §3.7 turns on.** With a fitted slope, a closed-form second derivative
+cannot be combined with the table's first derivative: they belong to different functions, and the
+inverted curve's second derivative in particular is built from both. So this ruling and the
+derivative-order requirement are the same requirement seen from two sides — **supply the first
+derivative exactly and the second one follows; infer the first and the second is unavailable.**
 
 **A non-finite return is a legitimate answer; a silent substitution for one is not.** Where the
 analytic route genuinely has no row — a branch kink, an equal-potentials boundary — returning
@@ -572,10 +783,41 @@ question.** Report 05 §7.0's five kinds are consecutive segments of one drydown
 a wet driver establishes nothing about a dry one, and a corner reported as unreachable is usually a
 corner nobody drove at.
 
+**And the driver that matters is rarely the one already being swept.** Three branches were reported
+unreachable by grids that could not reach them, each one parameter away, and only the first is a
+moisture question:
+
+| the branch | what reaching it took | what the grid had |
+|---|---|---|
+| shade death, which is a **pin at zero uptake** | radiation below 26.6 µmol at 25 °C | a floor of 100, and 94.8 is the threshold at 40 °C — a five percent miss |
+| a **gravity-balanced** layer, where the supply refused every derivative | a *single* soil layer, where the collar of zero uptake IS that balance | multi-layer profiles |
+| the **root's own** critical potential binding the dry bound | a plant whose root gives up before its stem | defaults where that potential and the stem's are the same number, so the arm is unreachable by construction |
+
+Two of the three are not soil moisture, and soil moisture is what gets swept. The third is worse than
+unswept: it is **unreachable at the default trait vector**, so no driver sweep of any kind would have
+found it — which is the argument for counting branches over *traits* as well as over drivers, and for
+treating an input whose rows are zero everywhere as a question rather than an answer.
+
 **6. Say whether a switch is a kink you mean.** A zero derivative may be exactly what the model
 intends; the point is that it should be a recorded decision rather than an artefact of writing an
 `if`. **This is the corpus's canonical statement of that rule**, and reports 01 and 03 point here
 rather than restating it.
+
+**7. Design the node against the *easy* case, and check it against the hard one.** The instinct is the
+reverse, and it produces an interface shaped like the difficulty. This model has a variant in which the
+operating point is a **tracked state** rather than an argmax — it ascends the marginal profit as an ODE
+state instead of maximising instantaneously — and that case needs no implicit solve, no stationarity
+condition, no curvature to divide by and none of §2.1.1's branches: its derivative arrives from the
+adjoint like any other state's, and the only thing it wants from the leaf is the marginal objective at a
+**prescribed** point, which the node returns anyway. **So the tracked case is the one that says what the
+general interface is**, and the argmax case is a specialisation of it in which one extra number — the
+condition's gradient — has to be supplied because no adjoint carries it.
+
+A node designed the other way round acquires the argmax's shape everywhere: a curvature in the return
+type, a classification every consumer must consult, a feasibility question in front of every row. Then
+the easy case cannot be expressed in it at all, which is the observable symptom — **a variant of the
+model that does not compile against its own gradient interface is the sign that the interface was carved
+around the hard case.**
 
 ---
 
@@ -613,3 +855,28 @@ rather than restating it.
   after all and the section's warning is about nothing. Report 00 §2's rank argument is where to
   check: the coupling is a vector per layer, not a scalar, and the positivity guard makes the layers
   behave differently from one another.
+- **The condition reads the state through some third intermediate.** §3.2a and report 05 (7.3b) claim
+  the stem potential and its collar response are the whole of it. The test is out-of-sample and needs no
+  reference gradient: recover the two coefficients from two state directions of *different families*,
+  then predict the remaining directions. A residual that stays at round-off confirms rank two; one that
+  grows with the number of predicted directions means a third intermediate. Note that this test passes
+  for the *wrong* pair as well — the pair that omits the collar's direct route to conductance is also
+  rank two — so it establishes the rank and not the coordinates. **What separates the two pairings is
+  whether the coefficient claimed to be closed form agrees with a difference of the condition**, and
+  that is the check the wrong pairing fails.
+- **The derivative-order requirement is not sufficient.** §3.7 claims that one order past the row
+  layer's consumption closes every row. If some row turns out to need a *third* order — a second
+  derivative of the condition, for a curvature the consumer wants — then the requirement is a moving
+  target rather than a property, and the argument that the primitives can be finished has to be
+  replaced by one about how far to go. Report 05 §7.7's curvature correction is where to look, since it
+  is the one quantity in the corpus a consumer might reasonably ask to differentiate again.
+- **Supplying a tabulation's slope roughens what the solve climbs.** §5 and report 05 §7.6 rest on the
+  argmax staying as smooth in a trait as it was under a solved-slope interpolant, and the continuity
+  class *drops* when slopes are supplied. Measured it holds, but it holds as a measurement: a curve with
+  more curvature between knots, or a coarser grid, is where it would fail, and the symptom would be
+  trait derivatives degrading without any row changing.
+- **The cancellation the water channel is judged against is the one a stand occupies.** Report 06 §7
+  measures every run stand between 1.03 and 1.14 and reaches 16.3 only under a root system no
+  trajectory develops. If a trajectory *does* develop one — or if a calibration ascending root
+  conductance reaches it — then the corner is a specification rather than a hazard, and the error budget
+  for the water rows is an order of magnitude tighter than the measured stands imply.
