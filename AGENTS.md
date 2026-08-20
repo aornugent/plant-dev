@@ -429,7 +429,7 @@ make -C phylloptim/tests/cpp CXX=g++            # builds and runs test_leaf and 
 make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds these too
 ```
 
-At `phylloptim@7367547` plus the uncommitted reverse-mode work: **test_leaf 2263 checks, 0
+At `phylloptim@d3acabb`: **test_leaf 2425 checks, 0
 failures**, and **test_golden 4320 bit-exact mismatches / 223 beyond the cross-platform
 tolerance**, which is the pre-existing Linux-versus-macOS state and the outstanding re-bless.
 `clang++-12` is gone from this image; `CXX=g++` reproduces the same counts.
@@ -502,13 +502,40 @@ else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
 `-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
 each snippet. A probe including any odelia header that names a concept needs it.
 
-At `odelia@ef705ee` the suite is **397 passing, 0 failing, 3 skipped**.
+At `odelia@23faedd` the suite is **398 passing, 0 failing, 3 skipped**.
 
 **One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
 takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
 once in five full-suite runs, and never when that file is run on its own. If a run
 aborts there, re-run before investigating; if you are changing the leaf example or
 the AD driver, run the whole suite several times, because once is not evidence.
+
+## Interpolation lives in one place
+
+`odelia/interpolator.hpp` holds the whole of it: a C1 piecewise cubic taking a value
+and a slope at each knot, plus the two rules that produce its inputs —
+`monotone_slopes` for knots that arrive with values alone, and `refine` for a target
+whose features are not known in advance. There is no fit that chooses slopes
+globally; `spline.hpp` and the cubic-through-values interpolator are gone, along with
+`plant/adaptive_interpolator.h` and the R6 `Interpolator` class.
+
+Three things follow that are easy to get wrong from the outside:
+
+- **Where the knot data comes from is the caller's, and there are three sources** — a
+  closed form supplies both halves (the vulnerability curves), a reduction supplies
+  both from one expression (a resource field), or only values exist and the slope
+  rule chooses the rest (an extrinsic driver). Only the third needs a rule, and there
+  the rule is a modelling choice rather than a numerical fallback.
+- **The domain policy is the caller's too.** The interpolant extends its end line and
+  never throws; a driver refuses out of range and names itself. A non-finite query
+  falls through and comes back non-finite, which callers rely on — so a guard here is
+  never written as the negation of an in-range test.
+- **A slope read at an active position is refused, not answered.** `eval` takes an
+  active position and grafts the query's derivative; `slope` and `value_and_slope`
+  `static_assert` a passive one, because a query's derivative reaches a value and not
+  a slope.
+
+`plant::ExtrinsicDrivers` is an alias to `odelia::drivers::Drivers`; it was a copy.
 
 ## Profiling — read the method before taking a number
 
