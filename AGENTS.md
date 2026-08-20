@@ -137,7 +137,7 @@ If a rebuild throws `undefined symbol` on load, clear stale build artifacts firs
 
 ### ⚠️ The build reports success without saying what it built
 
-Four hazards that cross a package boundary. None of them produces an error, and the
+Five hazards that cross a package boundary. None of them produces an error, and the
 first two have each cost a session. Do these unconditionally rather than when
 something looks wrong, because nothing will look wrong.
 
@@ -219,6 +219,20 @@ Two habits make it survivable:
 
   Use `R_LIBS`, which *prepends*. `R_LIBS_USER` **replaces** the user library and
   hides Rcpp, BH, testthat and everything else with it.
+
+**5. Adding a MEMBER to `odelia/interpolator.hpp` is an ABI break, and the segfault it
+causes names a different file.** `drivers.hpp` includes the interpolator and `Drivers`
+embeds one, so the interpolant's `sizeof` is part of odelia's ABI. odelia's own test
+suite compiles the leaf-thermal example with `sourceCpp` and **caches the resulting
+`.so`**, which `ensure_leaf_thermal_interfaces(rebuild = FALSE)` then reuses against a
+freshly installed odelia. Grow the interpolant and the cached library reads the wrong
+offsets: the symptom is `memory not mapped` inside `LeafSolver_value_and_gradient`, in a
+file that has nothing to do with interpolation, and the file **passes when run on its
+own**. It looks exactly like the known intermittent crash below and it is not.
+
+Two habits: prefer reading data into the spans over storing another vector, and if a
+member has to be added, `printf("%zu", sizeof(hermite_interpolator<double>))` against the
+installed header before and after, or force the example to rebuild.
 
 **And build at `-O2` deliberately** — `pkgbuild::compile_dll()` appends
 `-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars`
@@ -429,9 +443,11 @@ make -C phylloptim/tests/cpp CXX=g++            # builds and runs test_leaf and 
 make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds these too
 ```
 
-At `phylloptim@d3acabb`: **test_leaf 2425 checks, 0
+At `phylloptim@aafc5b0`: **test_leaf 2421 checks, 0
 failures**, and **test_golden 4320 bit-exact mismatches / 223 beyond the cross-platform
 tolerance**, which is the pre-existing Linux-versus-macOS state and the outstanding re-bless.
+Run `test_golden` from `tests/cpp` -- it looks for `golden/operating_points.tsv` relative to
+the working directory and reports it MISSING from anywhere else.
 `clang++-12` is gone from this image; `CXX=g++` reproduces the same counts.
 
 **The row layer has two entry points and they are not interchangeable.** `rows_at(Leaf&, const
@@ -455,14 +471,14 @@ Rscript -e 'library(phylloptim)
     env = new.env(parent = asNamespace("phylloptim")), stop_on_failure = FALSE)'
 ```
 
-**Six known failures, and every one of them is the recorded expectation rather than the code.**
-Counts are 1434 passing / 5 failing / 1 error / 1 skipped; a differing count is yours.
+**Five known failures, and every one of them is the recorded expectation rather than the code.**
+Counts are 1435 passing / 4 failing / 1 error / 1 skipped; a differing count is yours.
 
 | file | what | why it is not a finding |
 |---|---|---|
 | `test-gradient-batch.R` ×2 | a status of `"pinned"` where `"error"` is expected | the expectation predates the constrained branch answering |
 | `test-gradient.R` | `H` expected `-8.9561`, reads `-8.9532` | the reading is bit-identical across the curvature's refactor — 243 of 243 states — so the recorded number is stale |
-| `test-gradient.R` | `root_b`'s profit row 0.0140 against 0.0137 | the arbitration's own spread |
+| ~~`root_b`'s profit row 0.0140 against 0.0137~~ | **passes now** | it was recorded as the arbitration's own spread and it was the table's read error; a quintic read of G closed it |
 | `test-surface.R` | `A` differs in the 7th digit between two construction routes | one ULP class |
 | `test-gradient.R:332` **(error)** | `g$gradient["cost_scale_TF24", "A"]` is out of bounds | **the test asks for a parameter it did not request** — `pars` is `c("vcmax_25", "stem_b", "R_d_25")`, so this cannot depend on any C++ change, and the error aborts the test before its twelve-assertion loop over `analytic` ever runs. A test that errors early is a test that stops covering what follows. |
 
@@ -502,7 +518,7 @@ else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
 `-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
 each snippet. A probe including any odelia header that names a concept needs it.
 
-At `odelia@23faedd` the suite is **398 passing, 0 failing, 3 skipped**.
+At `odelia@7a7dcb4` the suite is **402 passing, 0 failing, 3 skipped**.
 
 **One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
 takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
@@ -512,10 +528,18 @@ the AD driver, run the whole suite several times, because once is not evidence.
 
 ## Interpolation lives in one place
 
-`odelia/interpolator.hpp` holds the whole of it: a C1 piecewise cubic taking a value
-and a slope at each knot, plus the two rules that produce its inputs —
-`monotone_slopes` for knots that arrive with values alone, and `refine` for a target
-whose features are not known in advance. There is no fit that chooses slopes
+`odelia/interpolator.hpp` holds the whole of it: a piecewise polynomial taking a value
+and a slope at each knot — and at `Order 5` a curvature as well — plus the two rules
+that produce its inputs: `monotone_slopes` for knots that arrive with values alone, and
+`refine` for a target whose features are not known in advance.
+
+**The order is set by the source, not chosen.** A cubic is what two exact channels
+support and a quintic what three do, converging as h^6 in the value and h^5 in the slope
+against h^4 and h^3. `set_data` has one signature per order, so the wrong number of
+channels does not compile. The vulnerability curves are quintics because G's first two
+derivatives are both closed forms; a resource field is a cubic because it is C1 and not
+C2 -- its second derivative jumps at every crown top, so there is no third channel to
+supply and a quintic there would be describing the fit. There is no fit that chooses slopes
 globally; `spline.hpp` and the cubic-through-values interpolator are gone, along with
 `plant/adaptive_interpolator.h` and the R6 `Interpolator` class.
 
@@ -535,7 +559,18 @@ Three things follow that are easy to get wrong from the outside:
   `static_assert` a passive one, because a query's derivative reaches a value and not
   a slope.
 
+- **A curve and its derivative are one table, not two.** phylloptim's root pair held f_r
+  and G on the same grid where G's supplied slopes ARE f_r, so uptake read G from one
+  polynomial and f_r from another; they agreed at the knots and nowhere between. f_r is
+  the cumulative table's slope now. The general form: tabulate the lowest derivative
+  anyone reads and take the higher ones from the same polynomial.
+
 `plant::ExtrinsicDrivers` is an alias to `odelia::drivers::Drivers`; it was a copy.
+
+**Beer's law lives in `resource_spline.h`**, as `build_extinction_field`. It was written
+out once per environment, identically. `Environment`'s base had three declarations with
+no definitions -- `compute_environment` and both `set_fixed_environment` overloads -- all
+shadowed by every derived class; they are gone.
 
 ## Profiling — read the method before taking a number
 
