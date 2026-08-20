@@ -253,7 +253,10 @@ sweep per seed" claims and had not been checked at this width.
 ## 4. What is left
 
 Ranked by share of the reverse pass, asymmetric items first, because that is what
-§2 says to rank by.
+§2 says to rank by. **One item is out of that order on purpose: §4.5 is the largest
+asymmetric share here and sits fifth**, because it is the only one whose price is a
+re-blessing. §6 states the sequencing that follows, which is by price and not by
+share.
 
 ### 4.1 Hoist the collar-solve preparation — 16.3%, and the argument is already made
 
