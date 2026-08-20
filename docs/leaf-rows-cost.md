@@ -214,8 +214,15 @@ The older reading, for the phases the join did not move:
 | ⤷⤷ `dprofit_droot_collar_psi` — the marginal-profit probes | **8.3%** | **yes** |
 | ⤷ XAD's tape machinery — sweep, slot pushes, register/unregister | **~17%** flat | yes |
 | **`store_trajectory`** — a second full forward pass | **8.5%** | **yes** |
-| the light spline's reads (`basic_spline::operator`, `deriv`) | ~14% flat, over half inside the leaf's rows | no |
+| the vulnerability curves' reads (`basic_spline::operator`, `deriv`) | ~14% flat, over half inside the leaf's rows | no |
 | the water supply (`MultiLayerRoots::uptake_impl`) | 9.7%, mostly inside the leaf's rows | no |
+
+⚠️ **That row was labelled the light spline's and is not.** `basic_spline` is not
+reachable from the light field: `ResourceSpline` holds a `hermite_interpolator`, and
+`basic_spline` is reached only through `Interpolator` — the stem and root
+vulnerability curves, and the extrinsic drivers. So the ~14% and the 15.1% for
+`root_vuln_integral_at` in the joined table are plausibly one subtree under two
+names, and the two must not be added. Re-attribute before either is ranked.
 
 **Three facts follow, and they set §4's order.**
 
@@ -341,16 +348,61 @@ mutator — and a key that covers *almost* every mutator is worse than no cache.
 Their purpose is to bound tape memory below `O(M)` by trading storage for a `log M`
 recomputation factor. The move on this axis is the opposite one: store more.
 
-### 4.5 Spline reductions — deferred, and on another branch
+### 4.5 The field reduction — 19.0%, the largest taped term, and never landed
 
 The field build evaluates a reduction over every cohort at every knot. The Yokozawa
 kernel is a polynomial in `u^η`, so three running sums over height-ordered cohorts
 give every knot at once and the build is `O(K + N)` rather than `O(K·N)`.
 
-**This work is proceeding on another branch and must not be duplicated here.** Two
-things to know when it lands. It is **symmetric** — the forward model pays the same
-reduction — so it improves absolute time considerably and the ratio much less. And
-it does not remove a build: it makes each one cheaper.
+**The reading this section used to carry — that the lever is symmetric — was wrong,
+and the correction is a factor of four.** Measured on the same subtree: **1,029
+samples in the forward run against 8,530 in the gradient, 8.3× dearer per build.**
+And the forward spreads its 1,029 over *more* builds than the gradient sweeps,
+because a rejected attempt is built and never swept — so 8.3× is a floor on the
+per-build penalty rather than an estimate of it.
+
+**The mechanism is the tape.** Inside a recording the operation count *is* the tape,
+so the reduction is paid once when the recording is built and again on every walk of
+it. That puts it at **19.0% to build, plus its share of the 29.5% walk** — the
+largest single term on the taped side of the pass, three quarters of everything the
+tape costs. It is not the largest item here: §3's `record_leaf_outputs` is, at 35.9%
+of the profile and 49.1% joined. The two are opposite in kind — one is what the
+tape-everything rule taped, the other is the one place it supplied rows instead — so
+neither is a cheap-versus-dear choice against the other. What the
+old ranking got wrong is narrower and total: it priced this as something the forward
+model pays equally and the ratio barely notices, and the forward model pays an eighth
+of it.
+
+Two consequences. **The order at which a model writes a reduction is a reverse-mode
+decision**, not a forward-model performance detail. And this is the one lever that
+shrinks the dominant taped term without touching the rule that sends everything to
+the tape: the reduction stays taped, no transpose is hand-written, and the sweep
+walks `O(K + N)` edges because that is what the forward pass performed. Its price is
+that it re-associates, and the forward association is asserted bit-exactly, so
+landing it re-blesses every reference the reduction's value reaches. That price is
+the whole of it and is not negotiable down.
+
+**It is designed, and it was never landed.** The distinction that matters is between
+the interpolant and the build's order: the interpolant landed, the order did not.
+`ResourceSpline` reads a cubic Hermite carrying a slope at every knot, and
+`compute_competition_and_slope_split(double height)` is still a walk over the node
+list per knot, with the early exit at `h0 < height` — `O(K·N)` at K = 65, called once
+per knot by the field build. The single descent exists on
+`plant@ad/light-field-develop`, one commit — *Read the light field off a lattice of
+constants, and build it in one descent* — touching `species.h`, `canopy_shape.h` and
+`resource_spline.h`. Beside it:
+`odelia@ad/hermite-interpolator`, whose later commits — the lattice moving onto the
+interpolant, the unchecked read, the span lookup — are absent from the landed
+interpolant, and `phylloptim@ad/hermite-vulnerability`, one commit reading the stem
+curve's slope as the closed form.
+
+**None of the three is an ancestor of anything this work is built on**, and the cost
+of landing is not the diffstat. Against today's tree the plant branch is
+**+608/−657 across those three files, net −49 lines** — but it is one commit off a
+merge-base the mainline has since moved **198 commits** past, and those commits
+rewrote the same three files heavily (`species.h` alone by +593/−308). So this is a
+port, not a merge, and the re-blessing sits on top of the port. Any estimate of what
+it costs that reads the net line count is reading the wrong number.
 
 ### 4.6 What has stopped being a lever
 
@@ -419,8 +471,11 @@ when it is wrong, and the differenced implementation is the reference — it exi
 today, and it stops existing the moment it is deleted. **Capture the reference
 before removing the differencing.**
 
-The order the shares imply: §4.1 first, because it is the largest asymmetric item
-and a hoist rather than a re-derivation, so bit-identity refereeing it is enough.
+The order the shares imply: §4.1 first — **not** because it is the largest, since
+§4.5 is, but because it is a hoist rather than a re-derivation, so bit-identity
+referees it and it costs no re-blessing. §4.5 is the largest asymmetric item at
+19.0% and is deliberately not first: its price is a re-association that re-blesses
+every reference the reduction reaches, paid on top of a port across 198 commits.
 Then §4.2's conductance identity, which is a correctness check that happens to pay.
 Then §4.4, which is bounded by a memory decision rather than by arithmetic. §4.3
 last of the four, because its three parts are each small and one of them touches
