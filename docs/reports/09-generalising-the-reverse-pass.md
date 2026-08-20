@@ -936,6 +936,29 @@ wasted run is **55 s of a 283 s** gradient path. The flag is now an argument to 
 running. Nothing about this was a design question; it is here because it was mistaken for one, and the
 measurement that mattered was of the run nobody had counted.
 
+**3c. A recorded schedule replayed forward is exact, and cheaper than choosing it again.** *Measured, and
+one field short of usable.* The reverse pass already treats the step sizes as constants: it replays the ones
+the run recorded rather than choosing its own, because a walk that chose would be differentiating a
+controller the model does not contain. The forward pass need not choose either — and pinned to the sizes a
+run took, it **reproduces that run bit for bit over 3,381 steps**, gradient included, while paying **15%
+less**, because it attempts no step it will reject.
+
+The code said this was impossible, and named a cause: a rejected attempt moves patch state that is not ODE
+state, and a pinned run makes no such attempt. The states are measurably identical, so whatever a rejected
+attempt leaves behind is rebuilt from the state before anything reads it. **A claim about what a replay
+cannot reproduce is checkable in one run, and this one had never been checked.**
+
+What stops it being the default is one field and one hazard, and they pull in opposite directions:
+
+- **A refined parameter set records the times and not the sizes.** Its own comment says it exists to leave
+  the parameters self-describing, and a schedule replayed by times alone is not the schedule that was taken,
+  because `fl(fl(t + h) - t)` is not `h` — the same fact stated two hundred lines away as the reason the
+  walk replays sizes. So the set carries enough to replay approximately and not enough to replay exactly.
+- **The times are already stored, and pinning is only valid at the traits they were refined at.** So the
+  flag that reads them must stay opt-in: defaulting it on would silently pin every refined run, including
+  runs at traits whose own schedule would differ. This is the shape of §7's hazard turned around — not a
+  hook nothing calls, but data nothing reads, which a changed default would activate everywhere at once.
+
 **4. Manage the tape instead of rebuilding the System — measured, viable, and not taken.** Lifting the
 System per recording is one construction per step, and there is a second way to get slot freshness
 that costs no construction at all. `clearAll()` returns the tape's slot counter to zero;
