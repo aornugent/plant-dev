@@ -59,14 +59,12 @@ if (prepare_only) {
 
 cat("max_patch_lifetime", p$max_patch_lifetime, "\n")
 
-scm <- run_scm(p, Environment("TF24"), ctrl,
-               refine_schedule = FALSE, collect = FALSE)
-# Keep the states the sweep needs. Without this the gradient repeats the whole
-# forward run to recover them, and the profile charges that repeat to the
-# gradient -- which is where the 8.5% in store_trajectory came from.
-scm$record_trajectory <- TRUE
-scm$reset()
-t_fwd <- system.time(scm$run())[["elapsed"]]
+# One run, keeping the states the sweep walks. Asking for them after the fact
+# used to mean running twice -- once to build the stand and once to record it --
+# and the second run is what the gradient was charged for.
+t_fwd <- system.time(
+  scm <- run_scm(p, Environment("TF24"), ctrl, refine_schedule = FALSE,
+                 collect = FALSE, record_trajectory = TRUE))[["elapsed"]]
 
 cat("species           ", scm$patch$size, "\n")
 cat("ode_size          ", scm$patch$ode_size, "\n")

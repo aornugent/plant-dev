@@ -891,35 +891,50 @@ go quiet a second time; the pass cannot be set by anything but the driver; a Kin
 a resident sweep is refused by name; and the Kind B restore is refereed by bit-identity against the
 solve it replaces.
 
-**3a. The forward model is run again for every consumer of one recording.** *Open, and the blocker is
-not what the code says it is.* A gradient opens by asking for the states its sweep walks, and the run
-that produced them has just finished. On the reference fixture that repeat is **38 s against a 176 s
-gradient — 22%** — and three consumers ask for the same recording, so a referee set pays it three times.
+**3a. The forward model is run again for every consumer of one recording.** *Closed, and the blocker was
+not what the code said it was — twice.* A gradient opened by asking for the states its sweep walks, and the
+run that produced them had just finished. On the reference fixture that repeat is **38 s against a 182 s
+gradient**, and a referee set of three consumers paid it three times.
 
-**The reason given for the repeat was wrong and is now disproved.** It said the states had to be emptied
-as they were read, because they lived in one store and the step sizes that reached them in another, so a
-store left behind could be paired with a later run's sizes. That is fixed: the state, the time it was
-reached at and the size that reached it are one record, and one record cannot be mispaired.
+**The first reason given was wrong.** It said the states had to be emptied as they were read, because they
+lived in one store and the step sizes that reached them in another, so a store left behind could be paired
+with a later run's sizes. Folding the state, the time it was reached at and the size that reached it into
+one record disposed of that: one record cannot be mispaired.
 
-**The reason the repeat is still load-bearing is that a sweep is not re-entrant**, and that is the
-finding. The walk restores the *width* it borrowed — narrowing to the lowest as it descends and widening
-back at the tail — but a widening does more than widen: it inserts a unit, and what that unit carries
-which is **not ODE state** does not come back with the width. Sweep the same recording twice and the
-second insertion lands at a coordinate the first already occupies; the grid's own guard refuses, because
-two units at one coordinate span zero width (§4.1). **The repeat has been hiding that for as long as it
-has existed** — no second sweep of one recording has ever run.
+**The second reason was wrong too, and it is the one worth recording.** It said a sweep is not re-entrant
+because a widening inserts a unit and what that unit carries which is not ODE state does not come back with
+the width. The symptom was real — a second sweep refused with two units at one coordinate — but the cause
+was not the width. **The walk opened by widening a System that was already at its full width**, purely to
+assert that narrowing undoes it, and it did that at whatever state the System had been left holding, which
+is a state no widening was ever applied to. On a fresh run the stamp it wrote was unique and nobody noticed;
+after a sweep it collided with the one the walk's own tail had just written. The guard was not blind to the
+defect, the guard **was** the defect.
 
-⚠️ **And §4.2's round-trip guard structurally cannot see it.** It widens, immediately narrows, and
-compares the state, on the argument that "the state is the only witness". The state is exactly what this
-bookkeeping is not, so the guard passes and the defect sits underneath it. Same shape as §4.1's one-ended
-closing transpose: a check whose witness does not cover what it guards.
+*What closed it, and it is a deletion.* §4.2's `widen` and `narrow` are gone. A walk now says which recorded
+step to be at and the System reconciles itself to it, so there is no ordering for a caller to get wrong and
+nothing for a round trip to check. **The guard is deleted rather than fixed**, along with the newest-first
+descent, the widen-back climb, the applied-count cursor and the narrow-on-throw. What replaces them is one
+loader whose idempotence is structural: reconciling to a target is the same operation however many times it
+runs, where stepping from a cursor is not.
 
-*Do:* make the insertion's non-state bookkeeping a function of the recorded step it is replayed at rather
-than of whatever the System last computed, so widening at a recorded step is idempotent. Then the repeat
-goes and the flag holding it goes with it.
+Two things fell out that were not the point:
 
-*Done when:* two sweeps of one recording run without a repeat and agree bit for bit — which is an
-assertion the suite already makes and which has only ever been reached through a fresh run.
+- **The stamp an inserted unit carries was read off the System's clock**, and every number it needs is a
+  function of the time the schedule fixed. So it is now an argument, and one insertion serves the run and
+  the walk — where two spellings previously agreed by call order.
+- **A value the sweep transposes was being produced by a different function from the one it transposes.**
+  The insertion's value came from the mutation and its rows from the map. Both now come from the map, and
+  the whole ladder is bit-identical, which is what two spellings of one function look like.
+
+*Done:* two sweeps of one recording run without a repeat and agree bit for bit — an assertion the suite has
+always made and, until now, has only ever reached through a fresh run.
+
+**3b. A flag that has to be set before a run was only reachable after one.** *Closed.* Keeping the states a
+sweep walks is the caller's decision, and the caller could only express it on a constructed object — but
+construction runs. So every caller wanting states built the stand, set the flag, and built it again, and the
+wasted run is **55 s of a 283 s** gradient path. The flag is now an argument to the call that does the
+running. Nothing about this was a design question; it is here because it was mistaken for one, and the
+measurement that mattered was of the run nobody had counted.
 
 **4. Manage the tape instead of rebuilding the System — measured, viable, and not taken.** Lifting the
 System per recording is one construction per step, and there is a second way to get slot freshness
@@ -955,7 +970,7 @@ measurement; this is the list.* In descending order of what each is worth on the
 | | what | worth | price |
 |---|---|---|---|
 | a | the shared-part reduction at `O(K + N)` rather than `O(K·N)` (§4.1) | 19.0% to build, plus its share of a 29.5% walk | re-associates, so a re-blessing |
-| b | the repeated forward run (item 3a) | 22% per extra consumer | a non-re-entrant sweep, above |
+| b | ~~the repeated forward run~~ (item 3a) | **taken**: 38 s per extra consumer, plus a 55 s construction run | none: a deletion |
 | c | one walk at derivative width three rather than three walks (§5) | ~12% | a type change, and it deletes the seed loop |
 | d | active values by `const&` (§6.1) | targets 19.4% construction and 10.9% push/pop | none: bit-identical |
 
