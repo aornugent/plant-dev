@@ -581,8 +581,14 @@ out of the sweep like any input's.
 §2's rule sends it to a supplied row instead of a recorded one. Restoring it changes no tape edge,
 registers nothing, and asserts nothing.
 
-> **A payload is admissible on a pass if it is Kind B, or if it is Kind A and the pass's own model
-> declares that quantity exogenous.**
+**Kind C — a supplied hint.** The payload is neither a taped intermediate nor a restored answer: it is
+an *input to a search* whose output is then computed to the search's own tolerance. A bracket for a
+root-find, a starting iterate, an ordering. Supplying it changes which iterates the search visits, and
+therefore its last bits; it changes nothing about what the search converges to.
+
+> **A payload is admissible on a pass if it is Kind B; or Kind A and the pass's own model declares
+> that quantity constant; or Kind C and the consumer that reads its result is refereed more coarsely
+> than the perturbation it introduces.**
 
 That is the whole rule, and the reason is arithmetic rather than taste. A Kind A payload's adjoint
 has to go somewhere. Where the pass treats the quantity as exogenous the adjoint is discarded and the
@@ -593,6 +599,21 @@ A payload where its adjoint is needed is not unsafe so much as pointless, and th
 if the scatter is then skipped is a whole channel missing with every number finite.
 
 Kind B has no such condition because there is no adjoint to place: the rows were supplied either way.
+
+**Kind C's condition is about its consumer and not about itself, and that is the whole of what it
+adds.** A hint moves numbers — that is what distinguishes it from the other two, both of which are
+refereed by bit-identity and neither of which may move any. So the question a hint has to answer is
+not "is this the same value" but "who reads the answer, and to what tolerance". Where the answer
+reaches the tape, bit-identity is the only referee available and a hint is inadmissible; §9.8 says so
+and it stands. Where the answer feeds a **difference taken at a stated step**, the step is the
+referee, and a search's last bits are orders below it. So the same bracket is inadmissible feeding a
+recorded value and admissible feeding a differenced row, and what decides it is the consumer.
+
+⚠️ **This is the one place the design admits a payload that moves numbers, so it is the one place a
+payload needs a stated tolerance rather than an assertion of equality.** A hint whose consumer's
+referee is not written down is a hint nobody can check, and its failure mode is a row that is quietly
+the wrong row by less than anyone measures. A Kind C payload therefore declares the tolerance it is
+admissible under, beside its extent — and a consumer with no stated tolerance takes no hints.
 
 **This is why §2's rule and this section are the same statement.** §2 keeps an opaque solver off the
 tape because recording it would differentiate a search. Being off the tape is exactly what makes its
@@ -709,6 +730,22 @@ gradient's consumer opts into.
 |---|---|---|---|---|---|
 | **A** | the shared field's knot values and slopes | A — a moved cut | 2K per (step, stage) | an invasion sweep, where the resident's field is exogenous by definition | the whole `O(K·N)` reduction |
 | **B** | the inner solve's answer: the operating point, the branch it was found on, and the feasible bounds | B — a restored answer | one token per unit per read point per (step, stage) | **every pass** | the *search*, leaving one evaluation |
+| **A′** | a quadrature's nodes and its combined weights | A — a moved cut, over a **discretisation** | 2 per node per integral per (unit, stage) | **every pass**, because the discretisation is already declared constant | the controller's *search*, and the controller's arithmetic from the recording |
+| **C** | a bracket for a search that is about to be repeated at a perturbed argument | C — a hint | 2 per drive | a consumer refereed at a stated step, which a differenced row is | the bound-finding that establishes the bracket, once per drive |
+
+**Kind A's condition is met by two different kinds of quantity, and the second is the larger class.**
+The first is a resource the pass does not move — an invader's field, which §9.7 is about. The second is
+a **discretisation the pass declares constant**, and that declaration is not new: §11 already makes it
+for the insertion schedule, and the reverse pass already makes it for the step sizes, replaying the
+ones the run recorded rather than choosing its own. A quadrature's nodes and weights are the same
+statement one level down. So the rule reads *exogenous or declared constant*, and reading it as
+*exogenous* alone is what confined Kind A to the invasion case.
+
+**Which is also why the field's lattice is fixed and its values are not.** The knot POSITIONS are a
+discretisation and so are constants by the clause above; the knot values and slopes are what the
+reduction computes and so are the payload. Refining the positions per stage would make the
+discretisation a function of the state, and then the positions would need adjoints nobody wants — the
+same trade §11 records, at the same price.
 
 **The field is already cut there.** §2 lists the interpolant's knot values and slopes as the
 independent inputs the sparsity claim is about, and the interpolant already holds them as members with
@@ -968,6 +1005,51 @@ finite and plausible. The only witness was a bit-identity check that already exi
 from something adjacent is the failure this report exists to remove, and it is available to the person
 removing it.**
 
+**3d. A quadrature chooses a discretisation and then nobody records it.** *Open, and the smaller half is
+already written down somewhere.* A crown integral is an adaptive rule: it searches over node sets until
+its own error estimate passes, and then evaluates a weighted sum on the set it settled on. The search
+runs once per unit per stage on a recording pass, and again for every drive a differenced row takes.
+
+Recording the answer — the nodes, and the weights with any per-node factor already folded in — turns the
+integral into a fixed weighted sum. Three things follow, and only the first is a saving:
+
+- **The controller stops running.** Its search is repeated arithmetic over a value the run already found,
+  which is §9's whole subject one level down.
+- **The controller leaves the recording.** Its comparisons, its bisections and its error estimate are
+  operations the tape would otherwise carry, and §2.1 prices an operation removed at four.
+- **The transpose becomes trivial**, because a sum with constant weights has one. That is the part worth
+  the most and it is not a speed argument: an adaptive integral inside a recording is a controller being
+  differentiated, which §11 already refuses for the schedule and the step sizes and has no reason to
+  permit here.
+
+The payload is Kind A over a discretisation, so §9.6's widened clause admits it on every pass. Its extent
+is two numbers a node, its lifetime is one rate evaluation rather than one run — a rejected attempt
+overwrites it, exactly as §9.5 describes — and it is therefore transient rather than stored.
+
+*Do:* declare the node set and the folded weights as a payload keyed by (unit, read point, stage), and
+have the integral take them where they are supplied and search where they are not.
+
+*Done when:* the recorded run and a run replaying its node sets agree bit for bit, and the recording's
+operation count falls by the controller's own share.
+
+**3e. A differenced row re-establishes the bracket it just had.** *Open, and it is the first payload whose
+referee is not bit-identity.* A row taken by differencing evaluates the same search at a base point and at
+each drive, and every one of those searches begins by finding the interval it will search in. The drives
+sit a step away from the base, so the interval barely moves — and it is re-derived from scratch each time.
+
+This is §9.1's Kind C and it is the reason that kind exists. The bracket is not an answer and restoring it
+is not a restore: the search still converges to its own tolerance, from a different set of iterates, so
+the arms differ in their last bits. What makes that admissible is the row, which is a difference at a
+stated step — orders coarser than the bits that moved. What would make it inadmissible is a consumer that
+reaches the tape, and a differenced arm never does: §2's rule sent it to a supplied row, which is the
+same fact that makes Kind B admissible everywhere.
+
+*Do:* hold the base search's interval beside the row's own step, hand it to each drive, and state the
+tolerance the row is refereed at in the same place.
+
+*Done when:* the row agrees with a row taken without the hint to better than the row's own step, and the
+statement of that step lives beside the hint rather than in whoever wrote it.
+
 **4. Manage the tape instead of rebuilding the System — measured, viable, and not taken.** Lifting the
 System per recording is one construction per step, and there is a second way to get slot freshness
 that costs no construction at all. `clearAll()` returns the tape's slot counter to zero;
@@ -1115,3 +1197,13 @@ schedule is a function of the parameters and the reverse pass treats it as const
 this machinery produces is a partial derivative at a fixed discretisation.** That is defensible and it
 is not what a reader assumes. Nothing in the code can check it, so it belongs written beside any
 number the machinery produces.
+
+**And the schedule is not the only discretisation it covers.** The step sizes are chosen adaptively and
+replayed as constants. The shared field is read on a lattice, and the lattice is fixed rather than
+refined per stage. A quadrature over a unit's own extent chooses its nodes and, where §10 item 3d
+lands, will replay them. Each of these is the same sentence about a different discretisation, and each
+is what makes the corresponding payload admissible under §9.6's widened clause — so the clause and this
+qualification are one statement read from two ends. **The honest form of the sentence is therefore that
+the gradient is a partial derivative at a discretisation the forward pass chose**, which is stronger
+than "fixed" and is what a reader has to be told: a second run that discretised differently would
+answer a different question, and nothing in either number says so.
