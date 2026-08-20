@@ -948,16 +948,25 @@ state, and a pinned run makes no such attempt. The states are measurably identic
 attempt leaves behind is rebuilt from the state before anything reads it. **A claim about what a replay
 cannot reproduce is checkable in one run, and this one had never been checked.**
 
-What stops it being the default is one field and one hazard, and they pull in opposite directions:
+*Done, and the contradiction that guarded it was a third store of one recording.* The schedule was three
+members — the times, the sizes, and a bool saying to use them — held together by a rule in a comment about
+which setter cleared which. It is one vector now, and using it is **derived from holding it**: no flag, so no
+way to hold a schedule and not take it, and one setter for both halves, so no way to hold a size recorded
+against another run's times. That is the same fold as the state beside its step size, and as the widening
+beside the step it followed: **the third instance of one recording kept in two places.**
 
-- **A refined parameter set records the times and not the sizes.** Its own comment says it exists to leave
-  the parameters self-describing, and a schedule replayed by times alone is not the schedule that was taken,
-  because `fl(fl(t + h) - t)` is not `h` — the same fact stated two hundred lines away as the reason the
-  walk replays sizes. So the set carries enough to replay approximately and not enough to replay exactly.
-- **The times are already stored, and pinning is only valid at the traits they were refined at.** So the
-  flag that reads them must stay opt-in: defaulting it on would silently pin every refined run, including
-  runs at traits whose own schedule would differ. This is the shape of §7's hazard turned around — not a
-  hook nothing calls, but data nothing reads, which a changed default would activate everywhere at once.
+**And the contradictory comments were hiding two features in one field.** `ode_times` means a grid a caller
+wants stopped at *and* a run a caller wants replayed, told apart by whether a second container happened to be
+empty — so one branch was exact and intended while the other was inexact and nobody's intention. A recording
+**is** a grid that also knows its sizes, so both are one schedule and a step carrying no size is stepped *to*.
+Two replay entry points become one, and the emptiness test that stood for the distinction goes.
+
+⚠️ **Deciding per item what was decided per schedule is how the fix first broke it.** Gating the replay on
+"does this interval hold a step" rather than "is this schedule pinned" agrees for every interval except one
+crossed in a single step — and there the pinned branch silently became the adaptive branch, with every number
+finite and plausible. The only witness was a bit-identity check that already existed. **A guarantee re-derived
+from something adjacent is the failure this report exists to remove, and it is available to the person
+removing it.**
 
 **4. Manage the tape instead of rebuilding the System — measured, viable, and not taken.** Lifting the
 System per recording is one construction per step, and there is a second way to get slot freshness
