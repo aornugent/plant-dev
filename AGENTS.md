@@ -479,6 +479,13 @@ Counts are 1435 passing / 4 failing / 1 error / 1 skipped; a differing count is 
 | `test-gradient-batch.R` ×2 | a status of `"pinned"` where `"error"` is expected | the expectation predates the constrained branch answering |
 | `test-gradient.R` | `H` expected `-8.9561`, reads `-8.9532` | the reading is bit-identical across the curvature's refactor — 243 of 243 states — so the recorded number is stale |
 | ~~`root_b`'s profit row 0.0140 against 0.0137~~ | **passes now** | it was recorded as the arbitration's own spread and it was the table's read error; a quintic read of G closed it |
+
+⚠️ **The vulnerability grid's knot count is set by the ROWS, and one classification still rests on
+it.** Two row checks follow the knot spacing monotonically while G's own read error sits sixty times
+inside its budget, so refining the read does not buy a coarser grid. Separately, the wet end of the
+collar bracket reads as feasible or not according to the sign of the two stem tables' round-trip
+disagreement — `stem_curve_integral_inverse` records the measured fix and why it belongs to the
+refusal channel rather than to that accessor.
 | `test-surface.R` | `A` differs in the 7th digit between two construction routes | one ULP class |
 | `test-gradient.R:332` **(error)** | `g$gradient["cost_scale_TF24", "A"]` is out of bounds | **the test asks for a parameter it did not request** — `pars` is `c("vcmax_25", "stem_b", "R_d_25")`, so this cannot depend on any C++ change, and the error aborts the test before its twelve-assertion loop over `analytic` ever runs. A test that errors early is a test that stops covering what follows. |
 

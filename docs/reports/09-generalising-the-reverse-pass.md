@@ -899,6 +899,26 @@ Also here: a classification enum in the same dependency derives four values **fr
 magnitude**, which report 05 §7.0 forbids — and it sits beside the eleven-state tree above, which the
 gradient entry point never reads. It is the same subject as item 1 and lands with it.
 
+**And one instance of it is located, with its fix measured and refused.** The wet end of the collar
+bracket is the potential at which uptake is zero, so the transport carries no drop and the stem
+potential IS the collar potential. The model gets there by round-tripping the conductivity integral
+through its own separately-tabulated inverse, so it comes back within the two tables' disagreement --
+and the **sign** of that disagreement is what the feasibility gate then compares. So a feasibility
+classification moves with the discretisation, and not monotonically: over five knot counts the
+suite's failure count runs 0, 1, 9, 8, 8, because a sentinel is appearing and vanishing rather than a
+number drifting.
+
+**What makes it item 2's work rather than an accessor's** is what happened when the round trip was
+made exact. One Newton step against the forward table takes it from 2.10e-12 to 6.27e-16 -- the
+residual's zero is at the collar potential by construction, whatever either table's error is -- and
+the failure count then runs 0, 1, 2, 2, 2, every one of them an ordinary accuracy threshold. But
+every analytic derivative of that relation was derived for the unpolished map, so polishing the value
+alone leaves a value and its derivatives describing different functions, and the symptom is the whole
+channel: 47 of 47 nodes on a dry stand refuse with *the profit's curvature has no closed form at this
+point* at operating points the solve called interior. **A classification that rests on the sign of a
+round-trip error cannot be fixed by making the round trip exact, because the derivatives the
+classification is built from were fitted to the error.**
+
 *Do:* lift the construction the dependency already uses into the solver's own return type, so
 "undefined here" survives the whole way out rather than being flattened at the first boundary it
 crosses.
