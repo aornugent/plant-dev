@@ -377,6 +377,8 @@ so a differing count is yours:
 | `test-stochastic-patch.R` | 3 | a range over an empty competition interval |
 | `test-stochastic-patch-runner.R` | 1 | misses its seeded baseline |
 
+Non-ladder totals are **3259 / 8 / 3 / 13** and the ladder **679 / 0 / 0 / 5**.
+
 **`test-strategy-tf24.R`'s second failure is newly visible, not new.** Its parameter probe is
 compiled by `sourceCpp` and was missing two things every such probe needs — the include paths of
 the packages `plant` LinkingTo's, and `// [[Rcpp::plugins(cpp20)]]`, which cannot go in
@@ -595,6 +597,11 @@ single cost is the leaf's supplied derivative rows at **35.9%** of a profile —
 so nothing in the sweep touches it — and **16.3%** of that is one root-find re-run per
 perturbation, which §4.1 says is a legitimate per-family hoist. XAD's machinery is
 **~17%**, down from ~30% before one recording came to span a step.
+
+⚠️ **That distribution predates the field reduction going to `O(K + N)`, which took
+1.61x off a census gradient and 5.3% off a forward run** -- measured by forcing the old
+walk in the same binary. The shares above no longer sum the way they did, and the leaf's
+rows are now a larger fraction of a smaller total. Re-measure before ranking against them.
 
 **`scripts/profile-gradient.sh` is the harness**, and it automates the four guards
 §1 lists:

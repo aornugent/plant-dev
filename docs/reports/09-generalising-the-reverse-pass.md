@@ -60,6 +60,12 @@ source: two shared-part builds per stage at 65 query points, over ~81 units with
 block's tape" as "the reduction is not what is expensive", and priced the rule's first clause as free.
 Measured, the tape is most of the reverse pass and the reduction is most of the tape.
 
+**The reduction has since been written at `O(K + N)` and the measurement closes the loop.** Forcing the
+old walk in the same binary, a census gradient runs 4.18 s against 2.60 s and a forward run at lifetime
+40 runs 20.10 s against 19.03 s -- **1.61× on the gradient against 5.3% on the run.** That asymmetry is
+this section's own claim measured from the other end: the same arithmetic removed is worth an order more
+inside a recording than in a pass without one.
+
 ### 2.1 What taping costs, measured
 
 The rule above says to tape whatever can be afforded. What that costs was never measured, so here it
@@ -176,9 +182,20 @@ Two things about what such a rewrite is worth, and the first is why it belongs i
   the reduction stays taped, there is no hand-mirrored transpose, and the sweep walks `O(K + N)` edges
   because that is what the forward pass performed. Ranking it as symmetric — "the run pays the same
   reduction" — understates it by §2.1's factor of four.
-- **It re-associates, and the forward association is asserted bit-exactly** (§2). So it is a
-  re-blessing of every reference the reduction's value reaches, which is the whole of its price and is
-  not negotiable down.
+- **It re-associates, and the price that was predicted for that is measured and is not a
+  re-blessing.** §2 asserts the forward association bit-exactly, so the expectation here was that the
+  rewrite re-blesses every reference the reduction's value reaches. Measured on the reference model it
+  re-blesses nothing: the two spellings of the kernel agree to **7.7e-14 in the field's knot values and
+  3.4e-14 in its slopes over 100,035 reads of a thirty-year run**, which is inside every tolerance the
+  suites already carry -- the bit-identity guard on the strategy included, because what that guard pins
+  is the strategy's own numbers and not the field's last bits. **A re-association is not automatically
+  a re-blessing, and which it is depends on how far the value travels before anything asserts on it.**
+
+  ⚠️ **What DOES need care is the referee, not the number.** The expanded form cancels `1 - 2w + w²`
+  with every term at one where a knot meets a crown's own top, so `Q` there is exactly zero and a
+  *relative* error against it reads 1e272 while the absolute error is a few ULP. `Q` lives in `[0, 1]`,
+  so an absolute bound on it is already scale-free; `q`'s scale is `η/H`. Refereeing this relatively is
+  how the rewrite first looked catastrophic.
 
 **One degenerate interval per event is deliberate.** An event stamps the inserted element and then
 refreshes the closing element's coordinate to the same time, so the closing interval has exactly zero
@@ -1103,7 +1120,7 @@ measurement; this is the list.* In descending order of what each is worth on the
 
 | | what | worth | price |
 |---|---|---|---|
-| a | the shared-part reduction at `O(K + N)` rather than `O(K·N)` (§4.1) | 19.0% to build, plus its share of a 29.5% walk | re-associates, so a re-blessing |
+| a | ~~the shared-part reduction at `O(K + N)` rather than `O(K·N)`~~ (§4.1) | **taken: a census gradient 4.18 s → 2.60 s, 1.61×** | none: the re-association re-blessed nothing |
 | b | ~~the repeated forward run~~ (item 3a) | **taken**: 38 s per extra consumer, plus a 55 s construction run | none: a deletion |
 | c | one walk at derivative width three rather than three walks (§5) | ~12% | a type change, and it deletes the seed loop |
 | d | active values by `const&` (§6.1) | targets 19.4% construction and 10.9% push/pop | none: bit-identical |
