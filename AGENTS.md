@@ -137,7 +137,7 @@ If a rebuild throws `undefined symbol` on load, clear stale build artifacts firs
 
 ### ⚠️ The build reports success without saying what it built
 
-Five hazards that cross a package boundary. None of them produces an error, and the
+Six hazards that cross a package boundary. None of them produces an error, and the
 first two have each cost a session. Do these unconditionally rather than when
 something looks wrong, because nothing will look wrong.
 
@@ -233,6 +233,15 @@ own**. It looks exactly like the known intermittent crash below and it is not.
 Two habits: prefer reading data into the spans over storing another vector, and if a
 member has to be added, `printf("%zu", sizeof(hermite_interpolator<double>))` against the
 installed header before and after, or force the example to rebuild.
+
+**6. odelia's R-free guard sets its own standard, and below C++20 it reports a
+hundred syntax errors.** `tests/standalone/Makefile` carries its own `CXXSTD` and so
+does not follow the packages' `CXX_STD = CXX20`. Set below that, every `concept` in
+the core reads as `'concept' does not name a type` and every error after the first is
+cascade -- the same tell the `sourceCpp` probes give, one directory over. It was stuck
+at C++17 and had therefore not run since the core gained concepts. **A guard that does
+not compile is a guard that does not run**, and this one is what keeps the solver core
+usable without R.
 
 **And build at `-O2` deliberately** — `pkgbuild::compile_dll()` appends
 `-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars`
@@ -445,7 +454,7 @@ make -C phylloptim/tests/cpp CXX=g++            # builds and runs test_leaf and 
 make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds these too
 ```
 
-At `phylloptim@aafc5b0`: **test_leaf 2421 checks, 0
+At `phylloptim@6ebb66d`: **test_leaf 2421 checks, 0
 failures**, and **test_golden 4320 bit-exact mismatches / 223 beyond the cross-platform
 tolerance**, which is the pre-existing Linux-versus-macOS state and the outstanding re-bless.
 Run `test_golden` from `tests/cpp` -- it looks for `golden/operating_points.tsv` relative to
@@ -527,7 +536,7 @@ else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
 `-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
 each snippet. A probe including any odelia header that names a concept needs it.
 
-At `odelia@7a7dcb4` the suite is **402 passing, 0 failing, 3 skipped**.
+At `odelia@7ea16f6` the suite is **415 passing, 0 failing, 3 skipped**.
 
 **One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
 takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
@@ -580,6 +589,33 @@ Three things follow that are easy to get wrong from the outside:
 out once per environment, identically. `Environment`'s base had three declarations with
 no definitions -- `compute_environment` and both `set_fixed_environment` overloads -- all
 shadowed by every derived class; they are gone.
+
+## A census is declared by the model, and a graft reports
+
+**The metrics a stand is censused on are the strategy's**, declared by
+`census_metrics()` beside `state_names()` and read by index out of `Internals` —
+the same pair every rate function reads. `species.h` knows only that a census is a
+density-weighted quadrature of some kernel, and nothing outside the model names a
+metric: the codomain is the list's length, and a strategy that declares none says so
+at the call site with the member named. A metric crosses the R boundary as a **name**,
+not a position.
+
+**The state rows and the trait rows come out of one recording**
+(`census_state_and_trait_rows`), through the solver's own
+`state_and_parameter_adjoints`, so the seam between the two halves is written once in
+the tree. The order matters and the primitive enforces it: traits seated first, state
+loaded after, or a quantity the state determines is derived at the previous traits.
+
+**A batch of transpose rows is `odelia::ode::row_batch`**, one width for every row.
+A ragged batch is not a shape a caller can build, so nothing on that path tests for
+one.
+
+**`record_with_derivatives` and `implicit_root` report rather than throw.** They
+return a `graft_report` and hand the value back either way, because whether a
+consumer can go on without a row is the consumer's to decide — and a stop takes every
+output where the loss belongs to one. Nothing partial: every row is tested before any
+is recorded. `implicit_value` still stops, because it IS the value its equation
+defines and a caller handed the root with no derivative has a structural zero.
 
 ## Profiling — read the method before taking a number
 
