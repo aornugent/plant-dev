@@ -293,19 +293,62 @@ recording is a second place for the seam between the state half and the paramete
 wrong. So three metrics cost one recording and three sweeps, not three recordings — which is why the
 recorded rate count at production width is exactly six per step whatever the metric count.
 
-**And the three sweeps are three walks of one tape, which is a batch the tape itself can carry.** The
-adjoint scalar is templated on a derivative width defaulted to one, so a slot holds one adjoint
-component and a batch of three is three passes over the same recorded operations. At width three each
-slot holds the batch and the operations are read **once**. What that removes is the reading, not the
-derivative storage — the same components are cleared and accumulated either way — so it is worth the
-part of the walk that is operation traffic and not the part that is slot traffic: **about 12% of a
-gradient**, measured against §2.1's split.
+**And the three sweeps are three walks of one tape, which is a batch the tape itself can carry — and
+measured, that batch does not pay.** The adjoint scalar is templated on a derivative width defaulted to
+one, so a slot holds one adjoint component and a batch of three is three passes over the same recorded
+operations. At width three each slot holds the batch and the operations are read **once**. This section
+priced that at about 12% of a gradient by reasoning that what it removes is the reading and not the
+derivative storage. **The reasoning is right and the arithmetic behind the number was wrong: the walk's
+cost is dominated by the storage, not the reading, and a width multiplies the storage.**
 
-It is also a deletion rather than an addition: the loop over seeds inside the record-once-sweep-many
-product goes, because the width carries what the loop was carrying. And the batch stops being able to
-disagree with itself — a width is a type, so a caller cannot hand in a batch of a different size from
-the one the recording was taken for, where a loop over rows can and the check for it is a length
-comparison.
+The sweep's inner expression is `derivatives_[slot] += mul * a`, and at width N that is one scattered
+read-modify-write of N doubles per recorded operation. So a width shares the streaming read of the
+operations — which is sequential and prefetched — and multiplies the scatter into the derivative array,
+which is random. Measured on a synthetic recording across two orders of magnitude of slot count and
+operations-per-statement, as `N` sweeps at width one over one sweep at width N:
+
+| | derivative array in cache | past cache |
+|---|---|---|
+| width 2 | 1.14× – 1.30× | 0.92× – 1.13× |
+| width 3 | **1.09× – 1.15×** | **0.97× – 1.04×** |
+| width 4 | 0.88× – 0.98× | 0.71× – 0.88× |
+
+**Width four is slower than four walks in every configuration, and width three straddles one.** The
+prize it competes for is smaller than the section assumed as well: naming one metric instead of three
+runs a census gradient at 11.67 s against 13.85 s, so all three walks are 3.1 s of 13.85 s — 22.5% —
+and the two the batch would remove are 15%. At the measured ratio it captures a tenth of that, so
+**2% of a gradient and not 12%.**
+
+**The forward and reverse cases are mirror images, and that is the general statement.** A width shares
+whatever the pass does once per component. In forward mode that is the primal evaluation, which is the
+expensive part, so a vector tangent wins. In reverse mode the primal was already shared — by the
+recording — so all a width has left to share is the reading of the recorded operations, and those are
+the cheap part of what the sweep does. **A derivative width is worth having exactly where the primal has
+not already been factored out, which in a record-once-sweep-many design is nowhere.**
+
+Three prices sit on top of the measurement, and the first is the one that decides it:
+
+- **The width would couple a modelling decision to another package's linking contract.** The metric
+  count is a tuple in the model's own header, where a fourth metric is one name added; the width would
+  make it also an explicit `Tape` instantiation in the solver's one compiled object file, which is on
+  that file's list of things not to change without coordinating downstream. And the fourth metric is
+  the width that measures slower than the walks it replaces.
+- **Naming a subset of the metrics would stop reducing work.** It costs one walk today; at a fixed width
+  it costs a full-width walk, which is the 18% the one-metric path currently saves.
+- **`active_tape_` is a static member of the tape type, so a second width is a second active-tape
+  pointer.** The types keep the recordings apart — an active scalar of one width cannot record onto the
+  other's tape — so it is not a wrong-number hazard, but the guard that stops a foreign tape being
+  active only ever sees its own width, and the invariant as written stops being true.
+
+**What survives is the semantic half, and it does not need the width.** The batch stopping being able to
+disagree with itself is a property of the batch's own type, not of the tape's: a nested vector of rows is
+ragged by construction and needs a length check per row, where one object owning `n_seed × n_out` in a
+flat store needs none. That deletion is available at width one.
+
+**And the measurement is bit-identical in every configuration**, three walks against one batched walk,
+which is the one good thing to record about it: nothing here was rejected for moving a number, so if the
+scatter ever stops dominating, the decision is one probe away. `odelia/tests/standalone/probe_width.cpp`
+is that probe.
 
 **The parameter channel is in band, and its two halves have opposite disciplines.** The accumulator is
 the caller's, passed as the last argument; the state adjoints are **replaced** and the parameter
@@ -844,7 +887,8 @@ Three things would falsify the design:
 Items 1 to 3 are the design's remaining construction; 4 is a measurement; 5 to 9 are defects and
 residues found beside it. **Items 1, 2 and 3 and support for a second model are deferred.** Items 5, 6
 and 7 are closed — 6 as a refusal rather than a change, and the reasoning is kept because the
-instinct it argues against is a recurring one.
+instinct it argues against is a recurring one. **Item 3d is vacant and 4a row (c) is refused**, both on
+measurement, and in both cases what is kept is the rule rather than the work.
 
 **1. The implicit node — the last hand-written derivative surface.** *Deferred.* Measured: **~976 lines
 exist only because of AD** — 853 in the strategy, 37% of its 2312, against 123 in the environment, 16%
@@ -1042,10 +1086,25 @@ finite and plausible. The only witness was a bit-identity check that already exi
 from something adjacent is the failure this report exists to remove, and it is available to the person
 removing it.**
 
-**3d. A quadrature chooses a discretisation and then nobody records it.** *Open, and the smaller half is
-already written down somewhere.* A crown integral is an adaptive rule: it searches over node sets until
-its own error estimate passes, and then evaluates a weighted sum on the set it settled on. The search
-runs once per unit per stage on a recording pass, and again for every drive a differenced row takes.
+**3d. A quadrature chooses a discretisation and then nobody records it.** *Vacant: the instance does not
+exist, and the rule it was written for still does.* This said a crown integral is an adaptive rule that
+searches over node sets until its own error estimate passes. **It is not.** The integral on the model's
+path is a fixed Gauss-Kronrod rule: it is constructed with its rule number, its nodes are a function of
+the two limits alone, one call returns them, and the eight integrands of one crown are evaluated on that
+one node set and summed against constant weights. There is no search, no error estimate and no
+controller — so there is nothing to record, nothing to replay, and no operations to remove from the
+recording. The adaptive extension of the same rule exists in the same directory and is reachable only
+from R; it appears nowhere on the model's path.
+
+**What the item was right about is the rule, and it should be read as a rule with no instance rather than
+as work.** An adaptive integral inside a recording is a controller being differentiated, which §11
+refuses for the insertion schedule and the step sizes and would have no reason to permit here. Anything
+that later puts a search inside a rate evaluation is caught by it. **The reason it read as work is worth
+keeping: the item was written from the shape of the interface rather than from the constructor**, and an
+integrator that offers an adaptive method is not an integrator a model calls adaptively.
+
+The paragraphs below describe what recording the node set would have bought and are kept because the
+reasoning transfers, not because it applies here.
 
 Recording the answer — the nodes, and the weights with any per-node factor already folded in — turns the
 integral into a fixed weighted sum. Three things follow, and only the first is a saving:
@@ -1063,11 +1122,11 @@ The payload is Kind A over a discretisation, so §9.6's widened clause admits it
 is two numbers a node, its lifetime is one rate evaluation rather than one run — a rejected attempt
 overwrites it, exactly as §9.5 describes — and it is therefore transient rather than stored.
 
-*Do:* declare the node set and the folded weights as a payload keyed by (unit, read point, stage), and
-have the integral take them where they are supplied and search where they are not.
+*Do:* nothing. The node set is already constant, already shared between a crown's integrands, and
+already off the tape as far as any search is concerned.
 
-*Done when:* the recorded run and a run replaying its node sets agree bit for bit, and the recording's
-operation count falls by the controller's own share.
+*Done when:* it already is — which is the finding, and the check that establishes it is the integrator's
+constructor rather than a measurement.
 
 **3e. A differenced row re-establishes the bracket it just had.** *Open, and it is the first payload whose
 referee is not bit-identity.* A row taken by differencing evaluates the same search at a base point and at
@@ -1122,7 +1181,7 @@ measurement; this is the list.* In descending order of what each is worth on the
 |---|---|---|---|
 | a | ~~the shared-part reduction at `O(K + N)` rather than `O(K·N)`~~ (§4.1) | **taken: a census gradient 4.18 s → 2.60 s, 1.61×** | none: the re-association re-blessed nothing |
 | b | ~~the repeated forward run~~ (item 3a) | **taken**: 38 s per extra consumer, plus a 55 s construction run | none: a deletion |
-| c | one walk at derivative width three rather than three walks (§5) | ~12% | a type change, and it deletes the seed loop |
+| c | ~~one walk at derivative width three rather than three walks~~ (§5) | **measured at ~2%, not the ~12% predicted, and refused** | it would put the metric count in another package's instantiation set, and width four is slower than four walks |
 | d | active values by `const&` (§6.1) | targets 19.4% construction and 10.9% push/pop | none: bit-identical |
 
 **And the open question, which is about §2's rule rather than any of the four.** The rule says to tape
