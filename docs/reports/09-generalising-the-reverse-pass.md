@@ -687,15 +687,26 @@ moved.*
 ```
 concept Replayable = requires(System s, std::size_t step, int stage, const_iterator in) {
   s.record_stage(stage);        // per RK stage, on the recording run: keep this stage's payloads
+                                // -- built since, under other names; see below
   s.replay_step(step);          // per step, on a replay pass: make that step's record current
   s.set_ode_state(in, stage);   // load state against a stage rather than a time
 };
 ```
 
-Three members, and **two of them the engine already calls**. The stepper calls `record_stage` at every
-stage — five inside the stage loop and one at the state the step ends at — so the record side is live
-wherever a run is stepping. And the rate call already carries a stage index and dispatches the loader on
-it, so the stage-indexed load is live too.
+Three members, and **the shape it describes has since been built with two of them renamed, which is
+worth stating because the names above no longer exist.** `record_stage` is nowhere in the tree. What is
+live is the address rather than the hook: the stepper stamps every rate evaluation with **(step, stage)**
+and hands it to the rate call, the loader takes it as a third argument, and a model that keeps its
+choices declares a pair — one call opening the evaluation and one closing it — plus its own write for the
+payload. So the record side is live wherever a run is stepping, as this said; it is the member list that
+is stale.
+
+⚠️ **And the pair is a compile-time CHOICE with no refusal, which is §7's hazard at a smaller size.** A
+model naming one of the pair and misspelling the other satisfies neither, takes the branch that keeps
+nothing, and every pass re-searches for a point the run already found. **The blast radius is the
+saving, not the answer** -- a restore that does not happen is a re-solve, which returns the same number
+-- so this is priced as a lost optimisation rather than a wrong gradient, and it is left standing on
+that basis rather than out of oversight.
 
 **`replay_step` is called on the two fixed-step paths and nowhere else, and that is half right.** A
 replay pass runs a schedule the run already fixed, so a fixed-step path is exactly where it belongs —

@@ -386,7 +386,7 @@ so a differing count is yours:
 | `test-stochastic-patch.R` | 3 | a range over an empty competition interval |
 | `test-stochastic-patch-runner.R` | 1 | misses its seeded baseline |
 
-Non-ladder totals are **3259 / 8 / 3 / 13** and the ladder **679 / 0 / 0 / 5**.
+Non-ladder totals are **3262 / 8 / 3 / 13** and the ladder **679 / 0 / 0 / 5**.
 
 **`test-strategy-tf24.R`'s second failure is newly visible, not new.** Its parameter probe is
 compiled by `sourceCpp` and was missing two things every such probe needs — the include paths of
@@ -609,6 +609,26 @@ loaded after, or a quantity the state determines is derived at the previous trai
 **A batch of transpose rows is `odelia::ode::row_batch`**, one width for every row.
 A ragged batch is not a shape a caller can build, so nothing on that path tests for
 one.
+
+**Only odelia names the AD library.** `plant` and `phylloptim` name it nowhere in
+shipped code: the scalars come from `active_scalar<T>`, `adjoint_tape<T>` and
+`tangent_scalar<T>`, and the two things done to a tangent from `seed_direction` and
+`derivative_along` in `odelia/tangent.hpp` — a header apart from the reverse-mode one
+so a package with no tape is not handed a name for one. Those two accessors exist
+because **one library accessor spells a tangent's direction AND an adjoint's
+accumulator**: on the wrong scalar the same statement seeds a slot no forward pass
+reads, or reads one no sweep has written, and neither raises anything. They refuse
+the wrong scalar, so it is a compile error naming `CarriesDirection`. Reading a value
+at a boundary is `util::to_passive`, which strips every layer, and not the library's
+one-layer accessor — the two differ exactly at the nested scalar a forward-over-reverse
+check runs on. The three hand-driven tape probes under `plant/tests` still name the
+adjoint slot, which is honest: they drive a tape by hand.
+
+**`HEIGHT_INDEX`, `MORTALITY_INDEX` and `FECUNDITY_INDEX` are a claim about every
+model's first three state slots**, made by about fifty readers, and `check_state_layout`
+is what checks it — called from each model's `refresh_indices()`, where the map that
+would falsify it is built. `test-state-layout.R` hands the checker a broken layout,
+because a test that only builds models cannot tell a live check from a dead one.
 
 **`record_with_derivatives` and `implicit_root` report rather than throw.** They
 return a `graft_report` and hand the value back either way, because whether a
