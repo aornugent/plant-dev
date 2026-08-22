@@ -23,67 +23,16 @@ commit, and a claim in them is wrong if the model disagrees with it, not if some
   defect matters, and read its closing section as the domain that must accompany any number
   the machinery produces.
 
-**The design — what follows from the model.** Its referee is the mathematics plus the objective:
-correct, performant and stable reverse-mode gradients of a TF24 stand, with the feedbacks through
-light and soil intact.
+**The design — what follows from the model.** Its referee is the mathematics plus the
+objective: correct, performant and stable reverse-mode gradients of a TF24 stand, with
+the feedbacks through light and soil intact.
 
-- [`docs/reports/01-cohort-granular-reverse-sweep.md`](docs/reports/01-cohort-granular-reverse-sweep.md)
-  — the decomposition that makes peak memory one cohort-step, its forced ordering, and what it
-  demands of the model it decomposes.
-- [`docs/reports/02-leaf-implicit-node.md`](docs/reports/02-leaf-implicit-node.md) — the leaf as
-  one node whose local Jacobian is supplied, and the contract a boundary carrying it must meet.
+- [`docs/reports/02-leaf-implicit-node.md`](docs/reports/02-leaf-implicit-node.md)
 - [`docs/reports/03-light-interpolant-value-and-slope.md`](docs/reports/03-light-interpolant-value-and-slope.md)
-  — what the light field has to be for its transpose to be local, exact and refinable.
-- [`docs/reports/04-before-the-plant-exists.md`](docs/reports/04-before-the-plant-exists.md) —
-  parameterisation, construction and the inflow boundary: the three places upstream of a
-  cohort's rates where a derivative is decided, and where an imposed zero is
-  indistinguishable from a channel the model does not have. Read it before touching a
-  derived quantity, a declared zero, or the seed.
-- [`docs/reports/09-generalising-the-reverse-pass.md`](docs/reports/09-generalising-the-reverse-pass.md)
-  — **the solver's side**, written with no ecological vocabulary at all: the ensemble ODE the model is an
-  instance of, what is taped and what is supplied, dimension growth, the three layers, the implicit
-  node, and **§9's replay design — one mechanism, two kinds of payload, and the one rule that decides
-  where each is admissible.** Read it beside 07: 07 says what the leaf must supply, 09 says what the
-  solver does with it and when it need not ask twice.
+- [`docs/reports/04-before-the-plant-exists.md`](docs/reports/04-before-the-plant-exists.md)
 - [`docs/reports/07-what-the-leaf-must-supply.md`](docs/reports/07-what-the-leaf-must-supply.md)
-  — which derivatives the leaf boundary actually needs, input by input, and which of them
-  are hard. Read it beside report 02: 02 states the contract a boundary must meet, 07
-  states what has to cross it. Its census is the thing to check a change against — six
-  routes, four shapes of row, four branches, and every one of the twenty-six inputs read or
-  declared. **It is complete enough to work from**: §7 gives the boundary's shape and the
-  passivation rule, §8 what the forward pass already hands the reverse, §9 what the leaf must
-  gain, §11 the invariants to check, and **§12 the open items with what closes each — six closed,
-  and the sixth's closing opened a seventh** — start there. It states no ordering, deliberately.
-
-  ⚠️ **Two of its numbers were the instrument's, not the model's, and §12 closes with the
-  shapes to look for.** A differenced referee here is a *sweep* over steps, never one step: a
-  differenced root-find carries its own tolerance divided by the step, so the error GROWS as the
-  step shrinks (3.08e-07, 3.08e-06, 3.08e-05 over three decades); and a nested solve can change
-  its iterate count at one step alone, giving a clean wrong answer of 5.6e-06 there and 1e-10 at
-  its neighbours. Both were read as a closed form's error before the sweep was run.
-
-  ⚠️ **Its sharpest conclusion is about WHOSE CONSUMER an argument belongs to.** Three of the seven
-  things its invariant 1 called unwritten were not objects: they were a *calibration's* output set and
-  input list reaching into a *stand's* row layer, and they had put three of five arguments on it. No
-  derivation closed them — a named refusal in the read did, plus a separate entry point for the
-  consumer that wants a difference. **When a boundary's arguments will not come off, ask which
-  consumer names them** before looking for the mathematics that is missing.
-
-  ⚠️ **And derive that consumer's output set from ITS equations, never from what it requests.** §1.1
-  does it consumer-inward and the derivation is what licenses the refusals: a census reads no leaf
-  output at all, the recorded step's twelve read the leaf through **profit** and **per-layer uptake**
-  and nothing else, and a cohort's own height has no leaf input because it arrives through two
-  quantities the consumer computes actively. A set read off a caller's request cannot tell a complete
-  one from that caller's oversight — the first pass at this justified the refusals by what plant asks
-  for, which is the same tunnel vision one level out.
-
-  ⚠️ **And §12's other conclusion is about DRIVERS, not tolerances.** Three of its six items were
-  branches a grid had reported unreachable because the grid could not reach them, and in each case
-  the branch was one parameter away — shade death below 26.6 µmol where the grid's floor is 100; the
-  gravity balance, which needs a *single* soil layer; and the root's own critical potential binding,
-  which needs a plant whose root gives up before its stem and is impossible at phylloptim's defaults,
-  where that potential and the stem's are the same number. **Two of the three are not soil moisture,
-  and soil moisture is what gets swept.**
+- [`docs/reports/08-testing-ladder.md`](docs/reports/08-testing-ladder.md)
+- [`docs/reports/09-generalising-the-reverse-pass.md`](docs/reports/09-generalising-the-reverse-pass.md)
 
 **None of these tracks progress**, and none is edited to record what has been built. If a report
 disagrees with the code, one of them is wrong and the disagreement is the finding. Report 04's
@@ -91,26 +40,8 @@ number was previously vacant: it had argued which discretisation the density's c
 should use, and the birth-date coordinate removed that question rather than settling it — what
 survives of the original is report 00 §4.4, and the number now carries the subject above.
 
-**Number 10 is vacant and will not be reused, and 09 has been taken by a design document.** They were the workplan — what to build,
-in what order, and what each step was refereed by — and a workplan is the one kind of document this
-set is not for. Their durable content was moved to its subject before they were removed: the
-derivative mathematics and the reduction's structure to 05, the ecology of equilibrium and of the
-water channel's conditioning to 06, and the leaf boundary's contract and its rulings to 02. **Do not
-reconstruct a workplan here.** Where a report and the code disagree, that is a finding for whoever is
-working; where a step needs sequencing, that belongs in the session's own task list, which is
-discarded when the work lands.
-
-**07 and 09 were vacated with them and have since been taken by design documents**, which are a
-different kind of claim: they say what the boundary needs and what each part of it is, not what to build
-next. 07 is the leaf's side, 09 the solver's. Neither names a commit or an ordering, and each is wrong if
-the mathematics disagrees with it rather than if some branch does. **10 stays vacant**: it was the
-supplied-once workplan and nothing about it is a design claim.
-
-`docs/archive/` holds documents whose conclusions are stale, superseded or
-configuration-dependent. **Do not design from them.**
-
-Then, add the sibling package repos to the session's GitHub
-scope so their issues and PRs are readable — `git submodule update --init` clones the
+## Remote Development
+Add the sibling package repos to the session's GitHub scope so their issues and PRs are readable — `git submodule update --init` clones the
 code, but issue/PR access is a separate grant:
 
 1. Initialize submodules: `git submodule update --init --recursive`
@@ -118,9 +49,30 @@ code, but issue/PR access is a separate grant:
    `aornugent/plant`. Work items like `odelia#19` live in these trackers, not in
    `plant-dev`, so without this step the issues are inaccessible.
 
-Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/odelia`, `traitecoevo/logpile`).
+Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/odelia`, etc).
 
-System deps and R packages (including `gh`, `logger`, and `RcppR6`) are installed by the environment setup script — you don't need to install them by hand.
+System deps and R packages are installed by the environment setup script — you don't need to install them by hand.
+
+## CRITICAL: Write Permissions
+**Agents do NOT have push access to the `traitecoevo` organization repositories.** 
+
+You must never attempt to push directly to `traitecoevo/*` remotes.
+
+## Workflow for Agents
+1. **Branching**: When starting work on a feature or bugfix, navigate into the relevant submodule directory (e.g., `cd plant`) and create a new branch.
+2. **Committing**: Make your changes and commit them normally within the submodule.
+3. **Pushing Changes**: Push your branches to the `origin` remote, which points to the `aornugent` fork (e.g., `git push origin my-feature`).
+4. **Updating the Meta-Repo**: After pushing commits in a submodule, navigate back to the root of `plant-dev`. You will see that the submodule pointer has changed in `git status`. Add and commit this hash update in `plant-dev`, and push it to `origin` (`aornugent/plant-dev`).
+5. **Propagating Upstream**: To get changes into the official `traitecoevo` repositories, you must instruct the user to create a Pull Request on GitHub from the `aornugent` fork to the `traitecoevo` upstream.
+
+## Upstream Synchronization
+To sync a submodule with the official repository, fetch and merge from the `upstream` remote, then push to the `origin` fork:
+```bash
+cd <submodule>
+git fetch upstream
+git merge upstream/master # (or main)
+git push origin master
+```
 
 ## Local Development
 Iterate with `pkgload::load_all()` (or `devtools::load_all(".")`) rather than a full install — it picks up live R edits without a reinstall/reload cycle:
@@ -137,7 +89,7 @@ If a rebuild throws `undefined symbol` on load, clear stale build artifacts firs
 
 ### ⚠️ The build reports success without saying what it built
 
-Six hazards that cross a package boundary. None of them produces an error, and the
+Seven hazards that cross a package boundary. None of them produces an error, and the
 first two have each cost a session. Do these unconditionally rather than when
 something looks wrong, because nothing will look wrong.
 
@@ -168,19 +120,14 @@ sweep calls, so the next `plant` build fails on a name that has been in your tre
 all along — in a session that never touched odelia. Six occurrences across three
 sessions.
 
-**This fired again, and the check below is what caught it.** The installed `odelia` was upstream's at
-the start of a session that had not touched `odelia`, so a `plant` build would have failed on a symbol
-that had been in the tree throughout. Run the grep *before* believing any build, not after one fails.
-
 `R CMD INSTALL` does **not** resolve `Remotes` and is therefore the safe form. Verify
-after any `phylloptim` install, against the walk's own entry point rather than a
-concept name, because a concept can be renamed while the fork stays the fork:
+after any `phylloptim` install, against the walk's own entry point rather than a concept
+name, because a concept can be renamed while the fork stays the fork:
 
 ```sh
 ODE=$(Rscript -e 'cat(find.package("odelia"))')
 grep -c solve_adjoint_over_widenings "$ODE/include/odelia/gradient.hpp"
-# non-zero, or what is installed is not the fork:
-#   R CMD INSTALL --no-multiarch --preclean odelia
+# non-zero, or what is installed is not the fork
 ```
 
 **3. The XAD storage-class flags must pair between `plant` and `odelia`, and a
@@ -197,18 +144,12 @@ flags, and nothing will say so.**
 
 **4. The installed library is shared, and another session can move it under you.**
 `plant` compiles against the *installed* `odelia` headers, and every worktree and
-background job on the machine installs into the same library. So a second session
-working on `odelia` replaces yours mid-run, and what you see is a compile error
-naming a symbol that has been in your tree all along. It happened twice in one hour
-during the reverse-pass work, once *during* a build.
-
-Two habits make it survivable:
-
-- **Check before you measure.** Grep the installed headers for something only your
-  branch has, immediately before a build and again before a timing or a test run.
-  A number taken across a swap is unattributable, and nothing announces the swap.
-- **Or take yourself out of the race.** Install your `odelia` into a private
-  library and put it *ahead* of the shared one:
+background job on the machine installs into the same library, so what you see is a
+compile error naming a symbol that has been in your tree all along. **Check before you
+measure**: grep the installed headers for something only your branch has, immediately
+before a build and again before a timing — a number taken across a swap is
+unattributable and nothing announces the swap. Or take yourself out of the race and
+install your `odelia` into a private library, ahead of the shared one:
 
   ```sh
   mkdir -p /tmp/mylib
@@ -220,86 +161,44 @@ Two habits make it survivable:
   Use `R_LIBS`, which *prepends*. `R_LIBS_USER` **replaces** the user library and
   hides Rcpp, BH, testthat and everything else with it.
 
-**5. Adding a MEMBER to `odelia/interpolator.hpp` is an ABI break, and the segfault it
-causes names a different file.** `drivers.hpp` includes the interpolator and `Drivers`
-embeds one, so the interpolant's `sizeof` is part of odelia's ABI. odelia's own test
-suite compiles the leaf-thermal example with `sourceCpp` and **caches the resulting
-`.so`**, which `ensure_leaf_thermal_interfaces(rebuild = FALSE)` then reuses against a
-freshly installed odelia. Grow the interpolant and the cached library reads the wrong
-offsets: the symptom is `memory not mapped` inside `LeafSolver_value_and_gradient`, in a
-file that has nothing to do with interpolation, and the file **passes when run on its
-own**. It looks exactly like the known intermittent crash below and it is not.
-
-Two habits: prefer reading data into the spans over storing another vector, and if a
-member has to be added, `printf("%zu", sizeof(hermite_interpolator<double>))` against the
-installed header before and after, or force the example to rebuild.
-
-**6. odelia's R-free guard sets its own standard, and below C++20 it reports a
-hundred syntax errors.** `tests/standalone/Makefile` carries its own `CXXSTD` and so
-does not follow the packages' `CXX_STD = CXX20`. Set below that, every `concept` in
-the core reads as `'concept' does not name a type` and every error after the first is
-cascade -- the same tell the `sourceCpp` probes give, one directory over. It was stuck
-at C++17 and had therefore not run since the core gained concepts. **A guard that does
-not compile is a guard that does not run**, and this one is what keeps the solver core
-usable without R.
-
-**And build at `-O2` deliberately** — `pkgbuild::compile_dll()` appends
+**5. Build at `-O2` deliberately** — `pkgbuild::compile_dll()` appends
 `-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars`
 asking for `-O2` is silently overridden. Pass `debug = FALSE` and confirm one compile
-line in the log ends at `-O2` with no trailing `-O0`. See *Testing plant* below.
+line in the log ends at `-O2` with no trailing `-O0`.
+
+**6. A build can report success without compiling anything.** `make` does not track
+the headers under `inst/include/` as prerequisites, so editing one leaves every object
+file looking current: `compile_dll` then does nothing, prints nothing, and **exits 0**.
+An empty build log is the tell — a real build of `plant` prints about 25 compile lines.
+Compare `plant/src/plant.so`'s mtime against the header you edited before believing any
+result, and `rm -f src/*.o src/*.so` after a header change rather than trusting the
+incremental path.
+
+The same shape reaches the checks: `odelia/tests/standalone/Makefile` carries its own
+`CXXSTD` and does not follow the packages' `CXX_STD = CXX20`. Below C++20 every
+`concept` in the core reads as `'concept' does not name a type` and the hundred errors
+after the first are cascade. It sat at C++17 and had therefore not run since the core
+gained concepts. **A guard that does not compile is a guard that does not run.**
+
+**7. Adding a MEMBER to `odelia/interpolator.hpp` is an ABI break, and the segfault it
+causes names a different file.** `drivers.hpp` embeds an interpolant, so its `sizeof` is
+part of odelia's ABI — and odelia's own suite compiles the leaf-thermal example with
+`sourceCpp` and **caches the resulting `.so`**, which is then reused against a freshly
+installed odelia. Grow the interpolant and the cached library reads the wrong offsets:
+`memory not mapped` inside `LeafSolver_value_and_gradient`, in a file with nothing to do
+with interpolation, **and it passes when run on its own** — which is exactly what
+`test-example-leaf-ad.R`'s known intermittent looks like. Prefer reading data into the
+spans over storing another vector; if a member must be added, print
+`sizeof(hermite_interpolator<double>)` against the installed header before and after.
 
 ## Testing plant — a short feedback loop
+
+The main cost is the **C++ rebuild** for any change.
 
 `plant` carries about 3700 testthat assertions across 68 files, but running all of
 them per edit is wasteful. Measured at `-O2`: the gradient ladder is **1172 s of CPU
 over 13 files**, everything else is **339 s over 55**, and no file outside the ladder
 exceeds 63 s.
-
-**Read those as CPU, not as wall clock. Run them with `scripts/run-tests.sh`,
-which is the preferred way to run this suite** — one R process per file, so **the
-number that decides how long a run takes is the slowest single file, not the
-total**, and it works under `load_all()`, which `testthat`'s own parallel workers
-do not (see below). Measured on sixteen cores, the whole ladder is **17 s of
-wall** that way. The CPU figure was 719 s before three files of about 700 s each
-were split and the sweeps they repeated were shared; what bought that was
-rebalancing and de-duplication, not removing a single check.
-
-Two costs to scope against, then: the **C++ rebuild** for any change, and **the
-ladder** for anything touching the reverse sweep. (Build / `load_all` /
-odelia-reinstall mechanics are under *Local Development* above; paths below are from
-the `plant-dev` root.)
-
-**Build at `-O2` deliberately: `pkgbuild::compile_dll()` defaults to `-O0`.** It appends
-`-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars` asking for `-O2`
-is silently overridden — a timing taken that way measures the debug build, which is roughly twice as
-slow. Pass `debug = FALSE`:
-
-```sh
-cd plant   # or a develop worktree
-R_MAKEVARS_USER=/path/to/Makevars-O2 Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
-```
-
-with `Makevars-O2` holding `CXX20FLAGS = -O2 -DNDEBUG -g0`. Confirm it took by checking that the
-compile line for one translation unit in the log ends at `-O2` with no trailing `-O0`.
-
-**And a build can report success without compiling anything.** `make` does not track the headers under
-`inst/include/` as prerequisites, so editing one — an `odelia` header, or `plant`'s own header-inline
-strategy core — leaves every object file looking current. `compile_dll` then does nothing, prints
-nothing, and **exits 0**, which reads as a clean build of the change you just made. A test run after it
-measures the old binary. Two habits: **compare `plant/src/plant.so`'s mtime against the header you
-edited** before believing any result, and `rm -f src/*.o src/*.so` after a header change rather than
-trusting the incremental path. An empty build log is the tell — a real build of this package prints
-25 compile lines.
-
-**The per-iteration tax is the rebuild, not the tests.** An R-only change under
-`pkgload::load_all("plant")` skips compilation; a C++ change recompiles
-incrementally — but the strategy/environment core is header-inline, so editing a
-header in `plant/inst/include/` invalidates every translation unit that includes
-it and triggers a near-full `plant/src` recompile. Build optimised once
-(`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
-`load_all()` without `make` builds unoptimised and makes every slow test several
-times slower (the difference between a ~3 min suite and the ">8 min" quoted in
-an earlier handover note, now recoverable from `archive/v3-docs-and-probes`).
 
 Tiers of the loop, cheapest first:
 
@@ -341,87 +240,16 @@ Tiers of the loop, cheapest first:
    how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
    per-column contraction; `switches` for a channel's route to a census.
 
-**Always cheap, run it when numerics move:** the FF16 bit-identity guard
-(`test-strategy-ff16.R` ~4 s, plus `test-strategy-ff16-reference-comparison.R`)
-is the tripwire for the scalar-templating AD work — a changed reference number
-means bit-identity broke. Include it in tiers 1–2 whenever you touch a strategy,
-environment, the ODE path, or anything the active scalar `S` threads through.
 
-**What the ladder's cost actually is, so it can be scoped rather than guessed.** A
-sweep of one four-node stand at the fixtures' two-year lifetime is **43.6 s**, one
-trajectory tangent column is **4.8 s**, and building the stand is **0.13 s** — the
-run is free and the sweep is everything. Sweeping one metric costs the same as
-sweeping three, so the record is shared across them already. The cost is linear in
-the fixture's step count: 102 steps at lifetime 2 against 35 at lifetime 0.5, 43.6 s
-against 14.1 s. So a ladder file's runtime is its sweep count times 43.6 s, and
-nothing else moves it. **Memoising the stands is not a speedup** — it was tried and
-measured at 3.6 s of 2333 s, because the run was never the cost. What did work was
-sharing one sweep per fixture between the checks that only READ it
-(`ladder_shared()`), and putting the checks whose assertion is an exact identity or a
-limit on a short fixture: neither re-blesses anything, because bit-identity and a
-limit do not depend on run length.
-
-**And the stand fixtures damp what they measure, which bears on what the slow tier is
-worth.** A run stand sits at a reserve-gate slope of **0.040** against the declared
-floor of 0.4, and at a relative reserve of 0.45 to 0.56 against the band 0.02 to
-0.30, where a constructed patch sits at 0.99. So every growth-mediated channel is
-tested at about a tenth of its sensitivity on a stand and at full sensitivity on a
-patch. The regime table reports both rather than enforcing the stand's, and any
-margin taken on a stand carries that qualification.
-
-**The heaviest non-ladder files, and what they cover:** `test-census.R` (63 s),
-`test-strategy-tf24.R` (59 s), `test-density-coordinate.R` (33 s),
-`test-tf24-arid-corner.R` (32 s), `test-canopy-methods.R` (26 s). Editing K93 or FF16
-plumbing does not require paying the TF24 ones.
-
-**Six files fail on `ad/v3-forward` for reasons that predate the gradient work**
-and are not a signal about a sweep change. Counts measured at `plant@cdf3f0c9`,
-so a differing count is yours:
-
-| file | fails | what |
-|---|---|---|
-| `test-leaf.r` | 5 | lines 620, 704, 705, 706, 865 |
-| `test-strategy-tf24.R` | 2 | line 83; and the yml agreement, below |
-| `test-strategy-tf24f.R` | 1 | line 86 |
-| `test-stochastic-patch.R` | 3 | a range over an empty competition interval |
-| `test-stochastic-patch-runner.R` | 1 | misses its seeded baseline |
-
-Non-ladder totals are **3262 / 8 / 3 / 13** and the ladder **679 / 0 / 0 / 5**.
-
-**`test-strategy-tf24.R`'s second failure is newly visible, not new.** Its parameter probe is
-compiled by `sourceCpp` and was missing two things every such probe needs — the include paths of
-the packages `plant` LinkingTo's, and `// [[Rcpp::plugins(cpp20)]]`, which cannot go in
-`PKG_CPPFLAGS` because R places those before its own `-std=` and wins. So it failed to build and
-both checks it gates skipped. With it building, one passes and one reports that `vcmax_25` and
-`jmax_25` are registered as AD parameters while the test's `omitted` list says they are not. That
-disagreement is being fixed on a parallel branch and lands with the opaque node item; leave it
-failing until then. **A probe that does not compile is a check that does not run — and it reports
-as a skip, which reads like a choice.**
-
-**`test-mutant.R` was on this list for two failures and should not have been.** They did not
-predate the gradient work: the environment cache that feeds an invasion run was reached through
-solver hooks that a refactor stopped calling, so it filled nothing and every case errored. Listing
-them here as expected is what kept that quiet once the suite began reporting it. The unreachable
-half is deleted and the file now skips, **carrying its expected fitnesses as the specification for the
-replay pass that replaces it** — those numbers are the spec, and there is no other. One design
-constraint travels with them, because getting it wrong is silent: **which pass is running is the
-driver's decision, not the System's.** A System that answers "am I replaying?" is one that can
-accidentally replay, and the symptom is a resident gradient with the water feedback missing —
-finite, plausible, no error raised. **A failure written down as expected stops being read; prefer a
-skip that names what it waits for.**
-
-The first three were absent from this list and cost a session's worth of doubt to
-attribute. `test-stochastic-patch-runner.R`'s pass count varies run to run; its
-one failure does not.
-
-**`testthat`'s parallel workers cannot see a `pkgload::load_all()`ed package**, so
-every invocation below needs `TESTTHAT_PARALLEL=false` — which makes a single
-`test_dir()` serial, and its wall time its CPU time.
-
-**Get the concurrency back by running one R process per file rather than one
-`test_dir()`, and use `scripts/run-tests.sh` to do it.** `load_all()` costs about
-two seconds per process and the files are independent, so fanning them out is
-nearly free and wall time becomes the slowest single file.
+**Read those figures as CPU, not as wall clock, and run the suite with
+`scripts/run-tests.sh`.** `testthat`'s own parallel workers cannot see a
+`pkgload::load_all()`ed package, so a `test_dir()` has to run serial and its wall time
+is its CPU time. One R process per file gets the concurrency back — `load_all()` costs
+about two seconds per process and the files are independent — so **the number that
+decides how long a run takes is the slowest single file, not the total**: sixteen cores
+run the whole ladder in **17 s of wall**. The script names any file that produced no
+result line, which is the one way this loses information a `test_dir()` would not: a crashed
+process is otherwise silent.
 
 ```sh
 scripts/run-tests.sh '^test-gradient-ladder'        # the whole ladder
@@ -429,23 +257,32 @@ scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-ze
 scripts/run-tests.sh '^test-gradient' "" invert     # the 55 non-ladder files
 ```
 
-The first argument is an extended regex over the file names, so it selects a tier
-the same way `testthat`'s own `filter` does; `invert` runs everything that does
-*not* match. It prints a line per file and a total, exits non-zero if anything
-failed, and **names any file that produced no result line** — a crashed process
-is otherwise silent, which is the one way this loses information that
-`test_dir()` does not. Logs go to a temporary directory it prints, or to a second
-argument if you pass one.
-
 **Set `PLANT_TEST_LIB` to a private library holding your `odelia` build**, which
 is how you stay out of the race described above; it is prepended, so the user
 library is still visible.
 
-**Measured on sixteen cores: the whole gradient ladder is 17 s of wall this way,
-against about twenty minutes serial**, and the 55 non-ladder files are 86 s
-against about six minutes.
+**What a clean run looks like.** Six files fail for reasons that predate the gradient
+work, so a count is the only way to tell your failure from an inherited one — **a
+differing count is yours.**
 
-## Testing phylloptim — and the invocation that hides half the suite
+| suite | clean |
+|---|---|
+| plant, non-ladder (`'^test-gradient' "" invert`) | **3262 / 8 / 3 / 13** |
+| plant, ladder (`'^test-gradient'`) | **679 / 0 / 0 / 5** |
+| phylloptim `test_leaf` | **2421 checks, 0 failures** |
+| phylloptim `test_golden --cross-platform` | **223** beyond tolerance (Linux vs macOS) |
+| phylloptim, R | **1435 / 4 / 1 / 1** |
+| odelia, R | **415 / 0 / 3** |
+
+Measured, per file: `test-leaf.r` 5 fail, `test-stochastic-patch.R` 3 error,
+`test-stochastic-patch-runner.R` 1 fail, `test-strategy-tf24.R` 1 fail,
+`test-strategy-tf24f.R` 1 fail. `test-stochastic-patch-runner.R`'s PASS count varies run
+to run; its one failure does not. phylloptim's five are recorded expectations rather than
+code. `test_golden` must be run from `tests/cpp` — it looks for
+`golden/operating_points.tsv` relative to the working directory and reports it MISSING
+from anywhere else.
+
+## Testing phylloptim
 
 The C++ suite is the fast loop and needs no R at all:
 
@@ -453,22 +290,6 @@ The C++ suite is the fast loop and needs no R at all:
 make -C phylloptim/tests/cpp CXX=g++            # builds and runs test_leaf and test_golden
 make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds these too
 ```
-
-At `phylloptim@6ebb66d`: **test_leaf 2421 checks, 0
-failures**, and **test_golden 4320 bit-exact mismatches / 223 beyond the cross-platform
-tolerance**, which is the pre-existing Linux-versus-macOS state and the outstanding re-bless.
-Run `test_golden` from `tests/cpp` -- it looks for `golden/operating_points.tsv` relative to
-the working directory and reports it MISSING from anywhere else.
-`clang++-12` is gone from this image; `CXX=g++` reproduces the same counts.
-
-**The row layer has two entry points and they are not interchangeable.** `rows_at(Leaf&, const
-RowRequest&)` is a **read** of a leaf the caller has already solved — it takes no traits, no drivers
-and no step, and a caller that has not solved gets a refusal rather than a number. `rows_differenced`
-takes the other three and answers whatever the read declined, which the read names per input. Neither
-solves. A test or a probe that hands either an unsolved leaf is testing the refusal.
-
-**A `probe_*.cpp` there builds with the suite's own flags and is the right instrument for a
-measurement**, because it needs no install and no R: `make CXX=g++ probe_plateau`.
 
 ⚠️ **The R suite needs the package namespace as its parent environment, and without it a
 third of the suite reports as broken code.** Several tests call internals by name, so a plain
@@ -482,33 +303,7 @@ Rscript -e 'library(phylloptim)
     env = new.env(parent = asNamespace("phylloptim")), stop_on_failure = FALSE)'
 ```
 
-**Five known failures, and every one of them is the recorded expectation rather than the code.**
-Counts are 1435 passing / 4 failing / 1 error / 1 skipped; a differing count is yours.
-
-| file | what | why it is not a finding |
-|---|---|---|
-| `test-gradient-batch.R` ×2 | a status of `"pinned"` where `"error"` is expected | the expectation predates the constrained branch answering |
-| `test-gradient.R` | `H` expected `-8.9561`, reads `-8.9532` | the reading is bit-identical across the curvature's refactor — 243 of 243 states — so the recorded number is stale |
-| ~~`root_b`'s profit row 0.0140 against 0.0137~~ | **passes now** | it was recorded as the arbitration's own spread and it was the table's read error; a quintic read of G closed it |
-
-⚠️ **The vulnerability grid's knot count is set by the ROWS, and one classification still rests on
-it.** Two row checks follow the knot spacing monotonically while G's own read error sits sixty times
-inside its budget, so refining the read does not buy a coarser grid. Separately, the wet end of the
-collar bracket reads as feasible or not according to the sign of the two stem tables' round-trip
-disagreement — `stem_curve_integral_inverse` records the measured fix and why it belongs to the
-refusal channel rather than to that accessor.
-| `test-surface.R` | `A` differs in the 7th digit between two construction routes | one ULP class |
-| `test-gradient.R:332` **(error)** | `g$gradient["cost_scale_TF24", "A"]` is out of bounds | **the test asks for a parameter it did not request** — `pars` is `c("vcmax_25", "stem_b", "R_d_25")`, so this cannot depend on any C++ change, and the error aborts the test before its twelve-assertion loop over `analytic` ever runs. A test that errors early is a test that stops covering what follows. |
-
-⚠️ **Install with `R CMD INSTALL` only, and see the two hazards above** — a dependency-resolving
-installer replaces the `odelia` fork, and R does not track header dependencies, so
-`--preclean` is what stops the R layer running the old model.
-
-## Testing odelia — and the two ways it lies to you
-
-`odelia` must be installed rather than `load_all()`ed (see *Local Development*), so
-run its suite against the install, in an environment that can see the package's
-internals:
+## Testing odelia
 
 ```r
 library(odelia)
@@ -522,195 +317,47 @@ reports them as *"could not find function"* — an error that looks like broken 
 and is broken invocation. Passing `asNamespace("odelia")` itself instead of a child
 fails at the first helper with *"cannot add bindings to a locked environment"*.
 
-**The suite compiles its probes with `sourceCpp`, and a probe that does not agree
-with the shipped library fails in ways that read as unrelated.** Two settings have
-to match `src/Makevars`: the XAD defines (`XAD_NO_THREADLOCAL`,
-`XAD_USE_STRONG_INLINE`) and the C++20 standard. A probe missing the first links
-against a symbol of the same mangled name in the other storage class — *"TLS
-reference ... mismatches non-TLS definition"*. A probe missing the second reads
-every `concept` in odelia's headers as a syntax error — *"'concept' does not name a
-type"*. **The two are set in different places and only one of them can be
-shared.** `odelia_cppflags()` in `tests/testthat/helper-load-odelia.R` carries the
-include path and the defines, and a new probe takes those from there and nowhere
-else. The standard cannot go there — `PKG_CPPFLAGS` is placed before R's own
-`-std=`, which then wins — so it stays a `// [[Rcpp::plugins(cpp20)]]` line inside
-each snippet. A probe including any odelia header that names a concept needs it.
+**The suite compiles its probes with `sourceCpp`, and a probe that does not agree with
+the shipped library fails in ways that read as unrelated.** Two settings have to match
+`src/Makevars`, and they live in different places. The XAD defines
+(`XAD_NO_THREADLOCAL`, `XAD_USE_STRONG_INLINE`) come from `odelia_cppflags()` in
+`tests/testthat/helper-load-odelia.R` and nowhere else; a probe missing them links
+against a symbol of the same mangled name in the other storage class. The standard
+cannot go there — `PKG_CPPFLAGS` is placed before R's own `-std=`, which then wins — so
+it stays a `// [[Rcpp::plugins(cpp20)]]` line inside each probe, and any probe including
+an odelia header that names a concept needs it.
 
-At `odelia@7ea16f6` the suite is **415 passing, 0 failing, 3 skipped**.
 
-**One known intermittent crash, and it is not yours.** `test-example-leaf-ad.R`
-takes a `memory not mapped` fault inside `LeafSolver_value_and_gradient` about
-once in five full-suite runs, and never when that file is run on its own. If a run
-aborts there, re-run before investigating; if you are changing the leaf example or
-the AD driver, run the whole suite several times, because once is not evidence.
+## What is named once, and where
 
-## Interpolation lives in one place
+Facts this codebase used to spell in several places, each now with one home. Every one
+of them was a place two spellings could disagree while both compiled.
 
-`odelia/interpolator.hpp` holds the whole of it: a piecewise polynomial taking a value
-and a slope at each knot — and at `Order 5` a curvature as well — plus the two rules
-that produce its inputs: `monotone_slopes` for knots that arrive with values alone, and
-`refine` for a target whose features are not known in advance.
-
-**The order is set by the source, not chosen.** A cubic is what two exact channels
-support and a quintic what three do, converging as h^6 in the value and h^5 in the slope
-against h^4 and h^3. `set_data` has one signature per order, so the wrong number of
-channels does not compile. The vulnerability curves are quintics because G's first two
-derivatives are both closed forms; a resource field is a cubic because it is C1 and not
-C2 -- its second derivative jumps at every crown top, so there is no third channel to
-supply and a quintic there would be describing the fit. There is no fit that chooses slopes
-globally; `spline.hpp` and the cubic-through-values interpolator are gone, along with
-`plant/adaptive_interpolator.h` and the R6 `Interpolator` class.
-
-Three things follow that are easy to get wrong from the outside:
-
-- **Where the knot data comes from is the caller's, and there are three sources** — a
-  closed form supplies both halves (the vulnerability curves), a reduction supplies
-  both from one expression (a resource field), or only values exist and the slope
-  rule chooses the rest (an extrinsic driver). Only the third needs a rule, and there
-  the rule is a modelling choice rather than a numerical fallback.
-- **The domain policy is the caller's too.** The interpolant extends its end line and
-  never throws; a driver refuses out of range and names itself. A non-finite query
-  falls through and comes back non-finite, which callers rely on — so a guard here is
-  never written as the negation of an in-range test.
-- **A slope read at an active position is refused, not answered.** `eval` takes an
-  active position and grafts the query's derivative; `slope` and `value_and_slope`
-  `static_assert` a passive one, because a query's derivative reaches a value and not
-  a slope.
-
-- **A curve and its derivative are one table, not two.** phylloptim's root pair held f_r
-  and G on the same grid where G's supplied slopes ARE f_r, so uptake read G from one
-  polynomial and f_r from another; they agreed at the knots and nowhere between. f_r is
-  the cumulative table's slope now. The general form: tabulate the lowest derivative
+- **The AD library is named in `odelia` and nowhere else.** Scalars come from
+  `active_scalar<T>`, `adjoint_tape<T>` and `tangent_scalar<T>`; the two things done to
+  a tangent come from `seed_direction` and `derivative_along` in `odelia/tangent.hpp`, a
+  header apart from the reverse-mode one so a package with no tape is not handed a name
+  for one. Those accessors exist because **one library accessor spells a tangent's
+  direction AND an adjoint's accumulator** — on the wrong scalar the same statement
+  seeds a slot no forward pass reads, and nothing raises. They refuse it instead.
+  Reading a value at a boundary is `util::to_passive`, which strips every layer, not the
+  library's one-layer accessor: the two differ at the nested scalar a forward-over-
+  reverse check runs on.
+- **Interpolation is `odelia/interpolator.hpp`.** The order is set by the source, not
+  chosen: a cubic is what two exact channels support and a quintic what three do, and
+  `set_data` has one signature per order so the wrong number of channels does not
+  compile. A curve and its derivative are one table — tabulate the lowest derivative
   anyone reads and take the higher ones from the same polynomial.
-
-`plant::ExtrinsicDrivers` is an alias to `odelia::drivers::Drivers`; it was a copy.
-
-**Beer's law lives in `resource_spline.h`**, as `build_extinction_field`. It was written
-out once per environment, identically. `Environment`'s base had three declarations with
-no definitions -- `compute_environment` and both `set_fixed_environment` overloads -- all
-shadowed by every derived class; they are gone.
-
-## A census is declared by the model, and a graft reports
-
-**The metrics a stand is censused on are the strategy's**, declared by
-`census_metrics()` beside `state_names()` and read by index out of `Internals` —
-the same pair every rate function reads. `species.h` knows only that a census is a
-density-weighted quadrature of some kernel, and nothing outside the model names a
-metric: the codomain is the list's length, and a strategy that declares none says so
-at the call site with the member named. A metric crosses the R boundary as a **name**,
-not a position.
-
-**The state rows and the trait rows come out of one recording**
-(`census_state_and_trait_rows`), through the solver's own
-`state_and_parameter_adjoints`, so the seam between the two halves is written once in
-the tree. The order matters and the primitive enforces it: traits seated first, state
-loaded after, or a quantity the state determines is derived at the previous traits.
-
-**A batch of transpose rows is `odelia::ode::row_batch`**, one width for every row.
-A ragged batch is not a shape a caller can build, so nothing on that path tests for
-one.
-
-**Only odelia names the AD library.** `plant` and `phylloptim` name it nowhere in
-shipped code: the scalars come from `active_scalar<T>`, `adjoint_tape<T>` and
-`tangent_scalar<T>`, and the two things done to a tangent from `seed_direction` and
-`derivative_along` in `odelia/tangent.hpp` — a header apart from the reverse-mode one
-so a package with no tape is not handed a name for one. Those two accessors exist
-because **one library accessor spells a tangent's direction AND an adjoint's
-accumulator**: on the wrong scalar the same statement seeds a slot no forward pass
-reads, or reads one no sweep has written, and neither raises anything. They refuse
-the wrong scalar, so it is a compile error naming `CarriesDirection`. Reading a value
-at a boundary is `util::to_passive`, which strips every layer, and not the library's
-one-layer accessor — the two differ exactly at the nested scalar a forward-over-reverse
-check runs on. The three hand-driven tape probes under `plant/tests` still name the
-adjoint slot, which is honest: they drive a tape by hand.
-
-**`HEIGHT_INDEX`, `MORTALITY_INDEX` and `FECUNDITY_INDEX` are a claim about every
-model's first three state slots**, made by about fifty readers, and `check_state_layout`
-is what checks it — called from each model's `refresh_indices()`, where the map that
-would falsify it is built. `test-state-layout.R` hands the checker a broken layout,
-because a test that only builds models cannot tell a live check from a dead one.
-
-**`record_with_derivatives` and `implicit_root` report rather than throw.** They
-return a `graft_report` and hand the value back either way, because whether a
-consumer can go on without a row is the consumer's to decide — and a stop takes every
-output where the loss belongs to one. Nothing partial: every row is tested before any
-is recorded. `implicit_value` still stops, because it IS the value its equation
-defines and a caller handed the root with no derivative has a structural zero.
-
-## Profiling — read the method before taking a number
-
-**[`docs/leaf-rows-cost.md`](docs/leaf-rows-cost.md) is the method**, and its §1 is
-the part to read first: three measurements are needed and any two of them mislead,
-because **share = count × price** and unit costs here differ by more than an order
-of magnitude. Rank by share, never by a count and never by a profiler's own
-attribution — at `-O2` an inlined callee has no frame of its own and its samples
-land on its caller. §2 states which lever is worth pulling, §3 is the measured
-distribution, §4 the remaining levers ranked by it, and §5 what not to do.
-
-**The current distribution, so it can be scoped without re-measuring:** the gradient
-is **9.7 forward runs** at century scale and flat across run length. The largest
-single cost is the leaf's supplied derivative rows at **35.9%** of a profile — AD-only,
-so nothing in the sweep touches it — and **16.3%** of that is one root-find re-run per
-perturbation, which §4.1 says is a legitimate per-family hoist. XAD's machinery is
-**~17%**, down from ~30% before one recording came to span a step.
-
-⚠️ **That distribution predates the field reduction going to `O(K + N)`, which took
-1.61x off a census gradient and 5.3% off a forward run** -- measured by forcing the old
-walk in the same binary. The shares above no longer sum the way they did, and the leaf's
-rows are now a larger fraction of a smaller total. Re-measure before ranking against them.
-
-**`scripts/profile-gradient.sh` is the harness**, and it automates the four guards
-§1 lists:
-
-```sh
-PLANT_TEST_LIB=<your lib> scripts/profile-gradient.sh scripts/profile-stand-gradient.R
-```
-
-It samples with gperftools' `libprofiler` (`perf` is unusable wherever
-`kernel.perf_event_paranoid` > 2, which is the default here), resolves with
-`google-pprof`, and prints a flat profile and a by-function one. Three things it
-knows that cost a session each to find:
-
-- **`libprofiler` is `LD_PRELOAD`ed onto the R *binary***, not the `R` wrapper and
-  not `Rscript`: via those the first `SIGPROF` arrives during the exec chain and
-  kills the process.
-- **Profile an INSTALLED plant, never a `load_all`ed one.** `pkgload` maps its own
-  copy of `plant.so` and unlinks it while it is still mapped, so the profile's maps
-  entry reads `plant.so (deleted)` — and **no archived copy can be substituted for
-  it**, because the map entry is what is wrong rather than the file. Every sample
-  inside plant then resolves to a bare hex address. Install with
-  `R CMD INSTALL -l $PLANT_TEST_LIB plant`.
-- **Refine the schedule in a separate process.** Refinement bisects on
-  trait-dependent errors and re-runs the whole model many times — measured at
-  **206 s against a ~30 s run at century scale** — so a profile including it spends
-  half its samples in the forward model, and a gradient-to-run ratio computed
-  against it flatters the sweep by using many runs as the denominator.
-  `scripts/profile-stand-gradient.R` caches the refined parameters beside its output
-  and says so when it had to refine.
-
-`google-pprof` comes from the `google-perftools` package, which the `-dev` libs do
-not pull in; install it explicitly.
-
-## CRITICAL: Write Permissions
-**Agents do NOT have push access to the `traitecoevo` organization repositories.** 
-
-You must never attempt to push directly to `traitecoevo/*` remotes.
-
-## Workflow for Agents
-1. **Branching**: When starting work on a feature or bugfix, navigate into the relevant submodule directory (e.g., `cd plant`) and create a new branch.
-2. **Committing**: Make your changes and commit them normally within the submodule.
-3. **Pushing Changes**: Push your branches to the `origin` remote, which points to the `aornugent` fork (e.g., `git push origin my-feature`).
-4. **Updating the Meta-Repo**: After pushing commits in a submodule, navigate back to the root of `plant-dev`. You will see that the submodule pointer has changed in `git status`. Add and commit this hash update in `plant-dev`, and push it to `origin` (`aornugent/plant-dev`).
-5. **Propagating Upstream**: To get changes into the official `traitecoevo` repositories, you must instruct the user to create a Pull Request on GitHub from the `aornugent` fork to the `traitecoevo` upstream.
-
-## Upstream Synchronization
-To sync a submodule with the official repository, fetch and merge from the `upstream` remote, then push to the `origin` fork:
-```bash
-cd <submodule>
-git fetch upstream
-git merge upstream/master # (or main)
-git push origin master
-```
+- **A census metric is the strategy's**, declared by `census_metrics()` beside
+  `state_names()` and read by index out of `Internals`. Nothing outside the model names
+  a metric, and a metric crosses to R as a name rather than a position.
+- **`HEIGHT_INDEX`, `MORTALITY_INDEX` and `FECUNDITY_INDEX` are a claim about every
+  model's first three state slots** that about fifty readers make. `check_state_layout`
+  checks it, from each model's `refresh_indices()` where the map that would falsify it is
+  built; `test-state-layout.R` hands the checker a broken layout, because a test that
+  only builds models would pass whether or not the check existed.
+- **A batch of transpose rows is `odelia::ode::row_batch`**, one width for every row, so
+  a ragged batch is not a shape a caller can build.
 
 ## Code style
 
@@ -896,36 +543,3 @@ Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
   return to_r_list(jacobian);  // only doubles cross the boundary
 }
 ```
-
-## PR workflow
-
-Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
-entry in the session task list. PRs are opened
-against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
-upstream is a separate, user-driven step (see *Workflow for Agents* above).
-
-- **One PR per issue.** Each PR is a small, self-contained change that closes exactly one
-  issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
-  mapping is unambiguous.
-- **Stacked diffs where issues depend on each other.** When working through several
-  interdependent issues at once, which is the common case — branch each PR on top of the one it builds on rather than off the base
-  branch, and target that parent branch. Reviewers then see only the incremental diff and
-  the PRs merge in order down to the submodule's default branch (`master`/`main`).
-  Independent issues branch straight off the default branch and can merge in any order.
-- **Fix in the branch that owns the issue; don't stack a fix on top.** When review or a
-  later finding changes something already in the stack, land the change on the branch for
-  the issue it belongs to (amend or add a commit there), not as a new branch on top. A
-  fix stacked above the code it corrects breaks the one-PR-per-issue mapping and muddies
-  the incremental upstream PRs. Only branch anew when the change is genuinely new scope.
-- **Rebase the stack with `--update-refs`.** Amending an underlying branch moves the
-  merge-base of everything above it, so those branches must be rebased onto the new tip.
-  `git rebase --update-refs` (Git ≥ 2.38; or `git config rebase.updateRefs true`) advances
-  all the intermediate stacked branch refs in one pass; then force-push each descendant
-  with `--force-with-lease`. The cost is remembering to push *every* descendant and
-  resolving a conflict that can cascade upward — not deep surgery, but do it deliberately.
-- **Tests land with the component they cover** — not as a separate follow-up PR. Each
-  change ships its own coverage in the same PR that adds it.
-- **Bump the meta-repo pointer as each lands.** Submodule work lives on a feature branch
-  and its per-issue children; after a submodule PR merges, update the `plant-dev`
-  submodule pointer (see *Updating the Meta-Repo* above) so the superproject tracks the
-  new commit.
