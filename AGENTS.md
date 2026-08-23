@@ -126,7 +126,7 @@ name, because a concept can be renamed while the fork stays the fork:
 
 ```sh
 ODE=$(Rscript -e 'cat(find.package("odelia"))')
-grep -c solve_adjoint_over_widenings "$ODE/include/odelia/gradient.hpp"
+grep -c solve_adjoint_over_widenings "$ODE/include/odelia/sweep.hpp"
 # non-zero, or what is installed is not the fork
 ```
 
@@ -261,26 +261,10 @@ scripts/run-tests.sh '^test-gradient' "" invert     # the 55 non-ladder files
 is how you stay out of the race described above; it is prepended, so the user
 library is still visible.
 
-**What a clean run looks like.** Six files fail for reasons that predate the gradient
-work, so a count is the only way to tell your failure from an inherited one — **a
-differing count is yours.**
-
-| suite | clean |
-|---|---|
-| plant, non-ladder (`'^test-gradient' "" invert`) | **3262 / 8 / 3 / 13** |
-| plant, ladder (`'^test-gradient'`) | **679 / 0 / 0 / 5** |
-| phylloptim `test_leaf` | **2421 checks, 0 failures** |
-| phylloptim `test_golden --cross-platform` | **223** beyond tolerance (Linux vs macOS) |
-| phylloptim, R | **1435 / 4 / 1 / 1** |
-| odelia, R | **415 / 0 / 3** |
-
-Measured, per file: `test-leaf.r` 5 fail, `test-stochastic-patch.R` 3 error,
-`test-stochastic-patch-runner.R` 1 fail, `test-strategy-tf24.R` 1 fail,
-`test-strategy-tf24f.R` 1 fail. `test-stochastic-patch-runner.R`'s PASS count varies run
-to run; its one failure does not. phylloptim's five are recorded expectations rather than
-code. `test_golden` must be run from `tests/cpp` — it looks for
-`golden/operating_points.tsv` relative to the working directory and reports it MISSING
-from anywhere else.
+**Every suite passes, so any failure is yours.** Read the SKIP count alongside the
+failures: a test that stops running looks exactly like a test that passes, so a skip
+where there was none is a guard that stopped guarding. `test-stochastic-patch-runner.R`
+is the one file whose PASS count varies run to run.
 
 ## Testing phylloptim
 
@@ -291,11 +275,17 @@ make -C phylloptim/tests/cpp CXX=g++            # builds and runs test_leaf and 
 make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds these too
 ```
 
+`test_golden` must be run from `tests/cpp` — it looks for `golden/operating_points.tsv`
+relative to the working directory and reports it MISSING from anywhere else. The golden
+file was generated on macOS, so plain `test_golden` reports thousands of mismatches and
+exits non-zero on Linux: `--cross-platform` is the run that means anything, and `make`
+failing on that target alone is not a regression.
+
 ⚠️ **The R suite needs the package namespace as its parent environment, and without it a
 third of the suite reports as broken code.** Several tests call internals by name, so a plain
 `test_dir()` reports *"could not find function"* — which reads like a missing binding and is a
-missing environment. Measured: the wrong invocation reported 10 failures where the right one
-reports 5.
+missing environment. The wrong invocation fails in bulk while the right one passes clean,
+so the failures name the environment rather than any model.
 
 ```sh
 Rscript -e 'library(phylloptim)
