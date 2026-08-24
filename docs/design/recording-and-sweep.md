@@ -196,6 +196,27 @@ this design has to move.
    `System` per step out of `history` — ledger row 5, in odelia's tests — and now
    sweeps the record its replay kept. And `has_recording()` was building a vector
    of every recorded time to compare its length against one.
+1b. ✅ **Residue swept**, on review. `has_recording()` deleted — a library
+   accessor whose two users were a test asserting it and one example's guard,
+   and which collided in name with `canopy_system`'s own `has_recording()`
+   (the System's light history, a different thing). The guard is load-bearing —
+   without it an unrecorded solver replays a one-entry schedule and returns a
+   gradient of it — so the example states its own precondition instead.
+   `recorded_state(k)` deleted from both classes: its last caller left with
+   plant's re-bundling, and it was an unguarded route into a state that may be
+   empty, which is what made `recording()`'s claim to be the only way in untrue.
+   And the plant alias renamed `recording` → `trajectory`, because
+   `patch.recording` is a bool meaning something else. `odelia@cc7e74d`,
+   `plant@adea9914`.
+
+   **Still standing, deliberately.** `store_trajectory()` no longer stores
+   anything — it returns the record, re-running only if the run kept none — so
+   its name is now wrong, but RcppR6 exports it, making the rename R-facing.
+   And odelia's own tests still build a schedule from `times()` + `step_sizes()`
+   in four places, which is the projection-and-rebundle this increment deleted
+   from plant. A `Solver::schedule()` would collapse four six-line loops to four
+   one-liners; it is an addition that buys a deletion, so it wants a decision
+   rather than a slip.
 2. **The widening's time**, stored where it is built rather than recovered:
    deletes `recorded_widening` and `insertions_of`. Now cheap, because the record
    is already the argument.
