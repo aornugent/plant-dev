@@ -199,12 +199,28 @@ loads into whatever node counts the species currently have, so something else ha
 to establish those counts first, and that something has to be *told* them — which
 is the insertion list, threaded from plant through odelia and back.
 
-Let a System's size be a function of its time, and the two collapse:
-`set_ode_state(y, t)` becomes *become the shape at t, then take these values*.
-Then `set_recorded_state` goes, both overloads; `WidensState` loses its reconcile
-member; and **odelia needs no new concept at all** — it already calls
-`set_ode_state(it, time)` everywhere. What it needs is to stop requiring that the
-size be constant.
+Let the loader derive its shape and the two collapse — but **on the recorded
+loader, not the plain one**, and the reason is worth having.
+
+Time alone does not determine the shape. At an introduction time there are *two*
+shapes: before the insertion and after it. The forward run is *after* — it calls
+`introduce_nodes` on arriving at `t_intro` — while a recorded step at `t_intro` is
+*before*, since the insertion follows that step. A single resizing loader keyed on
+time would therefore remove, during the run, the node the run had just introduced.
+
+Split by caller and the ambiguity does not arise:
+
+- **the forward run** loads into the shape it already built, so
+  `set_ode_state(y, t)` keeps its meaning and pays nothing;
+- **a replay or a sweep** does not know the shape, so
+  `set_recorded_state(y, t)` derives it: `base_i + count(plan[i] < t)`, strictly
+  below, which is exactly the rule the four-argument loader applies through
+  `after_step < step`.
+
+So the two-argument `set_recorded_state` — **which already exists** — gains the
+shape derivation, and the four-argument overload goes with the insertion list it
+was handed. `WidensState` loses its reconcile member either way, and the plan
+lookup lands once per segment instead of once per stage.
 
 `WidensState` is then **one hook**: the insertion map, because a Jacobian needs a
 function of the narrower state and no loader provides that. Which is plant's
@@ -363,12 +379,16 @@ moves.
    fixed. `odelia@cc7e74d`, `plant@adea9914`.
 3. ✅ **`Solver::schedule()`.** Four hand-built schedule loops in odelia's own
    tests collapsed to one line each. `odelia@762296b`.
-4. **Narrow what `Patch` keeps.** Delete the seven unread fields from the rebind
-   and reduce `Patch::parameters` to what it uses. Prerequisite for 5, and a
-   defect on its own merits.
-5. **`set_ode_state` resizes**, checking the plan for its target shape — chosen
-   over a sized loader, which keeps the change plant-local. Both
-   `set_recorded_state` overloads go, and with them `SCM::widenings`,
+4. ✅ **Stop rebinding a record of the run.** Three of the nine Parameters fields
+   the rebind copied are read by nothing on the patch — `ode_times`,
+   `ode_step_sizes` (a record of the run, read only by `make_node_schedule`) and
+   `n_patches`. The other six are load-bearing: `patch_type` and
+   `max_patch_lifetime` are read by `validate()`, which rebuilds the disturbance
+   regime, so dropping them moves `pr_patch_survival` and the fecundity rates with
+   nothing raised. `plant@c6c65955`.
+5. **The recorded loader derives its shape** from the plan, checked rather than
+   handed in — chosen over a sized loader, which keeps the change plant-local. The
+   four-argument overload goes, and with it `SCM::widenings`,
    `recorded_widening`, `recorded_insertion`, `insertions_of` and `Widening` at
    eleven sites. odelia detects boundaries from recorded widths.
 6. **Delete `WidensState`.** The one hook becomes a direct member call beside the
