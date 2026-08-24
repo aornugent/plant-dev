@@ -195,10 +195,10 @@ spans over storing another vector; if a member must be added, print
 
 The main cost is the **C++ rebuild** for any change.
 
-`plant` carries about 3700 testthat assertions across 68 files, but running all of
-them per edit is wasteful. Measured at `-O2`: the gradient ladder is **1172 s of CPU
-over 13 files**, everything else is **339 s over 55**, and no file outside the ladder
-exceeds 63 s.
+`plant` carries about 3900 testthat assertions across 73 files, but running all of
+them per edit is wasteful. The gradient ladder is the expensive tier — 18 files,
+**61 s of wall** measured at `-O2` — and everything else is 55 files and about
+90 s. No single file outside the ladder is slow enough to matter.
 
 Tiers of the loop, cheapest first:
 
@@ -219,7 +219,7 @@ Tiers of the loop, cheapest first:
    scripts/run-tests.sh '^test-gradient' "" invert
    ```
 4. **The gradient ladder, in three tiers.** Its files are named so the pattern
-   selects a tier, and the whole ladder is 17 s of wall run this way.
+   selects a tier, and the whole ladder is about a minute of wall run this way.
 
    *Structure, no trajectory (~40 s of CPU, a few seconds of wall).* Where the
    assurance is concentrated: the exhaustive block Jacobian and its rank structure,
@@ -229,7 +229,7 @@ Tiers of the loop, cheapest first:
    ```sh
    scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
    ```
-   *Trajectory (~1130 s of CPU, 17 s of wall).* floor, identity, rung4, columns,
+   *Trajectory — the bulk of the ladder's cost.* floor, identity, rung4, columns,
    rung5, recruit, sweep, switches — accumulation across cohorts and species, the
    stage recursion, introductions, the boundary channels, and refusal. Run before
    landing sweep work.
@@ -247,7 +247,7 @@ Tiers of the loop, cheapest first:
 is its CPU time. One R process per file gets the concurrency back — `load_all()` costs
 about two seconds per process and the files are independent — so **the number that
 decides how long a run takes is the slowest single file, not the total**: sixteen cores
-run the whole ladder in **17 s of wall**. The script names any file that produced no
+run the whole ladder in about a minute. The script names any file that produced no
 result line, which is the one way this loses information a `test_dir()` would not: a crashed
 process is otherwise silent.
 
@@ -260,6 +260,28 @@ scripts/run-tests.sh '^test-gradient' "" invert     # the 55 non-ladder files
 **Set `PLANT_TEST_LIB` to a private library holding your `odelia` build**, which
 is how you stay out of the race described above; it is prepended, so the user
 library is still visible.
+
+### ⚠️ What makes a timing here worthless
+
+Three ways to measure this suite and learn nothing. Two of them cost this session
+a claimed regression that did not exist.
+
+- **`plant/src/plant.so` has to be there first.** `pkgbuild::compile_dll` does not
+  reliably leave it in `src/`; `pkgload::load_all("plant")` is what puts it there.
+  Without it **every one of the parallel processes compiles plant itself**, which
+  both collides on the install lock and means the number you took was N builds.
+  Run one `load_all` and confirm the file exists before timing anything.
+- **One suite at a time.** The runner launches every file with `&` and waits, with
+  no concurrency cap, so a second suite halves the cores. And wall time is bounded
+  by the slowest single file, not the total — which is why a per-tier CPU figure
+  tells you nothing about wall time, and why a stale file count invalidates the
+  comparison entirely.
+- **`pgrep -c R` does not count R processes.** It matches any process whose name
+  contains `R`, and reports tens where one is running. Use `pgrep -x R`.
+
+And a claim about speed needs a *control*: the same file, both sides, interleaved
+in one session. A figure from this file is not a control — it is a figure from
+whenever it was last true.
 
 **Every suite passes, so any failure is yours.** Read the SKIP count alongside the
 failures: a test that stops running looks exactly like a test that passes, so a skip
