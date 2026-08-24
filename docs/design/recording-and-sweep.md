@@ -157,6 +157,73 @@ flag defaults false; under B it gets none because it passes no recording. That i
 the same outcome reached by a different question, so nothing regresses — but the
 decision becomes explicit at one site instead of implicit in a default.
 
+## A widening is a join, not a choice
+
+Tested, because the concept's name claims more than the workflow does. Node
+introductions in this model are **scheduled**, not triggered — `WidensState`'s own
+comment already says so: *"A System satisfying this asserts its insertions are
+scheduled, not triggered."* And after an adaptive solve the step schedule is fixed
+too. So a widening is not a decision the run made; it is **where one fixed
+schedule lands on another**.
+
+What the code does instead: records the payload and the time alongside the step
+index, in a container of its own, and reconstructs the model's birth dates from it.
+
+**The evidence.**
+
+- **Exactly one type satisfies `WidensState`**: `Patch`, with
+  `using widening = std::vector<size_t>` — a list of species indices. So the
+  opaque payload the whole generic apparatus exists to carry has one
+  implementation, and odelia never inspects it; it only ever hands it back.
+- **`Widening` is a template parameter at eleven sites** — seven in odelia
+  (`recorded_insertion`, `recorded_widening`, `insertions_of`, `be_at_step`,
+  `state_at_segment`, `solve_adjoint_over_widenings`, `advance_over_widenings`)
+  and four in plant.
+- **The payload is not lost, so recording it is a copy.** `NodeSchedule::pop()`
+  advances a cursor that `reset()` restores, and `get_times()` returns the whole
+  per-species introduction schedule non-destructively. It is available at sweep
+  time.
+- **`set_recorded_state(y, time, insertions, applied)` reads only `(species,
+  time)` out of the list it is handed** — birth dates — which is exactly what
+  `get_times()` holds. And the two-argument `set_recorded_state(y, time)` it would
+  reduce to **already exists** on `Patch`.
+
+**What that collapses.** The insertion stops being a record of what happened and
+becomes one flag on the step it follows:
+
+| goes | why |
+|---|---|
+| `recorded_widening<W>` | it was `{after_step, event}`; the event is the model's |
+| `recorded_insertion<W>` | it was `{what, after_step, time}`; only the index is not derivable |
+| `insertions_of` | nothing left to bridge |
+| `Widening` at all eleven sites | odelia stops carrying a payload it never reads |
+| `state_segments`' container argument | a boundary is a flagged row, so the partition check becomes local: a flagged row must be followed by a wider one |
+| the four-argument `set_recorded_state` | the model looks its own birth dates up instead of replaying a list handed back to it |
+| plant's `widenings` member | it is the flags |
+
+And the count `applied` needs no time comparison: **the j-th flagged row is the
+j-th introduction**, so counting flags below step k gives it exactly. No
+float-equality join between an introduction time and a step time — which matters,
+because that is precisely the comparison this codebase refuses elsewhere.
+
+**What does not go, and saying so plainly.** `widened_state` stays: the adjoint
+must be carried through the map that widened the state, and only the model knows
+what an inserted entry means. Reconciliation stays too, because the model carries
+birth dates that are in neither the state nor its width. So `WidensState` is not
+deleted — it goes from *a payload type, a four-argument list-carrying loader, and
+a map* to **two hooks with simple signatures**, and odelia's eleven
+`Widening`-templated entities go to zero. That is the win, and it is a reduction
+rather than a disappearance.
+
+**Two things to verify before building it**, both cheap and both able to sink it:
+
+1. that `node_schedule` is intact at sweep time — it is a member and `pop()` only
+   cursors, but nothing yet proves no path clears it between the run and the
+   sweep;
+2. that the j-th-flag-is-the-j-th-introduction correspondence survives a patch
+   seeded with `n_initial_cohorts`, since `set_recorded_state` treats seeded
+   structure as what no insertion accounts for.
+
 ## What this does NOT solve
 
 **There are two recordings, and only one of them becomes an object.**
@@ -217,9 +284,8 @@ this design has to move.
    from plant. A `Solver::schedule()` would collapse four six-line loops to four
    one-liners; it is an addition that buys a deletion, so it wants a decision
    rather than a slip.
-2. **The widening's time**, stored where it is built rather than recovered:
-   deletes `recorded_widening` and `insertions_of`. Now cheap, because the record
-   is already the argument.
+2. **A widening is a join between two schedules, and odelia should not carry its
+   payload.** See below — this subsumes the widening's-time increment.
 3. **B's flag deletion**: `record_into()` replaces `set_keep_states(bool)`, so
    `keeps_states()` stops being a round trip — plant sets the flag, then asks the
    solver what it set — and `step_record::state` loses its *"unless"*.
