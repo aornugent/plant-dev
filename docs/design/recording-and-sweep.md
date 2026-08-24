@@ -395,13 +395,52 @@ moves.
    deleted; its two members are mandatory for a System a sweep walks, so they are
    called directly like `ode_size()`. odelia −168/+82, plant −91/+109.
    `odelia@55fdc51`, `plant@d1195908`. Every number unmoved.
-6. **Retire `parameters.ode_times`/`ode_step_sizes`** in favour of
-   `solver.schedule()` — the run record that still lives in a configuration
-   object, and the last of ledger row 1.
-7. **Name `compute_boundary_nodes` for the boundary** rather than for recording:
-   it is the two-argument loader's only addition over `set_ode_state` and has
-   nothing to do with a record.
-8. **B's flag deletion.** `record_into()` replaces `set_keep_states(bool)`.
-9. **`history`/`collect`/`get_history_*`** — the `vector<System>` recorder that
+6. ✅ **The schedule written out from one source.** `parameters.ode_times` and
+   `ode_step_sizes` are an *input* — a schedule a caller can ask the solver to
+   stop at — and nothing in the design reads them as the run's record. The
+   write-back stays, being documented and tested, but reads `solver.schedule()`
+   rather than pairing a time with its size a second time.
+7. ✅ **The two loaders named apart.** `set_recorded_state` had two overloads
+   doing different things; the one that loads into the shape it finds and settles
+   the inflow condition is `set_state_and_boundary`. `plant@dca388e5`.
+8. ✅ **The patch's schedule refreshed where a run begins.** A reconciliation reads
+   the plan to work out a step's shape and reads the patch's copy, while
+   `r_set_node_schedule` updates the SCM's only — latent, and wrong with nothing
+   raised. `plant@f514f043`.
+9. **Resolve both schedules up front, and key the shape by step.** For a reverse
+   pass, *both* schedules are known before taping starts: the introduction
+   schedule is configuration, and the ODE schedule is fixed once the adaptive run
+   has resolved it. So the step-to-shape mapping is fully determined before the
+   sweep begins, and belongs resolved once at its start rather than worked out per
+   call.
+
+   `state_segments(rec)` already *is* that resolution, computed once by the driver.
+   What is missing is that the patch is asked by **time** rather than by ordinal:
+
+       be_at_step(system, rec, step, applied)   // applied, off the segments
+       inserted_state(j, x, y)                  // the j-th introduction
+
+   No new state anywhere — the table is the segments, already built. The reason to
+   do it is **not** speed: the plan is bounded by the recording, since every
+   scheduled introduction lands on a recorded step, so the scans are over about a
+   hundred entries and cost nothing. It is that a step index is exact by
+   construction where a time comparison has to be argued for, and it takes a
+   question out of the reader's way.
+
+   ⚠️ **And a warning about how not to measure this.** Two performance diagnoses
+   were made here by inspection and both were wrong: a "quadratic in the schedule"
+   that arithmetic refutes, and an "18× regression" that was forty stray R
+   processes and a concurrently running suite. The runner launches every file with
+   `&` and waits, so a second suite halves the cores; and wall time is bounded by
+   the slowest single file, which makes the ladder's documented 17 s a figure for
+   the 13 files it had rather than the 18 it has. Measured clean: one file 10 s,
+   the whole ladder 61 s.
+10. **Declined: `record_into()` replacing `set_keep_states(bool)`.** One bool,
+   one setter, one reader, and `recording()` refuses when it is false — so the
+   flag and the data cannot silently disagree. Every alternative is bigger: a
+   caller-owned vector changes the forward API across 152 sites, keeping states
+   always regresses memory on long non-gradient runs, and a variant of two row
+   types is more machinery.
+11. **`history`/`collect`/`get_history_*`** — the `vector<System>` recorder that
    `least_squares` copies whole Systems out of to read state vectors. R-facing and
    breaking; not mine to land.
