@@ -140,21 +140,63 @@ the map to transpose, and reconcile-to-a-recorded-step.
 
 ### What reconciliation is, and why it is not test scaffolding
 
-**The ODE state vector does not determine the patch.** Three things per node are
-outside it — birth date, patch density at birth, survival at birth — and so is the
-structure the vector is loaded into: how many nodes each species has. `push_nodes`'
-own comment says it: *"The three numbers a node carries that the ODE state does
-not."*
-
-So a pass that re-runs the model from a recorded state must first rebuild the
+**The ODE state vector does not determine the patch.** Outside it are three numbers
+per node and the structure the vector is loaded into — how many nodes each species
+has. So a pass that re-runs the model from a recorded state must rebuild the
 structure and the birth bookkeeping, then load the state. That is reconciliation,
-and it is load-bearing on the shipped path — a sweep exists only because the model
+and it is load-bearing on the shipped path: a sweep exists only because the model
 can be put back where the run was.
 
-It is also **needed once per segment, not once per step**. `step_adjoint` lifts the
+It is **needed once per segment, not once per step**. `step_adjoint` lifts the
 System and takes the state as an argument, reading the System only for its
-structure; within a segment no nodes are added, so the structure is constant. Only
-crossing a boundary requires it.
+structure; within a segment no nodes are added, so the structure is constant.
+
+### The three stamps are a memo, not information
+
+`push_nodes` says it outright: *"All three are functions of the time it is
+introduced at, which is what lets a record hold only the time."* So they cache two
+pure functions of the birth date rather than carrying anything independent:
+
+| stamp | is | consumed by |
+|---|---|---|
+| `node_introduction_time` | the birth date | structure and both derivations below |
+| `patch_density_at_birth` | `disturbance->density(birth)` | `weighted_fecundity` — a **census reduction**, not a rate |
+| `pr_patch_survival_at_birth` | `disturbance->pr_survival(birth)` | the fecundity **rate**, as the denominator of `pr_patch_survival / pr_patch_survival_at_birth` |
+
+The two consumers differ in a way that matters. Patch density reaches only a
+lifetime-fitness reduction, so the ODE never sees it. Survival-at-birth is in a
+rate, so it is on the taped path — as a constant denominator, since both stamps are
+`double`.
+
+Neither needs restricting to a no-disturbance regime, and neither needs recording.
+The birth date is `schedule()[step].time`, `Patch` already holds the regime as
+`survival_weighting`, and both values are recomputed from the date. **The stamps
+are a per-node memo of configuration, which is not a record of the run.**
+
+**And `S_D` is not the establishment probability.** It is survival during
+dispersal, and it appears in exactly one place — `weighted_fecundity =
+offspring_produced_survival_weighted × patch_density_at_birth × S_D` — a census
+reduction, which is consistent with its `no_column` declaration. Establishment is a
+separate strategy method whose value enters the inflow boundary
+(`n_b = birth_rate × pr_estab / g`) and therefore **is** ODE state and **is**
+differentiated. Three distinct quantities that read alike: `pr_estab` in the
+boundary, `S_D` in the reduction, `pr_patch_survival_at_birth` in the rate.
+
+### So reconciliation needs only the plan and a time
+
+Everything reconciliation rebuilds is derivable from the introduction plan plus the
+recorded time:
+
+- **structure** — how many nodes species *i* has: the plan entries for *i* with
+  time strictly below this step's. Exact rather than approximate, because the run
+  steps *to* an introduction time, so a boundary step's time equals a plan time bit
+  for bit and everything else falls unambiguously.
+- **birth dates** — the plan's times themselves.
+- **the two stamps** — recomputed from each date through `survival_weighting`.
+
+Which retires the four-argument loader in favour of `set_recorded_state(y, time)`,
+the two-argument form that already exists, and with it the insertion list that was
+being threaded from plant through odelia and back to plant.
 
 ### Patch does not need Parameters
 
