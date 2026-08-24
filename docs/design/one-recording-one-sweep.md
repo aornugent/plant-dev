@@ -51,7 +51,7 @@ there are nine:
 
 | # | the one fact | its second spelling | sites |
 |---|---|---|---|
-| 1 | a recorded trajectory | `ode_step_record` unpacked into loose `(states, times)` | 4 unpackings |
+| 1 | a recorded trajectory | `SolverInternal::step_record` → projected to `times()`/`step_sizes()`/`recorded_state()` → **re-bundled** as plant's identical `ode_step_record` → destructured again to `(states, times)` | 3 projections, 1 re-bundle, 4 unpackings |
 | 2 | a widening, and when it happened | `recorded_widening` + `recorded_insertion`, bridged by `insertions_of` | 1 construction, 4 bridges |
 | 3 | the tape discipline | `clearAll` per recording (sweep) vs `newRecording` on a cached System (calibration) | 2 headers, ~20 lines of cross-reference |
 | 4 | record-once-sweep-many | `vector_jacobian_product` vs `xad::computeJacobian` | 2 engines |
@@ -84,6 +84,24 @@ rather than sit beside it. Wins when the witnesses are already in hand and
 disagree — they are: five spellings, and `recorded_widening` is built at exactly
 one site (`scm.h:581`) where the time is already available, so `insertions_of`
 exists only to recover a fact that was in scope when it was dropped.
+
+> **It is not a new type. It is already there.** `SolverInternal` holds
+> `std::vector<step_record>` with `{time, step_size, state}`, and its accessor
+> comment states the invariant this design was about to invent one for: *"out of
+> the record it shares with the time and the size that reached it — so a caller
+> cannot pair one run's state with another run's size."* `store_trajectory`'s
+> comment goes further, recording that the two stores were **already** unified
+> here once and why: *"One record cannot be mispaired, so nothing is emptied and
+> nothing is repeated."*
+>
+> Then `get_times()`, `get_step_sizes()` and `recorded_state(k)` project that
+> record back into correspondents, plant re-bundles them into an identical struct
+> of its own — re-checking a pairing that was never broken — and the sweep API
+> destructures them a third time. **So candidate A is a deletion, not an
+> addition**: stop projecting. What survives is a validated *view* over the
+> solver's records plus the model's insertions, which owns no storage and copies
+> nothing; the only thing it adds is that constructing it is where the partition
+> is checked.
 
 **B — move 3, move the system boundary. One entry point covering seed→sweep→add.**
 Commitment: you cannot obtain a swept parameter row without the seed that
@@ -338,7 +356,7 @@ isn't one. Of 62 table entries, `zero_means` carries irreducible information on
 | declaration | entries | what it really is |
 |---|---|---|
 | `zero_undeclared` | 44 | the default. Declaring it says what not declaring says. |
-| `no_column` | 15 | not a zero-meaning at all — the wrong axis, in the enum |
+| `no_column` | 15 | **the value that switches off the referee** — see below |
 | `zero_slack` | 2 (`psi_crit`, `root_psi_crit`) | **state-dependent**, and the run knows it exactly from the operating point |
 | `zero_structural` | 1 (`a_f3`) | a genuine static claim |
 
@@ -358,6 +376,49 @@ refusal supplied by the run. That deletes
 zero-classification loop — and it is this design's own rule applied one level
 deeper than the design applied it, which is the strongest evidence for the rule
 and a correction to the design in the same breath.
+
+**`no_column` is not a category error; it is worse.** Naming a zero and omitting
+it differ in exactly one way that matters: **a named zero is computed, so the
+ladder polices it, and an omitted one is never computed, so nothing does.**
+`a_f3` is the proof, and it is the only parameter enjoying that treatment. It is
+declared `zero_structural`; it *does* reach an equation (`fecundity_dt` divides by
+`omega + a_f3`); and the referee is `ladder_zero_outside_the_metric_support()`,
+whose comment names the two rates it moves — `fecundity` and
+`offspring_produced_survival_weighted` — so that *"a third rate would mean the
+census's silence about the column is wrong."* The claim is a measurement.
+
+Two consequences. First, **`zero_structural` is misnamed**: a_f3's zero is
+relative to the current metric set, not to the model. The helper says so — *"would
+be live on a fitness functional"* — so the declaration sits on the parameter while
+its truth depends on the metric list, and nothing ties the two together.
+
+Second, and larger: **eleven of the fifteen `no_column` entries are in a_f3's
+situation and get none of that policing.** `no_column` is carrying five different
+reasons at once —
+
+| reason | entries |
+|---|---|
+| reaches nothing the metrics read — i.e. `zero_structural` | `a_p1`, `a_p2`, `S_D`, `var_sapwood_volume_cost`, `nmass_l/s/b/r`, `dmass_dN`, `d`, `p_50` (11) |
+| slack at an interior optimum — i.e. `zero_slack` | `beta1` (1) |
+| a recorded row would be wrong (0·−inf) — a *refusal*, not an absence | `eta`, `root_depth_shape_eta` (2) |
+| not a differentiable real at all | `use_energy_balance` (1) |
+
+— and two of the comments state the name they should be carrying. `S_D`'s reads
+*"zero on any trajectory rather than on this one"*, which is `zero_structural`'s
+definition verbatim. `beta1`'s reads *"slackness makes its row zero at an interior
+optimum. Live at a pin"*, which is `zero_slack`'s — while `psi_crit` and
+`root_psi_crit`, in the identical situation, are declared `zero_slack` and
+computed. Same physics, two treatments, and the omitted one is the unverified one.
+
+So the move is not to shrink the vocabulary but to **stop using its escape
+hatch**: file those eleven as `zero_structural` and let the ladder police them,
+which costs eleven columns in an accumulator whose width the sweep is indifferent
+to. `no_column` then holds four entries with genuinely distinct reasons — and each
+resolves elsewhere. The two `0·−inf` cases are refusals the run should report (and
+T7 argues the limit is 0, so they may not even be that); `use_energy_balance` is
+not a number and should not be an `S` in a table of differentiable reals. At which
+point `no_column` is empty, the has-a-column partition goes, `column_count` and
+`field_count` coincide, and `ad_parameters()` and `field_ptrs()` are one accessor.
 
 **The counterweight, which matters.** These declarations are *checked*, not
 commented: `test-gradient-ladder-declared-zero.R` asserts both directions — every
