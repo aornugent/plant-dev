@@ -269,6 +269,44 @@ The same three write sites expose a second conflation: `parameters.ode_times` an
 record of the last run, and its schedule is a third spelling beside
 `solver.schedule()`.
 
+### Retiring the concept
+
+odelia has a settled discipline for these, and reading it decides the question.
+
+| kind of requirement | how odelia expresses it | examples |
+|---|---|---|
+| optional, and odelia **branches** | a concept, used with `if constexpr` | `HasOdeTime` (*"a System that does not is time homogeneous"*), `RecordsChoices`, `ChecksState` |
+| a **refusal** | a concept inside a `static_assert`, **with a message** | `Rebindable` — *"a recording is taken on the System at the adjoint scalar; this System has no rebind_from()"* |
+| **mandatory** | nothing at all | `ode_size`, `ode_state`, `set_ode_state`, `ode_rates` — and `derivs` is an unconstrained free function template |
+
+`WidensState` is none of the three. It gates four functions with a bare `requires`
+that produces no message, for a capability that is not optional — those functions
+are meaningless without it — and is not a refusal anyone reads.
+
+So **it should not exist.** The one remaining hook is a mandatory member of any
+System the sweep is asked to walk, exactly like `ode_size()`, and the sweep already
+calls `ode_size()`, `ode_state()` and `set_recorded_state()` as direct members with
+no concept between. The hook joins them:
+
+    system.inserted_state(step, x, y);      // the state an insertion produced
+
+Plant implements it as a two-line forward to its own introduction-as-a-map, which
+is the `extrinsic_drivers` pattern: odelia names what it needs, plant keeps its own
+verb, and the adapter is one line and says so.
+
+If a message is wanted for a System that lacks it, the `Rebindable` form is the
+one to copy — and `state_and_parameter_adjoints` already carries such an assert at
+exactly the site the boundary transpose goes through, so there may be nothing to
+add.
+
+**Not a Jacobian utility.** The utility already exists:
+`state_and_parameter_adjoints`. At a boundary the sweep spends five lines on it,
+and naming those five would be a wrapper with one caller. And plant supplying the
+Jacobian itself is worse than taping the map — an insertion's Jacobian is identity
+on the existing entries plus dense rows for the newborn, whose initial conditions
+reach the whole narrow state through the light field and the birth rate. Writing
+that by hand is the thing this design exists to avoid.
+
 ### Naming
 
 `widening` is opaque. The layering says which word belongs where: **odelia names
@@ -328,12 +366,17 @@ moves.
 4. **Narrow what `Patch` keeps.** Delete the seven unread fields from the rebind
    and reduce `Patch::parameters` to what it uses. Prerequisite for 5, and a
    defect on its own merits.
-5. **Delete `SCM::widenings`.** Boundaries detected from recorded widths; the map
-   and the reconcile read the plan. `recorded_widening`, `recorded_insertion`,
-   `insertions_of` and `Widening` at eleven sites go.
-6. **Rename** `widening` → `insertion` across odelia, and retire
+5. **`set_ode_state` resizes**, checking the plan for its target shape — chosen
+   over a sized loader, which keeps the change plant-local. Both
+   `set_recorded_state` overloads go, and with them `SCM::widenings`,
+   `recorded_widening`, `recorded_insertion`, `insertions_of` and `Widening` at
+   eleven sites. odelia detects boundaries from recorded widths.
+6. **Delete `WidensState`.** The one hook becomes a direct member call beside the
+   ones the sweep already makes, and `compute_boundary_nodes` is named for the
+   boundary rather than for recording.
+7. **Rename** `widening` → `insertion` across odelia, and retire
    `parameters.ode_times`/`ode_step_sizes` in favour of `solver.schedule()`.
-7. **B's flag deletion.** `record_into()` replaces `set_keep_states(bool)`.
-8. **`history`/`collect`/`get_history_*`** — the `vector<System>` recorder that
+8. **B's flag deletion.** `record_into()` replaces `set_keep_states(bool)`.
+9. **`history`/`collect`/`get_history_*`** — the `vector<System>` recorder that
    `least_squares` copies whole Systems out of to read state vectors. R-facing and
    breaking; not mine to land.
