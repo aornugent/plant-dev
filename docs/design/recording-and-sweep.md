@@ -181,15 +181,29 @@ this design has to move.
 
 ## Increments
 
-1. **The floor**, on its own: the widening stores its time; `solve_adjoint` takes
-   times and sizes rather than reading its own. Deletes `insertions_of` and one
-   length check. Numbers identical.
-2. **B**: `record_into()` replaces the flag; `step_record` is exposed as the
-   recording; `ode_step_record`, `recorded_times()`, the re-bundle and the four
-   unpackings deleted.
-3. **The pairing view**: solver records + model insertions in one validated
-   construction, absorbing `state_segments`' check. The five loose-array
-   signatures collapse to it.
-4. **Row 5 of the old ledger**: `history`/`collect`/`get_history_*`, the
+1. ✅ **The record, handed back whole.** `step_record` derives from
+   `recorded_step` and moves beside it — a recording row is a schedule row plus
+   its state, which is what the two structs were saying separately.
+   `Solver::recording()` returns it, refusing where the run kept no states. The
+   five loose-array signatures each take one thing; `solve_adjoint` stops reading
+   times off the solver; `advance_over_widenings` reads the schedule off the
+   record. plant loses `ode_step_record`, `recorded_times()`, the re-bundle, the
+   four unpackings and both schedule conversions — 131 lines to 41.
+   `odelia@a938d30`, `plant@fcf158ff`, every number unmoved.
+
+   Two things fell out that were not planned. odelia's own
+   `test-step-adjoint-recording.R` was harvesting states by copying a whole
+   `System` per step out of `history` — ledger row 5, in odelia's tests — and now
+   sweeps the record its replay kept. And `has_recording()` was building a vector
+   of every recorded time to compare its length against one.
+2. **The widening's time**, stored where it is built rather than recovered:
+   deletes `recorded_widening` and `insertions_of`. Now cheap, because the record
+   is already the argument.
+3. **B's flag deletion**: `record_into()` replaces `set_keep_states(bool)`, so
+   `keeps_states()` stops being a round trip — plant sets the flag, then asks the
+   solver what it set — and `step_record::state` loses its *"unless"*.
+4. **The pairing view**: record + insertions in one validated construction,
+   absorbing `state_segments`' check so it runs once and cannot be skipped.
+5. **Row 5 in full**: `history`/`collect`/`get_history_*`, the
    `vector<System>` recorder that `least_squares` copies whole Systems out of to
    read state vectors. R-facing and breaking — not mine to land.
