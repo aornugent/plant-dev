@@ -17,8 +17,14 @@ recording). `plant` and `phylloptim` reference the first **zero** times.
 > *Challenged upward:* "use `DifferentiationTargets`" is a mechanism, not an
 > outcome. `DifferentiationTargets` selects **inputs**; in reverse mode one sweep
 > returns every input's row whether it was asked for or not, so input selection
-> buys nothing on the path it sits on. Read as the outcome — *one canonical
-> entry point* — the request is met by deleting it, not adopting it. Confirm.
+> buys nothing *on cost*. Read as the outcome — *one canonical entry point* — the
+> request is met by deleting it, not adopting it. Confirm.
+>
+> **Narrowed on review.** "Selection buys nothing" was too broad, and there is a
+> witness: a refusal today costs a metric's whole gradient, so a caller loses
+> d/d(lma) because psi_crit sat at a bound. Selecting fewer inputs would dodge
+> that. The requirement is real; selection is still the wrong mechanism for it —
+> see row 11 and "Fundamentals questioned".
 
 **R2 — a Strategy declares a forward model plus its differentiable inputs, and
 nothing else.** Today it also owes `ad_initial_state()` (a contract member plant
@@ -55,6 +61,8 @@ there are nine:
 | 8 | the widenings partition the recording | `state_segments`' check, re-run per call and skippable | 4+ calls |
 | 9 | the differentiable inputs | `ad_parameters()` + `ad_initial_state()` | 1 of the 2 is unused by plant |
 | 10 | a recorded step's time and size | `Solver::solve_adjoint` reads `times()` and `step_sizes()` off the solver while taking `states` as an argument | kept agreeing by a length check |
+| 11 | which input's row went missing | `record_report.at` names it and the graft computes the plant-side index, then spends it on a message and latches a string | 1 index computed, 0 kept |
+| 12 | why a zero is a zero | declared statically per parameter (`zero_means`) *and* known dynamically by the run (the operating point, the drop report) | informative on 3 of 62 entries |
 
 ## The floor
 
@@ -278,6 +286,89 @@ Three smaller items in the same place:
   *"four of the fourteen"*, which is stale by one — a count in prose against a
   count in the table, which is the theme of the whole audit.
 
+## Fundamentals questioned
+
+Three premises this design rests on, tested rather than restated. One failed.
+
+**Initial states.** `ad_initial_state()` leaves the contract, and for a better
+reason than "plant has none": **lambda at the bottom of the recording already *is*
+d(output)/d(initial state)**, produced whether it is asked for or not. plant even
+generalises it — an insertion is state appearing mid-run, and the sweep already
+transposes each insertion's map and accumulates its parameter rows, so odelia's
+"initial state" is the degenerate case where all state appears at t0. A declared
+list of seedable initial-state entries adds nothing except the ability to select a
+subset of them, which is the next question. Survives.
+
+**Parameter subsets. This premise was wrong.** I claimed selection buys nothing
+because reverse mode returns every column per sweep. True on cost, and it misses
+the live requirement: a refusal costs a metric's *whole* gradient, so a caller
+asking for d/d(lma) loses it because `psi_crit` sat at a bound. Selecting fewer
+inputs would recover it. So the requirement is real.
+
+Selection is still the wrong mechanism, and the reason is row 11. The escalation
+is three over-approximations deep, and the information to stop it at the first is
+already computed:
+
+1. a row is missing for input *i* → the whole value refuses its rows
+   (`record_with_derivatives`, NOTHING PARTIAL);
+2. the value refuses → the metric refuses (plant throws, or latches);
+3. one species refuses → every metric refuses.
+
+Step 1 is right *given* that `record_report.whole` is a boolean — but the report
+also carries `at`, and the graft turns it into the plant-side parameter index
+before using it in a message. A missing row for input *i* leaves input *i*'s tape
+edge absent and every other input's intact, and the answer already carries a
+status **per (metric, trait) entry**. So the shape for "every column but
+`psi_crit`, and that one marked refused" exists today; what is missing is that the
+index is thrown away. Attribution delivers what selection was buying, with no
+selection threaded from R through plant into phylloptim's row request, and with
+one answer shape regardless of what was asked.
+
+Honest limit: attribution works where the report names an input. It does not where
+the quotient itself failed — `implicit_root` losing an invertible slope kills every
+row of the point at once. Even there the blast radius is the outputs that *read*
+the point, and the objective at an interior optimum does not (the envelope
+theorem), so it is narrower than a metric.
+
+**Structural zeros and refusals — the sharpest of the three.** Asked "what if
+there were no structural zero or refused parameter", the answer is: there almost
+isn't one. Of 62 table entries, `zero_means` carries irreducible information on
+**three**.
+
+| declaration | entries | what it really is |
+|---|---|---|
+| `zero_undeclared` | 44 | the default. Declaring it says what not declaring says. |
+| `no_column` | 15 | not a zero-meaning at all — the wrong axis, in the enum |
+| `zero_slack` | 2 (`psi_crit`, `root_psi_crit`) | **state-dependent**, and the run knows it exactly from the operating point |
+| `zero_structural` | 1 (`a_f3`) | a genuine static claim |
+
+`zero_slack`'s own definition gives it away: *"Becomes non-zero at a state where
+the constraint binds."* Whether a zero means slackness is a property of the
+operating point the solve reached, and `rows.kind` is in hand at the very site
+that would report it. Declaring it per parameter is T1's defect in another place —
+a static re-statement of something the run knows exactly — and T6 is its other
+half, the same fact declared on both sides of the boundary.
+
+So **`gradient_status::Kind` is a good output vocabulary and a bad input
+declaration.** A caller reading "this zero is undeclared, treat it as a finding"
+is reading something valuable; the table declaring it for 44 parameters is not.
+What survives is a column list plus one annotation on `a_f3`, with slack and
+refusal supplied by the run. That deletes
+`ad_parameter_zero_classes()`, `trait_adjoint_zero_classes()` and the
+zero-classification loop — and it is this design's own rule applied one level
+deeper than the design applied it, which is the strongest evidence for the rule
+and a correction to the design in the same breath.
+
+**The counterweight, which matters.** These declarations are *checked*, not
+commented: `test-gradient-ladder-declared-zero.R` asserts both directions — every
+column the ladder declares zero comes back in a zero class, and every column the
+sweep puts in one is declared, with no undeclared zeros permitted in the fixture.
+So this is a simplification of verified machinery, not a bug hunt. The residual
+risk is the one a declaration always carries: it is a licence to stop looking. A
+`psi_crit` column that reads exactly zero because a row was quietly dropped is
+explained away as slackness, which is precisely the substitution `zero_undeclared`
+exists to prevent. Two parameters hold that licence.
+
 ## Increments
 
 Subtraction, then scaffold, then capability. Each lands green with numbers
@@ -286,9 +377,13 @@ unmoved.
 0. **Subtract.** ✅ `forward_derivative` and its test; the column predicate 4 → 1.
 0.5 **The direct term becomes the accumulator's initial value.** ✅ Row 6, and it
    needed none of the rest — found on review, landed first.
-1. **Projection.** Row 9's other half: the four projections that read no instance
-   become `n_species × static table`; `ad_column_count` inlined; `no_column`
-   leaves `Kind` for `optional`. No behaviour change.
+1. **Projection, and the declarations behind it.** Row 9's other half: the four
+   projections that read no instance become `n_species × static table`;
+   `ad_column_count` inlined; `no_column` leaves `Kind` for `optional`. Then rows
+   11 and 12, which are larger than "projection" and change behaviour for the
+   better: keep the refused input's index so a refusal lands on its column, and
+   let the run report slack from the operating point instead of the table
+   declaring it. The ladder's declared-zero test is the referee for both.
 2. **Scaffold.** `odelia::ode::trajectory<W>`: validated at construction,
    absorbing `state_segments` and `insertions_of`; the widening records its time
    at `scm.h:581`; `recorded_widening` and `ode_step_record` deleted; the five
