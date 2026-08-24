@@ -386,16 +386,21 @@ moves.
    `max_patch_lifetime` are read by `validate()`, which rebuilds the disturbance
    regime, so dropping them moves `pr_patch_survival` and the fecundity rates with
    nothing raised. `plant@c6c65955`.
-5. **The recorded loader derives its shape** from the plan, checked rather than
-   handed in — chosen over a sized loader, which keeps the change plant-local. The
-   four-argument overload goes, and with it `SCM::widenings`,
-   `recorded_widening`, `recorded_insertion`, `insertions_of` and `Widening` at
-   eleven sites. odelia detects boundaries from recorded widths.
-6. **Delete `WidensState`.** The one hook becomes a direct member call beside the
-   ones the sweep already makes, and `compute_boundary_nodes` is named for the
-   boundary rather than for recording.
-7. **Rename** `widening` → `insertion` across odelia, and retire
-   `parameters.ode_times`/`ode_step_sizes` in favour of `solver.schedule()`.
+5. ✅ **The recorded loader derives its shape**, and the insertion vocabulary is
+   gone. `reshape_to(time)` works out what a recorded step implies from the
+   schedule; `SCM::widenings`, the four-argument overload, `recorded_widening`,
+   `recorded_insertion`, `insertions_of` and the `Widening` parameter at every site
+   go with it. odelia reads boundaries off recorded widths, refusing a width that
+   shrinks — the one check an inferred boundary can still fail. `WidensState` is
+   deleted; its two members are mandatory for a System a sweep walks, so they are
+   called directly like `ode_size()`. odelia −168/+82, plant −91/+109.
+   `odelia@55fdc51`, `plant@d1195908`. Every number unmoved.
+6. **Retire `parameters.ode_times`/`ode_step_sizes`** in favour of
+   `solver.schedule()` — the run record that still lives in a configuration
+   object, and the last of ledger row 1.
+7. **Name `compute_boundary_nodes` for the boundary** rather than for recording:
+   it is the two-argument loader's only addition over `set_ode_state` and has
+   nothing to do with a record.
 8. **B's flag deletion.** `record_into()` replaces `set_keep_states(bool)`.
 9. **`history`/`collect`/`get_history_*`** — the `vector<System>` recorder that
    `least_squares` copies whole Systems out of to read state vectors. R-facing and
