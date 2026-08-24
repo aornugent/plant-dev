@@ -470,6 +470,40 @@ moves.
    insertion tangent is, because differencing a trait buries the map's contribution
    in a large number — are not.
 
+   **Measured, so the study starts from numbers.** Per-file wall times across one
+   18-way parallel ladder run, derived from the runner's own log timestamps:
+
+   | file | s | fixture |
+   |---|---|---|
+   | `gradient-incidence` | **311** | `scm_base_parameters` |
+   | `gradient-parity` | **98** | `scm_base_parameters` |
+   | `gradient-ladder-sweep` | 60 | `ladder_parameters` |
+   | `gradient-ladder-rung5` | 42 | `ladder_parameters` |
+   | the other fourteen | ≤ 35 | `ladder_parameters`, or none |
+
+   Three things follow.
+
+   **Parallelising further buys nothing.** The runner already launches every file
+   at once with no cap, on sixteen cores, so wall time is the slowest single file
+   and nothing else. The only lever is that file.
+
+   **The two slowest are the only two that run production-sized stands.** Both use
+   `scm_base_parameters`; every other file uses the small `ladder_parameters`
+   fixture. So the fast/slow line is already drawn in the code, by fixture rather
+   than by intent, and splitting on it drops the ladder's bound to the next file.
+
+   **And those two answer a characterisation question, not an invariant.**
+   `incidence`'s own header says it: the counters are *"the only route to how
+   often — and how often is what decides whether a refused regime is a corner or
+   most of the run."* That is a measurement taken to inform judgement, which does
+   not change per edit and does not belong in a per-edit loop. `incidence` also
+   swings from about 60 s to 311 s between runs, and a file whose cost moves five
+   fold is a bad citizen in a feedback loop whatever its average.
+
+   Which leaves `sweep` at 60 s and `rung5` at 42 s as the real per-edit bound —
+   and those are small-fixture files, so their cost is assertion volume rather than
+   stand size. They are where the scoring question above has teeth.
+
    **The `segment` vocabulary is downstream of this.** Retiring the struct and the
    range builder took it out of odelia's data model, but the word remains at about
    thirty-six code sites: an index parameter on four entry points, the
