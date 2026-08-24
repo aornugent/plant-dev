@@ -259,14 +259,62 @@ model's own.
 newborn is. That is the model's, and it should be. Nothing about it needs to be an
 odelia primitive, because it is an instance of the one odelia already has.
 
-**Two things to verify before building it**, both cheap and both able to sink it:
+**Both assumptions checked, and questioning the barrier dissolved them.**
 
-1. that `node_schedule` is intact at sweep time — it is a member and `pop()` only
-   cursors, but nothing yet proves no path clears it between the run and the
-   sweep;
-2. that the j-th-flag-is-the-j-th-introduction correspondence survives a patch
-   seeded with `n_initial_cohorts`, since `set_recorded_state` treats seeded
-   structure as what no insertion accounts for.
+1. **Holds.** `NodeSchedule::reset()` does `queue = events`: `events` is the
+   durable configuration and `queue` the consumable cursor, and `get_times()`
+   reads the former. So the introduction schedule survives a run intact.
+2. **False as stated.** One insertion event can name several species — the run
+   consumes every event at one `t0` — and seeded cohorts offset the count per
+   species via `n_initial_cohorts`. So a global "j-th flag is the j-th
+   introduction" is too coarse, and re-deriving the grouping would mean redoing by
+   float-equality what the run already did.
+
+Which is the useful answer, because it says the payload should **stay in plant**
+rather than be re-derived. And once it stays, neither assumption matters.
+
+## The optimal odelia design, and the one place plant does not conform
+
+Worked from what odelia needs rather than from what plant hands it. odelia needs
+exactly three things at a widening, and it already knows the only key it needs to
+ask about them: **the recorded step index.**
+
+    { s.widens_after(step) } -> bool;        // is this a boundary
+    s.widen_state(step, x, out);             // the map, to transpose
+    s.set_recorded_state(y, time, step);     // reconcile to a recorded step
+
+No payload type. No list. No count. No template parameter. The eleven `Widening`
+sites, `recorded_widening`, `recorded_insertion` and `insertions_of` all go, and
+`state_segments` becomes a scan calling `widens_after` — with odelia
+cross-checking the answers against the widths it recorded, which is the one thing
+that check exists for and would be vacuous if the boundaries were inferred from
+the widths instead.
+
+**The current design is a representation leak, exactly.** odelia carries
+`recorded_widening<std::vector<std::size_t>>` — plant's payload type, in odelia's
+container, through eleven of odelia's template signatures — and never reads it. It
+carries it because the payload has to be *handed in*.
+
+**And here is why it has to be handed in.** `widenings` is a member of **`SCM`**,
+while the System odelia holds is **`Patch`**. The knowledge lives one level above
+the object with the hooks, so it cannot be queried and must be passed — and the
+passing is what drags a type through the library. Every consequence above follows
+from that one misplacement.
+
+**So: make plant conform, and it barely moves.** The widening record belongs on
+`Patch`, because the patch is what gained the nodes; it is the patch's own
+history. Move the member down and:
+
+- `widens_after(step)` and `widen_state(step, …)` are lookups in it;
+- `set_recorded_state(y, time, step)` counts its own insertions below the step
+  instead of being handed a list and a count — which is also what retires the
+  four-argument loader in favour of the reconcile the patch can do alone;
+- `SCM` stops holding a record about a patch, which is the thing it should never
+  have held.
+
+That is the tell that the direction is right: the better library design costs the
+consumer a moved member, because the consumer already had the data in the right
+shape. What was wrong was that the library had a copy of its type.
 
 ## What this does NOT solve
 
