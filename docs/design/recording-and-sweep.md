@@ -441,6 +441,43 @@ moves.
    caller-owned vector changes the forward API across 152 sites, keeping states
    always regresses memory on long non-gradient runs, and a variant of two row
    types is more machinery.
-11. **`history`/`collect`/`get_history_*`** — the `vector<System>` recorder that
+11. **Open study — the censuses and the gradient ladder, and whether the
+   assurance can be bought with less instrumentation.** Not a change; a question
+   to answer before proposing one.
+
+   The ladder is about 1130 s of CPU across eighteen files, and its handles reach
+   into shipped headers: four oracles in `scm.h`'s public interface, eleven of the
+   fourteen Rcpp exports in `census_gradient.cpp` (audit C1), and the `ladder_*`
+   exports beside them. That is a lot of surface held up by tests, and this
+   campaign found that moving it out is worse than leaving it — the oracles reach
+   `solver` and `patch`, so exporting them would expose more than it hides. Which
+   means the question is not *where* the instrumentation lives but *how much of it
+   is still earning its keep*.
+
+   The sharp way to score it: **which assertions have actually caught something?**
+   This session, three did — `declared-zero` (both directions, with the rates a
+   parameter may move named so a third would fail), `identity`'s bit-for-bit split,
+   and `recruit`'s inflow boundary. Those are the pattern to keep: a closed-form or
+   contract assertion, not a recorded build snapshot. Against that, four leaf-test
+   constants had to be regenerated this session because they were snapshots of a
+   build rather than claims about a model, and a knife-edge alive-count golden had
+   to be re-baselined.
+
+   So the study is: for each ladder file, what would fail if the assertion were
+   deleted, and is there a cheaper referee for the same defect class. Rungs that
+   exist to localise a failure the end-to-end check already catches are candidates;
+   rungs that are *more sensitive* than the end-to-end check at a seam — as the
+   insertion tangent is, because differencing a trait buries the map's contribution
+   in a large number — are not.
+
+   **The `segment` vocabulary is downstream of this.** Retiring the struct and the
+   range builder took it out of odelia's data model, but the word remains at about
+   thirty-six code sites: an index parameter on four entry points, the
+   `segment_base_state` accessor, the `adjoint_segments` count, `state_at_segment`,
+   and two `ladder_*` exports. Most of that is the ladder's own surface, so the
+   rename — to whatever names a *sweep re-entry point*, which is what the index
+   means — should follow the study rather than lead it.
+
+12. **`history`/`collect`/`get_history_*`** — the `vector<System>` recorder that
    `least_squares` copies whole Systems out of to read state vectors. R-facing and
    breaking; not mine to land.
