@@ -301,20 +301,70 @@ the object with the hooks, so it cannot be queried and must be passed — and th
 passing is what drags a type through the library. Every consequence above follows
 from that one misplacement.
 
-**So: make plant conform, and it barely moves.** The widening record belongs on
-`Patch`, because the patch is what gained the nodes; it is the patch's own
-history. Move the member down and:
+**Moving the record onto `Patch` was wrong**, and the objection is decisive: the
+solver is what records, and this branch has just finished making that true —
+`recording()` and `schedule()`. A `Patch` keeps no history and should not start.
 
-- `widens_after(step)` and `widen_state(step, …)` are lookups in it;
-- `set_recorded_state(y, time, step)` counts its own insertions below the step
-  instead of being handed a list and a count — which is also what retires the
-  four-argument loader in favour of the reconcile the patch can do alone;
-- `SCM` stops holding a record about a patch, which is the thing it should never
-  have held.
+**The right answer is that nothing needs to be recorded at all.** Two facts settle
+it.
 
-That is the tell that the direction is right: the better library design costs the
-consumer a moved member, because the consumer already had the data in the right
-shape. What was wrong was that the library had a copy of its type.
+*The state only ever grows during a run.* `remove_newest_node()` is reachable only
+from reconciliation — `set_recorded_state`'s shrink loop and the tangent path —
+never from the forward run. So **every width increase in the record is an
+introduction**, and odelia can read the boundaries off the widths it already
+recorded. Nothing declared, nothing flagged, no payload, no template parameter.
+
+The check that appears to be lost is not the one that matters. `state_segments`'
+comment is right that inferring boundaries from widths cannot fail its own test —
+but the substantive guard is `be_at_step`'s *"reconciled to N wide at step k
+against M recorded there"*, which compares the model's reconciliation against the
+record and is independent of how boundaries were found.
+
+*And the payload is configuration, not a record.* `Parameters` carries
+`node_schedule_times`; `node_schedule` is built from it by
+`make_node_schedule(parameters)`; and **`Patch` already holds `parameters`.** So
+the map and the reconcile can both read the introduction plan from configuration
+the patch has had all along. Nobody noticed, so `set_recorded_state` was given a
+list to replay instead.
+
+So `SCM::widenings` is **deleted rather than moved**, and odelia's concept reduces
+to two hooks with no vocabulary of its own: the map to transpose, and
+reconcile-to-a-recorded-step.
+
+### The obstacle, which is a real pre-existing defect
+
+**`Parameters` exists twice** — `SCM::parameters` and `Patch::parameters`, two
+members — and the introduction plan is written to SCM's copy at three sites
+(`refine_schedule`, `r_set_node_schedule`, `r_set_node_schedule_times`). So the
+patch's plan can be stale, and this design needs it current. That has to be fixed
+first, and it is worth fixing regardless.
+
+The same three lines expose a second conflation: `parameters.ode_times` and
+`parameters.ode_step_sizes` are written *from the finished run*, with the comment
+*"Leave Parameters self-describing"*. So `Parameters` is configuration **and** a
+record of the last run, and its record of the schedule is a third spelling beside
+`solver.schedule()` and the recording. Ledger row 1 has one more entry than it
+knew.
+
+### Naming
+
+`widening` is opaque, and the layering says which word belongs where: **odelia
+should name what happens to the vector; plant should name what happened in the
+world.**
+
+| | now | proposed |
+|---|---|---|
+| odelia, the event | `widening` | `insertion` — entries are inserted into the state. Already the word `recorded_insertion` uses, so odelia is half-right and half-wrong in the same header. |
+| odelia, the map | `widened_state` | `inserted_state(step, x, out)` |
+| odelia, the concept | `WidensState` | `InsertsState` |
+| plant, SCM | `widenings` | deleted — the plan is `node_schedule_times`, and plant's own verbs (`introduce_nodes`, `node_schedule`, `initial_node_times`) are already right |
+| plant, Patch | — | `introductions`, if a name is ever needed |
+
+Not `grow`: it describes the vector's size rather than the event. Not
+`add_particle`: the instinct is right — the thing added is an individual — but
+"particle" imports a physical model an ODE library has no business asserting.
+plant says *introduction* because a cohort was introduced; odelia says *insertion*
+because a vector got longer. Neither borrows the other's word.
 
 ## What this does NOT solve
 
