@@ -206,14 +206,58 @@ j-th introduction**, so counting flags below step k gives it exactly. No
 float-equality join between an introduction time and a step time — which matters,
 because that is precisely the comparison this codebase refuses elsewhere.
 
-**What does not go, and saying so plainly.** `widened_state` stays: the adjoint
-must be carried through the map that widened the state, and only the model knows
-what an inserted entry means. Reconciliation stays too, because the model carries
-birth dates that are in neither the state nor its width. So `WidensState` is not
-deleted — it goes from *a payload type, a four-argument list-carrying loader, and
-a map* to **two hooks with simple signatures**, and odelia's eleven
-`Widening`-templated entities go to zero. That is the win, and it is a reduction
-rather than a disappearance.
+**`widened_state` is not an odelia primitive — correcting an earlier claim.** I
+said the map was irreducibly odelia's. It is not: odelia **already** treats a
+widening and a rate evaluation as the same kind of thing.
+`state_and_parameter_adjoints` takes an `evaluate` callable of shape
+`(active_system, x, y) -> void`; `rates_adjoint` wraps `derivs` in it and the
+sweep wraps `widened_state` in it. One shape, two instances.
+
+What differs is only how the two are *reached*:
+
+| | reached by | carries a payload type |
+|---|---|---|
+| rates | the free function `ode::derivs(system, y, dydt, time)` behind a concept | no |
+| a widening | a member required by `WidensState`, through eleven `Widening` template sites | yes |
+
+So the fold is to reach a widening the way rates are reached. odelia's primitive is
+then **"a System exposes maps I can instantiate at the adjoint scalar"** — one
+concept, of which rates and insertions are two instances — and `WidensState`
+shrinks to the shape of `HasOdeTime` or `RecordsChoices`: a small requirement with
+no template parameter.
+
+**And the map is already plant's, written twice.** All three paths funnel through
+`push_nodes`:
+
+- `introduce_nodes(species, time)` = `push_nodes` + `check_birth_dates_distinct`
+  + `compute_environment` + `compute_rates`
+- `widened_state(insertion, x, y)` = `set_recorded_state(x, time)` +
+  `push_nodes` + `ode_state(y)`
+- `set_recorded_state(y, time, insertions, applied)` = `push_nodes` per replayed
+  birth date
+
+The difference is **not** a defect — checked. `widened_state` reads only the state
+vector, so omitting the post-push `compute_environment`/`compute_rates` is right:
+those exist to make the *stored rates* describe the new state for the solver's next
+step, which is housekeeping and not part of the map. And both paths have the
+environment built from the pre-push state when `push_nodes` runs, so the new node
+is born into the same light either way.
+
+But establishing that took reading four functions across two files, and
+`check_birth_dates_distinct()` guards one path and not the other. **That is the
+seam the fold should cut on: the map, and the solver housekeeping after it.**
+plant then writes the introduction once —
+
+    introduce(state_in, species, time) -> state_out        // the map, any scalar
+
+— and the forward operation is that map plus positioning and housekeeping. The
+sweep uses the map directly. One spelling of what an introduction is, taped where
+it needs to be, and no function named for odelia's benefit sitting beside the
+model's own.
+
+**What genuinely cannot be folded** is the map's *body*: the arithmetic of what a
+newborn is. That is the model's, and it should be. Nothing about it needs to be an
+odelia primitive, because it is an instance of the one odelia already has.
 
 **Two things to verify before building it**, both cheap and both able to sink it:
 
