@@ -26,8 +26,10 @@ declares none of), and the column predicate is spelled 4× in `tf24_strategy.h`
 with the same walk repeated 3× in `Patch`.
 
 **R3 — no number moves.** Standing rule for this campaign. Baseline: plant
-3283/0/0/13 and 679/0/0/5, phylloptim 2421 checks + 1455/0/0/1, odelia
-415/0/0/3.
+3283/0/0/13 and 679/0/0/5, phylloptim 2421 checks + 223 golden + 1455/0/0/1,
+odelia 408/0/0/3. odelia was 415 until increment 0 removed a test file whose
+seven expectations went with the function it tested; a suite losing a number is
+allowed only when the deletion accounts for it exactly.
 
 **R4 — quantities.** 117 recorded steps; 3 census metrics; 62 table entries of
 which 15 are `no_column`, so 47 gradient columns per species; 6 rate evaluations
