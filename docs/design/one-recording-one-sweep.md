@@ -430,6 +430,77 @@ risk is the one a declaration always carries: it is a licence to stop looking. A
 explained away as slackness, which is precisely the substitution `zero_undeclared`
 exists to prevent. Two parameters hold that licence.
 
+## Naming the number, not the table
+
+`zero_slack` is opaque because it is named for a borrowed mechanism —
+complementary slackness — rather than for what the reader is holding. Two of the
+three zero names have the same defect, and the rule that fixes all three is:
+**name what the number means to the reader, not what the table did about it.**
+
+| today | what it actually says | proposed |
+|---|---|---|
+| `zero_slack` | this parameter is a *limit*, and the operating point is away from it. Non-zero the moment the point sits on it. | `zero_until_a_limit_binds` |
+| `zero_structural` | zero for **this metric set**, not for the model — `a_f3` moves two offspring rates and the census reads neither | `zero_for_these_metrics` |
+| `zero_undeclared` | named for the absence of a declaration, which is a fact about the table | `zero_unexplained` |
+
+Each proposed name says what a reader should *do*: expect it to change with state;
+pick a different metric or trait; investigate. And the better vocabulary already
+existed one layer out — the ladder's own referees are
+`ladder_zero_at_an_interior_optimum` and `ladder_zero_outside_the_metric_support`.
+**The tests named these things honestly and the declaration did not.**
+
+## Answered, or unavailable — the axis `no_column` was hiding
+
+Challenged: if a refusal is being added anyway, does declaring a structural zero
+buy anything over letting the user ask and be refused, then choose other targets?
+
+Mostly yes, and it splits the eleven. The question is not "is this parameter
+wired" but **"is the derivative known to be zero, or is it unavailable?"**
+
+- **Known zero** — `a_f3`, `S_D`, `nmass_*`, `dmass_dN`,
+  `var_sapwood_volume_cost`, `a_p1`, `a_p2`, `p_50`, and `beta1` at an interior
+  point. These are *answers*, and informative ones: "this trait does not move
+  these metrics" is what a user optimising over it needs to learn. Refusing hides
+  real information, and computing the column is what lets the ladder police the
+  claim.
+- **Unavailable** — `d` (*"no row in the leaf's supplied Jacobian"*), and `eta`
+  and `root_depth_shape_eta` (a recorded row would be a wrong zero). Nothing is
+  known here, so refusal is exactly right, and the user's outcome — ask, be
+  refused, choose other targets — is the correct one.
+
+So the challenge lands on three of the eleven and not on the other eight. What it
+does dissolve is `DifferentiationTargets`: the outcome it was wanted for is
+delivered by per-column refusal plus the column subsetting `stand_gradient()`
+already does in R. Selection belongs where the user is, not seeded into the sweep,
+and a reverse sweep is indifferent to how many inputs it carries.
+
+**And the asymmetry worth naming.** For the fourteen leaf parameters this is
+already *detected*, not declared: phylloptim fills unclaimed rows with
+`util::na_value`, so an input nothing claims returns NA and the graft refuses it.
+The forty-eight plant-only parameters have no equivalent default — they are seeded,
+taped, and whatever the tape gives comes back, with 0.0 for "no edge reached me"
+indistinguishable from 0.0 for "the derivative is zero". **That is the whole reason
+a declaration exists at all**, and it is worth asking whether plant's own
+parameters can be given phylloptim's NA-default instead, which would make eight of
+these declarations detections and leave `zero_for_these_metrics` to the parameters
+whose zero is a real, provable answer.
+
+## Two tracks, deliberately apart
+
+The recording consolidation and the parameter vocabulary are independent, and
+keeping them apart is what keeps either reviewable:
+
+| | recording | parameter vocabulary |
+|---|---|---|
+| files | odelia's `step_record` exposure; plant's `store_trajectory` and four call sites | `tf24_strategy.h`, `patch.h`, `gradient_status.h`, R strings, the ladder helper |
+| behaviour | none — a pure refactor | **changes the answer**: eleven new columns, renamed R-visible statuses |
+| verification | every number identical, bit for bit | the ladder's declared-zero lists move with it, deliberately |
+
+They meet only inside `census_trait_gradient`, at different lines. Their risk
+profiles are opposite, and that is the argument: the recording track's whole claim
+is *no number moved*, and that claim is only clean against an unchanged column
+set. Land recording first for exactly that reason.
+
 ## Increments
 
 Subtraction, then scaffold, then capability. Each lands green with numbers
