@@ -182,7 +182,53 @@ separate strategy method whose value enters the inflow boundary
 differentiated. Three distinct quantities that read alike: `pr_estab` in the
 boundary, `S_D` in the reduction, `pr_patch_survival_at_birth` in the rate.
 
-### So reconciliation needs only the plan and a time
+### So reconciliation is not a concept
+
+Read the four-argument loader end to end and it is exactly two steps: **become the
+shape these birth times imply, then load.** Shrink or grow each species to
+`base + when[i].size()`, stamp what it pushed, refresh the field if anything
+moved, check the incoming length against `ode_size()`, and delegate to the
+two-argument loader.
+
+And the shape is derivable from the plan and the time. So the operation is: *given
+a state vector and a time, produce a correctly-shaped patch holding it* — which is
+what `set_ode_state` is supposed to mean.
+
+**It is a separate operation today only because `set_ode_state` cannot resize.** It
+loads into whatever node counts the species currently have, so something else has
+to establish those counts first, and that something has to be *told* them — which
+is the insertion list, threaded from plant through odelia and back.
+
+Let a System's size be a function of its time, and the two collapse:
+`set_ode_state(y, t)` becomes *become the shape at t, then take these values*.
+Then `set_recorded_state` goes, both overloads; `WidensState` loses its reconcile
+member; and **odelia needs no new concept at all** — it already calls
+`set_ode_state(it, time)` everywhere. What it needs is to stop requiring that the
+size be constant.
+
+`WidensState` is then **one hook**: the insertion map, because a Jacobian needs a
+function of the narrower state and no loader provides that. Which is plant's
+`introduce_nodes` written as a map — the fold, arrived at from the other side.
+
+Two things to keep rather than lose:
+
+- **the width check.** With a resizing loader, `y.size() == ode_size()` is what
+  says the plan and the recorded state agree, and `be_at_step`'s is the independent
+  version of it. Both are the guard that licenses detecting boundaries from widths.
+- **`compute_boundary_nodes`.** It is the two-argument loader's only addition over
+  `set_ode_state`, and it is a different concern entirely: the inflow condition's
+  second evaluation. It got bundled under a name about recording that it has
+  nothing to do with, and should be named for the boundary.
+
+**The one real complication.** A resizing loader has to know its target shape, and
+the iterator form `set_ode_state(It it, double time)` carries no length — so it
+cannot resize on mismatch and would have to consult the plan on every call, once
+per stage. Cheap, since the plan is a handful of times, but not free where it is
+now zero. The alternative is a sized loader taking a span, which is worth wanting
+anyway: an iterator with no length is exactly the shape that lets a width mismatch
+through in silence.
+
+### What that leaves derivable
 
 Everything reconciliation rebuilds is derivable from the introduction plan plus the
 recorded time:
