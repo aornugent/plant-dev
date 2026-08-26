@@ -375,10 +375,33 @@ rather than of the option: a recording registers and unregisters on the order of
 10^5 to 10^6 values, and each one now has to be threaded through the reuse
 ranges, where `clearAll()` did that bookkeeping by throwing the counter away.
 
-So the two properties pull against each other, and this is the whole finding: the
-only affordable way to carry a lifted System is to hand its slots back
-explicitly, and only the model knows what they are. There is no version of this
-that stays inside odelia.
+So the two properties pull against each other: slot reuse buys correctness for a
+carried System and charges 38 per cent for the bookkeeping that buys it.
+
+⚠️ **"There is no version of this that stays inside odelia" stood here, and it was
+wrong the way the first attempt was wrong** -- it named a limit that is a property
+of the reset chosen rather than of the library. The tape's slot counters live on a
+sub-recording held in a stack, and folding a nested recording restores the
+enclosing frame's counter along with the statement, operation and derivative
+arrays. So slots issued before a nest are never reissued by it, and
+`initDerivatives()` then zero-fills only from the nest's own start -- which is the
+property whose absence makes `newRecording()` quadratic. A System registered once
+per range and each recording taken as a nested one is correct with no release, no
+ordering rule, and the model's walk happening twice per range instead of 3,400
+times.
+
+**Measured, and it is not worth having.** The nested arm is flat -- 0.43 s and 180
+bytes over 3,400 recordings, against 36.9 s and 272 MB for `newRecording()` -- and
+needs no patch, because putting the whole descent inside one `CheckpointCallback`
+makes `prevMax_` valid. But **the release it would replace costs 8 ms**: 5.1 million
+member-releases at 1.6 ns each against a 108 s gradient. And nesting does not remove
+the model's enumeration, which was the only reason to want it: slots issued inside
+the first nest are reissued by the second, so every long-lived active member must
+still be registered before the first nest. `one-reverse-pass.md` III has the table
+and the three disciplines nesting adds.
+
+So this entry closes where it began: release, then clear, per recording -- and the
+per-recording rebind it replaces is worth 3 to 4 per cent, all of it allocation.
 
 **(b) `ad_parameters()` walks the table with a string comparison per entry.**
 `TF24_Pars::has_column(name)` is a linear scan over the seventeen

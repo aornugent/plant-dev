@@ -168,72 +168,160 @@ there is now a return type they fit in.
 
 ## III. One tape discipline, so the lifted System has one home
 
-`sweep.hpp`'s own header says there are two disciplines and neither is safe in
-the other's place. Remove calibration and there is one -- lift per sweep, clear
-per recording -- and then "the walk owns the active System" is not an
-optimisation, it is the only place it could live.
+`sweep.hpp`'s own header said there were two disciplines and neither was safe in
+the other's place. Remove calibration and there is one -- and then "the walk owns
+the active System" is not an optimisation, it is the only place it could live.
 
-⚠️ **THE ARGUMENT BELOW IS WRONG IN ITS REASON AND RIGHT IN ITS CONCLUSION, AND
-`unification.md` 5 now carries the measurement.** Rewriting a member does not
-refresh its tape slot -- assignment keeps the one the target already had -- so a
-carried System writes through slots `clearAll()` has reissued. But the rebind is
-not the only reset: de-registering each member first, by move-assigning a fresh
-temporary, leaves the object reusable and the slots fresh, and is linear where
-the alternative (`newRecording`, which also keeps slots valid) is quadratic in
-the number of recordings. `odelia/tests/standalone/probe_tape_reset.cpp` has all
-four arms.
+### What the library provides, read from its source
 
-**The guarantee changes shape in a way that reads as a risk and is the
-opposite.** The per-recording rebind guarantees every active scalar arrives
-holding no tape slot. Hoisting replaces that with: every active member the
-recording reads is rewritten by the state load first. But an active member that
-is *read before it is written* is an **unregistered input to the recorded
-function**, and the transpose of a function with an unregistered input is wrong
-either way. The two shapes of the same defect differ only in how they present:
+The reset is not one thing, and which one is chosen decides whether a System can
+be carried at all. All four are the vendored tape's own:
 
-* with the rebind, it reads a correct value carrying no derivative -- a **missing
-  gradient term**, and nothing raises;
-* without it, it reads a foreign slot -- a **wrong term**, which is what
-  `declared-zero` in both directions and `identity`'s bit-for-bit split exist to
-  price.
+| reset | slot counter | a carried System |
+|---|---|---|
+| `clearAll()` | discards the sub-recording; back to 0 | writes through recycled numbers, **silently wrong** |
+| `newRecording()` | never rewinds | correct, and grows without bound |
+| `endNestedRecording()` | restores the enclosing sub-recording's | correct, and bounded |
+| `resetTo(pos)` | untouched | wrong, and the manual says so |
 
-So the rebind has been masking a bug class, at 7.0 s and 6% of the gradient. The
-audit it needs is bounded to *conditionally written* active members: rates,
-auxs, `competition_capture`, `resource_depletion` and the interpolant's values
-and spans are all rewritten unconditionally by the load. The candidates are
-`leaf_profit_` and `leaf_soil_consumption_`, written by `record_leaf_outputs`,
-which a cohort's branch can skip -- and the flag-guarded `area_sapwood` aux.
+The counters live on a `SubRecording` held in a stack, not on the tape
+(`XAD/Tape.hpp`), which is why `clearAll()` returns them to zero by discarding the
+stack and pushing a fresh frame. `newRecording()` clears the statements and raises
+the high-water mark without touching the counter, so every slot it has issued stays
+issued; the cost is that `initDerivatives()` then zero-fills from zero on every
+recording, and a recording of this model leaks slots faster than that can be paid
+for. A nested recording is the same protection with the memory given back: it
+starts from a copy of the frame, and folding it restores the enclosing frame's
+counter along with the statement, operation and derivative arrays, so
+`initDerivatives()` fills only from the nest's own start.
 
-**What removing calibration takes with it.** `calibration.hpp` (193),
-`DifferentiationTargets`, `Solver::active_solver`, `Solver::tape`,
-`set_schedule`, `run`, `replay_schedule_`, `Solver`'s hand-written copy
-constructor and assignment operator (which exist only because of those members),
-`ad_initial_state()` from every System, and `solver_interface.hpp` (234) with the
-free `active_solver()` that lazily builds one and stores it back.
+⚠️ **Our defect is in the manual, under a function we do not call.** `resetTo`'s
+entry reads: *"If variables registered after the given position are used again
+after a call to `resetTo`, the behaviour is undefined, as their slot in the tape is
+no longer valid."* That is the whole of it. `clearAll()` discards strictly more and
+carries no such warning, which is why the hazard had to be found by measurement.
 
-It also removes the last consumer of most of the R-facing example layer:
-`canopy_system.hpp` (253), `canopy_interface.cpp` (140), and the gradient half of
-`lorenz_interface.cpp` and `solver_interface.hpp`. **That is the largest single
-consequence in this plan: odelia stops being a standalone package with its own
-product and becomes plant's ODE and AD library.** Carried further -- to the
-Lorenz and leaf-thermal examples themselves -- it takes AGENTS.md's hazard 7 with
-it, the cached-`sourceCpp` ABI break that only the leaf-thermal example can
-trigger.
+⚠️ **Nested recordings are reserved to checkpoint callbacks, and by the code rather
+than by the documentation.** `newNestedRecording()` opens with
+`derivatives_.resize(currentRec_->prevMax_)`, and `prevMax_` is `slot_type(-1)`
+except between the two lines of `computeAdjointsTo` that bracket a callback. On any
+other frame that asks a `std::vector` for four billion elements. So the mark-rewind
+is reachable only from inside `insertCallback`'s callback, or by patching the
+vendored library to fall back to `maxDerivative_`.
 
-⚠️ **`drivers.hpp` is not part of this**, and an earlier draft of this plan had it
-wrong. `plant/extrinsic_drivers.h` and `plant/species.h` both include it, and the
-`Drivers_*` R surface rests on it. It stays.
+### Where the reset belongs
 
-⚠️ **RODAS is a separate decision and should stay one.** plant names `Method`
-nowhere and `rodas` nowhere, so `ode_step_rodas.hpp` (220), `ode_jacobian.hpp`
-(116) and `ode_linalg.hpp` (105) have no consumer in the only product. But they
-are main's code, not this branch's, and a stiff stepper is capability rather than
-residue. What is *this branch's* to fix regardless is `SolverInternal`'s four
-runtime dispatchers -- `stepper_step`, `stepper_order`,
-`stepper_can_use_dydt_in`, `stepper_first_same_as_last` -- which branch at run
-time on a choice fixed at construction.
+Not in a step the model executes. The invariant is **every active value the System
+holds is unregistered on entry to a recording**, and it belongs at the one place a
+recording begins -- which is where the tape is cleared. Stated there, it is two
+adjacent lines rather than a rule about ordering; stated anywhere else, the ordering
+is a rule, and reversed it is silently wrong wherever the library is built to reuse
+freed slots.
 
----
+What the model contributes is one sentence about itself: **here are my active
+values.** That is what `for_each_active` is. It is not a tape concept and should not
+read as one -- `ad_parameters()` is the same sentence about a subset, and the two
+are the model's only two answers to "what do you hold".
+
+⚠️ **The enumeration is not new, and that is the answer to the objection against
+it.** A class already names its members in `assign_from`, and forgetting one there
+is the same defect in a worse form: the rebound copy silently holds a default, and
+nothing counts. `for_each_active` is checked.
+
+What is worth fixing is that the model currently writes a *procedure* where it
+should write a *list*. Ten bodies decide separately how to walk a scalar, a vector,
+a pair, a nested vector of structs and a sub-object -- so `patch.h` carries a
+two-deep loop over `competition_capture` and `species.h` writes `f(...)` seven
+times. One helper in odelia takes the decision:
+
+```cpp
+// Every active value among the members handed in, whatever shape they arrive in:
+// a scalar, a container of them, a pair, or an object that answers for_each_active.
+// A member the visitor cannot be called with is skipped, so a class lists what it
+// holds and does not have to say which of them carry a derivative.
+template <class F, class T> void visit_active(F& f, T& x);
+```
+
+Then every class writes one line and no traversal:
+
+```cpp
+void for_each_active(F&& f) { visit_active(f, states, rates, auxs, consumption_rates); }
+void for_each_active(F&& f) { visit_active(f, vars, water_flux, psi_soil_, light_availability); }
+void for_each_active(F&& f) { visit_active(f, parameters, environment, species,
+                                           resource_depletion, competition_capture); }
+```
+
+**Skipping what the visitor cannot be called with is the point, not a convenience.**
+It means a class may list a `double` member at no cost, so the author is never
+deciding which of their members carry a derivative -- which is the judgment that
+makes forgetting one likely. Adding a member becomes one word beside the others.
+
+### One tape, held once
+
+Two tapes were doing this job: `Step` held one as a member for the step transposes
+and `solve_adjoint_over_insertions` built another for the insertion transposes. Only
+one tape per scalar type can be active, so they alternated -- which is why the tape
+was activated and deactivated once per recording, about seven thousand times a
+gradient, and why the release had to run in a scope of its own that deactivated
+before the product activated again.
+
+The walk owns the tape and holds it active for the whole descent. Then:
+
+* activation is once per walk, not once per recording;
+* the release is one line where the recording begins, with no scope;
+* `lifted_system`'s destructor runs inside that scope, so its three-way branch on
+  which tape is running collapses;
+* `scratch_tape` goes -- its odd copy semantics existed only because `Step` held
+  one and `Step` is copyable;
+* `recording_tape()` goes from `Step` and from `SolverInternal`, two forwarders of
+  one member;
+* `state_and_parameter_adjoints` and `rates_adjoint` stop taking a tape beside the
+  lifted System that already holds one, so a caller cannot pair a System with
+  another tape.
+
+`tape_scope` replaces `tape_guard`: it activates only if nothing else holds the
+tape and deactivates only where it activated, so a walk holding one across many
+recordings can contain anything that needs it active. One name for one name, and
+four hand-rolled activation dances go.
+
+### The mark-rewind, measured and rejected
+
+Both remaining resets were built as toys on the vendored library, away from plant,
+at 3,400 recordings of 10,000 temporaries each. The nested arm needs no patch: put
+the whole descent inside one `CheckpointCallback` and `prevMax_` is valid for its
+duration, which is what makes `ScopedNestedRecording` legal.
+
+| reset | correct | wall, 3,400 recordings | slot counter | tape memory |
+|---|---|---|---|---|
+| nested, inside one checkpoint callback | yes | 0.43 s | 15 → 15 | 180 B → 180 B |
+| `newRecording()` between recordings | yes | 36.9 s | 10,008 → 34.0 M | 272 MB |
+| `resetTo()` between recordings | yes | 37.1 s | 10,011 → 34.0 M | 272 MB |
+| nested, outside a checkpoint callback | **no** | 19.3 s for three | -- | 34 GB |
+
+The last row is worth stating plainly because it is worse than a crash: it does not
+throw on a large machine, it resizes `derivatives_` to 4.29e9 doubles, takes 32 GiB,
+and returns wrong answers from the second recording on. Under a 4 GB address-space
+limit it presents as `std::bad_alloc` from the `ScopedNestedRecording` constructor.
+
+**And the release it would replace costs 8 ms.** 1,500 members released over 3,400
+recordings is 5.1 million releases at 1.6 ns each -- against a gradient of about
+108 s. So the 5 s that carrying the System saves is the allocation it avoids, not
+the release, and the release is free.
+
+⚠️ **Nesting does not remove what the model has to promise, which was the whole
+reason to want it.** Slots issued *inside* the first nest are handed back out by the
+second, so every long-lived active member must be registered before the first nest
+-- measured both ways, and the unregistered arm is wrong by no clean factor. On top
+of that the nested form needs the descent wrapped in a callback whose reason a
+reader cannot see, an explicit zeroing of the pre-nest slots' adjoints before every
+sweep (`clearDerivatives()` reaches only from the nest's own start, and without it
+recording k returns k times the answer), and no `registerInput` inside a nest --
+which is what `vector_jacobian_product` does on every recording. Same promise from
+plant, three new disciplines, no time saved.
+
+**So: release, then clear, per recording, at the one place a recording begins.** The
+mechanism was right and the placement was wrong. What is left to improve is not the
+reset but what the model has to write to answer it.
 
 ## IV. The leaf has one supply path, and therefore one derivative method
 
