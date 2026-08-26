@@ -59,14 +59,30 @@ no step reached.
 So the change is one push, at the one place the width changes:
 
 ```cpp
-// SCM::run_next_impl, today
+// SCM::run_next_impl
 sys.introduce_nodes(ret, e.time_introduction());
-solver.set_state_from_system();          // <- reads the wider state, records nothing
+solver.set_state_from_system();
+solver.push_inserted();                  // <- what the introduction just reached
 ```
 
-**Zero new fields.** The species does not need recording either: `inserted_state`
-already looks the introduction up from the schedule by time, which is what lets
-the sweep ask for it knowing only a recorded time.
+The species does not need recording: `inserted_state` already looks the
+introduction up from the schedule by time, which is what lets the sweep ask for
+it knowing only a recorded time.
+
+⚠️ **It lands as a field on a row, not as a row of its own, and the reason is
+what a shared time costs.** An insertion happens at the time the step below it
+reached, so a row for it would put two rows at one time -- and that sequence is
+read by `times()`, by `schedule()`, and through `refine_schedule` by
+`parameters.ode_times`, which crosses to R, is validated as sorted, and is binned
+into intervals by the pinned replay. It is also what the recorded stage address
+counts: the forward run addresses a rate evaluation by `prev_steps.size()`, so an
+extra row shifts every address above it and the replay has to shift with it. The
+field form gets the whole collapse below with none of that: row counts, times,
+sizes, schedules and stage addresses are all exactly what they were.
+
+So `step_record` gains `inserted`, empty at every row no insertion followed, and
+`ran_from()` names the one thing a reader needs from the pair -- the state the
+step above ran from.
 
 Then the walk is one loop with one branch, and it is the same branch in both
 directions:
@@ -78,13 +94,16 @@ forward     for k = 1 .. last
              isnan(rec[k].step_size) ?  apply the insertion      :  step by rec[k].step_size
 ```
 
-Gone: `insertion_steps`, `with_insertions`, `state_at_segment`, `n_piece`,
-`piece_first`, `piece_last` (each written twice), the scheme paragraph that
-appears verbatim twice, `restore_on_exit`, the width-shrink refusal,
-`advance_over_insertions`, and the `cuts` block behind `extra_splits` -- a split
-is now a range on one loop. **`sweep.hpp`, 300 lines, becomes about forty lines
-inside the walk**, and *insertion*, *widening*, *piece*, *segment* and
-*with_insertions* have nothing left to be five names for.
+Gone: `with_insertions` (a copy of all 3,381 rows to patch 169 of them), the
+width inference and the shrink refusal it needed, `n_piece`, `piece_first`,
+`piece_last` (each written twice), the scheme paragraph that appears verbatim
+twice, and the nested `cuts` loop behind `extra_splits` -- a split is now one
+more stop on one loop. *piece* and *with_insertions* have nothing left to name.
+
+What stays, and should: `be_at_step`, because a narrowing descent has to put the
+System somewhere; `restore_on_exit`, because the descent still narrows and a
+throw is still an exit until the refusal is a return value; and the forward walk,
+which the tangent reference runs.
 
 This also settles two of `unification.md`'s and `subtraction-targets.md`'s
 entries by removing their subject: target 9's off-by-one at three sites, and
