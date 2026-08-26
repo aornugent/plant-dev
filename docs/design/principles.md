@@ -1,9 +1,8 @@
 # How to change this codebase
 
-The rules the reverse-mode work is judged by. The first half is general and
-inherited; the second half was earned on this branch, and each of those entries
-names the change that taught it. Where the two halves conflict the second wins,
-because it was paid for.
+The rules the reverse-mode work is judged by, and the route that produced the
+plan it is working through. Read the second half if you are picking this up
+without the context that built it.
 
 ## The prime directive
 
@@ -84,103 +83,86 @@ times, and the spellings drift.
 **Tests-only reachability does not distinguish dead from unfinished.** The check
 that separates them is whether a plan item still carries open work.
 
+## Where a change belongs
+
+**A capability of the tool goes in the tool.** The AD library is named in odelia
+and nowhere else; how a tape is reset is odelia's business, and a model asked to
+help with it is a model carrying odelia's problem. If an increment cannot be
+described without teaching the model a new word, the increment is in the wrong
+package.
+
 ---
 
-# What this branch taught
+# How this plan was arrived at, and how to rejoin it
 
-## 1. A subtraction that adds a protocol is not a subtraction
+Five moves, in order. Each produced a document, and each answers a question the
+one before it could not. A session that has lost its context can rebuild it by
+reading them in this order; a session that wants to continue the work should
+start at the cut.
 
-Carrying one lifted System across a width's recordings, instead of rebuilding it
-per recording, needed every class of the model to declare its active values and
-every caller to release them. That is eleven files, a new concept in the shared
-header, and a standing obligation on the model — for three to four per cent,
-measured.
+## 1. Read it cold, as an exhausted maintainer
 
-⚠️ **Count the concepts a change adds, on the same page as the time it saves.**
-A change that removes a name is worth more than one that removes a millisecond,
-and a change that adds a name has to earn it against both. The question is never
-"is this faster" but "is the whole smaller".
+Not "is this correct" — that is what the reports and the ladder are for. The
+question is **where does this cost a reader**: which parts are branchy, indirect,
+or introduce a name whose purpose only becomes clear three files later. Follow
+one product call end to end and write down every word you had to learn.
 
-The tell was available before the work: the increment could not be described
-without introducing a word.
+That walk is at the top of `subtraction-targets.md`, and the hotspots it marks
+are what everything after it works on.
 
-## 2. Measure the mechanism before arguing about it
+## 2. Name what is not earning its keep — `subtraction-targets.md`
 
-The same change was first written on the reasoning that a recording rewrites
-every value it reads, so carrying a System is safe. The reasoning was wrong for a
-reason no amount of reading the calling code would surface: in this AD library,
-**assigning to a value keeps the tape slot it already had**. Rewriting does not
-refresh it.
+A log, not a proposal: each entry names something the work built or left behind,
+the evidence it is not earning its keep, and what would break if it went. Found
+by asking about **consumers**, not about counts — two counting lenses were tried
+and both produced confident nonsense, and that is recorded there so nobody tries
+them again.
 
-Twenty lines of standalone probe settled in one run what two documents had argued
-about in prose. `odelia/tests/standalone/probe_tape_reset.cpp` is that probe, and
-it is now the cheapest place to ask this class of question.
+## 3. Ask where one idea is spelled twice — `unification.md`
 
-⚠️ **A claim about a library's behaviour is a measurement, not an argument.**
-Write the probe. It is smaller than the paragraph.
+The narrower question with the sharper answer. Not "is this dead" but **is this
+here twice** — two vocabularies for one idea, two mechanisms answering one
+question, a thing built per step whose inputs are constant across the loop, a
+parameter that exists for one caller. The tell of the first is a translation layer
+between the two spellings.
 
-## 3. The reason lives in the comment, so deleting the comment deletes the reason
+## 4. Ask what the model forces — `one-reverse-pass.md`
 
-The paragraph that said *assigning from an expression keeps the slot the target
-already had* was deleted by the change it would have refuted, as part of tidying
-away an explanation that had become inconvenient. The failure it warned about
-followed within the hour.
+The prior question. Given permission to change dependencies, delete products and
+re-open trade-offs: **what shape does the model force**, and what is merely how it
+was built? Written as five facts about TF24 that are not design decisions, then
+the collapses that follow from them.
 
-⚠️ **A comment that blocks the change you are making is evidence, not clutter.**
-Before removing one, satisfy its claim or disprove it.
+This is the move that pays, and it needs the permission to be real. Two things
+that had been ruled out became available the moment a whole product could go, and
+the hardest item on the previous list turned into a deletion.
 
-## 4. Never edit the assertion that says no
+## 5. Cut, smallest first, and measure
 
-`test-state-and-parameter-adjoints.R` asserted one lift per recording — three
-calls, three lifts. To make the change compile, that expectation was edited to
-one, with a confident comment explaining why the new invariant was better. Then
-the numbers were run, and they were wrong by twelve orders of magnitude.
+`one-reverse-pass.md` carries the order. It is subtraction first, then the
+mechanisms in the sequence where each makes the next smaller, then the two that
+are redesigns. Rank the remaining work **by names removed**, not by lines and not
+by seconds: the entries that delete a concept are the ones whose value compounds,
+because every later change is read against a smaller vocabulary.
 
-⚠️ **An expectation changed in the same commit as the code it constrains is not a
-check.** Change the code or change the claim, and never both at once without
-saying which came first.
+## What holds across all five
 
-## 5. "Free" means unreferenced, and unreferenced means checked
-
-Two items were planned as costless deletions. Neither was: the single-potential
-supply path is selected by the finite-difference product through a name lookup,
-and `extra_splits` is what the identity rung's bit-for-bit split passes. Both
-took ten seconds to check and would have taken a session to unpick.
-
-⚠️ **Grep before you promise.** A plan's cheapest items are the ones its author
-did not verify.
-
-## 6. Turn an audit into a number
-
-The requirement "every active value must be released before the tape is cleared"
-was, at first, a list of ten classes to read carefully. It became the tape's own
-count of registered values, which has to return to zero. It failed four times
-during development, each time naming how many values had been missed.
-
-⚠️ **Where a rule spans a model, look for the counter that already knows.** A
-guard that reports a number beats a guard that reports a boolean, and both beat a
-paragraph telling the reader to be careful.
-
-This is the one part of the change worth keeping whatever happens to the rest.
-
-## 7. A silent failure needs a shape to show up in
-
-The carried System is *accidentally correct* while every recording registers the
-same number of inputs. It only breaks once the shapes differ — which the sweep
-does at every widening. A narrower test passes.
-
-⚠️ **When a defect depends on two runs differing, the fixture has to differ.**
-"It passes on the small case" is not evidence; the small case is where the
-collision lands harmlessly.
-
-## 8. Prefer the increment that removes a word
-
-Of the work landed on this branch, the parts that read best afterwards are the
-ones that deleted vocabulary: the calibration path (one tape discipline where
-there were two), and the complete recording (*piece* and *with_insertions* left
-with nothing to name). The part that reads worst is the one that added a word for
-a percentage.
-
-⚠️ **Rank the backlog by names removed, not by lines or by seconds.** The
-entries that delete a concept are the ones whose value compounds, because every
-later change is read against a smaller vocabulary.
+- **A comment that blocks your change is evidence, not clutter.** Satisfy its
+  claim or disprove it before deleting it.
+- **An expectation changed in the same commit as the code it constrains is not a
+  check.** If a test says no, the test is the finding.
+- **"Free" means unreferenced, and unreferenced means grepped.** A plan's
+  cheapest items are the ones its author did not verify.
+- **A claim about a library's behaviour is a measurement, not an argument.**
+  `odelia/tests/standalone/probe_tape_reset.cpp` is the cheapest place to ask one
+  about the tape; twenty lines of it settled what two documents had argued in
+  prose.
+- **Where a rule spans a model, look for the counter that already knows.** A
+  guard reporting a number beats one reporting a boolean, and both beat a
+  paragraph telling the reader to be careful.
+- **A defect that needs two runs to differ needs a fixture that differs.** "It
+  passes on the small case" is not evidence; the small case is where the
+  collision lands harmlessly.
+- **Every claim about speed needs a control**: the same fixture, both sides,
+  interleaved in one session. A figure from a document is a figure from whenever
+  it was last true.
