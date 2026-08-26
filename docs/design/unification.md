@@ -273,31 +273,66 @@ and runs 3,381 times per sweep on the century fixture.
 **(a) The rebind: 7.0 s, 6% of the gradient.** Measured, and the exclusive time
 is the light interpolant being reconstructed.
 
-⚠️ **TRIED, AND IT IS NOT AVAILABLE AS A HOIST.** Lifting the System once per
-constant-width range instead of once per recording was written, built, and gave
-adjoints of order 1e13 against an expected 1.3 on odelia's own two-species
-fixture. The reason is a property of the AD library, and `adjoint.hpp` stated it
-in the paragraph this entry proposed removing: *assigning from an expression
-keeps the slot the target already had.* So rewriting every active member from the
-state does NOT refresh it -- the write goes through a slot the tape clear has
-already invalidated, and the sweep accumulates into whatever now owns that
-number.
+⚠️ **TRIED NAIVELY, FAILED, THEN MEASURED.** Lifting the System once per
+constant-width range and changing nothing else gave adjoints of order 1e13
+against an expected 1.3. The reason is a property of the AD library, stated in
+the paragraph that attempt proposed removing: *assigning from an expression keeps
+the slot the target already had.* So rewriting a member does not refresh its
+slot, and `clearAll()` returns the slot counter to zero -- so the write goes
+through a slot the next recording reissues.
 
-That falsifies the argument below about detectability: the defect a carried
-System hides is not an unregistered input, it is a stale slot on a member that IS
-written. Rebuilding is not masking a bug class; it is the reset. `state_and_
-parameter_adjoints` keeps the rebind, and the paragraph explaining it keeps its
-place. `subtraction-targets.md`'s "Checked and rejected" says the same thing
-about reusing `Step`'s stage scratch, for the same reason -- this entry proposed
-the same change one level up without recognising it.
+`odelia/tests/standalone/probe_tape_reset.cpp` is that behaviour on twenty lines
+of model, away from plant, with the four resets side by side. Run it: `make
+probe_tape_reset && ./probe_tape_reset B 6 grow`.
 
-**What is still available**, and what the 7 s actually is: the profile's
-exclusive time is `std::_Construct<hermite_interpolator>` and its Span vectors --
-*allocation*, not slot initialisation. So the reachable form is the narrow one
-this entry already names: reset the active System's members in place, keeping the
-allocations, rather than rebuilding the object. That needs every active member
-enumerated, and the enumeration is now load-bearing rather than reassuring: a
-member left out is a wrong number, not a missing one.
+**The reset is not one thing, and this is the finding.** Three of them, measured
+at 10,000 recorded temporaries per recording, over 3,400 recordings:
+
+| reset | correct? | 1,000 / 2,000 / 3,400 recordings | memory at 3,400 |
+|---|---|---|---|
+| rebuild + `clearAll` | yes | -- | flat |
+| carry + `clearAll` | **no, silently** | -- | flat |
+| carry + `newRecording` | yes | 6.29 s / 25.6 s / 73.7 s | 272 MB |
+| carry + de-register + `clearAll` | yes | 0.105 s / 0.210 s / 0.357 s | 280 KB |
+
+`newRecording()` never rewinds the slot counter, so it fixes the correctness --
+and it stops doing the other job `clearAll()` was doing. `unregisterVariable`
+reclaims a slot only if it is the last one handed out, and a `std::vector` of
+active values destroys front-to-back, so a model evaluation leaks nearly every
+slot it allocates. `initDerivatives()` zero-fills `0..maxDerivative_` on every
+recording, so the k-th recording pays O(k x leak): **4x per doubling, measured.**
+plant's recording allocates on the order of 10^6 actives, which puts that arm at
+tens of GB and hours of zero-filling. Not viable.
+
+**De-registering first is, and it is linear.** Move-assigning a fresh temporary
+swaps slots, so the temporary carries the old one away and its destructor
+releases it, and no statement is recorded:
+
+```cpp
+x = xad::AReal<double>(xad::value(x));   // back to unregistered, cleanly
+```
+
+Done to every active member and then `clearAll()`, the slot layout is
+byte-identical to the rebuild arm and the memory is flat -- the object is reused,
+the slots are fresh. It buys the 7 s because the profile's exclusive time is
+`std::_Construct<hermite_interpolator>` and its Span vectors: *allocation*, which
+reuse skips, not slot bookkeeping, which this still pays.
+
+⚠️ **The order is load-bearing and the wrong way round is a landmine.**
+`clearAll()` first and de-register second leaves the adjoints right in the
+shipped build while underflowing the live-variable counter to zero -- and with
+`XAD_TAPE_REUSE_SLOTS` compiled in, which is one commented-out line in
+`XAD/Config.hpp`, the freed slots are reissued and the answers go wrong. Reset
+the members, then the tape.
+
+⚠️ **Re-registering cannot substitute for de-registering.** `Tape::registerInput`
+is guarded by `if (!inp.shouldRecord())`, so on a member that already holds a
+slot it does nothing at all.
+
+**What this costs to land** is the enumeration: every active member of the Patch,
+reached once. That is the same audit this entry used to describe as reassurance,
+and it is now load-bearing -- a member left out is a wrong number rather than a
+missing one, and it is wrong only once two recordings differ in shape.
 
 **(b) `ad_parameters()` walks the table with a string comparison per entry.**
 `TF24_Pars::has_column(name)` is a linear scan over the seventeen

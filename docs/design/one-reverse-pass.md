@@ -173,12 +173,15 @@ the other's place. Remove calibration and there is one -- lift per sweep, clear
 per recording -- and then "the walk owns the active System" is not an
 optimisation, it is the only place it could live.
 
-⚠️ **THE ARGUMENT BELOW IS WRONG, AND THE ATTEMPT THAT SHOWED IT IS IN
-`unification.md` 5.** It assumes rewriting a member refreshes its tape slot.
-Assignment keeps the slot the target already had, so a carried System writes
-through slots a tape clear has invalidated. The per-recording rebind is the
-reset, not a mask. What survives of this section is the second half: with
-calibration gone there is one tape discipline, which is worth having on its own.
+⚠️ **THE ARGUMENT BELOW IS WRONG IN ITS REASON AND RIGHT IN ITS CONCLUSION, AND
+`unification.md` 5 now carries the measurement.** Rewriting a member does not
+refresh its tape slot -- assignment keeps the one the target already had -- so a
+carried System writes through slots `clearAll()` has reissued. But the rebind is
+not the only reset: de-registering each member first, by move-assigning a fresh
+temporary, leaves the object reusable and the slots fresh, and is linear where
+the alternative (`newRecording`, which also keeps slots valid) is quadratic in
+the number of recordings. `odelia/tests/standalone/probe_tape_reset.cpp` has all
+four arms.
 
 **The guarantee changes shape in a way that reads as a risk and is the
 opposite.** The per-recording rebind guarantees every active scalar arrives
@@ -357,9 +360,12 @@ order: the push in `run_next` first, because the sweep must give bit-identical
 numbers across it and that is provable on its own; then `sweep.hpp` collapses
 into the walk.
 
-**3 -- odelia's two entry points.** Merge the splice. The hoist is NOT available:
-see the warning in III. What is available is a reset in place of a rebuild, which
-is a plant-side change and wants its own increment.
+**3 -- odelia's two entry points.** Merge the splice.
+
+**3b -- the reset in place of the rebuild.** Its own increment, and a plant one:
+enumerate the Patch's active members and de-register them where the rebind is
+today. `probe_tape_reset` is the mechanism; the ladder is the check; the fixture
+that caught the naive attempt catches this one too.
 
 **4 -- one refusal, latched, carrying a severity.**
 
