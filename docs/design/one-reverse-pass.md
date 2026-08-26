@@ -173,6 +173,13 @@ the other's place. Remove calibration and there is one -- lift per sweep, clear
 per recording -- and then "the walk owns the active System" is not an
 optimisation, it is the only place it could live.
 
+⚠️ **THE ARGUMENT BELOW IS WRONG, AND THE ATTEMPT THAT SHOWED IT IS IN
+`unification.md` 5.** It assumes rewriting a member refreshes its tape slot.
+Assignment keeps the slot the target already had, so a carried System writes
+through slots a tape clear has invalidated. The per-recording rebind is the
+reset, not a mask. What survives of this section is the second half: with
+calibration gone there is one tape discipline, which is worth having on its own.
+
 **The guarantee changes shape in a way that reads as a risk and is the
 opposite.** The per-recording rebind guarantees every active scalar arrives
 holding no tape slot. Hoisting replaces that with: every active member the
@@ -350,9 +357,9 @@ order: the push in `run_next` first, because the sweep must give bit-identical
 numbers across it and that is provable on its own; then `sweep.hpp` collapses
 into the walk.
 
-**3 -- odelia's two entry points.** Merge the splice, hoist the System and the
-parameter list, and land III's audit of conditionally written active members
-with it. 6% of the gradient, and the `declared-zero` rungs are the check.
+**3 -- odelia's two entry points.** Merge the splice. The hoist is NOT available:
+see the warning in III. What is available is a reset in place of a rebuild, which
+is a plant-side change and wants its own increment.
 
 **4 -- one refusal, latched, carrying a severity.**
 

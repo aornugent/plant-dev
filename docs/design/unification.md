@@ -273,6 +273,32 @@ and runs 3,381 times per sweep on the century fixture.
 **(a) The rebind: 7.0 s, 6% of the gradient.** Measured, and the exclusive time
 is the light interpolant being reconstructed.
 
+⚠️ **TRIED, AND IT IS NOT AVAILABLE AS A HOIST.** Lifting the System once per
+constant-width range instead of once per recording was written, built, and gave
+adjoints of order 1e13 against an expected 1.3 on odelia's own two-species
+fixture. The reason is a property of the AD library, and `adjoint.hpp` stated it
+in the paragraph this entry proposed removing: *assigning from an expression
+keeps the slot the target already had.* So rewriting every active member from the
+state does NOT refresh it -- the write goes through a slot the tape clear has
+already invalidated, and the sweep accumulates into whatever now owns that
+number.
+
+That falsifies the argument below about detectability: the defect a carried
+System hides is not an unregistered input, it is a stale slot on a member that IS
+written. Rebuilding is not masking a bug class; it is the reset. `state_and_
+parameter_adjoints` keeps the rebind, and the paragraph explaining it keeps its
+place. `subtraction-targets.md`'s "Checked and rejected" says the same thing
+about reusing `Step`'s stage scratch, for the same reason -- this entry proposed
+the same change one level up without recognising it.
+
+**What is still available**, and what the 7 s actually is: the profile's
+exclusive time is `std::_Construct<hermite_interpolator>` and its Span vectors --
+*allocation*, not slot initialisation. So the reachable form is the narrow one
+this entry already names: reset the active System's members in place, keeping the
+allocations, rather than rebuilding the object. That needs every active member
+enumerated, and the enumeration is now load-bearing rather than reassuring: a
+member left out is a wrong number, not a missing one.
+
 **(b) `ad_parameters()` walks the table with a string comparison per entry.**
 `TF24_Pars::has_column(name)` is a linear scan over the seventeen
 `undifferentiable` entries comparing `string_view`s. `ad_parameters()` calls it
