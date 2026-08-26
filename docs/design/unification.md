@@ -329,10 +329,27 @@ the members, then the tape.
 is guarded by `if (!inp.shouldRecord())`, so on a member that already holds a
 slot it does nothing at all.
 
-**What this costs to land** is the enumeration: every active member of the Patch,
-reached once. That is the same audit this entry used to describe as reassurance,
-and it is now load-bearing -- a member left out is a wrong number rather than a
-missing one, and it is wrong only once two recordings differ in shape.
+**Landed, and measured.** A-B-A in one session, the century fixture (3,378 steps,
+state 1,361 wide), `stand_gradient` twice per build:
+
+| build | gradient |
+|---|---|
+| lifted once per range | 109.52 s, 109.70 s |
+| rebound per recording | 112.94 s, 113.15 s |
+| lifted once per range, again | 107.87 s, 107.88 s |
+
+Bit-identical answers in all six runs. **So it is 3 to 4 per cent, not the 6 the
+profile suggested**, and the gap is worth writing down: what the hoist removes is
+the allocation, and what it adds is a walk of about fifteen hundred move
+assignments and destructor calls per recording -- five million over the sweep. The
+interpolant's values are rewritten by the field build either way; only its storage
+is reused.
+
+⚠️ **Judge the surface against that number and not against the 7 s.** The
+enumeration is ten classes of the model saying what they hold, and 3 per cent is a
+thin return on it. What is arguably worth more than the time is the check: the
+requirement used to be a rule no signature could state and nothing could test,
+and it is now one number that failed four times while this was written.
 
 **(b) `ad_parameters()` walks the table with a string comparison per entry.**
 `TF24_Pars::has_column(name)` is a linear scan over the seventeen
