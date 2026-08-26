@@ -351,6 +351,35 @@ thin return on it. What is arguably worth more than the time is the check: the
 requirement used to be a rule no signature could state and nothing could test,
 and it is now one number that failed four times while this was written.
 
+**The version that asks the model for nothing exists, and it is unaffordable.**
+`XAD_TAPE_REUSE_SLOTS` is a compile-time option of the vendored library,
+commented out in `XAD/Config.hpp`. With it on, a freed slot is reclaimed whatever
+order it was freed in, so `newRecording()` can replace the per-recording
+`clearAll()` without the slot leak that makes that quadratic -- and a carried
+System is then correct with **no release, no enumeration and nothing asked of
+plant at all.** Verified: the ladder passes with the release entirely disabled,
+673 assertions, bit-identical.
+
+Measured on the century fixture, same session:
+
+| configuration | gradient |
+|---|---|
+| rebind per recording | 112.9 s, 113.2 s |
+| lift per range, release, clear | 107.9 s, 109.7 s |
+| the same plus slot reuse | 149.9 s, 150.2 s |
+| slot reuse, `newRecording`, no release | 276.4 s, 276.9 s |
+
+**Slot reuse costs 38 per cent before anything is done with it**, and dropping the
+clear on top of it costs another 126 s. The reason is the shape of this model
+rather than of the option: a recording registers and unregisters on the order of
+10^5 to 10^6 values, and each one now has to be threaded through the reuse
+ranges, where `clearAll()` did that bookkeeping by throwing the counter away.
+
+So the two properties pull against each other, and this is the whole finding: the
+only affordable way to carry a lifted System is to hand its slots back
+explicitly, and only the model knows what they are. There is no version of this
+that stays inside odelia.
+
 **(b) `ad_parameters()` walks the table with a string comparison per entry.**
 `TF24_Pars::has_column(name)` is a linear scan over the seventeen
 `undifferentiable` entries comparing `string_view`s. `ad_parameters()` calls it
