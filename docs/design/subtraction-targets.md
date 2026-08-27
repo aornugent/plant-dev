@@ -826,7 +826,7 @@ the `TransportTrait` enum beside them.
 `HydraulicCostRow` at 1715. They are the row layer's vocabulary, and `2ba6f98`
 deleted the layer without them.
 
-### 17. ~~`leaf_solved_points` is two objects wearing one type~~ DONE, not as two types
+### 17. ~~`leaf_solved_points` is two objects wearing one type~~ DONE, as a cursor
 
 The record of operating points a run's leaf solves found carries five pieces of
 state — `kept`, `slot`, `solved`, `placed` and `filling` — and `filling` decides
@@ -847,12 +847,14 @@ type is a recorder and a player fused by a boolean, and every caller of either
 half is relying on a mode it did not set. `end_stage()` clears `slot` and `solved`
 and leaves `filling` alone, so the two can disagree.
 
-**The flag is gone and so is the disagreement, and it took two POINTERS rather than
-two types.** The store holds `keeping` and `placing`, at most one open; `next()`
-tests `placing`, `keep()` tests `keeping`, and `end_stage()` nulls both, so nothing
-outlives the slot it described. Each branch tests one thing where it used to test a
-flag and a pointer. The mode is not stored anywhere: it arrives on the address, from
-the walk that steps, which is the only thing that knows it.
+**The flag is gone, and so is the store.** `leaf_solved_points` is now a CURSOR over
+the list the solver hands over for the evaluation about to run: `storing` and
+`loading`, at most one open, `end()` nulling both. The points themselves are
+`step_record::solved` — they are part of what the run did, so they live beside the
+times, the sizes and the states rather than in a second recording keyed the same way
+in the other package. That took `kept[step][stage]`, its resize arithmetic and
+`clear_solved_choices` with it. Which handle is open is the CONSTNESS of what was
+handed over, so no mode is stored anywhere.
 
 ⚠️ **Two types would have been WORSE, and the one caller of both halves is why.**
 `solve_leaf` calls them unconditionally — "place what was kept, or search; then keep
@@ -937,10 +939,10 @@ DONE. The address is now the extent of one rate evaluation, opened and closed by
 `leaf_points`, and the two concepts both remain — each now answering its own
 question rather than one routing for the other.
 
-**And the mode arrives AS the address**, which is this entry's complaint answered
-rather than relocated: `recorded_stage` carries which pass is running along with
-where, one value constructed in three places, from the walk that is the only thing
-that knows. `Patch::recording` does not exist. See `unification.md` 2 and entry 17.
+**And in the end there is no address**, which is this entry's complaint answered
+rather than relocated. A walk hands over the list of values for the evaluation about
+to run; `recorded_stage`, `Patch::recording` and the step-index parameter of both
+walks do not exist. See `unification.md` 2 and entry 17.
 
 **The flag it collects mid-journey is the worse half.** `Patch::recording` is a
 public `bool` with a setter, defaulting false, forced false in `assign_from`, and

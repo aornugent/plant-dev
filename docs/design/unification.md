@@ -101,7 +101,7 @@ and is untouched.
 
 ---
 
-## 2. ~~Six ways to load a state~~ FIVE; the address is a scope
+## 2. ~~Six ways to load a state, two concepts to route one address~~ DONE
 
 Extends `subtraction-targets.md` 20, which names the threading. The unification
 is one level up: **the address is a scope, and it is being passed as an
@@ -139,18 +139,19 @@ void derivs(T& obj, const StateType& y, StateType& dydt, double time,
 }
 ```
 
-DONE, near enough: the scope IS an object's lifetime, so the "opened here, closed
-there" invariant that spanned two Patch members and was checked by nothing is one
-function's business and closes however the evaluation leaves. The three-arity
-`set_ode_state` is gone — one definition and one call site, which was the whole
-migration — and no System in odelia ever satisfied the concept or defined the
-arity.
+DONE, and further than this entry asked: **there is no address left to route.** The
+scope is an object's lifetime, so the "opened here, closed there" invariant that
+spanned two Patch members closes however the evaluation leaves; the three-arity
+`set_ode_state` went, one definition and one call site; and then the address itself
+went, because a walk that hands the System the LIST OF VALUES for the evaluation
+about to run has nothing to look a slot up by. `recorded_stage` no longer exists,
+and neither does the step-index parameter of either walk.
 
-⚠️ **One of the two concepts does NOT go**, and the claim above is wrong. Both
-remain, each with its own job: odelia's `RecordsChoices` asks whether a System
-records the choices its state leaves open, plant's `KeepsSolvedChoices` asks
-whether a strategy keeps one, and plant's has three uses beyond the load. What went
-is a load arity.
+⚠️ **The intermediate claim that one of the two concepts goes was wrong twice
+over.** For one round both remained with separate jobs. In the end odelia's is
+`SolvesForValues` (store, load, end) and plant's `KeepsSolvedChoices` asks the same
+of a strategy, so there are still two — but neither routes for the other, which is
+what the address had really been costing.
 
 **The flag does not belong on the store — and it does not belong on the Patch
 either.** `begin_stage(at, keeping)` collected `Patch::recording`: written twice (a

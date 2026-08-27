@@ -37,32 +37,39 @@ Fact 4 makes the recording the central object. Facts 1 and 2 say what a row of i
 has to carry. Fact 3 says the leaf's derivative crosses a package boundary as
 data. Fact 5 says where every conversion is.
 
-⚠️ **And one consequence of fact 2 that explains most of what is awkward about the
-choice record, because it is forced and reads like a design decision.** A choice is
-determined by the state and the time it was made at, so the natural key for it is
-the state. It cannot be: the reverse walk visits the rate evaluations of a
-recording in a different order from the forward run, and at an active scalar a
-derivative can move behind an unchanged value -- the hazard `psi_soil_` is
-commented for. So the record is keyed on POSITION IN THE SCHEDULE instead: a
-surrogate key. Everything uncomfortable follows from that one substitution and not
-from anything anyone chose.
+⚠️ **One consequence of fact 2, and the part of it that turned out NOT to be
+forced.** A solved value is determined by the state and the time it was found at, so
+the natural key for it is the state. It cannot be: the reverse walk visits the rate
+evaluations of a recording in a different order from the forward run, and at an
+active scalar a derivative can move behind an unchanged value -- the hazard
+`psi_soil_` is commented for. So the record is held BY POSITION IN THE SCHEDULE
+instead. That substitution is forced.
 
-* The address has to reach the store from the stepper, because the store cannot
-  work out where it is.
-* The forward and reverse walks have to agree on the numbering, which is why stage
-  0 is the one address a walk that jumps into the middle of a recording cannot
-  trust.
-* A rejected step's attempt and the retry that replaces it must write the same
-  slot, because both are the same position and only one of them happened.
-* A replay from a state the trajectory never held has to throw the record away,
-  because the key is then a lie -- `clear_solved_choices` under `state_moved`.
-* A stepper with no stage numbering gets no record at all, which is why RODAS
-  silently keeps and places nothing.
+What was not forced is the conclusion this document drew from it: that the position
+must therefore be threaded to the model as a KEY it looks its own slot up by. Four
+of the five things listed here as consequences came from that, not from the
+substitution -- and all four went when the walk started handing the values over
+instead:
 
-What is NOT forced is where the answer to "is this the pass that fills the record?"
-lives. That is a property of the pass, the walk is the only thing that knows it, and
-it was stored on the model in a public mutable bool that had to be hand-matched to
-the solver's own flag. Step 6 is that being put back where it comes from.
+* ~~The address has to reach the store from the stepper.~~ It does not. The walk
+  hands over the list; there is no address and no lookup.
+* The forward and reverse walks agree on the numbering, and that IS forced -- but
+  it is now odelia's own row index rather than an agreement between two packages.
+  Stage 0 has no slot at all, so "a walk that jumps into the middle cannot trust
+  it" is structural.
+* ~~A rejected attempt and its retry must write the same slot.~~ A rejected attempt
+  writes scratch and only an accepted step's scratch is committed.
+* ~~A replay from a state the trajectory never held has to throw the record away.~~
+  It is handed no list, so it loads nothing. `clear_solved_choices` and
+  `state_moved` are both gone.
+* A stepper that hands over no list gets no record, which is still why RODAS keeps
+  and places nothing -- now visible in what it passes rather than silent.
+
+**And what is NOT forced is where "is this the pass that fills the record?" lives.**
+It is a property of the pass; the walk is the only thing that knows it; and it was
+stored on the model in a public mutable bool hand-matched to the solver's own flag.
+It is now the CONSTNESS of what the walk hands over, so it is not stored anywhere at
+all.
 
 ---
 
@@ -668,8 +675,47 @@ flag has a second reader -- `set_cohort_reads` marks INJECTED potentials valid,
 so a derive at the load would quietly replace them and the ladder's injections
 with them.
 
-**6 -- the address as a scope.** DONE. The fill flag stays where it is, and that
-half is refused.
+**6 -- the record carries what a step solved for, and hands it over.** DONE, and
+it went three rounds past what this step asked for. Read the rounds in order,
+because each one only became visible after the one before it landed.
+
+**Round 3, which is where it ended.** The record is `step_record::solved`: what a
+step's five stages solved for, in the order they solved for it. FIVE, not six --
+the sixth evaluation a step makes is the FSAL one at the state it ends at, which a
+sweep re-derives rather than reads, so there is no slot for it. The walk hands the
+System the list for the evaluation about to run, and **whether that is to be
+written or read is the CONSTNESS of what it hands over**, so no mode is stored
+anywhere. Nothing is threaded: `recorded_stage`, `enum class pass`,
+`RecordsChoices`, `begin_stage`/`end_stage`, plant's `kept[step][stage]` and its
+resize arithmetic, `clear_solved_choices` with both its call sites, the
+`state_moved` parameter that existed only to reach it, and the step-index
+parameter of BOTH walks are all gone -- the last of those existed only to build
+the address.
+
+Measured against a same-session control on the century fixture: forward 30.87 s
+against 30.86 s, gradient 104.26 s against 103.23 s -- inside the noise of one run
+each -- and **placements identical at 2,333,500**, which is the number that says
+the record engages at exactly the same solves rather than merely passing the
+suite.
+
+⚠️ **The aux vector is the wrong home, and this is the reason to write down.**
+`Internals::auxs` mixes the two kinds: `competition_effect` and `height_inverse`
+are functions of the state and MUST be recomputed at the adjoint scalar, so
+loading a recorded aux vector wholesale writes them as passive doubles and severs
+the tape through them. Restricting the load to some slots needs a list of which
+auxs are supplied, which is a new concept. Only values a rate evaluation cannot
+recompute belong in the record.
+
+⚠️ **Running off the end of a loaded list is a FAULT**, not a fall back to solving.
+The run made one entry per solve at that evaluation, so a pass asking for more
+disagrees with the record it was handed. Loading from an absent list still returns
+nothing, which is a forward run that kept no record. The fallback that remains is
+for the four operating-point kinds settled by feasibility rather than by a search
+-- the state determines those, so there is nothing to store and re-reaching them
+is free.
+
+**Rounds 1 and 2, kept because the reasoning is what got to round 3.** The fill
+flag stays where it is, and that half is refused.
 
 **First, the guard, because there was none.** `leaf_solved_points::placements()`
 carries its own reason to exist -- a record that engages and one that quietly does
@@ -848,8 +894,8 @@ One recorded step, the level below, unchanged from the first walk:
 
 ```
 6 x ode::derivs(active_system, stage, rate[i], t, {step, i})
-├─ stage_scope{obj, at}                       if constexpr RecordsChoices   ✱K
-│  └─ for species: strategy->begin_stage(at)        ✱L done: one arity, no flag
+├─ solved_scope{obj, rec.solved[i-1]}     const & ⇒ load, & ⇒ store   ✱K done
+│  └─ for species: strategy->load_solved(list[i])   ✱L done: no address
 └─ internal::set_ode_state(obj, y, t)         the ordinary load
    then Patch::compute_rates
       ├─ Strategy::compute_rates
