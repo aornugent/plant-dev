@@ -641,10 +641,52 @@ flag has a second reader -- `set_cohort_reads` marks INJECTED potentials valid,
 so a derive at the load would quietly replace them and the ladder's injections
 with them.
 
-**6 -- the address as a scope; the fill flag onto the store.**
-(`unification.md` 2.) Then the recorder and the player can be two types
-(`subtraction-targets.md` 17), which is why this precedes that rather than
-accompanying it.
+**6 -- the address as a scope.** DONE. The fill flag stays where it is, and that
+half is refused.
+
+**First, the guard, because there was none.** `leaf_solved_points::placements()`
+carries its own reason to exist -- a record that engages and one that quietly does
+not are the same green suite -- and nothing read it. It crossed to R and only two
+profiling scripts looked. Nor could anything else see it: `place_solved_point`
+increments `collar_solves` deliberately, so the operating-point tallies that ARE
+asserted on are invariant to whether a point was placed or searched. The recruit
+test already called the export at two lifetimes and discarded the field; it now
+asserts the count is past the step count, and it passed before the refactor and
+after it.
+
+**Then the scope.** The address was carried into a System as a third argument to
+its loader, which made the extent of one rate evaluation a property of a load --
+and put the open in `Patch::set_ode_state` and the close in `Patch::ode_rates`,
+with nothing relating them, so a throw out of the rates left it open. The extent
+of one rate evaluation is `derivs`, so `derivs` opens and closes it through a scope
+whose destructor is the close. `internal::set_ode_state`'s four-parameter overload
+goes, plant's third load arity goes, and `RecordsChoices` becomes
+`AddressesChoices`, asking for the two members that bound the extent rather than
+for a loader arity. **The whole migration was one call site and one definition.**
+
+⚠️ **It does not delete one of the two concepts.** Both remain and each has its own
+job: odelia's asks whether a System addresses an evaluation, plant's asks whether a
+strategy keeps a choice, and plant's has three uses beyond the load. A load arity
+went, not a concept.
+
+⚠️ **The fill flag does not move onto the store.** The store is a `shared_ptr`
+deliberately shared between the run's patch and the rebound one -- that share is
+how the sweep reads what the run wrote -- so a flag on it is one flag for both
+holders, and `assign_from` setting it false reaches through the share. Today "a
+rebound patch cannot record" is STRUCTURAL: the rebound patch has its own bool and
+`assign_from` clears it. On a shared store it becomes an ordering rule, which is
+the trade section III refused when it put the tape reset where a recording begins.
+What landed instead is the cheap half of the stated benefit: `Patch::recording` is
+private, so its one reader is inside the class and nothing outside can disagree
+with the solver. The recorder/player split is `subtraction-targets.md` 17 and wants
+two types, not a relocated boolean -- and this step does NOT unblock it, because
+`end_stage()` still leaves `filling` alone. What it does remove is the other half
+of that hazard: the extent now closes however the evaluation leaves.
+
+⚠️ **And a gap this turned up.** `ode_step_rodas.hpp` calls only the unaddressed
+`derivs`, at every one of its stages, so a System run under `Method::rodas` opens no
+stage at all: it records no choices and places none. Harmless today because RODAS
+has no consumer in the product, and worth knowing before it gains one.
 
 **7 -- one reduction, three producers.** (`unification.md` 3.) The hottest
 forward path, so it wants the interleaved control.
@@ -756,10 +798,9 @@ One recorded step, the level below, unchanged from the first walk:
 
 ```
 6 x ode::derivs(active_system, stage, rate[i], t, {step, i})
-└─ internal::set_ode_state(obj, y, t, at)     if constexpr RecordsChoices     ✱K
-   └─ Patch::set_ode_state(it, t, at)         if constexpr KeepsSolvedChoices
-      ├─ for species: strategy->begin_stage(at, recording)
-      └─ Patch::set_ode_state(it, t)          the ordinary load, 3rd arity    ✱L
+├─ stage_scope{obj, at}                       if constexpr AddressesChoices  ✱K
+│  └─ for species: strategy->begin_stage(at, recording)   ✱L done: one arity
+└─ internal::set_ode_state(obj, y, t)         the ordinary load
    then Patch::compute_rates
       ├─ Strategy::compute_rates
       │  ├─ solve_leaf() -> place_solved_point(leaf_points->next())

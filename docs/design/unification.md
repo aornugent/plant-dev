@@ -101,7 +101,7 @@ and is untouched.
 
 ---
 
-## 2. Six ways to load a state, two concepts to route one address
+## 2. ~~Six ways to load a state~~ FIVE; the address is a scope
 
 Extends `subtraction-targets.md` 20, which names the threading. The unification
 is one level up: **the address is a scope, and it is being passed as an
@@ -117,7 +117,7 @@ cohort_reads / set_cohort_reads          the ladder's injection (entry 8)
 block_inputs / set_block_inputs          the ladder's pack (entry 8)
 ```
 
-Two concepts exist to carry `at` down: `RecordsChoices` in odelia's
+Two concepts existed to carry `at` down: `RecordsChoices` in odelia's
 `internal::set_ode_state`, and `KeepsSolvedChoices` in `Patch::set_ode_state`.
 The three-arity load's whole body is `if constexpr (KeepsSolvedChoices) { for
 species: strategy->begin_stage(at, recording); }` followed by a call to the
@@ -139,28 +139,53 @@ void derivs(T& obj, const StateType& y, StateType& dydt, double time,
 }
 ```
 
-deletes the three-arity `set_ode_state` in both packages, one of the two
-concepts, and the "opened here, closed there" invariant that currently spans two
-Patch members and is checked by nothing. It also makes the scope an object's
-lifetime if anyone wants it to be, which the current shape cannot be.
+DONE, near enough: the scope IS an object's lifetime, so the "opened here, closed
+there" invariant that spanned two Patch members and was checked by nothing is one
+function's business and closes however the evaluation leaves. The three-arity
+`set_ode_state` is gone — one definition and one call site, which was the whole
+migration — and no System in odelia ever satisfied the concept or defined the
+arity.
 
-**The flag arriving separately is the worse half, and it is cheaper to fix than
-the address.** `begin_stage(at, keeping)` collects `Patch::recording` -- a public
-`bool`, written twice (a setter called once from `SCM::run`, forced false in
-`assign_from`), read at exactly one site, and correct only if the caller set it
-to agree with the solver's `set_keep_states`. It does not vary per stage. It
-varies per *run*. So it belongs on the store, set once:
+⚠️ **One of the two concepts does NOT go**, and the claim above is wrong. Both
+remain, each with its own job: odelia's `AddressesChoices` asks whether a System
+addresses an evaluation, plant's `KeepsSolvedChoices` asks whether a strategy keeps
+a choice, and plant's has three uses beyond the load. What went is a load arity.
+
+⚠️ **The flag does not belong on the store, and this was the wrong half to call
+cheap.** `begin_stage(at, keeping)` collects `Patch::recording` -- written twice (a
+setter called once from `SCM::run`, forced false in `assign_from`), read at exactly
+one site, and correct only if the caller set it to agree with the solver's
+`set_keep_states`. All true. But the store is a `shared_ptr` deliberately shared
+between the run's patch and the rebound one, because that share is how the sweep
+reads what the run wrote — so a flag on it is one flag for BOTH HOLDERS, and
+`assign_from` setting it false reaches through the share to the patch that did the
+recording.
+
+Today "a rebound patch cannot record" is structural: the rebound patch has its own
+bool and `assign_from` clears it. On a shared store it becomes an ordering rule,
+which is the trade `one-reverse-pass.md` III refused when it put the tape reset
+where a recording begins. **The mode is per HOLDER, and that is what "a recorder and
+a player" means** — `subtraction-targets.md` 17, which wants two types.
+
+What landed instead is the cheap part of the stated benefit: `Patch::recording` is
+private, so its one reader is inside the class and nothing outside it can set a
+mode disagreeing with the solver. The proposal was:
 
 ```cpp
 patch.set_recording(x)  ->  for species: leaf_points->fill(x)   // once per run
 begin_stage(at)                                                 // per evaluation
 ```
 
-That removes a public mutable bool from `Patch`, one argument from three
-signatures, and the pairing that nothing validates. It is also the precondition
-for splitting the recorder from the player (`subtraction-targets.md` 17): once
-`fill` is set once per run rather than per stage, `end_stage()` can no longer
-leave the two disagreeing.
+Of the three things that was to remove: the public mutable bool is gone (it is
+private), the argument is not (two signatures still carry it), and the pairing is
+still two calls two lines apart in `SCM::run` from one variable — as good as it
+gets while the patch cannot see the solver.
+
+⚠️ **And it is NOT the precondition for splitting the recorder from the player.**
+`end_stage()` still leaves `filling` alone, so `subtraction-targets.md` 17 stands
+exactly where it did. What step 6 did remove is the other half of that hazard: the
+extent is a scope, so it closes however the evaluation leaves rather than only on
+the path through `ode_rates`.
 
 ---
 
@@ -695,9 +720,11 @@ Subtraction before scaffolding, and each increment lands on its own.
 5. ~~Entry 4 -- one clamp counter.~~ The per-placement allocation is DONE and the
    counter merge is REFUSED; see the entry. It was the sharpest speed item on
    this list that is not entry 5.
-6. Entry 2 -- the address as a scope, then the fill flag onto the store. This is
-   the precondition for `subtraction-targets.md` 17 (the recorder and the player),
-   so it lands before that rather than beside it.
+6. ~~Entry 2 -- the address as a scope, then the fill flag onto the store.~~ The
+   scope is DONE and the flag is REFUSED; see the entry. ⚠️ It is **not** the
+   precondition for `subtraction-targets.md` 17 that this list claimed:
+   `end_stage()` still leaves `filling` alone, so 17 stands where it did and wants
+   two types rather than a relocated boolean.
 7. Entry 5(a)(c) -- hoist the active System and the parameter list into the
    sweep, after the audit the entry names. 6% of the gradient.
 8. Entry 6 -- move `active_solver` and `tape` out of `Solver`.

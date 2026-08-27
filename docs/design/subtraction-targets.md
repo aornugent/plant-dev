@@ -907,7 +907,7 @@ the file and then both export files.
 Both belong in `census_gradient`, where the caller that wants them can read them
 off the value — and eight write sites and two members go with the move.
 
-### 20. A stage address threaded six layers to reach a vector index
+### 20. ~~A stage address threaded six layers to reach a vector index~~ DONE
 
 `Step::step_adjoint` forms `recorded_stage{step, i}` and hands it to `derivs`. It
 arrives, six frames later, as two subscripts:
@@ -921,8 +921,15 @@ derivs(sys, y, dydt, t, at)
           kept[at.step][at.stage]
 ```
 
-Two concepts exist to route it, two overloads of `set_ode_state` exist to carry
-it, and `TF24_Strategy::begin_stage` is a pure forwarder to `leaf_points`.
+DONE. The address is now the extent of one rate evaluation, opened and closed by
+`ode::derivs` through a scope, so the six frames are three and the two overloads of
+`set_ode_state` are one. `TF24_Strategy::begin_stage` is still a forwarder to
+`leaf_points`, and the two concepts both remain — each now answering its own
+question rather than one routing for the other.
+
+⚠️ **The mode still arrives beside the address**, and that half is refused: see
+`unification.md` 2. The store is shared between the recorder and the player, so the
+mode is per holder; entry 17 is where that gets fixed, with two types.
 
 **The flag it collects mid-journey is the worse half.** `Patch::recording` is a
 public `bool` with a setter, defaulting false, forced false in `assign_from`, and
