@@ -4,41 +4,32 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-Read the reference material. It divides into two layers, and the division is what keeps it true:
+Read [`docs/design/principles.md`](docs/design/principles.md). It carries the rules this
+work is judged by, and the route that produced the plan it is working through -- five
+moves, in order, each of which produced one document. It names them and says what each
+answers that the one before it could not:
 
-**The model — what TF24 is.** Its referee is `plant`'s `develop`. These name no code and no
-commit, and a claim in them is wrong if the model disagrees with it, not if some branch does.
+- [`docs/design/subtraction-targets.md`](docs/design/subtraction-targets.md) -- what is
+  not earning its keep, found by asking about consumers
+- [`docs/design/unification.md`](docs/design/unification.md) -- where one idea is spelled
+  twice
+- [`docs/design/one-reverse-pass.md`](docs/design/one-reverse-pass.md) -- what the model
+  forces, the sequenced cut, and **what the tape costs plus the XAD mechanics behind it**
 
-- [`docs/reports/00-tf24-dependency-map.md`](docs/reports/00-tf24-dependency-map.md) — **the
-  first reading.** Its physical reading gives the five facts TF24's gradient follows from, its
-  end-to-end walk states the flow forwards and backwards in prose, and §6 classifies every
-  partial. Read it before the others; they are its detail.
-- [`docs/reports/05-reverse-mode-mathematics.md`](docs/reports/05-reverse-mode-mathematics.md)
-  — **the derivatives**, and what a correct implementation of them must satisfy. Read it
-  beside report 00: 00 states the dependency structure and where each partial goes, 05 states
-  the algebra.
-- [`docs/reports/06-what-the-gradient-means.md`](docs/reports/06-what-the-gradient-means.md)
-  — the ecology behind those derivatives, section for section, and what it would be wrong
-  to conclude from a number this machinery produces. Read it if you are deciding whether a
-  defect matters, and read its closing section as the domain that must accompany any number
-  the machinery produces.
+A session that has lost its context rebuilds it from those four and nothing else. None of
+them tracks progress; each is edited when something lands, and where a document disagrees
+with the code, the disagreement is the finding.
 
-**The design — what follows from the model.** Its referee is the mathematics plus the
-objective: correct, performant and stable reverse-mode gradients of a TF24 stand, with
-the feedbacks through light and soil intact.
+**The nine reports that used to be listed here are gone from the tree and live in the git
+history.** `docs/reports/00` through `09` stated what TF24 is, the algebra of its
+derivatives, what a correct implementation must satisfy, and the ecology behind the
+numbers -- refereed against `plant`'s `develop` rather than against any branch. Recover
+one when a question about the MODEL rather than the code comes up:
 
-- [`docs/reports/02-leaf-implicit-node.md`](docs/reports/02-leaf-implicit-node.md)
-- [`docs/reports/03-light-interpolant-value-and-slope.md`](docs/reports/03-light-interpolant-value-and-slope.md)
-- [`docs/reports/04-before-the-plant-exists.md`](docs/reports/04-before-the-plant-exists.md)
-- [`docs/reports/07-what-the-leaf-must-supply.md`](docs/reports/07-what-the-leaf-must-supply.md)
-- [`docs/reports/08-testing-ladder.md`](docs/reports/08-testing-ladder.md)
-- [`docs/reports/09-generalising-the-reverse-pass.md`](docs/reports/09-generalising-the-reverse-pass.md)
-
-**None of these tracks progress**, and none is edited to record what has been built. If a report
-disagrees with the code, one of them is wrong and the disagreement is the finding. Report 04's
-number was previously vacant: it had argued which discretisation the density's compression term
-should use, and the birth-date coordinate removed that question rather than settling it — what
-survives of the original is report 00 §4.4, and the number now carries the subject above.
+```sh
+git log --diff-filter=D --name-only -- docs/reports   # the commit that removed them
+git show <commit>^:docs/reports/00-tf24-dependency-map.md
+```
 
 ## Remote Development
 Add the sibling package repos to the session's GitHub scope so their issues and PRs are readable — `git submodule update --init` clones the
@@ -121,14 +112,20 @@ all along — in a session that never touched odelia. Six occurrences across thr
 sessions.
 
 `R CMD INSTALL` does **not** resolve `Remotes` and is therefore the safe form. Verify
-after any `phylloptim` install, against the walk's own entry point rather than a concept
-name, because a concept can be renamed while the fork stays the fork:
+after any `phylloptim` install, against the **version**, which is what the pin names and
+is the one thing about the fork that cannot be renamed:
 
 ```sh
-ODE=$(Rscript -e 'cat(find.package("odelia"))')
-grep -c solve_adjoint_over_widenings "$ODE/include/odelia/sweep.hpp"
-# non-zero, or what is installed is not the fork
+Rscript -e 'cat(as.character(packageVersion("odelia")))'
+# 0.2.1 is what the pin fetches, i.e. upstream won; the fork is 0.3.1 or later
 ```
+
+⚠️ **Do not put a symbol back here.** This check used to grep
+`solve_adjoint_over_widenings` out of `sweep.hpp`, and the recording track renamed the
+concept to `insertion` — so the check reported "not the fork" against a correctly
+installed fork, every time, for anyone who ran it. A guard that always fails is one
+people learn to ignore. The version moves when the package is rebuilt and never when a
+name inside it changes, which is the property wanted.
 
 **3. The XAD storage-class flags must pair between `plant` and `odelia`, and a
 mismatch is undetectable.** Both `src/Makevars` set `-DXAD_NO_THREADLOCAL
@@ -213,7 +210,7 @@ Tiers of the loop, cheapest first:
    testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
                       stop_on_failure = FALSE)
    ```
-3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 55/68
+3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 55/73
    files):**
    ```sh
    scripts/run-tests.sh '^test-gradient' "" invert
@@ -288,6 +285,19 @@ failures: a test that stops running looks exactly like a test that passes, so a 
 where there was none is a guard that stopped guarding. `test-stochastic-patch-runner.R`
 is the one file whose PASS count varies run to run.
 
+⚠️ **Count the RESULT lines, because a crashed file is not a failing file.** The runner
+prints one `RESULT` line per file and the totals are a sum of those -- so a run where ten
+of eighteen ladder files segfaulted printed `pass=242 fail=45` and read, at a glance, as a
+suite with some failures rather than one that mostly died. The ladder is 18 files: check
+that 18 reported before reading the totals.
+
+⚠️ **And a segfaulting suite WEDGES rather than failing fast.** `core_pattern` pipes to
+apport, which stalls dumping a ~100 MB R process, so the crashed workers sit in
+`futex_wait_queue` at nil CPU and the runner's `wait` never returns -- no totals, no
+error, just silence. Kill the crashed workers to get the totals out. `pgrep -x R` finds
+them, and note that a `pgrep` whose own pattern appears in its command line matches
+itself, which is the same trap as `pgrep -c R`.
+
 ## Testing phylloptim
 
 The C++ suite is the fast loop and needs no R at all:
@@ -298,10 +308,15 @@ make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds th
 ```
 
 `test_golden` must be run from `tests/cpp` — it looks for `golden/operating_points.tsv`
-relative to the working directory and reports it MISSING from anywhere else. The golden
-file was generated on macOS, so plain `test_golden` reports thousands of mismatches and
-exits non-zero on Linux: `--cross-platform` is the run that means anything, and `make`
-failing on that target alone is not a regression.
+relative to the working directory and reports it MISSING from anywhere else.
+
+The golden file is bit-exact only on macOS/arm64, where it was generated, so the
+comparison that means anything depends on where it runs — and `make` now picks it:
+bit-exact there, `--cross-platform` everywhere else. **A failure is a real signal on
+either.** This used to read "`make` failing on that target alone is not a regression",
+which was true of the bit-exact run on Linux and taught everyone to ignore the one
+guard that could speak: two commits stated that the operating-point surface had moved
+and that the file re-blessed, neither re-bless landed, and the staleness sat unread.
 
 ⚠️ **The R suite needs the package namespace as its parent environment, and without it a
 third of the suite reports as broken code.** Several tests call internals by name, so a plain
@@ -368,7 +383,7 @@ of them was a place two spellings could disagree while both compiled.
   checks it, from each model's `refresh_indices()` where the map that would falsify it is
   built; `test-state-layout.R` hands the checker a broken layout, because a test that
   only builds models would pass whether or not the check existed.
-- **A batch of transpose rows is `odelia::ode::row_batch`**, one width for every row, so
+- **A batch of transpose rows is `odelia::ode::adjoint_rows`**, one width for every row, so
   a ragged batch is not a shape a caller can build.
 
 ## Code style
@@ -547,8 +562,8 @@ template <class System>
 Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
   auto* solver = get_solver<System>(double_solver);
   solver->tape->activate();
-  tape_guard<Tape> guard{solver->tape.get()};  // deactivates on every exit,
-                                               // exceptions included
+  tape_scope<Tape> running{*solver->tape};  // activates unless something else
+                                            // holds it; releases where it took it
   const std::size_t codomain = functional.codomain();
   auto jacobian =
       xad::computeJacobian(inputs, forward, codomain, solver->tape.get());
