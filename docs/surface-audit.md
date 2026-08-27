@@ -414,7 +414,7 @@ would be a fat interface — the move is about *where they live*, not merging th
 **Purpose.** Record once, sweep many. Cut a recording whose state width changes
 into fixed-width segments and transpose the map at each boundary.
 
-**Findings.** This is the healthiest chunk; `row_batch` in particular earns its
+**Findings.** This is the healthiest chunk; `adjoint_rows` in particular earns its
 keep (one width per batch makes a ragged seed inexpressible). Smaller notes:
 
 - `rates_adjoint` has one caller; `state_at_segment` has one; `tape_guard` and

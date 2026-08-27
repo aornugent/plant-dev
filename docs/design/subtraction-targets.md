@@ -104,7 +104,7 @@ R  census_trait_gradient_tf24                                  census_gradient.c
    ├─ for species: *uptake_rows_unavailable = false                   ✱ D
    │
    ├─ try census_state_and_trait_rows()  ──────────────────┐          ✱ D
-   │  │    [census_rows, row_batch]                        │
+   │  │    [census_rows, adjoint_rows]                        │
    │  └─ state_and_parameter_adjoints                 adjoint.hpp
    │     ├─ rebind_from<active>          whole Patch copy            ✱ E
    │     ├─ splice state ++ parameters                               ✱ F
@@ -301,7 +301,7 @@ evenly between product and oracle:
 | `census_initial_state_replay` | 10 | oracle |
 
 The size is a symptom. **Plant names twenty odelia reverse-mode concepts
-directly, and they span every level of the stack** — `row_batch` (17 mentions),
+directly, and they span every level of the stack** — `adjoint_rows` (17 mentions),
 `derivative_along` (15), `seed_direction` (11), `recorded_step` (8),
 `be_at_step` (5), `active_scalar` (4), `state_at_segment`, `scratch_tape`,
 `state_and_parameter_adjoints`, `advance_over_insertions`,
@@ -594,7 +594,7 @@ contribution is to splice and unsplice:
 std::vector<double> in(state);                 // state ++ parameters, per recording
 for (const scalar* p : parameters) in.push_back(util::to_passive(*p));
 ...
-row_batch in_adjoint;
+adjoint_rows in_adjoint;
 vector_jacobian_product(tape, in, output_adjoints, record, in_adjoint);
 state_adjoint.assign(n_seed, n_state);         // and scatter the answer back out
 for (m) { copy(row.begin(), row.begin()+n_state, state_adjoint[m].begin());

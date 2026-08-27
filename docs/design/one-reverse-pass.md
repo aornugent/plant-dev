@@ -130,13 +130,13 @@ Once the record is complete, the kit has an obvious shape and it is small.
 template <class System, class Map>
 void transpose(adjoint_tape<double>& tape, System& active,
                const std::vector<active_scalar<double>*>& parameters,
-               std::span<const double> state, const row_batch& out_adjoint,
-               Map&& f, row_batch& state_adjoint, row_batch& parameter_adjoint);
+               std::span<const double> state, const adjoint_rows& out_adjoint,
+               Map&& f, adjoint_rows& state_adjoint, adjoint_rows& parameter_adjoint);
 
 // A recorded run, transposed from its last row to its first.
 template <class Solver>
 void transpose_recording(Solver& solver, std::span<const step_record<...>> rec,
-                         row_batch& lambda, row_batch& parameter_adjoint);
+                         adjoint_rows& lambda, adjoint_rows& parameter_adjoint);
 ```
 
 `transpose` is `state_and_parameter_adjoints` with `vector_jacobian_product`
@@ -150,7 +150,7 @@ route.** They are the census reduction, the step, and the insertion; today they
 reach `state_and_parameter_adjoints` by three different routes, which is
 `subtraction-targets.md`'s hotspot E.
 
-What plant names from odelia afterwards: `row_batch`, `step_record`,
+What plant names from odelia afterwards: `adjoint_rows`, `step_record`,
 `recording()`, `set_keep_states()`, `transpose`, `transpose_recording`,
 `active_scalar`, `adjoint_tape`, `to_passive`. **Nine names at one level**,
 against twenty across four. `rates_adjoint`, `one_row`,
@@ -461,6 +461,15 @@ that caught the naive attempt catches this one too.
 (`unification.md` 4 and 9.) Removes the per-placement vector allocation from the
 production gradient and thirteen members from the environment.
 
+> Allocation and copies are 11.8% of the gradient and this is the sharpest known
+> contributor inside it: `clamp_counts()` builds a fresh vector twice per
+> `record_leaf_outputs`, on a path the fixture runs 2,333,500 times. Note what it is
+> NOT -- none of that is tape work, so it will not appear under any XAD symbol.
+> `psi_soil_` and the seven driver caches are read per cohort per stage and their
+> values are active, so deriving them at the load turns a per-read staleness compare
+> into one write. Check that the derived values are written ONCE per load: writing
+> an active twice costs a statement each time (mechanic 1).
+
 **6 -- the address as a scope; the fill flag onto the store.**
 (`unification.md` 2.) Then the recorder and the player can be two types
 (`subtraction-targets.md` 17), which is why this precedes that rather than
@@ -469,12 +478,42 @@ accompanying it.
 **7 -- one reduction, three producers.** (`unification.md` 3.) The hottest
 forward path, so it wants the interleaved control.
 
+> A taped reduction, so mechanic 1 decides its cost: the trapezium accumulates over
+> nodes, and every named active intermediate in that loop is a statement and a slot,
+> multiplied by knots x cohorts x stages. Inside a recording the operation count IS
+> the tape, so the producer emitting fewer statements wins twice -- once on the push
+> and again on every seed's walk.
+
 **8 -- delete the leaf's second and third derivative methods**, and the
 single-potential supply path with them. After step 1 this is a deletion, not a
 redesign.
 
+> **This is also where tape volume is decided, which the plan did not say before.**
+> `record_leaf_outputs` is 32.3% of the gradient against `solve_leaf` at 6.4%:
+> recording the leaf's outputs costs five times solving it, and one rate
+> evaluation's recording is 5.79 MB of which the leaf is most. So this is the
+> largest line-count item AND the doorway to the largest tape item -- but they are
+> different work. Deleting the unused methods removes no statements from the
+> recording; what would is the taped surface `outputs_at` and `profit_at` build,
+> read with mechanic 1 in hand. Do the deletion first and measure the recording size
+> either side, because the expectation is that it does NOT move -- worth knowing
+> rather than assuming.
+>
+> The leaf carries its own nested tape at 2.3%: `collar_condition` records and
+> sweeps a `directional_adjoint_tape<double>` per placement, inside plant's
+> recording. They do not collide because XAD keys the active tape per scalar type,
+> which is what makes the design legal and is stated nowhere in the code.
+
 **9 -- endgame: `derivs` returns.** Four models, fifteen files, the R layer. Not
 before the eight above have made it smaller.
+
+> What this buys on the tape, so the endgame is not oversold: the System would hold
+> no recorded value, so nothing would need releasing and the lifted copy could be
+> built once per sweep rather than once per width. That is the 3.0% lifting share
+> and the 8 ms release -- **not a large number.** What it buys is the removal of a
+> hazard class: a member read before it is written is an unregistered input to the
+> recorded function, and mechanic 5 makes that silent. The case for step 9 is
+> correctness, and the plan should stop implying it is speed.
 
 ## What this does not decide
 
@@ -614,7 +653,7 @@ keeps its flat shape for the ladder's block Jacobian and has no production calle
 left, which puts it on `subtraction-targets.md` 8's oracle-only list beside
 `rates_adjoint`.
 
-What plant still names from odelia in the product path: `row_batch`,
+What plant still names from odelia in the product path: `adjoint_rows`,
 `recorded_step`, `step_record`, `recorded_stage`, `be_at_step`, `active_scalar`,
 `state_and_parameter_adjoints`, `solve_adjoint_over_insertions`. **Eight, and no
 tape, no lift and no scalar's tape_type among them** -- against twenty at the cold
@@ -675,7 +714,7 @@ What it bought beyond the name:
 * `sweep.hpp` went from 247 lines to 100, and what is left has **no production
   consumer at all** -- `subtraction-targets.md` 8, sharpened.
 * plant's product path lost the walk's name and the recording with it. **Four
-  reverse-mode names remain: `row_batch`, `state_and_parameter_adjoints`,
+  reverse-mode names remain: `adjoint_rows`, `state_and_parameter_adjoints`,
   `active_scalar`, `recorded_stage`** -- against twenty at the cold read. Read as a
   sentence: here is my map, at this scalar, for these rate evaluations; here are the
   rows in and out.
@@ -696,3 +735,123 @@ carries the same multiplier, while the comment above it states the model correct
 ("one range per width ... one MORE than the number of widenings"). So the check
 agrees with the code and disagrees with its own prose, and removing the multiplier
 has to remove it from both places at once.
+---
+
+# What the tape costs, and the mechanics behind it
+
+Read this before touching anything on the recording path. Every claim here is
+either read out of the vendored source or measured on the century fixture, and the
+ones that were guessed and then measured are marked.
+
+## Where the time goes
+
+Century fixture, ode_size 1361, 169 nodes, 3,381 steps, 6.0 rate evaluations a
+step, 3 metrics. Forward run 32.5 s, gradient 115.4 s, **ratio 3.6**. Self time as
+a share of the gradient:
+
+| | share | what it is |
+|---|---|---|
+| tape bookkeeping | **30.3%** | `AReal` construct/destruct, `pushAll`, `pushLhs`, `registerVariable`, `unregisterVariable` |
+| sweeping | **28.4%** | `computeAdjointsToImpl` and the operations walk |
+| model arithmetic | 18.4% | `exp`, `log`, `pow` and the model's own work |
+| allocation and copies | 11.8% | `ChunkContainer` growth, `malloc`/`free`, `memcpy` |
+| memory fills | 7.9% | mostly a stepper resize (fixed), then `initDerivatives` |
+| lifting | **3.0%** | `rebind_from`, `assign_from`, the interpolant's spans |
+
+**Bookkeeping exceeds the sweep, and all of it is on the recording side.** The
+model's own arithmetic is less than either. `std::max` inside
+`registerVariableAtEnd`'s high-water-mark update is 3.2% on its own -- ninth in the
+whole profile -- which says slot allocation happens on the order of 10^8 times a
+gradient.
+
+⚠️ **Lifting is 3%.** Three increments went into the rebind, the reset protocol and
+the tape discipline. They were worth doing for correctness and for the vocabulary,
+and the release walk itself is 8 ms of 115 s. They were never worth doing for
+speed, and the plan implied otherwise for a long time.
+
+Recording is 2.0x sweeping (`derivs` 62.9% inclusive against `sweep_each_seed`
+31.2%). Inside recording, `record_leaf_outputs` is 32.3% against `solve_leaf` at
+6.4%: **recording the leaf's outputs costs five times solving the leaf.** That is
+where tape volume is decided, and it is step 8's territory rather than the driver's.
+
+## The mechanics that decide that volume
+
+1. **One assignment is one statement, whatever the expression's size.** XAD is
+   expression-templated, so `y = a*b + c*d` is one statement carrying four
+   operations. But **a named active intermediate is its own slot and its own
+   statement**: `S t = a*b; y = t + c` costs two of each where `y = a*b + c` costs
+   one. Accumulating into a named active with `+=` costs a statement per term.
+2. **A slot is issued on the FIRST assignment to an active and kept afterwards.**
+   `operator=` reads `if (slot_ == INVALID_SLOT) slot_ = registerVariable();`, so
+   re-assigning an already-slotted value pushes a statement without allocating.
+   This is also why a member surviving a tape clear writes through a recycled
+   number: the slot is kept, and the clear reissued it.
+3. **Assigning a plain double to a registered active pushes a statement with NO
+   operations**, which on the sweep zeroes that adjoint and propagates nothing. So
+   `active_member = 0.0` severs a dependency and costs a statement to do it.
+4. **`unregisterVariable` decrements the live count unconditionally but rewinds the
+   slot counter only for the last-issued slot.** A `std::vector` of actives destroys
+   front to back, so it returns every live count and almost no slot. That is why
+   the release check against zero is exact, and why `newRecording()` alone grows
+   without bound.
+5. **`registerInput` is a no-op on an already-slotted value** (`if
+   (!inp.shouldRecord())`). Release before register, or a stale slot is kept in
+   silence.
+6. **`derivative()` non-const lazily registers** an unregistered value rather than
+   raising, and triggers `initDerivatives`, which zero-fills the derivative array
+   to the recording's high-water mark. That happens once per seed.
+7. **The sweep walks every statement from the recording's end back to
+   `statementStartPos_ - 1`, once per seed.** There is no cheap re-seed. Measured:
+   `computeAdjointsToImpl` 28.5%, `initDerivatives` 2.9%, `clearDerivatives` one
+   sample -- it only sets a flag.
+8. **`Tape<Real, N>` carries N adjoint directions in one walk**, with
+   `DerivativesTraits<T,N>::type = Vec<T,N>`, and `probe_width.cpp` already
+   instantiates N of 2, 3 and 4. Three metrics in one walk would collapse three
+   statement walks into one while leaving the multiply-adds unchanged, so the
+   ceiling is the walk machinery -- of the 28.4% sweep, roughly 16% is walking and
+   12% is arithmetic. ⚠️ N is compile-time, so a one-metric call would pay for
+   three directions, the derivative array triples, and the scalar type changes
+   everywhere the model is instantiated, including under phylloptim's nested
+   forward-over-adjoint tape.
+9. **Nesting is reserved to checkpoint callbacks** by `prevMax_`; see III.
+10. **What is observable.** `getNumVariables()`, `getNumOperations()`,
+    `getNumStatements()` and `getMemory()` are public. `printStatus()` prints the
+    rest -- `maxDerivative_`, `iDerivative_`, the derivative allocation -- but its
+    only call site is commented out in `Tape.cpp`, so it is unreachable. One rate
+    evaluation's recording measures **5,788,272 bytes** at this width, which is
+    4,253 bytes per ODE entry; a whole step's recording is six of those.
+
+## Candidates this exposes, with their prices
+
+⚠️ **Two of these were priced and REJECTED. The prices are here so nobody pays
+them twice.**
+
+* **The stepper's named accumulator -- rejected.** `Step::stage_state` builds
+  `S combination = b[0]*k[0][q];` then `combination += b[m]*k[m][q]` per stage. Per
+  state entry per recording that is 21 statements and 4 slots where single
+  expressions would be 7 and 0 -- **28,581 statements a recording against about
+  9,500**, each pushed once and walked three times, worth roughly 1.3% of the
+  gradient. It is rejected because **the sum is runtime-length**: `i` is a runtime
+  stage index, so there is no single expression to write without unrolling the
+  Cash-Karp tableau into five hand-written cases, which duplicates what
+  `stage_row()` abstracts and is more code than it removes. The forward values would
+  be bit-identical (C++ associates left to right exactly as `+=` does) but the order
+  `adj(k[m][q])` accumulates in would change, so blessed gradient numbers could move
+  in their last bits as well.
+
+* **`whole_step`'s `y0` copy -- rejected.** `const std::vector<scalar> y0(x, x +
+  size)` copies the registered inputs at the active scalar, and copying a slotted
+  `AReal` with a tape active allocates a new slot and records a copy statement:
+  1,361 slots, statements and operations a recording for a vector identical to the
+  inputs, about 0.15%. It is rejected because `ode::derivs(obj, y, dydt, time)`
+  declares `y` and `dydt` as the SAME `StateType`, so handing it a span of the
+  inputs while `dydt` stays a vector means widening the signature of the most-used
+  template in the library.
+
+* **`XAD_REDUCED_MEMORY`.** Selects `OperationsContainer` (separate multiplier and
+  slot arrays) over `OperationsContainerPaired` (interleaved pairs). The profile
+  puts 13.7% in the paired container -- `for_each` 5.7%, `append_n` 4.4%,
+  `std::pair`'s constructor 3.6% -- so the split form may sweep faster even though
+  the library documents it as a memory win at a slight cost. One A/B decides it.
+  ⚠️ ABI-affecting: it must be set in odelia, plant and phylloptim together, the
+  way the storage-class flags are.
