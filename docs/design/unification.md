@@ -493,12 +493,14 @@ inside the hot walk, plus the `swept` return value's "which is not the segment
 count -- an empty lowest segment is swept zero times, and a split adds one"
 caveat, which exists only because of it.
 
-**The property it checks is real and the parameter is redundant.**
-`Solver::solve_adjoint(rec, lambda, parameter_adjoint, k_first, k_last)` is
-already public and already takes an explicit range, so a ladder rung composing
-two sub-ranges and comparing bit for bit needs nothing new. Removing
-`extra_splits` takes a parameter off two public signatures, fifteen lines out of
-the sweep, and the qualification off `swept`.
+⚠️ **The property it checks is real and the parameter is NOT redundant, which
+this entry had wrong.** A ranged entry point does not replace it: what the identity
+rung compares is one *product* call taking a different internal route against one
+that does not, and the range form gives the ladder that only if the census seeding
+and the accumulator are duplicated there. `one-reverse-pass.md` step 0 caught this;
+the ranged form now exists as `Solver::solve_adjoint(lambda, p, k_first, k_last)`
+and `extra_splits` still stands, so what is left of this entry is the fifteen lines
+inside the walk and the qualification on `swept`, not the parameter.
 
 This is `subtraction-targets.md` 8's finding from the other side: there the
 oracle entry points are test-only; here a *product* entry point has a test-only

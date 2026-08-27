@@ -612,10 +612,20 @@ Merged, the tape lifecycle registers the state and the parameters as what they
 are, sweeps once per seed, and reads each adjoint into the batch it belongs to —
 and `in`, `in_adjoint`, the copy loop and one function's guards all go.
 
-### 8. Half of odelia's sweep library has no production consumer
+### 8. odelia's sweep header has no production consumer left — SHARPENED
 
-`sweep.hpp` is 300 lines behind five entry points. Split by who actually calls
-them:
+`sweep.hpp` is **100 lines behind two entry points, and both are oracle-only.**
+`solve_adjoint_over_insertions` became `Solver::solve_adjoint`, which also absorbed
+the constant-width inner loop, and `be_at_step` and `insertion_rows` moved to
+`ode_interface.hpp` where a recording's readers live. What remains --
+`state_at_segment` and `advance_over_insertions` -- is reached only from
+`census_trait_tangent`, `replay_initial_state`, `segment_base_state` and
+`census_initial_state_replay`, all of which are the ladder's references.
+
+So the question this entry asked has a cleaner answer than it expected: the header
+is not half oracle, it is entirely oracle, and it goes where the four oracles go.
+
+What it was, when it was 300 lines behind five entry points:
 
 | entry point | consumer | product |
 |---|---|---|

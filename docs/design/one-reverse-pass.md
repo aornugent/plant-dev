@@ -636,6 +636,56 @@ rather than oversights.**
   doing with the `n_metric` multiplier below, in one change, because the fix and
   the move touch the same four write sites.
 
+## What collapsing the two sweeps closed
+
+`solve_adjoint_over_insertions` is gone -- not renamed. The driver is two overloads
+of `Solver::solve_adjoint`, one over the whole recording and one over a range, with
+the old constant-width body a private `sweep_range` the first calls per stretch.
+
+**A member rather than a free function, and that was forced rather than chosen.**
+`Solver` exposes `get_system_ref()` and `recording()` but not `step_adjoint`, which
+is the internal's. A free driver would have needed a public per-step forwarder --
+the opposite of collapsing. `be_at_step` and `insertion_rows` moved to
+`ode_interface.hpp`, which is where a recording's readers belong anyway.
+
+**Graceful without a conditional in the driver.** `insertion_rows` compiles for any
+System, so for one whose width never moves it returns empty, `stops` is empty, and
+the function is one lift and one descent -- the constant-width body exactly. The
+only `if constexpr` is inside a new generic `ode::inserted_state`, and it states a
+domain fact rather than a fallback: a System whose width never changes inserts
+nothing, so the state passes through.
+
+⚠️ **That satisfied the comment which blocked it rather than deleting it.**
+`ode_interface.hpp` claimed both `set_recorded_state` and `inserted_state` are "as
+mandatory as ode_size() for a System a sweep is asked to walk". Half true, and the
+half matters: a System replayed from a recording must be loadable from a recorded
+state, so the first is universal and `LotkaVolterra` gained it in three lines; the
+second is asked for only where the width changed. The comment now says which is
+which.
+
+What it bought beyond the name:
+
+* **odelia's whole-recording sweep works for any recordable System**, where before
+  only `plant::Patch` had the two members it called directly. An entry point one
+  consumer's type can use is not an entry point, and that was the real reason plant
+  read as the assembler.
+* odelia's own Lotka-Volterra test now exercises the driver plant runs, instead of
+  the constant-width inner loop it could previously reach. Same assertions, more
+  of the product under them.
+* `sweep.hpp` went from 247 lines to 100, and what is left has **no production
+  consumer at all** -- `subtraction-targets.md` 8, sharpened.
+* plant's product path lost the walk's name and the recording with it. **Four
+  reverse-mode names remain: `row_batch`, `state_and_parameter_adjoints`,
+  `active_scalar`, `recorded_stage`** -- against twenty at the cold read. Read as a
+  sentence: here is my map, at this scalar, for these rate evaluations; here are the
+  rows in and out.
+
+⚠️ **It did not buy `extra_splits`, and an earlier draft of this document said it
+would.** The identity rung compares one product call taking a different internal
+route against one that does not; a range parameter gives the ladder that only if the
+census seeding and the accumulator are duplicated there. `unification.md` 7 is
+corrected to match.
+
 ## The ladder has absorbed one of the defects
 
 `adjoint_segments = n_metric * solve_adjoint_over_insertions(...)` multiplies a
