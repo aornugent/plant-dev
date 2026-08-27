@@ -892,10 +892,21 @@ where tape volume is decided, and it is step 8's territory rather than the drive
    slot counter only for the last-issued slot.** A `std::vector` of actives destroys
    front to back, so it returns every live count and almost no slot. That is why
    the release check against zero is exact, and why `newRecording()` alone grows
-   without bound.
+   without bound. Measured on eight slots freed front to back: seven leaked and the
+   live count still came back to zero -- **`release()`'s check is a count of live
+   values, not a map of which slots are free.**
+
+   And a rewind to a mark IS reachable with nothing but the public API, by
+   unregistering in reverse issue order: measured at 1.85 ns a slot, 0.37 ms for
+   200,000, so roughly 0.2 s over a gradient's 10^8 allocations -- against
+   `clearAll()`, which is O(1) and free. ⚠️ **The rebind is a shape problem and not a
+   slot problem**, so no rewind removes it: slot hygiene already costs 8 ms, and
+   neither `clearAll()` nor a nested recording changes a width.
 5. **`registerInput` is a no-op on an already-slotted value** (`if
    (!inp.shouldRecord())`). Release before register, or a stale slot is kept in
-   silence.
+   silence. On a value that needs one it issues a slot AND pushes an empty
+   statement, so registering a step's 1,361 state entries is 1,361 statements
+   before the model runs -- load-bearing, and about a twentieth of a recording.
 6. **`derivative()` non-const lazily registers** an unregistered value rather than
    raising, and triggers `initDerivatives`, which zero-fills the derivative array
    to the recording's high-water mark. That happens once per seed.
@@ -917,7 +928,26 @@ where tape volume is decided, and it is step 8's territory rather than the drive
    everywhere the model is instantiated, including under phylloptim's nested
    forward-over-adjoint tape.
 9. **Nesting is reserved to checkpoint callbacks** by `prevMax_`; see III.
-10. **What is observable.** `getNumVariables()`, `getNumOperations()`,
+10. **A statement can be written by hand, into any slots, in any order.**
+    `pushAll(multipliers, slots, n)` then `pushLhs(slot)` records "this slot's
+    adjoint distributes these multipliers into those slots", visited in the order
+    they were pushed, and no `AReal` arithmetic has to happen at all. Above it,
+    `insertCallback` + `getAndResetOutputAdjoint` + `incrementAdjoint` stops the
+    sweep at a marker with every adjoint above it already accumulated and hands the
+    tape over for arbitrary hand-written propagation. Both run in
+    `odelia/tests/standalone/probe_slot_control.cpp`.
+
+    ⚠️ **AND A CALLBACK IS CONSUMED BY THE SWEEP THAT PASSES IT.**
+    `computeAdjointsTo` calls `resetTo(end - 1)` at each checkpoint, which
+    truncates the statements above the marker and erases the checkpoint from the
+    list. Measured: four statements before the first sweep and two after the
+    second, the first seed right and the second **zero**, the callback run once over
+    two sweeps. Our recordings are swept once per census metric, so **checkpoint
+    callbacks are unavailable to this gradient until the sweep is one walk for every
+    metric.** Mechanic 8 is a precondition for any of this, not an alternative to
+    it.
+
+11. **What is observable.** `getNumVariables()`, `getNumOperations()`,
     `getNumStatements()` and `getMemory()` are public. `printStatus()` prints the
     rest -- `maxDerivative_`, `iDerivative_`, the derivative allocation -- but its
     only call site is commented out in `Tape.cpp`, so it is unreachable. One rate
