@@ -7,7 +7,7 @@
 # processes gets the concurrency back: load_all() costs about two seconds per
 # process and the files are independent, so wall time becomes the slowest single
 # file rather than the sum. Measured on sixteen cores, the gradient ladder is 17 s
-# this way against about twenty minutes serial, and the 55 non-ladder files are
+# this way against about twenty minutes serial, and the 57 non-ladder files are
 # 86 s against about six minutes.
 #
 #   scripts/run-tests.sh <pattern> [outdir] [invert]

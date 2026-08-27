@@ -381,14 +381,12 @@ takes most of its value without it.
 **Cut at the refusal instead.** `record_leaf_outputs` discovers a refusal below a
 void interface, so a latch is the right mechanism for it and the exception is the
 redundant half -- `subtraction-targets.md` 4's conclusion, arrived at here from
-the other direction. What the two mechanisms actually encode is a **severity**:
-one costs every output, the other costs the water rows and lets profit survive by
-the envelope theorem. That is a field, not a second mechanism.
+the other direction. The severity the two mechanisms look like they encode is
+read by nothing; step 4 has the count.
 
-One latched refusal carrying a severity, and: `gradient_refusal.h` goes,
-`restore_on_exit` loses its reason, `tape_guard`'s exception path stops being
-load-bearing, the unwinding through a live tape stops existing, and `refusal`'s
-three never-written fields go with the mechanism that was going to fill them.
+One latched refusal, returned, and: the exception class goes, the unwinding
+through a live tape stops existing, and `refusal`'s three never-written fields go
+with the mechanism that was going to fill them.
 
 The buffers are smaller and local. `competition_capture` stops being a member the
 moment the two field builds are one function, which they nearly are already.
@@ -401,7 +399,7 @@ moment the two field builds are one function, which they nearly are already.
 |---|---|
 | odelia | the recording; the transpose of a map; the transpose of a recording; the implicit-node primitives and the nested scalar; the scalars and the tape |
 | phylloptim | a leaf that solves in double and answers at any scalar, with its derivative supplied where it solved |
-| plant | what a census metric is; which rows to sweep; the direct term the accumulator starts at; refusal severity; the seeding callable; the schedule |
+| plant | what a census metric is; which rows to sweep; the direct term the accumulator starts at; what refuses a row; the seeding callable; the schedule |
 
 The implicit-node surface and the nested scalar stay **public**, for the reason
 `subtraction-targets.md` gives: phylloptim uses them inside someone else's
@@ -547,7 +545,48 @@ gradient), leaves the zero-fill total unchanged -- half as many `initDerivatives
 each twice as large -- doubles peak tape from about 35 MB to 70 MB a recording, and
 removes the per-step adjoint the ladder checks. Not worth it.
 
-**4 -- one refusal, latched, carrying a severity.**
+**4 -- one refusal, latched, returned.** DONE, and **without the severity**,
+which is the finding. Counting the readers says there is nothing to carry: **both
+consumers not-a-number every row on either escape.** `census_trait_gradient`
+ORed the throw and the latch into one `refused` bool and wrote an all-NaN row per
+metric; `ladder_rhs_adjoint_tf24` NaNs every state and trait entry. The profit row
+the latch went to the trouble of sparing is discarded one frame later, and
+`test-gradient-ladder-sweep.R` had already measured why -- *"on this census nothing
+would be spared"*, because TF24 has no water-independent metric. So what the two
+mechanisms differ in is not what they answer but how much work is wasted after the
+answer is decided, and the reason string already says which output refused.
+
+The leaf's own `util::stop` is recorded rather than rethrown: every output takes
+the value its double solve fixed and carries no row, which is what a refusal costs
+at the other three sites, and the sweep runs on to the poll.
+
+Gone: `gradient_refusal`, both throws, both catches, the `refused` bool, the
+`all_seeds`/`all_direct` pair that existed only to survive a `try`, `n_metric`,
+one of the two NaN-fill sites, one of the two shared pointers, and the four
+hand-written loops over species that read and cleared them.
+`gradient_refusal.h` is `census_gradient.h`, named for what it holds; `patch.h`
+included it and used nothing from it. **The species is now always known**, because
+every refusal is recorded on the species whose strategy holds it -- it was -1 on
+the throw path.
+
+⚠️ **Two claims this step made that the code contradicts.**
+
+* **`restore_on_exit` does not lose its reason.** The descent calls
+  `be_at_step(system, rec, hi)` per range with `hi` decreasing, so on the NORMAL
+  return the System sits at the LOWEST range's width and the destructor is the only
+  thing that puts it back. It stays exactly as it is, its `catch (...)` included,
+  because `util::stop` still unwinds through the sweep -- from odelia's own length
+  checks and from `implicit_value`.
+* **`tape_guard` does not exist**; it is `tape_scope`, and its deactivation is
+  load-bearing on every normal return rather than only on a throw, because XAD
+  refuses a second `activate()` while one is held.
+
+⚠️ **The price, so nobody finds it as a regression.** A refusal used to abandon the
+gradient at the first bad leaf and now runs to the end of the sweep. One reached
+while forming the census seeds still costs the sweep nothing -- it is polled before
+the descent starts -- and once latched the leaf stops recording rows, so a refusal
+mid-descent costs less than a whole gradient. If that ever matters, the shape is a
+System predicate the walk polls per range, **not** an exception.
 
 **5 -- one clamp counter; derive the potentials and the drivers at the load.**
 (`unification.md` 4 and 9.) Removes the per-placement vector allocation from the
@@ -816,6 +855,21 @@ would.** The identity rung compares one product call taking a different internal
 route against one that does not; a range parameter gives the ladder that only if the
 census seeding and the accumulator are duplicated there. `unification.md` 7 is
 corrected to match.
+
+## What one refusal closed
+
+**✱D is gone, and ESCAPE 1 and ESCAPE 2 with it.** The channel that appeared three
+times in one function -- cleared at the top, caught twice, polled once -- is one
+value, cleared once and polled twice, and both polls are the same call.
+`census_gradient` is assembled at one place instead of two, and the width a refused
+row is filled to is the patch's own rather than an accumulator that may never have
+been built.
+
+⚠️ **What it did not close.** ✱C stays: `adjoint_segments` and
+`adjoint_at_first_state` are still members written from inside this function
+(`subtraction-targets.md` 19), so the refusal path still zeroes them by hand --
+which is the thing a field of the returned value would remove. Same change as the
+`n_metric` multiplier, and it wants doing with it.
 
 ## The ladder has absorbed one of the defects
 

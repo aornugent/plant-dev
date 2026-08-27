@@ -140,8 +140,8 @@ call can cost a second simulation.
 
 **✱ C — two return values that would not fit in the return type.** See entry 18.
 
-**✱ D — the refusal channel, three times in one function.** Cleared at the top,
-caught twice, polled once. Entry 3.
+~~**✱ D — the refusal channel, three times in one function.**~~ DONE. One
+value, cleared once and polled twice. Entry 4.
 
 **✱ E — the Patch is deep-copied per recording**, and this call reaches
 `state_and_parameter_adjoints` by three different routes. Entry 2.
@@ -433,7 +433,7 @@ allocation; the release itself is 8 ms of a 108 s gradient. What stands here is 
 first paragraph -- the System still owns the values a recording writes, which is
 why anything has to be released at all, and that is `one-reverse-pass.md`'s step 9.
 
-### 4. One fact, three representations: the refusal channel
+### 4. ~~One fact, three representations: the refusal channel~~ DONE
 
 The sharpest thing reverse mode added, and the one that costs a reader most.
 "This row could not be recorded" is represented three ways:
@@ -469,18 +469,26 @@ water rows and lets profit survive by the envelope theorem. That distinction is
 real. It is a **severity**, and it is encoded as two mechanisms instead of one
 value with a scope.
 
-**The lean shape is one refusal, returned.** The latch already survives the places
-a return cannot reach, so the exception is the redundant half — and removing it
-takes with it a header, an exception type, the unwinding through a live tape, and
-most of `restore_on_exit`'s reason for existing.
+**The lean shape is one refusal, returned**, and that is what landed. The latch
+already survives the places a return cannot reach, so the exception was the
+redundant half. It took with it the exception type, both catches, the `refused`
+bool, one of the two NaN-fill sites and one of the two shared pointers. The header
+is renamed for the value it holds rather than deleted, because `census_gradient`
+lives in it.
 
-⚠️ **Three of `refusal`'s five fields are never written.** `node`, `step_first` and
-`step_last` are declared `-1` and nothing assigns them; `species` is set at one
-site. All five cross to R in `census_gradient_to_r`, so a caller inspecting a
-refusal is handed three fields that are permanently `-1` and look like
-information. The header's comment describes the mechanism that would fill them —
-*"the leaf knows the reason, the block loop knows which plant, the sweep knows
-which steps ... filled in by the frames that know"* — as though it exists.
+⚠️ **The severity did not survive counting, and `restore_on_exit` did.** Both
+consumers not-a-number every row on either escape, so the profit row the latch
+spared is discarded one frame later and there is no severity for a field to carry
+— `one-reverse-pass.md` step 4 has the count. And `restore_on_exit` is
+load-bearing on the NORMAL return: the descent leaves the System at the lowest
+range's width, and its destructor is the only thing that puts it back.
+
+~~⚠️ **Three of `refusal`'s five fields are never written.**~~ DONE. `node`,
+`step_first` and `step_last` are gone, and so are the two assertions that pinned
+them: three `expect_equal(..., -1)` in a branch no parity driver reaches, and an
+`expect_gte(step_last, step_first)` comparing -1 with -1. **The species is now
+always known**, because every refusal is recorded on the species whose strategy
+holds it.
 
 ### 5. Diagnostic counters threaded through the production stack
 

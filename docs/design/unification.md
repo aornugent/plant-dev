@@ -615,12 +615,13 @@ why). One `keyed_store<Key, Value, N>` keeps it in one place instead of two.
   multiplying its range count by the metric count reports something no walk did.
   Whatever the diagnostic is for, it is the sweep's own number.
 
-* **`refusal` carries three fields nothing writes.** `node`, `step_first` and
-  `step_last` are `-1` for ever and all three cross to R. Named here because they
-  are the *other* half of `subtraction-targets.md` 4: the exception's `site`
-  member and the plain `refusal` value type are declared in the same header, so a
-  value becomes an exception and becomes a value again two frames later, and three
-  of the value's fields are the mechanism that was never built.
+* ~~**`refusal` carries three fields nothing writes.**~~ DONE, with the other half
+  of `subtraction-targets.md` 4. `node`, `step_first` and `step_last` are gone and
+  so is the exception, so a value no longer becomes an exception and a value again
+  two frames later. **The severity the exception looked like it encoded is read by
+  nothing** — both consumers not-a-number every row on either escape, which is
+  why one latched value replaced two mechanisms rather than one value with a field.
+  `one-reverse-pass.md` step 4 has the count.
 
 ---
 
