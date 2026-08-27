@@ -192,9 +192,9 @@ spans over storing another vector; if a member must be added, print
 
 The main cost is the **C++ rebuild** for any change.
 
-`plant` carries about 3900 testthat assertions across 73 files, but running all of
+`plant` carries about 3,960 testthat assertions across 75 files, but running all of
 them per edit is wasteful. The gradient ladder is the expensive tier — 18 files,
-**61 s of wall** measured at `-O2` — and everything else is 55 files and about
+**61 s of wall** measured at `-O2` — and everything else is 57 files and about
 90 s. No single file outside the ladder is slow enough to matter.
 
 Tiers of the loop, cheapest first:
@@ -210,7 +210,7 @@ Tiers of the loop, cheapest first:
    testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
                       stop_on_failure = FALSE)
    ```
-3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 55/73
+3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 57/75
    files):**
    ```sh
    scripts/run-tests.sh '^test-gradient' "" invert
@@ -251,7 +251,7 @@ process is otherwise silent.
 ```sh
 scripts/run-tests.sh '^test-gradient-ladder'        # the whole ladder
 scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
-scripts/run-tests.sh '^test-gradient' "" invert     # the 55 non-ladder files
+scripts/run-tests.sh '^test-gradient' "" invert     # the 57 non-ladder files
 ```
 
 **Set `PLANT_TEST_LIB` to a private library holding your `odelia` build**, which
