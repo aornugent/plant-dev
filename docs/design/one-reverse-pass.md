@@ -455,6 +455,29 @@ enumerate the Patch's active members and de-register them where the rebind is
 today. `probe_tape_reset` is the mechanism; the ladder is the check; the fixture
 that caught the naive attempt catches this one too.
 
+**3c -- the insertion's map stops mutating what it reports.**
+`subtraction-targets.md` 14's middle bullet, promoted here because it is
+load-bearing rather than small: **it is what stops a sweep sharing one lift per
+width.** `inserted_state(time, x, y)` sets the narrow state, pushes the nodes, and
+reports the wider state -- so transposing it leaves the System it ran on wider than
+the range below is swept at, and a lift handed to both reads past the end of every
+state the descent loads. Ten of eighteen ladder files segfaulted on exactly that,
+and the rest returned NaN.
+
+Two callers want opposite halves. The sweep's insertion transpose wants the map and
+must not have the System left widened; `advance_over_insertions` wants only the
+mutation and allocates an `ode_size()`-wide vector to discard the report.
+
+⚠️ **Making the map pure is harder than it reads, and that is the design work.**
+Pushing the nodes IS how the wider state is computed, so a pure map either builds it
+on a copy of the System -- which is the whole allocation the lift hoist exists to
+avoid -- or widens and narrows back, and narrowing a lifted System mid-sweep
+destroys members holding tape slots. So the likely shape is not one pure function
+but **two named operations**: a mutation for the walk that wants it, and a map whose
+name says it leaves its System widened, so the sweep's own lift becomes a contract
+rather than a hazard someone rediscovers. Worth about 169 Patch deep copies a sweep,
+0.3%; worth more as the thing that makes the sharing expressible at all.
+
 **4 -- one refusal, latched, carrying a severity.**
 
 **5 -- one clamp counter; derive the potentials and the drivers at the load.**

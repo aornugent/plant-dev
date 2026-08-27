@@ -744,20 +744,27 @@ a per-file reviewable pass, and the hazard blocks are not part of it.
 
 ### 14. Smaller things reading turned up
 
-- **`with_insertions` copies the whole recording to patch a handful of entries.**
-  `solve_adjoint_over_insertions` builds `std::vector<record>` from the entire
-  recording so it can overwrite the `steps.size()` entries an insertion widened.
-  A century run is 3,381 records each holding a state vector; the number that
-  changes is the insertion count.
-- **`inserted_state` both mutates and reports.** It sets the system's state, pushes
-  the nodes, and writes the widened state to an out-parameter.
+- ~~**`with_insertions` copies the whole recording to patch a handful of entries.**~~
+  DONE. The record carries the inserted state as a field, so nothing is copied and
+  nothing is inferred.
+- **`inserted_state` both mutates and reports** -- now `one-reverse-pass.md`'s step
+  3c, because it is load-bearing rather than small. It sets the system's state,
+  pushes the nodes, and writes the widened state to an out-parameter.
   `advance_over_insertions` wants only the mutation and allocates an
   `ode_size()`-wide vector to throw the report away. Same shape as the leaf's
   `E_from_soil_at`, where three of four callers discard the per-layer split.
+
+  ⚠️ **The mutation is why a sweep cannot share one lift per width, and that cost a
+  segfault to learn.** Transposing this map leaves the System it ran on WIDER, so a
+  lift handed to both the insertion at a range's top and the steps inside the range
+  reads past the end of every state the descent then loads: ten of eighteen ladder
+  files died and the rest returned NaN. It was written here as one of three
+  "smaller things" and was not a step in the cut, which is how it was walked into.
 - **`step_adjoint` copies the state half at the active scalar** — `y0(x, x + size)`
   — which is one tape slot, operation and statement per entry, once per recorded
-  step. Real, and small: about half a per cent of a step's recording, against the
-  leaf's 273 statements per placement across 169 nodes.
+  step. **Priced and rejected**: 1,361 slots, statements and operations a recording,
+  about 0.15%, against widening the signature of `ode::derivs`, which declares the
+  state and the rates as one `StateType`. `one-reverse-pass.md` carries the price.
 ### 15. Hand-rolled root-curve derivatives with no production consumer
 
 The objective's own target, still standing. A four-function chain computes
