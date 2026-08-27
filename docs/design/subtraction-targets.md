@@ -427,7 +427,7 @@ System's recorded members rather than rebuild the whole object, which keeps the
 guarantee and pays for a fraction of the copy.
 
 **The narrow form has landed, and so has the parameter list.** Both come off one
-`lifted_system` held for a range of constant width, and every recording releases
+`active_system` held for a range of constant width, and every recording releases
 its members' slots before clearing the tape. Worth 3 to 4 per cent, all of it the
 allocation; the release itself is 8 ms of a 108 s gradient. What stands here is the
 first paragraph -- the System still owns the values a recording writes, which is
@@ -756,17 +756,17 @@ a per-file reviewable pass, and the hazard blocks are not part of it.
   discarding caller, the name (`apply_insertion`, a verb, so the widening is in the
   name and not in a comment under it), and the guard.
 
-  ⚠️ **The mutation is why a sweep cannot share one lift per width, and that cost a
-  segfault to learn.** Transposing this map leaves the System it ran on WIDER, so a
-  lift handed to both the insertion at a range's top and the steps inside the range
-  reads past the end of every state the descent then loads: ten of eighteen ladder
-  files died and the rest returned NaN. It was written here as one of three
+  ⚠️ **The mutation is why a sweep cannot share one rebound System per width, and
+  that cost a segfault to learn.** Transposing this map leaves the System it ran on
+  WIDER, so one rebound System handed to both the insertion at a range's top and
+  the steps in it reads past the end of every state the descent then loads: ten of
+  eighteen ladder files died and the rest returned NaN. It was written here as one of three
   "smaller things" and was not a step in the cut, which is how it was walked into.
   The check that would have caught it was there and asked the wrong System: the
   batch's width was compared against the System the descent positions rather than
-  the lifted copy the recordings are taken on, which differ by exactly the mistake.
-  It now asks the lift, and the lift for a range is made by the function whose width
-  it is, so the sharing cannot be written.
+  the rebound copy the recordings are taken on, which differ by exactly the
+  mistake. It now asks the rebound one, and the rebind for a range is done by the
+  function whose width it is, so the sharing cannot be written.
 - **`step_adjoint` copies the state half at the active scalar** — `y0(x, x + size)`
   — which is one tape slot, operation and statement per entry, once per recorded
   step. **Priced and rejected**: 1,361 slots, statements and operations a recording,

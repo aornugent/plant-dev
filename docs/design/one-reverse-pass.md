@@ -125,7 +125,7 @@ consumers of `ode_times` want reading first.
 Once the record is complete, the kit has an obvious shape and it is small.
 
 ```cpp
-// One map, transposed: recorded once on `tape`, swept once per seed. The lifted
+// One map, transposed: recorded once on `tape`, swept once per seed. The active
 // System and its parameter list are the caller's, built once per sweep.
 template <class System, class Map>
 void transpose(adjoint_tape<double>& tape, System& active,
@@ -166,7 +166,7 @@ there is now a return type they fit in.
 
 ---
 
-## III. One tape discipline, so the lifted System has one home
+## III. One tape discipline, so the active System has one home
 
 `sweep.hpp`'s own header said there were two disciplines and neither was safe in
 the other's place. Remove calibration and there is one -- and then "the walk owns
@@ -269,14 +269,14 @@ The walk owns the tape and holds it active for the whole descent. Then:
 
 * activation is once per walk, not once per recording;
 * the release is one line where the recording begins, with no scope;
-* `lifted_system`'s destructor runs inside that scope, so its three-way branch on
+* `active_system`'s destructor runs inside that scope, so its three-way branch on
   which tape is running collapses;
 * `scratch_tape` goes -- its odd copy semantics existed only because `Step` held
   one and `Step` is copyable;
 * `recording_tape()` goes from `Step` and from `SolverInternal`, two forwarders of
   one member;
 * `state_and_parameter_adjoints` and `rates_adjoint` stop taking a tape beside the
-  lifted System that already holds one, so a caller cannot pair a System with
+  active System that already holds one, so a caller cannot pair a System with
   another tape.
 
 `tape_scope` replaces `tape_guard`: it activates only if nothing else holds the
@@ -469,29 +469,30 @@ What was actually wrong was the name and the guard.
 
 * **`inserted_state` was a noun phrase for a mutation**, which is why an eight-line
   comment existed to decode it and why the comment did not work -- it had been read,
-  and quoted, in the session that then shared the lift. It is
+  and quoted, in the session that then shared the active System. It is
   **`apply_insertion(time, x, y)`**: a verb, and the fact it leaves the System
   holding the wider state is now in the name rather than under it.
 * **The width check asked the wrong System.** `sweep_range` compared the seed batch
-  against the System the descent positions rather than the lifted copy the
+  against the System the descent positions rather than the active copy the
   recordings are taken on -- and those differ by exactly one thing, something having
-  widened the lift. The one case worth catching was the one it could not see. It now
-  asks the lift.
-* **The lift for a range is made by the function whose width it is**, which is what
-  makes that divergence impossible rather than merely reported: `sweep_range` takes
-  the tape and lifts, where it used to be handed a lift. A caller cannot hand it a
-  widened one, so the hazard is unstateable rather than warned against, and the ⚠️
-  that warned against it is gone.
+  widened it. The one case worth catching was the one it could not see. It now
+  asks the System it rebound.
+* **The rebind for a range is done by the function whose width it is**, which is
+  what makes that divergence impossible rather than merely reported: `sweep_range`
+  takes the tape and rebinds, where it used to be handed the rebound System. A
+  caller cannot hand it a widened one, so the hazard is unstateable rather than
+  warned against, and the ⚠️ that warned against it is gone.
 * `advance_over_insertions` holds its two buffers across the walk instead of
   allocating both per insertion, which is what 14's discarded vector was.
 
-⚠️ **The sharing is priced and rejected, and so is the pure map.** Sharing one lift
-across the insertion and the range below is worth 169 Patch deep copies a sweep, at
+⚠️ **The sharing is priced and rejected, and so is the pure map.** Sharing one
+rebound System across the insertion and the range below is worth 169 Patch deep
+copies a sweep, at
 about 2 ms each -- 7.0 s over the 3,381 rebinds measured when the rebind was per
 recording: **0.35 s of a 108 s gradient, 0.3%.** Every way of buying it costs more
 than it is worth.
 
-* *Narrow the lift with the ordinary load.* `be_at_step` reshapes, and `reshape_to`
+* *Narrow it with the ordinary load.* `be_at_step` reshapes, and `reshape_to`
   rebuilds the environment and the rates when it moves -- a whole rate evaluation, at
   the adjoint scalar, pushing about a megabyte of statements that the next clear
   throws away. 169 of those is dearer than the copies it saves.
@@ -507,9 +508,44 @@ than it is worth.
   callers would be the walk, and a second thing to keep the exact inverse of the
   first.
 
-So the lift per width is not a sharing someone missed: **it is the narrowing, and it
-is the cheapest one available.** What made it read as an oversight was a name that
-hid the widening, and that is what changed.
+So the rebind per width is not a sharing someone missed: **it is the narrowing,
+and it is the cheapest one available.** What made it read as an oversight was a
+name that hid the widening, and that is what changed.
+
+⚠️ **And the count is a floor, not a shape.** Three checks, so nobody looks for a
+reorganisation that is not there.
+
+* **Each width is visited exactly once.** Widths only grow along a recording and
+  the descent runs it once, so each width is one contiguous run of rows. There is
+  no reuse to cache and no ordering that visits fewer: 170 range rebinds is the
+  floor.
+* **The widening always comes first.** An adjoint has to pass THROUGH the insertion
+  to become narrow, so the recording that widens the System is always taken
+  immediately before the range that must run narrower than it. The two cannot be
+  swapped and the widening cannot be deferred.
+* **Composition does not reduce it.** Recording insertion-then-step as one map
+  moves which rebind sits at which width and still leaves two, because the composed
+  recording must START narrow while the rest of its range runs wide -- and it
+  destroys the adjoint seam at an insertion row, which `extra_splits`, the identity
+  rung and `adjoint_at_first_state` all read.
+
+**The one recording in the driver that is not forced** is the insertion's, and only
+by asserting its Jacobian instead of recording it: if a new node's initial state
+reads the traits and the time but not the old state, then the narrow adjoint is a
+TRUNCATION of the wide one plus the new rows' parameter term, and 169 recordings and
+169 rebinds go. Refused on both counts. It puts a model claim inside the sweep --
+"an insertion is an injection whose new rows do not read the old state" -- where the
+design's trustworthiness comes from recording `derivs`, the call the forward pass
+makes, so a transpose cannot drift from the model; and it is worth about 0.3% of
+tape volume, since an insertion recording is a state load plus an `ode_state`
+read-back at roughly two statements an entry, 169 x ~2,700 against 3,381 x ~28,000.
+
+**The count of STEP recordings is not a choice either.** Fact 4 puts a checkpoint at
+every step. Merging pairs of steps into one recording halves the registrations
+(1,361 x 1,690, about 2% of the ~10^8 slot allocations, so roughly 0.7% of the
+gradient), leaves the zero-fill total unchanged -- half as many `initDerivatives`,
+each twice as large -- doubles peak tape from about 35 MB to 70 MB a recording, and
+removes the per-step adjoint the ladder checks. Not worth it.
 
 **4 -- one refusal, latched, carrying a severity.**
 
@@ -564,8 +600,8 @@ redesign.
 before the eight above have made it smaller.
 
 > What this buys on the tape, so the endgame is not oversold: the System would hold
-> no recorded value, so nothing would need releasing and the lifted copy could be
-> built once per sweep rather than once per width. That is the 3.0% lifting share
+> no recorded value, so nothing would need releasing and the active copy could be
+> built once per sweep rather than once per width. That is the 3.0% rebind share
 > and the 8 ms release -- **not a large number.** What it buys is the removal of a
 > hazard class: a member read before it is written is an unregistered input to the
 > recorded function, and mechanic 5 makes that silent. The case for step 9 is
@@ -603,7 +639,7 @@ R  census_trait_gradient_tf24                                census_gradient.cpp
    │
    ├─ try census_state_and_trait_rows()                                  scm.h
    │  │  tape(false)                     ← TAPE 1 OF 2, and it is plant's     ✱E
-   │  │  lifted_system{patch, tape}      ← lift 1 of about 340
+   │  │  active_system{patch, tape}      ← rebind 1 of about 340
    │  └─ state_and_parameter_adjoints(active, state, all_rows(3), reduce, …)
    │     ├─ tape_scope{active.tape()} ; active.release()   + the count check
    │     ├─ in = state ++ parameters     the splice its caller undoes         ✱F
@@ -622,13 +658,13 @@ R  census_trait_gradient_tf24                                census_gradient.cpp
    │  │  restore_on_exit{system}         the width on exit is a promise
    │  ├─ for stop j = last .. 0:
    │  │  ├─ Solver::solve_adjoint(tape, rec, lambda, param, at, upper)
-   │  │  │  └─ lifted_system{system, tape}        ← one lift per width
+   │  │  │  └─ active_system{system, tape}        ← one per width
    │  │  │     for k = upper .. at+1:
    │  │  │       Step::step_adjoint(active, k, …)
    │  │  │       └─ state_and_parameter_adjoints(active, rec[k-1].ran_from(), …)
    │  │  │          └─ release ; splice ; vjp -> 6 x ode::derivs
    │  │  ├─ be_at_step(system, rec, at)
-   │  │  └─ lifted_system{system, tape}   ← A SECOND LIFT AT THAT SAME WIDTH  ✱I
+   │  │  └─ active_system{system, tape}   ← A SECOND AT THAT WIDTH  ✱I
    │  │     state_and_parameter_adjoints(active, rec[at].state, insert, …)
    │  catch (gradient_refusal) -> refused = true                ESCAPE 2
    │
@@ -661,7 +697,7 @@ One recorded step, the level below, unchanged from the first walk:
 * **The Patch deep-copied per recording.** 3,381 rebinds became about 340: one per
   width, plus one per insertion, plus the census. Worth 3 to 4 per cent.
 * **Three routes to `state_and_parameter_adjoints`.** Two now, and both hand it a
-  `lifted_system` that carries its own tape, so a System cannot arrive beside
+  `active_system` that carries its own tape, so a System cannot arrive beside
   another System's tape or another tape's parameters.
 * **The tape activated and deactivated per recording**, about 7,000 times a
   gradient. Once per descent.
@@ -683,13 +719,13 @@ One recorded step, the level below, unchanged from the first walk:
   arrays, which is where a sweep's time goes. ⚠️ N is compile-time, so a
   single-metric call would pay for three directions, and the scalar type changes
   wherever the model is instantiated. Measure before believing it.
-* **✱I — two lifts at one width, and the second one is the narrowing.** The
-  insertion transpose lifts at row `at` and the range below lifts the same System at
-  the same width again, because applying the insertion widens the System it ran on.
+* **✱I — two rebinds at one width, and the second one is the narrowing.** The
+  insertion transpose rebinds at row `at` and the range below rebinds the same
+  System at that width again, because applying the insertion widens what it ran on.
   About 169 extra Patch deep copies a sweep, roughly 0.35 s. **Step 3c priced every
   way of sharing them and rejected all of them**; what changed instead is that the
-  map's name says it widens and `sweep_range` makes its own lift, so the mistake is
-  a named refusal rather than unmapped memory.
+  map's name says it widens and `sweep_range` rebinds for itself, so the mistake
+  is a named refusal rather than unmapped memory.
 
 ## What section II closed
 
@@ -702,9 +738,9 @@ nothing splits an adjoint by position and nothing can slice past the state into 
 parameter value. Every `evaluate` lambda kept its signature, because the buffer it
 is handed is now exactly the state it always assumed.
 
-An overload taking a System rather than a lifted one makes the tape and the lift
-where a single recording is wanted, so ✱E is gone too: plant's census names
-neither, and there is one tape per gradient rather than two. `vector_jacobian_product`
+An overload taking a double System rather than a rebound one makes the tape and
+the rebind where a single recording is wanted, so ✱E is gone too: plant's census
+names neither, and there is one tape per gradient rather than two. `vector_jacobian_product`
 keeps its flat shape for the ladder's block Jacobian and has no production caller
 left, which puts it on `subtraction-targets.md` 8's oracle-only list beside
 `rates_adjoint`.
@@ -712,8 +748,8 @@ left, which puts it on `subtraction-targets.md` 8's oracle-only list beside
 What plant still names from odelia in the product path: `adjoint_rows`,
 `recorded_step`, `step_record`, `recorded_stage`, `be_at_step`, `active_scalar`,
 `state_and_parameter_adjoints`, `solve_adjoint_over_insertions`. **Eight, and no
-tape, no lift and no scalar's tape_type among them** -- against twenty at the cold
-read. The five oracle names beside them (`advance_over_insertions`,
+tape, no rebound System and no scalar's tape_type among them** -- against twenty
+at the cold read. The five oracle names beside them (`advance_over_insertions`,
 `state_at_segment`, `tangent_scalar`, `seed_direction`, `derivative_along`) are the
 tangent and difference references, and `subtraction-targets.md` 8 is where they
 are counted.
@@ -745,7 +781,7 @@ the opposite of collapsing. `be_at_step` and `insertion_rows` moved to
 
 **Graceful without a conditional in the driver.** `insertion_rows` compiles for any
 System, so for one whose width never moves it returns empty, `stops` is empty, and
-the function is one lift and one descent -- the constant-width body exactly. The
+the function is one rebind and one descent -- the constant-width body exactly. The
 only `if constexpr` is inside a new generic `ode::inserted_state`, and it states a
 domain fact rather than a fallback: a System whose width never changes inserts
 nothing, so the state passes through.
@@ -812,7 +848,7 @@ a share of the gradient:
 | model arithmetic | 18.4% | `exp`, `log`, `pow` and the model's own work |
 | allocation and copies | 11.8% | `ChunkContainer` growth, `malloc`/`free`, `memcpy` |
 | memory fills | 7.9% | mostly a stepper resize (fixed), then `initDerivatives` |
-| lifting | **3.0%** | `rebind_from`, `assign_from`, the interpolant's spans |
+| rebinding | **3.0%** | `rebind_from`, `assign_from`, the interpolant's spans |
 
 **Bookkeeping exceeds the sweep, and all of it is on the recording side.** The
 model's own arithmetic is less than either. `std::max` inside
@@ -820,11 +856,11 @@ model's own arithmetic is less than either. `std::max` inside
 whole profile -- which says slot allocation happens on the order of 10^8 times a
 gradient.
 
-⚠️ **That 3% does not reconcile with the number of lifts, so do not spend it.** The
-sweep takes about 340 lifts -- one per width, one per insertion, one for the census --
-and a lift measured 2 ms when the rebind was per recording, which is 0.7 s and not
+⚠️ **That 3% does not reconcile with the number of rebinds, so do not spend it.**
+The sweep takes about 340 -- one per width, one per insertion, one for the census --
+and one measured 2 ms when the rebind was per recording, which is 0.7 s and not
 3.45 s. The rest of the bucket is almost certainly the interpolant work every FIELD
-BUILD does, which is per rate evaluation and is model work rather than lifting.
+BUILD does, which is per rate evaluation and is model work rather than rebinding.
 Nobody has separated the two; anyone planning against this row should.
 
 ⚠️ **Lifting is 3%.** Three increments went into the rebind, the reset protocol and
@@ -869,7 +905,11 @@ where tape volume is decided, and it is step 8's territory rather than the drive
    sample -- it only sets a flag.
 8. **`Tape<Real, N>` carries N adjoint directions in one walk**, with
    `DerivativesTraits<T,N>::type = Vec<T,N>`, and `probe_width.cpp` already
-   instantiates N of 2, 3 and 4. Three metrics in one walk would collapse three
+   instantiates N of 2, 3 and 4. **N is a DEFAULTED TEMPLATE ARGUMENT on the
+   interface odelia already uses** -- `template <class T, std::size_t N = 1> struct
+   adj` in `XAD/Interface.hpp` -- and `active_scalar<T>` is `xad::adj<T>::active_type`,
+   so it is the N of 1 today and three directions is `xad::adj<T, 3>` on one line of
+   `ode_interface.hpp`. Not new machinery: a typedef and a rebuild. Three metrics in one walk would collapse three
    statement walks into one while leaving the multiply-adds unchanged, so the
    ceiling is the walk machinery -- of the 28.4% sweep, roughly 16% is walking and
    12% is arithmetic. ⚠️ N is compile-time, so a one-metric call would pay for
@@ -889,18 +929,44 @@ where tape volume is decided, and it is step 8's territory rather than the drive
 ⚠️ **Two of these were priced and REJECTED. The prices are here so nobody pays
 them twice.**
 
-* **The stepper's named accumulator -- rejected.** `Step::stage_state` builds
-  `S combination = b[0]*k[0][q];` then `combination += b[m]*k[m][q]` per stage. Per
-  state entry per recording that is 21 statements and 4 slots where single
-  expressions would be 7 and 0 -- **28,581 statements a recording against about
-  9,500**, each pushed once and walked three times, worth roughly 1.3% of the
-  gradient. It is rejected because **the sum is runtime-length**: `i` is a runtime
-  stage index, so there is no single expression to write without unrolling the
-  Cash-Karp tableau into five hand-written cases, which duplicates what
-  `stage_row()` abstracts and is more code than it removes. The forward values would
-  be bit-identical (C++ associates left to right exactly as `+=` does) but the order
-  `adj(k[m][q])` accumulates in would change, so blessed gradient numbers could move
-  in their last bits as well.
+* **The stepper's named accumulator -- OPEN, and the reason it was closed was
+  wrong.** `Step::stage_state` builds `S combination = b[0]*k[0][q];` then
+  `combination += b[m]*k[m][q]` per stage. Per state entry per recording that is 21
+  statements and 4 slots where single expressions would be 7 and 0 -- **28,581
+  statements a recording against about 9,500**, each pushed once and walked three
+  times, worth roughly 1.3% of the gradient.
+
+  This was rejected on the grounds that the sum is runtime-length, so a single
+  expression would need the Cash-Karp tableau unrolled into five hand-written cases.
+  **That is not so.** A fold over `std::make_index_sequence` unrolls the LOOP and
+  leaves the tableau a table, with the stage index a template parameter:
+
+  ```cpp
+  [&]<std::size_t... M>(std::index_sequence<M...>) -> S {
+    return ((b[M] * k[M][q]) + ...);
+  }(std::make_index_sequence<I>{})
+  ```
+
+  about six lines, and `whole_step`'s stage loop becomes the same fold. `step_end`
+  has the shape one line away, where a named `combination` costs a slot and a
+  statement that the inlined expression costs neither.
+
+  The order the adjoints accumulate in changes -- `(h*c1)*adj` and `c1*(h*adj)` are
+  not the same double -- so gradient numbers can move in their last bits. The
+  forward values cannot: C++ associates left to right exactly as `+=` does.
+
+  **And that costs no re-bless, which is the thing worth knowing before starting.**
+  The ladder is built so last-bit movement is not a re-bless. Its `expect_identical`
+  checks compare two ROUTES in one build -- a sweep against itself repeated, a split
+  against a whole, a permuted metric order, one metric alone against the same metric
+  in a batch -- and stay exact under any change applied uniformly to every route,
+  which an edit inside `stage_state` is. Its numeric thresholds are multiples of
+  `ladder_forward_floor()`, the fixture's own measured arithmetic floor, rather than
+  literals; and `reference-gradient.tsv` is compared at `pmax(3 * spread, 2e-3)`,
+  three times the reference's own Richardson spread with a 2e-3 relative floor.
+  phylloptim's bit-exact golden file is a forward quantity and is untouched.
+
+  So the obstacle is the code, and the code is a fold.
 
 * **`whole_step`'s `y0` copy -- rejected.** `const std::vector<scalar> y0(x, x +
   size)` copies the registered inputs at the active scalar, and copying a slotted

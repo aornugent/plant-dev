@@ -334,9 +334,9 @@ state 1,361 wide), `stand_gradient` twice per build:
 
 | build | gradient |
 |---|---|
-| lifted once per range | 109.52 s, 109.70 s |
+| rebound once per range | 109.52 s, 109.70 s |
 | rebound per recording | 112.94 s, 113.15 s |
-| lifted once per range, again | 107.87 s, 107.88 s |
+| rebound once per range, again | 107.87 s, 107.88 s |
 
 Bit-identical answers in all six runs. **So it is 3 to 4 per cent, not the 6 the
 profile suggested**, and the gap is worth writing down: what the hoist removes is
@@ -365,7 +365,7 @@ Measured on the century fixture, same session:
 | configuration | gradient |
 |---|---|
 | rebind per recording | 112.9 s, 113.2 s |
-| lift per range, release, clear | 107.9 s, 109.7 s |
+| rebind per range, release, clear | 107.9 s, 109.7 s |
 | the same plus slot reuse | 149.9 s, 150.2 s |
 | slot reuse, `newRecording`, no release | 276.4 s, 276.9 s |
 
@@ -420,7 +420,7 @@ and `ad_parameters()` becomes a copy of forty-four addresses with no predicate.
 
 **(c) The parameter layout is fixed for the whole sweep**, and is being rebuilt
 beside a System it belongs to. Both (a) and (c) have the same fix and it is a
-signature, not a redesign: **the sweep owns the lifted System and its parameter
+signature, not a redesign: **the sweep owns the active System and its parameter
 list for the sweep's lifetime, and the transpose takes them.**
 
 ```cpp
@@ -670,7 +670,7 @@ Subtraction before scaffolding, and each increment lands on its own.
 6. Entry 2 -- the address as a scope, then the fill flag onto the store. This is
    the precondition for `subtraction-targets.md` 17 (the recorder and the player),
    so it lands before that rather than beside it.
-7. Entry 5(a)(c) -- hoist the lifted System and the parameter list into the
+7. Entry 5(a)(c) -- hoist the active System and the parameter list into the
    sweep, after the audit the entry names. 6% of the gradient.
 8. Entry 6 -- move `active_solver` and `tape` out of `Solver`.
 
