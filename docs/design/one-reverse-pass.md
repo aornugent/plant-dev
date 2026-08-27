@@ -402,7 +402,13 @@ into the System instead of returning.**
 | the System holds recorded active values | so it is rebound per recording (III) |
 | a refusal has no return path | so it is thrown, through a live tape and odelia's whole stack |
 | a latched flag needs to outlive the copy that set it | so it is two `shared_ptr`s |
-| a produced-then-drained buffer has no scope | so `resource_depletion`, `leaf_profit_`, `competition_capture` are members |
+| a buffer produced by one call and drained by another has no scope | so `leaf_profit_` and `competition_capture` are members |
+
+⚠️ **One of the three this row used to name did not belong to it.**
+`resource_depletion` was filled and cleared inside one `compute_rates`, so it was
+already scoped to that call and only its capacity outlived it -- a local, and step
+7 made it one. The row is true of buffers that span two calls, and the test is
+whether the drain is in the same call as the fill.
 
 **Do not cut there, and the reason is a count.** `Internals`'s rates, auxs and
 consumption rates are read across about fifteen files, four models and the R
@@ -784,14 +790,101 @@ hold the right half.
 stage at all: it records no choices and places none. Harmless today because RODAS
 has no consumer in the product, and worth knowing before it gains one.
 
-**7 -- one reduction, three producers.** (`unification.md` 3.) The hottest
-forward path, so it wants the interleaved control.
+**7 -- one reduction, three producers.** DONE, and **as two producers sharing a
+loop and a third sharing only the shape** -- the entry's framing was half wrong,
+and `unification.md` 3 now says which half.
 
-> A taped reduction, so mechanic 1 decides its cost: the trapezium accumulates over
-> nodes, and every named active intermediate in that loop is a statement and a slot,
-> multiplied by knots x cohorts x stages. Inside a recording the operation count IS
-> the tape, so the producer emitting fewer statements wins twice -- once on the push
-> and again on every seed's walk.
+> **This step's cost model was aimed at the wrong producer.** The paragraph below
+> describes the walk, which is quadratic in knots x cohorts. TF24 does not take
+> the walk: the smooth profile has three moments, so the field build takes the
+> prefix form, which is linear and whose arithmetic this step does not touch. The
+> statement count on the hot path is therefore **unchanged by design**, and the
+> A/B below is a control on a claim of no change rather than a search for a win.
+>
+> ~~A taped reduction, so mechanic 1 decides its cost: the trapezium accumulates
+> over nodes, and every named active intermediate in that loop is a statement and a
+> slot, multiplied by knots x cohorts x stages.~~ True of the walk, which serves the
+> accessors and the fallback. Inside a recording the operation count IS the tape,
+> and that part stands.
+
+What the model forced, and it is one fact: **`abscissa_of` returns `birth_date ?
+introduction_time : -height`, so the node list is ascending in abscissa exactly
+while the heights decrease** -- introduction times ascend by construction. The
+negation is there for that. So the sorted fallback was never a second reduction
+over a different sequence; it was the same reduction over the order restored,
+plus a second job it should not have had.
+
+* `reduce_competition(height, order)` is the loop, once. `order` names the
+  ascending order where the list is not in it and is empty where it is. The early
+  exit stays with the decreasing heights, which is the fact that justifies it.
+* `ascending_by_abscissa()` sorts **positions**. The abscissae are doubles, so
+  the order costs no contribution evaluation, and a `thread_local` vector of
+  active values left a shipped header with the change -- its comment claimed no
+  element outlived the call, and every element outlived it until the next call.
+* `closes_on(f_h1)` is the closing rule, once instead of three times.
+* `competition_split` loses `from_loop`, `unordered`, and `excl`: a default split
+  closes to `{0, 0}`, which is what the short paths returned, and `excl` is
+  `without_boundary()`. `x1` becomes `double`, which it always was.
+* `subtraction-targets.md` 6's double reduction is **unrepresentable**, not fixed.
+* `height_max()` reads the cached scan instead of walking the heights beside it,
+  and the scan is handed back by reference.
+* `resource_depletion` is a local (✱O), which is the step's third increment and
+  the one the constraint table said not to cut. See below for why that row was
+  right in general and wrong about this member.
+
+⚠️ **One semantic change, deliberately not reverted.** The walk checked
+finiteness on every node *after* the first; the sorted producer checked all of
+them, and the prefix producer checks all of them via `scale[i]`. The merged
+reduction checks all, so a non-finite contribution on the first node now raises
+where it used to propagate a NaN. That is a strengthening rather than a drop, and
+it makes the three producers agree on what they refuse -- but it is a change, and
+nothing in the suite depended on the old behaviour.
+
+**Two claims measured rather than argued** (`odelia/tests/standalone/probe_trapezium.cpp`):
+
+| | statements | operations |
+|---|---|---|
+| a width from two position-valued actives | 0 | 0 |
+| a struct with one active, returned by value, per read | 1 | 1 |
+| the same struct by const reference | 0 | 0 |
+
+The first killed my own case for `x1`: an active assigned from a double takes no
+slot and records nothing, so the type change is honesty and one fewer value in the
+release walk, **not a saving**. The second is why the scan is a reference.
+
+**The control**, because AGENTS.md asks for one on any claim about speed and the
+claim here is that there is none. `scripts/profile-stand-gradient.R`, century
+fixture, both sides interleaved in one session, two rounds:
+
+| | forward (s) | gradient (s) | placements |
+|---|---|---|---|
+| this step | 30.79, 30.64 | 102.82, 102.55 | 2,333,500 |
+| before it | 30.74, 30.79 | 103.96, 102.52 | 2,333,500 |
+
+**No measurable change, which is the predicted result.** The old side's own
+gradient spread is 1.44 s against 0.55 s between the means, and its second run is
+the fastest of the four -- so there is no direction to report. Placements are
+identical on every run, which is the number saying the reduction engages at the
+same solves rather than merely passing the suite.
+
+⚠️ **The reordering had no test, and the ladder cannot give it one.**
+`ladder_control()` is birth-date coordinate, where the list ascends by
+construction, and the R `heights` setter refuses a crossing outright -- so nothing
+in 75 files reached the path. The check is permutation invariance over the same
+sample set, written through the state vector because that is the only door left.
+Disabling the reordering fails it at seven of eight query heights and understates
+competition by **62%**.
+
+**Refused: skipping the structurally-zero crown evaluation.** In `field_splits`
+the node below the query height contributes an exact `{0, 0}` -- `Q_and_q` returns
+a hard zero above the crown -- so its evaluation could be skipped. It is about
+three statements against roughly 290,000 per rate evaluation: 0.04%, for a branch
+in the hottest loop. No.
+
+**Refused: caching the ascending order beside the scan.** It would turn 65 sorts
+per field build into one, on the fallback path, which is already quadratic. The
+cost is widening the one cache in this file whose staleness silently reintroduces
+#571. No.
 
 **8 -- delete the leaf's second and third derivative methods**, and the
 single-potential supply path with them. After step 1 this is a deletion, not a
@@ -904,7 +997,7 @@ One recorded step, the level below, unchanged from the first walk:
       │     ├─ leaf_clamps() twice -- a fixed array, on the stack          ✱M done
       │     ├─ collar_condition -- a second tape, tangent under adjoint       ✱N
       │     └─ collar_at, outputs_at -> implicit_root, implicit_value x2
-      ├─ resource_depletion    a member used as a per-call scratch            ✱O
+      ├─ resource_depletion    a local, produced and drained here             ✱O
       └─ env.compute_rates(resource_depletion)
 ```
 
@@ -1040,9 +1133,9 @@ so the two folded vectors a differentiated leaf evaluation allocated are off the
 heap. The bracket, the attribution and the numbers are what they were.
 
 **Fourteen driver caches are one record**, which is the member count step 5
-promised, arrived at without the eager refresh it proposed. ✱O still stands:
-`resource_depletion` is still a member used as a per-call scratch, and that is
-step 7's.
+promised, arrived at without the eager refresh it proposed. ✱O was step 7's, and
+step 7 took it: `resource_depletion` is a local, so the TODO beside its clear is
+answered by construction and `Patch::for_each_active` no longer visits it.
 
 ## What one refusal closed
 
@@ -1058,6 +1151,33 @@ been built.
 (`subtraction-targets.md` 19), so the refusal path still zeroes them by hand --
 which is the thing a field of the returned value would remove. Same change as the
 `n_metric` multiplier, and it wants doing with it.
+
+## What step 7 closed
+
+**✱O is gone**, and it is the only marker on the walk above that this step owns.
+`resource_depletion` is a local, so the TODO beside its clear is answered by
+construction and `Patch::for_each_active` has one fewer member to reach. The rest
+of the step is below the walk: the field build happens inside `derivs`, which the
+walk enters at one line.
+
+**`competition_split` no longer carries how it was computed** -- three booleans
+down to one, `excl` derived, `x1` a position again -- so
+`close_competition_and_slope` has no dispatch left. It tests `closes` and returns.
+That is `subtraction-targets.md` 6 and `unification.md` 3, both closed.
+
+**One producer of the split, two ways to order the nodes.** The sorted fallback is
+`ascending_by_abscissa()` and nothing else; the reduction is written once. The
+prefix producer is untouched, which is why there is no time in it.
+
+⚠️ **What it did not close.** ✱A, ✱B and ✱C all stand, and none of them is in a
+reduction. ✱N -- the leaf's second tape under the adjoint -- is step 8's.
+
+⚠️ **What it revealed.** The reordering path had no test in 75 files, and the two
+doors that could have given it one are shut: the ladder is birth-date coordinate,
+and the R `heights` setter refuses a crossing. A path reachable only from a
+trajectory needs a check written through the state vector, and that is now the
+third assertion in this branch that had to be built before the thing it guards
+could be trusted.
 
 ## The ladder has absorbed one of the defects
 

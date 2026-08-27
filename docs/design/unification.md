@@ -188,7 +188,7 @@ state at all.
 
 ---
 
-## 3. The trapezium reduction is written three times
+## 3. ~~The trapezium reduction is written three times~~ DONE, and the framing was half wrong
 
 Extends `subtraction-targets.md` 6, which names the wasted double reduction. The
 duplication is wider than the waste.
@@ -199,36 +199,71 @@ duplication is wider than the waste.
 | `field_splits` | 483 | a whole height set, prefix sums |
 | `compute_competition_and_slope_unordered` | 688 | one height, sorted view |
 
-All three integrate `n_k f(z; state_k)` over the same grid by the same trapezium
-rule. All three then decide whether the boundary interval closes, and **that rule
-is written out three times** -- `n == 1 || birth_date || f_h1 > 0` at line 583,
-`size() == 1 || birth_date || f_h1 > 0` at 636, and `size() == 1 || f_h1 > 0` at
-727, where the third has silently dropped the `birth_date` arm because on its
-path that arm is unreachable. Three spellings, one of them different, and no
-compiler can tell you.
+**What was right.** All three decided whether the boundary interval closes, and
+that rule was written out three times — `n == 1 || birth_date || f_h1 > 0`,
+`size() == 1 || birth_date || f_h1 > 0`, and `size() == 1 || f_h1 > 0`, where the
+third has dropped the `birth_date` arm. Three spellings, one of them different,
+and no compiler can tell you. `close_competition_and_slope` then dispatched on
+three booleans `competition_split` carried to work out which of the three had
+produced the value it was handed.
 
-`close_competition_and_slope` then dispatches on the three booleans
-`competition_split` carries to work out which of the three produced the value it
-was handed.
+The third spelling turns out **not** to be a difference: the sorted producer runs
+only under `!birth_date && !scan.decreasing`, so that arm is false wherever it
+runs. Worth knowing, because it is the difference this entry was most worried
+about, and it was never a defect — only an invitation to one.
 
-**What they actually differ in is the SEQUENCE, not the reduction.** Each
-produces the same thing: a list of `(abscissa, f, slope)` in ascending abscissa,
-optionally truncated where the support ends. The walk produces it in place; the
-prefix form produces it once for many heights; the sorted form produces it out of
-order and sorts. One reduction over that sequence, three producers of it, and:
+**What was wrong: "one reduction over that sequence, three producers of it".**
+The prefix form does not produce a sequence a shared reduction consumes. It
+produces the sum, by re-association over three running moment sums, which is the
+whole reason it is linear in nodes plus heights where the walk is their product.
+Forcing it through a common sample loop would delete exactly the thing this
+entry's own warning says must survive. **Two producers share the loop; the third
+shares only the result shape and the closing rule, and that is all it can
+share.**
 
-* the `closes` rule lands once,
-* the three booleans have nothing left to say,
-* `subtraction-targets.md` 6's O(n log n) double pass cannot happen, because the
-  unordered producer feeds the same reduction as the others instead of returning
-  a finished answer with a flag saying so,
-* `field_splits`'s fallback (`!scan.decreasing || n_moments == 0`, which calls
-  the per-height split in a loop) stops being a dispatch between two
-  implementations and becomes a choice of producer.
+**What landed, which is neither of the two shapes this entry proposed.** It
+proposed "two shapes, or a variant". The better answer was to notice that the
+sorted producer *does* have a split, and the reason it appeared not to was that
+it was doing more than reduce:
+
+`abscissa_of` returns `birth_date ? introduction_time : -height`, and the
+negation is there so that **the node list is ascending in abscissa exactly while
+the heights decrease** — introduction times ascend by construction. So the sorted
+fallback is not another reduction over a different sequence. It is the same
+reduction over the order restored, and restoring the order is all it has to do:
+
+* `reduce_competition(height, order)` is the one loop. `order` names the ascending
+  order where the list is not in it and is empty where it is.
+* `ascending_by_abscissa()` sorts **positions**, not nodes. The abscissae are
+  doubles, so no contribution is evaluated to build the order, and the widths the
+  reduction forms from it stay positions. This also took a `thread_local` vector
+  of active values out of a shipped header — its comment claimed no element
+  outlived the call, and every element outlived it until the next call cleared it.
+* `closes_on(f_h1)` is the rule, once.
+* `from_loop` and `unordered` are gone: a default split closes to `{0, 0}`, which
+  is what the short paths returned.
+* `excl` is gone, derived as `without_boundary()`. `subtraction-targets.md` 6's
+  O(n log n) double pass is now unrepresentable rather than merely absent.
 
 ⚠️ **The prefix form is not an optimisation to fold away.** It is linear in nodes
 plus heights where the walk is their product, and inside a recording the
-operation count *is* the tape. It has to survive as a producer.
+operation count *is* the tape. It survives untouched, and its arithmetic is
+unchanged by any of the above — which is why this entry buys **no measurable
+time** on the hot path. Its value is the vocabulary.
+
+⚠️ **The reordering had no test.** The ladder's crossed fixture is birth-date
+coordinate, where the list ascends by construction, and the R `heights` setter
+refuses a crossing outright — so nothing reached the path at all. The check added
+with the change is permutation invariance, written through the state vector
+because that is the only door left. With the reordering disabled it fails at seven
+of eight query heights and understates competition by 62%.
+
+**Refused: caching the order beside the scan.** `HeightScan` already answers "is
+the list usable", so it could answer "and here is a usable order" and turn 65
+sorts per field build into one. That gain is on the fallback path, which is
+already quadratic; the cost is widening the one cache in this file whose
+staleness silently reintroduces #571, and whose freshness audit would then have to
+cover a vector as well as a scalar. Not worth it.
 
 ---
 

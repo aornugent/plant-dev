@@ -146,8 +146,9 @@ value, cleared once and polled twice. Entry 4.
 **✱ E — the Patch is deep-copied per recording**, and this call reaches
 `state_and_parameter_adjoints` by three different routes. Entry 2.
 
-**✱ F — a splice into a flat vector that the one caller immediately unsplices.**
-Entry 6.
+~~**✱ F — a splice into a flat vector that the one caller immediately unsplices.**~~
+DONE. Entry 7 — the splice is the transpose's, not the reduction's, and this
+pointed at 6 through a renumbering.
 
 **✱ G — `trait_adjoint` is not an adjoint when it is created.** It is seeded with
 the direct term, for a stated and good reason, and the name says none of it.
@@ -190,7 +191,7 @@ Step::step_adjoint                                          ode_step.hpp
                │           ├─ profit_at → implicit_value ×2  (sigma, ci)
                │           │    each with a forward tangent for its own slope
                │           └─ E_from_soil_at   (the quadrature)
-               ├─ resource_depletion  ← a member used as a local, with a TODO  ✱ N
+               ├─ resource_depletion  ← a local, produced and drained here   ✱ N
                └─ env.compute_rates(resource_depletion)
 ```
 
@@ -212,11 +213,23 @@ collide because XAD keys the active tape by scalar type. Nothing states that
 invariant; it is what makes the design legal, and it is discoverable only by
 knowing XAD.
 
-**✱ N — `resource_depletion` is a Patch member used as a per-call scratch**,
+~~**✱ N — `resource_depletion` is a Patch member used as a per-call scratch**,
 reserved, filled, and cleared at the end of `compute_rates`, with
 `//todo do we need to clear this every step?` beside the clear. In a function on
 the recording path, a member whose lifecycle carries a question mark is state that
-a reader cannot reason about locally.
+a reader cannot reason about locally.~~ DONE, as a local.
+
+`one-reverse-pass.md`'s constraint table lists this under what `derivs` writing
+into the System generates -- "a produced-then-drained buffer has no scope" -- and
+says not to cut there. That is right about `Internals`'s rates and auxs, and
+**wrong about this one**: it was cleared at the end of the call that filled it, so
+it was already scoped to that call and only its capacity outlived it. A local
+gets the same capacity from one small reserve per rate evaluation, answers the
+TODO by construction, and makes the exception path safe rather than guarded --
+a refusal thrown between the fill and the clear used to leave active values on a
+Patch across a tape reset, which is why `for_each_active` had to visit it.
+Deleting it from that walk is the tell that the member was the problem: the walk
+existed to cover a window a local does not have.
 
 ### What the leaf actually costs
 
@@ -538,7 +551,7 @@ comment: a record that engages and one that quietly does not produce the same
 numbers, so the count is the only thing that tells them apart. The target is the
 threading and the granularity, not the instrument.
 
-### 6. A result that carries how it was computed, and pays for it twice
+### 6. ~~A result that carries how it was computed, and pays for it twice~~ DONE
 
 `competition_split` is what a species' light reduction hands back, and three of
 its members are not the answer:
@@ -588,6 +601,33 @@ have nothing left to say.
 `!birth_date` is false there and this branch does not fire on a gradient. It fires
 on ordinary runs of the models that do not use that coordinate, which is where
 `compute_competition_and_slope` is hottest.
+
+**DONE, and neither of the two shapes above is what landed.** The diagnosis holds
+exactly -- `c.excl` on that path is computed and unreachable, and `close` then
+reduces from scratch -- but the remedy was better than a variant. The unordered
+path *does* have a split; it only appeared not to because it was doing a second
+job. `abscissa_of` negates height, so the node list is ascending in abscissa
+precisely while the heights decrease, and the fallback's whole task is to restore
+that order:
+
+```cpp
+if (control().node_density_in_birth_date || scan.decreasing) {
+  return reduce_competition(height, {});
+}
+return reduce_competition(height, ascending_by_abscissa());
+```
+
+One reduction, two ways to name the order, and the sort is over positions rather
+than over nodes -- so the fallback evaluates no contribution to decide the order,
+and a `thread_local` vector of active values left a shipped header with it. All
+three booleans are gone: `closes` is `closes_on(f_h1)` written once, `from_loop`
+is unnecessary because a default split closes to `{0, 0}`, and `unordered` has
+nothing to say once there is one producer of the shape. `excl` is derived
+(`without_boundary()`). The double pass is not fixed; **it is unrepresentable.**
+
+See `unification.md` 3 for what the wider framing got wrong: the prefix producer
+cannot feed a shared sample loop, so "one reduction, three producers" is two
+producers sharing a loop and a third sharing only the shape.
 
 ### 7. `vector_jacobian_product` is a boundary that hides nothing — DONE
 
