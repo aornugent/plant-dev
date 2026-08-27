@@ -489,3 +489,160 @@ before the eight above have made it smaller.
   by R.
 * Whether `parameters.ode_times` can carry insertion rows, which is step 2's one
   real risk.
+---
+
+# Where the flow stands
+
+The same product call as `subtraction-targets.md`'s walk, read again after steps
+0, 1, 2 and 3b. Marks are the hotspots that remain; the ones that went are listed
+after it.
+
+```
+R  census_trait_gradient_tf24                                census_gradient.cpp
+│
+└─ SCM::census_trait_gradient                                    scm.h, 102 lines
+   ├─ resolve which_metrics -> rows      30 lines against a constexpr table   ✱A
+   ├─ store_trajectory()                 MAY RE-RUN THE MODEL                ✱B
+   ├─ adjoint_segments = 0 ; adjoint_at_first_state.clear()                   ✱C
+   ├─ for species: *uptake_rows_unavailable = false                           ✱D
+   │
+   ├─ try census_state_and_trait_rows()                                  scm.h
+   │  │  tape(false)                     ← TAPE 1 OF 2, and it is plant's     ✱E
+   │  │  lifted_system{patch, tape}      ← lift 1 of about 340
+   │  └─ state_and_parameter_adjoints(active, state, all_rows(3), reduce, …)
+   │     ├─ tape_scope{active.tape()} ; active.release()   + the count check
+   │     ├─ in = state ++ parameters     the splice its caller undoes         ✱F
+   │     └─ vector_jacobian_product
+   │        ├─ clearAll ; registerInputs ; newRecording
+   │        ├─ record: one census over every cohort
+   │        └─ for m in 3: clearDerivatives ; seed ; computeAdjoints ; read   ✱G
+   │  catch (gradient_refusal) -> NaN rows, return              ESCAPE 1
+   │
+   ├─ seeds = all_seeds.select(rows) ; trait_adjoint = all_direct.select(rows)
+   │
+   ├─ try solve_adjoint_over_insertions                       sweep.hpp, 85 lines
+   │  │  stops = insertion_rows(rec) ++ extra_splits                         ✱H
+   │  │  tape(false)                     ← TAPE 2 OF 2, odelia's
+   │  │  tape_scope{tape}                ← ONE activation for the whole descent
+   │  │  restore_on_exit{system}         the width on exit is a promise
+   │  ├─ for stop j = last .. 0:
+   │  │  ├─ Solver::solve_adjoint(tape, rec, lambda, param, at, upper)
+   │  │  │  └─ lifted_system{system, tape}        ← one lift per width
+   │  │  │     for k = upper .. at+1:
+   │  │  │       Step::step_adjoint(active, k, …)
+   │  │  │       └─ state_and_parameter_adjoints(active, rec[k-1].ran_from(), …)
+   │  │  │          └─ release ; splice ; vjp -> 6 x ode::derivs
+   │  │  ├─ be_at_step(system, rec, at)
+   │  │  └─ lifted_system{system, tape}   ← A SECOND LIFT AT THAT SAME WIDTH  ✱I
+   │  │     state_and_parameter_adjoints(active, rec[at].state, insert, …)
+   │  catch (gradient_refusal) -> refused = true                ESCAPE 2
+   │
+   ├─ if (!refused) for species: poll *uptake_rows_unavailable   ESCAPE 3     ✱D
+   ├─ assemble census_gradient {gradient, why}
+   └─ be_at_step(live, rec, last)
+```
+
+One recorded step, the level below, unchanged from the first walk:
+
+```
+6 x ode::derivs(active_system, stage, rate[i], t, {step, i})
+└─ internal::set_ode_state(obj, y, t, at)     if constexpr RecordsChoices     ✱K
+   └─ Patch::set_ode_state(it, t, at)         if constexpr KeepsSolvedChoices
+      ├─ for species: strategy->begin_stage(at, recording)
+      └─ Patch::set_ode_state(it, t)          the ordinary load, 3rd arity    ✱L
+   then Patch::compute_rates
+      ├─ Strategy::compute_rates
+      │  ├─ solve_leaf() -> place_solved_point(leaf_points->next())
+      │  └─ record_leaf_outputs                                    phylloptim
+      │     ├─ clamp_counts() twice -- a fresh vector per placement           ✱M
+      │     ├─ collar_condition -- a second tape, tangent under adjoint       ✱N
+      │     └─ collar_at, outputs_at -> implicit_root, implicit_value x2
+      ├─ resource_depletion    a member used as a per-call scratch            ✱O
+      └─ env.compute_rates(resource_depletion)
+```
+
+## What the first walk marked and this one does not
+
+* **The Patch deep-copied per recording.** 3,381 rebinds became about 340: one per
+  width, plus one per insertion, plus the census. Worth 3 to 4 per cent.
+* **Three routes to `state_and_parameter_adjoints`.** Two now, and both hand it a
+  `lifted_system` that carries its own tape, so a System cannot arrive beside
+  another System's tape or another tape's parameters.
+* **The tape activated and deactivated per recording**, about 7,000 times a
+  gradient. Once per descent.
+* **`insertion`, `widening`, `piece`, `segment`, `with_insertions`.** The code
+  words are `insertion_rows`, `inserted`, `ran_from` and `stops`. *piece* is gone;
+  *widening* survives only in comments and *segment* only in plant's diagnostic.
+* **The width inference and the shrink refusal.** The record says where the
+  insertions were.
+
+## What this walk adds that the first did not have
+
+* **✱G — one recording, swept three times.** `clearDerivatives()` marks the whole
+  derivative array for zero-filling and `computeAdjoints()` walks every statement,
+  once per metric, 3,378 times over. The tape is templated on its derivative width
+  (`Tape<Real, N>`, `DerivativesTraits<T, N>::type = Vec<T, N>`) and
+  `probe_width.cpp` already instantiates N of 2, 3 and 4. Three directions would
+  be one zero-fill and one statement walk instead of three. The arithmetic per
+  operation is the same; what changes is the number of passes over two large
+  arrays, which is where a sweep's time goes. ⚠️ N is compile-time, so a
+  single-metric call would pay for three directions, and the scalar type changes
+  wherever the model is instantiated. Measure before believing it.
+* **✱I — a second lift at a width already lifted.** `be_at_step` puts the System
+  at row `at`, the insertion transpose lifts it there, and the next iteration's
+  `solve_adjoint` lifts the same System at the same width again. About 169 extra
+  Patch deep copies a sweep, roughly 0.35 s. The fix is structural rather than
+  arithmetic: the walk owns one lifted System per width and hands it to both the
+  insertion at the top of that width and the steps inside it -- which also makes
+  `solve_adjoint` take what `step_adjoint` takes, and collapses a level.
+
+## What section II closed
+
+The transpose takes its own recording, so ✱F -- the flat `state ++ parameters`
+vector its one caller immediately undid -- is gone, along with the copy loop that
+wrote the parameters back out of it, the `n_seed x (n_state + n_parameter)`
+scatter, and the seam between the two halves. **The state is registered as this
+recording's own inputs and the parameters where they sit on the System**, so
+nothing splits an adjoint by position and nothing can slice past the state into a
+parameter value. Every `evaluate` lambda kept its signature, because the buffer it
+is handed is now exactly the state it always assumed.
+
+An overload taking a System rather than a lifted one makes the tape and the lift
+where a single recording is wanted, so ✱E is gone too: plant's census names
+neither, and there is one tape per gradient rather than two. `vector_jacobian_product`
+keeps its flat shape for the ladder's block Jacobian and has no production caller
+left, which puts it on `subtraction-targets.md` 8's oracle-only list beside
+`rates_adjoint`.
+
+What plant still names from odelia in the product path: `row_batch`,
+`recorded_step`, `step_record`, `recorded_stage`, `be_at_step`, `active_scalar`,
+`state_and_parameter_adjoints`, `solve_adjoint_over_insertions`. **Eight, and no
+tape, no lift and no scalar's tape_type among them** -- against twenty at the cold
+read. The five oracle names beside them (`advance_over_insertions`,
+`state_at_segment`, `tangent_scalar`, `seed_direction`, `derivative_along`) are the
+tangent and difference references, and `subtraction-targets.md` 8 is where they
+are counted.
+
+⚠️ **Two things this section proposed and did not get, and both are decisions
+rather than oversights.**
+
+* **The rename to `transpose` / `transpose_recording` is declined.**
+  `state_and_parameter_adjoints` says what it produces and needs no comment to
+  decode, which is the test the style guide sets. Renaming it would churn two
+  packages, five test fixtures and every cross-reference in these documents for no
+  reader gain, and `transpose` alone does not say transpose of what.
+* **`adjoint_segments` and `adjoint_at_first_state` are still members**, not
+  fields of the returned value. That is `subtraction-targets.md` 19 and it wants
+  doing with the `n_metric` multiplier below, in one change, because the fix and
+  the move touch the same four write sites.
+
+## The ladder has absorbed one of the defects
+
+`adjoint_segments = n_metric * solve_adjoint_over_insertions(...)` multiplies a
+range count by a metric count, which `unification.md` 10 names. What it did not
+know is why nobody noticed: `test-gradient-ladder-first-segment.R` asserts
+`expect_equal(ranges, (n_widening + 1) * counts$metrics)` -- the expectation
+carries the same multiplier, while the comment above it states the model correctly
+("one range per width ... one MORE than the number of widenings"). So the check
+agrees with the code and disagrees with its own prose, and removing the multiplier
+has to remove it from both places at once.
