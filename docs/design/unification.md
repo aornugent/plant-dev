@@ -581,8 +581,10 @@ why). One `keyed_store<Key, Value, N>` keeps it in one place instead of two.
   opens with `per_layer.assign(supply_n_layers(), T(0.0))` -- n active-scalar
   constructions -- and `profit_at` and both `bound_at` arms immediately discard
   it. Two entry points: the total, which is the primitive, and the split, for the
-  one caller that reads it. Same shape as `inserted_state` in
-  `subtraction-targets.md` 14.
+  one caller that reads it. This was read as the same shape as `inserted_state` in
+  `subtraction-targets.md` 14, and it is the shape *inverted*: there four of five
+  callers want the report, so the mutation is the primitive and the split is not
+  the question. Count the callers before borrowing the remedy.
 
 * **`census_metric` holds a `std::function` for three capture-free lambdas.**
   So `metrics_of<P>()` heap-allocates three type-erased objects on every call --
@@ -602,10 +604,11 @@ why). One `keyed_store<Key, Value, N>` keeps it in one place instead of two.
   fact, and the second is a no-op if the first ran. It belongs to
   `compute_environment`, above both.
 
-* **`advance_over_insertions` computes a state it never uses.** `sys.inserted_state(...,
-  before.begin(), after)` fills `after`, then `forward.set_state_from_system()`
-  reads the mutation instead. The local is the report half of the same
-  mutate-and-report shape as the entry above.
+* ~~**`advance_over_insertions` computes a state it never uses.**~~ DONE. The map is
+  `apply_insertion` and the report is what its other four callers want, so what went
+  was the allocation and not the argument: both buffers are held across the walk
+  rather than built per insertion. `one-reverse-pass.md` step 3c has why the report
+  stayed.
 
 * **`adjoint_segments = n_metric * solve_adjoint_over_insertions(...)`.** The
   sweep is shared across metrics -- that is the whole point of the batch -- so

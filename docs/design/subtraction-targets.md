@@ -747,12 +747,14 @@ a per-file reviewable pass, and the hazard blocks are not part of it.
 - ~~**`with_insertions` copies the whole recording to patch a handful of entries.**~~
   DONE. The record carries the inserted state as a field, so nothing is copied and
   nothing is inferred.
-- **`inserted_state` both mutates and reports** -- now `one-reverse-pass.md`'s step
-  3c, because it is load-bearing rather than small. It sets the system's state,
-  pushes the nodes, and writes the widened state to an out-parameter.
-  `advance_over_insertions` wants only the mutation and allocates an
-  `ode_size()`-wide vector to throw the report away. Same shape as the leaf's
-  `E_from_soil_at`, where three of four callers discard the per-layer split.
+- ~~**`inserted_state` both mutates and reports**~~ -- DONE as
+  `one-reverse-pass.md`'s step 3c, and the entry was wrong about which half to
+  remove. **Four of its five callers want the report**; the one that discards it is
+  an oracle. So the analogy to the leaf's `E_from_soil_at` -- three of four callers
+  discarding the split -- is this shape upside down, and the mutation is the
+  primitive rather than the defect. What went was the allocation in the one
+  discarding caller, the name (`apply_insertion`, a verb, so the widening is in the
+  name and not in a comment under it), and the guard.
 
   ⚠️ **The mutation is why a sweep cannot share one lift per width, and that cost a
   segfault to learn.** Transposing this map leaves the System it ran on WIDER, so a
@@ -760,6 +762,11 @@ a per-file reviewable pass, and the hazard blocks are not part of it.
   reads past the end of every state the descent then loads: ten of eighteen ladder
   files died and the rest returned NaN. It was written here as one of three
   "smaller things" and was not a step in the cut, which is how it was walked into.
+  The check that would have caught it was there and asked the wrong System: the
+  batch's width was compared against the System the descent positions rather than
+  the lifted copy the recordings are taken on, which differ by exactly the mistake.
+  It now asks the lift, and the lift for a range is made by the function whose width
+  it is, so the sharing cannot be written.
 - **`step_adjoint` copies the state half at the active scalar** — `y0(x, x + size)`
   — which is one tape slot, operation and statement per entry, once per recorded
   step. **Priced and rejected**: 1,361 slots, statements and operations a recording,

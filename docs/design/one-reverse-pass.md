@@ -455,28 +455,61 @@ enumerate the Patch's active members and de-register them where the rebind is
 today. `probe_tape_reset` is the mechanism; the ladder is the check; the fixture
 that caught the naive attempt catches this one too.
 
-**3c -- the insertion's map stops mutating what it reports.**
-`subtraction-targets.md` 14's middle bullet, promoted here because it is
-load-bearing rather than small: **it is what stops a sweep sharing one lift per
-width.** `inserted_state(time, x, y)` sets the narrow state, pushes the nodes, and
-reports the wider state -- so transposing it leaves the System it ran on wider than
-the range below is swept at, and a lift handed to both reads past the end of every
-state the descent loads. Ten of eighteen ladder files segfaulted on exactly that,
-and the rest returned NaN.
+**3c -- the insertion's map says what it does, and the width belongs to the walk.**
+DONE, and **not** as this step predicted. It expected two named operations, a pure
+map and a mutation. Counting the consumers says the mutation is the map: five
+callers, and **four of them want the wider state reported** -- the driver's
+transpose, `state_at_segment`, `introduction_jacobian` and the ladder's standalone
+widening transpose. One discards it, `advance_over_insertions`, and it is an oracle.
+`subtraction-targets.md` 14 filed this beside the leaf's `E_from_soil_at`, where
+three of four callers throw the split away; here the ratio is the other way up, so
+the analogy was backwards and the report is the primitive.
 
-Two callers want opposite halves. The sweep's insertion transpose wants the map and
-must not have the System left widened; `advance_over_insertions` wants only the
-mutation and allocates an `ode_size()`-wide vector to discard the report.
+What was actually wrong was the name and the guard.
 
-⚠️ **Making the map pure is harder than it reads, and that is the design work.**
-Pushing the nodes IS how the wider state is computed, so a pure map either builds it
-on a copy of the System -- which is the whole allocation the lift hoist exists to
-avoid -- or widens and narrows back, and narrowing a lifted System mid-sweep
-destroys members holding tape slots. So the likely shape is not one pure function
-but **two named operations**: a mutation for the walk that wants it, and a map whose
-name says it leaves its System widened, so the sweep's own lift becomes a contract
-rather than a hazard someone rediscovers. Worth about 169 Patch deep copies a sweep,
-0.3%; worth more as the thing that makes the sharing expressible at all.
+* **`inserted_state` was a noun phrase for a mutation**, which is why an eight-line
+  comment existed to decode it and why the comment did not work -- it had been read,
+  and quoted, in the session that then shared the lift. It is
+  **`apply_insertion(time, x, y)`**: a verb, and the fact it leaves the System
+  holding the wider state is now in the name rather than under it.
+* **The width check asked the wrong System.** `sweep_range` compared the seed batch
+  against the System the descent positions rather than the lifted copy the
+  recordings are taken on -- and those differ by exactly one thing, something having
+  widened the lift. The one case worth catching was the one it could not see. It now
+  asks the lift.
+* **The lift for a range is made by the function whose width it is**, which is what
+  makes that divergence impossible rather than merely reported: `sweep_range` takes
+  the tape and lifts, where it used to be handed a lift. A caller cannot hand it a
+  widened one, so the hazard is unstateable rather than warned against, and the ⚠️
+  that warned against it is gone.
+* `advance_over_insertions` holds its two buffers across the walk instead of
+  allocating both per insertion, which is what 14's discarded vector was.
+
+⚠️ **The sharing is priced and rejected, and so is the pure map.** Sharing one lift
+across the insertion and the range below is worth 169 Patch deep copies a sweep, at
+about 2 ms each -- 7.0 s over the 3,381 rebinds measured when the rebind was per
+recording: **0.35 s of a 108 s gradient, 0.3%.** Every way of buying it costs more
+than it is worth.
+
+* *Narrow the lift with the ordinary load.* `be_at_step` reshapes, and `reshape_to`
+  rebuilds the environment and the rates when it moves -- a whole rate evaluation, at
+  the adjoint scalar, pushing about a megabyte of statements that the next clear
+  throws away. 169 of those is dearer than the copies it saves.
+* *The map pops the nodes it pushed*, which would make it pure in shape and is
+  already written inline in `introduction_jacobian` between its tangent columns. It
+  fails on the oracles: two callers **harvest the mutation** -- `state_at_segment`
+  wants both halves and `advance_over_insertions` only the mutation -- and a pure
+  map needs a second spelling of "an insertion happened" for them. `advance_over_insertions`
+  exists to traverse *the map the adjoint transposes*, so giving it a different
+  spelling weakens the reference it is there to be -- and calling both pushes the
+  nodes twice.
+* *An inverse on the System interface* is a public way to change width whose only
+  callers would be the walk, and a second thing to keep the exact inverse of the
+  first.
+
+So the lift per width is not a sharing someone missed: **it is the narrowing, and it
+is the cheapest one available.** What made it read as an oversight was a name that
+hid the widening, and that is what changed.
 
 **4 -- one refusal, latched, carrying a severity.**
 
@@ -650,13 +683,13 @@ One recorded step, the level below, unchanged from the first walk:
   arrays, which is where a sweep's time goes. ⚠️ N is compile-time, so a
   single-metric call would pay for three directions, and the scalar type changes
   wherever the model is instantiated. Measure before believing it.
-* **✱I — a second lift at a width already lifted.** `be_at_step` puts the System
-  at row `at`, the insertion transpose lifts it there, and the next iteration's
-  `solve_adjoint` lifts the same System at the same width again. About 169 extra
-  Patch deep copies a sweep, roughly 0.35 s. The fix is structural rather than
-  arithmetic: the walk owns one lifted System per width and hands it to both the
-  insertion at the top of that width and the steps inside it -- which also makes
-  `solve_adjoint` take what `step_adjoint` takes, and collapses a level.
+* **✱I — two lifts at one width, and the second one is the narrowing.** The
+  insertion transpose lifts at row `at` and the range below lifts the same System at
+  the same width again, because applying the insertion widens the System it ran on.
+  About 169 extra Patch deep copies a sweep, roughly 0.35 s. **Step 3c priced every
+  way of sharing them and rejected all of them**; what changed instead is that the
+  map's name says it widens and `sweep_range` makes its own lift, so the mistake is
+  a named refusal rather than unmapped memory.
 
 ## What section II closed
 
@@ -786,6 +819,13 @@ model's own arithmetic is less than either. `std::max` inside
 `registerVariableAtEnd`'s high-water-mark update is 3.2% on its own -- ninth in the
 whole profile -- which says slot allocation happens on the order of 10^8 times a
 gradient.
+
+⚠️ **That 3% does not reconcile with the number of lifts, so do not spend it.** The
+sweep takes about 340 lifts -- one per width, one per insertion, one for the census --
+and a lift measured 2 ms when the rebind was per recording, which is 0.7 s and not
+3.45 s. The rest of the bucket is almost certainly the interpolant work every FIELD
+BUILD does, which is per rate evaluation and is model work rather than lifting.
+Nobody has separated the two; anyone planning against this row should.
 
 ⚠️ **Lifting is 3%.** Three increments went into the rebind, the reset protocol and
 the tape discipline. They were worth doing for correctness and for the vocabulary,
