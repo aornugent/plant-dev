@@ -504,11 +504,10 @@ None is read by `census_gradient.cpp` or by `R/`.
 before it is exported. Four layers, each repeating the same method with the same
 argument, and a rename at the top so a reader has to learn both names.
 
-**One of them is in the hot path, and that is the part worth acting on.**
-`clamp_counts()` builds a fresh `std::vector<std::size_t>` — it copies the leaf's
-tally and folds the supply's into it — and `record_leaf_outputs` calls it
-**twice per call**: once as `clamps_before`, once inside `note_leaf_clamps`, on
-the throwing exit as well as the normal one.
+~~**One of them is in the hot path, and that is the part worth acting on.**~~ DONE.
+`clamp_counts()` built a fresh `std::vector<std::size_t>` — copying the leaf's tally
+and folding the supply's into it — and `record_leaf_outputs` called it **twice per
+call**: once as `clamps_before`, once inside `note_leaf_clamps`.
 
 `record_leaf_outputs` runs once per differentiated leaf evaluation. The fixture
 reports 2,333,500 placements, but those are counted in `solve_leaf` rather than
@@ -519,10 +518,20 @@ wants measuring before anyone quotes it.
 
 What the delta buys is stated in `clamp_sites.h`: the leaf solves in double on
 both paths, so which path a clamp fired on is a question of when, and the answer
-comes from a difference taken across `record_leaf_outputs`. But the difference
-accumulates into a **per-site total** — the per-placement granularity is not in
-the answer. Bracketing the whole gradient gives the same per-site attribution for
-two calls instead of 4.7 million.
+comes from a difference taken across `record_leaf_outputs`.
+
+**What went was the heap, not the bracket.** `Leaf::clamp_count(site)` already
+summed the leaf's tally and the supply model's for one site, and had no caller
+anywhere in the tree; reading site by site puts the whole tally on the stack — four
+`size_t` — for the same numbers and the same attribution.
+
+⚠️ **Bracketing the whole gradient instead, which this entry suggested, is wrong.**
+It reads as free because the difference accumulates into a per-site total, so the
+per-placement granularity is not in the answer. But `solve_leaf` also runs inside a
+differentiated rate evaluation, and today it sits OUTSIDE the per-placement bracket,
+so its clamps are attributed forward. A bracket around the whole gradient moves them
+into the differentiated bucket: a silent change to a diagnostic, dressed as an
+allocation win. `unification.md` 4 carries the same refusal for the counter merge.
 
 ⚠️ **The counters themselves are worth keeping.** `placements()` says so in its own
 comment: a record that engages and one that quietly does not produce the same

@@ -588,18 +588,58 @@ the descent starts -- and once latched the leaf stops recording rows, so a refus
 mid-descent costs less than a whole gradient. If that ever matters, the shape is a
 System predicate the walk polls per range, **not** an exception.
 
-**5 -- one clamp counter; derive the potentials and the drivers at the load.**
-(`unification.md` 4 and 9.) Removes the per-placement vector allocation from the
-production gradient and thirteen members from the environment.
+**5 -- the per-placement allocation off the heap; fourteen driver caches into
+one.** DONE, and **neither half by the mechanism this step named.** The two
+things it wanted -- the allocation and the member count -- both landed. The two
+mechanisms it proposed to get them are both refused, each on evidence in the
+code.
 
-> Allocation and copies are 11.8% of the gradient and this is the sharpest known
-> contributor inside it: `clamp_counts()` builds a fresh vector twice per
-> `record_leaf_outputs`, on a path the fixture runs 2,333,500 times. Note what it is
-> NOT -- none of that is tape work, so it will not appear under any XAD symbol.
-> `psi_soil_` and the seven driver caches are read per cohort per stage and their
-> values are active, so deriving them at the load turns a per-read staleness compare
-> into one write. Check that the derived values are written ONCE per load: writing
-> an active twice costs a statement each time (mechanic 1).
+Allocation and copies are 11.8% of the gradient and this was the sharpest known
+contributor inside it: `clamp_counts()` folded the leaf's tally and the supply
+model's into a fresh vector, twice per `record_leaf_outputs`. None of it is tape
+work, so it appears under no XAD symbol. `Leaf::clamp_count(site)` already
+summed the two for one site and **had no caller anywhere in the tree**, so
+reading site by site puts the tally on the stack -- four `size_t` -- for the
+same numbers. The per-iteration bounds guard became a `static_assert` that the
+leaf's sites are the last of plant's, which is the hazard a reader would
+actually hit.
+
+The seven `*_cache_` doubles and their seven `*_cache_time_` partners are one
+record: the values, the one time they were read at, and a flag per driver.
+Fourteen members to one, and a driver is now one enumerator plus one getter. It
+also closed a hole nothing was watching: `assign_from` carries `time` through
+the base assignment and left the caches alone, so an assignment into a live
+environment read fresh at the new time while holding the old environment's
+values.
+
+⚠️ **The counter merge is refused.** `unification.md` 4 would replace plant's
+`if constexpr (is_same_v<S, double>)` -- a compile-time fact about the scalar --
+with a runtime flag, to match phylloptim, which cannot use the scalar because
+the leaf solves in double on both paths. The two are not one idea spelled twice:
+they answer the same question about a scalar known at compile time and a scope
+known only at runtime, and merging them drags the better shape down to the
+worse. And widening the delta's bracket to the whole gradient, which
+`subtraction-targets.md` 5 suggests instead, silently moves `solve_leaf`'s
+clamps during a differentiated evaluation from the forward bucket to the
+differentiated one.
+
+⚠️ **Refreshing the drivers where the time is set is refused, and the comment
+that said so was right.** `Drivers::evaluate` does `drivers.at(name)`, which
+raises for a driver that was never set, and raises again for a time outside a
+variable driver's control points -- so refreshing seven to serve one raises on
+an environment that only ever reads one. **"Seven comparisons become none" is
+withdrawn**: it needed the eager form. The win is the member count and the
+shape.
+
+⚠️ **Deriving the potentials at the load is refused, and half of that item was
+already done.** `psi_soil_cache_state_` and its `to_passive` compare per layer
+per read went in plant `c50e3a2b`; what is left is the values and one flag.
+Deriving at the load is a LOSS rather than a saving: the derive is lazy and
+conditional today, so an empty patch never pays it, where deriving at the load
+would pay `soil_number_of_depths` ACTIVE writes on all six loads a step. And the
+flag has a second reader -- `set_cohort_reads` marks INJECTED potentials valid,
+so a derive at the load would quietly replace them and the ladder's injections
+with them.
 
 **6 -- the address as a scope; the fill flag onto the store.**
 (`unification.md` 2.) Then the recorder and the player can be two types
@@ -724,7 +764,7 @@ One recorded step, the level below, unchanged from the first walk:
       ├─ Strategy::compute_rates
       │  ├─ solve_leaf() -> place_solved_point(leaf_points->next())
       │  └─ record_leaf_outputs                                    phylloptim
-      │     ├─ clamp_counts() twice -- a fresh vector per placement           ✱M
+      │     ├─ leaf_clamps() twice -- a fixed array, on the stack          ✱M done
       │     ├─ collar_condition -- a second tape, tangent under adjoint       ✱N
       │     └─ collar_at, outputs_at -> implicit_root, implicit_value x2
       ├─ resource_depletion    a member used as a per-call scratch            ✱O
@@ -855,6 +895,17 @@ would.** The identity rung compares one product call taking a different internal
 route against one that does not; a range parameter gives the ladder that only if the
 census seeding and the accumulator are duplicated there. `unification.md` 7 is
 corrected to match.
+
+## What step 5 closed
+
+**✱M is gone.** The leaf's clamp sites are read one at a time into a fixed array,
+so the two folded vectors a differentiated leaf evaluation allocated are off the
+heap. The bracket, the attribution and the numbers are what they were.
+
+**Fourteen driver caches are one record**, which is the member count step 5
+promised, arrived at without the eager refresh it proposed. ✱O still stands:
+`resource_depletion` is still a member used as a per-call scratch, and that is
+step 7's.
 
 ## What one refusal closed
 

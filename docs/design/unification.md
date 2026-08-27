@@ -208,7 +208,7 @@ operation count *is* the tape. It has to survive as a producer.
 
 ---
 
-## 4. Two mechanisms for "which pass was this", and one of them is in the hot path
+## 4. ~~Two mechanisms for "which pass was this"~~ REFUSED; the allocation is gone
 
 Extends `subtraction-targets.md` 5. The finding there is the threading and the
 granularity. The unification is that **plant and phylloptim each define a
@@ -242,16 +242,29 @@ leaf evaluation -- the fixture reports 2,333,500 placements on the same path.
 **Millions of vector allocations inside the production gradient to answer a
 question the other mechanism answers with an `if constexpr`.**
 
-**One counter, and the pass is a property of the pass.** phylloptim's counter
-gains the two halves and a `bool differentiating` that the recording sets; plant
-keeps its site enum (which already extends phylloptim's by offset) and drops its
-own struct. Then `note()` writes to the right half wherever it is called, and
-`clamp_counts()`, `clamp_count()`, `note_leaf_clamps`, `clamps_before` and both
-copies of the `is_same_v` branch all go -- along with the per-placement
-allocation.
+⚠️ **The merge is REFUSED, and the allocation went without it.** One counter with
+a `bool differentiating` set by the recording would replace plant's
+`if constexpr (is_same_v<S, double>)` — a compile-time fact about the scalar
+— with runtime state, in order to match phylloptim, which cannot use the
+scalar because the leaf solves in double on both paths. **These are not one idea
+spelled twice.** They answer the same question about two different situations: a
+scalar known at compile time, and a scope known only at runtime. Merging them
+drags the better shape down to the worse one, which is the opposite of what a
+unification is for.
 
-The flag is the one new thing, and it is one bit set by the frame that knows,
-where today the same fact is inferred twice by two different methods.
+**What was actually costing something was the allocation, and it is gone.**
+`Leaf::clamp_count(site)` already summed the leaf's tally and the supply model's
+for one site, and had no caller anywhere in the tree; reading site by site puts
+the whole tally on the stack. Same numbers, same attribution, no heap. The
+per-iteration bounds guard became a `static_assert` that the leaf's sites are the
+last of plant's.
+
+⚠️ **And do not widen the bracket instead**, which is what
+`subtraction-targets.md` 5 suggests. `solve_leaf` also runs inside a
+differentiated rate evaluation, and today it sits OUTSIDE the per-placement
+bracket, so its clamps are attributed forward. A bracket around the whole
+gradient moves them to the differentiated bucket — a silent change to a
+diagnostic, dressed as an allocation win.
 
 ---
 
@@ -532,7 +545,7 @@ interpolant, and the shape of a cache in the model everything reads.
 
 ---
 
-## 9. Four caches, four shapes, and two of them are not caches
+## 9. Four caches, four shapes — the drivers DONE, the potentials REFUSED
 
 `subtraction-targets.md` 18 names two of these. There are four, and the two it
 does not name are the ones in the hottest code.
@@ -542,33 +555,45 @@ does not name are the ones in the hottest code.
 | `MultiLayerRoots::CurveCache` | `(b, c, resolution)` | two splines | thread_local store, linear scan, bound 32 |
 | `Leaf::StemCurveCache` | `(b, c, resolution)` | two splines | the same, spelled again |
 | `Leaf::curve_reads_` / `CurveReads` | one double | seven doubles | member vector, linear scan, cleared on state change |
-| `TF24_Environment::psi_soil_cache_` | the state, by passive value | the potentials | member + `_state_` key + `_valid_` flag |
-| the seven driver caches | the time | one double each | 14 members + a string-keyed miss path |
+| `TF24_Environment::psi_soil_` | a validity flag | the potentials | member + flag; the value key is already gone |
+| ~~the seven driver caches~~ | the time | one double each | DONE: one record, one time, a flag per driver |
 
 The first two are one type written twice, as that entry says. The last two are
 something else: **they are derived quantities wearing a cache's clothes.**
 
-`psi_soil_cache_` is invalidated by `set_ode_state` on every load, so it never
-hits across rate evaluations -- it hits only for the many cohorts reading it
-*within* one evaluation. That is not a cache, it is a quantity that should be
-computed where the state is written. Doing that deletes `psi_soil_cache_state_`,
-`psi_soil_cache_valid_`, the per-read staleness scan (a `to_passive` compare per
-layer per read), and one of the two reasons the flag exists.
+⚠️ **Half of the potentials item was already done, and the other half is a LOSS.**
+`psi_soil_cache_state_` and the per-read staleness scan (a `to_passive` compare per
+layer per read) went in plant `c50e3a2b`; what is left is the values and one flag.
+Deriving them at the load does not save that flag's cost, it adds work: the derive
+is lazy and CONDITIONAL today, so a patch with no cohort reading the potentials
+never pays it, where deriving at the load pays `soil_number_of_depths` ACTIVE
+writes on all six loads a step. And the flag could not go anyway, because it has a
+second reader — `set_cohort_reads` marks INJECTED potentials valid, and a derive at
+the load would quietly replace them, taking the ladder's injections with them.
 
-The seven drivers are the same shape at seven times the size: `ppfd_cache_`,
-`atm_vpd_cache_`, `ca_cache_`, `leaf_temp_cache_`, `atm_o2_kpa_cache_`,
-`atm_kpa_cache_`, `wind_speed_cache_`, each with a `_cache_time_` beside it, and
-a `cached_driver_(name, val, time)` helper that does a **string-keyed driver
-lookup** on a miss. Fourteen members and seven time comparisons per cohort per
-stage, for seven numbers that are all functions of the same time. One record
-refreshed where the time is set: fourteen members become one, seven comparisons
-become none, and the string names leave the hot path.
+**The seven drivers are DONE: fourteen members are one record**, holding the
+values, the one time they were read at, and a flag per driver. The name comes from
+a table indexed by an enum rather than a literal at the call site, so a memo cannot
+be keyed on one name and read under another, and a driver is added as one
+enumerator plus one getter.
 
-⚠️ **The comment on `psi_soil_cache_` states the hazard correctly and the
-invalidation is what handles it** -- "keyed on that state by value, which cannot
-see a changed derivative behind an unchanged value". Deriving at the load keeps
-that property by construction rather than by a flag two other methods also
-write.
+⚠️ **But NOT "refreshed where the time is set", and "seven comparisons become
+none" is withdrawn.** `Drivers::evaluate` does `drivers.at(name)`, which raises for
+a driver that was never set, and raises again for a time outside a variable
+driver's control points — so refreshing seven to serve one raises on an environment
+that only ever reads one of them. The comment on the getters said exactly that, and
+was right. What the record buys is the member count and the shape, not arithmetic.
+
+It also closed a hole nothing was watching: `assign_from` carries `time` through
+the base assignment and did not touch the caches, so an assignment into a live
+environment read fresh at the new time while holding the old environment's
+values.
+
+⚠️ **Two comments in that file described the value-keying after it had been
+deleted**, which is how this entry came to be planned against a mechanism that was
+already gone. Both are corrected. The lesson is the one at the top of
+`principles.md`: where a document disagrees with the code, the disagreement is the
+finding.
 
 ⚠️ **The 32-entry bound on the curve stores is load-bearing** (that entry says
 why). One `keyed_store<Key, Value, N>` keeps it in one place instead of two.
@@ -662,12 +687,14 @@ Subtraction before scaffolding, and each increment lands on its own.
 
 **Then the mechanisms, in this order because each makes the next smaller.**
 
-4. Entry 9 -- derive the potentials and the drivers at the load. Removes two
-   flags, a key vector, a staleness scan and thirteen members, and takes one of
-   the two reasons entry 8's injection API exists with it.
-5. Entry 4 -- one clamp counter. Deletes the per-placement allocation from the
-   production gradient, which is the sharpest speed item on this list that is
-   not entry 5.
+4. ~~Entry 9 -- derive the potentials and the drivers at the load.~~ The
+   drivers are DONE as one record and the potentials are REFUSED; see the entry.
+   ⚠️ The claim that it "takes one of the two reasons entry 8's injection API
+   exists with it" is backwards: the injection is the SECOND READER that keeps
+   the flag alive, and a derive at the load would overwrite what it injects.
+5. ~~Entry 4 -- one clamp counter.~~ The per-placement allocation is DONE and the
+   counter merge is REFUSED; see the entry. It was the sharpest speed item on
+   this list that is not entry 5.
 6. Entry 2 -- the address as a scope, then the fill flag onto the store. This is
    the precondition for `subtraction-targets.md` 17 (the recorder and the player),
    so it lands before that rather than beside it.
