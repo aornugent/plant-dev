@@ -37,6 +37,33 @@ Fact 4 makes the recording the central object. Facts 1 and 2 say what a row of i
 has to carry. Fact 3 says the leaf's derivative crosses a package boundary as
 data. Fact 5 says where every conversion is.
 
+⚠️ **And one consequence of fact 2 that explains most of what is awkward about the
+choice record, because it is forced and reads like a design decision.** A choice is
+determined by the state and the time it was made at, so the natural key for it is
+the state. It cannot be: the reverse walk visits the rate evaluations of a
+recording in a different order from the forward run, and at an active scalar a
+derivative can move behind an unchanged value -- the hazard `psi_soil_` is
+commented for. So the record is keyed on POSITION IN THE SCHEDULE instead: a
+surrogate key. Everything uncomfortable follows from that one substitution and not
+from anything anyone chose.
+
+* The address has to reach the store from the stepper, because the store cannot
+  work out where it is.
+* The forward and reverse walks have to agree on the numbering, which is why stage
+  0 is the one address a walk that jumps into the middle of a recording cannot
+  trust.
+* A rejected step's attempt and the retry that replaces it must write the same
+  slot, because both are the same position and only one of them happened.
+* A replay from a state the trajectory never held has to throw the record away,
+  because the key is then a lie -- `clear_solved_choices` under `state_moved`.
+* A stepper with no stage numbering gets no record at all, which is why RODAS
+  silently keeps and places nothing.
+
+What is NOT forced is where the answer to "is this the pass that fills the record?"
+lives. That is a property of the pass, the walk is the only thing that knows it, and
+it was stored on the model in a public mutable bool that had to be hand-matched to
+the solver's own flag. Step 6 is that being put back where it comes from.
+
 ---
 
 ## I. An insertion is a row, and the record already knows how to say so
@@ -661,27 +688,50 @@ with nothing relating them, so a throw out of the rates left it open. The extent
 of one rate evaluation is `derivs`, so `derivs` opens and closes it through a scope
 whose destructor is the close. `internal::set_ode_state`'s four-parameter overload
 goes, plant's third load arity goes, and `RecordsChoices` becomes
-`AddressesChoices`, asking for the two members that bound the extent rather than
-for a loader arity. **The whole migration was one call site and one definition.**
+`RecordsChoices`, asking for the two members that bound the extent rather than for
+a loader arity. **The whole migration was one call site and one definition.**
+
+⚠️ **The concept was briefly `AddressesChoices` and that name did not survive
+reading.** It named the mechanism -- handing over an address -- rather than what
+the System does with it. `Replayable` was considered and fails a sharper test: it
+reads TRUE for `LotkaVolterra`, which has `set_recorded_state` and is perfectly
+replayable, where this concept must be false for it. Replayable is a coarser
+property this is one ingredient of. `RecordsChoices` is what the System does, and
+is already the tree's vocabulary.
 
 ⚠️ **It does not delete one of the two concepts.** Both remain and each has its own
 job: odelia's asks whether a System addresses an evaluation, plant's asks whether a
 strategy keeps a choice, and plant's has three uses beyond the load. A load arity
 went, not a concept.
 
-⚠️ **The fill flag does not move onto the store.** The store is a `shared_ptr`
-deliberately shared between the run's patch and the rebound one -- that share is
-how the sweep reads what the run wrote -- so a flag on it is one flag for both
-holders, and `assign_from` setting it false reaches through the share. Today "a
-rebound patch cannot record" is STRUCTURAL: the rebound patch has its own bool and
-`assign_from` clears it. On a shared store it becomes an ordering rule, which is
-the trade section III refused when it put the tape reset where a recording begins.
-What landed instead is the cheap half of the stated benefit: `Patch::recording` is
-private, so its one reader is inside the class and nothing outside can disagree
-with the solver. The recorder/player split is `subtraction-targets.md` 17 and wants
-two types, not a relocated boolean -- and this step does NOT unblock it, because
-`end_stage()` still leaves `filling` alone. What it does remove is the other half
-of that hazard: the extent now closes however the evaluation leaves.
+**And then the flag, which is where the interesting part was.** It does not belong
+on the store: the store is a `shared_ptr` deliberately shared between the run's
+patch and the rebound one -- that share is how the sweep reads what the run wrote
+-- so a flag on it is one flag for BOTH HOLDERS, and `assign_from` setting it false
+reaches through the share to the patch that did the recording. It also does not
+belong on the Patch, which is where it was.
+
+**It belongs nowhere, because it is not a property of anything the model holds.**
+"Is this the pass that fills the record?" is a property of the PASS, and the walk
+that steps is the only thing that knows. So it is not stored at all: it arrives on
+the address, from `Step::step`, taken from `keep_states_` -- one flag for the whole
+recording, because the states and the choices ARE one recording. `Patch::recording`
+is gone with its setter, its line in `SCM::run` and its clear in `assign_from`, and
+the pairing that had to be kept true by hand and that nothing validated is
+unstateable rather than merely unlikely.
+
+That is `subtraction-targets.md` 20's own complaint answered -- *"the address says
+WHERE and a mutable public flag four frames up says WHAT TO DO THERE"* -- by putting
+the two in one value rather than by relocating the flag.
+
+**`subtraction-targets.md` 17 folded in with it, and NOT as two types.** With the
+pass arriving per call, `filling` stops being state: the store holds two slot
+pointers, `keeping` and `placing`, at most one open, and `end_stage()` nulls both,
+so nothing outlives the slot it described. Two types would have been worse, and
+`solve_leaf` is why: it calls both halves unconditionally, reads as "place what was
+kept, or search; then keep what you have", and is correct in either pass with no
+branch. Splitting the type forces that one caller to learn the mode in order to
+hold the right half.
 
 ⚠️ **And a gap this turned up.** `ode_step_rodas.hpp` calls only the unaddressed
 `derivs`, at every one of its stages, so a System run under `Method::rodas` opens no
@@ -798,8 +848,8 @@ One recorded step, the level below, unchanged from the first walk:
 
 ```
 6 x ode::derivs(active_system, stage, rate[i], t, {step, i})
-├─ stage_scope{obj, at}                       if constexpr AddressesChoices  ✱K
-│  └─ for species: strategy->begin_stage(at, recording)   ✱L done: one arity
+├─ stage_scope{obj, at}                       if constexpr RecordsChoices   ✱K
+│  └─ for species: strategy->begin_stage(at)        ✱L done: one arity, no flag
 └─ internal::set_ode_state(obj, y, t)         the ordinary load
    then Patch::compute_rates
       ├─ Strategy::compute_rates

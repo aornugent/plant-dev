@@ -826,7 +826,7 @@ the `TransportTrait` enum beside them.
 `HydraulicCostRow` at 1715. They are the row layer's vocabulary, and `2ba6f98`
 deleted the layer without them.
 
-### 17. `leaf_solved_points` is two objects wearing one type
+### 17. ~~`leaf_solved_points` is two objects wearing one type~~ DONE, not as two types
 
 The record of operating points a run's leaf solves found carries five pieces of
 state — `kept`, `slot`, `solved`, `placed` and `filling` — and `filling` decides
@@ -847,10 +847,20 @@ type is a recorder and a player fused by a boolean, and every caller of either
 half is relying on a mode it did not set. `end_stage()` clears `slot` and `solved`
 and leaves `filling` alone, so the two can disagree.
 
-Two types make the halves unavailable to the wrong caller and delete the flag,
-the branch in `next()` and the branch in `keep()`. It is the guide's own
-scattered-boolean example, one level up: the fix is not a `ReplayMode` enum, it is
-that a recorder has no `next()`.
+**The flag is gone and so is the disagreement, and it took two POINTERS rather than
+two types.** The store holds `keeping` and `placing`, at most one open; `next()`
+tests `placing`, `keep()` tests `keeping`, and `end_stage()` nulls both, so nothing
+outlives the slot it described. Each branch tests one thing where it used to test a
+flag and a pointer. The mode is not stored anywhere: it arrives on the address, from
+the walk that steps, which is the only thing that knows it.
+
+⚠️ **Two types would have been WORSE, and the one caller of both halves is why.**
+`solve_leaf` calls them unconditionally — "place what was kept, or search; then keep
+what you have" — and is correct in either pass with no branch. Splitting the type
+forces that caller to learn the mode in order to hold the right half, which puts
+back, at the one site that had managed without it, exactly what this removes. The
+guide's scattered-boolean example still applies; the answer to "which half is live"
+is which handle is open, not which type you were given.
 
 ⚠️ **The count is the only thing that can tell a record engaging from one quietly
 not**, per `placements()`'s own comment: every number a placement produces is the
@@ -927,9 +937,10 @@ DONE. The address is now the extent of one rate evaluation, opened and closed by
 `leaf_points`, and the two concepts both remain — each now answering its own
 question rather than one routing for the other.
 
-⚠️ **The mode still arrives beside the address**, and that half is refused: see
-`unification.md` 2. The store is shared between the recorder and the player, so the
-mode is per holder; entry 17 is where that gets fixed, with two types.
+**And the mode arrives AS the address**, which is this entry's complaint answered
+rather than relocated: `recorded_stage` carries which pass is running along with
+where, one value constructed in three places, from the walk that is the only thing
+that knows. `Patch::recording` does not exist. See `unification.md` 2 and entry 17.
 
 **The flag it collects mid-journey is the worse half.** `Patch::recording` is a
 public `bool` with a setter, defaulting false, forced false in `assign_from`, and

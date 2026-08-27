@@ -132,10 +132,10 @@ evaluation** -- which is exactly what `ode::derivs` is. Opening it there:
 template <typename T, typename StateType>
 void derivs(T& obj, const StateType& y, StateType& dydt, double time,
             recorded_stage at) {
-  if constexpr (AddressesChoices<T>) { obj.begin_stage(at); }
+  if constexpr (RecordsChoices<T>) { obj.begin_stage(at); }
   internal::set_ode_state(obj, y, time);
   obj.ode_rates(dydt.begin());
-  if constexpr (AddressesChoices<T>) { obj.end_stage(); }
+  if constexpr (RecordsChoices<T>) { obj.end_stage(); }
 }
 ```
 
@@ -147,45 +147,43 @@ migration — and no System in odelia ever satisfied the concept or defined the
 arity.
 
 ⚠️ **One of the two concepts does NOT go**, and the claim above is wrong. Both
-remain, each with its own job: odelia's `AddressesChoices` asks whether a System
-addresses an evaluation, plant's `KeepsSolvedChoices` asks whether a strategy keeps
-a choice, and plant's has three uses beyond the load. What went is a load arity.
+remain, each with its own job: odelia's `RecordsChoices` asks whether a System
+records the choices its state leaves open, plant's `KeepsSolvedChoices` asks
+whether a strategy keeps one, and plant's has three uses beyond the load. What went
+is a load arity.
 
-⚠️ **The flag does not belong on the store, and this was the wrong half to call
-cheap.** `begin_stage(at, keeping)` collects `Patch::recording` -- written twice (a
+**The flag does not belong on the store — and it does not belong on the Patch
+either.** `begin_stage(at, keeping)` collected `Patch::recording`: written twice (a
 setter called once from `SCM::run`, forced false in `assign_from`), read at exactly
 one site, and correct only if the caller set it to agree with the solver's
-`set_keep_states`. All true. But the store is a `shared_ptr` deliberately shared
+`set_keep_states`. All true, and the diagnosis of "it varies per RUN" is right. The
+store is the wrong home for it: the store is a `shared_ptr` deliberately shared
 between the run's patch and the rebound one, because that share is how the sweep
 reads what the run wrote — so a flag on it is one flag for BOTH HOLDERS, and
 `assign_from` setting it false reaches through the share to the patch that did the
 recording.
 
-Today "a rebound patch cannot record" is structural: the rebound patch has its own
-bool and `assign_from` clears it. On a shared store it becomes an ordering rule,
-which is the trade `one-reverse-pass.md` III refused when it put the tape reset
-where a recording begins. **The mode is per HOLDER, and that is what "a recorder and
-a player" means** — `subtraction-targets.md` 17, which wants two types.
-
-What landed instead is the cheap part of the stated benefit: `Patch::recording` is
-private, so its one reader is inside the class and nothing outside it can set a
-mode disagreeing with the solver. The proposal was:
+⚠️ **It belongs nowhere, and that is the finding.** "Is this the pass that fills the
+record?" is a property of the PASS, not of any object either package holds, and the
+walk that steps is the only thing that knows it. So nothing stores it: it arrives on
+the address, from `Step::step`, taken from `keep_states_` — one flag for the whole
+recording, because the states and the choices are one recording. `Patch::recording`
+is gone with its setter, its `SCM::run` line and its `assign_from` clear, and the
+pairing nothing validated is unstateable rather than merely unlikely. The proposal
+was:
 
 ```cpp
 patch.set_recording(x)  ->  for species: leaf_points->fill(x)   // once per run
 begin_stage(at)                                                 // per evaluation
 ```
 
-Of the three things that was to remove: the public mutable bool is gone (it is
-private), the argument is not (two signatures still carry it), and the pairing is
-still two calls two lines apart in `SCM::run` from one variable — as good as it
-gets while the patch cannot see the solver.
+All three of the things that was to remove are gone, by a different route: the
+public mutable bool does not exist, both `begin_stage` signatures lost the
+argument, and there is one flag rather than a pair to validate.
 
-⚠️ **And it is NOT the precondition for splitting the recorder from the player.**
-`end_stage()` still leaves `filling` alone, so `subtraction-targets.md` 17 stands
-exactly where it did. What step 6 did remove is the other half of that hazard: the
-extent is a scope, so it closes however the evaluation leaves rather than only on
-the path through `ode_rates`.
+**And it did unblock the recorder/player split, which folded in with it** —
+`subtraction-targets.md` 17. With the pass arriving per call, `filling` stops being
+state at all.
 
 ---
 
@@ -720,11 +718,11 @@ Subtraction before scaffolding, and each increment lands on its own.
 5. ~~Entry 4 -- one clamp counter.~~ The per-placement allocation is DONE and the
    counter merge is REFUSED; see the entry. It was the sharpest speed item on
    this list that is not entry 5.
-6. ~~Entry 2 -- the address as a scope, then the fill flag onto the store.~~ The
-   scope is DONE and the flag is REFUSED; see the entry. ⚠️ It is **not** the
-   precondition for `subtraction-targets.md` 17 that this list claimed:
-   `end_stage()` still leaves `filling` alone, so 17 stands where it did and wants
-   two types rather than a relocated boolean.
+6. ~~Entry 2 -- the address as a scope, then the fill flag onto the store.~~ DONE,
+   and the flag went further than the store: nothing stores it. It arrives on the
+   address from the walk that steps. `subtraction-targets.md` 17 folded in with it,
+   because a mode that is not stored cannot outlive the slot it described -- and it
+   landed as two pointers rather than the two types that entry proposed.
 7. Entry 5(a)(c) -- hoist the active System and the parameter list into the
    sweep, after the audit the entry names. 6% of the gradient.
 8. Entry 6 -- move `active_solver` and `tape` out of `Solver`.
