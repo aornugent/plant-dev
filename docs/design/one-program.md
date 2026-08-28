@@ -162,7 +162,6 @@ So a partition is a *view* of the program, not a second copy of the schedule.
 | `stops`, `n_piece`, `piece_first`, `piece_last`, highest-first | a partition of the program |
 | `extra_splits` | **a junction whose map is the identity**; `unification.md` 7 dissolves |
 | `NodeSchedule::distribute_ode_steps`, `using_ode_steps()` | one program, not two halves merged at run time |
-| `Solver::step()` | dead: zero references outside its own header |
 | `SCM::run_next` | dead; `run_mutant` is a hard `util::stop` |
 | `Solver::history`, `get_history*`, `collect` | `unification.md` 6, pending the R-consumer map |
 | `Species::growth_rate_gradient(size_t)`, `Node::growth_rate()`, `Node::mortality_rate()` | dead cluster found while tracing the boundary node |
@@ -301,6 +300,18 @@ steps, which is exactly what `first-segment.R` exists for.
    `at > k_first`. Unifying them changes `ranges` on `ladder_stand_resumed`, which
    `first-segment.R:56` pins as `n_widening + 1`.
 5. Split points cross from R 1-based; `gradient_ladder.cpp` refuses `s < 1`.
+
+## One claim in this spec was wrong about a deletion
+
+`Solver::step()` is **live**, not dead. It is R-exposed through
+`solver_interface.hpp`'s `Solver_step_impl` -> `Solver_step` ->
+`lorenz-interface.R`, and the lorenz and leaf_thermal examples call it. This spec
+listed it as residue on the strength of a grep for `\.step()` and `solver.step`,
+which does not match `->step()`. The compiler caught it on the first install.
+
+⚠️ **A member function reached through a pointer needs a grep that matches `->`.**
+Every other name in the residue table above was checked by its bare identifier,
+which does match both.
 
 ## Free subtractions this turned up
 
