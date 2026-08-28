@@ -69,7 +69,40 @@ all pinned; a program is a plan with nothing left to choose. So:
 * **The spec property is a fixed point: `run(run(plan)) == run(plan)`**, bit for
   bit, which is exactly what pairing time with size exists to guarantee.
 
-## One state per instruction -- REFUTED, and the spec is smaller for it
+## Why `inserted` survives, and what would remove it
+
+Not irreducibility. A junction's output is a state **between two rows** -- row k's
+state is what step k reached, row k+1's is what step k+1 reached, and the junction
+sits between them. No row owns it, so it rides on row k as a second field.
+
+Two things say it is not irreducible. `state_at_segment` already recomputes it by
+re-applying the map, and checks only its *size* against the stored one -- two
+routes to one value. And recomputing costs one extra positioning plus one map per
+range, about 0.25 s of a 108 s gradient.
+
+**What actually blocks a row of its own is that `schedule()` slices the record.**
+The replay schedule and the trajectory are one object, so any record row becomes a
+schedule entry, and a junction row is a repeated time that
+`distribute_ode_steps` silently deletes. Separate them and a junction is a row
+with one state, `inserted` and `ran_from()` both go, and every row means one thing.
+
+⚠️ **So the plan's order was right and my reasoning about it was not: 6 unlocks 4,
+and neither lands alone.** What 4+6 needs beyond the filter is a restructure of
+`solve_adjoint`: today it precomputes ranges of step indices, and with junction
+rows in the record a range boundary is no longer a step index -- the loop wants to
+dispatch per instruction and rebind where the width changes. That is the shape the
+spec's own three verbs describe, and it is its own increment. Two things make it
+safe to attempt: step 1 removed the last row-index address, so shifting indices no
+longer moves anything a System reads, and `ode_times` turns out to be strongly
+guarded (the measurement above).
+
+⚠️ **What it needs first.** De-risking found the blind spot: the insertion
+transpose sits behind `if (lo < hi)`, so on any fixture introducing at t = 0 a
+skipped transpose is unobservable, and `ladder_stand_resumed` is the only fixture
+where that range carries steps. A restructure of the range arithmetic should not
+go in against one fixture.
+
+## One state per instruction -- REFUTED as first written
 
 This spec first claimed the row could hold one state, the pre-junction one being a
 projection of the post-junction one. **Three findings kill it, and they are worth
@@ -208,7 +241,12 @@ Each lands alone and makes the next smaller. 0--2 are provably behaviour-identic
    `test-gradient-ladder-identity.R` asks for `expect_identical(split, whole)` --
    bit-exact. Paying tape volume and risking exactness to move a test-only
    parameter from a signature onto a row is a worse trade than the parameter.
-6. **Schedule/record split**: `NodeSchedule`'s merge dissolves.
+6. **Schedule/record split.** ⚠️ **Cannot land before 4, and is not merely
+   vacuous without it -- it is wrong.** `junction` currently sits on a *step* row
+   (the row a junction followed), so filtering `schedule()` on it drops 169 real
+   steps. Measured: 9 failures and 5 errors across `test-scm.R`,
+   `test-strategy-ff16.R` and `test-ode-euler.R`, with `ode_times[c(10, 100)]`
+   reading 3.7, 55.1 against a blessed 0.0, 4.2. **4 and 6 are one increment.**
 7. ~~Plan the widths~~ **dropped**: worth 0.3%, and the three ways to share a
    rebound System across the insertion transpose and the range below it were each
    priced higher than the saving. `apply_insertion` widens the System it records
