@@ -800,3 +800,86 @@ a leaf copy and two marginal evaluations apiece -- the century gradient goes fro
 108 s to 708 s -- so it stays environment-gated. It is the check that turns "the
 curvature is wrong somewhere" into one line of output, and there was no way to ask
 that question before.
+
+---
+
+# UNBLOCKED: the century fixture answers
+
+```
+forward_s     36.22
+gradient_s   391.46
+segments        169
+metric 1: 0/47 non-finite | refusal: NONE
+metric 2: 0/47 non-finite | refusal: NONE
+metric 3: 0/47 non-finite | refusal: NONE
+```
+
+**The first real gradient this fixture has ever produced.** And `segments = 169` is the
+number that opened this whole investigation as a supposed regression -- it was the
+honest count all along, never reported because the gradient always refused.
+
+## The chain, end to end
+
+1. The layer's mean conductivity is a **divided difference** of a TABULATED cumulative
+   curve: `span / (G(max) - G(min))`.
+2. At one operating point of 2,829,445 the collar came within **5.6e-08** of a soil
+   layer's potential, so that span is 5.6e-08 and the denominator differences two
+   nearly-equal table reads.
+3. The VALUE survives it (~4e-10). Every derivative divides by the span again:
+   `duptake_dpsi` carries ~0.7%, and the AD curvature -- which differentiates the value
+   path TWICE -- carries ~0.13 relative.
+4. The corrupted marginal is what the collar solve roots, so it returned a **MINIMUM**
+   of profit.
+5. plant's guard refused to divide by a positive curvature -- **correctly** -- and
+   refusal is metric-level, so 3 metrics x 47 columns went not-a-number.
+
+One cohort at one instant, and the whole census lost.
+
+## The fix, and why this form
+
+Below the crossover the mean of the integrand over the interval is its **midpoint
+value**, to O(span^2). Written as ARITHMETIC from the curve's own closed form -- one
+exp and one pow -- so AD supplies every order and both trait rows exactly. No
+differencing, no cancellation, and no lift whose value comes from a tabulation while
+its coefficients come from two other functions.
+
+`vulnerability_curve_at<T>` is that closed form at any scalar and the double
+`vulnerability_curve` delegates to it: **one definition**. It is the cumulative
+INTEGRAL that needs tabulating, and differencing that integral is what caused all of
+this.
+
+Applied to both paths, because they have different consumers and I got it wrong the
+first time: `duptake_dpsi_impl` feeds the marginal and therefore the SOLVE, while the
+templated `uptake` is what plant's curvature is differentiated through. Fixing only
+the first moved the operating point and left it convex.
+
+## The threshold is measured, not chosen
+
+`test_leaf`'s "the mean conductivity" table differences the two forms across eleven
+decades of span and finds a clean V bottoming at ~1e-11:
+
+| span | rel gap | regime |
+|---|---|---|
+| 1e-2 | 5.751e-07 | midpoint truncation, span^2 |
+| 1e-4 | 5.700e-11 | |
+| **1e-5** | **9.763e-12** | **crossover** |
+| 1e-7 | 4.102e-10 | difference cancellation, 1/span |
+| 1e-11 | 1.370e-05 | |
+
+## What the session's wrong turns were worth
+
+Three hypotheses died by measurement, and the last two died because **the instrument
+was the thing at fault**:
+
+* a finite difference at 1e-6 straddles a 5.6e-08 feature by 32x, and at 1e-8 and
+  below is swamped by the marginal's own ~1e-6 noise divided by the step. Refined
+  across three steps it read -9.63, +166, -10588. **It never converged, so it was
+  never evidence** -- and a probe built on the same step size reported zero exceptions
+  in 2.8 million.
+* the two analytic routes agreed with each other because they **share the corrupted
+  input**, not because they were right. Agreement between routes is only evidence when
+  the routes are independent, and these were not.
+
+The rule this leaves: near a coincidence like this, **no finite difference is a
+referee**, and two routes agreeing prove nothing until you have checked what they
+share.
