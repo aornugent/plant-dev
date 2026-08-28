@@ -936,3 +936,82 @@ segments   169     0/47 non-finite      refusal: NONE
 odelia 346, ladder 673, non-ladder 3295, test_leaf 1121 -- all at baseline. **And the
 plan's cost model finally has numbers taken on a fixture that answers**, which every
 figure before this was not.
+
+---
+
+# The helper, and where increment 2 actually starts
+
+## Seven copies of one mean
+
+Every derivative of the uptake is a MEAN over the layer's suction interval -- the
+conductivity curve for the resistance, one of its trait derivatives for a trait row.
+Seven callers each formed their own as `integral / span`, each "replicated bit-for-bit
+from uptake_impl" in their own words, and each inheriting the same cancellation.
+
+They now read `layer_mean`, `layer_mean_dtrait`, `layer_mean_dbound`,
+`layer_mean_dtrait_dbound`, `layer_mean_dbound2` and `layer_mean_dbound_mixed`, and
+**not one of them builds an integral any more**. `layer_integral` -- the replicated
+construction -- exists once.
+
+Writing them in means is what removes the span from the algebra: `k*span/integral` is
+`k/mean`, `-k*span*dinteg/integral^2` is `-k*mean_d/mean^2`, and the second
+derivatives are the quotient rule on those. The span was what the accuracy was being
+spent on, and it is gone from every formula.
+
+Two further collapses fell out: the choice of accessor past the knots (issue #1's,
+"and NOT the conductivity read") is made in one place instead of at each caller, and
+`integrand_dtrait_kernel<T>` gives the trait curve's value and its psi-slope from one
+expression.
+
+## Two of my own errors, and the check that caught them
+
+⚠️ **The midpoint limits are f'/2, f''/3 and f''/6. I first wrote the last two as
+f''/4.** The continuity sweep could not see it -- those terms contribute little to
+dE/dT at the state it walks -- so it needed a check that compares the two forms
+directly. They meet at 5.4e-06, 8.8e-05 and 2.0e-06, which is what confirms the
+constants: an f''/4 would bottom out near 25%.
+
+⚠️ **And that check found a second error: ONE threshold was wrong for two of three
+quantities.** The divided difference divides by the span once for the mean, twice for
+its bound derivative and three times for the second, so each degrades a decade or more
+earlier than the last:
+
+| span | d/dbound | d2/dbound2 | mixed |
+|---|---|---|---|
+| 5.0e-03 | 5.131e-04 | 4.653e-04 | **6.032e-07** |
+| 5.0e-04 | 5.133e-05 | **1.595e-06** | 8.811e-05 |
+| 5.0e-05 | **5.436e-06** | 2.948e-02 | 5.897e-02 |
+
+A single 1e-5 left both second derivatives on the degraded form across a band two and
+three decades wide. Now 1e-5, 5e-4 and 5e-3, each measured.
+
+**The lesson repeats the session's:** a quantity whose referee cannot discriminate an
+error is a quantity with no referee. The continuity test was real and passed; it was
+simply blind to this, and only a direct comparison of the two forms could see it.
+
+## Where increment 2 starts, and why not here
+
+`implicit_value<S>(p*, dM/dp, M)` needs M evaluated with ACTIVE PARAMETERS. M contains
+`dE_up/dp`, which is `duptake_dpsi`, which is `double`-only. So increment 2's enabling
+step is templating the supply's collar derivative:
+
+1. generalise `uptake`'s `G_integral` lift -- it is a local lambda capturing eight
+   pieces of per-loop context (`use_integral_cache`, `collar_at`, `soil_at`,
+   `G_at_T_collar`, the layer index, `at_scalar`, `root_b0`, `root_c0`)
+2. template `layer_integral`, `layer_mean` and `layer_mean_dbound` on it
+3. template `duptake_dpsi_impl`, which is now four lines of arithmetic over those
+4. build M at scalar S in `leaf_model`, and rewire `collar_at`
+5. delete `CollarCondition`, `collar_condition`, `plain_adjoint` and plant's threading
+
+**The helper is what makes 1-3 tractable**: the enabling step went from seven
+scattered rewrites to three functions, because no caller forms an integral any more.
+
+And there is a referee waiting for it: `d(duptake_dpsi)/dT` taken at a tangent must
+equal `d2uptake_dpsi2` -- two independent routes to one number, which is the only kind
+of check this region admits.
+
+⚠️ **Also still unrefereed, and the reason increment 2 is worth doing beyond
+tidiness:** `cond.gradient` is `dM/dtheta = d2(profit)/dp dtheta`, the same
+second-order class as the curvature, from the same nested pass, and nothing checks it.
+Only the curvature has been measured. Under increment 2 it comes from `implicit_value`
+recording M's own tape -- first order, and refereeable.
