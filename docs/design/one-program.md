@@ -446,6 +446,30 @@ metrics      3
 The pilot reports **0**, the same as the newer pre-pilot plant. The pilot's merge is
 not blocked.
 
+End to end through `scripts/profile-stand-gradient.R` on that same paired library,
+with the refusal now printed:
+
+```
+forward_s          31.91
+gradient_s        108.56
+ratio                3.4
+rate_evaluations   20286
+placements       2333500
+swept_ranges           0
+refusal            ... is 34.414226, which is not negative -- the profit is convex
+                   here ... No curvature floor admits this point
+```
+
+`swept_ranges 0` agrees with the refusal beside it, which is the property target 19
+buys.
+
+⚠️ **The 185.7 s and 189.7 s in the table above are unattributable and must not be
+carried forward.** They were taken on the mispaired arms. The paired figure is
+108.6 s at a ratio of 3.4, and it is still the cost of a discarded sweep, so it is
+a ceiling on the reverse pass rather than a measurement of one. **Every timing in
+the cost model needs retaking on a fixture that answers** -- which is the one thing
+this whole episode leaves open.
+
 ## The two defects that were real
 
 **1. The century profiling fixture has been refusing all along, silently.** On all
