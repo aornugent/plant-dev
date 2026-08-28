@@ -503,24 +503,231 @@ was over static leaf states in a named box, and a stand integrated for 105 years
 reaches operating points outside it. Recorded there, beside the claim. **The sign
 limb is live, not defensive**, which is exactly why it needs its own sentence.
 
-**2. One fact had two representations, and they disagreed for a day.** That is what
-made a bookkeeping change look like a regression and cost this session three wrong
-readings of `swept_ranges 0` -- a defect in the sweep, then a stale member, then a
-regression. It was none of them. Fixed by `subtraction-targets.md` 19 below.
+---
 
-## The subtraction that closes it (target 19 / ✱C)
+# Root cause: the gradient's curvature is wrong, and the model is fine
 
-`segments` and `at_first_state` move off the SCM and onto the `census_gradient`
-struct that already carries `gradient` and `why`. What goes with them:
+Found with the systematic-debugging discipline. **Two hypotheses were formed and
+both were wrong before the third held**, which is the part worth recording -- each
+was killed by a measurement rather than by an argument.
 
-* two SCM members, and **six clear/zero statements** -- two in `reset()`, two at the
-  top of `census_trait_gradient`, two on the post-sweep refusal path
-* two `// [[Rcpp::export]]` accessors, `census_adjoint_segments_tf24` and
-  `census_adjoint_at_first_state_tf24`
-* the "one sweep, read twice" pattern in two ladder tests, which made one call and
-  then read the solver, a pair that can describe two different sweeps
+## The measurements, in order
 
-The zeroing does not move -- it *disappears*. The two values are written only on the
-path that has a sweep to describe, so a refusal leaves them at their defaults rather
-than being cleared back to them. **A value only ever written where it is meaningful
-cannot need zeroing**, and cannot contradict the verdict returned beside it.
+| # | hypothesis / question | verdict | how |
+|---|---|---|---|
+| 1 | `implicit_value`'s nested second derivative is wrong | **REFUTED**, exact to 1.2e-16 | new nested case in `odelia/tests/standalone/probe_implicit_tangent.cpp` |
+| — | is it a regression? | **no** -- the sign limb has existed since the guard's first commit (`63235c78`, 08-11); the fixture's traits never changed | git archaeology |
+| — | why did nothing catch it? | the verification convention was bit-identity, and **`identical(NaN, NaN)` is TRUE in R** -- every check compared one all-NaN gradient against another | archaeology |
+| — | where is it? | NOT the final state; all 2,829,445 operating points in the run are `interior` | `ladder_rhs_adjoint_tf24`, 0.01 s |
+| — | why does the margin look healthy? | `note_curvature` records `std::abs(...)`, so the min margin is 2.66 and the sign is discarded | code read |
+| 2 | the collar solve returned a MINIMUM (a non-monotone marginal, three roots, TOMS748 landing on the upward crossing) | **REFUTED** | a probe dry of every returned root, over 2,829,445 interior solves: the marginal was found rising **zero** times |
+| 3 | the nested-AD curvature disagrees with the marginal the solve rooted | **CONFIRMED** | below |
+
+Hypothesis 2 was reasoned from a true premise -- an interior collar is reached only
+on a bracket the marginal crosses downward, so a converged root with a positive
+slope has to mean non-monotonicity -- and the *premise about the slope* was what
+turned out to be false. **The reasoning was sound and the input was wrong**, which is
+the failure mode a measurement catches and an argument does not.
+
+## The confirmation
+
+At the offending point on the century stand, collar x = 1.7984860121573381:
+
+```
+dprofit(x - h) = +1.7105919821513993e-05   (feasible)
+dprofit(x + h) = -1.7544804400415615e-05   (feasible)
+dprofit(x)     = -1e-06                    (a root)
+                                  h = 1.798e-06
+
+centred difference of the marginal  =  -9.6333037865457243
+plant's collar_condition().slope    = +34.414225767561035
+```
+
+The marginal is **positive** wet of the collar and **negative** dry of it: it crosses
+**downward**. The collar is a genuine interior **maximum**, its curvature is
+**negative**, and the collar solve is correct.
+
+**So the forward model is not wrong.** `Leaf::collar_condition` -- which differentiates
+`Leaf::profit_at` twice in a nested forward-over-reverse scalar -- returns the wrong
+**sign** and about 3.6x the wrong **magnitude**. The gradient refuses a perfectly good
+operating point because it divides by a curvature it computed incorrectly.
+
+This is the better of the two outcomes: **no model result changes**, and fixing it
+makes the century fixture answer for the first time in its existence.
+
+## What is being done about it
+
+* **`CollarCondition::marginal`** -- the FIRST derivative the curvature is taken
+  from, which the same sweep already computes and nothing was reading. At an
+  interior point the solve put the collar where the marginal is zero, so this must
+  be ~0; if it is not, `profit_at` is not the function the solve rooted and its
+  second derivative is the curvature of something else. **Free, and it is the one
+  check this derivation could not make about itself.** Its accessor,
+  `odelia::ode::plain_adjoint`, is one `value` away from `directional_adjoint` and
+  is named rather than written inline for that reason.
+* **`Leaf::nonmonotone_collars`** -- kept even though hypothesis 2 was refuted,
+  because it is what establishes the solve's innocence, and it would catch the
+  failure it was written for if that ever does happen. One extra marginal
+  evaluation per interior solve.
+
+## Still open
+
+Which factor of `profit_at`'s composition loses the curvature. `implicit_value` is
+exonerated by measurement, so the fault is in what `profit_at` freezes around it:
+every `to_passive(...)`, explicit `<double>`, and plain `double` local removes a
+quantity's dependence on the collar, which is harmless for a first derivative when
+the frozen value is the true partial at the point and can be fatal for a second.
+The candidates are the flux inside the ci residual's denominator, the stem
+potential's transport response, and any spline lookup whose second derivative is
+piecewise where its first is not.
+
+## Why the ladder never saw it
+
+Every first-order check passes: the ladder referees gradients against forward
+tangents and finite differences, and the curvature is not a gradient -- it is an
+intermediate the interior derivation divides by. A wrong curvature does not perturb
+a first derivative, it **refuses** it, and a refused metric is all-NaN, which
+`identical()` cannot tell from another all-NaN. So the one fixture that exercises
+this had no way to report it.
+
+---
+
+# The rearchitecture: differentiate the residual, not the objective
+
+## What is fundamental
+
+The leaf chooses a collar potential `p` maximising profit `π(p; θ)`. The optimum
+satisfies `M(p*, θ) = 0` with `M = ∂π/∂p`. Differentiating an argmax **forces** the
+implicit function theorem:
+
+    dp*/dθ = −(∂M/∂θ) / (∂M/∂p)
+
+so `∂M/∂p` — the curvature — is required, not incidental. Two consequences the code
+already half-knows: **π's own row needs no curvature** (envelope theorem, `∂π/∂p = 0`
+at `p*`), and **anything reading `p*` does** — the water outputs, hence
+`resource_depletion`, hence dy/dt. Re-expressing consumers to avoid it is
+**impossible**: the envelope theorem does not extend past the optimal value.
+
+## The insight
+
+`∂M/∂p` and `∂M/∂θ` are **first derivatives of M**. The code obtains them by
+differentiating **π twice**. M already exists as a first-class function —
+`dprofit_at_collar_psi` — and every other closure in this model differentiates its
+own residual once: `bound_at` does, and `implicit_value(y*, dFdy, F)` *is* that
+pattern, used for sigma, ci and both bounds.
+
+**The interior point is the only place in the model that reaches for a second
+derivative, and only because it differentiates the objective instead of the
+condition.** `collar_condition`'s comment -- *"THIS IS THE ONE DERIVATIVE THAT
+CROSSES A BOUNDARY AS A NUMBER, and it crosses because reverse mode cannot nest a
+tangent above its own scalar"* -- describes a problem that exists **solely** as a
+consequence of that choice.
+
+## What the second derivative actually costs today
+
+Not a nested scalar. **A parallel, hand-written second-order model with one consumer
+and no referee.** `profit_at`'s entire p-side residual curvature comes from exactly
+two frozen-`double` Taylor coefficients:
+
+* `leaf_model.hpp:4557` -- `0.5 * d.d2psi * step * step`, the stem integral's psi
+  curvature. Line `:4556` deliberately contributes **zero** curvature, so this one
+  coefficient carries all of it. **No referee anywhere in the tree.**
+* `roots.hpp:1598` -- `c.integrand_deriv`, the root flux curvature. Its sibling
+  `c.deriv` (`:1595`) is the **interpolant's** slope while this is the **closed
+  form's**, so the lift's first and second coefficients belong to two different
+  functions.
+
+The one tested closed-form second derivative that could referee the second --
+`d2E_from_soil_dpsi_collar2`, checked against a difference to 1e-5 in
+`test_leaf.cpp` -- **is called only from tests and never from production.**
+
+⚠️ **And the probe that "exonerated" `implicit_value` proved less than claimed.** Its
+residual `y^3 - p` has **F_pp = 0 and F_yp = 0**, so it verified only the
+`F_yy * y'^2` term. It says nothing about whether those two surrogate lifts deliver
+the right `F_pp` -- the term the collar curvature rests on. Retracted as over-broad;
+the probe needs a residual with `F_pp != 0` and `F_yp != 0`.
+
+## Measured: the AD curvature is right in general
+
+On a 0.5-year stand at the default floor, at every interior point:
+
+```
+curv AD=-2.661353615  diff=-2.661353618  | marginal AD=-1.08e-14  solve=-5.11e-15
+curv AD=-3.773735305  diff=-3.773735302  | marginal AD=-5.83e-15  solve=-9.33e-15
+```
+
+Nine significant figures, and both marginals ~1e-14 -- confirming algebraically what
+the audit derived: **(A) and (B) are the same function to first order.** That stand's
+gradient ANSWERS: 71 segments, 0/47 non-finite, no refusal, in 2.91 s.
+
+**So the century failure is state-specific, not systemic.** The prime suspects are the
+two branches keyed on passive values inside the flux:
+
+* `roots.hpp:1540` -- `else if (std::is_same_v<T, double> && std::abs((collar_at -
+  soil_at) - grav_head_z_[i]) < 1e-8)`. **The double path snaps that layer's flux to
+  zero and the active path does not**, by explicit design: *"Left in place at double
+  because the forward model's numbers are the snapped ones."* Where it fires the two
+  paths are different functions and every derivative of them differs.
+* `roots.hpp:1497` -- the equal-potentials arm is a **first-order-only lift**, so its
+  curvature reads as exactly zero.
+
+## The sentinel is not a barrier
+
+`dprofit_at_collar_psi` returns an exact `0.0` where the collar is shut down or the
+ci solve is infeasible. Asked whether anything depends on it: **two lines, both in
+`differenced_curvature` (`gradient.hpp:625-626`)**, and its own comment says why --
+*"the `feasible` out-parameter that would distinguish it is not carried through the R
+binding."* The solve itself never reads the sentinel; it checks `ok_lo`/`ok_hi`
+**before** the pin tests. A tree-wide grep for any other exact-zero test on a
+marginal finds none.
+
+So the sentinel's only value-consumer is the finite-difference referee for a second
+derivative, and it exists in that form only because a bool could not cross an R
+binding. **Under this rearchitecture both go.** It is not an obstacle; it is a
+consequence of the thing being removed.
+
+## What A subtracts
+
+* **A whole scalar type and its vocabulary**: `directional_adjoint_scalar`,
+  `directional_adjoint_tape`, `seed_inner_direction`, `directional_adjoint`,
+  `plain_adjoint`, `CarriesDirectionUnderAdjoint`. odelia's scalars drop from three
+  to two, and `xad::fwd_adj` stops being needed at all.
+* **`implicit_value`'s second correction** -- the `if constexpr (SecondOrder<S>)`
+  block, the `SecondOrder` concept, the second `record_with_derivatives`, and the
+  paragraph explaining first-order-right/second-order-wrong.
+* **The shadow second-order model**: both Taylor coefficients above, plus
+  `ConditionCurvature`, the `condition_collar_slope` hand formula,
+  `differenced_curvature`, `collar_step`, `shrink_decades`, and the sentinel logic.
+* **The threaded `CollarCondition`** -- `collar_at`'s comment says an interior point
+  is *"the only kind whose condition is a second derivative, so it is the only one
+  whose gradient had to be taken in forward mode and handed over"*. Under A every
+  kind's condition is first order, so the struct threaded through
+  `collar_condition` -> `record_leaf_outputs` -> `collar_at` -> `outputs_at` goes.
+* **The leaf's `static thread_local` tape** -- module state on a hot path.
+
+## What A unlocks
+
+* **The seam goes.** The leaf's derivative stops crossing as a number and composes on
+  the caller's tape like every other closure. The interior point stops being special.
+* **A failure class becomes unrepresentable.** `to_passive(...)` at an operating point
+  is *correct* for a first derivative. Every defect in this document requires a
+  second derivative of a first-order-correct assembly.
+* **Performance twice over**: a nested `fwd_adj` scalar carries a dual value and a
+  dual tape payload per operation, roughly 2x first order; and the per-operating-point
+  tape (once measured at 89 s of a 217 s gradient) is replaced by the live one.
+
+## Designed from the start
+
+**M is the model's function and π is derived from it.** Today π is primary and M is a
+hand-written sibling -- which is why M exists twice, at two scalars, in two
+implementations, and why the two disagree. Under A: the solve roots M at `double`, the
+gradient differentiates M once, π's row is the envelope theorem, and every closure in
+the leaf is identical in shape. *One fact, one representation.*
+
+"Inevitable" is the test and it passes: an argmax closed by a first-order condition
+points at differentiating **the condition**. Differentiating the objective twice is
+the decision that created everything above.
+
+**The honest cost.** Templating M means templating its nested ci and psi_stem
+root-finds -- real work, but `profit_at` already proves it achievable, doing exactly
+that for sigma and ci. And the ladder is the referee: 673 assertions in 45 s.
