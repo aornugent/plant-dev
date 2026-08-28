@@ -883,3 +883,56 @@ was the thing at fault**:
 The rule this leaves: near a coincidence like this, **no finite difference is a
 referee**, and two routes agreeing prove nothing until you have checked what they
 share.
+
+
+---
+
+# All three sites, and the referee the region can actually have
+
+`d2uptake_dpsi2` had the worst of the three cancellations, because `quotient_d2T` is
+built ON `quotient_dT` -- so the numerator that already spent one order of the span
+spends another. Fixed the same way, which completes the set:
+
+| site | consumer | fixed |
+|---|---|---|
+| templated `uptake` | what plant's curvature is differentiated through | yes |
+| `duptake_dpsi_impl` | the marginal, and therefore the SOLVE | yes |
+| `d2uptake_dpsi2` | `marginal_collar_slope()`, the second analytic route | yes |
+
+**And all three now read ONE definition of the curve.** `duptake_dpsi_impl`'s midpoint
+reads had been taking the CLAMPED TABLE while the other two read the function;
+`vulnerability_curve_at<T>` and `vulnerability_curve_slope_at<T>` are that one
+definition, with the double versions delegating. `f''` comes from a tangent through the
+same closed form rather than a hand-derived sibling that could drift.
+
+That was the original defect stated exactly: a lift whose value came from a tabulation
+and whose two coefficients came from two other functions.
+
+## The referee, which is continuity rather than a difference
+
+A difference cannot check this region -- that is *why* the midpoint form exists -- so
+the new check sweeps the collar onto a layer's potential across the crossover and
+requires the sequence to stay smooth and finite:
+
+```
+span       dE/dT                  d2E/dT2
+5.0e-03    7.68627512125918e-06   -2.7085922002691e-08
+1.0e-05    7.68640995784061e-06   -2.69753108270189e-08   <- crossover
+5.0e-06    7.68641009250731e-06   -2.69615862470371e-08
+5.0e-08    7.68641022596688e-06   -2.69614732344725e-08
+```
+
+No jump at the switch; worst step-to-step change 1.4e-05 and 3.8e-03, the latter at the
+crossover itself and being the divided difference's own error there. Before this the
+sweep went to noise below ~1e-07.
+
+## Where it lands
+
+```
+forward_s  32.15   gradient_s  112.16   ratio 3.5
+segments   169     0/47 non-finite      refusal: NONE
+```
+
+odelia 346, ladder 673, non-ladder 3295, test_leaf 1121 -- all at baseline. **And the
+plan's cost model finally has numbers taken on a fixture that answers**, which every
+figure before this was not.
