@@ -382,3 +382,50 @@ which does match both.
   does -- latent, unreachable today.
 * `man/run_scm.Rd` still documents `use_ode_times` and an `ode_step_sizes`
   argument that `run_scm` no longer takes.
+
+
+---
+
+# ⚠️ Open regression: `adjoint_segments` on the refusing fixture
+
+Found by re-tracing the flow, not by a test. **The pilot must not merge until this
+is explained.**
+
+The century profiling fixture's gradient **refuses**: the leaf's profit curvature
+reads 34.4 against a floor of 0.001, on all three metrics, and all 47 columns come
+back non-finite. That has been true all along and no profile output says so -- the
+script prints timings, counts and `swept_ranges`, never the refusal. Every timing
+in the plan's cost model is therefore the cost of a full sweep whose result is then
+discarded. The shares are still valid, because the refusal is latched and polled
+after the sweep completes, but the fixture is not producing a gradient.
+
+On that fixture, one call in a fresh process:
+
+| | gradient | refusal | non-finite | `adjoint_segments` |
+|---|---|---|---|---|
+| before the pilot | 185.7 s | yes | 47/47 | **0** |
+| the pilot | 189.7 s | yes, identical | 47/47 | **169** |
+
+So the answer is unchanged and the timing difference is inside the 2% floor, but a
+diagnostic count moved. `census_trait_gradient` documents 0 as the refused value
+and assigns it at three sites; 169 is the honest number of ranges swept. No test
+catches the difference because every fixture the ladder refuses on is one it does
+not sweep.
+
+**What I could not pin.** The assembly's NaNs and the zeroing read the *same*
+`why`, so a refusal that produces NaN must also zero the count -- yet it did not.
+plant's `scm.h` diff over the pilot is dead code and renames only, nothing near the
+poll, so the cause is on odelia's side. The place I would look next is
+`restore_on_exit`: it ends every `solve_adjoint` with `be_at_step(rec.size() - 1)`,
+which runs a full `compute_environment` + `compute_boundary_nodes` on the double
+System -- a forward evaluation, after the sweep, that the post-sweep poll then
+reads.
+
+**Why this argues for `subtraction-targets.md` 19 (✱C).** `adjoint_segments` and
+`adjoint_at_first_state` are members written from inside `census_trait_gradient`,
+cleared at the top and again on the refusal path -- a return value smuggled out on
+the object. A field on the `census_gradient` struct that already carries `gradient`
+and `why` cannot disagree with the refusal it is reported beside, and cannot be
+read stale by a caller that used a different entry point. This session hit that
+confusion twice before finding the refusal: I read `swept_ranges 0` as a defect in
+the sweep, then as a stale member, and it was neither.
