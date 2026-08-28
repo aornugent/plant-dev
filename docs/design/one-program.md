@@ -731,3 +731,72 @@ the decision that created everything above.
 **The honest cost.** Templating M means templating its nested ci and psi_stem
 root-finds -- real work, but `profit_at` already proves it achievable, doing exactly
 that for sigma and ci. And the ladder is the referee: 673 assertions in 45 s.
+
+---
+
+# The root cause, localised to one point in 2,829,445
+
+Threshold raised to a relative gap of 0.5, century stand, every interior point
+compared against a centred difference of the solve's own marginal. **One
+disagreement:**
+
+```
+rel=4.57  curv AD=34.41422577  diff=-9.633303787
+marginal AD=-1.454809563e-06   solve=-1.454809794e-06
+d(x-h)=1.710591982e-05(1)  d(x+h)=-1.75448044e-05(1)
+x=1.798486012   nearest_soil=5.606982123e-08
+```
+
+Three facts, and together they name the culprit.
+
+**1. The two marginals agree to seven significant figures.** `profit_at` and
+`dprofit_at_collar_psi` are the same function, and its FIRST derivative is right
+even at this point. This **rules out `roots.hpp:1540`'s `is_same_v<T,double>`
+gravity snap**: a different-function defect moves the first derivative too, and it
+does not move. The scalar-gated branch is a real defect and is NOT this one.
+
+**2. Only the second derivative diverges** -- 4.6x relative, sign flipped.
+
+**3. `nearest_soil = 5.6e-08`.** This is the single state in 2.8 million where the
+collar nearly coincides with a soil layer's potential. It sits just OUTSIDE the 1e-8
+equal-potentials threshold, so that arm does not fire and the general branch runs
+with a near-degenerate flux numerator.
+
+So: same function, correct first derivative, wrong second derivative, at a
+near-degeneracy in the root/soil flux. That is `roots.hpp:1598`'s second-order
+Taylor surrogate `c.integrand_deriv` -- whose sibling first coefficient `c.deriv`
+(`:1595`) is the **interpolant's** slope while it is the **closed form's**. Two
+different functions supplying the two coefficients of one lift, which is precisely
+what blows up near a degeneracy.
+
+## What this does to the options
+
+**It is now evidence for A rather than taste.** The first-order path is demonstrably
+correct at the exact point where the second-order path fails. A is built on the half
+that works and deletes the half that fails -- and the surrogate is only needed
+because something takes a second derivative of it.
+
+Ranked by what the evidence supports:
+
+1. **A -- differentiate the residual once.** Deletes the surrogate, the nested
+   scalar, and the failure mode. Measured support: first derivatives correct to 7-14
+   digits everywhere including the offending point.
+2. **Fix `roots.hpp:1598`** so both coefficients of the lift come from the same
+   function. Small, targeted, and leaves the shadow second-order model in place with
+   still no referee.
+3. **Guard the near-degenerate configuration.** Treats the symptom; the surrogate
+   stays wrong wherever else it is stressed.
+
+`roots.hpp:1540` and `canopy_shape.h:284` are separate, real defects found on the
+way. The second is fixed; the first is a derivative of `1/r_R` against a
+locally-constant forward function, and its value gap is discarded at the plant
+boundary.
+
+## The instrument, and its price
+
+`PLANT_COMPARE_COLLAR_CURVATURE` compares the AD curvature against a centred
+difference at every interior point and prints only disagreements above 0.5. It costs
+a leaf copy and two marginal evaluations apiece -- the century gradient goes from
+108 s to 708 s -- so it stays environment-gated. It is the check that turns "the
+curvature is wrong somewhere" into one line of output, and there was no way to ask
+that question before.
