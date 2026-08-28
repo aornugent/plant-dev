@@ -564,8 +564,8 @@ reorganisation that is not there.
 * **Composition does not reduce it.** Recording insertion-then-step as one map
   moves which rebind sits at which width and still leaves two, because the composed
   recording must START narrow while the rest of its range runs wide -- and it
-  destroys the adjoint seam at an insertion row, which `extra_splits`, the identity
-  rung and `adjoint_at_first_state` all read.
+  destroys the adjoint seam at an insertion row, which `extra_stops`, the identity
+  rung and `census_gradient::at_first_state` all read.
 
 **The one recording in the driver that is not forced** is the insertion's, and only
 by asserting its Jacobian instead of recording it: if a new node's initial state
@@ -944,7 +944,7 @@ R  census_trait_gradient_tf24                                census_gradient.cpp
 └─ SCM::census_trait_gradient                                    scm.h, 102 lines
    ├─ resolve which_metrics -> rows      30 lines against a constexpr table   ✱A
    ├─ store_trajectory()                 MAY RE-RUN THE MODEL                ✱B
-   ├─ adjoint_segments = 0 ; adjoint_at_first_state.clear()                   ✱C
+   ├─ (gone: ✱C — both are fields of the returned census_gradient)
    ├─ for species: *uptake_rows_unavailable = false                           ✱D
    │
    ├─ try census_state_and_trait_rows()                                  scm.h
@@ -1071,10 +1071,10 @@ rather than oversights.**
   decode, which is the test the style guide sets. Renaming it would churn two
   packages, five test fixtures and every cross-reference in these documents for no
   reader gain, and `transpose` alone does not say transpose of what.
-* **`adjoint_segments` and `adjoint_at_first_state` are still members**, not
-  fields of the returned value. That is `subtraction-targets.md` 19 and it wants
-  doing with the `n_metric` multiplier below, in one change, because the fix and
-  the move touch the same four write sites.
+* ~~**`adjoint_segments` and `adjoint_at_first_state` are still members**~~ DONE.
+  They are `census_gradient::segments` and `census_gradient::at_first_state`
+  (`subtraction-targets.md` 19), and the `n_metric` multiplier below went with
+  them. Six clear/zero statements and two Rcpp accessors went too.
 
 ## What collapsing the two sweeps closed
 
@@ -1146,11 +1146,10 @@ value, cleared once and polled twice, and both polls are the same call.
 row is filled to is the patch's own rather than an accumulator that may never have
 been built.
 
-⚠️ **What it did not close.** ✱C stays: `adjoint_segments` and
-`adjoint_at_first_state` are still members written from inside this function
-(`subtraction-targets.md` 19), so the refusal path still zeroes them by hand --
-which is the thing a field of the returned value would remove. Same change as the
-`n_metric` multiplier, and it wants doing with it.
+✱C is now **closed** too: `adjoint_segments` and `adjoint_at_first_state` became
+fields of the returned value (`subtraction-targets.md` 19), so the refusal path no
+longer zeroes them by hand -- it never writes them. Closed together with the
+`n_metric` multiplier, as predicted, because both touched the same write sites.
 
 ## What step 7 closed
 
@@ -1181,14 +1180,16 @@ could be trusted.
 
 ## The ladder has absorbed one of the defects
 
-`adjoint_segments = n_metric * solve_adjoint_over_insertions(...)` multiplies a
-range count by a metric count, which `unification.md` 10 names. What it did not
-know is why nobody noticed: `test-gradient-ladder-first-segment.R` asserts
-`expect_equal(ranges, (n_widening + 1) * counts$metrics)` -- the expectation
-carries the same multiplier, while the comment above it states the model correctly
-("one range per width ... one MORE than the number of widenings"). So the check
-agrees with the code and disagrees with its own prose, and removing the multiplier
-has to remove it from both places at once.
+~~`adjoint_segments = n_metric * solve_adjoint_over_insertions(...)`~~ DONE. It
+multiplied a range count by a metric count, which `unification.md` 10 names. Why
+nobody noticed: `test-gradient-ladder-first-segment.R` asserted
+`expect_equal(ranges, (n_widening + 1) * counts$metrics)` -- the expectation carried
+the same multiplier, while the comment above it stated the model correctly ("one
+range per width ... one MORE than the number of widenings"). The check agreed with
+the code and disagreed with its own prose, so the multiplier had to come out of
+both at once, and it did. **An expectation that agrees with the code and disagrees
+with its own comment is the finding** -- the prose was right and the assertion was
+the copy of the bug.
 ---
 
 # What the tape costs, and the mechanics behind it

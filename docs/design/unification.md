@@ -549,13 +549,13 @@ so the template stays; the placeholder no longer has to.
 
 ## 7. A test-only parameter threaded into the production sweep
 
-`census_trait_gradient(extra_splits, which_metrics)` is reached from
+`census_trait_gradient(extra_stops, which_metrics)` is reached from
 `census_gradient.cpp` with `{}` and from `gradient_ladder.cpp:1061` with real
 values. It threads into `solve_adjoint_over_insertions`, where it becomes:
 
 ```cpp
 std::vector<std::size_t> cuts;
-for (const std::size_t s : extra_splits) { if (s > lower && s < upper_end) ... }
+for (const std::size_t s : extra_stops) { if (s > lower && s < upper_end) ... }
 std::sort(cuts.begin(), cuts.end());
 std::size_t upper = upper_end;
 for (std::size_t c = cuts.size(); c-- > 0;) { solver.solve_adjoint(...); ... }
@@ -694,10 +694,13 @@ why). One `keyed_store<Key, Value, N>` keeps it in one place instead of two.
   rather than built per insertion. `one-reverse-pass.md` step 3c has why the report
   stayed.
 
-* **`adjoint_segments = n_metric * solve_adjoint_over_insertions(...)`.** The
-  sweep is shared across metrics -- that is the whole point of the batch -- so
-  multiplying its range count by the metric count reports something no walk did.
-  Whatever the diagnostic is for, it is the sweep's own number.
+* ~~**`adjoint_segments = n_metric * solve_adjoint_over_insertions(...)`.**~~ DONE.
+  The sweep is shared across metrics -- that is the whole point of the batch -- so
+  multiplying its range count by the metric count reported something no walk did.
+  The multiplier is gone from the code and from the expectation in
+  `test-gradient-ladder-first-segment.R` that carried it, and the count itself has
+  since moved onto the returned `census_gradient` as `segments`
+  (`subtraction-targets.md` 19).
 
 * ~~**`refusal` carries three fields nothing writes.**~~ DONE, with the other half
   of `subtraction-targets.md` 4. `node`, `step_first` and `step_last` are gone and

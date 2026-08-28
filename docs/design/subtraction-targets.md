@@ -100,7 +100,7 @@ R  census_trait_gradient_tf24                                  census_gradient.c
    │     [census_metric, metrics_of]
    ├─ store_trajectory()                   MAY RE-RUN THE MODEL       ✱ B
    │     [trajectory, step_record]
-   ├─ adjoint_segments = 0 ; adjoint_at_first_state.clear()           ✱ C
+   ├─ (gone: ✱C — both are fields of the returned census_gradient)
    ├─ for species: *uptake_rows_unavailable = false                   ✱ D
    │
    ├─ try census_state_and_trait_rows()  ──────────────────┐          ✱ D
@@ -155,9 +155,13 @@ the direct term, for a stated and good reason, and the name says none of it.
 
 **✱ H — five words for one idea.** `insertion`, `widening`, `piece`, `segment` and
 `with_insertions` all describe the same thing: a place where the state got wider.
-`sweep.hpp` uses *piece*, `scm.h` uses *segment* (`adjoint_segments`,
+`sweep.hpp` uses *piece*, `scm.h` uses *segment* (`census_gradient::segments`,
 `segment_base_state`), the function is named `over_insertions`, and the failure
 mode is called a widening. A reader has to discover that these are one concept.
+
+Two of the five are gone since: *insertion* absorbed `with_insertions`, and *stop*
+absorbed `split` (`extra_splits` → `extra_stops`), leaving `piece`/`segment` as the
+one pair still to collapse.
 
 ### One step's recording, the level below
 
@@ -958,6 +962,24 @@ the file and then both export files.
 
 Both belong in `census_gradient`, where the caller that wants them can read them
 off the value — and eight write sites and two members go with the move.
+
+**DONE.** They are `census_gradient::segments` and `census_gradient::at_first_state`.
+The two members went, and so did **six clear/zero statements** (two in `reset()`,
+two at the top of the gradient, two on the post-sweep refusal path) and both
+`// [[Rcpp::export]]` accessors.
+
+The zeroing did not move — it disappeared. The two values are written only on the
+path that has a sweep to describe, so a refused metric leaves them at their
+defaults instead of being cleared back to them. **A value written only where it is
+meaningful cannot need zeroing.**
+
+⚠️ **This was not cosmetic, and there is a receipt.** For one day the count and the
+refusal disagreed: `c9aa4bed` found two refusal representations with the zeroing
+attached to only one, so a refusal arriving by latch produced an all-NaN gradient
+beside a live range count. A later session read that count as a regression in the
+sweep and blocked a merge on it. A field beside `why` in the returned struct cannot
+be reached by a caller that used a different entry point, and cannot disagree with
+the verdict it is reported with. Written up in `one-program.md`.
 
 ### 20. ~~A stage address threaded six layers to reach a vector index~~ DONE
 

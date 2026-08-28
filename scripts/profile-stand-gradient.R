@@ -81,4 +81,12 @@ cat("gradient_s        ", round(t_grad, 2), "\n")
 cat("ratio             ", round(t_grad / t_fwd, 1), "\n")
 cat("rate_evaluations  ", counts$evaluations, "\n")
 cat("metrics           ", counts$metrics, "\n")
-cat("swept_ranges      ", scm$adjoint_segments, "\n")
+# How many operating points the sweep placed rather than searched for, which is
+# the count the collar's price is per.
+cat("placements        ", counts$placements, "\n")
+cat("swept_ranges      ", counts$segments, "\n")
+# The most important line here. A refused sweep costs what an accepted one costs,
+# so every timing above is the price of an answer that was thrown away -- and this
+# fixture HAS been refusing, silently, for as long as the script has existed.
+cat("refusal           ",
+    if (nzchar(counts$refusal)) counts$refusal else "none", "\n")

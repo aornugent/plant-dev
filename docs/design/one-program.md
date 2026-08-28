@@ -386,46 +386,117 @@ which does match both.
 
 ---
 
-# ⚠️ Open regression: `adjoint_segments` on the refusing fixture
+# Closed: the `adjoint_segments` scare, and the two real defects under it
 
-Found by re-tracing the flow, not by a test. **The pilot must not merge until this
-is explained.**
+Recorded because the wrong conclusion was written down first and held for a while.
+**There was no regression.** The pilot is exonerated, and it was never measured.
 
-The century profiling fixture's gradient **refuses**: the leaf's profit curvature
-reads 34.4 against a floor of 0.001, on all three metrics, and all 47 columns come
-back non-finite. That has been true all along and no profile output says so -- the
-script prints timings, counts and `swept_ranges`, never the refusal. Every timing
-in the plan's cost model is therefore the cost of a full sweep whose result is then
-discarded. The shares are still valid, because the refusal is latched and polled
-after the sweep completes, but the fixture is not producing a gradient.
+## The measurement was confounded, and the arms were not what they were labelled
 
-On that fixture, one call in a fresh process:
+The comparison read `adjoint_segments` as 0 before the pilot and 169 on it. Neither
+arm was what its name said:
 
-| | gradient | refusal | non-finite | `adjoint_segments` |
-|---|---|---|---|---|
-| before the pilot | 185.7 s | yes | 47/47 | **0** |
-| the pilot | 189.7 s | yes, identical | 47/47 | **169** |
+| directory | holds | built |
+|---|---|---|
+| `lib-copyB` | **plant only** | 08-28 10:02 |
+| `lib-pilot` | **odelia only** | 08-28 15:23 |
 
-So the answer is unchanged and the timing difference is inside the 2% floor, but a
-diagnostic count moved. `census_trait_gradient` documents 0 as the refused value
-and assigns it at three sites; 169 is the honest number of ranges swept. No test
-catches the difference because every fixture the ladder refuses on is one it does
-not sweep.
+Each arm therefore took its other half from the shared user library, whose plant
+was built **08-27 11:56** -- a day and about thirty commits before the pilot. And
+odelia's sweep is header-only: it compiles *into* plant. So the "pilot" arm ran
+yesterday's sweep with the pilot's `odelia.so` linked beside it, and the pilot's own
+plant (`plant/src/plant.so`, 15:27) was never installed anywhere the run could
+reach it -- the profile scripts use `library(plant)`, deliberately, not `load_all`.
 
-**What I could not pin.** The assembly's NaNs and the zeroing read the *same*
-`why`, so a refusal that produces NaN must also zero the count -- yet it did not.
-plant's `scm.h` diff over the pilot is dead code and renames only, nothing near the
-poll, so the cause is on odelia's side. The place I would look next is
-`restore_on_exit`: it ends every `solve_adjoint` with `be_at_step(rec.size() - 1)`,
-which runs a full `compute_environment` + `compute_boundary_nodes` on the double
-System -- a forward evaluation, after the sweep, that the post-sweep poll then
-reads.
+Both arms were pre-pilot plants a day apart. This is AGENTS.md hazard 4 exactly:
+*a number taken across a swap is unattributable, and nothing announces the swap.*
 
-**Why this argues for `subtraction-targets.md` 19 (✱C).** `adjoint_segments` and
-`adjoint_at_first_state` are members written from inside `census_trait_gradient`,
-cleared at the top and again on the refusal path -- a return value smuggled out on
-the object. A field on the `census_gradient` struct that already carries `gradient`
-and `why` cannot disagree with the refusal it is reported beside, and cannot be
-read stale by a caller that used a different entry point. This session hit that
-confusion twice before finding the refusal: I read `swept_ranges 0` as a defect in
-the sweep, then as a stale member, and it was neither.
+## What actually moved the count: `c9aa4bed`, a day before the pilot
+
+`c9aa4bed` *"One refusal, latched and returned; the exception goes"* (08-27 16:30)
+sits inside the window between the two arms. Before it there were two ways to
+refuse, and **the zeroing was attached to only one of them**: the removed lines are
+
+```
+-  } catch (gradient_refusal& e) {
+-    why = e.site;
+-    adjoint_segments = 0;
+```
+
+beside a second, *unthrown* route that set `why` from a latch and left the count
+standing. So a refusal arriving by latch produced the all-NaN gradient **and** a
+live range count. `c9aa4bed` collapsed the two representations into one latch and
+put the zeroing on the unified path, and the count began agreeing with the refusal
+beside it.
+
+169 was the old bookkeeping, not new work. The fix predates the pilot.
+
+## Confirmed on a properly paired library
+
+One gradient call, in one process, with plant **and** odelia both built from the
+pilot (`lib-pair-pilot`):
+
+```
+segments     0
+metrics      3
+  metric 1: 47/47 non-finite | refusal: TF24 gradient: the leaf's profit curvature
+            at this operating point is 34.414226, against a floor of 0.001000 (sp 1)
+```
+
+The pilot reports **0**, the same as the newer pre-pilot plant. The pilot's merge is
+not blocked.
+
+## The two defects that were real
+
+**1. The century profiling fixture has been refusing all along, silently.** On all
+three metrics, all 47 columns non-finite. The scripts printed timings, counts and
+`swept_ranges` and never the refusal, so every number in the cost model is the price
+of a full sweep whose result is discarded. The shares are still valid -- the refusal
+is latched and polled after the sweep completes, so the work is real -- but the
+fixture is not producing a gradient, and nothing said so. Fixed: the ladder's counts
+call now returns the refusal and both profile scripts print it.
+
+**1b. And it is not the refusal it appeared to be.** The guard is
+
+```cpp
+if (!(condition.slope < 0.0) || std::abs(condition.slope) < curvature_floor())
+```
+
+-- two limbs, one `refuse()` call, and one sentence naming the floor for both. The
+century point has `slope = +34.414226`, which is **four orders of magnitude above**
+the floor: the magnitude limb passes comfortably and it is the **sign** limb that
+fires. The point is genuinely convex. Reading "34.414226, against a floor of
+0.001000" as a magnitude failure is the natural reading and the wrong one, and it
+is what sent this session looking at the floor and at the sweep instead of at the
+model. **Two facts sharing one representation, and the reader pays.** Split, so the
+convex case says it is convex and adds that no floor admits it.
+
+This also contradicts a measurement the code states as its own justification.
+`src/control.cpp` argues the floor from a 5625-state sweep in which "every one of
+the 1351 interior points had a strictly negative curvature". The magnitude half of
+that holds and is what the number rests on; the **sign** half does not -- the sweep
+was over static leaf states in a named box, and a stand integrated for 105 years
+reaches operating points outside it. Recorded there, beside the claim. **The sign
+limb is live, not defensive**, which is exactly why it needs its own sentence.
+
+**2. One fact had two representations, and they disagreed for a day.** That is what
+made a bookkeeping change look like a regression and cost this session three wrong
+readings of `swept_ranges 0` -- a defect in the sweep, then a stale member, then a
+regression. It was none of them. Fixed by `subtraction-targets.md` 19 below.
+
+## The subtraction that closes it (target 19 / ✱C)
+
+`segments` and `at_first_state` move off the SCM and onto the `census_gradient`
+struct that already carries `gradient` and `why`. What goes with them:
+
+* two SCM members, and **six clear/zero statements** -- two in `reset()`, two at the
+  top of `census_trait_gradient`, two on the post-sweep refusal path
+* two `// [[Rcpp::export]]` accessors, `census_adjoint_segments_tf24` and
+  `census_adjoint_at_first_state_tf24`
+* the "one sweep, read twice" pattern in two ladder tests, which made one call and
+  then read the solver, a pair that can describe two different sweeps
+
+The zeroing does not move -- it *disappears*. The two values are written only on the
+path that has a sweep to describe, so a refusal leaves them at their defaults rather
+than being cleared back to them. **A value only ever written where it is meaningful
+cannot need zeroing**, and cannot contradict the verdict returned beside it.

@@ -336,9 +336,10 @@ read without their status.
 - **14 Rcpp exports in `census_gradient.cpp`, of which ~9 are instrumentation:**
   `census_operating_point_counts`, `_names`, `_clear`, `census_clamp_counts`,
   `census_clamp_counts_differentiated`, `census_clamp_names`,
-  `census_curvature_margin`, `census_adjoint_segments`,
-  `census_adjoint_at_first_state`, plus `census_trait_difference` and
-  `census_trait_gradient_split`. Only `census_tf24`,
+  `census_curvature_margin`, plus `census_trait_difference` and
+  `census_trait_gradient_split`. (`census_adjoint_segments` and
+  `census_adjoint_at_first_state` are **gone** — their values are fields of the
+  returned `census_gradient`, per `docs/design/subtraction-targets.md` 19.) Only `census_tf24`,
   `census_metric_names_tf24`, `census_trait_names_tf24`,
   `census_trait_gradient_tf24` and `gradient_control_tf24` serve
   `stand_gradient()`.
