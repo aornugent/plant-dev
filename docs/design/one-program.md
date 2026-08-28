@@ -98,8 +98,8 @@ What the flag still buys, and it is worth having:
 * `insertion_rows` becomes a read of an authored fact rather than
   `!inserted.empty()`, so **the junction structure is known on a non-recording
   run** -- today `push_inserted` returns early when `!keep_states_`, so it is not.
-* `solve_adjoint`'s `!rec[hi].inserted.empty()` guard is **dead today**
-  (`insertion_rows` cannot produce an empty one) and becomes structural.
+* `solve_adjoint`'s stop guard reads the flag rather than the recorded state,
+  which is the same fact without needing states.
 * The executor can interleave junctions, which is what collapses `sweep.hpp`.
 
 ## Where the leverage is: the executor already exists
@@ -188,14 +188,26 @@ the surface keeps working; they become thin wrappers that build a plan and run i
 
 Each lands alone and makes the next smaller. 0--2 are provably behaviour-identical.
 
-0. **Free deletions.** `Solver::step()`, `SCM::run_next`, the dead node cluster.
-1. **The flag exists.** `push_inserted` sets it beside `inserted`. Nothing reads it.
-2. **`insertion_rows` reads the flag.** Behaviour-identical on recording runs, and
-   newly correct on non-recording ones.
-3. **The executor.** `advance_recorded` executes a junction instruction; the
-   generators emit the flag; `advance_over_insertions` becomes one call.
+0. ~~**Free deletions**~~ **DONE.** `SCM::run_next` and the `sync_patch` parameter
+   it was the only caller for, plus the dead node cluster. `Solver::step()` was
+   *not* dead -- see above.
+1. ~~**The flag exists**~~ **DONE**, set before the `keep_states_` check. Same
+   commit took the last row index used as an address.
+2. ~~**`insertion_rows` reads the flag**~~ **DONE**, and it is step 1's check:
+   set the flag never and `first-segment.R` fails at once with a width mismatch,
+   ten passes becoming four.
+3. ~~**The executor**~~ **DONE.** `advance_recorded` applies the System's map
+   after a junction row; `advance_over_insertions` is a program build and one
+   call, 30 lines to 12. Verified by breaking it -- with the map never applied,
+   rung5 fails 33 assertions. The stop guard reads the flag too.
 4. **Delete `inserted` and `ran_from()`**; the pre-junction state is a projection.
-5. **`extra_splits` becomes identity junctions**; delete the parameter.
+5. ~~`extra_splits` becomes identity junctions~~ **REFUSED.** A cut is free
+   today: its row carries no recorded wider state, so the stop guard falls
+   through and no map is transposed there. An identity junction replaces that
+   with a recorded map on the tape, and
+   `test-gradient-ladder-identity.R` asks for `expect_identical(split, whole)` --
+   bit-exact. Paying tape volume and risking exactness to move a test-only
+   parameter from a signature onto a row is a worse trade than the parameter.
 6. **Schedule/record split**: `NodeSchedule`'s merge dissolves.
 7. ~~Plan the widths~~ **dropped**: worth 0.3%, and the three ways to share a
    rebound System across the insertion transpose and the range below it were each
@@ -320,7 +332,12 @@ which does match both.
   assuming `rec` spans that very `prev_steps`, which nothing checks. `sweep_range`
   already holds `rec[k]`, so `rec[k].solved` is the same object without the index
   or the assumption. This is the survivor of step 6's address removal.
-* `solve_adjoint`'s `!rec[hi].inserted.empty()` guard is unreachable-false.
+* ~~`solve_adjoint`'s `!rec[hi].inserted.empty()` guard is unreachable-false.~~
+  **Wrong, and it matters.** `stops` merges the junctions the run recorded with
+  the cuts a caller asked for, and a cut's row has no recorded wider state -- so
+  testing that state is exactly how a cut got to be free. The de-risking pass
+  reached its conclusion from `insertion_rows` alone. The guard now reads the flag
+  and says so.
 * `state_at_segment`'s header comment is **stale**: it says no record holds the
   widened state, and `rec[start].inserted` holds exactly it.
 * `apply_insertion`'s fallback path does not size `out` where the member path
