@@ -1928,3 +1928,60 @@ zero at a hydraulic shutdown, are the bound's own response at a pin, and are the
 theorem's quotient only at kind S. **They are supplied numbers, which is exactly what
 lets one graft serve all five** -- where an identity assumed by the interface would
 be right at one kind and silently wrong at the others.
+
+## The surface, mapped — three corrections and one confirmation
+
+**TWELVE operating-point kinds, not five.** `OperatingPointKind` (`leaf_model.hpp:2009`)
+has twelve enumerators. "Five" is the number of PLACEMENT ARMS in `collar_at`;
+`ShadeDeath` shares the wet arm, `HydraulicShutdown` does not move the collar at all,
+and the other six reach `default:` and **throw**, which the catch at
+`tf24_strategy.h:1491` turns into a refusal. A graft handles this without a branch --
+the coefficients are simply zero where the collar does not respond -- but the six
+throwing kinds must go on throwing.
+
+**⚠️ The code already states this design, in a comment, beside a function written for
+it.** `roots.hpp:1627-1632`, on `d2uptake_dpsi_dpsi_soil`:
+
+> a row of the mixed second derivative of profit is **a pair of scalars times this
+> vector** and `d(E_i)/d(psi_soil[i])`. Differencing it instead costs 2(L+1) leaf
+> re-evaluations per cohort per stage.
+
+"A pair of scalars times this vector" **is** rank two, written down, next to a
+function that exists to serve it. And `against()` (`leaf_model.hpp:4760`) -- every
+input paired with its own entry in a gradient over the same struct -- is still in the
+tree with **no callers at all**. It is the last surviving piece of the supplied-row
+design, whose consumer was `collar_at`'s Interior arm until `ec7bb6c` replaced it with
+a taped residual. `Leaf::BoundRow` (`leaf_model.hpp:1066`) is the same shape for one
+output and is live on the R path.
+
+**The supply's closed-form Jacobian already exists, and recording it is still the
+right choice.** `duptake_dpsi_soil` (diagonal, and exactly the whole soil Jacobian
+rather than its diagonal part), `duptake_droot_carbon` (L x L and **lower triangular**
+-- a layer's carbon reaches every layer below it through `r_R_V_sum`, so an
+implementation assuming diagonality gets the shallow layers right and loses the deep
+ones), `duptake_droot_curve_by_layer`, and the two mixed second derivatives. All
+closed form, all with callers -- but on the R calibration path, not plant's.
+
+Supplying them would mean carrying an L x L block and its NaN contract across the
+boundary. **Recording the supply instead is 187 statements and asks the model for
+nothing**, which is report 02 (4)'s rule applied where it belongs: record what you can
+afford, supply only what you cannot.
+
+## The graft is acyclic, which is the last thing to check
+
+`E_i` depends on the collar and the collar's row depends on `E`, so the order matters.
+It resolves because everything anchors at the passive `p*` the double solve returned:
+
+```
+1. record the supply at the PASSIVE p*      187 statements; E, S and every E_i,
+                                            each already carrying the state's rows
+2. graft the collar                         p = p* + dp_dE(E-E0) + dp_dS(S-S0) + traits
+3. graft profit                             Pi = Pi* + dPi_dE(E-E0) + traits
+4. graft each layer's chain                 E_i_out = E_i + duptake_dp[i]*(p - p*)
+```
+
+**About 194 statements, no circularity, and profit's collar channel never appears** --
+which is the envelope theorem as an omitted term rather than one that has to come out
+to zero. `outputs_at` already passes the collar passive to `profit_at` at an interior
+point (`leaf_model.hpp:4889`) for exactly this reason, so the structure is not new;
+what changes is that `collar_at`'s 616 statements become one.
