@@ -202,12 +202,28 @@ draw answers with the uptake from somewhere else and every value stays finite.
 `check_draw` is what makes that a stop; it caught two real mistakes the moment it
 existed.
 
-⚠️ **The per-layer draws stay RECORDED, and that is this document's own rule
-winning over its own step 4.** `duptake_dpsi` already returns the per-layer collar
-slopes, so grafting them is available and would save the last ~86 statements. It is
-refused because that vector is **NaN by contract where a bound meets a layer**, and
-a coincidence of exactly that kind at 5.6e-08 is what corrupted this model once
-already. Recording is what we can afford; supply only what you cannot.
+⚠️ **The per-layer draws stay RECORDED for now, and the rest of the graft should
+not be built at all.** What is left above the waist splits three ways: 187
+statements of supply that must stay recorded, **86 of layer draws that are worth
+grafting once the NaN contract is fixed**, and 169 of gas exchange that are not.
+
+`duptake_dpsi` already returns the per-layer collar slopes, so the layer graft is
+available today; it is held only because that vector is **NaN by contract where a
+bound meets a layer**, and a coincidence of exactly that kind at 5.6e-08 corrupted
+this model once already. `dE_i/dp` is a plain chain rule with no envelope
+subtlety and the transpose identity referees it exactly, so fixing the contract
+makes it a good trade.
+
+**Supplying profit's and the collar's rows is a different question and the answer
+is no.** The objection is not NaN, it is that the envelope theorem's
+kind-dependence stops being structural and becomes a coefficient table a human
+maintains. `outputs_at` gets it right today by OMISSION -- it hands profit the
+passive collar at `Interior` and the live one otherwise -- so AD follows the branch
+the model actually took. Supplying rows means hand-encoding `dprofit_dcollar`
+correctly at twelve kinds, and the struct at the top of this file already got that
+wrong. The rows also still have to be PRODUCED, by a vector tangent inside the
+leaf, so the mechanism count does not fall: a graft protocol replaces a recorded
+surface. Step 7 depends on this, and so does not land either.
 
 ### Two corrections to what is written above
 
@@ -223,12 +239,43 @@ consumer that infers it is correct at one kind and silently wrong at the others.
 `(G(hi) - G(lo))/span`, and that cancels as the span shrinks *however* `G` is
 obtained -- an exact incomplete-gamma `G` still differences two O(1) numbers to get
 an O(span) one, so the relative error is `eps/span`. Each derivative divides by the
-span again, which is why there are three thresholds and not one. The only
-representation that removes them is a **stable divided difference**: where `lo` and
-`hi` fall in the same polynomial piece of the tabulated `G`, evaluate
-`(p(hi) - p(lo))/(hi - lo)` symbolically on that piece, which is exact to relative
-precision and analytic as `hi -> lo`. That is a capability of an interpolator and
-belongs in `odelia/interpolator.hpp`, not in phylloptim's ten call sites.
+span again, which is why there are three thresholds and not one.
+
+**And the answer is NOT a stable divided difference in odelia's interpolator**,
+which is what this file said first. `probe_layer_mean` prices three candidates
+against a reference that has no cancellation at any span -- Gauss-Legendre at high
+order on the closed-form integrand. Worst relative error over spans 1e0 to 1e-12 at
+three centres:
+
+| | mean | d/dbound | d2/dbound2 | mixed |
+|---|---|---|---|---|
+| the model, three thresholds | 2.07e-12 | **2.24e-06** | **2.67e-05** | 4.97e-07 |
+| Gauss 5 on the closed form | 2.18e-11 | 3.23e-09 | 1.98e-08 | 1.03e-07 |
+| **Gauss 7** | **2.66e-14** | **5.28e-12** | **4.54e-11** | **2.57e-10** |
+
+The model's worst is in the band BETWEEN its thresholds, where neither form it
+switches between is good. A quadrature is six orders better there and needs no
+threshold, because `mean = 0.5 * sum w_i f(x_i)` is analytic in both bounds and
+**nothing divides by the span at any order** -- every derivative is the same sum
+one order up.
+
+It costs 10x to 16x a table read (0.0118 us against 0.1899 for the mean; 0.0200
+against 0.2041 for the first bound derivative), so it is not a hot-path
+replacement. The lean shape is **one COST threshold in place of three ACCURACY
+thresholds**: above about a span of 1e-1 the table's difference is accurate and
+cheap, below it the quadrature is accurate. That is a different kind of number --
+the three now are crossovers between two forms that are both bad in the middle, so
+being wrong about one falls off a cliff, where a cost switch picks the cheap form
+only where both are accurate and degrades gracefully. It takes the asymptotic
+branch, the `f''/3` and `f''/6` limits, `curve_slope2_at`,
+`curve_slope_at_for_test` and the two branch-agreement tests with it.
+
+⚠️ **Two things this has not settled.** The reference is the CLOSED-FORM curve while
+the model's mean is of the tabulated one, so for the VALUE there is a real argument
+for consistency with the table the solve ran on; there is none for the derivatives,
+where 2.7e-05 is cancellation rather than consistency. And the end-to-end cost is
+unmeasured: the threshold makes it near-free only if small spans are rare, which is
+one counter away from being known.
 
 ---
 
