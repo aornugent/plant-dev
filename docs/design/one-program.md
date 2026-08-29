@@ -1815,3 +1815,116 @@ itself is nearly free there -- read `d2(profit)/dp d(vcmax)` as **exactly zero**
 against a differenced 2.97e-03, because every `implicit_value` correction is built as
 `x - to_passive(x)` and the inner tangent goes with the strip. **Any route that keeps
 a nested scalar has to reckon with that; the rank-two route does not have one.**
+
+---
+
+# Proven, not cited: the rank, and the data structure it names
+
+The reports assert rank one and rank two and measure it on an earlier tree. That is
+a citation, not evidence. `probe_rank` asks THIS model, and it is built so that it
+can fail.
+
+## The test, and why it can fail
+
+At a **held** collar, if profit reads the supply only through total uptake `E`, then
+for every input that reaches profit through the supply and nowhere else,
+`dprofit/du_k = c * dE/du_k` with ONE constant. If the condition reads it only
+through `(E, S = dE/dp)`, then `dR/du_k = a*dE/du_k + b*dS/du_k` with one pair. Both
+are least squares over the inputs; an exact rank predicts a residual at rounding.
+
+Three things make it a test rather than a formality:
+
+* **The control.** The photosynthetic traits, the light and the stem parameters reach
+  profit DIRECTLY. They must FAIL both fits, and they do -- at a relative residual of
+  **1.000**, the whole of the value. A test that passed for everything would be
+  measuring nothing.
+* **The conditioning.** A two-column fit over collinear columns is satisfied by
+  anything, so the probe reports how much of `S` is independent of `E`. It is
+  **98.4% to 99.9%** -- very nearly orthogonal, so the fit is maximally constrained.
+* **Asymmetric layers.** The soil potentials differ per layer, so no result can come
+  from an accidental symmetry between interchangeable layers.
+
+## The result
+
+Seven states, both operating-point kinds the fixture reaches, 1/3/5 layers,
+wet to the root limit, all at `FReal<double>` -- one forward tangent, no tape:
+
+| state | point | profit = c*E | R = a*E + b*S | S indep. of E |
+|---|---|---|---|---|
+| wet, 5 layers | interior | 1.484e-15 | 7.857e-15 | 0.9921 |
+| drier, 5 layers | pinned-wet | 1.931e-15 | 1.982e-15 | 0.9969 |
+| drier still, 5 layers | pinned-wet | 3.387e-15 | 1.713e-15 | 0.9951 |
+| near the root limit | pinned-wet | 8.120e-15 | 1.823e-15 | 0.9933 |
+| three layers | interior | 1.427e-15 | 1.354e-14 | 0.9898 |
+| one layer | interior | 1.763e-15 | 3.624e-14 | 0.9844 |
+| one layer, dry | interior | 9.911e-15 | 1.343e-15 | 0.9994 |
+
+**Seventeen supply-side inputs collapse onto ONE number for profit and TWO for the
+condition, at machine precision, at every state tried.** The claim is established on
+this model.
+
+## What still has to be taped, measured
+
+**187 statements** at five layers: `E_from_soil_at` and `duptake_dpsi_at` together,
+which is the whole soil-to-collar supply -- closed-form Ohm's law over a tabulated
+integral -- and which yields `E`, `S` and every per-layer draw in one pass.
+
+Against **861** for a whole placement today.
+
+## The data structure
+
+The boundary is not "the leaf". **It is the two waists**, and once they are named the
+logic has nowhere else to go:
+
+```
+plant RECORDS the supply           187 statements, cheap arithmetic, and it is
+                                   where the numerous inputs actually live -- the
+                                   soil potentials ARE plant's own state
+
+the leaf SUPPLIES its rows         doubles, because the model that produces them
+                                   is too expensive to tape and reaches the state
+                                   through two scalars
+```
+
+```cpp
+// Everything the leaf's own model does, as numbers. The state does not appear:
+// it reaches this leaf through E and S and nothing else, which is measured.
+struct LeafGraft {
+  double profit, collar;                 // Pi* and p*
+  double dprofit_dE;                     // rank one -- the whole supply channel
+  double dcollar_dE, dcollar_dS;         // rank two; both zero where p is not stationary
+  double dprofit_dtrait[n_trait];        // the direct channel
+  double dcollar_dtrait[n_trait];
+  double uptake[L], duptake_dp[L];       // the draws, and their chain through p*
+};
+```
+
+and plant grafts three things onto the supply it already recorded:
+
+```
+Pi   = profit + dprofit_dE*(E - E0) + sum_k dprofit_dtrait[k]*(theta_k - theta_k0)
+p    = collar + dcollar_dE*(E - E0) + dcollar_dS*(S - S0) + sum_k ...
+E_i  = uptake_i(recorded, already carrying the state)  +  duptake_dp[i]*(p - p0)
+```
+
+**Per placement: about 195 recorded statements against 861** -- and the 674 removed
+are the expensive ones, the transcendentals and the tangent above the adjoint, while
+the 187 kept are cheap.
+
+## What it subtracts
+
+Everything ABOVE the waist stops being templated on the tape's scalar:
+`profit_at<S>`, `collar_at<S>`, `outputs_at<S>`, `marginal_at<S>`,
+`collar_coords_at<S>`, `marginal_assembled<T>` and its nested tangent, the
+`implicit_value` closures for sigma, ci and both bounds at an active scalar,
+`SecondOrder` and both branches it selects. The supply BELOW the waist stays
+templated, because plant records it -- `layer_mean_at<T>`, `cumulative_lift<T>` and
+`duptake_dpsi_at<T>` all survive, and they are the ones this session already made
+correct.
+
+⚠️ **And the leaf's own five kinds do not go away.** The envelope theorem holds at an
+interior stationary maximum and nowhere else, so `dcollar_dE` and `dcollar_dS` are
+zero at a hydraulic shutdown, are the bound's own response at a pin, and are the
+theorem's quotient only at kind S. **They are supplied numbers, which is exactly what
+lets one graft serve all five** -- where an identity assumed by the interface would
+be right at one kind and silently wrong at the others.
