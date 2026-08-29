@@ -159,9 +159,10 @@ the direct term, for a stated and good reason, and the name says none of it.
 `segment_base_state`), the function is named `over_insertions`, and the failure
 mode is called a widening. A reader has to discover that these are one concept.
 
-Two of the five are gone since: *insertion* absorbed `with_insertions`, and *stop*
-absorbed `split` (`extra_splits` → `extra_stops`), leaving `piece`/`segment` as the
-one pair still to collapse.
+Four of the five are gone since: *insertion* absorbed `with_insertions`, *stop*
+absorbed `split` (`extra_splits` → `extra_stops`), and *piece* went with
+`sweep.hpp`'s collapse. *widening* survives in comments only, so `segment` -- in
+plant's diagnostic -- is the one word left, not a pair.
 
 ### One step's recording, the level below
 
@@ -187,10 +188,8 @@ Step::step_adjoint                                          ode_step.hpp
                │  └─ for node: Strategy::compute_rates
                │     ├─ solve_leaf() ─ place_solved_point(leaf_points->next())
                │     └─ record_leaf_outputs                    phylloptim
-               │        ├─ collar_condition   ── A SECOND TAPE ──          ✱ M
-               │        │    directional_adjoint_tape<double>, thread_local
-               │        │    record + sweep, nested inside this recording
-               │        ├─ collar_at   → implicit_root   (row supplied)
+               │        ├─ collar_at   → implicit_value  (the collar's own residual)
+               │        │    marginal_at → marginal_assembled, at FReal<AReal>   ✱ M
                │        └─ outputs_at
                │           ├─ profit_at → implicit_value ×2  (sigma, ci)
                │           │    each with a forward tangent for its own slope
@@ -209,13 +208,14 @@ it picks up a second argument on the way. See entry 20.
 the state twice as far as the reader is concerned: once to announce the stage,
 once to set the values.
 
-**✱ M — a second tape, of a different scalar type, nested inside the first.**
-`collar_condition` builds a `directional_adjoint_tape<double>` — the tangent-
-under-adjoint scalar — records the whole profit chain on it and sweeps it, once
-per placement, while plant's `adjoint_tape<double>` is mid-recording. They do not
-collide because XAD keys the active tape by scalar type. Nothing states that
-invariant; it is what makes the design legal, and it is discoverable only by
-knowing XAD.
+**✱ M — a nested scalar, still, in the other order.** The second TAPE is gone with
+`collar_condition`: the collar's residual now composes on plant's own tape. But
+`marginal_assembled` takes its two kernel slopes with `xad::fwd<T>::active_type`,
+so at the gradient it runs at `FReal<AReal<double>>` -- a tangent above the
+adjoint, whose value AND derivative both record onto plant's tape, and which is
+then swept once per metric. Measured at 11.6% of the gradient and about 60% of
+increment 2's cost; `one-program.md` has the profile. The nesting was not removed,
+it was inverted and inlined, and it does not grep as what it is.
 
 ~~**✱ N — `resource_depletion` is a Patch member used as a per-call scratch**,
 reserved, filled, and cleared at the end of `compute_rates`, with
@@ -252,7 +252,7 @@ The +10,872 splits: **~6,694 tests, ~2,986 shipped headers, ~913 shipped R layer
 | input/output plumbing — `ProfitInputs`, `LeafInputs`, `SupplyValues`, `SupplyAt` | 101 |
 | caching — two curve stores and `CurveReads` | 89 |
 | operating-point record — `SolvedPoint`, `place_solved_point` | 58 |
-| `collar_condition` and `against` — the second-order pass | 48 |
+| ~~`collar_condition` and `against` — the second-order pass~~ gone | 48 |
 | orphaned row types | 43 |
 
 **So `record_leaf_outputs` reaches 263 code lines of differentiable model.** The
@@ -287,13 +287,18 @@ per-step transposes and the tape lifecycle are all below it.
 
 **phylloptim wants a primitive**: put a value the leaf solved onto whatever tape is
 already recording. It never touches the sweep. Per placement it uses
-`implicit_value` twice (the stem potential and the intercellular CO2),
-`implicit_root` once (the collar), `record_with_derivatives` under both, plus
-`to_passive`, `seed_direction` and `derivative_along` — and, for
-`collar_condition`, the nested scalar: `directional_adjoint_tape`,
-`seed_inner_direction`, `directional_adjoint`.
+`implicit_value` for the stem potential, the intercellular CO2, both bounds and
+now the collar itself, `record_with_derivatives` under all of them, plus
+`to_passive`, `seed_direction` and `derivative_along`.
 
-⚠️ **So the implicit-node surface and the nested scalar stay public.** They are not
+⚠️ **The nested-scalar half of this no longer applies.** `collar_condition` is gone,
+and with it the only consumer of `directional_adjoint_scalar`,
+`directional_adjoint_tape`, `seed_inner_direction`, `directional_adjoint` and
+`CarriesDirectionUnderAdjoint` -- all five are deleted, and so is
+`implicit_value`'s second correction, which no production call site could reach.
+What phylloptim still needs from odelia is the implicit-node surface alone.
+
+⚠️ **So the implicit-node surface stays public.** It is not
 internals of the sweep to be folded into a single entry point — they are used
 inside someone else's recording, by a package that has no solver, no recording and
 no sweep. A revision that hides them behind "transpose a recorded run" strands the
@@ -853,8 +858,14 @@ give the top of the chain a parameter type and has no other use.
 The distinction that matters, since `roots.hpp` is full of `d...` functions:
 `dE_from_soil_dpsi_collar`, `duptake_dpsi`, `d2uptake_dpsi2` and
 `dE_from_soil_dpsi_soil` **are production** — the wet bound's slope reads the
-first, and `CurveReads` reads `root_vuln_integral_dtrait`. Only the root-curve
-branch is orphaned.
+first, `marginal_collar_slope` reads the middle two, and `CurveReads` reads
+`root_vuln_integral_dtrait`. Only the root-curve branch is orphaned.
+
+⚠️ **Check this list against increment 2 before deleting from it.** That increment
+was scoped to need `d2uptake_dpsi_droot_curve` and `d2uptake_dpsi_dpsi_soil` for
+M's parameter rows and then landed by a route that did not use them, so their
+status is "named by a plan that took another road" rather than settled. The four
+in the table above are unaffected.
 
 ### 16. Seven row types that outlived the row layer
 

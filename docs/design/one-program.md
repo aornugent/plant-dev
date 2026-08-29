@@ -1217,3 +1217,115 @@ flux twice on a tape it was already paying for.
 `marginal_at`, then `outputs_at` builds them again for `profit_at`, per node per step.
 They are at different collars -- one is the residual's variable, the other the placed
 value -- so they cannot simply be shared, but that is where the duplicated work is.
+
+---
+
+# The gradient's third: root cause
+
+The +33% was real, and it is one function. Found with the four-phase discipline;
+what it cost to find was two profiles and one grep, because the counted numbers
+ruled out most of the space before any timing was read.
+
+## What the counts ruled out first
+
+Both arms profiled back-to-back in one session at 250 Hz, arm A the pre-increment-2
+commits and arm B increment 2, each verified by grepping its INSTALLED headers
+rather than by the directory it sat in:
+
+| | arm A | arm B |
+|---|---|---|
+| forward | 37.06 s | 34.82 s |
+| gradient | 118.04 s | **154.34 s** |
+| rate evaluations | 20,286 | 20,286 |
+| placements | 2,333,500 | 2,333,500 |
+| swept ranges | 169 | 169 |
+| metrics | 3 | 3 |
+
+**Every counted number is identical, so it is not more calls -- it is more work per
+call.** And the forward is unchanged, so it is the recording path. Sample totals
+reconcile with the wall clock to under 1% on both arms, which is what says the
+profiles are of the thing that was timed.
+
+## What the profile says, and what it eliminates
+
+Self time, arm A -> arm B, in samples:
+
+| | A | B | delta |
+|---|---|---|---|
+| `computeAdjointsToImpl` + its lambda | 6,826 | 11,440 | +4,614 |
+| `OperationsContainerPaired::for_each` | 2,140 | 2,813 | +673 |
+| `append_n` | 1,454 | 1,987 | +533 |
+| `unregisterVariable` | 1,113 | 1,652 | +539 |
+| `std::max` (the slot high-water mark) | 995 | 1,498 | +503 |
+| `memset` + `__fill_a1` (`initDerivatives`) | 859 | 1,840 | +981 |
+
+Those sum to about 8,500 against a total delta of 8,523. **Essentially all of the
+regression is XAD bookkeeping -- writing the tape and walking it -- and none of it
+is the model's arithmetic**, which got CHEAPER: `uptake_impl` 5,285 -> 4,544,
+`duptake_dpsi_impl` 2,799 -> 2,385, `toms748_solve` 8,498 -> 8,001. That eliminates
+the double-precision path, the midpoint work and the layer means in one reading.
+
+## The cause: a tangent above the adjoint, on plant's tape
+
+`marginal_assembled` is **11.6% of the whole profile, about 22 s, and does not
+exist in arm A at all** -- roughly 60% of the regression in one function.
+
+`leaf_model.hpp:1197` is `using TT = typename xad::fwd<T>::active_type`. At the
+gradient `T` is `active_scalar<double>`, so **TT is `FReal<AReal<double>>`: a
+tangent wrapping an adjoint.** Every operation on it carries a value and a
+derivative, both of which are `AReal<double>`, so **both halves record onto
+plant's tape** -- which is then swept once per census metric, three times.
+
+Three kernels and thirteen `lift`s run at that scalar per interior placement,
+2,333,500 of them. The focused profile settles what they spend it on: inside
+`marginal_assembled`, `exp_inline` is about 148 samples and everything else is
+`registerVariable`, `std::max`, `pushLhs`, `append_n` and `BinaryExpr`. **The
+arithmetic is a rounding error; the cost is the tape.**
+
+Beside it: `collar_coords_at` at 3,484 samples is the SECOND coordinate build at
+the active scalar, and `duptake_dpsi_at` at 811 is the extra active per-layer walk.
+Those are the rest of the delta.
+
+⚠️ **Increment 2 did not delete the nested scalar. It deleted odelia's NAMED one
+and rebuilt the opposite nesting by hand in the hot path.** `directional_adjoint_scalar`
+was `AReal<FReal<double>>`, adjoint outside; this is `FReal<AReal<double>>`, tangent
+outside. It does not grep as what it is, because it is spelled
+`xad::fwd<T>::active_type` at the use site. And `ode_interface.hpp` claimed beside
+the deleted alias that *"no tangent scalar wraps an adjoint one"* -- which the
+family had been doing, per placement, since increment 2 landed.
+
+## The second defect, which is free
+
+`marginal_collar_slope(in.profit.rebind_from<double>())` is evaluated **twice per
+interior placement with identical arguments**: `tf24_strategy.h:1352` for the
+curvature guard, `leaf_model.hpp:4882` as the closure's `dFdy`. The comment above
+the first says *"⚠️ THE SAME NUMBER THE CLOSURE DIVIDES BY"* -- so the code states
+the identity and then computes it a second time. It is double-precision work, so
+it is a small share of the regression; it is still two sources for one fact, and
+the guard's agreement with the divisor is today a coincidence of construction
+rather than something that cannot be otherwise.
+
+## What is NOT available, priced so nobody pays for it twice
+
+* **Dropping the tangent's value half.** Only `xad::derivative(...)` is read off
+  the three kernels, so the value looks discardable. It is not: forward mode forms
+  the derivative FROM the values, and those values carry the parameter rows, so
+  their statements are load-bearing.
+* **A closed form for `A'` and `C'`.** That is the hand-written second-order
+  sibling this whole increment removed, and the one that produced two wrong
+  constants earlier in this session. Not that.
+* **Sharing the two coordinate builds.** They are at the same collar VALUE and a
+  different derivative structure -- `marginal_at` needs the collar passive for the
+  theorem, `profit_at` needs it active. Same numbers, genuinely different
+  recordings.
+
+## What is available
+
+1. **Sweep once for three metrics** (`one-reverse-pass.md` mechanic 8, `xad::adj<T, 3>`).
+   The regression is amplified threefold by being walked once per metric, and the
+   sweep is the larger half of it. This was a standing item; increment 2 has
+   roughly doubled what it is worth.
+2. **The duplicated slope**, above.
+3. **Accept it.** What the third bought is stated in the previous section and has
+   not changed: `dM/dtheta` is first order and refereeable where it was an
+   unrefereed second-order pass, and five concepts are gone.

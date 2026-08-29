@@ -901,10 +901,14 @@ redesign.
 > either side, because the expectation is that it does NOT move -- worth knowing
 > rather than assuming.
 >
-> The leaf carries its own nested tape at 2.3%: `collar_condition` records and
-> sweeps a `directional_adjoint_tape<double>` per placement, inside plant's
-> recording. They do not collide because XAD keys the active tape per scalar type,
-> which is what makes the design legal and is stated nowhere in the code.
+> ⚠️ **The leaf's separate tape is gone and its cost went UP, not down.** The
+> nested `directional_adjoint_tape<double>` was 2.3%; increment 2 replaced it with
+> a residual composed on plant's own tape, and `marginal_assembled` takes two
+> kernel slopes at `xad::fwd<T>::active_type` -- `FReal<AReal<double>>` at the
+> gradient, a tangent ABOVE the adjoint, both halves of which record onto plant's
+> tape and are then swept once per metric. Measured at **11.6% of the gradient**,
+> about 60% of a 31% regression. `one-program.md` has the profile and the three
+> options. The nesting was inverted and inlined, not removed.
 
 **9 -- endgame: `derivs` returns.** Four models, fifteen files, the R layer. Not
 before the eight above have made it smaller.
@@ -995,8 +999,9 @@ One recorded step, the level below, unchanged from the first walk:
       │  ├─ solve_leaf() -> place_solved_point(leaf_points->next())
       │  └─ record_leaf_outputs                                    phylloptim
       │     ├─ leaf_clamps() twice -- a fixed array, on the stack          ✱M done
-      │     ├─ collar_condition -- a second tape, tangent under adjoint       ✱N
-      │     └─ collar_at, outputs_at -> implicit_root, implicit_value x2
+      │     ├─ collar_at -> implicit_value over marginal_at                    ✱N
+      │     │    marginal_assembled at FReal<AReal>: a tangent ABOVE the tape
+      │     └─ outputs_at -> profit_at -> implicit_value x2
       ├─ resource_depletion    a local, produced and drained here             ✱O
       └─ env.compute_rates(resource_depletion)
 ```
