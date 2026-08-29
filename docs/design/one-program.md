@@ -1015,3 +1015,71 @@ tidiness:** `cond.gradient` is `dM/dtheta = d2(profit)/dp dtheta`, the same
 second-order class as the curvature, from the same nested pass, and nothing checks it.
 Only the curvature has been measured. Under increment 2 it comes from `implicit_value`
 recording M's own tape -- first order, and refereeable.
+
+---
+
+# Increment 2: what landed, and the one closed form that blocks the rest
+
+## Three of the five steps subtracted before writing any code
+
+The scoped plan was: generalise the `G_integral` lift, template the layer-mean
+helpers, template `duptake_dpsi_impl`, build M at scalar S, rewire `collar_at`.
+
+**Steps 1-3 turned out to be unnecessary.** Inside `implicit_value(p*, dM/dp, F)`, F
+is called with the collar PASSIVE and only the parameters active -- so `duptake_dpsi`
+never needs templating on the collar. What is needed is `dE_up/dp` carrying its
+PARAMETER derivatives, and the model already computes those in closed form:
+`d2uptake_dpsi_droot_curve`, `d2uptake_dpsi_dpsi_soil`, and `duptake_droot_carbon`'s
+mixed term -- all tested, none with a production consumer.
+
+Two more fell out while reading: **`transpiration` IS `flux`** by the T1 residual
+(`kmax*(G(sigma) - G(collar)) - flux = 0`), which `profit_at` already builds at S, so
+no lift for it; and `LeafInputs::rebind_from<double>()` already exists, so the passive
+inputs for `dM/dp` come from the active ones with no new mapping.
+
+## What landed
+
+**odelia: the theorem reports, and the policy belongs to the caller.** `implicit_root`
+and `implicit_value` are the same theorem -- the header says "the two differ only in
+whether the row is supplied or taped, and both take the slope". They also differed in
+what a degenerate slope does, and that difference is real: a BOUND's value IS what the
+equation defines, so a missing row is a structural zero nothing can detect and it must
+stop; an INTERIOR optimum is still the point it was, and an output the envelope
+theorem spares does not read the collar at all, so it can report. That is now
+`implicit_value_reported` (the theorem) plus `implicit_value` (it, and the stop), with
+the choice made at the call site instead of by which name you reach for.
+
+**phylloptim: the marginal reads its inputs.** `marginal_assembled` reached for the
+leaf's MEMBERS -- kmax, the stem parameters, and the kernels' vcmax/jmax/curvature/
+respiration through their one-argument overloads. At double that is the same
+arithmetic; at an active scalar it is a silent zero in every parameter it touches.
+Verified as a no-op where it must be: the closed slope still matches a difference to
+the identical **2.560e-09**.
+
+## The one thing that blocks the rest
+
+Building M at an active scalar needs `d(dE_up/dp)/d(theta)` for EVERY active input.
+The model has it for traits, soil potentials and layer carbon. **It does not have it
+for the two resistance inputs** -- `r_R_H_min` and `r_R_V_sum`, which are what plant
+actually makes active, having mapped carbon onto them on its own side.
+
+They are mechanical from `r_R = k/g + V` and
+`dE_i/dT = (r_R - num * dr_dT)/r_R^2`, and they can be refereed against a difference
+in the fast harness. But they are hand algebra of exactly the kind that produced two
+wrong constants in this session's previous increment -- both caught only because a
+direct referee was built first. So the order is: **write the referee, then the
+algebra**, not the other way round.
+
+## What deleting the interior case's `implicit_root` will take with it
+
+`implicit_root` has exactly ONE caller in the tree: `collar_at`'s Interior case. When
+that moves onto a taped residual, the following go with it -- `implicit_root`,
+`CollarCondition`, `Leaf::collar_condition`, `odelia::ode::plain_adjoint`, and the
+threading of a condition struct through `record_leaf_outputs` -> `collar_at` ->
+`outputs_at` in plant.
+
+⚠️ And the reason it is worth doing is not tidiness. `cond.gradient` is
+`d2(profit)/dp dtheta` -- the same second-order class as the curvature, from the same
+nested pass over an assembly whose second-order content nothing referees. Only the
+curvature was ever measured, and it was wrong. Under the taped residual that quantity
+becomes first order and refereeable.
