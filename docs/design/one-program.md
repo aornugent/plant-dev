@@ -1680,3 +1680,138 @@ is what separates them -- so write it first.
   ever issued. That is the `memset` + `__fill_a1` term that rose by 981 samples in
   the regression, and it is a second reason the leaf's slot count matters beyond the
   statements themselves.
+
+---
+
+# The clean cut: the leaf's state dependence is rank two
+
+## First, the J0 fix, measured
+
+Four interleaved pairs on a quiet machine, forward unchanged at 32.6 s:
+
+| rep | before | after |
+|---|---|---|
+| 1 | 143.44 | 132.55 |
+| 2 | 143.55 | 131.44 |
+| 3 | 142.72 | 131.52 |
+| 4 | 143.32 | 132.05 |
+
+**143.3 -> 131.9 s, -7.9%**, spread under 0.6% within each arm. An 18.5% cut in the
+leaf's tape is 7.9% of the whole gradient, which is the multiplier to carry: the leaf
+is about a third of it.
+
+## What the reports establish, and it is not a tape question
+
+Recovered from the superproject at `5d49947^` -- `docs/reports/02` and `05` and `07`.
+
+**The whole state reaches the leaf through ONE scalar at a held operating point, and
+TWO at the condition.** Report 02 (3.2a):
+
+> At a **fixed** operating point the whole soil state reaches the leaf through
+> **total uptake at the collar** -- one number, whatever the layer count.
+
+Report 05 (7.3):
+
+> The state enters sigma and x **only through E_up**, and dE_up/dp enters directly
+> [...] So R = F(E_up, dE_up/dp; p, phi) **identically**, and rank two is a chain
+> rule through a two-dimensional intermediate.
+
+Verified out of sample -- recovering the leaf-area scaling, each soil potential and
+each layer's root mass independently -- **to 2.4e-09**. This is measured, not
+asserted, and it is measured on the model rather than on the code.
+
+## What follows, in three lines
+
+With `m = -1/Pi_pp`, `a = dR/dsigma`, `b = dR/dV = G(sigma)`:
+
+```
+dPi*/du   = dPi/du|_p                    = (dPi/dE_up) * dE_up/du     <- ONE multiply
+dp*/du    = m * ( a * dE_up/du + b * dS/du )
+dE_i/du   = dE_i/du|_p + (dE_i/dp) * dp*/du
+```
+
+**Every u-dependence on the right is the SUPPLY model's own Jacobian** --
+`dE_up/du`, `dS/du`, `dE_i/du` -- which is Ohm's law over a tabulated integral, and
+which report 07 (6) gives in closed form. Everything else is a handful of DOUBLE
+coefficients evaluated once per placement.
+
+⚠️ **So nothing in the gas-exchange model needs to be templated on the tape's scalar
+at all.** Not profit, not the colimitation, not the cost, not the concentration
+solve, not the stem integral. The leaf solves in double -- which is what the implicit
+function theorem has been saying the whole time -- and hands over values with rows.
+
+## What that subtracts
+
+| |
+|---|
+| `collar_at<S>`, `outputs_at<S>`, `profit_at<S>`, `marginal_at<S>`, `collar_coords_at<S>` |
+| `marginal_assembled<T>` and its tangent above the adjoint |
+| `duptake_dpsi_at<T>`, `layer_mean_at<T>`, `layer_integral_at<T>`, `cumulative_lift<T>`, `cumulative_deriv_lift<T>` |
+| `implicit_value` at an active scalar for sigma, ci and both bounds |
+| `SecondOrder` and both branches it selects |
+| the whole `if constexpr (std::is_same_v<S, double>)` split that runs through the leaf |
+
+Measured, per placement: **861 recorded statements become a graft of at most
+6 x 31 = 186 operations** -- and, written as one statement per output rather than the
+`+=` loop `record_with_derivatives` uses today, **6 statements**.
+
+## Why the code does not already do this
+
+Report 02 (4) states the rule and the code took half of it:
+
+> **Record everything whose operations you can afford to record. Supply rows only
+> where recording is impossible -- an opaque solver -- or unaffordable -- the whole
+> trajectory.**
+
+861 statements x 2,333,500 placements is 2 x 10^9 recorded statements a gradient.
+That is the "unaffordable" clause, and it was never applied.
+
+## The check that needs no reference, and it has passed before
+
+Report 02 (3.4):
+
+> The identity a correct transpose must satisfy is `&lt;v, J u&gt; = &lt;J^T v, u&gt;` for
+> arbitrary `v` and `u`. An implementation of exactly the construction above [...]
+> satisfies that identity to **1.4e-14 over 294 operating points**, five orders below
+> the solve's own floor.
+>
+> The identity is **the** check on this node, because it needs no reference gradient
+> and no differencing.
+
+**So this is not a new design. It is one that existed, was refereed by an identity
+that cannot be fooled, and was replaced by recording.**
+
+## The one thing that must not be assumed
+
+Report 05 (7.0): the envelope theorem holds at kind **S** -- an interior stationary
+maximum -- **and nowhere else**. At a pinned optimum profit reacquires the term
+(`w = Pi_bar * dPi/dp + s`), and at an exogenous point there is no optimisation at
+all.
+
+> **The objective's p-channel must be a number that is supplied, not an identity that
+> is assumed** -- zero at S, nu at K, and whatever the substitution gives at X.
+
+That is the design constraint the interface has to carry, and it is the reason the
+five kinds exist rather than one.
+
+## What to prove before writing any of it
+
+In this order, because the last two increments cost what they cost by taking it in
+the other one.
+
+1. **The rank-two claim on THIS model.** The reports measured it on an earlier tree.
+   Recover the leaf-area scaling and one soil potential independently through
+   `(E_up, S)` and require 1e-8.
+2. **The coefficients against the tangent they replace.** `a`, `b`, `Pi_pp` from the
+   closed forms in report 07 (5) and (12.3), against `marginal_assembled` at a
+   nested scalar, in `test_leaf`.
+3. **The dot-product identity**, which is the check that needs no reference.
+
+⚠️ **And one hazard this session measured directly.** `util::to_passive` strips
+EVERY layer, so at a nested scalar it removes the inner direction as well as the
+outer. A probe recording `outputs_at` at `AReal<FReal<double>>` -- adjoint above
+tangent, which costs 261 statements against 245 at the plain adjoint, so the nesting
+itself is nearly free there -- read `d2(profit)/dp d(vcmax)` as **exactly zero**
+against a differenced 2.97e-03, because every `implicit_value` correction is built as
+`x - to_passive(x)` and the inner tangent goes with the strip. **Any route that keeps
+a nested scalar has to reckon with that; the rank-two route does not have one.**
