@@ -1032,7 +1032,10 @@ One recorded step, the level below, unchanged from the first walk:
   operation is the same; what changes is the number of passes over two large
   arrays, which is where a sweep's time goes. ⚠️ N is compile-time, so a
   single-metric call would pay for three directions, and the scalar type changes
-  wherever the model is instantiated. Measure before believing it.
+  wherever the model is instantiated. **MEASURED AND REFUSED: 1.15x to 0.97x, so
+  between 15% slower and 3% faster.** Mechanic 8 has the numbers and the reason --
+  the walk is shared but the derivative scatter is N times the bytes, and the two
+  cancel.
 * **✱I — two rebinds at one width, and the second one is the narrowing.** The
   insertion transpose rebinds at row `at` and the range below rebinds the same
   System at that width again, because applying the insertion widens what it ran on.
@@ -1284,8 +1287,19 @@ where tape volume is decided, and it is step 8's territory rather than the drive
    sample -- it only sets a flag.
 8. **`Tape<Real, N>` carries N adjoint directions in one walk**, with
    `DerivativesTraits<T,N>::type = Vec<T,N>`, and `probe_width.cpp` already
-   instantiates N of 2, 3 and 4. **N is a DEFAULTED TEMPLATE ARGUMENT on the
-   interface odelia already uses** -- `template <class T, std::size_t N = 1> struct
+   instantiates N of 2, 3 and 4.
+   ⚠️ **MEASURED, AND IT IS NOT THERE.** `probe_width` was built and run
+   (odelia `828cd83`): as N sweeps at width one over one sweep at width N, **width
+   three runs between 1.15x and 0.97x** -- from 15% SLOWER to 3% faster, decided
+   only by whether the derivative array still fits in cache at three times the
+   size -- and width four is slower than four walks everywhere. The statement walk
+   is shared; the scatter into the derivative array is N times the bytes, and the
+   two cancel. Every width agrees bit for bit, so what is ruled out is the cost and
+   never the numbers. **Do not propose this again as a speed item.** What survives
+   is the checkpoint argument below, which is about capability rather than time.
+
+   The mechanics, kept because the checkpoint precondition rests on them: **N is a
+   DEFAULTED TEMPLATE ARGUMENT on the interface odelia already uses** -- `template <class T, std::size_t N = 1> struct
    adj` in `XAD/Interface.hpp` -- and `active_scalar<T>` is `xad::adj<T>::active_type`,
    so it is the N of 1 today and three directions is `xad::adj<T, 3>` on one line of
    `ode_interface.hpp`. Not new machinery: a typedef and a rebuild. Three metrics in one walk would collapse three

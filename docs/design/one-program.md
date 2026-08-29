@@ -1329,3 +1329,215 @@ rather than something that cannot be otherwise.
 3. **Accept it.** What the third bought is stated in the previous section and has
    not changed: `dM/dtheta` is first order and refereeable where it was an
    unrefereed second-order pass, and five concepts are gone.
+
+---
+
+# Against ad/v3-forward: two regressions, not one
+
+The remembered figure was right. Three arms, interleaved, two reps agreeing within
+0.5%, on a quiet machine, every arm identified by grepping its INSTALLED headers:
+
+| arm | forward | gradient |
+|---|---|---|
+| `ad/v3-forward` (odelia 03a14a9, phylloptim edde81f, plant 68a4fcc3) | 30.68 / 30.74 | 103.27 / 103.44 |
+| the midpoint era, before the helper | 35.02 / 34.97 | 109.67 / 109.81 |
+| HEAD | 32.50 / 32.62 | 142.96 / 143.40 |
+
+`evaluations` 20,286 and `placements` 2,333,500 on **all three**, so the trajectory
+never moved and the arms are doing the same work.
+
+⚠️ **The confound this looked like it had, and does not.** The v3 arm REFUSES on this
+fixture -- it predates the midpoint form -- so its gradient could have been cheap
+because it did less. It is not: v3 already carries the latched refusal rather than the
+exception, and a latched refusal skips only the final `record_with_derivatives` per
+non-objective output. `collar_at` and `outputs_at` run in full either way. Both arms
+sweep the whole recording.
+
+**+38.6% on the gradient, in two independent pieces.**
+
+## Piece one: the midpoint era, +6.2% gradient and +14% forward
+
+The forward is the cleaner signal, because it carries no tape. Profiled both ends:
+7,940 samples against 8,496, **+556 ≈ +2.2 s**, agreeing with the clock.
+
+| | v3 | HEAD | delta |
+|---|---|---|---|
+| `use_midpoint_mean` | **did not exist** | 113 self | **+113** |
+| `root_vuln_integral_at` (cum) | 619 | 782 | +163 |
+| `uptake_impl` (cum) | 1,112 | 1,291 | +179 |
+| `duptake_dpsi_impl` (cum) | 1,342 | 1,580 | +238 |
+
+**`use_midpoint_mean` alone is a fifth of the forward regression.** It is inlined and
+it is two comparisons -- and it runs at **ten call sites, per layer, per evaluation**,
+tens of millions of times, to select a branch that fires at ONE operating point in
+2,829,445. The rest is the restructured mean path reading the curve more often.
+
+**The defect is not the correction, it is where the question is asked.** The span is a
+property of the layer and the collar, fixed for one evaluation of the supply; the
+regime it selects is asked once per QUANTITY per layer per evaluation instead. And
+there are three thresholds, so there are three regimes, not one -- which is a
+structure the loop should carry, not a predicate each caller re-derives.
+
+The layer-mean helper later returned about half of it (35.0 -> 32.5), by removing the
+second integral each caller formed.
+
+## Piece two: increment 2, +30.6% gradient
+
+`marginal_assembled` at `FReal<AReal<double>>`, recorded on plant's tape and walked
+once per metric. Rooted causally in the section above.
+
+## And the escape that is measured shut
+
+`one-reverse-pass.md` mechanic 8 -- three metrics in one walk at `xad::adj<T,3>` --
+is the lever this regression makes look attractive, and **it was already measured and
+it is not there**: odelia `828cd83` reports width three at **1.15x to 0.97x**, from 15%
+slower to 3% faster, decided only by whether the derivative array still fits in cache
+at three times the size. The walk is shared; the scatter is N times the bytes. Both
+places that proposed it now carry the number.
+
+---
+
+# Redesign: where the leaf's derivative is taken
+
+Written after both regressions were root-caused, because the two of them name the
+same mistake from opposite ends.
+
+## What is fundamental
+
+Nothing here is a design decision.
+
+1. The leaf solves an argmax in double: `p* = argmax pi(p; theta)`, closed by
+   `M(p*, theta) = 0` with `M = dpi/dp`.
+2. Differentiating an argmax forces the implicit function theorem, so
+   `dp*/dtheta = -(dM/dtheta) / (dM/dp)`. **Both ingredients are FIRST derivatives
+   of M**, and M is a function the model already has.
+3. Everything the stand reads from the leaf except profit reads `p*`, so it needs
+   `dp*/dtheta`. Profit's own row is the envelope theorem and needs no curvature.
+4. A layer's mean conductivity is an integral over its suction interval, and which
+   evaluation of it is stable depends on the interval's WIDTH. That is numerical
+   analysis, not a choice.
+5. plant's tape is large -- 5.79 MB per rate evaluation -- and is walked once per
+   census metric. **Anything recorded on it is paid for three times**, and the
+   escape from that is measured shut (mechanic 8, 1.15x-0.97x).
+
+## The mistake, which is one mistake wearing two faces
+
+Both regressions are the same error: **a decision taken where it is used rather
+than where it is decided, and paid for on the hottest path available.**
+
+* Fact 4 says the regime depends on the span. The code asks "is the span small?"
+  at ten sites, per layer, per evaluation -- tens of millions of times -- for a
+  branch that fires once in 2,829,445. **The span is decided once per layer; the
+  question is asked once per quantity.**
+* Fact 5 says plant's tape is the expensive place. Increment 2 put M's entire
+  evaluation there, including a tangent above the adjoint, to obtain **one row per
+  parameter**. Everything else recorded is scaffolding for that row.
+
+## The two-by-two that names it
+
+The deleted `implicit_root` path and increment 2 differ in TWO ways at once, and
+the plan has been treating them as one:
+
+| | rows from d2(pi)/dp dtheta | rows from dM/dtheta |
+|---|---|---|
+| **crossing as numbers** | `implicit_root`. Measured WRONG at one point in 2.8M. | **not tried** |
+| **recorded on plant's tape** | not tried | increment 2. Correct, +30.6%. |
+
+**What was wrong with `implicit_root` was never that rows crossed as numbers. It
+was that the numbers were a second derivative of a first-order-correct assembly,
+which nothing refereed.** Increment 2 fixed the quantity and, in the same move,
+threw away the cheap mechanism -- because the two were spelled by one function
+name. The empty cell is the one the facts point at.
+
+## The three moves
+
+**1. The regime is a property of the layer, so the layer carries it.**
+The supply loop already forms `lo`, `hi` and `span` per layer. It should form the
+regime there too and hand it down, instead of ten callers each re-deriving it from
+two thresholds and a comparison. There are THREE measured thresholds -- the divided
+difference divides by the span once for the mean, twice for its bound derivative
+and three times for the second -- so there are three regimes, and three regimes in
+a value is a structure where three booleans recomputed at ten sites is a smell.
+`competition_split` is the precedent: the same move removed three booleans and made
+a double reduction unrepresentable.
+
+Worth: `use_midpoint_mean` is 1.3% of the forward and a fifth of that regression,
+plus whatever the repeated `to_passive` costs on the active path, which is not the
+same number.
+
+**2. M's rows are taken on the leaf's own tape, and cross as numbers.**
+One recording of M at `active_scalar<double>` with the parameters registered, swept
+ONCE, gives every `dM/dtheta` in one pass. plant then records `p*` against those
+rows -- which is `record_with_derivatives`, the primitive `implicit_value` already
+ends in.
+
+This keeps every property increment 2 bought: the rows are first order, they come
+from AD over M rather than hand algebra, and they are refereeable against a
+difference of M. What it drops is M's statements from the tape that is walked three
+times.
+
+⚠️ **This is the architecture's own stated boundary, which increment 2 crossed.**
+`one-reverse-pass.md` fact 3: *"That root-find's derivative is SUPPLIED, by the
+implicit function theorem, not recorded."* The leaf is a submodel with its own
+solve; its derivative is data at the package boundary. Increment 2 made it a
+composition instead, and the 30.6% is what that costs.
+
+⚠️ **Predicted, not measured.** `collar_condition` was a comparable per-placement
+nested record-and-sweep and cost 2.3% of the gradient. The two things this replaces
+-- `marginal_assembled` at 11.6% and the second `collar_coords_at` at 7.3% -- are
+about 19%. So the expectation is that most of increment 2's cost comes back and the
+correctness stays. **That expectation is the thing to measure first**, on the fast
+harness, before any of it is wired in: record M on a private tape at one interior
+point and compare its rows against a difference of M, and its cost against the
+current path.
+
+⚠️ **What it does NOT extend to.** Supplying rows is right for the collar because
+the collar is ONE output: one sweep against three walks of all of M. The leaf's
+other outputs are profit plus one per layer, so supplying their rows costs
+`1 + n_layer` sweeps against three walks, and that is not obviously a win. The
+boundary is "one output whose residual is expensive", and it should stay a measured
+boundary rather than become a rule.
+
+**3. The slope is what the solve found, and is read rather than recomputed.**
+`marginal_collar_slope` is evaluated twice per interior placement with identical
+arguments, under a comment saying it is the same number. It is `dM/dp` at `p*` --
+a property of the operating point, like `p*` itself, and the record already carries
+what the solve found.
+
+## Residue this takes with it
+
+| | |
+|---|---|
+| `ConditionCurvature`, `CostTraitRows` | declared in `leaf_model.hpp` and named nowhere else -- the deleted second-order pass's row types |
+| `condition_collar_slope` | survives in two comments describing a function that is gone |
+| the second-order branches of `cumulative_lift` and `stem_integral_at` | reachable only through `marginal_assembled`'s `TT`; if move 2 changes what that is, `SecondOrder` and both branches go |
+| `SupplyCurveTrait` and the root-curve derivative chain | `subtraction-targets.md` 15, unblocked once nothing needs a second-order supply row |
+
+## Landing order
+
+Subtraction first, then the move that makes the next one smaller.
+
+0. The two orphaned structs and the stale comment. Free.
+1. Move 3 -- the slope read once. Small, and it makes move 2's `dM/dp` argument a
+   read rather than a call.
+2. Move 1 -- the layer's regime as a value. Independent of the tape entirely, and
+   it is the forward regression.
+3. Move 2 -- M's rows on the leaf's own tape. **Referee first**: the rows against a
+   difference of M in `test_leaf`, and the cost on the fast harness, BEFORE wiring.
+   That order is not a preference; it is what the last two increments cost when it
+   was the other way round.
+
+## What would falsify this
+
+Move 2 rests on a prediction. If a private recording of M costs more than about 5%
+of the gradient -- if the per-placement tape cycle dominates, as it nearly did for
+`newRecording()` -- then supplying the rows is not cheaper than composing them, and
+the honest answer is that increment 2's cost is the price of its correctness and the
+plan should say so instead of looking for an escape.
+
+⚠️ **`SecondOrder` is a proxy that is already false in one direction.** It reads
+`derivative_type != double`, which is a test for "carries a second derivative" only
+by accident: at `AReal<double, 3>` the derivative type is `Vec<double,3>` and the
+concept answers TRUE for a scalar carrying three FIRST derivatives, silently
+enabling both second-order branches. Nothing instantiates that width today, and the
+concept should say what it means before anything does.
