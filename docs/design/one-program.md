@@ -1158,3 +1158,62 @@ The guard now tests the SAME slope the closure divides by. It used to read
 rows -- `d2(profit)/dp dtheta`, the same second-order class as the curvature that came
 back positive at an interior maximum -- from the same unrefereed place. Those rows are
 now taped from the condition itself.
+
+---
+
+# The two forms collapse, and the gradient's cost, measured
+
+## `implicit_value_reported` goes, and the `point` channel with it
+
+I added it earlier the same day, arguing the policy belonged to the caller: a BOUND
+must stop, since its value IS what the equation defines and a missing row would be a
+structural zero nothing could detect, while an INTERIOR optimum could carry on and say
+so, because the envelope theorem spares the objective. Both statements are true of the
+theorem. **Neither is true of the consumer**, and reading the consumer is what settled
+it:
+
+* the report was filled by ONE of `collar_at`'s five arms;
+* it was read in exactly ONE place, where plant turned it into `refuse(...)`;
+* which is what the catch around the throws already does, at the same metric-level
+  grain.
+
+Two mechanisms, one outcome. Deleted: the function, `LeafOutputs::point`, the
+out-parameter on `collar_at` and `outputs_at`'s signature, and plant's branch. What is
+left is one theorem with one way to fail, and `collar_at` is finally one shape for all
+five kinds with nothing threaded through it but the inputs.
+
+The R harness catches the throw and reports it back, so every expectation survives.
+
+## The gradient costs a third more, and that is measured rather than guessed
+
+Both arms built from source, INTERLEAVED in one session, three pairs:
+
+| rep | forward before -> after | gradient before -> after | ratio | load |
+|---|---|---|---|---|
+| 1 | 41.71 -> 39.98 | 140.45 -> 179.64 | 1.28 | 10.4 / 8.9 |
+| 2 | 35.14 -> 39.63 | 131.89 -> 186.05 | 1.41 | 12.4 / 12.0 |
+| 3 | 39.40 -> 32.94 | 109.66 -> 144.11 | 1.31 | 2.7 / 1.2 |
+
+**+33% on the gradient, and nothing on the forward** (mean ratio 0.98). The ratio holds
+across loads from 1.2 to 12.4, which is the whole reason for interleaving -- the
+absolute numbers move by 60% between reps and the ratio does not. Both arms answer
+identically: 169 segments, all three metrics, no refusal.
+
+**Where it goes.** The old interior closure took ONE nested pass over `profit_at` and
+read three things off it. The new one evaluates `marginal_at` at the active scalar,
+which builds the operating point's coordinates again and then does a full per-layer
+supply-derivative pass -- work the old path got implicitly from differentiating the
+flux twice on a tape it was already paying for.
+
+**What it buys**, so the trade is on the table rather than implied:
+
+* `dM/dtheta` is first order and refereeable. It was `d2(profit)/dp dtheta` from a
+  nested pass, the same class as the curvature that came back positive at an interior
+  maximum, and NOTHING checked it.
+* one closure form for all five kinds, and five concepts gone -- `implicit_root`,
+  `plain_adjoint`, `CollarCondition`, `collar_condition`, `point`.
+
+**Where to look if the third is wanted back**: `collar_at` builds the coordinates for
+`marginal_at`, then `outputs_at` builds them again for `profit_at`, per node per step.
+They are at different collars -- one is the residual's variable, the other the placed
+value -- so they cannot simply be shared, but that is where the duplicated work is.
