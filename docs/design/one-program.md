@@ -1985,3 +1985,108 @@ which is the envelope theorem as an omitted term rather than one that has to com
 to zero. `outputs_at` already passes the collar passive to `profit_at` at an interior
 point (`leaf_model.hpp:4889`) for exactly this reason, so the structure is not new;
 what changes is that `collar_at`'s 616 statements become one.
+
+---
+
+# Why there are seven mechanisms, and the one rule that leaves one
+
+The tree provides derivatives seven ways: a tabulation, hand closed forms, a forward
+tangent, a reverse tape, a tangent nested above that tape, finite differences, and a
+midpoint asymptotic with three measured thresholds. That is the spaghetti, and it is
+not seven decisions. **It is one rule, missing, seven times.**
+
+## Every mechanism is a missing primitive
+
+| mechanism | the primitive it stands in for |
+|---|---|
+| the nested tangent above the adjoint, **566 statements** | `dA/dci` and `dC/dsigma` |
+| the second-order branches of `cumulative_lift` and `stem_integral_at` | `d2G/dpsi2`, which Leibniz says **is** `f'` -- and `vulnerability_curve_slope_at` already exists |
+| the midpoint asymptotic, three thresholds, ten call sites | the layer MEAN of `f`, formed as a divided difference of the tabulated `G` instead of from `f` |
+| `differenced_curvature`, `collar_step`, `shrink_decades` | `dR/dp` -- R has no slope because R is not a value |
+| ~~the tabulated `P'`, `P''`~~ | `V` from the flux balance rather than the inverse table. **Already fixed**: `V = (dEup_dp/kmax + f_p)/f_sigma` |
+| `gradient.hpp`'s finite differences, ~1,050 lines | nothing -- a second product, and step 8's deletion |
+| the leaf composing on plant's tape, **861 statements** | the rank-two graft |
+
+## The rule
+
+> **Every elementary primitive ships with its own slope, as a sibling closed form in
+> one definition. A tabulation stores only the lowest order Leibniz cannot give.
+> Every root-find is closed by the implicit function theorem on its residual. AD
+> composes them. Nothing is differenced, and nothing takes a second derivative of a
+> composition.**
+
+`vulnerability_curve_at<T>` and `vulnerability_curve_slope_at<T>` are already that
+shape, and this session unified them so both come from one definition. The rule is
+not new; it is applied once and missing everywhere else.
+
+## Measured, so it is not an argument
+
+`probe_primitive` writes the two missing slopes and checks them against the tangent
+they replace, at the operating point the solve returned:
+
+| | |
+|---|---|
+| `dA/dci`, closed form against the tangent | **rel 2.14e-16** |
+| `dC/dsigma`, closed form against the tangent | **rel 0.000e+00**, bit-identical |
+| the two kernels' VALUES at the adjoint | 26 statements |
+| their SLOPES as primitives, same scalar | **13 statements** |
+| the same information by the nested tangent | **566 statements** |
+| | **14.5x** |
+
+`dC/dsigma` is one line over the slope the vulnerability curve already has.
+`dA/dci` is eight lines: the two limited rates, their own slopes, and the
+colimitation's quotient rule.
+
+## The ecology says the same thing, and says it first
+
+Report 07 (3) writes the stationarity condition in the quantities the ecology weighs:
+
+> R = (dA/dE_up) S - C'(sigma) V, **the carbon bought by the water an extra unit of
+> collar pull draws, against the cost of the extra tension that pull puts on the
+> stem.** At the optimum the two are equal and R is zero.
+
+`dA/dE_up` is lambda -- the marginal carbon per unit water, the marginal water-use
+efficiency. It is the model's own central quantity; the companion manuscript is
+titled for it. **And the code represents it as a derivative to be computed rather
+than a value the model has.**
+
+⚠️ **That is the representational error in one sentence: in an optimality model a
+MARGINAL IS A VALUE.** A model whose primary ecological quantity is spelled as a
+derivative will always need one AD order more than the ecology does, and every one of
+the seven mechanisms above is that extra order being paid for in a different currency.
+
+## Then nothing is second order, anywhere
+
+With the slopes primitive, R stops being `dPi/dp` computed and becomes a function the
+model has:
+
+```
+lambda = A' * (dci/dE)                  first order in primitives
+V      = (S/kappa + f(p)) / f(sigma)    first order, from the flux balance
+R      = lambda * S - C' * V            A VALUE, not a derivative
+p*     : root of R                      IFT: dp*/dtheta = -(dR/dtheta)/(dR/dp)
+```
+
+**Both ingredients of the theorem are FIRST derivatives of R.** `SecondOrder` has
+nothing left to gate, the nested scalar has nothing to do, and `d2uptake_dpsi2` is not
+a second derivative at all -- it is the slope of `S`, which is itself a primitive
+(`duptake_dpsi`, already closed form).
+
+## The eight connected components, each closed one of two ways
+
+Traced so nothing is left needing a mechanism of its own.
+
+| | closed by |
+|---|---|
+| vulnerability curve: `f`, `f'`, `G`, the layer means | primitives `f`, `f'`; `G` tabulated for its VALUE only; the mean from `f` |
+| photosynthesis: `J`, `Ac`, `Aj`, `A`, `A'` | primitives `A`, `A'` -- the one genuinely missing pair |
+| hydraulic cost: `C`, `C'` | one line over `f'` |
+| transport: `sigma`, `V` | the flux balance `kappa(G(sigma) - G(p)) = E_up`; no inverse, no tabulated derivative |
+| supply: `E_i`, `E_up`, `S`, `dS/dp` | primitives, all three already closed form |
+| concentration: `ci` | IFT on an explicit algebraic residual |
+| operating point: `p*` | IFT on `R` |
+| the two bounds | IFT on `E_up = 0` and on the stem's continuity; the third is a trait, so its row is a unit vector |
+
+**Eight components, two closures, one rule, and no second derivatives.** That is the
+inevitable form, and everything this document has measured is a consequence of not
+having it.
