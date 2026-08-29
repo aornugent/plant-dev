@@ -861,6 +861,11 @@ The distinction that matters, since `roots.hpp` is full of `d...` functions:
 first, `marginal_collar_slope` reads the middle two, and `CurveReads` reads
 `root_vuln_integral_dtrait`. Only the root-curve branch is orphaned.
 
+⚠️ **[`one-order.md`](one-order.md) is what settles this entry.** Under its rule
+nothing takes a second derivative of a composition, so a second-order supply row has
+no consumer and the root-curve chain goes with the mechanism that wanted it. Until
+that lands, the entry stands as written.
+
 ⚠️ **Check this list against increment 2 before deleting from it.** That increment
 was scoped to need `d2uptake_dpsi_droot_curve` and `d2uptake_dpsi_dpsi_soil` for
 M's parameter rows and then landed by a route that did not use them, so their

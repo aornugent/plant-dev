@@ -5,7 +5,7 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 ## Session Start (do this first, every session)
 
 Read [`docs/design/principles.md`](docs/design/principles.md). It carries the rules this
-work is judged by, and the route that produced the plan it is working through -- five
+work is judged by, and the route that produced the plan it is working through -- six
 moves, in order, each of which produced one document. It names them and says what each
 answers that the one before it could not:
 
@@ -15,8 +15,11 @@ answers that the one before it could not:
   twice
 - [`docs/design/one-reverse-pass.md`](docs/design/one-reverse-pass.md) -- what the model
   forces, the sequenced cut, and **what the tape costs plus the XAD mechanics behind it**
+- [`docs/design/one-order.md`](docs/design/one-order.md) -- the leaf's derivative
+  boundary: what step 8 of that cut turned into. A prescription, and the one file to
+  read before changing how a derivative reaches the stand
 
-A session that has lost its context rebuilds it from those four and nothing else. None of
+A session that has lost its context rebuilds it from those five and nothing else. None of
 them tracks progress; each is edited when something lands, and where a document disagrees
 with the code, the disagreement is the finding.
 

@@ -890,6 +890,13 @@ cost is widening the one cache in this file whose staleness silently reintroduce
 single-potential supply path with them. After step 1 this is a deletion, not a
 redesign.
 
+⚠️ **This step turned out to be a redesign after all, and it has its own document:
+[`one-order.md`](one-order.md).** The deletion here is real and still wanted, but it
+is the small half. The large half is that the leaf supplies SEVEN kinds of derivative
+and each one stands in for a primitive that does not exist -- which is a prescription
+rather than a cut, and it is measured rather than argued. Read that file before
+changing anything about how a derivative reaches the stand from the leaf.
+
 > **This is also where tape volume is decided, which the plan did not say before.**
 > `record_leaf_outputs` is 32.3% of the gradient against `solve_leaf` at 6.4%:
 > recording the leaf's outputs costs five times solving it, and one rate

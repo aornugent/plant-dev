@@ -36,6 +36,14 @@ whole vocabulary; 5 to 8 remove a mechanism; 9 onward are local.
 
 ## 1. The leaf's derivatives are computed twice, by two unrelated methods
 
+⚠️ **THREE was an undercount, and [`one-order.md`](one-order.md) is where this entry
+finishes.** Counted since: the leaf supplies derivatives SEVEN ways -- a tabulation,
+hand closed forms, a forward tangent, a reverse tape, a tangent nested above that tape,
+finite differences, and a midpoint asymptotic with three measured thresholds -- and each
+one stands in for a primitive that does not exist. The R/C++ pair this entry names is
+two of the seven, and deleting the FD product removes one of them. The rest need the
+rule rather than a merge.
+
 **The largest thing in this tree, and it is not on the subtraction list.**
 `subtraction-targets.md` records the R/C++ pair as out of scope. There is a
 third, and it is the one this branch built.

@@ -1397,297 +1397,74 @@ places that proposed it now carry the number.
 
 ---
 
-# Redesign: where the leaf's derivative is taken
-
-Written after both regressions were root-caused, because the two of them name the
-same mistake from opposite ends.
-
-## What is fundamental
-
-Nothing here is a design decision.
-
-1. The leaf solves an argmax in double: `p* = argmax pi(p; theta)`, closed by
-   `M(p*, theta) = 0` with `M = dpi/dp`.
-2. Differentiating an argmax forces the implicit function theorem, so
-   `dp*/dtheta = -(dM/dtheta) / (dM/dp)`. **Both ingredients are FIRST derivatives
-   of M**, and M is a function the model already has.
-3. Everything the stand reads from the leaf except profit reads `p*`, so it needs
-   `dp*/dtheta`. Profit's own row is the envelope theorem and needs no curvature.
-4. A layer's mean conductivity is an integral over its suction interval, and which
-   evaluation of it is stable depends on the interval's WIDTH. That is numerical
-   analysis, not a choice.
-5. plant's tape is large -- 5.79 MB per rate evaluation -- and is walked once per
-   census metric. **Anything recorded on it is paid for three times**, and the
-   escape from that is measured shut (mechanic 8, 1.15x-0.97x).
-
-## The mistake, which is one mistake wearing two faces
-
-Both regressions are the same error: **a decision taken where it is used rather
-than where it is decided, and paid for on the hottest path available.**
-
-* Fact 4 says the regime depends on the span. The code asks "is the span small?"
-  at ten sites, per layer, per evaluation -- tens of millions of times -- for a
-  branch that fires once in 2,829,445. **The span is decided once per layer; the
-  question is asked once per quantity.**
-* Fact 5 says plant's tape is the expensive place. Increment 2 put M's entire
-  evaluation there, including a tangent above the adjoint, to obtain **one row per
-  parameter**. Everything else recorded is scaffolding for that row.
-
-## The two-by-two that names it
-
-The deleted `implicit_root` path and increment 2 differ in TWO ways at once, and
-the plan has been treating them as one:
-
-| | rows from d2(pi)/dp dtheta | rows from dM/dtheta |
-|---|---|---|
-| **crossing as numbers** | `implicit_root`. Measured WRONG at one point in 2.8M. | **not tried** |
-| **recorded on plant's tape** | not tried | increment 2. Correct, +30.6%. |
-
-**What was wrong with `implicit_root` was never that rows crossed as numbers. It
-was that the numbers were a second derivative of a first-order-correct assembly,
-which nothing refereed.** Increment 2 fixed the quantity and, in the same move,
-threw away the cheap mechanism -- because the two were spelled by one function
-name. The empty cell is the one the facts point at.
-
-## The three moves
-
-**1. The regime is a property of the layer, so the layer carries it.**
-The supply loop already forms `lo`, `hi` and `span` per layer. It should form the
-regime there too and hand it down, instead of ten callers each re-deriving it from
-two thresholds and a comparison. There are THREE measured thresholds -- the divided
-difference divides by the span once for the mean, twice for its bound derivative
-and three times for the second -- so there are three regimes, and three regimes in
-a value is a structure where three booleans recomputed at ten sites is a smell.
-`competition_split` is the precedent: the same move removed three booleans and made
-a double reduction unrepresentable.
-
-Worth: `use_midpoint_mean` is 1.3% of the forward and a fifth of that regression,
-plus whatever the repeated `to_passive` costs on the active path, which is not the
-same number.
-
-**2. M's rows are taken on the leaf's own tape, and cross as numbers.**
-One recording of M at `active_scalar<double>` with the parameters registered, swept
-ONCE, gives every `dM/dtheta` in one pass. plant then records `p*` against those
-rows -- which is `record_with_derivatives`, the primitive `implicit_value` already
-ends in.
-
-This keeps every property increment 2 bought: the rows are first order, they come
-from AD over M rather than hand algebra, and they are refereeable against a
-difference of M. What it drops is M's statements from the tape that is walked three
-times.
-
-⚠️ **This is the architecture's own stated boundary, which increment 2 crossed.**
-`one-reverse-pass.md` fact 3: *"That root-find's derivative is SUPPLIED, by the
-implicit function theorem, not recorded."* The leaf is a submodel with its own
-solve; its derivative is data at the package boundary. Increment 2 made it a
-composition instead, and the 30.6% is what that costs.
-
-⚠️ **Predicted, not measured.** `collar_condition` was a comparable per-placement
-nested record-and-sweep and cost 2.3% of the gradient. The two things this replaces
--- `marginal_assembled` at 11.6% and the second `collar_coords_at` at 7.3% -- are
-about 19%. So the expectation is that most of increment 2's cost comes back and the
-correctness stays. **That expectation is the thing to measure first**, on the fast
-harness, before any of it is wired in: record M on a private tape at one interior
-point and compare its rows against a difference of M, and its cost against the
-current path.
-
-⚠️ **What it does NOT extend to.** Supplying rows is right for the collar because
-the collar is ONE output: one sweep against three walks of all of M. The leaf's
-other outputs are profit plus one per layer, so supplying their rows costs
-`1 + n_layer` sweeps against three walks, and that is not obviously a win. The
-boundary is "one output whose residual is expensive", and it should stay a measured
-boundary rather than become a rule.
-
-**3. The slope is what the solve found, and is read rather than recomputed.**
-`marginal_collar_slope` is evaluated twice per interior placement with identical
-arguments, under a comment saying it is the same number. It is `dM/dp` at `p*` --
-a property of the operating point, like `p*` itself, and the record already carries
-what the solve found.
-
-## Residue this takes with it
-
-| | |
-|---|---|
-| `ConditionCurvature`, `CostTraitRows` | declared in `leaf_model.hpp` and named nowhere else -- the deleted second-order pass's row types |
-| `condition_collar_slope` | survives in two comments describing a function that is gone |
-| the second-order branches of `cumulative_lift` and `stem_integral_at` | reachable only through `marginal_assembled`'s `TT`; if move 2 changes what that is, `SecondOrder` and both branches go |
-| `SupplyCurveTrait` and the root-curve derivative chain | `subtraction-targets.md` 15, unblocked once nothing needs a second-order supply row |
-
-## Landing order
-
-Subtraction first, then the move that makes the next one smaller.
-
-0. The two orphaned structs and the stale comment. Free.
-1. Move 3 -- the slope read once. Small, and it makes move 2's `dM/dp` argument a
-   read rather than a call.
-2. Move 1 -- the layer's regime as a value. Independent of the tape entirely, and
-   it is the forward regression.
-3. Move 2 -- M's rows on the leaf's own tape. **Referee first**: the rows against a
-   difference of M in `test_leaf`, and the cost on the fast harness, BEFORE wiring.
-   That order is not a preference; it is what the last two increments cost when it
-   was the other way round.
-
-## What would falsify this
-
-Move 2 rests on a prediction. If a private recording of M costs more than about 5%
-of the gradient -- if the per-placement tape cycle dominates, as it nearly did for
-`newRecording()` -- then supplying the rows is not cheaper than composing them, and
-the honest answer is that increment 2's cost is the price of its correctness and the
-plan should say so instead of looking for an escape.
-
-⚠️ **`SecondOrder` is a proxy that is already false in one direction.** It reads
-`derivative_type != double`, which is a test for "carries a second derivative" only
-by accident: at `AReal<double, 3>` the derivative type is `Vec<double,3>` and the
-concept answers TRUE for a scalar carrying three FIRST derivatives, silently
-enabling both second-order branches. Nothing instantiates that width today, and the
-concept should say what it means before anything does.
-
 ---
 
-# Measured: what a placement costs, and what is actually making this hard
+# What the leaf's derivative costs, measured
 
-`probe_leaf_tape` counts what one leaf placement writes to the tape it is recorded
-on, at 1, 3 and 5 soil layers. The century fixture is **5** (`soil_number_of_depths`
-defaults to 5 and nothing in the script overrides it). Everything below is that
-probe or the XAD source, not a profile and not an argument.
+The design these produced is **`one-order.md`**, which is the prescription and stands
+on its own. What is here is the evidence, in the units a design decision turns on:
+counted numbers, not timings. Four probes produce all of it and can be re-run --
+`probe_leaf_tape`, `probe_rank`, `probe_primitive` in `phylloptim/tests/cpp`, and
+`probe_width` in `odelia/tests/standalone`.
 
-## One placement, at the interior point
+## One placement, on plant's tape
+
+At five soil layers, the century fixture's width, at an interior point:
 
 | | statements | operations |
 |---|---|---|
-| `collar_at` | 812 | 1,070 |
+| `collar_at` | 616 | 858 |
 | ...`collar_coords_at` | 117 | |
 | ...`duptake_dpsi_at` | 101 | |
-| ...**`marginal_assembled`** | **592** | |
-| `outputs_at` | 245 | 399 |
-| **one placement** | **1,057** | **1,469** |
+| ...`marginal_assembled` | **396** | |
+| `outputs_at` -- everything plant reads | 245 | 399 |
+| **one placement** | **861** | **1,257** |
+| the supply alone, `E` and `S` | **187** | |
 
-**The collar residual is 77% of the leaf's tape, and it produces ONE number.**
-`outputs_at`, which produces everything plant actually reads -- profit and one draw
-per layer -- is 245.
+**The collar residual is three quarters of the leaf's tape and it produces one
+number.** Plant records one of these per cohort per stage per step, 2,333,500 times.
+
+## The two ratios that decide where to look
 
 | | |
 |---|---|
-| record one placement (marginal, on a live tape) | 28.2 us |
+| record one placement, marginal, on a live tape | 28.2 us |
 | sweep it once | 1.80 us |
-| clear + release + register, on a reused tape | **0.14 us** |
 | **record : sweep** | **16 : 1** |
+| clear + release + register, on a REUSED tape | **0.14 us** |
 
-⚠️ **Recording dominates sweeping sixteen to one, and that overturns the plan's
-standing assumption.** Every proposal that moves tape from one place to another --
-a private tape, a dense block, three metrics in one walk -- is arguing about the
-*sweep*, which is a sixteenth of the cost. **What matters is what gets recorded at
-all.**
+⚠️ Sixteen to one means **every proposal that moves tape between tapes argues about a
+sixteenth of the cost.** What matters is what gets recorded at all. And the cycle is
+free, so it was never the objection to a private tape -- though constructing a `Tape`
+reserves 192 MiB of chunks, so one must be a held member.
 
-⚠️ **And the tape CYCLE is free while the tape is not.** Clearing, releasing and
-re-registering is 0.14 us, so a per-placement recording cycle is not what made
-`collar_condition` cost 2.3%. But constructing a `Tape` reserves **192 MiB** of
-chunks (`ChunkContainer.hpp:41`, `OperationsContainerPaired.hpp:37`, one chunk each
-at construction), so a private tape must be a held member reused across placements,
-never one built per placement.
+## The nesting, which is the whole of increment 2's regression
 
-## What is making this hard, in one mechanism
-
-The leaf's value is defined BY a derivative: `p*` is where `M = dpi/dp` vanishes.
-So the stand's gradient needs derivative information one order above the model's own
-definition. The code assembles M in closed form except for two ingredients --
-`dA/dci` and `dC/dsigma` -- which it takes with a forward tangent one order above
-the working scalar.
-
-**At the gradient that tangent sits above an adjoint, and that is where the cost
-is.** Measured, the same three kernels at the same point:
+Same three kernels, same point:
 
 | | statements |
 |---|---|
-| the three kernels at the working scalar `A` | **31** |
-| the same three at `TT = FReal<A>` | **566** |
+| at the working scalar `A` | **31** |
+| at `TT = FReal<A>`, a tangent ABOVE the adjoint | **566** -- electron 197, colimited 288, cost 81 |
 | | **18.3x** |
 
-Not 2x. `FReal` holds its value and its derivative as separate members and assigns
-each separately, so **XAD's expression templates cannot fuse across the nesting**:
-one recorded statement at `A` becomes a statement for the value plus one per link of
-the derivative chain. Per kernel: electron transport 197, colimited assimilation
-288, hydraulic cost 81.
+Not 2x. `FReal` holds value and derivative as separate members and assigns each
+separately, so the expression template cannot fuse across the nesting.
 
-That is the whole of increment 2's regression, and it also says what the deleted
-`collar_condition` really cost -- **the same nesting**, on a private tape swept once
-rather than on plant's swept three times.
+⚠️ **The other nesting is nearly free.** `outputs_at` at `AReal<FReal<double>>` --
+adjoint above tangent -- is **261 statements against 245**. But that route is not
+usable as it stands: the probe read `d2(profit)/dp d(vcmax)` as **exactly zero**
+against a differenced 2.97e-03, because `to_passive` strips every layer and every
+`implicit_value` correction is built as `x - to_passive(x)`.
 
 ## Landed: a dual whose derivative is structurally zero
 
-`J0` was built at `TT` from four `lift(...)` arguments -- value set, direction zero
--- so its tangent half is identically zero and carries no information, while
-costing 197 recorded statements. Evaluated at `T` and lifted it is the same `TT`:
+`J0` was built at `TT` from four `lift(...)` arguments -- value set, direction zero --
+so its tangent half carried no information at a cost of 197 statements. Evaluated at
+`T` and lifted it is the same `TT`.
 
-| | statements |
-|---|---|
-| one placement, before | 1,057 |
-| **one placement, after** | **861** |
-
-**-18.5% of the leaf's tape, provably information-free.** `test_leaf` 1127/0 with an
-identical checksum, and `test_golden` identical to the digit (the forward model does
-not reach this path).
-
-## What is left, ranked by measurement
-
-1. **`dC/dsigma` in closed form** -- 81 statements at TT. `C = scale*(1-f(sigma))^beta`,
-   so `dC/dsigma = -scale*beta*(1-f)^(beta-1) * f'(sigma)`, and `f'` already exists as
-   `vulnerability_curve_slope_at<T>`. Small, and the pieces are in the tree.
-2. **`dA/dci` in closed form** -- 288 statements at TT, the largest single item left
-   and the only real algebra. First order, and refereeable against the tangent it
-   replaces to machine precision in the fast harness.
-3. **M's rows on a private, REUSED tape** -- worth about 8%: it saves two of three
-   sweeps of 77% of the tape, and nothing of the recording.
-
-1 and 2 together would take a placement from 861 to roughly 500 -- **half the leaf's
-tape, in both recording and sweeping** -- against `record_leaf_outputs` at 32.3% of
-the gradient.
-
-⚠️ **The precedent for 1 and 2 is in this package and it is not the algebra that
-failed.** `vulnerability_curve_slope_at<T>` is a closed-form FIRST derivative
-refereed against its own curve. What failed earlier in this session was a
-second-order surrogate with no referee. Same word, different order, and the referee
-is what separates them -- so write it first.
-
-## Refuted, with the measurement that refutes each
-
-* **A dense block for every output.** The leaf hands plant 6 outputs; a block is
-  6 x 31 = 186 statements against 1,057 recorded, which looks like 5.7x. It loses:
-  the rows still have to come from a recording of the leaf, and reading six outputs
-  off one tape costs **six sweeps** where composing on plant's costs **three walks**.
-  28.2 + 6(1.8) = 39 us against 28.2 + 3(1.8) = 34 us.
-* **Three metrics in one walk** (`xad::adj<T,3>`). Measured at 1.15x-0.97x in odelia
-  `828cd83`, and the reason is now visible from the source: the statement and
-  operation arrays are width-independent, while `derivatives_` is N times the bytes
-  and every statement copies and zeroes a whole `Vec<T,N>`. ⚠️ It may also no longer
-  compile: odelia's local `adjoint_is_zero` dispatches non-floating-point adjoints to
-  `.value()`/`.derivative()`, which `Vec` does not have.
-* **The per-placement tape cycle as the reason to avoid a private tape.** 0.14 us.
-  It was never the cycle; it was the nesting.
-
-## Two things the XAD source says that the plan should have known
-
-* **`record_with_derivatives` is written in the shape that costs the most.** Its
-  loop is `out += d_i * (x_i - passive(x_i))` per row, and `+=` on an active is a
-  full recorded assignment -- so **n rows cost n statements and 2n operations**. The
-  same information as ONE statement with n operations, either as a single expression
-  or as `pushAll(multipliers, slots, n)` followed by `pushLhs`. Nothing in the tree
-  supplies more than one row today, so this has never mattered; it decides the cost
-  of anything that supplies many.
-* **`initDerivatives` zero-fills the whole derivative array, per seed, sized by the
-  high-water SLOT mark rather than the live count.** So plant's tape pays a full
-  memset three times per recording, and it scales with how many slots a recording
-  ever issued. That is the `memset` + `__fill_a1` term that rose by 981 samples in
-  the regression, and it is a second reason the leaf's slot count matters beyond the
-  statements themselves.
-
----
-
-# The clean cut: the leaf's state dependence is rank two
-
-## First, the J0 fix, measured
-
-Four interleaved pairs on a quiet machine, forward unchanged at 32.6 s:
+**1,057 -> 861 statements.** Four interleaved pairs on a quiet machine, forward
+unchanged at 32.6 s:
 
 | rep | before | after |
 |---|---|---|
@@ -1696,333 +1473,32 @@ Four interleaved pairs on a quiet machine, forward unchanged at 32.6 s:
 | 3 | 142.72 | 131.52 |
 | 4 | 143.32 | 132.05 |
 
-**143.3 -> 131.9 s, -7.9%**, spread under 0.6% within each arm. An 18.5% cut in the
-leaf's tape is 7.9% of the whole gradient, which is the multiplier to carry: the leaf
-is about a third of it.
+**143.3 -> 131.9 s, -7.9%**, spread under 0.6%. So an 18.5% cut in the leaf's tape is
+7.9% of the gradient: **the leaf is about a third of it**, and that is the multiplier
+to carry.
 
-## What the reports establish, and it is not a tape question
+## The rank, proven on this model
 
-Recovered from the superproject at `5d49947^` -- `docs/reports/02` and `05` and `07`.
+`probe_rank` is built so it can fail. Inputs that reach profit DIRECTLY must not fit,
+and they do not -- relative residual **1.000**, the whole value. It also reports how
+much of the `S` column is independent of `E`, because a two-column fit over collinear
+columns is satisfied by anything; it is **98.4% to 99.9%**. The layers carry distinct
+potentials so no result can come from an accidental symmetry.
 
-**The whole state reaches the leaf through ONE scalar at a held operating point, and
-TWO at the condition.** Report 02 (3.2a):
+Seven states, interior and pinned-wet, one three and five layers, wet to the root
+limit, at one forward tangent with no tape:
 
-> At a **fixed** operating point the whole soil state reaches the leaf through
-> **total uptake at the collar** -- one number, whatever the layer count.
-
-Report 05 (7.3):
-
-> The state enters sigma and x **only through E_up**, and dE_up/dp enters directly
-> [...] So R = F(E_up, dE_up/dp; p, phi) **identically**, and rank two is a chain
-> rule through a two-dimensional intermediate.
-
-Verified out of sample -- recovering the leaf-area scaling, each soil potential and
-each layer's root mass independently -- **to 2.4e-09**. This is measured, not
-asserted, and it is measured on the model rather than on the code.
-
-## What follows, in three lines
-
-With `m = -1/Pi_pp`, `a = dR/dsigma`, `b = dR/dV = G(sigma)`:
-
-```
-dPi*/du   = dPi/du|_p                    = (dPi/dE_up) * dE_up/du     <- ONE multiply
-dp*/du    = m * ( a * dE_up/du + b * dS/du )
-dE_i/du   = dE_i/du|_p + (dE_i/dp) * dp*/du
-```
-
-**Every u-dependence on the right is the SUPPLY model's own Jacobian** --
-`dE_up/du`, `dS/du`, `dE_i/du` -- which is Ohm's law over a tabulated integral, and
-which report 07 (6) gives in closed form. Everything else is a handful of DOUBLE
-coefficients evaluated once per placement.
-
-⚠️ **So nothing in the gas-exchange model needs to be templated on the tape's scalar
-at all.** Not profit, not the colimitation, not the cost, not the concentration
-solve, not the stem integral. The leaf solves in double -- which is what the implicit
-function theorem has been saying the whole time -- and hands over values with rows.
-
-## What that subtracts
-
-| |
-|---|
-| `collar_at<S>`, `outputs_at<S>`, `profit_at<S>`, `marginal_at<S>`, `collar_coords_at<S>` |
-| `marginal_assembled<T>` and its tangent above the adjoint |
-| `duptake_dpsi_at<T>`, `layer_mean_at<T>`, `layer_integral_at<T>`, `cumulative_lift<T>`, `cumulative_deriv_lift<T>` |
-| `implicit_value` at an active scalar for sigma, ci and both bounds |
-| `SecondOrder` and both branches it selects |
-| the whole `if constexpr (std::is_same_v<S, double>)` split that runs through the leaf |
-
-Measured, per placement: **861 recorded statements become a graft of at most
-6 x 31 = 186 operations** -- and, written as one statement per output rather than the
-`+=` loop `record_with_derivatives` uses today, **6 statements**.
-
-## Why the code does not already do this
-
-Report 02 (4) states the rule and the code took half of it:
-
-> **Record everything whose operations you can afford to record. Supply rows only
-> where recording is impossible -- an opaque solver -- or unaffordable -- the whole
-> trajectory.**
-
-861 statements x 2,333,500 placements is 2 x 10^9 recorded statements a gradient.
-That is the "unaffordable" clause, and it was never applied.
-
-## The check that needs no reference, and it has passed before
-
-Report 02 (3.4):
-
-> The identity a correct transpose must satisfy is `&lt;v, J u&gt; = &lt;J^T v, u&gt;` for
-> arbitrary `v` and `u`. An implementation of exactly the construction above [...]
-> satisfies that identity to **1.4e-14 over 294 operating points**, five orders below
-> the solve's own floor.
->
-> The identity is **the** check on this node, because it needs no reference gradient
-> and no differencing.
-
-**So this is not a new design. It is one that existed, was refereed by an identity
-that cannot be fooled, and was replaced by recording.**
-
-## The one thing that must not be assumed
-
-Report 05 (7.0): the envelope theorem holds at kind **S** -- an interior stationary
-maximum -- **and nowhere else**. At a pinned optimum profit reacquires the term
-(`w = Pi_bar * dPi/dp + s`), and at an exogenous point there is no optimisation at
-all.
-
-> **The objective's p-channel must be a number that is supplied, not an identity that
-> is assumed** -- zero at S, nu at K, and whatever the substitution gives at X.
-
-That is the design constraint the interface has to carry, and it is the reason the
-five kinds exist rather than one.
-
-## What to prove before writing any of it
-
-In this order, because the last two increments cost what they cost by taking it in
-the other one.
-
-1. **The rank-two claim on THIS model.** The reports measured it on an earlier tree.
-   Recover the leaf-area scaling and one soil potential independently through
-   `(E_up, S)` and require 1e-8.
-2. **The coefficients against the tangent they replace.** `a`, `b`, `Pi_pp` from the
-   closed forms in report 07 (5) and (12.3), against `marginal_assembled` at a
-   nested scalar, in `test_leaf`.
-3. **The dot-product identity**, which is the check that needs no reference.
-
-⚠️ **And one hazard this session measured directly.** `util::to_passive` strips
-EVERY layer, so at a nested scalar it removes the inner direction as well as the
-outer. A probe recording `outputs_at` at `AReal<FReal<double>>` -- adjoint above
-tangent, which costs 261 statements against 245 at the plain adjoint, so the nesting
-itself is nearly free there -- read `d2(profit)/dp d(vcmax)` as **exactly zero**
-against a differenced 2.97e-03, because every `implicit_value` correction is built as
-`x - to_passive(x)` and the inner tangent goes with the strip. **Any route that keeps
-a nested scalar has to reckon with that; the rank-two route does not have one.**
-
----
-
-# Proven, not cited: the rank, and the data structure it names
-
-The reports assert rank one and rank two and measure it on an earlier tree. That is
-a citation, not evidence. `probe_rank` asks THIS model, and it is built so that it
-can fail.
-
-## The test, and why it can fail
-
-At a **held** collar, if profit reads the supply only through total uptake `E`, then
-for every input that reaches profit through the supply and nowhere else,
-`dprofit/du_k = c * dE/du_k` with ONE constant. If the condition reads it only
-through `(E, S = dE/dp)`, then `dR/du_k = a*dE/du_k + b*dS/du_k` with one pair. Both
-are least squares over the inputs; an exact rank predicts a residual at rounding.
-
-Three things make it a test rather than a formality:
-
-* **The control.** The photosynthetic traits, the light and the stem parameters reach
-  profit DIRECTLY. They must FAIL both fits, and they do -- at a relative residual of
-  **1.000**, the whole of the value. A test that passed for everything would be
-  measuring nothing.
-* **The conditioning.** A two-column fit over collinear columns is satisfied by
-  anything, so the probe reports how much of `S` is independent of `E`. It is
-  **98.4% to 99.9%** -- very nearly orthogonal, so the fit is maximally constrained.
-* **Asymmetric layers.** The soil potentials differ per layer, so no result can come
-  from an accidental symmetry between interchangeable layers.
-
-## The result
-
-Seven states, both operating-point kinds the fixture reaches, 1/3/5 layers,
-wet to the root limit, all at `FReal<double>` -- one forward tangent, no tape:
-
-| state | point | profit = c*E | R = a*E + b*S | S indep. of E |
-|---|---|---|---|---|
-| wet, 5 layers | interior | 1.484e-15 | 7.857e-15 | 0.9921 |
-| drier, 5 layers | pinned-wet | 1.931e-15 | 1.982e-15 | 0.9969 |
-| drier still, 5 layers | pinned-wet | 3.387e-15 | 1.713e-15 | 0.9951 |
-| near the root limit | pinned-wet | 8.120e-15 | 1.823e-15 | 0.9933 |
-| three layers | interior | 1.427e-15 | 1.354e-14 | 0.9898 |
-| one layer | interior | 1.763e-15 | 3.624e-14 | 0.9844 |
-| one layer, dry | interior | 9.911e-15 | 1.343e-15 | 0.9994 |
-
-**Seventeen supply-side inputs collapse onto ONE number for profit and TWO for the
-condition, at machine precision, at every state tried.** The claim is established on
-this model.
-
-## What still has to be taped, measured
-
-**187 statements** at five layers: `E_from_soil_at` and `duptake_dpsi_at` together,
-which is the whole soil-to-collar supply -- closed-form Ohm's law over a tabulated
-integral -- and which yields `E`, `S` and every per-layer draw in one pass.
-
-Against **861** for a whole placement today.
-
-## The data structure
-
-The boundary is not "the leaf". **It is the two waists**, and once they are named the
-logic has nowhere else to go:
-
-```
-plant RECORDS the supply           187 statements, cheap arithmetic, and it is
-                                   where the numerous inputs actually live -- the
-                                   soil potentials ARE plant's own state
-
-the leaf SUPPLIES its rows         doubles, because the model that produces them
-                                   is too expensive to tape and reaches the state
-                                   through two scalars
-```
-
-```cpp
-// Everything the leaf's own model does, as numbers. The state does not appear:
-// it reaches this leaf through E and S and nothing else, which is measured.
-struct LeafGraft {
-  double profit, collar;                 // Pi* and p*
-  double dprofit_dE;                     // rank one -- the whole supply channel
-  double dcollar_dE, dcollar_dS;         // rank two; both zero where p is not stationary
-  double dprofit_dtrait[n_trait];        // the direct channel
-  double dcollar_dtrait[n_trait];
-  double uptake[L], duptake_dp[L];       // the draws, and their chain through p*
-};
-```
-
-and plant grafts three things onto the supply it already recorded:
-
-```
-Pi   = profit + dprofit_dE*(E - E0) + sum_k dprofit_dtrait[k]*(theta_k - theta_k0)
-p    = collar + dcollar_dE*(E - E0) + dcollar_dS*(S - S0) + sum_k ...
-E_i  = uptake_i(recorded, already carrying the state)  +  duptake_dp[i]*(p - p0)
-```
-
-**Per placement: about 195 recorded statements against 861** -- and the 674 removed
-are the expensive ones, the transcendentals and the tangent above the adjoint, while
-the 187 kept are cheap.
-
-## What it subtracts
-
-Everything ABOVE the waist stops being templated on the tape's scalar:
-`profit_at<S>`, `collar_at<S>`, `outputs_at<S>`, `marginal_at<S>`,
-`collar_coords_at<S>`, `marginal_assembled<T>` and its nested tangent, the
-`implicit_value` closures for sigma, ci and both bounds at an active scalar,
-`SecondOrder` and both branches it selects. The supply BELOW the waist stays
-templated, because plant records it -- `layer_mean_at<T>`, `cumulative_lift<T>` and
-`duptake_dpsi_at<T>` all survive, and they are the ones this session already made
-correct.
-
-⚠️ **And the leaf's own five kinds do not go away.** The envelope theorem holds at an
-interior stationary maximum and nowhere else, so `dcollar_dE` and `dcollar_dS` are
-zero at a hydraulic shutdown, are the bound's own response at a pin, and are the
-theorem's quotient only at kind S. **They are supplied numbers, which is exactly what
-lets one graft serve all five** -- where an identity assumed by the interface would
-be right at one kind and silently wrong at the others.
-
-## The surface, mapped — three corrections and one confirmation
-
-**TWELVE operating-point kinds, not five.** `OperatingPointKind` (`leaf_model.hpp:2009`)
-has twelve enumerators. "Five" is the number of PLACEMENT ARMS in `collar_at`;
-`ShadeDeath` shares the wet arm, `HydraulicShutdown` does not move the collar at all,
-and the other six reach `default:` and **throw**, which the catch at
-`tf24_strategy.h:1491` turns into a refusal. A graft handles this without a branch --
-the coefficients are simply zero where the collar does not respond -- but the six
-throwing kinds must go on throwing.
-
-**⚠️ The code already states this design, in a comment, beside a function written for
-it.** `roots.hpp:1627-1632`, on `d2uptake_dpsi_dpsi_soil`:
-
-> a row of the mixed second derivative of profit is **a pair of scalars times this
-> vector** and `d(E_i)/d(psi_soil[i])`. Differencing it instead costs 2(L+1) leaf
-> re-evaluations per cohort per stage.
-
-"A pair of scalars times this vector" **is** rank two, written down, next to a
-function that exists to serve it. And `against()` (`leaf_model.hpp:4760`) -- every
-input paired with its own entry in a gradient over the same struct -- is still in the
-tree with **no callers at all**. It is the last surviving piece of the supplied-row
-design, whose consumer was `collar_at`'s Interior arm until `ec7bb6c` replaced it with
-a taped residual. `Leaf::BoundRow` (`leaf_model.hpp:1066`) is the same shape for one
-output and is live on the R path.
-
-**The supply's closed-form Jacobian already exists, and recording it is still the
-right choice.** `duptake_dpsi_soil` (diagonal, and exactly the whole soil Jacobian
-rather than its diagonal part), `duptake_droot_carbon` (L x L and **lower triangular**
--- a layer's carbon reaches every layer below it through `r_R_V_sum`, so an
-implementation assuming diagonality gets the shallow layers right and loses the deep
-ones), `duptake_droot_curve_by_layer`, and the two mixed second derivatives. All
-closed form, all with callers -- but on the R calibration path, not plant's.
-
-Supplying them would mean carrying an L x L block and its NaN contract across the
-boundary. **Recording the supply instead is 187 statements and asks the model for
-nothing**, which is report 02 (4)'s rule applied where it belongs: record what you can
-afford, supply only what you cannot.
-
-## The graft is acyclic, which is the last thing to check
-
-`E_i` depends on the collar and the collar's row depends on `E`, so the order matters.
-It resolves because everything anchors at the passive `p*` the double solve returned:
-
-```
-1. record the supply at the PASSIVE p*      187 statements; E, S and every E_i,
-                                            each already carrying the state's rows
-2. graft the collar                         p = p* + dp_dE(E-E0) + dp_dS(S-S0) + traits
-3. graft profit                             Pi = Pi* + dPi_dE(E-E0) + traits
-4. graft each layer's chain                 E_i_out = E_i + duptake_dp[i]*(p - p*)
-```
-
-**About 194 statements, no circularity, and profit's collar channel never appears** --
-which is the envelope theorem as an omitted term rather than one that has to come out
-to zero. `outputs_at` already passes the collar passive to `profit_at` at an interior
-point (`leaf_model.hpp:4889`) for exactly this reason, so the structure is not new;
-what changes is that `collar_at`'s 616 statements become one.
-
----
-
-# Why there are seven mechanisms, and the one rule that leaves one
-
-The tree provides derivatives seven ways: a tabulation, hand closed forms, a forward
-tangent, a reverse tape, a tangent nested above that tape, finite differences, and a
-midpoint asymptotic with three measured thresholds. That is the spaghetti, and it is
-not seven decisions. **It is one rule, missing, seven times.**
-
-## Every mechanism is a missing primitive
-
-| mechanism | the primitive it stands in for |
+| | worst relative residual |
 |---|---|
-| the nested tangent above the adjoint, **566 statements** | `dA/dci` and `dC/dsigma` |
-| the second-order branches of `cumulative_lift` and `stem_integral_at` | `d2G/dpsi2`, which Leibniz says **is** `f'` -- and `vulnerability_curve_slope_at` already exists |
-| the midpoint asymptotic, three thresholds, ten call sites | the layer MEAN of `f`, formed as a divided difference of the tabulated `G` instead of from `f` |
-| `differenced_curvature`, `collar_step`, `shrink_decades` | `dR/dp` -- R has no slope because R is not a value |
-| ~~the tabulated `P'`, `P''`~~ | `V` from the flux balance rather than the inverse table. **Already fixed**: `V = (dEup_dp/kmax + f_p)/f_sigma` |
-| `gradient.hpp`'s finite differences, ~1,050 lines | nothing -- a second product, and step 8's deletion |
-| the leaf composing on plant's tape, **861 statements** | the rank-two graft |
+| profit = c * E | **1.4e-15 to 9.9e-15** |
+| R = a * E + b * S | **1.3e-15 to 3.6e-14** |
 
-## The rule
+**Seventeen supply-side inputs collapse onto one number and two numbers, at machine
+precision, everywhere tried.**
 
-> **Every elementary primitive ships with its own slope, as a sibling closed form in
-> one definition. A tabulation stores only the lowest order Leibniz cannot give.
-> Every root-find is closed by the implicit function theorem on its residual. AD
-> composes them. Nothing is differenced, and nothing takes a second derivative of a
-> composition.**
+## The two slopes the model computes instead of having
 
-`vulnerability_curve_at<T>` and `vulnerability_curve_slope_at<T>` are already that
-shape, and this session unified them so both come from one definition. The rule is
-not new; it is applied once and missing everywhere else.
-
-## Measured, so it is not an argument
-
-`probe_primitive` writes the two missing slopes and checks them against the tangent
-they replace, at the operating point the solve returned:
+`probe_primitive`, at the operating point the solve returned:
 
 | | |
 |---|---|
@@ -2033,60 +1509,12 @@ they replace, at the operating point the solve returned:
 | the same information by the nested tangent | **566 statements** |
 | | **14.5x** |
 
-`dC/dsigma` is one line over the slope the vulnerability curve already has.
-`dA/dci` is eight lines: the two limited rates, their own slopes, and the
-colimitation's quotient rule.
+`dC/dsigma` is one line over the slope the vulnerability curve already has. `dA/dci`
+is eight: the two limited rates, their own slopes, and the colimitation's quotient
+rule.
 
-## The ecology says the same thing, and says it first
+---
 
-Report 07 (3) writes the stationarity condition in the quantities the ecology weighs:
-
-> R = (dA/dE_up) S - C'(sigma) V, **the carbon bought by the water an extra unit of
-> collar pull draws, against the cost of the extra tension that pull puts on the
-> stem.** At the optimum the two are equal and R is zero.
-
-`dA/dE_up` is lambda -- the marginal carbon per unit water, the marginal water-use
-efficiency. It is the model's own central quantity; the companion manuscript is
-titled for it. **And the code represents it as a derivative to be computed rather
-than a value the model has.**
-
-⚠️ **That is the representational error in one sentence: in an optimality model a
-MARGINAL IS A VALUE.** A model whose primary ecological quantity is spelled as a
-derivative will always need one AD order more than the ecology does, and every one of
-the seven mechanisms above is that extra order being paid for in a different currency.
-
-## Then nothing is second order, anywhere
-
-With the slopes primitive, R stops being `dPi/dp` computed and becomes a function the
-model has:
-
-```
-lambda = A' * (dci/dE)                  first order in primitives
-V      = (S/kappa + f(p)) / f(sigma)    first order, from the flux balance
-R      = lambda * S - C' * V            A VALUE, not a derivative
-p*     : root of R                      IFT: dp*/dtheta = -(dR/dtheta)/(dR/dp)
-```
-
-**Both ingredients of the theorem are FIRST derivatives of R.** `SecondOrder` has
-nothing left to gate, the nested scalar has nothing to do, and `d2uptake_dpsi2` is not
-a second derivative at all -- it is the slope of `S`, which is itself a primitive
-(`duptake_dpsi`, already closed form).
-
-## The eight connected components, each closed one of two ways
-
-Traced so nothing is left needing a mechanism of its own.
-
-| | closed by |
-|---|---|
-| vulnerability curve: `f`, `f'`, `G`, the layer means | primitives `f`, `f'`; `G` tabulated for its VALUE only; the mean from `f` |
-| photosynthesis: `J`, `Ac`, `Aj`, `A`, `A'` | primitives `A`, `A'` -- the one genuinely missing pair |
-| hydraulic cost: `C`, `C'` | one line over `f'` |
-| transport: `sigma`, `V` | the flux balance `kappa(G(sigma) - G(p)) = E_up`; no inverse, no tabulated derivative |
-| supply: `E_i`, `E_up`, `S`, `dS/dp` | primitives, all three already closed form |
-| concentration: `ci` | IFT on an explicit algebraic residual |
-| operating point: `p*` | IFT on `R` |
-| the two bounds | IFT on `E_up = 0` and on the stem's continuity; the third is a trait, so its row is a unit vector |
-
-**Eight components, two closures, one rule, and no second derivatives.** That is the
-inevitable form, and everything this document has measured is a consequence of not
-having it.
+**The design that follows from all of it is `one-order.md`.** It carries the rule, the
+eight connected components, the data structure, the landing order with its referees,
+and the list of what is already refuted and must not be re-proposed.

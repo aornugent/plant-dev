@@ -145,7 +145,18 @@ are redesigns. Rank the remaining work **by names removed**, not by lines and no
 by seconds: the entries that delete a concept are the ones whose value compounds,
 because every later change is read against a smaller vocabulary.
 
-## What holds across all five
+## 6. Where a cut turns out to be a redesign -- `one-order.md`
+
+Step 8 of that order is the leaf, and it is the one entry the sequence could size but
+not design: the leaf supplies seven different kinds of derivative and a reader has to
+learn all seven. Asking what is fundamental there produced a prescription rather than
+a cut, so it lives on its own.
+
+It is a **leaf of this cascade, not a branch**: read it when you touch the leaf's
+derivative boundary, and read it against the prime directive, which is what it exists
+to serve. Its own measurements are in `one-program.md`.
+
+## What holds across all six
 
 - **A comment that blocks your change is evidence, not clutter.** Satisfy its
   claim or disprove it before deleting it.
