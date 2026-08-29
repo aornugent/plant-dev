@@ -169,18 +169,66 @@ Each step lands alone, and **each referee is written before the thing it referee
 That order is not a preference: it is what the last two increments cost when it was
 the other way round.
 
-| | step | referee, written first |
-|---|---|---|
-| 1 | `dC/dsigma` as a primitive beside `C` | against a tangent through the kernel; **already measured bit-identical** |
-| 2 | `dA/dci` as a primitive beside `A` | against a tangent; **already measured at 2.14e-16** |
-| 3 | `R` assembled from the primitives, so it is a value | `R` at the returned collar is ~0 to the solve's floor; and `dR/dp` against a tangent through `R` |
-| 4 | delete the nested tangent, `SecondOrder`, and both second-order lift branches | `test_leaf`, ladder, and the placement's statement count |
-| 5 | the layer mean from `f` rather than from a difference of `G`; the three thresholds go | the crossover sweep this session built, plus the direct branch comparison |
-| 6 | the graft: `LeafGraft`, and the four-step compose above | the transpose identity, below |
-| 7 | delete the leaf's whole `<S>` surface above the waist | the ladder, and 861 -> ~194 |
+| | step | referee, written first | |
+|---|---|---|---|
+| 1 | `dC/dsigma` as a primitive beside `C` | against a tangent through the kernel | **DONE** bit-identical |
+| 2 | `dA/dci` as a primitive beside `A` | against a tangent | **DONE** rel 2.14e-16 |
+| 3 | `R` assembled from the primitives, so it is a value | `test_leaf`, and the count | **DONE** |
+| 4 | delete the nested tangent, `SecondOrder`, and both second-order lift branches | `test_leaf`, ladder, statement count | **DONE** |
+| 4b | **the waist: `SupplyDraw`, recorded once and passed in** | the transpose identity | **DONE** 531 -> 444 |
+| 5 | the layer mean from `f` rather than from a difference of `G`; the three thresholds go | the crossover sweep, plus the direct branch comparison | see below |
+| 6 | the rest of the graft: profit's and the collar's rows supplied | the transpose identity | not started |
+| 7 | delete the leaf's whole `<S>` surface above the waist | the ladder, and the count | blocked on 6 |
 
-Steps 1 and 2 are self-contained and land today. Step 6 is the one that needs the
-identity in hand before it starts.
+**Measured, one interior placement at five soil layers: 861 -> 444 statements and
+1257 -> 772 operations**, `marginal_assembled` 396 -> 66 and `collar_coords_at`
+117 -> 30. `test_leaf` 1127/0 with the solve checksum bit-identical, the ladder
+554/0/5, the non-ladder 3295/0, odelia 346/0/3, and `test_golden`'s mismatch count
+unchanged at its pre-existing 223.
+
+### Step 4b was not in the original order, and it is the one that pays
+
+The compose above anchors everything at the passive `p*`. What the code turned out
+to be doing is recording the supply **two or three times** at that same point:
+`implicit_value` evaluates its residual at the passive `y_star`, so `marginal_at`
+records the whole supply there; `outputs_at` then records `E_from_soil_at` again at
+the same passive collar for profit, and again at the live collar for the draws. Of
+531 statements, about 359 were supply and ~86 of those a byte-for-byte duplicate.
+
+`SupplyDraw<S>` is that recording, taken once and passed in. It carries the collar
+it was taken at, because **a draw from the wrong collar is a wrong number rather
+than a missing row** -- profit reads the flux wherever it is evaluated, so a stale
+draw answers with the uptake from somewhere else and every value stays finite.
+`check_draw` is what makes that a stop; it caught two real mistakes the moment it
+existed.
+
+⚠️ **The per-layer draws stay RECORDED, and that is this document's own rule
+winning over its own step 4.** `duptake_dpsi` already returns the per-layer collar
+slopes, so grafting them is available and would save the last ~86 statements. It is
+refused because that vector is **NaN by contract where a bound meets a layer**, and
+a coincidence of exactly that kind at 5.6e-08 is what corrupted this model once
+already. Recording is what we can afford; supply only what you cannot.
+
+### Two corrections to what is written above
+
+⚠️ **`LeafGraft` as prescribed is missing `dprofit_dcollar`, and the omission is the
+trap the next section warns about.** The envelope theorem kills profit's collar
+channel at an interior stationary point and **nowhere else**; at a pinned kind the
+collar is fixed by a bound and `dPi/dp` is not zero. `outputs_at` already knows this
+-- it hands profit the passive collar only at `Interior` and the live one otherwise
+-- so the field must be SUPPLIED and merely happen to be zero at `Interior`. A
+consumer that infers it is correct at one kind and silently wrong at the others.
+
+⚠️ **Step 5 cannot be done by computing the integral more accurately.** The mean is
+`(G(hi) - G(lo))/span`, and that cancels as the span shrinks *however* `G` is
+obtained -- an exact incomplete-gamma `G` still differences two O(1) numbers to get
+an O(span) one, so the relative error is `eps/span`. Each derivative divides by the
+span again, which is why there are three thresholds and not one. The only
+representation that removes them is a **stable divided difference**: where `lo` and
+`hi` fall in the same polynomial piece of the tabulated `G`, evaluate
+`(p(hi) - p(lo))/(hi - lo)` symbolically on that piece, which is exact to relative
+precision and analytic as `hi -> lo`. That is a capability of an interpolator and
+belongs in `odelia/interpolator.hpp`, not in phylloptim's ten call sites.
 
 ---
 
