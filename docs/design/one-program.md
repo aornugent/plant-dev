@@ -1083,3 +1083,78 @@ threading of a condition struct through `record_leaf_outputs` -> `collar_at` ->
 nested pass over an assembly whose second-order content nothing referees. Only the
 curvature was ever measured, and it was wrong. Under the taped residual that quantity
 becomes first order and refereeable.
+
+---
+
+# Increment 2 done: one form for every collar closure
+
+```
+Interior                   -> implicit_value_reported(p*, marginal_collar_slope(), marginal_at)
+PinnedWet, ShadeDeath      -> bound_at -> implicit_value
+PinnedDryRootCrit          -> bound_at -> implicit_value
+PinnedDryRootPsiCrit       -> the bound IS the trait
+HydraulicShutdown          -> does not move
+```
+
+`collar_at` had one case that did not look like the others. The bounds each closed on
+a residual; the interior point called `implicit_root` with rows handed over as
+NUMBERS -- because those rows needed a second derivative of the profit, which is the
+thing this session found wrong.
+
+## Deleted
+
+* `odelia::implicit_root` -- the supplied-row form. One consumer in the family, and it
+  is gone.
+* `odelia::ode::plain_adjoint` -- its only use was inside the nested pass.
+* `Leaf::CollarCondition` and `Leaf::collar_condition` -- the struct and the pass that
+  filled it.
+* the condition threaded through `record_leaf_outputs` -> `collar_at` -> `outputs_at`
+  in plant: one fewer parameter on two calls, one fewer type to learn.
+* one of the refusal message's two readings of the marginal. It carried both because
+  the question was whether they agreed; they do, and the assembly that made them
+  differ is gone.
+
+odelia's R tests are RETARGETED, not deleted: the same theorem reached through a
+residual whose derivatives ARE the two slopes and whose value at the root is zero, so
+every expectation survives -- the quotient, the chain through the root, the fold
+reported rather than thrown, and a non-finite row refused after the quotient.
+
+## Added, and why each is the smaller thing
+
+* `implicit_value_reported` -- the theorem, returning its report. `implicit_value` is
+  it plus the stop. The two forms differed in what a degenerate slope does and that
+  difference is REAL: a bound's value IS what the equation defines, an interior
+  optimum is still the point it was. The policy moves to the call site.
+* `duptake_dpsi_at<T>` -- the supply's collar derivative at any scalar, four lines
+  over the shared layer means. The marginal needs it; nothing else could supply it.
+* `collar_coords_at<S>` -- the flux, the stem potential and the intercellular CO2,
+  built ONCE and read by both `profit_at` and `marginal_at`, which would otherwise
+  carry the same two implicit closures apiece.
+
+## The referee came before the algebra
+
+Twice this session an error survived because the check could not discriminate it. So
+the templated supply derivative was refereed two ways before anything was wired to it:
+
+* against the double form it replaces: **gap exactly 0.000e+00**, bit-identical
+* against `d2E_from_soil_dpsi_collar2`, computed by an entirely different route:
+  **7.327e-15**
+
+## And one lean failure of my own, found by reading rather than timing
+
+The helper made every caller read `layer_mean` and then `layer_mean_dbound`, and the
+second formed the integral AGAIN -- four table reads per layer where there had been
+two, and two passes of lifts on the active path where one will do. The mean is now
+passed. Cleaner and slower is not the trade.
+
+⚠️ **No timing is claimed from today.** The machine is under a load average of 13 from
+another user's jobs and a forward pass that runs in 32 s clean took 53 s. This was
+found in the call graph, not on a clock.
+
+## What plant gained
+
+The guard now tests the SAME slope the closure divides by. It used to read
+`condition.slope` from one pass while the closure divided by it and took its parameter
+rows -- `d2(profit)/dp dtheta`, the same second-order class as the curvature that came
+back positive at an interior maximum -- from the same unrefereed place. Those rows are
+now taped from the condition itself.
