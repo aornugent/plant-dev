@@ -1541,3 +1541,142 @@ by accident: at `AReal<double, 3>` the derivative type is `Vec<double,3>` and th
 concept answers TRUE for a scalar carrying three FIRST derivatives, silently
 enabling both second-order branches. Nothing instantiates that width today, and the
 concept should say what it means before anything does.
+
+---
+
+# Measured: what a placement costs, and what is actually making this hard
+
+`probe_leaf_tape` counts what one leaf placement writes to the tape it is recorded
+on, at 1, 3 and 5 soil layers. The century fixture is **5** (`soil_number_of_depths`
+defaults to 5 and nothing in the script overrides it). Everything below is that
+probe or the XAD source, not a profile and not an argument.
+
+## One placement, at the interior point
+
+| | statements | operations |
+|---|---|---|
+| `collar_at` | 812 | 1,070 |
+| ...`collar_coords_at` | 117 | |
+| ...`duptake_dpsi_at` | 101 | |
+| ...**`marginal_assembled`** | **592** | |
+| `outputs_at` | 245 | 399 |
+| **one placement** | **1,057** | **1,469** |
+
+**The collar residual is 77% of the leaf's tape, and it produces ONE number.**
+`outputs_at`, which produces everything plant actually reads -- profit and one draw
+per layer -- is 245.
+
+| | |
+|---|---|
+| record one placement (marginal, on a live tape) | 28.2 us |
+| sweep it once | 1.80 us |
+| clear + release + register, on a reused tape | **0.14 us** |
+| **record : sweep** | **16 : 1** |
+
+⚠️ **Recording dominates sweeping sixteen to one, and that overturns the plan's
+standing assumption.** Every proposal that moves tape from one place to another --
+a private tape, a dense block, three metrics in one walk -- is arguing about the
+*sweep*, which is a sixteenth of the cost. **What matters is what gets recorded at
+all.**
+
+⚠️ **And the tape CYCLE is free while the tape is not.** Clearing, releasing and
+re-registering is 0.14 us, so a per-placement recording cycle is not what made
+`collar_condition` cost 2.3%. But constructing a `Tape` reserves **192 MiB** of
+chunks (`ChunkContainer.hpp:41`, `OperationsContainerPaired.hpp:37`, one chunk each
+at construction), so a private tape must be a held member reused across placements,
+never one built per placement.
+
+## What is making this hard, in one mechanism
+
+The leaf's value is defined BY a derivative: `p*` is where `M = dpi/dp` vanishes.
+So the stand's gradient needs derivative information one order above the model's own
+definition. The code assembles M in closed form except for two ingredients --
+`dA/dci` and `dC/dsigma` -- which it takes with a forward tangent one order above
+the working scalar.
+
+**At the gradient that tangent sits above an adjoint, and that is where the cost
+is.** Measured, the same three kernels at the same point:
+
+| | statements |
+|---|---|
+| the three kernels at the working scalar `A` | **31** |
+| the same three at `TT = FReal<A>` | **566** |
+| | **18.3x** |
+
+Not 2x. `FReal` holds its value and its derivative as separate members and assigns
+each separately, so **XAD's expression templates cannot fuse across the nesting**:
+one recorded statement at `A` becomes a statement for the value plus one per link of
+the derivative chain. Per kernel: electron transport 197, colimited assimilation
+288, hydraulic cost 81.
+
+That is the whole of increment 2's regression, and it also says what the deleted
+`collar_condition` really cost -- **the same nesting**, on a private tape swept once
+rather than on plant's swept three times.
+
+## Landed: a dual whose derivative is structurally zero
+
+`J0` was built at `TT` from four `lift(...)` arguments -- value set, direction zero
+-- so its tangent half is identically zero and carries no information, while
+costing 197 recorded statements. Evaluated at `T` and lifted it is the same `TT`:
+
+| | statements |
+|---|---|
+| one placement, before | 1,057 |
+| **one placement, after** | **861** |
+
+**-18.5% of the leaf's tape, provably information-free.** `test_leaf` 1127/0 with an
+identical checksum, and `test_golden` identical to the digit (the forward model does
+not reach this path).
+
+## What is left, ranked by measurement
+
+1. **`dC/dsigma` in closed form** -- 81 statements at TT. `C = scale*(1-f(sigma))^beta`,
+   so `dC/dsigma = -scale*beta*(1-f)^(beta-1) * f'(sigma)`, and `f'` already exists as
+   `vulnerability_curve_slope_at<T>`. Small, and the pieces are in the tree.
+2. **`dA/dci` in closed form** -- 288 statements at TT, the largest single item left
+   and the only real algebra. First order, and refereeable against the tangent it
+   replaces to machine precision in the fast harness.
+3. **M's rows on a private, REUSED tape** -- worth about 8%: it saves two of three
+   sweeps of 77% of the tape, and nothing of the recording.
+
+1 and 2 together would take a placement from 861 to roughly 500 -- **half the leaf's
+tape, in both recording and sweeping** -- against `record_leaf_outputs` at 32.3% of
+the gradient.
+
+⚠️ **The precedent for 1 and 2 is in this package and it is not the algebra that
+failed.** `vulnerability_curve_slope_at<T>` is a closed-form FIRST derivative
+refereed against its own curve. What failed earlier in this session was a
+second-order surrogate with no referee. Same word, different order, and the referee
+is what separates them -- so write it first.
+
+## Refuted, with the measurement that refutes each
+
+* **A dense block for every output.** The leaf hands plant 6 outputs; a block is
+  6 x 31 = 186 statements against 1,057 recorded, which looks like 5.7x. It loses:
+  the rows still have to come from a recording of the leaf, and reading six outputs
+  off one tape costs **six sweeps** where composing on plant's costs **three walks**.
+  28.2 + 6(1.8) = 39 us against 28.2 + 3(1.8) = 34 us.
+* **Three metrics in one walk** (`xad::adj<T,3>`). Measured at 1.15x-0.97x in odelia
+  `828cd83`, and the reason is now visible from the source: the statement and
+  operation arrays are width-independent, while `derivatives_` is N times the bytes
+  and every statement copies and zeroes a whole `Vec<T,N>`. ⚠️ It may also no longer
+  compile: odelia's local `adjoint_is_zero` dispatches non-floating-point adjoints to
+  `.value()`/`.derivative()`, which `Vec` does not have.
+* **The per-placement tape cycle as the reason to avoid a private tape.** 0.14 us.
+  It was never the cycle; it was the nesting.
+
+## Two things the XAD source says that the plan should have known
+
+* **`record_with_derivatives` is written in the shape that costs the most.** Its
+  loop is `out += d_i * (x_i - passive(x_i))` per row, and `+=` on an active is a
+  full recorded assignment -- so **n rows cost n statements and 2n operations**. The
+  same information as ONE statement with n operations, either as a single expression
+  or as `pushAll(multipliers, slots, n)` followed by `pushLhs`. Nothing in the tree
+  supplies more than one row today, so this has never mattered; it decides the cost
+  of anything that supplies many.
+* **`initDerivatives` zero-fills the whole derivative array, per seed, sized by the
+  high-water SLOT mark rather than the live count.** So plant's tape pays a full
+  memset three times per recording, and it scales with how many slots a recording
+  ever issued. That is the `memset` + `__fill_a1` term that rose by 981 samples in
+  the regression, and it is a second reason the leaf's slot count matters beyond the
+  statements themselves.
