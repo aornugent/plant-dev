@@ -148,13 +148,25 @@ because every later change is read against a smaller vocabulary.
 ## 6. Where a cut turns out to be a redesign -- `one-order.md`
 
 Step 8 of that order is the leaf, and it is the one entry the sequence could size but
-not design: the leaf supplies seven different kinds of derivative and a reader has to
+not design: the leaf supplied seven different kinds of derivative and a reader had to
 learn all seven. Asking what is fundamental there produced a prescription rather than
 a cut, so it lives on its own.
+
+**It has landed, and four of the seven are gone** -- a tangent nested above the tape,
+a second-order concept and both its lift arms, finite differences, and a midpoint
+asymptotic with three tuned thresholds. What is left is the irreducible four: a
+tabulation for what has no closed form, primitives carrying their own slopes, a
+forward tangent, a reverse tape. One interior placement fell from 861 tape statements
+to 360.
 
 It is a **leaf of this cascade, not a branch**: read it when you touch the leaf's
 derivative boundary, and read it against the prime directive, which is what it exists
 to serve. Its own measurements are in `one-program.md`.
+
+⚠️ **Closing it does NOT open step 9.** Step 8's deletion half -- the leaf's orphaned
+derivative chain and the single-potential supply path -- is gated by its own text on
+the calibration path going first, and that has not happened. **The next item in the
+order is step 1.**
 
 ## What holds across all six
 
