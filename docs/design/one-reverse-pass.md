@@ -368,15 +368,17 @@ nowhere. So once calibration goes:
   entry 1 flagged one real gap against unifying the two derivative methods --
   that the single-potential path has no active arm. **The gap does not exist once
   calibration goes.** Nothing needs a difference.
-* `gradient.hpp` (1,255) reduces to nothing plant reads. `inputs.hpp` (339)
-  reduces to what still names the boundary. `closed_form.hpp` (223) was an open
-  speed study *for the FD path* -- with no FD path it is answered by deletion,
-  and `subtraction-targets.md` 12's "not wired in means not yet" becomes "not
-  ever". `R/gradient.R` (991), `R/gradient-batch.R` (373), `src/gradient.cpp`
-  (238), and the `volatile`-based `rounded()` whose only job was to make C++
-  match R bit for bit.
-* The namespace `phylloptim::gradient` stops existing. `Drivers` is a bundle of
-  driving values and belongs in `phylloptim`, not in a gradient namespace.
+* ~~`gradient.hpp` (1,255) reduces to nothing plant reads.~~ DONE, and it reduced
+  to nothing at all. `inputs.hpp` (339) went with it rather than shrinking, and
+  `closed_form.hpp` (223) -- an open speed study *for the FD path* -- was answered
+  by deletion, so `subtraction-targets.md` 12's "not wired in means not yet"
+  became "not ever". `R/gradient.R` (991), `R/gradient-batch.R` (373),
+  `src/gradient.cpp` (238) and the `volatile`-based `rounded()` whose only job was
+  to make C++ match R bit for bit are all gone.
+* ~~The namespace `phylloptim::gradient` stops existing.~~ DONE. **`Drivers` was
+  not rehomed**, and the step-1 entry below says why: the word already meant
+  odelia's time-varying forcing one file away, and six of its nine fields were
+  copies of values that were already `double`.
 * `ad_parameter::leaf_par` -- the `int` carrying the leaf's own index for
   fourteen of plant's parameters, "so a trait cannot be registered for the
   gradient here and forgotten where the leaf's rows are asked for" -- **has no
@@ -477,9 +479,54 @@ same reason: free depended on an assumption the tree contradicts.
   the ladder. It goes in step 2, where a split becomes a range on one loop and
   the rung can be two calls.
 
-**1 -- remove the calibration path.** The largest deletion in the plan and the
-one with no design work in it. It is also what makes step 3 a single discipline
-rather than a choice between two.
+**1 -- remove the calibration path.** DONE. The largest deletion in the plan and,
+as predicted, the one with almost no design work in it: **57 files, +603 and
+-8,005, of which -6,169 is code.** `gradient.hpp` (1,255), `inputs.hpp` (339),
+`closed_form.hpp` (223), `src/gradient.cpp` (238), `R/gradient.R` (991),
+`R/gradient-batch.R` (373), two test files (1,459), `bench_gradient.cpp`,
+`tools/gradient_golden.R`, `vignettes/fitting.Rmd` (548), the recorded gradient
+golden file and four man pages. `phylloptim::gradient` no longer exists.
+
+Nothing moved: `test_leaf_gradient` is 190 comparisons and 0 failures either side,
+the golden file's 223 cross-platform mismatches are unchanged to the digit, plant's
+ladder is 673/0 over 18 files and its other 57 are 3,295/0. `test_leaf` falls from
+1,127 checks to 859, and that number was audited rather than accepted: every kept
+test has a byte-identical check count, and the 271 that went are exactly the four
+tests whose subject was the deleted product.
+
+**Three things this found that the entry above did not predict.**
+
+* **`Drivers` did not need a new home; it needed to stop existing.** The plan said
+  it "belongs in `phylloptim`, not in a gradient namespace". But the word already
+  meant something else one file away -- plant's `ExtrinsicDrivers` is
+  `odelia::drivers::Drivers`, the time-varying forcing -- so `tf24_strategy.h` held
+  two unrelated things called `Drivers` and told them apart by namespace. Counting
+  what plant actually did with it settles the question: **six of its nine fields
+  were copied verbatim from sources that were already `double`**, and one of those
+  copies was a whole `soil_depth` vector per rate evaluation that the double branch
+  never paid. What earns its keep is a `RootNetwork` the architecture model fills in
+  place and a `psi_soil` buffer to strip an active vector into, so that is what the
+  strategy holds -- `root_network_` and `psi_soil_value_`, the second named for the
+  `root_carbon_value_` two lines above it. The clash is unstateable rather than
+  renamed, and the two arms of the `if constexpr` now differ in exactly the three
+  things that differ.
+* **The trait table was sixteen wide for a fourteen-trait model.** `par_kmax` and
+  `par_resistance` were there because a *calibration* fits them; `set_traits` places
+  neither, and `leaf_specific_conductance_max` is an argument to `set_physiology`.
+  So `inputs.hpp` did not reduce to "what still names the boundary" -- it went
+  entirely, and the fourteen entries `leaf_model.hpp` was already the only reader of
+  moved into `leaf_model.hpp` beside `set_traits` as `trait_table`, `n_traits`,
+  `trait_of` and one `trait_<name>` constant each. The "traits are everything before
+  the first non-trait" indirection had nothing left to index and went with it.
+* **`gradient.hpp:66`, `#include <phylloptim/inputs.hpp>`, was dead.** It sat inside
+  both namespaces and read as a namespace-injection trick; `leaf_model.hpp:6` had
+  already included the file at global scope, so the guard swallowed it. It had
+  worked only because something else included it first.
+
+⚠️ **The one thing NOT done here is the one the entry above warns about**:
+`single_potential.hpp` and the `supply_kind_` switches are step 8's, not step 1's.
+Step 1 removed the last caller of the `bool single` flag, which is what step 8's
+deletion half was gated on -- so **step 8 is now unblocked, and it is next.**
 
 **2 -- complete the record, then collapse the sweep.** Two commits, in that
 order: the push in `run_next` first, because the sweep must give bit-identical
@@ -898,13 +945,22 @@ interior placement fell from 861 to 360 statements. The prescription's rule now
 holds: nothing is differenced, and nothing takes a second derivative of a
 composition.
 
-**What remains of step 8 is the DELETION half, and it is gated on step 1.** The
-leaf's orphaned derivative chain and the single-potential supply path are both still
-here (`single_potential.hpp`, 27 `supply_kind_` reads in `leaf_model.hpp`), and this
-step's own text says they become a deletion rather than a redesign only *after* the
-calibration path goes. That has not happened: `gradient.hpp` is 1,255 lines and
-`src/gradient.cpp` is still built. **So the next item in this order is step 1, not
-step 9.**
+**What remains of step 8 is the DELETION half, and step 1 has now unblocked it.**
+The leaf's orphaned derivative chain and the single-potential supply path are both
+still here (`single_potential.hpp`, 27 `supply_kind_` reads in `leaf_model.hpp`),
+and this step's own text says they become a deletion rather than a redesign only
+*after* the calibration path goes. It has: `gradient.hpp` and `src/gradient.cpp`
+are gone, and with them the `bool single` flag that was the last thing outside the
+leaf naming a supply kind. **So the next item in this order is step 8's deletion
+half.**
+
+⚠️ **What is left holding `SinglePotential` up is the R binding and two C++
+tests**, not a product: `supply_kind` is bound in `RcppR6_classes.yml`,
+`leaf_supply_single()` and `series_resistance()` are exported, `test-surface.R`
+exercises the kind, and `test_leaf.cpp` has `test_single_potential` and
+`test_leaf_on_single_potential`. That is a user-facing R surface rather than
+tests-only reachability, so this deletion is a decision about phylloptim's public
+API and not a sweep of dead code. Ask it as that.
 
 The deletion here is real and still wanted, but it
 is the small half. The large half is that the leaf supplies SEVEN kinds of derivative

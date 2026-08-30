@@ -828,22 +828,45 @@ Removed: `InputRole`, `parameter_role`, `input_role`, the `static_assert` and th
 `string_view` -- so `par_table` is now `std::array<std::string_view, 16>`. The two
 comments still citing `rows_at` are corrected. `test_leaf` 1114/0.
 
-### 12. `closed_form.hpp` — checked, and it is not a target
+### 12. `closed_form.hpp` — spared once, then deleted, and the difference is the point
 
 123 code lines reached only from `test_leaf.cpp`, which is what put it on this
-list. It comes off again: `PLAN.md` §9 is an open item carrying measured speedups
-(10.8x for the power-law route, 47x for the explicit beta2 form), a design
-decision that reads "one Newton step is deliberate, do not improve it", and a
-question still open on the realised speedup. "Not wired in" means not yet.
+list. It came off again the first time: `PLAN.md` §9 was an open item carrying
+measured speedups (10.8x for the power-law route, 47x for the explicit beta2
+form), a design decision that reads "one Newton step is deliberate, do not improve
+it", and a question still open on the realised speedup. "Not wired in" meant not
+yet.
 
 ⚠️ **Tests-only reachability does not distinguish dead from unfinished**, and this
 is the case that shows it. The check that separates them is whether a plan item
 still carries open work, not whether the code has a caller.
 
+**Then the plan item went, and the file with it.** §9 was a speed study *for the
+finite-difference gradient*: something that solves the leaf approximately is worth
+having when a gradient re-solves it 112 times per observation, and worth nothing
+when the derivative is supplied. Step 1 of `one-reverse-pass.md` removed that
+caller, so the open question was answered by deletion rather than by measurement --
+which is what §IV of that document predicted, in those words, before it happened.
+
+**The rule this leaves is the one above with its second half attached.** Ask whether
+a plan item still carries open work, and then ask what that item is FOR. An open
+question about a thing whose only consumer is being deleted is not open work; it is
+work that stops existing on the same commit.
+
 ### 13. The 993 long comment blocks
 
 Mechanical trimming would delete the one paragraph that was load-bearing. This is
 a per-file reviewable pass, and the hazard blocks are not part of it.
+
+⚠️ **`test_leaf.cpp` has a sharper version of this that is not about length: four
+comment blocks sit nowhere near the test they describe.** "The supply's SECOND
+collar derivative", "The two coincidences the supply refused every derivative at",
+"What the operating point's condition IS" and "The three invariants that were
+stated and never checked" each name exactly one test and each sits tens or hundreds
+of lines above it, separated by other tests. They were already adrift before step 1
+and each is still true, so they are a move rather than a trim -- which is why they
+were left where they were rather than folded into a commit about deleting something
+else. Four blocks that named the deleted row product went with it.
 
 ### 14. Smaller things reading turned up
 

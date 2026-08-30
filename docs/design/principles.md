@@ -165,8 +165,11 @@ to serve. Its own measurements are in `one-program.md`.
 
 ⚠️ **Closing it does NOT open step 9.** Step 8's deletion half -- the leaf's orphaned
 derivative chain and the single-potential supply path -- is gated by its own text on
-the calibration path going first, and that has not happened. **The next item in the
-order is step 1.**
+the calibration path going first. **Step 1 has now done that**: `phylloptim::gradient`
+is gone, 8,005 lines with it, and nothing outside the leaf names a supply kind any
+more. So the next item is step 8's deletion half, and it is a question about
+phylloptim's public R surface rather than a sweep of dead code -- `leaf_supply_single()`
+and `series_resistance()` are exported and `supply_kind` is bound.
 
 ## What holds across all six
 
