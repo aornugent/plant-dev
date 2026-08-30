@@ -385,15 +385,32 @@ Preaccumulation pays `min(n, m)` sweeps against `O(T)` taped statements, so the
 deciding ratio is `T / min(n, m)`. Here `T = 360`, `n = 31` inputs, `m = 6` outputs:
 **60**. That is squarely the regime every source reports as a large win.
 
-**And it is blocked by the library, not by the mathematics.** `min(n, m) = 6` means
-the sweeps must run in REVERSE, and XAD cannot nest a tape: `Tape::setActive` throws
-`TapeAlreadyActive`, and an `AReal` finds its tape through `getActive()`. A private
-leaf tape at the same scalar is **structurally impossible**, not merely slow -- which
-corrects this file's own "39 us against 34", a figure for a thing that cannot be
-built. The remaining direction is forward, at `n = 16` trait directions, and that is
-**measured at 38-52 us against 6.4 us for recording: 6x to 8x worse.**
+⚠️ **AND A PRIVATE LEAF TAPE IS NOT BLOCKED. That claim was wrong and is measured
+wrong in `probe_two_tapes`.** `TapeAlreadyActive` is about two tapes being ACTIVE at
+once, which the theorem never asks for. It wants a SEQUENCED tape: pause the stand's
+recording with `deactivate()`, run the leaf's own tape to completion, sweep it for
+the block, resume, splice. The outer recording survives with its statement count
+intact and the combined gradient is exact. `deactivate()` and `deactivateAll()` are
+both public, and `setActive` throws only where a DIFFERENT tape is live.
 
-That is the real reason step 7 loses, and it is a fact about the tool.
+**What decides it is arithmetic, and the unit is a statement WALKED** -- recording and
+sweeping cost the same walk. With `T` leaf statements, `k` stand seeds and `m` leaf
+outputs:
+
+| | walks per placement | at T=360, k=3, m=6 | |
+|---|---|---|---|
+| recorded inline | `T + kT` | **1440** | |
+| preaccumulated by an inner tape | `T + mT + m + km` | **2544** | 1.77x worse |
+| analytic block, no recording | `m + km` | **24** | **60x better** |
+
+**Preaccumulation loses because `m > k`: it spends six inner sweeps to save three
+outer ones.** That is the whole criterion -- a preaccumulated block pays for itself
+only where the local output count is below the outer seed count. Ours is double it.
+Forward production is worse again: `n = 16` trait directions measures 38-52 us
+against 6.4 us for recording.
+
+So the numeric routes lose on arithmetic, not on tooling. **The analytic block does
+not**, and it is 60x rather than the few per cent this file first claimed.
 
 ### Which leaves the analytic block, and the model does give it
 
@@ -435,12 +452,12 @@ And the coefficients have names the manuscript already uses: `dPi*/dE` **is**
 
 Three reasons, in order of weight.
 
-1. **It is worth about 5 to 7 per cent.** Steps 6 and 7 together delete 173 of 360
-   statements; at the measured record cost that is ~7 s of a ~100 s gradient. The
-   objective is reader load, and this does not move it: the rows must still be
-   PRODUCED, and producing them analytically means **eight new closed forms** --
-   `dM/dtheta` at Interior needs `dA'/dtheta` and `dlambda_TF24/dtheta`. A graft
-   protocol replaces a recorded surface and the mechanism count does not fall.
+1. **It needs eight closed forms that do not exist.** `dM/dtheta` at Interior wants
+   `dA'/dtheta` and `dlambda_TF24/dtheta` -- four mixed second partials of the
+   assimilation kernel and four of the cost. That is the same rule steps 1 and 2
+   already used, one order up, and each is refereeable against a tangent; but it is
+   eight new things a reader must hold, and the supply's 187 statements stay recorded
+   either way, so the walks go 1440 to about 772 rather than to 24.
 2. **The referee does not cover it.** The transpose identity reaches four kinds of
    twelve, and `census_trait_tangent` cannot help: it runs the same supplied numbers
    through the same graft, so a wrong row makes both routes wrong identically --
@@ -449,6 +466,92 @@ Three reasons, in order of weight.
 3. **One supplied number is already wrong.** `dprofit_droot_collar_psi` returns its
    `0.0` sentinel at ShadeDeath where the true `M = -C'(p*) = -1.3137`. Any design
    taking `M` from there inherits that.
+
+### The Symbolic Adjoint is a PRIMITIVE, not hand-rolling -- and half of it exists
+
+Worth separating, because "supply the rows" sounds like "write the derivative out by
+hand" and it is not the same thing. The pattern has two halves and only one of them
+is model-specific.
+
+**The attachment is a library primitive, and odelia already has it.**
+`record_with_derivatives(value, against, into)` IS a supplied-row node: it puts a
+number on the caller's tape carrying rows it was handed. `implicit_value` is the
+Symbolic Adjoint for a scalar root already -- it supplies `dF/dy` and RECORDS the
+residual to get `dF/dtheta`. The symbolic sibling supplies both, and then it is
+`record_with_derivatives(y_star, {{theta_k, -dFdtheta_k/dFdy}}, out)` with no
+recording at all. **The concept is in the tree; what is missing is a cheaper spelling
+and a block form.**
+
+Two things to build, both small and both in odelia beside the other two:
+
+* **`pushAll` instead of `+=`.** `record_with_derivatives` costs **n statements for n
+  rows**, because `out += d * (x - to_passive(x))` is a full recorded assignment each
+  time. `Tape::pushAll` + `Tape::pushLhs` are public and give **one statement with n
+  operations**. Two hazards must live inside the primitive rather than at callers: a
+  passive input's slot is `INVALID_SLOT` and pushing it is an out-of-bounds write on
+  the sweep, and `registerOutput` is a no-op on an already-slotted value, so the
+  destination must be a fresh local.
+* **A block form**, several outputs over one shared row set, so a leaf-shaped
+  boundary is one call rather than `1 + L`.
+
+Neither saves anything today -- every live call site is `n = 1` -- so they are a
+precondition, not a win. But they are what makes the analytic route a primitive
+someone uses rather than a protocol someone maintains, and they are worth having
+before anyone tries it.
+
+⚠️ **`probe_leaf_tape` prices a dense block at `n_out * n_in` statements**, on the
+stated assumption that a supplied row costs a statement each. With `pushAll` it is
+`n_out`. The counterfactual it prints is **31x too pessimistic**, and every design
+conversation here has read a number that argued the wrong way.
+
+### The one-parameter family in height, which is the bigger prize
+
+Nothing in this document has looked at the largest structure in the problem.
+
+**A species' cohorts at one stage differ in ONE degree of freedom.** Measured over
+the leaf's 31 active inputs:
+
+* **12 of the 16 scalar inputs are traits** -- byte-identical across every cohort of
+  the species, across all six RK stages, and across the whole run.
+* **`psi_soil[L]` is patch-level** and already memoised on the soil state, so it is
+  identical for every cohort of every species at a stage.
+* `root_b`, `root_c`, `psi_crit`, `root_psi_crit` are traits too.
+* The only cohort-varying inputs are **`kmax` (proportional to 1/height)**, **`ppfd`
+  (a spline read at height x eta_c)**, and the `2L` root resistances (through
+  `rooting_depth = min(height, rooting_depth_max)`).
+
+So the stand records **360 statements per cohort** over inputs of which twelve are
+literally the same numbers every time, and the per-cohort recording cannot see it.
+Nothing caches an operating point either: `leaf_solved_points` is a CURSOR and its
+own header forbids using it as a cache, so two cohorts a centimetre apart pay two
+full solves and two full recordings.
+
+**What that suggests, unpriced:** a boundary indexed by *species x stage* answering a
+height sweep, rather than one indexed by cohort. The count is `6 x (N + 2S)`
+placements per accepted step, and N is the cohort count -- so on a century stand this
+is the factor with an N in it, where step 7 is a constant factor of about two.
+
+⚠️ Unmeasured, and the measurement that settles it is cheap: how much does one
+placement's cost actually vary with height alone? If the operating point moves
+smoothly and slowly in height, an interpolated or shared boundary is available; if it
+jumps between kinds every few centimetres, it is not. `operating_point_counts` is
+already tallied per kind and would say.
+
+### What could be done instead, in the order I would do it
+
+1. **The height family above.** It has an N in it and nothing else here does.
+2. **`pushAll` and the block form in odelia.** Small, self-contained, refereed by the
+   transpose identity, and a precondition for anything analytic later.
+3. **Widen the transpose identity's coverage.** Four kinds of twelve is the binding
+   constraint on every supplied-row design, and it is the cheapest thing on this list
+   to improve.
+4. **The seven dead aux slots.** `record_leaf_outputs` writes seven leaf readings per
+   cohort per stage whose only reader is the R serialisation -- no rate, no metric, no
+   C++ consumer. They are tape slots that nothing sweeps.
+5. **`use_energy_balance`.** plant declares it, exports it, lists it as a parameter
+   and as `no_gradient` -- and never writes it to the leaf. It is inert, and the
+   templated surface has no energy-balance term, so wiring it later would silently
+   omit a channel from every row.
 
 ### The unexploited structure, for whoever returns to this
 
