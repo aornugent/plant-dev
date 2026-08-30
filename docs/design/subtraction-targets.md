@@ -71,10 +71,15 @@ itself wrong, and item 11 is the study that decides it. What is wrong is measuri
 this work in lines at all: the cost a reader pays is in concepts and indirection,
 and the targets below are ranked by that instead.
 
-⚠️ **Three of the five `tests/cpp/probe_*.cpp` no longer compile** —
+⚠️ **Three of the TWELVE `tests/cpp/probe_*.cpp` no longer compile** —
 `probe_curve_order`, `probe_curve_tables` and `probe_slope_rules`, 356 lines. The
 Makefile builds them from no target, so nothing noticed. A probe that does not
 compile is not a measurement anyone can repeat.
+
+Re-checked: the other nine build clean. The three fail for two reasons, both a
+signature that moved under them -- `cumulative_vulnerability_integral` grew a seventh
+out-parameter, and the `odelia::spline` namespace no longer exists. Six orphan
+binaries with no source also sit in that directory.
 
 ## The comments this branch wrote
 
@@ -143,8 +148,9 @@ call can cost a second simulation.
 ~~**✱ D — the refusal channel, three times in one function.**~~ DONE. One
 value, cleared once and polled twice. Entry 4.
 
-**✱ E — the Patch is deep-copied per recording**, and this call reaches
-`state_and_parameter_adjoints` by three different routes. Entry 2.
+~~**✱ E — the Patch is deep-copied per recording**~~ **STALE for entry 3's reason:**
+the active System is now built once per constant-width range and once per widening,
+not once per recorded step.
 
 ~~**✱ F — a splice into a flat vector that the one caller immediately unsplices.**~~
 DONE. Entry 7 — the splice is the transpose's, not the reduction's, and this
@@ -208,7 +214,11 @@ it picks up a second argument on the way. See entry 20.
 the state twice as far as the reader is concerned: once to announce the stage,
 once to set the values.
 
-**✱ M — a nested scalar, still, in the other order.** The second TAPE is gone with
+~~**✱ M — a nested scalar, still, in the other order.**~~ **STALE, and the shape it
+prices is gone.** `xad::fwd`, `FReal` and `fwd<` return zero hits across
+`leaf_model.hpp`, `roots.hpp` and `gradient.hpp`; `marginal_assembled` is templated on
+plain `T` and its own comment says there is no order above `T` in the marginal. The
+11.6%-of-gradient cost below described a construction that no longer exists. What it was: The second TAPE is gone with
 `collar_condition`: the collar's residual now composes on plant's own tape. But
 `marginal_assembled` takes its two kernel slopes with `xad::fwd<T>::active_type`,
 so at the gradient it runs at `FReal<AReal<double>>` -- a tangent above the
@@ -266,11 +276,15 @@ The leaf carries its derivative machinery twice. Nine closed-form derivative
 functions — **256 code lines, three of them second derivatives** — have no shipped
 consumer at all:
 
-`d2E_from_soil_dpsi_collar2`, `d2E_from_soil_dpsi_collar_dpsi_soil`,
-`dE_from_soil_droot_carbon`, `dE_from_soil_droot_curve`,
-`d2uptake_dpsi_dpsi_soil`, `d2uptake_dpsi_droot_curve`,
-`duptake_droot_curve_by_layer`, `duptake_droot_curve_impl`,
-`duptake_droot_carbon`.
+`d2E_from_soil_dpsi_collar_dpsi_soil`, `dE_from_soil_droot_carbon`,
+`dE_from_soil_droot_curve`, `d2uptake_dpsi_dpsi_soil`,
+`d2uptake_dpsi_droot_curve`, `duptake_droot_curve_by_layer`.
+
+⚠️ **Three have come off this list and the reasons differ.**
+`d2E_from_soil_dpsi_collar2` now has a LIVE production consumer --
+`Leaf::marginal_collar_slope` reads it, and the gradient runs that. `duptake_droot_carbon`
+and `duptake_droot_curve_impl` have shipped-header consumers that are themselves dead
+(`bound_row`, entry 15), so they are compiled-but-unreachable rather than unreferenced.
 
 The row layer consumed them. It is deleted. They are reachable now only from
 `test_leaf.cpp`, and several only through each other — a chain whose head is
@@ -309,8 +323,11 @@ leaf.
 
 ### 1. odelia offers a kit, not a reverse pass — so SCM is the assembly
 
-**`scm.h`'s gradient surface is 247 code lines, 34% of the class**, split almost
-evenly between product and oracle:
+**`scm.h`'s gradient surface is 210 code lines, 30% of the class** (was 247/34%),
+split almost evenly between product and oracle. `census_trait_gradient` alone fell
+102 -> 66. Five of the twenty odelia names plant used to reach for are now named
+zero times: `scratch_tape`, `advance_over_insertions`, `solve_adjoint_over_insertions`,
+`insertion_rows` and `step_adjoint`.
 
 | | lines | |
 |---|---|---|
@@ -359,9 +376,17 @@ do. The vocabulary leak in entry 9 — `piece` in odelia, `segment` in plant —
 stops crossing at all. And entries 7 and 8 become questions about odelia's
 internals rather than about its interface.
 
-### 2. The recording is incomplete on purpose, and `sweep.hpp` exists to work around it
+### 2. ~~The recording is incomplete on purpose~~ PREMISE FALSE
 
-The largest design decision reverse mode made, and the one worth re-opening.
+**The record now carries the widened state as a field.** `step_record` holds
+`inserted` beside `state` and reports `ran_from()`, and `insertion_rows` reads a
+recorded flag instead of scanning for a width that grew -- in the words this entry
+asked for: *"an inference can be wrong where a recorded fact cannot"*. Of the six-row
+table below, `insertion_steps`, `with_insertions` and the piece arithmetic are all
+gone. What survives is `state_at_segment` (oracle-only), `restore_on_exit` (which
+entry 4 flags as load-bearing on the NORMAL return) and `be_at_step`'s width check.
+
+What it was, and the reasoning that got it fixed:
 
 A run records 3,381 step states. It does **not** record the 169 states an
 introduction produced — `sweep.hpp` says so directly: *"The widened state between
@@ -680,7 +705,10 @@ and `in`, `in_adjoint`, the copy loop and one function's guards all go.
 
 ### 8. odelia's sweep header has no production consumer left — SHARPENED
 
-`sweep.hpp` is **100 lines behind two entry points, and both are oracle-only.**
+`sweep.hpp` is **87 lines, 50 of them code, behind two entry points, and both are
+oracle-only.** Re-checked: `advance_over_insertions` is gone entirely and
+`program_from` has replaced it; both it and `state_at_segment` are reached only from
+the four oracles, which are themselves reached only from `gradient_ladder.cpp`.
 `solve_adjoint_over_insertions` became `Solver::solve_adjoint`, which also absorbed
 the constant-width inner loop, and `be_at_step` and `insertion_rows` moved to
 `ode_interface.hpp` where a recording's readers live. What remains --
@@ -719,7 +747,14 @@ reachability rather than by the comment that claims it.
 **So the ladder's cost is not only in plant.** It reaches into odelia's public
 headers, and the two packages hold up each other's assurance.
 
-### 9. The recording's pieces are a domain object that is not one
+### 9. ~~The recording's pieces are a domain object that is not one~~ DONE
+
+Overtaken rather than fixed as proposed: the piece concept was **deleted** rather
+than made a container. `sweep.hpp` is two functions and 50 code lines,
+`insertion_steps` has zero references tree-wide, and lines 99, 146 and 259 do not
+exist. The ⚠️ below still stands -- no `state_segments(rec)` exists.
+
+What it was:
 
 This is the symptom of the split above, and it is worth fixing whatever happens to
 the oracles.
@@ -749,11 +784,13 @@ was never built.
 
 ### 10. The ladder's shipped surface
 
-`plant/src/gradient_ladder.cpp` is 797 code lines behind **28 `Rcpp::export`
-entry points, every one of which is referenced only from `tests/`.** They are
+`plant/src/gradient_ladder.cpp` is **783 code lines behind 34 `Rcpp::export` entry
+points**, of which **30 are referenced only from `tests/`** and the other four also
+from the umbrella repo's `scripts/`, which is instrumentation rather than product.
+None is referenced from `plant/R/` or `plant/inst/`. They are
 compiled into `plant.so` and named in `RcppExports` so the ladder can reach them.
-By contrast the four exports in `census_gradient.cpp` are all read by `R/` or
-`inst/`, which is what a product surface looks like.
+By contrast the **seven** exports in `census_gradient.cpp` are all read by
+`plant/R/stand_gradient.R`, which is what a product surface looks like.
 
 This is the number `recording-and-sweep.md` item 11 asked for: not where the
 instrumentation lives, but how much of it is still earning its keep. The study it
@@ -861,10 +898,24 @@ The distinction that matters, since `roots.hpp` is full of `d...` functions:
 first, `marginal_collar_slope` reads the middle two, and `CurveReads` reads
 `root_vuln_integral_dtrait`. Only the root-curve branch is orphaned.
 
-⚠️ **[`one-order.md`](one-order.md) is what settles this entry.** Under its rule
-nothing takes a second derivative of a composition, so a second-order supply row has
-no consumer and the root-curve chain goes with the mechanism that wanted it. Until
-that lands, the entry stands as written.
+⚠️ **RE-CHECKED, and the entry is now partly false in a way that makes it SHARPER.**
+The four line numbers above are all stale (`leaf_model.hpp:1474`, `roots.hpp:1470`,
+`:1624`, `:1413`) and the chain is ~134 lines, not 159. Three of the four are still
+test-only. **`duptake_droot_curve_impl` is not**: it has picked up a shipped-header
+caller, `Leaf::bound_row` (`leaf_model.hpp:5147-5282`), reached from `gradient.hpp:909`.
+
+**But that call site is unreachable.** `bound_row` is called from `solved_row`
+(`gradient.hpp:854`) inside `if (follow != nullptr)`, and `solved_row` has exactly one
+caller in the tree -- `gradient_fd` at `gradient.hpp:998` -- which passes
+`nullptr, nullptr`. So the whole `follow` block, `Leaf::bound_row` (98 code lines),
+`Leaf::BoundRow` (24) and the `FollowBound` struct are **compiled and dead**. That is
+a bigger entry than this one and it belongs beside it.
+
+⚠️ **And `at_equal_potentials` does NOT go with the chain**, which its own comment now
+claims. Five refusal sites survive it and only two are in the root-curve chain; the
+other three are `duptake_dpsi_soil`, `duptake_droot_carbon` and
+`d2uptake_dpsi_dpsi_soil`. The predicate goes only if the whole second-order supply-row
+family goes -- which the dead-`follow` finding above now makes possible.
 
 ⚠️ **Check this list against increment 2 before deleting from it.** That increment
 was scoped to need `d2uptake_dpsi_droot_curve` and `d2uptake_dpsi_dpsi_soil` for
@@ -878,13 +929,16 @@ Each of these appears exactly once in the tree — its own declaration. Nothing
 constructs one, returns one, or names one as a parameter, including inside
 `leaf_model.hpp` itself:
 
-`UptakeRows` (33), `PhotoTraitRows` (47), `CollarRows` (21), `CostTraitRows` (17),
-`ConditionCurvature` (16), `HydraulicCostRow` (13), `TransportTraitRows` (5), and
-the `TransportTrait` enum beside them.
+`UptakeRows` (33), `PhotoTraitRows` (47), `CollarRows` (21), `HydraulicCostRow` (13),
+`TransportTraitRows` with the `TransportTrait` enum beside it (21).
 
-**152 lines, in one contiguous band at `leaf_model.hpp:1143-1306`** plus
-`HydraulicCostRow` at 1715. They are the row layer's vocabulary, and `2ba6f98`
+**About 135 lines: a contiguous band at `leaf_model.hpp:1255-1381`** plus
+`HydraulicCostRow` at 1889-1901. They are the row layer's vocabulary, and `2ba6f98`
 deleted the layer without them.
+
+⚠️ **Two of the original seven are gone.** `CostTraitRows` and `ConditionCurvature`
+have zero hits anywhere. Re-checked: the remaining five each still appear exactly
+once in the tree, their own declaration.
 
 ### 17. ~~`leaf_solved_points` is two objects wearing one type~~ DONE, as a cursor
 
@@ -1038,6 +1092,64 @@ and it certainly does not need the mode to arrive separately.
 "load the state", two of them selected by concept. That is the vocabulary a
 maintainer has to hold before reading a single rate evaluation.
 
+
+### 21. Nine aux slots the differentiated path writes and nobody reads
+
+`TF24_Strategy::compute_rates` writes seven leaf readings into `Internals::auxs` per
+cohort per RK stage, plus `root_mass`, plus `area_sapwood` behind a flag. Traced
+every reader of every cached index: **no rate reads them and no census metric reads
+them** -- TF24's three metrics all read `vars.state(...)`, never `vars.aux(...)`.
+
+⚠️ **But "dead" is right for only three of them, and the check that separates them is
+an R one.** `plant/R/TF24_plot_diagnostics.R` is `@export`ed and plots four straight
+off the tidied species table: `opt_psi_stem`, `opt_root_psi`, `profit`,
+`stom_cond_CO2`. Those earn their keep through a product function.
+
+**Genuinely unread anywhere but tests: `transpiration`, `E_up_`, `assimilation`.**
+Plus `root_mass`, which is not even in a test -- zero references in `plant/R/`,
+`plant/inst/`, `scripts/` or `regnans/`.
+
+⚠️ **The cost is smaller than it looks and the entry should say so.** `leaf` is the
+`double` Leaf, so `set_aux(idx, leaf.opt_psi_stem_)` constructs an `S` from a double:
+passive, no tape slot, no recorded operation. What it costs is `auxs` entries copied
+by every `rebind_from` and walked by `for_each_active` on every release pass.
+
+### 22. Two parameters plant declares, exports and never wires
+
+**`use_energy_balance`.** Declared on `TF24_Pars`, serialised to R, listed in
+`undifferentiable` and in `ad_parameter_fields` -- and **never written to
+`phylloptim::Leaf::use_energy_balance_`**. The only assignment to that field in plant
+is the R field setter on a bare `plant::Leaf`. So the Penman-Monteith path can never
+be on from a TF24 strategy or an SCM run.
+
+**`pars.d`.** The same, and worse: `Leaf::d_` keeps its own default of `0.05`, which
+happens to equal `pars.d`'s, so changing it from R changes nothing **and looks like it
+worked**.
+
+⚠️ **Each leaves a false comment behind.** `leaf_model.hpp` says the leaf's gate exists
+"so TF24 (via pars.use_energy_balance) ... can turn PM on", and that `d` is "set from
+pars.d in prepare_strategy". Neither is true.
+
+⚠️ **`wind_speed_` is NOT this.** Plant does write it, from a real extrinsic driver. It
+is inert one step further down: `wind_speed_` and `d_` form `ra_`, and `ra_`'s only
+readers are inside the PM path that `use_energy_balance_` gates off. The driver is
+plumbed end to end and its product discarded.
+
+⚠️ **And the templated surface has no energy-balance term at all**, so wiring the gate
+later would silently omit the `T_leaf(E)` channel from every recorded row. Whoever
+wires it owns that.
+
+### 23. A shipped gradient path whose one caller passes nulls
+
+`Leaf::bound_row` (98 code lines), `Leaf::BoundRow` (24) and `gradient.hpp`'s
+`FollowBound` are compiled into the package and unreachable. `bound_row` is called
+only from `solved_row`'s `if (follow != nullptr)` block, and `solved_row`'s only
+caller -- `gradient_fd` -- passes `nullptr, nullptr`. The `stay != nullptr` re-solve
+loop beside it is dead for the same reason.
+
+This is the entry that unblocks 15: `duptake_droot_curve_impl` and
+`duptake_droot_carbon` are reachable only through here, and `at_equal_potentials`
+survives only for the second-order supply-row family this is the last consumer of.
 
 ## Checked and rejected
 

@@ -513,6 +513,59 @@ stated assumption that a supplied row costs a statement each. With `pushAll` it 
 `n_out`. The counterfactual it prints is **31x too pessimistic**, and every design
 conversation here has read a number that argued the wrong way.
 
+### Scoped: what the primitives cost, and the one that changes the plan
+
+Measured against `odelia/src/Tape.cpp` at `adj<double>`, not derived.
+
+**`pushAll` body for `record_with_derivatives`.** One call carrying n live rows plus
+one passive input with a live row plus one zero row:
+
+| n | today | with `pushAll` |
+|---|---|---|
+| 1 | 3 statements, 3 operations | **2, 2** |
+| 5 | 7, 11 | **2, 6** |
+| 31 | 33, 63 | **2, 32** |
+
+Two rather than one because `into = out` is a second statement and `slot_` is private
+with only `Tape` a friend. The order is **value -> `pushAll` -> `registerOutput`**,
+which is XAD's own assign order with the last two fused. Reverse mode only.
+
+⚠️ **Four hazards, all reproduced, all of which must live inside the primitive.** A
+passive input's slot is `slot_type(-1)` and the sweep indexes without a bounds check,
+so pushing it **segfaults**. `registerOutput` is a no-op on a slotted value, so the
+operations go unclaimed and **the next statement anyone closes adopts them** --
+measured, an unrelated `2*y` came back carrying `d/dx = 5`. Assigning the value after
+the close pushes an empty statement that **zeroes the adjoint**. And nothing may fail
+between `pushAll` and `registerOutput`, because a statement's operations are
+implicitly everything pushed since the last `pushLhs`.
+
+**Do not build the block form.** ⚠️ A statement has exactly one lhs, so **m outputs
+cost m statements however they are spelled** -- a block saves zero statements and
+zero slots. And the leaf-shaped boundary does not want one anyway: the compose is
+rank one, so L of the L+1 rows are `n = 1`.
+
+**⚠️ AND THE SEQUENCED TAPE IS THE FINDING.** Break-even for preaccumulating one node
+is `m(T+1+k) < kT`, which at `T = 360, k = 3` is **m <= 2**. **A scalar residual has
+m = 1 by construction**, so *every* live `implicit_value` site qualifies -- sigma, ci,
+the two bound collars, the interior collar, the seed height. At `m = 1` the cost is
+`2T + 1 + k` against `T + kT`: a win for any `T > 2`.
+
+That overturns the objection recorded above. **An inner tape needs no closed forms at
+all** -- it produces `dF/dtheta` numerically over the whole input list and splices one
+statement. So preaccumulation is not a rival to the Symbolic Adjoint here; **it is the
+supplier for its rows**, and it applies exactly where the analytic route was refused
+for wanting eight derivations that do not exist.
+
+⚠️ **Two costs the walk model does not count**, and they decide it: one **tape cycle
+per preaccumulated node per placement** -- the leaf would pay five, at 2.3M placements
+-- and a closure cannot express its own input list, so `implicit_value`'s signature
+cannot preaccumulate; the residual must be re-expressible over an explicit list.
+
+**The one number to measure next.** `probe_leaf_tape` already prints the empty tape
+cycle and calls it "the overhead move 2 has to beat". At `m = 1` the sequenced tape
+reaches `dF/dtheta` with no closed forms, refereed by the transpose identity, at every
+residual this file gave up on. That cycle cost is the only unmeasured input.
+
 ### The one-parameter family in height, which is the bigger prize
 
 Nothing in this document has looked at the largest structure in the problem.
