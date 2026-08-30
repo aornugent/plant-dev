@@ -891,7 +891,22 @@ single-potential supply path with them. After step 1 this is a deletion, not a
 redesign.
 
 ⚠️ **This step turned out to be a redesign after all, and it has its own document:
-[`one-order.md`](one-order.md).** The deletion here is real and still wanted, but it
+[`one-order.md`](one-order.md). THE REDESIGN HALF IS DONE.** Four of the seven
+derivative mechanisms are gone -- the tangent above the tape, `SecondOrder`, finite
+differences, and the midpoint asymptotic with its three thresholds -- and one
+interior placement fell from 861 to 360 statements. The prescription's rule now
+holds: nothing is differenced, and nothing takes a second derivative of a
+composition.
+
+**What remains of step 8 is the DELETION half, and it is gated on step 1.** The
+leaf's orphaned derivative chain and the single-potential supply path are both still
+here (`single_potential.hpp`, 27 `supply_kind_` reads in `leaf_model.hpp`), and this
+step's own text says they become a deletion rather than a redesign only *after* the
+calibration path goes. That has not happened: `gradient.hpp` is 1,255 lines and
+`src/gradient.cpp` is still built. **So the next item in this order is step 1, not
+step 9.**
+
+The deletion here is real and still wanted, but it
 is the small half. The large half is that the leaf supplies SEVEN kinds of derivative
 and each one stands in for a primitive that does not exist -- which is a prescription
 rather than a cut, and it is measured rather than argued. Read that file before

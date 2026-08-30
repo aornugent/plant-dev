@@ -6,6 +6,15 @@ primitives that carry their own slopes.**
 That sentence is the whole design. Everything below is what it costs not to have it,
 what to build, what is already refuted, and how to know when it is right.
 
+**STATUS: LANDED.** The rule above is now true of the tree. Of the seven derivative
+mechanisms this file was written to remove, **four are gone** -- the tangent nested
+above the tape, `SecondOrder` and both its lift arms, finite differences, and the
+midpoint asymptotic with its three thresholds. What remains is a tabulation for what
+has no closed form, primitives carrying their own slopes, a forward tangent and a
+reverse tape: the irreducible four. One interior placement fell from **861 to 360
+statements**. Steps 6b and 7 are refused rather than pending, and the design space
+behind that refusal is exhausted in the memo below.
+
 This is the prescription. `one-program.md` is the record it came out of and carries
 the measurements in the order they were taken; nothing here needs that order to be
 read. Where the two disagree, this one is the intent and the disagreement is a bug in
