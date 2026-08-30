@@ -566,38 +566,67 @@ cycle and calls it "the overhead move 2 has to beat". At `m = 1` the sequenced t
 reaches `dF/dtheta` with no closed forms, refereed by the transpose identity, at every
 residual this file gave up on. That cycle cost is the only unmeasured input.
 
-### The one-parameter family in height, which is the bigger prize
+### The one-parameter family in height -- MEASURED, and exploitable by invariance
 
-Nothing in this document has looked at the largest structure in the problem.
+`probe_height` measures it. The claim holds, but **not for the reason first written
+here**: interpolating the operating point in height does NOT pay. What pays is that
+the RECORDED SHAPE is invariant across the family.
 
-**A species' cohorts at one stage differ in ONE degree of freedom.** Measured over
-the leaf's 31 active inputs:
+The probe reconstructs plant's own height -> leaf-input map and is scored against the
+operating point **plant itself recorded in aux** at the stand's own 170 cohort
+heights: worst error 1.8e-5 MPa on the collar, 1.85e-4 on profit.
 
-* **12 of the 16 scalar inputs are traits** -- byte-identical across every cohort of
-  the species, across all six RK stages, and across the whole run.
-* **`psi_soil[L]` is patch-level** and already memoised on the soil state, so it is
-  identical for every cohort of every species at a stage.
-* `root_b`, `root_c`, `psi_crit`, `root_psi_crit` are traits too.
-* The only cohort-varying inputs are **`kmax` (proportional to 1/height)**, **`ppfd`
-  (a spline read at height x eta_c)**, and the `2L` root resistances (through
-  `rooting_depth = min(height, rooting_depth_max)`).
+**N is 115.** The century fixture places 2,333,500 operating points over 20,286 rate
+evaluations, so **one trait set at one stage is shared by 86 to 170 placements**, ~139
+typical. That is the factor with an N in it.
 
-So the stand records **360 statements per cohort** over inputs of which twelve are
-literally the same numbers every time, and the per-cohort recording cannot see it.
-Nothing caches an operating point either: `leaf_solved_points` is a CURSOR and its
-own header forbids using it as a cache, so two cohorts a centimetre apart pay two
-full solves and two full recordings.
+**The kind is constant, and that is a counted number, not an argument.**
+`census_operating_point_counts_tf24` over the whole century run: **`interior`
+2,829,442, every other kind 0.** Zero adjacent-cohort kind differences. Over 57 soil
+states, 55 have the entire height sweep in ONE kind -- the kind is set by the SOIL and
+flips for the whole species at once.
 
-**What that suggests, unpriced:** a boundary indexed by *species x stage* answering a
-height sweep, rather than one indexed by cohort. The count is `6 x (N + 2S)`
-placements per accepted step, and N is the cohort count -- so on a century stand this
-is the factor with an N in it, where step 7 is a constant factor of about two.
+⚠️ **Interpolation is refuted, measured.** A uniform log-spaced table needs **513
+nodes** to hold profit inside plant's ODE tolerance, against 170 cohorts. Adaptive
+bisection needs 79 nodes but **284 exact solves to build them** -- more than the 170
+it would serve. Subsampling the cohorts is worse than useless: they pile up at the
+canopy top, so thinning opens the sparse low end (2.4e-2 MPa at every second cohort).
 
-⚠️ Unmeasured, and the measurement that settles it is cheap: how much does one
-placement's cost actually vary with height alone? If the operating point moves
-smoothly and slowly in height, an interpolated or shared boundary is available; if it
-jumps between kinds every few centimetres, it is not. `operating_point_counts` is
-already tallied per kind and would say.
+**What pays is the invariance, and one measurement carries it:**
+
+> **Above `rooting_depth_max` = 1.5 m the root resistances are BYTE-IDENTICAL** --
+> checked at h = 1.5001 m against h = 30 m, byte for byte. Above the cap the only
+> cohort-varying leaf inputs are **`kmax` and `ppfd`: 2 of 31, not 2L + 2.** On the
+> century stand **75.3% of placements are above the cap**, and 93% at the last step.
+
+And the byte-identical part is exactly the expensive part: the supply draw is **187 of
+the 360 statements** a placement records.
+
+**Three things to build, cheapest first.**
+
+1. **A height-keyed memo on the solved operating point.** 44% of placements have an
+   immediately preceding cohort within 1e-4 m and 59% within 1e-3 m; at the measured
+   worst slope of 0.497 MPa/m a 1e-3 m key costs at most 5e-4 MPa, well inside the
+   ODE's own 1e-4 tolerance. That is 44-59% of 2,829,442 forward solves.
+   ⚠️ `leaf_solved_points` cannot do this -- it is a positional replay cursor whose
+   `load()` faults on running off the end.
+2. **Share the supply draw above the cap.** 187 statements per placement over inputs
+   that are byte-identical for three quarters of them. Record once per
+   (species, stage, layer-bin) and graft.
+3. **One recording per (species, stage, kind, layer-bin)** -- worth doing only with
+   `pushAll` and the block form above.
+
+⚠️ **What would kill it, all measured.** A **mixed-kind band** at psi_soil 5.49-5.79
+MPa, right at `root_psi_crit` -- narrow (0.0009 in soil moisture) and never entered by
+this fixture, but a drought run crosses it, and inside it a sweep carries three
+kinds. They are **ordered in height**, so a boundary can hold three contiguous
+segments found by bisection -- but it must not assume one kind. The **1.5 m cap is a
+real slope break** (8.8e-6 against 1e-9 at the four layer boundaries, which are C1):
+segment at it, never interpolate through it. The **four layer-count breakpoints change
+the number of inputs**, so one recorded DAG cannot span them. The **canopy changes
+every stage** and it is what moves the collar -- with light held, the collar's whole
+range over 0.3-7 m is 0.187 MPa against 0.450 with the canopy. And **N is per
+species**: this fixture has one, and every factor here falls with S.
 
 ### What could be done instead, in the order I would do it
 
