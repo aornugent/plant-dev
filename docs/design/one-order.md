@@ -644,22 +644,6 @@ species**: this fixture has one, and every factor here falls with S.
    templated surface has no energy-balance term, so wiring it later would silently
    omit a channel from every row.
 
-### The unexploited structure, for whoever returns to this
-
-A species' cohorts at one stage are a **one-parameter family in height**. Twelve of
-the sixteen scalar inputs are byte-identical across every cohort, every stage and the
-whole run; `psi_soil` is patch-level and already memoised. The per-cohort recording
-re-traverses 360 statements over inputs that are mostly the same numbers, and nothing
-caches an operating point -- `leaf_solved_points` is a cursor and its header forbids
-using it as a cache. That is a larger factor than step 7's 5 to 7 per cent, and no
-part of this design has looked at it.
-
-Also unpriced and cheap to try: `Tape::pushAll` + `pushLhs` are public and give **one
-statement per row** where `record_with_derivatives` gives n. `probe_leaf_tape` prices
-a dense block at `n_out * n_in` statements on the assumption that it cannot, so the
-counterfactual it prints is **31x too pessimistic** and every design conversation
-here has read a number that argued the wrong way.
-
 ### The domain has met this and flinched
 
 Land-surface adjoints (BETHY/CCDAS, adJULES, CLM via OpenAD) all differentiate
