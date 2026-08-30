@@ -176,7 +176,7 @@ the other way round.
 | 3 | `R` assembled from the primitives, so it is a value | `test_leaf`, and the count | **DONE** |
 | 4 | delete the nested tangent, `SecondOrder`, and both second-order lift branches | `test_leaf`, ladder, statement count | **DONE** |
 | 4b | **the waist: `SupplyDraw`, recorded once and passed in** | the transpose identity | **DONE** 531 -> 444 |
-| 5 | the layer mean from `f` rather than from a difference of `G`; the three thresholds go | the crossover sweep, plus the direct branch comparison | see below |
+| 5 | the layer mean from `f` rather than from a difference of `G`; the three thresholds go | the family against a higher-order average | **DONE** 3 -> 1, and 60,000x on d2 |
 | 6 | the rest of the graft: profit's and the collar's rows supplied | the transpose identity | not started |
 | 7 | delete the leaf's whole `<S>` surface above the waist | the ladder, and the count | blocked on 6 |
 
@@ -235,47 +235,52 @@ collar is fixed by a bound and `dPi/dp` is not zero. `outputs_at` already knows 
 -- so the field must be SUPPLIED and merely happen to be zero at `Interior`. A
 consumer that infers it is correct at one kind and silently wrong at the others.
 
-⚠️ **Step 5 cannot be done by computing the integral more accurately.** The mean is
-`(G(hi) - G(lo))/span`, and that cancels as the span shrinks *however* `G` is
-obtained -- an exact incomplete-gamma `G` still differences two O(1) numbers to get
-an O(span) one, so the relative error is `eps/span`. Each derivative divides by the
-span again, which is why there are three thresholds and not one.
+**Step 5 is DONE, and the shape is not what this file first proposed.** A mean is an
+average, not a divided difference, and writing it as one removes the failure mode
+instead of managing it. Every quantity in the family became one sum over the same
+nodes:
 
-**And the answer is NOT a stable divided difference in odelia's interpolator**,
-which is what this file said first. `probe_layer_mean` prices three candidates
-against a reference that has no cancellation at any span -- Gauss-Legendre at high
-order on the closed-form integrand. Worst relative error over spans 1e0 to 1e-12 at
-three centres:
+```
+x_i = m + (s/2) t_i      a_i = (1 + t_i)/2      b_i = (1 - t_i)/2
 
-| | mean | d/dbound | d2/dbound2 | mixed |
+mean       = 1/2 sum w_i f  (x_i)          d2/dhi2    = 1/2 sum w_i f''(x_i) a_i^2
+d/dhi      = 1/2 sum w_i f' (x_i) a_i      d2/dlo dhi = 1/2 sum w_i f''(x_i) a_i b_i
+```
+
+Which quantity is wanted picks which derivative of the curve goes under the sum and
+which power of the bound weights multiplies it. Nothing divides by the span at any
+order, so the `f''/3` and `f''/6` limits are not derived, they come out. One
+function, ten call sites. Measured against an independent 15-point average:
+
+| worst over three centres, nine spans | mean | d/dbound | d2/dbound2 | mixed |
 |---|---|---|---|---|
-| the model, three thresholds | 2.07e-12 | **2.24e-06** | **2.67e-05** | 4.97e-07 |
-| Gauss 5 on the closed form | 2.18e-11 | 3.23e-09 | 1.98e-08 | 1.03e-07 |
-| **Gauss 7** | **2.66e-14** | **5.28e-12** | **4.54e-11** | **2.57e-10** |
+| before | 2.07e-12 | 2.24e-06 | 2.67e-05 | 4.97e-07 |
+| **after** | **4.33e-15** | **2.34e-11** | **4.43e-10** | **1.57e-10** |
 
-The model's worst is in the band BETWEEN its thresholds, where neither form it
-switches between is good. A quadrature is six orders better there and needs no
-threshold, because `mean = 0.5 * sum w_i f(x_i)` is analytic in both bounds and
-**nothing divides by the span at any order** -- every derivative is the same sum
-one order up.
+⚠️ **ONE THRESHOLD SURVIVES AND IT IS A COST SWITCH.** A fixed rule is not accurate
+over a LONG interval -- the curve has a weak singularity at the surface, and seven
+nodes reach only 8.3e-07 across the whole domain -- while the difference is well
+conditioned and far cheaper there. So the sum is used below a span of 1e-3 and the
+difference above. Measured: at 1e-1 the forward model DOUBLES; at 1e-3 it costs 3 to
+4 per cent, and an interleaved A/B of the century gradient puts the two arms within
+1 per cent of each other.
 
-It costs 10x to 16x a table read (0.0118 us against 0.1899 for the mean; 0.0200
-against 0.2041 for the first bound derivative), so it is not a hot-path
-replacement. The lean shape is **one COST threshold in place of three ACCURACY
-thresholds**: above about a span of 1e-1 the table's difference is accurate and
-cheap, below it the quadrature is accurate. That is a different kind of number --
-the three now are crossovers between two forms that are both bad in the middle, so
-being wrong about one falls off a cliff, where a cost switch picks the cheap form
-only where both are accurate and degrades gracefully. It takes the asymptotic
-branch, the `f''/3` and `f''/6` limits, `curve_slope2_at`,
-`curve_slope_at_for_test` and the two branch-agreement tests with it.
+⚠️ **THE MIDPOINT WAS NEVER A SECOND MECHANISM -- it is the same rule at one node**
+(t = 0, w = 2 gives f(mid) for the value and f'(mid)/2 for d/dbound). What decides
+the order is what the consumer needs: the templated path takes one node because a
+lift asks for the value and its first rows and nothing more; the double family feeds
+the second derivatives and pays for seven. Recording the seven-node sum on the tape
+instead cost 17% of a century gradient, and lifting the double answer cost 29%.
 
-⚠️ **Two things this has not settled.** The reference is the CLOSED-FORM curve while
-the model's mean is of the tabulated one, so for the VALUE there is a real argument
-for consistency with the table the solve ran on; there is none for the derivatives,
-where 2.7e-05 is cancellation rather than consistency. And the end-to-end cost is
-unmeasured: the threshold makes it near-free only if small spans are rare, which is
-one counter away from being known.
+⚠️ **AND IT REMOVED THE 0/0 THE SUPPLY REFUSED AT.** `duptake_dpsi` returns NaN where
+a layer's potential equals the collar, and its caller falls back to a central
+difference, because the mean was integral/span with both vanishing. At span zero
+every node collapses onto the bound, so the mean is `f(lo)`, its bound derivative is
+`f'(lo)/2` and its second is `f''(lo)/3`. `probe_coincidence` measures the family
+reproducing the closed forms to every printed digit at four coincidences. So
+`at_equal_potentials` -- a fourth tuned constant at 1e-8, three refusal sites -- and
+the finite-difference fallback behind it have nothing left to catch. Not yet removed:
+it changes an acclimation gradient in plant and wants its own increment.
 
 ---
 
