@@ -898,70 +898,65 @@ else. Four blocks that named the deleted row product went with it.
   step. **Priced and rejected**: 1,361 slots, statements and operations a recording,
   about 0.15%, against widening the signature of `ode::derivs`, which declares the
   state and the rates as one `StateType`. `one-reverse-pass.md` carries the price.
-### 15. Hand-rolled root-curve derivatives with no production consumer
+### 15. ~~Hand-rolled root-curve derivatives with no production consumer~~ DONE
 
-The objective's own target, still standing. A four-function chain computes
-d(uptake)/d(a root-curve parameter) in closed form — Euler's identity and the
-incomplete gamma's shape series, per the comment:
+The objective's own target, and it took two readings to size because its
+reachability changed under it.
 
-| function | lines | file |
-|---|---|---|
-| `dE_from_soil_droot_curve` | 21 | `leaf_model.hpp:1395` |
-| `duptake_droot_curve_by_layer` | 12 | `roots.hpp:1090` |
-| `d2uptake_dpsi_droot_curve` | 68 | `roots.hpp:1263` |
-| `duptake_droot_curve_impl` | 58 | `roots.hpp:1017` |
+A four-function chain computed d(uptake)/d(a root-curve parameter) in closed form
+— Euler's identity and the incomplete gamma's shape series. The first reading
+called it 159 lines reached only from `test_leaf.cpp`. The re-check found the
+line numbers stale, the chain nearer 134 lines, and one member of it —
+`duptake_droot_curve_impl` — with a shipped-header caller after all,
+`Leaf::bound_row`, reached from `gradient.hpp`. That caller was itself dead: the
+`follow` block it sat in was only ever passed `nullptr`.
 
-**159 lines, and the only thing that reaches them is `test_leaf.cpp`.** The row
-layer was their consumer and it is deleted. The `SupplyCurveTrait` alias exists to
-give the top of the chain a parameter type and has no other use.
+**Step 1 settled it by deleting `gradient.hpp` entirely**, and with it the last
+route into the block. What went, once nothing outside tests reached any of it:
+`bound_row` (136) and `BoundRow` (24); `dE_from_soil_droot_curve`,
+`duptake_droot_curve`, `duptake_droot_curve_impl`, `duptake_droot_curve_by_layer`,
+`d2uptake_dpsi_droot_curve`, `layer_mean_dtrait`, `SupplyCurveTrait`; the
+second-order supply rows `duptake_dpsi_soil`, `duptake_droot_carbon`,
+`d2uptake_dpsi_dpsi_soil` and their three `Leaf` wrappers; and `at_equal_potentials`,
+whose five callers were all of them.
 
-The distinction that matters, since `roots.hpp` is full of `d...` functions:
-`dE_from_soil_dpsi_collar`, `duptake_dpsi`, `d2uptake_dpsi2` and
-`dE_from_soil_dpsi_soil` **are production** — the wet bound's slope reads the
-first, `marginal_collar_slope` reads the middle two, and `CurveReads` reads
-`root_vuln_integral_dtrait`. Only the root-curve branch is orphaned.
+⚠️ **Two things this entry said were wrong, and both are the same mistake.**
+`CurveReads` and `root_vuln_integral_dtrait` were grouped with the chain and are
+**production** — they reach the live uptake path through `curve_reads_at` and
+`cumulative_lift`, not through any `*droot_curve*` function. Reading a name for
+its shape rather than tracing its callers is what put them here. Deleting a symbol
+because it *looks* like the family beside it is the failure this list exists to
+avoid.
 
-⚠️ **RE-CHECKED, and the entry is now partly false in a way that makes it SHARPER.**
-The four line numbers above are all stale (`leaf_model.hpp:1474`, `roots.hpp:1470`,
-`:1624`, `:1413`) and the chain is ~134 lines, not 159. Three of the four are still
-test-only. **`duptake_droot_curve_impl` is not**: it has picked up a shipped-header
-caller, `Leaf::bound_row` (`leaf_model.hpp:5147-5282`), reached from `gradient.hpp:909`.
+⚠️ **Deleting the family orphaned two more behind it**, which nothing warned about
+because both are private: `layer_mean_dtrait_dbound`, whose only caller was
+`d2uptake_dpsi_droot_curve`, and `root_vuln_integrand_dtrait_dpsi` behind that.
+A deletion set computed once is a snapshot; the second round is not optional.
 
-**But that call site is unreachable.** `bound_row` is called from `solved_row`
-(`gradient.hpp:854`) inside `if (follow != nullptr)`, and `solved_row` has exactly one
-caller in the tree -- `gradient_fd` at `gradient.hpp:998` -- which passes
-`nullptr, nullptr`. So the whole `follow` block, `Leaf::bound_row` (98 code lines),
-`Leaf::BoundRow` (24) and the `FollowBound` struct are **compiled and dead**. That is
-a bigger entry than this one and it belongs beside it.
+**And one comment was falsified rather than orphaned.** `duptake_dpsi` and
+`d2uptake_dpsi2` both promised NaN "where a layer's potential equals the collar,
+because the mean conductivity is 0/0 there". The layer-mean rewrite made the mean
+an average, so nothing refuses there — and a test asserts the value is finite at
+exactly that point. Both now state what holds. A comment that survives the code it
+described is worse than one that goes with it.
 
-⚠️ **And `at_equal_potentials` does NOT go with the chain**, which its own comment now
-claims. Five refusal sites survive it and only two are in the root-curve chain; the
-other three are `duptake_dpsi_soil`, `duptake_droot_carbon` and
-`d2uptake_dpsi_dpsi_soil`. The predicate goes only if the whole second-order supply-row
-family goes -- which the dead-`follow` finding above now makes possible.
+### 16. ~~Seven row types that outlived the row layer~~ DONE
 
-⚠️ **Check this list against increment 2 before deleting from it.** That increment
-was scoped to need `d2uptake_dpsi_droot_curve` and `d2uptake_dpsi_dpsi_soil` for
-M's parameter rows and then landed by a route that did not use them, so their
-status is "named by a plan that took another road" rather than settled. The four
-in the table above are unaffected.
+Each appeared exactly once in the tree — its own declaration. Nothing constructed
+one, returned one, or named one as a parameter, including inside `leaf_model.hpp`
+itself: `UptakeRows`, `PhotoTraitRows`, `CollarRows`, `HydraulicCostRow`, and
+`TransportTraitRows` with the `TransportTrait` enum beside it. About 135 lines,
+mostly one contiguous band. They were the row layer's vocabulary, and the commit
+that deleted the layer left them behind.
 
-### 16. Seven row types that outlived the row layer
+Two of the original seven had already gone by the time this was re-checked, which
+is the entry's own small lesson: a list of dead things decays, and the count is
+worth re-taking rather than quoting.
 
-Each of these appears exactly once in the tree — its own declaration. Nothing
-constructs one, returns one, or names one as a parameter, including inside
-`leaf_model.hpp` itself:
-
-`UptakeRows` (33), `PhotoTraitRows` (47), `CollarRows` (21), `HydraulicCostRow` (13),
-`TransportTraitRows` with the `TransportTrait` enum beside it (21).
-
-**About 135 lines: a contiguous band at `leaf_model.hpp:1255-1381`** plus
-`HydraulicCostRow` at 1889-1901. They are the row layer's vocabulary, and `2ba6f98`
-deleted the layer without them.
-
-⚠️ **Two of the original seven are gone.** `CostTraitRows` and `ConditionCurvature`
-have zero hits anywhere. Re-checked: the remaining five each still appear exactly
-once in the tree, their own declaration.
+⚠️ **`grep -c` was wrong on one of them and would have kept it.** `TransportTrait`
+returns two hits, and the second is `TransportTraitRows` — a substring of the name,
+one line below. The word-boundary count is one. Whenever a name is a prefix of its
+neighbour, an unanchored count reports it as live.
 
 ### 17. ~~`leaf_solved_points` is two objects wearing one type~~ DONE, as a cursor
 

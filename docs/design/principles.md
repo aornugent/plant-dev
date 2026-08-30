@@ -163,13 +163,19 @@ It is a **leaf of this cascade, not a branch**: read it when you touch the leaf'
 derivative boundary, and read it against the prime directive, which is what it exists
 to serve. Its own measurements are in `one-program.md`.
 
-⚠️ **Closing it does NOT open step 9.** Step 8's deletion half -- the leaf's orphaned
-derivative chain and the single-potential supply path -- is gated by its own text on
-the calibration path going first. **Step 1 has now done that**: `phylloptim::gradient`
-is gone, 8,005 lines with it, and nothing outside the leaf names a supply kind any
-more. So the next item is step 8's deletion half, and it is a question about
-phylloptim's public R surface rather than a sweep of dead code -- `leaf_supply_single()`
-and `series_resistance()` are exported and `supply_kind` is bound.
+⚠️ **Steps 1 and 8 have both landed, so the next item is step 9.** Step 1 removed
+the calibration path (8,005 lines) and step 8 the leaf's orphaned derivative chain
+and its second supply path. The leaf now supplies one kind of derivative through
+one supply model.
+
+**Step 8's finding is the one to carry off this branch.** The two supply paths were
+the same arithmetic — one is the other at a single layer with no
+vulnerability-weighted horizontal term, measured bit-identical in the supply and to
+the solver floor over 108 solves. Sixteen `switch` statements existed to carry a
+single line of genuine difference, and the defaults made that line invisible: a
+first probe built on them reported agreement, because `psi_crit == root_psi_crit`
+there. **A fixture built on the defaults cannot referee a difference the defaults
+collapse** — the same window hazard 2 says the golden file cannot see.
 
 ## What holds across all six
 

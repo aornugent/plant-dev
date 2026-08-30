@@ -96,16 +96,20 @@ beside it exist to *supply rows to a difference*. So do `CurveReads` and half of
 `roots.hpp`'s `d...` family. They are not separately dead -- they are the second
 method's parts, and they go when it does.
 
-⚠️ **One real gap.** `E_from_soil_at` refuses the single-potential supply path at
-an active scalar, and `par_resistance` is that path's parameter -- `inputs.hpp`
-says the read declines it and a difference answers instead. So either the active
-arm gains the single-potential form, or one difference survives for one
-parameter. Everything else is on the tape today.
+⚠️ ~~**One real gap.**~~ CLOSED, and by neither of the two routes named here.
+`E_from_soil_at` refused the single-potential supply path at an active scalar, so
+the entry expected either an active arm for that path or one surviving difference
+for `par_resistance`. What happened instead is that **the path stopped being a
+second path**: it is the multi-layer model at one layer with no
+vulnerability-weighted horizontal term, measured bit-identical in the supply and
+to 6.6e-10 over 108 whole solves. One arm, so nothing refuses and nothing is
+differenced. `E_from_soil_at` is five lines.
 
-⚠️ **Scope.** `par_table`, `output_table` and `Result` are R's contract and stay
-exactly as they are; this changes how the numbers are produced, not what is
-reported. `closed_form.hpp` is a separate open item (`subtraction-targets.md` 12)
-and is untouched.
+⚠️ ~~**Scope.**~~ `par_table`, `output_table` and `Result` were called R's
+contract and left alone; step 1 deleted the product they were the contract of, and
+the fourteen traits that survive are `trait_table` in `leaf_model.hpp`.
+`closed_form.hpp` went with it -- `subtraction-targets.md` 12 records why the open
+item it was held up by stopped being open.
 
 ---
 

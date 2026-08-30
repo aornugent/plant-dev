@@ -937,6 +937,50 @@ cost is widening the one cache in this file whose staleness silently reintroduce
 single-potential supply path with them. After step 1 this is a deletion, not a
 redesign.
 
+⚠️ **The deletion half is DONE, and the supply path was not a deletion.** Two
+findings, and the second is the one to carry.
+
+**The orphaned chain went as written, once step 1 removed the last route into it.**
+`bound_row` and `BoundRow`; the root-curve family and `layer_mean_dtrait`; the
+second-order supply rows and their three `Leaf` wrappers; `at_equal_potentials`,
+whose five callers were all of them; six row types that appeared exactly once each.
+`subtraction-targets.md` 15 and 16 carry the count and the two mistakes it caught —
+a production pair grouped with the dead family by the shape of its name, and two
+more symbols orphaned *behind* the first round, which nothing warned about because
+both were private.
+
+**The two supply paths were one model, and the entry above got the reason wrong.**
+This document argued `single_potential.hpp` goes because "plant names `SupplyKind`
+nowhere". True, and insufficient: plant was never its consumer. Its consumers are
+PLAN item 7a's optimality-model comparison and anyone arriving from `plantecophys`
+with one soil potential and no root profile — an open item, so the `closed_form`
+argument does not transfer.
+
+What settles it is arithmetic. `SinglePotential` computes `E = (T - psi - g)/R`;
+`MultiLayerRoots` computes `E_i = (T - psi_i - g_i)/r_R` with
+`r_R = r_R_H_min[i]/mean_f + r_R_V_sum[i]`. **At `r_R_H_min = 0` that is
+`r_R_V_sum[0]` — the same three operations in the same order.** Measured: the
+supply is bit-identical over 362 comparisons at 86 collar potentials, and 108 whole
+solves agree to 6.6e-10, the solver floor. So the class is a *configuration* of the
+surviving path, and deleting it costs no capability.
+
+⚠️ **One line was genuinely different, and the defaults hide it.**
+`supply_psi_crit()` returned the ROOT's critical potential on one path and the
+STEM's on the other. Where those differ the models differ — 5.5 in profit, and 99
+of 108 solves reaching the same operating-point kind instead of 108. At this
+package's defaults `psi_crit == root_psi_crit`, so the first probe was built on a
+fixture that could not see it, and reported agreement. That is hazard 2's window,
+which the guide already says the golden file cannot see: **a fixture built on the
+defaults cannot referee a difference the defaults collapse.** The root's limit is
+what survives.
+
+**And the asymmetry the R surface carried dissolved with it.** `gravity_head` was
+configuration on the single path because "a path with no depth profile has nothing
+to derive a head from". Under one path there is always a profile, so the head is
+`gravity_head * z_soil_mid` and `leaf_supply_single(soil_depth)` names the depth
+rather than the head. One rule, and `soil_depth = 0` is the bare leaf that lifts
+water nowhere.
+
 ⚠️ **This step turned out to be a redesign after all, and it has its own document:
 [`one-order.md`](one-order.md). THE REDESIGN HALF IS DONE.** Four of the seven
 derivative mechanisms are gone -- the tangent above the tape, `SecondOrder`, finite
@@ -951,16 +995,17 @@ still here (`single_potential.hpp`, 27 `supply_kind_` reads in `leaf_model.hpp`)
 and this step's own text says they become a deletion rather than a redesign only
 *after* the calibration path goes. It has: `gradient.hpp` and `src/gradient.cpp`
 are gone, and with them the `bool single` flag that was the last thing outside the
-leaf naming a supply kind. **So the next item in this order is step 8's deletion
-half.**
+leaf naming a supply kind. **Step 8's deletion half has since landed**, and the
+entry above records what it found.
 
-⚠️ **What is left holding `SinglePotential` up is the R binding and two C++
-tests**, not a product: `supply_kind` is bound in `RcppR6_classes.yml`,
-`leaf_supply_single()` and `series_resistance()` are exported, `test-surface.R`
-exercises the kind, and `test_leaf.cpp` has `test_single_potential` and
-`test_leaf_on_single_potential`. That is a user-facing R surface rather than
-tests-only reachability, so this deletion is a decision about phylloptim's public
-API and not a sweep of dead code. Ask it as that.
+⚠️ **The question this posed was the right one, and the answer was better than
+either option it offered.** What held `SinglePotential` up was a user-facing R
+surface, not tests-only reachability, so the choice looked like "delete a
+capability" against "keep 236 lines and 16 switches". It was neither: the class was
+a configuration of the surviving path, so the capability survives its deletion.
+**When a deletion looks like it costs a capability, price the capability against
+the surviving code before pricing it against the user** -- the two paths here
+differed in one line, and sixteen switch statements were carrying it.
 
 The deletion here is real and still wanted, but it
 is the small half. The large half is that the leaf supplies SEVEN kinds of derivative
