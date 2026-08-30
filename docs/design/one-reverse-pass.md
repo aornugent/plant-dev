@@ -1033,16 +1033,87 @@ changing anything about how a derivative reaches the stand from the leaf.
 > about 60% of a 31% regression. `one-program.md` has the profile and the three
 > options. The nesting was inverted and inlined, not removed.
 
-**9 -- endgame: `derivs` returns.** Four models, fifteen files, the R layer. Not
-before the eight above have made it smaller.
+**9 -- endgame: `derivs` returns.** CLOSED, and NOT DONE -- but the hazard it
+existed to remove is now guarded. The entry's own precondition, "not before the
+eight above have made it smaller", is **not satisfied: they reduced this surface by
+zero.** `internals.h` has not been touched in thirty-six commits and the rate path
+of `ode_interface.hpp` not at all. What they made smaller was elsewhere.
 
-> What this buys on the tape, so the endgame is not oversold: the System would hold
-> no recorded value, so nothing would need releasing and the active copy could be
-> built once per sweep rather than once per width. That is the 3.0% rebind share
-> and the 8 ms release -- **not a large number.** What it buys is the removal of a
-> hazard class: a member read before it is written is an unregistered input to the
-> recorded function, and mechanic 5 makes that silent. The case for step 9 is
-> correctness, and the plan should stop implying it is speed.
+⚠️ **And the size was understated.** "Four models, fifteen files, the R layer" is
+right for the production C++ surface (16) and 2.5x short overall: **40 files touch
+these members** once the 18 test files, the four generated binding files and the yml
+are counted, and there are **six rate producers, not four** -- `TF24_Environment::compute_rates`
+is 91 lines and the second largest. The narrow cut is ~61 edit sites; taking
+odelia's `ode_rates(It)` with it adds ~64 more, 19 of them in the stepper and
+solver. **Six partial-write behaviours** would have to be reproduced exactly, two of
+them conditional on `collect_all_auxiliary` and one an inheritance-time extension in
+TF24f.
+
+Five findings, in the order that decides it.
+
+**Its goal is unreachable, not merely expensive.** "The System would hold no
+recorded value" cannot hold while the auxs are what they are. `update_dependent_aux`
+caches `area_leaf(height)` and `1/height` into auxs as each state is set, and
+`compute_competition` reads exactly those two, once per query height per individual,
+from the field build. `establishment_probability_of_newborn` reads the carbon
+`compute_rates` left in aux rather than solving the leaf again. Make either a local
+and the work is redone in the hottest loop in the program.
+
+**The interface is already return-shaped, and the composite is why it must be.**
+`derivs(obj, y, dydt, time)` fills the caller's buffer; the System contract under it
+is `set_ode_state(it)` then `ode_rates(it)`, and Patch, Species, Node and Individual
+forward one iterator so a whole patch writes into one flat buffer with no
+allocation. A level that RETURNED its rates would allocate per level per
+evaluation. The shape the entry wanted is the shape that is already there.
+
+**The staging is one call deep in both directions, which steps 3, 3b, 4 and 7 did.**
+`Patch::ode_rates` calls `compute_rates()` itself and then drains, so the rates are
+produced and consumed inside one call. `set_ode_state` writes the states, writes the
+derived auxs, then builds the field that reads them. Nothing waits across the ODE
+boundary except the auxs above.
+
+**The hazard was real and UNGUARDED, and this is the half the entry got right.**
+`active_system::release()` audits a different property -- that `for_each_active`
+reaches every active value the System holds -- and says nothing about write order.
+The `NA_REAL` fill of `rates` and `consumption_rates` speaks only on the first pass,
+and **`auxs` are filled with zero**, which is a plausible number, and they have the
+most readers. So nothing detected it, and it had already bitten three times: once
+found in the wild at `test-patch.R` and papered over with a hand-inserted
+`invisible(patch$ode_rates)` ("This was passing by accident"), and twice more fixed
+by moving `compute_boundary_node` out of `compute_rates` so "the field stops reading
+a density carried from the previous evaluation" -- `species.h` and `patch.h` both
+say so.
+
+**But the hazard does not need the redesign. It needs a property.** A rate
+evaluation is a function of the state and the time it is given; anything it reads
+without writing is what the last evaluation left, so **revisiting a state after
+visiting a different one is what makes it observable.** `Patch$derivs(y, t)` was
+already exported, and the check is three calls and two comparisons, on both
+published channels because they are written in different places. It is in
+`test-patch.R`, beside the bite it generalises.
+
+⚠️ **It was verified by breaking it**, which is the only way to know a guard guards:
+with one aux read a line before it is written, the second visit disagrees at the
+scale injected and the test fails. Two earlier attempts at that injection did NOT
+fail it, and both were instructive -- removing `update_dependent_aux` from the state
+load changes nothing because `compute_rates` writes those auxs anyway, and K93's
+`aux(0)` is written during the load. A fault has to be a genuine read-before-write
+before it is evidence about a guard.
+
+**The speed case is 8 ms, and this document had already refused it twice.**
+`for_each_active` reaches 1,500 members and releasing all of them over 3,400
+recordings costs 8 ms against a 108 s gradient -- 0.0075%. The rebind share is the
+0.35 s that step 3c priced and refused on its own terms. So the entry's own
+"not a large number" was an understatement, and nothing above it was ever a speed
+argument.
+
+⚠️ **What would reopen this.** Not a faster machine and not a bigger tape: only a
+change to what the auxs are. If the competition query stopped reading cached
+state-derived quantities -- because the field build took them as arguments, or
+because they were recomputed and measured free -- then the System would hold only
+what it is given and what it drains in the same call, and `derivs` returning would
+be a rename rather than a redesign. That is a question about the field build, not
+about the ODE interface, and it belongs to whoever next opens `compute_environment`.
 
 ## What this does not decide
 

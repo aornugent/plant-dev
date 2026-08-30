@@ -163,10 +163,24 @@ It is a **leaf of this cascade, not a branch**: read it when you touch the leaf'
 derivative boundary, and read it against the prime directive, which is what it exists
 to serve. Its own measurements are in `one-program.md`.
 
-⚠️ **Steps 1 and 8 have both landed, so the next item is step 9.** Step 1 removed
-the calibration path (8,005 lines) and step 8 the leaf's orphaned derivative chain
-and its second supply path. The leaf now supplies one kind of derivative through
-one supply model.
+⚠️ **The order is finished.** Step 1 removed the calibration path (8,005 lines),
+step 8 the leaf's orphaned derivative chain and its second supply path, and **step 9
+is closed as refused, with the hazard it existed to remove closed separately.**
+`one-reverse-pass.md` carries the five findings and the one thing that would reopen
+it.
+
+**Refusing the redesign and keeping its reason is the move to carry off this
+branch.** Step 9 was diagnosed correctly -- a rate evaluation could read what the
+last one left, and on a tape that is an unregistered input whose row is dropped in
+silence. It had bitten three times. But the diagnosis named a redesign of forty
+files, and what the defect actually needs is a PROPERTY: a rate evaluation is a
+function of the state it is given, so revisiting a state after a different one is
+what makes a carried value observable. Three calls and two comparisons, against
+about 61 edit sites and six partial-write behaviours to reproduce.
+
+**Separate the defect from the redesign that was proposed for it.** The redesign is
+refused on its measurements; the defect is closed on its own terms, and a test that
+was verified by breaking it now says so on every run.
 
 **Step 8's finding is the one to carry off this branch.** The two supply paths were
 the same arithmetic — one is the other at a single layer with no
