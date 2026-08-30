@@ -177,12 +177,12 @@ the other way round.
 | 4 | delete the nested tangent, `SecondOrder`, and both second-order lift branches | `test_leaf`, ladder, statement count | **DONE** |
 | 4b | **the waist: `SupplyDraw`, recorded once and passed in** | the transpose identity | **DONE** 531 -> 444 |
 | 5 | the layer mean from `f` rather than from a difference of `G`; the three thresholds go | the family against a higher-order average | **DONE** 3 -> 1, and 60,000x on d2 |
-| 6 | the rest of the graft: profit's and the collar's rows supplied | the transpose identity | not started |
-| 7 | delete the leaf's whole `<S>` surface above the waist | the ladder, and the count | blocked on 6 |
+| 6 | the graft: the layer draws | the transpose identity | **DONE** 444 -> 360 |
+| 7 | profit's and the collar's rows supplied; delete the `<S>` surface | see the memo below | **not worth building** |
 
-**Measured, one interior placement at five soil layers: 861 -> 444 statements and
-1257 -> 772 operations**, `marginal_assembled` 396 -> 66 and `collar_coords_at`
-117 -> 30. `test_leaf` 1127/0 with the solve checksum bit-identical, the ladder
+**Measured, one interior placement at five soil layers: 861 -> 360 statements and
+1257 -> 636 operations** -- the supply draw 187, `collar_at` 99, `outputs_at` 74.
+`marginal_assembled` 396 -> 66 and `collar_coords_at` 117 -> 30. `test_leaf` 1127/0 with the solve checksum bit-identical, the ladder
 554/0/5, the non-ladder 3295/0, odelia 346/0/3, and `test_golden`'s mismatch count
 unchanged at its pre-existing 223.
 
@@ -348,6 +348,138 @@ Do not re-propose these. Each cost a session.
 * **`initDerivatives` zero-fills the whole derivative array per seed**, sized by the
   high-water SLOT mark rather than the live count. A recording's slot count costs
   beyond its statements.
+
+---
+
+## What we would have built from the outset
+
+Four studies, run to exhaust the design space rather than to confirm a preference.
+They agree, and what they agree on is not what this file said.
+
+### The standard answer is the one we refused, and it is not exotic
+
+Every AD framework surveyed treats "solve in plain double, hand the outer tape a
+value and a derivative block" as its **first-class use case**, not a workaround:
+JAX's `custom_root` and `custom_vjp`, PyTorch's `autograd.Function`, jaxopt and
+Optimistix, cvxpylayers and OptNet, and on the C++ side ADOL-C's `ext_diff_fct`,
+CoDiPack's `ExternalFunctionHelper`, dco/c++'s external adjoints and Tapenade's
+`_D`/`_B` convention. Naumann names the two variants: **preaccumulation** (get the
+local block by `min(n, m)` sweeps) and the **Symbolic Adjoint** pattern (get it from
+the implicit function theorem, no sweeps at all).
+
+dco/c++'s own paper uses this shape as its worked example -- a Newton solve inside a
+larger taped computation -- and reports **3.5x faster and about 30x less tape**.
+SU2's production adjoint reports about **50% off the adjoint solve** from
+preaccumulation alone.
+
+⚠️ **So "supplying rows" was never the risk.** This file's objection -- that it makes
+the envelope theorem's kind-dependence a hand-maintained coefficient table across
+twelve kinds -- **does not survive measurement**. Twelve is the enum: **six kinds
+carry rows and six throw**, and the six need **four residuals and one scalar**, not
+twelve coefficient sets. The term this file called "a term whose size is the solve's
+tolerance rather than the model's" measures **1.6e-15 relative**.
+
+### What decides it is a ratio, and ours says the block should win
+
+Preaccumulation pays `min(n, m)` sweeps against `O(T)` taped statements, so the
+deciding ratio is `T / min(n, m)`. Here `T = 360`, `n = 31` inputs, `m = 6` outputs:
+**60**. That is squarely the regime every source reports as a large win.
+
+**And it is blocked by the library, not by the mathematics.** `min(n, m) = 6` means
+the sweeps must run in REVERSE, and XAD cannot nest a tape: `Tape::setActive` throws
+`TapeAlreadyActive`, and an `AReal` finds its tape through `getActive()`. A private
+leaf tape at the same scalar is **structurally impossible**, not merely slow -- which
+corrects this file's own "39 us against 34", a figure for a thing that cannot be
+built. The remaining direction is forward, at `n = 16` trait directions, and that is
+**measured at 38-52 us against 6.4 us for recording: 6x to 8x worse.**
+
+That is the real reason step 7 loses, and it is a fact about the tool.
+
+### Which leaves the analytic block, and the model does give it
+
+With no sweeps affordable, the only route is the Symbolic Adjoint: the rows from the
+theorem rather than from a pass. The structure is there, and it is smaller than the
+struct at the top of this file suggests.
+
+**`A = A(E)` exactly.** The concentration's residual reads the flux and the
+photosynthesis traits and nothing else -- no `sigma`, no `p`. So the whole carbon
+side is a one-dimensional function of total transpiration, and **the rank result is a
+theorem rather than a measurement**. It is also stronger than stated here: the TOTAL
+profit row is rank one in the held `E` column at every kind, because
+
+```
+dPi*/du = (lambda_E + M a) E_u  +  M b S_u
+```
+
+and the second term vanishes twice over -- `M = 0` at an interior point, `b = dp*/dS`
+exactly zero at every bound. `probe_rank` now measures it at 2.7e-16 to 9.9e-15.
+
+The uniform form is Fiacco's, and it needs no branch:
+
+```
+dPi*/du  =  dPi-hat/du |_p  -  sum_j mu_j dc_j/du |_p
+```
+
+At an interior point every multiplier is zero and this collapses to the omission
+`outputs_at` already makes. At a bound the multiplier IS the correction the envelope
+theorem does not give. **One formula, four residuals** -- interior `M`, the wet bound
+`E_up`, the dry-stem `T1` at `psi_crit`, and `p = root_psi_crit` -- which is what
+`collar_at` already is. The kind selects which residual, not which formula.
+
+And the coefficients have names the manuscript already uses: `dPi*/dE` **is**
+`marginal_price_water()` exactly at Interior, PinnedWet and ShadeDeath, and
+`b = -marginal_price_water() / marginal_collar_slope()` by an exact Maxwell relation
+(`M` is affine in `S`, so `dM/dS = dPi-hat/dE`), measured at 2e-15.
+
+### So why it still does not get built
+
+Three reasons, in order of weight.
+
+1. **It is worth about 5 to 7 per cent.** Steps 6 and 7 together delete 173 of 360
+   statements; at the measured record cost that is ~7 s of a ~100 s gradient. The
+   objective is reader load, and this does not move it: the rows must still be
+   PRODUCED, and producing them analytically means **eight new closed forms** --
+   `dM/dtheta` at Interior needs `dA'/dtheta` and `dlambda_TF24/dtheta`. A graft
+   protocol replaces a recorded surface and the mechanism count does not fall.
+2. **The referee does not cover it.** The transpose identity reaches four kinds of
+   twelve, and `census_trait_tangent` cannot help: it runs the same supplied numbers
+   through the same graft, so a wrong row makes both routes wrong identically --
+   this file's own "two analytic routes agreeing" trap. Coverage, not algebra, is
+   the binding constraint.
+3. **One supplied number is already wrong.** `dprofit_droot_collar_psi` returns its
+   `0.0` sentinel at ShadeDeath where the true `M = -C'(p*) = -1.3137`. Any design
+   taking `M` from there inherits that.
+
+### The unexploited structure, for whoever returns to this
+
+A species' cohorts at one stage are a **one-parameter family in height**. Twelve of
+the sixteen scalar inputs are byte-identical across every cohort, every stage and the
+whole run; `psi_soil` is patch-level and already memoised. The per-cohort recording
+re-traverses 360 statements over inputs that are mostly the same numbers, and nothing
+caches an operating point -- `leaf_solved_points` is a cursor and its header forbids
+using it as a cache. That is a larger factor than step 7's 5 to 7 per cent, and no
+part of this design has looked at it.
+
+Also unpriced and cheap to try: `Tape::pushAll` + `pushLhs` are public and give **one
+statement per row** where `record_with_derivatives` gives n. `probe_leaf_tape` prices
+a dense block at `n_out * n_in` statements on the assumption that it cannot, so the
+counterfactual it prints is **31x too pessimistic** and every design conversation
+here has read a number that argued the wrong way.
+
+### The domain has met this and flinched
+
+Land-surface adjoints (BETHY/CCDAS, adJULES, CLM via OpenAD) all differentiate
+closed-form stomatal schemes; none has faced a constrained argmax. The stomatal
+optimality lineage -- Cowan-Farquhar, Medlyn, Sperry, Wolf, Eller's SOX -- hit the
+same cost wall at DGVM scale and **removed the solve rather than differentiating
+it**. The closest precedent the survey found translates CLM-ml to JAX and reports a
+secant solver's gradient reaching **9.95e144** when the iterations are unrolled,
+fixed by the implicit function theorem at the converged root.
+
+**No published work differentiates an inequality-constrained, active-set-switching
+hydraulic optimisation.** This sits in a gap: the optimisation literature has the
+theory and no plant instance, the plant literature has the model and has never
+differentiated it.
 
 ---
 
