@@ -362,16 +362,25 @@ Where the answer is no, the surface stays and the entry closes.
 * **The recording protocol** -- `apply_insertion`, `junction`, `be_at_step`,
   `step_adjoint`, `adjoint_rows`.
 
-## Free, and each removes a word
+## ~~Free, and each removes a word~~ NONE OF THE THREE WAS FREE
 
-| name | site | reached from |
+Grepped, which is what "free" was supposed to mean. Each fails for a different reason,
+and the list was the cheapest item on the plan.
+
+| name | site | what it is actually reached from |
 |---|---|---|
-| `Patch::introduction_jacobian` | `patch.h:1392` | the ladder oracle only -- no library caller |
-| `Solver::solve_adjoint`, 4-arg ranged | `ode_solver.hpp:290` | **zero** production callers; one odelia R test |
-| `quadrature_abscissae` | `species.h:327` | an R error diagnostic, off the field path |
+| `Patch::introduction_jacobian` | `patch.h:239`, `:1393` | live: `gradient_ladder.cpp:824` -> `ladder_introduction_jacobian_tf24` -> `test-gradient-ladder-rung5.R:172`. Oracle-only, and the warning below was already there |
+| `Solver::solve_adjoint`, 4-arg ranged | `ode_solver.hpp:290` | **it is the implementation.** The whole-recording overload at `:393` delegates to it, and `scm.h:1056` calls that. "Zero production callers" is false transitively |
+| `quadrature_abscissae` | `species.h:330` | `species.h:983` -> `refinement_error_by_node()` -> `scm.h:690` inside `refine_schedule`, which `run_scm(refine_schedule = TRUE)` reaches. A production path, not an R diagnostic |
 
 ⚠️ **Oracle-only is not dead.** `introduction_jacobian` is what the ladder checks the
-transpose against. Price the check before the function.
+transpose against. Price the check before the function. That caveat was written here
+and was right; the other two rows had no caveat and needed one.
+
+**The lesson is the one already in `principles.md`, arriving on its author.** "'Free'
+means unreferenced, and unreferenced means grepped. A plan's cheapest items are the
+ones its author did not verify." Three rows, one grep each, three wrong -- and the
+cheapness is what stopped anyone checking.
 
 ## Order
 
@@ -391,7 +400,9 @@ Ranked by words removed from a reader's head, not by lines.
 4. ~~**The counters**~~ **CLOSED, surface stays** (3a). Four of five have no route
    out of the production headers and the fifth already reaches directly; what was
    wrong was the comment saying why.
-5. **The three names with no caller.** Free.
+5. ~~**The three names with no caller.**~~ **CLOSED -- there were none.** One is a
+   live oracle, one is the sweep's own implementation, one is on the schedule
+   refinement path. See the table above.
 6. ~~**One word for the widening event**~~ **DONE** (2b) -- two words, one per package, with the boundary in one line.
 7. **`compute_environment`'s three meanings** (2c) -- at minimum, the forwarder.
 8. **The ladder's surface** (4a–4c), gated on the test above. The largest item and
