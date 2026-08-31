@@ -125,7 +125,7 @@ list "IS SKIPPED, NOT REFUSED". A struct named `{value, slope}` matches no branc
 Measured, not reasoned about -- `odelia/tests/standalone/probe_visit_active.cpp`:
 
 ```
-  std::pair<double,double>        2
+  std::pair<double,double>        0   <-- no longer opened
   struct {value, slope}           0   <-- skipped, no error
   the same with for_each_active   2
   for_each_active over an unnamed 0   <-- skipped one level down
@@ -133,10 +133,41 @@ Measured, not reasoned about -- `odelia/tests/standalone/probe_visit_active.cpp`
 ```
 
 So `with_slope` declares `for_each_active`, and `competition_split` hands over the
-pairs rather than their members -- which makes the ladder a real check on the
-declaration, because without it `release()` sees a live slot count and the injection
-tier fails. The probe also shows a raw C array reaching only its first element; no
-active raw array is on a walk today, so that one is recorded and not chased.
+pairs rather than their members. The probe also shows a raw C array reaching only its
+first element; no active raw array is on a walk today, so that one is recorded and not
+chased.
+
+### Where this surface lives, and what asking moved
+
+`visit_active` and `active_system::release` are odelia's -- the walk and the audit.
+`for_each_active` is odelia's contract with **eleven of its thirteen implementations
+in plant**; phylloptim has none, being forward-mode and tapeless. `with_slope` is
+plant's, correctly: a competition value and its height slope is plant's model
+vocabulary, and odelia's own value-and-slope is knot *arrays* (`nodes_and_data`,
+`interpolator::y`/`m`), a different shape with a different owner.
+
+**The `std::pair` arm of `visit_active` is gone.** It was not merely dead -- it was
+never reachable. At the plant commit that introduced every `visit_active` call, not
+one of the ten argument lists was a pair, and the frame that became
+`competition_split` already handed over `tot, tot_slope, f_h1, s_h1` as four separate
+scalars so it would not need the arm. odelia wrote it to keep a capability the same
+commit's callers had already stopped using. The one route by which it could have gone
+live is closed: `strategy.h`'s two `std::map` members would yield pairs if iterated,
+and no `for_each_active` hands them over.
+
+⚠️ **There is no compile-time refusal to add here, and this is worth writing down
+because it looks like there is.** The obvious fix -- refuse a class that declares
+nothing -- would break the build: `FF16_Strategy`, `K93_Strategy`, `FF16_Environment`
+and `K93_Environment` declare no `for_each_active` and are skipped **correctly**,
+being non-templated and `double`-only. From inside the template a class holding
+actives and a class holding none are the same shape. What reports a miss is
+`active_system::release`, counting slots the walk did not reach -- a guard reporting a
+number, which is the form this codebase already prefers.
+
+⚠️ **And those four skips rest on a fact nothing asserts.** They are safe only while
+FF16 and K93 stay `double`-only. Template either on `S` and both become live wrong
+answers with every number finite, and `release()`'s count is the only thing that would
+say so. Not a defect today; a tripwire with no wire.
 
 **Net +5 lines of code**, plus a forty-line header that is mostly the two paragraphs
 above. Seventeen spellings became one name and the sign got written down; lines were
