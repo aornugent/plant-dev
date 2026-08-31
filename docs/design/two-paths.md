@@ -93,11 +93,31 @@ frame renames it. **One named type with two named members, at all six sites.**
 is made; the replacement is a struct of two scalars taken by reference, not a
 returned pair. Check tape statements either side, not wall time.
 
-**2b. One widening event, three names across two layers.** `introduction` (plant's
-schedule, `patch.h:138`), `insertion` (odelia's map, `ode_interface.hpp:530`),
-`junction` (the recording, `:171`). `segment` and `stop` are ranges rather than the
-event, so they are not duplicates. A reader crossing the boundary holds all three and
-the mapping between them.
+**2b. ~~One widening event, three names across two layers.~~ DONE.** It was
+`introduction` (plant's schedule), `insertion` (odelia's map), `junction` (the
+recording) and `widening` (the prose everywhere). Now **two, one per package**:
+`insertion` is odelia's word for the map and for the row that applies it;
+`introduction` is plant's word for the scheduled event; and the boundary is one line
+in `r_store_trajectory`, which reads `rec[i].insertion` and reports it as
+`introduction`. `widening` survives only as a verb -- "the run widened", "a widening
+System" -- which is English about the state, not a name for the event.
+
+⚠️ **And this entry got one thing wrong**, which is worth keeping because the error
+is the general one. It said *"`segment` and `stop` are ranges rather than the event,
+so they are not duplicates"* -- true, and it stopped there. They are not duplicates
+of the *event*; `segment` and `range` were duplicates **of each other**, one idea for
+the span between two insertions, spelled both ways inside odelia and crossing into
+plant's R surface as `segments`. The tell was sitting in the tests, which read the
+field into a differently-named variable:
+
+```r
+unsplit_ranges <- unsplit$segments      # the translation layer, written by hand
+ranges         <- counts$segments
+```
+
+`range` is now the only spelling: `state_at_range`, `range_base_state`, `from_range`,
+and `ranges` in the R return. **Checking whether a name duplicates the thing you are
+looking at will not find the pair that duplicates each other.**
 
 **2e. One grouping, derived three times.** The domain is "a sorted sequence of
 introduction times, each naming a set of species". `NodeSchedule::set_times`
@@ -228,7 +248,7 @@ Ranked by words removed from a reader's head, not by lines.
 4. **The counters** (3a). Five signals × four layers, and none of them reaches the
    product. The largest threading item in either path.
 5. **The three names with no caller.** Free.
-6. **One word for the widening event** (2b), across the plant/odelia boundary.
+6. ~~**One word for the widening event**~~ **DONE** (2b) -- two words, one per package, with the boundary in one line.
 7. **`compute_environment`'s three meanings** (2c) -- at minimum, the forwarder.
 8. **The ladder's surface** (4a–4c), gated on the test above. The largest item and
    the one most likely to end in "the surface stays".
