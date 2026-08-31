@@ -23,22 +23,27 @@ or junction. The code models it as an ordered sequence of *states* with a field
 hinting at where a junction was, and **`sweep.hpp`, `NodeSchedule` and the piecewise
 sweep are all downstream of that one substitution.**
 
-Steps 0-3 landed: `recorded_step` carries `{time, step_size, junction}`, the flag is
-authored where the width changes, and the executor is one call at 12 lines where it
-was 30. **Steps 4 and 6 are outstanding and are one increment**, and until they land
-the substitution is paid for twice:
+**LANDED.** `recorded_step` is `instruction`, carrying `{time, step_size, kind}`,
+and a junction is a row of its own holding the state its map produced. The
+substitution stopped being paid for twice. What went:
 
 ```cpp
-bool junction = false;                  // authored, ode_interface.hpp:171
-state_type<System> inserted;            // a whole state vector, at 169 of 3,381 rows
+state_type<System> inserted;            // a second state, on 169 of 3,381 rows
 const state_type<System>& ran_from() const {
-  return inserted.empty() ? state : inserted;   // picks which half is live
+  return inserted.empty() ? state : inserted;   // picked which half was live
 }
+const bool pending = from_segment == 0 && rec[start].junction;   // scm.h
 ```
 
-`ran_from()` is a function whose only job is to choose between two spellings of one
-fact. That is the shape `principles.md` names: a value deciding which half of a type
-is live means there are two types.
+`ran_from()` was a function whose only job was to choose between two spellings of one
+fact, and `pending` a bool recording how much of one instruction someone else had
+already run. Both are the shape `principles.md` names. With `solve_adjoint`'s
+`stops`, `lo`, `hi`, its two ternaries and `if (lo < hi)`, they are gone.
+
+⚠️ **Not everything in the spec was taken.** `schedule()` filters junction rows
+rather than the per-interval replay being deleted, so `unification.md` **6** is still
+open and `Parameters` still holds the program as two parallel vectors. See the end of
+`one-program.md`.
 
 ⚠️ **Two claims here were wrong, and the second reorders the list.**
 
@@ -210,14 +215,12 @@ transpose against. Price the check before the function.
 
 Ranked by words removed from a reader's head, not by lines.
 
-1. **`one-program` steps 4 and 6 as one increment** -- the only structural item on
-   this list, and no longer waiting on a fixture. 6 unlocks 4: while `schedule()`
-   slices the record, a junction row becomes a schedule row and
-   `distribute_ode_steps` deletes it in silence. Separate the program from the
-   record, then `inserted`, `ran_from()` and the head instruction all go. It also
-   takes `unification.md` 7 and 8's neighbour, **6**, with it, and replaces
-   `Parameters`' two parallel vectors with the one object odelia already fixed this
-   into. Specified step by step at the end of `one-program.md`.
+1. ~~**`one-program` steps 4 and 6**~~ **DONE.** A junction is a row; the doubled
+   representation and the range arithmetic went with it. It did **not** take
+   `unification.md` 6: `schedule()` filters junction rows instead of the
+   per-interval replay being deleted, so two recordings of one run remain, and
+   `Parameters` still holds the program as two parallel vectors -- the shape
+   `instruction` exists to refuse. That is the next bite of the same item.
 2. **The introduction schedule, grouped once instead of derived three times** (2e).
    Plant-local, self-contained, and it shares a file with item 1's part (c).
 3. **The value/slope pair as one type** (2a). Bounded, mechanical, five files, and it
@@ -240,9 +243,8 @@ closure. Each is real; none of them is what makes these two paths hard to read.
   **13** (993 long comment blocks -- a per-file reviewable pass), **18** (two curve
   stores written twice).
 * `unification.md` **5** (built once per step, constant across the sweep), **9**
-  (four caches), **10** (smaller pairs). **6** (two recordings of one run) moved off
-  this list: item 1 reaches it, because the per-interval replay is the second
-  recording and the program carries what it was splitting for.
+  (four caches), **10** (smaller pairs). **6** (two recordings of one run) is reached
+  by item 1 but was not taken by it -- see that item.
 * `one-order.md`'s memo: the height family, `pushAll`'s block form, and widening the
   transpose identity past four of twelve kinds.
 

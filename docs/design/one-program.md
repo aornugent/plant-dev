@@ -1,12 +1,15 @@
 # One program
 
-> **Spec, partly landed.** Steps 0-3 are done and 5 and 7 are refused; **steps 4 and
-> 6 are outstanding and are one increment**, specified under "The increment,
-> concretely" below.
+> **Landed.** Steps 0-4 and 6 are done; 5 and 7 are refused. 4 and 6 went in as one
+> increment: **a junction is a row of its own**, and `inserted`, `ran_from()`, the
+> head instruction's junction bit, `scm.h`'s `pending` and `solve_adjoint`'s range
+> arithmetic all went with it.
 >
-> **Nothing blocks them now.** They were held for a second fixture that turns out not
-> to be buildable, and two claims about the blind spot it was to cover were wrong;
-> both are corrected below. Order inside the increment is what matters: 6 unlocks 4.
+> They were held for a second fixture that turns out not to be buildable, and two
+> claims about the blind spot it was to cover were wrong; both are corrected below.
+>
+> ⚠️ **One part of the spec was NOT taken** -- see "What landed, and what it did
+> not" at the end. `unification.md` 6 stays open because of it.
 >
 > The measurements taken while this was written are in `measurements.md`.
 
@@ -188,6 +191,60 @@ is that every row means one thing.
   so **a junction is never the last instruction** and `restore_on_exit` positions on
   the last. Assert that once where the record is built, rather than testing the kind
   at each use.
+
+## What landed, and what it did not
+
+**Taken.** A junction is a row: `push_junction` appends one carrying the state the
+map produced, at the time the row below it holds. Every row then means one thing,
+and the step above a junction runs from the row below it like every other step.
+
+Deleted with it: `inserted`, `ran_from()`, `insertion_rows` (now `junction_rows`,
+reading a kind rather than a flag), `advance_recorded`'s `junction_after` lambda and
+its `steps.front()` call, the head instruction's caller-authored junction bit at both
+`program_from` sites, `scm.h`'s `pending`, `solve_adjoint`'s `stops`/`lo`/`hi` with
+its two ternaries and `if (lo < hi)`, and `recorded_steps()`, which had no consumer
+and had stopped counting steps.
+
+**Not taken: spec item (c).** `schedule()` filters junction rows out instead, and
+that is the whole of what keeps `distribute_ode_steps` correct -- it receives the
+step-only list it always did, so the per-interval replay is untouched and bit for bit
+what it was. That is a smaller and safer separation than deleting the per-interval
+path, and it costs nothing today.
+
+But it means **there are still two recordings of one run**, so `unification.md` 6
+stays open, and `Parameters` still holds the program as two parallel vectors. The
+filter is one line in one place and says why, which is the honest form of a thing
+not yet done.
+
+### Two invariants the record now carries
+
+Both hold because the schedule puts every introduction at the start of an interval
+that then steps, and both are named once rather than tested at each use:
+
+* **A junction is never the last row.** `restore_on_exit` positions on the last row
+  from inside a `catch (...)`, where a failure cannot be raised -- so this is checked
+  at the top of `solve_adjoint`, where it can be.
+* **Two junctions are never adjacent.** `run_next` groups every introduction sharing
+  a time into one `introduce_nodes` call, so one time gives one junction row, and the
+  transpose can read the row below it for the state its map ran on.
+
+### What the tests said, and it was one thing four times
+
+Four ladder assertions failed, in three files, and all four were the same claim:
+**the number of steps is the number of rows minus one.** True while every row was a
+step. Every numerical assertion passed untouched -- the block Jacobian, the
+per-stage checks, the reference capture, the injected corruptions, and the split
+identity's `expect_identical`.
+
+So the fix was to make a row say which kind it is (`store_trajectory` now reports
+`junction`) and to count steps as steps, once, in a helper. **A test that has to
+infer a row's kind from a NaN size or a width that grew is a test carrying the
+representation**, which is the same defect one layer up.
+
+One behaviour genuinely changed, and it is stated in the identity test: a cut
+immediately below a junction is now a no-op, because carrying the adjoint across a
+widening already leaves the descent there. Before, the non-cuttable row was the
+junction's own. There is still exactly one per junction; it moved.
 
 ## Making the flag leading does not help -- MEASURED AGAINST THE CALLERS
 
