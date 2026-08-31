@@ -1,6 +1,6 @@
 # What is left to subtract
 
-> **27 entries landed, NINE still open.** A log rather than a proposal: each entry
+> **28 entries landed, EIGHT still open.** A log rather than a proposal: each entry
 > names something that was not earning its keep, the evidence, and what would break
 > if it went. Struck through means done.
 >
@@ -551,7 +551,14 @@ them: three `expect_equal(..., -1)` in a branch no parity driver reaches, and an
 always known**, because every refusal is recorded on the species whose strategy
 holds it.
 
-### 5. Diagnostic counters threaded through the production stack
+### 5. ~~Diagnostic counters threaded through the production stack~~ CLOSED, the surface stays
+
+> Held to the test at the end of `two-paths.md` lens 4: four of the five cannot be
+> reached from outside the production headers, and the fifth already is. What came out
+> was not the threading but the comment justifying it, which said `r_patch()` was a
+> snapshot -- true of the environment's tally and false of the four a strategy owns,
+> because `strategy_ptr()` hands back the `shared_ptr` by value. See `two-paths.md`
+> 3a for the accounting.
 
 Five counters — `recorded_rates`, `clamp_counts`, `operating_point_counts`,
 `leaf_placements`, `boundary_condition_evaluations` — each carry a member, an

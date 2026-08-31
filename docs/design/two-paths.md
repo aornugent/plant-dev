@@ -263,13 +263,54 @@ one site and `reason` at the next.
 
 # 3. Signals threaded to reach one reader
 
-**3a. Five diagnostic counters, each threaded through every layer it crosses.**
-`recorded_rates`, `clamp_counts`, `operating_point_counts`, `leaf_placements`,
-`boundary_condition_evaluations` -- a member, an accessor at each layer, a clear
-method and an R export apiece. `recorded_rates` is a member on `Step`, forwarded by
-`ode_solver_internal.hpp`, forwarded again by `ode_solver.hpp`, then **renamed** by
-`scm.h` before export, so a reader learns two names for one number crossing four
-layers. `subtraction-targets.md` 5 has the full accounting.
+**3a. ~~Five diagnostic counters, each threaded through every layer it
+crosses.~~ CLOSED, and the surface stays.** Held to this lens's own test -- can the
+ladder reach what it needs from outside the production headers? -- four of the five
+answer no, and the fifth already reaches directly.
+
+* **`recorded_rates` / `boundary_condition_evaluations`: no route.** `SCM::solver`
+  is private, and so are `Solver::solver` and `SolverInternal::stepper`. Three
+  barriers, and opening any of them widens the production interface to narrow it
+  somewhere else. The two names are also not one number under two labels: the plant
+  one asserts the boundary is evaluated once per rate evaluation, which is the claim
+  `test-gradient-ladder-first-range.R` pins with `expect_equal(counts$evaluations,
+  stages * steps)`. They never coexist in one R session -- `recorded_rates` reaches R
+  from odelia's tests only, the other from plant's only.
+* **`clamp_counts`: no, in substance.** The accessor does a saturating subtraction --
+  the leaf keeps one tally across both scalar paths, so the forward share is the total
+  less the measured sweep share -- and folds two owners onto one row. That is
+  knowledge about how the tallies are kept, which is the product's, not the test's.
+* **`operating_point_counts`: reachable, but the live read is the only uniform one**
+  (below).
+* **`leaf_placements`: already direct.** `gradient_ladder.cpp` sums it off
+  `r_patch()` itself, which is the shape the others would take.
+
+⚠️ **The comment that justified the threading was half wrong, and it is the finding
+worth keeping.** `scm.h` said `r_patch()` "is a snapshot the run copies out and whose
+counters are whatever they were when it was taken". Verified:
+`Species::strategy_ptr() const` returns the `shared_ptr` **by value**, so a copied
+`Patch` shares one strategy with the live one and every strategy-owned tally
+*aliases* -- which is why the ladder already reads `leaf_placements()` straight off
+`r_patch()`. But `environment_type environment;` is a `Patch` member by value, so
+that half is a real copy, and a sweep advances the live one afterwards through
+`be_at_step`'s `compute_environment`.
+
+So reading the live system is right for a narrower reason than the comment gave: it
+is the one rule that covers both halves. The comment now says that, and sits beside
+what it describes -- it was two functions above it.
+
+**Three things did go:**
+
+* `clear_operating_point_counts` is **`clear_diagnostics`**. It clears five tallies --
+  operating points, the strategy's clamps on both paths, the leaf's and its root
+  model's, the curvature margin, the environment's -- and two tests depend on the
+  bundling, so the bundling is right and the name was a lie by omission.
+* `add_environment_clamps` is **private**. It was `public static` with both callers
+  inside the class.
+* The misplaced comment moved to the function it describes.
+
+**No lines came out of the product, and that is the answer.** The threading is what
+the assurance layer needs and the product is the only place it can be reached from.
 
 **3b. A test-only parameter threaded into the production sweep.** `extra_stops` is
 `{}` from the product and real only from the ladder. `unification.md` 7.
@@ -347,8 +388,9 @@ Ranked by words removed from a reader's head, not by lines.
    an interval's replay where it is used. `unification.md` **6** is closed.
 3. ~~**The value/slope pair as one type**~~ **DONE** (2a). Seventeen spellings, not
    six, and the caveat guarding it was wrong twice over.
-4. **The counters** (3a). Five signals × four layers, and none of them reaches the
-   product. The largest threading item in either path.
+4. ~~**The counters**~~ **CLOSED, surface stays** (3a). Four of five have no route
+   out of the production headers and the fifth already reaches directly; what was
+   wrong was the comment saying why.
 5. **The three names with no caller.** Free.
 6. ~~**One word for the widening event**~~ **DONE** (2b) -- two words, one per package, with the boundary in one line.
 7. **`compute_environment`'s three meanings** (2c) -- at minimum, the forwarder.
