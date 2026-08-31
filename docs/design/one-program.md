@@ -146,16 +146,32 @@ std::vector<std::array<solved_values_t<System>, 5>> solved_;
 is the whole of what unblocks 4: a junction cannot reach a schedule by accident when
 the schedule is the only thing there is.
 
-**b. The instruction gains a kind.**
+**b. The instruction says whether it is a junction.**
 
 ```cpp
 struct instruction {
-  enum class op : unsigned char { step, junction };
-  op kind;
-  double time;       // the boundary this reaches; a junction reaches its own time
-  double step_size;  // NaN where no size is pinned; unread at a junction
+  double time;             // the boundary this reaches; a junction reaches its own
+  double step_size;        // NaN where no size is pinned; unread at a junction
+  bool junction = false;   // last, and defaults, so {time, NaN} is still a step
 };
 ```
+
+⚠️ **A bool, and this was got wrong once.** The first version made it
+`enum class op { step, junction }`, on the grounds that `principles.md` says to
+model the domain in a structure rather than in conditionals. That rule is about
+replacing branching spread across files; here there is one branch in one place, and
+two states are a bool. `AGENTS.md`'s own "Defaults to unlearn" gives the same
+verdict, with an enum of modes as its worked BAD example.
+
+The cost of getting it wrong was not the byte. Counted over this corner of the code,
+the shipped state held six names -- `recorded_step`, `step_record`, `junction`,
+`inserted`, `ran_from`, `insertion_rows`. The increment deleted four and added five,
+for **seven**, while its commit message claimed subtraction. With the bool, and with
+`junction_rows` inlined into the one caller left after the stop list went, it is
+**three**: `instruction`, `step_record`, `junction`.
+
+**Count the names at the end of an increment.** Four deletions felt like progress and
+the total went up.
 
 **c. `distribute_ode_steps` stops eating the junction row, or stops existing.** It
 splits a flat recording into per-interval sub-recordings so `run_next` can replay one
