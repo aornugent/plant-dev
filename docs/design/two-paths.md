@@ -315,17 +315,54 @@ the assurance layer needs and the product is the only place it can be reached fr
 **3b. A test-only parameter threaded into the production sweep.** `extra_stops` is
 `{}` from the product and real only from the ladder. `unification.md` 7.
 
-# 4. The assurance surface inside the production surface
+# 4. The assurance surface inside the production surface -- CLOSED
 
-**4a.** `plant/src/gradient_ladder.cpp` is **783 code lines behind 34 `Rcpp::export`
-entry points, 30 of them referenced only from `tests/`** -- `subtraction-targets.md` 10.
+Counted: `gradient_ladder.cpp` was **783 code lines behind 34 `Rcpp::export` entry
+points, 30 referenced only from `tests/`**, and the record's figures were exact. Held
+to this lens's own test -- can the ladder reach what it needs from outside the
+production headers? -- most of it stays, and one closed loop came out.
 
-**4b. Production headers carry a fifth state vocabulary** so the ladder can inject a
-state and read a block Jacobian -- `unification.md` 8.
+**4a. One self-justifying loop, and it was the whole of what was free.**
+`Patch::assign_from` -> `ladder_rebind_matches_assign_tf24` -> `test-rebind-assign.R`,
+and nothing else: the only caller of the product member is the export that verifies
+it, whose only caller is the test. Its declaration claimed a production use -- "it is
+assigned before every recording rather than once per step" -- so it was checked rather
+than taken: odelia's `Rebindable` concept requires only `rebind_from<U>()`, odelia's
+headers never name `assign_from`, and the strategy's and environment's `assign_from`
+are different methods called by their own `rebind_from`. The two docs mentioning it are
+historical, recording a flag whose clear used to live there, so no plan item wanted it.
 
-**4c. Two return values with nowhere to go**, so they ride on the object:
-`adjoint_segments` and `adjoint_at_first_state` at `scm.h:414` and `:420` --
-`subtraction-targets.md` 19.
+**−198 lines**, and the drift the test caught becomes *unstateable* rather than
+checked: with one route to another scalar there is nothing left to disagree. Also out:
+`Patch::node_count`, whose one caller sat beside `locate()`'s identical walk.
+
+**4b. The eleven injection members stay -- movable, but not a win.**
+`unification.md` 8's members all pass the access test: `TF24_Environment` has no
+`private:` at all, so the ladder could poke `light_availability` and `psi_soil_`
+itself. But the cost the entry attributes to them does not move with them. The
+`psi_soil_valid_` latch exists so injected potentials survive a read, and a ladder that
+sets the flag itself still needs the flag and still needs the staleness scan on the hot
+path. That cost is bought by removing the block rung, which is a question about whether
+the rung earns its keep, not about surface.
+
+**4c. Already done.** The two values no longer ride on the object: they are fields of
+the `census_gradient` return (`ranges`, `at_first_state`), set by one call and read off
+the value. And `at_first_state` has since become *product* surface, read by
+`census_gradient.cpp`.
+
+**What stays, and why it is not indirection.** All thirteen `SCM::*` ladder members:
+`SCM::solver` and `SCM::patch` are private and `r_patch()` is const, so no expression
+from outside reaches them. `Patch::introduction_jacobian`: its body needs
+`species[i].remove_newest_node()`, and `Patch::species` is private with only a const
+`at_species`. `Patch::apply_insertion`'s four-argument form: the production overload
+requires it.
+
+⚠️ **Two bugs of this objective's own making, found here.** The `segments` -> `ranges`
+rename checked plant's `tests/` and `src/` and not `scripts/`, so
+`profile-stand-gradient.R` and `profile-stand-reverse.R` were left reading
+`counts$segments` -- `NULL`. The reverse script had a three-way fallback whose other
+two arms named things that no longer exist, with a `tryCatch` turning all of it into a
+silent `NA`. **A rename is not done when the package compiles.**
 
 ---
 
@@ -405,8 +442,9 @@ Ranked by words removed from a reader's head, not by lines.
    refinement path. See the table above.
 6. ~~**One word for the widening event**~~ **DONE** (2b) -- two words, one per package, with the boundary in one line.
 7. **`compute_environment`'s three meanings** (2c) -- at minimum, the forwarder.
-8. **The ladder's surface** (4a–4c), gated on the test above. The largest item and
-   the one most likely to end in "the surface stays".
+8. ~~**The ladder's surface**~~ **CLOSED** (4a–4c). Mostly the surface stays, as
+   predicted; one self-justifying loop came out at −198 lines, and 4c was already
+   done.
 
 ## Also open, and not reached by this objective
 

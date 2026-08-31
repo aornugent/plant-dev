@@ -84,7 +84,7 @@ cat("metrics           ", counts$metrics, "\n")
 # How many operating points the sweep placed rather than searched for, which is
 # the count the collar's price is per.
 cat("placements        ", counts$placements, "\n")
-cat("swept_ranges      ", counts$segments, "\n")
+cat("swept_ranges      ", counts$ranges, "\n")
 # The most important line here. A refused sweep costs what an accepted one costs,
 # so every timing above is the price of an answer that was thrown away -- and this
 # fixture HAS been refusing, silently, for as long as the script has existed.

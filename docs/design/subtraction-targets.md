@@ -1,6 +1,7 @@
 # What is left to subtract
 
-> **28 entries landed, EIGHT still open.** A log rather than a proposal: each entry
+> **30 entries landed, SIX still open.** Entries 10 and 19 close with the ladder's
+> surface: see `two-paths.md` lens 4. A log rather than a proposal: each entry
 > names something that was not earning its keep, the evidence, and what would break
 > if it went. Struck through means done.
 >
@@ -175,7 +176,7 @@ the direct term, for a stated and good reason, and the name says none of it.
 
 **✱ H — five words for one idea.** `insertion`, `widening`, `piece`, `segment` and
 `with_insertions` all describe the same thing: a place where the state got wider.
-`sweep.hpp` uses *piece*, `scm.h` uses *segment* (`census_gradient::segments`,
+`sweep.hpp` uses *piece*, `scm.h` uses *segment* (`census_gradient::ranges`,
 `segment_base_state`), the function is named `over_insertions`, and the failure
 mode is called a widening. A reader has to discover that these are one concept.
 
@@ -1072,7 +1073,7 @@ the file and then both export files.
 Both belong in `census_gradient`, where the caller that wants them can read them
 off the value — and eight write sites and two members go with the move.
 
-**DONE.** They are `census_gradient::segments` and `census_gradient::at_first_state`.
+**DONE.** They are `census_gradient::ranges` and `census_gradient::at_first_state`.
 The two members went, and so did **six clear/zero statements** (two in `reset()`,
 two at the top of the gradient, two on the post-sweep refusal path) and both
 `// [[Rcpp::export]]` accessors.

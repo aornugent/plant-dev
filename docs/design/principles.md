@@ -103,8 +103,8 @@ ones it does not.
 |---|---|
 | **[`two-paths.md`](two-paths.md)** | **LIVE — the work.** What the competition field build and the introduction gradient cost a reader — the representation, the names, the threading, the assurance surface — and eight items in order |
 | [`principles.md`](principles.md) | the rules, and this map |
-| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. **Eight entries still open**; the ones this objective reaches are carried into `two-paths.md` |
-| [`unification.md`](unification.md) | where one idea was spelled twice. **Seven entries still open**, same treatment |
+| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. **Six entries still open**; the ones this objective reaches are carried into `two-paths.md` |
+| [`unification.md`](unification.md) | where one idea was spelled twice. **Five entries still open**, same treatment |
 | [`one-reverse-pass.md`](one-reverse-pass.md) | what the model forces, and the cut, sequenced 0–9. **Closed** |
 | [`one-order.md`](one-order.md) | the leaf's derivative boundary. Landed, bar a memo of three unbuilt items |
 | [`one-program.md`](one-program.md) | a trajectory as a composition of maps. **Steps 4 and 6 outstanding** — they are lens 1 of `two-paths.md` |

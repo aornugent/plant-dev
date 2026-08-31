@@ -60,12 +60,10 @@ for (i in seq_len(reps)) {
   # named here rather than assumed so an older one prints NA instead of stopping.
   cat("placements        ",
       if (is.null(counts$placements)) NA else counts$placements, "\n")
-  # The range count moved onto the gradient's own return, so prefer it there and
-  # keep the two older spellings for the plants this script is also pointed at.
-  seg <- if (!is.null(counts$segments)) counts$segments else
-    tryCatch(plant:::census_adjoint_segments_tf24(scm),
-             error = function(e) scm$adjoint_segments)
-  cat("swept_ranges      ", if (is.null(seg)) NA else seg, "\n")
+  # The range count comes off the gradient's own return. Two older spellings used
+  # to be tried after it; both named things that no longer exist, and the tryCatch
+  # around them turned that into an NA rather than an error.
+  cat("swept_ranges      ", counts$ranges, "\n")
   # A refused sweep costs what an accepted one costs, so a timing without this is
   # the price of an answer that was discarded.
   cat("refusal           ",

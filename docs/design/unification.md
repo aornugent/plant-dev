@@ -5,10 +5,13 @@
 > its easiest the moment a whole product could go.
 >
 > **The open entries this objective reaches are carried forward into `two-paths.md`**
-> -- 7 (a test-only parameter threaded into the production sweep) and 8 (the ladder's
-> injection vocabulary in the production headers). 5, 9 and 10 stay here and are
-> named at the end of that document. **6 is closed**: the per-interval copy of a
-> recording went with `distribute_ode_steps`, so there is one recording again.
+> -- 7 (a test-only parameter threaded into the production sweep). 5, 9 and 10 stay
+> here and are named at the end of that document. **6 is closed**: the per-interval
+> copy of a recording went with `distribute_ode_steps`, so there is one recording
+> again. **8 is closed too, as "movable but not a win"** -- the eleven members pass
+> the access test, but the `psi_soil_valid_` cost this entry attributes to them stays
+> behind when they move, so it is the block rung that would buy it. `block_outputs`
+> (`individual.h:239`) belongs in the entry's table and was missing from it.
 >
 > The same question asked again, and counted rather than listed, is `two-paths.md`.
 
