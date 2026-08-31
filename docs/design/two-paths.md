@@ -40,10 +40,11 @@ fact, and `pending` a bool recording how much of one instruction someone else ha
 already run. Both are the shape `principles.md` names. With `solve_adjoint`'s
 `stops`, `lo`, `hi`, its two ternaries and `if (lo < hi)`, they are gone.
 
-⚠️ **Not everything in the spec was taken.** `schedule()` filters junction rows
-rather than the per-interval replay being deleted, so `unification.md` **6** is still
-open and `Parameters` still holds the program as two parallel vectors. See the end of
-`one-program.md`.
+⚠️ **One part of the spec was deferred, and item 2 took it.** `schedule()` filters
+junction rows, which is what let the per-interval replay stand unchanged while the
+row landed; `distribute_ode_steps` then went with the schedule rewrite, so there is
+one recording again. What is still open is `Parameters` holding the program as two
+parallel vectors -- the shape `instruction` exists to refuse.
 
 ⚠️ **Two claims here were wrong, and the second reorders the list.**
 
@@ -119,19 +120,30 @@ ranges         <- counts$segments
 and `ranges` in the R return. **Checking whether a name duplicates the thing you are
 looking at will not find the pair that duplicates each other.**
 
-**2e. One grouping, derived three times.** The domain is "a sorted sequence of
-introduction times, each naming a set of species". `NodeSchedule::set_times`
-flattens that to one event per (species, time) and **throws the grouping away**;
-`SCM::run_next` re-derives it with a `while (true)` drain loop reading a back-filled
-sentinel (`scm.h:556`); and `Patch::introduced_at` re-derives it a third time from
-`parameters.node_schedule_times` (`patch.h:1297`). The grouped type already exists --
-`Patch<T,E>::introduction` is `std::vector<size_t>` -- and `introduce_nodes` already
-takes it.
+**2e. ~~One grouping, derived three times.~~ DONE.** The domain is "a sorted
+sequence of introduction times, each naming a set of species", and the schedule now
+holds exactly that: `struct introduction { double time; std::vector<size_t> species; }`
+in a sorted vector, walked by a position rather than consumed as a copy.
 
-Around the flattening sits the machinery it needs: a `queue` that is a consumable
-copy of `events`, an `Event::times` that is always a two-element vector used as a
-pair, and a `time_end` on every event that is only ever "the next introduction's
-time, or `max_time`", back-filled on each `reset()`.
+`set_times` groups once, where it used to flatten to one event per (species, time)
+and throw the grouping away. `SCM::run_next`'s `while (true)` drain loop, which
+re-derived it by walking equal times off a back-filled sentinel, is six lines of
+straight code. `Patch::introduced_at` still derives it a third time, but the two
+representations now agree on species order, where the schedule was the patch's
+reverse.
+
+Gone with the flattening: `NodeScheduleEvent` and the `NodeSchedule::Event`
+typedef; the `queue` that was a consumable copy of `events`; `Event::times`, always a
+two-element vector used as a pair; `Event::steps`; `time_introduction()`;
+`species_index_raw`, which reported the same number as `species_index` counted from
+zero instead of one; `distribute_ode_steps`; and both list iterator typedefs. Ten
+names, and with them an R class carrying five actives.
+
+`time_end` survives, on the schedule rather than on every event, because it always
+was "the next introduction's time, or `max_time`" and now says so once. And which
+recorded steps fall inside an interval is arithmetic at the point of use
+(`program_within`) rather than a copy made per interval on `reset()`, so there is
+nothing left that can be stale.
 
 ⚠️ **The argument for the `std::list` is already void**, which is what makes this
 cheap. `add_time` takes an insertion-point iterator, threaded to it through
@@ -144,12 +156,22 @@ NodeSchedule::add_time(double time, size_t species_index, events_iterator it) {
   while (it != events.end() && time > it->time_introduction()) { ++it; }
 ```
 
-So every insert is already a scan from the front, and `next_event()` returns by
-value, so no iterator escapes the class. Priced at about −85 hand-written lines plus
-~95 generated; the costs are the `NodeScheduleEvent` R surface, `size()`/`remaining()`
-counting pairs rather than introductions, a tie order that two tests pin (and which
-already disagrees with `Patch`'s), and `StochasticPatchRunner`'s one-event-per-time
-assumption.
+So every insert was already a scan from the front, and `next_event()` returned by
+value, so no iterator escaped the class.
+
+**Landed at −30 hand-written lines and −209 generated**, against a −85/−95 estimate:
+the hand-written half came out smaller because `program_within`, the grouping insert
+and the duplicate guard are new code. Lines were never the point -- ten names were.
+
+Two things it turned up that the pricing did not:
+
+* **`r_set_max_time` read `events.back()` on an empty list.** `make_node_schedule`
+  and `node_schedule_default` both call it on a freshly built schedule, before any
+  time is set, so every `SCM` construction in the package ran that. Now guarded on
+  emptiness.
+* **A species introduced twice at one time is refused where it happens.** It used to
+  reach `check_birth_dates_distinct` as a duplicate birth date, one layer away from
+  the schedule that allowed it.
 
 **2c. `compute_environment` means three things in one call chain.** The ordering that
 breaks the fixed point (`patch.h:966`), a one-line forward (`tf24_environment.h:770`),
@@ -236,13 +258,14 @@ transpose against. Price the check before the function.
 Ranked by words removed from a reader's head, not by lines.
 
 1. ~~**`one-program` steps 4 and 6**~~ **DONE.** A junction is a row; the doubled
-   representation and the range arithmetic went with it. It did **not** take
-   `unification.md` 6: `schedule()` filters junction rows instead of the
-   per-interval replay being deleted, so two recordings of one run remain, and
-   `Parameters` still holds the program as two parallel vectors -- the shape
-   `instruction` exists to refuse. That is the next bite of the same item.
-2. **The introduction schedule, grouped once instead of derived three times** (2e).
-   Plant-local, self-contained, and it shares a file with item 1's part (c).
+   representation and the range arithmetic went with it. It deferred part (c), which
+   item 2 then took. **Still open from it:** `Parameters` holds the program as
+   `ode_times` and `ode_step_sizes`, two parallel vectors -- the shape `instruction`
+   exists to refuse, and the last place the program is spelled the old way.
+2. ~~**The introduction schedule, grouped once instead of derived three times**~~
+   **DONE** (2e). It took item 1's part (c) with it: `distribute_ode_steps` is gone,
+   so the per-interval copy of the recording is gone, and `program_within` computes
+   an interval's replay where it is used. `unification.md` **6** is closed.
 3. **The value/slope pair as one type** (2a). Bounded, mechanical, five files, and it
    is the quantity every frame carries.
 4. **The counters** (3a). Five signals × four layers, and none of them reaches the

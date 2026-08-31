@@ -6,8 +6,9 @@
 >
 > **The open entries this objective reaches are carried forward into `two-paths.md`**
 > -- 7 (a test-only parameter threaded into the production sweep) and 8 (the ladder's
-> injection vocabulary in the production headers). 5, 6, 9 and 10 stay here and are
-> named at the end of that document.
+> injection vocabulary in the production headers). 5, 9 and 10 stay here and are
+> named at the end of that document. **6 is closed**: the per-interval copy of a
+> recording went with `distribute_ode_steps`, so there is one recording again.
 >
 > The same question asked again, and counted rather than listed, is `two-paths.md`.
 
