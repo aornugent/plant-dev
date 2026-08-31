@@ -403,13 +403,25 @@ one call.
 ### Never (comments)
 
 - No process history: issue tags (`RIF-`, `ODELIA-`), "renamed from",
-  "successor to", doc-section references (`§`), or mentions of other repos.
+  "successor to", "used to be", doc-section references (`§`), plan-item numbers.
+  A *live* cross-package dependency is not history and belongs in the comment —
+  "bumping this invalidates logpile's cache" is a fact about today.
 - No metaphor or borrowed mechanism words: write what happens ("record", not
-  "flush"); never `frozen`/`mutant`/`live`/`resident`. Single words count.
-- No decorative nouns ("contract", "surface", "oracle"), no section banners.
-  Never define a thing by what it isn't.
+  "flush"); never `frozen`/`live`/`flush`/`pipeline`/`handshake`. Single words
+  count. ⚠️ **The ban is on the metaphor, not the word.** `resident` and
+  `mutant` are adaptive dynamics' own nouns and this package exports
+  `add_mutant`, `run_mutant`, `remove_residents`; a `surface` can be the soil
+  surface; a `branch` can be a root-find's. Read the sentence before editing it.
+- No decorative nouns ("contract", "oracle", "machinery", "the whole point"),
+  no section banners. Never define a thing by what it isn't — but a second
+  sentence that heads off a specific misreading is not that, and is often the
+  load-bearing half ("not by differencing the times, because …").
 - Never longer than two lines unless spelling out a genuine silent-failure
   hazard. If a comment exists to decode a name, rename instead.
+- **A comment that justifies a design is a claim.** Write it so a reader can
+  check it, and state a hazard as a prohibition rather than as its own history:
+  "DO NOT change this to by-value and move, because …", not "this used to be
+  by-value and move".
 
 ### Never (code)
 
