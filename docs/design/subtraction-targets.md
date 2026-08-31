@@ -1,14 +1,18 @@
 # What is left to subtract
 
-> **30 entries landed, SIX still open.** Entries 10 and 19 close with the ladder's
-> surface: see `two-paths.md` lens 4. A log rather than a proposal: each entry
-> names something that was not earning its keep, the evidence, and what would break
-> if it went. Struck through means done.
+> **24 entries: SIXTEEN closed, EIGHT open** -- counted, because the count that stood
+> here said "30 landed" against 24 entries and had been incremented three times on a
+> base nobody checked. A log rather than a proposal: each entry names something that
+> was not earning its keep, the evidence, and what would break if it went. Struck
+> through means done.
 >
-> **The open entries this objective reaches are carried forward into `two-paths.md`**
-> -- 5 (the threaded counters), 10 (the ladder's shipped surface) and 19 (two return
-> values on the object). The rest stay here and are named at the end of that document
-> so their absence from it is not read as closure: 3, 13, 18 and the residue in 1.
+> **Closed:** 2, 4, 5, 6, 7, 9, 10, 11, 12, 15, 16, 17, 19, 20, 23, 24.
+> **Open:** 1 (residue), 3, 8, 13, 14 (one sub-item of three), 18, 21, 22.
+>
+> Every entry this objective reached is now closed. 5 went as "the surface stays" with
+> its justifying comment corrected; 10 gave up one self-justifying loop and kept the
+> rest; 19 was already done; 23's subject went with the calibration path. What is left
+> is what `two-paths.md` names at its end as out of this objective's reach.
 >
 > ⚠️ **The control-flow walk below was taken before the cut** and names functions
 > that no longer exist. It is kept because the hotspots it marks are what the whole
@@ -727,7 +731,7 @@ and `in`, `in_adjoint`, the copy loop and one function's guards all go.
 
 ### 8. odelia's sweep header has no production consumer left — SHARPENED
 
-`sweep.hpp` is **87 lines, 50 of them code, behind two entry points, and both are
+`sweep.hpp` is **96 lines, 55 of them code, behind two entry points, and both are
 oracle-only.** Re-checked: `advance_over_insertions` is gone entirely and
 `program_from` has replaced it; both it and `state_at_segment` are reached only from
 the four oracles, which are themselves reached only from `gradient_ladder.cpp`.
@@ -804,7 +808,12 @@ resolution, computed once by the driver".** No such function exists in plant. Th
 item's premise is stale, and anyone starting from it will look for a thing that
 was never built.
 
-### 10. The ladder's shipped surface
+### 10. ~~The ladder's shipped surface~~ CLOSED, mostly it stays
+
+> Held to `two-paths.md` lens 4's test. One self-justifying loop came out --
+> `Patch::assign_from` with the export and test that were its only reason, -198
+> lines -- and the rest stays because the member is the only route past a
+> private. Now 712 code lines behind 33 exports, from 783 behind 34.
 
 `plant/src/gradient_ladder.cpp` is **783 code lines behind 34 `Rcpp::export` entry
 points**, of which **30 are referenced only from `tests/`** and the other four also
@@ -850,7 +859,10 @@ Removed: `InputRole`, `parameter_role`, `input_role`, the `static_assert` and th
 `string_view` -- so `par_table` is now `std::array<std::string_view, 16>`. The two
 comments still citing `rows_at` are corrected. `test_leaf` 1114/0.
 
-### 12. `closed_form.hpp` — spared once, then deleted, and the difference is the point
+### 12. ~~`closed_form.hpp`~~ DELETED -- spared once, and the difference is the point
+
+> The header is gone. Kept for the lesson about what "not wired in" meant, not
+> for anything outstanding.
 
 123 code lines reached only from `test_leaf.cpp`, which is what put it on this
 list. It came off again the first time: `PLAN.md` §9 was an open item carrying
@@ -1050,7 +1062,11 @@ pairs a perturbation loop visits, an entry is never read again, so an unbounded
 store is a leak rather than a hit. Whatever replaces these keeps the bound and
 keeps it in one place instead of two.
 
-### 19. Two return values smuggled out on the object
+### 19. ~~Two return values smuggled out on the object~~ DONE
+
+> Both are fields of the `census_gradient` return now (`ranges`,
+> `at_first_state`), set by one call and read off the value. `at_first_state` has
+> since become product surface, read by `census_gradient.cpp`.
 
 `census_trait_gradient` returns `census_gradient`. It also produces two other
 things and has nowhere to put them, so they are members:
@@ -1179,7 +1195,10 @@ plumbed end to end and its product discarded.
 later would silently omit the `T_leaf(E)` channel from every recorded row. Whoever
 wires it owns that.
 
-### 23. A shipped gradient path whose one caller passes nulls
+### 23. ~~A shipped gradient path whose one caller passes nulls~~ DONE
+
+> `bound_row`, `BoundRow` and `FollowBound` have no hits in either tree: they
+> went with the calibration path in `one-reverse-pass.md` step 1.
 
 `Leaf::bound_row` (98 code lines), `Leaf::BoundRow` (24) and `gradient.hpp`'s
 `FollowBound` are compiled into the package and unreachable. `bound_row` is called

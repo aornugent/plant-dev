@@ -1,8 +1,11 @@
 # One idea, one spelling
 
-> **Largely landed, SEVEN entries still open.** Where one idea was spelled twice, and
-> what the translation layer between the two spellings cost. Its hardest item became
-> its easiest the moment a whole product could go.
+> **10 entries: SIX closed, FOUR open.** Where one idea was spelled twice, and what
+> the translation layer between the two spellings cost. Its hardest item became its
+> easiest the moment a whole product could go.
+>
+> **Closed:** 2, 3, 4, 6, 8, 9. **Open:** 1 (which finishes in `one-order.md`, landed
+> bar a memo), 5, 7, 10.
 >
 > **The open entries this objective reaches are carried forward into `two-paths.md`**
 > -- 7 (a test-only parameter threaded into the production sweep). 5, 9 and 10 stay
@@ -543,7 +546,10 @@ reset by loading the state.
 
 ---
 
-## 6. Two recordings of one run, and a member for a product plant does not use
+## 6. ~~Two recordings of one run, and a member for a product plant does not use~~ DONE
+
+> `distribute_ode_steps` went with the schedule rewrite, so an interval's replay
+> is computed where it is used and there is one recording again.
 
 **`Solver` keeps the run twice.** `history` is a `std::vector<System>` -- a whole
 Patch per accepted step -- and `collect` is set **true in the constructor**.
@@ -607,7 +613,14 @@ half.
 
 ---
 
-## 8. The ladder's injection API lives in the production headers
+## 8. ~~The ladder's injection API lives in the production headers~~ CLOSED -- movable, not a win
+
+> All eleven members pass the access test: `TF24_Environment` has no `private:`,
+> so the ladder could reach `light_availability` and `psi_soil_` itself. But the
+> `psi_soil_valid_` cost this entry attributes to them stays behind when they
+> move -- a ladder that sets the latch still needs the latch and still needs the
+> staleness scan. That cost is the block rung's to buy. `block_outputs`
+> (`individual.h:239`) belongs in the table below and was missing from it.
 
 Extends `subtraction-targets.md` 10, which sizes `gradient_ladder.cpp`. The cost
 is not only that file. To let it inject a state and read a block Jacobian,
