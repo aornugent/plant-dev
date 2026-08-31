@@ -1,13 +1,18 @@
 # What is left to subtract
 
-> **Mostly landed.** A log rather than a proposal: each entry names something that
-> was not earning its keep, the evidence, and what would break if it went. Entries
-> struck through are done; the rest are marked where they stand.
+> **26 entries landed, NINE still open.** A log rather than a proposal: each entry
+> names something that was not earning its keep, the evidence, and what would break
+> if it went. Struck through means done.
+>
+> **The open entries this objective reaches are carried forward into `two-paths.md`**
+> -- 5 (the threaded counters), 10 (the ladder's shipped surface) and 19 (two return
+> values on the object). The rest stay here and are named at the end of that document
+> so their absence from it is not read as closure: 3, 13, 18 and the residue in 1.
 >
 > ⚠️ **The control-flow walk below was taken before the cut** and names functions
 > that no longer exist. It is kept because the hotspots it marks are what the whole
 > plan worked on, not because it describes today's call graph. The live work is
-> `one-vocabulary.md`.
+> `two-paths.md`.
 
 A log, not a proposal. Each target below names something the reverse-mode work
 built or left behind, the evidence that it is not earning its keep, and what

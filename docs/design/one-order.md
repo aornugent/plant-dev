@@ -1,10 +1,13 @@
 # One order
 
-> **Landed.** The leaf's derivative boundary: seven kinds of derivative became four,
+> **Landed, bar a memo.** The leaf's derivative boundary: seven kinds of derivative became four,
 > and one interior placement fell from 861 tape statements to 360. Read it before
 > changing how a derivative reaches the stand from the leaf.
 >
-> Its measurements are in `measurements.md`. The live work is `one-vocabulary.md`.
+> Three items in the memo are recorded and unbuilt -- the height family, `pushAll`'s
+> block form, and widening the transpose identity past four of twelve kinds. They are
+> named at the end of `two-paths.md`, which is the live work. Its measurements are in
+> `measurements.md`.
 
 **The leaf's derivative crosses to the stand as data, at first order, from
 primitives that carry their own slopes.**
@@ -674,7 +677,7 @@ and the five moves that produced the plan. Read that first; it is the top.
 
 ```
 principles.md            the rules, and the map -- START HERE
-└── one-vocabulary.md    THE WORK: how many names the two read paths cost
+└── two-paths.md         THE WORK: what the two read paths cost
 
 the record, none of it outstanding:
 ├── subtraction-targets.md   what was not earning its keep, by consumer

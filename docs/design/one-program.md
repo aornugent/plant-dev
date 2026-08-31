@@ -2,7 +2,7 @@
 
 > **Spec, partly landed.** Steps 0-3 are done and 5 and 7 are refused; **steps 4 and
 > 6 are outstanding and are one increment.** What blocks them is one fixture, not the
-> restructure -- see the end of `one-vocabulary.md`.
+> restructure -- see the end of `two-paths.md`.
 >
 > The measurements taken while this was written are in `measurements.md`.
 

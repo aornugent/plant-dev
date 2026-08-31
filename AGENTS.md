@@ -7,7 +7,7 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 Read [`docs/design/principles.md`](docs/design/principles.md). It carries the rules
 this work is judged by and a map of the other documents, saying which one is live.
 
-**Then read [`docs/design/one-vocabulary.md`](docs/design/one-vocabulary.md), which
+**Then read [`docs/design/two-paths.md`](docs/design/two-paths.md), which
 is the work.** The rest is the record: the sequenced cut is closed, and its documents
 are kept for why a shape is what it is rather than for anything outstanding.
 

@@ -8,7 +8,7 @@
 > `solve_adjoint_over_insertions`, `advance_over_insertions` and `insertion_steps`
 > are named here and exist in no code file -- the first became
 > `Solver::solve_adjoint` and the other two are gone. The live work is
-> `one-vocabulary.md`.
+> `two-paths.md`.
 
 What this machinery would be if it had been written knowing there is one product.
 `unification.md` finds the places one idea is spelled twice. This asks the prior

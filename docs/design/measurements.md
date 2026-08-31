@@ -8,7 +8,7 @@ take again, and because three of them record a wrong answer before the right one
 **This is HISTORY, not a plan.** Nothing here is outstanding work. Read it when a
 number in a live document needs its provenance, or before re-measuring something
 that looks unmeasured. The live documents are `principles.md` -- the rules and the
-map -- and `one-vocabulary.md`, the work.
+map -- and `two-paths.md`, the work.
 
 ⚠️ **Every measurement here was true when taken, and some names have since moved.**
 `solve_adjoint_over_insertions` became `Solver::solve_adjoint`;

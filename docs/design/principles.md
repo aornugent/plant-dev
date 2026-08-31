@@ -96,17 +96,18 @@ package.
 # The documents, and which of them is live
 
 One is the work; the rest are the rules and the record. **Read this file, then
-`one-vocabulary.md`. Nothing else is outstanding.**
+`two-paths.md`**, which carries every open item this objective reaches and names the
+ones it does not.
 
 | | |
 |---|---|
-| **[`one-vocabulary.md`](one-vocabulary.md)** | **LIVE — the work.** 137 coined names across the two paths a maintainer has to read, which of them the model forces, and four items ranked by names removed |
+| **[`two-paths.md`](two-paths.md)** | **LIVE — the work.** What the competition field build and the introduction gradient cost a reader — the representation, the names, the threading, the assurance surface — and eight items in order |
 | [`principles.md`](principles.md) | the rules, and this map |
-| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. Mostly landed; the open entries are marked |
-| [`unification.md`](unification.md) | where one idea was spelled twice. Landed |
+| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. **Nine entries still open**; the ones this objective reaches are carried into `two-paths.md` |
+| [`unification.md`](unification.md) | where one idea was spelled twice. **Seven entries still open**, same treatment |
 | [`one-reverse-pass.md`](one-reverse-pass.md) | what the model forces, and the cut, sequenced 0–9. **Closed** |
-| [`one-order.md`](one-order.md) | the leaf's derivative boundary. Landed |
-| [`one-program.md`](one-program.md) | a trajectory as a composition of maps. Spec; steps 4 and 6 outstanding |
+| [`one-order.md`](one-order.md) | the leaf's derivative boundary. Landed, bar a memo of three unbuilt items |
+| [`one-program.md`](one-program.md) | a trajectory as a composition of maps. **Steps 4 and 6 outstanding** — they are lens 1 of `two-paths.md` |
 | [`measurements.md`](measurements.md) | the running record: root causes, figures, two scares. History |
 
 ⚠️ **Several documents describe past states in the present tense**, which is how a
@@ -125,7 +126,7 @@ them.
    what the ladder is for. **Where does this cost a reader?** Follow one product
    call end to end and write down every word you had to learn. That walk is at the
    top of `subtraction-targets.md`, and counting those words is what
-   `one-vocabulary.md` now does.
+   `two-paths.md` now does.
 2. **What is not earning its keep?** -- `subtraction-targets.md`. Asked about
    consumers, never about counts: two counting lenses were tried and both produced
    confident nonsense, which is recorded there so nobody tries them again.
