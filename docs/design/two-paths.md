@@ -83,16 +83,64 @@ be guessed from general C++, ODE or ecology knowledge.
 
 Seven are shared, so the union is **137 across 20 files in two repositories.**
 
-**2a. A quantity and its vertical derivative, spelled six ways.** `.first`/`.second`
-(`node.h:276`), `tot`/`tot_slope` (`species.h:86`), `f_h1`/`s_h1` (`:87`), `y`/`m`
-(`patch.h:995`, `resource_spline.h:199`), `Q`/`q` (`canopy_shape.h:169`),
-`"light_availability"`/`"slope"` (`resource_spline.h:155`). Five files, and it is the
-quantity the whole path is *about*: every one of the 13 frames carries it and every
-frame renames it. **One named type with two named members, at all six sites.**
+**2a. ~~A quantity and its vertical derivative, spelled six ways.~~ DONE**, and it
+was seventeen, not six. `plant::with_slope<T>` with members `value` and `slope` now
+carries it: 32 anonymous `std::pair` declarations, 36 `.first`/`.second` reads and the
+four named members `tot`/`tot_slope`/`f_h1`/`s_h1`, across nine files and three
+strategies.
 
-⚠️ It has to reach the AD boundary. `Q_and_q`'s out-parameters exist so no taped copy
-is made; the replacement is a struct of two scalars taken by reference, not a
-returned pair. Check tape statements either side, not wall time.
+⚠️ **The caveat above was wrong on both halves.** `Q_and_q` has no out-parameters --
+it returns `std::pair<S, S>` by value and always has. The comment it was remembering
+belongs to **`crown_moments`**, forty-five lines away, and is the real constraint
+worth carrying: *"a returned array of active values copies each one, which with a
+tape active is a recorded operation apiece."* A two-member struct returned by value
+costs what the pair cost, so there was nothing to avoid.
+
+⚠️ **The sign convention turns over, and nothing said so.** `Q_and_q`'s second member
+is `q = -dQ/dz`; all three strategies then return `-(scale * Qq.second)`, so
+everything above them carries the *signed* derivative -- which is what
+`build_extinction_field`'s `m[k] = -(m[k] * E)` chain rule requires. Six sites said
+"slope" and none said which. It is on the type now, once.
+
+**What did not move, and why:**
+
+* **`Q_and_q` keeps `Q` and `q`.** They are the model's names for two quantities it
+  takes from one `u^eta`, and forcing them into a generic value-and-slope would hide
+  the flip the strategies make on purpose. The list below already said it earns its
+  name.
+* **`y`/`m` stay parallel arrays**, at four sites. `resource_spline.h:41` gives the
+  reason -- the reduction "is linear in the nodes plus the knots and quadratic only if
+  it is asked per knot" -- and `tf24_environment.h`'s `cohort_reads` flattens the knot
+  pair into `[values..., slopes...]` as a **wire format** whose order indexes recorded
+  blocks. Array-of-structs would change the serialisation.
+* **`"light_availability"`/`"slope"` stay.** They are R matrix column names, read by
+  string in nine test files, `tidy_outputs.R` and `FF16_report.Rmd`. And
+  `r_compute_competition_and_slope`'s value-then-slope order is an unnamed positional
+  contract in R. Renaming members is free; reordering is not.
+
+⚠️ **The rename would have dropped four active scalars off the tape audit in
+silence**, and this is the finding worth keeping. `visit_active` opens a `std::pair`
+by looking for `.first` and `.second`, and its own comment says a shape it does not
+list "IS SKIPPED, NOT REFUSED". A struct named `{value, slope}` matches no branch.
+Measured, not reasoned about -- `odelia/tests/standalone/probe_visit_active.cpp`:
+
+```
+  std::pair<double,double>        2
+  struct {value, slope}           0   <-- skipped, no error
+  the same with for_each_active   2
+  for_each_active over an unnamed 0   <-- skipped one level down
+  double[2]                       1   <-- matches the POINTER branch
+```
+
+So `with_slope` declares `for_each_active`, and `competition_split` hands over the
+pairs rather than their members -- which makes the ladder a real check on the
+declaration, because without it `release()` sees a live slot count and the injection
+tier fails. The probe also shows a raw C array reaching only its first element; no
+active raw array is on a walk today, so that one is recorded and not chased.
+
+**Net +5 lines of code**, plus a forty-line header that is mostly the two paragraphs
+above. Seventeen spellings became one name and the sign got written down; lines were
+never the metric.
 
 **2b. ~~One widening event, three names across two layers.~~ DONE.** It was
 `introduction` (plant's schedule), `insertion` (odelia's map), `junction` (the
@@ -266,8 +314,8 @@ Ranked by words removed from a reader's head, not by lines.
    **DONE** (2e). It took item 1's part (c) with it: `distribute_ode_steps` is gone,
    so the per-interval copy of the recording is gone, and `program_within` computes
    an interval's replay where it is used. `unification.md` **6** is closed.
-3. **The value/slope pair as one type** (2a). Bounded, mechanical, five files, and it
-   is the quantity every frame carries.
+3. ~~**The value/slope pair as one type**~~ **DONE** (2a). Seventeen spellings, not
+   six, and the caveat guarding it was wrong twice over.
 4. **The counters** (3a). Five signals × four layers, and none of them reaches the
    product. The largest threading item in either path.
 5. **The three names with no caller.** Free.
