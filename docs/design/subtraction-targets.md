@@ -1,18 +1,24 @@
 # What is left to subtract
 
-> **24 entries: SIXTEEN closed, EIGHT open** -- counted, because the count that stood
+> **25 entries: SIXTEEN closed, NINE open** -- counted, because the count that stood
 > here said "30 landed" against 24 entries and had been incremented three times on a
 > base nobody checked. A log rather than a proposal: each entry names something that
 > was not earning its keep, the evidence, and what would break if it went. Struck
 > through means done.
 >
 > **Closed:** 2, 4, 5, 6, 7, 9, 10, 11, 12, 15, 16, 17, 19, 20, 23, 24.
-> **Open:** 1 (residue), 3, 8, 13, 14 (one sub-item of three), 18, 21, 22.
+> **Open:** 1 (residue), 3, 8, 13 (audited), 14 (one sub-item of three), 18, 21, 22, 25.
 >
-> Every entry this objective reached is now closed. 5 went as "the surface stays" with
-> its justifying comment corrected; 10 gave up one self-justifying loop and kept the
-> rest; 19 was already done; 23's subject went with the calibration path. What is left
-> is what `two-paths.md` names at its end as out of this objective's reach.
+> ⚠️ **Entry 25 opens with two live holes in the assurance layer**, not with anything
+> to subtract: a ladder bound that admits the defect its test exists to catch, and a
+> gate block that cannot execute while the suite is green. Read those before the trim.
+>
+> Every entry the `two-paths.md` objective reached is now closed. 5 went as "the
+> surface stays" with its justifying comment corrected; 10 gave up one self-justifying
+> loop and kept the rest; 19 was already done; 23's subject went with the calibration
+> path. What is left is what `two-paths.md` names at its end as out of that objective's
+> reach, plus **13 and 25, which are the prose and the test suite** -- a separate axis
+> that objective never touched.
 >
 > ⚠️ **The control-flow walk below was taken before the cut** and names functions
 > that no longer exist. It is kept because the hotspots it marks are what the whole
@@ -887,7 +893,67 @@ a plan item still carries open work, and then ask what that item is FOR. An open
 question about a thing whose only consumer is being deleted is not open work; it is
 work that stops existing on the same commit.
 
-### 13. The 993 long comment blocks
+### 13. The long comment blocks -- AUDITED, and the length was the wrong lens
+
+> **Measured and attributed.** 145 hand-written C++ files: **2,467 comment blocks,
+> 9,573 comment lines** against 24,419 code lines -- **0.37 comment lines per line of
+> code.** 1,100 blocks run past two lines; 196 of those name a silent-failure hazard
+> and are exempt, leaving **904 blocks / 5,223 lines**, of which **537 blocks / 3,038
+> lines are this branch's** (merge-bases: plant `39c0c657`, odelia `3b196bbc`,
+> phylloptim `26574f45`). Trimming every branch-authored one to two lines recovers
+> 1,964 lines.
+>
+> **But the length histogram says length is not the defect.** Of those 537 blocks,
+> **296 are three or four lines** -- one or two lines over -- and only 31 reach 13 or
+> more. Trimming a three-line block to two recovers one line and risks the sentence
+> that was load-bearing. So this entry stops proposing a trim by length.
+
+**What a named-violation pass found instead.** Every hit read and judged, so the raw
+regex counts are separated from the real ones:
+
+| rule | flagged | REAL | not a violation |
+|---|---|---|---|
+| process history | 17 | **17** | 0 |
+| decorative nouns | 17 | **7** | 10 -- `surface` is the *soil surface* in phylloptim |
+| borrowed mechanism words | 11 | **4** | 7 -- `resident`/`mutant` are this domain's own terms |
+| mentions of another repo | 3 | 0 | 3 -- a version bump invalidates `logpile`'s cache, present tense |
+| section banners | 14 | **0 branch-authored** | all 14 are main's |
+| git-branch talk | 7 | **0** | every one means a root-find or `if` branch |
+| plan references | 0 | 0 | -- |
+
+**28 real violations, all branch-authored, all local edits.** The seventeen process-history
+ones are the banned shape exactly: "used to be", "used to read", "THIS USED TO CARRY".
+Six of them wrap a live hazard in history, so the fact survives and the obituary goes
+(`roots.hpp:862` keeps "use `root_vuln_integral_deriv_at`, not the conductivity read:
+past the last knot they are bounded differently" and drops both "used to" clauses).
+Three go whole -- nothing present-tense is underneath.
+
+⚠️ **Two of the rules are wrong as written, and that is the finding worth more than the
+edits.** AGENTS.md bans `mutant` and `resident` outright -- and plant exports
+`add_mutant`, `run_mutant`, `mutant_parameters`, `remove_residents`. They are adaptive
+dynamics' own vocabulary, so the rule bans the domain's nouns while the API uses them.
+Same for "no mentions of other repos": all three `logpile` mentions state a live
+dependency (bumping the model version invalidates its cache), which is the reason the
+field exists. **The rule should ban the metaphor, not the word** -- `frozen` (4 real
+hits) is a borrowed mechanism; `resident` is a plant.
+
+⚠️ **Nothing enforces any of this.** No `.lintr`, no clang-format, no hook, no CI
+check: the rules are enforced by reading, which is why seventeen process-history
+comments landed under them. A twenty-line scanner over `//` blocks catches every class
+in the table above, and the three classes with zero branch-authored hits show a check
+would mostly pass.
+
+**Where the load actually concentrates** -- three files carry more comment than code:
+
+| file | code | comment | ratio |
+|---|---|---|---|
+| `phylloptim/inst/include/phylloptim/leaf_model.hpp` | 2,106 | **2,250** | 1.07 |
+| `phylloptim/inst/include/phylloptim/vulnerability.hpp` | 147 | 149 | 1.01 |
+| `phylloptim/inst/include/phylloptim/roots.hpp` | 739 | 729 | 0.99 |
+
+**Code comments do NOT name dead symbols**, which is the one place this was expected to
+be bad: 13 backticked mentions across 12 names in 145 files. The docs are where that
+rot lives -- see entry 25's tail.
 
 Mechanical trimming would delete the one paragraph that was load-bearing. This is
 a per-file reviewable pass, and the hazard blocks are not part of it.
@@ -1221,6 +1287,146 @@ using: the two spellings differ by whether a widening happens. Anything that had
 bound to the inner one would have replayed a recording with the state maps silently
 missing, and the recording would still have had the right number of rows at the
 right times.
+
+### 25. The test suite: what it instruments, and what it only prints
+
+> **Audited, not yet cut.** 104 R test files, 18,315 test lines + 2,118 helper lines,
+> 2,340 `expect_*` call sites, 509 `test_that` blocks. The gradient ladder is 18 files
+> / 4,072 lines / 287 sites -- **14.2 lines of test per assertion, against 6.0 for the
+> rest of plant.**
+
+⚠️ **TWO OF THESE ARE HOLES, NOT CLUTTER. Read them first; they are not subtraction.**
+
+**(a) A ladder bound admits the exact defect its test exists to catch.**
+`test-gradient-ladder-rung4.R:63-84`, "a trait is one input read by every cohort, not
+one input per cohort". Its own comment states the signature: *"the fraction is the
+cohort count. So the signature is a ratio, and adding a cohort at fixed ecology is what
+exposes it."* The fixtures are three nodes against four, its `message` prints "four
+nodes over three", and the assertion is
+
+```r
+expect_lt(abs(ratio - 1), 0.5)      # admits ratio in (0.5, 1.5)
+```
+
+The defect's ratio is 4/3 = 1.33, which passes. **The test cannot fail in the one way
+it is written to fail.** Verified by reading the fixtures at `:73-74` against the bound.
+
+**(b) The parity file's stated gate is unreachable while the suite is green.**
+`test-gradient-parity.R` declares `parity_known_gaps <- character(0)` (`:44`) and
+asserts `expect_length(refused, 0)` (`:191`). So `r$refused` is never true, and the
+whole `if (r$refused)` block at `:137-153` -- which holds the file's three *gate*
+assertions (a refusal is named, located, and nulls its whole row) -- never executes.
+The header calls that block "the GATE ... nothing escapes unnamed"; it is the half that
+does not run.
+
+**A third of this shape, milder:** `test-gradient-ladder-declared-zero.R:59` and `test-gradient-ladder-floor.R:191` each sit
+behind a `skip` on the exact complement of their own assertion, so neither can run;
+`test-gradient-ladder-sweep.R:27` skips unless `blocked` is non-null while `test-gradient-ladder-sweep.R:14` asserts it *is*
+null, so that test runs only when the one above it is failing.
+
+**Tests that never run at all.** A test that stops running looks exactly like a test
+that passes, and AGENTS.md says so:
+
+| | |
+|---|---|
+| `test-mutant.R` | **153 lines, 17 assertions, 0 executions** -- an unconditional `skip()` in both of its blocks. Its own header is honest: the recorder it was written against "stopped being called, so it filled nothing and every case below has been erroring rather than comparing since". Kept as a specification. `test-tf24-arid-corner.R:139-143` is this file's own precedent for deleting one: *"A test that can only ever skip is not a guard, it is a bill."* |
+| `test-gradient-ladder-reference.R:149`, `test-gradient-ladder-declared-zero.R:99` | unconditional trailing `skip()`. Their expectations *do* evaluate first, so a regression still fails -- but each pays five whole-run sweeps / eight birth-size difference pairs and then always reports **skipped**. |
+| `test-gradient-ladder-scale.R` | both tests skip unless `PLANT_LADDER_SCALE` is set. |
+| four `test-ff16-*-ad.R` / `test-state-layout.R` / `test-strategy-tf24.R` sites | a **compile failure becomes a skip** (`skip(paste("could not compile the TF24 parameter probe:", ...))`). Delete a parameter and the test that checks the parameter table against the yml stops running instead of failing. |
+
+Counted: **60 skips** across the three suites (plant 49, odelia 9, phylloptim 2).
+
+**Assertions that cannot fail.** 133 of 2,340 call sites (5.7%) are in forms that
+cannot discriminate: 68 `expect_true(is.finite(x))` (of which several are immediately
+followed by a numeric bound that already rejects `NA`), 47 `expect_silent` with no
+value captured (16 in `test-environment-TF24.R`, 14 in odelia's `test-drivers.R` --
+setters with no read-back), 9 `expect_no_error`, 6 type-only checks, 1 `succeed()`, and
+two literal **`expect_equal(x, x) # to avoid a warning for empty`**
+(`test-individual.R:166` and `:231`, the `else` arm for K93 and TF24 -- two of five
+blocks in that file report PASS while asserting nothing). `expect_true(is.na(...))` is
+**not** in this count: asserting a value *is* NaN is a real claim, and there are 81.
+
+Two more that are guaranteed by the line above them: `test-gradient-ladder-factorisation.R:146-150` asserts
+`expect_lt(max(residual / floor), 2)` inside `if (max(residual / floor) < 2)`, and
+`test-gradient-ladder-rung4.R:129-141` keeps a tautology its own comment labels **"CANNOT FAIL as written"**
+-- the same tautology recurs unremarked and inside a per-metric loop at
+`test-gradient-ladder-identity.R:42-46`.
+
+**Dead and duplicated instrumentation.**
+
+* **No Rcpp export is dead.** All 33 in `gradient_ladder.cpp` reach at least one test.
+  That is a real strength and the trim must not lose it. Seven reach exactly one
+  assertion; the three weakest single uses are `ladder_node_count_tf24` (asserts R and
+  C++ agree on a count nothing disputes), `ladder_field_knots_tf24` (its one consumer
+  produces a *tolerance*, not an assertion) and `census_curvature_margin_tf24`.
+* **`ladder_injected()`** (`helper-gradient-ladder.R:1300`) has **zero callers**, while
+  the helper's own header advertises it as one of five things every check must carry
+  and `test-gradient-ladder-injection.R:1-7` condemns exactly this state: *"A suite that defines the
+  machinery for naming an injected fault and never invokes it has switches on paper."*
+  The corruption injections themselves are real and do run; the naming mechanism is not
+  wired to them.
+* **`ladder_stand_one()`** (`helper:464`) has zero callers and is inlined verbatim at
+  `test-gradient-ladder-floor.R:304-306`.
+* **`test-gradient-ladder-switches.R:175-178` is character-for-character `test-gradient-ladder-rung5.R:362-365`**, and pays a
+  second full `stand_gradient` for it.
+* **`incidence_run` and `parity_stand` are one builder written twice**, both
+  re-deriving `ladder_parameters("fast")` and `ladder_control()` by hand, differing only
+  in whether `amplitude` is a formal. Both then build *and sweep* the same two drivers.
+  `ladder_reference_regimes()` and `parity_drivers` declare the same five regimes twice,
+  with two silent divergences (`lifetime`, species count) under a comment claiming one
+  shared recipe.
+* **63 disabled assertions / `test_that` blocks** commented out across the tree. The
+  worst: `test-strategy-ff16-reference-comparison.R` has 25 commented `expect_*` and 16
+  `cmp_*` values computed and never asserted, so a **471-line `FF16_reference/`
+  fixture, sourced into every test process by `helper-plant.R:2-6`, backs 17 live
+  assertions.** Also whole commented blocks at `test-parameters.R:55-84` and
+  `test-disturbance.R:66-85`.
+
+⚠️ **`ladder_run_difference_pair` looks dead and is not.** Its only caller is
+`scripts/capture-reference-gradient.R:91`. A survey that grepped `plant/tests` and
+`plant/R` reported it unused -- which is this branch's own recorded blind spot for the
+third time. **`scripts/` is part of the tree.**
+
+**Diagnostic output.** `ladder_report_margin` and `ladder_report_detection` couple the
+print to the assertion deliberately, and for the ~44 margin readings that argument
+holds: *"A fault caught at three times the tolerance is a check about to stop working."*
+The volume is not there. It is in six loop-multiplied inventories
+(`test-gradient-ladder-rung4.R:58` ×22, `test-gradient-ladder-columns.R:83` ×22, `test-gradient-ladder-rung5.R:415` ×18, `test-gradient-ladder-factorisation.R:363` ×18,
+`test-gradient-incidence.R:247` ×17, `test-gradient-ladder-rung3.R:412` ×6) -- **about 300 stderr lines a run, interleaved
+by the parallel runner**, none of them a margin. plant fires 90 `message()` calls in
+total; outside the ladder the suite is clean, with two `cat()` in `test-leaf.r`.
+
+**Test comments:** 1,600 `#` blocks / 5,704 lines, of which 676 blocks run past two
+lines and only 169 name a hazard -- **2,874 non-hazard lines over the limit**. Judged
+across the fifteen longest, roughly 6 of 15 name a real silent-failure mode and the
+rest are file-level orientation or a measurement log. The best of them is worth
+protecting verbatim: `test-leaf.r:1109-1122` and `test-gradient-ladder-reference.R:12-15` ("THE REFERENCE IS
+DATA AND IS NEVER REWRITTEN BY A TEST").
+
+**And the documents are the third prose surface.** 8,340 lines across nine files, on
+top of the 9,573 comment lines -- **roughly 0.7 lines of prose per line of code.** Two
+mechanical checks on them:
+
+* **31 of the 62 `file:line` citations to code were dead or rotted** -- 5 named a file
+  that does not exist, 7 pointed past the end of the file, and 19 cited a line whose
+  ±5 window does not contain the symbol the sentence names. The worst: `one-program.md`
+  puts `run_next` at `scm.h` line 1141; it is at 465, 532 and 546, a 595-line miss onto
+  unrelated code. **A citation that rots silently but reads as precise is worse than
+  naming the symbol alone**, which is grep-able and fails visibly -- so this entry
+  names files and symbols rather than lines, and the 62 is the count *before* it did.
+  Two of the five dead files are `test-gradient-ladder-first-segment.R`.
+* **151 mentions of 19 retired names**, where AGENTS.md's session-start warning names
+  three. Most sit in records narrating a past state, which that warning explicitly
+  licenses -- but `test-gradient-ladder-first-segment.R` is named at four sites and the
+  file is `-first-range.R`, so the `segments`→`ranges` rename is unfinished in the docs
+  as well. Six of the nine documents are records of closed work
+  (`one-reverse-pass.md` 1,602 lines, `measurements.md` 1,283 -- which holds 7 of the 7
+  past-EOF citations).
+
+**Order of attack**, cheapest and sharpest first: (a) and (b) above, then the two
+unconditional trailing `skip()`s, `ladder_injected`/`ladder_stand_one`, the
+`test-gradient-ladder-switches.R`/`test-gradient-ladder-rung5.R` duplicate and its redundant sweep, `incidence_run`/`parity_stand`,
+then `test-mutant.R` and the `FF16_reference` fixture as decisions rather than edits.
 
 ## Checked and rejected
 

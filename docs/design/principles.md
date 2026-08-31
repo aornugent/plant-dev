@@ -103,7 +103,7 @@ ones it does not.
 |---|---|
 | **[`two-paths.md`](two-paths.md)** | **The objective, delivered bar one item.** Seven of its eight are closed; item 7 is open and is what a new session picks up. Read its first two sections; the rest is the record of how each closed |
 | [`principles.md`](principles.md) | the rules, and this map |
-| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. **Eight of its 24 entries still open**; the ones this objective reaches are carried into `two-paths.md` |
+| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. **Nine of its 25 entries still open**; the ones `two-paths.md` reaches are carried there. **13** (the prose) and **25** (the test suite) are a separate axis, audited and not yet cut |
 | [`unification.md`](unification.md) | where one idea was spelled twice. **Four of its 10 entries still open**, same treatment |
 | [`one-reverse-pass.md`](one-reverse-pass.md) | what the model forces, and the cut, sequenced 0–9. **Closed** |
 | [`one-order.md`](one-order.md) | the leaf's derivative boundary. Landed, bar a memo of three unbuilt items |
@@ -227,3 +227,27 @@ All ten steps are closed. Three findings are worth more than the diffs:
 - **Do not increment a count whose base you have not checked.** A record here read
   "26 entries landed" against 24 entries; three sessions added one each and none
   counted. State a number a reader can verify by counting, or do not state one.
+- **Read a bound against the number the defect would produce.** A tolerance is not a
+  check until someone computes what the failure looks like and confirms the bound
+  excludes it. One rung asserted `abs(ratio - 1) < 0.5` against a defect whose own
+  comment gives the signature as the cohort-count ratio, 4/3 — inside the bound. It
+  had passed for as long as it had existed, and passing was all it could do.
+- **A check inside the branch its own condition selected cannot fail**, and neither can
+  one behind a `skip` on the exact complement of its assertion. Three of those here.
+- **A skip is a pass with better manners.** Count the tests that never run: an
+  unconditional `skip()` and a `skip` whose guard is always true both report green. The
+  sharpest form is an environment check or a **compile failure turned into a skip** —
+  delete the parameter a probe reads and the test that checks the parameter table stops
+  running instead of failing.
+- **Ban the metaphor, not the word.** A banlist of nouns bans the domain's vocabulary
+  with them: this one forbids `resident` and `mutant` while plant exports `add_mutant`,
+  `run_mutant` and `remove_residents`, and forbids `surface` where phylloptim means the
+  *soil surface*. Ten of seventeen flagged "decorative nouns" were the physical thing.
+  Check the API before adding a word to a rule.
+- **A style rule with no mechanical check is a preference.** Seventeen process-history
+  comments landed under a written ban, in a tree with no linter, no hook and no CI
+  check for it. Twenty lines of scanner over `//` blocks catches every named class.
+- **A line number in a document rots silently and reads as precise.** Half the code
+  citations here were wrong — five naming a file that no longer exists, seven past the
+  end of the file, nineteen pointing at unrelated code, one by 595 lines. Name the
+  symbol instead: it is grep-able, and a wrong one fails visibly.

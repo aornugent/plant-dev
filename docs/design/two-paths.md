@@ -49,9 +49,19 @@ sub-item (`step_adjoint` copies the state half at the active scalar). Each is
 self-contained and none needs this document.
 
 **Priced and refused, or not a change:** 3 (the System's deep copy), 8 (`sweep.hpp`,
-sharpened rather than actionable), 13 (993 long comment blocks -- a per-file reviewable
-pass), 1 (the residue in `scm.h`'s gradient surface). `unification.md` 1 finishes in
-`one-order.md`, which is landed bar a memo of three; 5 and 10 there are small pairs.
+sharpened rather than actionable), 1 (the residue in `scm.h`'s gradient surface).
+`unification.md` 1 finishes in `one-order.md`, which is landed bar a memo of three; 5
+and 10 there are small pairs.
+
+**A separate axis this objective never touched: the prose and the test suite.**
+`subtraction-targets.md` **13** is now audited rather than estimated -- 28 named comment
+violations with the surviving fact written out for each, and the finding that two of
+AGENTS.md's own rules ban this domain's vocabulary. **25** is new and is the test
+suite. ⚠️ **It opens with two live holes rather than anything to subtract**: a ladder
+bound that admits the defect its test exists to catch
+(`test-gradient-ladder-rung4.R`, the `abs(ratio - 1) < 0.5` in "a trait is one input
+read by every cohort"), and a gate block that cannot execute while the suite is green
+(`test-gradient-parity.R`, the `if (r$refused)` arm). Both are verified.
 
 The list above is the whole of what is open across both records, so an absence from it
 is closure rather than an oversight -- the counts at the head of
