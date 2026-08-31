@@ -40,12 +40,28 @@ const state_type<System>& ran_from() const {
 fact. That is the shape `principles.md` names: a value deciding which half of a type
 is live means there are two types.
 
-⚠️ **What blocks it is one fixture, not the restructure.** The insertion transpose
-sits behind `if (lo < hi)`, so on any fixture introducing at t = 0 a skipped
-transpose is unobservable, and `ladder_stand_resumed` is the only fixture where that
-range carries steps. `one-program.md` says a restructure of the range arithmetic
-should not go in against one fixture, and it is right. **A second fixture is small,
-and it is the whole of what stands in front of the last increment.**
+⚠️ **Two claims here were wrong, and the second reorders the list.**
+
+The transpose does *not* sit behind `if (lo < hi)`. It runs at
+`ode_solver.hpp:367`, above that guard and independently of it, under its own
+condition (`j < stops.size() && rec[hi].junction`); what `lo < hi` skips is the
+**step sweep** of an empty range. What is
+actually thin is downstream: where a junction sits at the range's first row nothing
+below it is swept, so that transpose's output reaches a caller only as
+`at_first_state`, which one test reads.
+
+And **the second fixture cannot be built.** Steps below the first widening are only
+a check if cohorts are alive there: on bare ground that state is the environment
+alone, and its census sensitivity is twelve orders below the state one range up, so
+a walk that skipped those steps reads as a walk that took them. Cohorts there need a
+seeded state consuming the schedule's early entries -- which is
+`ladder_stand_resumed`'s own mechanism, so any second fixture is that one
+re-parameterised. Built and measured one: same widening count, same position, only a
+narrower start. It was deleted rather than kept.
+
+**So de-risking comes from the split identity instead** (`extra_stops`, already
+there): the adjoint is the same whether or not the descent is cut, which is exactly
+an index-arithmetic check and does not depend on a fixture's shape.
 
 # 2. One concept, many names
 
@@ -77,6 +93,38 @@ schedule, `patch.h:138`), `insertion` (odelia's map, `ode_interface.hpp:530`),
 `junction` (the recording, `:171`). `segment` and `stop` are ranges rather than the
 event, so they are not duplicates. A reader crossing the boundary holds all three and
 the mapping between them.
+
+**2e. One grouping, derived three times.** The domain is "a sorted sequence of
+introduction times, each naming a set of species". `NodeSchedule::set_times`
+flattens that to one event per (species, time) and **throws the grouping away**;
+`SCM::run_next` re-derives it with a `while (true)` drain loop reading a back-filled
+sentinel (`scm.h:556`); and `Patch::introduced_at` re-derives it a third time from
+`parameters.node_schedule_times` (`patch.h:1297`). The grouped type already exists --
+`Patch<T,E>::introduction` is `std::vector<size_t>` -- and `introduce_nodes` already
+takes it.
+
+Around the flattening sits the machinery it needs: a `queue` that is a consumable
+copy of `events`, an `Event::times` that is always a two-element vector used as a
+pair, and a `time_end` on every event that is only ever "the next introduction's
+time, or `max_time`", back-filled on each `reset()`.
+
+⚠️ **The argument for the `std::list` is already void**, which is what makes this
+cheap. `add_time` takes an insertion-point iterator, threaded to it through
+`set_times`, and overwrites it on the next line:
+
+```cpp
+NodeSchedule::add_time(double time, size_t species_index, events_iterator it) {
+  Event e(time, species_index);
+  it = events.begin();          // node_schedule.cpp:306 -- the hint, discarded
+  while (it != events.end() && time > it->time_introduction()) { ++it; }
+```
+
+So every insert is already a scan from the front, and `next_event()` returns by
+value, so no iterator escapes the class. Priced at about −85 hand-written lines plus
+~95 generated; the costs are the `NodeScheduleEvent` R surface, `size()`/`remaining()`
+counting pairs rather than introductions, a tie order that two tests pin (and which
+already disagrees with `Patch`'s), and `StochasticPatchRunner`'s one-event-per-time
+assumption.
 
 **2c. `compute_environment` means three things in one call chain.** The ordering that
 breaks the fixed point (`patch.h:966`), a one-line forward (`tf24_environment.h:770`),
@@ -162,11 +210,16 @@ transpose against. Price the check before the function.
 
 Ranked by words removed from a reader's head, not by lines.
 
-1. **A second fixture that introduces after t = 0 with steps in the range** (1).
-   Small, and it is what stands in front of `one-program`'s last increment -- which
-   is the only structural item on this list.
-2. **`one-program` steps 4 and 6**, once that fixture exists: `inserted` and
-   `ran_from()` go, and the substitution stops being paid for twice.
+1. **`one-program` steps 4 and 6 as one increment** -- the only structural item on
+   this list, and no longer waiting on a fixture. 6 unlocks 4: while `schedule()`
+   slices the record, a junction row becomes a schedule row and
+   `distribute_ode_steps` deletes it in silence. Separate the program from the
+   record, then `inserted`, `ran_from()` and the head instruction all go. It also
+   takes `unification.md` 7 and 8's neighbour, **6**, with it, and replaces
+   `Parameters`' two parallel vectors with the one object odelia already fixed this
+   into. Specified step by step at the end of `one-program.md`.
+2. **The introduction schedule, grouped once instead of derived three times** (2e).
+   Plant-local, self-contained, and it shares a file with item 1's part (c).
 3. **The value/slope pair as one type** (2a). Bounded, mechanical, five files, and it
    is the quantity every frame carries.
 4. **The counters** (3a). Five signals × four layers, and none of them reaches the
@@ -186,8 +239,10 @@ closure. Each is real; none of them is what makes these two paths hard to read.
   from 247 lines to 210), **3** (the System's deep copy -- priced, largely refused),
   **13** (993 long comment blocks -- a per-file reviewable pass), **18** (two curve
   stores written twice).
-* `unification.md` **5** (built once per step, constant across the sweep), **6** (two
-  recordings of one run), **9** (four caches), **10** (smaller pairs).
+* `unification.md` **5** (built once per step, constant across the sweep), **9**
+  (four caches), **10** (smaller pairs). **6** (two recordings of one run) moved off
+  this list: item 1 reaches it, because the per-interval replay is the second
+  recording and the program carries what it was splitting for.
 * `one-order.md`'s memo: the height family, `pushAll`'s block form, and widening the
   transpose identity past four of twelve kinds.
 

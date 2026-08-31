@@ -1,6 +1,6 @@
 # What is left to subtract
 
-> **26 entries landed, NINE still open.** A log rather than a proposal: each entry
+> **27 entries landed, NINE still open.** A log rather than a proposal: each entry
 > names something that was not earning its keep, the evidence, and what would break
 > if it went. Struck through means done.
 >
@@ -1182,6 +1182,18 @@ loop beside it is dead for the same reason.
 This is the entry that unblocks 15: `duptake_droot_curve_impl` and
 `duptake_droot_carbon` are reachable only through here, and `at_equal_potentials`
 survives only for the second-order supply-row family this is the last consumer of.
+
+### 24. ~~A second executor for a recording, blind to junctions~~ DONE
+
+`SolverInternal::advance_recorded` (18 lines and its declaration) had the same
+NaN/finite dispatch as `Solver::advance_recorded` and no junction handling at all.
+Every call in three repositories binds to the `Solver` one; nothing reached it.
+
+Worth an entry rather than a line because of what it would have cost to *start*
+using: the two spellings differ by whether a widening happens. Anything that had
+bound to the inner one would have replayed a recording with the state maps silently
+missing, and the recording would still have had the right number of rows at the
+right times.
 
 ## Checked and rejected
 

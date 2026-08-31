@@ -1,8 +1,12 @@
 # One program
 
 > **Spec, partly landed.** Steps 0-3 are done and 5 and 7 are refused; **steps 4 and
-> 6 are outstanding and are one increment.** What blocks them is one fixture, not the
-> restructure -- see the end of `two-paths.md`.
+> 6 are outstanding and are one increment**, specified under "The increment,
+> concretely" below.
+>
+> **Nothing blocks them now.** They were held for a second fixture that turns out not
+> to be buildable, and two claims about the blind spot it was to cover were wrong;
+> both are corrected below. Order inside the increment is what matters: 6 unlocks 4.
 >
 > The measurements taken while this was written are in `measurements.md`.
 
@@ -102,11 +106,106 @@ safe to attempt: step 1 removed the last row-index address, so shifting indices 
 longer moves anything a System reads, and `ode_times` turns out to be strongly
 guarded (the measurement above).
 
-⚠️ **What it needs first.** De-risking found the blind spot: the insertion
-transpose sits behind `if (lo < hi)`, so on any fixture introducing at t = 0 a
-skipped transpose is unobservable, and `ladder_stand_resumed` is the only fixture
-where that range carries steps. A restructure of the range arithmetic should not
-go in against one fixture.
+⚠️ **The blind spot, restated correctly.** The transpose does not sit behind
+`if (lo < hi)`. It runs at `ode_solver.hpp:367`, above that guard and independently
+of it, under its own condition (`j < stops.size() && rec[hi].junction`); what
+`lo < hi` skips is the step sweep of an empty range. The thin part is downstream: with a junction
+at the range's first row nothing below it is swept, so the transpose's output reaches
+a caller only as `at_first_state`, read by `test-gradient-ladder-first-segment.R`.
+
+⚠️ **And the second fixture that was to cover it does not exist to be built.**
+Steps below the first widening check nothing unless cohorts are alive there -- bare
+ground leaves the environment alone, twelve orders down. Cohorts require a seeded
+state consuming the schedule's early entries, which is `ladder_stand_resumed`'s
+mechanism, so a second fixture is that one with different numbers. One was built and
+measured: 36 steps and three widenings on both, first widening at step 18 on both,
+differing only in the seeded width (25 against 33). Deleted rather than kept. Use the
+split identity for this instead.
+
+## The increment, concretely
+
+4 and 6 are one change, and the compiler forces this order.
+
+**a. The record stops being rows a schedule can be sliced out of.** `prev_steps`
+becomes a program beside its states rather than one struct that is both:
+
+```cpp
+// What the run did, in order, and nothing about what it held.
+std::vector<instruction> program_;
+// Boundary i is what instruction i ran from, so there is one more of these than
+// there are instructions.
+std::vector<state_type<System>> states_;
+// Instruction i's stage values; empty at a junction.
+std::vector<std::array<solved_values_t<System>, 5>> solved_;
+```
+
+`schedule()` then returns `program_` instead of slicing rows out of the record. That
+is the whole of what unblocks 4: a junction cannot reach a schedule by accident when
+the schedule is the only thing there is.
+
+**b. The instruction gains a kind.**
+
+```cpp
+struct instruction {
+  enum class op : unsigned char { step, junction };
+  op kind;
+  double time;       // the boundary this reaches; a junction reaches its own time
+  double step_size;  // NaN where no size is pinned; unread at a junction
+};
+```
+
+**c. `distribute_ode_steps` stops eating the junction row, or stops existing.** It
+splits a flat recording into per-interval sub-recordings so `run_next` can replay one
+interval at a time -- and `scm.h:1141` already replays a whole program in one call,
+junctions included. Two recordings of one run, which is `unification.md` 6. Deleting
+the per-interval path is the cheaper of the two and closes that entry.
+
+⚠️ **And `Parameters` still holds the unfixed form.** `ode_times` and
+`ode_step_sizes` (`parameters.h:69` and `:74`) are two parallel `vector<double>`,
+which is the pairing `recorded_step`'s own comment exists to refuse -- "two vectors
+side by side can also be paired across different runs; one cannot". odelia fixed
+this and plant did not, so the program crosses to R as the shape it was fixed away
+from, and gains no junction on the way back. A program field replaces both.
+
+**d. The reverse walk dispatches per instruction.** `stops`, `lo`, `hi`, both
+ternaries and `if (lo < hi)` go: the descent visits every instruction once and
+rebinds the active System where the kind is a junction.
+
+⚠️ **No storage is saved, and the spec should not claim any.** A junction's output
+stops being `inserted` and becomes an ordinary boundary, so the count is unchanged:
+one state per recorded row plus one per junction, however they are indexed. The win
+is that every row means one thing.
+
+### What must not regress
+
+* **`swept` is a return value a test reads** (`counts$segments`). Per instruction the
+  same number is "runs of steps between junctions that carried at least one step" --
+  compute it as that rather than as loop turns.
+* **The width on exit is a promise and a throw is an exit.** `restore_on_exit` stays.
+* **`be_at_step` derives a Patch's shape from the time**, and at a junction two
+  boundaries share one. So it may only be called on the boundary below. That is safe
+  because the schedule puts every introduction at an interval start that then steps,
+  so **a junction is never the last instruction** and `restore_on_exit` positions on
+  the last. Assert that once where the record is built, rather than testing the kind
+  at each use.
+
+## Making the flag leading does not help -- MEASURED AGAINST THE CALLERS
+
+The obvious smaller move is to flip the flag's sense: `rec[k].junction` meaning "a
+junction ran *before* step k" rather than after it, which is how the domain reads
+("the insertion is the beginning of the next step"). It deletes
+`junction_after(steps.front())` and the NaN-first validator, and it looks like it
+should delete the head instruction with them.
+
+**It does not, and the reason is worth keeping.** `state_at_segment` positions a walk
+at a junction and applies it, then the walk owes the *step* that follows -- so it has
+executed half of one "junction then step" instruction. `program_from`'s head bit and
+`scm.h`'s `pending` are both that half-execution written down. A leading flag moves
+which row carries the bit; it cannot delete a bit that records how much of one
+instruction has already run.
+
+**A junction-then-step instruction is divisible, so it is two instructions.** That is
+the argument for the row, arrived at from the other end.
 
 ## One state per instruction -- REFUTED as first written
 
