@@ -1,5 +1,15 @@
 # One reverse pass
 
+> **CLOSED.** All ten steps of the cut are done or refused, and the findings are in
+> `principles.md`. Read this for why a shape is what it is, or before reopening a
+> step: each entry carries what it cost and what would change the answer.
+>
+> ⚠️ **Much of it narrates a past state in the present tense.**
+> `solve_adjoint_over_insertions`, `advance_over_insertions` and `insertion_steps`
+> are named here and exist in no code file -- the first became
+> `Solver::solve_adjoint` and the other two are gone. The live work is
+> `one-vocabulary.md`.
+
 What this machinery would be if it had been written knowing there is one product.
 `unification.md` finds the places one idea is spelled twice. This asks the prior
 question -- what shape is forced -- and then says where to cut.
@@ -1030,7 +1040,7 @@ changing anything about how a derivative reaches the stand from the leaf.
 > kernel slopes at `xad::fwd<T>::active_type` -- `FReal<AReal<double>>` at the
 > gradient, a tangent ABOVE the adjoint, both halves of which record onto plant's
 > tape and are then swept once per metric. Measured at **11.6% of the gradient**,
-> about 60% of a 31% regression. `one-program.md` has the profile and the three
+> about 60% of a 31% regression. `measurements.md` has the profile and the three
 > options. The nesting was inverted and inlined, not removed.
 
 **9 -- endgame: `derivs` returns.** CLOSED, and NOT DONE -- but the hazard it

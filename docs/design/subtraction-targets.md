@@ -1,5 +1,14 @@
 # What is left to subtract
 
+> **Mostly landed.** A log rather than a proposal: each entry names something that
+> was not earning its keep, the evidence, and what would break if it went. Entries
+> struck through are done; the rest are marked where they stand.
+>
+> ⚠️ **The control-flow walk below was taken before the cut** and names functions
+> that no longer exist. It is kept because the hotspots it marks are what the whole
+> plan worked on, not because it describes today's call graph. The live work is
+> `one-vocabulary.md`.
+
 A log, not a proposal. Each target below names something the reverse-mode work
 built or left behind, the evidence that it is not earning its keep, and what
 would break if it went. Targets are removed from this file when they land.
@@ -224,7 +233,7 @@ plain `T` and its own comment says there is no order above `T` in the marginal. 
 so at the gradient it runs at `FReal<AReal<double>>` -- a tangent above the
 adjoint, whose value AND derivative both record onto plant's tape, and which is
 then swept once per metric. Measured at 11.6% of the gradient and about 60% of
-increment 2's cost; `one-program.md` has the profile. The nesting was not removed,
+increment 2's cost; `measurements.md` has the profile. The nesting was not removed,
 it was inverted and inlined, and it does not grep as what it is.
 
 ~~**✱ N — `resource_depletion` is a Patch member used as a per-call scratch**,
@@ -1067,7 +1076,7 @@ attached to only one, so a refusal arriving by latch produced an all-NaN gradien
 beside a live range count. A later session read that count as a regression in the
 sweep and blocked a merge on it. A field beside `why` in the returned struct cannot
 be reached by a caller that used a different entry point, and cannot disagree with
-the verdict it is reported with. Written up in `one-program.md`.
+the verdict it is reported with. Written up in `measurements.md`.
 
 ### 20. ~~A stage address threaded six layers to reach a vector index~~ DONE
 

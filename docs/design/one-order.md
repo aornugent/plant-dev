@@ -1,5 +1,11 @@
 # One order
 
+> **Landed.** The leaf's derivative boundary: seven kinds of derivative became four,
+> and one interior placement fell from 861 tape statements to 360. Read it before
+> changing how a derivative reaches the stand from the leaf.
+>
+> Its measurements are in `measurements.md`. The live work is `one-vocabulary.md`.
+
 **The leaf's derivative crosses to the stand as data, at first order, from
 primitives that carry their own slopes.**
 
@@ -15,7 +21,7 @@ reverse tape: the irreducible four. One interior placement fell from **861 to 36
 statements**. Steps 6b and 7 are refused rather than pending, and the design space
 behind that refusal is exhausted in the memo below.
 
-This is the prescription. `one-program.md` is the record it came out of and carries
+This is the prescription. `measurements.md` is the record it came out of and carries
 the measurements in the order they were taken; nothing here needs that order to be
 read. Where the two disagree, this one is the intent and the disagreement is a bug in
 this file.
@@ -667,13 +673,16 @@ This is one leaf of the cascade in `principles.md`, which carries the prime dire
 and the five moves that produced the plan. Read that first; it is the top.
 
 ```
-principles.md            the rules, and the route -- START HERE
-├── subtraction-targets.md   what is not earning its keep, by consumer
-├── unification.md           where one idea is spelled twice
-├── one-reverse-pass.md      what the model forces; the sequenced cut; the tape's cost
+principles.md            the rules, and the map -- START HERE
+└── one-vocabulary.md    THE WORK: how many names the two read paths cost
+
+the record, none of it outstanding:
+├── subtraction-targets.md   what was not earning its keep, by consumer
+├── unification.md           where one idea was spelled twice
+├── one-reverse-pass.md      what the model forces; the cut, sequenced 0-9. Closed
 │     └── step 8 is the leaf, and THIS FILE is what step 8 became
-├── one-program.md           the live record: a trajectory as a composition of maps,
-│     └── and the root causes and measurements this prescription came out of
+├── one-program.md           a trajectory as a composition of maps. Steps 4 and 6 open
+├── measurements.md          root causes and figures, including this file's
 └── one-order.md         ← you are here. The leaf's derivative boundary
 ```
 

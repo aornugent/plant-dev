@@ -1,5 +1,12 @@
 # One idea, one spelling
 
+> **Landed.** Where one idea was spelled twice, and what the translation layer
+> between the two spellings cost. Its hardest item became its easiest the moment a
+> whole product could go.
+>
+> The same question asked again, and counted rather than listed, is
+> `one-vocabulary.md` -- which is the live work.
+
 A code review of the reverse-mode branch across the three packages, read as a
 single pull request by someone meeting it cold. It looks only at shipped code --
 headers and the R layer -- and only for **fragmentation**: a thing this branch

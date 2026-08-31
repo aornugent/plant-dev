@@ -4,24 +4,17 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-Read [`docs/design/principles.md`](docs/design/principles.md). It carries the rules this
-work is judged by, and the route that produced the plan it is working through -- six
-moves, in order, each of which produced one document. It names them and says what each
-answers that the one before it could not:
+Read [`docs/design/principles.md`](docs/design/principles.md). It carries the rules
+this work is judged by and a map of the other documents, saying which one is live.
 
-- [`docs/design/subtraction-targets.md`](docs/design/subtraction-targets.md) -- what is
-  not earning its keep, found by asking about consumers
-- [`docs/design/unification.md`](docs/design/unification.md) -- where one idea is spelled
-  twice
-- [`docs/design/one-reverse-pass.md`](docs/design/one-reverse-pass.md) -- what the model
-  forces, the sequenced cut, and **what the tape costs plus the XAD mechanics behind it**
-- [`docs/design/one-order.md`](docs/design/one-order.md) -- the leaf's derivative
-  boundary: what step 8 of that cut turned into. A prescription, and the one file to
-  read before changing how a derivative reaches the stand
+**Then read [`docs/design/one-vocabulary.md`](docs/design/one-vocabulary.md), which
+is the work.** The rest is the record: the sequenced cut is closed, and its documents
+are kept for why a shape is what it is rather than for anything outstanding.
 
-A session that has lost its context rebuilds it from those five and nothing else. None of
-them tracks progress; each is edited when something lands, and where a document disagrees
-with the code, the disagreement is the finding.
+⚠️ **Read a record as of its own date.** Several of them narrate a past state in the
+present tense, and three function names they use exist in no code file. Where a
+document and the code disagree about a symbol, the code is right; where they disagree
+about a *decision*, that disagreement is the finding.
 
 **The nine reports that used to be listed here are gone from the tree and live in the git
 history.** `docs/reports/00` through `09` stated what TF24 is, the algebra of its

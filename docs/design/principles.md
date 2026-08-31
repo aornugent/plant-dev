@@ -93,105 +93,75 @@ package.
 
 ---
 
-# How this plan was arrived at, and how to rejoin it
+# The documents, and which of them is live
 
-Five moves, in order. Each produced a document, and each answers a question the
-one before it could not. A session that has lost its context can rebuild it by
-reading them in this order; a session that wants to continue the work should
-start at the cut.
+One is the work; the rest are the rules and the record. **Read this file, then
+`one-vocabulary.md`. Nothing else is outstanding.**
 
-## 1. Read it cold, as an exhausted maintainer
+| | |
+|---|---|
+| **[`one-vocabulary.md`](one-vocabulary.md)** | **LIVE — the work.** 137 coined names across the two paths a maintainer has to read, which of them the model forces, and four items ranked by names removed |
+| [`principles.md`](principles.md) | the rules, and this map |
+| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. Mostly landed; the open entries are marked |
+| [`unification.md`](unification.md) | where one idea was spelled twice. Landed |
+| [`one-reverse-pass.md`](one-reverse-pass.md) | what the model forces, and the cut, sequenced 0–9. **Closed** |
+| [`one-order.md`](one-order.md) | the leaf's derivative boundary. Landed |
+| [`one-program.md`](one-program.md) | a trajectory as a composition of maps. Spec; steps 4 and 6 outstanding |
+| [`measurements.md`](measurements.md) | the running record: root causes, figures, two scares. History |
 
-Not "is this correct" — that is what the reports and the ladder are for. The
-question is **where does this cost a reader**: which parts are branchy, indirect,
-or introduce a name whose purpose only becomes clear three files later. Follow
-one product call end to end and write down every word you had to learn.
+⚠️ **Several documents describe past states in the present tense**, which is how a
+name that no longer exists gets read as current. `solve_adjoint_over_insertions`,
+`advance_over_insertions` and `insertion_steps` appear in four of them and in **no**
+code file. Where a passage narrates what was found, read it as of its own date; the
+code is the authority on what a symbol is called today.
 
-That walk is at the top of `subtraction-targets.md`, and the hotspots it marks
-are what everything after it works on.
+# How the plan was arrived at
 
-## 2. Name what is not earning its keep — `subtraction-targets.md`
+Five questions, each of which the one before it could not answer. A session
+rebuilding context reads them in this order; a session doing work does not need
+them.
 
-A log, not a proposal: each entry names something the work built or left behind,
-the evidence it is not earning its keep, and what would break if it went. Found
-by asking about **consumers**, not about counts — two counting lenses were tried
-and both produced confident nonsense, and that is recorded there so nobody tries
-them again.
+1. **Read it cold, as an exhausted maintainer.** Not "is this correct" -- that is
+   what the ladder is for. **Where does this cost a reader?** Follow one product
+   call end to end and write down every word you had to learn. That walk is at the
+   top of `subtraction-targets.md`, and counting those words is what
+   `one-vocabulary.md` now does.
+2. **What is not earning its keep?** -- `subtraction-targets.md`. Asked about
+   consumers, never about counts: two counting lenses were tried and both produced
+   confident nonsense, which is recorded there so nobody tries them again.
+3. **Where is one idea spelled twice?** -- `unification.md`. The narrower question
+   with the sharper answer. The tell is a translation layer between two spellings.
+4. **What shape does the model force**, as against how it was built? --
+   `one-reverse-pass.md`, written as five facts about TF24 that are not design
+   decisions. This is the move that paid, and it needed the permission to delete a
+   whole product to be real.
+5. **Cut, smallest first, and measure.** Rank by names removed, not lines and not
+   seconds: an entry that deletes a concept compounds, because every later change is
+   read against a smaller vocabulary.
 
-## 3. Ask where one idea is spelled twice — `unification.md`
+**Two of those cuts turned out to be redesigns and got their own documents**:
+`one-order.md` for the leaf's seven kinds of derivative, and `one-program.md` for the
+trajectory. Both are leaves of this cascade, not branches.
 
-The narrower question with the sharper answer. Not "is this dead" but **is this
-here twice** — two vocabularies for one idea, two mechanisms answering one
-question, a thing built per step whose inputs are constant across the loop, a
-parameter that exists for one caller. The tell of the first is a translation layer
-between the two spellings.
+# Where the cut ended
 
-## 4. Ask what the model forces — `one-reverse-pass.md`
+All ten steps are closed. Three findings are worth more than the diffs:
 
-The prior question. Given permission to change dependencies, delete products and
-re-open trade-offs: **what shape does the model force**, and what is merely how it
-was built? Written as five facts about TF24 that are not design decisions, then
-the collapses that follow from them.
+* **Step 1** deleted the calibration path -- 8,005 lines -- and the trait table
+  turned out to be sixteen wide for a fourteen-trait model.
+* **Step 8** found the leaf's two supply paths were the same arithmetic: one is the
+  other at a single layer with no horizontal term. Sixteen `switch` statements
+  carried one line of genuine difference, and **the defaults made that line
+  invisible** -- a first probe built on them reported agreement, because
+  `psi_crit == root_psi_crit` there. A fixture built on the defaults cannot referee
+  a difference the defaults collapse.
+* **Step 9 is refused**, and the defect proposed for it is closed separately. The
+  redesign was forty files for a hazard that needed a property: a rate evaluation is
+  a function of the state it is given, so revisiting a state after a different one
+  makes a carried value observable. Three calls and two comparisons.
+  **Separate a defect from the redesign proposed for it.**
 
-This is the move that pays, and it needs the permission to be real. Two things
-that had been ruled out became available the moment a whole product could go, and
-the hardest item on the previous list turned into a deletion.
-
-## 5. Cut, smallest first, and measure
-
-`one-reverse-pass.md` carries the order. It is subtraction first, then the
-mechanisms in the sequence where each makes the next smaller, then the two that
-are redesigns. Rank the remaining work **by names removed**, not by lines and not
-by seconds: the entries that delete a concept are the ones whose value compounds,
-because every later change is read against a smaller vocabulary.
-
-## 6. Where a cut turns out to be a redesign -- `one-order.md`
-
-Step 8 of that order is the leaf, and it is the one entry the sequence could size but
-not design: the leaf supplied seven different kinds of derivative and a reader had to
-learn all seven. Asking what is fundamental there produced a prescription rather than
-a cut, so it lives on its own.
-
-**It has landed, and four of the seven are gone** -- a tangent nested above the tape,
-a second-order concept and both its lift arms, finite differences, and a midpoint
-asymptotic with three tuned thresholds. What is left is the irreducible four: a
-tabulation for what has no closed form, primitives carrying their own slopes, a
-forward tangent, a reverse tape. One interior placement fell from 861 tape statements
-to 360.
-
-It is a **leaf of this cascade, not a branch**: read it when you touch the leaf's
-derivative boundary, and read it against the prime directive, which is what it exists
-to serve. Its own measurements are in `one-program.md`.
-
-⚠️ **The order is finished.** Step 1 removed the calibration path (8,005 lines),
-step 8 the leaf's orphaned derivative chain and its second supply path, and **step 9
-is closed as refused, with the hazard it existed to remove closed separately.**
-`one-reverse-pass.md` carries the five findings and the one thing that would reopen
-it.
-
-**Refusing the redesign and keeping its reason is the move to carry off this
-branch.** Step 9 was diagnosed correctly -- a rate evaluation could read what the
-last one left, and on a tape that is an unregistered input whose row is dropped in
-silence. It had bitten three times. But the diagnosis named a redesign of forty
-files, and what the defect actually needs is a PROPERTY: a rate evaluation is a
-function of the state it is given, so revisiting a state after a different one is
-what makes a carried value observable. Three calls and two comparisons, against
-about 61 edit sites and six partial-write behaviours to reproduce.
-
-**Separate the defect from the redesign that was proposed for it.** The redesign is
-refused on its measurements; the defect is closed on its own terms, and a test that
-was verified by breaking it now says so on every run.
-
-**Step 8's finding is the one to carry off this branch.** The two supply paths were
-the same arithmetic — one is the other at a single layer with no
-vulnerability-weighted horizontal term, measured bit-identical in the supply and to
-the solver floor over 108 solves. Sixteen `switch` statements existed to carry a
-single line of genuine difference, and the defaults made that line invisible: a
-first probe built on them reported agreement, because `psi_crit == root_psi_crit`
-there. **A fixture built on the defaults cannot referee a difference the defaults
-collapse** — the same window hazard 2 says the golden file cannot see.
-
-## What holds across all six
+# What held across all of them
 
 - **A comment that blocks your change is evidence, not clutter.** Satisfy its
   claim or disprove it before deleting it.
@@ -212,3 +182,18 @@ collapse** — the same window hazard 2 says the golden file cannot see.
 - **Every claim about speed needs a control**: the same fixture, both sides,
   interleaved in one session. A figure from a document is a figure from whenever
   it was last true.
+- **Trace callers; do not read names.** Two production functions were nearly
+  deleted for sitting beside a dead family and being named like it.
+- **A guard that cannot fail is not a guard.** Verify one by breaking the thing it
+  watches. Two of three fault injections here failed to fail, and each was
+  informative: the fault was not where it looked.
+- **A fixture built on the defaults cannot referee a difference the defaults
+  collapse.** `psi_crit == root_psi_crit` at this package's defaults, and that was
+  the one line two supply paths differed in.
+- **Ask what an open plan item is FOR.** Tests-only reachability does not
+  distinguish dead from unfinished, and the usual check is whether a plan item
+  still carries open work -- but an open question about a thing whose only consumer
+  is being deleted is not open work. The same test kept one file and released
+  another.
+- **Ask whether the thing this replaced is still here.** Cheap at the end of an
+  increment, and a year later it is a 137-name census.
