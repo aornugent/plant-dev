@@ -1,15 +1,18 @@
 # One program
 
-> **Landed.** Steps 0-4 and 6 are done; 5 and 7 are refused. 4 and 6 went in as one
-> increment: **a junction is a row of its own**, and `inserted`, `ran_from()`, the
-> head instruction's junction bit, `scm.h`'s `pending` and `solve_adjoint`'s range
-> arithmetic all went with it.
+> **LANDED IN FULL, nothing outstanding.** Steps 0-4 and 6 are done and 5 and 7 are
+> refused, which is every step. 4 and 6 went in as one increment: **a junction is a
+> row of its own**, and `inserted`, `ran_from()`, the head instruction's junction bit,
+> `scm.h`'s `pending` and `solve_adjoint`'s stop list and range arithmetic all went
+> with it.
 >
 > They were held for a second fixture that turns out not to be buildable, and two
 > claims about the blind spot it was to cover were wrong; both are corrected below.
 >
-> ⚠️ **One part of the spec was NOT taken** -- see "What landed, and what it did
-> not" at the end. `unification.md` 6 stays open because of it.
+> The one part of the spec deferred at the time -- deleting the per-interval replay --
+> was taken afterwards by `two-paths.md`'s item 2, which removed
+> `distribute_ode_steps` with the schedule rewrite. So `unification.md` 6 is closed
+> too, and "What landed, and what it did not" at the end reads as of its own date.
 >
 > The measurements taken while this was written are in `measurements.md`.
 

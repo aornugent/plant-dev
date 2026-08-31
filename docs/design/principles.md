@@ -101,7 +101,7 @@ ones it does not.
 
 | | |
 |---|---|
-| **[`two-paths.md`](two-paths.md)** | **LIVE — the work.** What the competition field build and the introduction gradient cost a reader — the representation, the names, the threading, the assurance surface — and eight items in order |
+| **[`two-paths.md`](two-paths.md)** | **The objective, delivered bar one item.** Seven of its eight are closed; item 7 is open and is what a new session picks up. Read its first two sections; the rest is the record of how each closed |
 | [`principles.md`](principles.md) | the rules, and this map |
 | [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. **Eight of its 24 entries still open**; the ones this objective reaches are carried into `two-paths.md` |
 | [`unification.md`](unification.md) | where one idea was spelled twice. **Four of its 10 entries still open**, same treatment |
@@ -198,3 +198,32 @@ All ten steps are closed. Three findings are worth more than the diffs:
   another.
 - **Ask whether the thing this replaced is still here.** Cheap at the end of an
   increment, and a year later it is a 137-name census.
+- **Count the names at the end of an increment.** One increment here deleted four
+  and added five while its commit message described subtraction, and nobody would
+  have noticed: the deletions were visible and the additions were an enum, a nested
+  type and two enumerators. Four deletions felt like progress and the total went up.
+- **Two states are a bool.** A discriminated union earns its keep by replacing
+  branching spread across files. One branch in one place is a bool, and reaching for
+  the union costs three names to save none.
+- **A rename is not done when the package compiles.** A field renamed in the headers
+  and the tests left two scripts reading the old key, where R yields NULL rather than
+  erroring — and one of them wrapped it in a `tryCatch` that turned the miss into a
+  printed NA. Grep the whole tree, `scripts/` included, and prefer a spelling the
+  compiler can refuse.
+- **Asking whether a name duplicates the thing you are looking at will not find the
+  pair that duplicates each other.** This file's own census cleared `segment` because
+  it was not another word for the widening event. It was another word for `range`, and
+  the tests had been writing the translation out by hand for as long as both existed.
+- **A comment that justifies a design is a claim, not a given.** Two here were wrong
+  and both had shaped the code around them: one said a returned pair used
+  out-parameters to avoid a taped copy, and it had none; one said an accessor returned
+  a stale snapshot, and it was live for four of the five things read through it. A
+  blocking comment gets checked because it is in the way. A justifying comment gets
+  believed.
+- **Measure a dispatch rather than reasoning about it.** Twenty lines of probe said a
+  named struct replacing a `std::pair` reached zero of its two scalars, silently. No
+  amount of reading the `if constexpr` chain would have produced that number, and the
+  failure it describes has no error to look for.
+- **Do not increment a count whose base you have not checked.** A record here read
+  "26 entries landed" against 24 entries; three sessions added one each and none
+  counted. State a number a reader can verify by counting, or do not state one.

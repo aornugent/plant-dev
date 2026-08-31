@@ -1,7 +1,83 @@
 # The two paths a maintainer reads
 
-**The live plan.** Everything else in this directory is the rules (`principles.md`)
-or the record.
+**Delivered, bar one item.** Read the next two sections. Everything from "The
+objective" down is the record of how each item closed, kept because it says why a
+shape is what it is.
+
+## Where this got to
+
+The competition field build and the node-introduction gradient cost too much to read.
+Seven of the eight items below are closed. What that bought:
+
+| | |
+|---|---|
+| **the representation** | a junction is a row of its own, so `inserted`, `ran_from()`, `pending`, the head instruction's junction bit and `solve_adjoint`'s whole stop-list-and-range arithmetic are gone. `one-program` is fully landed |
+| **the schedule** | holds introductions -- `{time, species}` in a sorted vector walked by a cursor -- where it held one event per species-time pair and rebuilt the grouping twice. Ten names out, −250 lines |
+| **the value/slope pair** | one type, `with_slope<T>`, where seventeen spellings crossed thirteen frames |
+| **the widening event** | two words, one per package: `insertion` in odelia, `introduction` in plant, with the boundary in one line. `junction`, `widening` and `segment` gone |
+| **the counters** | stay, and the comment justifying them was the thing that was wrong |
+| **the ladder's surface** | one self-justifying loop out at −198 lines; the rest stays because the member is the only route past a private |
+| **the three free names** | there were none |
+
+Both records are closed on everything this objective reached: `subtraction-targets.md`
+is 16 of 24 closed, `unification.md` 6 of 10, and every remaining entry in either is
+named at the end of this document as out of reach.
+
+Every increment was verified against the same three numbers, unchanged throughout
+except where a test was added or removed and the delta was predicted first: **odelia
+346/0, plant's gradient ladder 554/0 over fifteen files, plant's non-ladder suite
+3330/0.**
+
+## What is left
+
+**One item from this objective**, and it is item 7 below:
+`compute_environment` means three things in one call chain -- the ordering that breaks
+the fixed point (`patch.h`), a one-line forward (`tf24_environment.h`), and the knot
+loop (`resource_spline.h`). The forward is the obvious first casualty. It was left
+deliberately, not blocked.
+
+**One entry still on this objective's theme**, `unification.md` 7: `extra_stops`, a
+test-only parameter in a production signature. It is the last survivor of lens 4's
+cause, and odelia's ranged `solve_adjoint` overload already gives the same split check
+without it -- so the shape of the answer is likely "delete the parameter, keep the
+check", but that has not been tested.
+
+**Ordinary subtraction, not vocabulary**, in `subtraction-targets.md`: 22 (two
+parameters declared, exported and never wired), 18 (two curve stores written twice),
+21 (nine aux slots the differentiated path writes and nobody reads), and 14's last
+sub-item (`step_adjoint` copies the state half at the active scalar). Each is
+self-contained and none needs this document.
+
+**Priced and refused, or not a change:** 3 (the System's deep copy), 8 (`sweep.hpp`,
+sharpened rather than actionable), 13 (993 long comment blocks -- a per-file reviewable
+pass), 1 (the residue in `scm.h`'s gradient surface). `unification.md` 1 finishes in
+`one-order.md`, which is landed bar a memo of three; 5 and 10 there are small pairs.
+
+The list above is the whole of what is open across both records, so an absence from it
+is closure rather than an oversight -- the counts at the head of
+`subtraction-targets.md` and `unification.md` are the check. `one-order.md`'s memo of
+three unbuilt items is the one thing recorded elsewhere; it is named at the end of this
+document.
+
+## A loop worth keeping
+
+Three things made a 68-site change tractable against 20-minute package builds, and a
+new session should set them up before starting:
+
+* **A private R library** (`R_LIBS` prepended, `PLANT_TEST_LIB` for the runner), so
+  another session installing odelia cannot move the headers under a measurement.
+  AGENTS.md hazard 4.
+* **A syntax-only loop.** One TU that includes plant's competition path and explicitly
+  instantiates it at TF24 for both `double` and the tangent scalar, compiled with
+  `-fsyntax-only`. Thirty seconds, and it finds every member-access error a rename
+  causes. It cannot check FF16 or K93, which carry no AD surface and whose explicit
+  instantiation demands members the package never instantiates -- the package build
+  covers those.
+* **Standalone probes** for anything about the tape or the walk.
+  `odelia/tests/standalone/probe_visit_active.cpp` is twenty lines and settled a
+  question two documents had argued in prose.
+
+---
 
 ## The objective
 
@@ -448,18 +524,14 @@ Ranked by words removed from a reader's head, not by lines.
 
 ## Also open, and not reached by this objective
 
-Left in the record rather than pulled forward, so nobody reads their absence here as
-closure. Each is real; none of them is what makes these two paths hard to read.
+**Named once, in "What is left" at the top of this file**, together with the item
+this objective still owes. There were two lists of the same open entries here and they
+had already drifted -- this one called `unification.md` 9 open after it resolved, said
+item 1 had not taken 6 when item 2 had, and omitted four entries that were open. Two
+lists that can disagree is the thing this whole document is about.
 
-* `subtraction-targets.md` **1** (residue: `scm.h`'s gradient surface, already down
-  from 247 lines to 210), **3** (the System's deep copy -- priced, largely refused),
-  **13** (993 long comment blocks -- a per-file reviewable pass), **18** (two curve
-  stores written twice).
-* `unification.md` **5** (built once per step, constant across the sweep), **9**
-  (four caches), **10** (smaller pairs). **6** (two recordings of one run) is reached
-  by item 1 but was not taken by it -- see that item.
-* `one-order.md`'s memo: the height family, `pushAll`'s block form, and widening the
-  transpose identity past four of twelve kinds.
+`one-order.md`'s memo is the one addition: the height family, `pushAll`'s block form,
+and widening the transpose identity past four of twelve kinds. Recorded and unbuilt.
 
 ## The rule this list is an instance of
 

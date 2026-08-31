@@ -7,9 +7,18 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 Read [`docs/design/principles.md`](docs/design/principles.md). It carries the rules
 this work is judged by and a map of the other documents, saying which one is live.
 
-**Then read [`docs/design/two-paths.md`](docs/design/two-paths.md), which
-is the work.** The rest is the record: the sequenced cut is closed, and its documents
-are kept for why a shape is what it is rather than for anything outstanding.
+**Then read the first two sections of
+[`docs/design/two-paths.md`](docs/design/two-paths.md)** -- "Where this got to" and
+"What is left". That objective is delivered bar one item, and those two sections say
+which item and what else is open in the records. The rest of that file, and every
+other document here, is the record: kept for why a shape is what it is rather than for
+anything outstanding.
+
+⚠️ **Set up the loop before starting.** A private R library, a `-fsyntax-only`
+translation unit over the path you are changing, and a standalone probe for anything
+about the tape. `two-paths.md`'s "A loop worth keeping" says why each; the first is
+hazard 4 below, and the second is what makes a rename across sixty sites a
+thirty-second check instead of a twenty-minute one.
 
 ⚠️ **Read a record as of its own date.** Several of them narrate a past state in the
 present tense, and three function names they use exist in no code file. Where a
