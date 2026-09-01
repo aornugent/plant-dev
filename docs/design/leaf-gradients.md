@@ -227,11 +227,18 @@ cross-scalar comparison can claim.
 
 ### Three nested solves, three tolerances
 
-| solve | for | tolerance |
-|---|---|---|
-| `find_root_psi` | the bounds `root_crit`, `root_zero_E` | **1e-4** |
-| `psi_stem_to_ci` | internal CO2 at a given stem potential | **1e-10** |
-| `maximise_profit_over_collar` | `p*` on `dprofit == 0` | `collar_root_tol` |
+| solve | for | tolerance | settable? |
+|---|---|---|---|
+| `find_root_psi` | the bounds `root_crit`, `root_zero_E` | **1e-4** | no, a literal |
+| `psi_stem_to_ci` | internal CO2 at a given stem potential | **1e-10** | no, a literal |
+| `maximise_profit_over_collar` | `p*` on `dprofit == 0` | `collar_root_tol` = 1e-12 | no, `static constexpr` |
+
+⚠️ **`ci_abs_tol` is NOT the ci tolerance on this path.** It is a `Control` field
+defaulting to 1e-3 and it reaches only the off-path `optimise_psi_stem_*` solvers,
+so tightening it buys no precision on the production route and is a standing trap
+for anyone trying to sharpen a reference. The number that matters is the hardcoded
+1e-10 above, and phylloptim's guide records the cost curve that chose it: the knee,
+landing 335× closer to a converged solve for +3.4% per solve.
 
 The 1e-10 is described in-source as load-bearing: it sets the floor of what every
 reported output of this model *means*. The 1e-4 is why a bound is worth about five
@@ -239,6 +246,42 @@ digits and why the bound checks in `test_leaf_gradient` are budgeted near 1e-5.
 
 On the recorded path `psi_stem_to_ci` is replaced by `implicit_value` on the same
 residual — the root-find runs once at `double` and the tape gets the IFT row.
+
+### Three production properties, which are not verification gaps
+
+Everything in §6 below is about what the suite can *demonstrate*. These three are
+different: they are properties of the shipped model. None is a defect, all three
+are deliberate and documented, and they bound what any check can ever claim — so
+they belong here rather than in the list of things to fix.
+
+**1. The differentiated model is very slightly not the derivative of the forward
+model.** The per-layer mean conductivity uses a 7-node Gauss-Legendre sum at
+`double` and a **1-node midpoint rule** on the active path, with an error of about
+**4e-8** at the spans the rule fires below. That is a speed trade taken knowingly.
+The consequence for verification is the important part: **no cross-scalar
+comparison can be held tighter than ~4e-8** on any quantity that reaches a layer
+mean, because the two sides are computing marginally different integrals. A check
+that demanded 1e-10 there would be measuring the quadrature, not the derivative.
+
+**2. The energy-balance path carries a finite difference inside an analytic
+derivative.** `dprofit_energy_balance_term` obtains `dA/dT` by a central difference
+at `h = 1e-3` K, and the source says it deliberately cannot be templated — adding
+it inline would change FMA contraction on the gate-off path. Today
+`use_energy_balance` is off on every TF24 path (`subtraction-targets.md` 22: plant
+declares the gate and never wires it), so this is off the recorded route. **If that
+gate is ever wired on the templated surface it becomes a recorded row with a
+differenced core**, and whoever wires it owns that.
+
+**3. The value of `G` is the table's, and that is correct.** The ~1.15e-11 gap
+between the spline and the closed form is not an error to be driven out. The solve
+ran on the table, so the table's value is the one the operating point sits at, and
+a derivative taken around the closed form would be a derivative at a different
+point. Any independent reference either accepts a ~1e-11 floor or takes the
+operating point from production.
+
+The first two are worth restating in one line: **the suite's achievable precision
+is capped at ~4e-8 wherever a layer mean is involved, and the energy-balance path
+has no analytic core to check against.** Neither is a reason to change the model.
 
 ### Sizes
 
@@ -278,11 +321,37 @@ names the fix:
 
 > tightening it needs the analytic route rather than a better step.
 
-**And one gap has no instrument at all.** `marginal_collar_slope` is the single
-derivative crossing as a number, and nothing differences the model against it.
-`test_transpose` holds it to the transpose identity, which is a consistency check —
-a slope wrong in the forward and reverse directions the same way satisfies the
-identity. The two probes that once covered it, `probe_marginal_tangent` and
+**Both supplied numbers now have an instrument**, `test_supplied_rows`, added after
+this note was first written. It differences the function each row claims to
+describe, at two step sizes, and runs with the suite:
+
+| row | reference | measured |
+|---|---|---|
+| `duptake_dp[j]` | `supply_draw_at`'s own uptake, re-evaluated at a moved collar. Reads none of the derivative code | 110 rows, worst **1.75e-07**, typically 1e-12 to 1e-10 |
+| `marginal_collar_slope` | `marginal_assembled` stepped along the direction the row is taken in | 24 rows, worst **4.92e-10** |
+
+⚠️ **`dM/dp` is a DIRECTIONAL derivative and differencing the collar alone is a
+broken reference.** `marginal_collar_slope` seeds five coordinates at once — `p` by
+1, `sigma` by `V`, `ci` by `dci_dpsi`, `dEup_dp` by `d2Eup`, `transpiration` by
+`dEup` — so it is a derivative along a curve, not a partial. A first attempt here
+moved only the collar and disagreed by 40 to 100 per cent, which reads as a broken
+row and was a broken check. The five move together or the reference is measuring a
+different function.
+
+**What the second row's check does and does not cover.** Stepping along the
+supplied direction checks the *assembly's* differentiation; it takes the four chain
+rates as given. `dEup` is the sum of the uptake rows, so it is covered by the first
+check. `V`, `dci_dpsi` and `d2Eup` are not — they remain the residue, and are what
+a symbolic block would still buy.
+
+**One state is reported every run.** The driest single-layer fixture — `psi_soil`
+within 1% of `root_psi_crit`, on the 5% conductivity tail — reaches 1.75e-07 with
+both step sizes agreeing, so it is a systematic offset near a branch rather than
+noise. It is printed rather than absorbed, and the check fails above 1e-6: three
+orders below the ~1e-4 the phylloptim guide calls a real difference, five above the
+~1e-9 solver floor.
+
+The two probes that once covered the collar row, `probe_marginal_tangent` and
 `probe_bound_tangent`, were deleted with the row layer; they were nested tangents
 over `profit_at`, so they shared the production assembly and were never independent
 either.
