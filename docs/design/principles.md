@@ -107,6 +107,7 @@ ones it does not.
 | [`unification.md`](unification.md) | where one idea was spelled twice. **Four of its 10 entries still open**, same treatment |
 | [`one-reverse-pass.md`](one-reverse-pass.md) | what the model forces, and the cut, sequenced 0–9. **Closed** |
 | [`one-order.md`](one-order.md) | the leaf's derivative boundary. Landed, bar a memo of three unbuilt items |
+| [`leaf-gradients.md`](leaf-gradients.md) | how the leaf's gradient works today and what checks it: the ecology, forward against reverse, the one supplied number, the tables and tolerances, and a scoped symbolic block. **A description, not a plan** — its opportunities are unstarted |
 | [`one-program.md`](one-program.md) | a trajectory as a composition of maps. **Steps 4 and 6 outstanding** — they are lens 1 of `two-paths.md` |
 | [`measurements.md`](measurements.md) | the running record: root causes, figures, two scares. History |
 
