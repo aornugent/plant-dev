@@ -1,7 +1,7 @@
 #!/bin/bash
-# Sample a stand gradient and resolve the profile, following the procedure in
-# docs/leaf-rows-cost.md section 1. Read that first: this script automates the
-# four guards it lists, but it cannot make a badly-scoped measurement useful.
+# Sample a stand gradient and resolve the profile. The guards this automates are
+# spelled out below, and AGENTS.md's "What makes a timing here worthless" carries
+# the rest of the discipline. Neither can make a badly-scoped measurement useful.
 #
 #   scripts/profile-gradient.sh <r-script> [outdir]
 #

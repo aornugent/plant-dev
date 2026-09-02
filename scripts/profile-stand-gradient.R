@@ -1,10 +1,9 @@
 # One stand gradient at century scale, for scripts/profile-gradient.sh to sample.
 #
-# Century scale on purpose. docs/leaf-rows-cost.md section 3 warns that a short
-# fixture's shares mislead: the field build is O(knots x cohorts), so anything
-# scaling with cohort count is understated by a short run, and so is the ratio
-# itself. This is the fixture that document's table was taken on, so the numbers
-# it produces replace those numbers rather than sitting beside them.
+# Century scale on purpose. A short fixture's shares mislead: the field build is
+# O(knots x cohorts), so anything scaling with cohort count is understated by a
+# short run, and so is the ratio itself. docs/design/measurements.md carries the
+# figures this fixture has produced.
 #
 # THE SCHEDULE IS REFINED IN A SEPARATE PROCESS, and this is not tidiness.
 # Refinement bisects on trait-dependent errors and re-runs the whole model many

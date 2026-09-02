@@ -31,6 +31,8 @@ symbol may not resolve.
 * The gradient's third: root cause
 * Against ad/v3-forward: two regressions, not one
 * What the leaf's derivative costs, measured
+* The sweep is not walk-bound, and what the tape carries that nothing reads
+* What the leaf's derivative costs, measured
 
 ---
 
@@ -1084,11 +1086,15 @@ rather than something that cannot be otherwise.
 
 ## What is available
 
-1. **Sweep once for three metrics** (`one-reverse-pass.md` mechanic 8, `xad::adj<T, 3>`).
-   The regression is amplified threefold by being walked once per metric, and the
-   sweep is the larger half of it. This was a standing item; increment 2 has
-   roughly doubled what it is worth.
-2. **The duplicated slope**, above.
+1. ~~**Sweep once for three metrics** (`one-reverse-pass.md` mechanic 8,
+   `xad::adj<T, 3>`). The regression is amplified threefold by being walked once
+   per metric, and the sweep is the larger half of it.~~ **MEASURED SHUT** -- see
+   "The sweep is not walk-bound" below. The walk is not what three sweeps repeat
+   that costs anything: at `N = 3` one wide walk beats three narrow ones by 1.06x,
+   and by `N = 8` it is 0.57x, i.e. slower. The premise that the cost is
+   "amplified threefold" is wrong.
+2. **The duplicated slope**, above. LANDED -- `collar_at` now takes it from the
+   caller that already refused on it.
 3. **Accept it.** What the third bought is stated in the previous section and has
    not changed: `dM/dtheta` is first order and refereeable where it was an
    unrefereed second-order pass, and five concepts are gone.
@@ -1281,3 +1287,273 @@ rule.
 **The design that follows from all of it is `one-order.md`.** It carries the rule, the
 eight connected components, the data structure, the landing order with its referees,
 and the list of what is already refuted and must not be re-proposed.
+
+---
+
+# The sweep is not walk-bound, and what the tape carries that nothing reads
+
+Taken on `ad/one-program` with all three packages built at `-O2 -g` into a private
+library, because the shared one was three days stale and the cached makevars carried
+`-g0`, which strips the symbols the profile needs. `scripts/profile-gradient.sh
+scripts/profile-stand-reverse.R`.
+
+```
+forward_s   32.74      steps 3378        placements  2,330,530
+gradient_s 104.22      ratio 3.2         swept_ranges      169
+rate_evaluations 20,268   metrics 3      refusal          none
+```
+
+Against the 131.9 s in the previous section, with the forward unchanged at 32.74 s
+against 32.6 s -- so the fixture and the machine are the same and the gradient is
+21% faster than the last figure here. `marginal_assembled`, 11.6% and about 22 s
+there, is 3.9% and 4.6 s.
+
+34,411 samples at 250 Hz is 137.6 s against 136.96 s of wall, and a focus on
+`ladder_boundary_evaluations_tf24` is 26,055 samples = 104.22 s exactly. Both arms
+of that reconciliation matter: the first says the profile is of the run that was
+timed, the second that the gradient's share of it is not an estimate.
+
+## Where the gradient's 104 s goes
+
+Recording is 61.4 s and sweeping 42.2 s, of which the three walks are 38.5 s.
+
+| | share of the gradient | s |
+|---|---|---|
+| XAD tape | 56.1% | 58.5 |
+| libstdc++ containers -- operation pairs, the slot high-water `std::max`, `clearDerivatives` | 14.1% | 14.7 |
+| libm | 14.3% | 14.9 |
+| phylloptim's arithmetic | **7.1%** | 7.4 |
+| odelia's interpolator | 4.2% | 4.4 |
+| plant | 1.9% | 2.0 |
+| boost root solvers | 1.3% | 1.3 |
+
+Tape bookkeeping is about 70% of the gradient and the model's arithmetic a
+fourteenth of it, which is the same reading the previous section took by counting
+statements rather than samples.
+
+## The sweep is bound by the derivative vector, not by the walk
+
+XAD carries vector mode already: `Vec<T, N>` in `XAD/Vec.hpp`, `DerivativesTraits<T,
+N>` -- which collapses to plain `T` at `N = 1`, so an unused width costs nothing --
+and `xad::adj<T, N = 1>`. odelia writes `xad::adj<T>` and takes the default. Two
+things stand between that and a wide sweep, and both are real:
+
+* `adjoint_is_zero` in `odelia/src/Tape.cpp` recurses through a nested scalar's
+  `value()` and `derivative()`. A `Vec` has neither, so a width above one does not
+  compile without an overload.
+* `Tape.cpp` explicitly instantiates `Tape<double>` only, under a note that the
+  instantiated set is the downstream linking contract.
+
+Patched past both in a standalone toy, every width is bit-identical to three narrow
+sweeps -- gap exactly zero -- and:
+
+| width | one wide walk against N narrow ones |
+|---|---|
+| 2 | 1.06x |
+| 3 | **1.06x** |
+| 4 | 1.19x |
+| 8 | **0.57x**, i.e. slower |
+
+⚠️ **The walk is not the repeated cost.** Tripling the derivative type triples the
+bytes `derivatives_` occupies, and past `N = 4` the cache gives back more than the
+saved traversal is worth. At the family's three metrics the whole prize is about
+2.3 s of 104 s, for a change that touches odelia's ABI. **DO NOT re-propose
+`xad::adj<T, 3>` as a way to pay for the sweep once**; the arithmetic and the memory
+are per seed either way, and only the traversal is shared.
+
+## What the tape carries that nothing reads: at most 13.4%
+
+A counter in the sweep, on the statements whose adjoint is zero when the walk
+reaches them:
+
+```
+statements 10,233,015,654   skipped 1,374,854,384   13.4%
+```
+
+Read that against the three metrics being swept separately: a statement feeding one
+metric is zero in the other two walks, so wholly disjoint cones would give 66.7%.
+Observing 13.4% says the metrics share nearly the whole tape, and it puts a
+**ceiling of 13.4% on statements dead in every sweep** -- about 8 s of the 61.4 s of
+recording. It also explains the table above: statements with a zero adjoint already
+skip their operations, so not re-walking them is worth little.
+
+One instance found and closed. `plant/qk.h` carried `result_gauss`, `mean` and `err`
+as active scalars whose only consumers were `to_passive` -- they produce
+`last_error` and `mean_value`, both doubles a user reads. At the active scalar
+`result_gauss` recorded a statement per Gauss node and every row of it was thrown
+away. Carrying the three as doubles is **8-11% of the rule's tape statements**, at
+identical value and derivative, and the golden file's 223 stale mismatches did not
+move.
+
+The general form of that is a detector worth having: an active value whose every
+consumer is `to_passive` is a value that should not have been active. The sweep is
+the one place that can see it, because it is the only place that knows which
+recording earned its keep.
+
+## Landed here
+
+* The duplicated `marginal_collar_slope`, 5.6% of the gradient. `collar_at` takes
+  `interior_curvature` from the caller that already computed it to refuse on, so the
+  guard's number and the divisor are now the same number rather than two calls that
+  agree by construction -- which is what the ⚠️ above the guard always asked for.
+* `qk.h`'s three passive-only actives, above.
+* `std::getenv("PLANT_COMPARE_COLLAR_CURVATURE")` ran on every one of 2.33 million
+  interior placements, scanning the environment for a flag unset in every run that
+  is not chasing it. Latched in a function-local static.
+
+What the three are worth together, interleaved in one session with no profiler
+attached, so both arms pay the same and neither is a figure from another machine
+state:
+
+| rep | before | after |
+|---|---|---|
+| 1 | 102.86 | 98.18 |
+| 2 | 102.19 | 97.78 |
+
+**102.5 -> 98.0 s, -4.4%**, spreads under 0.7%, the forward unchanged at 32.05 ->
+32.12 s, and placements, swept ranges, rate evaluations and refusal identical on all
+four runs -- the same work, which is what makes it a speed-up rather than a
+different answer. In the profile the three land where they were predicted to:
+`marginal_collar_slope` 1,462 -> 737 samples (exactly halved), `QK::integrate`
+4,015 -> 3,666 (-8.7%), and `getenv` gone from the profile.
+
+---
+
+# The gradient's needles, and what they are
+
+Isolated cells of a trait-space grid carry gradients two orders of magnitude
+above their neighbours -- at the worst, an elasticity norm of 1277 against a grid
+median of 6.05, 211x. Chased with the systematic-debugging procedure, because two
+plausible causes turned out to be wrong and a third would have been guessed at
+next.
+
+## Refuted first
+
+* **An elasticity dividing by a near-zero metric.** The census at those cells is
+  ordinary: 8.4 against a grid median of 10.9, and the whole grid spans a factor
+  of two. `cor(log|e|, log(1/value))` is 0.40. The **raw** gradient at the worst
+  cell is 5.0e+07, so the spike is in the gradient and not in the normalisation.
+* **A profit curvature inside its floor.** The interior derivation divides by
+  dM/dp, so a small one inflates the gradient without refusing. All three worst
+  cells still answer with `gradient_curvature_floor` raised a hundredfold to
+  1e-1.
+
+⚠️ **And the first reproduction attempt failed because the trait values were read
+off a rounded printout** -- `hmat` 3.72 instead of 3.72192216625689. That moved
+the elasticity norm from 1277 to 7.22. It is not an aside: it is the measurement
+that says how narrow the feature is.
+
+## What it is
+
+`fraction_allocation_reproduction(h) = a_f1 / (1 + exp(a_f2 * (1 - h/hmat)))`,
+with `a_f2` = 50, is a near-step in height: 0.7% of `a_f1` at 0.9*hmat and 99.3%
+at 1.1*hmat. A cohort grows through that band inside one or two ODE steps. **The
+sweep differentiates the discrete trajectory exactly**, so the gradient is
+dominated by which step caught the crossing -- and that changes discontinuously
+with `hmat`. The integrated census averages over the transition and stays smooth.
+
+Sweeping `hmat` through the worst cell, with `lma` held:
+
+| offset in `hmat` | \|e\| | e[a_f1] | mass |
+|---|---|---|---|
+| -3e-4 | 6.69 | -5.88 | 8.4286 |
+| 0 | **1276.73** | **848.67** | 8.4322 |
+| +3e-4 | 11.97 | 1.10 | 8.4356 |
+| +1e-3 | **1888.61** | **-1069.52** | 8.4435 |
+| +3e-3 | 6.28 | -5.94 | 8.4641 |
+| +1e-2 | **193.93** | 150.22 | 8.5344 |
+
+Isolated needles at irregular spacing, with ordinary values between them, while
+mass runs smoothly and monotonically through the lot. No continuous mechanism
+produces a feature narrower than 3e-4 in a parameter; an unresolved discrete
+event does.
+
+Softening the step confirms it. At the needle cell, against a calm cell as the
+control:
+
+| `a_f2` | \|e\| at the needle | e[a_f1] | \|e\| at the control |
+|---|---|---|---|
+| 50 (default) | **1276.73** | +848.67 | 5.95 |
+| 25 | 7.83 | -7.31 | |
+| 10 | 12.45 | -10.84 | 10.04 |
+| 5 | 8.55 | -7.61 | |
+
+**Halving `a_f2` collapses the needle 163x** and restores the negative sign every
+calm cell has. Softening does not create pathology at the control, so it is the
+sharpness that matters and not the change itself.
+
+## The same edge, in a different disguise
+
+A trait vector that refuses to refine at all -- "Detected non-finite
+contribution" -- bisects to `hmat`+`omega` at a 60-year lifetime. But
+`lma`+`hmat`+`omega` and `rho`+`hmat`+`omega`, which both CONTAIN that pair, run
+fine. **A failure that adding a trait repairs is not a domain violation.** It is
+the same knife-edge: a point the discretisation cannot do, narrow enough that any
+perturbation escapes it.
+
+## What follows
+
+The gradient is not wrong. It is the exact derivative of a trajectory that
+resolves the maturation switch crudely, and this is the same story as the
+finite-difference noise floor of 2.5% and the schedule sensitivity recorded
+above: **differentiating an adaptive solver gives the derivative of the discrete
+map, and near an unresolved event that is not the derivative of the model.**
+
+* The principled repair is event detection -- force a step at `h = hmat` so the
+  crossing is resolved identically every time. That is work in the stepper and
+  nothing here needs it yet.
+* ⚠️ **DO NOT average over the needles, and DO NOT form a covariance from a grid
+  containing one.** A single cell 211x the median dominates any second moment,
+  which is the first thing an active-subspace workflow computes.
+* A gradient far outside its neighbourhood is a *diagnostic*: it marks an
+  unresolved event, and the cheapest response is to nudge the trait a fraction of
+  a percent and take the answer that is stable.
+
+⚠️ **`a_f1` is a poor example to teach with, for the same reason it is the loudest
+column.** It is the amplitude of that switch; with `a_f1` = 1.0 a plant past
+`hmat` puts all of its production into seed and none into wood. Its dominance
+over above-ground mass restates equation 16 rather than finding anything, it is
+not a trait any database reports, and its default sits exactly on the boundary of
+the admissible set, so half of its perturbation direction is meaningless.
+
+## Real species do not fit through this parameterisation
+
+Scoping the fingerprints demo on seven south-eastern Australian woody species --
+the wet sclerophyll to cool-temperate-rainforest gradient, plus the dry
+sclerophyll end -- with representative values for the four traits a database
+reports: `lma`, `rho`, `hmat` and seed mass.
+
+Six of the seven were unusable, in an order that tracks seed mass exactly:
+
+| species | seed mass against the TF24 default | \|e\| |
+|---|---|---|
+| Banksia serrata | 1.6x **above** | **17.62** |
+| Acacia dealbata | 3.5x below | 1.1e+05 |
+| Atherosperma moschatum | 7.6x below | 1.4e+58 |
+| Allocasuarina littoralis | 9.5x below | 1.2e+128 |
+| Nothofagus cunninghamii | 19x below | 0.00 |
+| Eucalyptus regnans | 25x below | 0.00 |
+| Pomaderris aspera | 127x below | would not run |
+
+**The one species with a seed heavier than the default is the only one that
+behaved.** `fecundity_dt` divides by `(omega + a_f3)` and hyperpar sets
+`a_f3 = 3*omega`, so the whole denominator is about `4*omega`: a seed an order of
+magnitude below the calibration point is an order of magnitude more offspring per
+unit of production. `omega` defaults to 3.8e-5 kg and real seeds run one to two
+orders below that.
+
+⚠️ **DO NOT parameterise TF24 from a trait database without checking seed mass
+against 3.8e-5 kg.** The failure is silent at the top of the range -- a plausible
+mass and a gradient of 1e+58 -- and only becomes an error two orders down.
+
+Holding `omega` and `hmat` at their defaults and varying only leaf and wood
+economics gets three of the seven to a stable answer, and the other four onto
+needles: a 0.1% nudge in `lma` moves their gradient by more than 3x, mountain ash
+worst at \|e\| = 60,736. The three that survive are 32-56 degrees apart and agree
+on their largest lever, so the reduced comparison is meaningful as far as it goes.
+
+**What this costs the demo:** a comparative-fingerprints document over named
+species is not buildable on this parameterisation. Either the model is recalibrated
+for the seed masses real species have, or the demo varies only leaf and wood
+economics and states that it is doing so, and still needs the nudge-and-check
+protocol on every row.
