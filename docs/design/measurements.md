@@ -1784,6 +1784,42 @@ throughout and the difference rank one the whole way. **The budget the test
 asserts is one the shipped resolution cannot meet**: 1e-05 is reached somewhere
 past 400 knots.
 
+## What one table bought
+
+G and G^-1 were two tabulations of one function on the same knots with the axes
+swapped, so they agreed at the knots and nowhere between them. Inverting the
+forward table instead makes `P' * G' - 1` exactly zero at any resolution, where
+it had been 3.8e-05 at the shipped 100 knots and O(h^3).
+
+| n | residual before | after | factor |
+| --- | --- | --- | --- |
+| 50 | 1.027e-03 | 4.876e-05 | 21x |
+| 100 (shipped) | **1.781e-04** | **7.966e-06** | **22x** |
+| 200 | 1.078e-04 | 5.217e-06 | 21x |
+| 400 | 2.915e-05 | 1.406e-06 | 21x |
+| 800 | 1.918e-06 | 1.046e-07 | 18x |
+
+Three of the file's five checks now pass, and the leaf-trait referee -- an
+independent instrument, differencing a rebuilt forward model -- improved with
+them, 5.64e-03 to 2.52e-04. The two that remain are the AMPLIFIED directions,
+where the residue is divided by a cancellation the fixture measures at 16.3x:
+1.24x and 1.40x of budget, against 24.1x and 1.60x before. The residue still
+scales with resolution, so it is the forward table's own interpolation error and
+the shipped knot count is what sets it.
+
+Cost: `find_root_collar_psi` 7.38 to 8.46 us, +14.6%. Two Newton steps in 3613 of
+4999 inversions, three in 1165, from a start 1.5e-04 out, final error exactly
+zero. `psi_stem:TF` unchanged -- that path never reads the inverse.
+
+⚠️ AND IT MOVES OUTPUTS, BY UP TO 62%. At zero flux the round trip used to put
+the stem 1e-07 below the collar, which is a reversed gradient the model does not
+have, so there was a spurious infeasible sliver about 1e-06 wide above bound_a --
+and the leaf's wet-bound pins sit inside it, 6.1e-07 to 1.3e-06 above the bound.
+Their flux is tiny, so where the pin sits is a large relative change in
+assimilation. Every golden point that moved is a `boundary-soil` pin in that
+band; every `interior` point, 0.04 to 0.46 away, is untouched. The pins were
+being placed by the two tables' round-trip error rather than by the model.
+
 ⚠️ THE KNOB IS THE PATCH'S `control`, NOT ITS `parameters`. `ladder_parameters()`
 returns no `$control` at all, so setting `ncontrol` there changes nothing and
 every row of the sweep comes back byte-identical -- which reads exactly like a
