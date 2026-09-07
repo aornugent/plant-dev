@@ -197,6 +197,24 @@ spans over storing another vector; if a member must be added, print
 
 The main cost is the **C++ rebuild** for any change.
 
+⚠️ **`pkgbuild::compile_dll()` DEFAULTS TO `debug = TRUE`, WHICH BUILDS AT `-O0`
+WITH `-UNDEBUG -Wall -pedantic`.** It is 5x slower to run and it MOVES THE
+TRAJECTORY -- an -O0 build of plant solved a shaded stand in 680 s against 126 s
+and recorded 10879 steps against 11722, because `-O0` does not contract `a*b + c`
+into an FMA. Both readings were nearly attributed to the change under test.
+**Pass `debug = FALSE`, and read the `-O` flags out of the build log before
+comparing a run against a recorded number.**
+
+⚠️ **`pkgload::load_all()` AFTER A HEADER EDIT RUNS `R CMD INSTALL --preclean`,
+WHICH DELETES `plant/src/*.o`.** It compares the newest source against the
+library, so a one-line comment in a header is enough — and the cached objects
+`pkgbuild::compile_dll()` left are gone, so the next build is a full one whatever
+you do next. Two full rebuilds were spent this way. **Finish editing, then build,
+then run**: never edit a header between `compile_dll()` and the script that loads
+it. Where a header edit is unavoidable mid-loop, rebuild deliberately with
+`Rscript -e 'pkgbuild::compile_dll("plant")'` before the run, so the cost is paid
+once and visibly rather than inside a script that looks like it is only loading.
+
 `plant` carries about 3,960 testthat assertions across 75 files, but running all of
 them per edit is wasteful. The gradient ladder is the expensive tier — 18 files,
 **61 s of wall** measured at `-O2` — and everything else is 57 files and about

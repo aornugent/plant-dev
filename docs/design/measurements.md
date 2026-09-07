@@ -1856,3 +1856,185 @@ solver's tolerance, not at the step size. Measured:
 The ladder's own block difference is the instrument that works, because uptake is
 dominated by the direct channel and the collar's quantisation is a small part of
 the OUTPUT even though it is the whole of `dcollar/dpsi`.
+
+# The unnamed NaN, named
+
+D closed the drought reproduction. On the same box, at the same drivers, and with
+nothing else changed:
+
+| driver | before D | after D |
+| --- | --- | --- |
+| drought, lifetime 5 | 135 / 138 | **0 / 138** |
+| wet, seasonal | 0 / 138 | 0 / 138 |
+| shaded (k_I 20), clamped (k_I 40) | non-finite | non-finite |
+
+`ODELIA_ADJOINT_TRACE` on the drought stand prints nothing at all, so the sweep
+carries no non-finite adjoint anywhere in it. The gradient suite's remaining
+eight failures are then two things and not one: six are this NaN on other
+drivers, and two are the water rows' resolution dependence above.
+
+## It is TWO regimes, not one, and only one of them is a state
+
+Measured over the recorded trajectory itself -- every state the sweep replays,
+counted for non-finite entries:
+
+| driver | records | carrying a non-finite state | forward tally |
+| --- | --- | --- | --- |
+| wet | 522 | 0 | interior |
+| drought | 3820 | 0 | interior, boundary-crit |
+| dry, lifetime 10 | 4991 | **0** | interior, boundary-crit |
+| shaded, k_I 20 | 11722 | **9545 of 11722** | interior, shade-death |
+| clamped, k_I 40 | 11028 | **10769 of 11028** | interior, shade-death |
+
+So the two shade drivers record a trajectory that is not differentiable, and the
+lifetime-10 dry stand -- 135 of 138 non-finite, no refusal -- records one that
+is. They are separate problems and were being read as one.
+
+## What the shade drivers carry, and where it is written
+
+Nine nodes of 88 at k_I = 20, ten of 88 at k_I = 40, in exactly two slots:
+
+    mortality    = +Inf
+    log_density  = -Inf
+
+Both appear at an INTRODUCTION row -- two records at the same time, t = 1.5 --
+and the record before it holds mortality 0.32216592 and log_density 2.4738867.
+So it is not integration: `Node::compute_initial_conditions` writes both, from
+one establishment probability of exactly zero.
+
+    individual.set_state("mortality", -log(pr_estab));       // +Inf
+    set_log_density(density_at_birth > 0 ? log(density_at_birth)
+                                        : value_type(log(0.0)));
+
+`TF24_Strategy::establishment_probability` returns a literal `0.0` wherever net
+mass production is non-positive, which deep shade reaches. The density half of
+that case is already constructed deliberately, with a comment saying why; the
+hazard half is `-log(0)` and was not.
+
+## Why nothing declared it
+
+Every reader of the hazard is guarded, so the forward model is correct at +Inf
+and says nothing:
+
+* `Node::survival_individual` reads `exp(-mortality)`, which is exactly zero for
+  anything past 745.14, and tests `is_finite` on the result.
+* `TF24_Strategy::mortality_dt` tests `is_finite(cumulative_mortality)` and
+  returns a constant `0.0`, so the state does not move again.
+* `Individual::log_density_rate` is `-mortality_dt` on the birth-date
+  coordinate, so log_density does not move either.
+* `Patch::check_finite_ode_state` tests the cohort DENSITY -- `exp(-Inf)` is 0,
+  which is finite -- and the environment's own states. Six of the eight slots a
+  node carries are not looked at.
+
+Held at 750 instead, because `exp(-x)` is exactly zero past 745.14: every reader
+of the hazard then reads the number +Inf gave it, and the state is finite.
+
+⚠️ AND THE PARKED RATE HAS TO BE KEYED ON THE CEILING, not left on `is_finite`.
+`mortality_dt` returns a constant zero for a cohort whose hazard is not finite,
+and that is what stops the state moving again; a finite hazard passes that test,
+so the rate returns and each held cohort integrates
+`a_dG1 + mortality_growth_independent_dt` ~= 5.5/yr against `ode_tol_rel` 1e-4 --
+a different run from the one +Inf produced, through `log_density_dt`, `yerr` and
+so the step the controller chooses. Keyed on the ceiling instead, in all three
+strategies, the value AND the rate are what +Inf gave.
+
+⚠️ NO TIMING WAS MEASURED FOR THAT, AND A FIRST PASS HERE CLAIMED ONE. The
+shaded solve read 126 s before and 680 s after, and the cause is neither the
+sentinel nor the rate: `pkgbuild::compile_dll()` defaults to `debug = TRUE` and
+builds at **-O0 with -UNDEBUG**, where every earlier measurement in this file
+came from an -O2 build. That also moves the trajectory -- 10879 records against
+11722, and the operating-point tally by 7% -- which is this repo's own documented
+FMA-contraction difference and not the change under test. **Read the -O flags out
+of the build log before comparing a run with a recorded one.**
+
+## The sweep does not meet a bad step; it arrives at one already enormous
+
+With the trace reporting the magnitude one step above the failure:
+
+    step 10861 of [9941, 10878], entry 624 of 714, worst |lambda| one step
+    above 1.65665e+295
+
+The range's top is 10878 and the seed the sweep starts from is the census's own,
+measured clean. So **lambda reaches 1.66e+295 within 17 steps** -- about 1e+17
+per step -- and the next multiplication overflows, after which Inf - Inf is
+not a number. That disposes of the reading this file carried from the drought
+stand, where the soil adjoint looked flat and then not a number: flat was the
+range below, and the growth is in the range above it.
+
+`entry 624 of 714` is node 79's height on both drivers, which is the last node
+before the block of held cohorts at k_I = 20 and inside it at k_I = 40.
+
+## What the finite hazard bought, and what it did not
+
+Every recorded state is finite now, on all five drivers, and the forward run is
+unchanged -- the two shade drivers come back with the same record count, step
+count, cohort count and operating-point tally as the -O2 runs taken before the
+change:
+
+| driver | records | steps | tally | non-finite states |
+| --- | --- | --- | --- | --- |
+| shaded k_I 20 | 11722 | 11634 | interior 10386508, shade-death 1201107 | **0** |
+| clamped k_I 40 | 11028 | 10940 | interior 9295667, shade-death 1434291 | **0** |
+| dry lifetime 10 | 4991 | 4898 | interior 5319036, boundary-crit 26903 | 0 |
+| wet | 522 | 434 | interior 222709 | 0 |
+| drought | 3820 | 3732 | interior 3496882, boundary-crit 345393 | 0 |
+
+**AND THE GRADIENT IS STILL NOT A NUMBER ON THREE OF THEM** -- 135 of 138 on
+shaded, clamped and dry-10, wet clean. The infinite state was a real defect and
+it was not this one: the sweep overflows.
+
+## The amplifier, located
+
+`max|J|` of the 714x714 tangent Jacobian, at 18 records spread over the final
+range of the shaded stand, is **2.019e+07** at every one of them, always in the
+same entry:
+
+    node 79 mortality  <-  node 79 storage
+
+with the worst column sum, 4.06e+07, on that same storage slot. Sustained rather
+than a spike, and node 79 is the entry the trace names on both shade drivers.
+
+The route is the only one the model has from storage to mortality:
+`mortality_dt = a_dG1 * exp(-a_dG2 * r)` at `r = storage / storage_capacity`, so
+the derivative carries `a_dG1 * a_dG2 / storage_capacity` -- 110 over the storage
+capacity of a seedling that is dying in deep shade.
+
+The forward pass survives it because the controller resolves the STATE: it is
+crawling at `h = 2.248e-06` through this stretch, which is what makes the shaded
+stand 11722 steps against wet's 522. The sweep has no such control. It is a
+product of step Jacobians, `h * max|J|` is 45.4 per step at that step size and
+3.7e+05 at the 0.0185 the failing step took, and 17 of those reach 1.5e+295.
+
+So this is the model's own stiffness, reported faithfully. The census really is
+that sensitive to node 79's storage in the linearised model, and no arithmetic in
+the transpose is wrong.
+
+⚠️ AND `drought` HAS 345393 DRY PINS AGAINST DRY-10's 26903 AND IS CLEAN, so the
+incidence of an amplified branch is not what decides this. What differs is how
+long the sweep multiplies: 10 years against 5.
+
+## Ruled out, each by measurement
+
+* **The Jacobian at every stage state of the offending step.** The adjoint step
+  re-runs the whole RKCK step on a tape, so it evaluates `derivs` at six stage
+  states, five of which no record holds -- the earlier "finite at every recorded
+  state" measurement does not cover them. Reconstructed from the tableau and
+  measured at all six, on both drivers: **rates finite, tangent Jacobian
+  714x714 finite, trait Jacobian 714x46 finite**, on the shaded step whose state
+  carries 18 non-finite entries and on the dry-10 step whose state carries none.
+* **The reverse of the same six evaluations.** `ladder_rhs_adjoint` at each stage
+  state, seeded flat: finite, no refusal, and agreeing with the tangent's column
+  sums to **3.2e-11 to 1.4e-10**. So one evaluation transposes cleanly in both
+  directions at every stage of the step the sweep breaks on, which puts what
+  breaks in the whole-step recording rather than in any evaluation of it.
+* **The insertion transpose.** The trace prints one line per range. Where the
+  reported step is the range's own `k_last` the adjoint arrived non-finite from
+  the range above, which is propagation; the two origins reported here are 17 and
+  196 steps below their range's top.
+* **A new branch.** No sweep sets `non-finite-gradient` on any driver, and the
+  tally after the sweep is twice the forward run's in every kind -- so the replay
+  classifies every point the way the run did.
+* **The root vulnerability integral's cap.** It fires 5087 times at k_I = 20 and
+  2962 at k_I = 40, against zero on wet and drought, so it is the one clamp that
+  tracks the affected drivers. It is not the cause: the lifetime-10 dry stand
+  never reaches it and fails anyway.
