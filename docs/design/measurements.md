@@ -1705,7 +1705,49 @@ floor under a tiny one, so the collar's rows are amplified about a millionfold:
 imprecision at that margin passes through, and it is where the run is when the
 NaN appears.
 
+## It is the transpose, in the soil channel
+
+`census_trait_gradient` also returns `at_first_state`, the reverse pass's adjoint
+with respect to the FIRST recorded state, which `stand_gradient` drops. That state
+is the environment's ten entries: five soil moistures, then five cumulative-flux
+accumulators.
+
+| lifetime | steps | soil adjoint | flux adjoint | trait rows |
+| --- | --- | --- | --- | --- |
+| 3.0 | 843 | 3.990e-03 | 0 | 1.984e+03 |
+| 4.0 | 2385 | 3.302e-04 | 0 | 8.658e+02 |
+| 4.5 | 3359 | 3.231e-03 | 0 | 2.573e+03 |
+| 4.7 | 3446 | 1.601e-03 | 0 | 1.206e+03 |
+| 4.9 | 3488 | 1.519e-03 | 0 | 1.293e+03 |
+| 5.0 | 3598 | **NaN** | 0 | **NaN** |
+
+All five soil columns go together; the five accumulators are exactly zero
+throughout, because the census does not read them. `ranges` is 88 either way.
+
+**It is a discrete event in the 110 recorded steps between t = 4.9 and t = 5.0,
+not accumulation**: the soil adjoint is flat at order 1e-03 through 3488 steps and
+then not a number at 3598.
+
 ## Ruled out by measurement
+
+* **The forward block, at every state the sweep visits.** `set_ode_state` to each
+  of the 3598 recorded states in turn and take the block Jacobian: **every one
+  finite**, including the terminal state at the lifetime that produces the NaN. So
+  the tangent is clean where the transpose is not.
+* **The leaf's own adjoint surface.** 342 points at plant's own conductance
+  (kmax 3.1e-05), one, three and five layers, soil closing on the dry margin,
+  driven the way `record_leaf_outputs` drives it -- tape, `collar_at`,
+  `outputs_at`, seeded on profit and every layer's uptake. **No non-finite input
+  adjoint anywhere.**
+* **A new branch.** The operating-point tally is `interior` and `boundary-crit`
+  at both lifetimes and nothing else; the clamps are `storage_floor`,
+  `reserve_ceiling` (16 at both) and `rooting_depth` at both. Nothing turns on.
+* **The soil retention cap.** `psi_from_soil_moist` saturates at 1000 MPa for
+  theta below about 0.05. The trajectory's driest layer is **0.1331 at 4.9 and
+  0.1329 at 5.0** -- 3.83 and 3.88 MPa, nowhere near it.
+* **Exponential growth in the reverse pass.** See the table above: flat, then NaN.
+* **Call order and nondeterminism.** 135 of 138 in all five of gradient alone,
+  twice on one object, accessors first, a fresh object either way.
 
 * **The kink sentinel at a wet bound.** `duptake_dpsi` returns NaN by contract
   where its analytic branch is not valid, `supply_draw_at` stored it per layer,
