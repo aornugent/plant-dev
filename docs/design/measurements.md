@@ -1684,3 +1684,64 @@ introduction and transposes the map that took it.
   same already-NaN rows and changes nothing else: 44 columns become 45.
 * **A metric-level cause.** All three metrics go together, which is what one NaN
   in a shared accumulator does rather than three separate failures.
+
+# The water rows carry the leaf's spline resolution
+
+`test-gradient-ladder-factorisation.R` reports the supplied `uptake x psi_soil`
+block against a difference of the double path at 1.78e-04 relative, against a
+budget of 1e-05. The disagreement is entirely in the COLLAR CHANNEL, and it is
+the vulnerability curve's interpolation error.
+
+## Measured against the leaf's knot count
+
+`ladder_patch(..., control = ladder_control(vulnerability_curve_ncontrol = n))`.
+
+| n | residual | reference spread | second singular value |
+| --- | --- | --- | --- |
+| 50 | 1.027e-03 | 8.8e-07 | 6.9e-08 |
+| 100 (shipped) | **1.781e-04** | 1.2e-08 | 5.1e-07 |
+| 200 | 1.078e-04 | 1.5e-08 | 6.2e-07 |
+| 400 | 2.915e-05 | 3.4e-08 | 2.7e-06 |
+| 800 | 1.918e-06 | 1.3e-08 | 2.2e-05 |
+
+535x over a 16x resolution increase, with the reference resolved at ~1e-8
+throughout and the difference rank one the whole way. **The budget the test
+asserts is one the shipped resolution cannot meet**: 1e-05 is reached somewhere
+past 400 knots.
+
+⚠️ THE KNOB IS THE PATCH'S `control`, NOT ITS `parameters`. `ladder_parameters()`
+returns no `$control` at all, so setting `ncontrol` there changes nothing and
+every row of the sweep comes back byte-identical -- which reads exactly like a
+resolution-independent residual. The check that the knob bites is
+`max|block(50) - block(800)|`, which is 5.7 against a block whose largest entry
+is 5.9e+05.
+
+## Ruled out, each by measurement
+
+* **The per-layer collar slopes.** `duptake_dp` and `flux.slope` against a
+  difference of `uptake_at` at a GIVEN collar -- no root-find, referee converged
+  to ~1e-10 -- agree to **3.9e-12 to 1.1e-11**. The `u` side of the rank-one
+  channel is exact, so the whole error is in `dcollar/dpsi`.
+* **The curvature's step size.** The central difference `marginal_collar_slope`
+  takes is converged: the spread over h in {1e-4, 1e-5, 1e-6} is 4.1e-06 to
+  1.3e-05, which is 18x too small to carry a 1.78e-04 error.
+* **The stem spline against its inverse.** `1/G'(psi)` versus `P'(G(psi))` is
+  2.7e-08 to 4.9e-07 at the collars these fixtures actually sit at (1.16 to 1.51
+  MPa). The 2.36e-05 worst over [0.1, 5.0] MPa is at the DRY end and describes no
+  operating point here -- a worst-case quoted at a point the model never reaches
+  is not evidence about the point it does.
+
+## Two instruments that cannot referee this, and why
+
+Differencing anything whose value is placed by a root-find is quantised at that
+solver's tolerance, not at the step size. Measured:
+
+* `dcollar/dpsi_soil` by re-solving the leaf at a bumped layer: the referee's own
+  spread over three steps is **4.4e-04 to 1.3e+06**, against a disagreement of
+  1e-03. It resolves nothing.
+* `dM/dpsi_soil` by differencing `dprofit_at_collar_psi` at a fixed collar: spread
+  1.8e-03 to 3.9e-02, against a disagreement of 1.7e-04 to 6.5e-03. Also nothing.
+
+The ladder's own block difference is the instrument that works, because uptake is
+dominated by the direct channel and the collar's quantisation is a small part of
+the OUTPUT even though it is the whole of `dcollar/dpsi`.
