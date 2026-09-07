@@ -1667,10 +1667,43 @@ imply a refusal, and nothing checks.
 | wet, lifetime 5 | finite | 0 / 2142 | 0 / 138 | 0 / 138 |
 
 The seed the reverse pass starts from and the census's own direct reading of the
-traits are both clean at every lifetime. **The reverse sweep introduces it**, and
-only past a patch lifetime of 4.5 on drought -- the window that takes the cohort
-count from 706 to 714, i.e. one introduction. `solve_adjoint` narrows across each
-introduction and transposes the map that took it.
+traits are both clean at every lifetime. **The reverse sweep introduces it.**
+
+Narrowed by patch lifetime, holding everything else:
+
+| lifetime | nan | nodes | steps | state |
+| --- | --- | --- | --- | --- |
+| 4.5 | 0 | 87 | 3359 | 706 |
+| 4.6 | 0 | 88 | 3446 | 714 |
+| 4.9 | 0 | 88 | 3488 | 714 |
+| 5.0 | **135** | 88 | 3598 | 714 |
+
+⚠️ NOT AN INTRODUCTION. The node count and the state size are already 4.6's at
+every later lifetime, and 4.6 is clean. What separates 4.9 from 5.0 is 110 more
+recorded steps and nothing structural, so it is a state the trajectory reaches in
+the last tenth of the patch's life and not a range the sweep narrows across.
+
+Deterministic and independent of call order: 135 of 138 in all five of gradient
+alone, gradient twice on one object, accessors first, a fresh object with
+accessors first, and a fresh object with the gradient alone.
+
+## Where the drought run is at that age
+
+The dry bound binds there, and it is heavily amplified. Measured single-layer at
+plant's own conductance (kmax 3.1e-05, not the leaf fixtures' 0.2, which is six
+thousand times more conductive and never reaches this kind at all): 301
+`boundary-crit` points, all at psi_soil between 5.45 and 5.87 MPa -- against
+root_psi_crit 5.8703 -- and the theorem there divides by
+
+    dT_dx = -kmax * G'(x) - dflux_dx
+
+which runs **-2.1e-06 to -5.7e-06**. Both terms collapse together as the soil
+closes on the margin. `implicit_value` refuses a NON-FINITE denominator and has no
+floor under a tiny one, so the collar's rows are amplified about a millionfold:
+`dcollar/dkmax` runs 812 down to 30 across that band. Finite at every one of the
+301 points, so this is not by itself the NaN -- but it is the amplifier any
+imprecision at that margin passes through, and it is where the run is when the
+NaN appears.
 
 ## Ruled out by measurement
 
