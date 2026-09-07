@@ -2010,8 +2010,54 @@ that sensitive to node 79's storage in the linearised model, and no arithmetic i
 the transpose is wrong.
 
 ⚠️ AND `drought` HAS 345393 DRY PINS AGAINST DRY-10's 26903 AND IS CLEAN, so the
-incidence of an amplified branch is not what decides this. What differs is how
-long the sweep multiplies: 10 years against 5.
+incidence of an amplified branch is not what decides this. Nor is the peak:
+measured over each driver's final range,
+
+| driver | worst `max|J|` | worst `h*max|J|` | shape | full-width records | gradient |
+| --- | --- | --- | --- | --- | --- |
+| drought | **2.479e+05** | **1041** | one spike, back to 1.2e+04 | 327 | clean |
+| dry lifetime 10 | 4.779e+04 | 210 | sustained | 820 | NaN |
+| shaded k_I 20 | 2.019e+07 | 3.7e+05 | sustained, flat | 889 | NaN |
+
+The clean driver's peak is FIVE TIMES the failing one's. What separates them is
+the product over the range -- sustained against transient, over two to three
+times as many steps. The amplified column is `storage` on all three; only the
+row differs, `height` on the dry drivers and `mortality` on the shade ones.
+
+## And the sweep that WORKS also passes through 1e+281
+
+`ODELIA_ADJOINT_TRACE=steps` on the drought stand, which returns a clean
+gradient:
+
+| where | worst `|lambda|` |
+| --- | --- |
+| the census seed, step 3819 | 0.542629 |
+| step 3520, same range | 1.715e+278 |
+| the range's own worst | **4.99978e+281** |
+| step 3219, the range below | 3.686e+46 |
+| what the sweep returns | ~1e-03 state, ~1e+03 trait |
+
+**So the growth is a TRANSIENT and it contracts again.** The gradient is order
+1e+03; the sweep reaches 1e+282 on the way to it and comes back. Double's range
+is 1.8e+308, so drought survives with 26 orders of margin and the shade drivers,
+at 1.5e+295, do not.
+
+Two things follow, and they are what any remedy has to start from:
+
+* **This is not an enormous gradient, and it is not wrong arithmetic.** Every
+  finite check in this file holds: one evaluation's Jacobian is finite and
+  transposes to 1e-10 in both directions, and the answer the surviving drivers
+  return agrees with a difference of whole runs. What fails is the range of a
+  double over an intermediate.
+* **The blowing-up direction contributes almost nothing to the answer.** A
+  1e+282 intermediate reduced to 1e+03 with no cancellation of 279 digits means
+  the trait rows barely couple to the component carrying it -- which is the
+  storage direction of one dying cohort. So the overflow is in a direction the
+  gradient does not need.
+
+⚠️ EVERY CLEAN DRIVER IS CLEAN BY MARGIN, NOT BY KIND. `wet` is genuinely small,
+but `drought` is 26 orders from the same failure, so a driver that passes today
+says nothing about one a search will walk into tomorrow.
 
 ## Ruled out, each by measurement
 
