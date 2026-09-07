@@ -336,7 +336,7 @@ Do not re-propose these. Each cost a session.
 
 | refused | the measurement |
 |---|---|
-| **a tangent above the adjoint** (`FReal<AReal>`) | the three kernels cost **31 statements at the working scalar and 566 nested** -- 18.3x, because `FReal` assigns value and derivative separately and the expression template cannot fuse across it |
+| **a tangent above the adjoint** (`FReal<AReal>`) | the three kernels cost **31 statements at the working scalar and 566 nested** -- 18.3x. ⚠️ The stated cause is 5 of 8 statements a node costs: `BinaryExpr` stores its operands and its cached value BY VALUE and `value()`/`derivative()` return `Scalar` by value, so at `Scalar = AReal` each pass is a recorded statement -- 3 tree-build, 2 value, 3 derivative. The unnamed 3 make the cost SUPERLINEAR in depth, so **fusing a nested expression makes it worse**: one fused nest measured 160 against 99 flat. Flatten it, never fuse it |
 | **three metrics in one walk** (`xad::adj<T,3>`) | **1.15x to 0.97x** (odelia `828cd83`): the statement walk is shared but the derivative scatter is N times the bytes, and they cancel. It may also no longer compile |
 | **a dense block for all six outputs** | six sweeps against three walks: 39 us against 34 |
 | **moving the tape rather than shrinking it** | **recording costs 16x sweeping**, so where the tape lives argues about a sixteenth of the cost |
@@ -522,6 +522,13 @@ stated assumption that a supplied row costs a statement each. With `pushAll` it 
 `n_out`. The counterfactual it prints is **31x too pessimistic**, and every design
 conversation here has read a number that argued the wrong way.
 
+⚠️ **BUT THE `+=` SPELLING IS THE ONLY ONE THAT COSTS n, AND `graft.hpp` NEVER USED
+IT.** An XAD expression template assigned ONCE is one statement however wide it is,
+so `graft_curve`'s longhand sum of three `slope * (x - to_passive(x))` terms is
+already 1 statement and 3 operations -- measured bit-identical to the primitive in
+value and all three rows. The case for one spelling there is the zero-row skip and
+the finiteness gate, not the tape. Nothing is bought by rewriting it for speed.
+
 ### Scoped: what the primitives cost, and the one that changes the plan
 
 Measured against `odelia/src/Tape.cpp` at `adj<double>`, not derived.
@@ -531,13 +538,23 @@ one passive input with a live row plus one zero row:
 
 | n | today | with `pushAll` |
 |---|---|---|
-| 1 | 3 statements, 3 operations | **2, 2** |
-| 5 | 7, 11 | **2, 6** |
-| 31 | 33, 63 | **2, 32** |
+| 1 | 3 statements, 3 operations | **1, 1** |
+| 5 | 7, 11 | **1, 5** |
+| 31 | 33, 63 | **1, 31** |
 
-Two rather than one because `into = out` is a second statement and `slot_` is private
-with only `Tape` a friend. The order is **value -> `pushAll` -> `registerOutput`**,
-which is XAD's own assign order with the last two fused. Reverse mode only.
+⚠️ **ONE, NOT THE TWO PROJECTED HERE.** This said two because `into = out` looked
+like a second statement; a MOVE-assign of an active records nothing, so the built
+form is `1, n` at every n. Landed in `implicit_node.hpp` and guarded in
+`tests/standalone/r_free.cpp` at n = 1, 5 and 31. The order is
+**value -> `pushAll` -> `registerOutput`**, which is XAD's own assign order with the
+last two fused.
+
+⚠️ **AND IT IS REVERSE MODE ONLY, WHICH IS A BRANCH ON THE SCALAR AND NOT ON THE
+TAPE.** Everything on this boundary is instantiated at three scalars -- `double`,
+a direction and an adjoint -- because the transpose identity's forward side runs
+the whole leaf at `FReal`. A primitive that reads `S::tape_type` unconditionally
+does not compile there, and one that tests for an active tape instead returns a
+value with every row silently missing.
 
 ⚠️ **Four hazards, all reproduced, all of which must live inside the primitive.** A
 passive input's slot is `slot_type(-1)` and the sweep indexes without a bounds check,

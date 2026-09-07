@@ -1557,3 +1557,77 @@ species is not buildable on this parameterisation. Either the model is recalibra
 for the seed masses real species have, or the demo varies only leaf and wood
 economics and states that it is doing so, and still needs the nudge-and-check
 protocol on every row.
+
+---
+
+# The upstream merge cost the reverse gradient 2.26x, and the forward 11% less
+
+Interleaved A/B, one machine, one session, arms alternating, two reps each, a cold
+process per rep. Arm A is `ad/v3-forward`'s pre-merge tip (odelia fec3b00,
+phylloptim 33e0048, plant c085582d), arm B its merged tip; both built at `-O2 -g`
+with `R CMD INSTALL` into their own private library.
+`scripts/profile-stand-reverse.R`.
+
+| arm | forward_s | gradient_s | ratio |
+|---|---|---|---|
+| A pre-merge | 50.79 / 50.99 | 192.61 / 187.40 | 3.8 / 3.7 |
+| B merged | 45.46 / 45.44 | 428.35 / 429.31 | 9.4 / 9.4 |
+
+`steps` 3378, `rate_evaluations` 20,268, `placements` 2,330,530, `swept_ranges`
+169, `refusal` none on all four -- the same trajectory doing the same work.
+
+**The forward got FASTER.** The regression is entirely on the reverse path.
+
+⚠️ **THIS MACHINE IS ~1.56x SLOWER than the one the sections above were taken on**:
+it runs the pre-merge arm at 50.8 s forward where they record 32.5 s. Absolute
+seconds here are not comparable to them; the RATIO is, which is why the ratio is
+the number to read. And the branch had already drifted 3.2 -> 3.8 before the merge,
+so "3.2 against 9.4" is two regressions read as one.
+
+## Where it went, counted rather than timed
+
+One interior placement, five soil layers, `CostCurve::TF24`, from
+`probe_leaf_tape` on arm A and a port of it to the merged surface:
+
+| | pre-merge | merged | |
+|---|---|---|---|
+| the supply draw | 187 stmt / 320 ops | 123 / 256 | 0.66x -- cheaper |
+| **`collar_at`** | **99 / 184** | **1251 / 1452** | **12.6x** |
+| `outputs_at` | 74 / 132 | 618 / 755 | 8.4x |
+| **one placement** | **360 / 636** | **1992 / 2463** | **5.5x** |
+
+Arm A measures `one-order.md`'s budget exactly. The merged tip is 5.5x that and
+2.3x worse than the 861 statements that work replaced. `collar_at` is 1251 at one,
+three AND five layers, so it is a fixed per-placement cost.
+
+⚠️ The two arms' probe fixtures are not the same physical leaf -- arm A's drivers
+place no feasible interior point on the rebuilt surface, so arm B uses
+`test_transpose.cpp`'s. Statement counts are structural, and 12.6x is far outside
+what a fixture explains, but the operating points differ in value.
+
+## The cause is a tangent above the adjoint, which one-order.md forbids by name
+
+`marginal_at` lifts the cost kernel to `tangent_scalar<S>` where `S` already
+carries an adjoint, to take `dC/dsigma` from upstream's own kernel rather than
+from a slope written out beside it. That is the construction "What this forbids"
+prices at 18.3x, and about 535 of `collar_at`'s 1,152-statement growth is it.
+
+**It is a correctness trade, not a mistake.** The assembly it replaced needs four
+significant digits held through a 1e+05 cancellation and then multiplied by
+8.1e+04, and returns an eighth of the answer with the right sign. What went wrong
+is that the trade was never priced -- and `probe_leaf_tape`, the instrument that
+prices it, was cut by the merge's own first commit.
+
+## Ruled out, each by measurement
+
+* **The central-difference curvature.** `marginal_collar_slope` costs two
+  `dprofit_at_collar_psi` evaluations and the code warns this pattern once made a
+  century stand 191 s against 32 s -- but `collar_at` guards it with
+  `if constexpr`, plant computes it once and passes it in, and the profile puts it
+  at **4.7 s, 1.0%**.
+* **The forward paying for the reverse.** `record_leaf_outputs` is called only
+  under `if constexpr (!std::is_same_v<S, double>)`, and the forward got faster.
+* **The 19-slot parameter pack.** An active assigned from a double takes no slot
+  and records nothing.
+* **Long-double libm.** `powl_helper` and `__ieee754_logl` are genuinely on the
+  active path and total ~3-6 s of 451.
