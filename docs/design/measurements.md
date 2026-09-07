@@ -1631,3 +1631,56 @@ prices it, was cut by the merge's own first commit.
   and records nothing.
 * **Long-double libm.** `powl_helper` and `__ieee754_logl` are genuinely on the
   active path and total ~3-6 s of 451.
+
+# A NaN in the census gradient that nothing named
+
+Three of five census drivers -- `drought`, `shaded`, `clamped` -- return NaN in
+every trait column of all three metrics, and `stand_gradient_refused()` reports
+nothing refused. `wet` and `seasonal` are clean.
+
+45 of the 46 columns go. The survivor is `a_f3`, the one column declared zero by
+construction because it reaches no metric the census reads -- so it is the only
+one that never touches the accumulator the NaN is in.
+
+## The invariant is documented and enforced nowhere
+
+`stand_gradient`'s own documentation states it: "A refused metric's whole row is
+NaN ... Every other number is one the sweep computed, an exact zero included."
+Both halves of the enforcement are missing.
+
+* `census_trait_gradient` (scm.h) fills a row with NaN **on a declared refusal**
+  and otherwise copies `trait_adjoint` out verbatim. An arithmetic NaN in the
+  accumulator is returned as a number the sweep computed.
+* `record_leaf_outputs`' `carry` validates the row it HANDS OVER, which is the
+  constant `1.0` and therefore always finite. A sentinel already on the tape
+  behind `from` passes `record_report::whole` and never reaches `refuse`.
+
+So the contract holds in one direction only: a refusal implies NaN. NaN does not
+imply a refusal, and nothing checks.
+
+## Where the NaN is, by measurement at each boundary
+
+| driver | census | census seed | direct term | gradient |
+| --- | --- | --- | --- | --- |
+| drought, lifetime 1--4.5 | finite | 0 / 2142 | 0 / 138 | 0 / 138 |
+| drought, lifetime 5 | finite | 0 / 2142 | 0 / 138 | **135 / 138** |
+| wet, lifetime 5 | finite | 0 / 2142 | 0 / 138 | 0 / 138 |
+
+The seed the reverse pass starts from and the census's own direct reading of the
+traits are both clean at every lifetime. **The reverse sweep introduces it**, and
+only past a patch lifetime of 4.5 on drought -- the window that takes the cohort
+count from 706 to 714, i.e. one introduction. `solve_adjoint` narrows across each
+introduction and transposes the map that took it.
+
+## Ruled out by measurement
+
+* **The kink sentinel at a wet bound.** `duptake_dpsi` returns NaN by contract
+  where its analytic branch is not valid, `supply_draw_at` stored it per layer,
+  and `outputs_at` grafted `NaN * step` onto every layer's uptake. That is a real
+  defect, it took 396 of 396 shade-death points in phylloptim's own sweep, and
+  fixing it left plant's counts **unchanged to the digit** -- `drought` has no
+  shade-death arm at all.
+* **The radiation row.** Attaching it moves `1.k_I` from finite to NaN in the
+  same already-NaN rows and changes nothing else: 44 columns become 45.
+* **A metric-level cause.** All three metrics go together, which is what one NaN
+  in a shared accumulator does rather than three separate failures.
