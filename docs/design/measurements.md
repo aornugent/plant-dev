@@ -2084,3 +2084,148 @@ says nothing about one a search will walk into tomorrow.
   2962 at k_I = 40, against zero on wet and drought, so it is the one clamp that
   tracks the affected drivers. It is not the cause: the lifetime-10 dry stand
   never reaches it and fails anyway.
+
+
+# Declared, and a knot count raised
+
+The gradient suite, over the four changes this file records:
+
+| | pass | fail | error | skip |
+| --- | --- | --- | --- | --- |
+| before D | 647 | 15 | 1 | 11 |
+| after D | 694 | 8 | 0 | 5 |
+| after the finite hazard | 699 | 8 | 0 | 5 |
+| after declaring, at 400 knots | **716** | **0** | **0** | 5 |
+
+## The descent's overflow is a refusal now
+
+`odelia::util::AdjointRangeError` -- its own type, beside `DomainError`, because a
+descent leaving the range a double holds is neither a bug nor a state the model
+has no meaning for. `sweep_range` raises it at the FIRST non-finite entry rather
+than carrying it; `census_trait_gradient` catches it BY TYPE and refuses every
+metric, naming no species, because what overflowed is an intermediate of one
+recording spanning every cohort in every stage.
+
+The check is unconditional now, where it was gated on `ODELIA_ADJOINT_TRACE`. It
+costs one pass over the seeds per step -- 3 x 714 doubles against a sweep of
+640 s -- and it is what makes the contract hold in the direction it did not: a
+refusal implied a NaN, and now a NaN implies a refusal.
+
+`parity_known_gaps` has its first entry. `shaded` and `clamped` are named there
+and in the reference rung; the lifetime-10 dry stand is named in the incidence
+rung. All three refuse for the range and nothing else does.
+
+## 400 knots, and what it cost
+
+| | 100 knots | 400 knots | factor |
+| --- | --- | --- | --- |
+| `set_traits`, no rebuild | 0.065 us | 0.066 us | 1.0x |
+| `set_traits`, spline rebuild | 110.9 us | 440.4 us | **4.0x** |
+| `find_root_collar_psi` | 8.64 / 8.53 / 8.41 us | 8.38 / 8.42 / 8.69 us | **1.0x** |
+
+Interleaved three times each, two binaries from one tree. The solve pays
+NOTHING: the whole cost is the one-off build, so plant -- which builds each
+strategy's curves once in `prepare_strategy` -- is unaffected, and what pays 4x
+is a phylloptim trait loop over the four curve parameters.
+
+## What the knots bought
+
+`test-gradient-ladder-factorisation.R` goes 58/2 to **60/0**, and the two checks
+that were over budget are now an order under it:
+
+| check | at 100 knots | at 400 knots |
+| --- | --- | --- |
+| the water rows entrywise | 1.42e-05 / 1.14e-05 = **1.24x** | 1.39e-06 / 1.00e-05 = **0.139x** |
+| the uniform-drying direction, one cohort | 2.29e-04 / 1.63e-04 = **1.40x** | 1.73e-06 / 1.14e-05 = **0.151x** |
+| the water rows in the anchoring family | -- | 1.08e-06 / 1.00e-05 = 0.108x |
+| leaf trait rows, against a rebuilt forward model | 2.52e-04 / 1e-02 | **7.75e-06** / 1e-02 = 0.001x |
+
+The last of those is the independent referee -- it differences a rebuilt forward
+model rather than reading the same rows -- and it improved 33x with them, which
+is what says the resolution was the cause rather than the budget being wrong.
+
+## ⚠️ AND IT EXPOSED A RESOLUTION MISMATCH THAT WAS ALWAYS THERE
+
+The default constructor built both curves at a literal `100` while initialising
+`vulnerability_curve_ncontrol` from `ncontrol_default` -- and `set_traits`
+rebuilds at that member. At 100 the two agreed and nothing could see it. At 400
+they are 4x apart, and the rescale-against-rebuild identity
+(`perturb_stem_P50` versus a `set_traits` rebuild, asserted to 1e-08) came apart
+at **1.4e-07 on 52 of `test_leaf`'s checks**.
+
+The tell that it was a mismatch rather than interpolation error: the disagreement
+is FLAT at 1.38e-07, 1.45e-07 and 1.43e-07 for 200, 400 and 800 knots, and the
+rescaled value is bit-identical at all three while only the rebuilt one moves.
+Interpolation error would scale with the grid.
+
+`setup_transpiration` and `setup_root_vulnerability` record the resolution they
+built at, so the member always describes the curves the object holds. 52
+failures to 0, with no fixture touched -- and because the C++ fixtures pin their
+own resolution, raising the shipped default moves nothing in that suite.
+
+## ⚠️ A CORRECTION: `operating_points.tsv` DOES NOT PASS CROSS-PLATFORM
+
+An earlier pass here reported it clean on the strength of no `FAIL` lines in a
+grep that did not include its own summary line. It reads
+
+    golden: 222 mismatches over 576 operating points beyond cross-platform tolerance
+      argmax-derived 0.624 (tol 0.005), profit 4.84e-05 (tol 1e-05)
+
+against `psi_stem_optima.tsv`'s 60 of 5184. Both are D's output movement -- 0.624
+is the 62% at the wet-bound pins -- and both are **identical with and without**
+the knot change and the resolution fix, measured by stashing the working tree.
+Neither can be re-blessed except on macOS/arm64. **Read the summary line, not the
+FAIL lines** -- which is what this file already says two sections above, about
+the same file.
+
+
+# Two fixtures and a diagnostic that pinned what they should have read
+
+Raising the shipped knot count found three places holding a number they
+should have taken from the model. None was caused by the change; all three
+were latent, and the change is what made them visible.
+
+* **`phylloptim`'s `test-surface.R`** passed a literal `100` in the 12th
+  positional slot of a raw `Leaf()` call and compared the result against
+  `leaf_model()`, which takes the shipped default. The two then built different
+  curves, and the test reported a mapping error that was not there. It reads
+  `leaf_control()$vulnerability_curve_ncontrol` now.
+* **`phylloptim`'s `test-gradient.R`** pinned `H` at `-8.9578`, with a comment
+  above it saying `-8.9561`, where the model gives `-8.955414` at 100 knots.
+  That is 2.66e-04 relative against a 1e-04 tolerance, **so it was already
+  failing before the knots moved** -- 400 takes it to 3.00e-04. `H` is converged
+  at every resolution measured (-8.955414, -8.955057, -8.955110, -8.955133,
+  -8.955141 at 100, 200, 400, 800, 1600), so it is pinned at that value and now
+  holds at any of them. The seven arbitrated rows beside it did not move.
+* **`plant`'s `grow_individual_to_size`** warned "may have failed for reasons
+  other than mortality" on a mortality RATE below 1e-10. Every strategy's
+  `mortality_dt` parks that rate at `establishment_failure_hazard`, so a parked
+  rate is now what a dead plant looks like as well as what an unrelated failure
+  looks like. It reads the accumulated hazard beside the rate.
+
+⚠️ THE PATTERN IS ONE THING: a fixture that pins a number the model owns passes
+until the model's value moves, and then reports the model's change as its own
+failure. `phylloptim`'s C++ fixtures pin their resolution DELIBERATELY -- a
+golden file is tied to one -- and that is why raising the default moved nothing
+in that suite. The difference is whether the fixture is comparing against a
+recorded file or against the model itself.
+
+# Counts, on this box, at 400 knots
+
+| suite | before | after |
+| --- | --- | --- |
+| plant, gradient family (19 files) | 694 / 8 / 0 / 5 | **716 / 0 / 0 / 5** |
+| phylloptim, R (testthat) | 1522 / 2 | **1524 / 0** |
+| phylloptim, C++ `test_leaf` | 2805 / 0 | 2805 / 0 |
+| phylloptim, C++ `test_transpose` | 147 / 0 | 147 / 0 |
+| phylloptim, C++ `test_supplied_rows` | 178 / 0 | 178 / 0 |
+
+⚠️ `pkgbuild::compile_dll` DEFAULTS TO `-O0 -UNDEBUG`. Every count here is from
+an `-O2` build (`debug = FALSE`), read out of the build log. An `-O0` build is 5x
+slower AND records a different trajectory.
+
+Still failing on this box, and both deferred: `plant`'s
+`test-model-version.R`, whose snapshot of the default scientific surface is
+exactly what a changed default is meant to trip -- its own comment names the
+remedy as a `scientific_version` bump or `snapshot_accept()`; and the three
+golden files, which need the platform that owns them.
