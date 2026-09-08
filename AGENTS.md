@@ -20,6 +20,12 @@ about the tape. `two-paths.md`'s "A loop worth keeping" says why each; the first
 hazard 4 below, and the second is what makes a rename across sixty sites a
 thirty-second check instead of a twenty-minute one.
 
+**And read [`docs/docs-audit.md`](docs/docs-audit.md) before trusting a figure in
+any guide here.** It is the standing list of documentation and comments this
+work has superseded and not yet rewritten, each with the measurement that
+supersedes it -- including two figures in this file. It is a work list, so an
+item leaves it when the doc is fixed rather than when the code is.
+
 ⚠️ **Read a record as of its own date.** Several of them narrate a past state in the
 present tense, and three function names they use exist in no code file. Where a
 document and the code disagree about a symbol, the code is right; where they disagree
@@ -219,6 +225,13 @@ once and visibly rather than inside a script that looks like it is only loading.
 them per edit is wasteful. The gradient ladder is the expensive tier — 18 files,
 **61 s of wall** measured at `-O2` — and everything else is 57 files and about
 90 s. No single file outside the ladder is slow enough to matter.
+
+⚠️ **THE LAST SENTENCE IS FALSE AND THE TWO FIGURES ARE UNVERIFIED** --
+`test-events.R` alone does not finish in twenty minutes, because every TF24 stand
+run past a patch lifetime of about 3.1 crosses a stiffness cliff. See
+[`docs/docs-audit.md`](docs/docs-audit.md) A1 for the measured curve; this
+paragraph is rewritten there rather than here because the two figures want
+re-measuring together.
 
 Tiers of the loop, cheapest first:
 
