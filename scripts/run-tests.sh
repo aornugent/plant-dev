@@ -17,7 +17,7 @@
 # NOT match, which is how the non-ladder sweep is taken.
 #
 #   scripts/run-tests.sh '^test-gradient-ladder'          # the whole ladder
-#   scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation)'
+#   scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation)'
 #   scripts/run-tests.sh '^test-gradient' "" invert       # everything else
 #
 # Set PLANT_TEST_LIB to a private library holding your odelia build, to keep a

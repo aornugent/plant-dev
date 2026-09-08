@@ -275,18 +275,21 @@ Tiers of the loop, cheapest first:
    the water channel's factorisation, and the completeness reference. Run this per
    edit.
    ```sh
-   scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
+   scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation|declared-zero)'
    ```
-   *Trajectory — the bulk of the ladder's cost.* floor, identity, rung4, columns,
-   rung5, recruit, sweep, switches — accumulation across cohorts and species, the
-   stage recursion, introductions, the boundary channels, and refusal. Run before
-   landing sweep work.
+   *Trajectory — the bulk of the cost.* model-invariants, identity, two-species,
+   columns, introductions, first-range, recruit, sweep, switches — accumulation
+   across cohorts and species, the stage recursion, introductions, the boundary
+   channels, and refusal. Run before landing sweep work.
    ```sh
    scripts/run-tests.sh '^test-gradient'
    ```
    *One file when you know what you touched.* `identity` for anything that changes
    how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
    per-column contraction; `switches` for a channel's route to a census.
+   **`Rscript tests/run-gradient-ladder.R` names every file and what it claims**,
+   and refuses to run if a file has no description — read that first if you do not
+   know which one to reach for.
 
 
 **Read those figures as CPU, not as wall clock, and run the suite with
@@ -300,9 +303,9 @@ result line, which is the one way this loses information a `test_dir()` would no
 process is otherwise silent.
 
 ```sh
-scripts/run-tests.sh '^test-gradient-ladder'        # the whole ladder
-scripts/run-tests.sh 'gradient-ladder-(injection|rung3|factorisation|declared-zero)'
-scripts/run-tests.sh '^test-gradient' "" invert     # the 57 non-ladder files
+scripts/run-tests.sh '^test-gradient-ladder'        # all fifteen
+scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation|declared-zero)'
+scripts/run-tests.sh '^test-gradient' "" invert     # the 57 other files
 ```
 
 **Set `PLANT_TEST_LIB` to a private library holding your `odelia` build**, which
@@ -430,6 +433,37 @@ cannot go there — `PKG_CPPFLAGS` is placed before R's own `-std=`, which then 
 it stays a `// [[Rcpp::plugins(cpp20)]]` line inside each probe, and any probe including
 an odelia header that names a concept needs it.
 
+
+## What continuous integration covers, and what it did not
+
+Each package checks itself: `R-CMD-check` on three operating systems in `plant`
+and `odelia`, and in `phylloptim` a pair of workflows kept deliberately apart so
+that one of them builds `inst/include/` on runners with no R and can therefore
+notice an Rcpp include creeping into a model header.
+
+⚠️ **Every one of those filtered pushes to the long-lived branches only, so a push
+to a feature branch ran nothing and its failures waited for the pull request and
+arrived in bulk.** The filters now name `ad/**` and `claude/**` as well.
+`phylloptim/.github/workflows/cpp-tests.yml` records the same defect from the
+other direction: it named a branch that repository does not have, and sat
+unexercised from the day it was added until the first pull request.
+
+**And nothing checked the COMBINATION**, which is the one thing no per-package job
+can. `plant/DESCRIPTION` pins its siblings exactly — `LinkingTo: odelia (== …),
+phylloptim (== …)` — so a partial landing fails at build rather than at run time,
+and that declaration went unverified because each repository's own CI resolves
+`Remotes` and installs whatever those name rather than what this superproject's
+submodule pointers say. `.github/workflows/pinned-triple.yml` installs the three
+from the submodule checkout in dependency order and then asserts that every
+pinned version is the version installed, that every `Remotes:` entry names a ref
+that resolves, and that `plant`'s tests pass against that combination.
+
+⚠️ **The `Remotes:` check is there for a specific failure.**
+`plant/DESCRIPTION` and `phylloptim/DESCRIPTION` both pin `ad/v3-forward`, a
+branch on a fork. Those entries resolve today and stop resolving the moment the
+branch is merged and deleted, at which point the package cannot be installed and
+the error names a ref rather than a cause. Point them at a tag or at the default
+branch as part of landing.
 
 ## What is named once, and where
 
