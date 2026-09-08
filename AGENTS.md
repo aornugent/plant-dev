@@ -26,6 +26,12 @@ work has superseded and not yet rewritten, each with the measurement that
 supersedes it -- including two figures in this file. It is a work list, so an
 item leaves it when the doc is fixed rather than when the code is.
 
+**[`docs/surface-audit.md`](docs/surface-audit.md) is the reverse-mode surface's
+own record** -- why its shape is forced, the four consolidations still open, and
+what was declined or probed and found to be earning its keep. Read the last two
+before proposing a simplification here: the surface has already been walked
+end to end, and most of what looks like excess has a measurement against it.
+
 ⚠️ **Read a record as of its own date.** Several of them narrate a past state in the
 present tense, and three function names they use exist in no code file. Where a
 document and the code disagree about a symbol, the code is right; where they disagree
