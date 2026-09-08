@@ -2229,3 +2229,91 @@ Still failing on this box, and both deferred: `plant`'s
 exactly what a changed default is meant to trip -- its own comment names the
 remedy as a `scientific_version` bump or `snapshot_accept()`; and the three
 golden files, which need the platform that owns them.
+
+
+# A twenty-minute test, and it is the fixture's trait
+
+`test-events.R`'s "pulses wet the soil during a run" does not finish. Bisected by
+tracing each `test_that` to a file: the thirteen before it total 1.0 s.
+
+⚠️ **NOT THIS SESSION'S WORK, AND A FIRST PASS HERE SAID IT WAS.** Measured
+against a control built with only the two sentinels reverted to +/-Inf and
+everything else in place:
+
+| | seconds | steps | state width |
+| --- | --- | --- | --- |
+| finite sentinels (this session) | 291.4 | 14371 | 538 |
+| +/-Inf, the control | 289.8 | **14371** | 538 |
+
+Identical step count, identical width, 0.5% apart in time. Nor is it the knot
+count: the same stand is just as slow with
+`control()$vulnerability_curve_ncontrol` set back to 100.
+
+**It is `trait_matrix(1, "lma")`.** The same stand at a quarter of a year:
+
+| lma | seconds | steps | reaches the sentinel |
+| --- | --- | --- | --- |
+| 0.0825 | 3.7 | 82 | no |
+| 0.1978791 (TF24's own default) | 3.7 | 82 | no |
+| 0.5 | 6.2 | 112 | no |
+| **1.0 (the fixture)** | **291.4** | **14371** | yes |
+
+A 175x step-count blow-up. 1 kg/m^2 is five times TF24's default and four times
+the largest value any other test in the suite uses -- every one of those sits
+between 0.08 and 0.26. It is also the only value at which recruits fail to
+establish, which is why this stand is where the establishment sentinel shows up
+at all, and why it was the first thing suspected.
+
+⚠️ AND THE lma IS NOT THE WHOLE OF IT EITHER. At TF24's OWN default lma the same
+stand hits the same wall, at the lifetime the fixture uses:
+
+| lifetime | seconds | steps |
+| --- | --- | --- |
+| 0.25 | 0.7 | 82 |
+| 1 | 1.4 | 121 |
+| 2 | 2.1 | 173 |
+| 3 | 2.7 | 205 |
+| 3.05 | 2.9 | 210 |
+| 3.1 | 3.0 | 215 |
+| **3.25** | **20.1** | **842** |
+| 3.5 | 89.5 | 3324 |
+| 4 | 167.6 | 6068 |
+| 4.5 | 220.8 | 7953 |
+| 5 (the fixture) | 267.1 | 9576 |
+
+**A CLIFF BETWEEN 3.1 AND 3.25, NOT A SCALING** -- 215 steps to 842 to 3324 --
+and `lma = 1` reaches the same regime much sooner. This is the stiffness the
+gradient work already located and measured: `d(mortality_dt)/d(storage)` at
+2.019e+07, which drives the controller to h = 2.2e-06. Every lifetime-5 TF24
+stand in this repo pays it, which is why the drought and shaded stands take 3820
+and 11722 steps where `wet` takes 522. The suite's "90 s for 57 files" predates
+it.
+
+What is available, measured but NOT taken -- the fixture's science is not this
+session's to change: its pulses are at t = 1, 2 and 3, so it needs a lifetime of
+at least 3, and 3.1 leaves a tenth of a year of margin below the cliff at 3.0 s
+against 267.1 s. It would need the lma moved too.
+
+# A finite sentinel needs a parked rate, and the height coordinate says why
+
+Chasing the above turned up something the timing did not: a finite sentinel can
+DRIFT where an infinite one cannot. On the HEIGHT coordinate -- `control()`'s
+default, which the gradient family never uses --
+
+    log_density_rate = -d(growth)/d(height) - mortality
+
+is non-zero for a dead cohort, where on the birth-date coordinate it is
+`-mortality` and parks with it. `compute_initial_conditions` zeroes the rate at
+birth; `Node::compute_rates` did not, and at -Inf it did not have to. At -750 a
+positive rate integrating up to -700 reaches `exp(-700)` = 1e-305, which is a
+cohort that does not exist acquiring a density.
+
+Guarded in `Node::compute_rates`, on the density itself. The step count is
+unchanged either way -- see the control above -- so this is a correctness
+property and NOT a cost one, and an earlier pass here claimed the second on the
+strength of the hang.
+
+⚠️ THE GRADIENT FAMILY COULD NOT HAVE CAUGHT IT. Every fixture in it sets
+`node_density_in_birth_date <- TRUE`, so the suite that went 716/0 never takes
+the coordinate this lives on. **A suite passing is evidence about the branches it
+takes.**
