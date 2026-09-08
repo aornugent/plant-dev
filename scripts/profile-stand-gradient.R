@@ -2,8 +2,12 @@
 #
 # Century scale on purpose. A short fixture's shares mislead: the field build is
 # O(knots x cohorts), so anything scaling with cohort count is understated by a
-# short run, and so is the ratio itself. docs/design/measurements.md carries the
-# figures this fixture has produced.
+# short run, and so is the ratio itself.
+#
+# ⚠️ A WALL-CLOCK DELTA BELOW ABOUT 3% IS NOT EVIDENCE. A same-source,
+# byte-identical A/B on this fixture reproduced a 2% gradient gap between two
+# installed copies of one tree. Read a share, a count or a ratio off this
+# profile; do not read a small difference between two runs of it.
 #
 # THE SCHEDULE IS REFINED IN A SEPARATE PROCESS, and this is not tidiness.
 # Refinement bisects on trait-dependent errors and re-runs the whole model many

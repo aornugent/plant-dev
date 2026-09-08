@@ -4,47 +4,46 @@ This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used
 
 ## Session Start (do this first, every session)
 
-Read [`docs/design/principles.md`](docs/design/principles.md). It carries the rules
-this work is judged by and a map of the other documents, saying which one is live.
+Four documents, and between them they are the whole design. Read them in this
+order.
 
-**Then read the first two sections of
-[`docs/design/two-paths.md`](docs/design/two-paths.md)** -- "Where this got to" and
-"What is left". That objective is delivered bar one item, and those two sections say
-which item and what else is open in the records. The rest of that file, and every
-other document here, is the record: kept for why a shape is what it is rather than for
-anything outstanding.
+1. **[`docs/design/principles.md`](docs/design/principles.md)** — what a change
+   here is judged against, and what has caught a defect that reading did not.
+2. **[`docs/design/reverse-mode.md`](docs/design/reverse-mode.md)** — what the
+   gradient computes, which five properties of the model force its shape, the
+   forward and backward walks, and the alternatives it refuses with the
+   measurement that refuses each. Read the refusals before proposing a
+   simplification.
+3. **[`docs/design/refusal.md`](docs/design/refusal.md)** — how the answer says
+   that a point has no derivative. This one crosses all three packages and is the
+   subtlest thing here.
+4. **[`docs/design/leaf-derivatives.md`](docs/design/leaf-derivatives.md)** — why
+   the leaf's rows are supplied rather than recorded, what the implicit function
+   theorem needs, and what makes a point inadmissible.
 
 ⚠️ **Set up the loop before starting.** A private R library, a `-fsyntax-only`
-translation unit over the path you are changing, and a standalone probe for anything
-about the tape. `two-paths.md`'s "A loop worth keeping" says why each; the first is
-hazard 4 below, and the second is what makes a rename across sixty sites a
-thirty-second check instead of a twenty-minute one.
+translation unit over the path you are changing, and a standalone probe for
+anything about the tape. The first is hazard 4 below; the second is what makes a
+rename across sixty sites a thirty-second check rather than a twenty-minute one;
+the third is because a claim about the automatic-differentiation library's
+behaviour is a measurement and not an argument.
 
-**And read [`docs/docs-audit.md`](docs/docs-audit.md) before trusting a figure in
-any guide here.** It is the standing list of documentation and comments this
-work has superseded and not yet rewritten, each with the measurement that
-supersedes it -- including two figures in this file. It is a work list, so an
-item leaves it when the doc is fixed rather than when the code is.
+⚠️ **Where a document and the code disagree about a symbol, the code is right.
+Where they disagree about a decision, that disagreement is the finding.** Name a
+symbol rather than a line number when you cite one: half the code citations in the
+records these four replaced were wrong, five naming a file that no longer existed
+and one off by 595 lines.
 
-**[`docs/surface-audit.md`](docs/surface-audit.md) is the reverse-mode surface's
-own record** -- why its shape is forced, the four consolidations still open, and
-what was declined or probed and found to be earning its keep. Read the last two
-before proposing a simplification here: the surface has already been walked
-end to end, and most of what looks like excess has a measurement against it.
-
-⚠️ **Read a record as of its own date.** Several of them narrate a past state in the
-present tense, and three function names they use exist in no code file. Where a
-document and the code disagree about a symbol, the code is right; where they disagree
-about a *decision*, that disagreement is the finding.
-
-**The nine reports that used to be listed here are gone from the tree and live in the git
-history.** `docs/reports/00` through `09` stated what TF24 is, the algebra of its
-derivatives, what a correct implementation must satisfy, and the ecology behind the
-numbers -- refereed against `plant`'s `develop` rather than against any branch. Recover
-one when a question about the MODEL rather than the code comes up:
+**Two bodies of earlier writing are in the git history rather than the tree.** The
+nine reports under `docs/reports/00` through `09` stated what TF24 is, the algebra
+of its derivatives, what a correct implementation must satisfy, and the ecology
+behind the numbers, refereed against `plant`'s `develop` rather than against any
+branch. Alongside them sat the design records this work was planned in. Recover
+one when a question about the MODEL rather than the code comes up, and read it as
+of its own date:
 
 ```sh
-git log --diff-filter=D --name-only -- docs/reports   # the commit that removed them
+git log --diff-filter=D --name-only -- docs/reports docs/design   # the removing commits
 git show <commit>^:docs/reports/00-tf24-dependency-map.md
 ```
 
@@ -227,17 +226,27 @@ it. Where a header edit is unavoidable mid-loop, rebuild deliberately with
 `Rscript -e 'pkgbuild::compile_dll("plant")'` before the run, so the cost is paid
 once and visibly rather than inside a script that looks like it is only loading.
 
-`plant` carries about 3,960 testthat assertions across 75 files, but running all of
-them per edit is wasteful. The gradient ladder is the expensive tier — 18 files,
-**61 s of wall** measured at `-O2` — and everything else is 57 files and about
-90 s. No single file outside the ladder is slow enough to matter.
+`plant` carries about 3,960 testthat assertions across 75 files, and running all of
+them per edit is wasteful. The gradient suite is the expensive tier at 18 files;
+everything else is 57 files. ⚠️ **Both tier timings want re-measuring at `-O2`
+before you rely on either** — the figures this file used to give were taken at a
+debug optimisation level, which is about five times slower and moves the
+trajectory as well.
 
-⚠️ **THE LAST SENTENCE IS FALSE AND THE TWO FIGURES ARE UNVERIFIED** --
-`test-events.R` alone does not finish in twenty minutes, because every TF24 stand
-run past a patch lifetime of about 3.1 crosses a stiffness cliff. See
-[`docs/docs-audit.md`](docs/docs-audit.md) A1 for the measured curve; this
-paragraph is rewritten there rather than here because the two figures want
-re-measuring together.
+⚠️ **The cost of a file is decided by the patch lifetime its fixture runs, not by
+which tier it is in.** Every TF24 stand crosses a stiffness cliff a little past a
+lifetime of 3, so a single file outside the expensive tier can take longer than
+the whole of it. Measured on one stand at TF24's default leaf mass per unit area:
+
+| patch lifetime | 3 | 3.1 | 3.25 | 3.5 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| accepted steps | 205 | 215 | **842** | 3324 | 6068 | 9576 |
+| seconds | 2.7 | 3.0 | 20.1 | 89.5 | 167.6 | 267.1 |
+
+`test-events.R` runs at a lifetime of 5 and does not finish in twenty minutes.
+What makes the cliff is the derivative of mortality with respect to the storage
+pool, which reaches 2.019e+07 — the same stiffness the gradient work located. So
+when a test is unexpectedly slow, look at its fixture's lifetime first.
 
 Tiers of the loop, cheapest first:
 
@@ -322,10 +331,35 @@ And a claim about speed needs a *control*: the same file, both sides, interleave
 in one session. A figure from this file is not a control — it is a figure from
 whenever it was last true.
 
-**Every suite passes, so any failure is yours.** Read the SKIP count alongside the
-failures: a test that stops running looks exactly like a test that passes, so a skip
-where there was none is a guard that stopped guarding. `test-stochastic-patch-runner.R`
-is the one file whose PASS count varies run to run.
+⚠️ **A wall-clock delta below about 3% is not evidence here, whatever the
+control says.** A same-source, same-core, byte-identical A/B on the century
+fixture reproduced a 2% gradient gap between two installed copies of the same
+tree, and a fresh copy of the slower one was fast. So verify a performance claim
+by a **counted** quantity — tape statements, placements, row counts, rate
+evaluations — and treat a timing as a sanity check on the count, never as the
+finding.
+
+⚠️ **`identical(NaN, NaN)` is TRUE in R, so a bit-identity check passes against
+an all-NaN answer.** Every such check on the century fixture's gradient passed
+for as long as the fixture existed, against a gradient that was entirely
+not-a-number. Count the finite entries and assert the count before comparing
+values, in any test that claims two runs agree.
+
+**One suite fails, and it is named below; any other failure is yours.** Read the
+SKIP count alongside the failures: a test that stops running looks exactly like a
+test that passes, so a skip where there was none is a guard that stopped guarding.
+`test-stochastic-patch-runner.R` is the one file whose PASS count varies run to run.
+
+⚠️ **`test-model-version.R` reports `fail=4`, and that is the expected state
+until a version is declared.** Its snapshot records the scientific surface each
+model promises to keep, and three defaults have moved on this branch — the leaf's
+vulnerability-curve resolution, the new `gradient_curvature_floor`, and TF24's
+trait names under the (P50, c) reparameterisation. The four diffs are that change
+asking to be acknowledged. Clearing them needs a `scientific_version` decision for
+TF24 and then `testthat::snapshot_accept("model-version", "plant/tests/testthat")`,
+in that order. ⚠️ Do not accept the snapshot to make a run green: accepting is how
+a real change to a model's science gets waved through, and the whole point of the
+guard is that somebody names the version.
 
 ⚠️ **Count the RESULT lines, because a crashed file is not a failing file.** The runner
 prints one `RESULT` line per file and the totals are a sum of those -- so a run where ten

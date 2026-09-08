@@ -1,8 +1,9 @@
 # How to change this codebase
 
-The rules the reverse-mode work is judged by, and the route that produced the
-plan it is working through. Read the second half if you are picking this up
-without the context that built it.
+Two lists. The first is what a change here is judged against, and the second is
+what has turned out to catch a defect that reading did not. Both are written to be
+argued with: where a rule and the code disagree, one of them is wrong, and which
+one is the finding.
 
 ## The prime directive
 
@@ -93,76 +94,6 @@ package.
 
 ---
 
-# The documents, and which of them is live
-
-One is the work; the rest are the rules and the record. **Read this file, then
-`two-paths.md`**, which carries every open item this objective reaches and names the
-ones it does not.
-
-| | |
-|---|---|
-| **[`two-paths.md`](two-paths.md)** | **The objective, delivered bar one item.** Seven of its eight are closed; item 7 is open and is what a new session picks up. Read its first two sections; the rest is the record of how each closed |
-| [`principles.md`](principles.md) | the rules, and this map |
-| [`subtraction-targets.md`](subtraction-targets.md) | what was not earning its keep, by consumer. **Nine of its 25 entries still open**; the ones `two-paths.md` reaches are carried there. **13** (the prose) and **25** (the test suite) are a separate axis, audited and not yet cut |
-| [`unification.md`](unification.md) | where one idea was spelled twice. **Four of its 10 entries still open**, same treatment |
-| [`one-reverse-pass.md`](one-reverse-pass.md) | what the model forces, and the cut, sequenced 0–9. **Closed** |
-| [`one-order.md`](one-order.md) | the leaf's derivative boundary. Landed, bar a memo of three unbuilt items |
-| [`leaf-gradients.md`](leaf-gradients.md) | how the leaf's gradient works today and what checks it: the ecology, forward against reverse, the one supplied number, the tables and tolerances, and a scoped symbolic block. **A description, not a plan** — its opportunities are unstarted |
-| [`one-program.md`](one-program.md) | a trajectory as a composition of maps. **Steps 4 and 6 outstanding** — they are lens 1 of `two-paths.md` |
-| [`measurements.md`](measurements.md) | the running record: root causes, figures, two scares. History |
-
-⚠️ **Several documents describe past states in the present tense**, which is how a
-name that no longer exists gets read as current. `solve_adjoint_over_insertions`,
-`advance_over_insertions` and `insertion_steps` appear in four of them and in **no**
-code file. Where a passage narrates what was found, read it as of its own date; the
-code is the authority on what a symbol is called today.
-
-# How the plan was arrived at
-
-Five questions, each of which the one before it could not answer. A session
-rebuilding context reads them in this order; a session doing work does not need
-them.
-
-1. **Read it cold, as an exhausted maintainer.** Not "is this correct" -- that is
-   what the ladder is for. **Where does this cost a reader?** Follow one product
-   call end to end and write down every word you had to learn. That walk is at the
-   top of `subtraction-targets.md`, and counting those words is what
-   `two-paths.md` now does.
-2. **What is not earning its keep?** -- `subtraction-targets.md`. Asked about
-   consumers, never about counts: two counting lenses were tried and both produced
-   confident nonsense, which is recorded there so nobody tries them again.
-3. **Where is one idea spelled twice?** -- `unification.md`. The narrower question
-   with the sharper answer. The tell is a translation layer between two spellings.
-4. **What shape does the model force**, as against how it was built? --
-   `one-reverse-pass.md`, written as five facts about TF24 that are not design
-   decisions. This is the move that paid, and it needed the permission to delete a
-   whole product to be real.
-5. **Cut, smallest first, and measure.** Rank by names removed, not lines and not
-   seconds: an entry that deletes a concept compounds, because every later change is
-   read against a smaller vocabulary.
-
-**Two of those cuts turned out to be redesigns and got their own documents**:
-`one-order.md` for the leaf's seven kinds of derivative, and `one-program.md` for the
-trajectory. Both are leaves of this cascade, not branches.
-
-# Where the cut ended
-
-All ten steps are closed. Three findings are worth more than the diffs:
-
-* **Step 1** deleted the calibration path -- 8,005 lines -- and the trait table
-  turned out to be sixteen wide for a fourteen-trait model.
-* **Step 8** found the leaf's two supply paths were the same arithmetic: one is the
-  other at a single layer with no horizontal term. Sixteen `switch` statements
-  carried one line of genuine difference, and **the defaults made that line
-  invisible** -- a first probe built on them reported agreement, because
-  `psi_crit == root_psi_crit` there. A fixture built on the defaults cannot referee
-  a difference the defaults collapse.
-* **Step 9 is refused**, and the defect proposed for it is closed separately. The
-  redesign was forty files for a hazard that needed a property: a rate evaluation is
-  a function of the state it is given, so revisiting a state after a different one
-  makes a carried value observable. Three calls and two comparisons.
-  **Separate a defect from the redesign proposed for it.**
-
 # What held across all of them
 
 - **A comment that blocks your change is evidence, not clutter.** Satisfy its
@@ -212,9 +143,10 @@ All ten steps are closed. Three findings are worth more than the diffs:
   printed NA. Grep the whole tree, `scripts/` included, and prefer a spelling the
   compiler can refuse.
 - **Asking whether a name duplicates the thing you are looking at will not find the
-  pair that duplicates each other.** This file's own census cleared `segment` because
-  it was not another word for the widening event. It was another word for `range`, and
-  the tests had been writing the translation out by hand for as long as both existed.
+  pair that duplicates each other.** A census of the names here cleared `segment`
+  because it was not another word for the widening event. It was another word for
+  `range`, and the tests had been writing the translation between the two out by
+  hand for as long as both existed.
 - **A comment that justifies a design is a claim, not a given.** Two here were wrong
   and both had shaped the code around them: one said a returned pair used
   out-parameters to avoid a taped copy, and it had none; one said an accessor returned
@@ -230,9 +162,10 @@ All ten steps are closed. Three findings are worth more than the diffs:
   counted. State a number a reader can verify by counting, or do not state one.
 - **Read a bound against the number the defect would produce.** A tolerance is not a
   check until someone computes what the failure looks like and confirms the bound
-  excludes it. One rung asserted `abs(ratio - 1) < 0.5` against a defect whose own
-  comment gives the signature as the cohort-count ratio, 4/3 — inside the bound. It
-  had passed for as long as it had existed, and passing was all it could do.
+  excludes it. One check in the gradient suite asserted `abs(ratio - 1) < 0.5`
+  against a defect whose own comment gives the signature as the ratio of cohort
+  counts, four thirds — inside the bound. It had passed for as long as it had
+  existed, and passing was all it could do.
 - **A check inside the branch its own condition selected cannot fail**, and neither can
   one behind a `skip` on the exact complement of its assertion. Three of those here.
 - **A skip is a pass with better manners.** Count the tests that never run: an
