@@ -111,7 +111,20 @@ match what you just wrote. After any `phylloptim/inst/include/` edit:
 rm -f phylloptim/src/*.o phylloptim/src/*.so plant/src/*.o plant/src/*.so
 R CMD INSTALL --no-multiarch --preclean phylloptim
 R CMD INSTALL --no-multiarch --preclean odelia          # see 2
-cd plant && R_MAKEVARS_USER=<O2 makevars> Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
+cd plant && R_MAKEVARS_USER=/tmp/mk-O2 Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
+```
+
+where `/tmp/mk-O2` is any file holding the two lines below. ⚠️ **Both halves of
+that invocation matter and each fails silently.** `compile_dll` defaults to
+`debug = TRUE`, which is `-O0 -UNDEBUG`: about five times slower, and it moves
+the trajectory as well, because floating-point contraction differs between
+optimisation levels. And R places `PKG_CXXFLAGS` before its own `-O`, so the
+package's own Makevars cannot raise it -- a user Makevars is the only thing that
+wins. Confirm by grepping the build log for `-O2` and for `-O0`.
+
+```make
+CXXFLAGS = -O2 -g0 -DNDEBUG
+CXX20FLAGS = -O2 -g0 -DNDEBUG
 ```
 
 The same trap exists one level down inside `phylloptim` itself: R does not track
@@ -441,12 +454,21 @@ and `odelia`, and in `phylloptim` a pair of workflows kept deliberately apart so
 that one of them builds `inst/include/` on runners with no R and can therefore
 notice an Rcpp include creeping into a model header.
 
-⚠️ **Every one of those filtered pushes to the long-lived branches only, so a push
-to a feature branch ran nothing and its failures waited for the pull request and
-arrived in bulk.** The filters now name `ad/**` and `claude/**` as well.
-`phylloptim/.github/workflows/cpp-tests.yml` records the same defect from the
-other direction: it named a branch that repository does not have, and sat
-unexercised from the day it was added until the first pull request.
+⚠️ **Every one of those filters names the long-lived branches only, so a push to
+a feature branch runs nothing in the package itself and its failures wait for the
+pull request, where they arrive together.** Expect no per-push signal from
+`odelia`, `phylloptim` or `plant` while working on a feature branch; the
+superproject job below is what covers one.
+
+Those filters are the packages' own and are deliberately left alone here.
+Widening them changes how continuous integration behaves for everyone working in
+the package, on every branch, to buy per-push feedback on one feature branch --
+which is a maintainer's decision rather than a side effect of landing a feature.
+Raise it upstream if you want it. ⚠️ Note while you are there that
+`phylloptim/.github/workflows/cpp-tests.yml` records the same class of defect
+from the other direction: its filter named a branch that repository does not
+have, so it sat unexercised from the day it was added until the first pull
+request. A trigger filter is one of the things that fails by doing nothing.
 
 **And nothing checked the COMBINATION**, which is the one thing no per-package job
 can. `plant/DESCRIPTION` pins its siblings exactly — `LinkingTo: odelia (== …),
@@ -457,6 +479,11 @@ submodule pointers say. `.github/workflows/pinned-triple.yml` installs the three
 from the submodule checkout in dependency order and then asserts that every
 pinned version is the version installed, that every `Remotes:` entry names a ref
 that resolves, and that `plant`'s tests pass against that combination.
+
+That job lives here rather than in any package, which is the point: it is about
+which versions meet, it is the only check that can be, and this superproject is
+where local development across the family is managed. It reads the three
+packages and changes none of them.
 
 ⚠️ **The `Remotes:` check is there for a specific failure.**
 `plant/DESCRIPTION` and `phylloptim/DESCRIPTION` both pin `ad/v3-forward`, a
