@@ -447,7 +447,7 @@ it stays a `// [[Rcpp::plugins(cpp20)]]` line inside each probe, and any probe i
 an odelia header that names a concept needs it.
 
 
-## What continuous integration covers, and what it did not
+## What continuous integration covers, and what it does not
 
 Each package checks itself: `R-CMD-check` on three operating systems in `plant`
 and `odelia`, and in `phylloptim` a pair of workflows kept deliberately apart so
@@ -455,42 +455,36 @@ that one of them builds `inst/include/` on runners with no R and can therefore
 notice an Rcpp include creeping into a model header.
 
 ⚠️ **Every one of those filters names the long-lived branches only, so a push to
-a feature branch runs nothing in the package itself and its failures wait for the
-pull request, where they arrive together.** Expect no per-push signal from
-`odelia`, `phylloptim` or `plant` while working on a feature branch; the
-superproject job below is what covers one.
-
-Those filters are the packages' own and are deliberately left alone here.
-Widening them changes how continuous integration behaves for everyone working in
-the package, on every branch, to buy per-push feedback on one feature branch --
-which is a maintainer's decision rather than a side effect of landing a feature.
-Raise it upstream if you want it. ⚠️ Note while you are there that
+a feature branch runs nothing and its failures wait for the pull request, where
+they arrive together.** Expect no per-push signal at all while working on a
+feature branch. Widening those filters is a maintainer's decision rather than
+something to do while landing a feature, because it changes how continuous
+integration behaves for everyone working in the package on every branch; raise it
+upstream if you want it. ⚠️ Note while you are there that
 `phylloptim/.github/workflows/cpp-tests.yml` records the same class of defect
 from the other direction: its filter named a branch that repository does not
 have, so it sat unexercised from the day it was added until the first pull
 request. A trigger filter is one of the things that fails by doing nothing.
 
-**And nothing checked the COMBINATION**, which is the one thing no per-package job
-can. `plant/DESCRIPTION` pins its siblings exactly — `LinkingTo: odelia (== …),
-phylloptim (== …)` — so a partial landing fails at build rather than at run time,
-and that declaration went unverified because each repository's own CI resolves
-`Remotes` and installs whatever those name rather than what this superproject's
-submodule pointers say. `.github/workflows/pinned-triple.yml` installs the three
-from the submodule checkout in dependency order and then asserts that every
-pinned version is the version installed, that every `Remotes:` entry names a ref
-that resolves, and that `plant`'s tests pass against that combination.
+⚠️ **AND NOTHING CHECKS THE COMBINATION, which is the one thing no per-package
+job can.** `plant/DESCRIPTION` pins its siblings exactly — `LinkingTo: odelia
+(== …), phylloptim (== …)` — so a partial landing fails at build rather than at
+run time. That declaration is unverified: each package's own checks resolve
+`Remotes` and install whatever those name, which is not necessarily what this
+superproject's submodule pointers say. So the combination is yours to check by
+hand, in dependency order, per the rebuild recipe above.
 
-That job lives here rather than in any package, which is the point: it is about
-which versions meet, it is the only check that can be, and this superproject is
-where local development across the family is managed. It reads the three
-packages and changes none of them.
+Two specific things go unchecked as a result, and both are worth doing before a
+landing:
 
-⚠️ **The `Remotes:` check is there for a specific failure.**
-`plant/DESCRIPTION` and `phylloptim/DESCRIPTION` both pin `ad/v3-forward`, a
-branch on a fork. Those entries resolve today and stop resolving the moment the
-branch is merged and deleted, at which point the package cannot be installed and
-the error names a ref rather than a cause. Point them at a tag or at the default
-branch as part of landing.
+* **That every pinned version is the version installed.** Compare
+  `plant/DESCRIPTION`'s `LinkingTo` against `packageVersion()` for each sibling.
+* **That every `Remotes:` entry names a ref that still resolves.**
+  `plant/DESCRIPTION` and `phylloptim/DESCRIPTION` both pin `ad/v3-forward`, a
+  branch on a fork. Those resolve today and stop resolving the moment the branch
+  is merged and deleted, at which point neither package can be installed and the
+  error names a ref rather than a cause. Point them at a tag or at a default
+  branch as part of landing. `git ls-remote --exit-code <url> <ref>` is the check.
 
 ## What is named once, and where
 
