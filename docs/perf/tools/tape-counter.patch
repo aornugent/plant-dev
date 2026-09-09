@@ -1,0 +1,164 @@
+=================== pre (plant c085582d) ===================
+diff --git a/src/Makevars b/src/Makevars
+index dddced88..88326f1b 100644
+--- a/src/Makevars
++++ b/src/Makevars
+@@ -6,6 +6,11 @@ CXX_STD = CXX20
+ ## Where to find headers
+ PKG_CPPFLAGS = -isystem../inst/include/
+ 
++## THROWAWAY INSTRUMENTATION: a patched copy of the installed
++## odelia/adjoint.hpp, ahead of LinkingTo's -I so it shadows it. R places
++## PKG_CPPFLAGS before CLINK_CPPFLAGS, which is what makes this win.
++PKG_CPPFLAGS += -Itapeshadow
++
+ ## XAD reaches its active tape through a __thread variable defined in odelia and
+ ## read from here; because R dlopens odelia that resolves through a call on every
+ ## active value's construction and destruction. Neither package contains a
+diff --git a/src/gradient_ladder.cpp b/src/gradient_ladder.cpp
+index 0a967bb4..8e149e40 100644
+--- a/src/gradient_ladder.cpp
++++ b/src/gradient_ladder.cpp
+@@ -616,8 +616,12 @@ std::vector<double> ladder_census_initial_state_replay_tf24(plant::RcppR6::RcppR
+ // [[Rcpp::export]]
+ Rcpp::List ladder_boundary_evaluations_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_) {
+   obj_->clear_boundary_condition_evaluations();
++  // THROWAWAY INSTRUMENTATION -- tape counts for the gradient below and nothing
++  // else, so the tally is cleared here rather than read as a running total.
++  odelia::ode::tapecount::counts() = odelia::ode::tapecount::totals{};
+   const plant::census_gradient result =
+     obj_->census_trait_gradient();
++  const odelia::ode::tapecount::totals tape = odelia::ode::tapecount::counts();
+   // Every count here comes off the one gradient above, the ranges it walked
+   // included. Read through its own accessor they could describe a different call.
+   const double ranges = static_cast<double>(result.ranges);
+@@ -640,7 +644,13 @@ Rcpp::List ladder_boundary_evaluations_tf24(plant::RcppR6::RcppR6<plant::SCM<pla
+     Rcpp::_["placements"] = placed,
+     Rcpp::_["ranges"] = ranges,
+     Rcpp::_["refusal"] = refused,
+-    Rcpp::_["metrics"] = static_cast<int>(result.gradient.size()));
++    Rcpp::_["metrics"] = static_cast<int>(result.gradient.size()),
++    // THROWAWAY INSTRUMENTATION. Doubles because the totals pass 2^31.
++    Rcpp::_["tape_statements"] = static_cast<double>(tape.statements),
++    Rcpp::_["tape_operations"] = static_cast<double>(tape.operations),
++    Rcpp::_["tape_sweeps"] = static_cast<double>(tape.sweeps),
++    Rcpp::_["tape_max_statements"] = static_cast<double>(tape.max_statements),
++    Rcpp::_["tape_max_operations"] = static_cast<double>(tape.max_operations));
+ }
+ 
+ // The trait columns' names, species-major and each carrying its species index,
+
+--- new file: src/tapeshadow/odelia/adjoint.hpp (a copy of that side's INSTALLED odelia header, patched) ---
+=================== post (plant e988fcb3) ===================
+diff --git a/src/Makevars b/src/Makevars
+index dddced88..88326f1b 100644
+--- a/src/Makevars
++++ b/src/Makevars
+@@ -6,6 +6,11 @@ CXX_STD = CXX20
+ ## Where to find headers
+ PKG_CPPFLAGS = -isystem../inst/include/
+ 
++## THROWAWAY INSTRUMENTATION: a patched copy of the installed
++## odelia/adjoint.hpp, ahead of LinkingTo's -I so it shadows it. R places
++## PKG_CPPFLAGS before CLINK_CPPFLAGS, which is what makes this win.
++PKG_CPPFLAGS += -Itapeshadow
++
+ ## XAD reaches its active tape through a __thread variable defined in odelia and
+ ## read from here; because R dlopens odelia that resolves through a call on every
+ ## active value's construction and destruction. Neither package contains a
+diff --git a/src/gradient_ladder.cpp b/src/gradient_ladder.cpp
+index 94ef30ea..e3711337 100644
+--- a/src/gradient_ladder.cpp
++++ b/src/gradient_ladder.cpp
+@@ -643,8 +643,12 @@ std::vector<double> ladder_census_initial_state_replay_tf24(plant::RcppR6::RcppR
+ // [[Rcpp::export]]
+ Rcpp::List ladder_boundary_evaluations_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_) {
+   obj_->clear_boundary_condition_evaluations();
++  // THROWAWAY INSTRUMENTATION -- tape counts for the gradient below and nothing
++  // else, so the tally is cleared here rather than read as a running total.
++  odelia::ode::tapecount::counts() = odelia::ode::tapecount::totals{};
+   const plant::census_gradient result =
+     obj_->census_trait_gradient();
++  const odelia::ode::tapecount::totals tape = odelia::ode::tapecount::counts();
+   // Every count here comes off the one gradient above, the ranges it walked
+   // included. Read through its own accessor they could describe a different call.
+   const double ranges = static_cast<double>(result.ranges);
+@@ -667,7 +671,13 @@ Rcpp::List ladder_boundary_evaluations_tf24(plant::RcppR6::RcppR6<plant::SCM<pla
+     Rcpp::_["placements"] = placed,
+     Rcpp::_["ranges"] = ranges,
+     Rcpp::_["refusal"] = refused,
+-    Rcpp::_["metrics"] = static_cast<int>(result.gradient.size()));
++    Rcpp::_["metrics"] = static_cast<int>(result.gradient.size()),
++    // THROWAWAY INSTRUMENTATION. Doubles because the totals pass 2^31.
++    Rcpp::_["tape_statements"] = static_cast<double>(tape.statements),
++    Rcpp::_["tape_operations"] = static_cast<double>(tape.operations),
++    Rcpp::_["tape_sweeps"] = static_cast<double>(tape.sweeps),
++    Rcpp::_["tape_max_statements"] = static_cast<double>(tape.max_statements),
++    Rcpp::_["tape_max_operations"] = static_cast<double>(tape.max_operations));
+ }
+ 
+ // The trait columns' names, species-major and each carrying its species index,
+
+--- new file: src/tapeshadow/odelia/adjoint.hpp (a copy of that side's INSTALLED odelia header, patched) ---
+--- /tmp/claude-0/rlib/odelia/include/odelia/adjoint.hpp	2026-09-09 04:06:34.947802620 +0000
++++ post/plant/src/tapeshadow/odelia/adjoint.hpp	2026-09-09 06:56:57.949220937 +0000
+@@ -15,6 +15,43 @@
+ namespace odelia {
+ namespace ode {
+ 
++// THROWAWAY INSTRUMENTATION -- not for landing. One tally per reverse-mode
++// recording taken through the two transposes below, read by plant's
++// ladder_boundary_evaluations_tf24. Statements and operations rather than bytes:
++// getMemory conflates the count with chunk allocation.
++namespace tapecount {
++
++struct totals {
++  unsigned long long statements = 0;
++  unsigned long long operations = 0;
++  unsigned long long sweeps = 0;
++  unsigned long long max_statements = 0;
++  unsigned long long max_operations = 0;
++};
++
++inline totals& counts() {
++  static totals t;
++  return t;
++}
++
++// Called after the recording and its sweeps, before the next clearAll(), so the
++// numbers are this recording's own.
++template <class TapeType>
++inline void record(const TapeType& tape) {
++  totals& t = counts();
++  const unsigned long long s =
++      static_cast<unsigned long long>(tape.getNumStatements());
++  const unsigned long long o =
++      static_cast<unsigned long long>(tape.getNumOperations());
++  t.statements += s;
++  t.operations += o;
++  ++t.sweeps;
++  if (s > t.max_statements) t.max_statements = s;
++  if (o > t.max_operations) t.max_operations = o;
++}
++
++}
++
+ // One adjoint per seed, every row the same width: what a transpose is seeded with,
+ // and what it hands back.
+ //
+@@ -343,6 +380,7 @@
+         }
+     });
+ 
++    tapecount::record(tape);
+     return tape.getMemory();
+ }
+ 
+@@ -447,6 +485,7 @@
+             parameter_adjoint[m][p] += xad::derivative(*parameters[p]);
+         }
+     });
++    tapecount::record(tape);
+     return tape.getMemory();
+ }
+ 

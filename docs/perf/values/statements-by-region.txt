@@ -1,0 +1,33 @@
+=== STATEMENTS ===
+region                  pre total    current total            delta |    pre/pl   curr/pl  delta/pl |       share
+supply_draw_at          499485995        337453923       -162032072 |    214.32    144.80    -69.53 |       -3.4%
+collar_at               276900624       3622624044       3345723420 |    118.81   1554.42  +1435.61 |       70.5%
+outputs_at              206523060       1806663725       1600140665 |     88.62    775.22   +686.60 |       33.7%
+rest of recording       2408516707       2373555130        -34961577 |   1033.46   1018.46    -15.00 |       -0.7%
+TOTAL                  3391426386       8140296822       4748870436 |   1455.22   3492.90  +2037.68 |      100.0%
+
+=== OPERATIONS ===
+region                  pre total    current total            delta |    pre/pl   curr/pl  delta/pl |       share
+supply_draw_at          859248369        697224226       -162024143 |    368.69    299.17    -69.52 |       -3.0%
+collar_at               514643584       4257609252       3742965668 |    220.83   1826.88  +1606.06 |       68.9%
+outputs_at              368294504       2250977734       1882683230 |    158.03    965.87   +807.83 |       34.7%
+rest of recording       3883924862       3848835499        -35089363 |   1666.54   1651.49    -15.06 |       -0.6%
+TOTAL                  5626111319      11054646711       5428535392 |   2414.09   4743.40  +2329.31 |      100.0%
+
+=== NESTED SPLIT (statements, per placement) ===
+counter                                         pre/pl   curr/pl   delta/pl
+collar_at                                       118.81   1554.42   +1435.61
+  interior implicit_value (inner_c)             118.81   1554.42   +1435.61
+  collar_coords_at via marginal_at (inner_a)     36.00    731.00    +694.99
+outputs_at                                       88.62    775.22    +686.60
+  collar_coords_at via profit_at (inner_b)       36.00    731.00    +694.99
+collar_coords_at, both sites                     72.01   1462.00   +1389.99
+   = 68.2% of the +2037.68 stmts/placement
+
+=== THIRD COLUMN: plant HEAD + phylloptim HEAD (reached/rlib), statements/placement ===
+region                      pre    current       HEAD   HEAD rewound
+supply_draw_at           214.32     144.80     144.80           0.00
+collar_at                118.81    1554.42       1.20        1553.22
+outputs_at                88.62     775.22     747.61          27.61
+rest of recording       1033.46    1018.46    1018.70            nan
+TOTAL                   1455.22    3492.90    1912.30        1580.83

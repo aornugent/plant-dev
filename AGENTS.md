@@ -21,6 +21,14 @@ order.
    the leaf's rows are supplied rather than recorded, what the implicit function
    theorem needs, and what makes a point inadmissible.
 
+**[`docs/perf/`](docs/perf/README.md) is the fifth, and only for performance
+work.** What a stand gradient costs and where it goes, the gradient values a
+change has to reproduce, and nine mechanisms refused with the measurement that
+refuses each. ⚠️ The gradient carries a rounding change at a curve knot through
+thirteen orders to the census metrics, and the suite is blind to it, so a value
+comparison against `docs/perf/values/current.tsv` is the guard rather than a
+green run.
+
 ⚠️ **Set up the loop before starting.** A private R library, a `-fsyntax-only`
 translation unit over the path you are changing, and a standalone probe for
 anything about the tape. The first is hazard 4 below; the second is what makes a
