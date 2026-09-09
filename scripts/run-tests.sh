@@ -62,9 +62,13 @@ echo "files: $(echo "$FILES" | wc -l | tr -d ' ')"
 # R_LIBS prepends, where R_LIBS_USER would hide Rcpp, BH, testthat and the rest.
 LIBS=${PLANT_TEST_LIB:+$PLANT_TEST_LIB:}$(Rscript -e 'cat(paste(.libPaths(), collapse=":"))')
 
+# ⚠️ NOT_CRAN, because skip_on_cran() skips in silence. Without it
+# test-gradient-demo.R's six blocks report as skips and their 32 assertions never
+# run at all, which reads as a clean suite -- the exact shape of a guard that
+# stopped guarding. Overridable, so a caller can ask for the CRAN behaviour.
 for f in $FILES; do
   (
-    R_LIBS="$LIBS" TESTTHAT_PARALLEL=false \
+    R_LIBS="$LIBS" TESTTHAT_PARALLEL=false NOT_CRAN="${NOT_CRAN:-true}" \
     Rscript -e "
       setwd('$ROOT')
       library(odelia); pkgload::load_all('plant', quiet = TRUE)
