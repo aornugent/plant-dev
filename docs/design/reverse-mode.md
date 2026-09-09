@@ -66,6 +66,32 @@ model's derivative crosses a package boundary as data. The fourth makes the
 recording the central object of the design. The fifth fixes where every conversion
 sits.
 
+## One rule underlies all five: replay a decision, lift a value
+
+The five facts above are instances of a single split, and it is worth stating
+directly because it decides where every new quantity belongs.
+
+**A value computed away from the tape divides into what moves and what selects.**
+What **moves** with the inputs — an argmax, a fixed point, a root — is lifted onto
+the tape carrying a derivative obtained by other means. What **selects** — an arm,
+a step size, a knot position, a schedule — is piecewise constant in the inputs. It
+stays a plain `double`, and the backward pass **replays** it rather than deciding
+it again.
+
+The reason is not cost. **A selector's derivative is a sequence of zeros and
+jumps, so differentiating through one manufactures a discontinuity the model does
+not have.** An argmax that shifts from one grid point to the next as a trait
+crosses a threshold has a true derivative of zero either side and no derivative at
+the crossing; a step size chosen by an error estimator is not a model quantity at
+all. So the backward pass differentiates the model **at a fixed decision, never
+the decision**.
+
+Read against the parts: the recorded step sizes, the introduction schedule, the
+canopy's knot fractions and the leaf's operating-point kind are all selectors, and
+all are replayed. The state at each step, the knot values and slopes, and the
+leaf's collar are all movers, and all are lifted. Where a quantity is both, it is
+two things — one `double` and one enumerator — rather than one class over both.
+
 ## This is a standard pattern, and it has a name
 
 The arrangement above — solve a submodel in plain arithmetic, then hand the outer

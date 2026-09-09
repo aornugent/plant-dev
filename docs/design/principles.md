@@ -39,6 +39,15 @@ rather than a sequence of phases. Execution order is not ownership.
 structure.** So does one that decides which half of a type is live: that is two
 types.
 
+**A new type earns its keep by making a wrong state unrepresentable, or a wrong
+pairing checkable.** Not by grouping things that belong together — that test
+passes for anything. A return type carrying an invariant earns its keep; a
+parameter bundle carrying none does not. Applied to the nine types one
+differentiable surface coined, this separated the survivors from the dissolved
+nine times out of nine in both directions, where "does it group things that
+belong together" had cleared four types that were each another spelling of
+something the package already had.
+
 **Do not force it.** Prefer boring code where the current shape is clear, local
 and unlikely to grow. Three similar statements beat a premature abstraction. DRY
 the structure, not every line.
