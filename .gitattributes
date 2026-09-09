@@ -1,0 +1,12 @@
+# A checkout here runs with core.autocrlf on, which rewrites LF to CRLF and makes
+# a shell script's own interpreter line unfindable: `#!/bin/bash\r` fails with
+# "cannot execute: required file not found", which reads as a missing file rather
+# than a converted one. Both scripts in this directory had been converted, so
+# neither would run from a fresh checkout.
+#
+# The same conversion is what reports files as modified while `git diff --numstat`
+# shows no changed lines at all.
+*.sh    text eol=lf
+*.R     text eol=lf
+*.md    text eol=lf
+*.tsv   text eol=lf
