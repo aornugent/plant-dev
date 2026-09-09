@@ -1,10 +1,15 @@
 # What a stand gradient costs
 
-The reverse sweep over a century stand costs about **2.3 times** what the same
-fixture cost at the pre-merge triple, and this directory is the measurement
-that says where. Read it before proposing a performance change to the leaf or
-the tape: five plausible mechanisms are refused below with the measurement that
-refuses each, and two more were fixed and are gone.
+The reverse sweep over a century stand costs **5.69 times its own forward run**,
+against 3 at the pre-merge triple, and this directory is the measurement that
+says where. Read it before proposing a performance change to the leaf or the
+tape: nine plausible mechanisms are refused below with the measurement that
+refuses each, and three more were fixed and are gone.
+
+⚠️ **Read the RATIO, not the seconds.** Absolute seconds drift 10-30% between
+sittings; `forward_s` is the control and held to 1.8% across the interleaved
+pairs quoted here. Two figures taken in different sittings are comparable only
+through it.
 
 ⚠️ **Every number here is the same fixture.** A figure taken on another stand
 is not comparable, and the ratio in particular is understated by a short one --
@@ -26,7 +31,8 @@ which is what makes the wall-clock differences attributable at all.
 | --- | --- | --- | --- |
 | pre-merge triple | 124.14 s | 3,391,426,386 | 1455.22 |
 | before the two changes below | ~415 s | 8,140,296,822 | 3492.90 |
-| **current** | **~286 s** | 8,140,841,678 pushed, 4.46e9 surviving | 1912.30 surviving |
+| before the collar channel was made optional | ~286 s, 7.56x forward | 8,140,841,678 pushed, 4.46e9 surviving | 1912.30 surviving |
+| **current** | **169.49 s, 5.69x forward** | -- | -- |
 
 Two factors multiply, and separating them is the whole point: statements grew
 **2.40x** and the cost of each grew about **1.39x**, which is the 3.34x the
@@ -42,6 +48,15 @@ commit records the seven commits after it -- so the interval `c085582d ..
 c49da429` cannot be narrowed by measurement.
 
 ## What was fixed
+
+**The collar's channel, phylloptim.** `collar_coords_at` computed the collar's
+response whether or not its caller could read one. At an interior point profit
+cannot: `outputs_at` evaluates it at a HELD collar, which is the envelope
+omission, so the channel multiplied a step that is zero in value AND carries no
+derivative. **`outputs_at` 616 statements to 32, all 138 gradient entries
+bit-identical, 0 dropped rows.** The slopes come back not-a-number where they
+are not asked for, because an absent derivative spelled `0.0` is the one failure
+this codebase cannot see.
 
 **The seed's slope, plant `4646febe`.** `seed_geometry` closes the implicit
 function theorem on `height_0`, and it took the slope by rebinding the whole
@@ -87,26 +102,54 @@ Every placement on this fixture is Interior, so the `bound_at` branches never
 run and all of `collar_at` is the interior closure.
 
 The supplied-rows change collapses `collar_at` to 1.20 statements a placement
-and leaves `outputs_at` at 747.61, because `profit_at`'s result feeds the
-objective and cannot be rewound. So `outputs_at` is now the whole remaining
-excess, and `collar_coords_at` is the whole of `outputs_at`.
+and left `outputs_at` at 747.61, because `profit_at`'s result feeds the objective
+and cannot be rewound -- so `outputs_at` was the whole remaining excess, and
+`collar_coords_at` the whole of `outputs_at`. Making the collar's channel the
+caller's to ask for then took `outputs_at` to 32 statements, and what remains is
+below.
 
-⚠️ **THAT GROWTH IS THE PRICE OF A CORRECTNESS FIX, NOT WASTE.** The residuals
-hold the collar passive (`const S held(to_passive(collar))`) and the collar's
-response is supplied as an analytic slope beside each value -- `CollarCoords`
-carries a value-and-slope pair per coordinate where it carried a bare scalar.
-Letting the residual see a live collar puts two values of dsigma/dcollar into
-one object: measured, the lift said 0.6913 for dci/dcollar where the slope
-beside it said 0.6382, and dM/dcollar came out an eighth of its size. Deleting
-the slope block restores that defect. The lever is to compute those slopes
-without recording them, not to stop computing them.
+The residuals hold the collar passive (`const S held(to_passive(collar))`) and
+the collar's response is supplied as an analytic slope beside each value --
+`CollarCoords` carries a value-and-slope pair per coordinate where it carried a
+bare scalar. That split is a correctness fix and deleting it restores a real
+defect: letting the residual see a live collar puts two values of dsigma/dcollar
+into one object, and measured, the lift said 0.6913 for dci/dcollar where the
+slope beside it said 0.6382, with dM/dcollar an eighth of its size.
 
-**One narrow thing is actionable without a model decision.** At the pre-merge
-triple the assimilation slope A' came from a TAPELESS TANGENT through the same
-kernel the residual calls (`assim_colimited_kernel<tangent>` with
-`derivative_along`). It is now `assim_slope_at<S>` at the active scalar --
-a second definition of one function, free to disagree with it while staying
-finite, which is the substitution `phylloptim`'s own `leaf_model.hpp` forbids.
+⚠️ **BUT HALF OF IT WAS DEAD, AND AN EARLIER VERSION OF THIS FILE SAID OTHERWISE.**
+It read "that growth is the price of a correctness fix, not waste", and that is
+true only where a slope is read. `profit_at` reads neither -- the sole reader of
+a slope in the package is `marginal_at`'s last line -- and at an interior point
+`outputs_at` hands `profit_at` a HELD collar, so the channel was multiplied by a
+step that is zero in value AND carries no derivative. `probe_tape_regions`
+measures 592 statements at a live collar against 591 at a held one: the channel
+is worth one of them. `collar_coords_at` takes the decision from its caller now,
+and `outputs_at` fell from 616 statements to 32 with all 138 gradient entries
+bit-identical.
+
+**What is left is one prohibited nesting, and it is most of the cost.** At the
+pre-merge triple the assimilation slope A' came from a TAPELESS TANGENT through
+the same kernel the residual calls. It is now `assim_slope_at<S>`, which is the
+same tangent through the same kernel -- so it cannot disagree with it, and an
+earlier version of this file was wrong to call it "a second definition of one
+function". The defect is the SCALAR IT NESTS OVER. `odelia/tangent.hpp` forbids
+it by name: "⚠️ NEVER NEST A TANGENT ABOVE AN ADJOINT ... Three kernels that cost
+31 statements at the working scalar cost 566 nested." Measured again here, at the
+kernels the leaf actually calls:
+
+| kernel | at the active scalar | nested above it |
+| --- | --- | --- |
+| `assim_colimited_kernel` | 17 | 500 |
+| `hydraulic_cost_TF_kernel` | 4 | 98 |
+| `stem_integral_at` | 1 | 45 |
+
+So `assim_slope_at` costs 521 statements against the 17 of the function it
+differentiates, and it runs twice on the marginal's path. That is about 78% of
+what the boundary still pushes. The blessed spelling of the same second-order
+quantity is a tangent over a TANGENT, which the same header calls "the only
+second-order scalar this family uses" -- reachable if the rows are computed away
+from the caller's tape and handed over through `record_with_derivatives`, which
+plant already calls and which costs one statement whatever the row count.
 
 **The harder half needs a model decision.** `V` and `dci_dp` multiply
 `step = collar - held`, so unlike `implicit_value`'s `dF/dy` -- whose own trait
@@ -162,6 +205,13 @@ a missing supplied row looks like.
 ⚠️ Interleave the arms in one sitting: absolute seconds drift 10-30% between
 sittings, and `forward_s` is the control -- it held to 1.8% across the pairs
 quoted above.
+
+`phylloptim/tests/cpp/probe_tape_regions.cpp` (`make CXX=g++ probe_tape_regions`)
+prices the boundary region by region and kernel by kernel in seconds, and is the
+cheap loop for anything about the leaf's tape. It also dumps the profit rows at
+`%.17g`, so a change claiming to remove dead work can be held to bit-identity
+before a century stand is run. ⚠️ Its fixture must be interior or it prints no
+rows at all, and a diff of two empty outputs passes.
 
 `tools/tape-counter.patch` counts tape statements, which is the quantity that
 decides whether a change records less or merely sweeps less. XAD exposes
