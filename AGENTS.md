@@ -1,10 +1,71 @@
 # Developer Guide for Agents (plant-dev Workspace)
 
-This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, and `odelia`.
+This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `odelia`, `plant`, `phylloptim`, `regnans`, `logpile`.
 
 ## Session Start (do this first, every session)
-Before doing anything else, add the sibling package repos to the session's GitHub
-scope so their issues and PRs are readable — `git submodule update --init` clones the
+
+Four documents, and between them they are the whole design. Read them in this
+order.
+
+1. **[`docs/design/principles.md`](docs/design/principles.md)** — what a change
+   here is judged against, and what has caught a defect that reading did not.
+2. **[`docs/design/reverse-mode.md`](docs/design/reverse-mode.md)** — what the
+   gradient computes, which five properties of the model force its shape, the
+   forward and backward walks, and the alternatives it refuses with the
+   measurement that refuses each. Read the refusals before proposing a
+   simplification.
+3. **[`docs/design/refusal.md`](docs/design/refusal.md)** — how the answer says
+   that a point has no derivative. This one crosses all three packages and is the
+   subtlest thing here.
+4. **[`docs/design/leaf-derivatives.md`](docs/design/leaf-derivatives.md)** — why
+   the leaf's rows are supplied rather than recorded, what the implicit function
+   theorem needs, and what makes a point inadmissible.
+
+**[`docs/perf/`](docs/perf/README.md) is the fifth, and only for performance
+work.** Where the stand gradient's time goes now, the levers left and what each
+is worth, six mechanisms refused with the measurement that refuses each, and the
+gradient values a change has to reproduce. Three of its warnings generalise past
+performance. ⚠️ **Cost is operations times the price of one, AND BOTH HALVES
+MOVE** -- removing 1219 tape statements a placement changed the gradient by
+nothing while a curve dismissed at four statements was a quarter of the
+instructions, and then, with the arithmetic lean, a third of the leaf's
+statements was a quarter of the gradient's time. Neither half can be read
+without the other, and `callgrind` is exact where seconds on this fixture have
+moved 81% for one binary. ⚠️ **A copy of an active scalar is a recorded
+statement**, so `const T x = cond ? a : b;` over two actives costs one and
+`const T&` costs none. ⚠️ And the gradient carries a rounding change AT A CURVE
+KNOT through thirteen orders to the census metrics while the suite stays green,
+so a value comparison against `docs/perf/values/current.tsv` is the guard rather
+than a green run.
+
+⚠️ **Set up the loop before starting.** A private R library, a `-fsyntax-only`
+translation unit over the path you are changing, and a standalone probe for
+anything about the tape. The first is hazard 4 below; the second is what makes a
+rename across sixty sites a thirty-second check rather than a twenty-minute one;
+the third is because a claim about the automatic-differentiation library's
+behaviour is a measurement and not an argument.
+
+⚠️ **Where a document and the code disagree about a symbol, the code is right.
+Where they disagree about a decision, that disagreement is the finding.** Name a
+symbol rather than a line number when you cite one: half the code citations in the
+records these four replaced were wrong, five naming a file that no longer existed
+and one off by 595 lines.
+
+**Two bodies of earlier writing are in the git history rather than the tree.** The
+nine reports under `docs/reports/00` through `09` stated what TF24 is, the algebra
+of its derivatives, what a correct implementation must satisfy, and the ecology
+behind the numbers, refereed against `plant`'s `develop` rather than against any
+branch. Alongside them sat the design records this work was planned in. Recover
+one when a question about the MODEL rather than the code comes up, and read it as
+of its own date:
+
+```sh
+git log --diff-filter=D --name-only -- docs/reports docs/design   # the removing commits
+git show <commit>^:docs/reports/00-tf24-dependency-map.md
+```
+
+## Remote Development
+Add the sibling package repos to the session's GitHub scope so their issues and PRs are readable — `git submodule update --init` clones the
 code, but issue/PR access is a separate grant:
 
 1. Initialize submodules: `git submodule update --init --recursive`
@@ -12,101 +73,9 @@ code, but issue/PR access is a separate grant:
    `aornugent/plant`. Work items like `odelia#19` live in these trackers, not in
    `plant-dev`, so without this step the issues are inaccessible.
 
-## Workspace Structure
-- `logpile/`: Submodule pointing to `https://github.com/aornugent/logpile.git`, default branch `main`
-- `plant/`: Submodule pointing to `https://github.com/aornugent/plant.git`, tracks `develop` (pinned via `branch = develop` in `.gitmodules`)
-- `odelia/`: Submodule pointing to `https://github.com/aornugent/odelia.git`, default branch `master`
+Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/odelia`, etc).
 
-Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/odelia`, `traitecoevo/logpile`).
-
-System deps and R packages (including `gh`, `logger`, and `RcppR6`) are installed by the environment setup script — you don't need to install them by hand.
-
-## Repo Setup
-Submodules are not populated by a plain `git clone` of `plant-dev`. After cloning, run:
-```bash
-git submodule update --init --recursive
-```
-Dependency order is `odelia` → `plant` → `logpile` (`plant` links `odelia`'s C++ headers; `logpile` imports `plant`). Build/install in that order.
-
-## Local Development
-Iterate with `pkgload::load_all()` (or `devtools::load_all(".")`) rather than a full install — it picks up live R edits without a reinstall/reload cycle:
-```r
-library(odelia)              # must be a real install — see caveat
-pkgload::load_all("plant")
-pkgload::load_all("logpile")
-```
-`load_all()` still compiles a package's own C++ on first load / after C++ edits, so a `plant` C++ change is still a real (incremental) compile.
-
-**Caveat — load `odelia` with `library()`, never `load_all()`.** `plant` resolves `odelia`'s compiled XAD `Tape` symbols at load time via `odelia`'s `.onLoad` (which needs a real installed package). Under `load_all("odelia")` this breaks with `undefined symbol: ...xad4Tape...`. So reinstall `odelia` (`install.packages("odelia", repos=NULL, type="source")`) after editing its C++, and `load_all()` freely for `plant`/`logpile`.
-
-If a rebuild throws `undefined symbol` on load, clear stale build artifacts first: `rm -f src/*.o src/*.so` in the package dir, then reinstall.
-
-## Testing plant — a short feedback loop
-
-`plant` carries ~2000 testthat assertions across 42 files, but running all of
-them per edit is wasteful. The cost is dominated by the **C++ rebuild** and by
-**three slow files**; scope every run to what you changed. (Build / `load_all` /
-odelia-reinstall mechanics are under *Local Development* above; paths below are
-from the `plant-dev` root.)
-
-**The per-iteration tax is the rebuild, not the tests.** An R-only change under
-`pkgload::load_all("plant")` skips compilation; a C++ change recompiles
-incrementally — but the strategy/environment core is header-inline, so editing a
-header in `plant/inst/include/` invalidates every translation unit that includes
-it and triggers a near-full `plant/src` recompile. Build optimised once
-(`cd plant && make`, `-O2`), then `load_all()` reuses that `.so`; a bare
-`load_all()` without `make` builds unoptimised and makes every slow test several
-times slower (the difference between a ~3 min suite and the ">8 min" quoted in
-`docs/ad-handover.md`).
-
-**Run tests serially in the dev loop.** `plant/DESCRIPTION` sets
-`Config/testthat/parallel: true`, but the parallel workers `loadNamespace("plant")`
-in fresh subprocesses, which fails under `load_all()` (`attempt to use
-zero-length variable name`). So set `Sys.setenv(TESTTHAT_PARALLEL = "false")` (as
-the AD handover already does). File-parallelism only works from an *installed*
-package (`cd plant && make test`, or CI) — it is not a lever for interactive
-work. That leaves **test selection** as the real lever, and the runtime is
-heavily skewed (serial, `-O2`):
-
-| Files | Serial cost | What |
-|---|---|---|
-| 3 heavy | **~143 s (76%)** | `test-mutant.R` (82 s, several full `run_scm`), `test-strategy-tf24.R` (43 s, TF24 hydraulics), `test-strategy-tf24f.R` (19 s) |
-| ~6 medium | ~28 s | `test-patch.R` 10 s, `test-initial-state.R` 6 s, `test-individual.R` 4 s, `test-strategy-ff16.R` 4 s, `test-canopy-methods.R` 4 s, `test-stochastic-patch-runner.R` 2 s |
-| ~33 rest | ~17 s | each **< 1 s** |
-
-Tiers of the loop, cheapest first:
-
-1. **Per edit — the one file for the component you touched.** Tests map 1:1 to
-   components by filename, so this is unambiguous; almost every file is < 2 s.
-   ```r
-   testthat::test_file("plant/tests/testthat/test-scm.R")
-   ```
-2. **Cross-cutting change — a filtered family.** `filter` matches the file-name
-   stem after stripping `test-`/`.R` (a case-sensitive regex):
-   ```r
-   testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
-                      stop_on_failure = FALSE)
-   ```
-3. **Fast pre-commit sweep — everything except the 3 heavies (~45 s, 39/42 files):**
-   ```r
-   d <- "plant/tests/testthat"
-   f <- setdiff(list.files(d, "^test-.*\\.[Rr]$"),
-                c("test-mutant.R", "test-strategy-tf24.R", "test-strategy-tf24f.R"))
-   for (x in f) testthat::test_file(file.path(d, x))
-   ```
-4. **Full serial sweep before you push — ~3 min on an `-O2` build.** The heavy
-   files exist for a reason; never let a branch land without them. Or run the
-   installed parallel path — `cd plant && make test` — which is what CI does.
-
-**Always cheap, run it when numerics move:** the FF16 bit-identity guard
-(`test-strategy-ff16.R` ~4 s, plus `test-strategy-ff16-reference-comparison.R`)
-is the tripwire for the scalar-templating AD work — a changed reference number
-means bit-identity broke. Include it in tiers 1–2 whenever you touch a strategy,
-environment, the ODE path, or anything the active scalar `S` threads through.
-
-**Only pay for the heavy files when you touched what they cover:** `test-mutant.R`
-for resident/mutant density machinery, and the two TF24 files for TF24/leaf
-hydraulics. Editing K93 or FF16 plumbing does not require paying their ~143 s.
+System deps and R packages are installed by the environment setup script — you don't need to install them by hand.
 
 ## CRITICAL: Write Permissions
 **Agents do NOT have push access to the `traitecoevo` organization repositories.** 
@@ -129,6 +98,442 @@ git merge upstream/master # (or main)
 git push origin master
 ```
 
+## Local Development
+Iterate with `pkgload::load_all()` (or `devtools::load_all(".")`) rather than a full install — it picks up live R edits without a reinstall/reload cycle:
+```r
+library(odelia)              # must be a real install — see caveat
+pkgload::load_all("plant")
+pkgload::load_all("logpile")
+```
+`load_all()` still compiles a package's own C++ on first load / after C++ edits, so a `plant` C++ change is still a real (incremental) compile.
+
+**Caveat — load `odelia` with `library()`, never `load_all()`.** `plant` resolves `odelia`'s compiled XAD `Tape` symbols at load time via `odelia`'s `.onLoad` (which needs a real installed package). Under `load_all("odelia")` this breaks with `undefined symbol: ...xad4Tape...`. So reinstall `odelia` (`install.packages("odelia", repos=NULL, type="source")`) after editing its C++, and `load_all()` freely for `plant`/`logpile`.
+
+If a rebuild throws `undefined symbol` on load, clear stale build artifacts first: `rm -f src/*.o src/*.so` in the package dir, then reinstall.
+
+### ⚠️ The build reports success without saying what it built
+
+Seven hazards that cross a package boundary. None of them produces an error, and the
+first two have each cost a session. Do these unconditionally rather than when
+something looks wrong, because nothing will look wrong.
+
+**1. A `phylloptim` header edit is invisible to `plant` until `phylloptim` is
+reinstalled.** `plant` compiles `phylloptim`'s headers from the **installed** library
+via `LinkingTo`, not from your working tree — and editing them moves no `.cpp`
+timestamp in `plant`, so `make` finds nothing to do, the build succeeds, and the
+`.so` goes on running the **old model**. The only symptom is numbers that do not
+match what you just wrote. After any `phylloptim/inst/include/` edit:
+
+```sh
+rm -f phylloptim/src/*.o phylloptim/src/*.so plant/src/*.o plant/src/*.so
+R CMD INSTALL --no-multiarch --preclean phylloptim
+R CMD INSTALL --no-multiarch --preclean odelia          # see 2
+cd plant && R_MAKEVARS_USER=/tmp/mk-O2 Rscript -e 'pkgbuild::compile_dll(".", debug = FALSE)'
+```
+
+where `/tmp/mk-O2` is any file holding the two lines below. ⚠️ **Both halves of
+that invocation matter and each fails silently.** `compile_dll` defaults to
+`debug = TRUE`, which is `-O0 -UNDEBUG`: about five times slower, and it moves
+the trajectory as well, because floating-point contraction differs between
+optimisation levels. And R places `PKG_CXXFLAGS` before its own `-O`, so the
+package's own Makevars cannot raise it -- a user Makevars is the only thing that
+wins. Confirm by grepping the build log for `-O2` and for `-O0`.
+
+```make
+CXXFLAGS = -O2 -g0 -DNDEBUG
+CXX20FLAGS = -O2 -g0 -DNDEBUG
+```
+
+The same trap exists one level down inside `phylloptim` itself: R does not track
+header dependencies, so `R CMD INSTALL` after editing `inst/include/` reuses a stale
+`src/RcppR6.o` and the R layer runs the old model. `--preclean` is what avoids it.
+
+**2. Installing `phylloptim` can replace the `odelia` fork with upstream's, and the
+error names neither package.** `phylloptim/DESCRIPTION` carries
+`Remotes: traitecoevo/odelia@v0.2.1`, so a **dependency-resolving** installer
+(`install.packages(".")`, `devtools::install()`, `pak`) fetches upstream odelia over
+the locally built fork. Upstream's carries none of the reverse-mode surface the
+sweep calls, so the next `plant` build fails on a name that has been in your tree
+all along — in a session that never touched odelia. Six occurrences across three
+sessions.
+
+`R CMD INSTALL` does **not** resolve `Remotes` and is therefore the safe form. Verify
+after any `phylloptim` install, against the **version**, which is what the pin names and
+is the one thing about the fork that cannot be renamed:
+
+```sh
+Rscript -e 'cat(as.character(packageVersion("odelia")))'
+# 0.2.1 is what the pin fetches, i.e. upstream won; the fork is 0.3.1 or later
+```
+
+⚠️ **Do not put a symbol back here.** This check used to grep
+`solve_adjoint_over_widenings` out of `sweep.hpp`, and the recording track renamed the
+concept to `insertion` — so the check reported "not the fork" against a correctly
+installed fork, every time, for anyone who ran it. A guard that always fails is one
+people learn to ignore. The version moves when the package is rebuilt and never when a
+name inside it changes, which is the property wanted.
+
+**3. The XAD storage-class flags must pair between `plant` and `odelia`, and a
+mismatch is undetectable.** Both `src/Makevars` set `-DXAD_NO_THREADLOCAL
+-DXAD_USE_STRONG_INLINE`; XAD's active tape is a `__thread` variable defined in
+odelia and read from plant, and **a storage-class mismatch does not change the
+mangled name**, so the linker resolves it and the behaviour is undefined. Change one
+and you must change the other.
+
+`phylloptim/src/Makevars` sets neither, and is **exempt** — it uses `xad::fwd` only
+and never references `Tape` or `xad::adj`, and forward mode is tapeless. That
+exemption is silent: **the moment `phylloptim` gains a reverse-mode path it needs both
+flags, and nothing will say so.**
+
+**4. The installed library is shared, and another session can move it under you.**
+`plant` compiles against the *installed* `odelia` headers, and every worktree and
+background job on the machine installs into the same library, so what you see is a
+compile error naming a symbol that has been in your tree all along. **Check before you
+measure**: grep the installed headers for something only your branch has, immediately
+before a build and again before a timing — a number taken across a swap is
+unattributable and nothing announces the swap. Or take yourself out of the race and
+install your `odelia` into a private library, ahead of the shared one:
+
+  ```sh
+  mkdir -p /tmp/mylib
+  R_LIBS="/tmp/mylib:$HOME/R/x86_64-pc-linux-gnu-library/4.6" \
+    R CMD INSTALL -l /tmp/mylib odelia
+  # then export that same R_LIBS for every build, Rscript and test run
+  ```
+
+  Use `R_LIBS`, which *prepends*. `R_LIBS_USER` **replaces** the user library and
+  hides Rcpp, BH, testthat and everything else with it.
+
+**5. Build at `-O2` deliberately** — `pkgbuild::compile_dll()` appends
+`-UNDEBUG -g -O0` *after* any user `CXXFLAGS`, so the last `-O` wins and a `Makevars`
+asking for `-O2` is silently overridden. Pass `debug = FALSE` and confirm one compile
+line in the log ends at `-O2` with no trailing `-O0`.
+
+**6. A build can report success without compiling anything.** `make` does not track
+the headers under `inst/include/` as prerequisites, so editing one leaves every object
+file looking current: `compile_dll` then does nothing, prints nothing, and **exits 0**.
+An empty build log is the tell — a real build of `plant` prints about 25 compile lines.
+Compare `plant/src/plant.so`'s mtime against the header you edited before believing any
+result, and `rm -f src/*.o src/*.so` after a header change rather than trusting the
+incremental path.
+
+The same shape reaches the checks: `odelia/tests/standalone/Makefile` carries its own
+`CXXSTD` and does not follow the packages' `CXX_STD = CXX20`. Below C++20 every
+`concept` in the core reads as `'concept' does not name a type` and the hundred errors
+after the first are cascade. It sat at C++17 and had therefore not run since the core
+gained concepts. **A guard that does not compile is a guard that does not run.**
+
+**7. Adding a MEMBER to `odelia/interpolator.hpp` is an ABI break, and the segfault it
+causes names a different file.** `drivers.hpp` embeds an interpolant, so its `sizeof` is
+part of odelia's ABI — and odelia's own suite compiles the leaf-thermal example with
+`sourceCpp` and **caches the resulting `.so`**, which is then reused against a freshly
+installed odelia. Grow the interpolant and the cached library reads the wrong offsets:
+`memory not mapped` inside `LeafSolver_value_and_gradient`, in a file with nothing to do
+with interpolation, **and it passes when run on its own** — which is exactly what
+`test-example-leaf-ad.R`'s known intermittent looks like. Prefer reading data into the
+spans over storing another vector; if a member must be added, print
+`sizeof(hermite_interpolator<double>)` against the installed header before and after.
+
+## Testing plant — a short feedback loop
+
+The main cost is the **C++ rebuild** for any change.
+
+⚠️ **`pkgbuild::compile_dll()` DEFAULTS TO `debug = TRUE`, WHICH BUILDS AT `-O0`
+WITH `-UNDEBUG -Wall -pedantic`.** It is 5x slower to run and it MOVES THE
+TRAJECTORY -- an -O0 build of plant solved a shaded stand in 680 s against 126 s
+and recorded 10879 steps against 11722, because `-O0` does not contract `a*b + c`
+into an FMA. Both readings were nearly attributed to the change under test.
+**Pass `debug = FALSE`, and read the `-O` flags out of the build log before
+comparing a run against a recorded number.**
+
+⚠️ **`pkgload::load_all()` AFTER A HEADER EDIT RUNS `R CMD INSTALL --preclean`,
+WHICH DELETES `plant/src/*.o`.** It compares the newest source against the
+library, so a one-line comment in a header is enough — and the cached objects
+`pkgbuild::compile_dll()` left are gone, so the next build is a full one whatever
+you do next. Two full rebuilds were spent this way. **Finish editing, then build,
+then run**: never edit a header between `compile_dll()` and the script that loads
+it. Where a header edit is unavoidable mid-loop, rebuild deliberately with
+`Rscript -e 'pkgbuild::compile_dll("plant")'` before the run, so the cost is paid
+once and visibly rather than inside a script that looks like it is only loading.
+
+`plant` carries about 3,960 testthat assertions across 75 files, and running all of
+them per edit is wasteful. The gradient suite is the expensive tier at 18 files;
+everything else is 57 files. ⚠️ **Both tier timings want re-measuring at `-O2`
+before you rely on either** — the figures this file used to give were taken at a
+debug optimisation level, which is about five times slower and moves the
+trajectory as well.
+
+⚠️ **The cost of a file is decided by the patch lifetime its fixture runs, not by
+which tier it is in.** Every TF24 stand crosses a stiffness cliff a little past a
+lifetime of 3, so a single file outside the expensive tier can take longer than
+the whole of it. Measured on one stand at TF24's default leaf mass per unit area:
+
+| patch lifetime | 3 | 3.1 | 3.25 | 3.5 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| accepted steps | 205 | 215 | **842** | 3324 | 6068 | 9576 |
+| seconds | 2.7 | 3.0 | 20.1 | 89.5 | 167.6 | 267.1 |
+
+`test-events.R` runs at a lifetime of 5 and does not finish in twenty minutes.
+What makes the cliff is the derivative of mortality with respect to the storage
+pool, which reaches 2.019e+07 — the same stiffness the gradient work located. So
+when a test is unexpectedly slow, look at its fixture's lifetime first.
+
+Tiers of the loop, cheapest first:
+
+1. **Per edit — the one file for the component you touched.** Tests map 1:1 to
+   components by filename, so this is unambiguous; almost every file is < 2 s.
+   ```r
+   testthat::test_file("plant/tests/testthat/test-scm.R")
+   ```
+2. **Cross-cutting change — a filtered family.** `filter` matches the file-name
+   stem after stripping `test-`/`.R` (a case-sensitive regex):
+   ```r
+   testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
+                      stop_on_failure = FALSE)
+   ```
+3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 57/75
+   files):**
+   ```sh
+   scripts/run-tests.sh '^test-gradient' "" invert
+   ```
+4. **The gradient ladder, in three tiers.** Its files are named so the pattern
+   selects a tier, and the whole ladder is about a minute of wall run this way.
+
+   *Structure, no trajectory (~40 s of CPU, a few seconds of wall).* Where the
+   assurance is concentrated: the exhaustive block Jacobian and its rank structure,
+   the same Jacobian at the states a trajectory reached, ten injected corruptions,
+   the water channel's factorisation, and the completeness reference. Run this per
+   edit.
+   ```sh
+   scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation|declared-zero)'
+   ```
+   *Trajectory — the bulk of the cost.* model-invariants, identity, two-species,
+   columns, introductions, first-range, recruit, sweep, switches — accumulation
+   across cohorts and species, the stage recursion, introductions, the boundary
+   channels, and refusal. Run before landing sweep work.
+   ```sh
+   scripts/run-tests.sh '^test-gradient'
+   ```
+   *One file when you know what you touched.* `identity` for anything that changes
+   how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
+   per-column contraction; `switches` for a channel's route to a census.
+   **`Rscript tests/run-gradient-ladder.R` names every file and what it claims**,
+   and refuses to run if a file has no description — read that first if you do not
+   know which one to reach for.
+
+
+**Read those figures as CPU, not as wall clock, and run the suite with
+`scripts/run-tests.sh`.** `testthat`'s own parallel workers cannot see a
+`pkgload::load_all()`ed package, so a `test_dir()` has to run serial and its wall time
+is its CPU time. One R process per file gets the concurrency back — `load_all()` costs
+about two seconds per process and the files are independent — so **the number that
+decides how long a run takes is the slowest single file, not the total**: sixteen cores
+run the whole ladder in about a minute. The script names any file that produced no
+result line, which is the one way this loses information a `test_dir()` would not: a crashed
+process is otherwise silent.
+
+```sh
+scripts/run-tests.sh '^test-gradient-ladder'        # all fifteen
+scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation|declared-zero)'
+scripts/run-tests.sh '^test-gradient' "" invert     # the 57 other files
+```
+
+**Set `PLANT_TEST_LIB` to a private library holding your `odelia` build**, which
+is how you stay out of the race described above; it is prepended, so the user
+library is still visible.
+
+### ⚠️ What makes a timing here worthless
+
+Three ways to measure this suite and learn nothing. Two of them cost this session
+a claimed regression that did not exist.
+
+- **`plant/src/plant.so` has to be there first.** `pkgbuild::compile_dll` does not
+  reliably leave it in `src/`; `pkgload::load_all("plant")` is what puts it there.
+  Without it **every one of the parallel processes compiles plant itself**, which
+  both collides on the install lock and means the number you took was N builds.
+  Run one `load_all` and confirm the file exists before timing anything.
+- **One suite at a time.** The runner launches every file with `&` and waits, with
+  no concurrency cap, so a second suite halves the cores. And wall time is bounded
+  by the slowest single file, not the total — which is why a per-tier CPU figure
+  tells you nothing about wall time, and why a stale file count invalidates the
+  comparison entirely.
+- **`pgrep -c R` does not count R processes.** It matches any process whose name
+  contains `R`, and reports tens where one is running. Use `pgrep -x R`.
+
+And a claim about speed needs a *control*: the same file, both sides, interleaved
+in one session. A figure from this file is not a control — it is a figure from
+whenever it was last true.
+
+⚠️ **A wall-clock delta below about 3% is not evidence here, whatever the
+control says.** A same-source, same-core, byte-identical A/B on the century
+fixture reproduced a 2% gradient gap between two installed copies of the same
+tree, and a fresh copy of the slower one was fast. So verify a performance claim
+by a **counted** quantity — tape statements, placements, row counts, rate
+evaluations — and treat a timing as a sanity check on the count, never as the
+finding.
+
+⚠️ **`identical(NaN, NaN)` is TRUE in R, so a bit-identity check passes against
+an all-NaN answer.** Every such check on the century fixture's gradient passed
+for as long as the fixture existed, against a gradient that was entirely
+not-a-number. Count the finite entries and assert the count before comparing
+values, in any test that claims two runs agree.
+
+**One suite fails, and it is named below; any other failure is yours.** Read the
+SKIP count alongside the failures: a test that stops running looks exactly like a
+test that passes, so a skip where there was none is a guard that stopped guarding.
+`test-stochastic-patch-runner.R` is the one file whose PASS count varies run to run.
+
+⚠️ **`test-model-version.R` reports `fail=4`, and that is the expected state
+until a version is declared.** Its snapshot records the scientific surface each
+model promises to keep, and three defaults have moved on this branch — the leaf's
+vulnerability-curve resolution, the new `gradient_curvature_floor`, and TF24's
+trait names under the (P50, c) reparameterisation. The four diffs are that change
+asking to be acknowledged. Clearing them needs a `scientific_version` decision for
+TF24 and then `testthat::snapshot_accept("model-version", "plant/tests/testthat")`,
+in that order. ⚠️ Do not accept the snapshot to make a run green: accepting is how
+a real change to a model's science gets waved through, and the whole point of the
+guard is that somebody names the version.
+
+⚠️ **Count the RESULT lines, because a crashed file is not a failing file.** The runner
+prints one `RESULT` line per file and the totals are a sum of those -- so a run where ten
+of eighteen ladder files segfaulted printed `pass=242 fail=45` and read, at a glance, as a
+suite with some failures rather than one that mostly died. The ladder is 18 files: check
+that 18 reported before reading the totals.
+
+⚠️ **And a segfaulting suite WEDGES rather than failing fast.** `core_pattern` pipes to
+apport, which stalls dumping a ~100 MB R process, so the crashed workers sit in
+`futex_wait_queue` at nil CPU and the runner's `wait` never returns -- no totals, no
+error, just silence. Kill the crashed workers to get the totals out. `pgrep -x R` finds
+them, and note that a `pgrep` whose own pattern appears in its command line matches
+itself, which is the same trap as `pgrep -c R`.
+
+## Testing phylloptim
+
+The C++ suite is the fast loop and needs no R at all:
+
+```sh
+make -C phylloptim/tests/cpp CXX=g++            # builds and runs test_leaf and test_golden
+make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds these too
+```
+
+`test_golden` must be run from `tests/cpp` — it looks for `golden/operating_points.tsv`
+relative to the working directory and reports it MISSING from anywhere else.
+
+The golden file is bit-exact only on macOS/arm64, where it was generated, so the
+comparison that means anything depends on where it runs — and `make` now picks it:
+bit-exact there, `--cross-platform` everywhere else. **A failure is a real signal on
+either.** This used to read "`make` failing on that target alone is not a regression",
+which was true of the bit-exact run on Linux and taught everyone to ignore the one
+guard that could speak: two commits stated that the operating-point surface had moved
+and that the file re-blessed, neither re-bless landed, and the staleness sat unread.
+
+⚠️ **The R suite needs the package namespace as its parent environment, and without it a
+third of the suite reports as broken code.** Several tests call internals by name, so a plain
+`test_dir()` reports *"could not find function"* — which reads like a missing binding and is a
+missing environment. The wrong invocation fails in bulk while the right one passes clean,
+so the failures name the environment rather than any model.
+
+```sh
+Rscript -e 'library(phylloptim)
+  testthat::test_dir("tests/testthat",
+    env = new.env(parent = asNamespace("phylloptim")), stop_on_failure = FALSE)'
+```
+
+## Testing odelia
+
+```r
+library(odelia)
+testthat::test_dir("odelia/tests/testthat",
+                   env = new.env(parent = asNamespace("odelia")))
+```
+
+**Both halves of that `env` matter and each fails differently.** A plain
+`test_dir()` cannot see the `.Call` wrappers several tests invoke by name, and
+reports them as *"could not find function"* — an error that looks like broken code
+and is broken invocation. Passing `asNamespace("odelia")` itself instead of a child
+fails at the first helper with *"cannot add bindings to a locked environment"*.
+
+**The suite compiles its probes with `sourceCpp`, and a probe that does not agree with
+the shipped library fails in ways that read as unrelated.** Two settings have to match
+`src/Makevars`, and they live in different places. The XAD defines
+(`XAD_NO_THREADLOCAL`, `XAD_USE_STRONG_INLINE`) come from `odelia_cppflags()` in
+`tests/testthat/helper-load-odelia.R` and nowhere else; a probe missing them links
+against a symbol of the same mangled name in the other storage class. The standard
+cannot go there — `PKG_CPPFLAGS` is placed before R's own `-std=`, which then wins — so
+it stays a `// [[Rcpp::plugins(cpp20)]]` line inside each probe, and any probe including
+an odelia header that names a concept needs it.
+
+
+## What continuous integration covers, and what it does not
+
+Each package checks itself: `R-CMD-check` on three operating systems in `plant`
+and `odelia`, and in `phylloptim` a pair of workflows kept deliberately apart so
+that one of them builds `inst/include/` on runners with no R and can therefore
+notice an Rcpp include creeping into a model header.
+
+⚠️ **Every one of those filters names the long-lived branches only, so a push to
+a feature branch runs nothing and its failures wait for the pull request, where
+they arrive together.** Expect no per-push signal at all while working on a
+feature branch. Widening those filters is a maintainer's decision rather than
+something to do while landing a feature, because it changes how continuous
+integration behaves for everyone working in the package on every branch; raise it
+upstream if you want it. ⚠️ Note while you are there that
+`phylloptim/.github/workflows/cpp-tests.yml` records the same class of defect
+from the other direction: its filter named a branch that repository does not
+have, so it sat unexercised from the day it was added until the first pull
+request. A trigger filter is one of the things that fails by doing nothing.
+
+⚠️ **AND NOTHING CHECKS THE COMBINATION, which is the one thing no per-package
+job can.** `plant/DESCRIPTION` pins its siblings exactly — `LinkingTo: odelia
+(== …), phylloptim (== …)` — so a partial landing fails at build rather than at
+run time. That declaration is unverified: each package's own checks resolve
+`Remotes` and install whatever those name, which is not necessarily what this
+superproject's submodule pointers say. So the combination is yours to check by
+hand, in dependency order, per the rebuild recipe above.
+
+Two specific things go unchecked as a result, and both are worth doing before a
+landing:
+
+* **That every pinned version is the version installed.** Compare
+  `plant/DESCRIPTION`'s `LinkingTo` against `packageVersion()` for each sibling.
+* **That every `Remotes:` entry names a ref that still resolves.**
+  `plant/DESCRIPTION` and `phylloptim/DESCRIPTION` both pin `ad/v3-forward`, a
+  branch on a fork. Those resolve today and stop resolving the moment the branch
+  is merged and deleted, at which point neither package can be installed and the
+  error names a ref rather than a cause. Point them at a tag or at a default
+  branch as part of landing. `git ls-remote --exit-code <url> <ref>` is the check.
+
+## What is named once, and where
+
+Facts this codebase used to spell in several places, each now with one home. Every one
+of them was a place two spellings could disagree while both compiled.
+
+- **The AD library is named in `odelia` and nowhere else.** Scalars come from
+  `active_scalar<T>`, `adjoint_tape<T>` and `tangent_scalar<T>`; the two things done to
+  a tangent come from `seed_direction` and `derivative_along` in `odelia/tangent.hpp`, a
+  header apart from the reverse-mode one so a package with no tape is not handed a name
+  for one. Those accessors exist because **one library accessor spells a tangent's
+  direction AND an adjoint's accumulator** — on the wrong scalar the same statement
+  seeds a slot no forward pass reads, and nothing raises. They refuse it instead.
+  Reading a value at a boundary is `util::to_passive`, which strips every layer, not the
+  library's one-layer accessor: the two differ at the nested scalar a forward-over-
+  reverse check runs on.
+- **Interpolation is `odelia/interpolator.hpp`.** The order is set by the source, not
+  chosen: a cubic is what two exact channels support and a quintic what three do, and
+  `set_data` has one signature per order so the wrong number of channels does not
+  compile. A curve and its derivative are one table — tabulate the lowest derivative
+  anyone reads and take the higher ones from the same polynomial.
+- **A census metric is the strategy's**, declared by `census_metrics()` beside
+  `state_names()` and read by index out of `Internals`. Nothing outside the model names
+  a metric, and a metric crosses to R as a name rather than a position.
+- **`HEIGHT_INDEX`, `MORTALITY_INDEX` and `FECUNDITY_INDEX` are a claim about every
+  model's first three state slots** that about fifty readers make. `check_state_layout`
+  checks it, from each model's `refresh_indices()` where the map that would falsify it is
+  built; `test-state-layout.R` hands the checker a broken layout, because a test that
+  only builds models would pass whether or not the check existed.
+- **A batch of transpose rows is `odelia::ode::adjoint_rows`**, one width for every row, so
+  a ragged batch is not a shape a caller can build.
+
 ## Code style
 
 Match the existing header core exactly: when editing a file, continue it;
@@ -141,24 +546,61 @@ one call.
 ### Never (comments)
 
 - No process history: issue tags (`RIF-`, `ODELIA-`), "renamed from",
-  "successor to", doc-section references (`§`), or mentions of other repos.
+  "successor to", "used to be", doc-section references (`§`), plan-item numbers.
+  A *live* cross-package dependency is not history and belongs in the comment —
+  "bumping this invalidates logpile's cache" is a fact about today.
 - No metaphor or borrowed mechanism words: write what happens ("record", not
-  "flush"); never `frozen`/`mutant`/`live`/`resident`. Single words count.
-- No decorative nouns ("contract", "surface", "oracle"), no section banners.
-  Never define a thing by what it isn't.
+  "flush"); never `frozen`/`live`/`flush`/`pipeline`/`handshake`. Single words
+  count. ⚠️ **The ban is on the metaphor, not the word.** `resident` and
+  `mutant` are adaptive dynamics' own nouns and this package exports
+  `add_mutant`, `run_mutant`, `remove_residents`; a `surface` can be the soil
+  surface; a `branch` can be a root-find's. Read the sentence before editing it.
+- No decorative nouns ("contract", "oracle", "machinery", "the whole point"),
+  no section banners. Never define a thing by what it isn't — but a second
+  sentence that heads off a specific misreading is not that, and is often the
+  load-bearing half ("not by differencing the times, because …").
 - Never longer than two lines unless spelling out a genuine silent-failure
   hazard. If a comment exists to decode a name, rename instead.
+- **A comment that justifies a design is a claim.** Write it so a reader can
+  check it, and state a hazard as a prohibition rather than as its own history:
+  "DO NOT change this to by-value and move, because …", not "this used to be
+  by-value and move".
 
 ### Never (code)
 
 - No parallel near-copy of an existing type or path; modify what exists.
 - No re-implementing what vendored XAD provides.
-- No runtime capability flags or SFINAE detection structs — a concept +
-  `if constexpr`.
+- No runtime capability flags or SFINAE detection structs. A compile-time
+  **choice** is a concept plus `if constexpr`; a compile-time **refusal** is a
+  concept inside a `static_assert`. Both are concepts, only one has a branch —
+  and `if constexpr (!C) { static_assert(false); }` is ill-formed in C++20 even
+  in the discarded branch, so writing a refusal that way needs a helper for a
+  false predicate, which is the machinery this rule exists to avoid.
 - No storing what can be derived; no passing a count that can disagree with
   its source of truth.
 - No dropping a guarantee (bounds check, cleanup path) during a refactor; no
   demo code compiled into the shipped .so; no dead files after a rename.
+- **Never let a function or lambda that returns an AD value use a deduced return
+  type.** XAD operators return *expression templates* holding references to their
+  operands, so a deduced return type hands the caller references to temporaries
+  and by-value parameters that die on return. The caller then materialises a
+  dangling expression and records whatever the reused stack now holds as a tape
+  slot; the reverse sweep dereferences it and segfaults far from the cause.
+  Valgrind cannot see it — the dangling storage is stack, not heap. Declare the
+  scalar return type (`-> S`, `-> T`) on every such lambda, including one-line
+  helpers. This cost a session to find (plant TF24's `anchor` supplied-derivative
+  lambda). The one structural defence is `odelia::implicit_value`'s `static_assert`
+  on its
+  residual's return type, which turns the mistake into a compile error at the
+  one site that most invites it.
+
+      // BAD  -- returns a dangling expression template
+      auto anchor = [](double v, S x) { return S(v) + (x - to_passive(x)); };
+      // GOOD -- the same arithmetic, materialised while its operands are alive
+      auto anchor = [](double v, const S& x) -> S { return S(v) + (x - to_passive(x)); };
+
+  The two forms differ only in `-> S` and taking `x` by reference, and that is
+  the whole lesson: the fix is the declared return type, not a helper.
 
 ### Defaults to unlearn
 
@@ -280,45 +722,11 @@ template <class System>
 Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
   auto* solver = get_solver<System>(double_solver);
   solver->tape->activate();
-  tape_guard<Tape> guard{solver->tape.get()};  // deactivates on every exit,
-                                               // exceptions included
+  tape_scope<Tape> running{*solver->tape};  // activates unless something else
+                                            // holds it; releases where it took it
   const std::size_t codomain = functional.codomain();
   auto jacobian =
       xad::computeJacobian(inputs, forward, codomain, solver->tape.get());
   return to_r_list(jacobian);  // only doubles cross the boundary
 }
 ```
-
-## PR workflow
-
-Work is tracked as **issues** — a numbered work item in a submodule's tracker, or an
-entry in a planning doc such as [`docs/ad-issues.md`](docs/ad-issues.md). PRs are opened
-against the submodule's `origin` fork (`aornugent/*`); propagation to the `traitecoevo`
-upstream is a separate, user-driven step (see *Workflow for Agents* above).
-
-- **One PR per issue.** Each PR is a small, self-contained change that closes exactly one
-  issue. Name the branch and PR after the issue (e.g. `ODELIA-1`, `PLANT-4`) so the
-  mapping is unambiguous.
-- **Stacked diffs where issues depend on each other.** When working through several
-  interdependent issues at once — the dependency chains in `docs/ad-issues.md` are the
-  common case — branch each PR on top of the one it builds on rather than off the base
-  branch, and target that parent branch. Reviewers then see only the incremental diff and
-  the PRs merge in order down to the submodule's default branch (`master`/`main`).
-  Independent issues branch straight off the default branch and can merge in any order.
-- **Fix in the branch that owns the issue; don't stack a fix on top.** When review or a
-  later finding changes something already in the stack, land the change on the branch for
-  the issue it belongs to (amend or add a commit there), not as a new branch on top. A
-  fix stacked above the code it corrects breaks the one-PR-per-issue mapping and muddies
-  the incremental upstream PRs. Only branch anew when the change is genuinely new scope.
-- **Rebase the stack with `--update-refs`.** Amending an underlying branch moves the
-  merge-base of everything above it, so those branches must be rebased onto the new tip.
-  `git rebase --update-refs` (Git ≥ 2.38; or `git config rebase.updateRefs true`) advances
-  all the intermediate stacked branch refs in one pass; then force-push each descendant
-  with `--force-with-lease`. The cost is remembering to push *every* descendant and
-  resolving a conflict that can cascade upward — not deep surgery, but do it deliberately.
-- **Tests land with the component they cover** — not as a separate follow-up PR. Each
-  change ships its own coverage in the same PR that adds it.
-- **Bump the meta-repo pointer as each lands.** Submodule work lives on a feature branch
-  and its per-issue children; after a submodule PR merges, update the `plant-dev`
-  submodule pointer (see *Updating the Meta-Repo* above) so the superproject tracks the
-  new commit.

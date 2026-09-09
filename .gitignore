@@ -1,0 +1,6 @@
+scratchpad/
+.claude/worktrees/
+
+# Console capture from ad-hoc runs at the root. Two of these landed in a commit.
+/*.txt
+!/xad-docs.txt
