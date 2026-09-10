@@ -79,9 +79,10 @@ touch, and twenty pre-existing failures attributed to a change that did not
 cause them. Take the baseline first, on the same fixture, with the same binary
 shape, and count the entries before reading the verdict.
 
-⚠️ **THE GRADIENT SUITE IS NOT THE GUARD.** It passed `pass=684 fail=0` while
-135 of 138 entries moved. The guard is a value comparison against
-`values/current.tsv`:
+⚠️ **THE GRADIENT SUITE IS NOT THE GUARD.** It once passed `pass=684 fail=0`
+while 135 of 138 entries moved; at HEAD it is `pass=716 fail=0 error=0 skip=5`
+over 19 files, and it would pass the same way. The guard is a value comparison
+against `values/current.tsv`:
 
 ```sh
 R_LIBS="<your lib>:$(Rscript -e 'cat(paste(.libPaths(),collapse=":"))')" \
