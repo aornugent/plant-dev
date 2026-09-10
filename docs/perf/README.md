@@ -43,6 +43,24 @@ forward control drifting 28% between the sittings. The statements are replaced
 by 21 directions of tapeless tangent, and that costs about what recording them
 cost.
 
+⚠️ **AND COUNT OPERATIONS, NOT STATEMENTS.** Cost is operations times the price
+of one, and a statement count prices only the tape's bookkeeping: it is blind to
+arithmetic that never reaches a tape, and blind to how WIDE a scalar's derivative
+is. Under callgrind the leaf's largest single cost turned out to be
+`peak_arrh_curve` at **25.7%** -- four statements by the tape's count, and
+dismissed here on exactly that basis -- because it lifted an activation energy, a
+leaf temperature and two deactivation constants into the caller's scalar, where
+at a nested tangent each is a direction vector of zeros that every operation
+walks. Holding them at `double` cut the leaf boundary's instructions **25.4%**
+with the census gradient bit-identical over all 138 entries.
+
+⚠️ **AND USE callgrind, NOT WALL CLOCK.** Instruction counts here are exact and
+repeatable; the seconds on this fixture have swung 28% between sittings and 81%
+for the SAME BINARY. `valgrind --tool=callgrind --callgrind-out-file=/dev/null`
+over `phylloptim/tests/cpp/probe_tape_regions` or a small driver gives a number
+that means something, and `callgrind_annotate` gives the attribution that a
+gperftools profile gives only when the box is quiet.
+
 ⚠️ **SO A PROJECTION FROM A STATEMENT COUNT IS NOT A PROJECTION OF TIME.** This
 file's own arithmetic invited the mistake and it was duly made: statements a
 placement times "recording is 78% of the run" predicted ~107 s, because it
