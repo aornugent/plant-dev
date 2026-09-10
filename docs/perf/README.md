@@ -1,7 +1,8 @@
 # The path to 100 s
 
-The reverse sweep over a century stand costs **156.27 s, which is 4.58 times its
-own forward run**. The target is 100 s, about **2.93 times forward**, which is
+The reverse sweep over a century stand costs **about 4.5 times its own forward
+run** -- 156.27 s against 34.15 s on one build, 149.35 s against 33.17 s on
+another, which agree to 1.7% and are the only reproducible timing here. The target is 100 s, about **2.93 times forward**, which is
 roughly where this model sat before the leaf's derivative surface was rebuilt.
 This directory is the measurement of where the remaining time is and what has
 already been ruled out.
@@ -91,20 +92,49 @@ invisible until the stand is long.
 
 ## Where the cost is
 
-`values/boundary-cost.txt` prices one placement three ways. The headline: the
-leaf boundary spends **34.7% of its instructions re-deriving quantities that do
-not move with the variable being differentiated** -- `assim_colimited_kernel`
-recomputes vcmax, the electron transport and the dark respiration on every call,
-and the slope helper differentiates all of it in `n_pars + 1` directions.
+`values/century-profile.txt` is a sampled profile of the whole run at the
+current triple; `values/boundary-cost.txt` prices one placement in statements,
+operations and instructions. Shares below are of the whole process, of which
+`census_trait_gradient` is 82.2% and the forward run it divides by is the rest.
+
+| | share |
+| --- | --- |
+| `TF24_Strategy::record_leaf_outputs` | **45.2%** |
+| `odelia::implicit_value` | 28.4% |
+| `boost::math::tools::toms748_solve` (root finding, both passes) | 21.8% |
+| **`Leaf::kernel_slope_at`** | **21.6%** |
+| `xad::FReal::FReal` | 18.9% |
+| `Tape::computeAdjointsToImpl` -- the actual reverse sweep | 16.8% |
+| `uptake_impl` + `duptake_dpsi_impl` | 15.7% |
+| `std::array::array` | 11.7% |
+| the spline machinery (`Span::value`, `cubic_interpolate`, `invert_stem_curve`, `cumulative_vulnerability_integral_derivatives_at`) | ~15% |
+
+⚠️ **`record_leaf_outputs` IS STILL 45.2%, AND ITS TAPE STATEMENTS FELL 22-FOLD.**
+The previous profile of this fixture put it at 45.0%. Nothing about the leaf's
+recording was ever the cost, which is the same lesson the pricing section opens
+with, arriving from the other direction.
+
+⚠️ **THE SWEEP IS 16.8%, THE ROOT FINDS ARE 21.8%.** More of this gradient is
+spent re-solving the model than transposing it. `implicit_value`'s 28.4% is the
+theorem's residuals being evaluated, not adjoints being accumulated.
+
+**`kernel_slope_at` at 21.6% is the single largest thing anyone can act on**, and
+most of it is not the derivative -- it is the LIFT. `FReal::FReal` at 18.9% and
+`std::array::array` at 11.7% sit underneath it: every call builds a
+`leaf_pars<outer>` of 20 scalars each carrying `n_pars + 1` directions, and
+seeds them, twice per placement, 2,330,530 placements deep. The pack does not
+change between those two calls, and 13 of its 15 active slots do not change
+across a whole recording.
 
 ## The levers, and what each is worth
 
 | lever | worth | what it costs |
 | --- | --- | --- |
-| **Hoist the ci-independent rates** out of the assimilation kernel, as the pre-merge five-argument overload allowed | 34.7% of the boundary's instructions, measured | a wider kernel signature; no model decision |
-| **Attribute the rest of the recording.** 1018.70 statements a placement, ~82% of what plant now pushes, and never once measured in operations or instructions | unknown, and it is the only block left big enough to reach the target | a fresh profile; the leaf probe's technique extends to it |
+| **Stop rebuilding the lifted parameter pack** in `kernel_slope_at`. It is built and seeded twice a placement, and does not change between the two calls or across a recording | most of 21.6%, and `FReal::FReal` 18.9% and `std::array::array` 11.7% are underneath it | somewhere to hang a per-recording pack; no model decision |
+| **Hoist the ci-independent rates** out of the assimilation kernel, as the pre-merge five-argument overload allowed. `assim_colimited_kernel` re-derives vcmax, the electron transport and the dark respiration inside every ci-tangent | 34.7% of the boundary's instructions, measured | a wider kernel signature; no model decision |
+| **The root finds, 21.8%.** More time goes on re-solving the model than on transposing it. `leaf_solved_point` already stores the collar and the arm; the solves inside it -- `invert_stem_curve`, the ci root -- still run on the replaying pass | unknown, potentially large | a question about what else a solved point can carry |
+| **plant's per-placement rebuilds**: `layer_thicknesses` twice a placement, `leaf_pars` 20 constructions and 15 copies of which 13 never vary, two local vectors of actives | small on its own, but it is the same waste as the lever above and shares its fix | nothing; it also removes a stated hazard, the two `layer_thicknesses` sources being warned as a silent squared factor if they drift |
 | **The placement count**, 2,330,530 -- one leaf per cohort per RK stage per step | 6x, larger than everything else combined | it moves the trajectory. A model decision about whether the operating point is stage-invariant, not a performance one |
-| **plant's per-placement rebuilds**: `layer_thicknesses` twice a placement, `leaf_pars` 20 constructions and 15 copies of which 13 never vary, two local vectors of actives | ~1%, and it removes a stated hazard -- the two `layer_thicknesses` sources are warned to be a silent squared factor if they drift | nothing |
 
 ## Refused, with the measurement that refuses it
 

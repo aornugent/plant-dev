@@ -1,0 +1,75 @@
+Sampled profile of one century gradient, current triple, -O2 -g.
+scripts/profile-gradient.sh scripts/profile-stand-reverse.R
+forward 33.17 s, gradient 149.35 s = 4.50x forward. 49067 samples.
+
+The process runs the forward stand once and the gradient once, so
+census_trait_gradient's 82.2% is the gradient and the remainder is the
+forward run it is divided by. Shares below are of the whole process.
+
+== TREE ==
+       0   0.0%   0.0%    49067 100.0% __libc_start_call_main
+       0   0.0%   0.0%    49067 100.0% __libc_start_main_impl
+       1   0.0%   0.0%    49066 100.0% Rf_eval
+      14   0.0%   0.0%    49065 100.0% R_ParseString
+       0   0.0%   0.0%    49039  99.9% Rf_removeTaskCallbackByIndex
+       0   0.0%   0.0%    49039  99.9% run_Rmainloop
+       0   0.0%   0.0%    48957  99.8% R_ParseEvalString
+       1   0.0%   0.0%    48927  99.7% Rf_NewFrameConfirm
+       0   0.0%   0.0%    40332  82.2% _plant_ladder_boundary_evaluations_tf24
+       0   0.0%   0.0%    40332  82.2% ladder_boundary_evaluations_tf24
+       0   0.0%   0.0%    40332  82.2% plant::SCM::census_trait_gradient
+       0   0.0%   0.0%    40331  82.2% odelia::ode::Solver::solve_adjoint
+       0   0.0%   0.0%    40331  82.2% odelia::ode::Solver::solve_adjoint (inline)
+       0   0.0%   0.0%    40128  81.8% odelia::ode::Solver::solve_adjoint::{lambda#1}::operator (inline)
+       8   0.0%   0.0%    40123  81.8% odelia::ode::Solver::sweep_range
+       0   0.0%   0.0%    39981  81.5% odelia::ode::state_and_parameter_adjoints (inline)
+       0   0.0%   0.0%    39980  81.5% odelia::ode::SolverInternal::step_adjoint (inline)
+       0   0.0%   0.0%    39980  81.5% odelia::ode::Step::step_adjoint (inline)
+       4   0.0%   0.1%    39000  79.5% plant::Node::compute_rates
+      21   0.0%   0.1%    38948  79.4% plant::TF24_Strategy::compute_rates
+       0   0.0%   0.1%    38800  79.1% plant::Patch::compute_rates
+       0   0.0%   0.1%    38763  79.0% plant::Patch::ode_rates
+       2   0.0%   0.1%    38667  78.8% plant::Species::compute_rates (inline)
+      35   0.1%   0.2%    38321  78.1% plant::TF24_Strategy::net_mass_production_dt
+       2   0.0%   0.2%    32160  65.5% odelia::ode::derivs
+       0   0.0%   0.2%    31464  64.1% odelia::ode::Step::step_adjoint::{lambda#1}::operator
+       3   0.0%   0.2%    30434  62.0% plant::Individual::compute_rates (inline)
+      16   0.0%   0.2%    22167  45.2% plant::TF24_Strategy::record_leaf_outputs
+      13   0.0%   0.2%    13948  28.4% odelia::implicit_value
+       5   0.0%   0.3%    13050  26.6% phylloptim::Leaf::collar_at
+       1   0.0%   0.3%    12726  25.9% phylloptim::Leaf::collar_at::{lambda#1}::operator (inline)
+
+== SELF ==
+    3555   7.2%   7.2%     9282  18.9% xad::FReal::FReal (inline)
+    2831   5.8%  13.0%     3102   6.3% xad::Tape::computeAdjointsToImpl::{lambda#1}::operator (inline)
+    2619   5.3%  18.4%     5724  11.7% std::array::array (inline)
+    2615   5.3%  23.7%     8260  16.8% xad::Tape::computeAdjointsToImpl
+    2189   4.5%  28.1%     5343  10.9% xad::OperationsContainerPaired::for_each (inline)
+    1873   3.8%  32.0%     1873   3.8% std::max (inline)
+    1795   3.7%  35.6%     1795   3.7% exp_inline
+    1414   2.9%  38.5%     1414   2.9% odelia::interpolator::hermite_interpolator::Span::value (inline)
+    1408   2.9%  41.4%     1408   2.9% log_inline
+    1332   2.7%  44.1%     4289   8.7% phylloptim::MultiLayerRoots::uptake_impl
+    1260   2.6%  46.7%     1852   3.8% xad::OperationsContainerPaired::append_n (inline)
+    1152   2.3%  49.0%     1152   2.3% boost::math::tools::detail::cubic_interpolate
+    1093   2.2%  51.2%     1093   2.2% std::vector::operator[] (inline)
+     844   1.7%  52.9%     1230   2.5% phylloptim::Leaf::assim_colimited_kernel (inline)
+     835   1.7%  54.6%    10586  21.6% phylloptim::Leaf::kernel_slope_at
+     786   1.6%  56.3%     5137  10.5% xad::BinaryExpr::derivative (inline)
+     777   1.6%  57.8%     3439   7.0% phylloptim::MultiLayerRoots::duptake_dpsi_impl
+     598   1.2%  59.1%     1820   3.7% phylloptim::Leaf::psi_stem_to_ci::{lambda#1}::operator (inline)
+     592   1.2%  60.3%      593   1.2% std::pair::pair (inline)
+     577   1.2%  61.4%     2826   5.8% phylloptim::cumulative_vulnerability_integral_derivatives_at
+     556   1.1%  62.6%     2111   4.3% phylloptim::Leaf::invert_stem_curve
+     521   1.1%  63.6%     8731  17.8% boost::math::tools::detail::bracket
+     519   1.1%  64.7%      519   1.1% xad::Tape::unregisterVariable (inline)
+     516   1.1%  65.7%    10715  21.8% boost::math::tools::toms748_solve (inline)
+     505   1.0%  66.8%      538   1.1% xad::prod_op::operator (inline)
+     499   1.0%  67.8%     1128   2.3% xad::FReal::operator= (inline)
+     496   1.0%  68.8%      496   1.0% __memset_avx512_unaligned_erms
+     496   1.0%  69.8%      648   1.3% boost::math::tools::detail::quadratic_interpolate
+     492   1.0%  70.8%      492   1.0% phylloptim::MultiLayerRoots::uptake_impl::{lambda#1}::operator
+     474   1.0%  71.8%      474   1.0% std::vector::size (inline)
+     446   0.9%  72.7%      446   0.9% __ieee754_exp_fma
+     441   0.9%  73.6%      788   1.6% odelia::interpolator::hermite_interpolator::span_of (inline)
+     401   0.8%  74.4%     1667   3.4% xad::Vec::operator*=
