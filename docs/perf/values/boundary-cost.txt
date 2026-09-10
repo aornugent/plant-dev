@@ -1,0 +1,56 @@
+What one leaf placement costs, at the current triple.
+
+Taken with phylloptim/tests/cpp/probe_tape_regions (statements and operations,
+exact) and valgrind --tool=callgrind over a 60-placement driver (instructions,
+exact). One species, one soil layer, an Interior operating point.
+
+⚠️ THREE QUANTITIES, AND THEY DISAGREE ON PURPOSE. Statements are the tape's
+bookkeeping. Operations are the arithmetic recorded under them. Instructions are
+what the machine pays, and they alone see arithmetic that never reaches a tape --
+which is all of a tangent's. A change is priced by the third; the first two say
+where to look.
+
+REGIONS, per placement (statements/operations)
+
+  supply_draw_at            27/52     1 layer     77/156 at 3 layers
+  collar_at                  1/14     <- REWOUND: what survived, not what it pushed
+  outputs_at                28/72
+  collar_coords_at held       7
+  collar_coords_at live      26
+  profit_at at a held collar 25
+  marginal_at                29       <- collar_at's region before the rewind
+
+KERNELS, per call (statements/operations)
+
+  vcmax_at(pars)                          2 /  2
+  electron_transport_at(pars)             6 / 16
+  assim_colimited_kernel(ci, pars)       13 / 31
+  stem_integral_at(psi, pars)             1 /  2
+  transpiration_at(sigma, collar, pars)   3 /  7
+  hydraulic_cost_TF_kernel(sigma, pars)   4 /  8
+  closed_form_curve(table, psi, P50, c)   1 /  2
+  assim_slope_at(ci, pars)                1 /  6   <- supplied, not recorded
+
+INSTRUCTIONS, 60 placements of draw + collar + outputs, 20,644,877 total
+
+  18.80%  assim_colimited_kernel   at fwd<fwd<double,1>,21>
+  15.89%  electron_transport_at    at fwd<fwd<double,1>,21>
+   9.29%  kernel_slope_at          (both instantiations)
+   6.25%  gamma_incomplete_imp_final
+   4.19%  Tape::computeAdjointsToImpl
+   4.06%  __ieee754_pow_fma
+   2.70%  peak_arrh_curve          at fwd<fwd<double,1>,21>
+   2.30%  Tape::initDerivatives
+   1.46%  Tape::derivative
+   1.33%  cumulative_vulnerability_integral_derivatives_at
+
+  ~4.9% of the run is the dynamic linker resolving symbols at startup, which is
+  the driver's and not the model's. Subtract it before taking a share seriously.
+
+WHAT THE TOP TWO ARE. Neither depends on ci, and both sit inside a ci-derivative:
+assim_colimited_kernel recomputes vcmax, the electron transport and the dark
+respiration on every call, and kernel_slope_at differentiates it in n_pars + 1
+directions. That is 34.7% of the boundary spent re-deriving quantities that do
+not move with the variable being differentiated. The pre-merge header carried a
+five-argument assim_colimited_kernel(ci, vcmax, transport, curv, resp) so a
+caller could hoist them; the merge collapsed it into the pars-reading form.
