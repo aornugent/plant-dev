@@ -24,15 +24,19 @@ order.
 **[`docs/perf/`](docs/perf/README.md) is the fifth, and only for performance
 work.** Where the stand gradient's time goes now, the levers left and what each
 is worth, six mechanisms refused with the measurement that refuses each, and the
-gradient values a change has to reproduce. Two of its warnings generalise past
-performance. ⚠️ **Cost is operations times the price of one, so a statement count
-is not a price** -- removing 1219 tape statements a placement here changed the
-gradient by nothing, while a curve dismissed at four statements was a quarter of
-the instructions; `callgrind` is exact where seconds on this fixture have moved
-81% for one binary. ⚠️ And the gradient carries a rounding change AT A CURVE KNOT
-through thirteen orders to the census metrics while the suite stays green, so a
-value comparison against `docs/perf/values/current.tsv` is the guard rather than
-a green run.
+gradient values a change has to reproduce. Three of its warnings generalise past
+performance. ⚠️ **Cost is operations times the price of one, AND BOTH HALVES
+MOVE** -- removing 1219 tape statements a placement changed the gradient by
+nothing while a curve dismissed at four statements was a quarter of the
+instructions, and then, with the arithmetic lean, a third of the leaf's
+statements was a quarter of the gradient's time. Neither half can be read
+without the other, and `callgrind` is exact where seconds on this fixture have
+moved 81% for one binary. ⚠️ **A copy of an active scalar is a recorded
+statement**, so `const T x = cond ? a : b;` over two actives costs one and
+`const T&` costs none. ⚠️ And the gradient carries a rounding change AT A CURVE
+KNOT through thirteen orders to the census metrics while the suite stays green,
+so a value comparison against `docs/perf/values/current.tsv` is the guard rather
+than a green run.
 
 ⚠️ **Set up the loop before starting.** A private R library, a `-fsyntax-only`
 translation unit over the path you are changing, and a standalone probe for
