@@ -1,0 +1,92 @@
+What one leaf placement costs, at the current triple.
+
+Taken with phylloptim/tests/cpp/probe_tape_regions (statements and operations,
+exact) and valgrind --tool=callgrind over its `placements` mode (instructions,
+exact). One species, an Interior operating point.
+
+⚠️ THREE QUANTITIES, AND THEY DISAGREE ON PURPOSE. Statements are the tape's
+bookkeeping. Operations are the arithmetic recorded under them. Instructions are
+what the machine pays, and they alone see arithmetic that never reaches a tape --
+which is all of a tangent's. Price a change by all three: the first two say where
+the tape's cost is, the third where the arithmetic's is, and neither alone has
+been enough here twice over.
+
+⚠️ AND A STATEMENT'S PRICE DEPENDS ON WHERE IT IS. A permanent statement is
+recorded once and swept once per census metric, of which this stand seeds three.
+A statement inside an implicit_value residual is recorded, swept once locally,
+and rewound. So the same arithmetic costs about three sweeps outside a residual
+and one inside it -- which is why hoisting a common subexpression out of one can
+lose.
+
+⚠️ FIVE LAYERS IS THE STAND'S. Environment("TF24") reports
+get_soil_number_of_depths() == 5, and the supply draw scales with them: 17
+statements a placement at one layer, 73 at five. A one-layer probe understates
+the largest block in the leaf four-fold.
+
+REGIONS, per placement (statements/operations)
+
+  layers        draw        collar       outputs
+  1            17/35         1/14         26/67
+  3            45/103        1/14         28/71
+  5 <- stand   73/171        1/14         30/75
+
+  collar_at REWINDS, so its pair is what SURVIVED and not what it pushed.
+  Measured before that rewind, and at any layer count:
+
+  collar_coords_at at a held collar    17
+  collar_coords_at at a live collar    35
+  profit_at at a held collar           24
+  marginal_at                          39
+
+KERNELS, per call (statements/operations)
+
+  vcmax_at(pars)                          2 /  2
+  electron_transport_at(pars)             6 / 16
+  assim_colimited_kernel(ci, capacity)    3 / 11
+  stem_integral_at(psi, pars)             1 /  2
+  transpiration_at(sigma, collar, pars)   3 /  7
+  hydraulic_cost_TF_kernel(sigma, pars)   3 /  7
+  closed_form_curve(table, psi, P50, c)   1 /  2
+  assim_slope_at(ci, capacity)            1 /  3   <- supplied, not recorded
+  cost_slope_at(sigma, pars)              2 /  6   <- supplied, not recorded
+
+  ⚠️ THE TWO SLOPES ARE THE CHEAPEST ROWS HERE AND THE MOST EXPENSIVE CALLS.
+  Each records one statement whatever its row count and then runs a tangent of a
+  tangent that no counter here can see. Read them under callgrind.
+
+TOTALS, per placement at five layers
+
+  104 statements, 260 operations permanent (73 + 1 + 30)
+  39 more recorded and rewound inside the collar residual
+
+INSTRUCTIONS, 60 placements of draw + collar + outputs at five layers
+
+  valgrind --tool=callgrind ./probe_tape_regions placements 60 5
+  11,691,937 total, of which about 1.6 M is the dynamic linker resolving
+  symbols at startup -- the driver's, not the model's. Subtract it before taking
+  a share: about 168,000 instructions a placement.
+
+  11.48%  gamma_incomplete_imp_final        <- the vulnerability spline, built once
+   9.13%  __ieee754_pow_fma
+   7.54%  assim_colimited_kernel            (the value and both tangent widths)
+   5.06%  __powl_helper
+   4.38%  do_lookup_x                       <- startup
+   4.26%  _dl_lookup_symbol_x               <- startup
+   3.99%  uptake_impl
+   3.34%  cumulative_vulnerability_integral_derivatives_at
+   3.02%  Tape::initDerivatives
+   2.02%  pow@@GLIBC_2.29
+   1.94%  closed_form_integral
+   1.92%  Tape::derivative
+   1.85%  Tape::computeAdjointsToImpl
+   1.82%  kernel_slope_at
+
+⚠️ THIS DRIVER SWEEPS ONCE AND THE STAND SWEEPS THREE TIMES. It builds one
+recording and takes one adjoint pass, so every permanent statement here is
+charged a third of what the stand charges it. Read this for RECORDING and
+values/century-profile.txt for the whole cost.
+
+⚠️ AND IT BUILDS THE SPLINES ONCE FOR SIXTY PLACEMENTS WHERE THE STAND BUILDS
+THEM ONCE PER LEAF. The incomplete gamma at 11.48% is the fixture's setup, not a
+placement's cost. Anything named here has to be checked against the stand's
+profile before it is called a share of the run.
