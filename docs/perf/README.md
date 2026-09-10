@@ -32,7 +32,26 @@ which is what makes the wall-clock differences attributable at all.
 | pre-merge triple | 124.14 s | 3,391,426,386 | 1455.22 |
 | before the two changes below | ~415 s | 8,140,296,822 | 3492.90 |
 | before the collar channel was made optional | ~286 s, 7.56x forward | 8,140,841,678 pushed, 4.46e9 surviving | 1912.30 surviving |
-| **current** | **169.49 s, 5.69x forward** | -- | -- |
+| collar channel made optional | 169.49 s, 5.69x forward | -- | ~2757 pushed |
+| **the leaf's slopes taken through the kernel** | **220.6 s, 5.79x forward** | -- | **~1238 pushed** |
+
+⚠️ **THOSE LAST TWO ROWS ARE THE SAME SPEED, AND THAT IS THE FINDING.** Taking
+dA/dci and dC/dsigma through their kernels removed 1219 tape statements a
+placement -- the leaf boundary fell from about 1927 to about 88 -- and the
+gradient did not move: 5.69x against 5.79x, inside the 3% floor, with the
+forward control drifting 28% between the sittings. The statements are replaced
+by 21 directions of tapeless tangent, and that costs about what recording them
+cost.
+
+⚠️ **SO A PROJECTION FROM A STATEMENT COUNT IS NOT A PROJECTION OF TIME.** This
+file's own arithmetic invited the mistake and it was duly made: statements a
+placement times "recording is 78% of the run" predicted ~107 s, because it
+treated the removed work as replaced by nothing. Tape economy at the leaf is
+now measured out twice -- 17% for the whole marginal taken forward, ~0% for the
+kernels taken through a tangent. **The binding constraint is active-scalar
+ARITHMETIC per placement, not statements.** What is left large enough to matter
+is the 1018.70 statements a placement of "rest of the recording", never
+attributed, and the placement count itself.
 
 Two factors multiply, and separating them is the whole point: statements grew
 **2.40x** and the cost of each grew about **1.39x**, which is the 3.34x the
