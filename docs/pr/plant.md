@@ -46,10 +46,11 @@ scm <- run_scm(p, Environment("TF24"),
 
 g <- stand_gradient(scm)
 
-g$gradient["mass_above_ground", "1.lma"]
-#> -0.0417            d(mass above ground)/d(lma), species 1, over the whole run
 dim(g$gradient)
-#> [1]  3 48         three metrics by forty-eight trait columns, one pass
+#> [1]  3 48        three metrics by forty-eight trait columns, from one pass
+
+g$gradient["mass_above_ground", "1.lma"]
+#>                  d(mass above ground)/d(lma) for species 1, over the whole run
 ```
 
 One run forward, one sweep back, and every cell is filled. Differencing would
@@ -82,24 +83,24 @@ would otherwise return species one's column for both.
 ## Control flow
 
 ```
-  stand_gradient(scm)                         R/stand_gradient.R:102
+  stand_gradient(scm)                         R/stand_gradient.R
     │  resolve names, refuse ones the model lacks
     ▼
-  census_trait_gradient_tf24                  src/census_gradient.cpp:81
+  census_trait_gradient_tf24                  src/census_gradient.cpp
     │  the only place double becomes an active scalar
     ▼
-  SCM::census_trait_gradient                  scm.h:1011
+  SCM::census_trait_gradient                  scm.h
     │
-    ├─► census_state_and_trait_rows()         scm.h:893
+    ├─► census_state_and_trait_rows()
     │     one recording at the final time, swept for two things:
     │       state rows   d(metric)/d(final state)
     │       trait rows   d(metric)/d(trait), read directly
     │
-    ├─► lambda STARTS at the trait rows       scm.h:1080
+    ├─► lambda STARTS at the trait rows
     │
     ├─► solver.solve_adjoint(...)             odelia
     │     │
-    │     ├─► range 169 … 1                   widest first
+    │     ├─► range N … 1                     widest first
     │     │     │
     │     │     ├─► step k … 1                last to first
     │     │     │     └─ re-run 6 stages at the active scalar
@@ -115,9 +116,13 @@ would otherwise return species one's column for both.
     └─► census_gradient{ gradient[][], why }
 ```
 
-The century fixture: 3,378 recorded steps, 20,268 rate evaluations at six per
-step, 169 ranges, 2.3 million leaf placements. The gradient costs about 2.9× a
-forward run of the same stand, measured with the two arms interleaved.
+Scale, for one worked case — a single species over about 105 years at the
+package defaults: 169 cohort introductions, so 169 ranges; 3,400 accepted steps
+and six rate evaluations in each; a few million leaf placements. Those counts
+follow from the schedule and the step controller and will differ for any other
+stand. **The ratio holds across the ones measured: a gradient over all traits
+costs about 2.9 times a forward run of the same stand**, with the two arms
+interleaved in one sitting.
 
 ## What changes for existing code
 
@@ -163,10 +168,10 @@ New R exports: `stand_gradient`, `stand_census`, `stand_census_state_adjoint`,
 `stand_gradient_compare`, `gradient_control`.
 
 Read `census.h` and `census_gradient.h` first — 118 lines, and they say what a
-metric and a refusal are. Then `scm.h:1011-1150`, which is
-`census_trait_gradient` end to end and the shortest complete path through the
-change. Then `scm.h:893`, then `tf24_strategy.h:2193` for the seam with
-phylloptim. `patch.h`, `species.h` and `node.h` are mechanical after that.
+metric and a refusal are. Then `SCM::census_trait_gradient` end to end,
+which is the shortest complete path through the change. Then
+`census_state_and_trait_rows`, then `solve_leaf` and `record_leaf_outputs` for
+the seam with phylloptim. `patch.h`, `species.h` and `node.h` are mechanical after that.
 
 ---
 
@@ -185,14 +190,14 @@ the end. This is the term that needs a whole reverse pass.
 The **allometric term** is what survives when that distribution is held
 identical. A cohort of a given height reads a different leaf area under a
 different `lma`, because leaf area is itself a function of the trait
-(`tf24_strategy.h:650`). No sweep produces this; it comes from differentiating
+in `area_leaf`. No sweep produces this; it comes from differentiating
 the census expression directly. The boundary recruit node belongs here too — it
 is the trapezium's lower grid point and is not ODE state.
 
 Both come out of one recording at the final time, swept twice with different
-seeds (`scm.h:893`). The allometric term could then be added to the sweep's
+seeds. The allometric term could then be added to the sweep's
 answer at the end. It is used as the walk's starting value instead, and
-`scm.h:1080` gives the reason: *"a term added last is a term that can be left
+`census_trait_gradient` gives the reason at the site: *"a term added last is a term that can be left
 out, and a gradient missing it is a plausible number rather than an error."*
 A missing trajectory term produces obvious nonsense; a missing allometric term
 produces a number of the right order that is quietly wrong.
@@ -221,7 +226,7 @@ element per stage, for a value the caller was about to assign anyway.
 ## Where a derivative stops, and how to lose one by accident
 
 The boundary between the differentiated interior and the plain-`double` world is
-`write_iterator_scalar` (`util.h:147`):
+`write_iterator_scalar`:
 
 ```cpp
   if constexpr (std::floating_point<
@@ -286,15 +291,14 @@ That is the same rule the coordinate follows, applied one level down: a branch
 selector is piecewise constant in its inputs, so differentiating through one
 manufactures a discontinuity the model does not have.
 
-`D_c` and `L_tip` carry columns. `theta_c` is `undifferentiable`
-(`tf24_strategy.h:291`) and the reason is not that a derivative is hard:
+`D_c` and `L_tip` carry columns. `theta_c` is `undifferentiable` and the reason is not that a derivative is hard:
 `prepare_strategy` throws on any non-zero value, so a column there would price
 the hydraulic half of a trait the carbon budget does not yet follow.
 
 ## Why the coordinate is birth date
 
 The size-density distribution can be carried in height or in birth date. The
-gradient refuses height rather than answering it (`scm.h:160-175`).
+gradient refuses height rather than answering it, in `require_birth_date_coordinate`.
 
 Reserve-gated growth lets a younger cohort overtake an older one. In the height
 coordinate that reorders the quadrature, which means the abscissa is itself a
@@ -310,7 +314,7 @@ arithmetic to complain.
 
 ## One invariant a new strategy must honour
 
-`establishment_failure_hazard = 750.0` (`internals.h:41`) is the cumulative
+`establishment_failure_hazard = 750.0` in `internals.h` is the cumulative
 hazard a cohort is parked at when its establishment probability is exactly zero,
 which happens in deep shade. Without it the hazard is `+Inf`, and an infinite
 entry in an ODE state is worse than it sounds: the step-size controller scales

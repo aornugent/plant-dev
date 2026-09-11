@@ -119,9 +119,10 @@ R signatures are unchanged and `NAMESPACE` gains nothing.
 | `clamp_sites.hpp` | 68 | new |
 
 Nothing is deleted. Read `clamp_sites.hpp` and `vulnerability.hpp` first — 141
-lines and the rest leans on both. Then `roots.hpp:357-383` and `:811`. Then
-`leaf_model.hpp:1199-1253` and `:2023-2082`, the derivative surface proper.
-`kernel_slope_at` at `:5573` is self-contained; `closed_form_rows.hpp` reads
+lines and the rest leans on both. Then `SupplyAt` and `CollarConductance`
+in `roots.hpp`, and the `uptake_impl` they feed. Then `SupplyDraw`,
+`supply_draw_at`, `outputs_at`, `collar_at` and `bound_at` — the derivative
+surface proper. `kernel_slope_at` is self-contained; `closed_form_rows.hpp` reads
 better last.
 
 ---
@@ -170,7 +171,7 @@ precisely the correction the envelope theorem does not give.
 ## Why classification cannot read the numbers
 
 `dprofit_at_collar_psi` returns a literal `0.0` on its shutdown and
-reversed-gradient exits (`:4021`), before setting the feasibility flag. A test of
+reversed-gradient exits, before setting the feasibility flag. A test of
 the obvious form — marginal profit near zero implies an interior optimum — reads
 a shut leaf as stationary.
 
@@ -183,7 +184,7 @@ So the kind is written by the branch the solve exited and never inferred
 afterwards. Twelve sites write it. `prepare_collar_solve` resets it to `Unsolved`
 at the start of every solve, so a branch that forgets reports "unclassified"
 instead of the previous plant's answer, and
-`test_operating_point_kind_is_written_by_every_path` (`test_leaf.cpp:816`) holds
+`test_operating_point_kind_is_written_by_every_path` in `test_leaf.cpp` holds
 all twelve to it. One gap is documented rather than fixed: `optimise()` on the
 stem route leaves the kind `Unsolved` (`:2431`), so `collar_at` throws instead of
 misreporting.
@@ -203,7 +204,7 @@ needs is in hand at the moment each layer is visited.
 
 Forming it afterwards means walking every layer again to produce numbers the
 first walk already had, and leaves two pieces of code that must agree bit for bit
-about a quantity neither of them owns. `roots.hpp:712` states the rule directly:
+about a quantity neither of them owns. `uptake_impl`'s own comment states the rule:
 the collar response comes out of the same walk or not at all.
 
 Two scalar choices inside `SupplyDraw` are deliberate and easy to misread. The
@@ -221,7 +222,7 @@ at that kind anyway.
 
 ## `kernel_slope_at` supplies second derivatives
 
-This one is easy to skim past. `kernel_slope_at` (`:5573`) returns a kernel's
+This one is easy to skim past. `kernel_slope_at` returns a kernel's
 *slope* as its value, carrying rows that are the kernel's *mixed second
 partials*.
 
@@ -253,7 +254,7 @@ of the kernel they differentiate.
 
 At `S == double` the outer level is skipped entirely and only the inner tangent
 runs. That matters because the double path is the one that places every operating
-point — 2.3 million of them in a century-scale stand run — and paying `n_dir`
+point. A hundred-year stand run places millions of them, so paying `n_dir`
 directions there for rows nobody reads would be the dominant cost of the whole
 model.
 
@@ -265,8 +266,7 @@ kernel's arithmetic, so `n_dir` has to stay small.
 
 odelia's `visit_active` dispatches on `for_each_active`, then container, then
 pointer — and falls off the end doing nothing for an aggregate that matches none
-of them. `PhotoCapacity` is an input to the `ci` residual's `implicit_value`
-(`:5760`):
+of them. `PhotoCapacity` is an input to the `ci` residual's `implicit_value`:
 
 ```cpp
   template <class F>

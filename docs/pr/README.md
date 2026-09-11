@@ -31,7 +31,7 @@ order, not a fault.
 | 2 | `phylloptim:master` ← `ad/V4-reverse-tf24` | `v0.9.0` |
 | 3 | `plant:develop` ← `ad/V4-reverse-tf24` | — |
 
-Before opening any of them, clear `docs/pr/catalog.md`: it lists what should
+Write them to `STYLE.md`. Before opening any, clear `catalog.md`: it lists what
 not reach a maintainer.
 
 ## Sources
