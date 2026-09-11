@@ -72,7 +72,7 @@ odelia is one commit behind (#58, the pinned-time step rejection, which is what
 | **[v]** | `collar_at` is declared `const` and `const_cast`s itself to call a non-const member. | `leaf_model.hpp:6037` |
 | **[v]** | `set_extrapolate` is not merely inert — the read was removed and the default flipped `true` → `false`. Three live phylloptim callers silently no-op, and an out-of-domain read that used to stop with a located error now extrapolates linearly. `vulnerability.hpp:265` still asserts both splines have extrapolation disabled. | `odelia/inst/include/odelia/interpolator.hpp:545, 554` |
 
-### A5. Five `R CMD check` WARNINGs, all new on this branch **[v]**
+### A4. Five `R CMD check` WARNINGs, all new on this branch **[v]**
 
 phylloptim's `check-r-package` sets no `error-on`, and the action's default is
 `"warning"` — so for that package a WARNING is a red leg. plant and odelia pin
@@ -90,7 +90,7 @@ One roxygen run closes three of them; `gradient_control.Rd`, `stand_census.Rd`,
 `stand_gradient.Rd` and `stand_census_state_adjoint.Rd` are stale in the same way
 and come with it.
 
-### A4. The exactness claim has two open columns **[v]**
+### A5. The exactness claim has two open columns **[v]**
 
 `theta` and `omega` disagree **in sign** with the only reference that shares no
 arithmetic with the sweep — `mass_above_ground` reads 3407 against −1074, and
