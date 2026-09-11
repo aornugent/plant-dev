@@ -107,10 +107,10 @@ The R signatures are unchanged and `NAMESPACE` gains nothing.
 
 | file | lines | what |
 |---|---|---|
-| `leaf_model.hpp` | +1622 | `Leaf<S>`, `leaf_pars<S>`, `SupplyDraw`, `PhotoCapacity`, `LeafOutputs`, `OperatingPointKind` |
-| `roots.hpp` | +443 | `SupplyAt`, `CollarConductance`, the merged uptake walk |
+| `leaf_model.hpp` | +1635 | `Leaf<S>`, `leaf_pars<S>`, `SupplyDraw`, `PhotoCapacity`, `LeafOutputs`, `OperatingPointKind` |
+| `roots.hpp` | +487 | `SupplyAt`, `CollarConductance`, the merged uptake walk |
 | `gradient.hpp` | +113 | the `par_*` enumeration moves here |
-| `vulnerability.hpp` | +76 | `weibull_b_from_P50`, `vulnerability_derivatives_at` |
+| `vulnerability.hpp` | +85 | `weibull_b_from_P50`, `vulnerability_derivatives_at` |
 | `closed_form_rows.hpp` | 73 | new |
 | `clamp_sites.hpp` | 68 | new |
 

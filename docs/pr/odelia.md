@@ -144,10 +144,10 @@ function and the optimiser loop becoming the caller's business.
 | `implicit_node.hpp` | 397 | `record_with_derivatives`, `implicit_value`, `preaccumulate` |
 | `sweep.hpp` | 94 | `state_at_range`, `program_from`; plant's `scm.h` consumes both |
 | `tangent.hpp` | 75 | `tangent_scalar`, `seed_direction`, `derivative_along` |
-| `with_slope.hpp` | 44 | `with_slope<T>` |
+| `with_slope.hpp` | 55 | `with_slope<T>` |
 
-Rewritten: `interpolator.hpp` (+640, absorbs the spline), `ode_interface.hpp`
-(+496, the contract above), `ode_solver.hpp` (+392, the recording and
+Rewritten: `interpolator.hpp` (+651, absorbs the spline), `ode_interface.hpp`
+(+509, the contract above), `ode_solver.hpp` (+392, the recording and
 `solve_adjoint`), `solver_interface.hpp` (−293 net, the Solver pair collapsing).
 Deleted: `spline.hpp` (466), `ode_fit.hpp` (100). Neither was included by
 phylloptim or plant, so the in-family migration cost is zero.
@@ -319,6 +319,12 @@ independent variables — and all three of those compile. It is also a shape
 for an aggregate matching none of them (`ode_interface.hpp:66`). A bare pair of
 scalars is exactly such an aggregate: it would contribute no rows, silently, with
 every number still finite.
+
+It cannot refuse the shape instead, and the header says why: from inside the
+visitor, a class holding active values and a class holding none look the same,
+and callers legitimately hand over both — FF16 and K93 hold `double` only and are
+walked past on purpose. What reports a miss is `active_system::release`, which
+counts the slots the walk never reached.
 
 ## Interpolation
 

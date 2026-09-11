@@ -147,18 +147,18 @@ rather than a model-level refusal.
 
 | file | lines | what |
 |---|---|---|
-| `models/tf24_strategy.h` | +2400 | the strategy, templated; absorbs the deleted `.cpp` |
+| `models/tf24_strategy.h` | +2533 | the strategy, templated; absorbs the deleted `.cpp` |
 | `patch.h` | +1120 | the stand; `at_scalar`, `plant::tangent` |
-| `scm.h` | +1002 | the solver and `census_trait_gradient` |
+| `scm.h` | +1004 | the solver and `census_trait_gradient` |
 | `species.h` | +697 | per-species accumulation |
 | `models/tf24_environment.h` | +524 | light and soil, templated |
 | `census.h` | 59 | new — `census_metric<Strategy>`, `Censusable` |
-| `census_gradient.h` | 57 | new — `census_gradient`, `refusal` |
+| `census_gradient.h` | 59 | new — `census_gradient`, `refusal` |
 | `clamp_sites.h` | 100 | new |
 | `with_slope.h` | 38 | new — alias of odelia's |
 
-Deleted: `adaptive_interpolator.{h,cpp}`, `optimize.h`, `tf24_strategy.cpp`,
-`tf24f_strategy.cpp`. New R exports: `stand_gradient`, `stand_census`,
+Deleted: `adaptive_interpolator.{h,cpp}`, `optimize.h`, and four `src/` files —
+`tf24_strategy.cpp`, `tf24f_strategy.cpp`, `tf24_node.cpp`, `tf24f_node.cpp`. New R exports: `stand_gradient`, `stand_census`,
 `stand_census_state_adjoint`, `stand_gradient_compare`, `gradient_control`.
 
 Read `census.h` and `census_gradient.h` first — 116 lines, and they say what a
@@ -211,7 +211,7 @@ a sequence of commits that do not build is worse to review than one that does.
 
 FF16 and K93 are not templated. They pin `using value_type = double` and never
 instantiate the active path, so only TF24 pays the compile cost — which is real,
-since `tf24_strategy.h` grew from 771 lines to 2,638 by absorbing its `.cpp` and
+since `tf24_strategy.h` grew from 771 lines to 2,886 by absorbing its `.cpp`, and
 twelve of the twenty-five translation units now recompile it.
 
 `Individual::state` returns `const value_type&` where it returned `double`.

@@ -38,7 +38,12 @@ Nothing ships until these are closed.
 - **"912 rows carry an unwritten field into their output."** The test reporting
   a defect rather than a mismatch. Unexplained.
 
-### A2. The branches are behind upstream on the file they rewrote most **[v]**
+### A2. ~~The branches are behind upstream~~ — RESOLVED **[v]**
+
+All three submodules are now level with their upstream default branch (checked
+`rev-list --count HEAD..upstream` = 0 on each). The TF24 conflict described below
+was resolved in `39f576b`/`57585d9`/`dafa22c`. Kept for the record.
+
 
 `plant` is three commits behind `develop`. The gap is not incidental:
 
