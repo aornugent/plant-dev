@@ -14,8 +14,8 @@ Differentiate a stand's census by trait
 A leaf slightly cheaper to build shades its neighbours slightly more, so
 they grow slightly less, so they shade it back slightly less. Fitting a
 trait means asking what a century of that does to a stand summary, for
-all forty-six TF24 traits at once. Differencing costs forty-six re-runs
-and does not converge where a trait moves an event in the run.
+all forty-eight TF24 traits at once. Differencing costs forty-eight
+re-runs and does not converge where a trait moves an event in the run.
 
 `stand_gradient(scm)` returns that derivative exactly, from one run, as
 `list(value, gradient, refusal, control)`. The model is templated on its
@@ -37,8 +37,8 @@ Closes #
 `stand_gradient()` returns `d(census metric)/d(trait)` over a whole run, for
 every metric against every trait, from a single forward pass and a single
 reverse one. TF24 declares three metrics — `leaf_area`, `mass_above_ground`,
-`area_stem` (`tf24_strategy.h:649`) — and carries 64 parameter-table entries of
-which 18 are declared `undifferentiable`, leaving 46 trait columns per species.
+`area_stem` (`tf24_strategy.h:649`) — and carries 67 parameter-table entries of
+which 19 are declared `undifferentiable`, leaving 48 trait columns per species.
 
 It is a derivative of the emergent stand and not of a plant in isolation. That
 distinction is measurable, not rhetorical: environmental feedback suppresses the
@@ -256,7 +256,7 @@ particular trait. Refusing the affected columns and answering the rest would
 report a partial sum as though it were the sum.
 
 The cost of that grain is high — one leaf without a derivative makes all three
-metrics NaN across all 46 columns — which is a strong incentive to make
+metrics NaN across all 48 columns — which is a strong incentive to make
 inadmissible points rare, and is most of what phylloptim's operating-point
 machinery is for.
 
@@ -266,6 +266,30 @@ failed spans every cohort, so reading it means handling `-1` and not indexing
 with it. And NaN propagates safely through arithmetic but not through a reduction
 that drops it: `max(abs(g$gradient), na.rm = TRUE)` ignores a refused metric
 entirely and returns a confident number.
+
+## The stem path integral is differentiated, its branch is not
+
+The upstream merge brought TF24's height-resistance from stem anatomy, which
+computes an effective path length
+
+```
+    L_eff = ∫ from L_tip to L_top  (L / L_tip)^(−beta) dL,     beta = 2·D_c + theta_c
+```
+
+and that integral takes a different closed form depending on whether `beta` is
+zero, one, or neither. `stem_hydraulics.h` is templated on the scalar, so the
+integral itself carries derivatives — but which closed form to use is read off
+the **passive** value of `beta`. The backward pass therefore differentiates the
+model at a fixed choice of branch, never the choice.
+
+That is the same rule the coordinate follows, applied one level down: a branch
+selector is piecewise constant in its inputs, so differentiating through one
+manufactures a discontinuity the model does not have.
+
+`D_c` and `L_tip` carry columns. `theta_c` is `undifferentiable`
+(`tf24_strategy.h:291`) and the reason is not that a derivative is hard:
+`prepare_strategy` throws on any non-zero value, so a column there would price
+the hydraulic half of a trait the carbon budget does not yet follow.
 
 ## Why the coordinate is birth date
 
