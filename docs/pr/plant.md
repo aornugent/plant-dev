@@ -352,6 +352,17 @@ Six instruments, none sufficient alone:
 | RHS differenced against prepared traits | most trait columns of the transpose | exactly zero on the 12 leaf-own traits and the 8 birth-size parameters |
 | model rebuilt from its parameters | the leaf-own traits and the seed-height row | patch only, no trajectory |
 
+⚠️ **Two columns are open against the last of those, and the pull request does
+not close them.** `theta` and `omega` agree with the whole-run difference on a
+wet stand and disagree **in sign** on drought and seasonal ones, far outside that
+reference's own 0.7–10% resolution: `2.omega` reads 276.3 against −4000 for
+`mass_above_ground`, and `1.theta` reads 0.3793 against −27.22 for `area_stem`.
+Both reach the census through channels the leaf boundary carries — `theta` as the
+leaf's maximum conductance, `omega` through birth size. They are declared in
+`test-gradient-ladder-whole-run-difference.R` and asserted in both directions, so
+a third column opening fails the rung and either of these closing fails it too.
+Every other answered column holds.
+
 Deliberately corrupted values were injected to establish that these checks notice
 a defect when one is present. A suite that records how much margin each check had
 says nothing about whether the check would have fired.

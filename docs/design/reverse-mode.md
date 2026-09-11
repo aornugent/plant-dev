@@ -170,7 +170,7 @@ Backwards, the sweep that produces the gradient:
 |---|---|---|
 | 1 | `stand_gradient` in R | resolve the metric and trait names asked for, refuse names the model does not carry, and assemble the answer. |
 | 2 | `census_trait_gradient_tf24` | names in, an R list out. The only place `double` becomes an active scalar for this product. |
-| 3 | `SCM::census_trait_gradient` | the orchestrator. It seeds the walk, runs it, adds the direct term, classifies exact zeros, and restores the state vector's width on every exit including a throw. |
+| 3 | `SCM::census_trait_gradient` | the orchestrator. It seeds the walk **with** the direct term, runs it, and assembles the answer. The direct term is the walk's starting value and not something added afterwards: `scm.h:1080` gives the reason, that a term added last is a term that can be left out. Nothing classifies exact zeros -- a parameter with no gradient is refused by name instead, so every column that exists carries a number the sweep computed. Restoring the state vector's width is step 5's, in odelia. |
 | 4 | `SCM::census_state_and_trait_rows` | **the seed.** One recording over the states and the traits at the final time yields both the sensitivity of each metric to the final state, which is what the walk is seeded with, and the sensitivity of each metric to the traits it reads directly, which no walk produces. |
 | 5 | `Solver::solve_adjoint` | one **range** per state-vector width, highest first, narrowing across each introduction. A range is a run of steps over which the width does not change. |
 | 6 | `Step::step_adjoint` | one recording of a whole six-stage step, swept once per metric. Five of the six stage states are held by no record, so they are recomputed from the recorded state the step began at. |
