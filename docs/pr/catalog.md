@@ -115,14 +115,11 @@ derivative" cannot leave that behind a skip. Fix, or state it in the body.
 
 ---
 
-## B. ~~Remove before submitting~~ — CLOSED except one **[v]**
+## B. ~~Remove before submitting~~ — CLOSED **[v]**
 
-Everything below is done but `plant/src/gradient_ladder.cpp`, which is a
-scope question rather than a removal: its 34 entry points have no caller
-outside the suite, and the catalog's own two options are a follow-up pull
-request or a test-only translation unit — the first means deleting the
-eighteen files that are this pull request's assurance argument. Left for
-the author.
+Everything below is done. `plant/src/gradient_ladder.cpp` is not a removal and
+has moved to D: both of the options named for it change what the pull request
+contains, which is the author's call rather than a tidy-up.
 
 
 Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
@@ -131,7 +128,7 @@ Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
 |---|---|---|---|
 | **[v]** | `odelia/tests/standalone/probe_*.cpp`, seven files | 2,034 | In no `all:` target and no workflow. `probe_nested_recording.cpp` alone is 1,023 lines. They are measurements; under `tests/` a maintainer reads them as checks. Move to `notes/` or `bench/`. |
 | **[v]** | `phylloptim/tests/cpp/probe_preaccumulation.cpp`, `probe_tape_regions.cpp` | 563 | Same. And the binaries **do** ship: `.Rbuildignore:46-50` names only the five older ones, and building with all four new binaries present took the tarball from 1,277,427 to 2,500,921 bytes. `R CMD check`'s `check_executables()` warns on undeclared executables, which for phylloptim is a red leg. |
-| **[v]** | `plant/src/gradient_ladder.cpp` | 1,071 | 34 `[[Rcpp::export]]` entry points, **not one called from `plant/R/`** — every caller is `helper-gradient-ladder.R`. 34 names on the compiled ABI, held up by the thing they check. Follow-up PR, or a test-only translation unit. |
+| **[→D]** | `plant/src/gradient_ladder.cpp` | 1,071 | **Moved to D.** Not a removal: every option changes what the pull request contains. The finding holds and is sharper than written — the callers are 13 test files, not one helper. |
 | **[v]** | `plant/tests/testthat/reference/reference-kinds.tsv` | 121 | Nothing reads it, and its generator `scripts/generate_reference_run.R` is deleted in the same diff, so it cannot be regenerated either. |
 | **[v]** | `plant/tests/testthat/test-gradient-demo.R` | 116 | Gated on `overstorey_staging/`, which is `.Rbuildignore`d. `R CMD check` runs from the tarball, so all six tests skip on every CI leg. |
 | **[v]** | `plant/tests/testthat/test-gradient-ladder-production-scale.R` | 48 | Both tests skip on `PLANT_LADDER_SCALE`, which nothing in any repo, workflow or script sets. Its own comment: *"a suite that skips where it is meant to scale reports green for not having run."* |
@@ -219,11 +216,11 @@ than from the docs and are unaffected.
 
 Judgement calls, not defects. Each wants an answer before the pull requests open.
 
-### The four that block a submission
+### The five that block a submission
 
-These are not style questions: each one either reverts something upstream
-shipped, accepts a change to the model's science, or leaves a wrong number in
-the answer. Nothing else in D does that.
+These are not style questions. Four of them revert something upstream shipped,
+accept a change to the model's science, or leave a wrong number in the answer;
+the fifth decides what the pull request contains. Nothing else in D does either.
 
 | | decision | what is known |
 |---|---|---|
@@ -231,6 +228,7 @@ the answer. Nothing else in D does that.
 | **run_mutant** | **Restore it, or ship regressed against `develop`.** | `SCM::run_mutant` is a `stop()` here and works on develop, where #643 restored it for TF24. The recorder it needs was reached through solver hooks this branch's rewrite stopped calling; the replacement its own comment names, odelia's `ReplaysField`, **does not exist**. Recorded under plant's Known issues and skipped with the reason at the test, so nothing is silent — but it is a capability a maintainer just merged and would be receiving back broken. |
 | **theta / omega** | **Fix the sign disagreement, or state it and ship.** | Both disagree **in sign** with the whole-run difference on drought and seasonal stands, far outside that reference's own 0.7–10% resolution: `2.omega` reads 276.3 against −4000 for `mass_above_ground`, `1.theta` 0.3793 against −27.22 for `area_stem`. Both reach the census through channels the leaf boundary carries. Now declared and asserted in both directions in `test-gradient-ladder-whole-run-difference.R`, and stated in the pull-request body — so shipping is a choice rather than an oversight. Every other answered column holds. |
 | **the operating point moved** | **Recalibrate the incidence and parity fixtures, or hold.** | develop's #617 took the dry share from **0.51% to 92.36%** on `incidence_stand(0.25, 10)`, `seasonal` from answered to refused, and `shaded` from reaching shade-death to not. Nine gradient-suite failures, none of them a derivative: every referee is green, including the transpose identity over all four operating-point kinds at 5.1e-11. Moving the fixtures accepts the ecology; leaving them accepts nine red. |
+| **`gradient_ladder.cpp`** | **Ship 34 test-only entry points on the ABI, split them out, or defer the suite.** | 1,071 lines, 34 `[[Rcpp::export]]`, and re-checked: **no entry point has a caller in `R/` outside the generated glue** — every one of them is reached from a test, across 13 files. So they are on the compiled ABI to serve the thing they check. The catalog's own two options both cost something real: a follow-up pull request means deleting the eighteen files that are this pull request's assurance argument, and a test-only translation unit is a mechanism `plant` does not have (R compiles everything in `src/`). Deferring the whole ladder is the third option and the largest. Also the single biggest lever on install cost — the measurement under *Install cost* below puts a quarter of the build in this one file. |
 
 ### The rest
 
