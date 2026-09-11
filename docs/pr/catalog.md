@@ -62,6 +62,7 @@ odelia is one commit behind (#58, the pinned-time step rejection, which is what
 
 | | what | where |
 |---|---|---|
+| **[v]** | **The cross-package tape contract is broken in two of four build files.** `phylloptim/src/Makevars` defines neither `XAD_NO_THREADLOCAL` nor `XAD_USE_STRONG_INLINE` while compiling four translation units including `gradient.cpp`; `plant/src/Makevars.win` defines neither, and Windows is the one platform where `plant.dll` links `odelia.dll` at link time. The comment at `plant/src/Makevars:9` states the invariant in capitals — both must match odelia's exactly, because a mismatch is a storage-class conflict on a symbol whose mangled name does not change. It links cleanly, passes load, and corrupts or nulls every recorded derivative. | `phylloptim/src/Makevars`, `plant/src/Makevars.win` |
 | **[v]** | An out-of-bounds read became an out-of-bounds **write**. `duptake_dpsi` sizes its scratch from `psi_soil.size()` and hands it to `uptake_impl`, which writes `soil_consumption[i]` to `max_soil_layer` — a count owned by the root network, not by the caller's soil vector. | `phylloptim/inst/include/phylloptim/roots.hpp:766` |
 | **[v]** | Drought throws the wrong exception. `util::stop` past `(psi/b)^c > log(100)` — about 6.89 MPa at root defaults — where `roots.hpp:470` states in capitals that a layer drier than the grid is an ordinary state and plant's own ceiling is 1000 MPa. `util.hpp:66` says `stop_infeasible` exists so such a point costs one row and leaves a usable likelihood. As written a drought proposal fails the whole fit. | `phylloptim/inst/include/phylloptim/vulnerability.hpp:113` |
 | **[v]** | The forward solve and its own derivative run different code. `uptake()` — the hot path, ~10³ calls per collar solve — calls the legacy `double` body; `uptake_at<T>` and `duptake_dpsi` call the templated one. They differ in kink handling and in whether a non-finite draw is refused. The commit argued for one walk; the diff swapped which pair is duplicated. | `roots.hpp:690` vs `:727` |
@@ -70,6 +71,24 @@ odelia is one commit behind (#58, the pinned-time step rejection, which is what
 | **[r]** | `const` defeats `visit_active`. Both rewinding forms take `const Inputs&...`; every `for_each_active` in the family is non-const. Measured at 0 scalars reached as const against 2 non-const — so `with_slope`, the type whose comment says it "LIVES HERE BECAUSE OF `for_each_active`", contributes no rows to either. | `implicit_node.hpp:223`, `with_slope.hpp:36` |
 | **[v]** | `collar_at` is declared `const` and `const_cast`s itself to call a non-const member. | `leaf_model.hpp:6037` |
 | **[v]** | `set_extrapolate` is not merely inert — the read was removed and the default flipped `true` → `false`. Three live phylloptim callers silently no-op, and an out-of-domain read that used to stop with a located error now extrapolates linearly. `vulnerability.hpp:265` still asserts both splines have extrapolation disabled. | `odelia/inst/include/odelia/interpolator.hpp:545, 554` |
+
+### A5. Five `R CMD check` WARNINGs, all new on this branch **[v]**
+
+phylloptim's `check-r-package` sets no `error-on`, and the action's default is
+`"warning"` — so for that package a WARNING is a red leg. plant and odelia pin
+`"error"`.
+
+| check | package | finding |
+|---|---|---|
+| non-portable flags | odelia, plant | `-fno-stack-protector` in `PKG_CXXFLAGS` raises *Non-portable flags in variable 'PKG_CXXFLAGS'*. It is also inert on Linux (R puts `PKG_CXXFLAGS` before the distro `CXXFLAGS`, last wins) and live on macOS/clang, where R adds no hardening — so the one place it takes effect is the one place it removes protection. Drop it. |
+| `tools::codoc` | phylloptim | `man/leaf_control.Rd:9` says `vulnerability_curve_ncontrol = 100`; the source moved to 400 this branch. |
+| `tools::codoc` | plant | `man/run_scm.Rd` — a file this diff edits — documents `use_ode_times` and `ode_step_sizes`, which are gone, omits `record_trajectory`, and has three argument positions shifted. |
+| `tools::undoc` | plant | `stand_gradient_refused` is exported with no `.Rd`. |
+| `check_executables` | phylloptim | Four unstripped ELF binaries ship — see B. |
+
+One roxygen run closes three of them; `gradient_control.Rd`, `stand_census.Rd`,
+`stand_gradient.Rd` and `stand_census_state_adjoint.Rd` are stale in the same way
+and come with it.
 
 ### A4. The exactness claim has two open columns **[v]**
 
@@ -90,7 +109,7 @@ Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
 | | what | lines | why |
 |---|---|---|---|
 | **[v]** | `odelia/tests/standalone/probe_*.cpp`, seven files | 2,034 | In no `all:` target and no workflow. `probe_nested_recording.cpp` alone is 1,023 lines. They are measurements; under `tests/` a maintainer reads them as checks. Move to `notes/` or `bench/`. |
-| **[v]** | `phylloptim/tests/cpp/probe_preaccumulation.cpp`, `probe_tape_regions.cpp` | 563 | Same. Also absent from `.Rbuildignore`, so their binaries ship if `make` ran before `R CMD build`. |
+| **[v]** | `phylloptim/tests/cpp/probe_preaccumulation.cpp`, `probe_tape_regions.cpp` | 563 | Same. And the binaries **do** ship: `.Rbuildignore:46-50` names only the five older ones, and building with all four new binaries present took the tarball from 1,277,427 to 2,500,921 bytes. `R CMD check`'s `check_executables()` warns on undeclared executables, which for phylloptim is a red leg. |
 | **[v]** | `plant/src/gradient_ladder.cpp` | 1,071 | 34 `[[Rcpp::export]]` entry points, **not one called from `plant/R/`** — every caller is `helper-gradient-ladder.R`. 34 names on the compiled ABI, held up by the thing they check. Follow-up PR, or a test-only translation unit. |
 | **[v]** | `plant/tests/testthat/reference/reference-kinds.tsv` | 121 | Nothing reads it, and its generator `scripts/generate_reference_run.R` is deleted in the same diff, so it cannot be regenerated either. |
 | **[v]** | `plant/tests/testthat/test-gradient-demo.R` | 116 | Gated on `overstorey_staging/`, which is `.Rbuildignore`d. `R CMD check` runs from the tarball, so all six tests skip on every CI leg. |
@@ -100,6 +119,8 @@ Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
 | **[r]** | `phylloptim/.claude/CLAUDE.md` | 12 | Agent-facing scratch in a public pull request. |
 | **[r]** | `plant/scripts/tf24-active-probe.cpp` | 67 | "Nothing runs it for you." |
 | **[r]** | `odelia` `compat_interpolator::add_point`, `get_x`, `get_y`, `r_eval`; `Solver::get_control()`, `get_history()` | ~26 | No consumer in any of the three trees. |
+| **[v]** | `plant/.Rbuildignore:31` | — | `^inst/RcppR6*$` does not match `inst/RcppR6_classes.yml` — confirmed against R's own `grepl`. The 57,873-byte file ships and installs. Write `^inst/RcppR6_classes\.yml$`. |
+| **[r]** | odelia ships `AGENTS.md`, `ARCHITECTURE.md`, `CLA.md`, `.claude/CLAUDE.md` | ~16 KB | plant and phylloptim ignore all four; odelia's `.Rbuildignore` has no such lines. |
 | **[v]** | `phylloptim` `FixedCollarEval` | — | No consumer anywhere, tests included. `clamp_sites.hpp:37` cites a `profit_at_fixed_collar` that exists nowhere. |
 
 Also **[r]**: the shim `compat_interpolator` / `basic_interpolator` / `Interpolator`
@@ -182,6 +203,8 @@ Judgement calls, not defects. Each wants an answer before the pull requests open
 | **[v]** | **phylloptim names the AD library eighteen times**, four of them raw `using AD = xad::fwd<double>::active_type`, which bypasses `tangent.hpp`'s guard against the 18× nested-tape blow-up. The project's stated rule is that the library is named in odelia and nowhere else. Route them through `tangent_scalar` / `seed_direction` / `derivative_along`, or amend the rule. plant names it once. |
 | **[v]** | **`leaf_model.hpp` runs 2,440 lines public before its first `private:`**, exposing ~90 raw state fields including this branch's own additions, and an invariant comment at `:181` that `private:` would enforce. |
 | **[v]** | **Net +237 C++ names and +62 R names** across the three packages, against four real header deletions. The original brief was net deletion. |
+| **[v]** | **plant's own headers are compiled as system headers.** `-isystem../inst/include/` sits in `PKG_CPPFLAGS` (`plant/src/Makevars:7`), after every `LinkingTo` include, so every warning in plant's own headers is suppressed. plant is ~95% headers, so the package is effectively un-warned on every toolchain including CRAN's `-Wall -pedantic`. |
+| **[v]** | **Install cost, and the one lever that works.** `R CMD INSTALL` takes 163.8 s wall at `-j4`, 443.6 s serial over 25 translation units; four of them — `RcppExports`, `gradient_ladder`, `RcppR6`, `census_gradient` — are 74% of that time and 86% of 261 MB of objects. `-g0` or `-Os` would cut 32-51%, but both are **inert in `PKG_CXXFLAGS` for the same ordering reason as `-fno-stack-protector`**. The levers that work are `R CMD INSTALL --strip` (105.99 MB to 7.38 MB, a CI flag not a Makevars line), explicit instantiation against the measured 2.8× duplication of `TF24_Strategy`, and removing `gradient_ladder.cpp`. |
 | **[r]** | **Defer the forward-mode and replay family?** `census_trait_tangent`, `census_trait_difference`, `census_initial_state_tangent`, `census_initial_state_replay`, `replay_initial_state` — the reverse-mode gradient this PR ships calls none of them. |
 | **[v]** | **`gradient_control()` has a check that cannot fail.** It returns five values positionally and R names them; `ci_abs_tol` and `gradient_curvature_floor` are both `1e-3` at defaults, so transposing them passes both assertions while `stand_gradient_compare()` refuses on the wrong pair. Return names beside the values. |
 | **[r]** | **`vulnerability_curve_ncontrol = 400` is written in three places** — one C++ constant and two R literals — with only a cross-package test tying any two, and it compares plant's C++ value against phylloptim's R literal. |
@@ -209,5 +232,8 @@ Claims checked this round that did not survive, so nobody re-opens them:
 - **Refusal being coarser than documented.** `scm.h` and `refusal.md` agree
   exactly: all metrics go together because the failing row is an intermediate of
   a recording spanning every cohort and stage. **[v]**
+- **`-Os` or `-g0` in Makevars as a build-size remedy.** Measured inert, for the
+  same reason `-fno-stack-protector` is: R places `PKG_CXXFLAGS` before the
+  distro's `CXXFLAGS`. Use `--strip` at install instead. **[v]**
 - **A migration burden for `spline.hpp` / `ode_fit.hpp`.** Nothing in any of the
   three trees included either. **[v]**
