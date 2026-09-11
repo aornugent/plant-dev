@@ -14,8 +14,8 @@ Differentiate a stand's census by trait
 A leaf slightly cheaper to build shades its neighbours slightly more, so
 they grow slightly less, so they shade it back slightly less. Fitting a
 trait means asking what a century of that does to a stand summary, for
-all forty-six TF24 traits at once. Differencing costs forty-six re-runs
-and does not converge where a trait moves an event in the run.
+all forty-eight TF24 traits at once. Differencing costs forty-eight
+re-runs and does not converge where a trait moves an event in the run.
 
 `stand_gradient(scm)` returns that derivative exactly, from one run, as
 `list(value, gradient, refusal, control)`. The model is templated on its
@@ -39,8 +39,8 @@ Closes #
 - **refusal** — a declared reason a metric has no derivative, carried alongside NaN.
 - **range** — consecutive recorded steps at constant state width. A new one begins at each introduction.
 
-Of TF24's 64 parameter-table entries, 18 are declared `undifferentiable`, leaving
-46 columns per species.
+Of TF24's 67 parameter-table entries, 19 are declared `undifferentiable`, leaving
+48 columns per species.
 
 ## The call
 
@@ -241,6 +241,7 @@ take the stable answer, or force a step at the crossing. Nothing detects it.
 | A metric returns a swept number, or NaN with a stated reason; never a partial sum | `scm.h:1128-1145` |
 | An exact zero in an answered row is the sweep's answer, not a gap | `scm.h:1141` |
 | A parameter with no row cannot be asked for | `tf24_strategy.h:224`, held by `static_assert(column_count + undifferentiable.size() == field_count)` at `:375` |
+| The stem path integral is differentiated, not its branch | `stem_hydraulics.h` is templated on the scalar; which closed form the integral takes is read off the passive value of beta, so the backward pass differentiates the model at a fixed choice. `D_c` and `L_tip` carry columns; `theta_c` is `undifferentiable`, because `prepare_strategy` refuses any non-zero value and a column there would price the hydraulic half of a trait the carbon budget does not yet follow |
 | The tape defines match odelia's exactly | `src/Makevars:16`. A mismatch is a storage-class conflict on a symbol whose mangled name does not change: it links cleanly and is undefined behaviour |
 
 ## Migration
