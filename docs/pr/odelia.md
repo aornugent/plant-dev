@@ -3,7 +3,7 @@
 **Base** `traitecoevo/odelia:master` · **Head** `aornugent/odelia:ad/V4-reverse-tf24`
 **Tag on merge** `v0.5.0` · **Blocks** phylloptim, then plant
 
-Four comments, posted in order.
+Two comments, posted in order.
 
 ## Title
 
@@ -31,32 +31,59 @@ Closes #
 
 ---
 
-# Comment 1 — Orientation
+# Comment 1 — What this is and what it changes
 
 ## Terms
 
-Specific to reverse mode, and used throughout the diff.
+Four words carry most of the diff, and three of them have a consequence attached
+that is easy to miss.
 
-- **tape** — a linear log of arithmetic, appended as a calculation runs, walked backwards for derivatives.
-- **statement** — one tape entry: a single left-hand side over a run of operations. Tape cost is statements, not operations. `a = b*c + d*e` is one; two assignments are two.
-- **recording** — what sits on the tape between clears. Here, exactly one solver step.
-- **seed** — the starting derivative for a backward walk. One per output.
-- **row** — one output's derivatives against a list of inputs. `adjoint_rows` is a batch.
-- **sweep** — one backward walk of a recording from one seed.
-- **range** — consecutive recorded steps at constant state width. A System that grows mid-run has several.
+**Tape.** A linear log of arithmetic, appended to as a calculation runs. Reverse
+mode walks it backwards. Everything hard about this change comes from the tape
+being finite and a trajectory being long.
 
-## The call
+**Statement.** One tape entry: a single left-hand side covering a run of
+operations. Tape cost is counted in statements, not in arithmetic, and the
+distinction matters more than it sounds. `a = b*c + d*e + f*g` is one statement.
+The same arithmetic written as three `a += ...` lines is three. A submodel that
+hands over its derivative as a loop of `+=` therefore costs its consumer one
+statement per row; written as a single expression it costs one statement no
+matter how many rows there are. That difference is the entire reason
+`implicit_node.hpp` exists.
+
+**Seed and row.** A seed is the starting derivative handed to a backward walk,
+one per output whose derivatives are wanted. A row is one output's derivatives
+against a list of inputs. `adjoint_rows` is a batch of rows, because the
+expensive part of a sweep is the traversal and several seeds can share it.
+
+**Range.** Consecutive recorded steps over which the state vector's length does
+not change. A System of fixed width has exactly one. plant gains a cohort's
+worth of entries at every introduction, so its century fixture has 169.
+
+## The call, and what it requires of the caller
 
 ```cpp
   solver.set_keep_states(true);
   solver.advance_adaptive(times);            // one step_record per accepted step
-  solver.solve_adjoint(lambda,               // seeded at the final width; replaced
-                       parameter_adjoint);   // one row per seed; accumulates
+  solver.solve_adjoint(lambda,               // seeded at the final width
+                       parameter_adjoint);
 ```
 
-`advance_adaptive` is the existing adaptive loop, unchanged. `solve_adjoint`
-walks the records in reverse, re-running each step's six stages at an active
-scalar, sweeping once per seed, clearing the tape between steps.
+`advance_adaptive` is the existing adaptive loop and behaves as it did: six
+Runge–Kutta–Cash–Karp stage evaluations, an embedded error estimate, accept or
+shrink. The only change is that each accepted step appends a record, and only
+when `set_keep_states(true)` asked for it.
+
+`solve_adjoint` has four requirements and checks all of them at run time
+(`adjoint.hpp:387-400`). `lambda` arrives seeded at the run's final state width
+and is **replaced** as the walk narrows. `parameter_adjoint` arrives at one row
+per seed, width equal to the parameter count, and **zeroed by the caller**,
+because it accumulates with `+=` across ranges rather than being overwritten.
+Those two must be different batches, and passing the same one twice is refused
+explicitly: one is replaced and one accumulated, so aliasing them silently loses
+whichever was written first.
+
+The return value is the number of ranges swept.
 
 ## Control flow
 
@@ -79,8 +106,35 @@ scalar, sweeping once per seed, clearing the tape between steps.
         runs twice per step: forward in double, again here at active_scalar
 ```
 
-3,378 steps and 20,268 rate evaluations on plant's century fixture — six per
-step, because every step is re-run whole.
+The edge at the bottom is the one to hold onto. The reverse pass does not read
+cached rates; it re-runs the model. On plant's century fixture that is 3,378
+steps and 20,268 rate evaluations, exactly six per step, because every step is
+re-run whole. Anything cached between calls, or anything depending on the order
+rates are computed in, will differ between the two passes unless something makes
+it agree.
+
+## What changes for an existing System
+
+The trait-based contract becomes C++20 concepts. `needs_time`, `has_cache` and
+`has_state_check` are replaced by `HasOdeTime`, `SolvesForValues`, `ChecksState`
+and `Rebindable` (`ode_interface.hpp:101-263`). A System that only needs solving
+is unaffected by most of this; a System entering a sweep must additionally
+provide `rebind_from`, `ad_parameters`, `for_each_active` and
+`set_recorded_state`, and one whose state grows mid-run must provide
+`apply_insertion`.
+
+`rebind()` becomes `rebind_from()`, and the target scalar is now a named template
+parameter instead of a defaulted one. The reason is in the header: *"defaulting
+it to the System's own scalar asks whether a System can rebind to the scalar it
+already has, which is a different question"* (`:109`). The old form could be
+satisfied by a System that could not actually lift itself.
+
+On the R side, `Solver_fit()` and `Solver_set_target()` are gone along with
+`ode_fit.hpp`, and all fifteen `Solver_*` bindings lose their `active` argument —
+the passive and active Solver types have collapsed into one. Fitting is now a
+C++-only activity, and `compute_gradient` has no drop-in replacement:
+`vector_jacobian_product` plus `sweep.hpp` cover the same ground, with the loss
+function and the optimiser loop becoming the caller's business.
 
 ## Files
 
@@ -93,19 +147,23 @@ step, because every step is re-run whole.
 | `with_slope.hpp` | 44 | `with_slope<T>` |
 
 Rewritten: `interpolator.hpp` (+640, absorbs the spline), `ode_interface.hpp`
-(+496, the System contract becomes concepts), `ode_solver.hpp` (+392),
-`solver_interface.hpp` (−293 net, the passive/active pair collapses to one).
-Deleted: `spline.hpp`, `ode_fit.hpp`; neither was included by phylloptim or plant.
+(+496, the contract above), `ode_solver.hpp` (+392, the recording and
+`solve_adjoint`), `solver_interface.hpp` (−293 net, the Solver pair collapsing).
+Deleted: `spline.hpp` (466), `ode_fit.hpp` (100). Neither was included by
+phylloptim or plant, so the in-family migration cost is zero.
 
-Read `tangent.hpp` and `with_slope.hpp` first, then `ode_interface.hpp:196-222`,
-`ode_solver_internal.hpp:269`, `adjoint.hpp:304`, `ode_solver.hpp:336`.
-`implicit_node.hpp` is independent of the solver.
+Read `tangent.hpp` and `with_slope.hpp` first — 119 lines and everything else
+uses them. Then `ode_interface.hpp:196-222` for what a record holds,
+`ode_solver_internal.hpp:269` for the one place records are written,
+`adjoint.hpp:304` for the sweep primitive, and `ode_solver.hpp:336` for the loop
+that drives it. `implicit_node.hpp` is independent of the solver and can be read
+at any point.
 
 ---
 
-# Comment 2 — Mechanism
+# Comment 2 — How it works
 
-## The record
+## What a forward pass leaves behind
 
 ```
     step_record<System> : instruction
@@ -116,27 +174,45 @@ Read `tangent.hpp` and `with_slope.hpp` first, then `ode_interface.hpp:196-222`,
     └── solved[5]   solved_values  what five of the six stages solved for
 ```
 
-Memory is `n_steps × (n_state + 5 × sizeof(solved))`. Stage rates and four of
-the five intermediate stage states go unstored: recomputing costs six model
-evaluations per step, holding costs the trajectory.
+Memory across a descent is `n_steps × (n_state + 5 × sizeof(solved))`. Stage
+rates and the intermediate stage states are absent by choice: recomputing them
+costs six model evaluations per step, holding them costs the whole trajectory,
+and for a right-hand side this cheap relative to its own length the recomputation
+wins easily.
 
-`solved[5]` covers the one thing neither cheap to recompute nor derivable from
-the state — a root-find's output inside a stage, which for plant is a leaf's
-operating point.
+`solved[5]` exists for the one class of value that is neither cheap to recompute
+nor derivable from the state — anything a root-find produced inside a stage. For
+plant that is a leaf's operating point, found by iteration, whose value depends
+on where the iteration started. A later pass cannot re-derive it; it has to be
+told.
 
-Five, not six: the sixth rate evaluation is at the state the step ends at, and
-first-same-as-last hands it to the next step as its own first rates. A sweep
-re-derives it. So a walk cannot trust the first stage of a recording it jumped
-into, and that is the layout rather than a convention.
+The array is five long and not six, and the reason is a property of the stepper.
+Runge–Kutta–Cash–Karp is first-same-as-last: the sixth rate evaluation of a step
+happens at the state that step ends at, which is precisely the state the next
+step begins from, so the next step reuses it as its own first stage. A sweep
+therefore re-derives that evaluation from the state it was handed rather than
+reading it from anywhere. Nothing stores it.
 
-`step_record` inherits `instruction`. As separate structs differing by one
-member, pairing a time from one container with a state from another compiled
-(`ode_interface.hpp:202`).
+The consequence is structural rather than a convention someone has to remember: a
+walk that jumps into the middle of a recording cannot trust that recording's
+first stage, because the value it would need lives in the row below.
 
-## Narrowing across an introduction
+`step_record` inherits `instruction` rather than repeating its three fields. As
+separate structs differing by one member, pairing a time out of one container
+with a state out of another was a thing that compiled (`ode_interface.hpp:202`).
 
-Not a projection — lambda's extra entries are not dropped. The System's widening
-map is recorded and swept like any other function (`ode_solver.hpp:376-386`):
+## What happens where the state vector grows
+
+plant introduces cohorts on a schedule fixed before the run, and each
+introduction lengthens the state vector by that cohort's entries. Because the
+schedule is fixed rather than triggered by the state, the time at which an
+introduction happens carries no derivative — which is what makes the widening a
+linear map that can be transposed instead of a discontinuity that cannot.
+
+Going forwards the vector only grows, so going backwards the sweep only narrows.
+The obvious implementation of that narrowing is to drop lambda's extra entries.
+That is not what happens. The System's own widening map is recorded and swept
+like any other function (`ode_solver.hpp:376-386`):
 
 ```cpp
   // forward:  y_wide = apply_insertion(time, y_narrow)
@@ -148,20 +224,34 @@ map is recorded and swept like any other function (`ode_solver.hpp:376-386`):
   lambda = std::move(narrowed);
 ```
 
-Two consequences. `parameter_adjoint` is passed in, so a newborn's initial
-conditions contribute parameter derivatives, not only the steps. And the
-`active_system` is local and dies with it: applying the map is what widens the
-System, so a recording made at the narrow width cannot be swept at the wide one.
+Two things follow from treating the widening as an ordinary function. The map
+runs at an active scalar with `parameter_adjoint` passed into it, so **a
+newborn's initial conditions contribute parameter derivatives** — the steps are
+not the only source of them, and a design that dropped entries would have lost
+that channel silently. And the `active_system` built for the map is local and
+dies with it, because applying the map is what widens the System: a recording
+made at the narrow width cannot be swept at the wide one.
 
-Caller-requested cuts resume **at** a row; introductions carry the adjoint
-**across** one, resuming below it on the state the map ran on (`:344-347`).
+A caller can also request cuts at rows of its own choosing, for a partial sweep.
+Cuts and introductions leave the descent in different places and the loop
+distinguishes them. A cut is a row the sweep resumes **at**; an introduction is a
+row it carries the adjoint **across**, so it resumes one row below, on the state
+the map ran on (`:344-347`). A row that is both is treated as the introduction,
+which keeps a cut free of a map.
 
-Peak tape is one step at any run length: one tape for the descent (`:335`),
-cleared between recordings (`adjoint.hpp:324`).
+Peak tape is one step's arithmetic at any run length. One tape is constructed for
+the whole descent (`:335`) and cleared between recordings (`adjoint.hpp:324`), so
+what accumulates across a descent is the trajectory in `step_record`s — cheap,
+linear in steps — and never the arithmetic.
 
-## Attaching a derivative computed elsewhere
+## Attaching a derivative computed somewhere else
 
-`record_with_derivatives(value, rows, into)` (`implicit_node.hpp:71`):
+Inside a stage, `ode_rates` may reach a quantity a solve found by iteration.
+Recording the iterations would differentiate the solver: the answer becomes the
+sensitivity of wherever that particular sequence of iterations stopped, which
+depends on the starting guess and the tolerance. `record_with_derivatives(value,
+rows, into)` (`implicit_node.hpp:71`) puts the number on the tape carrying rows
+it was handed instead:
 
 ```
     out = value + Σ dᵢ · (xᵢ − to_passive(xᵢ))
@@ -169,115 +259,78 @@ cleared between recordings (`adjoint.hpp:324`).
                         exactly zero in value
 ```
 
-`to_passive` strips every AD layer, so the forward value is `value` alone and the
-derivative is whatever `dᵢ` says. One statement whatever the row count. The
-obvious loop, `out += d * (x - to_passive(x))`, is `n` recorded assignments —
-which is how a submodel's whole arithmetic reaches its consumer's tape.
+`to_passive` strips every AD layer from a scalar, so each bracket is numerically
+zero and the forward value is `value` alone, unchanged. The derivative is
+whatever `dᵢ` says it is.
 
-`implicit_value(y*, dFdy, F)` (`:165`) specialises it to a scalar root: given
-`F(y*, p) = 0` and `∂F/∂y`, it records the residual for `∂F/∂p` and yields
+The whole sum is one statement. Written the obvious way, `out += d * (x -
+to_passive(x))` in a loop over rows, it is `n` recorded assignments, and that is
+exactly how a submodel's entire arithmetic ends up on its consumer's tape one
+row at a time.
+
+The size of that difference is worth putting a number on, because it decides the
+design. Counted in statements walked — recording and sweeping cost the same
+traversal — with `T` submodel statements, `k` seeds and `m` outputs:
+
+| | walks per solve | at T=360, k=3, m=6 |
+|---|---|---|
+| recorded inline on the consumer's tape | `T + kT` | 1440 |
+| preaccumulated by an inner tape | `T + mT + m + km` | 2544 |
+| supplied, nothing recorded | `m + km` | 24 |
+
+Preaccumulation is the middle option: record the submodel on a tape of its own,
+sweep it `m` times to extract a dense derivative block, discard it. It loses here
+because it spends six inner sweeps to save three outer ones, which is the general
+rule — an inner tape pays only when the submodel has fewer outputs than the
+consumer has seeds, and phylloptim's leaf has double.
+
+Rows are checked for finiteness before any of them is recorded, and the report is
+`[[nodiscard]]`. All-or-nothing is deliberate: a value carrying some of its rows
+is a channel that has gone missing with every number still finite, which is worse
+than carrying none. A consumer told the rows are absent can carry the value as a
+constant and say so.
+
+`implicit_value(y*, dFdy, F)` (`:165`) specialises the mechanism to a scalar
+root. Given the root of `F(y, p) = 0` and the residual's slope in the unknown, it
+records the residual to obtain its slopes in the parameters and yields
 `dy*/dp = −(∂F/∂p)/(∂F/∂y)`.
+
+## The two scalars, and why they are separate headers
+
+`tangent_scalar<T>` carries a directional derivative forwards and touches no
+tape. It lives in `tangent.hpp`, away from the reverse-mode machinery in
+`adjoint.hpp`, so a consumer that wants only a directional derivative is never
+handed a name for a tape it has no use for.
+
+Nesting the two is a compile error (`tangent.hpp:36`). At an active inner scalar,
+every operand copy inside an expression template becomes a recorded statement,
+and because expression templates nest, the growth is superlinear in expression
+depth. Three kernels costing 31 statements written flat cost 566 nested — 18
+times as much for the same arithmetic. Refusing it at compile time rather than
+documenting it is the difference between a build error and a run that is merely
+slow for reasons nobody can see.
+
+`with_slope<T>` pairs a value with its slope in one type. The alternative is two
+arguments, and a consumer handed two arguments can pair a value and a slope taken
+at different points, in different orders, or with respect to different
+independent variables — and all three of those compile. It is also a shape
+`visit_active` can open, which matters because `visit_active` dispatches on
+`for_each_active`, then container, then pointer, and then **does nothing at all**
+for an aggregate matching none of them (`ode_interface.hpp:66`). A bare pair of
+scalars is exactly such an aggregate: it would contribute no rows, silently, with
+every number still finite.
 
 ## Interpolation
 
-`hermite_interpolator` is local cubic Hermite, C1, linear past the end knots.
-The old spline was global natural cubic, C2, quadratic past the end. Knots hit
-exactly; everything between and beyond moves. Values-only callers get
-Fritsch–Carlson limited slopes.
+`hermite_interpolator` absorbs the deleted spline. It is local cubic Hermite, C1
+continuous, extending linearly past the end knots; the old one was a global
+natural cubic, C2, extending quadratically. Knots are hit exactly and everything
+between and beyond them differs. A caller supplying only values still gets an
+interpolant, with Fritsch–Carlson limited slopes derived from the values.
 
-Local because a global fit spreads a local defect — `h²` convergence against
-`h³·⁷` for the same knots read as a Hermite — and because every knot influencing
-every span turns an O(1) adjoint into an O(K) one.
-
----
-
-# Comment 3 — Contract and failure modes
-
-## What `solve_adjoint` requires
-
-Checked at run time (`adjoint.hpp:387-400`):
-
-- `set_keep_states(true)` before the run.
-- `parameter_adjoint` at one row per seed, width = parameter count, **zeroed by the caller**; it accumulates with `+=`.
-- `lambda` seeded at the final state width.
-- state and parameter adjoints as different batches — one is replaced, one accumulated, so aliasing is refused.
-
-## Silent failure modes
-
-**`visit_active` skips what it cannot open** (`ode_interface.hpp:66`). It tries
-`for_each_active`, then container, then pointer, then does nothing. A shape
-carrying rows and missing the member contributes none, with every number finite.
-This is why `with_slope` is a type and not two arguments.
-
-**A tangent above an adjoint is a compile error** (`tangent.hpp:36`). Each
-operand copy inside an expression template becomes a statement at an active inner
-scalar; growth is superlinear in depth. Three kernels: 31 statements flat, 566
-nested.
-
-## Claims to test
-
-| claim | where |
-|---|---|
-| Peak tape is one step at any run length | `adjoint.hpp:324`, `:417`; `ode_solver.hpp:335` |
-| A segmented sweep equals a whole one bit for bit | the two overloads, `:287` and `:397` |
-| A recording cannot end at an introduction | `:309` — carried across, so nothing below to resume on |
-| Width restored on every exit including a throw | `restore_on_exit`, `:318-330` |
-| One statement per attachment | asserted, `tests/standalone/r_free.cpp:507` |
-| Every row checked before any is recorded | `implicit_node.hpp:79` |
-
-The last is all-or-nothing by design. A value carrying some of its rows is a
-channel gone missing with every number still finite; told the rows are absent, a
-consumer can carry the value as a constant and say so. Hence `[[nodiscard]]`.
-
-## Migration
-
-A System entering a sweep adds `rebind_from`, `ad_parameters`, `for_each_active`
-and `set_recorded_state`; one that grows adds `apply_insertion`.
-
-`rebind()` → `rebind_from()`, target scalar named and not defaulted: *"defaulting
-it to the System's own scalar asks whether a System can rebind to the scalar it
-already has, which is a different question"* (`ode_interface.hpp:109`).
-
-`needs_time` / `has_cache` / `has_state_check` become the concepts `HasOdeTime`,
-`SolvesForValues`, `ChecksState`, `Rebindable` (`:101-263`).
-
-R loses `Solver_fit()`, `Solver_set_target()`, and `active` on all fifteen
-`Solver_*` bindings. `compute_gradient` has no drop-in;
-`vector_jacobian_product` plus `sweep.hpp` replace it, with the loss and
-optimiser loop becoming the caller's.
-
----
-
-# Comment 4 — Cost
-
-Supplying a submodel's derivative block instead of recording it is the
-first-class case in JAX (`custom_root`, `custom_vjp`), ADOL-C (`ext_diff_fct`),
-CoDiPack (`ExternalFunctionHelper`), dco/c++ and Tapenade. Naumann names two
-variants: preaccumulation sweeps an inner tape `min(n, m)` times; the Symbolic
-Adjoint pattern uses the implicit function theorem and sweeps nothing. This is
-the second.
-
-Statements walked per solve, with `T` submodel statements, `k` seeds, `m` outputs:
-
-| | walks | at T=360, k=3, m=6 |
-|---|---|---|
-| recorded inline | `T + kT` | 1440 |
-| preaccumulated | `T + mT + m + km` | 2544 |
-| supplied | `m + km` | 24 |
-
-Preaccumulation loses when the submodel has more outputs than the consumer has
-seeds. phylloptim's leaf has double.
-
-Measured and rejected:
-
-| | |
-|---|---|
-| a forward direction on top of a reverse tape | 31 statements flat, 566 nested |
-| one traversal serving several outputs | 1.15× slower to 0.97× faster; scatter cancels the shared traversal |
-| a dense block for all six leaf outputs | six sweeps at 39 µs against three walks at 34 |
-| moving the tape instead of shrinking it | recording costs 16× sweeping |
-| a private tape per solved submodel | constructing one reserves 192 MiB |
-
-Seven probes under `tests/standalone/`, one translation unit each, no R. Reading
-the AD library's source did not settle what its statement and slot counters count
-across nested recordings.
+Local for two reasons. A global fit spreads a local defect across the whole
+curve: on the curve this library tabulates, the global solve converged at `h²`
+where the same knots read as a Hermite converged at `h³·⁷`. And a global solve
+makes every knot influence every span, which turns an adjoint that touches one
+span into one that touches all of them — O(1) becomes O(K). Nothing in the family
+read a second derivative, so C2 was buying nothing.

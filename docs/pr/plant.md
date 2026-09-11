@@ -3,7 +3,7 @@
 **Base** `traitecoevo/plant:develop` · **Head** `aornugent/plant:ad/V4-reverse-tf24`
 **Needs** odelia `v0.5.0` and phylloptim `v0.9.0` tagged first
 
-Four comments, posted in order.
+Two comments, posted in order.
 
 ## Title
 
@@ -30,17 +30,26 @@ Closes #
 
 ---
 
-# Comment 1 — Orientation
+# Comment 1 — What this is and what it changes
 
-## Terms
+## What the number is
 
-- **census metric** — a stand reduced to one scalar. TF24 declares three: `leaf_area`, `mass_above_ground`, `area_stem` (`tf24_strategy.h:649`).
-- **row** — one output's derivatives against a list of inputs. phylloptim supplies the leaf's rows; the sweep never records its solve.
-- **refusal** — a declared reason a metric has no derivative, carried alongside NaN.
-- **range** — consecutive recorded steps at constant state width. A new one begins at each introduction.
+`stand_gradient()` returns `d(census metric)/d(trait)` over a whole run, for
+every metric against every trait, from a single forward pass and a single
+reverse one. TF24 declares three metrics — `leaf_area`, `mass_above_ground`,
+`area_stem` (`tf24_strategy.h:649`) — and carries 64 parameter-table entries of
+which 18 are declared `undifferentiable`, leaving 46 trait columns per species.
 
-Of TF24's 64 parameter-table entries, 18 are declared `undifferentiable`, leaving
-46 columns per species.
+It is a derivative of the emergent stand and not of a plant in isolation. That
+distinction is measurable, not rhetorical: environmental feedback suppresses the
+response to leaf mass per area about sevenfold, and reverses the sign of the
+response to seed mass. A calculation that holds the neighbours fixed does not
+give a worse answer here — for seed mass it gives the wrong direction.
+
+Two words used throughout. A **row** is one output's derivatives against a list
+of inputs; phylloptim supplies the leaf's rows and the sweep never records its
+solve. A **refusal** is a declared reason a metric has no derivative, carried
+alongside NaN so that a caller can tell a refusal from a number.
 
 ## The call
 
@@ -55,11 +64,19 @@ g   <- stand_gradient(scm)
 g$gradient["mass_above_ground", "1.lma"]
 ```
 
-`gradient` is metrics by traits, columns `"1.lma"`, species-major in
-`ad_parameters()` order. `refusal` is one slot per metric, `NULL` where it
-answered. `control` is the five settings the gradient was taken at, so two
-gradients compare only when taken alike.
-`Control(node_density_in_birth_date = TRUE)` is required and defaults to `FALSE`.
+`gradient` is metrics by traits, with columns named `"1.lma"` — species-major, in
+`ad_parameters()` order, because two species carrying the same trait need
+distinguishing and R's character indexing would otherwise return species one's
+column for both.
+
+`refusal` holds one slot per metric, `NULL` where that metric answered. `value`
+is the metrics themselves and `control` the five settings the gradient was taken
+at, so `stand_gradient_compare()` can refuse to compare two gradients taken
+differently.
+
+`Control(node_density_in_birth_date = TRUE)` is required and defaults to `FALSE`;
+`require_birth_date_coordinate` (`scm.h:170`) refuses otherwise, for reasons in
+comment 2.
 
 ## Control flow
 
@@ -91,14 +108,40 @@ gradients compare only when taken alike.
     │     │     │                         └─ record_leaf_outputs()
     │     │     │                              reads phylloptim's supplied rows
     │     │     │
-    │     │     └─► at an introduction: sweep apply_insertion
+    │     │     └─► at an introduction: sweep apply_insertion,
     │     │              so a newborn's initial conditions carry trait rows
     │
     └─► census_gradient{ gradient[][], why }
 ```
 
-3,378 steps, 20,268 rate evaluations, 169 ranges, 2.3 million leaf placements on
-the century fixture.
+On the century fixture that is 3,378 recorded steps, 20,268 rate evaluations at
+six per step, 169 ranges, and 2.3 million leaf placements. A gradient over all
+traits costs about 2.9 times a forward run of the same stand, measured with the
+two arms interleaved in one sitting.
+
+## What changes for existing code
+
+| old | new |
+|---|---|
+| `run_scm(..., use_ode_times, ...)` | `run_scm(..., record_trajectory, ...)` — same position, different meaning, so a positional caller gets the wrong flag |
+| `Interpolator$new()` | gone; `ResourceSpline` carries height, value and slope |
+| `sched$next_event` | `sched$next_introduction` |
+| `sched$ode_times <- x` | `sched$set_ode_steps(times, sizes)` |
+| `sched$size` | counts instants, not introductions |
+| `Control$save_RK45_cache` | gone; `Control$gradient_curvature_floor` added |
+| `patch$introduce_new_node(i)` | `patch$introduce_new_node(i, time)` |
+| `plant::Internals` | `Internals<double>` |
+| `Individual::state` returning `double` | returning `const value_type&` |
+| `plant/adaptive_interpolator.h`, `optimize.h` | odelia's |
+
+Forward numbers move for every TF24 run whether or not a gradient is taken:
+`GSS_tol_abs` 1e-3 → 1e-1 and `vulnerability_curve_ncontrol` 100 → 400. FF16 and
+K93 go `scientific_version` 1 → 2 on the birth-date coordinate.
+
+The gradient itself is TF24's. `census_gradient.cpp` names `TF24_Strategy`
+throughout and `tf24_strategy.h` is the only file declaring `census_metrics`, so
+an FF16 stand handed to `stand_gradient()` fails in an `Rcpp::as` type error
+rather than a model-level refusal.
 
 ## Files
 
@@ -118,48 +161,66 @@ Deleted: `adaptive_interpolator.{h,cpp}`, `optimize.h`, `tf24_strategy.cpp`,
 `tf24f_strategy.cpp`. New R exports: `stand_gradient`, `stand_census`,
 `stand_census_state_adjoint`, `stand_gradient_compare`, `gradient_control`.
 
-Read `census.h` and `census_gradient.h` first (116 lines), then
-`scm.h:1011-1150` end to end, then `scm.h:893`, then `tf24_strategy.h:2193`.
-`patch.h`, `species.h` and `node.h` are mechanical once those make sense.
+Read `census.h` and `census_gradient.h` first — 116 lines, and they say what a
+metric and a refusal are. Then `scm.h:1011-1150`, which is `census_trait_gradient`
+end to end and the shortest complete path through the change. Then `scm.h:893`
+for where both terms come from, and `tf24_strategy.h:2193` for the seam with
+phylloptim. `patch.h`, `species.h` and `node.h` are mechanical once those make
+sense.
 
 ---
 
-# Comment 2 — Mechanism
+# Comment 2 — How it works
 
-## Two terms, and why the second seeds
+## Two terms, and why the second one seeds the walk
 
-A census reads its traits twice over.
+A census metric integrates a per-plant quantity over the size distribution, and a
+trait reaches the answer by two routes.
 
-The **trajectory term** is the sweep's product: `lma` changes growth, mortality
-and the light and water each plant competes for, all the way along, so it changes
-the size distribution standing at the end.
+The **trajectory term** is what the sweep produces. Changing `lma` changes growth
+and mortality, and it changes the light and water every other plant is competing
+for, all the way along the run — so it changes the size distribution standing at
+the end. This is the term that needs a whole reverse pass.
 
-The **allometric term** is what survives with that distribution held identical. A
-cohort of a given height reads a different leaf area, because leaf area is itself
-a function of the trait. No sweep produces it. The boundary recruit node belongs
-here too: it is the trapezium's lower grid point and is not ODE state.
+The **allometric term** is what survives when that distribution is held
+identical. A cohort of a given height reads a different leaf area under a
+different `lma`, because leaf area is itself a function of the trait
+(`tf24_strategy.h:650`). No sweep produces this; it comes from differentiating
+the census expression directly. The boundary recruit node belongs here too — it
+is the trapezium's lower grid point and is not ODE state.
 
-It could be added after the walk. It is the walk's starting value instead, and
+Both come out of one recording at the final time, swept twice with different
+seeds (`scm.h:893`). The allometric term could then be added to the sweep's
+answer at the end. It is used as the walk's starting value instead, and
 `scm.h:1080` gives the reason: *"a term added last is a term that can be left
 out, and a gradient missing it is a plausible number rather than an error."*
+A missing trajectory term produces obvious nonsense; a missing allometric term
+produces a number of the right order that is quietly wrong.
 
 ## Why the model became a template
 
-`Internals` holds the state, rates and auxiliaries a strategy reads and writes.
-Once the sweep re-enters `compute_rates` at an active scalar, `Internals` must
-exist at that scalar, and so must everything touching it. Twenty-three headers
-transitively include `internals.h`, which is why this is one commit — any split
-leaves between 3 and 17 headers that do not compile.
+`Internals` holds the state, rates and auxiliary values a strategy reads and
+writes. The sweep re-enters `Patch::compute_rates` at an active scalar, so
+`Internals` has to exist at that scalar — and so does everything that touches it:
+`Individual`, `Node`, `Species`, `Patch`, `SCM`, the environment and the strategy
+itself.
+
+Twenty-three headers transitively include `internals.h`. That is why this arrives
+as one commit: any split leaves between 3 and 17 headers that do not compile, and
+a sequence of commits that do not build is worse to review than one that does.
 
 FF16 and K93 are not templated. They pin `using value_type = double` and never
-instantiate the active path, so only TF24 pays the compile cost.
+instantiate the active path, so only TF24 pays the compile cost — which is real,
+since `tf24_strategy.h` grew from 771 lines to 2,638 by absorbing its `.cpp` and
+twelve of the twenty-five translation units now recompile it.
 
-`Individual::state` returns `const value_type&` and not `double`. Copying an
-active scalar registers a tape slot, once per element per stage, for a value the
-caller was about to assign anyway.
+`Individual::state` returns `const value_type&` where it returned `double`.
+Copying an active scalar registers a tape slot and records an operation, once per
+element per stage, for a value the caller was about to assign anyway.
 
-## Where a derivative stops
+## Where a derivative stops, and how to lose one by accident
 
+The boundary between the differentiated interior and the plain-`double` world is
 `write_iterator_scalar` (`util.h:147`):
 
 ```cpp
@@ -171,129 +232,125 @@ caller was about to assign anyway.
   }
 ```
 
-This is the R boundary and is correct there. It is also type-directed and mute: a
-`std::vector<double>` scratch buffer anywhere on the rate path zeroes every
-derivative through it, with no diagnostic and every number finite.
+At the R boundary this is exactly right: nothing in R holds an active scalar, so
+there has to be one place where the derivative is deliberately discarded, and
+keying it on the destination's type means the conversion cannot be forgotten.
+
+It is also type-directed and completely silent, which makes it the easiest way to
+lose a gradient in this codebase. A `std::vector<double>` scratch buffer
+introduced anywhere on the rate path zeroes every derivative passing through it,
+with no diagnostic and every number still finite.
 `TF24_Environment::resource_uptake` is already such a buffer. Any new container
-on the rate path wants its `value_type` checked.
+on an active path is worth checking for its `value_type` before anything else.
 
 ## Refusal takes the whole metric
 
-A metric is a sum over cohorts, and a sum has no value when one term is
-undefined. If any cohort's contribution has no derivative, the metric's whole row
-is NaN with one stated reason, across every trait column.
+A census metric is a sum over cohorts, and a sum has no defined value when one of
+its terms is undefined. So if any cohort's contribution has no derivative, the
+metric's whole row is NaN with one stated reason, across every trait column.
 
-The grain is not a choice. What failed is an intermediate of one recording
-spanning six stages and every cohort in them, so no seed carries a component to
-attribute it to. Refusing the affected columns and answering the rest reports a
-partial sum as the sum.
+The grain is forced by where the failure occurs. What could not be supplied is an
+intermediate of one recording that spans six stages and every cohort in them, so
+no seed carries a component that could attribute it to a particular cohort or a
+particular trait. Refusing the affected columns and answering the rest would
+report a partial sum as though it were the sum.
 
-Two consequences for callers. The `species` field is `-1` where what failed spans
-every cohort. And NaN propagates safely through arithmetic but not through a
-reduction that drops it — `max(abs(g$gradient), na.rm = TRUE)` ignores a refused
-metric silently.
+The cost of that grain is high — one leaf without a derivative makes all three
+metrics NaN across all 46 columns — which is a strong incentive to make
+inadmissible points rare, and is most of what phylloptim's operating-point
+machinery is for.
+
+Two things follow for a caller. The `species` field of a refusal is one-based
+where the refusal came from a particular species' strategy, and `-1` where what
+failed spans every cohort, so reading it means handling `-1` and not indexing
+with it. And NaN propagates safely through arithmetic but not through a reduction
+that drops it: `max(abs(g$gradient), na.rm = TRUE)` ignores a refused metric
+entirely and returns a confident number.
 
 ## Why the coordinate is birth date
 
-The gradient refuses the height coordinate (`scm.h:160-175`).
+The size-density distribution can be carried in height or in birth date. The
+gradient refuses height rather than answering it (`scm.h:160-175`).
 
-Reserve-gated growth lets a younger cohort overtake an older one. In height that
-reorders the quadrature, so the abscissa is itself state and the weights carry a
-derivative nothing supplies. In birth date it cannot happen: plants change their
-relative size but not their relative age. The two are different functions, not
-two discretisations of one — one census metric's trait sensitivity changes sign
-between them — so answering on height would be finite, plausible and wrong.
+Reserve-gated growth lets a younger cohort overtake an older one. In the height
+coordinate that reorders the quadrature, which means the abscissa is itself a
+state variable and the quadrature weights carry a derivative that nothing
+supplies. In birth date it cannot happen: plants can change their relative size
+but not their relative age, so the ordering is fixed for the whole run and the
+weights are constants.
 
----
-
-# Comment 3 — Contract and failure modes
+The two are different functions and not two discretisations of one — one census
+metric's trait sensitivity changes sign between them — so a gradient taken on the
+height coordinate would be finite, plausible and wrong, with nothing in the
+arithmetic to complain.
 
 ## One invariant a new strategy must honour
 
-`establishment_failure_hazard = 750.0` (`internals.h:41`) parks a cohort whose
-establishment probability is exactly zero. 750 and not a round number because
-`exp(-x)` is exactly zero past 745.14, so survival reads what `+Inf` would have
-given without the state itself being infinite.
+`establishment_failure_hazard = 750.0` (`internals.h:41`) is the cumulative
+hazard a cohort is parked at when its establishment probability is exactly zero,
+which happens in deep shade. Without it the hazard is `+Inf`, and an infinite
+entry in an ODE state is worse than it sounds: the step-size controller scales
+error by the magnitude of the state, so at an infinite state the ratio of error
+to allowance is zero and that component cannot constrain the step however large
+its rate.
 
-Every `mortality_dt` must test it **beside** `is_finite`, and all three do. Keyed
-on finiteness alone a finite hazard passes, the rate returns, and the cohort's
-state moves again. Nothing enforces this; it is positional.
+750 and not a round number because `exp(-x)` is exactly zero past 745.14, so
+survival and mortality probability read the numbers `+Inf` would have given them
+while the state itself stays finite.
 
-## The gradient is TF24's
+Every `mortality_dt` must test that ceiling **beside** `is_finite`, and all three
+do. Keyed on finiteness alone a finite hazard passes the test, the rate returns,
+and the cohort's state starts moving again — so the run is no longer the one the
+failed establishment produced. Nothing enforces this; it is positional, and a new
+strategy that tests finiteness alone will be wrong in a way no test currently
+catches.
 
-`census_gradient.cpp` names `TF24_Strategy` throughout, and `tf24_strategy.h` is
-the only file declaring `census_metrics`. An FF16 stand fails in an `Rcpp::as`
-type error, not a model-level refusal, from a function named `stand_gradient()`.
+## How the sweep is refereed
 
-## Unresolved events
+The claim is that the reverse sweep is the exact transpose of the forward run. A
+finite difference cannot check it, because differencing is the thing being
+replaced — and near a coincidence it does not converge at all: refining a step of
+one part in a million across three successive refinements produced −9.63, +166,
+−10588 against a feature five hundredths of a micron wide.
 
-A gradient taken where the run crosses an unresolved event — a cohort reaching
-`hmat` between two steps — is a derivative of step placement, not of the model.
-One measured cell was 211 times the median of its grid. **Do not average such a
-grid and do not form a covariance from one**: a single outlying cell dominates
-any second moment. The remedy is to nudge the trait a fraction of a percent and
-take the stable answer, or force a step at the crossing. Nothing detects it.
-
-## Claims to test
-
-| claim | where |
-|---|---|
-| A metric returns a swept number, or NaN with a stated reason; never a partial sum | `scm.h:1128-1145` |
-| An exact zero in an answered row is the sweep's answer, not a gap | `scm.h:1141` |
-| A parameter with no row cannot be asked for | `tf24_strategy.h:224`, held by `static_assert(column_count + undifferentiable.size() == field_count)` at `:375` |
-| The tape defines match odelia's exactly | `src/Makevars:16`. A mismatch is a storage-class conflict on a symbol whose mangled name does not change: it links cleanly and is undefined behaviour |
-
-## Migration
-
-| old | new |
-|---|---|
-| `run_scm(..., use_ode_times, ...)` | `run_scm(..., record_trajectory, ...)` — same position, different meaning |
-| `Interpolator$new()` | gone; `ResourceSpline` carries height, value and slope |
-| `sched$next_event` | `sched$next_introduction` |
-| `sched$ode_times <- x` | `sched$set_ode_steps(times, sizes)` |
-| `sched$size` | counts instants, not introductions |
-| `Control$save_RK45_cache` | gone; `Control$gradient_curvature_floor` added |
-| `patch$introduce_new_node(i)` | `patch$introduce_new_node(i, time)` |
-| `plant::Internals` | `Internals<double>` |
-| `plant/adaptive_interpolator.h`, `optimize.h` | odelia's |
-
-Forward numbers move for every TF24 run: `GSS_tol_abs` 1e-3 → 1e-1,
-`vulnerability_curve_ncontrol` 100 → 400. FF16 and K93 `scientific_version` 1 → 2
-on the birth-date coordinate.
-
----
-
-# Comment 4 — Scale, cost and referees
-
-Environmental feedback suppresses the response to leaf mass per area about
-sevenfold and reverses the sign of the response to seed mass. A per-plant
-calculation here does not give a worse answer; it gives the wrong direction.
-
-A gradient over all traits costs about 2.9× a forward run of the same stand,
-measured on the century fixture with the arms interleaved in one sitting.
-
-## Referees
-
-Differencing cannot check the sweep, because differencing is what it replaces,
-and near a coincidence it does not converge: a step of one part in a million
-refined three times read −9.63, +166, −10588 against a feature five hundredths of
-a micron wide. Six instruments, each blind to something:
+Six instruments, none sufficient alone:
 
 | reference | catches | blind to |
 |---|---|---|
-| forward tangent of the same recording | stage recursion, both reductions, accumulation across cohorts | reads the same supplied leaf rows the sweep does |
-| full block Jacobian at one cohort | output row × input column; the only exhaustive one | same supplied rows; one state, no trajectory |
-| captured difference of whole runs | a wrong row, not just wrong assembly — shares no arithmetic | refuses on shaded and clamped regimes |
-| RHS differenced against state | soil balance, drainage cascade, retention curve | records nothing, cannot reach the leaf rows |
-| RHS differenced against prepared traits | most trait columns of the transpose | exactly zero on the 12 leaf-own traits and 8 birth-size parameters |
-| model rebuilt from parameters | leaf-own traits and the seed-height row | patch only, no trajectory |
+| forward tangent of the same recording | stage recursion, both reductions, accumulation across cohorts and species | reads the same supplied leaf rows the sweep does |
+| full block Jacobian at one cohort | output row × input column; the only exhaustive referee | same supplied rows; one state, no trajectory |
+| captured difference of whole runs | a wrong row, not just wrong assembly — shares no arithmetic with the sweep | refuses on shaded and clamped regimes |
+| RHS differenced against state | soil balance, drainage cascade, the retention curve's own derivative | records nothing, so cannot reach the leaf rows at all |
+| RHS differenced against prepared traits | most trait columns of the transpose | exactly zero on the 12 leaf-own traits and the 8 birth-size parameters |
+| model rebuilt from its parameters | the leaf-own traits and the seed-height row | patch only, no trajectory |
 
-Injected corruptions establish these would notice a defect. A suite reporting how
-much margin each check had says nothing about whether it would fire.
+Deliberately corrupted values were injected to establish that these checks notice
+a defect when one is present. A suite that records how much margin each check had
+says nothing about whether the check would have fired.
+
+## One hazard a user will meet
+
+A gradient taken where the run crosses an unresolved event — a cohort reaching
+`hmat` between two steps, say — is a derivative of the trajectory's step
+placement and not of the model. One measured cell was 211 times the median of its
+grid.
+
+**Do not average such a grid, and do not form a covariance from one.** A single
+outlying cell of that size dominates any second moment, so the summary statistic
+is reporting the step placement rather than the ecology. The remedy is to nudge
+the trait a fraction of a percent and take the answer that is stable, or to
+resolve the event by forcing a step at the crossing. Nothing in the API detects
+it, so this is a thing to know rather than a thing to catch.
 
 ## What has no row
 
-Soil and atmospheric parameters, so "what if the soil were sandier" cannot be
-asked. Crown shape, excluded because `0^η·log 0` has no value at the defaults. A
-trait row holds the hyperparameters fixed, so an `lma` row sits about threefold
-from the trait an ecologist means by leaf mass per area.
+Soil and atmospheric parameters carry none, so "what if the soil were sandier",
+and the same question about temperature or CO₂, cannot be asked of this gradient
+at all. Crown shape carries none either, excluded because `0^η · log 0` has no
+value at the defaults.
+
+And a trait row holds the hyperparameters fixed. An `lma` row is therefore about
+threefold away from the derivative with respect to the trait an ecologist means
+by leaf mass per area, which drags leaf turnover and respiration along with it.
+A sensitivity from this gradient is not a physiological effect, and the number
+cannot warn you about the difference.
