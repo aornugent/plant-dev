@@ -62,7 +62,7 @@ argument.
 precise. `census_trait_gradient` is grep-able and fails visibly when wrong.
 
 **Separate the measurement from the harness.** A number from one fixture is a
-property of that fixture. Say which configuration produced it, and say which
+property of that fixture. Say which configuration produced it, and which
 part generalises.
 
 **Verify every number and every symbol before it ships.** Both at the time of
@@ -70,7 +70,7 @@ writing. A symbol that has moved makes the whole comment untrustworthy.
 
 **Hazards go where they explain a design.** Do not lead with footguns. A reader
 needs the ordinary path before the exceptions, and a hazard attached to the
-decision it forced is worth more than a hazard in a list.
+decision it forced is worth more than the same hazard in a list.
 
 **One diagram, ASCII, showing control flow.** It earns its place by showing what
 prose fumbles — usually which way data moves and what runs twice. A numbered
@@ -165,6 +165,6 @@ A line number where a symbol would do:
 - [ ] Comment 1 opens with something that runs, and its output.
 - [ ] Every symbol named still exists. Every number re-measured today.
 - [ ] Measurements say which configuration produced them.
-- [ ] "rather than" under three. No "you". No catch-all section.
-- [ ] A maintainer who has not followed this work can predict the call chain
-      after comment 1.
+- [ ] In prose of one's own, not in quoted examples: "rather than" under three,
+      no second person, no catch-all section.
+- [ ] A maintainer new to the work can predict the call chain after comment 1.
