@@ -17,7 +17,7 @@ and does not converge where a trait moves an event in the run.
 
 `stand_gradient(scm)` returns that derivative exactly, from one run, as
 `list(value, gradient, refusal, control)`. The model is templated on its
-scalar, so `Internals` becomes `Internals<double>` and `Individual::state`
+scalar: `Internals` becomes `Internals<double>` and `Individual::state`
 returns `const value_type&`. `run_scm()` takes `record_trajectory` where
 it took `use_ode_times`; `NodeSchedule` holds one row per instant, so
 `$size` counts instants not introductions; `Interpolator` is gone and
