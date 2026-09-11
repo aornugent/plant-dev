@@ -65,7 +65,13 @@ merged pull requests.
 odelia is one commit behind (#58, the pinned-time step rejection, which is what
 `v0.4.0` released) and phylloptim one (#135, the `Remotes` tag bump).
 
-### A3. Defects in the model's own use case
+### A3. ~~Defects in the model's own use case~~ — CLOSED **[v]**
+
+All ten answered. Two did not survive measurement and are corrected below
+rather than implemented against. The rest are fixed in
+`c09107d`/`0be413a`/`af0a620` (phylloptim), `078b6f9`/`ecefb4a` (odelia)
+and `dafa22cf` (plant).
+
 
 | | what | where |
 |---|---|---|
@@ -109,7 +115,15 @@ derivative" cannot leave that behind a skip. Fix, or state it in the body.
 
 ---
 
-## B. Remove before submitting
+## B. ~~Remove before submitting~~ — CLOSED except one **[v]**
+
+Everything below is done but `plant/src/gradient_ladder.cpp`, which is a
+scope question rather than a removal: its 34 entry points have no caller
+outside the suite, and the catalog's own two options are a follow-up pull
+request or a test-only translation unit — the first means deleting the
+eighteen files that are this pull request's assurance argument. Left for
+the author.
+
 
 Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
 
@@ -204,6 +218,21 @@ than from the docs and are unaffected.
 ## D. Decide
 
 Judgement calls, not defects. Each wants an answer before the pull requests open.
+
+### The four that block a submission
+
+These are not style questions: each one either reverts something upstream
+shipped, accepts a change to the model's science, or leaves a wrong number in
+the answer. Nothing else in D does that.
+
+| | decision | what is known |
+|---|---|---|
+| **A1** | **What `scientific_version` should say.** | Three suites turn on it, not two: `_snaps/model-version.md`, `phylloptim`'s `test_golden`, and `test-strategy-tf24.R`'s scenario pins. The pins are the sharpest statement — measured at `e9ff23f6`, the pre-merge tree returns **81.995393** where its own test pins **30.22207354**, so this branch has been ~2.7× develop on that scenario and nothing recorded it. Re-pinning any of the three accepts a change to the model's science, which is the one thing AGENTS.md says must be named rather than waved through. |
+| **run_mutant** | **Restore it, or ship regressed against `develop`.** | `SCM::run_mutant` is a `stop()` here and works on develop, where #643 restored it for TF24. The recorder it needs was reached through solver hooks this branch's rewrite stopped calling; the replacement its own comment names, odelia's `ReplaysField`, **does not exist**. Recorded under plant's Known issues and skipped with the reason at the test, so nothing is silent — but it is a capability a maintainer just merged and would be receiving back broken. |
+| **theta / omega** | **Fix the sign disagreement, or state it and ship.** | Both disagree **in sign** with the whole-run difference on drought and seasonal stands, far outside that reference's own 0.7–10% resolution: `2.omega` reads 276.3 against −4000 for `mass_above_ground`, `1.theta` 0.3793 against −27.22 for `area_stem`. Both reach the census through channels the leaf boundary carries. Now declared and asserted in both directions in `test-gradient-ladder-whole-run-difference.R`, and stated in the pull-request body — so shipping is a choice rather than an oversight. Every other answered column holds. |
+| **the operating point moved** | **Recalibrate the incidence and parity fixtures, or hold.** | develop's #617 took the dry share from **0.51% to 92.36%** on `incidence_stand(0.25, 10)`, `seasonal` from answered to refused, and `shaded` from reaching shade-death to not. Nine gradient-suite failures, none of them a derivative: every referee is green, including the transpose identity over all four operating-point kinds at 5.1e-11. Moving the fixtures accepts the ecology; leaving them accepts nine red. |
+
+### The rest
 
 | | question |
 |---|---|
