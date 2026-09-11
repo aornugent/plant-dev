@@ -85,9 +85,11 @@ solve took, never from the numbers it returned.
 **The incidence of a classification is not recoverable from a refusal.** A refusal
 message names the first point that was not interior and says nothing about how
 many followed it or what kinds they were, because the classification is
-overwritten by the next plant. `record_leaf_outputs` therefore keeps a tally of
-operating-point kinds alongside the refusal, and that tally is the only route to
-an incidence.
+overwritten by the next plant. `TF24_Strategy::solve_leaf` therefore keeps a
+tally of operating-point kinds alongside the refusal, and that tally is the only
+route to an incidence. It is counted there rather than in `record_leaf_outputs`,
+which runs only on the active path: a tally kept there would miss the whole
+forward pass, which is where all but one of the placements happen.
 
 ## The two routes that had to be closed
 
