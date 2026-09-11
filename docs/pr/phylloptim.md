@@ -29,129 +29,185 @@ Closes #
 
 ## First comment
 
-### What lands
+Two files carry this — `leaf_model.hpp` (+1622) and `roots.hpp` (+443) — plus
+three small new ones. Nothing is deleted. The walkthrough is the change.
 
-Two new headers; no deletions; two files carry the change.
+### The solve, and where the derivative comes from
 
-| file | lines | what it is |
-|---|---|---|
-| `leaf_model.hpp` | +1622 | the leaf, now `Leaf` templated on its scalar |
-| `roots.hpp` | +443 | multi-layer uptake, and the collar response in the same walk |
-| `vulnerability.hpp` | +76 | `weibull_b_from_P50`, `TraitRows`, `vulnerability_derivatives_at` |
-| `closed_form_rows.hpp` | 73 | new — closed-form derivative rows onto a table read |
-| `clamp_sites.hpp` | 68 | new — `clamp_site`, `clamp_counter` |
-| `gradient.hpp` | +113 | the `par_*` enumeration moves here from `gradient::` |
+The leaf's operating point is the root-collar water potential at which marginal
+carbon gain equals marginal water cost. `phylloptim` finds it by root-finding on
+the marginal-profit function, in plain `double`, off any tape. That has not
+changed and is not differentiated.
 
-### The types
+What changed is what happens next. Previously a consumer put the trait on its
+tape and ran the root-find with the tape live, so the reverse walk carried a
+derivative back through every iteration. That differentiates the solver: the
+answer is the sensitivity of *wherever this particular sequence of iterations
+stopped*, which depends on the starting guess, the tolerance and the iteration
+count. It converges as the tolerance tightens, but at any finite tolerance it is
+not the right answer, and its error is a property of the solver's settings
+rather than of the model.
 
-| type | header | what it is |
-|---|---|---|
-| `Leaf<S>` | `leaf_model.hpp:121` | the model. `S` is `double`, `tangent_scalar<double>`, or `active_scalar<double>` |
-| `leaf_pars<S>` | `:118` | `std::array<S, 20>` — the parameter pack, indexed by the `par_*` enumerators |
-| `SupplyDraw<S>` | `:1225` | `{double at; with_slope<S> flux; vector<S> uptake; vector<double> duptake_dp}` — the soil draw at a collar, with its response |
-| `PhotoCapacity<S>` | `:1837` | `{vcmax, transport, curvature, respiration}`. Declares `for_each_active` — see the hazard below |
-| `LeafOutputs<S>` | `:1199` | `{S profit; vector<S> uptake}` |
-| `OperatingPointKind` | `:2537` | which residual pinned the point. Written by the branch the solve exited |
-| `CollarConductance<T>` | `roots.hpp:373` | `{T total; vector<double> per_layer}` — total active, layers passive, deliberately |
-| `SupplyAt<T>` | `roots.hpp:357` | a view over the caller's soil vectors; the curve arrives as `(P50, c)` |
+Now the leaf hands the derivative over instead, from the implicit function
+theorem at the converged point. With the point `p*` defined by `F(p*, θ) = 0`:
 
-### Control flow
-
-```mermaid
-flowchart TB
-  P["prepare_collar_solve()<br/>resets kind to Unsolved"] --> Q["root-find over collar psi<br/><i>plain double, off the tape</i>"]
-  Q --> R{"which branch exited?"}
-  R -->|stationary| K1["Interior"]
-  R -->|uptake balance| K2["BoundaryWet"]
-  R -->|stem continuity| K3["BoundaryCrit"]
-  R -->|root critical| K4["BoundaryRootCrit"]
-  R -->|no flow| K5["ShadeDeath / Shutdown<br/><i>marginal profit returns hard 0.0</i>"]
-  K1 & K2 & K3 & K4 --> S["supply_draw_at(collar, SupplyAt)<br/>leaf_model.hpp:1253<br/><i>draw + collar response, one walk</i>"]
-  S --> T["collar_at(draw, pars, curvature)<br/>:2069"]
-  T --> U["implicit_value(y*, dFdy, F)<br/>odelia/implicit_node.hpp:165"]
-  U --> V["outputs_at(collar, draw, pars)<br/>:2023"]
-  K5 --> W["throw — no derivative here"]
-  V --> X["LeafOutputs&lt;S&gt; to plant"]
+```
+    dp*/dθ  =  −(∂F/∂p)⁻¹ ∂F/∂θ        evaluated at p*
 ```
 
-At `S == double` the `implicit_value` node is skipped entirely
-(`leaf_model.hpp:6036`) and the same source is an ordinary forward solve.
+Both partials are of the residual, which is a closed form, so neither needs
+anything the solver did. The error is then the residual's own distance from
+zero — measured at 1.6 parts in a thousand million million of the answer.
 
-### Reading order
+### The path a consumer walks
 
-1. `clamp_sites.hpp` and `vulnerability.hpp` — 144 lines, the small vocabulary.
-2. `roots.hpp:357-383` — `SupplyAt` and `CollarConductance`, then `uptake_impl` at `:811`.
-3. `leaf_model.hpp:1199-1253` — the output types, then `supply_draw_at`.
-4. `leaf_model.hpp:2023-2082` — `outputs_at`, `collar_at`, `bound_at`. This is the derivative surface.
-5. `leaf_model.hpp:5573` — `kernel_slope_at`, which is how a kernel's slope is taken without nesting scalars.
-6. `closed_form_rows.hpp` — 73 lines, read last, it explains the table/closed-form split.
+```
+   prepare_collar_solve()          resets kind to Unsolved, so a forgotten
+        │                          branch reports "unclassified" rather than
+        │                          the previous plant's answer
+        ▼
+   root-find over collar psi       plain double, off the tape
+        │
+        ▼
+   which branch exited? ─────┬──► Interior            stationarity
+        │                    ├──► BoundaryWet         uptake balance
+        │                    ├──► BoundaryCrit        stem continuity at psi_crit
+        │                    ├──► BoundaryRootCrit    root's own critical potential
+        │                    └──► HydraulicShutdown / ShadeDeath
+        │                              │                marginal profit returns a
+        │                              │                HARD 0.0 here
+        ▼                              ▼
+   supply_draw_at(collar, supply)   no draw — collar is held past where
+        │   ONE walk:                the uptake model answers at all;
+        │   • per-layer uptake       asking costs a stop, not a wrong row
+        │   • total flux
+        │   • collar conductance
+        ▼
+   collar_at(draw, pars, curvature)      forms the implicit_value node
+        │                                (skipped entirely at S == double)
+        ▼
+   outputs_at(collar, draw, pars)   ──►  LeafOutputs<S>{ profit, uptake[] }
+```
 
-### What to check the code against
+**The kind is written by the branch that was taken, never inferred afterwards
+from the numbers.** This is the sharpest thing in the diff to review.
+`dprofit_at_collar_psi` returns a literal `0.0` on its shutdown exit
+(`leaf_model.hpp:4021`), *before* setting the feasibility flag. So a
+`|dprofit| ≈ 0 ⇒ interior` test reads a shut leaf as a stationary point — and
+`marginal_collar_slope`, differencing that same sentinel, returns a curvature of
+zero and agrees. Two diagnostics confirm each other and both are wrong. Twelve
+sites write the kind; `test_operating_point_kind_is_written_by_every_path`
+(`test_leaf.cpp:816`) holds them to it.
 
-| claim | where to test it |
-|---|---|
-| An operating point is classified by the exit taken, never by the numbers returned | `dprofit_at_collar_psi` returns a literal `0.0` at `:4021` *before* setting `feasible`. A `\|dprofit\| ≈ 0 ⇒ interior` test reads a shutdown as stationary, and the curvature off the same sentinel agrees |
-| Every path out of the solve writes its own rates | `test_operating_point_kind_is_written_by_every_path`, `test_leaf.cpp:816`. The one gap is documented at `:2431` — `optimise()` on the stem route leaves `Unsolved`, so `collar_at` throws rather than misreporting |
-| The draw and the collar it was taken at are the same point | `check_draw`, `:1331`, an exact `!=` |
-| The derivative's only error is the residual's distance from zero | measured at 1.6e-15 of the answer |
-| A supplied row cannot be checked by differencing the step that consumes it | the block's forward value does not depend on a recorded input, so differencing returns identically zero on exactly those columns whether the row is right, wrong or absent |
-| One statement per attachment, not one per row | `implicit_node.hpp:57` |
+### Why the draw is one walk
+
+`supply_draw_at` (`:1253`) returns the per-layer uptake, the total flux and the
+collar conductance from a single pass over the soil layers. The comment at
+`roots.hpp:712` gives the reason: *"THE COLLAR RESPONSE COMES OUT OF THE SAME
+WALK OR NOT AT ALL... a second walk forming them again is a second spelling that
+has to agree bit for bit."*
+
+The layers are strictly parallel. Each contributes
+
+```
+    E_i = (T_collar − psi_soil[i] − grav_head[i]) / r_R_i
+```
+
+and they are coupled only through the shared scalar `T_collar`, so
+`dE_up/dT_collar` is a plain sum of per-layer quotient-rule terms — which is why
+it costs nothing to produce alongside the draw and would cost a whole second
+walk to produce after it.
+
+Two deliberate scalar choices inside `SupplyDraw`. The collar it was taken at is
+stored **passive** whatever the caller hands in: this is the supply at a *point*,
+and where the point itself moves is the supplied row's business — taking it live
+would record the search that placed it. And the per-layer collar slopes are
+supplied at `double`, because the draws already carry their own rows and what is
+missing is only the channel through the collar moving.
+
+### How a kernel's slope is taken without nesting scalars
+
+`kernel_slope_at` (`:5573`) needs `dA/dci` and similar, at whatever scalar the
+caller holds. The obvious route — an active scalar nested inside another — is a
+compile error in odelia, and for a measured reason: the leaf's `dA/dci` and
+`dC/dsigma` were once taken that way and cost 521 tape statements against the 17
+of the kernel they differentiate.
+
+Instead it builds `xad::fwd<tangent_scalar<double>, n_dir>` — **both levels at
+`double`**, so nothing is recorded. The inner direction turns the value into a
+slope; the outer walk yields one row per argument. Those rows go to
+`record_with_derivatives`, which puts them on the consumer's tape as one
+statement. The slope cannot disagree with the function, because it *is* a tangent
+through it. At `S == double` the outer walk is skipped and only the inner level
+runs.
+
+This is why the kernels take the scalars they read rather than the twenty-slot
+parameter pack: the cost is `n_dir` × the kernel's arithmetic.
 
 ### The hazard worth reviewing hardest
 
 `odelia`'s `visit_active` dispatches on `for_each_active`, then container, then
-pointer, and **falls off the end doing nothing** for an aggregate matching none.
-`PhotoCapacity` is an input to the `ci` residual's `implicit_value` (`:5760`).
-Without its `for_each_active` member (`:1837`), the `vcmax`, `jmax`, curvature
-and `R_d` rows never arrive — four trait columns read exact zero, every number
-finite, nothing raised.
+pointer — and **falls off the end doing nothing** for an aggregate that matches
+none of them. `PhotoCapacity` is an input to the `ci` residual's `implicit_value`
+(`:5760`):
 
-The same shape applies to `SupplyDraw` and `leaf_pars`. Adding a member to any
-of the three and not visiting it is a silent wrong answer, so the comment at
-`:1837` names the risk at the declaration.
-
-### Why the implicit function theorem rather than a recording
-
-With the operating point `p*` defined by `F(p*, θ) = 0`:
-
-```
-dp*/dθ  =  −(∂F/∂p)⁻¹ ∂F/∂θ
+```cpp
+  template <class F>
+  void for_each_active(F&& f) const {
+    f(vcmax); f(transport); f(curvature); f(respiration);
+  }
 ```
 
-Both partials are of the residual, which is closed form, so neither needs
-anything the solver did. Recording the root-find instead gives the sensitivity
-of wherever that particular sequence of iterations stopped — it converges as the
-tolerance tightens but is not the right answer at any finite tolerance, and its
-error is a property of the solver's settings.
+Delete that member and the four photosynthetic rows never arrive. Four trait
+columns read exact zero, every number stays finite, nothing is raised. The same
+shape applies to `SupplyDraw` and `leaf_pars`: adding a member to any of the
+three and not visiting it is a silent wrong answer, which is why the comment sits
+at the declaration rather than at the call.
 
-Cost points the same way: the solve is ~360 tape statements, contributed once
-per recording and once per seed swept, so 1440 statement-walks per solved leaf
-at three seeds. Supplying costs 24.
+### The rest
 
-### One formula, four residuals
+**`vulnerability.hpp` and `closed_form_rows.hpp`.** Both curves take their value
+from a pre-integrated table and their derivatives from the closed form. The value
+is the table's because the solve ran on the table; the table's own slope is a
+property of the fit rather than of the curve, so the two differ. One
+implementation serves both curves, because written twice one copy picks up the
+chain rule through the shape parameter and the other keeps a partial at fixed
+scale — finite, plausible, wrong, and nothing reports it.
 
-The kind selects which residual, not which formula. Fiacco's statement needs no
-branch:
+**`single_potential.hpp`.** Answers the same methods against one soil water
+potential rather than a layered network. It exists because every model this one
+is compared against is formulated that way, and comparing them under a
+multi-layer root network compares two things at once.
 
-```
-dΠ*/du  =  ∂Π̂/∂u|_p  −  Σⱼ μⱼ ∂cⱼ/∂u|_p
-```
+**`clamp_sites.hpp`.** A tally of where values were clamped, on the principle
+that *what is counted is not a defect: it is the distance from one.*
 
-At an interior optimum every multiplier is zero and this is the envelope
-theorem. At a bound the multiplier is exactly what the envelope theorem omits.
+### Reading order
 
-### Two smaller notes
+1. `clamp_sites.hpp`, `vulnerability.hpp` — 144 lines of small vocabulary.
+2. `roots.hpp:357-383` — `SupplyAt`, `CollarConductance`; then `uptake_impl` at `:811`.
+3. `leaf_model.hpp:1199-1253` — `LeafOutputs`, `SupplyDraw`, `supply_draw_at`.
+4. `leaf_model.hpp:2023-2082` — `outputs_at`, `collar_at`, `bound_at`. The derivative surface.
+5. `leaf_model.hpp:5573` — `kernel_slope_at`.
+6. `closed_form_rows.hpp` last — 73 lines, and it reads better once the rest is in place.
 
-**The vulnerability curves take their value from a pre-integrated table and
-their derivatives from the closed form.** The value is the table's because the
-solve ran on the table; the table's own slope is a property of the fit rather
-than of the curve. One implementation for both curves, because written twice one
-copy picks up the chain rule through the shape parameter and the other keeps a
-partial at fixed scale — finite, plausible, wrong, and unreported.
+### What to check it against
 
-**`roots` and `single_potential` both answer against a collar.** `roots` is the
-network, layers strictly parallel and coupled only through the shared collar, so
-`dE/dT_collar` is a plain sum of per-layer quotient terms. `single_potential`
-answers the same four methods against one soil potential, because the models
-this one is compared against are formulated that way and comparing under a
-multi-layer network compares two things at once.
+| claim | where |
+|---|---|
+| A point is classified by the exit taken, never by the numbers | `:4021` returns a literal `0.0` before setting `feasible` |
+| Every path out of the solve writes its own rates | `test_leaf.cpp:816`. The one gap is documented at `:2431` — `optimise()` on the stem route leaves `Unsolved`, so `collar_at` throws rather than misreports |
+| The draw and the collar it was taken at are the same point | `check_draw`, `:1331`, an exact `!=` |
+| One tape statement per attachment, not one per row | `implicit_node.hpp:57` |
+| A supplied row cannot be refereed by differencing the step that consumes it | the block's forward value does not depend on a recorded input, so differencing gives identically zero on exactly those columns whether the row is right, wrong or absent |
+
+### File inventory
+
+| file | lines | what it is |
+|---|---|---|
+| `leaf_model.hpp` | +1622 | `Leaf<S>`, `leaf_pars<S>`, `SupplyDraw`, `PhotoCapacity`, `LeafOutputs`, `OperatingPointKind` |
+| `roots.hpp` | +443 | `SupplyAt`, `CollarConductance`, the merged uptake walk |
+| `gradient.hpp` | +113 | the `par_*` enumeration moves here; `n_theta` replaces `n_pars` |
+| `vulnerability.hpp` | +76 | `weibull_b_from_P50`, `vulnerability_derivatives_at` |
+| `closed_form_rows.hpp` | 73 | new |
+| `clamp_sites.hpp` | 68 | new |
