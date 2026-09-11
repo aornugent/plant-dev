@@ -30,28 +30,11 @@ Closes #
 
 ---
 
-# Comment 1 — What this is and what it changes
+# Comment 1 — The whole thing, then its parts
 
-## What the number is
+## The whole thing
 
-`stand_gradient()` returns `d(census metric)/d(trait)` over a whole run, for
-every metric against every trait, from a single forward pass and a single
-reverse one. TF24 declares three metrics — `leaf_area`, `mass_above_ground`,
-`area_stem` (`tf24_strategy.h:649`) — and carries 67 parameter-table entries of
-which 19 are declared `undifferentiable`, leaving 48 trait columns per species.
-
-It is a derivative of the emergent stand and not of a plant in isolation. That
-distinction is measurable, not rhetorical: environmental feedback suppresses the
-response to leaf mass per area about sevenfold, and reverses the sign of the
-response to seed mass. A calculation that holds the neighbours fixed does not
-give a worse answer here — for seed mass it gives the wrong direction.
-
-Two words used throughout. A **row** is one output's derivatives against a list
-of inputs; phylloptim supplies the leaf's rows and the sweep never records its
-solve. A **refusal** is a declared reason a metric has no derivative, carried
-alongside NaN so that a caller can tell a refusal from a number.
-
-## The call
+Run a stand, then ask how its census responds to every trait at once.
 
 ```r
 p   <- scm_base_parameters("TF24")
@@ -60,23 +43,41 @@ p   <- add_strategies(p, trait_matrix(c(0.0825, 5.13), c("lma", "hmat")),
 scm <- run_scm(p, Environment("TF24"),
                Control(node_density_in_birth_date = TRUE),
                refine_schedule = TRUE, record_trajectory = TRUE)
-g   <- stand_gradient(scm)
+
+g <- stand_gradient(scm)
+
 g$gradient["mass_above_ground", "1.lma"]
+#> -0.0417            d(mass above ground)/d(lma), species 1, over the whole run
+dim(g$gradient)
+#> [1]  3 48         three metrics by forty-eight trait columns, one pass
 ```
 
-`gradient` is metrics by traits, with columns named `"1.lma"` — species-major, in
-`ad_parameters()` order, because two species carrying the same trait need
-distinguishing and R's character indexing would otherwise return species one's
-column for both.
+One run forward, one sweep back, and every cell is filled. Differencing would
+cost forty-eight re-runs and would not converge where a trait moves an event.
 
-`refusal` holds one slot per metric, `NULL` where that metric answered. `value`
-is the metrics themselves and `control` the five settings the gradient was taken
-at, so `stand_gradient_compare()` can refuse to compare two gradients taken
-differently.
+Three things a caller must know before the rest makes sense.
+`Control(node_density_in_birth_date = TRUE)` is required and defaults to `FALSE`.
+`refusal` carries a stated reason where a metric has no derivative, and NaN
+without a reason is a bug rather than an answer. And `control` records the five
+settings the gradient was taken at, so `stand_gradient_compare()` can refuse two
+gradients taken differently.
 
-`Control(node_density_in_birth_date = TRUE)` is required and defaults to `FALSE`;
-`require_birth_date_coordinate` (`scm.h:170`) refuses otherwise, for reasons in
-comment 2.
+The number is a derivative of the emergent stand, not of a plant in isolation.
+Environmental feedback suppresses the response to leaf mass per area about
+sevenfold and reverses the sign of the response to seed mass — for seed mass, a
+calculation holding the neighbours fixed gives the wrong direction.
+
+## Terms
+
+- **census metric** — a stand reduced to one scalar. TF24 declares three: `leaf_area`, `mass_above_ground`, `area_stem`.
+- **row** — one output's derivatives against a list of inputs. phylloptim supplies the leaf's rows; the sweep never records its solve.
+- **refusal** — a declared reason a metric has no derivative, carried beside NaN.
+- **range** — consecutive recorded steps at constant state width. A new one begins at each introduction; the century fixture has 169.
+
+Of TF24's 67 parameter-table entries, 19 are `undifferentiable`, leaving 48
+columns per species. Columns are named `"1.lma"` — species-major, because two
+species carrying the same trait need distinguishing and R's character indexing
+would otherwise return species one's column for both.
 
 ## Control flow
 
@@ -114,10 +115,9 @@ comment 2.
     └─► census_gradient{ gradient[][], why }
 ```
 
-On the century fixture that is 3,378 recorded steps, 20,268 rate evaluations at
-six per step, 169 ranges, and 2.3 million leaf placements. A gradient over all
-traits costs about 2.9 times a forward run of the same stand, measured with the
-two arms interleaved in one sitting.
+The century fixture: 3,378 recorded steps, 20,268 rate evaluations at six per
+step, 169 ranges, 2.3 million leaf placements. The gradient costs about 2.9× a
+forward run of the same stand, measured with the two arms interleaved.
 
 ## What changes for existing code
 
@@ -135,13 +135,13 @@ two arms interleaved in one sitting.
 | `plant/adaptive_interpolator.h`, `optimize.h` | odelia's |
 
 Forward numbers move for every TF24 run whether or not a gradient is taken:
-`GSS_tol_abs` 1e-3 → 1e-1 and `vulnerability_curve_ncontrol` 100 → 400. FF16 and
+`GSS_tol_abs` 1e-3 → 1e-1, `vulnerability_curve_ncontrol` 100 → 400. FF16 and
 K93 go `scientific_version` 1 → 2 on the birth-date coordinate.
 
-The gradient itself is TF24's. `census_gradient.cpp` names `TF24_Strategy`
-throughout and `tf24_strategy.h` is the only file declaring `census_metrics`, so
-an FF16 stand handed to `stand_gradient()` fails in an `Rcpp::as` type error
-rather than a model-level refusal.
+The gradient is TF24's. `census_gradient.cpp` names `TF24_Strategy` throughout
+and `tf24_strategy.h` is the only file declaring `census_metrics`, so an FF16
+stand handed to `stand_gradient()` fails in an `Rcpp::as` type error rather than
+a model-level refusal.
 
 ## Files
 
@@ -158,15 +158,15 @@ rather than a model-level refusal.
 | `with_slope.h` | 38 | new — alias of odelia's |
 
 Deleted: `adaptive_interpolator.{h,cpp}`, `optimize.h`, and four `src/` files —
-`tf24_strategy.cpp`, `tf24f_strategy.cpp`, `tf24_node.cpp`, `tf24f_node.cpp`. New R exports: `stand_gradient`, `stand_census`,
-`stand_census_state_adjoint`, `stand_gradient_compare`, `gradient_control`.
+`tf24_strategy.cpp`, `tf24f_strategy.cpp`, `tf24_node.cpp`, `tf24f_node.cpp`.
+New R exports: `stand_gradient`, `stand_census`, `stand_census_state_adjoint`,
+`stand_gradient_compare`, `gradient_control`.
 
-Read `census.h` and `census_gradient.h` first — 116 lines, and they say what a
-metric and a refusal are. Then `scm.h:1011-1150`, which is `census_trait_gradient`
-end to end and the shortest complete path through the change. Then `scm.h:893`
-for where both terms come from, and `tf24_strategy.h:2193` for the seam with
-phylloptim. `patch.h`, `species.h` and `node.h` are mechanical once those make
-sense.
+Read `census.h` and `census_gradient.h` first — 118 lines, and they say what a
+metric and a refusal are. Then `scm.h:1011-1150`, which is
+`census_trait_gradient` end to end and the shortest complete path through the
+change. Then `scm.h:893`, then `tf24_strategy.h:2193` for the seam with
+phylloptim. `patch.h`, `species.h` and `node.h` are mechanical after that.
 
 ---
 

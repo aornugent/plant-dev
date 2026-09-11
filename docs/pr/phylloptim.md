@@ -32,31 +32,37 @@ Closes #
 
 ---
 
-# Comment 1 — What this is and what it changes
+# Comment 1 — The whole thing, then its parts
+
+## The whole thing
+
+plant needs the leaf's derivative. It gets it in three calls, at whatever scalar
+it is holding:
+
+```cpp
+  const SupplyDraw<S> draw = leaf.supply_draw_at(collar, supply);
+  const S             psi  = leaf.collar_at<K>(draw, pars, curvature);
+  const LeafOutputs<S> out = leaf.outputs_at<K>(psi, draw, pars);
+  // out.profit carries d(profit)/d(trait) for every trait, supplied as rows.
+  // Nothing of the root-find that placed the point is on plant's tape.
+```
+
+At `S == double` that same source is an ordinary forward solve: the
+`implicit_value` node inside `collar_at` is not compiled in at all.
+
+Before those three, the solve itself runs in plain `double` and exits through one
+of six branches. Four of them pin the point with a residual that has a
+derivative. Two do not, and `collar_at` throws rather than returning a number
+that would look fine.
 
 ## Terms
 
-**Row.** One output's derivatives against a list of inputs. A *supplied* row is
-computed here and handed to the consumer's tape as data; the arithmetic that
-produced it is never recorded. This is the whole point of the change, and the
-word appears everywhere in the diff.
+- **row** — one output's derivatives against a list of inputs. A *supplied* row is computed here and handed over as data; the arithmetic behind it is never recorded.
+- **kind** — `OperatingPointKind`: which condition pinned the point. Six values, four with derivatives.
+- **draw** — `SupplyDraw<S>`: the water drawn at one collar potential, with the per-layer split, the total flux and the collar conductance. It records the collar it was taken at.
+- **the three scalars** — `Leaf<S>` at `double` for the solve, `tangent_scalar<double>` for a directional derivative, `active_scalar<double>` for plant's reverse recording. One source, not three copies that drift.
 
-**Kind.** `OperatingPointKind` — which condition pinned the operating point. Six
-values: four have derivatives, two do not. The kind is written by the branch the
-solve exits through and is the only admissible way to tell them apart, for
-reasons in comment 2.
-
-**Draw.** `SupplyDraw<S>` — the water drawn from the soil at one collar
-potential, carrying the per-layer split, the total flux and the collar
-conductance. It records the collar it was taken at, so its parts cannot come from
-different ones.
-
-**The three scalars.** `Leaf<S>` instantiates at `double` for the forward solve,
-`tangent_scalar<double>` for a directional derivative with no tape, and
-`active_scalar<double>` for plant's reverse recording. One source serves all
-three; the alternative was three copies that drift.
-
-## The path a consumer walks
+## The path
 
 ```
   prepare_collar_solve()              kind := Unsolved
@@ -77,31 +83,29 @@ three; the alternative was three copies that drift.
         │                             collar conductance
         ▼
   collar_at(draw, pars, curvature)    the implicit_value node
-        │                             absent entirely at S == double
         ▼
   outputs_at(...)  ──►  LeafOutputs<S>{ profit, uptake[] }
 ```
 
-A consumer must call these in order, pass `marginal_collar_slope()` at `Interior`
-and nowhere else, and branch on `operating_point_kind()` and never on the
-returned values. Three things throw rather than returning a sentinel:
-`check_draw` when a draw and a collar disagree, `collar_coords_at` at a shutdown,
-and `kernel_slope_at` when a row is not finite.
+A consumer passes `marginal_collar_slope()` at `Interior` and nowhere else, and
+branches on `operating_point_kind()` and never on returned values. Three things
+throw: `check_draw` when a draw and a collar disagree, `collar_coords_at` at a
+shutdown, and `kernel_slope_at` on a non-finite row.
 
 ## What changes for existing code
 
-`vulnerability_curve_ncontrol` moves from 100 to 400. The vulnerability curves
-are read from a pre-integrated table and this is how finely that table is cut, so
-every caller's numbers move whether or not they take a derivative. The R default
-and the C++ constant are separate literals and nothing checks they agree.
+`vulnerability_curve_ncontrol` moves from 100 to 400. That is how finely the
+pre-integrated vulnerability table is cut, so every caller's numbers move whether
+or not they take a derivative. The R default and the C++ constant are separate
+literals with nothing checking they agree.
 
-`gradient::n_pars` is gone. The `par_*` enumeration now lives in `leaf_model.hpp`
-and is re-exported; `n_theta` (19) sizes theta and `phylloptim::n_pars` (20)
-sizes the parameter pack. An unqualified `n_pars` written inside `namespace
-gradient` still compiles and now resolves to 20, overrunning a 19-long theta by
-one, so that spelling needs auditing by hand.
+`gradient::n_pars` is gone. The `par_*` enumeration lives in `leaf_model.hpp` and
+is re-exported; `n_theta` (19) sizes theta, `phylloptim::n_pars` (20) sizes the
+pack. An unqualified `n_pars` inside `namespace gradient` still compiles, now
+resolves to 20, and overruns a 19-long theta by one — that spelling needs
+auditing by hand.
 
-The R signatures are unchanged and `NAMESPACE` gains nothing.
+R signatures are unchanged and `NAMESPACE` gains nothing.
 
 ## Files
 
@@ -114,12 +118,11 @@ The R signatures are unchanged and `NAMESPACE` gains nothing.
 | `closed_form_rows.hpp` | 73 | new |
 | `clamp_sites.hpp` | 68 | new |
 
-Nothing is deleted. Read `clamp_sites.hpp` and `vulnerability.hpp` first — 144
-lines between them and the rest leans on both. Then `roots.hpp:357-383` for the
-two new types and `:811` for the walk that fills them. Then
-`leaf_model.hpp:1199-1253` and `:2023-2082`, which is the derivative surface
-proper. `kernel_slope_at` at `:5573` is self-contained and can be read at any
-point; `closed_form_rows.hpp` reads better last.
+Nothing is deleted. Read `clamp_sites.hpp` and `vulnerability.hpp` first — 141
+lines and the rest leans on both. Then `roots.hpp:357-383` and `:811`. Then
+`leaf_model.hpp:1199-1253` and `:2023-2082`, the derivative surface proper.
+`kernel_slope_at` at `:5573` is self-contained; `closed_form_rows.hpp` reads
+better last.
 
 ---
 

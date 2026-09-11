@@ -31,59 +31,49 @@ Closes #
 
 ---
 
-# Comment 1 — What this is and what it changes
+# Comment 1 — The whole thing, then its parts
+
+## The whole thing
+
+Solve a System, then ask how the answer moved with every parameter at once.
+
+```cpp
+  Solver<Lorenz> solver(system, control);
+  solver.set_keep_states(true);            // keep the trajectory
+  solver.advance_adaptive({0.0, 10.0});    // the ordinary solve, unchanged
+
+  adjoint_rows lambda = adjoint_rows::one_row({1.0, 0.0, 0.0});  // d(x_final)
+  adjoint_rows dp;
+  dp.assign(1, n_parameters);              // one row per seed, zeroed
+
+  solver.solve_adjoint(lambda, dp);
+  // dp[0][j] is now d(x_final)/d(parameter j), every j, from that one solve.
+```
+
+Three lines are new: `set_keep_states`, the seed, and `solve_adjoint`. Everything
+below explains a part of them.
+
+The cost of the last line is one extra pass over the trajectory. It is not one
+pass per parameter, which is the entire point — and it is not free either,
+because `solve_adjoint` re-runs the model as it goes.
 
 ## Terms
 
-Four words carry most of the diff, and three of them have a consequence attached
-that is easy to miss.
+- **tape** — a linear log of arithmetic, appended as a calculation runs, walked backwards for derivatives.
+- **statement** — one tape entry: a single left-hand side over a run of operations. Cost is statements, not operations. `a = b*c + d*e` is one; two assignments are two.
+- **recording** — what sits on the tape between clears. Here, exactly one solver step.
+- **seed** — the starting derivative for a backward walk. One per output.
+- **row** — one output's derivatives against a list of inputs. `adjoint_rows` is a batch, because several seeds can share one traversal.
+- **range** — consecutive recorded steps at constant state width. plant gains a cohort at each introduction, so its century fixture has 169.
 
-**Tape.** A linear log of arithmetic, appended to as a calculation runs. Reverse
-mode walks it backwards. Everything hard about this change comes from the tape
-being finite and a trajectory being long.
+## What `solve_adjoint` requires
 
-**Statement.** One tape entry: a single left-hand side covering a run of
-operations. Tape cost is counted in statements, not in arithmetic, and the
-distinction matters more than it sounds. `a = b*c + d*e + f*g` is one statement.
-The same arithmetic written as three `a += ...` lines is three. A submodel that
-hands over its derivative as a loop of `+=` therefore costs its consumer one
-statement per row; written as a single expression it costs one statement no
-matter how many rows there are. That difference is the entire reason
-`implicit_node.hpp` exists.
-
-**Seed and row.** A seed is the starting derivative handed to a backward walk,
-one per output whose derivatives are wanted. A row is one output's derivatives
-against a list of inputs. `adjoint_rows` is a batch of rows, because the
-expensive part of a sweep is the traversal and several seeds can share it.
-
-**Range.** Consecutive recorded steps over which the state vector's length does
-not change. A System of fixed width has exactly one. plant gains a cohort's
-worth of entries at every introduction, so its century fixture has 169.
-
-## The call, and what it requires of the caller
-
-```cpp
-  solver.set_keep_states(true);
-  solver.advance_adaptive(times);            // one step_record per accepted step
-  solver.solve_adjoint(lambda,               // seeded at the final width
-                       parameter_adjoint);
-```
-
-`advance_adaptive` is the existing adaptive loop and behaves as it did: six
-Runge–Kutta–Cash–Karp stage evaluations, an embedded error estimate, accept or
-shrink. The only change is that each accepted step appends a record, and only
-when `set_keep_states(true)` asked for it.
-
-`solve_adjoint` has four requirements and checks all of them at run time
-(`adjoint.hpp:387-400`). `lambda` arrives seeded at the run's final state width
-and is **replaced** as the walk narrows. `parameter_adjoint` arrives at one row
-per seed, width equal to the parameter count, and **zeroed by the caller**,
-because it accumulates with `+=` across ranges rather than being overwritten.
-Those two must be different batches, and passing the same one twice is refused
-explicitly: one is replaced and one accumulated, so aliasing them silently loses
-whichever was written first.
-
-The return value is the number of ranges swept.
+Checked at run time (`adjoint.hpp:387-400`). `lambda` arrives seeded at the final
+state width and is **replaced** as the walk narrows. `parameter_adjoint` arrives
+at one row per seed, width equal to the parameter count, and **zeroed by the
+caller**, because it accumulates with `+=` across ranges. The two must be
+different batches: one is replaced and one accumulated, so aliasing them loses
+whichever was written first. The return is the number of ranges swept.
 
 ## Control flow
 
@@ -106,35 +96,31 @@ The return value is the number of ranges swept.
         runs twice per step: forward in double, again here at active_scalar
 ```
 
-The edge at the bottom is the one to hold onto. The reverse pass does not read
-cached rates; it re-runs the model. On plant's century fixture that is 3,378
-steps and 20,268 rate evaluations, exactly six per step, because every step is
-re-run whole. Anything cached between calls, or anything depending on the order
-rates are computed in, will differ between the two passes unless something makes
-it agree.
+That bottom edge is the one to hold onto. The reverse pass re-runs the model
+rather than reading cached rates — 3,378 steps and 20,268 rate evaluations on
+plant's century fixture, six per step. Anything cached between calls, or
+depending on the order rates are computed in, differs between the two passes
+unless something makes it agree.
 
 ## What changes for an existing System
 
-The trait-based contract becomes C++20 concepts. `needs_time`, `has_cache` and
-`has_state_check` are replaced by `HasOdeTime`, `SolvesForValues`, `ChecksState`
-and `Rebindable` (`ode_interface.hpp:101-263`). A System that only needs solving
-is unaffected by most of this; a System entering a sweep must additionally
-provide `rebind_from`, `ad_parameters`, `for_each_active` and
-`set_recorded_state`, and one whose state grows mid-run must provide
+The trait-based contract becomes concepts: `needs_time`, `has_cache` and
+`has_state_check` give way to `HasOdeTime`, `SolvesForValues`, `ChecksState` and
+`Rebindable` (`ode_interface.hpp:101-263`). A System that only needs solving is
+largely unaffected. One entering a sweep adds `rebind_from`, `ad_parameters`,
+`for_each_active` and `set_recorded_state`; one whose state grows adds
 `apply_insertion`.
 
-`rebind()` becomes `rebind_from()`, and the target scalar is now a named template
-parameter instead of a defaulted one. The reason is in the header: *"defaulting
-it to the System's own scalar asks whether a System can rebind to the scalar it
-already has, which is a different question"* (`:109`). The old form could be
-satisfied by a System that could not actually lift itself.
+`rebind()` becomes `rebind_from()`, with the target scalar named and not
+defaulted: *"defaulting it to the System's own scalar asks whether a System can
+rebind to the scalar it already has, which is a different question"* (`:109`).
+The old form could be satisfied by a System that could not actually lift itself.
 
-On the R side, `Solver_fit()` and `Solver_set_target()` are gone along with
-`ode_fit.hpp`, and all fifteen `Solver_*` bindings lose their `active` argument —
-the passive and active Solver types have collapsed into one. Fitting is now a
-C++-only activity, and `compute_gradient` has no drop-in replacement:
-`vector_jacobian_product` plus `sweep.hpp` cover the same ground, with the loss
-function and the optimiser loop becoming the caller's business.
+R loses `Solver_fit()`, `Solver_set_target()` and the `active` argument on all
+fifteen `Solver_*` bindings, the passive and active Solver types having collapsed
+into one. Fitting is C++-only now. `compute_gradient` has no drop-in:
+`vector_jacobian_product` plus `sweep.hpp` cover it, with the loss and the
+optimiser loop becoming the caller's.
 
 ## Files
 
@@ -147,17 +133,15 @@ function and the optimiser loop becoming the caller's business.
 | `with_slope.hpp` | 55 | `with_slope<T>` |
 
 Rewritten: `interpolator.hpp` (+651, absorbs the spline), `ode_interface.hpp`
-(+509, the contract above), `ode_solver.hpp` (+392, the recording and
-`solve_adjoint`), `solver_interface.hpp` (−293 net, the Solver pair collapsing).
-Deleted: `spline.hpp` (466), `ode_fit.hpp` (100). Neither was included by
-phylloptim or plant, so the in-family migration cost is zero.
+(+509, the contract above), `ode_solver.hpp` (+392), `solver_interface.hpp`
+(−293 net). Deleted: `spline.hpp` (466), `ode_fit.hpp` (100); neither was
+included by phylloptim or plant.
 
-Read `tangent.hpp` and `with_slope.hpp` first — 119 lines and everything else
-uses them. Then `ode_interface.hpp:196-222` for what a record holds,
-`ode_solver_internal.hpp:269` for the one place records are written,
-`adjoint.hpp:304` for the sweep primitive, and `ode_solver.hpp:336` for the loop
-that drives it. `implicit_node.hpp` is independent of the solver and can be read
-at any point.
+Read `tangent.hpp` and `with_slope.hpp` first — 130 lines, and everything uses
+them. Then `ode_interface.hpp:196-222` for what a record holds,
+`ode_solver_internal.hpp:269` for the only place records are written,
+`adjoint.hpp:304` for the sweep primitive, `ode_solver.hpp:336` for the loop.
+`implicit_node.hpp` is independent of the solver.
 
 ---
 
