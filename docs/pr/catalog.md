@@ -103,15 +103,47 @@ One roxygen run closes three of them; `gradient_control.Rd`, `stand_census.Rd`,
 `stand_gradient.Rd` and `stand_census_state_adjoint.Rd` are stale in the same way
 and come with it.
 
-### A5. The exactness claim has two open columns **[v]**
+### A5. ~~The exactness claim has two open columns~~ — CLOSED **[v]**
 
-`theta` and `omega` disagree **in sign** with the only reference that shares no
-arithmetic with the sweep — `mass_above_ground` reads 3407 against −1074, and
-−1466 against +1487, where that reference resolved itself to 0.7–10%. The test
-reporting it ends in a bare `skip()`. A pull request headed "computes the exact
-derivative" cannot leave that behind a skip. Fix, or state it in the body.
+**Not a gradient defect — the reference was measuring the solver.** It re-ran the
+adaptive integrator independently on each side of its difference, so each side
+chose its own ODE steps. Moving a parameter by one part in a million changes
+which steps the error estimator accepts, and the census then lands a fixed ~2e-4
+away however small the move was; divided by 2h that quotient grows as 1/h, and
+all four of the capture's relative steps (1e-6 to 1e-3) sat under it. **On the
+drought stand nothing resolved at all** — over its 86 readable columns the census
+difference tracked the step at a slope of 0.65 at best, where a resolved
+difference gives 1, against 83 of 85 above 0.5 on wet. `theta` and `omega` are
+simply the two whose noise reading was large enough to trip a residual normalised
+by the metric's largest column.
 
-`plant/tests/testthat/test-gradient-ladder-whole-run-difference.R:55-65, 179`
+Two normalisations kept it quiet. The capture divided its convergence gap by the
+**largest** of its four readings — on a 1/h series that is the finest step, the
+noisiest — so 79 of drought's 86 columns kept a reading further from its
+neighbour than from zero and reported a spread of between 0.03% and 34% for it.
+And the rung divided its residual by the per-metric maximum over columns, so only
+the biggest column could trip the tolerance at all.
+
+Fixed by censusing both sides on one time grid — which is also the derivative the
+sweep computes, rather than a quieter version of a different one: recorded step
+sizes are selectors, replayed by the backward pass instead of decided again, so
+an unpinned difference answers a different question. Pinned, the reading is flat
+across four decades of step and lands on the sweep:
+
+| | difference | sweep |
+|---|---|---|
+| drought `1.theta` mass_above_ground | −545.63 | −545.742 |
+| drought `2.omega` mass_above_ground | 276.209 | 276.256 |
+| seasonal `1.theta` area_stem | 0.379283 | 0.379277 |
+
+The capture was re-taken and the rung is 13/13 with no skips: 270 answered
+columns a regime, worst residual 1.1e-03 on drought, 7.6e-04 on seasonal,
+6.3e-05 on wet. Seven columns the old capture never covered — `D_c`, `L_tip`,
+`stem_P50`, `stem_c`, `root_P50`, `TF24_beta2`, `TF24_cost_scale` — are refereed
+for the first time, because the generator now takes its column list from the same
+expression the rung asserts against rather than from a patch's trait names. The
+generator moved from this superproject into `plant/scripts/`, so the reference is
+regenerable from the package a maintainer receives.
 
 ---
 
@@ -216,17 +248,16 @@ than from the docs and are unaffected.
 
 Judgement calls, not defects. Each wants an answer before the pull requests open.
 
-### The five that block a submission
+### The four that block a submission
 
-These are not style questions. Four of them revert something upstream shipped,
-accept a change to the model's science, or leave a wrong number in the answer;
-the fifth decides what the pull request contains. Nothing else in D does either.
+These are not style questions. Three of them revert something upstream shipped or
+accept a change to the model's science; the fourth decides what the pull request
+contains. Nothing else in D does either.
 
 | | decision | what is known |
 |---|---|---|
 | **A1** | **What `scientific_version` should say.** | Three suites turn on it, not two: `_snaps/model-version.md`, `phylloptim`'s `test_golden`, and `test-strategy-tf24.R`'s scenario pins. The pins are the sharpest statement — measured at `e9ff23f6`, the pre-merge tree returns **81.995393** where its own test pins **30.22207354**, so this branch has been ~2.7× develop on that scenario and nothing recorded it. Re-pinning any of the three accepts a change to the model's science, which is the one thing AGENTS.md says must be named rather than waved through. |
 | **run_mutant** | **Restore it, or ship regressed against `develop`.** | `SCM::run_mutant` is a `stop()` here and works on develop, where #643 restored it for TF24. The recorder it needs was reached through solver hooks this branch's rewrite stopped calling; the replacement its own comment names, odelia's `ReplaysField`, **does not exist**. Recorded under plant's Known issues and skipped with the reason at the test, so nothing is silent — but it is a capability a maintainer just merged and would be receiving back broken. |
-| **theta / omega** | **Fix the sign disagreement, or state it and ship.** | Both disagree **in sign** with the whole-run difference on drought and seasonal stands, far outside that reference's own 0.7–10% resolution: `2.omega` reads 276.3 against −4000 for `mass_above_ground`, `1.theta` 0.3793 against −27.22 for `area_stem`. Both reach the census through channels the leaf boundary carries. Now declared and asserted in both directions in `test-gradient-ladder-whole-run-difference.R`, and stated in the pull-request body — so shipping is a choice rather than an oversight. Every other answered column holds. |
 | **the operating point moved** | **Recalibrate the incidence and parity fixtures, or hold.** | develop's #617 took the dry share from **0.51% to 92.36%** on `incidence_stand(0.25, 10)`, `seasonal` from answered to refused, and `shaded` from reaching shade-death to not. Nine gradient-suite failures, none of them a derivative: every referee is green, including the transpose identity over all four operating-point kinds at 5.1e-11. Moving the fixtures accepts the ecology; leaving them accepts nine red. |
 | **`gradient_ladder.cpp`** | **Ship 34 test-only entry points on the ABI, split them out, or defer the suite.** | 1,071 lines, 34 `[[Rcpp::export]]`, and re-checked: **no entry point has a caller in `R/` outside the generated glue** — every one of them is reached from a test, across 13 files. So they are on the compiled ABI to serve the thing they check. The catalog's own two options both cost something real: a follow-up pull request means deleting the eighteen files that are this pull request's assurance argument, and a test-only translation unit is a mechanism `plant` does not have (R compiles everything in `src/`). Deferring the whole ladder is the third option and the largest. Also the single biggest lever on install cost — the measurement under *Install cost* below puts a quarter of the build in this one file. |
 
