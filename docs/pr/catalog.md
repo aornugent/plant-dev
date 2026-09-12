@@ -17,12 +17,13 @@ a 105 MB library was our own `-g` build.
 
 Nothing ships until these are closed.
 
-### A1. Two test suites are red **[v]**
+### A1. The red suites **[v]**
 
 | suite | how it fails |
 |---|---|
 | `plant` `test-strategy-tf24.R` / `-tf24f.R` **[v, added]** | **A third red suite, and it predates the merge.** 17 + 2 failures. Four were the `Defaults` fixtures pinning `root_b` as develop's literal and omitting `root_P50`, which this branch has carried since `e9ff23f6` — fixed in `95a88949`. The rest are pinned scenario values this branch no longer produces: `offspring arrival` pins 30.22207354 and the **pre-merge** tree returns **81.995393**, measured directly at `e9ff23f6`. Merged, the same scenario returns 56.4 with the path integral and 82.0 with it collapsed — so upstream's new "height-linear parameters reproduce the pre-path-integral results" recovers the pre-merge number to four figures and the merge is not the cause. This branch is ~2.3–2.7× develop on this scenario either way, and four storage-rate tests move with it. ⚠️ **These pins cannot be re-blessed without the same `scientific_version` decision A1 already needs** — re-pinning to make a run green is how a real change to a model's science gets waved through. |
 | `plant` `test-gradient-incidence.R` (6) / `test-gradient-parity.R` (3) **[v, added]** | **The merge moved the leaf's operating point, and these fixtures assert where it lands.** Measured on `incidence_stand(0.25, 10)`, pre-merge `e9ff23f6` against the merged tree: interior placements 5,336,853 → 207,790, dry pins 27,271 → 2,510,686, **dry share 0.51% → 92.36%**, all on the continuity-root arm. The lifetime-10 stand that used to refuse for its descent's range now answers. In `parity`, `seasonal` moved from answered to refused (`left the representable range`) and the `shaded` driver stopped reaching `shade-death` at all. This is develop's #617 doing what its own comment predicts — lower resistance, faster transpiration, the shared soil column drawn down — reaching fixtures calibrated on the pre-#617 model. ⚠️ **Not a gradient defect:** every derivative referee is green, including phylloptim's transpose identity over all four operating-point kinds (147 checks, worst relative 5.1e-11). Recalibrating these fixtures accepts an ecological change and belongs with A1's `scientific_version` decision, not beside it. |
+| ~~`plant` `test-node.R`~~ **[v, fixed]** | **A red suite nothing had named, and it was ours.** 3 failures, one per model: `Node$ode_rates` reported **0** for the density rate where FF16 gives −0.787, TF24 −1.423 and K93 −0.0387. `compute_initial_conditions()` took the node's rates *before* seating its state, so the `density > 0` guard fired on the density a node being born has not got yet — `exp(-Inf)` — and the zero it wrote stood for the whole first evaluation. The offspring rate had the same shape through `survival_individual()`. The guard arrived in `a02588c1` on this branch, so develop never carried it. Fixed in `66941c0a`: both rates move to one `compute_node_rates()` that each caller reaches after the state it is responsible for exists, and the two copies of the guard become one. No trajectory moves — the whole-run rung holds at 13/13 against a reference captured before it, and the gradient suite is unchanged at 710 over nineteen files. |
 | `plant` `_snaps/model-version.md` | Stale and self-contradictory: 62 parameters snapshotted against 64 declared, `vulnerability_curve_ncontrol` recorded as 100 where the code gives 400, `control.gradient_curvature_floor` absent, and TF24 names (`p_50`, `b`, `c`) the `.yml` no longer declares. An untracked `model-version.new.md` holds the real surface. |
 | `phylloptim` `tests/cpp/test_golden` | Exits 1. Run by `tests/cpp.R:108`, so `R CMD check` is red. |
 
@@ -182,9 +183,16 @@ both migrate in these same pull requests. plant already uses
 
 ## C. Correct before submitting
 
-### C1. Comments and man pages that are false **[v unless marked]**
+### C1. ~~Comments and man pages that are false~~ — CLOSED **[v]**
 
-Ordered by who is misled.
+All fourteen re-checked against the tree and fixed. One more was found while
+landing the whole-run reference and is fixed with them:
+
+| claim | where | what is true |
+|---|---|---|
+| `r_ode_times()` sends a reader to a `use_ode_times` flag on `NodeSchedule` | `plant/inst/include/plant/scm.h` | No such flag exists in any of the three trees — holding the times is what makes a schedule a replay. The line below it named `NodeSchedule` as where to set the sizes, where `run_scm()` reads both off the parameters. Fixed in `3059e44d`, which says instead what the two spellings differ in: times with sizes repeat a run exactly, times alone step TO each of them and leave the sub-steps free. |
+
+The original fourteen, for the record, ordered by who is misled:
 
 | claim | where | what is true |
 |---|---|---|
