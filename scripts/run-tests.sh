@@ -16,12 +16,27 @@
 # the same way testthat's own `filter` does. `invert` runs every file that does
 # NOT match, which is how the non-ladder sweep is taken.
 #
-#   scripts/run-tests.sh '^test-gradient-ladder'          # the whole ladder
-#   scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation)'
+#   scripts/run-tests.sh '^test-gradient-ladder'          # the sweep, 58 s
+#   scripts/run-tests.sh '^test-gradient-(demo|incidence|parity)'   # the surface
 #   scripts/run-tests.sh '^test-gradient' "" invert       # everything else
+#
+# ⚠️ THOSE THREE PARTITION THE SUITE AND THE FIRST TWO DID NOT. `^test-gradient`
+# inverted excludes demo, incidence and parity along with the ladder, so before
+# the middle line existed they ran under no tier at all -- and running them under
+# `^test-gradient` instead put 945 s of surface checks in front of a 58 s ladder,
+# which is what made the ladder look like a ten-minute suite. What each file
+# claims, and which of the four references it answers to, is in
+# `plant/scripts/run-gradient-ladder.R`.
 #
 # Set PLANT_TEST_LIB to a private library holding your odelia build, to keep a
 # run out of the race with other sessions installing into the shared one.
+#
+# PLANT_TEST_CACHE is where a file that can cache its fixture writes it, and is
+# defaulted here rather than left unset: the surface tier's stands cost 403 s to
+# build and 2 s to read back, and a cache nothing turns on is a cache that does
+# not exist. It is safe to leave on because the key is an md5 of the BUILT
+# LIBRARY and the files defining the fixture, so a rebuild cannot be answered
+# from a previous build's cache.
 #
 # A crashed process writes no result line and is otherwise silent, which is the
 # one thing this loses that test_dir() does not -- so they are reported at the
@@ -61,6 +76,8 @@ echo "files: $(echo "$FILES" | wc -l | tr -d ' ')"
 # A private library goes ahead of the user library rather than replacing it:
 # R_LIBS prepends, where R_LIBS_USER would hide Rcpp, BH, testthat and the rest.
 LIBS=${PLANT_TEST_LIB:+$PLANT_TEST_LIB:}$(Rscript -e 'cat(paste(.libPaths(), collapse=":"))')
+CACHE=${PLANT_TEST_CACHE:-${TMPDIR:-/tmp}/plant-test-cache}
+mkdir -p "$CACHE" || exit 1
 
 # ⚠️ NOT_CRAN, because skip_on_cran() skips in silence. Without it
 # test-gradient-demo.R's six blocks report as skips and their 32 assertions never
@@ -69,6 +86,7 @@ LIBS=${PLANT_TEST_LIB:+$PLANT_TEST_LIB:}$(Rscript -e 'cat(paste(.libPaths(), col
 for f in $FILES; do
   (
     R_LIBS="$LIBS" TESTTHAT_PARALLEL=false NOT_CRAN="${NOT_CRAN:-true}" \
+    PLANT_TEST_CACHE="$CACHE" \
     Rscript -e "
       setwd('$ROOT')
       library(odelia); pkgload::load_all('plant', quiet = TRUE)

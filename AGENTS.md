@@ -291,36 +291,47 @@ Tiers of the loop, cheapest first:
    testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
                       stop_on_failure = FALSE)
    ```
-3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 57/75
-   files):**
+3. **Fast pre-commit sweep — the 62 files that are not gradient files:**
    ```sh
    scripts/run-tests.sh '^test-gradient' "" invert
    ```
-4. **The gradient ladder, in three tiers.** Its files are named so the pattern
-   selects a tier, and the whole ladder is about a minute of wall run this way.
-
-   *Structure, no trajectory (~40 s of CPU, a few seconds of wall).* Where the
-   assurance is concentrated: the exhaustive block Jacobian and its rank structure,
-   the same Jacobian at the states a trajectory reached, ten injected corruptions,
-   the water channel's factorisation, and the completeness reference. Run this per
-   edit.
+   ⚠️ **This launches every file at once with no concurrency cap**, so on a small
+   machine it is not a sweep but a thrash: 57 processes on four cores completed
+   none in fifty minutes. And `test-events.R` runs at a lifetime of 5 and does
+   not finish at all. Run it where there are cores, or name a smaller family.
+4. **The gradient ladder — 15 files, 553 checks, 58 s in one process.** It prints
+   what each file claims and which of the four references answers it, and refuses
+   to run if a file has no entry:
+   ```sh
+   cd plant && Rscript scripts/run-gradient-ladder.R              # all of it
+   cd plant && Rscript scripts/run-gradient-ladder.R one-cohort   # one file
+   ```
+   The same files by pattern, to get the concurrency instead of the commentary:
+   ```sh
+   scripts/run-tests.sh '^test-gradient-ladder'
+   ```
+   *Structure, no trajectory, and where the assurance is concentrated* — the
+   exhaustive block Jacobian and its rank structure, the same Jacobian at the
+   states a trajectory reached, ten injected corruptions, the water channel's
+   factorisation, and the completeness reference. Under 20 s; run it per edit.
    ```sh
    scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation|declared-zero)'
    ```
-   *Trajectory — the bulk of the cost.* model-invariants, identity, two-species,
-   columns, introductions, first-range, recruit, sweep, switches — accumulation
-   across cohorts and species, the stage recursion, introductions, the boundary
-   channels, and refusal. Run before landing sweep work.
+5. **The surface tier, which is not the ladder and costs sixteen times as much.**
+   `demo`, `incidence` and `parity` ask where the model goes and whether the
+   gradient follows — scope, not correctness — and they are 945 s against the
+   ladder's 58.
    ```sh
-   scripts/run-tests.sh '^test-gradient'
+   scripts/run-tests.sh '^test-gradient-(demo|incidence|parity)'
    ```
-   *One file when you know what you touched.* `identity` for anything that changes
-   how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
-   per-column contraction; `switches` for a channel's route to a census.
-   **`Rscript tests/run-gradient-ladder.R` names every file and what it claims**,
-   and refuses to run if a file has no description — read that first if you do not
-   know which one to reach for.
-
+   ⚠️ **DO NOT REACH FOR `^test-gradient`.** It matches all eighteen, so it puts
+   those three in front of the ladder and is what makes the ladder look like a
+   ten-minute suite. The cost is fixture construction, not checking: parity's five
+   blocks are 329.0, 0.0, 0.1, 0.0 and 0.0 s, because the first builds every stand
+   and the rest read a cache. `scripts/run-tests.sh` sets `PLANT_TEST_CACHE` so
+   the second run of a tier reads that cache from disk instead — 403 s to about 2.
+   Its key is an md5 of the built library and the files defining the fixture, so a
+   rebuild is never answered from an older build's entry.
 
 **Read those figures as CPU, not as wall clock, and run the suite with
 `scripts/run-tests.sh`.** `testthat`'s own parallel workers cannot see a
