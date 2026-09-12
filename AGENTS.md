@@ -273,10 +273,32 @@ the whole of it. Measured on one stand at TF24's default leaf mass per unit area
 | accepted steps | 205 | 215 | **842** | 3324 | 6068 | 9576 |
 | seconds | 2.7 | 3.0 | 20.1 | 89.5 | 167.6 | 267.1 |
 
-`test-events.R` runs at a lifetime of 5 and does not finish in twenty minutes.
-What makes the cliff is the derivative of mortality with respect to the storage
-pool, which reaches 2.019e+07 — the same stiffness the gradient work located. So
-when a test is unexpectedly slow, look at its fixture's lifetime first.
+⚠️ **BUT THE LIFETIME IS A PROXY, AND THE THING TO COUNT IS THE INTRODUCTIONS.**
+The two are confounded above, because the DEFAULT schedule is derived from the
+lifetime and it is the schedule that does the work. Held at lifetime 5, varying
+only how many of that schedule's 88 introductions are kept:
+
+| introductions | 2 | 6 | 12 | 22 | 44 | 88 |
+| --- | --- | --- | --- | --- | --- | --- |
+| accepted steps | 136 | 140 | 146 | 156 | 178 | **9881** |
+| seconds | 0.1 | 0.3 | 0.4 | 0.7 | 1.5 | **288** |
+
+The cliff is between 44 and 88, and the cost per cohort-step FALLS across the
+whole range, 0.47 ms to 0.19 ms — so it is the solver taking 55x the steps rather
+than the arithmetic getting slower.
+
+`test-events.R` is the case to know, and it is not this branch's doing. One of its
+26 blocks — *"pulses wet the soil during a run"* — is the whole of its cost; the
+other thirteen measured are milliseconds each. It clears `node_schedule_times`
+meaning to shorten the run, which makes `add_strategies` regenerate the DEFAULT
+schedule for a lifetime-5 patch: 88 introductions. The same recipe at two
+introductions is 0.1 s. The file is byte-identical to `develop`,
+`node_schedule_times_default` is unchanged, and under the height-linear
+configuration `stem_hydraulics.h` states is bit-identical to the pre-#617 model
+the same fixture takes 9019 steps against 9881 — ten per cent, not fifty-five
+times.
+
+So when a test is unexpectedly slow, count its introductions first.
 
 Tiers of the loop, cheapest first:
 
