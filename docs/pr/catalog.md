@@ -86,7 +86,13 @@ and `dafa22cf` (plant).
 | **[v]** | `collar_at` is declared `const` and `const_cast`s itself to call a non-const member. | `leaf_model.hpp:6037` |
 | **[v]** | `set_extrapolate` is not merely inert — the read was removed and the default flipped `true` → `false`. Three live phylloptim callers silently no-op, and an out-of-domain read that used to stop with a located error now extrapolates linearly. `vulnerability.hpp:265` still asserts both splines have extrapolation disabled. | `odelia/inst/include/odelia/interpolator.hpp:545, 554` |
 
-### A4. Five `R CMD check` WARNINGs, all new on this branch **[v]**
+### A4. ~~Five `R CMD check` WARNINGs, all new on this branch~~ — CLOSED **[v]**
+
+Re-verified by the checkers rather than by reading: `tools::undoc`, `tools::codoc`
+and `tools::checkDocFiles` all report clean on `plant` and `phylloptim`.
+`-fno-stack-protector` has no live occurrence in either `src/Makevars` — plant's
+carries a comment prohibiting it and saying why. No `tests/cpp` binary is tracked
+in phylloptim's git, and `.Rbuildignore` now names each one `build:` makes.
 
 phylloptim's `check-r-package` sets no `error-on`, and the action's default is
 `"warning"` — so for that package a WARNING is a red leg. plant and odelia pin
@@ -214,7 +220,12 @@ The original fourteen, for the record, ordered by who is misled:
 `man/stand_gradient.Rd` and `man/run_scm.Rd` are stale — roxygen was not re-run.
 `stand_gradient_refused` is exported with no `.Rd`, which `R CMD check` flags.
 
-### C2. The design docs have errors of their own **[v]**
+### C2. ~~The design docs have errors of their own~~ — CLOSED **[v]**
+
+`reverse-mode.md` now says the orchestrator seeds the walk **with** the direct
+term and that nothing classifies exact zeros; `refusal.md` now attributes the
+tally to `TF24_Strategy::solve_leaf` and says why `record_leaf_outputs` would
+miss the forward pass.
 
 `docs/design/` lives in this superproject and ships in no pull request, so this
 is not a blocker — but it is the document set we treat as authority.
@@ -231,7 +242,12 @@ is not a blocker — but it is the document set we treat as authority.
 The pull request drafts in this directory take both points from the code rather
 than from the docs and are unaffected.
 
-### C3. The changelogs **[r, with [v] where noted]**
+### C3. ~~The changelogs~~ — CLOSED **[v]**
+
+odelia opens at 0.5.0, matching its DESCRIPTION, and the 0.2.2 promise the diff
+falsified is gone. plant's sections are whole again and neither function that
+does not exist is named. phylloptim carries the `ncontrol` default and retracts
+both `n_pars` entries by name, leaving the originals standing as history.
 
 - **odelia is not submittable.** DESCRIPTION declares 0.5.0; `NEWS.md` stops at
   0.3.1, and the `0.4.0` section was deleted rather than superseded. The entry
