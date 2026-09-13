@@ -17,12 +17,13 @@ a 105 MB library was our own `-g` build.
 
 Nothing ships until these are closed.
 
-### A1. Two test suites are red **[v]**
+### A1. The red suites **[v]**
 
 | suite | how it fails |
 |---|---|
 | `plant` `test-strategy-tf24.R` / `-tf24f.R` **[v, added]** | **A third red suite, and it predates the merge.** 17 + 2 failures. Four were the `Defaults` fixtures pinning `root_b` as develop's literal and omitting `root_P50`, which this branch has carried since `e9ff23f6` — fixed in `95a88949`. The rest are pinned scenario values this branch no longer produces: `offspring arrival` pins 30.22207354 and the **pre-merge** tree returns **81.995393**, measured directly at `e9ff23f6`. Merged, the same scenario returns 56.4 with the path integral and 82.0 with it collapsed — so upstream's new "height-linear parameters reproduce the pre-path-integral results" recovers the pre-merge number to four figures and the merge is not the cause. This branch is ~2.3–2.7× develop on this scenario either way, and four storage-rate tests move with it. ⚠️ **These pins cannot be re-blessed without the same `scientific_version` decision A1 already needs** — re-pinning to make a run green is how a real change to a model's science gets waved through. |
 | `plant` `test-gradient-incidence.R` (6) / `test-gradient-parity.R` (3) **[v, added]** | **The merge moved the leaf's operating point, and these fixtures assert where it lands.** Measured on `incidence_stand(0.25, 10)`, pre-merge `e9ff23f6` against the merged tree: interior placements 5,336,853 → 207,790, dry pins 27,271 → 2,510,686, **dry share 0.51% → 92.36%**, all on the continuity-root arm. The lifetime-10 stand that used to refuse for its descent's range now answers. In `parity`, `seasonal` moved from answered to refused (`left the representable range`) and the `shaded` driver stopped reaching `shade-death` at all. This is develop's #617 doing what its own comment predicts — lower resistance, faster transpiration, the shared soil column drawn down — reaching fixtures calibrated on the pre-#617 model. ⚠️ **Not a gradient defect:** every derivative referee is green, including phylloptim's transpose identity over all four operating-point kinds (147 checks, worst relative 5.1e-11). Recalibrating these fixtures accepts an ecological change and belongs with A1's `scientific_version` decision, not beside it. |
+| ~~`plant` `test-node.R`~~ **[v, fixed]** | **A red suite nothing had named, and it was ours.** 3 failures, one per model: `Node$ode_rates` reported **0** for the density rate where FF16 gives −0.787, TF24 −1.423 and K93 −0.0387. `compute_initial_conditions()` took the node's rates *before* seating its state, so the `density > 0` guard fired on the density a node being born has not got yet — `exp(-Inf)` — and the zero it wrote stood for the whole first evaluation. The offspring rate had the same shape through `survival_individual()`. The guard arrived in `a02588c1` on this branch, so develop never carried it. Fixed in `66941c0a`: both rates move to one `compute_node_rates()` that each caller reaches after the state it is responsible for exists, and the two copies of the guard become one. No trajectory moves — the whole-run rung holds at 13/13 against a reference captured before it, and the gradient suite is unchanged at 710 over nineteen files. |
 | `plant` `_snaps/model-version.md` | Stale and self-contradictory: 62 parameters snapshotted against 64 declared, `vulnerability_curve_ncontrol` recorded as 100 where the code gives 400, `control.gradient_curvature_floor` absent, and TF24 names (`p_50`, `b`, `c`) the `.yml` no longer declares. An untracked `model-version.new.md` holds the real surface. |
 | `phylloptim` `tests/cpp/test_golden` | Exits 1. Run by `tests/cpp.R:108`, so `R CMD check` is red. |
 
@@ -65,7 +66,13 @@ merged pull requests.
 odelia is one commit behind (#58, the pinned-time step rejection, which is what
 `v0.4.0` released) and phylloptim one (#135, the `Remotes` tag bump).
 
-### A3. Defects in the model's own use case
+### A3. ~~Defects in the model's own use case~~ — CLOSED **[v]**
+
+All ten answered. Two did not survive measurement and are corrected below
+rather than implemented against. The rest are fixed in
+`c09107d`/`0be413a`/`af0a620` (phylloptim), `078b6f9`/`ecefb4a` (odelia)
+and `dafa22cf` (plant).
+
 
 | | what | where |
 |---|---|---|
@@ -79,7 +86,13 @@ odelia is one commit behind (#58, the pinned-time step rejection, which is what
 | **[v]** | `collar_at` is declared `const` and `const_cast`s itself to call a non-const member. | `leaf_model.hpp:6037` |
 | **[v]** | `set_extrapolate` is not merely inert — the read was removed and the default flipped `true` → `false`. Three live phylloptim callers silently no-op, and an out-of-domain read that used to stop with a located error now extrapolates linearly. `vulnerability.hpp:265` still asserts both splines have extrapolation disabled. | `odelia/inst/include/odelia/interpolator.hpp:545, 554` |
 
-### A4. Five `R CMD check` WARNINGs, all new on this branch **[v]**
+### A4. ~~Five `R CMD check` WARNINGs, all new on this branch~~ — CLOSED **[v]**
+
+Re-verified by the checkers rather than by reading: `tools::undoc`, `tools::codoc`
+and `tools::checkDocFiles` all report clean on `plant` and `phylloptim`.
+`-fno-stack-protector` has no live occurrence in either `src/Makevars` — plant's
+carries a comment prohibiting it and saying why. No `tests/cpp` binary is tracked
+in phylloptim's git, and `.Rbuildignore` now names each one `build:` makes.
 
 phylloptim's `check-r-package` sets no `error-on`, and the action's default is
 `"warning"` — so for that package a WARNING is a red leg. plant and odelia pin
@@ -97,19 +110,56 @@ One roxygen run closes three of them; `gradient_control.Rd`, `stand_census.Rd`,
 `stand_gradient.Rd` and `stand_census_state_adjoint.Rd` are stale in the same way
 and come with it.
 
-### A5. The exactness claim has two open columns **[v]**
+### A5. ~~The exactness claim has two open columns~~ — CLOSED **[v]**
 
-`theta` and `omega` disagree **in sign** with the only reference that shares no
-arithmetic with the sweep — `mass_above_ground` reads 3407 against −1074, and
-−1466 against +1487, where that reference resolved itself to 0.7–10%. The test
-reporting it ends in a bare `skip()`. A pull request headed "computes the exact
-derivative" cannot leave that behind a skip. Fix, or state it in the body.
+**Not a gradient defect — the reference was measuring the solver.** It re-ran the
+adaptive integrator independently on each side of its difference, so each side
+chose its own ODE steps. Moving a parameter by one part in a million changes
+which steps the error estimator accepts, and the census then lands a fixed ~2e-4
+away however small the move was; divided by 2h that quotient grows as 1/h, and
+all four of the capture's relative steps (1e-6 to 1e-3) sat under it. **On the
+drought stand nothing resolved at all** — over its 86 readable columns the census
+difference tracked the step at a slope of 0.65 at best, where a resolved
+difference gives 1, against 83 of 85 above 0.5 on wet. `theta` and `omega` are
+simply the two whose noise reading was large enough to trip a residual normalised
+by the metric's largest column.
 
-`plant/tests/testthat/test-gradient-ladder-whole-run-difference.R:55-65, 179`
+Two normalisations kept it quiet. The capture divided its convergence gap by the
+**largest** of its four readings — on a 1/h series that is the finest step, the
+noisiest — so 79 of drought's 86 columns kept a reading further from its
+neighbour than from zero and reported a spread of between 0.03% and 34% for it.
+And the rung divided its residual by the per-metric maximum over columns, so only
+the biggest column could trip the tolerance at all.
+
+Fixed by censusing both sides on one time grid — which is also the derivative the
+sweep computes, rather than a quieter version of a different one: recorded step
+sizes are selectors, replayed by the backward pass instead of decided again, so
+an unpinned difference answers a different question. Pinned, the reading is flat
+across four decades of step and lands on the sweep:
+
+| | difference | sweep |
+|---|---|---|
+| drought `1.theta` mass_above_ground | −545.63 | −545.742 |
+| drought `2.omega` mass_above_ground | 276.209 | 276.256 |
+| seasonal `1.theta` area_stem | 0.379283 | 0.379277 |
+
+The capture was re-taken and the rung is 13/13 with no skips: 270 answered
+columns a regime, worst residual 1.1e-03 on drought, 7.6e-04 on seasonal,
+6.3e-05 on wet. Seven columns the old capture never covered — `D_c`, `L_tip`,
+`stem_P50`, `stem_c`, `root_P50`, `TF24_beta2`, `TF24_cost_scale` — are refereed
+for the first time, because the generator now takes its column list from the same
+expression the rung asserts against rather than from a patch's trait names. The
+generator moved from this superproject into `plant/scripts/`, so the reference is
+regenerable from the package a maintainer receives.
 
 ---
 
-## B. Remove before submitting
+## B. ~~Remove before submitting~~ — CLOSED **[v]**
+
+Everything below is done. `plant/src/gradient_ladder.cpp` is not a removal and
+has moved to D: both of the options named for it change what the pull request
+contains, which is the author's call rather than a tidy-up.
+
 
 Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
 
@@ -117,7 +167,7 @@ Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
 |---|---|---|---|
 | **[v]** | `odelia/tests/standalone/probe_*.cpp`, seven files | 2,034 | In no `all:` target and no workflow. `probe_nested_recording.cpp` alone is 1,023 lines. They are measurements; under `tests/` a maintainer reads them as checks. Move to `notes/` or `bench/`. |
 | **[v]** | `phylloptim/tests/cpp/probe_preaccumulation.cpp`, `probe_tape_regions.cpp` | 563 | Same. And the binaries **do** ship: `.Rbuildignore:46-50` names only the five older ones, and building with all four new binaries present took the tarball from 1,277,427 to 2,500,921 bytes. `R CMD check`'s `check_executables()` warns on undeclared executables, which for phylloptim is a red leg. |
-| **[v]** | `plant/src/gradient_ladder.cpp` | 1,071 | 34 `[[Rcpp::export]]` entry points, **not one called from `plant/R/`** — every caller is `helper-gradient-ladder.R`. 34 names on the compiled ABI, held up by the thing they check. Follow-up PR, or a test-only translation unit. |
+| **[→D]** | `plant/src/gradient_ladder.cpp` | 1,071 | **Moved to D.** Not a removal: every option changes what the pull request contains. The finding holds and is sharper than written — the callers are 13 test files, not one helper. |
 | **[v]** | `plant/tests/testthat/reference/reference-kinds.tsv` | 121 | Nothing reads it, and its generator `scripts/generate_reference_run.R` is deleted in the same diff, so it cannot be regenerated either. |
 | **[v]** | `plant/tests/testthat/test-gradient-demo.R` | 116 | Gated on `overstorey_staging/`, which is `.Rbuildignore`d. `R CMD check` runs from the tarball, so all six tests skip on every CI leg. |
 | **[v]** | `plant/tests/testthat/test-gradient-ladder-production-scale.R` | 48 | Both tests skip on `PLANT_LADDER_SCALE`, which nothing in any repo, workflow or script sets. Its own comment: *"a suite that skips where it is meant to scale reports green for not having run."* |
@@ -139,9 +189,16 @@ both migrate in these same pull requests. plant already uses
 
 ## C. Correct before submitting
 
-### C1. Comments and man pages that are false **[v unless marked]**
+### C1. ~~Comments and man pages that are false~~ — CLOSED **[v]**
 
-Ordered by who is misled.
+All fourteen re-checked against the tree and fixed. One more was found while
+landing the whole-run reference and is fixed with them:
+
+| claim | where | what is true |
+|---|---|---|
+| `r_ode_times()` sends a reader to a `use_ode_times` flag on `NodeSchedule` | `plant/inst/include/plant/scm.h` | No such flag exists in any of the three trees — holding the times is what makes a schedule a replay. The line below it named `NodeSchedule` as where to set the sizes, where `run_scm()` reads both off the parameters. Fixed in `3059e44d`, which says instead what the two spellings differ in: times with sizes repeat a run exactly, times alone step TO each of them and leave the sub-steps free. |
+
+The original fourteen, for the record, ordered by who is misled:
 
 | claim | where | what is true |
 |---|---|---|
@@ -163,7 +220,12 @@ Ordered by who is misled.
 `man/stand_gradient.Rd` and `man/run_scm.Rd` are stale — roxygen was not re-run.
 `stand_gradient_refused` is exported with no `.Rd`, which `R CMD check` flags.
 
-### C2. The design docs have errors of their own **[v]**
+### C2. ~~The design docs have errors of their own~~ — CLOSED **[v]**
+
+`reverse-mode.md` now says the orchestrator seeds the walk **with** the direct
+term and that nothing classifies exact zeros; `refusal.md` now attributes the
+tally to `TF24_Strategy::solve_leaf` and says why `record_leaf_outputs` would
+miss the forward pass.
 
 `docs/design/` lives in this superproject and ships in no pull request, so this
 is not a blocker — but it is the document set we treat as authority.
@@ -180,7 +242,12 @@ is not a blocker — but it is the document set we treat as authority.
 The pull request drafts in this directory take both points from the code rather
 than from the docs and are unaffected.
 
-### C3. The changelogs **[r, with [v] where noted]**
+### C3. ~~The changelogs~~ — CLOSED **[v]**
+
+odelia opens at 0.5.0, matching its DESCRIPTION, and the 0.2.2 promise the diff
+falsified is gone. plant's sections are whole again and neither function that
+does not exist is named. phylloptim carries the `ncontrol` default and retracts
+both `n_pars` entries by name, leaving the originals standing as history.
 
 - **odelia is not submittable.** DESCRIPTION declares 0.5.0; `NEWS.md` stops at
   0.3.1, and the `0.4.0` section was deleted rather than superseded. The entry
@@ -204,6 +271,31 @@ than from the docs and are unaffected.
 ## D. Decide
 
 Judgement calls, not defects. Each wants an answer before the pull requests open.
+
+### The four that block a submission
+
+These are not style questions. Three of them revert something upstream shipped or
+accept a change to the model's science; the fourth decides what the pull request
+contains. Nothing else in D does either.
+
+| | decision | what is known |
+|---|---|---|
+| **A1** | **What `scientific_version` should say.** | Three suites turn on it, not two: `_snaps/model-version.md`, `phylloptim`'s `test_golden`, and `test-strategy-tf24.R`'s scenario pins. The pins are the sharpest statement — measured at `e9ff23f6`, the pre-merge tree returns **81.995393** where its own test pins **30.22207354**, so this branch has been ~2.7× develop on that scenario and nothing recorded it. Re-pinning any of the three accepts a change to the model's science, which is the one thing AGENTS.md says must be named rather than waved through. |
+| **run_mutant** | **Restore it, or ship regressed against `develop`.** | `SCM::run_mutant` is a `stop()` here and works on develop, where #643 restored it for TF24. The recorder it needs was reached through solver hooks this branch's rewrite stopped calling; the replacement its own comment names, odelia's `ReplaysField`, **does not exist**. Recorded under plant's Known issues and skipped with the reason at the test, so nothing is silent — but it is a capability a maintainer just merged and would be receiving back broken. |
+| **the operating point moved** | **Recalibrate the incidence and parity fixtures, or hold.** | develop's #617 took the dry share from **0.51% to 92.36%** on `incidence_stand(0.25, 10)`, `seasonal` from answered to refused, and `shaded` from reaching shade-death to not. Nine gradient-suite failures, none of them a derivative: every referee is green, including the transpose identity over all four operating-point kinds at 5.1e-11. Moving the fixtures accepts the ecology; leaving them accepts nine red. ⚠️ **When they are recalibrated, do it at lifetime 4, not 5.** Measured over all five named regimes, run and swept, against three axes of coverage — which drivers answer, which operating-point kinds are reached, and which clamp sites fire:
+
+| lifetime | CPU | slowest regime | kinds | clamp sites | verdicts |
+|---|---|---|---|---|---|
+| 1 | 21 s | 5 s | 1 | 2 | three regimes answer that should refuse |
+| 2 | 315 s | 153 s | 3 | 4 | `seasonal` answers |
+| 3 | 451 s | 211 s | 5 | 7 | same as 5 |
+| **4** | **592 s** | **260 s** | **5** | **9** | **same as 5** |
+| 5 | 791 s | 311 s | 5 | 9 | — |
+
+Lifetime 4 is the smallest that matches lifetime 5 on all three, and it is 25% of the CPU and 16% of the slowest regime cheaper. ⚠️ **Lifetime 3 is the trap**: it matches on verdicts and kinds and loses `light_floor` and `light_floor_crown`, which is exactly what incidence's most expensive block — *"the light floor is counted on both paths"*, 251 s of its 542 — exists to reach. And 81% of the cost at any lifetime is `shaded` and `clamped`, which refuse: 130 s of sweep to produce a refusal. |
+| **`gradient_ladder.cpp`** | **Ship 33 test-only entry points, split them out, or defer the suite.** | 1,071 lines and 33 `[[Rcpp::export]]` — not 34; one is inside a comment. **Not on the package's R interface:** none is in `NAMESPACE`, so all are reachable only as `plant:::`, and they are 23 of the 1,171 exports `RcppExports.cpp` already carries; `test_gradient_fd1`, `test_gradient_richardson` and `test_uniroot` are this package's existing precedent for a test-only export. ⚠️ **And five of them are not test-only at all** — `census_operating_point_counts_tf24`, `_names_tf24`, `census_clamp_counts_tf24`, `_names_tf24` and `census_clear_diagnostics_tf24` are published in `NEWS.md` under *Added* as the incidence-counter interface, which the `plant-update-interface` skill reads as a spec. They are the only route to "how often", and they are what diagnosed *the operating point moved* two rows up. So the decision covers ~28, not 34. ⚠️ **The reason a macro guard is unavailable is not that R compiles everything in `src/`** — it is that `Rcpp::compileAttributes()` rewrites `src/RcppExports.cpp` whole and unconditionally, so a guard here without a matching one there is an undefined symbol at link time, and a guard there is lost on the next regeneration. `gradient_ladder.cpp` says so at its head. Collapsing the families to shrink the surface was measured and is not worth it: the five block calls a test makes in a row cost **13 ms** together, so merging them saves nothing, and the census five cannot be merged without contradicting a published note. What remains true is the install cost — the measurement under *Install cost* below puts a quarter of the build in this one file.
+
+### The rest
 
 | | question |
 |---|---|

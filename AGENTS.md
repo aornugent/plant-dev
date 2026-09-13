@@ -273,10 +273,32 @@ the whole of it. Measured on one stand at TF24's default leaf mass per unit area
 | accepted steps | 205 | 215 | **842** | 3324 | 6068 | 9576 |
 | seconds | 2.7 | 3.0 | 20.1 | 89.5 | 167.6 | 267.1 |
 
-`test-events.R` runs at a lifetime of 5 and does not finish in twenty minutes.
-What makes the cliff is the derivative of mortality with respect to the storage
-pool, which reaches 2.019e+07 — the same stiffness the gradient work located. So
-when a test is unexpectedly slow, look at its fixture's lifetime first.
+⚠️ **BUT THE LIFETIME IS A PROXY, AND THE THING TO COUNT IS THE INTRODUCTIONS.**
+The two are confounded above, because the DEFAULT schedule is derived from the
+lifetime and it is the schedule that does the work. Held at lifetime 5, varying
+only how many of that schedule's 88 introductions are kept:
+
+| introductions | 2 | 6 | 12 | 22 | 44 | 88 |
+| --- | --- | --- | --- | --- | --- | --- |
+| accepted steps | 136 | 140 | 146 | 156 | 178 | **9881** |
+| seconds | 0.1 | 0.3 | 0.4 | 0.7 | 1.5 | **288** |
+
+The cliff is between 44 and 88, and the cost per cohort-step FALLS across the
+whole range, 0.47 ms to 0.19 ms — so it is the solver taking 55x the steps rather
+than the arithmetic getting slower.
+
+`test-events.R` is the case to know, and it is not this branch's doing. One of its
+26 blocks — *"pulses wet the soil during a run"* — is the whole of its cost; the
+other thirteen measured are milliseconds each. It clears `node_schedule_times`
+meaning to shorten the run, which makes `add_strategies` regenerate the DEFAULT
+schedule for a lifetime-5 patch: 88 introductions. The same recipe at two
+introductions is 0.1 s. The file is byte-identical to `develop`,
+`node_schedule_times_default` is unchanged, and under the height-linear
+configuration `stem_hydraulics.h` states is bit-identical to the pre-#617 model
+the same fixture takes 9019 steps against 9881 — ten per cent, not fifty-five
+times.
+
+So when a test is unexpectedly slow, count its introductions first.
 
 Tiers of the loop, cheapest first:
 
@@ -291,36 +313,47 @@ Tiers of the loop, cheapest first:
    testthat::test_dir("plant/tests/testthat", filter = "strategy",  # test-strategy-*.R
                       stop_on_failure = FALSE)
    ```
-3. **Fast pre-commit sweep — everything except the ladder (86 s of wall, 57/75
-   files):**
+3. **Fast pre-commit sweep — the 62 files that are not gradient files:**
    ```sh
    scripts/run-tests.sh '^test-gradient' "" invert
    ```
-4. **The gradient ladder, in three tiers.** Its files are named so the pattern
-   selects a tier, and the whole ladder is about a minute of wall run this way.
-
-   *Structure, no trajectory (~40 s of CPU, a few seconds of wall).* Where the
-   assurance is concentrated: the exhaustive block Jacobian and its rank structure,
-   the same Jacobian at the states a trajectory reached, ten injected corruptions,
-   the water channel's factorisation, and the completeness reference. Run this per
-   edit.
+   ⚠️ **This launches every file at once with no concurrency cap**, so on a small
+   machine it is not a sweep but a thrash: 57 processes on four cores completed
+   none in fifty minutes. And `test-events.R` runs at a lifetime of 5 and does
+   not finish at all. Run it where there are cores, or name a smaller family.
+4. **The gradient ladder — 15 files, 553 checks, 58 s in one process.** It prints
+   what each file claims and which of the four references answers it, and refuses
+   to run if a file has no entry:
+   ```sh
+   cd plant && Rscript scripts/run-gradient-ladder.R              # all of it
+   cd plant && Rscript scripts/run-gradient-ladder.R one-cohort   # one file
+   ```
+   The same files by pattern, to get the concurrency instead of the commentary:
+   ```sh
+   scripts/run-tests.sh '^test-gradient-ladder'
+   ```
+   *Structure, no trajectory, and where the assurance is concentrated* — the
+   exhaustive block Jacobian and its rank structure, the same Jacobian at the
+   states a trajectory reached, ten injected corruptions, the water channel's
+   factorisation, and the completeness reference. Under 20 s; run it per edit.
    ```sh
    scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation|declared-zero)'
    ```
-   *Trajectory — the bulk of the cost.* model-invariants, identity, two-species,
-   columns, introductions, first-range, recruit, sweep, switches — accumulation
-   across cohorts and species, the stage recursion, introductions, the boundary
-   channels, and refusal. Run before landing sweep work.
+5. **The surface tier, which is not the ladder and costs sixteen times as much.**
+   `demo`, `incidence` and `parity` ask where the model goes and whether the
+   gradient follows — scope, not correctness — and they are 945 s against the
+   ladder's 58.
    ```sh
-   scripts/run-tests.sh '^test-gradient'
+   scripts/run-tests.sh '^test-gradient-(demo|incidence|parity)'
    ```
-   *One file when you know what you touched.* `identity` for anything that changes
-   how a sweep is decomposed; `recruit` for the inflow boundary; `columns` for the
-   per-column contraction; `switches` for a channel's route to a census.
-   **`Rscript tests/run-gradient-ladder.R` names every file and what it claims**,
-   and refuses to run if a file has no description — read that first if you do not
-   know which one to reach for.
-
+   ⚠️ **DO NOT REACH FOR `^test-gradient`.** It matches all eighteen, so it puts
+   those three in front of the ladder and is what makes the ladder look like a
+   ten-minute suite. The cost is fixture construction, not checking: parity's five
+   blocks are 329.0, 0.0, 0.1, 0.0 and 0.0 s, because the first builds every stand
+   and the rest read a cache. `scripts/run-tests.sh` sets `PLANT_TEST_CACHE` so
+   the second run of a tier reads that cache from disk instead — 403 s to about 2.
+   Its key is an md5 of the built library and the files defining the fixture, so a
+   rebuild is never answered from an older build's entry.
 
 **Read those figures as CPU, not as wall clock, and run the suite with
 `scripts/run-tests.sh`.** `testthat`'s own parallel workers cannot see a
