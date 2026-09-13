@@ -276,24 +276,20 @@ side eight ways — a dropped channel, a flipped sign, a trait column routed now
 a trait column at a fixed fraction — and requires the block check to notice each,
 so the suite says whether its checks would fire.
 
-It has gaps of its own, and they are the ones to fix before submitting:
+That rung is the one to read for how a reference should be held. It asserts the
+uncaptured column set **both ways**, so a column the reference stops carrying fails
+it; asserts by name which regimes refuse; and asserts `sum(live) > 200` before
+comparing anything, so a vacuous pass is impossible. Re-taken with both sides
+censused on one time grid, it now runs 13/13 with no skips — 270 answered columns a
+regime, worst residual 1.1e-03 on drought — and `theta` and `omega`, which
+disagreed in sign under the old capture, land on the sweep to six figures.
 
-- The whole-run reference is **frozen data**, `reference/reference-gradient.tsv`,
-  not a live re-run. `ladder_run_difference_pair()` — the live two-species
-  whole-solve difference — is defined and called by nothing.
-- Four of its 47 parameter names no longer exist after the TF24 reparameterisation
-  and are dropped by a `%in%` filter without comment. Of 48 columns per species,
-  40 are refereed by it.
-- `theta` and `omega` disagree with it **in sign** on drought and seasonal stands,
-  and are asserted open in both directions so a third opening fails the rung and
-  either closing fails it too.
-- Two of five regimes refuse every metric, so the reference referees nothing there.
-- Nothing in the correctness suite runs a stand longer than **two years**, and the
-  whole-run fixtures run at 0.4. The gradient is a product for century stands, and
-  both scale tests gate on `PLANT_LADDER_SCALE`, which nothing in any repository
-  sets.
-- The loosest bound in the suite, 1e-2, guards the 24 leaf-own trait columns, which
-  have no other referee.
+The suite's gaps are elsewhere, and `catalog.md` section E has them: four skips
+that always fire, two that fire on the condition the assertion exists to detect,
+six bit-identity comparisons with no finite-count guard behind them (and
+`identical(NaN, NaN)` is `TRUE` in R), a C++ suite that exits 0 when it did not
+run, and a correctness suite whose longest stand is **two years** for a product
+measured at a hundred.
 
 ## What #553 has that ad/V4 does not
 

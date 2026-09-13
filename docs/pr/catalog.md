@@ -315,6 +315,141 @@ Lifetime 4 is the smallest that matches lifetime 5 on all three, and it is 25% o
 
 ---
 
+## E. Escape hatches
+
+Every entry **[v]**, read in the code this round.
+
+A skip that always fires and an assertion that cannot fail are the same defect:
+the suite reports a result it did not earn. None of these is a wrong answer. Each
+is a place where a wrong answer would not be noticed, which is worse, because the
+green run is the evidence a maintainer is being handed.
+
+Six shapes. The remedy for each is one line of code; what they cost is the claim
+the suite makes.
+
+### E1. Skips that always fire
+
+The test never runs, and nothing says the coverage is absent.
+
+| | where | why it always fires |
+|---|---|---|
+| **[v]** | `test-mutant.R:7` | Unconditional. Three tests. `SCM::run_mutant` is a `stop()` — see D. |
+| **[v]** | `test-gradient-ladder-declared-zero.R:99` | Unconditional `skip()` at the **end** of "the birth-size channel is priced". The test ran a live whole-run difference over eight parameters and two assertions on each; testthat marks the whole block SKIP and discards the passes. The one live class-(a) comparison in the file reports as not run. |
+| **[v]** | `test-gradient-demo.R` (6) | `helpers_or_skip()` needs `overstorey_staging/gradient_demo_helpers.R`, which `.Rbuildignore` excludes. Present in the tree, absent under `R CMD check`. |
+| **[v]** | `test-gradient-ladder-production-scale.R` (2) | `PLANT_LADDER_SCALE`, which nothing sets. Already in B; repeated here because it is the same shape. |
+
+**Remedy.** A skip that cannot not-fire is a deleted test with a comment attached.
+Delete it and record the gap in `NEWS.md` under Known issues, where `run_mutant`
+already is, or make it run.
+
+### E2. A skip on the condition the assertion exists to detect
+
+The test runs, and excuses itself exactly where it would have spoken.
+
+**`test-gradient-ladder-declared-zero.R:55`** — the sharpest. Verbatim:
+
+```r
+    if (got$spread > 1e-3) {
+      skip(paste("the whole-run difference does not hold its figures on this",
+                 "fixture, so it is out of its domain here rather than failing:",
+                 name))
+    }
+    expect_lt(got$spread, 1e-3)
+```
+
+The skip and the assertion test the same predicate in opposite directions, so
+`expect_lt` cannot fail. The distinction it is reaching for is real — a reference
+out of its own domain is not a wrong gradient — but "out of its domain" has to be
+a property of the fixture, decided before the reading, not read off the number
+being judged.
+
+**`test-gradient-ladder-sweep.R:14` and `:27`** — `expect_null(blocked)` in the
+first test; `skip_if(is.null(blocked), ...)` in the second. On a healthy suite the
+first passes and the second always skips. The check it guards — that the water
+channel's absence does not block metrics it cannot reach — runs only when the
+suite is already red, which is the one time nobody is reading it.
+
+**`ladder_require_regime` (`helper-gradient-ladder.R:1046`)** — a fixture outside
+its declared regime skips "so this run is invalid rather than failing". Correct in
+principle. In practice the regime is measured from the run it gates, so a change
+that moves the trajectory out of the regime silences the rung instead of failing
+it — which is how the incidence and parity fixtures came to be nine red rather
+than one named finding. A regime assertion that is enforced should fail; one that
+is measured should print.
+
+**`ladder_skip_if_refused` (`helper-gradient-ladder.R:1247`, 22 sites)** — the
+best-behaved of the four: it matches two declared refusal strings and re-raises
+anything else, and `test-gradient-ladder-injection.R:140` tests both arms. The
+residual hazard is that a refusal that *should not have happened* is
+indistinguishable from one that should, so a change making the sweep refuse more
+reads as a quieter suite.
+
+### E3. Assertions that cannot fail
+
+| | where | why |
+|---|---|---|
+| **[v]** | `test-gradient-ladder-declared-zero.R:161` | `for (name in c("k_I", "a_l1"))` with `next` on `name %in% ladder_birth_size_parameters()`. `a_l1` is in that list. The structural half runs on one name, and the loop says two. |
+| **[v]** | `gradient_control()` | Five values returned positionally; `ci_abs_tol` and `gradient_curvature_floor` are both `1e-3` at defaults, so a transposition passes both assertions while `stand_gradient_compare()` refuses on the wrong pair. Already in D. |
+
+### E4. A comparison that passes on a non-answer
+
+**`test-gradient-ladder-identity.R` — six `expect_identical` on gradient matrices,
+and no finite-count guard anywhere in the file.** `identical(NaN, NaN)` is `TRUE`
+in R, so repeatability, per-metric equality and the reversed-order comparison all
+hold bit for bit against a gradient that is entirely not-a-number.
+
+This is not hypothetical. `AGENTS.md` records it happening: *"Every such check on
+the century fixture's gradient passed for as long as the fixture existed, against
+a gradient that was entirely not-a-number."* The guard it prescribes — count the
+finite entries and assert the count before comparing values — is present in six
+ladder files and absent from the one whose entire method is bit-identity.
+
+**Remedy.** One line at the top of each test: `expect_gt(sum(is.finite(full$gradient)), 0)`.
+
+### E5. A suite that reports green for not running
+
+| | where | what happens |
+|---|---|---|
+| **[v]** | `phylloptim/tests/cpp.R:44` | `message("SKIP: ", ..., "\n  The C++ suite was not run.")` then `quit(save = "no", status = 0)`. No compiler, or headers not found, and `R CMD check` passes the C++ suite by not running it. |
+| **[v]** | `test-ff16-ad-kernel.R`, `-deep-crown-ad.R`, `-resident-coupling-ad.R` | Each carries four gates; `is_pkgload_dll_plant()` fires in **every `load_all` session**, which is the loop `AGENTS.md` tells a developer to work in. The only FF16 gradient evidence in the tree never runs where the work happens. |
+| **[v]** | odelia `test-dll-load.R`, `test-rodas.R`, `test-vector-jacobian-product.R`, `helper-load-odelia.R:139` | Same shape on `is_pkgload_dll()` and on `sourceCpp` symbol availability. |
+| **[v]** | `test_transpose`, `test_supplied_rows` | Absent from `tests/cpp.R`, so outside `R CMD check` entirely. Already in D. |
+
+**Remedy for the first.** Exit non-zero when the suite was asked for and could not
+run. A precondition that is not met is a failure of the environment, and the
+environment is what CI exists to check.
+
+### E6. Scope stated as coverage
+
+`ladder_parameters()` defaults to `lifetime = 2`, and the whole-run reference runs
+shorter still. `docs/perf` measures the product at about 105 years and 3,378
+accepted steps. Nothing in the correctness suite runs a stand past **two**.
+
+Every rung is therefore honest about what it checked and silent about the distance
+between that and what ships. The tape bound, the range machinery, the insertion
+transpose and the refusal path all behave differently at 169 ranges than at two or
+three, and no assertion reaches there. `PLANT_LADDER_SCALE` exists to close this
+and is set nowhere, so the gap is recorded as a switch rather than as a number.
+
+**Remedy.** One scale fixture in CI at the lifetime the recalibration decision in D
+already settles on, with the whole-run reference re-taken there.
+
+### What the suite already does right, and should copy
+
+`test-gradient-ladder-whole-run-difference.R` is the pattern. It asserts the set of
+uncaptured columns **both ways**, so a column the reference stops carrying fails
+the rung; it asserts by name which regimes refuse, so a third refusing fails and
+one un-refusing fails; and it asserts `sum(live) > 200` before comparing anything,
+so a vacuous pass is impossible. Its own header says why:
+
+> ⚠️ ASSERTED BOTH WAYS, because the alternative is what this rung did while
+> passing at 13 … Forty of forty-eight were refereed and nothing said so.
+
+That comment is the whole of section E in one sentence. Every entry above is a
+place where the same discipline has not yet been applied.
+
+---
+
 ## Not a problem, for the record
 
 Claims checked this round that did not survive, so nobody re-opens them:
