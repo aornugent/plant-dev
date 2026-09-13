@@ -397,20 +397,35 @@ in its headers.
 
 ## Honest state of ad/V4
 
-Not shippable today either. `docs/pr/catalog.md` is the gate: two red plant suites,
-`phylloptim`'s `test_golden` exiting 1 and taking `R CMD check` with it, a stale
-`model-version` snapshot awaiting a `scientific_version` decision, an out-of-bounds
-write in `roots.hpp`, and a forward solve whose own derivative runs different code
-(`uptake()` against `uptake_at<T>`, which differ in kink handling — and which
-`test_supplied_rows` cannot see, because it differences one templated path against
-another).
+Not shippable today either, and what remains is one decision and one regression.
 
-`gradient_ladder.cpp` ships in the built library, 46 symbols in `plant.so`, and the
-file argues that `Rcpp::compileAttributes()` leaves no way to guard it out. Two
-assertions in the suite cannot fail. One test always reports SKIP.
+`docs/pr/catalog.md` carries no open defect. Its ten — the out-of-bounds write in
+`roots.hpp`, the forward solve running different code from its own derivative, the
+drought exception, the discarded `reached` detector, `set_extrapolate` — are closed.
+What is left is section A1 and section D:
 
-The difference is where the uncertainty sits. `#553`'s open items are what the
-gradient means: whether the replay is the solver, at 16–29 % on geometry traits,
-with one check able to see it. ad/V4's are defects in code, and columns whose
-referee is a frozen file that has drifted — answerable by running the reference
-again at a longer lifetime, which is work rather than a question.
+- **One `scientific_version` decision holds three red suites.**
+  `test-strategy-tf24.R`/`-tf24f.R` (19), `test-gradient-incidence.R`/`-parity.R`
+  (9), and `_snaps/model-version.md` all pin values develop's #617 moved. None is a
+  derivative: every referee is green, including phylloptim's transpose identity over
+  all four operating-point kinds at 5.1e-11. Re-pinning them accepts an ecological
+  change, which is the one thing `AGENTS.md` says must be named.
+- **`phylloptim`'s `test_golden` exits 1**, taking `R CMD check` with it. Forty
+  fields at cross-platform drift, plus a `psi_stem optima` mismatch at relative
+  difference 1 that is structural and unexplained.
+- **`run_mutant` is a `stop()` here and works on develop.** #643 restored it for
+  TF24 and this branch hands it back broken. The recorder it needs was reached
+  through solver hooks the rewrite stopped calling, and the replacement its own
+  comment names does not exist.
+- **`gradient_ladder.cpp` ships**, 46 symbols in `plant.so` and a quarter of the
+  build, with `Rcpp::compileAttributes()` leaving no way to guard it out.
+
+And the suite has soft spots worth naming: two assertions that cannot fail, one
+test that always reports SKIP, a whole-run reference that is frozen data with four
+stale parameter names silently dropped, and nothing running a stand past two years
+for a product aimed at a century.
+
+The difference is where the uncertainty sits. `#553`'s open item is what the
+gradient means — whether the replay is the solver, at 16–29 % on geometry traits,
+with one check able to see it. ad/V4's are a version number somebody has to name, a
+capability to restore, and a reference to recapture at a longer lifetime.
