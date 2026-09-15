@@ -236,18 +236,36 @@ The claim "this is the exact transpose of the forward run" cannot be checked by
 finite differences, because differencing is the thing being replaced. It is
 checked instead by references that share no code with the object under test:
 
-- a **forward-mode tangent** of the same forward source, which is exact — no step
-  size, no truncation — and traverses the forward reductions while touching none
-  of the transposes under test. One seed gives one exact column of the Jacobian.
-- the **whole Jacobian formed entry by entry** at one cohort, where the object is
-  small enough to fit. A contraction against a seed returns one number, hides an
-  error behind a small component, and localises to nothing when it fails.
-- a **difference of the plain-`double` path**, which re-solves rather than
-  replaying, and so carries the true derivative with none of the factorisation
-  under test inside it.
-- **injected corruptions**, which establish that the checks above would notice.
-  A suite that records how much margin each check had says nothing about whether
-  the check would have fired.
+- **R1, a forward-mode tangent** of the same forward source, which is exact — no
+  step size, no truncation — and traverses the forward reductions while touching
+  none of the transposes under test. One seed gives one exact column of the
+  Jacobian. ⚠️ Blind to a wrong SUPPLIED row: the tangent runs the same supplied
+  numbers through the same attachment, so a bad row makes both routes wrong
+  identically. That is what R4 is for.
+- **R2, the whole Jacobian formed entry by entry** at one cohort, where the object
+  is small enough to fit. A contraction against a seed returns one number, hides
+  an error behind a small component, and localises to nothing when it fails.
+  Affordable only at the smallest fixture, which is why that fixture exists.
+- **R3, a difference of whole runs** in plain `double`. The only reference that
+  shares no arithmetic at all with the sweep, and therefore the only one that can
+  catch a common-mode error. Coarse, so it bounds rather than pins, and it is
+  captured rather than recomputed: a reference regenerated from the model it
+  referees is not a reference.
+- **R4, the forward model rebuilt from its parameters**, which re-solves rather
+  than replaying. A rebuild runs preparation, so the leaf is CONSTRUCTED with the
+  moved trait rather than handed it afterwards. ⚠️ It is needed because
+  differencing the recorded step cannot referee a supplied row at all: the
+  recorded expression is the value plus a sum of partials times brackets that are
+  each exactly zero, so the difference comes back EXACTLY zero on precisely the
+  columns a supplied row occupies — whether the row is right, wrong, or absent.
 
-The tests carrying these live in `plant/tests/testthat/test-gradient-*.R` with
-their shared fixtures in `helper-gradient-ladder.R`.
+**Injected corruptions** are not a fifth reference. They establish that R1–R4
+would notice, and certify nothing themselves: a suite that records how much margin
+each check had says nothing about whether the check would have fired. Two of the
+first three injections tried failed to fail.
+
+⚠️ **R1–R4 are enumerated HERE and nowhere else.** The tests carrying them live in
+`plant/tests/testthat/test-gradient-ladder-*.R` with their shared fixtures in
+`helper-gradient-ladder.R`, and `plant/scripts/run-gradient-ladder.R` maps each
+file to the reference it uses by these numbers rather than restating them. This
+list and that mapping had drifted into two different sets of four.

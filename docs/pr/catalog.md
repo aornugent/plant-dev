@@ -168,6 +168,26 @@ regenerable from the package a maintainer receives.
 
 ---
 
+### A6. ~~Two test files error under `R CMD check --as-cran`~~ — FIXED **[v]**
+
+**A red leg on every operating system, and nothing would have said so until the
+pull request opened.** `test-gradient-ladder-whole-run-difference.R` and
+`test-gradient-parity.R` both forked with
+`mc.cores = max(1L, parallel::detectCores() - 1L)`. `R CMD check --as-cran` sets
+`_R_CHECK_LIMIT_CORES_`, and `parallel::mclapply` then **errors** rather than
+warning past two processes — measured directly: *"3 simultaneous processes
+spawned"*. plant's workflow runs `--as-cran` with `error-on: '"error"'`, and a
+GitHub runner has four cores, so `detectCores() - 1` is three.
+
+The whole-run difference is the one reference that shares no arithmetic with the
+sweep, so the rung that would have failed is the one carrying the strongest
+claim. Invisible until submission because the workflow filters name the
+long-lived branches only.
+
+Fixed by one rule in one place — `plant_test_cores()` in `helper-plant.R` — rather
+than a cap written into both files, because two files forking is how a third
+comes to fork wrongly.
+
 ## B. ~~Remove before submitting~~ — CLOSED **[v]**
 
 Nothing here is a blocker. ⚠️ **But "everything below is done" was wrong, and the

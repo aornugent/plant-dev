@@ -228,9 +228,13 @@ causes names a different file.** `drivers.hpp` embeds an interpolant, so its `si
 part of odelia's ABI — and odelia's own suite compiles the leaf-thermal example with
 `sourceCpp` and **caches the resulting `.so`**, which is then reused against a freshly
 installed odelia. Grow the interpolant and the cached library reads the wrong offsets:
-`memory not mapped` inside `LeafSolver_value_and_gradient`, in a file with nothing to do
-with interpolation, **and it passes when run on its own** — which is exactly what
-`test-example-leaf-ad.R`'s known intermittent looks like. Prefer reading data into the
+`memory not mapped` inside the leaf example's solver entry points, in a file with
+nothing to do with interpolation, **and it passes when run on its own**. ⚠️ The
+symptom used to be named as `LeafSolver_value_and_gradient` in
+`test-example-leaf-ad.R`; both are gone — the leaf's differentiating half was the
+calibration demonstrator and went with `ode_fit.hpp`. THE HAZARD DID NOT GO WITH
+THEM: `test-example-leaf.R` still compiles the example with `sourceCpp` and still
+caches the `.so`. Prefer reading data into the
 spans over storing another vector; if a member must be added, print
 `sizeof(hermite_interpolator<double>)` against the installed header before and after.
 
@@ -716,54 +720,47 @@ std::vector<T*> ad_parameters() { return {&sigma, &R, &b}; }
 
 ### Exemplar — write new files indistinguishable from this
 
-*(Composite from reviewed code; replace with a real excerpt from the header
-core when landing this.)*
+`odelia/with_slope.hpp`, entire. Fifty-five lines, and every comment in it is a
+claim a reader can check: what the type is for, what it deliberately does not
+name, why it lives where it does, and why the second overload exists.
 
 ```cpp
-// A one-state canopy that relaxes toward the light it captures -- the
-// demonstrator for record -> replay, which Lorenz and leaf_thermal don't
-// exercise.
+// A quantity and its derivative along whatever the caller is differentiating.
+//
+// The pair rather than two scalars, because the two are only meaningful together:
+// a consumer handed a value and a slope from separate places can pair them across
+// different points, different orders, or different independent variables, and all
+// three compile.
+//
+// WHAT THE SLOPE IS WITH RESPECT TO is the caller's, and this type does not name
+// it. plant's competition path carries d(value)/d(height); phylloptim's operating
+// point carries d(value)/d(collar potential). Naming the variable here would make
+// one of them wrong.
+//
+// ⚠️ IT LIVES HERE BECAUSE OF for_each_active, NOT BECAUSE IT IS SHARED.
+// visit_active passes over any shape it does not open, without refusing it, and it
+// does not open an aggregate of two scalars -- so a pair that does not say what it
+// holds loses both members from the walk, silently.
 template <typename T>
-class CanopySystem {
-public:
-  // The single differentiable input; this canopy has no seedable initial
-  // state.
-  std::vector<T*> ad_parameters() { return {&gain_}; }
+struct with_slope {
+  T value;
+  T slope;
 
-  void derivs(double t, const std::vector<T>& y, std::vector<T>& dydt) {
-    // Plain double, off the tape: the background is fixed on a replay pass,
-    // so d(rate)/d(bg) is structurally zero.
-    const double bg_light = stage_light_.at(stage_);
-    dydt[0] = gain_ * captured(bg_light) - y[0];
-  }
-
-  // On the replay pass, let a Replayable System restore what it recorded for
-  // this step; a no-op otherwise.
-  void replay_step(int step) {
-    if constexpr (Replayable<CanopySystem>) load_recorded(step);
-  }
-
-private:
-  T gain_{0.5};
-  std::vector<double> stage_light_;  // this step's light at each of the six
-                                     // RK stages
-  int stage_{0};
+  // Both, because visit_active dispatches on whether the call compiles: handed a
+  // const object it drops an arm that is non-const and passes over the whole
+  // shape in silence. Without the const overload a pair handed to a rewinding
+  // form contributes NO rows, which arrives as an exact zero in a column.
+  template <class F>
+  void for_each_active(F&& f) { f(value); f(slope); }
+  template <class F>
+  void for_each_active(F&& f) const { f(value); f(slope); }
 };
 ```
 
-```cpp
-// Value + least-squares gradient on the double handle. Observations are
-// passed per call and owned by the functional; the solver holds no
-// calibration state.
-template <class System>
-Rcpp::List Solver_gradient(SEXP double_solver, Rcpp::NumericVector obs) {
-  auto* solver = get_solver<System>(double_solver);
-  solver->tape->activate();
-  tape_scope<Tape> running{*solver->tape};  // activates unless something else
-                                            // holds it; releases where it took it
-  const std::size_t codomain = functional.codomain();
-  auto jacobian =
-      xad::computeJacobian(inputs, forward, codomain, solver->tape.get());
-  return to_r_list(jacobian);  // only doubles cross the boundary
-}
-```
+⚠️ **This replaces a composite that taught a vocabulary the tree does not have.**
+The previous exemplar was a `CanopySystem` demonstrating `replay_step`,
+`Replayable` and `load_recorded` — none of which exists in any of the three
+packages, and none of which has existed since the record/replay design was
+redone. It labelled itself a composite and asked to be replaced on landing. An
+exemplar naming symbols that cannot be grepped is worse than none: it is the one
+document a new file is written against.
