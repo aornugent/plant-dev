@@ -257,7 +257,7 @@ it. Where a header edit is unavoidable mid-loop, rebuild deliberately with
 once and visibly rather than inside a script that looks like it is only loading.
 
 `plant` carries about 3,960 testthat assertions across 75 files, and running all of
-them per edit is wasteful. The gradient suite is the expensive tier at 18 files;
+them per edit is wasteful. The gradient suite is the expensive tier at 17 files;
 everything else is 57 files. ⚠️ **Both tier timings want re-measuring at `-O2`
 before you rely on either** — the figures this file used to give were taken at a
 debug optimisation level, which is about five times slower and moves the
@@ -321,9 +321,9 @@ Tiers of the loop, cheapest first:
    machine it is not a sweep but a thrash: 57 processes on four cores completed
    none in fifty minutes. And `test-events.R` runs at a lifetime of 5 and does
    not finish at all. Run it where there are cores, or name a smaller family.
-4. **The gradient ladder — 15 files, 553 checks, 58 s in one process.** It prints
-   what each file claims and which of the four references answers it, and refuses
-   to run if a file has no entry:
+4. **The gradient ladder — 14 files, 615 checks, no skips, about a minute in one
+   process.** It prints what each file claims and which of the four references
+   answers it, and refuses to run if a file has no entry:
    ```sh
    cd plant && Rscript scripts/run-gradient-ladder.R              # all of it
    cd plant && Rscript scripts/run-gradient-ladder.R one-cohort   # one file
@@ -342,11 +342,11 @@ Tiers of the loop, cheapest first:
 5. **The surface tier, which is not the ladder and costs sixteen times as much.**
    `demo`, `incidence` and `parity` ask where the model goes and whether the
    gradient follows — scope, not correctness — and they are 945 s against the
-   ladder's 58.
+   ladder's 63.
    ```sh
    scripts/run-tests.sh '^test-gradient-(demo|incidence|parity)'
    ```
-   ⚠️ **DO NOT REACH FOR `^test-gradient`.** It matches all eighteen, so it puts
+   ⚠️ **DO NOT REACH FOR `^test-gradient`.** It matches all seventeen, so it puts
    those three in front of the ladder and is what makes the ladder look like a
    ten-minute suite. The cost is fixture construction, not checking: parity's five
    blocks are 329.0, 0.0, 0.1, 0.0 and 0.0 s, because the first builds every stand
@@ -414,6 +414,10 @@ values, in any test that claims two runs agree.
 **One suite fails, and it is named below; any other failure is yours.** Read the
 SKIP count alongside the failures: a test that stops running looks exactly like a
 test that passes, so a skip where there was none is a guard that stopped guarding.
+⚠️ **The gradient ladder reports ZERO skips, and that is load-bearing rather than
+incidental** — every gate that could produce one was removed after measurement
+showed the conditions they guarded were unreachable. A skip appearing there is a
+check that has stopped asking its question.
 `test-stochastic-patch-runner.R` is the one file whose PASS count varies run to run.
 
 ⚠️ **`test-model-version.R` reports `fail=4`, and that is the expected state
@@ -429,9 +433,9 @@ guard is that somebody names the version.
 
 ⚠️ **Count the RESULT lines, because a crashed file is not a failing file.** The runner
 prints one `RESULT` line per file and the totals are a sum of those -- so a run where ten
-of eighteen ladder files segfaulted printed `pass=242 fail=45` and read, at a glance, as a
-suite with some failures rather than one that mostly died. The ladder is 18 files: check
-that 18 reported before reading the totals.
+of seventeen gradient files segfaulted printed `pass=242 fail=45` and read, at a glance, as a
+suite with some failures rather than one that mostly died. The ladder is 14 files and the
+gradient suite 17: check that many reported before reading the totals.
 
 ⚠️ **And a segfaulting suite WEDGES rather than failing fast.** `core_pattern` pipes to
 apport, which stalls dumping a ~100 MB R process, so the crashed workers sit in

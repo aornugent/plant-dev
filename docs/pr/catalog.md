@@ -4,9 +4,9 @@ A gate on `docs/pr/`. The three branches carry work worth merging and, alongside
 it, scaffolding, stale claims and red suites. A maintainer should receive the
 first and none of the second.
 
-**A, B and C are closed. What is left is D and E** — decisions, and tests that
-report green for not running. Nothing in A–C is work; A1 stays as evidence for
-the one decision the whole of it turns on.
+**A, B, C and E are closed. What is left is D** — decisions, and nothing else.
+Nothing in A–C or E is work; A1 stays as evidence for the one decision the whole
+of it turns on.
 
 Every entry is marked **[v]** where I reproduced it against the code myself, or
 **[r]** where it is an agent's finding I have not independently run down. Treat
@@ -315,13 +315,14 @@ contains. Nothing else in D does either.
 | 5 | 791 s | 311 s | 5 | 9 | — |
 
 Lifetime 4 is the smallest that matches lifetime 5 on all three, and it is 25% of the CPU and 16% of the slowest regime cheaper. ⚠️ **Lifetime 3 is the trap**: it matches on verdicts and kinds and loses `light_floor` and `light_floor_crown`, which is exactly what incidence's most expensive block — *"the light floor is counted on both paths"*, 251 s of its 542 — exists to reach. And 81% of the cost at any lifetime is `shaded` and `clamped`, which refuse: 130 s of sweep to produce a refusal. |
-| **`gradient_ladder.cpp`** | **Ship 33 test-only entry points, split them out, or defer the suite.** | 1,071 lines and 33 `[[Rcpp::export]]` — not 34; one is inside a comment. **Not on the package's R interface:** none is in `NAMESPACE`, so all are reachable only as `plant:::`, and they are 23 of the 1,171 exports `RcppExports.cpp` already carries; `test_gradient_fd1`, `test_gradient_richardson` and `test_uniroot` are this package's existing precedent for a test-only export. ⚠️ **And five of them are not test-only at all** — `census_operating_point_counts_tf24`, `_names_tf24`, `census_clamp_counts_tf24`, `_names_tf24` and `census_clear_diagnostics_tf24` are published in `NEWS.md` under *Added* as the incidence-counter interface, which the `plant-update-interface` skill reads as a spec. They are the only route to "how often", and they are what diagnosed *the operating point moved* two rows up. So the decision covers ~28, not 34. ⚠️ **The reason a macro guard is unavailable is not that R compiles everything in `src/`** — it is that `Rcpp::compileAttributes()` rewrites `src/RcppExports.cpp` whole and unconditionally, so a guard here without a matching one there is an undefined symbol at link time, and a guard there is lost on the next regeneration. `gradient_ladder.cpp` says so at its head. Collapsing the families to shrink the surface was measured and is not worth it: the five block calls a test makes in a row cost **13 ms** together, so merging them saves nothing, and the census five cannot be merged without contradicting a published note. What remains true is the install cost — the measurement under *Install cost* below puts a quarter of the build in this one file.
+| **`gradient_ladder.cpp`** | **Ship 27 test-only entry points, split them out, or defer the suite.** | 31 `[[Rcpp::export]]`, down from 33: the two block name lists are gone, folded into the `dimnames` of the matrices they name (see E). The prefix now partitions them — 25 `ladder_`, called from `tests/testthat/` and nowhere else, and 6 `census_`, which are exactly the published ones. **Not on the package's R interface:** none is in `NAMESPACE`, so all are reachable only as `plant:::`, `test_gradient_fd1`, `test_gradient_richardson` and `test_uniroot` are this package's existing precedent for a test-only export. ⚠️ **And six of them are not test-only at all** — the five incidence counters (`census_operating_point_counts_tf24`, `_names_tf24`, `census_clamp_counts_tf24`, `_names_tf24`, `census_clear_diagnostics_tf24`) are published in `NEWS.md` under *Added*, which the `plant-update-interface` skill reads as a spec, and `census_trait_gradient_split_tf24` carries a migration line at `NEWS.md:214`. The counters are the only route to "how often", and they are what diagnosed *the operating point moved* two rows up. So the decision covers **27**. ⚠️ **The reason a macro guard is unavailable is not that R compiles everything in `src/`** — it is that `Rcpp::compileAttributes()` rewrites `src/RcppExports.cpp` whole and unconditionally, so a guard here without a matching one there is an undefined symbol at link time, and a guard there is lost on the next regeneration. `gradient_ladder.cpp` says so at its head. Collapsing the families to shrink the surface was measured and is not worth it: the five block calls a test makes in a row cost **13 ms** together, so merging them saves nothing, and the census five cannot be merged without contradicting a published note. What remains true is the install cost — the measurement under *Install cost* below puts a quarter of the build in this one file.
 
 ### The rest
 
 | | question |
 |---|---|
 | **[v]** | **A third of every recorded invasion field is arithmetic, not data — worth a method or not?** `ResourceSpline` places its 65 knots at `knot_fractions_ × height_max` (`knot_count_ = 65`, `lay_out_knots`), so a field IS `{height_max, values[65], slopes[65]}` = 131 doubles. The record stores the positions too, via the existing `r_init_interpolators` round-trip: 195 doubles. On the TF24 fixture above (28,813 steps × 6 slots) that is **~283 MB of which ~90 MB is `u_k × height_max` recomputed and written out**. Dropping it needs one new method on `ResourceSpline` — `set_profile(height_max, values, slopes)` — to replace the `r_init_interpolators` load. ⚠️ The stronger argument is not the bytes: storing 65 positions that can never differ between runs invites a reader to think they could. For scale, `develop`'s whole-`Environment` cache reached **6.8 GB and OOM'd** past ~10 yr on a comparable horizon. |
+| **[v→D from E]** | **Does the diff carry `test-gradient-demo.R` (116 lines)?** It tests helpers in `overstorey_staging/`, which is `.Rbuildignore`d — so under `R CMD check` the helpers are absent and the file skips, and in the developer loop (`run-tests.sh` sets `NOT_CRAN=true`) it runs: **32 pass, 0 skip**. Neither state is a defect. The question is whether a maintainer should receive a test for a study that does not ship, which is `gradient_ladder.cpp`'s question again. |
 | **[r→D from B]** | **Does the diff carry `phylloptim/.claude/CLAUDE.md` (12 lines) and `plant/scripts/tf24-active-probe.cpp` (67)?** Neither ships — both paths are `.Rbuildignore`d — so this is not a check failure, it is whether a maintainer should read them. The probe is verified unreferenced: the only mention of its name anywhere is its own header comment. Same class as `gradient_ladder.cpp`: what the pull request contains. |
 | **[v]** | **phylloptim names the AD library eighteen times**, four of them raw `using AD = xad::fwd<double>::active_type`, which bypasses `tangent.hpp`'s guard against the 18× nested-tape blow-up. The project's stated rule is that the library is named in odelia and nowhere else. Route them through `tangent_scalar` / `seed_direction` / `derivative_along`, or amend the rule. plant names it once. |
 | **[v]** | **`leaf_model.hpp` runs 2,440 lines public before its first `private:`**, exposing ~90 raw state fields including this branch's own additions, and an invariant comment at `:181` that `private:` would enforce. |
@@ -339,138 +340,114 @@ Lifetime 4 is the smallest that matches lifetime 5 on all three, and it is 25% o
 
 ---
 
-## E. Escape hatches
+## E. ~~Escape hatches~~ — CLOSED **[v]**
 
-Every entry **[v]**, read in the code this round.
+**The ladder reports no skips.** Measured before and after, one process, `-O2`:
 
-A skip that always fires and an assertion that cannot fail are the same defect:
-the suite reports a result it did not earn. None of these is a wrong answer. Each
-is a place where a wrong answer would not be noticed, which is worse, because the
-green run is the evidence a maintainer is being handed.
+| | files | pass | fail | skip |
+|---|---|---|---|---|
+| before | 15 | 553 | 0 | **4** |
+| after | 14 | 615 | 0 | **0** |
 
-Six shapes. The remedy for each is one line of code; what they cost is the claim
-the suite makes.
+The nine failures this section used to sit beside are `test-gradient-incidence.R`
+(6) and `test-gradient-parity.R` (3), which carry **no skips and no gate
+machinery at all** — the one match for "skip" in either file is a comment about
+an off-by-one window. They are A1's `scientific_version` decision and were never
+E's.
 
-### E1. Skips that always fire
+### What the four skips were, and what replaced each
 
-The test never runs, and nothing says the coverage is absent.
+| was | now |
+|---|---|
+| `declared-zero:99` — an unconditional `skip()` at the END of a block whose assertions had already passed, discarding them | the skip's own text said every ratio reads 1.000 and 1e-04 would hold with an order of margin. Its objection was to a bound taken off the step ladder, because that reference's floor is measured as a gap between steps and reads the opposite of an error that rises as the step falls. A bound of **1e-02** makes no claim about convergence order and still rejects a dropped channel (0 or infinite), a sign flip (−1) and a row at a fixed fraction (0.5). Asserted. |
+| `declared-zero:55` — `if (spread > 1e-3) skip(...)` immediately above `expect_lt(spread, 1e-3)`, so the assertion could not fail | the block is titled *"the whole-run difference is in its own domain on this fixture"*, and measurement says it is. The fixture is written and the step ladder is fixed, so the reference resolving is a property of the pair — and it ceasing to is the model having moved. The skip is gone; the assertion is live. |
+| `sweep:27` — `skip_if(is.null(blocked))`, and `blocked` is always `NULL` | **deleted, and the requirement with it.** The block asserted that the water channel's absence must not block metrics it cannot reach. Four blocks later the file *measures* that a per-metric channel would spare nothing on TF24's census — every metric is a size moment but growth reads water — and the block above discharges independence unconditionally on an injected fixture. The comment at *"both output kinds answer at a shut point"* says so outright. A retired requirement kept alive behind a skip that could never not fire. |
+| `production-scale` ×2 — `PLANT_LADDER_SCALE`, set by nothing | **file deleted.** Its first block asserted *"must not skip: that is the whole property being added here"* and then skipped. It recorded rather than asserted, so it was a note, not a check. Its one real statement — that heights stop being non-commensurate at length — now sits on the fixture below, where it is measured. The gap it stood for is in `NEWS.md` under Known issues. |
 
-| | where | why it always fires |
-|---|---|---|
-| ~~**[v]**~~ | ~~`test-mutant.R:7`~~ — **GONE** | Was an unconditional skip over three tests while `SCM::run_mutant` was a `stop()`. All three now run: the FF16 identity sweep passes at 1e-11 over eight cases and the TF24 case at 1.5e-14. Two ten-mutant panels fail on stale pins — a red test, which is the honest form, and in D. |
-| **[v]** | `test-gradient-ladder-declared-zero.R:99` | Unconditional `skip()` at the **end** of "the birth-size channel is priced". The test ran a live whole-run difference over eight parameters and two assertions on each; testthat marks the whole block SKIP and discards the passes. The one live class-(a) comparison in the file reports as not run. |
-| **[v]** | `test-gradient-demo.R` (6) | `helpers_or_skip()` needs `overstorey_staging/gradient_demo_helpers.R`, which `.Rbuildignore` excludes. Present in the tree, absent under `R CMD check`. |
-| **[v]** | `test-gradient-ladder-production-scale.R` (2) | `PLANT_LADDER_SCALE`, which nothing sets. Already in B; repeated here because it is the same shape. |
+### The machinery under them was unreachable, not dormant **[v]**
 
-**Remedy.** A skip that cannot not-fire is a deleted test with a comment attached.
-Delete it and record the gap in `NEWS.md` under Known issues, where `run_mutant`
-already is, or make it run.
+⚠️ **`ladder_declared_refusals()` had two entries and neither could fire.**
+`"does not record at an active scalar"` appears **nowhere but the whitelist** — not
+in plant, odelia or phylloptim, and not as a string in `plant.so`.
+`"size-density coordinate only"` is emitted at `scm.h:183` and is reachable only
+from a stand built with `node_density_in_birth_date = FALSE`; one test builds one
+and asserts on it with `expect_error` directly, bypassing the gates, while every
+other fixture goes through `ladder_control()`, which pins the flag `TRUE`.
 
-### E2. A skip on the condition the assertion exists to detect
+So `ladder_gradient_or_skip`, `ladder_block_or_skip`, `ladder_skip_if_refused` and
+`ladder_sweep_blocked` — 30 call sites — guarded one condition no gated site could
+produce and one nothing produces at all. The 25-line self-test that pinned their
+behaviour checked only that the list was non-empty, so the dead string passed it.
+All of it is deleted; a refusal now fails the file that asked for it.
 
-The test runs, and excuses itself exactly where it would have spoken.
+`ladder_require_regime` (17 sites, 0 fires) **asserts** rather than skips. The
+fixtures are written rather than reached, so leaving a regime is the model moving
+under a fixture that did not — which is the one event the suite exists to report.
 
-**`test-gradient-ladder-declared-zero.R:55`** — the sharpest. Verbatim:
+### E4 and E6
 
-```r
-    if (got$spread > 1e-3) {
-      skip(paste("the whole-run difference does not hold its figures on this",
-                 "fixture, so it is out of its domain here rather than failing:",
-                 name))
-    }
-    expect_lt(got$spread, 1e-3)
-```
+`test-gradient-ladder-identity.R` carries a finite-count guard on each of its
+blocks. `identical(NaN, NaN)` is `TRUE` in R, and every bit-identity in that file
+held against a gradient that was entirely not-a-number.
 
-The skip and the assertion test the same predicate in opposite directions, so
-`expect_lt` cannot fail. The distinction it is reaching for is real — a reference
-out of its own domain is not a wrong gradient — but "out of its domain" has to be
-a property of the fixture, decided before the reading, not read off the number
-being judged.
+**E6 is half closed and the other half is written down.** Range count and run
+length are confounded only in the DEFAULT schedule, which derives its introduction
+count from the patch lifetime. Written introduction times separate them:
+`ladder_stand_many_ranges()` puts **62 introductions, 62 ranges and 68 accepted
+steps** in a run of under half a year, and the split identity holds there bit for
+bit at 288 of 288 finite, in 3.2 s for both sweeps. Every other trajectory rung
+runs at six ranges; the product runs at 169.
 
-**`test-gradient-ladder-sweep.R:14` and `:27`** — `expect_null(blocked)` in the
-first test; `skip_if(is.null(blocked), ...)` in the second. On a healthy suite the
-first passes and the second always skips. The check it guards — that the water
-channel's absence does not block metrics it cannot reach — runs only when the
-suite is already red, which is the one time nobody is reading it.
+What that does not reach is the step count — 68 against ~3,400 — so nothing says
+the step loop or the recording's footprint behaves at production length. That
+half is a `NEWS.md` Known-issues entry rather than a switch nobody sets.
 
-**`ladder_require_regime` (`helper-gradient-ladder.R:1046`)** — a fixture outside
-its declared regime skips "so this run is invalid rather than failing". Correct in
-principle. In practice the regime is measured from the run it gates, so a change
-that moves the trajectory out of the regime silences the rung instead of failing
-it — which is how the incidence and parity fixtures came to be nine red rather
-than one named finding. A regime assertion that is enforced should fail; one that
-is measured should print.
+### Not this pull request's **[v]**
 
-**`ladder_skip_if_refused` (`helper-gradient-ladder.R:1247`, 22 sites)** — the
-best-behaved of the four: it matches two declared refusal strings and re-raises
-anything else, and `test-gradient-ladder-injection.R:140` tests both arms. The
-residual hazard is that a refusal that *should not have happened* is
-indistinguishable from one that should, so a change making the sweep refuse more
-reads as a quieter suite.
+Most of what E5 listed is inherited, and touching it widens the diff into files
+this branch edits for a mechanical rename:
 
-### E3. Assertions that cannot fail
+- `test-ff16-ad-kernel.R`, `-deep-crown-ad.R`, `-resident-coupling-ad.R` arrived at
+  `edbad184` (#540) with `is_pkgload_dll_plant()` already in place. This branch
+  only renamed XAD spellings to odelia's.
+- odelia's `test-dll-load.R` (#6), `test-rodas.R` (#35) and `helper-load-odelia.R`
+  (#6) are on `upstream/master`, gates included.
+- odelia's `test-vector-jacobian-product.R` **is** ours, and its skip stays: it
+  fires only when a `sourceCpp` probe cannot link odelia's tape symbols, which
+  happens in a `load_all("odelia")` session that `AGENTS.md` tells developers not
+  to use, and it re-raises anything else. Measured: 8 pass, 0 skip with odelia
+  installed. A skip on a reachable condition that names its cause is the honest
+  form; the deleted ones were neither.
+- `phylloptim/tests/cpp.R:44` exits 0 when the C++ suite could not run. Still
+  open, and it is phylloptim's — it sits in D beside `test_transpose` and
+  `test_supplied_rows`, which are outside `R CMD check` entirely.
 
-| | where | why |
-|---|---|---|
-| **[v]** | `test-gradient-ladder-declared-zero.R:161` | `for (name in c("k_I", "a_l1"))` with `next` on `name %in% ladder_birth_size_parameters()`. `a_l1` is in that list. The structural half runs on one name, and the loop says two. |
-| **[v]** | `gradient_control()` | Five values returned positionally; `ci_abs_tol` and `gradient_curvature_floor` are both `1e-3` at defaults, so a transposition passes both assertions while `stand_gradient_compare()` refuses on the wrong pair. Already in D. |
+### `test-gradient-demo.R` was misread here **[v]**
 
-### E4. A comparison that passes on a non-answer
+This section said the file skips on every leg because its helpers are absent.
+`overstorey_staging/gradient_demo_helpers.R` is present, and `scripts/run-tests.sh`
+sets `NOT_CRAN=true` deliberately — so in the developer loop the file runs: **32
+pass, 0 skip**. It skips under `R CMD check`, where the directory is
+`.Rbuildignore`d and the helpers genuinely are not there. Whether it belongs in the
+diff is D's question, beside `gradient_ladder.cpp`.
 
-**`test-gradient-ladder-identity.R` — six `expect_identical` on gradient matrices,
-and no finite-count guard anywhere in the file.** `identical(NaN, NaN)` is `TRUE`
-in R, so repeatability, per-metric equality and the reversed-order comparison all
-hold bit for bit against a gradient that is entirely not-a-number.
+### The instrumentation surface
 
-This is not hypothetical. `AGENTS.md` records it happening: *"Every such check on
-the century fixture's gradient passed for as long as the fixture existed, against
-a gradient that was entirely not-a-number."* The guard it prescribes — count the
-finite entries and assert the count before comparing values — is present in six
-ladder files and absent from the one whose entire method is bit-identity.
+`src/gradient_ladder.cpp` is **31 entry points**, down from 33. The two block name
+lists are gone: every block matrix now carries its own `dimnames`, so a caller
+cannot hold a name list and a matrix that disagree about which node the block was
+formed at. And the prefix **partitions** them now, which the file's own header used
+to flag as wrong: 25 are `ladder_`, called from `tests/testthat/` and nowhere else,
+and the 6 spelled `census_` are exactly the ones `NEWS.md` publishes with migration
+lines — the five incidence counters and `census_trait_gradient_split_tf24`. So D's
+count is **27 test-only, not ~28**.
 
-**Remedy.** One line at the top of each test: `expect_gt(sum(is.finite(full$gradient)), 0)`.
-
-### E5. A suite that reports green for not running
-
-| | where | what happens |
-|---|---|---|
-| **[v]** | `phylloptim/tests/cpp.R:44` | `message("SKIP: ", ..., "\n  The C++ suite was not run.")` then `quit(save = "no", status = 0)`. No compiler, or headers not found, and `R CMD check` passes the C++ suite by not running it. |
-| **[v]** | `test-ff16-ad-kernel.R`, `-deep-crown-ad.R`, `-resident-coupling-ad.R` | Each carries four gates; `is_pkgload_dll_plant()` fires in **every `load_all` session**, which is the loop `AGENTS.md` tells a developer to work in. The only FF16 gradient evidence in the tree never runs where the work happens. |
-| **[v]** | odelia `test-dll-load.R`, `test-rodas.R`, `test-vector-jacobian-product.R`, `helper-load-odelia.R:139` | Same shape on `is_pkgload_dll()` and on `sourceCpp` symbol availability. |
-| **[v]** | `test_transpose`, `test_supplied_rows` | Absent from `tests/cpp.R`, so outside `R CMD check` entirely. Already in D. |
-
-**Remedy for the first.** Exit non-zero when the suite was asked for and could not
-run. A precondition that is not met is a failure of the environment, and the
-environment is what CI exists to check.
-
-### E6. Scope stated as coverage
-
-`ladder_parameters()` defaults to `lifetime = 2`, and the whole-run reference runs
-shorter still. `docs/perf` measures the product at about 105 years and 3,378
-accepted steps. Nothing in the correctness suite runs a stand past **two**.
-
-Every rung is therefore honest about what it checked and silent about the distance
-between that and what ships. The tape bound, the range machinery, the insertion
-transpose and the refusal path all behave differently at 169 ranges than at two or
-three, and no assertion reaches there. `PLANT_LADDER_SCALE` exists to close this
-and is set nowhere, so the gap is recorded as a switch rather than as a number.
-
-**Remedy.** One scale fixture in CI at the lifetime the recalibration decision in D
-already settles on, with the whole-run reference re-taken there.
-
-### What the suite already does right, and should copy
-
-`test-gradient-ladder-whole-run-difference.R` is the pattern. It asserts the set of
-uncaptured columns **both ways**, so a column the reference stops carrying fails
-the rung; it asserts by name which regimes refuse, so a third refusing fails and
-one un-refusing fails; and it asserts `sum(live) > 200` before comparing anything,
-so a vacuous pass is impossible. Its own header says why:
-
-> ⚠️ ASSERTED BOTH WAYS, because the alternative is what this rung did while
-> passing at 13 … Forty of forty-eight were refereed and nothing said so.
-
-That comment is the whole of section E in one sentence. Every entry above is a
-place where the same discipline has not yet been applied.
+What is left is not excess. A transpose cannot be refereed from its composition:
+`stand_gradient` returns one number per (metric, trait) over a whole run, and a
+wrong row is wrong in both directions. The four references need to see the forward
+and reverse maps at one point, and reference 4 exists because differencing a
+*recorded* step returns exactly zero on precisely the columns a supplied row
+occupies — right, wrong or absent.
 
 ---
 
