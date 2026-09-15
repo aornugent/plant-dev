@@ -1,8 +1,12 @@
 # What to fix before submitting
 
 A gate on `docs/pr/`. The three branches carry work worth merging and, alongside
-it, scaffolding, stale claims and two red suites. A maintainer should receive
-the first and none of the second.
+it, scaffolding, stale claims and red suites. A maintainer should receive the
+first and none of the second.
+
+**A, B and C are closed. What is left is D and E** — decisions, and tests that
+report green for not running. Nothing in A–C is work; A1 stays as evidence for
+the one decision the whole of it turns on.
 
 Every entry is marked **[v]** where I reproduced it against the code myself, or
 **[r]** where it is an agent's finding I have not independently run down. Treat
@@ -13,17 +17,27 @@ a 105 MB library was our own `-g` build.
 
 ---
 
-## A. Blockers
+## A. Blockers — all CLOSED **[v]**
 
-Nothing ships until these are closed.
+Nothing here is work any longer. A1 is the last, and it is not a thing to fix:
+every suite in it turns on one call, and until that call is made there is no
+action but re-pinning, which is the thing the call exists to prevent. Its
+evidence stays below because D's `A1` row is a decision and this is what the
+decision is about.
 
-### A1. The red suites **[v]**
+### A1. ~~The red suites~~ — **NOT A BLOCKER, A DECISION: see D** **[v]**
+
+⚠️ **Re-pinning any of these to make a run green is how a change to a model's
+science gets waved through**, which is why they sit here as evidence rather than
+as a task. `test-node.R` was the one genuine defect in this table and is fixed;
+everything left is the same `scientific_version` answer, four times.
 
 | suite | how it fails |
 |---|---|
 | `plant` `test-strategy-tf24.R` / `-tf24f.R` **[v, added]** | **A third red suite, and it predates the merge.** 17 + 2 failures. Four were the `Defaults` fixtures pinning `root_b` as develop's literal and omitting `root_P50`, which this branch has carried since `e9ff23f6` — fixed in `95a88949`. The rest are pinned scenario values this branch no longer produces: `offspring arrival` pins 30.22207354 and the **pre-merge** tree returns **81.995393**, measured directly at `e9ff23f6`. Merged, the same scenario returns 56.4 with the path integral and 82.0 with it collapsed — so upstream's new "height-linear parameters reproduce the pre-path-integral results" recovers the pre-merge number to four figures and the merge is not the cause. This branch is ~2.3–2.7× develop on this scenario either way, and four storage-rate tests move with it. ⚠️ **These pins cannot be re-blessed without the same `scientific_version` decision A1 already needs** — re-pinning to make a run green is how a real change to a model's science gets waved through. |
 | `plant` `test-gradient-incidence.R` (6) / `test-gradient-parity.R` (3) **[v, added]** | **The merge moved the leaf's operating point, and these fixtures assert where it lands.** Measured on `incidence_stand(0.25, 10)`, pre-merge `e9ff23f6` against the merged tree: interior placements 5,336,853 → 207,790, dry pins 27,271 → 2,510,686, **dry share 0.51% → 92.36%**, all on the continuity-root arm. The lifetime-10 stand that used to refuse for its descent's range now answers. In `parity`, `seasonal` moved from answered to refused (`left the representable range`) and the `shaded` driver stopped reaching `shade-death` at all. This is develop's #617 doing what its own comment predicts — lower resistance, faster transpiration, the shared soil column drawn down — reaching fixtures calibrated on the pre-#617 model. ⚠️ **Not a gradient defect:** every derivative referee is green, including phylloptim's transpose identity over all four operating-point kinds (147 checks, worst relative 5.1e-11). Recalibrating these fixtures accepts an ecological change and belongs with A1's `scientific_version` decision, not beside it. |
 | ~~`plant` `test-node.R`~~ **[v, fixed]** | **A red suite nothing had named, and it was ours.** 3 failures, one per model: `Node$ode_rates` reported **0** for the density rate where FF16 gives −0.787, TF24 −1.423 and K93 −0.0387. `compute_initial_conditions()` took the node's rates *before* seating its state, so the `density > 0` guard fired on the density a node being born has not got yet — `exp(-Inf)` — and the zero it wrote stood for the whole first evaluation. The offspring rate had the same shape through `survival_individual()`. The guard arrived in `a02588c1` on this branch, so develop never carried it. Fixed in `66941c0a`: both rates move to one `compute_node_rates()` that each caller reaches after the state it is responsible for exists, and the two copies of the guard become one. No trajectory moves — the whole-run rung holds at 13/13 against a reference captured before it, and the gradient suite is unchanged at 710 over nineteen files. |
+| `plant` `test-mutant.R` (2) **[v, added]** | **Two panels, and the machinery under them is exact.** `run_mutant()` is restored and verified: a strategy replayed as an invader of itself returns the resident's own fitness to **1e-15** on FF16 and **1.5e-14** on TF24 (block 3, the #642/#643 case, against develop's own *"~1e-6 at best for TF24 … unexplained"*), and the eight-case identity sweep holds at 1e-11. What fails is the two ten-mutant panels, at 2-4e-4. ⚠️ **Demonstrated to be the model and not the replay.** Invasion fitness is what a strategy attains when vanishingly rare, so it has a referee that owes develop nothing: run the mutant endogenously at birth rate e and let e -> 0. The gap to THIS branch's replayed value falls 9.99x then 11.1x per decade — clean first order, which is what that limit must be — while the gap to develop's pin falls 29.5x, which is not a convergence rate. The limit is this branch's value; develop's pin is 1.4e-4 away from it. The same drift is already visible in the resident pins that pass (-2.2e-5 on one resident, +4.7e-5 and +7.0e-5 on three), amplified because invasion fitness is an off-equilibrium quantity. **Re-pinning accepts the same change to the model's science the other three suites do.** |
 | `plant` `_snaps/model-version.md` | Stale and self-contradictory: 62 parameters snapshotted against 64 declared, `vulnerability_curve_ncontrol` recorded as 100 where the code gives 400, `control.gradient_curvature_floor` absent, and TF24 names (`p_50`, `b`, `c`) the `.yml` no longer declares. An untracked `model-version.new.md` holds the real surface. |
 | `phylloptim` `tests/cpp/test_golden` | Exits 1. Run by `tests/cpp.R:108`, so `R CMD check` is red. |
 
@@ -156,9 +170,14 @@ regenerable from the package a maintainer receives.
 
 ## B. ~~Remove before submitting~~ — CLOSED **[v]**
 
-Everything below is done. `plant/src/gradient_ladder.cpp` is not a removal and
-has moved to D: both of the options named for it change what the pull request
-contains, which is the author's call rather than a tidy-up.
+Nothing here is a blocker. ⚠️ **But "everything below is done" was wrong, and the
+table now says what actually happened.** Three rows were resolved the OTHER way
+— the probe binaries are `.Rbuildignore`d rather than deleted, `test-gradient-demo.R`
+is live in the surface tier, and the production-scale gate is implemented — and
+two are questions about what the diff contains rather than removals, so they have
+joined `plant/src/gradient_ladder.cpp` in D. Re-checked against the tree, not the
+labels: five files this section called removed are still present, every one of
+them on purpose.
 
 
 Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
@@ -166,15 +185,15 @@ Roughly 4,000 of the 33,640 added lines, with no loss of coverage.
 | | what | lines | why |
 |---|---|---|---|
 | **[v]** | `odelia/tests/standalone/probe_*.cpp`, seven files | 2,034 | In no `all:` target and no workflow. `probe_nested_recording.cpp` alone is 1,023 lines. They are measurements; under `tests/` a maintainer reads them as checks. Move to `notes/` or `bench/`. |
-| **[v]** | `phylloptim/tests/cpp/probe_preaccumulation.cpp`, `probe_tape_regions.cpp` | 563 | Same. And the binaries **do** ship: `.Rbuildignore:46-50` names only the five older ones, and building with all four new binaries present took the tarball from 1,277,427 to 2,500,921 bytes. `R CMD check`'s `check_executables()` warns on undeclared executables, which for phylloptim is a red leg. |
+| **[v→kept]** | `phylloptim/tests/cpp/probe_preaccumulation.cpp`, `probe_tape_regions.cpp` | 563 | **Resolved the other way, and the row should say so.** The finding was that the BINARIES ship: `.Rbuildignore` named only the five older ones. Both are now named (`^tests/cpp/probe_preaccumulation$`, `:60`), and `tests/cpp/Makefile` keeps them out of `all:` with the reason at `:123`. The sources stay, which is what a probe is for. |
 | **[→D]** | `plant/src/gradient_ladder.cpp` | 1,071 | **Moved to D.** Not a removal: every option changes what the pull request contains. The finding holds and is sharper than written — the callers are 13 test files, not one helper. |
 | **[v]** | `plant/tests/testthat/reference/reference-kinds.tsv` | 121 | Nothing reads it, and its generator `scripts/generate_reference_run.R` is deleted in the same diff, so it cannot be regenerated either. |
-| **[v]** | `plant/tests/testthat/test-gradient-demo.R` | 116 | Gated on `overstorey_staging/`, which is `.Rbuildignore`d. `R CMD check` runs from the tarball, so all six tests skip on every CI leg. |
-| **[v]** | `plant/tests/testthat/test-gradient-ladder-production-scale.R` | 48 | Both tests skip on `PLANT_LADDER_SCALE`, which nothing in any repo, workflow or script sets. Its own comment: *"a suite that skips where it is meant to scale reports green for not having run."* |
+| **[v→kept]** | `plant/tests/testthat/test-gradient-demo.R` | 116 | **Superseded: it is live.** `AGENTS.md:347` and `scripts/run-tests.sh:20` both name it as one of the three files in the surface tier (`^test-gradient-(demo\|incidence\|parity)`), and `run-tests.sh:83` documents that its six blocks report as skips. The finding — that it skips on every CI leg — still holds and is the argument for the gate, not for deletion. |
+| **[v→kept]** | `plant/tests/testthat/test-gradient-ladder-production-scale.R` | 48 | **Kept, and the gate is real.** `PLANT_LADDER_SCALE` is read at `helper-gradient-ladder.R:519` and refuses with a message naming itself at `:528`. Still set by nothing in any repo, workflow or script — which is E-class (a skip that always fires), not a removal. |
 | **[v]** | `plant/tests/probes/probe_tf24f_active.cpp` | 46 | A compile-time falsifier ("Never run. Instantiating it is the whole test") that no build compiles. `tests/` is not `.Rbuildignore`d, so it ships. Wire it into a build or drop it. |
 | **[r]** | `helper-gradient-ladder.R` `ladder_injected()` / `PLANT_LADDER_INJECT` | — | Defined, never read. The fault-injection contract advertised at `:10` is unimplemented. |
-| **[r]** | `phylloptim/.claude/CLAUDE.md` | 12 | Agent-facing scratch in a public pull request. |
-| **[r]** | `plant/scripts/tf24-active-probe.cpp` | 67 | "Nothing runs it for you." |
+| **[r→D]** | `phylloptim/.claude/CLAUDE.md` | 12 | **Does not ship** — `phylloptim/.Rbuildignore:13` is `^\.claude$`, as plant's `:3` is. What is left is whether it belongs in the DIFF, which is what the pull request contains and so is D's, beside `gradient_ladder.cpp`. |
+| **[r→D]** | `plant/scripts/tf24-active-probe.cpp` | 67 | **Does not ship** — `plant/.Rbuildignore:11` is `^scripts$`. Verified unreferenced: the only mention of its own name anywhere is its own header comment. Same question as the row above, and same answer-holder. |
 | **[r]** | `odelia` `compat_interpolator::add_point`, `get_x`, `get_y`, `r_eval`; `Solver::get_control()`, `get_history()` | ~26 | No consumer in any of the three trees. |
 | **[v]** | `plant/.Rbuildignore:31` | — | `^inst/RcppR6*$` does not match `inst/RcppR6_classes.yml` — confirmed against R's own `grepl`. The 57,873-byte file ships and installs. Write `^inst/RcppR6_classes\.yml$`. |
 | **[r]** | odelia ships `AGENTS.md`, `ARCHITECTURE.md`, `CLA.md`, `.claude/CLAUDE.md` | ~16 KB | plant and phylloptim ignore all four; odelia's `.Rbuildignore` has no such lines. |
@@ -187,7 +206,10 @@ both migrate in these same pull requests. plant already uses
 
 ---
 
-## C. Correct before submitting
+## C. ~~Correct before submitting~~ — CLOSED **[v]**
+
+All three re-checked against the text rather than the labels: the greps that look
+like open findings are matching the corrections.
 
 ### C1. ~~Comments and man pages that are false~~ — CLOSED **[v]**
 
@@ -280,7 +302,7 @@ contains. Nothing else in D does either.
 
 | | decision | what is known |
 |---|---|---|
-| **A1** | **What `scientific_version` should say.** | Three suites turn on it, not two: `_snaps/model-version.md`, `phylloptim`'s `test_golden`, and `test-strategy-tf24.R`'s scenario pins. The pins are the sharpest statement — measured at `e9ff23f6`, the pre-merge tree returns **81.995393** where its own test pins **30.22207354**, so this branch has been ~2.7× develop on that scenario and nothing recorded it. Re-pinning any of the three accepts a change to the model's science, which is the one thing AGENTS.md says must be named rather than waved through. |
+| **A1** | **What `scientific_version` should say.** | **Four** suites turn on it: `_snaps/model-version.md`, `phylloptim`'s `test_golden`, `test-strategy-tf24.R`'s scenario pins, and `test-mutant.R`'s two ten-mutant panels. The pins are the sharpest statement — measured at `e9ff23f6`, the pre-merge tree returns **81.995393** where its own test pins **30.22207354**, so this branch has been ~2.7× develop on that scenario and nothing recorded it. Re-pinning any of the three accepts a change to the model's science, which is the one thing AGENTS.md says must be named rather than waved through. | ⚠️ **`test-mutant.R` is the one that has been measured against a referee outside develop**, and it says the drift is real: the vanishing-density limit of this branch's own endogenous dynamics converges first-order onto this branch's replayed value, not onto develop's pin. So at least one of these four is not stale blessing but a moved model, and the version has to say so.
 | **run_mutant** | ~~Restore it, or ship regressed against `develop`.~~ — **RESTORED**, and what is left is A1's. | `SCM::run_mutant` works again, on odelia's own store/load channel rather than the three solver hooks its rewrite deleted (`ode::cache` ×2, `ode::load`, `has_cache`, a second `derivs`). ⚠️ **The comment naming odelia's `ReplaysField` as the replacement had it backwards**: `9e84ef6` created it, `001528b` deleted it four days later for `recorded_stage{step,stage}`, and plant's comment was written twenty days after that. What `001528b` kept is the channel now used — a rate evaluation already records what its state does not determine, per (step, stage), and an invader's field is exactly that. odelia's change is **4 files, zero new public names**. <br><br>**Exact**: a strategy replayed as an invader of itself returns the resident's fitness to **1e-15**, with two, three, five or nine invaders present — which says nothing in the replay builds an invader's own field. **Cheap**: a replay costs 0.06 s against the 0.07 s resident run it stands in, so an assembly sweep pays once per resident. The record is knots+values+slopes plus the environment's ODE state, not whole environments — develop's form OOMs at 6.8 GB past ~10 yr and its fix (`b2f70dfa`) never reached develop. <br><br>**Left open, and it is A1's:** `test-mutant.R`'s two ten-mutant panels are pinned to develop's model. This branch's FF16 residents already differ — **2.7731596 vs 2.77322 (−2.2e-5)**, **+4.7e-5** on the three-resident stand — inside the 1e-4 the resident pins allow, amplified to 4e-4 by the panels. Re-pinning them accepts a change to the model's science. |
 | **the operating point moved** | **Recalibrate the incidence and parity fixtures, or hold.** | develop's #617 took the dry share from **0.51% to 92.36%** on `incidence_stand(0.25, 10)`, `seasonal` from answered to refused, and `shaded` from reaching shade-death to not. Nine gradient-suite failures, none of them a derivative: every referee is green, including the transpose identity over all four operating-point kinds at 5.1e-11. Moving the fixtures accepts the ecology; leaving them accepts nine red. ⚠️ **When they are recalibrated, do it at lifetime 4, not 5.** Measured over all five named regimes, run and swept, against three axes of coverage — which drivers answer, which operating-point kinds are reached, and which clamp sites fire:
 
@@ -299,6 +321,7 @@ Lifetime 4 is the smallest that matches lifetime 5 on all three, and it is 25% o
 
 | | question |
 |---|---|
+| **[r→D from B]** | **Does the diff carry `phylloptim/.claude/CLAUDE.md` (12 lines) and `plant/scripts/tf24-active-probe.cpp` (67)?** Neither ships — both paths are `.Rbuildignore`d — so this is not a check failure, it is whether a maintainer should read them. The probe is verified unreferenced: the only mention of its name anywhere is its own header comment. Same class as `gradient_ladder.cpp`: what the pull request contains. |
 | **[v]** | **phylloptim names the AD library eighteen times**, four of them raw `using AD = xad::fwd<double>::active_type`, which bypasses `tangent.hpp`'s guard against the 18× nested-tape blow-up. The project's stated rule is that the library is named in odelia and nowhere else. Route them through `tangent_scalar` / `seed_direction` / `derivative_along`, or amend the rule. plant names it once. |
 | **[v]** | **`leaf_model.hpp` runs 2,440 lines public before its first `private:`**, exposing ~90 raw state fields including this branch's own additions, and an invariant comment at `:181` that `private:` would enforce. |
 | **[v]** | **Net +237 C++ names and +62 R names** across the three packages, against four real header deletions. The original brief was net deletion. |
@@ -333,7 +356,7 @@ The test never runs, and nothing says the coverage is absent.
 
 | | where | why it always fires |
 |---|---|---|
-| **[v]** | `test-mutant.R:7` | Unconditional. Three tests. `SCM::run_mutant` is a `stop()` — see D. |
+| ~~**[v]**~~ | ~~`test-mutant.R:7`~~ — **GONE** | Was an unconditional skip over three tests while `SCM::run_mutant` was a `stop()`. All three now run: the FF16 identity sweep passes at 1e-11 over eight cases and the TF24 case at 1.5e-14. Two ten-mutant panels fail on stale pins — a red test, which is the honest form, and in D. |
 | **[v]** | `test-gradient-ladder-declared-zero.R:99` | Unconditional `skip()` at the **end** of "the birth-size channel is priced". The test ran a live whole-run difference over eight parameters and two assertions on each; testthat marks the whole block SKIP and discards the passes. The one live class-(a) comparison in the file reports as not run. |
 | **[v]** | `test-gradient-demo.R` (6) | `helpers_or_skip()` needs `overstorey_staging/gradient_demo_helpers.R`, which `.Rbuildignore` excludes. Present in the tree, absent under `R CMD check`. |
 | **[v]** | `test-gradient-ladder-production-scale.R` (2) | `PLANT_LADDER_SCALE`, which nothing sets. Already in B; repeated here because it is the same shape. |
