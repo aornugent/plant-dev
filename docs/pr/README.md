@@ -34,6 +34,10 @@ order, not a fault.
 Write them to `STYLE.md`. Before opening any, clear `catalog.md`: it lists what
 not reach a maintainer.
 
+`test-review.md` is the measurement behind two of catalog's rows: what the tests
+cost a check leg, where that cost comes from, and one numerical disagreement
+found while measuring it.
+
 ## Sources
 
 The design claims in the comments come from `docs/design/`, which is the
