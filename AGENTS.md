@@ -287,9 +287,21 @@ only how many of that schedule's 88 introductions are kept:
 | accepted steps | 136 | 140 | 146 | 156 | 178 | **9881** |
 | seconds | 0.1 | 0.3 | 0.4 | 0.7 | 1.5 | **288** |
 
-The cliff is between 44 and 88, and the cost per cohort-step FALLS across the
-whole range, 0.47 ms to 0.19 ms — so it is the solver taking 55x the steps rather
+⚠️ **BOTH TABLES ARE MEASURED AT ONE LIFETIME AND THE FIRST IS THE ONE TO READ
+FOR THE CLIFF.** Every point in the second sits at a lifetime of 5, which is
+already past it, so what that table measures is the cost of cohorts inside the
+stiff regime rather than the entry to it. The cost per cohort-step FALLS across
+its whole range, 0.47 ms to 0.19 ms, so the solver is taking the steps rather
 than the arithmetic getting slower.
+
+**Which makes the introduction count the lever a slow test has.** A patch
+lifetime buys the regime; the cohorts are what it costs. Thinning the default
+schedule to twenty introductions took `test-mutant.R`'s TF24 replay from 12714
+recorded steps in 623 s to 6071 in 71, `test-gradient-incidence.R`'s clamped
+stand from 258 s to 18, and `test-gradient-parity.R`'s `shaded` driver from 319 s
+to 22 — each keeping every property its block asserts. ⚠️ **It is not free
+everywhere**: parity's `seasonal` loses two operating-point kinds at twenty and
+keeps its whole schedule, so check what a fixture reaches before thinning it.
 
 `test-events.R` is the case to know, and it is not this branch's doing. One of its
 26 blocks — *"pulses wet the soil during a run"* — is the whole of its cost; the
@@ -343,10 +355,11 @@ Tiers of the loop, cheapest first:
    ```sh
    scripts/run-tests.sh 'gradient-ladder-(injection|one-cohort|factorisation|declared-zero)'
    ```
-5. **The surface tier, which is not the ladder and costs sixteen times as much.**
+5. **The surface tier, which is not the ladder and costs seven times as much.**
    `demo`, `incidence` and `parity` ask where the model goes and whether the
-   gradient follows — scope, not correctness — and they are 945 s against the
-   ladder's 63.
+   gradient follows — scope, not correctness — and they are 410 s against the
+   ladder's 61. They were 945 s until each driver was given the schedule its
+   coverage needs rather than the one its patch lifetime implies.
    ```sh
    scripts/run-tests.sh '^test-gradient-(demo|incidence|parity)'
    ```

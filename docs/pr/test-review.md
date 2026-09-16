@@ -1,138 +1,125 @@
 # What the tests cost, and why
 
 A companion to `catalog.md`, which holds what must be fixed before submitting.
-This holds what was measured about the suite this branch adds: why it costs what
-it costs, one defect found while measuring it, and which of the remaining levers
-belong to a maintainer rather than to the branch.
+This holds what was measured about the suite this branch adds: one defect found
+while measuring it and what the defect turned out to be, where the cost came
+from, and which of the remaining levers belong to a maintainer rather than to the
+branch.
 
 Every number here was taken on this tree at `-O2`. Where a figure is a property
 of one fixture it says which.
 
 ---
 
-## 1. The defect to fix first
+## 1. The defect, and what it was
 
-⚠️ **The census seed and an exact derivative of the same reduction disagree by a
-uniform scalar, and `test-census.R`'s G3 passes because its tolerance absorbs
-it.** Reproducible in **0.7 s**:
+`test-census.R`'s G3 compared the census seed against a closed form written out
+beside it, and the two disagreed by a uniform relative scalar -- 6.13e-09 on a
+written distribution, 8.63e-05 on one grown to a lifetime of 12 -- which the
+1e-4 tolerance absorbed.
 
-```
-ONE object, 79 nodes, t = 1.00
-  value       R 3.817229507972155e-01   C++ 3.817229507972155e-01   rel 1.45e-16
-  derivative  R 1.644376194611845e-06   C++ 1.644376184529206e-06   rel 6.13e-09
-```
+**The seed was right and the reference was incomplete.** The inflow boundary node
+is the reduction's closing grid point and is not ODE state:
+`census_state_and_trait_rows` rebuilds it through `set_state_and_boundary`, from
+a light field every cohort's height and log density enters by `n_k * A_k` -- the
+same product the census integrates. So the seed carries a channel that a
+reduction written over a fixed state table cannot, and the closed form was the
+derivative of a different function.
 
-`stand_census` and the R reduction agree bit for bit. `stand_census_state_adjoint`
-and the closed-form derivative of that same reduction do not.
+Measured against a direct difference of the boundary node's own contribution,
+that channel is the whole of the disagreement:
 
-What is established:
-
-- **Uniform.** Every interior node reads the same relative gap — 6.13e-09 on a
-  seeded stand, 8.63e-05 on a grown one at a lifetime of 12. The boundary node
-  reads O(1), which is the reference's own weight formula giving the closing
-  interval only its lower half.
-- **It grows with patch age.** 6.13e-09 at t = 1, 8.63e-05 at t = 12.
-- **It is not a step size.** Identical to four figures at
-  `node_gradient_eps` = 1e-6, 1e-8 and 1e-10.
-- **It is not patch survival.** `pr_patch_survival_at_birth` is exactly 1.0 on
-  both fixtures.
-
-A uniform relative offset at every node is a missing scalar rather than an
-accuracy loss, and three candidates for it are refused above. Which side is wrong
-is open: the closed form agrees with a central difference of the R reduction to
-1.05e-07 on the grown stand, which establishes it as a correct derivative of
-*that reduction*, and not that the reduction is what the C++ census reduces.
-
-⚠️ **THE TOLERANCE IS NOT BOUNDING WHAT IT APPEARS TO.** G3 asserts
-`seed vs finite difference < 1e-4`, and which term dominates that comparison
-changes with the fixture:
-
-| fixture | seed vs closed form | difference vs closed form | what G3 measures there |
+| fixture | observed gap | boundary channel | ratio |
 |---|---|---|---|
-| seeded, lifetime 1 | 6.13e-09 | 3.44e-06 | the difference's truncation |
-| grown, lifetime 12 | 8.63e-05 | 1.05e-07 | the seed gap |
+| written, lifetime 1 | 6.1316e-09 | 6.0758e-09 | 0.99 |
+| grown, lifetime 3 | 9.2427e-06 | 9.2427e-06 | 1.0000 |
+| grown, lifetime 12 | 8.6290e-05 | 8.6290e-05 | 1.0000 |
 
-So the same assertion measures two different quantities on two fixtures, and the
-lifetime it was tuned to is where both happen to fit under one round number.
+Three properties of the gap fall out of the mechanism and were what made it look
+like a missing scalar. It is the same for `height` and for `log_density`, because
+both reach the light field only through `n_k * A_k`. It is near-uniform over
+nodes, because the field is the same trapezium the census is, so the weight
+divides out and what is left is the canopy shape at the boundary node's height --
+which is one for every cohort taller than it, and departs only at the shortest
+(node 78 read 6.1454e-09 against 6.1316e-09). And it is **exactly zero** on
+`area_heartwood` and `mass_heartwood`, which are not in the light field, which is
+why G4's linear channels were already bit-exact.
 
-**Why this is worth doing before anything else.** The omission grows with run
-length. At a longer lifetime G3 fails, and the failure reads as a gradient defect
-while being a reference defect — which is the shape this suite exists to prevent,
-sitting inside the suite.
+### What the fix was
+
+G3 now differences the census itself, read off a copy of the patch, so the
+boundary node moves with the state. Over every node and both state families:
+
+| | measured | asserted |
+|---|---|---|
+| seed against the birth-date difference | worst 9.50e-11 | < 1e-8 |
+| seed against the height-grid difference | closest 0.41 | > 0.25 |
+| seed against the boundary-held closed form | 2.47e-07 | > 1e-8 |
+
+The third line is new and closes a failure mode `scm.h` names and nothing
+guarded: loading the state without the boundary rebuild takes that contribution
+to exactly zero with nothing thrown, and the old comparison would have passed
+*better* for it. Substituting each wrong answer for the seed, the block rejects a
+seed with the channel gone, a seed built on the height grid, and a seed wrong by
+one part per million -- where the old tolerance admitted the last.
 
 ---
 
-## 2. Why the suite costs what it costs
+## 2. What the suite cost, and what it costs now
 
-Measured end to end, one process:
+Measured end to end, one process, per file:
 
-| | cost | result |
-|---|---|---|
-| the ladder, 14 files | **63 s** | 615 pass, 0 fail, 0 skip |
-| `test-census.R` | 259 s | 27 pass |
-| `test-mutant.R` | 648 s | 21 pass, 2 fail |
-| `test-gradient-incidence.R` | 542 s | 60 pass, 6 fail |
-| `test-gradient-parity.R` | 329 s | 55 pass, 3 fail |
+| | before | after | checks |
+|---|---|---|---|
+| the ladder, 14 files | 63 s | 61 s | 615 |
+| `test-census.R` | 259 s | **1.4 s** | 27 → 31 |
+| `test-mutant.R` | 632 s | **80 s** | 23 → 24 |
+| `test-gradient-incidence.R` | 580 s | **253 s** | 66 → 68 |
+| `test-gradient-parity.R` | 343 s | **157 s** | 58 |
+| total | 1877 s | **552 s** | 789 → 802 |
 
 `tests/testthat.R` is `test_check("plant")`, so all of it runs under `R CMD check`
-on three operating systems. The nine failures are A1's, not this document's.
+on three operating systems. The eleven failures are A1's and are unchanged in
+number, file and reason.
 
-### Two mechanisms, and a third that is neither
+### The mechanism, in one sentence
 
-**TF24 crosses a stiffness cliff just past a patch lifetime of 3.** Default
-schedule, single-trait recipe:
+**A patch lifetime buys the stiff regime; the cohort count is what it costs; and
+the default schedule confounds them by deriving its introduction count from the
+lifetime.** Held at a fixed lifetime and varying only how many of that schedule's
+introductions are kept:
 
-| lifetime | introductions | steps | seconds | steps per introduction |
-|---|---|---|---|---|
-| 0.5 | 71 | 94 | 0.39 | 1.3 |
-| 1 | 76 | 122 | 0.62 | 1.6 |
-| 2 | 81 | 172 | 0.97 | 2.1 |
-| 3 | 84 | 193 | 1.08 | 2.3 |
-| **5** | 88 | **7991** | **99.89** | **90.8** |
+| | full schedule | thinned | thinned to |
+|---|---|---|---|
+| `test-mutant.R`'s TF24 replay, lifetime 6 | 12714 steps, 623 s | 6071 steps, 71 s | 20 of 89 |
+| incidence's clamped stand, lifetime 5 | 11347 steps, 258 s | 3267 steps, 18 s | 20 of 88 |
+| parity's `shaded`, lifetime 5 | 11810 steps, 319 s | 3250 steps, 22 s | 20 of 88 |
 
-Between 3 and 5 the introduction count rises 5% while the step count rises 41×.
+In each case the thinned run keeps everything the block asserts: the replay
+identity holds to 1.6e-13 against a 1e-3 tolerance where the full schedule holds
+to 8.1e-13; both light-floor sites still fire on both paths with the crown site
+ahead by 170x; and every driver keeps its verdict, its refusal reason and its
+clamp sites. This is the same confound `AGENTS.md`'s introductions table
+measured from the other side, now confirmed on three independent fixtures.
 
-**The sweep is linear in recorded steps, and about four times the run.** Five-trait
-recipe:
+### Three structural findings, each a check that could not fail
 
-| rain | lifetime | steps | run | sweep |
-|---|---|---|---|---|
-| 2.00 | 3 | 319 | 1.96 s | 7.62 s |
-| 2.00 | 5 | 422 | 2.86 s | 10.55 s |
-| 0.10 | 3 | 346 | 1.66 s | 7.19 s |
-| 0.10 | 5 | **2415** | 11.63 s | **51.34 s** |
+**A shared stand was cleared.** `clear_diagnostics()` resets every counter, the
+clamps and the curvature margin together. The block checking that the tally is
+per-run cleared the wet stand every other block reads, so the light floor's *"does
+not bind at the shipped value"* was asserted against a tally another block had
+zeroed. On a fresh stand the claim is true -- `rooting_depth` fires 168,989 times
+and both light sites read zero -- so the check now reads a copy taken at build
+time and carries a non-vacuity assertion on a site that does bind.
 
-Seven times the steps, 7.1 times the sweep. So the cliff multiplies the dominant
-term rather than adding to it.
+**A cache keyed on whether a stand had been swept** ran two of five drivers
+twice, once for their forward tallies and once for the differentiated ones. An
+entry now holds the run, the readings taken before anything sweeps it, and a
+gradient taken on first request.
 
-**And the recipe matters more than the horizon.** Same lifetime, same node count:
-
-| recipe | lifetime | steps | nodes | seconds |
-|---|---|---|---|---|
-| `trait_matrix(0.0825, "lma")` | 5 | 7991 | 88 | 101.49 |
-| five traits through `TF24_hyperpar` | 5 | 233 | 88 | **1.49** |
-| `trait_matrix(0.0825, "lma")` | 12 | 15599 | 94 | 205.72 |
-| five traits through `TF24_hyperpar` | 12 | 1091 | 94 | **12.13** |
-
-Setting one trait leaves the rest at defaults, which is a strategy the
-hyperparameter function would never produce — stiffer by 14× in steps, and less
-representative of anything the package generates.
-
-### ⚠️ A correction AGENTS.md needs
-
-Its introductions table states *"the cliff is between 44 and 88 [introductions]"*.
-That table was measured entirely at a lifetime of 5, where every point is already
-past the cliff, so it measured a confound. Truncating that schedule:
-
-| introductions at lifetime 5 | 10 | 25 | 44 | 60 | 88 |
-|---|---|---|---|---|---|
-| steps | 1241 | 4007 | 6052 | 7064 | 7991 |
-| seconds | 2.03 | 15.11 | 39.45 | 61.83 | 99.89 |
-
-Ten introductions at a lifetime of 5 cost 1241 steps; eighty-four at a lifetime of
-3 cost 193. The schedule was never the variable. The same file's patch-lifetime
-table has it right, and two tables in one document disagreeing is what makes this
-worth correcting rather than leaving.
+**One recipe, two copies.** `incidence_run` and `parity_stand` were the same
+function, and parity's own comment claimed the regimes were named once. They now
+call `ladder_driver_stand()`, beside the regime list the reference capture reads.
 
 ---
 
@@ -140,71 +127,35 @@ worth correcting rather than leaving.
 
 The suite has two idioms and the cost tracks them exactly.
 
-**The ladder constructs its states.** `ladder_patch_fold()` forces a curvature fold
-by setting the floor; `ladder_patch_shutdown()` reaches a genuine hydraulic
+**The ladder constructs its states.** `ladder_patch_fold()` forces a curvature
+fold by setting the floor; `ladder_patch_shutdown()` reaches a genuine hydraulic
 shutdown by drying the soil; `ladder_patch_uniform_drying()` places a drying
-profile. Each elicits a specific leaf behaviour in milliseconds, and
-`test-gradient-ladder-sweep.R` asserts refusal, finiteness and both output kinds
-on them. Fourteen files, 615 assertions, 63 s.
+profile. Each elicits a specific leaf behaviour in milliseconds. Fourteen files,
+615 assertions, 61 s.
 
-**The surface tier grows to them**, asserting comparable per-state properties by
-running a stand until the model arrives at that state. Four files, 1778 s.
+**The surface tier grows to them.** `test-census.R` is the case where that was
+paying for nothing: its three grown stands asserted per-state properties, and one
+written stand of six nodes reaches all of them. Six rather than the seventy-eight
+a default schedule fills in is also what makes the boundary node readable -- it is
+2.5e-07 of the answer there against 6.1e-09 under a default schedule, where the
+reference's own floor is 9.5e-11.
 
-Three measured instances of a per-state claim paying for a trajectory:
-
-| claim | what it asserts | cost |
-|---|---|---|
-| `test-census.R` G3 | the seed equals the census's derivative at one node | 251 s |
-| incidence, *"the light floor is counted on both paths"* | that two counters read **zero** at the shipped value, then that the crown site dominates by a ratio the block's own comment derives from the shading geometry | 251 s of 542 |
-| parity's gate, *"nothing escapes unnamed"* | already tested per-state on constructed patches by `ladder_rhs_adjoint_tf24` | part of 329 s |
-
-**The underlying pattern is that a fixture gets calibrated to a weak reference.**
-G3's 1e-4 is its difference's truncation, so the fixture was tuned until the
-reference was accurate enough — which is why every attempt to move the fixture
-broke the reference rather than the claim, and why the move that works is the one
-that replaces the reference.
-
-Coverage does not require the stiff regime. Kinds and clamp sites reached:
-
-| rain | lifetime 2 | lifetime 3 | lifetime 5 |
-|---|---|---|---|
-| 2.00 | interior; rooting_depth | same | same |
-| 0.10 | interior, boundary-crit; reserve_ceiling, rooting_depth | **+ storage_floor** | same |
-
-⚠️ **This is narrower than the analysis already in D**, which ran all five named
-regimes and records that a lifetime of 3 loses `light_floor` and
-`light_floor_crown` — the two sites incidence's most expensive block exists to
-reach. D's answer is a lifetime of 4, and it stands.
+What does not construct is *how often*. incidence's tallies and parity's coverage
+are properties of a history, and the fixtures below are what is left after the
+schedule has been thinned to what each asserts.
 
 ---
 
-## 4. What is available
+## 4. What is left, and it is D's
 
-**Verified and unblocked.** G3 holds on the seeded distribution with better
-margins than it has now, at 0.7 s against 251:
+| | cost | what it is |
+|---|---|---|
+| incidence, *"the dry pins are a small minority"* | 178 s | `incidence_stand(0.25, 10)` and `(0.10, 5)`, and its `expect_lt(share, 5)` is one of A1's six failures. Retuning the fixture would tangle a fixture change with the decision it is evidence for. |
+| incidence, *"clamps stay out of reach"* | 43 s | a third driver at `rain = 0.05`, read for its soil potentials only |
+| parity, `seasonal` | 157 s | the file's only route to a hydraulic shutdown, and the one driver a thinned schedule changes |
 
-| fixture | non-vacuity, floor 1 | seed vs difference, tolerance 1e-4 | seconds |
-|---|---|---|---|
-| seeded, lifetime 1 | **27.60×** | **3.43e-06** | 0.7 |
-| grown, lifetime 12 | 7.40× | 8.62e-05 | 251 |
-
-⚠️ **Sequenced after section 1, deliberately.** Moving G3 there makes it pass more
-comfortably while the 6e-09 disagreement stays unexplained, and a speed change
-that quietly widens the margin on an open numerical question is how the question
-stops being asked. Resolve the scalar, then move the fixture.
-
-**Untested.** `test-mutant.R` runs its TF24 identity at a lifetime of 6 — 12,714
-replayed steps agreeing to 8.06e-13 against a tolerance of 1e-3. The cliff is at
-3.1, so 4 is the first lifetime that still exercises the stiff regime. Whether the
-identity survives a shorter recording has not been measured.
-
-**D's, and it stays there.** Recalibrating incidence and parity to a lifetime of 4
-is already quantified in D at 25% of CPU, and their per-trajectory pins are the
-evidence for the A1 decision — so retuning them now would tangle a fixture change
-with the decision it is meant to inform. The one thing that would move it out of D
-is a fixture that elicits the same guarantees without a trajectory, which sections
-3 and 4 suggest is available for the per-state half of each file and not for the
-incidence half.
+D's recalibration row is about the patch lifetime, which is the ecology. Nothing
+here moved a lifetime, a rainfall, an amplitude or a `k_I`.
 
 ---
 
@@ -212,14 +163,24 @@ incidence half.
 
 Kept so nobody re-opens them.
 
-- **The schedule as the cost driver.** Refused by the truncation table above.
-- **`TF24_hyperpar` as a cheaper fixture for G3.** 17× cheaper at the same node
-  count, and G3 fails on it at 4.13e-04 against a tolerance of 1e-4.
+- **Thinning parity's `seasonal` driver.** Twenty introductions costs 13 s
+  against 156, and loses `determined` and `hydraulic-shutdown`, reaching
+  `boundary-root-crit` instead. The other four are identical on all three axes.
+- **A denser written distribution, to make the boundary channel bigger.** At
+  `log_density` 2 the boundary node's density underflows to zero and the channel
+  becomes exactly zero: deeper shade removes the thing being measured.
+- **The schedule as the cost driver at a fixed lifetime.** Refused by the
+  truncation tables above, which is the same correction applied in reverse.
+- **`TF24_hyperpar` as a cheaper fixture for G3.** 17x cheaper at the same node
+  count, and G3 failed on it at 4.13e-04 against a tolerance of 1e-4.
 - **`node_gradient_eps` as the source of the 6e-09.** Invariant across four
-  decades.
-- **Patch survival as the source.** Exactly 1.0 on both fixtures.
+  decades. **Patch survival** as its source: exactly 1.0 on both fixtures. **XAD's
+  `pow`**: bit-identical to `std::pow` at an active scalar over the fixture's
+  whole height range.
 - **Caching as parity's lever.** It already caches in process and on disk, keyed
   by the compiled object's checksum, and forks across regimes, so it costs its
   slowest regime rather than their sum.
-- **`swept` as a redundant cache key in incidence.** A swept object cannot answer
-  for the run, because the sweep adds to the tallies the run leaves.
+- **A cross-file cache for the three drivers incidence and parity share.**
+  `Config/testthat/parallel: true` puts the two files in separate processes and
+  an on-disk cache outside `tempdir()` is not available under `R CMD check`, so
+  sharing the runs would mean merging the files. The recipe is shared instead.
