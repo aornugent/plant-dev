@@ -35,8 +35,9 @@ Write them to `STYLE.md`. Before opening any, clear `catalog.md`: it lists what
 not reach a maintainer.
 
 `test-review.md` is the measurement behind two of catalog's rows: what the tests
-cost a check leg, where that cost comes from, and one numerical disagreement
-found while measuring it.
+cost a check leg, where that cost came from, and the numerical disagreement found
+while measuring it -- which turned out to be a reference holding fixed a node the
+seed differentiates.
 
 ## Sources
 
