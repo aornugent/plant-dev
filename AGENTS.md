@@ -150,7 +150,7 @@ header dependencies, so `R CMD INSTALL` after editing `inst/include/` reuses a s
 
 **2. Installing `phylloptim` can replace the `odelia` fork with upstream's, and the
 error names neither package.** `phylloptim/DESCRIPTION` carries
-`Remotes: traitecoevo/odelia@v0.2.1`, so a **dependency-resolving** installer
+`Remotes: traitecoevo/odelia@v0.5.0`, so a **dependency-resolving** installer
 (`install.packages(".")`, `devtools::install()`, `pak`) fetches upstream odelia over
 the locally built fork. Upstream's carries none of the reverse-mode surface the
 sweep calls, so the next `plant` build fails on a name that has been in your tree
@@ -163,8 +163,16 @@ is the one thing about the fork that cannot be renamed:
 
 ```sh
 Rscript -e 'cat(as.character(packageVersion("odelia")))'
-# 0.2.1 is what the pin fetches, i.e. upstream won; the fork is 0.3.1 or later
+# the version the pin names is what upstream would install; a different one is the fork
 ```
+
+⚠️ **THAT READING IS CURRENTLY BLIND, AND THE PIN IS WHY.** It worked while the pin
+named `@v0.2.1` and the fork was 0.3.1 or later. The pin now names `@v0.5.0`, which is
+the fork's OWN version, so the day upstream carries that tag both answer 0.5.0 and the
+version separates nothing. Until then the tag does not exist upstream at all
+(`traitecoevo/odelia` stops at v0.4.0), so a resolving installer FAILS on the ref
+rather than swapping silently -- which is the loud form of this hazard and the only
+guard it currently has. Re-read this the day the tag lands.
 
 ⚠️ **Do not put a symbol back here.** This check used to grep
 `solve_adjoint_over_widenings` out of `sweep.hpp`, and the recording track renamed the
@@ -481,6 +489,11 @@ which was true of the bit-exact run on Linux and taught everyone to ignore the o
 guard that could speak: two commits stated that the operating-point surface had moved
 and that the file re-blessed, neither re-bless landed, and the staleness sat unread.
 
+⚠️ **Read `test_golden`'s `golden:` SUMMARY line, not its FAIL lines.** Per-point
+failures are elided in that output, so the summary is its only complete statement --
+and two passes over this suite reported it green by grepping for failures and finding
+none. An absent FAIL line is not a pass.
+
 ⚠️ **The R suite needs the package namespace as its parent environment, and without it a
 third of the suite reports as broken code.** Several tests call internals by name, so a plain
 `test_dir()` reports *"could not find function"* — which reads like a missing binding and is a
@@ -551,11 +564,15 @@ landing:
 * **That every pinned version is the version installed.** Compare
   `plant/DESCRIPTION`'s `LinkingTo` against `packageVersion()` for each sibling.
 * **That every `Remotes:` entry names a ref that still resolves.**
-  `plant/DESCRIPTION` and `phylloptim/DESCRIPTION` both pin `ad/v3-forward`, a
-  branch on a fork. Those resolve today and stop resolving the moment the branch
-  is merged and deleted, at which point neither package can be installed and the
-  error names a ref rather than a cause. Point them at a tag or at a default
-  branch as part of landing. `git ls-remote --exit-code <url> <ref>` is the check.
+  ⚠️ **TWO OF THEM DO NOT, TODAY.** `plant/DESCRIPTION` pins
+  `traitecoevo/odelia@v0.5.0` and `traitecoevo/phylloptim@v0.9.0`, and
+  `phylloptim/DESCRIPTION` pins the first of those; upstream odelia stops at
+  **v0.4.0** and upstream phylloptim at **v0.8.1**. So a dependency-resolving
+  install of either package fails on a ref that does not exist, and the error
+  names the ref rather than the cause. This is landing ORDER rather than a
+  defect -- the tags appear when those two releases land upstream -- but nothing
+  installs until they do. `git ls-remote --exit-code <url> <ref>` is the check,
+  and it is the one nobody had run.
 
 ## What is named once, and where
 
