@@ -14,13 +14,13 @@ const S drain  = Ppos - P;              // shortfall met from reserves
 vars.set_rate(state_idx_storage, charge * (1.0 - r) - drain * r);
 ```
 
-Restoring those three lines and the domain refusal beside them takes
-`test-strategy-tf24.R` from 65 pass 15 fail to 80 pass 0 fail. The four storage
+Restoring that rate, the unclamped read it needs and the domain refusal beside
+it takes `test-strategy-tf24.R` from 65 pass 15 fail to 80 pass 0 fail. The four storage
 invariants hold, and the eight scenario pins come back from `82.09` and `67.54`
 on the height coordinate -- values this file's own comment records as the ones
 #619 replaced -- to the pinned `30.22` and `23.20`.
 
-## It happened twice, and the second time is the only one left
+## It happened twice, and the audit says not a third
 
 `dafa22cf` caught the first instance on 11 September: `pars.use_energy_balance`
 and `pars.d` were set on the Leaf in the `.cpp` and the port did not carry the
@@ -119,7 +119,3 @@ environment variable. All fourteen gradient-ladder files report zero skips acros
 ⚠️ **`NOT_CRAN=true` or the drift guard does not run.** `expect_snapshot_value`
 calls `skip_on_cran()` internally, so `test-model-version.R` reports `skip=4`
 without it and its real state with it.
-
-⚠️ **Do not rebuild a library a run is reading.** One measurement was lost that
-way: a library was reinstalled while the suite was still open on it, and the
-numbers from that run are unattributable.
