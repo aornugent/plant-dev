@@ -32,12 +32,18 @@ order, not a fault.
 | 3 | `plant:develop` ← `ad/V4-reverse-tf24` | — |
 
 Write them to `STYLE.md`. Before opening any, clear `catalog.md`: it lists what
-not reach a maintainer.
+must not reach a maintainer.
 
 `test-review.md` is the measurement behind two of catalog's rows: what the tests
 cost a check leg, where that cost came from, and the numerical disagreement found
 while measuring it -- which turned out to be a reference holding fixed a node the
 seed differentiates.
+
+`transcription.md` is behind four more, and behind the one thing a reviewer of
+`a02588c1` needs before reading 2400 lines of templating: that commit dropped
+model content twice, and the audit bounding it to those two. Read it before
+judging a fixture that disagrees with develop, because most of them were
+measuring the second one.
 
 ## Sources
 

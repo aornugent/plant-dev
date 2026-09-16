@@ -275,54 +275,44 @@ before you rely on either** — the figures this file used to give were taken at
 debug optimisation level, which is about five times slower and moves the
 trajectory as well.
 
-⚠️ **The cost of a file is decided by the patch lifetime its fixture runs, not by
-which tier it is in.** Every TF24 stand crosses a stiffness cliff a little past a
-lifetime of 3, so a single file outside the expensive tier can take longer than
-the whole of it. Measured on one stand at TF24's default leaf mass per unit area:
+⚠️ **THERE IS NO STIFFNESS CLIFF, AND ANY COMMENT SAYING OTHERWISE PREDATES
+`27e1f57b`.** This file carried one for months: a table showing a TF24 stand at
+TF24's default leaf mass per unit area going from 205 accepted steps at a patch
+lifetime of 3 to 842 at 3.25 and 9576 at 5, at 267 s. That was the storage pool
+integrating past its own ceiling, which the templating commit reintroduced by
+transcribing `compute_rates` from a copy predating #619. The same six fixtures on
+the bounded pool:
 
 | patch lifetime | 3 | 3.1 | 3.25 | 3.5 | 4 | 5 |
 | --- | --- | --- | --- | --- | --- | --- |
-| accepted steps | 205 | 215 | **842** | 3324 | 6068 | 9576 |
-| seconds | 2.7 | 3.0 | 20.1 | 89.5 | 167.6 | 267.1 |
+| accepted steps | 206 | 219 | 233 | 257 | 302 | 407 |
+| seconds | 3.0 | 3.4 | 3.6 | 4.2 | 5.0 | 7.3 |
 
-⚠️ **BUT THE LIFETIME IS A PROXY, AND THE THING TO COUNT IS THE INTRODUCTIONS.**
-The two are confounded above, because the DEFAULT schedule is derived from the
-lifetime and it is the schedule that does the work. Held at lifetime 5, varying
-only how many of that schedule's 88 introductions are kept:
+⚠️ **THE INTRODUCTIONS ARE STILL THE LEVER, AND THEY ARE NOW THE WHOLE OF IT.**
+The lifetime and the schedule were confounded above, because the DEFAULT schedule
+is derived from the lifetime and it is the schedule that does the work. Held at
+lifetime 5, varying only how many of that schedule's 88 introductions are kept:
 
 | introductions | 2 | 6 | 12 | 22 | 44 | 88 |
 | --- | --- | --- | --- | --- | --- | --- |
-| accepted steps | 136 | 140 | 146 | 156 | 178 | **9881** |
-| seconds | 0.1 | 0.3 | 0.4 | 0.7 | 1.5 | **288** |
+| accepted steps | 139 | 172 | 200 | 265 | 328 | 407 |
+| seconds | 0.1 | 0.3 | 0.6 | 1.3 | 3.0 | 7.3 |
 
-⚠️ **BOTH TABLES ARE MEASURED AT ONE LIFETIME AND THE FIRST IS THE ONE TO READ
-FOR THE CLIFF.** Every point in the second sits at a lifetime of 5, which is
-already past it, so what that table measures is the cost of cohorts inside the
-stiff regime rather than the entry to it. The cost per cohort-step FALLS across
-its whole range, 0.47 ms to 0.19 ms, so the solver is taking the steps rather
-than the arithmetic getting slower.
+Both tables are smooth now and the second spans 73x where the first spans 2.4x,
+so a slow TF24 test is a test with many cohorts. Thinning a schedule still works
+and is still worth doing — but the thinning already in the tree bought about
+twenty times what its comments claim, because those were measured against the
+reverted pool. `test-mutant.R`'s TF24 replay reads 311 steps in 2.7 s at twenty
+introductions and 497 in 18 at the full 89, where the same four fixtures read
+6071 in 71 and 12714 in 623. ⚠️ **Thinning is still not free**: parity's
+`seasonal` loses two operating-point kinds at twenty and keeps its whole
+schedule, so check what a fixture reaches before thinning it.
 
-**Which makes the introduction count the lever a slow test has.** A patch
-lifetime buys the regime; the cohorts are what it costs. Thinning the default
-schedule to twenty introductions took `test-mutant.R`'s TF24 replay from 12714
-recorded steps in 623 s to 6071 in 71, `test-gradient-incidence.R`'s clamped
-stand from 258 s to 18, and `test-gradient-parity.R`'s `shaded` driver from 319 s
-to 22 — each keeping every property its block asserts. ⚠️ **It is not free
-everywhere**: parity's `seasonal` loses two operating-point kinds at twenty and
-keeps its whole schedule, so check what a fixture reaches before thinning it.
-
-`test-events.R` is the case to know, and it is not this branch's doing. One of its
-26 blocks — *"pulses wet the soil during a run"* — is the whole of its cost; the
-other thirteen measured are milliseconds each. It clears `node_schedule_times`
-meaning to shorten the run, which makes `add_strategies` regenerate the DEFAULT
-schedule for a lifetime-5 patch: 88 introductions. The same recipe at two
-introductions is 0.1 s. The file is byte-identical to `develop`,
-`node_schedule_times_default` is unchanged, and under the height-linear
-configuration `stem_hydraulics.h` states is bit-identical to the pre-#617 model
-the same fixture takes 9019 steps against 9881 — ten per cent, not fifty-five
-times.
-
-So when a test is unexpectedly slow, count its introductions first.
+`test-events.R` used to be the case to know and no longer is: it ran the DEFAULT
+schedule for a lifetime-5 patch, 88 introductions, because one of its 26 blocks
+clears `node_schedule_times` meaning to shorten the run and `add_strategies`
+regenerates it. That block was the whole of the file's cost and this file used to
+say the file did not finish at all. It finishes in 107 s at 144 checks.
 
 Tiers of the loop, cheapest first:
 
