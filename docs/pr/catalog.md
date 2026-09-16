@@ -463,9 +463,12 @@ from R. The prefix **partitions** them now, which the file's own header used
 to flag as wrong: 24 are `ladder_`, called from `tests/testthat/` and nowhere else,
 and the 6 spelled `census_` are exactly the ones `NEWS.md` publishes with migration
 lines — the five incidence counters and `census_trait_gradient_split_tf24`. So D's
-count is **27 test-only, not ~28**.
+count is **24 test-only**, which is what D's row says; the 27 this line used to
+give was 33 minus six and outlived the three removals above.
 
-What is left is not excess. A transpose cannot be refereed from its composition:
+What is left is not excess, and none of it is dead: every one of the thirty has a
+caller in `tests/testthat/` or `scripts/`, re-checked by name after the test
+restructuring. A transpose cannot be refereed from its composition:
 `stand_gradient` returns one number per (metric, trait) over a whole run, and a
 wrong row is wrong in both directions. The four references need to see the forward
 and reverse maps at one point, and reference 4 exists because differencing a
