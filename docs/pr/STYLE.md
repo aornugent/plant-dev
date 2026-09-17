@@ -104,10 +104,10 @@ the same length, is a rhythm a reader stops hearing.
 
 Announcing significance instead of delivering it:
 
-> ✗ Five stages, not six, and the reason is load-bearing. The sixth rate
->   evaluation is at the state the step ends at…
+> ✗ A sweep reads five of the six, and the reason is load-bearing. The sixth
+>   rate evaluation is at the state the step ends at…
 
-> ✓ The array is five long and not six, and the reason is a property of the
+> ✓ A sweep reads five of the six entries, and the reason is a property of the
 >   stepper. Runge–Kutta–Cash–Karp is first-same-as-last: the sixth rate
 >   evaluation happens at the state that step ends at, which is precisely the
 >   state the next step begins from…

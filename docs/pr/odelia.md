@@ -21,7 +21,7 @@ thousand adaptive steps performs far more than memory holds.
 stores one `step_record` per accepted step; the reverse pass re-records
 one step's arithmetic at a time, so the tape never grows past a single
 step. `implicit_node.hpp` attaches a derivative obtained by other means,
-for a value a submodel solved for instead of computing. `spline.hpp`
+for a value a submodel solved for by iteration. `spline.hpp`
 becomes `hermite_interpolator`, which takes a slope alongside each knot
 value; values move for a caller that has only knot values. `ode_fit.hpp`
 and its `Solver_fit()` / `Solver_set_target()` bindings are removed, and
@@ -63,7 +63,7 @@ because `solve_adjoint` re-runs the model as it goes.
 - **statement** — one tape entry: a single left-hand side over a run of operations. Cost is statements, not operations. `a = b*c + d*e` is one; two assignments are two.
 - **recording** — what sits on the tape between clears. Here, exactly one solver step.
 - **seed** — the starting derivative for a backward walk. One per output.
-- **row** — one output's derivatives against a list of inputs. `adjoint_rows` is a batch, because several seeds can share one traversal.
+- **row** — one output's derivatives against a list of inputs. `adjoint_rows` is a batch, because several seeds can share one recording.
 - **range** — consecutive recorded steps at constant state width. A System of fixed width has one; plant opens a new one at every cohort introduction.
 
 ## What `solve_adjoint` requires
@@ -84,7 +84,7 @@ whichever was written first. The return is the number of ranges swept.
     ├─► step()                           ├─► range N … 1            widest first
     │     6 × ode_rates()                │     │
     │     error, accept or shrink        │     ├─► step k … 1       last to first
-    │                                    │     │     ├─ load rec[k].state
+    │                                    │     │     ├─ load rec[k-1].state
     └─► push_step() ──► rec[k] ──────────┘     │     ├─ re-run 6 stages ───┐
                                                │     ├─ sweep × n_seed     │
                                                │     └─ Tape::clearAll()   │
@@ -96,9 +96,9 @@ whichever was written first. The return is the number of ranges swept.
         runs twice per step: forward in double, again here at active_scalar
 ```
 
-That bottom edge is the one to hold onto. The reverse pass re-runs the model
-rather than reading cached rates, at six rate evaluations per accepted step —
-so a descent costs as much model evaluation as the forward solve did. Anything
+The reverse pass re-runs the model at six rate evaluations per accepted step,
+reading no cached rates, so a descent costs as much model evaluation as the
+forward solve did. Anything
 cached between calls, or depending on the order rates are computed in, differs
 between the two passes unless something makes it agree.
 
@@ -113,7 +113,8 @@ largely unaffected. One entering a sweep adds `rebind_from`, `ad_parameters`,
 
 `rebind()` becomes `rebind_from()`, with the target scalar named and not
 defaulted: *"defaulting it to the System's own scalar asks whether a System can
-rebind to the scalar it already has, which is a different question"* (`:109`).
+rebind to the scalar it already has, which is a different question"* — the
+`Rebindable` concept carries that sentence at its own site.
 The old form could be satisfied by a System that could not actually lift itself.
 
 R loses `Solver_fit()`, `Solver_set_target()` and the `active` argument on all
@@ -139,7 +140,7 @@ Rewritten: `interpolator.hpp` (+479 −117, absorbs the spline),
 
 Read `tangent.hpp` and `with_slope.hpp` first — 130 lines, and everything uses
 them. Then `step_record` in `ode_interface.hpp` for what a record holds, `push_step`
-for the only place one is written, `vector_jacobian_product` for the sweep
+and `push_insertion` for the two places one is written, `vector_jacobian_product` for the sweep
 primitive, and `solve_adjoint` for the loop over ranges.
 `implicit_node.hpp` is independent of the solver.
 
@@ -155,43 +156,44 @@ primitive, and `solve_adjoint` for the loop over ranges.
     ├── step_size   double         h, as accepted
     ├── insertion   bool           did the state vector grow here
     ├── state[]     state_type     the full state the step began FROM
-    └── solved[5]   solved_values  what five of the six stages solved for
+    └── solved[6]   solved_values  what its six rate evaluations solved for
 ```
 
-Memory across a descent is `n_steps × (n_state + 5 × sizeof(solved))`. Stage
+Memory across a descent is `n_steps × (n_state + 6 × sizeof(solved_values))`. Stage
 rates and the intermediate stage states are absent by choice: recomputing them
 costs six model evaluations per step, holding them costs the whole trajectory,
 and for a right-hand side this cheap relative to its own length the recomputation
 wins easily.
 
-`solved[5]` exists for the one class of value that is neither cheap to recompute
+`solved` exists for the one class of value that is neither cheap to recompute
 nor derivable from the state — anything a root-find produced inside a stage. For
 plant that is a leaf's operating point, found by iteration, whose value depends
 on where the iteration started. A later pass cannot re-derive it; it has to be
 told.
 
-The array is five long and not six, and the reason is a property of the stepper.
+The array is six long and its two readers take different prefixes of it.
 Runge–Kutta–Cash–Karp is first-same-as-last: the sixth rate evaluation of a step
 happens at the state that step ends at, which is precisely the state the next
-step begins from, so the next step reuses it as its own first stage. A sweep
-therefore re-derives that evaluation from the state it was handed rather than
-reading it from anywhere. Nothing stores it.
+step begins from, so the next step reuses it as its own first stage.
+`step_adjoint` reads `solved[0..4]` and re-derives the first from the state it
+was handed, which makes one property structural: a walk that jumps into the
+middle of a recording cannot trust that recording's first stage, because the
+value it would need belongs to the row below. A forward replay reads all six,
+because re-deriving is what it replays to avoid, and a step whose first stage was
+re-derived is wrong at first order in h.
 
-The consequence is structural rather than a convention someone has to remember: a
-walk that jumps into the middle of a recording cannot trust that recording's
-first stage, because the value it would need lives in the row below.
-
-`step_record` inherits `instruction` rather than repeating its three fields. As
+`step_record` inherits `instruction`, which holds its three scheduling fields. As
 separate structs differing by one member, pairing a time out of one container
 with a state out of another was a thing that compiled.
 
 ## What happens where the state vector grows
 
 plant introduces cohorts on a schedule fixed before the run, and each
-introduction lengthens the state vector by that cohort's entries. Because the
-schedule is fixed rather than triggered by the state, the time at which an
-introduction happens carries no derivative — which is what makes the widening a
-linear map that can be transposed instead of a discontinuity that cannot.
+introduction lengthens the state vector by that cohort's entries. The schedule is
+an input to the solve, so the time at which an introduction happens carries no
+derivative with respect to anything the solve computes — which is what makes the
+widening a linear map that can be transposed instead of a discontinuity that
+cannot.
 
 Going forwards the vector only grows, so going backwards the sweep only narrows.
 The obvious implementation of that narrowing is to drop lambda's extra entries.
@@ -252,9 +254,8 @@ to_passive(x))` in a loop over rows, it is `n` recorded assignments, and that is
 exactly how a submodel's entire arithmetic ends up on its consumer's tape one
 row at a time.
 
-The size of that difference is worth putting a number on, because it decides the
-design. Counted in statements walked — recording and sweeping cost the same
-traversal — with `T` submodel statements, `k` seeds and `m` outputs:
+Counted in statements walked — recording and sweeping cost the same traversal —
+with `T` submodel statements, `k` seeds and `m` outputs:
 
 | | walks per solve | at T=360, k=3, m=6 |
 |---|---|---|
@@ -289,10 +290,10 @@ handed a name for a tape it has no use for.
 Nesting the two is a compile error — the `static_assert` in `tangent_over`. At an active inner scalar,
 every operand copy inside an expression template becomes a recorded statement,
 and because expression templates nest, the growth is superlinear in expression
-depth. Three kernels costing 31 statements written flat cost 566 nested — 18
-times as much for the same arithmetic. Refusing it at compile time rather than
-documenting it is the difference between a build error and a run that is merely
-slow for reasons nobody can see.
+depth. Three kernels costing 31 statements written flat cost 566 nested — 18.3
+times as much for the same arithmetic. Refusing it at compile time makes that a
+build error, where documenting it leaves a run that is merely slow for reasons
+nobody can see.
 
 `with_slope<T>` pairs a value with its slope in one type. The alternative is two
 arguments, and a consumer handed two arguments can pair a value and a slope taken
