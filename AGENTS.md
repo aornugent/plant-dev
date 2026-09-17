@@ -277,13 +277,15 @@ files, the surface tier **43 s wall / 74 s CPU** over 2. The surface tier is the
 SLOWER of the two by the clock despite being an eighth of the files, because wall
 time is bounded by the slowest single file and `test-gradient-incidence.R` is it.
 
-⚠️ **THERE IS NO STIFFNESS CLIFF, AND ANY COMMENT SAYING OTHERWISE PREDATES
-`27e1f57b`.** This file carried one for months: a table showing a TF24 stand at
-TF24's default leaf mass per unit area going from 205 accepted steps at a patch
-lifetime of 3 to 842 at 3.25 and 9576 at 5, at 267 s. That was the storage pool
-integrating past its own ceiling, which the templating commit reintroduced by
-transcribing `compute_rates` from a copy predating #619. The same six fixtures on
-the bounded pool:
+⚠️ **THERE IS NO STIFFNESS CLIFF, AND ANY COMMENT SAYING OTHERWISE PREDATES THIS
+BRANCH'S STORAGE POOL.** This file carried one for months: a table showing a TF24
+stand at TF24's default leaf mass per unit area going from 205 accepted steps at a
+patch lifetime of 3 to 842 at 3.25 and 9576 at 5, at 267 s. That was the storage
+pool integrating past its own ceiling — the form `compute_rates` runs when it is
+transcribed from a copy predating #619, which is a live hazard because the whole
+of TF24 is now transcribed into `tf24_strategy.h`. What the header carries is
+#619's charge and drain, each limited by the room the other has. The same six
+fixtures on the bounded pool:
 
 | patch lifetime | 3 | 3.1 | 3.25 | 3.5 | 4 | 5 |
 | --- | --- | --- | --- | --- | --- | --- |
