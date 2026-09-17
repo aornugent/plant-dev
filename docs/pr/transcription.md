@@ -76,13 +76,17 @@ deleted the refusal, and nothing has thrown since.
 
 **The dry pins.** `test-gradient-incidence.R` asserted that fewer than 5 per cent
 of a dry stand's solves land on the pinned branch and the stand returns 54.65.
-The stem path integral is what moved it, not the pool: resistance rises for a
-plant shorter than the anchor and falls for a taller one, so a seedling in a dry
-stand reaches its critical potential where it used to stay interior. Measured on
-the same stand with `D_c`, `theta_c` and `L_tip` at zero and `K_s` at 1, the
-configuration `test-strategy-tf24.R` states recovers the model the path integral
-replaced: **0.90 per cent against 54.65**. The band was written at `ebd6c32c`,
-two days before that merge.
+The stem path integral moved it, and through its SHAPE rather than its level.
+Held height-linear and raised uniformly by 1.2x to 2.978x, resistance takes the
+share to zero: a stand that transpires less keeps its soil. Held at the 1 m
+anchor by re-deriving `K_s` and swept in `D_c`, it takes 0.90, 6.34, 16.53,
+26.83, 46.96 and 54.65 per cent at `D_c` = 0 to 0.20, with the stand's minimum
+soil moisture falling 0.13204 to 0.13017. That is the channel `tf24_strategy.h`'s
+v10 note already names: a plant taller than the anchor pays 0.35 of the
+height-linear resistance, transpires faster, and takes the shared column with it.
+The band was written at `ebd6c32c`, two days before that merge, and the stand
+sits on a plateau past the knee -- rainfall 0.50 to 0.20 gives 0.11, 13.45,
+45.40, 52.22, 54.65 and 60.82 per cent.
 
 **K93's survivor count.** `test-stochastic-patch-runner.R` carried a note saying
 both sides had moved its baseline, that the merged value is neither, and to
@@ -90,17 +94,37 @@ re-bless from a run of the merged tree. Nobody did, so it has been one failure
 red since the merge. K93 reads neither a storage pool nor a leaf, so the light
 field holding its knot data once is the only change here it can see.
 
-## One thing the fix made visible
+## One thing the fix made visible, and it is a defect
 
 `reference_range_gap` held `shaded` and `clamped`, so the captured whole-run
 difference has never refereed them, though it has carried 280 rows for each all
-along. Refereed now, they disagree at `9.9e-03` and `8.0e-03` where the other
-three regimes sit at or under `1.1e-03`, and the split is exactly the two that
-reach `shade-death`. That exit places the collar on the wet bound, where
-phylloptim's `duptake_dpsi` returns its not-a-number sentinel to say the analytic
-branch does not hold and the marginal profit falls back to a central difference
-at the same collar. So the rung compares two difference schemes across a kink
-there, and its floor now follows the counter instead of the regime's name.
+along. Refereed now, ten columns disagree by about one per cent, and **the sweep
+is the one that is wrong**.
+
+Every one of the ten is `theta` or `omega`, the birth-size pair, on the species
+the stand suppresses. Nothing else disagrees on any regime.
+
+Three mechanisms were tested and none holds. Sweeping `k_I`, the gap does not
+track `shade-death` -- at `k_I` = 5 a stand reaches it with no light floor at all
+and agrees to `8e-04` -- nor the light floor, which clamps heavily at `k_I` = 8,
+10, 15 and 40 where the columns agree. Tightening the solver tolerance a
+hundredfold moves the sweep by 0.14 per cent and leaves the gap at 0.85.
+
+What settles it is scanning the census against `theta` directly. On the clamped
+stand it is smooth to `3e-09` relative over the innermost ±`2e-05`, and its
+fitted local slope is **1105.19** where the sweep reports **1094.71**. A forward
+tangent of the same trajectory reproduces the sweep to `1e-11`, so both
+differentiated paths carry the same error. That is the one failure no other rung
+can see, and the reason this one compares against arithmetic it shares nothing
+with.
+
+The row is not yet localised. `seed_geometry()` carries the seed height's
+derivative through `implicit_value`, so the helper comment in
+`helper-gradient-ladder.R` saying both differentiated paths impose it to zero no
+longer matches the code, and which of birth size's channels is short is the next
+question. Until then the rung holds an exact expected count, 4 and 6, rather than
+a widened floor: a floor wide enough to pass is wide enough to hide the next
+one.
 
 ## Where the suite stands
 
