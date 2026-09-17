@@ -151,8 +151,27 @@ an artefact of the rung normalising each residual by its metric's largest column
 which hides a 1 per cent error on a small column. Scanned directly against the
 census, ten of fourteen columns are 0.4 to 1.4 per cent low at `k_I = 40`.
 
-Until it is fixed the rung holds an exact expected count, 4 and 6, rather than a
-widened floor: a floor wide enough to pass is wide enough to hide the next one.
+### The fix
+
+The field is held against `u = height / height_max` with the knots fixed at
+`u_k`, so nothing moves and the dependence on the canopy top travels in the
+division a query does. The reduction is asked at the knots' heights, which are
+active; slopes are stored per `u`; the canopy top joins a cohort's reads, so the
+block has a column for it and the next severance here would be visible. Heights
+and per-height slopes still cross the R and replay boundaries, taken from the
+grid the field was built at, so that round trip stays bit-identical.
+
+| instrument | before | after |
+|---|---|---|
+| state Jacobian against a plain-double difference, `k_I = 100` | `4.1e-06` | **`6.2e-10`** |
+| the same at `k_I = 0.5`, where it was already clean | `1.2e-07` | **`7.0e-10`** |
+| `d(census)/d(lma)` against a direct scan, `k_I = 40` | `8.9e-03` | **`4.1e-06`** |
+| whole-run reference, `shaded` and `clamped` | `9.9e-03`, `8.0e-03` | **agree at the 2e-3 floor** |
+
+The forward model moves `6e-10` to `9e-09` relative, which is the division
+reassociating rather than a change to what it computes, so `scientific_version`
+does not move. Full suite after: **77 files, 4222 pass, 2 fail, 0 error, 6 skip**,
+the two being `test-mutant.R`'s pre-existing FF16 panels.
 
 ## Where the suite stands
 
