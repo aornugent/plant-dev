@@ -21,8 +21,8 @@ re-runs and does not converge where a trait moves an event in the run.
 `list(value, gradient, refusal, control)`. The model is templated on its
 scalar: `Internals` becomes `Internals<double>` and `Individual::state`
 returns `const value_type&`. `run_scm()` takes `record_trajectory` where
-it took `use_ode_times`; `NodeSchedule` holds one row per instant, so
-`$size` counts instants not introductions; `Interpolator` is gone and
+it took `use_ode_times`; `NodeSchedule` holds one row per introduction
+time, so `$size` counts those; `Interpolator` is gone and
 `ResourceSpline` carries height, value and slope. TF24 numbers move:
 `GSS_tol_abs` 1e-3 to 1e-1, `vulnerability_curve_ncontrol` 100 to 400.
 
@@ -73,7 +73,7 @@ calculation holding the neighbours fixed gives the wrong direction.
 - **census metric** — a stand reduced to one scalar. TF24 declares three: `leaf_area`, `mass_above_ground`, `area_stem`.
 - **row** — one output's derivatives against a list of inputs. phylloptim supplies the leaf's rows; the sweep never records its solve.
 - **refusal** — a declared reason a metric has no derivative, carried beside NaN.
-- **range** — consecutive recorded steps at constant state width. A new one begins at each introduction; the century fixture has 169.
+- **range** — consecutive recorded steps at constant state width. A System of fixed width has one; plant opens a new one at every cohort introduction.
 
 Of TF24's 67 parameter-table entries, 19 are `undifferentiable`, leaving 48
 columns per species. Columns are named `"1.lma"` — species-major, because two
@@ -96,7 +96,7 @@ would otherwise return species one's column for both.
     │       state rows   d(metric)/d(final state)
     │       trait rows   d(metric)/d(trait), read directly
     │
-    ├─► lambda STARTS at the trait rows
+    ├─► trait_adjoint STARTS at the trait rows; lambda at the state rows
     │
     ├─► solver.solve_adjoint(...)             odelia
     │     │
@@ -129,43 +129,46 @@ interleaved in one sitting.
 | old | new |
 |---|---|
 | `run_scm(..., use_ode_times, ...)` | `run_scm(..., record_trajectory, ...)` — same position, different meaning, so a positional caller gets the wrong flag |
-| `Interpolator$new()` | gone; `ResourceSpline` carries height, value and slope |
+| `Interpolator()` | gone; `ResourceSpline` carries height, value and slope |
 | `sched$next_event` | `sched$next_introduction` |
 | `sched$ode_times <- x` | `sched$set_ode_steps(times, sizes)` |
-| `sched$size` | counts instants, not introductions |
+| `sched$size` | counts distinct introduction times, where it counted one entry per species per time |
 | `Control$save_RK45_cache` | gone; `Control$gradient_curvature_floor` added |
 | `patch$introduce_new_node(i)` | `patch$introduce_new_node(i, time)` |
 | `plant::Internals` | `Internals<double>` |
 | `Individual::state` returning `double` | returning `const value_type&` |
-| `plant/adaptive_interpolator.h`, `optimize.h` | odelia's |
+| `plant/adaptive_interpolator.h` | odelia's `interpolator.hpp` |
+| `plant/optimize.h` | deleted; it had no callers |
 
 Forward numbers move for every TF24 run whether or not a gradient is taken:
 `GSS_tol_abs` 1e-3 → 1e-1, `vulnerability_curve_ncontrol` 100 → 400. FF16 and
 K93 go `scientific_version` 1 → 2 on the birth-date coordinate.
 
 Two pinned values move with them, and `R CMD check` is red on both:
-`test-mutant.R`'s ten-mutant panels, at 2–4e-4 on FF16. The machinery under them
-is exact — a strategy replayed as an invader of itself returns the resident's own
-fitness to 1e-15 — and the drift has a referee that owes `develop` nothing.
+`test-mutant.R`'s ten-mutant panels, worst 4.1e-4 and 6.0e-4 relative on FF16.
+The machinery under them is exact — a strategy replayed as an invader of itself
+returns the resident's own fitness to 1e-13 on FF16 and 4e-15 on TF24 — and the
+drift has a referee that owes `develop` nothing.
 Invasion fitness is what a strategy attains when vanishingly rare, so running the
 mutant endogenously at birth rate e and letting e → 0 gives the limit directly:
 the gap to this branch's replayed value falls 9.99x then 11.1x per decade, which
 is the first order that limit must have, while the gap to `develop`'s pin falls
 29.5x, which is no convergence rate at all. The same drift is already visible in
 the resident pins that pass, at −2.2e-5 and +4.7e-5. Re-pinning accepts a change
-to the model's science, so it wants a `scientific_version` decision rather than a
+to the model's science, so it wants a `scientific_version` decision ahead of any
 `snapshot_accept`.
 
-The rest of the check is `FAIL 2 | SKIP 5 | PASS 4641` on Linux, with one NOTE:
-`stderr` appears in `census_gradient.o` and `gradient_ladder.o`, which are the
-two objects carrying an adjoint sweep. It comes from odelia's
+On Linux the check reads `FAIL 2 | SKIP 5 | PASS 4641`, with one NOTE and one
+WARNING; the WARNING is the check host reporting it cannot set a UTF-8 locale.
+The NOTE is `stderr` in `census_gradient.o` and
+`gradient_ladder.o`, which are the two objects carrying an adjoint sweep. It comes from odelia's
 `ODELIA_ADJOINT_TRACE` diagnostic, dead unless that variable is set in the
 environment, and not from `odelia::util::warning` — `RcppR6.o` includes that
 helper through `scm.h` and references no `stderr` at all.
 
 The gradient is TF24's. `census_gradient.cpp` names `TF24_Strategy` throughout
 and `tf24_strategy.h` is the only file declaring `census_metrics`, so an FF16
-stand handed to `stand_gradient()` fails in an `Rcpp::as` type error rather than
+stand handed to `stand_gradient()` fails in an `Rcpp::as` type error and not
 a model-level refusal.
 
 ## Files
@@ -182,14 +185,14 @@ a model-level refusal.
 | `clamp_sites.h` | 95 | new |
 | `with_slope.h` | 38 | new — alias of odelia's |
 
-Deleted: `adaptive_interpolator.{h,cpp}`, `optimize.h`, and four `src/` files —
-`tf24_strategy.cpp`, `tf24f_strategy.cpp`, `tf24_node.cpp`, `tf24f_node.cpp`.
+Deleted: `adaptive_interpolator.{h,cpp}`, `optimize.h`, and the two strategy
+bodies `tf24_strategy.cpp` and `tf24f_strategy.cpp`, which the header absorbed.
 `NAMESPACE` gains six and loses one: `stand_gradient`, `stand_census`,
 `stand_census_state_adjoint`, `stand_gradient_compare`, `stand_gradient_refused`
 and `gradient_control` arrive, `Interpolator` goes. That is the whole of the
-public R surface this adds — the 80-odd other new functions under `R/` are
-`RcppExports.R` and `RcppR6.R`, regenerated from the export attributes and the
-YAML.
+public R surface this adds. `R/` gains 82 functions and loses 22; of the 76 that
+are not those six, 74 are `RcppExports.R`'s, regenerated from the export
+attributes, and two are private helpers in `stand_gradient.R`.
 
 Read `census.h` and `census_gradient.h` first — 118 lines, and they say what a
 metric and a refusal are. Then `SCM::census_trait_gradient` end to end,
@@ -240,8 +243,8 @@ a sequence of commits that do not build is worse to review than one that does.
 
 FF16 and K93 are not templated. They pin `using value_type = double` and never
 instantiate the active path, so only TF24 pays the compile cost — which is real,
-since `tf24_strategy.h` grew from 771 lines to 2,886 by absorbing its `.cpp`, and
-twelve of the twenty-five translation units now recompile it.
+since `tf24_strategy.h` grew from 771 lines to 2,925 by absorbing its `.cpp`, and
+twelve of the twenty-six translation units now recompile it.
 
 `Individual::state` returns `const value_type&` where it returned `double`.
 Copying an active scalar registers a tape slot and records an operation, once per
@@ -322,7 +325,7 @@ the hydraulic half of a trait the carbon budget does not yet follow.
 ## Why the coordinate is birth date
 
 The size-density distribution can be carried in height or in birth date. The
-gradient refuses height rather than answering it, in `require_birth_date_coordinate`.
+gradient refuses height outright, in `require_birth_date_coordinate`.
 
 Reserve-gated growth lets a younger cohort overtake an older one. In the height
 coordinate that reorders the quadrature, which means the abscissa is itself a
@@ -376,16 +379,14 @@ Six instruments, none sufficient alone:
 | RHS differenced against prepared traits | most trait columns of the transpose | exactly zero on the 12 leaf-own traits and the 8 birth-size parameters |
 | model rebuilt from its parameters | the leaf-own traits and the seed-height row | patch only, no trajectory |
 
-⚠️ **Two columns are open against the last of those, and the pull request does
-not close them.** `theta` and `omega` agree with the whole-run difference on a
-wet stand and disagree **in sign** on drought and seasonal ones, far outside that
-reference's own 0.7–10% resolution: `2.omega` reads 276.3 against −4000 for
-`mass_above_ground`, and `1.theta` reads 0.3793 against −27.22 for `area_stem`.
-Both reach the census through channels the leaf boundary carries — `theta` as the
-leaf's maximum conductance, `omega` through birth size. They are declared in
-`test-gradient-ladder-whole-run-difference.R` and asserted in both directions, so
-a third column opening fails the rung and either of these closing fails it too.
-Every other answered column holds.
+Every answered column agrees with the whole-run difference, on all five regimes,
+at a bound of `pmax(3 × spread, 2e-3)`. `theta` and `omega` — sapwood area per
+leaf area and seed mass, the pair that reaches the census through the seed's own
+size — are the last to resolve, worst residuals 1.1e-3 on drought, 7.6e-4 on
+seasonal and 6.3e-5 on wet. That margin is the reason the bound is not widened:
+a floor loosened past 2e-3 is what hid the knot-grid defect this branch fixed,
+where the field's 65 knots were laid at `u_k × height_max` with their positions
+passivised, so the grid moved with the canopy top and carried no row.
 
 Deliberately corrupted values were injected to establish that these checks notice
 a defect when one is present. A suite that records how much margin each check had
@@ -400,10 +401,10 @@ grid.
 
 **Do not average such a grid, and do not form a covariance from one.** A single
 outlying cell of that size dominates any second moment, so the summary statistic
-is reporting the step placement rather than the ecology. The remedy is to nudge
+is reporting the step placement, not the ecology. The remedy is to nudge
 the trait a fraction of a percent and take the answer that is stable, or to
 resolve the event by forcing a step at the crossing. Nothing in the API detects
-it, so this is a thing to know rather than a thing to catch.
+it, so this is a thing to know and not a thing to catch.
 
 ## What has no row
 
@@ -416,4 +417,4 @@ And a trait row holds the hyperparameters fixed. An `lma` row is therefore about
 threefold away from the derivative with respect to the trait an ecologist means
 by leaf mass per area, which drags leaf turnover and respiration along with it.
 A sensitivity from this gradient is not a physiological effect, and the number
-cannot warn you about the difference.
+carries no warning about the difference.
