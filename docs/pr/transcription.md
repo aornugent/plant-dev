@@ -118,13 +118,41 @@ differentiated paths carry the same error. That is the one failure no other rung
 can see, and the reason this one compares against arithmetic it shares nothing
 with.
 
-The row is not yet localised. `seed_geometry()` carries the seed height's
-derivative through `implicit_value`, so the helper comment in
-`helper-gradient-ladder.R` saying both differentiated paths impose it to zero no
-longer matches the code, and which of birth size's channels is short is the next
-question. Until then the rung holds an exact expected count, 4 and 6, rather than
-a widened floor: a floor wide enough to pass is wide enough to hide the next
-one.
+### The row: the light field's knot grid
+
+`ResourceSpline` places the field's 65 knots at `u_k * height_max` and lays them
+out at `to_passive(height_max)`, on the stated ground that "the field's
+dependence on the cohorts travels in the values and slopes". It does not. The
+canopy top is the tallest cohort's height, so moving it moves the grid: at
+`k_I = 100`, a 0.1 per cent change in the top moves **64 of 65 knot positions**
+and changes the field at a FIXED query height by **2.4 per cent**. The gradient
+carries the values and the slopes and drops the grid.
+
+Everything observed follows from it:
+
+| observation | why |
+|---|---|
+| grows with `k_I` | a steeper field loses more when its knots slide |
+| both differentiated paths agree | a `to_passive` in the model, not an assembly fault |
+| `lma`, `rho`, `theta`, `omega`, `a_l2`, `a_r1`, `a_b1`, `a_st1`, `a_st2`, `K_s` wrong | each moves plant height, so each moves the canopy top |
+| `a_d0`, `a_f1`, `k_I` exact to 6e-06 | none of them moves it |
+| no rung caught it | every rung takes the field as `light_value_*` and `light_slope_*`; a knot POSITION is an input nowhere, because the code says there is no such channel |
+
+Isolated per rate evaluation: the state Jacobian against a plain-double
+difference reads `1.2e-07` at `k_I = 0.5` and `4.1e-06` at 100, crossing the
+ladder's own floor at 40, and the dominant entry is `d(rate)/d(the tallest
+cohort's height)` at 4070x the difference's own noise. No solver, no trajectory.
+
+It is this branch's: develop's `ResourceSpline` is plain `double` and carries no
+gradient at all.
+
+⚠️ **The ~1 per cent is not confined to `theta` and `omega`.** That reading was
+an artefact of the rung normalising each residual by its metric's largest column,
+which hides a 1 per cent error on a small column. Scanned directly against the
+census, ten of fourteen columns are 0.4 to 1.4 per cent low at `k_I = 40`.
+
+Until it is fixed the rung holds an exact expected count, 4 and 6, rather than a
+widened floor: a floor wide enough to pass is wide enough to hide the next one.
 
 ## Where the suite stands
 
