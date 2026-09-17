@@ -373,6 +373,13 @@ Left standing: `Status: 1 ERROR, 1 WARNING, 1 NOTE` -- the ERROR is those two
 `test-mutant.R` panels, the WARNING is the locale line above, and the NOTE is
 odelia's.
 
+⚠️ **Re-run once more after the `gradient_control` export changed its return type**,
+because a signature change is exactly what a stale `RcppExports.cpp` hides:
+identical, at **FAIL 2 | SKIP 5 | PASS 4641**, the same two `test-mutant.R` panels
+and the same locale WARNING. The assertion count is unchanged on purpose -- the
+census block traded two comparisons for two better ones, and `test-gradient-demo.R`
+never ran on this leg to begin with.
+
 ### Not ours to do
 
 ⚠️ **The `test_golden` re-bless is a MAINTAINER ACTION, ON macOS/arm64, and
