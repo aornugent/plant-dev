@@ -343,6 +343,23 @@ delete or rewrite working code.
 | 4 | Settle the query slope; make the code and the banner agree. | **The code was right and the banner was wrong**, so no code moved. The rule both functions follow: the query row is whichever the rest of the assembly already forms. dG/dpsi IS formed -- `stem_curve_integral_deriv` and `root_vuln_integral_deriv_at`, both read by the physics -- so a closed-form row there is a second value of it, measured at `dci/dcollar` 0.6913 against 0.6382. d*f*/dpsi is formed **nowhere**: `root_vuln_from_psi` is built with slopes and `.slope()` has no call site on it, every `.slope()` in the package being a dG/dpsi, and odelia's interpolator reads no second derivative at all (`interpolator.hpp:28`). So there is nothing for `closed_form_curve` to disagree with. The banner states that rule now, with the grep that decides which case a new function is in. | `phylloptim` `cdcab5f` |
 | 5 | Referee `census_trait_tangent` or delete it -- "the one export in that family with NO consumer". | ⚠️ **NOTHING TO DO, AND THE ROW WAS WRONG.** `census_trait_tangent` is not an export: it is `scm.h:1222`'s C++ method under the `ladder_trajectory_tangent_tf24` export, which has **five** call sites -- `test-gradient-ladder-columns.R` x3, `-introductions.R` x2, through `ladder_trajectory_tangent()` in the helper. That is the same mistake the row beside it catches for `replay_initial_state`, made again one line later, and the paragraph that raised it credits this very export with pinning the knot-grid defect. Re-run to be sure the referee is live: `columns` is **51 pass, 0 fail**, every column agreeing with the forward tangent at 1e-12 to 7e-11 against a 3e-04 budget. | nothing |
 
+### What `R CMD check` says about plant, run 2026-09-17
+
+⚠️ **IT HAD NOT BEEN RUN ON THIS BRANCH SINCE THE HEADER WORK, AND IT WAS RED.**
+Two of the three findings are this branch's and are fixed; the third is a NOTE and
+is a decision. Run as `R CMD build` then `R CMD check` on the tarball -- checking
+the source directory instead fails on a missing `Author`, because `Authors@R` is
+resolved at build time, which is not a package defect.
+
+| | what | verdict |
+|---|---|---|
+| **ERROR** | `test-leaf.r:652` probed the supply with ONE soil potential where BOTH layers are rooted, and `57585d9`'s layer guard refuses that. | **FIXED**, one argument. The guard is right: before it that call read `psi_soil` past its end, and `:654`'s `expect_equal(E_up_, sum(soil_consumption_)*0.018015)` was checking the result. ⚠️ **Latent for six days and invisible to every dev run**, because plant compiles against the INSTALLED phylloptim and the tree's `roots.hpp` had not reached it -- developer guide hazard 1, exactly. ⚠️ **And it is an ERROR, not a failure**, so it aborted `test_that("Basic functions")` at `:652` and everything to `:696` stopped running. The file is **382 pass, 0 fail, 0 skip** now. |
+| **WARNING** | GNU extensions in `src/Makevars`. | **FIXED.** Appending to `PKG_CPPFLAGS` in a second line is a GNU make extension; develop has one plain assignment and this branch added a second. Same flags, one assignment, in plant's two Makevars and phylloptim's. ⚠️ **phylloptim's mattered more**: its `check-r-package` sets no `error-on`, so the action's default makes a WARNING a red leg there. `Makevars.win`'s remaining `$(shell)` is develop's and has no portable form -- it resolves odelia's DLL path. |
+| **WARNING** | "checking R files for syntax errors". | **NOT A DEFECT.** The body is `OS reports request to set locale to "en_US.UTF-8" cannot be honored` -- this container has no such locale. No syntax error is reported. A runner with locales will not raise it. |
+| **NOTE** | `Found 'stderr'` in `census_gradient.o` and `gradient_ladder.o`. | **A DECISION, AND IT IS odelia's.** Localised: the cause is `ode_solver.hpp:555`'s `ODELIA_ADJOINT_TRACE` diagnostic, not `ode_util.hpp:111`'s `warning()`. Those two objects are exactly the two carrying an adjoint sweep, and `RcppR6.o` -- which includes the `warning()` helper through `scm.h` -- has no `stderr` reference at all. The trace is dead unless `ODELIA_ADJOINT_TRACE=steps` is in the environment. ⚠️ `warning()` is nonetheless worth a look on its own terms: it has ONE caller in the family, `scm.h:506`, and odelia's own comment says such a caller "should raise it from their own R-facing code" -- which plant is. |
+
+Remaining after the fixes: the two catalogued `test-mutant.R` panels, and the NOTE above.
+
 ### Not ours to do
 
 ⚠️ **The `test_golden` re-bless is a MAINTAINER ACTION, ON macOS/arm64, and
