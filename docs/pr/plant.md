@@ -143,6 +143,26 @@ Forward numbers move for every TF24 run whether or not a gradient is taken:
 `GSS_tol_abs` 1e-3 → 1e-1, `vulnerability_curve_ncontrol` 100 → 400. FF16 and
 K93 go `scientific_version` 1 → 2 on the birth-date coordinate.
 
+Two pinned values move with them, and `R CMD check` is red on both:
+`test-mutant.R`'s ten-mutant panels, at 2–4e-4 on FF16. The machinery under them
+is exact — a strategy replayed as an invader of itself returns the resident's own
+fitness to 1e-15 — and the drift has a referee that owes `develop` nothing.
+Invasion fitness is what a strategy attains when vanishingly rare, so running the
+mutant endogenously at birth rate e and letting e → 0 gives the limit directly:
+the gap to this branch's replayed value falls 9.99x then 11.1x per decade, which
+is the first order that limit must have, while the gap to `develop`'s pin falls
+29.5x, which is no convergence rate at all. The same drift is already visible in
+the resident pins that pass, at −2.2e-5 and +4.7e-5. Re-pinning accepts a change
+to the model's science, so it wants a `scientific_version` decision rather than a
+`snapshot_accept`.
+
+The rest of the check is `FAIL 2 | SKIP 5 | PASS 4641` on Linux, with one NOTE:
+`stderr` appears in `census_gradient.o` and `gradient_ladder.o`, which are the
+two objects carrying an adjoint sweep. It comes from odelia's
+`ODELIA_ADJOINT_TRACE` diagnostic, dead unless that variable is set in the
+environment, and not from `odelia::util::warning` — `RcppR6.o` includes that
+helper through `scm.h` and references no `stderr` at all.
+
 The gradient is TF24's. `census_gradient.cpp` names `TF24_Strategy` throughout
 and `tf24_strategy.h` is the only file declaring `census_metrics`, so an FF16
 stand handed to `stand_gradient()` fails in an `Rcpp::as` type error rather than
@@ -152,20 +172,24 @@ a model-level refusal.
 
 | file | lines | what |
 |---|---|---|
-| `models/tf24_strategy.h` | +2533 | the strategy, templated; absorbs the deleted `.cpp` |
-| `patch.h` | +1120 | the stand; `at_scalar`, `plant::tangent` |
-| `scm.h` | +1004 | the solver and `census_trait_gradient` |
-| `species.h` | +697 | per-species accumulation |
-| `models/tf24_environment.h` | +524 | light and soil, templated |
+| `models/tf24_strategy.h` | +2365 −211 | the strategy, templated; absorbs the deleted `.cpp` |
+| `scm.h` | +964 −98 | the solver and `census_trait_gradient` |
+| `patch.h` | +881 −358 | the stand; `at_scalar`, `plant::tangent` |
+| `species.h` | +484 −214 | per-species accumulation |
+| `models/tf24_environment.h` | +396 −136 | light and soil, templated |
 | `census.h` | 59 | new — `census_metric<Strategy>`, `Censusable` |
 | `census_gradient.h` | 59 | new — `census_gradient`, `refusal` |
-| `clamp_sites.h` | 100 | new |
+| `clamp_sites.h` | 95 | new |
 | `with_slope.h` | 38 | new — alias of odelia's |
 
 Deleted: `adaptive_interpolator.{h,cpp}`, `optimize.h`, and four `src/` files —
 `tf24_strategy.cpp`, `tf24f_strategy.cpp`, `tf24_node.cpp`, `tf24f_node.cpp`.
-New R exports: `stand_gradient`, `stand_census`, `stand_census_state_adjoint`,
-`stand_gradient_compare`, `gradient_control`.
+`NAMESPACE` gains six and loses one: `stand_gradient`, `stand_census`,
+`stand_census_state_adjoint`, `stand_gradient_compare`, `stand_gradient_refused`
+and `gradient_control` arrive, `Interpolator` goes. That is the whole of the
+public R surface this adds — the 80-odd other new functions under `R/` are
+`RcppExports.R` and `RcppR6.R`, regenerated from the export attributes and the
+YAML.
 
 Read `census.h` and `census_gradient.h` first — 118 lines, and they say what a
 metric and a refusal are. Then `SCM::census_trait_gradient` end to end,

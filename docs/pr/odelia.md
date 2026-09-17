@@ -127,15 +127,15 @@ optimiser loop becoming the caller's.
 | header | lines | holds |
 |---|---|---|
 | `adjoint.hpp` | 507 | `adjoint_rows`, `active_system`, `vector_jacobian_product`, `state_and_parameter_adjoints` |
-| `implicit_node.hpp` | 397 | `record_with_derivatives`, `implicit_value`, `preaccumulate` |
+| `implicit_node.hpp` | 434 | `record_with_derivatives`, `implicit_value`, `preaccumulate` |
 | `sweep.hpp` | 94 | `state_at_range`, `program_from`; plant's `scm.h` consumes both |
 | `tangent.hpp` | 75 | `tangent_scalar`, `seed_direction`, `derivative_along` |
 | `with_slope.hpp` | 55 | `with_slope<T>` |
 
-Rewritten: `interpolator.hpp` (+651, absorbs the spline), `ode_interface.hpp`
-(+509, the contract above), `ode_solver.hpp` (+392), `solver_interface.hpp`
-(−293 net). Deleted: `spline.hpp` (466), `ode_fit.hpp` (100); neither was
-included by phylloptim or plant.
+Rewritten: `interpolator.hpp` (+479 −117, absorbs the spline),
+`ode_interface.hpp` (+426 −105, the contract above), `ode_solver.hpp` (+390 −66),
+`solver_interface.hpp` (+65 −228). Deleted: `spline.hpp` (466), `ode_fit.hpp`
+(100); neither was included by phylloptim or plant.
 
 Read `tangent.hpp` and `with_slope.hpp` first — 130 lines, and everything uses
 them. Then `step_record` in `ode_interface.hpp` for what a record holds, `push_step`

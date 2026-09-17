@@ -96,8 +96,10 @@ shutdown, and `kernel_slope_at` on a non-finite row.
 
 `vulnerability_curve_ncontrol` moves from 100 to 400. That is how finely the
 pre-integrated vulnerability table is cut, so every caller's numbers move whether
-or not they take a derivative. The R default and the C++ constant are separate
-literals with nothing checking they agree.
+or not they take a derivative. The R default and `Leaf::ncontrol_default` are
+separate literals, because RcppR6 binds only the 15-argument constructor and R
+has to pass the number in; plant's `test-control.R` compares them with
+`expect_identical`, which is one repository away from either.
 
 `gradient::n_pars` is gone. The `par_*` enumeration lives in `leaf_model.hpp` and
 is re-exported; `n_theta` (19) sizes theta, `phylloptim::n_pars` (20) sizes the
@@ -107,16 +109,28 @@ auditing by hand.
 
 R signatures are unchanged and `NAMESPACE` gains nothing.
 
+Two golden files record behaviour this moves, and `R CMD check` is red until they
+are regenerated. Run with the comparison the check leg uses —
+`./test_golden --cross-platform` — `operating_points.tsv` is 222 mismatches over
+576 operating points and `psi_stem_optima.tsv` 60 rows over 5184: 0.55% to 62%
+relative, median 7.6%, concentrated in `assim`, `transpiration` and `gc` at
+`psi_soil = 4`, where the values run 1e-12 to 1e-7 and the leaf is nearly shut.
+Both are bit-exact only on the platform that generated them, macOS/arm64, so
+`make -C tests/cpp golden` and `make -C tests/cpp psi-stem-golden` have to be run
+there — anywhere else silently moves which platform they are exact on. Two
+earlier commits stated this surface had moved and that the files re-blessed;
+neither regeneration landed, which is why the staleness reads as a live failure.
+
 ## Files
 
 | file | lines | what |
 |---|---|---|
-| `leaf_model.hpp` | +1635 | `Leaf<S>`, `leaf_pars<S>`, `SupplyDraw`, `PhotoCapacity`, `LeafOutputs`, `OperatingPointKind` |
-| `roots.hpp` | +487 | `SupplyAt`, `CollarConductance`, the merged uptake walk |
-| `gradient.hpp` | +113 | the `par_*` enumeration moves here |
-| `vulnerability.hpp` | +85 | `weibull_b_from_P50`, `vulnerability_derivatives_at` |
-| `closed_form_rows.hpp` | 73 | new |
-| `clamp_sites.hpp` | 68 | new |
+| `leaf_model.hpp` | +1546 −88 | `Leaf<S>`, `leaf_pars<S>`, `SupplyDraw`, `PhotoCapacity`, `LeafOutputs`, `OperatingPointKind` |
+| `roots.hpp` | +406 −250 | `SupplyAt`, `CollarConductance`, the merged uptake walk |
+| `gradient.hpp` | +46 −69 | the `par_*` enumeration moves OUT, to `leaf_model.hpp` |
+| `vulnerability.hpp` | +84 −1 | `weibull_b_from_P50`, `vulnerability_derivatives_at` |
+| `closed_form_rows.hpp` | 80 | new |
+| `clamp_sites.hpp` | 69 | new |
 
 Nothing is deleted. Read `clamp_sites.hpp` and `vulnerability.hpp` first — 141
 lines and the rest leans on both. Then `SupplyAt` and `CollarConductance`
