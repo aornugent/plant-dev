@@ -116,10 +116,9 @@ would otherwise return species one's column for both.
     └─► census_gradient{ gradient[][], why }
 ```
 
-Scale, for one worked case — a single species over about 105 years at the
-package defaults: 169 cohort introductions, so 169 ranges, and six rate
-evaluations in every accepted step. The range count follows from the schedule
-and will differ for any other stand. The ratio holds across the stands measured:
+Scale: a stand of `N` cohort introductions is swept as `N` ranges, with six rate
+evaluations in every accepted step. `N` is the schedule's, so it is a property of
+the stand rather than of the gradient. The ratio holds across the stands measured:
 a gradient over all traits costs about 2.9 times a forward run of the same
 stand, with the two arms interleaved in one sitting.
 

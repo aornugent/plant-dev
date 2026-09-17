@@ -329,8 +329,8 @@ would meet again.
 It needs eight closed forms that do not exist: four mixed second partials of the
 assimilation kernel and four of the cost. Each is refereeable, but the supply
 side stays recorded either way, so the walk count per solved leaf falls by about
-half and not to the handful the kernels alone would cost. Most of the prize is
-already taken.
+half and not to the handful the kernels alone would cost. The larger reduction is
+the one this branch already makes.
 
 And the referee does not reach it. The transpose identity classifies five
 operating-point kinds as carrying rows, and a forward tangent cannot fill the gap: it runs the same
