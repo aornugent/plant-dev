@@ -64,9 +64,9 @@ settings the gradient was taken at, so `stand_gradient_compare()` can refuse two
 gradients taken differently.
 
 The number is a derivative of the emergent stand, not of a plant in isolation.
-Environmental feedback suppresses the response to leaf mass per area about
-sevenfold and reverses the sign of the response to seed mass — for seed mass, a
-calculation holding the neighbours fixed gives the wrong direction.
+Environmental feedback suppresses the response to leaf mass per area and
+reverses the sign of the response to seed mass — for seed mass, a calculation
+holding the neighbours fixed gives the wrong direction.
 
 ## Terms
 
@@ -117,12 +117,11 @@ would otherwise return species one's column for both.
 ```
 
 Scale, for one worked case — a single species over about 105 years at the
-package defaults: 169 cohort introductions, so 169 ranges; 3,400 accepted steps
-and six rate evaluations in each; a few million leaf placements. Those counts
-follow from the schedule and the step controller and will differ for any other
-stand. **The ratio holds across the ones measured: a gradient over all traits
-costs about 2.9 times a forward run of the same stand**, with the two arms
-interleaved in one sitting.
+package defaults: 169 cohort introductions, so 169 ranges, and six rate
+evaluations in every accepted step. The range count follows from the schedule
+and will differ for any other stand. The ratio holds across the stands measured:
+a gradient over all traits costs about 2.9 times a forward run of the same
+stand, with the two arms interleaved in one sitting.
 
 ## What changes for existing code
 
@@ -150,11 +149,10 @@ The machinery under them is exact — a strategy replayed as an invader of itsel
 returns the resident's own fitness to 1e-13 on FF16 and 4e-15 on TF24 — and the
 drift has a referee that owes `develop` nothing.
 Invasion fitness is what a strategy attains when vanishingly rare, so running the
-mutant endogenously at birth rate e and letting e → 0 gives the limit directly:
-the gap to this branch's replayed value falls 9.99x then 11.1x per decade, which
-is the first order that limit must have, while the gap to `develop`'s pin falls
-29.5x, which is no convergence rate at all. The same drift is already visible in
-the resident pins that pass, at −2.2e-5 and +4.7e-5. Re-pinning accepts a change
+mutant endogenously at birth rate e and letting e → 0 gives a referee the pins
+cannot appeal to. That limit is this branch's replayed value, approached at
+first order in e; `develop`'s pin sits off it. The same drift is already visible
+in the resident pins that pass, at −2.2e-5 and +4.7e-5. Re-pinning accepts a change
 to the model's science, so it wants a `scientific_version` decision ahead of any
 `snapshot_accept`.
 
@@ -334,10 +332,9 @@ supplies. In birth date it cannot happen: plants can change their relative size
 but not their relative age, so the ordering is fixed for the whole run and the
 weights are constants.
 
-The two are different functions and not two discretisations of one — one census
-metric's trait sensitivity changes sign between them — so a gradient taken on the
-height coordinate would be finite, plausible and wrong, with nothing in the
-arithmetic to complain.
+The two are different functions and not two discretisations of one, so a
+gradient taken on the height coordinate would be finite, plausible and wrong,
+with nothing in the arithmetic to complain.
 
 ## One invariant a new strategy must honour
 
@@ -364,9 +361,8 @@ catches.
 
 The claim is that the reverse sweep is the exact transpose of the forward run. A
 finite difference cannot check it, because differencing is the thing being
-replaced — and near a coincidence it does not converge at all: refining a step of
-one part in a million across three successive refinements produced −9.63, +166,
-−10588 against a feature five hundredths of a micron wide.
+replaced, and near a coincidence of scales it does not converge under
+refinement at all.
 
 Six instruments, none sufficient alone:
 
@@ -413,8 +409,8 @@ and the same question about temperature or CO₂, cannot be asked of this gradie
 at all. Crown shape carries none either, excluded because `0^η · log 0` has no
 value at the defaults.
 
-And a trait row holds the hyperparameters fixed. An `lma` row is therefore about
-threefold away from the derivative with respect to the trait an ecologist means
-by leaf mass per area, which drags leaf turnover and respiration along with it.
+And a trait row holds the hyperparameters fixed. An `lma` row is therefore not
+the derivative with respect to the trait an ecologist means by leaf mass per
+area, which drags leaf turnover and respiration along with it.
 A sensitivity from this gradient is not a physiological effect, and the number
 carries no warning about the difference.

@@ -257,17 +257,22 @@ row at a time.
 Counted in statements walked — recording and sweeping cost the same traversal —
 with `T` submodel statements, `k` seeds and `m` outputs:
 
-| | walks per solve | at T=360, k=3, m=6 |
-|---|---|---|
-| recorded inline on the consumer's tape | `T + kT` | 1440 |
-| preaccumulated by an inner tape | `T + mT + m + km` | 2544 |
-| supplied, nothing recorded | `m + km` | 24 |
+| | walks per solve |
+|---|---|
+| recorded inline on the consumer's tape | `T + kT` |
+| preaccumulated by an inner tape | `T + mT + m + km` |
+| supplied, nothing recorded | `m + km` |
 
-Preaccumulation is the middle option: record the submodel on a tape of its own,
-sweep it `m` times to extract a dense derivative block, discard it. It loses here
-because it spends six inner sweeps to save three outer ones, which is the general
-rule — an inner tape pays only when the submodel has fewer outputs than the
-consumer has seeds, and phylloptim's leaf has double.
+The third carries no `T` at all, which is the whole of its advantage: what a
+supplied row costs does not depend on how long the submodel is.
+
+For the leaf, `k` is plant's three census metrics and `m` is the leaf's profit
+plus one uptake per soil layer, so six at five layers. Preaccumulation is the
+middle option: record the submodel on a tape of its own, sweep it `m` times to
+extract a dense derivative block, discard it. It loses here because it spends six
+inner sweeps to save three outer ones, which is the general rule — an inner tape
+pays only when the submodel has fewer outputs than the consumer has seeds, and
+phylloptim's leaf has double.
 
 Rows are checked for finiteness before any of them is recorded, and the report is
 `[[nodiscard]]`. All-or-nothing is deliberate: a value carrying some of its rows

@@ -169,8 +169,7 @@ gives
 
 Both partials are of the residual, which is a closed form, so both are available
 without recording anything the solver did. The remaining error is the residual's
-own distance from zero, measured on this model at 1.6 parts in a thousand million
-million of the answer.
+own distance from zero at the converged point.
 
 The kind selects which residual, not which formula. Fiacco's statement covers all
 four without a branch:
@@ -329,8 +328,9 @@ would meet again.
 
 It needs eight closed forms that do not exist: four mixed second partials of the
 assimilation kernel and four of the cost. Each is refereeable, but the supply
-side's 187 statements stay recorded either way, so the walk count per solved leaf
-falls from 1440 to about 772 and not to 24. Most of the prize is already taken.
+side stays recorded either way, so the walk count per solved leaf falls by about
+half and not to the handful the kernels alone would cost. Most of the prize is
+already taken.
 
 And the referee does not reach it. The transpose identity classifies five
 operating-point kinds as carrying rows, and a forward tangent cannot fill the gap: it runs the same
