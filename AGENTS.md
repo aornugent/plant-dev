@@ -472,8 +472,12 @@ make -C phylloptim/tests/cpp CXX=g++ bench_solve bench_gradient   # CI builds th
 relative to the working directory and reports it MISSING from anywhere else.
 
 The golden file is bit-exact only on macOS/arm64, where it was generated, so the
-comparison that means anything depends on where it runs — and `make` now picks it:
-bit-exact there, `--cross-platform` everywhere else. **A failure is a real signal on
+comparison that means anything depends on where it runs. ⚠️ **`make` DOES NOT PICK
+IT.** `GOLDEN_ARGS ?=` is empty, so a bare `make` compares bit-exact wherever it
+runs and buries the signal under thousands of 1e-16 differences — 4320 mismatches
+here against 222 that mean something. The CALLERS pass it: `tests/cpp.R:83` and
+`cpp-tests.yml:105` both select `--cross-platform` off the generating platform.
+By hand, run `./test_golden --cross-platform`. **A failure is a real signal on
 either.** This used to read "`make` failing on that target alone is not a regression",
 which was true of the bit-exact run on Linux and taught everyone to ignore the one
 guard that could speak: two commits stated that the operating-point surface had moved

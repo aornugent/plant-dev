@@ -315,17 +315,32 @@ both `n_pars` entries by name, leaving the originals standing as history.
 
 Judgement calls, not defects. Each wants an answer before the pull requests open.
 
-### The four that block a submission
+### The ones that block a submission
 
-These are not style questions. Three of them revert something upstream shipped or
-accept a change to the model's science; the fourth decides what the pull request
-contains. Nothing else in D does either.
+These are not style questions. ⚠️ **One of the four was retired by measurement
+rather than decided** -- "the operating point moved" rested on a number that was
+the reverted storage pool and not upstream's #617 -- and A1 shrank from four
+suites to one by the same route. What is left is `phylloptim`'s `test_golden`,
+which is a RE-BLESS AND NOT A DECISION and is the one thing standing between
+this work and a green check leg:
+
+⚠️ **`phylloptim`'s `tests/cpp.R` exits 1 today.** Run with the comparison the
+check leg uses -- `./test_golden --cross-platform`, not a bare `make`, which
+compares bit-exact off the generating platform and reports 4320 round-off
+mismatches over the real ones -- it is **222 mismatches over 576 operating
+points** and 60 of 5184 `psi_stem` rows. They are not round-off: 0.55% to 62%
+relative, median 7.6%, concentrated in `assim`, `transpiration` and `gc` at
+`psi_soil = 4`, where the absolute values are 1e-12 to 1e-7 and the leaf is
+nearly shut. Two commits said this surface had moved and that the file
+re-blessed; neither re-bless landed. ⚠️ **Regenerating is not free here**: the
+file is bit-exact only on the platform that generated it (macOS/arm64), so a
+`make golden` run on Linux moves which platform that is.
 
 | | decision | what is known |
 |---|---|---|
 | **A1** | **What `scientific_version` should say.** | **One suite still turns on it, not four.** `_snaps/model-version.md` is declared and accepted at `TF24@v11`. `test-strategy-tf24.R`'s scenario pins were never a version question: `a02588c1` reverted #619 while transcribing `compute_rates` into the header, and `27e1f57b` puts it back, so the pins the branch could not produce are the ones it produces. That leaves `phylloptim`'s `test_golden`, whose operating-point surface two commits say has moved and neither re-blessed. | ⚠️ **`test-mutant.R`'s two panels are not a version question either, and are the one thing measured against a referee outside develop**: the vanishing-density limit of this branch's own endogenous dynamics converges first-order onto this branch's replayed value rather than onto develop's pin. FF16 drift of 2-4e-4, unrelated to TF24. |
 | **run_mutant** | ~~Restore it, or ship regressed against `develop`.~~ — **RESTORED**, and what is left is A1's. | `SCM::run_mutant` works again, on odelia's own store/load channel rather than the three solver hooks its rewrite deleted (`ode::cache` ×2, `ode::load`, `has_cache`, a second `derivs`). ⚠️ **The comment naming odelia's `ReplaysField` as the replacement had it backwards**: `9e84ef6` created it, `001528b` deleted it four days later for `recorded_stage{step,stage}`, and plant's comment was written twenty days after that. What `001528b` kept is the channel now used — a rate evaluation already records what its state does not determine, per (step, stage), and an invader's field is exactly that. odelia's change is **4 files, zero new public names**. <br><br>**Exact**: a strategy replayed as an invader of itself returns the resident's fitness to **1e-15**, with two, three, five or nine invaders present — which says nothing in the replay builds an invader's own field. **Cheap**: a replay costs 0.06 s against the 0.07 s resident run it stands in, so an assembly sweep pays once per resident. The record is knots+values+slopes plus the environment's ODE state, not whole environments — develop's form OOMs at 6.8 GB past ~10 yr and its fix (`b2f70dfa`) never reached develop. <br><br>**Left open, and it is A1's:** `test-mutant.R`'s two ten-mutant panels are pinned to develop's model. This branch's FF16 residents already differ — **2.7731596 vs 2.77322 (−2.2e-5)**, **+4.7e-5** on the three-resident stand — inside the 1e-4 the resident pins allow, amplified to 4e-4 by the panels. Re-pinning them accepts a change to the model's science. |
-| **the operating point moved** | **Recalibrate the incidence and parity fixtures, or hold.** | develop's #617 took the dry share from **0.51% to 92.36%** on `incidence_stand(0.25, 10)`, `seasonal` from answered to refused, and `shaded` from reaching shade-death to not. Nine gradient-suite failures, none of them a derivative: every referee is green, including the transpose identity over all four operating-point kinds at 5.1e-11. Moving the fixtures accepts the ecology; leaving them accepts nine red. ⚠️ **When they are recalibrated, do it at lifetime 4, not 5.** Measured over all five named regimes, run and swept, against three axes of coverage — which drivers answer, which operating-point kinds are reached, and which clamp sites fire:
+| ~~**the operating point moved**~~ | ~~Recalibrate the incidence and parity fixtures, or hold.~~ — **NOT A DECISION: the premise was wrong.** | This row read develop's #617 as taking the dry share from **0.51% to 92.36%** on `incidence_stand(0.25, 10)`, `seasonal` from answered to refused and `shaded` from reaching shade-death to not. Measured, 92.36% was the storage pool `a02588c1` reverted, not #617: with the pool bounded, `seasonal` answers, `shaded` reaches shade-death, and every driver's descent stays in range. #617's own contribution is **0.90% → 54.65%**, through its SHAPE and not its level — raising resistance uniformly takes the share to ZERO. So there was no ecological change to accept here; the fixtures are recalibrated and green, incidence **66/0** and parity **52/0**. ⚠️ What refereeing them DID find is a wrong gradient row, since fixed — see the A1 table and `docs/pr/transcription.md`. |
 
 | lifetime | CPU | slowest regime | kinds | clamp sites | verdicts |
 |---|---|---|---|---|---|
