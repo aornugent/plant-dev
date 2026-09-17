@@ -315,27 +315,44 @@ both `n_pars` entries by name, leaving the originals standing as history.
 
 Judgement calls, not defects. Each wants an answer before the pull requests open.
 
-## Decided, and what the next session executes
+### Decided, and what the next session executes
 
 Answered 2026-09-17. Everything below this block is the evidence each answer was
-given on; the rows carry their verdicts inline. Seven are work, three are decided
-with nothing to do, and six are still open and named at the end.
+given on; the rows carry their verdicts inline. Five are work here, three are
+decided with nothing to do, one is a maintainer's and one is declined, and six are
+still open and named at the end.
 
 | # | do this | where | the decision it comes from |
 |---|---|---|---|
-| 1 | **Re-bless `test_golden`** and say what moved. ⚠️ Decide the platform first: the file is bit-exact only where it was generated, so `make golden` on Linux moves that. Check against `--cross-platform`, never a bare `make`. | `phylloptim/tests/cpp/` | A1, and the only thing between here and a green check leg |
-| 2 | **Run `test_supplied_rows` and `test_transpose` from the check leg.** They build and `make all` runs them; `cpp.R:108` lists only three. `test_transpose` is 147 checks in 0.11 s. | `phylloptim/tests/cpp.R:108` | build and hygiene |
-| 3 | **One ignore list, in one file, matching what `build:` builds.** Two disagree, one names a `test_leaf_gradient` that has never existed, and `make clean` leaves `probe_preaccumulation`. | `phylloptim/.gitignore`, `tests/cpp/.gitignore`, `Makefile` | build and hygiene |
-| 4 | **Cut the install cost by stripping, not by optimisation.** `-g0` alone removes 94% of the object; `-g0 -Os` cannot be expressed in `PKG_CXXFLAGS` at all, so the routes are `R CMD INSTALL --strip` or per-target rules. | `plant/src/Makevars` | build and hygiene |
-| 5 | **Give `vulnerability_curve_ncontrol = 400` one source of truth.** Three spellings today, one C++ and two R, and the only test tying any two compares plant's C++ against phylloptim's R. | `plant`, `phylloptim` | the vulnerability curve |
-| 6 | **Settle the query slope.** `closed_form_integral` and `closed_form_curve` take it from different sources and the banner says they do it identically. One agent called it deliberate, another a bug; neither ran it down. Measure, then make the code and the banner agree. | `phylloptim` | the closed-form slopes |
-| 7 | **Referee `census_trait_tangent` or delete it.** It falls out of the forward-mode decision below: it is the one export in that family with NO consumer, and `gradient_ladder.cpp`'s rule already deleted two exports that failed exactly this test. | `plant/src/gradient_ladder.cpp` | the forward-mode family |
+| 1 | **Run `test_supplied_rows` and `test_transpose` from the check leg.** They build and `make all` runs them; `cpp.R:108` lists only three. `test_transpose` is 147 checks in 0.11 s. | `phylloptim/tests/cpp.R:108` | build and hygiene |
+| 2 | **One ignore list, in one file, matching what `build:` builds.** Two disagree, one names a `test_leaf_gradient` that has never existed, and `make clean` leaves `probe_preaccumulation`. | `phylloptim/.gitignore`, `tests/cpp/.gitignore`, `Makefile` | build and hygiene |
+| 3 | **Give `vulnerability_curve_ncontrol = 400` one source of truth.** Three spellings today, one C++ and two R, and the only test tying any two compares plant's C++ against phylloptim's R. | `plant`, `phylloptim` | the vulnerability curve |
+| 4 | **Settle the query slope.** `closed_form_integral` and `closed_form_curve` take it from different sources and the banner says they do it identically. One agent called it deliberate, another a bug; neither ran it down. Measure, then make the code and the banner agree. | `phylloptim` | the closed-form slopes |
+| 5 | **Referee `census_trait_tangent` or delete it.** It falls out of the forward-mode decision below: it is the one export in that family with NO consumer, and `gradient_ladder.cpp`'s rule already deleted two exports that failed exactly this test. | `plant/src/gradient_ladder.cpp` | the forward-mode family |
+
+### Not ours to do
+
+⚠️ **The `test_golden` re-bless is a MAINTAINER ACTION, ON macOS/arm64, and
+`phylloptim`'s pull request arrives with a red check until it happens.** Taking it
+off the list above does not make it stop blocking; it reassigns it. The file is
+bit-exact only on the platform that generated it, so regenerating anywhere else
+silently moves which platform that is -- which is why this cannot be done from
+here. What a maintainer would be blessing is measured under "The ones that block
+a submission" further down: 222 mismatches over 576 operating points, 0.55% to
+62% relative, in `assim`, `transpiration` and `gc` at `psi_soil = 4`. Two commits have already said this
+surface moved and that the file re-blessed; neither re-bless landed, so the
+regeneration wants a commit message saying what moved.
+
+**The install cost is DECLINED.** `R CMD INSTALL` takes 163.8 s at `-j4` and the
+object is 261 MB, of which `-g0` alone would remove 94%. Not worth the
+`src/Makevars` surface on this pull request. The measurement stays in the row
+below so nobody re-derives it.
 
 ### Decided with no work attached
 
 | decision | answer | what it rests on |
 |---|---|---|
-| **Defer the forward-mode and replay family?** | **NO -- keep it. Forward mode is the referee.** | Three of the five are refereed against in the ladder: `census_trait_difference` by `switches`, `census_initial_state_tangent` by `first-range` and `introductions`, `census_initial_state_replay` by `introductions`. And `ladder_trajectory_tangent_tf24` is what showed the reverse sweep and a forward tangent agree to **1e-11** on the columns the knot grid was breaking, which is how that defect was pinned on the model rather than on the assembly. ⚠️ **Two corrections to the row as written**: `census_trait_tangent` has no consumer at all and becomes task 7; `replay_initial_state` is NOT an export -- it is `scm.h`'s C++ implementation under the two `census_initial_state_*` ones, used at `:1327` and `:1353`, so it was never a contents question. |
+| **Defer the forward-mode and replay family?** | **NO -- keep it. Forward mode is the referee.** | Three of the five are refereed against in the ladder: `census_trait_difference` by `switches`, `census_initial_state_tangent` by `first-range` and `introductions`, `census_initial_state_replay` by `introductions`. And `ladder_trajectory_tangent_tf24` is what showed the reverse sweep and a forward tangent agree to **1e-11** on the columns the knot grid was breaking, which is how that defect was pinned on the model rather than on the assembly. ⚠️ **Two corrections to the row as written**: `census_trait_tangent` has no consumer at all and becomes task 5; `replay_initial_state` is NOT an export -- it is `scm.h`'s C++ implementation under the two `census_initial_state_*` ones, used at `:1327` and `:1353`, so it was never a contents question. |
 | **phylloptim names the AD library eighteen times.** | **LEAVE IT.** | The rule that the library is named in odelia and nowhere else stands for plant, which names it once. phylloptim keeps its eighteen; amend the rule rather than the code. |
 | **`leaf_model.hpp` runs thousands of lines public.** | **NEVERMIND -- it is inherited.** | Measured against the merge-base `0709be46`: upstream master already runs **1927 lines** before its first `private:`, and this branch takes it to **2553**. The structure is not this diff's, which is the test that was set for it. ⚠️ Recorded rather than dropped: the diff still adds 626 lines to that public run, so a narrower change -- making only this branch's own additions private -- is available if the 626 is ever thought worth it on its own. |
 
@@ -353,8 +370,9 @@ These are not style questions. ⚠️ **One of the four was retired by measureme
 rather than decided** -- "the operating point moved" rested on a number that was
 the reverted storage pool and not upstream's #617 -- and A1 shrank from four
 suites to one by the same route. What is left is `phylloptim`'s `test_golden`,
-which is a RE-BLESS AND NOT A DECISION and is the one thing standing between
-this work and a green check leg:
+which is a RE-BLESS AND NOT A DECISION, is the one thing standing between this
+work and a green check leg, and is a MAINTAINER'S on macOS/arm64 rather than
+anything this branch can do -- see "Not ours to do" above:
 
 ⚠️ **`phylloptim`'s `tests/cpp.R` exits 1 today.** Run with the comparison the
 check leg uses -- `./test_golden --cross-platform`, not a bare `make`, which
@@ -398,13 +416,13 @@ Lifetime 4 is the smallest that matches lifetime 5 on all three, and it is 25% o
 | **[v, DECIDED: nevermind]** | ~~**`leaf_model.hpp` runs 2,440 lines public before its first `private:`**~~ — **inherited, so not this diff's to fix.** Measured against the merge-base `0709be46`: upstream master already runs **1927 lines** public, and this branch takes it to **2553**. The test set for this row was whether the structure is ours; it is not. ⚠️ Recorded rather than dropped: the diff adds 626 lines to that run, and the invariant comment at `:181` that `private:` would enforce is still unenforced. |
 | **[v]** | **Net +237 C++ names and +62 R names** across the three packages, against four real header deletions. The original brief was net deletion. |
 | **[v]** | **plant's own headers are compiled as system headers.** `-isystem../inst/include/` sits in `PKG_CPPFLAGS` (`plant/src/Makevars:7`), after every `LinkingTo` include, so every warning in plant's own headers is suppressed. plant is ~95% headers, so the package is effectively un-warned on every toolchain including CRAN's `-Wall -pedantic`. |
-| **[v, DECIDED: fix — task 4]** | **Install cost: debug info is the driver, not the optimisation level.** `R CMD INSTALL` takes 163.8 s wall at `-j4`, 443.6 s serial over 25 translation units; four of them — `RcppExports`, `gradient_ladder`, `RcppR6`, `census_gradient` — are 74% of that time and 86% of 261 MB of objects. Measured on the two heaviest, replicating: `-g0` alone removes **94%** of the object at either optimisation level and about a third of the compile time, while `-Os` alone removes only a third of the bytes. But `-g0 -Os` — half the time, 6% of the bytes — **cannot be expressed in `PKG_CXXFLAGS` at all**, for the same ordering reason as `-fno-stack-protector`. The routes that reach it are `R CMD INSTALL --strip` (105.99 MB to 7.38 MB) with per-target rules in `src/Makevars`, or `extern template` against the measured 2.8× duplication of `TF24_Strategy`. Removing `gradient_ladder.cpp` takes a quarter of the build with it. |
-| **[v, DECIDED: fix — task 3]** | **Build artefacts are ignored in two files that disagree.** `phylloptim/.gitignore:18` covers `tests/cpp/test_golden`; `tests/cpp/.gitignore` covers the probes and `test_transpose`/`test_supplied_rows`, names a `test_leaf_gradient` that has never existed in any of the three trees, and omits `test_leaf` and `test_primitives`. `make clean` leaves `probe_preaccumulation` behind. One list, in one file, matching what `build:` builds. |
-| ~~**[r]**~~ **[v, DECIDED: keep]** | ~~**Defer the forward-mode and replay family?**~~ — **No: forward mode is the referee.** The row named five and was wrong about two. `census_trait_difference`, `census_initial_state_tangent` and `census_initial_state_replay` are each refereed against in the ladder; `ladder_trajectory_tangent_tf24` is what showed the reverse sweep and a forward tangent agree to 1e-11 on the columns the knot grid was breaking. `census_trait_tangent` has NO consumer and is task 7. `replay_initial_state` is not an export at all — it is `scm.h`'s C++ implementation under the two `census_initial_state_*` ones (`:1327`, `:1353`). |
+| **[v, DECIDED: declined]** | **Install cost: debug info is the driver, not the optimisation level.** `R CMD INSTALL` takes 163.8 s wall at `-j4`, 443.6 s serial over 25 translation units; four of them — `RcppExports`, `gradient_ladder`, `RcppR6`, `census_gradient` — are 74% of that time and 86% of 261 MB of objects. Measured on the two heaviest, replicating: `-g0` alone removes **94%** of the object at either optimisation level and about a third of the compile time, while `-Os` alone removes only a third of the bytes. But `-g0 -Os` — half the time, 6% of the bytes — **cannot be expressed in `PKG_CXXFLAGS` at all**, for the same ordering reason as `-fno-stack-protector`. The routes that reach it are `R CMD INSTALL --strip` (105.99 MB to 7.38 MB) with per-target rules in `src/Makevars`, or `extern template` against the measured 2.8× duplication of `TF24_Strategy`. Removing `gradient_ladder.cpp` takes a quarter of the build with it. |
+| **[v, DECIDED: fix — task 2]** | **Build artefacts are ignored in two files that disagree.** `phylloptim/.gitignore:18` covers `tests/cpp/test_golden`; `tests/cpp/.gitignore` covers the probes and `test_transpose`/`test_supplied_rows`, names a `test_leaf_gradient` that has never existed in any of the three trees, and omits `test_leaf` and `test_primitives`. `make clean` leaves `probe_preaccumulation` behind. One list, in one file, matching what `build:` builds. |
+| ~~**[r]**~~ **[v, DECIDED: keep]** | ~~**Defer the forward-mode and replay family?**~~ — **No: forward mode is the referee.** The row named five and was wrong about two. `census_trait_difference`, `census_initial_state_tangent` and `census_initial_state_replay` are each refereed against in the ladder; `ladder_trajectory_tangent_tf24` is what showed the reverse sweep and a forward tangent agree to 1e-11 on the columns the knot grid was breaking. `census_trait_tangent` has NO consumer and is task 5. `replay_initial_state` is not an export at all — it is `scm.h`'s C++ implementation under the two `census_initial_state_*` ones (`:1327`, `:1353`). |
 | **[v]** | **`gradient_control()` has a check that cannot fail.** It returns five values positionally and R names them; `ci_abs_tol` and `gradient_curvature_floor` are both `1e-3` at defaults, so transposing them passes both assertions while `stand_gradient_compare()` refuses on the wrong pair. Return names beside the values. |
-| **[r, DECIDED: fix — task 5]** | **`vulnerability_curve_ncontrol = 400` is written in three places** — one C++ constant and two R literals — with only a cross-package test tying any two, and it compares plant's C++ value against phylloptim's R literal. |
-| **[r, DECIDED: fix — task 6]** | **`closed_form_integral` and `closed_form_curve` take the query slope from different sources**, and the file's banner says both do it identically. One agent called the asymmetry deliberate and measured; another called it a bug. Settle it. |
-| **[v, DECIDED: fix — task 2]** | **phylloptim ships two C++ test binaries that never run.** `test_supplied_rows` and `test_transpose` are in `Makefile` and `CMakeLists.txt` but not in `tests/cpp.R:108`. The file's own comment at `:46` demands a four-way sync; three of four were updated. `test_transpose` is 147 checks in 0.11 s — the best value in the three repos, and it does not run. |
+| **[r, DECIDED: fix — task 3]** | **`vulnerability_curve_ncontrol = 400` is written in three places** — one C++ constant and two R literals — with only a cross-package test tying any two, and it compares plant's C++ value against phylloptim's R literal. |
+| **[r, DECIDED: fix — task 4]** | **`closed_form_integral` and `closed_form_curve` take the query slope from different sources**, and the file's banner says both do it identically. One agent called the asymmetry deliberate and measured; another called it a bug. Settle it. |
+| **[v, DECIDED: fix — task 1]** | **phylloptim ships two C++ test binaries that never run.** `test_supplied_rows` and `test_transpose` are in `Makefile` and `CMakeLists.txt` but not in `tests/cpp.R:108`. The file's own comment at `:46` demands a four-way sync; three of four were updated. `test_transpose` is 147 checks in 0.11 s — the best value in the three repos, and it does not run. |
 | **[r]** | **phylloptim cannot compile against `traitecoevo/odelia` master** (`leaf_model.hpp:17` needs `odelia/with_slope.hpp`), which is what `cpp-tests.yml:54` checks out. Its CI is red until odelia lands and the workflow points at the tag. |
 | **[r]** | **Two assertions that cannot fail** beyond the ones already known: `test-gradient-ladder-sweep.R:14` asserts `expect_null(blocked)` and `:27` skips on the exact complement; `test-gradient-ladder-declared-zero.R:161` loops over two names and `next`s on one that is in the list it filters against. |
 
