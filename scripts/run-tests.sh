@@ -17,11 +17,11 @@
 # NOT match, which is how the non-ladder sweep is taken.
 #
 #   scripts/run-tests.sh '^test-gradient-ladder'          # the sweep, 58 s
-#   scripts/run-tests.sh '^test-gradient-(demo|incidence|parity)'   # the surface
+#   scripts/run-tests.sh '^test-gradient-(incidence|parity)'   # the surface
 #   scripts/run-tests.sh '^test-gradient' "" invert       # everything else
 #
 # ⚠️ THOSE THREE PARTITION THE SUITE AND THE FIRST TWO DID NOT. `^test-gradient`
-# inverted excludes demo, incidence and parity along with the ladder, so before
+# inverted excludes incidence and parity along with the ladder, so before
 # the middle line existed they ran under no tier at all -- and running them under
 # `^test-gradient` instead put 945 s of surface checks in front of a 58 s ladder,
 # which is what made the ladder look like a ten-minute suite. What each file
@@ -79,10 +79,11 @@ LIBS=${PLANT_TEST_LIB:+$PLANT_TEST_LIB:}$(Rscript -e 'cat(paste(.libPaths(), col
 CACHE=${PLANT_TEST_CACHE:-${TMPDIR:-/tmp}/plant-test-cache}
 mkdir -p "$CACHE" || exit 1
 
-# ⚠️ NOT_CRAN, because skip_on_cran() skips in silence. Without it
-# test-gradient-demo.R's six blocks report as skips and their 32 assertions never
-# run at all, which reads as a clean suite -- the exact shape of a guard that
-# stopped guarding. Overridable, so a caller can ask for the CRAN behaviour.
+# ⚠️ NOT_CRAN, because skip_on_cran() skips in silence and expect_snapshot_value()
+# calls it for you. Without this, test-model-version.R stops comparing the
+# scientific surface each model promises to keep and reports as a clean file --
+# the exact shape of a guard that stopped guarding, on the one file whose whole
+# job is to notice. Overridable, so a caller can ask for the CRAN behaviour.
 for f in $FILES; do
   (
     R_LIBS="$LIBS" TESTTHAT_PARALLEL=false NOT_CRAN="${NOT_CRAN:-true}" \
