@@ -81,9 +81,13 @@ by reverse-mode AD over the whole trajectory.
 
 **Method.** Embedded explicit Runge–Kutta, Cash–Karp 5(4), first-same-as-last by
 construction: an accepted step costs **five stage evaluations plus one
-evaluation at the endpoint**, which the next step takes as its `k₁`. A rejected
-attempt costs five, since `k₁` is reused from the restored state. `f` is
+evaluation at the endpoint**, which the next step takes as its `k₁`. `f` is
 expensive (§3, C17).
+
+The endpoint evaluation is formed **before** the error estimate is tested and is
+discarded on rejection, so an accuracy rejection costs six — the same as an
+accepted step, not five. Only a rejection that *throws* costs less, aborting at
+the offending stage (measured mean 3.0–4.7, C19).
 
 **Error weight.** Per component,
 
@@ -115,7 +119,7 @@ be 4.
 **The floor accepts.** If the computed shrink is not actually smaller than the
 current step (already at `h_min`), no shrink is reported and **the inaccurate
 step is committed**. This is deliberate and is documented as acceptable for
-accuracy and never for validity.
+accuracy and never for validity. Measured: it never fires (C19).
 
 **Validity rejection is a separate path** with its own rule, `h ← max(0.2·h,
 h_min)`, always reported as a shrink even when it cannot decrease. It fires on
@@ -126,10 +130,12 @@ either of:
 2. a completed step landing on a state the system refuses — **this overrides an
    `accept` verdict from the error estimate**.
 
-Domain rejections are **routine, not exceptional**: the model's own
-documentation records them occurring on the order of hundreds of times in a run
-that completes normally, and a controller-free replay of a recorded step
-sequence meets one at 39% of the parameter points tried (C13).
+Measured (C19): path 2 never fires, because what it would refuse is caught a
+stage earlier by path 1; and every throw on path 1 is the per-member pool, never
+the small block. Domain rejections are routine rather than exceptional — 4.1% of
+attempts under sustained forcing, 7.4% under impulsive — and a controller-free
+replay of a recorded step sequence meets one at 39% of the parameter points
+tried (C13).
 
 **Retry loop.** Unbounded; there is no attempt cap. On a shrink the state and
 time are restored and the step is retried. The run fails only when the step is
@@ -296,6 +302,24 @@ penalty.
 **(C17) Cost structure.** The member loop is ~86% of an `f` evaluation and is
 `O(M)`. The member enters the inner root only through `(ξ_j, u) ∈ ℝ^{1+L}`.
 
+**(C19) Census of step attempts by outcome**, over every attempt of a whole run:
+
+| outcome | sustained | impulsive |
+|---|---|---|
+| accepted | 530 | 1017 |
+| accuracy rejection | 97 | 292 |
+| domain rejection (thrown) | 27 | 104 |
+| domain rejection (state refused) | **0** | **0** |
+| accepted at the floor | **0** | **0** |
+| **rejections / attempts** | **19.0%** | **28.0%** |
+| **rate evaluations on rejected attempts** | **17.3%** | **26.9%** |
+
+Every throw comes from one site — the per-member inequality constraint of
+§1.3(i), inside the member loop, per member per stage. The small block's own
+guard never fired. Over a horizon 21× longer the rejection fraction is
+comparable (19.3% sustained, 31.3% impulsive), so this is not an artefact of the
+short horizon.
+
 **(C18) A non-stiff instance of the same code path shows none of this.** A
 variant of the same model family with no stiff small block replays correctly on
 the raw captured grid (`s = 1`) to `2.6e-5 … 8.1e-5` over a ±100% parameter
@@ -332,9 +356,9 @@ largely predictable rather than discovered?
 The current law is memoryless: `h_{n+1}` depends only on `r_max` at step `n`,
 through the three-zone rule of §2. The measured setting: `h·|λ|` pinned at the
 stability boundary under sustained forcing (C3); a known impulse grid; an
-expensive `f` (C17); and, because the method is first-same-as-last, a rejected
-attempt costing five rate evaluations against an accepted step's six — so a
-rejection is ~0.83 of a step, not free and not a doubling. (a) Which controller from the digital-filter family (PI,
+expensive `f` (C17); and an accuracy rejection costing a **full** step's six
+rate evaluations (§2), with deadbeat rejecting 19–28% of attempts and spending
+17–27% of all rate evaluations on them (C19). (a) Which controller from the digital-filter family (PI,
 predictive, H211b, PI42, …) is optimal here, and what determines the answer —
 the stability-boundary pinning, the impulse-induced transients, or the cost
 asymmetry between a rejection and a too-small step? (b) What limiter and safety-
