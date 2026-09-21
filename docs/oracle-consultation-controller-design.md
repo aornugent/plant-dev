@@ -32,44 +32,130 @@ quadrature: nothing reads them, and they enter no functional.
 
 ### 1.3 The large block
 
-`x` holds `M` members, `M ≈ 50 … 800`, each carrying an ordered scalar `ξ_j`,
-a positive weight `ρ_j`, and O(1) further states. It is a discretised measure
-transported along characteristics, `μ_t = Σ_j ρ_j δ_{ξ_j}`:
+`x` holds `M` members, each carrying an ordered scalar `ξ_j`, a positive weight
+`ρ_j`, and six further per-member states — **eight components per member**. It
+is a discretised measure transported along characteristics,
+`μ_t = Σ_j ρ_j δ_{ξ_j}`:
 
 ```
 ξ̇_j           = g(ξ_j, u, p_j)
 d(log ρ_j)/dt = − ∂g/∂ξ |_{ξ_j} − m(ξ_j, u, p_j)
 ```
 
-Members are inserted on a schedule the caller controls and are never removed;
-`ρ_j → 0` is absorbing and many members reach it.
+Members are inserted on a schedule and never removed. `M` grows to **88** over
+the horizon used throughout §3, giving ~714 state components against the small
+block's `2L = 10`.
+
+Two structural facts about this block matter for the controller:
+
+**(i) One per-member state is inequality-constrained, and its boundary is
+attracting.** A scalar pool `z_j ≥ 0` drains toward zero under ordinary
+dynamics; the constraint is enforced by *rejecting the step*, not by projection
+or by a barrier in `f`. The guard compares against `−ε·z_max` rather than
+against exact zero, because a member resting on the boundary is round-off-noisy
+on its own scale and an exact comparison refuses nearly every attempt there.
+
+**(ii) `log ρ_j` legitimately attains `−∞`** in floating point — the absorbing
+state is reached, not approached. Because the error weight is
+`rtol·|y_i| + atol`, such a component's weight is infinite and its error ratio
+is identically zero, so a fully absorbed member drops out of the error norm with
+no threshold and no special case.
 
 ### 1.4 Coupling, inner problem, output
 
-Each member carries a scalar `p_j` defined as the solution of an inner scalar
-problem `σ(p; ξ_j, u) = 0` — a safeguarded root of a feasibility condition on an
-active constraint. The coupling is a weighted sum,
-`a_ℓ(x, u) = Σ_j ρ_j c_ℓ(ξ_j, u, p_j)`. The output is a moment of the measure,
-`J = Σ_j w_j φ(ξ_j, …)`. `dJ/dθ` is required by reverse-mode AD over the whole
-trajectory.
+Each member carries a scalar `p_j` obtained by solving an inner **constrained
+scalar optimisation** in `(ξ_j, u)`. Its solution is classified into one of
+several outcomes: an interior stationary point, **three distinct
+active-constraint boundaries**, two terminal states, and two failure states. So
+`p = P(ξ, u)` is piecewise-smooth with **switching surfaces in `(ξ, u)`**, `C⁰`
+across them; which piece is active varies by member and evolves in time. The
+solve is a safeguarded root of the relevant stationarity/feasibility condition,
+**convergence-tested** to relative tolerance `1e-12` with a data-dependent
+iteration count.
 
-## 2. The integrator and controller as configured
+The coupling is a weighted sum, `a_ℓ(x, u) = Σ_j ρ_j c_ℓ(ξ_j, u, p_j)`. The
+output is a moment of the measure, `J = Σ_j w_j φ(ξ_j, …)`. `dJ/dθ` is required
+by reverse-mode AD over the whole trajectory.
 
-- Embedded explicit Runge–Kutta, Cash–Karp 5(4).
-- Per-component weighted error ratio `r_i = |e_i| / (atol + rtol·|y_i|)`.
-- **Acceptance on the max norm**: accept when `r_max = max_i r_i ≤ 1`.
-- **Elementary (deadbeat I) controller**, no memory:
-  `h_{n+1} = h_n · S · r_max^{−1/5}`. A rejection costs a full step.
-- Integration restarts at every member-insertion time, so those are already step
-  boundaries.
-- Forcing breakpoints are **not** step boundaries.
-- `s_ℓ(t)` is reconstructed from data on a uniform grid by a monotone `C¹`
-  interpolant, so `f''` jumps at every knot.
-- A Rosenbrock RODAS4(3) stepper exists in the same solver but carries no
-  adjoint.
-- The accepted step sequence is recorded and replayed on the reverse pass, so
-  the controller is already off the tape: the norm may depend on anything
-  without affecting differentiability.
+## 2. The integrator and its controller, exactly as configured
+
+**Method.** Embedded explicit Runge–Kutta, Cash–Karp 5(4), first-same-as-last by
+construction: an accepted step costs **five stage evaluations plus one
+evaluation at the endpoint**, which the next step takes as its `k₁`. A rejected
+attempt costs five, since `k₁` is reused from the restored state. `f` is
+expensive (§3, C17).
+
+**Error weight.** Per component,
+
+```
+D_i = rtol·( a_y·|y_i| + a_dydt·|h·ẏ_i| ) + atol ,     r_i = |e_i| / D_i
+```
+
+Configured: `atol = rtol = 1e-4`, `a_y = 1`, `a_dydt = 0`. The
+derivative-weighted term exists and is switched off.
+
+**Norm.** The **max** norm, `r_max = max_i r_i`, scanned in index order and
+**broken at the first non-finite ratio**, which is treated as a validity
+rejection rather than folded into the maximum.
+
+**Response — three zones, with a dead band.** With `S = 0.9` and `ord = 5`:
+
+| zone | action |
+|---|---|
+| `r_max > 1.1` | reject; `h ← h · max(0.2, S·r_max^{−1/ord})` |
+| `0.5 ≤ r_max ≤ 1.1` | accept; **`h` unchanged** |
+| `r_max < 0.5` | accept; `h ← h · clamp(S·r_max^{−1/(ord+1)}, 1, 5)` |
+
+Three things to note. The acceptance threshold is **1.1, not 1**. There is an
+explicit dead band over `[0.5, 1.1]` in which the controller does nothing. The
+shrink and growth exponents **differ** — `1/ord` against `1/(ord+1)` — and
+`ord` is set to 5 carrying an inherited annotation questioning whether it should
+be 4.
+
+**The floor accepts.** If the computed shrink is not actually smaller than the
+current step (already at `h_min`), no shrink is reported and **the inaccurate
+step is committed**. This is deliberate and is documented as acceptable for
+accuracy and never for validity.
+
+**Validity rejection is a separate path** with its own rule, `h ← max(0.2·h,
+h_min)`, always reported as a shrink even when it cannot decrease. It fires on
+either of:
+
+1. a stage throwing a domain error — the per-member pool of §1.3(i) going
+   negative, or the small block going non-finite;
+2. a completed step landing on a state the system refuses — **this overrides an
+   `accept` verdict from the error estimate**.
+
+Domain rejections are **routine, not exceptional**: the model's own
+documentation records them occurring on the order of hundreds of times in a run
+that completes normally, and a controller-free replay of a recorded step
+sequence meets one at 39% of the parameter points tried (C13).
+
+**Retry loop.** Unbounded; there is no attempt cap. On a shrink the state and
+time are restored and the step is retried. The run fails only when the step is
+at `h_min` and the state is still invalid.
+
+**Fragmentation.** Integration is not one sweep. It is split into **88 legs** by
+the insertion times, which lie on a dyadic geometric grid
+`Δ = 2^⌊log₂(0.2 t)⌋` clamped to `[1e-5, 2]` — leg lengths spanning `1e-5` to
+`0.5`. At the configured tolerance this is **~6 accepted steps per leg**. The
+final step of each leg is clipped to land exactly on the boundary and
+**deliberately does not update the carried step size**, so controller history
+survives the boundary; but the carried size is then applied across a **discrete
+change in the system** (a member is inserted), and a step size inherited across
+that change is the documented cause of the small block leaving its bounds and
+triggering the validity path above.
+
+**Limits.** `h_init = h_min = 1e-6` (they are equal), `h_max = 5`, which is the
+whole horizon.
+
+**Alternative paths in the same solver.** A fixed-step forward Euler; a
+Rosenbrock RODAS4(3) that carries no adjoint; and two controller-free replay
+forms whose behaviour differs sharply (C13).
+
+**Tape.** The accepted step sequence is recorded and replayed on the reverse
+pass, so the controller is already off the tape: the acceptance rule may depend
+on anything without affecting differentiability.
 
 ## 3. Measured characterisation
 
@@ -126,15 +212,24 @@ any member-side reweighting: **< 1% of accepted steps**.
 tolerance `1e-12`. The iteration count is data-dependent. It is therefore a
 branch, and a noise floor in `f` at ≈`1e-12`.
 
-**(C8)** Repeated evaluations of `f` at fixed `(y, t)` are bit-identical, and the
-finite-difference derivative of `a_ℓ` in `u` converges to a finite limit. Across
-the population, in the regimes of interest, every member lands in a single
-smooth branch of `σ`. In two extreme forcing regimes two branches co-occur at
-one instant, in 28% and 31% of members respectively.
+**(C8) The right-hand side is deterministic and smooth away from the switching
+surfaces.** Repeated evaluations of `f` at fixed `(y, t)` are bit-identical, and
+the finite-difference derivative of `a_ℓ` in `u` converges to a finite limit.
+
+**(C9) Which branch of the inner problem is active is regime-dependent, and
+mostly uniform across the population.** Censused over seven forcing regimes: in
+five of them a single branch holds population-wide at every instant, even where
+the whole population *migrates* from one branch to another over the run. In the
+two most extreme regimes two branches co-occur at one instant, in 28% and 31% of
+members. So the population crosses switching surfaces continually in time, but
+usually together rather than member by member.
+
+**(C10) There is no event detection.** Steps are not aligned to switching-surface
+crossings, to the forcing breakpoints, or to anything but the insertion times.
 
 ### 3.4 Freezing the step sequence
 
-**(C9) Trust region of a frozen grid.** Capture the accepted sequence at `θ_0`,
+**(C11) Trust region of a frozen grid.** Capture the accepted sequence at `θ_0`,
 then replay it with no error control at other `θ`, shrinking every captured step
 by a factor `s`:
 
@@ -162,7 +257,7 @@ percent.
   replaces (no error estimate, no rejections). So `s = 1.5` ≈ break-even and
   `s = 2` ≈ +45%.
 
-**(C10) Sensitivity by finite difference.** Central FD of `dJ/dθ_1`, `δ` from
+**(C12) Sensitivity by finite difference.** Central FD of `dJ/dθ_1`, `δ` from
 `1e-3` to `1e-9`:
 
 - **adaptive: no plateau at any `δ`.** 5.6% error at `1e-4`, non-monotone from
@@ -173,7 +268,7 @@ percent.
 - The frozen sequence degrades below `δ ≈ 1e-6`, at the inner-solve noise floor
   (C7) — not at the grid.
 
-**(C11) A hard-failure mode of controller-free stepping.** Two fixed-grid forms
+**(C13) A hard-failure mode of controller-free stepping.** Two fixed-grid forms
 exist. One takes each step bare: a domain violation inside a stage propagates
 and kills the run, refusing at 25 of 64 parameter points, unpredictably (a +5%
 change fails where a −50% change succeeds). The other subdivides on a violation
@@ -183,25 +278,25 @@ refused at `θ_0` itself.
 
 ### 3.5 Where the operating point sits
 
-**(C12) The default operating point is not in the asymptotic regime.** Under
+**(C14) The default operating point is not in the asymptotic regime.** Under
 impulsive forcing `J` moves **57%** between tolerance `1e-4` and `1e-6`. Under
 sustained forcing `d log(steps)/d log(tol) = −0.167` over `1e-4 … 1e-8`, with
 local slopes ranging `−0.064 … −0.345`, against `−0.20` for a clean fifth-order
 response.
 
-**(C13) Balance of errors.** The measure's discretisation error is `O(Δξ²)`,
+**(C15) Balance of errors.** The measure's discretisation error is `O(Δξ²)`,
 roughly `(1/M)²` relative: ≈`1e-6` at `M = 800`, ≈`4e-4` at `M = 50`. Time is
 routinely resolved far finer than `ξ`.
 
-**(C14) Forcing geometry.** `f''` jumps on a known uniform grid whose spacing is
+**(C16) Forcing geometry.** `f''` jumps on a known uniform grid whose spacing is
 **finer** than the mean accepted step by a factor 1.5–2.6. Aligning to every
 knot therefore imposes a floor of one step per knot rather than removing a
 penalty.
 
-**(C15) Cost structure.** The member loop is ~86% of an `f` evaluation and is
+**(C17) Cost structure.** The member loop is ~86% of an `f` evaluation and is
 `O(M)`. The member enters the inner root only through `(ξ_j, u) ∈ ℝ^{1+L}`.
 
-**(C16) A non-stiff instance of the same code path shows none of this.** A
+**(C18) A non-stiff instance of the same code path shows none of this.** A
 variant of the same model family with no stiff small block replays correctly on
 the raw captured grid (`s = 1`) to `2.6e-5 … 8.1e-5` over a ±100% parameter
 change, under both replay forms.
@@ -234,10 +329,12 @@ largely predictable rather than discovered?
 
 ### 4.3 The controller as a digital filter
 
-The current law is the memoryless deadbeat `h_{n+1} = h_n S r^{−1/5}`. The
-measured setting: `h·|λ|` pinned at the stability boundary under sustained
-forcing (C3); a known impulse grid; an expensive `f` (C15); a rejection costing
-a full step. (a) Which controller from the digital-filter family (PI,
+The current law is memoryless: `h_{n+1}` depends only on `r_max` at step `n`,
+through the three-zone rule of §2. The measured setting: `h·|λ|` pinned at the
+stability boundary under sustained forcing (C3); a known impulse grid; an
+expensive `f` (C17); and, because the method is first-same-as-last, a rejected
+attempt costing five rate evaluations against an accepted step's six — so a
+rejection is ~0.83 of a step, not free and not a doubling. (a) Which controller from the digital-filter family (PI,
 predictive, H211b, PI42, …) is optimal here, and what determines the answer —
 the stability-boundary pinning, the impulse-induced transients, or the cost
 asymmetry between a rejection and a too-small step? (b) What limiter and safety-
@@ -247,16 +344,94 @@ informative about what comes next? (d) Is there a controller that is provably
 better than deadbeat when the binding component changes identity from step to
 step, as C4 shows it does?
 
-### 4.4 Frozen versus adaptive, and the hybrid
+### 4.4 The response law itself
 
-Given C9 and C10. (a) Is "shrink by the largest factor by which `|λ|` can rise
+The law in §2 is not the textbook elementary controller. It has an acceptance
+threshold of 1.1 rather than 1; a dead band over `r_max ∈ [0.5, 1.1]` in which
+`h` is left unchanged; different exponents for shrink (`1/ord`) and growth
+(`1/(ord+1)`); hard clamps of 0.2 and 5; and a floor at which an inaccurate step
+is committed rather than rejected. `ord` is 5 for a 5(4) pair whose error
+estimate is `O(h⁵)`.
+
+(a) Is `ord = 5` the right exponent for this estimator, or should it be 4? What
+is the observable consequence of getting it wrong — is it visible in the
+tolerance-response slope (C14)? (b) What does the dead band buy or cost? It
+suppresses small oscillations in `h`, but it also prevents the controller from
+tracking a slowly-drifting optimum, and with only ~6 steps per leg (C10, §2) it
+may be most of the run. (c) Is the shrink/growth exponent asymmetry defensible,
+or is it a conservative fudge that a proper filter (4.3) should replace? (d) Is
+accepting an inaccurate step at `h_min` ever right, given `h_min = h_init = 1e-6`
+— and should the failure instead be reported to the caller?
+
+### 4.5 A frequently restarted integration
+
+The integration is fragmented into 88 legs by the insertion schedule, leg
+lengths spanning `1e-5` to `0.5` on a dyadic grid, ~6 accepted steps per leg
+(§2). The last step of each leg is clipped to land on the boundary and does not
+update the carried step size, so history survives; but the carried size is then
+applied across a discrete change in the system, and that is the documented cause
+of the small block leaving its bounds.
+
+(a) How should a step-size controller — particularly one with memory (4.3) —
+behave across a known discrete change in the system: carry its state, reset it,
+or carry it with a declared derating? (b) Is clipping the final step to the leg
+boundary and excluding it from the history the right treatment, or should the
+controller instead plan the last two steps of a leg to land evenly? (c) With ~6
+steps per leg, is per-leg adaptive control worth having at all, or does this
+regime argue for a precomputed schedule (4.8) on structural grounds rather than
+on the `θ`-smoothness grounds of C12? (d) Does the enormous spread of leg
+lengths — five orders of magnitude — change the answer between early and late
+legs?
+
+### 4.6 Constraint violation as a control signal
+
+One per-member state is inequality-constrained with an **attracting** boundary
+(§1.3), and violations are handled by a validity rejection with its own law:
+`h ← max(0.2h, h_min)`, unconditional, independent of how badly the constraint
+was violated, and overriding an `accept` verdict from the error estimate. These
+rejections are routine rather than exceptional (§2, C13).
+
+(a) Is a fixed 0.2 contraction the right response to a constraint violation, or
+should the step be cut by a *predicted* factor from the overshoot — a line
+search to the boundary, as in an interior-point method? (b) Is rejection the
+right mechanism at all for an attracting boundary that members are *supposed* to
+reach and rest on, or should the constraint be reformulated (a projection, a
+smooth barrier, a change of variable to an unconstrained coordinate such as
+`log z`), and what does each cost in bias and in reverse-mode differentiability?
+(c) The guard uses a relative slack `−ε·z_max` because an exact comparison
+refuses nearly every attempt at the boundary — is a tolerance-based domain guard
+inside an error-controlled integration sound, and how should `ε` relate to
+`atol`/`rtol`? (d) What is the correct interaction between a validity rejection
+and the error controller's own state — should a validity rejection be allowed to
+update the accuracy controller's history at all?
+
+### 4.7 Switching surfaces without event detection
+
+`P(ξ, u)` is `C⁰` across active-set changes with switching surfaces in
+`(ξ, u)` (§1.4). The population crosses them continually in time, usually
+together rather than member by member (C9). There is no event detection (C10).
+
+(a) What is the actual order reduction for an embedded RK pair stepping across a
+`C⁰` kink in the right-hand side, and how does the controller behave there —
+does it reject, thrash, or silently accept a low-order step? (b) Given that
+reverse-mode AD forbids a data-dependent branch on an active value, is event
+location available at all here, and if not what is the best substitute — a
+smoothed complementarity form of the active-set condition with a declared width,
+or accepting the order loss and pricing it? (c) Does the measured fact that the
+population usually crosses *together* (C9) help — for example by making the
+crossing detectable from the small block alone, which is only `2L = 10`
+components?
+
+### 4.8 Frozen versus adaptive, and the hybrid
+
+Given C11 and C12. (a) Is "shrink by the largest factor by which `|λ|` can rise
 across the parameter box" the right safety-factor rule? The measurement is that
 `|λ|` rises 1.5× over a 100× change in `κ` and `s = 2` suffices — is the margin
 between 1.5 and 2 explicable, and does the rule generalise? (b) What is the
 principled trigger for re-capturing the grid inside an optimisation loop, and is
 `Σ_n λ_nᵀ e_n` from the reverse pass the right certificate given that the frozen
 grid is exactly what makes that reverse pass well-defined? (c) Zero transfer
-across forcing realisations (C9) is reported as a limitation; since the forcing
+across forcing realisations (C11) is reported as a limitation; since the forcing
 is fixed throughout a calibration, is one grid per forcing realisation simply
 correct, or is there a reason to want transfer? (d) Is there a middle design
 that keeps adaptivity while removing the `θ`-dependence of the accepted
@@ -264,9 +439,9 @@ sequence — freezing only within a finite-difference pair, or a controller whos
 accept/reject decision is a smooth function of the state rather than a
 threshold?
 
-### 4.5 Failure handling without a controller
+### 4.9 Failure handling without a controller
 
-C11: one controller-free form propagates a domain violation as a hard failure at
+C13: one controller-free form propagates a domain violation as a hard failure at
 39% of a parameter box; the other subdivides and always completes, but a
 subdivision is itself a data-dependent branch — the very thing freezing the grid
 was meant to eliminate. What is the right design for a fixed-grid integrator's
@@ -274,21 +449,21 @@ failure handling such that it stays `θ`-smooth and still survives a domain
 violation? Is a projection, a smoothed barrier, or a reformulation that cannot
 violate the domain the correct answer, and what does each cost in bias?
 
-### 4.6 Joint tolerance allocation
+### 4.10 Joint tolerance allocation
 
 Three tolerances interact: the controller's `(atol, rtol)`; the inner root's
 (`1e-12`, convergence-tested, C7); and the measure's discretisation, `O(1/M²)`
-(C13). Measured: the FD plateau bottoms out at the inner floor, not the grid
-(C10). (a) What is the principled joint allocation? (b) Should the inner solve
+(C15). Measured: the FD plateau bottoms out at the inner floor, not the grid
+(C12). (a) What is the principled joint allocation? (b) Should the inner solve
 be a **fixed-iteration-count** Newton — smooth and branch-free, but a slightly
 different function than the exact root — and what does that change for the
 controller, for the tape, and for `J`? (c) Is there a reason to make the inner
 tolerance a function of the current step's accepted error rather than a
 constant?
 
-### 4.7 Operating outside the asymptotic regime
+### 4.11 Operating outside the asymptotic regime
 
-C12: at the tolerance the system is normally run at, `J` is not converged, and
+C14: at the tolerance the system is normally run at, `J` is not converged, and
 the step-count response to tolerance is not the asymptotic power law. Classical
 step-size control theory assumes the asymptotic regime. (a) How should a
 controller behave outside it? (b) Can it detect that it is outside it cheaply
@@ -296,21 +471,21 @@ and online? (c) Is a controller that silently returns a non-converged answer at
 the user's requested tolerance a defect to fix in the controller, or strictly a
 tolerance-selection problem for the caller?
 
-### 4.8 Alignment when the kink grid is finer than the step
+### 4.12 Alignment when the kink grid is finer than the step
 
-C14: `f''` jumps on a known grid finer than the mean step. (a) What is the right
+C16: `f''` jumps on a known grid finer than the mean step. (a) What is the right
 policy — align anyway and loosen the tolerance to pay for it, coarsen the
 forcing reconstruction with a budgeted bias, or reconstruct at higher continuity
 so there is nothing to align to? (b) What is the actual order loss from a `C¹`
 kink (a jump in `f''`, not in `f`) inside a step of a 5(4) pair, and how much of
-C12's departure from the asymptotic power law can it explain? (c) If the
+C14's departure from the asymptotic power law can it explain? (c) If the
 reconstruction is changed, what is the right constraint to impose — monotonicity
 of the primitive, positivity of the rate, exact preservation of the integral
 over each cell?
 
-### 4.9
+### 4.13
 
-Which of C1–C16 is **load-bearing** for each answer and which is incidental?
+Which of C1–C18 is **load-bearing** for each answer and which is incidental?
 What has not been asked?
 
 ## 5. Constraints an answer can rely on
@@ -330,4 +505,12 @@ What has not been asked?
 - An L-stable Rosenbrock stepper is available but has no adjoint; adding one is
   work, not wiring.
 - The model's formulation may be changed, not only the solver, if the change is
-  declared and its effect on `J` is budgeted.
+  declared and its effect on `J` is budgeted. In particular the inequality
+  constraint of §1.3(i) may be reformulated, and the dependent variable of the
+  weight equation may be changed.
+- The insertion schedule is the caller's: its times, their number and their
+  spacing can all be changed, and the integration's leg structure with them.
+- Every quantity the controller could condition on — the small block, the
+  member weights, the forcing phase, the distance to a constraint boundary, an
+  adjoint from a previous solve — is available at the point of the accept/reject
+  decision at no additional evaluation cost.
