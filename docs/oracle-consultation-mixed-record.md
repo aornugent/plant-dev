@@ -184,6 +184,25 @@ of adaptive at every level); the failure is step *placement*. The union of every
 level's accepted program reproduces each adaptive answer to 1e-5, at 2.5–4.5×
 the steps.
 
+**(E12) The inner problem's constraint locations carry a fixed error that
+refinement cannot touch.** The bounds of the feasible interval are found by a
+bracketing root-find whose stopping tolerance is hard-coded and used as *both*
+absolute and relative, giving a bracket width of order `1e-4` in the natural
+units of the control; the value returned is the bracket midpoint. A second
+hard-coded tolerance, `1e-3`, classifies any member whose bracket is narrower
+than it into a terminal state. So the switching surfaces of §1.4 are themselves
+resolved only to ~`1e-3`, against the `1e-12` of the interior root-find.
+
+The consequence for the derivative is asymmetric. On the interior branch the
+control's placement is **envelope-protected**: the stationarity condition makes
+the control's movement drop out of the functional's derivative. On a constrained
+branch there is no envelope — the reported control *is* the bound, and its
+movement enters at first order. So members on constrained branches carry a
+derivative error floored at that `1e-4` while interior members keep converging
+under refinement. (Separately, one internal integral over the coupling profile
+is a single fixed 21-point rule on one interval, non-adaptive, with its error
+estimate computed and discarded.)
+
 ## 4. Questions
 
 ### 4.1 A discretisation that varies within the record
@@ -205,22 +224,26 @@ record, since a member created in one stretch persists into all later ones). Is
 formulation — a single constraint with a local density of steps, or something
 else?
 
-### 4.2 Why does switching cost the derivative an extra half order?
+### 4.2 A constraint location frozen below the discretisation
 
-E6: without switching, `dJ/dθ` converges at the value's order. With 14% of
-member-instants on an active constraint rather than the interior branch, the
-value holds ~1.87 while the derivative falls to ~1.34. The switching surface is
-`C⁰` — the rate is continuous across it — which is precisely the case where a
-pinned-event adjoint is supposed to be first-order correct.
+E6 measures the derivative losing half an order where members sit on constrained
+branches. E12 offers a mechanism that is not about the discretisation at all:
+the constraint's location is fixed by an inner solver tolerance no grid
+refinement touches, and on constrained branches that location enters the
+derivative at first order where on the interior branch it is envelope-protected.
 
-(a) What mechanism costs the derivative half an order at a `C⁰` switch when the
-value keeps its own? (b) Does the balance ratio between the two grids have to be
-recomputed per regime as a consequence, since it was derived from the orders of
-`J`? (c) What recovers the order — smoothing the active-set condition with a
-declared width, locating the crossing, or is half an order the price of a
-non-smooth inner problem? (d) The measurement rests on one record, one
-parameter and one difference step. What is the cheapest design that would
-establish it as a law rather than a signal?
+(a) Is that sufficient to produce a *fractional order* in the mixture, or would
+a frozen error floor on a subpopulation produce a plateau rather than a reduced
+order — and how would one tell those apart from a refinement sequence of the
+length available? (b) If the mechanism holds, the remedy is to tighten an inner
+tolerance rather than refine any grid. What sets the right value, given it must
+sit below the discretisation error it is not meant to dominate, while the
+control's own scale bounds how tight it can usefully go? (c) Does the balance
+ratio need recomputing per regime regardless, since it was derived from the
+orders of `J`? (d) Generally: when a subpopulation's contribution to a
+functional carries an error floor that refinement cannot reach, what is the
+honest way to state the overall convergence, and what should a refinement study
+report?
 
 ### 4.3 Pruning the alignment set
 
@@ -303,7 +326,7 @@ given the change of variable does not touch the stiffness?
 
 ### 4.7
 
-Which of E1–E11 is load-bearing for each answer, and which incidental? Given a
+Which of E1–E12 is load-bearing for each answer, and which incidental? Given a
 requirement for accurate derivatives across records that mix all of these local
 regimes, what is the smallest set of changes and in what order? What has not
 been asked?
