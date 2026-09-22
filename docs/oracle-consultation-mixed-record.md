@@ -119,13 +119,33 @@ size of the finite-difference scatter, so refinement alone yields no order. At
 the default the derivative's error is **~1%**, not pinnable tighter than ±0.5%
 by finite differences.
 
-**(E7) A converged value does not imply a converged derivative.** Read off the
-adjoint at one node count: 0.04% error in a functional, 0.9–2.5% in that
-functional's derivative with respect to one parameter (20–60× worse), 30–250%
-with respect to another — and for one functional/parameter pair the derivative
-carries the **wrong sign** at the default node count. For the functional of
-interest here the two errors happen to coincide; that is a property of the pair,
-not a rule.
+**(E7) A converged value does not imply a converged derivative, and the gap is
+conditioning rather than differentiation.** At one node count: 0.04% error in a
+functional, 0.9–2.5% in its derivative with respect to one parameter (20–60×
+worse), 30–250% with respect to another, and for one functional/parameter pair
+a derivative of the **wrong sign**.
+
+Diagnosed on the worst pair. That derivative is the sum of two opposing paths —
+a direct dependence (elasticity +0.783) and a transported one through the
+altered trajectory (−0.791) — so the answer is **1% of either term**, condition
+number ≈ 100. The transported term carries the ordinary node error of a
+derivative (2.53%), and 2.53% × 101 = 256%, which is 2.6× the answer. The
+amplification is exact: `err(total) = 100·err(direct) + 101·err(swept)`
+reproduces the observed error at six node levels spanning four orders of
+magnitude and three sign changes.
+
+The differentiation is **not** at fault. At the very node count where the sign is
+wrong, the reverse sweep matches central differences of whole re-runs to
+0.99994–1.00001 and a forward tangent to ten digits. So the *discrete
+functional's* slope is wrong, not the derivative of it — the discretisation
+carries a correct derivative of a functional whose own slope has not yet
+converged. Refinement corrects the sign from 175 nodes upward.
+
+Two consequences. The condition number `|component| / |total|` is computable
+from quantities the sweep already forms and discards, so an a posteriori
+indicator exists. And the operating point matters more than the tolerance: the
+pair's sign change sits at the configuration tested, and moving one model
+constant ±20% drops the condition number from ~100 to 2–3.
 
 **(E9) The dominant error under intermittent forcing is the time grid, not the
 node grid.** At the default time tolerance and 88 nodes a mixed record gives
@@ -230,9 +250,12 @@ derivative again changing sign, even when the time grid is literally identical
 across levels.
 
 (a) What is the right convergence criterion for a *derivative* under refinement,
-given a converged value does not imply one? Is there a cheap a posteriori
-indicator, or must every parameter's derivative be refinement-tested
-separately? (b) E10's placement sensitivity: is the union of the levels' step
+given a converged value does not imply one? E7 offers one candidate — the
+condition number of the cancellation, available for free where the derivative
+splits into a direct and a transported term. Is that the right indicator, is it
+sufficient, and what covers the cases where no such split is exposed (two of
+three functionals tested have an identically-zero direct term and still carry
+29–31% derivative error)? (b) E10's placement sensitivity: is the union of the levels' step
 programs the right instrument for a refinement study, or a symptom of something
 that should be fixed — and what does it say about reusing one designed grid
 across `θ`, where the node grid does *not* move? (c) Since the derivative is the
