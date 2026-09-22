@@ -58,6 +58,38 @@ or use the adjoint.
 | multirate is on the frontier | it collapses into a linearly-implicit split, because the expensive coupling is a function of the fast variable |
 | the cohort-count error is 16–31% under intermittent forcing | that was the time grid. With it pinned, the cohort error is 0.24% |
 
+## How the drainage stiffness scales
+
+Derived, not measured, but consistent with what was measured and worth having
+before anyone sweeps a parameter looking for the step constraint.
+
+The eigenvalue of a soil layer's drainage is
+
+```
+|λ_ℓ| = q·κ_ℓ·u_ℓ^(q−1) = q·outflux_ℓ / u_ℓ  ∝  flux^(1−1/q) · κ^(1/q)
+```
+
+so with `q ≈ 16` the conductivity enters at the sixteenth root. A 3000× change
+in `K_sat` moves `|λ|` by `3000^(1/16) = 1.65`, against the 2.0 measured — the
+remainder arriving through the flux falling as `u` drops. A ±2× change moves it
+**4%**. That is why sweeping `K_sat` says nothing about the step constraint, and
+the earlier reading of that sweep as "the block self-regulates" is the same fact
+stated loosely.
+
+What does move `|λ|` is throughflux to the deepest layer, so the parameters that
+matter are the ones setting uptake and drainage through the profile. A ±2× box
+in those moves the terminal flux by about 2× — the size of the safety factor the
+frozen-grid work arrived at empirically.
+
+Two things follow, both useful for designing a grid rather than discovering it.
+A stability cap `h(t) ≤ β/(m·Λ(t))`, with `Λ` the envelope of `|λ|` over the
+record and `m` a margin, is computable for a whole parameter box from one
+reference run's flux partition — which is a trust region in `θ` that can be
+stated in advance. And at a rain event's onset the top layer goes to
+`u_1 → (s/κ_1)^(1/q)`, so its post-onset relaxation rate
+`|λ_1| ≈ q·κ_1^(1/q)·s^(1−1/q)` follows from the event's size **before the event
+arrives** — the refinement density after each pulse can be set from the record.
+
 ## Latent bugs
 
 Ordered by the chance of someone hitting one.
