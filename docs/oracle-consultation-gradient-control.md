@@ -12,9 +12,11 @@ J             = Σ_j w_j φ_j                                               w fr
 ```
 
 Member `j` is created at time `b_j`. The `b_j` are the characteristic labels and
-the quadrature abscissae, fixed for all time. `s(t)` is a known record. `dJ/dθ`
-is the quantity wanted, `θ ∈ ℝ^k`, `k ≈ 17`, by reverse-mode AD over the whole
-trajectory.
+the quadrature abscissae, fixed for all time. `φ_j` is the member's accumulated
+moment, itself an ODE state. `w_j` is the trapezium weight on `b` times a second
+known record sampled at `b_j`, so the creation grid enters `J` as abscissae and
+as sample points. `s(t)` is a known record. `dJ/dθ` is the quantity wanted,
+`θ ∈ ℝ^k`, `k ≈ 17`, by reverse-mode AD over the whole trajectory.
 
 The integration runs on two grids — creation times `𝒢_b` and step times `𝒢_t` —
 and neither may depend on `θ`. Choosing them, with stated guarantees, is the
@@ -38,6 +40,12 @@ raises it 1.5×, because `u` falls until `κu^q` collapses.
 
 Alongside `u` sit `L` accumulators, `v̇_ℓ` a flux already computed for `u̇`. They
 enter no functional and nothing reads them.
+
+`M` starts at zero and grows monotonically over `[0,T]`; members are never
+removed. `ρ_j → 0` is absorbing and many members reach it, `log ρ_j` arriving at
+`−∞` as a state the system then carries. A new member's initial conditions are
+computed from the state at its creation time, so each creation contributes its
+own path to `dJ/dθ` alongside the steps.
 
 Each member carries eight components — `ξ_j`, `ρ_j`, and six further states — so
 `x` is ~10³ components against the chain's `2L = 10`. One per-member state `z_j`
@@ -115,6 +123,10 @@ always reported as a shrink. A post-step state refusal overrides an accept
 verdict; measured, it never fires, because what it would refuse is caught a
 stage earlier. The retry loop is unbounded.
 
+No step is aligned to a switching-surface crossing or to a knot of the record.
+The only forced stops are creations and scheduled events; there is no event
+detection.
+
 Integration is split into ~10² legs by the creation times, which lie on a dyadic
 grid `Δ = 2^⌊log₂(0.2 t)⌋` clamped to `[1e-5, 2]`. Leg lengths span five orders
 of magnitude; 55% of legs are shorter than one chain relaxation time and
@@ -177,6 +189,13 @@ The refinement loop runs the model, flags nodes whose indicator exceeds a
 threshold, bisects the interval below each flagged node, and repeats: 7–10 full
 model evaluations, each schedule a strict superset of the last, insertion only.
 
+Its threshold is `2e-2`, against the time integration's `1e-4`. On a smooth
+record the largest indicator reaches 0.0099, so refinement never fires and the
+refined grid equals the unrefined one. Where it does fire, its stopping rule
+reports convergence while `J` is still moving by a factor of 3.0–4.3 across
+iterations, and the indicator is not monotone under bisection — over seven
+refinements it rises twice before falling.
+
 ## Constraints
 
 **(H1)** The step size is a passive `double` in the adjoint; the controller is
@@ -197,6 +216,13 @@ recorded trajectory is reshaped for replay — matched on exact equality.
 
 **(H5)** The available L-stable stepper carries no adjoint and is unreachable
 from the calling layer. An implicit treatment of the chain is new work.
+
+**(H6)** The reverse sweep consumes a recording of the forward run and re-derives
+`k₁` at each step's own start state, rebuilding stage states from re-derived
+rates. It therefore evaluates `f` at states the forward pass never visited. The
+recording is not self-describing: the creation schedule is the source of truth,
+and a recorded time's member count is re-derived from it by matching on exact
+equality.
 
 ## Measured
 
@@ -236,8 +262,9 @@ step-shrink factor of 2, and 58% of it at factor 1. Where a replay is wrong,
 `h·|λ|` on the replayed trajectory is 1.7–3.2× above the adaptive run's. Across
 forcing records there is zero transfer and shrinking does not recover it.
 
-**(M7)** At the operating creation count the error is ~1% and one bisection
-takes it to 0.27%, the size of the finite-difference scatter. M1's orders are
+**(M7)** At the operating creation count the derivative's error is ~1%, and it
+cannot be pinned tighter than ±0.5% by finite differences. One bisection takes
+it to 0.27%, the size of the finite-difference scatter, so M1's orders are
 readable only because the grid was coarsened four halvings below the operating
 point.
 
@@ -317,7 +344,8 @@ changing the creation grid is four changes at once.
 
 (a) What is the likely mechanism, and how would one separate the candidates —
 the five trapezia, the coupling through a differently-resolved reconstruction,
-the replay's reshape, a genuinely different trajectory? (b) Does a grid placed
+H6's re-derivation of stage states at a different member count, a genuinely
+different trajectory? (b) Does a grid placed
 from the record avoid it, or is the sensitivity structural? (c) Is the union of
 levels' programs a legitimate instrument for a refinement study, or does it
 answer a different question from any single level?
@@ -339,7 +367,7 @@ captured one?
 
 ### 6.
 
-Which of H1–H5 and M1–M9 carries each answer, and which is incidental? What
+Which of H1–H6 and M1–M9 carries each answer, and which is incidental? What
 guarantee is available that we have not asked for? Which of the four in question
 1 would you sacrifice first?
 
