@@ -64,17 +64,38 @@ pinned across a 100× sweep of the loss coefficient. So `N_t` is currently not a
 design variable at all. Removing that constraint (a linearly-implicit stage on
 the `L`-component chain) is planned.
 
-**(E3)** `e_b/e_t ≈ 3.6·10⁴` under smooth forcing: the node-axis error is 0.242%
-at `M = 88` against a time error of 6.6e-8.
+**(E3) The reported error is the residual of a cancellation.** Under a smooth
+record, at `M = 88` on the label coordinate, the *reconstruction* error of the
+forward solve is −0.617%, the output quadrature's own error is +0.359%, and the
+reported total is −0.259%. Both are `O(Δb²)`; their ratio is −0.582, −0.581,
+−0.580 at successive refinement levels. The mechanism is that the forward solve
+reaches the coupling `a_ℓ` through reductions over the **same nodes under the
+same rule** as the output functional. Replacing the output rule with a cubic
+spline cuts the quadrature term 148–258× and makes the reported answer **2.4×
+worse**, uniformly. Changing only the reconstruction coordinate leaves the
+quadrature term unchanged (+0.353%) and moves the reconstruction term to
+−1.425%, ratio −0.248. Against all of this the time error is 6.6e-8.
 
-**(E4) Switching is temporally localised.** Censused over seven forcing regimes:
-in benign stretches the entire population sits on one branch of the inner
-problem at every instant; under sustained stress or rapid alternation, two or
-more branches co-occur in 28–31% of members. Since the quadrature axis is the
-creation time `b`, a stretch of co-occurrence makes the integrand non-smooth in
-`b` **over the band of `b` corresponding to members created during that
-stretch** — i.e. the kinks are localised on the quadrature axis, not spread over
-it.
+**(E4) Switching is temporal; kinks on the quadrature axis are rare and
+undetectable.** Over a run, 70% of member-instants sit on the interior branch
+and 30% on one active constraint under sustained stress — but at any given
+instant, and at the final state of every record tested, the whole population is
+on a single branch. Non-smoothness in `b` does occur: 4–6 adjacent nodes, in the
+two most stressed records, carrying 1.4–1.8% of `J`. A global high-order rule
+degrades 5.7× to 120× inside the one panel holding a kink, but those panels are
+5.7–6.7% of a residual already 170–190× below the trapezium's. A composite rule
+restarting at the kink is 0.5–2.2% **worse** than ignoring it — segments on a
+five-nodes-per-rung grid are too short to pay for themselves. A detector
+restricted to the default node samples cannot locate the kinks at all.
+
+**(E7) The grid's spacing doublings dominate the high-order residual.** The
+creation grid is dyadic, `Δ = 2^⌊log₂(0.2 t)⌋` clamped, so the spacing doubles
+at 16 of 87 intervals. Those 16 carry 26% of `J` but 54–71% of a cubic spline's
+residual, against 40% of the trapezium's. A control grid with the same clamps,
+span and node count but a smooth ratio (`Δ = max(1e-5, 0.147 t)`, one extra
+node) improves every term at once: trapezium −12%, spline −35%, reconstruction
+−14%, reported error −0.259% → −0.219%, and local rules recover their design
+order (an observed 5.31 becomes 5.97).
 
 **(E5) Two kinds of event, with different consequences for the derivative.** At
 a switching surface of the inner problem the rate is continuous, so a discrete
@@ -141,23 +162,45 @@ alignment set is `θ`-dependent. Does that reintroduce the non-smoothness in
 `θ` that a fixed grid was adopted to remove, and if so is the remedy to prune
 once at a nominal `θ` and freeze, or to prune on a `θ`-independent surrogate?
 
-### 4.4 Localised non-smoothness on the quadrature axis
+### 4.4 An error cancellation between the forward solve and the output
 
-E4 says the integrand's kinks in `b` are confined to bands of `b`. A global
-high-order rule on the label axis is capped at the smoothness of the integrand,
-but a **piecewise** high-order rule with breakpoints at the band edges would
-recover high order over the smooth majority.
+E3: the reported error is the residual of a near-cancellation between two
+`O(Δb²)` terms of opposite sign, in a ratio stable to three digits across
+refinement levels, arising because the reconstruction and the functional use the
+same rule on the same grid. Raising the order of the functional alone destroys
+it and makes the answer 2.4× worse.
 
-(a) Is that the right construction, and what is the standard form — a composite
-rule with breakpoints, or refinement concentrated at the bands with a global
-rule? (b) How should the breakpoints be located, given that `b` is ordered and
-the classification of each member is available but the band edges lie between
-members? (c) The band edges depend on `θ`. Same tension as 4.3(c): does a
-`θ`-dependent breakpoint set reintroduce non-smoothness, and is the honest
-answer to freeze the breakpoints at a nominal `θ` and accept a first-order
-misplacement?
+(a) Is this supraconvergence — a structural property of matched rules — or a
+coincidence of this integrand? What conditions make it reliable, and how would
+one test reliability rather than observing it? (b) If structural, is the right
+design to *preserve* it deliberately: keep the rules matched and raise both
+orders together? Does raising both together preserve the cancellation or destroy
+it? (c) The ratio is −0.58 in one coordinate and −0.24 in another, so the
+cancellation is partial and coordinate-dependent. Is there a principled way to
+make it exact, or to construct the output rule so its error tracks the
+reconstruction's? (d) What is the right error *estimator* under a cancellation?
+The current one is a Richardson estimate of the output rule's own local error —
+it measures a term that exists to cancel another, and it drives the grid
+refinement.
 
-### 4.5 The derivative's missing event term
+### 4.5 A dominant term that does not converge
+
+Under mixed records the decomposition changes character: the quadrature term
+stays near 0.36%, while the reconstruction term is **16–31% and does not
+converge under refinement** — one record gives −16.2%, −41.2%, +4.6% at
+successive levels. It is not a time-integration artefact; the decomposition
+repeats to four digits at a 10⁴× tighter time tolerance. In those same records
+`J` is between 4.3e-11 and 7.5e-10.
+
+(a) What are the candidate causes of a non-convergent `O(Δb²)` reconstruction
+term under inhomogeneous forcing, and how would one distinguish them? (b) Does a
+near-zero functional make relative error meaningless here, or is relative error
+the right measure because the quantity of interest is effectively a derivative
+of its logarithm? (c) If the dominant term does not converge, is a balance
+between the two grids meaningful at all, or is recovering convergence the whole
+of the first task?
+
+### 4.6 The derivative's missing event term
 
 E5: arrivals on the per-member inequality boundary contribute a sensitivity term
 a pinned-event adjoint omits. The planned remedy is to reformulate the
@@ -172,9 +215,9 @@ exactly what no finite difference on the unreformulated model can measure?
 (c) Is there a cheap a posteriori check that the omitted term is small, usable
 *before* committing to the reformulation?
 
-### 4.6
+### 4.7
 
-Which of E1–E6 is load-bearing for each answer, and which incidental? Given a
+Which of E1–E7 is load-bearing for each answer, and which incidental? Given a
 requirement for accurate derivatives across records that mix all of these local
 regimes, what is the smallest set of changes and in what order? What has not
 been asked?
