@@ -1,7 +1,11 @@
 # Measurements
 
-Diagnostic runs behind the consultations in `docs/`. Each note states its own
+Diagnostic runs behind the consultation in `docs/`. Each note states its own
 fixture and caveats; this says what it established and whether that survived.
+
+The notes are records of what was measured and are left as written, so a few
+cite consultation drafts that have since been removed. Those citations are
+stale; this table is the current reading.
 
 **Read this first.** Every note except `diag-long-drought.md` was measured at
 `max_patch_lifetime = 5`, where the objective is 1e-7 to 1e-11 and the stand is
