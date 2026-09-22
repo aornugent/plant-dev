@@ -22,12 +22,12 @@ The integration runs on two grids — creation times `𝒢_b` and step times `�
 and neither may depend on `θ`. Choosing them, with stated guarantees, is the
 question. Everything below explains a part of it.
 
-Measurements come from two horizons. The short one — `T = 5`, where the
-functional is ~1e-10 and the population is close to extinction — carries most of
-the detail below and is flagged **[short]**. The long one — `T = 40`, functional
-5.25, five times self-replacing — carries the rest and is flagged **[long]**. The
-same parameter vector gives 1e-10 at the short horizon and 43 at the long one, so
-where the two disagree the long one governs.
+Measurements come from two horizons, flagged **[short]** and **[long]**. At
+`T = 5` the functional is ~1e-10 and the population is close to extinction; that
+horizon carries most of the detail below. At `T = 40` the functional is 5.25,
+five times self-replacing. The same parameter vector gives 1e-10 at the short
+horizon and 43 at the long one, so where the two disagree the long one
+governs.
 
 ## The system
 
