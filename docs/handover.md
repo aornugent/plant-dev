@@ -6,13 +6,32 @@ its README marks which conclusions survived.
 
 ## Start here
 
-**Use `max_patch_lifetime = 40`, not 5.** At 5 the objective is 1e-7 to 1e-11
-and the stand is effectively extinct; the same trait gives `J = 43` at 40, and
-`lma = 0.32` gives `J = 5.25` — five times self-replacing, with the default
-birth rate making `J` the net reproduction ratio directly. Extinction sits
-between `lma` 0.45 and 0.60. Almost every measurement in this workspace was
-taken at lifetime 5 and several of its conclusions are properties of that
-horizon.
+**Run a horizon that supports a stand — or start from one.** Two routes, and
+either will do.
+
+*Long horizon.* `max_patch_lifetime = 40`; the package's own tests cluster there
+and the TF24 default is 105.32. At 5 the objective is 1e-7 to 1e-11 and the
+stand is effectively extinct. The same trait gives `J = 43` at 40, and
+`lma = 0.32` gives `J = 5.25` — five times self-replacing, with the default birth
+rate making `J` the net reproduction ratio directly. Extinction sits between
+`lma` 0.45 and 0.60. Almost every measurement in this workspace was taken at
+lifetime 5, and several of its conclusions are properties of that horizon.
+
+*Stable initial structure.* `make_initial_state()` in `plant/R/scm_support.R`
+seeds a patch from heights and log-densities, and `SCM::run_next` integrates
+from `parameters.initial_time` to the first scheduled introduction, so a run can
+begin from a developed stand. This is the better route where it works: it
+removes the early transient entirely, and **48 of the default schedule's 88 legs
+exist only to resolve that transient, spanning 0.43% of the horizon between
+them**. It also puts the objective near 1, which fixes the conditioning scaling
+for free.
+
+Two things to fix before relying on it. `make_initial_state` writes a zero matrix
+and fills only the height and log-density rows, so every other per-member state —
+including the storage pool — starts at exactly zero; and it stamps every seeded
+member with birth date 0, which collapses the quadrature abscissa the whole
+measure is integrated over. A stable-structure seed needs both filled from the
+structure being seeded.
 
 **Align the time grid to the forcing record.** Force a step boundary at every
 knot where rainfall is nonzero on at least one side — `events(events_default(p),
