@@ -97,12 +97,31 @@ node) improves every term at once: trapezium −12%, spline −35%, reconstructi
 −14%, reported error −0.259% → −0.219%, and local rules recover their design
 order (an observed 5.31 becomes 5.97).
 
-**(E5) Two kinds of event, with different consequences for the derivative.** At
-a switching surface of the inner problem the rate is continuous, so a discrete
-adjoint with the event pinned to a grid point is first-order correct. At an
-arrival on the inequality boundary carried by each member the rate jumps, and
-the exact sensitivity carries a term `(f⁻ − f⁺)·dt_e/dθ` that a pinned-event
-adjoint does not contain.
+**(E5) The per-member inequality boundary is strictly inflowing; what looks like
+a boundary problem is stiffness.** Traced from the rate expression: the
+constrained state has `ẏ|_{y=0} > 0` strictly — the inflow term survives at zero
+and the outflow carries the state as an exact linear factor. The exact flow
+never reaches the boundary, in finite or infinite time. Near it the dynamics are
+`c − (c+d)·y/y_max`: an attracting fixed point at a strictly positive value with
+timescale `y_max/(c+d)`, where under stress `d` is large and the timescale
+short. An explicit step longer than that timescale overshoots the fixed point
+past zero, and every refusal is that overshoot.
+
+So there is **no arrival**, and no `(f⁻ − f⁺)·dt_e/dθ` term, from this source.
+The only genuine events are the `C⁰` switching surfaces of the inner problem,
+across which the rate is continuous and a pinned-event adjoint is first-order
+correct.
+
+**(E11) The error test cannot see that state.** The weight is
+`rtol·|y_i| + atol` with `atol` and `rtol` **scalar** — there is no
+per-component absolute floor. The state's magnitude at creation is ~0.7 of
+`atol`, and ~2e-5 of its own capacity once grown, so its weight is the absolute
+floor alone and the controller is effectively blind to it. Its overshoot is
+caught only by a domain guard outside the error test — which is why a census of
+what binds the step never sees it. Rescaling it to O(1) would turn that floor
+into a relative tolerance, tightening the component by five to six orders; the
+local eigenvalue is invariant under the change of variable, so the stiffness
+would be unchanged and the component would then bind the step everywhere.
 
 **(E6) The derivative converges — at the value's order without switching, half
 an order slower with it.** Error decay per halving of node spacing, on one
@@ -263,24 +282,28 @@ quantity of interest throughout, should the whole allocation be posed against
 its error rather than the value's — and does that change the balance beyond the
 order substitution in 4.2(b)?
 
-### 4.6 The derivative's missing event term
+### 4.6 A state below the absolute tolerance floor
 
-E5: arrivals on the per-member inequality boundary contribute a sensitivity term
-a pinned-event adjoint omits. The planned remedy is to reformulate the
-constraint so the boundary is approached asymptotically and never arrived at
-(a change of variable to the logarithm of the constrained quantity, since the
-drain vanishes at the boundary), removing the event entirely.
+E11: the error weight is `rtol·|y_i| + atol` with scalar tolerances, so a state
+whose natural magnitude sits orders below `atol` is invisible to the controller,
+and its excursions are caught — if at all — by a validity guard outside the
+error test. The state in question is a stiff relaxation (E5), so the excursions
+are routine rather than exceptional.
 
-(a) Is that sufficient to make `dJ/dθ` correct rather than merely consistent, or
-does the reformulated dynamics carry its own bias in the derivative? (b) How
-should the residual be verified, given that the quantity being checked is
-exactly what no finite difference on the unreformulated model can measure?
-(c) Is there a cheap a posteriori check that the omitted term is small, usable
-*before* committing to the reformulation?
+(a) Is a per-component absolute floor the standard remedy, and what should set
+each component's floor — its own scale, its contribution to the functional, or
+its adjoint weight? (b) The obvious alternative, rescaling the state to O(1),
+converts invisibility into a relative tolerance and tightens that component by
+five to six orders, at which point it binds everywhere and there is no
+per-component lever to relax it. Is there a formulation that makes a component
+visible without making it binding? (c) When a stiff row's overshoot is caught by
+a domain guard rather than by the error test, what decides between an implicit
+treatment of that row, a per-component tolerance, and a change of variable —
+given the change of variable does not touch the stiffness?
 
 ### 4.7
 
-Which of E1–E10 is load-bearing for each answer, and which incidental? Given a
+Which of E1–E11 is load-bearing for each answer, and which incidental? Given a
 requirement for accurate derivatives across records that mix all of these local
 regimes, what is the smallest set of changes and in what order? What has not
 been asked?
