@@ -88,7 +88,7 @@ restarting at the kink is 0.5–2.2% **worse** than ignoring it — segments on 
 five-nodes-per-rung grid are too short to pay for themselves. A detector
 restricted to the default node samples cannot locate the kinks at all.
 
-**(E7) The grid's spacing doublings dominate the high-order residual.** The
+**(E8) The grid's spacing doublings dominate the high-order residual.** The
 creation grid is dyadic, `Δ = 2^⌊log₂(0.2 t)⌋` clamped, so the spacing doubles
 at 16 of 87 intervals. Those 16 carry 26% of `J` but 54–71% of a cubic spline's
 residual, against 40% of the trapezium's. A control grid with the same clamps,
@@ -104,11 +104,46 @@ arrival on the inequality boundary carried by each member the rate jumps, and
 the exact sensitivity carries a term `(f⁻ − f⁺)·dt_e/dθ` that a pinned-event
 adjoint does not contain.
 
-**(E6)** With `𝒢_t` frozen, finite differences of `J` in `θ` show a clean
-three-decade plateau; with adaptive stepping there is no plateau at any
-perturbation size. This establishes that the discrete derivative is
-reproducible. It does not establish that it is accurate: the convergence of
-`dJ_h/dθ` under refinement has not been measured.
+**(E6) The derivative converges — at the value's order without switching, half
+an order slower with it.** Error decay per halving of node spacing, on one
+shared time grid, over seven levels from 12 to 697 nodes:
+
+| record | switching | order of `J` | order of `dJ/dθ` |
+|---|---|---|---|
+| quiescent | 0% | 1.95–2.02 | ~1.8 |
+| mixed | 14% | ~1.87 | **~1.34** |
+
+Coarsening *below* the operating point was necessary to see this: at the default
+node count the error is ~1% and one bisection takes it to 0.27%, which is the
+size of the finite-difference scatter, so refinement alone yields no order. At
+the default the derivative's error is **~1%**, not pinnable tighter than ±0.5%
+by finite differences.
+
+**(E7) A converged value does not imply a converged derivative.** Read off the
+adjoint at one node count: 0.04% error in a functional, 0.9–2.5% in that
+functional's derivative with respect to one parameter (20–60× worse), 30–250%
+with respect to another — and for one functional/parameter pair the derivative
+carries the **wrong sign** at the default node count. For the functional of
+interest here the two errors happen to coincide; that is a property of the pair,
+not a rule.
+
+**(E9) The dominant error under intermittent forcing is the time grid, not the
+node grid.** At the default time tolerance and 88 nodes a mixed record gives
+`J = 1.77e-10`; with the time grid pinned at the same node count, `7.36e-11`; at
+697 nodes, `7.34e-11`. The default time tolerance is **142% wrong** while the
+node error at that same schedule is **0.24%**. An earlier decomposition
+attributing 16–31% to the node grid under mixed records was measuring the time
+grid through adaptive step re-placement.
+
+**(E10) A step program captured once does not transfer across node levels.**
+Capturing the accepted program at the default node level and replaying it one
+level finer is 18% wrong, with derivatives returning the wrong sign. Capturing
+at the *finest* level — which yields a literally identical time grid at every
+level, the node levels being nested bisections — is still 11% wrong at the
+default. Step sizes are not the explanation (largest step per window within 1.5×
+of adaptive at every level); the failure is step *placement*. The union of every
+level's accepted program reproduces each adaptive answer to 1e-5, at 2.5–4.5×
+the steps.
 
 ## 4. Questions
 
@@ -131,20 +166,22 @@ record, since a member created in one stretch persists into all later ones). Is
 formulation — a single constraint with a local density of steps, or something
 else?
 
-### 4.2 Does the balance hold for the derivative?
+### 4.2 Why does switching cost the derivative an extra half order?
 
-The settled balance used the convergence orders of `J`. The quantity of interest
-is `dJ/dθ`. Differentiating a quadrature rule does not in general preserve its
-order, and the same is true of a Runge–Kutta pair's global error under
-parameter differentiation.
+E6: without switching, `dJ/dθ` converges at the value's order. With 14% of
+member-instants on an active constraint rather than the interior branch, the
+value holds ~1.87 while the derivative falls to ~1.34. The switching surface is
+`C⁰` — the rate is continuous across it — which is precisely the case where a
+pinned-event adjoint is supposed to be first-order correct.
 
-(a) For a `θ`-independent discretisation, do `dJ_h/dθ` and `J_h` converge at the
-same order in each grid, and if not, what are the orders? (b) If they differ,
-the balance ratio changes — what is it? (c) Are the *constants* systematically
-worse for the derivative, so that a target on `dJ/dθ` implies a materially finer
-discretisation than the same relative target on `J`? (d) What is the cheapest
-reliable way to measure the derivative's convergence order empirically, given
-that the reference is unknown and finite differencing has its own floor?
+(a) What mechanism costs the derivative half an order at a `C⁰` switch when the
+value keeps its own? (b) Does the balance ratio between the two grids have to be
+recomputed per regime as a consequence, since it was derived from the orders of
+`J`? (c) What recovers the order — smoothing the active-set condition with a
+declared width, locating the crossing, or is half an order the price of a
+non-smooth inner problem? (d) The measurement rests on one record, one
+parameter and one difference step. What is the cheapest design that would
+establish it as a law rather than a signal?
 
 ### 4.3 Pruning the alignment set
 
@@ -183,22 +220,25 @@ The current one is a Richardson estimate of the output rule's own local error �
 it measures a term that exists to cancel another, and it drives the grid
 refinement.
 
-### 4.5 A dominant term that does not converge
+### 4.5 Sizing a discretisation against a derivative
 
-Under mixed records the decomposition changes character: the quadrature term
-stays near 0.36%, while the reconstruction term is **16–31% and does not
-converge under refinement** — one record gives −16.2%, −41.2%, +4.6% at
-successive levels. It is not a time-integration artefact; the decomposition
-repeats to four digits at a 10⁴× tighter time tolerance. In those same records
-`J` is between 4.3e-11 and 7.5e-10.
+E7 and E10 together say the derivative is the harder object and the usual
+instruments mislead on it: a node count that converges a functional to 0.04% can
+leave its derivative 20–60× worse and, in one case, sign-wrong; and a step grid
+captured once is 11–18% wrong when the node grid moves under it, with the
+derivative again changing sign, even when the time grid is literally identical
+across levels.
 
-(a) What are the candidate causes of a non-convergent `O(Δb²)` reconstruction
-term under inhomogeneous forcing, and how would one distinguish them? (b) Does a
-near-zero functional make relative error meaningless here, or is relative error
-the right measure because the quantity of interest is effectively a derivative
-of its logarithm? (c) If the dominant term does not converge, is a balance
-between the two grids meaningful at all, or is recovering convergence the whole
-of the first task?
+(a) What is the right convergence criterion for a *derivative* under refinement,
+given a converged value does not imply one? Is there a cheap a posteriori
+indicator, or must every parameter's derivative be refinement-tested
+separately? (b) E10's placement sensitivity: is the union of the levels' step
+programs the right instrument for a refinement study, or a symptom of something
+that should be fixed — and what does it say about reusing one designed grid
+across `θ`, where the node grid does *not* move? (c) Since the derivative is the
+quantity of interest throughout, should the whole allocation be posed against
+its error rather than the value's — and does that change the balance beyond the
+order substitution in 4.2(b)?
 
 ### 4.6 The derivative's missing event term
 
@@ -217,7 +257,7 @@ exactly what no finite difference on the unreformulated model can measure?
 
 ### 4.7
 
-Which of E1–E7 is load-bearing for each answer, and which incidental? Given a
+Which of E1–E10 is load-bearing for each answer, and which incidental? Given a
 requirement for accurate derivatives across records that mix all of these local
 regimes, what is the smallest set of changes and in what order? What has not
 been asked?
