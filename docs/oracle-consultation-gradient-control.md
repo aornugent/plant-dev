@@ -169,16 +169,16 @@ reach the domain guard without passing the error test.
 
 | grid | discretises | chosen by | count |
 |---|---|---|---|
-| `𝒢_b` creation times | the quadrature over `μ_t` | a dyadic generator, then error-driven bisection | ~10² |
-| `𝒢_t` step times | the time integration | the controller above | ~10³ |
-| `𝒢_f` record knots | the reconstruction of `s` | the input data's sampling rate | ~10³·² |
-
-Roughly `21 : 6 : 1`.
+| `𝒢_b` creation times | the quadrature over `μ_t` | a dyadic generator, then error-driven bisection | 88 |
+| `𝒢_t` step times | the time integration | the controller above | 530 smooth, 1725 intermittent |
+| `𝒢_f` record knots | the reconstruction of `s` | the input data's sampling rate | 1824 |
 
 `s(t)` is reconstructed by a monotone `C¹` interpolant, so `f''` jumps at knots
 where `s ≠ 0` on at least one side. Over quiescent stretches the reconstruction
 is identically zero and smooth, so the knots that matter form a computable
-subset of `𝒢_f`.
+subset of `𝒢_f`: on the intermittent record, **412 active knots** against 1824
+in range. That is 0.24 active knots per accepted step, and 22.6% of accepted
+steps contain one. Every active knot falls strictly inside a step.
 
 The record is a mixture in time: quiescent stretches, stretches of many small
 events, stretches of few large events, long absences. The local regime is a
