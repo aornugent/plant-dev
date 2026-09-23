@@ -2,6 +2,31 @@
 
 ## The whole thing
 
+A Cash–Karp 5(4) pair integrating a known daily rainfall record over forty years
+delivers 114.566 of the record's 120.267 — **4.74% of the water missing** — and
+reports an error of exactly zero on every step that loses it.
+
+The reason is in the tableau. One state accumulates the forcing alone, `v̇ = s(t)`,
+so a step on it is a pure quadrature. The fifth-order increment reads `s` at
+`{0, 0.3, 0.6, 0.875}·h`; the embedded difference reads it at
+`{0, 0.3, 0.6, 0.875, 1}·h` and vanishes identically on any integrand of degree
+three or below. The widest gap between those abscissae is `0.3h`. An event
+narrower than `0.3h` falls between all of them, the increment misses the water,
+the difference of two quadratures that both missed it is zero, and the controller
+reads zero as a perfect step and grows `h` fivefold. Seventy accepted steps of
+11 319 carry 100.05% of the deficit; 58 deliver exactly zero while their interval
+holds up to 0.345 of water. Because the infiltration term reads the same
+abscissae, the water is absent from the physics, not only from the record.
+
+Error control cannot reach this. `errlevel` is the denominator of a ratio whose
+numerator is a true zero, so neither tolerance nor the derivative-weighted term
+touches it: four decades of tightening leave 0.94% of the water missing at
+23 656 steps, twice what a grid that samples the record needs. Two things do
+reach it. A cap on `h` — an event of width `w` is sampled once `0.3h < w`, and
+capping `h` at five days on an otherwise untouched grid recovers the water to
+`+0.002%` and the functional to 0.10%. Or a forced stop at each of the record's
+2931 active breakpoints, which recovers the integral to `3.2e-12` relative.
+
 ```
 u̇_ℓ          = s(t)·[ℓ=1] − κ_ℓ u_ℓ^q + κ_{ℓ−1} u_{ℓ−1}^q − a_ℓ(x,u)    ℓ = 1…L,  L ≤ 5,  q ≈ 16
 ξ̇_j          = g(ξ_j, u, p_j)                                            j = 1…M,  M ~ 10²
@@ -15,14 +40,14 @@ Member `j` is created at time `b_j`. The `b_j` are the characteristic labels and
 the quadrature abscissae, fixed for all time. `φ_j` is the member's accumulated
 moment, itself an ODE state. `w_j` is the trapezium weight on `b` times a second
 known record sampled at `b_j`, so the creation grid enters `J` as abscissae and
-as sample points. `s(t)` is a known record. `dJ/dθ` is the quantity wanted,
+as sample points. `s(t)` is the record above. `dJ/dθ` is the quantity wanted,
 `θ ∈ ℝ^k`, `k ≈ 17`, by reverse-mode AD over the whole trajectory.
 
 The integration runs on two grids — creation times `𝒢_b` and step times `𝒢_t` —
 and neither may depend on `θ`. Choosing them, with stated guarantees, is the
 question. Everything below explains a part of it.
 
-The horizon is `T = 40`, where the trait vector used below gives `J = 12.08` and
+The horizon is `T = 40`, where the trait vector used below gives `J = 12.078` and
 the default birth rate makes `J` the net reproduction ratio directly, so the
 stand is twelve times self-replacing. An earlier fixture at `T = 5` put a trait
 vector at `J = 1e-10`, ten orders of magnitude short of replacing itself, and
@@ -178,12 +203,25 @@ reach the domain guard without passing the error test.
 | `𝒢_t` step times | the time integration | the controller above | 3972 smooth, 11 319 intermittent |
 | `𝒢_f` record knots | the reconstruction of `s` | the input data's sampling rate | 14 599 |
 
-`s(t)` is reconstructed by a monotone `C¹` interpolant, so `f''` jumps at knots
-where `s ≠ 0` on at least one side. Over quiescent stretches the reconstruction
-is identically zero and smooth, so the knots that matter form a computable
-subset of `𝒢_f`: on the intermittent record, **2931 active knots** against
-14 599 in range. That is 0.26 active knots per accepted step, and 23.6% of
-accepted steps contain one. Every active knot falls strictly inside a step.
+`s(t)` is reconstructed by a shape-preserving `C¹` Hermite interpolant with a
+Fritsch–Carlson limiter, a turning-point rule and flat-pair pinning. Over 972 726
+evaluations it never leaves the range of the two control values bounding its span
+by more than `1.4e-14`, and its integral matches the control points to `3.5e-12`
+relative. It does not overshoot, it never evaluates negative on a non-negative
+series, and the model's floor on `s` is dead with respect to the physics. `f''`
+jumps at knots where `s ≠ 0` on at least one side, and integrating across one of
+those costs nothing measurable: every step lying inside a single span is exact to
+`2.6e-12`, because the estimator vanishes identically on a cubic.
+
+Over quiescent stretches the reconstruction is identically zero, so the knots that
+matter form a computable subset of `𝒢_f`: **2931 active knots** against 14 599 in
+range, 0.26 per accepted step, 23.6% of accepted steps containing one. The
+narrowest feature is a single wet day flanked by dry ones, two days wide at the
+base, which puts the sampling bound at `h < 2/0.3 = 6.67` days. All of the lost
+water is on steps crossing a daily control point; in an aligned run not one of
+the 3444 steps spanning several control points carries any water at all
+(`2.4e-18`), because every non-zero span is then bounded by two forced stops and
+every water-carrying step lies inside one cubic.
 
 The record is a mixture in time: quiescent stretches, stretches of many small
 events, stretches of few large events, long absences. The local regime is a
@@ -296,7 +334,10 @@ record carries 3 occurrences in 89 061 solves and one drought year none. Two
 further terminal branches are exactly zero everywhere. Only the interior branch
 and one active-constraint branch, occupied 4–13%, are genuinely visited. At
 `T = 5` a pinned step program took it to exactly zero at every creation level
-over 28 million solves.
+over 28 million solves. The share does not track the functional: a five-day step
+cap carries the **highest** share measured anywhere, 0.424%, while landing `J`
+within 0.10% of converged. Placement drives both, and they are separate
+consequences of it.
 
 **(M5) The conditioning of a derivative is a property of the operating point.**
 One census metric reads its density trait through two paths that oppose at a
@@ -387,6 +428,40 @@ terms is stable. Time integration is not involved: a decade of tolerance moves
 `−0.582 / −0.581 / −0.580` at successive levels, and a higher-order output rule
 made the answer 2.4× worse.
 
+**(M12) The estimate vanishes on anything the stages resolve, and on anything
+they miss.** One state accumulates the forcing alone, so a step on it is a pure
+quadrature and the order conditions are readable directly. The fifth-order
+increment reads `s` at `{0, 0.3, 0.6, 0.875}·h` and is exact to degree four. The
+embedded difference reads `{0, 0.3, 0.6, 0.875, 1}·h` and returns `−1.0e-17` on a
+cubic against `−6.8e-04` on a quartic — identically zero on degree three and
+below. The widest gap between its abscissae is `0.3h`. So a reported zero has two
+causes the controller cannot separate: the integrand was a cubic, and every
+abscissa read zero while the interval held an event. Its response to a zero ratio
+is to grow `h` by the clamp's maximum of five. Of the 70 steps carrying the
+deficit the median size is 14 days, **89% begin after seven or more consecutive
+dry days** (median 18, maximum 127), and the largest reported error ratio among
+them is 1.071 against a tolerable 1.1.
+
+**(M13) The threshold sits where the tableau puts it.** Capping `h` on the
+unaligned grid, with no events and no knots: 30 days gives `−5.88%` of the water
+and `J = 7.349`; 10 days `−2.30%` and `8.285`; **5 days `+0.0020%` and `12.099`**,
+0.10% from the aligned answer; 2 days `−0.0037%` and `12.051`. A two-day feature
+is guaranteed sampled once `h < 2/0.3 = 6.67` days, and the recovery appears
+between the 10-day and 5-day caps. Restoring the water by any means restores the
+functional. The same controller and tableau in isolation on `y' = s(t)`, at the
+model's own control values, reads `−90%` to `−98.5%` across seven decades of
+tolerance and does not improve monotonically; forced to the breakpoints it is
+exact to `4e-12` with **zero rejections** at every tolerance.
+
+**(M14) Rejections are not the channel.** A step holding an active knot is
+rejected with probability 0.423 against 0.305 for one that does not — a ratio of
+1.38, where a concentration would be the signature of a resolution failure at the
+knots. Median distance from step start to the nearest active knot is 0.380 days
+on rejected steps and 0.368 on accepted ones. Alignment cuts rejections from
+4540 to 2603, 28.6% to 17.6%, and leaves the rest. Only **12.9% of the 70
+water-losing steps** were preceded by any rejection, against 33.3% of steps
+generally. The steps that lose the water are the quiet ones.
+
 ## Settled
 
 Error shares between two grids of different order go in proportion to order,
@@ -404,104 +479,91 @@ re-evaluates the member loop. An additive split that keeps the member loop
 explicit and evaluated once per stage is a different proposition and is not
 excluded.
 
-The max norm is reporting honestly. The binding ranking is a tight cluster, and
-removing every member component from the norm changes the accepted step count by
-under 1%.
+The max norm ranks honestly among the components whose error it can form. The
+binding ranking is a tight cluster, and removing every member component from the
+norm changes the accepted step count by under 1%. The forcing accumulator is
+outside that: its error term is an exact zero on what the stages resolve and on
+what they miss alike, so it binds none of the 11 319 accepted steps in either
+arm, and no reweighting of the norm can give it weight.
 
 ## Questions
 
-### 1. A grid construction with provable properties
+### 1. A step rule that samples a known record
 
-Given the record, H1–H3, and a target accuracy in `dJ/dθ`: what is the minimal
-well-understood construction of `𝒢_t` and `𝒢_b` whose properties can be stated
-in advance?
+The record is known in full before the run, and two caps on `h(t)` follow from it
+with no solve. The sampling cap is `h < w(t)/0.3`, with `w` the local feature
+width. The stability cap is `h ≤ β/(m·Λ(t))`, where `Λ` envelopes `|λ|` over the
+record and an event of size `s` sets the chain's post-onset relaxation
+`|λ_1| ≈ q·κ_1^{1/q}·s^{1−1/q}` before the event arrives.
 
-Four guarantees would be useful — that the realised grid contains every
-structurally required stop by construction; that its local density follows from
-a quantity computable from the record before the run; that it is `θ`-independent
-by construction; and that its error in `dJ/dθ` is bounded by a computable
-quantity. Which are achievable together, and which gives way first?
+(a) Is a grid built from the pointwise minimum of those two caps the right
+object, and what does it guarantee about `dJ/dθ`?
 
-### 2. Refinement that certifies a derivative
+(b) The blindness in M12 is structural to embedded pairs: the estimate is a
+difference of two quadratures on shared abscissae, so it cannot see what neither
+samples, and what it returns is an exact zero. What is the established treatment
+for a right-hand side carrying a known exogenous forcing — a defect estimator
+sampling off the stage abscissae, dense output checked against a finer rule, a
+cap of the kind above, forced stops at the breakpoints? Which of them carries a
+guarantee, and of what?
 
-M5, M7 and M8: at `T = 5` a creation count that converged a functional to 0.04%
-left one of its derivatives 20–60× worse and sign-wrong, and the operating point
-sat too close to the noise floor for a refinement sequence to yield an order
-without coarsening below it. At `T = 40` the operating count sits on the other
-side of the same problem — the value moves 3.1% and the derivative 5.2% for the
-last doubling — so neither direction gives a sequence to read an order off.
+(c) A cap and a stop at each of the 2931 active breakpoints both recover the
+functional to 0.1%. Is there a rule that places the fewest stops for a stated
+sampling guarantee, and does it survive a record whose feature widths span orders
+of magnitude?
+
+(d) The forcing could instead be delivered as a sequence of instantaneous
+impulses at the wet days, 1387 of them, which removes the quadrature entirely.
+That changes the model: the existing impulse path bypasses a saturation-excess
+partition that the continuous path applies, delivers at a higher peak, and
+carries no error estimate. Is a formulation in which a known forcing enters as
+measure rather than as rate the right move here, and what is the standard
+treatment of its error?
+
+### 2. Certifying a converged derivative
+
+M6 gives a difference plateau three and a half decades wide, flat to 1.6% over
+its best two. M8 puts the operating creation count below convergence, the last
+doubling moving the value 3.1% and the derivative 5.2%, with neither sequence
+monotone through the first two levels. M11 has `J` converging at second order
+with alternating sign. The creation grid's own indicator is the drop-one-point
+Richardson estimate of the trapezium at a threshold of `2e-2` against the time
+integration's `1e-4`; where it fires, it reports convergence while `J` still moves
+by factors of 3.0–4.3 across iterations, and it is not monotone under bisection.
 
 (a) What is the correct stopping rule for a refinement targeting a derivative?
-(b) M5's condition number is computable from quantities the sweep already forms.
-Is it a sufficient a posteriori indicator, and what covers the cases where no
-such decomposition is exposed? (c) Is there a principled reason to run a
-refinement study downward from the operating point, and does that change what
-the sequence certifies?
 
-### 3. A discrete classification inside a smooth objective
+(b) Under H3 the creation grid is the quadrature abscissa, the state dimension,
+the adjoint's range count and the replay index at once, so one bisection changes
+four things together. What instrument separates the quadrature's contribution
+from the rest, and is the creation grid better treated as an adaptive quadrature
+with the state dimension following from it?
 
-M1: at `T = 5`, `J` was piecewise smooth with 0.3–0.4% steps wherever the inner
-problem's discrete classification reorganised, and differentiating those steps
-accounted for ~98% of the observed finite-difference gradient error. At `T = 40`
-the steps are absent, the classification moves 0.099 points at most between
-adjacent trait values, and a difference plateau runs three and a half decades
-(M6). The classification is discrete either way, and the adjoint is exact for
-each piece. M4 says the worst-behaved branch — the one that clamps state — is an
-artefact of step placement and reaches exactly zero on a well-placed grid, but
-one genuinely occupied active-constraint branch remains.
+(c) The sweep already forms `|direct|/|total|` and discards it. Is that a
+sufficient a posteriori indicator of a derivative's conditioning, and what covers
+a metric exposing no such decomposition?
 
-(a) What is the right treatment: smoothing the classification with a declared
-width, locating the crossing and stepping to it, or accepting the steps and
-choosing an optimiser that tolerates them? (b) A smoothed switch of width `w`
-puts a feature of scale `w` into the right-hand side, which the integrator must
-then resolve, so `w` is pulled small by the bias budget and large by the step
-size. What sets it? (c) What can be guaranteed to an optimiser given an
-objective that is smooth almost everywhere, carries jumps of known scale at some
-operating points, and has an exact gradient for each piece? (d) Is there a formulation in which the
-classification never becomes discrete — the feasible interval collapsing
-smoothly in place of a threshold — and what does that cost?
+### 3. One grid across parameters and across records
 
-### 4. What M9 is telling us
+A grid that does not move with `θ` is what H1 requires and what yields a usable
+derivative. A captured one holds a ±2× box in six parameters at a uniform shrink
+factor of 2 and transfers not at all across records (M10, at `T = 5`). A grid
+designed from the record has a different claim to make, and both caps in question
+1 are computable for a whole parameter box from one reference run's flux
+partition.
 
-At `T = 5` a bit-identical time grid gives an 11% different derivative when the
-creation grid beneath it changes, with step size excluded as the explanation. At
-`T = 40` that arm moves `J` by 0.019%, and what survives is the other one: a
-program captured at a coarser level and replayed at a finer picks up 107 extra
-creation times as forced stops and lands 11.0% low. Under H3, changing the
-creation grid is four changes at once. M2 shows the system is sensitive to
-*where* steps fall — one extra stop moves the functional by up to 27% — and 107
-of them is what the surviving arm does.
+(a) What certificate should accompany a shared grid when the quantity certified
+is a derivative, given that the usual adjoint-weighted residual bounds the value?
+Is a second-order object required, or is a cheaper sufficient condition
+available?
 
-(a) The `T = 40` reading says one mechanism: the arm that adds stops fails and
-the arm that holds the time grid fixed agrees with the quadrature to 0.5%. Does
-that hold for the derivative, which is where the `T = 5` reading was worst? If it
-does, the cure for both is a grid placed from the record rather than captured
-from a run. (b) How would one separate the remaining candidates — the
-five trapezia of §1.4, the coupling through a differently-resolved
-reconstruction, H6's re-derivation of stage states at a different member count?
-(c) Is the union of levels' programs a legitimate instrument for a refinement
-study, or does it answer a different question from any single level?
+(b) Does computing the caps over a parameter box make the trust region in `θ`
+statable in advance, and what does that miss?
 
-### 5. One grid across parameters, with a certificate
-
-M6 and M10: a grid that does not move with `θ` is what yields a usable
-derivative, it holds a wide parameter box under a uniform safety factor, and it
-does not survive a change of record.
-
-(a) What certificate should accompany a shared grid, given the quantity to
-certify is a derivative and the usual adjoint-weighted residual bounds the
-value? Is a second-order object required, or is a cheaper sufficient condition
-available? (b) What triggers recapture inside an optimisation, and can a trust
-region in `θ` be proved? (c) The record is fixed throughout a calibration. Is
-one designed grid per record, recaptured on certificate failure, the whole
-answer — and does a designed grid have a provably wider validity region than a
-captured one?
-
-### 6.
-
-Which of H1–H6 and M1–M11 carries each answer, and which is incidental? What
-guarantee is available that we have not asked for? Which of the four in question
-1 would you sacrifice first?
+(c) The record is fixed through a calibration and changes between them. Is one
+designed grid per record, recaptured on certificate failure, the whole answer,
+and does a designed grid have a provably wider validity region than a captured
+one?
 
 ## Free
 
@@ -512,6 +574,10 @@ Instrumentation naming the component that set each step's size, and the outcome
 of every step attempt, exists and is unread. Creation grids are supported
 per-population independently. Dense linear algebra on the chain is free and its
 Jacobian analytic.
+
+`h_max` is a live control and reaches the quantity that matters. The
+instrumentation naming the binding component is overwritten by the retry, so it
+reports the accepted attempt and not the rejected one.
 
 The choice of grid is off the tape: it may depend on anything, including
 quantities from a previous solve, subject to H1. The formulation may change if
