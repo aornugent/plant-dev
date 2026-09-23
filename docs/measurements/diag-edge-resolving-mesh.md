@@ -27,8 +27,8 @@ disk rather than recomputed, and every original beside them is untouched.
 
 | | |
 |---|---|
-| **It converges — the hypothesis holds** | Edges bracketed, fill halving: on the reference edges `J` = 12.28487 / 12.27678 / 12.27542 / 12.27403 at 498 / 793 / 1378 / 2542 nodes, differences **−8.1e-03, −1.4e-03, −1.4e-03**; on edges re-placed on the stand being run, 12.42612 / 12.41936 / 12.41729, differences **−6.8e-03, −2.1e-03**, `log2` ratio **1.71**. The uniform ladder moved +0.036, +0.943, −0.188 and turned. **Its non-convergence was straddled-edge error.** What is left is 1e-4 relative per level, 80× smaller, and is not the edges' own panels (§2). |
-| **The converged value** | **`J` = 12.424 ± 0.003**, converged in the fill, the edge placement and `ode_tol` to below 1e-3 each; 12.41–12.43 allowing for the untested ramp interior (§5). **The operating 108-node value is 3.0% low; uniform 429 and 857 are 4.9% and 3.4% high.** |
+| **Half the hypothesis holds** | **The non-convergence was straddled-edge error.** With edges bracketed and the fill halving, `J` moves −6.8e-03, −2.1e-03, −1.9e-03 (edges placed on the stand being run; 499 → 2539 nodes) where the uniform ladder moved +0.036, +0.943, −0.188 and turned; a matched-cost uniform control with no edge information turns too (−0.077, +0.016). **The second-order claim fails.** `J`'s own quadrature converges at order 2–4, but the total stops shrinking at **1.5e-04 relative per doubling** on both edge sets, and the residual is not the edges' panels, not `ode_tol`, and not fill on ramps. It is the stand's integrand — first order in the first drought, sign-changing in the first three years — plus integrator restarts at introductions. **Its cause was not found** (§2, §5). |
+| **The value** | **`J` = 12.42 ± 0.01**: placement converged to 4e-04, `ode_tol` to 1e-04, the fill not below 1.5e-04 per level; 12.40–12.43 allowing for the ramp interior. **The operating 108-node value is 3.0% low; uniform 429 and 857 are 4.9% and 3.4% high.** |
 | **Where the edges are is the largest term** | The roots located on the default schedule's stand are up to **3.9 days** off on a resolving mesh. Re-placing the bracket on the mesh's own gate moves `J` by **+1.15%**; a second pass moves the roots ≤0.37 d and `J` by +0.055%, **21× less**. The Oracle's edge-location term prices the first shift at 0.0016; it is **0.141**, because a misplaced root node is a live cohort whose weight spans a dead band, and it thickens the canopy. |
 | **Bracketing is the only placement that works** | At one fill, `J` = **12.285 (bracket)**, 12.516 (the crossing alone), 10.983 (the ramp's midpoint), 10.870 (past the ramp's top). The midpoint and past-the-top placements are **−11% and −12%**; the crossing alone is +1.9%, a quarter of it `J`'s own first-order panel and three quarters a thinner canopy. Every failing placement fails mostly **through the canopy**: the integrand moves 2–18% at every birth date, including `b < 1`, where there is no edge. |
 | **The gradient** | By the adjoint: **no refusal** on any metric, but `J` is not a census metric, so **`dJ/dθ` has no adjoint path**. By central difference on a bracket that follows the edges: **−169.57 / −169.81 / −169.77**, settled to 0.03% past 793 nodes, **`dJ/dlma` = −169.8 ± 1.1** with the error the time grid's. A fixed-schedule difference converges to a value **2.3% off** (−172.9), and the default schedule's −155.6 is **8.4% shallow**. |
@@ -169,16 +169,14 @@ drought window, converging at first order while `J`'s quadrature over it
 converges at second or better. Both are at 1e-4 relative per level, 80 times
 below the uniform ladder's 7.8%.
 
-What the second of those is, is **not settled here**. One candidate was checked
-and does not fit on its own. The reference roots sit up to 3.9 days from where
-this mesh's gate closes (§5), so the band-and-ramp intervals the fill avoids are
-not the true ones, and as the fill refines it lands on true ramps — **0, 1, 4 and
-7 fill nodes** at the four rungs: the edge treatment the brief asked to hold
-constant was not quite constant on this ladder. But those nodes are all at
-`b` = 14.5–18.4, where the integrand channel is smallest; they can reach `[6, 10)`
-only through the canopy those cohorts' parents grow under after `t = 14`. The
-re-located ladder (§5), with no fill node on a ramp at any rung, is the direct
-test.
+What the second of those is, is **not settled here**. One candidate was tested
+and eliminated. The reference roots sit up to 3.9 days from where this mesh's
+gate closes (§5), so as the fill refines it lands on true ramps — **0, 1, 4 and
+7 fill nodes** at the four rungs, all at `b` = 14.5–18.4: the edge treatment the
+brief asked to hold constant was not quite constant on this ladder. The
+re-located ladder of §5 has no fill node on a ramp at any rung **and stops
+shrinking at the same rung by the same amount** (−1.9e-03), so that leak is not
+the floor.
 
 ### The two channels at the first step
 
@@ -265,6 +263,13 @@ and the whole stand produces more. A cohort mesh is a discretisation of the
 environment before it is a quadrature rule, and a placement judged only on the
 panels it draws will be judged on the smaller of its two effects.
 
+
+**Measured on re-placed edges, D converges at first order.** With both D and the
+bracket put on the pass-1 roots of §5 (`em_placeV.R`), D's excess over the
+bracket at the same fill is **+0.2340 at 1/16 and +0.1083 at 1/32 — ratio 2.16**.
+The crossing alone is an `O(Δ)` placement, as the brief said, and the thing that
+halves is mostly the canopy term, not the panel.
+
 ---
 
 ## 4. Against the control at the same node count
@@ -291,20 +296,22 @@ inside a dead band on the reference gate and 12 on a ramp; its integrand at the
 66 abscissae the two share (head and tail) is 0.76% above the reference-edge
 bracket's — the same canopy channel as §3.
 
-Against the placement-converged value of §5, `J` = 12.424:
+Against 12.4222, the 2539-node re-located value with the second placement pass
+added (§5):
 
 | nodes | control | bracket, re-located edges | bracket, reference edges |
 |---|---|---|---|
-| ~498 | **+0.063%** | +0.017% (pass 1), +0.072% (pass 2) | −1.12% |
-| 793 | **−0.558%** | −0.037% | −1.19% |
-| ~1378 | **−0.431%** | −0.054% | −1.20% |
+| ~498 | **+0.077%** | +0.031% (pass 1), +0.086% (pass 2) | −1.11% |
+| 793 | **−0.543%** | −0.023% | −1.17% |
+| ~1378 | **−0.417%** | −0.040% | −1.18% |
+| ~2540 | — | −0.055% | −1.19% |
 
-The control's 0.06% at 498 nodes is where a turning sequence happened to cross
-the answer, not accuracy it can be relied on for: one doubling later it is 0.56%
+The control's 0.08% at 498 nodes is where a turning sequence happened to cross
+the answer, not accuracy it can be relied on for: one doubling later it is 0.54%
 off. **The reference-edge bracket converges to a value 1.2% low** — §5 is why.
-The re-located bracket is within 0.02–0.07% at every count, and most of what it
-has left at 793 and 1375 nodes is the second placement pass (+0.0069) its ladder
-does not carry.
+The re-located bracket is within 0.02–0.09% at every count; those figures carry
+the reference's own ±0.01 (§5), which is why the table does not rank them
+against each other.
 
 ---
 
@@ -357,7 +364,7 @@ removed, including `b < 1/16` (+0.79%).
 | root reading / ramp-top reading, q90 | 0.352 | 0.113 | — |
 | spurious dead-band area | **0.01306** | **0.00044** | **0.00000** |
 
-### Why the reference-edge ladder stops converging
+### The fill leak, and why it is not the floor
 
 With the edges misplaced, the band-and-ramp intervals the fill avoids are not the
 true ones, so as the fill refines it starts landing on true ramps:
@@ -365,52 +372,75 @@ true ones, so as the fill refines it starts landing on true ramps:
 | fill | 1/16 | 1/32 | 1/64 | 1/128 |
 |---|---|---|---|---|
 | reference-edge ladder: fill nodes on a true ramp | 0 | 1 | 4 | **7** |
-| re-located ladder: the same | 0 | 0 | 0 | — |
+| re-located ladder: the same | 0 | 0 | 0 | 0 |
 
-Each such node is a live cohort the bracket treats as plateau, standing on a
-ramp — A3's interior nodes by accident. **The reference-edge ladder's edge
-treatment was not in fact held constant, and the leak grows with the fill**,
-which is what its fourth rung shows (§2). The re-located ladder has none at any
-level, so it is the experiment the brief specified.
+Each such node is a live cohort standing on a ramp that the bracket treats as
+plateau — A3's interior nodes by accident — so the reference-edge ladder did not
+hold its edge treatment exactly constant. The re-located ladder does, and it is
+the experiment the brief specified.
 
-### The re-located ladder
+### The re-located ladder has the same floor
 
 Pass-1 roots held fixed, fill halving:
 
-| fill | 1/16 | 1/32 | 1/64 |
-|---|---|---|---|
-| nodes | 499 | 793 | 1375 |
-| `J` | 12.426116763 | 12.419360085 | 12.417291960 |
-| difference | — | **−6.757e-03** | **−2.068e-03** |
-| ratio | — | — | **3.267** |
-| `log2` ratio | — | — | **1.708** |
-| steps | 10 721 | 10 919 | 11 219 |
+| fill | 1/16 | 1/32 | 1/64 | 1/128 |
+|---|---|---|---|---|
+| nodes | 499 | 793 | 1375 | 2539 |
+| `J` | 12.426116763 | 12.419360085 | 12.417291960 | 12.415374954 |
+| difference | — | **−6.757e-03** | **−2.068e-03** | **−1.917e-03** |
+| ratio | — | — | 3.267 | **1.079** |
+| `log2` ratio | — | — | 1.708 | 0.109 |
+| steps | 10 721 | 10 919 | 11 219 | 12 066 |
 
-<!-- 5b PENDING: re-located 1/128 rung -->
+No fill node sits on a true ramp at any rung of this ladder, and **it stops
+converging at the same place and by the same amount as the reference-edge
+ladder** (−1.9e-03 against −1.4e-03 at the last step). So the fill nodes leaking
+onto misplaced ramps are not the floor. Split the same way as §2:
+
+| | 1/16 → 1/32 | 1/32 → 1/64 | 1/64 → 1/128 |
+|---|---|---|---|
+| quadrature (the added abscissae) | −3.776e-03 | −1.015e-03 | **−6.2e-05** |
+| integrand and time grid together | −2.981e-03 | −1.053e-03 | **−1.855e-03** |
+| of which `b` in `[6, 10)` | −2.0e-03 | −9.9e-04 | −4.2e-04 |
+| of which `b` in `[1/16, 3.5)` | −4.2e-04 | +5.4e-04 | −1.6e-03 |
+
+`J`'s own quadrature converges at better than second order on this ladder too
+(ratios 3.7 and 16). The first drought's integrand halves per level — first
+order. The first three years' integrand changes sign and has no rate. The time
+grid was not separated on this ladder; on the reference ladder it was a third of
+the last step (§2).
+
+**So the residual non-convergence has a cause this measurement did not find.**
+It is 1.5e-04 relative per doubling, 50× below the uniform ladder's, and it is
+not the establishment edges' own panels, not `ode_tol`, and not fill landing on
+ramps. Two candidates fit what was measured and neither was tested: a second
+non-smooth feature in `b` that the canopy integral sees and `J`'s trapezium does
+not — cohorts that die, or cohorts that cross in height, both of which TF24's
+reserve-gated growth permits, would put a moving front into the competition
+integrand at fixed `t` — and the integrator restarts at each introduction, which
+grow with the node count by construction.
 
 ### The value
 
 | | |
 |---|---|
-| re-located ladder, Richardson at the measured `p = 1.708` | 12.416380 |
-| the same at `p = 2` | 12.416603 |
-| the fill correction from 1/16 to the limit | **−0.00964** |
-| second placement pass at 1/16 | **+0.00685** |
-| placement tail beyond pass 2 | +3e-04 |
-| time integration, `ode_tol` 1e-3 → 1e-4 on the reference-edge mesh | +7.8e-05 at 1/64, −3.1e-05 at 1/128 |
+| the re-located ladder at 2539 nodes | 12.415375 |
+| the second placement pass, measured at 1/16 | **+0.006852** |
+| placement tail beyond pass 2, at the 21× contraction | +3e-04 |
+| the fill: last step −1.9e-03 and not shrinking | **−0.002 to −0.01**, see below |
+| `ode_tol` 1e-3 → 1e-4 | +7.8e-05 at 1/64, −3.1e-05 at 1/128 (reference edges) |
+| the ramp interior, A3 on the reference edges | −0.012, not repeated on re-placed ones |
 
-Adding the second pass's shift to the re-located ladder's limit — which assumes
-the fill correction does not depend on a sub-day edge shift — gives
+The fill term is the one that cannot be closed. If the first-drought part keeps
+halving and the rest stops, the tail is about −0.002; if the whole step stayed at
+−0.002 for five more doublings — to 80 000 nodes — it would be −0.01. Hence:
 
-**`J` = 12.424 ± 0.003**
-
-with the fill, the placement and `ode_tol` each converged below 1e-3, and the
-error bar the spread of the fill extrapolations plus the untested additivity.
-The ramp-interior treatment is not inside it: A3 moved the reference-edge value
-by −0.012 (below), on edges that were misplaced, and was not repeated on
-re-located ones. **So the value is 12.424 at the bracket's ramp treatment, and
-12.41–12.43 allowing for the ramp interior.** Every rung of the uniform ladder is
-0.37 to 0.61 away — the 108-node operating value is **3.0% low**.
+**`J` = 12.42 ± 0.01** at the bracket's ramp treatment — converged in the
+placement to 4e-04 and in `ode_tol` to 1e-04, and not converged in the fill below
+1.5e-04 per doubling — and **12.40 to 12.43** allowing for the ramp interior.
+The comparisons in §4 and §6 are against 12.4222, the 2539-node value with the
+second pass added; every rung of the uniform ladder is 0.37 to 0.61 away from
+it, and the operating 108-node value is **3.0% low**.
 
 ### The ramp interior: what a bracket under-reads, and what splitting it moves
 
@@ -452,30 +482,33 @@ prediction. The canopy again, at 3.5× the direct term.
 
 `sum over steps of M` is `diag-nested-grid.md` §2's member-evaluation count, and
 this fixture reproduces its 956 923 at the default schedule exactly. Error is
-against the placement-converged `J` = 12.424 of §5.
+against 12.4222 (§5), which carries its own ±0.01.
 
-| schedule | nodes | steps | `sum M` | wall | `J` | from 12.424 |
+| schedule | nodes | steps | `sum M` | wall | `J` | from 12.4222 |
 |---|---|---|---|---|---|---|
-| the default | 108 | 9 931 | 956 923 | 130.5 s | 12.0526222 | **−2.99%** |
-| uniform ×2 | 215 | 10 174 | — | — | 12.0888310 | −2.70% |
-| uniform ×4 | 429 | 10 816 | — | — | 13.0315024 | **+4.89%** |
-| uniform ×8 | 857 | 11 351 | — | 1028 s | 12.8432659 | **+3.37%** |
-| control | 498 | 10 822 | 3 894 655 | 497.6 s | 12.4318040 | +0.06% |
-| control | 793 | 11 037 | 6 210 432 | 823.1 s | 12.3547417 | −0.56% |
-| control | 1378 | 11 544 | 11 074 012 | 1455.8 s | 12.3704186 | −0.43% |
-| A, reference edges, 1/16 | 498 | 10 723 | 3 886 852 | 495.2 s | 12.2848689 | −1.12% |
-| A, reference edges, 1/32 | 793 | 10 918 | 6 194 396 | 792.9 s | 12.2767755 | −1.19% |
-| A, reference edges, 1/64 | 1378 | 11 213 | 10 884 751 | 1377.0 s | 12.2754162 | −1.20% |
-| A, reference edges, 1/128 | 2542 | 12 066 | 21 060 488 | 2673.2 s | 12.2740251 | −1.21% |
-| **A, re-located once, 1/16** | **499** | 10 721 | 3 891 721 | **497.9 s** | 12.4261168 | **+0.017%** |
-| **A, re-located once, 1/32** | **793** | 10 919 | 6 191 853 | **815.5 s** | 12.4193601 | **−0.037%** |
-| **A, re-located once, 1/64** | **1375** | 11 219 | 10 869 098 | **1414.8 s** | 12.4172920 | **−0.054%** |
-| **A, re-located twice, 1/16** | **499** | 10 735 | — | **494.8 s** | 12.4329691 | **+0.072%** |
-| A3, reference edges, 1/16 | 570 | 10 778 | 4 437 611 | 566.7 s | 12.2703028 | −1.24% |
-| A3, reference edges, 1/32 | 865 | 10 973 | 6 758 462 | 856.2 s | 12.2645852 | −1.29% |
+| the default | 108 | 9 931 | 956 923 | 130.5 s | 12.0526222 | **−2.98%** |
+| uniform ×2 | 215 | 10 174 | — | — | 12.0888310 | −2.68% |
+| uniform ×4 | 429 | 10 816 | — | — | 13.0315024 | **+4.91%** |
+| uniform ×8 | 857 | 11 351 | — | 1028 s | 12.8432659 | **+3.39%** |
+| control | 498 | 10 822 | 3 894 655 | 497.6 s | 12.4318040 | +0.08% |
+| control | 793 | 11 037 | 6 210 432 | 823.1 s | 12.3547417 | −0.54% |
+| control | 1378 | 11 544 | 11 074 012 | 1455.8 s | 12.3704186 | −0.42% |
+| A, reference edges, 1/16 | 498 | 10 723 | 3 886 852 | 495.2 s | 12.2848689 | −1.11% |
+| A, reference edges, 1/32 | 793 | 10 918 | 6 194 396 | 792.9 s | 12.2767755 | −1.17% |
+| A, reference edges, 1/64 | 1378 | 11 213 | 10 884 751 | 1377.0 s | 12.2754162 | −1.18% |
+| A, reference edges, 1/128 | 2542 | 12 066 | 21 060 488 | 2673.2 s | 12.2740251 | −1.19% |
+| **A, re-located once, 1/16** | **499** | 10 721 | 3 891 721 | **497.9 s** | 12.4261168 | **+0.031%** |
+| **A, re-located once, 1/32** | **793** | 10 919 | 6 191 853 | **815.5 s** | 12.4193601 | **−0.023%** |
+| **A, re-located once, 1/64** | **1375** | 11 219 | 10 869 098 | **1414.8 s** | 12.4172920 | **−0.040%** |
+| **A, re-located once, 1/128** | **2539** | 12 066 | 21 040 316 | **2711.5 s** | 12.4153750 | **−0.055%** |
+| **A, re-located twice, 1/16** | **499** | 10 735 | — | **494.8 s** | 12.4329691 | **+0.086%** |
+| A3, reference edges, 1/16 | 570 | 10 778 | 4 437 611 | 566.7 s | 12.2703028 | −1.22% |
+| A3, reference edges, 1/32 | 865 | 10 973 | 6 758 462 | 856.2 s | 12.2645852 | −1.27% |
 | B, 1/16 | 426 | 10 687 | 3 338 588 | 432.7 s | 10.9833846 | −11.6% |
 | C, 1/16 | 426 | 10 733 | 3 350 430 | 431.9 s | 10.8700030 | −12.5% |
-| D, 1/16 | 426 | 10 670 | 3 335 919 | 425.0 s | 12.5159818 | +0.74% |
+| D, reference edges, 1/16 | 426 | 10 670 | 3 335 919 | 425.0 s | 12.5159818 | +0.76% |
+| D, re-located edges, 1/16 | 427 | 10 667 | 3 343 527 | 444.7 s | 12.6601405 | +1.92% |
+| D, re-located edges, 1/32 | 721 | 10 897 | 5 641 316 | 729.9 s | 12.5276424 | +0.85% |
 
 (The uniform ladder's `sum M` at 215/429/857 was not taken; its 108-node value
 and its 857-node wall clock are `diag-nested-grid.md`'s, on the same machine —
@@ -492,21 +525,25 @@ member loop of every remaining step. Steps rise 21% from 9931 to 12 066 across a
 does: placement is free once the roots are known, and knowing them costs one
 windowed run and a scan (590–685 s, `em_scan*.R`) per pass.
 
-**Accuracy per unit cost**, against 12.424:
+**Accuracy per unit cost**, against 12.4222:
 
 | | error | cost | |
 |---|---|---|---|
-| uniform, 857 nodes | 3.37% | 1028 s | |
-| **bracket, placed twice, 499 nodes** | **0.072%** | **495 s + two placement passes (≈1275 s)** | **47× more accurate; 0.48× the solve, 1.7× with the placement** |
-| bracket, placed once, 1375 nodes | 0.054% | 1415 s + one pass (≈685 s) | 62× more accurate at 2.0× the cost |
-| the default, 108 nodes | 2.99% | 130.5 s | |
+| uniform, 857 nodes | 3.39% | 1028 s | |
+| **bracket, placed twice, 499 nodes** | **0.086%** | **495 s solve + two placement passes (≈1275 s)** | **39× more accurate at 0.48× the solve, 1.7× with the placement** |
+| bracket, placed once, 1375 nodes | 0.040% | 1415 s + one pass (≈685 s) | 85× more accurate at 2.0× the cost |
+| the default, 108 nodes | 2.98% | 130.5 s | |
 
-The 374-node figure `diag-establishment-ramp.md` §5 priced is 499 here, because
-the bracket wants two nodes at each edge rather than one and because the frozen
-head and tail are counted in. It remains below the 857-node rung the uniform
-ladder had already paid for, and 47× more accurate than it — provided the edges
-are placed on the mesh being run. Placed on the default schedule's stand, the
-same 498 nodes are 1.12% off and converge to 1.2% off.
+The ratios lean on a reference with a ±0.01 bar of its own, so the re-placed
+bracket's errors below 0.1% are read as "within the reference's uncertainty",
+and the robust statement is the other one: **the uniform ladder is 3–5% off at
+every rung it reached, and every re-placed bracket is inside 0.1%.** The
+374-node figure `diag-establishment-ramp.md` §5 priced is 499 here, because the
+bracket wants two nodes at each edge rather than one and because the frozen head
+and tail are counted in. It remains below the 857-node rung the uniform ladder
+had already paid for — provided the edges are placed on the mesh being run.
+Placed on the default schedule's stand, the same 498 nodes are 1.1% off and
+converge to 1.2% off.
 
 ---
 
@@ -718,27 +755,27 @@ steps, `sum M` and every `J` are unaffected.
 
 ## What was not reached
 
-- **What the last 1e-4 is.** On the reference-edge ladder the level-to-level
-  change stops shrinking at 1.4e-3 (§2). Two parts of it are identified — about
-  a third is integrator restarts at introductions, which the fill does not
-  reduce and `ode_tol` does not control, and the rest is the integrand in the
-  first-drought window converging at first order — but why the stand's integrand
-  there converges at first order was not found. The leaked fill nodes on
-  misplaced ramps are at `b = 14–18` and cannot be the whole of it. The
-  re-located ladder was run to 1/64 and its fourth rung is reported in §5 only if
-  it landed.
+- **What the last 1.5e-4 per doubling is.** Both bracket ladders stop shrinking
+  at their fourth rung (−1.4e-03 and −1.9e-03). On the reference-edge ladder it
+  was split: about a third is integrator restarts at introductions, which the
+  fill does not reduce and `ode_tol` does not control, and the rest is the
+  integrand — halving per level in the first drought, sign-changing in the first
+  three years. The re-located ladder has the same floor with no fill on any ramp,
+  so the fill leak is eliminated. A second non-smooth feature in the competition
+  integrand (cohorts dying, or crossing in height) and the restarts are the two
+  candidates left; neither was tested, and the time grid was not separated on the
+  re-located ladder.
 - **The ramp interior on re-placed edges.** A3 (closing ramps split at `u = 1,
   3`) moved the value by −0.012 on the reference edges and was not repeated on
-  re-placed ones, so the ±0.003 on `J` = 12.424 is for the bracket's ramp
-  treatment and the 12.41–12.43 interval is the honest one.
+  re-placed ones, so the ±0.01 on `J` = 12.42 is for the bracket's ramp
+  treatment and 12.40–12.43 is the honest interval.
 - **The canopy reading is inference.** That every failing placement acts
   through the environment is read off the integrand at birth dates far from any
   edge and the exact subset decompositions; no stand leaf-area or light census
   was taken to show the canopy itself moving.
-- **Only A was laddered on both edge sets.** B and C were run at one fill each; D
-  at 1/16 on both edge sets (+0.231 and +0.234 over the bracket) and, if it
-  landed, at 1/32 on the re-placed ones. D's first order in its own panels is the
-  closed form `0.495 * gap * w`, 3% from the measured quadrature term.
+- **Only A was laddered on both edge sets.** B and C were run at one fill each
+  and D at two on the re-placed edges, where its excess over the bracket falls
+  2.16× per level — first order, measured over one step only.
 - **The derivative's rate.** The edge-following derivative's two steps are below
   the time grid's own effect on it, so it has a size (0.03% past 793 nodes) and no
   order. A rate needs `ode_tol` tightened on all nine runs; not run. The adjoint
