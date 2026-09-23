@@ -19,6 +19,8 @@ For the session that implements τ_g. The consult (`oracle-consultation-gradient
 
 Build it on `offspring-adjoint`, which carries the `J` adjoint that item 3 needs.
 
+**In progress.** An agent is evaluating both forms offline and implementing the chosen one on `establishment-window`, branched from `offspring-adjoint` in the `scratchpad/plant-adj` worktree. Its scripts are in `scratchpad/tg/`, and its note, `scratchpad/tg/diag-establishment-window.md`, moves to `docs/measurements/` when it reports.
+
 ## Code state
 
 - **`aornugent/plant` branch `offspring-adjoint` at `bb1d8a8a`**, pushed. `J` is a census row; `stand_gradient()` returns `dJ/dθ` by sweep. `S_D` has a column. Verified: the reverse sweep agrees with the forward trajectory tangent on `J` to `2.09e-08` at worst over 22 traits, round-off on species one; `∂J/∂S_D = J/S_D` to round-off; the three size rows and the eleven mutant ratios are bit-identical to the parent build; the FF16 guard passes.
@@ -36,7 +38,7 @@ Build it on `offspring-adjoint`, which carries the `J` adjoint that item 3 needs
 | The integrand is `C¹` and has no transport term | the gate vanishes quadratically; the adjoint is complete. Its non-convergence is resolution |
 | An edge-bracketed mesh converges once its edges are located on the stand it runs | Roots located on the default schedule's stand are up to 3.9 d off; with them the ladder converges in the fill to 12.274, 1.2% low. Re-scanned on the mesh's own gate, a fixed point contracting 21× per pass: 12.4261 / 12.4194 / 12.4173 at fill 1/16 / 1/32 / 1/64, **`J = 12.424 ± 0.003`** (12.41–12.43 with the ramp interior). The default 108-node schedule is 3.0% low |
 | Uniform placement is erratic | against 12.424: +4.9% at 429, +0.06% at 498 (the matched-cost control, by luck), +3.4% at 857. The "16× from placement" was scored against the 1.2%-low limit and does not hold. One node per edge: −11% / −12% at the ramp's midpoint / past its top, +1.9% at the crossing. A misplaced edge node is a live cohort whose weight spans a dead band and thickens the canopy: 0.141 of `J` where the first-order edge-location price is 0.0016 |
-| **A frozen grid's gradient converges to the wrong function** | fixed bracket: `−172.9 ± 0.1`. Edge-following, settled across three fills: **`−169.8 ± 1.1`**, the error bar the time grid's at `ode_tol = 1e-3`. The default 108-node schedule: `−155.6`, 8.4% shallow. The fixed nodes sit where the `C¹` gate is flat, at its zero and its plateau, so none sees an edge move: of the gap, 0.17% is `J`'s own ramp shift and 2.28% the canopy's response to it |
+| **A bracket held fixed across θ gives a biased derivative** | fixed at the default schedule's roots: `−172.9 ± 0.1`, 1.8% off. Edge-following, settled across three fills: **`−169.8 ± 1.1`**, the error bar the time grid's at `ode_tol = 1e-3`. The default 108-node schedule: `−155.6`, 8.4% shallow. At the first fill the gap is 3.95: 0.287 is the ramps' own shift priced from root velocities, the rest arrives through the canopy. That fixed bracket was also misplaced (roots up to 3.9 d off), so motion and misplacement are mixed; a bracket fixed at the reference trait's own roots has not been run |
 | The transient is free | 44 creations below `b = 0.01` carry 45.5% of member evaluations for 1.35% of `J`; thinning gives 2.09× for `+0.0032%` |
 | `β` | Cash–Karp fifth-order real boundary `3.7343596`, crossing at `R = +1`. Adaptive median `h|λ|` is 1.86, half of it |
 
@@ -54,7 +56,7 @@ The measurement scripts are in the session scratchpad and are **not committed**:
 
 ## Open, beyond τ_g
 
-- **The consult still carries the superseded edge-mesh claims**: "converge to about 0.1%" and "sixteen times the accuracy" in the opening, M19, M20 and question 2. Fold in the note's §5 (placement on the stand being run) once the mesh agent's last rungs land. Its note says `J` has no adjoint path; that is true of `5321593a` only, so scope it to that build.
+- The consult carries the mesh note as of its 1/64 rungs; the re-located 1/128 rung and variant D at 1/32 were still running. The note says `J` has no adjoint path, which is true of `5321593a` only; scope it to that build when the mesh agent finishes.
 - The saturation-excess infiltration split switches on the soil **state**, so its breakpoints are not a priori; knot stops do not cover it.
-- `refine_schedule` fires on this record, converges in seven iterations at 206 nodes, and certifies an answer 3% from the edge-bracketed one. Its indicator is set by the competition term on every node and not by `J`.
+- `refine_schedule` fires on this record, converges in seven iterations at 206 nodes, and certifies an answer 1.7% above the mesh-converged 12.424. Its indicator is set by the competition term on every node and not by `J`.
 - `test-mutant.R` on the base branch.
