@@ -558,17 +558,14 @@ schedule held fixed at the base trait, all nine runs aligned and at
 | Richardson, measured `p` | **−172.876** | 12.27514 |
 | Richardson, `p = 2` | −172.907 | 12.27496 |
 
-**The derivative converges with the value, at about one order less** — 1.51
-against 2.57 on the same three meshes. Its converged value on the bracket mesh is
-**`dJ/dlma` = −172.9 ± 0.1**, against the −155.6 that the cubic through
-`diag-long-horizon-remeasure.md` §6's scan gave on the default 108-node schedule:
-**the operating schedule's derivative was 10% shallow**, which is the same
-direction and a larger fraction than its value's 1.8% error.
+**On the reference-edge bracket the derivative converges at about one order
+less than the value** — 1.51 against 2.57 on the same three meshes — to
+−172.9 ± 0.1. That is the derivative of a functional whose edges are misplaced by
+an amount that depends on `lma`, and the next two subsections show it is 2.3% off.
 
-The curvature term is resolved: `J''` reads −7457 and −7470 at 1/32 and 1/64,
-0.2% apart, so the forward/backward asymmetry of 7.5 is real curvature and the
-central difference's own truncation error is the `J''' d^2/6` term, not measured
-here.
+Its `J''` reads −7457 and −7470 at 1/32 and 1/64, 0.2% apart, so the
+forward/backward asymmetry of 7.5 is converged in the fill — and it is not the
+functional's curvature (below).
 
 ### What a fixed bracket cannot see: the edges move with the trait
 
