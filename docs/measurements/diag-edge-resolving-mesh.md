@@ -362,4 +362,61 @@ ladder had already paid for**, and 58× more accurate than it.
 
 ---
 
-<!-- SECTIONS 4, 7-9 PENDING: control, gradient, scripts, not-reached -->
+<!-- SECTIONS 4, 7 PENDING: control, gradient -->
+
+## 8. Scripts, and the build they ran against
+
+All in the session scratchpad, all `Rscript <file> [args]`, all reading `plant`
+through `pkgload::load_all` and `odelia` through `library`. `ld_common.R`,
+`lh_common.R` and `rw_common.R` are sourced unchanged; the `em_*` scripts are
+new and sit beside them. Results are in `em/`.
+
+| file | what |
+|---|---|
+| `em_common.R` | sources `lh_common.R`; the edge set read from `rw/edges_final.rds`, the band-and-ramp intervals, the variants, the schedule builder, the matched-count control and the one-run harness with its schedule read-back |
+| `em_repro.R` | the reproduction check, and `sum M` at the default schedule |
+| `em_shape.R` | builds every schedule and prints its counts and the nodes around one edge; runs nothing |
+| `em_run.R` | one schedule, one run: `<variant> <fill denominator>`, `ctrl <node count>`, or `bis <k>`; `grad` adds `stand_gradient` |
+| `em_fd.R`, `em_fd1.R` | `dJ/dlma` by central difference on a fixed schedule: both sides in one process, or one side per process |
+| `em_scan.R` | the gate's roots on the bracket mesh's own environment at one trait value, from windows of stops around each reference root |
+| `em_fdmove.R` | one side of a central difference with the 144 edge nodes moved to that trait value's roots |
+| `em_tol.R` | one schedule a decade tighter in `ode_tol` |
+| `em_report.R`, `em_channel.R`, `em_edgecheck.R`, `em_gradrep.R` | analysis only: the tables, the two-channel split, the root readings, the derivative ladder and transport term |
+| `em_queue.sh`, `em_chain.sh`, `em_master*.sh` | the queue, three R workers at a time |
+
+Nothing in `em/` is read by any other note's scripts.
+
+**`plant/src/plant.so` was read at the head and foot of every script's own log
+and never moved:** `2026-09-22 12:52:40.069214118 +0000` throughout. Nothing
+under `plant/`, `odelia/` or `phylloptim/` was written, and nothing was compiled
+or committed.
+
+---
+
+## What was not reached
+
+- **The edge treatment is not laddered.** A and A3 are two points of a sequence
+  whose next member was not run. The −0.095% between their limits is the size of
+  the edge-treatment error at the bracket, not a bound on what remains after A3.
+- **The canopy reading is inference.** The evidence that B, C and D move the
+  integrand through the shared environment is the integrand ratio at `b < 1`,
+  where no edge exists, and the exact subset decompositions of §3 and §5. No
+  stand leaf-area census was taken on any variant to show the canopy itself
+  moving.
+- **Only A was laddered.** B, C and D were run at one fill each, so D's "first
+  order" is the closed form `0.495 * gap * w` (3% from the measured quadrature
+  term) plus one measurement, not a measured rate. D at 1/32 was queued last and
+  is reported in §3 only if it landed.
+- **The roots were located once, on the default schedule's environment.** §5
+  bounds the consequence at 0.107% of `J` and shows it is level-independent, but
+  the gate was not re-scanned on the resolving mesh's own environment at the base
+  trait — the second pass of the Oracle's §2(c) construction.
+- **Above `b = 22` nothing is resolved.** The 40 edges there lie under the
+  default generator's two-year tail. That region carries 8.8e-05 of `J` on the
+  reference run and the tail is frozen, so it cancels in every difference; it is
+  not zero in the value.
+- **One trait, one record, one coordinate, one tolerance.** `lma = 0.32` on
+  `long-drought`, `node_density_in_birth_date = TRUE`, `ode_tol = 1e-3`
+  throughout except where §7 says otherwise. The tolerance channel was +0.288% at
+  108 nodes and +0.021% at 429 (`diag-nested-grid.md` §5), i.e. between one and
+  ten times the edge-treatment term and far larger than the fill's remainder.
