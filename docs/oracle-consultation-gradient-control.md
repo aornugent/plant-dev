@@ -22,12 +22,12 @@ The integration runs on two grids — creation times `𝒢_b` and step times `�
 and neither may depend on `θ`. Choosing them, with stated guarantees, is the
 question. Everything below explains a part of it.
 
-Measurements come from two horizons, flagged **[short]** and **[long]**. At
-`T = 5` the functional is ~1e-10 and the population is close to extinction; that
-horizon carries most of the detail below. At `T = 40` the functional is 5.25,
-five times self-replacing. The same parameter vector gives 1e-10 at the short
-horizon and 43 at the long one, so where the two disagree the long one
-governs.
+The horizon is `T = 40`, where the trait vector used below gives `J = 12.08` and
+the default birth rate makes `J` the net reproduction ratio directly, so the
+stand is twelve times self-replacing. An earlier fixture at `T = 5` put a trait
+vector at `J = 1e-10`, ten orders of magnitude short of replacing itself, and
+several of its readings turned out to be properties of that horizon; where a
+measurement below is still at `T = 5`, it says so.
 
 ## The system
 
@@ -131,23 +131,25 @@ The only forced stops are creations and scheduled events; there is no event
 detection.
 
 Integration is split into ~10² legs by the creation times, which lie on a dyadic
-grid `Δ = 2^⌊log₂(0.2 t)⌋` clamped to `[1e-5, 2]`. Leg lengths span five orders
-of magnitude; 55% of legs are shorter than one chain relaxation time and
-together span 0.43% of the horizon. The configured tolerance gives ~6 accepted
-steps per leg. The final step of each leg is clipped to the boundary and does
-not update the carried step size. `h_init = h_min = 1e-6`, `h_max = 5 = T`.
+grid `Δ = 2^⌊log₂(0.2 t)⌋` clamped to `[1e-5, 2]`. Leg lengths span 1e-5 to 2,
+five orders of magnitude; 44% of legs are shorter than one chain relaxation time
+and together span 0.049% of the horizon, while the clamp makes the rest uniform.
+The configured tolerance gives ~37 accepted steps per leg on a smooth record and
+~105 on an intermittent one. The final step of each leg is clipped to the
+boundary and does not update the carried step size. `h_init = h_min = 1e-6`,
+`h_max = T`.
 
 Step attempts over whole runs:
 
 | outcome | smooth record | intermittent record |
 |---|---|---|
-| accepted | 530 | 1017 |
-| accuracy rejection | 97 | 292 |
-| domain rejection (thrown) | 27 | 104 |
+| accepted | 3972 | 11 319 |
+| accuracy rejection | 296 | 3471 |
+| domain rejection (thrown) | 415 | 1069 |
 | post-step refusal | 0 | 0 |
 | committed at `h_min` | 0 | 0 |
-| rejections / attempts | 19.0% | 28.0% |
-| rate evaluations on rejected attempts | 17.3% | 26.9% |
+| rejections / attempts | 15.2% | 28.6% |
+| rate evaluations on rejected attempts | 8.4% | 24.4% |
 
 Every throw comes from `z_j` overshooting its fixed point past zero.
 
@@ -172,16 +174,16 @@ reach the domain guard without passing the error test.
 
 | grid | discretises | chosen by | count |
 |---|---|---|---|
-| `𝒢_b` creation times | the quadrature over `μ_t` | a dyadic generator, then error-driven bisection | 88 |
-| `𝒢_t` step times | the time integration | the controller above | 530 smooth, 1725 intermittent |
-| `𝒢_f` record knots | the reconstruction of `s` | the input data's sampling rate | 1824 |
+| `𝒢_b` creation times | the quadrature over `μ_t` | a dyadic generator, then error-driven bisection | 108 |
+| `𝒢_t` step times | the time integration | the controller above | 3972 smooth, 11 319 intermittent |
+| `𝒢_f` record knots | the reconstruction of `s` | the input data's sampling rate | 14 599 |
 
 `s(t)` is reconstructed by a monotone `C¹` interpolant, so `f''` jumps at knots
 where `s ≠ 0` on at least one side. Over quiescent stretches the reconstruction
 is identically zero and smooth, so the knots that matter form a computable
-subset of `𝒢_f`: on the intermittent record, **412 active knots** against 1824
-in range. That is 0.24 active knots per accepted step, and 22.6% of accepted
-steps contain one. Every active knot falls strictly inside a step.
+subset of `𝒢_f`: on the intermittent record, **2931 active knots** against
+14 599 in range. That is 0.26 active knots per accepted step, and 23.6% of
+accepted steps contain one. Every active knot falls strictly inside a step.
 
 The record is a mixture in time: quiescent stretches, stretches of many small
 events, stretches of few large events, long absences. The local regime is a
@@ -229,100 +231,161 @@ equality.
 
 ## Measured
 
-**(M1) The functional is a step function in `θ`.** [short] Scanned over 25 trait
-values spanning ±3%, `J` departs from a smooth cubic by 0.107% rms and 0.267%
-peak, with two visible **step discontinuities of 0.3–0.4%** (lag-1
-autocorrelation 0.46, so not round-off). The steps sit where the inner problem's
-classification reorganises — the non-interior share jumping 0.4–0.5 points
-between trait values 0.25% apart. It is not the time tolerance: the same scan
-ten times looser gives 0.103%. Differentiating it accounts for the observed
-gradient error: from `dlnJ/dln θ = −2.88` and `dε/dln θ ≈ 0.09` the predicted
-error is 3.1% against 2.7–3.4% measured — one step, differentiated.
+Every number below is at `T = 40` on the record described above, at a trait
+vector giving `J = 12.078` on a converged grid. M7 and M10 were taken at `T = 5`,
+where `J` is 1e-10 and the stand is ten orders of magnitude short of
+self-replacing, and have not been repeated; each says so.
 
-**(M2) Step placement dominates, and tolerance barely matters.** [short] Forcing
-a step boundary at each of the record's 412 active knots collapses a **140%**
-gap to **−0.057%**. Two controls separate the mechanism: 412 stops placed in
-quiescent spans, where the reconstruction is identically zero, reach the right
-answer at one tolerance and fail by **+92.6%** at another; the same 412 knots
-shifted a quarter of a cell hold everywhere to 2.6%. So placing stops *within
-event stretches* removes most of it and landing *on the breakpoints* removes the
-residual.
+**(M1) The functional is smooth in `θ`.** Scanned over 25 trait values spanning
+±3% on a creation grid held fixed, aligned, one decade loose of the shipped
+tolerance, `J` departs from a smooth quintic by **0.031% rms and 0.070% peak**
+once one point of the 25 is set aside. That point is time integration: it sits
+0.442% below the chord of its neighbours there, 0.005% at the shipped tolerance
+and 0.001% one decade tighter. Lag-1 autocorrelation of the
+residual is 0.09. The inner problem's classification holds across the scan — the
+non-interior share spans 0.195 points, moves at most 0.099 points between
+adjacent trait values, and correlates with the residual at −0.03. At `T = 5` the
+same scan gave 0.107% rms, **two step discontinuities of 0.3–0.4%**, lag-1
+autocorrelation 0.60, and a classification swinging 0.671 points between trait
+values 0.25% apart. Near extinction `J` is a step function in `θ`; at a viable
+stand it is not.
 
-It is not order reduction. Unaligned, the error across three decades of
-tolerance is `+117.7, +64.8, +121.1, +132.4, +140.4%` — flat and non-monotone —
-then falls 300× in a single half-decade. One extra forced stop **anywhere** in
-the run, over 16 placements tried, moves the functional across `6.2e-11` to
-`1.85e-10`, straddling the converged value in both directions.
+**(M2) Step placement decides the answer, and the event stretch is the unit that
+matters.** Forcing a step boundary at each of the record's 2931 active knots
+moves `J` from 7.805 to 12.087 at the shipped tolerance — **−35.4% to +0.08%**
+against the converged 12.0780. Two controls carrying the same 2931 stops
+separate the mechanism. Stops
+placed in quiescent spans, where the reconstruction is identically zero, take
+9264 steps at a tolerance two decades loose and land **37.9% low**, against the
+aligned arm's 8683 steps and +0.3%; across three decades that arm reads −37.9%,
+−14.5%, +0.04%, while its state-clamping share holds at 0.490, 0.420, 0.392% and
+the aligned arm's falls to 0.025%. Its right answer at the third tolerance is an
+endpoint coincidence over a trajectory that disagrees. The same 2931 knots
+shifted a quarter or half a day hold everywhere to **0.32%**, which the knots
+themselves match at 0.31%. Landing inside an event stretch is the whole of the
+effect. At `T = 5`, with 412 knots in five years, the near-miss held to 2.6%
+against the knots' 0.21% — a 13-fold gap that does not survive the longer record.
 
-**(M3) At a realistic horizon the placement error does not wash out.** [long] At
-the short horizon it was a coarse-grid pathology: +140% at 88 members, 0.5% at
-175. At eight times the horizon it is **−35.4 / −16.9 / −39.9%** at 108 / 215 /
-429 members, and −22% at a tolerance ten times tighter with 61% more steps than
-the aligned run needs. Aligned, the functional holds to **0.29% across four
-decades of tolerance** and is right at the loosest.
+It is not order reduction, and it is not a flip. Unaligned, the error is signed
+and monotone: `−69.4, −56.5, −35.4%` across three decades of tolerance, reaching
+−22% at a fourth with 61% more steps than the aligned run needs. One extra forced
+stop **anywhere** in the run, over 16 placements tried, moves the functional
+across 6.871 to 9.890 — a factor of 1.44 — and all sixteen land 18% to 43% below
+the converged value. A stop after `t = 23.7` moves `J` by under 0.5%; one at
+`t = 4.05` moves it 26.7%. The sensitivity sits where the creations are dense. At
+`T = 5` the same perturbation spanned a factor of three and straddled the
+converged value in both directions: 2931 mis-integrations over 40 years
+accumulate into a bias where 412 over five years averaged into a spread.
 
-**(M4) A state-clamping branch is an artefact of placement.** [long] One
-terminal branch of the inner problem clamps state; the others move it
-continuously. Unaligned its share is 0.40% and **does not respond to tolerance
-across three decades** — it passes a convergence test by sitting still. Aligned
-it falls to 0.015–0.027% and keeps falling; on a pinned step program it is
-**exactly zero at every level over 28 million solves**. Under a 41-year record
-whose forcing fails for three multi-year spans, the residue is 0.002%, scales
-with member creations, and concentrates in the first years — tracking creation
-density, not the forcing. Two
+**(M3) The placement error survives creation-grid refinement.** Unaligned against
+aligned at the same creation count and the same tolerance: **−35.4 / −16.9 /
+−39.9%** at 108 / 215 / 429 members. The gap halves from 108 to 215 and returns
+to worse than it started at 429. Aligned, the functional holds to **0.29% across
+four decades of tolerance** and is right at the loosest, at 9931 steps against
+the unaligned run's 15 961 two decades tighter.
+
+**(M4) A state-clamping branch is an artefact of placement.** One terminal branch
+of the inner problem clamps state; the others move it continuously. Unaligned its
+share is 0.38% and **does not respond to tolerance across three decades** —
+0.357, 0.379, 0.362% — so it passes a convergence test by sitting still. Aligned
+it falls to 0.025% and keeps falling: 0.081, 0.025, 0.0061, 0.0032, **0.0020%**
+over four decades, while the solve count triples. The residue that survives
+scales with member creations at four to five solves each and concentrates in the
+first years — tracking creation density, not the forcing. The driest year in the
+record carries 3 occurrences in 89 061 solves and one drought year none. Two
 further terminal branches are exactly zero everywhere. Only the interior branch
-and one active-constraint branch, occupied 4–13%, are genuinely visited.
+and one active-constraint branch, occupied 4–13%, are genuinely visited. At
+`T = 5` a pinned step program took it to exactly zero at every creation level
+over 28 million solves.
 
-**(M5) A converged value does not imply a converged derivative, and the gap is
-conditioning.** [short] At one creation count: 0.04% error in a functional,
-0.9–2.5% in one of its derivatives, 30–250% in another, one of them
-**sign-wrong**. That derivative is a sum of two opposing paths with elasticities
-`+0.783` and `−0.791`, so the answer is 1% of either term and the condition
-number is ~100. The amplification is exact:
-`err(total) = 100·err(direct) + 101·err(transported)` reproduces the observed
-error at six levels across four orders of magnitude and three sign changes. The
-differentiation is not at fault — at the level where the sign is wrong, the
-reverse sweep matches central differences of whole re-runs to five digits and a
-forward tangent to ten.
+**(M5) The conditioning of a derivative is a property of the operating point.**
+One census metric reads its density trait through two paths that oppose at a
+short horizon. At `T = 5` their elasticities are
+`+0.783` and `−0.770`, the total is 1% of either, the condition number
+`|direct| / |total|` is 63 at the operating creation count, and the reported
+derivative carries the **wrong sign** until one bisection later. At `T = 40` the
+elasticities are **`+0.159` and `+0.539`** — the same sign — the total `+0.699`
+exceeds either, and the condition number is **0.2**. Across patch lifetimes 5,
+10, 20 and 40 it reads 10.3, 3.7, 0.6, 0.2, the transported path changing sign
+between 10 and 20. `T = 5` is the zero crossing of this derivative in patch
+lifetime. The amplification itself is exact wherever it applies:
+`err(total) = (|direct|/|total|)·err(direct) + (|swept|/|total|)·err(swept)`
+reproduced the observed error at six creation counts across four orders of
+magnitude and three sign changes, and the differentiation was never at fault —
+at the level where the sign was wrong, the reverse sweep matched central
+differences of whole re-runs to five digits and a forward tangent to ten.
 
-**(M6) The finite-difference plateau is a property of the instrument.** [short]
-At the operating tolerance, aligned, there is **no plateau at any `δ`** from
-1e-3 to 1e-9. Two decades tighter a plateau **1.5 decades wide** appears, flat to
-0.63%, with the difference scaling linearly in `δ` across exactly that range; a
-pinned program gives one decade, and the two agree to 0.06%.
+**(M6) A finite-difference plateau exists one decade loose of the shipped
+tolerance.** Aligned, at the tolerance where M3's four-decade hold begins, the
+central difference reads
 
-**(M7) The derivative's convergence is not settled by differencing.** [short] Two
-independent ladders on aligned grids disagree. One finds the value at ~1.9 and
-the derivative **not estimable** — level-to-level spread 21%, the sequence
-reversing at four of six steps. The other reports a persistent gap of 0.44–0.56
-whose per-window values are 1.08/2.06 and 1.76/1.17, and states that the design
-cannot separate an asymptotic order difference from a coarse-end constant. **The
-adjoint, which forms no difference, gives derivative orders of 1.29–1.91 against
-values at 1.31–1.94.**
+```
+d      3e-2    1e-2    5e-3   2.5e-3   1e-3   3.16e-4  1e-4   3.16e-5  1e-5    1e-6    1e-7
+dJ/dθ -158.66 -156.63 -154.05 -156.11 -151.65 -153.40 -154.12 -153.25 -151.67 -143.45 -187.79
+```
 
-**(M8) Resolving anything about the derivative requires coarsening.** [short] At
-the operating creation count the error is ~1% and one bisection takes it to
-0.27%, the size of the difference scatter. Orders are readable only four
-halvings below the operating point.
+— a plateau **three and a half decades wide, flat to 5.3%**, or to 4.6% with the
+one pair that contains M1's time-integration point set aside, and flat to 1.6%
+over its best two decades. Below `d = 1e-5` it breaks down. At `T = 5` this
+instrument had **no plateau at any `d`** from 1e-3 to 1e-9 at the shipped
+tolerance, and two further decades of ODE tolerance bought one 1.5 decades wide,
+flat to 0.63%. The plateau here appears a decade *looser* than the tolerance that
+had none. What sets its 1.6–4.6% floor, and whether tightening narrows it, is not
+measured.
 
-**(M9) A step program does not transfer across creation-grid levels.** [short]
-Captured at one level and replayed one level finer: 18% wrong, derivatives
-sign-flipped. Captured at the finest level — which yields a bit-identical time
-grid at every level, the levels being nested bisections — still 11% wrong at the
-coarsest. The largest step per window is within 1.5× of adaptive at every level.
-The union of every level's program reproduces every adaptive answer to 1e-5, at
-2.5–4.5× the steps.
+**(M7) The derivative's convergence is not settled by differencing.** Measured at
+`T = 5`; not repeated. Two independent ladders on aligned grids disagree. One
+finds the value at ~1.9 and the derivative **not estimable** — level-to-level
+spread 21%, the sequence reversing at four of six steps. The other reports a
+persistent gap of 0.44–0.56 whose per-window values are 1.08/2.06 and 1.76/1.17,
+and states that the design cannot separate an asymptotic order difference from a
+coarse-end constant. **The adjoint, which forms no difference, gives derivative
+orders of 1.29–1.91 against values at 1.31–1.94.**
 
-**(M10) Across `θ`, a captured grid holds a wide box.** [short] The full ±2× box
-in six parameters holds at a uniform step-shrink factor of 2, and 58% of it at
-factor 1. Where a replay is wrong, `h·|λ|` on the replayed trajectory is 1.7–3.2×
-above the adaptive run's. Across forcing records there is zero transfer.
+**(M8) The operating creation count sits in the wrong place for a refinement
+study.** At `T = 5` it sits above the noise floor: the error is ~1% there, one
+bisection takes it to 0.27% — the size of the difference scatter — and orders are
+readable only four halvings below. At `T = 40` it sits below convergence instead.
+One census metric and its density derivative over 28 / 55 / 108 / 215 members
+read 48.50, 51.21, 48.17, 46.68 and `5.719e-02`, `5.718e-02`, `5.529e-02`,
+`5.244e-02`: the last doubling moves the value 3.1% and the derivative 5.2%, and
+neither sequence is monotone through the first two levels.
 
-**(M11) The reported error is the residual of a cancellation.** [short] Under a
-smooth record the forward solve's reconstruction error is `−0.617%`, the output
-quadrature's own error `+0.359%`, the reported total `−0.259%` — both `O(Δb²)`,
-in a ratio of `−0.582 / −0.581 / −0.580` at successive levels. The mechanism is
-§1.4: the reconstruction and the functional use the same rule on the same grid.
+**(M9) A program captured at the finer creation level transfers; one captured at
+the coarser does not.** Captured at one level and replayed one level finer,
+`J` is **−11.0%** wrong, and H2 says why: the captured program lacks the finer
+level's 107 extra creation times, so they are inserted and the realised grid
+takes 107 forced stops the record did not ask for — the step count is exactly 107
+above the captured program's. Captured at the finer level and replayed at the
+coarser, which yields a bit-identical time grid because the levels are nested
+bisections, `J` is **−0.019%** on a smooth record and +0.112% on an aligned
+intermittent one; the same time grid at the two creation counts then differs by
+0.52%, which is what M11's second-order creation-grid sequence predicts for that
+bisection. At `T = 5` those two arms read 18% and **11%**, the coarse-captured
+one's derivatives came out sign-flipped, the largest step per window was within
+1.5× of adaptive at every level, and the union of every level's program
+reproduced every adaptive answer to 1e-5 at 2.5–4.5× the steps. Derivatives, the
+union program and levels beyond two were not re-measured at `T = 40`.
+
+**(M10) Across `θ`, a captured grid holds a wide box.** Measured at `T = 5`; not
+repeated. The full ±2× box in six parameters holds at a uniform step-shrink
+factor of 2, and 58% of it at factor 1. Where a replay is wrong, `h·|λ|` on the
+replayed trajectory is 1.7–3.2× above the adaptive run's. Across forcing records
+there is zero transfer.
+
+**(M11) The two `O(Δb²)` terms reinforce.** Under a smooth record the reported
+error at the operating creation count is **−0.420%**, of which the forward
+solve's creation-count error is **−0.334%** and the output trapezium's own error
+on the same samples **−0.086%**: same sign, so the total exceeds either. Raising
+the output rule's order alone takes the answer from −0.420% to −0.334%, **1.26×
+better**. `J` converges at second order with alternating sign — level-to-level
+changes `+1.4445, −0.2958, +0.0725`, `log₂` ratios 2.29 and 2.03 — so the
+creation-count term reads −0.334%, +0.054%, −0.030% and no ratio between the two
+terms is stable. Time integration is not involved: a decade of tolerance moves
+`J` by 0.0000% at two creation counts. At `T = 5` the same decomposition gave
+`−0.617%` and `+0.359%` for a total of `−0.259%`, in a ratio of
+`−0.582 / −0.581 / −0.580` at successive levels, and a higher-order output rule
+made the answer 2.4× worse.
 
 ## Settled
 
@@ -330,8 +393,10 @@ Error shares between two grids of different order go in proportion to order,
 from equal marginal error reduction per unit cost under power-law errors and
 bilinear cost.
 
-Raising the order of the output quadrature alone cuts its own term 148–258× and
-makes the reported answer 2.4× worse, because M11's two terms cancel.
+Raising the order of the output quadrature alone cuts its own term 148–258×.
+Whether that helps turns on the sign of the creation-count term beside it: at
+`T = 5` the two cancelled and the substitution made the reported answer 2.4×
+worse; at `T = 40` they reinforce and it makes it 1.26× better (M11).
 
 Multirate collapses into a linearly-implicit treatment of the chain: the
 expensive coupling term is a function of the fast variable, so every micro-step
@@ -359,10 +424,12 @@ quantity. Which are achievable together, and which gives way first?
 
 ### 2. Refinement that certifies a derivative
 
-M3 and M7: a creation count that converges a functional to 0.04% can leave a
-derivative 20–60× worse or sign-wrong, and the operating point sits too close to
-the noise floor for a refinement sequence to yield an order without coarsening
-below it.
+M5, M7 and M8: at `T = 5` a creation count that converged a functional to 0.04%
+left one of its derivatives 20–60× worse and sign-wrong, and the operating point
+sat too close to the noise floor for a refinement sequence to yield an order
+without coarsening below it. At `T = 40` the operating count sits on the other
+side of the same problem — the value moves 3.1% and the derivative 5.2% for the
+last doubling — so neither direction gives a sequence to read an order off.
 
 (a) What is the correct stopping rule for a refinement targeting a derivative?
 (b) M5's condition number is computable from quantities the sweep already forms.
@@ -371,14 +438,17 @@ such decomposition is exposed? (c) Is there a principled reason to run a
 refinement study downward from the operating point, and does that change what
 the sequence certifies?
 
-### 3. An objective that is a step function in `θ`
+### 3. A discrete classification inside a smooth objective
 
-M1: `J` is piecewise smooth with 0.3–0.4% steps wherever a discrete
-classification of the inner problem reorganises, and differentiating those steps
-accounts for ~98% of the observed finite-difference gradient error. The adjoint
-is exact for each piece. M4 says the worst-behaved branch — the one that clamps
-state — is an artefact of step placement and reaches exactly zero on a
-well-placed grid, but one genuinely occupied active-constraint branch remains.
+M1: at `T = 5`, `J` was piecewise smooth with 0.3–0.4% steps wherever the inner
+problem's discrete classification reorganised, and differentiating those steps
+accounted for ~98% of the observed finite-difference gradient error. At `T = 40`
+the steps are absent, the classification moves 0.099 points at most between
+adjacent trait values, and a difference plateau runs three and a half decades
+(M6). The classification is discrete either way, and the adjoint is exact for
+each piece. M4 says the worst-behaved branch — the one that clamps state — is an
+artefact of step placement and reaches exactly zero on a well-placed grid, but
+one genuinely occupied active-constraint branch remains.
 
 (a) What is the right treatment: smoothing the classification with a declared
 width, locating the crossing and stepping to it, or accepting the steps and
@@ -386,23 +456,27 @@ choosing an optimiser that tolerates them? (b) A smoothed switch of width `w`
 puts a feature of scale `w` into the right-hand side, which the integrator must
 then resolve, so `w` is pulled small by the bias budget and large by the step
 size. What sets it? (c) What can be guaranteed to an optimiser given an
-objective that is smooth almost everywhere, carries dense jumps of known scale,
-and has an exact gradient for each piece? (d) Is there a formulation in which the
+objective that is smooth almost everywhere, carries jumps of known scale at some
+operating points, and has an exact gradient for each piece? (d) Is there a formulation in which the
 classification never becomes discrete — the feasible interval collapsing
 smoothly in place of a threshold — and what does that cost?
 
 ### 4. What M9 is telling us
 
-A bit-identical time grid gives an 11% different derivative when the creation
-grid beneath it changes, with step size excluded as the explanation. Under H3,
-changing the creation grid is four changes at once. M2 shows the same system is
-extraordinarily sensitive to *where* steps fall — one extra stop anywhere moves
-the functional by a factor of three — which may make M9 a special case of that
-and not a separate phenomenon.
+At `T = 5` a bit-identical time grid gives an 11% different derivative when the
+creation grid beneath it changes, with step size excluded as the explanation. At
+`T = 40` that arm moves `J` by 0.019%, and what survives is the other one: a
+program captured at a coarser level and replayed at a finer picks up 107 extra
+creation times as forced stops and lands 11.0% low. Under H3, changing the
+creation grid is four changes at once. M2 shows the system is sensitive to
+*where* steps fall — one extra stop moves the functional by up to 27% — and 107
+of them is what the surviving arm does.
 
-(a) Are M2 and M9 one mechanism or two? If one, the cure for both is a grid
-placed from the record rather than captured from a run; if two, what
-distinguishes them? (b) How would one separate the remaining candidates — the
+(a) The `T = 40` reading says one mechanism: the arm that adds stops fails and
+the arm that holds the time grid fixed agrees with the quadrature to 0.5%. Does
+that hold for the derivative, which is where the `T = 5` reading was worst? If it
+does, the cure for both is a grid placed from the record rather than captured
+from a run. (b) How would one separate the remaining candidates — the
 five trapezia of §1.4, the coupling through a differently-resolved
 reconstruction, H6's re-derivation of stage states at a different member count?
 (c) Is the union of levels' programs a legitimate instrument for a refinement
@@ -410,9 +484,9 @@ study, or does it answer a different question from any single level?
 
 ### 5. One grid across parameters, with a certificate
 
-M4 and M6: a shared fixed grid is what yields a usable derivative, it holds a
-wide parameter box under a uniform safety factor, and it does not survive a
-change of record.
+M6 and M10: a grid that does not move with `θ` is what yields a usable
+derivative, it holds a wide parameter box under a uniform safety factor, and it
+does not survive a change of record.
 
 (a) What certificate should accompany a shared grid, given the quantity to
 certify is a derivative and the usual adjoint-weighted residual bounds the
