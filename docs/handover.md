@@ -1,197 +1,54 @@
 # Handover
 
-Where the solver investigation stands, what a next session must not re-derive
-wrongly, and what is worth doing next. Measurements are in `docs/measurements/`;
-its README marks which conclusions survived.
+For the session that implements τ_g. The consult (`oracle-consultation-gradient-control.md`) is the statement of the system and its measured behaviour; this is what a session needs beside it to act.
 
-## Start here
+## Next: τ_g, a declared establishment window
 
-**Run a horizon that supports a stand — or start from one.** Two routes, and
-either will do.
+`TF24_Strategy::establishment_probability` reads a newborn's net production `P` at the instant of its creation and returns `P²/(A²+P²)`, zero for `P ≤ 0`, with `A = a_d0 · area_leaf_seed = 8.79e-06` and `recruitment_decay = 0` on this strategy. So the gate reads soil moisture instantaneously, and it opens within **0.178 days** of rain (median, range 0.071–0.714) and closes over **5.54 days** as soil dries. No cohort mesh can resolve four hours; the edge-bracketed mesh works around it and carries a θ-dependent bias because of it. τ_g replaces the instantaneous read with an exponentially weighted one over a timescale of weeks, so both ramps become weeks wide and ordinary fill resolves them.
 
-*Long horizon.* `max_patch_lifetime = 40`; the package's own tests cluster there
-and the TF24 default is 105.32. At 5 the objective is 1e-7 to 1e-11 and the
-stand is effectively extinct. The same trait gives `J = 43` at 40, and
-`lma = 0.32` gives `J = 5.25` — five times self-replacing, with the default birth
-rate making `J` the net reproduction ratio directly. Extinction sits between
-`lma` 0.45 and 0.60. Almost every measurement in this workspace was taken at
-lifetime 5, and several of its conclusions are properties of that horizon.
+**The design question to settle first.** `Ḡ` must exist for a *hypothetical* newborn at every time, before any cohort is born at it — so it cannot be a cohort's state. It is the boundary node's net production, smoothed: `dḠ/dt = (P_newborn(t) − Ḡ)/τ_g`, one ODE state carried beside the boundary node or the environment, read by `establishment_probability` in place of `P`. Check how the boundary node is rebuilt each step (`set_state_and_boundary`, `Node::compute_initial_conditions`) before choosing where the state lives; it must be on the tape, and it must be in `census_of`'s path so the seed sees it.
 
-*Stable initial structure.* `make_initial_state()` in `plant/R/scm_support.R`
-seeds a patch from heights and log-densities, and `SCM::run_next` integrates
-from `parameters.initial_time` to the first scheduled introduction, so a run can
-begin from a developed stand. This is the better route where it works: it
-removes the early transient entirely, and **48 of the default schedule's 88 legs
-exist only to resolve that transient, spanning 0.43% of the horizon between
-them**. It also puts the objective near 1, which fixes the conditioning scaling
-for free.
+**What τ_g must be.** A parameter with a declared default and its own AD column, since the optimiser may want it. Weeks: 0.02–0.1 yr. Its value is a modelling statement — germination responds to moisture integrated over days — and its effect on `J` is to be measured and reported, not assumed small.
 
-Two things to fix before relying on it. `make_initial_state` writes a zero matrix
-and fills only the height and log-density rows, so every other per-member state —
-including the storage pool — starts at exactly zero; and it stamps every seeded
-member with birth date 0, which collapses the quadrature abscissa the whole
-measure is integrated over. A stable-structure seed needs both filled from the
-structure being seeded.
+**How to know it worked.** (1) The opening-ramp width measured by the `rw_*` scan rises from hours to about τ_g. (2) The plain dyadic or uniform ladder converges without brackets. (3) The θ-frozen gradient's bias disappears: on a fixed grid, `dJ/dlma` agrees with the edge-following estimate, where today the fixed bracket converges to `−172.9 ± 0.1` against the edge-following `−169.57`. (4) The census and gradient suites pass, and the new state appears in the seed.
 
-**Align the time grid to the forcing record.** Force a step boundary at every
-knot where rainfall is nonzero on at least one side — `events(events_default(p),
-rainfall_pulse(time = knots, depth = 0))`; a zero-depth pulse forces a stop and
-adds no water. At lifetime 40 an unaligned run is 35–40% wrong and does not
-converge out of it with refinement; aligned, `J` holds to 0.29% across four
-decades of tolerance and is right at `ode_tol = 1e-3`. `events(events_default(p))`
-alone reproduces a no-events run bit-identically, so the mechanism is free.
+Build it on `offspring-adjoint` — it carries the `J` adjoint that item 3 needs.
 
-**Finite differences need a five-point cubic.** `J` is a step function in `θ` at
-0.1% rms with 0.3–0.4% steps. A two-point stencil at `d = 1e-3` puts the signal
-(0.29%) inside the scatter (0.1%); at 349 nodes `d = 1e-3` and `3e-4` disagree
-by 2.5×. Use a least-squares cubic through five trait points at ±0.01 and ±0.03,
-or use the adjoint.
+## Code state
 
-## What not to re-derive
+- **`aornugent/plant` branch `offspring-adjoint` at `bb1d8a8a`**, pushed. `J` is a census row; `stand_gradient()` returns `dJ/dθ` by sweep. `S_D` has a column. Verified: the reverse sweep agrees with the forward trajectory tangent on `J` to `2.09e-08` at worst over 22 traits, round-off on species one; `∂J/∂S_D = J/S_D` to round-off; the three size rows and the eleven mutant ratios are bit-identical to the parent build; the FF16 guard passes.
+- **Full serial suite: 530 tests, one failure, `test-mutant.R`**, and it fails identically on the parent `5321593a` — stale reference values on the base branch (the model reads `2.7731595978`, the test expects `2.773222`). Not this change's to re-baseline.
+- **The `plant-dev` submodule pointer is not bumped** and still records `5321593a`. Bump it to `bb1d8a8a` once nothing is loading the main `plant/` tree: checking out new sources there makes the next `load_all` recompile under any running job.
+- **No issue filed** for the adjoint; AGENTS.md wants one, and the branch renamed after it.
+- The build lives in a git worktree at `scratchpad/plant-adj`, which is ephemeral. The branch is on origin, so recreate the worktree rather than trust it.
 
-| claim | correction |
+## Established — do not re-derive
+
+| fact | numbers |
 |---|---|
-| the gradient loses half an order where cohorts sit on constrained branches | measured on unaligned grids; the adjoint shows gradients converging at the value's rate |
-| the storage boundary is attracting and cohorts arrive at it | strictly inflowing — `ż\|_{z=0} > 0`. Every domain throw is an explicit step overshooting a stable fixed point at positive storage |
-| hydraulic shutdown is a real branch the model visits | artefact of step placement. Aligned + tolerance + a pinned program takes it to exactly zero over 28M solves, including under multi-year drought |
-| the quadrature is the dominant error and a spline is the free win | the reported error is a cancellation of two `O(Δb²)` terms; a spline on the output alone makes the answer 2.4× worse |
-| multirate is on the frontier | it collapses into a linearly-implicit split, because the expensive coupling is a function of the fast variable |
-| the cohort-count error is 16–31% under intermittent forcing | that was the time grid. With it pinned, the cohort error is 0.24% |
+| The forcing is lost to the tableau, not to smoothness | embedded difference reads `{0,0.3,0.6,0.875,1}h`, vanishes on degree ≤ 3, widest gap `0.3h`. Unaligned: 4.74% of rain lost, `yerr = 0` on every losing step. Stops at the 2931 active knots make the integral exact to `3.2e-12` |
+| The interpolant is fine | monotone Hermite, range held to `1.4e-14`, no negative rainfall, the floor at `tf24_environment.h:585` is dead. Its comments and `R/drivers.R` describe a removed spline |
+| The integrand is `C¹` and has no transport term | the gate vanishes quadratically; the adjoint is complete. Its non-convergence is resolution |
+| An edge-bracketed mesh converges, to ~0.1% | 2 nodes per edge (crossing, top of ramp): 12.2849 / 12.2768 / 12.2754 / 12.2740 at 498 / 793 / 1378 / 2542. Order 2.57 then stalls; a 3-node bracket sits 0.086% lower |
+| Placement decides, not count | at 498 nodes and matched cost, bracketed 0.079% vs uniform 1.277% — 16×. One node per edge is 10–11% out |
+| **A frozen grid's gradient converges to the wrong function** | fixed bracket: `−172.9 ± 0.1`, stable across meshes. Edge-following: `−169.57`. 2.3% bias, because the frozen brackets misplace edges that move with θ |
+| The transient is free | 44 creations below `b = 0.01` carry 45.5% of member evaluations for 1.35% of `J`; thinning gives 2.09× for `+0.0032%` |
+| `β` | Cash–Karp fifth-order real boundary `3.7343596`, crossing at `R = +1`. Adaptive median `h|λ|` is 1.86, half of it |
 
-## How the drainage stiffness scales
+## Build gotchas that cost time
 
-Derived, not measured, but consistent with what was measured and worth having
-before anyone sweeps a parameter looking for the step constraint.
+- `make` → `compile_dll` → `R CMD INSTALL` loses the outer make's jobserver and builds `-j1`. Run `env MAKEFLAGS=-j3 Rscript -e 'pkgbuild::compile_dll(compile_attributes = FALSE, debug = FALSE)'` so the inner make is the jobserver master. A header change is then ~15 minutes.
+- Restarting `compile_dll` can wipe `src/*.o`.
+- `pkill -f` on a pattern that appears in your own command line kills your own shell. Stop a build by walking its PID tree from the outer `make`.
+- `plant` compiles against `phylloptim`'s **installed** headers; `rm plant/src/*.o` after a `phylloptim` header change. `compile_dll` exits 0 having compiled nothing when the `.so` is newer than every source; `force = TRUE`.
+- A probe that saves beside `dirname(plant_path)` writes into the `plant-dev` root for the main tree.
 
-The eigenvalue of a soil layer's drainage is
+## Harness
 
-```
-|λ_ℓ| = q·κ_ℓ·u_ℓ^(q−1) = q·outflux_ℓ / u_ℓ  ∝  flux^(1−1/q) · κ^(1/q)
-```
+The measurement scripts are in the session scratchpad and are **not committed**: `ld_common.R` / `lh_common.R` (lifetime 40, 41-year Markov-chain rainfall, `lma = 0.32`, aligned, `J ≈ 12.08`), `rw_*` (the gate scan: `Patch$set_ode_state` replays a stored trajectory and reads the gate at 1 ms a point), `em_*` (the edge mesh), `adj_*` (the adjoint probes). They die with the container.
 
-so with `q ≈ 16` the conductivity enters at the sixteenth root. A 3000× change
-in `K_sat` moves `|λ|` by `3000^(1/16) = 1.65`, against the 2.0 measured — the
-remainder arriving through the flux falling as `u` drops. A ±2× change moves it
-**4%**. That is why sweeping `K_sat` says nothing about the step constraint, and
-the earlier reading of that sweep as "the block self-regulates" is the same fact
-stated loosely.
+## Open, beyond τ_g
 
-What does move `|λ|` is throughflux to the deepest layer, so the parameters that
-matter are the ones setting uptake and drainage through the profile. A ±2× box
-in those moves the terminal flux by about 2× — the size of the safety factor the
-frozen-grid work arrived at empirically.
-
-Two things follow, both useful for designing a grid rather than discovering it.
-A stability cap `h(t) ≤ β/(m·Λ(t))`, with `Λ` the envelope of `|λ|` over the
-record and `m` a margin, is computable for a whole parameter box from one
-reference run's flux partition — which is a trust region in `θ` that can be
-stated in advance. And at a rain event's onset the top layer goes to
-`u_1 → (s/κ_1)^(1/q)`, so its post-onset relaxation rate
-`|λ_1| ≈ q·κ_1^(1/q)·s^(1−1/q)` follows from the event's size **before the event
-arrives** — the refinement density after each pulse can be set from the record.
-
-## Latent bugs
-
-Ordered by the chance of someone hitting one.
-
-**A `DomainError` from inside a reverse sweep propagates uncaught.** The sweep
-re-derives `k₁` at each step's own start state and rebuilds stage states from
-re-derived rates, so it evaluates the rate function at states the forward pass
-never visited. `SCM::census_trait_gradient` catches only `AdjointRangeError`.
-The throw site is the per-member storage guard, which fires routinely on a
-stressed stand — so the user path is "sweep a stand under drought".
-
-**`refine_schedule` can exit inconsistent, silently.** The loop bisects *after*
-its run, so exhausting `schedule_nsteps` installs a schedule that was never run:
-`parameters.node_schedule_times` then describes one grid and
-`parameters.ode_times` another, with nothing saying so. The convergence `break`
-precedes the bisection, so only the exhaustion path is affected.
-
-**An unsorted schedule stamps replayed cohorts with wrong birth dates.**
-`SCM::r_set_node_schedule_times` stores the caller's raw vector while the
-`NodeSchedule` sorts it, and `reshape_to` indexes that parameter vector
-positionally. Nothing raises. The other two setters write
-`node_schedule.get_times()` and are safe.
-
-**`run_scm(..., events = ...)` is always the times-only replay form.**
-`make_node_schedule` passes `{}` for sizes unconditionally, so supplying
-`p$ode_step_sizes` alongside events silently has no effect. The two forms behave
-differently: times goes through `step_to`, which catches a domain error and
-subdivides; sizes goes through `step_by`, which is bare and never evaluates
-`ode_state_valid`.
-
-**`assign_from` drops `storage_domain_tol`.** It copies `storage_gate_width` and
-`storage_prod_eps` beside it. A rebound tangent strategy silently reverts that
-one to its default. Harmless today.
-
-**`collect_refinement_errors` is set and never cleared**, so every run after a
-refinement pays for the sampling. Related: `run_scm(refine_schedule = TRUE,
-record_trajectory = TRUE)` returns `p$ode_times` from refinement's last internal
-run, not from the run whose trajectory was recorded.
-
-**`control$schedule_verbose` is dead.** Declared, defaulted, bound through
-RcppR6, asserted in `test-control.R`, read by nothing. The refinement loop has no
-logging call, which is why its non-convergence is unobservable.
-
-**`ci_abs_tol` is inert for TF24.** Only the Medlyn route reads it; the
-optimality path's tolerance is hard-wired. Tightening it buys nothing.
-
-## Free wins
-
-**The endpoint evaluation is formed before the error test** and discarded on
-rejection, so an accuracy rejection costs six rate evaluations rather than five.
-Deferring it past the test saves ~3% of run cost at the measured rejection rates.
-
-**The `L` accumulator states never attain the error norm's maximum and nothing
-reads them.** They can leave the norm and the tape.
-
-**`ode_a_dydt` is wired end to end and set to zero.** It is the knob that most
-directly changes which component sets the step size, and nothing uses it.
-
-**`ode_step_attempts`, `error_index` and `error_ratio` exist and are unread.**
-They name the binding component per step and separate accuracy rejections from
-domain throws — the observability a controller needs.
-
-## Build gotchas
-
-`plant` compiles against `phylloptim`'s **installed** headers and `pkgbuild`
-tracks no dependency on them, so a `phylloptim` header change needs
-`rm plant/src/*.o` before rebuilding or you measure the old code.
-
-With `plant/src/plant.so` present and no `plant/src` source newer than it,
-`compile_dll` exits 0 having compiled nothing. Use `force = TRUE`.
-
-Both fail silently into wrong numbers.
-
-## Next measurements
-
-1. **Per-cohort branch attribution.** `operating_point_counts` is a run-level
-   scalar per kind; the tally is already per-solve where it is formed. Exposing
-   it lets a trait scan be differenced branch by branch, which would convict or
-   clear hydraulic shutdown as the source of the 0.3–0.4% steps in `J` in one
-   measurement. Small, and it unblocks the others.
-2. **An arid site.** The shutdown verdict was reached at 1095 mm/yr over 1.5 m of
-   soil, where the wettest rooted layer sits at 1e-13 to 1e-19 MPa suction
-   throughout and a 182 mm year changes nothing. 200–300 mm/yr, or a shallower
-   column, is the one regime that could overturn it — and the mechanism says why
-   it might.
-3. **Does the step in `J` scale with switching activity?** Repeat the 25-point
-   trait scan on records at 2.6% and 0% non-interior share. No code needed.
-4. **The 284× coordinate gap.** At the same aligned grid and cohort count, the
-   height and birth-date coordinates give `J` 284× apart while their censuses
-   differ by 13–19%. Plausibly a near-extinction artefact; re-check at lifetime
-   40, where it should be tame.
-5. **Why `stand_gradient` refuses.** It returns `stem_curve_domain` for all three
-   census metrics on the short fixture, which is why that work fell back to
-   finite differences and their 11.6× amplification.
-6. **A census metric for offspring production.** The state is already an ODE
-   state per member and the functional is linear in the terminal state; only the
-   adjoint seed is missing. That would give `dJ/dθ` by sweep — no finite
-   difference, no scatter floor, ~6× cheaper.
-
-## What is unresolved
-
-Whether the gradient converges at the value's rate. The adjoint says yes
-(1.29–1.91 against values at 1.31–1.94); finite-difference ladders disagree with
-each other, and the instrument is differencing a step function. Item 6 above
-settles it.
+- The saturation-excess infiltration split switches on the soil **state**, so its breakpoints are not a priori; knot stops do not cover it.
+- `refine_schedule` fires on this record, converges in seven iterations at 206 nodes, and certifies an answer 3% from the edge-bracketed one. Its indicator is set by the competition term on every node and not by `J`.
+- `test-mutant.R` on the base branch.

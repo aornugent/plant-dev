@@ -30,22 +30,26 @@ capping `h` at five days on an otherwise untouched grid recovers the water to
 The other grid fails the same way. `J` is a trapezium over birth dates, and a
 newborn's establishment probability reads `P²/(A² + P²)` in its net production
 `P` at creation, floored at zero for `P ≤ 0`. That vanishes quadratically as
-`P → 0⁺`, so the integrand is `C¹` — plateaus at exactly zero over 56 bands
-spanning 14.7% of the horizon, joined by ramps at each edge. The ramps come in
-two populations that do not overlap: **leaving** a band, after rain, the 1%–99%
-width has median **0.178 days**; **entering** one, as the soil dries, median
-**5.54 days**. The gate closes over days and opens in hours. Against a 1/16-year
-mesh the closing ramps are the same order as the spacing and the opening ramps
-are 0.3–3% of it, so at every mesh yet run the trapezium reads a jump, its error
-on the straddling panel is `O(Δ)` in the plateau height, and refinement does not
-converge — over 108, 215, 429 and 857
-nodes `J` reads 12.053, 12.089, 13.032, 12.843, successive differences `+0.036`,
-`+0.943`, `−0.188`, the second **26×** the first and the third **−0.20×** the
-second. No `h^p` fits and no level is a reference. The asymptotic second order
-exists and begins where the mesh resolves the ramps.
+`P → 0⁺`, so the integrand is `C¹`: plateaus at exactly zero over 56 bands
+spanning 14.7% of the horizon, joined by ramps at each edge. The ramps come in two
+populations that do not overlap. **Leaving** a band, after rain, the 1%–99% width
+has median **0.178 days**; **entering** one, as the soil dries, median **5.54
+days**. The gate closes over days and opens in hours. A uniform or dyadic mesh
+reads each ramp as a jump and does not converge: over 108, 215, 429 and 857 nodes
+`J` reads 12.053, 12.089, 13.032, 12.843, and no `h^p` fits. Two nodes at each
+edge, at the crossing and at the top of its ramp, make the ladder converge to
+about 0.1%.
 
-Both grids are placed by rules that read the clock. The record decides where the
-forcing must be sampled and where the integrand jumps.
+Both grids are placed by rules that read the clock, and the record decides where
+the forcing must be sampled and where the integrand ramps. Placing nodes on those
+features converges the value. The derivative is harder. `dJ/dθ` is taken by
+reverse sweep through a grid that must not move with `θ`, and the features move
+with `θ`. On the edge-bracketed mesh held fixed across `θ` the derivative
+converges — to `−172.9 ± 0.1` in leaf mass per area, stable across three
+refinements — and is **2.3% from the derivative of the same functional with the
+edges allowed to follow `θ`**. A grid frozen across `θ` gives a gradient that is
+precise, reproducible and biased, because what it freezes includes the location
+of features that move.
 
 ```
 u̇_ℓ          = s(t)·[ℓ=1] − κ_ℓ u_ℓ^q + κ_{ℓ−1} u_{ℓ−1}^q − a_ℓ(x,u)    ℓ = 1…L,  L ≤ 5,  q ≈ 16
@@ -226,9 +230,13 @@ Which component attains `r_max`, over every accepted step:
 | the `L` accumulators | 0% | 0% |
 | member states | 16.0% | 30.8% |
 
-Under a smooth record `h·|λ|` holds at 3.5–5.3 across 13 wide-box parameter
-endpoints and a 100× sweep of `κ` — the explicit stability boundary. Under an
-intermittent record it sits an order of magnitude below it.
+The fifth-order increment's real stability boundary is `β = 3.7343596`, its
+crossing at `R(z) = +1`. Every soil eigenvalue is real and negative at every step
+sampled, so the real interval is the one that binds. Across 50 accepted steps on
+the intermittent record `h·|λ|` reads 0.033, 0.93, 1.86, 2.30 and 4.61 at the
+minimum, the quartiles and the maximum, one sample above `β`: the controller runs
+at half the boundary at the median. Under a smooth record the maximum across 13
+wide-box parameter endpoints is 3.5–5.3.
 
 `z_j` sits at ~0.7 of `atol` at creation and ~`2e-5` of its own capacity once
 grown, so its weight in the norm is the absolute floor alone and its excursions
@@ -589,19 +597,59 @@ its non-monotone rise survives. And 17 zero-depth stops placed at exactly the
 midpoints the loop's first pass would insert move `J` by `+0.0050%`, against that
 pass's `+0.368%`.
 
+**(M19) An edge-bracketed mesh converges, and placement decides it.** Two nodes
+at each of the 112 edges, one at the crossing and one at the top of its ramp, with
+the edges held fixed and the fill halving across levels: `J` reads 12.2849,
+12.2768, 12.2754 and 12.2740 at 498, 793, 1378 and 2542 nodes. The first two
+differences fall at a ratio of 0.168, order 2.57 in the fill spacing; the third
+does not shrink, a ratio of 1.02. A three-node bracket sits 0.086% lower and is
+still falling, so the edge construction leaves a residual of about 0.1% that the
+fill does not reach. Split by channel at the last level, the time grid contributes
+`−5.3e-04`, the quadrature over the added abscissae `−6.7e-05`, and the stand's own
+response to the added cohorts `−7.9e-04`: the residual is the stand answering its
+cohorts. At a matched 498 nodes and matched cost — 3.89e6 member evaluations and
+495 s against 3.89e6 and 498 s — the bracketed mesh is 0.079% from the finest
+value and a uniform mesh 1.277%, sixteen times the accuracy from placement alone.
+One node per edge, at the crossing, the ramp's midpoint or the top of the ramp,
+lands 10–11% low or 2% high.
+
+**(M20) A grid frozen across `θ` gives a converged, biased derivative.** On the
+edge-bracketed mesh, a central difference of `J` in leaf mass per area at
+`d = 1e-3` reads −173.53 with the brackets held at the reference roots: the two
+one-sided differences are −169.19 and −177.87 and the second difference −8677.
+With the brackets re-placed at each trait value's own roots, the one-sided
+differences are −169.86 and −169.29, the second difference +575, the central
+−169.57. Refined with the brackets fixed, the derivative converges at order 1.51
+against the value's 2.57, to **−172.9 ± 0.1** — the derivative of a functional
+whose edges sit where the reference put them while the true edges move with `θ`,
+2.3% from the edge-following value. The fixed bracket's large second difference is
+that misplacement, not the functional's curvature. The time grid contributes 0.62%
+to the gradient at `ode_tol = 1e-3`.
+
+**(M21) The reverse sweep is exact to the grid it runs on.** Against a forward
+tangent replaying the same recorded steps, on a two-species stand where `J` is 0.21
+of the largest census row, `dJ/dθ` by sweep agrees over 22 traits to a worst
+relative error of `2.09e-08` on `J`'s own scale, with every species-one column at
+round-off (`1e-14` to `1e-12`). Survival during dispersal enters no rate and `J` is
+linear in it, so its column is `J/S_D`, which the sweep returns to round-off. The
+seed at the census time is exactly zero off the offspring states, and dotted with
+the state it returns `J`. One sweep costs 5.3× a forward run for any number of
+traits. So M20's bias is the grid's, not the sweep's.
+
 ## Settled
 
 Error shares between two grids of different order go in proportion to order,
 from equal marginal error reduction per unit cost under power-law errors and
-bilinear cost. M16 removes the premise on the creation side: its error follows no
-power law, so the allocation has nothing to allocate between.
+bilinear cost. On the creation side the premise holds only once the ramps are
+resolved: a uniform mesh follows no power law (M16), and an edge-bracketed one
+follows order 2.57 until its own residual stops it (M19).
 
 Raising the order of the output quadrature alone cuts its own term 148–258×.
 Whether that helps turns on the sign of the creation-count term beside it. Here
 the two reinforce and the substitution improves the answer 1.26×; where they
 cancel it makes it 2.4× worse (M11). Both readings assume the integrand is
 smooth between nodes, which M15 denies at the bands: a rule of any order
-straddling a jump is `O(1)` in the jump.
+straddling an unresolved ramp is `O(1)` in the plateau it rises to.
 
 Multirate collapses into a linearly-implicit treatment of the chain: the
 expensive coupling term is a function of the fast variable, so every micro-step
@@ -616,125 +664,92 @@ outside that: its error term is an exact zero on what the stages resolve and on
 what they miss alike, so it binds none of the 11 319 accepted steps in either
 arm, and no reweighting of the norm can give it weight.
 
+A stop at each active breakpoint is the minimal set for the guarantee that every
+step lies inside one polynomial span of the forcing, and a stop carries no cohort:
+the aligned run at a loose tolerance takes 8683 steps against the unaligned run's
+11 319. Delivering the forcing as impulses at the wet days removes the quadrature
+too, and changes the model, since the continuous path applies a saturation-excess
+partition the impulse path bypasses.
+
 ## Questions
 
-### 1. A step rule that samples a known record
+### 1. The time grid between the stops
 
-The record is known in full before the run, and two caps on `h(t)` follow from it
-with no solve. The sampling cap is `h < w(t)/0.3`, with `w` the local feature
-width. The stability cap is `h ≤ β/(m·Λ(t))`, where `Λ` envelopes `|λ|` over the
-record and an event of size `s` sets the chain's post-onset relaxation
-`|λ_1| ≈ q·κ_1^{1/q}·s^{1−1/q}` before the event arrives.
+A stop at each of the 2931 active breakpoints makes the forcing a single cubic on
+every step and its integral exact (M13). What remains to set is the fill between
+them. The fifth-order increment's real stability boundary is `β = 3.734`, and the
+adaptive controller runs at half of it at the median, so a fill placed at the
+boundary would be coarser than the one the controller chooses.
 
-(a) Is a grid built from the pointwise minimum of those two caps the right
-object, and what does it guarantee about `dJ/dθ`?
+(a) With the breakpoints taken as stops, what should set the fill between them,
+and what does a grid built that way guarantee about `dJ/dθ`? Is stability the
+binding constraint here, or accuracy?
 
-(b) The blindness in M12 is structural to embedded pairs: the estimate is a
-difference of two quadratures on shared abscissae, so it cannot see what neither
-samples, and what it returns is an exact zero. What is the established treatment
-for a right-hand side carrying a known exogenous forcing — a defect estimator
-sampling off the stage abscissae, dense output checked against a finer rule, a
-cap of the kind above, forced stops at the breakpoints? Which of them carries a
-guarantee, and of what?
+(b) One switch survives the stops. The saturation-excess partition of infiltration
+is a `max(0, ·)` on the top layer's state, so its crossings are not known before
+the run. Event location, a declared smooth width, or neither — and what does each
+cost the guarantee in (a)?
 
-(c) A cap and a stop at each of the 2931 active breakpoints both recover the
-functional to 0.1%. Is there a rule that places the fewest stops for a stated
-sampling guarantee, and does it survive a record whose feature widths span orders
-of magnitude?
+### 2. A cohort mesh once the ramps are resolvable
 
-(d) The forcing could instead be delivered as a sequence of instantaneous
-impulses at the wet days, 1387 of them, which removes the quadrature entirely.
-That changes the model: the existing impulse path bypasses a saturation-excess
-partition that the continuous path applies, delivers at a higher peak, and
-carries no error estimate. Is a formulation in which a known forcing enters as
-measure rather than as rate the right move here, and what is the standard
-treatment of its error?
+`J` is a trapezium over birth dates of a `C¹` integrand with 56 zero plateaus and a
+ramp at every edge, 0.178 days opening and 5.54 closing (M15). Two nodes at each
+edge converge the value to about 0.1%, leaving a residual the fill cannot reach
+and that is dominated by the stand's response to the cohorts added (M19). A cohort
+costs its remaining horizon: one at `b ≈ 0` costs 367× a step boundary there.
 
-### 2. A mesh for an integrand with record-located jumps
+The opening ramps are narrower than any feasible cohort spacing, and the
+formulation will change so that they are not. Establishment will read the
+newborn's net production smoothed over a declared timescale `τ_g` of weeks,
+`dḠ/dt = (P − Ḡ)/τ_g`, in place of the instantaneous `P`, which widens both ramps
+to order `τ_g`.
 
-`J` is a trapezium over birth dates whose integrand is a positive envelope times
-the indicator of a set the record determines (M15). Refining the count does not
-converge it (M16), and the node set changes the integrand as well as the
-abscissae (M17). Under H3 that node set is simultaneously the state dimension,
-the adjoint's range count and the replay index, and under H2 every node is a
-forced step boundary. Nodes are not free: cost is `Σ over steps of M(t)`, so an
-early node is paid for across the whole remaining horizon and one at `b ≈ 0`
-costs 367× a stop at the same time.
+(a) With the ramps widened to a resolvable width, what is the right mesh — edges
+as panel boundaries, cost-weighted equidistribution over the support, or both —
+and what order and error bound does it carry?
 
-The construction in place is a clock-only generator, `Δ = 2^⌊log₂(0.2t)⌋`
-clamped, which cannot see a drought; a monitor normalised by stand leaf area,
-where leaf area is O(1) at `b = 30` and `w` is `1.3e-10`; and a threshold on an
-absolute-value sum of signed local errors, reading 17.27% of `J` where `J` is
-right to 0.08%.
+(b) M19's residual is the integrand depending on the node set: added cohorts change
+the canopy, which changes who establishes. Establishment at `b` depends only on
+cohorts born before `b`. Is that triangular structure enough to build the mesh in
+one causal pass, and what does such a pass guarantee?
 
-(a) The jump locations are computable before the run. What is the right
-construction for a mesh over an integrand with known discontinuities, given that
-the integrand also depends on the mesh? Equidistribution under a monitor function
-is the obvious family — which monitor, and what does it then guarantee?
+### 3. An unbiased derivative on a grid that cannot move with `θ`
 
-(b) Does placing nodes at the jumps restore an order, and which? With the bands
-resolved, is the remaining integrand smooth enough for a higher-order rule to pay
-(M11 says it pays 1.26× where the integrand is treated as smooth)?
+The reverse sweep is exact to the grid it runs on (M21). On a grid held fixed
+across `θ` the derivative converges, precisely and reproducibly, to a value 2.3%
+from the derivative with the edges allowed to follow `θ` (M20): the grid freezes
+the location of features that move.
 
-(c) The self-dependence is a fixed point: the mesh sets the canopy, the canopy
-decides which cohorts establish, and that decides the integrand. M17 measures the
-two channels at `+6.19%` and `−12.76%`. Does a mesh like this have to be iterated
-to consistency, and what is known about the convergence of such a scheme?
+(a) What is the right treatment for a `θ`-frozen discretisation of a functional
+whose features move with `θ` — resolve the features finely enough that their
+motion is sub-grid, smooth them in the formulation, or let the grid follow `θ` and
+supply the term the adjoint then needs?
 
-(d) Cost scales with a node's remaining horizon. Does a cost-weighted
-equidistribution have a clean form, and does weighting change the mesh a monitor
-alone would choose?
+(b) `τ_g` sets the ramps' width, so it trades a modelling bias against M20's
+gradient bias. What sets it, and is there a width beyond which the frozen-grid
+bias is provably below a stated fraction?
 
-### 3. A converged answer, and a derivative an optimiser can use
+(c) On the fixed bracket the derivative converges at order 1.51 and the value at
+2.57, to limits that differ in kind. What stopping rule certifies a derivative
+under those conditions?
 
-M16 leaves no reference: the creation sequence turns, so no level certifies
-another and there is nothing to extrapolate. M8 has a census metric and its
-derivative still moving 3.1% and 5.2% at the operating count. M6 gives a
-difference plateau three and a half decades wide, flat to 1.6% over its best two.
-
-The objective's jumps move with `θ`. M15's bands are where a newborn's net
-production crosses zero, a condition reading the trait vector as well as the
-record, so the set on which `w` vanishes moves as `θ` moves. The adjoint
-differentiates the model at a fixed discretisation (H1) and carries no term for a
-boundary whose location depends on `θ`. A cohort crossing into or out of
-establishment between two trait values changes `J` by a finite amount the sweep
-does not see.
-
-(a) — **resolved against, from source.** Establishment probability vanishes
-quadratically rather than jumping, so the set on which `w` is zero has no
-boundary term: `dJ/dθ` carries no transport contribution and the adjoint is
-complete. What remains is resolution. Question kept for the reasoning, which
-still bears on what the mesh must resolve over a `θ`-box.
-
-(a) Is that omitted term the right reading, and what is the standard treatment —
-a transport or shape-derivative term added to the adjoint, a smoothed
-establishment of declared width, or a reformulation in which the probability
-collapses continuously? A smoothed switch of width `ε` puts a feature of scale
-`ε` into the integrand, which the mesh must then resolve, so `ε` is pulled small
-by the bias budget and large by the node count. What sets it?
-
-(b) With no convergent sequence, what certifies an answer? Is an a posteriori
-bound available that does not assume a power law in the mesh?
-
-(c) `dJ/dθ` drives descent steps. What relative accuracy suffices for a descent
-method to make progress, and what does that requirement imply for (a) and (b)?
+(d) The gradient drives descent steps. What relative accuracy suffices, and does a
+bias that is smooth and reproducible harm an optimiser differently from noise of
+the same size?
 
 ### 4. One grid across parameters and across records
 
-A grid that does not move with `θ` is what H1 requires and what yields a usable
-derivative. A captured one holds a ±2× box in six parameters at a uniform shrink
-factor of 2 and transfers not at all across records (M10). Both caps in question
-1 are computable for a whole parameter box from one reference run's flux
-partition. The jump locations of question 2 are not: they move with `θ`.
+A grid that does not move with `θ` is what H1 requires. A captured one holds a
+±2× box in six parameters at a uniform shrink factor of 2 and transfers not at all
+across records (M10). An edge passes a fixed node once `θ` moves it further than
+the gap, which for node `j` is a first-order radius `|P_j|/‖∂_θ P_j‖` in the gate's
+argument.
 
-(a) What certificate should accompany a shared grid when the quantity certified
-is a derivative, given that the usual adjoint-weighted residual bounds the value?
-Is a second-order object required, or is a cheaper sufficient condition
-available?
+(a) What certificate should accompany a shared grid when the quantity certified is
+a derivative?
 
-(b) A grid fixed across `θ` must hold jump locations fixed while the true ones
-move. Is that the dominant term in the trust region, and does it have a
-computable bound over a parameter box?
+(b) Is that flip radius the trust region, and can it be bounded over a parameter
+box from one reference run?
 
 (c) The record is fixed through a calibration and changes between them. Is one
 designed grid per record, recaptured on certificate failure, the whole answer?
