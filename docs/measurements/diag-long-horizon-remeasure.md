@@ -51,3 +51,66 @@ is its design 3. `spike-fixed-grid.md` (`fg_*`, `m1_`–`m5_`) carries **M10** a
 And **M5 is not measured on `J`**: it is the trait gradient of the census metric
 `mass_above_ground`, which reads 9.67 at lifetime 5, so its percentages were never
 against 1e-10. What was against 1e-10 is M1, M2, M6, M7, M8 and M9.
+
+---
+
+## 1. The fixture
+
+`ld_common.R` at `lma = 0.32`, unchanged: 40-year horizon, a 41-year daily
+rainfall record from a seasonal Markov-chain gamma generator with interannual
+multipliers (1095 mm/yr, 9.5% wet days, three multi-year droughts, driest year
+182 mm, longest dry run 191 days), 108 creation times in the default schedule,
+2931 active knots among 14 599 daily control points. Aligned runs force a
+zero-depth rainfall pulse at each of the 2931 knots.
+
+The reproduction check, run first and against `diag-long-drought.md`'s ladder:
+aligned, `ode_tol = 1e-3`, 108 nodes gives `J = 12.0526222` and 9931 steps,
+against that note's `12.05262216` and 9931. Every digit, and the same step count.
+`plant/src/plant.so` read `2026-09-22 12:52:40.069214118 +0000` before and after.
+
+## 2. M5 — the sign-wrong gradient is the horizon
+
+`d(mass_above_ground)/d rho` by reverse-mode sweep, constant rainfall 3.0,
+`ode_tol = 1e-4`, `node_density_in_birth_date = TRUE`, the default schedule for
+each lifetime (`ws_life40.R`). `direct` is the census's own reading of the traits
+at the final state; `swept` is what `solve_adjoint` adds to it; the condition
+number is `|direct| / |total|`.
+
+| lifetime | nodes | `mass_above_ground` | `d/drho` | direct | swept | `\|direct\|/\|total\|` |
+|---|---|---|---|---|---|---|
+| **5** | **88** | 9.66994728 | **+1.97574677e-04** | +1.24480825e-02 | −1.22505078e-02 | **63.0** |
+| **40** | **108** | 48.1690732 | **+5.52879564e-02** | +1.25878446e-02 | +4.27001118e-02 | **0.2** |
+
+and down a coarsened ladder at one level below the default, which is what makes
+the trend legible:
+
+| lifetime | nodes | `d/drho` | direct elasticity | swept elasticity | total elasticity | `\|direct\|/\|total\|` |
+|---|---|---|---|---|---|---|
+| 5 | 45 | +1.21077768e-03 | +0.78260 | −0.70645 | +0.076 | 10.3 |
+| 10 | 47 | +3.86357879e-03 | +0.54647 | −0.39814 | +0.148 | 3.7 |
+| 20 | 50 | +2.45809772e-02 | +0.29711 | **+0.20332** | +0.500 | 0.6 |
+| 40 | 55 | +5.71790707e-02 | +0.15537 | **+0.52352** | +0.679 | 0.2 |
+
+**The two paths stop opposing each other between lifetime 10 and 20.** At the
+40-year horizon the direct elasticity is +0.159 and the swept +0.539 — the same
+sign — and the total, +0.698, is larger than either. There is no cancellation, no
+condition number of 100, and no sign at risk. The lifetime-5 reading reproduces
+bit for bit at both node counts (`+1.97574677e-04` at 88, `+1.21077768e-03` at
+45), so nothing about the measurement changed; the operating point did.
+
+The reason is in the metric. `mass_above_ground` is `mass_leaf + mass_bark +
+mass_sapwood + mass_heartwood`, and only bark and sapwood carry `rho` explicitly,
+so the direct term's elasticity **is** the bark-plus-sapwood share of above-ground
+mass. That share falls from 0.78 to 0.16 as the stand ages into heartwood, which
+is why the direct term shrinks while the stand-size response grows and turns.
+`max_patch_lifetime = 5` sits on the zero crossing of the sum;
+`diag-wrong-sign.md` found the crossing and said so, and its lifetime axis
+(`|direct|/|total|` = 3.0 / 11.3 / **282** / 13.8 / 2.2 at 4 / 4.5 / 5 / 5.5 / 6)
+already predicted this before the 40-year run.
+
+**Verdict: the finding is a property of `max_patch_lifetime = 5`.** What survives
+is the identity it was built on — `err(total) = (|direct|/|total|)·err(direct) +
+(|swept|/|total|)·err(swept)`, which holds at any conditioning — and the
+recommendation that follows from it: `stand_gradient` forms both terms and
+discards the split, and returning `|direct|/|total|` beside the gradient costs
+nothing and names an ill-conditioned column at the call site.
