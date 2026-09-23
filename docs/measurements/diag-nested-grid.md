@@ -16,12 +16,7 @@ at 9931. Every digit and the same step count.
 
 **No code under `plant/`, `odelia/` or `phylloptim/` was changed and nothing was
 compiled.** `plant/src/plant.so` read `2026-09-22 12:52:40.069214118 +0000`
-before and after every measurement block and never moved. This note was asked
-for uncommitted and the work described here ran no `git commit` and no
-`git push`; it was nonetheless committed and pushed as `f8b035f` to
-`origin/claude/trusting-curie-4i9n3l` by another actor at 04:42 while it was
-still being written, as happened to `diag-unaligned-refusals.md`. The §5
-tolerance ladder and this paragraph postdate that commit and are uncommitted. Everything below is
+before and after every measurement block and never moved. Everything below is
 scripts in the scratchpad, listed in §10. `ld_common.R` and `lh_common.R` are
 sourced unchanged and every original beside them is untouched.
 
