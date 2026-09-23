@@ -27,15 +27,19 @@ capping `h` at five days on an otherwise untouched grid recovers the water to
 `+0.002%` and the functional to 0.10%. Or a forced stop at each of the record's
 2931 active breakpoints, which recovers the integral to `3.2e-12` relative.
 
-The other grid fails differently, for a related reason. `J` is a trapezium over
-birth dates, and a newborn whose net production is non-positive at creation
-establishes with probability exactly zero and contributes nothing. So the
-integrand carries jumps at birth dates the record decides — failure bands 23 days
-to six months wide, tracking the rain in the month before birth. Refining the
-count does not converge it: over 108, 215, 429 and 857 nodes `J` reads 12.053,
-12.089, 13.032, 12.843, successive differences `+0.036`, `+0.943`, `−0.188`, the
-second **26×** the first and the third **−0.20×** the second. There is no `h^p`
-to fit and no level is a reference.
+The other grid fails the same way. `J` is a trapezium over birth dates, and a
+newborn's establishment probability reads `P²/(A² + P²)` in its net production
+`P` at creation, floored at zero for `P ≤ 0`. That vanishes quadratically as
+`P → 0⁺`, so the integrand is `C¹` — plateaus at exactly zero over bands 23 days
+to six months wide where `P ≤ 0`, joined by ramps whose width is `A/|∂_b P|` at
+each edge. The ramps are narrower than any mesh yet run: at 1/16-year spacing a
+node reads `0` and its neighbour `1.561`, with nothing between. At that spacing
+the trapezium is reading a jump, its error on the straddling panel is `O(Δ)` in
+the plateau height, and refinement does not converge — over 108, 215, 429 and 857
+nodes `J` reads 12.053, 12.089, 13.032, 12.843, successive differences `+0.036`,
+`+0.943`, `−0.188`, the second **26×** the first and the third **−0.20×** the
+second. No `h^p` fits and no level is a reference. The asymptotic second order
+exists and begins where the mesh resolves the ramps.
 
 Both grids are placed by rules that read the clock. The record decides where the
 forcing must be sampled and where the integrand jumps.
@@ -498,13 +502,20 @@ on rejected steps and 0.368 on accepted ones. Alignment cuts rejections from
 water-losing steps** were preceded by any rejection, against 33.3% of steps
 generally. The steps that lose the water are the quiet ones.
 
-**(M15) The integrand is discontinuous, and the jumps are the record.**
+**(M15) The integrand is `C¹` with ramps too narrow for any mesh yet run.**
 `J = trapezium(b, w)` with `w` the member's survival-weighted offspring times a
-patch density read at `b`. A newborn whose net production rate is non-positive at
-creation is given establishment probability **exactly zero** and stamped with a
-sentinel: log density `≈ −745` against `−9` at its neighbours, `w = 0` exactly,
-leaf-area contribution 0 exactly. So `w(b)` is a positive O(0.1–1.5) envelope
-times the indicator of a record-determined set. At 1/16-year creations over
+patch density read at `b`. Establishment probability is `P²/(A² + P²)` times a
+time decay, in the newborn's net production `P` at creation, with `A` a fixed
+product of a mortality coefficient and seed leaf area, and an explicit zero for
+`P ≤ 0`. Value and first derivative both vanish as `P → 0⁺` and match the floored
+branch, so the function is `C¹` in `P` and discontinuous only in its second
+derivative; `P` is continuous in `b`, so `w` is `C¹` in `b`. It reaches half its
+plateau at `P = A`, which puts the ramp width at `A/|∂_b P|`. Where `P ≤ 0` the
+member is stamped with a sentinel — log density `≈ −745` against `−9` at its
+neighbours, `w = 0` exactly, leaf-area contribution 0 exactly — and those
+plateaus are genuine. The ramps joining them are not resolved anywhere: at
+1/16-year creations a node reads `0` and its neighbour `1.561` with nothing
+between, so the width is under 23 days and unmeasured. At 1/16-year creations over
 `[5, 11]`, 23 of 103 nodes sit at the floor, in ten runs of 1 to 8 nodes; the
 widest spans `b ∈ [7.375, 7.8125]`, inside a drought, with zero rain in the
 preceding month at seven of its eight nodes. Across one band `w` reads 0.326,
@@ -527,10 +538,13 @@ across the last three levels spans **7.80%**, with 429 the outlier. Tolerance is
 not the cause: the same ladder a decade tighter reads 12.0873665, 12.1083840,
 13.0342392, and the tolerance channel shrinks from `+0.288%` at 108 nodes to
 `+0.021%` at 429. This is what a trapezium does over an integrand with jumps —
-the error at a level depends on how that level's nodes straddle the bands of
-M15, which does not vary smoothly with `h` under nested bisection. M11's ladder
-is the control: under a smooth record, where no member fails to establish and
-`w` carries no jumps, the same quadrature on the same coordinate converges at
+the error at a level depends on how that level's nodes straddle the ramps of
+M15, which does not vary smoothly with `h` while the mesh is coarser than they
+are. A `C¹` integrand carries an asymptotic `O(Δ²)`, so the ladder is
+pre-asymptotic and not divergent: the regime begins where `Δ` falls below the
+ramp width, which 857 nodes over forty years does not reach. M11's ladder is the
+control: under a smooth record, where no member fails to establish and `w` has
+no ramps to resolve, the same quadrature on the same coordinate converges at
 second order with `log₂` ratios of 2.29 and 2.03.
 
 **(M17) Placement decides the answer, and the integrand moves with the nodes.**
@@ -668,6 +682,12 @@ differentiates the model at a fixed discretisation (H1) and carries no term for 
 boundary whose location depends on `θ`. A cohort crossing into or out of
 establishment between two trait values changes `J` by a finite amount the sweep
 does not see.
+
+(a) — **resolved against, from source.** Establishment probability vanishes
+quadratically rather than jumping, so the set on which `w` is zero has no
+boundary term: `dJ/dθ` carries no transport contribution and the adjoint is
+complete. What remains is resolution. Question kept for the reasoning, which
+still bears on what the mesh must resolve over a `θ`-box.
 
 (a) Is that omitted term the right reading, and what is the standard treatment —
 a transport or shape-derivative term added to the adjoint, a smoothed
