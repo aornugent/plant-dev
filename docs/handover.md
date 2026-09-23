@@ -4,26 +4,23 @@ For the next session. The consult (`oracle-consultation-gradient-control.md`) is
 
 ## Where it stands
 
-A declared establishment window is implemented and measured (`docs/measurements/diag-establishment-window.md`, consult M22). A TF24 newborn establishes on its gate averaged over `establishment_window`, default 0.05 yr: `dĒ/dt = (g(P) − Ē)/τ_g`, `Ē` in place of `g`, one ODE state per species. Averaging the gate won over averaging the carbon `P`, which leaves the narrowest opening as sharp as the instantaneous gate and takes 2–3 openings entirely. Under the window:
-- the opening widens from 0.058 to 39.8 d (10–90%, median), the closing from 1.73 to 17.7 d;
-- a uniform ladder converges at order 3 to `1.4e-5`;
-- three grids held fixed across θ give `dJ/dlma = −172.52 ± 0.03`;
-- the adjoint matches pinned differences;
-- `J` moves +1.26%.
+The averaged establishment gate is accepted as the model, at its default `establishment_window = 0.05` yr (`docs/measurements/diag-establishment-window.md`, consult M22). It resolved stability; the question now is performance at fixed accuracy.
 
-The consult's questions still frame the instantaneous model's problems. Reframing them around the averaged model before a fresh Oracle session is the user's call.
+**Next: a new consult, `docs/oracle-consultation-solver-performance.md`**, for a fresh Oracle. The existing `oracle-consultation-gradient-control.md` stays as the record of the stability consultation. The user's questions:
+- A replacement for `refine_schedule` (built for FF16 and the height coordinate) suited to TF24, the birth-date coordinate and realistic rainfall: fast to find, lean in `Σ M`.
+- A grid fixed per rainfall record and shared across θ, with a trust region set by conditioning metrics — or, if the schedule must depend on θ, good heuristics.
+- Controller improvements now the dynamics are mollified; whether implicit or multirate integration helps.
+- Whether the adjoint can drive convergence, or costs more than it saves.
+
+**Five measurement agents** write their notes in `$SP/perf/<name>/<name>.md` (`$SP` = the session scratchpad). They are `controller` (step anatomy, rejections, stiffness, tolerance economics, stops), `profile` (RHS cost by callgrind, dead members' share, the multirate and forward-speed branches, the implicit stepper), `schedule` (error and cost by birth date, `refine_schedule` on the averaged model, lean fixed designs and their Pareto front), `theta` (a θ0 schedule's error across lma and two more parameters, pinned time grids, conditioning metrics) and `adjoint` (cost and memory, gradient convergence, the value of a newborn by birth date, a goal-oriented schedule error estimate). Lean schedules pass between them through `$SP/perf/schedules/` (`README.txt`). Move each note to `docs/measurements/` when it reports.
+
+Open issues that feed the consult: aornugent/plant#88 (dead members held to `atol`), #89 (`refine_schedule`'s structure on the birth-date coordinate), #90 (its indicator does not bound the error in `J`).
 
 ## Code state
 
-- **`aornugent/plant` branch `offspring-adjoint` at `bb1d8a8a`**, pushed. `J` is a census row; `stand_gradient()` returns `dJ/dθ` by sweep. `S_D` has a column. Verified: the sweep matches the forward trajectory tangent on `J` to `2.09e-08` at worst over 22 traits; `∂J/∂S_D = J/S_D` to round-off; size rows and mutant ratios bit-identical to the parent; FF16 guard passes.
-- **Branch `establishment-window` at `6613dd24`**, pushed, two commits on `bb1d8a8a`:
-  - `b3a33626`: the averaged gate. It lives in `Species`, after that species' nodes, behind the `EstablishesOverWindow` concept, so FF16 and K93 are bit-identical and TF24f inherits it (`TF24@v12`, `TF24f@v12.1`). The boundary node is seeded at `Ē`. `Patch::reset()` of an empty patch starts `Ē` at the newborn's gate; the sweep transposes that start at row 0 and the tangent re-seats it. `node_ode_size()` now counts nodes. It also adds the tests (`test-tf24-establishment-window.R`) and a NEWS entry.
-  - `6613dd24`: recaptures `reference-gradient.tsv`: 540 new rows; 1380 shared rows move a median of 6.6e-8. Drought moves most (1.theta leaf_area 306.6 → 591.0), because its gradient is unconverged in the step sequence (602 base / 589 window at 1e-8). One clamped row that straddles a census jump is declared as `reference_straddled_jump`.
+- **`plant-dev` records `plant` at `6613dd24`**, the head of `establishment-window`: aornugent/plant#91 (`offspring-adjoint`, `J` by the reverse sweep) and #92 (`establishment-window`, stacked on it). No PRs. The main `plant/` tree is checked out there, detached, with `plant-adj`'s `-O2` build copied in (`needs_compile` FALSE; the establishment-window tests pass on it).
 - **Full serial sweep at `6613dd24`: 536 tests, 2 failures, both `test-mutant.R`**, identical on the base build (stale references on the base branch).
-- **Builds in the scratchpad, ephemeral:**
-  - `plant-adj` is a worktree on `establishment-window`, built at `-O2`. Two comment-only header edits carry back-dated timestamps, so `needs_compile` is FALSE; a clean checkout compiles them.
-  - `tg/plant-base` is a plain copy of `bb1d8a8a`, built, for the instantaneous model.
-- **The `plant-dev` submodule pointer still records `5321593a`.** Nothing loads the main `plant/` tree now, so it can be bumped. No issues filed and no PRs; AGENTS.md wants an issue per PR.
+- **Builds in the scratchpad:** `plant-adj`, a worktree on `establishment-window`, and `tg/plant-base`, a plain copy of `bb1d8a8a` for the instantaneous model. They survive a container restart; the session's background jobs do not.
 
 ## Established — do not re-derive
 
@@ -64,11 +61,10 @@ All in the session scratchpad, not committed, dying with the container:
 
 ## Open
 
-- The consult's questions around the averaged model: the user's call.
 - Why the stand answers the window with the opposite sign to the stand-fixed estimate.
 - A mesh built for the averaged gate: brackets at its kinks, the band fill's spacing, a cost-weighted grading. Uniform 857 costs 654 s.
 - The derivative's convergence rate under the window, the time grid's share of it, and the adjoint on a converged mesh.
 - The instantaneous fixed bracket's adjoint at `lma = 0.320`, on `tg/plant-base` (about 45 min): it settles M20's "not separated at `d = 1e-3`".
 - The saturation-excess infiltration split switches on the soil state, so its breakpoints are not a priori.
 - `refine_schedule` certifies an answer 1.7% above the mesh-converged 12.417.
-- Submodule pointer, issues, `test-mutant.R` on the base branch.
+- `test-mutant.R` on the base branch.
