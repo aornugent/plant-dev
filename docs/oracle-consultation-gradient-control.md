@@ -37,10 +37,11 @@ has median **0.178 days**; **entering** one, as the soil dries, median **5.54
 days**. The gate closes over days and opens in hours. A uniform or dyadic mesh
 reads each ramp as a jump and does not converge: over 108, 215, 429 and 857 nodes
 `J` reads 12.053, 12.089, 13.032, 12.843, and no `h^p` fits. Two nodes at each
-edge, at the crossing and at the top of its ramp, make the ladder converge, to
-`J = 12.424 ± 0.003`, once the edges are located on the stand being run. Located
-on another schedule's stand they sit up to four days off and the same ladder
-converges 1.2% low: a node on the live side of a misplaced edge is a live cohort
+edge, at the crossing and at the top of its ramp, remove the non-convergence
+once the edges are located on the stand being run, down to a one-signed floor of
+`1.5e-4` relative per doubling whose cause is not identified: `J = 12.417 ± 0.006`.
+Located on another schedule's stand the edges sit up to four days off and the
+same ladder settles 1.2% low: a node on the live side of a misplaced edge is a live cohort
 whose quadrature weight spans a dead band, and its leaf area enters the canopy
 every cohort grows under.
 
@@ -87,7 +88,7 @@ question. Everything below explains a part of it.
 
 The horizon is `T = 40`. The trait vector used throughout gives `J = 12.078` on
 the default 108-node schedule with the time integration converged, and
-`J = 12.424` with the cohort mesh converged as well (M19). The default birth rate
+`J = 12.417 ± 0.006` with the cohort mesh converged as far as it goes (M19). The default birth rate
 makes `J` the net reproduction ratio directly, so the stand is twelve times
 self-replacing. Two measurements below come from a
 near-extinct operating point at `J = 1e-10` and say so.
@@ -289,7 +290,7 @@ model evaluations, each schedule a strict superset of the last, insertion only.
 Its threshold is `2e-2`, against the time integration's `1e-4`. On this record it
 fires — the largest indicator reaches 0.31627 and 17 of 108 nodes are flagged —
 and converges in seven iterations at 206 creations, `J = 12.6308272`, eight model
-evaluations over 1417 s, to a value 1.7% above the mesh-converged 12.424 (M19).
+evaluations over 1417 s, to a value 1.7% above the mesh-converged 12.417 (M19).
 Across those iterations the indicator falls 16× while
 `J` moves `+0.368, +6.230, −0.713, −0.300, −0.707, +0.001, −0.000 %`, wandering
 6% and ending 4.8% above where it started. The indicator is not monotone under
@@ -608,41 +609,52 @@ its non-monotone rise survives. And 17 zero-depth stops placed at exactly the
 midpoints the loop's first pass would insert move `J` by `+0.0050%`, against that
 pass's `+0.368%`.
 
-**(M19) An edge-bracketed mesh converges once its edges are located on the stand
-it runs.** Two nodes at each of the 72 edges inside `[0, 22]`, one at the crossing
+**(M19) An edge-bracketed mesh removes the non-convergence once its edges are
+located on the stand it runs, down to a floor.** Two nodes at each of the 72 edges inside `[0, 22]`, one at the crossing
 and one at the top of its ramp; beyond `b = 22` the stand carries `8.8e-05` of `J`
 and keeps the default spacing. The edges are held fixed and a fill halves across
 levels. With the edges at roots located on the default schedule's stand, `J` reads
 12.2849, 12.2768, 12.2754 and 12.2740 at 498, 793, 1378 and 2542 nodes — order
 2.57 over the first two differences, then a third no smaller. Those roots sit up
-to 3.9 days from where the mesh's own gate crosses, the large moves all on closing
-edges. Located again on the mesh's own environment, the roots move by at most 3.9
+to 3.9 days from where the mesh's own gate crosses, all sixteen moves of more
+than a day on closing edges. Located again on the mesh's own environment, the roots move by at most 3.9
 days and `J` by +1.15%; located a second time, by at most 0.37 days and +0.055%.
 The placement is a fixed point, contracting 10× in position and 21× in `J` per
-pass. On the re-located edges the ladder reads 12.4261, 12.4194 and 12.4173 at
-499, 793 and 1375 nodes, order 1.71, and with the second pass added
-**`J = 12.424 ± 0.003`**, or 12.41–12.43 allowing for the ramp interior. Against
-it the default schedule is 3.0% low, the uniform ladder of M16 lies between −3.0%
-and +4.9%, and a uniform fill at the bracket's own node counts and cost reads
-+0.06%, −0.56% and −0.43%, turning between levels.
+pass. On the re-located edges the ladder reads 12.4261, 12.4194, 12.4173 and
+12.4154 at 499, 793, 1375 and 2539 nodes: order 1.71 for one ratio, then a third
+difference of `−1.9e-03` against a second of `−2.1e-03`. Both ladders stop at the
+same one-signed floor, `1.5e-4` relative per doubling. `J`'s own quadrature
+converges at order 2–4 beneath it. The floor is the stand's integrand, converging
+at first order over the first drought and changing sign with no rate over the
+first three years, and the integrator stops that introductions impose, a third
+of the last step on the fixed-edge ladder, which a decade of `ode_tol` does not
+remove. It is not the edges' panels, not `ode_tol` and not fill landing on a ramp,
+and its cause is not identified. With the placement converged to `4e-4` and
+`ode_tol` to `1e-4`, **`J = 12.417 ± 0.006`**, the error bar the fill's one-signed
+tail, or 12.40–12.42 allowing for the ramp interior. Against 12.4222, the
+2539-node value with the second pass added, the default schedule is 3.0% low, the
+uniform ladder of M16 lies between −3.0% and +4.9%, and a uniform fill at the
+bracket's own node counts and cost reads +0.08%, −0.54% and −0.42%, turning
+between levels.
 
 Placement acts mostly through the environment the stand shares. The
 edge-location term `Σ g(β)·δ` prices the first re-location at 0.0016; it moves
 `J` by 0.141, 88× that. A root node on the live side of its edge is a live cohort
 whose quadrature weight spans a dead band, and removing its leaf area raises the
-integrand by 0.8–5.4% in every window of `b`, including `b < 1/16`, where there is
-no edge. One node per edge at the ramp's midpoint or past its top lands 10.6% and
+integrand by 0.8–5.4% in every window of `b` below 17, including `b < 1/16`, where
+there is no edge. One node per edge at the ramp's midpoint or past its top lands 10.6% and
 11.5% below the bracket: about 0.4 of `J` credited to birth dates on which nothing
 establishes, and 1.7–1.8 lost through the canopy. One node at the crossing lands
-1.9% above it, a first-order panel term of −0.082 against a canopy term of +0.313.
+1.9% above it and falls 2.2× per doubling, a first-order panel term of −0.082
+against a canopy term of +0.313.
 Splitting each closing ramp with two more nodes moves `J` by −0.0146: +0.0058 of
 quadrature, −0.0204 through the canopy. On the fixed-edge ladder the last step
 splits into integrator restarts at the added introductions, `−5.3e-04`, which
 neither the fill nor `ode_tol` reduces; the stand's integrand over the first
 drought, `−7.9e-04`, converging at first order; and `J`'s own quadrature,
-`−6.7e-05`. The bracket placed twice is 0.072% from 12.424 at 499 nodes, for 495 s
-of solve and about 1275 s of placement, where the 857-node uniform mesh is 3.37%
-off at 1028 s.
+`−6.7e-05`. The bracket placed twice is 0.09% from 12.4222 at 499 nodes, for
+495 s of solve and about 1275 s of placement, where the 857-node uniform mesh is
+3.4% off at 1028 s.
 
 **(M20) A bracket held fixed across `θ` gives a converged, biased derivative.**
 Central differences of `J` in leaf mass per area at `d = 1e-3`. With each trait
@@ -680,7 +692,8 @@ Error shares between two grids of different order go in proportion to order,
 from equal marginal error reduction per unit cost under power-law errors and
 bilinear cost. On the creation side the premise holds only once the ramps are
 resolved: a uniform mesh follows no power law (M16), and an edge-bracketed one
-follows order 1.71 once its edges are located on its own stand (M19).
+follows order 1.7 for one ratio once its edges are located on its own stand, then
+stops at a floor of `1.5e-4` per doubling (M19).
 
 Raising the order of the output quadrature alone cuts its own term 148–258×.
 Whether that helps turns on the sign of the creation-count term beside it. Here
@@ -732,8 +745,10 @@ cost the guarantee in (a)?
 
 `J` is a trapezium over birth dates of a `C¹` integrand with 56 zero plateaus and a
 ramp at every edge, 0.178 days opening and 5.54 closing (M15). Two nodes at each
-edge converge the value once the edges are located on the stand being run, a fixed
-point that contracts 21× per pass. Where a node sits near an edge acts on the whole
+edge remove the non-convergence once the edges are located on the stand being
+run, a fixed point that contracts 21× per pass, and leave a one-signed floor of
+`1.5e-4` relative per doubling in the stand's integrand that `J`'s own quadrature
+does not show. Where a node sits near an edge acts on the whole
 stand through the canopy, at 3.5× to 88× its direct share of `J` (M19). A cohort
 costs its remaining horizon: one at `b ≈ 0` costs 367× a step boundary there.
 
@@ -758,6 +773,12 @@ canopy grown by the cohorts placed before `b`, and a misplaced edge costs more
 through the canopy than through its own panel. Establishment at `b` depends only
 on cohorts born before `b`. Is that triangular structure enough to place the
 edges in one causal pass, and what does such a pass guarantee?
+
+(c) The floor sits in the stand's integrand, over the first drought at first order
+and over the first three years with no rate. Two features fit it: cohorts that die
+or cross in height, which put a moving front into the competition integrand at a
+fixed time, and the integrator stop each introduction imposes. What separates
+them, and does a floor of this kind bound what any cohort mesh can certify?
 
 ### 3. An unbiased derivative on a grid that cannot move with `θ`
 
