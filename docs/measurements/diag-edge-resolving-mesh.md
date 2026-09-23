@@ -417,7 +417,89 @@ what follows takes it by central difference.
 The adjoint was not laddered: at 5.3× the forward cost the 793-node level is
 about 70 minutes, which the budget did not hold alongside the value ladder.
 
-<!-- 7b PENDING: finite-difference ladder, transport term -->
+### By central difference: it converges, one order behind the value
+
+Central differences in `lma` at `d = 1e-3` — inside the plateau
+`diag-long-horizon-remeasure.md` §6 measured, 3e-2 to 1e-5 — on each rung's
+schedule held fixed at the base trait, all nine runs aligned and at
+`ode_tol = 1e-3` (`em_fd.R`, `em_fd1.R`, `em_gradrep.R`):
+
+| fill | `J(0.319)` | `J(0.32)` | `J(0.321)` | backward | forward | **central** | `J''` |
+|---|---|---|---|---|---|---|---|
+| 1/16 | 12.454057925 | 12.284868878 | 12.107002683 | −169.1890 | −177.8662 | **−173.52762** | −8677 |
+| 1/32 | 12.446151876 | 12.276775477 | 12.099941755 | −169.3764 | −176.8337 | **−173.10506** | −7457 |
+| 1/64 | 12.444637710 | 12.275416201 | 12.098724810 | −169.2215 | −176.6914 | **−172.95645** | −7470 |
+
+| | derivative | value, same rungs |
+|---|---|---|
+| differences | **+0.42256, +0.14861** | −8.093e-03, −1.359e-03 |
+| ratio | **2.843** | 5.954 |
+| `log2` ratio | **1.508** | 2.574 |
+| per-level relative change | 0.24%, 0.086% | 0.066%, 0.011% |
+| Richardson, measured `p` | **−172.876** | 12.27514 |
+| Richardson, `p = 2` | −172.907 | 12.27496 |
+
+**The derivative converges with the value, at about one order less** — 1.51
+against 2.57 on the same three meshes. Its converged value on the bracket mesh is
+**`dJ/dlma` = −172.9 ± 0.1**, against the −155.6 that the cubic through
+`diag-long-horizon-remeasure.md` §6's scan gave on the default 108-node schedule:
+**the operating schedule's derivative was 10% shallow**, which is the same
+direction and a larger fraction than its value's 1.8% error.
+
+The curvature term is resolved: `J''` reads −7457 and −7470 at 1/32 and 1/64,
+0.2% apart, so the forward/backward asymmetry of 7.5 is real curvature and the
+central difference's own truncation error is the `J''' d^2/6` term, not measured
+here.
+
+### What a fixed bracket cannot see: the edges move with the trait
+
+With the schedule fixed, a bracketed edge that moves does not change `J_N` to
+first order: the root node reads zero on either side of a small shift and the
+ramp-top node stays on the plateau, so the trapezium over the ramp panel is the
+same number. The continuum `J` does change, by `∓ E(β) dβ/dθ` at each edge. So
+the fixed-schedule derivative is the derivative *minus the transport term* the
+Oracle's §3(a) names.
+
+The roots were re-located on the bracket mesh's own environment at `lma = 0.319`
+and `0.321` (`em_scan.R`: windows of 41 stops across ±8 half-widths of each
+reference root, the gate read off the recorded rows, 72 of 72 roots found at
+both):
+
+| | closing edges | opening edges |
+|---|---|---|
+| `dβ/dlma`, median | **+0.1009 yr per unit `lma`** | +0.0008 |
+| as days per 0.001 of `lma` | **+0.037** | +0.000 |
+| largest | 0.643 d per 0.001 | — |
+| transport term, `−sum(side * E * dβ/dlma)` | **+0.2902** | −0.0035 |
+
+**`T = +0.287`**, and one edge carries two thirds of it: the first closing edge,
+`b = 3.560`, contributes +0.189 because it sits where the envelope is still large.
+Closing roots move later as `lma` rises — the live stretch before each dry band
+lengthens — so `T` opposes the main effect. On the 1/16 mesh the
+transport-inclusive derivative is **−173.528 + 0.287 = −173.241**: the fixed
+bracket misses **0.17%** of `dJ/dlma`.
+
+### Where the derivative's error actually is
+
+Three terms, in increasing size:
+
+| | size | against `dJ/dlma` |
+|---|---|---|
+| the fill's remainder after Richardson | ~0.05 | 0.03% |
+| the transport term a fixed bracket drops | **0.287** | **0.17%** |
+| **the time grid**: the same pair of traits run with the scan's 2952 extra window stops | **−172.446 against −173.528** | **0.62%** |
+
+The last line is the scan runs read as a central difference: the same bracket
+mesh, the same two trait values, the same `ode_tol`, and a stop set that adds
+windows around each reference root. It moves the derivative by **1.08**, i.e.
+**3.8× the transport term**. The value moves by 0.02–0.04% under the same change
+(`J(0.319)` 12.449504 against 12.454058). So at `ode_tol = 1e-3` **the
+derivative's leading error is time integration, not the mesh and not the moving
+edges**, and a derivative to better than about half a percent at this tolerance
+is not available from either instrument here. The moving-bracket pair
+(`em_fdmove.R`, edge nodes placed at each trait value's own roots) was queued to
+measure `T` directly rather than by the envelope formula; §7 reports it only if
+it landed.
 
 ---
 
