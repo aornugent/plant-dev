@@ -479,27 +479,53 @@ lengthens — so `T` opposes the main effect. On the 1/16 mesh the
 transport-inclusive derivative is **−173.528 + 0.287 = −173.241**: the fixed
 bracket misses **0.17%** of `dJ/dlma`.
 
+### Moving the bracket with the trait: the canopy carries the transport term
+
+The direct term above treats each edge as a panel of `J` alone. §3 showed that
+where a cohort sits near an edge moves the whole stand through the canopy, so the
+edge motion was also measured by running it. `em_place.R` puts the 144 edge
+nodes at each trait value's own scanned roots, keeps the fill out of those
+roots' band-and-ramp intervals, and runs at that trait value:
+
+| | `J(0.319)` | `J(0.320)` | `J(0.321)` | backward | forward | **central** | `J''` |
+|---|---|---|---|---|---|---|---|
+| fixed bracket, reference roots | 12.454057925 | 12.284868878 | 12.107002683 | −169.189 | −177.866 | **−173.528** | −8677 |
+| **bracket following the edges** | **12.595978640** | **12.426116763** | **12.256830190** | −169.862 | −169.287 | **−169.574** | **+575** |
+| following − fixed | +0.141921 | +0.141248 | +0.149828 | | | **+3.953** | |
+
+(`J(0.320)` on the following bracket is `reloc_A_16`, whose roots are the mean
+of the two scans; §5.)
+
+**Following the edges moves the derivative by +3.95 — 2.3% — which is 14× the
+direct transport term of +0.287.** It also removes almost all of the fixed
+bracket's curvature: the forward and backward differences agree to 0.58 instead
+of 8.68, and `J''` goes from −8677 to +575. That curvature was not the
+functional's. The reference roots sit up to 4 days from the roots of the stand
+actually being run (§5), by an amount that depends on `lma`, and a mislocated
+edge acts on the canopy the way B's and C's placements did in §3. The offset
+between the two brackets is +0.1419, +0.1412, +0.1498 at the three trait values:
+nearly constant, which is why the value's error from it is a bias (§5), and not
+constant, which is why the derivative's error from it is 2.3%.
+
 ### Where the derivative's error actually is
 
-Three terms, in increasing size:
+On the 498-node bracket, in increasing size:
 
-| | size | against `dJ/dlma` |
+| | shift in `dJ/dlma` | fraction |
 |---|---|---|
 | the fill's remainder after Richardson | ~0.05 | 0.03% |
-| the transport term a fixed bracket drops | **0.287** | **0.17%** |
-| **the time grid**: the same pair of traits run with the scan's 2952 extra window stops | **−172.446 against −173.528** | **0.62%** |
+| the direct transport term, `−sum(side * E * dβ/dlma)` | +0.287 | 0.17% |
+| the time grid: the same traits with the scans' 2952 extra window stops | +1.082 (−172.446 against −173.528) | 0.62% |
+| **the edges following the trait, through the canopy** | **+3.953** | **2.28%** |
 
-The last line is the scan runs read as a central difference: the same bracket
-mesh, the same two trait values, the same `ode_tol`, and a stop set that adds
-windows around each reference root. It moves the derivative by **1.08**, i.e.
-**3.8× the transport term**. The value moves by 0.02–0.04% under the same change
-(`J(0.319)` 12.449504 against 12.454058). So at `ode_tol = 1e-3` **the
-derivative's leading error is time integration, not the mesh and not the moving
-edges**, and a derivative to better than about half a percent at this tolerance
-is not available from either instrument here. The moving-bracket pair
-(`em_fdmove.R`, edge nodes placed at each trait value's own roots) was queued to
-measure `T` directly rather than by the envelope formula; §7 reports it only if
-it landed.
+**The measured gradient on an edge-resolving mesh is `dJ/dlma` = −169.6 at 498
+nodes with the edges following the trait**, against −173.5 with them fixed at the
+reference roots and about −155 on the default 108-node schedule
+(`diag-long-horizon-remeasure.md` §6). The fixed-bracket ladder above converges
+in the fill at order 1.51, but to a derivative that carries the 2.3%; the time
+grid's 0.6% is a floor at `ode_tol = 1e-3` under both.
+
+<!-- 7c PENDING: following-bracket derivative at 1/32 and 1/64 -->
 
 ---
 
