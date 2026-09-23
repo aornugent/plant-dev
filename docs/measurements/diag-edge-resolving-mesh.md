@@ -1,4 +1,4 @@
-# A mesh whose panels respect the establishment edges converges at second order, and where the edge node goes decides the answer
+# An edge-respecting cohort mesh converges once the edges are placed on the stand it runs, and where the edge node goes decides the answer
 
 TF24 SCM, one species, `lma = 0.32`, `max_patch_lifetime = 40`,
 `node_density_in_birth_date = TRUE`, forcing `long-drought` (the 41-year daily
@@ -27,11 +27,11 @@ disk rather than recomputed, and every original beside them is untouched.
 
 | | |
 |---|---|
-| **It converges** | Edges fixed, fill halving: `J` = 12.284868878 / 12.276775477 / 12.275416201 at 498 / 793 / 1378 nodes. Differences **−8.09e-03, −1.36e-03**, ratio **5.95**, **`log2` = 2.57**. Against the uniform ladder's +0.0362, +0.9427, −0.1882 with ratios 0.04 and −5.01 and no `h^p` to fit. **The non-convergence was straddled-edge error.** |
-| **The converged value** | Richardson on the last two rungs at the measured `p = 2.574`: **`J` = 12.27514**, remainder 2.7e-04. At `p = 2` it is 12.27496. Two residual biases are quantified in §5 and total **−6e-04**; the value is **`J` = 12.2751 ± 0.0006** with the fixture's own tolerance channel (+0.29% for a decade of `ode_tol`) outside it. |
-| **Bracketing is the only placement that works** | At one fill, `J` = **12.2849 (bracket)**, 12.5160 (node at the crossing alone), 10.9834 (node at the ramp's midpoint), 10.8700 (node past the ramp's top). The two one-node-inside-the-ramp placements are **−11% and −12%**, and the reason is not their own panels: a near-plateau cohort whose trapezium weight spans a dead band inflates the canopy, and the integrand falls 12–18% **everywhere, including at `b < 1` where there is no edge**. |
-| **Placement beats count by two orders** | At 498 nodes and 495 s the edge mesh is **0.079%** from the converged value. The uniform ladder is 6.16% at 429 nodes and 4.63% at 857 nodes / 1028 s — so the edge mesh is **78× more accurate at 16% more nodes** than uniform 429, and **58× more accurate at 0.48× the wall clock** than uniform 857: **121× the accuracy per second.** |
-| **The error is mostly not in `J`'s own quadrature** | Dropping just the 72 ramp-top nodes from the bracket mesh (leaving it a strict subset) costs **−0.0817** of quadrature and **+0.3128** of integrand: the canopy channel is **3.8×** the trapezium channel. A cohort mesh here is a discretisation of the environment before it is a quadrature rule. |
+| **It converges — the hypothesis holds** | Edges bracketed, fill halving: on the reference edges `J` = 12.28487 / 12.27678 / 12.27542 / 12.27403 at 498 / 793 / 1378 / 2542 nodes, differences **−8.1e-03, −1.4e-03, −1.4e-03**; on edges re-placed on the stand being run, 12.42612 / 12.41936 / 12.41729, differences **−6.8e-03, −2.1e-03**, `log2` ratio **1.71**. The uniform ladder moved +0.036, +0.943, −0.188 and turned. **Its non-convergence was straddled-edge error.** What is left is 1e-4 relative per level, 80× smaller, and is not the edges' own panels (§2). |
+| **The converged value** | **`J` = 12.424 ± 0.003**, converged in the fill, the edge placement and `ode_tol` to below 1e-3 each; 12.41–12.43 allowing for the untested ramp interior (§5). **The operating 108-node value is 3.0% low; uniform 429 and 857 are 4.9% and 3.4% high.** |
+| **Where the edges are is the largest term** | The roots located on the default schedule's stand are up to **3.9 days** off on a resolving mesh. Re-placing the bracket on the mesh's own gate moves `J` by **+1.15%**; a second pass moves the roots ≤0.37 d and `J` by +0.055%, **21× less**. The Oracle's edge-location term prices the first shift at 0.0016; it is **0.141**, because a misplaced root node is a live cohort whose weight spans a dead band, and it thickens the canopy. |
+| **Bracketing is the only placement that works** | At one fill, `J` = **12.285 (bracket)**, 12.516 (the crossing alone), 10.983 (the ramp's midpoint), 10.870 (past the ramp's top). The midpoint and past-the-top placements are **−11% and −12%**; the crossing alone is +1.9%, a quarter of it `J`'s own first-order panel and three quarters a thinner canopy. Every failing placement fails mostly **through the canopy**: the integrand moves 2–18% at every birth date, including `b < 1`, where there is no edge. |
+| **The gradient** | By the adjoint: **no refusal** on any metric, but `J` is not a census metric, so **`dJ/dθ` has no adjoint path**. By central difference on a bracket that follows the edges: **−169.57 / −169.81 / −169.77**, settled to 0.03% past 793 nodes, **`dJ/dlma` = −169.8 ± 1.1** with the error the time grid's. A fixed-schedule difference converges to a value **2.3% off** (−172.9), and the default schedule's −155.6 is **8.4% shallow**. |
 
 ---
 
@@ -92,7 +92,7 @@ indexes positionally, so this is not a formality.)
 
 ---
 
-## 2. The ladder converges — until the misplaced edges leak into the fill
+## 2. The ladder converges, to a floor at 1e-4 per level
 
 Variant A with the edge set fixed at the reference roots, fill 1/16 → 1/128:
 
@@ -120,7 +120,8 @@ the first ratio is 5.95; then the third difference is the same size as the
 second. At 1e-4 relative per rung this is not the uniform ladder's failure — the
 whole four-rung sequence spans 0.088%, where the uniform one spans 7.8% — but it
 is not second order either, and it had to be taken apart before anything could be
-claimed.
+claimed. (The same bracket with its edges re-placed on the stand being run is
+§5's ladder; its differences are −6.8e-03 and −2.1e-03.)
 
 ### Taking the last rung apart
 
@@ -536,7 +537,7 @@ what follows takes it by central difference.
 The adjoint was not laddered: at 5.3× the forward cost the 793-node level is
 about 70 minutes, which the budget did not hold alongside the value ladder.
 
-### By central difference: it converges, one order behind the value
+### By central difference on a fixed schedule: it converges, one order behind the value
 
 Central differences in `lma` at `d = 1e-3` — inside the plateau
 `diag-long-horizon-remeasure.md` §6 measured, 3e-2 to 1e-5 — on each rung's
@@ -591,9 +592,9 @@ both):
 **`T = +0.287`**, and one edge carries two thirds of it: the first closing edge,
 `b = 3.560`, contributes +0.189 because it sits where the envelope is still large.
 Closing roots move later as `lma` rises — the live stretch before each dry band
-lengthens — so `T` opposes the main effect. On the 1/16 mesh the
-transport-inclusive derivative is **−173.528 + 0.287 = −173.241**: the fixed
-bracket misses **0.17%** of `dJ/dlma`.
+lengthens — so `T` opposes the main effect. Read as a correction to the fixed
+bracket it is **0.17%** of `dJ/dlma`. The next subsection runs the edge motion
+instead of pricing it, and the priced term turns out to be the small part.
 
 ### Moving the bracket with the trait: the canopy carries the transport term
 
@@ -623,25 +624,57 @@ between the two brackets is +0.1419, +0.1412, +0.1498 at the three trait values:
 nearly constant, which is why the value's error from it is a bias (§5), and not
 constant, which is why the derivative's error from it is 2.3%.
 
-### Where the derivative's error actually is
+### The derivative on the edge-following ladder
 
-On the 498-node bracket, in increasing size:
+The same construction at every rung — each side's edges at its own scanned
+roots, the centre at the pass-1 roots of §5, all run at their own trait value:
+
+| fill | `J(0.319)` | `J(0.320)` | `J(0.321)` | backward | forward | **central** | `J''` |
+|---|---|---|---|---|---|---|---|
+| 1/16 | 12.595978640 | 12.426116763 | 12.256830190 | −169.862 | −169.287 | **−169.5742** | +575 |
+| 1/32 | 12.589570447 | 12.419360085 | 12.249948419 | −170.210 | −169.412 | **−169.8110** | +799 |
+| 1/64 | 12.587556021 | 12.417291960 | 12.248023514 | −170.264 | −169.268 | **−169.7663** | +996 |
+
+| | derivative | value, same rungs |
+|---|---|---|
+| differences | −0.2368, **+0.0448** | −6.757e-03, −2.068e-03 |
+| ratio | −5.29 | 3.267 |
+| `log2` ratio | — (the sequence turns) | 1.708 |
+| last step, relative | **0.026%** | 0.017% |
+
+**The derivative settles with the value, and no rate can be read from it.** The
+two steps are 0.14% and 0.026% of `dJ/dlma` and the second has the opposite
+sign; both are below the 1.08 by which the time grid alone moves the derivative
+at this tolerance, so the fill's contribution is under the integrator's floor
+from the second rung on. The value on the same meshes converges monotonically at
+order 1.71. What is established is the size, not the rate: **the fill moves the
+edge-following derivative by less than 0.05 past 793 nodes.**
+
+### Where the derivative's error is
 
 | | shift in `dJ/dlma` | fraction |
 |---|---|---|
-| the fill's remainder after Richardson | ~0.05 | 0.03% |
-| the direct transport term, `−sum(side * E * dβ/dlma)` | +0.287 | 0.17% |
-| the time grid: the same traits with the scans' 2952 extra window stops | +1.082 (−172.446 against −173.528) | 0.62% |
-| **the edges following the trait, through the canopy** | **+3.953** | **2.28%** |
+| the fill, past 793 nodes (edge-following ladder, last step) | 0.045 | 0.03% |
+| the placement tail after one pass, estimated from the value's 21× contraction per pass | ~0.2 | ~0.1% |
+| the direct transport term, `−sum(side * E * dβ/dlma)` | 0.287 | 0.17% |
+| the time grid: the same traits with the scans' 2952 extra window stops | **1.082** | **0.62%** |
+| the edges following the trait, through the canopy (fixed − following at 1/16) | **3.953** | **2.28%** |
 
-**The measured gradient on an edge-resolving mesh is `dJ/dlma` = −169.6 at 498
-nodes with the edges following the trait**, against −173.5 with them fixed at the
-reference roots and about −155 on the default 108-node schedule
-(`diag-long-horizon-remeasure.md` §6). The fixed-bracket ladder above converges
-in the fill at order 1.51, but to a derivative that carries the 2.3%; the time
-grid's 0.6% is a floor at `ode_tol = 1e-3` under both.
+**`dJ/dlma` = −169.8 ± 1.1** on an edge-resolving mesh whose edges follow the
+trait, with the error bar the time-grid term at `ode_tol = 1e-3`. The two
+instruments that miss the edge motion are off by more than that: the fixed
+reference-edge bracket by 2.3% (−172.9 converged, −173.5 at 498 nodes), and the
+default 108-node schedule's −155.6 (`diag-long-horizon-remeasure.md` §6) by
+**8.4% shallow**, against its value's 3.0% low.
 
-<!-- 7c PENDING: following-bracket derivative at 1/32 and 1/64 -->
+**This is the criterion the campaign is for, and it is met in the sense that
+matters and missed in one it did not expect.** A mesh that respects the edges
+gives a derivative that stops moving with the fill — but only if the edges are
+re-placed at each trait value, and a finite difference across a fixed schedule,
+however fine, converges to a derivative 2.3% off. The adjoint cannot supply
+`dJ/dθ` on any mesh, and on a fixed schedule it would carry the same 2.3% plus the
+direct transport term, since it differentiates the discrete functional with the
+nodes held still.
 
 ---
 
@@ -657,47 +690,66 @@ new and sit beside them. Results are in `em/`.
 | `em_common.R` | sources `lh_common.R`; the edge set read from `rw/edges_final.rds`, the band-and-ramp intervals, the variants, the schedule builder, the matched-count control and the one-run harness with its schedule read-back |
 | `em_repro.R` | the reproduction check, and `sum M` at the default schedule |
 | `em_shape.R` | builds every schedule and prints its counts and the nodes around one edge; runs nothing |
-| `em_run.R` | one schedule, one run: `<variant> <fill denominator>`, `ctrl <node count>`, or `bis <k>`; `grad` adds `stand_gradient` |
-| `em_fd.R`, `em_fd1.R` | `dJ/dlma` by central difference on a fixed schedule: both sides in one process, or one side per process |
-| `em_scan.R` | the gate's roots on the bracket mesh's own environment at one trait value, from windows of stops around each reference root |
-| `em_fdmove.R` | one side of a central difference with the 144 edge nodes moved to that trait value's roots |
+| `em_run.R` | one schedule, one run: `<variant> <fill denominator>` or `ctrl <node count>`; `grad` adds `stand_gradient` |
 | `em_tol.R` | one schedule a decade tighter in `ode_tol` |
-| `em_report.R`, `em_channel.R`, `em_edgecheck.R`, `em_gradrep.R` | analysis only: the tables, the two-channel split, the root readings, the derivative ladder and transport term |
+| `em_restart.R` | a coarser schedule with zero-depth stops at a finer one's added birth dates |
+| `em_scan.R`, `em_scan2.R` | the gate's roots on a mesh's own environment at one trait value, from windows of stops around each current root |
+| `em_reloc.R`, `em_place.R`, `em_placeV.R` | the bracket (or a variant) with its edge nodes at a scanned root set; `em_place.R` runs at a given trait value |
+| `em_fd.R`, `em_fd1.R` | `dJ/dlma` by central difference on a fixed schedule |
+| `em_fdmove.R` | **superseded**: moves the edges but runs both sides at the base trait, so it measures placement sensitivity, not a derivative; its two runs are not used |
+| `em_report.R`, `em_channel.R`, `em_edgecheck.R`, `em_gradrep.R` | analysis only |
 | `em_queue.sh`, `em_chain.sh`, `em_master*.sh` | the queue, three R workers at a time |
 
-Nothing in `em/` is read by any other note's scripts.
-
 **`plant/src/plant.so` was read at the head and foot of every script's own log
-and never moved:** `2026-09-22 12:52:40.069214118 +0000` throughout. Nothing
-under `plant/`, `odelia/` or `phylloptim/` was written, and nothing was compiled
-or committed.
+and never moved:** `2026-09-22 12:52:40.069214118 +0000` throughout, and on
+direct `stat` before and after each batch. Nothing under `plant/`, `odelia/` or
+`phylloptim/` was written, and nothing was compiled or committed by this
+measurement.
+
+**A build that was not this measurement's.** From about 10:25 UTC a process
+outside this measurement built and tested a separate copy of `plant`
+(`scratchpad/plant-adj`) into a temporary library. It never wrote
+`plant/src/plant.so` (re-checked after it started and at every batch since), and
+no `em_*` run loaded anything from it. It shared the four cores with up to three
+`em_*` workers, so wall clocks of runs after 10:25 are high by up to about 10%;
+steps, `sum M` and every `J` are unaffected.
 
 ---
 
 ## What was not reached
 
-- **The edge treatment is not laddered.** A and A3 are two points of a sequence
-  whose next member was not run. The −0.095% between their limits is the size of
-  the edge-treatment error at the bracket, not a bound on what remains after A3.
-- **The canopy reading is inference.** The evidence that B, C and D move the
-  integrand through the shared environment is the integrand ratio at `b < 1`,
-  where no edge exists, and the exact subset decompositions of §3 and §5. No
-  stand leaf-area census was taken on any variant to show the canopy itself
-  moving.
-- **Only A was laddered.** B, C and D were run at one fill each, so D's "first
-  order" is the closed form `0.495 * gap * w` (3% from the measured quadrature
-  term) plus one measurement, not a measured rate. D at 1/32 was queued last and
-  is reported in §3 only if it landed.
-- **The roots were located once, on the default schedule's environment.** §5
-  bounds the consequence at 0.107% of `J` and shows it is level-independent, but
-  the gate was not re-scanned on the resolving mesh's own environment at the base
-  trait — the second pass of the Oracle's §2(c) construction.
+- **What the last 1e-4 is.** On the reference-edge ladder the level-to-level
+  change stops shrinking at 1.4e-3 (§2). Two parts of it are identified — about
+  a third is integrator restarts at introductions, which the fill does not
+  reduce and `ode_tol` does not control, and the rest is the integrand in the
+  first-drought window converging at first order — but why the stand's integrand
+  there converges at first order was not found. The leaked fill nodes on
+  misplaced ramps are at `b = 14–18` and cannot be the whole of it. The
+  re-located ladder was run to 1/64 and its fourth rung is reported in §5 only if
+  it landed.
+- **The ramp interior on re-placed edges.** A3 (closing ramps split at `u = 1,
+  3`) moved the value by −0.012 on the reference edges and was not repeated on
+  re-placed ones, so the ±0.003 on `J` = 12.424 is for the bracket's ramp
+  treatment and the 12.41–12.43 interval is the honest one.
+- **The canopy reading is inference.** That every failing placement acts
+  through the environment is read off the integrand at birth dates far from any
+  edge and the exact subset decompositions; no stand leaf-area or light census
+  was taken to show the canopy itself moving.
+- **Only A was laddered on both edge sets.** B and C were run at one fill each; D
+  at 1/16 on both edge sets (+0.231 and +0.234 over the bracket) and, if it
+  landed, at 1/32 on the re-placed ones. D's first order in its own panels is the
+  closed form `0.495 * gap * w`, 3% from the measured quadrature term.
+- **The derivative's rate.** The edge-following derivative's two steps are below
+  the time grid's own effect on it, so it has a size (0.03% past 793 nodes) and no
+  order. A rate needs `ode_tol` tightened on all nine runs; not run. The adjoint
+  was taken at one level only (2637 s at 498 nodes, 5.3× the forward solve), and
+  on the reference edges.
 - **Above `b = 22` nothing is resolved.** The 40 edges there lie under the
-  default generator's two-year tail. That region carries 8.8e-05 of `J` on the
-  reference run and the tail is frozen, so it cancels in every difference; it is
-  not zero in the value.
+  default generator's two-year tail. It carries 8.8e-05 of `J` on the reference
+  run and is frozen, so it cancels in every difference; it is not zero in the
+  value.
 - **One trait, one record, one coordinate, one tolerance.** `lma = 0.32` on
   `long-drought`, `node_density_in_birth_date = TRUE`, `ode_tol = 1e-3`
-  throughout except where §7 says otherwise. The tolerance channel was +0.288% at
-  108 nodes and +0.021% at 429 (`diag-nested-grid.md` §5), i.e. between one and
-  ten times the edge-treatment term and far larger than the fill's remainder.
+  throughout except the two 1e-4 runs of §2. The placement result says a scan
+  has to be taken on the mesh being run, at the trait being run; how far that
+  transfers across `θ` beyond the ±0.001 of §7 is untested.
