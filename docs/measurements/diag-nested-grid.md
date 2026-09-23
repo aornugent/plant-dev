@@ -16,7 +16,12 @@ at 9931. Every digit and the same step count.
 
 **No code under `plant/`, `odelia/` or `phylloptim/` was changed and nothing was
 compiled.** `plant/src/plant.so` read `2026-09-22 12:52:40.069214118 +0000`
-before and after every measurement block and never moved. Everything below is
+before and after every measurement block and never moved. This note was asked
+for uncommitted and the work described here ran no `git commit` and no
+`git push`; it was nonetheless committed and pushed as `f8b035f` to
+`origin/claude/trusting-curie-4i9n3l` by another actor at 04:42 while it was
+still being written, as happened to `diag-unaligned-refusals.md`. The §5
+tolerance ladder and this paragraph postdate that commit and are uncommitted. Everything below is
 scripts in the scratchpad, listed in §10. `ld_common.R` and `lh_common.R` are
 sourced unchanged and every original beside them is untouched.
 
@@ -491,10 +496,21 @@ That is not a converging second-order sequence, and `diag-long-horizon-remeasure
 convergence rather than above it — understates the case at one bisection further
 out.
 
-It is not the time integration. The same 429-node schedule at `ode_tol = 1e-4`
-gives **13.0342392 at 13 131 steps** against 13.0315024 at 10 816 — **0.021%**
-for a decade of tolerance and 21% more steps (`ng_tol429.R`). The 7.8% belongs to
-the creation grid.
+It is not the time integration. The whole ladder, run again a decade tighter
+(`ng_tol429.R`, `ng_tol.R`):
+
+| creations | `J` at `ode_tol = 1e-3` | steps | `J` at `1e-4` | steps | tolerance moves it |
+|---|---|---|---|---|---|
+| 108 | 12.0526222 | 9931 | 12.0873665 | 12 226 | +0.288% |
+| 215 | 12.0888310 | 10 174 | 12.1083840 | 12 486 | +0.162% |
+| 429 | 13.0315024 | 10 816 | 13.0342392 | 13 131 | **+0.021%** |
+
+The doubling reads **+7.65%** at the tighter tolerance against +7.80% at the
+looser, so the 7.8% belongs to the creation grid and the tolerance channel
+*shrinks* as the creation grid refines. The two 1e-4 entries at 108 and 215 also
+reproduce `diag-long-horizon-remeasure.md` §8's aligned intermittent arm —
+12.0873665 and 12.108384 — to every digit, independently of this note's own
+reproduction check.
 
 ### Why: `w(b)` is exactly zero on a set of birth dates, and the set is the record
 
@@ -931,7 +947,7 @@ them.
 | `ng_fine.R` | §5: 1/16-year creations on `[5, 11]` |
 | `ng_trans.R` | §6: thinning the transient |
 | `ng_quad.R` | §7: the abscissa/state-dimension split and the alternative rules |
-| `ng_tol429.R`, `ng_tol.R` | the tolerance check on §5's ladder |
+| `ng_tol429.R`, `ng_tol.R` | §5's tolerance ladder at 108 / 215 / 429, and the 858-node level (left running) |
 | `ng_one.R` | a position-resolved rerun of `ng_split.R`; **stopped part-way** to free cores, and nothing here rests on it |
 | `ng_queue.sh`, `ng_queue2.sh`, `ng_queue3.sh` | batch ordering and the `.so` mtime record between batches (`ng_queue_mtimes.log`) |
 
@@ -949,10 +965,12 @@ log, and in `ng_queue_mtimes.log` between batches. Nothing under `plant/`,
   429-node schedule holds to 0.021% over a decade of `ode_tol` — but nothing here
   says where the sequence is going, so every "against converged" statement in this
   note is against the *tolerance*-converged 108-node value of
-  `diag-long-drought.md`, not against a creation-converged one. `ng_tol.R` was
-  left running an 858-node level and a 1e-4 tolerance arm at 108 / 215 / 429; its
-  results land in `ng_tol.log` and `ng_tol/` in the scratchpad and are the first
-  thing a next session should read.
+  `diag-long-drought.md`, not against a creation-converged one. The 1e-4 tolerance
+  arm at 108 / 215 / 429 finished and is in §5; the **858-node level was still
+  running** when this was written, and its result lands in `ng_tol.log` and
+  `ng_tol/n858_t1e-3.rds` in the scratchpad. It is the first thing a next session
+  should read: it says whether the sequence 12.053 / 12.089 / 13.032 is going
+  anywhere.
 - **One trait, one record, one coordinate.** `lma = 0.32` on `long-drought`,
   `node_density_in_birth_date = TRUE` throughout, as the brief scoped it. §1's
   two-abscissae reading of the height branch, and the unsorted-abscissa
