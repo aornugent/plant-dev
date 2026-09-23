@@ -30,12 +30,15 @@ capping `h` at five days on an otherwise untouched grid recovers the water to
 The other grid fails the same way. `J` is a trapezium over birth dates, and a
 newborn's establishment probability reads `P²/(A² + P²)` in its net production
 `P` at creation, floored at zero for `P ≤ 0`. That vanishes quadratically as
-`P → 0⁺`, so the integrand is `C¹` — plateaus at exactly zero over bands 23 days
-to six months wide where `P ≤ 0`, joined by ramps whose width is `A/|∂_b P|` at
-each edge. The ramps are narrower than any mesh yet run: at 1/16-year spacing a
-node reads `0` and its neighbour `1.561`, with nothing between. At that spacing
-the trapezium is reading a jump, its error on the straddling panel is `O(Δ)` in
-the plateau height, and refinement does not converge — over 108, 215, 429 and 857
+`P → 0⁺`, so the integrand is `C¹` — plateaus at exactly zero over 56 bands
+spanning 14.7% of the horizon, joined by ramps at each edge. The ramps come in
+two populations that do not overlap: **leaving** a band, after rain, the 1%–99%
+width has median **0.178 days**; **entering** one, as the soil dries, median
+**5.54 days**. The gate closes over days and opens in hours. Against a 1/16-year
+mesh the closing ramps are the same order as the spacing and the opening ramps
+are 0.3–3% of it, so at every mesh yet run the trapezium reads a jump, its error
+on the straddling panel is `O(Δ)` in the plateau height, and refinement does not
+converge — over 108, 215, 429 and 857
 nodes `J` reads 12.053, 12.089, 13.032, 12.843, successive differences `+0.036`,
 `+0.943`, `−0.188`, the second **26×** the first and the third **−0.20×** the
 second. No `h^p` fits and no level is a reference. The asymptotic second order
@@ -513,9 +516,23 @@ derivative; `P` is continuous in `b`, so `w` is `C¹` in `b`. It reaches half it
 plateau at `P = A`, which puts the ramp width at `A/|∂_b P|`. Where `P ≤ 0` the
 member is stamped with a sentinel — log density `≈ −745` against `−9` at its
 neighbours, `w = 0` exactly, leaf-area contribution 0 exactly — and those
-plateaus are genuine. The ramps joining them are not resolved anywhere: at
-1/16-year creations a node reads `0` and its neighbour `1.561` with nothing
-between, so the width is under 23 days and unmeasured. At 1/16-year creations over
+plateaus are genuine — 56 of them over the horizon, 0.8 to 170 days, median 22.6,
+none before `b = 3.56`. The ramps joining them are two distinct populations.
+Leaving a band, after rain, the 1%–99% width has median **0.178 days** (range
+0.071–0.714); entering one, as the soil dries, median **5.54 days** (range
+1.71–9.04). A factor of 31 in slope at the median, with no overlap between the
+distributions. `P` is linear across its own ramp, the quadratic term reaching 8%
+of the linear on an opening edge and 0.6% on a closing one. `A = 8.79e-06` and
+the strategy's recruitment decay is zero, so the gate is `P²/(A² + P²)` alone and
+its plateau is 0.996, `P` reaching only `+22A` at its best.
+
+Nodes falling strictly inside a ramp, where `0 < P_est < 0.99` of the local
+plateau: **0 of 108, 0 of 215, 2 of 429, 3 of 857**. Uniform placement above
+`b = 1` predicts 0.7, 1.4, 2.9, 5.7, so this is the arithmetic of the spacing and
+not an accident of it. Every schedule yet run reads `w(b)` as two-valued. Reading
+the reference run's gate at another level's birth dates predicts that level's
+floored-node count before it is run: 1 at `b = 10`; 3, first at `b = 6.5`; 19 of
+120 in `(1, 36)` against the record's 18, first at `b = 3.625`. At 1/16-year creations over
 `[5, 11]`, 23 of 103 nodes sit at the floor, in ten runs of 1 to 8 nodes; the
 widest spans `b ∈ [7.375, 7.8125]`, inside a drought, with zero rain in the
 preceding month at seven of its eight nodes. Across one band `w` reads 0.326,
