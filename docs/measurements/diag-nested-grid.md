@@ -499,13 +499,30 @@ It is not the time integration. The whole ladder, run again a decade tighter
 | 108 | 12.0526222 | 9931 | 12.0873665 | 12 226 | +0.288% |
 | 215 | 12.0888310 | 10 174 | 12.1083840 | 12 486 | +0.162% |
 | 429 | 13.0315024 | 10 816 | 13.0342392 | 13 131 | **+0.021%** |
+| 857 | 12.8432659 | 11 351 | — | — | — |
 
-The doubling reads **+7.65%** at the tighter tolerance against +7.80% at the
-looser, so the 7.8% belongs to the creation grid and the tolerance channel
-*shrinks* as the creation grid refines. The two 1e-4 entries at 108 and 215 also
-reproduce `diag-long-horizon-remeasure.md` §8's aligned intermittent arm —
-12.0873665 and 12.108384 — to every digit, independently of this note's own
+The doubling from 215 to 429 reads **+7.65%** at the tighter tolerance against
++7.80% at the looser, so the 7.8% belongs to the creation grid and the tolerance
+channel *shrinks* as the creation grid refines. The two 1e-4 entries at 108 and
+215 also reproduce `diag-long-horizon-remeasure.md` §8's aligned intermittent arm
+— 12.0873665 and 12.108384 — to every digit, independently of this note's own
 reproduction check.
+
+**The sequence turns.** Level to level the differences are `+0.0362088`,
+`+0.9426714`, `−0.1882365`, i.e. `+0.300%`, `+7.798%`, `−1.444%`. The second
+difference is **26.0×** the first and the third is **−0.1997×** the second, so
+there is no `h^p` to fit: a convergent trapezium sequence would hold a ratio near
+`2^{−p}` and this one grows by a factor of 26 and then changes sign. `J` across
+the last three levels spans **7.80%** and 429 is the outlier, not the endpoint.
+
+That is what a trapezium over a discontinuous integrand does. With jumps in `w`
+at fixed birth dates, the error at a given level depends on where that level's
+nodes fall relative to the jumps, which does not vary smoothly with `h` under
+nested bisection. Refining the count cannot converge this; resolving the jumps
+can. 857 nodes at 12.843 sit nearer the refinement loop's own 206-node 12.631
+and the window schedule's 12.606 than 429's 13.032 does, which is consistent
+with 429 straddling the failure bands unusually badly, though four levels do not
+establish that.
 
 ### Why: `w(b)` is exactly zero on a set of birth dates, and the set is the record
 
@@ -961,11 +978,12 @@ log, and in `ng_queue_mtimes.log` between batches. Nothing under `plant/`,
   says where the sequence is going, so every "against converged" statement in this
   note is against the *tolerance*-converged 108-node value of
   `diag-long-drought.md`, not against a creation-converged one. The 1e-4 tolerance
-  arm at 108 / 215 / 429 finished and is in §5; the **858-node level was still
-  running** when this was written, and its result lands in `ng_tol.log` and
-  `ng_tol/n858_t1e-3.rds` in the scratchpad. It is the first thing a next session
-  should read: it says whether the sequence 12.053 / 12.089 / 13.032 is going
-  anywhere.
+  arm at 108 / 215 / 429 is in §5, and so is the 857-node level: `J = 12.8432659`
+  at 11 351 steps, 1028 s. It does not settle the question, it dissolves it —
+  the sequence turns rather than converging, so no level here is a reference and
+  Richardson has nothing to work on. A creation-converged value needs a schedule
+  that resolves the establishment jumps, which no level of nested bisection
+  provides.
 - **One trait, one record, one coordinate.** `lma = 0.32` on `long-drought`,
   `node_density_in_birth_date = TRUE` throughout, as the brief scoped it. §1's
   two-abscissae reading of the height branch, and the unsorted-abscissa
