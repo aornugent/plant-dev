@@ -1,4 +1,4 @@
-# An edge-respecting cohort mesh converges once the edges are placed on the stand it runs, and where the edge node goes decides the answer
+# Bracketing the establishment edges removes the non-convergence, leaves a floor at 1.5e-4 per doubling, and only works with the edges placed on the stand being run
 
 TF24 SCM, one species, `lma = 0.32`, `max_patch_lifetime = 40`,
 `node_density_in_birth_date = TRUE`, forcing `long-drought` (the 41-year daily
@@ -27,11 +27,11 @@ disk rather than recomputed, and every original beside them is untouched.
 
 | | |
 |---|---|
-| **Half the hypothesis holds** | **The non-convergence was straddled-edge error.** With edges bracketed and the fill halving, `J` moves −6.8e-03, −2.1e-03, −1.9e-03 (edges placed on the stand being run; 499 → 2539 nodes) where the uniform ladder moved +0.036, +0.943, −0.188 and turned; a matched-cost uniform control with no edge information turns too (−0.077, +0.016). **The second-order claim fails.** `J`'s own quadrature converges at order 2–4, but the total stops shrinking at **1.5e-04 relative per doubling** on both edge sets, and the residual is not the edges' panels, not `ode_tol`, and not fill on ramps. It is the stand's integrand — first order in the first drought, sign-changing in the first three years — plus integrator restarts at introductions. **Its cause was not found** (§2, §5). |
-| **The value** | **`J` = 12.42 ± 0.01**: placement converged to 4e-04, `ode_tol` to 1e-04, the fill not below 1.5e-04 per level; 12.40–12.43 allowing for the ramp interior. **The operating 108-node value is 3.0% low; uniform 429 and 857 are 4.9% and 3.4% high.** |
+| **Half the hypothesis holds** | **The non-convergence was straddled-edge error.** With edges bracketed and the fill halving, `J` moves −6.8e-03, −2.1e-03, −1.9e-03 (edges placed on the stand being run; 499 → 2539 nodes) where the uniform ladder moved +0.036, +0.943, −0.188 and turned; a matched-cost uniform control with no edge information turns too (−0.077, +0.016). **The second-order claim fails.** `J`'s own quadrature converges at order 2–4, but the total stops shrinking at **1.5e-04 relative per doubling** on both edge sets, and the residual is not the edges' panels, not `ode_tol`, and not fill on ramps. It is the stand's integrand — first order in the first drought, sign-changing in the first three years — plus the integrator stops that introductions impose. **Its cause was not found** (§2, §5). |
+| **The value** | **`J` = 12.417 ± 0.006**: placement converged to 4e-04, `ode_tol` to 1e-04, the error bar the fill's unconverged, one-signed tail; **12.40–12.42** allowing for the ramp interior. **The operating 108-node value is 3.0% low; uniform 429 and 857 are 4.9% and 3.4% high.** |
 | **Where the edges are is the largest term** | The roots located on the default schedule's stand are up to **3.9 days** off on a resolving mesh. Re-placing the bracket on the mesh's own gate moves `J` by **+1.15%**; a second pass moves the roots ≤0.37 d and `J` by +0.055%, **21× less**. The Oracle's edge-location term prices the first shift at 0.0016; it is **0.141**, because a misplaced root node is a live cohort whose weight spans a dead band, and it thickens the canopy. |
-| **Bracketing is the only placement that works** | At one fill, `J` = **12.285 (bracket)**, 12.516 (the crossing alone), 10.983 (the ramp's midpoint), 10.870 (past the ramp's top). The midpoint and past-the-top placements are **−11% and −12%**; the crossing alone is +1.9%, a quarter of it `J`'s own first-order panel and three quarters a thinner canopy. Every failing placement fails mostly **through the canopy**: the integrand moves 2–18% at every birth date, including `b < 1`, where there is no edge. |
-| **The gradient** | By the adjoint: **no refusal** on any metric, but `J` is not a census metric, so **`dJ/dθ` has no adjoint path**. By central difference on a bracket that follows the edges: **−169.57 / −169.81 / −169.77**, settled to 0.03% past 793 nodes, **`dJ/dlma` = −169.8 ± 1.1** with the error the time grid's. A fixed-schedule difference converges to a value **2.3% off** (−172.9), and the default schedule's −155.6 is **8.4% shallow**. |
+| **Bracketing is the only placement that works** | At one fill, `J` = **12.285 (bracket)**, 12.516 (the crossing alone), 10.983 (the ramp's midpoint), 10.870 (past the ramp's top). The midpoint and past-the-top placements are **−11% and −12%**; the crossing alone is +1.9% at this fill and falls **2.2× per doubling** — first order — its own panel under-reading by 0.08 and a thinner canopy over-reading by 0.31. Every failing placement fails mostly **through the canopy**: the integrand moves 2–18% at every birth date, including `b < 1`, where there is no edge. |
+| **The gradient** | By the adjoint: **no refusal** on any metric, but on the build measured (`5321593a`) `J` is not a census metric, so **`dJ/dθ` has no adjoint path there**; the `plant` branch `offspring-adjoint` (`bb1d8a8a`) adds that row. By central difference on a bracket that follows the edges: **−169.57 / −169.81 / −169.77**, settled to 0.03% past 793 nodes, **`dJ/dlma` = −169.8 ± 1.1** with the error the time grid's. A fixed-schedule difference converges to **−172.9, 1.8% off** (2.3% at 498 nodes), and the default schedule's −155.6 is **8.4% shallow**. |
 
 ---
 
@@ -56,8 +56,9 @@ A schedule is four pieces, of which only one moves between levels:
 The **band-and-ramp interval** of a band is `[b*_close − w_close, b*_open +
 w_open]` — the dead stretch and both its ramps. No fill point falls inside one
 at any level, so the only nodes near an edge are the ones the variant puts
-there, and *the edge treatment is literally identical at every rung*. The 36
-intervals total 3.7098 yr of the 22.
+there, and the edge treatment is identical at every rung by construction — as
+long as the roots are where the gate really closes, which §5 shows they were not
+on the reference edges. The 36 intervals total 3.7098 yr of the 22.
 
 The head is frozen because there is no edge below `b = 3.56` and the default
 generator is already at `1e-5` to `1/64` spacing there; its own quadrature error
@@ -137,16 +138,17 @@ Three channels, each isolated by a run:
 | **integrand**: the stand re-solved with the added cohorts, read at the coarser abscissae | −4.330e-03 | **−5.307e-04** | **−7.936e-04** |
 | `ode_tol` 1e-3 → 1e-4 on the same schedule | — | +7.8e-05 at 1/64 | −3.1e-05 at 1/128 |
 
-(The last two rows of the 1/32 → 1/64 and 1/64 → 1/128 columns are taken from the
-stop-matched run, so they sum with the time-grid row to the total.)
+(In the last two columns the quadrature and integrand rows are taken from the
+stop-matched run, so they sum with the time-grid row to the total; the `ode_tol`
+row is separate.)
 
 - **`J`'s own quadrature converges at better than second order**: −3.76e-03,
   −1.03e-03, −6.7e-05, ratios 3.7 and 15.3.
 - **The time grid is not the tolerance.** Adding 1164 zero-depth stops moves `J`
   by −5.3e-04, 7 to 17 times what a decade of `ode_tol` moves it on either
   schedule, and a run of the 1/128 pair at `ode_tol = 1e-4` reproduces the step
-  (−1.50e-03 against −1.39e-03). An introduction restarts the integrator whatever
-  happens at it, and doubling the cohorts doubles the restarts.
+  (−1.50e-03 against −1.39e-03). Every introduction is a time the integrator must
+  land on whatever is born there, and doubling the cohorts doubles those stops.
 - **The integrand converges at first order where it is largest.** With the time
   grid matched it is −5.3e-04 and then −7.9e-04 in total, but by window of `b`:
 
@@ -163,11 +165,11 @@ stop-matched run, so they sum with the time-grid row to the total.)
   first year changes sign between steps and has no rate.
 
 **So the residual is two things, neither of them the establishment edges' own
-panels:** integrator restarts at introductions, which do not shrink with the
-fill and are not controlled by `ode_tol`; and the stand's integrand in the
+panels:** the integrator stops that introductions impose, which do not shrink
+with the fill (+2.0e-04, then −5.3e-04) and survive a decade of `ode_tol`; and the stand's integrand in the
 drought window, converging at first order while `J`'s quadrature over it
-converges at second or better. Both are at 1e-4 relative per level, 80 times
-below the uniform ladder's 7.8%.
+converges at second or better. Together they are 1.1e-4 relative per level,
+about 700 times below the uniform ladder's largest step (7.8%).
 
 What the second of those is, is **not settled here**. One candidate was tested
 and eliminated. The reference roots sit up to 3.9 days from where this mesh's
@@ -201,9 +203,16 @@ One fill (1/16), four placements, and a fifth for reference:
 | **C** past the ramp top | 426 | 10.870003 | **−1.4149 (−11.52%)** | 10 733 | 431.9 s |
 | the default schedule | 108 | 12.052622 | −0.2323 | 9 931 | 130.5 s |
 
-**Bracket wins, and the reason B and C fail is not the reason the brief
-expected.** Their own panels over the band-and-ramp intervals do misread, and by
-the predicted sign and size:
+B and C are run as the brief states them: one node per edge, on the ramp, and no
+node at the root. With the band's interior excluded from the fill, each dead band
+is then bounded by the variant's own two nodes, which read near the plateau. The
+brief's gloss on C — "the zero band is bounded by nodes that read zero" — needs a
+node at or inside the band as well; with the band interior empty that node is the
+root, and C plus a root node is A.
+
+**Bracket wins.** B's and C's own panels over the band-and-ramp intervals
+misread, by the sign and size that bounding a dead band with near-plateau nodes
+gives:
 
 | | contribution of the 36 band-and-ramp intervals to `J` |
 |---|---|
@@ -236,9 +245,10 @@ shares. The same trapezium weights that assemble `J` assemble the competition
 integral, so a near-plateau cohort whose weight spans a dead band adds leaf area
 that is not there, the canopy closes, and every cohort in the stand loses
 carbon. *(The inflated-canopy reading is inference from the integrand ratio at
-`b < 1`; no stand-leaf-area census was taken to confirm it — see §9.)*
+`b < 1`; no stand-leaf-area census was taken to confirm it — see *What was not
+reached*.)*
 
-### The crossing alone is first order, and it is 3.8× a canopy error
+### The crossing alone: a first-order panel, and a canopy term 3.8× larger
 
 D's schedule is a strict subset of A's — it is A minus the 72 ramp-top nodes —
 so its error decomposes exactly:
@@ -310,8 +320,8 @@ The control's 0.08% at 498 nodes is where a turning sequence happened to cross
 the answer, not accuracy it can be relied on for: one doubling later it is 0.54%
 off. **The reference-edge bracket converges to a value 1.2% low** — §5 is why.
 The re-located bracket is within 0.02–0.09% at every count; those figures carry
-the reference's own ±0.01 (§5), which is why the table does not rank them
-against each other.
+the reference's own uncertainty (§5: the limit is estimated 0.005 lower), which is
+why the table does not rank them against each other.
 
 ---
 
@@ -320,8 +330,8 @@ against each other.
 §2's ladder holds the edge set fixed at the roots `diag-establishment-ramp.md`
 located on the **default 108-node** run's environment. The resolving mesh runs a
 different stand, so those roots are not where its gate closes. That turned out to
-be the largest term in the value, and the reason the §2 ladder stops converging
-at its fourth rung.
+be the largest single term in the value — though not, as the re-located ladder
+below shows, the cause of §2's floor.
 
 ### The reference roots are up to four days off, and it costs 1.15% of `J`
 
@@ -344,7 +354,8 @@ converged to **±4e-04** at the second pass.
 
 The roots that move are closing ones. A closing edge's slope is 31× gentler than
 an opening edge's, so the same change in the newborn's carbon moves it 31×
-further; the largest moves (1.2–3.9 d) are all at `b` = 9.9–17.4, where the
+further; all 16 moves of more than a day (1.2–3.9 d) are closing edges at
+`b` = 9.9–19.7, where the
 108-node schedule's two-year spacing gives a stand whose water draw differs most
 from a resolved one.
 
@@ -355,8 +366,8 @@ measured shift is **+0.1412 — 88× larger**. A reference root that is really o
 the live side reads a live cohort (the q90 root reading is 0.35 of its plateau)
 whose trapezium weight spans the dead band: the B/C mechanism of §3 at a few
 edges. Its spurious area in `J` is only 0.0131, but it is leaf area in the canopy,
-and the integrand rises **+0.8% to +5.4% in every window of `b`** once it is
-removed, including `b < 1/16` (+0.79%).
+and the integrand rises **+0.8% to +5.4% in every window of `b` below 17** once
+it is removed, including `b < 1/16` (+0.79%); it falls 0.43% on `[17, 22)`.
 
 | | reference roots | pass 1 | pass 2 |
 |---|---|---|---|
@@ -411,13 +422,14 @@ grid was not separated on this ladder; on the reference ladder it was a third of
 the last step (§2).
 
 **So the residual non-convergence has a cause this measurement did not find.**
-It is 1.5e-04 relative per doubling, 50× below the uniform ladder's, and it is
+It is 1.5e-04 relative per doubling, about 500× below the uniform ladder's
+largest step, and it is
 not the establishment edges' own panels, not `ode_tol`, and not fill landing on
 ramps. Two candidates fit what was measured and neither was tested: a second
 non-smooth feature in `b` that the canopy integral sees and `J`'s trapezium does
 not — cohorts that die, or cohorts that cross in height, both of which TF24's
 reserve-gated growth permits, would put a moving front into the competition
-integrand at fixed `t` — and the integrator restarts at each introduction, which
+integrand at fixed `t` — and the integrator stops at each introduction, which
 grow with the node count by construction.
 
 ### The value
@@ -431,16 +443,19 @@ grow with the node count by construction.
 | `ode_tol` 1e-3 → 1e-4 | +7.8e-05 at 1/64, −3.1e-05 at 1/128 (reference edges) |
 | the ramp interior, A3 on the reference edges | −0.012, not repeated on re-placed ones |
 
-The fill term is the one that cannot be closed. If the first-drought part keeps
+The fill term is the one that cannot be closed, and it is one-signed: every
+step of both ladders is negative. If the first-drought part keeps
 halving and the rest stops, the tail is about −0.002; if the whole step stayed at
-−0.002 for five more doublings — to 80 000 nodes — it would be −0.01. Hence:
+−0.002 for five more doublings — to 80 000 nodes — it would be −0.01. From
+12.4225 (2539 nodes, both placement passes and the tail beyond them) that gives
 
-**`J` = 12.42 ± 0.01** at the bracket's ramp treatment — converged in the
-placement to 4e-04 and in `ode_tol` to 1e-04, and not converged in the fill below
-1.5e-04 per doubling — and **12.40 to 12.43** allowing for the ramp interior.
-The comparisons in §4 and §6 are against 12.4222, the 2539-node value with the
-second pass added; every rung of the uniform ladder is 0.37 to 0.61 away from
-it, and the operating 108-node value is **3.0% low**.
+**`J` = 12.417 ± 0.006** at the bracket's ramp treatment — placement converged to
+4e-04, `ode_tol` to 1e-04, and the fill's unconverged tail the whole of the error
+bar — and **12.40 to 12.42** allowing for the ramp interior, which A3 moved by
+−0.012 on the reference edges. The comparisons in §4 and §6 are against 12.4222,
+the 2539-node value with the second pass added, the top of that interval; every
+rung of the uniform ladder is 0.33 to 0.61 away from it, and the operating
+108-node value is **3.0% low** (2.9% against 12.417).
 
 ### The ramp interior: what a bracket under-reads, and what splitting it moves
 
@@ -482,7 +497,7 @@ prediction. The canopy again, at 3.5× the direct term.
 
 `sum over steps of M` is `diag-nested-grid.md` §2's member-evaluation count, and
 this fixture reproduces its 956 923 at the default schedule exactly. Error is
-against 12.4222 (§5), which carries its own ±0.01.
+against 12.4222 (§5), the top of the interval the limit is estimated in.
 
 | schedule | nodes | steps | `sum M` | wall | `J` | from 12.4222 |
 |---|---|---|---|---|---|---|
@@ -534,8 +549,9 @@ windowed run and a scan (590–685 s, `em_scan*.R`) per pass.
 | bracket, placed once, 1375 nodes | 0.040% | 1415 s + one pass (≈685 s) | 85× more accurate at 2.0× the cost |
 | the default, 108 nodes | 2.98% | 130.5 s | |
 
-The ratios lean on a reference with a ±0.01 bar of its own, so the re-placed
-bracket's errors below 0.1% are read as "within the reference's uncertainty",
+The ratios lean on a reference that is itself 0.005 above the estimated limit,
+so the re-placed bracket's errors below 0.1% are read as "within the reference's
+uncertainty",
 and the robust statement is the other one: **the uniform ladder is 3–5% off at
 every rung it reached, and every re-placed bracket is inside 0.1%.** The
 374-node figure `diag-establishment-ramp.md` §5 priced is 499 here, because the
@@ -564,12 +580,14 @@ reproduced to every digit from the forward-only run (12.284868878, 10 723
 steps), at **2637 s — 5.3× the forward solve**, peak resident 1.06 GB. The
 refusal the brief anticipated does not occur on this mesh.
 
-**But `J` is not a census metric.** `census_metric_names_tf24()` is `leaf_area`,
+**But on the build measured, `J` is not a census metric.** There `census_metric_names_tf24()` is `leaf_area`,
 `mass_above_ground`, `area_stem`: per-individual quantities integrated over the
 size distribution *at the end of the run*. `J = sum(offspring_production)` is a
 quadrature over birth dates of each cohort's lifetime output, and nothing in the
-sweep is seeded on it. **`dJ/dθ` is not available by the adjoint on any mesh**;
-what follows takes it by central difference.
+sweep is seeded on it. **`dJ/dθ` is not available by the adjoint on this build**;
+what follows takes it by central difference. The `plant` branch
+`offspring-adjoint` (`bb1d8a8a`) makes `offspring_production` a census row with
+its own seed.
 
 The adjoint was not laddered: at 5.3× the forward cost the 793-node level is
 about 70 minutes, which the budget did not hold alongside the value ladder.
@@ -599,7 +617,8 @@ schedule held fixed at the base trait, all nine runs aligned and at
 **On the reference-edge bracket the derivative converges at about one order
 less than the value** — 1.51 against 2.57 on the same three meshes — to
 −172.9 ± 0.1. That is the derivative of a functional whose edges are misplaced by
-an amount that depends on `lma`, and the next two subsections show it is 2.3% off.
+an amount that depends on `lma`, and the next three subsections show it is 1.8%
+off converged (2.3% at 498 nodes).
 
 Its `J''` reads −7457 and −7470 at 1/32 and 1/64, 0.2% apart, so the
 forward/backward asymmetry of 7.5 is converged in the fill — and it is not the
@@ -700,7 +719,8 @@ edge-following derivative by less than 0.05 past 793 nodes.**
 **`dJ/dlma` = −169.8 ± 1.1** on an edge-resolving mesh whose edges follow the
 trait, with the error bar the time-grid term at `ode_tol = 1e-3`. The two
 instruments that miss the edge motion are off by more than that: the fixed
-reference-edge bracket by 2.3% (−172.9 converged, −173.5 at 498 nodes), and the
+reference-edge bracket by 1.8% converged (−172.9) and 2.3% at 498 nodes (−173.5),
+and the
 default 108-node schedule's −155.6 (`diag-long-horizon-remeasure.md` §6) by
 **8.4% shallow**, against its value's 3.0% low.
 
@@ -708,10 +728,10 @@ default 108-node schedule's −155.6 (`diag-long-horizon-remeasure.md` §6) by
 matters and missed in one it did not expect.** A mesh that respects the edges
 gives a derivative that stops moving with the fill — but only if the edges are
 re-placed at each trait value, and a finite difference across a fixed schedule,
-however fine, converges to a derivative 2.3% off. The adjoint cannot supply
-`dJ/dθ` on any mesh, and on a fixed schedule it would carry the same 2.3% plus the
-direct transport term, since it differentiates the discrete functional with the
-nodes held still.
+however fine, converges to a derivative 1.8% off. On the build measured the
+adjoint cannot supply `dJ/dθ`; an adjoint of `J` on a fixed schedule, which
+`offspring-adjoint` provides, differentiates the same fixed-node functional as
+the fixed-schedule difference and carries the same 1.8%.
 
 ---
 
@@ -757,18 +777,18 @@ steps, `sum M` and every `J` are unaffected.
 
 - **What the last 1.5e-4 per doubling is.** Both bracket ladders stop shrinking
   at their fourth rung (−1.4e-03 and −1.9e-03). On the reference-edge ladder it
-  was split: about a third is integrator restarts at introductions, which the
-  fill does not reduce and `ode_tol` does not control, and the rest is the
+  was split: about a third is the integrator stops introductions impose, which
+  the fill does not reduce and a decade of `ode_tol` does not remove, and the rest is the
   integrand — halving per level in the first drought, sign-changing in the first
   three years. The re-located ladder has the same floor with no fill on any ramp,
   so the fill leak is eliminated. A second non-smooth feature in the competition
-  integrand (cohorts dying, or crossing in height) and the restarts are the two
+  integrand (cohorts dying, or crossing in height) and the stops are the two
   candidates left; neither was tested, and the time grid was not separated on the
   re-located ladder.
 - **The ramp interior on re-placed edges.** A3 (closing ramps split at `u = 1,
   3`) moved the value by −0.012 on the reference edges and was not repeated on
-  re-placed ones, so the ±0.01 on `J` = 12.42 is for the bracket's ramp
-  treatment and 12.40–12.43 is the honest interval.
+  re-placed ones, so the ±0.006 on `J` = 12.417 is for the bracket's ramp
+  treatment and 12.40–12.42 is the honest interval.
 - **The canopy reading is inference.** That every failing placement acts
   through the environment is read off the integrand at birth dates far from any
   edge and the exact subset decompositions; no stand leaf-area or light census
