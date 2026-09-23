@@ -60,6 +60,12 @@ trait's own edges the bracket does worse, 3.8% off: raising the trait carries
 closing edges past its root nodes, and the fixed grid's derivative moves 6% over
 0.001 of the trait where the functional's moves 0.3%.
 
+A declared establishment window removes both failures on the cohort side. With
+the gate averaged over `τ_g = 0.05` yr, the opening's 10–90% width grows from
+0.058 to 39.8 days, a uniform ladder converges at order 3 to `1.4e-5`, and three
+grids held fixed across `θ` give the same derivative to 0.03%, with the
+functional's curvature and not the grid's. The window moves `J` by +1.26% (M22).
+
 ```
 u̇_ℓ          = s(t)·[ℓ=1] − κ_ℓ u_ℓ^q + κ_{ℓ−1} u_{ℓ−1}^q − a_ℓ(x,u)    ℓ = 1…L,  L ≤ 5,  q ≈ 16
 ξ̇_j          = g(ξ_j, u, p_j)                                            j = 1…M,  M ~ 10²
@@ -700,6 +706,35 @@ seed at the census time is exactly zero off the offspring states, and dotted wit
 the state it returns `J`. One sweep costs 5.3× a forward run for any number of
 traits. So M20's bias is the grid's, not the sweep's.
 
+**(M22) A declared establishment window makes the ladder converge and fixed grids
+agree.** Establishment reads the gate averaged over a window,
+`dĒ/dt = (g(P) − Ē)/τ_g` with `τ_g = 0.05` yr, one state per species for a
+hypothetical newborn, started in equilibrium; each new member is seeded at `Ē`.
+The opening's 10–90% width grows from 0.058 to 39.8 days (median) and the
+closing's from 1.73 to 17.7; `|dĒ/dt|` reaches 19.7 against its bound of 20; none
+of the 56 openings peaks below half the plateau and 15 peak below 90% of it.
+Averaging `P` in place of the gate leaves the narrowest opening as sharp as the
+instantaneous gate's at every window and takes 2–3 openings entirely. Uniform
+schedules of 108, 215, 429, 857 and 1713 nodes read `J` = 13.2764, 12.7475,
+12.5751, 12.5736 and 12.5734: the last step is `1.4e-5` of `J`, order 3.0 over the
+last three, beneath the instantaneous model's floor. The default schedule bisected
+reads 12.1172, 12.1118, 12.6005 and 12.6532 from 108 to 857 nodes and has not
+converged: past `b = 3` its spacing is still 0.25 yr at 857, over twice the
+opening. On three grids that resolve the window — uniform 857, the same shifted by
+half a spacing, and a bracket with nodes inside the bands at 865 — held fixed
+across the trait with the step times pinned, `dJ/dlma` reads −172.531, −172.482
+and −172.547, with one-sided differences 0.9–1.2 apart and second differences
++884 to +1176, the range of the instantaneous edge-following bracket. The bracket
+that fails the instantaneous model reads one-sided differences 0.007 apart and a
+second difference of +6.9 under the window, but it has no nodes inside the bands,
+where `Ē` decays after the gate closes, and reads `J` 1.8% low. On the 108-node
+default schedule the adjoint gives `dJ/dτ_g` = 3.6876 against a pinned central
+difference of 3.6945, and `dJ/dlma` = −158.593 against −158.762. The window
+changes the model: `J` = 12.5734, +1.26% against 12.417, and `dJ/dτ_g` is +2.2 to
++3.7 per year. All of the shift is carried by members created before the first
+band, `b < 3.56`, where the gate never closes; an estimate holding the stand fixed
+gives −0.47%. Steps rise 0.2–0.4%.
+
 ## Settled
 
 Error shares between two grids of different order go in proportion to order,
@@ -707,7 +742,8 @@ from equal marginal error reduction per unit cost under power-law errors and
 bilinear cost. On the creation side the premise holds only once the ramps are
 resolved: a uniform mesh follows no power law (M16), and an edge-bracketed one
 follows order 1.7 for one ratio once its edges are located on its own stand, then
-stops at a floor of `1.5e-4` per doubling (M19).
+stops at a floor of `1.5e-4` per doubling (M19). Under a declared establishment
+window a uniform mesh follows order 3 (M22).
 
 Raising the order of the output quadrature alone cuts its own term 148–258×.
 Whether that helps turns on the sign of the creation-count term beside it. Here
@@ -766,17 +802,16 @@ does not show. Where a node sits near an edge acts on the whole
 stand through the canopy, at 3.5× to 88× its direct share of `J` (M19). A cohort
 costs its remaining horizon: one at `b ≈ 0` costs 367× a step boundary there.
 
-The opening ramps are narrower than any feasible cohort spacing, and the
-formulation will change so that they are not: establishment will read a signal
-smoothed over a declared timescale `τ_g` of weeks, carried as one ODE state for a
-hypothetical newborn. Two forms are open. Smoothing the net production,
-`dḠ/dt = (P − Ḡ)/τ_g` with the gate read at `Ḡ`, leaves the gate's rise from shut
-to half open at about `τ_g·A/P`, `τ_g/17` at the median plateau, because the gate
-saturates within a few `A` while `Ḡ` heads for `17A`; after the deepest drought,
-`P` at `−28A`, a wet spell shorter than about `τ_g` opens nothing. Smoothing the
-gate, `dĒ/dt = (g(P) − Ē)/τ_g` with `Ē` read in place of `g`, bounds the gate's
-slope by `1/τ_g` on any record and conserves `∫g`, delaying it by `τ_g` on
-average; its `θ`-derivative jumps at each instantaneous edge.
+The opening ramps are narrower than any feasible cohort spacing, so establishment
+reads the gate averaged over a declared window, `dĒ/dt = (g(P) − Ē)/τ_g`, carried
+as one ODE state per species for a hypothetical newborn. Averaging the gate bounds
+its slope by `1/τ_g` on any record and conserves `∫g`, delaying it by `τ_g` on
+average; its `θ`-derivative jumps at each instantaneous edge. Averaging the net
+production instead leaves the gate's rise from shut to half open at about
+`τ_g·A/P`, because the gate saturates within a few `A` while the average heads for
+`17A`. At `τ_g = 0.05` yr the opening widens to 40 days, a uniform ladder converges
+at order 3, and the dead bands need nodes of their own, since `Ē` decays inside
+them (M22).
 
 (a) With the ramps widened to a resolvable width, what is the right mesh — edges
 as panel boundaries, cost-weighted equidistribution over the support, or both —
@@ -791,8 +826,10 @@ edges in one causal pass, and what does such a pass guarantee?
 (c) The floor sits in the stand's integrand, over the first drought at first order
 and over the first three years with no rate. Two features fit it: cohorts that die
 or cross in height, which put a moving front into the competition integrand at a
-fixed time, and the integrator stop each introduction imposes. What separates
-them, and does a floor of this kind bound what any cohort mesh can certify?
+fixed time, and the integrator stop each introduction imposes. Under the window a
+uniform ladder steps `1.4e-5` at 1713 nodes, beneath the floor, with as many
+introductions (M22). What separates them, and does a floor of this kind bound what
+any cohort mesh can certify?
 
 ### 3. An unbiased derivative on a grid that cannot move with `θ`
 
@@ -803,7 +840,9 @@ own shift (M20): the grid freezes the location of features that move, and a
 feature out of place acts on the whole stand. Placed on the reference trait's own
 stand the fixed bracket is 3.8% off, and its derivative moves 6% over 0.001 of
 the trait: the error is curvature from edges crossing its nodes, growing with the
-distance from the trait the grid was placed at.
+distance from the trait the grid was placed at. Under the window, three grids held
+fixed across `θ` agree to 0.03%, with the functional's curvature and not the
+grid's (M22).
 
 (a) What is the right treatment for a `θ`-frozen discretisation of a functional
 whose features move with `θ` — resolve the features finely enough that their
@@ -811,7 +850,8 @@ motion is sub-grid, smooth them in the formulation, or let the grid follow `θ` 
 supply the term the adjoint then needs?
 
 (b) `τ_g` sets the ramps' width, so it trades a modelling bias against M20's
-gradient bias. What sets it, and is there a width beyond which the frozen-grid
+gradient bias: at 0.05 yr the first is +1.26% of `J`, and grids held fixed across
+`θ` agree to 0.03% (M22). What sets it, and is there a width beyond which the frozen-grid
 bias is provably below a stated fraction?
 
 (c) On the fixed bracket the derivative converges at order 1.51 and the value at
