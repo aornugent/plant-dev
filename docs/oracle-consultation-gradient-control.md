@@ -27,6 +27,19 @@ capping `h` at five days on an otherwise untouched grid recovers the water to
 `+0.002%` and the functional to 0.10%. Or a forced stop at each of the record's
 2931 active breakpoints, which recovers the integral to `3.2e-12` relative.
 
+The other grid fails differently, for a related reason. `J` is a trapezium over
+birth dates, and a newborn whose net production is non-positive at creation
+establishes with probability exactly zero and contributes nothing. So the
+integrand carries jumps at birth dates the record decides — failure bands 23 days
+to six months wide, tracking the rain in the month before birth. Refining the
+count does not converge it: over 108, 215, 429 and 857 nodes `J` reads 12.053,
+12.089, 13.032, 12.843, successive differences `+0.036`, `+0.943`, `−0.188`, the
+second **26×** the first and the third **−0.20×** the second. There is no `h^p`
+to fit and no level is a reference.
+
+Both grids are placed by rules that read the clock. The record decides where the
+forcing must be sampled and where the integrand jumps.
+
 ```
 u̇_ℓ          = s(t)·[ℓ=1] − κ_ℓ u_ℓ^q + κ_{ℓ−1} u_{ℓ−1}^q − a_ℓ(x,u)    ℓ = 1…L,  L ≤ 5,  q ≈ 16
 ξ̇_j          = g(ξ_j, u, p_j)                                            j = 1…M,  M ~ 10²
@@ -121,13 +134,25 @@ reads the result the same way. There are five trapezium rules on that grid: the
 coupling reduction in two forms that must stay bit-consistent, a consumption
 reduction, a census reduction, and `J` itself. All are `O(Δb²)`. The error
 indicator driving creation-grid refinement is the drop-one-point Richardson
-estimate of that same trapezium.
+estimate of that same trapezium, taken on two of those functions and maxed
+against one threshold. The two do not share an abscissa: the competition term
+reads whichever abscissa the density coordinate selects, and the reproduction
+term and `J` read the creation times unconditionally. In the birth-date setting
+they coincide; in the other they are estimates over different variables, with `J`
+on the second.
 
 `J`'s time accumulation is an ODE state per member, so it integrates inside the
 Runge–Kutta pair at the pair's order; the trapezium assembles across members at
 the end.
 
 The member loop is ~86% of an `f` evaluation, `O(M)`, one inner solve each.
+`M` grows monotonically and members are never removed, so a run costs
+`Σ over steps of M(t)` — 956 923 member evaluations at the operating point.
+A creation early in the horizon sits in every subsequent step's loop: one at
+`b ≈ 0` costs **367×** a forced stop at the same time, one at `b = 38` costs 5×.
+The 44 creations below `b = 0.01` span 0.025% of the horizon and carry **45.5%**
+of the total for **1.35%** of `J`; thinning them to every tenth leaves 54 nodes,
+runs **2.09× faster**, and moves `J` by `+0.0032%`.
 
 ## The integrator as configured
 
@@ -239,12 +264,23 @@ The refinement loop runs the model, flags nodes whose indicator exceeds a
 threshold, bisects the interval below each flagged node, and repeats: 7–10 full
 model evaluations, each schedule a strict superset of the last, insertion only.
 
-Its threshold is `2e-2`, against the time integration's `1e-4`. On a smooth
-record the largest indicator reaches 0.0099, so refinement never fires and the
-refined grid equals the unrefined one. Where it does fire, its stopping rule
-reports convergence while `J` is still moving by a factor of 3.0–4.3 across
-iterations, and the indicator is not monotone under bisection — over seven
-refinements it rises twice before falling.
+Its threshold is `2e-2`, against the time integration's `1e-4`. On this record it
+fires — the largest indicator reaches 0.31627 and 17 of 108 nodes are flagged —
+and converges in seven iterations at 206 creations, `J = 12.6308272`, eight model
+evaluations over 1417 s. Across those iterations the indicator falls 16× while
+`J` moves `+0.368, +6.230, −0.713, −0.300, −0.707, +0.001, −0.000 %`, wandering
+6% and ending 4.8% above where it started. The indicator is not monotone under
+bisection, rising twice over seven refinements, and that survives pinning the
+time grid exactly. On a smooth record the largest indicator reaches 0.0099 and
+the refined grid equals the unrefined one.
+
+Where it flags is not where the error is. All 17 flags fall at `b ≥ 6`, which is
+the right region — the drop-one error on `J` totals 17.27% of `J` at 108 nodes
+with 14.2% of it on four nodes at `b = 7, 8, 9, 10` — but the competition term
+sets the maximum on 106 of 106 nodes and the reproduction term on none, nine of
+the 17 sit at `b ≥ 16` where a node is worth under 0.2% of `J`, and the last two
+iterations spend 399 s of the 1417 bisecting `b = 29.75`, worth `9e-10` of `J`.
+Meanwhile 76 of the 108 nodes sit at `b < 1`, carrying 2.05% of the error.
 
 ## Constraints
 
@@ -385,17 +421,20 @@ and states that the design cannot separate an asymptotic order difference from a
 coarse-end constant. **The adjoint, which forms no difference, gives derivative
 orders of 1.29–1.91 against values at 1.31–1.94.**
 
-**(M8) The operating creation count sits below convergence.** One census metric and its density derivative over 28 / 55 / 108 / 215 members
-read 48.50, 51.21, 48.17, 46.68 and `5.719e-02`, `5.718e-02`, `5.529e-02`,
-`5.244e-02`: the last doubling moves the value 3.1% and the derivative 5.2%, and
-neither sequence is monotone through the first two levels.
+**(M8) A census metric and its derivative are still moving at the operating
+creation count.** Over 28 / 55 / 108 / 215 members they read 48.50, 51.21, 48.17,
+46.68 and `5.719e-02`, `5.718e-02`, `5.529e-02`, `5.244e-02`: the last doubling
+moves the value 3.1% and the derivative 5.2%, and neither sequence is monotone
+through the first two levels. M16 gives the reason the non-monotonicity is not a
+transient to be refined away.
 
 **(M9) A program captured at the finer creation level transfers; one captured at
-the coarser does not.** Captured at one level and replayed one level finer,
-`J` is **−11.0%** wrong, and H2 says why: the captured program lacks the finer
-level's 107 extra creation times, so they are inserted and the realised grid
-takes 107 forced stops the record did not ask for — the step count is exactly 107
-above the captured program's. Captured at the finer level and replayed at the
+the coarser does not.** Captured at one level and replayed one level finer, `J`
+is **−11.0%** wrong on a smooth record, and H2 says why: the captured program
+lacks the finer level's 107 extra creation times, so they are inserted and the
+realised grid takes 107 forced stops the record did not ask for — the step count
+is exactly 107 above the captured program's. On an aligned intermittent record
+the same design reads +0.025%. Captured at the finer level and replayed at the
 coarser, which yields a bit-identical time grid because the levels are nested
 bisections, `J` is **−0.019%** on a smooth record and +0.112% on an aligned
 intermittent one; the same time grid at the two creation counts then differs by
@@ -459,16 +498,79 @@ on rejected steps and 0.368 on accepted ones. Alignment cuts rejections from
 water-losing steps** were preceded by any rejection, against 33.3% of steps
 generally. The steps that lose the water are the quiet ones.
 
+**(M15) The integrand is discontinuous, and the jumps are the record.**
+`J = trapezium(b, w)` with `w` the member's survival-weighted offspring times a
+patch density read at `b`. A newborn whose net production rate is non-positive at
+creation is given establishment probability **exactly zero** and stamped with a
+sentinel: log density `≈ −745` against `−9` at its neighbours, `w = 0` exactly,
+leaf-area contribution 0 exactly. So `w(b)` is a positive O(0.1–1.5) envelope
+times the indicator of a record-determined set. At 1/16-year creations over
+`[5, 11]`, 23 of 103 nodes sit at the floor, in ten runs of 1 to 8 nodes; the
+widest spans `b ∈ [7.375, 7.8125]`, inside a drought, with zero rain in the
+preceding month at seven of its eight nodes. Across one band `w` reads 0.326,
+0.388, **0 for half a year**, then **1.561**, 1.437, 1.317 — it jumps to its
+largest value on the far side and decays at 8% per sixteenth-year. Rain in the 30
+days before birth has median **0.00** at failures against **59.88** at survivors
+(Wilcoxon `p = 6.5e-8`); at 90 days, 55 against 230 (`p = 4.6e-5`); at 180 days
+the two are indistinguishable (`p = 0.27`). The soil state at the instant is what
+the model reads, so this is association and not a window rule — but the
+boundaries are computable before the run, because establishment probability is
+pointwise in the environment.
+
+**(M16) The creation ladder turns.** At `ode_tol = 1e-3`, 108 / 215 / 429 / 857
+nodes give `J` = 12.0526222, 12.0888310, 13.0315024, 12.8432659 over 9931 /
+10 174 / 10 816 / 11 351 steps. The successive differences are `+0.0362088`,
+`+0.9426714`, `−0.1882365`: the second **26.0×** the first, the third
+**−0.1997×** the second. A convergent trapezium sequence holds a ratio near
+`2^{−p}`, so there is no `h^p` here and Richardson has nothing to work on. `J`
+across the last three levels spans **7.80%**, with 429 the outlier. Tolerance is
+not the cause: the same ladder a decade tighter reads 12.0873665, 12.1083840,
+13.0342392, and the tolerance channel shrinks from `+0.288%` at 108 nodes to
+`+0.021%` at 429. This is what a trapezium does over an integrand with jumps —
+the error at a level depends on how that level's nodes straddle the bands of
+M15, which does not vary smoothly with `h` under nested bisection. M11's ladder
+is the control: under a smooth record, where no member fails to establish and
+`w` carries no jumps, the same quadrature on the same coordinate converges at
+second order with `log₂` ratios of 2.29 and 2.03.
+
+**(M17) Placement decides the answer, and the integrand moves with the nodes.**
+205 nodes at 1/16-year over `[5, 11]` with the default elsewhere give
+`J = 12.606`; 215 uniformly bisected nodes give 12.089 — **4.3% apart at the same
+count** — and the concentrated schedule agrees with the refinement loop's own
+converged 206-node answer to **0.20%**. The node set also changes the function
+being integrated: on one fixed time grid the abscissa channel is **`+6.19%`** and
+the integrand's own dependence on the node set **`−12.76%`**, opposite signs with
+the second larger and the product exact. Scored against a monotone interpolant of
+429 samples at the current placement's own 6.19%, a graded mesh reaches it in
+**17 nodes** and 15 uniform nodes on `[0, 12]` — 99.5% of `J` — clear it; at a
+fixed 108 nodes, uniform placement is 18× and graded 48× better than the dyadic
+generator. That scores the placement, and `w` is not a fixed function of `b`.
+
+**(M18) Step insertion is not the mechanism.** Under H2 each schedule bisection
+also inserts forced stops, so the two channels arrive together. Four instruments
+separate them and put step insertion at **1–2%**. Capturing a step program at the
+finest of a nested 108 / 215 / 429 ladder and replaying it at the coarser levels,
+which gives a bit-identical time grid, leaves the creation channel at `+0.258%`
+then `+7.669%` against the adaptive arm's `+0.300%` and `+7.798%`. The same
+replay across the refinement loop's own eight levels reproduces every move. The
+indicator on a pinned grid moves under 0.3% and changes **no** flag decision, and
+its non-monotone rise survives. And 17 zero-depth stops placed at exactly the
+midpoints the loop's first pass would insert move `J` by `+0.0050%`, against that
+pass's `+0.368%`.
+
 ## Settled
 
 Error shares between two grids of different order go in proportion to order,
 from equal marginal error reduction per unit cost under power-law errors and
-bilinear cost.
+bilinear cost. M16 removes the premise on the creation side: its error follows no
+power law, so the allocation has nothing to allocate between.
 
 Raising the order of the output quadrature alone cuts its own term 148–258×.
 Whether that helps turns on the sign of the creation-count term beside it. Here
 the two reinforce and the substitution improves the answer 1.26×; where they
-cancel it makes it 2.4× worse (M11).
+cancel it makes it 2.4× worse (M11). Both readings assume the integrand is
+smooth between nodes, which M15 denies at the bands: a rule of any order
+straddling a jump is `O(1)` in the jump.
 
 Multirate collapses into a linearly-implicit treatment of the chain: the
 expensive coupling term is a function of the fast variable, so every micro-step
@@ -517,50 +619,88 @@ carries no error estimate. Is a formulation in which a known forcing enters as
 measure rather than as rate the right move here, and what is the standard
 treatment of its error?
 
-### 2. Certifying a converged derivative
+### 2. A mesh for an integrand with record-located jumps
 
-M6 gives a difference plateau three and a half decades wide, flat to 1.6% over
-its best two. M8 puts the operating creation count below convergence, the last
-doubling moving the value 3.1% and the derivative 5.2%, with neither sequence
-monotone through the first two levels. M11 has `J` converging at second order
-with alternating sign. The creation grid's own indicator is the drop-one-point
-Richardson estimate of the trapezium at a threshold of `2e-2` against the time
-integration's `1e-4`; where it fires, it reports convergence while `J` still moves
-by factors of 3.0–4.3 across iterations, and it is not monotone under bisection.
+`J` is a trapezium over birth dates whose integrand is a positive envelope times
+the indicator of a set the record determines (M15). Refining the count does not
+converge it (M16), and the node set changes the integrand as well as the
+abscissae (M17). Under H3 that node set is simultaneously the state dimension,
+the adjoint's range count and the replay index, and under H2 every node is a
+forced step boundary. Nodes are not free: cost is `Σ over steps of M(t)`, so an
+early node is paid for across the whole remaining horizon and one at `b ≈ 0`
+costs 367× a stop at the same time.
 
-(a) What is the correct stopping rule for a refinement targeting a derivative?
+The construction in place is a clock-only generator, `Δ = 2^⌊log₂(0.2t)⌋`
+clamped, which cannot see a drought; a monitor normalised by stand leaf area,
+where leaf area is O(1) at `b = 30` and `w` is `1.3e-10`; and a threshold on an
+absolute-value sum of signed local errors, reading 17.27% of `J` where `J` is
+right to 0.08%.
 
-(b) Under H3 the creation grid is the quadrature abscissa, the state dimension,
-the adjoint's range count and the replay index at once, so one bisection changes
-four things together. What instrument separates the quadrature's contribution
-from the rest, and is the creation grid better treated as an adaptive quadrature
-with the state dimension following from it?
+(a) The jump locations are computable before the run. What is the right
+construction for a mesh over an integrand with known discontinuities, given that
+the integrand also depends on the mesh? Equidistribution under a monitor function
+is the obvious family — which monitor, and what does it then guarantee?
 
-(c) The sweep already forms `|direct|/|total|` and discards it. Is that a
-sufficient a posteriori indicator of a derivative's conditioning, and what covers
-a metric exposing no such decomposition?
+(b) Does placing nodes at the jumps restore an order, and which? With the bands
+resolved, is the remaining integrand smooth enough for a higher-order rule to pay
+(M11 says it pays 1.26× where the integrand is treated as smooth)?
 
-### 3. One grid across parameters and across records
+(c) The self-dependence is a fixed point: the mesh sets the canopy, the canopy
+decides which cohorts establish, and that decides the integrand. M17 measures the
+two channels at `+6.19%` and `−12.76%`. Does a mesh like this have to be iterated
+to consistency, and what is known about the convergence of such a scheme?
+
+(d) Cost scales with a node's remaining horizon. Does a cost-weighted
+equidistribution have a clean form, and does weighting change the mesh a monitor
+alone would choose?
+
+### 3. A converged answer, and a derivative an optimiser can use
+
+M16 leaves no reference: the creation sequence turns, so no level certifies
+another and there is nothing to extrapolate. M8 has a census metric and its
+derivative still moving 3.1% and 5.2% at the operating count. M6 gives a
+difference plateau three and a half decades wide, flat to 1.6% over its best two.
+
+The objective's jumps move with `θ`. M15's bands are where a newborn's net
+production crosses zero, a condition reading the trait vector as well as the
+record, so the set on which `w` vanishes moves as `θ` moves. The adjoint
+differentiates the model at a fixed discretisation (H1) and carries no term for a
+boundary whose location depends on `θ`. A cohort crossing into or out of
+establishment between two trait values changes `J` by a finite amount the sweep
+does not see.
+
+(a) Is that omitted term the right reading, and what is the standard treatment —
+a transport or shape-derivative term added to the adjoint, a smoothed
+establishment of declared width, or a reformulation in which the probability
+collapses continuously? A smoothed switch of width `ε` puts a feature of scale
+`ε` into the integrand, which the mesh must then resolve, so `ε` is pulled small
+by the bias budget and large by the node count. What sets it?
+
+(b) With no convergent sequence, what certifies an answer? Is an a posteriori
+bound available that does not assume a power law in the mesh?
+
+(c) `dJ/dθ` drives descent steps. What relative accuracy suffices for a descent
+method to make progress, and what does that requirement imply for (a) and (b)?
+
+### 4. One grid across parameters and across records
 
 A grid that does not move with `θ` is what H1 requires and what yields a usable
 derivative. A captured one holds a ±2× box in six parameters at a uniform shrink
-factor of 2 and transfers not at all across records (M10). A grid
-designed from the record has a different claim to make, and both caps in question
+factor of 2 and transfers not at all across records (M10). Both caps in question
 1 are computable for a whole parameter box from one reference run's flux
-partition.
+partition. The jump locations of question 2 are not: they move with `θ`.
 
 (a) What certificate should accompany a shared grid when the quantity certified
 is a derivative, given that the usual adjoint-weighted residual bounds the value?
 Is a second-order object required, or is a cheaper sufficient condition
 available?
 
-(b) Does computing the caps over a parameter box make the trust region in `θ`
-statable in advance, and what does that miss?
+(b) A grid fixed across `θ` must hold jump locations fixed while the true ones
+move. Is that the dominant term in the trust region, and does it have a
+computable bound over a parameter box?
 
 (c) The record is fixed through a calibration and changes between them. Is one
-designed grid per record, recaptured on certificate failure, the whole answer,
-and does a designed grid have a provably wider validity region than a captured
-one?
+designed grid per record, recaptured on certificate failure, the whole answer?
 
 ## Free
 
@@ -572,7 +712,9 @@ of every step attempt, exists and is unread. Creation grids are supported
 per-population independently. Dense linear algebra on the chain is free and its
 Jacobian analytic.
 
-`h_max` is a live control and reaches the quantity that matters. The
+The establishment boundaries are computable before the run from the record and
+the trait vector, by the same pointwise function the model evaluates at a
+creation. `h_max` is a live control and reaches the quantity that matters. The
 instrumentation naming the binding component is overwritten by the retry, so it
 reports the accepted attempt and not the rejected one.
 
