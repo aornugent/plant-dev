@@ -223,4 +223,143 @@ panels it draws will be judged on the smaller of its two effects.
 
 ---
 
-<!-- SECTIONS 4-9 PENDING: control, converged value, cost, gradient, scripts -->
+## 5. The converged value, and the two biases the bracket leaves
+
+Richardson on the last two rungs of the A ladder:
+
+| | |
+|---|---|
+| at the measured `p = 2.574` | **`J` = 12.2751418**, remainder 2.74e-04 |
+| at `p = 2` | `J` = 12.2749631, remainder 4.53e-04 |
+| at `p = 3` | `J` = 12.2752220 |
+
+The three agree to 2.6e-04, so the fill's own limit is **`J` = 12.2751 ± 0.0003**
+at this edge treatment, tolerance and horizon. Two things sit between that and
+the continuum, and both were measured rather than assumed.
+
+### The edge locations transfer, and their error is a constant
+
+The 112 roots were located on the *default 108-node* run's environment
+(`diag-establishment-ramp.md` §3). Run with 498 and 793 cohorts the canopy is not
+the same, so a node at a nominal root need not read a closed gate:
+
+| | 1/16 (498 nodes) | 1/32 (793 nodes) |
+|---|---|---|
+| root nodes reading `w` exactly 0 | **28 of 72** | **28 of 72** |
+| root reading as a fraction of the same edge's ramp-top reading | median **2.3e-04**, q90 0.35, max 0.92 | — |
+| spurious dead-band area, `sum(band * (w_close + w_open)/2)` | **0.013055** | **0.013074** |
+
+Fewer than half the root nodes land on the closed side, but the median root node
+reads **2.3e-04** of its own plateau, so the gate is shut to four digits at most
+of them and the whole spurious area is **0.0131 — 0.107% of `J`**. It is the
+same to three digits at both levels, so it **biases the limit and cannot break
+the convergence**, which is what the ladder shows.
+
+### A bracketed ramp under-reads its own panel, by a computable amount
+
+With `u = |P|/A` the gate is `u^2/(1 + u^2)` and `P` is linear across its own
+ramp to 0.6–8% (`diag-establishment-ramp.md` §3), so a ramp's area in units of
+`half = A/|dP/db|` is `[u − atan u]` and the trapezium over one panel from the
+root to the 99% point is exact arithmetic:
+
+| nodes across the ramp, in `u` | trapezium | true | deficit |
+|---|---|---|---|
+| `{0, 9.95}` — the bracket | 4.9252 | 8.4793 | **3.5541** |
+| `{0, 1, 3, 9.95}` — A3 | 8.2177 | 8.4793 | **0.2616** |
+| 8 equal panels | — | — | 0.0200 |
+
+A ramp is also *exactly* equivalent to a jump displaced `atan(u_max) ≈ pi/2`
+half-widths onto the live side — **15.95% of the way up the 1%–99% ramp, not
+50%** — which is why the ramp's midpoint reads 0.962 of the plateau and not 0.5,
+and why variant B is not the "effective jump" its name suggests.
+
+Weighted by variant A's own envelope at each edge, the bracket's deficit is
+**0.01248 — 0.102% of `J`** (0.01184 on the closing edges, 0.00064 on the
+opening ones), and it predicts **A3 − A = +0.01097**.
+
+### Run rather than predicted: the edge treatment is worth −0.12%
+
+| | 1/16 | 1/32 |
+|---|---|---|
+| A (bracket) | 12.284868878 (498) | 12.276775477 (793) |
+| A3 (closing ramp split at `u = 1, 3`) | 12.270302764 (570) | 12.264585195 (865) |
+| A3 − A | **−0.0145661** | **−0.0121903** |
+
+A is a strict subset of A3, so the same exact split applies:
+
+| | |
+|---|---|
+| A3 − A at 1/16, total | **−0.0145661** |
+| quadrature (the 72 added ramp-interior nodes) | **+0.0058232** |
+| integrand (the stand re-solved with them) | **−0.0203893** |
+| predicted quadrature term | +0.0109663 |
+
+**The sign of the total is the opposite of the prediction, and the canopy is
+why.** The direct term is positive, as the arithmetic says, and lands within a
+factor 1.9 of it — the gap is that the realised gate is offset from the nominal
+root at the edges where only 28 of 72 roots read zero, so a node placed one
+`half` from the nominal root is not one `half` from the realised one. But
+resolving the ramp also resolves the leaf area standing on it, the canopy closes
+slightly, and the integrand falls 0.25% (0.16% at `b < 1`) — 3.5× the direct
+term.
+
+Extrapolating A3 at the A ladder's own `p = 2.574` gives **`J` = 12.26343**, so
+**refining the edge treatment once moves the converged value by −0.0117
+(−0.095%)**, and the edge treatment is not itself laddered here.
+
+**The answer.** `J` = **12.275 ± 0.0003** for the bracket edge treatment;
+**12.263** once the closing ramps are split; **12.26 to 12.28** as the honest
+interval, converged in the fill to 3e-04 and in the edge treatment to about
+1.2e-02. Every rung of the uniform ladder is 0.19 to 0.76 away from that
+interval — 15 to 62 times its width.
+
+---
+
+## 6. Cost
+
+`sum over steps of M` is `diag-nested-grid.md` §2's member-evaluation count, and
+this fixture reproduces its 956 923 at the default schedule exactly.
+
+| schedule | nodes | steps | `sum M` | leaf solves | wall | `J` | from 12.2751 |
+|---|---|---|---|---|---|---|---|
+| the default | 108 | 9 931 | 956 923 | 7 769 166 | 130.5 s | 12.0526222 | −1.81% |
+| uniform ×2 | 215 | 10 174 | — | — | — | 12.0888310 | −1.52% |
+| uniform ×4 | 429 | 10 816 | — | — | — | 13.0315024 | **+6.16%** |
+| uniform ×8 | 857 | 11 351 | — | — | 1028 s | 12.8432659 | **+4.63%** |
+| **A, 1/16** | **498** | 10 723 | 3 886 852 | 31 107 428 | **495.2 s** | 12.2848689 | **+0.079%** |
+| **A, 1/32** | **793** | 10 918 | 6 194 396 | 49 498 014 | **792.9 s** | 12.2767755 | **+0.013%** |
+| **A, 1/64** | **1378** | 11 213 | 10 884 751 | 86 994 033 | **1377.0 s** | 12.2754162 | **+0.0022%** |
+| A3, 1/16 | 570 | 10 778 | 4 437 611 | 35 513 124 | 566.7 s | 12.2703028 | −0.039% |
+| A3, 1/32 | 865 | 10 973 | 6 758 462 | 54 004 790 | 856.2 s | 12.2645852 | −0.086% |
+| B, 1/16 | 426 | 10 687 | 3 338 588 | 26 764 996 | 432.7 s | 10.9833846 | −10.5% |
+| C, 1/16 | 426 | 10 733 | 3 350 430 | 26 928 598 | 431.9 s | 10.8700030 | −11.4% |
+| D, 1/16 | 426 | 10 670 | 3 335 919 | 26 755 793 | 425.0 s | 12.5159818 | +1.96% |
+
+(The uniform ladder's `sum M` at 215/429/857 was not taken; its 108-node value
+and its 857-node wall clock are `diag-nested-grid.md`'s, on the same machine —
+that note reads 136 s at 108 nodes where this one reads 130.5 s.)
+
+Wall clock is close to linear in the node count and almost flat in the steps:
+**1.00 s per node** across the A ladder against the default's 1.21, because the
+edge mesh spends its extra nodes where cohorts arrive late and live briefly,
+while the default spends 56 of its 108 below `b = 1/16` where a cohort sits in
+the member loop of every remaining step. Steps rise only 8% from 9931 to 11 213
+across a 12.8× change in node count.
+
+**Accuracy per unit cost.**
+
+| | |
+|---|---|
+| A at 498 nodes against uniform at 429 | **78× more accurate** for 16% more nodes |
+| A at 498 nodes against uniform at 857 | **58× more accurate** at **0.48×** the wall clock |
+| accuracy per second, A 1/16 against uniform 857 | **121×** |
+| accuracy per member-evaluation, A 1/16 against the default 108 | 22.9× the error removed per 4.1× the cost |
+
+The 374-node figure `diag-establishment-ramp.md` §5 priced is 498 here, because
+the bracket wants two nodes at each edge rather than one and because the frozen
+head and tail are counted in. It remains **below the 857-node rung the uniform
+ladder had already paid for**, and 58× more accurate than it.
+
+---
+
+<!-- SECTIONS 4, 7-9 PENDING: control, gradient, scripts, not-reached -->
