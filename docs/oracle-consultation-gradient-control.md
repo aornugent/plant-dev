@@ -55,7 +55,10 @@ bar the time grid's. A bracket held fixed across `θ`, at edges located on the
 default schedule's stand, converges instead to `−172.9 ± 0.1`: **1.8% off,
 precise and reproducible**. The default 108-node schedule reads `−155.6`, 8.4%
 shallow. Under a tenth of the gap is the ramps' own shift, priced from the edges'
-velocities; the rest arrives through the canopy.
+velocities; the rest arrives through the canopy. Held fixed at the reference
+trait's own edges the bracket does worse, 3.8% off: raising the trait carries
+closing edges past its root nodes, and the fixed grid's derivative moves 6% over
+0.001 of the trait where the functional's moves 0.3%.
 
 ```
 u̇_ℓ          = s(t)·[ℓ=1] − κ_ℓ u_ℓ^q + κ_{ℓ−1} u_{ℓ−1}^q − a_ℓ(x,u)    ℓ = 1…L,  L ≤ 5,  q ≈ 16
@@ -656,7 +659,8 @@ drought, `−7.9e-04`, converging at first order; and `J`'s own quadrature,
 495 s of solve and about 1275 s of placement, where the 857-node uniform mesh is
 3.4% off at 1028 s.
 
-**(M20) A bracket held fixed across `θ` gives a converged, biased derivative.**
+**(M20) A bracket held fixed across `θ` gives a biased derivative, and the bias is
+edges crossing its nodes.**
 Central differences of `J` in leaf mass per area at `d = 1e-3`. With each trait
 value's edges at roots scanned on its own stand, the derivative reads −169.574,
 −169.811 and −169.766 at the three fills of M19's re-located ladder. Its steps,
@@ -672,9 +676,19 @@ values: nearly constant, a bias in the value; not constant, 3.95 in the derivati
 at the first fill. The ramps' own shift, priced from the scanned root velocities
 as `−Σ side·E(β)·∂_θβ`, is 0.287 of it. Closing roots move a median 0.037 days per
 0.001 of the trait and opening roots do not measurably move. The rest arrives
-through the canopy. A bracket held fixed at the reference trait's own roots, which
-separates the edges' motion from their misplacement, has not been run. The
-default 108-node schedule reads −155.6, 8.4% shallow, against a value 3.0% low.
+through the canopy. Held fixed at the reference trait's own roots, located on its
+own stand, the bracket does worse: one-sided differences −170.59 and −181.36,
+central −175.98, 3.8% off, and a second difference of −10 768 against the
+functional's +575. Its `J` differs from the following bracket's by `+7e-4` at the
+lower trait and `−0.0121` at the higher. Raising the trait moves closing roots
+later, past root nodes that then read live and carry weight across a dead band;
+lowering it moves them into the band, and nothing changes. So the error of a grid
+held fixed across `θ` is curvature from edges crossing its nodes, not an offset:
+over 0.001 of the trait its derivative moves 6%, the functional's 0.3%. Whether
+the local derivative at the reference, which an adjoint on that grid returns,
+sits nearer the backward or the central value is not separated at `d = 1e-3`.
+The default 108-node schedule reads −155.6, 8.4% shallow, against a value 3.0%
+low.
 
 **(M21) The reverse sweep is exact to the grid it runs on.** Against a forward
 tangent replaying the same recorded steps, on a two-species stand where `J` is 0.21
@@ -786,7 +800,10 @@ The reverse sweep is exact to the grid it runs on (M21). On a bracket held fixed
 across `θ` the derivative converges, precisely and reproducibly, to a value 1.8%
 from the one whose edges follow `θ`, and under a tenth of the gap is the ramps'
 own shift (M20): the grid freezes the location of features that move, and a
-feature out of place acts on the whole stand.
+feature out of place acts on the whole stand. Placed on the reference trait's own
+stand the fixed bracket is 3.8% off, and its derivative moves 6% over 0.001 of
+the trait: the error is curvature from edges crossing its nodes, growing with the
+distance from the trait the grid was placed at.
 
 (a) What is the right treatment for a `θ`-frozen discretisation of a functional
 whose features move with `θ` — resolve the features finely enough that their
@@ -804,7 +821,9 @@ be read. What stopping rule certifies a derivative under those conditions?
 
 (d) The gradient drives descent steps. What relative accuracy suffices, and does a
 bias that is smooth and reproducible harm an optimiser differently from noise of
-the same size?
+the same size? On a fixed grid the gradient is exact for a functional whose
+curvature near the reference is 19× the true one; what does that do to the
+gradient differences a quasi-Newton update is built from?
 
 ### 4. One grid across parameters and across records
 

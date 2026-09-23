@@ -678,7 +678,38 @@ actually being run (§5), by an amount that depends on `lma`, and a mislocated
 edge acts on the canopy the way B's and C's placements did in §3. The offset
 between the two brackets is +0.1419, +0.1412, +0.1498 at the three trait values:
 nearly constant, which is why the value's error from it is a bias (§5), and not
-constant, which is why the derivative's error from it is 2.3%.
+constant, which is why the derivative's error from it is 2.3%. The misplacement
+is not what curves it: the same bracket held fixed at well-placed roots is more
+curved (below).
+
+### Holding the bracket fixed at the reference trait's own roots
+
+The pass-1 bracket of §5 (`reloc_A_16`, 499 nodes), run unchanged at the two
+trait values (`em_place.R em/run_reloc_A_16.rds 16 fixc_m 0.319` and
+`fixc_p 0.321`; the realised schedule and roots are identical to `reloc_A_16`'s):
+
+| | `J(0.319)` | `J(0.320)` | `J(0.321)` | backward | forward | **central** | `J''` |
+|---|---|---|---|---|---|---|---|
+| bracket following the edges | 12.595978640 | 12.426116763 | 12.256830190 | −169.862 | −169.287 | **−169.574** | +575 |
+| **fixed at the reference trait's own roots** | **12.596709460** | 12.426116763 | **12.244756343** | **−170.593** | **−181.360** | **−175.977** | **−10 768** |
+| fixed at the default schedule's roots | 12.454057925 | 12.284868878 | 12.107002683 | −169.189 | −177.866 | −173.528 | −8677 |
+
+**Placed well and held fixed, the bracket's derivative is 3.8% off — further than
+the misplaced bracket's 2.3%.** Its `J` differs from the following bracket's by
+**+0.00073 at the lower trait and −0.01207 at the higher**. Raising `lma` moves
+the closing roots later (§7, `dβ/dlma` median +0.037 d per 0.001), past root nodes
+that then sit on the live side, read a positive gate, and carry a trapezium weight
+across the dead band: the B/C mechanism of §3, switched on by the trait. Lowering
+`lma` moves the roots earlier, the root nodes fall inside the band, and nothing
+changes. So the fixed-schedule functional is curved **19×** the functional's own
+curvature (−10 768 against +575), on one side of the reference: over 0.001 of
+`lma` its derivative moves 6.1%, where the functional's moves 0.34%. The error of
+a schedule held fixed across `θ` is that curvature, not an offset, and it grows
+with the distance from the trait the schedule was placed at. Whether the local
+derivative at `lma = 0.320` — what an adjoint on this schedule returns — sits
+nearer the backward or the central value is not separated at `d = 1e-3`. At the
+reference trait 61 of the 72 root nodes already read a positive gate, since the
+pass-1 roots are up to 0.37 d from the pass-1 mesh's own (§5).
 
 ### The derivative on the edge-following ladder
 
