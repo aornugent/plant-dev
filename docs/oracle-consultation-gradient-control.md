@@ -37,19 +37,24 @@ has median **0.178 days**; **entering** one, as the soil dries, median **5.54
 days**. The gate closes over days and opens in hours. A uniform or dyadic mesh
 reads each ramp as a jump and does not converge: over 108, 215, 429 and 857 nodes
 `J` reads 12.053, 12.089, 13.032, 12.843, and no `h^p` fits. Two nodes at each
-edge, at the crossing and at the top of its ramp, make the ladder converge to
-about 0.1%.
+edge, at the crossing and at the top of its ramp, make the ladder converge, to
+`J = 12.424 ± 0.003`, once the edges are located on the stand being run. Located
+on another schedule's stand they sit up to four days off and the same ladder
+converges 1.2% low: a node on the live side of a misplaced edge is a live cohort
+whose quadrature weight spans a dead band, and its leaf area enters the canopy
+every cohort grows under.
 
 Both grids are placed by rules that read the clock, and the record decides where
 the forcing must be sampled and where the integrand ramps. Placing nodes on those
 features converges the value. The derivative is harder. `dJ/dθ` is taken by
 reverse sweep through a grid that must not move with `θ`, and the features move
-with `θ`. On the edge-bracketed mesh held fixed across `θ` the derivative
-converges — to `−172.9 ± 0.1` in leaf mass per area, stable across three
-refinements — and is **2.3% from the derivative of the same functional with the
-edges allowed to follow `θ`**. A grid frozen across `θ` gives a gradient that is
-precise, reproducible and biased, because what it freezes includes the location
-of features that move.
+with `θ`. With each trait value's edges located on its own stand, the derivative
+in leaf mass per area settles at `−169.8 ± 1.1` over three refinements, the error
+bar the time grid's. A bracket held fixed across `θ`, at edges located on the
+default schedule's stand, converges instead to `−172.9 ± 0.1`: **1.8% off,
+precise and reproducible**. The default 108-node schedule reads `−155.6`, 8.4%
+shallow. Under a tenth of the gap is the ramps' own shift, priced from the edges'
+velocities; the rest arrives through the canopy.
 
 ```
 u̇_ℓ          = s(t)·[ℓ=1] − κ_ℓ u_ℓ^q + κ_{ℓ−1} u_{ℓ−1}^q − a_ℓ(x,u)    ℓ = 1…L,  L ≤ 5,  q ≈ 16
@@ -80,9 +85,11 @@ each point. So the grids are chosen once, before the optimisation, and must hold
 over every `θ` it visits. Constructing them with stated guarantees is the
 question. Everything below explains a part of it.
 
-The horizon is `T = 40`. The trait vector used throughout gives `J = 12.078`, and
-the default birth rate makes `J` the net reproduction ratio directly, so the
-stand is twelve times self-replacing. Two measurements below come from a
+The horizon is `T = 40`. The trait vector used throughout gives `J = 12.078` on
+the default 108-node schedule with the time integration converged, and
+`J = 12.424` with the cohort mesh converged as well (M19). The default birth rate
+makes `J` the net reproduction ratio directly, so the stand is twelve times
+self-replacing. Two measurements below come from a
 near-extinct operating point at `J = 1e-10` and say so.
 
 ## The system
@@ -282,7 +289,8 @@ model evaluations, each schedule a strict superset of the last, insertion only.
 Its threshold is `2e-2`, against the time integration's `1e-4`. On this record it
 fires — the largest indicator reaches 0.31627 and 17 of 108 nodes are flagged —
 and converges in seven iterations at 206 creations, `J = 12.6308272`, eight model
-evaluations over 1417 s. Across those iterations the indicator falls 16× while
+evaluations over 1417 s, to a value 1.7% above the mesh-converged 12.424 (M19).
+Across those iterations the indicator falls 16× while
 `J` moves `+0.368, +6.230, −0.713, −0.300, −0.707, +0.001, −0.000 %`, wandering
 6% and ending 4.8% above where it started. The indicator is not monotone under
 bisection, rising twice over seven refinements, and that survives pinning the
@@ -328,7 +336,8 @@ equality.
 ## Measured
 
 Every number below is at `T = 40` on the record described above, at a trait
-vector giving `J = 12.078` on a converged grid. M7 and M10 come from the
+vector giving `J = 12.078` on the default schedule with the time integration
+converged. M7 and M10 come from the
 near-extinct operating point at `J = 1e-10` and say so.
 
 **(M1) The functional is smooth in `θ`.** Scanned over 25 trait values spanning
@@ -347,7 +356,7 @@ classification swinging 0.671 points between trait values 0.25% apart.
 **(M2) Step placement decides the answer, and the event stretch is the unit that
 matters.** Forcing a step boundary at each of the record's 2931 active knots
 moves `J` from 7.805 to 12.087 at the shipped tolerance — **−35.4% to +0.08%**
-against the converged 12.0780. Two controls carrying the same 2931 stops
+against the time-converged 12.0780. Two controls carrying the same 2931 stops
 separate the mechanism. Stops
 placed in quiescent spans, where the reconstruction is identically zero, take
 9264 steps at a tolerance two decades loose and land **37.9% low**, against the
@@ -549,9 +558,10 @@ largest value on the far side and decays at 8% per sixteenth-year. Rain in the 3
 days before birth has median **0.00** at failures against **59.88** at survivors
 (Wilcoxon `p = 6.5e-8`); at 90 days, 55 against 230 (`p = 4.6e-5`); at 180 days
 the two are indistinguishable (`p = 0.27`). The soil state at the instant is what
-the model reads, so this is association and not a window rule — but the
-boundaries are computable before the run, because establishment probability is
-pointwise in the environment.
+the model reads, so this is association and not a window rule. The boundaries are
+computable from any run's recorded environment, because establishment probability
+is pointwise in it — and that environment is the stand the run's mesh grew, so
+the boundaries move with the mesh (M19).
 
 **(M16) The creation ladder turns.** At `ode_tol = 1e-3`, 108 / 215 / 429 / 857
 nodes give `J` = 12.0526222, 12.0888310, 13.0315024, 12.8432659 over 9931 /
@@ -576,7 +586,8 @@ second order with `log₂` ratios of 2.29 and 2.03.
 205 nodes at 1/16-year over `[5, 11]` with the default elsewhere give
 `J = 12.606`; 215 uniformly bisected nodes give 12.089 — **4.3% apart at the same
 count** — and the concentrated schedule agrees with the refinement loop's own
-converged 206-node answer to **0.20%**. The node set also changes the function
+converged 206-node answer to **0.20%**, both 1.5–1.7% above the mesh-converged
+value of M19. The node set also changes the function
 being integrated: on one fixed time grid the abscissa channel is **`+6.19%`** and
 the integrand's own dependence on the node set **`−12.76%`**, opposite signs with
 the second larger and the product exact. Scored against a monotone interpolant of
@@ -597,34 +608,61 @@ its non-monotone rise survives. And 17 zero-depth stops placed at exactly the
 midpoints the loop's first pass would insert move `J` by `+0.0050%`, against that
 pass's `+0.368%`.
 
-**(M19) An edge-bracketed mesh converges, and placement decides it.** Two nodes
-at each of the 112 edges, one at the crossing and one at the top of its ramp, with
-the edges held fixed and the fill halving across levels: `J` reads 12.2849,
-12.2768, 12.2754 and 12.2740 at 498, 793, 1378 and 2542 nodes. The first two
-differences fall at a ratio of 0.168, order 2.57 in the fill spacing; the third
-does not shrink, a ratio of 1.02. A three-node bracket sits 0.086% lower and is
-still falling, so the edge construction leaves a residual of about 0.1% that the
-fill does not reach. Split by channel at the last level, the time grid contributes
-`−5.3e-04`, the quadrature over the added abscissae `−6.7e-05`, and the stand's own
-response to the added cohorts `−7.9e-04`: the residual is the stand answering its
-cohorts. At a matched 498 nodes and matched cost — 3.89e6 member evaluations and
-495 s against 3.89e6 and 498 s — the bracketed mesh is 0.079% from the finest
-value and a uniform mesh 1.277%, sixteen times the accuracy from placement alone.
-One node per edge, at the crossing, the ramp's midpoint or the top of the ramp,
-lands 10–11% low or 2% high.
+**(M19) An edge-bracketed mesh converges once its edges are located on the stand
+it runs.** Two nodes at each of the 72 edges inside `[0, 22]`, one at the crossing
+and one at the top of its ramp; beyond `b = 22` the stand carries `8.8e-05` of `J`
+and keeps the default spacing. The edges are held fixed and a fill halves across
+levels. With the edges at roots located on the default schedule's stand, `J` reads
+12.2849, 12.2768, 12.2754 and 12.2740 at 498, 793, 1378 and 2542 nodes — order
+2.57 over the first two differences, then a third no smaller. Those roots sit up
+to 3.9 days from where the mesh's own gate crosses, the large moves all on closing
+edges. Located again on the mesh's own environment, the roots move by at most 3.9
+days and `J` by +1.15%; located a second time, by at most 0.37 days and +0.055%.
+The placement is a fixed point, contracting 10× in position and 21× in `J` per
+pass. On the re-located edges the ladder reads 12.4261, 12.4194 and 12.4173 at
+499, 793 and 1375 nodes, order 1.71, and with the second pass added
+**`J = 12.424 ± 0.003`**, or 12.41–12.43 allowing for the ramp interior. Against
+it the default schedule is 3.0% low, the uniform ladder of M16 lies between −3.0%
+and +4.9%, and a uniform fill at the bracket's own node counts and cost reads
++0.06%, −0.56% and −0.43%, turning between levels.
 
-**(M20) A grid frozen across `θ` gives a converged, biased derivative.** On the
-edge-bracketed mesh, a central difference of `J` in leaf mass per area at
-`d = 1e-3` reads −173.53 with the brackets held at the reference roots: the two
-one-sided differences are −169.19 and −177.87 and the second difference −8677.
-With the brackets re-placed at each trait value's own roots, the one-sided
-differences are −169.86 and −169.29, the second difference +575, the central
-−169.57. Refined with the brackets fixed, the derivative converges at order 1.51
-against the value's 2.57, to **−172.9 ± 0.1** — the derivative of a functional
-whose edges sit where the reference put them while the true edges move with `θ`,
-2.3% from the edge-following value. The fixed bracket's large second difference is
-that misplacement, not the functional's curvature. The time grid contributes 0.62%
-to the gradient at `ode_tol = 1e-3`.
+Placement acts mostly through the environment the stand shares. The
+edge-location term `Σ g(β)·δ` prices the first re-location at 0.0016; it moves
+`J` by 0.141, 88× that. A root node on the live side of its edge is a live cohort
+whose quadrature weight spans a dead band, and removing its leaf area raises the
+integrand by 0.8–5.4% in every window of `b`, including `b < 1/16`, where there is
+no edge. One node per edge at the ramp's midpoint or past its top lands 10.6% and
+11.5% below the bracket: about 0.4 of `J` credited to birth dates on which nothing
+establishes, and 1.7–1.8 lost through the canopy. One node at the crossing lands
+1.9% above it, a first-order panel term of −0.082 against a canopy term of +0.313.
+Splitting each closing ramp with two more nodes moves `J` by −0.0146: +0.0058 of
+quadrature, −0.0204 through the canopy. On the fixed-edge ladder the last step
+splits into integrator restarts at the added introductions, `−5.3e-04`, which
+neither the fill nor `ode_tol` reduces; the stand's integrand over the first
+drought, `−7.9e-04`, converging at first order; and `J`'s own quadrature,
+`−6.7e-05`. The bracket placed twice is 0.072% from 12.424 at 499 nodes, for 495 s
+of solve and about 1275 s of placement, where the 857-node uniform mesh is 3.37%
+off at 1028 s.
+
+**(M20) A bracket held fixed across `θ` gives a converged, biased derivative.**
+Central differences of `J` in leaf mass per area at `d = 1e-3`. With each trait
+value's edges at roots scanned on its own stand, the derivative reads −169.574,
+−169.811 and −169.766 at the three fills of M19's re-located ladder. Its steps,
+0.14% and 0.026%, change sign and sit under the 1.08 by which the time grid alone
+moves it at `ode_tol = 1e-3`, so it settles at **`−169.8 ± 1.1`** with no rate to
+read. With the bracket held across `θ` at the default schedule's roots, it
+converges at order 1.51 against the value's 2.57, to **`−172.9 ± 0.1`**, 1.8% off.
+There the one-sided differences are −169.19 and −177.87 and the second difference
+−8677, against −169.86, −169.29 and +575 on the following bracket, so the fixed
+bracket's curvature is its misplacement's and not the functional's. The offset
+between the two brackets' `J` is 0.1419, 0.1412 and 0.1498 at the three trait
+values: nearly constant, a bias in the value; not constant, 3.95 in the derivative
+at the first fill. The ramps' own shift, priced from the scanned root velocities
+as `−Σ side·E(β)·∂_θβ`, is 0.287 of it. Closing roots move a median 0.037 days per
+0.001 of the trait and opening roots do not measurably move. The rest arrives
+through the canopy. A bracket held fixed at the reference trait's own roots, which
+separates the edges' motion from their misplacement, has not been run. The
+default 108-node schedule reads −155.6, 8.4% shallow, against a value 3.0% low.
 
 **(M21) The reverse sweep is exact to the grid it runs on.** Against a forward
 tangent replaying the same recorded steps, on a two-species stand where `J` is 0.21
@@ -642,7 +680,7 @@ Error shares between two grids of different order go in proportion to order,
 from equal marginal error reduction per unit cost under power-law errors and
 bilinear cost. On the creation side the premise holds only once the ramps are
 resolved: a uniform mesh follows no power law (M16), and an edge-bracketed one
-follows order 2.57 until its own residual stops it (M19).
+follows order 1.71 once its edges are located on its own stand (M19).
 
 Raising the order of the output quadrature alone cuts its own term 148–258×.
 Whether that helps turns on the sign of the creation-count term beside it. Here
@@ -694,31 +732,40 @@ cost the guarantee in (a)?
 
 `J` is a trapezium over birth dates of a `C¹` integrand with 56 zero plateaus and a
 ramp at every edge, 0.178 days opening and 5.54 closing (M15). Two nodes at each
-edge converge the value to about 0.1%, leaving a residual the fill cannot reach
-and that is dominated by the stand's response to the cohorts added (M19). A cohort
+edge converge the value once the edges are located on the stand being run, a fixed
+point that contracts 21× per pass. Where a node sits near an edge acts on the whole
+stand through the canopy, at 3.5× to 88× its direct share of `J` (M19). A cohort
 costs its remaining horizon: one at `b ≈ 0` costs 367× a step boundary there.
 
 The opening ramps are narrower than any feasible cohort spacing, and the
-formulation will change so that they are not. Establishment will read the
-newborn's net production smoothed over a declared timescale `τ_g` of weeks,
-`dḠ/dt = (P − Ḡ)/τ_g`, in place of the instantaneous `P`, which widens both ramps
-to order `τ_g`.
+formulation will change so that they are not: establishment will read a signal
+smoothed over a declared timescale `τ_g` of weeks, carried as one ODE state for a
+hypothetical newborn. Two forms are open. Smoothing the net production,
+`dḠ/dt = (P − Ḡ)/τ_g` with the gate read at `Ḡ`, leaves the gate's rise from shut
+to half open at about `τ_g·A/P`, `τ_g/17` at the median plateau, because the gate
+saturates within a few `A` while `Ḡ` heads for `17A`; after the deepest drought,
+`P` at `−28A`, a wet spell shorter than about `τ_g` opens nothing. Smoothing the
+gate, `dĒ/dt = (g(P) − Ē)/τ_g` with `Ē` read in place of `g`, bounds the gate's
+slope by `1/τ_g` on any record and conserves `∫g`, delaying it by `τ_g` on
+average; its `θ`-derivative jumps at each instantaneous edge.
 
 (a) With the ramps widened to a resolvable width, what is the right mesh — edges
 as panel boundaries, cost-weighted equidistribution over the support, or both —
 and what order and error bound does it carry?
 
-(b) M19's residual is the integrand depending on the node set: added cohorts change
-the canopy, which changes who establishes. Establishment at `b` depends only on
-cohorts born before `b`. Is that triangular structure enough to build the mesh in
-one causal pass, and what does such a pass guarantee?
+(b) The edge set is a fixed point of the stand, since the gate at `b` reads a
+canopy grown by the cohorts placed before `b`, and a misplaced edge costs more
+through the canopy than through its own panel. Establishment at `b` depends only
+on cohorts born before `b`. Is that triangular structure enough to place the
+edges in one causal pass, and what does such a pass guarantee?
 
 ### 3. An unbiased derivative on a grid that cannot move with `θ`
 
-The reverse sweep is exact to the grid it runs on (M21). On a grid held fixed
-across `θ` the derivative converges, precisely and reproducibly, to a value 2.3%
-from the derivative with the edges allowed to follow `θ` (M20): the grid freezes
-the location of features that move.
+The reverse sweep is exact to the grid it runs on (M21). On a bracket held fixed
+across `θ` the derivative converges, precisely and reproducibly, to a value 1.8%
+from the one whose edges follow `θ`, and under a tenth of the gap is the ramps'
+own shift (M20): the grid freezes the location of features that move, and a
+feature out of place acts on the whole stand.
 
 (a) What is the right treatment for a `θ`-frozen discretisation of a functional
 whose features move with `θ` — resolve the features finely enough that their
@@ -730,8 +777,9 @@ gradient bias. What sets it, and is there a width beyond which the frozen-grid
 bias is provably below a stated fraction?
 
 (c) On the fixed bracket the derivative converges at order 1.51 and the value at
-2.57, to limits that differ in kind. What stopping rule certifies a derivative
-under those conditions?
+2.57, to limits that differ in kind. On the following bracket the derivative's
+steps fall under the time grid's 0.62% by the second refinement, and no rate can
+be read. What stopping rule certifies a derivative under those conditions?
 
 (d) The gradient drives descent steps. What relative accuracy suffices, and does a
 bias that is smooth and reproducible harm an optimiser differently from noise of
@@ -764,9 +812,9 @@ of every step attempt, exists and is unread. Creation grids are supported
 per-population independently. Dense linear algebra on the chain is free and its
 Jacobian analytic.
 
-The establishment boundaries are computable before the run from the record and
-the trait vector, by the same pointwise function the model evaluates at a
-creation. `h_max` is a live control and reaches the quantity that matters. The
+The establishment boundaries are computable from a run's recorded environment by
+the same pointwise function the model evaluates at a creation, for one windowed
+run and a scan of 590–685 s; they belong to the stand that run grew (M19). `h_max` is a live control and reaches the quantity that matters. The
 instrumentation naming the binding component is overwritten by the retry, so it
 reports the accepted attempt and not the rejected one.
 
