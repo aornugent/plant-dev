@@ -92,18 +92,19 @@ indexes positionally, so this is not a formality.)
 
 ---
 
-## 2. The ladder converges
+## 2. The ladder converges — until the misplaced edges leak into the fill
 
-Variant A, edges fixed, fill 1/16 → 1/32 → 1/64:
+Variant A with the edge set fixed at the reference roots, fill 1/16 → 1/128:
 
-| fill | 1/16 | 1/32 | 1/64 |
-|---|---|---|---|
-| nodes | 498 | 793 | 1378 |
-| `J` | 12.284868878 | 12.276775477 | 12.275416201 |
-| difference | — | **−8.093e-03** | **−1.359e-03** |
-| ratio | — | — | **5.954** |
-| `log2` ratio | — | — | **2.574** |
-| steps | 10 723 | 10 918 | 11 213 |
+| fill | 1/16 | 1/32 | 1/64 | 1/128 |
+|---|---|---|---|---|
+| nodes | 498 | 793 | 1378 | 2542 |
+| `J` | 12.284868878 | 12.276775477 | 12.275416201 | 12.274025087 |
+| difference | — | **−8.093e-03** | **−1.359e-03** | **−1.391e-03** |
+| ratio | — | — | **5.954** | **0.977** |
+| `log2` ratio | — | — | **2.574** | −0.033 |
+| steps | 10 723 | 10 918 | 11 213 | 12 066 |
+| wall | 495.2 s | 792.9 s | 1377.0 s | 2673.2 s |
 
 Against the uniform ladder of `diag-nested-grid.md` §5 at `ode_tol = 1e-3`:
 
@@ -113,37 +114,79 @@ Against the uniform ladder of `diag-nested-grid.md` §5 at `ode_tol = 1e-3`:
 | difference | — | +0.0362088 | **+0.9426714** | **−0.1882365** |
 | ratio | — | — | 0.038 | −5.008 |
 
-**The hypothesis holds.** The uniform sequence's second difference is 26× the
-first and the third changes sign; the edge-respecting sequence's single ratio is
-5.95, `log2` 2.57, and its first difference is **116× smaller** than the uniform
-ladder's at a comparable count. A trapezium reading a steep `C1` feature as a
-jump was the whole of the non-convergence.
+**The first three rungs converge and the fourth does not shrink.** The first
+difference is 116× smaller than the uniform ladder's at a comparable count and
+the first ratio is 5.95; then the third difference is the same size as the
+second. At 1e-4 relative per rung this is not the uniform ladder's failure — the
+whole four-rung sequence spans 0.088%, where the uniform one spans 7.8% — but it
+is not second order either, and it had to be taken apart before anything could be
+claimed.
 
-The order is 2.57 rather than 2.00. Three things push it above two and none of
-them is measured separately here: the fill is uniform but the integrand's decay
-constant is not, so the leading `h^2` coefficient is not yet asymptotic; the
-edge nodes and the head do not refine, so part of the error is constant and
-drops out of the differences rather than contributing an `h^2` term; and the
-integrand moves between levels through the canopy, which is a separate sequence
-(§4) with its own rate.
+### Taking the last rung apart
 
-### The two channels, separated exactly
+Every schedule here is nested in the next (all 498, 793 and 1378 abscissae of
+each coarser rung are in the finer), so a level-to-level change splits exactly.
+Three channels, each isolated by a run:
 
-The 1/16 schedule is a **strict subset** of the 1/32 schedule (498 of 498
-abscissae shared), so the level-to-level change splits without approximation
-into the integrand moving at abscissae both levels carry and the quadrature the
-new abscissae add:
+| | 1/16 → 1/32 | 1/32 → 1/64 | 1/64 → 1/128 |
+|---|---|---|---|
+| total | −8.093e-03 | −1.359e-03 | −1.391e-03 |
+| **time grid**: the coarser schedule run with zero-depth stops at the finer one's added birth dates, no cohorts there (`em_restart.R`) | — | **+2.008e-04** | **−5.303e-04** |
+| **quadrature**: the added abscissae, at the finer run's integrand | −3.763e-03 | **−1.029e-03** | **−6.718e-05** |
+| **integrand**: the stand re-solved with the added cohorts, read at the coarser abscissae | −4.330e-03 | **−5.307e-04** | **−7.936e-04** |
+| `ode_tol` 1e-3 → 1e-4 on the same schedule | — | +7.8e-05 at 1/64 | −3.1e-05 at 1/128 |
 
-| | |
-|---|---|
-| total change, 1/16 → 1/32 | **−0.0080934** |
-| the integrand moved (same abscissae, `w` re-read at 1/32) | **−0.0043302** |
-| the quadrature resolved (the added abscissae) | **−0.0037632** |
-| `\|dw\|/w` at the 469 shared live nodes | median **2.57e-03**, q90 5.45e-03, max 0.693 |
+(The last two rows of the 1/32 → 1/64 and 1/64 → 1/128 columns are taken from the
+stop-matched run, so they sum with the time-grid row to the total.)
 
-Both channels are the same size and both are small. This is the comparison that
-`diag-nested-grid.md` §7 could not make on the uniform ladder, where the two
-were 12.76% and the sequence turned.
+- **`J`'s own quadrature converges at better than second order**: −3.76e-03,
+  −1.03e-03, −6.7e-05, ratios 3.7 and 15.3.
+- **The time grid is not the tolerance.** Adding 1164 zero-depth stops moves `J`
+  by −5.3e-04, 7 to 17 times what a decade of `ode_tol` moves it on either
+  schedule, and a run of the 1/128 pair at `ode_tol = 1e-4` reproduces the step
+  (−1.50e-03 against −1.39e-03). An introduction restarts the integrator whatever
+  happens at it, and doubling the cohorts doubles the restarts.
+- **The integrand converges at first order where it is largest.** With the time
+  grid matched it is −5.3e-04 and then −7.9e-04 in total, but by window of `b`:
+
+  | window | 1/32 → 1/64 | 1/64 → 1/128 | ratio |
+  |---|---|---|---|
+  | `[0, 1/16)` | +1.2e-04 | −0.7e-05 | — |
+  | `[1/16, 1)` | +7.3e-04 | −1.1e-04 | — |
+  | `[1, 3.5)` | −2.7e-04 | −1.5e-04 | **1.8** |
+  | `[3.5, 6)` | −0.9e-04 | −0.5e-04 | 1.8 |
+  | **`[6, 10)`** | **−9.3e-04** | **−4.6e-04** | **2.0** |
+  | `[10, 22)` | −1.0e-04 | −0.2e-04 | 6.0 |
+
+  The first drought, `[6, 10)`, carries most of it and halves per level; the
+  first year changes sign between steps and has no rate.
+
+**So the residual is two things, neither of them the establishment edges' own
+panels:** integrator restarts at introductions, which do not shrink with the
+fill and are not controlled by `ode_tol`; and the stand's integrand in the
+drought window, converging at first order while `J`'s quadrature over it
+converges at second or better. Both are at 1e-4 relative per level, 80 times
+below the uniform ladder's 7.8%.
+
+What the second of those is, is **not settled here**. One candidate was checked
+and does not fit on its own. The reference roots sit up to 3.9 days from where
+this mesh's gate closes (§5), so the band-and-ramp intervals the fill avoids are
+not the true ones, and as the fill refines it lands on true ramps — **0, 1, 4 and
+7 fill nodes** at the four rungs: the edge treatment the brief asked to hold
+constant was not quite constant on this ladder. But those nodes are all at
+`b` = 14.5–18.4, where the integrand channel is smallest; they can reach `[6, 10)`
+only through the canopy those cohorts' parents grow under after `t = 14`. The
+re-located ladder (§5), with no fill node on a ramp at any rung, is the direct
+test.
+
+### The two channels at the first step
+
+The 1/16 schedule is a strict subset of the 1/32 one, so the first step splits
+without a stop-matched run as well: the integrand moved **−4.33e-03** at the
+shared abscissae and the added abscissae resolved **−3.76e-03**, with `|dw|/w`
+at the 469 shared live nodes a median **2.57e-03** (q90 5.45e-03). Both
+channels are small. On the uniform ladder `diag-nested-grid.md` §7 found them at
+12.76%.
 
 ---
 
@@ -228,62 +271,147 @@ panels it draws will be judged on the smaller of its two effects.
 The control carries the same frozen head and tail as the edge mesh and spends
 the same node count on a uniform fill over `[1/16, 22]` with no edge
 information — no edge nodes, no band exclusion. It is the placement-at-fixed-cost
-comparison the uniform ladder is not, because the default generator's own
-grading (half-year to two-year spacing past `b = 3`) differs from a uniform fill
-as well as in knowing nothing of the edges.
+comparison the uniform ladder is not, because the default generator's grading
+(half-year to two-year spacing past `b = 3`) differs from a uniform fill as well
+as in knowing nothing of the edges.
 
-| nodes | control `J` | control from 12.2751 | bracket `J` | bracket from 12.2751 | control / bracket error |
+| nodes | control `J` | reference-edge bracket `J` | control − bracket | control fill | wall, control / bracket |
 |---|---|---|---|---|---|
-| 498 | 12.431803971 | **+1.277%** | 12.284868878 | **+0.079%** | **16×** |
+| 498 | 12.431803971 | 12.284868878 | **+0.1469** | 1/19.7 yr | 497.6 / 495.2 s |
+| 793 | 12.354741710 | 12.276775477 | **+0.0780** | 1/35.9 yr | 823.1 / 792.9 s |
+| 1378 | 12.370418604 | 12.275416201 | **+0.0950** | 1/62.5 yr | 1455.8 / 1377.0 s |
+| differences | −0.0771, **+0.0157** | −0.0081, −0.0014 | | | |
 
-At identical node count, identical head and tail and near-identical cost (497.6 s
-against 495.2 s, `sum M` 3 894 655 against 3 886 852), **knowing where the edges
-are is worth a factor 16 in error.** The control's fill is 1/19.7 yr; 64 of its
-498 nodes sit inside a dead band on the reference gate and 12 on a ramp. Its
-integrand at the 66 abscissae the two share is 0.76% above the bracket's — the
-same canopy channel as §3, at a quarter of D's strength.
+**The control ladder turns** — down 0.077, then up 0.016, ratio −4.9 — at the
+same cost, the same head and tail and nearly the same step count as the bracket.
+Uniform fill with no knowledge of the edges reproduces the uniform ladder's
+pathology; neither bracket ladder has it. 64 of the control's 498 nodes sit
+inside a dead band on the reference gate and 12 on a ramp; its integrand at the
+66 abscissae the two share (head and tail) is 0.76% above the reference-edge
+bracket's — the same canopy channel as §3.
 
-Of the 78× by which the bracket beats uniform-429, then, a factor 16 is the
-edges at fixed count and the remaining 4.8 is the default generator's grading
-together with the 69 nodes the uniform rung has fewer.
+Against the placement-converged value of §5, `J` = 12.424:
 
-<!-- 4b PENDING: control ladder 793, 1378 -->
+| nodes | control | bracket, re-located edges | bracket, reference edges |
+|---|---|---|---|
+| ~498 | **+0.063%** | +0.017% (pass 1), +0.072% (pass 2) | −1.12% |
+| 793 | **−0.558%** | −0.037% | −1.19% |
+| ~1378 | **−0.431%** | −0.054% | −1.20% |
+
+The control's 0.06% at 498 nodes is where a turning sequence happened to cross
+the answer, not accuracy it can be relied on for: one doubling later it is 0.56%
+off. **The reference-edge bracket converges to a value 1.2% low** — §5 is why.
+The re-located bracket is within 0.02–0.07% at every count, and most of what it
+has left at 793 and 1375 nodes is the second placement pass (+0.0069) its ladder
+does not carry.
 
 ---
 
-## 5. The converged value, and the two biases the bracket leaves
+## 5. Where the edges are: the placement has to be solved on the mesh being run
 
-Richardson on the last two rungs of the A ladder:
+§2's ladder holds the edge set fixed at the roots `diag-establishment-ramp.md`
+located on the **default 108-node** run's environment. The resolving mesh runs a
+different stand, so those roots are not where its gate closes. That turned out to
+be the largest term in the value, and the reason the §2 ladder stops converging
+at its fourth rung.
+
+### The reference roots are up to four days off, and it costs 1.15% of `J`
+
+The roots were re-located on the 498-node bracket mesh's own environment
+(`em_scan.R`, `em_scan2.R`: windows of 41 stops across ±8 half-widths of each
+current root, the newborn's carbon read off the recorded rows, 72 of 72 found at
+every pass), and the bracket re-placed on them with the fill kept out of the new
+band-and-ramp intervals (`em_reloc.R`, `em_place.R`). Iterating that is the
+Oracle's §2(c) construction run to its fixed point:
+
+| placement pass | roots moved, max | median | `J` at 1/16 | shift in `J` |
+|---|---|---|---|---|
+| 0 — reference roots (108-node run) | — | — | 12.284868878 | — |
+| 1 — re-located on the 498-node mesh | **3.935 d** | 0.017 d | **12.426116763** | **+0.141248** |
+| 2 — re-located again on pass 1's mesh | **0.372 d** | 0.002 d | **12.432969083** | **+0.006852** |
+
+**The iteration contracts 10× in root position and 21× in `J` per pass.** A
+geometric tail at that rate leaves about 3e-04 beyond pass 2, so the placement is
+converged to **±4e-04** at the second pass.
+
+The roots that move are closing ones. A closing edge's slope is 31× gentler than
+an opening edge's, so the same change in the newborn's carbon moves it 31×
+further; the largest moves (1.2–3.9 d) are all at `b` = 9.9–17.4, where the
+108-node schedule's two-year spacing gives a stand whose water draw differs most
+from a resolved one.
+
+**The direct cost of a misplaced edge is small; the canopy cost is not.** The
+Oracle's §2(a) guarantee prices edge-location error as `sum g(β) δ`. Evaluated
+on the pass-1 shifts with each edge's own envelope, that term is **+0.0016**. The
+measured shift is **+0.1412 — 88× larger**. A reference root that is really on
+the live side reads a live cohort (the q90 root reading is 0.35 of its plateau)
+whose trapezium weight spans the dead band: the B/C mechanism of §3 at a few
+edges. Its spurious area in `J` is only 0.0131, but it is leaf area in the canopy,
+and the integrand rises **+0.8% to +5.4% in every window of `b`** once it is
+removed, including `b < 1/16` (+0.79%).
+
+| | reference roots | pass 1 | pass 2 |
+|---|---|---|---|
+| root nodes reading `w` exactly 0 | 28 of 72 | 11 of 72 | 34 of 72 |
+| root reading / ramp-top reading, q90 | 0.352 | 0.113 | — |
+| spurious dead-band area | **0.01306** | **0.00044** | **0.00000** |
+
+### Why the reference-edge ladder stops converging
+
+With the edges misplaced, the band-and-ramp intervals the fill avoids are not the
+true ones, so as the fill refines it starts landing on true ramps:
+
+| fill | 1/16 | 1/32 | 1/64 | 1/128 |
+|---|---|---|---|---|
+| reference-edge ladder: fill nodes on a true ramp | 0 | 1 | 4 | **7** |
+| re-located ladder: the same | 0 | 0 | 0 | — |
+
+Each such node is a live cohort the bracket treats as plateau, standing on a
+ramp — A3's interior nodes by accident. **The reference-edge ladder's edge
+treatment was not in fact held constant, and the leak grows with the fill**,
+which is what its fourth rung shows (§2). The re-located ladder has none at any
+level, so it is the experiment the brief specified.
+
+### The re-located ladder
+
+Pass-1 roots held fixed, fill halving:
+
+| fill | 1/16 | 1/32 | 1/64 |
+|---|---|---|---|
+| nodes | 499 | 793 | 1375 |
+| `J` | 12.426116763 | 12.419360085 | 12.417291960 |
+| difference | — | **−6.757e-03** | **−2.068e-03** |
+| ratio | — | — | **3.267** |
+| `log2` ratio | — | — | **1.708** |
+| steps | 10 721 | 10 919 | 11 219 |
+
+<!-- 5b PENDING: re-located 1/128 rung -->
+
+### The value
 
 | | |
 |---|---|
-| at the measured `p = 2.574` | **`J` = 12.2751418**, remainder 2.74e-04 |
-| at `p = 2` | `J` = 12.2749631, remainder 4.53e-04 |
-| at `p = 3` | `J` = 12.2752220 |
+| re-located ladder, Richardson at the measured `p = 1.708` | 12.416380 |
+| the same at `p = 2` | 12.416603 |
+| the fill correction from 1/16 to the limit | **−0.00964** |
+| second placement pass at 1/16 | **+0.00685** |
+| placement tail beyond pass 2 | +3e-04 |
+| time integration, `ode_tol` 1e-3 → 1e-4 on the reference-edge mesh | +7.8e-05 at 1/64, −3.1e-05 at 1/128 |
 
-The three agree to 2.6e-04, so the fill's own limit is **`J` = 12.2751 ± 0.0003**
-at this edge treatment, tolerance and horizon. Two things sit between that and
-the continuum, and both were measured rather than assumed.
+Adding the second pass's shift to the re-located ladder's limit — which assumes
+the fill correction does not depend on a sub-day edge shift — gives
 
-### The edge locations transfer, and their error is a constant
+**`J` = 12.424 ± 0.003**
 
-The 112 roots were located on the *default 108-node* run's environment
-(`diag-establishment-ramp.md` §3). Run with 498 and 793 cohorts the canopy is not
-the same, so a node at a nominal root need not read a closed gate:
+with the fill, the placement and `ode_tol` each converged below 1e-3, and the
+error bar the spread of the fill extrapolations plus the untested additivity.
+The ramp-interior treatment is not inside it: A3 moved the reference-edge value
+by −0.012 (below), on edges that were misplaced, and was not repeated on
+re-located ones. **So the value is 12.424 at the bracket's ramp treatment, and
+12.41–12.43 allowing for the ramp interior.** Every rung of the uniform ladder is
+0.37 to 0.61 away — the 108-node operating value is **3.0% low**.
 
-| | 1/16 (498 nodes) | 1/32 (793 nodes) |
-|---|---|---|
-| root nodes reading `w` exactly 0 | **28 of 72** | **28 of 72** |
-| root reading as a fraction of the same edge's ramp-top reading | median **2.3e-04**, q90 0.35, max 0.92 | — |
-| spurious dead-band area, `sum(band * (w_close + w_open)/2)` | **0.013055** | **0.013074** |
-
-Fewer than half the root nodes land on the closed side, but the median root node
-reads **2.3e-04** of its own plateau, so the gate is shut to four digits at most
-of them and the whole spurious area is **0.0131 — 0.107% of `J`**. It is the
-same to three digits at both levels, so it **biases the limit and cannot break
-the convergence**, which is what the ladder shows.
-
-### A bracketed ramp under-reads its own panel, by a computable amount
+### The ramp interior: what a bracket under-reads, and what splitting it moves
 
 With `u = |P|/A` the gate is `u^2/(1 + u^2)` and `P` is linear across its own
 ramp to 0.6–8% (`diag-establishment-ramp.md` §3), so a ramp's area in units of
@@ -299,13 +427,11 @@ root to the 99% point is exact arithmetic:
 A ramp is also *exactly* equivalent to a jump displaced `atan(u_max) ≈ pi/2`
 half-widths onto the live side — **15.95% of the way up the 1%–99% ramp, not
 50%** — which is why the ramp's midpoint reads 0.962 of the plateau and not 0.5,
-and why variant B is not the "effective jump" its name suggests.
+and why variant B is not the "effective jump" its name suggests. Weighted by the
+envelope at each edge the bracket's deficit is **0.0125 — 0.10% of `J`**, and it
+predicts A3 − A = +0.0110.
 
-Weighted by variant A's own envelope at each edge, the bracket's deficit is
-**0.01248 — 0.102% of `J`** (0.01184 on the closing edges, 0.00064 on the
-opening ones), and it predicts **A3 − A = +0.01097**.
-
-### Run rather than predicted: the edge treatment is worth −0.12%
+Run, on the reference edges:
 
 | | 1/16 | 1/32 |
 |---|---|---|
@@ -313,80 +439,73 @@ opening ones), and it predicts **A3 − A = +0.01097**.
 | A3 (closing ramp split at `u = 1, 3`) | 12.270302764 (570) | 12.264585195 (865) |
 | A3 − A | **−0.0145661** | **−0.0121903** |
 
-A is a strict subset of A3, so the same exact split applies:
-
-| | |
-|---|---|
-| A3 − A at 1/16, total | **−0.0145661** |
-| quadrature (the 72 added ramp-interior nodes) | **+0.0058232** |
-| integrand (the stand re-solved with them) | **−0.0203893** |
-| predicted quadrature term | +0.0109663 |
-
-**The sign of the total is the opposite of the prediction, and the canopy is
-why.** The direct term is positive, as the arithmetic says, and lands within a
-factor 1.9 of it — the gap is that the realised gate is offset from the nominal
-root at the edges where only 28 of 72 roots read zero, so a node placed one
-`half` from the nominal root is not one `half` from the realised one. But
-resolving the ramp also resolves the leaf area standing on it, the canopy closes
-slightly, and the integrand falls 0.25% (0.16% at `b < 1`) — 3.5× the direct
-term.
-
-Extrapolating A3 at the A ladder's own `p = 2.574` gives **`J` = 12.26343**, so
-**refining the edge treatment once moves the converged value by −0.0117
-(−0.095%)**, and the edge treatment is not itself laddered here.
-
-**The answer.** `J` = **12.275 ± 0.0003** for the bracket edge treatment;
-**12.263** once the closing ramps are split; **12.26 to 12.28** as the honest
-interval, converged in the fill to 3e-04 and in the edge treatment to about
-1.2e-02. Every rung of the uniform ladder is 0.19 to 0.76 away from that
-interval — 15 to 62 times its width.
+A is a strict subset of A3, so the exact split applies: **quadrature +0.0058,
+integrand −0.0204.** The direct term has the predicted sign and is within a factor
+1.9 of the arithmetic; resolving the ramp also resolves the leaf area standing on
+it, the integrand falls 0.25%, and the total has the opposite sign to the
+prediction. The canopy again, at 3.5× the direct term.
 
 ---
 
 ## 6. Cost
 
 `sum over steps of M` is `diag-nested-grid.md` §2's member-evaluation count, and
-this fixture reproduces its 956 923 at the default schedule exactly.
+this fixture reproduces its 956 923 at the default schedule exactly. Error is
+against the placement-converged `J` = 12.424 of §5.
 
-| schedule | nodes | steps | `sum M` | leaf solves | wall | `J` | from 12.2751 |
-|---|---|---|---|---|---|---|---|
-| the default | 108 | 9 931 | 956 923 | 7 769 166 | 130.5 s | 12.0526222 | −1.81% |
-| uniform ×2 | 215 | 10 174 | — | — | — | 12.0888310 | −1.52% |
-| uniform ×4 | 429 | 10 816 | — | — | — | 13.0315024 | **+6.16%** |
-| uniform ×8 | 857 | 11 351 | — | — | 1028 s | 12.8432659 | **+4.63%** |
-| **A, 1/16** | **498** | 10 723 | 3 886 852 | 31 107 428 | **495.2 s** | 12.2848689 | **+0.079%** |
-| **A, 1/32** | **793** | 10 918 | 6 194 396 | 49 498 014 | **792.9 s** | 12.2767755 | **+0.013%** |
-| **A, 1/64** | **1378** | 11 213 | 10 884 751 | 86 994 033 | **1377.0 s** | 12.2754162 | **+0.0022%** |
-| A3, 1/16 | 570 | 10 778 | 4 437 611 | 35 513 124 | 566.7 s | 12.2703028 | −0.039% |
-| A3, 1/32 | 865 | 10 973 | 6 758 462 | 54 004 790 | 856.2 s | 12.2645852 | −0.086% |
-| B, 1/16 | 426 | 10 687 | 3 338 588 | 26 764 996 | 432.7 s | 10.9833846 | −10.5% |
-| C, 1/16 | 426 | 10 733 | 3 350 430 | 26 928 598 | 431.9 s | 10.8700030 | −11.4% |
-| D, 1/16 | 426 | 10 670 | 3 335 919 | 26 755 793 | 425.0 s | 12.5159818 | +1.96% |
+| schedule | nodes | steps | `sum M` | wall | `J` | from 12.424 |
+|---|---|---|---|---|---|---|
+| the default | 108 | 9 931 | 956 923 | 130.5 s | 12.0526222 | **−2.99%** |
+| uniform ×2 | 215 | 10 174 | — | — | 12.0888310 | −2.70% |
+| uniform ×4 | 429 | 10 816 | — | — | 13.0315024 | **+4.89%** |
+| uniform ×8 | 857 | 11 351 | — | 1028 s | 12.8432659 | **+3.37%** |
+| control | 498 | 10 822 | 3 894 655 | 497.6 s | 12.4318040 | +0.06% |
+| control | 793 | 11 037 | 6 210 432 | 823.1 s | 12.3547417 | −0.56% |
+| control | 1378 | 11 544 | 11 074 012 | 1455.8 s | 12.3704186 | −0.43% |
+| A, reference edges, 1/16 | 498 | 10 723 | 3 886 852 | 495.2 s | 12.2848689 | −1.12% |
+| A, reference edges, 1/32 | 793 | 10 918 | 6 194 396 | 792.9 s | 12.2767755 | −1.19% |
+| A, reference edges, 1/64 | 1378 | 11 213 | 10 884 751 | 1377.0 s | 12.2754162 | −1.20% |
+| A, reference edges, 1/128 | 2542 | 12 066 | 21 060 488 | 2673.2 s | 12.2740251 | −1.21% |
+| **A, re-located once, 1/16** | **499** | 10 721 | 3 891 721 | **497.9 s** | 12.4261168 | **+0.017%** |
+| **A, re-located once, 1/32** | **793** | 10 919 | 6 191 853 | **815.5 s** | 12.4193601 | **−0.037%** |
+| **A, re-located once, 1/64** | **1375** | 11 219 | 10 869 098 | **1414.8 s** | 12.4172920 | **−0.054%** |
+| **A, re-located twice, 1/16** | **499** | 10 735 | — | **494.8 s** | 12.4329691 | **+0.072%** |
+| A3, reference edges, 1/16 | 570 | 10 778 | 4 437 611 | 566.7 s | 12.2703028 | −1.24% |
+| A3, reference edges, 1/32 | 865 | 10 973 | 6 758 462 | 856.2 s | 12.2645852 | −1.29% |
+| B, 1/16 | 426 | 10 687 | 3 338 588 | 432.7 s | 10.9833846 | −11.6% |
+| C, 1/16 | 426 | 10 733 | 3 350 430 | 431.9 s | 10.8700030 | −12.5% |
+| D, 1/16 | 426 | 10 670 | 3 335 919 | 425.0 s | 12.5159818 | +0.74% |
 
 (The uniform ladder's `sum M` at 215/429/857 was not taken; its 108-node value
 and its 857-node wall clock are `diag-nested-grid.md`'s, on the same machine —
-that note reads 136 s at 108 nodes where this one reads 130.5 s.)
+that note reads 136 s at 108 nodes where this one reads 130.5 s. Runs after
+10:25 UTC shared the machine with a build and test of a separate copy of
+`plant` started outside this measurement (§8), so their wall clocks are high by
+up to about 10%; the steps and `sum M` are unaffected.)
 
-Wall clock is close to linear in the node count and almost flat in the steps:
+Wall clock is close to linear in the node count and almost flat in the steps —
 **1.00 s per node** across the A ladder against the default's 1.21, because the
-edge mesh spends its extra nodes where cohorts arrive late and live briefly,
-while the default spends 56 of its 108 below `b = 1/16` where a cohort sits in
-the member loop of every remaining step. Steps rise only 8% from 9931 to 11 213
-across a 12.8× change in node count.
+default spends 56 of its 108 cohorts below `b = 1/16`, where a cohort sits in the
+member loop of every remaining step. Steps rise 21% from 9931 to 12 066 across a
+23.5× change in node count. The re-located bracket costs what the reference one
+does: placement is free once the roots are known, and knowing them costs one
+windowed run and a scan (590–685 s, `em_scan*.R`) per pass.
 
-**Accuracy per unit cost.**
+**Accuracy per unit cost**, against 12.424:
 
-| | |
-|---|---|
-| A at 498 nodes against uniform at 429 | **78× more accurate** for 16% more nodes |
-| A at 498 nodes against uniform at 857 | **58× more accurate** at **0.48×** the wall clock |
-| accuracy per second, A 1/16 against uniform 857 | **121×** |
-| accuracy per member-evaluation, A 1/16 against the default 108 | 22.9× the error removed per 4.1× the cost |
+| | error | cost | |
+|---|---|---|---|
+| uniform, 857 nodes | 3.37% | 1028 s | |
+| **bracket, placed twice, 499 nodes** | **0.072%** | **495 s + two placement passes (≈1275 s)** | **47× more accurate; 0.48× the solve, 1.7× with the placement** |
+| bracket, placed once, 1375 nodes | 0.054% | 1415 s + one pass (≈685 s) | 62× more accurate at 2.0× the cost |
+| the default, 108 nodes | 2.99% | 130.5 s | |
 
-The 374-node figure `diag-establishment-ramp.md` §5 priced is 498 here, because
+The 374-node figure `diag-establishment-ramp.md` §5 priced is 499 here, because
 the bracket wants two nodes at each edge rather than one and because the frozen
-head and tail are counted in. It remains **below the 857-node rung the uniform
-ladder had already paid for**, and 58× more accurate than it.
+head and tail are counted in. It remains below the 857-node rung the uniform
+ladder had already paid for, and 47× more accurate than it — provided the edges
+are placed on the mesh being run. Placed on the default schedule's stand, the
+same 498 nodes are 1.12% off and converge to 1.2% off.
 
 ---
 
