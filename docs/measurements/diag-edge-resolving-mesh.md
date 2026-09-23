@@ -223,6 +223,34 @@ panels it draws will be judged on the smaller of its two effects.
 
 ---
 
+## 4. Against the control at the same node count
+
+The control carries the same frozen head and tail as the edge mesh and spends
+the same node count on a uniform fill over `[1/16, 22]` with no edge
+information — no edge nodes, no band exclusion. It is the placement-at-fixed-cost
+comparison the uniform ladder is not, because the default generator's own
+grading (half-year to two-year spacing past `b = 3`) differs from a uniform fill
+as well as in knowing nothing of the edges.
+
+| nodes | control `J` | control from 12.2751 | bracket `J` | bracket from 12.2751 | control / bracket error |
+|---|---|---|---|---|---|
+| 498 | 12.431803971 | **+1.277%** | 12.284868878 | **+0.079%** | **16×** |
+
+At identical node count, identical head and tail and near-identical cost (497.6 s
+against 495.2 s, `sum M` 3 894 655 against 3 886 852), **knowing where the edges
+are is worth a factor 16 in error.** The control's fill is 1/19.7 yr; 64 of its
+498 nodes sit inside a dead band on the reference gate and 12 on a ramp. Its
+integrand at the 66 abscissae the two share is 0.76% above the bracket's — the
+same canopy channel as §3, at a quarter of D's strength.
+
+Of the 78× by which the bracket beats uniform-429, then, a factor 16 is the
+edges at fixed count and the remaining 4.8 is the default generator's grading
+together with the 69 nodes the uniform rung has fewer.
+
+<!-- 4b PENDING: control ladder 793, 1378 -->
+
+---
+
 ## 5. The converged value, and the two biases the bracket leaves
 
 Richardson on the last two rungs of the A ladder:
@@ -362,7 +390,36 @@ ladder had already paid for**, and 58× more accurate than it.
 
 ---
 
-<!-- SECTIONS 4, 7 PENDING: control, gradient -->
+## 7. The gradient
+
+### By the adjoint: it answers, and it answers a different question
+
+`stand_gradient` on the 498-node bracket mesh (`em_run.R A 16 grad`):
+
+| metric | value at `t = 40` | `d/dlma` | `d/drho` | `d/dhmat` |
+|---|---|---|---|---|
+| `leaf_area` | 0.8255477402 | −3.127144574 | −2.497602e-04 | 1.313618e-03 |
+| `mass_above_ground` | 1.8399257615 | −7.430527726 | 1.575136e-03 | 2.306837e-02 |
+| `area_stem` | 2.837613e-04 | −9.79473e-04 | −1.811906e-08 | 1.654675e-07 |
+
+**No refusal on any metric**, all 48 trait columns finite, `J` and the step count
+reproduced to every digit from the forward-only run (12.284868878, 10 723
+steps), at **2637 s — 5.3× the forward solve**, peak resident 1.06 GB. The
+refusal the brief anticipated does not occur on this mesh.
+
+**But `J` is not a census metric.** `census_metric_names_tf24()` is `leaf_area`,
+`mass_above_ground`, `area_stem`: per-individual quantities integrated over the
+size distribution *at the end of the run*. `J = sum(offspring_production)` is a
+quadrature over birth dates of each cohort's lifetime output, and nothing in the
+sweep is seeded on it. **`dJ/dθ` is not available by the adjoint on any mesh**;
+what follows takes it by central difference.
+
+The adjoint was not laddered: at 5.3× the forward cost the 793-node level is
+about 70 minutes, which the budget did not hold alongside the value ladder.
+
+<!-- 7b PENDING: finite-difference ladder, transport term -->
+
+---
 
 ## 8. Scripts, and the build they ran against
 
