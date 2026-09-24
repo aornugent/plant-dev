@@ -167,7 +167,7 @@ It does not expose λ_k.
 ### 3.2 The hook
 
 Worktree `$SP/perf/adjoint/plant`, branch `perf-adjoint` off 6613dd24, uncommitted; the
-diff is `$SP/perf/adjoint/hook.patch` (207 added lines, none removed).
+diff is `perf-adjoint-hook.patch` beside this note (against `plant` 6613dd24) (207 added lines, none removed).
 
 - `SCM::census_introduction_adjoints(metric, trait_gradient)` in
   `inst/include/plant/scm.h`: census_trait_gradient's descent taken one range per call,
