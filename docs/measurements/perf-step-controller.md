@@ -47,6 +47,7 @@
 | J without stops; without stops at h ≤ 5 d | −22.3%; −0.45% | |
 | adjoint dJ/dlma: tol 1e-3 → 1e-4 | | −158.593 → −158.898 (+0.19%) while J moves −0.11% |
 | adjoint at tol 1e-2 and 3e-3 | | refused (vulnerability-curve domain) |
+| bound with the two stiff modes' stability removed (section 7): accepted steps; member evaluations saved at 1 evaluation per entry | 6 722 (−40%); 51% (I1) to 37% (walk); floor 74% | 6 254 (−37%); 49% to 35%; floor 73% |
 
 ## 1. Step anatomy
 
@@ -387,6 +388,111 @@ Accepted steps by binding component:
     - The counts are run totals and include rejected attempts' stages. Transitions per member along the record were not counted.
 - **Sources.** `ctl_placement.R` (`out/placement.log`), `ctl_jprofile.R`, `ctl_cohorts.R` and `ctl_tol.R`.
 
+## 7. What an integrator free of the two stiff modes could save
+
+This is an offline bound from the recorded u429 and d108 runs at tol 1e-3. It removes the stability limits of soil drainage and of the members' storage relaxation, keeping the accuracy limit and the schedule entries. It does not count an implicit or IMEX method's own cost, and it is not a claim that any method achieves it.
+
+### Method
+
+- **The two stiff modes at every accepted step.** The soil drainage diagonal is the one from section 4. Each member's storage diagonal ∂Ṡ/∂S was taken at the step's start by one directional difference over every member's storage at once, each diagonal read from that member's own storage rate (`ctl_storage_diag.R`).
+  - Against the exact member-block eigenvalue at the 100 sampled points of each run, the ratio is 0.990–1.000 (u429) and 0.972–1.000 (d108).
+  - The largest storage diagonal is a median 188 yr⁻¹ (u429) and 44 yr⁻¹ (d108), maximum 1444 and 1031.
+  - It belongs to the newest member at 84% (u429) and 96.5% (d108) of steps, and to one of the newest three at 100% and 98.5%.
+- **Accuracy-limited steps.** A step counts as accuracy-limited where h·|λ|max/β < 0.5, with |λ|max the larger of the two diagonals: 4762 of 11 239 steps (u429) and 4329 of 9916 (d108).
+- **The ratio without the stiff components.** Every accepted step was re-taken (`ctl_rns.R`). The re-take reproduces the recorded ratio at all 11 239 and 9916 steps. Its weighted ratio was then recomputed without:
+  - each soil layer with h·|λ_ℓ| ≥ 0.5β, together with the accumulator fed by layer 1's infiltration or layer 5's drainage when that layer is out;
+  - all eight states of each member with h·|λ_j| ≥ 0.5β, because the storage mode's eigenvector is largest in that member's mortality, log density or height.
+
+  At the 6477 (u429) and 5587 (d108) steps carrying such a component, the median ratio falls from 0.073 to 0.0053 (u429) and from 0.094 to 0.0097 (d108). The ratio is then set by the other soil layers at 4 461 and 4 390 of those steps, and by member fecundity, mortality, height or storage at 1 861 and 1 125.
+- **Local accuracy limit.** Each measured step k gets a_k = h_k · max(1, min(5, 0.9 r^(−1/5))).
+  - r is the recorded ratio where the step is accuracy-limited, and the ratio without the stiff components elsewhere.
+  - The floor at h_k holds because every accepted step was admissible. The cap at 5 is the controller's growth clamp.
+  - A clipped step takes the larger of its own limit and that of the step before it in the leg.
+- **Filling the legs** between consecutive schedule entries:
+  - I1: ceil(Σ h_k / a_k) steps, that is, ∫dt/a over the leg.
+  - I2: the controller's own walk. The proposal is min(5h, `ode_step_size_max`); each step is at most the smallest a over the span it covers; steps are clipped at entries, with the proposal carried across the clip as the solver does.
+- **Assumptions.**
+  - No rejected attempt and no throw.
+  - The same schedule entries, and the same members in each leg, as the explicit run.
+  - The error ratio scales as h⁵.
+  - The stiff components, and a stiff member's other states, impose no accuracy limit beyond what the rest of the state imposes. This is the optimistic assumption. It holds where those components sit on their quasi-steady state.
+  - The cost of a member evaluation is unchanged.
+- **The first-specified estimator overcounts.** A per-leg h_acc built only from accuracy-limited steps gives 10 522–16 677 accepted steps (u429) and 10 005–12 651 (d108). The variants are per-leg maximum or median, running medians of 9, 25 or 101 samples, clipped steps included, threshold 0.25, unclamped, and the walk. The range runs from −6% to +48% against the measured count.
+  - 2240 of 3358 u429 legs (2074 of 3039 d108) contain no controller-ended accuracy-limited step and take their h_acc from other legs.
+  - 797 legs (637) then need more steps than measured: 3626 (3864) extra steps in all.
+  - That estimator ignores that every measured step was admissible, and is not used below (`ctl_ideal.R`, `out/ideal_*_base.log`).
+
+### Counts
+
+u429 (measured: 11 239 accepted steps, 89 353 rate evaluations, 1.934e7 member evaluations):
+
+| estimate | accepted steps | rate evaluations, 2 / 1 per entry | member evaluations, 2 / 1 per entry | member evaluations saved, 2 / 1 per entry |
+|---|---|---|---|---|
+| no stability credit (a = h at stability-affected steps), I1 | 9 869 (−12.2%) | 65 930 / 62 572 | 1.427e7 / 1.354e7 | 26.2% / 30.0% |
+| stiff components out, I2 walk | 8 887 (−20.9%) | 60 038 / 56 680 | 1.299e7 / 1.227e7 | 32.8% / 36.6% |
+| **stiff components out, I1** | **6 722 (−40.2%)** | **47 048 / 43 690** | **1.016e7 / 9.430e6** | **47.5% / 51.2%** |
+| stiff components out, unclamped, I1 | 6 497 (−42.2%) | 45 698 / 42 340 | 9.877e6 / 9.149e6 | 48.9% / 52.7% |
+| stiff components at 0.25β out, I1 | 6 152 (−45.3%) | 43 628 / 40 270 | 9.440e6 / 8.712e6 | 51.2% / 55.0% |
+| stop-limited floor: one step per leg | 3 358 (−70.1%) | 26 864 / 23 506 | 5.823e6 / 5.095e6 | 69.9% / 73.7% |
+
+d108 (measured: 9 916 accepted steps, 78 871 rate evaluations, 7.601e6 member evaluations):
+
+| estimate | accepted steps | rate evaluations, 2 / 1 per entry | member evaluations, 2 / 1 per entry | member evaluations saved, 2 / 1 per entry |
+|---|---|---|---|---|
+| no stability credit, I1 | 8 917 (−10.1%) | 59 580 / 56 541 | 5.731e6 / 5.440e6 | 24.6% / 28.4% |
+| stiff components out, I2 walk | 8 047 (−18.8%) | 54 360 / 51 321 | 5.228e6 / 4.938e6 | 31.2% / 35.0% |
+| **stiff components out, I1** | **6 254 (−36.9%)** | **43 602 / 40 563** | **4.188e6 / 3.898e6** | **44.9% / 48.7%** |
+| stiff components out, unclamped, I1 | 6 105 (−38.4%) | 42 708 / 39 669 | 4.103e6 / 3.812e6 | 46.0% / 49.8% |
+| stiff components at 0.25β out, I1 | 5 739 (−42.1%) | 40 512 / 37 473 | 3.891e6 / 3.601e6 | 48.8% / 52.6% |
+| stop-limited floor: one step per leg | 3 039 (−69.4%) | 24 312 / 21 273 | 2.322e6 / 2.032e6 | 69.4% / 73.3% |
+
+- The median local limit is 2.96 (u429) and 2.44 (d108) times the measured step. Removing the ×5 cap lowers the I1 count by 3.3% (u429) and 2.4% (d108), so the estimate is not driven by extrapolation from small ratios.
+- The I1 fill needs no more steps than measured in any leg. The I2 walk needs more in 184 legs of each run (379 and 377 extra steps), where its span rule and growth ramp are stricter than the measured sequence.
+- With no evaluation at a knot stop, where a zero-depth pulse changes no state, and one at an introduction, the I1 estimate needs 8.80e6 (u429) and 3.61e6 (d108) member evaluations: 54.5% and 52.5% saved.
+
+### The saving by source (I1 estimate, as a share of the measured member evaluations)
+
+| source | u429 | d108 |
+|---|---|---|
+| accepted steps removed by the stability credit (I1 minus the no-credit fill) | 21.3% | 20.3% |
+| accepted steps removed without it (steps short for other reasons, including the retries after rejections) | 9.2% | 7.7% |
+| thrown attempts (the storage mode) | 4.3% | 2.3% |
+| inaccurate attempts at soil h·\|λ\| ≥ 0.8β | 7.5% | 8.6% |
+| inaccurate attempts below 0.8β (the first steps after rain knots) | 5.2% | 6.1% |
+| the second evaluation at each schedule entry | 3.8% | 3.8% |
+| **total** | **51.2%** | **48.7%** |
+
+- **By the three sources.** Stability (accepted steps, first two rows) is 59.5% of the saving (u429) and 57.4% (d108). Rejections are 33.2% and 34.7%. The double evaluation at schedule entries is 7.3% and 7.8%.
+- **Attributable to the two stiff modes.** The stability credit, the throws and the inaccurate rejections at ≥ 0.8β add up to 33.1% (u429) and 31.2% (d108) of the measured member evaluations.
+  - Under the I2 walk the stability credit is 15.5% and 14.8% (walk against the walk without credit), and the total attributable is 27.3% and 25.6%.
+  - The other 18.2% (u429) and 17.6% (d108) need no stiff treatment: the forcing-driven rejections, the steps short for other reasons, and the second entry evaluation.
+
+Sources: `ctl_ideal.R` and `ctl_ideal_split.R` (`out/ideal_split.log`).
+
+### Where the saving sits
+
+Legs are classed by the gap between the active knots enclosing them. Daily legs are wet (knots 1 day apart); multi-day legs are dry.
+
+| I1 estimate | u429 daily (wet) | u429 multi-day (dry) | d108 daily (wet) | d108 multi-day (dry) |
+|---|---|---|---|---|
+| legs; days | 2318; 2 250 | 1040; 12 350 | 2263; 2 250 | 776; 12 350 |
+| share of measured member evaluations | 58.7% | 41.3% | 65.7% | 34.3% |
+| accepted steps per leg, measured → I1 → I2 | 2.65 → 1.98 → 2.38 | 4.90 → 2.04 → 3.23 | 2.67 → 2.00 → 2.40 | 4.99 → 2.23 → 3.38 |
+| saved, share of the class's own cost | 43.2% | 62.6% | 43.1% | 59.5% |
+| share of the whole saving | 49.6% | 50.4% | 58.2% | 41.8% |
+| of it: stability credit | 1.57e6 | 2.54e6 | 7.07e5 | 8.36e5 |
+| of it: accepted steps without credit | 4.43e5 | 1.34e6 | 1.76e5 | 4.08e5 |
+| of it: thrown | 2.9e4 | 7.97e5 | 3.5e3 | 1.72e5 |
+| of it: inaccurate (≥ 0.8β / below) | 1.42e6 / 9.48e5 | 4.4e4 / 5.7e4 | 6.18e5 / 4.32e5 | 3.2e4 / 3.0e4 |
+| of it: second entry evaluation | 5.03e5 | 2.25e5 | 2.19e5 | 7.1e4 |
+
+- **u429.** The saving splits evenly between wet and dry legs.
+  - Wet legs are 15% of the time and 59% of the cost. Their saving is 43% of their cost, half of it inaccurate rejections.
+  - Dry legs save 63% of their cost, mostly stability credit, steps short for other reasons, and throws.
+  - The stability credit itself sits 38% in wet legs and 62% in dry ones (d108: 46% and 54%).
+- **d108.** Wet legs carry 58% of the saving.
+- **By regime.** Of the I1 saving, 84% (u429) falls in the wet years, 16% in the drought years and 0.7% in the first 3.5 years. Each regime saves 46–52% of its own cost.
+
 ## Expectations against the measurements
 
 - **"Steps are accuracy-limited at the median": contradicted.**
@@ -410,6 +516,7 @@ Accepted steps by binding component:
 - **Gradient at loose tolerance.** The adjoint refused at 1e-2 and 3e-3, so the gradient's time-grid sensitivity rests on the one pair 1e-3 / 1e-4.
 - **Coverage.** No tolerance ladder, atol ladder or stop-set variant was run on d108 beyond the four tolerance levels of (c). The regime split was not repeated for the ladder runs.
 - **Timings.** CPU and wall seconds are contaminated by the shared machine and are secondary to the counts.
+- **The section 7 bound.** It is taken at tol 1e-3 only. It does not count an implicit method's own cost or the rejections such a method would still meet at rain knots. It does not measure the stiff components' own accuracy demand; that demand is assumed not to bind.
 
 ## Scripts and outputs
 
@@ -423,6 +530,7 @@ All in `$SP/perf/controller`. Logs and saved outputs are in `out/`.
 - `ctl_eig.R`, `ctl_eig_blocks.R`, `ctl_eig_exact.R`, `ctl_stiff_summary.R`: section 4.
 - `ctl_tol.R`, `ctl_chain.R`, `ctl_grad_inspect.R`: section 5.
 - `ctl_placement.R`, `ctl_jprofile.R`, `ctl_cohorts.R`: sections 5–6.
+- `ctl_storage_diag.R`, `ctl_rns.R`, `ctl_ideal.R`, `ctl_ideal_split.R`: section 7.
 - `ctl_note_numbers.R`, `ctl_checks.R`: figures quoted above that no other script prints.
 - `lane.sh`, `worker.sh`: job runners.
 - `probe_iface.R`, `test_small.R`: one-year interface probes.
