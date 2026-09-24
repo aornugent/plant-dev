@@ -1,5 +1,7 @@
 # Scope: an implicit–explicit stepper for TF24
 
+**Status (September 2026): parked.** Exact counts go first, on plant's `develop` (aornugent/plant#93; see `handover.md`).
+
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
 - **A System may declare a small stiff block**, with its rates as a function of that block and the time alone. odelia then solves each stage's block, differentiates it, and puts it on the sweep's tape.

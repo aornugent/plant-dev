@@ -1,5 +1,7 @@
 # Scope: exact establishment counts, error maps from the sweep, and a schedule controller
 
+**Status (September 2026):** §1 is being implemented on plant's `develop` as aornugent/plant#93 (see `handover.md`); §2–6 are parked.
+
 This covers the three pieces of the performance design that do not depend on the record:
 - **exact counts**, so cohorts no longer resolve the gate;
 - **two error maps in units of `J`**, from the sweep an optimiser already runs;
@@ -30,18 +32,18 @@ So each panel's recruitment is taken to be linear between its two samples. That 
 
 `E` also enters twice: the fields read it through the density, and `J` reads it through the survival factor.
 
-**What it stands for instead: the recruitment in its hat.** Recruitment `m(b) = β(b)E(b)` is rough, but the fate of one recruit, `X(b)`, is smooth. So interpolate only the smooth factor:
+**What it stands for instead: the establishment in its hat.** Recruitment `m(b) = β(b)E(b)` is rough only through `E`. The birth rate `β` and the fate of one recruit, `X(b)`, are smooth. So integrate `E` exactly and interpolate the rest:
 
-`∫ m X db ≈ Σ_j X_j w_j`, with `w_j = ∫ m(b) φ_j(b) db`,
+`∫ β E X db ≈ Σ_j β_j X_j w_j`, with `w_j = ∫ E(b) φ_j(b) db`,
 
 where `φ_j` is the hat at `b_j`.
-- *The weight.* `w_j` is the recruitment the cohort stands for, integrated exactly.
+- *The weight.* `w_j` is the establishment the cohort stands for, integrated exactly. `β` stays a point sample at `b_j`, as today, so `offspring_production` and `net_reproduction_ratios` keep their meaning under a varying birth rate.
 - *The error left* is the interpolation error of `X`, `O(Δb²·X″)` times the mass. That is second order, whatever `m` does.
 
 **How the weights are integrated.**
 - *Each species carries two running states for its open panel,* the one since its last creation `b_N`:
-  - `M₀ = ∫ m db`, with rate `β(t)E(t)`;
-  - `M₁ = ∫ (b − b_N) m db`, with rate `(t − b_N)·β(t)E(t)`.
+  - `M₀ = ∫ E db`, with rate `E(t)`;
+  - `M₁ = ∫ (b − b_N) E db`, with rate `(t − b_N)·E(t)`.
 
   The stepper integrates them, and its steps (median 0.56 days) resolve `E`'s ramps.
 - *Each cohort carries its mass `w_j` as a state,* with rate zero.
@@ -54,7 +56,7 @@ where `φ_j` is the hat at `b_j`.
   - the boundary cohort at `b = t` takes `M₁/(t − b_N)`.
 
 **What else changes.**
-- *A cohort is seeded at unit density and zero cumulative loss,* so its states describe one recruit. `E` enters once, through the masses.
+- *A cohort is seeded at density `β(b_j)` and zero cumulative loss,* so its states describe the seed arriving at `b_j` without its establishment. `E` enters once, through the masses.
 - *Every birth-date reduction becomes `Σ w_j·s_j·X_j`,* with the weights formed once per evaluation.
 - *The patch-age weight `π(b)` stays in `J`'s per-recruit value,* where it is smooth.
 - *The state grows by one entry per cohort and two per species,* about 4% of the recording.
