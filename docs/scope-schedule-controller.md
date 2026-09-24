@@ -77,6 +77,34 @@ where `φ_j` is the hat at `b_j`.
 
 **Invaders.** Each species integrates its own masses from its own gate, so invaders need nothing extra.
 
+**Where it can land: on its own, on plant's `develop`.**
+- *What it depends on.* Nothing else in this plan: not the adjoint, the controller, the stepper, the pool floor or the invader fix.
+- *What `develop` (`95256cf3`) already has:*
+  - the birth-date coordinate;
+  - stops at the knots, through pulse events;
+  - a boundary cohort that computes the establishment probability at every evaluation (`node.h:compute_initial_conditions`), which the running masses read.
+- *The change is smaller there:*
+  - `consumption_rate` already opens with its own birth-date branch;
+  - `compute_competition` shares one loop between the coordinates, so it gains one early birth-date branch;
+  - `J`'s trapezium is one function, `Patch::net_reproduction_ratio_for_species`;
+  - the seeding is two lines of `compute_initial_conditions`;
+  - the masses' bookkeeping is `Species::introduce_new_node` and the species' own states.
+- *It does more there.* `develop` has no establishment window. Point samples of the instantaneous gate cannot converge in the schedule at all. With the masses, its ramps (0.07–0.7 days at openings) move from the schedule to the time stepper, and the window becomes a modelling choice rather than a numerical necessity.
+- *Tests, all forward:*
+  - the masses sum to a fine quadrature of `βE` along the run;
+  - uniform ladders converge at second order, with the time grid held by giving every rung the finest rung's creation times as stops;
+  - shifting the schedule by half a spacing moves `J` only at second order;
+  - the cohorts inside closed bands can be removed;
+  - the instantaneous gate converges in the schedule;
+  - FF16's references are unchanged;
+  - the change in step count is reported.
+- *What it costs: the stack.* Its 15 commits above `develop` rewrote `node.h`, `species.h` and `patch.h`, about 1700 lines. So landing on `develop` first means re-applying the birth-date branches in their templated form when the stack is rebased, along with `census_integral` and `field_splits`, which only the stack has.
+  - The window commit gets simpler: seeding no longer reads the establishment probability, and the window only feeds the masses.
+- *Three things to settle in the change itself:*
+  - `refine_schedule`'s drop-one indicator reads cohort densities, so on this path it must read the masses, or refuse;
+  - R code reading birth-date densities gets per-recruit values;
+  - two creations at one instant give a zero-width panel, whose share `0/0` is zero.
+
 ## 2. Two error maps from one sweep
 
 Both come out of the sweep that computes the gradient, at a few percent of its cost (A6).
