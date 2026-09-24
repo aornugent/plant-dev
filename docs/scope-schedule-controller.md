@@ -8,36 +8,57 @@ This covers the three pieces of the performance design that do not depend on the
 The stepper is `scope-imex-stepper.md`. §6 gives the order for both.
 
 **Scope of the controller: the birth-date coordinate only.**
-- `refine_schedule` stays for the height coordinate, which is still plant's default (`node_density_in_birth_date = false`) and FF16's.
-- Retiring the height coordinate would delete it, and every trapezium below with it. That is your decision.
+- The height coordinate stays for now (decided September 2026). It is plant's default (`node_density_in_birth_date = false`) and FF16's, and `refine_schedule` stays with it.
+- Its retirement is anticipated. Everything new sits on the birth-date branch of each reduction, and nothing new reads the height path. Retiring it would delete that branch, `refine_schedule`, the height sort and the height-only seeding, and nothing else.
 
 ## 1. Exact counts
 
-**Today, a cohort is a point sample of the recruitment it stands for.** At birth (`node.h:seat_at_birth`):
-- the density is set to `β(b)·E(b)`;
-- the cumulative loss is set to `−log E(b)`.
+**What a cohort stands for today: a point sample of recruitment.** At birth (`node.h:seat_at_birth`):
+- the density is seeded at `β(b_j)·E(b_j)`, the recruitment rate at that instant;
+- the cumulative loss is seeded at `−log E(b_j)`.
 
-So `E` enters twice: the fields read it through the density, and `J` reads it through the survival factor.
-
-The birth-date trapezium over those samples is formed in four places, which all read the same abscissae:
+Every integral over birth date is a trapezium over those samples, formed in four places:
 - `net_reproduction_ratio`, which is `J`;
 - `consumption_rate`, the uptake `a`;
 - `census_integral`;
 - the competition walk, `field_splits` with `close_competition_and_slope`.
 
-Where `E` ramps faster than the spacing, the samples misweigh it. That is where the schedule's error sat (S3–S6, A5).
+So each panel's recruitment is taken to be linear between its two samples. That fails on this record:
+- `E` ramps over 18–40 days at the 56 band edges;
+- the cohorts are 34–135 days apart;
+- so a panel holding an edge gets the wrong mass, by an amount and sign set by where its cohorts fall (S3–S6, A5).
 
-**The change.**
-- *Each species integrates its recruitment exactly, per panel between consecutive creations*, as two running masses beside `E`:
-  - `M₀ = ∫ βE db`;
-  - `M₁ = ∫ (b − b_last) βE db`.
+`E` also enters twice: the fields read it through the density, and `J` reads it through the survival factor.
 
-  The stepper integrates them. Its steps (median 0.56 days) resolve the gate's ramps (18–40 days), so the schedule no longer has to.
-- *At a creation, the finished panel's masses go into the species' state beside the new cohort, and the running pair restarts at zero.* This is part of the insertion map, so the sweep differentiates it like the rest.
-- *A cohort is seeded at unit density and zero cumulative loss.* The mass it stands for is its hat's share of the two panels either side of it:
-  - `w_j = M₁⁽ʲ⁾/Δ_j + M₀⁽ʲ⁺¹⁾ − M₁⁽ʲ⁺¹⁾/Δ_{j+1}`;
-  - the newest cohort takes its upper share from the running pair, and the boundary cohort at `b = t` takes `M₁/Δ` of it.
-- *The weights are computed once per rate evaluation, in one Species function, and every birth-date reduction becomes `Σ w_j·s_j·X_j`.* `E` now enters once, through the masses. The patch-age weight `π(b)` stays in `J`'s value, where it is smooth.
+**What it stands for instead: the recruitment in its hat.** Recruitment `m(b) = β(b)E(b)` is rough, but the fate of one recruit, `X(b)`, is smooth. So interpolate only the smooth factor:
+
+`∫ m X db ≈ Σ_j X_j w_j`, with `w_j = ∫ m(b) φ_j(b) db`,
+
+where `φ_j` is the hat at `b_j`.
+- *The weight.* `w_j` is the recruitment the cohort stands for, integrated exactly.
+- *The error left* is the interpolation error of `X`, `O(Δb²·X″)` times the mass. That is second order, whatever `m` does.
+
+**How the weights are integrated.**
+- *Each species carries two running states for its open panel,* the one since its last creation `b_N`:
+  - `M₀ = ∫ m db`, with rate `β(t)E(t)`;
+  - `M₁ = ∫ (b − b_N) m db`, with rate `(t − b_N)·β(t)E(t)`.
+
+  The stepper integrates them, and its steps (median 0.56 days) resolve `E`'s ramps.
+- *Each cohort carries its mass `w_j` as a state,* with rate zero.
+- *At a creation at `b_{N+1}`, the insertion map closes the panel.* With `Δ = b_{N+1} − b_N`:
+  - the previous cohort takes its upper share, `w_N += M₀ − M₁/Δ`;
+  - the new cohort starts at its lower share, `w_{N+1} = M₁/Δ`;
+  - the running pair restarts at zero.
+- *Between creations, the open panel is shared the same way at every evaluation:*
+  - the newest cohort adds `M₀ − M₁/(t − b_N)` to its stored mass;
+  - the boundary cohort at `b = t` takes `M₁/(t − b_N)`.
+
+**What else changes.**
+- *A cohort is seeded at unit density and zero cumulative loss,* so its states describe one recruit. `E` enters once, through the masses.
+- *Every birth-date reduction becomes `Σ w_j·s_j·X_j`,* with the weights formed once per evaluation.
+- *The patch-age weight `π(b)` stays in `J`'s per-recruit value,* where it is smooth.
+- *The state grows by one entry per cohort and two per species,* about 4% of the recording.
+- *R code that reads cohort densities on this path reads per-recruit values.* The masses are a new column.
 
 **What it removes from the birth-date path.**
 - the trapezium intervals, and the halving in `without_boundary`;
@@ -45,8 +66,6 @@ Where `E` ramps faster than the spacing, the samples misweigh it. That is where 
 - the sort for cohorts whose heights cross (`ascending_by_abscissa`), because a weighted sum does not depend on order;
 - the second entry of `E`;
 - parking a failed recruit at `establishment_failure_hazard`. Its mass is zero instead.
-
-**What stays.** The height path is untouched, so FF16's references hold. The state grows by two entries per cohort and two per species, about 8% of the recording.
 
 **What it is.** A declared reformulation with the same continuous limit: `J` moves at the level of today's discretisation error.
 - *Test: the handover's test 2.*
@@ -70,14 +89,11 @@ Both come out of the sweep that computes the gradient, at a few percent of its c
 - *When it can be trusted:* until the stepper stops stages overshooting the soil's clamps, `J`'s time error does not follow the tolerance (T5). The map is only trustworthy once the stepper lands (§6, step 7).
 
 **Birth date: the value per unit mass at every cohort, and the error of interpolating it.**
-- *The value.* `J` depends on the panel masses through the weights, so the adjoint of a cohort's panel masses at its insertion row is the value `T` per unit mass there:
-  - `∂J/∂M₀⁽ʲ⁾ = T_{j−1}`;
-  - `∂J/∂M₁⁽ʲ⁾ = (T_j − T_{j−1})/Δ_j`.
-
-  It is the total value, since the competition channel runs through the same weights.
+- *The value.* The adjoint of a cohort's mass at its creation row is `T_j = ∂J/∂w_j`: the value of one more unit of recruitment in its hat, the competition channel included.
+  - It reads the whole effect, because the upper share the next creation adds to the mass only adds to it.
 - *odelia's change:* the sweep already stops at every insertion row, to transpose the insertion map (`ode_solver.hpp:solve_adjoint`), and now it keeps `λ` there.
 - *This replaces* the 207-line hook of `perf-adjoint-hook.patch`.
-- *The error map is the drop-every-other difference, computed without another run.* Compare the product integration of `T` over hats at every cohort with one over hats at every other cohort. Both come from `T` and the stored panel masses. Their difference over a pair of panels, divided by 3, is that pair's error at second order.
+- *The error map is the drop-every-other difference, computed without another run.* Compare the product integration of `T` over hats at every cohort with one over hats at every other cohort. Both come from `T` and each closed panel's `M₀` and `M₁`, which are logged as plain numbers at its creation because nothing differentiates them. Their difference over a pair of panels, divided by 3, is that pair's error at second order.
 - *Its limit is A5's.* Features of `T` narrower than the spacing are invisible from the schedule's own cohorts, so the pilot has to resolve them.
 
 ## 3. The controller
@@ -123,7 +139,7 @@ Both come out of the sweep that computes the gradient, at a few percent of its c
 
 Each step has its pass criterion in the scope it comes from.
 
-1. **Stops as step targets; drop the redundant evaluation at entries; delete RODAS** (stepper scope §2.1–2.2). About 7% fewer member evaluations, with results unchanged.
+1. **Stops as step targets, and drop the redundant evaluation at entries** (stepper scope §2.1). About 7% fewer member evaluations, with results unchanged.
 2. **The pool's relaxation floor** (stepper scope §3, option A). A declared model change: measure `J` and `dJ/dθ`.
 3. **Forward passes record their own rows** (stepper scope §2.3). TF24 invaders work, and their recordings sweep.
 4. **Exact counts** (§1). The handover's test 2.

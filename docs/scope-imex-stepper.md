@@ -5,7 +5,7 @@ The design in short:
 - **A System may declare a small stiff block**, with its rates as a function of that block and the time alone. odelia then solves each stage's block, differentiates it, and puts it on the sweep's tape.
   - TF24's block is the soil's drainage and inflow.
   - The plant developer writes that one function and nothing else.
-- **Four removals come first.** Together they also give invaders a working, differentiable path.
+- **Three removals come first.** Together they also give invaders a working, differentiable path.
 - **The pool's fast mode goes in the model, not the solver.** Its relaxation time is floored (§3, decided), because it breaks invaders whatever the stepper.
 
 ## 1. How an invader stands in the resident's field
@@ -70,16 +70,9 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
   - 2931 insertion rows. Each is a sweep range today, with its own rebind of the patch and its own transposed identity map.
 - *Expected:* `J`, the step sequence and the gradient unchanged to round-off, because a rate evaluation is a function of `(y, t)` alone (`patch.h:1042`).
 
-**2.2 RODAS and everything around it.**
-- *What goes:*
-  - `ode_step_rodas.hpp` and `ode_jacobian.hpp`, 336 lines;
-  - the `Method::rodas` branches and helpers in `SolverInternal`;
-  - `test-rodas.R`.
-- *Why:*
-  - it has no user outside odelia's own Lorenz binding and tests;
-  - it has no adjoint and no replay;
-  - every `Solver<Patch>` in plant instantiates it anyway.
-- *What stays:* `ode_linalg.hpp`'s LU, which §4 reuses.
+**2.2 RODAS stays** (decided September 2026).
+- It keeps its own stepper beside the tableau stepper of §4, and the two share `ode_linalg.hpp`'s LU.
+- So `Method` has three values: `rkck` and `ark` are tableaus of one stepper, and `rodas` is RODAS.
 
 **2.3 Forward replays that load rows.**
 - *Only `run_mutant` uses one* (`scm.h:768`). Every other forward replay walks a program of sizes and solves (`scm.h:697`, `1350`, `1398`).
@@ -133,7 +126,7 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 **The stepper.** `Step` becomes tableau-driven.
 - *Cash–Karp as data, and bit-identical.* Sums run over nonzero coefficients in ascending stage, with `h` applied after the sum. A one-term row is applied as `(a·h)·k`, the rounding the FF16 references were blessed on (`ode_step.hpp:206–224`).
 - *ARK4(3)6L[2]SA as data.* The coefficients are SUNDIALS' `ARK436L2SA`, with the order conditions checked to 1e-16.
-- *`Method` chooses the tableau.* The recording keeps six rows per step (five stages and the end) under both.
+- *`Method` chooses the tableau*, and `rodas` stays a stepper of its own (§2.2). The recording keeps six rows per step (five stages and the end) under both tableaus.
 
 **The stiff block.** A System may declare these members, as a concept with `if constexpr`. The names are proposals.
 
@@ -228,24 +221,22 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
 
 1. **Stops as targets (plant).**
    - *Pass:* `J`, the steps and the gradient unchanged to round-off; about 7% fewer member evaluations; fewer sweep ranges and less sweep time.
-2. **Delete RODAS (odelia).**
-   - *Pass:* the odelia suite, less `test-rodas.R`.
-3. **Seeded rows (odelia and plant).**
+2. **Seeded rows (odelia and plant).**
    - *Pass:*
      - the identity invader is still exact;
      - a resident-and-mutant invasion runs;
      - an invader's sweep agrees with a pinned difference of its fitness.
-4. **The pool (plant): option A, decided.**
+3. **The pool (plant): option A, decided.**
    - *Pass for A:* the moves in `J` and `dJ/dθ` stated; zero throws; the table's mutants run on the resident's program.
-5. **A prototype driven from R** of the soil ARK, on the new baseline.
+4. **A prototype driven from R** of the soil ARK, on the new baseline.
    - The driver with Cash–Karp's tableau must first reproduce the SCM's run bit for bit.
    - *Gate:* at least 30% fewer member evaluations than today at matched `J`.
-6. **The tableau stepper and the stiff block (odelia).**
+5. **The tableau stepper and the stiff block (odelia).**
    - *Pass:*
      - Cash–Karp bit-identical (the FF16 references and odelia's snapshots);
      - ARK at order 4, and stable, on the stiff van der Pol runner the RODAS tests already use;
      - tangent and adjoint agree.
-7. **TF24's wiring (plant).**
+6. **TF24's wiring (plant).**
    - *Pass:* the handover's test 3, the pinned ARK across tolerance.
 
 ## Sources

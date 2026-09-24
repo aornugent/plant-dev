@@ -4,7 +4,7 @@ For the session that tests the performance Oracle's answer. Read, in this order:
 - `oracle-response-solver-performance.md`, the answer, verbatim;
 - `oracle-consultation-solver-performance.md`, the statement it answers. Its T/R/S/Θ/A labels are the measurements the answer cites;
 - `oracle-consultation-guide.md`, the rules for any further consult: domain-free, no candidate fixes, open questions, and test before acting;
-- `scope-imex-stepper.md`, the stepper's scope: four removals first (stops, a redundant evaluation, RODAS, forward replays that load rows), the invader fix, the pool's relaxation floor, then one tableau-driven stepper with a stiff block odelia solves;
+- `scope-imex-stepper.md`, the stepper's scope: three removals first (stops, a redundant evaluation, forward replays that load rows; RODAS stays), the invader fix, the pool's relaxation floor, then one tableau-driven stepper with a stiff block odelia solves;
 - `scope-schedule-controller.md`, the rest: exact counts, the two error maps from the sweep, the controller that replaces `refine_schedule` on the birth-date path, and the order of work for everything (§6).
 
 ## The answer in brief
