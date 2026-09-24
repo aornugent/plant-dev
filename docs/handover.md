@@ -4,7 +4,7 @@ For the session that tests the performance Oracle's answer. Read, in this order:
 - `oracle-response-solver-performance.md`, the answer, verbatim;
 - `oracle-consultation-solver-performance.md`, the statement it answers. Its T/R/S/Θ/A labels are the measurements the answer cites;
 - `oracle-consultation-guide.md`, the rules for any further consult: domain-free, no candidate fixes, open questions, and test before acting;
-- `scope-imex-stepper.md`, the scope of test 3's stepper: the split, what it should save, the risks, and the order to build it in.
+- `scope-imex-stepper.md`, the stepper's scope: four removals first (stops, a redundant evaluation, RODAS, forward replays that load rows), the invader fix, the pool decision, then one tableau-driven stepper with a stiff block odelia solves.
 
 ## The answer in brief
 
@@ -111,8 +111,9 @@ benchmarked.
 In this order. Each has a pass criterion; a fail is a result to report, not a reason to push on.
 
 **0. Cheap and independent (any time; each changes `J` only at round-off or root tolerance).**
-- *One rate evaluation per entry, and none at a zero-size knot.* That saves 3.8–7.5% of member evaluations.
-  - Appending the new member's rates to the carried last stage is exact. The fields are continuous across a creation, because the closing member already sits at `b = t` with the same density.
+- *One rate evaluation per entry, and none at a zero-size knot.* About 7% of member evaluations. Scope §2.1 does it by removal:
+  - stops become targets of `advance_adaptive`, not zero-size pulse events;
+  - `compute_rates()` goes from `introduce_nodes`, since the solver recomputes the rates when it reads them.
   - Check that `J` and the sweep are unchanged.
 - *Warm-starting the inner problem* (phylloptim's collar solve).
   - Measure instructions per solve on the 5-year callgrind cut (`perf-rhs-profile.md`), and the change in `J` (it should be at the root tolerance).
@@ -139,13 +140,16 @@ In this order. Each has a pass criterion; a fail is a result to report, not a re
 - removing the 64 in-band members moves `J` by ≪ 7e-2;
 - 429 and 857 extrapolate at a clean order.
 
-**3. The pinned ARK at θ0, over tol 1e-2 … 1e-4.** This is the big build: a new stepper in odelia, with implicit stages recorded as implicit-function rows and its adjoint, selectable from the SCM. `scope-imex-stepper.md` scopes it: soil first, pools second, and a prototype driven from R before any C++.
+**3. The pinned ARK at θ0, over tol 1e-2 … 1e-4.** This is the big build. `scope-imex-stepper.md` scopes it:
+- Cash–Karp and the ARK become two tableaus of one odelia stepper.
+- The soil is a stiff block that odelia solves and differentiates, from one `stiff_rates` function the environment declares.
+- A prototype driven from R comes before any C++.
 
 *Pass:* `J` monotone in tol with a spread ≪ 1e-4; T6's crossing counts down to the floor and the class switches; zero throws.
 
-*Left unsettled by the answer, and where the scope takes each:*
-- *Evaluating the pool's implicit part: settled, no lag.* Net production is computed before the pool is read, so each member's pool root is solved exactly between its leaf solve and the storage tail (scope §2).
-- *Positivity: open.* Stage 2 is a trapezium half-step, so a pool displaced from its quasi-steady state goes negative in-stage once `hλ > 3.1–4`. The census in the scope's phase 0.3 decides it (scope §4.1).
+*Left unsettled by the answer, and where the scope takes each (scope §3):*
+- *The pool is a modelling decision first.* Flooring its relaxation time removes its stiffness for residents and invaders alike.
+- *If it is solved instead:* the implicit pool can be exact, because net production never reads the pool. But positivity is the cost: stage 2 takes a displaced pool negative once `hλ > 3.1–4`, and an invader cannot retry.
 - *odelia builds.* Changes to odelia need a private library install.
 
 **4. The graded ~140-member schedule on the pinned ARK**, across `perf-across-theta.md`'s 11 points.
@@ -156,6 +160,12 @@ If 1 and 2 pass, the question left is how much of the residual is the model's ow
 
 ## For the user, not the session
 
+- **TF24 invaders work only for the identity mutant** (scope §1).
+  - The replay places the resident's leaf operating points on the invader.
+  - A mutant whose lma differs by one part in 10⁴ already overshoots a pool on the resident's steps.
+  - Measured with `$SP/imex/mutant_scan.R`.
+  - The fix is scope §2.3 plus the pool decision.
+- **The pool's relaxation floor** (scope §3, option A) is a declared model change, like the establishment window.
 - **The window.** The answer says `τ_g` was only a numerical necessity of point-sampled weights. With exact masses the instantaneous gate could converge in the schedule, but the accumulator's own time quadrature would then have to resolve 0.06δ ramps. Keep the window until tests 2 and 3 are in; then it is a modelling call.
 - **Smoothing the switches** (`C¹`), if the kink floor stays above ~1e-2.
 - **The domain leaked.** The answer names "rain-resumption dates" and "seedling survival": the Oracle inferred the domain from the structure alone, although the statement passes the scan.
