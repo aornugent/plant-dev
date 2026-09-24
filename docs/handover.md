@@ -42,7 +42,7 @@ done
 ```
 
 - *Measured September 2026:* 195 s in all, with no compiler warnings.
-- *Rebuilding plant after a C++ edit.* Rerun its `R CMD INSTALL` line: it recompiles only what changed. The birth-date path lives in the headers `node.h`, `species.h` and `patch.h`, so an edit to any of them recompiles most of `src/`, about 2.5 minutes at `-j3`.
+- *Rebuilding plant after a C++ edit.* Add `--preclean` to its `R CMD INSTALL` line. The build does not track header dependencies. Without it, an edit to a header recompiles only the `.cpp` files that changed and links objects built against two versions of the same templates; the birth-date path lives in the headers `node.h`, `species.h` and `patch.h`. A clean rebuild takes about 2.5 minutes at `-j3`.
 - *Exposing a new value to R* means an entry in `inst/RcppR6_classes.yml`, then `RcppR6::RcppR6()` in the plant tree, before the rebuild.
 
 **3. Tests against the installed build.** Run from `$DEV/plant`, with `R_LIBS` and `TESTTHAT_PARALLEL=false` set:
@@ -130,4 +130,16 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 
 ## Progress
 
-- Handover written; implementation not yet started on `PLANT-93`.
+**Implemented on `PLANT-93`** (September 2026):
+- *Seeds* (`node.h`). On the birth-date path a node starts with zero loss and log density `log(birth_rate)`. The height path is unchanged, operation for operation.
+- *State* (`species.h`). `Species` owns `ode_size`, `set_ode_state`, `ode_state` and `ode_rates`. On the birth-date path its block is the nodes' states, then `establishment_since_newest` and its first moment, then one `establishment_weight` per node (a plain `Node` member).
+- *Rates.* The pair's rates are `establishment_rate` (the boundary node's `pr_estab`, computed once in `Species::compute_rates`) and `(t − b_N)` times it. They are zero with no nodes.
+- *Introductions.* Both `introduce_new_node` forms call `split_establishment_since_newest()`.
+- *Reductions.* Competition and uptake use `establishment_weighted_sum`, with the open interval split inline, so there is no per-call allocation. `J` uses `node_establishment_weights()`, the stored weights, with the scalars unchanged.
+- *Height loop.* `compute_competition`'s height loop lost its birth-date branches; it is bit-identical.
+- *R reporting.* On the birth-date path `log_densities` and the state matrix's `log_density` row are `log_birth_date_densities()`, then the Jacobian. An introduced node's value is its weight over half its neighbours' span; the boundary node's is `pr_estab·β`, exact. The new Species active `establishment_weights` has n+1 entries, boundary last.
+- *Patch.* `node_ode_size()` counts node states only, since `SCM::r_set_node_schedule` reads it as "nodes exist". `ode_state_valid` skips each species' own entries.
+- *Refusal.* `SCM::refine_schedule()` stops on the birth-date path, because its indicators read per-seed densities.
+- *Tests.* `test-node.R` (seeds) and `test-density-coordinate.R` (rules, split, seeds, rejection per coordinate, reporting relations).
+
+**K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's, and its birth-date results should move only at round-off.
