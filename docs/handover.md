@@ -6,6 +6,12 @@ For the session that sends the performance consult. The consult (`oracle-consult
 
 - **The stability problem is settled.** TF24 establishment reads the gate averaged over `establishment_window = 0.05` yr, the default the user accepted (aornugent/plant#92). Its record is `oracle-consultation-gradient-control.md`, `oracle-response-gradient-control.md` and `measurements/diag-establishment-window.md`.
 - **Next: the performance consult goes to a fresh Oracle.** The user sends it. Capture the response verbatim as `docs/oracle-response-solver-performance.md`.
+- **Consults follow `docs/oracle-consultation-guide.md`.** The domain-free framing is the part the user holds essential. Any statement sent must:
+  - describe the problem and never a candidate fix;
+  - weight the structural features equally;
+  - keep the mathematics complete with no domain nouns;
+  - end in open questions.
+- **The gate.** Before sending, the domain-word scan must come back empty; the command is in `oracle-consultation-solver-performance.md`'s commit message. The performance consult passes it. The stability consult does not (days, trait, water, cohort, establishment), so do not reuse its text.
 - **The user's questions**, which the consult's four question groups carry:
   - replace `refine_schedule`, which was built for FF16 and the height coordinate, with something fast to find and lean in `Σ M`, suited to TF24, the birth-date coordinate and realistic rainfall;
   - one grid per rainfall record, fixed and shared across θ, with a trust region set by conditioning metrics;
