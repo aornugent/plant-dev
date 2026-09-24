@@ -1,0 +1,262 @@
+diff --git a/R/RcppExports.R b/R/RcppExports.R
+index 84fb60b6..df85e1b2 100644
+--- a/R/RcppExports.R
++++ b/R/RcppExports.R
+@@ -4473,6 +4473,18 @@ gradient_control_tf24 <- function(obj_) {
+     .Call('_plant_gradient_control_tf24', PACKAGE = 'plant', obj_)
+ }
+ 
++census_introduction_adjoints_tf24 <- function(obj_, metric) {
++    .Call('_plant_census_introduction_adjoints_tf24', PACKAGE = 'plant', obj_, metric)
++}
++
++census_sweep_counters_tf24 <- function(obj_) {
++    .Call('_plant_census_sweep_counters_tf24', PACKAGE = 'plant', obj_)
++}
++
++census_recording_size_tf24 <- function(obj_) {
++    .Call('_plant_census_recording_size_tf24', PACKAGE = 'plant', obj_)
++}
++
+ node_schedule_default__Parameters___FF16__FF16_Env <- function(p) {
+     .Call('_plant_node_schedule_default__Parameters___FF16__FF16_Env', PACKAGE = 'plant', p)
+ }
+diff --git a/inst/include/plant/scm.h b/inst/include/plant/scm.h
+index dfe92324..25ed0038 100644
+--- a/inst/include/plant/scm.h
++++ b/inst/include/plant/scm.h
+@@ -254,6 +254,14 @@ public:
+   census_trait_gradient(const std::vector<size_t>& extra_stops = {},
+                         const std::vector<std::string>& which_metrics = {});
+ 
++  // The adjoint of each state an introduction reached, one row per introduction in
++  // recorded order, read where the sweep of `metric` stands on it before carrying it
++  // across. A node's entries in its row are the metric's sensitivity to the state it
++  // was introduced at; `trait_gradient` is the same sweep's row.
++  std::vector<std::vector<double>>
++  census_introduction_adjoints(const std::string& metric,
++                               std::vector<double>& trait_gradient);
++
+   // The four references the ladder checks census_trait_gradient against.
+ 
+   // The same quantity differenced, by moving the prepared strategy exactly where
+@@ -1296,6 +1304,85 @@ SCM<T, E>::census_trait_gradient(const std::vector<size_t>& extra_stops,
+   return ret;
+ }
+ 
++// census_trait_gradient's descent taken one range per call, so the adjoint can be
++// read at each introduction; each introduction is then transposed by the map the
++// solver's own walk transposes there.
++template <typename T, typename E>
++std::vector<std::vector<double>>
++SCM<T, E>::census_introduction_adjoints(const std::string& metric,
++                                        std::vector<double>& trait_gradient) {
++  require_birth_date_coordinate("census_introduction_adjoints");
++  using scalar = odelia::ode::active_scalar<double>;
++  const std::vector<std::string> names = census_names();
++  const auto found = std::find(names.begin(), names.end(), metric);
++  if (found == names.end()) {
++    util::stop("census_introduction_adjoints: this model has no census metric `" +
++               metric + "`");
++  }
++  const std::vector<size_t> row{static_cast<size_t>(found - names.begin())};
++
++  const trajectory rec = store_trajectory();
++  patch_type& live = solver.get_system_ref();
++  clear_recorded_refusal(live);
++  const census_rows both = census_state_and_trait_rows();
++  odelia::ode::adjoint_rows lambda = both.state.select(row);
++  odelia::ode::adjoint_rows trait_adjoint = both.trait.select(row);
++
++  // An insertion row that did not widen the state is an event with no node in it,
++  // and the descent crosses it inside a range as the shipped sweep does.
++  std::vector<size_t> introductions;
++  for (size_t k = 1; k < rec.size(); ++k) {
++    if (rec[k].insertion && rec[k].state.size() > rec[k - 1].state.size()) {
++      introductions.push_back(k);
++    }
++  }
++  std::vector<std::vector<double>> ret(introductions.size());
++  size_t hi = rec.size() - 1;
++  for (size_t i = introductions.size(); i-- > 0;) {
++    const size_t at = introductions[i];
++    if (at < hi) {
++      solver.solve_adjoint(lambda, trait_adjoint, at, hi);
++    }
++    ret[i] = lambda.to_rows().front();
++    odelia::ode::be_at_step(live, rec, at - 1);
++    const double when = rec[at].time;
++    auto insert = [&](auto& sys, typename std::vector<scalar>::const_iterator x,
++                      std::vector<scalar>& y) -> void {
++      odelia::ode::apply_insertion(sys, when, x, y);
++    };
++    odelia::ode::adjoint_rows narrowed;
++    odelia::ode::state_and_parameter_adjoints(live, rec[at - 1].state, lambda,
++                                              insert, narrowed, trait_adjoint);
++    lambda = std::move(narrowed);
++    hi = at - 1;
++  }
++  if (hi > 0) {
++    solver.solve_adjoint(lambda, trait_adjoint, 0, hi);
++  }
++  if constexpr (EstablishesOverWindow<T>) {
++    if (parameters.initial_state.empty()) {
++      odelia::ode::be_at_step(live, rec, 0);
++      const double t0 = rec[0].time;
++      auto start = [&](auto& sys, typename std::vector<scalar>::const_iterator x,
++                       std::vector<scalar>& y) -> void {
++        sys.set_state_and_boundary(x, t0);
++        sys.start_establishment_windows();
++        sys.ode_state(y.begin());
++      };
++      odelia::ode::adjoint_rows before_start;
++      odelia::ode::state_and_parameter_adjoints(live, rec[0].state, lambda, start,
++                                                before_start, trait_adjoint);
++    }
++  }
++  odelia::ode::be_at_step(live, rec, rec.size() - 1);
++  const refusal why = recorded_refusal(live);
++  if (why.happened()) {
++    util::stop("census_introduction_adjoints: " + why.reason);
++  }
++  trait_gradient = trait_adjoint.to_rows().front();
++  return ret;
++}
++
+ 
+ // The reference the trajectory sweep is checked against. It is a tangent of the
+ // same forward source: exact, with no step size of its own and no truncation,
+diff --git a/src/RcppExports.cpp b/src/RcppExports.cpp
+index 1620b5aa..38d1ff46 100644
+--- a/src/RcppExports.cpp
++++ b/src/RcppExports.cpp
+@@ -12574,6 +12574,40 @@ BEGIN_RCPP
+     return rcpp_result_gen;
+ END_RCPP
+ }
++// census_introduction_adjoints_tf24
++Rcpp::List census_introduction_adjoints_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_, std::string metric);
++RcppExport SEXP _plant_census_introduction_adjoints_tf24(SEXP obj_SEXP, SEXP metricSEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    Rcpp::traits::input_parameter< std::string >::type metric(metricSEXP);
++    rcpp_result_gen = Rcpp::wrap(census_introduction_adjoints_tf24(obj_, metric));
++    return rcpp_result_gen;
++END_RCPP
++}
++// census_sweep_counters_tf24
++Rcpp::NumericVector census_sweep_counters_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_);
++RcppExport SEXP _plant_census_sweep_counters_tf24(SEXP obj_SEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    rcpp_result_gen = Rcpp::wrap(census_sweep_counters_tf24(obj_));
++    return rcpp_result_gen;
++END_RCPP
++}
++// census_recording_size_tf24
++Rcpp::NumericVector census_recording_size_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_);
++RcppExport SEXP _plant_census_recording_size_tf24(SEXP obj_SEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    rcpp_result_gen = Rcpp::wrap(census_recording_size_tf24(obj_));
++    return rcpp_result_gen;
++END_RCPP
++}
+ // node_schedule_default__Parameters___FF16__FF16_Env
+ plant::NodeSchedule node_schedule_default__Parameters___FF16__FF16_Env(const plant::Parameters<plant::FF16_Strategy,plant::FF16_Environment>& p);
+ RcppExport SEXP _plant_node_schedule_default__Parameters___FF16__FF16_Env(SEXP pSEXP) {
+@@ -14320,6 +14354,9 @@ static const R_CallMethodDef CallEntries[] = {
+     {"_plant_census_undifferentiable_tf24", (DL_FUNC) &_plant_census_undifferentiable_tf24, 0},
+     {"_plant_census_trait_gradient_tf24", (DL_FUNC) &_plant_census_trait_gradient_tf24, 2},
+     {"_plant_gradient_control_tf24", (DL_FUNC) &_plant_gradient_control_tf24, 1},
++    {"_plant_census_introduction_adjoints_tf24", (DL_FUNC) &_plant_census_introduction_adjoints_tf24, 2},
++    {"_plant_census_sweep_counters_tf24", (DL_FUNC) &_plant_census_sweep_counters_tf24, 1},
++    {"_plant_census_recording_size_tf24", (DL_FUNC) &_plant_census_recording_size_tf24, 1},
+     {"_plant_node_schedule_default__Parameters___FF16__FF16_Env", (DL_FUNC) &_plant_node_schedule_default__Parameters___FF16__FF16_Env, 1},
+     {"_plant_make_node_schedule__Parameters___FF16__FF16_Env", (DL_FUNC) &_plant_make_node_schedule__Parameters___FF16__FF16_Env, 1},
+     {"_plant_test_gradient_fd1", (DL_FUNC) &_plant_test_gradient_fd1, 5},
+diff --git a/src/census_gradient.cpp b/src/census_gradient.cpp
+index ac2eb477..91f85766 100644
+--- a/src/census_gradient.cpp
++++ b/src/census_gradient.cpp
+@@ -108,3 +108,74 @@ Rcpp::NumericVector gradient_control_tf24(plant::RcppR6::RcppR6<plant::SCM<plant
+   out.names() = names;
+   return out;
+ }
++
++// The adjoint of the state each introduction reached, one row per introduction in
++// recorded order, beside the trait gradient the same sweep accumulated.
++// [[Rcpp::export]]
++Rcpp::List
++census_introduction_adjoints_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_,
++                                  std::string metric) {
++  std::vector<double> gradient;
++  const std::vector<std::vector<double>> rows =
++      obj_->census_introduction_adjoints(metric, gradient);
++  return Rcpp::List::create(Rcpp::_["introductions"] = Rcpp::wrap(rows),
++                            Rcpp::_["gradient"] = Rcpp::wrap(gradient));
++}
++
++// Two running totals a sweep adds to: the leaf operating points it placed from the
++// recording, and the inflow-boundary evaluations it recorded.
++// [[Rcpp::export]]
++Rcpp::NumericVector
++census_sweep_counters_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_) {
++  double placed = 0.0;
++  for (size_t i = 0; i < obj_->r_patch().size(); ++i) {
++    placed += static_cast<double>(
++        obj_->r_patch().at_species(i).strategy_ptr()->leaf_placements());
++  }
++  return Rcpp::NumericVector::create(
++      Rcpp::_["placements"] = placed,
++      Rcpp::_["boundary_evaluations"] =
++          static_cast<double>(obj_->boundary_condition_evaluations()));
++}
++
++// What a kept recording holds: its rows, the state entries over them, the operating
++// points kept for its rate evaluations, the field entries kept beside them, and the
++// heap blocks all of that sits in. `row_bytes` is one row's own footprint.
++// [[Rcpp::export]]
++Rcpp::NumericVector
++census_recording_size_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_) {
++  using patch_type =
++      plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double>>;
++  if (!obj_->record_trajectory) {
++    plant::util::stop("census_recording_size: this run kept no recording");
++  }
++  const auto rec = obj_->store_trajectory();
++  double states = 0.0, points = 0.0, field = 0.0, insertions = 0.0, blocks = 0.0;
++  for (const auto& row : rec) {
++    states += static_cast<double>(row.state.size());
++    blocks += row.state.empty() ? 0.0 : 1.0;
++    insertions += row.insertion ? 1.0 : 0.0;
++    for (const auto& stage : row.solved) {
++      blocks += stage.strategies.empty() ? 0.0 : 1.0;
++      for (const auto& species : stage.strategies) {
++        points += static_cast<double>(species.size());
++        blocks += species.empty() ? 0.0 : 1.0;
++      }
++      field += static_cast<double>(stage.field.interpolators.size() +
++                                   stage.field.state.size());
++      blocks += (stage.field.interpolators.empty() ? 0.0 : 1.0) +
++                (stage.field.state.empty() ? 0.0 : 1.0);
++    }
++  }
++  return Rcpp::NumericVector::create(
++      Rcpp::_["rows"] = static_cast<double>(rec.size()),
++      Rcpp::_["insertions"] = insertions,
++      Rcpp::_["state_doubles"] = states,
++      Rcpp::_["solved_points"] = points,
++      Rcpp::_["field_doubles"] = field,
++      Rcpp::_["heap_blocks"] = blocks,
++      Rcpp::_["row_bytes"] = static_cast<double>(
++          sizeof(odelia::ode::step_record<patch_type>)),
++      Rcpp::_["point_bytes"] =
++          static_cast<double>(sizeof(plant::leaf_solved_point)));
++}
