@@ -4,7 +4,8 @@ For the session that tests the performance Oracle's answer. Read, in this order:
 - `oracle-response-solver-performance.md`, the answer, verbatim;
 - `oracle-consultation-solver-performance.md`, the statement it answers. Its T/R/S/Θ/A labels are the measurements the answer cites;
 - `oracle-consultation-guide.md`, the rules for any further consult: domain-free, no candidate fixes, open questions, and test before acting;
-- `scope-imex-stepper.md`, the stepper's scope: four removals first (stops, a redundant evaluation, RODAS, forward replays that load rows), the invader fix, the pool decision, then one tableau-driven stepper with a stiff block odelia solves.
+- `scope-imex-stepper.md`, the stepper's scope: four removals first (stops, a redundant evaluation, RODAS, forward replays that load rows), the invader fix, the pool's relaxation floor, then one tableau-driven stepper with a stiff block odelia solves;
+- `scope-schedule-controller.md`, the rest: exact counts, the two error maps from the sweep, the controller that replaces `refine_schedule` on the birth-date path, and the order of work for everything (§6).
 
 ## The answer in brief
 
@@ -108,7 +109,7 @@ benchmarked.
 
 ## Next: test before building
 
-In this order. Each has a pass criterion; a fail is a result to report, not a reason to push on.
+The order of work is `scope-schedule-controller.md` §6, and the tests below are the pass criteria it cites. Each has a pass criterion; a fail is a result to report, not a reason to push on.
 
 **0. Cheap and independent (any time; each changes `J` only at round-off or root tolerance).**
 - *One rate evaluation per entry, and none at a zero-size knot.* About 7% of member evaluations. Scope §2.1 does it by removal:
@@ -165,7 +166,7 @@ If 1 and 2 pass, the question left is how much of the residual is the model's ow
   - A mutant whose lma differs by one part in 10⁴ already overshoots a pool on the resident's steps.
   - Measured with `$SP/imex/mutant_scan.R`.
   - The fix is scope §2.3 plus the pool decision.
-- **The pool's relaxation floor** (scope §3, option A) is a declared model change, like the establishment window.
+- **The pool's relaxation floor** (stepper scope §3, option A) is decided. It is a declared model change, like the establishment window, and its effect on `J` and `dJ/dθ` is to be reported.
 - **The window.** The answer says `τ_g` was only a numerical necessity of point-sampled weights. With exact masses the instantaneous gate could converge in the schedule, but the accumulator's own time quadrature would then have to resolve 0.06δ ramps. Keep the window until tests 2 and 3 are in; then it is a modelling call.
 - **Smoothing the switches** (`C¹`), if the kink floor stays above ~1e-2.
 - **The domain leaked.** The answer names "rain-resumption dates" and "seedling survival": the Oracle inferred the domain from the structure alone, although the statement passes the scan.

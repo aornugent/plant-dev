@@ -6,7 +6,7 @@ The design in short:
   - TF24's block is the soil's drainage and inflow.
   - The plant developer writes that one function and nothing else.
 - **Four removals come first.** Together they also give invaders a working, differentiable path.
-- **The pool's fast mode is left to a modelling decision.** It breaks invaders whatever the stepper.
+- **The pool's fast mode goes in the model, not the solver.** Its relaxation time is floored (§3, decided), because it breaks invaders whatever the stepper.
 
 ## 1. How an invader stands in the resident's field
 
@@ -126,7 +126,7 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 
 - *Who is exposed:* a pool above its quasi-steady state goes negative mid-step, for example a member created at `0.8·S_max` with negative production. A resident retries that step; an invader pinned to the resident's steps cannot.
 
-**Recommendation: A.** B only if A moves `J` by more than you will accept.
+**Decided: A** (September 2026). B stays on file in case A moves `J` by more than is acceptable.
 
 ## 4. One stepper, two tableaus, a declared stiff block
 
@@ -224,6 +224,8 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
 
 ## 7. Order of work
 
+`scope-schedule-controller.md` §6 interleaves these steps with exact counts and the controller; this is the stepper's own sequence.
+
 1. **Stops as targets (plant).**
    - *Pass:* `J`, the steps and the gradient unchanged to round-off; about 7% fewer member evaluations; fewer sweep ranges and less sweep time.
 2. **Delete RODAS (odelia).**
@@ -233,7 +235,7 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
      - the identity invader is still exact;
      - a resident-and-mutant invasion runs;
      - an invader's sweep agrees with a pinned difference of its fitness.
-4. **The pool (plant): your decision between A and B.**
+4. **The pool (plant): option A, decided.**
    - *Pass for A:* the moves in `J` and `dJ/dθ` stated; zero throws; the table's mutants run on the resident's program.
 5. **A prototype driven from R** of the soil ARK, on the new baseline.
    - The driver with Cash–Karp's tableau must first reproduce the SCM's run bit for bit.
