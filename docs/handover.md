@@ -24,7 +24,7 @@ Both grids are being bent to compensate for two earlier choices. Fix those, and 
      - ~35 panels in `[0, 3.56)`;
      - in `[3.56, 16)`, a node at each date that ends a deep band, one ~`τ_g` inside it, and spacing 0.15–0.25 between;
      - ~0.5 to `b = 22`, and 1–2 after.
-   - Retire `refine_schedule`.
+   - Retire `refine_schedule`'s algorithm, not the idea of adapting: see "The requirement" below.
 
 **Across θ.**
 - *Fixed:* the schedule and the stops. The step program is pinned within an epoch.
@@ -41,6 +41,69 @@ Both grids are being bent to compensate for two earlier choices. Fix those, and 
 - The model's `C⁰` switches make `J_h` piecewise smooth in θ. The 3.4% sweep–secant gap (A3) is that floor. If it stays above ~1e-2 after the fixes, smoothing the switches is a modelling decision.
 
 **Independent lever.** Warm-start the inner problem from the previous stage. The claim is 3–5× per member evaluation, with the tape unaffected.
+
+## The requirement: one controller for every scenario
+
+The user wants a control algorithm that is optimal for short and long horizons,
+for constant, impulsive and composed rainfall, and across a wide range of traits.
+A design for one fixture does not meet that.
+
+**What generalises from the answer.** Each of these is independent of the record
+and the traits:
+- the implicit–explicit split: the stiffness is the soil's and the storage's
+  physics, not the record's;
+- exact establishment masses: the gate's ramps leave the cohort grid for any
+  record;
+- one evaluation per entry, and warm-started inner solves;
+- error weights from the adjoint, which measure error in `J`'s units in any
+  scenario.
+
+**What does not.**
+- The placement rules: band-ending dates, 0.15–0.25 spacing, the `b = 22` cut,
+  "~35 panels early". They are read off this fixture, where early cohorts carry
+  88% of `J`.
+- "Re-grade only on a band-regime change".
+- A step program pinned from one pilot without its certificate checked.
+- The assumption that value per unit mass is smooth at a pilot's resolution. It is
+  what failed at 0.04× (A5), and under impulsive records a newborn's value can jump
+  across a storm.
+
+**The general controller to build and test.** This is what replacing
+`refine_schedule` means:
+1. Take a pilot from the record's own feature scales, with exact masses.
+2. Run one forward pass and one sweep, giving two error maps in `J`'s units: the
+   adjoint-weighted local error per step, and the `g`-defect per panel.
+3. Place members by equidistributing estimated error per unit cost, with
+   coarsening. Balance the time and schedule budgets by their marginal cost.
+4. Certify with those estimates, plus Richardson checkpoints.
+5. In an optimisation, keep the discretisation while the certificate holds and
+   rebuild when it fails.
+
+This is asymptotically optimal to a constant factor for a given cost model, once
+the pilot resolves the features. Below that regime optimality can only be
+benchmarked.
+
+**The benchmark comes before the design is called general.**
+- *Records*, each recalibrated so the stand persists (`J` well above 1): constant,
+  seasonal, intermittent Markov (`gen_rain_mix` in `tg/ld_common.R`), impulsive
+  storms, long drought, wet–dry whiplash, and composed.
+- *Horizons*: 5, 10, 40 and 100.
+- *Traits*: a Latin hypercube within persistence, plus one near-extinct control to
+  document the conditioning limit.
+- *Measured in each*: the certified error against its target; the cost against the
+  best brute-force schedule (uniform ladders and band fills); how often the
+  certificate rebuilds along an optimisation path; and the failures.
+- *Per-scenario risks*:
+  - constant: a permanently stiff wet steady state;
+  - impulsive: the one-step-per-leg floor;
+  - long horizon: members accumulate, so retiring them with a bound is needed;
+  - wide traits: regime changes and near-extinction.
+- *Prior bank.* The multirate branch's six-scenario bank
+  (`perf/profile/branchdocs/docs_tf24-v2-T6-slice4-scenario-bank-result.md`) left
+  the stand near extinction on every trace, and crashed the explicit pair on three.
+  Reuse its record shapes, not its calibration.
+- *Then consult again.* Once the bank has data, a second Oracle consult framed
+  around the family of records is worth sending (guide §6).
 
 ## Next: test before building
 
