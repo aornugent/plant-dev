@@ -3,7 +3,8 @@
 For the session that tests the performance Oracle's answer. Read, in this order:
 - `oracle-response-solver-performance.md`, the answer, verbatim;
 - `oracle-consultation-solver-performance.md`, the statement it answers. Its T/R/S/Θ/A labels are the measurements the answer cites;
-- `oracle-consultation-guide.md`, the rules for any further consult: domain-free, no candidate fixes, open questions, and test before acting.
+- `oracle-consultation-guide.md`, the rules for any further consult: domain-free, no candidate fixes, open questions, and test before acting;
+- `scope-imex-stepper.md`, the scope of test 3's stepper: the split, what it should save, the risks, and the order to build it in.
 
 ## The answer in brief
 
@@ -138,13 +139,13 @@ In this order. Each has a pass criterion; a fail is a result to report, not a re
 - removing the 64 in-band members moves `J` by ≪ 7e-2;
 - 429 and 857 extrapolate at a clean order.
 
-**3. The pinned ARK at θ0, over tol 1e-2 … 1e-4.** This is the big build: a new stepper in odelia, with implicit stages recorded as implicit-function rows and its adjoint, selectable from the SCM.
+**3. The pinned ARK at θ0, over tol 1e-2 … 1e-4.** This is the big build: a new stepper in odelia, with implicit stages recorded as implicit-function rows and its adjoint, selectable from the SCM. `scope-imex-stepper.md` scopes it: soil first, pools second, and a prototype driven from R before any C++.
 
 *Pass:* `J` monotone in tol with a spread ≪ 1e-4; T6's crossing counts down to the floor and the class switches; zero throws.
 
-*Unsettled in the answer:*
-- *Evaluating the pool's implicit part.* The pool's `c` and `d` come from the member evaluation, which runs once per stage, while an ARK evaluates its implicit part at the stage's own value. Either lag `c` and `d` within the stage — a W-type, linearly implicit variant whose order must be checked by a convergence study — or restructure.
-- *Positivity.* The explicit sums inside ESDIRK stages can still drive the pool negative, so count throws.
+*Left unsettled by the answer, and where the scope takes each:*
+- *Evaluating the pool's implicit part: settled, no lag.* Net production is computed before the pool is read, so each member's pool root is solved exactly between its leaf solve and the storage tail (scope §2).
+- *Positivity: open.* Stage 2 is a trapezium half-step, so a pool displaced from its quasi-steady state goes negative in-stage once `hλ > 3.1–4`. The census in the scope's phase 0.3 decides it (scope §4.1).
 - *odelia builds.* Changes to odelia need a private library install.
 
 **4. The graded ~140-member schedule on the pinned ARK**, across `perf-across-theta.md`'s 11 points.
