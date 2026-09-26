@@ -155,7 +155,16 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 - *The half-spacing shift* moves develop's `J` by 4.4% and `PLANT-93`'s by 0.46%.
 - *Develop does not converge.* It falls 6% from 108 to 857, with successive changes −0.465, −0.186 and −0.174, and is still falling at 857.
 - *`PLANT-93` stays within ±0.3% of 13.49 from 108 cohorts on,* but oscillates: −0.028, +0.075, −0.058.
-- *The hypothesis for the oscillation: time error in the masses.* `ode_tol_abs = 1e-3` is about the size of a whole step's increment of the running integral (`E ≲ 1` over a ≤ 1-day step), so error control never constrains it. The instantaneous gate's 0.07–0.7-day ramps are then integrated at the stepper's resolution, not resolved. Exact counts move the gate's ramps from the schedule to the stepper, as scope §1 said. Under test: the ladder at `tol = 1e-4` (`$SP/dev/ladder/run_tol.sh`).
+- *The oscillation was time error, and a tighter tolerance removes it.* `ode_tol_abs = 1e-3` is about the size of a whole step's increment of the running integral (`E ≲ 1` over a ≤ 1-day step), so error control never constrains it, and the instantaneous gate's 0.07–0.7-day ramps are integrated at the stepper's resolution. Exact counts move the gate's ramps from the schedule to the stepper, as scope §1 said. At `tol = 1e-4`:
+
+  | rung | develop `J` | `PLANT-93` `J` | develop steps | `PLANT-93` steps |
+  |---|---|---|---|---|
+  | 108 | 14.11940193 | 13.46831669 | 14 481 | 14 422 |
+  | 215 | 13.70645177 | 13.45937622 | 14 786 | 14 659 |
+  | shift215 | 13.20973319 | 13.46227966 | 14 774 | 14 633 |
+  | 429 | — | 13.46270039 | — | 14 836 |
+
+  `PLANT-93`'s four values lie within 0.07% of one another, and its half-spacing shift is 0.022%. Develop's shift is still 3.6%, and its 108 rung is 4.9% off: its error is the schedule's, which the tolerance does not reach.
 - *Cost* is unchanged, and steps change by under 0.5%.
 
 **The scenario gateway** (`PLANT_RUN_SCENARIOS=1`, birth date, lifetime 100). CI does not run it, but #639 re-blessed it so PRs stop inheriting failures. Develop reproduces the blessed baseline here to ≤ 8e-4, inside the gateway's 1e-3. `PLANT-93` moves:
