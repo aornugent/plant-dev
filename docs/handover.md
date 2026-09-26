@@ -142,4 +142,19 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 - *Refusal.* `SCM::refine_schedule()` stops on the birth-date path, because its indicators read per-seed densities.
 - *Tests.* `test-node.R` (seeds) and `test-density-coordinate.R` (rules, split, seeds, rejection per coordinate, reporting relations).
 
+**The fixture ladder** (`harness/long_drought.R`). Every rung is a subset of the 857-rung's creation times and steps to all of them and the 2931 active knots, so only the schedule differs. `shift215` is the 215 rung moved by half its spacing.
+
+| rung | develop `J` | `PLANT-93` `J` | develop steps | `PLANT-93` steps |
+|---|---|---|---|---|
+| 108 | 14.16848774 | 13.48837534 | 11 532 | 11 553 |
+| 215 | 13.70380389 | 13.46022703 | 11 824 | 11 822 |
+| shift215 | 13.09451863 | 13.39875737 | 11 812 | 11 778 |
+| 429 | 13.51791574 | 13.53515355 | 12 016 | 11 988 |
+| 857 | (running) | (running) | | |
+
+- *The half-spacing shift* moves develop's `J` by 4.4% and `PLANT-93`'s by 0.46%.
+- *Develop* converges at about first order: the successive changes are −0.465 and −0.186.
+- *`PLANT-93` is not yet monotone* (−0.028, then +0.075). The per-seed value appears to have features about as wide as the spacing (A5 measured 0.1–0.5 yr; the 215 spacing is 0.185 yr), which exact counts do not address; 857 tests this.
+- *Cost* is unchanged, and steps change by under 0.5%.
+
 **K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's, and its birth-date results should move only at round-off.
