@@ -130,17 +130,18 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 
 ## Progress
 
-**Implemented on `PLANT-93`** (September 2026):
+**Implemented on `PLANT-93`** (September 2026). The design was reworked after a self-review against a blind clean sheet; `a69afc13` is the current form.
 - *Seeds* (`node.h`). On the birth-date path a node starts with zero loss and log density `log(birth_rate)`. The height path is unchanged, operation for operation.
-- *State* (`species.h`). `Species` owns `ode_size`, `set_ode_state`, `ode_state` and `ode_rates`. On the birth-date path its block is the nodes' states, then `establishment_since_newest` and its first moment, then one `establishment_weight` per node (a plain `Node` member).
-- *Rates.* The pair's rates are `establishment_rate` (the boundary node's `pr_estab`, computed once in `Species::compute_rates`) and `(t − b_N)` times it. They are zero with no nodes.
-- *Introductions.* Both `introduce_new_node` forms call `split_establishment_since_newest()`.
-- *Reductions.* Competition and uptake use `establishment_weighted_sum`, with the open interval split inline, so there is no per-call allocation. `J` uses `node_establishment_weights()`, the stored weights, with the scalars unchanged.
-- *Height loop.* `compute_competition`'s height loop lost its birth-date branches; it is bit-identical.
-- *R reporting.* On the birth-date path `log_densities` and the state matrix's `log_density` row are `log_birth_date_densities()`, then the Jacobian. An introduced node's value is its weight over half its neighbours' span; the boundary node's is `pr_estab·β`, exact. The new Species active `establishment_weights` has n+1 entries, boundary last.
-- *Patch.* `node_ode_size()` counts node states only, since `SCM::r_set_node_schedule` reads it as "nodes exist". `ode_state_valid` skips each species' own entries.
-- *Refusal.* `SCM::refine_schedule()` stops on the birth-date path, because its indicators read per-seed densities.
-- *Tests.* `test-node.R` (seeds) and `test-density-coordinate.R` (rules, split, seeds, rejection per coordinate, reporting relations).
+- *Intervals* (`node.h`). Each node carries `interval_establishment` and `interval_establishment_moment`: `E` integrated over the birth dates from its own to the next node's, and that integral's first moment about its own birth date. `Node::ode_size()` and `ode_names()` became members, +2 on the birth-date path.
+- *Rates.* `Node::compute_rates` zeroes the interval rates, and `Species::compute_rates` then sets the newest node's with `set_interval_establishment_rate(pr_estab, t − b_N)`.
+- *Introductions* need no code. The pushed copy of `new_node` has zero moments, and the previous newest node's interval freezes as its rates move on.
+- *Weights* are derived. `Node::interval_shares(width)` gives {own, next} = {M0 − M1/width, M1/width}, with 0/0 → 0. From these: `Species::node_establishment_weights()` (closed intervals, for `J`), `establishment_weights()` (plus the open interval, boundary last; an R active) and `establishment_weighted_sum(f)` (competition and uptake, interval by interval, `f` once per node).
+- *J.* `J = Σ w_j·net_prod_j·scalars_j`, with the scalars unchanged.
+- *R reporting.* On the birth-date path `log_densities` and the state matrix's `log_density` row are `log_birth_date_densities()`, then the Jacobian. An introduced node's value is its weight over half its neighbours' span; the boundary node's is `pr_estab·β`, exact, read from the newest node's rate.
+- *Patch.* `node_ode_size()` is develop's, and `ode_state_valid` advances by each node's own `ode_size()`.
+- *Refusal.* `SCM::refine_schedule()` stops on the birth-date path.
+- *Tests.* `test-node.R` and `test-density-coordinate.R`.
+- *The stack.* Its insertion map stays "append one node's state" (`patch.h:1670` there sizes it by `node_type::ode_size()`, which must become the node's own), and the adjoint of `interval_establishment` at a node's creation row is its value per unit establishment.
 
 **The fixture ladder** (`harness/long_drought.R`). Every rung is a subset of the 857-rung's creation times and steps to all of them and the 2931 active knots, so only the schedule differs. `shift215` is the 215 rung moved by half its spacing.
 
