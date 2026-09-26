@@ -150,11 +150,12 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 | 215 | 13.70380389 | 13.46022703 | 11 824 | 11 822 |
 | shift215 | 13.09451863 | 13.39875737 | 11 812 | 11 778 |
 | 429 | 13.51791574 | 13.53515355 | 12 016 | 11 988 |
-| 857 | (running) | (running) | | |
+| 857 | 13.34374464 | 13.47687501 | 12 227 | 12 190 |
 
 - *The half-spacing shift* moves develop's `J` by 4.4% and `PLANT-93`'s by 0.46%.
-- *Develop* converges at about first order: the successive changes are −0.465 and −0.186.
-- *`PLANT-93` is not yet monotone* (−0.028, then +0.075). The per-seed value appears to have features about as wide as the spacing (A5 measured 0.1–0.5 yr; the 215 spacing is 0.185 yr), which exact counts do not address; 857 tests this.
+- *Develop does not converge.* It falls 6% from 108 to 857, with successive changes −0.465, −0.186 and −0.174, and is still falling at 857.
+- *`PLANT-93` stays within ±0.3% of 13.49 from 108 cohorts on,* but oscillates: −0.028, +0.075, −0.058.
+- *The hypothesis for the oscillation: time error in the masses.* `ode_tol_abs = 1e-3` is about the size of a whole step's increment of the running integral (`E ≲ 1` over a ≤ 1-day step), so error control never constrains it. The instantaneous gate's 0.07–0.7-day ramps are then integrated at the stepper's resolution, not resolved. Exact counts move the gate's ramps from the schedule to the stepper, as scope §1 said. Under test: the ladder at `tol = 1e-4` (`$SP/dev/ladder/run_tol.sh`).
 - *Cost* is unchanged, and steps change by under 0.5%.
 
 **K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's, and its birth-date results should move only at round-off.
