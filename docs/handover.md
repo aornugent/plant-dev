@@ -158,4 +158,17 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 - *The hypothesis for the oscillation: time error in the masses.* `ode_tol_abs = 1e-3` is about the size of a whole step's increment of the running integral (`E ≲ 1` over a ≤ 1-day step), so error control never constrains it. The instantaneous gate's 0.07–0.7-day ramps are then integrated at the stepper's resolution, not resolved. Exact counts move the gate's ramps from the schedule to the stepper, as scope §1 said. Under test: the ladder at `tol = 1e-4` (`$SP/dev/ladder/run_tol.sh`).
 - *Cost* is unchanged, and steps change by under 0.5%.
 
+**The scenario gateway** (`PLANT_RUN_SCENARIOS=1`, birth date, lifetime 100). CI does not run it, but #639 re-blessed it so PRs stop inheriting failures. Develop reproduces the blessed baseline here to ≤ 8e-4, inside the gateway's 1e-3. `PLANT-93` moves:
+
+| scenario | develop | `PLANT-93` | change |
+|---|---|---|---|
+| S01 | 37.649 | 43.653 | +15.9% |
+| S02 | 25.460 | 30.033 | +18.0% |
+| S05 | 2.2575e-9 | 2.3363e-9 | +3.5% |
+| S06 | 2.6511e-10 | 2.6857e-10 | +1.3% |
+| S08 | 2.2857e-12 | 2.2041e-12 | −3.6% |
+| S03, S04, S07 | | | ≤ 0.1% |
+
+No `persists` flag changes. Before re-blessing (`make bless-scenarios` in the `PLANT-93` tree), S01 and S02 are being refined ×2 and ×4 on both builds (`$SP/dev/refine/`), to check that the move is point-sampling error removed rather than a defect.
+
 **K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's, and its birth-date results should move only at round-off.
