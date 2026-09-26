@@ -178,6 +178,15 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 | S08 | 2.2857e-12 | 2.2041e-12 | −3.6% |
 | S03, S04, S07 | | | ≤ 0.1% |
 
-No `persists` flag changes. Before re-blessing (`make bless-scenarios` in the `PLANT-93` tree), S01 and S02 are being refined ×2 and ×4 on both builds (`$SP/dev/refine/`), to check that the move is point-sampling error removed rather than a defect.
+No `persists` flag changes. S01 and S02 are extremely seasonal (rain `0.4·(1 + sin 2πt)`). Refined on both builds:
+
+| scenario | ×1 (138 nodes) | ×2 | ×4 (549) |
+|---|---|---|---|
+| S01 develop | 37.649 | 39.490 | 45.277 |
+| S01 `PLANT-93` | 43.653 | 44.639 | 49.479 |
+| S02 develop | 25.460 | 34.016 | 38.747 |
+| S02 `PLANT-93` | 30.033 | 39.518 | 43.181 |
+
+Neither build is converged at the default schedule. A seed's value depends on its season of birth, and ~0.7-yr spacing aliases that cycle; exact counts remove only the gate's share. S01 is still pre-asymptotic at ×4 on both. S02's rough extrapolations, at each ladder's own ratio, are 44.6 for develop and 45.5 for `PLANT-93`, 2% apart where the raw ×4 values are 10% apart. The gateway is re-blessed on `PLANT-93` with `make bless-scenarios`.
 
 **K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's, and its birth-date results should move only at round-off.
