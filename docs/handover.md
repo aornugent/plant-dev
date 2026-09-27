@@ -116,5 +116,15 @@ The PR is one commit, `bae2dd9a`. Its body and first comment hold the design, th
 - *Residents, resident sweeps and FF16 invasions* are bit-identical to the base.
 - *The pool overshoot* (stepper scope §1, (b)) now starts at `lma` × 1.001 rather than × 1.0001.
 - *Limits:* an evaluation between recorded instants raises an error, so `census_trait_tangent` refuses an invaded SCM.
+- *Reverse-mode cost.* odelia's sweep is unchanged. On plant's side, the sweep no longer runs a rate evaluation each time it changes the patch's node structure (`reshape_to`). Median seconds of `census_trait_gradient_tf24` (all four metrics) on a run kept with `record_trajectory`, repeated on one stand, from two alternating rounds per build:
+
+  | stand | steps | ranges | resident, before | resident, after | invader, after |
+  |---|---|---|---|---|---|
+  | one species, 2 introductions | 106 | 2 | 0.199 | 0.187 | 0.096 |
+  | two species, 3 introductions | 101 | 3 | 0.360 | 0.349 | 0.179 |
+  | two species, 61 introductions | 69 | 62 | 1.526 | 1.459 | 1.22 |
+  | `test-mutant.R`'s TF24 fixture, birth date | 271 | 20 | 1.85 | 1.82 | 1.32 |
+
+  The 61-introduction row's resident times are from 45 samples per build, and its 4% gain is significant (p = 0.003). The other resident changes are within the 5–15% spread between rounds. The invaders are identical to the resident. An invader's forward replay, keeping states, costs no more than the resident's own run: 0.035 against 0.038 s, up to 0.40 against 0.47 s.
 
 No PR is open for it. Stacked on #91, it would go against `offspring-adjoint`; the user decides whether to open one or to carry it into the rebase (Next, 1).
