@@ -203,8 +203,10 @@ Neither build is converged at the default schedule. A seed's value depends on it
 
 **K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's. Its birth-date results are unchanged to ten digits, at the same step counts.
 
-**Status of `PLANT-93`** (`67ec6d73`, 7 commits on `develop`):
-- *Tests.* The full serial sweep with `NOT_CRAN=true` has 3355 passes and 0 failures. The only error is `test-strategy-ff16.R`'s report rendering, which needs `kableExtra` and fails on develop too. The gateway test (`PLANT_RUN_SCENARIOS=1`) passes against the re-blessed baseline.
-- *NEWS.* Breaking changes and a New features entry, with the measurements.
-- *Next.* Open the PR against the fork's `develop` when the user asks, squashing the first layout's commits away first. After it merges, the stack (#91, #92) rebases onto the new `develop`, and `plant-dev`'s pointer moves then. On the stack, `apply_insertion`'s `n_out` must use the node's own `ode_size()`.
-
+**Status: PR [aornugent/plant#94](https://github.com/aornugent/plant/pull/94), open against the fork's `develop`.** The branch is squashed to one commit, `4a055cdd`. The PR body is the squash commit message, per plant's template, and its first comment holds the demonstration, the mechanism and the measurements. #93 was rewritten as a self-contained problem statement with a reproducible script, for upstream.
+- *Final code.* One visitor, `Species::for_each_establishment_weight`, is the only statement of the weight rule. `establishment_weighted_sum` (competition, uptake) and `establishment_weights()` (R, `J`, reported densities) both read it; `node_establishment_weights` is gone. `J` uses the same weights as the fields, so the newest cohort's still-open interval now counts, and the boundary node has no lifetime. That moved the gateway by at most 4.8e-4.
+- *NEWS.* One entry under New features, and the stale sentence in the original birth-date entry is fixed. No breaking-change entry: the birth-date coordinate is new in this development version.
+- *Demo* (in #93 and #94). The fixture with its stops, as a standalone script. At `tol = 1e-4`, develop gives 14.119 / 13.706 / 13.210 / 13.440 and the PR 13.466 / 13.463 / 13.465 / 13.455 (108 / 215 / 215 shifted / 429).
+- *Without the stops,* both builds carry about 1% of time error at `1e-4` (PR: 13.346 shifted, 13.516 at 429), which would swamp the PR's schedule convergence. That is why the demo keeps them.
+- *Tests.* The full sweep has 3355 passes and 0 failures (only the `kableExtra` report errors), and the gateway test passes against the re-blessed baseline.
+- *Next.* Drive #94 to green if CI runs on the fork. After it merges, the user propagates it upstream, and the stack rebases onto the new `develop`.
