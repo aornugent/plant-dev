@@ -155,7 +155,7 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 
 - *The half-spacing shift* moves develop's `J` by 4.4% and `PLANT-93`'s by 0.46%.
 - *Develop does not converge.* It falls 6% from 108 to 857, with successive changes −0.465, −0.186 and −0.174, and is still falling at 857.
-- *`PLANT-93` stays within ±0.3% of 13.49 from 108 cohorts on,* but oscillates: −0.028, +0.075, −0.058.
+- *`PLANT-93` scatters over about 1% at this tolerance* (13.40–13.54) without trending: −0.028, +0.075, −0.058.
 - *The oscillation was time error, and a tighter tolerance removes it.* `ode_tol_abs = 1e-3` is about the size of a whole step's increment of the running integral (`E ≲ 1` over a ≤ 1-day step), so error control never constrains it, and the instantaneous gate's 0.07–0.7-day ramps are integrated at the stepper's resolution. Exact counts move the gate's ramps from the schedule to the stepper, as scope §1 said. At `tol = 1e-4`:
 
   | rung | develop `J` | `PLANT-93` `J` | develop steps | `PLANT-93` steps |
@@ -168,6 +168,17 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
   `PLANT-93`'s four values lie within 0.07% of one another, and its half-spacing shift is 0.022%. Develop's shift is still 3.6%, and its 108 rung is 4.9% off: its error is the schedule's, which the tolerance does not reach.
 - *Cost* is unchanged, and steps change by under 0.5%.
 
+**The reworked layout's own numbers** (`a69afc13` on; the tables above are the first layout's). The weights are the same, but adding them in a different order changes round-off, and the adaptive stepper amplifies that to the size of the time error. At `tol = 1e-4`:
+
+| rung | `PLANT-93` `J` | steps |
+|---|---|---|
+| 108 | 13.46729049 | 14 420 |
+| 215 | 13.46526029 | 14 655 |
+| shift215 | 13.45946614 | 14 629 |
+| 429 | 13.45676778 | 14 828 |
+
+These agree to 0.08%, with a 0.04% shift. At `tol = 1e-3` the 108/215/shift215/429/857 rungs give 13.48152, 13.44980, 13.40844, 13.53818 and 13.48203: a 1% scatter, the time error. K93 and FF16 are unchanged to ten digits against the first layout, and K93 against develop.
+
 **The scenario gateway** (`PLANT_RUN_SCENARIOS=1`, birth date, lifetime 100). CI does not run it, but #639 re-blessed it so PRs stop inheriting failures. Develop reproduces the blessed baseline here to ≤ 8e-4, inside the gateway's 1e-3. `PLANT-93` moves:
 
 | scenario | develop | `PLANT-93` | change |
@@ -179,7 +190,7 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 | S08 | 2.2857e-12 | 2.2041e-12 | −3.6% |
 | S03, S04, S07 | | | ≤ 0.1% |
 
-No `persists` flag changes. S01 and S02 are extremely seasonal (rain `0.4·(1 + sin 2πt)`). Refined on both builds:
+No `persists` flag changes. The final re-bless (`4c8d988d`) is on the reworked layout, which moved the near-extinct S08 by 2.4e-3 against the first one. Against develop: S01 +15.9%, S02 +17.9%, S05 +3.5%, S06 +1.3%, S08 −3.3%. S01 and S02 are extremely seasonal (rain `0.4·(1 + sin 2πt)`). Refined on both builds:
 
 | scenario | ×1 (138 nodes) | ×2 | ×4 (549) |
 |---|---|---|---|
@@ -190,4 +201,10 @@ No `persists` flag changes. S01 and S02 are extremely seasonal (rain `0.4·(1 + 
 
 Neither build is converged at the default schedule. A seed's value depends on its season of birth, and ~0.7-yr spacing aliases that cycle; exact counts remove only the gate's share. S01 is still pre-asymptotic at ×4 on both. S02's rough extrapolations, at each ladder's own ratio, are 44.6 for develop and 45.5 for `PLANT-93`, 2% apart where the raw ×4 values are 10% apart. The gateway is re-blessed on `PLANT-93` with `make bless-scenarios`.
 
-**K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's, and its birth-date results should move only at round-off.
+**K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's. Its birth-date results are unchanged to ten digits, at the same step counts.
+
+**Status of `PLANT-93`** (`67ec6d73`, 7 commits on `develop`):
+- *Tests.* The full serial sweep with `NOT_CRAN=true` has 3355 passes and 0 failures. The only error is `test-strategy-ff16.R`'s report rendering, which needs `kableExtra` and fails on develop too. The gateway test (`PLANT_RUN_SCENARIOS=1`) passes against the re-blessed baseline.
+- *NEWS.* Breaking changes and a New features entry, with the measurements.
+- *Next.* Open the PR against the fork's `develop` when the user asks, squashing the first layout's commits away first. After it merges, the stack (#91, #92) rebases onto the new `develop`, and `plant-dev`'s pointer moves then. On the stack, `apply_insertion`'s `n_out` must use the node's own `ode_size()`.
+
