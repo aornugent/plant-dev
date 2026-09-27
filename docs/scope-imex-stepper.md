@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.3 is in progress (aornugent/plant#95), and the rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.3 is implemented (aornugent/plant#95), and the rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -35,16 +35,17 @@ The design in short:
 
 Measured on `test-mutant.R`'s TF24 fixture (lifetime 6, 20 introductions, constant rain):
 
-| invader | replay on the resident's program |
-|---|---|
-| identical to the resident | runs, exact |
-| resident and a mutant together | fails: `expected 2, received 1`, from loading the resident's operating points |
-| lma × (1 + 1e-9), × (1 + 1e-6) | runs |
-| lma × (1 + 1e-4) up to × 1.05 | fails: storage negative, a pool overshoot |
-| lma × 0.99, × 0.95 | runs, but at the resident's operating points, so the result is not the invader's fitness |
+| invader | replay on the resident's program | after §2.3 |
+|---|---|---|
+| identical to the resident | runs, exact | runs, exact (log gap −7e-15) |
+| resident and a mutant together | fails: `expected 2, received 1`, from loading the resident's operating points | runs; the mutant's fitness is bit-identical to its fitness invading alone |
+| lma × (1 + 1e-9), × (1 + 1e-6) | runs | runs |
+| lma × (1 + 1e-4) | fails: storage negative, a pool overshoot | runs |
+| lma × 1.001 up to × 1.05 | fails: storage negative | fails: storage negative, (b) |
+| lma × 0.99, × 0.95 | runs, but at the resident's operating points, so the result is not the invader's fitness | runs, at its own operating points |
 
 - The mutant's own resident run completes at every one of these traits, so the failures belong to the replay.
-- The suite tests only the identity (`test-mutant.R:153`), which (a) makes exact by construction.
+- Before §2.3 the suite tested only the identity (`test-mutant.R:153`), which (a) makes exact by construction.
 
 **What an AD-compatible invader needs.**
 - its own operating points, stored in its own recording;
@@ -76,7 +77,7 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 - It keeps its own stepper beside the tableau stepper of §4, and the two share `ode_linalg.hpp`'s LU.
 - So `Method` has three values: `rkck` and `ark` are tableaus of one stepper, and `rodas` is RODAS.
 
-**2.3 Forward passes store; only the sweep loads** (designed September 2026; aornugent/plant#95).
+**2.3 Forward passes store; only the sweep loads** (implemented September 2026; aornugent/plant#95).
 
 *Only `run_mutant` replays rows* (`scm.h:768`). Every other forward replay walks a program of sizes and solves (`scm.h:697`, `1350`, `1398`).
 
