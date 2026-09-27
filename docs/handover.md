@@ -1,6 +1,6 @@
 # Handover
 
-For the solver plan in `scope-schedule-controller.md` §6. Its step 3, [aornugent/plant#95](https://github.com/aornugent/plant/issues/95), is implemented and pushed; **Progress** at the end records it. Read in this order:
+For the solver plan in `scope-schedule-controller.md` §6. Its step 3, [aornugent/plant#95](https://github.com/aornugent/plant/issues/95), is implemented and pushed, except exact replay under events (R6), which is designed; **Progress** at the end records it. Read in this order:
 - this page, for the plan's state, the branches and the setup;
 - `scope-imex-stepper.md` §1 and §2.3, the design of step 3;
 - #95 itself, for its results.
@@ -13,7 +13,7 @@ The consult and its answer (`oracle-*.md`) are background for steps 5–8.
 |---|---|---|
 | 1 | Stops become step targets (stepper scope §2.1) | not started |
 | 2 | The pool's relaxation floor `τ_s` (stepper scope §3, option A) | decided, not implemented |
-| 3 | Forward passes store their own rows; only the sweep loads (stepper scope §2.3) | **done, #95**: `PLANT-95` and odelia `29205f0`, no PR |
+| 3 | Forward passes store their own rows; only the sweep loads (stepper scope §2.3) | **open, #95**: done on `PLANT-95` and odelia `29205f0` except exact replay under events (R6, §2.3 extended); no PR |
 | 4 | Exact counts (controller scope §1) | [#94](https://github.com/aornugent/plant/pull/94), open against the fork's `develop` |
 | 5 | The two error maps (controller scope §2) | not started |
 | 6 | The schedule controller (controller scope §3) | not started |
@@ -41,17 +41,18 @@ Step 4 was taken out of order because it can land on `develop` without the stack
 
 ## Next, in order
 
-1. **Rebase `offspring-adjoint` and `PLANT-95` onto #94.** The stack's templated code needs the birth-date layout of #94 applied in these places:
+1. **Exact replay under events (#95, R6), on `PLANT-95` and odelia's 0.5.0 branch.** The design is stepper scope §2.3, extended: one insertion map that applies an entry's events then its introductions, one program for pinned runs (`program_within` goes), and every evaluation addressed by a row slot (§2.3's step-end table goes). The agreed removals land with it: one walk over rows of any scalar, no `program_from`, and `Patch::reset()` without its per-evaluation clears.
+2. **Rebase `offspring-adjoint` and `PLANT-95` onto #94.** The stack's templated code needs the birth-date layout of #94 applied in these places:
    - the interval states added to `for_each_active`;
    - `Node::ode_size()` and `ode_names()` made members, and `patch.h`'s `node_type::ode_size()` calls (about lines 1657 and 1732) changed to use each node's own;
    - the weights visitor, at the active scalar;
    - the birth-date branches in `compute_competition_and_slope`, `field_splits`, `reduce_competition`, `closes_on`, `consumption_rate`, `census_integral` and `net_reproduction_ratio`;
    - `compute_initial_conditions` and `compute_node_rates` setting the interval rates to zero;
    - `r_get_state` and the yml.
-2. **Decide whether #92 is still needed, by two measurements on `harness/long_drought.R`:**
+3. **Decide whether #92 is still needed, by two measurements on `harness/long_drought.R`:**
    - `J` at `tol = 1e-3` against `1e-4`;
    - fixed-grid `dJ/dlma` across the three grids #92 used.
-3. **Steps 1 and 2.** Stops as step targets; then the pool's relaxation floor, which is what still stops TF24 invaders from `lma` × 1.001 up (#95).
+4. **Steps 1 and 2.** Stops as step targets; then the pool's relaxation floor, which is what still stops TF24 invaders from `lma` × 1.001 up (#95).
 
 ## Setup
 
@@ -109,13 +110,14 @@ The PR is one commit, `bae2dd9a`. Its body and first comment hold the design, th
 
 ## Progress
 
-**Step 3 (#95) is done**, as designed in stepper scope §2.3: plant `de4809fe` on `PLANT-95`, and odelia `29205f0`. #95 holds the results; in short:
+**Step 3 (#95) is implemented** as designed in stepper scope §2.3, except R6 (§2.3, extended): plant `de4809fe` on `PLANT-95`, and odelia `29205f0`. #95 holds the results; in short:
 - *The identical invader* still recovers the resident's fitness, to −7.1e-15 in log.
 - *A resident and a mutant together run.* The mutant has exactly the fitness it has invading alone.
 - *An invader's sweep agrees with a pinned difference of its census,* to 1e-10 for `hmat` and `k_I`, as a resident's does. `lma` has a floor near 1e-5, on residents too.
 - *Residents, resident sweeps and FF16 invasions* are bit-identical to the base.
 - *The pool overshoot* (stepper scope §1, (b)) now starts at `lma` × 1.001 rather than × 1.0001.
 - *Limits:* an evaluation between recorded instants raises an error, so `census_trait_tangent` refuses an invaded SCM.
+- *Not yet exact under events (R6).* The identical invader's log fitness is off by −1.2e-7 after a resource pulse, +0.69 after a 50% harvest and +1.34 after a lethal climate extreme. The walk's map applies no events, and after an entry the invader uses the field from before it. The tangent referee misses events for the same reason: under a 50% harvest the run's leaf area is 0.413 and the tangent pass reaches 0.798.
 - *Reverse-mode cost.* odelia's sweep is unchanged. On plant's side, the sweep no longer runs a rate evaluation each time it changes the patch's node structure (`reshape_to`). Median seconds of `census_trait_gradient_tf24` (all four metrics) on a run kept with `record_trajectory`, repeated on one stand, from two alternating rounds per build:
 
   | stand | steps | ranges | resident, before | resident, after | invader, after |
@@ -127,4 +129,4 @@ The PR is one commit, `bae2dd9a`. Its body and first comment hold the design, th
 
   The 61-introduction row's resident times are from 45 samples per build, and its 4% gain is significant (p = 0.003). The other resident changes are within the 5–15% spread between rounds. The invaders are identical to the resident. An invader's forward replay, keeping states, costs no more than the resident's own run: 0.035 against 0.038 s, up to 0.40 against 0.47 s.
 
-No PR is open for it. Stacked on #91, it would go against `offspring-adjoint`; the user decides whether to open one or to carry it into the rebase (Next, 1).
+No PR is open for it. Stacked on #91, it would go against `offspring-adjoint`; the user decides whether to open one or to carry it into the rebase (Next, 2).
