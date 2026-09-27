@@ -1,6 +1,6 @@
 # Scope: exact establishment counts, error maps from the sweep, and a schedule controller
 
-**Status (September 2026):** §1 is being implemented on plant's `develop` as aornugent/plant#93 (see `handover.md`); §2–6 are parked.
+**Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Step 3 of §6 is in progress as aornugent/plant#95, and the rest is parked (see `handover.md`).
 
 This covers the three pieces of the performance design that do not depend on the record:
 - **exact counts**, so cohorts no longer resolve the gate;

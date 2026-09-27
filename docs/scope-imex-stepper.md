@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026): parked.** Exact counts go first, on plant's `develop` (aornugent/plant#93; see `handover.md`).
+**Status (September 2026):** §2.3 is in progress (aornugent/plant#95), and the rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -51,7 +51,7 @@ Measured on `test-mutant.R`'s TF24 fixture (lifetime 6, 20 introductions, consta
 - the resident's field in each row of that recording, as doubles. That makes the field exogenous with a zero derivative, which is what a selection gradient wants.
 - stiff modes that are stable at the resident's steps.
 
-With all three, the invader's selection gradient is the existing `solve_adjoint` over the invader's own recording. It needs no new sweep code.
+With all three, the invader's selection gradient is the existing `solve_adjoint` over the invader's own recording, with no new sweep code. The sweep also evaluates where no row applies, so the invader needs the field there too (§2.3).
 
 ## 2. Remove first
 
@@ -76,17 +76,88 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 - It keeps its own stepper beside the tableau stepper of §4, and the two share `ode_linalg.hpp`'s LU.
 - So `Method` has three values: `rkck` and `ark` are tableaus of one stepper, and `rodas` is RODAS.
 
-**2.3 Forward replays that load rows.**
-- *Only `run_mutant` uses one* (`scm.h:768`). Every other forward replay walks a program of sizes and solves (`scm.h:697`, `1350`, `1398`).
-- *The change: every forward pass stores, and only the sweep loads.*
-  - `advance_recorded(rec)` seeds each step's row from the recorded one, and the stages store into it.
-  - The Patch stands in the field a row carries, whether it is storing or loading, and writes its own operating points beside it.
-  - It copies that field, because a seeded row is the solver's scratch space, which moves on at every step.
-- *What that buys:*
-  - (a) is fixed;
-  - multi-strategy invasions work;
-  - the invader's recording can be swept;
-  - `Step::step`'s two row constnesses collapse to one.
+**2.3 Forward passes store; only the sweep loads** (designed September 2026; aornugent/plant#95).
+
+*Only `run_mutant` replays rows* (`scm.h:768`). Every other forward replay walks a program of sizes and solves (`scm.h:697`, `1350`, `1398`).
+
+*Triage: tier 2.* The change is in odelia's walk and the Patch's field handling. Recordings live in memory for one call, so no stored format changes.
+
+*Requirements.*
+- R1: the identical invader stays exact. Its log gap is 4e-15 on the TF24 fixture today.
+- R2: a resident and a mutant together run. Today they fail with `expected 2, received 1`.
+- R3: an invader's sweep agrees with a pinned difference of its fitness. Today it cannot be asked for: the replay keeps no states and records no insertion rows, and `store_trajectory()` re-runs the invaders as residents.
+- R4: residents are unchanged: the FF16 references bit for bit, and TF24's forward runs and sweeps.
+- R5: a replay keeps states only when a gradient is asked for (`record_trajectory`).
+
+*The scarce resource: evaluations that no row covers.* On the fixture (311 steps, 20 introductions) the sweep makes 1866 rate evaluations. 331 of them fall outside any row: each step's first rates, which the sweep re-derives, and each introduction's map. The forward replay makes 40 such evaluations: each introduction's map and the rates after it.
+
+*The floor is the plan as first written:* seed the rows, and keep the last row's field on the Patch between rows. It fails R3 on those 331 evaluations, because the sweep walks backward and the field left on the Patch belongs to another instant.
+- A fresh rebind holds no field, so the top range's first rates use the invader's own field without any error.
+- Positioning the patch for the first introduction's transpose then fails the Patch's time check.
+
+*Candidates.*
+- **A** (first thought): the floor. It fails R3 at 331 of 1866 evaluations.
+- **B**, address every evaluation in odelia.
+  - The mechanism: the sweep's first rates load the row below's last slot, and an introduction records its map's evaluation in its own row.
+  - It pays for R3, but every row's last slot must then be a full evaluation at its state. The rates after an introduction become a full `derivs`, which moves TF24 residents (R4), and `run_next`'s `introduce_nodes` and the sweep's `apply_insertion` must become one map.
+  - It wins when a second exogenous input appears beside the field, or after 2.1 has made the insertion path one.
+- **C**, seeded rows plus the recorded field at each step's end, in plant.
+  - The mechanism: an evaluation uses its row's field. Every evaluation outside a row is at the end of a recorded step (the first rates, the introductions' maps, the sweep's positioning), so it uses the field recorded there.
+  - It pays for R3 with one Patch member, built per invasion from the recording, at the cost of one copy of one field per step.
+  - It is bad at an evaluation between recorded instants.
+  - It wins when the field is the only exogenous input and every evaluation outside a row is at a step's end, which is the case today.
+- **D**, the invader as a species of zero weight in the resident's own run, so no field is recorded at all.
+  - It costs a species kind that the reductions skip, which is a runtime flag, and one resident run per invader.
+  - It wins when invaders are few and each needs its own steps.
+
+*Winner: C.* A fails R3, B breaks R4, and D adds a species kind and a resident run per invader.
+
+*The commitment: a forward pass always stores, and only the sweep loads.* It is kept by `Step::step` taking only a mutable row. The one `const` row left in odelia is `step_adjoint`'s.
+
+*Kill question:* would the design be unneeded if invaders' recordings never had to be swept? That would drop R3, but selection gradients are what the invader path is for (§1). The design survives.
+
+*What each part is there for.*
+- The per-evaluation row field serves R1 and R2: it is what the stages use.
+- `field_slot` and `keep_field` exist because the recording pass writes fields and a gradient recording must not.
+- The table of step-end fields serves R3.
+- `SCM::invade()` serves R3: `store_trajectory()` repeats an invasion rather than running its invaders as residents.
+- The replay recording its insertion rows serves R3: the sweep narrows the patch at those rows.
+- *Deleted:*
+  - the field kept between rows, with its lifetime warning;
+  - the copy of the field;
+  - `Step::step`'s `const`-row form;
+  - `reshape_to`'s evaluation, which `set_recorded_state` repeats straight after, and which would look the field up at a stale time.
+
+*Price.*
+- An evaluation at an instant where the recorded run ended no step (dense output, an event inside a step) finds no field and raises an error.
+- An invader still cannot take its own steps ((b); §3).
+- The table holds one field per step, about a sixth of the fields the recording holds.
+
+*Kill condition:* an invader needs its field between recorded instants, on its own steps or for dense output. Then the field becomes an interpolant in time, which is a different model, or B.
+
+*The design.*
+- **odelia.**
+  - `Step::step` takes `solved_row&`.
+  - `step_by` and `stepper_step` take `const solved_row* seed`. The scratch row starts as a copy of it, or empty without one, and RODAS refuses one.
+  - `advance_recorded(rec)` seeds each step with its row.
+  - Both `advance_recorded` overloads record the insertion rows they apply.
+- **plant `Patch`.**
+  - `store_solved`: an evaluation whose row holds a field uses that field; otherwise, with `keep_field`, it writes its own into the row. `load_solved` uses the row's field, and `end_solved` clears both.
+  - `step_end_fields`, shared and `const`, holds the field at each step's end, and none at the start.
+  - `compute_environment` uses the row's field, else the table's entry at `environment.time`, raising an error when there is no entry, else builds its own.
+  - `reset()` clears the table, and the rebind copies it.
+  - `reshape_to` no longer evaluates.
+- **plant `SCM`.**
+  - `run_mutant` records (unchanged), installs the invaders, and calls `invade()`.
+  - `invade()` keeps states when `record_trajectory` is set, resets, builds the table from the recording, and walks the recording.
+  - `store_trajectory()` calls `invade()` again on an invaded SCM.
+
+*Tests, landing with the change.*
+- plant, `test-mutant.R`:
+  - the TF24 identity, unchanged;
+  - a resident and a mutant under TF24, where the copy of the resident has the resident's fitness and the mutant has the fitness it has when invading alone;
+  - on the birth-date coordinate, `census_trait_gradient_tf24` over an invader's recording against a central difference of its census, where each side of the difference is a replay of the same recording.
+- odelia: a seeded replay stores its own values beside what it was seeded with, and its recording has the rows of the run it replays, insertions included.
 
 **2.4 An invader's environment state** is integrated and then overwritten at every stage by the field it stands in.
 - It is harmless, so it stays for now.

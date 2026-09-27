@@ -1,23 +1,58 @@
 # Handover
 
-For implementing exact establishment counts, [aornugent/plant#93](https://github.com/aornugent/plant/issues/93), on plant's `develop`. Implementation started September 2026; **Progress** at the end records where it stands. Read in this order:
-- #93 itself;
-- `scope-schedule-controller.md` §1, the design, including its paragraph "Where it can land", which covers this work;
-- this page, for the setup and the code on `develop`.
+For the solver plan in `scope-schedule-controller.md` §6. Its step 3 is in progress as [aornugent/plant#95](https://github.com/aornugent/plant/issues/95). **Progress** at the end records where it stands. Read in this order:
+- this page, for the plan's state, the branches and the setup;
+- `scope-imex-stepper.md` §1 and §2.3, the design of step 3;
+- #95 itself.
 
-**Parked; do not start:**
-- the stepper, `scope-imex-stepper.md`;
-- the rest of the controller scope, `scope-schedule-controller.md` §2–6;
-- the tests the performance answer proposed.
+The consult and its answer (`oracle-*.md`) are background for steps 5–8.
 
-The consult and its answer (`oracle-*.md`) are background for those.
+## The plan and where each step stands
 
-## The work
+| step | what | state |
+|---|---|---|
+| 1 | Stops become step targets (stepper scope §2.1) | not started |
+| 2 | The pool's relaxation floor `τ_s` (stepper scope §3, option A) | decided, not implemented |
+| 3 | Forward passes store their own rows; only the sweep loads (stepper scope §2.3) | **in progress, #95** |
+| 4 | Exact counts (controller scope §1) | [#94](https://github.com/aornugent/plant/pull/94), open against the fork's `develop` |
+| 5 | The two error maps (controller scope §2) | not started |
+| 6 | The schedule controller (controller scope §3) | not started |
+| 7 | The tableau stepper, ARK and the stiff block (stepper scope §4–5) | not started |
+| 8 | The time controller | not started |
 
-- **Branch.** `PLANT-93` on `aornugent/plant`, at `develop`'s `95256cf3`.
-- **One PR against the fork's `develop`, closing #93.** Its tests land in the same PR (AGENTS.md).
-- **Independent of everything else.** Nothing here needs the stack (#91, #92) or anything parked. After it lands, the stack's rebase re-applies the birth-date branches in their templated form (scope §1, "What it costs").
-- **Do not bump `plant-dev`'s submodule pointer.** It records the stack (`6613dd24`) until #93 merges.
+Step 4 was taken out of order because it can land on `develop` without the stack.
+
+## The branches
+
+**The stack**, on `aornugent/plant`, over `develop`'s `95256cf3`:
+- `offspring-adjoint`, #91, is 13 commits and ends at `bb1d8a8a`. It is the reverse sweep, with TF24 at v11, which includes the fixes from `ad/V4-reverse-tf24`.
+- `establishment-window`, #92, adds 2 commits and ends at `6613dd24`. It averages TF24's establishment gate over a declared window (TF24 v12).
+- It links odelia 0.5.0, which is `be3e2cb` on odelia's `claude/trusting-curie-4i9n3l`, and phylloptim 0.9.0, which is `378b083` on `ad/reverse-mode`. Neither is released: upstream has odelia v0.4.0 and phylloptim v0.8.1.
+
+**Step 3:**
+- plant: `PLANT-95`, stacked on `offspring-adjoint`. It does not need #92's window.
+- odelia: commits on `claude/trusting-curie-4i9n3l`, the 0.5.0 branch.
+
+**Exact counts:** `PLANT-93` at `bae2dd9a`, off `develop`, which is PR #94.
+
+**`plant-dev` records `plant` at `6613dd24`**, the stack's head, and odelia at `be3e2cb`. Do not bump the plant pointer until #94 merges. Bump odelia's when its step 3 commits are pushed.
+
+## Next, in order
+
+1. **Step 3 (#95).** The design is in stepper scope §2.3. Its pass criteria:
+   - the identical invader is still exact;
+   - a resident and a mutant together run;
+   - an invader's sweep agrees with a pinned difference of its fitness.
+2. **Rebase `offspring-adjoint` and step 3 onto #94.** The stack's templated code needs the birth-date layout of #94 applied in these places:
+   - the interval states added to `for_each_active`;
+   - `Node::ode_size()` and `ode_names()` made members, and `patch.h`'s `node_type::ode_size()` calls (about lines 1657 and 1732) changed to use each node's own;
+   - the weights visitor, at the active scalar;
+   - the birth-date branches in `compute_competition_and_slope`, `field_splits`, `reduce_competition`, `closes_on`, `consumption_rate`, `census_integral` and `net_reproduction_ratio`;
+   - `compute_initial_conditions` and `compute_node_rates` setting the interval rates to zero;
+   - `r_get_state` and the yml.
+3. **Decide whether #92 is still needed, by two measurements on `harness/long_drought.R`:**
+   - `J` at `tol = 1e-3` against `1e-4`;
+   - fixed-grid `dJ/dlma` across the three grids #92 used.
 
 ## Setup
 
@@ -27,188 +62,46 @@ A new container has none of this, so it is all written as commands.
 - run `git submodule update --init --recursive`;
 - call `add_repo` for `aornugent/odelia`, `aornugent/plant` and `aornugent/phylloptim`.
 
-**2. A private library.** `develop` links `odelia (== 0.4.0)` and `phylloptim (== 0.8.1)` exactly. The site library holds 0.5.0 and 0.9.0, which `develop` will not build against. So build all three into a private library, never the site one, from worktrees that leave the submodules on the stack. `DEV` is any directory under the scratchpad.
+**2. A private library for the stack.** The stack needs odelia 0.5.0 and phylloptim 0.9.0 built together, so build all three into a private library from worktrees. `DEV` is any directory under the scratchpad.
 
 ```bash
-mkdir -p $DEV/lib
-git -C odelia     worktree add --detach $DEV/odelia     v0.4.0    # commit 4758d3e
-git -C phylloptim worktree add --detach $DEV/phylloptim v0.8.1    # commit 54d7fe0
-git -C plant fetch origin PLANT-93
-git -C plant worktree add -b PLANT-93 $DEV/plant origin/PLANT-93
-export R_LIBS=$DEV/lib MAKEFLAGS=-j3
-for pkg in odelia phylloptim plant; do
-  R CMD INSTALL --no-docs --library=$DEV/lib $DEV/$pkg > $DEV/install_$pkg.log 2>&1 || { echo "FAILED $pkg"; break; }
+mkdir -p $DEV/lib_stack
+git -C odelia     fetch origin claude/trusting-curie-4i9n3l
+git -C odelia     worktree add --detach $DEV/odelia05 origin/claude/trusting-curie-4i9n3l
+git -C phylloptim worktree add --detach $DEV/phylloptim09 378b083
+git -C plant      fetch origin PLANT-95
+git -C plant      worktree add -b PLANT-95 $DEV/stack origin/PLANT-95
+export R_LIBS=$DEV/lib_stack MAKEFLAGS=-j3
+for pkg in odelia05 phylloptim09 stack; do
+  R CMD INSTALL --no-docs --library=$DEV/lib_stack $DEV/$pkg > $DEV/install_$pkg.log 2>&1 || { echo "FAILED $pkg"; break; }
 done
 ```
 
-- *Measured September 2026:* 195 s in all, with no compiler warnings.
-- *Rebuilding plant after a C++ edit.* Add `--preclean` to its `R CMD INSTALL` line. The build does not track header dependencies. Without it, an edit to a header recompiles only the `.cpp` files that changed and links objects built against two versions of the same templates; the birth-date path lives in the headers `node.h`, `species.h` and `patch.h`. A clean rebuild takes about 2.5 minutes at `-j3`.
+- *Rebuilding plant after a C++ edit.* Add `--preclean`. The build does not track header dependencies, so without it an edit to a header links objects built against two versions of the same templates.
+- *After an odelia edit,* reinstall odelia and then plant with `--preclean`: plant compiles odelia's headers into itself.
 - *Exposing a new value to R* means an entry in `inst/RcppR6_classes.yml`, then `RcppR6::RcppR6()` in the plant tree, before the rebuild.
 
-**3. Tests against the installed build.** Run from `$DEV/plant`, with `R_LIBS` and `TESTTHAT_PARALLEL=false` set:
+**3. Tests against the installed build.** Run from `$DEV/stack`, with `R_LIBS` and `TESTTHAT_PARALLEL=false` set:
 
 ```r
 library(odelia)
-testthat::test_file("tests/testthat/test-strategy-ff16-reference-comparison.R",
-                    package = "plant", load_package = "installed")
+testthat::test_file("tests/testthat/test-mutant.R", package = "plant",
+                    load_package = "installed")
 ```
 
-Choose files by the tiers in AGENTS.md. On `develop` before any change:
-- `test-strategy-ff16-reference-comparison.R`: 17 pass;
-- `test-strategy-ff16.R`: 53 pass and one error, from rendering `inst/reports/FF16_report.Rmd`, which needs `ggridges`, `patchwork` and `kableExtra`. The site library lacks all three. That error comes before this work, so leave it alone.
+Choose files by the tiers in AGENTS.md. odelia's own tests run from `$DEV/odelia05` with `testthat::test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
 
-**4. The fixture.** `harness/long_drought.R` in this repo is the lifetime-40 long-drought TF24 stand from #92. It needs no scratchpad: it generates its own record and knots, and calls only exported functions, so it runs on `develop` and on the stack.
-- *Loading plant.* Set `PLANT_LIB=$DEV/lib` to use the installed build. `PLANT_DIR` loads a source tree through `load_all` instead.
+**`test-mutant.R` on `offspring-adjoint` before step 3:** 22 pass and 2 fail. Both failures are in "mutant method works", on FF16's ten-mutant invasions (for example 2.83187 against an expected 2.83174). The expected values were measured on `develop`, which pinned an invasion to the resident's times; the stack pins it to the resident's step sizes. #92's full-suite count names the same two.
+
+**4. The fixture.** `harness/long_drought.R` in this repo is the lifetime-40 long-drought TF24 stand from #92. It generates its own record and knots and calls only exported functions, so it runs on `develop` and on the stack.
+- *Loading plant.* Set `PLANT_LIB` to the private library to use the installed build. `PLANT_DIR` loads a source tree through `load_all` instead.
 - *Running it.* `run_J(uniform_times(n))` returns `J`, the step count and the seconds.
 - *Holding the time grid across a ladder.* Pass every rung the finest rung's creation times as `stops`.
 
-**`develop`'s baseline:** at 108 cohorts, `J = 14.124246` in 11 185 steps and 82.9 s. It is not comparable with the stack's `J∞ = 12.5734`, which carries the establishment window. Run 215, 429 and 857 first: they are the "before" of the convergence test.
+## Exact counts (#94)
 
-## Where the change goes on `develop`
-
-Line numbers are at `95256cf3`.
-
-**`Node::compute_initial_conditions`, `node.h:183`.** This is where `E` enters twice:
-- the cumulative loss is seeded at `−log(pr_estab)` (line 194);
-- on the birth-date path the log density is seeded at `log(birth_rate·pr_estab)` (line 209).
-
-`Node::compute_rates` (line 146) weights offspring by `exp(−mortality)`, so `J` reads `E` through the loss seed.
-
-**Decided: the masses integrate `E` alone,** `w_j = ∫ E φ_j`.
-- *Where β goes.* The birth rate stays a point sample at `b_j`, as today: in the density seed, `log(birth_rate)`, and in `J`'s scalars.
-- *Why.* `offspring_production` (scalars `β(b_j)`) and `net_reproduction_ratios` (scalars 1) then keep their meaning exactly, even under a varying birth rate. `E`, the rough factor, enters once, through the masses.
-- *The seeds.* On the birth-date path a cohort starts with zero loss and log density `log(birth_rate)`. The height path keeps both of today's seeds.
-
-**`Species::compute_rates`, `species.h:470`.** It calls `new_node.compute_initial_conditions` on every evaluation, so the boundary cohort's `pr_estab` is current there. That is the rate of the running mass `M₀`, and `(t − b_N)` times it is the rate of `M₁`.
-
-**`Species::introduce_new_node`, `species.h:478`** (and the no-argument form at 249). This is where the panel closes:
-- the newest cohort's mass takes `M₀ − M₁/Δ`;
-- the new cohort's mass starts at `M₁/Δ`;
-- the running pair restarts at zero.
-
-**The species' ODE block.** `SpeciesBase` (`species_base.h`) builds `ode_size`, `set_ode_state`, `ode_state` and `ode_rates` from the nodes alone; `Species` overrides `set_ode_state` at `species.h:71`.
-- *What to add:* the two running masses, and one mass per cohort, as species-level entries on the birth-date path only.
-- *Why there:* `Node`'s layout, and with it the height path and the R state matrix, stays unchanged. Patch-state export and resume (`patch$ode_state`) carry the masses for free, so no change of representation is needed when the stack's adjoint later reads them.
-- *Rates:* each cohort's mass has rate zero.
-
-**Reductions, each a trapezium over point samples today:**
-- `Species::compute_competition`, `species.h:348`. One loop is shared between the coordinates, so it gains one early birth-date branch, `Σ w_j·f_j`.
-  - The open panel is split at every evaluation: `M₀ − M₁/(t − b_N)` goes to the newest cohort and `M₁/(t − b_N)` to the boundary cohort.
-  - The boundary segment and the halving go from that branch.
-- `Species::consumption_rate`, `species.h:532`. It opens with its own birth-date branch, a `util::trapezium` over `node_times()` plus the boundary cohort, which becomes the same weighted sum.
-- `Patch::net_reproduction_ratio_for_species`, `patch.h:542`, which is `J`. Its `util::trapezium(times, net_prod·scalars)` becomes `Σ w_j·net_prod_j·scalars_j`, and the scalars are unchanged.
-
-The patch-age weight `π(b)` stays in the per-recruit value, where it is smooth: `weighted_fecundity` multiplies by `patch_density_at_birth` (`node.h:71`).
-
-## Tests (#93)
-
-All forward, on the fixture unless named:
-- the masses sum to a fine quadrature of `pr_estab` along the run;
-- uniform ladders (108 → 857) converge at second order, with the time grid held;
-- shifting the schedule by half a spacing moves `J` only at second order;
-- removing the cohorts created inside closed bands moves `J` far less than today's discretisation error;
-- the instantaneous gate converges in the schedule, which point samples cannot do on `develop`;
-- FF16's references are unchanged (`test-strategy-ff16-reference-comparison.R`);
-- the change in step count is reported.
-
-Unit tests belong beside the existing birth-date ones, in `test-density-coordinate.R` and `test-node.R`. They cover:
-- the insertion map's shares;
-- the open-panel split;
-- two creations at one instant.
-
-## Three details to settle in the change
-
-- **`refine_schedule`'s drop-one indicator reads cohort densities.** On this path it must read the masses, or refuse to run.
-- **R code that reads birth-date densities gets per-recruit values.** The masses are a new column, or a new Species active.
-- **Two creations at one instant give a zero-width panel.** Its share, `0/0`, is zero. `birth_dates_are_distinct()` (`species.h:517`) already detects the case.
-
-## Code state
-
-- **`plant-dev` records `plant` at `6613dd24`,** the head of the stack (`establishment-window` on `offspring-adjoint`): issues #91 and #92, no PRs.
-- **#93 is [aornugent/plant#94](https://github.com/aornugent/plant/pull/94), one commit on `PLANT-93`.**
-- **Nothing from earlier sessions' scratchpads carries over.** What the next session needs is committed here: this page, the fixture and the scopes.
+The PR is one commit, `bae2dd9a`. Its body and first comment hold the design, the demonstration and the measurements, and #93 is the problem statement written for upstream. It is waiting on review; after it merges, the user propagates it upstream and the stack rebases (Next, 2).
 
 ## Progress
 
-**Implemented on `PLANT-93`** (September 2026). The design was reworked after a self-review against a blind clean sheet; the squashed commit, `bae2dd9a`, is the current form.
-- *Seeds* (`node.h`). On the birth-date path a node records `log_birth_rate` and starts with zero mortality. Its `log_density` is not a state there but `log_birth_rate − mortality`, set by `set_birth_date_density()` from `set_ode_state`, `compute_initial_conditions` and `set_birth_state`. The height path is unchanged, operation for operation.
-- *Intervals* (`node.h`). Each node carries `interval_establishment` and `interval_establishment_moment`: `E` integrated over the birth dates from its own to the next node's, and that integral's first moment about its own birth date. `Node::ode_size()` and `ode_names()` became members; on the birth-date path the two interval states replace `log_density`, +1 in all.
-- *Rates.* `Node::compute_rates` zeroes the interval rates, and `Species::compute_rates` then sets the newest node's with `set_interval_establishment_rate(pr_estab, t − b_N)`.
-- *Introductions* need no code. The pushed copy of `new_node` has zero moments, and the previous newest node's interval freezes as its rates move on.
-- *Weights* are derived. `Node::interval_shares(width)` gives {own, next} = {M0 − M1/width, M1/width}, with 0/0 → 0. From these, through `Species::for_each_establishment_weight`: `establishment_weights()` (boundary last; an R active, and `J`) and `establishment_weighted_sum(f)` (competition and uptake, `f` once per node).
-- *J.* `J = Σ w_j·net_prod_j·scalars_j`, with the scalars unchanged.
-- *R reporting.* On the birth-date path `log_densities` and the state matrix's `log_density` row, appended since it is not a state, are `log_birth_date_densities()`, then the Jacobian. `Species$log_densities_state` and the `log_density_state` row are gone. An introduced node's value is its weight over half its neighbours' span; the boundary node's is `pr_estab·β`, exact, read from the newest node's rate.
-- *Patch.* `node_ode_size()` is develop's, and `ode_state_valid` advances by each node's own `ode_size()`.
-- *Refusal.* `SCM::refine_schedule()` raises an error on the birth-date path.
-- *Tests.* `test-node.R` and `test-density-coordinate.R`.
-- *The stack.* Its insertion map stays "append one node's state" (`patch.h:1670` there sizes it by `node_type::ode_size()`, which must become the node's own), and the adjoint of `interval_establishment` at a node's creation row is its value per unit establishment.
-
-**The fixture ladder** (`harness/long_drought.R`). Every rung is a subset of the 857-rung's creation times and steps to all of them and the 2931 active knots, so only the schedule differs. `shift215` is the 215 rung moved by half its spacing.
-
-| rung | develop `J` | `PLANT-93` `J` | develop steps | `PLANT-93` steps |
-|---|---|---|---|---|
-| 108 | 14.16848774 | 13.48837534 | 11 532 | 11 553 |
-| 215 | 13.70380389 | 13.46022703 | 11 824 | 11 822 |
-| shift215 | 13.09451863 | 13.39875737 | 11 812 | 11 778 |
-| 429 | 13.51791574 | 13.53515355 | 12 016 | 11 988 |
-| 857 | 13.34374464 | 13.47687501 | 12 227 | 12 190 |
-
-- *The half-spacing shift* moves develop's `J` by 4.4% and `PLANT-93`'s by 0.46%.
-- *Develop does not converge.* It falls 6% from 108 to 857, with successive changes −0.465, −0.186 and −0.174, and is still falling at 857.
-- *`PLANT-93` scatters over about 1% at this tolerance* (13.40–13.54) without trending: −0.028, +0.075, −0.058.
-- *The oscillation was time error, and a tighter tolerance removes it.* `ode_tol_abs = 1e-3` is about the size of a whole step's increment of the running integral (`E ≲ 1` over a ≤ 1-day step), so error control never constrains it, and the instantaneous gate's 0.07–0.7-day ramps are integrated at the stepper's resolution. Exact counts move the gate's ramps from the schedule to the stepper, as scope §1 said. At `tol = 1e-4`:
-
-  | rung | develop `J` | `PLANT-93` `J` | develop steps | `PLANT-93` steps |
-  |---|---|---|---|---|
-  | 108 | 14.11940193 | 13.46831669 | 14 481 | 14 422 |
-  | 215 | 13.70645177 | 13.45937622 | 14 786 | 14 659 |
-  | shift215 | 13.20973319 | 13.46227966 | 14 774 | 14 633 |
-  | 429 | — | 13.46270039 | — | 14 836 |
-
-  `PLANT-93`'s four values lie within 0.07% of one another, and its half-spacing shift is 0.022%. Develop's shift is still 3.6%, and its 108 rung is 4.9% off: its error is the schedule's, which the tolerance does not reach.
-- *Cost* is unchanged, and steps change by under 0.5%.
-
-**The reworked layout's own numbers** (`a69afc13` on; the tables above are the first layout's). The weights are the same, but adding them in a different order changes round-off, and the adaptive stepper amplifies that to the size of the time error. At `tol = 1e-4`:
-
-| rung | `PLANT-93` `J` | steps |
-|---|---|---|
-| 108 | 13.46729049 | 14 420 |
-| 215 | 13.46526029 | 14 655 |
-| shift215 | 13.45946614 | 14 629 |
-| 429 | 13.45676778 | 14 828 |
-
-These agree to 0.08%, with a 0.04% shift. At `tol = 1e-3` the 108/215/shift215/429/857 rungs give 13.48152, 13.44980, 13.40844, 13.53818 and 13.48203: a 1% scatter, the time error. K93 and FF16 are unchanged to ten digits against the first layout, and K93 against develop.
-
-**The scenario gateway** (`PLANT_RUN_SCENARIOS=1`, birth date, lifetime 100). CI does not run it, but #639 re-blessed it so PRs stop inheriting failures. Develop reproduces the blessed baseline here to ≤ 8e-4, inside the gateway's 1e-3. `PLANT-93` moves:
-
-| scenario | develop | `PLANT-93` | change |
-|---|---|---|---|
-| S01 | 37.649 | 43.653 | +15.9% |
-| S02 | 25.460 | 30.033 | +18.0% |
-| S05 | 2.2575e-9 | 2.3363e-9 | +3.5% |
-| S06 | 2.6511e-10 | 2.6857e-10 | +1.3% |
-| S08 | 2.2857e-12 | 2.2041e-12 | −3.6% |
-| S03, S04, S07 | | | ≤ 0.1% |
-
-No `persists` flag changes. The final re-bless (`4c8d988d`) is on the reworked layout, which moved the near-extinct S08 by 2.4e-3 against the first one. Against develop: S01 +15.9%, S02 +17.9%, S05 +3.5%, S06 +1.3%, S08 −3.3%. S01 and S02 are extremely seasonal (rain `0.4·(1 + sin 2πt)`). Refined on both builds:
-
-| scenario | ×1 (138 nodes) | ×2 | ×4 (549) |
-|---|---|---|---|
-| S01 develop | 37.649 | 39.490 | 45.277 |
-| S01 `PLANT-93` | 43.653 | 44.639 | 49.479 |
-| S02 develop | 25.460 | 34.016 | 38.747 |
-| S02 `PLANT-93` | 30.033 | 39.518 | 43.181 |
-
-Neither build is converged at the default schedule. A seed's value depends on its season of birth, and ~0.7-yr spacing aliases that cycle; exact counts remove only the gate's share. S01 is still pre-asymptotic at ×4 on both. S02's rough extrapolations, at each ladder's own ratio, are 44.6 for develop and 45.5 for `PLANT-93`, 2% apart where the raw ×4 values are 10% apart. The gateway is re-blessed on `PLANT-93` with `make bless-scenarios`.
-
-**K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's. Its birth-date results are unchanged to ten digits, at the same step counts.
-
-**Status: PR [aornugent/plant#94](https://github.com/aornugent/plant/pull/94), open against the fork's `develop`.** The branch is squashed to one commit, `bae2dd9a`. The PR body is the squash commit message, per plant's template, and its first comment holds the demonstration, the mechanism and the measurements. #93 was rewritten as a self-contained problem statement with a reproducible script, for upstream.
-- *Final code.* One visitor, `Species::for_each_establishment_weight`, is the only statement of the weight rule. `establishment_weighted_sum` (competition, uptake) and `establishment_weights()` (R, `J`, reported densities) both read it; `node_establishment_weights` is gone. `J` uses the same weights as the fields, so the newest cohort's still-open interval now counts, and the boundary node has no lifetime. That moved the gateway by at most 4.8e-4.
-- *NEWS.* One entry under New features, and the stale sentence in the original birth-date entry is fixed. No breaking-change entry: the birth-date coordinate is new in this development version.
-- *Demo* (in #93 and #94). The fixture with its stops, as a standalone script. At `tol = 1e-4`, develop gives 14.119 / 13.706 / 13.210 / 13.440 and the PR 13.466 / 13.463 / 13.465 / 13.455 (108 / 215 / 215 shifted / 429).
-- *Without the stops,* both builds carry about 1% of time error at `1e-4` (PR: 13.346 shifted, 13.516 at 429), which would swamp the PR's schedule convergence. That is why the demo keeps them.
-- *Tests.* The full sweep has 3357 passes and 0 failures (only the `kableExtra` report errors), and the gateway test passes against the re-blessed baseline.
-- *Wording.* The issue, PR body, first comment, NEWS and comments follow AGENTS.md's style: "establishment weight" for `∫E φ_j`, "birth rate times survival" for a birth-date node's density, "hat function", and none of "gate", "carry", "stands for" or open and closed intervals.
-- *Dropping `log_density`* from the birth-date state is bit-identical where the birth rate is 1 (FF16, K93, TF24, FF16 with a harvest), so the demo and gateway numbers stand. Other birth rates lose one component of the error norm: K93 three species at 20 moves by round-off, FF16 two species at 12 and 16.5 by 2e-5 with 2 fewer steps, a sine birth rate by 3e-7. A resumed node reads its birth rate from the `birth_rate` driver at its birth date; the resume test fails without that.
-- *Next.* Drive #94 to green if CI runs on the fork. After it merges, the user propagates it upstream, and the stack rebases onto the new `develop`.
+**Step 3 (#95).** Designed (stepper scope §2.3); implementation not yet started.
