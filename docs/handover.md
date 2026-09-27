@@ -14,7 +14,7 @@ The consult and its answer (`oracle-*.md`) are background for those.
 
 ## The work
 
-- **Branch.** `PLANT-93` on `aornugent/plant`, at `develop`'s `95256cf3`. It carries no commits yet.
+- **Branch.** `PLANT-93` on `aornugent/plant`, at `develop`'s `95256cf3`.
 - **One PR against the fork's `develop`, closing #93.** Its tests land in the same PR (AGENTS.md).
 - **Independent of everything else.** Nothing here needs the stack (#91, #92) or anything parked. After it lands, the stack's rebase re-applies the birth-date branches in their templated form (scope §1, "What it costs").
 - **Do not bump `plant-dev`'s submodule pointer.** It records the stack (`6613dd24`) until #93 merges.
@@ -125,21 +125,21 @@ Unit tests belong beside the existing birth-date ones, in `test-density-coordina
 ## Code state
 
 - **`plant-dev` records `plant` at `6613dd24`,** the head of the stack (`establishment-window` on `offspring-adjoint`): issues #91 and #92, no PRs.
-- **#93 has only its branch, `PLANT-93`.**
+- **#93 is [aornugent/plant#94](https://github.com/aornugent/plant/pull/94), one commit on `PLANT-93`.**
 - **Nothing from earlier sessions' scratchpads carries over.** What the next session needs is committed here: this page, the fixture and the scopes.
 
 ## Progress
 
-**Implemented on `PLANT-93`** (September 2026). The design was reworked after a self-review against a blind clean sheet; `a69afc13` is the current form.
+**Implemented on `PLANT-93`** (September 2026). The design was reworked after a self-review against a blind clean sheet; the squashed commit, `4a7a0449`, is the current form.
 - *Seeds* (`node.h`). On the birth-date path a node starts with zero loss and log density `log(birth_rate)`. The height path is unchanged, operation for operation.
 - *Intervals* (`node.h`). Each node carries `interval_establishment` and `interval_establishment_moment`: `E` integrated over the birth dates from its own to the next node's, and that integral's first moment about its own birth date. `Node::ode_size()` and `ode_names()` became members, +2 on the birth-date path.
 - *Rates.* `Node::compute_rates` zeroes the interval rates, and `Species::compute_rates` then sets the newest node's with `set_interval_establishment_rate(pr_estab, t − b_N)`.
 - *Introductions* need no code. The pushed copy of `new_node` has zero moments, and the previous newest node's interval freezes as its rates move on.
-- *Weights* are derived. `Node::interval_shares(width)` gives {own, next} = {M0 − M1/width, M1/width}, with 0/0 → 0. From these: `Species::node_establishment_weights()` (closed intervals, for `J`), `establishment_weights()` (plus the open interval, boundary last; an R active) and `establishment_weighted_sum(f)` (competition and uptake, interval by interval, `f` once per node).
+- *Weights* are derived. `Node::interval_shares(width)` gives {own, next} = {M0 − M1/width, M1/width}, with 0/0 → 0. From these, through `Species::for_each_establishment_weight`: `establishment_weights()` (boundary last; an R active, and `J`) and `establishment_weighted_sum(f)` (competition and uptake, `f` once per node).
 - *J.* `J = Σ w_j·net_prod_j·scalars_j`, with the scalars unchanged.
 - *R reporting.* On the birth-date path `log_densities` and the state matrix's `log_density` row are `log_birth_date_densities()`, then the Jacobian. An introduced node's value is its weight over half its neighbours' span; the boundary node's is `pr_estab·β`, exact, read from the newest node's rate.
 - *Patch.* `node_ode_size()` is develop's, and `ode_state_valid` advances by each node's own `ode_size()`.
-- *Refusal.* `SCM::refine_schedule()` stops on the birth-date path.
+- *Refusal.* `SCM::refine_schedule()` raises an error on the birth-date path.
 - *Tests.* `test-node.R` and `test-density-coordinate.R`.
 - *The stack.* Its insertion map stays "append one node's state" (`patch.h:1670` there sizes it by `node_type::ode_size()`, which must become the node's own), and the adjoint of `interval_establishment` at a node's creation row is its value per unit establishment.
 
@@ -203,10 +203,11 @@ Neither build is converged at the default schedule. A seed's value depends on it
 
 **K93 establishes every seed** (`E ≡ 1`), so its weights are the trapezium's. Its birth-date results are unchanged to ten digits, at the same step counts.
 
-**Status: PR [aornugent/plant#94](https://github.com/aornugent/plant/pull/94), open against the fork's `develop`.** The branch is squashed to one commit, `4a055cdd`. The PR body is the squash commit message, per plant's template, and its first comment holds the demonstration, the mechanism and the measurements. #93 was rewritten as a self-contained problem statement with a reproducible script, for upstream.
+**Status: PR [aornugent/plant#94](https://github.com/aornugent/plant/pull/94), open against the fork's `develop`.** The branch is squashed to one commit, `4a7a0449`. The PR body is the squash commit message, per plant's template, and its first comment holds the demonstration, the mechanism and the measurements. #93 was rewritten as a self-contained problem statement with a reproducible script, for upstream.
 - *Final code.* One visitor, `Species::for_each_establishment_weight`, is the only statement of the weight rule. `establishment_weighted_sum` (competition, uptake) and `establishment_weights()` (R, `J`, reported densities) both read it; `node_establishment_weights` is gone. `J` uses the same weights as the fields, so the newest cohort's still-open interval now counts, and the boundary node has no lifetime. That moved the gateway by at most 4.8e-4.
 - *NEWS.* One entry under New features, and the stale sentence in the original birth-date entry is fixed. No breaking-change entry: the birth-date coordinate is new in this development version.
 - *Demo* (in #93 and #94). The fixture with its stops, as a standalone script. At `tol = 1e-4`, develop gives 14.119 / 13.706 / 13.210 / 13.440 and the PR 13.466 / 13.463 / 13.465 / 13.455 (108 / 215 / 215 shifted / 429).
 - *Without the stops,* both builds carry about 1% of time error at `1e-4` (PR: 13.346 shifted, 13.516 at 429), which would swamp the PR's schedule convergence. That is why the demo keeps them.
 - *Tests.* The full sweep has 3355 passes and 0 failures (only the `kableExtra` report errors), and the gateway test passes against the re-blessed baseline.
+- *Wording.* The issue, PR body, first comment, NEWS and comments follow AGENTS.md's style: "establishment weight" for `∫E φ_j`, "density before establishment" for `log_densities_state`, "hat function", and none of "gate", "carry", "stands for" or open and closed intervals.
 - *Next.* Drive #94 to green if CI runs on the fork. After it merges, the user propagates it upstream, and the stack rebases onto the new `develop`.
