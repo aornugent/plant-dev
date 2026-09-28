@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.1 is implemented (aornugent/plant#96), and so are §2.3 and its extension to events, R6 (aornugent/plant#95). §3's option A is next, and the rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.1 is implemented (aornugent/plant#96), §2.3 and its extension to events, R6 (aornugent/plant#95), and §3's option A (aornugent/plant#97). The rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -288,6 +288,28 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 
 **Decided: A** (September 2026). B stays on file in case A moves `J` by more than is acceptable.
 
+*Result* (plant `994d7aff`, aornugent/plant#97). The invaders run. Zero throws does not hold, and `J` moves more than the window did.
+- `storage_relaxation_floor` = 7 days is one TF24 parameter with a gradient column. At 0 the model is v11's bit for bit. TF24 is v12.
+- The rate is `[c(1 − r) − d·r]/(1 + λτ_s)` with `λ = (c + d)/S_max`, to 9 digits at every sampled state.
+
+| long-drought stand, birth date | v11 | v12 |
+|---|---|---|
+| `J`, 108 / 215 / 429 uniform nodes | 12.4167 / 12.4212 / 12.4069 | 12.6656 / 12.7421 / 12.7436 (+2.0 / +2.6 / +2.7%) |
+| `dJ/dlma`, 108 nodes: adjoint (pinned central, `d` = 1e-4) | −168.556 (−168.462) | −195.988 (−195.975) |
+| `dJ/dτ_s`, 108 nodes | | −22.074 (−22.072) |
+| accepted steps, 108 nodes | 10 513 | 9312 |
+| attempts rejected for accuracy / thrown | 1874 / 759 | 1910 / 149 |
+
+- *The table's mutants (§1).* On the fixture's height coordinate, `lma` × 1.001 to × 1.05 now run on the resident's program, and × 1.2 still overshoots. On birth date all run, × 1.2 included. The fixture's throws fall 54 → 7 on height and 9 → 1 on birth date.
+- *Positivity binds before stability.* For `y' = −y/T`, Cash–Karp's fourth stage goes negative past `h = 2.16T`, and the step loses stability past `3.73T`. At the floor that is 15 days against 26.
+  - Two thirds of the 149 throws are at steps above 15 days (median 17.5 days).
+  - The other 50 are shorter steps in which a near-empty pool's rate changes sign, and the method's negative stage coefficients carry that into a negative stage.
+  - Zero throws needs B, or steps capped near `2τ_s`.
+- *The gate's slope.* A draining seedling's relaxation, `−∂Ṡ/∂S`, falls 380 → 55 yr⁻¹ against `1/τ_s` = 52. While a pool fills, the gate's slope adds up to 6λ, and the floored rate reaches 2.3/τ_s at `r` = 0.3.
+- *Elsewhere `J` moves* −3.3% and −4.6% on the five-year birth-date pins. On the height pins it moves −24%, where the compression term amplifies any change to the pool (`test-strategy-tf24.R`, "offspring arrival").
+- *Also moved:* the whole-run gradient reference, TF24's seeded stochastic count (77 → 79) and the model-version snapshot.
+  - TF24f approaches TF24 monotonically only against a TF24 converged in time. At the default tolerance TF24's own error, about 0.1% on its longer steps, exceeds the lag at `k_acclim` = 100.
+
 ## 4. One stepper, two tableaus, a declared stiff block
 
 **The stepper.** `Step` becomes tableau-driven.
@@ -394,7 +416,7 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
      - a resident-and-mutant invasion runs;
      - an invader's sweep agrees with a pinned difference of its fitness.
      - the identical invader is exact under each kind of event (R6, §2.3 extended).
-3. **The pool (plant): option A, decided.**
+3. **The pool (plant): option A, decided.** Done, aornugent/plant#97; the pass holds but for zero throws (§3, *Result*).
    - *Pass for A:* the moves in `J` and `dJ/dθ` stated; zero throws; the table's mutants run on the resident's program.
 4. **A prototype driven from R** of the soil ARK, on the new baseline.
    - The driver with Cash–Karp's tableau must first reproduce the SCM's run bit for bit.
