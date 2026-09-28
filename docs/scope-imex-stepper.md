@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.3 is implemented (aornugent/plant#95), except its extension to events (R6), which is designed but not implemented. The rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.3 is implemented (aornugent/plant#95). Its extension to events (R6) is designed below and in progress on #95. The rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -181,29 +181,55 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 
 *The same split elsewhere:*
 - *The tangent referee* walks a program through the same map, so it integrates a run without its events. On the one-species ladder stand with a 50% harvest, the run's leaf area is 0.413 and the tangent pass reaches 0.798, the value without the harvest.
-- *The sweep* transposes the map without the events. That is exact today only because all three events shift the state by amounts the state does not set.
+- *The sweep* transposes the map without the events. Measured on residents against a difference pinned to the run's times (one-species ladder stand, `k_I`):
+  - with no event, with a pulse, or with a harvest where nothing is introduced: 2.2e-10;
+  - with a harvest at an introduction's instant: 2.0e-6. The run's new cohort takes its inflow value after the harvest, and the sweep's map takes it before;
+  - with a pulse into a saturated layer, whose increment the state sets: 6.3e-9.
 
-*What `program_within` is.* It hands `run_next` the pinned steps strictly inside one schedule interval, so that a pinned run can interleave them with the schedule's entries one interval at a time. Once walks take recordings and `program_from` goes, it is the last producer of programs in plant. It exists only because a pinned run keeps its steps apart from the entries between them.
+*The inflow rule (decided September 2026).* At an entry that applies events and introduces cohorts, a new cohort takes the inflow value the patch holds before the entry's events.
+- Harvests and climate extremes no longer rebuild the field; pulses never did.
+- Residents move only at such entries. On the TF24 ladder stand with three cohorts and a 50% harvest, the new cohort's log density moves by 6.4e-4.
+- Without the rule an invader cannot reproduce the resident there. It evaluates the inflow only in a recorded, closed field, and no row holds the resident's post-event field.
 
-A schedule entry and an insertion row are one thing, built separately: a map applied at a scheduled instant. odelia's row holds the instant; plant's entry holds what happens there.
+*The data structure.* A trajectory is a vector of rows, and a row is the only handle on a recorded state.
+- A row is a `step_record`: the time, a step's size or an entry, the state, and `solved = {stages[5], at_state}`. `at_state` is the evaluation at the row's state: a step's end, the rates after an entry, or the run's first rates.
+- Every evaluation at a recorded state is addressed to a slot of the row that holds that state. It repeats the evaluation that wrote the slot: the same solves, in the same order, at the same time.
+  - A step's `at_state` ran at `fl(t + h)` from the row below; every other slot ran at its row's time.
+  - So a partial load (the field and the inflow value without the rates) cannot be addressed, and every load becomes a full evaluation.
+- A slot's field is an input, not a choice. A slot that holds a field is evaluated in it, in every pass. Otherwise the evaluation builds its own field, and a pass with `keep_field` stores it in the slot. The field is a shared pointer, null where there is none.
+- The Patch applies the schedule's own entries. `apply_insertion(t)` applies the entry's events in schedule order, then pushes one node per species it introduces. `run_next`, every walk and the sweep use it; the sweep evaluates the row below first.
 
-*The design, for R6 and the simplification together:*
-- **One insertion map.** The Patch holds the schedule's entries (today it holds only their introduction times) and applies the entry at an instant: first its events in schedule order, then its introductions. `run_next`, every walk and the sweep's transpose use this map. `run_next`'s event loop and `Patch::introduce_nodes` fold into it.
-- **One program.** A pinned run walks the schedule's entries as insertion rows, with the pinned steps between them. `program_within` and `run_next`'s pinned branch go. `Parameters$ode_times` and `ode_step_sizes` stay, as the steps.
-- **Every evaluation addressed.** A row's last slot records what the evaluation at the row's own state solved for. That is the end of the step for a step row, the first rates after the entry for an insertion row, and the rates the run starts with for the first row. The sweep's first rates, and an entry's own evaluation, load the row below's last slot. §2.3's table goes, and so does its lookup by time.
-- **The agreed removals come with it:** one walk over rows of any scalar, no `program_from`, and `Patch::reset()` without its two per-evaluation clears.
+*What follows.*
+- One walk over rows of any System whose slots have the same type, seeding each slot from its row. It serves the invasion, the tangent referee, the replay from a range and pinned runs.
+- A pinned run's rows are built from the schedule's entries and `Parameters$ode_times`, and its map also records events and history.
+- After an entry the solver evaluates at the recorded time. It used to read the System's clock, which differs from the recorded time only where `fl(t + h)` differs from a clamped step's end: none of 918 steps over five stands.
+- An SCM is an invasion once `resident_recording` is set. `run()` then repeats the invasion, so `store_trajectory()` needs no branch.
+- `run_mutant` builds the invaders' schedule from the resident's events and `p`'s introductions. Its recording pass is an ordinary run with `keep_field`, because rows commit only accepted attempts.
 
-*What it costs:*
-- `apply_event` must run at the active scalar, since the sweep transposes it.
-- The rates after an entry become a full evaluation at the post-entry state. `introduce_nodes`' own field build and rates evaluation go, so the forward run makes one field build and one rates evaluation per entry, where today it makes one and two.
-- A resident's sweep places the operating points of its first rates instead of searching for them. The leaf solve takes its bracket from the state, so the numbers should not move; this is to be measured.
+*Deleted:*
+- odelia: `SolvesForValues` and its branches, since declaring `solved_values` is the opt-in; the second `advance_recorded`; `program_from`; `state_at_range`.
+- plant:
+  - `KeepsSolvedChoices`, `recorded_field::kept`, `set_state_and_boundary` and `set_recorded_state` (odelia calls `reshape_to` and then evaluates);
+  - the step-end table and its four names, `invade()` and `set_introduction_times`;
+  - the field builds in `apply_event` and, on the run's path, in `introduce_nodes`;
+  - `program_within`, `NodeSchedule`'s pinned steps and `run_next`'s pinned branch;
+  - `Patch::reset()`'s per-evaluation clears.
 
-*Kill question:* would this be unneeded without events? No. Runs without events still carry two insertion maps and the pinned-run stitching, and with events an invader's fitness is off by up to 1.34 in log.
+*Kept:*
+- `solved_values`;
+- `solved_scope` with `store_solved`, `load_solved` and `end_solved`: an evaluation spans the load and the rates, and TF24's leaf solves sit four calls down;
+- `keep_field`: a field is about 200 doubles, six per step;
+- `reshape_to`;
+- the sweep's ranges.
 
 *Pass:*
-- The identical invader recovers the resident's fitness bit for bit, with no events and under each of the three.
+- The identical invader recovers the resident's fitness bit for bit:
+  - with no events;
+  - under each of the three;
+  - at an entry where a harvest meets an introduction.
 - An invader's sweep across a harvest agrees with a pinned difference and with its tangent.
-- FF16's references and resident runs are bit-identical. Resident sweeps are too, or the difference is measured and explained.
+- A resident's sweep across a harvest at an introduction agrees with a pinned difference.
+- FF16's references and resident runs are bit-identical, except at entries where events meet introductions. Resident sweeps are too, or the difference is measured and explained.
 - A run pinned by `Parameters$ode_times` is unchanged.
 
 **2.4 An invader's environment state** is integrated and then overwritten at every stage by the field it stands in.
