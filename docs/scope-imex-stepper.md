@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.3 is implemented (aornugent/plant#95). Its extension to events (R6) is designed below and in progress on #95. The rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.3 and its extension to events (R6) are implemented (aornugent/plant#95). The rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -203,7 +203,7 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 - One walk over rows of any System whose slots have the same type, seeding each slot from its row. It serves the invasion, the tangent referee, the replay from a range and pinned runs.
 - A pinned run's rows are built from the schedule's entries and `Parameters$ode_times`, and its map also records events and history.
 - After an entry the solver evaluates at the recorded time. It used to read the System's clock, which differs from the recorded time only where `fl(t + h)` differs from a clamped step's end: none of 918 steps over five stands.
-- An SCM is an invasion once `resident_recording` is set. `run()` then repeats the invasion, so `store_trajectory()` needs no branch.
+- An SCM is an invasion once `invaded_run` is set. `run()` then repeats the invasion, so `store_trajectory()` needs no branch.
 - `run_mutant` builds the invaders' schedule from the resident's events and `p`'s introductions. Its recording pass is an ordinary run with `keep_field`, because rows commit only accepted attempts.
 
 *Deleted:*
@@ -212,7 +212,8 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
   - `KeepsSolvedChoices`, `recorded_field::kept`, `set_state_and_boundary` and `set_recorded_state` (odelia calls `reshape_to` and then evaluates);
   - the step-end table and its four names, `invade()` and `set_introduction_times`;
   - the field builds in `apply_event` and, on the run's path, in `introduce_nodes`;
-  - `program_within`, `NodeSchedule`'s pinned steps and `run_next`'s pinned branch;
+  - `program_within` and `run_next`'s pinned branch;
+  - the field record in heights (`interpolators_state`);
   - `Patch::reset()`'s per-evaluation clears.
 
 *Kept:*
@@ -231,6 +232,16 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 - A resident's sweep across a harvest at an introduction agrees with a pinned difference.
 - FF16's references and resident runs are bit-identical, except at entries where events meet introductions. Resident sweeps are too, or the difference is measured and explained.
 - A run pinned by `Parameters$ode_times` is unchanged.
+
+*Result* (plant `15fe136f`, odelia `a05f5c2`). Every pass line holds.
+- The identical invader has the run's fitness bit for bit in all five cases, and its event log is the run's.
+- An invader's sweep across a harvest at an introduction agrees with a difference of invasions to 7e-10, and with its tangent to 1e-15.
+- A resident's sweep across a harvest at an introduction agrees with a pinned difference to 1.9e-10 in `k_I`, against 2.0e-6 on `de4809fe`.
+- The tangent referee under a harvest reaches the run's census exactly.
+- Resident runs, resident sweeps, FF16's references and pinned runs are bit-identical to `de4809fe`, except at entries where an event meets an introduction, which the inflow rule moves.
+- *A third cause, found in the build.* The recorded field went through heights, and `u_k·top/top` and `(m/top)·top` can each land an ulp off. TF24's leaf solve amplified one such ulp, in a crown's mean light, to 5e-9 in a log density. The field is now recorded as the interpolant holds it: the knot values, the slopes and the canopy top. TF24's cohort reads use the same pair.
+- *Kept, against the plan:* `NodeSchedule`'s pinned steps and their R interface. The events path installs `p$ode_times` there as a grid and drops the sizes, so moving the steps onto the parameters needs a flag or a change in what such a run does. A pinned run is still one walk, of `NodeSchedule::program()`.
+- *Refused now:* an invader introduced where the run introduced nothing, which used to be skipped; and forward Euler for an invasion, before anything is recorded.
 
 **2.4 An invader's environment state** is integrated and then overwritten at every stage by the field it stands in.
 - It is harmless, so it stays for now.

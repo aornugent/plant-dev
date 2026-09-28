@@ -1,95 +1,45 @@
 # Handover
 
-**The next session finishes [aornugent/plant#95](https://github.com/aornugent/plant/issues/95): an invader must be an exact replay of the recorded run, events included (R6).** Read in this order:
+**[aornugent/plant#95](https://github.com/aornugent/plant/issues/95) is done: an invader is an exact replay of the recorded run, events included (R6). The next session starts at *After #95*.** Read in this order:
 - this page;
-- `scope-imex-stepper.md` §1, §2.3 and "§2.3, extended", which hold the design and why the first version of it gave way;
+- `scope-imex-stepper.md` "§2.3, extended", which holds the design and its result;
 - #95, which holds the measurements.
 
 The user's five principles apply: Laziness Protocol, Subtract Before You Add, Minimize Reader Load, Foundational Thinking and Model the Domain. Ask for their text if the session does not include it. AGENTS.md's code style applies to every comment.
 
-## Finish #95
+## #95, done and pushed
 
-**Done and pushed.** Plant is `de4809fe` on `PLANT-95`, one commit on `offspring-adjoint`; odelia is `29205f0`, one commit on `claude/trusting-curie-4i9n3l`.
-- Every forward pass stores its own rows, and only the sweep loads.
-- Invaders solve for their own leaf operating points.
-- Several invaders can invade together.
-- An invader's recording can be swept, and its sweep agrees with a pinned difference to 1e-10.
-- Resident runs and resident sweeps are bit-identical to the base.
+Plant is `15fe136f` on `PLANT-95`, four commits on `offspring-adjoint`; odelia is `a05f5c2` on `claude/trusting-curie-4i9n3l`, two commits on `be3e2cb`.
+- plant `de4809fe`: invaders are evaluated in the recorded field and solve for their own leaf operating points, several can invade together, and an invader's recording can be swept.
+- plant `5be46742`: a node introduced at an event's instant takes the inflow from before the event.
+- plant `e035cfc0`: one map per schedule entry (`Patch::apply_insertion(t)`, its events then its introductions), every evaluation at a recorded state repeating the one its row recorded, the field recorded as the interpolant holds it, and an SCM that is an invasion once `invaded_run` is set.
+- plant `15fe136f`: a pinned run is one walk of `NodeSchedule::program()`.
+- odelia `29205f0` stores each forward pass's own rows; `a05f5c2` makes rows the only trajectory (`solved_row {stages[5], at_state}`), with one walk and every evaluation addressed.
 
-**In progress: R6.** At every schedule entry an invader must apply the same events, in the same order, before the same introductions, and its evaluations after an entry must use the field after the entry. The identical invader on `test-mutant.R`'s TF24 fixture, log fitness against the resident's:
+**Result.** Every pass line of the design holds.
+- The identical invader on `test-mutant.R`'s TF24 fixture has the run's fitness bit for bit: with no events, under a pulse, a harvest and a climate extreme, and at an entry where a harvest meets an introduction. Its event log is the run's.
+- An invader's sweep across a harvest at an introduction agrees with a difference of invasions to 7e-10, and with its tangent to 1e-15.
+- A resident's sweep across a harvest at an introduction agrees with a pinned difference to 1.9e-10 in `k_I`, against 2.0e-6 on `de4809fe`.
+- The tangent referee under a harvest reaches the run's census exactly; it used to reach a leaf area of 0.798 against the run's 0.413.
+- Resident runs, resident sweeps, FF16's references and pinned runs are bit-identical to `de4809fe`, except at entries where an event meets an introduction.
+- Runs, invasion walks and sweeps cost what they did, within 5%.
 
-| schedule | log gap |
-|---|---|
-| no events | −7.1e-15 |
-| a resource pulse of 0.05 at t = 2.5 | −1.2e-7 |
-| a 50% harvest at t = 3.5 | +0.69 |
-| a lethal climate extreme at t = 3.5 | +1.34 |
-
-- *Cause 1.* The walk's insertion map, `Patch::apply_insertion`, applies an entry's introductions but not its events; only `run_next` applies events (`scm.h`, `apply_event` loop).
-- *Cause 2.* After an entry the invader uses the field recorded at the step's end, which is the field before the entry's events.
-- *The tangent referee* walks a program through the same map, so it misses events too. With a 50% harvest the run's leaf area is 0.413, and the tangent pass reaches 0.798.
-- *The sweep* transposes the map without its events. A resident's sweep agrees with a pinned difference to 2.2e-10 in `k_I` except where a harvest meets an introduction, where it agrees only to 2.0e-6: the run's new cohort takes its inflow after the harvest, and the sweep's map before it.
-
-**The design** (stepper scope, "§2.3, extended", which holds the reasons).
-- *A trajectory is a vector of rows, and a row is the only handle on a recorded state.* `step_record.solved` becomes `{stages[5], at_state}`. `at_state` is the evaluation at the row's state: a step's end, the rates after an entry, or the start.
-- *Every evaluation at a recorded state is addressed to its row's slot* and repeats the evaluation that wrote it: the same solves, in the same order, at the same time.
-  - This covers each step's first rates in the sweep, `be_at_step`, the census seed, the difference reference, and the load before the transposed map.
-  - Partial loads go: `set_state_and_boundary`, and `set_recorded_state`, which odelia replaces with `reshape_to` and then an evaluation.
-- *The inflow rule (decided):* a cohort introduced at an entry takes the inflow value the patch holds before the entry's events. `apply_event`'s field rebuild goes.
-- *One map:* the Patch holds `node_schedule`'s entries, and `apply_insertion(t)` applies an entry's events and then its introductions. `run_next`, the walks and the sweep use it.
-- *The field is an input:*
-  - a slot that holds one is evaluated in it in every pass;
-  - otherwise the evaluation builds its own, and `keep_field` stores it;
-  - it is `std::shared_ptr<const recorded_field>`, null for none;
-  - the Patch keeps the open slot as `storing` or `loading`.
-- *No capability concepts:* declaring `solved_values` is the opt-in, and `SolvesForValues` and `KeepsSolvedChoices` go.
-- *One walk over rows* serves the invasion, the tangent referee, the replay from a range and pinned runs. A pinned run walks rows built from the schedule's entries and `Parameters$ode_times`, with a map that also records events and history (Q2, agreed).
-- *The invasion:*
-  - an SCM is an invasion once `resident_recording` is set, and `run()` then repeats it, so `invade()` and the step-end table go;
-  - `run_mutant` builds the invaders' schedule from the resident's events and `p`'s introductions;
-  - the recording pass is an ordinary run with `keep_field`.
-
-**Plan, in order.** Plant's first commit builds against odelia `29205f0`; the rest build against odelia's new head.
-1. *plant: the inflow rule.* Delete `apply_event`'s rebuild, then measure residents at an entry where a harvest meets an introduction.
-2. *odelia: rows.*
-   - `solved_row {stages, at_state}`. `derivs` always takes a slot, and `solved_scope` forwards only for a System that declares `solved_values`.
-   - One walk (NaN sizes step to their time; an optional insertion map). Delete `program_from` and `state_at_range`.
-   - `set_state_from_system` evaluates into the last row's `at_state` at the solver's time, and `push_insertion` comes first.
-   - `be_at_step` = `reshape_to` plus that row's evaluation.
-   - `step_adjoint` takes the row below. The transposed map is the row below's evaluation followed by `apply_insertion(t)`.
-3. *plant: one map, addressed evaluations.*
-   - The Patch holds the schedule's entries and `apply_insertion(t)`; `storing`/`loading`; the shared field.
-   - The census seed and the difference reference take the final row.
-   - Delete the table, `invade()`, `set_state_and_boundary`, `set_recorded_state`, `set_introduction_times`, `KeepsSolvedChoices` and `reset()`'s clears.
-   - The invasion lifecycle, the invaders' schedule, and the recording pass unpinned.
-4. *plant: pinned runs walk rows.* Delete `program_within`, `NodeSchedule`'s pinned steps and `run_next`'s pinned branch.
-5. *Tests and measurements*, landing with the commits they cover.
-
-**Pass.**
-- The identical invader is bit for bit exact:
-  - with no events;
-  - under a pulse, a harvest and a climate extreme;
-  - at an entry where a harvest meets an introduction.
-- An invader's sweep across a harvest agrees with a pinned difference and with its tangent.
-- A resident's sweep across a harvest at an introduction agrees with a pinned difference. It is 2.0e-6 on `de4809fe`.
-- FF16's references and resident runs are bit-identical, except at entries where events meet introductions. Resident sweeps are too, or the difference is measured and explained.
-- A run pinned by `Parameters$ode_times` is unchanged.
-- odelia has tests of the walk and of the addressed evaluations that fail on `29205f0`.
+**Where the build departed from the plan.**
+- *A third cause.* The recorded field went through heights, and `u_k·top/top` and `(m/top)·top` can each land an ulp off. TF24's leaf solve amplified one such ulp, in a crown's mean light, to 5e-9 in a log density. The record is now the interpolant's own data: knot values, slopes and the canopy top (`ResourceSpline::knot_data`). TF24's cohort reads use the same pair.
+- *Kept:* `NodeSchedule`'s pinned steps and their R interface. The events path installs `p$ode_times` there as a grid and drops the sizes, so moving the steps onto the parameters needs a flag or a change in what such a run does.
+- *Refused now:* an invader introduced where the run introduced nothing, which used to be skipped; forward Euler for an invasion, before anything is recorded; a recorded step without a size; and, as before, a System whose clock moved between legs.
 
 **Traps.**
 - *A slot's choices are a sequence.* TF24's leaf points are read in order, so only a full evaluation may read a full evaluation's slot.
-- *Two clocks.*
-  - A step's end is evaluated at `fl(t + h)`, and a clamped step records the interval's end.
-  - After an entry the solver used to read the System's clock.
-  - They differed in none of 918 steps over five stands. Derive a step's `at_state` time from the row below, and evaluate after an entry at the recorded time.
-- *Placement against search.* A resident's sweep now places its first rates' operating points instead of searching for them. The leaf solve takes its bracket from the state, so the numbers should hold; verify.
-- *The recording pass re-runs the resident*, so it must reproduce the first run bit for bit. It does when nothing between the two calls changes the SCM.
-- *Pairing.* `offspring-adjoint` and `establishment-window` at their heads need odelia `be3e2cb`.
+- *A replayed input must be the one the evaluation read, to every digit.* TF24's leaf solve turns a one-ulp difference anywhere upstream into 1e-9, so a field rebuilt through any arithmetic is a different field.
+- *Two clocks.* A step's `at_state` ran at `fl(t + h)` from the row below (`at_state_time`). After an entry the solver keeps the recorded time, and the System's clock must agree with it to 2 ulp.
+- *The recording pass re-runs the run*, so it must reproduce the first run bit for bit. It does when nothing between the two calls changes the SCM.
+- *Pairing.* `offspring-adjoint` and `establishment-window` at their heads need odelia `be3e2cb`, and `PLANT-95` needs `a05f5c2`; neither builds against the other's odelia.
 - *Pre-existing gaps, outside R6:*
   - `lma`'s pinned difference has a floor near 1e-5, on residents too;
-  - invaders fail from `lma` x 1.001 with `TF24 storage is negative` (step 2 of the plan).
+  - invaders fail from `lma` x 1.001 with `TF24 storage is negative`, and run at x 1.0001, 0.99 and 0.95 (step 2 of the plan).
 
-**Measurements, as runnable code.** Run from `$DEV/stack` with `R_LIBS` set. The first prints the table above, the second the tangent check.
+**Measurements, as runnable code.** Run from `$DEV/stack` with `R_LIBS` set. The first prints `TRUE` for each schedule, the second the tangent check.
 
 ```r
 library(odelia); library(plant)
@@ -103,14 +53,16 @@ fixture <- function() {
   env$extrinsic_drivers_set_constant("rainfall", 1)
   list(p = p, env = env)
 }
-gap <- function(ev) {
+exact <- function(ev) {
   f <- fixture()
   e <- if (is.null(ev)) events_default(f$p) else events(events_default(f$p), ev)
   scm <- run_scm(f$p, env = f$env, ctrl = Control(), events = e)
-  r <- scm$net_reproduction_ratios; scm$run_mutant(f$p); log(scm$net_reproduction_ratios) - log(r)
+  r <- scm$net_reproduction_ratios; scm$run_mutant(f$p); identical(scm$net_reproduction_ratios, r)
 }
+at_intro <- fixture()$p$node_schedule_times[[1]][19]
 sapply(list(NULL, rainfall_pulse(time = 2.5, depth = 0.05), harvest(time = 3.5, fraction = 0.5),
-            climate_extreme(time = 3.5, intensity = 5, threshold = 1, sensitivity = 20)), gap)
+            climate_extreme(time = 3.5, intensity = 5, threshold = 1, sensitivity = 20),
+            harvest(time = at_intro, fraction = 0.5)), exact)
 
 source("tests/testthat/helper-gradient-ladder.R")
 p <- ladder_parameters("fast"); p$node_schedule_times <- list(c(0, 0.63))
@@ -123,7 +75,7 @@ rbind(run = stand_census(scm),
 
 ## After #95
 
-1. **Rebase `offspring-adjoint` and `PLANT-95` onto #94** (exact counts, `PLANT-93` at `bae2dd9a`, an open PR against the fork's `develop`). The stack's templated code needs #94's birth-date layout in these places:
+1. **Rebase `offspring-adjoint` and `PLANT-95` (four commits) onto #94** (exact counts, `PLANT-93` at `bae2dd9a`, an open PR against the fork's `develop`). The stack's templated code needs #94's birth-date layout in these places:
    - the interval states added to `for_each_active`;
    - `Node::ode_size()` and `ode_names()` made members, with `patch.h`'s `node_type::ode_size()` calls changed to use each node's own;
    - the weights visitor, at the active scalar;
@@ -141,7 +93,7 @@ The whole plan is `scope-schedule-controller.md` §6:
 |---|---|---|
 | 1 | Stops become step targets (stepper scope §2.1) | not started |
 | 2 | The pool's relaxation floor `τ_s` (stepper scope §3, option A) | decided, not implemented |
-| 3 | Forward passes store their own rows (stepper scope §2.3) | #95; open for R6 |
+| 3 | Forward passes store their own rows (stepper scope §2.3) | #95, done, R6 included |
 | 4 | Exact counts (controller scope §1) | PR #94, open |
 | 5–8 | Error maps, schedule controller, tableau stepper, time controller | not started |
 
@@ -150,8 +102,8 @@ The whole plan is `scope-schedule-controller.md` §6:
 - *The stack*, on `aornugent/plant`, is over `develop`'s `95256cf3`:
   - `offspring-adjoint`, #91, ends at `bb1d8a8a`; it is the reverse sweep, with TF24 v11;
   - `establishment-window`, #92, ends at `6613dd24`; TF24 v12 adds the establishment window.
-- *`PLANT-95`* is on `offspring-adjoint`. No PR is open for it. Whether to open one against `offspring-adjoint`, or carry it into the rebase, is the user's call.
-- *odelia and phylloptim.* The stack links odelia 0.5.0 (`claude/trusting-curie-4i9n3l`) and phylloptim 0.9.0 (`378b083` on `ad/reverse-mode`). Neither is released; upstream has 0.4.0 and 0.8.1.
+- *`PLANT-95`* ends at `15fe136f`, four commits on `offspring-adjoint`. No PR is open for it. Whether to open one against `offspring-adjoint`, or carry it into the rebase, is the user's call.
+- *odelia and phylloptim.* `PLANT-95` links odelia 0.5.0 (`a05f5c2` on `claude/trusting-curie-4i9n3l`) and phylloptim 0.9.0 (`378b083` on `ad/reverse-mode`). Neither is released; upstream has 0.4.0 and 0.8.1.
 - *`plant-dev`'s pointers* record plant `6613dd24` and odelia `be3e2cb`, which is a pair that builds. Do not bump the plant pointer until #94 merges, and move odelia's only with it.
 
 ## Setup
@@ -190,11 +142,12 @@ testthat::test_file("tests/testthat/test-mutant.R", package = "plant", load_pack
 Choose files by AGENTS.md's tiers. odelia's tests run from `$DEV/odelia05`, with `test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
 
 **Baselines on `PLANT-95`:**
-- `test-mutant.R`: 28 pass and 2 fail, in 27 s.
-- The full serial suite: 4626 pass and the same 2 fail, in 12.5 min.
+- `test-mutant.R`: 40 pass and 2 fail, in 21 s.
+- The full serial suite: 4642 pass and the same 2 fail, with no errors and 9 skipped, in 8.9 min.
+- odelia's suite: 325 pass, and `test-implicit-value.R`'s 5 errors.
 
 **Known failures, which predate #95:**
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels. They are pinned to `develop`, which replayed invasions by the resident's times.
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
 
-**Reverse-mode cost.** Timing results are in #95: a resident sweep is 0–4% cheaper after #95, and an invader's sweep is 7–52% cheaper than a resident's.
+**Reverse-mode cost.** Timing results are in #95: a resident sweep is 0–4% cheaper after #95, and an invader's sweep is 7–52% cheaper than a resident's. R6 leaves runs, invasion walks and sweeps within 5% of that.
