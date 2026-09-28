@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.3 and its extension to events (R6) are implemented (aornugent/plant#95). The rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.1 is implemented (aornugent/plant#96), and so are §2.3 and its extension to events, R6 (aornugent/plant#95). §3's option A is next, and the rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -72,6 +72,16 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
   - two member-loop evaluations per knot and one per introduction, about 7% of the forward run's member evaluations (T7, T8);
   - 2931 insertion rows. Each is a sweep range today, with its own rebind of the patch and its own transposed identity map.
 - *Expected:* `J`, the step sequence and the gradient unchanged to round-off, because a rate evaluation is a function of `(y, t)` alone (`patch.h:1042`).
+
+*Result* (plant `33bb06bc`, aornugent/plant#96). Every pass line holds.
+- `NodeSchedule` keeps apart, as a stop, an entry that introduces nothing and whose every action is a pulse of zero amount. `SCM::advance_to` makes a leg's stops targets of `advance_adaptive` and ends a forward-Euler span at each. A pinned grid gains them as targets.
+- On `test-mutant.R`'s TF24 fixture with 500 stops, `J`, the step sequence and the census gradient are bit-identical on both coordinates.
+  - Rate evaluations fall 3705 → 3205, and a run's time by 12%.
+  - Recording rows fall 1049 → 549, and a sweep's time 7.06 → 3.49 s.
+- #95 had already removed the evaluation in `introduce_nodes`: the run's path applies an entry through `apply_insertion`, which does not evaluate. This removes the other.
+  - At `u429`'s ~9e4 member evaluations, that is about 3%, and the two together are the expected ~7%.
+  - This is arithmetic; the stand was not rerun.
+- *Still entries:* a harvest of nothing, and a climate extreme below its threshold.
 
 **2.2 RODAS stays** (decided September 2026).
 - It keeps its own stepper beside the tableau stepper of §4, and the two share `ode_linalg.hpp`'s LU.
@@ -376,9 +386,9 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
 
 `scope-schedule-controller.md` §6 interleaves these steps with exact counts and the controller; this is the stepper's own sequence.
 
-1. **Stops as targets (plant).**
+1. **Stops as targets (plant).** Done, aornugent/plant#96.
    - *Pass:* `J`, the steps and the gradient unchanged to round-off; about 7% fewer member evaluations; fewer sweep ranges and less sweep time.
-2. **Seeded rows (odelia and plant).**
+2. **Seeded rows (odelia and plant).** Done, aornugent/plant#95.
    - *Pass:*
      - the identity invader is still exact;
      - a resident-and-mutant invasion runs;
