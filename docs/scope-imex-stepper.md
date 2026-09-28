@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.1 is implemented (aornugent/plant#96), §2.3 and its extension to events, R6 (aornugent/plant#95), and §3's option A (aornugent/plant#97). The rest is parked. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. Steps 4–6 of §7 are designed next. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -286,9 +286,11 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 
 - *Who is exposed:* a pool above its quasi-steady state goes negative mid-step, for example a member created at `0.8·S_max` with negative production. A resident retries that step; an invader pinned to the resident's steps cannot.
 
-**Decided: A** (September 2026). B stays on file in case A moves `J` by more than is acceptable.
+**Decided: A** (September 2026). It is implemented, and its moves in `J` and `dJ/dθ` are accepted.
 
-*Result* (plant `994d7aff`, aornugent/plant#97). The invaders run. Zero throws does not hold, and `J` moves more than the window did.
+**B is not pursued.** Its implicit stages take a draining pool below zero past `hλ` = 3.1 (stage 5 above; stage 2 at 4.0). For a seedling at `λ` = 188–1444 yr⁻¹ that is a step of 0.8–6 days, against at least 15 days for every pool under A. So B would not let invaders run, and its one gain is keeping v11's model. It would also need the tableau stepper (§4) and the stage coefficient passed down to the strategy.
+
+*Result* (plant `994d7aff`, aornugent/plant#97). The table's invaders run, and the moves in `J` and `dJ/dθ` are accepted. Throws fall by 80%; they are not eliminated.
 - `storage_relaxation_floor` = 7 days is one TF24 parameter with a gradient column. At 0 the model is v11's bit for bit. TF24 is v12.
 - The rate is `[c(1 − r) − d·r]/(1 + λτ_s)` with `λ = (c + d)/S_max`, to 9 digits at every sampled state.
 
@@ -304,11 +306,32 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 - *Positivity binds before stability.* For `y' = −y/T`, Cash–Karp's fourth stage goes negative past `h = 2.16T`, and the step loses stability past `3.73T`. At the floor that is 15 days against 26.
   - Two thirds of the 149 throws are at steps above 15 days (median 17.5 days).
   - The other 50 are shorter steps in which a near-empty pool's rate changes sign, and the method's negative stage coefficients carry that into a negative stage.
-  - Zero throws needs B, or steps capped near `2τ_s`.
+  - Zero throws is out of reach for a pool integrated by the tableau (below), and B does not reach it either.
 - *The gate's slope.* A draining seedling's relaxation, `−∂Ṡ/∂S`, falls 380 → 55 yr⁻¹ against `1/τ_s` = 52. While a pool fills, the gate's slope adds up to 6λ, and the floored rate reaches 2.3/τ_s at `r` = 0.3.
 - *Elsewhere `J` moves* −3.3% and −4.6% on the five-year birth-date pins. On the height pins it moves −24%, where the compression term amplifies any change to the pool (`test-strategy-tf24.R`, "offspring arrival").
 - *Also moved:* the whole-run gradient reference, TF24's seeded stochastic count (77 → 79) and the model-version snapshot.
   - TF24f approaches TF24 monotonically only against a TF24 converged in time. At the default tolerance TF24's own error, about 0.1% on its longer steps, exceeds the lag at `k_acclim` = 100.
+
+*What invaders need beyond A* (measured on `994d7aff`). An invader walks the resident's accepted steps and cannot shrink one, so every stage of those steps must keep the invader's pool non-negative.
+- *Selection gradients need nothing more.* They are taken on the identical invader, which is exact, and near neighbours run: `lma` × 1.01 on the long-drought stand, and × 0.95 to × 1.05 on the fixture.
+- *Capping the resident's step* (`ode_step_size_max`) extends the range, at a cost in steps. On the long-drought stand (108 nodes):
+
+| cap | accepted steps | throws | invaders that run |
+|---|---|---|---|
+| none | 9313 | 149 | none of × 0.9, 1.1, 1.2, 1.5 |
+| 14 days | 9329 | 98 | × 0.9 and × 1.01; not × 1.1 |
+| 7 days | 9683 | 15 | × 0.8 and × 1.1; not × 0.5, 1.2, 1.5, 2 |
+| 3.5 days | 10 977 | 5 | × 0.8 to × 1.5; not × 0.5 or × 2 |
+
+- On the fixture, a 14-day cap runs every invader from × 0.5 to × 3 on both coordinates, at 17% more steps, and the resident throws nothing.
+- *What a cap cannot remove.* With the 3.5-day cap, × 0.5 fails on a 1-day step and × 2 on a 0.37-day step, where linear relaxation cannot overshoot (`h/T` ≤ 0.14). A near-empty pool whose stage rates differ in sign goes below zero through the tableau's negative coefficients, at any step length.
+- *What would remove it:* a pool update that is non-negative at every step.
+  - No Runge–Kutta method above first order is (Bolley–Crouzeix), so the tableau cannot supply one.
+  - One candidate: each stage relaxes the pool exactly toward its quasi-steady state, `charge/(charge + drain)` of capacity, with the charge and the drain held from the evaluation before. The stage value then lies between the pool and that state, inside `[0, S_max]`.
+  - Applied to resident and invader alike, it keeps the identical invader exact.
+  - It is a question for §4's stepper, which already treats components differently. Untested.
+- *Not a fix:* carrying the pool as `log r`. It is positive by construction, but an explicit step that refills a near-empty pool multiplies it by `exp(hλS*/S)`.
+- *The caps also show `J`'s time error on long steps.* `J` is 12.6784 and 12.6798 under the 3.5- and 7-day caps, and 12.6656 uncapped: about 0.1%.
 
 ## 4. One stepper, two tableaus, a declared stiff block
 
@@ -380,6 +403,7 @@ A System without them integrates with the tableau's explicit part.
 - *The explicit part's boundary is 4.23.* Uptake is at most 111 yr⁻¹ over 100 sampled states, so it binds only past 14-day steps.
 - *The soil's second stage reflects its displacement from the quasi-steady state.* The soil sits on that state except at the run's start.
 - *Order 4 over 5.* The steps are not accuracy-limited (T1).
+- *The pools stay explicit, and positivity limits them before stability does.* ARK's explicit stage 2 takes a decaying mode below zero past `h = 2.0T` (`harness/ark436.R`). Under the floor `T` is at least 7 days, so a pool limits the step at about 14 days, not at the 4.23 boundary's 30. On the long-drought stand 1% of steps are longer than 15 days.
 
 ## 5. What a plant developer writes
 
@@ -402,6 +426,7 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
 | the floor, one step per leg | 74% | 73% |
 
 - The pool rows are the T8 bound with both stiff modes out. The soil rows are `soil_only_ideal.R`: the pools keep their stability limit and their throws.
+- All rows were taken on v11. Under the floor the pools no longer set most steps (10 513 → 9312 accepted steps on the long-drought stand), and the pools-floored rows assumed their stability credit, not the positivity limit above. Step 4 re-derives the bounds on v12.
 - The cost per member evaluation is untouched. There, the warm-started leaf solve is the lever.
 
 ## 7. Order of work
@@ -416,7 +441,7 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
      - a resident-and-mutant invasion runs;
      - an invader's sweep agrees with a pinned difference of its fitness.
      - the identical invader is exact under each kind of event (R6, §2.3 extended).
-3. **The pool (plant): option A, decided.** Done, aornugent/plant#97; the pass holds but for zero throws (§3, *Result*).
+3. **The pool (plant): option A.** Done, aornugent/plant#97. The moves in `J` and `dJ/dθ` are stated and accepted, and the table's mutants run. Throws fell 759 → 149, not to zero (§3, *Result*).
    - *Pass for A:* the moves in `J` and `dJ/dθ` stated; zero throws; the table's mutants run on the resident's program.
 4. **A prototype driven from R** of the soil ARK, on the new baseline.
    - The driver with Cash–Karp's tableau must first reproduce the SCM's run bit for bit.
@@ -427,14 +452,15 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
      - ARK at order 4, and stable, on the stiff van der Pol runner the RODAS tests already use;
      - tangent and adjoint agree.
 6. **TF24's wiring (plant).**
-   - *Pass:* the handover's test 3, the pinned ARK across tolerance.
+   - *Pass:* the pinned ARK at `θ0` over tol 1e-2 … 1e-4. `J` is monotone in tol with a spread well under 1e-4 (T5: 4e-4 today), and T6's crossing counts are at their floor.
+   - The pass once also asked for zero throws. That cannot hold while the pools are integrated by the tableau (§3, *What invaders need beyond A*).
 
 ## Sources
 
-- **Scripts**, in `$SP/imex/`:
-  - `mutant_rows.R` and `mutant_scan.R`: §1's table;
-  - `ark_tableau.R` and `ark_stage_zeros.R`: the tableau's properties and §3's stage table;
-  - `soil_only_ideal.R`: §6's soil rows, from `perf/controller/ctl_ideal.R`.
+- **Scripts:**
+  - `harness/ark436.R`: the tableaus' order conditions, stability boundaries and stage positivity, which §3's and §4's tables quote;
+  - `harness/long_drought.R`: the 40-year stand of §3's *Result*;
+  - §1's table is now `test-mutant.R`. `soil_only_ideal.R` (§6's soil rows) read recorded runs that were not kept.
 - **Measurement notes:**
   - `perf-step-controller.md` §4 and §7;
   - `perf-rhs-profile.md` §3–4.

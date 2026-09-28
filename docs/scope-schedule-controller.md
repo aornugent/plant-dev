@@ -1,6 +1,6 @@
 # Scope: exact establishment counts, error maps from the sweep, and a schedule controller
 
-**Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Steps 1–3 of §6 are implemented as aornugent/plant#96, #97 and #95, and the rest is parked (see `handover.md`).
+**Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Steps 1–3 of §6 are implemented as aornugent/plant#96, #97 and #95. Step 7, the stepper, is designed next (see `handover.md`).
 
 This covers the three pieces of the performance design that do not depend on the record:
 - **exact counts**, so cohorts no longer resolve the gate;
@@ -70,7 +70,7 @@ where `φ_j` is the hat at `b_j`.
 - parking a failed recruit at `establishment_failure_hazard`. Its mass is zero instead.
 
 **What it is.** A declared reformulation with the same continuous limit: `J` moves at the level of today's discretisation error.
-- *Test: the handover's test 2.*
+- *Test:*
   - S3's split inverts;
   - uniform 215 lands within about 1e-3;
   - removing the 64 cohorts created inside closed bands moves `J` by ≪ 7e-2;
@@ -169,13 +169,13 @@ Both come out of the sweep that computes the gradient, at a few percent of its c
 
 Each step has its pass criterion in the scope it comes from.
 
-1. **Stops as step targets, and drop the redundant evaluation at entries** (stepper scope §2.1). About 7% fewer member evaluations, with results unchanged.
-2. **The pool's relaxation floor** (stepper scope §3, option A). A declared model change: measure `J` and `dJ/dθ`.
-3. **Forward passes record their own rows** (stepper scope §2.3). TF24 invaders work, and their recordings sweep.
-4. **Exact counts** (§1). The handover's test 2.
+1. **Stops as step targets, and drop the redundant evaluation at entries** (stepper scope §2.1). About 7% fewer member evaluations, with results unchanged. Done, aornugent/plant#96.
+2. **The pool's relaxation floor** (stepper scope §3, option A). A declared model change: measure `J` and `dJ/dθ`. Done, aornugent/plant#97, and its moves are accepted.
+3. **Forward passes record their own rows** (stepper scope §2.3). TF24 invaders work, and their recordings sweep. Done, aornugent/plant#95.
+4. **Exact counts** (§1), aornugent/plant#94, open. The test is §1's.
 5. **The two maps** (§2).
    - *Validate the schedule map* against A6: it should predict refinements' changes in `J`.
    - *Validate the time map* against a step-halving run.
 6. **The controller, schedule side** (§3). Benchmark against uniform ladders on the fixture, then the scenario bank.
-7. **The stepper: the prototype driven from R, then odelia's tableau stepper and stiff block, then TF24's wiring** (stepper scope §4–5). The handover's test 3.
-8. **The controller, time side, and its optimisation policy.** The handover's test 4 across the 11 points of `perf-across-theta.md`, and then a second consult framed around the family of records.
+7. **The stepper: the prototype driven from R, then odelia's tableau stepper and stiff block, then TF24's wiring** (stepper scope §4–5). The pinned ARK across tolerance, stepper scope §7 step 6.
+8. **The controller, time side, and its optimisation policy.** A graded schedule of about 140 members on the pinned ARK, across the 11 points of `perf-across-theta.md`: `|e|/J ≤ 1e-3`, a secant-gradient error of at most 0.1%, and along-step consistency within 1%. Then a second consult framed around the family of records.

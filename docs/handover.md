@@ -1,10 +1,10 @@
 # Handover
 
-**Steps 1 and 2 of the plan are done**, as [#96](https://github.com/aornugent/plant/issues/96) and [#97](https://github.com/aornugent/plant/issues/97), side by side on [#95](https://github.com/aornugent/plant/issues/95). #95, exact invader replay, is done, and the stack is rebased onto #94. #95's design is `scope-imex-stepper.md` "§2.3, extended".
+**Next session, in order: a code review, a clean-up, then the design of the stepper**, steps 4–6 of `scope-imex-stepper.md` §7: the R-driven prototype of the soil ARK, odelia's tableau stepper and stiff block, and TF24's wiring.
 
-**Next, the user's call:** whether step 2's move in `J` and `dJ/dlma` stands (below), and then step 5 of the plan.
+Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted.
 
-The user's five principles apply (Laziness Protocol, Subtract Before You Add, Minimize Reader Load, Foundational Thinking, Model the Domain); ask for their text if the session lacks it. AGENTS.md's code style applies to every comment.
+The user's five principles apply (Laziness Protocol, Subtract Before You Add, Minimize Reader Load, Foundational Thinking, Model the Domain). Their text is not in the repo; ask for it if the session lacks it. AGENTS.md's code style applies to every comment.
 
 ## Branches
 
@@ -22,30 +22,66 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - No PR is open for `offspring-adjoint`, `PLANT-95`, `PLANT-96` or `PLANT-97`; opening them is the user's call. #96 and #97 are independent, and both edit the top of `NEWS.md`.
 - `plant-dev`'s pointers (plant `6613dd24`, odelia `be3e2cb`) stay until #94 merges; odelia's moves with plant's.
 
-**The rebase onto #94 is done.** The heads before it were `bb1d8a8a` and `cb9d4f2b`.
-- #94 is ported into the templated model in `61af9238`, and `5a37615e` follows it through the suite: `make_initial_state()` takes birth dates, the fixtures seat a density through survival, the references form the weights, and the whole-run reference is recaptured.
-- On the birth-date coordinate a node's density is its birth rate times its survival, and its weight comes from the interval states. So the boundary node reaches the census only through the newest interval's moment, and the field reaches recruitment through the carbon a recruit makes.
-- The height coordinate is bit-identical across the rebase. FF16's birth-date offspring production moved 17.1720 → 17.1406, as #94 moves develop's.
+## Done last session
 
-**Step 1, stops as step targets, is done** as #96 (stepper scope §2.1, *Result*).
-- `NodeSchedule` keeps apart, as a stop, an entry that introduces nothing and whose every action is a pulse of zero amount. `SCM::advance_to` lands on the stops.
-- On the TF24 fixture with 500 stops, `J`, the steps and the gradient are bit-identical. Evaluations fall 3705 → 3205 and a sweep's time by half.
+- **The rebase onto #94.** The height coordinate is bit-identical across it. On the birth-date coordinate a node's density is its birth rate times its survival, and the boundary node reaches the census only through the newest interval's moment.
+- **Step 1, stops as step targets** (#96; stepper scope §2.1, *Result*). `J`, the steps and the gradient are bit-identical, and a sweep takes half the time.
+- **Step 2, the pool's relaxation floor** (#97; stepper scope §3, *Result*). TF24 is v12.
+  - `J` moves +2.7% on the long-drought stand and `dJ/dlma` +16%, and both are accepted.
+  - Throws fall 759 → 149. They are improved, not eliminated.
+- **Option B**, implicit pools, is not pursued: its stages go negative past `hλ` = 3.1, which fixes neither invaders nor throws (stepper scope §3).
+- **Invaders with the storage pool** (stepper scope §3, *What invaders need beyond A*).
+  - Selection gradients work: the identical invader is exact, and near neighbours run.
+  - Capping the resident's step widens the range: at 3.5 days, `lma` × 0.8 to × 1.5 run on the long-drought stand, at 18% more steps.
+  - Every invader would need a pool update that is non-negative at any step, which is a question for the stepper design.
 
-**Step 2, the pool's relaxation floor, is done** as #97 (stepper scope §3, *Result*).
-- `storage_relaxation_floor`, 7 days, is added to the pool's own relaxation time. TF24 is v12, and a floor of zero is v11 bit for bit.
-- On the long-drought stand `J` moves +2.0 / +2.6 / +2.7% at 108 / 215 / 429 nodes, and `dJ/dlma` moves −168.56 → −195.99. Both adjoints match pinned differences.
-- The table's invaders run. Throws fall 759 → 149 but not to zero, because positivity binds before stability: Cash–Karp's fourth stage takes a draining pool below empty past `h = 2.16T`, 15 days at the floor.
-- ⚠️ *Open for the user:* whether these moves stand, or option B (implicit pools) replaces A, as the plan allowed if A moved `J` too far.
+## Next session
+
+**1. Code review.** Review each branch's own diff over its base, in stack order, so that findings map to one issue each:
+
+| diff | commits | size, excluding generated bindings and the reference |
+|---|---|---|
+| odelia `claude/trusting-curie-4i9n3l` over `master` | 12 | +9.2k / −3.0k in 71 files |
+| `PLANT-93` over `develop` (PR #94) | 1 | +0.5k / −0.3k |
+| `offspring-adjoint` over `PLANT-93` | 14 | +18.1k / −5.1k in 139 files |
+| `PLANT-95` over `offspring-adjoint` | 5 | +0.6k / −0.6k |
+| `PLANT-96` and `PLANT-97` over `PLANT-95` | 1 each | +0.1k each |
+
+- Use plant-dev's `code-review` skill, against the five principles and AGENTS.md's style. `PLANT-95` was reviewed against the principles before the R6 work; `offspring-adjoint` and odelia's branch are the bulk.
+- Fix each finding in the branch that owns it. Then `git rebase --update-refs` and push every moved branch with `--force-with-lease`.
+
+**2. Clean up.** Candidates found so far:
+- odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
+- `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
+- `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).
+- Test comments that record history or stale numbers:
+  - "offspring arrival" in `test-strategy-tf24.R`;
+  - the seeded-baseline narrative in `test-stochastic-patch-runner.R`;
+  - the `k_acclim` offspring table in `test-strategy-tf24f.R`.
+
+  TF24's `scientific_version` log is history by design; whether it stays is the user's call.
+- `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
+- The scopes still carry superseded design, such as §2.3's first design beside its extension. Condense them to what is true now.
+
+**3. Design of steps 4–6.** Run the `system-design` skill at tier 3, since odelia's stepper is a seam the adjoint sits behind. Inputs that changed since the scope was written:
+- *The model is v12.* The pools are floored, so the soil chain is the stiff mode, and §6's savings bounds were taken on v11. Step 4 re-derives them.
+- *Explicit pools are limited by positivity, not stability*: `h = 2.0T` under ARK's explicit part and `2.16T` under Cash–Karp, about 14–15 days at the floor (`harness/ark436.R`). Only 1% of the long-drought stand's steps are that long.
+- *Zero throws is not reachable for a pool integrated by a tableau.* Step 6's old pass asked for it. Decide whether step 5 gives the pool an update of its own, which would also make invaders robust (stepper scope §3).
+- *Invaders run on the resident's rows (#95).* The new stepper keeps six rows per step under both tableaus, with every evaluation addressed to a row.
+- *The prototype can drive plant from R:* `Patch$derivs(y, t)`, `Patch$set_ode_state` and `Patch$introduce_new_node` exist.
+- *`J` carries about 0.1% time error on long steps*: the 3.5- and 7-day caps agree to 1e-4, and the uncapped run differs by 1e-3. Step 4's gate compares at matched `J`.
 
 The plan is `scope-schedule-controller.md` §6:
 
 | step | what | state |
 |---|---|---|
 | 1 | Stops become step targets (stepper §2.1) | done, #96 |
-| 2 | The pool's relaxation floor (stepper §3, option A) | done, #97; its moves await the user |
+| 2 | The pool's relaxation floor (stepper §3, option A) | done, #97; accepted; throws improved, not eliminated |
 | 3 | Forward passes store their own rows (stepper §2.3) | done, #95 |
 | 4 | Exact counts (controller §1) | PR #94, open; the stack is on it |
-| 5–8 | Error maps, schedule controller, tableau stepper, time controller | not started |
+| 5–6 | Error maps, the schedule controller | not started |
+| 7 | The stepper (stepper §7, steps 4–6) | designed next session |
+| 8 | The time controller | not started |
 
 ## Traps
 
@@ -55,6 +91,7 @@ The plan is `scope-schedule-controller.md` §6:
 - *An invasion's recording pass re-runs the run*, and reproduces it only while nothing between the two calls changes the SCM.
 - *`lma`'s pinned difference has a floor near 1e-5*, on residents too.
 - *Positivity binds before stability for an explicit pool:* a step between 2.16 and 3.73 of a pool's relaxation time is stable, and its fourth stage is below empty.
+- *A step cap does not make every invader run:* a near-empty pool whose stage rates differ in sign goes below zero inside a short step too (stepper scope §3).
 - *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the floor lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
 - *A stop is not an entry:* `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it, and `program()` adds it to a grid only.
 - *A lambda returning an active product needs `-> value_type`:* a deduced return type hands back an expression template over dead operands, and the value comes out right while the derivative reads freed memory.
