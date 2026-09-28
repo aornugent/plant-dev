@@ -101,9 +101,9 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 ## Where things stand
 
-**Next session, in order: a code review, a clean-up, then the design of the stepper**, steps 4–6 of `scope-imex-stepper.md` §7: the R-driven prototype of the soil ARK, odelia's tableau stepper and stiff block, and TF24's wiring.
+**Next session, in order: a clean-up, then the design of the stepper**, steps 4–6 of `scope-imex-stepper.md` §7: the R-driven prototype of the soil ARK, odelia's tableau stepper and stiff block, and TF24's wiring.
 
-Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted.
+Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted. The code review was scoped to #96 and #97, and is done; the rest of the stack was not reviewed under the `code-review` skill.
 
 The principles above apply to all work, and AGENTS.md's code style to every comment.
 
@@ -116,8 +116,8 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `PLANT-93` (PR #94, open) | `bae2dd9a` | exact counts; 1 commit | `develop` | `be3e2cb` |
 | `offspring-adjoint` (#91) | `5a37615e` | the reverse sweep, TF24 v11; 14 commits | `PLANT-93` | `be3e2cb` |
 | `PLANT-95` (#95) | `25e21a70` | exact invader replay; 5 commits | `offspring-adjoint` | `a05f5c2` |
-| `PLANT-96` (#96) | `33bb06bc` | stops as step targets; 1 commit | `PLANT-95` | `a05f5c2` |
-| `PLANT-97` (#97) | `994d7aff` | the pool's relaxation floor, TF24 v12; 1 commit | `PLANT-95` | `a05f5c2` |
+| `PLANT-96` (#96) | `855f64ee` | zero pulses as step targets; 1 commit | `PLANT-95` | `a05f5c2` |
+| `PLANT-97` (#97) | `b4b5febf` | the pool's relaxation offset, TF24 v12; 1 commit | `PLANT-95` | `a05f5c2` |
 
 - odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is `378b083`, both unreleased. A branch builds only against its own odelia.
 - No PR is open for `offspring-adjoint`, `PLANT-95`, `PLANT-96` or `PLANT-97`; opening them is the user's call. #96 and #97 are independent, and both edit the top of `NEWS.md`.
@@ -126,11 +126,15 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 ## Done last session
 
 - **The rebase onto #94.** The height coordinate is bit-identical across it. On the birth-date coordinate a node's density is its birth rate times its survival, and the boundary node reaches the census only through the newest interval's moment.
-- **Step 1, stops as step targets** (#96; stepper scope §2.1, *Result*). `J`, the steps and the gradient are bit-identical, and a sweep takes half the time.
-- **Step 2, the pool's relaxation floor** (#97; stepper scope §3, *Result*). TF24 is v12.
+- **Step 1, zero pulses as step targets** (#96; stepper scope §2.1, *Result*). `J`, the steps and the gradient are bit-identical, and a sweep takes half the time.
+- **Step 2, the pool's relaxation offset** (#97; stepper scope §3, *Result*). TF24 is v12.
   - `J` moves +2.7% on the long-drought stand and `dJ/dlma` +16%, and both are accepted.
   - Throws fall 759 → 149. They are improved, not eliminated.
 - **Option B**, implicit pools, is not pursued: its stages go negative past `hλ` = 3.1, which fixes neither invaders nor throws (stepper scope §3).
+- **The review of #96 and #97**, under the `code-review` skill. Its findings are fixed in each branch's one commit, and the issues describe the result.
+  - #96 held a zero pulse apart only when nothing else happened at its time. That partition went stale under `set_times` and `clear_times`, a recording gained the pulses' times, `max_time` could be set before the last one, and its resource was no longer checked. Every zero pulse is now held apart. `SCM$events` returns each before the entry at its time, and `reset` checks its resource.
+  - #97's parameter is `storage_relaxation_offset`: it is added to the pool's relaxation time and does not bound it, since the gate's slope takes the rate to 2.3/`τ_s`. A negative offset is refused. The mutant test has its zero-offset control, and the stochastic count is pinned at zero offset.
+  - Declared, not fixed: #96's bit-identity is measured, not guaranteed, and `refine_schedule` samples competition errors at introductions only (#96, *Limits*).
 - **Invaders with the storage pool** (stepper scope §3, *What invaders need beyond A*).
   - Selection gradients work: the identical invader is exact, and near neighbours run.
   - Capping the resident's step widens the range: at 3.5 days, `lma` × 0.8 to × 1.5 run on the long-drought stand, at 18% more steps.
@@ -138,20 +142,7 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Next session
 
-**1. Code review.** Review each branch's own diff over its base, in stack order, so that findings map to one issue each:
-
-| diff | commits | size, excluding generated bindings and the reference |
-|---|---|---|
-| odelia `claude/trusting-curie-4i9n3l` over `master` | 12 | +9.2k / −3.0k in 71 files |
-| `PLANT-93` over `develop` (PR #94) | 1 | +0.5k / −0.3k |
-| `offspring-adjoint` over `PLANT-93` | 14 | +18.1k / −5.1k in 139 files |
-| `PLANT-95` over `offspring-adjoint` | 5 | +0.6k / −0.6k |
-| `PLANT-96` and `PLANT-97` over `PLANT-95` | 1 each | +0.1k each |
-
-- Use plant-dev's `code-review` skill, against the five principles and AGENTS.md's style. `PLANT-95` was reviewed against the principles before the R6 work; `offspring-adjoint` and odelia's branch are the bulk.
-- Fix each finding in the branch that owns it. Then `git rebase --update-refs` and push every moved branch with `--force-with-lease`.
-
-**2. Clean up.** Candidates found so far:
+**1. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
 - `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).
@@ -164,9 +155,9 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
 - The scopes still carry superseded design, such as §2.3's first design beside its extension. Condense them to what is true now.
 
-**3. Design of steps 4–6.** Run the `system-design` skill at tier 3, since odelia's stepper is a seam the adjoint sits behind. Inputs that changed since the scope was written:
-- *The model is v12.* The pools are floored, so the soil chain is the stiff mode, and §6's savings bounds were taken on v11. Step 4 re-derives them.
-- *Explicit pools are limited by positivity, not stability*: `h = 2.0T` under ARK's explicit part and `2.16T` under Cash–Karp, about 14–15 days at the floor (`harness/ark436.R`). Only 1% of the long-drought stand's steps are that long.
+**2. Design of steps 4–6.** Run the `system-design` skill at tier 3, since odelia's stepper is a seam the adjoint sits behind. Inputs that changed since the scope was written:
+- *The model is v12.* A week is added to the pools' relaxation time, so the soil chain is the stiff mode, and §6's savings bounds were taken on v11. Step 4 re-derives them.
+- *Explicit pools are limited by positivity, not stability*: `h = 2.0T` under ARK's explicit part and `2.16T` under Cash–Karp, about 14–15 days for a draining pool under the offset (`harness/ark436.R`). Only 1% of the long-drought stand's steps are that long.
 - *Zero throws is not reachable for a pool integrated by a tableau.* Step 6's old pass asked for it. Decide whether step 5 gives the pool an update of its own, which would also make invaders robust (stepper scope §3).
 - *Invaders run on the resident's rows (#95).* The new stepper keeps six rows per step under both tableaus, with every evaluation addressed to a row.
 - *The prototype can drive plant from R:* `Patch$derivs(y, t)`, `Patch$set_ode_state` and `Patch$introduce_new_node` exist.
@@ -177,7 +168,7 @@ The plan is `scope-schedule-controller.md` §6:
 | step | what | state |
 |---|---|---|
 | 1 | Stops become step targets (stepper §2.1) | done, #96 |
-| 2 | The pool's relaxation floor (stepper §3, option A) | done, #97; accepted; throws improved, not eliminated |
+| 2 | The pool's relaxation offset (stepper §3, option A) | done, #97; accepted; throws improved, not eliminated |
 | 3 | Forward passes store their own rows (stepper §2.3) | done, #95 |
 | 4 | Exact counts (controller §1) | PR #94, open; the stack is on it |
 | 5–6 | Error maps, the schedule controller | not started |
@@ -193,8 +184,8 @@ The plan is `scope-schedule-controller.md` §6:
 - *`lma`'s pinned difference has a floor near 1e-5*, on residents too.
 - *Positivity binds before stability for an explicit pool:* a step between 2.16 and 3.73 of a pool's relaxation time is stable, and its fourth stage is below empty.
 - *A step cap does not make every invader run:* a near-empty pool whose stage rates differ in sign goes below zero inside a short step too (stepper scope §3).
-- *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the floor lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
-- *A stop is not an entry:* `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it, and `program()` adds it to a grid only.
+- *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the offset lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
+- *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
 - *A lambda returning an active product needs `-> value_type`:* a deduced return type hands back an expression template over dead operands, and the value comes out right while the derivative reads freed memory.
 
 ## Setup
@@ -222,7 +213,7 @@ done
 
 **Tests** run from `$DEV/stack` with `TESTTHAT_PARALLEL=false`, by AGENTS.md's tiers: `testthat::test_file("tests/testthat/test-mutant.R", package = "plant", load_package = "installed")` after `library(odelia)`. odelia's run from `$DEV/odelia05` with `test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
 
-**Baselines on `PLANT-95`:** `test-mutant.R` 41 pass and 2 fail; the full serial suite 4651 pass and the same 2 fail, in 9.1 min; odelia 325 pass. On `PLANT-96` the suite passes 4661 and fails the same 2, and on `PLANT-97` the same, in 6.8 min. On `offspring-adjoint` the suite passes 4628 and fails the same 2, in 9.5 min.
+**Baselines on `PLANT-95`:** `test-mutant.R` 41 pass and 2 fail; the full serial suite 4651 pass and the same 2 fail, in 9.1 min; odelia 325 pass. On `PLANT-96` the suite passes 4667 and on `PLANT-97` 4664, each failing the same 2, in 9.7 and 7.4 min run side by side. On `offspring-adjoint` the suite passes 4628 and fails the same 2, in 9.5 min.
 
 **Known failures, older than #95:**
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.

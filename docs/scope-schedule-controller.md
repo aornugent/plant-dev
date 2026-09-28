@@ -80,7 +80,7 @@ where `φ_j` is the hat at `b_j`.
 **Invaders.** Each species integrates its own masses from its own gate, so invaders need nothing extra.
 
 **Where it can land: on its own, on plant's `develop`.**
-- *What it depends on.* Nothing else in this plan: not the adjoint, the controller, the stepper, the pool floor or the invader fix.
+- *What it depends on.* Nothing else in this plan: not the adjoint, the controller, the stepper, the pool's relaxation offset or the invader fix.
 - *What `develop` (`95256cf3`) already has:*
   - the birth-date coordinate;
   - stops at the knots, through pulse events;
@@ -170,7 +170,7 @@ Both come out of the sweep that computes the gradient, at a few percent of its c
 Each step has its pass criterion in the scope it comes from.
 
 1. **Stops as step targets, and drop the redundant evaluation at entries** (stepper scope §2.1). About 7% fewer member evaluations, with results unchanged. Done, aornugent/plant#96.
-2. **The pool's relaxation floor** (stepper scope §3, option A). A declared model change: measure `J` and `dJ/dθ`. Done, aornugent/plant#97, and its moves are accepted.
+2. **The pool's relaxation offset** (stepper scope §3, option A). A declared model change: measure `J` and `dJ/dθ`. Done, aornugent/plant#97, and its moves are accepted.
 3. **Forward passes record their own rows** (stepper scope §2.3). TF24 invaders work, and their recordings sweep. Done, aornugent/plant#95.
 4. **Exact counts** (§1), aornugent/plant#94, open. The test is §1's.
 5. **The two maps** (§2).
