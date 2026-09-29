@@ -482,3 +482,202 @@ member evaluations.
 
 We may be looking at this through the wrong variable. An answer that rejects the framing,
 and says which object should be treated in its place, is welcome.
+
+## Follow-up, after the reply
+
+This continues the statement above and your reply to it, in the same notation. It has four parts: your proposals measured on the driver; `dJ/dθ` on pinned runs; what the gradients are for, and the precondition that follows; and what is known about that precondition. The questions are at the end.
+
+Terms used throughout:
+- **A rule** sets a run's knobs: `tol`, the error scales, the stops and the creation spacing. **A grid** is what one run of a rule records: its accepted steps, its stops and its creation times.
+- **A pinned run** replays a grid: each step at its recorded size, ending at its recorded time, with no error test. It stops if a stage throws. §4 also cites an earlier form, the **end-times form**, which steps to each recorded end time and subdivides the interval where a stage throws.
+- **Δ** is a relative half-width in every constant: `θ` is within `Δ` of `θ₀` when `|ln θ_k − ln θ₀,k| ≤ Δ` for each `k`.
+
+### 1. Your reply, measured
+
+On the test instance at its own `θ`, as `J/J* − 1`, with member evaluations in brackets. No crossings are located (T12) in any run here.
+
+**The per-member scale.** `σ_S = tol·(|S| + c·r₀·S_max(x_j))`, with `r₀ = 0.05` held fixed in `σ_S`, and every other error scale unchanged. One run at each tolerance (the nudges below show their spread):
+
+| `c` | `tol = 1e-3` | `3e-4` | `1e-4` | `3e-5` |
+|---|---|---|---|---|
+| `1e-3` | −4.6e-4 (4.08e6) | −6.2e-5 (4.64e6) | −5.2e-5 (5.37e6) | −6.7e-6 (6.41e6) |
+| `1e-4` | | −6.1e-5 (4.66e6) | −2.4e-5 (5.40e6) | |
+
+- At `tol = 3e-4` with `c = 1e-4`: 11 618 accepted steps, 2641 rejected for accuracy and 9 thrown, against the pair's 10 428, 2005 and 102. The pool attains the ratio's maximum on 23% of accepted steps, against 2.7%.
+- For comparison near `1e-4` in `J`: the pair at `tol = 1e-5`, +3.2e-5 (6.41e6); T8's absolute part alone at `1e-4`, +7.8e-5 (4.81e6).
+- `J`'s error at `tol = 1e-4` split as in T6 (loss part, output part, weights' part), against the run at `1e-7`: the pair +4.8e-4, +3.9e-4, −5.2e-5; T8 with both parts scaled +9.9e-5, −9.3e-5, +5.2e-6; the per-member scale with `c = 1e-3`, −2.1e-5, −3.1e-5, −7e-7.
+
+**The amplifier.** T6's `135δ` stretch runs from `t = 7.41` to `7.78`. At its start the second member has `S = 0.068` of `S_max = 0.53` (`r_s = 0.128`) and `P = −14.8`, so `τ_pool = S_max/|P| + τ_s = 20δ`. Scaling that pool by `1 + 1e-3` there gives `∂m/∂ln S_start = −0.276`, against −0.278 from your formula. The relative change in `S` is carried through the stretch: 9.9e-4 of the 1e-3 remains at its end, where `S = 7.1e-5`.
+
+**The two refinements,** each with `c = 1e-3`:
+- *The kink-aware estimate.* On an attempt across which a member's `P` changes sign, its pool's estimate becomes the larger of the embedded difference and `h²·|(1 − G)(1 − r) − r|·(|P₁ − P₀|/h)·|K(ϑ)|`. Here `r` and `G` are taken at the step's start, `P₀` and `P₁` are the member's `P` at the step's ends, and `ϑ` comes from linear interpolation of `P`.
+  - The factor is the jump in the pool rate's slope in `P`: `(1 − G)(1 − r)` above zero and `r` below.
+  - Your `0.73 + r` agrees with it only near `r = 0`. At `r = 0.35` it is 3.6 times the jump, and near `r = 0.2`, where the jump vanishes, far more.
+  - When such a pool sets the ratio, the step-size update uses the exponents for an error of order `h²`: `ρ^{−1/2}` on rejection and `ρ^{−1/3}` when the step is enlarged.
+  - There is no factor for class switches.
+- *The restart.* After an accepted step across which some member's `P` changes sign, the next step starts at no more than `0.1δ`.
+
+| | `tol = 1e-3` | `3e-4` | `1e-4` | `3e-5` |
+|---|---|---|---|---|
+| the estimate | | −6.7e-5 (5.09e6) | −1.4e-5 (5.98e6) | |
+| the restart | | −2.4e-5 (5.31e6) | −7.9e-5 (6.06e6) | |
+| both | −1.5e-4 (5.10e6) | −7.7e-5 (5.77e6) | −2.7e-5 (6.58e6) | −3.4e-6 (7.75e6) |
+
+We first ran the estimate with `(1 − G)(1 − r) + r`, extending your `0.73 + r`. With it, both refinements together gave −1.7e-4, −5.7e-5, −2.9e-5 and −3.9e-6, at about 1% more cost than with the corrected factor.
+
+**Nudges.** `J/J* − 1` over seven tolerances within ±5% of `3e-4`, and three within ±3% of `1e-4`: the median, and the range from largest to smallest. Member evaluations are at the centres.
+
+| | around `3e-4`: median | range | around `1e-4`: median | range | member evaluations |
+|---|---|---|---|---|---|
+| the pair | +8.1e-4 | 6.7e-4 | +8.1e-4 | 2.0e-4 | 4.07e6, 4.64e6 |
+| per-member scale, `c = 1e-3` | −9.6e-5 | 1.1e-4 | −4.5e-5 | 2.3e-5 | 4.64e6, 5.37e6 |
+| per-member scale, `c = 1e-4`, three tolerances | −1.0e-4 | 6.4e-5 | | | 4.66e6 |
+| both refinements | −1.1e-4 | 7.0e-5 | −3.5e-5 | 1.1e-5 | 5.77e6, 6.58e6 |
+| both, with the first factor | −5.7e-5 | 1.9e-5 | | | 5.84e6 |
+
+- The per-member scale is within `1e-4` around `tol = 1e-4`. Around `3e-4` its median is at `1e-4`, and three of its seven runs are beyond it; the single run at `3e-4` in the first table is one of the seven.
+- The first factor overstates the pool's own jump at the crossings' levels of `r`, 1.3 times at 0.35 and far more near 0.2, yet it gives the steadiest `J`. Its standard deviation over the seven is 6.8e-6, against 2.9e-5 with the corrected factor and 4.3e-5 for the scale alone.
+
+**The pools at the crossings,** on the run at `tol = 1e-6`, as `r = S/S_max`, in the three earliest-created members over `t ∈ [3, 14]`, where T6 finds the difference in `m` grows:
+- *Downward crossings* (88): `r` has median 0.35, and 1% are below 0.1.
+- *Upward crossings* (88): `r` has median 0.16, 31% are below 0.1 and 11% below 0.01.
+- *The near-empty ones follow long quiescent stretches.* Measured from the member's previous downward crossing:
+  - after stretches shorter than `50δ`, the upward crossings' `r` has median 0.13–0.30, and none is below 0.01;
+  - after `50–100δ`, median 0.014, and 4 of 12 are below 0.01;
+  - after `100δ` or more, median 1.1e-3, and all 6 are below 0.01.
+- *T6's stretch.* At the second member's next upward crossing, `18δ` after T6's stretch ends (`t = 7.83`), its `r` is 5e-5.
+- Over all crossings by the ten earliest-created members the medians are nearly the same (0.35 and 0.17), and no downward crossing is below 0.01.
+
+**`φ` and the class.** No `φ_ℓ` reaches `φ_max` in the quiescent stretches, because `v` stays above the value that caps it; so `P ≈ −15` over T6's stretch is not a capped `φ`. By T4, members are in the inner problem's lower-end class from a median `6.6δ` after their downward crossing to a median `0.26δ` before their upward one.
+
+**The events.** T12 with T8's first change, at `tol = 1e-4`, split as in T6: loss part +2.7e-4, output part +6.0e-5, weights' part −3.4e-5. Against T8 alone the loss part rose by 1.7e-4 and the output part by 1.5e-4, so the extra error is in `m` and in `F`'s increments alike. Whether the retake and restart cause it is not tested.
+
+**Not tested:** `E_J`; `ln S` as the pool's variable while `P < 0`; sub-cycling the chain in pulses; weighting the controller by the previous gradient's `λ`; skipping members whose `n_j` is nil; warm starts; and restarting at `h ≤ δ` at pulse ends (T10).
+
+### 2. `dJ/dθ` on pinned runs
+
+Two constants:
+- `θ_A` enters only `P_b` and `κ(x)`, through four constants that are fixed functions of it;
+- `θ_B = 1/r₀` in `μ`. The `r₀` in `σ_S` does not move with it.
+
+For each, `dJ/d ln θ_k` is a central difference at `θ_k·(1 ± 1e-4)` between two pinned runs of one grid, the grid of the run at `θ`.
+
+The references are the same difference on the pair's grids:
+- for `θ_A`, at `tol = 1e-8` (−63.10). Its own error is not known: the grid at `1e-7` gives a difference 1.2e-4 from it, so entries below about 2e-4 are not resolved.
+- for `θ_B`, at `1e-7` (13.37). No second reference was run, so its resolution is not known.
+
+On a pinned run `J_h(θ)` is continuous, up to the inner root-finds' stopping rules. It is smooth except where some stage's branch (a clamp, the floor or the inner problem's class) changes with `θ`, and the sweep returns the gradient along the branches taken. On a smaller instance a pinned central difference agrees with the sweep to about 1e-5 in `θ_A`. These differences were not compared with the sweep.
+
+Relative error in `dJ/d ln θ_A`:
+
+| `tol` | the pair | per-member scale, `c = 1e-3` | with both refinements |
+|---|---|---|---|
+| 1e-3 | −6.1e-3 | −1.7e-3 | −9.7e-4 |
+| 3e-4 | +2.3e-3 | +2.1e-3 | −1.3e-4 |
+| 1e-4 | +1.2e-3 | +5.3e-4 | +7.1e-5 |
+| 3e-5 | −2.3e-3 | −6.9e-4 | −3.7e-4 |
+| 1e-5 | +8.4e-4 | | |
+
+Relative error in `dJ/d ln θ_B`:
+- the pair: −2.2e-2, +7.1e-4 and +6.1e-3 at `tol = 1e-3`, `1e-4` and `1e-5`;
+- the per-member scale: +4.8e-3 and +9.9e-4 at `3e-4` and `1e-4`;
+- with both refinements: −8.3e-4 and −1.3e-4 at `3e-4` and `1e-4`.
+
+- At `tol = 1e-3`, where the pair's `J` is off by 2.4e-4, its gradient is off by 6.1e-3 in `θ_A` and 2.2e-2 in `θ_B`.
+- Of the ladders with three or more tolerances, none falls monotonically in magnitude, and no order can be read from them. They neither confirm nor refute the `O(h)` you expected.
+- Not measured: the creation times' share of the gradient's error, probes (§3), and any `θ` other than the one a grid was built at.
+
+### 3. What the gradients are for
+
+The statement asked for `J` to `1e-4` at the least cost, with its time error predictable across `θ`. That objective came from placing creation times to minimise `J`'s error in value. It is not what the gradients are for. This widens the question: the statement held the creation times fixed, and did not include probes.
+
+**A calibration** minimises a smooth function `L` of `J` and other functionals of the same run over `θ`, from `L` and `∇L` at a sequence of `θ`.
+
+**Probes.** A probe is the ensemble's equations with other constants `θ′`, integrated on a base run at `θ`:
+- its members are created at the base run's creation times, with a creation probability from their own `P_new`;
+- they solve their own inner problems against the field `Φ` and the chain's state `v`, recorded at every rate evaluation of the base run;
+- they are integrated on the base run's steps and do not feed back into them;
+- its functional `J′(θ′; θ)` is formed as `J` is.
+
+What is wanted from probes: `g′(θ) = ∂J′/∂θ′` at `θ′ = θ`, from a sweep over the probe's recording, for a search for the `θ` at which it vanishes; and `J′` over a range of `θ′` around `θ`.
+- At `θ′ = θ` a probe reproduces the base run's `J` to every digit.
+- On the recorded fields a probe cannot shrink a step. It could on fields interpolated between the base run's stages, but then a probe at `θ′ = θ` would no longer reproduce the base run.
+- A probe's own pass evaluates as many members as its base run, and one base run's recording serves any number of probes.
+- The probe gradient's error has not been measured.
+
+**The outcomes wanted.**
+1. *For the calibration:* a function of `θ` whose gradient is the sweep's, and whose value moves by less than a stated amount when the grid changes between iterations.
+   - Away from the optimum, `∇L` with relative error at most 0.3 in the Euclidean norm in `ln θ`. (Carter, SIAM J. Numer. Anal. 28, 1991; below 1 suffices for descent.)
+   - Near it, the error in the optimum's location, `|H⁻¹·δg|`, below the precision wanted, where `H = ∇²L` and `δg` is the error in `∇L`.
+2. *For probes on the base run's grid:* outcome 1's accuracy for `g′`, and `J`'s for `J′`, at every `θ′` within `Δ` of the base run's `θ`, with a check on every run that reports when they fall short. Near a root of `g′`, the error in the root's location is what to bound.
+3. *Rules* for the steps, stops, creation times and error scales, each with a stated guarantee and a check that every run reports. Not an optimal rule.
+4. *The same across a bank of forcing series,* not tuned on this one.
+5. *Cost last,* as a budget per gradient and per probe, not a minimum.
+
+**The precondition we now put first.** A rule must converge on each of two axes: the time axis, whose knob is `tol`, and the creation axis, whose knob is the spacing of the `b_j`.
+- *(a) The error follows its knob.* Along a ladder, the error in `J`, `dJ/dθ` and `g′` falls roughly in proportion to `tol` on the time axis, and to the spacing squared on the creation axis, with a constant stable within about ×3.
+- *(b) The error is not a draw.* Nudging the knob (`tol` within ±5%, or the creation times shifted by a quarter of a spacing) moves `J`, `dJ/dθ` and `g′` by at most a tenth of the error budgets the setting is chosen for.
+- *(c) Its grids transfer.* A grid built at `θ₀`, pinned at any `θ` within `Δ` of `θ₀`, keeps `J` and `dJ/dθ` within the budgets its rule meets at `θ₀`. So does a probe at any `θ′` within `Δ` of `θ₀` on a base run at `θ₀`, for `J′` and `g′`. No stage trips the pool's guard.
+  - A probe's error is against the same probe on a base run at `tol = 1e-8`.
+  - The largest such `Δ` is the grid's **transfer radius**.
+
+Two ways to meet outcome 1 sit at the ends of a range:
+- *A grid rebuilt by the rule at every `θ`.* Its error stays controlled, but `J_h` jumps between iterations by (b)'s amount.
+- *A grid fixed per forcing series.* `J_h` is one smooth function whose gradient is the sweep's, the recording has one shape at every `θ`, and no attempt is rejected. But its error away from `θ₀` is held only within its transfer radius.
+
+Probes are forced to the second: they cannot adapt. Which end, or what lies between, suits the outcomes is part of the question.
+
+We put the precondition first because what we built on an integration that fails (a) and (b) could not be judged. T10's stepper, for example, was compared at tolerances where `J` is a draw.
+
+Not yet set:
+- `Δ`; probes need about ±5% today;
+- the precision wanted in `θ`;
+- the bank of series;
+- the cost budget.
+
+Today `J` within `1e-4` costs about 5.4e6 member evaluations per forward run (the per-member scale at `tol = 1e-4`), and the sweep about 2.5 forward runs (H4).
+
+### 4. What is known about the precondition
+
+**(a) and (b) at the test instance's `θ`.**
+- *Time.* With the per-member scale, `|J/J* − 1|` is 0.2–0.5·`tol` from `1e-3` to `3e-5`. The pair gives 0.24, 3.5, 8.1 and 7·`tol` at `1e-3`, `3e-4`, `1e-4` and `3e-5` (T2). The nudges are in §1.
+- *Creation,* on another forcing series and an earlier version of the model, at `tol = 1e-4`. Every run stops at the union of the schedules' creation times and at every change in the forcing.
+  - 108, 215, 215 shifted by half a spacing, and 429 members agree to 8e-4.
+  - The time axis's draw on that series was not measured. On this instance at the same `tol` it is 8.1e-4 (T2), as large as that agreement, so these runs leave the creation error unresolved below about 8e-4.
+  - With point samples of `ρ_c` in place of the exact moments, the half-spacing shift moved `J` by 3.6%, more than halving the spacing did.
+- *The axes are coupled.* At `tol = 1e-3` the same schedules, and one of 857 members, spread over 1% with no trend in the count. There the moments' absolute part, `tol`, is about `I_M`'s increase over one step.
+
+**(c) was measured only before the per-member scale, and never with a check.** The first three items are on earlier versions of the model, with `τ_s = 0`; the probes are on this model.
+- *Across forcing series.* A grid captured under one series was 40–100% wrong under another, so a grid is per series.
+- *Across `θ` at `T = 5`,* under constant forcing, over 64 points within `Δ = ln 2` in six constants, on the end-times form:
+  - with the captured steps subdivided to 1.5–2 times their number, 98–100% of the points were within `1e-4` of an adaptive run;
+  - not subdivided, 58% were, and a point 10% from `θ₀` in one constant was off by tens of percent;
+  - as pinned runs instead, the grids failed at 25 of the 64 points on the pool's guard.
+- *Across `θ` on this forcing,* with 180 creation times and `tol = 1e-3`, at 11 points: `θ_A` over `× [0.7, 1.2]` and two other constants over `× [0.8, 1.25]`.
+  - *The creation times* were placed at `θ₀` with density `∝ (|q″|/n_s)^{1/3}`. Here `q_j` is member `j`'s share of `J` on a uniform run of 857 members, and `n_s(b)` is the number of steps after `b`.
+  - Against uniform schedules of 857 members (at `θ₀`, `θ_A × 0.7` and `× 1.2`), they stayed within 8.8e-4 of `J`. Against 429 members at all 11 points, they stayed within 2.8e-3.
+  - The secant of `J` from `θ₀` to each end of a constant's range was within 1e-3 of the reference's along `θ_A`, and within 6.1e-3 along the other two.
+  - Rebuilt from each point's own run by the same recipe, their error at `θ_A × 0.7` and `× 1.2` went from +5.9e-5 and −8.8e-4 to −2.2e-3 and −2.5e-3. A second recipe's error went from −2.1e-3 and +4.7e-3 to −7.8e-3 and +7.4e-3.
+  - *The steps.* `θ₀`'s grid, on the end-times form, kept `J` within 1.1e-3 of the adaptive run at each point.
+  - At `θ_A × 0.95` and `× 1.05`, each step's estimate was re-formed by retaking it from its recorded start. 39 and 83 of the 10 349 steps had an error ratio above 1.1, the largest 6.6, against 1.10 at `θ₀`. Most were in the chain, and the 99th percentile over the box was 0.99–1.10.
+  - Another 24 and 58 steps put a stage below the pool's guard, and the replay subdivided them without counting them.
+- *Probes on this model,* with the base run on the pair's own rule and without the per-member scale, at `θ_A′/θ_A` = 0.95, 0.97, 0.99, 1.01, 1.03 and 1.05:
+  - with the base run at `tol = 1e-3`, only 0.99 runs. The others fail on the pool's guard, 1e-10 to 1e-9 below zero;
+  - with the base run at `tol = 1e-4`, all six run.
+- *Probes further out,* on an earlier build whose base run is identical at `tol = 1e-3`:
+  - uncapped, `θ_A′/θ_A` = 0.9, 1.1, 1.2 and 1.5 were tried, and all fail on the pool's guard;
+  - capped, 0.5, 0.8, 1.1, 1.2, 1.5 and 2 were tried. With the base run's step capped at `7δ` (4% more accepted steps), 0.8 and 1.1 run, and 0.5, 1.2, 1.5 and 2 fail, at `t = 7.83` or `3.73`;
+  - capped at `3.5δ` (18% more), 0.8 to 1.5 run. 0.5 fails at `t = 7.83` on a `1δ` step, and 2 at `t = 28.78` on a `0.37δ` step.
+  - `t = 3.73` and `7.83` are upward crossings after long quiescent stretches, where the earliest members' pools are near empty: the second member's `r` is 7e-3 and 5e-5 there.
+  - A near-empty pool whose stage rates differ in sign goes below zero through the pair's negative coefficients, even on short steps.
+- *Positivity in general.* No Runge–Kutta method above first order keeps positivity for every positive linear system at every step length (Bolley–Crouzeix). Strong-stability-preserving explicit methods keep it under a step bound; the pair is not one.
+- *A pinned run forms no error ratio.* The embedded difference is computed and discarded, so nothing on a pinned run, base or probe, reports that it is outside its grid's transfer radius.
+
+### Questions
+
+1. What do the corrections in §1 change in your account of where `J`'s time error is made, and of the gradient errors in §2? The corrections are the kink factor, the pools' levels at the crossings by stretch length, the class over the stretches, and the nudges.
+2. What governs a grid's transfer radius on this model, for base runs and for probes? What do you expect (c) to show with and without the per-member scale? Where between a grid rebuilt at every `θ` and one fixed per forcing series do the outcomes point? What is the least change to how a grid is built or replayed that gives it a stated transfer radius, and at what cost?
+3. What quantity, computed on a pinned run, reports that the run is outside its grid's transfer radius, for a base run and for a probe? With what guarantee, and at what cost? Does the same quantity bound the error in an optimum's or a root's location?
+4. Are the precondition (a)–(c) and the outcomes above the right objects? Which rules for the steps, stops, creation times and error scales would deliver the outcomes, each with a guarantee and a check? What features of a forcing series would break them?
+
+For each answer, name the cheapest measurement on the driver that would confirm or refute it. We may again be treating the wrong object. An answer that says so, and names the object to treat instead, is welcome.

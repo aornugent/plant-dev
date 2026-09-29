@@ -101,7 +101,7 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 ## Objectives
 
-`OBJECTIVES.md` holds them, and AGENTS.md loads it every session. They replace the four criteria and the consult's *Wanted* paragraph: converging dynamics come first, and the goals are gradients for residents and invaders on one fixed grid per rainfall record.
+`OBJECTIVES.md` holds them, and AGENTS.md loads it every session. They replace the four criteria and the consult's *Wanted* paragraph: converging dynamics come first, and the goals are gradients for residents and invaders on one fixed grid per rainfall record, within its transfer radius.
 
 ## Where things stand
 
@@ -155,7 +155,7 @@ All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Ka
   - the kink-aware pool estimate (`KINK_EST`) alone: −6.7e-5 at 3e-4 and −1.4e-5 at 1e-4, for about 10% more cost;
   - a 0.1-day restart after each crossing (`CROSS_RESTART`) alone: −2.4e-5 at 3e-4 and −7.9e-5 at 1e-4, for 13–14% more;
   - both: −1.5e-4, −7.7e-5, −2.7e-5 and −3.4e-6 from 1e-3 to 3e-5, for 22–25% more.
-- **Nudges** (`$DEV/ark/nudge_table.R`): `J/J* − 1` over seven tolerances within ±5% of 3e-4. Cash–Karp has median +8.1e-4 and range 6.7e-4. The scale alone has −9.6e-5 and 1.1e-4. Both refinements have −1.1e-4 and 7.0e-5, and with the first, inflated kink factor −5.7e-5 and 1.9e-5. That factor overstates the pool's own jump at the crossings' `r`, yet it gives the steadiest `J`.
+- **Nudges:** `J/J* − 1` over seven tolerances within ±5% of 3e-4. Cash–Karp has median +8.1e-4 and range 6.7e-4. The scale alone has −9.6e-5 and 1.1e-4. Both refinements have −1.1e-4 and 7.0e-5, and with the first, inflated kink factor −5.7e-5 and 1.9e-5. That factor overstates the pool's own jump at the crossings' `r`, yet it gives the steadiest `J`.
 - **Its amplifier is confirmed.** Member 2's pool scaled by 1 + 1e-3 at the start of the 135-day stretch gives `∂m/∂ln S` = −0.276, against the formula's −0.278, and the relative change is carried through the stretch unchanged.
 - **Its noise claim is confirmed.** Plain Cash–Karp at tol 9.7e-5, 1e-4 and 1.03e-4 is +6.2e-4, +8.1e-4 and +8.2e-4. Treatment differences below about 1e-4 are single draws unless checked by nudges (below).
 - **Refuted.**

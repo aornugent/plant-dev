@@ -22,7 +22,7 @@ spacing in birth date.
 - **(c) The grid transfers.** A grid built at `θ₀` still passes (a) and (b) at
   every `θ` within `Δ` of `θ₀` (`|ln θ_k − ln θ₀,k| ≤ Δ` in each parameter), and
   for invaders within `Δ` of the resident. No stage leaves the model's domain and
-  nothing throws. The largest such `Δ` is the grid's trust radius.
+  nothing throws. The largest such `Δ` is the grid's transfer radius.
 
 The tests apply to the gradients as well as to `J`.
 
@@ -38,7 +38,7 @@ rebuilt at a new `θ` was worse at all four points tried.
    objective's Hessian and `δg` the gradient's error, against the precision
    wanted in `θ`.
 2. **One grid per rainfall record, shared across `θ` and by invaders, within its
-   trust radius, which a check on every run reports.**
+   transfer radius, which a check on every run reports.**
    - The selection gradient is taken at the resident's traits, where the invader
      runs on the resident's own grid, so goal 1 applies.
    - The radius covers the rest: invaders across a trait range, fitness
@@ -61,7 +61,7 @@ shape the same at every `θ`, and no step is rejected.
 
 ## Numbers still to set
 
-- **`Δ`, the trust radius:** invaders need about ±5% today; an earlier test of fixed
+- **`Δ`, the transfer radius:** invaders need about ±5% today; an earlier test of fixed
   grids covered ±2× in six parameters, with the steps subdivided 1.5–2×.
 - **The precision wanted in `θ`,** which sets the bound on the gradient near an
   optimum or a singular strategy.
