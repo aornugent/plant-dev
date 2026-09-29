@@ -1,0 +1,43 @@
+diff --git a/inst/include/plant/models/tf24_strategy.h b/inst/include/plant/models/tf24_strategy.h
+index afe60370..a5e073ed 100644
+--- a/inst/include/plant/models/tf24_strategy.h
++++ b/inst/include/plant/models/tf24_strategy.h
+@@ -1296,7 +1296,9 @@ public:
+   // differentiable. storage_prod_eps smooths the positive-part of net production
+   // (replacing the old hard net>0 growth cutoff) for AD-readiness.
+   double storage_gate_width = 0.1;
+-  double storage_prod_eps   = 1e-4;
++  double storage_prod_eps   = std::getenv("TF24_PROD_EPS") ? std::atof(std::getenv("TF24_PROD_EPS")) : 1e-4;
++  double storage_prod_eps_rel = std::getenv("TF24_PROD_EPS_REL") ? std::atof(std::getenv("TF24_PROD_EPS_REL")) : 0.0;
++  S prod_cost_scale_ = S(0.0);
+   // How far below empty the storage pool may sit before the solver is told the
+   // step is invalid, as a fraction of capacity. A draining cohort approaches the
+   // boundary, so this separates round-off there from a real excursion.
+@@ -1940,7 +1942,7 @@ void TF24_Strategy<S>::compute_rates(const TF24_Environment<S>& environment,  In
+   // The leaf's own temperature at the operating point, not the `leaf_temp`
+   // driver -- see aux_names(). Equal to the driver while pars.use_energy_balance
+   // is off; solved from the leaf's transpiration when it is on.
+-  vars.set_aux(aux_idx_Tleaf, leaf.Tleaf_);
++  vars.set_aux(aux_idx_Tleaf, S(static_cast<double>(static_cast<int>(leaf.operating_point_kind()))));
+ 
+ 
+ 
+@@ -2004,8 +2006,9 @@ void TF24_Strategy<S>::compute_rates(const TF24_Environment<S>& environment,  In
+   const S G = 1.0 / (1.0 + exp(-(r - pars.a_st2) / storage_gate_width));
+   // Smooth positive part of net production (replaces the old hard net>0 cutoff).
+   const S P = net_mass_production_dt_;
++  const S eps_ = storage_prod_eps_rel > 0 ? S(storage_prod_eps_rel) * prod_cost_scale_ : S(storage_prod_eps);
+   const S Ppos =
+-    0.5 * (P + sqrt(P * P + storage_prod_eps * storage_prod_eps));
++    0.5 * (P + sqrt(P * P + eps_ * eps_));
+   const S growth_flux = Ppos * G;
+ 
+   const S fraction_allocation_reproduction_ = fraction_allocation_reproduction(height);
+@@ -2438,6 +2441,7 @@ S TF24_Strategy<S>::net_mass_production_dt(const TF24_Environment<S>& environmen
+     respiration(mass_leaf_, mass_sapwood_, mass_bark_, mass_root_);
+   const S turnover_ =
+     turnover(mass_leaf_, mass_bark_, mass_sapwood_, mass_root_);
++  prod_cost_scale_ = pars.a_bio * pars.a_y * respiration_ + turnover_;
+   return net_mass_production_dt_A(assimilation_, respiration_, turnover_);
+ }
+ 

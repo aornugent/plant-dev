@@ -8,12 +8,21 @@
 #
 #   PLANT_LIB=... NODES=108 TOL=1e-3 METHOD=ark [OUT=run.rds] [REF=u108.rds] \
 #     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0]] \
-#     Rscript harness/ark_prototype.R
+#     [EVENTS=1 [EVENT_ETA=1e-3] [EVENT_RESTART=0.05] [CLASS_EVENTS=1]] [LOCAL=1] \
+#     [TOL_POOL=0.01] [TOL_POOL_ABS=0.01] Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
 # nodes and tolerance, which METHOD=ck reproduces bit for bit. STATES keeps the
 # state at every accepted step. SWITCH_DAYS refuses a step longer than that
 # across which a member's net production crosses SWITCH_AT, and halves it.
+# EVENTS retakes a step across which a member's net production crosses zero so
+# that it ends where the first such member's production is EVENT_ETA past zero,
+# and with CLASS_EVENTS (on the probe build) also where a member's leaf changes
+# class; the step after it starts at EVENT_RESTART days where that is given,
+# else at the proposal the retaken step started with. LOCAL re-integrates each
+# member whose net production changes sign within an accepted step on its own,
+# split at the crossing. TOL_POOL scales the storage pools' tolerance weights,
+# and TOL_POOL_ABS only their absolute part.
 # Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
@@ -71,11 +80,21 @@ production <- function(y) {
     as.numeric(Sys.getenv("SWITCH_AT", "0"))
 }
 DELTA <- as.numeric(Sys.getenv("SWITCH_DAYS", "Inf")) / 365
+EVENTS <- nzchar(Sys.getenv("EVENTS"))
+ETA <- as.numeric(Sys.getenv("EVENT_ETA", "1e-3"))
+RESTART <- if (nzchar(Sys.getenv("EVENT_RESTART"))) as.numeric(Sys.getenv("EVENT_RESTART")) / 365 else NA
+CLASSES <- nzchar(Sys.getenv("CLASS_EVENTS"))
+LOCAL <- nzchar(Sys.getenv("LOCAL"))
+TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
+TOL_POOL_ABS <- as.numeric(Sys.getenv("TOL_POOL_ABS", "1"))
+WINDOW <- 1e-5
+klass <- function(y) patch$ode_aux[13 * (seq_len((length(y) - 10) %/% 9) - 1) + 13]
 
 n <- new.env()
 for (x in c("evaluations", "members", "switch", "clamp", "floor", "accepted",
             "accepted_at_minimum", "rejected_inaccurate", "rejected_thrown",
-            "rejected_refused", "rejected_switch", "solves", "iterations", "halvings", "failures")) {
+            "rejected_refused", "rejected_switch", "rejected_event", "located", "located_class",
+            "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures")) {
   assign(x, 0, envir = n)
 }
 n$most_iterations <- 0
@@ -159,7 +178,130 @@ attempt <- function(t, y, k1, h) {
   y1 <- combine(y, tb$b, k, h)
   at_end <- rates(y1, t + h)
   if (is.null(at_end)) return(NULL)
-  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1))
+  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1))
+}
+
+# The size that ends an accepted attempt `a` of size h from t0 just past the
+# first switch inside it, or NULL where every switch lies at its end. A switch is
+# a member's net production crossing zero, found by regula falsi (Illinois) on
+# the step's cubic Hermite interpolant and passed by ETA; with CLASS_EVENTS, also
+# a member's leaf changing operating-point class, found by bisection to within
+# WINDOW. The probe build puts the class in the thirteenth auxiliary.
+crossing_step <- function(t0, h, a) {
+  fP <- which(sign(a$P) != sign(sv$P) & abs(a$P) > 3 * ETA)
+  fK <- if (CLASSES) which(a$K != sv$K) else integer()
+  if (!length(fP) && !length(fK)) return(NULL)
+  y0 <- sv$y; f0 <- sv$dydt; y1 <- a$y; f1 <- a$rates
+  at <- function(u) {
+    y <- (1 + 2 * u) * (1 - u)^2 * y0 + u * (1 - u)^2 * h * f0 + u^2 * (3 - 2 * u) * y1 +
+      u^2 * (u - 1) * h * f1
+    n$locate_evaluations <- n$locate_evaluations + 1
+    n$locate_members <- n$locate_members + (length(y) - 10) %/% 9
+    ok <- tryCatch({ patch$derivs(y, t0 + u * h); TRUE }, `odelia::util::DomainError` = function(e) FALSE)
+    if (ok) list(P = production(y), K = klass(y)) else NULL
+  }
+  sizes <- numeric()
+  if (length(fP)) {
+    j <- fP[which.min(sv$P[fP] / (sv$P[fP] - a$P[fP]))]
+    lo <- c(0, sv$P[j]); hi <- c(1, a$P[j]); wlo <- lo[2]; whi <- hi[2]; side <- 0; Pu <- NA
+    for (it in 1:30) {
+      u <- (lo[1] * whi - hi[1] * wlo) / (whi - wlo)
+      e <- at(u)
+      if (is.null(e)) break
+      Pu <- e$P[j]
+      if (sign(Pu) == sign(hi[2])) {
+        hi <- c(u, Pu); whi <- Pu
+        if (side == -1) wlo <- wlo / 2
+        side <- -1
+      } else {
+        lo <- c(u, Pu); wlo <- Pu
+        if (side == 1) whi <- whi / 2
+        side <- 1
+      }
+      if (abs(Pu) < ETA / 2) break
+    }
+    n$located <- n$located + 1
+    slope <- (hi[2] - lo[2]) / ((hi[1] - lo[1]) * h)
+    root <- if (is.na(Pu)) lo[1] + lo[2] / (lo[2] - hi[2]) * (hi[1] - lo[1]) else u
+    sizes <- c(sizes, root * h + ETA / abs(slope))
+  }
+  if (length(fK)) {
+    lo <- 0; hi <- 1
+    while ((hi - lo) * h > WINDOW / 2) {
+      u <- (lo + hi) / 2
+      e <- at(u)
+      if (is.null(e)) break
+      if (any(e$K[fK] != sv$K[fK])) hi <- u else lo <- u
+    }
+    if ((1 - lo) * h > WINDOW) {
+      n$located_class <- n$located_class + 1
+      sizes <- c(sizes, hi * h)
+    }
+  }
+  hc <- if (length(sizes)) min(sizes) else Inf
+  if (is.finite(hc) && hc < h * (1 - 1e-6)) hc else NULL
+}
+
+# An accepted attempt `a` of size h from t0 with each member whose net production
+# changed sign re-integrated on its own: one Cash-Karp step to the crossing and
+# one after it, the rest of the state read from the step's cubic Hermite
+# interpolant. NULL where an evaluation raises. Each member-local evaluation
+# counts one member, and the rates at the corrected end count its members.
+local_fix <- function(t0, h, a) {
+  f <- which(sign(a$P) != sign(sv$P))
+  if (!length(f)) return(a)
+  y0 <- sv$y; f0 <- sv$dydt; y1 <- a$y; f1 <- a$rates
+  interp <- function(u) (1 + 2 * u) * (1 - u)^2 * y0 + u * (1 - u)^2 * h * f0 +
+    u^2 * (3 - 2 * u) * y1 + u^2 * (u - 1) * h * f1
+  full_at <- function(y, u) {
+    n$local_members_evaluated <- n$local_members_evaluated + 1
+    tryCatch(patch$derivs(y, t0 + u * h), `odelia::util::DomainError` = function(e) NULL)
+  }
+  out <- y1
+  for (j in f) {
+    idx <- 9 * (j - 1) + 1:9
+    rate_j <- function(yj, u) {
+      y <- interp(u); y[idx] <- yj
+      r <- full_at(y, u)
+      if (is.null(r)) NULL else list(r = r[idx], P = production(y)[j])
+    }
+    # the crossing, by regula falsi on member j's production along the interpolant
+    lo <- c(0, sv$P[j]); hi <- c(1, a$P[j]); wlo <- lo[2]; whi <- hi[2]; side <- 0
+    for (it in 1:30) {
+      u <- (lo[1] * whi - hi[1] * wlo) / (whi - wlo)
+      e <- rate_j(interp(u)[idx], u)
+      if (is.null(e)) return(NULL)
+      if (sign(e$P) == sign(hi[2])) {
+        hi <- c(u, e$P); whi <- e$P; if (side == -1) wlo <- wlo / 2; side <- -1
+      } else {
+        lo <- c(u, e$P); wlo <- e$P; if (side == 1) whi <- whi / 2; side <- 1
+      }
+      if (abs(e$P) < ETA / 2) break
+    }
+    uc <- u
+    yj <- y0[idx]; kj <- f0[idx]
+    for (seg in list(c(0, uc), c(uc, 1))) {
+      hs <- (seg[2] - seg[1]) * h
+      if (hs <= 0) next
+      if (seg[1] > 0) {
+        e <- rate_j(yj, seg[1]); if (is.null(e)) return(NULL); kj <- e$r
+      }
+      k <- list(kj)
+      for (i in 2:6) {
+        Y <- combine(yj, tb$A[i, ], k, hs)
+        e <- rate_j(Y, seg[1] + tb$c[i] * hs / h); if (is.null(e)) return(NULL)
+        k[[i]] <- e$r
+      }
+      yj <- combine(yj, tb$b, k, hs)
+    }
+    out[idx] <- yj
+    n$local_members <- n$local_members + 1
+  }
+  r <- tryCatch(patch$derivs(out, t0 + h), `odelia::util::DomainError` = function(e) NULL)
+  if (is.null(r)) return(NULL)
+  n$local_members_evaluated <- n$local_members_evaluated + length(f)
+  a$y <- out; a$rates <- r; a$P <- production(out); a$K <- klass(out)
+  a
 }
 
 # OdeControl::adjust_step_size and reject_step. `shrank` persists between
@@ -173,6 +315,10 @@ reject <- function(h) {
 adjust <- function(h, y, yerr, dydt) {
   level <- ct$ode_tol_rel * (ct$ode_a_y * abs(y) + ct$ode_a_dydt * abs(h * dydt)) +
     ct$ode_tol_abs
+  if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
+    pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
+    level[pool] <- (level[pool] - ct$ode_tol_abs * (1 - TOL_POOL_ABS)) * TOL_POOL
+  }
   r <- abs(yerr) / abs(level)
   bad <- which(!is.finite(r))
   if (length(bad)) {
@@ -213,6 +359,7 @@ step <- function(target) {
   remaining <- target - t0
   h <- sv$h_last
   if (method == "held") h <- min(h, 0.8 * BETA / lambda_soil(sv$y, t0))
+  at_crossing <- FALSE
   repeat {
     final <- h > remaining
     if (final) h <- remaining
@@ -231,6 +378,14 @@ step <- function(target) {
         hn <- max(h / 2, DELTA)
         ctl$shrank <- TRUE
         n$rejected_switch <- n$rejected_switch + 1
+      } else if (LOCAL && is.null(a <- local_fix(t0, h, a))) {
+        hn <- reject(h)
+        n$rejected_thrown <- n$rejected_thrown + 1
+      } else if (EVENTS && !is.null(hc <- crossing_step(t0, h, a))) {
+        h <- hc
+        at_crossing <- TRUE
+        n$rejected_event <- n$rejected_event + 1
+        next
       } else if (!(ctl$ratio <= 1.1)) {
         n$accepted_at_minimum <- n$accepted_at_minimum + 1
       } else {
@@ -240,12 +395,14 @@ step <- function(target) {
     if (ctl$shrank) {
       if (hn < h && t0 + hn > t0) {
         h <- hn
+        at_crossing <- FALSE
         next
       }
       stop(sprintf("Cannot achieve the desired accuracy at t = %.17g", t0))
     }
     sv$t <- if (final) target else t0 + h
-    if (!final) sv$h_last <- hn
+    if (!final && !at_crossing) sv$h_last <- hn
+    if (at_crossing && !is.na(RESTART)) sv$h_last <- RESTART
     steps$k <- steps$k + 1L
     if (steps$k > nrow(steps$rows)) steps$rows <- rbind(steps$rows, steps$rows * NA)
     steps$rows[steps$k, ] <- c(sv$t, h, ctl$ratio, ctl$index, (length(a$y) - 10) %/% 9,
@@ -254,6 +411,7 @@ step <- function(target) {
     sv$y <- a$y
     sv$dydt <- a$rates
     sv$P <- a$P
+    sv$K <- a$K
     return(invisible())
   }
 }
@@ -270,6 +428,7 @@ if (sys.nframe() == 0L) {
     sv$dydt <- rates(sv$y, sv$t)
     if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
     sv$P <- production(sv$y)
+    sv$K <- klass(sv$y)
     t_end <- if (k < length(times)) times[k + 1] else LIFETIME
     for (target in c(pulses[pulses > sv$t & pulses < t_end], t_end)) {
       while (sv$t < target) step(target)
@@ -289,13 +448,21 @@ if (sys.nframe() == 0L) {
   for (j in seq_along(f)) J <- J + w[j] * (f[j] * pd[j] * S_D) * br[j]
 
   att <- vapply(c("accepted", "accepted_at_minimum", "rejected_inaccurate",
-                  "rejected_thrown", "rejected_refused", "rejected_switch"),
+                  "rejected_thrown", "rejected_refused", "rejected_switch", "rejected_event"),
                 function(x) n[[x]], 0)
   st <- as.data.frame(steps$rows[seq_len(steps$k), , drop = FALSE])
   cat(sprintf("%s nodes %d tol %g: J %.9f, %d accepted, %.0f s; %s\n", method, nodes, tol,
               J, att[["accepted"]], secs, paste(names(att), att, sep = "=", collapse = " ")))
   cat(sprintf("rate evaluations %d, member evaluations %d; evaluated states past the inflow switch %d, the loss clamp %d, the floor %d\n",
               n$evaluations, n$members, n$switch, n$clamp, n$floor))
+  if (LOCAL) {
+    cat(sprintf("members re-integrated on their own %d, in %d member evaluations\n",
+                n$local_members, n$local_members_evaluated))
+  }
+  if (EVENTS) {
+    cat(sprintf("crossings located %d, class switches located %d, in %d evaluations holding %d members\n",
+                n$located, n$located_class, n$locate_evaluations, n$locate_members))
+  }
   if (method == "ark") {
     cat(sprintf("block solves %d: %.2f Newton iterations each, at most %d; %d halvings; %d failures\n",
                 n$solves, n$iterations / max(1, n$solves - n$failures), n$most_iterations,
@@ -314,7 +481,7 @@ if (sys.nframe() == 0L) {
   if (nzchar(Sys.getenv("REF"))) {
     ref <- readRDS(Sys.getenv("REF"))
     rs <- ref$st
-    ref$attempts[["rejected_switch"]] <- 0
+    ref$attempts[c("rejected_switch", "rejected_event")] <- 0
     same <- nrow(rs) == nrow(st) && identical(rs$time, st$time) && identical(rs$h, st$h) &&
       identical(rs$er, st$er) && identical(as.numeric(rs$ei), st$ei)
     cat(sprintf("against the recording: J %s, attempts %s, steps %s\n",
