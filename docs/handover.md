@@ -108,9 +108,9 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 **The objectives were reset.** The stepper and the schedule controller were designed before the dynamics converged, and judged against a draw. `OBJECTIVES.md` puts convergence first: the error follows its knob, is not a draw, and the grid transfers across `θ` and to invaders.
 
 **The time axis converges on u108 at θ₀, on the driver; nothing is built.** Each pool's absolute tolerance is tied to its capacity, `σ_S = tol·(|S| + c·r₀·S_max(x_j))`, with `c` = 1e-4 or 1e-3 and `r₀` = 0.05:
-- `J` is within 1e-4 from tol 3e-4 at 4.66e6 member evaluations, 28% fewer than Cash–Karp at 1e-5;
-- `|J/J* − 1|` is 0.1–0.5·tol from 1e-3 to 3e-5, against Cash–Karp's 3–8·tol;
-- with the kink-aware estimate and the restart as well, nudging tol by ±3% moves `J` by 0.04·tol, against Cash–Karp's 2·tol.
+- `J` is within 1e-4 at tol 1e-4, at 5.4e6 member evaluations, 16% fewer than Cash–Karp at 1e-5. At tol 3e-4 (4.6e6) it sits at 1e-4: three of seven runs within ±5% of that tol are beyond it;
+- `|J/J* − 1|` is 0.2–0.5·tol from 1e-3 to 3e-5, against Cash–Karp's 3–8·tol;
+- nudging tol within ±5% of 3e-4 moves `J` over 1.1e-4 with the scale alone and 6.7e-4 with Cash–Karp. With the kink-aware estimate and the restart as well, it moves `J` over 7.0e-5, and over 1.9e-5 with the estimate's first, inflated factor (*Done last session*).
 
 **The root cause, confirmed.** A relative pool error `ε` becomes a shift `−μ₁·τ_pool·(1 − e^{−r/r₀})·ε` in the member's cumulative mortality, measured at −0.276 against the formula's −0.278. Under the shared absolute tolerance, near-empty pools' relative errors do not follow the tolerance, and the step across the pool's switch at `P` = 0 hides about two thirds of its error from the estimate.
 
@@ -118,7 +118,7 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 **Whether a grid transfers is the open question** (objective (c)). It was measured only before the pool scale:
 - θ₀'s steps replayed at ±5% in lma, before #97, were up to 6.6× out of tolerance and put stages below the pool's guard (`docs/measurements/perf-across-theta.md` §4);
-- on u108 at v12, invaders ran only at lma × 1.01 without a step cap, and from × 0.8 to × 1.5 under a 3.5-day cap (`docs/archive/scope-imex-stepper.md` §3);
+- on u108 at v12, of invaders at lma × 0.95 to × 1.05 only × 0.99 runs on a resident at tol 1e-3, and all run at tol 1e-4. Under a 3.5-day cap at tol 1e-3, × 0.8 to × 1.5 run. The failures sit at the ends of long dry stretches, where the oldest pools are near empty (`docs/archive/scope-imex-stepper.md` §3);
 - the node schedule transferred: 180 nodes built at θ₀ held within 8.8e-4 across lma.
 
 **The Oracle has a follow-up**, the consult's *Follow-up, after the reply*. It reports the second reply's proposals measured, the gradients, the objectives and what is known of (c). Its reply is awaited.
@@ -151,12 +151,13 @@ All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Ka
 - **Its setting works.** A pool's absolute part tied to its capacity (`POOL_FLOOR`) gives these `J` errors against `J*`, for tol 1e-3, 3e-4, 1e-4 and 3e-5:
   - `c` = 1e-3: −4.6e-4, −6.2e-5, −5.2e-5 and −6.7e-6, at 4.08e6, 4.64e6, 5.37e6 and 6.41e6 member evaluations;
   - `c` = 1e-4: −6.1e-5 at 3e-4 and −2.4e-5 at 1e-4.
-- **Its refinements cost more than they buy at 1e-4.**
-  - The kink-aware pool estimate (`KINK_EST`) adds 11–13% of cost.
-  - A 0.1-day restart after each crossing (`CROSS_RESTART`) adds 13–15%, and alone it is worse at 1e-4 (−7.9e-5).
-  - Together they make the ladder monotone and near-proportional (−1.7e-4, −5.7e-5, −2.9e-5, −3.9e-6) for 22–26% more cost.
+- **Its refinements, with the kink factor corrected** to the difference of the pool rate's slopes (the traps):
+  - the kink-aware pool estimate (`KINK_EST`) alone: −6.7e-5 at 3e-4 and −1.4e-5 at 1e-4, for about 10% more cost;
+  - a 0.1-day restart after each crossing (`CROSS_RESTART`) alone: −2.4e-5 at 3e-4 and −7.9e-5 at 1e-4, for 13–14% more;
+  - both: −1.5e-4, −7.7e-5, −2.7e-5 and −3.4e-6 from 1e-3 to 3e-5, for 22–25% more.
+- **Nudges** (`$DEV/ark/nudge_table.R`): `J/J* − 1` over seven tolerances within ±5% of 3e-4. Cash–Karp has median +8.1e-4 and range 6.7e-4. The scale alone has −9.6e-5 and 1.1e-4. Both refinements have −1.1e-4 and 7.0e-5, and with the first, inflated kink factor −5.7e-5 and 1.9e-5. That factor overstates the pool's own jump at the crossings' `r`, yet it gives the steadiest `J`.
 - **Its amplifier is confirmed.** Member 2's pool scaled by 1 + 1e-3 at the start of the 135-day stretch gives `∂m/∂ln S` = −0.276, against the formula's −0.278, and the relative change is carried through the stretch unchanged.
-- **Its noise claim is confirmed.** Plain Cash–Karp at tol 9.7e-5, 1e-4 and 1.03e-4 is +6.2e-4, +8.1e-4 and +8.2e-4. The full setting at 2.91e-4, 3e-4 and 3.09e-4 is −4.7e-5, −5.7e-5 and −5.9e-5. Treatment differences below about 1e-4 are single draws unless checked this way.
+- **Its noise claim is confirmed.** Plain Cash–Karp at tol 9.7e-5, 1e-4 and 1.03e-4 is +6.2e-4, +8.1e-4 and +8.2e-4. Treatment differences below about 1e-4 are single draws unless checked by nudges (below).
 - **Refuted.**
   - T8's +1.2e-5 at 1e-4 is a cancellation: loss part +9.9e-5, output part −9.3e-5.
   - The pools are not near empty at the crossings: the ten earliest members' pools are a median 35% full at downward crossings and 17% at upward ones.
@@ -168,13 +169,13 @@ All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Ka
 
 | tol | Cash–Karp | pool scale, `c` = 1e-3 | with the kink estimate and restart |
 |---|---|---|---|
-| 1e-3 | −6.1e-3 | −1.7e-3 | −9.4e-4 |
-| 3e-4 | +2.3e-3 | +2.1e-3 | +2.8e-5 |
-| 1e-4 | +1.2e-3 | +5.3e-4 | −1.5e-4 |
+| 1e-3 | −6.1e-3 | −1.7e-3 | −9.7e-4 |
+| 3e-4 | +2.3e-3 | +2.1e-3 | −1.3e-4 |
+| 1e-4 | +1.2e-3 | +5.3e-4 | +7.1e-5 |
 | 3e-5 | −2.3e-3 | −6.9e-4 | −3.7e-4 |
 | 1e-5 | +8.4e-4 | | |
 
-For a_dG2 (reference 13.37): Cash–Karp −2.2e-2, +7.1e-4 and +6.1e-3 at 1e-3, 1e-4 and 1e-5; the pool scale +4.8e-3 and +9.9e-4 at 3e-4 and 1e-4; with both refinements +1.8e-4 and −6.2e-4. Neither ladder is monotone, so no order can be read from it.
+For a_dG2 (reference 13.37): Cash–Karp −2.2e-2, +7.1e-4 and +6.1e-3 at 1e-3, 1e-4 and 1e-5; the pool scale +4.8e-3 and +9.9e-4 at 3e-4 and 1e-4; with both refinements −8.3e-4 and −1.3e-4. No ladder is monotone, so no order can be read from them, and entries below about 2e-4 are within the reference's own difference from its neighbour at 1e-7.
 
 **The objectives.** The four criteria were reworked with the user into `OBJECTIVES.md`. Why the grid is fixed came from the earlier consults: the sweep differentiates the discretised model and the controller is not differentiated, so an adaptive grid makes `J` jump in θ. The scopes were archived and the Oracle's follow-up written.
 
