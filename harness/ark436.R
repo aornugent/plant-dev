@@ -1,7 +1,8 @@
 # The tableaus the stepper scope compares: ARK4(3)6L[2]SA (Kennedy & Carpenter
 # 2003, as SUNDIALS' ARK436L2SA_ERK_6_3_4 / ARK436L2SA_DIRK_6_3_4) and Cash-Karp.
-# Prints the order conditions, the stability boundaries, and where each keeps a
-# decaying mode y' = -y/T positive: the pool's question.
+# Run, it prints the order conditions, the stability boundaries, and where each
+# keeps a decaying mode y' = -y/T positive: the pool's question. Sourced, it
+# defines the tableaus only.
 #
 #   Rscript harness/ark436.R
 s <- 6
@@ -34,42 +35,46 @@ ACK[4, 1:3] <- c(3/10, -9/10, 6/5)
 ACK[5, 1:4] <- c(-11/54, 5/2, -70/27, 35/27)
 ACK[6, 1:5] <- c(1631/55296, 175/512, 575/13824, 44275/110592, 253/4096)
 bCK <- c(37/378, 0, 250/621, 125/594, 0, 512/1771)
+dCK <- c(2825/27648, 0, 18575/48384, 13525/55296, 277/14336, 1/4)
+cCK <- c(0, 1/5, 3/10, 3/5, 1, 7/8)
 
-# The order conditions of an additive pair: every product of the two tableaus.
-conditions <- function(w, p) {
-  A <- list(AE, AI)
-  r <- c(sum(w) - 1, sum(w * cc) - 1/2)
-  if (p >= 3) {
-    r <- c(r, sum(w * cc^2) - 1/3)
-    for (X in A) r <- c(r, sum(w * (X %*% cc)) - 1/6)
+if (sys.nframe() == 0L) {
+  # The order conditions of an additive pair: every product of the two tableaus.
+  conditions <- function(w, p) {
+    A <- list(AE, AI)
+    r <- c(sum(w) - 1, sum(w * cc) - 1/2)
+    if (p >= 3) {
+      r <- c(r, sum(w * cc^2) - 1/3)
+      for (X in A) r <- c(r, sum(w * (X %*% cc)) - 1/6)
+    }
+    if (p >= 4) {
+      r <- c(r, sum(w * cc^3) - 1/4)
+      for (X in A) r <- c(r, sum(w * cc * (X %*% cc)) - 1/8, sum(w * (X %*% cc^2)) - 1/12)
+      for (X in A) for (Y in A) r <- c(r, sum(w * (X %*% (Y %*% cc))) - 1/24)
+    }
+    r
   }
-  if (p >= 4) {
-    r <- c(r, sum(w * cc^3) - 1/4)
-    for (X in A) r <- c(r, sum(w * cc * (X %*% cc)) - 1/8, sum(w * (X %*% cc^2)) - 1/12)
-    for (X in A) for (Y in A) r <- c(r, sum(w * (X %*% (Y %*% cc))) - 1/24)
+  cat("row sums against c:", format(max(abs(rowSums(AI) - cc), abs(rowSums(AE) - cc)), digits = 3), "\n")
+  cat("order 4 (b):", format(max(abs(conditions(b, 4))), digits = 3),
+      "  order 3 (d):", format(max(abs(conditions(d, 3))), digits = 3), "\n")
+
+  # For y' = z y the stage values are (I - zA)^-1 1 and the step is 1 + z b'(stages).
+  stages <- function(z, A) solve(diag(s) - z * A, one)
+  step <- function(z, A, w) 1 + z * sum(w * stages(z, A))
+  x <- seq(0, 10, by = 1e-4)
+  boundary <- function(A, w) x[which(sapply(-x, function(z) abs(step(z, A, w)) > 1 + 1e-12))[1] - 1]
+  cat("\nreal stability boundary, h/T: Cash-Karp", boundary(ACK, bCK), " ARK explicit", boundary(AE, b), "\n")
+  cat("implicit part: R(-inf) main", format(step(-1e6, AI, b), digits = 3),
+      " embedded", format(step(-1e6, AI, d), digits = 3), "\n")
+
+  # Where a stage first goes negative on a decaying mode; NA where it never does
+  # before h/T = 10 (explicit) or h*lambda = 1e7 (implicit).
+  first_negative <- function(A, grid) {
+    v <- sapply(-grid, function(z) stages(z, A))
+    apply(v, 1, function(row) { k <- which(row < 0)[1]; if (is.na(k)) NA else grid[k] })
   }
-  r
+  cat("\nfirst negative stage value, h/T, per stage 1..6:\n")
+  cat("  Cash-Karp    ", format(first_negative(ACK, x), digits = 4), "\n")
+  cat("  ARK explicit ", format(first_negative(AE, x), digits = 4), "\n")
+  cat("  ARK implicit ", format(first_negative(AI, 10^seq(-2, 7, length.out = 20000)), digits = 4), "\n")
 }
-cat("row sums against c:", format(max(abs(rowSums(AI) - cc), abs(rowSums(AE) - cc)), digits = 3), "\n")
-cat("order 4 (b):", format(max(abs(conditions(b, 4))), digits = 3),
-    "  order 3 (d):", format(max(abs(conditions(d, 3))), digits = 3), "\n")
-
-# For y' = z y the stage values are (I - zA)^-1 1 and the step is 1 + z b'(stages).
-stages <- function(z, A) solve(diag(s) - z * A, one)
-step <- function(z, A, w) 1 + z * sum(w * stages(z, A))
-x <- seq(0, 10, by = 1e-4)
-boundary <- function(A, w) x[which(sapply(-x, function(z) abs(step(z, A, w)) > 1 + 1e-12))[1] - 1]
-cat("\nreal stability boundary, h/T: Cash-Karp", boundary(ACK, bCK), " ARK explicit", boundary(AE, b), "\n")
-cat("implicit part: R(-inf) main", format(step(-1e6, AI, b), digits = 3),
-    " embedded", format(step(-1e6, AI, d), digits = 3), "\n")
-
-# Where a stage first goes negative on a decaying mode; NA where it never does
-# before h/T = 10 (explicit) or h*lambda = 1e7 (implicit).
-first_negative <- function(A, grid) {
-  v <- sapply(-grid, function(z) stages(z, A))
-  apply(v, 1, function(row) { k <- which(row < 0)[1]; if (is.na(k)) NA else grid[k] })
-}
-cat("\nfirst negative stage value, h/T, per stage 1..6:\n")
-cat("  Cash-Karp    ", format(first_negative(ACK, x), digits = 4), "\n")
-cat("  ARK explicit ", format(first_negative(AE, x), digits = 4), "\n")
-cat("  ARK implicit ", format(first_negative(AI, 10^seq(-2, 7, length.out = 20000)), digits = 4), "\n")

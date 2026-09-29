@@ -101,9 +101,9 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 ## Where things stand
 
-**Next session, in order: step 4 of the stepper, a clean-up, then steps 5 and 6** (`scope-imex-stepper.md` §7). Step 4 is the prototype driven from R, and its pass and kill lines decide whether 5 and 6 are built.
+**Step 4 of the stepper killed it** (`scope-imex-stepper.md` §7, step 4, *Result*). Holding Cash–Karp below the soil's stability limit leaves `J`'s time error as it was, and ARK with the soil implicit saves 9% of member evaluations at matched `J`. Steps 5 and 6 are not built.
 
-The stepper's design is decided (stepper scope §4–§7): odelia solves a declared stiff block, and a System states only its stiff rates. Each step's implementation is reviewed against the principles above and the developer's experience (§5), with the scope's Appendix as the comparison.
+**Next session:** find what carries `J`'s time error, then the clean-up. The error sits in the members born before year 3.5, whichever stepper runs, and the kill line points at the pools' gate slope and the members' switches.
 
 Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted. The code review was scoped to #96 and #97, and is done; the rest of the stack was not reviewed under the `code-review` skill.
 
@@ -127,49 +127,27 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Done last session
 
-- **The rebase onto #94.** The height coordinate is bit-identical across it. On the birth-date coordinate a node's density is its birth rate times its survival, and the boundary node reaches the census only through the newest interval's moment.
-- **Step 1, zero pulses as step targets** (#96; stepper scope §2.1, *Result*). `J`, the steps and the gradient are bit-identical, and a sweep takes half the time.
-- **Step 2, the pool's relaxation offset** (#97; stepper scope §3, *Result*). TF24 is v12.
-  - `J` moves +2.7% on the long-drought stand and `dJ/dlma` +16%, and both are accepted.
-  - Throws fall 759 → 149. They are improved, not eliminated.
-- **Option B**, implicit pools, is not pursued: its stages go negative past `hλ` = 3.1, which fixes neither invaders nor throws (stepper scope §3).
-- **The review of #96 and #97**, under the `code-review` skill. Its findings are fixed in each branch's one commit, and the issues describe the result.
-  - #96 held a zero pulse apart only when nothing else happened at its time. That partition went stale under `set_times` and `clear_times`, a recording gained the pulses' times, `max_time` could be set before the last one, and its resource was no longer checked. Every zero pulse is now held apart. `SCM$events` returns each before the entry at its time, and `reset` checks its resource.
-  - #97's parameter is `storage_relaxation_offset`: it is added to the pool's relaxation time and does not bound it, since the gate's slope takes the rate to 2.3/`τ_s`. A negative offset is refused. The mutant test has its zero-offset control, and the stochastic count is pinned at zero offset.
-  - Declared, not fixed: #96's bit-identity is measured, not guaranteed, and `refine_schedule` samples competition errors at introductions only (#96, *Limits*).
-- **Invaders with the storage pool** (stepper scope §3, *What invaders need beyond A*).
-  - Selection gradients work: the identical invader is exact, and near neighbours run.
-  - Capping the resident's step widens the range: at 3.5 days, `lma` × 0.8 to × 1.5 run on the long-drought stand, at 18% more steps.
-  - Every invader would need a pool update that is non-negative at any step. It is deferred until step 4 shows more throws under ARK, or invaders beyond ±5% are needed.
-- **The stepper's design** (stepper scope §4–§7), on v12 measurements (`harness/v12_steps.R`, `harness/soil_bound.R`).
-  - The soil binds 90.5% of Cash–Karp's steps on u108, 29.5% of them at 0.8β or more of its stability boundary. The pools bind 2.7%.
-  - `J`'s time error does not follow the tolerance. Against tol 1e-6 it is −2.4e-4 at 1e-3, +1.0e-3 at 3e-4 and +8.2e-4 at 1e-4, and within 1e-4 only from 1e-5.
-  - Removing the soil's stability limit saves at most 41–46% at tol 1e-3.
-  - odelia owns the implicit numerics, so a developer writes only rates. The System-owned stage solve lost on the developer's experience, and is the scope's Appendix.
+**Step 4 of the stepper** (stepper scope §7, step 4, *Result*), with `harness/ark_prototype.R`: one R driver through the SCM's schedule under odelia's controller law, over tol 1e-2 … 1e-6 on u108.
+- Cash–Karp is reproduced bit for bit. That also checks stepper §4's tableau rule: sums over nonzero coefficients in ascending stage, `h` after the sum, and a one-term row as `(a·h)·k`.
+- The held Cash–Karp's `J` error is Cash–Karp's from 3e-4 down: the kill line.
+- ARK is within 1e-4 only from 1e-5, where it saves 9% of member evaluations. At 1e-3 it saves 43%, at a `J` 7.6% low.
+- A layer's relaxation rate falls with its moisture, so after rain the soil relaxes as fast as it changes, and an implicit layer gains no step. ARK's embedded estimate misses the error of its longer steps there: 11.5 times the tolerance against 0.75 on one.
+- ARK throws more than Cash–Karp at every tolerance, as stepper §4's risks expected of its longer steps.
+
+## Done before
+
+- **Steps 1–3 of the plan**, rebased onto #94, and the review of #96 and #97. Each issue, and the stepper scope's *Result* sections, record them. TF24 is v12, and throws fell 759 → 149.
+- **Invaders with the storage pool** (stepper scope §3, *What invaders need beyond A*). Selection gradients work, and capping the step widens the range of invaders that run. A pool update that is non-negative at any step is deferred until invaders beyond ±5% are needed.
+- **The stepper's design** (stepper scope §4–§6), which step 4 killed. The Appendix holds the alternative it was chosen over.
 
 ## Next session
 
-**1. Step 4, the prototype driven from R** (stepper scope §7). A plant-dev harness, `harness/ark_prototype.R`; no package changes.
-- **The build** runs v12 with zero pulses as step targets: `PLANT-96` and `PLANT-97` merged over `PLANT-95` in a local branch, not pushed (*Setup*).
-- **One driver, three configurations:** Cash–Karp, which must reproduce the SCM bit for bit on u108 first; Cash–Karp held at 0.8β of the soil's stability; ARK4(3)6L[2]SA with stepper §4's damped block Newton.
-- **What it drives:** `plant:::Patch("TF24", "TF24_Env")(p, env, ctrl)`, with `$introduce_new_node(1L, t)` at each introduction, `$derivs(y, t)` for every evaluation, and `$ode_state_valid(y)` for a refused end state.
-  - On the birth-date coordinate the state is nine entries per node, then the environment's ten: five soil layers, then five flux accumulators.
-  - `harness/soil_bound.R` already takes Cash–Karp's step in R with the solver's arithmetic, and reproduces its error ratio at every step.
-  - The ARK tableau is `harness/ark436.R`'s `AE`, `AI`, `b`, `d` and `c`.
-- **The controller law to reproduce** (`OdeControl::adjust_step_size`, `SolverInternal::step`):
-  - each component's weight is `tol_rel·|y| + tol_abs`, and the ratio is the largest `|yerr|` over its weight;
-  - a non-finite ratio, a stage that raises `DomainError` or a refused end state retries at 0.2h;
-  - over 1.1, the size becomes `h·max(0.2, 0.9 r^(−1/ord))`, floored at the minimum, and a step that cannot shrink is accepted at the minimum;
-  - under 0.5, it becomes `h·min(5, max(1, 0.9 r^(−1/(ord+1))))`, capped at the maximum; otherwise it stays;
-  - a step clipped to reach a target lands on it exactly, and leaves the carried proposal as it was;
-  - `ord` is 5 for Cash–Karp and 4 for ARK.
-- **The soil's stiff rates in R**, as `TF24_Environment::compute_rates` has them:
-  - the rain is floored at zero, and the infiltration is `rain·max(0, 1 − (θ₁/θ_s)^8)`;
-  - the drainage is `K_sat·(clamp(θ, 0, θ_s)/θ_s)^(2·6.57 + 3)`, and a layer's stiff rate is `(in − K)/Δz`;
-  - `K_sat` is 163.0411, `θ_s` 0.428 and `Δz` 0.3.
-- **Open:** `J` at the driver's end. `net_reproduction_ratio_for_species` is the SCM's, not the Patch's; find its birth-date formula, or an R accessor for it.
-- **References:** Cash–Karp at tol 1e-6 gives 12.668637 on u108, at 23 188 steps; the ladder is in stepper §4. u429's is not measured yet: `NODES=429 TOL=1e-6 Rscript harness/v12_steps.R` takes about 10 minutes.
-- The pass and kill lines are §7's.
+**1. What carries `J`'s time error** (stepper scope §7, step 4's kill line).
+- **What is known.** Cash–Karp's `J` error is +2.5e-3 at 3e-3, −2.4e-4 at 1e-3, +1.0e-3 at 3e-4 and +8.2e-4 at 1e-4, and within 1e-4 only from 1e-5. Members born before year 3.5 carry it: +8.6e-4 of +8.2e-4 at 1e-4. u429's errors are alike: +4.9e-4 at 1e-3, +8.1e-4 at 1e-4.
+- **What is ruled out.** The soil's stability limit: with each step held to 0.8β the error still does not converge, and from 3e-4 down it is unchanged. The soil's clamps: ARK's stages cross none from 1e-3 down, and its error still does not follow the tolerance below 1e-4.
+- **Candidates**, from the kill line: the pools' gate, `G(r)` of width 0.1 about `a_st2` = 0.1, and the members' switches, such as reproduction's logistic in height about `hmat`.
+- **The tool.** `harness/ark_prototype.R` walks the schedule from R and reproduces the SCM bit for bit, so a candidate is tested by a variant of its step: hold the step below the candidate's own time scale, or record where the error accrues in time, as T5 did on v11.
+- **References:** Cash–Karp at tol 1e-6 gives 12.668636519 on u108 (23 188 steps) and 12.737409168 on u429 (23 629 steps, 9.3 min).
 
 **2. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
@@ -184,8 +162,6 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
 - The scopes still carry superseded design, such as §2.3's first design beside its extension. Condense them to what is true now.
 
-**3. Steps 5 and 6**, if step 4 passes: odelia's tableau stepper and stiff block, then TF24's wiring. One issue each, in odelia and in plant, stacked, and each reviewed against the principles and §5.
-
 The plan is `scope-schedule-controller.md` §6:
 
 | step | what | state |
@@ -195,7 +171,7 @@ The plan is `scope-schedule-controller.md` §6:
 | 3 | Forward passes store their own rows (stepper §2.3) | done, #95 |
 | 4 | Exact counts (controller §1) | PR #94, open; the stack is on it |
 | 5–6 | Error maps, the schedule controller | not started |
-| 7 | The stepper (stepper §7, steps 4–6) | designed (stepper §4–§7); step 4 next |
+| 7 | The stepper (stepper §7, steps 4–6) | killed at step 4, its prototype (stepper §7) |
 | 8 | The time controller | not started |
 
 ## Traps
@@ -210,6 +186,7 @@ The plan is `scope-schedule-controller.md` §6:
 - *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the offset lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
 - *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
 - *A correction put on the tape must be zero in value:* the implicit stage is `Y* − M·(G − to_passive(G))`. `Y* − M·G(Y*)` moves the stage by Newton's residual, and the sweep would no longer repeat the run's values.
+- *The soil has no fast mode to take implicitly:* drainage goes as `θ^16.14`, so after rain a layer's relaxation rate is about one over the time since the rain. ARK's longer steps there are inaccurate, and on one its embedded estimate put the top layer's error at a fifteenth of its size.
 - *A lambda returning an active product needs `-> value_type`:* a deduced return type hands back an expression template over dead operands, and the value comes out right while the derivative reads freed memory.
 
 ## Setup
@@ -234,7 +211,7 @@ done
 - odelia builds in 26 s and plant in about 3 min. After an odelia edit, reinstall plant with `--preclean`: it compiles odelia's headers and does not track them.
 - A new value exposed to R needs an entry in `inst/RcppR6_classes.yml` and `RcppR6::RcppR6()` before the rebuild.
 - `offspring-adjoint` builds the same way, into a second library, against odelia `be3e2cb`. `PLANT-96` and `PLANT-97` build as `PLANT-95` does.
-- Step 4's build merges the two, one at a time: `git -C plant worktree add -b v12-targets $DEV/v12t origin/PLANT-95`, `git -C $DEV/v12t merge origin/PLANT-96` (a fast-forward), then `git -C $DEV/v12t merge origin/PLANT-97`, keeping both `NEWS.md` entries in the one conflict. Install odelia05, phylloptim09 and `$DEV/v12t` into a library of their own, as above.
+- The v12 build with zero pulses as step targets, which `harness/ark_prototype.R` runs on, merges the two, one at a time: `git -C plant worktree add -b v12-targets $DEV/v12t origin/PLANT-95`, `git -C $DEV/v12t merge origin/PLANT-96` (a fast-forward), then `git -C $DEV/v12t merge origin/PLANT-97`, keeping both `NEWS.md` entries in the one conflict. Install odelia05, phylloptim09 and `$DEV/v12t` into a library of their own, as above.
 
 **Tests** run from `$DEV/stack` with `TESTTHAT_PARALLEL=false`, by AGENTS.md's tiers: `testthat::test_file("tests/testthat/test-mutant.R", package = "plant", load_package = "installed")` after `library(odelia)`. odelia's run from `$DEV/odelia05` with `test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
 

@@ -1,8 +1,8 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. §4–§7 are the stepper's design, decided September 2026 against the Appendix's alternative; §7's step 4 is next. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. §4–§6 are the stepper's design, decided September 2026 against the Appendix's alternative, and §7's step 4 killed it: the soil's stages do not carry `J`'s time error, and ARK saves 9% of member evaluations at matched `J` (§7, step 4, *Result*). Steps 5 and 6 are not built. Exact counts are aornugent/plant#94. See `handover.md`.
 
-The design in short:
+The design step 4 tested:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
 - **A System may declare a small stiff block:** which components it is, and their rates as a function of that block and the time alone.
   - odelia solves each stage's block by a damped Newton, takes its Jacobian from those rates at a tangent scalar, and puts the root on the sweep's tape.
@@ -347,7 +347,7 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 
 | tol | 1e-2 | 3e-3 | 1e-3 | 3e-4 | 1e-4 | 3e-5 | 1e-5 |
 |---|---|---|---|---|---|---|---|
-| `J` against tol 1e-6 (12.668637) | −2.1e-4 | +2.5e-3 | −2.4e-4 | +1.0e-3 | +8.2e-4 | +2.2e-4 | +3.8e-5 |
+| `J` relative to tol 1e-6's (12.668637) | −2.1e-4 | +2.5e-3 | −2.4e-4 | +1.0e-3 | +8.2e-4 | +2.2e-4 | +3.8e-5 |
 | accepted steps | 8018 | 8543 | 9312 | 10 428 | 11 813 | 13 833 | 16 185 |
 
   - `J` stays within 1e-4 of the reference only from tol 1e-5, at 74% more steps than at 1e-3. The steps grow as `tol^−0.10`.
@@ -499,13 +499,35 @@ Upper bounds on u108 at tol 1e-3 (`harness/soil_bound.R`), against Cash–Karp w
      - ARK throws no more than Cash–Karp at the same tolerance, and its stages' clamp crossings (T6) fall to their floor;
      - its Newton failures are counted.
    - *Kill:* if the held Cash–Karp still does not converge in tol, or ARK's `J` does not follow it, the soil's stages are not the cause. Stop, and look at the pools' gate slope and the members' switches.
-5. **The tableau stepper and the stiff block (odelia).** Cash–Karp's constants and hand-written sums become its tableau first.
+
+   *Result* (`harness/ark_prototype.R`, u108). The kill line holds.
+   - Cash–Karp is reproduced bit for bit. `J` and every attempt tally equal the SCM's at all eight tolerances, and at 1e-3 so does every step's time, size, error ratio and binding component.
+   - The held Cash–Karp does not converge in tol, and from 3e-4 down its `J` error is Cash–Karp's. Every held step starts at or below 0.8β; at 1e-4, 0.4% end beyond β.
+   - ARK's `J` error falls with tol from 1e-2 to 1e-4, but is −4.9e-4 at 1e-4 and +8.4e-4 at 3e-5. It stays within 1e-4 only from 1e-5, where Cash–Karp does too, and there it saves 9% of member evaluations.
+   - ARK throws more than Cash–Karp at every tolerance, 161 against 149 at 1e-3 and 40 against 4 at 1e-6. Its stages cross no soil clamp from 1e-3 down. No Newton solve fails: 3.7–4.5 iterations each, at most 21.
+
+   | tol | 1e-2 | 3e-3 | 1e-3 | 3e-4 | 1e-4 | 3e-5 | 1e-5 | 1e-6 |
+   |---|---|---|---|---|---|---|---|---|
+   | `J` relative to Cash–Karp's at 1e-6: Cash–Karp | −2.1e-4 | +2.5e-3 | −2.4e-4 | +1.0e-3 | +8.2e-4 | +2.2e-4 | +3.8e-5 | 0 |
+   | held | −4.6e-4 | +7.8e-4 | −7.7e-4 | +1.0e-3 | +8.0e-4 | +2.5e-4 | +4.3e-5 | |
+   | ARK | −0.41 | −0.19 | −7.6e-2 | −1.0e-2 | −4.9e-4 | +8.4e-4 | +2.7e-5 | −6.8e-5 |
+   | member evaluations (1e6): Cash–Karp | 3.42 | 3.52 | 3.70 | 4.07 | 4.64 | 5.48 | 6.41 | 9.17 |
+   | ARK | 1.30 | 1.51 | 2.09 | 2.80 | 3.58 | 4.64 | 5.84 | 9.53 |
+
+   *Why the soil's block does not pay.*
+   - A layer relaxes as fast as it changes. Drainage goes as `θ^16.14`, so a layer's rate falls with its moisture, and after rain it is about one over the time since the rain: along the reference, `λ` times that time has median 0.78 over the first two months. A step as long as the time since rain is at `hλ` ≈ 1, and taking the layer implicitly does not lengthen it.
+   - ARK's embedded estimate misses the layers' error on longer steps. Retaken from its own state, its 11.2-day step at t = 4.75 (`h|λ|` = 5.6β) has the top layer's error at 11.5 times the tolerance against an estimate of 0.75, and the fourth layer's at 6.9 against 0.03. That step drains the top layer 0.014 too far, and every member's offspring increment falls 0.6–0.8%.
+   - §4's cope for the estimate, filtering it through `(I − hγJ)⁻¹`, would shrink it: here it is too small, not too large.
+   - §6's bound assumed the soil sets no accuracy limit of its own. At 1e-3 ARK uses 43% fewer member evaluations than Cash–Karp, at a `J` 7.6% low.
+
+   *What carries `J`'s time error is open.* Members born before year 3.5 hold 93% of `J`, and they carry Cash–Karp's error (+8.6e-4 of +8.2e-4 at 1e-4) and ARK's deficit alike.
+5. **The tableau stepper and the stiff block (odelia).** Not built: step 4 killed the stepper. Cash–Karp's constants and hand-written sums become its tableau first.
    - *Pass:*
      - Cash–Karp bit-identical: odelia's snapshots and the FF16 references;
      - ARK at order 4 on a smooth problem, and stable on the stiff van der Pol runner the RODAS tests use, with its stiff component declared;
      - tangent and adjoint agree on an ARK run with a block;
      - the review of §5.
-6. **TF24's wiring (plant).**
+6. **TF24's wiring (plant).** Not built.
    - *Pass:*
      - on u108 and u429, ARK's `J` error decreases with tol over 1e-2 … 1e-4, and is within 1e-4 of Cash–Karp's 1e-6 reference at 1e-4;
      - the sweep agrees with a pinned central difference;
@@ -551,6 +573,7 @@ void stiff_stage(const S* z, double hgamma, double time, S* theta, S* rate) cons
   - `harness/long_drought.R`: the 40-year stand of §3's *Result* and §4;
   - `harness/v12_steps.R`: what sets the step on v12, and the tolerance ladder (§4);
   - `harness/soil_bound.R`: §6's bounds;
+  - `harness/ark_prototype.R`: §7's step 4, the three configurations over the tolerance ladder;
   - §1's table is now `test-mutant.R`.
 - **Measurement notes:**
   - `perf-step-controller.md` §4 and §7;
