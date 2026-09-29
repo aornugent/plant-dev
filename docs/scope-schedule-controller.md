@@ -1,6 +1,6 @@
 # Scope: exact establishment counts, error maps from the sweep, and a schedule controller
 
-**Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Steps 1–3 of §6 are implemented as aornugent/plant#96, #97 and #95. Step 7, the stepper, is designed next (see `handover.md`).
+**Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Steps 1–3 of §6 are implemented as aornugent/plant#96, #97 and #95. Step 7, the stepper, is designed (`scope-imex-stepper.md` §4–§7), and its prototype is next (see `handover.md`).
 
 This covers the three pieces of the performance design that do not depend on the record:
 - **exact counts**, so cohorts no longer resolve the gate;

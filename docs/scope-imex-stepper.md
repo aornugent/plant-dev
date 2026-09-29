@@ -1,13 +1,14 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. Steps 4–6 of §7 are designed next. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. §4–§7 are the stepper's design, decided September 2026 against the Appendix's alternative; §7's step 4 is next. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design in short:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
-- **A System may declare a small stiff block**, with its rates as a function of that block and the time alone. odelia then solves each stage's block, differentiates it, and puts it on the sweep's tape.
-  - TF24's block is the soil's drainage and inflow.
-  - The plant developer writes that one function and nothing else.
-- **Three removals come first.** Together they also give invaders a working, differentiable path.
+- **A System may declare a small stiff block:** which components it is, and their rates as a function of that block and the time alone.
+  - odelia solves each stage's block by a damped Newton, takes its Jacobian from those rates at a tangent scalar, and puts the root on the sweep's tape.
+  - TF24's block is the soil's drainage and infiltration.
+  - The plant developer writes those rates and nothing else (§5).
+- **Three removals came first.** Together they also give invaders a working, differentiable path.
 - **The pool's fast mode goes in the model, not the solver.** A week is added to its relaxation time (§3, decided), because it breaks invaders whatever the stepper.
 
 ## 1. How an invader stands in the resident's field
@@ -337,48 +338,62 @@ In this order. Each change is smaller than what it removes. Each keeps a residen
 
 ## 4. One stepper, two tableaus, a declared stiff block
 
-**The stepper.** `Step` becomes tableau-driven.
-- *Cash–Karp as data, and bit-identical.* Sums run over nonzero coefficients in ascending stage, with `h` applied after the sum. A one-term row is applied as `(a·h)·k`, the rounding the FF16 references were blessed on (`ode_step.hpp:206–224`).
-- *ARK4(3)6L[2]SA as data.* The coefficients are SUNDIALS' `ARK436L2SA`, with the order conditions checked to 1e-16.
-- *`Method` chooses the tableau*, and `rodas` stays a stepper of its own (§2.2). The recording keeps six rows per step (five stages and the end) under both tableaus.
+**What sets the step on v12** (Cash–Karp, u108, tol 1e-3 unless stated; `harness/v12_steps.R`).
+- The soil binds 90.5% of accepted steps: 89.1% on u429, against 75.7% on v11's u429. The pools bind 2.7%, and throw on 1.6% of attempts.
+- 29.5% of accepted steps sit at `h|λ_soil| ≥ 0.8β` and 13.3% beyond `β`.
+  - The median error ratio rises 0.014 → 0.077 → 0.21 → 0.25 across the bands below 0.5β, 0.5–0.8β, 0.8–1β and 1–1.2β.
+  - Past 1.2β it falls to 0.013, where drainage sits on its quasi-steady state.
+- `J`'s time error does not follow the tolerance:
 
-**The stiff block.** A System may declare these members, as a concept with `if constexpr`. The names are proposals.
+| tol | 1e-2 | 3e-3 | 1e-3 | 3e-4 | 1e-4 | 3e-5 | 1e-5 |
+|---|---|---|---|---|---|---|---|
+| `J` against tol 1e-6 (12.668637) | −2.1e-4 | +2.5e-3 | −2.4e-4 | +1.0e-3 | +8.2e-4 | +2.2e-4 | +3.8e-5 |
+| accepted steps | 8018 | 8543 | 9312 | 10 428 | 11 813 | 13 833 | 16 185 |
+
+  - `J` stays within 1e-4 of the reference only from tol 1e-5, at 74% more steps than at 1e-3. The steps grow as `tol^−0.10`.
+  - On u429, tol 1e-2 … 1e-4 give 12.7452, 12.7497, 12.7436, 12.7518 and 12.7478: non-monotone, a spread of 6.4e-4.
+
+**The stepper.** `Step` becomes tableau-driven.
+- *Cash–Karp as data, and bit-identical.* Sums run over nonzero coefficients in ascending stage, with `h` applied after the sum. A one-term row is applied as `(a·h)·k`, the rounding the FF16 references were blessed on (`Step::stage_state`). The hand-written sums, the static constants and the stage-0 arms go.
+- *ARK4(3)6L[2]SA as data.* The coefficients are SUNDIALS' `ARK436L2SA`, whose order conditions `harness/ark436.R` checks to 1e-16. Its explicit and implicit parts share `b` and `b̂`, so a step's end and its estimate are sums over full rates, as Cash–Karp's are.
+- *`Method` chooses the tableau:* `rkck`, `ark`, and `rodas`, which stays a stepper of its own (§2.2).
+- The recording keeps six rows per step, five stages and the end, under both tableaus.
+
+**The stiff block.** A System may declare two members, checked as a concept with `if constexpr`:
 
 ```cpp
-// The stiff part of the rates, as a function of the components it is stiff in
-// and the time alone.
-std::size_t stiff_offset() const;
-std::size_t stiff_size() const;
+// Which components are stiff, and their stiff rates as a function of those
+// components and the time alone.
+std::pair<std::size_t, std::size_t> stiff_block() const;  // offset, size
 template <class U>
-void stiff_rates(std::span<const U> y, double time, std::span<U> out) const;
+void stiff_rates(const U* y, double time, U* rate) const;
 ```
 
-A System without them integrates with the tableau's explicit part.
+- The rates read nothing active. odelia instantiates them at `tangent_scalar<double>`, so rates that read an active member do not compile.
+- A System without the members integrates with the tableau's explicit part.
 
-**Each stage in the forward run.** odelia:
-1. forms `Z`;
-2. solves the block equation `Y_b = Z_b + hγ F_I(Y_b, t_i)` by Newton:
-   - the Jacobian comes from forward-mode AD of `stiff_rates`, one tangent pass per block component;
-   - the linear solves use `ode_linalg.hpp`'s dense LU;
-3. evaluates the full rates once at `Y`, which is the one member loop;
-4. takes `F_E = F − F_I`.
+**Each stage, forward.** odelia:
+1. forms `Z_i = y + h Σ_j a^E_ij k_j`, and on the block adds `h Σ_j (a^I_ij − a^E_ij) k^I_j`;
+2. solves the block's `Y = Z + hγ F_I(Y, t_i)` by Newton at double, from `Y = Z`:
+   - the Jacobian is `stiff_rates` at `tangent_scalar<double>`, one pass per block component;
+   - the linear solve is `ode_linalg.hpp`'s LU;
+   - a Newton step is halved until the residual falls, which keeps it from cycling at drainage's kink at saturation;
+   - a solve that does not converge raises `DomainError`, and the step is retried smaller, as a throw is today;
+3. evaluates the full rates once at `Y`: the one member loop;
+4. takes `k^I_i = F_I(Y, t_i)`.
+- The first stage is explicit, and its `k^I` is `F_I` at `y`.
 
-**The sweep.**
-- It runs the same Newton in double from the tape's values of `Z_b`, so the roots are bit-identical.
-- The block then enters the tape as `Y_b = Y* − M·G(Y*)`:
-  - `M = (I − hγJ)⁻¹` is passive;
-  - `G` is the residual, taped once at the root.
+**The sweep.** The same stage template, at the adjoint scalar.
+- Newton runs again in double from the tape's values of `Z`, so the roots are the run's, bit for bit.
+- The block enters the tape as `Y = Y* − M·(G − to_passive(G))`:
+  - `G = Y* − Z − hγ F_I(Y*, t)` is taped at the root, and `M = (I − hγJ)⁻¹` is passive;
+  - the correction's value is exactly zero, so the sweep repeats the run's stage values bit for bit. `Y* − M·G(Y*)` would not: `G(Y*)` is Newton's residual;
+  - its derivative is `M·(dZ + hγ dF_I)`, the implicit function theorem's.
+- The same line is the stage at double and at a tangent scalar. Nothing beyond it is recorded.
 
-  This is the vector form of odelia's `implicit_value`.
-- *What follows:*
-  - the transposed solve happens on the tape;
-  - nothing extra is recorded;
-  - the same code runs at double, tangent and adjoint scalars, because `stiff_rates` reads nothing active.
-
-**For TF24, the block is the soil's five layers**, with `F_I = (in_ℓ − K(u_ℓ))/Δz`.
-- It reads only the soil, the rain and coefficients typed `double` (`tf24_environment.h:457–476`).
-- Uptake, the members, `E` and the accumulators stay explicit.
-- The `θ_res` guard stays in `F`.
+**For TF24, the block is the soil's five layers**, with `F_I,ℓ = (in_ℓ − K(θ_ℓ))/Δz`, where `in_1` is the infiltration and `in_ℓ = K(θ_{ℓ−1})`.
+- It reads only the soil, the rain and coefficients typed `double`.
+- Uptake, the members, `E` and the accumulators stay explicit. So does the `θ_res` guard, which acts on the full rate.
 
 | property | ARK4(3)6L[2]SA | Cash–Karp 5(4) |
 |---|---|---|
@@ -401,34 +416,61 @@ A System without them integrates with the tableau's explicit part.
 | cost | 20–50× Cash–Karp | Cash–Karp's |
 
 **Risks.**
-- *The embedded estimate is not L-stable* (`R̂(−∞) = −0.15`). If the prototype shows the soil setting the step, filter the estimate through `(I − hγJ)⁻¹`; the Jacobian is already at hand.
+- *The embedded estimate is not L-stable* (`R̂(−∞) = −0.15`). If step 4 shows the soil setting the step after rain knots, filter the block's estimate through `(I − hγJ)⁻¹`; the Jacobian is at hand.
 - *The explicit part's boundary is 4.23.* Uptake is at most 111 yr⁻¹ over 100 sampled states, so it binds only past 14-day steps.
-- *The soil's second stage reflects its displacement from the quasi-steady state.* The soil sits on that state except at the run's start.
+- *The pools stay explicit, and positivity limits them before stability does.* ARK's explicit stage 2 takes a decaying mode below zero past `h = 2.0T` (`harness/ark436.R`). A draining pool's `T` is about 7 days under §3's A, so it limits the step at about 14 days.
+  - Dry-leg steps (median 2.1 days under Cash–Karp) lengthen once the soil no longer limits them. So throws may return there, and an invader walking the resident's longer steps overshoots sooner.
+  - Cope: `ode_step_size_max` near 14 days for TF24.
+- *Newton at the soil's kinks.* The damping and the step's rejection cover it; step 4 counts the failures.
 - *Order 4 over 5.* The steps are not accuracy-limited (T1).
-- *The pools stay explicit, and positivity limits them before stability does.* ARK's explicit stage 2 takes a decaying mode below zero past `h = 2.0T` (`harness/ark436.R`). Under A a draining pool's `T` is about 7 days, so it limits the step at about 14 days, not at the 4.23 boundary's 30. On the long-drought stand 1% of steps are longer than 15 days.
 
 ## 5. What a plant developer writes
 
-- `TF24_Environment`:
-  - `stiff_rates`, with the drainage and inflow moved out of `compute_rates`, which then calls it. It is pure: the clamp tallies stay in `compute_rates`.
-  - `stiff_size`.
-- `Patch`: `stiff_offset` and the forwarding, one line each, present only when the environment declares a block.
+The stiff block is the only new thing, and it is physics: which components are stiff, and their stiff rates.
+
+- `TF24_Environment`: `stiff_block()` and `stiff_rates`, the drainage and infiltration moved out of `compute_rates`. `compute_rates` calls `stiff_rates` and subtracts the uptake, so the fluxes are written once, and the clamp tallies stay in `compute_rates`.
+
+```cpp
+// The soil's drainage and infiltration, which relax the layers in minutes;
+// taken implicitly at each stage. Uptake stays in compute_rates.
+std::pair<size_t, size_t> stiff_block() const { return {0, soil_number_of_depths}; }
+
+template <class U>
+void stiff_rates(const U* theta, double time, U* rate) const {
+  U inflow = rainfall(time) * infiltrated_fraction(theta[0]);
+  for (size_t i = 0; i < soil_number_of_depths; ++i) {
+    const U outflow = conductivity(theta[i], i);
+    rate[i] = (inflow - outflow) / dz[i];
+    inflow = outflow;
+  }
+}
+```
+
+- `Patch`: forwards both, present only where the environment declares them, and adds its species' width to the offset.
 - `Control`: `ode_method`.
-- Nothing for invaders. An invader's copy of the soil block is solved and then replaced by the field it stands in (`patch.h:1087`), as its explicit copy is today.
+- Nothing for invaders. An invader's soil is replaced by the field it stands in at every evaluation (`Patch::compute_environment`), so its own block solve is harmless (§2.4).
+- *When to declare a block:* a cheap part of the rates relaxes much faster than the steps the model needs, and reads only its own components and the time.
+
+**The implementation is reviewed against this section and the handover's principles**, with the `code-review` skill, at steps 5 and 6.
+- The developer writes rates and two declarations: no stage equation, slope, bracket, input list or return-type rule.
+- The comparison is the Appendix, which puts those in the developer's code.
 
 ## 6. What it should save
 
-These are offline bounds on the recorded runs at tol 1e-3, with one evaluation per entry. Removing the knots' remaining evaluation (2.1) adds about 3 points to each ARK row.
+Upper bounds on u108 at tol 1e-3 (`harness/soil_bound.R`), against Cash–Karp with zero pulses as step targets: 9312 accepted steps and about 3.7e6 member evaluations, 18% of them on rejected attempts.
 
-| member evaluations saved | `u429` | `d108` |
+| | accepted steps | member evaluations saved |
 |---|---|---|
-| stops as targets alone (2.1) | ~7% | ~7% |
-| soil ARK, pools as today: today's growth law → legs filled | 27% → 39% | 31% → 44% |
-| soil ARK, pools under A (§3): today's growth law → legs filled | 37% → 51% | 35% → 49% |
-| the floor, one step per leg | 74% | 73% |
+| the soil's stability limit removed, legs filled | 6148 | 41–46% |
+| legs filled, with no stability credit | 8538 | 18–25% |
+| Cash–Karp held at `h\|λ_soil\|` ≤ 0.8β / 0.5β | +30% / +69% | — |
 
-- The pool rows are the T8 bound with both stiff modes out. The soil rows are `soil_only_ideal.R`: the pools keep their stability limit and their throws.
-- All rows were taken on v11. Under A the pools no longer set most steps (10 513 → 9312 accepted steps on the long-drought stand), and the rows for pools under A assumed their stability credit, not the positivity limit above. Step 4 re-derives the bounds on v12.
+- *Method.* Each accepted step is re-taken in R with the solver's arithmetic, which reproduces its error ratio at all 9312.
+  - Its ratio is recomputed without the soil layers at `h|λ|` ≥ 0.5β, and each leg is filled with `⌈Σh/a⌉` steps at the local limit `a`.
+  - It assumes no rejected attempt. The lower figures keep 40% of the inaccurate ones, their forcing-driven share on v11. The pools stay in the norm.
+- *The stability credit itself is 21 points*, as on v11.
+- *At matched `J` the gate compares against Cash–Karp at tol 1e-5*, where its error first stays within 1e-4: about 6.4e6 member evaluations on u108.
+- The v11 bounds (T8, `soil_only_ideal.R`) are superseded.
 - The cost per member evaluation is untouched. There, the warm-started leaf solve is the lever.
 
 ## 7. Order of work
@@ -445,24 +487,71 @@ These are offline bounds on the recorded runs at tol 1e-3, with one evaluation p
      - the identical invader is exact under each kind of event (R6, §2.3 extended).
 3. **The pool (plant): option A.** Done, aornugent/plant#97. The moves in `J` and `dJ/dθ` are stated and accepted, and the table's mutants run. Throws fell 759 → 149, not to zero (§3, *Result*).
    - *Pass for A:* the moves in `J` and `dJ/dθ` stated; zero throws; the table's mutants run on the resident's program.
-4. **A prototype driven from R** of the soil ARK, on the new baseline.
-   - The driver with Cash–Karp's tableau must first reproduce the SCM's run bit for bit.
-   - *Gate:* at least 30% fewer member evaluations than today at matched `J`.
-5. **The tableau stepper and the stiff block (odelia).**
+4. **A prototype driven from R** (plant-dev harness), on v12 with zero pulses as step targets.
+   - One driver walks the SCM's schedule with odelia's controller law, in three configurations:
+     1. Cash–Karp, which must reproduce the SCM's run bit for bit on u108;
+     2. Cash–Karp held at `h|λ_soil|` ≤ 0.8β, which tests whether the soil's stages carry `J`'s time error;
+     3. ARK4(3)6L[2]SA, with the soil's block solved by §4's damped Newton.
    - *Pass:*
-     - Cash–Karp bit-identical (the FF16 references and odelia's snapshots);
-     - ARK at order 4, and stable, on the stiff van der Pol runner the RODAS tests already use;
-     - tangent and adjoint agree.
+     - Cash–Karp reproduced bit for bit;
+     - ARK's `J` error decreases with tol over 1e-2 … 1e-4, and is within 1e-4 of the 1e-6 reference at 1e-4;
+     - at the first tolerance from which each method stays within 1e-4 of the reference, ARK uses at least 30% fewer member evaluations;
+     - ARK throws no more than Cash–Karp at the same tolerance, and its stages' clamp crossings (T6) fall to their floor;
+     - its Newton failures are counted.
+   - *Kill:* if the held Cash–Karp still does not converge in tol, or ARK's `J` does not follow it, the soil's stages are not the cause. Stop, and look at the pools' gate slope and the members' switches.
+5. **The tableau stepper and the stiff block (odelia).** Cash–Karp's constants and hand-written sums become its tableau first.
+   - *Pass:*
+     - Cash–Karp bit-identical: odelia's snapshots and the FF16 references;
+     - ARK at order 4 on a smooth problem, and stable on the stiff van der Pol runner the RODAS tests use, with its stiff component declared;
+     - tangent and adjoint agree on an ARK run with a block;
+     - the review of §5.
 6. **TF24's wiring (plant).**
-   - *Pass:* the pinned ARK at `θ0` over tol 1e-2 … 1e-4. `J` is monotone in tol with a spread well under 1e-4 (T5: 4e-4 today), and T6's crossing counts are at their floor.
+   - *Pass:*
+     - on u108 and u429, ARK's `J` error decreases with tol over 1e-2 … 1e-4, and is within 1e-4 of Cash–Karp's 1e-6 reference at 1e-4;
+     - the sweep agrees with a pinned central difference;
+     - the identical invader is exact, and `lma` × 0.95 … × 1.05 run on the fixture;
+     - FF16, and TF24 under Cash–Karp, are unchanged;
+     - the review of §5.
+   - TF24's default becomes `ark` once this holds, as a declared change: `J` moves toward its time-converged value.
    - The pass once also asked for zero throws. That cannot hold while the pools are integrated by the tableau (§3, *What invaders need beyond A*).
+
+## Appendix: the System solves its own stage
+
+The alternative §4 was chosen over, kept as the comparison its implementation is reviewed against (§5).
+
+- *The design.* odelia's ARK hands the block `(z, hγ, t)` to the System's `stiff_stage`, which returns the stage values and their implicit rates. odelia holds no Newton, Jacobian or correction of its own.
+- *For TF24.* The soil is a one-way chain whose fluxes are monotone, so it would solve layer by layer, in the order water flows. Each layer's root lies between `z` and the explicit predictor `z + c·f(z)`, and a scalar primitive puts it on the tape.
+
+```cpp
+void stiff_stage(const S* z, double hgamma, double time, S* theta, S* rate) const {
+  const double rain = rainfall(time);
+  S inflow = 0.0;
+  for (size_t i = 0; i < soil_number_of_depths; ++i) {
+    auto net = [&, i](const auto& th, const auto& in) -> std::decay_t<decltype(th)> {
+      return ((i == 0 ? rain * infiltrated_fraction(th) : in) - conductivity(th, i)) / dz[i];
+    };
+    theta[i] = odelia::implicit_stage<S>(z[i], hgamma, net, inflow);
+    rate[i] = net(theta[i], inflow);
+    inflow = conductivity(theta[i], i);
+  }
+}
+```
+
+- *What it asks of the developer:* the stage equation, the flow order, that a layer's rate does not increase with its own moisture, every active value it reads passed in, and a declared return type on a generic lambda, since a deduced one returns an expression over dead temporaries.
+- *Size:* about 30 lines in odelia and 25 in plant, against §4's 60–80 and 10. Both are estimates.
+- *Bad at:* any block that is not a one-way chain.
+- *Good at:* it cannot fail to converge, since every root is bracketed.
+- *Why it lost:* it puts numerical method in a scientist's code, for about the same total code (§5).
+- *When to reopen it:* §4's implementation grows past twice its estimate, or its Newton fails on more than a few percent of stages.
 
 ## Sources
 
 - **Scripts:**
   - `harness/ark436.R`: the tableaus' order conditions, stability boundaries and stage positivity, which §3's and §4's tables quote;
-  - `harness/long_drought.R`: the 40-year stand of §3's *Result*;
-  - §1's table is now `test-mutant.R`. `soil_only_ideal.R` (§6's soil rows) read recorded runs that were not kept.
+  - `harness/long_drought.R`: the 40-year stand of §3's *Result* and §4;
+  - `harness/v12_steps.R`: what sets the step on v12, and the tolerance ladder (§4);
+  - `harness/soil_bound.R`: §6's bounds;
+  - §1's table is now `test-mutant.R`.
 - **Measurement notes:**
   - `perf-step-controller.md` §4 and §7;
   - `perf-rhs-profile.md` §3–4.

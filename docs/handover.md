@@ -101,7 +101,9 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 ## Where things stand
 
-**Next session, in order: a clean-up, then the design of the stepper**, steps 4–6 of `scope-imex-stepper.md` §7: the R-driven prototype of the soil ARK, odelia's tableau stepper and stiff block, and TF24's wiring.
+**Next session, in order: step 4 of the stepper, a clean-up, then steps 5 and 6** (`scope-imex-stepper.md` §7). Step 4 is the prototype driven from R, and its pass and kill lines decide whether 5 and 6 are built.
+
+The stepper's design is decided (stepper scope §4–§7): odelia solves a declared stiff block, and a System states only its stiff rates. Each step's implementation is reviewed against the principles above and the developer's experience (§5), with the scope's Appendix as the comparison.
 
 Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted. The code review was scoped to #96 and #97, and is done; the rest of the stack was not reviewed under the `code-review` skill.
 
@@ -138,11 +140,22 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - **Invaders with the storage pool** (stepper scope §3, *What invaders need beyond A*).
   - Selection gradients work: the identical invader is exact, and near neighbours run.
   - Capping the resident's step widens the range: at 3.5 days, `lma` × 0.8 to × 1.5 run on the long-drought stand, at 18% more steps.
-  - Every invader would need a pool update that is non-negative at any step, which is a question for the stepper design.
+  - Every invader would need a pool update that is non-negative at any step. It is deferred until step 4 shows more throws under ARK, or invaders beyond ±5% are needed.
+- **The stepper's design** (stepper scope §4–§7), on v12 measurements (`harness/v12_steps.R`, `harness/soil_bound.R`).
+  - The soil binds 90.5% of Cash–Karp's steps on u108, 29.5% of them at 0.8β or more of its stability boundary. The pools bind 2.7%.
+  - `J`'s time error does not follow the tolerance. Against tol 1e-6 it is −2.4e-4 at 1e-3, +1.0e-3 at 3e-4 and +8.2e-4 at 1e-4, and within 1e-4 only from 1e-5.
+  - Removing the soil's stability limit saves at most 41–46% at tol 1e-3.
+  - odelia owns the implicit numerics, so a developer writes only rates. The System-owned stage solve lost on the developer's experience, and is the scope's Appendix.
 
 ## Next session
 
-**1. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
+**1. Step 4, the prototype driven from R** (stepper scope §7). A plant-dev harness; no package changes.
+- The build runs v12 with zero pulses as step targets: `PLANT-96` and `PLANT-97` merged over `PLANT-95` in a local branch, not pushed (*Setup*).
+- One driver walks the SCM's schedule with odelia's controller law, in three configurations: Cash–Karp, reproducing the SCM bit for bit first; Cash–Karp held at 0.8β of the soil's stability; ARK4(3)6L[2]SA with the damped block Newton.
+- The reference is Cash–Karp at tol 1e-6: 12.668637 on u108, at 23 188 steps.
+- The pass and kill lines are §7's.
+
+**2. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
 - `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).
@@ -155,13 +168,7 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
 - The scopes still carry superseded design, such as §2.3's first design beside its extension. Condense them to what is true now.
 
-**2. Design of steps 4–6.** Run the `system-design` skill at tier 3, since odelia's stepper is a seam the adjoint sits behind. Inputs that changed since the scope was written:
-- *The model is v12.* A week is added to the pools' relaxation time, so the soil chain is the stiff mode, and §6's savings bounds were taken on v11. Step 4 re-derives them.
-- *Explicit pools are limited by positivity, not stability*: `h = 2.0T` under ARK's explicit part and `2.16T` under Cash–Karp, about 14–15 days for a draining pool under the offset (`harness/ark436.R`). Only 1% of the long-drought stand's steps are that long.
-- *Zero throws is not reachable for a pool integrated by a tableau.* Step 6's old pass asked for it. Decide whether step 5 gives the pool an update of its own, which would also make invaders robust (stepper scope §3).
-- *Invaders run on the resident's rows (#95).* The new stepper keeps six rows per step under both tableaus, with every evaluation addressed to a row.
-- *The prototype can drive plant from R:* `Patch$derivs(y, t)`, `Patch$set_ode_state` and `Patch$introduce_new_node` exist.
-- *`J` carries about 0.1% time error on long steps*: the 3.5- and 7-day caps agree to 1e-4, and the uncapped run differs by 1e-3. Step 4's gate compares at matched `J`.
+**3. Steps 5 and 6**, if step 4 passes: odelia's tableau stepper and stiff block, then TF24's wiring. One issue each, in odelia and in plant, stacked, and each reviewed against the principles and §5.
 
 The plan is `scope-schedule-controller.md` §6:
 
@@ -172,7 +179,7 @@ The plan is `scope-schedule-controller.md` §6:
 | 3 | Forward passes store their own rows (stepper §2.3) | done, #95 |
 | 4 | Exact counts (controller §1) | PR #94, open; the stack is on it |
 | 5–6 | Error maps, the schedule controller | not started |
-| 7 | The stepper (stepper §7, steps 4–6) | designed next session |
+| 7 | The stepper (stepper §7, steps 4–6) | designed (stepper §4–§7); step 4 next |
 | 8 | The time controller | not started |
 
 ## Traps
@@ -186,6 +193,7 @@ The plan is `scope-schedule-controller.md` §6:
 - *A step cap does not make every invader run:* a near-empty pool whose stage rates differ in sign goes below zero inside a short step too (stepper scope §3).
 - *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the offset lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
 - *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
+- *A correction put on the tape must be zero in value:* the implicit stage is `Y* − M·(G − to_passive(G))`. `Y* − M·G(Y*)` moves the stage by Newton's residual, and the sweep would no longer repeat the run's values.
 - *A lambda returning an active product needs `-> value_type`:* a deduced return type hands back an expression template over dead operands, and the value comes out right while the derivative reads freed memory.
 
 ## Setup
@@ -210,6 +218,7 @@ done
 - odelia builds in 26 s and plant in about 3 min. After an odelia edit, reinstall plant with `--preclean`: it compiles odelia's headers and does not track them.
 - A new value exposed to R needs an entry in `inst/RcppR6_classes.yml` and `RcppR6::RcppR6()` before the rebuild.
 - `offspring-adjoint` builds the same way, into a second library, against odelia `be3e2cb`. `PLANT-96` and `PLANT-97` build as `PLANT-95` does.
+- Step 4's build merges the two: `git -C plant worktree add -b v12-targets $DEV/v12t origin/PLANT-95`, then `git -C $DEV/v12t merge origin/PLANT-96 origin/PLANT-97`, keeping both `NEWS.md` entries, and install it into its own library.
 
 **Tests** run from `$DEV/stack` with `TESTTHAT_PARALLEL=false`, by AGENTS.md's tiers: `testthat::test_file("tests/testthat/test-mutant.R", package = "plant", load_package = "installed")` after `library(odelia)`. odelia's run from `$DEV/odelia05` with `test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
 
