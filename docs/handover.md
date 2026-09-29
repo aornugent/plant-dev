@@ -101,18 +101,16 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 ## Where things stand
 
-**The root cause of `J`'s time error is the pools' error control near empty** (*Done last session*). At the end of a drought a member's pool is nearly empty. When rain takes its net production back above zero the pool starts to refill, and its rate switches from drain to charge at that crossing.
-- The step across the switch misintegrates the refill, and the error estimate sees about a third of it.
-- Near empty, the pool's tolerance weight `tol·(|S| + 1)` is absolute in kg, so its relative error is percents and does not follow the tolerance.
-- Mortality is steepest in the pool's fill there, and `J` depends on the oldest members' survival.
+**A fix for `J`'s time error is found and measured on the driver; nothing is built.** The second Oracle reply (`oracle-response-solver-performance.md`) named the object: the pools' error scale. Each pool's absolute tolerance should be tied to the member's capacity, not shared with every other component in kg. With `σ_S = tol·(|S| + c·r₀·S_max(x_j))`, `c` = 1e-4, `r₀` = 0.05:
+- `J` is within 1e-4 from tol 3e-4 at 4.66e6 member evaluations, 28% fewer than Cash–Karp at 1e-5 today;
+- no event handling is needed;
+- both error channels shrink, the loss part 23× and the output part 12× at tol 1e-4 (*Done last session*).
 
-Tightening only the pools' weights 100× makes `J`'s error fall with the tolerance, to 1.2e-5 at tol 1e-4, for 19% more member evaluations and with no event handling. Tightening their absolute part alone cuts the error about ten-fold at 3e-4 and 1e-4.
+**The root cause, now confirmed.** A relative pool error `ε` becomes a shift `−μ₁·τ_pool·(1 − e^{−r/r₀})·ε` in the member's cumulative mortality, which was measured at −0.276 against the formula's −0.278. Under the shared absolute tolerance, near-empty pools' relative errors do not follow the tolerance. And the step across the pool's switch at `P` = 0 hides about two thirds of its error from the estimate.
 
-**The Oracle's reply is tested, and its treatments of the switch fail.** Stepping onto the crossings, alone or with the leaf's class switches, and re-integrating the crossing member both converge 2.5–3e-4 from the true `J`, at up to 3.6× the cost. Nothing explains that offset yet. Widening the switch moves `J` 3.9% and does not make it follow the tolerance.
+**Next session: the design, under the `system-design` skill** (*Next session*, 1). The pool's error scale is the core. Whether the kink-aware estimate, the adjoint-weighted estimate `E_J` for predicting `J`'s error across `θ`, and sub-cycling the chain in pulses (for cost) belong in it is to be decided with numbers.
 
-**Step 4 of the stepper killed it** (`scope-imex-stepper.md` §7, step 4, *Result*): the soil's stiffness was the wrong target. It does not carry `J`'s error, and the soil is stiff only while rain forces it.
-
-**Next session: the Oracle again, then the design.** `oracle-consultation-solver-performance.md` is rewritten around these findings (*Next session*, 1). Nothing is to be built until a solver design follows from the reply.
+**Step 4 of the stepper killed it** (`scope-imex-stepper.md` §7, step 4, *Result*): the soil's stiffness was the wrong target.
 
 Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted. The code review was scoped to #96 and #97, and is done; the rest of the stack was not reviewed under the `code-review` skill.
 
@@ -136,49 +134,46 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Done last session
 
-All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Karp at 1e-8). The consult's T0–T17 hold the numbers.
+All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Karp at 1e-8). The consult's T0–T17 hold the numbers from before the second reply.
 
-**The true `J`.** Cash–Karp at 1e-7 is 4.5e-8 from `J*`, and T5's refusal with a 0.005-day cap at 1e-7 is 6.3e-7. The old reference, Cash–Karp at 1e-6, is −6.1e-6, so the step-4 conclusions stand.
+**The second reply, tested.**
+- **Its setting works.** A pool's absolute part tied to its capacity (`POOL_FLOOR`) gives these `J` errors against `J*`, for tol 1e-3, 3e-4, 1e-4 and 3e-5:
+  - `c` = 1e-3: −4.6e-4, −6.2e-5, −5.2e-5 and −6.7e-6, at 4.08e6, 4.64e6, 5.37e6 and 6.41e6 member evaluations;
+  - `c` = 1e-4: −6.1e-5 at 3e-4 and −2.4e-5 at 1e-4.
+- **Its refinements cost more than they buy at 1e-4.**
+  - The kink-aware pool estimate (`KINK_EST`) adds 11–13% of cost.
+  - A 0.1-day restart after each crossing (`CROSS_RESTART`) adds 13–15%, and alone it is worse at 1e-4 (−7.9e-5).
+  - Together they make the ladder monotone and near-proportional (−1.7e-4, −5.7e-5, −2.9e-5, −3.9e-6) for 26% more cost.
+- **Its amplifier is confirmed.** Member 2's pool scaled by 1 + 1e-3 at the start of the 135-day stretch gives `∂m/∂ln S` = −0.276, against the formula's −0.278, and the relative change is carried through the stretch unchanged.
+- **Its noise claim is confirmed.** Plain Cash–Karp at tol 9.7e-5, 1e-4 and 1.03e-4 is +6.2e-4, +8.1e-4 and +8.2e-4. The full setting at 2.91e-4, 3e-4 and 3.09e-4 is −4.7e-5, −5.7e-5 and −5.9e-5. Treatment differences below about 1e-4 are single draws unless checked this way.
+- **Refuted.**
+  - T8's +1.2e-5 at 1e-4 is a cancellation: loss part +9.9e-5, output part −9.3e-5.
+  - The pools are not near empty at the crossings: the ten earliest members' pools are a median 35% full at downward crossings and 17% at upward ones.
+  - `φ` never reaches its cap (below v = 0.133) in the dry stretches, so the flat `P` there is the leaf's lower-end class, not a capped `φ`.
+- **Explained.** The events' offset is in the pools: events with T8 carry a loss part of +2.7e-4 at 1e-4, as the reply suspected of their retake and restart.
+- **Untested.** The adjoint-weighted estimate `E_J = Σ λᵀ·le`, which needs the sweep; sub-cycling the chain in pulses, projected at 2–2.5e6; `dJ/dθ`'s convergence.
 
-**The Oracle's reply, tested** (`oracle-response-solver-performance.md`).
-- Its data claims:
-  - It predicted about 900 clusters of crossings, one just after each rain. There are 196: 98 in long dry spells, a median 32 days after the rain, each spread over 6 days; and 98 at the rains that end them, spread over 0.3 days.
-  - Re-crossings are 4 of 9220, so plain event location applies.
-  - The leaf's class switches (7909, Interior ↔ BoundaryCrit) do not coincide with the crossings.
-  - While rain falls the members' draw is 1% of the top layer's fluxes, and it varies by 0.2% over a day.
-- Its first test, stepping onto the crossings at `P` = −η:
-  - `J` converges 2.6–2.8e-4 from `J*` at 1.3e7 member evaluations, against its prediction of T5's errors at 8e6.
-  - 95% of its throws are the attempt after a located crossing, at the carried proposal. Starting that step at 0.05 days leaves 6.4e-5 and 36 throws.
-  - With the class switches located too: +6.6e-6 at 3e-4 and +1.4e-4 at 1e-4, at 1.7e7.
-- Its (B), refusing within clusters, is killed by the clusters' spans without a run.
-- Its (C), re-integrating the crossing member on its own: +2.5e-4 at 1e-4, for 3% more cost.
-- The model route of the last handover: a positive part widened to 5% of each member's costs moves `J` 3.9%, and at 1e-3…1e-4 its error is a steady +8e-4 against its own converged value.
-
-**The root cause**, traced back by the `systematic-debugging` skill with no fix attempted.
-- `J`'s error splits into a survival part (from each member's cumulative mortality) and an output part, of comparable size: +5.0e-4 and +3.7e-4 at 1e-4.
-- The survival part is created in the oldest members' mortality in the dry spells of t = 3–14. It is carried in by their pools' state: a pool that arrives 1.7e-3 off, retaken from the reference, adds only −3.5e-6.
-- The pools pick up relative errors of 1–2.5% at the refills after rain.
-- Near-empty refilling pools keep a 90th-percentile relative error of 3.3e-3, 3.2e-3 and 2.0e-3 at tol 1e-3, 3e-4 and 1e-4. Pools over half full follow the tolerance.
-- One weight changed: the pools' weights ×0.01 gives −3.6e-4, +1.2e-4, +1.2e-5 and +1.0e-5 at 1e-3 … 3e-5, for 5.53e6 member evaluations at 1e-4. Their absolute part alone gives +1.3e-4 and +7.8e-5 at 3e-4 and 1e-4.
-- The kink kernel: a Cash–Karp step across a kink errs by `h²·[jump]·K(θ)`, and `K` has zero mean over the kink's position. Its ratio to the embedded estimate has a median of 3.4 over that position, as against the 4.6 measured on crossing steps.
-- The last session's picture was that the offspring integral's own kink error carries `J`'s error. The prediction built from it has the wrong sign at 1e-3 and a twentieth of the size at 3e-4.
+**The first reply's tests and the root cause**, from earlier in the session, are in the consult (T0–T17): the treatments that step onto the switch fail, the true `J`, the channel split, and the pools' errors near empty.
 
 ## Done before
 
-- **Step 4 of the stepper** (stepper scope §7, step 4, *Result*): the driver reproduces Cash–Karp bit for bit; the held Cash–Karp's `J` error is Cash–Karp's (the kill line); ARK saves 9% of member evaluations at matched `J`, and its embedded estimate misses its long steps' soil error. The first trace of `J`'s error to the steps across the switch is there too; the session above refines it.
+- **Step 4 of the stepper** (stepper scope §7, step 4, *Result*): the driver reproduces Cash–Karp bit for bit; the held Cash–Karp's `J` error is Cash–Karp's (the kill line); ARK saves 9% of member evaluations at matched `J`, and its embedded estimate misses its long steps' soil error.
 - **Steps 1–3 of the plan**, rebased onto #94, and the review of #96 and #97. Each issue, and the stepper scope's *Result* sections, record them. TF24 is v12, and throws fell 759 → 149.
 - **Invaders with the storage pool** (stepper scope §3, *What invaders need beyond A*). Selection gradients work, and capping the step widens the range of invaders that run. A pool update that is non-negative at any step is deferred until invaders beyond ±5% are needed.
 - **The stepper's design** (stepper scope §4–§6), which step 4 killed. The Appendix holds the alternative it was chosen over.
 
 ## Next session
 
-**1. The Oracle.** The statement is `oracle-consultation-solver-performance.md`, rewritten by `oracle-consultation-guide.md` around the root cause: the true `J`, the channels, the pools near empty, the one-weight test, and the earlier reply's treatments measured and refuted, with open questions. The unexplained offset of the treatments that step onto the switch is asked about as such (question 3). Record the reply verbatim beside it, as `oracle-response-solver-performance.md` (keep the current one as `…-bbba8d1.md`). Then reduce each claim to the smallest driver run that confirms or kills it.
+**1. The solver design**, under the `system-design` skill, before anything is built. The requirement is `J` to 1e-4 at the least cost, with an error one setting predicts across `θ`.
+- The floor candidate is a per-component error scale that a System declares, here TF24's pools at `tol·(|S| + 1e-4·r₀·S_max(x))`. odelia's controller has one scalar `tol_abs` today. On the driver it is 4.66e6 member evaluations at tol 3e-4.
+- To weigh against it, with the numbers above:
+  - the kink-aware estimate, which needs the System to report its switches;
+  - the adjoint-weighted `E_J`, which needs the sweep to store each step's embedded difference;
+  - sub-cycling the chain inside pulses, for cost; the rain legs hold 64% of member evaluations.
+- `dJ/dθ`'s convergence is measured before the design commits: the reply expects the switch's error to be `O(h)` in the gradient.
+- The tool is `harness/ark_prototype.R` (`POOL_FLOOR`, `KINK_EST`, `CROSS_RESTART`, `TOL_POOL`, `EVENTS`, `LOCAL`), with `harness/error_channels.R` for where an error travels.
 
-**2. The solver design**, after the Oracle, under the `system-design` skill: the error control that makes `J` follow the tolerance, then the cost (the rain legs hold 64% of member evaluations). Nothing is built before it.
-- The requirement is that the error in `J` follows the tolerance at the least cost. `J` to 1e-4 is 6.41e6 member evaluations today (Cash–Karp at 1e-5, not following the tolerance), and 5.53e6 with the pools' weights ×0.01.
-- The tool is `harness/ark_prototype.R` (`TOL_POOL`, `TOL_POOL_ABS`, `EVENTS`, `LOCAL`), with `harness/error_channels.R` for where an error travels.
-
-**3. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
+**2. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
 - `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).
@@ -216,7 +211,8 @@ The plan is `scope-schedule-controller.md` §6:
 - *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
 - *A correction put on the tape must be zero in value:* the implicit stage is `Y* − M·(G − to_passive(G))`. `Y* − M·G(Y*)` moves the stage by Newton's residual, and the sweep would no longer repeat the run's values.
 - *A switch in the rates is invisible to the error estimate:* TF24's positive part of net production turns growth, reproduction and the pool's charge off within seconds of model time. A Cash–Karp step across it reports about a third of its error.
-- *A near-empty pool's error is uncontrolled:* its tolerance weight `tol·(|S| + 1)` is absolute in kg, and mortality is steepest in the pool's fill there. `J`'s error travels through the oldest members' survival, so compare a run's mortality and pools, not only its offspring integrals.
+- *A pool's absolute tolerance must scale with its capacity:* under the shared `tol·(|S| + 1)` in kg, a near-empty pool's relative error does not follow the tolerance, and mortality turns it into survival error (`∂m/∂ln S` ≈ −0.28 over a dry stretch). `J`'s error travels through the oldest members' survival, so compare a run's mortality and pools, not only its offspring integrals.
+- *One `J` is one draw:* moving tol by 3% moves plain Cash–Karp's `J` error by 2e-4. Compare treatments by their channels (`harness/error_channels.R`) or by nearby tolerances, not by one run's `J`.
 - *Retaking an interval from the reference's state measures its local error only:* the survival error arrives with the state, created at an earlier refill.
 - *The reference for u108 is `J*` = 12.6687135*, from Cash–Karp at 1e-8. The run at 1e-6 is 6.1e-6 low.
 - *R reads a script as it runs:* editing the driver while runs use it corrupts their last lines. Run from a snapshot; `run` in `$DEV/ark/ev_ladder.sh` copies one.

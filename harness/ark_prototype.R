@@ -9,7 +9,8 @@
 #   PLANT_LIB=... NODES=108 TOL=1e-3 METHOD=ark [OUT=run.rds] [REF=u108.rds] \
 #     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0]] \
 #     [EVENTS=1 [EVENT_ETA=1e-3] [EVENT_RESTART=0.05] [CLASS_EVENTS=1]] [LOCAL=1] \
-#     [TOL_POOL=0.01] [TOL_POOL_ABS=0.01] Rscript harness/ark_prototype.R
+#     [TOL_POOL=0.01] [TOL_POOL_ABS=0.01] [POOL_FLOOR=1e-3] [KINK_EST=1] \
+#     [CROSS_RESTART=0.1] Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
 # nodes and tolerance, which METHOD=ck reproduces bit for bit. STATES keeps the
@@ -22,7 +23,10 @@
 # else at the proposal the retaken step started with. LOCAL re-integrates each
 # member whose net production changes sign within an accepted step on its own,
 # split at the crossing. TOL_POOL scales the storage pools' tolerance weights,
-# and TOL_POOL_ABS only their absolute part.
+# and TOL_POOL_ABS only their absolute part. POOL_FLOOR replaces a pool's absolute
+# part by that fraction of 0.05 of its capacity. KINK_EST raises the pool's
+# estimate on a step across its switch to the switch's straddling error, and
+# CROSS_RESTART caps the proposal after such a step at that many days.
 # Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
@@ -39,10 +43,20 @@ tb <- if (method == "ark") {
 }
 
 times <- uniform_times(nodes)
+# Each member's pool capacity and relative fill, TF24_Strategy::storage_capacity
+# from its height.
+pars <- NULL
+pool_of <- function(y) 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
+capacity <- function(y) {
+  h <- y[pool_of(y) - 5]
+  eta_c <- 1 - 2 / (1 + pars$eta) + 1 / (1 + 2 * pars$eta)
+  pars$a_st1 * pars$theta * (h / pars$a_l1)^(1 / pars$a_l2) * h * eta_c * pars$rho
+}
 pulses <- sort(unique(AK))
 p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 p <- add_strategies(p, trait_matrix(LMA0, "lma"))
+pars <- p$strategies[[1]]$pars
 p$node_schedule_times <- list(times)
 ct <- control()
 ct$ode_tol_rel <- tol
@@ -86,6 +100,9 @@ RESTART <- if (nzchar(Sys.getenv("EVENT_RESTART"))) as.numeric(Sys.getenv("EVENT
 CLASSES <- nzchar(Sys.getenv("CLASS_EVENTS"))
 LOCAL <- nzchar(Sys.getenv("LOCAL"))
 TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
+POOL_FLOOR <- if (nzchar(Sys.getenv("POOL_FLOOR"))) as.numeric(Sys.getenv("POOL_FLOOR")) else NA
+KINK_EST <- nzchar(Sys.getenv("KINK_EST"))
+CROSS_RESTART <- if (nzchar(Sys.getenv("CROSS_RESTART"))) as.numeric(Sys.getenv("CROSS_RESTART")) / 365 else NA
 TOL_POOL_ABS <- as.numeric(Sys.getenv("TOL_POOL_ABS", "1"))
 WINDOW <- 1e-5
 klass <- function(y) patch$ode_aux[13 * (seq_len((length(y) - 10) %/% 9) - 1) + 13]
@@ -304,6 +321,28 @@ local_fix <- function(t0, h, a) {
   a
 }
 
+# The error of the propagated solution for a unit slope jump of a quadrature's
+# integrand at fraction u of the step, per h^2.
+kink_kernel <- function(u) sum(tb$b * pmax(tb$c - u, 0)) - (1 - u)^2 / 2
+
+# With KINK_EST, each member whose net production changed sign across the attempt
+# has its pool's estimate raised to the error of the pool's rate switching there:
+# h^2 times the jump in the rate's slope times the kernel. Returns the estimate
+# and the pool components it changed.
+kink_estimate <- function(h, a) {
+  f <- which(sign(a$P) != sign(sv$P))
+  if (!length(f)) return(list(yerr = a$yerr, pool = integer()))
+  pool <- pool_of(sv$y)[f]
+  r <- sv$y[pool] / capacity(sv$y)[f]
+  G <- 1 / (1 + exp(-(r - pars$a_st2) / 0.1))
+  u <- sv$P[f] / (sv$P[f] - a$P[f])
+  jump <- ((1 - G) * (1 - r) + r) * abs(a$P[f] - sv$P[f]) / h
+  est <- h^2 * jump * abs(vapply(u, kink_kernel, 0))
+  yerr <- a$yerr
+  yerr[pool] <- pmax(abs(yerr[pool]), est)
+  list(yerr = yerr, pool = pool)
+}
+
 # OdeControl::adjust_step_size and reject_step. `shrank` persists between
 # calls, as the solver's flag does where a step at the minimum cannot shrink.
 ctl <- new.env()
@@ -312,12 +351,16 @@ reject <- function(h) {
   ctl$shrank <- TRUE
   max(h * 0.2, ct$ode_step_size_min)
 }
-adjust <- function(h, y, yerr, dydt) {
+adjust <- function(h, y, yerr, dydt, kink = integer()) {
   level <- ct$ode_tol_rel * (ct$ode_a_y * abs(y) + ct$ode_a_dydt * abs(h * dydt)) +
     ct$ode_tol_abs
   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
     level[pool] <- (level[pool] - ct$ode_tol_abs * (1 - TOL_POOL_ABS)) * TOL_POOL
+  }
+  if (!is.na(POOL_FLOOR)) {
+    pool <- pool_of(y)
+    level[pool] <- level[pool] - ct$ode_tol_abs + ct$ode_tol_abs * POOL_FLOOR * 0.05 * capacity(y)
   }
   r <- abs(yerr) / abs(level)
   bad <- which(!is.finite(r))
@@ -330,14 +373,15 @@ adjust <- function(h, y, yerr, dydt) {
   ctl$index <- if (rmax > .Machine$double.xmin) which.max(r) else NA
   ctl$ratio <- if (rmax > .Machine$double.xmin) rmax else 0
   rmax <- max(rmax, .Machine$double.xmin)
+  ord <- if (!is.na(ctl$index) && ctl$index %in% kink) 2 else tb$ord
   if (rmax > 1.1) {
-    hn <- max(h * max(0.2, 0.9 / rmax^(1 / tb$ord)), ct$ode_step_size_min)
+    hn <- max(h * max(0.2, 0.9 / rmax^(1 / ord)), ct$ode_step_size_min)
     if (hn < h) {
       ctl$shrank <- TRUE
       h <- hn
     }
   } else if (rmax < 0.5) {
-    h <- min(h * min(5, max(1, 0.9 / rmax^(1 / (tb$ord + 1)))), ct$ode_step_size_max)
+    h <- min(h * min(5, max(1, 0.9 / rmax^(1 / (ord + 1)))), ct$ode_step_size_max)
     ctl$shrank <- FALSE
   } else {
     ctl$shrank <- FALSE
@@ -368,7 +412,13 @@ step <- function(target) {
       hn <- reject(h)
       n$rejected_thrown <- n$rejected_thrown + 1
     } else {
-      hn <- adjust(h, a$y, a$yerr, a$rates)
+      kink <- integer()
+      if (KINK_EST) {
+        ke <- kink_estimate(h, a)
+        a$yerr <- ke$yerr
+        kink <- ke$pool
+      }
+      hn <- adjust(h, a$y, a$yerr, a$rates, kink)
       if (!patch$ode_state_valid(a$y)) {
         hn <- reject(h)
         n$rejected_refused <- n$rejected_refused + 1
@@ -403,6 +453,7 @@ step <- function(target) {
     sv$t <- if (final) target else t0 + h
     if (!final && !at_crossing) sv$h_last <- hn
     if (at_crossing && !is.na(RESTART)) sv$h_last <- RESTART
+    if (!is.na(CROSS_RESTART) && any(sign(a$P) != sign(sv$P))) sv$h_last <- min(sv$h_last, CROSS_RESTART)
     steps$k <- steps$k + 1L
     if (steps$k > nrow(steps$rows)) steps$rows <- rbind(steps$rows, steps$rows * NA)
     steps$rows[steps$k, ] <- c(sv$t, h, ctl$ratio, ctl$index, (length(a$y) - 10) %/% 9,
