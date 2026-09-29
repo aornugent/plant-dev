@@ -7,11 +7,14 @@
 #         infiltration solved at each stage by a damped Newton.
 #
 #   PLANT_LIB=... NODES=108 TOL=1e-3 METHOD=ark [OUT=run.rds] [REF=u108.rds] \
-#     [STATES=states.rds] Rscript harness/ark_prototype.R
+#     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0]] \
+#     Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
 # nodes and tolerance, which METHOD=ck reproduces bit for bit. STATES keeps the
-# state at every accepted step.
+# state at every accepted step. SWITCH_DAYS refuses a step longer than that
+# across which a member's net production crosses SWITCH_AT, and halves it.
+# Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
 tab <- new.env()
@@ -61,11 +64,18 @@ stiff_jacobian <- function(th, rain) {
   J
 }
 lambda_soil <- function(y, t) max(-diag(stiff_jacobian(y[soil(y)], rain_at(t))))
+# Each member's net production, less SWITCH_AT, at the state the last evaluation
+# set: thirteen auxiliaries a member, the third of them.
+production <- function(y) {
+  patch$ode_aux[13 * (seq_len((length(y) - 10) %/% 9) - 1) + 3] -
+    as.numeric(Sys.getenv("SWITCH_AT", "0"))
+}
+DELTA <- as.numeric(Sys.getenv("SWITCH_DAYS", "Inf")) / 365
 
 n <- new.env()
 for (x in c("evaluations", "members", "switch", "clamp", "floor", "accepted",
             "accepted_at_minimum", "rejected_inaccurate", "rejected_thrown",
-            "rejected_refused", "solves", "iterations", "halvings", "failures")) {
+            "rejected_refused", "rejected_switch", "solves", "iterations", "halvings", "failures")) {
   assign(x, 0, envir = n)
 }
 n$most_iterations <- 0
@@ -149,7 +159,7 @@ attempt <- function(t, y, k1, h) {
   y1 <- combine(y, tb$b, k, h)
   at_end <- rates(y1, t + h)
   if (is.null(at_end)) return(NULL)
-  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end)
+  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1))
 }
 
 # OdeControl::adjust_step_size and reject_step. `shrank` persists between
@@ -217,6 +227,10 @@ step <- function(target) {
         n$rejected_refused <- n$rejected_refused + 1
       } else if (ctl$shrank) {
         n$rejected_inaccurate <- n$rejected_inaccurate + 1
+      } else if (h > DELTA && any(sign(a$P) != sign(sv$P))) {
+        hn <- max(h / 2, DELTA)
+        ctl$shrank <- TRUE
+        n$rejected_switch <- n$rejected_switch + 1
       } else if (!(ctl$ratio <= 1.1)) {
         n$accepted_at_minimum <- n$accepted_at_minimum + 1
       } else {
@@ -239,75 +253,81 @@ step <- function(target) {
     if (!is.null(steps$states)) steps$states[[steps$k]] <- a$y
     sv$y <- a$y
     sv$dydt <- a$rates
+    sv$P <- a$P
     return(invisible())
   }
 }
 
-# SCM::run: each introduction is an entry, and the zero pulses between entries
-# are targets the steps land on.
-t_start <- proc.time()[["elapsed"]]
-sv$t <- 0
-sv$h_last <- ct$ode_step_size_initial
-for (k in seq_along(times)) {
-  patch$introduce_new_node(1L, times[k])
-  sv$y <- patch$ode_state
-  sv$dydt <- rates(sv$y, sv$t)
-  if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
-  t_end <- if (k < length(times)) times[k + 1] else LIFETIME
-  for (target in c(pulses[pulses > sv$t & pulses < t_end], t_end)) {
-    while (sv$t < target) step(target)
+if (sys.nframe() == 0L) {
+  # SCM::run: each introduction is an entry, and the zero pulses between entries
+  # are targets the steps land on.
+  t_start <- proc.time()[["elapsed"]]
+  sv$t <- 0
+  sv$h_last <- ct$ode_step_size_initial
+  for (k in seq_along(times)) {
+    patch$introduce_new_node(1L, times[k])
+    sv$y <- patch$ode_state
+    sv$dydt <- rates(sv$y, sv$t)
+    if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
+    sv$P <- production(sv$y)
+    t_end <- if (k < length(times)) times[k + 1] else LIFETIME
+    for (target in c(pulses[pulses > sv$t & pulses < t_end], t_end)) {
+      while (sv$t < target) step(target)
+    }
   }
-}
-secs <- proc.time()[["elapsed"]] - t_start
+  secs <- proc.time()[["elapsed"]] - t_start
 
-# Species::offspring_production, on the state the last evaluation set.
-sp <- patch$species[[1]]
-w <- sp$establishment_weights
-f <- vapply(sp$nodes, function(x) x$fecundity, 0)
-pd <- sp$patch_densities
-br <- vapply(sp$node_times, function(x) sp$extrinsic_drivers$evaluate("birth_rate", x), 0)
-S_D <- p$strategies[[1]]$pars$S_D
-stopifnot(length(w) == length(f) + 1, length(pd) == length(f), length(br) == length(f))
-J <- 0
-for (j in seq_along(f)) J <- J + w[j] * (f[j] * pd[j] * S_D) * br[j]
+  # Species::offspring_production, on the state the last evaluation set.
+  sp <- patch$species[[1]]
+  w <- sp$establishment_weights
+  f <- vapply(sp$nodes, function(x) x$fecundity, 0)
+  pd <- sp$patch_densities
+  br <- vapply(sp$node_times, function(x) sp$extrinsic_drivers$evaluate("birth_rate", x), 0)
+  S_D <- p$strategies[[1]]$pars$S_D
+  stopifnot(length(w) == length(f) + 1, length(pd) == length(f), length(br) == length(f))
+  J <- 0
+  for (j in seq_along(f)) J <- J + w[j] * (f[j] * pd[j] * S_D) * br[j]
 
-att <- vapply(c("accepted", "accepted_at_minimum", "rejected_inaccurate",
-                "rejected_thrown", "rejected_refused"), function(x) n[[x]], 0)
-st <- as.data.frame(steps$rows[seq_len(steps$k), , drop = FALSE])
-cat(sprintf("%s nodes %d tol %g: J %.9f, %d accepted, %.0f s; %s\n", method, nodes, tol,
-            J, att[["accepted"]], secs, paste(names(att), att, sep = "=", collapse = " ")))
-cat(sprintf("rate evaluations %d, member evaluations %d; evaluated states past the inflow switch %d, the loss clamp %d, the floor %d\n",
-            n$evaluations, n$members, n$switch, n$clamp, n$floor))
-if (method == "ark") {
-  cat(sprintf("block solves %d: %.2f Newton iterations each, at most %d; %d halvings; %d failures\n",
-              n$solves, n$iterations / max(1, n$solves - n$failures), n$most_iterations,
-              n$halvings, n$failures))
-}
-NODE <- c("height", "mortality", "fecundity", "area_heartwood", "mass_heartwood",
-          "storage", "offspring", "log_density", "mass")
-ENV <- c(paste0("soil_", 1:5), paste0("accumulator_", 1:5))
-kind <- ifelse(st$ei <= 9 * st$M, NODE[(st$ei - 1) %% 9 + 1], ENV[pmax(1, st$ei - 9 * st$M)])
-pct <- function(x) sprintf("%.1f%%", 100 * mean(x, na.rm = TRUE))
-cat("binding: soil", pct(grepl("^soil_", kind)), " accumulator", pct(grepl("^accumulator_", kind)),
-    " member", pct(kind %in% NODE), " storage", pct(kind == "storage"),
-    "; h |lambda_soil| / beta at the start >= 0.8:", pct(st$x_soil >= 0.8),
-    " > 1:", pct(st$x_soil > 1), "\n")
+  att <- vapply(c("accepted", "accepted_at_minimum", "rejected_inaccurate",
+                  "rejected_thrown", "rejected_refused", "rejected_switch"),
+                function(x) n[[x]], 0)
+  st <- as.data.frame(steps$rows[seq_len(steps$k), , drop = FALSE])
+  cat(sprintf("%s nodes %d tol %g: J %.9f, %d accepted, %.0f s; %s\n", method, nodes, tol,
+              J, att[["accepted"]], secs, paste(names(att), att, sep = "=", collapse = " ")))
+  cat(sprintf("rate evaluations %d, member evaluations %d; evaluated states past the inflow switch %d, the loss clamp %d, the floor %d\n",
+              n$evaluations, n$members, n$switch, n$clamp, n$floor))
+  if (method == "ark") {
+    cat(sprintf("block solves %d: %.2f Newton iterations each, at most %d; %d halvings; %d failures\n",
+                n$solves, n$iterations / max(1, n$solves - n$failures), n$most_iterations,
+                n$halvings, n$failures))
+  }
+  NODE <- c("height", "mortality", "fecundity", "area_heartwood", "mass_heartwood",
+            "storage", "offspring", "log_density", "mass")
+  ENV <- c(paste0("soil_", 1:5), paste0("accumulator_", 1:5))
+  kind <- ifelse(st$ei <= 9 * st$M, NODE[(st$ei - 1) %% 9 + 1], ENV[pmax(1, st$ei - 9 * st$M)])
+  pct <- function(x) sprintf("%.1f%%", 100 * mean(x, na.rm = TRUE))
+  cat("binding: soil", pct(grepl("^soil_", kind)), " accumulator", pct(grepl("^accumulator_", kind)),
+      " member", pct(kind %in% NODE), " storage", pct(kind == "storage"),
+      "; h |lambda_soil| / beta at the start >= 0.8:", pct(st$x_soil >= 0.8),
+      " > 1:", pct(st$x_soil > 1), "\n")
 
-if (nzchar(Sys.getenv("REF"))) {
-  ref <- readRDS(Sys.getenv("REF"))
-  rs <- ref$st
-  same <- nrow(rs) == nrow(st) && identical(rs$time, st$time) && identical(rs$h, st$h) &&
-    identical(rs$er, st$er) && identical(as.numeric(rs$ei), st$ei)
-  cat(sprintf("against the recording: J %s, attempts %s, steps %s\n",
-              if (identical(ref$J, J)) "identical" else sprintf("differs by %.3g", J - ref$J),
-              if (identical(as.numeric(ref$attempts[names(att)]), as.numeric(att))) "identical" else "differ",
-              if (same) "identical" else "differ"))
-}
-if (!is.null(steps$states)) saveRDS(steps$states, Sys.getenv("STATES"), compress = FALSE)
-if (nzchar(Sys.getenv("OUT"))) {
-  saveRDS(list(method = method, nodes = nodes, tol = tol, J = J, attempts = att,
-               counts = as.list(n), secs = secs, st = st,
-               by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
-                                    fecundity = f, patch_density = pd)),
-          Sys.getenv("OUT"))
+  if (nzchar(Sys.getenv("REF"))) {
+    ref <- readRDS(Sys.getenv("REF"))
+    rs <- ref$st
+    ref$attempts[["rejected_switch"]] <- 0
+    same <- nrow(rs) == nrow(st) && identical(rs$time, st$time) && identical(rs$h, st$h) &&
+      identical(rs$er, st$er) && identical(as.numeric(rs$ei), st$ei)
+    cat(sprintf("against the recording: J %s, attempts %s, steps %s\n",
+                if (identical(ref$J, J)) "identical" else sprintf("differs by %.3g", J - ref$J),
+                if (identical(as.numeric(ref$attempts[names(att)]), as.numeric(att))) "identical" else "differ",
+                if (same) "identical" else "differ"))
+  }
+  if (!is.null(steps$states)) saveRDS(steps$states, Sys.getenv("STATES"), compress = FALSE)
+  if (nzchar(Sys.getenv("OUT"))) {
+    saveRDS(list(method = method, nodes = nodes, tol = tol, J = J, attempts = att,
+                 counts = as.list(n), secs = secs, st = st,
+                 by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
+                                      fecundity = f, patch_density = pd)),
+            Sys.getenv("OUT"))
+  }
 }

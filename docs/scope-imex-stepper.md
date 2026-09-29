@@ -1,6 +1,6 @@
 # Scope: an implicit–explicit stepper for TF24
 
-**Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. §4–§6 are the stepper's design, decided September 2026 against the Appendix's alternative, and §7's step 4 killed it: the soil's stages do not carry `J`'s time error, and ARK saves 9% of member evaluations at matched `J` (§7, step 4, *Result*). Steps 5 and 6 are not built. Exact counts are aornugent/plant#94. See `handover.md`.
+**Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. §4–§6 are the stepper's design, decided September 2026 against the Appendix's alternative, and §7's step 4 killed it: the soil's stages do not carry `J`'s time error, and ARK saves 9% of member evaluations at matched `J` (§7, step 4, *Result*). The steps across the members' switch from growth to drawing down their reserves carry it. Steps 5 and 6 are not built. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design step 4 tested:
 - **One stepper in odelia, driven by a tableau.** Cash–Karp and ARK4(3)6L[2]SA are two tableaus of it.
@@ -520,7 +520,14 @@ Upper bounds on u108 at tol 1e-3 (`harness/soil_bound.R`), against Cash–Karp w
    - §4's cope for the estimate, filtering it through `(I − hγJ)⁻¹`, would shrink it: here it is too small, not too large.
    - §6's bound assumed the soil sets no accuracy limit of its own. At 1e-3 ARK uses 43% fewer member evaluations than Cash–Karp, at a `J` 7.6% low.
 
-   *What carries `J`'s time error is open.* Members born before year 3.5 hold 93% of `J`, and they carry Cash–Karp's error (+8.6e-4 of +8.2e-4 at 1e-4) and ARK's deficit alike.
+   *What carries `J`'s time error: the steps across which a member's net production changes sign* (`harness/j_error_trace.R`, and the driver's `SWITCH_DAYS`).
+   - The error is in the members' offspring integrals, +8.7e-4 of +8.2e-4 at 1e-4. It accrues from t = 12 to 20, in the dry legs between rains, and mostly in members born before year 3.5, who hold 93% of `J`.
+   - As the soil dries, a member's net production `P` falls through zero, and rises back after rain: 9220 sign changes in a 1e-4 run, or 921 events counting those within a quarter-day as one.
+   - TF24 grows and reproduces on `P`'s smooth positive part, `½(P + √(P² + ε²))`, with `ε` = 1e-4 against a `P` of tens. So growth, fecundity and the storage flow's slope turn within about 5 s of model time at the median crossing.
+   - Cash–Karp's error estimate misses the error of a step across that turn. In the ten intervals where the offspring error grows most, 14 of the 15 steps across a sign change have a true error over twice their estimate (median 4.6 times), against 4% of the 94 others, and they carry 81% of the offspring error.
+   - Refusing a step longer than 0.05 days across a sign change makes `J` follow the tolerance: −3.1e-4, −1.1e-4, −2.3e-5, +5e-7 and −5.8e-6 at 1e-3 … 1e-5, against its own 1e-6 (12.668784, 1.2e-5 above Cash–Karp's).
+   - Refusing the same steps where `P` crosses 3 instead does not: −4.8e-5 at 3e-4 and −2.1e-4 at 1e-4.
+   - The refusal halves a step until it is short, which costs four times the member evaluations. It locates the cause; it is not the fix.
 5. **The tableau stepper and the stiff block (odelia).** Not built: step 4 killed the stepper. Cash–Karp's constants and hand-written sums become its tableau first.
    - *Pass:*
      - Cash–Karp bit-identical: odelia's snapshots and the FF16 references;
@@ -574,6 +581,7 @@ void stiff_stage(const S* z, double hgamma, double time, S* theta, S* rate) cons
   - `harness/v12_steps.R`: what sets the step on v12, and the tolerance ladder (§4);
   - `harness/soil_bound.R`: §6's bounds;
   - `harness/ark_prototype.R`: §7's step 4, the three configurations over the tolerance ladder;
+  - `harness/j_error_trace.R`: where `J`'s time error accrues, and the steps across a sign change of net production;
   - §1's table is now `test-mutant.R`.
 - **Measurement notes:**
   - `perf-step-controller.md` §4 and §7;

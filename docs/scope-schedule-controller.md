@@ -1,6 +1,6 @@
 # Scope: exact establishment counts, error maps from the sweep, and a schedule controller
 
-**Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Steps 1–3 of §6 are implemented as aornugent/plant#96, #97 and #95. Step 7, the stepper, was killed at its prototype (`scope-imex-stepper.md` §7, step 4): the soil's stages do not carry `J`'s time error. What does is open (see `handover.md`).
+**Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Steps 1–3 of §6 are implemented as aornugent/plant#96, #97 and #95. Step 7, the stepper, was killed at its prototype (`scope-imex-stepper.md` §7, step 4): the soil's stages do not carry `J`'s time error, and the steps across the members' switch in net production do (see `handover.md`).
 
 This covers the three pieces of the performance design that do not depend on the record:
 - **exact counts**, so cohorts no longer resolve the gate;
@@ -116,7 +116,7 @@ Both come out of the sweep that computes the gradient, at a few percent of its c
 - *Where `λ_{n+1}` comes from.* `sweep_range` holds it when it calls the step.
 - *odelia's change:* the sweep fills one number per recorded step and seed, and the Solver holds the table as it holds `recorded_rates`.
 - *What it is:* a map, not an error. `est_n` estimates the embedded solution's error, which overstates the propagated one. So the map says where the time error sits, and a step-halving run sizes it (§3).
-- *When it can be trusted:* only where `J`'s time error follows the tolerance. On the long-drought stand it stays within 1e-4 of a tol-1e-6 run only from tol 1e-5 (stepper scope §4), and holding the soil's stages inside Cash–Karp's stability, or taking them implicitly, does not change that (§7, step 4).
+- *When it can be trusted:* only where `J`'s time error follows the tolerance. On the long-drought stand it does not, because Cash–Karp's estimate misses the error of steps across the members' switch in net production. With those steps kept short it does (stepper scope §7, step 4).
 
 **Birth date: the value per unit mass at every cohort, and the error of interpolating it.**
 - *The value.* The adjoint of a cohort's mass at its creation row is `T_j = ∂J/∂w_j`: the value of one more unit of recruitment in its hat, the competition channel included.

@@ -103,7 +103,9 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 **Step 4 of the stepper killed it** (`scope-imex-stepper.md` §7, step 4, *Result*). Holding Cash–Karp below the soil's stability limit leaves `J`'s time error as it was, and ARK with the soil implicit saves 9% of member evaluations at matched `J`. Steps 5 and 6 are not built.
 
-**Next session:** find what carries `J`'s time error, then the clean-up. The error sits in the members born before year 3.5, whichever stepper runs, and the kill line points at the pools' gate slope and the members' switches.
+**What carries `J`'s time error is found** (stepper scope §7, step 4, *Result*): the steps across which a member's net production changes sign. TF24 takes the positive part of net production with `ε` = 1e-4, so growth and reproduction switch off in seconds as a drying soil takes production below zero. Cash–Karp's error estimate misses a step across that switch by a factor of about 4, and `J` does not follow the tolerance. Keep such steps under 0.05 days and it does.
+
+**Next session: choose how to remove that error, then the clean-up.** It is a model decision or a solver feature (*Next session*, 1).
 
 Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted. The code review was scoped to #96 and #97, and is done; the rest of the stack was not reviewed under the `code-review` skill.
 
@@ -134,6 +136,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - A layer's relaxation rate falls with its moisture, so after rain the soil relaxes as fast as it changes, and an implicit layer gains no step. ARK's embedded estimate misses the error of its longer steps there: 11.5 times the tolerance against 0.75 on one.
 - ARK throws more than Cash–Karp at every tolerance, as stepper §4's risks expected of its longer steps.
 
+**What carries `J`'s time error**, traced back from `J` (stepper scope §7, step 4, *Result*).
+- `J` → the members' offspring integrals → the dry legs of t = 12–20 → the steps across which a member's net production changes sign → the positive part's kink at `ε` = 1e-4.
+- The test: capping those steps at 0.05 days makes `J` follow the tolerance. The control, the same cap where production crosses 3, does not.
+
 ## Done before
 
 - **Steps 1–3 of the plan**, rebased onto #94, and the review of #96 and #97. Each issue, and the stepper scope's *Result* sections, record them. TF24 is v12, and throws fell 759 → 149.
@@ -142,12 +148,11 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Next session
 
-**1. What carries `J`'s time error** (stepper scope §7, step 4's kill line).
-- **What is known.** Cash–Karp's `J` error is +2.5e-3 at 3e-3, −2.4e-4 at 1e-3, +1.0e-3 at 3e-4 and +8.2e-4 at 1e-4, and within 1e-4 only from 1e-5. Members born before year 3.5 carry it: +8.6e-4 of +8.2e-4 at 1e-4. u429's errors are alike: +4.9e-4 at 1e-3, +8.1e-4 at 1e-4.
-- **What is ruled out.** The soil's stability limit: with each step held to 0.8β the error still does not converge, and from 3e-4 down it is unchanged. The soil's clamps: ARK's stages cross none from 1e-3 down, and its error still does not follow the tolerance below 1e-4.
-- **Candidates**, from the kill line: the pools' gate, `G(r)` of width 0.1 about `a_st2` = 0.1, and the members' switches, such as reproduction's logistic in height about `hmat`.
-- **The tool.** `harness/ark_prototype.R` walks the schedule from R and reproduces the SCM bit for bit, so a candidate is tested by a variant of its step: hold the step below the candidate's own time scale, or record where the error accrues in time, as T5 did on v11.
-- **References:** Cash–Karp at tol 1e-6 gives 12.668636519 on u108 (23 188 steps) and 12.737409168 on u429 (23 629 steps, 9.3 min).
+**1. Remove the switch's error.** Two routes, and the choice is the user's.
+- **The model.** Widen the positive part's smoothing to the scale of each member's production, so the switch takes as long as the steps. `ε` = 1.9 kg/yr would spread the median crossing over a day, but a fixed `ε` that wide adds `ε/2` of production to a seedling, so it would be relative. `J` and `dJ/dθ` move, as a declared model change.
+- **The solver.** A System declares the functions whose sign changes switch its rates, here each member's `P`, and the stepper ends a step where one changes sign. A 1e-4 run meets 921 such events at a quarter-day window and 3241 at 0.05 days, against 11 813 steps.
+- **What either buys.** With the switch resolved, Cash–Karp's `J` is 2.3e-5 from its converged value at tol 1e-4, where today it is within 1e-4 only from 1e-5. That is 4.64e6 member evaluations against 6.41e6, 28% fewer, before the events' cost. And the error maps and the time controller (controller scope §2, §6) need a `J` that follows the tolerance.
+- **The tool.** `harness/ark_prototype.R` with `SWITCH_DAYS`, and `harness/j_error_trace.R`. The converged `J` on u108 is 12.668784361, from the capped run at 1e-6. Cash–Karp's own 1e-6 is 12.668636519, and u429's is 12.737409168.
 
 **2. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
@@ -171,7 +176,7 @@ The plan is `scope-schedule-controller.md` §6:
 | 3 | Forward passes store their own rows (stepper §2.3) | done, #95 |
 | 4 | Exact counts (controller §1) | PR #94, open; the stack is on it |
 | 5–6 | Error maps, the schedule controller | not started |
-| 7 | The stepper (stepper §7, steps 4–6) | killed at step 4, its prototype (stepper §7) |
+| 7 | The stepper (stepper §7, steps 4–6) | killed at step 4, its prototype; `J`'s time error traced to the members' switch (stepper §7) |
 | 8 | The time controller | not started |
 
 ## Traps
@@ -186,6 +191,7 @@ The plan is `scope-schedule-controller.md` §6:
 - *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the offset lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
 - *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
 - *A correction put on the tape must be zero in value:* the implicit stage is `Y* − M·(G − to_passive(G))`. `Y* − M·G(Y*)` moves the stage by Newton's residual, and the sweep would no longer repeat the run's values.
+- *A switch in the rates is invisible to the error estimate:* TF24's positive part of net production turns growth and reproduction off within seconds of model time. A Cash–Karp step across it reports about a quarter of its error, so a run's `J` does not follow its tolerance.
 - *The soil has no fast mode to take implicitly:* drainage goes as `θ^16.14`, so after rain a layer's relaxation rate is about one over the time since the rain. ARK's longer steps there are inaccurate, and on one its embedded estimate put the top layer's error at a fifteenth of its size.
 - *A lambda returning an active product needs `-> value_type`:* a deduced return type hands back an expression template over dead operands, and the value comes out right while the derivative reads freed memory.
 
