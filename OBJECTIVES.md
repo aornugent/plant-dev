@@ -15,13 +15,16 @@ spacing in birth date.
 - **(a) The error follows its knob.** Along a ladder, `J`'s error falls at the
   axis's order (time with `tol`, the schedule with the spacing squared), with a
   constant stable within about ×3.
-- **(b) The error is not a draw.** A small nudge to the knob (`tol` ±3%, or the
-  schedule shifted by a fraction of a spacing) moves `J` by at most a tenth of the
-  error the knob is set for. This also bounds how far `J` jumps when a grid is
-  rebuilt during an optimisation.
+- **(b) The error is not a draw.** A nudge to the knob (`tol` within ±5%, or the
+  schedule shifted by a quarter of a spacing) moves `J` by at most a tenth of the
+  error budget the setting is chosen for. This is also what limits how far `J`
+  jumps when a grid is rebuilt during an optimisation.
 - **(c) The grid transfers.** A grid built at `θ₀` still passes (a) and (b) at
-  `θ₀ ± Δ`, and for an invader whose traits are offset by `Δ`. No stage leaves
-  the model's domain and nothing throws.
+  every `θ` within `Δ` of `θ₀` (`|ln θ_k − ln θ₀,k| ≤ Δ` in each parameter), and
+  for invaders within `Δ` of the resident. No stage leaves the model's domain and
+  nothing throws. The largest such `Δ` is the grid's trust radius.
+
+The tests apply to the gradients as well as to `J`.
 
 Designs judged on dynamics that fail these are judged against chance. The
 stepper was measured where `J` was a draw at every tolerance, and a schedule
@@ -30,11 +33,12 @@ rebuilt at a new `θ` was worse at all four points tried.
 ## Then: the goals
 
 1. **Resident gradients on a fixed grid.** Away from an optimum, relative error
-   at most 0.3 (Carter; below 1 for descent). Near one the gradient goes to zero,
-   so bound the error in the optimum's location, `|H⁻¹·δg|`, against the
-   precision wanted in `θ`.
-2. **One grid per rainfall record, shared across `θ` and by invaders, within a
-   trust radius that a check on every run reports.**
+   at most 0.3 (Carter 1991; below 1 for descent). Near one the gradient goes to
+   zero, so bound the error in the optimum's location, `|H⁻¹·δg|` with `H` the
+   objective's Hessian and `δg` the gradient's error, against the precision
+   wanted in `θ`.
+2. **One grid per rainfall record, shared across `θ` and by invaders, within its
+   trust radius, which a check on every run reports.**
    - The selection gradient is taken at the resident's traits, where the invader
      runs on the resident's own grid, so goal 1 applies.
    - The radius covers the rest: invaders across a trait range, fitness

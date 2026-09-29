@@ -347,7 +347,8 @@ kink_estimate <- function(h, a) {
   r <- sv$y[pool] / capacity(sv$y)[f]
   G <- 1 / (1 + exp(-(r - pars$a_st2) / 0.1))
   u <- sv$P[f] / (sv$P[f] - a$P[f])
-  jump <- ((1 - G) * (1 - r) + r) * abs(a$P[f] - sv$P[f]) / h
+  # The pool's rate has slope (1 - G)(1 - r) in P above zero and r below.
+  jump <- abs((1 - G) * (1 - r) - r) * abs(a$P[f] - sv$P[f]) / h
   est <- h^2 * jump * abs(vapply(u, kink_kernel, 0))
   yerr <- a$yerr
   yerr[pool] <- pmax(abs(yerr[pool]), est)
