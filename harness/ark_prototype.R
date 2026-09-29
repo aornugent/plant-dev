@@ -10,7 +10,8 @@
 #     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0]] \
 #     [EVENTS=1 [EVENT_ETA=1e-3] [EVENT_RESTART=0.05] [CLASS_EVENTS=1]] [LOCAL=1] \
 #     [TOL_POOL=0.01] [TOL_POOL_ABS=0.01] [POOL_FLOOR=1e-3] [KINK_EST=1] \
-#     [CROSS_RESTART=0.1] Rscript harness/ark_prototype.R
+#     [CROSS_RESTART=0.1] [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
+#     Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
 # nodes and tolerance, which METHOD=ck reproduces bit for bit. STATES keeps the
@@ -23,7 +24,10 @@
 # else at the proposal the retaken step started with. LOCAL re-integrates each
 # member whose net production changes sign within an accepted step on its own,
 # split at the crossing. TOL_POOL scales the storage pools' tolerance weights,
-# and TOL_POOL_ABS only their absolute part. POOL_FLOOR replaces a pool's absolute
+# and TOL_POOL_ABS only their absolute part. PROGRAM replays the accepted steps of
+# an OUT file exactly, with no control, and THETA with THETA_REL scales that
+# strategy parameter (or the trait lma) by 1 + THETA_REL: together they give J
+# on a frozen grid. POOL_FLOOR replaces a pool's absolute
 # part by that fraction of 0.05 of its capacity. KINK_EST raises the pool's
 # estimate on a step across its switch to the switch's straddling error, and
 # CROSS_RESTART caps the proposal after such a step at that many days.
@@ -55,7 +59,14 @@ capacity <- function(y) {
 pulses <- sort(unique(AK))
 p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
-p <- add_strategies(p, trait_matrix(LMA0, "lma"))
+THETA <- Sys.getenv("THETA")
+THETA_REL <- if (nzchar(THETA)) as.numeric(Sys.getenv("THETA_REL")) else 0
+if (nzchar(THETA) && THETA != "lma") {
+  s <- p$strategy_default; sp_pars <- s$pars
+  sp_pars[[THETA]] <- sp_pars[[THETA]] * (1 + THETA_REL)
+  s$pars <- sp_pars; p$strategy_default <- s
+}
+p <- add_strategies(p, trait_matrix(LMA0 * if (THETA == "lma") 1 + THETA_REL else 1, "lma"))
 pars <- p$strategies[[1]]$pars
 p$node_schedule_times <- list(times)
 ct <- control()
@@ -471,6 +482,7 @@ if (sys.nframe() == 0L) {
   # SCM::run: each introduction is an entry, and the zero pulses between entries
   # are targets the steps land on.
   t_start <- proc.time()[["elapsed"]]
+  program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st else NULL
   sv$t <- 0
   sv$h_last <- ct$ode_step_size_initial
   for (k in seq_along(times)) {
@@ -481,6 +493,15 @@ if (sys.nframe() == 0L) {
     sv$P <- production(sv$y)
     sv$K <- klass(sv$y)
     t_end <- if (k < length(times)) times[k + 1] else LIFETIME
+    if (!is.null(program)) {
+      for (i in which(program$time > sv$t & program$time <= t_end)) {
+        a <- attempt(sv$t, sv$y, sv$dydt, program$h[i])
+        if (is.null(a)) stop(sprintf("a pinned step raised at t = %.17g", sv$t))
+        steps$k <- steps$k + 1L
+        sv$t <- program$time[i]; sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P
+      }
+      next
+    }
     for (target in c(pulses[pulses > sv$t & pulses < t_end], t_end)) {
       while (sv$t < target) step(target)
     }
