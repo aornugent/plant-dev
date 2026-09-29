@@ -586,4 +586,4 @@ void stiff_stage(const S* z, double hgamma, double time, S* theta, S* rate) cons
 - **Measurement notes:**
   - `perf-step-controller.md` §4 and §7;
   - `perf-rhs-profile.md` §3–4.
-- **The consult:** T1–T9 of `oracle-consultation-solver-performance.md`.
+- **The consult:** T1–T9 of `oracle-consultation-solver-performance.md` as it stood at `0acfa2a`, measured on v11. The current statement renumbers its measurements.

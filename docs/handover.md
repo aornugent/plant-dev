@@ -105,7 +105,7 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 **What carries `J`'s time error is found** (stepper scope §7, step 4, *Result*): the steps across which a member's net production changes sign. TF24 takes the positive part of net production with `ε` = 1e-4, so growth and reproduction switch off in seconds as a drying soil takes production below zero. Cash–Karp's error estimate misses a step across that switch by a factor of about 4, and `J` does not follow the tolerance. Keep such steps under 0.05 days and it does.
 
-**Next session: choose how to remove that error, then the clean-up.** It is a model decision or a solver feature (*Next session*, 1).
+**Next session: the Oracle, then how to remove that error, then the clean-up.** `oracle-consultation-solver-performance.md` is rewritten around the time integration as it now stands, and asks whether this is a known class of problem with standard treatments (*Next session*, 1).
 
 Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted. The code review was scoped to #96 and #97, and is done; the rest of the stack was not reviewed under the `code-review` skill.
 
@@ -148,13 +148,15 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Next session
 
-**1. Remove the switch's error.** Two routes, and the choice is the user's.
+**1. The Oracle.** The statement is `oracle-consultation-solver-performance.md`, written by `oracle-consultation-guide.md`: the system's and the solver's dynamics, v12's measurements, the refutation of the earlier reply's first prediction, and open questions. The creation schedule and the optimisation across `θ` are left out. Record the reply verbatim beside it, then reduce each claim in it to the smallest run of `harness/ark_prototype.R` that confirms or kills it, before building anything (the guide, §7).
+
+**2. Remove the switch's error.** Two routes, and the choice is the user's, after the Oracle.
 - **The model.** Widen the positive part's smoothing to the scale of each member's production, so the switch takes as long as the steps. `ε` = 1.9 kg/yr would spread the median crossing over a day, but a fixed `ε` that wide adds `ε/2` of production to a seedling, so it would be relative. `J` and `dJ/dθ` move, as a declared model change.
 - **The solver.** A System declares the functions whose sign changes switch its rates, here each member's `P`, and the stepper ends a step where one changes sign. A 1e-4 run meets 921 such events at a quarter-day window and 3241 at 0.05 days, against 11 813 steps.
 - **What either buys.** With the switch resolved, Cash–Karp's `J` is 2.3e-5 from its converged value at tol 1e-4, where today it is within 1e-4 only from 1e-5. That is 4.64e6 member evaluations against 6.41e6, 28% fewer, before the events' cost. And the error maps and the time controller (controller scope §2, §6) need a `J` that follows the tolerance.
 - **The tool.** `harness/ark_prototype.R` with `SWITCH_DAYS`, and `harness/j_error_trace.R`. The converged `J` on u108 is 12.668784361, from the capped run at 1e-6. Cash–Karp's own 1e-6 is 12.668636519, and u429's is 12.737409168.
 
-**2. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
+**3. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
 - `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).

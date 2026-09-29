@@ -1,7 +1,8 @@
 # Oracle response: performance at fixed accuracy
 
-Reply to `oracle-consultation-solver-performance.md`, captured verbatim. The tests it
-proposes, and what to check before building on it, are in `docs/handover.md`.
+Reply to `oracle-consultation-solver-performance.md` as it stood at `0acfa2a`, captured
+verbatim; its labels are that version's. Its first test is refuted: the additive pair
+does not make `J` follow the tolerance (the current statement, T7).
 
 ---
 
