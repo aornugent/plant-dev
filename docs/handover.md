@@ -136,7 +136,7 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Done last session
 
-All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Karp at 1e-8). The consult's T0–T16 hold the numbers.
+All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Karp at 1e-8). The consult's T0–T17 hold the numbers.
 
 **The true `J`.** Cash–Karp at 1e-7 is 4.5e-8 from `J*`, and T5's refusal with a 0.005-day cap at 1e-7 is 6.3e-7. The old reference, Cash–Karp at 1e-6, is −6.1e-6, so the step-4 conclusions stand.
 
