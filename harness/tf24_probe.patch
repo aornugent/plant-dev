@@ -1,8 +1,8 @@
 diff --git a/inst/include/plant/models/tf24_strategy.h b/inst/include/plant/models/tf24_strategy.h
-index afe60370..a5e073ed 100644
+index afe60370..1a9ef48d 100644
 --- a/inst/include/plant/models/tf24_strategy.h
 +++ b/inst/include/plant/models/tf24_strategy.h
-@@ -1296,7 +1296,9 @@ public:
+@@ -1296,11 +1296,13 @@ public:
    // differentiable. storage_prod_eps smooths the positive-part of net production
    // (replacing the old hard net>0 growth cutoff) for AD-readiness.
    double storage_gate_width = 0.1;
@@ -13,6 +13,11 @@ index afe60370..a5e073ed 100644
    // How far below empty the storage pool may sit before the solver is told the
    // step is invalid, as a fraction of capacity. A draining cohort approaches the
    // boundary, so this separates round-off there from a real excursion.
+-  double storage_domain_tol = 1e-8;
++  double storage_domain_tol = std::getenv("TF24_DOMAIN_TOL") ? std::atof(std::getenv("TF24_DOMAIN_TOL")) : 1e-8;
+ 
+   // The clamp sites this strategy reaches; the list itself is shared with the
+   // environment, which reaches the others.
 @@ -1940,7 +1942,7 @@ void TF24_Strategy<S>::compute_rates(const TF24_Environment<S>& environment,  In
    // The leaf's own temperature at the operating point, not the `leaf_temp`
    // driver -- see aux_names(). Equal to the driver while pars.use_energy_balance

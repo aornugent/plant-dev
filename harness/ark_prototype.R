@@ -31,6 +31,9 @@
 # part by that fraction of 0.05 of its capacity. KINK_EST raises the pool's
 # estimate on a step across its switch to the switch's straddling error, and
 # CROSS_RESTART caps the proposal after such a step at that many days.
+# KINK_EST=all raises the coordinate's, output's and offspring's estimates the
+# same way. On a PROGRAM replay, CROSS_LOG saves each crossing of zero by a
+# member's P, and SPLIT takes the rows SPLIT_ROWS names as that many steps.
 # Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
@@ -113,6 +116,8 @@ LOCAL <- nzchar(Sys.getenv("LOCAL"))
 TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
 POOL_FLOOR <- if (nzchar(Sys.getenv("POOL_FLOOR"))) as.numeric(Sys.getenv("POOL_FLOOR")) else NA
 KINK_EST <- nzchar(Sys.getenv("KINK_EST"))
+KINK_ALL <- Sys.getenv("KINK_EST") == "all"
+SPLIT <- as.integer(Sys.getenv("SPLIT", "1"))
 CROSS_RESTART <- if (nzchar(Sys.getenv("CROSS_RESTART"))) as.numeric(Sys.getenv("CROSS_RESTART")) / 365 else NA
 TOL_POOL_ABS <- as.numeric(Sys.getenv("TOL_POOL_ABS", "1"))
 WINDOW <- 1e-5
@@ -349,10 +354,22 @@ kink_estimate <- function(h, a) {
   u <- sv$P[f] / (sv$P[f] - a$P[f])
   # The pool's rate has slope (1 - G)(1 - r) in P above zero and r below.
   jump <- abs((1 - G) * (1 - r) - r) * abs(a$P[f] - sv$P[f]) / h
-  est <- h^2 * jump * abs(vapply(u, kink_kernel, 0))
+  K <- abs(vapply(u, kink_kernel, 0))
   yerr <- a$yerr
-  yerr[pool] <- pmax(abs(yerr[pool]), est)
-  list(yerr = yerr, pool = pool)
+  yerr[pool] <- pmax(abs(yerr[pool]), h^2 * jump * K)
+  raised <- pool
+  if (KINK_ALL) {
+    # The coordinate's, output's and offspring's rates are P+ G times a factor,
+    # so their slope in P jumps by rate / P, read at the end where P > 0.
+    pos <- sv$P[f] > 0
+    P_pos <- ifelse(pos, sv$P[f], a$P[f])
+    for (i in list(pool - 5, pool - 3, pool + 1)) {
+      rate <- ifelse(pos, sv$dydt[i], a$rates[i])
+      yerr[i] <- pmax(abs(yerr[i]), h * abs(rate / P_pos) * abs(a$P[f] - sv$P[f]) * K)
+      raised <- c(raised, i)
+    }
+  }
+  list(yerr = yerr, pool = raised)
 }
 
 # OdeControl::adjust_step_size and reject_step. `shrank` persists between
@@ -484,6 +501,9 @@ if (sys.nframe() == 0L) {
   # are targets the steps land on.
   t_start <- proc.time()[["elapsed"]]
   program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st else NULL
+  split_rows <- if (nzchar(Sys.getenv("SPLIT_ROWS"))) unique(readRDS(Sys.getenv("SPLIT_ROWS"))$row) else integer()
+  crossings <- list()
+  replay <- list(ratio_max = 0, over = 0, depth = Inf)
   sv$t <- 0
   sv$h_last <- ct$ode_step_size_initial
   for (k in seq_along(times)) {
@@ -496,10 +516,22 @@ if (sys.nframe() == 0L) {
     t_end <- if (k < length(times)) times[k + 1] else LIFETIME
     if (!is.null(program)) {
       for (i in which(program$time > sv$t & program$time <= t_end)) {
-        a <- attempt(sv$t, sv$y, sv$dydt, program$h[i])
-        if (is.null(a)) stop(sprintf("a pinned step raised at t = %.17g", sv$t))
-        steps$k <- steps$k + 1L
-        sv$t <- program$time[i]; sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P
+        n_sub <- if (i %in% split_rows) SPLIT else 1L
+        for (k in seq_len(n_sub)) {
+          h <- program$h[i] / n_sub
+          a <- attempt(sv$t, sv$y, sv$dydt, h)
+          if (is.null(a)) stop(sprintf("a pinned step raised at t = %.17g", sv$t))
+          f <- which(sign(a$P) != sign(sv$P))
+          if (length(f)) crossings[[length(crossings) + 1]] <- data.frame(row = i, member = f,
+            t = sv$t + h * sv$P[f] / (sv$P[f] - a$P[f]), down = sv$P[f] > 0, h = h)
+          invisible(adjust(h, a$y, a$yerr, a$rates))
+          replay$ratio_max <- max(replay$ratio_max, ctl$ratio)
+          replay$over <- replay$over + (ctl$ratio > 1.1)
+          replay$depth <- min(replay$depth, min(a$y[pool_of(a$y)] / capacity(a$y)))
+          steps$k <- steps$k + 1L
+          sv$t <- if (k == n_sub) program$time[i] else sv$t + h
+          sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P
+        }
       }
       next
     }
@@ -508,6 +540,11 @@ if (sys.nframe() == 0L) {
     }
   }
   secs <- proc.time()[["elapsed"]] - t_start
+  if (!is.null(program)) {
+    cat(sprintf("replayed %d steps: error ratio at most %.3g, above 1.1 on %d; deepest pool %.3g of capacity\n",
+                steps$k, replay$ratio_max, replay$over, replay$depth))
+    if (nzchar(Sys.getenv("CROSS_LOG"))) saveRDS(do.call(rbind, crossings), Sys.getenv("CROSS_LOG"))
+  }
 
   # Species::offspring_production, on the state the last evaluation set.
   sp <- patch$species[[1]]
