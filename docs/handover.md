@@ -149,10 +149,26 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Next session
 
-**1. Step 4, the prototype driven from R** (stepper scope §7). A plant-dev harness; no package changes.
-- The build runs v12 with zero pulses as step targets: `PLANT-96` and `PLANT-97` merged over `PLANT-95` in a local branch, not pushed (*Setup*).
-- One driver walks the SCM's schedule with odelia's controller law, in three configurations: Cash–Karp, reproducing the SCM bit for bit first; Cash–Karp held at 0.8β of the soil's stability; ARK4(3)6L[2]SA with the damped block Newton.
-- The reference is Cash–Karp at tol 1e-6: 12.668637 on u108, at 23 188 steps.
+**1. Step 4, the prototype driven from R** (stepper scope §7). A plant-dev harness, `harness/ark_prototype.R`; no package changes.
+- **The build** runs v12 with zero pulses as step targets: `PLANT-96` and `PLANT-97` merged over `PLANT-95` in a local branch, not pushed (*Setup*).
+- **One driver, three configurations:** Cash–Karp, which must reproduce the SCM bit for bit on u108 first; Cash–Karp held at 0.8β of the soil's stability; ARK4(3)6L[2]SA with stepper §4's damped block Newton.
+- **What it drives:** `plant:::Patch("TF24", "TF24_Env")(p, env, ctrl)`, with `$introduce_new_node(1L, t)` at each introduction, `$derivs(y, t)` for every evaluation, and `$ode_state_valid(y)` for a refused end state.
+  - On the birth-date coordinate the state is nine entries per node, then the environment's ten: five soil layers, then five flux accumulators.
+  - `harness/soil_bound.R` already takes Cash–Karp's step in R with the solver's arithmetic, and reproduces its error ratio at every step.
+  - The ARK tableau is `harness/ark436.R`'s `AE`, `AI`, `b`, `d` and `c`.
+- **The controller law to reproduce** (`OdeControl::adjust_step_size`, `SolverInternal::step`):
+  - each component's weight is `tol_rel·|y| + tol_abs`, and the ratio is the largest `|yerr|` over its weight;
+  - a non-finite ratio, a stage that raises `DomainError` or a refused end state retries at 0.2h;
+  - over 1.1, the size becomes `h·max(0.2, 0.9 r^(−1/ord))`, floored at the minimum, and a step that cannot shrink is accepted at the minimum;
+  - under 0.5, it becomes `h·min(5, max(1, 0.9 r^(−1/(ord+1))))`, capped at the maximum; otherwise it stays;
+  - a step clipped to reach a target lands on it exactly, and leaves the carried proposal as it was;
+  - `ord` is 5 for Cash–Karp and 4 for ARK.
+- **The soil's stiff rates in R**, as `TF24_Environment::compute_rates` has them:
+  - the rain is floored at zero, and the infiltration is `rain·max(0, 1 − (θ₁/θ_s)^8)`;
+  - the drainage is `K_sat·(clamp(θ, 0, θ_s)/θ_s)^(2·6.57 + 3)`, and a layer's stiff rate is `(in − K)/Δz`;
+  - `K_sat` is 163.0411, `θ_s` 0.428 and `Δz` 0.3.
+- **Open:** `J` at the driver's end. `net_reproduction_ratio_for_species` is the SCM's, not the Patch's; find its birth-date formula, or an R accessor for it.
+- **References:** Cash–Karp at tol 1e-6 gives 12.668637 on u108, at 23 188 steps; the ladder is in stepper §4. u429's is not measured yet: `NODES=429 TOL=1e-6 Rscript harness/v12_steps.R` takes about 10 minutes.
 - The pass and kill lines are §7's.
 
 **2. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
@@ -218,7 +234,7 @@ done
 - odelia builds in 26 s and plant in about 3 min. After an odelia edit, reinstall plant with `--preclean`: it compiles odelia's headers and does not track them.
 - A new value exposed to R needs an entry in `inst/RcppR6_classes.yml` and `RcppR6::RcppR6()` before the rebuild.
 - `offspring-adjoint` builds the same way, into a second library, against odelia `be3e2cb`. `PLANT-96` and `PLANT-97` build as `PLANT-95` does.
-- Step 4's build merges the two: `git -C plant worktree add -b v12-targets $DEV/v12t origin/PLANT-95`, then `git -C $DEV/v12t merge origin/PLANT-96 origin/PLANT-97`, keeping both `NEWS.md` entries, and install it into its own library.
+- Step 4's build merges the two, one at a time: `git -C plant worktree add -b v12-targets $DEV/v12t origin/PLANT-95`, `git -C $DEV/v12t merge origin/PLANT-96` (a fast-forward), then `git -C $DEV/v12t merge origin/PLANT-97`, keeping both `NEWS.md` entries in the one conflict. Install odelia05, phylloptim09 and `$DEV/v12t` into a library of their own, as above.
 
 **Tests** run from `$DEV/stack` with `TESTTHAT_PARALLEL=false`, by AGENTS.md's tiers: `testthat::test_file("tests/testthat/test-mutant.R", package = "plant", load_package = "installed")` after `library(odelia)`. odelia's run from `$DEV/odelia05` with `test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
 
