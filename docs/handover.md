@@ -121,7 +121,12 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 - on u108 at v12, of invaders at lma × 0.95 to × 1.05 only × 0.99 runs on a resident at tol 1e-3, and all run at tol 1e-4. Under a 3.5-day cap at tol 1e-3, × 0.8 to × 1.5 run. The failures sit at the ends of long dry stretches, where the oldest pools are near empty (`docs/archive/scope-imex-stepper.md` §3);
 - the node schedule transferred: 180 nodes built at θ₀ held within 8.8e-4 across lma.
 
-**The Oracle has a follow-up**, the consult's *Follow-up, after the reply*. It reports the second reply's proposals measured, the gradients, the objectives and what is known of (c). Its reply is awaited.
+**The Oracle's third reply** (`oracle-response-solver-performance.md`) answers the consult's *Follow-up, after the reply*. Its cheapest predictions are tested (*Done last session*):
+- the gradient's error sits on the steps across the crossings of `P` = 0 and falls with their size, not with tol. Confirmed;
+- a per-member grid at tol 1e-4, pinned across lma, keeps `J` within 1e-4 from × 0.9 to × 1.2. Confirmed; a stage throws at × 0.8;
+- relaxing the pool's guard lets invaders run. Partly: × 0.9 to × 1.05 run at tol 1e-3;
+- the coordinate's and outputs' kinks explain why the first kink factor was steadiest. Refuted.
+Its reframing of the objectives, that the gradient follows the step across the crossings rather than tol, is proposed to the user and not yet in `OBJECTIVES.md`.
 
 **The two scopes are archived** in `docs/archive/`. Steps 1–3 of their plan are [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), rebased onto #94. #97's model change is accepted, and the code review covered #96 and #97.
 
@@ -179,6 +184,14 @@ For a_dG2 (reference 13.37): Cash–Karp −2.2e-2, +7.1e-4 and +6.1e-3 at 1e-3,
 
 **The objectives.** The four criteria were reworked with the user into `OBJECTIVES.md`. Why the grid is fixed came from the earlier consults: the sweep differentiates the discretised model and the controller is not differentiated, so an adaptive grid makes `J` jump in θ. The scopes were archived and the Oracle's follow-up written.
 
+**The third reply, tested.** On u108 with `harness/ark_prototype.R`; `CROSS_LOG`, `SPLIT` and `SPLIT_ROWS` on a `PROGRAM` replay, `KINK_EST=all`, and the probe build's `TF24_DOMAIN_TOL`.
+- **The gradient's error is on the crossing steps.** On Cash–Karp's grid at 1e-3, 305 of 9312 steps cross `P` = 0. Splitting only those into k equal steps takes `dJ/d ln lma`'s error from −6.1e-3 to −2.6e-3 and −2.5e-5 (k = 2, 4), and `dJ/d ln a_dG2`'s from −2.2e-2 to −9.4e-3, −4.5e-3 and −9.6e-4 (k = 2, 4, 8), for 3%, 10% and 23% more steps. On the pool scale's grid at 1e-4 (869 crossing steps), a_dG2's goes from +9.9e-4 to −1.9e-5 at k = 2; lma's stays at +2–5e-4, the reference's own level.
+- **Crossings move with θ** (the pair's grid at 1e-3, θ × (1 ± 1e-2)): downward ones by a median 17 days per unit `ln lma` (10–90%: 3.8–40) and 8.5 per unit `ln a_dG2`; upward ones by 0.19 and 0.05 days. The reply estimated 9 and 0.6 for lma.
+- **The four-component kink estimate** (`KINK_EST=all`, with the restart): the seven nudges around 3e-4 have sd 2.4e-5, against 6.8e-6 with the first factor and 2.9e-5 pool-only, at the same cost. The reply predicted it would match the first factor.
+- **Transfer.** The pool scale's grid (`c` = 1e-4, tol 1e-4) pinned at lma × 0.9, 0.95, 1.05, 1.1 and 1.2 is +6.6e-5, −1.4e-5, −1.2e-5, +5.2e-5 and −3.3e-5 from a reference at each point (the full setting at 3e-5); adaptive runs there are within 2.5e-5. At × 0.8 a stage throws at t = 3.48, with the guard relaxed or not. The re-formed error ratio reaches 27–65, on 96–302 steps, at every point, so it is no check on `J`.
+- **Cash–Karp's grid at 1e-3 at θ × (1 ± 1e-2)** already has re-formed ratios of 6–8 on 10–22 steps.
+- **Invaders with the guard at −1e-4·S_max** (probe build, tol 1e-3): lma × 0.9 to × 1.05 all run, against × 0.99 alone at −1e-8; × 1.1, 1.2 and 1.5 still fail. Their `J′` is smooth: its log-slope drifts from −12.6 to −21.3 over × 0.9 to × 1.05. The resident's `J` moves by 1.4e-6 relative.
+
 **The first reply's tests and the root cause**, from earlier in the session, are in the consult (T0–T17): the treatments that step onto the switch fail, the true `J`, the channel split, and the pools' errors near empty.
 
 ## Done before
@@ -190,16 +203,14 @@ For a_dG2 (reference 13.37): Cash–Karp −2.2e-2, +7.1e-4 and +6.1e-3 at 1e-3,
 
 ## Next session
 
-**1. Test the Oracle's reply to the follow-up**, each claim by its cheapest measurement on the driver, before anything is built.
+**1. Settle the objectives' revision with the user.** The reply's reading, now measured: `J` follows tol and the step across the crossings, and the gradient follows only the latter. The re-formed ratio does not check a transferred grid.
 
-**2. Measure objective (c) on u108**, unless the reply redirects it.
-- Replay θ₀'s grids (Cash–Karp at 1e-4; the pool scale and the full setting at 3e-4) with `PROGRAM` at lma and a_dG2 × {0.9, 0.95, 1.05, 1.1, 1.25}. Compare each against an adaptive run at that point with the full setting at 3e-5.
-- Report `J`'s and `dJ/dθ`'s error, the error ratio re-formed on the replayed steps, the stages below the pool's guard, and the subdivision of θ₀'s steps that restores tolerance.
-- The driver's replay reports no error ratio yet, and stops where a stage throws.
-- Then invaders, which need the driver to replay a recorded field, and then a second record.
-- The tools are `harness/ark_prototype.R` (`PROGRAM`, `THETA`, `THETA_REL`, `POOL_FLOOR`, `KINK_EST`, `CROSS_RESTART`) and `harness/error_channels.R`.
+**2. Test event zones**, the reply's least change, on the driver before anything is built.
+- The rule: the pool scale, with every step across a sign change of `P` capped at `h_e` = 0.5–2 days (T5's refusal with `P_c` = 0).
+- Measure the nudge spread around 3e-4, the cost, the gradient on its grid, and its grid pinned across lma × 0.8 to × 1.2, `J` and the gradient.
+- Find why a stage throws at lma × 0.8, t = 3.48, on the pool scale's grid.
 
-**2. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
+**3. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
 - `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).
