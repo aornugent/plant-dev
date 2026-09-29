@@ -1,5 +1,7 @@
 # Scope: an implicit–explicit stepper for TF24
 
+**Archived (September 2026).** `OBJECTIVES.md` replaced the goals this was written for. What was built from it is aornugent/plant#94–#97, and `docs/handover.md` holds the current state.
+
 **Status (September 2026):** §2.1, §2.3 with its extension to events (R6), and §3's option A are implemented, as aornugent/plant#96, #95 and #97. A's model change is accepted. §4–§6 are the stepper's design, decided September 2026 against the Appendix's alternative, and §7's step 4 killed it: the soil's stages do not carry `J`'s time error, and ARK saves 9% of member evaluations at matched `J` (§7, step 4, *Result*). The members' pools carry it: near empty their error is not controlled by the tolerance, and it reaches `J` through the members' mortality (`handover.md`, *Done last session*). Steps 5 and 6 are not built. Exact counts are aornugent/plant#94. See `handover.md`.
 
 The design step 4 tested:

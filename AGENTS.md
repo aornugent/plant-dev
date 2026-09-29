@@ -2,6 +2,10 @@
 
 This repository (`aornugent/plant-dev`) is a meta-repository (superproject) used to manage local development across the `traitecoevo` family of R packages: `logpile`, `plant`, `phylloptim`, and `odelia`.
 
+The objectives of the current work, loaded every session; judge every step against them:
+
+@OBJECTIVES.md
+
 ## Session Start (do this first, every session)
 Before doing anything else, add the sibling package repos to the session's GitHub
 scope so their issues and PRs are readable — `git submodule update --init` clones the

@@ -1,5 +1,7 @@
 # Scope: exact establishment counts, error maps from the sweep, and a schedule controller
 
+**Archived (September 2026).** `OBJECTIVES.md` replaced the goals this was written for. What was built from it is aornugent/plant#94–#97, and `docs/handover.md` holds the current state.
+
 **Status (September 2026):** §1 is aornugent/plant#94, open against plant's `develop`. Steps 1–3 of §6 are implemented as aornugent/plant#96, #97 and #95. Step 7, the stepper, was killed at its prototype (`scope-imex-stepper.md` §7, step 4): the soil's stages do not carry `J`'s time error, and the steps across the members' switch in net production do (see `handover.md`).
 
 This covers the three pieces of the performance design that do not depend on the record:
