@@ -1,4 +1,4 @@
-# Time integration of a forced chain and a growing ensemble: accuracy in `J`, and its cost
+# Time integration of a forced chain and a growing ensemble: where the error in `J` comes from, and its cost
 
 ## The problem
 
@@ -18,11 +18,8 @@ time and on every one of the record's 2931 active knots, which are its only stop
 The cost is member evaluations. At every rate evaluation each member solves a nested
 scalar root-finding problem, and the member loop is about 90% of the evaluation's cost.
 
-Two things are observed:
-- the error in `J` does not follow the tolerance: from `tol = 1e-2` to `1e-4` it takes
-  either sign, up to `2.5e-3` relative, and stays within `1e-4` only from `tol = 1e-5`;
-- the chain's components attain the error ratio's maximum on about 90% of accepted
-  steps, whose median ratio is 0.044.
+The error in `J` does not follow the tolerance. From `tol = 1e-2` to `1e-4` it takes either
+sign, up to `2.5e-3` relative, and it is within `1e-4` only from `tol = 1e-5` (T2).
 
 Wanted: `J` to a relative accuracy of about `1e-4` at the least cost, with an error that
 follows the tolerance, and `dJ/dθ` from the sweep converging with it. The creation times
@@ -30,7 +27,8 @@ are held fixed throughout; how many members, and where, is not part of this ques
 
 What follows gives the full model, its discretisation, a list of structural features, the
 measurements and the facts an answer can rely on. The questions are at the end and are
-open.
+open. An earlier version of this statement drew a reply whose proposals are measured
+here (T12–T16).
 
 `δ = T/14 600` is the record's sampling interval, and short times are given in `δ`.
 Rates are per unit time, where `T` is 40 units.
@@ -49,7 +47,9 @@ in_1 = s(t) · max(0, 1 − v_1^8),        in_ℓ = k·clamp(v_{ℓ−1}, 0, 1)^
 
 **The forcing.** `s(t)` is a shape-preserving `C¹` Hermite interpolant of control points
 at spacing `δ`.
-- It is identically zero over quiescent stretches, which are most of the record.
+- It is identically zero over quiescent stretches, which are most of the record. It is
+  positive over 814 pulses, each `2–4δ` long, separated by gaps of median `8δ`; 175 gaps
+  are longer than `20δ`.
 - It contains three long stretches of low forcing, near `t ∈ [7, 10]`, `[18, 22]` and
   `[31, 34]`.
 - Its 2931 active knots are the points where the interpolant's second derivative jumps.
@@ -73,10 +73,13 @@ V̇₁, V̇₂  smooth functions of x alone
 ```
 - `κ`, `S_max` and `ν` are smooth and positive, and `τ_s = 7δ`. The coordinate is scaled
   so that the output switches on at `x = 1`.
-- Around the members' sign changes of `P` (T4), `|P|` at the step ends has median 7.9
-  and 10–90% range 0.0085–42.
-- The pool's rate is `c ≥ 0` at `r = 0` and `−d ≤ 0` at `r = 1`. A guard throws where
-  `S < −1e-8·S_max`.
+- `S_max` grows with `x`. Along the reference run the pools' largest values are 4.6 in the
+  oldest members and 2e-3 in the youngest, in the units in which the state is integrated.
+- The pool's rate is the charge `c(1 − r)` while `P > 0` and the drain `−d·r` while
+  `P < 0`: it switches between them where `P` crosses zero. It is `c ≥ 0` at `r = 0` and
+  `−d ≤ 0` at `r = 1`, and a guard throws where `S < −1e-8·S_max`.
+- `μ` is steepest at an empty pool: `dμ/dr = −μ₁/r₀ = −110` at `r = 0`, and `−15` at
+  `r = 0.1`.
 - A member's density is `n_j = e^{−m_j}`. Its loss rate is parked at zero once `m`
   reaches a ceiling where the density is nil.
 - `σ` is a smooth known function.
@@ -118,9 +121,9 @@ J    = c_J · Σ_j w_j π(b_j) F_j(T)                                   c_J = 0.
     evaluations;
   - two inner scalar root-finds in each of those evaluations, about 6 iterations each;
   - about 50 evaluations per solve of an auxiliary function of `φ_1 … φ_5`.
-- The solution is interior in 85% of solves, at the interval's lower end in 15%, and in
-  one of two terminal classes in under 0.2%. `p_j` is `C⁰` across the switches between
-  classes.
+- At the reference run's accepted states the solution is interior in 96.2% of
+  member-states and at the interval's lower end in 3.8%; no other class occurs there.
+  `p_j` is `C⁰` across a switch between classes, so `P_j` and `c_ℓj` have a kink there.
 - A clamp on a derived quantity inside the problem binds in most solves.
 - Every solve starts cold, so the rates are deterministic functions of the state and time,
   repeated bit for bit. The innermost root-find stops at `1e-10` relative.
@@ -145,8 +148,8 @@ evaluations, or the stages up to one that throws.
 
 **The controller.**
 - Error ratio: `ρ = max_i |est_i| / (tol·|y_i| + tol)` over every component, chain,
-  accumulators and members alike. `est` is the embedded difference, and `y` the state at
-  the attempt's end.
+  accumulators and members alike, each in its own units. `est` is the embedded
+  difference, and `y` the state at the attempt's end.
 - Reject when `ρ > 1.1`: `h ← h·max(0.2, 0.9 ρ^{−1/5})`.
 - Accept when `0.5 ≤ ρ ≤ 1.1`, with `h` unchanged.
 - Accept when `ρ < 0.5`: `h ← h·clamp(0.9 ρ^{−1/6}, 1, 5)`.
@@ -181,185 +184,214 @@ Any of these may be load-bearing or incidental; which ones, is not known.
 - The forcing is `C¹` with second-derivative jumps at its knots, and every knot is a stop.
 - Members read the chain only through `φ`, which is floored and capped, and each other
   only through the two fields.
-- The inner problem runs for every member at every rate evaluation. It has three solution
-  classes, `C⁰` switches between them, and a clamp that binds in most solves.
-- The flux `g` to a member's coordinate and output passes through `P⁺`. `P⁺` is smooth,
-  with curvature `1/(2ε)` at `P = 0`, where `ε = 1e-4` against a `|P|` of `1e-2`–`1e2`.
-- The pool filters `P` with a relaxation time of `S_max/(c + d)` plus `τ_s`. Its rate is
-  bounded in sign at both bounds, and a guard throws below zero.
+- The inner problem runs for every member at every rate evaluation. Its solution class
+  switches, `C⁰`, and a clamp inside it binds in most solves.
+- `P⁺` is smooth, with curvature `1/(2ε)` at `P = 0`, where `ε = 1e-4` against a `|P|` of
+  `1e-2`–`1e2`. The coordinate's rate, the output and the pool's charge and drain all
+  pass through it.
+- The pool filters `P` with a relaxation time of `S_max/(c + d)` plus `τ_s`, is bounded in
+  sign at both bounds, and a guard throws below zero. It empties over quiescent stretches
+  and refills in pulses: the pools sit below 1% of their largest value for 30% of
+  member-time (19% in the ten oldest members), and the oldest members' pools reach
+  `3e-10`.
+- The loss rate is a steep function of the pool's fill near empty, and `J` depends on
+  the loss through `e^{−m}`.
 - The output is `g·f(x)`, and `f` is a logistic in the coordinate with scale `0.02`.
 - The creation probability is `C¹` at `P_new = 0`.
 - The creation weights are exact panel moments of `ρ_c`, and the newest panel is open.
 - Members are never removed.
-- The controller uses a max-norm over every component, a dead band of `[0.5, 1.1]` and a
-  growth clamp of 5. A clipped step keeps the proposal, and a throw retries at `0.2h`.
+- The controller uses a max-norm over every component in its own units, with the same
+  absolute part `tol` for all of them; a dead band of `[0.5, 1.1]`; and a growth clamp
+  of 5. A clipped step keeps the proposal, and a throw retries at `0.2h`.
 - The sweep reuses the inner problem's recorded solutions, and the grid is a constant
   within one gradient.
 
 ## Measured
 
-Unless stated, every measurement is on the reference run (108 members) at
-`tol = 1e-3`. Relative errors in `J` are against T2's run at `tol = 1e-6`,
-`J_ref = 12.668637`.
+Every run below is on the reference run (108 members), made by one driver outside the
+solver. With the solver's own rule it reproduces the solver's every attempt bit for bit:
+`J`, the attempt tallies, and each step's time, size, error ratio and binding component.
+Each measurement changes one rule in it, or reads one of its runs.
 
-Every run below was made by one driver outside the solver. With the solver's own rule it
-reproduces the solver's every attempt bit for bit: `J`, the attempt tallies, and each
-step's time, size, error ratio and binding component. T5–T7 change one rule in it.
+**(T0) The reference.** `J* = 12.6687135`, from the pair at `tol = 1e-8`. The pair at
+`1e-7` is `4.5e-8` from it, and the refusal of T5 with `h_c = 0.005δ` at `tol = 1e-7` is
+`6.3e-7`. Every relative error below is against `J*`. The previous version of this
+statement used the pair's run at `1e-6`, which is `−6.1e-6` from `J*`.
 
-**(T1) What sets the step.**
-- 9312 accepted steps, 1910 attempts rejected for accuracy and 149 thrown. That is
-  `3.70e6` member evaluations, 18% of them on rejected attempts.
-- The median accepted step's error ratio is 0.044, and 9.4% reach 0.5.
-- The component attaining the error ratio's maximum is a chain component on **90.5%** of
-  accepted steps (89.1% with 429 members), a member component on 9.5%, the pool among them
-  on 2.7%, and an accumulator on none.
-- At each accepted step's start, `h·|λ_chain|/β` is at least 0.5 on 55.3%, 0.8 on 29.5%
-  and 1 on 13.3%. `β = 3.7343596` is the pair's real stability boundary.
-- The median error ratio is 0.014, 0.077, 0.21, 0.25 and 0.013 across the bands below
-  0.5, 0.5–0.8, 0.8–1, 1–1.2 and above 1.2 of `h·|λ_chain|/β`.
-- The steps' 10/50/90/99% and largest sizes are 0.115, 0.454, 4.41, 15.6 and `33.9δ`.
+**(T1) What sets the step** (at `tol = 1e-3`).
+- 9312 accepted steps, 1910 attempts rejected for accuracy and 149 thrown: `3.70e6`
+  member evaluations, 18% of them on rejected attempts.
+- The median accepted step's error ratio is 0.044. A chain component attains the ratio's
+  maximum on 90.5% of accepted steps, a member component on 9.5% (the pool on 2.7%).
+- `h·|λ_chain|/β` at a step's start is at least 0.5 on 55.3% of steps and 1 on 13.3%;
+  `β = 3.7343596` is the pair's real stability boundary.
 - Legs one `δ` long hold 15.3% of the time and 64% of the accepted steps' member
   evaluations, at 2.66 accepted steps each. Longer legs take 4.18 each.
-- 32.6% of accepted steps end at a stop, and 32.3% of legs are taken in one step.
 - Accepted steps grow as `tol^−0.10`: 8018 at `1e-2`, 16 185 at `1e-5`.
-- *After the forcing stops.* For `v̇ = −k v^q` alone the relaxation rate is exactly
-  `q/((q−1)(t − t₀))`, with `t₀` set by `v` when the forcing stops. Along the run, the top
-  component's `λ` times the time since the forcing was last non-zero has median 0.78 over
-  the `60δ` after. `λ` is 0.36 per `δ` at `2–5δ` after, and 0.036 per `δ` at `10–20δ`.
+- During pulses the top component sits at `v` median 0.85 (10–90%: 0.61–0.92), with
+  `|λ|` median `1.85e3` (10–90%: `12`–`6.2e3`).
 
 **(T2) Tolerance does not control `J`'s time error.**
 
 | `tol` | 1e-2 | 3e-3 | 1e-3 | 3e-4 | 1e-4 | 3e-5 | 1e-5 | 1e-6 |
 |---|---|---|---|---|---|---|---|---|
-| `J/J_ref − 1` | −2.1e-4 | +2.5e-3 | −2.4e-4 | +1.0e-3 | +8.2e-4 | +2.2e-4 | +3.8e-5 | 0 |
-| accepted steps | 8018 | 8543 | 9312 | 10 428 | 11 813 | 13 833 | 16 185 | 23 188 |
+| `J/J* − 1` | −2.1e-4 | +2.5e-3 | −2.4e-4 | +1.0e-3 | +8.1e-4 | +2.1e-4 | +3.2e-5 | −6.1e-6 |
 | member evaluations | 3.42e6 | 3.52e6 | 3.70e6 | 4.07e6 | 4.64e6 | 5.48e6 | 6.41e6 | 9.17e6 |
-| thrown | 288 | 193 | 149 | 102 | 51 | 22 | 15 | 4 |
 
-With 429 members, against its own run at `1e-6` (12.737409), `tol = 1e-2 … 1e-4` gives
-+6.1e-4, +9.7e-4, +4.9e-4, +1.1e-3 and +8.1e-4.
+**(T3) The crossings of `P = 0`.**
+- 9237 along the run at `1e-6` (9220 at `1e-4`), by 107 members; 4 of them are a member
+  crossing again within `0.05δ`.
+- They come in 196 clusters. 98 are downward, one in each quiescent stretch that holds
+  any (those stretches have median length `46δ`): median 45 crossings each, spread over
+  `6.3δ` (10–90%: `1.2`–`12δ`), at a median `32δ` after the forcing was last non-zero,
+  with `|Ṗ|` median 616. 98 are upward, at the start of the pulse that ends each such
+  stretch: spread over `0.31δ`, a median `0.64δ` after the pulse starts, with `|Ṗ|`
+  median `9.3e3`.
+- A straddled kink: for this pair, a step across a slope jump of a pure quadrature's
+  integrand at fraction `θ` of the step errs by `h²·[jump]·K(θ)`, with
+  `K(θ) = Σ b_i (c_i − θ)₊ − (1 − θ)²/2`. The mean of `K` over `θ ∈ [0, 1]` is zero (the
+  third-order condition); its rms is 0.005. The embedded difference responds with
+  `K̂(θ) = Σ (b_i − b̂_i)(c_i − θ)₊`, and `|K|/|K̂|` has median 3.4 over `θ` (25–75%:
+  1.7–11). On the crossing steps of ten traced legs, true error over estimate had median
+  4.6.
+- Summing that error over every straddled crossing, for the output alone, with `θ` from
+  `P` at the step's ends: `+1.8e-4` and `+5.4e-5` predicted for the runs at `1e-3` and
+  `3e-4`, against `−2.4e-4` and `+1.0e-3` measured.
 
-**(T3) Where the error accrues.** At `tol = 1e-4`, against T2's run at `1e-6`:
-- `J`'s error is **+8.7e-4 from the members' `F`**, and −5.4e-5 from the weights.
-- Weighting each member's `F` error by its final weight in `J`, the error accrued by
-  `t = 12`, 15, 20 and 40 is `3e-7`, `1.2e-4`, `7.7e-4` and `8.7e-4`.
-- It accrues mostly in legs `20–93δ` long in quiescent stretches, where the run takes
-  about a third of the `1e-6` run's steps.
-- Members created before `b = 3.5` hold 93% of `J`, and carry the error.
+**(T4) The inner problem's class switches.** 7909 along the run at `1e-6`, all between
+the interior class and the lower end.
+- Into the lower end: median `5.1δ` after the member's downward crossing of `P = 0`
+  (10–90%: `−4.3`–`9.3δ`). Out of it: `0.24δ` before its upward crossing (10–90%:
+  `0.05`–`0.55δ`). Neither coincides with the crossing.
+- `P < 0` in 99.8% of lower-end member-states.
 
-**(T4) The steps that carry it.** The ten legs of largest increment were re-integrated at
-`tol = 1e-4` from the `1e-6` run's state at each leg's start. Each step was then retaken
-from its own start at `tol = 1e-9`, which gives its true error.
+**(T5) Refusing long steps across a crossing.** A step is refused and retried at half its
+size when it is longer than `h_c` and some member's `P − P_c` has a different sign at its
+end from its start. Nothing else changes.
 
-| steps | number | true error over twice the estimate | median true ÷ estimate | share of the `F` error |
-|---|---|---|---|---|
-| across which some member's `P` changes sign | 15 | 14 | 4.6 | 81% |
-| the rest | 94 | 4 | 0.45 | 19% |
-
-- *One of them.* A `5.5δ` step at `t = 15.49` had an estimate of 1.09 and a true error of
-  3.46 tolerance weights, in one member's `Y`. Along it, that member's `P` falls from
-  +1.6 to −0.2 in `0.7δ`, and its `Ẏ` from 1.3 to `1e-8`.
-- *The width of the turn.* `2ε/|dP/dt|` is `5.4e-5δ` at the median crossing, and
-  `0.035δ` at the 90th percentile. `|dP/dt|` there has median `1.35e3`.
-- *How often.* A run at `1e-4` meets 9220 sign changes of `P`, 4601 of them downward, by
-  107 members: a median of 85 per member. Counting crossings within `0.25δ` of each other
-  as one, they are 921 events, and 3241 within `0.05δ`. 362 of its 11 813 steps straddle
-  at least one.
-- The crossings fall in every quiescent stretch. `J`'s error accrues over `t = 12–20`, as
-  the members that hold `J` pass `x = 1` and their output switches on: the first at
-  `t = 14.3`, the tenth at 21.9.
-
-**(T5) Refusing long steps across a crossing of `P`.** A step is refused and retried at
-half its size when it is longer than a cap `h_c` and some member's `P − P_c` has a
-different sign at its end from its start. Nothing else changes.
-
-With `P_c = 0` and `h_c = 0.05δ`:
-
-| `tol` | 1e-3 | 3e-4 | 1e-4 | 3e-5 | 1e-5 | 1e-6 |
+| `P_c`, `h_c` | `tol = 1e-3` | `3e-4` | `1e-4` | `3e-5` | `1e-5` | member evaluations at `1e-4` |
 |---|---|---|---|---|---|---|
-| `J/J_ref − 1` | −3.0e-4 | −9.7e-5 | −1.1e-5 | +1.2e-5 | +5.9e-6 | +1.2e-5 |
-| against its own `1e-6` | −3.1e-4 | −1.1e-4 | −2.3e-5 | +5e-7 | −5.8e-6 | 0 |
-| accepted steps | 17 929 | 19 029 | 20 308 | 22 094 | 24 170 | 30 589 |
-| member evaluations | 1.51e7 | 1.54e7 | 1.59e7 | 1.63e7 | 1.68e7 | 1.88e7 |
+| none (T2) | −2.4e-4 | +1.0e-3 | +8.1e-4 | +2.1e-4 | +3.2e-5 | 4.64e6 |
+| 0, `0.05δ` | −3.1e-4 | −1.0e-4 | −1.7e-5 | +6.1e-6 | −2.2e-7 | 1.59e7 |
+| 0, `0.5δ` | | −1.5e-4 | −9.5e-5 | | | 6.27e6 |
+| 3, `0.05δ` | | −4.2e-5 | −2.0e-4 | | | 1.22e7 |
+| 10, `0.05δ` | | +2.6e-4 | +2.9e-4 | | | 1.22e7 |
 
-The crossing value and the cap varied, against `J_ref`:
+**(T6) Where `J`'s error travels.** Over each interval between times both runs land on,
+`F` grows by `e^{−m}` times its output's increment. So `J`'s error splits into a part
+from the loss `m` (survival) and a part from the output, against the run at `1e-6`:
 
-| `P_c`, `h_c` | `tol = 3e-4` | `tol = 1e-4` | member evaluations at `1e-4` | refused attempts at `1e-4` |
-|---|---|---|---|---|
-| none (T2) | +1.0e-3 | +8.2e-4 | 4.64e6 | — |
-| 0, `0.05δ` | −9.7e-5 | −1.1e-5 | 1.59e7 | 21 581 |
-| 0, `0.5δ` | −1.5e-4 | −8.9e-5 | 6.27e6 | 3182 |
-| 3, `0.05δ` | −3.6e-5 | −2.0e-4 | 1.22e7 | 13 623 |
-| 10, `0.05δ` | +2.7e-4 | +3.0e-4 | 1.22e7 | 13 173 |
+| `tol` | survival | output |
+|---|---|---|
+| 1e-3 | −1.6e-3 | +1.3e-3 |
+| 3e-4 | +1.2e-3 | −1.1e-4 |
+| 1e-4 | +5.0e-4 | +3.7e-4 |
 
-**(T6) Holding the chain inside the pair's stability boundary.** Each step starts at
-`h ≤ 0.8β/|λ_chain|`, from the chain's diagonal at the step's start. Nothing else changes.
+- At `1e-4` the loss difference behind the survival part is created from `t ≈ 3` to 14,
+  in the members created before `b = 1`, over quiescent stretches in which their pools
+  empty; it enters `F` from `t ≈ 14` to 20, as their output switches on. (Each interval's
+  share is its change in the loss difference times the offspring still to come.) Over one
+  `135δ` stretch the second member's pool falls from 0.068 to `7e-5` with `P ≈ −15`
+  throughout.
+- Retaken from the reference's state at the stretch's start, the stretch adds `−3.5e-6` to
+  that member's `m`, and no step's true error is over twice its estimate. The run's pool
+  arrives at the stretch `1.7e-3` (relative) from the reference's.
+- That difference is created at the preceding upward crossings, where the nearly empty
+  pool starts to refill: `1`–`2.5%` relative at two of them, with the pool at
+  `0.006`–`0.008`.
 
-| `tol` | 1e-2 | 3e-3 | 1e-3 | 3e-4 | 1e-4 | 3e-5 | 1e-5 |
-|---|---|---|---|---|---|---|---|
-| `J/J_ref − 1` | −4.6e-4 | +7.8e-4 | −7.7e-4 | +1.0e-3 | +8.0e-4 | +2.5e-4 | +4.3e-5 |
-| accepted steps | 9328 | 9499 | 9962 | 10 865 | 12 087 | 13 952 | 16 210 |
+**(T7) The pools' relative error, by tolerance**, against the run at `1e-7`, in the ten
+oldest members at the times both runs land on.
 
-- Every step starts at or below `0.8β`. At `1e-4`, 0.4% end beyond `β`.
-- It removes 46–76% of the accuracy rejections at `1e-2 … 1e-3` (573 against 2348 at
-  `1e-2`), and leaves the member evaluations within 4% of T2's.
-- Rate evaluations at chain states beyond the loss clamp fall by about half: 1113 against
-  2541 at `1e-3`.
+| `tol` | 1e-3 | 3e-4 | 1e-4 | 1e-5 | 1e-6 |
+|---|---|---|---|---|---|
+| below 2% of its largest value, `P > 0`: median | 4.0e-4 | 5.2e-4 | 2.2e-4 | 1.1e-4 | 8.0e-6 |
+| 90% | 3.3e-3 | 3.2e-3 | 2.0e-3 | 3.8e-4 | 3.8e-5 |
+| above half its largest value: median | 9.0e-5 | 3.9e-5 | 2.7e-5 | 2.9e-6 | 4.5e-7 |
+| 90% | 1.4e-3 | 3.2e-4 | 2.5e-4 | 2.1e-5 | 2.8e-6 |
 
-**(T7) The chain's loss and inflow taken implicitly.** ARK4(3)6L[2]SA: Kennedy and
-Carpenter's six-stage additive pair.
-- Its implicit part is `in_ℓ − k·clamp(v_ℓ, 0, 1)^q` on the chain, the clamp and the
-  inflow switch included. Its explicit part is everything else: `a`, the members, the
-  accumulators, and the floor at `v_res`, which acts on the full rate.
-- Each stage solves the chain's `Y = Z + hγ F_I(Y)` by Newton, with the exact bidiagonal
-  Jacobian, halving a Newton step until the residual falls. The members are evaluated once
-  per stage at the solved chain state.
-- The error estimate is the pair's embedded difference, in the same norm and controller,
-  with `ρ^{−1/4}` and `ρ^{−1/5}`.
+**(T8) One weight changed.** The pools' weights in the error ratio multiplied by 0.01, or
+only their absolute part, and nothing else.
 
-| `tol` | 1e-2 | 3e-3 | 1e-3 | 3e-4 | 1e-4 | 3e-5 | 1e-5 | 1e-6 |
-|---|---|---|---|---|---|---|---|---|
-| `J/J_ref − 1` | −0.41 | −0.19 | −7.6e-2 | −1.0e-2 | −4.9e-4 | +8.4e-4 | +2.7e-5 | −6.8e-5 |
-| accepted steps | 3759 | 4261 | 5610 | 7307 | 9200 | 11 760 | 14 790 | 24 085 |
-| member evaluations | 1.30e6 | 1.51e6 | 2.09e6 | 2.80e6 | 3.58e6 | 4.64e6 | 5.84e6 | 9.53e6 |
-| thrown | 405 | 221 | 161 | 103 | 68 | 37 | 43 | 40 |
+| | `tol = 1e-3` | `3e-4` | `1e-4` | `3e-5` | member evaluations at `3e-4` / `1e-4` |
+|---|---|---|---|---|---|
+| unchanged (T2) | −2.4e-4 | +1.0e-3 | +8.1e-4 | +2.1e-4 | 4.07e6 / 4.64e6 |
+| `0.01·(tol·S + tol)` | −3.6e-4 | +1.2e-4 | +1.2e-5 | +1.0e-5 | 4.75e6 / 5.53e6 |
+| `tol·S + 0.01·tol` | | +1.3e-4 | +7.8e-5 | | 4.17e6 / 4.81e6 |
 
-- The chain still attains the error ratio's maximum on 87–89% of accepted steps.
-- No Newton solve fails in `3e4`–`1.5e5` stage solves: 3.7–4.5 iterations each, at most 21.
-  From `1e-3` down no rate evaluation is at a chain state beyond the loss clamp or the
-  inflow switch.
-- It is within `1e-4` of `J_ref` only from `tol = 1e-5`, where it takes 9% fewer member
-  evaluations than T2. At `1e-3` it takes 43% fewer, at a `J` 7.6% low.
-- *Its estimate.* Retaken from its own state, its `11.2δ` step at `t = 4.75`, at the start
-  of a quiescent stretch with `h|λ_chain| = 5.6β`, has a true error in `v_1` of 11.5
-  tolerance weights against an estimate of 0.75. In `v_4` it is 6.9 against 0.03. The step
-  leaves `v_1` 0.033 too low, and every member's `F` increment 0.5–0.8% too low.
-- 96% of its deficit at `1e-3` is in the members created before `b = 3.5`.
-- *Against an earlier prediction.* An earlier analysis attributed the error that the
-  tolerance does not control to stages taken near the chain's stability boundary, which
-  T6 tests directly. It predicted that this pair, with the pools implicit as well, would
-  make `J` monotone over `tol = 1e-2 … 1e-4` with a spread well under `1e-4`, and remove
-  the rejections and the throws. It counted the members' switches as a floor that would
-  remain. Here the pools were explicit, and under this pair they set 3.4–4.7% of the
-  steps. `J` is monotone over that range, with a spread of 0.41, and not monotone below it.
+- With both parts scaled, at `1e-4`, 1202 of the 1561 added accepted steps end within
+  `2δ` of a crossing of `P = 0`, and the pool attains the ratio's maximum on 22.5% of
+  accepted steps.
 
-**(T8) The stops.**
-- Without the stops at the knots, `J` is **−68%**: 7860 accepted steps, 2975 rejected for
-  accuracy and 558 thrown.
-- A cap of `h ≤ 5δ` in their place gives −0.70%.
+**(T9) Holding the chain inside the pair's stability boundary.** Each step starts at
+`h ≤ 0.8β/|λ_chain|`. `J/J* − 1` is −4.6e-4, +7.7e-4, −7.7e-4, +1.0e-3, +7.9e-4, +2.5e-4
+and +3.7e-5 at `tol = 1e-2 … 1e-5`, with member evaluations within 4% of T2's.
+
+**(T10) The chain's loss and inflow taken implicitly.** ARK4(3)6L[2]SA, its implicit part
+`in_ℓ − k·clamp(v_ℓ, 0, 1)^q` on the chain, solved at each stage by a damped Newton with
+the exact bidiagonal Jacobian; everything else explicit.
+- `J/J* − 1` is −0.41, −0.19, −7.6e-2, −1.0e-2, −4.9e-4, +8.3e-4, +2.1e-5 and −7.4e-5 at
+  `tol = 1e-2 … 1e-6`, for `1.30e6 … 9.53e6` member evaluations (`2.09e6` at `1e-3`,
+  `5.84e6` at `1e-5`).
+- Retaken from its own state, its `11.2δ` step at the start of a quiescent stretch
+  (`h|λ_chain| = 5.6β`) has a true error in `v_1` of 11.5 tolerance weights against an
+  estimate of 0.75.
+- After the forcing stops, `v̇ = −k v^q` relaxes at exactly `q/((q−1)(t − t₀))`; along
+  the run, the top component's `λ` times the time since the forcing was last non-zero has
+  median 0.78 over the `60δ` after.
+
+**(T11) The chain's draw.** `|a_1|` against `in_1 + k v_1^q`: median 0.0098 (10–90%:
+0.002–0.062) while `s > 0`, and 1.09 (0.07–3.4e4) while `s = 0`; below 0.005 in the lower
+components while `s > 0`. Over a one-`δ` leg, `a_1` varies by 0.17% of its size (median;
+90%: 2.6%), and a quadratic in time leaves `2e-5` of it.
+
+**(T12) Stepping onto the crossings.** An accepted attempt across which some member's
+`P` changes sign is retaken so that it ends where the first such member's `P` is `η` past
+zero, `η = 1e-3`. The crossing is found by regula falsi on the step's cubic Hermite
+interpolant, and a member ending within `3η` of zero counts as at the step's end. The
+next step starts at the proposal the retaken step started with.
+
+| | `tol = 1e-3` | `3e-4` | `1e-4` | `3e-5` | member evaluations at `1e-4`, plus the location's |
+|---|---|---|---|---|---|
+| as above | −2.2e-4 | +9.7e-5 | +2.6e-4 | +2.8e-4 | 1.33e7 + 1.75e6 |
+| next step started at `0.05δ` | | | +6.4e-5 | | 1.25e7 + 9.6e5 |
+| class switches located too, by bisection to `1e-5` | | +6.6e-6 | +1.4e-4 | | 1.75e7 + 6.1e6 |
+| with T8's weights (both parts `×0.01`) | | +2.4e-4 | +3.0e-4 | | 2.15e7 + 1.3e6 |
+
+- About 8 600 crossings are located at each tolerance.
+- At `1e-3`, 95% of the 2453 thrown attempts start where a located crossing ended a
+  step, three quarters of them at the carried proposal (median `19δ`). With the next step
+  started at `0.05δ`, 36 attempts throw at `1e-4`.
+- Over one interval, located and discarded, the location's evaluations reproduce the
+  pair's steps bit for bit.
+- Retaken from the reference's state at `tol = 3e-5`, one `39δ` interval holding 39 located
+  crossings is `1.5e-7` (J-weighted) from the same interval at `tol = 1e-9`, where the pair
+  alone is `5.6e-6` from it.
+
+**(T13) Re-integrating a crossing member on its own.** After an accepted step across which
+member `j`'s `P` changes sign, its nine components are re-integrated with two steps of
+the pair, split at the crossing found as in T12, the rest of the state read from the
+step's cubic Hermite interpolant; the end rates are re-evaluated.
+- `J/J* − 1` is `+4.6e-4` at `tol = 3e-4` and `+2.5e-4` at `1e-4`, for `1.5e5`
+  single-member evaluations on top of T2's.
+
+**(T14) Refusing only within a cluster.** Not run. The downward clusters span `629δ` in
+all, so a cap of `0.05δ` from each cluster's first crossing to its last is about `1.3e4`
+steps.
+
+**(T15) A wider `P⁺`.** `ε_j` set to 0.05 times the magnitude of the negative terms of
+member `j`'s `P`, a declared change of the model. `J` moves by `+3.9%`. Against its own
+run at `1e-6`, `J`'s error is `+7.4e-4`, `+1.0e-3`, `+8.4e-4`, `+1.6e-5` and `+6.1e-5` at
+`tol = 1e-3 … 1e-5`, at T2's cost. Members spend 9.1% of member-time with `|P| < 0.01`
+and 16% with `|P| < 0.1`.
+
+**(T16) The stops.**
+- Without the stops at the knots, `J` is `−68%`: 7860 accepted steps, 2975 rejected for
+  accuracy and 558 thrown. A cap of `h ≤ 5δ` in their place gives `−0.70%`.
 - The pair's abscissae `{0, 0.2, 0.3, 0.6, 1, 0.875}·h` step over forcing events narrower
   than `0.3h`, and its estimate does not see them.
 
-**(T9) Rejections and throws.**
-- At `1e-3`, 18% of attempts are rejected: 1910 for accuracy and 149 by a throw.
-- Every throw is the pool guard.
-  - Two thirds are at steps above `15δ` (median `17.5δ`), where a stage of an emptying
-    pool with a relaxation time near `τ_s` goes negative. For `y' = −y/τ` the pair's
-    fourth stage goes negative past `h = 2.16τ`, and the step loses stability past
-    `3.73τ`.
-  - The rest are shorter steps in which a near-empty pool's stage rates differ in sign.
-
-**(T10) Decompositions tried before.** Measured on earlier versions of this model and on
+**(T17) Decompositions tried before.** Measured on earlier versions of this model and on
 test fixtures, not the reference run.
 
 | decomposition | measured |
@@ -371,6 +403,20 @@ test fixtures, not the reference run.
 | fast chain against an affine coupling `a(v₀) + D(v − v₀)`, `D = ∂a/∂v` exact | constant forcing: 40× fewer member sweeps; periodic forcing: 3.8× at a `J` error of `3.5e-3`, 1.0× at `≤ 4e-4` |
 | a Rosenbrock step for the chain, its Jacobian differenced through the full rates and factorised at full size | 19 member-loop evaluations and a dense full-size factorisation per step; 20–50× slower |
 | an implicit pool inside the member loop (a four-stage ESDIRK) | an emptying pool's stages go negative past `hλ = 3.1`, against the explicit pair's 2.16 |
+
+**Against the earlier reply.**
+- It predicted one cluster of crossings in the first `δ` or two after each pulse ends,
+  about 900 in all. T3 finds 196, the downward ones a median `32δ` after the forcing.
+- It predicted that stepping onto the crossings would give T5's errors at about half
+  T5's cost, `8e6` at `1e-4`. T12 converges to a `J` `2.6–3.0e-4` from `J*` at
+  `1.3e7`–`2.2e7`.
+- It predicted that re-integrating the crossing member alone needs no corrector unless a
+  class switch coincides with the crossing. None does (T4), and T13 is `2.5e-4` from
+  `J*` at `1e-4`.
+- It attributed `J`'s time error to the local errors of the steps across the crossings.
+  T3's prediction of the output's share of them has the wrong sign at `1e-3` and a
+  twentieth of the size at `3e-4`. T6 finds a survival part as large as the output's,
+  created where nearly empty pools refill (T6, T7).
 
 ## Facts an answer can rely on
 
@@ -394,8 +440,8 @@ member evaluations.
 - *Advance knowledge.* The forcing record and every creation time are known before the
   run.
 - *Stops.* A stop can be put at any time.
-- *Readings.* Every rate evaluation also returns, at no cost, each member's `P` and its
-  inner problem's solution class, `P_new`, and the chain's diagonal.
+- *Readings.* Every rate evaluation also returns, at no cost, each member's `P`, its
+  inner problem's solution class and `S_max`, `P_new`, and the chain's diagonal.
 - *Interpolation.* A step's start and end states and rates are at hand, so a cubic
   Hermite interpolant over it costs nothing. The pair has no continuous extension of its
   own.
@@ -409,21 +455,24 @@ member evaluations.
 
 ## Questions
 
-1. Is what T2–T8 measure a known class of problem, and what are its standard treatments?
-   Which of the structural features is load-bearing for `J`'s time error, and which for
-   the cost?
+1. What mechanism do the measurements identify for `J`'s time error, in standard terms?
+   Is it a known class of problem, with standard treatments? Which structural features
+   are load-bearing for it, and which are incidental?
 
-2. What should the integration between stops be, so that `J`'s time error follows the
-   tolerance? At what cost in member evaluations, and what can it then guarantee about
-   `J`'s error?
+2. What should the integration's error control measure so that `J`'s time error follows
+   the tolerance, at the least cost in member evaluations? What can it then guarantee
+   about `J`'s error?
 
-3. The chain attains most steps' error-ratio maximum, and relaxes at a rate that falls
-   with its own state (T1, T7). What is the least number of member evaluations at which
-   `J` can be held to about `1e-4`, and what treatment of the chain and of the members
-   attains it? Can the difference between the chain's time scales and the members' be
-   exploited, and how?
+3. Stepping onto the crossings (T12) and re-integrating the crossing member (T13) both
+   converge to a `J` `2.5–3e-4` from `J*`, and T8's weights do not change that; refusing
+   long steps across the crossings (T5) converges to `J*`. What mechanism would separate
+   them?
 
-4. Under that treatment, what must hold for `dJ/dθ` from the sweep to converge with `J`,
+4. With `J`'s time error following the tolerance, what is the least number of member
+   evaluations at which `J` can be held to about `1e-4`, and what treatment of the chain,
+   the members and their switches attains it?
+
+5. Under that treatment, what must hold for `dJ/dθ` from the sweep to converge with `J`,
    given H1–H3?
 
 We may be looking at this through the wrong variable. An answer that rejects the framing,

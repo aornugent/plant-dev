@@ -101,11 +101,18 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 ## Where things stand
 
-**Step 4 of the stepper killed it** (`scope-imex-stepper.md` §7, step 4, *Result*). Holding Cash–Karp below the soil's stability limit leaves `J`'s time error as it was, and ARK with the soil implicit saves 9% of member evaluations at matched `J`. Steps 5 and 6 are not built.
+**The root cause of `J`'s time error is the pools' error control near empty** (*Done last session*). At the end of a drought a member's pool is nearly empty. When rain takes its net production back above zero the pool starts to refill, and its rate switches from drain to charge at that crossing.
+- The step across the switch misintegrates the refill, and the error estimate sees about a third of it.
+- Near empty, the pool's tolerance weight `tol·(|S| + 1)` is absolute in kg, so its relative error is percents and does not follow the tolerance.
+- Mortality is steepest in the pool's fill there, and `J` depends on the oldest members' survival.
 
-**What carries `J`'s time error is found** (stepper scope §7, step 4, *Result*): the steps across which a member's net production changes sign. TF24 takes the positive part of net production with `ε` = 1e-4, so growth and reproduction switch off in seconds as a drying soil takes production below zero. Cash–Karp's error estimate misses a step across that switch by a factor of about 4, and `J` does not follow the tolerance. Keep such steps under 0.05 days and it does.
+Tightening only the pools' weights 100× makes `J`'s error fall with the tolerance, to 1.2e-5 at tol 1e-4, for 19% more member evaluations and with no event handling. Tightening their absolute part alone cuts the error about ten-fold at 3e-4 and 1e-4.
 
-**Next session: the Oracle, then how to remove that error, then the clean-up.** `oracle-consultation-solver-performance.md` is rewritten around the time integration as it now stands, and asks whether this is a known class of problem with standard treatments (*Next session*, 1).
+**The Oracle's reply is tested, and its treatments of the switch fail.** Stepping onto the crossings, alone or with the leaf's class switches, and re-integrating the crossing member both converge 2.5–3e-4 from the true `J`, at up to 3.6× the cost. Nothing explains that offset yet. Widening the switch moves `J` 3.9% and does not make it follow the tolerance.
+
+**Step 4 of the stepper killed it** (`scope-imex-stepper.md` §7, step 4, *Result*): the soil's stiffness was the wrong target. It does not carry `J`'s error, and the soil is stiff only while rain forces it.
+
+**Next session: the Oracle again, then the design.** `oracle-consultation-solver-performance.md` is rewritten around these findings (*Next session*, 1). Nothing is to be built until a solver design follows from the reply.
 
 Steps 1–3 of the plan are done: [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), all rebased onto #94. #97's model change is accepted. The code review was scoped to #96 and #97, and is done; the rest of the stack was not reviewed under the `code-review` skill.
 
@@ -129,32 +136,47 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ## Done last session
 
-**Step 4 of the stepper** (stepper scope §7, step 4, *Result*), with `harness/ark_prototype.R`: one R driver through the SCM's schedule under odelia's controller law, over tol 1e-2 … 1e-6 on u108.
-- Cash–Karp is reproduced bit for bit. That also checks stepper §4's tableau rule: sums over nonzero coefficients in ascending stage, `h` after the sum, and a one-term row as `(a·h)·k`.
-- The held Cash–Karp's `J` error is Cash–Karp's from 3e-4 down: the kill line.
-- ARK is within 1e-4 only from 1e-5, where it saves 9% of member evaluations. At 1e-3 it saves 43%, at a `J` 7.6% low.
-- A layer's relaxation rate falls with its moisture, so after rain the soil relaxes as fast as it changes, and an implicit layer gains no step. ARK's embedded estimate misses the error of its longer steps there: 11.5 times the tolerance against 0.75 on one.
-- ARK throws more than Cash–Karp at every tolerance, as stepper §4's risks expected of its longer steps.
+All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 (Cash–Karp at 1e-8). The consult's T0–T16 hold the numbers.
 
-**What carries `J`'s time error**, traced back from `J` (stepper scope §7, step 4, *Result*).
-- `J` → the members' offspring integrals → the dry legs of t = 12–20 → the steps across which a member's net production changes sign → the positive part's kink at `ε` = 1e-4.
-- The test: capping those steps at 0.05 days makes `J` follow the tolerance. The control, the same cap where production crosses 3, does not.
+**The true `J`.** Cash–Karp at 1e-7 is 4.5e-8 from `J*`, and T5's refusal with a 0.005-day cap at 1e-7 is 6.3e-7. The old reference, Cash–Karp at 1e-6, is −6.1e-6, so the step-4 conclusions stand.
+
+**The Oracle's reply, tested** (`oracle-response-solver-performance.md`).
+- Its data claims:
+  - It predicted about 900 clusters of crossings, one just after each rain. There are 196: 98 in long dry spells, a median 32 days after the rain, each spread over 6 days; and 98 at the rains that end them, spread over 0.3 days.
+  - Re-crossings are 4 of 9220, so plain event location applies.
+  - The leaf's class switches (7909, Interior ↔ BoundaryCrit) do not coincide with the crossings.
+  - While rain falls the members' draw is 1% of the top layer's fluxes, and it varies by 0.2% over a day.
+- Its first test, stepping onto the crossings at `P` = −η:
+  - `J` converges 2.6–2.8e-4 from `J*` at 1.3e7 member evaluations, against its prediction of T5's errors at 8e6.
+  - 95% of its throws are the attempt after a located crossing, at the carried proposal. Starting that step at 0.05 days leaves 6.4e-5 and 36 throws.
+  - With the class switches located too: +6.6e-6 at 3e-4 and +1.4e-4 at 1e-4, at 1.7e7.
+- Its (B), refusing within clusters, is killed by the clusters' spans without a run.
+- Its (C), re-integrating the crossing member on its own: +2.5e-4 at 1e-4, for 3% more cost.
+- The model route of the last handover: a positive part widened to 5% of each member's costs moves `J` 3.9%, and at 1e-3…1e-4 its error is a steady +8e-4 against its own converged value.
+
+**The root cause**, traced back by the `systematic-debugging` skill with no fix attempted.
+- `J`'s error splits into a survival part (from each member's cumulative mortality) and an output part, of comparable size: +5.0e-4 and +3.7e-4 at 1e-4.
+- The survival part is created in the oldest members' mortality in the dry spells of t = 3–14. It is carried in by their pools' state: a pool that arrives 1.7e-3 off, retaken from the reference, adds only −3.5e-6.
+- The pools pick up relative errors of 1–2.5% at the refills after rain.
+- Near-empty refilling pools keep a 90th-percentile relative error of 3.3e-3, 3.2e-3 and 2.0e-3 at tol 1e-3, 3e-4 and 1e-4. Pools over half full follow the tolerance.
+- One weight changed: the pools' weights ×0.01 gives −3.6e-4, +1.2e-4, +1.2e-5 and +1.0e-5 at 1e-3 … 3e-5, for 5.53e6 member evaluations at 1e-4. Their absolute part alone gives +1.3e-4 and +7.8e-5 at 3e-4 and 1e-4.
+- The kink kernel: a Cash–Karp step across a kink errs by `h²·[jump]·K(θ)`, and `K` has zero mean over the kink's position. Its ratio to the embedded estimate has a median of 3.4 over that position, as against the 4.6 measured on crossing steps.
+- The last session's picture was that the offspring integral's own kink error carries `J`'s error. The prediction built from it has the wrong sign at 1e-3 and a twentieth of the size at 3e-4.
 
 ## Done before
 
+- **Step 4 of the stepper** (stepper scope §7, step 4, *Result*): the driver reproduces Cash–Karp bit for bit; the held Cash–Karp's `J` error is Cash–Karp's (the kill line); ARK saves 9% of member evaluations at matched `J`, and its embedded estimate misses its long steps' soil error. The first trace of `J`'s error to the steps across the switch is there too; the session above refines it.
 - **Steps 1–3 of the plan**, rebased onto #94, and the review of #96 and #97. Each issue, and the stepper scope's *Result* sections, record them. TF24 is v12, and throws fell 759 → 149.
 - **Invaders with the storage pool** (stepper scope §3, *What invaders need beyond A*). Selection gradients work, and capping the step widens the range of invaders that run. A pool update that is non-negative at any step is deferred until invaders beyond ±5% are needed.
 - **The stepper's design** (stepper scope §4–§6), which step 4 killed. The Appendix holds the alternative it was chosen over.
 
 ## Next session
 
-**1. The Oracle.** The statement is `oracle-consultation-solver-performance.md`, written by `oracle-consultation-guide.md`: the system's and the solver's dynamics, v12's measurements, the refutation of the earlier reply's first prediction, and open questions. The creation schedule and the optimisation across `θ` are left out. Record the reply verbatim beside it, then reduce each claim in it to the smallest run of `harness/ark_prototype.R` that confirms or kills it, before building anything (the guide, §7).
+**1. The Oracle.** The statement is `oracle-consultation-solver-performance.md`, rewritten by `oracle-consultation-guide.md` around the root cause: the true `J`, the channels, the pools near empty, the one-weight test, and the earlier reply's treatments measured and refuted, with open questions. The unexplained offset of the treatments that step onto the switch is asked about as such (question 3). Record the reply verbatim beside it, as `oracle-response-solver-performance.md` (keep the current one as `…-bbba8d1.md`). Then reduce each claim to the smallest driver run that confirms or kills it.
 
-**2. Remove the switch's error.** Two routes, and the choice is the user's, after the Oracle.
-- **The model.** Widen the positive part's smoothing to the scale of each member's production, so the switch takes as long as the steps. `ε` = 1.9 kg/yr would spread the median crossing over a day, but a fixed `ε` that wide adds `ε/2` of production to a seedling, so it would be relative. `J` and `dJ/dθ` move, as a declared model change.
-- **The solver.** A System declares the functions whose sign changes switch its rates, here each member's `P`, and the stepper ends a step where one changes sign. A 1e-4 run meets 921 such events at a quarter-day window and 3241 at 0.05 days, against 11 813 steps.
-- **What either buys.** With the switch resolved, Cash–Karp's `J` is 2.3e-5 from its converged value at tol 1e-4, where today it is within 1e-4 only from 1e-5. That is 4.64e6 member evaluations against 6.41e6, 28% fewer, before the events' cost. And the error maps and the time controller (controller scope §2, §6) need a `J` that follows the tolerance.
-- **The tool.** `harness/ark_prototype.R` with `SWITCH_DAYS`, and `harness/j_error_trace.R`. The converged `J` on u108 is 12.668784361, from the capped run at 1e-6. Cash–Karp's own 1e-6 is 12.668636519, and u429's is 12.737409168.
+**2. The solver design**, after the Oracle, under the `system-design` skill: the error control that makes `J` follow the tolerance, then the cost (the rain legs hold 64% of member evaluations). Nothing is built before it.
+- The requirement is that the error in `J` follows the tolerance at the least cost. `J` to 1e-4 is 6.41e6 member evaluations today (Cash–Karp at 1e-5, not following the tolerance), and 5.53e6 with the pools' weights ×0.01.
+- The tool is `harness/ark_prototype.R` (`TOL_POOL`, `TOL_POOL_ABS`, `EVENTS`, `LOCAL`), with `harness/error_channels.R` for where an error travels.
 
 **3. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
@@ -178,7 +200,7 @@ The plan is `scope-schedule-controller.md` §6:
 | 3 | Forward passes store their own rows (stepper §2.3) | done, #95 |
 | 4 | Exact counts (controller §1) | PR #94, open; the stack is on it |
 | 5–6 | Error maps, the schedule controller | not started |
-| 7 | The stepper (stepper §7, steps 4–6) | killed at step 4, its prototype; `J`'s time error traced to the members' switch (stepper §7) |
+| 7 | The stepper (stepper §7, steps 4–6) | killed at step 4, its prototype; `J`'s time error traced to the pools' error control near empty (*Done last session*) |
 | 8 | The time controller | not started |
 
 ## Traps
@@ -193,7 +215,11 @@ The plan is `scope-schedule-controller.md` §6:
 - *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the offset lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
 - *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
 - *A correction put on the tape must be zero in value:* the implicit stage is `Y* − M·(G − to_passive(G))`. `Y* − M·G(Y*)` moves the stage by Newton's residual, and the sweep would no longer repeat the run's values.
-- *A switch in the rates is invisible to the error estimate:* TF24's positive part of net production turns growth and reproduction off within seconds of model time. A Cash–Karp step across it reports about a quarter of its error, so a run's `J` does not follow its tolerance.
+- *A switch in the rates is invisible to the error estimate:* TF24's positive part of net production turns growth, reproduction and the pool's charge off within seconds of model time. A Cash–Karp step across it reports about a third of its error.
+- *A near-empty pool's error is uncontrolled:* its tolerance weight `tol·(|S| + 1)` is absolute in kg, and mortality is steepest in the pool's fill there. `J`'s error travels through the oldest members' survival, so compare a run's mortality and pools, not only its offspring integrals.
+- *Retaking an interval from the reference's state measures its local error only:* the survival error arrives with the state, created at an earlier refill.
+- *The reference for u108 is `J*` = 12.6687135*, from Cash–Karp at 1e-8. The run at 1e-6 is 6.1e-6 low.
+- *R reads a script as it runs:* editing the driver while runs use it corrupts their last lines. Run from a snapshot; `run` in `$DEV/ark/ev_ladder.sh` copies one.
 - *The soil has no fast mode to take implicitly:* drainage goes as `θ^16.14`, so after rain a layer's relaxation rate is about one over the time since the rain. ARK's longer steps there are inaccurate, and on one its embedded estimate put the top layer's error at a fifteenth of its size.
 - *A lambda returning an active product needs `-> value_type`:* a deduced return type hands back an expression template over dead operands, and the value comes out right while the derivative reads freed memory.
 
@@ -219,6 +245,7 @@ done
 - odelia builds in 26 s and plant in about 3 min. After an odelia edit, reinstall plant with `--preclean`: it compiles odelia's headers and does not track them.
 - A new value exposed to R needs an entry in `inst/RcppR6_classes.yml` and `RcppR6::RcppR6()` before the rebuild.
 - `offspring-adjoint` builds the same way, into a second library, against odelia `be3e2cb`. `PLANT-96` and `PLANT-97` build as `PLANT-95` does.
+- The probe build, for the driver's `CLASS_EVENTS` and a wider positive part (`TF24_PROD_EPS`, `TF24_PROD_EPS_REL`), is `harness/tf24_probe.patch` applied to v12t: `git -C plant worktree add --detach $DEV/v12probe v12-targets`, `git -C $DEV/v12probe apply "$PWD/harness/tf24_probe.patch"` from the plant-dev root, installed with odelia05 and phylloptim09. It puts the leaf's operating-point class in the thirteenth auxiliary. With the default environment it reproduces v12t bit for bit.
 - The v12 build with zero pulses as step targets, which `harness/ark_prototype.R` runs on, merges the two, one at a time: `git -C plant worktree add -b v12-targets $DEV/v12t origin/PLANT-95`, `git -C $DEV/v12t merge origin/PLANT-96` (a fast-forward), then `git -C $DEV/v12t merge origin/PLANT-97`, keeping both `NEWS.md` entries in the one conflict. Install odelia05, phylloptim09 and `$DEV/v12t` into a library of their own, as above.
 
 **Tests** run from `$DEV/stack` with `TESTTHAT_PARALLEL=false`, by AGENTS.md's tiers: `testthat::test_file("tests/testthat/test-mutant.R", package = "plant", load_package = "installed")` after `library(odelia)`. odelia's run from `$DEV/odelia05` with `test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
