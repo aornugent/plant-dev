@@ -219,6 +219,7 @@ newton <- function(z, hg, rain) {
 # which the step retries smaller.
 attempt <- function(t, y, k1, h) {
   k <- list(k1)
+  Pst <- list(sv$P)
   blk <- soil(y)
   if (method == "ark") {
     rain <- rain_at(t + tb$c * h)
@@ -236,12 +237,13 @@ attempt <- function(t, y, k1, h) {
     ki <- rates(Y, t + tb$c[i] * h)
     if (is.null(ki)) return(NULL)
     k[[i]] <- ki
+    Pst[[i]] <- production(Y)
     if (method == "ark") kI[[i]] <- stiff_rates(Y[blk], rain[i])
   }
   y1 <- combine(y, tb$b, k, h)
   at_end <- rates(y1, t + h)
   if (is.null(at_end)) return(NULL)
-  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1))
+  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1), Pst = Pst)
 }
 
 # The size that ends an accepted attempt `a` of size h from t0 just past the
@@ -378,9 +380,18 @@ kink_fix <- function(h, a, t1) {
   f <- which(sign(a$P) != sign(sv$P))
   if (!length(f)) return(a)
   pool <- pool_of(sv$y)[f]
-  u <- sv$P[f] / (sv$P[f] - a$P[f])
+  # The crossing, between the stages that bracket it, and P's slope there. The
+  # end's P stands in for the stage at the step's end.
+  cs <- c(tb$c[-5], 1)
+  Ps <- cbind(do.call(cbind, a$Pst[-5]), a$P)
+  o <- order(cs); cs <- cs[o]; Ps <- Ps[, o, drop = FALSE]
+  u <- Pdot <- numeric(length(f))
+  for (n in seq_along(f)) {
+    p <- Ps[f[n], ]; b <- which(sign(p) != sign(p[1]))[1]
+    u[n] <- cs[b - 1] + (cs[b] - cs[b - 1]) * p[b - 1] / (p[b - 1] - p[b])
+    Pdot[n] <- abs(p[b] - p[b - 1]) / ((cs[b] - cs[b - 1]) * h)
+  }
   K <- vapply(u, kink_kernel, 0)
-  Pdot <- abs(a$P[f] - sv$P[f]) / h
   r <- (1 - u) * sv$y[pool] / capacity(sv$y)[f] + u * a$y[pool] / capacity(a$y)[f]
   G <- 1 / (1 + exp(-(r - pars$a_st2) / 0.1))
   # The pool's rate has slope (1 - G)(1 - r) in P above zero and r below; the
