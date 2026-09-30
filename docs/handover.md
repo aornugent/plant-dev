@@ -99,58 +99,40 @@ Do not force an abstraction. Prefer boring code if the current shape is already 
 
 The tell that you skipped this is a new feature that grows an existing if/else chain by one more branch, or a second boolean that must stay in sync with the first. Temporal decomposition is another tell. Phase-named modules repeat the same domain rules across steps.
 
-## Scope
+## Progress against the design
 
-The work is heuristics for node introductions and ODE steps that make TF24's resident and invader gradients stable, on the birth-date coordinate and realistic rainfall. The user's four criteria are an optimal node schedule, optimal ODE steps, convergence of `J`, and stable gradients, where optimal means performant, accurate and stable.
+The goal is `OBJECTIVES.md`. The design is `docs/design-grid-controller.md`: an
+assessment in five steps, then heuristics only where step 4 finds headroom.
 
-- `OBJECTIVES.md`, which AGENTS.md loads every session, still says the gradients "drive gradient-based calibration". Calibration is not the scope. It was one advanced use in July's AD design (`docs/ad-infrastructure-design.md`, removed at `beeb251`), and these sessions made it the purpose, first in the consult's statement and then in `OBJECTIVES.md`, both drafted here. The edit is the user's to make.
-- So the consult asks throughout about gradients for a calibration, and the Oracle's fifth reply sets precision budgets from a calibration's data, as a Cramér–Rao width from the fit's Hessian `H`. That recipe does not apply. A next consult states the scope above.
+| step | state |
+|---|---|
+| 1. ε | running: `harness/eps_spread.R` over eight seeds |
+| 2. the enablers | (a) settled as a setting; (b) next, on a new branch over `PLANT-97` |
+| 3. the floor on a bank | not started |
+| 4. the headroom | the consultation is being written |
+| 5. local analyses | not started |
 
-## State of play
+**Step 1.** `harness/eps_spread.R` runs one daily-weather seed of the
+long-drought record per process, on v12t at `tol = 1e-4` with 108 uniform
+nodes. It records `ln J` and every trait's elasticity for the resident and the
+invader at θ′ = θ. The results go to `$DEV/eps/summary.md`; ε is not yet set.
 
-**There is no resolution.** Nothing is built, no target for "stable gradients" is set, and the node schedule has not been measured this session. Everything below is on the driver, on one record (u108, 108 nodes), at θ₀.
+**Step 2 (a), the pool's tolerance: a setting.** With `ode_tol_abs =
+1e-4·ode_tol_rel` on v12t, `J`'s error on long drought is within 0.46·tol from
+`1e-3` to `3e-5`. At `1e-4` it is +3.7e-5, against +8.1e-4 at plant's default.
+Its nudges' median is +3.8e-5 with standard deviation 1.6e-5, against the
+driver's per-pool scale's −4.0e-5 and 1.2e-5. It costs about 10% more than
+the per-pool scale and needs no code. Step 3 re-checks it on the bank,
+by the spec's decision rule.
 
-**Settled, each against a control that could have refuted it:**
-- *`J` converges on the time axis.* Tying each pool's absolute tolerance to its capacity (`POOL_FLOOR`, `σ_S = tol·(|S| + c·r₀·S_max)`) makes `J` follow tol at 0.2–0.5·tol. The cause was near-empty pools, whose relative errors mortality amplifies (`∂m/∂ln S` −0.276, against the −0.278 predicted).
-- *The gradient's error sits on the steps across downward crossings of `P` = 0.* Splitting those steps removes it. Splitting as many dry steps of the same lengths, or the steps that hold only class switches, changes nothing. In a_dG2, the crossing steps that also hold a class switch carry three times the error per day, so there the two are not separated.
-- *Pinned grids and invaders are stopped by the pool's stage guard, not by positivity.* With the guard off:
-  - lma × 0.8 pinned runs within 1.1e-4 of its reference;
-  - invaders from × 0.7 to × 2 run; up to × 1.2, where `J′` is not negligible, it is within about three times the base run's own error;
-  - every step's end keeps its pools above zero.
-- *`J`'s systematic error of −0.2 to −0.3·tol* comes from the mortality rate evaluated at stages that overshoot on the first emptying steps. Capping each pool's motion per step (`TRANSIT`) removes it.
+**Step 2 (b), the stage guard.** Not started. The change, the three tests it
+rewrites and the pass criteria are in the spec. Going ahead with it is agreed.
 
-**Measured around tol 1e-4,** over seven tolerances within ±5%, as median and standard deviation. Gradients are relative errors in `dJ/d ln θ`. The reference is the pool scale's 1e-6 grid with its crossing steps split 32 ways, which resolves 3e-5 in lma and 1.3e-4 in a_dG2.
+**Step 4.** The consultation, `docs/oracle-consultation-grid-controller.md`,
+is being written. It asks for reformulations that would move the
+runtime-against-radius frontier by a large factor.
 
-| ODE-step rule | `J/J* − 1` | lma | a_dG2 | member evaluations |
-|---|---|---|---|---|
-| the pool scale alone | −4.0e-5, 1.2e-5 | −1e-6, 4.0e-4 | +1.1e-3, 7.0e-4 | 5.38e6 |
-| + crossing steps capped at 1 day (`CROSS_CAP`, 12-day tail, `ONSET_CAP`) | −3.1e-5, 4.8e-6 | +1.3e-4, 2.1e-4 | −3.5e-4, 1.7e-4 | 5.65e6 |
-| those grids with the crossing correction (`KINK_FIX`) | −2.7e-5, 2.3e-6 | −2.0e-4, 9.2e-5 | −2.0e-4, 1.9e-4 | the same, and one evaluation per crossing step |
-| the cap alone: no tail, onset cap or guard | −2.1e-5, 6.7e-6 | +1.3e-4, 2.2e-4 | +1.4e-4, 2.4e-4 | 5.48e6 |
-| + each pool's motion per step ≤ 0.5·r₀ (`TRANSIT`) | −7e-7, 6.1e-6 | −4.2e-5, 4.6e-4 | +3.4e-4, 4.8e-4 | 6.25e6 |
-| + ≤ 0.25·r₀ | +5.0e-6, 2.3e-6 | +4.4e-4, 1.0e-4 | +2.9e-4, 3.6e-4 | 7.70e6 |
-
-- The crossing cap is the one ODE-step heuristic that improves the gradients cheaply. It halves lma's draw and quarters a_dG2's, for 5% more member evaluations.
-- The crossing correction halves lma's and `J`'s draw on the capped grids, and leaves a_dG2's. The Oracle predicted it would take the draw to about 1e-5.
-- The transit cap removes `J`'s bias and leaves the gradients' errors as large or larger, for 14–41% more member evaluations.
-
-**Open:**
-- *A target for "stable gradients".* Every rule above leaves gradient errors of 1–4e-4 and a draw of 1–2e-4, and there is no number to judge that against.
-- *a_dG2's residual,* about 2e-4. Neither the correction nor the transit cap moves it. The leading candidate is the class switches that share its crossing steps, and its reference is itself unresolved below 1.3e-4.
-- *The node schedule.* The 108/215/429 ladder has not been run under the pool scale, so the schedule's share of `J`'s and the gradients' error is unknown.
-- *Invader gradients.* `g′` at θ′ = θ has not been measured under any rule; only `J′` has.
-- *Gradients on moved grids,* and any record but u108.
-
-## What exists
-
-- *In plant and odelia,* #94–#97 (*Branches*), and nothing since.
-- *In `harness/ark_prototype.R`,* options on the driver. With none set, it reproduces the solver bit for bit.
-  - Step rules: `POOL_FLOOR` (the pool scale), `CROSS_CAP` and `CROSS_TAIL` (the crossing cap), `ONSET_CAP` and `ONSET_SPAN`, `TRANSIT`, `KINK_FIX`, `KINK_EST` and `CROSS_RESTART`. `KINK_FIX` reads each crossing from `P`'s stage values and skips members whose `P` moves less than 100ε across the step.
-  - On replays: `PROGRAM`, `THETA` with `THETA_REL`, `SPLIT` with `SPLIT_ROWS`, `CROSS_LOG` and `CLASS_LOG`.
-  - A pinned step that raises names the pools it emptied, and a replay tallies the components that set error ratios above 1.1.
-- *The consult,* `docs/oracle-consultation-solver-performance.md`: the statement and three follow-ups. The Oracle's fifth reply is `docs/oracle-response-solver-performance.md`, with the four earlier replies in that file's history. Each follow-up's §1 records the tests of the reply before it; the fifth reply's are in the table above.
-
-## Branches
+### The code
 
 On `aornugent/plant`, over `develop`'s `95256cf3`:
 
@@ -162,99 +144,44 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `PLANT-96` (#96) | `855f64ee` | zero pulses as step targets; 1 commit | `PLANT-95` | `a05f5c2` |
 | `PLANT-97` (#97) | `b4b5febf` | the pool's relaxation offset, TF24 v12; 1 commit | `PLANT-95` | `a05f5c2` |
 
-- odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is `378b083`, both unreleased. A branch builds only against its own odelia.
-- No PR is open for `offspring-adjoint`, `PLANT-95`, `PLANT-96` or `PLANT-97`; opening them is the user's call. #96 and #97 are independent, and both edit the top of `NEWS.md`.
-- `plant-dev`'s pointers (plant `6613dd24`, odelia `be3e2cb`) stay until #94 merges; odelia's moves with plant's.
+- odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is
+  `378b083`, both unreleased. A branch builds only against its own odelia.
+- No PR is open for `offspring-adjoint`, `PLANT-95`, `PLANT-96` or `PLANT-97`;
+  opening them is the user's call. #96 and #97 are independent, and both edit
+  the top of `NEWS.md`.
+- `plant-dev`'s pointers (plant `6613dd24`, odelia `be3e2cb`) stay until #94
+  merges; odelia's moves with plant's.
+- `harness/ark_prototype.R` is the R driver. It reproduces plant's run bit for
+  bit, and carries the step rules measured so far as options: the per-pool
+  scale, the crossing cap, the onset cap, the transit cap and the crossing
+  correction.
 
-## Done before
+### Before the design
 
-- **Step 4 of the stepper** (`docs/archive/scope-imex-stepper.md` §7, step 4, *Result*): the driver reproduces Cash–Karp bit for bit; the held Cash–Karp's `J` error is Cash–Karp's (the kill line); ARK saves 9% of member evaluations at matched `J`, and its embedded estimate misses its long steps' soil error.
-- **Steps 1–3 of the plan**, rebased onto #94, and the review of #96 and #97. Each issue, and the archived stepper scope's *Result* sections, record them. TF24 is v12, and throws fell 759 → 149.
-- **Invaders with the storage pool** (archived stepper scope §3, *What invaders need beyond A*). Selection gradients work, and capping the step widens the range of invaders that run. With the stage guard off, invaders from lma × 0.7 to × 2 run, so no pool update that is non-negative at every stage is needed.
-- **The stepper's design** (archived stepper scope §4–§6), which step 4 killed. The Appendix holds the alternative it was chosen over.
-- **The two scopes are archived** in `docs/archive/`. Steps 1–3 of their plan are [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), rebased onto #94. #97's model change is accepted, and the code review covered #96 and #97.
+- Steps 1–3 of the earlier plan are #96, #97 and #95.
+- The IMEX stepper was killed at its prototype. The records are the archived
+  scopes in `docs/archive/`.
+- Debugging on the driver then found what the spec's *What the design rests
+  on* lists.
+- The consultation behind that is `docs/oracle-consultation-solver-performance.md`,
+  with the fifth reply in `docs/oracle-response-solver-performance.md` and the
+  earlier ones in its history. It framed the gradients for a calibration,
+  which is not the scope, so its precision budgets do not apply.
 
-## Next session
+### Outstanding
 
-**1. Set the target for "stable gradients" with the user,** in the scope's own terms: for residents and invaders, how large a gradient error, and how large a draw between nearby settings, is acceptable. Then restate `OBJECTIVES.md` as the four criteria with those numbers, and without calibration.
-
-**2. The node schedule.** Run the 108/215/429 ladder under the pool scale and the crossing cap at 1e-4, with `J` and both gradients. Half the scope has not been measured.
-
-**3. Invader gradients.** Measure `g′` at θ′ = θ on the base grid under the pool scale and the cap, with its draw, against the same on a 1e-6 base.
-
-**4. With the user's go-ahead, take the stage guard out of TF24,** in the branch that owns the pool (`PLANT-97`). Keep the refusal of a step whose end leaves a pool below zero, and count the stages that go below.
-- Pass: invaders from lma × 0.7 to × 2 on u108 run, and wherever `J′` is not negligible it is within about three times the base run's own error, measured against the same invaders on a base run at 1e-6.
-- Residents are unchanged wherever no stage went below.
-
-**5. a_dG2's residual, only if the target needs it.** Split the class-switch steps on the capped grids with the correction on, and build a reference with its class-switch steps split too.
-
-**6. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
-- odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
-- `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
-- `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).
-- Test comments that record history or stale numbers:
-  - "offspring arrival" in `test-strategy-tf24.R`;
-  - the seeded-baseline narrative in `test-stochastic-patch-runner.R`;
-  - the `k_acclim` offspring table in `test-strategy-tf24f.R`.
-
-  TF24's `scientific_version` log is history by design; whether it stays is the user's call.
-- `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
-
-## Traps
-
-- *A slot's choices are a sequence:* TF24's leaf points are read in order, so only a full evaluation may read a full evaluation's slot.
-- *A replayed input must be exact:* TF24's leaf solve turns a one-ulp difference upstream into 1e-9.
-- *Two clocks:* a step's `at_state` ran at `fl(t + h)` from the row below (`at_state_time`); after an entry the solver keeps the recorded time, and the System's clock must agree to 2 ulp.
-- *An invasion's recording pass re-runs the run*, and reproduces it only while nothing between the two calls changes the SCM.
-- *`lma`'s pinned difference has a floor near 1e-5*, on residents too.
-- *Positivity binds before stability for an explicit pool, and only the stage guard minds:* a step between 2.16 and 3.73 of a pool's relaxation time is stable while its fourth stage is below empty, and a near-empty pool whose stage rates differ in sign goes below zero inside a short step too. The step's combination recovers: with the guard off, pinned runs and invaders stay within about three times the base run's error, and every step's end stays above zero.
-- *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the offset lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
-- *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
-- *A correction put on the tape must be zero in value:* the implicit stage is `Y* − M·(G − to_passive(G))`. `Y* − M·G(Y*)` moves the stage by Newton's residual, and the sweep would no longer repeat the run's values.
-- *A switch in the rates is invisible to the error estimate:* TF24's positive part of net production turns growth, reproduction and the pool's charge off within seconds of model time. A Cash–Karp step across it reports about a third of its error.
-- *A pool's absolute tolerance must scale with its capacity:* under the shared `tol·(|S| + 1)` in kg, a near-empty pool's relative error does not follow the tolerance, and mortality turns it into survival error (`∂m/∂ln S` ≈ −0.28 over a dry stretch). `J`'s error travels through the oldest members' survival, so compare a run's mortality and pools, not only its offspring integrals.
-- *The pool's kink is a difference of slopes:* its rate has slope (1 − G)(1 − r) in `P` above zero and r below, so the jump at `P` = 0 is their difference, which vanishes near r = 0.2. The second reply's `0.73 + r` holds only near empty, and `harness/ark_prototype.R`'s `KINK_EST` used `(1 − G)(1 − r) + r` until it was corrected.
-- *One `J` is one draw:* moving tol by 3% moves plain Cash–Karp's `J` error by 2e-4. Compare treatments by their channels (`harness/error_channels.R`) or by nearby tolerances, not by one run's `J`.
-- *Retaking an interval from the reference's state measures its local error only:* the survival error arrives with the state, created at an earlier refill.
-- *The reference for u108 is `J*` = 12.6687135*, from Cash–Karp at 1e-8. The run at 1e-6 is 6.1e-6 low.
-- *R reads a script as it runs:* editing the driver while runs use it corrupts their last lines. Run from a snapshot; `run` in `$DEV/ark/ev_ladder.sh` copies one.
-- *The soil has no fast mode to take implicitly:* drainage goes as `θ^16.14`, so after rain a layer's relaxation rate is about one over the time since the rain. ARK's longer steps there are inaccurate, and on one its embedded estimate put the top layer's error at a fifteenth of its size.
-- *A lambda returning an active product needs `-> value_type`:* a deduced return type hands back an expression template over dead operands, and the value comes out right while the derivative reads freed memory.
-- *A crossing step often holds class switches too:* on the pair's grid at 1e-3, all but 28 of the steps with a switch into the lower end, and all but 8 of those with one out of it, hold some member's crossing. Split them apart before blaming either.
-- *A switch smoothed within a step is still a kink to the integrator:* the positive part at ε = 0.05·P_b moves `J` by 3.9%, and leaves `J`'s draw and a_dG2's error in place; lma's errors fall 2–7× but do not follow tol.
-- *A split reference stops converging near its resolution:* split 8, 16 and 32 ways, the pool scale's 1e-6 grid moves by 3e-5 in lma and 1.3e-4 in a_dG2.
-- *`queue.sh` needs absolute paths:* `ev_ladder.sh`, which it sources, changes into the repository, so a relative job file is not found and the queue ends at once.
-- *A crossing correction needs the crossing from the stages, and a sharp switch:* from the step's ends the crossing's place misses by a tenth of the step, where the kernel changes sign; and a member whose `P` moves less than about 100ε across the step has no kink at the step's scale, so a point-kink correction overcorrects it by orders of magnitude.
-
-## Setup
-
-**Session start** (AGENTS.md): `git submodule update --init --recursive`, and `add_repo` for `aornugent/odelia`, `aornugent/plant` and `aornugent/phylloptim`.
-
-**A private library**, with `DEV` under the scratchpad:
-
-```bash
-mkdir -p $DEV/lib_stack
-git -C odelia     fetch origin claude/trusting-curie-4i9n3l
-git -C odelia     worktree add --detach $DEV/odelia05 origin/claude/trusting-curie-4i9n3l
-git -C phylloptim worktree add --detach $DEV/phylloptim09 378b083
-git -C plant      fetch origin PLANT-95
-git -C plant      worktree add -b PLANT-95 $DEV/stack origin/PLANT-95
-export R_LIBS=$DEV/lib_stack MAKEFLAGS=-j4
-for pkg in odelia05 phylloptim09 stack; do
-  R CMD INSTALL --no-docs --library=$DEV/lib_stack $DEV/$pkg > $DEV/install_$pkg.log 2>&1 || { echo "FAILED $pkg"; break; }
-done
-```
-
-- odelia builds in 26 s and plant in about 3 min. After an odelia edit, reinstall plant with `--preclean`: it compiles odelia's headers and does not track them.
-- A new value exposed to R needs an entry in `inst/RcppR6_classes.yml` and `RcppR6::RcppR6()` before the rebuild.
-- `offspring-adjoint` builds the same way, into a second library, against odelia `be3e2cb`. `PLANT-96` and `PLANT-97` build as `PLANT-95` does.
-- The probe build, for the driver's `CLASS_EVENTS` and `CLASS_LOG`, a wider positive part (`TF24_PROD_EPS`, `TF24_PROD_EPS_REL`) and a settable stage guard (`TF24_DOMAIN_TOL`), is `harness/tf24_probe.patch` applied to v12t: `git -C plant worktree add --detach $DEV/v12probe v12-targets`, `git -C $DEV/v12probe apply "$PWD/harness/tf24_probe.patch"` from the plant-dev root, installed with odelia05 and phylloptim09. It puts the leaf's operating-point class in the thirteenth auxiliary. With the default environment it reproduces v12t bit for bit.
-- The v12 build with zero pulses as step targets, which `harness/ark_prototype.R` runs on, merges the two, one at a time: `git -C plant worktree add -b v12-targets $DEV/v12t origin/PLANT-95`, `git -C $DEV/v12t merge origin/PLANT-96` (a fast-forward), then `git -C $DEV/v12t merge origin/PLANT-97`, keeping both `NEWS.md` entries in the one conflict. Install odelia05, phylloptim09 and `$DEV/v12t` into a library of their own, as above.
-
-**Tests** run from `$DEV/stack` with `TESTTHAT_PARALLEL=false`, by AGENTS.md's tiers: `testthat::test_file("tests/testthat/test-mutant.R", package = "plant", load_package = "installed")` after `library(odelia)`. odelia's run from `$DEV/odelia05` with `test_dir("tests/testthat", package = "odelia", load_package = "installed")`.
-
-**Baselines on `PLANT-95`:** `test-mutant.R` 41 pass and 2 fail; the full serial suite 4651 pass and the same 2 fail, in 9.1 min; odelia 325 pass. On `PLANT-96` the suite passes 4667 and on `PLANT-97` 4664, each failing the same 2, in 9.7 and 7.4 min run side by side. On `offspring-adjoint` the suite passes 4628 and fails the same 2, in 9.5 min.
-
-**Known failures, older than #95:**
-- `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
-- odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
+- **Unconfirmed defaults:** one local analysis spans invaders ×0.5–×2 and the
+  resident ±10% (`OBJECTIVES.md`).
+- **Clean-up,** each fixed in the branch that owns it, then `git rebase
+  --update-refs` and a `--force-with-lease` push of every moved branch:
+  - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced
+    list to a `std::span` parameter, which this compiler refuses.
+  - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels,
+    which are pinned to `develop`.
+  - Test comments record history or stale numbers: "offspring arrival" in
+    `test-strategy-tf24.R`, the seeded-baseline narrative in
+    `test-stochastic-patch-runner.R`, and the `k_acclim` offspring table in
+    `test-strategy-tf24f.R`.
+  - `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
+  - TF24's `scientific_version` log is history by design; whether it stays is
+    the user's call.
