@@ -99,35 +99,56 @@ Do not force an abstraction. Prefer boring code if the current shape is already 
 
 The tell that you skipped this is a new feature that grows an existing if/else chain by one more branch, or a second boolean that must stay in sync with the first. Temporal decomposition is another tell. Phase-named modules repeat the same domain rules across steps.
 
-## Objectives
+## Scope
 
-`OBJECTIVES.md` holds them, and AGENTS.md loads it every session. They replace the four criteria and the consult's *Wanted* paragraph: converging dynamics come first, and the goals are gradients for residents and invaders on one fixed grid per rainfall record, within its transfer radius.
+The work is heuristics for node introductions and ODE steps that make TF24's resident and invader gradients stable, on the birth-date coordinate and realistic rainfall. The user's four criteria are an optimal node schedule, optimal ODE steps, convergence of `J`, and stable gradients, where optimal means performant, accurate and stable.
 
-## Where things stand
+- `OBJECTIVES.md`, which AGENTS.md loads every session, still says the gradients "drive gradient-based calibration". Calibration is not the scope. It was one advanced use in July's AD design (`docs/ad-infrastructure-design.md`, removed at `beeb251`), and these sessions made it the purpose, first in the consult's statement and then in `OBJECTIVES.md`, both drafted here. The edit is the user's to make.
+- So the consult asks throughout about gradients for a calibration, and the Oracle's fifth reply sets precision budgets from a calibration's data, as a Cramér–Rao width from the fit's Hessian `H`. That recipe does not apply. A next consult states the scope above.
 
-**The root causes are pinned down, each against a control that could have refuted it** (*Done last session*):
-- *`J`'s time error* was the pools' absolute tolerance near empty, amplified through mortality (`∂m/∂ln S` −0.276 against the formula's −0.278). Tying each pool's absolute part to its capacity, `σ_S = tol·(|S| + c·r₀·S_max(x_j))` with `r₀` = 0.05, makes `J` follow tol at 0.2–0.5·tol.
-- *The gradient's error* is the positive part's switch at `P` = 0 on the steps across downward crossings. Splitting those steps removes it, and splitting as many dry steps of the same lengths, or the steps that hold only class switches, changes nothing. In a_dG2 the crossing steps that also hold a class switch carry three times the error per day, so there the two are not separated. Smoothing the switch to ε = 0.05·P_b changes the error without removing it: at that width it still sits inside a step.
-- *Throws on pinned grids, and invaders that fail,* come from the pool's stage guard, not from positivity. With the guard off, the pool scale's grid (`c` = 1e-4, tol 1e-4) pinned at lma × 0.8 is within 1.1e-4 of its reference, and invaders from × 0.7 to × 1.2 run within about three times the base run's own error. On the pinned run, every step's end keeps its pools above zero.
+## State of play
 
-**The rule that follows** is the fourth reply's, less the parts that act only away from θ₀: the pool scale (`c` = 1e-3); each step capped at `h_e` = 1 day from a member's predicted downward crossing to 12 days past its cluster's last (`CROSS_CAP`); and at 0.3 days for the 1.5 days after rain starts while a member's `P` is negative (`ONSET_CAP`), whose share of the gradient was not separated. Over seven tolerances within ±5% of 1e-4:
-- `J`'s standard deviation is 4.8e-6, or 0.05·tol, against 1.2e-5 for the pool scale alone;
-- the gradient's is 2.1e-4 in lma and 1.7e-4 in a_dG2, against 4.0e-4 and 7.0e-4, and a_dG2's median error falls from +1.1e-3 to −3.5e-4;
-- it costs 5% more member evaluations, 5.65e6.
+**There is no resolution.** Nothing is built, no target for "stable gradients" is set, and the node schedule has not been measured this session. Everything below is on the driver, on one record (u108, 108 nodes), at θ₀.
 
-Splitting its capped steps in two cuts the gradient's errors 2.6× in lma and 1.5× in a_dG2, where first order gives 2×, and extrapolates to +5e-5 and −1.1e-4. So the two-point ladder is not yet shown to certify at this level.
+**Settled, each against a control that could have refuted it:**
+- *`J` converges on the time axis.* Tying each pool's absolute tolerance to its capacity (`POOL_FLOOR`, `σ_S = tol·(|S| + c·r₀·S_max)`) makes `J` follow tol at 0.2–0.5·tol. The cause was near-empty pools, whose relative errors mortality amplifies (`∂m/∂ln S` −0.276, against the −0.278 predicted).
+- *The gradient's error sits on the steps across downward crossings of `P` = 0.* Splitting those steps removes it. Splitting as many dry steps of the same lengths, or the steps that hold only class switches, changes nothing. In a_dG2, the crossing steps that also hold a class switch carry three times the error per day, so there the two are not separated.
+- *Pinned grids and invaders are stopped by the pool's stage guard, not by positivity.* With the guard off:
+  - lma × 0.8 pinned runs within 1.1e-4 of its reference;
+  - invaders from × 0.7 to × 2 run; up to × 1.2, where `J′` is not negligible, it is within about three times the base run's own error;
+  - every step's end keeps its pools above zero.
+- *`J`'s systematic error of −0.2 to −0.3·tol* comes from the mortality rate evaluated at stages that overshoot on the first emptying steps. Capping each pool's motion per step (`TRANSIT`) removes it.
 
-**Nothing is built, and `OBJECTIVES.md` is unchanged.** The revision drafted for the user read as a procedure, with open numbers. The user wants the objectives back to at most four criteria, like the original four (an optimal node schedule, optimal ODE steps, convergence of `J` and stable gradients, where optimal means performant, accurate and stable), and guidance on precision budgets.
+**Measured around tol 1e-4,** over seven tolerances within ±5%, as median and standard deviation. Gradients are relative errors in `dJ/d ln θ`. The reference is the pool scale's 1e-6 grid with its crossing steps split 32 ways, which resolves 3e-5 in lma and 1.3e-4 in a_dG2.
 
-**The Oracle's fifth reply** (`oracle-response-solver-performance.md`) answers the third follow-up, and is tested (*Done last session*):
-- *Two mechanisms.* (A) the kink, a random-signed draw per crossing; (B) the loss rate `μ(r)` evaluated at stages that overshoot on the first emptying steps, one-signed. (B) is confirmed for `J`: capping each pool's motion per step (`TRANSIT`, `Δr ≤ c·r₀`) takes `J`'s median error at 1e-4 from −2.1e-5 to −7e-7 and +5e-6 at c = 0.5 and 0.25, for +14% and +41% member evaluations. It is refuted as a_dG2's knob: a_dG2's error and draw do not fall with c.
-- *The precedent,* a crossing correction from integrate-and-fire simulation (`KINK_FIX`), removes ~95% of each crossing's local error on 1-day steps once the crossing is read from `P`'s stage values and the youngest members, whose `P` moves less than 100ε, are left out. On the rule's grids it halves lma's gradient draw (sd 2.1e-4 → 9.2e-5) and `J`'s (4.8e-6 → 2.3e-6), and leaves a_dG2's (1.7e-4 → 1.9e-4). The predicted ~1e-5 is not reached.
-- *Budgets* come from the data: the calibration's optimum is known only to its Cramér–Rao width `σ_data` (covariance `H⁻¹`, `H` the data fit's Gauss–Newton Hessian), and the gradient's error must stay below a third of it, `‖H^{−1/2}·δg‖ ≤ 1/3`. `H` is the first measurement, and it needs a calibration objective: which data, which constants, what noise.
-- *Four criteria,* proposed: precision (that bound), value (`J` within `b_J`, the schedule's bias measured once), range (every run completes, with end-state `S ≥ 0`, `Δr/r₀` and `hλ_chain/β` as its checks) and cost (within budgets `B`, `B′`).
+| ODE-step rule | `J/J* − 1` | lma | a_dG2 | member evaluations |
+|---|---|---|---|---|
+| the pool scale alone | −4.0e-5, 1.2e-5 | −1e-6, 4.0e-4 | +1.1e-3, 7.0e-4 | 5.38e6 |
+| + crossing steps capped at 1 day (`CROSS_CAP`, 12-day tail, `ONSET_CAP`) | −3.1e-5, 4.8e-6 | +1.3e-4, 2.1e-4 | −3.5e-4, 1.7e-4 | 5.65e6 |
+| those grids with the crossing correction (`KINK_FIX`) | −2.7e-5, 2.3e-6 | −2.0e-4, 9.2e-5 | −2.0e-4, 1.9e-4 | the same, and one evaluation per crossing step |
+| the cap alone: no tail, onset cap or guard | −2.1e-5, 6.7e-6 | +1.3e-4, 2.2e-4 | +1.4e-4, 2.4e-4 | 5.48e6 |
+| + each pool's motion per step ≤ 0.5·r₀ (`TRANSIT`) | −7e-7, 6.1e-6 | −4.2e-5, 4.6e-4 | +3.4e-4, 4.8e-4 | 6.25e6 |
+| + ≤ 0.25·r₀ | +5.0e-6, 2.3e-6 | +4.4e-4, 1.0e-4 | +2.9e-4, 3.6e-4 | 7.70e6 |
 
-**The two scopes are archived** in `docs/archive/`. Steps 1–3 of their plan are [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), rebased onto #94. #97's model change is accepted, and the code review covered #96 and #97.
+- The crossing cap is the one ODE-step heuristic that improves the gradients cheaply. It halves lma's draw and quarters a_dG2's, for 5% more member evaluations.
+- The crossing correction halves lma's and `J`'s draw on the capped grids, and leaves a_dG2's. The Oracle predicted it would take the draw to about 1e-5.
+- The transit cap removes `J`'s bias and leaves the gradients' errors as large or larger, for 14–41% more member evaluations.
 
-The principles above apply to all work, and AGENTS.md's code style to every comment.
+**Open:**
+- *A target for "stable gradients".* Every rule above leaves gradient errors of 1–4e-4 and a draw of 1–2e-4, and there is no number to judge that against.
+- *a_dG2's residual,* about 2e-4. Neither the correction nor the transit cap moves it. The leading candidate is the class switches that share its crossing steps, and its reference is itself unresolved below 1.3e-4.
+- *The node schedule.* The 108/215/429 ladder has not been run under the pool scale, so the schedule's share of `J`'s and the gradients' error is unknown.
+- *Invader gradients.* `g′` at θ′ = θ has not been measured under any rule; only `J′` has.
+- *Gradients on moved grids,* and any record but u108.
+
+## What exists
+
+- *In plant and odelia,* #94–#97 (*Branches*), and nothing since.
+- *In `harness/ark_prototype.R`,* options on the driver. With none set, it reproduces the solver bit for bit.
+  - Step rules: `POOL_FLOOR` (the pool scale), `CROSS_CAP` and `CROSS_TAIL` (the crossing cap), `ONSET_CAP` and `ONSET_SPAN`, `TRANSIT`, `KINK_FIX`, `KINK_EST` and `CROSS_RESTART`. `KINK_FIX` reads each crossing from `P`'s stage values and skips members whose `P` moves less than 100ε across the step.
+  - On replays: `PROGRAM`, `THETA` with `THETA_REL`, `SPLIT` with `SPLIT_ROWS`, `CROSS_LOG` and `CLASS_LOG`.
+  - A pinned step that raises names the pools it emptied, and a replay tallies the components that set error ratios above 1.1.
+- *The consult,* `docs/oracle-consultation-solver-performance.md`: the statement and three follow-ups. The Oracle's fifth reply is `docs/oracle-response-solver-performance.md`, with the four earlier replies in that file's history. Each follow-up's §1 records the tests of the reply before it; the fifth reply's are in the table above.
 
 ## Branches
 
@@ -145,73 +166,29 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - No PR is open for `offspring-adjoint`, `PLANT-95`, `PLANT-96` or `PLANT-97`; opening them is the user's call. #96 and #97 are independent, and both edit the top of `NEWS.md`.
 - `plant-dev`'s pointers (plant `6613dd24`, odelia `be3e2cb`) stay until #94 merges; odelia's moves with plant's.
 
-## Done last session
-
-**The fifth reply, tested,** over the seven tolerances within ±5% of 1e-4 (medians and standard deviations; gradients against the split-32 reference):
-
-| setting | `J/J* − 1` | lma | a_dG2 | member evaluations |
-|---|---|---|---|---|
-| the pool scale alone | −4.0e-5, 1.2e-5 | −1e-6, 4.0e-4 | +1.1e-3, 7.0e-4 | 5.38e6 |
-| its grids pinned with the correction | −2.1e-5, 4.9e-6 | +6.2e-4, 3.0e-4 | +2.4e-3, 1.0e-3 | |
-| the rule (cap 1 day, tail 12 days, onset cap, guard on) | −3.1e-5, 4.8e-6 | +1.3e-4, 2.1e-4 | −3.5e-4, 1.7e-4 | 5.65e6 |
-| its grids pinned with the correction | −2.7e-5, 2.3e-6 | −2.0e-4, 9.2e-5 | −2.0e-4, 1.9e-4 | |
-| cap 1 day, no tail, guard off | −2.1e-5, 6.7e-6 | +1.3e-4, 2.2e-4 | +1.4e-4, 2.4e-4 | 5.48e6 |
-| with `TRANSIT` c = 0.5 | −7e-7, 6.1e-6 | −4.2e-5, 4.6e-4 | +3.4e-4, 4.8e-4 | 6.25e6 |
-| with `TRANSIT` c = 0.25 | +5.0e-6, 2.3e-6 | +4.4e-4, 1.0e-4 | +2.9e-4, 3.6e-4 | 7.70e6 |
-
-- *The correction's implementation.* From the step's ends the crossing's place misses by a median 0.08 of the step, where the kernel changes sign, and the correction then helps 20 of 75 members on a 12.8-day step; from the bracketing stages it helps most. On a 1-day capped step, 16 of 26 members' errors fall 20–80×; the other ten are the youngest, whose `P` spans 2e-6 to 8e-4 against ε = 1e-4, and whom the point-kink correction overcorrected by up to 3e4× until they were left out.
-- *On the pair's grid at 1e-3* the correction takes lma's error from −6.2e-3 to −2.1e-3 and leaves a_dG2's at −2.2e-2.
-- *The first factor* shortens the steps that hold a downward crossing to a median 0.10 days, against 0.33 with the corrected factor: consistent with the reply's account of its steadiness, which the transit test supports for `J`.
-- *Not tested:* `H`, which needs a calibration objective; the class switches as a_dG2's remaining source, which the correction does not touch and which share most of its crossing steps; `E_L`.
-
-**The fourth reply, tested,** and **the root causes, by removing each suspect**, from earlier in the session:
-
-All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 and, for gradients, a pinned central difference on the pool scale's grid at 1e-6 with its crossing steps split 32 ways. That reference resolves 3e-5 in lma and 1.3e-4 in a_dG2: split 8, 16 and 32 ways it moves by that much. The older references, the pair at 1e-8 and 1e-7, are within 8e-5 of it.
-
-**The fourth reply** (`oracle-response-solver-performance.md`) answers the consult's *Second follow-up*. It proposes rebuilding the grid at every iterate and pinning it only at the end, a cap on the crossing steps with a two-point ladder in the cap as the gradient's certificate, and setting the precision in θ first. Its claims, tested:
-- *The gradient's error is on the downward crossing steps.* Confirmed. On the pair's grid at 1e-3, splitting the 185 downward crossing steps four ways takes lma's error from −6.1e-3 to +6.1e-4 and a_dG2's from −2.2e-2 to −4.2e-3. Splitting the 120 upward ones leaves them at −7.1e-3 and −2.3e-2.
-- *The cap.* Confirmed, with the numbers in *Where things stand*. Its cost is +5% at 1 day and +16% at half a day; the reply predicted +16% at 1 day. It caps 16% of accepted steps at `h_e` and 5.5% after rain onsets, where the reply expected 3–6%.
-- *The ladder as a certificate.* Not yet shown. At 1e-4 the capped grid's errors are −2.3e-4 (lma) and −3.5e-4 (a_dG2). An adaptive run capped at half a day gives −1.9e-4 and −2.5e-4, within one standard deviation of the draw. The same grid with its 2358 capped steps split in two gives −8.8e-5 and −2.3e-4, 2.6× and 1.5× smaller where first order gives 2×, and they extrapolate to +5e-5 and −1.1e-4.
-- *The onset cap,* 0.3 days for the 1.5 days after rain starts while a member's `P` is negative. Every switch out of the lower end falls after the onset, a median 0.35 days after, and 97% of upward crossings within 1.5 days of it. The cap leaves the seven nudges at 3e-4 unchanged, standard deviation 3.1e-5 against 2.9e-5, where the reply predicted 7e-6 or less. The first kink factor's 6.8e-6 is still unexplained.
-- *The references straddle crossings.* By 8e-5, not by the 2e-4 at which the earlier ladders levelled off.
-- *The throw at lma × 0.8* is not the emptying's positivity limit. On a 9.5-day step at t = 3.48, members 7–10, the four youngest, have pools 32–46% full and `P` just below zero and falling; h·(−Ṡ/S) is 0.31–0.70 at the step's start. Cash–Karp's fifth stage takes them to r = −0.01 to −0.13: a downward crossing moved onto a long step.
-- *The re-formed ratio on a moved grid is the chain's.* Refuted: at lma × 1.1, 104 of the 126 steps above 1.1 are set by a pool, and the soil's 22 sit at a median h|λ|/β of 0.43.
-- Not tested: the gradient on moved grids, the creation ladder, `E_J`, and the chain margin, the pool clip and the per-panel moments' scale. Those three were left out of the rule because at θ₀ they act only on pinned runs away from θ₀, on invaders and on the creation ladder.
-
-**The root causes, by removing each suspect.** Relative error in each gradient on the pair's grid at 1e-3 against the split-32 reference, with one set of steps split four ways. The class-switch steps are the 1e-6 run's switch times mapped onto this grid.
-
-| steps split | steps, days | lma | a_dG2 |
-|---|---|---|---|
-| none | | −6.2e-3 | −2.2e-2 |
-| dry, no crossing within three steps, matched in length to the downward crossing steps | 185, 1512 | −6.4e-3 | −2.2e-2 |
-| a class switch into the lower end and no crossing; out of it | 28, 158; 8, 8 | −6.6e-3; −6.4e-3 | −2.2e-2; −2.2e-2 |
-| upward crossing | 120, 106 | −7.2e-3 | −2.3e-2 |
-| downward crossing, no class switch | 119, 974 | −7.1e-4 | −1.4e-2 |
-| downward crossing with one | 66, 546 | −4.5e-3 | −9.1e-3 |
-| all downward crossing | 185, 1520 | +5.4e-4 | −4.3e-3 |
-
-At the rate the 66 crossing steps with a class switch remove a_dG2's error, 2.4e-5 a day, the 158 days of class-switch-only steps would remove 3.7e-3; they remove none. But those 66 steps carry three times the error per day of the 119 without, so in a_dG2 a class switch sharing a crossing's step is not separated from it.
-
-- *The positive part widened* to ε = 0.05·P_b (the probe build's `TF24_PROD_EPS_REL`, which moves `J` by +3.9%), under the pool scale, against its own grid at 1e-6 with its crossing and class-switch steps split 16 ways. `J` follows tol as the model does, −0.39 to +0.21·tol, and its nudges at 3e-4 have standard deviation 2.7e-5, against 4.3e-5. From 1e-3 to 3e-5, lma's gradient error is −1.2e-3, +2.9e-4, +2.3e-4 and −1.4e-4 (the model: −1.7e-3, +2.0e-3, +4.5e-4, −7.6e-4), and a_dG2's is −5.7e-3, +2.9e-3, +2.1e-3 and +5.0e-4 (the model: +4.7e-3 and +9.1e-4 at 3e-4 and 1e-4). Its own 1e-6 grid moves 3.4e-4 in a_dG2 when split, against the model's 1.2e-4, and its 1e-4 grid pinned at lma × 0.8 still throws.
-- *The guard off* (`TF24_DOMAIN_TOL=1e9`). The pinned × 0.8 run is +1.1e-4 from the full setting at 3e-5; its stages reach r = −0.133, where mortality is 14× its rate at empty. Invaders on a base run at 1e-3 (the solver's own rule, whose `J` moves 2.7e-4 without the guard's retries) are within −1.6e-3 to +4.8e-4 of the same invaders on a base run at 1e-6, from × 0.7 to × 1.2, against −5.1e-4 for the resident itself; × 1.5 and × 2 run too, with nil fitness. With the guard at −1e-4·S_max, × 1.1, 1.2 and 1.5 had failed.
-
 ## Done before
 
-- **The second and third replies' tests** are §1 of the consult's two follow-ups: the pool scale, its refinements and nudges, `dJ/dθ` on the runs' own grids, the crossing splits and shifts, the four-component kink estimate, and the transfer of a pinned grid across lma.
 - **Step 4 of the stepper** (`docs/archive/scope-imex-stepper.md` §7, step 4, *Result*): the driver reproduces Cash–Karp bit for bit; the held Cash–Karp's `J` error is Cash–Karp's (the kill line); ARK saves 9% of member evaluations at matched `J`, and its embedded estimate misses its long steps' soil error.
 - **Steps 1–3 of the plan**, rebased onto #94, and the review of #96 and #97. Each issue, and the archived stepper scope's *Result* sections, record them. TF24 is v12, and throws fell 759 → 149.
-- **Invaders with the storage pool** (archived stepper scope §3, *What invaders need beyond A*). Selection gradients work, and capping the step widens the range of invaders that run. With the stage guard off, invaders from lma × 0.7 to × 2 run (*Done last session*), so no pool update that is non-negative at every stage is needed.
+- **Invaders with the storage pool** (archived stepper scope §3, *What invaders need beyond A*). Selection gradients work, and capping the step widens the range of invaders that run. With the stage guard off, invaders from lma × 0.7 to × 2 run, so no pool update that is non-negative at every stage is needed.
 - **The stepper's design** (archived stepper scope §4–§6), which step 4 killed. The Appendix holds the alternative it was chosen over.
+- **The two scopes are archived** in `docs/archive/`. Steps 1–3 of their plan are [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), rebased onto #94. #97's model change is accepted, and the code review covered #96 and #97.
 
 ## Next session
 
-**1. Settle with the user what the calibration fits** (data, constants, noise), or a twin experiment in its place, and measure `H` on one frozen grid: every budget follows from it. Restate `OBJECTIVES.md` as the four criteria, with the numbers `H` gives.
+**1. Set the target for "stable gradients" with the user,** in the scope's own terms: for residents and invaders, how large a gradient error, and how large a draw between nearby settings, is acceptable. Then restate `OBJECTIVES.md` as the four criteria with those numbers, and without calibration.
 
-**2. With the user's go-ahead, take the stage guard out of TF24,** in the branch that owns the pool (`PLANT-97`). Keep the refusal of a step whose end leaves a pool below zero, and count the stages that go below. Pass: invaders from lma × 0.7 to × 2 on u108 within about three times the base run's own error, measured against the same invaders on a base run at 1e-6, and residents unchanged wherever no stage went below.
+**2. The node schedule.** Run the 108/215/429 ladder under the pool scale and the crossing cap at 1e-4, with `J` and both gradients. Half the scope has not been measured.
 
-**3. The creation axis,** the fourth reply's second measurement: the 108/215/429 ladder under the pool scale and the cap at 1e-4, with values and gradients.
+**3. Invader gradients.** Measure `g′` at θ′ = θ on the base grid under the pool scale and the cap, with its draw, against the same on a 1e-6 base.
 
-**4. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
+**4. With the user's go-ahead, take the stage guard out of TF24,** in the branch that owns the pool (`PLANT-97`). Keep the refusal of a step whose end leaves a pool below zero, and count the stages that go below.
+- Pass: invaders from lma × 0.7 to × 2 on u108 run, and wherever `J′` is not negligible it is within about three times the base run's own error, measured against the same invaders on a base run at 1e-6.
+- Residents are unchanged wherever no stage went below.
+
+**5. a_dG2's residual, only if the target needs it.** Split the class-switch steps on the capped grids with the correction on, and build a reference with its class-switch steps split too.
+
+**6. Clean up.** Fix each item in the branch that owns it, then `git rebase --update-refs` and push every moved branch with `--force-with-lease`. Candidates found so far:
 - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced list to a `std::span` parameter, which this compiler refuses.
 - `test-mutant.R`'s "mutant method works" fails on FF16's ten-mutant panels, which are pinned to `develop`.
 - `TF24_Strategy::assign_from` copies `storage_gate_width` and `storage_prod_eps` but not `storage_domain_tol` (`tf24_strategy.h:1208`).
@@ -230,7 +207,7 @@ At the rate the 66 crossing steps with a class switch remove a_dG2's error, 2.4e
 - *Two clocks:* a step's `at_state` ran at `fl(t + h)` from the row below (`at_state_time`); after an entry the solver keeps the recorded time, and the System's clock must agree to 2 ulp.
 - *An invasion's recording pass re-runs the run*, and reproduces it only while nothing between the two calls changes the SCM.
 - *`lma`'s pinned difference has a floor near 1e-5*, on residents too.
-- *Positivity binds before stability for an explicit pool, and only the stage guard minds:* a step between 2.16 and 3.73 of a pool's relaxation time is stable while its fourth stage is below empty, and a near-empty pool whose stage rates differ in sign goes below zero inside a short step too. The step's combination recovers: with the guard off, pinned runs and invaders keep the base run's error, and every step's end stays above zero.
+- *Positivity binds before stability for an explicit pool, and only the stage guard minds:* a step between 2.16 and 3.73 of a pool's relaxation time is stable while its fourth stage is below empty, and a near-empty pool whose stage rates differ in sign goes below zero inside a short step too. The step's combination recovers: with the guard off, pinned runs and invaders stay within about three times the base run's error, and every step's end stays above zero.
 - *A TF24 run at the default tolerance carries its own time error*, about 0.1% on the five-year stands, where the offset lengthens its steps. Compare against a run integrated to 1e-6, as TF24f's convergence test does.
 - *A zero pulse is not an entry*, even at an introduction's time: `entries()`, `size`, the walks and `event_log` never see it. `get_events()` returns it before the entry at its time, and `program()` adds it to a grid only.
 - *A correction put on the tape must be zero in value:* the implicit stage is `Y* − M·(G − to_passive(G))`. `Y* − M·G(Y*)` moves the stage by Newton's residual, and the sweep would no longer repeat the run's values.
