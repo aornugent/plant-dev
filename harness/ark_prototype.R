@@ -10,7 +10,8 @@
 #     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0]] \
 #     [EVENTS=1 [EVENT_ETA=1e-3] [EVENT_RESTART=0.05] [CLASS_EVENTS=1]] [LOCAL=1] \
 #     [TOL_POOL=0.01] [TOL_POOL_ABS=0.01] [POOL_FLOOR=1e-3] [KINK_EST=1] \
-#     [CROSS_RESTART=0.1] [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
+#     [CROSS_RESTART=0.1] [CROSS_CAP=1 [CROSS_TAIL=12]] [ONSET_CAP=0.3 [ONSET_SPAN=1.5]] \
+#     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
 #     Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
@@ -32,8 +33,14 @@
 # estimate on a step across its switch to the switch's straddling error, and
 # CROSS_RESTART caps the proposal after such a step at that many days.
 # KINK_EST=all raises the coordinate's, output's and offspring's estimates the
-# same way. On a PROGRAM replay, CROSS_LOG saves each crossing of zero by a
-# member's P, and SPLIT takes the rows SPLIT_ROWS names as that many steps.
+# same way. CROSS_CAP caps a step at that many days from a member's predicted
+# downward crossing of zero, read from its P and the slope of P over the last
+# step, to CROSS_TAIL days past the last crossing, and refuses a longer step
+# across one. ONSET_CAP caps a step at that many days for ONSET_SPAN days after a
+# rain onset while any member's P is negative. On a PROGRAM replay, CROSS_LOG
+# saves each crossing of zero by a member's P, SPLIT takes the rows SPLIT_ROWS
+# names as that many steps, and a step that raises reports the stage and the
+# pools it put below zero.
 # Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
@@ -54,6 +61,13 @@ times <- uniform_times(nodes)
 # from its height.
 pars <- NULL
 pool_of <- function(y) 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
+NODE <- c("height", "mortality", "fecundity", "area_heartwood", "mass_heartwood",
+          "storage", "offspring", "log_density", "mass")
+ENV <- c(paste0("soil_", 1:5), paste0("accumulator_", 1:5))
+component <- function(i, y) {
+  m <- 9 * ((length(y) - 10) %/% 9)
+  if (i <= m) NODE[(i - 1) %% 9 + 1] else ENV[i - m]
+}
 capacity <- function(y) {
   h <- y[pool_of(y) - 5]
   eta_c <- 1 - 2 / (1 + pars$eta) + 1 / (1 + 2 * pars$eta)
@@ -120,13 +134,20 @@ KINK_ALL <- Sys.getenv("KINK_EST") == "all"
 SPLIT <- as.integer(Sys.getenv("SPLIT", "1"))
 CROSS_RESTART <- if (nzchar(Sys.getenv("CROSS_RESTART"))) as.numeric(Sys.getenv("CROSS_RESTART")) / 365 else NA
 TOL_POOL_ABS <- as.numeric(Sys.getenv("TOL_POOL_ABS", "1"))
+CROSS_CAP <- as.numeric(Sys.getenv("CROSS_CAP", "Inf")) / 365
+CROSS_TAIL <- as.numeric(Sys.getenv("CROSS_TAIL", "12")) / 365
+ONSET_CAP <- as.numeric(Sys.getenv("ONSET_CAP", "Inf")) / 365
+ONSET_SPAN <- as.numeric(Sys.getenv("ONSET_SPAN", "1.5")) / 365
+# The knots where rain starts after a dry span.
+wet <- rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0
+onsets <- pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]]
 WINDOW <- 1e-5
 klass <- function(y) patch$ode_aux[13 * (seq_len((length(y) - 10) %/% 9) - 1) + 13]
 
 n <- new.env()
 for (x in c("evaluations", "members", "switch", "clamp", "floor", "accepted",
             "accepted_at_minimum", "rejected_inaccurate", "rejected_thrown",
-            "rejected_refused", "rejected_switch", "rejected_event", "located", "located_class",
+            "rejected_refused", "rejected_switch", "rejected_event", "rejected_zone", "located", "located_class",
             "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures")) {
   assign(x, 0, envir = n)
 }
@@ -418,20 +439,62 @@ adjust <- function(h, y, yerr, dydt, kink = integer()) {
   h
 }
 
+# The cap on a step of proposal h from t0, and what set it: 1 for CROSS_CAP, 2
+# for ONSET_CAP. Ahead of a predicted crossing the step stops CROSS_CAP short of it.
+cap_at <- function(t0, h) {
+  cap <- c(Inf, 0)
+  if (is.finite(CROSS_CAP)) {
+    down <- sv$P > 0 & sv$Pdot < 0
+    t_c <- if (any(down)) min(t0 + sv$P[down] / -sv$Pdot[down]) else Inf
+    if (t0 < sv$zone_until || t0 + h > t_c - CROSS_CAP) {
+      cap <- c(if (t0 < sv$zone_until) CROSS_CAP else max(CROSS_CAP, t_c - CROSS_CAP - t0), 1)
+    }
+  }
+  if (is.finite(ONSET_CAP) && ONSET_CAP < cap[1] && any(sv$P < 0)) {
+    o <- onsets[onsets <= t0]
+    if (length(o) && t0 - max(o) < ONSET_SPAN) cap <- c(ONSET_CAP, 2)
+  }
+  cap
+}
+
+# Why a pinned step from (t, y) of size h raised: the first evaluation that
+# raises, and each member whose pool that evaluation's state puts below zero.
+pinned_raise <- function(t, y, k1, h) {
+  k <- list(k1)
+  stage <- 7
+  for (i in 2:6) {
+    Y <- combine(y, tb$A[i, ], k, h)
+    ki <- rates(Y, t + tb$c[i] * h)
+    if (is.null(ki)) { stage <- i; break }
+    k[[i]] <- ki
+  }
+  if (stage == 7) Y <- combine(y, tb$b, k, h)
+  pool <- pool_of(y)
+  f <- which(Y[pool] < 0)
+  stage_rates <- vapply(f, function(j) paste(sprintf("%.3g", vapply(k, function(x) x[pool[j]], 0)),
+                                             collapse = " "), "")
+  paste(c(sprintf("a pinned step raised at t = %.17g, h = %.3g days, at evaluation %d of 7", t, 365 * h, stage),
+          sprintf("  member %d: r %.3g at the start and %.3g there; P %.3g; h (-dS/dt) / S %.3g; the pool's stage rates %s",
+                  f, y[pool[f]] / capacity(y)[f], Y[pool[f]] / capacity(Y)[f], sv$P[f],
+                  -h * k1[pool[f]] / y[pool[f]], stage_rates)), collapse = "\n")
+}
+
 # SolverInternal::step, towards `target`: a step clipped to reach it lands on it
 # and leaves the proposal as it was.
 sv <- new.env()
 steps <- new.env()
 steps$k <- 0L
 steps$states <- if (nzchar(Sys.getenv("STATES"))) list() else NULL
-steps$rows <- matrix(NA_real_, 60000, 11,
+steps$rows <- matrix(NA_real_, 60000, 12,
                      dimnames = list(NULL, c("time", "h", "er", "ei", "M", "x_soil",
-                                             paste0("soil_", 1:5))))
+                                             paste0("soil_", 1:5), "cap")))
 step <- function(target) {
   t0 <- sv$t
   remaining <- target - t0
   h <- sv$h_last
   if (method == "held") h <- min(h, 0.8 * BETA / lambda_soil(sv$y, t0))
+  cap <- cap_at(t0, h)
+  h <- min(h, cap[1])
   at_crossing <- FALSE
   repeat {
     final <- h > remaining
@@ -453,6 +516,11 @@ step <- function(target) {
         n$rejected_refused <- n$rejected_refused + 1
       } else if (ctl$shrank) {
         n$rejected_inaccurate <- n$rejected_inaccurate + 1
+      } else if (h > CROSS_CAP * (1 + 1e-9) && any(down <- sv$P > 0 & a$P < 0)) {
+        hn <- CROSS_CAP
+        ctl$shrank <- TRUE
+        sv$zone_until <- max(sv$zone_until, t0 + h * min(sv$P[down] / (sv$P[down] - a$P[down])) + CROSS_TAIL)
+        n$rejected_zone <- n$rejected_zone + 1
       } else if (h > DELTA && any(sign(a$P) != sign(sv$P))) {
         hn <- max(h / 2, DELTA)
         ctl$shrank <- TRUE
@@ -486,8 +554,13 @@ step <- function(target) {
     steps$k <- steps$k + 1L
     if (steps$k > nrow(steps$rows)) steps$rows <- rbind(steps$rows, steps$rows * NA)
     steps$rows[steps$k, ] <- c(sv$t, h, ctl$ratio, ctl$index, (length(a$y) - 10) %/% 9,
-                               h * lambda_soil(sv$y, t0) / BETA, a$y[soil(a$y)])
+                               h * lambda_soil(sv$y, t0) / BETA, a$y[soil(a$y)], cap[2])
     if (!is.null(steps$states)) steps$states[[steps$k]] <- a$y
+    down <- sv$P > 0 & a$P < 0
+    if (any(down)) {
+      sv$zone_until <- max(sv$zone_until, t0 + h * max(sv$P[down] / (sv$P[down] - a$P[down])) + CROSS_TAIL)
+    }
+    sv$Pdot <- (a$P - sv$P) / h
     sv$y <- a$y
     sv$dydt <- a$rates
     sv$P <- a$P
@@ -503,15 +576,18 @@ if (sys.nframe() == 0L) {
   program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st else NULL
   split_rows <- if (nzchar(Sys.getenv("SPLIT_ROWS"))) unique(readRDS(Sys.getenv("SPLIT_ROWS"))$row) else integer()
   crossings <- list()
-  replay <- list(ratio_max = 0, over = 0, depth = Inf)
+  replay <- list(ratio_max = 0, over = 0, depth = Inf, over_at = character(), over_x = numeric())
   sv$t <- 0
   sv$h_last <- ct$ode_step_size_initial
+  sv$zone_until <- -Inf
+  sv$Pdot <- numeric()
   for (k in seq_along(times)) {
     patch$introduce_new_node(1L, times[k])
     sv$y <- patch$ode_state
     sv$dydt <- rates(sv$y, sv$t)
     if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
     sv$P <- production(sv$y)
+    sv$Pdot <- c(sv$Pdot, 0)[seq_along(sv$P)]
     sv$K <- klass(sv$y)
     t_end <- if (k < length(times)) times[k + 1] else LIFETIME
     if (!is.null(program)) {
@@ -520,13 +596,17 @@ if (sys.nframe() == 0L) {
         for (k in seq_len(n_sub)) {
           h <- program$h[i] / n_sub
           a <- attempt(sv$t, sv$y, sv$dydt, h)
-          if (is.null(a)) stop(sprintf("a pinned step raised at t = %.17g", sv$t))
+          if (is.null(a)) stop(pinned_raise(sv$t, sv$y, sv$dydt, h))
           f <- which(sign(a$P) != sign(sv$P))
           if (length(f)) crossings[[length(crossings) + 1]] <- data.frame(row = i, member = f,
             t = sv$t + h * sv$P[f] / (sv$P[f] - a$P[f]), down = sv$P[f] > 0, h = h)
           invisible(adjust(h, a$y, a$yerr, a$rates))
           replay$ratio_max <- max(replay$ratio_max, ctl$ratio)
           replay$over <- replay$over + (ctl$ratio > 1.1)
+          if (ctl$ratio > 1.1) {
+            replay$over_at <- c(replay$over_at, component(ctl$index, a$y))
+            replay$over_x <- c(replay$over_x, h * lambda_soil(sv$y, sv$t) / BETA)
+          }
           replay$depth <- min(replay$depth, min(a$y[pool_of(a$y)] / capacity(a$y)))
           steps$k <- steps$k + 1L
           sv$t <- if (k == n_sub) program$time[i] else sv$t + h
@@ -543,6 +623,13 @@ if (sys.nframe() == 0L) {
   if (!is.null(program)) {
     cat(sprintf("replayed %d steps: error ratio at most %.3g, above 1.1 on %d; deepest pool %.3g of capacity\n",
                 steps$k, replay$ratio_max, replay$over, replay$depth))
+    if (replay$over) {
+      soil_x <- replay$over_x[grepl("^soil_", replay$over_at)]
+      cat("above 1.1, by the component that set the ratio:",
+          paste(names(table(replay$over_at)), table(replay$over_at), collapse = ", "),
+          sprintf("; h |lambda_soil| / beta on the soil's: median %.3g\n",
+                  if (length(soil_x)) median(soil_x) else NA))
+    }
     if (nzchar(Sys.getenv("CROSS_LOG"))) saveRDS(do.call(rbind, crossings), Sys.getenv("CROSS_LOG"))
   }
 
@@ -558,7 +645,8 @@ if (sys.nframe() == 0L) {
   for (j in seq_along(f)) J <- J + w[j] * (f[j] * pd[j] * S_D) * br[j]
 
   att <- vapply(c("accepted", "accepted_at_minimum", "rejected_inaccurate",
-                  "rejected_thrown", "rejected_refused", "rejected_switch", "rejected_event"),
+                  "rejected_thrown", "rejected_refused", "rejected_switch", "rejected_event",
+                  "rejected_zone"),
                 function(x) n[[x]], 0)
   st <- as.data.frame(steps$rows[seq_len(steps$k), , drop = FALSE])
   cat(sprintf("%s nodes %d tol %g: J %.9f, %d accepted, %.0f s; %s\n", method, nodes, tol,
@@ -578,9 +666,6 @@ if (sys.nframe() == 0L) {
                 n$solves, n$iterations / max(1, n$solves - n$failures), n$most_iterations,
                 n$halvings, n$failures))
   }
-  NODE <- c("height", "mortality", "fecundity", "area_heartwood", "mass_heartwood",
-            "storage", "offspring", "log_density", "mass")
-  ENV <- c(paste0("soil_", 1:5), paste0("accumulator_", 1:5))
   kind <- ifelse(st$ei <= 9 * st$M, NODE[(st$ei - 1) %% 9 + 1], ENV[pmax(1, st$ei - 9 * st$M)])
   pct <- function(x) sprintf("%.1f%%", 100 * mean(x, na.rm = TRUE))
   cat("binding: soil", pct(grepl("^soil_", kind)), " accumulator", pct(grepl("^accumulator_", kind)),
@@ -591,7 +676,7 @@ if (sys.nframe() == 0L) {
   if (nzchar(Sys.getenv("REF"))) {
     ref <- readRDS(Sys.getenv("REF"))
     rs <- ref$st
-    ref$attempts[c("rejected_switch", "rejected_event")] <- 0
+    ref$attempts[c("rejected_switch", "rejected_event", "rejected_zone")] <- 0
     same <- nrow(rs) == nrow(st) && identical(rs$time, st$time) && identical(rs$h, st$h) &&
       identical(rs$er, st$er) && identical(as.numeric(rs$ei), st$ei)
     cat(sprintf("against the recording: J %s, attempts %s, steps %s\n",
