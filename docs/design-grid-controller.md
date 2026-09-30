@@ -434,6 +434,10 @@ differences of `ln J` in `lma` (through the trait):
 - But the split's `J` jumps by 1.7e-6 between `lma` ×1 and ×(1 + 1e-4), so no
   small difference survives it. Finding the crossings to `|P| < 5e-4` instead
   changes `J` by 5e-7 and leaves the jump.
+- The jump is the split's structure changing. Of the 9231 crossings, four move
+  to the next step between the two, and one member's dip below zero, down and
+  up within 1e-5 of a time unit, disappears. The reply's fixed event structure
+  is what holds the first kind; the second it calls the model's own.
 - It costs 4× a plain replay on the driver, where each member's sub-step
   evaluates the whole patch.
 

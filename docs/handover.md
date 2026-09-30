@@ -109,7 +109,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 | 1. ε | done for `ln J` (0.025) and elasticities (`docs/measurements/eps-spread.md`); curvatures running |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor on a bank | not started |
-| 4. the headroom | the consultation is answered; two of its four tests done, the third running |
+| 4. the headroom | the consultation is answered; three of its four tests done |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
@@ -160,10 +160,12 @@ and the spec's *The reply's tests* has what was measured.
   from `lma` ×0.9 to ×1.1 keep `J` within 1.2e-4 with or without it. Their
   error ratios reach 13–130, set by the pools, so the walked ratio is no radius
   diagnostic.
-- *Running:* the member split on the driver (`LOCAL`), with each crossing found
-  to `|P| < 5e-11`. With crossings found to `|P| < 5e-4`, its second difference
-  at 1e-4 was −234 against −31 without the split. The finer location checks
-  whether that is the location's jitter.
+- *The split's first cut does not make `J` smooth.* The driver's `LOCAL`, with
+  each crossing found anew at each θ, brings the chord at 1e-3 nearer the wide
+  one. But four crossings change step and a grazing dip disappears within 1e-4
+  of θ₀, and `J` jumps by 1.7e-6 there. The reply's version, a fixed event
+  structure differentiated through the crossing times, is an implementation in
+  odelia's sweep, not a test.
 - *Not yet tested:* nodes at the creation spans' edges, adjoint-weighted control,
   the pool as `asinh`, deleting the end-state refusal, and a warm-started inner
   solve. Steps more than 10 days after rain are 23% of member evaluations and
