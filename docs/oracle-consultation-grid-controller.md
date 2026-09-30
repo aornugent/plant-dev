@@ -267,18 +267,19 @@ the model, without `τ_s`, at `tol = 1e-3`, and are the only ones on that axis.
 | the chain's relaxation at `v = 1` | `0.018δ` |
 | the chain's relaxation after a pulse | about the time since the pulse |
 | a pool's relaxation | `τ_s = 7δ` plus `S_max/(u⁺ + u⁻)` |
-| `ρ_c`'s rises and falls | about `40δ` and `18δ` |
+| `ρ_c`'s rises and falls (earlier version) | about `40δ` and `18δ` |
 | the creation spacing | `135δ` |
 | the width of `∂J/∂w_j`'s excursions over creation time (earlier version) | `37–180δ` |
 | the accepted steps at `tol = 1e-4` | median `0.27δ`, 90th percentile `2.9δ`, at most `25δ` |
 
 **(D1) The run's course.**
 - Members are created every 0.37 units and never removed, and 54 are held on average.
-- The forcing's three long stretches of small, rare pulses are where the accepted steps
-  are fewest: 156 per unit time there, against up to 496 elsewhere.
-- Creation stops where `P_new ≤ 0`, over 5.84 units of the horizon (14.6%) in 56 spans,
-  the first at `t = 3.56`. `ρ_c`'s rises and falls at the ends of those spans are about
-  `40δ` and `18δ` wide.
+- *On the earlier version at `tol = 1e-3`:*
+  - the forcing's three long stretches of small, rare pulses are where the accepted
+    steps are fewest, 156 per unit time there against up to 496 elsewhere;
+  - creation stops where `P_new ≤ 0`, over 5.84 units of the horizon (14.6%) in 56
+    spans, the first at `t = 3.56`;
+  - `ρ_c`'s rises and falls at the ends of those spans are about `40δ` and `18δ` wide.
 
 **(D2) The crossings of `P = 0`.**
 - There are 9237 along the run at `tol = 1e-6` (9220 at `1e-4`), by 107 members. 4 of
