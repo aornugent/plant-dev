@@ -377,7 +377,9 @@ kink_kernel <- function(u) sum(tb$b * pmax(tb$c - u, 0)) - (1 - u)^2 / 2
 # net production changed sign corrected by -h^2 times each kinked rate's slope
 # jump times the kernel at the crossing, and its rates evaluated again there.
 kink_fix <- function(h, a, t1) {
-  f <- which(sign(a$P) != sign(sv$P))
+  # A member whose P moves less than 100 times P+'s smoothing width across the
+  # step has no kink at the step's scale.
+  f <- which(sign(a$P) != sign(sv$P) & abs(a$P - sv$P) > 100 * 1e-4)
   if (!length(f)) return(a)
   pool <- pool_of(sv$y)[f]
   # The crossing, between the stages that bracket it, and P's slope there. The
