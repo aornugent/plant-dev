@@ -681,3 +681,130 @@ Today `J` within `1e-4` costs about 5.4e6 member evaluations per forward run (th
 4. Are the precondition (a)–(c) and the outcomes above the right objects? Which rules for the steps, stops, creation times and error scales would deliver the outcomes, each with a guarantee and a check? What features of a forcing series would break them?
 
 For each answer, name the cheapest measurement on the driver that would confirm or refute it. We may again be treating the wrong object. An answer that says so, and names the object to treat instead, is welcome.
+
+## Second follow-up, after your reply to the follow-up
+
+This continues the statement, the follow-up and your two replies, in the same notation. It has three parts: your reply to the follow-up, measured; our objectives as they stand, for your critique; and what we ask. H1–H4 and the free readings still hold. The model and its discretisation may still change if the change is declared and its effect measured.
+
+### 1. Your reply, measured
+
+All on the test instance.
+- Gradients are central differences at `θ_k·(1 ± 1e-4)` on pinned runs of one grid, against the follow-up's §2 references. Their resolution is about 2e-4 for `θ_A` and unknown for `θ_B`.
+- *The full setting* below is the per-member scale with `c = 1e-3`, the corrected pool-only kink estimate and the restart: the follow-up's "both" row.
+
+**The gradient's error and the crossing steps.** On the pair's grid at `tol = 1e-3`, 305 of the 9312 steps have some member's `P` change sign across them. The downward ones are a median `8.6δ` long (10–90%: `3.5–17δ`), and the upward ones `1δ`. Only those steps were split into equal steps, the same steps at both `θ`:
+
+| each crossing step split into | added steps | error in `dJ/d ln θ_A` | error in `dJ/d ln θ_B` |
+|---|---|---|---|
+| 1 | 0 | −6.1e-3 | −2.2e-2 |
+| 2 | 3% | −2.6e-3 | −9.4e-3 |
+| 4 | 10% | −2.5e-5 | −4.5e-3 |
+| 8 | 23% | +1.6e-4 | −9.6e-4 |
+
+On the per-member scale's grid at `tol = 1e-4` (`c = 1e-3`), 869 steps cross, the downward ones a median `2.9δ` long. Splitting them into 1, 2 and 4 (7% and 20% added steps) gives:
+- `θ_B`: +9.9e-4, −1.9e-5 and +7.3e-5;
+- `θ_A`: +5.3e-4, +2.1e-4 and +4.2e-4, which do not fall with the split and are within about three times the reference's resolution.
+
+**Crossings move with `θ`.** The pair's grid at `1e-3` was pinned at `θ_k·(1 ± 1e-2)`. Each crossing time comes from linear interpolation of `P` across its step, and crossings are matched by member and direction within `20δ`. The shift is per unit `ln θ_k`, as a median with its 10–90% range:
+
+| | `θ_A` | `θ_B` |
+|---|---|---|
+| downward crossings | `17δ` (`3.8–40δ`) | `8.5δ` (`2.3–19δ`) |
+| upward crossings | `0.19δ` (`0.05–1.4δ`) | `0.05δ` (`0.004–0.7δ`) |
+
+You estimated `9δ` and `0.6δ` for `θ_A`.
+
+**The four-component kink estimate.** It raised four components on a crossing step, each against its own error scale:
+- the pool, by `|(1 − G)(1 − r) − r|`;
+- `x`, `Y` and `F`, by `|ẏ/P|`, read at whichever end of the step has `P > 0` (its start, on a downward crossing).
+
+When one of these set the ratio, the step-size update used the exponents for an error of order `h²`. The restart and `c = 1e-3` were as before.
+
+Over the seven nudges around `tol = 3e-4`, its standard deviation is 2.4e-5 (median error −7.9e-5), at 5.77e6 member evaluations. For comparison:
+- the first factor: 6.8e-6, at 5.84e6;
+- the full setting: 2.9e-5, at 5.77e6.
+
+The added estimates set the ratio on 0.2% more accepted steps. At `3e-4` the run took 14 560 accepted steps, against 14 566 for the full setting and 14 696 for the first factor. So the prediction that it would match the first factor's steadiness fails, and that steadiness is unexplained.
+
+**Transfer.** The per-member scale's grid with `c = 1e-4` at `tol = 1e-4` has 13 403 steps. It was pinned at `θ_A` times each factor below, and compared at each point with the full setting at `tol = 3e-5` (−3.4e-6 at `θ₀`). The re-formed ratio is the embedded difference over the rule's own scales, as the adaptive run forms it, without the analytic jumps on crossing steps that your check specifies. At `θ₀` its largest value is 1.10.
+
+| `θ_A ×` | 0.8 | 0.9 | 0.95 | 1.05 | 1.1 | 1.2 |
+|---|---|---|---|---|---|---|
+| reference `J` | 28.74 | 19.68 | 15.99 | 9.68 | 7.06 | 3.21 |
+| pinned, error in `J` | a stage throws at `t = 3.48` | +6.6e-5 | −1.4e-5 | −1.2e-5 | +5.2e-5 | −3.3e-5 |
+| adaptive, same rule, error in `J` | −9.0e-5 | +3.3e-6 | −6.1e-6 | −2.2e-5 | +6.7e-6 | +2.5e-5 |
+| pinned, largest re-formed ratio | | 65 | 55 | 38 | 33 | 27 |
+| pinned, steps with that ratio above 1.1 | | 302 | 237 | 96 | 126 | 212 |
+
+- On the pinned runs, the re-formed ratio exceeds 1.1 at every point while `J` stays within 7e-5. So as a check on `J` it trips long before `J` fails. Which component sets it was not recorded. The pools stay above zero at every completed point.
+- At `× 0.8` the stage throws with the guard at `−1e-8·S_max` and at `−1e-4·S_max`.
+- The gradient on these pinned grids was not measured.
+- The pair's grid at `1e-3`, pinned at `θ_k·(1 ± 1e-2)`, already has a largest re-formed ratio of 6–8, on 10–22 steps.
+
+**The guard.** With the guard relaxed to `S ≥ −1e-4·S_max`, probes were run on the pair's base run at `tol = 1e-3`.
+- `θ_A′/θ_A` = 0.9, 0.95, 0.97, 0.99, 1.01, 1.03 and 1.05 all run. At `−1e-8·S_max`, only 0.99 ran of 0.95–1.05.
+- 1.1, 1.2 and 1.5 still fail, below `−1e-4·S_max`.
+- `J′` is 55.7, 28.1, 20.9, 15.1, 12.67 (at `θ′ = θ`), 10.6, 7.21 and 4.79 over 0.9–1.05. The local slope of `ln J′` in `ln θ′` drifts from −12.6 to −21.3 without a jump; at `θ′ = θ` it is −17.8, against −4.98 for `J` itself in `θ_A`. The error of these `J′` against a reference base run was not measured.
+- The relaxed guard moves the base run's `J` by 1.4e-6, relative.
+
+**Not measured:**
+- your sum `Σ_e h_e·Δ_e·|K′|·|dt_e/dln θ_k|` against the follow-up's §2 magnitudes;
+- the density of branch flips in `θ`;
+- event zones on the adaptive rule;
+- gradients on transferred grids, and the probes' errors;
+- the class switch's kink in `a`;
+- T12's variants;
+- the creation ladder with the per-member scale;
+- `E_J`.
+
+### 2. Our objectives, as they stand
+
+**Purpose.** The discretisation exists to give gradients from the sweep, on forcing series like this one, for two uses:
+- a calibration that minimises `L(θ)`. How far it moves `θ` between rebuilds is not known;
+- probes, for a search for roots of `g′` and for `J′` over a range of `θ′`.
+
+The aim is rules for the steps, stops and creation times, each with a stated guarantee and a check on every run, not one optimal grid.
+
+**First, the discretisation converges,** on each axis (time, whose knob is `tol`; creation, whose knob is the spacing) and on each series:
+- *(a)* Along a ladder of the knob, the error in `J`, `dJ/dθ` and `g′` falls in proportion to `tol` and to the spacing squared, with a constant stable within about ×3.
+- *(b)* Nudging the knob (`tol` within ±5%, or the creation times shifted by a quarter of a spacing) moves them by at most a tenth of the error budget the setting is chosen for.
+- *(c)* A grid built at `θ₀`, pinned at any `θ` within `Δ` of `θ₀`, keeps `J` and the gradients within the budgets its rule meets at `θ₀`. So do probes within `Δ`, and nothing throws. The largest such `Δ` is the grid's transfer radius.
+
+**Then the goals.** Goals 1 and 2 build in a design, a grid fixed per series; we list them as they stand, because whether they should is part of the question.
+1. *Gradients on a fixed grid.* Away from an optimum, `∇L` with relative error at most 0.3 in the Euclidean norm in `ln θ`. Every gradient error measured so far is well inside that. Near an optimum, the error in its location, `|H⁻¹·δg|`, must be below the precision wanted.
+2. *One grid per forcing series,* shared across `θ` and by probes within its transfer radius, which a check on every run reports.
+   - At `θ′ = θ` the probe runs on its own base run's grid, so goal 1 applies.
+   - Near a root of `g′`, bound the error in the root's location.
+3. *Rules,* each with a guarantee (one of (a)–(c), measured across a bank of series) and a check.
+4. *Across a bank of forcing series.*
+5. *Cost last,* as a budget per gradient and per probe, not a minimum.
+
+**Not yet set:**
+- the error budgets: the statement's `1e-4` for `J` was set aside, and none is set for the gradients;
+- the precision wanted in `θ`;
+- `Δ` (probes need about ±5% today);
+- the bank;
+- the cost budget.
+
+**What your reply suggested, not yet adopted:**
+- (a) holds for `J` but not as stated for the gradients. The time axis has two knobs, `tol` and the step across the crossings `h_e`, and the gradients follow `h_e` alone.
+- (b) is not a property to test but one to make small by construction, through `h_e`.
+- (c) is the right object. With a grid fixed between rebuilds it is the only convergence question that matters, and the rebuilding rule's convergence is shown once per series by a ladder, not required of every run.
+- A grid fixed per series, rebuilt when a check trips or the iterate leaves its region.
+  - The check is the re-formed ratio with the analytic jumps, sign changes on steps longer than `h_e`, the pool's deepest excursion and the largest `hλ_chain/β`.
+  - `E_J` is the sharper check.
+
+### 3. What we ask
+
+We want a solution that is elegant, simple and excellent: few parts, and guarantees that are strong and cheap to check. Several root causes may stand between here and such a solution. Details that can be fixed should be named and set aside, not allowed to steer the design.
+
+1. **The objectives.** What should they be, for these two uses? Keep, drop, merge or add, including the fixed grid in goals 1 and 2, and your own suggestions above.
+2. **The goal, rethought.**
+   - From first principles: start from what the calibration and the root search need, and from what is true of the problem as posed. What should the discretisation be required to deliver?
+   - Then follow what each of those requirements forces in turn.
+   - What is the simplest design that meets them excellently, and what would you refuse to build?
+3. **Root causes.** What stands between here and that design? Rank them, and say for each whether it is structural or a fixable detail. For a fixable detail, give the fix in a line.
+   - Include what §1 leaves unexplained: the first factor's steadiness, crossings shifting at about twice your estimate, the re-formed ratio's failure as a check, and the throw at `θ_A × 0.8`.
+4. **The next measurement.** Which single measurement on the driver would most sharpen the choice between the designs you consider?
+
+We may be asking for the wrong thing. If a different goal, or a different formulation of the problem, would make the solution elegant and simple, say so.

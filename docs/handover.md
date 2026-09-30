@@ -126,7 +126,8 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 - a per-member grid at tol 1e-4, pinned across lma, keeps `J` within 1e-4 from × 0.9 to × 1.2. Confirmed; a stage throws at × 0.8;
 - relaxing the pool's guard lets invaders run. Partly: × 0.9 to × 1.05 run at tol 1e-3;
 - the coordinate's and outputs' kinks explain why the first kink factor was steadiest. Refuted.
-Its reframing of the objectives, that the gradient follows the step across the crossings rather than tol, is proposed to the user and not yet in `OBJECTIVES.md`.
+These findings went back to the Oracle with the objectives, as the consult's *Second follow-up, after your reply to the follow-up*. The user asked it to rethink the goal from first principles and their consequences, towards something elegant, simple and excellent, and to separate structural root causes from fixable details. Its reply is awaited, and `OBJECTIVES.md` is unchanged until it arrives.
+- `OBJECTIVES.md`'s (c) says a pinned grid "still passes (a) and (b)"; the consult uses the sharper form, that it keeps `J` and the gradients within the budgets its rule meets at θ₀, which is what the transfer test measured.
 
 **The two scopes are archived** in `docs/archive/`. Steps 1–3 of their plan are [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), rebased onto #94. #97's model change is accepted, and the code review covered #96 and #97.
 
@@ -203,9 +204,9 @@ For a_dG2 (reference 13.37): Cash–Karp −2.2e-2, +7.1e-4 and +6.1e-3 at 1e-3,
 
 ## Next session
 
-**1. Settle the objectives' revision with the user.** The reply's reading, now measured: `J` follows tol and the step across the crossings, and the gradient follows only the latter. The re-formed ratio does not check a transferred grid.
+**1. Read the Oracle's fourth reply against the objectives**, and settle with the user what it changes in `OBJECTIVES.md`. Test each claim by its cheapest measurement on the driver before anything is built.
 
-**2. Test event zones**, the reply's least change, on the driver before anything is built.
+**2. Test event zones**, the third reply's least change, unless the fourth redirects it.
 - The rule: the pool scale, with every step across a sign change of `P` capped at `h_e` = 0.5–2 days (T5's refusal with `P_c` = 0).
 - Measure the nudge spread around 3e-4, the cost, the gradient on its grid, and its grid pinned across lma × 0.8 to × 1.2, `J` and the gradient.
 - Find why a stage throws at lma × 0.8, t = 3.48, on the pool scale's grid.
