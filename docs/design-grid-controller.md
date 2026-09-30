@@ -389,6 +389,12 @@ walked through θ₀'s recording.
   −34 to −59: its elasticity strays from a smooth one by about 0.01 (1e-3 of
   itself), and the invader's by 5e-4 to 1e-3 (3e-5 of itself). A chord over
   ±δ is off by about that over δ: ±1 for the resident at δ = 1e-2.
+- *Against adaptive runs,* each on its own grid at `lma·e^{±δ}`, the resident's
+  chords are −43.1 and −43.6 at δ = 1e-2 and 3e-2, and −43.7 combined at both.
+  The frozen grid's combined values are within 0.2 of that.
+- *The gradient itself differs between grids.* At `lma·e^{0.01}` the pinned and
+  the adaptive run's `lma` elasticities differ by 0.025, and by 0.001–0.007 at
+  the other three points. The resident's ε/3 is 0.029.
 
 *The margin and the walked ratio.* The driver at the per-pool scale, with the
 stage guard out of reach, builds θ₀'s grid with and without the margin and
@@ -409,6 +415,27 @@ walks each at `lma` ×0.9 to ×1.1.
   runs are off by −6.0e-5. That is 200× inside ε.
 - So the margin buys no radius here, and the walked ratio does not measure one:
   the pools set it, and a ratio of 65 goes with an error in `J` of 1e-4.
+
+*The split, as a first cut.* The driver's `LOCAL` re-integrates each member
+whose `P` changes sign across a step on its own, in two Cash–Karp sub-steps
+split at the crossing, with the rest of the state read from the step's
+interpolant. On a replay it finds the crossing again at the replay's θ, to
+`|P| < 5e-11`. It has neither the reply's fixed event structure nor the
+class switch's event. On the per-pool scale's grid at `1e-4`, second
+differences of `ln J` in `lma` (through the trait):
+
+| `r` in `lma·(1 ± r)` | 1e-4 | 1e-3 | 1e-2 |
+|---|---|---|---|
+| plain | −31.3 | −22.1 | −19.2 |
+| split | −222 | −20.4 | −19.6 |
+
+- At 1e-3 the split is nearer the wide chord than the plain grid is, as the
+  claim has it.
+- But the split's `J` jumps by 1.7e-6 between `lma` ×1 and ×(1 + 1e-4), so no
+  small difference survives it. Finding the crossings to `|P| < 5e-4` instead
+  changes `J` by 5e-7 and leaves the jump.
+- It costs 4× a plain replay on the driver, where each member's sub-step
+  evaluates the whole patch.
 
 **What it yields.** Per regime: the speedup at ε for (a) and (b), the radius of
 each, and a verdict on each reformulation. A heuristic is built only where
@@ -436,6 +463,10 @@ grids:**
 - *The resident's own curvature* on grids pinned within ±10% of θ₀.
 
 **Pass.** Each is within its ε at some δ inside the analysis window.
+
+**Measured so far.** Step 4's first test is this ladder at seed 31 on the
+floor's grid, from δ = 1e-6 to 3e-2: the chord over ±1e-2 less its `O(δ²)` term
+is the curvature to about ±1 for the resident and better for the invader.
 
 ## After the assessment: the heuristics
 

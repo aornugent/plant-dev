@@ -8,8 +8,11 @@
 # gradient over every trait column. Each gradient is also kept as the elasticity
 # d ln J / d ln theta, or as d ln J / d theta where the trait's value is zero.
 #
-#   PLANT_LIB=... SEED=101 [TOL=1e-4] [NODES=108] OUT=s101.rds \
+#   PLANT_LIB=... SEED=101 [TOL=1e-4] [ATOL=1] [NODES=108] OUT=s101.rds \
 #     Rscript harness/eps_spread.R
+#
+# The absolute tolerance is ATOL times the relative one: 1 is plant's default,
+# and 1e-4 the tied tolerance of step 2.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -29,7 +32,7 @@ p <- add_strategies(p, trait_matrix(LMA0, "lma"))
 p$node_schedule_times <- list(uniform_times(nodes))
 ct <- control()
 ct$ode_tol_rel <- tol
-ct$ode_tol_abs <- tol
+ct$ode_tol_abs <- as.numeric(Sys.getenv("ATOL", "1")) * tol
 ct$node_density_in_birth_date <- TRUE
 ev <- events(events_default(p), pulse_rows(sort(unique(knots))))
 
@@ -57,7 +60,8 @@ report <- function(who, x) {
               x$secs_run, x$secs_sweep))
 }
 
-out <- list(seed = seed, tol = tol, nodes = nodes, knots = length(knots))
+out <- list(seed = seed, tol = tol, tol_abs = ct$ode_tol_abs, nodes = nodes,
+            knots = length(knots))
 t0 <- clock()
 scm <- run_scm(p, mkenv(scen), ct, events = ev)
 secs <- clock() - t0
