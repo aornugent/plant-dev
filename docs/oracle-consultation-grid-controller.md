@@ -247,7 +247,9 @@ creation time, and `T`.
 - Each evaluation uses the fields the row recorded. The probe's own members, and its own
   creation probability, are evaluated in them.
 - Its sweep holds the fields fixed. That is why a probe's gradient at `θ′ = θ` differs
-  from `dJ/dθ`, by up to a fifth: `dJ/dθ` includes the fields' response.
+  from `dJ/dθ`: `dJ/dθ` includes the fields' response. On the test instance the
+  probe's elasticity is 2.7–3.3 times the base run's for `θ_A`'s own column, and
+  2.8–4.5 times for `θ_B`. Finite differences confirm both.
 
 ## How the system behaves
 
@@ -654,20 +656,30 @@ On one grid the system's gradient jumps each time, as `θ` moves, a member's cro
 
 **(M8) The target.** Eight records from the generator, differing only in their daily
 draws, each run on 108 uniform members at `tol = 1e-4` with the shared absolute part:
-- `J` runs from 7.5 to 13.5, and `ln J` has sd 0.25, so `ε = 0.025`.
+- `J` runs from 7.5 to 13.5, in two groups (7.5–8.0 and 12.4–13.5, one record at 9.3).
+  `ln J` has sd 0.25, so `ε = 0.025`.
 - For base runs the elasticities' sd is 0.19 for `θ_B`, and 0.87 for `θ_A`'s own column
-  with its derived constants held. For probes at `θ′ = θ` they are 0.50 and 1.98. Over
-  the fifty constants the sd runs from `5.6e-4` to 6, and ε is a tenth of each.
-- On one record the setting is inside ε on both grids:
-  - tightening `tol` to `1e-5` moves `ln J` by 0.3% of its sd, and each elasticity by at
-    most 3.4%;
-  - doubling the members to 215 moves `ln J` by 1.7%, and each elasticity by at most
+  with its derived constants held. For probes at `θ′ = θ` they are 0.50 and 1.98.
+  - Over the 48 constants with a spread, the sd runs from `5.6e-4` to 6 for base runs,
+    and ε is a tenth of each.
+  - Two constants enter `J` in a fixed form, one as a factor, so their elasticities are
+    the same on every record and set no ε.
+- On one record the setting is inside ε for `ln J` and for `θ_A` and `θ_B`:
+  - tightening `tol` to `1e-5` moves `ln J` by 0.3% of its sd, and those elasticities
+    by at most 3.4%;
+  - doubling the members to 215 moves `ln J` by 1.7%, and those elasticities by at most
     4.3%.
   - So the margin is about 30× on the step grid and 2.4–6× on the creation grid.
   - M1–M3's gradient errors are 50–200× below `θ_B`'s ε.
-- On this climate, then, accuracy does not bind at these settings. What remains is how
-  cheaply ε can be met on every record, how far one grid can be shared, and the second
-  derivatives.
+- *Not every constant is inside ε.* Eleven moves exceed a tenth of the sd, ten of them in
+  elasticities below 0.1 in size. One of those moves by 2.3 sd when the members double:
+  for that constant the creation grid's error is larger than its spread across records.
+- On this climate, then, accuracy mostly does not bind at these settings. What remains
+  is:
+  - how cheaply ε can be met on every record;
+  - how far one grid can be shared;
+  - the smallest elasticities;
+  - the second derivatives.
 
 ## Facts an answer can rely on
 

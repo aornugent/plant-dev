@@ -117,10 +117,14 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 is `docs/measurements/eps-spread.md`, and the spec's step 1 summarises it.
 - ε is 0.025 in `ln J`. For elasticities it is 0.087 (`lma`) and 0.019
   (`a_dG2`) for residents, and 0.20 and 0.050 for invaders.
-- At seed 31 the setting is inside ε on both axes, by about 30× in time and
-  2.4–6× in nodes.
-- So on this climate accuracy does not bind at these settings. Steps 3 and 4 ask
-  how far each axis loosens within ε, and whether other regimes bind sooner.
+- At seed 31 the setting is inside ε for `ln J`, `lma` and `a_dG2`, by about 30×
+  in time and 2.4–6× in nodes.
+- Eleven moves exceed ε, ten of them in elasticities below 0.1 in size. The
+  resident's `a_st3` moves by 2.3 sd between 108 and 215 nodes.
+- The invader's elasticities are 2.7–4.5 times the resident's for `lma` and
+  `a_dG2`, and finite differences confirm both.
+- So on this climate accuracy mostly does not bind at these settings. Steps 3 and 4
+  ask how far each axis loosens within ε, and whether other regimes bind sooner.
 
 **Step 2 (a), the pool's tolerance: a setting.** With `ode_tol_abs =
 1e-4·ode_tol_rel` on v12t, `J`'s error on long drought is within 0.46·tol from
@@ -210,3 +214,7 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   - `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
   - TF24's `scientific_version` log is history by design; whether it stays is
     the user's call.
+- **A replayed step program is not exact.** Setting a run's own `p$ode_times` and
+  `p$ode_step_sizes` reproduces `J` only to +5.1e-8 (long drought, seed 31, `tol =
+  1e-4`, v12t), where `run_scm`'s documentation says the replay is exact. Not yet
+  looked at.

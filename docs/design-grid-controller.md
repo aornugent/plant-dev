@@ -95,8 +95,8 @@ ratios, re-formed at θ ≠ θ₀, are 6–12.
 model on the grid the run took, so every column comes from one sweep of about
 2.6 forward runs. An invader replays the resident's recording (#95), so every
 invader of a resident shares its grid, and its sweep holds the resident's field
-fixed. At θ′ = θ the invader's `J′` equals `J` to 1e-12, and its gradient is
-the selection gradient.
+fixed. At θ′ = θ the invader's `J′` equals `J` exactly, and its gradient is the
+selection gradient.
 
 ## Step 1: ε
 
@@ -122,26 +122,49 @@ at `tol = 1e-4` on 108 uniform nodes.
   | `hmat` | 0.82 | 0.082 | 0.82 | 0.082 |
   | `stem_P50` | 0.67 | 0.067 | 2.17 | 0.22 |
 
-  The other traits run from 5.6e-5 (`a_st3`) to 0.6 (`curv_fact_colim`).
-- *The setting's own error is small against the spread.* At seed 31:
-  - tightening `tol` from `1e-4` to `1e-5` moves `ln J` by 0.3% of its sd, and each
-    elasticity by at most 3.4%;
-  - going from 108 to 215 nodes moves `ln J` by 1.7%, and each elasticity by at
-    most 4.3% (the invader's `lma`).
-  - So the node axis has 2.4–6× margin on ε, and the time axis about 30×.
-  - The gradient errors measured on the driver, 1–4e-4 relative, are 50–200× below
+  The other traits' ε run from 4e-5 (the invader's `a_d0`) to 1.2 (the invader's
+  `curv_fact_colim`).
+- *For `ln J` and the main elasticities the setting's own error is small against the
+  spread.* At seed 31:
+  - tightening `tol` from `1e-4` to `1e-5` moves `ln J` by 0.3% of its sd, and `lma`
+    and `a_dG2` by at most 3.4%;
+  - going from 108 to 215 nodes moves `ln J` by 1.7%, and `lma` and `a_dG2` by at most
+    4.3% (the invader's `lma`). Extrapolated with the 429-node run, the 108-node error
+    in `ln J` is about 2.2% of its sd;
+  - for these quantities the node axis has 2.4–6× margin on ε, and the time axis about
+    30×;
+  - across the 48 traits with a spread, the median move is 0.4–3% of the sd;
+  - the gradient errors measured on the driver, 1–4e-4 relative, are 50–200× below
     `a_dG2`'s ε.
-- *Quantities with no spread take no ε.* `S_D`'s elasticity is exactly 1 and
-  `a_f3`'s exactly −0.75, and `a_st3`'s spread is 5.6e-5. These are the only ones
-  the checks move by more than a tenth of their sd.
+- *Eleven moves exceed ε.*
+  - Ten are in small elasticities, below 0.1 in size: `a_d0`, `a_st3`, `d_I` and the
+    invader's `omega`. The eleventh is the invader's `a_l1`.
+  - All but one move by 0.10–0.21 of their sd. The exception is the resident's
+    `a_st3`, which moves by 2.3 sd between 108 and 215 nodes (−0.0026 to −0.0013). For
+    that trait the node error is larger than its spread across records.
+- *Quantities with no spread take no ε.* `S_D`'s elasticity is exactly 1 and `a_f3`'s
+  exactly −0.75 on every record.
+- *`J` falls in two groups across the records:* 7.5–8.0 and 12.4–13.5, with one record
+  at 9.3. The spread in `ln J` is mostly which group a record falls in.
+- *The invader's elasticities are not the resident's.*
+  - `lma`'s is 2.7–3.3 times the resident's, and `a_dG2`'s 2.8–4.5 times. Over the 48
+    traits, the median of `|invader/resident − 1|` is 1.4.
+  - Finite differences at seed 31 confirm both: the sweep agrees to 7e-4 and 6e-5 for
+    the resident, and to 1e-5 and 1e-6 for the invader.
+  - The gap is the field's response to the resident's traits.
 - *The sd itself is uncertain.* From eight records, its 90% interval is 0.71–1.80
   times the estimate.
+- *A replayed step program is not exact.* Setting a run's own `p$ode_times` and
+  `p$ode_step_sizes` reproduces `J` only to +5.1e-8, where `run_scm`'s documentation
+  says the replay is exact.
 - *What it means.* On this climate, accuracy does not bind at `tol = 1e-4` on 108
-  nodes. The questions for steps 3 and 4 are how far each axis can be loosened
+  nodes for `ln J` and the main elasticities, though a few small ones already exceed
+  ε on the node axis. The questions for steps 3 and 4 are how far each axis can be loosened
   within ε, and whether the other regimes bind sooner. At looser tolerances the
   gradients, not `J`, are expected to bind first.
-- *Cost.* A seed took about 12 min of wall time for resident and invader with
-  their sweeps: 15 min at `1e-5`, and 22 min on 215 nodes.
+- *Cost.* A forward run took 81 s (median), and the resident's sweep 3.5 forward
+  runs, since it repeats the run. A whole seed took 12.1 min for resident and invader
+  with their sweeps: 15 min at `1e-5`, and 22 min on 215 nodes.
 
 ## Step 2: the enablers
 
