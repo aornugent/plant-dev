@@ -808,3 +808,109 @@ We want a solution that is elegant, simple and excellent: few parts, and guarant
 4. **The next measurement.** Which single measurement on the driver would most sharpen the choice between the designs you consider?
 
 We may be asking for the wrong thing. If a different goal, or a different formulation of the problem, would make the solution elegant and simple, say so.
+
+## Third follow-up, after your reply to the second follow-up
+
+This continues the statement, the follow-ups and your three replies, in the same notation. It has three parts: your reply measured, each suspected cause removed in turn, and what we ask. H1–H4 and the free readings still hold, and the model may change if the change is declared and measured.
+
+**The reference.** Every gradient below is a central difference at `θ_k·(1 ± 1e-4)`, on pinned runs of one grid. The reference is the one you proposed: the per-member scale's grid at `tol = 1e-6` with its crossing steps split, 32 ways. Split 8, 16 and 32 ways it moves by 3e-5 in `θ_A` and 1.3e-4 in `θ_B`, so it resolves no better than that. Unsplit, the same grid is 7.7e-5 and 1.2e-4 from it. The earlier references are 7.8e-5 and 8.2e-5 from it. So they straddle crossings, but that does not account for the 2e-4 at which the earlier ladders levelled off.
+
+### 1. Your reply, measured
+
+**The rule.** We measured:
+- the per-member scale with `c = 1e-3`;
+- `h ≤ h_e` from a member's predicted downward crossing to `12δ` past its cluster's last. The prediction uses `P` and its change over the last step. A step longer than `h_e` that still holds a downward crossing is refused and retaken at `h_e`;
+- `h ≤ 0.3δ` for the `1.5δ` after a pulse starts, while any member has `P < 0`.
+
+The chain margin, the stage clip and the per-panel moments' scale were left out. At `θ₀` they act only on pinned runs away from `θ₀`, on probes and on the creation ladder. Over seven tolerances within ±5% of `1e-4`:
+
+| | `J/J* − 1`: median, sd | `θ_A`: median, sd | `θ_B`: median, sd | member evaluations |
+|---|---|---|---|---|
+| the per-member scale alone | −4.0e-5, 1.2e-5 | −1e-6, 4.0e-4 | +1.1e-3, 7.0e-4 | 5.38e6 |
+| the rule, `h_e = 1δ` | −3.1e-5, 4.8e-6 | +1.3e-4, 2.1e-4 | −3.5e-4, 1.7e-4 | 5.65e6 |
+
+- *Cost.* The rule costs 5% more than the per-member scale alone, where you estimated +16%, or 6.4e6. At `tol = 1e-4`, 16% of its accepted steps are capped at `h_e` and 5.5% after pulse starts; you estimated 3–6% in all.
+- *The ladder at `tol = 1e-4`.* The `1δ` grid's errors are −2.3e-4 (`θ_A`) and −3.5e-4 (`θ_B`).
+  - With `h_e = 0.5δ` they are −1.9e-4 and −2.5e-4, for 6.25e6 member evaluations. That moves them by less than one standard deviation of the draw.
+  - Splitting the `1δ` grid's 2358 steps capped at `h_e` in two gives −8.8e-5 and −2.3e-4. That is 2.6 and 1.5 times smaller, where first order gives 2. Richardson from the pair gives +5.1e-5 and −1.1e-4.
+  - So at this level the two-point ladder is not yet shown to certify.
+- *The prediction* missed 53–67 times per run, and each miss cost one refused attempt.
+
+**The downward crossings carry the gradient's error.** Confirmed; the rows are in §2's table.
+
+**The window before upward crossings.** Every switch out of the lower end falls after its pulse starts, a median `0.35δ` after, and 97% of upward crossings fall within `1.5δ` of the start. So the window was placed after the start. Added to the full setting, it leaves the seven nudges at `3e-4` unchanged, with standard deviation 3.1e-5 against 2.9e-5, where you predicted 7e-6 or less. The first factor's 6.8e-6 is still unexplained.
+
+**The throw at `θ_A × 0.8`.** Refuted: it is neither an emptying step past `hλ_S ≈ 2` nor a near-empty onset. A long step starts just after a downward crossing.
+- The step is 9.48δ long, at `t = 3.48`. At its start, the four newest members have pools 32–46% full and `P` just below zero and falling, and `hλ_S` is below 1.5.
+- Their pools' stage rates grow up to 2.4-fold across the step.
+- The pair's fifth stage takes them to `r` = −0.013 to −0.133.
+
+**The re-formed ratio on a moved grid is the chain's, near `hλ = β`.** Refuted. At `θ_A × 1.1`, of the 126 steps where the ratio exceeds 1.1, pools set it on 104. The chain sets it on the other 22, at a median `h|λ|/β` of 0.43.
+
+**Beyond ±10% the pool needs an unconditionally positive step.** Refuted at the points tried: without the guard, probes from 0.7 to 2 run (§2).
+
+**Not measured:** the gradient on moved grids; the creation ladder; `E_J`; and how much of the rule's gradient improvement comes from the window after pulse starts.
+
+### 2. Each suspected cause, removed
+
+**Splits chosen to separate the candidates.** Relative error in each gradient on the pair's grid at `1e-3`, with one set of steps split four ways. The steps holding class switches were found by mapping the switch times of the run at `1e-6` onto this grid.
+
+| steps split | steps | total length | `θ_A` | `θ_B` |
+|---|---|---|---|---|
+| none | | | −6.2e-3 | −2.2e-2 |
+| `s = 0` throughout, no crossing, none within three steps of one, matched in length to the downward crossing steps | 185 | 1512δ | −6.4e-3 | −2.2e-2 |
+| holding a switch into the lower end and no crossing | 28 | 158δ | −6.6e-3 | −2.2e-2 |
+| holding a switch out of it and no crossing | 8 | 8δ | −6.4e-3 | −2.2e-2 |
+| upward crossing steps | 120 | 106δ | −7.2e-3 | −2.3e-2 |
+| downward crossing steps holding no class switch | 119 | 974δ | −7.1e-4 | −1.4e-2 |
+| downward crossing steps holding one | 66 | 546δ | −4.5e-3 | −9.1e-3 |
+| all downward crossing steps | 185 | 1520δ | +5.4e-4 | −4.3e-3 |
+
+- Splitting steps with no crossing removes none of the error, whether they are matched in length or hold only class switches.
+- The 66 crossing steps that hold a class switch remove `θ_B`'s error at 2.4e-5 per δ. At that rate the 158δ of class-switch-only steps would remove 3.7e-3; they remove none.
+- But in `θ_B`, those 66 steps carry three times the error per δ of the 119 crossing steps without a class switch. A class switch that shares a step with a crossing is therefore not separated from it.
+- On this grid, 66 of the 94 steps holding a switch into the lower end also hold a crossing, and 74 of the 82 holding one out of it.
+
+**A wider `P⁺`.** This is T15's `ε_j = 0.05·P_b,j`, which moves `J` by +3.9%. It was run under the per-member scale. Its reference is its own grid at `1e-6`, with its crossing and class-switch steps split 16 ways.
+- `J`'s error is −0.39, −0.52, −0.43 and +0.21·tol at `tol = 1e-3`, `3e-4`, `1e-4` and `3e-5`. Its nudges at `3e-4` have standard deviation 2.7e-5, against 4.3e-5 for the unchanged model.
+- `θ_A`'s error at those tolerances is −1.2e-3, +2.9e-4, +2.3e-4 and −1.4e-4, against the unchanged model's −1.7e-3, +2.0e-3, +4.5e-4 and −7.6e-4.
+- `θ_B`'s error is −5.7e-3, +2.9e-3, +2.1e-3 and +5.0e-4, against the unchanged model's +4.7e-3 at `3e-4` and +9.1e-4 at `1e-4`.
+- On its own grid at `1e-6`, the split moves `θ_B` by 3.4e-4, against 1.2e-4 on the unchanged model's.
+- Its grid at `1e-4`, pinned at `θ_A × 0.8`, still throws.
+
+**No guard,** so `S` is unbounded below.
+- *Pinned.* The per-member grid with `c = 1e-4` at `tol = 1e-4`, pinned at `θ_A × 0.8`, now runs.
+  - Its `J` is +1.1e-4 from the full setting at `3e-5` there.
+  - At every step's end `S ≥ 0`; the least is `2.5e-7·S_max`.
+  - Stages now evaluate the rates at `r` down to −0.133, where `μ` is about 14 times its value at `r = 0`.
+- *Probes.* The base run is on the pair's own rule at `tol = 1e-3`, without the guard. Its `J` is 2.7e-4 from the same run with the guard, which retried its throws. The probes are compared with the same probes on a base run at `1e-6`, also without the guard.
+  - At `θ_A′/θ_A` = 0.7, 0.8, 0.9, 1, 1.1 and 1.2, the errors are −1.6e-3, −1.5e-3, −1.4e-3, −5.1e-4, +4.8e-4 and +9.0e-5, while `J′` runs from 450 to 0.079.
+  - At 1.5 and 2 the probes run too, with `J′` of 2.5e-8 and 2e-21.
+  - With the guard at `−1e-4·S_max`, the probes at 1.1, 1.2 and 1.5 had failed; 2 had not been tried.
+
+**What binds, as we read it,** is the switch of `P⁺` at `P = 0` on the steps across downward crossings. In `θ_B` it is not separated from a class switch in the same step.
+- It falls with tol only slowly: unsplit, the per-member grid at `1e-6` is still 7.7e-5 and 1.2e-4 from the split one.
+- Smoothing it within a step changes it without removing it.
+- The guard does not bind at the points tried. Nor do class switches away from crossings.
+- The creation axis is unmeasured.
+
+### 3. What we ask
+
+1. **Precedent.** What is the closest precedent for these constraints, whether a solver, a step controller or a formulation, and where does it fall short here? The constraints:
+   - The rates are `C⁰` across `P_j = 0`, with slope jumps in several components of each member. The inner problem's class switches, also `C⁰`, mostly share those steps.
+   - About 100 members cross about 90 times each, in 196 clusters that move with `θ`. Downward crossings move by medians of 8.5–17δ per unit `ln θ_k` (10–90%: 2.3–40δ). Upward ones move by medians of 0.05–0.19δ (90th percentile up to 1.4δ).
+   - The gradient comes from a sweep that is exact for the discretised model. It must serve the calibration, and probes on a fixed grid.
+   - The chain is stiff in pulses and sets most of the steps there.
+   - Stage values may leave `S ≥ 0` without harm.
+   - Stepping onto the crossings (T12) cost 1.5e7 member evaluations at `1e-4`, 2.7 times the rule, and it puts step ends that move with `θ`.
+   - The cost is member evaluations.
+
+   What would the precedent guarantee for the value and for the gradient, what would it cost here, and how would it apply?
+2. **Precision budgets.** How should the budgets be set for the two uses: `L` and `∇L` for the calibration, and `J′` and `g′` for the probes?
+   - What sets them in practice: the precision wanted in `θ`, or something else?
+   - How do the budgets for `J`'s error, the gradient's error and their draw follow?
+   - Give the recipe in quantities we can measure, and say which we must measure first. If the numbers here suffice, give the budgets for this instance.
+3. **The objectives.** The revisions in your last reply are not adopted yet. The objectives began as four criteria: an optimal creation schedule, optimal steps, convergence of `J` and stable gradients, where optimal means fast, accurate and stable. They have grown into tests, goals, a procedure and open numbers. State them again as at most four criteria, each testable with a number, from which the procedure follows.
+4. **The next measurement,** if your answers need one.
+
+We may be asking the wrong question. If a different formulation of the problem, or of the goal, would make the solution simple, say so.
