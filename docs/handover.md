@@ -107,7 +107,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 | step | state |
 |---|---|
 | 1. ε | running: `harness/eps_spread.R` over eight seeds |
-| 2. the enablers | (a) settled as a setting; (b) on `PLANT-98` (#98), full suite running |
+| 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor on a bank | not started |
 | 4. the headroom | the consultation is written, waiting for ε |
 | 5. local analyses | not started |
@@ -134,7 +134,11 @@ by the spec's decision rule.
   build's guard-off runs exactly.
 - A walk commits a stage far below empty. At a zero offset on the height
   coordinate, one invader fails because its density overflows.
-- Full serial suite: running.
+- The whole-run gradient reference is recaptured, because one refused attempt set
+  the base run's steps on its drought and seasonal stands. The other three are
+  bit-identical, and both builds agree at `tol = 1e-6`.
+- Full serial suite: 4663 pass and 4 fail before the recapture. Two are the known
+  panels, and two are the whole-run rung's, which then passes.
 
 **Step 4.** The consultation, `docs/oracle-consultation-grid-controller.md`,
 is written in its neutral vocabulary.
@@ -156,12 +160,13 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `PLANT-95` (#95) | `25e21a70` | exact invader replay; 5 commits | `offspring-adjoint` | `a05f5c2` |
 | `PLANT-96` (#96) | `855f64ee` | zero pulses as step targets; 1 commit | `PLANT-95` | `a05f5c2` |
 | `PLANT-97` (#97) | `b4b5febf` | the pool's relaxation offset, TF24 v12; 1 commit | `PLANT-95` | `a05f5c2` |
+| `PLANT-98` (#98) | `7dbd87c3` | the pool's stage guard out; 1 commit | `PLANT-97` | `a05f5c2` |
 
 - odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is
   `378b083`, both unreleased. A branch builds only against its own odelia.
-- No PR is open for `offspring-adjoint`, `PLANT-95`, `PLANT-96` or `PLANT-97`;
-  opening them is the user's call. #96 and #97 are independent, and both edit
-  the top of `NEWS.md`.
+- No PR is open for `offspring-adjoint` or `PLANT-95` to `PLANT-98`; opening them
+  is the user's call. #96 is independent of #97 and #98, and all three edit the
+  top of `NEWS.md`.
 - `plant-dev`'s pointers (plant `6613dd24`, odelia `be3e2cb`) stay until #94
   merges; odelia's moves with plant's.
 - `harness/ark_prototype.R` is the R driver. It reproduces plant's run bit for

@@ -54,9 +54,15 @@ Under the rules:
 - At equal performance the simpler scheme wins: the rules must be easy to reason about
   and to maintain.
 
-What follows gives the model, its discretisation, a list of structural features, the
-measurements and the facts an answer can rely on. The questions are at the end and are
-open. We would rather know what is possible, and which formulation reaches it, than have
+What follows gives:
+- the model and its discretisation;
+- how the system and the controller behave over a run, in detail, because an answer can
+  only use the dynamics it is shown;
+- a list of structural features;
+- the treatments measured;
+- the facts an answer can rely on.
+
+The questions are at the end and are open. We would rather know what is possible, and which formulation reaches it, than have
 the present scheme tuned.
 
 `δ = T/14 600` is the forcing's sampling interval, and short times are given in `δ`.
@@ -248,6 +254,23 @@ creation time, and `T`.
 On the test instance at `θ₀`. The time-axis readings are along the run at `tol = 1e-6`
 unless stated. The creation-axis readings (D6, D7) were taken on an earlier version of
 the model, without `τ_s`, at `tol = 1e-3`, and are the only ones on that axis.
+
+**(D0) The time scales,** in `δ`, where `T = 14 600δ`:
+
+| what | scale |
+|---|---|
+| a pulse of `s` | `2–4δ` |
+| a gap between pulses | median `8δ`; 175 longer than `20δ` |
+| a quiescent stretch that holds downward crossings | median `46δ` |
+| downward crossings after `s` stops | median `32δ`, a cluster spread over `6.3δ` |
+| upward crossings after a pulse starts | median `0.64δ`, a cluster spread over `0.31δ` |
+| the chain's relaxation at `v = 1` | `0.018δ` |
+| the chain's relaxation after a pulse | about the time since the pulse |
+| a pool's relaxation | `τ_s = 7δ` plus `S_max/(u⁺ + u⁻)` |
+| `ρ_c`'s rises and falls | about `40δ` and `18δ` |
+| the creation spacing | `135δ` |
+| the width of `∂J/∂w_j`'s excursions over creation time (earlier version) | `37–180δ` |
+| the accepted steps at `tol = 1e-4` | median `0.27δ`, 90th percentile `2.9δ`, at most `25δ` |
 
 **(D1) The run's course.**
 - Members are created every 0.37 units and never removed, and 54 are held on average.
@@ -452,6 +475,20 @@ pure quadrature's integrand, at fraction `ϑ` of the step, errs by `h²·[jump]�
 - Moving every creation time by 1e-5 to 1e-4 moves `J` by about 6e-5 at `tol = 1e-3` (on
   the earlier version), because the steps land elsewhere. That is larger than the
   creation grid's own change from 857 to 1713 members.
+
+**(C5b) One attempt can move a gradient by a fifth.** A small instance: two kinds of
+member, each created at two times, a horizon of 2 units, a seasonal forcing, and the
+default `tol = 1e-4` with the shared absolute part. Take one column of the gradient of
+a sum over members of a smooth function of `x`:
+- a run whose stage guard refused a single attempt gives −1271.8;
+- the same run without the guard, which refuses nothing, gives −1638.7;
+- at `tol = 1e-6` and `1e-7`, where no attempt is refused, both give −1565.9 and
+  −1568.9.
+
+Under a dry forcing the same comparison gives +1330.6 and +1300.4, against +1352.0 and
++1381.6. Each run's sweep agrees with a difference of whole runs on its own grid to
+2.4e-4. The gradients at the default tolerance are draws of 4–19% on where the steps
+land.
 
 **(C6) The step grid away from `θ₀`,** on the earlier version at `tol = 1e-3`.
 - `θ₀`'s steps, walked at 11 points over `θ_A × [0.7, 1.2]` and two other constants over

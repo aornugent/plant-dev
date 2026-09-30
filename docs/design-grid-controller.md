@@ -179,6 +179,13 @@ the pool.
     for accuracy rise 1910 → 2011;
   - the attempts overall fall 0.6%.
 - *At `tol = 1e-4` with the tied tolerance,* `J` moves by 1.2e-6.
+- *The whole-run gradient reference moves on two of its five stands.* On the drought
+  and seasonal ladder stands one refused attempt each set the base run's steps.
+  Without it the sweep still agrees with a fresh difference of whole runs to 2.4e-4.
+  - At the default tolerance the worst column moves from −1271.8 to −1638.7.
+  - At `tol = 1e-6` and `1e-7` both builds agree, at −1565.9 and −1568.9.
+  - So the default tolerance's gradients on these stands are 4–19% draws on where the
+    steps land. The reference is recaptured.
 - *The limit.* A walk has no error estimate, so a stage far below empty is committed
   there. At a zero relaxation offset on the height coordinate, the invader at
   `lma` ×1.05 now fails because its density overflows, not at the stage. The
