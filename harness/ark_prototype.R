@@ -11,6 +11,7 @@
 #     [EVENTS=1 [EVENT_ETA=1e-3] [EVENT_RESTART=0.05] [CLASS_EVENTS=1]] [LOCAL=1] \
 #     [TOL_POOL=0.01] [TOL_POOL_ABS=0.01] [POOL_FLOOR=1e-3] [KINK_EST=1] \
 #     [CROSS_RESTART=0.1] [CROSS_CAP=1 [CROSS_TAIL=12]] [ONSET_CAP=0.3 [ONSET_SPAN=1.5]] \
+#     [TRANSIT=0.5] [KINK_FIX=1] \
 #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
 #     Rscript harness/ark_prototype.R
 #
@@ -37,7 +38,12 @@
 # downward crossing of zero, read from its P and the slope of P over the last
 # step, to CROSS_TAIL days past the last crossing, and refuses a longer step
 # across one. ONSET_CAP caps a step at that many days for ONSET_SPAN days after a
-# rain onset while any member's P is negative. On a PROGRAM replay, CROSS_LOG
+# rain onset while any member's P is negative. TRANSIT caps a step so that no
+# member's pool moves, at its rate at the step's start, more than that fraction
+# of 0.05 of its capacity. KINK_FIX takes from the end of a step across which a
+# member's P changed sign the pair's error for that slope jump in its pool,
+# coordinate, output and offspring, and evaluates the rates again there. On a
+# PROGRAM replay, CROSS_LOG
 # saves each crossing of zero by a member's P, CLASS_LOG (on the probe build)
 # each change of a member's leaf class, SPLIT takes the rows SPLIT_ROWS names as
 # that many steps, and a step that raises reports the stage and the pools it put
@@ -139,6 +145,8 @@ CROSS_CAP <- as.numeric(Sys.getenv("CROSS_CAP", "Inf")) / 365
 CROSS_TAIL <- as.numeric(Sys.getenv("CROSS_TAIL", "12")) / 365
 ONSET_CAP <- as.numeric(Sys.getenv("ONSET_CAP", "Inf")) / 365
 ONSET_SPAN <- as.numeric(Sys.getenv("ONSET_SPAN", "1.5")) / 365
+TRANSIT <- as.numeric(Sys.getenv("TRANSIT", "Inf"))
+KINK_FIX <- nzchar(Sys.getenv("KINK_FIX"))
 # The knots where rain starts after a dry span.
 wet <- rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0
 onsets <- pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]]
@@ -363,6 +371,36 @@ local_fix <- function(t0, h, a) {
 # integrand at fraction u of the step, per h^2.
 kink_kernel <- function(u) sum(tb$b * pmax(tb$c - u, 0)) - (1 - u)^2 / 2
 
+# The attempt `a` of size h from sv's state, ending at t1, with each member whose
+# net production changed sign corrected by -h^2 times each kinked rate's slope
+# jump times the kernel at the crossing, and its rates evaluated again there.
+kink_fix <- function(h, a, t1) {
+  f <- which(sign(a$P) != sign(sv$P))
+  if (!length(f)) return(a)
+  pool <- pool_of(sv$y)[f]
+  u <- sv$P[f] / (sv$P[f] - a$P[f])
+  K <- vapply(u, kink_kernel, 0)
+  Pdot <- abs(a$P[f] - sv$P[f]) / h
+  r <- (1 - u) * sv$y[pool] / capacity(sv$y)[f] + u * a$y[pool] / capacity(a$y)[f]
+  G <- 1 / (1 + exp(-(r - pars$a_st2) / 0.1))
+  # The pool's rate has slope (1 - G)(1 - r) in P above zero and r below; the
+  # others are P+ times a factor, read at the end where P > 0.
+  jump <- list(((1 - G) * (1 - r) - r) * Pdot)
+  pos <- sv$P[f] > 0
+  for (i in list(pool - 5, pool - 3, pool + 1)) {
+    jump[[length(jump) + 1]] <- ifelse(pos, sv$dydt[i] / sv$P[f], a$rates[i] / a$P[f]) * Pdot
+  }
+  y <- a$y
+  for (k in seq_along(jump)) {
+    i <- list(pool, pool - 5, pool - 3, pool + 1)[[k]]
+    y[i] <- y[i] - h^2 * jump[[k]] * K
+  }
+  at_end <- rates(y, t1)
+  if (is.null(at_end)) return(NULL)
+  a$y <- y; a$rates <- at_end; a$P <- production(y); a$K <- klass(y)
+  a
+}
+
 # With KINK_EST, each member whose net production changed sign across the attempt
 # has its pool's estimate raised to the error of the pool's rate switching there:
 # h^2 times the jump in the rate's slope times the kernel. Returns the estimate
@@ -450,6 +488,10 @@ cap_at <- function(t0, h) {
     if (t0 < sv$zone_until || t0 + h > t_c - CROSS_CAP) {
       cap <- c(if (t0 < sv$zone_until) CROSS_CAP else max(CROSS_CAP, t_c - CROSS_CAP - t0), 1)
     }
+  }
+  if (is.finite(TRANSIT)) {
+    most <- max(abs(sv$dydt[pool_of(sv$y)]) / capacity(sv$y))
+    if (TRANSIT * 0.05 / most < cap[1]) cap <- c(TRANSIT * 0.05 / most, 3)
   }
   if (is.finite(ONSET_CAP) && ONSET_CAP < cap[1] && any(sv$P < 0)) {
     o <- onsets[onsets <= t0]
@@ -552,6 +594,7 @@ step <- function(target) {
     if (!final && !at_crossing) sv$h_last <- hn
     if (at_crossing && !is.na(RESTART)) sv$h_last <- RESTART
     if (!is.na(CROSS_RESTART) && any(sign(a$P) != sign(sv$P))) sv$h_last <- min(sv$h_last, CROSS_RESTART)
+    if (KINK_FIX && is.null(a <- kink_fix(h, a, sv$t))) stop(sprintf("a corrected step's rates raised at t = %.17g", sv$t))
     steps$k <- steps$k + 1L
     if (steps$k > nrow(steps$rows)) steps$rows <- rbind(steps$rows, steps$rows * NA)
     steps$rows[steps$k, ] <- c(sv$t, h, ctl$ratio, ctl$index, (length(a$y) - 10) %/% 9,
@@ -603,6 +646,10 @@ if (sys.nframe() == 0L) {
           f <- which(sign(a$P) != sign(sv$P))
           if (length(f)) crossings[[length(crossings) + 1]] <- data.frame(row = i, member = f,
             t = sv$t + h * sv$P[f] / (sv$P[f] - a$P[f]), down = sv$P[f] > 0, h = h)
+          if (KINK_FIX) {
+            a <- kink_fix(h, a, if (k == n_sub) program$time[i] else sv$t + h)
+            if (is.null(a)) stop(sprintf("a corrected pinned step's rates raised at t = %.17g", sv$t))
+          }
           if (LOG_CLASS && length(f <- which(a$K != sv$K))) {
             classes[[length(classes) + 1]] <- data.frame(row = i, member = f, from = sv$K[f], h = h)
           }
