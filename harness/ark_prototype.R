@@ -579,7 +579,7 @@ if (sys.nframe() == 0L) {
   crossings <- list()
   classes <- list()
   LOG_CLASS <- nzchar(Sys.getenv("CLASS_LOG"))
-  replay <- list(ratio_max = 0, over = 0, depth = Inf, over_at = character(), over_x = numeric())
+  replay <- list(steps = 0L, ratio_max = 0, over = 0, depth = Inf, over_at = character(), over_x = numeric())
   sv$t <- 0
   sv$h_last <- ct$ode_step_size_initial
   sv$zone_until <- -Inf
@@ -614,7 +614,7 @@ if (sys.nframe() == 0L) {
             replay$over_x <- c(replay$over_x, h * lambda_soil(sv$y, sv$t) / BETA)
           }
           replay$depth <- min(replay$depth, min(a$y[pool_of(a$y)] / capacity(a$y)))
-          steps$k <- steps$k + 1L
+          replay$steps <- replay$steps + 1L
           sv$t <- if (k == n_sub) program$time[i] else sv$t + h
           sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P; sv$K <- a$K
         }
@@ -628,7 +628,7 @@ if (sys.nframe() == 0L) {
   secs <- proc.time()[["elapsed"]] - t_start
   if (!is.null(program)) {
     cat(sprintf("replayed %d steps: error ratio at most %.3g, above 1.1 on %d; deepest pool %.3g of capacity\n",
-                steps$k, replay$ratio_max, replay$over, replay$depth))
+                replay$steps, replay$ratio_max, replay$over, replay$depth))
     if (replay$over) {
       soil_x <- replay$over_x[grepl("^soil_", replay$over_at)]
       cat("above 1.1, by the component that set the ratio:",
