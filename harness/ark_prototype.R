@@ -38,9 +38,10 @@
 # step, to CROSS_TAIL days past the last crossing, and refuses a longer step
 # across one. ONSET_CAP caps a step at that many days for ONSET_SPAN days after a
 # rain onset while any member's P is negative. On a PROGRAM replay, CROSS_LOG
-# saves each crossing of zero by a member's P, SPLIT takes the rows SPLIT_ROWS
-# names as that many steps, and a step that raises reports the stage and the
-# pools it put below zero.
+# saves each crossing of zero by a member's P, CLASS_LOG (on the probe build)
+# each change of a member's leaf class, SPLIT takes the rows SPLIT_ROWS names as
+# that many steps, and a step that raises reports the stage and the pools it put
+# below zero.
 # Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
@@ -576,6 +577,8 @@ if (sys.nframe() == 0L) {
   program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st else NULL
   split_rows <- if (nzchar(Sys.getenv("SPLIT_ROWS"))) unique(readRDS(Sys.getenv("SPLIT_ROWS"))$row) else integer()
   crossings <- list()
+  classes <- list()
+  LOG_CLASS <- nzchar(Sys.getenv("CLASS_LOG"))
   replay <- list(ratio_max = 0, over = 0, depth = Inf, over_at = character(), over_x = numeric())
   sv$t <- 0
   sv$h_last <- ct$ode_step_size_initial
@@ -600,6 +603,9 @@ if (sys.nframe() == 0L) {
           f <- which(sign(a$P) != sign(sv$P))
           if (length(f)) crossings[[length(crossings) + 1]] <- data.frame(row = i, member = f,
             t = sv$t + h * sv$P[f] / (sv$P[f] - a$P[f]), down = sv$P[f] > 0, h = h)
+          if (LOG_CLASS && length(f <- which(a$K != sv$K))) {
+            classes[[length(classes) + 1]] <- data.frame(row = i, member = f, from = sv$K[f], h = h)
+          }
           invisible(adjust(h, a$y, a$yerr, a$rates))
           replay$ratio_max <- max(replay$ratio_max, ctl$ratio)
           replay$over <- replay$over + (ctl$ratio > 1.1)
@@ -610,7 +616,7 @@ if (sys.nframe() == 0L) {
           replay$depth <- min(replay$depth, min(a$y[pool_of(a$y)] / capacity(a$y)))
           steps$k <- steps$k + 1L
           sv$t <- if (k == n_sub) program$time[i] else sv$t + h
-          sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P
+          sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P; sv$K <- a$K
         }
       }
       next
@@ -631,6 +637,7 @@ if (sys.nframe() == 0L) {
                   if (length(soil_x)) median(soil_x) else NA))
     }
     if (nzchar(Sys.getenv("CROSS_LOG"))) saveRDS(do.call(rbind, crossings), Sys.getenv("CROSS_LOG"))
+    if (nzchar(Sys.getenv("CLASS_LOG"))) saveRDS(do.call(rbind, classes), Sys.getenv("CLASS_LOG"))
   }
 
   # Species::offspring_production, on the state the last evaluation set.
