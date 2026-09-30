@@ -1,0 +1,76 @@
+# Oracle response: the grid consultation
+
+Reply to `oracle-consultation-grid-controller.md` as it stood before M8 carried ε
+(sent at `536e794`, before `b810d0a`), captured verbatim. What was tested, and what it
+found, is in `design-grid-controller.md` and the handover.
+
+---
+
+## The one insight: a kink seen at three orders
+
+Every anomaly on the time axis in your data is one phenomenon. A member's `P` crossing zero is a corner in its rates: `P⁺` at `ε_P = 1e-4` is rounded over `ε_P/|Ṗ| ≈ 1.6e-7` time units for downward crossings, so at any step you will ever take it is a kink. Your C4 already has the local error of a step across it, `h²Δ·K(ϑ)`. Write the discrete functional on a frozen grid as
+
+`J_h(θ) = J(θ) + E_smooth(θ) + Σ_c h_c² (λ_c·Δ_c) K(ϑ_c(θ))`, `ϑ_c(θ) = (t_c(θ) − t_n)/h_c`,
+
+where `λ_c` is the adjoint at the crossing step and `Δ_c` the jump in the member's second derivative. Now differentiate in `θ` with the grid held:
+
+- `J`: error `O(h²)`, zero mean over `ϑ`. That is the 1e-5 spread under ±5% `tol` (M2).
+- gradient: `h_c (λ·Δ)_c K′(ϑ_c) ∂t_c/∂θ`. `O(h)`, zero mean (`∫K′ = 0`). That is "first order in the crossing step's length" (M1), the 4e-4–7e-4 spread (M2), and the "draws of 4–19%" (C5b).
+- second derivative: `(λ·Δ)_c (∂t_c/∂θ)² K″(ϑ_c)`, and `K″(ϑ) = −1 + Σ_i b_i δ(ϑ − c_i)` for any consistent RK weights. Between abscissae, the pointwise second derivative on a frozen grid is `J″ − Σ_c (λ_c·Δ_c)(∂t_c/∂θ)²`, a bias independent of `tol`, restored only by the jumps at abscissa passages. That is M7's staircase, and "the gradient jumps each time a crossing slides past a stage abscissa."
+
+So: `J` is fine, the gradient is noisy at first order, and the pointwise Hessian is wrong at zeroth order on every practical grid, at any tolerance. Brute force cannot buy the third. The "wider `P⁺`" trial (M4) says the same thing: a smoothing the steps could resolve needs `ε_P ≳ |Ṗ|·h ≈ 10`, i.e., a different model. (The sign of `λ·Δ` is mixed across components, so the bias partly cancels; it is still `O(1)` and computable, not small by construction.)
+
+The cure is classical and cheap at the right scale. Locate each crossing on the member's own cubic Hermite interpolant, split *that member's* update at `t_c` into two sub-steps against the step's dense output of the chain and the other members (so `Φ` is rebuilt from interpolated states, no other inner solves), and differentiate through `t_c(θ)` in the sweep by the implicit-function theorem, exactly as you already do for the inner problem. Then `K ≡ 0`, all three orders revert to the pair's, and `J_h(θ)` is a smooth function of `θ` on one global grid.
+
+This rejects H1 in its strong form. The *controller's* choices must be constants within a gradient. The *event* times must not be: they are implicit functions of `θ`, and freezing them is what makes the reported derivative that of the wrong function (move `θ` and a crossing slides off its frozen stop; the two one-sided derivatives differ by `h·Δ·b_1·∂t_c/∂θ`). Your M4 "stepping onto each crossing" paid for global stops (a stop costs 54 inner solves) and measured only `J`, where location gains nothing because `K` already averages to zero. Its gain is in the derivatives, which were never measured under any rule.
+
+## The rest of the data, reread
+
+- **C5 contaminated the creation axis.** "Moving every creation time by 1e-5 moves `J` by 6e-5" is step-placement noise. Every creation-grid convergence study (D7, M5, C7) was done through that noise floor, so their non-monotonicity is partly not the creation grid's. Fix the step grid first, then re-measure the creation grid.
+- **D7 is a placement error, not a resolution error.** "A panel that spans a gap carries creation at its edges across it" and the −7.3e-2 from removing in-gap members say the hat scheme puts creation mass on nodes born into famine. `F(b,T)` is continuous across a gap but steep inside it (loss at `μ₁ = 5.5` on an empty pool), and the fields see the same misplacement, which is why 96% of the error is "the fields' response." Nodes at the edges of every creation span, and none inside gaps, make the integrand piecewise smooth over every panel; then the local term is valid and the refinement rule has something to refine.
+- **C7's rule split on `Φ`'s change, not `J`'s.** 59% of splits past `b = 16`, where `J` is insensitive, is the signature. The sweep has `λ` on every row; weight the same indicator by `λ_Φ` and `λ_a` and the splits go where `J` is bought.
+- **C6's fragility is stability, not accuracy.** Steps near `h|λ_chain|/β ≈ 1` are exponentially sensitive to the state; that is what a frozen grid cannot survive. A margin rule (or an implicit chain) is what gives a grid a radius.
+- **C1's `tol^{−0.10}` says the controller is not in charge.** Steps are set by stops, chain stability and the small pools' decay, not by accuracy. Test 3 (predictable order) cannot hold until errors are accuracy-limited; expect `tol^{−0.2}` once they are.
+- **C2/C3/D4 say the error norm is the wrong variable**, not the pool. The max-norm in own units with one `tol` gives the pools of members carrying 1e-3 of `J` the same say as those carrying half of it, and sets quiescent steps at ~4δ by the late members' `τ_s`-limited pools, while the early members' pools relax over ~100δ. The per-pool floor was the first patch of this.
+
+## The formulation
+
+Ordered by value per line of code. Each is measurable on your driver before it is built.
+
+**1. Per-member events, differentiated through.** Events: `P_j = 0` (both directions) and the inner problem's class switch; both are free readings at every stage. Detection from sign changes at stages; location on the member's Hermite interpolant, with one fixed-point iteration (locate → split → re-locate on the split interpolant), which takes the location to `O(h²)` in `ϑ`. Structure is fixed: exactly one sub-step per event interval, never an adaptive count, so a walked run's structure is frozen and only `t_c` moves. At build time the member's two clean embedded estimates replace its polluted global one in the error ratio (the "true/estimate median 4.6" on crossing steps disappears). The recording grows one sub-row per crossing member; the sweep differentiates the sub-steps as usual and `t_c` through the IFT on the interpolated event condition. Field inconsistency: the stage fields used the unsplit member, an `O(h²ΔK/N)` effect through the field's response; if the diagnostic says it matters, one global stop per cluster (196 total, negligible) halves every `h_c`. Cost: ~17,000 events × 12 single-member evaluations ≈ +4%. This also makes **probes valid by construction**: a probe is a one-way integration against the recorded fields, so it can split and sub-step its own members inside the recorded global steps without touching the recording.
+
+**2. Creation nodes from structure.** Run the chain alone under the known forcing (no member loop; `Φ` from the previous build or zero) to get `P_new(t)` and the creation spans. Put a node at each span edge, none inside gaps, and distribute interior nodes by `λ`-weighted curvature per cost. Because `ρ_c ∝ P_new²` at an edge, a frozen edge node is robust to the edge's motion with `θ` (misattributed mass is `O(δb⁴)`), so the creation grid needs no event treatment. Each run then reports its own DWR estimate per panel from its sweep; refine once and rebuild. Under constant forcing this degenerates to uniform-with-equidistribution, which is the fallback with the same guarantee. Test 1's quarter-spacing shift should then perturb interior nodes within spans, not the edge nodes.
+
+**3. The error norm.** Replace the max-norm with the adjoint-weighted step control of Cao–Petzold: accept a step when `Σ_n |λ_n·est_n| ≤ tol·|J|/N_steps`, with `λ` from the previous build. This is the per-pool floor generalized: relative accuracy where `J` reads it, none where it does not. It also gives every run a direct `J`-error estimate without a second run. Keep the max-norm with the per-pool floor as the fallback.
+
+**4. The stiff modes.** Chain: a margin rule `h|λ_chain| ≤ 0.5β` (diagonal is a free reading) at build time is one line and gives the grid its radius; the IMEX pair is the alternative if the margin costs more than its measured 9% saving, provided its embedded formula is stiffly accurate (yours was not, hence the missed chain error). Pool: integrate `η = asinh(S/S_ref)` with `S_ref = 1e-3·r₀·S_max`, below which `μ` is saturated and `S` cannot matter. Emptying becomes `η̇ ≈ −λ_e(t)`, linear and slowly varying, which any RK integrates exactly with 20δ steps; the price is a corner at fill-from-empty (`~0.08δ` after an upward crossing with `S < S_ref`, 11% of them), handled by a fixed geometric ladder of sub-steps at that event. If that is too much machinery, keep `S` and accept the pool's accuracy limit of ~4–5δ in quiescence. Either way: **delete every refusal and guard.** The model is finite at slightly negative `S`; positivity is enforced by accuracy, and a refusal is a controller discontinuity that C5b and M3 already showed poisons gradients and probes.
+
+**5. Second derivatives.** With events located, the gradient on one global grid is smooth in `θ` to the pair's order, so central differences over ±1–2% on that grid give `d²lnJ/d(lnθ)²` cleanly. A second-order adjoint through the IFT is the exact version if you want it later.
+
+## The tests, by construction, and the diagnostic
+
+- *Reproducible:* the kink noise is gone, so everything is a smooth function of `tol` and node placement at the pair's order; ±5% `tol` moves each quantity by ~5% of its (now tolerance-proportional) error.
+- *Continuous:* global grid frozen, events tracked, margin on the stiff modes; `J_h(θ)` is `C¹` to `O(tol)` across an event passing a global step boundary (`f⁻ = f⁺` at a kink, so the two sub-step maps' `∂/∂t_c` cancel to the pair's order).
+- *Predictable:* accuracy-limited steps and piecewise-smooth quadrature give `error ∝ tol` and `∝ Δ_b²`; the embedded estimate is honest again.
+- *Nothing fails:* no refusals, bracketing inner solves, deterministic event handling with a reported (not thrown) fallback to the unsplit step if the fixed point does not converge.
+
+Every run should report: the walked error ratio on every step (the embedded difference is computed anyway; discarding it is why "nothing on a walked run reports it is outside its radius"), its max and count above 1; `max h|λ_chain|/β`; the `J`-error estimate `Σ λ·est`; events located, iterations, and the largest residual; the unlocated-kink budget `Σ_c (λ_c·Δ_c)(∂t_c/∂θ_k)²` per constant (with the direct term `∂P/∂θ_k/Ṗ` it is free; exact with one tangent run); the creation-grid DWR total and any node whose `P_new` sign disagrees with the build's; `|ln θ − ln θ₀|` per constant against the declared radius; near-grazing members (minimum `|P|` over a stretch below a threshold).
+
+## What is possible, and what remains intrinsic
+
+With the above: `J`, elasticities and second derivatives converge at the pair's order in `tol` and second order in the within-span node spacing; a grid has a radius set by the stability margin rather than by luck; probes never fail. Against brute force at matched error: `J` is unchanged (it was already ~100× inside any plausible `ε`), gradient noise drops from 1e-3 to the smooth error, and the Hessian goes from biased to converged. Cost: quiescent steps fall from ~5,000 to ~1,000–2,500 depending on the pool treatment, pulse steps stay near 3 per δ (set by `P`'s rise on the chain's fast fill, intrinsic at fifth order), the margin rule adds ~10%, events add ~4%; net roughly 0.7–0.9× today's evaluations at 108 members, and 2–3× cheaper on the creation axis at matched `J` (M5's 2.8× was real, measured through noise). The absolute floor is ~one step per active knot, so a higher-order pair is not worth its stage count. Separately, the inner solve is 85% of instructions and cold-started; a warm-started safeguarded Newton converges to the same bracketed root and could cut the member loop 2–3×, which also makes global stops cheap and changes the calculus for the cluster stops.
+
+Intrinsic residue: grazing crossings (your 4 re-crossings within `0.05δ`) make the model's own `J(θ)` only `C^{1,1/2}` in the `ε_P → 0` limit, so second derivatives near such `θ` are the model's problem; flag them. The class-switch front in `b` gives the fields' `b`-integrand a moving kink, so the creation-grid convergence is second order but not monotone unless that front is located in `b` too, which is probably not worth it.
+
+## Precedent
+
+The kink error `h²ΔK(ϑ)` and "the estimator sees a different quadrature" are Gear & Østerby (1984) and Enright, Jackson, Nørsett & Thomsen (1988); event location on interpolants, Shampine & Thompson (2000); Hairer–Nørsett–Wanner I, §II.6. That fixed-grid derivatives of nonsmooth ODE discretizations fail to converge is Stewart & Anitescu (Numer. Math. 2010); the repair by making element boundaries implicit functions of switch times, with the global element count fixed, is Nurkanović, Sperl, Albrecht & Diehl's FESD (Numer. Math. 2024), which is your setting almost exactly. Sensitivity jump conditions through events: Galán, Feehery & Barton (1999), Hiskens & Pai (2000), Egerstedt, Wardi & Axelsson (2006). Adjoint-weighted step control: Cao & Petzold (SISC 2004); dual-weighted residuals for choosing nodes: Becker & Rannacher (Acta Numerica 2001). Quadrature over a growing ensemble is the escalator boxcar train (de Roos 1988; convergence in Brännström, Carlsson & Simpson, SINUM 2013). Your frozen grid is common random numbers, and its failure at events is the failure of infinitesimal perturbation analysis when the event order changes (Glasserman 1991). Clean multirate coupling, if you revisit it, is Günther & Sandu (2016); your earlier plateaus look like lagged coupling.
+
+## What to measure first
+
+1. On the current recording, no new code: walk 21 base runs across `θ_A × [0.9, 1.1]` on `θ₀`'s grid and plot the gradient. The pointwise slope between jumps versus the chord slope is the bias; if it is within `ε` of zero, the Hessian claim is moot for this record.
+2. Keep the walked error ratio and re-run C6: the radius becomes a measurement.
+3. Implement per-member splitting in the driver with the crossing time differentiated, and measure the M2 table's gradient columns plus probe gradients. Expect the ±5% spread to fall to the smooth error.
+4. Span-edge nodes with `λ`-weighted density, then redo D7 without the step noise.
+
+If one thing goes wrong in this picture, it is most likely the field inconsistency in step 3 fo r the heaviest early members; the cluster stop is the cheap remedy.

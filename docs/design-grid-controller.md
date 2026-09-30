@@ -165,6 +165,9 @@ at `tol = 1e-4` on 108 uniform nodes.
 - *Cost.* A forward run took 81 s (median), and the resident's sweep 3.5 forward
   runs, since it repeats the run. A whole seed took 12.1 min for resident and invader
   with their sweeps: 15 min at `1e-5`, and 22 min on 215 nodes.
+- *Curvatures had no ε.* `harness/curvature.R` measures `lma`'s over the eight
+  records, from gradients on one grid at `lma·e^{±0.01}`, where step 4's first
+  test puts the chord within about ±1 of the smooth value.
 
 ## Step 2: the enablers
 
@@ -330,9 +333,82 @@ stability, runtime or simplicity:
 - a change of variables for the pool;
 - a node rule that follows the stand's response rather than `J`'s integrand.
 
-The consultation is `docs/oracle-consultation-grid-controller.md`. Each
-proposal is tested on the driver (`harness/ark_prototype.R`) before anything
-is built, as the last consultation's were.
+The consultation is `docs/oracle-consultation-grid-controller.md`, and the
+reply `docs/oracle-response-grid-controller.md`. Each proposal is tested on
+the driver (`harness/ark_prototype.R`) or on plant before anything is built.
+
+**The reply.**
+- *Its claim:* a node's crossing of zero net production is a kink at any step
+  size, and one grid sees it at three orders. `J`'s error is second order in
+  the crossing step, with zero mean over where the crossing falls. The
+  gradient's is first order. The second derivative, taken on the grid between
+  the gradient's jumps, is off at zeroth order at any tolerance, by
+  `−Σ_c (λ_c·Δ_c)(∂t_c/∂θ)²` over the crossings `c`. The jumps restore the
+  chord across them, not the value between them.
+- *Its remedy:* find each crossing on the member's own interpolant, split that
+  member's update there, and differentiate the crossing time in the sweep
+  through the implicit-function theorem, as the inner solve is. It puts the
+  cost at 4%, and says curvatures then follow from gradient differences over
+  ±1–2% on one grid.
+- *Its other proposals:*
+  - creation nodes at the edges of each span where newborns grow, none inside
+    the gaps;
+  - step control weighted by the sweep's adjoint;
+  - a stability margin `h|λ_chain| ≤ 0.5β` for the soil;
+  - the pool as `asinh(S/S_ref)`;
+  - deleting every refusal, the end-state one included;
+  - the walked error ratio as a run's radius diagnostic;
+  - a warm-started inner solve, which it puts at 2–3× on the member loop.
+
+**The reply's tests,** on long drought at seed 31, 108 uniform nodes and
+`tol = 1e-4`.
+
+*The bias.* `harness/curvature.R` on `PLANT-98` with the tied tolerance takes
+`H(δ) = (e(δ) − e(−δ))/2δ` for `lma`'s elasticity `e`, from reverse-mode
+gradients at `lma·e^{±δ}`: the resident pinned to θ₀'s steps, and the invader
+walked through θ₀'s recording.
+
+| δ | 1e-6 | 1e-5 | 1e-4 | 1e-3 | 1e-2 | 3e-2 |
+|---|---|---|---|---|---|---|
+| resident | −58.8 | −57.2 | −53.2 | −47.1 | −44.2 | −43.7 |
+| invader | −206.2 | −206.0 | −204.4 | −201.8 | −192.7 | −182.8 |
+
+- *The second differences of `ln J`* are −54.8, −47.2, −44.0 and −43.8 for the
+  resident at δ = 1e-4 to 3e-2, and −205.3, −201.4, −196.6 and −185.7 for the
+  invader.
+- *The smooth value.* The chord's `O(δ²)` term is twice the second
+  difference's, so `2·(ln J)″ − chord` cancels it. That gives −43.9 and −43.8
+  for the resident at 1e-2 and 3e-2. For the invader it gives −200.9 and
+  −200.5 at 1e-3 and 1e-2, and −188.7 at 3e-2, where the higher-order terms
+  are not small.
+- *Between jumps the grid's second derivative is 15 below that for the
+  resident (34%), and 6 below for the invader (3%).* On each side of θ₀ the
+  slope between jumps is steeper than the chords, so the jumps are upward, as
+  the reply's `K″` has them. So the claim holds.
+- *The jumps' size.* Over consecutive intervals the resident's slopes run from
+  −34 to −59: its elasticity strays from a smooth one by about 0.01 (1e-3 of
+  itself), and the invader's by 5e-4 to 1e-3 (3e-5 of itself). A chord over
+  ±δ is off by about that over δ: ±1 for the resident at δ = 1e-2.
+
+*The margin and the walked ratio.* The driver at the per-pool scale, with the
+stage guard out of reach, builds θ₀'s grid with and without the margin and
+walks each at `lma` ×0.9 to ×1.1.
+- The margin costs 16% more steps and 9.6% more member evaluations
+  (5.90e6 against 5.38e6), for the same `J` to 4e-7.
+- Walked, the largest error ratio and the count above 1.1:
+
+  | grid | ×0.9 | ×0.95 | ×1.05 | ×1.1 |
+  |---|---|---|---|---|
+  | plain | 65, 288 | 55, 242 | 10, 90 | 14, 118 |
+  | with the margin | 130, 282 | 13, 233 | 13, 81 | 13, 100 |
+
+- In both, the storage pools set the ratio on 82–97% of the steps above 1.1,
+  and the soil on 2–18%.
+- Against adaptive runs at `1e-5`, the walked `J` is off by −3.0e-5 to +8.0e-5
+  on the plain grid and −1.2e-4 to +1.0e-5 with the margin, where θ₀'s own
+  runs are off by −6.0e-5. That is 200× inside ε.
+- So the margin buys no radius here, and the walked ratio does not measure one:
+  the pools set it, and a ratio of 65 goes with an error in `J` of 1e-4.
 
 **What it yields.** Per regime: the speedup at ε for (a) and (b), the radius of
 each, and a verdict on each reformulation. A heuristic is built only where
@@ -437,6 +513,8 @@ done
 - `ark_prototype.R` is an R driver that reproduces plant's Cash–Karp run bit
   for bit, with options for step rules and replays (see its header).
 - `eps_spread.R` does step 1.
+- `curvature.R` takes reverse-mode gradients at `lma·e^{±δ}` on one grid, for
+  the curvatures of steps 1, 4 and 5.
 - `v12_steps.R`, `error_channels.R`, `j_error_trace.R` and `soil_bound.R`
   record and decompose a run's steps and errors.
 

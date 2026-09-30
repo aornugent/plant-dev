@@ -2,7 +2,8 @@
 # stepped from R through the SCM's schedule under odelia's controller law, with a
 # TF24 Patch evaluating every rate. METHOD picks the step:
 #   ck    Cash-Karp as a tableau, summed in the solver's order;
-#   held  Cash-Karp, each step started at h |lambda_soil| <= 0.8 beta;
+#   held  Cash-Karp, each step started at h |lambda_soil| <= HELD_MARGIN beta
+#         (default 0.8);
 #   ark   ARK4(3)6L[2]SA (harness/ark436.R), the soil's drainage and
 #         infiltration solved at each stage by a damped Newton.
 #
@@ -25,6 +26,7 @@
 # class; the step after it starts at EVENT_RESTART days where that is given,
 # else at the proposal the retaken step started with. LOCAL re-integrates each
 # member whose net production changes sign within an accepted step on its own,
+# on a replay too, where the crossing is found again at the replay's parameters,
 # split at the crossing. TOL_POOL scales the storage pools' tolerance weights,
 # and TOL_POOL_ABS only their absolute part. PROGRAM replays the accepted steps of
 # an OUT file exactly, with no control, and THETA with THETA_REL scales that
@@ -57,6 +59,7 @@ sys.source(file.path(here, "ark436.R"), envir = tab)
 nodes <- as.integer(Sys.getenv("NODES", "108"))
 tol <- as.numeric(Sys.getenv("TOL", "1e-3"))
 method <- match.arg(Sys.getenv("METHOD", "ck"), c("ck", "held", "ark"))
+HELD_MARGIN <- as.numeric(Sys.getenv("HELD_MARGIN", "0.8"))
 tb <- if (method == "ark") {
   with(tab, list(A = AE, AI = AI, b = b, d = d, c = cc, ord = 4))
 } else {
@@ -548,7 +551,7 @@ step <- function(target) {
   t0 <- sv$t
   remaining <- target - t0
   h <- sv$h_last
-  if (method == "held") h <- min(h, 0.8 * BETA / lambda_soil(sv$y, t0))
+  if (method == "held") h <- min(h, HELD_MARGIN * BETA / lambda_soil(sv$y, t0))
   cap <- cap_at(t0, h)
   h <- min(h, cap[1])
   at_crossing <- FALSE
@@ -656,6 +659,9 @@ if (sys.nframe() == 0L) {
           h <- program$h[i] / n_sub
           a <- attempt(sv$t, sv$y, sv$dydt, h)
           if (is.null(a)) stop(pinned_raise(sv$t, sv$y, sv$dydt, h))
+          if (LOCAL && is.null(a <- local_fix(sv$t, h, a))) {
+            stop(sprintf("a pinned step's member-local re-integration raised at t = %.17g", sv$t))
+          }
           f <- which(sign(a$P) != sign(sv$P))
           if (length(f)) crossings[[length(crossings) + 1]] <- data.frame(row = i, member = f,
             t = sv$t + h * sv$P[f] / (sv$P[f] - a$P[f]), down = sv$P[f] > 0, h = h)

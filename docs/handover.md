@@ -106,11 +106,11 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 
 | step | state |
 |---|---|
-| 1. ε | done: 0.025 in `ln J`; per-trait elasticities (`docs/measurements/eps-spread.md`) |
+| 1. ε | done for `ln J` (0.025) and elasticities (`docs/measurements/eps-spread.md`); curvatures running |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor on a bank | not started |
-| 4. the headroom | the consultation is ready to send |
-| 5. local analyses | not started |
+| 4. the headroom | the consultation is answered; two of its four tests done, the third running |
+| 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
 `harness/eps_spread.R` on v12t at `tol = 1e-4` with 108 uniform nodes. The table
@@ -150,15 +150,24 @@ by the spec's decision rule.
   panels, and two are the whole-run rung's, which then passes.
 
 **Step 4.** The consultation, `docs/oracle-consultation-grid-controller.md`,
-is written in its neutral vocabulary.
-- It gives the model and both grids in full, and how the system and the controller
-  behave over a run (D1–D7, C1–C7).
-- It lists the treatments measured, and asks what is possible, whether the
-  difficulty is intrinsic, which formulation makes the four tests hold by
-  construction, and what precedent exists.
-- M8 carries ε and what it implies. It is ready for the user to send; the reply
-  goes in `docs/oracle-response-grid-controller.md`, and each proposal is tested
-  on the driver before anything is built.
+went before M8 carried ε. The reply is `docs/oracle-response-grid-controller.md`,
+and the spec's *The reply's tests* has what was measured.
+- *Its claim holds:* on one grid, a curvature taken between the gradient's jumps
+  is off at any tolerance. In `lma` at seed 31 it is 34% below the smooth value
+  for the resident and 3% for the invader. A chord over ±1e-2, less its `O(δ²)`
+  term from the second difference of `ln J`, gives the smooth value to about ±1.
+- *The chain's margin buys no radius,* for 9.6% more member evaluations. Walks
+  from `lma` ×0.9 to ×1.1 keep `J` within 1.2e-4 with or without it. Their
+  error ratios reach 13–130, set by the pools, so the walked ratio is no radius
+  diagnostic.
+- *Running:* the member split on the driver (`LOCAL`), with each crossing found
+  to `|P| < 5e-11`. With crossings found to `|P| < 5e-4`, its second difference
+  at 1e-4 was −234 against −31 without the split. The finer location checks
+  whether that is the location's jitter.
+- *Not yet tested:* nodes at the creation spans' edges, adjoint-weighted control,
+  the pool as `asinh`, deleting the end-state refusal, and a warm-started inner
+  solve. Steps more than 10 days after rain are 23% of member evaluations and
+  mostly pool-bound, so a pool variable saves at most about that here.
 
 ### The code
 
