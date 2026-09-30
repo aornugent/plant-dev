@@ -119,7 +119,11 @@ Splitting its capped steps in two cuts the gradient's errors 2.6× in lma and 1.
 
 **Nothing is built, and `OBJECTIVES.md` is unchanged.** The revision drafted for the user read as a procedure, with open numbers. The user wants the objectives back to at most four criteria, like the original four (an optimal node schedule, optimal ODE steps, convergence of `J` and stable gradients, where optimal means performant, accurate and stable), and guidance on precision budgets.
 
-**These findings went back to the Oracle** as the consult's *Third follow-up, after your reply to the second follow-up*. It asks for the closest solver or controller precedent for the constraints that bind, for how to set the precision budgets, and for the objectives as at most four criteria. Its reply is awaited.
+**The Oracle's fifth reply** (`oracle-response-solver-performance.md`) answers the third follow-up, and is tested (*Done last session*):
+- *Two mechanisms.* (A) the kink, a random-signed draw per crossing; (B) the loss rate `μ(r)` evaluated at stages that overshoot on the first emptying steps, one-signed. (B) is confirmed for `J`: capping each pool's motion per step (`TRANSIT`, `Δr ≤ c·r₀`) takes `J`'s median error at 1e-4 from −2.1e-5 to −7e-7 and +5e-6 at c = 0.5 and 0.25, for +14% and +41% member evaluations. It is refuted as a_dG2's knob: a_dG2's error and draw do not fall with c.
+- *The precedent,* a crossing correction from integrate-and-fire simulation (`KINK_FIX`), removes ~95% of each crossing's local error on 1-day steps once the crossing is read from `P`'s stage values and the youngest members, whose `P` moves less than 100ε, are left out. On the rule's grids it halves lma's gradient draw (sd 2.1e-4 → 9.2e-5) and `J`'s (4.8e-6 → 2.3e-6), and leaves a_dG2's (1.7e-4 → 1.9e-4). The predicted ~1e-5 is not reached.
+- *Budgets* come from the data: the calibration's optimum is known only to its Cramér–Rao width `σ_data` (covariance `H⁻¹`, `H` the data fit's Gauss–Newton Hessian), and the gradient's error must stay below a third of it, `‖H^{−1/2}·δg‖ ≤ 1/3`. `H` is the first measurement, and it needs a calibration objective: which data, which constants, what noise.
+- *Four criteria,* proposed: precision (that bound), value (`J` within `b_J`, the schedule's bias measured once), range (every run completes, with end-state `S ≥ 0`, `Δr/r₀` and `hλ_chain/β` as its checks) and cost (within budgets `B`, `B′`).
 
 **The two scopes are archived** in `docs/archive/`. Steps 1–3 of their plan are [#96](https://github.com/aornugent/plant/issues/96), [#97](https://github.com/aornugent/plant/issues/97) and [#95](https://github.com/aornugent/plant/issues/95), rebased onto #94. #97's model change is accepted, and the code review covered #96 and #97.
 
@@ -142,6 +146,25 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - `plant-dev`'s pointers (plant `6613dd24`, odelia `be3e2cb`) stay until #94 merges; odelia's moves with plant's.
 
 ## Done last session
+
+**The fifth reply, tested,** over the seven tolerances within ±5% of 1e-4 (medians and standard deviations; gradients against the split-32 reference):
+
+| setting | `J/J* − 1` | lma | a_dG2 | member evaluations |
+|---|---|---|---|---|
+| the pool scale alone | −4.0e-5, 1.2e-5 | −1e-6, 4.0e-4 | +1.1e-3, 7.0e-4 | 5.38e6 |
+| its grids pinned with the correction | −2.1e-5, 4.9e-6 | +6.2e-4, 3.0e-4 | +2.4e-3, 1.0e-3 | |
+| the rule (cap 1 day, tail 12 days, onset cap, guard on) | −3.1e-5, 4.8e-6 | +1.3e-4, 2.1e-4 | −3.5e-4, 1.7e-4 | 5.65e6 |
+| its grids pinned with the correction | −2.7e-5, 2.3e-6 | −2.0e-4, 9.2e-5 | −2.0e-4, 1.9e-4 | |
+| cap 1 day, no tail, guard off | −2.1e-5, 6.7e-6 | +1.3e-4, 2.2e-4 | +1.4e-4, 2.4e-4 | 5.48e6 |
+| with `TRANSIT` c = 0.5 | −7e-7, 6.1e-6 | −4.2e-5, 4.6e-4 | +3.4e-4, 4.8e-4 | 6.25e6 |
+| with `TRANSIT` c = 0.25 | +5.0e-6, 2.3e-6 | +4.4e-4, 1.0e-4 | +2.9e-4, 3.6e-4 | 7.70e6 |
+
+- *The correction's implementation.* From the step's ends the crossing's place misses by a median 0.08 of the step, where the kernel changes sign, and the correction then helps 20 of 75 members on a 12.8-day step; from the bracketing stages it helps most. On a 1-day capped step, 16 of 26 members' errors fall 20–80×; the other ten are the youngest, whose `P` spans 2e-6 to 8e-4 against ε = 1e-4, and whom the point-kink correction overcorrected by up to 3e4× until they were left out.
+- *On the pair's grid at 1e-3* the correction takes lma's error from −6.2e-3 to −2.1e-3 and leaves a_dG2's at −2.2e-2.
+- *The first factor* shortens the steps that hold a downward crossing to a median 0.10 days, against 0.33 with the corrected factor: consistent with the reply's account of its steadiness, which the transit test supports for `J`.
+- *Not tested:* `H`, which needs a calibration objective; the class switches as a_dG2's remaining source, which the correction does not touch and which share most of its crossing steps; `E_L`.
+
+**The fourth reply, tested,** and **the root causes, by removing each suspect**, from earlier in the session:
 
 All on u108 with `harness/ark_prototype.R`, against `J*` = 12.6687135 and, for gradients, a pinned central difference on the pool scale's grid at 1e-6 with its crossing steps split 32 ways. That reference resolves 3e-5 in lma and 1.3e-4 in a_dG2: split 8, 16 and 32 ways it moves by that much. The older references, the pair at 1e-8 and 1e-7, are within 8e-5 of it.
 
@@ -182,7 +205,7 @@ At the rate the 66 crossing steps with a class switch remove a_dG2's error, 2.4e
 
 ## Next session
 
-**1. Read the Oracle's reply to the third follow-up against these findings,** test its claims by their cheapest measurements, and restate `OBJECTIVES.md` with the user as at most four criteria with numbers.
+**1. Settle with the user what the calibration fits** (data, constants, noise), or a twin experiment in its place, and measure `H` on one frozen grid: every budget follows from it. Restate `OBJECTIVES.md` as the four criteria, with the numbers `H` gives.
 
 **2. With the user's go-ahead, take the stage guard out of TF24,** in the branch that owns the pool (`PLANT-97`). Keep the refusal of a step whose end leaves a pool below zero, and count the stages that go below. Pass: invaders from lma × 0.7 to × 2 on u108 within about three times the base run's own error, measured against the same invaders on a base run at 1e-6, and residents unchanged wherever no stage went below.
 
@@ -224,6 +247,7 @@ At the rate the 66 crossing steps with a class switch remove a_dG2's error, 2.4e
 - *A switch smoothed within a step is still a kink to the integrator:* the positive part at ε = 0.05·P_b moves `J` by 3.9%, and leaves `J`'s draw and a_dG2's error in place; lma's errors fall 2–7× but do not follow tol.
 - *A split reference stops converging near its resolution:* split 8, 16 and 32 ways, the pool scale's 1e-6 grid moves by 3e-5 in lma and 1.3e-4 in a_dG2.
 - *`queue.sh` needs absolute paths:* `ev_ladder.sh`, which it sources, changes into the repository, so a relative job file is not found and the queue ends at once.
+- *A crossing correction needs the crossing from the stages, and a sharp switch:* from the step's ends the crossing's place misses by a tenth of the step, where the kernel changes sign; and a member whose `P` moves less than about 100ε across the step has no kink at the step's scale, so a point-kink correction overcorrects it by orders of magnitude.
 
 ## Setup
 
