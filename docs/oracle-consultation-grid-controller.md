@@ -652,8 +652,22 @@ own run by the same recipe, its error at `θ_A × 0.7` and `× 1.2` goes from +5
 On one grid the system's gradient jumps each time, as `θ` moves, a member's crossing of
 `P = 0` slides past a stage abscissa.
 
-**(M8) The target.** `ε` is being measured from eight records from the generator, which
-differ only in their daily draws. [Filled in when measured.]
+**(M8) The target.** Eight records from the generator, differing only in their daily
+draws, each run on 108 uniform members at `tol = 1e-4` with the shared absolute part:
+- `J` runs from 7.5 to 13.5, and `ln J` has sd 0.25, so `ε = 0.025`.
+- For base runs the elasticities' sd is 0.19 for `θ_B`, and 0.87 for `θ_A`'s own column
+  with its derived constants held. For probes at `θ′ = θ` they are 0.50 and 1.98. Over
+  the fifty constants the sd runs from `5.6e-4` to 6, and ε is a tenth of each.
+- On one record the setting is inside ε on both grids:
+  - tightening `tol` to `1e-5` moves `ln J` by 0.3% of its sd, and each elasticity by at
+    most 3.4%;
+  - doubling the members to 215 moves `ln J` by 1.7%, and each elasticity by at most
+    4.3%.
+  - So the margin is about 30× on the step grid and 2.4–6× on the creation grid.
+  - M1–M3's gradient errors are 50–200× below `θ_B`'s ε.
+- On this climate, then, accuracy does not bind at these settings. What remains is how
+  cheaply ε can be met on every record, how far one grid can be shared, and the second
+  derivatives.
 
 ## Facts an answer can rely on
 

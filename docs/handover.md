@@ -106,16 +106,21 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 
 | step | state |
 |---|---|
-| 1. ε | running: `harness/eps_spread.R` over eight seeds |
+| 1. ε | done: 0.025 in `ln J`; per-trait elasticities (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor on a bank | not started |
-| 4. the headroom | the consultation is written, waiting for ε |
+| 4. the headroom | the consultation is ready to send |
 | 5. local analyses | not started |
 
-**Step 1.** `harness/eps_spread.R` runs one daily-weather seed of the
-long-drought record per process, on v12t at `tol = 1e-4` with 108 uniform
-nodes. It records `ln J` and every trait's elasticity for the resident and the
-invader at θ′ = θ. The results go to `$DEV/eps/summary.md`; ε is not yet set.
+**Step 1: done.** Eight daily-weather seeds of long drought, run with
+`harness/eps_spread.R` on v12t at `tol = 1e-4` with 108 uniform nodes. The table
+is `docs/measurements/eps-spread.md`, and the spec's step 1 summarises it.
+- ε is 0.025 in `ln J`. For elasticities it is 0.087 (`lma`) and 0.019
+  (`a_dG2`) for residents, and 0.20 and 0.050 for invaders.
+- At seed 31 the setting is inside ε on both axes, by about 30× in time and
+  2.4–6× in nodes.
+- So on this climate accuracy does not bind at these settings. Steps 3 and 4 ask
+  how far each axis loosens within ε, and whether other regimes bind sooner.
 
 **Step 2 (a), the pool's tolerance: a setting.** With `ode_tol_abs =
 1e-4·ode_tol_rel` on v12t, `J`'s error on long drought is within 0.46·tol from
@@ -147,7 +152,9 @@ is written in its neutral vocabulary.
 - It lists the treatments measured, and asks what is possible, whether the
   difficulty is intrinsic, which formulation makes the four tests hold by
   construction, and what precedent exists.
-- ε goes into M8 when step 1 reports. Then it is ready to send.
+- M8 carries ε and what it implies. It is ready for the user to send; the reply
+  goes in `docs/oracle-response-grid-controller.md`, and each proposal is tested
+  on the driver before anything is built.
 
 ### The code
 

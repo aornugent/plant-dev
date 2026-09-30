@@ -111,6 +111,38 @@ at `tol = 1e-4` on 108 uniform nodes.
 - ε is set once and held across the bank. A constant record has no spread of
   its own.
 
+**Result** (`docs/measurements/eps-spread.md`).
+- Over the eight seeds, `J` runs from 7.5 to 13.5. `ln J` has sd 0.25, so ε is 0.025.
+- For the elasticities:
+
+  | trait | resident: sd | resident: ε | invader: sd | invader: ε |
+  |---|---|---|---|---|
+  | `lma` (its own column) | 0.87 | 0.087 | 1.98 | 0.20 |
+  | `a_dG2` | 0.19 | 0.019 | 0.50 | 0.050 |
+  | `hmat` | 0.82 | 0.082 | 0.82 | 0.082 |
+  | `stem_P50` | 0.67 | 0.067 | 2.17 | 0.22 |
+
+  The other traits run from 5.6e-5 (`a_st3`) to 0.6 (`curv_fact_colim`).
+- *The setting's own error is small against the spread.* At seed 31:
+  - tightening `tol` from `1e-4` to `1e-5` moves `ln J` by 0.3% of its sd, and each
+    elasticity by at most 3.4%;
+  - going from 108 to 215 nodes moves `ln J` by 1.7%, and each elasticity by at
+    most 4.3% (the invader's `lma`).
+  - So the node axis has 2.4–6× margin on ε, and the time axis about 30×.
+  - The gradient errors measured on the driver, 1–4e-4 relative, are 50–200× below
+    `a_dG2`'s ε.
+- *Quantities with no spread take no ε.* `S_D`'s elasticity is exactly 1 and
+  `a_f3`'s exactly −0.75, and `a_st3`'s spread is 5.6e-5. These are the only ones
+  the checks move by more than a tenth of their sd.
+- *The sd itself is uncertain.* From eight records, its 90% interval is 0.71–1.80
+  times the estimate.
+- *What it means.* On this climate, accuracy does not bind at `tol = 1e-4` on 108
+  nodes. The questions for steps 3 and 4 are how far each axis can be loosened
+  within ε, and whether the other regimes bind sooner. At looser tolerances the
+  gradients, not `J`, are expected to bind first.
+- *Cost.* A seed took about 12 min of wall time for resident and invader with
+  their sweeps: 15 min at `1e-5`, and 22 min on 215 nodes.
+
 ## Step 2: the enablers
 
 **Purpose.** Brute force on plant's solver passes the four tests: `J` and the

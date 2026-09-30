@@ -30,8 +30,11 @@ invaders, on any rainfall record: constant, variable, wet, dry or episodic.
 
 ## Numbers
 
-- **ε:** to be measured from eight daily-weather seeds of the long-drought
-  climate.
+- **ε,** from eight daily-weather seeds of the long-drought climate: 0.025 in
+  `ln J`. For elasticities it is a tenth of each trait's own spread. For
+  residents and invaders that is 0.087 and 0.20 for `lma`, and 0.019 and 0.050 for
+  `a_dG2`. A quantity with no spread by construction (`S_D`, `a_f3`) takes none.
+  The table is `docs/measurements/eps-spread.md`.
 - **One local analysis:** invaders from ×0.5 to ×2 of the resident, and the
   resident within ±10% of θ₀. These are defaults, not yet confirmed.
 - **The bank** of records is set in `docs/design-grid-controller.md`.
