@@ -166,8 +166,24 @@ Keep the refusal of a step whose end leaves a pool below zero
   - the FF16 reference tests are unchanged.
 
 **Where it lands.** (a) is a setting in the harness until the bank confirms
-it. (b) is a new issue on aornugent/plant, on a branch stacked on `PLANT-97`,
-which owns the pool.
+it. (b) is aornugent/plant#98, on `PLANT-98` stacked on `PLANT-97`, which owns
+the pool.
+
+**(b) as measured.**
+- *Where the guard never fired,* three TF24 stands are bit-identical.
+- *The invaders* from `lma` ×0.7 to ×2 on the long-drought resident reproduce the
+  probe build's guard-off `J′` to every digit, at `tol = 1e-3` and `1e-6`.
+- *The resident at `tol = 1e-3`:*
+  - `J` moves 12.66564 → 12.66219;
+  - attempts thrown fall 149 → 0, 22 step ends are refused instead, and rejections
+    for accuracy rise 1910 → 2011;
+  - the attempts overall fall 0.6%.
+- *At `tol = 1e-4` with the tied tolerance,* `J` moves by 1.2e-6.
+- *The limit.* A walk has no error estimate, so a stage far below empty is committed
+  there. At a zero relaxation offset on the height coordinate, the invader at
+  `lma` ×1.05 now fails because its density overflows, not at the stage. The
+  offset (#97) and the birth-date coordinate are what keep the measured invaders
+  clear of this.
 
 ## Step 3: the floor on a bank of records
 
@@ -387,6 +403,10 @@ done
   repeats the run's values.
 - *Retaking an interval from the reference's state measures its local error
   only:* the survival error arrives with the state.
+- *The soil has no fast mode to take implicitly:* drainage goes as `θ^16.14`, so
+  after rain a layer's relaxation rate is about one over the time since the rain.
+  ARK's longer steps there were inaccurate, and on one its embedded estimate put
+  the top layer's error at a fifteenth of its size.
 - *A replayed input must be exact:* TF24's leaf solve turns a one-ulp
   difference upstream into 1e-9.
 - *A slot's choices are a sequence:* TF24's leaf points are read in order, so

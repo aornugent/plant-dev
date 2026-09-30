@@ -107,9 +107,9 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 | step | state |
 |---|---|
 | 1. ε | running: `harness/eps_spread.R` over eight seeds |
-| 2. the enablers | (a) settled as a setting; (b) next, on a new branch over `PLANT-97` |
+| 2. the enablers | (a) settled as a setting; (b) on `PLANT-98` (#98), full suite running |
 | 3. the floor on a bank | not started |
-| 4. the headroom | the consultation is being written |
+| 4. the headroom | the consultation is written, waiting for ε |
 | 5. local analyses | not started |
 
 **Step 1.** `harness/eps_spread.R` runs one daily-weather seed of the
@@ -125,12 +125,25 @@ driver's per-pool scale's −4.0e-5 and 1.2e-5. It costs about 10% more than
 the per-pool scale and needs no code. Step 3 re-checks it on the bank,
 by the spec's decision rule.
 
-**Step 2 (b), the stage guard.** Not started. The change, the three tests it
-rewrites and the pass criteria are in the spec. Going ahead with it is agreed.
+**Step 2 (b), the stage guard: `PLANT-98`, aornugent/plant#98.**
+- The change deletes TF24's stage check and `storage_domain_tol`, and keeps the
+  refusal of a step whose end leaves a pool below zero.
+- The three tests that expected `storage is negative` now state what happens.
+- The measurements are in the spec's *(b) as measured*: bit-identical where the
+  guard never fired, and invaders from `lma` ×0.7 to ×2 reproducing the probe
+  build's guard-off runs exactly.
+- A walk commits a stage far below empty. At a zero offset on the height
+  coordinate, one invader fails because its density overflows.
+- Full serial suite: running.
 
 **Step 4.** The consultation, `docs/oracle-consultation-grid-controller.md`,
-is being written. It asks for reformulations that would move the
-runtime-against-radius frontier by a large factor.
+is written in its neutral vocabulary.
+- It gives the model and both grids in full, and how the system and the controller
+  behave over a run (D1–D7, C1–C7).
+- It lists the treatments measured, and asks what is possible, whether the
+  difficulty is intrinsic, which formulation makes the four tests hold by
+  construction, and what precedent exists.
+- ε goes into M8 when step 1 reports. Then it is ready to send.
 
 ### The code
 
