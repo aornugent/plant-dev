@@ -108,8 +108,8 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 |---|---|
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
-| 3. the floor on a bank | long drought's tolerance nudges: the resident fails the first test on five elasticities |
-| 4. the headroom | the consultation is answered; three of its four tests done |
+| 3. the floor on a bank | long drought's nudges: the resident fails the first test at `1e-4`, everything passes at `1e-5` |
+| 4. the headroom | the consultation is answered and tested; the verdict is in the spec |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
@@ -154,7 +154,10 @@ by the spec's decision rule.
 
 **Step 4.** The consultation, `docs/oracle-consultation-grid-controller.md`,
 went before M8 carried ε. The reply is `docs/oracle-response-grid-controller.md`,
-and the spec's *The reply's tests* has what was measured.
+and the spec's *The reply's tests* has what was measured, with a verdict in
+*Where the reply leaves the design*: the kink binds curvatures and the
+resident's nudges, both have a fix that needs no code, and the reply's remedy
+is worth at most the cost of the tighter tolerance.
 - *Its claim holds:* on one grid, a curvature taken between the gradient's jumps
   is off at any tolerance. In `lma` at seed 31 it is 34% below the smooth value
   for the resident and 3% for the invader: 13ε and 1.4ε. A chord over ±1e-2, less
@@ -192,8 +195,9 @@ the invader's elasticities by at most 0.32 of ε/3. The resident's move by more
 than ε/3 on five of 48, all of the pool's mortality and cost: `a_dG1` 1.65,
 `d_I` 1.61, the relaxation offset 1.38, `a_dG2` 1.21 and `TF24_cost_scale`
 1.17 times. So brute force at the step-2 setting fails the first test for the
-resident. The same nudges at `1e-5` are running, to see whether a tighter
-tolerance passes.
+resident. At `1e-5` everything passes, the resident's largest move 0.17 of ε/3,
+for 42% more steps. The loosest passing tolerance is step 3's to find on the
+bank, and it prices the reply's remedy.
 
 ### The code
 

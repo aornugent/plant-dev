@@ -328,6 +328,12 @@ their sweeps. Each quantity's largest move from the `1e-4` run, against ε/3:
   response.
 - The build without the end-state refusal gives the same seven runs bit for
   bit (step 4, *The refusal*).
+- *At `1e-5` everything passes,* for 42% more steps (21 107 against 14 839). The
+  resident's largest move is 0.17 of ε/3 (`omega`) and its median 0.06; the
+  invader's are 0.13 and 0.06. The five that failed fall about tenfold, though
+  the steps grow by only 42%.
+- So on this record brute force passes the first test somewhere between `1e-4`
+  and `1e-5`. The loosest tolerance that passes is this step's to find.
 
 ## Step 4: the headroom
 
@@ -494,6 +500,25 @@ so with no end-state refusal, runs step 3's seven tolerance nudges.
   same size, so every run is the same bit for bit.
 - So on this record the refusal is redundant, and deleting it changes nothing.
   Whether it is elsewhere, the bank says.
+
+**Where the reply leaves the design,** on long drought.
+- *The kink binds in two places,* not in `J`: in a curvature taken on one grid
+  (13ε for the resident between jumps), and in the resident's pool-trait
+  elasticities under step 3's nudges at `1e-4` (five of 48 above ε/3).
+- *Both have a fix that needs no code.* A chord over ±1e-2, less its `O(δ²)`
+  term, is within 0.2ε of the curvature. At `1e-5` the nudges pass, for 42% more
+  steps.
+- *So the reply's remedy is worth at most that 42%* on this record: events with
+  their crossing times differentiated would let the looser tolerance pass. It
+  is an implementation in odelia's recording and sweep, and its cheap cut on
+  the driver does not make `J` smooth. Step 3's loosest passing tolerance, on
+  the bank, prices it.
+- *Its other proposals buy nothing here:* the chain's margin costs 9.6% for no
+  radius, span-edge nodes need more nodes than the 108 already inside ε, and
+  the refusal's deletion is free but changes nothing.
+- *Untested:* step control weighted by the adjoint, the pool as `asinh` (at most
+  about 20% here), and a warm-started inner solve. The last is the largest
+  lever left, since the inner solve is 85% of the instructions.
 
 **What it yields.** Per regime: the speedup at ε for (a) and (b), the radius of
 each, and a verdict on each reformulation. A heuristic is built only where
