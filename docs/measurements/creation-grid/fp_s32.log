@@ -1,0 +1,14 @@
+constant, 139 nodes (first spacing 0.0116): J 291.545
+  keeping pace with the first node: born by 0.0579, the next born 0.0694; first node 17.97 m against hmat 16.60, so it puts 0.984 of its production into seed
+  resident lma elasticity -7.061
+  invader: J' at lma e^-D, 1, e^+D 295.955 291.545 286.904; elasticity from them -155.3, swept -155
+  invader at lma x0.99005: J' 908.046, slope of ln J' from the resident's -113.6, 90% from births before 0.1157
+  invader at lma x0.997: J' 457.864, slope of ln J' from the resident's -150.5, 90% from births before 0.0694
+  invader at lma x0.999: J' 346.33, slope of ln J' from the resident's -172.2, 90% from births before 0.0579
+  invader at lma x0.9997: J' 304.195, slope of ln J' from the resident's -141.6, 90% from births before 0.0579
+  invader at lma x0.9999: J' 295.955, slope of ln J' from the resident's -150.1, 90% from births before 0.0463
+  invader at lma x1.0001: J' 286.904, slope of ln J' from the resident's -160.5, 90% from births before 0.0463
+  invader at lma x1.0003: J' 276.771, slope of ln J' from the resident's -173.3, 90% from births before 0.0463
+  invader at lma x1.001: J' 235.082, slope of ln J' from the resident's -215.3, 90% from births before 0.0463
+  invader at lma x1.003: J' 145.293, slope of ln J' from the resident's -232.1, 90% from births before 0.0347
+  invader at lma x1.0101: J' 0.00244619, slope of ln J' from the resident's -1169, 90% from births before 0.0116

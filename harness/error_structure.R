@@ -3,10 +3,11 @@
 # (docs/measurements/eps.csv).
 #
 #   [RUNS=docs/measurements/spot-check] [NUDGES=docs/measurements/nudges] \
-#     Rscript harness/error_structure.R
+#     [GRIDS=docs/measurements/creation-grid] Rscript harness/error_structure.R
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 runs_dir <- Sys.getenv("RUNS", file.path(here, "..", "docs", "measurements", "spot-check"))
 nudge_dir <- Sys.getenv("NUDGES", file.path(here, "..", "docs", "measurements", "nudges"))
+grid_dir <- Sys.getenv("GRIDS", file.path(here, "..", "docs", "measurements", "creation-grid"))
 eps <- read.csv(file.path(here, "..", "docs", "measurements", "eps.csv"))
 eps <- eps[eps$unit != "curvature in lma", ]
 main <- c("ln J", "lma", "a_dG2", "hmat", "stem_P50", "rho")
@@ -24,6 +25,7 @@ eps_of <- function(role, trait) {
 quantities <- function(x) {
   out <- c()
   for (role in c("stand", "invader")) {
+    if (is.null(x[[role]]$elasticity)) next
     r <- if (role == "stand") "resident" else "invader"
     tr <- c("ln J", sub("^1[.]", "", names(x[[role]]$elasticity)))
     v <- c(log(x[[role]]$J), unname(x[[role]]$elasticity)) /
@@ -92,23 +94,13 @@ for (r in names(records)) {
   cat(line, "\n")
 }
 
-# J is the sum over nodes of establishment weight times net reproduction ratio,
-# up to a constant factor.
-nodes_of <- function(x) {
-  n <- x$stand$nodes; m <- min(length(n$establishment), length(n$nrr))
-  data.frame(birth = n$birth[1:m], w = n$establishment[1:m], nrr = n$nrr[1:m])
-}
+source(file.path(here, "node_parts.R"))
 cat("\n== Where the move from 108 to 215 nodes in J lives, as a fraction of J\n")
 cat("   field: the change in net reproduction at the 108 nodes' births, on 108's weights\n")
 cat("   quadrature: the 215-node integrand on its own nodes, less on the 108 nodes\n")
-bands <- c(-1, 1, 3, 41)
 for (r in c("ld", "dry", "epi", "wet")) {
-  a <- nodes_of(run(records[[r]])); b <- nodes_of(run(paste0(r, "_n215")))
-  m <- match(round(a$birth, 10), round(b$birth, 10))
-  J <- sum(a$w * a$nrr)
-  field <- tapply(a$w * (b$nrr[m] - a$nrr), cut(a$birth, bands, right = FALSE), sum) / J
-  quad <- (tapply(b$w * b$nrr, cut(b$birth, bands, right = FALSE), sum) -
-             tapply(a$w * b$nrr[m], cut(a$birth, bands, right = FALSE), sum)) / J
+  p <- node_parts(nodes_of(run(records[[r]])), nodes_of(run(paste0(r, "_n215"))), c(-1, 1, 3, 41))
+  field <- p$field; quad <- p$quad
   cat(sprintf("%-4s net %+.4f | field %+.4f (b<1 %+.4f, 1-3 %+.4f, later %+.4f) | quadrature %+.4f (b<1 %+.4f, 1-3 %+.4f, later %+.4f)\n",
               r, sum(field) + sum(quad), sum(field), field[1], field[2], field[3],
               sum(quad), quad[1], quad[2], quad[3]))
@@ -129,4 +121,25 @@ for (r in names(records)) {
   cat(sprintf("%-5s born before 1: %d nodes, %.3f of the cost; before 3: %d, %.3f\n", r,
               sum(x$node_times < 1), sum(cost[x$node_times < 1]) / sum(cost),
               sum(x$node_times < 3), sum(cost[x$node_times < 3]) / sum(cost)))
+}
+
+cat("\n== Long drought at 3e-5 on node ladders that nest: (Q1 - Q2)/(Q2 - Q3), 4 on the\n")
+cat("   square law, where the finer move is at least three times the tolerance nudge\n")
+ladders <- list(
+  "uniform 108, 215, 429" = c(file.path(runs_dir, c("ld_3e-5.rds", "ld_n215.rds")),
+                              file.path(grid_dir, "ld_u429_full.rds")),
+  "graded G1, G2, G3" = file.path(grid_dir, c("ld_G1_full.rds", "ld_G2_full.rds", "ld_G3_full.rds")))
+base <- quantities(run(records[["ld"]])); nudge <- quantities(run(tol_nudge[["ld"]]))
+for (l in names(ladders)) {
+  if (!all(file.exists(ladders[[l]]))) next
+  q <- lapply(ladders[[l]], function(f) quantities(readRDS(f)))
+  k <- Reduce(intersect, c(lapply(q, names), list(names(nudge))))
+  k <- k[abs(q[[2]][k] - q[[3]][k]) >= 3 * abs(nudge[k] - base[k])]
+  ratio <- (q[[1]][k] - q[[2]][k]) / (q[[2]][k] - q[[3]][k])
+  cat(l, "\n")
+  print(data.frame(resolved = c(by_group(ratio, length)), median = q3(by_group(ratio, median)),
+                   below_0 = c(by_group(ratio < 0, sum)), in_2.5_6 = c(by_group(ratio >= 2.5 & ratio < 6, sum)),
+                   coarsest_move = q3(by_group(abs(q[[1]][k] - q[[2]][k]), max))))
+  m <- k[sub("^(resident|invader) ", "", k) %in% main]
+  cat("  main:", paste(sprintf("%s %.2f", m, ratio[m]), collapse = ", "), "\n")
 }

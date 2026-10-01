@@ -385,6 +385,8 @@ on disk; the spot-check note's last section).
   `1e-3`.
 - *The node axis carries the error:* at `3e-5` the move to 215 nodes is 4–46×
   the tolerance nudge's, and the rungs 54, 108 and 215 are on no power law.
+  The 54-node rung is what breaks it. On long drought 108, 215 and 429 nodes are
+  on the square law for `J` (step 4, *the second reply's tests*).
 - *That error lives in births before 3,* as a field part (+0.9 to +2.8% of `J`)
   and a quadrature part (−0.6 to −2.1%) that cancel to +0.3–0.7%. Those 9 of 108
   nodes cost 16% of the member evaluations; uniform refinement spends the other
@@ -419,6 +421,10 @@ spot-check note's last section).
   On this record a spacing of 0.046 years before day 24 already puts `ln J`
   within ε/3 of the finest split's (0.21ε), as 0.012 does (0.30ε). Halving the
   spacing over an early window does not reach it.
+- *Later: none of these splits resolves the founders' front.* With the first
+  window graded and nodes every 1/16 day around the front, `J` converges at
+  289.274, the resident's `lma` elasticity at −6.94 and the invader's at −186.2
+  (step 4, *the second reply's tests*).
 
 **Measured so far: the tolerance nudges on long drought.** Seed 31, 108 uniform
 nodes, the tied tolerance on `PLANT-98`, at seven tolerances within ±5% of
@@ -629,6 +635,95 @@ so with no end-state refusal, runs step 3's seven tolerance nudges.
   about 20% here), and a warm-started inner solve. The last is the largest
   lever left, since the inner solve is 85% of the instructions.
 
+**The second reply,** to step 3's measurements (the consultation's follow-up;
+the reply is in `docs/oracle-response-grid-controller.md`).
+- *The time axis is closed:* run at `1e-5`, take curvatures by the corrected
+  chord, and drop the margin and the split. Elasticities below 0.1 need an
+  absolute floor on ε.
+- *The creation axis is a canopy.* The tall shade the short and not the reverse,
+  so a member ends in the canopy or the understory, and birth order is height
+  order. So births carry:
+  - a first-mover layer at each creation window's opening, of width `L` (about
+    0.5 on long drought, the founders' 23 days on the constant record);
+  - the windows' edges;
+  - a fate front where members switch from one to the other.
+- *Its diagnosis:* at a spacing near `L` both parts of the node move are off
+  their asymptote, so 54, 108 and 215 nodes fit no power law.
+- *Its representation, a second integrator in birth date:*
+  - a node at each edge of creation;
+  - a first panel of about a day in each window, growing geometrically;
+  - a split where neighbours' fates diverge;
+  - thinning in the understory;
+  - each panel's error from the sweep.
+- *On the invader:* the constant record's cliff is the model's, and smooth. A run
+  should report the one-sided slopes and a radius `|g|/|g′|` with the gradient.
+
+**The second reply's tests** (`docs/measurements/creation-grid.md`).
+- *On the constant record creation does not stop at the front.* It runs at 0.998
+  to the first window's close at 5.20, and opens again from 11.11 to the end. So
+  the reply's rule as written, ten graded panels to day 23.5 and nothing after,
+  is 14% high: the last node takes all later creation, at the state of a member
+  that dies.
+- *With the understory represented,* ten graded members before the front put `J`
+  0.53% (0.21ε) below the converged 289.274, at any spacing after it.
+- *The front is under ⅛ day wide,* and its panel is first order. With nodes every
+  ⅛ day around it, 102 nodes converge `J` and the resident's gradients. The
+  resident's `lma` elasticity is −6.94, against −6.22 without the front and −18.4
+  on uniform 108. The invader converges at 1/16 day, 150 nodes, at −186.2.
+- *The invader's cliff is the model's, and smooth once the front is resolved.*
+  The one-sided slopes close linearly in `u`, `(ln J′)″ ≈ −2.5e4`, a radius of
+  0.0075 in `ln lma`. On the 32- and 128-way splits the local slope is the
+  front's panel's, −155 and −194.6.
+- *On long drought uniform is on the square law from 108 nodes.* From 108 → 215 to
+  215 → 429 each part of the move falls 4.1-fold, and `J`'s ratio is 4.3. The
+  54-node rung, longer than the stretches between gaps in creation, was what fit
+  no power law. On wet uniform's ratio is 2.6 from 108, and the graded ladder's
+  rises from 2.75 to 3.59 by 986 nodes.
+- *For `J` the reply's graded grid is no better.* At a matched count its field
+  part is half the uniform one's and its quadrature part a quarter. But it loses
+  their cancellation, so its `J` is further out at a matched cost: −0.85% for
+  1.25e6 member steps against −0.58% for 9.62e5 on long drought.
+- *The first-mover layer is not set by the final heights.* On long drought
+  members born before 3.1 all end at `x` 1.07–1.08, while their net
+  reproduction e-folds every 0.43–0.9.
+- *On long drought the resident's gradients are on the square law from 108
+  nodes too,* and the invader's are not. Against uniform 429:
+  - the resident's moves from 215 to 429 are under the tolerance's noise on all
+    but 7 of 49 quantities. On those the ratio has median 4.5 and is never
+    negative, and the 215-node companion's estimate of the 108-node error is 1.09
+    times it (median);
+  - on 33 of the invader's 44 resolved quantities the move from 215 to 429
+    reverses the move from 108 to 215. Its `lma` goes −27.069, −26.973, −27.004.
+    So the companion's estimate is 2.15 times the error, and no power law gives
+    it. Its errors at 108 nodes are within ε for the main traits, at most 0.33ε.
+- *The graded grid halves the resident's median gradient error at 125 nodes,*
+  0.12ε against 0.26ε at 108, and doubles the invader's, 0.27ε against 0.14ε.
+- *Not run:* the sweep's panel estimate needs the sweep's adjoints of the field
+  intermediates. The self-term needs a change in plant: `A(x_j; x_j)` is zero,
+  since a node has no leaf area above its top, but TF24's shading averages light
+  over the crown, which the node's own leaf area shades.
+
+**Where the second reply leaves the design.**
+- *The time axis is closed,* as the reply says.
+- *On long drought, whose stand thins, uniform nodes serve `J` and the resident.*
+  From 108 nodes both follow the square law, and the 215-node companion
+  estimates their error; wet's `J` nears it. At a matched cost the reply's
+  grading makes `J` and the invader worse, and helps the resident's gradients
+  only at about 108 nodes.
+- *Where nothing thins the canopy, the reply's structure is the rule.* With it
+  the constant record converges `J` and both roles' gradients on 150 nodes, where
+  no uniform count does. It needs:
+  - its first window graded from a day;
+  - nodes every 1/16 day around the founders' front;
+  - its understory represented, at any spacing.
+- *The reply would find the front during the run,* where neighbours' net
+  production parts in sign. Here it came from a pilot: across it neighbours'
+  mortality integrals at the end differ 70-fold (0.45 against 32). How early the
+  run shows it is not measured.
+- *What is not yet predictable is the invader's node error on pulsed records.*
+  It shrinks about threefold per halving but changes sign, so a companion
+  overstates it twofold. That is the open question for the creation axis.
+
 **What it yields.** Per regime: the speedup at ε for (a) and (b), the radius of
 each, and a verdict on each reformulation. A heuristic is built only where
 the speedup is worth its code.
@@ -739,8 +834,11 @@ done
   gradients, and saves everything a later analysis reads. `spot_check.R`
   checks a directory of those runs against `docs/measurements/eps.csv`, and
   `error_structure.R` reads how their errors scale and where the node error
-  lives. `first_panel.R` splits a record's first node spacing and reports `J`,
-  the surviving founders and the invader's gradient.
+  lives. `first_panel.R` splits a record's first node spacing, or takes a
+  schedule, and reports `J`, the surviving founders, the invader's gradient and
+  its one-sided slopes. `graded_times.R` writes the schedules of step 4's second
+  tests, and `node_parts.R` splits `J`'s move between nested schedules into its
+  field and quadrature parts.
 - `curvature.R` takes reverse-mode gradients at `lma·e^{±δ}` on one grid, for
   the curvatures of steps 1, 4 and 5.
 - `v12_steps.R`, `error_channels.R`, `j_error_trace.R` and `soil_bound.R`

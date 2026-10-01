@@ -109,7 +109,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor, checked run by run | spot-check done (`docs/measurements/spot-check.md`): it points to `1e-5` on 215 nodes for wet and dry, not yet run as one setting; small elasticities miss their ε everywhere |
-| 4. the headroom | the consultation is answered and tested; the verdict is in the spec. A follow-up with step 3's measurements is at the end of `docs/oracle-consultation-grid-controller.md`, not yet sent |
+| 4. the headroom | two replies, both tested; the verdicts are in the spec's step 4, and the second reply's runs in `docs/measurements/creation-grid.md` |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
@@ -189,6 +189,36 @@ is worth at most the cost of the tighter tolerance.
     is the largest lever left; testing it means counting evaluations inside
     phylloptim's solve.
 
+**Step 4, the second reply.** The follow-up with step 3's measurements went to
+the Oracle. Its reply, the second in `docs/oracle-response-grid-controller.md`,
+reads the creation axis as a canopy: a first-mover layer at each window's
+opening, the windows' edges, and a fate front between canopy and understory. Its
+experiments 1, 3 and 4 are in `docs/measurements/creation-grid.md`, and the
+spec's *Where the second reply leaves the design* has the verdict.
+- *The constant record is resolved.* Creation runs past the founders' front, to
+  5.20 and again from 11.11, so the reply's rule as written is 14% high. With the
+  first window graded from a day, the understory represented at any spacing and
+  nodes every 1/16 day around the front, 150 nodes converge `J` at 289.274, the
+  resident's `lma` elasticity at −6.94 and the invader's at −186.2. The schedule
+  is `harness/graded_times.R`'s `const_Gbf16`.
+- *The invader's cliff there is the model's, and smooth* once the front is
+  resolved: `(ln J′)″ ≈ −2.5e4`, a radius of 0.0075 in `ln lma`.
+- *On long drought uniform nodes are on the square law from 108,* for `J`
+  (ratio 4.3) and for the resident's gradients. The 54-node rung was what fit no
+  power law. The 215-node companion estimates the 108-node error to 1.09 times
+  for the resident.
+- *The invader's gradients are not on any power law:* on 33 of 44 quantities the
+  move from 215 to 429 reverses the move from 108 to 215, so the companion
+  overstates their error twofold. They are within ε at 108 nodes.
+- *The reply's graded grid does not pay on long drought or wet,* except for the
+  resident's gradients at about 108 nodes. On wet its ratio reaches 3.59 only by
+  986 nodes.
+- *Its mechanism for the first-mover layer's width fails:* members born before
+  3.1 on long drought all end at the canopy height, while their net reproduction
+  e-folds every 0.43–0.9.
+- *Not run:* the sweep's panel estimate (it needs the sweep's adjoints of the
+  field intermediates) and the self-term (a change in plant).
+
 **Step 3: the floor, checked run by run.** A bank of references was too slow
 (about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,
 every quantity under ε/6) and a node companion, and a spot-check on constant,
@@ -214,11 +244,13 @@ committed in `docs/measurements/spot-check/`.
   off around `hmat`, on the steep reproduction switch. So its `J` (1.2 on 108)
   and the invader's −1.4e17 are artefacts. With the first spacing split 8–128
   ways `J` is 288–292, the resident's `lma` elasticity −7.1 and the invader's
-  −194.
+  −194. Those splits miss the founders' front; step 4's second reply converges
+  them (above).
 - *How each error scales,* from the runs on disk (`harness/error_structure.R`):
   the time axis is cheap to brute-force (steps as tol^−0.15, the resident's
   nudge spread as tol^0.6–0.8). The node axis carries 4–46× more error at
-  `3e-5`, off any power law. Its move lives in births before 3 (9 of 108 nodes,
+  `3e-5`, off any power law on 54, 108 and 215 nodes; on 108, 215 and 429 it is on
+  the square law for `J` and the resident (above). Its move lives in births before 3 (9 of 108 nodes,
   16% of the cost), as two parts of 1–3% of `J` that cancel to 0.3–0.7%. On the
   constant record the first node is all of `J`: the founders, lumped.
 
@@ -271,14 +303,22 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ### Outstanding
 
-- **The constant record's runs need its founders resolved.** The `const_*` runs
-  in `docs/measurements/spot-check/` are on uniform nodes, so their `J` and
-  gradients are artefacts (step 3, *the constant record, resolved*). The bank
-  needs them again on a schedule that resolves the first 23 days, the first
-  spacing split 32 ways or plant's default, with their companions.
-  - What remains there is the model's: the invader's landscape is a cliff at
-    θ′ = θ, `J′` 911, 291.5 and 0.0026 at `lma` ×0.99, ×1 and ×1.01. Whether
-    ε and the continuity test apply to such a record is the user's call.
+- **The constant record's spot-check runs are on uniform nodes,** so their `J`
+  and gradients are artefacts. The resolved schedule exists now, `const_Gbf16`
+  (150 nodes, step 4's second reply); what remains is its tolerance companion.
+  - What remains there is the model's: the invader's landscape is a smooth cliff
+    at θ′ = θ, `J′` 938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}, with a
+    radius of 0.0075. Whether ε and the continuity test apply to such a record is
+    the user's call.
+- **The invader's node error on pulsed records is not predictable.** It shrinks
+  about threefold per halving of the spacing but changes sign, so the 215-node
+  companion overstates it twofold. Why is open: the next question on the
+  creation axis.
+- **Whether to build a node rule for records whose canopy is never thinned:**
+  graded windows and a split at the front. The constant record needs it and the
+  pulsed records do not. Here the front came from a pilot, where neighbours'
+  mortality integrals at the end differ 70-fold across it; how early a run shows
+  it is not measured.
 - **The small elasticities' ε, the user's call in `OBJECTIVES.md`.** At a
   tenth of their spread, `a_st3`, `a_d0`, `omega` and `a_l1` miss on every
   record, though no small elasticity's 108-node error exceeds 0.012. With ε at

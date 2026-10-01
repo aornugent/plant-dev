@@ -5,11 +5,14 @@
 # raises is recorded, and the phases that do not need it still run.
 #
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
-#     [NODES=108] [SHIFT=0] OUT=run.rds Rscript harness/run_record.R
+#     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] OUT=run.rds \
+#     Rscript harness/run_record.R
 #
 # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
 # decided, and 1 is plant's default. SHIFT moves every introduction after the
 # first by that fraction of the node spacing. SEED replaces the regime's own.
+# TIMES reads the introductions from a file in place of NODES and SHIFT, and
+# FORWARD runs the stand alone, with no gradient and no invader.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -21,6 +24,8 @@ tol <- as.numeric(Sys.getenv("TOL", "1e-4"))
 atol <- as.numeric(Sys.getenv("ATOL", "1e-4"))
 nodes <- as.integer(Sys.getenv("NODES", "108"))
 shift <- as.numeric(Sys.getenv("SHIFT", "0"))
+times_file <- Sys.getenv("TIMES")
+forward <- Sys.getenv("FORWARD") == "1"
 out_file <- Sys.getenv("OUT")
 
 scen <- sprintf("%s, seed %d", regime, seed)
@@ -29,6 +34,8 @@ rain <- rain_record(scen)
 knots <- active_knots(scen)
 times <- uniform_times(nodes)
 times[-1] <- times[-1] + shift * (times[2] - times[1])
+if (nzchar(times_file)) times <- readRDS(times_file)
+nodes <- length(times)
 
 p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
@@ -70,12 +77,31 @@ phase <- function(name, f) {
   v
 }
 
-# Each node's birth time, establishment weight (the boundary node's last) and net
-# reproduction ratio, for the species the patch holds now.
+# Each node's birth time, establishment weight (the boundary node's last), net
+# reproduction ratio, and height and mortality integral at the end, for the
+# species the patch holds now.
 per_node <- function(scm) {
   sp <- scm$patch$species[[1]]
+  state <- matrix(sp$ode_state, ncol = sp$size, dimnames = list(sp$new_node$ode_names))
   list(birth = sp$node_times, establishment = sp$establishment_weights,
-       nrr = sp$net_reproduction_ratio_by_node)
+       nrr = sp$net_reproduction_ratio_by_node, height = state["height", ],
+       mortality = state["mortality", ])
+}
+
+# The creation probability averaged over each accepted step: the growth over
+# the step of the newest node's establishment integral, the only one still open.
+creation_record <- function(scm) {
+  rows <- scm$store_trajectory()
+  sp <- scm$patch$species[[1]]
+  per <- length(sp$ode_state) / sp$size
+  at <- which(sp$new_node$ode_names == "interval_establishment")
+  len <- lengths(lapply(rows, `[[`, "state"))
+  held <- (len - (tail(len, 1) - per * sp$size)) / per
+  t <- vapply(rows, `[[`, 0, "time")
+  I <- vapply(seq_along(rows), function(i)
+    if (held[i] > 0) rows[[i]]$state[per * (held[i] - 1) + at] else NA_real_, 0)
+  i <- which(diff(held) == 0 & diff(t) > 0)
+  list(start = t[i], end = t[i + 1], rate = (I[i + 1] - I[i]) / (t[i + 1] - t[i]))
 }
 
 # The gradient over every trait column, and each as the elasticity d ln J / d ln
@@ -97,11 +123,12 @@ scm <- phase("stand_run", function() {
 if (!is.null(scm)) {
   out$stand <- list(J = sum(scm$offspring_production), times = scm$ode_times,
                     sizes = scm$ode_step_sizes, attempts = scm$ode_step_attempts,
-                    nodes = per_node(scm), event_log = unclass(scm$event_log))
+                    nodes = per_node(scm), event_log = unclass(scm$event_log),
+                    creation = creation_record(scm))
   save()
-  g <- phase("stand_gradient", function() gradient_of(scm, p))
+  g <- if (!forward) phase("stand_gradient", function() gradient_of(scm, p))
   if (!is.null(g)) out$stand <- c(out$stand, g)
-  if (isTRUE(phase("invader_run", function() { scm$run_mutant(p); TRUE }))) {
+  if (!forward && isTRUE(phase("invader_run", function() { scm$run_mutant(p); TRUE }))) {
     out$invader <- list(J = sum(scm$offspring_production), nodes = per_node(scm))
     gi <- phase("invader_gradient", function() gradient_of(scm, p))
     if (!is.null(gi)) out$invader <- c(out$invader, gi)

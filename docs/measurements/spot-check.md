@@ -175,7 +175,7 @@ quadrature part is the rest.
 
 - Births after 3 carry 7–30% of the net, dry the most.
 - The first node alone carries 28%, 26%, 13% and 30% of `J` on 108 nodes, and
-  its net reproduction ratio rises 3–11% at each doubling: on wet 1290, 1430 and
+  its net reproduction ratio rises 1.6–11% at each doubling: on wet 1290, 1430 and
   1470 on 54, 108 and 215 nodes.
 - The nodes born before 3 are 9 of 108 and cost 16% of the member evaluations.
   A node's evaluations go as the steps after its birth, so an early node costs
@@ -218,6 +218,11 @@ the trajectories are from the same runs with `run_scm(..., collect = TRUE)`.
   and −155, against −6568 and −1.4e17 on 108 uniform. A kink at θ′ = θ remains:
   the one-sided differences at 32 ways are −172 and −215, and the swept value
   lies outside them.
+- *Later, those splits turned out not to resolve the founders' front.*
+  `creation-grid.md` grades the first window and puts nodes every 1/16 day around
+  the front. There `J` converges at 289.274, the resident's `lma` elasticity at
+  −6.94 and the invader's at −186.2. The kink is the curvature of a smooth `J′`,
+  sampled by a panel across the front.
 - *On the other records the first spacing barely matters.* Split 8 ways, it
   moves `J` by −0.05%, −0.60% and −0.04% on long drought, dry and wet, against
   +0.44%, +0.71% and +0.33% from 108 to 215 nodes. Plant's default schedule

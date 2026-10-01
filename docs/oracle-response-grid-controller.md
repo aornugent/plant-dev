@@ -1,8 +1,9 @@
 # Oracle response: the grid consultation
 
-Reply to `oracle-consultation-grid-controller.md` as it stood before M8 carried ε
-(sent at `536e794`, before `b810d0a`), captured verbatim. What was tested, and what it
-found, is in `design-grid-controller.md` and the handover.
+Two replies, captured verbatim. The first is to `oracle-consultation-grid-controller.md`
+as it stood before M8 carried ε (sent at `536e794`, before `b810d0a`). The second is to
+the follow-up at its end (sent at `9328507`). What was tested, and what it found, is in
+`design-grid-controller.md` and the handover.
 
 ---
 
@@ -74,3 +75,72 @@ The kink error `h²ΔK(ϑ)` and "the estimator sees a different quadrature" are 
 4. Span-edge nodes with `λ`-weighted density, then redo D7 without the step noise.
 
 If one thing goes wrong in this picture, it is most likely the field inconsistency in step 3 fo r the heaviest early members; the cluster stop is the cheap remedy.
+
+---
+
+## The second reply, to the follow-up
+
+### Where this stands
+
+Your measurements close the time axis. The step grid is bought by tolerance at 1.42×; the Hessian bias is real and the corrected chord removes it for free; the walked max-norm ratio counts pools that `J` cannot feel, so it measures no radius, and the empirical radius you found (±5% to ±10%, all elasticities within ε) is enough; per-member splitting buys nothing worth 4×. I would drop the margin rule and the splitting, run at `tol = 1e-5`, and take second derivatives by the corrected chord with `u` above the abscissa-passage scale. Two loose ends there are not grid problems: ε for elasticities below 0.1 needs an absolute floor (71ε at errors under 0.012 is a target definition failing), and the 1.7e-6 jump under splitting is the frozen-structure effect I described (four splits changed step) plus one grazing pair, which is the model's.
+
+The creation axis is a different kind of problem, and the constant record shows it undisguised.
+
+### The object: a canopy, not an integrand
+
+The members compete size-asymmetrically: a member contributes to `Φ` and reads it on `[0, x_j]`, so the tall shade the short and not the reverse. That produces two attractors for an individual. In the canopy, `P > 0`, the pool stays full, `x` converges to the unshaded height where `P_a = P_b` (your 1.07–1.08), and `n ≈ e^{−μ₀t}`. In the understory, `P < 0`, the pool empties, the loss rate rises to `μ₀ + μ₁`, and `n → 0` within a few units. The separatrix between them runs through the ensemble as a height, and because creation order is height order, as a creation time.
+
+That gives the creation-time integrand `w(b) = ρ_c F(b,T)` its structure:
+
+- The first-mover layer at each recruitment window's opening. Later recruits are progressively shaded by earlier ones, so `F` declines from the opening with a scale `L`. On the test instance `L ≈ 0.5` (half per 0.35). On the constant record `L` is the window itself, 23δ, because steady forcing gives no later window for anyone to catch up in.
+- The windows' edges, where `P_new` crosses zero and `ρ_c` goes to zero (`C¹`, since `ẽ ∝ P²` there).
+- The fate front `b_c`, where `x(b,T)` jumps from the canopy height to a suppressed height and `n` from `O(1)` to `0`. On the constant record it coincides with the first closure and is under 1δ wide (`x` from 1.08 to 0.93 between `b = 0.0637` and `0.0666`). On pulsed records the pulses let shaded members keep creeping, so the front smears into the smooth decline: `F` e-folds in `b` roughly every `0.02/|∂x_T/∂b|`, the logistic width of `f` divided by the slope of the terminal height profile, which is why `L` is a few tenths on the test instance.
+- The sweeping kink `b*(t)`, the `P = 0` boundary at time `t`. Your downward clusters, 45 crossings spread over 6.3δ in height order, are this front moving up through the ensemble as `φ` rises; the upward cluster is it snapping back. At fixed `t` the field integrands are `C⁰`-kinked there, which is second order and sign-definite under the hat scheme, not a problem in itself.
+
+A uniform grid with `Δ ≈ L` does two things to this. It lumps the window's top into one member at `b = 0` with weight `Δ/2` at the tallest height, so that member reads its own lumped shade and the next members read a lump instead of a spread: the field part, positive under refinement as the lump dissolves, and your `F_1(T)` rising per doubling. And it applies a trapezoid-type rule to a convex decline at one panel per e-folding: the quadrature part, negative. Both are second order in `Δ` once `Δ ≪ L`; at `Δ ≈ L` neither is on its asymptote, they have opposite signs and similar size, and the net is a difference of two pre-asymptotic terms. That is why 54/108/215 give ratios of 2.2, −2.5 and 8.4 and why the companion cannot be trusted: you are measuring convergence on the wrong side of the asymptote. The constant record is the limit case: the whole integrand sits in the first sixth of the first panel, the hat scheme hands half the panel's mass to a member born into famine, and `J` is off by 240×.
+
+So the question "where is the integrand not smooth" has a dynamical answer. It is steep at each window's opening on the scale `L`, zero in the gaps, and discontinuous at `b_c` where the two attractors meet; everywhere else its roughness is second-derivative noise from other members' crossings, which the hat scheme averages. Two further things follow. Creation inside a gap is never needed, since a node there only receives mass the hat scheme should have kept at the edge. And a finite-weight member at `b = 0` is itself an artefact: in the continuous model the canopy top has infinitesimal weight and reads no shade; if `A(z; x_j)` is nonzero at `z = x_j`, the first member's reading of its own `Δ₁/2` is a first-order error, and the member should read `Φ` with the share of its weight that represents later creation removed.
+
+### What is knowable when
+
+- Before the run, from the forcing and a chain-alone dry run: candidate window edges (quiescent stretches long enough for `P_new < 0`, to within the shade's correction of ~10δ); whether closure is a front or a decline (constant versus pulsed forcing); where die-back windows will reopen (the long low-forcing years, which empty the canopy's pools and let `P_new` recover; your `b = 7.96` peak). Not `L`.
+- During the run, as free readings: the edges exactly (`P_new`'s sign); `L` for the current window, from the divergence of the newest members' states in `b` once they have run a time `~L`; the fate front, as soon as adjacent members' `P` signs persistently differ while their pools diverge, which happens well before `T`.
+- Only at `T`: nothing structural. The canopy's membership is decided when it closes; `F`'s values depend on `T`, its roughness does not.
+
+That last point is what makes prediction possible: a creation time need only be chosen before its own time, not before the run.
+
+### The representation: a second integrator, not a quadrature
+
+Treat the creation axis the way you treat time: as an adaptive integrator in `b` with a controller, driven by what the run has already computed.
+
+1. Event nodes. Create a member at each zero crossing of `P_new`, both directions. No panel then straddles a gap. Freeze the time as a controller decision; because `ρ_c` is `C¹` at the edge, the mass misattributed when the edge moves with `θ` is `O(δb⁴)`.
+2. A tiny first panel in each window, growing geometrically. Start at `Δ₁ ≈ δ` and grow by a capped ratio, exactly as the first time step is `1e-6` and grows by at most 5. The growth is governed by a panel error estimate: for the newest closed panel, `(Δ²/12)·I_j·|second difference in b of the member state|`, weighted by a standing adjoint (the previous build's `λ` at `θ₀`, interpolated in `(b, t)`; a pilot for the first build; the shade at `x_0` as a structural proxy if neither exists). On the test instance this gives something like 25 nodes over the first window instead of 9; on the constant record about 10 members in `[0, 23δ]` and none after.
+3. Split a closed panel when its members' fates diverge. This is the escalator boxcar train's cohort splitting: insert a member at the panel's midpoint now, with state interpolated in `b` from its neighbours and the panel's recorded `ρ_c` moments split exactly. Trigger on the growth rate of the neighbour difference, not its size, so the interpolation is taken while the states are still close. This is where the front, knowable only during the run, gets its node. Splits are stops with a linear map, frozen in the recording, smooth in `θ`, mirrored by probes.
+4. Thin the understory. With `λ` nil past `b ≈ 16`, the controller's panels there are wide; alternatively merge near-dead members (weight-sum, weight-average), the EBT's other standard move. That is the 37% of evaluations carrying 1.3e-3 of `J`.
+5. Keep the weights. The exact panel moments are the scheme's strength; they make the own sum exact for `F` linear in `b` whatever `ρ_c` does inside the panel. If the field part's constant stays large after grading, the field-side analogue is to assemble `Φ` per panel with two or three moments of `ρ_c` (also free) so that `A`'s curvature over a panel's height spread is integrated rather than sampled.
+
+The brute-force fallback is this controller with a fixed panel width, which is uniform, and it carries the same error estimate.
+
+### The error estimate from one run
+
+With panels regime-pure (no gap, no fate jump inside), the hat scheme's error is second order in the local `Δ` and its constant is the adjoint-weighted second difference: for the own sum, `−(Δ_j²/12)·I_j·π·F″` with `F″` from second differences over `j` at `T`; for the fields, `(Δ_j²/12)·I_j·λ_Φ·∂²_b(nA)` and `λ_a·∂²_b(nc)` accumulated over rows, where the `A` values at the knots are computed at every rate evaluation anyway and `λ_Φ`, `λ_a` are the sweep's adjoints of the field intermediates. That is one extra accumulation in a sweep you already run. It reports the field part and the quadrature part separately, so their cancellation becomes a number rather than luck, and the budget can be set on the larger part. Panels whose two members disagree in regime are flagged as first-order and are the ones rule 3 should already have split. Richardson should then work between two gradings; measure the ratio on graded grids, not uniform ones.
+
+### What one grid owes a probe
+
+The cliff is the model's. The probe is a rare mutant in a frozen resident environment, which is exactly the invasion-fitness construction of adaptive dynamics, and its `J′(θ′)` is `C¹` at `θ′ = θ` in the continuous model: `Φ` is smooth in `z`, so a mutant's characteristic is a smooth function of `θ′`. What makes it look like a cliff is the instability: a mutant slightly behind its twin is slightly more shaded, falls further behind, and the gap grows as `e^{γt}` over a 40-unit horizon, so the transition from "in the canopy" to "suppressed" has a width in `ln θ′` that is exponentially small in the horizon. The asymmetry is the shade's one-sidedness: a faster mutant rises above a canopy that cannot respond and grows without bound (`J′ = 115 451` at ×0.5 is the fantasy of a resident that never reacts), a slower one is shaded by its own twins. Your one-sided slopes at ±1e-3 (−172, −215) against the chords over ±1e-2 (−114, −1160) are a smooth function with curvature of order `1e4` to `1e5` in `(ln J′)″`, not a kink. The `−1.4e17` on 108 members is a resolution artefact, the whole of `J′` hanging on one member sitting at `x = 0.98` on `f`'s threshold; the resolved `−155` to `−173` differ by how finely the canopy edge's shade gradient is resolved, and that is a legitimate creation-grid convergence question, settled by comparing the one-sided slopes on the 32- and 128-way grids.
+
+What a run should report there, in place of a bare gradient: the gradient at `θ′ = θ` (the selection gradient; it exists); the one-sided slopes at `±u` and the radius `u* ≈ |g|/|g′|` inside which the gradient means anything; the sign structure of `J′ − J` on each side (invadability); and where the mass of `J′` sits in `b` against the grid's resolution there. On the last point one shared grid does serve the probe: a slower mutant's surviving mass moves toward the window's opening (0.046 to 0.012 at ×1.01), which is exactly where a graded grid is densest. The faster mutant's mass spreads into later `b`, but that regime is the low-density fantasy anyway. If a local analysis wants `J(θ′)` rather than invasion fitness, the field's response has to be added, which is your "fifth" on the test instance and 100% on the constant record; one tangent run of the base model gives it to first order, and no probe can.
+
+### Precedent
+
+The escalator boxcar train (de Roos 1988; de Roos, Diekmann & Metz 1992) is your scheme: the boundary cohort with its number and first moment is your open panel, internalization is your hat share. Its known weakness is exactly the lumping of within-cohort spread, and its practical remedies are short cohort-closure intervals at recruitment (grading) and cohort splitting and merging; Brännström, Carlsson & Simpson (SINUM 2013) prove convergence, with the order set by how the boundary cohort is internalized. Angulo and López-Marcos's characteristic schemes for nonlinear size-structured models (and the Abia–Angulo–López-Marcos 2005 review) give second order along characteristics with grids adapted in the Lagrangian coordinate, and the regularity result you want: non-smoothness of the environment in `t` propagates along characteristics to the same `b`, while the corner where boundary and initial data meet (your `b = 0`) is a boundary layer. The Perfect Plasticity Approximation of forest dynamics (Strigul, Pristinski, Purves, Dushoff & Pacala 2008) is the direct precedent for the canopy: it reduces size-asymmetric competition to a tracked closure height `z*(t)` with cohorts in two regimes, which is "track the front, don't resolve it" and is what rules 1–4 do with members. The field part is the self-interaction problem of particle methods for mean-field equations (Raviart 1985; Cottet & Koumoutsakos 2000): a particle must not feel its own lump, and the field converges at the quadrature's order only when the kernel is resolved by the particle spacing. Grading by `|w″|^{1/3}` per cost is de Boor's equidistribution (1973; Huang & Russell 2011 for the moving-mesh form). For the probe, Metz, Geritz et al. (1996) and Dieckmann & Law (1996): the frozen-environment mutant, the selection gradient at `θ′ = θ`, and the fact that invasion fitness far from the resident is a sign, not a prediction.
+
+### Experiments, cheap first
+
+1. Test instance and high-mean: a hand-graded grid, geometric from `Δ₁ ≈ 0.03` over the first window with the first few edges taken from the 108-member run's `P_new` record, uniform beyond. Measure the two parts at two gradings; the ratio should move toward 4.
+2. The DWR panel estimate from one run and sweep, against the companion's move per panel.
+3. The constant record by the causal rule by hand: geometric to 23δ, an edge node there, nothing after. Expect `J` within 1% of 289 and the elasticity near −7.1 from about ten members.
+4. Probe one-sided slopes on 32- versus 128-way splits: convergence settles that the cliff is the model's.
+5. `A(x_j; x_j)` and the first member's `Φ` reading with and without its own later-creation share.
+
+If the first experiment does not move the ratio toward 4, the residual is the field part's kernel resolution, and the fifth experiment says whether it is the self-term or the panel's height spread.
