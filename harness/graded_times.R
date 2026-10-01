@@ -37,6 +37,23 @@ for (r in names(GAP)) {
   for (k in 1:4) { write(g, sprintf("%s_G%d", r, k)); g <- halve(g, GAP[[r]]) }
 }
 
+# Long drought's other ladders, each nested in the next: uniform; G0, every other
+# node of G1 with the gap's edges kept; D, uniform at 0.185 then 0.0926 before
+# the gap and 108 then 215 uniform after it; De, D with the gap's edges and
+# nothing inside it; Gn, G1 without the edges and with 108 uniform's node inside
+# the gap, and every panel of that halved.
+U <- function(n) seq(0, 107 * 40 / 108, length.out = n)
+for (n in c(108, 215, 429)) write(U(n), sprintf("u%d", n))
+gap <- GAP$ld
+G1 <- sort(unique(c(graded(0, 0.03, 1.11, 0.37, gap[1]), gap, U108[U108 > 3.75])))
+write(G1[seq_along(G1) %% 2 == 1 | G1 %in% gap], "ld_G0")
+D <- list(c(U(215)[U(215) < 3.74], U108[U108 >= 3.74]), c(U(429)[U(429) < 3.74], U(215)[U(215) >= 3.74]))
+edges <- function(b) c(b[!(b > gap[1] & b < gap[2])], gap)
+Gn1 <- sort(c(G1[!(G1 %in% gap)], U108[U108 > gap[1] & U108 < gap[2]]))
+for (k in 1:2) { write(D[[k]], sprintf("ld_D%d", k)); write(edges(D[[k]]), sprintf("ld_De%d", k)) }
+write(Gn1, "ld_Gn1")
+write(c(Gn1, head(Gn1, -1) + diff(Gn1) / 2), "ld_Gn2")
+
 # The constant record. Ten panels growing by 1.18 from a day reach the front; then
 # 1.4 per panel up to `cap`, to the first window's close; nothing in the gap; the
 # second window uniform at `h2`. The reply's rule as written stops at the front.

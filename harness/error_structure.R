@@ -143,3 +143,51 @@ for (l in names(ladders)) {
   m <- k[sub("^(resident|invader) ", "", k) %in% main]
   cat("  main:", paste(sprintf("%s %.2f", m, ratio[m]), collapse = ", "), "\n")
 }
+
+cat("\n== Long drought at 3e-5: each ladder's coarse and fine rung against the graded\n")
+cat("   ladder's extrapolation from G2 and G3. D densifies uniform before the first gap\n")
+cat("   to graded's 0.185; De adds the gap's edges to D; Gn takes them out of graded.\n")
+cat("   ratio: coarse error over fine, where the coarse is over 0.05 eps, 4 on the\n")
+cat("   square law. companion: 4/3 of the move over the coarse error, 1 when honest.\n")
+pairs <- list(uniform = file.path(runs_dir, c("ld_3e-5.rds", "ld_n215.rds")),
+              D = file.path(grid_dir, c("ld_D1_full.rds", "ld_D2_full.rds")),
+              De = file.path(grid_dir, c("ld_De1_full.rds", "ld_De2_full.rds")),
+              Gn = file.path(grid_dir, c("ld_Gn1_full.rds", "ld_Gn2_full.rds")),
+              graded = file.path(grid_dir, c("ld_G1_full.rds", "ld_G2_full.rds")))
+G23 <- lapply(file.path(grid_dir, c("ld_G2_full.rds", "ld_G3_full.rds")), function(f) quantities(readRDS(f)))
+ref <- G23[[2]] + (G23[[2]] - G23[[1]]) / 3
+for (l in names(pairs)) {
+  if (!all(file.exists(pairs[[l]]))) next
+  x <- lapply(pairs[[l]], readRDS)
+  q <- lapply(x, quantities)
+  k <- Reduce(intersect, list(names(q[[1]]), names(q[[2]]), names(ref)))
+  e1 <- abs(q[[1]][k] - ref[k]); e2 <- abs(q[[2]][k] - ref[k]); big <- e1 > 0.05
+  role <- sub(" .*", "", k)
+  med <- function(v, s) tapply(v[s], role[s], median)
+  cat(sprintf("%-7s %d and %d nodes\n", l, length(x[[1]]$node_times), length(x[[2]]$node_times)))
+  print(data.frame(coarse = q3(med(e1, TRUE)), fine = q3(med(e2, TRUE)),
+                   resolved = c(tapply(big, role, sum)), ratio = q3(med(e1 / e2, big)),
+                   companion = q3(med(abs(q[[1]][k] - q[[2]][k]) * 4 / 3 / e1, big))))
+}
+
+cat("\n== Long drought at 3e-5: where J's move between nested rungs lies in birth date,\n")
+cat("   panel by panel (node_parts.R's panel_moves), in percent of J. top: the field\n")
+cat("   part at the first two nodes over their own contribution, in percent.\n")
+source(file.path(here, "node_parts.R"))
+moves <- list("uniform 108 -> 215" = file.path(runs_dir, c("ld_3e-5.rds", "ld_n215.rds")),
+              "uniform 215 -> 429" = c(file.path(runs_dir, "ld_n215.rds"), file.path(grid_dir, "ld_u429_full.rds")),
+              "D 118 -> 235" = file.path(grid_dir, c("ld_D1_full.rds", "ld_D2_full.rds")),
+              "graded 125 -> 248" = file.path(grid_dir, c("ld_G1_full.rds", "ld_G2_full.rds")),
+              "graded 248 -> 494" = file.path(grid_dir, c("ld_G2_full.rds", "ld_G3_full.rds")))
+bands <- c(-1, 0.5, 1, 3.5, 6, 10, 41)
+for (l in names(moves)) {
+  if (!all(file.exists(moves[[l]]))) next
+  a <- nodes_of(readRDS(moves[[l]][1])); b <- nodes_of(readRDS(moves[[l]][2]))
+  pm <- panel_moves(a, b); J <- sum(a$w * a$nrr)
+  band <- cut(pm$birth, bands, right = FALSE)
+  f <- function(v) paste(sprintf("%+.3f", 100 * tapply(v, band, sum) / J), collapse = " ")
+  cat(sprintf("%-19s field %+.3f (%s) | interpolation %+.3f (%s) | top %.2f, %.2f\n", l,
+              100 * sum(pm$field) / J, f(pm$field), 100 * sum(pm$interpolation) / J, f(pm$interpolation),
+              100 * pm$field[1] / (a$w[1] * a$nrr[1]), 100 * pm$field[2] / (a$w[2] * a$nrr[2])))
+}
+cat("   bands:", paste(levels(cut(0, bands, right = FALSE)), collapse = " "), "\n")

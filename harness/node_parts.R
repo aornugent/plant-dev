@@ -24,6 +24,41 @@ node_parts <- function(a, b, bands) {
   list(field = field, quad = quad)
 }
 
+# The same move placed in birth date without a band's edge cutting a hat, where
+# each of the coarser run's panels holds at most one of the finer run's nodes:
+# per coarser node, the field part and the change in its establishment weight
+# (the finer run's creation on the coarser hats), and per coarser panel, the
+# interpolation part. The three sum to the move in J.
+panel_moves <- function(a, b) {
+  m <- match(round(a$birth, 10), round(b$birth, 10))
+  stopifnot(!anyNA(m))
+  extra <- setdiff(seq_len(nrow(b)), m)
+  j <- findInterval(b$birth[extra], a$birth)
+  stopifnot(!anyDuplicated(j), all(j >= 1 & j < nrow(a)))
+  lambda <- (b$birth[extra] - a$birth[j]) / (a$birth[j + 1] - a$birth[j])
+  w <- b$w[m]
+  w[j] <- w[j] + (1 - lambda) * b$w[extra]
+  w[j + 1] <- w[j + 1] + lambda * b$w[extra]
+  interpolation <- numeric(nrow(a))
+  interpolation[j] <- b$w[extra] *
+    (b$nrr[extra] - (1 - lambda) * b$nrr[m[j]] - lambda * b$nrr[m[j + 1]])
+  data.frame(birth = a$birth, field = a$w * (b$nrr[m] - a$nrr),
+             establishment = (w - a$w) * b$nrr[m], interpolation = interpolation)
+}
+
+# The invader's lma elasticity's move between two harness/invader_nodes.R runs,
+# placed as panel_moves() places J's: each part's central difference over the
+# two perturbations, over the coarser run's invader offspring.
+elasticity_moves <- function(xa, xb) {
+  stopifnot(xa$u == xb$u)
+  at <- function(x, s) nodes_of(list(stand = list(nodes = x$invader[[s]])))
+  part <- function(s) {
+    a <- at(xa, s)
+    panel_moves(a, at(xb, s))[, -1] / sum(a$w * a$nrr)
+  }
+  cbind(birth = at(xa, "plus")$birth, (part("plus") - part("minus")) / (2 * xa$u))
+}
+
 if (sys.nframe() == 0) {
   files <- commandArgs(TRUE)
   runs <- lapply(files, readRDS)
