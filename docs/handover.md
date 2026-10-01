@@ -211,6 +211,12 @@ committed in `docs/measurements/spot-check/`.
 - On the constant record the invader's `J′` is nearly singular at θ′ = θ, and
   its gradient (−1.4e17 for `lma`) is no answer. The resident is unaffected.
   It is a separate issue, under *Outstanding*.
+- *How each error scales,* from the runs on disk (`harness/error_structure.R`):
+  the time axis is cheap to brute-force (steps as tol^−0.15, the resident's
+  nudge spread as tol^0.6–0.8). The node axis carries 4–46× more error at
+  `3e-5`, off any power law. Its move lives in births before 3 (9 of 108 nodes,
+  16% of the cost), as two parts of 1–3% of `J` that cancel to 0.3–0.7%. On the
+  constant record the first node is all of `J`.
 
 **Step 3, the first measurement before it.** Seven tolerances within ±5% of `1e-4` on long
 drought at seed 31 (the spec's *Measured so far*). `ln J` moves by 1.6e-5, and

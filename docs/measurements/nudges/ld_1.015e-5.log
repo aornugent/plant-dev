@@ -1,0 +1,4 @@
+seed 31, tol 1.015e-05, 108 nodes, 2931 knots, 21052 steps; stand: J 12.668756755, ln J 2.539139; elasticity lma -8.28043, a_dG2 1.05546; answered; run 135 s, sweep 533 s
+the census's offspring production against the run's: +0.00e+00
+invader: J 12.668756755, ln J 2.539139; elasticity lma -27.06611, a_dG2 3.97033; answered; run 245 s, sweep 362 s
+the invader's J against the stand's: +0.00e+00

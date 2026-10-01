@@ -122,3 +122,61 @@ but not the small elasticities, which 215 nodes does not bring within their ε
 either. 215 nodes costs 1.97–2.13× the 108-node run on the four records, and
 `1e-5` costs 1.21× `3e-5` on dry, so `1e-5` on 215 nodes would cost about 2.5×
 the spot-check's setting.
+
+## How each error scales, and where the node error lives
+
+`harness/error_structure.R`, from the runs here and long drought's two sets of
+seven nudges at `1e-4` and `1e-5` (seed 31, 108 nodes, `PLANT-98`, in
+`../nudges/`). No new runs.
+
+**The tolerance axis is cheap to brute-force.**
+- On long drought the steps go as tol^−0.15: 14 839 at `1e-4`, 21 107 at
+  `1e-5`.
+- The resident's spread over seven nudges falls as tol^0.6 for the main traits
+  and tol^0.8 for the rest (medians). Its largest is 0.146ε at `1e-4` and
+  0.012ε at `1e-5` for the main traits, and 0.225ε and 0.025ε for the rest. On
+  dry one nudge at each tolerance gives tol^0.69.
+- The invader's spread is at most 0.07ε at `1e-4` and does not fall with tol.
+- The mean move from `1e-4` to `1e-5`, the axis's bias, is 0.03ε for the
+  resident's main traits, at most 0.07ε. On dry the move from `3e-5` to `1e-5`
+  is 0.36 of the nudge at `3e-5` (median): the error there is the nudges'
+  spread, not a bias.
+- So halving the spread costs about 1.15× the steps. A rule on this axis can
+  save at most the steps between a passing tolerance and a looser one where the
+  bias binds: 1.42× from `1e-5` to `1e-4` on long drought, where the bias is
+  still 0.03ε, and about 2× to `1e-3` if the steps keep to tol^−0.15 and the
+  bias, unmeasured there, allows it.
+
+**The node axis carries the error.** At `3e-5` the move from 108 to 215 nodes
+is 14, 15, 4.2 and 46 times the tolerance nudge's (median over quantities) on
+long drought, dry, episodic and wet.
+
+**It is not on a power law.** Where the move is resolved,
+`(Q54 − Q108)/(Q108 − Q215)`, about 4 on the square law, has median 2.2 on dry,
+−2.5 on episodic and 8.4 on wet. It is negative, a change of direction, on 16 of
+81, 33 of 57 and 16 of 65 quantities.
+
+**The node error lives in the first three units of birth date,** as two parts
+that nearly cancel. `J` is the sum over nodes of establishment weight times net
+reproduction ratio. The field part of the move from 108 to 215 nodes is the
+change in net reproduction at 108's birth dates, on 108's weights; the
+quadrature part is the rest.
+
+| record | net | field part | of it before 3 | quadrature part | of it before 3 |
+|---|---|---|---|---|---|
+| long drought | +0.42% | +1.94% | 94% | −1.52% | 93% |
+| dry | +0.70% | +2.75% | 88% | −2.05% | 94% |
+| episodic | +0.36% | +0.93% | 99% | −0.57% | 104% |
+| wet | +0.31% | +2.01% | 96% | −1.70% | 96% |
+
+- Births after 3 carry 7–30% of the net, dry the most.
+- The first node alone carries 28%, 26%, 13% and 30% of `J` on 108 nodes, and
+  its net reproduction ratio rises 3–11% at each doubling: on wet 1290, 1430 and
+  1470 on 54, 108 and 215 nodes.
+- The nodes born before 3 are 9 of 108 and cost 16% of the member evaluations.
+  A node's evaluations go as the steps after its birth, so an early node costs
+  1.95× the mean.
+
+**On the constant record the first node is all of `J`.** Its net reproduction
+ratio is 0.098, 297 and 9.9e4 on 54, 108 and 215 nodes; the second node's is
+9e-8 on 108.

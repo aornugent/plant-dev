@@ -275,7 +275,9 @@ from long drought, whose references (steps 1 and 4) show whether it is honest.
   0.17 of ε/3.
 - *A node companion* on half the nodes: every quantity moves by less than ε. If
   the error falls as the spacing squared, the full grid's error is a third of
-  the move.
+  the move. Measured, half of 108 is off the square law on every record, and
+  only a companion on twice the nodes decides 108, at twice the base run's
+  cost.
 - *A failed check refines,* the tolerance by 3 or the nodes by 2, and checks
   again: brute force by degrees, which is also the loop the heuristics reuse.
 - *It costs* about 1.05× and 0.55× of the base run. A local analysis walks many
@@ -327,19 +329,68 @@ heuristic.
   the sweep's elasticity is −1.4e17. The tolerance check flags it.
 - *Nothing failed:* no phase raised and no attempt was refused, and on every run
   the invader at θ′ = θ and the census reproduce `J` exactly.
-- *The 215-node rung* puts the 108-node error of the main traits at 0.18–0.65ε
-  on long drought and episodic, 1.19ε for the invader's `lma` on wet, and 0.94ε
-  for the resident's `a_dG2` on dry. The small elasticities step 1 flagged
-  (`a_st3`, `a_d0`, `omega`, `a_l1`) exceed their ε on every record, up to 71ε.
-  On the constant record `J` is 0.0008, 1.204 and 200.7 on 54, 108 and 215
-  nodes.
-- *Dry at `1e-5`* passes the tolerance check but for one quantity just over the
-  limit (0.178ε against ε/6).
+
+**Measured: the 215-node rung and dry at `1e-5`** (the same note), seven more
+runs: each record on 215 nodes at `3e-5`, and dry at `1e-5` and `1.05e-5` on
+108. The 108-node error is estimated as 4/3 of the move to 215 nodes, if the
+error falls as the spacing squared. The main traits are `ln J` and the traits
+step 1 takes curvatures in (`lma`, `a_dG2`, `hmat`, `stem_P50`, `rho`).
+
+| record | role | main traits' largest 108-node error | quantities over ε | over ε/3 |
+|---|---|---|---|---|
+| long drought | resident | `lma` 0.42ε | 2 of 49 | 19 |
+| long drought | invader | `lma` 0.65ε | 3 | 22 |
+| episodic | resident | `lma` 0.18ε | 3 | 7 |
+| episodic | invader | `ln J` 0.18ε | 4 | 7 |
+| wet | resident | `a_dG2` 0.40ε | 1 | 7 |
+| wet | invader | `lma` 1.19ε | 12 | 31 |
+| dry | resident | `a_dG2` 0.94ε | 6 | 41 |
+| dry | invader | `stem_P50` 0.64ε | 2 | 39 |
+
+- *108 nodes keeps the main traits within ε* on long drought and episodic, not
+  for wet's invader, and only just on dry.
+- *The 54- and 215-node estimates disagree.* On dry `J` falls 4.6% from 54 nodes
+  to 108 and rises 0.7% from 108 to 215, so 54 nodes is off the square law.
+- *The constant record does not converge in the node count:* `J` is 0.0008,
+  1.204 and 200.7 on 54, 108 and 215 nodes, and the invader's `lma` elasticity
+  is −749 on 215.
+- *Dry at `1e-5` passes the tolerance check* but for one quantity just over the
+  limit, the resident's `TF24_cost_scale` at 0.178ε against ε/6. The largest
+  move falls from 0.65ε (`omega`) at `3e-5` to 0.18ε, and the main traits' from
+  0.23ε to 0.09ε.
 - *So on wet and dry the check points to `1e-5` on 215 nodes,* not yet run as
-  one setting, at about 2.5× the cost of `3e-5` on 108: 215 nodes costs about
-  twice 108, and `1e-5` costs 1.21× `3e-5` on dry. No node count tried brings
-  the small elasticities within their ε, which is a tenth of a spread they
-  barely have.
+  one setting, and `1e-5` not on wet. On 215 nodes the main traits' node error
+  would be a quarter of 108's, under ε/3 on every record. It would cost about
+  2.5× `3e-5` on 108: 215 nodes costs 1.97–2.13× 108 on the four records, and
+  `1e-5` costs 1.21× `3e-5` on dry.
+- *The small elasticities step 1 flagged miss their ε on every record:* `a_st3`
+  (14–71ε for the resident), `a_d0`, `omega` and `a_l1`, and 215 nodes would not
+  bring them within it. Their ε is a tenth of a spread they barely have. Their
+  errors are small in absolute terms: no small elasticity's 108-node error
+  exceeds 0.012 (the resident's `rooting_depth_max` on dry), and `a_st3`'s 71ε
+  on episodic is 0.004.
+- *With an elasticity's ε at least 0.01,* the 108-node error exceeds ε on three
+  quantities outside wet and the constant record, each by under 1.6× (the
+  invader's `a_l1` on long drought the largest), and on nine of wet's invader's.
+  Whether ε takes that floor is for `OBJECTIVES.md`.
+
+**Measured: how each error scales** (`harness/error_structure.R`, from the runs
+on disk; the spot-check note's last section).
+- *The time axis is cheap to brute-force.* Steps go as tol^−0.15, while the
+  resident's nudge spread falls as tol^0.6–0.8 and its bias from `1e-4` to
+  `1e-5` is 0.03ε for the main traits. The invader's spread stays under 0.07ε.
+  A rule on this axis can save at most the steps between a passing tolerance
+  and one where the bias binds: 1.42× from `1e-5` to `1e-4`, about 2× to
+  `1e-3`.
+- *The node axis carries the error:* at `3e-5` the move to 215 nodes is 4–46×
+  the tolerance nudge's, and the rungs 54, 108 and 215 are on no power law.
+- *That error lives in births before 3,* as a field part (+0.9 to +2.8% of `J`)
+  and a quadrature part (−0.6 to −2.1%) that cancel to +0.3–0.7%. Those 9 of 108
+  nodes cost 16% of the member evaluations; uniform refinement spends the other
+  84% where 7–30% of the net move lives.
+- *On the constant record the first node is all of `J`,* with a net
+  reproduction ratio of 0.098, 297 and 9.9e4 on 54, 108 and 215 nodes: a layer
+  at the start of the patch that no uniform count resolves.
 
 **Measured so far: the tolerance nudges on long drought.** Seed 31, 108 uniform
 nodes, the tied tolerance on `PLANT-98`, at seven tolerances within ±5% of
@@ -658,7 +709,9 @@ done
   for bit, with options for step rules and replays (see its header).
 - `run_record.R` runs one stand and its invader on one record, with their
   gradients, and saves everything a later analysis reads. `spot_check.R`
-  checks a directory of those runs against `docs/measurements/eps.csv`.
+  checks a directory of those runs against `docs/measurements/eps.csv`, and
+  `error_structure.R` reads how their errors scale and where the node error
+  lives.
 - `curvature.R` takes reverse-mode gradients at `lma·e^{±δ}` on one grid, for
   the curvatures of steps 1, 4 and 5.
 - `v12_steps.R`, `error_channels.R`, `j_error_trace.R` and `soil_bound.R`
