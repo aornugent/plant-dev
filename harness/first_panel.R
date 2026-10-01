@@ -3,10 +3,11 @@
 # whose mortality integral ends within 1 of the first node's; the first node's
 # height at the end against hmat; and
 # the resident's and, with INVADER=1, the invader's lma elasticity, the
-# invader's both swept and from J' at lma e^{+-D} on one recording.
+# invader's both swept and from J' at lma e^{+-D} on one recording. U and M add
+# residents and invaders across lma on the split schedule.
 #
 #   PLANT_LIB=... [REGIME=constant] [K=32] [TOL=3e-5] [INVADER=1] [D=1e-3] \
-#     Rscript harness/first_panel.R
+#     [U=-0.02,0.02] [M=0.5,0.99,1.01,2] Rscript harness/first_panel.R
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -66,4 +67,23 @@ for (split in unique(c(1L, k))) {
     cat(sprintf("  invader: J' at lma e^-D, 1, e^+D %.6g %.6g %.6g; elasticity from them %.4g, swept %.4g\n",
                 Jm, J0, Jp, (log(Jp) - log(Jm)) / (2 * d), elasticity(scm, J0)))
   }
+}
+
+# On the split schedule: the resident at lma e^u for each u in U, and invaders at
+# lma x m for each m in M on the resident's recording, with the birth date before
+# which 90% of their J comes.
+before_90 <- function(sp) {
+  w <- c(sp$establishment_weights, 0)[seq_len(sp$size)] * sp$net_reproduction_ratio_by_node
+  sp$node_times[which(cumsum(w) / sum(w) >= 0.9)[1]]
+}
+for (u in as.numeric(strsplit(Sys.getenv("U"), ",")[[1]])) {
+  q <- with_lma(p, u)
+  r <- run_scm(q, mkenv(regime), ct, events = ev)
+  cat(sprintf("  resident at lma e^%+.4f: J %.6g, 90%% from births before %.4f\n",
+              u, sum(r$offspring_production), before_90(r$patch$species[[1]])))
+}
+for (m in as.numeric(strsplit(Sys.getenv("M"), ",")[[1]])) {
+  scm$run_mutant(with_lma(p, log(m)))
+  cat(sprintf("  invader at lma x%.3f: J' %.6g, 90%% from births before %.4f\n",
+              m, sum(scm$offspring_production), before_90(scm$patch$species[[1]])))
 }

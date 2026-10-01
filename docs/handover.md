@@ -276,8 +276,9 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   gradients are artefacts (step 3, *the constant record, resolved*). The bank
   needs them again on a schedule that resolves the first 23 days, the first
   spacing split 32 ways or plant's default, with their companions.
-  - What remains there is a kink at θ′ = θ for the invader: at 32 ways the
-    one-sided differences are −172 and −215, and the sweep gives −155.
+  - What remains there is the model's: the invader's landscape is a cliff at
+    θ′ = θ, `J′` 911, 291.5 and 0.0026 at `lma` ×0.99, ×1 and ×1.01. Whether
+    ε and the continuity test apply to such a record is the user's call.
 - **The small elasticities' ε, the user's call in `OBJECTIVES.md`.** At a
   tenth of their spread, `a_st3`, `a_d0`, `omega` and `a_l1` miss on every
   record, though no small elasticity's 108-node error exceeds 0.012. With ε at

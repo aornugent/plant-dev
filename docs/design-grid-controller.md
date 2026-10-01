@@ -409,6 +409,12 @@ spot-check note's last section).
   θ′ = θ, not a singularity.
 - *Elsewhere the first spacing barely matters:* split 8 ways it moves `J` by
   −0.05 to −0.60%, opposite to the move to 215 nodes.
+- *The resident's structure transfers; the invader's moves.* Over
+  `lma`·e^{±0.02} the resident keeps the same six founders and a smooth `J`
+  (333.9 to 251.6). The births carrying 90% of the invader's `J′` end at 2.2,
+  0.12 and 0.012 years at ×0.5, ×0.99 and ×1.01, and `J′` is 911, 291.5 and
+  0.0026 at ×0.99, ×1 and ×1.01: a contest for the canopy that no schedule
+  smooths.
 - *So a node rule must resolve the founders where nothing thins the canopy.*
   On this record a spacing of 0.046 years before day 24 already puts `ln J`
   within ε/3 of the finest split's (0.21ε), as 0.012 does (0.30ε). Halving the

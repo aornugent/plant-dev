@@ -222,3 +222,13 @@ the trajectories are from the same runs with `run_scm(..., collect = TRUE)`.
   moves `J` by −0.05%, −0.60% and −0.04% on long drought, dry and wet, against
   +0.44%, +0.71% and +0.33% from 108 to 215 nodes. Plant's default schedule
   moves wet's by +1.4%.
+- *The resident's structure holds under its own traits.* On the 32-way split,
+  residents at `lma`·e^{u} for u from −0.02 to +0.02 keep the same six founders,
+  and `J` runs smoothly from 333.9 to 251.6, a local elasticity of −6.6 to −7.5.
+- *The invader's moves.* On the same recording, the births that carry 90% of the
+  invader's `J′` end at 2.2, 0.74, 0.12 and 0.012 years at `lma` ×0.5, ×0.9,
+  ×0.99 and ×1.01.
+- *And its landscape is a cliff at θ′ = θ.* `J′` is 115 451, 11 184, 911,
+  291.5, 0.0026 and 6e-13 at ×0.5, ×0.9, ×0.99, ×1, ×1.01 and ×1.1. An invader a
+  little better than the resident takes the canopy from its founders; one 1%
+  worse is shaded out. That is the model's, not the grid's.
