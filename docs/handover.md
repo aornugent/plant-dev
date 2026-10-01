@@ -201,6 +201,7 @@ committed in `docs/measurements/spot-check/`.
   215-node rung is next.
 - On the constant record the invader's `J′` is nearly singular at θ′ = θ, and
   its gradient (−1.4e17 for `lma`) is no answer. The resident is unaffected.
+  It is a separate issue, under *Outstanding*.
 
 **Step 3, the first measurement before it.** Seven tolerances within ±5% of `1e-4` on long
 drought at seed 31 (the spec's *Measured so far*). `ln J` moves by 1.6e-5, and
@@ -251,6 +252,19 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ### Outstanding
 
+- **A separate issue: the invader on a constant record.** There `J′` is nearly
+  singular in the invader's traits at θ′ = θ.
+  - At `lma`·e^{−0.001}, ×1 and e^{+0.001} on one recording, `J′` is 1424,
+    1.204 and 0.0028. The sweep's elasticity is −1.4e17; a finite difference
+    over ±0.001 gives −6568.
+  - The sweep gives −1.433e17 again at `3.15e-5`, with monthly zero pulses added,
+    under plant's default absolute tolerance, and on the build before
+    `PLANT-98`, so neither the step grid nor the guard's removal sets it.
+  - The resident's gradient there is unaffected (`lma`'s elasticity −18.4).
+  - Open: whether the model's own `J′` is this steep at θ′ = θ under a steady
+    field, or the sweep carries an unbounded term. The runs are `const_*` in
+    `docs/measurements/spot-check/`. Two invasions at `lma`·e^{±0.001} on one
+    kept recording reproduce the finite difference in about three minutes.
 - **Unconfirmed defaults:** one local analysis spans invaders ×0.5–×2 and the
   resident ±10% (`OBJECTIVES.md`).
 - **Clean-up,** each fixed in the branch that owns it, then `git rebase
