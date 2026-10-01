@@ -106,7 +106,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 
 | step | state |
 |---|---|
-| 1. ε | done for `ln J` (0.025) and elasticities (`docs/measurements/eps-spread.md`); curvatures running |
+| 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor on a bank | not started |
 | 4. the headroom | the consultation is answered; three of its four tests done |
@@ -125,6 +125,9 @@ is `docs/measurements/eps-spread.md`, and the spec's step 1 summarises it.
   `a_dG2`, and finite differences confirm both.
 - So on this climate accuracy mostly does not bind at these settings. Steps 3 and 4
   ask how far each axis loosens within ε, and whether other regimes bind sooner.
+- *Curvatures, measured after* with `harness/curvature.R`: `lma`'s own curvature
+  has ε 1.2 for residents and 4.0 for invaders, from chords over ±1e-2 on one
+  grid. `OBJECTIVES.md` does not carry them yet; that is the user's edit.
 
 **Step 2 (a), the pool's tolerance: a setting.** With `ode_tol_abs =
 1e-4·ode_tol_rel` on v12t, `J`'s error on long drought is within 0.46·tol from
@@ -154,8 +157,8 @@ went before M8 carried ε. The reply is `docs/oracle-response-grid-controller.md
 and the spec's *The reply's tests* has what was measured.
 - *Its claim holds:* on one grid, a curvature taken between the gradient's jumps
   is off at any tolerance. In `lma` at seed 31 it is 34% below the smooth value
-  for the resident and 3% for the invader. A chord over ±1e-2, less its `O(δ²)`
-  term from the second difference of `ln J`, gives the smooth value to about ±1.
+  for the resident and 3% for the invader: 13ε and 1.4ε. A chord over ±1e-2, less
+  its `O(δ²)` term from the second difference of `ln J`, is within 0.2ε for both.
 - *The chain's margin buys no radius,* for 9.6% more member evaluations. Walks
   from `lma` ×0.9 to ×1.1 keep `J` within 1.2e-4 with or without it. Their
   error ratios reach 13–130, set by the pools, so the walked ratio is no radius

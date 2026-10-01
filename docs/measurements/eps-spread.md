@@ -153,6 +153,32 @@ Every move above eps (|delta / sd| > 0.1):
 
 10 of the 11 moves above eps are in elasticities below 0.1 in magnitude. Above one sd: resident a_st3 on tol 1e-4, 215 nodes (-0.00256 -> -0.00129). Here the setting's own error exceeds the quantity's spread across records.
 
+## Curvatures
+
+Added after the eight records above, with `harness/curvature.R` on `PLANT-98` (the stage guard out) at `tol = 1e-4` with the absolute tolerance tied to `1e-4` of it, 108 uniform nodes, each record's own knots. Each entry is `d e / d ln lma` for the column's elasticity `e`, from reverse-mode gradients at `lma * exp(+-D)`, `D = 0.01`, `lma` alone: the resident pinned to its own run's steps, the invader walked through that run's recorded field. The chord is `(e(D) - e(-D)) / 2D`. For `lma` the chord less its `O(D^2)` term is also given: `2 (ln J)'' - chord`, with `(ln J)''` the second difference of `ln J` over the same three points. Why the chord and not a narrower difference is in the design spec's step 4 (*The reply's tests*): on one grid, the gradient jumps as crossings pass the steps' stages.
+
+| seed | res lma, less O(D^2) | res lma, chord | res a_dG2 | res hmat | res stem_P50 | res rho | inv lma, less O(D^2) | inv lma, chord | inv a_dG2 | inv hmat | inv stem_P50 | inv rho |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 31 | -43.86 | -44.18 | -0.5476 | -32.92 | 30.89 | -24.83 | -200.5 | -192.7 | 8.69 | -57.68 | 124.8 | -77.5 |
+| 101 | -56 | -55.86 | 1.128 | -40.4 | 39.54 | -29.19 | -218 | -214.9 | 11.1 | -70.83 | 144.9 | -89.48 |
+| 102 | -19.34 | -20.5 | 2.101 | -5.692 | 12.94 | -2.697 | -107.6 | -107.6 | 9.025 | -13.46 | 66.18 | -23.42 |
+| 103 | -34.35 | -34.33 | 1.019 | -26.8 | 24.52 | -17.18 | -130.2 | -127.6 | 6.831 | -43.6 | 81.36 | -45.39 |
+| 104 | -39.34 | -38.14 | 0.696 | -26.75 | 26.54 | -19.06 | -131.6 | -130.4 | 9.283 | -43.93 | 89.48 | -46.82 |
+| 105 | -48.64 | -50.41 | 1.459 | -35.73 | 35.48 | -25.84 | -173.3 | -167.6 | 11.11 | -57.2 | 113.5 | -66.56 |
+| 106 | -28.32 | -27.49 | 1.415 | -17.04 | 18.89 | -9.932 | -118.4 | -117.3 | 9.049 | -29.3 | 76.74 | -34.1 |
+| 107 | -42.92 | -43.09 | 0.2815 | -34.96 | 30.05 | -24.62 | -138.7 | -135.8 | 5.274 | -55.41 | 85.41 | -56.59 |
+
+| quantity | res mean | res sd | res eps | inv mean | inv sd | inv eps |
+|---|---|---|---|---|---|---|
+| lma, less O(D^2) | -39.1 | 11.6 | 1.16 | -152.3 | 40.2 | 4.02 |
+| lma, chord | -39.25 | 11.7 | 1.17 | -149.2 | 38.3 | 3.83 |
+| a_dG2 | 0.9442 | 0.81 | 0.081 | 8.795 | 1.97 | 0.197 |
+| hmat | -27.54 | 11.4 | 1.14 | -46.43 | 18.2 | 1.82 |
+| stem_P50 | 27.36 | 8.64 | 0.864 | 97.8 | 27.1 | 2.71 |
+| rho | -19.17 | 9 | 0.9 | -54.98 | 22.1 | 2.21 |
+
+At seed 31 the resident's value less its `O(D^2)` term is -43.86 here against -43.67 from runs adaptive at `lma * exp(+-D)`, and the invader's is -200.5 against -200.9 from the same combination at `D = 0.001`: within 0.2 eps for both.
+
 ## Wall time per run
 
 Seconds, with two of these runs at a time on the 4-core machine (other R work shared it for the first hour). The resident's sweep includes a repeat of the forward run to keep its states. The invader's run re-runs the resident to record its field, then walks it.

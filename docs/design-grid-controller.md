@@ -165,9 +165,19 @@ at `tol = 1e-4` on 108 uniform nodes.
 - *Cost.* A forward run took 81 s (median), and the resident's sweep 3.5 forward
   runs, since it repeats the run. A whole seed took 12.1 min for resident and invader
   with their sweeps: 15 min at `1e-5`, and 22 min on 215 nodes.
-- *Curvatures had no ε.* `harness/curvature.R` measures `lma`'s over the eight
-  records, from gradients on one grid at `lma·e^{±0.01}`, where step 4's first
-  test puts the chord within about ±1 of the smooth value.
+- *Curvatures, measured after.* `harness/curvature.R` takes the curvature
+  `d e/d ln lma` of each elasticity `e` on the eight records, from reverse-mode
+  gradients at `lma·e^{±0.01}` on one grid, under the tied tolerance on
+  `PLANT-98`. `lma`'s own row is the chord less its `O(δ²)` term, which step
+  4's first test puts within 0.2ε of the smooth value at seed 31; the others
+  are the chord.
+
+  | curvature in `lma` of | resident: mean, sd, ε | invader: mean, sd, ε |
+  |---|---|---|
+  | `lma`'s elasticity | −39, 11.6, 1.2 | −152, 40, 4.0 |
+  | `a_dG2`'s | 0.94, 0.81, 0.081 | 8.8, 2.0, 0.20 |
+  | `hmat`'s | −28, 11.4, 1.1 | −46, 18, 1.8 |
+  | `stem_P50`'s | 27, 8.6, 0.86 | 98, 27, 2.7 |
 
 ## Step 2: the enablers
 
@@ -395,6 +405,10 @@ walked through θ₀'s recording.
 - *The gradient itself differs between grids.* At `lma·e^{0.01}` the pinned and
   the adaptive run's `lma` elasticities differ by 0.025, and by 0.001–0.007 at
   the other three points. The resident's ε/3 is 0.029.
+- *Against ε for curvatures* (step 1), the value between jumps is off by 13ε
+  for the resident and 1.4ε for the invader, so the claim is not moot here.
+  The chord less its `O(δ²)` term at δ = 1e-2 is within 0.2ε for both. The plain
+  chord at 1e-2 is not, for the invader: its `O(δ²)` term is 7.8, or 2ε.
 
 *The margin and the walked ratio.* The driver at the per-pool scale, with the
 stage guard out of reach, builds θ₀'s grid with and without the margin and
