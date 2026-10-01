@@ -65,8 +65,8 @@ on the front, which dies.
 | 0.37 | 1.48 | 53 | 287.7427 |
 | 0.74 | 0.74 | 68 | 287.7418 |
 
-The understory's spacing moves `J` by at most 3e-6 of itself. All three are 0.53% below the
-converged 289.274, which is 0.21ε.
+The understory's spacing moves `J` by at most 3e-6 of itself. All three are 0.53%
+below the converged 289.274, which is 0.21ε.
 
 **The front is sharp, and its panel is first order.** On the grid with nodes every
 ⅛ day around it:
@@ -252,8 +252,12 @@ per halving, its own error is about 0.04ε.
   goes −27.069, −26.973, −27.004, and `stem_P50` 26.734, 26.686, 26.711. The size
   of the move falls about threefold per halving, but its sign does not hold, so
   the companion's estimate is 2.15 times the error against 429 (median).
-- *Grading helps the resident at about 108 nodes, and neither role at about 215.* The
-  graded grid halves the resident's median error at 125 nodes. Its `lma`,
+- *The graded ladder puts the resident on the square law as well.* With G3's
+  resident gradients, 7 quantities are resolved, with a median ratio of 3.9–5.0
+  by group and none below zero: `ln J` 4.02, `hmat` 3.91. G3 and uniform 429
+  agree to a median 0.014ε.
+- *Grading helps the resident at about 108 nodes, and neither role at about
+  215.* The graded grid halves the resident's median error at 125 nodes. Its `lma`,
   `stem_P50` and `rho` errors are 0.14–0.37 of uniform's, but its `ln J` and
   `hmat` are worse. The invader's median error doubles. At 248 nodes both roles'
   median errors are larger than uniform 215's: 0.030ε against 0.018ε, and 0.17ε

@@ -128,8 +128,10 @@ if (!is.null(scm)) {
   save()
   g <- if (!forward) phase("stand_gradient", function() gradient_of(scm, p))
   if (!is.null(g)) out$stand <- c(out$stand, g)
+  save()
   if (!forward && isTRUE(phase("invader_run", function() { scm$run_mutant(p); TRUE }))) {
     out$invader <- list(J = sum(scm$offspring_production), nodes = per_node(scm))
+    save()
     gi <- phase("invader_gradient", function() gradient_of(scm, p))
     if (!is.null(gi)) out$invader <- c(out$invader, gi)
   }
