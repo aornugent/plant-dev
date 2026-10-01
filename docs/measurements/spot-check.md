@@ -98,6 +98,13 @@ The main traits are `ln J` and the traits step 1 takes curvatures in: `lma`,
 elasticities step 1 flagged: `a_st3` (14–71ε for the resident), `a_d0`, `omega`
 and `a_l1`.
 
+- Their 108-node errors are small in absolute terms: the largest is 0.012 (the
+  resident's `rooting_depth_max` on dry), and `a_st3`'s 71ε on episodic is
+  0.004.
+- With an elasticity's ε at least 0.01, the 108-node error exceeds ε on three
+  quantities outside wet and the constant record, by at most 1.6× (the
+  invader's `a_l1` on long drought), and on nine of wet's invader's.
+
 - The 54- and 215-node estimates disagree. On dry `J` falls 4.6% from 54 nodes
   to 108 and rises 0.7% from 108 to 215, so 54 nodes is off the square law.
 - On the constant record `J` is 0.0008, 1.204 and 200.7 on 54, 108 and 215

@@ -277,6 +277,11 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
     field, or the sweep carries an unbounded term. The runs are `const_*` in
     `docs/measurements/spot-check/`. Two invasions at `lma`·e^{±0.001} on one
     kept recording reproduce the finite difference in about three minutes.
+- **The small elasticities' ε, the user's call in `OBJECTIVES.md`.** At a
+  tenth of their spread, `a_st3`, `a_d0`, `omega` and `a_l1` miss on every
+  record, though no small elasticity's 108-node error exceeds 0.012. With ε at
+  least 0.01, three quantities miss outside wet, each by under 1.6×
+  (`docs/measurements/spot-check.md`).
 - **Unconfirmed defaults:** one local analysis spans invaders ×0.5–×2 and the
   resident ±10% (`OBJECTIVES.md`).
 - **Clean-up,** each fixed in the branch that owns it, then `git rebase
