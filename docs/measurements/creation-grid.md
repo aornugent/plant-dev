@@ -226,42 +226,43 @@ birth.
   −0.68% → −0.32% on long drought), because a band's edge cuts panels; their
   total falls 4.25-fold.
 
-**The gradients on long drought,** with every gradient on uniform 429 and the
-graded grids, against the spot-check's 108 and 215, in units of each quantity's
-ε. The 429-node run is the reference; its own node error is at the tolerance's
-noise for the resident.
+**The gradients on long drought,** with every gradient on the three graded grids
+and uniform 429, beside the spot-check's 108 and 215. The reference is the graded
+ladder's extrapolation from G2 and G3, which is on the square law (below). Errors
+are in units of each quantity's ε.
 
-| | resident: median error | over ε/3 | over ε | invader: median error | over ε/3 | over ε |
-|---|---|---|---|---|---|---|
-| uniform 108 | 0.26 | 13 of 49 | 2 | 0.14 | 10 | 1 |
-| graded G1, 125 | 0.12 | 7 | 1 | 0.27 | 7 | 1 |
-| uniform 215 | 0.018 | 1 | 1 | 0.12 | 1 | 0 |
-| graded G2, 248 | 0.030 | 1 | 1 | 0.17 | 2 | 0 |
+| grid | member steps | resident: median error | over ε/3 | invader: median error | over ε/3 |
+|---|---|---|---|---|---|
+| uniform 108 | 9.62e5 | 0.27 | 16 of 49 | 0.088 | 9 of 49 |
+| uniform 215 | 1.97e6 | 0.028 | 1 | 0.25 | 11 |
+| uniform 429 | 4.07e6 | 0.014 | 1 | 0.10 | 0 |
+| graded G1, 125 | 1.25e6 | 0.14 | 8 | 0.15 | 3 |
+| graded G2, 248 | 2.56e6 | 0.029 | 1 | 0.040 | 1 |
+| graded G3, 494 | 5.26e6 | 0.007 | 1 | 0.010 | 0 |
 
-For the invader 429 is a weaker reference: if its moves keep shrinking threefold
-per halving, its own error is about 0.04ε.
+The one quantity over ε throughout is the resident's `a_st3`, whose ε is 6e-5:
+29ε at 108 and 125 nodes, 1.4ε at 429 and 494.
 
-- *The resident is on the square law from 108 nodes.* Where the move from 215 to
-  429 exceeds three times the tolerance nudge, on 7 of 49 quantities, the ratio of
-  successive moves runs from 2.1 to 13.8, median 4.5, none below zero. Elsewhere
-  the move from 215 is under the tolerance's noise: 0.01–0.04ε for the main
-  traits, against 0.12–0.31ε from 108. The 215-node companion's estimate of the
-  108-node error, 4/3 of the move, is 1.09 times the error against 429 (median).
-- *The invader is not.* Its moves are resolved on 44 of 49 quantities, and on 33
-  of them the move from 215 to 429 reverses the move from 108 to 215. Its `lma`
-  goes −27.069, −26.973, −27.004, and `stem_P50` 26.734, 26.686, 26.711. The size
-  of the move falls about threefold per halving, but its sign does not hold, so
-  the companion's estimate is 2.15 times the error against 429 (median).
-- *The graded ladder puts the resident on the square law as well.* With G3's
-  resident gradients, 7 quantities are resolved, with a median ratio of 3.9–5.0
-  by group and none below zero: `ln J` 4.02, `hmat` 3.91. G3 and uniform 429
-  agree to a median 0.014ε.
-- *Grading helps the resident at about 108 nodes, and neither role at about
-  215.* The graded grid halves the resident's median error at 125 nodes. Its `lma`,
-  `stem_P50` and `rho` errors are 0.14–0.37 of uniform's, but its `ln J` and
-  `hmat` are worse. The invader's median error doubles. At 248 nodes both roles'
-  median errors are larger than uniform 215's: 0.030ε against 0.018ε, and 0.17ε
-  against 0.12ε.
+- *On the graded ladder every quantity is on the square law,* the invader's too.
+  Where the move from G2 to G3 is at least three times the tolerance nudge:
+  - the resident's 7 such have a median ratio of 3.9–5.0 by group, none below
+    zero;
+  - the invader's 39 have a median of 3.9 (main traits) and 4.0 (the rest), one
+    below zero. Its `lma` goes −27.0737, −27.0481, −27.0415;
+  - the 125-node grid's companion, 4/3 of its move to 248, estimates its error to
+    1.09 times for the resident and 1.01 times for the invader (medians).
+- *On uniform nodes the resident is on it, and the invader is not.*
+  - The resident's 7 resolved quantities have a median ratio of 4.5, none below
+    zero. The 215-node companion estimates the 108-node error to 1.18 times.
+  - On 33 of the invader's 44 the move from 215 to 429 reverses the move from 108
+    to 215. Its `lma` goes −27.069, −26.973, −27.004, and `stem_P50` 26.734,
+    26.686, 26.711.
+  - Its median error is 0.088ε at 108 nodes, 0.25ε at 215 and 0.10ε at 429. So
+    the companion overstates it 2.27-fold, and 108 nodes is close by chance.
+- *At a matched cost grading wins on the invader from about 250 nodes:* 0.040ε
+  against uniform 215's 0.25ε, and 0.010ε against 429's 0.10ε. For the resident
+  it halves uniform's error at about 108 nodes and is level from about 250. For
+  `J` uniform is ahead (above).
 
 ## Not run
 

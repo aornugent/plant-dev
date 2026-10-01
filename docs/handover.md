@@ -205,14 +205,17 @@ spec's *Where the second reply leaves the design* has the verdict.
   resolved: `(ln J′)″ ≈ −2.5e4`, a radius of 0.0075 in `ln lma`.
 - *On long drought uniform nodes are on the square law from 108,* for `J`
   (ratio 4.3) and for the resident's gradients. The 54-node rung was what fit no
-  power law. The 215-node companion estimates the 108-node error to 1.09 times
+  power law. The 215-node companion estimates the 108-node error to 1.18 times
   for the resident.
-- *The invader's gradients are not on any power law:* on 33 of 44 quantities the
-  move from 215 to 429 reverses the move from 108 to 215, so the companion
-  overstates their error twofold. They are within ε at 108 nodes.
-- *The reply's graded grid does not pay on long drought or wet,* except for the
-  resident's gradients at about 108 nodes. On wet its ratio reaches 3.59 only by
-  986 nodes.
+- *On uniform nodes the invader's gradients are on no power law:* on 33 of 44
+  quantities the move from 215 to 429 reverses the move from 108 to 215, and the
+  companion overstates their error 2.3-fold.
+- *On the reply's graded ladder they are on the square law,* as are `J` and the
+  resident's: 39 of the invader's quantities resolved, median ratio 3.9–4.0, one
+  below zero, and the 125-node grid's companion estimates its error to 1.01
+  times. Grading wins on the invader's gradients at a matched cost from about 250
+  nodes (0.040ε against 0.25ε), and loses on `J`. On wet only `J` was graded; its
+  ratio reaches 3.59 by 986 nodes.
 - *Its mechanism for the first-mover layer's width fails:* members born before
   3.1 on long drought all end at the canopy height, while their net reproduction
   e-folds every 0.43–0.9.
@@ -310,10 +313,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
     at θ′ = θ, `J′` 938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}, with a
     radius of 0.0075. Whether ε and the continuity test apply to such a record is
     the user's call.
-- **The invader's node error on pulsed records is not predictable.** It shrinks
-  about threefold per halving of the spacing but changes sign, so the 215-node
-  companion overstates it twofold. Why is open: the next question on the
-  creation axis.
+- **The invader's node error is predictable on graded nodes, not uniform ones**
+  (long drought). Every graded grid here came from a pilot's creation record; a
+  rule that places the grading without one is the reply's second integrator, not
+  built. Wet's gradients on the graded ladder are not run.
 - **Whether to build a node rule for records whose canopy is never thinned:**
   graded windows and a split at the front. The constant record needs it and the
   pulsed records do not. Here the front came from a pilot, where neighbours'

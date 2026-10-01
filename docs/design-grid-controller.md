@@ -686,18 +686,19 @@ the reply is in `docs/oracle-response-grid-controller.md`).
 - *The first-mover layer is not set by the final heights.* On long drought
   members born before 3.1 all end at `x` 1.07–1.08, while their net
   reproduction e-folds every 0.43–0.9.
-- *On long drought the resident's gradients are on the square law from 108
-  nodes too,* and the invader's are not. Against uniform 429:
-  - the resident's moves from 215 to 429 are under the tolerance's noise on all
-    but 7 of 49 quantities. On those the ratio has median 4.5 and is never
-    negative, and the 215-node companion's estimate of the 108-node error is 1.09
-    times it (median);
-  - on 33 of the invader's 44 resolved quantities the move from 215 to 429
-    reverses the move from 108 to 215. Its `lma` goes −27.069, −26.973, −27.004.
-    So the companion's estimate is 2.15 times the error, and no power law gives
-    it. Its errors at 108 nodes are within ε for the main traits, at most 0.33ε.
-- *The graded grid halves the resident's median gradient error at 125 nodes,*
-  0.12ε against 0.26ε at 108, and doubles the invader's, 0.27ε against 0.14ε.
+- *On long drought's graded ladder every gradient is on the square law,* the
+  invader's too: 39 of its quantities resolved, with a median ratio of 3.9–4.0,
+  one below zero. The 125-node grid's companion estimates its own error to 1.01
+  times for the invader and 1.09 for the resident (medians, against the graded
+  ladder's extrapolation).
+- *On uniform nodes the resident's are, and the invader's are not.* On 33 of the
+  invader's 44 resolved quantities the move from 215 to 429 reverses the move
+  from 108 to 215; its `lma` goes −27.069, −26.973, −27.004. Its median error is
+  0.088ε at 108 nodes, 0.25ε at 215 and 0.10ε at 429, so the companion overstates
+  it 2.27-fold.
+- *At a matched cost grading wins on the invader's gradients from about 250
+  nodes,* 0.040ε against uniform 215's 0.25ε. It halves the resident's at about
+  108 nodes, and loses on `J`.
 - *Not run:* the sweep's panel estimate needs the sweep's adjoints of the field
   intermediates. The self-term needs a change in plant: `A(x_j; x_j)` is zero,
   since a node has no leaf area above its top, but TF24's shading averages light
@@ -705,11 +706,14 @@ the reply is in `docs/oracle-response-grid-controller.md`).
 
 **Where the second reply leaves the design.**
 - *The time axis is closed,* as the reply says.
-- *On long drought, whose stand thins, uniform nodes serve `J` and the resident.*
-  From 108 nodes both follow the square law, and the 215-node companion
-  estimates their error; wet's `J` nears it. At a matched cost the reply's
-  grading makes `J` and the invader worse, and helps the resident's gradients
-  only at about 108 nodes.
+- *On long drought the reply's grading makes the node error predictable.* On its
+  graded ladder `J` and both roles' gradients follow the square law, and a
+  companion at half the spacing estimates the error. On uniform nodes `J` and the
+  resident do so from 108 nodes, but the invader's error changes sign with each
+  halving.
+- *At a matched cost uniform is ahead on `J`, and grading on the invader's
+  gradients from about 250 nodes.* Wet's `J` behaves alike; its gradients on the
+  graded ladder are not run.
 - *Where nothing thins the canopy, the reply's structure is the rule.* With it
   the constant record converges `J` and both roles' gradients on 150 nodes, where
   no uniform count does. It needs:
@@ -720,9 +724,10 @@ the reply is in `docs/oracle-response-grid-controller.md`).
   production parts in sign. Here it came from a pilot: across it neighbours'
   mortality integrals at the end differ 70-fold (0.45 against 32). How early the
   run shows it is not measured.
-- *What is not yet predictable is the invader's node error on pulsed records.*
-  It shrinks about threefold per halving but changes sign, so a companion
-  overstates it twofold. That is the open question for the creation axis.
+- *What is open is the placing.* Each graded grid here came from a pilot's
+  creation record, and the first-mover layer's width is not the final heights'.
+  A rule that grades without a pilot is the reply's second integrator, not yet
+  built.
 
 **What it yields.** Per regime: the speedup at ε for (a) and (b), the radius of
 each, and a verdict on each reformulation. A heuristic is built only where
