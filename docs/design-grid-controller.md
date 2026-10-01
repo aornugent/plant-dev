@@ -353,6 +353,19 @@ Re-test one design at two counts for the gradients.
 resident's recording. The radius is the largest move in `ln θ` over which the
 four tests hold at ε.
 
+*Measured so far: the floor's resident on long drought.* Seed 31, 108 nodes,
+the tied tolerance at `1e-4` on `PLANT-98`, `lma` alone. The resident is pinned
+to θ₀'s steps and compared with a run adaptive at the same `lma`
+(`harness/curvature.R`).
+- `J` agrees to 7.2e-5 at every point.
+- From ×0.95 to ×1.1 all 48 elasticities agree within ε, the largest by 0.37ε
+  (`omega` at ×1.1), the median by 0.04–0.07ε.
+- At ×0.9 two exceed ε, `a_l1` by 1.23ε and `omega` by 1.14ε, and 15 of 48
+  exceed ε/3. The median is 0.26ε.
+- So the floor's grid holds the resident's gradients from ×0.95 to at least ×1.1
+  in `lma`, but not to ×0.9, where `J` is 55% higher. The adaptive runs carry
+  the first test's noise too, up to about 0.55ε on the pool's traits.
+
 **(d) Reformulations.** Before accepting the frontier that (a)–(c) trace, ask
 whether a different formulation moves it by a large factor in accuracy,
 stability, runtime or simplicity:

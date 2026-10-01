@@ -169,6 +169,10 @@ and the spec's *The reply's tests* has what was measured.
   of θ₀, and `J` jumps by 1.7e-6 there. The reply's version, a fixed event
   structure differentiated through the crossing times, is an implementation in
   odelia's sweep, not a test.
+- *The floor's grid holds the resident's gradients from `lma` ×0.95 to ×1.1,*
+  all 48 elasticities within ε of runs adaptive there, but not at ×0.9, where
+  two exceed ε and fifteen ε/3 (the spec's step 4(c)). `J` agrees to 7.2e-5
+  throughout.
 - *Deleting the end-state refusal changes nothing here:* the one attempt per
   run it refuses, the error test rejects anyway at the same retry size, so the
   seven nudges come out bit for bit the same.
