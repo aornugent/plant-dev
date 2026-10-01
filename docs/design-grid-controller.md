@@ -310,6 +310,25 @@ before step 4.
   crossings are.
 - Step 1's timings are the first check on these figures.
 
+**Measured so far: the tolerance nudges on long drought.** Seed 31, 108 uniform
+nodes, the tied tolerance on `PLANT-98`, at seven tolerances within ±5% of
+`1e-4` (`harness/eps_spread.R` with `ATOL=1e-4`), resident and invader with
+their sweeps. Each quantity's largest move from the `1e-4` run, against ε/3:
+- `ln J` moves by 1.6e-5, 500× inside.
+- *The invader passes everywhere:* its largest elasticity move is 0.32 of ε/3
+  (`a_d0`), and `lma`'s is 0.03.
+- *The resident fails on five of its 48 elasticities,* all in the storage pool's
+  mortality and cost: `a_dG1` 1.65, `d_I` 1.61, the relaxation offset 1.38,
+  `a_dG2` 1.21 and `TF24_cost_scale` 1.17 times ε/3. `lma`'s is 0.58, and the
+  median 0.53.
+- So brute force at this setting does not pass the first test for the resident.
+  The moves are of the size of the gradient's noise on one grid that step 4's
+  first test finds. The invader's are 8–400× smaller in absolute terms; its
+  gradient holds the field fixed, where the resident's carries the field's
+  response.
+- The build without the end-state refusal gives the same seven runs bit for
+  bit (step 4, *The refusal*).
+
 ## Step 4: the headroom
 
 The question is how far from the floor a grid can be pushed, on each regime:
@@ -454,6 +473,14 @@ differences of `ln J` in `lma` (through the trait):
   is what holds the first kind; the second it calls the model's own.
 - It costs 4× a plain replay on the driver, where each member's sub-step
   evaluates the whole patch.
+
+*The refusal.* A build of `PLANT-98` without TF24's `non_negative_states()`,
+so with no end-state refusal, runs step 3's seven tolerance nudges.
+- On `PLANT-98` the refusal turns away one attempt in each run, of about 18 200.
+  Without it the error test rejects that attempt instead, and the retry is the
+  same size, so every run is the same bit for bit.
+- So on this record the refusal is redundant, and deleting it changes nothing.
+  Whether it is elsewhere, the bank says.
 
 **What it yields.** Per regime: the speedup at ε for (a) and (b), the radius of
 each, and a verdict on each reformulation. A heuristic is built only where

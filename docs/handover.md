@@ -108,7 +108,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 |---|---|
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
-| 3. the floor on a bank | not started |
+| 3. the floor on a bank | long drought's tolerance nudges: the resident fails the first test on five elasticities |
 | 4. the headroom | the consultation is answered; three of its four tests done |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
@@ -169,10 +169,27 @@ and the spec's *The reply's tests* has what was measured.
   of θ₀, and `J` jumps by 1.7e-6 there. The reply's version, a fixed event
   structure differentiated through the crossing times, is an implementation in
   odelia's sweep, not a test.
+- *Deleting the end-state refusal changes nothing here:* the one attempt per
+  run it refuses, the error test rejects anyway at the same retry size, so the
+  seven nudges come out bit for bit the same.
 - *Not yet tested:* nodes at the creation spans' edges, adjoint-weighted control,
-  the pool as `asinh`, deleting the end-state refusal, and a warm-started inner
-  solve. Steps more than 10 days after rain are 23% of member evaluations and
-  mostly pool-bound, so a pool variable saves at most about that here.
+  the pool as `asinh`, and a warm-started inner solve.
+  - Long drought has 56 gaps in creation, so edge nodes alone are about 114,
+    more than the 108 uniform ones whose error is 4.5× inside ε.
+  - Steps more than 10 days after rain are 23% of member evaluations and mostly
+    pool-bound, so a pool variable saves at most about that here.
+  - The inner solve is 85% of instructions by our own profile, so a warm start
+    is the largest lever left; testing it means counting evaluations inside
+    phylloptim's solve.
+
+**Step 3, first measurement.** Seven tolerances within ±5% of `1e-4` on long
+drought at seed 31 (the spec's *Measured so far*). `ln J` moves by 1.6e-5, and
+the invader's elasticities by at most 0.32 of ε/3. The resident's move by more
+than ε/3 on five of 48, all of the pool's mortality and cost: `a_dG1` 1.65,
+`d_I` 1.61, the relaxation offset 1.38, `a_dG2` 1.21 and `TF24_cost_scale`
+1.17 times. So brute force at the step-2 setting fails the first test for the
+resident. The same nudges at `1e-5` are running, to see whether a tighter
+tolerance passes.
 
 ### The code
 
