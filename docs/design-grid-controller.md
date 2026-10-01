@@ -387,10 +387,10 @@ on disk; the spot-check note's last section).
   the tolerance nudge's, and the rungs 54, 108 and 215 are on no power law.
   The 54-node rung is what breaks it. On long drought 108, 215 and 429 nodes are
   on the square law for `J` (step 4, *the second reply's tests*).
-- *That error lives in births before 3,* as a field part (+0.9 to +2.8% of `J`)
+- *That error lives in births before 3,* as a field part (+1.0 to +2.8% of `J`)
   and a quadrature part (−0.6 to −2.1%) that cancel to +0.3–0.7%. Those 9 of 108
   nodes cost 16% of the member evaluations; uniform refinement spends the other
-  84% where 7–30% of the net move lives.
+  84% where at most 27% of the net move lives.
 - *On the constant record the first node is all of `J`,* with a net
   reproduction ratio of 0.098, 297 and 9.9e4 on 54, 108 and 215 nodes: a layer
   at the start of the patch that no uniform count resolves.
@@ -675,12 +675,12 @@ the reply is in `docs/oracle-response-grid-controller.md`).
   0.0075 in `ln lma`. On the 32- and 128-way splits the local slope is the
   front's panel's, −155 and −194.6.
 - *On long drought uniform is on the square law from 108 nodes.* From 108 → 215 to
-  215 → 429 each part of the move falls 4.1-fold, and `J`'s ratio is 4.3. The
+  215 → 429 each part of the move falls 4.1–4.2-fold, and `J`'s ratio is 4.3. The
   54-node rung, longer than the stretches between gaps in creation, was what fit
   no power law. On wet uniform's ratio is 2.6 from 108, and the graded ladder's
   rises from 2.75 to 3.59 by 986 nodes.
 - *For `J` the reply's graded grid is no better.* At a matched count its field
-  part is half the uniform one's and its quadrature part a quarter. But it loses
+  part is half the uniform one's and its quadrature part a fifth. But it loses
   their cancellation, so its `J` is further out at a matched cost: −0.85% for
   1.25e6 member steps against −0.58% for 9.62e5 on long drought.
 - *The first-mover layer is not set by the final heights.* On long drought

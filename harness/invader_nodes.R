@@ -40,7 +40,8 @@ nodes <- function(scm) {
        nrr = sp$net_reproduction_ratio_by_node, J = sum(scm$offspring_production))
 }
 scm <- run_scm(p, mkenv(scen), ct, events = ev, record_trajectory = TRUE)
-out <- list(u = u, node_times = times, stand = nodes(scm))
+out <- list(u = u, setting = list(regime = regime, tol = tol, lifetime = LIFETIME),
+            node_times = times, stand = nodes(scm))
 out$invader <- lapply(c(minus = -u, plus = u), function(v) {
   scm$run_mutant(with_lma(v))
   nodes(scm)

@@ -183,22 +183,25 @@ birth.
 | long drought | −3.9 | 4.3 | 4.0 | |
 | wet | −4.4 | 2.6 | 2.75 | 3.59 |
 
-**The two parts of each move,** from `node_parts.R`:
+**The two parts of each move,** from `node_parts.R`. Each node's net reproduction
+is weighted by the density of patches of its age at its birth, as in `J`. The
+first version of this table left the weight out; no part moved by more than
+0.04% of `J`.
 
 | record | grid | move | field part | quadrature part |
 |---|---|---|---|---|
-| long drought | uniform | 108 → 215 | +1.94% | −1.52% |
+| long drought | uniform | 108 → 215 | +1.97% | −1.53% |
 | | | 215 → 429 | +0.47% | −0.37% |
-| | graded | G1 → G2 | +0.97% | −0.35% |
-| | | G2 → G3 | +0.24% | −0.083% |
-| wet | uniform | 108 → 215 | +2.01% | −1.70% |
+| | graded | G1 → G2 | +0.96% | −0.31% |
+| | | G2 → G3 | +0.23% | −0.073% |
+| wet | uniform | 108 → 215 | +2.04% | −1.71% |
 | | | 215 → 429 | +0.55% | −0.43% |
-| | graded | G1 → G2 | +0.80% | −0.34% |
-| | | G2 → G3 | +0.26% | −0.093% |
-| | | G3 → G4 | +0.073% | −0.026% |
+| | graded | G1 → G2 | +0.79% | −0.31% |
+| | | G2 → G3 | +0.25% | −0.080% |
+| | | G3 → G4 | +0.071% | −0.022% |
 
 - *On long drought uniform is on the square law from 108 nodes.* Each part falls
-  4.1-fold from 108 → 215 to 215 → 429, and `J`'s ratio is 4.3. The ratios off
+  4.1–4.2-fold from 108 → 215 to 215 → 429, and `J`'s ratio is 4.3. The ratios off
   the law that the spot-check read came from the 54-node rung. Its spacing, 0.75,
   is longer than the stretches between gaps in creation, and its error has the
   other sign.
@@ -207,14 +210,14 @@ birth.
   against 0.50%.
 - *Grading cuts both parts, and loses their cancellation.* At a matched count the
   graded grid's field part is half the uniform one's and its quadrature part a
-  quarter. Its net move is larger, though, and so is its error at a matched cost:
+  fifth. Its net move is larger, though, and so is its error at a matched cost:
   −0.85% for 1.25e6 member steps against −0.58% for 9.62e5 on long drought, and
   −0.71% against −0.50% on wet.
 - *On wet the graded ladder reaches the square law only past 494 nodes.* Its
   ratio is 2.75 from G1 and 3.59 from G2, where both parts fall 3.6-fold;
   uniform's is 2.6 from 108.
-- *Most of the field part is born before 1,* on both grids: +0.71% of G1 → G2's
-  +0.97% on long drought.
+- *Most of the field part is born before 1,* on both grids: +0.75% of G1 → G2's
+  +0.96% on long drought, and +1.82% of uniform 108 → 215's +1.97%.
 - *The first-mover layer is not set by the final heights.* The reply puts its
   width at `0.02/|∂x_T/∂b|`, the reproduction switch's width over the slope of the
   final height profile. On long drought's G1 every member born before 3.1 ends at
@@ -222,9 +225,9 @@ birth.
   0.43–0.9 (937 at birth 0, 6.2 at 3.07), while its mortality integral rises only
   from 12.9 to 14.0.
 - *By band the quadrature part is not meaningful.* Its pieces before 1 and from 1
-  to 3 converge at about first order with opposite signs (+0.59% → +0.32% and
-  −0.68% → −0.32% on long drought), because a band's edge cuts panels; their
-  total falls 4.25-fold.
+  to 3 converge at about first order with opposite signs (+0.61% → +0.33% and
+  −0.71% → −0.33% on long drought), because a band's edge cuts panels; their
+  total falls 4.3-fold.
 
 **The gradients on long drought,** with every gradient on the three graded grids
 and uniform 429, beside the spot-check's 108 and 215. The reference is the graded

@@ -7,20 +7,23 @@
 #
 #   Rscript harness/node_parts.R coarse.rds finer.rds [finest.rds ...]
 
-# J is the sum over nodes of establishment weight times net reproduction ratio,
-# up to a constant factor.
+# Each node's offspring is its net reproduction ratio times the density of patches
+# of its age at its birth, so that J is the sum over nodes of establishment weight
+# times offspring, up to a constant factor (S_D times the birth rate).
 nodes_of <- function(x) {
   n <- x$stand$nodes; m <- min(length(n$establishment), length(n$nrr))
-  data.frame(birth = n$birth[1:m], w = n$establishment[1:m], nrr = n$nrr[1:m])
+  patches <- plant::Weibull_Disturbance_Regime(x$setting$lifetime)
+  data.frame(birth = n$birth[1:m], w = n$establishment[1:m], nrr = n$nrr[1:m],
+             offspring = n$nrr[1:m] * vapply(n$birth[1:m], patches$density, 0))
 }
 
 node_parts <- function(a, b, bands) {
   m <- match(round(a$birth, 10), round(b$birth, 10))
   stopifnot(!anyNA(m))
-  J <- sum(a$w * a$nrr)
-  field <- tapply(a$w * (b$nrr[m] - a$nrr), cut(a$birth, bands, right = FALSE), sum) / J
-  quad <- (tapply(b$w * b$nrr, cut(b$birth, bands, right = FALSE), sum) -
-             tapply(a$w * b$nrr[m], cut(a$birth, bands, right = FALSE), sum)) / J
+  J <- sum(a$w * a$offspring)
+  field <- tapply(a$w * (b$offspring[m] - a$offspring), cut(a$birth, bands, right = FALSE), sum) / J
+  quad <- (tapply(b$w * b$offspring, cut(b$birth, bands, right = FALSE), sum) -
+             tapply(a$w * b$offspring[m], cut(a$birth, bands, right = FALSE), sum)) / J
   list(field = field, quad = quad)
 }
 
@@ -41,9 +44,9 @@ panel_moves <- function(a, b) {
   w[j + 1] <- w[j + 1] + lambda * b$w[extra]
   interpolation <- numeric(nrow(a))
   interpolation[j] <- b$w[extra] *
-    (b$nrr[extra] - (1 - lambda) * b$nrr[m[j]] - lambda * b$nrr[m[j + 1]])
-  data.frame(birth = a$birth, field = a$w * (b$nrr[m] - a$nrr),
-             establishment = (w - a$w) * b$nrr[m], interpolation = interpolation)
+    (b$offspring[extra] - (1 - lambda) * b$offspring[m[j]] - lambda * b$offspring[m[j + 1]])
+  data.frame(birth = a$birth, field = a$w * (b$offspring[m] - a$offspring),
+             establishment = (w - a$w) * b$offspring[m], interpolation = interpolation)
 }
 
 # The invader's lma elasticity's move between two harness/invader_nodes.R runs,
@@ -51,10 +54,10 @@ panel_moves <- function(a, b) {
 # two perturbations, over the coarser run's invader offspring.
 elasticity_moves <- function(xa, xb) {
   stopifnot(xa$u == xb$u)
-  at <- function(x, s) nodes_of(list(stand = list(nodes = x$invader[[s]])))
+  at <- function(x, s) nodes_of(list(setting = x$setting, stand = list(nodes = x$invader[[s]])))
   part <- function(s) {
     a <- at(xa, s)
-    panel_moves(a, at(xb, s))[, -1] / sum(a$w * a$nrr)
+    panel_moves(a, at(xb, s))[, -1] / sum(a$w * a$offspring)
   }
   cbind(birth = at(xa, "plus")$birth, (part("plus") - part("minus")) / (2 * xa$u))
 }

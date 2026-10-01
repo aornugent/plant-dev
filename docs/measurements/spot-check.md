@@ -162,19 +162,22 @@ long drought, dry, episodic and wet.
 
 **The node error lives in the first three units of birth date,** as two parts
 that nearly cancel. `J` is the sum over nodes of establishment weight times net
-reproduction ratio. The field part of the move from 108 to 215 nodes is the
-change in net reproduction at 108's birth dates, on 108's weights; the
-quadrature part is the rest.
+reproduction ratio times the density of patches of the node's age at its birth.
+The field part of the move from 108 to 215 nodes is the change in net
+reproduction at 108's birth dates, on 108's weights; the quadrature part is the
+rest.
 
 | record | net | field part | of it before 3 | quadrature part | of it before 3 |
 |---|---|---|---|---|---|
-| long drought | +0.42% | +1.94% | 94% | −1.52% | 93% |
-| dry | +0.70% | +2.75% | 88% | −2.05% | 94% |
-| episodic | +0.36% | +0.93% | 99% | −0.57% | 104% |
-| wet | +0.31% | +2.01% | 96% | −1.70% | 96% |
+| long drought | +0.44% | +1.97% | 96% | −1.53% | 97% |
+| dry | +0.71% | +2.78% | 92% | −2.08% | 98% |
+| episodic | +0.35% | +0.96% | 105% | −0.61% | 105% |
+| wet | +0.33% | +2.04% | 97% | −1.71% | 99% |
 
-- Births after 3 carry 7–30% of the net, dry the most.
-- The first node alone carries 28%, 26%, 13% and 30% of `J` on 108 nodes, and
+- Births after 3 carry −3% to 27% of the net, dry the most.
+- The table first left out the patch density, as the grid consultation's copy
+  does; each part moved by at most 0.04% of `J`.
+- The first node alone carries 29%, 27%, 14% and 32% of `J` on 108 nodes, and
   its net reproduction ratio rises 1.6–11% at each doubling: on wet 1290, 1430 and
   1470 on 54, 108 and 215 nodes.
 - The nodes born before 3 are 9 of 108 and cost 16% of the member evaluations.

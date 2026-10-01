@@ -110,7 +110,7 @@ cat("\n== The first node: its share of J and its net reproduction ratio on 54, 1
 for (r in names(records)) {
   ks <- c(paste0(r, "_n54"), records[[r]], paste0(r, "_n215"))
   ks <- ks[file.exists(file.path(runs_dir, paste0(ks, ".rds")))]
-  v <- vapply(ks, function(k) { n <- nodes_of(run(k)); c(n$w[1] * n$nrr[1] / sum(n$w * n$nrr), n$nrr[1]) }, c(0, 0))
+  v <- vapply(ks, function(k) { n <- nodes_of(run(k)); c(n$w[1] * n$offspring[1] / sum(n$w * n$offspring), n$nrr[1]) }, c(0, 0))
   cat(sprintf("%-5s share %s | ratio %s\n", r, paste(sprintf("%.2f", v[1, ]), collapse = " / "),
               paste(sprintf("%.3g", v[2, ]), collapse = " / ")))
 }
@@ -145,8 +145,8 @@ for (l in names(ladders)) {
 }
 
 cat("\n== Long drought at 3e-5: each ladder's coarse and fine rung against the graded\n")
-cat("   ladder's extrapolation from G2 and G3. D densifies uniform before the first gap\n")
-cat("   to graded's 0.185; De adds the gap's edges to D; Gn takes them out of graded.\n")
+cat("   ladder's extrapolation from G2 and G3. D halves uniform's spacing before the\n")
+cat("   first gap; De adds the gap's edges to D; Gn takes them out of graded.\n")
 cat("   ratio: coarse error over fine, where the coarse is over 0.05 eps, 4 on the\n")
 cat("   square law. companion: 4/3 of the move over the coarse error, 1 when honest.\n")
 pairs <- list(uniform = file.path(runs_dir, c("ld_3e-5.rds", "ld_n215.rds")),
@@ -183,11 +183,104 @@ bands <- c(-1, 0.5, 1, 3.5, 6, 10, 41)
 for (l in names(moves)) {
   if (!all(file.exists(moves[[l]]))) next
   a <- nodes_of(readRDS(moves[[l]][1])); b <- nodes_of(readRDS(moves[[l]][2]))
-  pm <- panel_moves(a, b); J <- sum(a$w * a$nrr)
+  pm <- panel_moves(a, b); J <- sum(a$w * a$offspring)
   band <- cut(pm$birth, bands, right = FALSE)
   f <- function(v) paste(sprintf("%+.3f", 100 * tapply(v, band, sum) / J), collapse = " ")
   cat(sprintf("%-19s field %+.3f (%s) | interpolation %+.3f (%s) | top %.2f, %.2f\n", l,
               100 * sum(pm$field) / J, f(pm$field), 100 * sum(pm$interpolation) / J, f(pm$interpolation),
-              100 * pm$field[1] / (a$w[1] * a$nrr[1]), 100 * pm$field[2] / (a$w[2] * a$nrr[2])))
+              100 * pm$field[1] / (a$w[1] * a$offspring[1]), 100 * pm$field[2] / (a$w[2] * a$offspring[2])))
 }
 cat("   bands:", paste(levels(cut(0, bands, right = FALSE)), collapse = " "), "\n")
+
+cat("\n== Long drought at 3e-5: where the invader's lma elasticity moves between nested\n")
+cat("   rungs (node_parts.R's elasticity_moves on harness/invader_nodes.R runs).\n")
+cat("   check: the central difference's move against the sweep's.\n")
+inv <- list("uniform 108 -> 215" = c("inv_u108", "inv_u215", file.path(runs_dir, c("ld_3e-5.rds", "ld_n215.rds"))),
+            "uniform 215 -> 429" = c("inv_u215", "inv_u429", file.path(runs_dir, "ld_n215.rds"), file.path(grid_dir, "ld_u429_full.rds")),
+            "graded 125 -> 248" = c("inv_ld_G1", "inv_ld_G2", file.path(grid_dir, c("ld_G1_full.rds", "ld_G2_full.rds"))),
+            "graded 248 -> 494" = c("inv_ld_G2", "inv_ld_G3", file.path(grid_dir, c("ld_G2_full.rds", "ld_G3_full.rds"))))
+sweep_lma <- function(f) { e <- readRDS(f)$invader$elasticity; e[[grep("lma$", names(e))]] }
+for (l in names(inv)) {
+  f <- c(file.path(grid_dir, paste0(inv[[l]][1:2], ".rds")), inv[[l]][3:4])
+  if (!all(file.exists(f))) next
+  em <- elasticity_moves(readRDS(f[1]), readRDS(f[2]))
+  band <- cut(em[, "birth"], bands, right = FALSE)
+  g <- function(v) paste(sprintf("%+.4f", tapply(v, band, sum)), collapse = " ")
+  cat(sprintf("%-19s move %+.4f (sweep %+.4f) | field %+.4f (%s) | establishment %+.4f | interpolation %+.4f (%s)\n",
+              l, sum(em[, -1]), sweep_lma(f[4]) - sweep_lma(f[3]), sum(em[, "field"]), g(em[, "field"]),
+              sum(em[, "establishment"]), sum(em[, "interpolation"]), g(em[, "interpolation"])))
+  top <- head(order(-abs(rowSums(em[, -1]))), 4)
+  cat("   largest:", paste(sprintf("b %.3f %+.4f", em[top, "birth"], rowSums(em[top, -1, drop = FALSE])), collapse = ", "), "\n")
+}
+cat("   bands:", paste(levels(cut(0, bands, right = FALSE)), collapse = " "), "\n")
+
+cat("\n== Long drought: the crown overlap, neighbouring nodes' height gap over the\n")
+cat("   crown's top layer h/eta, at most, among the nodes born before 0.5 at each time\n")
+cat("   and before 3.5 at time 5; heights from G1 interpolated in birth date\n")
+cat("   (harness/layer_heights.R)\n")
+lay_file <- file.path(grid_dir, "layer_ld_G1.rds")
+if (file.exists(lay_file)) {
+  lay <- readRDS(lay_file)
+  overlap <- function(s, t, before) {
+    i <- which.min(abs(lay$grid - t)); h <- lay$height[i, ]; ok <- !is.na(h)
+    b <- s[s <= max(lay$times[ok]) & s < before]
+    hh <- approx(lay$times[ok], h[ok], b)$y
+    max((head(hh, -1) - tail(hh, -1)) / (head(hh, -1) / lay$eta))
+  }
+  grids <- c(u108 = file.path(runs_dir, "ld_3e-5.rds"), u215 = file.path(runs_dir, "ld_n215.rds"),
+             u429 = file.path(grid_dir, "ld_u429_full.rds"),
+             setNames(file.path(grid_dir, sprintf("ld_%s_full.rds", c("D1", "D2", "G0", "G1", "G2", "G3"))),
+                      c("D1", "D2", "G0", "G1", "G2", "G3")))
+  tt <- c(0.5, 1, 2, 3, 5, 12)
+  tab <- t(vapply(grids, function(f) {
+    s <- readRDS(f)$node_times
+    c(vapply(tt, function(t) overlap(s, t, 0.5), 0), overlap(s, 5, 3.5))
+  }, numeric(length(tt) + 1)))
+  colnames(tab) <- c(sprintf("t %g", tt), "t 5, b < 3.5")
+  print(round(tab, 2))
+}
+
+cat("\n== Long drought at 3e-5: each answer with the next coarser rung as its companion,\n")
+cat("   in eps, over the 45 quantities outside the small four. estimate: a third of the\n")
+cat("   move from the companion; safe: the estimate at least the error; extrapolated:\n")
+cat("   the answer plus a third of that move. cost: member steps of both runs.\n")
+member_steps <- function(x) sum(vapply(x$node_times, function(b) sum(x$stand$times > b), 0))
+answers <- list(G1 = c("ld_G0_full", "ld_G1_full"), G2 = c("ld_G1_full", "ld_G2_full"),
+                u215 = c("ld_3e-5", "ld_n215"), u429 = c("ld_n215", "ld_u429_full"),
+                D2 = c("ld_D1_full", "ld_D2_full"), De2 = c("ld_De1_full", "ld_De2_full"),
+                Gn2 = c("ld_Gn1_full", "ld_Gn2_full"))
+where <- function(k) file.path(if (k %in% c("ld_3e-5", "ld_n215")) runs_dir else grid_dir, paste0(k, ".rds"))
+rows <- list()
+for (a in names(answers)) {
+  f <- vapply(answers[[a]], where, "")
+  if (!all(file.exists(f))) next
+  x <- lapply(f, readRDS); q <- lapply(x, quantities)
+  k <- Reduce(intersect, list(names(q[[1]]), names(q[[2]]), names(ref)))
+  k <- k[!(sub("^(resident|invader) ", "", k) %in% small)]
+  role <- sub(" .*", "", k)
+  err <- abs(q[[2]][k] - ref[k]); est <- abs(q[[2]][k] - q[[1]][k]) / 3
+  ex <- abs(q[[2]][k] + (q[[2]][k] - q[[1]][k]) / 3 - ref[k])
+  for (r in c("resident", "invader")) {
+    s <- role == r
+    rows[[length(rows) + 1]] <- data.frame(answer = a, role = r, max = q3(max(err[s])), median = q3(median(err[s])),
+      estimate = q3(median(est[s] / err[s])), safe = sprintf("%d/%d", sum(est[s] >= err[s]), sum(s)),
+      extrapolated_max = q3(max(ex[s])), extrapolated_median = q3(median(ex[s])),
+      cost = sprintf("%.3g", member_steps(x[[1]]) + member_steps(x[[2]])))
+  }
+}
+print(do.call(rbind, rows), row.names = FALSE)
+
+cat("\n== Long drought at 3e-5: what the first gap's edges move at the first rung, in eps,\n")
+cat("   over the quantities outside the small four\n")
+for (pr in list(c("ld_D1_full", "ld_De1_full"), c("ld_G1_full", "ld_Gn1_full"))) {
+  f <- file.path(grid_dir, paste0(pr, ".rds"))
+  if (!all(file.exists(f))) next
+  q <- lapply(f, function(x) quantities(readRDS(x)))
+  k <- intersect(names(q[[1]]), names(q[[2]]))
+  k <- k[!(sub("^(resident|invader) ", "", k) %in% small)]
+  d <- abs(q[[1]][k] - q[[2]][k]); e <- abs(q[[1]][k] - ref[k])
+  role <- sub(" .*", "", k)
+  cat(sprintf("%s against %s: %s\n", pr[2], pr[1], paste(sprintf("%s moves median %.4f, max %.4f, against an error of median %.3f",
+      c("resident", "invader"), tapply(d, role, median)[c("resident", "invader")], tapply(d, role, max)[c("resident", "invader")],
+      tapply(e, role, median)[c("resident", "invader")]), collapse = "; ")))
+}
