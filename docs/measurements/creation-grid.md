@@ -267,6 +267,124 @@ The one quantity over ε throughout is the resident's `a_st3`, whose ε is 6e-5:
   it halves uniform's error at about 108 nodes and is level from about 250. For
   `J` uniform is ahead (above).
 
+## What sets the node error on long drought
+
+Long drought at `3e-5`, on the ladders above and three more from
+`graded_times.R`, each nested in the next:
+- G0, every other node of G1 with the gap's edges kept;
+- D, uniform's spacing halved before the first gap (0.185, then 0.093), and 108
+  and 215 uniform after it;
+- De, D with the gap's edges and nothing inside the gap; Gn, graded without them
+  and with 108 uniform's node inside it. A restart lost De2's and Gn2's invader
+  phases; their stands are complete.
+
+The scripts are `node_parts.R`'s `panel_moves()` and `elasticity_moves()`,
+`harness/layer_heights.R`, `harness/invader_nodes.R` and the later sections of
+`harness/error_structure.R`, which print every number below.
+
+**J's move, panel by panel.** Each coarser panel holds one node of the finer
+rung, so the move splits exactly into a field part at each coarser node, the
+change in its establishment weight, and an interpolation part in each panel. The
+establishment part is under 1e-4 of `J` on every ladder. In percent of `J`:
+
+| move | field part | of it born before 0.5 | interpolation part | of it born before 0.5 | the first two nodes' field part, of their own |
+|---|---|---|---|---|---|
+| uniform 108 → 215 | +1.97 | +1.63 | −1.53 | −0.56 | 2.8, 2.3 |
+| uniform 215 → 429 | +0.47 | +0.35 | −0.37 | −0.04 | 0.63, 0.65 |
+| D 118 → 235 | +1.05 | +0.66 | −0.47 | −0.04 | 1.2, 1.2 |
+| graded 125 → 248 | +0.96 | +0.50 | −0.32 | −0.01 | 0.85, 0.85 |
+| graded 248 → 494 | +0.23 | +0.12 | −0.07 | −0.00 | 0.19, 0.19 |
+
+- *The two parts have opposite signs on every ladder.* Net reproduction falls by
+  e every `L`, so its interpolant lies above it, and a coarser rung's `J` is that
+  much high. The field part is the coarser canopy's extra shade on its own
+  members, whose net reproduction is that much low.
+- *On uniform nodes the field part is the top's.* The first two nodes' net
+  reproduction is 2.8% and 2.3% low at 108 nodes, and 0.1–0.7% for births after
+  1. On graded nodes it is 0.7–1.1% low for every member born before 3.5.
+- *At the top, the field part falls 4.5-fold per halving on both ladders,* from
+  2.8% to 0.63% on uniform and from 0.85% to 0.19% on graded.
+
+**The gap's edges do not matter.** At the first rung, adding them to D or taking
+them out of graded moves no quantity outside the small four by more than 0.05ε
+(median 0.002–0.018ε), against errors of median 0.12–0.17ε. The resident's De
+and Gn ladders converge as D's and graded's do: ratio 3.8 and 3.8, companion 0.98
+and 0.99. What graded grids change is their opening.
+
+**The crowns at the layer's top.** TF24's crowns are sharp: at `η = 12` half a
+crown's leaf area is in its top 10%. Where neighbouring nodes differ in height by
+more than that top layer, `h/η`, the canopy they build is a comb of separate
+crowns. The largest ratio of the gap to `h/η` among neighbours born before 0.5,
+from G1's heights interpolated at each grid's nodes:
+
+| grid | t = 0.5 | 1 | 2 | 3 | 5 | 12 | t = 5, born before 3.5 |
+|---|---|---|---|---|---|---|---|
+| uniform 108 | 4.76 | 4.14 | 2.84 | 1.98 | 1.37 | 0.79 | 3.26 |
+| uniform 215, D1 | 2.75 | 2.37 | 1.58 | 1.07 | 0.75 | 0.46 | 1.78 |
+| uniform 429, D2 | 1.48 | 1.31 | 0.87 | 0.58 | 0.41 | 0.27 | 1.05 |
+| graded G0 | 1.85 | 1.59 | 1.04 | 0.70 | 0.49 | 0.30 | 4.62 |
+| graded G1 | 1.15 | 0.99 | 0.65 | 0.43 | 0.30 | 0.20 | 3.31 |
+| graded G2 | 0.60 | 0.56 | 0.37 | 0.25 | 0.17 | 0.11 | 1.92 |
+| graded G3 | 0.31 | 0.29 | 0.19 | 0.13 | 0.09 | 0.06 | 1.04 |
+
+- *Every pair whose invader converges on the square law starts from a ratio of at
+  most 1.15 at the top in the first half year:* G1 → G2 and G2 → G3. Every pair
+  that does not starts from 1.85 or more: uniform 108 → 215 and 215 → 429, D, and
+  G0 → G1, whose companion reports 0.75 of the invader's error.
+- *Through the rest of the layer the graded grids are combed too,* to 3.3 at
+  t = 5 on G1, and their invader converges anyway. The top carries the weight:
+  56% of `J` is born before 0.5 on G1.
+- *The ratio is set by `η`, a trait, and by how fast the first cohorts' heights
+  part,* which is where the rainfall enters. Whether G1's opening of 0.03 serves
+  other records is not measured.
+
+**Where the invader's `lma` elasticity moves,** from `invader_nodes.R`'s central
+differences over ±1e-6 in `ln lma`, which agree with the sweep's to 0.004–0.007
+on every rung. In units of the elasticity, whose ε is 0.20:
+
+| move | net (the sweep's) | field part | of it born before 0.5 | interpolation part | of it born before 0.5 |
+|---|---|---|---|---|---|
+| uniform 108 → 215 | +0.100 (+0.097) | +0.380 | +0.301 | −0.281 | −0.287 |
+| uniform 215 → 429 | −0.031 (−0.032) | +0.035 | +0.034 | −0.066 | −0.061 |
+| graded 125 → 248 | +0.027 (+0.026) | +0.034 | +0.036 | −0.007 | −0.007 |
+
+- *On uniform nodes the invader's move is the difference of two errors at the
+  top,* each about 1.5ε at 108 nodes and of opposite sign: its light under the
+  coarser canopy, and its net reproduction's profile across the first panels.
+- *The two shrink at different rates, so their difference changes sign.* From
+  108 → 215 to 215 → 429 the field part falls 11-fold, as the comb at the top
+  resolves, and the interpolation part 4.2-fold, on the square law. In `lma` the
+  net goes +0.10 then −0.03, the reversal seen on 33 of the invader's 44 resolved
+  quantities.
+- *The graded opening shrinks them 8- and 40-fold,* and what is left falls on
+  the square law.
+- *Crown sharpness sets the top's field error* (`harness/crown_eta.R`, forward,
+  uniform 108 → 215): the first node's net reproduction is 2.1%, 2.8% and 4.7% low
+  at `η` = 6, 12 and 24, and the whole field part is +1.77%, +1.97% and +2.20% of
+  `J`.
+
+**Each answer with its coarser rung as companion,** in ε, over the 45 quantities
+outside the small four. The estimate is a third of the move from the companion;
+the extrapolation adds it to the answer.
+
+| answer, companion | member steps of both | resident: max, median error | estimate over error | invader: max, median error | estimate over error | invader extrapolated: median |
+|---|---|---|---|---|---|---|
+| G1, G0 | 1.89e6 | 0.64, 0.12 | 0.59 | 0.34, 0.15 | 0.75 | 0.041 |
+| G2, G1 | 3.81e6 | 0.18, 0.028 | 1.19 | 0.085, 0.039 | 1.03 | 0.006 |
+| uniform 215, 108 | 2.93e6 | 0.14, 0.028 | 2.44 | 0.37, 0.21 | 0.41 | 0.29 |
+| uniform 429, 215 | 6.04e6 | 0.035, 0.013 | 0.52 | 0.20, 0.090 | 0.33 | 0.052 |
+| D2, D1 | 3.45e6 | 0.12, 0.030 | 1.08 | 0.17, 0.066 | 0.24 | 0.065 |
+
+- *Every grid from 108 nodes is within ε on every quantity outside the small
+  four;* the worst is 0.73ε, the resident's `rooting_depth_max` on uniform 108.
+  What the coarse grids lack is an honest estimate, not accuracy.
+- *Only graded rungs from G1 up report the invader's error:* 1.03 times it at G2.
+  Uniform's and D's companions report a quarter to two fifths of it, so a run
+  that trusted them would stop short.
+- *Extrapolating along the graded ladder pays:* the invader's median error falls
+  from 0.039ε at G2 to 0.006ε, for G1's and G2's 3.81e6 member steps, against
+  G3's 0.010ε for 5.26e6. On uniform it does not: 0.21ε becomes 0.29ε.
+
 ## Not run
 
 - *Experiment 2,* the panel estimate from the sweep, needs the sweep's adjoints of

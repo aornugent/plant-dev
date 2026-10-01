@@ -262,6 +262,7 @@ for (a in names(answers)) {
   ex <- abs(q[[2]][k] + (q[[2]][k] - q[[1]][k]) / 3 - ref[k])
   for (r in c("resident", "invader")) {
     s <- role == r
+    if (!any(s)) next
     rows[[length(rows) + 1]] <- data.frame(answer = a, role = r, max = q3(max(err[s])), median = q3(median(err[s])),
       estimate = q3(median(est[s] / err[s])), safe = sprintf("%d/%d", sum(est[s] >= err[s]), sum(s)),
       extrapolated_max = q3(max(ex[s])), extrapolated_median = q3(median(ex[s])),
@@ -269,6 +270,13 @@ for (a in names(answers)) {
   }
 }
 print(do.call(rbind, rows), row.names = FALSE)
+worst <- c(u108 = "ld_3e-5", u215 = "ld_n215", u429 = "ld_u429_full", G0 = "ld_G0_full",
+           G1 = "ld_G1_full", G2 = "ld_G2_full", D1 = "ld_D1_full", D2 = "ld_D2_full")
+cat("   the worst error of each grid:", paste(vapply(names(worst), function(g) {
+  q <- quantities(readRDS(where(worst[[g]])))
+  k <- intersect(names(q), names(ref)); k <- k[!(sub("^(resident|invader) ", "", k) %in% small)]
+  e <- abs(q[k] - ref[k]); sprintf("%s %.2f (%s)", g, max(e), names(e)[which.max(e)])
+}, ""), collapse = "; "), "\n")
 
 cat("\n== Long drought at 3e-5: what the first gap's edges move at the first rung, in eps,\n")
 cat("   over the quantities outside the small four\n")
@@ -283,4 +291,17 @@ for (pr in list(c("ld_D1_full", "ld_De1_full"), c("ld_G1_full", "ld_Gn1_full")))
   cat(sprintf("%s against %s: %s\n", pr[2], pr[1], paste(sprintf("%s moves median %.4f, max %.4f, against an error of median %.3f",
       c("resident", "invader"), tapply(d, role, median)[c("resident", "invader")], tapply(d, role, max)[c("resident", "invader")],
       tapply(e, role, median)[c("resident", "invader")]), collapse = "; ")))
+}
+
+cat("\n== Long drought, uniform 108 -> 215 forward with the crown shape eta changed\n")
+cat("   (harness/crown_eta.R): the field part at the first two nodes over their own\n")
+cat("   contribution, in percent, and both parts in percent of J\n")
+for (e in c(6, 12, 24)) {
+  f <- file.path(grid_dir, sprintf("eta%d_u%d.rds", e, c(108, 215)))
+  if (!all(file.exists(f))) next
+  a <- nodes_of(readRDS(f[1])); b <- nodes_of(readRDS(f[2]))
+  pm <- panel_moves(a, b); J <- sum(a$w * a$offspring); own <- a$w * a$offspring
+  cat(sprintf("eta %2d: J %.4f | top %.2f, %.2f | field %+.3f | interpolation %+.3f\n", e,
+              readRDS(f[1])$stand$J, 100 * pm$field[1] / own[1], 100 * pm$field[2] / own[2],
+              100 * sum(pm$field) / J, 100 * sum(pm$interpolation) / J))
 }

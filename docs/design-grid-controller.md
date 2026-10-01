@@ -729,6 +729,33 @@ the reply is in `docs/oracle-response-grid-controller.md`).
   A rule that grades without a pilot is the reply's second integrator, not yet
   built.
 
+**What sets the node error** (long drought; `docs/measurements/creation-grid.md`,
+*What sets the node error on long drought*).
+- *Two errors of opposite sign, from interpolating in birth date a profile that
+  falls by e every `L`.* The interpolant of net reproduction lies above it, so a
+  coarser rung's `J` is high. The coarser canopy shades its own members more, so
+  their net reproduction is low. From uniform 108 to 215 they are −1.53% and
+  +1.97% of `J`.
+- *Uniform nodes put the field error at the layer's top.* The first two nodes'
+  net reproduction is 2.8% and 2.3% low, against 0.7–1.1% for every member born
+  before 3.5 on graded G1. The first node's grows with the crowns' sharpness:
+  2.1%, 2.8% and 4.7% at `η` = 6, 12 and 24.
+- *On uniform nodes the invader's elasticity moves by the difference of two such
+  errors at the top,* each about 1.5ε at 108 nodes: in `lma`, +0.30 in the field
+  part and −0.29 in the interpolation part from births before 0.5, a net of
+  +0.10. By 215 → 429 the field part has fallen 11-fold and the interpolation
+  part 4.2-fold, so the net changes sign. The graded opening shrinks them 8-
+  and 40-fold.
+- *What separates the ladders is how far apart the top's crowns are early in the
+  race.* Where neighbouring nodes born before 0.5 differ in height by 1.85 crown
+  top layers (`h/η`) or more in the first half year, the invader converges
+  erratically and the companion under-reports it. From 1.15 down it is on the
+  square law, and the companion reports 1.0–1.2 of the error.
+- *The gap's edges are not a cause:* adding or removing them moves no quantity
+  outside the small four by more than 0.05ε.
+
+The node axis's proposal is in *After the assessment*.
+
 **What it yields.** Per regime: the speedup at ε for (a) and (b), the radius of
 each, and a verdict on each reformulation. A heuristic is built only where
 the speedup is worth its code.
@@ -770,15 +797,100 @@ Each heuristic is a rule, a guarantee and a check:
 Degrading is one loop: build a grid, check it, refine where the check fails,
 and at worst reach brute force.
 
-The leading candidate for the node axis is the archived controller
-(`docs/archive/scope-schedule-controller.md` §2–§3):
-- two error maps from the sweep, the adjoint-weighted local error of each step
-  and the value per unit of recruitment at each cohort;
-- placement by equidistribution;
-- the budget split between the axes;
-- a certificate that decides when to rebuild.
+**The node axis, proposed from step 4's measurements** (system-design, Tier 2:
+a schedule is the seam between plant and every analysis that holds a grid, and
+it can still be changed). The measurements are in
+`docs/measurements/creation-grid.md`, *What sets the node error on long drought*.
 
-It is built only if step 4 shows it pays for itself.
+*Ledger.*
+- R1, accurate: every quantity within ε. On long drought every grid from 108
+  nodes already is, outside the small four; the worst is 0.73ε.
+- R4, predictable: a coarser companion reports the error. Measured as its
+  estimate over the error, at the median; it should be near 1 and not well
+  below.
+- R6, shared: one grid for the local analysis at θ₀.
+- R7, performant: the fewest member steps for R1 and R4 together.
+- *The scarce resource is the member steps at the layer's top.* A node costs
+  the steps after its birth, so the first window's nodes cost about twice the
+  mean, and the error, 56–58% of `J` and grading's extra nodes are all there.
+
+*The floor,* uniform 108 with a 215 companion, meets R1 on long drought and
+fails R4: the companion reports 0.41 of the invader's error at 215 nodes and
+0.33 at 429. On the constant record no uniform count converges.
+
+*Candidates.*
+- **A, pilot and bisect** [first thought]. A forward pilot, then halve each panel
+  where the crown overlap at the top exceeds about 1 or the panel's share of `J`
+  exceeds a bound.
+  - Commits to placement read off a run at θ₀.
+  - Pays for R4 on records unlike long drought.
+  - Costs a pilot, about a seventh of a run with every gradient, and a monitor.
+  - Wins where the structure is not known in advance: a new kind of record, the
+    constant record's front.
+- **B, structure and halving.** The first window graded from 0.03 by 1.11 per
+  panel to a cap of 0.37, and 108 uniform's nodes after the first gap. A finer
+  rung halves every panel, the coarser rung is the companion, and the reported
+  value is the extrapolation.
+  - Commits to a fixed structure refined only by halving.
+  - Pays for R4 (1.03 at G2) and R7 (the invader's median error 0.006ε for
+    3.81e6 member steps, against G3's 0.010ε for 5.26e6).
+  - Costs two constants read off long drought.
+  - Wins on records whose layer sits at the patch's opening.
+- **C, the archived controller** (`docs/archive/scope-schedule-controller.md`):
+  error maps from the sweep, placement by equidistribution, a certificate.
+  - Commits to placement by adjoint-weighted error.
+  - Pays for R7 where the error sits away from the opening.
+  - Costs the sweep's adjoints of the field intermediates, which plant does not
+    expose, and a grid that moves with θ, against R6.
+  - Wins if those maps become cheap and records differ widely.
+- **D, a canopy that cannot comb.** Spread each panel's leaf area over the
+  heights its members span, so that the field part at the top no longer depends
+  on the spacing there.
+  - Commits to a field quadrature smooth in height at any node count.
+  - Pays for R4 on uniform nodes, if the comb is the cause.
+  - Costs a change in plant's birth-date competition sum, more crown
+    evaluations, and every reference.
+  - Wins if it makes uniform nodes report the invader's error, which would
+    delete B's grading.
+
+*Winner: B.*
+- A's pilot buys nothing on long drought that B's structure lacks; A stays as
+  the check.
+- C's maps cannot be read off plant's sweep today, and its grid would move
+  within a local analysis.
+- D can delete B's grading but changes plant and every reference, and the comb
+  as the cause is inferred, not isolated. It is the experiment to run next.
+
+*The commitment:* a schedule is a fixed structure refined only by halving every
+panel. Kept true by the harness: each rung is `graded_times.R`'s `halve()` of
+the rung below, so a finer rung cannot be placed any other way.
+
+*Kill question.* The assumption whose falsity makes B unnecessary is that
+uniform nodes cannot report the invader's error. On long drought it holds:
+their companions report 0.41 and 0.33 of it. B survives unless D makes them
+honest.
+
+*Consistency.* B's cap is half the spacing that broke and half long drought's
+`L`. On wet `L` is 0.56, and the graded `J` reaches the square law only past
+494 nodes, so B's constants may be long drought's. The check runs on every
+record.
+
+*Deletion.*
+- The gap's edge nodes go: they move no quantity by 0.05ε.
+- Grading each later window's opening is not needed on long drought, where the
+  second window carries 1.2% of `J`.
+- A front cluster stays, only for canopies that are never thinned.
+
+*What this settles:* no edge detection in the run, no placement code in plant,
+no rebuild within a local analysis.
+
+*What this makes hard:* a record whose layer is narrower than long drought's,
+or a strategy with sharper crowns, since the opening scales with `h/η`. Coping:
+one rung finer, and A's monitor on a pilot.
+
+*Kill condition:* D making uniform nodes honest for the invader, which hands the
+node axis to uniform halving; or a record whose graded rungs give no ratio near
+4, which hands it to A.
 
 ## Running it
 

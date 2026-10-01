@@ -109,7 +109,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor, checked run by run | spot-check done (`docs/measurements/spot-check.md`): it points to `1e-5` on 215 nodes for wet and dry, not yet run as one setting; small elasticities miss their ε everywhere |
-| 4. the headroom | two replies, both tested; the verdicts are in the spec's step 4, and the second reply's runs in `docs/measurements/creation-grid.md` |
+| 4. the headroom | two replies, both tested; the node error's causes found on long drought, and a node rule proposed (the spec's *After the assessment*); the runs are in `docs/measurements/creation-grid.md` |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
@@ -222,6 +222,30 @@ spec's *Where the second reply leaves the design* has the verdict.
 - *Not run:* the sweep's panel estimate (it needs the sweep's adjoints of the
   field intermediates) and the self-term (a change in plant).
 
+**Step 4, what sets the node error.** On long drought, from splits of each move
+panel by panel, the gap's edges in and out, the crowns' overlap at the top, and
+the invader's gradient by node (`docs/measurements/creation-grid.md`, *What sets
+the node error on long drought*).
+- *Two errors of opposite sign,* both from interpolating in birth date a profile
+  that falls by e every `L`: the interpolant of net reproduction lies above it,
+  and the coarser canopy shades its own members more.
+- *On uniform nodes both sit at the layer's top,* where neighbouring nodes are
+  2.8–4.8 crowns' top layers apart in height in the first half year. The
+  invader's `lma` elasticity there is +0.30 in one and −0.29 in the other at 108
+  nodes. By 215 → 429 the first has fallen 11-fold and the second 4.2-fold, so
+  their difference changes sign: the reversals.
+- *The graded opening shrinks them 8- and 40-fold.* From an overlap of 1.15 or less at
+  the top, every quantity of both roles is on the square law and the companion
+  reports 1.0–1.2 of the error; from 1.85 up it under-reports the invader's,
+  0.24–0.75.
+- *The gap's edges do not matter,* to 0.05ε.
+- *So the proposal is B:* the graded first window, refinement only by halving,
+  the coarser rung as companion, and the extrapolation reported. G1 and G2
+  together give the invader's median error 0.006ε for 3.81e6 member steps.
+- *The node splits now weight each node by the density of patches of its age.*
+  The earlier tables left it out; no recorded part moved by more than 0.04% of
+  `J`.
+
 **Step 3: the floor, checked run by run.** A bank of references was too slow
 (about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,
 every quantity under ε/6) and a node companion, and a spot-check on constant,
@@ -313,10 +337,17 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
     at θ′ = θ, `J′` 938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}, with a
     radius of 0.0075. Whether ε and the continuity test apply to such a record is
     the user's call.
-- **The invader's node error is predictable on graded nodes, not uniform ones**
-  (long drought). Every graded grid here came from a pilot's creation record; a
-  rule that places the grading without one is the reply's second integrator, not
-  built. Wet's gradients on the graded ladder are not run.
+- **The node rule, B, is measured on long drought only.** Its constants (an
+  opening of 0.03 growing by 1.11, a cap of 0.37) need no pilot there, but wet's
+  graded `J` reaches the square law only past 494 nodes, and wet's, dry's and
+  episodic's gradients on graded ladders are not run. Next: the graded ladder on
+  each, with the crowns' overlap at the top from `layer_heights.R`.
+- **D, a canopy that cannot comb, is the experiment that could delete B's
+  grading:** each panel's leaf area spread over its members' heights, in plant's
+  birth-date competition sum. Whether to change plant for it is the user's
+  call.
+- **De2's and Gn2's invader phases were lost to a restart;** their coarse rungs
+  settle the edges, so they were not rerun.
 - **Whether to build a node rule for records whose canopy is never thinned:**
   graded windows and a split at the front. The constant record needs it and the
   pulsed records do not. Here the front came from a pilot, where neighbours'
