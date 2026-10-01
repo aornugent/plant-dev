@@ -735,3 +735,103 @@ draws, each run on 108 uniform members at `tol = 1e-4` with the shared absolute 
 We may be looking at this through the wrong variable. An answer that rejects the framing,
 and says which object should be treated in its place, is welcome. If one insight makes
 the problem simple, lead with it.
+
+## Follow-up, after your reply
+
+This continues the statement above and your reply to it, in the same notation. It has four parts: your reply measured; five records under one setting; where the creation grid's error lives, with the constant record; and what we ask. H1–H4 and the free readings still hold.
+
+**The setting**, unless stated: the pair with the absolute part tied to `1e-4·tol` (C2's second row) at `tol = 3e-5`; 108 members created at uniform times over `[0, 39.63]`; every active knot a stop; the stage guard removed and the end-state refusal kept. **ε** is M8's: a tenth of each quantity's spread over the generator's records. **The main quantities** are `ln J` and the elasticities of five constants: `θ_A`, `θ_B` and three others with large elasticities.
+
+### 1. Your reply, measured
+
+On the test instance at `θ₀` unless stated.
+
+- *The bias holds.* From reverse-mode gradients at `θ_A·e^{±u}` on one grid: between the gradient's jumps, the base run's second derivative of `ln J` in `ln θ_A` is 34% below the smooth value, and the probe's 3%. Against the ε of a second derivative, a tenth of its spread over eight records, that is 13ε and 1.4ε. The chord over `u = ±1e-2` less its `O(u²)` term, `2(ln J)″ − chord`, is within 0.2ε of the smooth value for both.
+- *The margin buys no radius.* `h|λ_chain| ≤ 0.5β` costs 16% more steps and 9.6% more member evaluations, for the same `J` to 4e-7. Walked across `θ_A × [0.9, 1.1]`, `J` is within 1.2e-4 of adaptive runs with or without it. The walked error ratio reaches 13–130 either way, set by the pools on 82–97% of the steps above 1.1, while `J`'s error is 1e-4. It measures no radius.
+- *Per-member splitting, a first cut,* without your fixed event structure. Each member whose `P` changes sign across a step is re-integrated in two sub-steps split at its crossing, with the rest of the state read from the step's interpolant, and the crossing is found anew at each `θ`.
+  - The second difference of `ln J` at `1e-3` in `θ_A` moves toward the wide chord, as your claim has it.
+  - But `J` jumps by 1.7e-6 between `θ_A` and `θ_A(1 + 1e-4)`. Four of 9231 crossings move to the next step, and one member's dip below zero, down and up within `0.004δ`, disappears.
+  - It costs four times a plain replay on our driver.
+- *Deleting the end-state refusal changes nothing here.* The one attempt per run that it refuses, the error test rejects anyway at the same retry size, so seven nudges are the same bit for bit.
+- *The base run's grid holds within ε across `θ_A × [0.95, 1.1]`,* pinned to `θ₀`'s steps: all 48 elasticities are within ε of adaptive runs, the largest at 0.37ε. At `× 0.9` two exceed it.
+- *Not tested:* adjoint-weighted step control, `asinh` for the pool, a warm-started inner problem, and creation at the span edges.
+
+**The step grid is cheap to buy.** On the test instance: seven tolerances within ±5% of `1e-4`, seven of `1e-5` and three of `3e-5`.
+- The accepted steps go as `tol^−0.15`: 14 839 at `1e-4` and 21 107 at `1e-5`.
+- The base run's spread over the nudges falls as `tol^0.6` to `tol^0.8` (medians by group). Its largest is 0.146ε at `1e-4` and 0.012ε at `1e-5` for the main quantities, and 0.225ε and 0.025ε for the rest.
+- The probe's spread is under 0.07ε at `1e-4` and 0.015ε at `1e-5`.
+- The mean move from `1e-4` to `1e-5`, the step grid's bias, is 0.03ε for the main quantities, at most 0.07ε.
+
+So halving the base run's spread costs about 1.15 times the steps. A rule on the step grid can save at most the steps between a tolerance that passes and one where the bias binds: 1.42 times from `1e-5` to `1e-4`. In cost, your first item would buy at most that here, and the chord already gives the second derivative.
+
+**"Fix the step grid first, then re-measure the creation grid."** Done. At the setting, the move from 108 to 215 members is 4–46 times the move under a 5% nudge of `tol` (the median over quantities, by record).
+
+### 2. Five records under one setting
+
+One record each from the generator:
+
+| record | construction | `J` | accepted steps |
+|---|---|---|---|
+| constant | `s(t)` equal to the test instance's mean throughout: no knots and no quiescent stretches | §3 | 3 638 |
+| low-mean | the test instance's chain and seasons without its low-multiplier years, at mean 0.4, near the lowest at which `J` stays above 1 | 1.190 | 9 134 |
+| sparse | rare pulses with heavier depths, at the test instance's mean | 1.979 | 11 026 |
+| test instance | | 12.669 | 17 684 |
+| high-mean | as low-mean, at mean 5.0 | 18.40 | 21 922 |
+
+Each base run carries two companions:
+- a tolerance companion at `tol × 1.05`, which passes where every quantity moves by less than ε/6;
+- a creation companion on 215 members, which puts the 108-member error at 4/3 of the move, as if it fell as the spacing squared.
+
+On every run nothing threw and no attempt was refused, and both the probe at `θ′ = θ` and the sweep's own value reproduced `J` exactly.
+
+- *The tolerance companion* passes on sparse. It fails by one quantity on high-mean and the test instance, the elasticity in `μ₁`, at 0.23–0.24ε against ε/6. It fails on low-mean on 21 of the base run's 49 quantities. At `tol = 1e-5`, low-mean passes but for one quantity at 1.07 times the limit.
+- *The creation companion* puts the main quantities' 108-member error at 0.18–0.65ε on sparse and the test instance, 0.94ε for the base run's `θ_B` on low-mean, and 1.19ε for the probe's `θ_A` on high-mean.
+- *Elasticities below 0.1 in size exceed their ε on every record,* by up to 71ε, though none has an error above 0.012.
+- *The creation axis is on no power law.* With a 54-member run too, `(Q₅₄ − Q₁₀₈)/(Q₁₀₈ − Q₂₁₅)` would be 4 if the error fell as the spacing squared. Over the quantities whose move exceeds three times the tolerance nudge's, it has median 2.2 on low-mean, −2.5 on sparse and 8.4 on high-mean, and is negative on 16 of 81, 33 of 57 and 16 of 65 of them.
+
+### 3. Where the creation grid's error lives
+
+`J`'s change from 108 to 215 members, in two parts:
+- the **field part**, the change in each member's `F_j(T)` at the 108-member grid's creation times, weighted as in `J` by that grid's weights;
+- the **quadrature part**, the rest: the 215-member integrand on its own creation times, less on the 108-member grid's.
+
+| record | net | field part | of it from creation before 3 | quadrature part | of it from creation before 3 |
+|---|---|---|---|---|---|
+| test instance | +0.42% | +1.94% | 94% | −1.52% | 93% |
+| low-mean | +0.70% | +2.75% | 88% | −2.05% | 94% |
+| sparse | +0.36% | +0.93% | 99% | −0.57% | 104% |
+| high-mean | +0.31% | +2.01% | 96% | −1.70% | 96% |
+
+- Creation after 3 carries 7–30% of the net.
+- The first member carries 13–30% of `J` on 108 members, and its `F(T)` rises 1.6–11% at each doubling of the members: on high-mean it is 1290, 1430 and 1470 on 54, 108 and 215.
+- The members created before 3 are 9 of 108 and take 16% of the member evaluations.
+- Splitting the first panel eight ways moves `J` by −0.05%, −0.60% and −0.04% on the test instance, low-mean and high-mean.
+
+**The constant record.** On 54, 108 and 215 uniform members its `J` is 0.0008, 1.2 and 200.7, all from the first member. The probe's `θ_A` elasticity at `θ′ = θ` is −1.4e17 by the sweep, and −6568 from `J′` at `θ_A·e^{∓0.001}`. Along the run:
+- *The leading members' loss rate never rises.* The first member's loss integral is 0.47 at `T`, near `μ₀T`, against 12 on high-mean.
+- *Every member created after about 23δ is left with `P < 0`.*
+  - On 108 members the second, created at 0.37, has `P < 0` from `t ≈ 7` to `T`. Its pool empties, its `x` stops at 0.51, and its loss integral is 178 at `T`.
+  - With the first panel split 128 ways, the members created by 0.0637 (23δ) reach `x` of 1.07–1.08 with loss integrals of 0.42. The one created at 0.0666 stops at `x = 0.93` with 110.
+- *Uniform grids lump those members into the first.* Its weight is half a panel: 0.37, 0.19 and 0.09 on 54, 108 and 215 members, against their 0.064. Its `x` levels off at 0.83, 0.98 and 1.07, where `f` is 1.6e-4, 0.30 and 0.97.
+- *Resolved, `J` converges.* It is 287.9, 291.5 and 289.4 with the first panel split 8, 32 and 128 ways, and 288.2 on a geometrically graded grid that puts 57 of its 108 creation times before 24δ.
+  - The base run's `θ_A` elasticity is −7.1, against −18.4 on 108 uniform members.
+  - The probe's is −194 from `J′` at `e^{∓0.001}` with the first panel split 8 and 32 ways, and −173 and −155 by the sweep. The one-sided differences at 32 ways are −172 and −215.
+- *The base run's structure holds under its own constants.* At `θ_A·e^{u}` for `u` from −0.02 to +0.02, the same six members end with `x > 1`, and `J` runs smoothly from 333.9 to 251.6.
+- *A probe's structure moves, and its `J′` falls off a cliff at `θ′ = θ`.* On the 32-way grid's recording:
+
+| `θ_A′/θ_A` | 0.5 | 0.9 | 0.99 | 1 | 1.01 | 1.1 | 2 |
+|---|---|---|---|---|---|---|---|
+| `J′` | 115 451 | 11 184 | 911 | 291.5 | 0.0026 | 6e-13 | 6e-23 |
+| creation carrying 90% of `J′` ends at | 2.2 | 0.74 | 0.12 | 0.046 | 0.012 | | |
+
+### 4. What we ask
+
+1. **Can the creation grid be predicted?** Refinement is available and is the fallback: a run, a grid placed from it, and a rerun. We would rather understand where the creation-time integrand is not smooth well enough to place the grid before the run, or from quantities the run computes as it goes, with an error of known order.
+   - On these records the structure we see is the start of creation, the spans where `ρ_c = 0`, and the boundary between members that end with `x > 1` and members left with `P < 0`. On the constant record that boundary is a front at 23δ.
+   - What sets each one's location and width, in terms of the model's rates and the forcing?
+   - Which can be known before the run, which during it, and which only at `T`?
+2. **What would make the creation axis's error predictable?** It is two parts of 1–3% of `J` that cancel, it is on no power law, and on the constant record the members it lumps change `F` by orders of magnitude. Is there a representation of the creation-time integral, whether in its creation times, its weights or its coordinate, whose error has a known order and constant and can be estimated from the run itself rather than from a companion?
+3. **What does one shared grid owe a probe?** A probe's integrand has its own structure on the base run's creation times, and that structure moves with `θ′`. On the constant record its `J′` falls off a cliff at `θ′ = θ`. Is that cliff the continuous model's, or the representation's, where members of equal `x` meet at the same creation time? If it is the model's, what should a run report there in place of a gradient?
+4. **Precedent.** What results carry here from quadrature over a growing ensemble, such as the escalator boxcar train you cited, or from methods of characteristics for transport equations, especially on predicting where the integrand is not smooth?
+
+We may still be looking at the wrong variable. If the creation axis is the wrong object to grid, say what is.

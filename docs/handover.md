@@ -109,7 +109,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor, checked run by run | spot-check done (`docs/measurements/spot-check.md`): it points to `1e-5` on 215 nodes for wet and dry, not yet run as one setting; small elasticities miss their ε everywhere |
-| 4. the headroom | the consultation is answered and tested; the verdict is in the spec |
+| 4. the headroom | the consultation is answered and tested; the verdict is in the spec. A follow-up with step 3's measurements is at the end of `docs/oracle-consultation-grid-controller.md`, not yet sent |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
