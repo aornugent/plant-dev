@@ -326,7 +326,8 @@ heuristic.
   gaps in creation, so it does not decide 108 nodes; 215 is the next rung.
 - *On the constant record the invader's `J′` is nearly singular* in its traits
   at θ′ = θ: 1424, 1.204 and 0.0028 at `lma`·e^{−0.001}, ×1 and e^{+0.001}, and
-  the sweep's elasticity is −1.4e17. The tolerance check flags it.
+  the sweep's elasticity is −1.4e17. The tolerance check flags it. Both are
+  artefacts of uniform nodes, resolved below.
 - *Nothing failed:* no phase raised and no attempt was refused, and on every run
   the invader at θ′ = θ and the census reproduce `J` exactly.
 
@@ -351,9 +352,9 @@ step 1 takes curvatures in (`lma`, `a_dG2`, `hmat`, `stem_P50`, `rho`).
   for wet's invader, and only just on dry.
 - *The 54- and 215-node estimates disagree.* On dry `J` falls 4.6% from 54 nodes
   to 108 and rises 0.7% from 108 to 215, so 54 nodes is off the square law.
-- *The constant record does not converge in the node count:* `J` is 0.0008,
+- *The constant record does not converge in uniform nodes:* `J` is 0.0008,
   1.204 and 200.7 on 54, 108 and 215 nodes, and the invader's `lma` elasticity
-  is −749 on 215.
+  is −749 on 215. None of them resolves its founders (below).
 - *Dry at `1e-5` passes the tolerance check* but for one quantity just over the
   limit, the resident's `TF24_cost_scale` at 0.178ε against ε/6. The largest
   move falls from 0.65ε (`omega`) at `3e-5` to 0.18ε, and the main traits' from
@@ -391,6 +392,27 @@ on disk; the spot-check note's last section).
 - *On the constant record the first node is all of `J`,* with a net
   reproduction ratio of 0.098, 297 and 9.9e4 on 54, 108 and 215 nodes: a layer
   at the start of the patch that no uniform count resolves.
+
+**Measured: the constant record, resolved** (`harness/first_panel.R`; the
+spot-check note's last section).
+- *Nothing thins its stand, so the canopy closes for good,* and only the
+  founders survive: cohorts born in the first 0.064 years (23 days) reach
+  18 m, and every later one stalls under them and starves.
+- *Uniform nodes lump the founders into the first node,* with half a spacing of
+  recruits, 1.4–5.8× theirs. It shades itself, levels off at 13.7–17.7 m, and
+  straddles `hmat` (16.6 m) on the reproduction switch, whose slope is 50: its
+  share of production into seed is 1.6e-4, 0.30 and 0.97 on 54, 108 and 215.
+- *Resolved, `J` is 288–292* with the first spacing split 8, 32 and 128 ways,
+  and 288.2 on plant's default schedule, which puts 57 of 108 nodes before day
+  24. The resident's `lma` elasticity is −7.1, not −18.4. The invader's is −194
+  by finite differences at 8 and 32 ways, and −173 and −155 swept: a kink at
+  θ′ = θ, not a singularity.
+- *Elsewhere the first spacing barely matters:* split 8 ways it moves `J` by
+  −0.05 to −0.60%, opposite to the move to 215 nodes.
+- *So a node rule must resolve the founders where nothing thins the canopy.*
+  On this record a spacing of 0.046 years before day 24 already puts `ln J`
+  within ε/3 of the finest split's (0.21ε), as 0.012 does (0.30ε). Halving the
+  spacing over an early window does not reach it.
 
 **Measured so far: the tolerance nudges on long drought.** Seed 31, 108 uniform
 nodes, the tied tolerance on `PLANT-98`, at seven tolerances within ±5% of
@@ -711,7 +733,8 @@ done
   gradients, and saves everything a later analysis reads. `spot_check.R`
   checks a directory of those runs against `docs/measurements/eps.csv`, and
   `error_structure.R` reads how their errors scale and where the node error
-  lives.
+  lives. `first_panel.R` splits a record's first node spacing and reports `J`,
+  the surviving founders and the invader's gradient.
 - `curvature.R` takes reverse-mode gradients at `lma·e^{±δ}` on one grid, for
   the curvatures of steps 1, 4 and 5.
 - `v12_steps.R`, `error_channels.R`, `j_error_trace.R` and `soil_bound.R`

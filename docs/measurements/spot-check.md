@@ -66,15 +66,18 @@ next rung, 215 nodes, decides.
 
 ## The constant record's invader
 
+On uniform nodes, which never resolve this record's founders: the last section
+has why, and the resolved numbers.
+
 - `J′` at `lma`·e^{−0.001}, ×1 and e^{+0.001} on one recording is 1424, 1.204
   and 0.0028. The finite-difference elasticity over ±0.001 is −6568, and the
   sweep's −1.4e17.
 - The sweep gives −1.433e17 again at `3.15e-5`, with monthly zero pulses added,
   under plant's default absolute tolerance, and on the build before
   `PLANT-98`.
-- So on a constant record `J′` is nearly singular in the invader's traits at
-  θ′ = θ, and neither number answers. The resident's gradient is unaffected
-  (`lma`'s elasticity −18.4).
+- So on uniform nodes the constant record's `J′` is nearly singular in the
+  invader's traits at θ′ = θ, and neither number answers. The resident's `lma`
+  elasticity there is −18.4, against −7.1 resolved.
 
 ## The 215-node rung and dry at `1e-5`
 
@@ -108,7 +111,8 @@ and `a_l1`.
 - The 54- and 215-node estimates disagree. On dry `J` falls 4.6% from 54 nodes
   to 108 and rises 0.7% from 108 to 215, so 54 nodes is off the square law.
 - On the constant record `J` is 0.0008, 1.204 and 200.7 on 54, 108 and 215
-  nodes, and does not converge. The invader's `lma` elasticity is −749 on 215.
+  uniform nodes, none of which resolves its founders (the last section). The
+  invader's `lma` elasticity is −749 on 215.
 - Dry's tolerance check at `1e-5` leaves one quantity just over the limit, the
   resident's `TF24_cost_scale` at 0.178ε against ε/6. Its largest move falls
   from 0.65ε (`omega`) at `3e-5` to 0.18ε, and its main traits' from 0.23ε to
@@ -179,4 +183,42 @@ quadrature part is the rest.
 
 **On the constant record the first node is all of `J`.** Its net reproduction
 ratio is 0.098, 297 and 9.9e4 on 54, 108 and 215 nodes; the second node's is
-9e-8 on 108.
+9e-8 on 108. Uniform nodes lump the record's founders into it, as the next
+section shows.
+
+## The constant record, resolved
+
+Its `J` and its invader's gradient on uniform nodes are artefacts of the
+schedule, not of plant. `harness/first_panel.R` reproduces the numbers below;
+the trajectories are from the same runs with `run_scm(..., collect = TRUE)`.
+
+- *Under constant rainfall the canopy closes and stays closed.* Nothing thins
+  the stand: the first node's mortality integral is 0.47 by year 40, against
+  12 on wet. On wet, light at 2 m recovers from 0.29 in year 6 to 0.65 in year
+  10; on the constant record it is 0.18 by year 10 and 0.11–0.12 after.
+- *So only the founders survive.* Every cohort born after about day 24 stalls
+  under them, empties its storage and dies. On 108 uniform nodes the second
+  node, born at 0.37, stops at 8.4 m in year 6, and its mortality integral is
+  178 by year 40. With the first spacing split 128 ways, the cohorts born by
+  0.0637 reach 17.7–18.0 m with mortality 0.42, and the one born at 0.0666
+  stalls at 15.4 m and dies.
+- *Uniform nodes put all the founders into the first node,* whose weight is
+  half a spacing: 0.37, 0.19 and 0.09 years of recruits on 54, 108 and 215
+  nodes, against the founders' 0.064. The lumped node shades itself and levels
+  off at 13.7, 16.3 and 17.7 m, against 18.0 resolved.
+- *Those heights straddle `hmat`, 16.6 m,* where the share of production put
+  into seed, `1/(1 + exp(50 (1 − h/hmat)))`, is 1.6e-4, 0.30 and 0.97. So `J`
+  is 0.0008, 1.2 and 200.7.
+- *Resolved, `J` converges:* 287.9, 291.5 and 289.4 with the first spacing
+  split 8, 32 and 128 ways (115, 139 and 235 nodes), and 288.2 on plant's
+  default schedule, which puts 57 of its 108 nodes before day 24. The
+  resident's `lma` elasticity is −7.4 and −7.1 at 8 and 32 ways.
+- *The invader's singularity goes with it.* At 8 and 32 ways, `J′` at
+  `lma`·e^{∓0.001} gives an elasticity of −194 both times, and the sweep −173
+  and −155, against −6568 and −1.4e17 on 108 uniform. A kink at θ′ = θ remains:
+  the one-sided differences at 32 ways are −172 and −215, and the swept value
+  lies outside them.
+- *On the other records the first spacing barely matters.* Split 8 ways, it
+  moves `J` by −0.05%, −0.60% and −0.04% on long drought, dry and wet, against
+  +0.44%, +0.71% and +0.33% from 108 to 215 nodes. Plant's default schedule
+  moves wet's by +1.4%.

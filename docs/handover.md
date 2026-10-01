@@ -208,15 +208,19 @@ committed in `docs/measurements/spot-check/`.
 - So on wet and dry the check points to `1e-5` on 215 nodes, about 2.5× the
   cost of `3e-5` on 108. It has not been run as one setting, and `1e-5` not on
   wet.
-- On the constant record the invader's `J′` is nearly singular at θ′ = θ, and
-  its gradient (−1.4e17 for `lma`) is no answer. The resident is unaffected.
-  It is a separate issue, under *Outstanding*.
+- *The constant record, resolved* (`harness/first_panel.R`). Nothing thins its
+  stand, so only the founders survive, the cohorts born in the first 23 days.
+  Uniform nodes lump them into the first node, which shades itself and levels
+  off around `hmat`, on the steep reproduction switch. So its `J` (1.2 on 108)
+  and the invader's −1.4e17 are artefacts. With the first spacing split 8–128
+  ways `J` is 288–292, the resident's `lma` elasticity −7.1 and the invader's
+  −194.
 - *How each error scales,* from the runs on disk (`harness/error_structure.R`):
   the time axis is cheap to brute-force (steps as tol^−0.15, the resident's
   nudge spread as tol^0.6–0.8). The node axis carries 4–46× more error at
   `3e-5`, off any power law. Its move lives in births before 3 (9 of 108 nodes,
   16% of the cost), as two parts of 1–3% of `J` that cancel to 0.3–0.7%. On the
-  constant record the first node is all of `J`.
+  constant record the first node is all of `J`: the founders, lumped.
 
 **Step 3, the first measurement before it.** Seven tolerances within ±5% of `1e-4` on long
 drought at seed 31 (the spec's *Measured so far*). `ln J` moves by 1.6e-5, and
@@ -267,22 +271,13 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ### Outstanding
 
-- **A separate issue: the invader on a constant record.** There `J′` is nearly
-  singular in the invader's traits at θ′ = θ.
-  - At `lma`·e^{−0.001}, ×1 and e^{+0.001} on one recording, `J′` is 1424,
-    1.204 and 0.0028. The sweep's elasticity is −1.4e17; a finite difference
-    over ±0.001 gives −6568.
-  - The sweep gives −1.433e17 again at `3.15e-5`, with monthly zero pulses added,
-    under plant's default absolute tolerance, and on the build before
-    `PLANT-98`, so neither the step grid nor the guard's removal sets it.
-  - The resident's gradient there is unaffected (`lma`'s elasticity −18.4).
-  - The record's `J` does not converge in the node count either: 0.0008, 1.204
-    and 200.7 on 54, 108 and 215 nodes, where the invader's `lma` elasticity
-    is −749.
-  - Open: whether the model's own `J′` is this steep at θ′ = θ under a steady
-    field, or the sweep carries an unbounded term. The runs are `const_*` in
-    `docs/measurements/spot-check/`. Two invasions at `lma`·e^{±0.001} on one
-    kept recording reproduce the finite difference in about three minutes.
+- **The constant record's runs need its founders resolved.** The `const_*` runs
+  in `docs/measurements/spot-check/` are on uniform nodes, so their `J` and
+  gradients are artefacts (step 3, *the constant record, resolved*). The bank
+  needs them again on a schedule that resolves the first 23 days, the first
+  spacing split 32 ways or plant's default, with their companions.
+  - What remains there is a kink at θ′ = θ for the invader: at 32 ways the
+    one-sided differences are −172 and −215, and the sweep gives −155.
 - **The small elasticities' ε, the user's call in `OBJECTIVES.md`.** At a
   tenth of their spread, `a_st3`, `a_d0`, `omega` and `a_l1` miss on every
   record, though no small elasticity's 108-node error exceeds 0.012. With ε at
