@@ -315,9 +315,9 @@ heuristic.
 
 **Measured: the spot-check** (`docs/measurements/spot-check.md`), at `3e-5` on
 108 nodes, in 37 minutes on four cores.
-- *The tolerance check* passes on episodic. It sits at its ε/6 limit for the
-  resident's `a_dG1` on wet and long drought (0.23–0.24ε), and fails on dry,
-  where 21 of the resident's 49 quantities exceed it (`omega` by 0.65ε). Every
+- *The tolerance check* passes on episodic. It fails by one quantity on wet and
+  long drought, the resident's `a_dG1` (0.23–0.24ε against ε/6), and on dry,
+  where 21 of the resident's 49 quantities exceed it (`omega` moves 0.65ε). Every
   invader passes but the constant record's.
 - *The node check on 54 nodes* fails on every record, by up to 94ε (the
   resident's `a_st3`). Its spacing is longer than long drought's spans between
@@ -327,6 +327,19 @@ heuristic.
   the sweep's elasticity is −1.4e17. The tolerance check flags it.
 - *Nothing failed:* no phase raised and no attempt was refused, and on every run
   the invader at θ′ = θ and the census reproduce `J` exactly.
+- *The 215-node rung* puts the 108-node error of the main traits at 0.18–0.65ε
+  on long drought and episodic, 1.19ε for the invader's `lma` on wet, and 0.94ε
+  for the resident's `a_dG2` on dry. The small elasticities step 1 flagged
+  (`a_st3`, `a_d0`, `omega`, `a_l1`) exceed their ε on every record, up to 71ε.
+  On the constant record `J` is 0.0008, 1.204 and 200.7 on 54, 108 and 215
+  nodes.
+- *Dry at `1e-5`* passes the tolerance check but for one quantity just over the
+  limit (0.178ε against ε/6).
+- *So on wet and dry the check points to `1e-5` on 215 nodes,* not yet run as
+  one setting, at about 2.5× the cost of `3e-5` on 108: 215 nodes costs about
+  twice 108, and `1e-5` costs 1.21× `3e-5` on dry. No node count tried brings
+  the small elasticities within their ε, which is a tenth of a spread they
+  barely have.
 
 **Measured so far: the tolerance nudges on long drought.** Seed 31, 108 uniform
 nodes, the tied tolerance on `PLANT-98`, at seven tolerances within ±5% of

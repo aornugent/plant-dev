@@ -108,7 +108,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 |---|---|
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
-| 3. the floor, checked run by run | the spot-check at `3e-5` is done (`docs/measurements/spot-check.md`); the node check needs its 215-node rung |
+| 3. the floor, checked run by run | spot-check done (`docs/measurements/spot-check.md`): it points to `1e-5` on 215 nodes for wet and dry, not yet run as one setting; small elasticities miss their ε everywhere |
 | 4. the headroom | the consultation is answered and tested; the verdict is in the spec |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
@@ -195,10 +195,19 @@ every quantity under ε/6) and a node companion, and a spot-check on constant,
 wet, episodic and dry tests that check (`harness/run_record.R`, which saves
 everything a later analysis reads, and `harness/spot_check.R`). The runs are
 committed in `docs/measurements/spot-check/`.
-- At `3e-5` on 108 nodes the tolerance check passes on episodic, sits at its
-  limit on wet and long drought, and fails on dry.
-- The node companion on 54 nodes is too coarse to decide 108 on any record; the
-  215-node rung is next.
+- At `3e-5` on 108 nodes the tolerance check passes on episodic, fails by one
+  quantity on wet and long drought (the resident's `a_dG1`, 0.23–0.24ε against
+  ε/6), and fails on dry.
+- The node companion on 54 nodes is too coarse to decide 108 on any record.
+- The 215-node rung decides it. 108 nodes keeps the main traits within ε on long
+  drought and episodic (at most 0.65ε), but not the invader's `lma` on wet
+  (1.19ε), and dry's resident sits at 0.94ε. Small elasticities (`a_st3`, `a_d0`,
+  `omega`, `a_l1`) exceed their ε on every record, by up to 71ε.
+- Dry at `1e-5` passes the tolerance check but for one quantity just over it
+  (0.178ε against ε/6).
+- So on wet and dry the check points to `1e-5` on 215 nodes, about 2.5× the
+  cost of `3e-5` on 108. It has not been run as one setting, and `1e-5` not on
+  wet.
 - On the constant record the invader's `J′` is nearly singular at θ′ = θ, and
   its gradient (−1.4e17 for `lma`) is no answer. The resident is unaffected.
   It is a separate issue, under *Outstanding*.
@@ -261,6 +270,9 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
     under plant's default absolute tolerance, and on the build before
     `PLANT-98`, so neither the step grid nor the guard's removal sets it.
   - The resident's gradient there is unaffected (`lma`'s elasticity −18.4).
+  - The record's `J` does not converge in the node count either: 0.0008, 1.204
+    and 200.7 on 54, 108 and 215 nodes, where the invader's `lma` elasticity
+    is −749.
   - Open: whether the model's own `J′` is this steep at θ′ = θ under a steady
     field, or the sweep carries an unbounded term. The runs are `const_*` in
     `docs/measurements/spot-check/`. Two invasions at `lma`·e^{±0.001} on one

@@ -1,17 +1,20 @@
-# The step-3 spot-check from a directory of run_record.R outputs. Each record's
-# base run at TOL on 108 nodes is checked against its companions, every quantity
-# in units of its eps (docs/measurements/eps.csv), which is held across the bank:
-# - a run at another tolerance passes where every move is under eps/6, half of
-#   eps/3, since one companion samples the noise once;
-# - a run on 54 nodes passes where every move is under eps: if the error falls as
-#   the spacing squared, the 108-node error is a third of the move.
+# The step-3 spot-check from a directory of run_record.R outputs. A base run is
+# one on 108 nodes at a tolerance in TOLS; each other run is checked against the
+# base it companions, every quantity in units of its eps
+# (docs/measurements/eps.csv), which is held across the bank:
+# - a run within 6% of the base's tolerance passes where every move is under
+#   eps/6, half of eps/3, since one companion samples the noise once;
+# - a run on n nodes at the base's tolerance estimates the 108-node error from
+#   the move, if the error falls as the spacing squared, and passes where that
+#   estimate is under eps/3.
 # It also reports each run's failures, refusals, invader check, census check and
-# cost, and writes every move to OUT.
+# cost. OUT receives runs.csv (one row per run), checks.csv (one per check and
+# role) and moves.csv (every quantity's move).
 #
-#   RUNS=dir [TOL=3e-5] [OUT=check.rds] Rscript harness/spot_check.R
+#   RUNS=dir [TOLS=3e-5,1e-5] [OUT=dir] Rscript harness/spot_check.R
 runs_dir <- Sys.getenv("RUNS")
-base_tol <- as.numeric(Sys.getenv("TOL", "3e-5"))
-out_file <- Sys.getenv("OUT")
+base_tols <- as.numeric(strsplit(Sys.getenv("TOLS", "3e-5,1e-5"), ",")[[1]])
+out_dir <- Sys.getenv("OUT")
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 eps <- read.csv(file.path(here, "..", "docs", "measurements", "eps.csv"))
 
@@ -58,32 +61,59 @@ run_facts <- function(k) {
              peak_mb = max(vapply(x$phases, `[[`, 0, "peak_mb")))
 }
 
+is_base <- function(r) r$nodes == 108 & r$shift == 0 & r$tol %in% base_tols
 checks <- list()
 for (reg in unique(setting$regime)) {
   s <- setting[setting$regime == reg & setting$finished, ]
-  base <- s$run[s$tol == base_tol & s$nodes == 108 & s$shift == 0]
-  if (length(base) != 1) next
-  for (k in setdiff(s$run, base)) {
+  bases <- s[is_base(s), ]
+  for (k in s$run[!is_base(s)]) {
     c_ <- s[s$run == k, ]
+    near <- abs(c_$tol / bases$tol - 1)
+    b <- if (c_$nodes == 108) bases[near <= 0.06, ] else bases[near < 1e-12, ]
+    if (nrow(b) != 1) next
     kind <- if (c_$nodes != 108) "nodes" else if (c_$shift != 0) "shift" else "tolerance"
-    d <- moves(runs[[base]], runs[[k]])
-    d$limit <- if (kind == "nodes") 1 else 1 / 6
-    checks[[k]] <- cbind(regime = reg, base = base, companion = k, kind = kind, d)
+    d <- moves(runs[[b$run]], runs[[k]])
+    if (kind == "nodes") {
+      # The base's error from the move, if it falls as the spacing squared.
+      d$over_eps <- d$over_eps / abs((108 / c_$nodes)^2 - 1)
+      d$limit <- 1 / 3
+    } else {
+      d$limit <- 1 / 6
+    }
+    checks[[k]] <- cbind(regime = reg, base = b$run, companion = k, kind = kind,
+                         nodes = c_$nodes, d)
   }
 }
 all_moves <- do.call(rbind, checks)
-facts <- do.call(rbind, lapply(names(runs), run_facts))
+runs_table <- merge(setting, do.call(rbind, lapply(names(runs), run_facts)), by = "run")
+
+# The traits step 1 takes curvatures in, with ln J.
+main <- c("ln J", "lma", "a_dG2", "hmat", "stem_P50", "rho")
+
+# How many quantities of one check and role exceed the limit and eps, the
+# largest, and the largest of the main traits.
+check_row <- function(d) {
+  d <- d[is.finite(d$over_eps), ]
+  top <- d[which.max(d$over_eps), ]
+  m <- d[d$trait %in% main, ]
+  top_main <- m[which.max(m$over_eps), ]
+  data.frame(d[1, c("regime", "base", "companion", "kind", "nodes", "role", "limit")],
+             n = nrow(d), n_over_limit = sum(d$over_eps > d$limit),
+             n_over_eps = sum(d$over_eps > 1),
+             largest = top$trait, largest_over_eps = top$over_eps,
+             main_largest = top_main$trait, main_largest_over_eps = top_main$over_eps,
+             lnJ_over_eps = c(d$over_eps[d$trait == "ln J"], NA)[1])
+}
+checks_table <- do.call(rbind, lapply(
+  split(all_moves, list(all_moves$companion, all_moves$role), drop = TRUE), check_row))
 
 cat("== runs\n")
-print(merge(setting, facts, by = "run"), row.names = FALSE, digits = 4)
-cat("\n== checks: quantities with an eps, how many exceed the limit, and the largest\n")
-for (k in names(checks)) {
-  d <- checks[[k]]; d <- d[is.finite(d$over_eps), ]
-  for (r in unique(d$role)) {
-    e <- d[d$role == r, ]; top <- e[order(-e$over_eps), ][1:3, ]
-    cat(sprintf("%-12s %-9s %-8s: %2d of %2d over %s; largest %s\n", k, e$kind[1], r,
-                sum(e$over_eps > e$limit), nrow(e), if (e$limit[1] == 1) "eps" else "eps/6",
-                paste(sprintf("%s %.3f", top$trait, top$over_eps), collapse = ", ")))
-  }
+print(runs_table, row.names = FALSE, digits = 4)
+cat("\n== checks: over_eps is the move over eps, and for a node check the estimated",
+    "108-node error over eps\n")
+print(checks_table, row.names = FALSE, digits = 3)
+if (nzchar(out_dir)) {
+  write.csv(runs_table, file.path(out_dir, "runs.csv"), row.names = FALSE)
+  write.csv(checks_table, file.path(out_dir, "checks.csv"), row.names = FALSE)
+  write.csv(all_moves, file.path(out_dir, "moves.csv"), row.names = FALSE)
 }
-if (nzchar(out_file)) saveRDS(list(setting = setting, facts = facts, moves = all_moves), out_file)

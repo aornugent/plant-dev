@@ -8,9 +8,11 @@ lifetime 40, birth-date density.
 
 `harness/run_record.R` on `PLANT-98` (plant 2.0.0.9002, odelia 0.5.0, the
 `lib_guard` library), checked by `harness/spot_check.R` against `eps.csv`.
-Every run's output and log is in `spot-check/`, listed in `jobs.tsv`;
-`checks.csv` and `runs.csv` are the tables below. The fifteen runs took 37
-minutes on four cores.
+Every run's output and log is in `spot-check/`, listed in `jobs.tsv`.
+`RUNS=docs/measurements/spot-check OUT=docs/measurements/spot-check Rscript
+harness/spot_check.R` writes the tables below from them: `runs.csv`,
+`checks.csv`, and every quantity's move in `moves.csv`. The first fifteen runs
+took 37 minutes on four cores.
 
 ## The runs
 
@@ -73,3 +75,43 @@ next rung, 215 nodes, decides.
 - So on a constant record `J′` is nearly singular in the invader's traits at
   θ′ = θ, and neither number answers. The resident's gradient is unaffected
   (`lma`'s elasticity −18.4).
+
+## The 215-node rung and dry at `1e-5`
+
+Seven more runs: each record on 215 nodes at `3e-5`, and dry at `1e-5` and
+`1.05e-5` on 108 nodes. The 108-node error is estimated as 4/3 of the move to
+215 nodes, if the error falls as the spacing squared.
+
+| record | role | main traits' largest | over ε | over ε/3 |
+|---|---|---|---|---|
+| long drought | resident | `lma` 0.42ε | 2 of 49 | 19 |
+| long drought | invader | `lma` 0.65ε | 3 | 22 |
+| episodic | resident | `lma` 0.18ε | 3 | 7 |
+| episodic | invader | `ln J` 0.18ε | 4 | 7 |
+| wet | resident | `a_dG2` 0.40ε | 1 | 7 |
+| wet | invader | `lma` 1.19ε | 12 | 31 |
+| dry | resident | `a_dG2` 0.94ε | 6 | 41 |
+| dry | invader | `stem_P50` 0.64ε | 2 | 39 |
+
+The main traits are `ln J` and the traits step 1 takes curvatures in: `lma`,
+`a_dG2`, `hmat`, `stem_P50` and `rho`. Over ε, the rest are the small
+elasticities step 1 flagged: `a_st3` (14–71ε for the resident), `a_d0`, `omega`
+and `a_l1`.
+
+- The 54- and 215-node estimates disagree. On dry `J` falls 4.6% from 54 nodes
+  to 108 and rises 0.7% from 108 to 215, so 54 nodes is off the square law.
+- On the constant record `J` is 0.0008, 1.204 and 200.7 on 54, 108 and 215
+  nodes, and does not converge. The invader's `lma` elasticity is −749 on 215.
+- Dry's tolerance check at `1e-5` leaves one quantity just over the limit, the
+  resident's `TF24_cost_scale` at 0.178ε against ε/6. Its largest move falls
+  from 0.65ε (`omega`) at `3e-5` to 0.18ε, and its main traits' from 0.23ε to
+  0.09ε.
+
+So on wet and dry the check points to `1e-5` on 215 nodes, which has not been
+run. On 215 nodes the main traits' node error would be a quarter of 108's, under
+ε/3 on every record; `1e-5` passes the tolerance check on dry and was not run on
+wet. On long drought and episodic, 108 nodes keeps the main traits within ε,
+but not the small elasticities, which 215 nodes does not bring within their ε
+either. 215 nodes costs 1.97–2.13× the 108-node run on the four records, and
+`1e-5` costs 1.21× `3e-5` on dry, so `1e-5` on 215 nodes would cost about 2.5×
+the spot-check's setting.

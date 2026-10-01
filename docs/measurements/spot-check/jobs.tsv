@@ -14,3 +14,10 @@ dry_n54	dry	31	3e-5	54	0
 const_base	constant	31	3e-5	108	0
 const_tol	constant	31	3.15e-5	108	0
 const_n54	constant	31	3e-5	54	0
+wet_n215	long-wet	31	3e-5	215	0
+ld_n215	long-drought	31	3e-5	215	0
+epi_n215	episodic	31	3e-5	215	0
+dry_n215	dry	31	3e-5	215	0
+dry_1e-5	dry	31	1e-5	108	0
+dry_1.05e-5	dry	31	1.05e-5	108	0
+const_n215	constant	31	3e-5	215	0
