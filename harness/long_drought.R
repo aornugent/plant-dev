@@ -78,10 +78,26 @@ RAIN_SPECS <- list(
   # The same occurrence pattern at a wetter mean and without the droughts.
   "long-wet" = list(p01b = 0.14, p11b = 0.45, shape = 0.9, scale0 = 3,
                     scaleb = 9, year_mult = rep(1, RAIN_YEARS), amp = 0.8,
-                    seed = 31, mean = 5.0))
+                    seed = 31, mean = 5.0),
+  # Long drought's mean on every day: no knots and no dry spells.
+  "constant" = list(constant = TRUE, seed = 31, mean = 3.0),
+  # Long drought without its drought years.
+  "seasonal" = list(p01b = 0.14, p11b = 0.45, shape = 0.9, scale0 = 3,
+                    scaleb = 9, year_mult = rep(1, RAIN_YEARS), amp = 0.8,
+                    seed = 31, mean = 3.0),
+  # Seasonal at 0.4, near the lowest mean at which the resident's J stays above
+  # 1: 1.56 at 0.45 and 0.53 at 0.3.
+  "dry" = list(p01b = 0.14, p11b = 0.45, shape = 0.9, scale0 = 3,
+               scaleb = 9, year_mult = rep(1, RAIN_YEARS), amp = 0.8,
+               seed = 31, mean = 0.4),
+  # Rare wet days with heavy depths, at long drought's mean.
+  "episodic" = list(p01b = 0.03, p11b = 0.2, shape = 0.5, scale0 = 6,
+                    scaleb = 18, year_mult = rep(1, RAIN_YEARS), amp = 0.8,
+                    seed = 31, mean = 3.0))
 
 rain_record <- function(name) {
   k <- RAIN_SPECS[[name]]
+  if (isTRUE(k$constant)) return(rep(k$mean, RAIN_DAYS))
   r <- gen_rain_mix(k$seed, RAIN_DAYS, k$p01b, k$p11b, k$shape, k$scale0,
                     k$scaleb, k$year_mult, k$amp)
   round(r * k$mean / mean(r), 2)
@@ -97,11 +113,12 @@ mkenv <- function(scen = SCEN) {
 
 # Where the rainfall interpolant's second derivative jumps: at every knot
 # except one where the series is zero on both sides, because the
-# interpolant is flat across a zero pair.
+# interpolant is flat across a zero pair. A constant record has none.
 active_knots <- function(scen = SCEN) {
   days <- seq(0, RAIN_DAYS)
   x <- days / 365
   y <- rep(rain_record(scen), length.out = length(days))
+  if (all(y == y[1])) return(numeric(0))
   n <- length(y); nz <- y != 0
   a <- x[nz | c(FALSE, nz[-n]) | c(nz[-1], FALSE)]
   a[a > 0 & a < LIFETIME]

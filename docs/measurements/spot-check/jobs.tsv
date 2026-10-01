@@ -1,0 +1,16 @@
+tag	regime	seed	tol	nodes	shift
+ld_3.15e-5	long-drought	31	3.15e-5	108	0
+ld_3e-5	long-drought	31	3e-5	108	0
+ld_2.85e-5	long-drought	31	2.85e-5	108	0
+wet_base	long-wet	31	3e-5	108	0
+wet_tol	long-wet	31	3.15e-5	108	0
+epi_base	episodic	31	3e-5	108	0
+epi_tol	episodic	31	3.15e-5	108	0
+dry_base	dry	31	3e-5	108	0
+dry_tol	dry	31	3.15e-5	108	0
+wet_n54	long-wet	31	3e-5	54	0
+epi_n54	episodic	31	3e-5	54	0
+dry_n54	dry	31	3e-5	54	0
+const_base	constant	31	3e-5	108	0
+const_tol	constant	31	3.15e-5	108	0
+const_n54	constant	31	3e-5	54	0

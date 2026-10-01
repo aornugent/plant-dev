@@ -32,6 +32,7 @@ verdict where it has one.
 | `diag-gradient-aligned.md` | a finite-difference plateau needs `ode_tol = 1e-6`; the adjoint shows gradients converging at the value's rate; a pinned program gives exactly zero shutdown over 28M solves | **the plateau claim is overturned at lifetime 40**: one exists at `ode_tol = 1e-3`, 3.5 decades wide, flat to 4.6%. Its order ladders are untested there. **Conflicts with `diag-jump-vs-floor.md` on the half-order loss**, see below |
 | `diag-long-horizon-remeasure.md` | nine short-fixture conclusions re-run at `lifetime 40`: M1 and M11 overturn, M5 and M6 reverse, M2 half survives, M7–M10 untested | current |
 | `eps-spread.md` | across eight daily-weather seeds of long drought, `ln J` has sd 0.25 and the elasticities 0.02–0.9 for the main traits; `tol = 1e-4` on 108 nodes is within a tenth of that on both axes for `ln J` and the main traits, not for a few small elasticities; the invader's elasticities are 2.7–4.5× the resident's | current |
+| `spot-check.md` | the floor at `3e-5` on 108 nodes, checked by its companions on constant, dry, episodic and wet: the tolerance check passes on episodic, sits at the ε/6 limit on wet and long drought, and fails on dry; 54 nodes is too coarse to check 108 on any record; on a constant record the invader's `J′` is nearly singular in its traits | current |
 
 ## The half-order loss
 

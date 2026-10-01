@@ -108,12 +108,12 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 |---|---|
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
-| 3. the floor on a bank | long drought's nudges: the resident fails the first test at `1e-4`, everything passes at `1e-5` |
+| 3. the floor, checked run by run | the spot-check at `3e-5` is done (`docs/measurements/spot-check.md`); the node check needs its 215-node rung |
 | 4. the headroom | the consultation is answered and tested; the verdict is in the spec |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
-`harness/eps_spread.R` on v12t at `tol = 1e-4` with 108 uniform nodes. The table
+`harness/run_record.R` (`ATOL=1`) on v12t at `tol = 1e-4` with 108 uniform nodes. The table
 is `docs/measurements/eps-spread.md`, and the spec's step 1 summarises it.
 - ε is 0.025 in `ln J`. For elasticities it is 0.087 (`lma`) and 0.019
   (`a_dG2`) for residents, and 0.20 and 0.050 for invaders.
@@ -189,7 +189,20 @@ is worth at most the cost of the tighter tolerance.
     is the largest lever left; testing it means counting evaluations inside
     phylloptim's solve.
 
-**Step 3, first measurement.** Seven tolerances within ±5% of `1e-4` on long
+**Step 3: the floor, checked run by run.** A bank of references was too slow
+(about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,
+every quantity under ε/6) and a node companion, and a spot-check on constant,
+wet, episodic and dry tests that check (`harness/run_record.R`, which saves
+everything a later analysis reads, and `harness/spot_check.R`). The runs are
+committed in `docs/measurements/spot-check/`.
+- At `3e-5` on 108 nodes the tolerance check passes on episodic, sits at its
+  limit on wet and long drought, and fails on dry.
+- The node companion on 54 nodes is too coarse to decide 108 on any record; the
+  215-node rung is next.
+- On the constant record the invader's `J′` is nearly singular at θ′ = θ, and
+  its gradient (−1.4e17 for `lma`) is no answer. The resident is unaffected.
+
+**Step 3, the first measurement before it.** Seven tolerances within ±5% of `1e-4` on long
 drought at seed 31 (the spec's *Measured so far*). `ln J` moves by 1.6e-5, and
 the invader's elasticities by at most 0.32 of ε/3. The resident's move by more
 than ε/3 on five of 48, all of the pool's mortality and cost: `a_dG1` 1.65,

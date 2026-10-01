@@ -100,8 +100,8 @@ selection gradient.
 
 ## Step 1: ε
 
-`harness/eps_spread.R` runs one daily-weather seed of the long-drought record
-at `tol = 1e-4` on 108 uniform nodes.
+`harness/run_record.R` with `ATOL=1` runs one daily-weather seed of the
+long-drought record at `tol = 1e-4` on 108 uniform nodes.
 - It records `ln J` and every trait's elasticity, for the resident and for the
   invader at θ′ = θ.
 - Over eight seeds with the drought years fixed, ε for each quantity is a tenth
@@ -260,60 +260,77 @@ the pool.
   offset (#97) and the birth-date coordinate are what keep the measured invaders
   clear of this.
 
-## Step 3: the floor on a bank of records
+## Step 3: the floor, checked run by run
 
-**The bank.** From `harness/long_drought.R`'s generator, each at two
-daily-weather seeds except the constant record:
+**Why not a bank of references.** A reference and both ladders on eleven
+records would cost about 100 CPU hours. The objectives already ask each run to
+estimate its own error (*Predictable*, *Diagnosed*). So each grid carries two
+companion runs, and the records only test that check where the dynamics differ
+from long drought, whose references (steps 1 and 4) show whether it is honest.
 
-| regime | construction |
-|---|---|
-| constant | the long-drought mean every day: no knots, no dry spells |
-| seasonal | the long-drought spec without its drought years |
-| wet | `long-wet`: the same occurrence at mean 5.0, no droughts |
-| dry | seasonal at the lowest mean at which the resident's `J` stays above 1 |
-| episodic | rare wet days (`p01b` ≈ 0.03) with heavy gamma depths, same mean |
-| long drought | the current spec |
+**The check,** on every grid the floor builds:
+- *A tolerance companion* at `tol` ×1.05: every quantity moves by less than
+  ε/6. One companion samples the gradient's noise once, so the limit is half the
+  first test's ε/3. On long drought at `1e-5` the largest of seven nudges was
+  0.17 of ε/3.
+- *A node companion* on half the nodes: every quantity moves by less than ε. If
+  the error falls as the spacing squared, the full grid's error is a third of
+  the move.
+- *A failed check refines,* the tolerance by 3 or the nodes by 2, and checks
+  again: brute force by degrees, which is also the loop the heuristics reuse.
+- *It costs* about 1.05× and 0.55× of the base run. A local analysis walks many
+  invaders on one grid, which spreads it to about 13%.
 
-The traits are θ₀, plus `lma` ×0.5 and ×2, where only the chosen setting and
-its reference run.
+**The floor's setting,** to be checked: Cash–Karp under the tied tolerance at
+`3e-5`, 108 uniform nodes, the knots as step targets.
 
-**Brute force.** Uniform nodes, Cash–Karp under the enablers' setting, the
-knots as step targets, no other heuristic.
+**The records,** from `harness/long_drought.R`, one seed each:
 
-**Per record, at θ₀, residents and invaders at θ′ = θ:**
-- *The time ladder:* `tol = 1e-3, 3e-4, 1e-4, 3e-5` at 215 nodes.
-- *The node ladder:* 108, 215, 429 and 857 nodes at `tol = 3e-5`.
-- *The reference:* the finest rung on each axis combined, checked against one
-  rung finer on the axis that dominates its error.
-- *Nudges:* seven tolerances within ±5% of `1e-4`, and the introductions
-  shifted by a quarter spacing at 215 nodes.
+| regime | construction | `J` at `1e-4` |
+|---|---|---|
+| constant | long drought's mean every day: no knots, no dry spells | 1.20 |
+| wet | `long-wet`: the same occurrence at mean 5.0, no droughts | |
+| episodic | rare wet days (`p01b = 0.03`) with heavy depths, at mean 3.0 | 1.98 |
+| dry | seasonal at mean 0.4, near the lowest at which `J` stays above 1 | 1.56 at 0.45, 0.53 at 0.3 |
+| long drought | the current spec, with seven nudges around `3e-5` | 12.7 |
 
-**What it yields.**
-- The four tests' verdicts.
-- The error model per axis: the constant and order for `ln J` and for each
-  elasticity.
-- The cheapest pair of tolerance and node count whose combined error is
-  within ε. This is the split where each axis's marginal cost per unit of
-  error is equal, and it is the first aligned setting, before any heuristic.
+Seasonal, long drought without its droughts, is defined but not run.
 
-A failure is a System × Solver block still in the way, and it is debugged
-before step 4.
+**What every run saves** (`harness/run_record.R`, written after each phase):
+- the setting and versions, the record and its knots, the node schedule;
+- the step program and the attempts by outcome;
+- each node's birth time, establishment weight and net reproduction ratio;
+- the event log;
+- `J`, and every gradient and elasticity for the stand and for its invader at
+  θ′ = θ;
+- each phase's time and the peak memory, and any phase's failure, the rest
+  still running.
 
-**Cost.**
-- Each ladder rung is a forward run, a sweep, an invasion and its sweep:
-  about 7 forward runs. The nudges measure residents only, at about 3.6
-  forward runs each.
-- The node ladder's finest rungs dominate. That comes to about 5–7 CPU hours
-  per record, 60–75 for the bank, and roughly a day of wall time on three
-  cores.
-- Run the long-drought record first, then episodic and dry, where the
-  crossings are.
-- Step 1's timings are the first check on these figures.
+`harness/spot_check.R` reads a directory of them against
+`docs/measurements/eps.csv`.
+
+**Deferred:** each axis's order per regime and the cheapest balanced setting.
+They serve the Performant objective, and step 4 measures them against a
+heuristic.
+
+**Measured: the spot-check** (`docs/measurements/spot-check.md`), at `3e-5` on
+108 nodes, in 37 minutes on four cores.
+- *The tolerance check* passes on episodic. It sits at its ε/6 limit for the
+  resident's `a_dG1` on wet and long drought (0.23–0.24ε), and fails on dry,
+  where 21 of the resident's 49 quantities exceed it (`omega` by 0.65ε). Every
+  invader passes but the constant record's.
+- *The node check on 54 nodes* fails on every record, by up to 94ε (the
+  resident's `a_st3`). Its spacing is longer than long drought's spans between
+  gaps in creation, so it does not decide 108 nodes; 215 is the next rung.
+- *On the constant record the invader's `J′` is nearly singular* in its traits
+  at θ′ = θ: 1424, 1.204 and 0.0028 at `lma`·e^{−0.001}, ×1 and e^{+0.001}, and
+  the sweep's elasticity is −1.4e17. The tolerance check flags it.
+- *Nothing failed:* no phase raised and no attempt was refused, and on every run
+  the invader at θ′ = θ and the census reproduce `J` exactly.
 
 **Measured so far: the tolerance nudges on long drought.** Seed 31, 108 uniform
 nodes, the tied tolerance on `PLANT-98`, at seven tolerances within ±5% of
-`1e-4` (`harness/eps_spread.R` with `ATOL=1e-4`), resident and invader with
-their sweeps. Each quantity's largest move from the `1e-4` run, against ε/3:
+`1e-4` (`harness/run_record.R`), resident and invader with their sweeps. Each quantity's largest move from the `1e-4` run, against ε/3:
 - `ln J` moves by 1.6e-5, 500× inside.
 - *The invader passes everywhere:* its largest elasticity move is 0.32 of ε/3
   (`a_d0`), and `lma`'s is 0.03.
@@ -333,7 +350,7 @@ their sweeps. Each quantity's largest move from the `1e-4` run, against ε/3:
   invader's are 0.13 and 0.06. The five that failed fall about tenfold, though
   the steps grow by only 42%.
 - So on this record brute force passes the first test somewhere between `1e-4`
-  and `1e-5`. The loosest tolerance that passes is this step's to find.
+  and `1e-5`.
 
 ## Step 4: the headroom
 
@@ -626,7 +643,9 @@ done
 - `long_drought.R` holds the record generator and `run_J`.
 - `ark_prototype.R` is an R driver that reproduces plant's Cash–Karp run bit
   for bit, with options for step rules and replays (see its header).
-- `eps_spread.R` does step 1.
+- `run_record.R` runs one stand and its invader on one record, with their
+  gradients, and saves everything a later analysis reads. `spot_check.R`
+  checks a directory of those runs against `docs/measurements/eps.csv`.
 - `curvature.R` takes reverse-mode gradients at `lma·e^{±δ}` on one grid, for
   the curvatures of steps 1, 4 and 5.
 - `v12_steps.R`, `error_channels.R`, `j_error_trace.R` and `soil_bound.R`
