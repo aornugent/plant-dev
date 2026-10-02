@@ -5,16 +5,20 @@
 # from the same start.
 #
 #   Rscript harness/attempts.R run.rds attempts.rds [run2.rds attempts2.rds ...]
+#
+# A run saved before the driver kept its record's rain and knots is long
+# drought's.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
-record <- readRDS(file.path(here, "..", "docs", "measurements", "spot-check", "ld_3e-5.rds"))
-knots <- sort(unique(record$knots))
+ld <- readRDS(file.path(here, "..", "docs", "measurements", "spot-check", "ld_3e-5.rds"))
 DAY <- 1 / 365
 NODE <- c("height", "mortality", "fecundity", "area_heartwood", "mass_heartwood",
           "storage", "offspring", "log_density", "mass")
 ENV <- c(paste0("soil_", 1:5), paste0("accumulator_", 1:5))
-rain_at <- function(t) record$rain[pmin(pmax(floor(t / DAY + 1e-9) + 1, 1), length(record$rain))]
 
 describe <- function(run, a) {
+  knots <- sort(unique(if (is.null(run$knots)) ld$knots else run$knots))
+  rain <- if (is.null(run$rain)) ld$rain else run$rain
+  rain_at <- function(t) rain[pmin(pmax(floor(t / DAY + 1e-9) + 1, 1), length(rain))]
   st <- run$st
   M <- st$M[match(round(a$t0, 12), round(st$time - st$h, 12))]
   kind <- ifelse(is.na(a$index), "thrown",

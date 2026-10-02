@@ -1,0 +1,18 @@
+long-drought 108 nodes, J 12.669 | R(t) at t = 15/20/25/30/35: 87.2% 17.9% 5.02% 0.769% 0.0838% | steps after t: 62% 51% 38% 25% 14% | member-steps: 86% 76% 61% 44% 27%
+             1%, 50% and 99% of J earned by t = 13.60, 17.00, 29.15 | J's share by birth date in [0,3.6) [3.6,10) [10,20) [20,25) [25,40): 0.929 0.0635 0.00789 9.67e-05 3.42e-08
+long-wet     108 nodes, J 18.402 | R(t) at t = 15/20/25/30/35: 86.2% 19.9% 5.05% 0.834% 0.0707% | steps after t: 63% 50% 37% 25% 13% | member-steps: 86% 75% 60% 44% 24%
+             1%, 50% and 99% of J earned by t = 13.35, 17.05, 29.30 | J's share by birth date in [0,3.6) [3.6,10) [10,20) [20,25) [25,40): 0.936 0.0572 0.00659 2.21e-05 3.24e-08
+dry          108 nodes, J 1.1896 | R(t) at t = 15/20/25/30/35: 85% 21.7% 6.12% 0.721% 0.0575% | steps after t: 64% 50% 37% 25% 12% | member-steps: 87% 74% 60% 43% 21%
+             1%, 50% and 99% of J earned by t = 13.55, 17.15, 29.30 | J's share by birth date in [0,3.6) [3.6,10) [10,20) [20,25) [25,40): 0.889 0.0968 0.014 0.00021 5.71e-07
+episodic     108 nodes, J 1.979 | R(t) at t = 15/20/25/30/35: 90.4% 24.5% 5.98% 0.475% 0.0387% | steps after t: 65% 51% 37% 22% 11% | member-steps: 87% 75% 59% 39% 21%
+             1%, 50% and 99% of J earned by t = 13.65, 17.40, 29.20 | J's share by birth date in [0,3.6) [3.6,10) [10,20) [20,25) [25,40): 0.777 0.197 0.0253 0.00023 2.96e-06
+constant     150 nodes, J 289.27 | R(t) at t = 15/20/25/30/35: 53.7% 15.7% 3.39% 0.547% 0.0615% | steps after t: 57% 45% 34% 23% 11% | member-steps: 61% 49% 37% 25% 12%
+             1%, 50% and 99% of J earned by t = 10.75, 15.35, 28.45 | J's share by birth date in [0,3.6) [3.6,10) [10,20) [20,25) [25,40): 1 1.14e-18 2.57e-19 1.66e-25 1.33e-27
+long-drought 54 nodes, J 12.88 | R(t) at t = 15/20/25/30/35: 84.8% 17.4% 4.84% 0.752% 0.0833%
+             1%, 50% and 99% of J earned by t = 13.45, 16.90, 29.10 | J's share by birth date in [0,3.6) [3.6,10) [10,20) [20,25) [25,40): 0.93 0.0633 0.00666 9.3e-05 2.27e-08
+constant     54 nodes, J 0.00079978 | R(t) at t = 15/20/25/30/35: 38.6% 17.2% 6.23% 1.72% 0.325%
+             1%, 50% and 99% of J earned by t = 7.70, 13.35, 31.80 | J's share by birth date in [0,3.6) [3.6,10) [10,20) [20,25) [25,40): 1 6.96e-20 0 0 0
+long-drought base 17684 accepted, 7.06e+06 member evaluations | J - J* -1.26e-05 relative | lma trait elasticity on its own steps -4.98010
+long-drought late 14730 accepted, 5.13e+06 member evaluations | J - J* -1.87e-05 relative | lma trait elasticity on its own steps -4.98034
+constant     base  3951 accepted, 3.76e+06 member evaluations | J - J* +6.09e-09 relative | lma trait elasticity on its own steps -4.40100
+constant     late  3883 accepted, 3.63e+06 member evaluations | J - J* +4.66e-09 relative | lma trait elasticity on its own steps -4.40100

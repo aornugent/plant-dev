@@ -733,8 +733,9 @@ the reply is in `docs/oracle-response-grid-controller.md`).
 *What sets the node error on long drought*).
 - *Two errors of opposite sign, from interpolating in birth date a profile that
   falls by e every `L`.* The interpolant of net reproduction lies above it, so a
-  coarser rung's `J` is high. The coarser canopy shades its own members more, so
-  their net reproduction is low. From uniform 108 to 215 they are −1.53% and
+  coarser rung's `J` is high. The coarser hats over-count the stand's water use,
+  so their members' net reproduction is low
+  (`docs/measurements/field-adjoint-map.md`). From uniform 108 to 215 they are −1.53% and
   +1.97% of `J`.
 - *Uniform nodes put the field error at the layer's top.* The first two nodes'
   net reproduction is 2.8% and 2.3% low, against 0.7–1.1% for every member born
@@ -840,8 +841,11 @@ fails R4: the companion reports 0.41 of the invader's error at 215 nodes and
   error maps from the sweep, placement by equidistribution, a certificate.
   - Commits to placement by adjoint-weighted error.
   - Pays for R7 where the error sits away from the opening.
-  - Costs the sweep's adjoints of the field intermediates, which plant does not
-    expose, and a grid that moves with θ, against R6.
+  - Costs the sweep's adjoints of the field intermediates, and a grid that moves
+    with θ, against R6. A spike exposes them in plant alone for +12% of a sweep
+    and, built on the held run by dropping every other node, predicts the field
+    part at 0.99–1.00× for `J` and 0.94–0.99× for the invader
+    (`docs/measurements/field-adjoint-map.md`).
   - Wins if those maps become cheap and records differ widely.
 - **D, a canopy that cannot comb.** Spread each panel's leaf area over the
   heights its members span, so that the field part at the top no longer depends
@@ -856,8 +860,9 @@ fails R4: the companion reports 0.41 of the invader's error at 215 nodes and
 *Winner: B.*
 - A's pilot buys nothing on long drought that B's structure lacks; A stays as
   the check.
-- C's maps cannot be read off plant's sweep today, and its grid would move
-  within a local analysis.
+- C's maps could not be read off plant's sweep when B was picked, and its grid
+  would move within a local analysis. The spike since reads them; whether that
+  moves the pick is open.
 - D can delete B's grading but changes plant and every reference, and the comb
   as the cause is inferred, not isolated. It is the experiment to run next.
 

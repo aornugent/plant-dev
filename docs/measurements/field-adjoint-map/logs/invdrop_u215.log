@@ -1,0 +1,3 @@
+drop light 1 soil 1: stand J 12.4654490192; invader (on 215 nodes) lma elasticity -26.973235; 909 s
+drop light 1 soil 0: stand J 12.7467241379; invader (on 215 nodes) lma elasticity -27.017062; 913 s
+exit 0

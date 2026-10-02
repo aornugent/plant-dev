@@ -54,6 +54,13 @@ for (k in 1:2) { write(D[[k]], sprintf("ld_D%d", k)); write(edges(D[[k]]), sprin
 write(Gn1, "ld_Gn1")
 write(c(Gn1, head(Gn1, -1) + diff(Gn1) / 2), "ld_Gn2")
 
+# Uniform 108 with every fourth node kept among those born after b, and the last.
+thin_after <- function(b) {
+  late <- which(U108 >= b)
+  U108[c(which(U108 < b), late[seq(1, length(late), by = 4)], length(U108))]
+}
+for (b in c(10, 25)) write(thin_after(b), sprintf("u108_thin%d", b))
+
 # The constant record. Ten panels growing by 1.18 from a day reach the front; then
 # 1.4 per panel up to `cap`, to the first window's close; nothing in the gap; the
 # second window uniform at `h2`. The reply's rule as written stops at the front.

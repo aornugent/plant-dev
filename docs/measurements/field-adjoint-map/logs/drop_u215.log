@@ -1,0 +1,3 @@
+base: J 12.7245552462, 18181 steps, 213 s cpu
+sweep: 653 s cpu; predicted field part light +0.1705%, soil -2.1440% of J
+exit 0

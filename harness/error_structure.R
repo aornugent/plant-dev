@@ -305,3 +305,31 @@ for (e in c(6, 12, 24)) {
               readRDS(f[1])$stand$J, 100 * pm$field[1] / own[1], 100 * pm$field[2] / own[2],
               100 * sum(pm$field) / J, 100 * sum(pm$interpolation) / J))
 }
+
+cat("\n== Long drought at 3e-5: uniform 108 with every fourth node kept after b\n")
+cat("   (graded_times.R's u108_thin): J and member-steps against uniform, and the move\n")
+cat("   back to uniform by part, in percent of J, born in [0, 3.6), [3.6, 10), [10, 20),\n")
+cat("   [20, 25), [25, 40). On a run with gradients, the move of every quantity outside\n")
+cat("   the small four, in eps, against uniform's own move to 215 nodes.\n")
+thin_dir <- Sys.getenv("THIN", file.path(here, "..", "docs", "measurements", "grid-dynamics"))
+member_steps <- function(x) sum(findInterval(head(x$stand$times, -1), x$node_times))
+u <- run(records[["ld"]]); q108 <- quantities(u); q215 <- quantities(run("ld_n215"))
+for (b in c(10, 25)) {
+  f <- file.path(thin_dir, sprintf("ld_u108_thin%d.rds", b))
+  if (!file.exists(f)) next
+  x <- readRDS(f)
+  p <- node_parts(nodes_of(x), nodes_of(u), c(0, 3.6, 10, 20, 25, 41))
+  cat(sprintf("after %d: %d nodes, J %+.2e relative, member-steps %+.1f%% | field %s | quadrature %s\n",
+              b, length(x$node_times), x$stand$J / u$stand$J - 1,
+              100 * (member_steps(x) / member_steps(u) - 1),
+              paste(sprintf("%+.4f", 100 * p$field), collapse = " "),
+              paste(sprintf("%+.4f", 100 * p$quad), collapse = " ")))
+  if (is.null(x$invader$elasticity)) next
+  q <- quantities(x)
+  k <- Reduce(intersect, list(names(q), names(q108), names(q215)))
+  k <- k[!(sub("^(resident|invader) ", "", k) %in% small)]
+  d <- abs(q[k] - q108[k]); n <- abs(q215[k] - q108[k]); role <- sub(" .*", "", k)
+  print(data.frame(median = q3(tapply(d, role, median)), largest = q3(tapply(d, role, max)),
+                   at = tapply(seq_along(k), role, function(i) k[i][which.max(d[i])]),
+                   u215_median = q3(tapply(n, role, median)), u215_largest = q3(tapply(n, role, max))))
+}

@@ -1,0 +1,6 @@
+== J's field part: measured, one coarse run (order 1), one finer run (drop), in % of J
+u108  measured field +1.9726 interp -1.5297 | order1 +2.1721 (light +0.1909 soil +1.9812) ratio 1.101 | drop +1.9735 (light -0.1705 soil +2.1440) ratio 1.000 | sweep cpu 653 fwd 213 
+u215  measured field +0.4730 interp -0.3702 | order1 +0.5594 (light +0.0576 soil +0.5018) ratio 1.183 | drop +0.4688 (light -0.0191 soil +0.4879) ratio 0.991 | sweep cpu 2121 fwd 466 
+G1    measured field +0.9588 interp -0.3149 | order1 +0.5990 (light -0.3519 soil +0.9508) ratio 0.625 | drop +0.9546 (light -0.5487 soil +1.5033) ratio 0.996 | sweep cpu 880 fwd 282 
+== cost, u108: forward / plain sweep / probe sweep (CPU s, peak MiB)
+forward 108; plain sweep 322 s 504 MiB; probe sweep 362 s 494 MiB (+12%); traits identical TRUE

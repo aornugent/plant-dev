@@ -297,8 +297,9 @@ establishment part is under 1e-4 of `J` on every ladder. In percent of `J`:
 
 - *The two parts have opposite signs on every ladder.* Net reproduction falls by
   e every `L`, so its interpolant lies above it, and a coarser rung's `J` is that
-  much high. The field part is the coarser canopy's extra shade on its own
-  members, whose net reproduction is that much low.
+  much high. The field part is mostly the coarser hats' over-counted water use,
+  which lowers their members' net reproduction: soil +2.14% of `J` against
+  light −0.17% on 108 → 215 (`field-adjoint-map.md`).
 - *On uniform nodes the field part is the top's.* The first two nodes' net
   reproduction is 2.8% and 2.3% low at 108 nodes, and 0.1–0.7% for births after
   1. On graded nodes it is 0.7–1.1% low for every member born before 3.5.
@@ -362,6 +363,9 @@ on every rung. In units of the elasticity, whose ε is 0.20:
   uniform 108 → 215): the first node's net reproduction is 2.1%, 2.8% and 4.7% low
   at `η` = 6, 12 and 24, and the whole field part is +1.77%, +1.97% and +2.20% of
   `J`.
+- *The channels differ by role* (`field-adjoint-map.md`). `J`'s field part is
+  the soil's, the coarser hats' water use. The invader's is light's, +0.45 of
+  its +0.38 on 108 → 215, since it neither shades nor drinks.
 
 **Each answer with its coarser rung as companion,** in ε, over the 45 quantities
 outside the small four. The estimate is a third of the move from the companion;

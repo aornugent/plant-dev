@@ -8,19 +8,22 @@
 #         infiltration solved at each stage by a damped Newton.
 #
 #   PLANT_LIB=... NODES=108 TOL=1e-3 METHOD=ark [OUT=run.rds] [REF=u108.rds] \
-#     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0]] \
+#     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0] [SWITCH_BORN=3.6] [SWITCH_UNTIL=25]] \
 #     [EVENTS=1 [EVENT_ETA=1e-3] [EVENT_RESTART=0.05] [CLASS_EVENTS=1]] [LOCAL=1] \
 #     [TOL_POOL=0.01] [TOL_POOL_ABS=0.01] [POOL_FLOOR=1e-3] [KINK_EST=1] \
 #     [CROSS_RESTART=0.1] [CROSS_CAP=1 [CROSS_TAIL=12]] [ONSET_CAP=0.3 [ONSET_SPAN=1.5]] \
 #     [TRANSIT=0.5] [KINK_FIX=1] \
 #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
 #     [ATOL=1e-4] [TOL_SOIL=10] [KNOT_SEED=1] [ATTEMPT_LOG=attempts.rds] \
+#     [LATE_FROM=25 [LATE_FACTOR=100]] [REGIME=long-drought] [TIMES=times.rds] \
 #     Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
 # nodes and tolerance, which METHOD=ck reproduces bit for bit. STATES keeps the
 # state at every accepted step. SWITCH_DAYS refuses a step longer than that
-# across which a member's net production crosses SWITCH_AT, and halves it.
+# across which a member's net production crosses SWITCH_AT, and halves it;
+# SWITCH_BORN and SWITCH_UNTIL limit that to members born before the one, on
+# steps that start before the other.
 # EVENTS retakes a step across which a member's net production crosses zero so
 # that it ends where the first such member's production is EVENT_ETA past zero,
 # and with CLASS_EVENTS (on the probe build) also where a member's leaf changes
@@ -58,9 +61,15 @@
 # rain starts, rises or falls at the size accepted after the last knot of that
 # kind. ATTEMPT_LOG saves every attempt: its start, size, error ratio and binding
 # component, and whether it was rejected, thrown or clipped to its target.
+# LATE_FROM scales every tolerance weight by LATE_FACTOR on steps that start at
+# or after that time. REGIME runs another record of harness/long_drought.R's
+# bank; OUT saves the record's rain and knots. TIMES reads the introductions
+# from a file in place of NODES.
 # Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
+REGIME <- Sys.getenv("REGIME", SCEN)
+stopifnot(REGIME %in% names(RAIN_SPECS))
 tab <- new.env()
 sys.source(file.path(here, "ark436.R"), envir = tab)
 
@@ -74,7 +83,8 @@ tb <- if (method == "ark") {
   with(tab, list(A = ACK, b = bCK, d = dCK, c = cCK, ord = 5))
 }
 
-times <- uniform_times(nodes)
+times <- if (nzchar(Sys.getenv("TIMES"))) readRDS(Sys.getenv("TIMES")) else uniform_times(nodes)
+nodes <- length(times)
 # Each member's pool capacity and relative fill, TF24_Strategy::storage_capacity
 # from its height.
 pars <- NULL
@@ -91,7 +101,7 @@ capacity <- function(y) {
   eta_c <- 1 - 2 / (1 + pars$eta) + 1 / (1 + 2 * pars$eta)
   pars$a_st1 * pars$theta * (h / pars$a_l1)^(1 / pars$a_l2) * h * eta_c * pars$rho
 }
-pulses <- sort(unique(AK))
+pulses <- sort(unique(active_knots(REGIME)))
 p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 THETA <- Sys.getenv("THETA")
@@ -108,7 +118,7 @@ ct <- control()
 ct$ode_tol_rel <- tol
 ct$ode_tol_abs <- as.numeric(Sys.getenv("ATOL", "1")) * tol
 ct$node_density_in_birth_date <- TRUE
-env <- mkenv()
+env <- mkenv(REGIME)
 patch <- plant:::Patch("TF24", "TF24_Env")(p, env, ct)
 
 # The soil chain as TF24_Environment::compute_rates has it. Its five layers
@@ -140,12 +150,16 @@ production <- function(y) {
     as.numeric(Sys.getenv("SWITCH_AT", "0"))
 }
 DELTA <- as.numeric(Sys.getenv("SWITCH_DAYS", "Inf")) / 365
+SWITCH_BORN <- as.numeric(Sys.getenv("SWITCH_BORN", "Inf"))
+SWITCH_UNTIL <- as.numeric(Sys.getenv("SWITCH_UNTIL", "Inf"))
 EVENTS <- nzchar(Sys.getenv("EVENTS"))
 ETA <- as.numeric(Sys.getenv("EVENT_ETA", "1e-3"))
 RESTART <- if (nzchar(Sys.getenv("EVENT_RESTART"))) as.numeric(Sys.getenv("EVENT_RESTART")) / 365 else NA
 CLASSES <- nzchar(Sys.getenv("CLASS_EVENTS"))
 LOCAL <- nzchar(Sys.getenv("LOCAL"))
 TOL_SOIL <- as.numeric(Sys.getenv("TOL_SOIL", "1"))
+LATE_FROM <- as.numeric(Sys.getenv("LATE_FROM", NA))
+LATE_FACTOR <- as.numeric(Sys.getenv("LATE_FACTOR", "100"))
 TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
 POOL_FLOOR <- if (nzchar(Sys.getenv("POOL_FLOOR"))) as.numeric(Sys.getenv("POOL_FLOOR")) else NA
 KINK_EST <- nzchar(Sys.getenv("KINK_EST"))
@@ -160,8 +174,8 @@ ONSET_SPAN <- as.numeric(Sys.getenv("ONSET_SPAN", "1.5")) / 365
 TRANSIT <- as.numeric(Sys.getenv("TRANSIT", "Inf"))
 KINK_FIX <- nzchar(Sys.getenv("KINK_FIX"))
 # The knots where rain starts after a dry span.
-wet <- rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0
-onsets <- pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]]
+wet <- if (length(pulses) > 1) rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0 else logical()
+onsets <- if (length(wet) > 1) pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]] else numeric()
 WINDOW <- 1e-5
 klass <- function(y) patch$ode_aux[13 * (seq_len((length(y) - 10) %/% 9) - 1) + 13]
 
@@ -469,6 +483,7 @@ adjust <- function(h, y, yerr, dydt, kink = integer()) {
   level <- ct$ode_tol_rel * (ct$ode_a_y * abs(y) + ct$ode_a_dydt * abs(h * dydt)) +
     ct$ode_tol_abs
   if (TOL_SOIL != 1) level[soil(y)] <- level[soil(y)] * TOL_SOIL
+  if (!is.na(LATE_FROM) && sv$t >= LATE_FROM) level <- level * LATE_FACTOR
   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
     level[pool] <- (level[pool] - ct$ode_tol_abs * (1 - TOL_POOL_ABS)) * TOL_POOL
@@ -601,7 +616,8 @@ step <- function(target) {
         ctl$shrank <- TRUE
         sv$zone_until <- max(sv$zone_until, t0 + h * min(sv$P[down] / (sv$P[down] - a$P[down])) + CROSS_TAIL)
         n$rejected_zone <- n$rejected_zone + 1
-      } else if (h > DELTA && any(sign(a$P) != sign(sv$P))) {
+      } else if (h > DELTA && t0 < SWITCH_UNTIL &&
+                 any((sign(a$P) != sign(sv$P))[times[seq_along(a$P)] < SWITCH_BORN])) {
         hn <- max(h / 2, DELTA)
         ctl$shrank <- TRUE
         n$rejected_switch <- n$rejected_switch + 1
@@ -787,6 +803,7 @@ if (sys.nframe() == 0L) {
   if (!is.null(steps$states)) saveRDS(steps$states, Sys.getenv("STATES"), compress = FALSE)
   if (nzchar(Sys.getenv("OUT"))) {
     saveRDS(list(method = method, nodes = nodes, tol = tol, J = J, attempts = att,
+                 regime = REGIME, rain = rain_record(REGIME), knots = pulses,
                  counts = as.list(n), secs = secs, st = st,
                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
                                       fecundity = f, patch_density = pd)),

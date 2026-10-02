@@ -36,8 +36,10 @@ verdict where it has one.
 | `creation-grid.md` | the grid consultation's second reply tested: on the constant record creation runs past the founders' front, so the reply's rule as written is 14% high, and a grid graded to the front with nodes every 1/16 day around it converges `J` (289.274) and both roles' gradients on 150 nodes; the invader's cliff is smooth there, `(ln J')'' ≈ -2.5e4`; on long drought uniform nodes are on the square law from 108 (ratio 4.3) for `J` and the resident, the 54 rung being what fit no power law; the invader's gradients reverse sign there, and only the reply's graded grid puts them on the square law, which costs `J` accuracy at a matched cost; what sets the node error there: two opposite errors at the layer's top, where uniform nodes' crowns are 2.8–4.8 top layers apart early in the race, not the gap's edges; graded rungs from G1 report their error at 1.0–1.2 and extrapolate to 0.006ε | current |
 
 The debugging record of the grid's cost and error across the system, the solver
-and the controller is `docs/grid-dynamics.md`, with its driver logs in
-`grid-dynamics/`.
+and the controller is `docs/grid-dynamics.md`, with its driver logs and the
+every-node runs behind its window in `grid-dynamics/`. The field adjoint map's
+spike is `field-adjoint-map.md`, with its patch, scripts and logs in
+`field-adjoint-map/`.
 
 ## The half-order loss
 

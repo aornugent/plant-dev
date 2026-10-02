@@ -1,0 +1,3 @@
+held nodes 150 tol 3e-05: J 289.273892623, 4610 accepted, 153 s; accepted=4610 accepted_at_minimum=0 rejected_inaccurate=52 rejected_thrown=0 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+rate evaluations 28122, member evaluations 3739917; evaluated states past the inflow switch 0, the loss clamp 0, the floor 0
+binding: soil 83.3%  accumulator 2.4%  member 14.3%  storage 1.6% ; h |lambda_soil| / beta at the start >= 0.8: 84.4%  > 1: 0.0% 

@@ -1,0 +1,9 @@
+== inv_u108 -> inv_u215
+measured: elasticity -27.07644 -> -26.97738 (net +0.0991); field +0.3803 (b<0.5 +0.3008), interpolation -0.2808, establishment +0.00003
+drop probe: invader elasticity in the finer field -26.97738, with the coarser grid's defect -26.97323
+  predicted field part on the coarser invader nodes: +0.3751 (b<0.5 +0.2988); measured +0.3803 (b<0.5 +0.3008); ratio 0.986
+  light alone: +0.4510 (b<0.5 +0.2921); soil (both less light) -0.0760
+== inv_ld_G1 -> inv_ld_G2
+measured: elasticity -27.07919 -> -27.05196 (net +0.0272); field +0.0340 (b<0.5 +0.0363), interpolation -0.0066, establishment +0.00001
+drop probe: invader elasticity in the finer field -27.05196, with the coarser grid's defect -27.07368
+  predicted field part on the coarser invader nodes: +0.0319 (b<0.5 +0.0366); measured +0.0340 (b<0.5 +0.0363); ratio 0.939

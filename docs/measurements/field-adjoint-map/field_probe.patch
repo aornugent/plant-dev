@@ -1,0 +1,525 @@
+diff --git a/R/RcppExports.R b/R/RcppExports.R
+index 3b28eb59..7281a9d3 100644
+--- a/R/RcppExports.R
++++ b/R/RcppExports.R
+@@ -4481,6 +4481,10 @@ make_node_schedule__Parameters___FF16__FF16_Env <- function(p) {
+     .Call('_plant_make_node_schedule__Parameters___FF16__FF16_Env', PACKAGE = 'plant', p)
+ }
+ 
++field_probe_set_tf24 <- function(obj_, at, weight, bands, order, open, drop, light, soil) {
++    invisible(.Call('_plant_field_probe_set_tf24', PACKAGE = 'plant', obj_, at, weight, bands, order, open, drop, light, soil))
++}
++
+ test_gradient_fd1 <- function(f, x, dx, direction, fx = NA_real_) {
+     .Call('_plant_test_gradient_fd1', PACKAGE = 'plant', f, x, dx, direction, fx)
+ }
+diff --git a/inst/include/plant/patch.h b/inst/include/plant/patch.h
+index dcd4e99f..71519621 100644
+--- a/inst/include/plant/patch.h
++++ b/inst/include/plant/patch.h
+@@ -218,9 +218,54 @@ public:
+ 
+ 
+   // Every species' differentiable parameters, species-major: the order a trait
+-  // row is indexed in, answered once rather than walked by each caller.
++  // row is indexed in, answered once rather than walked by each caller. The
++  // field probe's coefficients follow them.
+   std::vector<typename T::value_type*> ad_parameters();
+ 
++  // The field part of the node schedule's error, as sources the sweep
++  // differentiates against. Species 0's panel p is [x_p, x_{p+1}], or [x_p, t]
++  // while it is the newest; it holds at most one node of a finer schedule, at
++  // `at[p]`. The defect is what that node would add to the light field and the
++  // soil uptake, at the panel's own nodes' states interpolated in birth date: its
++  // establishment weight times its contribution less the share its two
++  // neighbours take of it. A coefficient scales one panel's defect over one time
++  // band (breaks `bands`), so with every coefficient zero no number moves, and
++  // the sweep's adjoint of a coefficient is J's first-order move when that node
++  // is added, over that band.
++  struct field_probe_type {
++    std::vector<double> at;      // the finer node's birth date; NaN where none
++    std::vector<double> weight;  // its establishment weight; NaN: half the panel's
++    std::vector<double> bands;   // time-band breaks, ascending
++    int order = 1;               // 1: linear in birth date; 2: plus curvature
++    bool open = true;            // whether the newest panel takes part
++    // Run on the finer schedule instead: `at[j]` finite names node j as one the
++    // coarser schedule lacks, and the defect is its own, with its sign reversed.
++    bool drop = false;
++    std::vector<value_type> light, soil;  // [panel * n_bands + band]
++    size_t n_bands() const { return bands.size() + 1; }
++    size_t n_coefficients() const { return 2 * light.size(); }
++  };
++  field_probe_type field_probe;
++  void set_field_probe(const std::vector<double>& at,
++                       const std::vector<double>& weight,
++                       const std::vector<double>& bands, int order, bool open,
++                       bool drop, const std::vector<double>& light,
++                       const std::vector<double>& soil);
++  // One panel's finer node at the state held, between its neighbours `lo` and
++  // `hi` (the boundary node while the panel is the newest). Doubles: the defect
++  // is a source, and its own derivative is second order.
++  struct probe_panel {
++    size_t coefficient;
++    const node_type* lo;
++    const node_type* hi;
++    const node_type* mid = nullptr;  // the finer node itself, where it is a node
++    double lambda, weight;
++    // height, and density times leaf area, of the finer node and its neighbours
++    double height, da, lo_height, lo_da, hi_height, hi_da;
++  };
++  std::vector<probe_panel> field_probe_panels() const;
++  bool field_probe_engaged() const;
++
+   // Every active value this patch holds, wherever it lives. A walk that keeps a
+   // active patch across recordings hands each of these back before it clears the
+   // tape, and the tape then says whether any was missed.
+@@ -230,7 +275,8 @@ public:
+   template <class F>
+   void for_each_active(F&& f) {
+     odelia::ode::visit_active(f, parameters, environment, species,
+-                              competition_capture);
++                              competition_capture, field_probe.light,
++                              field_probe.soil);
+   }
+ 
+   size_t trait_adjoint_size() const;
+@@ -379,6 +425,12 @@ private:
+   // walk over every node.
+   std::vector<std::vector<typename species_type::competition_split>>
+     competition_capture;
++  // The engaged panels for the field build under way; empty when none is.
++  std::vector<probe_panel> probe_panels_now;
++  void add_field_probe_light(const std::vector<value_type>& x,
++                             std::vector<value_type>& y,
++                             std::vector<value_type>& m) const;
++  void add_field_probe_soil(std::vector<value_type>& depletion) const;
+   void compute_environment_excl_capturing();
+   void compute_environment_closing();
+ 
+@@ -537,6 +589,18 @@ Patch<T2,E2> Patch<T,E>::rebind_from() const {
+                                     control.ppa_layer_smoothing);
+   // The entries the rebound patch applies, which the constructor does not take.
+   out.schedule = schedule;
++  out.field_probe.at = field_probe.at;
++  out.field_probe.weight = field_probe.weight;
++  out.field_probe.bands = field_probe.bands;
++  out.field_probe.order = field_probe.order;
++  out.field_probe.open = field_probe.open;
++  out.field_probe.drop = field_probe.drop;
++  for (const value_type& c : field_probe.light) {
++    out.field_probe.light.push_back(U(odelia::util::to_passive(c)));
++  }
++  for (const value_type& c : field_probe.soil) {
++    out.field_probe.soil.push_back(U(odelia::util::to_passive(c)));
++  }
+   // The field and the boundary node are left to the caller. Every caller
+   // evaluates before reading either, which rebuilds the field and re-evaluates
+   // the inflow condition, so computing them here would solve the boundary leaf
+@@ -982,9 +1046,14 @@ void Patch<T,E>::compute_environment() {
+     return;
+   }
+ 
++  if (field_probe_engaged()) {
++    probe_panels_now = field_probe_panels();
++  }
+   compute_environment_excl_capturing();
+   compute_boundary_nodes();
+   compute_environment_closing();
++  // Its pointers are into this patch's nodes, so no copy may carry them.
++  probe_panels_now.clear();
+ 
+   // Kept here and nowhere else, because this is where the field comes to exist.
+   if (storing != nullptr && keep_field) {
+@@ -1022,6 +1091,7 @@ void Patch<T,E>::compute_environment_excl_capturing() {
+         m[k] += open.slope / area;
+       }
+     }
++    add_field_probe_light(x, y, m);
+   };
+   if (size() > 0) {
+     environment.compute_environment(f, height_max());
+@@ -1050,6 +1120,7 @@ void Patch<T,E>::compute_environment_closing() {
+         m[k] += fs.slope / area;
+       }
+     }
++    add_field_probe_light(x, y, m);
+   };
+   if (size() > 0) {
+     environment.compute_environment(f, height_max());
+@@ -1086,6 +1157,11 @@ void Patch<T,E>::compute_rates() {
+       });
+     resource_depletion.push_back(resource_consumed / area);
+   }
++  // Not for an invader replaying a recorded field: the defect is the resident's.
++  const bool replaying = loading != nullptr && loading->field != nullptr;
++  if (!replaying && field_probe_engaged()) {
++    add_field_probe_soil(resource_depletion);
++  }
+   env.compute_rates(resource_depletion);
+ }
+ 
+@@ -1416,6 +1492,12 @@ std::vector<typename T::value_type*> Patch<T,E>::ad_parameters() {
+       ret.push_back(p);
+     }
+   }
++  for (value_type& c : field_probe.light) {
++    ret.push_back(&c);
++  }
++  for (value_type& c : field_probe.soil) {
++    ret.push_back(&c);
++  }
+   return ret;
+ }
+ 
+@@ -1424,7 +1506,7 @@ std::vector<typename T::value_type*> Patch<T,E>::ad_parameters() {
+ // length. It is asked several times per gradient.
+ template <typename T, typename E>
+ size_t Patch<T,E>::trait_adjoint_size() const {
+-  return species.size() * T::ad_column_count;
++  return species.size() * T::ad_column_count + field_probe.n_coefficients();
+ }
+ 
+ template <typename T, typename E>
+@@ -1439,9 +1521,261 @@ std::vector<std::string> Patch<T,E>::trait_adjoint_names() const {
+       ret.push_back(species_index + n);
+     }
+   }
++  const size_t nb = field_probe.n_bands();
++  for (const char* channel : {"light", "soil"}) {
++    for (size_t c = 0; c < field_probe.light.size(); ++c) {
++      ret.push_back(std::string("probe.") + channel + "." +
++                    util::to_string(static_cast<int>(c / nb + 1)) + "." +
++                    util::to_string(static_cast<int>(c % nb + 1)));
++    }
++  }
+   return ret;
+ }
+ 
++template <typename T, typename E>
++void Patch<T,E>::set_field_probe(const std::vector<double>& at,
++                                 const std::vector<double>& weight,
++                                 const std::vector<double>& bands, int order,
++                                 bool open, bool drop,
++                                 const std::vector<double>& light,
++                                 const std::vector<double>& soil) {
++  util::check_length(weight.size(), at.size());
++  const size_t n = at.size() * (bands.size() + 1);
++  util::check_length(light.size(), n);
++  util::check_length(soil.size(), n);
++  if (!std::is_sorted(bands.begin(), bands.end())) {
++    util::stop("set_field_probe: the band breaks must ascend");
++  }
++  field_probe.at = at;
++  field_probe.weight = weight;
++  field_probe.bands = bands;
++  field_probe.order = order;
++  field_probe.open = open;
++  field_probe.drop = drop;
++  field_probe.light.assign(light.begin(), light.end());
++  field_probe.soil.assign(soil.begin(), soil.end());
++}
++
++// Engaged wherever a coefficient can move a number: always at an active or
++// tangent scalar, and at double only where some coefficient is nonzero.
++template <typename T, typename E>
++bool Patch<T,E>::field_probe_engaged() const {
++  if (field_probe.light.empty() || species.empty()) {
++    return false;
++  }
++  if constexpr (std::is_same_v<value_type, double>) {
++    for (size_t c = 0; c < field_probe.light.size(); ++c) {
++      if (field_probe.light[c] != 0.0 || field_probe.soil[c] != 0.0) {
++        return true;
++      }
++    }
++    return false;
++  }
++  return true;
++}
++
++template <typename T, typename E>
++std::vector<typename Patch<T,E>::probe_panel>
++Patch<T,E>::field_probe_panels() const {
++  using odelia::util::to_passive;
++  std::vector<probe_panel> ret;
++  const species_type& sp = species[0];
++  const size_t n = sp.size();
++  const double t = environment.time;
++  const auto& s = *sp.strategy_ptr();
++  if constexpr (requires { s.pars.k_I; s.area_leaf(value_type(1.0)); }) {
++    const size_t band = static_cast<size_t>(
++        std::upper_bound(field_probe.bands.begin(), field_probe.bands.end(), t) -
++        field_probe.bands.begin());
++    const ExtrinsicDrivers drivers = sp.extrinsic_drivers();
++    // A node's coordinates in birth date: height, mortality, and the density's
++    // log less the mortality's share, which is the birth rate's.
++    auto birth = [&](const node_type& x) { return x.introduction_time(); };
++    auto mortality = [](const node_type& x) {
++      return to_passive(x.individual.state(MORTALITY_INDEX));
++    };
++    auto leaf_area = [&](double height) {
++      return height > 0 ? to_passive(s.area_leaf(value_type(height))) : 0.0;
++    };
++    if (field_probe.drop) {
++      // Node j is the finer schedule's own, between j - 1 and j + 1 (the
++      // boundary node while it is the newest): its defect is what dropping it
++      // takes from the field, at its state and weight.
++      const std::vector<double> weights = sp.establishment_weights();
++      for (size_t j = 1; j < n && j < field_probe.at.size(); ++j) {
++        if (!std::isfinite(field_probe.at[j])) {
++          continue;
++        }
++        const node_type& mid = sp.node_at(j);
++        const node_type& lo = sp.node_at(j - 1);
++        const bool closed = j + 1 < n;
++        const node_type& hi = closed ? sp.node_at(j + 1) : sp.r_new_node();
++        const double x_lo = birth(lo);
++        const double x_hi = closed ? birth(hi) : t;
++        if (!(x_hi > x_lo)) {
++          continue;
++        }
++        probe_panel q;
++        q.coefficient = j * field_probe.n_bands() + band;
++        q.lo = &lo;
++        q.hi = &hi;
++        q.mid = &mid;
++        q.lambda = (birth(mid) - x_lo) / (x_hi - x_lo);
++        q.weight = -weights[j];
++        q.height = to_passive(mid.height());
++        q.da = to_passive(mid.get_density()) * leaf_area(q.height);
++        q.lo_height = to_passive(lo.height());
++        q.lo_da = to_passive(lo.get_density()) * leaf_area(q.lo_height);
++        q.hi_height = to_passive(hi.height());
++        q.hi_da = to_passive(hi.get_density()) * leaf_area(q.hi_height);
++        ret.push_back(q);
++      }
++      return ret;
++    }
++    for (size_t p = 0; p < n && p < field_probe.at.size(); ++p) {
++      const double m = field_probe.at[p];
++      const bool closed = p + 1 < n;
++      if (!std::isfinite(m) || t <= m || (!closed && !field_probe.open)) {
++        continue;
++      }
++      const node_type& lo = sp.node_at(p);
++      const node_type& hi = closed ? sp.node_at(p + 1) : sp.r_new_node();
++      const double x_lo = birth(lo);
++      const double x_hi = closed ? birth(hi) : t;
++      const double width = x_hi - x_lo;
++      if (!(width > 0)) {
++        continue;
++      }
++      const double lambda = (m - x_lo) / width;
++      const auto share = lo.interval_shares(width);
++      const double I = to_passive(share.first + share.second);
++      const double w = closed && std::isfinite(field_probe.weight[p])
++                           ? field_probe.weight[p] : I / 2;
++      double h = (1 - lambda) * to_passive(lo.height()) + lambda * to_passive(hi.height());
++      double mu = (1 - lambda) * mortality(lo) + lambda * mortality(hi);
++      if (field_probe.order == 2) {
++        // The curvature in birth date from the neighbours either side,
++        // averaged where both exist: f[a, b, c] (m - x_lo) (m - x_hi).
++        double dh = 0, dmu = 0;
++        int k = 0;
++        auto add = [&](const node_type& a, double xa, const node_type& b,
++                       double xb, const node_type& c, double xc) {
++          auto dd = [&](double fa, double fb, double fc) {
++            return ((fc - fb) / (xc - xb) - (fb - fa) / (xb - xa)) / (xc - xa);
++          };
++          dh += dd(to_passive(a.height()), to_passive(b.height()), to_passive(c.height()));
++          dmu += dd(mortality(a), mortality(b), mortality(c));
++          ++k;
++        };
++        if (p > 0) {
++          const node_type& a = sp.node_at(p - 1);
++          add(a, birth(a), lo, x_lo, hi, x_hi);
++        }
++        if (p + 2 < n) {
++          const node_type& c = sp.node_at(p + 2);
++          add(lo, x_lo, hi, x_hi, c, birth(c));
++        } else if (p + 2 == n && closed && t - x_hi > 0.25 * width) {
++          // The boundary node as the third point only once it is clear of the
++          // newest node: at an introduction the two share a birth date.
++          add(lo, x_lo, hi, x_hi, sp.r_new_node(), t);
++        }
++        if (k > 0) {
++          h += dh / k * (m - x_lo) * (m - x_hi);
++          mu += dmu / k * (m - x_lo) * (m - x_hi);
++        }
++      }
++      probe_panel q;
++      q.coefficient = p * field_probe.n_bands() + band;
++      q.lo = &lo;
++      q.hi = &hi;
++      q.lambda = lambda;
++      q.weight = w;
++      q.height = h;
++      q.da = drivers.evaluate("birth_rate", m) * std::exp(-mu) * leaf_area(h);
++      q.lo_height = to_passive(lo.height());
++      q.lo_da = to_passive(lo.get_density()) * leaf_area(q.lo_height);
++      q.hi_height = to_passive(hi.height());
++      q.hi_da = to_passive(hi.get_density()) * leaf_area(q.hi_height);
++      ret.push_back(q);
++    }
++  }
++  return ret;
++}
++
++// The light field's reduction at the knots `x`, with every engaged panel's
++// defect scaled by its coefficient: the finer node's crown, less the shares its
++// neighbours' crowns take of it, at its establishment weight.
++template <typename T, typename E>
++void Patch<T,E>::add_field_probe_light(const std::vector<value_type>& x,
++                                       std::vector<value_type>& y,
++                                       std::vector<value_type>& m) const {
++  using odelia::util::to_passive;
++  const auto& s = *species[0].strategy_ptr();
++  if constexpr (requires { s.pars.k_I; s.pars.eta; }) {
++    const double k_I = to_passive(s.pars.k_I);
++    const double eta = to_passive(s.pars.eta);
++    // A crown of leaf area times density `da` and height H at z: value and
++    // vertical slope of k_I da Q(z / H), Q = (1 - u^eta)^2.
++    auto crown = [&](double da, double H, double z, double& v, double& d) {
++      v = 0.0;
++      d = 0.0;
++      if (!(H > 0) || z > H || !(da > 0)) {
++        return;
++      }
++      const double u_eta = std::pow(z / H, eta);
++      const double tmp = 1.0 - u_eta;
++      v = k_I * da * tmp * tmp;
++      d = z > 0 ? -k_I * da * 2.0 * eta * tmp * u_eta / z : 0.0;
++    };
++    for (const probe_panel& q : probe_panels_now) {
++      const value_type& c = field_probe.light[q.coefficient];
++      const double top = std::max({q.height, q.lo_height, q.hi_height});
++      for (size_t k = 0; k < x.size(); ++k) {
++        const double z = to_passive(x[k]);
++        if (z > top) {
++          break;
++        }
++        double vm, dm, vl, dl, vh, dh;
++        crown(q.da, q.height, z, vm, dm);
++        crown(q.lo_da, q.lo_height, z, vl, dl);
++        crown(q.hi_da, q.hi_height, z, vh, dh);
++        const double dv = q.weight * (vm - (1 - q.lambda) * vl - q.lambda * vh);
++        const double ds = q.weight * (dm - (1 - q.lambda) * dl - q.lambda * dh);
++        if (dv != 0.0) {
++          y[k] += c * (dv / area);
++        }
++        if (ds != 0.0) {
++          m[k] += c * (ds / area);
++        }
++      }
++    }
++  }
++}
++
++// The soil uptake per layer with every engaged panel's defect scaled by its
++// coefficient. The finer node's uptake is its neighbours' per unit leaf area,
++// interpolated, at its own density and leaf area.
++template <typename T, typename E>
++void Patch<T,E>::add_field_probe_soil(std::vector<value_type>& depletion) const {
++  using odelia::util::to_passive;
++  const std::vector<probe_panel> panels = field_probe_panels();
++  for (size_t i = 0; i < depletion.size(); ++i) {
++    for (const probe_panel& q : panels) {
++      const double u_lo = to_passive(q.lo->consumption_rate(i));
++      const double u_hi = to_passive(q.hi->consumption_rate(i));
++      const double r_lo = q.lo_da > 0 ? u_lo / q.lo_da : 0.0;
++      const double r_hi = q.hi_da > 0 ? u_hi / q.hi_da : 0.0;
++      const double u_m = q.mid != nullptr
++                             ? to_passive(q.mid->consumption_rate(i))
++                             : q.da * ((1 - q.lambda) * r_lo + q.lambda * r_hi);
++      const double du = q.weight * (u_m - (1 - q.lambda) * u_lo - q.lambda * u_hi);
++      if (du != 0.0) {
++        depletion[i] += field_probe.soil[q.coefficient] * (du / area);
++      }
++    }
++  }
++}
++
+ 
+ template <typename T, typename E>
+ size_t Patch<T,E>::nodes_at(size_t i, double time) const {
+diff --git a/inst/include/plant/scm.h b/inst/include/plant/scm.h
+index 3927548b..56390d22 100644
+--- a/inst/include/plant/scm.h
++++ b/inst/include/plant/scm.h
+@@ -252,6 +252,19 @@ public:
+   census_trait_gradient(const std::vector<size_t>& extra_stops = {},
+                         const std::vector<std::string>& which_metrics = {});
+ 
++  // The field probe (Patch::field_probe_type), on the patch a run starts from and
++  // on the one a sweep walks, so that its coefficients are gradient columns
++  // after the strategies' own.
++  void set_field_probe(const std::vector<double>& at,
++                       const std::vector<double>& weight,
++                       const std::vector<double>& bands, int order, bool open,
++                       bool drop, const std::vector<double>& light,
++                       const std::vector<double>& soil) {
++    patch.set_field_probe(at, weight, bands, order, open, drop, light, soil);
++    solver.get_system_ref().set_field_probe(at, weight, bands, order, open,
++                                            drop, light, soil);
++  }
++
+   // The four references the ladder checks census_trait_gradient against.
+ 
+   // The same quantity differenced, by moving the prepared strategy exactly where
+diff --git a/src/RcppExports.cpp b/src/RcppExports.cpp
+index 92788179..6c39c026 100644
+--- a/src/RcppExports.cpp
++++ b/src/RcppExports.cpp
+@@ -12596,6 +12596,24 @@ BEGIN_RCPP
+     return rcpp_result_gen;
+ END_RCPP
+ }
++// field_probe_set_tf24
++void field_probe_set_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_, std::vector<double> at, std::vector<double> weight, std::vector<double> bands, int order, bool open, bool drop, std::vector<double> light, std::vector<double> soil);
++RcppExport SEXP _plant_field_probe_set_tf24(SEXP obj_SEXP, SEXP atSEXP, SEXP weightSEXP, SEXP bandsSEXP, SEXP orderSEXP, SEXP openSEXP, SEXP dropSEXP, SEXP lightSEXP, SEXP soilSEXP) {
++BEGIN_RCPP
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    Rcpp::traits::input_parameter< std::vector<double> >::type at(atSEXP);
++    Rcpp::traits::input_parameter< std::vector<double> >::type weight(weightSEXP);
++    Rcpp::traits::input_parameter< std::vector<double> >::type bands(bandsSEXP);
++    Rcpp::traits::input_parameter< int >::type order(orderSEXP);
++    Rcpp::traits::input_parameter< bool >::type open(openSEXP);
++    Rcpp::traits::input_parameter< bool >::type drop(dropSEXP);
++    Rcpp::traits::input_parameter< std::vector<double> >::type light(lightSEXP);
++    Rcpp::traits::input_parameter< std::vector<double> >::type soil(soilSEXP);
++    field_probe_set_tf24(obj_, at, weight, bands, order, open, drop, light, soil);
++    return R_NilValue;
++END_RCPP
++}
+ // test_gradient_fd1
+ double test_gradient_fd1(Rcpp::Function f, double x, double dx, int direction, double fx);
+ RcppExport SEXP _plant_test_gradient_fd1(SEXP fSEXP, SEXP xSEXP, SEXP dxSEXP, SEXP directionSEXP, SEXP fxSEXP) {
+@@ -14322,6 +14340,7 @@ static const R_CallMethodDef CallEntries[] = {
+     {"_plant_gradient_control_tf24", (DL_FUNC) &_plant_gradient_control_tf24, 1},
+     {"_plant_node_schedule_default__Parameters___FF16__FF16_Env", (DL_FUNC) &_plant_node_schedule_default__Parameters___FF16__FF16_Env, 1},
+     {"_plant_make_node_schedule__Parameters___FF16__FF16_Env", (DL_FUNC) &_plant_make_node_schedule__Parameters___FF16__FF16_Env, 1},
++    {"_plant_field_probe_set_tf24", (DL_FUNC) &_plant_field_probe_set_tf24, 9},
+     {"_plant_test_gradient_fd1", (DL_FUNC) &_plant_test_gradient_fd1, 5},
+     {"_plant_test_gradient_richardson", (DL_FUNC) &_plant_test_gradient_richardson, 4},
+     {"_plant_ladder_block_jacobian_forward_tf24", (DL_FUNC) &_plant_ladder_block_jacobian_forward_tf24, 2},
+diff --git a/src/field_probe.cpp b/src/field_probe.cpp
+new file mode 100644
+index 00000000..c69b5614
+--- /dev/null
++++ b/src/field_probe.cpp
+@@ -0,0 +1,14 @@
++#include <plant.h>
++
++// The field probe of Patch::field_probe_type: per panel of species 0's schedule,
++// the finer node's birth date and establishment weight, the time-band breaks,
++// and one coefficient per panel and band for the light field and the soil.
++// With `drop` the run is on the finer schedule and `at` marks its own nodes.
++// [[Rcpp::export]]
++void field_probe_set_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_,
++                          std::vector<double> at, std::vector<double> weight,
++                          std::vector<double> bands, int order, bool open,
++                          bool drop, std::vector<double> light,
++                          std::vector<double> soil) {
++  obj_->set_field_probe(at, weight, bands, order, open, drop, light, soil);
++}

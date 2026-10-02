@@ -1,0 +1,9 @@
+every member                     9235 crossings (100.0%) on 1023 steps; 195 clusters spanning 653.9 days, 13078 steps at 0.05 days
+born before 3.6                  1812 crossings (19.6%) on  343 steps; 186 clusters spanning 152.4 days,  3049 steps at 0.05 days
+born before 3.6, before t = 25   1212 crossings (13.1%) on  283 steps; 126 clusters spanning 148.8 days,  2976 steps at 0.05 days
+born before 10, before t = 25    2802 crossings (30.3%) on  417 steps; 128 clusters spanning 269.0 days,  5379 steps at 0.05 days
+none                            -2.42e-04 (3.70e6)   +1.04e-03 (4.07e6)   +8.14e-04 (4.64e6)  
+every member                    -3.05e-04 (15.05e6)  -1.03e-04 (15.40e6)  -1.72e-05 (15.88e6) 
+born before 3.6, before t = 25  -3.39e-04 (5.03e6)   -3.51e-05 (5.40e6)   +3.12e-04 (5.96e6)  
+every member, before t = 25                                               -2.37e-05 (9.12e6)  
+born before 3.6, at every time                                            +3.20e-04 (6.60e6)  

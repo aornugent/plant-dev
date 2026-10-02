@@ -1,0 +1,4 @@
+base: J 12.6685543721, 17684 steps, 112 s cpu
+source light: J 12.6912173072 (+0.1789% of base), 17686 steps, 150 s cpu
+source soil: J 12.9259457948 (+2.0317% of base), 17680 steps, 150 s cpu
+exit 0

@@ -1,0 +1,5 @@
+replayed 14730 steps: error ratio at most 110, above 1.1 on 2546; deepest pool 1.92e-07 of capacity
+above 1.1, by the component that set the ratio: fecundity 3, log_density 7, mass 27, mortality 141, soil_1 380, soil_2 487, soil_3 266, soil_4 299, soil_5 828, storage 108 ; h |lambda_soil| / beta on the soil's: median 0.671
+ck nodes 108 tol 3e-05: J 12.669107410, 0 accepted, 154 s; accepted=0 accepted_at_minimum=0 rejected_inaccurate=0 rejected_thrown=0 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+rate evaluations 88488, member evaluations 4209780; evaluated states past the inflow switch 4, the loss clamp 16, the floor 0
+binding: soil NaN%  accumulator NaN%  member NaN%  storage NaN% ; h |lambda_soil| / beta at the start >= 0.8: NaN%  > 1: NaN% 

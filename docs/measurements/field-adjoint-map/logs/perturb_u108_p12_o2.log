@@ -1,0 +1,4 @@
+base: J 12.6685543721, 17684 steps, 110 s cpu
+Error: Cannot leave an invalid state at t = 0.37037: Non-finite environment state (index 0 = nan) at time=0.370371. For TF24 this is a soil-water state driven non-finite by the density-weighted resource uptake as a cohort density runs away in the SCM size-density equations (the same failure that otherwise overflows density to +Inf; see #550). Try a shorter max_patch_lifetime or less extreme environmental drivers. (step size 1e-06 is already at the minimum)
+Execution halted
+exit 1

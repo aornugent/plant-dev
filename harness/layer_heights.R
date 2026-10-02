@@ -1,8 +1,10 @@
 # Long drought on a schedule, with each node's height, mortality integral and
 # survival-weighted offspring at sample times 0.05 apart, for the nodes born
-# before the first gap.
+# before BORN_BEFORE: 3.6, the first gap, unless set. TOL and ATOL are the
+# relative and absolute tolerances.
 #
-#   PLANT_LIB=... TIMES=t.rds [REGIME=long-drought] OUT=x.rds Rscript harness/layer_heights.R
+#   PLANT_LIB=... TIMES=t.rds [REGIME=long-drought] [BORN_BEFORE=3.6] \
+#     [TOL=3e-5 ATOL=3e-9] OUT=x.rds Rscript harness/layer_heights.R
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -16,8 +18,8 @@ p$max_patch_lifetime <- LIFETIME
 p <- add_strategies(p, trait_matrix(LMA0, "lma"))
 p$node_schedule_times <- list(times)
 ct <- control()
-ct$ode_tol_rel <- 3e-5
-ct$ode_tol_abs <- 3e-9
+ct$ode_tol_rel <- as.numeric(Sys.getenv("TOL", "3e-5"))
+ct$ode_tol_abs <- as.numeric(Sys.getenv("ATOL", "3e-9"))
 ct$node_density_in_birth_date <- TRUE
 ev <- events(events_default(p), pulse_rows(sort(unique(active_knots(scen)))))
 scm <- run_scm(p, mkenv(scen), ct, events = ev, record_trajectory = TRUE)
@@ -30,7 +32,7 @@ t <- vapply(rows, `[[`, 0, "time")
 len <- lengths(lapply(rows, `[[`, "state"))
 # The nodes each row holds: its state less what the final row holds beside them.
 held <- (len - (tail(len, 1) - per * sp$size)) / per
-keep <- which(times < 3.6)
+keep <- which(times < as.numeric(Sys.getenv("BORN_BEFORE", "3.6")))
 grid <- seq(0.05, 40, by = 0.05)
 at <- vapply(grid, function(g) max(which(t <= g)), 0L)
 pick <- function(name) {

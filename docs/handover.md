@@ -228,7 +228,8 @@ the invader's gradient by node (`docs/measurements/creation-grid.md`, *What sets
 the node error on long drought*).
 - *Two errors of opposite sign,* both from interpolating in birth date a profile
   that falls by e every `L`: the interpolant of net reproduction lies above it,
-  and the coarser canopy shades its own members more.
+  and the coarser hats over-count the stand's water use
+  (`docs/measurements/field-adjoint-map.md`).
 - *On uniform nodes both sit at the layer's top,* where neighbouring nodes are
   2.8–4.8 crowns' top layers apart in height in the first half year. The
   invader's `lma` elasticity there is +0.30 in one and −0.29 in the other at 108
@@ -256,8 +257,25 @@ on disk and a few driver probes:
   seed from the last knot of the same kind removes them and costs 7.9% more.
 - *The invader's first replay repeats the resident's forward,* about 12% of a
   run with every gradient.
-- *Open:* the constant record's 19% rejections; the gradients under a looser
-  soil; R2's introduction nudge.
+- *The constant record's steps are bound by the soil's stability,* not its
+  accuracy: 83% start within 0.8 of the explicit limit, and held under it the
+  rejections fall from 739 to 52. There the implicit soil pays (ARK, −66% member
+  evaluations, `J` within 4e-7), where step 4 found it does not on long drought.
+- *One window of the goal on every record:* 1–99% of `J` is earned between
+  t ≈ 11–14 and 29, while three fifths of the pulsed records' member-steps come
+  after t = 25. On long drought every tolerance ×100 after 25 saves 27% of
+  member evaluations, and nodes born after 25 thinned fourfold save 12% of
+  member-steps, each moving no quantity by more than 0.07ε. A pilot (54 nodes,
+  `1e-3`) reads the window within 4%.
+- *The sign-change refusal limited to steps before t = 25* keeps its `J` for 43%
+  less cost; limited to the cohort that earns `J`, it leaves 40% of the error.
+- *The field adjoint map works* (`docs/measurements/field-adjoint-map.md`):
+  dropping every other node of the held run, it predicts the field part at
+  0.99–1.00× for `J` and 0.94–0.99× for the invader, for +12% of a sweep. `J`'s
+  field part is water; the invader's is light.
+- *Open:* the invaders' windows for a shared grid; the window-limited refusal
+  on the gradients' continuity; the gradients under a looser soil; R2's
+  introduction nudge.
 
 **Step 3: the floor, checked run by run.** A bank of references was too slow
 (about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,
