@@ -18,7 +18,8 @@ The scripts:
 - `harness/attempts.R` reads the driver's attempt logs,
   `harness/crossings.R` its crossing logs and refusal runs, and
   `harness/soil_steps.R` what bounds its steps. `harness/soil_chain.R`
-  integrates the soil chain alone.
+  integrates the soil chain alone, and `harness/warm_start.R` sets its steps
+  against the coupled run's.
 - `harness/replay_timing.R` times the invader's replays on `PLANT-98`.
 - `harness/j_window.R` reads `harness/layer_heights.R`'s every-node runs, and
   `harness/error_structure.R` the thinned schedules.
@@ -389,6 +390,15 @@ change, set 93% of the steps. A monolithic step pays the members' leaf solves
 at each of them, and the chain cannot step at the members' pace, where it is
 unstable.
 
+**The chain alone predicts the coupled step program** (`warm_start.R`, the
+chain-alone run against the tied baseline at `3e-5`):
+- *Steps per interval:* 5.61 against 6.03, correlation 0.76; 89% of intervals
+  differ by at most one step.
+- *The first accepted step after each knot,* coupled over chain alone: median
+  1.00, 10–90% 0.87–1.3, and 95% within a factor of 2.
+- *It costs 2.1e-4 of a forward:* 19 372 attempts at 1.2 µs each in C++, 23.6 ms
+  against plant's 114.8 s (§3). In R it takes 6 s.
+
 ## 11. The crossings' cure, priced
 
 - *The mechanism is the grid reply's* (`docs/oracle-response-grid-controller.md`).
@@ -442,7 +452,9 @@ unstable.
   members on their own steps. Does `J` hold at the members' 9176 steps?
 - per-member events in plant, with one member evaluated in the step's
   interpolated field, on the gradients' spread under tolerance nudges;
-
+- each knot's first attempt seeded from the chain alone's first accepted step
+  there (§10), against §2's seed from the last knot of the same kind, which was
+  too short;
 - the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at
   t = 25, on a second pulsed record;
 - the invaders' windows at ×0.5 and ×2 of the resident, which bound a shared

@@ -90,5 +90,5 @@ wet <- vapply(rows[, "t0"] + rows[, "h"] / 2, rain_at, 0) > 0
 cat(sprintf("%s, %s, tol %g: %d accepted, %d rejected (%.1f%%) | on rain intervals %d, dry %d | binding layer 1-5: %s | final theta %s\n",
             regime, VAR, tol, nrow(rows), n_rej, 100 * n_rej / (nrow(rows) + n_rej), sum(wet), sum(!wet),
             paste(tabulate(rows[, "layer"], 5), collapse = "/"), paste(signif(to_theta(y), 4), collapse = " ")))
-if (nzchar(Sys.getenv("OUT"))) saveRDS(list(rows = rows, wet = wet, y = to_theta(y), VAR = VAR, tol = tol,
-                                            regime = regime), Sys.getenv("OUT"))
+if (nzchar(Sys.getenv("OUT"))) saveRDS(list(rows = rows, rejected = n_rej, wet = wet, y = to_theta(y), VAR = VAR,
+                                            tol = tol, regime = regime), Sys.getenv("OUT"))
