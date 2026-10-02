@@ -1,0 +1,3 @@
+onset knots: 814; with a first-day class switch: 65
+  with a switch: 65 knots, soil 'other' rejections 9 (0.14 a knot); dry days before, 10/50/90%: 22 / 68 / 129; theta1 at the knot: 0.128 / 0.128 / 0.132
+  without: 749 knots, soil 'other' rejections 534 (0.71 a knot); dry days before, 10/50/90%: 1 / 8 / 25; theta1 at the knot: 0.189 / 0.272 / 0.318

@@ -1,8 +1,10 @@
 # Where the driver's rejected attempts fall, from harness/ark_prototype.R's
 # ATTEMPT_LOG and OUT files: by the days since the record's last knot, by the
 # component whose error rejected them, and for the first attempt after a knot by
-# how the rain changes there. Also each attempt's size against the size accepted
-# from the same start.
+# how the rain changes over the day it opens. The record's interpolant passes
+# through each day's value at the knot that opens the day and reaches the next
+# day's value at the day's end. Also each attempt's size against the size
+# accepted from the same start.
 #
 #   Rscript harness/attempts.R run.rds attempts.rds [run2.rds attempts2.rds ...]
 #
@@ -27,9 +29,9 @@ describe <- function(run, a) {
   i <- findInterval(a$t0 + 1e-12, knots)
   since <- ifelse(i > 0, a$t0 - knots[pmax(i, 1)], a$t0) / DAY
   band <- cut(since, c(-1, 0.001, 1, 10, 1e5), labels = c("on a knot", "within a day", "1-10 days", "over 10 days"))
-  before <- rain_at(a$t0 - 0.5 * DAY); after <- rain_at(a$t0 + 0.5 * DAY)
+  before <- rain_at(a$t0 + 0.5 * DAY); after <- rain_at(a$t0 + 1.5 * DAY)
   change <- ifelse(before == 0 & after > 0, "starts", ifelse(before > 0 & after == 0, "stops",
-                   ifelse(after > before, "rises", "falls")))
+                   ifelse(after > before, "rises", ifelse(after < before, "falls", "flat"))))
   first_at_knot <- band == "on a knot" & a$t0 > 0 & !duplicated(round(a$t0, 12))
   data.frame(rejected = a$rejected == 1, band, part, change, first_at_knot, t0 = round(a$t0, 12), h = a$h)
 }

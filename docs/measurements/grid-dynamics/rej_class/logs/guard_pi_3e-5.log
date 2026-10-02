@@ -1,0 +1,5 @@
+control pi 
+ck nodes 108 tol 3e-05: J 12.668758797, 19029 accepted, 322 s; accepted=19029 accepted_at_minimum=0 rejected_inaccurate=1022 rejected_thrown=2 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+rate evaluations 120424, member evaluations 6558534; evaluated states past the inflow switch 0, the loss clamp 0, the floor 0
+chain guard: 2523 shrinks
+binding: soil 83.3%  accumulator 0.1%  member 16.6%  storage 7.7% ; h |lambda_soil| / beta at the start >= 0.8: 0.1%  > 1: 0.0% 

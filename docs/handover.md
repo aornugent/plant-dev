@@ -280,8 +280,9 @@ on disk and a few driver probes:
   In rows it loses: PI turns rejections into accepted steps, 7.3% more rows, so
   a gradient run costs 5.8% more on long drought and 1.0% less on the constant
   record. What remains are the crossings' rejections and 798 soil-bound ones in
-  the first day after a knot, which the reply reads as class-switch kinks;
-  being tagged. On the chain alone the error is proportional to tol under
+  the first day after a knot. Those are the chain's own transient, not class
+  switches: the chain alone reproduces 98% of them, and a guard that steps it
+  from the current state before each attempt removes them. On the chain alone the error is proportional to tol under
   either law, so the sign changes of `J`'s error are the crossings'.
 - *The window as a rule* (§8). A 54-node pilot at `1e-3` reads R(t) within 10%
   on every record. Weighting the tolerance by it, with nodes thinned after the
@@ -331,10 +332,11 @@ its addenda, and `docs/oracle-response-strategy.md`). What it changed:
 - *One-variable tests missed a two-bound interaction:* held to the norm, the
   implicit chain keeps its steps, and out of the norm the explicit chain is
   unstable. The pair is untested.
-- *Three results listed as unexplained were explained by the record:* the
-  invader's failing walk (its pools' stability), the first-day rejections
-  (class switches, being tagged) and ARK's error (below 1e-4 of ε, from an
-  embedded estimate that misjudges stiff components).
+- *Two results listed as unexplained were explained by the record:* the
+  invader's failing walk (its pools' stability) and ARK's error (below 1e-4 of
+  ε, from an embedded estimate that misjudges stiff components). Its third, the
+  first-day rejections as class switches, is refuted: they are the chain's own
+  drainage switching on (`grid-dynamics.md` §7).
 - *A scheme that does not converge is a defect until shown otherwise:* the
   partition's drift.
 - *One object serves events, invaders and long steps:* a continuous extension of
@@ -342,8 +344,8 @@ its addenda, and `docs/oracle-response-strategy.md`). What it changed:
 - *Reframings:* the inner solve warm-started as an index-1 algebraic variable;
   bias against noise across records; the Hessian's cost, about 68 forwards by
   chords for five traits in both roles.
-- *Running* (subagents): the 798 tagged by class switches, the sweep profiled,
-  and the partition's drift root-caused.
+- *Running* (subagents): the sweep profiled, and the partition's drift
+  root-caused.
 - *Next, with the user:* a design for the controller, and the chain implicit
   and out of the norm on the driver, scored in rows and the gradients' spread.
 

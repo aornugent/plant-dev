@@ -1,0 +1,3 @@
+pics_3e-5: caught 399 rejections (38.3% of the first-day soil 'other'); capped accepted 3674 (19.4% of accepted); net -0.21% (saved 1.90%, lost 2.12%)
+pi_3e-5: caught 1128 rejections (32.1% of the first-day soil 'other'); capped accepted 5066 (26.9% of accepted); net +2.33% (saved 5.39%, lost 3.06%)
+base_3e-5: caught 1478 rejections (30.9% of the first-day soil 'other'); capped accepted 6869 (38.8% of accepted); net +3.48% (saved 6.95%, lost 3.47%)

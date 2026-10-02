@@ -1,0 +1,84 @@
+
+==== pics_3e-5: 793 first-day soil-bound 'other' rejections
+the knot's rain change, by the daily values (analyse.R) and on the interpolant over the day after:
+        interpolant
+daily    falls rises starts stops
+  falls      0    37    489     1
+  rises      7    30      0     0
+  starts    18   153      0     4
+  stops      0     0     54     0
+binding layer (chain alone) by the interpolant's change:
+        L
+           1   2   3   4   5
+  falls    1   1   7   8   8
+  rises   78 115  20   6   1
+  starts 399 142   2   0   0
+  stops    0   1   3   1   0
+the start state, theta of layers 1-3, 10/50/90%: 0.276 / 0.357 / 0.38 | 0.262 / 0.302 / 0.367 | 0.267 / 0.301 / 0.358 
+h|lambda|/beta at the start: rejected 0.0253 / 0.258 / 0.531 | step before 0.0129 / 0.0695 / 0.349 
+the binding layer's ratio, each term held (rejected | step before | jump), 10/50/90%:
+  full     rejected 1.29 / 3.32 / 22.1 (over full: 1 / 1 / 1) | before 0.0425 / 0.374 / 0.738 | jump 3.1 / 12.9 / 117 | max ratio > 1.1 on 98.2%
+  rain     rejected 0.00883 / 2.38 / 20.4 (over full: 0.0038 / 0.851 / 1.65) | before 5.71e-07 / 0.23 / 1.22 | jump 3.68 / 39.5 / 22300 | max ratio > 1.1 on 67.7%
+  cap      rejected 0.465 / 2.15 / 8.84 (over full: 0.195 / 0.486 / 1.38) | before 0.0192 / 0.226 / 1.4 | jump 1.66 / 8.22 / 127 | max ratio > 1.1 on 76.7%
+  drain    rejected 1.34e-15 / 0.0597 / 1.21 (over full: 2.77e-16 / 0.0181 / 0.38) | before 3.82e-16 / 0.0119 / 0.263 | jump 0.405 / 3.43 / 63.3 | max ratio > 1.1 on 12.9%
+  lin      rejected 0.202 / 0.968 / 6.44 (over full: 0.0986 / 0.308 / 0.532) | before 0.0117 / 0.0932 / 0.369 | jump 2.03 / 11 / 126 | max ratio > 1.1 on 48.7%
+  up_lin   rejected 0.531 / 2.51 / 15.1 (over full: 0.215 / 1 / 1) | before 0.0131 / 0.202 / 0.674 | jump 3.15 / 14.1 / 151 | max ratio > 1.1 on 84.6%
+  own_lin  rejected 0.471 / 1.47 / 11.5 (over full: 0.189 / 0.45 / 0.945) | before 0.0297 / 0.174 / 0.574 | jump 2.14 / 9.99 / 91.9 | max ratio > 1.1 on 62.0%
+  interpolant 'starts' only (543): held term over full, median: rain 0.806 cap 0.502 drain 0.0339 lin 0.303 up_lin 1 own_lin 0.398
+  interpolant 'rises' only (220): held term over full, median: rain 1.11 cap 0.42 drain 3.16e-15 lin 0.337 up_lin 0.722 own_lin 0.71
+
+==== pi_3e-5: 809 first-day soil-bound 'other' rejections
+the knot's rain change, by the daily values (analyse.R) and on the interpolant over the day after:
+        interpolant
+daily    falls rises starts stops
+  falls      0    36    492     2
+  rises      7    29      0     0
+  starts    25   156      0     6
+  stops      0     0     56     0
+binding layer (chain alone) by the interpolant's change:
+        L
+           1   2   3   4   5
+  falls    0   7  11   6   8
+  rises   84 112  19   5   1
+  starts 408 133   7   0   0
+  stops    0   5   3   0   0
+the start state, theta of layers 1-3, 10/50/90%: 0.273 / 0.355 / 0.38 | 0.26 / 0.299 / 0.366 | 0.266 / 0.301 / 0.358 
+h|lambda|/beta at the start: rejected 0.0242 / 0.245 / 0.546 | step before 0.0123 / 0.0681 / 0.325 
+the binding layer's ratio, each term held (rejected | step before | jump), 10/50/90%:
+  full     rejected 1.39 / 3.09 / 22.1 (over full: 1 / 1 / 1) | before 0.0461 / 0.365 / 0.777 | jump 3.11 / 12.2 / 114 | max ratio > 1.1 on 99.1%
+  rain     rejected 0.0115 / 2.5 / 19.7 (over full: 0.00541 / 0.861 / 1.67) | before 5.42e-07 / 0.16 / 1.26 | jump 3.67 / 43.4 / 19000 | max ratio > 1.1 on 67.9%
+  cap      rejected 0.488 / 2.08 / 9 (over full: 0.195 / 0.49 / 1.36) | before 0.0167 / 0.211 / 1.29 | jump 1.53 / 8.75 / 125 | max ratio > 1.1 on 77.6%
+  drain    rejected 1.5e-15 / 0.0581 / 1.1 (over full: 3e-16 / 0.0182 / 0.368) | before 2.36e-16 / 0.0145 / 0.245 | jump 0.433 / 3.73 / 62.6 | max ratio > 1.1 on 11.9%
+  lin      rejected 0.199 / 0.942 / 6.29 (over full: 0.0826 / 0.291 / 0.526) | before 0.0107 / 0.0977 / 0.361 | jump 1.97 / 10.6 / 122 | max ratio > 1.1 on 46.1%
+  up_lin   rejected 0.555 / 2.53 / 14.8 (over full: 0.193 / 1 / 1) | before 0.0145 / 0.216 / 0.687 | jump 3.17 / 14 / 157 | max ratio > 1.1 on 84.9%
+  own_lin  rejected 0.457 / 1.4 / 10.7 (over full: 0.181 / 0.439 / 0.962) | before 0.027 / 0.165 / 0.576 | jump 2.1 / 9.92 / 90.3 | max ratio > 1.1 on 60.4%
+  interpolant 'starts' only (548): held term over full, median: rain 0.819 cap 0.504 drain 0.0362 lin 0.282 up_lin 1 own_lin 0.37
+  interpolant 'rises' only (221): held term over full, median: rain 1.12 cap 0.411 drain 3.78e-15 lin 0.343 up_lin 0.767 own_lin 0.71
+
+==== base_3e-5: 1241 first-day soil-bound 'other' rejections
+the knot's rain change, by the daily values (analyse.R) and on the interpolant over the day after:
+        interpolant
+daily    falls rises starts stops
+  falls      3    72    650    15
+  rises     19    51      0    19
+  starts    52   224      0    49
+  stops      0     0     87     0
+binding layer (chain alone) by the interpolant's change:
+        L
+           1   2   3   4   5
+  falls    0  17  21  23  13
+  rises  105 188  39  12   3
+  starts 527 204   3   3   0
+  stops    0  24  36  18   5
+the start state, theta of layers 1-3, 10/50/90%: 0.281 / 0.355 / 0.389 | 0.263 / 0.309 / 0.388 | 0.269 / 0.308 / 0.381 
+h|lambda|/beta at the start: rejected 0.0316 / 0.265 / 0.616 | step before 0.0137 / 0.089 / 0.556 
+the binding layer's ratio, each term held (rejected | step before | jump), 10/50/90%:
+  full     rejected 1.39 / 3.51 / 19.5 (over full: 1 / 1 / 1) | before 0.0555 / 0.328 / 0.892 | jump 2.6 / 13.1 / 128 | max ratio > 1.1 on 97.7%
+  rain     rejected 0.0325 / 1.88 / 16.2 (over full: 0.00723 / 0.827 / 1.85) | before 6.92e-06 / 0.126 / 1.73 | jump 2.01 / 48.2 / 19500 | max ratio > 1.1 on 65.9%
+  cap      rejected 0.518 / 2.54 / 14 (over full: 0.204 / 0.706 / 1.69) | before 0.0294 / 0.174 / 1.13 | jump 1.63 / 10.5 / 239 | max ratio > 1.1 on 82.9%
+  drain    rejected 1.73e-16 / 0.00624 / 1.8 (over full: 4.57e-17 / 0.00211 / 0.335) | before 2e-16 / 0.000379 / 0.143 | jump 0.284 / 4.23 / 70.9 | max ratio > 1.1 on 18.5%
+  lin      rejected 0.173 / 1.08 / 5.82 (over full: 0.0672 / 0.308 / 0.662) | before 0.00994 / 0.0914 / 0.499 | jump 1.98 / 11.7 / 140 | max ratio > 1.1 on 54.1%
+  up_lin   rejected 0.35 / 2.57 / 14.4 (over full: 0.116 / 1 / 1) | before 0.0123 / 0.176 / 0.724 | jump 2.47 / 14.5 / 182 | max ratio > 1.1 on 78.6%
+  own_lin  rejected 0.63 / 1.75 / 10.4 (over full: 0.193 / 0.564 / 0.999) | before 0.038 / 0.142 / 0.764 | jump 2.15 / 11.1 / 96.7 | max ratio > 1.1 on 73.0%
+  interpolant 'starts' only (737): held term over full, median: rain 0.512 cap 0.743 drain 0.0308 lin 0.267 up_lin 1 own_lin 0.37
+  interpolant 'rises' only (347): held term over full, median: rain 1.16 cap 0.467 drain 2.63e-15 lin 0.375 up_lin 0.688 own_lin 0.748

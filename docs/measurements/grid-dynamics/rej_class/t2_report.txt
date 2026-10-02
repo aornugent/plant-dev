@@ -1,0 +1,51 @@
+J: lib_v12t 12.668816885, lib_probe 12.668816885 (identical: TRUE)
+attempts, lib_v12t: accepted=18964 accepted_at_minimum=0 rejected_inaccurate=1928 rejected_thrown=8 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0 
+attempts, lib_probe: accepted=18964 accepted_at_minimum=0 rejected_inaccurate=1928 rejected_thrown=8 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0 
+member evaluations: 6842048 against 6842048
+attempt log's 18 columns identical: TRUE; accepted steps identical: TRUE
+
+== Class switches inside an attempt (any member, any stage or the end, against its class at the start)
+first-day soil-bound 'other' rejections: 0.1% (1/793) 
+base rates, first-day attempts:
+  accepted, all: 0.9% (106/11293) 
+  accepted, soil-bound: 0.1% (14/10461) 
+  'starts' knots: rejected soil 'other' 0.2% (1/543) | accepted soil-bound 0.6% (14/2289)
+  'rises' knots: rejected soil 'other' 0.0% (0/220) | accepted soil-bound 0.0% (0/1519)
+  matched by accepted steps since the knot (1-4), 'starts' and 'rises' knots, soil-bound: rejected | accepted
+    step 1: 0.6% (1/157) | 0.2% (1/644)
+    step 2: 0.0% (0/168) | 0.2% (1/551)
+    step 3: 0.0% (0/280) | 0.0% (0/265)
+    step 4: 0.0% (0/117) | 0.0% (0/311)
+by taxonomy class, rejected (all bands) | for 'other', beyond the first day:
+  knot       34.1% (62/182)
+  overshoot  25.6% (51/199)
+  stability  0.0% (0/9)
+  crossing   23.4% (155/661)
+  other      0.6% (5/877)
+  other, beyond the first day: 2.5% (2/79)
+  accepted, all attempts: 1.5% (285/18964); accepted, on knots: 1.1% (32/2931); accepted, beyond the first day: 3.1% (147/4740)
+
+== H1's sharp test: does a switch inside raise the coupled ratio over the chain alone's?
+  rejected, with a switch (1): chain alone over coupled 1.03 / 1.03 / 1.03; within x2 100.0%; chain alone > 1.1 on 100.0%
+  rejected, without (792): chain alone over coupled 1 / 1.04 / 1.18; within x2 97.7%; chain alone > 1.1 on 98.2%
+  accepted soil-bound, with a switch (14): chain alone over coupled 3.51e-05 / 0.000319 / 0.00124
+  accepted soil-bound, without (10447): chain alone over coupled 0.939 / 1.14 / 2.9
+
+== The switches in the first-day soil-bound 'other' rejections
+29 member switches in 1 attempts; members per attempt with any, 10/50/90%: 29 / 29 / 29
+BoundaryCrit -> Interior 
+                      29 
+where in the step (fraction at the first stage that differs): 0.2 / 0.2 / 0.2 
+switching members' birth times, 10/50/90%: 1.04 / 5.19 / 9.33 | net production at the start: -8.48 / -0.0935 / -0.000106 
+for comparison, accepted first-day soil-bound attempts:
+BoundaryCrit -> Interior 
+                     459 
+
+== When members switch class after a rain onset (accepted steps' switches, by the knot's day-after change)
+  'starts': 3686 switches within the day; since the knot in delta, 10/50/90%: 0.256 / 0.411 / 0.711
+
+BoundaryCrit -> Interior Interior -> BoundaryCrit 
+                    3681                        5 
+  'rises': 115 switches within the day; since the knot in delta, 10/50/90%: 0.179 / 0.221 / 0.28
+BoundaryCrit -> Interior 
+                     115 

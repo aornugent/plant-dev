@@ -16,7 +16,7 @@
 #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
 #     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [CHAIN_SEED=chain.rds] \
 #     [CONTROL=odelia|shrink|pi [PI_BETA=0.04] [PI_ALPHA=0.17] [PI_SAFETY=0.9]] \
-#     [ATTEMPT_LOG=attempts.rds] \
+#     [ATTEMPT_LOG=attempts.rds [CLASS_SIDE=classes.rds]] [CHAIN_GUARD=1.1] \
 #     [LATE_FROM=25 [LATE_FACTOR=100] | WEIGHT=weight.rds] [REGIME=long-drought] [TIMES=times.rds] \
 #     Rscript harness/ark_prototype.R
 #
@@ -76,7 +76,14 @@
 # / beta at its start, the proposal it carried, the ratio and growth factor that
 # set that proposal, how many members' net production changed sign at a stage or
 # its end and whether the binding member's did, that member's pool fill at its
-# start and end, and the emptiest pool's fill at its start.
+# start and end, and the emptiest pool's fill at its start. On the probe build it
+# also saves how many members' leaf class at a stage or the end differs from their
+# class at the start, and the first such member's index, birth time and classes;
+# CLASS_SIDE saves every such member, the stage where its class first differs and
+# its net production at both ends. CHAIN_GUARD takes, before a step's first
+# attempt, one step of the soil chain alone from the step's soil state at the
+# proposed size, and shrinks the proposal by the rejection law while the chain's
+# error ratio exceeds that value.
 # WEIGHT scales every tolerance weight on a step by the weight of the last row of
 # its table (columns t and weight, t from 0) at or before the step's start.
 # LATE_FROM is the table of two rows, 1 from 0 and LATE_FACTOR from that time.
@@ -199,6 +206,10 @@ ONSET_CAP <- as.numeric(Sys.getenv("ONSET_CAP", "Inf")) / 365
 ONSET_SPAN <- as.numeric(Sys.getenv("ONSET_SPAN", "1.5")) / 365
 TRANSIT <- as.numeric(Sys.getenv("TRANSIT", "Inf"))
 KINK_FIX <- nzchar(Sys.getenv("KINK_FIX"))
+# Before a step's first attempt, the soil chain alone steps from the soil state at
+# the proposed size, which shrinks by the rejection law while the chain's ratio
+# exceeds CHAIN_GUARD.
+CHAIN_GUARD <- as.numeric(Sys.getenv("CHAIN_GUARD", "Inf"))
 # The knots where rain starts after a dry span.
 wet <- if (length(pulses) > 1) rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0 else logical()
 onsets <- if (length(wet) > 1) pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]] else numeric()
@@ -209,7 +220,8 @@ n <- new.env()
 for (x in c("evaluations", "members", "switch", "clamp", "floor", "accepted",
             "accepted_at_minimum", "rejected_inaccurate", "rejected_thrown",
             "rejected_refused", "rejected_switch", "rejected_event", "rejected_zone", "located", "located_class",
-            "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures")) {
+            "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures",
+            "guarded")) {
   assign(x, 0, envir = n)
 }
 n$most_iterations <- 0
@@ -234,6 +246,16 @@ combine <- function(y, a, k, h) {
   s <- a[nz[1]] * k[[nz[1]]]
   for (m in nz[-1]) s <- s + a[m] * k[[m]]
   y + h * s
+}
+
+# The soil chain alone's error ratio over one step of size h from layers th at t,
+# under the soil's tolerance weights: drainage and infiltration, no uptake.
+chain_ratio <- function(th, t, h) {
+  k <- list(stiff_rates(th, rain_at(t)))
+  for (i in 2:6) k[[i]] <- stiff_rates(combine(th, tb$A[i, ], k, h), rain_at(t + tb$c[i] * h))
+  y1 <- combine(th, tb$b, k, h)
+  e <- combine(0, tb$b - tb$d, k, h)
+  max(abs(e) / ((ct$ode_tol_rel * ct$ode_a_y * abs(y1) + ct$ode_tol_abs) * TOL_SOIL))
 }
 
 # The block's stage, Y = z + hg F(Y), by Newton from z; a Newton step is halved
@@ -272,6 +294,7 @@ newton <- function(z, hg, rain) {
 attempt <- function(t, y, k1, h) {
   k <- list(k1)
   Pst <- list(sv$P)
+  Kst <- list(sv$K)
   blk <- soil(y)
   if (method == "ark") {
     rain <- rain_at(t + tb$c * h)
@@ -290,12 +313,14 @@ attempt <- function(t, y, k1, h) {
     if (is.null(ki)) return(NULL)
     k[[i]] <- ki
     Pst[[i]] <- production(Y)
+    Kst[[i]] <- klass(Y)
     if (method == "ark") kI[[i]] <- stiff_rates(Y[blk], rain[i])
   }
   y1 <- combine(y, tb$b, k, h)
   at_end <- rates(y1, t + h)
   if (is.null(at_end)) return(NULL)
-  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1), Pst = Pst)
+  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1), Pst = Pst,
+       Kst = Kst)
 }
 
 # The size that ends an accepted attempt `a` of size h from t0 just past the
@@ -607,9 +632,30 @@ steps$rows <- matrix(NA_real_, 60000, 12,
                                              paste0("soil_", 1:5), "cap")))
 attempt_log <- new.env()
 attempt_log$k <- 0L
-attempt_log$rows <- matrix(NA_real_, 80000, 18, dimnames = list(NULL, c(
+attempt_log$rows <- matrix(NA_real_, 80000, 23, dimnames = list(NULL, c(
   "t0", "h", "ratio", "index", "rejected", "thrown", "final", "try", "members", "x_soil", "proposal",
-  "r_set", "f_set", "crossed", "cross_bind", "fill_start", "fill_end", "fill_min")))
+  "r_set", "f_set", "crossed", "cross_bind", "fill_start", "fill_end", "fill_min",
+  "class_switch", "cs_member", "cs_birth", "cs_from", "cs_to")))
+# Every member whose leaf class at a stage or the end of an attempt differs from
+# its class at the start: the attempt's row, the member, its birth, the classes
+# at the start, at the first stage in time that differs and at the end, the
+# fraction of the step at that stage, and its net production at both ends.
+attempt_log$side <- list()
+attempt_classes <- function(a) {
+  if (is.null(a)) return(rep(NA, 5))
+  o <- order(tb$c[-1]) + 1
+  K <- cbind(do.call(cbind, a$Kst[o]), a$K)
+  differs <- K != sv$K
+  sw <- which(rowSums(differs) > 0)
+  if (!length(sw)) return(c(0, NA, NA, NA, NA))
+  col <- apply(differs[sw, , drop = FALSE], 1, function(v) which(v)[1])
+  at <- c(tb$c[o], 1)[col]
+  attempt_log$side[[length(attempt_log$side) + 1]] <- cbind(
+    row = attempt_log$k, member = sw, birth = times[sw], from = sv$K[sw], to = K[cbind(sw, col)],
+    end = a$K[sw], at = at, P0 = sv$P[sw], P1 = a$P[sw])
+  first <- sw[which.min(col)]
+  c(length(sw), first, times[first], sv$K[first], K[first, min(col)])
+}
 # For the attempt `a` from sv's state, whose ratio's component is `index`: how many
 # members' net production changed sign at a stage or its end, whether the binding
 # member's did, and that member's pool fill at the start and the end.
@@ -641,6 +687,15 @@ step <- function(target) {
   if (method == "held") h <- min(h, HELD_MARGIN * BETA / lambda_soil(sv$y, t0))
   cap <- cap_at(t0, h)
   h <- min(h, cap[1])
+  if (is.finite(CHAIN_GUARD)) {
+    for (g in 1:20) {
+      he <- min(h, remaining)
+      r <- chain_ratio(sv$y[soil(sv$y)], t0, he)
+      if (!(r > CHAIN_GUARD)) break
+      h <- max(he * max(0.2, 0.9 / r^(1 / 5)), ct$ode_step_size_min)
+      n$guarded <- n$guarded + 1
+    }
+  }
   at_crossing <- FALSE
   logged <- nzchar(Sys.getenv("ATTEMPT_LOG"))
   if (logged) {
@@ -701,7 +756,8 @@ step <- function(target) {
                                             as.numeric(isTRUE(ctl$shrank)), as.numeric(is.null(a)), as.numeric(final),
                                             if (logged) c(tries, n$members - members0, h * x_rate, sv$h_last,
                                                           sv$r_set, sv$f_set, attempt_signs(a, index, fill0),
-                                                          min(fill0)) else rep(NA, 11))
+                                                          min(fill0)) else rep(NA, 11),
+                                            if (logged) attempt_classes(a) else rep(NA, 5))
     if (ctl$shrank) {
       if (hn < h && t0 + hn > t0) {
         h <- hn
@@ -838,6 +894,7 @@ if (sys.nframe() == 0L) {
               J, att[["accepted"]], secs, paste(names(att), att, sep = "=", collapse = " ")))
   cat(sprintf("rate evaluations %d, member evaluations %d; evaluated states past the inflow switch %d, the loss clamp %d, the floor %d\n",
               n$evaluations, n$members, n$switch, n$clamp, n$floor))
+  if (is.finite(CHAIN_GUARD)) cat(sprintf("chain guard: %d shrinks\n", n$guarded))
   if (LOCAL) {
     cat(sprintf("members re-integrated on their own %d, in %d member evaluations\n",
                 n$local_members, n$local_members_evaluated))
@@ -870,6 +927,7 @@ if (sys.nframe() == 0L) {
                 if (same) "identical" else "differ"))
   }
   if (nzchar(Sys.getenv("ATTEMPT_LOG"))) saveRDS(as.data.frame(attempt_log$rows[seq_len(attempt_log$k), , drop = FALSE]), Sys.getenv("ATTEMPT_LOG"))
+  if (nzchar(Sys.getenv("CLASS_SIDE"))) saveRDS(as.data.frame(do.call(rbind, attempt_log$side)), Sys.getenv("CLASS_SIDE"))
   if (!is.null(steps$states)) saveRDS(steps$states, Sys.getenv("STATES"), compress = FALSE)
   if (nzchar(Sys.getenv("OUT"))) {
     saveRDS(list(method = method, control = CONTROL, nodes = nodes, tol = tol, J = J, attempts = att,

@@ -1,0 +1,21 @@
+             run            J       err accepted rejected member_evals
+       pics_3e-5 12.668816885 +8.16e-06    18964     1936      6842048
+         pi_3e-5 12.668684322 -2.30e-06    18815     2905      7102806
+ guard_pics_3e-5 12.668781756 +5.39e-06    19139     1021      6609692
+   guard_pi_3e-5 12.668758797 +3.58e-06    19029     1024      6558534
+ in_rejected first_day_soil_other knot overshoot stability crossing empty pool
+        9.3%                  793  190       199         9      661          0
+       13.4%                  809 1123       225         9      657          0
+        5.2%                   10  165        99         0      661          0
+        5.2%                    9  130       163         0      641          0
+ other
+   877
+   891
+    96
+    90
+
+against pics_3e-5: member evaluations pics_3e-5 +0.00%; pi_3e-5 +3.81%; guard_pics_3e-5 -3.40%; guard_pi_3e-5 -4.14%
+against pics_3e-5: accepted steps pics_3e-5 +0.00%; pi_3e-5 -0.79%; guard_pics_3e-5 +0.92%; guard_pi_3e-5 +0.34%
+
+against pi_3e-5: member evaluations pics_3e-5 -3.67%; pi_3e-5 +0.00%; guard_pics_3e-5 -6.94%; guard_pi_3e-5 -7.66%
+against pi_3e-5: accepted steps pics_3e-5 +0.79%; pi_3e-5 +0.00%; guard_pics_3e-5 +1.72%; guard_pi_3e-5 +1.14%

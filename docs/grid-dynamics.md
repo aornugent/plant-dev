@@ -34,6 +34,12 @@ The scripts:
   integrates the soil chain alone, `harness/warm_start.R` sets its steps
   against the coupled run's, and `harness/chain_creation.R` finds where
   creation shuts. `harness/rows.R` scores driver runs in rows.
+
+**Reading the record.** Its interpolant passes through each day's rain at the
+knot that opens the day and reaches the next day's at the day's end, so over a
+day the rain moves toward the next day's value. `attempts.R` labels a knot by
+that move. The interval tallies (`step_program.R`, `soil_steps.R`) call a day
+wet by its own value, so an onset's rising day counts as dry there.
 - `harness/replay_timing.R` times the invader's replays on `PLANT-98`.
 - `harness/j_window.R` reads `harness/layer_heights.R`'s every-node runs, and
   `harness/error_structure.R` the thinned schedules.
@@ -44,7 +50,7 @@ The scripts:
 | | symptom | root cause | state |
 |---|---|---|---|
 | 1 | steps: 17 683 on long drought, 3637 on the constant record (3951 on its resolved grid) | the soil's accuracy at the norm's tolerance through each rain-rate change | established; on pulsed records no cheap lever, under constant rain the implicit soil saves 66% (§7); the chain alone predicts the steps (§12) |
-| 2 | 17.5–21% of attempts rejected | near knots, the controller's carried proposal; within a day after them, the soil's transient; far from them, the members' sign changes and near-empty pools | established; the chain alone's seeds remove 85% of the knots' rejections for 3.5% fewer member evaluations (§12), and with PI the rejections' cost falls from 18.2% to 9.3% of the run (§7). But a rejection turned into an accepted step is a row the sweeps pay: PI with the seeds costs a gradient run 5.8% more (§7). The first-day soil-bound ones are being tagged for class switches (§7) |
+| 2 | 17.5–21% of attempts rejected | near knots, the controller's carried proposal; within a day after them, the soil's transient; far from them, the members' sign changes and near-empty pools | established; the chain alone's seeds remove 85% of the knots' rejections for 3.5% fewer member evaluations (§12), and with PI the rejections' cost falls from 18.2% to 9.3% of the run (§7). But a rejection turned into an accepted step is a row the sweeps pay: PI with the seeds costs a gradient run 5.8% more (§7). The first-day soil-bound ones are the chain's own transient, not class switches, and a guard from the chain alone removes them (§7) |
 | 3 | the invader's first replay costs about two forwards | `run_mutant` re-runs the resident to keep its field | established; fixed on `PLANT-99` |
 | 4 | `J`'s time error does not follow the tolerance under plant's default absolute tolerance | near-empty pools, and steps across members' sign changes | established earlier; the pools fixed by the tied tolerance, under which the error stays within 0.46·tol but changes sign between tolerances (§13) |
 | 5 | gradients are a staircase in θ | sign changes sliding past the stages | established earlier; per-member events on a quintic interpolant remove it (§11) |
@@ -116,8 +122,11 @@ node count (`step_program.R`); the driver rejects 17.5% (`attempts.R`).
 - *Between 1 and 10 days after a knot there are 32.*
 - *In dry spells longer than 10 days, members and storage reject.* Members
   reject 266 there, storage 115 and the soil 2, at a rate of 25–27%.
-- *By the change, first attempts at a knot are rejected* at 0.51 where rain
-  starts, 0.51 where it falls, 0.39 where it rises and 0.07 where it stops.
+- *By the change over the day the knot opens, first attempts at a knot are
+  rejected* at 0.63 where rain starts, 0.64 where it rises, 0.41 where it
+  falls, 0.32 where it stops and 0.04 where it stays flat. An earlier reading
+  compared the daily values either side of the knot, which describes the day
+  before it on the interpolant (see *Reading the record*).
 - *A rejected first attempt at a knot is usually the whole day to the next
   knot* (median 1.0 day). The step accepted from there has a median of 0.31
   days.
@@ -326,14 +335,51 @@ tolerance). Tied tolerance throughout:
   - 661 at a crossing inside the attempt (storage 437, mass 145), which no law
     removes and the split does (§11);
   - 798 soil-bound attempts on the first to fourth step within a day after a
-    knot, mostly where rain falls or starts, whose ratio jumps about 8× after a
-    growth of only 1.03. An estimate smooth in `h` cannot jump so. The reply
-    reads them as kinks: members leave the lower-end class a median 0.26 days
-    before their upward crossing, so each onset brings class switches, and each
-    is a `C⁰` kink in that member's draw and so in the chain's rate. Being
-    tagged by whether a class changed inside the attempt;
+    knot, whose ratio jumps about 12× after a growth of about 1.01 (the 8× once
+    quoted was a ratio of medians). They are the chain's own transient (below);
   - 199 overshoots after a small ratio, 190 on knots (mostly storage-bound, 124
     of them at a crossing) and 9 at the stability limit.
+
+**The first-day rejections are the soil chain's own transient** (`rej_class/`).
+The strategy reply read them as kinks from members' class switches. Tested
+against the chain alone and a log of the members' classes:
+- *The chain alone reproduces them.* From the coupled soil state at each
+  rejected attempt's start, one Cash–Karp step of the chain alone, with no
+  members, at the attempt's size: its ratio is within 2× of the coupled one for
+  96–98% of them in all three runs (median 1.04 of it), and above 1.1 for
+  98–99%. It shows the same jump from the accepted step before, about 12×.
+- *Class switches are not them.* On the probe build, which repeats the run bit
+  for bit, 1 of 793 holds a class switch, 0.13%: the share among the first
+  day's accepted soil-bound attempts. Switches go with the members'
+  rejections: 34% of those on knots, 26% of overshoots, 23% of crossings. A
+  switch does show in the soil's estimate, 10²–10⁴ times the chain alone's,
+  but in dry soil where the ratio stays small: 3 of 42 such attempts rejected.
+- *What in the chain:* the drainage power law switching on as an onset or a
+  rise wets the top two layers. The ratio, with one term held at its value at
+  the step's start, against the full chain's: drainage 0.018, drainage
+  linearised 0.31, the saturation factor 0.49, the rain 0.85. `h|λ|/β` rises
+  from 0.07 on the step before to 0.26: the top layer's drainage rate
+  quadruples within a step. No clamp is hit.
+- *Where:* 68% follow an onset and 28% a rise, on the interpolant. Layer 1 binds
+  61% and layer 2 32%.
+- *Not cured by a program:* capping each first-day attempt at the chain alone's
+  own step catches 38% of them but caps 19% of accepted steps, a net +0.2%.
+- *A guard from the current state removes them* (the driver's `CHAIN_GUARD`):
+  before each step's first attempt, one step of the chain alone from the step's
+  soil state, shrinking the proposal by the rejection law while its ratio
+  exceeds 1.1. It costs a step of five scalars, about 1.4 µs in C++:
+
+  | `3e-5` | rejected | first-day soil | forward | rows | a gradient run |
+  |---|---|---|---|---|---|
+  | the tied baseline | 3912 | 1241 | 0 | 0 | 0 |
+  | PI + chain seeds | 1936 | 793 | −3.1% | +7.3% | +5.8% |
+  | PI + chain seeds + guard | 1021 | 10 | −6.4% | +8.4% | +6.3% |
+  | PI + guard | 1024 | 9 | −7.1% | +7.6% | +5.5% |
+
+  Under PI it makes the seeds unnecessary, but PI's rows remain.
+- *So these are accuracy rejections of the explicit chain,* inside its stability
+  region. An implicit chain held to the norm would keep them; out of the norm
+  they go (§10).
 
 **The sign changes of `J`'s error are the crossings'** (`pi/tables_chain.txt`). On
 the chain alone, under either law on long drought and under PI on the constant
@@ -721,7 +767,7 @@ What it can set before the run (`warm_start.R` against the tied baseline at
   | of them within a day of a knot | 10 423 | 12 716 | 10 650 |
   | rejected or thrown | 3912 | 2696 | 2888 |
   | of them on a knot | 1238 | 5 | 189 |
-  | first attempts rejected where the rain falls, rises, starts, stops | 58, 42, 51, 6% | 0, 0, 0, 0% | 5, 5, 4, 2% |
+  | first attempts rejected where the rain starts, rises, falls, stops, stays flat | 72, 62, 41, 34, 2% | 0, 0, 0, 0, 0% | 7, 4, 3, 4, 2% |
   | member evaluations | 7.06e6 | 7.47e6 | 6.81e6 |
   | rows | 962 505 | 1 098 303 | 976 047 |
   | a gradient run (`rows.R`) | | +12.9% | +0.7% |
@@ -937,6 +983,9 @@ to high order, which is the coupled step.
   the chain alone settles, and saves 1.0% of a gradient run (§7).
 - *Supported: the sign changes of `J`'s error under tol are the crossings',* not
   the controller's (§7, §11).
+- *Not supported: class switches as the first-day rejections.* They are the
+  chain's own drainage switching on; the chain alone, stepped from the current
+  state, removes them. Class switches go with the members' rejections (§7).
 - *Supported: the chain alone sets the step program, the knot seeds and the
   soil's bound before the run,* at 2.4e-4 of a forward. Its seeds remove 85% of
   the rejections at knots, and a gradient run comes out even (§12).
@@ -967,7 +1016,6 @@ design against, not a result).
 ## Next probes, each one variable
 
 Running:
-- the 798 tagged by whether a member's class changed inside the attempt (§7);
 - the sweep profiled: its cost per row by component, and the spread leaf area's
   slowdown (symptom 13);
 - the partition's drift root-caused (§13).

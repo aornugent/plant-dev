@@ -1,0 +1,3 @@
+chain run: tol 3e-05 rows 16447 rejected 2925 
+ratio, recomputed over recorded: max |rel diff| 3.05e-06 (median 9.53e-13); binding layer agrees on 0.9994
+end state over next start: max |rel diff| 1.11e-15

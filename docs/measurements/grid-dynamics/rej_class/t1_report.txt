@@ -1,0 +1,108 @@
+
+==== pics_3e-5: 'other' rejections within a day after a knot 798, soil-bound 793 (first tries 791)
+chain alone over coupled ratio, 10/50/90%: 1 / 1.04 / 1.18 
+  within x2: 97.7%  within x1.25: 91.7%  chain alone > 1.1 (rejects too): 98.2% 
+  coupled ratio 10/50/90%: 1.22 / 2.79 / 21.5 | chain alone: 1.29 / 3.32 / 22.1 
+  binding layer, coupled: 480/256/11/30/16 | chain alone: 478/259/32/15/9 | agree: 94.7% 
+accepted step before: soil-bound 99.4% ; its coupled ratio 0.0625 / 0.36 / 0.717 ; chain alone 0.0648 / 0.392 / 0.804 
+  chain alone over coupled on the step before (soil-bound ones): 0.957 / 1.03 / 1.68 ; within x2: 91.9% 
+  jump, rejected over step before: coupled 3.1 / 12.3 / 95.9 | chain alone 2.88 / 11.6 / 97 | growth h/h_before 0.835 / 1.01 / 1.27 
+timing: since the knot, in delta, 10/50/90%: 0.211 / 0.557 / 0.786 | accepted steps since the knot:
+
+  1   2   3   4   5   6 
+160 172 285 122  15  39 
+rain change over the day after the knot, on the interpolant:
+
+ falls  rises starts  stops 
+    25    220    543      5 
+rejected share of first tries within the day, by change (all first tries there):
+ falls   flat  rises starts  stops 
+ 0.014  0.000  0.142  0.185  0.001 
+by change, chain alone within x2 / chain alone > 1.1:
+              falls   rises  starts stops
+within2        0.96   0.923   1.000     1
+chain_rejects  0.84   0.973   0.993     1
+n             25.00 220.000 543.000     5
+by step since the knot, chain alone within x2 / > 1.1:
+                    1       2       3       4      5      6
+within2         0.988   0.983   0.979   0.967  0.933  0.949
+chain_rejects   0.988   0.971   1.000   0.992  0.867  0.897
+n             160.000 172.000 285.000 122.000 15.000 39.000
+all soil-bound attempts within the day (11359): chain alone over coupled 0.945 / 1.12 / 2.74; within x2 82.1%
+  of them accepted (10461): within x2 80.8%; chain alone > 1.1 on 4.8%
+soil-bound attempts over 10 days after a knot (320): chain alone over coupled 0.399 / 1.29 / 6.6
+  knot, soil-bound rejected (25): chain alone over coupled 1.02 / 1.1 / 1.83, within x2 92.0%
+  overshoot, soil-bound rejected (97): chain alone over coupled 1.02 / 1.05 / 1.11, within x2 97.9%
+  stability, soil-bound rejected (9): chain alone over coupled 1 / 6.22 / 8.04, within x2 33.3%
+
+==== pi_3e-5: 'other' rejections within a day after a knot 814, soil-bound 809 (first tries 809)
+chain alone over coupled ratio, 10/50/90%: 1 / 1.04 / 1.17 
+  within x2: 97.3%  within x1.25: 91.6%  chain alone > 1.1 (rejects too): 99.1% 
+  coupled ratio 10/50/90%: 1.26 / 2.76 / 21.4 | chain alone: 1.39 / 3.09 / 22.1 
+  binding layer, coupled: 489/258/15/28/19 | chain alone: 492/257/40/11/9 | agree: 94.8% 
+accepted step before: soil-bound 99.3% ; its coupled ratio 0.0631 / 0.35 / 0.732 ; chain alone 0.0633 / 0.381 / 0.828 
+  chain alone over coupled on the step before (soil-bound ones): 0.964 / 1.03 / 1.73 ; within x2: 91.5% 
+  jump, rejected over step before: coupled 3.28 / 11.3 / 90.8 | chain alone 2.94 / 11.1 / 101 | growth h/h_before 0.843 / 1.01 / 1.25 
+timing: since the knot, in delta, 10/50/90%: 0.222 / 0.547 / 0.784 | accepted steps since the knot:
+
+  1   2   3   4   5   6 
+172 176 277 118  21  45 
+rain change over the day after the knot, on the interpolant:
+
+ falls  rises starts  stops 
+    32    221    548      8 
+rejected share of first tries within the day, by change (all first tries there):
+ falls   flat  rises starts  stops 
+ 0.018  0.000  0.144  0.190  0.002 
+by change, chain alone within x2 / chain alone > 1.1:
+               falls   rises starts stops
+within2        0.938   0.919      1  0.75
+chain_rejects  0.938   0.977      1  1.00
+n             32.000 221.000    548  8.00
+by step since the knot, chain alone within x2 / > 1.1:
+                    1       2       3       4      5      6
+within2         0.977   0.983   0.982   0.949  0.952  0.933
+chain_rejects   0.994   0.994   1.000   0.992  0.857  0.978
+n             172.000 176.000 277.000 118.000 21.000 45.000
+all soil-bound attempts within the day (11225): chain alone over coupled 0.95 / 1.12 / 2.79; within x2 82.0%
+  of them accepted (10313): within x2 80.7%; chain alone > 1.1 on 4.8%
+soil-bound attempts over 10 days after a knot (300): chain alone over coupled 0.5 / 1.26 / 6.48
+  knot, soil-bound rejected (981): chain alone over coupled 0.983 / 1.07 / 1.22, within x2 97.7%
+  overshoot, soil-bound rejected (96): chain alone over coupled 1.02 / 1.05 / 1.09, within x2 96.9%
+  stability, soil-bound rejected (9): chain alone over coupled 1 / 4.53 / 7.74, within x2 44.4%
+
+==== base_3e-5: 'other' rejections within a day after a knot 1250, soil-bound 1241 (first tries 1235)
+chain alone over coupled ratio, 10/50/90%: 0.979 / 1.04 / 1.3 
+  within x2: 96.2%  within x1.25: 86.4%  chain alone > 1.1 (rejects too): 97.7% 
+  coupled ratio 10/50/90%: 1.26 / 3.16 / 18.7 | chain alone: 1.39 / 3.51 / 19.5 
+  binding layer, coupled: 633/438/34/99/37 | chain alone: 632/433/99/56/21 | agree: 91.1% 
+accepted step before: soil-bound 99.5% ; its coupled ratio 0.0766 / 0.315 / 0.737 ; chain alone 0.0814 / 0.358 / 0.984 
+  chain alone over coupled on the step before (soil-bound ones): 0.982 / 1.04 / 2.12 ; within x2: 88.7% 
+  jump, rejected over step before: coupled 2.91 / 11.9 / 97.9 | chain alone 2.13 / 11.7 / 105 | growth h/h_before 1 / 1.08 / 1.36 
+timing: since the knot, in delta, 10/50/90%: 0.2 / 0.47 / 0.765 | accepted steps since the knot:
+
+  1   2   3   4   5   6 
+355 291 298 192  43  62 
+rain change over the day after the knot, on the interpolant:
+
+ falls  rises starts  stops 
+    74    347    737     83 
+rejected share of first tries within the day, by change (all first tries there):
+ falls   flat  rises starts  stops 
+ 0.044  0.000  0.235  0.262  0.026 
+by change, chain alone within x2 / chain alone > 1.1:
+               falls   rises  starts  stops
+within2        0.959   0.908   1.000  0.855
+chain_rejects  0.932   0.948   0.996  0.976
+n             74.000 347.000 737.000 83.000
+by step since the knot, chain alone within x2 / > 1.1:
+                    1       2       3       4      5      6
+within2         0.952   0.976   0.970   0.964  0.953  0.919
+chain_rejects   0.983   0.979   0.993   0.979  0.837  0.952
+n             355.000 291.000 298.000 192.000 43.000 62.000
+all soil-bound attempts within the day (11184): chain alone over coupled 0.95 / 1.11 / 2.66; within x2 83.0%
+  of them accepted (9628): within x2 81.1%; chain alone > 1.1 on 8.3%
+soil-bound attempts over 10 days after a knot (278): chain alone over coupled 0.142 / 1.22 / 6.89
+  knot, soil-bound rejected (1092): chain alone over coupled 0.983 / 1.08 / 1.26, within x2 96.6%
+  overshoot, soil-bound rejected (268): chain alone over coupled 1.02 / 1.05 / 1.1, within x2 99.3%
+  stability, soil-bound rejected (48): chain alone over coupled 1 / 2.58 / 6.03, within x2 35.4%

@@ -1,0 +1,3 @@
+smoke_n2: J 124.104058143; OUT accepted 17334 rejected 1203, st rows 17334; log rows 18537 (accepted 17334, rejected 1203); side rows 196 (max row 18261); last time 40.000000
+probe_pics_3e-5: J 12.668816885; OUT accepted 18964 rejected 1936, st rows 18964; log rows 20900 (accepted 18964, rejected 1936); side rows 20457 (max row 20610); last time 40.000000
+guard_pics_3e-5: J 12.668781756; OUT accepted 19139 rejected 1021, st rows 19139; log rows 20160 (accepted 19139, rejected 1021); side rows 21210 (max row 19880); last time 40.000000
