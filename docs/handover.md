@@ -246,6 +246,19 @@ the node error on long drought*).
   The earlier tables left it out; no recorded part moved by more than 0.04% of
   `J`.
 
+**The grid's cost and error, debugged** (`docs/grid-dynamics.md`). From the runs
+on disk and a few driver probes:
+- *The steps are the soil's accuracy through each rain-rate change.* That
+  accuracy reaches `J` in proportion: a soil weight ×10 looser saves about 5%
+  at a matched error. So the record predicts the cost but offers no cheap
+  lever.
+- *The rejections near knots are the controller's cheap probe of the soil.* A
+  seed from the last knot of the same kind removes them and costs 7.9% more.
+- *The invader's first replay repeats the resident's forward,* about 12% of a
+  run with every gradient.
+- *Open:* the constant record's 19% rejections; the gradients under a looser
+  soil; R2's introduction nudge.
+
 **Step 3: the floor, checked run by run.** A bank of references was too slow
 (about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,
 every quantity under ε/6) and a node companion, and a spot-check on constant,

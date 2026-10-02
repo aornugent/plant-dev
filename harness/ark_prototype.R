@@ -14,6 +14,7 @@
 #     [CROSS_RESTART=0.1] [CROSS_CAP=1 [CROSS_TAIL=12]] [ONSET_CAP=0.3 [ONSET_SPAN=1.5]] \
 #     [TRANSIT=0.5] [KINK_FIX=1] \
 #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
+#     [ATOL=1e-4] [TOL_SOIL=10] [KNOT_SEED=1] [ATTEMPT_LOG=attempts.rds] \
 #     Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
@@ -50,6 +51,13 @@
 # each change of a member's leaf class, SPLIT takes the rows SPLIT_ROWS names as
 # that many steps, and a step that raises reports the stage and the pools it put
 # below zero.
+#
+# ATOL sets the absolute tolerance to that fraction of the relative one, 1e-4
+# for the tied tolerance; plant's default is 1. TOL_SOIL scales the soil layers'
+# tolerance weights. KNOT_SEED caps the first attempt after a knot where the
+# rain starts, rises or falls at the size accepted after the last knot of that
+# kind. ATTEMPT_LOG saves every attempt: its start, size, error ratio and binding
+# component, and whether it was rejected, thrown or clipped to its target.
 # Sourced, it defines the driver and does not run it.
 here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
 source(file.path(here, "long_drought.R"))
@@ -98,7 +106,7 @@ pars <- p$strategies[[1]]$pars
 p$node_schedule_times <- list(times)
 ct <- control()
 ct$ode_tol_rel <- tol
-ct$ode_tol_abs <- tol
+ct$ode_tol_abs <- as.numeric(Sys.getenv("ATOL", "1")) * tol
 ct$node_density_in_birth_date <- TRUE
 env <- mkenv()
 patch <- plant:::Patch("TF24", "TF24_Env")(p, env, ct)
@@ -137,6 +145,7 @@ ETA <- as.numeric(Sys.getenv("EVENT_ETA", "1e-3"))
 RESTART <- if (nzchar(Sys.getenv("EVENT_RESTART"))) as.numeric(Sys.getenv("EVENT_RESTART")) / 365 else NA
 CLASSES <- nzchar(Sys.getenv("CLASS_EVENTS"))
 LOCAL <- nzchar(Sys.getenv("LOCAL"))
+TOL_SOIL <- as.numeric(Sys.getenv("TOL_SOIL", "1"))
 TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
 POOL_FLOOR <- if (nzchar(Sys.getenv("POOL_FLOOR"))) as.numeric(Sys.getenv("POOL_FLOOR")) else NA
 KINK_EST <- nzchar(Sys.getenv("KINK_EST"))
@@ -459,6 +468,7 @@ reject <- function(h) {
 adjust <- function(h, y, yerr, dydt, kink = integer()) {
   level <- ct$ode_tol_rel * (ct$ode_a_y * abs(y) + ct$ode_a_dydt * abs(h * dydt)) +
     ct$ode_tol_abs
+  if (TOL_SOIL != 1) level[soil(y)] <- level[soil(y)] * TOL_SOIL
   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
     level[pool] <- (level[pool] - ct$ode_tol_abs * (1 - TOL_POOL_ABS)) * TOL_POOL
@@ -547,10 +557,21 @@ steps$states <- if (nzchar(Sys.getenv("STATES"))) list() else NULL
 steps$rows <- matrix(NA_real_, 60000, 12,
                      dimnames = list(NULL, c("time", "h", "er", "ei", "M", "x_soil",
                                              paste0("soil_", 1:5), "cap")))
+attempt_log <- new.env()
+attempt_log$k <- 0L
+attempt_log$rows <- matrix(NA_real_, 80000, 7, dimnames = list(NULL, c("t0", "h", "ratio", "index", "rejected", "thrown", "final")))
+KNOT_SEED <- Sys.getenv("KNOT_SEED") == "1"
+knot_memory <- new.env()
+knot_kind <- function(t) {
+  before <- rain_at(t - 0.5 / 365); after <- rain_at(t + 0.5 / 365)
+  if (before == 0 && after > 0) "starts" else if (before > 0 && after == 0) "stops" else if (after > before) "rises" else "falls"
+}
 step <- function(target) {
   t0 <- sv$t
   remaining <- target - t0
   h <- sv$h_last
+  kind_here <- if (KNOT_SEED && t0 > 0 && t0 %in% pulses) knot_kind(t0) else NA_character_
+  if (!is.na(kind_here) && kind_here != "stops" && !is.null(knot_memory[[kind_here]])) h <- min(h, knot_memory[[kind_here]])
   if (method == "held") h <- min(h, HELD_MARGIN * BETA / lambda_soil(sv$y, t0))
   cap <- cap_at(t0, h)
   h <- min(h, cap[1])
@@ -598,6 +619,10 @@ step <- function(target) {
         n$accepted <- n$accepted + 1
       }
     }
+    attempt_log$k <- attempt_log$k + 1L
+    if (attempt_log$k > nrow(attempt_log$rows)) attempt_log$rows <- rbind(attempt_log$rows, attempt_log$rows * NA)
+    attempt_log$rows[attempt_log$k, ] <- c(t0, h, if (is.null(a)) NA else ctl$ratio, if (is.null(a)) NA else ctl$index,
+                                            as.numeric(isTRUE(ctl$shrank)), as.numeric(is.null(a)), as.numeric(final))
     if (ctl$shrank) {
       if (hn < h && t0 + hn > t0) {
         h <- hn
@@ -606,6 +631,7 @@ step <- function(target) {
       }
       stop(sprintf("Cannot achieve the desired accuracy at t = %.17g", t0))
     }
+    if (!is.na(kind_here)) knot_memory[[kind_here]] <- h
     sv$t <- if (final) target else t0 + h
     if (!final && !at_crossing) sv$h_last <- hn
     if (at_crossing && !is.na(RESTART)) sv$h_last <- RESTART
@@ -757,6 +783,7 @@ if (sys.nframe() == 0L) {
                 if (identical(as.numeric(ref$attempts[names(att)]), as.numeric(att))) "identical" else "differ",
                 if (same) "identical" else "differ"))
   }
+  if (nzchar(Sys.getenv("ATTEMPT_LOG"))) saveRDS(as.data.frame(attempt_log$rows[seq_len(attempt_log$k), , drop = FALSE]), Sys.getenv("ATTEMPT_LOG"))
   if (!is.null(steps$states)) saveRDS(steps$states, Sys.getenv("STATES"), compress = FALSE)
   if (nzchar(Sys.getenv("OUT"))) {
     saveRDS(list(method = method, nodes = nodes, tol = tol, J = J, attempts = att,

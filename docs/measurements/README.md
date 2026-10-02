@@ -35,6 +35,10 @@ verdict where it has one.
 | `spot-check.md` | the floor at `3e-5` on 108 nodes, checked by its companions on constant, dry, episodic and wet: the tolerance check passes on episodic, fails by one quantity on wet and long drought, and fails on dry; 54 nodes is too coarse to check 108, and 215 nodes puts the main traits' 108-node error within ε on long drought and episodic but not wet (1.19ε); on wet and dry the check points to `1e-5` on 215 nodes; the small elasticities miss their ε everywhere; on a constant record uniform nodes lump the founders, the cohorts born in the first 23 days, into the first node, so its `J` and the invader's gradient are artefacts; resolved, `J` is 288–292 | current |
 | `creation-grid.md` | the grid consultation's second reply tested: on the constant record creation runs past the founders' front, so the reply's rule as written is 14% high, and a grid graded to the front with nodes every 1/16 day around it converges `J` (289.274) and both roles' gradients on 150 nodes; the invader's cliff is smooth there, `(ln J')'' ≈ -2.5e4`; on long drought uniform nodes are on the square law from 108 (ratio 4.3) for `J` and the resident, the 54 rung being what fit no power law; the invader's gradients reverse sign there, and only the reply's graded grid puts them on the square law, which costs `J` accuracy at a matched cost; what sets the node error there: two opposite errors at the layer's top, where uniform nodes' crowns are 2.8–4.8 top layers apart early in the race, not the gap's edges; graded rungs from G1 report their error at 1.0–1.2 and extrapolate to 0.006ε | current |
 
+The debugging record of the grid's cost and error across the system, the solver
+and the controller is `docs/grid-dynamics.md`, with its driver logs in
+`grid-dynamics/`.
+
 ## The half-order loss
 
 `diag-gradient-error.md` measured gradient orders of 1.34 against a value's
