@@ -51,7 +51,7 @@ The scripts:
 | 6 | the invader's node error changes sign under halving on uniform nodes | two opposite errors at the layer's top that shrink at different rates | established; the field part is the soil's for `J` and light's for the invader, and spreading each panel's leaf area removes the light part (`canopy-spread.md`) |
 | 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the step-size law cycles across the limit | established; the implicit soil pays there, and on the chain alone a PI law leaves 6 of 1009 rejections; coupled, PI saves 1.0% of a gradient run (§7) |
 | 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established; a rule from a 54-node pilot saves 21–28% of a forward's member evaluations and as many rows at ≤ 0.08ε on three pulsed records, but a failing invader's pools are unstable on its loosened steps (§8) |
-| 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not |
+| 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not. Superseded by per-member events (§11) |
 | 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps, and the chain implicit and out of the norm together is untested (§10) |
 | 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11); its cost in the sweeps not measured |
 | 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift toward a fixed bias as the members' tolerance tightens is not traced | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop; the drift likely a defect in the corrections, not traced |
@@ -102,7 +102,8 @@ steps, and the stepper scope found its stages carry little of `J`'s time error.
 rain-rate change, and that accuracy reaches `J` in proportion. So the record
 predicts the cost, but no weight on the soil buys accuracy cheaply. What
 remains is the method's efficiency on the soil, or the tolerance itself: `J`'s
-time error at `1e-4` is 3.7e-5, under 2e-3 of its ε.
+time error at `1e-4` is 3.7e-5, under 2e-3 of its ε. The method's efficiency
+means the chain implicit and out of the norm, together (§10).
 
 ## 2. The rejections
 
@@ -176,8 +177,9 @@ first invasion walks that.
     kg. The tied tolerance fixes that: `J` within 0.46·tol from `1e-3` to
     `3e-5`.
   - The steps across members' sign changes remain. Cash–Karp's estimate
-    under-reports them 4.6× (median), and every treatment tried costs 3–4×:
-    refusal, split, and locate-and-step. §9 limits the refusal to the window.
+    under-reports them 4.6× (median), and every treatment tried cost 3–4×:
+    refusal, split, and locate-and-step. §9 limits the refusal to the window,
+    and §11 prices the split at its real cost, 10.2% of a forward.
 - *The staircase* (the spec's step 5). The kinks bind curvatures (a chord over
   ±1e-2) and small differences (0.004–0.007 in the invader's `lma` elasticity
   at ±1e-6).

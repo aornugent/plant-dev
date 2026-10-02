@@ -806,6 +806,12 @@ Each heuristic is a rule, a guarantee and a check:
 Degrading is one loop: build a grid, check it, refine where the check fails,
 and at worst reach brute force.
 
+A heuristic is scored on what a run with every gradient pays: rows first, then
+the sweep's cost per row, the forward's per row and rejections, at ε on the
+gradients' spread under nudges rather than on `J` (`grid-dynamics.md`, *What a
+gradient run pays*). The step axis's candidates, ordered so, are that record's
+*Next probes*.
+
 **The node axis, proposed from step 4's measurements** (system-design, Tier 2:
 a schedule is the seam between plant and every analysis that holds a grid, and
 it can still be changed). The measurements are in
