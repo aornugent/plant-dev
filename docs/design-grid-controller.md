@@ -863,8 +863,9 @@ fails R4: the companion reports 0.41 of the invader's error at 215 nodes and
 - C's maps could not be read off plant's sweep when B was picked, and its grid
   would move within a local analysis. The spike since reads them; whether that
   moves the pick is open.
-- D can delete B's grading but changes plant and every reference, and the comb
-  as the cause is inferred, not isolated. It is the experiment to run next.
+- D can delete B's grading but changes plant and every reference. When B was
+  picked the comb as the cause was inferred, not isolated; D has run since
+  (below).
 
 *The commitment:* a schedule is a fixed structure refined only by halving every
 panel. Kept true by the harness: each rung is `graded_times.R`'s `halve()` of
@@ -896,6 +897,27 @@ one rung finer, and A's monitor on a pilot.
 *Kill condition:* D making uniform nodes honest for the invader, which hands the
 node axis to uniform halving; or a record whose graded rungs give no ratio near
 4, which hands it to A.
+
+**D, run** (`docs/measurements/canopy-spread.md`).
+- *The comb is the cause,* isolated on the invader's `lma`. Spreading each panel
+  takes the top's field part of 108 → 215 from +0.380 to −0.034 and leaves the
+  interpolation part unchanged.
+- *Spread uniform nodes report their error on long drought,* which meets B's kill
+  condition there. Over all 49 quantities at seed 31 the median ratios are
+  3.6–3.9 and the companions 0.93–1.09; the invader's `lma` gives 4.11 and 3.89
+  at seeds 101 and 103.
+- *What it leaves open:*
+  - single spread rungs are coarse (u108 0.7–3ε off), so the rule reports the
+    two-rung extrapolation;
+  - wet's and dry's spread ladders are not run to u429;
+  - the constant record still needs its front nodes;
+  - the resident's sweep ran 1.7–3.4× slower spread, unexplained;
+  - it changes plant's birth-date competition sum and every reference.
+- *At matched error,* for the invader's `lma`, each with a companion that
+  reports its error: spread uniform u108 + u215 costs 2.93e6 member-steps for
+  0.006ε, lumped graded G1 + G2 3.81e6 for 0.002ε, and G2 alone 2.56e6 for
+  0.044ε.
+- Moving the node axis to D changes plant, so it is the user's decision.
 
 ## Running it
 

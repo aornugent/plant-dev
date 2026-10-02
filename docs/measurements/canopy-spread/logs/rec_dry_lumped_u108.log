@@ -1,0 +1,3 @@
+start 2026-10-02T04:52:16Z inv_probe2.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/sched/t_u108.rds REGIME=dry OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/runs/rec_dry_lumped_u108.rds
+dry, seed 31, 108 nodes, rule 21, probe [PLANT_PROBE_KNOTS= PLANT_PROBE_SPREAD= PLANT_PROBE_SELF=]: J 1.189627257; invader lma elasticity -35.4118 by central difference over 1e-06; 9134 steps; 202 s
+exit 0 2026-10-02T04:55:39Z elapsed 203 s

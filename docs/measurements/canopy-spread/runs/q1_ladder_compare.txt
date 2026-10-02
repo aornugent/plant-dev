@@ -1,0 +1,64 @@
+== the asked quantities: ratio of successive moves (* where resolved), errors at the three rungs (eps), companion over error at rungs 2 and 3
+
+-- lumped_uniform 
+                         q    ratio                  err companion
+              invader ln J    4.31* -0.230 -0.055 -0.015 1.05 0.91
+               invader lma   -3.06* -0.152 +0.336 +0.177 0.48 0.30
+             invader a_dG2   12.89* +0.059 +0.007 +0.002 2.67 0.55
+              invader hmat  -13.87  +0.037 -0.005 -0.002 2.90 0.56
+          invader stem_P50   -1.94* +0.018 -0.205 -0.090 0.36 0.43
+               invader rho   -1.36* +0.101 +0.307 +0.156 0.22 0.32
+ invader recruitment_decay    5.51* -0.633 -0.124 -0.032 1.37 0.97
+               invader a_y   -2.45* +0.049 -0.371 -0.200 0.38 0.29
+             invader a_bio   -2.45* +0.049 -0.371 -0.200 0.38 0.29
+              invader a_f1    1.37  +0.038 +0.018 +0.004 0.36 1.29
+              invader a_l2   -0.71* -0.220 -0.339 -0.170 0.12 0.33
+             invader theta   -1.44* +0.098 +0.294 +0.158 0.22 0.29
+           invader jmax_25   -2.85* +0.110 -0.338 -0.181 0.44 0.29
+             resident ln J    4.31* -0.230 -0.055 -0.015 1.05 0.91
+              resident lma   14.69  +0.352 +0.037 +0.016 2.81 0.45
+
+-- spread_uniform 
+                         q    ratio                  err companion
+              invader ln J    3.34* +0.204 +0.058 +0.014 0.84 1.05
+               invader lma    3.86* +2.089 +0.528 +0.124 0.99 1.09
+             invader a_dG2    2.64* -0.123 -0.041 -0.010 0.67 1.07
+              invader hmat    4.14* +0.558 +0.136 +0.035 1.03 0.98
+          invader stem_P50    3.60* -1.152 -0.301 -0.065 0.94 1.21
+               invader rho    4.02* +1.850 +0.457 +0.110 1.02 1.05
+ invader recruitment_decay    6.52* -0.464 -0.079 -0.020 1.62 0.97
+               invader a_y    4.02* -2.077 -0.512 -0.123 1.02 1.05
+             invader a_bio    4.02* -2.077 -0.512 -0.123 1.02 1.05
+              invader a_f1    4.11* -0.401 -0.099 -0.026 1.01 0.95
+              invader a_l2    4.06* -1.892 -0.463 -0.111 1.03 1.05
+             invader theta    4.15* +1.806 +0.438 +0.108 1.04 1.01
+           invader jmax_25    3.91* -2.259 -0.568 -0.135 0.99 1.07
+             resident ln J    3.34* +0.204 +0.058 +0.014 0.84 1.05
+              resident lma    3.53  +0.830 +0.224 +0.053 0.90 1.09
+
+== by group, outside the small four: resolved quantities, their median ratio, below 0, in 2.5-6;
+   median |error| at each rung (eps); median companion over error where the error exceeds 0.05 eps
+
+-- lumped_uniform 
+                n resolved median_ratio below0 in_2.5_6  err1  err2  err3 comp2
+invader main    6        5       -1.363      3        1 0.080 0.130 0.052 0.423
+invader other  39       35       -1.444     28        3 0.088 0.211 0.100 0.377
+resident main   6        2        5.806      0        1 0.250 0.035 0.014 1.018
+resident other 39        3        4.461      0        2 0.254 0.028 0.013 1.242
+               comp3
+invader main   0.324
+invader other  0.328
+resident main     NA
+resident other    NA
+
+-- spread_uniform 
+                n resolved median_ratio below0 in_2.5_6  err1  err2  err3 comp2
+invader main    6        6        3.731      0        6 0.855 0.219 0.050 0.985
+invader other  39       39        3.826      1       36 1.182 0.296 0.067 0.977
+resident main   6        3        3.882      0        3 0.695 0.175 0.044 0.935
+resident other 39       14        3.585      0       13 0.651 0.185 0.043 0.930
+               comp3
+invader main   1.091
+invader other  1.081
+resident main  1.034
+resident other 1.055

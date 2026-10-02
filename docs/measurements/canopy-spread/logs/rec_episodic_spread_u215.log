@@ -1,0 +1,3 @@
+start 2026-10-02T04:43:45Z inv_probe2.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/lib3 TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/sched/t_u215.rds REGIME=episodic PLANT_PROBE_SPREAD=8 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/runs/rec_episodic_spread_u215.rds
+episodic, seed 31, 215 nodes, rule 21, probe [PLANT_PROBE_KNOTS= PLANT_PROBE_SPREAD=8 PLANT_PROBE_SELF=]: J 1.986134538; invader lma elasticity -26.2928 by central difference over 1e-06; 11592 steps; 495 s
+exit 0 2026-10-02T04:52:01Z elapsed 496 s

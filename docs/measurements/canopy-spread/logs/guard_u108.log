@@ -1,0 +1,3 @@
+start 2026-10-02T00:03:56Z invader_nodes.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/sched/t_u108.rds OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/runs/guard_u108.rds
+long-drought, seed 31, 108 nodes: J 12.66855437; invader lma elasticity -27.0764 by central difference over 1e-06
+exit 0 2026-10-02T00:10:52Z elapsed 416 s

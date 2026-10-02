@@ -1,0 +1,3 @@
+start 2026-10-02T00:04:25Z inv_probe.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/sched/t_u215.rds RULE=61 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/runs/qk61_u215.rds
+long-drought, seed 31, 215 nodes, rule 61, probe [PLANT_PROBE_KNOTS= PLANT_PROBE_SPREAD= PLANT_PROBE_SELF=]: J 12.72465295; invader lma elasticity -26.9907 by central difference over 1e-06; 18180 steps; 845 s
+exit 0 2026-10-02T00:18:31Z elapsed 846 s

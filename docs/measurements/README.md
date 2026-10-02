@@ -39,7 +39,9 @@ The debugging record of the grid's cost and error across the system, the solver
 and the controller is `docs/grid-dynamics.md`, with its driver logs and the
 every-node runs behind its window in `grid-dynamics/`. The field adjoint map's
 spike is `field-adjoint-map.md`, with its patch, scripts and logs in
-`field-adjoint-map/`.
+`field-adjoint-map/`. The spread canopy's, the node rule's candidate D, is
+`canopy-spread.md`, with its patches, scripts, runs and logs in
+`canopy-spread/`.
 
 ## The half-order loss
 

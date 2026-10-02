@@ -383,10 +383,15 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   graded `J` reaches the square law only past 494 nodes, and wet's, dry's and
   episodic's gradients on graded ladders are not run. Next: the graded ladder on
   each, with the crowns' overlap at the top from `layer_heights.R`.
-- **D, a canopy that cannot comb, is the experiment that could delete B's
-  grading:** each panel's leaf area spread over its members' heights, in plant's
-  birth-date competition sum. Whether to change plant for it is the user's
-  call.
+- **D, a canopy that cannot comb, has run** (`docs/measurements/canopy-spread.md`).
+  Each panel's leaf area spread over its members' heights removes the top's
+  field anomaly, and spread uniform nodes report their error on long drought:
+  ratios 3.6–3.9 and companions 0.93–1.09 over 49 quantities, and the invader's
+  `lma` on two more seeds. Single spread rungs are coarse, so the rule reports
+  the two-rung extrapolation. Wet and dry are not run to u429, the constant
+  record still needs front nodes, and the resident's sweep ran 1.7–3.4× slower,
+  unexplained. Whether to change plant's birth-date competition sum for it is
+  the user's call.
 - **De2's and Gn2's invader phases were lost to a restart;** their coarse rungs
   settle the edges, so they were not rerun.
 - **Whether to build a node rule for records whose canopy is never thinned:**
