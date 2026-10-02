@@ -165,6 +165,8 @@ weight.
   coupled run's first attempt, the chain's first step would pass at 96% of knots
   by the local error's fifth order, at a median 0.69 of the longest that would.
   The coupled run's own first accepted step, after its rejections, is 0.73.
+  Run that way, first attempts at knots are rejected at 2–5%, against 6–58%.
+  Rejections at knots fall from 1238 to 189 and member evaluations 3.5%.
 - The chain alone costs `2·10⁻⁴` of a forward, and it tells which bound holds:
   4.9% of its steps start at `h|λ|/β ≥ 0.8` on the test record and 99.4% under
   constant forcing, against the coupled runs' 1.5% and 83%.
@@ -312,7 +314,8 @@ we write.
 - up to 1.42× from `tol = 1e-4` in place of `1e-5`;
 - 1.27× from the window in time, and 1.12× from the creation grid;
 - 1.6× and more in the probes;
-- removing about 16% of attempts, the rejections at knots, from the seeds;
+- 3.5% of member evaluations from the seeds, measured: they remove 85% of the
+  rejections at knots;
 - 2–3× on the forwards' member evaluations from (e), your earlier estimate. The
   sweeps differentiate at recorded solutions and gain nothing from it.
 

@@ -418,12 +418,26 @@ What it can set before the run (`warm_start.R` against the tied baseline at
   6.03 coupled, correlation 0.76, and 89% of intervals differ by at most one
   step. The first accepted step after each knot, coupled over chain alone, has
   median 1.00 (10–90%: 0.87–1.3).
-- *Each knot's first attempt: likely.* Taken as the coupled run's first attempt,
+- *Each knot's first attempt: yes.* Taken as the coupled run's first attempt,
   the chain's first step would pass the error test at 96% of knots, by the
   local error's fifth order. Where it passes it is a median 0.69 of the longest
   step that would; the coupled run's own first accepted step, after its
-  rejections, is 0.73. §2's seed from the last knot of the same kind was too
-  short. The driver's test is open.
+  rejections, is 0.73. On the driver (`CHAIN_SEED`, then `attempts.R`):
+
+  | | the tied baseline | chain seeds |
+  |---|---|---|
+  | accepted | 17 684 | 17 916 |
+  | rejected or thrown | 3912 | 2888 |
+  | of them on a knot | 1238 | 189 |
+  | first attempts rejected where the rain falls, rises, starts, stops | 58, 42, 51, 6% | 5, 5, 4, 2% |
+  | member evaluations | 7.06e6 | 6.81e6 |
+  | states evaluated past the inflow switch, the loss clamp, the floor | 162, 320, 85 | 0, 1, 0 |
+  | `J − J*`, relative | −1.26e-5 | −1.73e-5 |
+
+  The seeds remove 85% of the rejections at knots and save 3.5% of member
+  evaluations, where §2's seed from the last knot of the same kind cost 7.9%.
+  The other rejections are unchanged; most fall within a day of a knot, on the
+  soil.
 - *Which bound holds on the soil: yes.* The chain alone starts 4.9% of its steps
   at `h|λ|/β ≥ 0.8` on long drought and 99.4% under constant rain, against the
   coupled Cash–Karp runs' 1.5% and 83% (§7).
@@ -485,7 +499,8 @@ the run's tolerance a quarter of the forward's members places the windows.
   tail is linear, the chain takes more steps.
 - *Supported: per-member events are cheap,* 3.8% counted per member (§11).
 - *Supported: the chain alone sets the step program, the knot seeds and the
-  soil's bound before the run,* at 2.4e-4 of a forward (§12).
+  soil's bound before the run,* at 2.4e-4 of a forward. Its seeds remove 85% of
+  the rejections at knots (§12).
 - *Not supported: the chain alone as a probe for the creation grid.* The members
   make the gaps; a pilot at the run's tolerance with a quarter of its nodes
   finds 97% of their time (§12).
@@ -500,9 +515,6 @@ the run's tolerance a quarter of the forward's members places the windows.
   members on their own steps. Does `J` hold at the members' 9176 steps?
 - per-member events in plant, with one member evaluated in the step's
   interpolated field, on the gradients' spread under tolerance nudges;
-- each knot's first attempt seeded from the chain alone's first accepted step
-  there (§12), against §2's seed from the last knot of the same kind, which was
-  too short;
 - the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at
   t = 25, on a second pulsed record;
 - the invaders' windows at ×0.5 and ×2 of the resident, which bound a shared
