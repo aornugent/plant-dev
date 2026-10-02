@@ -274,9 +274,17 @@ on disk and a few driver probes:
   dropping every other node of the held run, it predicts the field part at
   0.99–1.00× for `J` and 0.94–0.99× for the invader, for +12% of a sweep. `J`'s
   field part is water; the invader's is light.
-- *Open:* the invaders' windows for a shared grid; the window-limited refusal
-  on the gradients' continuity; the gradients under a looser soil; R2's
-  introduction nudge.
+- *The soil chain sets the steps on its own:* alone, with no uptake, it takes
+  16 447 of the coupled run's 17 684. Its cost is the answer on rain intervals,
+  not drainage's tail (integrated where that tail is linear it takes more). With
+  the soil and accumulators out of the norm the members need 9176 steps and 41%
+  fewer member evaluations, but the explicit soil is then unstable.
+- *The per-member split that cures the gradients was priced on the harness:*
+  the driver evaluates every member to read one. Counted per member it adds
+  3.8%, the grid reply's estimate.
+- *Open:* a partitioned step, the soil sub-stepped with uptake re-derived from
+  held collar suctions; per-member events in plant; the invaders' windows for a
+  shared grid; the gradients under a looser soil; R2's introduction nudge.
 
 **Step 3: the floor, checked run by run.** A bank of references was too slow
 (about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,

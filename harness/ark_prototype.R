@@ -14,7 +14,7 @@
 #     [CROSS_RESTART=0.1] [CROSS_CAP=1 [CROSS_TAIL=12]] [ONSET_CAP=0.3 [ONSET_SPAN=1.5]] \
 #     [TRANSIT=0.5] [KINK_FIX=1] \
 #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
-#     [ATOL=1e-4] [TOL_SOIL=10] [KNOT_SEED=1] [ATTEMPT_LOG=attempts.rds] \
+#     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [ATTEMPT_LOG=attempts.rds] \
 #     [LATE_FROM=25 [LATE_FACTOR=100]] [REGIME=long-drought] [TIMES=times.rds] \
 #     Rscript harness/ark_prototype.R
 #
@@ -57,10 +57,11 @@
 #
 # ATOL sets the absolute tolerance to that fraction of the relative one, 1e-4
 # for the tied tolerance; plant's default is 1. TOL_SOIL scales the soil layers'
-# tolerance weights. KNOT_SEED caps the first attempt after a knot where the
-# rain starts, rises or falls at the size accepted after the last knot of that
-# kind. ATTEMPT_LOG saves every attempt: its start, size, error ratio and binding
-# component, and whether it was rejected, thrown or clipped to its target.
+# tolerance weights, and TOL_ACC the flux accumulators'. KNOT_SEED caps the
+# first attempt after a knot where the rain starts, rises or falls at the size
+# accepted after the last knot of that kind. ATTEMPT_LOG saves every attempt:
+# its start, size, error ratio and binding component, and whether it was
+# rejected, thrown or clipped to its target.
 # LATE_FROM scales every tolerance weight by LATE_FACTOR on steps that start at
 # or after that time. REGIME runs another record of harness/long_drought.R's
 # bank; OUT saves the record's rain and knots. TIMES reads the introductions
@@ -158,6 +159,7 @@ RESTART <- if (nzchar(Sys.getenv("EVENT_RESTART"))) as.numeric(Sys.getenv("EVENT
 CLASSES <- nzchar(Sys.getenv("CLASS_EVENTS"))
 LOCAL <- nzchar(Sys.getenv("LOCAL"))
 TOL_SOIL <- as.numeric(Sys.getenv("TOL_SOIL", "1"))
+TOL_ACC <- as.numeric(Sys.getenv("TOL_ACC", "1"))
 LATE_FROM <- as.numeric(Sys.getenv("LATE_FROM", NA))
 LATE_FACTOR <- as.numeric(Sys.getenv("LATE_FACTOR", "100"))
 TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
@@ -483,6 +485,7 @@ adjust <- function(h, y, yerr, dydt, kink = integer()) {
   level <- ct$ode_tol_rel * (ct$ode_a_y * abs(y) + ct$ode_a_dydt * abs(h * dydt)) +
     ct$ode_tol_abs
   if (TOL_SOIL != 1) level[soil(y)] <- level[soil(y)] * TOL_SOIL
+  if (TOL_ACC != 1) level[length(y) - 4:0] <- level[length(y) - 4:0] * TOL_ACC
   if (!is.na(LATE_FROM) && sv$t >= LATE_FROM) level <- level * LATE_FACTOR
   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6

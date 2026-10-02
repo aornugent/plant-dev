@@ -15,8 +15,10 @@ The scripts:
   bit for bit, on v12 (`lib_v12t`). Its new options are `ATTEMPT_LOG`,
   `KNOT_SEED`, `TOL_SOIL`, `ATOL`, `LATE_FROM`, `REGIME`, `TIMES`, and
   `SWITCH_BORN` with `SWITCH_UNTIL`.
-- `harness/attempts.R` reads the driver's attempt logs, and
-  `harness/crossings.R` its crossing logs and refusal runs.
+- `harness/attempts.R` reads the driver's attempt logs,
+  `harness/crossings.R` its crossing logs and refusal runs, and
+  `harness/soil_steps.R` what bounds its steps. `harness/soil_chain.R`
+  integrates the soil chain alone.
 - `harness/replay_timing.R` times the invader's replays on `PLANT-98`.
 - `harness/j_window.R` reads `harness/layer_heights.R`'s every-node runs, and
   `harness/error_structure.R` the thinned schedules.
@@ -35,6 +37,8 @@ The scripts:
 | 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the controller crosses the limit | established; the implicit soil pays there |
 | 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established on long drought |
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not |
+| 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps |
+| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 3.8% counted per member |
 
 ## 1. The steps
 
@@ -337,6 +341,71 @@ tolerance as step 4 ran it. `J − J*` relative, member evaluations in brackets:
   Under the tied tolerance `J` already follows the tolerance, and what the
   crossings still break is the gradients' continuity in θ, not measured here.
 
+## 10. What sets the soil's steps
+
+**Reproduced** (`soil_steps.R` on the tied baseline at `3e-5`):
+- *Three quarters of the steps start within a day of a rain change.* A rain
+  interval takes 5.6 steps; a dry interval 6.4, 3.6 of them in its first day.
+- *Every layer binds,* and members and storage bind 28% of the dry intervals'
+  steps.
+- *Inside an interval, a soil-bound step's error ratio has median 0.36 on rain
+  intervals and 0.085 in dry ones,* and the next step grows ×1.0 and ×1.2. On
+  rain intervals the soil is at its accuracy; in dry ones the controller is
+  still growing the step.
+
+**Hypothesis 1: the soil's steps are its own answer to the forcing, not the
+plants'.**
+- *Test:* the chain alone, with no uptake (`soil_chain.R`): 16 447 accepted
+  steps against 17 684 coupled.
+- *Confirmed.* The plants add 7%.
+
+**Hypothesis 2: the cost is drainage's power-law tail.** After rain a layer
+drains as `θ ∝ t^{−1/(q−1)}`, and its rate falls as one over the time since the
+rain.
+- *Test:* the chain in `u = θ^{1−q}`, in which a layer draining with nothing
+  above it moves linearly in time: 20 275 steps. Dry intervals take 7% fewer,
+  rain intervals 38% more.
+- *Refuted.* The cost is the answer on rain intervals, whose wetting fronts `u`
+  sharpens.
+
+**Stiffness and instability.**
+- *On the pulsed records the soil relaxes about as fast as the forcing moves
+  it:* `h|λ|/β` has median 0.27–0.45 on soil-bound rain steps and 0.07–0.56 on
+  dry ones. With no scale to separate, an implicit soil buys no longer steps,
+  which is why ARK did not pay on long drought (step 4).
+- *Under constant rain the drainage is steady and stiff, and nothing moves:*
+  stability binds, and ARK pays (§7).
+- *Stepped at the members' pace, the explicit soil is unstable.* With the soil
+  and the flux accumulators out of the error norm (`TOL_SOIL=1e6 TOL_ACC=1e6`),
+  21% of steps start beyond its stability limit and `J` falls 10.7%.
+
+**What the members need on their own.** In that run the members bind 95% of
+9176 steps: 2.5 per rain interval and 3.7 per dry one, in 4.14e6 member
+evaluations against 7.06e6. That bounds their demand from above, since the
+unstable soil disturbs them.
+
+**Root cause.** Five scalar equations, the soil chain answering each rain
+change, set 93% of the steps. A monolithic step pays the members' leaf solves
+at each of them, and the chain cannot step at the members' pace, where it is
+unstable.
+
+## 11. The crossings' cure, priced
+
+- *The mechanism is the grid reply's* (`docs/oracle-response-grid-controller.md`).
+  A node's crossing of zero net production is a kink at any step size. On one
+  grid the gradient's error is first order in the crossing step's length, and
+  the second derivative between the gradient's jumps is off at zeroth order.
+- *Its cure was set aside at four times a plain replay:* split each crossing
+  member's update at its crossing, and differentiate the crossing's time.
+- *That cost is the driver's.* Each of the split's member evaluations calls
+  `patch$derivs`, which evaluates every member. On the per-pool scale's grid at
+  `1e-4` the split re-integrated 9229 members in 167 256 full evaluations, 18
+  each with the crossing found to `|P| < 5e-11`. The replay's own 80 232
+  evaluations held 4.38e6 member evaluations (`split_u108_1e-4_lma_±1e-4.log`).
+- *Counted per member, the split adds 3.8%,* the reply's estimate of 4%. It
+  needs plant to evaluate one member in a step's interpolated field, which it
+  cannot do today.
+
 ## What the record supports, and what it does not
 
 - *Supported: the record predicts the cost.* Steps per rain day follow its depth,
@@ -357,10 +426,22 @@ tolerance as step 4 ran it. `J − J*` relative, member evaluations in brackets:
 - *Not supported: the cohort that earns `J` as the only one whose crossings
   matter.* Later cohorts carry 40% of `J`'s time error at `1e-4` under plant's
   default tolerance (§9).
+- *Supported: the soil chain sets the steps on its own* (§10). The members
+  need about half of them.
+- *Not supported: drainage's tail as the soil's cost.* Integrated where that
+  tail is linear, the chain takes more steps.
+- *Supported: per-member events are cheap,* 3.8% counted per member (§11).
 - *One runtime defect is plain:* the invader's first replay repeats the
   resident's forward.
 
 ## Next probes, each one variable
+
+- a partitioned step: the soil chain sub-stepped on its own, each member's
+  per-layer uptake re-derived from its collar suction held over the members'
+  step (phylloptim's `uptake_at`, about a thousandth of a leaf solve), and the
+  members on their own steps. Does `J` hold at the members' 9176 steps?
+- per-member events in plant, with one member evaluated in the step's
+  interpolated field, on the gradients' spread under tolerance nudges;
 
 - the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at
   t = 25, on a second pulsed record;
