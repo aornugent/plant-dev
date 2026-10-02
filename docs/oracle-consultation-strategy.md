@@ -1,5 +1,7 @@
 # A forced chain and a growing ensemble: where the computation goes, and a strategy built from it
 
+*Sent at `0fe72ad`; the reply is `oracle-response-strategy.md`.*
+
 ## What we ask
 
 We have measured where the computation of one run goes and why, component by

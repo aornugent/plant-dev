@@ -9,6 +9,19 @@ Each symptom below is reproduced first, then traced to the component that
 produces it. A root cause is claimed only where a test of one variable confirmed
 it. Refuted hypotheses are kept.
 
+**What a gradient run pays.** A run with every gradient of both roles is about
+seven forwards: the forward, the stand's sweep (2.6, `perf-adjoint.md`), the
+invader's walk (0.8, §3) and its sweep (2.6). The walk and the sweeps pay each
+accepted step's members again, its rows. Rejected attempts and the forward's
+cost per member evaluation are paid once.
+- *So a change is scored by rows first,* then the sweep's cost per row, the
+  forward's cost per row, and rejections last. `harness/rows.R` scores a driver
+  run against a baseline as `(forward + 6 rows) / 7`.
+- *A bar sits at ε, on the quantity that binds:* the gradients' spread under
+  tolerance nudges. `J`'s error at `3e-5` is 2000 times inside ε.
+- Most tests below were scored on the forward and on `J`, before this was
+  plain. §7 and §8 re-score theirs in rows.
+
 The scripts:
 - `harness/step_program.R` reads saved SCM runs.
 - `harness/ark_prototype.R` is the R driver that reproduces the SCM's Cash–Karp
@@ -20,7 +33,7 @@ The scripts:
   `harness/soil_steps.R` what bounds its steps. `harness/soil_chain.R`
   integrates the soil chain alone, `harness/warm_start.R` sets its steps
   against the coupled run's, and `harness/chain_creation.R` finds where
-  creation shuts.
+  creation shuts. `harness/rows.R` scores driver runs in rows.
 - `harness/replay_timing.R` times the invader's replays on `PLANT-98`.
 - `harness/j_window.R` reads `harness/layer_heights.R`'s every-node runs, and
   `harness/error_structure.R` the thinned schedules.
@@ -31,17 +44,18 @@ The scripts:
 | | symptom | root cause | state |
 |---|---|---|---|
 | 1 | steps: 17 683 on long drought, 3637 on the constant record (3951 on its resolved grid) | the soil's accuracy at the norm's tolerance through each rain-rate change | established; on pulsed records no cheap lever, under constant rain the implicit soil saves 66% (§7); the chain alone predicts the steps (§12) |
-| 2 | 17.5–21% of attempts rejected | near knots, the controller's carried proposal; within a day after them, the soil's transient; far from them, the members' sign changes and near-empty pools | established; the chain alone's seeds remove 85% of the knots' rejections for 3.5% fewer member evaluations (§12), and with PI the rejections' cost falls from 18.2% to 9.3% of the run (§7) |
+| 2 | 17.5–21% of attempts rejected | near knots, the controller's carried proposal; within a day after them, the soil's transient; far from them, the members' sign changes and near-empty pools | established; the chain alone's seeds remove 85% of the knots' rejections for 3.5% fewer member evaluations (§12), and with PI the rejections' cost falls from 18.2% to 9.3% of the run (§7). But a rejection turned into an accepted step is a row the sweeps pay: PI with the seeds costs a gradient run 5.8% more (§7). The first-day soil-bound ones are being tagged for class switches (§7) |
 | 3 | the invader's first replay costs about two forwards | `run_mutant` re-runs the resident to keep its field | established; fixed on `PLANT-99` |
 | 4 | `J`'s time error does not follow the tolerance under plant's default absolute tolerance | near-empty pools, and steps across members' sign changes | established earlier; the pools fixed by the tied tolerance, under which the error stays within 0.46·tol but changes sign between tolerances (§13) |
 | 5 | gradients are a staircase in θ | sign changes sliding past the stages | established earlier; per-member events on a quintic interpolant remove it (§11) |
 | 6 | the invader's node error changes sign under halving on uniform nodes | two opposite errors at the layer's top that shrink at different rates | established; the field part is the soil's for `J` and light's for the invader, and spreading each panel's leaf area removes the light part (`canopy-spread.md`) |
-| 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the step-size law cycles across the limit | established; the implicit soil pays there, and on the chain alone a PI law leaves 6 of 1009 rejections (§7) |
-| 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established; a rule from a 54-node pilot saves 21–28% at ≤ 0.08ε on three pulsed records, but a failing invader's walk raises on its loosened steps (§8) |
+| 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the step-size law cycles across the limit | established; the implicit soil pays there, and on the chain alone a PI law leaves 6 of 1009 rejections; coupled, PI saves 1.0% of a gradient run (§7) |
+| 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established; a rule from a 54-node pilot saves 21–28% of a forward's member evaluations and as many rows at ≤ 0.08ε on three pulsed records, but a failing invader's pools are unstable on its loosened steps (§8) |
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not |
-| 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps |
-| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11) |
-| 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift toward a fixed bias as the members' tolerance tightens is not traced | the partition killed (§13); the drift not root-caused |
+| 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps, and the chain implicit and out of the norm together is untested (§10) |
+| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11); its cost in the sweeps not measured |
+| 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift toward a fixed bias as the members' tolerance tightens is not traced | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop; the drift likely a defect in the corrections, not traced |
+| 13 | the sweep costs 2.5–2.7 forwards, so a run with every gradient spends 74% in sweeps; spreading each panel's leaf area slows it 1.7–3.4× | not profiled | open; being profiled |
 
 ## 1. The steps
 
@@ -219,6 +233,12 @@ J* = 289.2738962 is Cash–Karp at `1e-8` (6726 steps).
 - *ARK's error does not fall with its tolerance* (+3.7e-7, then −1.4e-6), as on
   long drought, where its embedded estimate missed the layers' error on long
   steps. Both are below 1e-4 of ε.
+  - The strategy reply's reading: an embedded formula that is not stiffly
+    accurate misjudges a stiff component in either direction. With the chain
+    out of the norm it would not matter, and a check against one tight run
+    replaces it.
+  - It also calls both values inside `J*`'s uncertainty. On this record they are
+    not: Cash–Karp's own errors are 6e-9 and 1e-8.
 
 **Root cause, confirmed.** Constant rain holds the soil where its stiffness, not
 its accuracy, bounds an explicit step. The controller grows each step past the
@@ -276,17 +296,40 @@ tolerance). Tied tolerance throughout:
   bracket), mostly the seeds' (PI alone costs 0.6% at `3e-5`). Its fixed-step
   `lma` elasticity moves 0.0015ε. On the constant record PI saves 10.6% of member
   evaluations, Gustafsson's 13.4%.
+- *In rows it loses* (`harness/rows.R`, `rows.log`). PI turns rejections into
+  accepted steps, and each is a row the walk and the sweeps pay again:
+
+  | long drought, `3e-5` | forward | rows | a gradient run |
+  |---|---|---|---|
+  | the tied baseline (962 505 rows) | 0 | 0 | 0 |
+  | the last knot's seed (§2) | +5.7% | +14.1% | +12.9% |
+  | the chain seeds (§12) | −3.5% | +1.4% | +0.7% |
+  | PI | +0.6% | +6.4% | +5.5% |
+  | PI + chain seeds | −3.1% | +7.3% | +5.8% |
+  | Gustafsson's gains + chain seeds | +6.0% | +21.4% | +19.2% |
+  | constant: PI / Gustafsson's | −10.6% / −13.4% | +0.6% / +0.8% | −1.0% / −1.2% |
+
+  The ±5% triples give the same, +7.3% rows for −3.1% forward. PI's `J` error is
+  smaller (RMS 5.9e-6 against 9.7e-6 over the triple, `pi/tables_matched.txt`),
+  but `J` is 2000 times inside ε, so that buys nothing. The rejections it
+  removes were 9% of one forward, while the rows it adds are paid six times.
 - *Under constant rain the coupled run cycles where the chain alone settles:*
   185 of PI's 229 rejections are a cycle of five accepted steps and one rejected
   at `h|λ|/β` 0.78–1.05, the soil binding, where the chain alone settles on one
-  step at ratio 0.445.
+  step at ratio 0.445. The reply's two cures, both untested: Gustafsson's gains
+  only where `h|λ|/β` exceeds 0.8, which a run reads for free; or the chain
+  implicit wherever the forcing says it is near-constant.
 - *The rejections left with PI and the seeds* cost 9.3% of the run's member
   evaluations, against the baseline's 18.2% (`pi/tables_taxonomy.txt`):
   - 661 at a crossing inside the attempt (storage 437, mass 145), which no law
     removes and the split does (§11);
   - 798 soil-bound attempts on the first to fourth step within a day after a
     knot, mostly where rain falls or starts, whose ratio jumps about 8× after a
-    growth of only 1.03;
+    growth of only 1.03. An estimate smooth in `h` cannot jump so. The reply
+    reads them as kinks: members leave the lower-end class a median 0.26 days
+    before their upward crossing, so each onset brings class switches, and each
+    is a `C⁰` kink in that member's draw and so in the chain's rate. Being
+    tagged by whether a class changed inside the attempt;
   - 199 overshoots after a small ratio, 190 on knots (mostly storage-bound, 124
     of them at a crossing) and 9 at the stability limit.
 
@@ -427,9 +470,12 @@ which raises on most of them. On the constant record the 53-node causal grid at
 | constant | −3.6% | | −6e-11 | 0.0000ε |
 
 On full-gradient runs the weight saves 22.7% on long drought and 21.0% on
-episodic. Every quantity of both roles moves at most 0.016ε under the weight and
-0.078ε under the thinning (`a_st3`, one of the small four); the noise floor, the
-driver's program against plant's own, is 1e-4ε.
+episodic. It saves as many rows as forward member evaluations (`rows.log`):
+22.7%, 21.2% and 21.0% on long drought, long-wet and episodic, 25–28% with the
+thinning, and 1.9% on the constant record. Every quantity of both roles moves
+at most 0.016ε under the weight and 0.078ε under the thinning (`a_st3`, one of
+the small four); the noise floor, the driver's program against plant's own, is
+1e-4ε.
 
 **Not a pass: the walk fails, not the accuracy.** On episodic the lma ×2
 invader, 12× outside rule A's protection, raises a non-finite density on rule A's
@@ -439,9 +485,19 @@ the same walk raises at t = 36.28, on a 22-day step where the unweighted
 program took 3.4.
 - *Refuted:* the invader's share `R′` as what a shared grid must protect.
   Invaders 8.7–21× outside rule A's protection move only 0.002–0.06ε.
-- *Root cause:* the invader walks the stand's steps, and a failing invader's
-  density equation cannot take the loosened ones. It needs its own sub-steps
-  there, which no weight on the stand provides.
+- *Root cause, from a measurement already on record:* the walk fails by its
+  pools' stability, not by accuracy. For `y′ = −y/τ` Cash–Karp's fourth stage
+  goes negative past `h = 2.16τ`, and the step is unstable past `3.73τ`: 15 and
+  26 days at the pool's relaxation time `τ_s`
+  (`docs/archive/scope-imex-stepper.md` §3). Rule A's steps there are 31–38
+  days. The stand's own pools that relax that fast are late members' near-empty
+  ones, under the ×100 weight and the absolute floor, and a walk has no error
+  control.
+- *The cures, from the strategy reply, untested:* the invader's members
+  sub-stepped where `h/τ_eff > 2`, with `τ_eff = τ_s + S_max/(u⁺ + u⁻)` read
+  for free, so that nothing triggers at θ′ = θ; and a cap of 15 days on the
+  stand's steps as a safety net, which protects every invader's pools since
+  `τ_eff ≥ τ_s`. A guard on invaders reads their stability, never their share.
 
 ## 9. Which crossings carry `J`'s time error
 
@@ -522,6 +578,18 @@ rain.
 evaluations against 7.06e6. That bounds their demand from above, since the
 unstable soil disturbs them.
 
+**Untested: the chain implicit and out of the norm, together** (the strategy
+reply's first lever). Each change was tested alone, and each alone fails:
+- *Implicit, in the norm:* an implicit chain removes the stability bound, not
+  the accuracy bound, so held to the norm's tolerance its steps stay. Step 4's
+  ARK kept the chain in the norm and paid 9% at matched `J`, under plant's
+  default absolute tolerance.
+- *Out of the norm, explicit:* unstable (above).
+- *Together* they leave the members' own steps: toward the 9176 above against
+  17 684, less ARK's lower order. The reply prices it at 1.6–1.9× on everything
+  that walks rows. The chain's error would then be checked against one tight
+  run, since ARK's embedded estimate misjudges it (§7).
+
 **Root cause.** Five scalar equations, the soil chain answering each rain
 change, set 93% of the steps. A monolithic step pays the members' leaf solves
 at each of them, and the chain cannot step at the members' pace, where it is
@@ -529,8 +597,8 @@ unstable.
 
 ## 11. The crossings' cure, priced
 
-- *The mechanism is the grid reply's* (`docs/oracle-response-grid-controller.md`).
-  A node's crossing of zero net production is a kink at any step size. On one
+- *The mechanism is the grid reply's*
+  (`docs/archive/oracle-response-grid-controller.md`). A node's crossing of zero net production is a kink at any step size. On one
   grid the gradient's error is first order in the crossing step's length, and
   the second derivative between the gradient's jumps is off at zeroth order.
 - *Its cure was set aside at four times a plain replay:* split each crossing
@@ -616,6 +684,19 @@ other records. Building it into odelia's step and sweep and plant's member rates
 is about 0.9–1.3k lines in 4–5 stacked changes; the spike's report lists what the
 recording and the tape must hold.
 
+**From the strategy reply, untested:**
+- *A fourth-order interpolant, free.* The +10–20% is the midpoint's: it adds a
+  row for every member on every crossing step. An interpolant of the error
+  estimate's order leaves only the split members' sub-rows, under 2% of the
+  sweeps. It can be fitted to Cash–Karp's six stages and its end derivative,
+  or taken from a pair that publishes one (Dormand–Prince or Tsitouras 5(4),
+  whose real stability boundary of about 3.3 against 3.73 costs steps only
+  where the explicit chain is stability-bound). Accept a crossing step only at
+  a ratio of 0.5 or less, as insurance.
+- *Locate on the step's interpolant, never on its raw stages,* which are `O(h²)`
+  wrong as point values; a second location on the split solution's
+  interpolant takes the crossing to `O(h³)`.
+
 ## 12. What the chain alone tells the schedule
 
 The chain alone costs 2.4e-4 of a forward: 19 372 attempts at 1.4 µs each in
@@ -640,13 +721,16 @@ What it can set before the run (`warm_start.R` against the tied baseline at
   | of them on a knot | 1238 | 5 | 189 |
   | first attempts rejected where the rain falls, rises, starts, stops | 58, 42, 51, 6% | 0, 0, 0, 0% | 5, 5, 4, 2% |
   | member evaluations | 7.06e6 | 7.47e6 | 6.81e6 |
+  | rows | 962 505 | 1 098 303 | 976 047 |
+  | a gradient run (`rows.R`) | | +12.9% | +0.7% |
   | states evaluated past the inflow switch, the loss clamp, the floor | 162, 320, 85 | 1, 2, 1 | 0, 1, 0 |
   | `J − J*`, relative | −1.26e-5 | +3.6e-7 | −1.73e-5 |
 
   Under the tied tolerance the last knot's seed removes every rejection at a
   knot but costs 5.7% more member evaluations, since its steps are too short and
-  must grow back. The chain's removes 85% of them and saves 3.5%. The other
-  rejections are unchanged; most fall within a day of a knot, on the soil.
+  must grow back. The chain's removes 85% of them and saves 3.5%, but its rows
+  rise 1.4%, so a gradient run comes out even. The other rejections are
+  unchanged; most fall within a day of a knot, on the soil.
 - *Which bound holds on the soil: yes.* The chain alone starts 4.9% of its steps
   at `h|λ|/β ≥ 0.8` on long drought and 99.4% under constant rain, against the
   coupled Cash–Karp runs' 1.5% and 83% (§7).
@@ -758,6 +842,25 @@ crossing refusal. Where the residual is large (`|ΔJ| ≥ 1e-4`), 93–114% of i
 in the members born before 0.5, the first two nodes' output 2–12e-4 low; the
 two-pass corrector's sits in those born 0.5–3.6 (97%).
 
+**Likely a defect in the corrections, not traced.** As the members' steps
+shrink, each corrected coupling tends to the coupled step, so an error that
+stops falling is an inconsistency, not an order. The strategy reply's two
+suspects:
+- *Stage six read late:* Cash–Karp's sixth stage sits at 7/8 of the step,
+  before the fifth at its end. Not in the stepper: every coupling lands the soil
+  on 7/8 and on the end in time order and hands each stage its own soil
+  (`split_stepper.R`, `STAGE_BY_TIME`).
+- *The nodes' weights held:* the newest nodes' quadrature weights change with
+  time, and a hold freezes them across the soil's sub-steps. Untested.
+- *`exact`, carried, is no witness,* though the reply counts it as biased: its
+  error falls 1.36-fold for 1.17 times the steps, about second order.
+- *Two runs would decide:* the member steps and the soil's sub-steps both forced
+  onto the coupled run's steps, where the scheme must reproduce it to the
+  exchange's small error; and the soil's draw read from the coupled run's
+  recording while the members keep long steps. The first isolates the
+  mechanics, the second the side. Being root-caused, since a scheme that does
+  not converge as its steps shrink has a defect until shown otherwise.
+
 **What it costs:** `uptake_at` is 1/140 of a leaf solve (734 instructions against
 104 640), not the 1/1000 assumed; `held`'s calls add about 5% to the leaf solves.
 The stepper sources the driver as it was at 2ad8059, from the spike's checkout.
@@ -768,23 +871,40 @@ step leaves a first-order error in the water budget, which `J` amplifies. A
 partition would have to move both the collar and the members within the step
 to high order, which is the coupled step.
 
+**The verdict, re-read.**
+- *The bar was 2000 times inside ε.* At errors near 5e-4 in `J`, 0.02ε,
+  `stagelin + defect` takes half the monolith's leaf solves, and `pc + defect`'s
+  `lma` elasticity is 0.05ε off. The gradients' spread was not measured.
+- *It is dead for another reason* (the strategy reply). In the dry spells the
+  coupling is an algebraic loop: the collar is set at once by the soil it draws
+  from. Co-simulation calls this direct feed-through, where extrapolated
+  coupling is order-limited whatever each side's solver does. There nothing is
+  fast, and the coupled step is already cheap (6.4 steps per dry interval,
+  §10). The multirate gain was in the rain intervals, where an implicit chain
+  takes it more simply (§10).
+
 ## What the record supports, and what it does not
 
+- *Supported: a gradient run's cost is its rows and its sweeps.* The walk and
+  the sweeps are six of its seven forwards, and they pay rows. Scored so, PI
+  with the seeds costs a gradient run 5.8% more, while the window rule saves as
+  many rows as forward evaluations (§7, §8).
 - *Supported: the record predicts the cost.* Steps per rain day follow its depth,
   dry intervals their length, and nodes and tolerance move it little.
 - *Supported: the forcing sets which bound holds on the soil.* Pulsed rain keeps
   it accuracy-bound; constant rain makes it stability-bound, where the implicit
   soil pays (§7). A run reads which from `h|λ_soil|/β` at its steps' starts.
-- *Not supported: a cheap accuracy lever in the forcing.* The soil's accuracy
-  reaches `J` in proportion, and a naive seed from the record costs more than
-  the controller's own probing.
+- *Not supported, on `J`: a cheap accuracy lever in the forcing.* The soil's
+  accuracy reaches `J` in proportion, and a naive seed from the record costs
+  more than the controller's own probing.
 - *Supported: one window of the goal, on every record, read by a pilot.* A
   54-node pilot reads it within 10%, and a rule from it saves 21–28% of a
-  forward on three pulsed records for at most 0.08ε in any quantity of either
-  role (§8). The crossings after it carry none of `J`'s time error (§9).
+  forward, and as many rows, on three pulsed records for at most 0.08ε in any
+  quantity of either role (§8). The crossings after it carry none of `J`'s time
+  error (§9).
 - *Not supported: the invader's share as the guard for a shared grid.* A failing
-  invader's walk raises on the loosened steps, though its share says it is safe
-  (§8).
+  invader's pools are unstable on the loosened steps, though its share says it
+  is safe (§8). Its stability is the guard.
 - *Supported: the error's sources are the members' and the stand's, located by
   a run.* They are the sign changes, the near-empty pools, the layer's top and
   the fronts. The field adjoint map reports the node error's field part by
@@ -793,47 +913,87 @@ to high order, which is the coupled step.
   matter.* Later cohorts carry 40% of `J`'s time error at `1e-4` under plant's
   default tolerance (§9).
 - *Supported: the soil chain sets the steps on its own* (§10). The members
-  need about half of them.
+  need about half of them. The chain implicit and out of the norm together,
+  untested, would leave the steps to the members.
 - *Not supported: drainage's tail as the soil's cost.* Integrated where that
   tail is linear, the chain takes more steps.
 - *Supported: per-member events make the gradients reproducible and `J`'s error
   fall with the tolerance,* for 10.2% of a forward's leaf solves on a quintic
-  interpolant (§11). Their cost in the reverse sweep is not measured.
+  interpolant (§11). Their cost in the sweeps is not measured; on a free
+  fourth-order interpolant the reply counts it under 2%.
 - *Supported on long drought: with each panel's leaf area spread over its
   members' heights, uniform halving reports its own node error* (median ratios
   3.6–3.9, companions 0.93–1.09; `canopy-spread.md`). Not on the constant
-  record, whose front still needs nodes.
+  record, whose front still needs nodes. Its sweep runs 1.7–3.4× slower.
 - *Not supported: a partitioned step.* Holding the collar across a member step
   leaves a first-order error in the dry spells' water budget, and the
-  corrections stall at 1e-4 to 5e-4 (§13).
+  corrections stall at 1e-4 to 5e-4 (§13). At a bar of ε they might have
+  passed, but there the coupling is an algebraic loop, and the gain was in the
+  rain intervals, where an implicit chain takes it.
 - *Partly supported: the constant record's rejections are the step-size law's.*
-  On the chain alone PI leaves 6 of 1009; coupled, it removes 69% and cycles
-  where the chain alone settles (§7).
+  On the chain alone PI leaves 6 of 1009; coupled, it removes 69%, cycles where
+  the chain alone settles, and saves 1.0% of a gradient run (§7).
 - *Supported: the sign changes of `J`'s error under tol are the crossings',* not
   the controller's (§7, §11).
 - *Supported: the chain alone sets the step program, the knot seeds and the
   soil's bound before the run,* at 2.4e-4 of a forward. Its seeds remove 85% of
-  the rejections at knots (§12).
+  the rejections at knots, and a gradient run comes out even (§12).
 - *Not supported: the chain alone as a probe for the creation grid.* The members
   make the gaps; a pilot at the run's tolerance with a quarter of its nodes
   finds 97% of their time (§12).
 - *One runtime defect was plain,* the invader's first replay repeating the
   resident's forward, and is fixed on `PLANT-99` (§3).
 
+**Where the results point** (the strategy reply's synthesis; a hypothesis to
+design against, not a result).
+- *Every new result reads one object:* a continuous extension of the global
+  step, of the step's order. Events read it to re-integrate a crossing member.
+  Invaders read it between recorded instants, over weeks on the window's long
+  steps.
+- *So one global step carries the chain and the fields.* The members' aggregate,
+  goal-weighted accuracy sets it, and the chain is implicit so that it never
+  sets the step alone.
+- *Inside it, any member, the stand's or an invader's, is refined against the
+  dense output* when its own reading says so: a crossing, a class switch, a
+  pool's `h/τ_eff`, an invader's own estimate. The fields are still formed from
+  every member at every global stage, so the dry spells' loop is never opened.
+  Only single paths are corrected, and the fields they fed lag by their own
+  share of one step.
+- *The dense output is part of the discretisation,* a fixed linear map of the
+  recorded stage derivatives, and the sweep treats it so.
+
 ## Next probes, each one variable
 
-- the chain alone's whole first-day step program as seeds, for the 798
-  rejections within a day after a knot that PI and the first-step seed leave (§7);
-- the step-size law chosen by regime from the chain alone's stiffness, with
-  Gustafsson's gains where stability binds (§7);
-- PI and the nudge test again with the crossings split, since the crossings set
-  the nudge's spread (§7, §11);
-- per-member events in the reverse sweep, and the invader with them (§11);
-- rule A with the invader's walk sub-stepping where its density cannot take the
-  stand's step (§8);
-- §9's window-limited refusal under the tied tolerance, on the gradients'
-  continuity in θ;
-- the gradients under the looser soil weight, by the driver's frozen-grid
-  differences (`PROGRAM` with `THETA`), since §1's test is `J` only;
+Running:
+- the 798 tagged by whether a member's class changed inside the attempt (§7);
+- the sweep profiled: its cost per row by component, and the spread leaf area's
+  slowdown (symptom 13);
+- the partition's drift root-caused (§13).
+
+Rows first:
+- the chain implicit and out of the norm together, scored in rows and in the
+  gradients' spread under nudges (§10);
+- goal-oriented rows: the window's weight per component and time from the
+  pilot's sweep, and the understory tiered against the canopy's exact step
+  (§8);
+- rule A with the invader's members sub-stepped where `h/τ_eff > 2`, and the
+  price of the 15-day cap (§8);
+- per-member events on a free fourth-order interpolant, in the forward and the
+  sweeps (§11).
+
+Then the cost per row:
+- the inner solve warm-started as an index-1 algebraic variable: each attempt's
+  first stage from the last accepted step's end, later stages from the stage
+  before, and the three nested roots as one Newton system. It cuts the
+  forward's cost per row, and the sweep's if its implicit-function solve is the
+  same system.
+
+Then the rest:
+- the Hessian's cost: chords of gradients (about 68 forwards for five traits,
+  both roles) against forward-over-reverse (about 26), or forward second
+  differences once events make `J` smooth on one grid (about 10);
+- if the chain implicit fails: its whole step program as each leg's proposal,
+  scored in rows (§7, §12);
+- the step-size law chosen by regime from `h|λ|/β`, scored in rows (§7);
 - the introductions moved by a quarter spacing, R2's other knob, on uniform 108
   and graded G1.

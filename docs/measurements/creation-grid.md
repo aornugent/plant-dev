@@ -1,7 +1,8 @@
 # The creation grid by the stand's structure
 
-The grid consultation's second reply (`docs/oracle-response-grid-controller.md`)
-reads the creation axis as a canopy:
+The grid consultation's second reply
+(`docs/archive/oracle-response-grid-controller.md`) reads the creation axis as a
+canopy:
 - a first-mover layer at the opening of each creation window;
 - the windows' edges;
 - a fate front between members that reach the canopy and members left below it.

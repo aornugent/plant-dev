@@ -1,0 +1,99 @@
+# harness/rows.R on the driver's runs: forward member evaluations, rows (each accepted
+# step's members) and a gradient run's cost, (forward + 6 rows) / 7, against the first run.
+# DEV = the session scratchpad's dev/; pi/runs from pi/queue.txt, seed/ from §12, window/drv from §8.
+
+## long drought, 3e-5: seeds and step-size laws (JSTAR=12.6687135)
+                  run   tol accepted    rows forward      err forward_rel
+            tied_3e-5 3e-05    17684  962505 7063344 -1.3e-05       +0.0%
+  tied_3e-5_knot_seed 3e-05    19999 1098303 7468992 +3.6e-07       +5.7%
+ tied_3e-5_chain_seed 3e-05    17916  976047 6812730 -1.7e-05       -3.5%
+              pi_3e-5 3e-05    18815 1023693 7102806 -2.3e-06       +0.6%
+            pics_3e-5 3e-05    18964 1033128 6842048 +8.2e-06       -3.1%
+            g3cs_3e-5 3e-05    21411 1168628 7484660 -1.2e-06       +6.0%
+ rows_rel gradient_rel
+    +0.0%        +0.0%
+   +14.1%       +12.9%
+    +1.4%        +0.7%
+    +6.4%        +5.5%
+    +7.3%        +5.8%
+   +21.4%       +19.2%
+
+## the ±5% triples, odelia's law against PI + chain seeds
+          run      tol accepted    rows forward      err forward_rel rows_rel
+ base_2.85e-5 2.85e-05    17865  971634 7124958 -3.6e-06       +0.0%    +0.0%
+    base_3e-5 3.00e-05    17684  962505 7063344 -1.3e-05       -0.9%    -0.9%
+ base_3.15e-5 3.15e-05    17553  955411 7016586 +1.1e-05       -1.5%    -1.7%
+ pics_2.85e-5 2.85e-05    19119 1041135 6908072 +6.2e-06       -3.0%    +7.2%
+    pics_3e-5 3.00e-05    18964 1033128 6842048 +8.2e-06       -4.0%    +6.3%
+ pics_3.15e-5 3.15e-05    18845 1026879 6802076 -3.4e-07       -4.5%    +5.7%
+ gradient_rel
+        +0.0%
+        -0.9%
+        -1.6%
+        +5.7%
+        +4.9%
+        +4.2%
+
+## PI + chain seeds and Gustafsson's gains + chain seeds at 1e-4 and 1e-5
+       run   tol accepted    rows forward      err forward_rel rows_rel
+ base_3e-5 3e-05    17684  962505 7063344 -1.3e-05       +0.0%    +0.0%
+ pics_1e-4 1e-04    15846  863350 5731916 -4.4e-05      -18.8%   -10.3%
+ pics_1e-5 1e-05    22562 1230917 8188208 -4.2e-06      +15.9%   +27.9%
+ g3cs_1e-4 1e-04    17969  978052 6243092 +3.1e-05      -11.6%    +1.6%
+ g3cs_1e-5 1e-05    25314 1381069 8877320 -8.7e-06      +25.7%   +43.5%
+ gradient_rel
+        +0.0%
+       -11.5%
+       +26.2%
+        -0.3%
+       +40.9%
+
+## constant record, const_Gbf16, 3e-5 (JSTAR=289.2738962)
+             run   tol accepted   rows forward      err forward_rel rows_rel
+ const_base_3e-5 3e-05     3951 524245 3757713 +6.1e-09       +0.0%    +0.0%
+   const_pi_3e-5 3e-05     3974 527161 3358833 +2.1e-08      -10.6%    +0.6%
+   const_g3_3e-5 3e-05     3987 528552 3252855 -5.7e-09      -13.4%    +0.8%
+ gradient_rel
+        +0.0%
+        -1.0%
+        -1.2%
+
+## the window as a rule (§8): long drought
+                    run   tol accepted   rows forward forward_rel rows_rel
+              tied_3e-5 3e-05    17684 962505 7063344       +0.0%    +0.0%
+      long-drought_rule 3e-05    15297 744188 5450624      -22.8%   -22.7%
+ long-drought_rule_thin 3e-05    15238 697329 5107501      -27.7%   -27.6%
+     long-drought_ruleB 3e-05    16570 851125 6274122      -11.2%   -11.6%
+ gradient_rel
+        +0.0%
+       -22.7%
+       -27.6%
+       -11.5%
+
+## long-wet
+                run   tol accepted    rows forward forward_rel rows_rel
+      long-wet_base 3e-05    21920 1192431 8726904       +0.0%    +0.0%
+      long-wet_rule 3e-05    19161  939760 6936894      -20.5%   -21.2%
+ long-wet_rule_thin 3e-05    19091  886336 6526824      -25.2%   -25.7%
+ gradient_rel
+        +0.0%
+       -21.1%
+       -25.6%
+
+## episodic
+                run   tol accepted   rows forward forward_rel rows_rel
+      episodic_base 3e-05    11022 600766 4449870       +0.0%    +0.0%
+      episodic_rule 3e-05     9637 474623 3522426      -20.8%   -21.0%
+ episodic_rule_thin 3e-05     9563 449364 3321340      -25.4%   -25.2%
+ gradient_rel
+        +0.0%
+       -21.0%
+       -25.2%
+
+## constant
+             run   tol accepted   rows forward forward_rel rows_rel
+ const_base_3e-5 3e-05     3951 524245 3757713       +0.0%    +0.0%
+   constant_rule 3e-05     3883 514383 3622737       -3.6%    -1.9%
+ gradient_rel
+        +0.0%
+        -2.1%

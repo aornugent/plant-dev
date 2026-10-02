@@ -63,10 +63,12 @@ re-measuring under the enablers.
     draw and leaves `a_dG2`'s;
   - capping each pool's motion per step, which removes `J`'s bias and leaves
     the gradients' errors as large or larger, for 14–41% more;
-  - implicit and multirate treatments of the soil (the soil's stages do not
-    carry `J`'s time error).
+  - implicit and multirate treatments of the soil, held to the norm's
+    tolerance (the soil's stages do not carry `J`'s time error). The chain
+    implicit and out of the norm together is untested (`grid-dynamics.md`
+    §10).
 
-  The records are `docs/oracle-consultation-solver-performance.md` and
+  The records are `docs/archive/oracle-consultation-solver-performance.md` and
   `docs/archive/scope-imex-stepper.md`.
 
 **The node axis.**
@@ -97,6 +99,11 @@ model on the grid the run took, so every column comes from one sweep of about
 invader of a resident shares its grid, and its sweep holds the resident's field
 fixed. At θ′ = θ the invader's `J′` equals `J` exactly, and its gradient is the
 selection gradient.
+- *Rows are the cost that counts.* A run with every gradient of both roles is
+  about seven forwards: the forward, the stand's sweep, the invader's walk (0.8)
+  and its sweep. The walk and the sweeps pay each accepted step's members, its
+  rows, again; the forward alone pays rejections. Rows come first, then the
+  sweep's cost per row (`grid-dynamics.md`, *What a gradient run pays*).
 
 ## Step 1: ε
 
@@ -496,9 +503,10 @@ stability, runtime or simplicity:
 - a change of variables for the pool;
 - a node rule that follows the stand's response rather than `J`'s integrand.
 
-The consultation is `docs/oracle-consultation-grid-controller.md`, and the
-reply `docs/oracle-response-grid-controller.md`. Each proposal is tested on
-the driver (`harness/ark_prototype.R`) or on plant before anything is built.
+The consultation is `docs/archive/oracle-consultation-grid-controller.md`, and
+the reply `docs/archive/oracle-response-grid-controller.md`. Each proposal is
+tested on the driver (`harness/ark_prototype.R`) or on plant before anything
+is built.
 
 **The reply.**
 - *Its claim:* a node's crossing of zero net production is a kink at any step
@@ -636,7 +644,7 @@ so with no end-state refusal, runs step 3's seven tolerance nudges.
   lever left, since the inner solve is 85% of the instructions.
 
 **The second reply,** to step 3's measurements (the consultation's follow-up;
-the reply is in `docs/oracle-response-grid-controller.md`).
+the reply is in `docs/archive/oracle-response-grid-controller.md`).
 - *The time axis is closed:* run at `1e-5`, take curvatures by the corrected
   chord, and drop the margin and the split. Elasticities below 0.1 need an
   absolute floor on ε.
@@ -912,7 +920,11 @@ node axis to uniform halving; or a record whose graded rungs give no ratio near
     two-rung extrapolation;
   - wet's and dry's spread ladders are not run to u429;
   - the constant record still needs its front nodes;
-  - the resident's sweep ran 1.7–3.4× slower spread, unexplained;
+  - the resident's sweep ran 1.7–3.4× slower spread, being profiled. The
+    strategy reply reads it as a sweep bound by its tape, whose field assembly
+    grew sixteenfold, and proposes the panel's kernel integrated over its
+    height interval, with its adjoint written by hand, at the lumped tape's
+    size;
   - it changes plant's birth-date competition sum and every reference.
 - *At matched error,* for the invader's `lma`, each with a companion that
   reports its error: spread uniform u108 + u215 costs 2.93e6 member-steps for
@@ -1014,10 +1026,12 @@ done
   repeats the run's values.
 - *Retaking an interval from the reference's state measures its local error
   only:* the survival error arrives with the state.
-- *The soil has no fast mode to take implicitly:* drainage goes as `θ^16.14`, so
-  after rain a layer's relaxation rate is about one over the time since the rain.
-  ARK's longer steps there were inaccurate, and on one its embedded estimate put
-  the top layer's error at a fifteenth of its size.
+- *On pulsed records the soil has no fast mode to separate:* drainage goes as
+  `θ^16.14`, so after rain a layer's relaxation rate is about one over the time
+  since the rain, and held to the norm's tolerance an implicit soil keeps its
+  steps. ARK's longer steps there were inaccurate, and on one its embedded
+  estimate put the top layer's error at a fifteenth of its size. Under constant
+  rain the soil is stiff and the implicit soil pays (`grid-dynamics.md` §7).
 - *A replayed input must be exact:* TF24's leaf solve turns a one-ulp
   difference upstream into 1e-9.
 - *A slot's choices are a sequence:* TF24's leaf points are read in order, so

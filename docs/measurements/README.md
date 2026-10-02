@@ -1,6 +1,6 @@
 # Measurements
 
-Diagnostic runs behind the consultation in `docs/`. Each note states its own
+Diagnostic runs behind the consultations in `docs/` and `docs/archive/`. Each note states its own
 fixture and caveats; this says what it established and whether that survived.
 
 The notes are records of what was measured and are left as written, so a few
@@ -37,7 +37,9 @@ verdict where it has one.
 
 The debugging record of the grid's cost and error across the system, the solver
 and the controller is `docs/grid-dynamics.md`, with its driver logs and the
-every-node runs behind its window in `grid-dynamics/`. The field adjoint map's
+every-node runs behind its window in `grid-dynamics/`. `grid-dynamics/rows.log`
+re-scores its seeds, step-size laws and window rule in rows, which the sweeps
+pay. The sweep's own cost is `perf-adjoint.md`'s. The field adjoint map's
 spike is `field-adjoint-map.md`, with its patch, scripts and logs in
 `field-adjoint-map/`. The spread canopy's, the node rule's candidate D, is
 `canopy-spread.md`, with its patches, scripts, runs and logs in

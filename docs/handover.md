@@ -109,7 +109,7 @@ assessment in five steps, then heuristics only where step 4 finds headroom.
 | 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
 | 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
 | 3. the floor, checked run by run | spot-check done (`docs/measurements/spot-check.md`): it points to `1e-5` on 215 nodes for wet and dry, not yet run as one setting; small elasticities miss their ε everywhere |
-| 4. the headroom | two replies, both tested; the node error's causes found on long drought, and a node rule proposed (the spec's *After the assessment*); the runs are in `docs/measurements/creation-grid.md` |
+| 4. the headroom | two replies, both tested; the node error's causes found on long drought, and a node rule proposed (the spec's *After the assessment*); the runs are in `docs/measurements/creation-grid.md`. The strategy consult's reply orders the cost by rows and the sweep (`docs/oracle-response-strategy.md`) |
 | 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
@@ -152,12 +152,13 @@ by the spec's decision rule.
 - Full serial suite: 4663 pass and 4 fail before the recapture. Two are the known
   panels, and two are the whole-run rung's, which then passes.
 
-**Step 4.** The consultation, `docs/oracle-consultation-grid-controller.md`,
-went before M8 carried ε. The reply is `docs/oracle-response-grid-controller.md`,
-and the spec's *The reply's tests* has what was measured, with a verdict in
-*Where the reply leaves the design*: the kink binds curvatures and the
-resident's nudges, both have a fix that needs no code, and the reply's remedy
-is worth at most the cost of the tighter tolerance.
+**Step 4.** The consultation,
+`docs/archive/oracle-consultation-grid-controller.md`, went before M8 carried ε.
+The reply is `docs/archive/oracle-response-grid-controller.md`, and the spec's
+*The reply's tests* has what was measured, with a verdict in *Where the reply
+leaves the design*: the kink binds curvatures and the resident's nudges, both
+have a fix that needs no code, and the reply's remedy is worth at most the cost
+of the tighter tolerance.
 - *Its claim holds:* on one grid, a curvature taken between the gradient's jumps
   is off at any tolerance. In `lma` at seed 31 it is 34% below the smooth value
   for the resident and 3% for the invader: 13ε and 1.4ε. A chord over ±1e-2, less
@@ -190,11 +191,12 @@ is worth at most the cost of the tighter tolerance.
     phylloptim's solve.
 
 **Step 4, the second reply.** The follow-up with step 3's measurements went to
-the Oracle. Its reply, the second in `docs/oracle-response-grid-controller.md`,
-reads the creation axis as a canopy: a first-mover layer at each window's
-opening, the windows' edges, and a fate front between canopy and understory. Its
-experiments 1, 3 and 4 are in `docs/measurements/creation-grid.md`, and the
-spec's *Where the second reply leaves the design* has the verdict.
+the Oracle. Its reply, the second in
+`docs/archive/oracle-response-grid-controller.md`, reads the creation axis as
+a canopy: a first-mover layer at each window's opening, the windows' edges, and
+a fate front between canopy and understory. Its experiments 1, 3 and 4 are in
+`docs/measurements/creation-grid.md`, and the spec's *Where the second reply
+leaves the design* has the verdict.
 - *The constant record is resolved.* Creation runs past the founders' front, to
   5.20 and again from 11.11, so the reply's rule as written is 14% high. With the
   first window graded from a day, the understory represented at any spacing and
@@ -249,30 +251,45 @@ the node error on long drought*).
 
 **The grid's cost and error, debugged** (`docs/grid-dynamics.md`). From the runs
 on disk and a few driver probes:
+- *What a gradient run pays.* About seven forwards: the forward, two sweeps of
+  2.6 and the invader's walk of 0.8. The walk and the sweeps pay rows, the
+  members on each accepted step; rejections and the forward's cost per
+  evaluation are paid once. So rows come first, then the sweep's cost per row,
+  the forward's per row, and rejections last. `harness/rows.R` scores a driver
+  run so. Most results below were first scored on the forward and on `J`, whose
+  error is 2000 times inside ε; the gradients' spread under nudges is what
+  binds.
 - *The steps are the soil's accuracy through each rain-rate change.* That
   accuracy reaches `J` in proportion: a soil weight ×10 looser saves about 5%
-  at a matched error. So the record predicts the cost but offers no cheap
-  lever.
-- *The rejections near knots are the controller's carried proposal.* A seed
-  from the last knot of the same kind removes them and costs 7.9% more under
-  plant's default absolute tolerance, 5.7% under the tied one. The soil chain alone's first step after
-  each knot, as the seed, removes 85% of them and saves 3.5% of member
-  evaluations (§12), for 2.4e-4 of a forward.
+  at a matched error. With the chain explicit the record predicts the cost but
+  offers no cheap lever.
+- *The soil chain sets the steps on its own:* alone, with no uptake, it takes
+  16 447 of the coupled run's 17 684. With the soil and accumulators out of the
+  norm the members need 9176 steps and 41% fewer member evaluations, but the
+  explicit soil is then unstable. The chain implicit and out of the norm
+  together is untested: the strategy reply's first lever, which it prices at
+  1.6–1.9× on everything that walks rows.
+- *The rejections near knots are the controller's carried proposal.* The soil
+  chain alone's first step after each knot, as the seed, removes 85% of them and
+  saves 3.5% of the forward for 2.4e-4 of a forward, but adds 1.4% rows, so a
+  gradient run comes out even (§12). A seed from the last knot of the same kind
+  costs a gradient run 12.9%.
+- *The step-size law* (§7). On the soil chain alone a PI law leaves 6 of the
+  constant record's 1009 rejections. On the coupled driver PI with the chain
+  seeds saves 3.1% of the forward at `3e-5`, and 10.6% on the constant record.
+  In rows it loses: PI turns rejections into accepted steps, 7.3% more rows, so
+  a gradient run costs 5.8% more on long drought and 1.0% less on the constant
+  record. What remains are the crossings' rejections and 798 soil-bound ones in
+  the first day after a knot, which the reply reads as class-switch kinks;
+  being tagged. On the chain alone the error is proportional to tol under
+  either law, so the sign changes of `J`'s error are the crossings'.
 - *The window as a rule* (§8). A 54-node pilot at `1e-3` reads R(t) within 10%
   on every record. Weighting the tolerance by it, with nodes thinned after the
-  window, saves 21–28% of a forward and 21–23% of a full-gradient run, every
-  quantity of both roles moving at most 0.08ε. But on episodic the lma ×2
-  invader's walk raises a non-finite density on the loosened steps, so the rule
-  needs the invader to sub-step where its density cannot take the stand's step.
-- *The step-size law* (§7). On the soil chain alone a PI law leaves 6 of the
-  constant record's 1009 rejections. On the coupled driver, PI with the chain
-  seeds saves 5.3–11% at matched error on long drought and 10.6% on the
-  constant record, but fails its pre-registered bar there (69% of rejections
-  removed, against 90%), where the coupled run cycles at the stability limit.
-  The rejections' cost falls from 18.2% to 9.3% of the run; what remains is the
-  crossings' and the soil's first-day transient after a knot. On the chain alone
-  the error is proportional to tol under either law, so the sign changes of
-  `J`'s error are the crossings'.
+  window, saves 21–28% of a forward and as many rows, every quantity of both
+  roles moving at most 0.08ε. But on episodic the lma ×2 invader's walk raises:
+  its pools are unstable on Cash–Karp steps past 3.73τ_s, 26 days, and rule A's
+  are 31–38. The cure is the invader's own sub-steps where `h/τ_eff > 2`, with a
+  15-day cap as the safety net; untested.
 - *The invader's first replay repeats the resident's forward,* about 12% of a
   run with every gradient. Fixed on `PLANT-99` (#99): the first replay halves,
   for 130 MB more held after a recorded forward.
@@ -284,33 +301,51 @@ on disk and a few driver probes:
   t ≈ 11–14 and 29, while three fifths of the pulsed records' member-steps come
   after t = 25. On long drought every tolerance ×100 after 25 saves 27% of
   member evaluations, and nodes born after 25 thinned fourfold save 12% of
-  member-steps, each moving no quantity by more than 0.07ε. A pilot (54 nodes,
-  `1e-3`) reads the window within 4%.
+  member-steps, each moving no quantity by more than 0.07ε.
 - *The sign-change refusal limited to steps before t = 25* keeps its `J` for 43%
   less cost; limited to the cohort that earns `J`, it leaves 40% of the error.
 - *The field adjoint map works* (`docs/measurements/field-adjoint-map.md`):
   dropping every other node of the held run, it predicts the field part at
   0.99–1.00× for `J` and 0.94–0.99× for the invader, for +12% of a sweep. `J`'s
   field part is water; the invader's is light.
-- *The soil chain sets the steps on its own:* alone, with no uptake, it takes
-  16 447 of the coupled run's 17 684. Its cost is the answer on rain intervals,
-  not drainage's tail (integrated where that tail is linear it takes more). With
-  the soil and accumulators out of the norm the members need 9176 steps and 41%
-  fewer member evaluations, but the explicit soil is then unstable.
-- *The per-member split that cures the gradients was priced on the harness:*
-  the driver evaluates every member to read one. Counted per member it adds
-  3.8%, the grid reply's estimate. Measured at its real cost with an
-  interpolant of the step's order (a quintic), it is 10.2% of a forward's leaf
-  solves, and it cuts the gradients' spread under ±5% nudges 3.4–6.4× while
-  `J`'s error falls with the tolerance (§11). A cubic interpolant makes `J`
-  worse.
+- *The per-member split cures the gradients* (§11). With an interpolant of the
+  step's order (a quintic) it costs 10.2% of a forward's leaf solves, cuts the
+  gradients' spread under ±5% nudges 3.4–6.4×, and `J`'s error falls with the
+  tolerance. A cubic interpolant makes `J` worse. Its cost in the sweeps is not
+  measured: the reply counts it under 2% on a free fourth-order interpolant,
+  against +10–20% with the midpoint.
 - *The partitioned step is killed* (§13). Holding the collar across a member
-  step under-draws the dry spells' water budget at first order, `J` amplifies
-  the budget 2.2-fold, and the corrections drift to a bias of about −5e-4 as the
-  members' tolerance tightens, which is not traced.
-- *Open:* per-member events in the reverse sweep and for the invader; the PI
-  law and the chain seeds together on the driver; the invaders' windows for a shared grid; the
-  gradients under a looser soil; R2's introduction nudge.
+  step under-draws the dry spells' water budget at first order, and the
+  corrections drift to a bias of about −5e-4 as the members' tolerance
+  tightens, likely a defect in the corrections, not traced. The bar was 2000
+  times inside ε, but the scheme is dead for another reason: in the dry spells
+  the coupling is an algebraic loop, and the gain was in the rain intervals,
+  where an implicit chain takes it.
+- *Open:* grid-dynamics' *Next probes*, ordered by the cost above.
+
+**The strategy consult and its reply** (`docs/oracle-consultation-strategy.md`,
+its addenda, and `docs/oracle-response-strategy.md`). What it changed:
+- *The forward was being optimised* while the sweeps are 74% of a gradient run,
+  and changes were scored on `J`, where nothing binds. Rows and the sweep's
+  cost per row come first now.
+- *One-variable tests missed a two-bound interaction:* held to the norm, the
+  implicit chain keeps its steps, and out of the norm the explicit chain is
+  unstable. The pair is untested.
+- *Three results listed as unexplained were explained by the record:* the
+  invader's failing walk (its pools' stability), the first-day rejections
+  (class switches, being tagged) and ARK's error (below 1e-4 of ε, from an
+  embedded estimate that misjudges stiff components).
+- *A scheme that does not converge is a defect until shown otherwise:* the
+  partition's drift.
+- *One object serves events, invaders and long steps:* a continuous extension of
+  the global step, of its order (grid-dynamics, *Where the results point*).
+- *Reframings:* the inner solve warm-started as an index-1 algebraic variable;
+  bias against noise across records; the Hessian's cost, about 68 forwards by
+  chords for five traits in both roles.
+- *Running* (subagents): the 798 tagged by class switches, the sweep profiled,
+  and the partition's drift root-caused.
+- *Next, with the user:* a design for the controller, and the chain implicit
+  and out of the norm on the driver, scored in rows and the gradients' spread.
 
 **Step 3: the floor, checked run by run.** A bank of references was too slow
 (about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,
@@ -390,9 +425,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   scopes in `docs/archive/`.
 - Debugging on the driver then found what the spec's *What the design rests
   on* lists.
-- The consultation behind that is `docs/oracle-consultation-solver-performance.md`,
-  with the fifth reply in `docs/oracle-response-solver-performance.md` and the
-  earlier ones in its history. It framed the gradients for a calibration,
+- The consultation behind that is
+  `docs/archive/oracle-consultation-solver-performance.md`, with the fifth reply
+  in `docs/archive/oracle-response-solver-performance.md` and the earlier ones
+  in its history. It framed the gradients for a calibration,
   which is not the scope, so its precision budgets do not apply.
 
 ### Outstanding
@@ -416,7 +452,7 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   `lma` on two more seeds. Single spread rungs are coarse, so the rule reports
   the two-rung extrapolation. Wet and dry are not run to u429, the constant
   record still needs front nodes, and the resident's sweep ran 1.7–3.4× slower,
-  unexplained. Whether to change plant's birth-date competition sum for it is
+  being profiled. Whether to change plant's birth-date competition sum for it is
   the user's call.
 - **De2's and Gn2's invader phases were lost to a restart;** their coarse rungs
   settle the edges, so they were not rerun.

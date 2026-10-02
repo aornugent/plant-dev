@@ -1,5 +1,7 @@
 # Addenda to the strategy consult
 
+*Sent at `fa9b114`; the reply is `oracle-response-strategy.md`.*
+
 ## Per-member events, at their real cost
 
 The consult reported this test as running. It has finished. The setting is the
