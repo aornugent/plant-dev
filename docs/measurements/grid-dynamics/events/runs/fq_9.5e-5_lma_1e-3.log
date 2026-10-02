@@ -1,0 +1,9 @@
+replayed 14936 steps: error ratio at most 1.35, above 1.1 on 12; deepest pool 1.91e-07 of capacity
+above 1.1, by the component that set the ratio: mass 3, soil_1 1, storage 8 ; h |lambda_soil| / beta on the soil's: median 0.0246
+ck nodes 108 tol 9.5e-05: J 12.564100661, 0 accepted, 157 s; accepted=0 accepted_at_minimum=0 rejected_inaccurate=0 rejected_thrown=0 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+J to every digit 12.564100660926142
+rate evaluations 94128, member evaluations 5135154; evaluated states past the inflow switch 0, the loss clamp 0, the floor 0
+members re-integrated on their own 9231, in 168991 member evaluations
+split: single-member evaluation; 52 of the structure's crossings outside their step, 1 dips inside one; 29.7 s in the split
+leaf solves 5695366 (by kind 0/5394774/0/300592/0/0/0/0/0/0/0); in the split: locating 117744, sub-steps 204168, corrected step ends 43940, dense output 263640
+binding: soil NaN%  accumulator NaN%  member NaN%  storage NaN% ; h |lambda_soil| / beta at the start >= 0.8: NaN%  > 1: NaN% 

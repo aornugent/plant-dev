@@ -1,0 +1,17 @@
+accepted state t 3.0017 member 1 of 9: identical; leaf solves 11 whole, 2 single
+accepted state t 3.0017 member 9 of 9: identical; leaf solves 11 whole, 3 single
+interpolated, member 1 moved t 2.9929 member 1 of 9: identical; leaf solves 11 whole, 2 single
+interpolated, member 1 moved t 2.9929 member 9 of 9: identical; leaf solves 11 whole, 3 single
+accepted state t 3.6095 member 1 of 10: identical; leaf solves 12 whole, 2 single
+accepted state t 3.6095 member 10 of 10: identical; leaf solves 12 whole, 3 single
+interpolated, member 1 moved t 3.6027 member 1 of 10: identical; leaf solves 12 whole, 2 single
+interpolated, member 1 moved t 3.6027 member 10 of 10: identical; leaf solves 12 whole, 3 single
+accepted state t 8.0026 member 1 of 22: identical; leaf solves 24 whole, 2 single
+accepted state t 8.0026 member 22 of 22: identical; leaf solves 24 whole, 3 single
+interpolated, member 1 moved t 8.0008 member 1 of 22: identical; leaf solves 24 whole, 2 single
+interpolated, member 1 moved t 8.0008 member 22 of 22: identical; leaf solves 24 whole, 3 single
+accepted state t 12.5069 member 1 of 34: identical; leaf solves 36 whole, 2 single
+accepted state t 12.5069 member 34 of 34: identical; leaf solves 36 whole, 3 single
+interpolated, member 1 moved t 12.5001 member 1 of 34: identical; leaf solves 36 whole, 2 single
+interpolated, member 1 moved t 12.5001 member 34 of 34: identical; leaf solves 36 whole, 3 single
+members tested 150, mismatches 0, largest relative difference 0

@@ -1,0 +1,7 @@
+ck nodes 108 tol 3e-05: J 12.669869635, 17685 accepted, 290 s; accepted=17685 accepted_at_minimum=0 rejected_inaccurate=3907 rejected_thrown=4 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+J to every digit 12.669869634508958
+rate evaluations 129676, member evaluations 7066164; evaluated states past the inflow switch 162, the loss clamp 320, the floor 85
+members re-integrated on their own 9235, in 164280 member evaluations
+split: single-member evaluation; 0 of the structure's crossings outside their step; 18.1 s in the split
+leaf solves 7706165 (by kind 0/7297102/0/408555/4/29/475/0/0/0/0); in the split: locating 107513, sub-steps 204886, corrected step ends 62159
+binding: soil 83.2%  accumulator 0.1%  member 16.7%  storage 7.5% ; h |lambda_soil| / beta at the start >= 0.8: 1.5%  > 1: 0.0% 

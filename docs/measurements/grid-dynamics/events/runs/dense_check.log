@@ -1,0 +1,6 @@
+There were 42 warnings (use warnings() to see them)
+60 crossing steps from t = 3.544 to 6.353; median h 1.09 days, h |lambda| / beta median 0.02
+the interpolant's error in units of each component's error weight (the step's own estimate is at most 1.1):
+  u = 0.25: soil median 0.00527, 90% 2.77, max 12.2; other members median 0.228, max 17 (storage max 0.437); step ratio median 0.457
+  u = 0.50: soil median 0.00958, 90% 4.92, max 22.9; other members median 0.391, max 29.5 (storage max 0.773); step ratio median 0.457
+  u = 0.75: soil median 0.00541, 90% 2.77, max 14; other members median 0.15, max 18.2 (storage max 0.444); step ratio median 0.457

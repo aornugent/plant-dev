@@ -1,0 +1,7 @@
+tol 9.85e-05: J 12.669410472094958, 14876 steps; run 102 s, sweep 261 s
+  elasticity lma -8.273303374
+  elasticity a_dG2 1.055059075
+  elasticity a_dG1 -0.3081079643
+  elasticity d_I -0.01977630749
+  elasticity storage_relaxation_offset -0.01631409361
+  elasticity TF24_cost_scale -2.482569366

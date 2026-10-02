@@ -1,0 +1,8 @@
+replayed 14845 steps: error ratio at most 1.1, above 1.1 on 0; deepest pool 1.92e-07 of capacity
+ck nodes 108 tol 0.0001: J 12.671854631, 0 accepted, 146 s; accepted=0 accepted_at_minimum=0 rejected_inaccurate=0 rejected_thrown=0 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+J to every digit 12.671854631041938
+rate evaluations 89178, member evaluations 4853460; evaluated states past the inflow switch 0, the loss clamp 0, the floor 0
+members re-integrated on their own 9233, in 167885 member evaluations
+split: single-member evaluation; 1 of the structure's crossings outside their step; 19.1 s in the split
+leaf solves 5400981 (by kind 0/5122270/0/278711/0/0/0/0/0/0/0); in the split: locating 114827, sub-steps 204830, corrected step ends 43404, dense output 0
+binding: soil NaN%  accumulator NaN%  member NaN%  storage NaN% ; h |lambda_soil| / beta at the start >= 0.8: NaN%  > 1: NaN% 

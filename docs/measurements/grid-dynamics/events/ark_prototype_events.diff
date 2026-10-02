@@ -1,0 +1,268 @@
+--- harness_orig/ark_prototype.R	2026-10-02 06:23:58.893534664 +0000
++++ harness/ark_prototype.R	2026-10-02 11:15:51.225573928 +0000
+@@ -107,12 +107,22 @@
+ p$max_patch_lifetime <- LIFETIME
+ THETA <- Sys.getenv("THETA")
+ THETA_REL <- if (nzchar(THETA)) as.numeric(Sys.getenv("THETA_REL")) else 0
+-if (nzchar(THETA) && THETA != "lma") {
++# THETA_ALONE scales the strategy's own parameter after the hyperparameterisation
++# has derived the rest, as a gradient's partial moves it; d_I and
++# TF24_cost_scale are derived, so only this reaches them.
++THETA_ALONE <- nzchar(Sys.getenv("THETA_ALONE"))
++if (nzchar(THETA) && THETA != "lma" && !THETA_ALONE) {
+   s <- p$strategy_default; sp_pars <- s$pars
+   sp_pars[[THETA]] <- sp_pars[[THETA]] * (1 + THETA_REL)
+   s$pars <- sp_pars; p$strategy_default <- s
+ }
+-p <- add_strategies(p, trait_matrix(LMA0 * if (THETA == "lma") 1 + THETA_REL else 1, "lma"))
++p <- add_strategies(p, trait_matrix(LMA0 * if (THETA == "lma" && !THETA_ALONE) 1 + THETA_REL else 1, "lma"))
++if (nzchar(THETA) && THETA_ALONE) {
++  s <- p$strategies[[1]]; sp_pars <- s$pars
++  stopifnot(THETA %in% names(sp_pars))
++  sp_pars[[THETA]] <- sp_pars[[THETA]] * (1 + THETA_REL)
++  s$pars <- sp_pars; p$strategies[[1]] <- s
++}
+ pars <- p$strategies[[1]]$pars
+ p$node_schedule_times <- list(times)
+ ct <- control()
+@@ -158,6 +168,28 @@
+ RESTART <- if (nzchar(Sys.getenv("EVENT_RESTART"))) as.numeric(Sys.getenv("EVENT_RESTART")) / 365 else NA
+ CLASSES <- nzchar(Sys.getenv("CLASS_EVENTS"))
+ LOCAL <- nzchar(Sys.getenv("LOCAL"))
++# MEMBER evaluates a member-local re-integration's rates for that member alone,
++# in the field the interpolated state builds (Patch::r_node_rates), rather than
++# by evaluating the whole patch and reading the member out.
++MEMBER <- nzchar(Sys.getenv("MEMBER"))
++# STRUCTURE splits, on a replay, exactly the (row, member) pairs a SPLIT_LOG
++# names, finding each crossing again at this replay's parameters; a pair whose
++# production no longer changes sign across its step is re-integrated whole
++# against the interpolant, on the side its crossing has moved to.
++STRUCTURE <- if (nzchar(Sys.getenv("STRUCTURE"))) readRDS(Sys.getenv("STRUCTURE")) else NULL
++# DENSE=quintic reads the split's field from the quintic Hermite through the
++# step's start, its midpoint and its end, the midpoint by one Cash-Karp step of
++# half the length from the start; the default is the cubic through the ends.
++DENSE <- match.arg(Sys.getenv("DENSE", "cubic"), c("cubic", "quintic"))
++# The quintic's weights on (y0, h f0, y_mid, h f_mid, y1, h f1) at u.
++quintic_weights <- local({
++  rows <- function(u) rbind(u^(0:5), c(0, (1:5) * u^(0:4)))
++  M <- rbind(rows(0), rows(0.5), rows(1))
++  Minv <- solve(M)
++  function(u) as.vector(u^(0:5) %*% Minv)
++})
++LEAF_COUNTS <- exists("patch_leaf_solves_tf24", envir = asNamespace("plant"), inherits = FALSE)
++leaf_solves <- function() if (LEAF_COUNTS) sum(plant:::patch_leaf_solves_tf24(patch, 1L)) else NA_real_
+ TOL_SOIL <- as.numeric(Sys.getenv("TOL_SOIL", "1"))
+ TOL_ACC <- as.numeric(Sys.getenv("TOL_ACC", "1"))
+ LATE_FROM <- as.numeric(Sys.getenv("LATE_FROM", NA))
+@@ -185,7 +217,8 @@
+ for (x in c("evaluations", "members", "switch", "clamp", "floor", "accepted",
+             "accepted_at_minimum", "rejected_inaccurate", "rejected_thrown",
+             "rejected_refused", "rejected_switch", "rejected_event", "rejected_zone", "located", "located_class",
+-            "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures")) {
++            "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures",
++            "local_clamped", "local_dips", "leaf_locate", "leaf_substeps", "leaf_end", "leaf_dense", "local_secs")) {
+   assign(x, 0, envir = n)
+ }
+ n$most_iterations <- 0
+@@ -340,40 +373,120 @@
+ # one after it, the rest of the state read from the step's cubic Hermite
+ # interpolant. NULL where an evaluation raises. Each member-local evaluation
+ # counts one member, and the rates at the corrected end count its members.
+-local_fix <- function(t0, h, a) {
+-  f <- which(sign(a$P) != sign(sv$P))
++# `split` names the members (with each crossing's direction at the structure's
++# own parameters, `down`) in place of the sign changes; `row` labels the log.
++local_fix <- function(t0, h, a, split = NULL, row = NA) {
++  f <- if (is.null(split)) which(sign(a$P) != sign(sv$P)) else split$member
+   if (!length(f)) return(a)
++  t_in <- proc.time()[["elapsed"]]
+   y0 <- sv$y; f0 <- sv$dydt; y1 <- a$y; f1 <- a$rates
+   interp <- function(u) (1 + 2 * u) * (1 - u)^2 * y0 + u * (1 - u)^2 * h * f0 +
+     u^2 * (3 - 2 * u) * y1 + u^2 * (u - 1) * h * f1
++  if (DENSE == "quintic") {
++    s_mid <- leaf_solves()
++    mid <- attempt(t0, y0, f0, h / 2)
++    n$leaf_dense <- n$leaf_dense + (leaf_solves() - s_mid)
++    if (is.null(mid)) return(NULL)
++    ym <- mid$y; fm <- mid$rates
++    interp <- function(u) {
++      w <- quintic_weights(u)
++      w[1] * y0 + w[2] * h * f0 + w[3] * ym + w[4] * h * fm + w[5] * y1 + w[6] * h * f1
++    }
++  }
+   full_at <- function(y, u) {
+     n$local_members_evaluated <- n$local_members_evaluated + 1
+     tryCatch(patch$derivs(y, t0 + u * h), `odelia::util::DomainError` = function(e) NULL)
+   }
++  member_at <- function(y, u, j) {
++    n$local_members_evaluated <- n$local_members_evaluated + 1
++    tryCatch(plant:::patch_node_rates_tf24(patch, y, t0 + u * h, 1L, j),
++             `odelia::util::DomainError` = function(e) NULL)
++  }
+   out <- y1
+-  for (j in f) {
++  for (k in seq_along(f)) {
++    j <- f[k]
+     idx <- 9 * (j - 1) + 1:9
+-    rate_j <- function(yj, u) {
+-      y <- interp(u); y[idx] <- yj
+-      r <- full_at(y, u)
+-      if (is.null(r)) NULL else list(r = r[idx], P = production(y)[j])
++    rate_j <- if (MEMBER) {
++      function(yj, u) {
++        y <- interp(u); y[idx] <- yj
++        r <- member_at(y, u, j)
++        if (is.null(r)) NULL else list(r = r[1:9], P = r[9 + 3] - as.numeric(Sys.getenv("SWITCH_AT", "0")))
++      }
++    } else {
++      function(yj, u) {
++        y <- interp(u); y[idx] <- yj
++        r <- full_at(y, u)
++        if (is.null(r)) NULL else list(r = r[idx], P = production(y)[j])
++      }
+     }
+-    # the crossing, by regula falsi on member j's production along the interpolant
+-    lo <- c(0, sv$P[j]); hi <- c(1, a$P[j]); wlo <- lo[2]; whi <- hi[2]; side <- 0
+-    for (it in 1:30) {
+-      u <- (lo[1] * whi - hi[1] * wlo) / (whi - wlo)
+-      e <- rate_j(interp(u)[idx], u)
+-      if (is.null(e)) return(NULL)
+-      if (sign(e$P) == sign(hi[2])) {
+-        hi <- c(u, e$P); whi <- e$P; if (side == -1) wlo <- wlo / 2; side <- -1
++    s0 <- leaf_solves()
++    located <- sign(a$P[j]) != sign(sv$P[j])
++    iterations <- 0L
++    # A crossing of member j's production along the interpolant, between u_lo
++    # and u_hi where it has opposite signs, by regula falsi (Illinois).
++    root_between <- function(u_lo, P_lo, u_hi, P_hi) {
++      lo <- c(u_lo, P_lo); hi <- c(u_hi, P_hi); wlo <- lo[2]; whi <- hi[2]; side <- 0
++      for (it in 1:30) {
++        u <- (lo[1] * whi - hi[1] * wlo) / (whi - wlo)
++        e <- rate_j(interp(u)[idx], u)
++        iterations <<- iterations + 1L
++        if (is.null(e)) return(NULL)
++        if (sign(e$P) == sign(hi[2])) {
++          hi <- c(u, e$P); whi <- e$P; if (side == -1) wlo <- wlo / 2; side <- -1
++        } else {
++          lo <- c(u, e$P); wlo <- e$P; if (side == 1) whi <- whi / 2; side <- 1
++        }
++        if (abs(e$P) < ETA / 2) break
++      }
++      u
++    }
++    if (located) {
++      uc <- root_between(0, sv$P[j], 1, a$P[j])
++      if (is.null(uc)) return(NULL)
++      cuts <- uc
++    } else {
++      # No sign change across the step. Either the structure's crossing has
++      # left it, or a dip of the production lies wholly inside it: the
++      # extreme of s P along the interpolant (s the ends' sign) past zero
++      # cuts the step at the dip's two crossings, one sub-step to each
++      # interval, so a crossing entering the step or a dip closing moves J
++      # continuously.
++      s <- sign(sv$P[j])
++      sP <- function(u) { e <- rate_j(interp(u)[idx], u); if (is.null(e)) NA else s * e$P }
++      # Golden section; its names keep clear of the interpolant's y0, f0, y1, f1.
++      gr <- (sqrt(5) - 1) / 2; ga <- 0; gb <- 1
++      gx1 <- gb - gr * (gb - ga); gx2 <- ga + gr * (gb - ga); gv1 <- sP(gx1); gv2 <- sP(gx2)
++      for (it in 1:20) {
++        if (is.na(gv1) || is.na(gv2)) return(NULL)
++        if (gv1 < gv2) { gb <- gx2; gx2 <- gx1; gv2 <- gv1; gx1 <- gb - gr * (gb - ga); gv1 <- sP(gx1) }
++        else { ga <- gx1; gx1 <- gx2; gv1 <- gv2; gx2 <- ga + gr * (gb - ga); gv2 <- sP(gx2) }
++      }
++      if (is.na(gv1) || is.na(gv2)) return(NULL)
++      u_min <- if (gv1 < gv2) gx1 else gx2; P_min <- s * min(gv1, gv2)
++      if (s * P_min < 0) {
++        u1 <- root_between(0, sv$P[j], u_min, P_min)
++        u2 <- root_between(u_min, P_min, 1, a$P[j])
++        if (is.null(u1) || is.null(u2)) return(NULL)
++        cuts <- c(u1, u2); uc <- u1
++        n$local_dips <- n$local_dips + 1
+       } else {
+-        lo <- c(u, e$P); wlo <- e$P; if (side == 1) whi <- whi / 2; side <- 1
++        # The crossing has left: still before it where P holds the sign it
++        # had before crossing, else already past.
++        before <- if (split$down[k]) sv$P[j] > 0 else sv$P[j] < 0
++        uc <- if (before) 1 else 0
++        cuts <- uc
++        n$local_clamped <- n$local_clamped + 1
+       }
+-      if (abs(e$P) < ETA / 2) break
+     }
+-    uc <- u
++    s1 <- leaf_solves()
++    n$leaf_locate <- n$leaf_locate + (s1 - s0)
++    if (!is.null(steps$split_log)) {
++      steps$split_log[[length(steps$split_log) + 1]] <- c(row = row, member = j, down = as.numeric(sv$P[j] > 0),
++        uc = uc, located = as.numeric(located), iterations = iterations, P0 = sv$P[j], P1 = a$P[j], h = h)
++    }
+     yj <- y0[idx]; kj <- f0[idx]
+-    for (seg in list(c(0, uc), c(uc, 1))) {
++    ends <- c(0, sort(cuts), 1)
++    for (seg in lapply(seq_len(length(ends) - 1), function(q) ends[q + 0:1])) {
+       hs <- (seg[2] - seg[1]) * h
+       if (hs <= 0) next
+       if (seg[1] > 0) {
+@@ -389,8 +502,12 @@
+     }
+     out[idx] <- yj
+     n$local_members <- n$local_members + 1
++    n$leaf_substeps <- n$leaf_substeps + (leaf_solves() - s1)
+   }
++  s2 <- leaf_solves()
+   r <- tryCatch(patch$derivs(out, t0 + h), `odelia::util::DomainError` = function(e) NULL)
++  n$leaf_end <- n$leaf_end + (leaf_solves() - s2)
++  n$local_secs <- n$local_secs + (proc.time()[["elapsed"]] - t_in)
+   if (is.null(r)) return(NULL)
+   n$local_members_evaluated <- n$local_members_evaluated + length(f)
+   a$y <- out; a$rates <- r; a$P <- production(out); a$K <- klass(out)
+@@ -572,6 +689,7 @@
+ steps <- new.env()
+ steps$k <- 0L
+ steps$states <- if (nzchar(Sys.getenv("STATES"))) list() else NULL
++steps$split_log <- if (nzchar(Sys.getenv("SPLIT_LOG"))) list() else NULL
+ steps$rows <- matrix(NA_real_, 60000, 12,
+                      dimnames = list(NULL, c("time", "h", "er", "ei", "M", "x_soil",
+                                              paste0("soil_", 1:5), "cap")))
+@@ -704,7 +822,8 @@
+           h <- program$h[i] / n_sub
+           a <- attempt(sv$t, sv$y, sv$dydt, h)
+           if (is.null(a)) stop(pinned_raise(sv$t, sv$y, sv$dydt, h))
+-          if (LOCAL && is.null(a <- local_fix(sv$t, h, a))) {
++          split_here <- if (is.null(STRUCTURE)) NULL else STRUCTURE[STRUCTURE$row == i, , drop = FALSE]
++          if (LOCAL && is.null(a <- local_fix(sv$t, h, a, split_here, i))) {
+             stop(sprintf("a pinned step's member-local re-integration raised at t = %.17g", sv$t))
+           }
+           f <- which(sign(a$P) != sign(sv$P))
+@@ -769,11 +888,22 @@
+   st <- as.data.frame(steps$rows[seq_len(steps$k), , drop = FALSE])
+   cat(sprintf("%s nodes %d tol %g: J %.9f, %d accepted, %.0f s; %s\n", method, nodes, tol,
+               J, att[["accepted"]], secs, paste(names(att), att, sep = "=", collapse = " ")))
++  cat(sprintf("J to every digit %.17g\n", J))
+   cat(sprintf("rate evaluations %d, member evaluations %d; evaluated states past the inflow switch %d, the loss clamp %d, the floor %d\n",
+               n$evaluations, n$members, n$switch, n$clamp, n$floor))
+   if (LOCAL) {
+     cat(sprintf("members re-integrated on their own %d, in %d member evaluations\n",
+                 n$local_members, n$local_members_evaluated))
++    cat(sprintf("split: %s evaluation; %d of the structure's crossings outside their step, %d dips inside one; %.1f s in the split\n",
++                if (MEMBER) "single-member" else "whole-patch", n$local_clamped, n$local_dips, n$local_secs))
++  }
++  if (LEAF_COUNTS) {
++    kinds <- plant:::patch_leaf_solves_tf24(patch, 1L)
++    cat(sprintf("leaf solves %.0f (by kind %s); in the split: locating %.0f, sub-steps %.0f, corrected step ends %.0f, dense output %.0f\n",
++                sum(kinds), paste(kinds, collapse = "/"), n$leaf_locate, n$leaf_substeps, n$leaf_end, n$leaf_dense))
++  }
++  if (!is.null(steps$split_log)) {
++    saveRDS(as.data.frame(do.call(rbind, steps$split_log)), Sys.getenv("SPLIT_LOG"))
+   }
+   if (EVENTS) {
+     cat(sprintf("crossings located %d, class switches located %d, in %d evaluations holding %d members\n",
+@@ -808,6 +938,7 @@
+     saveRDS(list(method = method, nodes = nodes, tol = tol, J = J, attempts = att,
+                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
+                  counts = as.list(n), secs = secs, st = st,
++                 leaf_solves = if (LEAF_COUNTS) plant:::patch_leaf_solves_tf24(patch, 1L) else NULL,
+                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
+                                       fecundity = f, patch_density = pd)),
+             Sys.getenv("OUT"))

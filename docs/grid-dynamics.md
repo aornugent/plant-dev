@@ -34,13 +34,13 @@ The scripts:
 | 2 | 17.5–21% of attempts rejected | near knots, the controller's carried proposal; far from them, the members' sign changes and near-empty pools | established; the chain alone's seeds remove 85% of the knots' rejections for 3.5% fewer member evaluations (§12) |
 | 3 | the invader's first replay costs about two forwards | `run_mutant` re-runs the resident to keep its field | established; fixed on `PLANT-99` |
 | 4 | `J`'s time error does not follow the tolerance under plant's default absolute tolerance | near-empty pools, and steps across members' sign changes | established earlier; the pools fixed by the tied tolerance, under which the error stays within 0.46·tol but changes sign between tolerances (§13) |
-| 5 | gradients are a staircase in θ | sign changes sliding past the stages | established earlier |
+| 5 | gradients are a staircase in θ | sign changes sliding past the stages | established earlier; per-member events on a quintic interpolant remove it (§11) |
 | 6 | the invader's node error changes sign under halving on uniform nodes | two opposite errors at the layer's top that shrink at different rates | established; the field part is the soil's for `J` and light's for the invader, and spreading each panel's leaf area removes the light part (`canopy-spread.md`) |
 | 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the step-size law cycles across the limit | established; the implicit soil pays there, and on the chain alone a PI law leaves 6 of 1009 rejections (§7) |
 | 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established on long drought |
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not |
 | 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps |
-| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 3.8% counted per member; the spike in progress measures 12.4% with locating and corrected step ends (§11) |
+| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11) |
 | 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift toward a fixed bias as the members' tolerance tightens is not traced | the partition killed (§13); the drift not root-caused |
 
 ## 1. The steps
@@ -439,13 +439,78 @@ unstable.
 - *Counted per member, the split adds 3.8%,* the reply's estimate of 4%, on
   the per-pool scale's grid at `1e-4`. It needs plant to evaluate one member in
   a step's interpolated field.
-- *The spike in progress* adds that evaluation to plant as a probe. On the test
-  instance it measures 12.4% more leaf solves at `3e-5` and `1e-4`, with
-  locating, sub-steps and corrected step ends counted. With crossings located
-  on a quintic interpolant `J` lands 9–12× nearer `J*`; on a cubic it lands
-  farther (+1.6e-4 against the plain run's +3.7e-5 at `1e-4`). It has since found
-  crossing pairs, down and back up, inside one step, which one cut missed. Its
-  runs with two cuts, and the gradients under tolerance nudges, are in progress.
+**Test: per-member events at their real cost** (a pre-registered spike;
+`events/`). A plant probe (`node_rates_probe.patch`) evaluates one member in a
+step's field, bit for bit as `patch$derivs` does. Each member whose net
+production crosses zero inside a step is split there: the crossing located on
+an interpolant of the step, the member re-integrated on the sub-steps, and the
+step's end corrected. Long drought, uniform 108, tied tolerance:
+
+| | `1e-4` | `3e-5` |
+|---|---|---|
+| plain replay, leaf solves | 5.04e6 | 6.00e6 |
+| split on a cubic interpolant, replay / adaptive forward | +7.2% / +5.9% | +6.2% / +5.2% |
+| split on a quintic interpolant, replay / adaptive forward | +12.4% / +10.2% | +12.4% / not run |
+| `J − J*`, relative: plain / cubic / quintic | +3.7e-5 / +1.6e-4 / +4.0e-6 | −1.3e-5 / +9.0e-5 / +1.0e-6 |
+
+- *The split needs an interpolant of the step's order.* On a cubic through the
+  step's ends, the field the split members read is off by more than one error
+  weight on 10 of 60 crossing steps for the soil (up to 23) and on 23 of 60 for
+  the other members (up to 30). Halving only the crossing steps shrinks the
+  cubic split's move 10–13× each time, as `h⁴`. On a quintic through a half-step
+  midpoint `J`'s error falls with the tolerance, 9–12× nearer `J*` than plain.
+- *Where the cost goes* (cubic, `1e-4`): locating 2.3%, sub-steps 4.1%, the
+  corrected step ends 0.9%, for 9233 members split in 726 of 14 845 steps. The
+  quintic's midpoints add 5.2%. The 3.8% above missed the field's boundary-node
+  solve and the corrected step ends.
+- *The spread under the nudges:* seven tolerances within 5% of `1e-4`, the
+  largest move from the `1e-4` run in ε/3, the standard deviation in brackets
+  (`events/runs/final_nudges.txt`):
+
+  | quantity | plain | split, quintic |
+  |---|---|---|
+  | `ln J` | 0.003 | 0.001 |
+  | `a_dG1` | 1.048 (0.37) | 0.174 (0.06) |
+  | `d_I` | 1.261 (0.38) | 0.282 (0.11) |
+  | `a_dG2` | 0.906 (0.27) | 0.138 (0.05) |
+  | `lma` | 0.477 (0.15) | 0.059 (0.02) |
+
+  The kink is 70–85% of the spread: the split cuts the standard deviation
+  3.4–6.4×, and its means are within 0.4 ε/3 of plain's. `1e-5`, the record's
+  remedy, costs about 41% more leaf solves; the split buys the same stability at
+  `1e-4` for about a quarter of that. The plain arm is reverse mode on
+  `lib_v12t`; the split arm central differences at `r = 1e-3` on each run's
+  frozen structure, which agree with reverse mode on the plain grid within
+  0.12 ε/3.
+- *The chord* (`lma` on the `1e-4` grid, `events/runs/final_chord.txt`): plain's
+  second difference is 2.8–4.4ε below the wide chord's −44.0 at `r` from 3e-4 to
+  1e-3; the split's is within about 1ε of it, and its elasticity is flat in `r`
+  within 0.06 ε/3.
+- *Crossings changing step* under a change of `lma`: 1–3 at ±1e-5, 4–7 at ±1e-4,
+  about 78 at ±1e-3 and 650 at ±1e-2, each moving `J` by 1e-8 (cubic) or 5e-9
+  (quintic).
+- *Grazing.* Member 5, 3.1% of `J`, dips to `P = −2.9e-4` at a rain-onset knot at
+  t = 17.15, its two crossings either side of the knot's step boundary; the dip
+  vanishes within +1e-5 in `lma`. With one cut per member step the frozen
+  structure jumped 5.8e-7 in `ln J`, 2–3 ε/3 in `d_I`. Cutting a step twice where
+  a member's production has an interior dip makes it continuous to the noise
+  floor, for 0.06–0.6% more.
+
+**Verdict: close to a pass.** The spread passes clearly. The cost misses the
+10% bar by 0.2–2.4 points, all of it the quintic's midpoints. Counted, not
+measured: a stage-based interpolant, a shared boundary-node solve and locating
+from the stages would bring it to about 8%, or 3% with a pair whose fourth-order
+interpolant is free.
+
+**Root cause, confirmed:** the gradients' spread under tolerance nudges is the
+kinks' (§4–6). Split at each crossing on an interpolant of the step's order, the
+spread falls 3.4–6.4× and `J`'s error falls with the tolerance.
+
+**Not measured:** the reverse sweep's cost with the split (estimated +10–20%), the
+invader with it, the relaxation offset's and the cost scale's elasticities, and
+other records. Building it into odelia's step and sweep and plant's member rates
+is about 0.9–1.3k lines in 4–5 stacked changes; the spike's report lists what the
+recording and the tape must hold.
 
 ## 12. What the chain alone tells the schedule
 
@@ -623,9 +688,9 @@ to high order, which is the coupled step.
   need about half of them.
 - *Not supported: drainage's tail as the soil's cost.* Integrated where that
   tail is linear, the chain takes more steps.
-- *Per-member events cost 3.8% counted per member and 12.4% in leaf solves on
-  the spike so far* (§11). Whether they make the gradients reproducible is
-  open.
+- *Supported: per-member events make the gradients reproducible and `J`'s error
+  fall with the tolerance,* for 10.2% of a forward's leaf solves on a quintic
+  interpolant (§11). Their cost in the reverse sweep is not measured.
 - *Supported on long drought: with each panel's leaf area spread over its
   members' heights, uniform halving reports its own node error* (median ratios
   3.6–3.9, companions 0.93–1.09; `canopy-spread.md`). Not on the constant
@@ -647,9 +712,7 @@ to high order, which is the coupled step.
 ## Next probes, each one variable
 
 - the PI law on the driver, with the chain seeds (§7, §12);
-- per-member events in plant, with one member evaluated in the step's
-  interpolated field, on the gradients' spread under tolerance nudges (the
-  spike in progress, §11);
+- per-member events in the reverse sweep, and the invader with them (§11);
 - the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at
   t = 25, on a second pulsed record;
 - the invaders' windows at ×0.5 and ×2 of the resident, which bound a shared

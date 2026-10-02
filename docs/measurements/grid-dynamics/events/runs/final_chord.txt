@@ -1,0 +1,15 @@
+
+== Stage 2: lma alone on the 1e-4 grid; elasticity e(r) and second difference H(
+frozen structure at lma itself: J identical to the split's
+                        plain 1e-06 -8.259868   5210.18164 -0.0001046122
+                        plain 1e-05 -8.266983   -342.57364 -0.0010475272
+                        plain 1e-04 -8.267734    -62.97918 -0.0104736729
+                        plain 3e-04 -8.267302    -49.06289 -0.0314062412
+                        plain 1e-03 -8.270813    -47.27693 -0.1045973485
+                        plain 1e-02 -8.283889    -44.03715 -1.0280687404
+ split, frozen, quintic field 1e-06 -8.299120  67173.62207 -0.0001047136
+ split, frozen, quintic field 1e-05 -8.277833    562.21577 -0.0010482944
+ split, frozen, quintic field 1e-04 -8.276198    -36.47359 -0.0104823674
+ split, frozen, quintic field 3e-04 -8.276753    -44.63268 -0.0314385244
+ split, frozen, quintic field 1e-03 -8.277301    -42.78728 -0.1046472131
+ split, frozen, quintic field 1e-02 -8.282545    -43.57646 -1.0276113461

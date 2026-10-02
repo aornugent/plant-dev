@@ -287,14 +287,17 @@ on disk and a few driver probes:
   fewer member evaluations, but the explicit soil is then unstable.
 - *The per-member split that cures the gradients was priced on the harness:*
   the driver evaluates every member to read one. Counted per member it adds
-  3.8%, the grid reply's estimate. The events spike in progress measures 12.4%
-  in leaf solves, with locating and corrected step ends (§11).
+  3.8%, the grid reply's estimate. Measured at its real cost with an
+  interpolant of the step's order (a quintic), it is 10.2% of a forward's leaf
+  solves, and it cuts the gradients' spread under ±5% nudges 3.4–6.4× while
+  `J`'s error falls with the tolerance (§11). A cubic interpolant makes `J`
+  worse.
 - *The partitioned step is killed* (§13). Holding the collar across a member
   step under-draws the dry spells' water budget at first order, `J` amplifies
   the budget 2.2-fold, and the corrections drift to a bias of about −5e-4 as the
   members' tolerance tightens, which is not traced.
-- *Open:* per-member events in plant (in progress); the PI law and the chain
-  seeds together on the driver; the invaders' windows for a shared grid; the
+- *Open:* per-member events in the reverse sweep and for the invader; the PI
+  law and the chain seeds together on the driver; the invaders' windows for a shared grid; the
   gradients under a looser soil; R2's introduction nudge.
 
 **Step 3: the floor, checked run by run.** A bank of references was too slow

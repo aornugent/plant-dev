@@ -1,0 +1,5 @@
+t   7.04,  20 members: whole 0.417 ms (22 leaf solves), single 0.087 ms (2), state and field alone 0.047 ms; single/whole 0.208, leaf-solve ratio 0.091
+t  14.44,  40 members: whole 0.853 ms (42 leaf solves), single 0.087 ms (2), state and field alone 0.053 ms; single/whole 0.102, leaf-solve ratio 0.048
+t  21.85,  60 members: whole 1.143 ms (62 leaf solves), single 0.077 ms (2), state and field alone 0.030 ms; single/whole 0.067, leaf-solve ratio 0.032
+t  29.26,  80 members: whole 1.197 ms (82 leaf solves), single 0.047 ms (2), state and field alone 0.030 ms; single/whole 0.039, leaf-solve ratio 0.024
+t  36.67, 100 members: whole 1.763 ms (102 leaf solves), single 0.067 ms (2), state and field alone 0.037 ms; single/whole 0.038, leaf-solve ratio 0.020
