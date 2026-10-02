@@ -253,8 +253,14 @@ on disk and a few driver probes:
   accuracy reaches `J` in proportion: a soil weight ×10 looser saves about 5%
   at a matched error. So the record predicts the cost but offers no cheap
   lever.
-- *The rejections near knots are the controller's cheap probe of the soil.* A
-  seed from the last knot of the same kind removes them and costs 7.9% more.
+- *The rejections near knots are the controller's carried proposal.* A seed
+  from the last knot of the same kind removes them and costs 7.9% more under
+  plant's default absolute tolerance, 5.7% under the tied one. The soil chain alone's first step after
+  each knot, as the seed, removes 85% of them and saves 3.5% of member
+  evaluations (§12), for 2.4e-4 of a forward.
+- *The constant record's rejections are the step-size law's.* On the soil chain
+  alone a PI law leaves 6 of 1009, at the same steps (§7); the driver's test is
+  open.
 - *The invader's first replay repeats the resident's forward,* about 12% of a
   run with every gradient. Fixed on `PLANT-99` (#99): the first replay halves,
   for 130 MB more held after a recorded forward.
@@ -281,10 +287,15 @@ on disk and a few driver probes:
   fewer member evaluations, but the explicit soil is then unstable.
 - *The per-member split that cures the gradients was priced on the harness:*
   the driver evaluates every member to read one. Counted per member it adds
-  3.8%, the grid reply's estimate.
-- *Open:* a partitioned step, the soil sub-stepped with uptake re-derived from
-  held collar suctions; per-member events in plant; the invaders' windows for a
-  shared grid; the gradients under a looser soil; R2's introduction nudge.
+  3.8%, the grid reply's estimate. The events spike in progress measures 12.4%
+  in leaf solves, with locating and corrected step ends (§11).
+- *The partitioned step is killed* (§13). Holding the collar across a member
+  step under-draws the dry spells' water budget at first order, `J` amplifies
+  the budget 2.2-fold, and the corrections drift to a bias of about −5e-4 as the
+  members' tolerance tightens, which is not traced.
+- *Open:* per-member events in plant (in progress); the PI law and the chain
+  seeds together on the driver; the invaders' windows for a shared grid; the
+  gradients under a looser soil; R2's introduction nudge.
 
 **Step 3: the floor, checked run by run.** A bank of references was too slow
 (about 100 CPU hours). Each grid now carries a tolerance companion (×1.05,

@@ -47,7 +47,8 @@ The discretisation is two grids, both constants within one gradient: the
 
 **What a run must deliver.**
 - `ln J`, each elasticity `d ln J/d ln θ_k`, each second derivative, and their probe
-  counterparts near `θ′ = θ` are within `ε` of their converged values. `ε` is a
+  counterparts near `θ′ = θ` are within `ε` of their converged values. Four small
+  elasticities are set aside, and "every quantity" below means the rest. `ε` is a
   tenth of each quantity's spread across records from one generator: 0.025 in `ln J`.
 - Four tests hold:
   - *reproducible:* `tol` moved by ±5%, or every creation time by a quarter
@@ -57,7 +58,8 @@ The discretisation is two grids, both constants within one gradient: the
   - *predictable:* each error falls with its setting at a known order;
   - *nothing fails.*
 - One grid serves a local analysis: `J′` over `θ′ ∈ θ·[0.5, 2]`, its gradient and
-  second derivative at `θ′ = θ`, and base runs within ±10% of `θ₀`.
+  second derivative at `θ′ = θ`, and base runs within ±10% of `θ₀`, the constants
+  the grid was built at.
 - The least cost that meets all of this, compared at matched error.
 
 `δ = T/14 600` is the forcing's sampling interval, and short times are in `δ`.
@@ -71,14 +73,14 @@ in_1 = s(t) · max(0, 1 − v_1^8),        in_ℓ = k·clamp(v_{ℓ−1}, 0, 1)^
 ```
 - A component at or below `v_floor = 0.0234` has its rate set to `max(0, ·)`.
 - Members read the chain only through `φ_ℓ = min(φ_max, c_φ·max(v_ℓ, v_floor)^−6.57)`.
-- The accumulators integrate `s`, `in_1`, the chain's outflow and `Σ a_ℓ`; none
-  feeds back.
+- The accumulators integrate `s`, `in_1`, the chain's outflow and `Σ a_ℓ`; the
+  fifth stays zero here. None feeds back.
 - The chain's Jacobian is lower bidiagonal; its diagonal is
   `−k q v_ℓ^{q−1}` (plus a term from `in_1` on the first component).
 
 **The forcing.** `s(t)` is a shape-preserving `C¹` Hermite interpolant of control
 points at spacing `δ`, from a generator of active and quiescent stretches with gamma
-depths and a multiplier per year. On the test instance's record it is zero over
+depths and a multiplier for each unit of time. On the test instance's record it is zero over
 quiescent stretches, most of the horizon, and positive over 814 pulses of `2–4δ`;
 its 2931 active knots are where the interpolant's second derivative jumps.
 
@@ -86,7 +88,7 @@ its 2931 active knots are where the interpolant's second derivative jumps.
 output integral `Y`, two smooth accumulations, a bounded pool `S`, its accumulated
 output `F`, and two panel moments `I, N`. At each rate evaluation:
 ```
-p_j   = argmax over p ∈ [p_lo, p_hi] of R(p; x_j, φ, Φ)          the inner problem
+p_j   = argmax over p ∈ [p_lo, p_hi] of W(p; x_j, φ, Φ)          the inner problem
 P_j   = P(p_j; x_j, φ, Φ)                                        a scalar net rate
 c_ℓj  = C_ℓ(p_j; x_j, φ)                                         its draw on v_ℓ
 P⁺    = ½ (P + √(P² + ε_P²))                                     ε_P = 1e-4
@@ -95,7 +97,7 @@ g     = P⁺ · G(r)
 ẋ     = g · (1 − f(x)) · κ(x),     Ẏ = g · f(x) / ν,     f(x) = 1/(1 + e^{50 (1 − x)})
 Ṡ     = [u⁺ (1 − r) − u⁻ r] / (1 + λ_S τ_s),   u⁺ = P⁺(1 − G),  u⁻ = P⁺ − P
 ṁ     = μ(r) = μ₀ + μ₁ e^{−r/r₀}
-Ḟ     = e^{−m} · (σ(t)/σ(b_j)) · Ẏ
+Ḟ     = e^{−m} · (ω(t)/ω(b_j)) · Ẏ                               ω a known positive function
 ```
 - `P` falls through zero in long quiescent stretches and rises back in the pulse
   that ends them. `P⁺` turns over `ε_P/|Ṗ|`, about `2e-7` time units.
@@ -117,8 +119,9 @@ a_ℓ  = Σ_j w_j n_j c_ℓj + w_new c_ℓ,new,          n_j = e^{−m_j}
 Φ(z) = Σ_j w_j n_j A(z; x_j) + w_new A(z; x_new)
 J    = c_J · Σ_j w_j π(b_j) F_j(T)
 ```
-- `Φ` is a cubic Hermite interpolant in `z/x_max` on 65 knots, rebuilt at every
-  evaluation. Each member contributes `A(z; x_j)` to it and reads it on `[0, x_j]`.
+- `Φ` is a cubic Hermite interpolant in `z/x_max`, `x_max` the largest member's
+  `x`, on 65 knots, rebuilt at every evaluation. Each member contributes
+  `A(z; x_j)` to it and reads it on `[0, x_j]`.
 - `π(b)` is a smooth, decreasing known function. The sums over members are
   quadratures over creation time.
 
@@ -144,34 +147,40 @@ the loss rate responds to growth.
   held; the chain's rates given `a` are negligible beside them.
 - *The reverse sweep* runs over a recording of the forward run, one row per step
   holding the inner problem's solutions at each evaluation. It differentiates
-  through them by the implicit-function theorem and costs about 2.6 forwards for
-  every column.
+  through them by the implicit-function theorem and costs about 2.6 forwards; one
+  sweep gives every column of `dJ/dθ`.
 - *Probes* walk the recording's steps exactly, in the recorded fields.
 
 **The test instance:** one record, 108 creation times evenly spaced over
 `[0, 39.63]`, `tol = 3e-5`.
 - 17 684 accepted steps, 7.06e6 member evaluations, and `J` 1.26e-5 below
   `J*`, which is the pair at `tol = 1e-8`.
-- A run with every gradient of both kinds costs about eight forwards: the base
-  forward, its sweep, the probe's walk and its sweep.
+- A run with every gradient of both kinds costs about seven forwards: the base
+  forward, its sweep, the probe's walk (0.8 of a forward) and its sweep.
 
 ## Where the computation goes
 
-Each finding is a measurement on the test instance unless it says otherwise. The
-refuted hypotheses are kept. We do not know which of these carries the most
-weight.
+Each finding is a measurement on the test instance unless it says otherwise. A
+few were made under a different absolute tolerance, `σ_n = tol·(|y_n| + 1)`, and
+say so. The refuted hypotheses are kept. We do not know which of these carries
+the most weight.
 
 **1. The chain sets the step grid on its own.**
 - With `a ≡ 0`, the chain alone, under the same controller and stops, takes 16 447
   steps: 93% of the coupled run's.
 - In the coupled run, 76% of steps start within `δ` of a knot. A pulse interval
   takes 5.6 steps; a quiescent interval 6.4, 3.6 of them in its first `δ`.
-- The chain bounds 84–91% of accepted steps at every tolerance from `1e-2` to
-  `1e-7`, and steps grow only as `tol^{−0.15}`.
-- The controller rejects 40–51% of first attempts at knots where `s` starts, rises
+- The chain bounds 83% of the test instance's accepted steps, and 84–91% at
+  every tolerance from `1e-2` to `1e-7` under the other absolute tolerance, where
+  steps grow only as `tol^{−0.15}`.
+- Its accuracy reaches `J` in proportion. Ten times looser on the chain alone in
+  `ρ`, `J`'s error doubles (−1.26e-5 to −2.39e-5 at `3e-5`), and at matched error
+  that saves about 5%.
+- The controller rejects 42–58% of first attempts at knots where `s` starts, rises
   or falls: the carried proposal is too long. Seeding them from the last knot of
-  the same kind removed those rejections but cost 7.9% more evaluations, because
-  the seeds were too short and the steps had to grow back.
+  the same kind removes those rejections but costs 5.7% more evaluations, because
+  the seeds are too short and the steps must grow back: the first `δ` after the
+  knots takes 12 716 accepted steps against 10 423.
 - The chain-alone grid predicts the coupled one. Steps per interval agree within
   one in 89% of intervals. The coupled run's first accepted step after each knot,
   over the chain alone's, has median 1.00 (10–90%: 0.87–1.3). Taken as the
@@ -186,7 +195,7 @@ weight.
 
 **2. The chain's cost is its answer to the pulses, not its decay between them.**
 After a pulse a component decays as `v ∝ t^{−1/(q−1)}`, with its diagonal about one
-over the time since. In `u_ℓ = v_ℓ^{1−q}`, where a component with nothing above it
+over the time since. In `y_ℓ = v_ℓ^{1−q}`, where a component with nothing above it
 decays linearly, the chain alone takes 20 275 steps. Quiescent intervals take 7%
 fewer, pulse intervals 38% more. Refuted as the cost.
 
@@ -196,8 +205,8 @@ fewer, pulse intervals 38% more. Refuted as the cost.
   has median 0.36 in pulse intervals. The chain relaxes about as fast as the
   forcing moves it.
 - An additive pair with the chain implicit (ARK4(3)6L[2]SA, damped Newton on the
-  chain's block) saved 9% at matched `J`, and its embedded estimate missed the
-  chain's error on long steps.
+  chain's block) paid only 9% at matched `J`, under the other absolute
+  tolerance, and its embedded estimate missed the chain's error on long steps.
 - Under constant forcing the chain sits at a steady state that is stiff: 83% of
   steps start at `h|λ|/β ≥ 0.8`, and the controller rejects 16%. Held under 0.8β
   the rejections fall from 739 to 52 at the same cost. With the chain implicit,
@@ -205,14 +214,17 @@ fewer, pulse intervals 38% more. Refuted as the cost.
 - Those rejections are the step-size law's. Our law never shrinks a step after
   accepting one, and its integral action grows each step past the stability
   limit, which is then cut back. On the chain alone under constant forcing it
-  rejects 1009 attempts of 5895. A PI law, adding the previous ratio's term at
-  `β = 0.04`, leaves 6, at 4898 steps against 4886 and a smaller error. Allowing
-  a shrink alone leaves 760.
+  rejects 1009 attempts of 5895. A PI law, allowing a shrink and adding the
+  previous ratio's term at exponent 0.04, leaves 6, at 4898 steps against 4886
+  and a smaller error. Allowing the shrink, with the rejection's exponent 1/5,
+  but without the previous ratio, leaves 760.
 - On the test record the same PI law turns a third of the chain's rejections
   into accepted steps at the same attempts. That saves about 4% at matched error.
   1910–1960 rejections remain at every `tol` from `3e-5` to `1e-4`.
-- Under constant forcing a uniform creation grid misses the creation window, which
-  lies in the first 23δ. Those figures are on a grid graded to it.
+- Under constant forcing a uniform creation grid lumps the members created in the
+  first 23δ, where a front between members that thrive and members that fail
+  sits, into its first member; a uniform pilot there reads `J` as 0.0008 against
+  289. Those figures are on a grid graded to the front.
 
 **4. The members need about half the steps on their own.**
 - With the chain and the accumulators taken out of `ρ`, the run takes 9176 steps
@@ -233,6 +245,8 @@ output still to come after `t`.
   after `t = 25` on the pulsed records, since members accumulate.
 - Members created before `b = 3.6` hold 78–100% of `J`.
 - A coarse pilot (54 creation times at `tol = 1e-3`) reads `R(t)` within 4%.
+- A grid shared by probes over `θ′ ∈ θ·[0.5, 2]` needs their windows too; we have
+  not measured them.
 - `σ_n` ×100 on steps after `t = 25` saves 27% of member evaluations. `J` moves
   6e-6, and an elasticity in `θ_A` taken on each run's own steps moves 0.003ε.
   Under constant forcing it saves 3.5%, the chain there being stability-bound.
@@ -247,22 +261,26 @@ output still to come after `t`.
 - 9235 per run, in 195 clusters. Downward clusters hold about 45 crossings over
   `6δ` in quiescent stretches; the upward ones sit within a pulse's first `δ`.
 - Your earlier reading holds on the measurements. A step across a crossing errs by
-  `h²Δ·K(ϑ)`, zero-mean in `J`. The gradient on one grid is first order in the
-  crossing step and jumps when a crossing passes an abscissa. Its second derivative
-  between jumps is off at zeroth order; a corrected chord over ±1e-2 recovers it.
-  The tolerance was set at `1e-5`, 1.42× the steps of `1e-4`, because of the
-  gradients' spread.
+  `h²Δ·K(ϑ)`, `Δ` the jump in the rate's slope there and `K` a function of where
+  in the step, `ϑ`, the crossing falls, with zero mean in `J`. The gradient on one
+  grid is first order in the crossing step and jumps when a crossing passes an
+  abscissa. Its second derivative between jumps is off at zeroth order; a
+  corrected chord over ±1e-2 recovers it. Runs with gradients use `tol = 1e-5`,
+  1.42× the steps of `1e-4`, because of the gradients' spread; the test instance
+  at `3e-5` is our reference for cost.
 - Splitting each crossing member at its crossing was set aside at four times a
-  replay. That cost was the harness's: each single-member evaluation evaluated every
-  member. Counted per member, it adds 3.8%: 9229 members re-integrated in 167 256
-  single-member evaluations, against 4.38e6.
+  replay. That cost was our driver's: each single-member evaluation evaluated
+  every member. Counted per member, the re-integration adds 3.8%, on another grid
+  at `tol = 1e-4`: 9229 members re-integrated in 167 256 single-member
+  evaluations, against 4.38e6. Built into the run, with locating, sub-steps and
+  corrected step ends, it costs 12.4% on the test instance so far.
 - Refusing steps longer than `0.05δ` across a crossing, under a shared absolute
   error part where the pools' error is uncontrolled. The figures are `J − J*`, then
   member evaluations, at `tol = 1e-4`:
   - every member: −1.7e-5, at 3.4× the cost;
   - every member, but only on steps before `t = 25`: −2.4e-5, at 2.0×;
-  - only members created before 3.6: +3.1e-4, at 1.28×. That removes 60% of the
-    error.
+  - only members created before 3.6, on steps before `t = 25`: +3.1e-4, at 1.28×.
+    That removes 60% of the error.
   - So the window holds for crossings; the earliest members alone do not.
 
 **7. The creation grid.**
@@ -274,28 +292,31 @@ output still to come after `t`.
   creation, and `Φ` adds the rest. A pilot at the run's `tol` with a quarter of
   the creation times finds 97%, at 0.24 of a forward's member-steps; at
   `tol = 1e-3` pilots find 91–92% and miss stretches of 3–6δ.
-- On uniform grids two opposite errors sit at the creation window's top and
-  shrink at different rates, so the probe's elasticities change sign under
+- On uniform grids two opposite errors sit at the creation window's first
+  members and shrink at different rates, so the probe's elasticities change sign under
   halving. Openings graded from `0.03` by 1.11 per panel put them on the square law.
 - The faster of the two is `Φ`'s. Each member's term `A(z; x_j)` sits at its own
   `x_j`, and while the window's first members are more than a term's width apart
   in `x`, `Φ` and its slope in `z` are wrong at each of them. Spreading each
   panel's term over the `x` its creation interval spans, as 8 point terms per
   half panel, removes that error and leaves the other unchanged. Uniform halving
-  then converges on the square law for every quantity of both kinds, median
-  ratios 3.6–3.9, and the coarser rung reports the error at 0.93–1.09. A single
-  spread rung is coarser, 0.7–3ε at 108, so the answer is the two-rung
-  extrapolation: from 215 and 429, a median 0.009ε for the probe's quantities
-  and 0.003ε for the base run's.
+  then converges on the square law for all but one resolved quantity of both
+  kinds, median ratios 3.6–3.9, and the coarser rung reports the error at
+  0.93–1.09. A single spread rung is coarser, 0.7–3ε at 108, so the answer is the
+  two-rung extrapolation: from 215 and 429, a median 0.009ε for the probe's quantities
+  and 0.003ε for the base run's. Under constant forcing spreading fails: `J` is
+  1411 and 822 at 108 and 215 members against 289.3, the error there being the
+  front's, which needs creation times at the front.
 - Contracting the sweep's field adjoints with each panel's field defect, taken from
-  the finer run's own members, predicts the field part of each move. On 108 → 215,
-  215 → 429 and graded G1 → G2 it gives 1.000×, 0.991× and 0.996× for `J`, within
+  the finer run's own members, predicts the field part of each move; we call it
+  the field-adjoint map. On 108 → 215, 215 → 429 and a graded grid's halving
+  (125 → 248 members) it gives 1.000×, 0.991× and 0.996× for `J`, within
   0.97–1.11× per panel group. For the probe's `θ_A` elasticity it gives 0.986× and
   0.94×. It costs 12% more than a sweep.
 - `J`'s field part is the chain's, through `a` and `φ`: +2.14% against `Φ`'s −0.17%
   on 108 → 215. The probe's is `Φ`'s: +0.45 against −0.08.
 - A virtual member interpolated into the coarser run instead misses: 1.10×, 1.18×
-  and 0.63×, and 2.9× at the window's top.
+  and 0.63×, and 2.9× at the window's first members.
 
 **8. Probes walk the base run's steps.** A probe feeds neither field and needs none
 of the chain's steps, yet walks all 17 684. Its own demand is not measured; finding
@@ -330,10 +351,13 @@ of the chain's steps, yet walks all 17 684. Its own demand is not measured; find
   | exact, members carried | `3e-5` / `1e-5` | 6133 / 7163 | 0.36 / 0.42, and 2.5 / 2.9 in the chain | −3.0e-4 / −2.2e-4 |
   | extrapolated + end correction | `1e-4` / `3e-5` / `1e-5` / `3e-6` / `1e-6` | 5294 … 10 750 | 0.30 / 0.36 / 0.42 / 0.53 / 0.67 | +5.6e-4 / +1.1e-4 / −2.4e-4 / −3.4e-4 / −4.9e-4 |
   | corrector + end correction | `3e-5` / `1e-5` | 6121 / 7142 | 0.66 / 0.78 | −4.4e-5 / −1.4e-4 |
+  | corrector, one pass / two, no end correction | `3e-5` | 6125 / 6138 | 0.65 / 0.95 | +8.0e-3 / −2.1e-4 |
+  | held / end correction, member steps capped at `δ` | `3e-5` | 16 349 / 16 335 | 0.79 / 0.79 | +2.3e-2 / +4.0e-4 |
 
 - *The hold is first order:* its error falls 1.8-fold for 1.76 times the steps.
   The nearest pass, the corrector with the end correction, is 22% cheaper than
-  the coupled run at `1e-4` at 1.2 times its error, and its elasticity in
+  the coupled run at `1e-4` at 1.2 times its error. It sits where the corrected
+  errors cross zero (see *What we cannot yet explain*), and its elasticity in
   `θ_A` on fixed steps is 0.05ε from the coupled run's. At errors near 5e-4,
   0.02ε, the extrapolated hold is twice as cheap as the coupled run at `1e-3`.
 - *The error is in the chain's budget, `Σ_ℓ a_ℓ`.*
@@ -352,9 +376,9 @@ of the chain's steps, yet walks all 17 684. Its own demand is not measured; find
 - *The mechanism.* In a quiescent stretch `p_j` sits close to `φ_1`, so the draw
   is a small difference. Held while `φ_1` rises, the gap closes, where the inner
   problem would move `p_j` to keep drawing.
-- *Two more facts.* The members created at 0 and 0.37 carry 94% of `J`'s excess.
-  Refusing long member steps across crossings leaves the corrected couplings'
-  residuals in place.
+- *Two more facts.* The members created at 0 and 0.37 carry 94% of the hold's
+  excess in `J`. Refusing long member steps across crossings leaves the corrected
+  couplings' residuals in place.
 - *So the coupling is strongest exactly where the chain is slowest.* In a
   quiescent stretch the chain's motion is the members' own draw, through a `p_j`
   that moves to sustain it. Holding either side across a member step leaves a
@@ -367,29 +391,32 @@ These are the measurements with no root cause, and the ones with a mechanism but
 no cure. We list what each has ruled out.
 
 **No root cause.**
-- **The corrected partitions stall** (finding 9). Their error stops at 1e-4 to
-  5e-4 and does not fall as the members' `tol` tightens. The extrapolated hold
-  with the end correction moves from +1.1e-4 to −4.9e-4 between `3e-5` and
-  `1e-6`; the corrector from −4.4e-5 to −1.4e-4 between `3e-5` and `1e-5`.
+- **The corrected partitions drift to a fixed bias** (finding 9). Their error
+  does not fall as the members' `tol` tightens. The extrapolated hold with the
+  end correction moves steadily from +5.6e-4 at `1e-4` through zero to −4.9e-4 at
+  `1e-6`; the corrector from −4.4e-5 to −1.4e-4 between `3e-5` and `1e-5`. The
+  nearest pass sits near that zero.
   - Ruled out: the chain's own `tol` (`1e-6` gives +1.2e-4 against +1.1e-4) and
     refusing long steps across crossings.
   - Exact coupling with the members carried on their start rates leaves −3.0e-4
     and −2.2e-4 at `3e-5` and `1e-5`.
-  - In every variant the residual sits in the first two members.
+  - Where the residual is at least 1e-4, 93–114% of it sits in the members
+    created before 0.5, whose output is 2–12e-4 low. The two-pass corrector's
+    sits in those created between 0.5 and 3.6.
 - **The rejections that remain.** With the chain seeds, 2888 of 20 804 attempts
   are still rejected. 69% are within `δ` after a knot, not on it, and the chain
   bounds three quarters of those near knots. A rejected attempt is a median 1.47
-  times the step then accepted from its start. On the chain
-  alone a PI law leaves 1910–1960 rejections at every `tol` from `3e-5` to `1e-4`.
+  times the step then accepted from its start. On the chain alone a PI law
+  leaves 1910–1960 rejections at every `tol` from `3e-5` to `1e-4`.
   We have not isolated what they are; seeds and PI together are untested.
 - **The spread `Φ`'s sweep** (finding 7) ran 2.0×, 1.7× and 3.4× slower at 108,
   215 and 429 members, under varying load, and took twice the memory at 429.
   The forward and the probe cost what the lumped `Φ` costs per member-step.
   Ruled out: crossings of the members' coordinates, and the order of the
   members at the boundary.
-- **Locating crossings on a cubic made `J` worse** (the events spike, interim).
+- **Locating crossings on a cubic made `J` worse** (the events test, interim).
   At `tol = 1e-4`, `J − J*` is +3.7e-5 plain, +1.6e-4 with crossings located on
-  the member's cubic interpolant, and +4.0e-6 on a quintic. The spike since found
+  the member's cubic interpolant, and +4.0e-6 on a quintic. The test since found
   crossing pairs, down and back up, inside one step, which a single cut missed;
   its runs with two cuts are in progress.
 - **The implicit chain's error does not fall with its `tol`.** Under constant
@@ -417,49 +444,58 @@ no cure. We list what each has ruled out.
 ## A strategy built from these
 
 Each part rests on a finding above. Part (c) of item 3 has been tested and fails
-(finding 9); part (d) is being spiked as we write.
+(finding 9); part (d) is being tested as we write.
 
 1. **Before the run.** Stops at the knots, as now. The chain alone (`a ≡ 0`,
    `2·10⁻⁴` of a forward) seeds each knot's first attempt and the shape of the
    step grid, and says whether item 3(b) is needed (findings 1 and 3).
-2. **One coarse pilot,** at the run's `tol` with a quarter of the creation
-   times. It gives `R(t)` and where creation shuts (findings 5 and 7).
+2. **One coarse pilot.** At the run's `tol` with a quarter of the creation times
+   it finds where creation shuts (finding 7); at 54 creation times and `1e-3` it
+   reads `R(t)` within 4% (finding 5). One pilot for both is untested, and under
+   constant forcing a uniform pilot is no guide (finding 3).
 3. **The step.**
-   - (a) `σ_n` weighted by `R(t)`.
+   - (a) `σ_n` weighted by `R(t)`. Measured only as one step, ×100 after
+     `t = 25`, and for the base run alone; the probes' windows are not measured.
    - (b) The chain implicit only where `h|λ|/β` shows stability binding (finding 3).
    - (c) A partition, now tested and killed. The members took their own steps, and
      inside each the chain was sub-stepped at its own resolution, with
      `a_ℓ = Σ w n C_ℓ(p_j held from the member step's start; x_j, φ(v))`. The hold
      under-draws in quiescent stretches at first order (finding 9).
-   - (d) Per-member events at crossings. Locate `t_c` on the member's interpolant,
-     split that member's update there, and differentiate `t_c` through the sweep.
-     That would let `tol` loosen from `1e-5` (finding 6).
+   - (d) Per-member events at crossings. Locate `t_c` on the member's quintic
+     interpolant, with two cuts where a pair falls inside one step, split that
+     member's update there, and differentiate `t_c` through the sweep. That would
+     let `tol` loosen from `1e-5` (finding 6).
    - (e) The inner problem started from the member's last solution, inside its
      bracket. The sweep differentiates at the solution whatever the start, and
      the recording holds the solutions, so replays need no re-solve. Untested;
      it is the largest share of the cost.
-   - (f) A PI step-size law, with the chain's seeds at the knots (finding 3).
+   - (f) A PI step-size law, with the chain's seeds at the knots (findings 1
+     and 3).
 4. **The creation grid.** Graded openings at each window, or uniform halving with
    each panel's term spread in `Φ` and the two-rung extrapolation reported; in
-   either case dropped to a quarter after the window closes, and refined where
-   the field-adjoint map points (findings 5 and 7).
+   either case dropped to a quarter after `b = 25`, and refined where the
+   field-adjoint map points (findings 5 and 7). A front, as under constant
+   forcing, needs creation times at it either way.
 5. **Probes on their own steps**, against the recorded fields interpolated in time
    (finding 8).
 
 **What it might buy,** each factor measured alone, not as a product:
 - from the partition, nothing at our bar. It is 2× only at `J` errors near 5e-4,
   and its error does not converge there;
-- up to 1.42× from `tol = 1e-4` in place of `1e-5`;
-- 1.27× from the window in time, and 1.12× from the creation grid;
-- 1.6× and more in the probes;
+- up to 1.42× from `tol = 1e-4` in place of `1e-5`, about 1.26× after the
+  events' 12.4%;
+- 1.38× from the window in time (27% fewer member evaluations), and 1.13× from
+  thinning the creation grid after it (12% fewer member-steps);
+- up to 1.7× in the probes, finding 4's bound; unmeasured;
 - 3.5% of member evaluations from the seeds, measured: they remove 85% of the
   rejections at knots;
-- from a PI law, the constant forcing's 17% of attempts rejected, and about 4%
-  on the test record, measured on the chain alone;
+- from a PI law, the constant forcing's rejections, 16% of the coupled run's
+  attempts (17% on the chain alone), and about 4% on the test record, measured
+  on the chain alone;
 - 2–3× on the forwards' member evaluations from (e), your earlier estimate. The
   sweeps differentiate at recorded solutions and gain nothing from it.
 
-**The spike still running: per-member events,** at their real cost and on the
+**The test still running: per-member events,** at their real cost and on the
 gradients' spread under `tol` nudges. Its interim cost is 12.4% more member
 evaluations, not 3.8%: locating, sub-steps and corrected step ends add up. Its
 interim `J` lands 9–12× nearer `J*` with a quintic interpolant, at `3e-5` and
@@ -469,10 +505,11 @@ interim `J` lands 9–12× nearer `J*` with a quintic interpolant, at `3e-5` and
 
 - **The chain sets the step grid, and nothing yet lets the members off it.**
   With the partition killed, the members pay for every one of the chain's steps,
-  93% of the coupled run's. Every partition we have tried has failed: holding
-  `a` plateaued at 10–12% error, linearising `a` in `v` missed a drying
-  component's draw by up to 440%, full coupling at every chain stage cost 13×,
-  and holding `p_j` fails as finding 9 says.
+  93% of the coupled run's. Every partition we have tried has failed. On earlier
+  versions of the model, holding `a` plateaued at 10–12% error, linearising `a` in
+  `v` missed a falling component's draw by up to 440%, and re-evaluating every
+  member at each fast stage cost 13×. Finding 9's exact control costs 2.9×, and
+  holding `p_j` fails as finding 9 says.
 - **Events and grazing.** A crossing pair that vanishes under a small change of
   `θ_A` takes its split with it, so events bring a jump of their own.
 - **Probes on their own steps** need the fields between recorded instants. The
@@ -494,8 +531,9 @@ where a closer one exists.
 - *The partition.* Multirate infinitesimal step methods (Wensch, Knoth and Galant
   2009; Sandu's MRI-GARK, 2019) integrate the fast block with the slow block's
   tendency held over each slow stage. We held the slow block's argmax `p_j` and
-  recomputed the tendency through the cheap map, and it failed (finding 9). Our
-  pilot with full coupling at every fast stage cost 13× the member evaluations.
+  recomputed the tendency through the cheap map, and it failed (finding 9). An
+  earlier pilot of ours, re-evaluating every member at each fast stage, cost 13×
+  the member evaluations on an earlier version of the model.
   If these method classes have a form for a coupling strongest where the fast
   block is slowest, we have not found it.
 - *The controller.* PI step-size control (Gustafsson, Lundh and Söderlind 1988;
@@ -533,7 +571,7 @@ where a closer one exists.
 - The members' rates may not change; the chain's discretisation and the forcing's
   representation are part of the model, and a change to them is a change of model.
 - Cost is member evaluations, the inner problem 85% of them; a run with every
-  gradient is about eight forwards.
+  gradient is about seven forwards.
 - The coupled run at `tol = 3e-5` is the reference for cost, and its `J` is 1.26e-5
   from `J*`, far inside `ε`. The gradients and their reproducibility are what bind.
 
@@ -543,7 +581,8 @@ where a closer one exists.
    and what have we not listed?
 2. The problems we cannot yet explain: for each, what is your reading, and what
    would you test first? In particular:
-   - why the corrected partitions' error grows as the members' `tol` tightens;
+   - why the corrected partitions' error drifts to a fixed bias as the members'
+     `tol` tightens;
    - what the rejections left after seeds and PI are;
    - why the spread `Φ` slows the sweep.
 

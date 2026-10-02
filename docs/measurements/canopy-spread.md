@@ -32,6 +32,8 @@ active scalar so that the sweeps carry it.
   - the per-member-step cost is the same as lumped in forward and invader runs;
   - the resident's sweep ran 2.0×, 1.7× and 3.4× slower at u108, u215 and u429,
     under varying load, and took 2× the memory at u429. That is unexplained.
+    The spike's snapshots show the members' heights and the boundary node in
+    order, so neither is the cause.
 
 ## How the spread is built
 

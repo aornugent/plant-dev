@@ -12,6 +12,19 @@ far     1     392    238      0
 first attempts at a knot rejected, by the change: falls 0.58 (1019), rises 0.42 (285), starts 0.51 (814), stops 0.06 (814) 
 a rejected attempt over the size accepted from its start, 10/50/90%: 1.17 1.55 3.81 | rejected first attempts at a knot, days: 0.27 1 1 | accepted from there: 0.137 0.257 0.626 
 
+== tied_3e-5_knot_seed.rds: J 12.668718118, 19999 accepted, 2696 rejected or thrown (11.9% of attempts), 7468992 member evaluations
+             accepted rejected share_of_rejected
+on a knot        2933        5             0.002
+within a day    12716     1982             0.735
+1-10 days        2483       75             0.028
+over 10 days     1867      634             0.235
+rejected by component, within a day of a knot / over 10 days after one:
+     soil storage member thrown
+near 1578     192    217      0
+far     1     401    232      0
+first attempts at a knot rejected, by the change: falls 0.00 (1019), rises 0.00 (285), starts 0.00 (814), stops 0.00 (814) 
+a rejected attempt over the size accepted from its start, 10/50/90%: 1.16 1.41 2.55 | rejected first attempts at a knot, days: 0.066 0.135 0.756 | accepted from there: 0.0503 0.116 0.188 
+
 == tied_3e-5_chain_seed.rds: J 12.668493814, 17916 accepted, 2888 rejected or thrown (13.9% of attempts), 6812730 member evaluations
              accepted rejected share_of_rejected
 on a knot        2933      189             0.065

@@ -857,7 +857,8 @@ fails R4: the companion reports 0.41 of the invader's error at 215 nodes and
   - Wins if it makes uniform nodes report the invader's error, which would
     delete B's grading.
 
-*Winner: B.*
+*Winner: B,* pending the user's decision on D, which has since met B's kill
+condition on long drought (below).
 - A's pilot buys nothing on long drought that B's structure lacks; A stays as
   the check.
 - C's maps could not be read off plant's sweep when B was picked, and its grid
@@ -874,7 +875,7 @@ the rung below, so a finer rung cannot be placed any other way.
 *Kill question.* The assumption whose falsity makes B unnecessary is that
 uniform nodes cannot report the invader's error. On long drought it holds:
 their companions report 0.41 and 0.33 of it. B survives unless D makes them
-honest.
+honest, which on long drought it has (below).
 
 *Consistency.* B's cap is half the spacing that broke and half long drought's
 `L`. On wet `L` is 0.56, and the graded `J` reaches the square law only past
@@ -900,8 +901,8 @@ node axis to uniform halving; or a record whose graded rungs give no ratio near
 
 **D, run** (`docs/measurements/canopy-spread.md`).
 - *The comb is the cause,* isolated on the invader's `lma`. Spreading each panel
-  takes the top's field part of 108 → 215 from +0.380 to −0.034 and leaves the
-  interpolation part unchanged.
+  takes the field part of 108 → 215 from +0.380 to −0.034, the top's from
+  +0.301 to −0.015, and leaves the interpolation part unchanged.
 - *Spread uniform nodes report their error on long drought,* which meets B's kill
   condition there. Over all 49 quantities at seed 31 the median ratios are
   3.6–3.9 and the companions 0.93–1.09; the invader's `lma` gives 4.11 and 3.89

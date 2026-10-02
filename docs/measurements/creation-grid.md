@@ -382,18 +382,23 @@ the extrapolation adds it to the answer.
 - *Every grid from 108 nodes is within ε on every quantity outside the small
   four;* the worst is 0.73ε, the resident's `rooting_depth_max` on uniform 108.
   What the coarse grids lack is an honest estimate, not accuracy.
-- *Only graded rungs from G1 up report the invader's error:* 1.03 times it at G2.
-  Uniform's and D's companions report a quarter to two fifths of it, so a run
-  that trusted them would stop short.
+- *Only graded rungs from G1 up report the invader's error,* with each panel's
+  leaf area at its node: 1.03 times it at G2. Uniform's and D's companions
+  report a quarter to two fifths of it, so a run that trusted them would stop
+  short. With each panel's leaf area spread over its members' heights, uniform
+  rungs report it too (`canopy-spread.md`).
 - *Extrapolating along the graded ladder pays:* the invader's median error falls
   from 0.039ε at G2 to 0.006ε, for G1's and G2's 3.81e6 member steps, against
   G3's 0.010ε for 5.26e6. On uniform it does not: 0.21ε becomes 0.29ε.
 
 ## Not run
 
-- *Experiment 2,* the panel estimate from the sweep, needs the sweep's adjoints of
-  the field intermediates, which plant's sweep does not expose.
+Both have run since.
+- *Experiment 2,* the panel estimate from the sweep, needed the sweep's adjoints
+  of the field intermediates. A probe exposes them, and the map predicts the
+  field part at 0.99–1.00× (`field-adjoint-map.md`).
 - *Experiment 5.* A node puts no leaf area above its own top (`Q(h, h) = 0`), so
   `A(x_j; x_j)` is zero. But TF24's default shading reads the leaf-area-weighted
   openness over the crown, `[0, h]`, which includes the node's own leaf area. A
-  run with and without that self-term needs a change in plant.
+  probe removed and spread that self-term: it is part of the comb but not
+  separable from it (`canopy-spread.md`).
