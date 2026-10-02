@@ -252,6 +252,16 @@ output still to come after `t`.
 - On uniform grids two opposite errors sit at the creation window's top and
   shrink at different rates, so the probe's elasticities change sign under
   halving. Openings graded from `0.03` by 1.11 per panel put them on the square law.
+- The faster of the two is `Φ`'s. Each member's term `A(z; x_j)` sits at its own
+  `x_j`, and while the window's first members are more than a term's width apart
+  in `x`, `Φ` and its slope in `z` are wrong at each of them. Spreading each
+  panel's term over the `x` its creation interval spans, as 8 point terms per
+  half panel, removes that error and leaves the other unchanged. Uniform halving
+  then converges on the square law for every quantity of both kinds, median
+  ratios 3.6–3.9, and the coarser rung reports the error at 0.93–1.09. A single
+  spread rung is coarser, 0.7–3ε at 108, so the answer is the two-rung
+  extrapolation: from 215 and 429, a median 0.009ε for the probe's quantities
+  and 0.003ε for the base run's.
 - Contracting the sweep's field adjoints with each panel's field defect, taken from
   the finer run's own members, predicts the field part of each move. On 108 → 215,
   215 → 429 and graded G1 → G2 it gives 1.000×, 0.991× and 0.996× for `J`, within
@@ -290,9 +300,10 @@ we write.
      bracket. The sweep differentiates at the solution whatever the start, and
      the recording holds the solutions, so replays need no re-solve. Untested;
      it is the largest share of the cost.
-4. **The creation grid.** Graded openings at each window, dropped to a quarter
-   after the window closes, refined where the field-adjoint map points (findings 5
-   and 7).
+4. **The creation grid.** Graded openings at each window, or uniform halving with
+   each panel's term spread in `Φ` and the two-rung extrapolation reported; in
+   either case dropped to a quarter after the window closes, and refined where
+   the field-adjoint map points (findings 5 and 7).
 5. **Probes on their own steps**, against the recorded fields interpolated in time
    (finding 8).
 

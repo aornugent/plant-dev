@@ -14,7 +14,8 @@
 #     [CROSS_RESTART=0.1] [CROSS_CAP=1 [CROSS_TAIL=12]] [ONSET_CAP=0.3 [ONSET_SPAN=1.5]] \
 #     [TRANSIT=0.5] [KINK_FIX=1] \
 #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
-#     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [ATTEMPT_LOG=attempts.rds] \
+#     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [CHAIN_SEED=chain.rds] \
+#     [ATTEMPT_LOG=attempts.rds] \
 #     [LATE_FROM=25 [LATE_FACTOR=100]] [REGIME=long-drought] [TIMES=times.rds] \
 #     Rscript harness/ark_prototype.R
 #
@@ -59,7 +60,9 @@
 # for the tied tolerance; plant's default is 1. TOL_SOIL scales the soil layers'
 # tolerance weights, and TOL_ACC the flux accumulators'. KNOT_SEED caps the
 # first attempt after a knot where the rain starts, rises or falls at the size
-# accepted after the last knot of that kind. ATTEMPT_LOG saves every attempt:
+# accepted after the last knot of that kind. CHAIN_SEED, harness/soil_chain.R's
+# OUT on the same record, makes the soil chain alone's first accepted step after
+# each knot the first attempt there. ATTEMPT_LOG saves every attempt:
 # its start, size, error ratio and binding component, and whether it was
 # rejected, thrown or clipped to its target.
 # LATE_FROM scales every tolerance weight by LATE_FACTOR on steps that start at
@@ -580,6 +583,10 @@ attempt_log$k <- 0L
 attempt_log$rows <- matrix(NA_real_, 80000, 7, dimnames = list(NULL, c("t0", "h", "ratio", "index", "rejected", "thrown", "final")))
 KNOT_SEED <- Sys.getenv("KNOT_SEED") == "1"
 knot_memory <- new.env()
+chain_first <- if (nzchar(Sys.getenv("CHAIN_SEED"))) local({
+  r <- readRDS(Sys.getenv("CHAIN_SEED"))$rows
+  r[match(pulses, r[, "t0"]), "h"]
+})
 knot_kind <- function(t) {
   before <- rain_at(t - 0.5 / 365); after <- rain_at(t + 0.5 / 365)
   if (before == 0 && after > 0) "starts" else if (before > 0 && after == 0) "stops" else if (after > before) "rises" else "falls"
@@ -590,6 +597,7 @@ step <- function(target) {
   h <- sv$h_last
   kind_here <- if (KNOT_SEED && t0 > 0 && t0 %in% pulses) knot_kind(t0) else NA_character_
   if (!is.na(kind_here) && kind_here != "stops" && !is.null(knot_memory[[kind_here]])) h <- min(h, knot_memory[[kind_here]])
+  if (!is.null(chain_first) && t0 > 0 && !is.na(seed <- chain_first[match(t0, pulses)])) h <- seed
   if (method == "held") h <- min(h, HELD_MARGIN * BETA / lambda_soil(sv$y, t0))
   cap <- cap_at(t0, h)
   h <- min(h, cap[1])
