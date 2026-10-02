@@ -1,0 +1,5 @@
+long-wet, seed 31, 27 nodes at 3e-05: J 19.452842, 21339 steps, 3.52e+05 member-steps, 43 s
+invader lma=0.5: J' 2564.1413, 81 s
+invader lma=2: J' 2.790348e-21, 38 s
+invader hmat=0.5: J' 207.94349, 37 s
+invader hmat=2: J' 7.4356547e-08, 37 s

@@ -1,0 +1,139 @@
+diff --git a/harness/ark_prototype.R b/harness/ark_prototype.R
+index 8c90c86..f74f78a 100644
+--- a/harness/ark_prototype.R
++++ b/harness/ark_prototype.R
+@@ -16,7 +16,7 @@
+ #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
+ #     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [CHAIN_SEED=chain.rds] \
+ #     [ATTEMPT_LOG=attempts.rds] \
+-#     [LATE_FROM=25 [LATE_FACTOR=100]] [REGIME=long-drought] [TIMES=times.rds] \
++#     [LATE_FROM=25 [LATE_FACTOR=100] | WEIGHT=weight.rds] [REGIME=long-drought] [TIMES=times.rds] \
+ #     Rscript harness/ark_prototype.R
+ #
+ # REF compares the steps with a recording of harness/v12_steps.R at the same
+@@ -65,8 +65,10 @@
+ # each knot the first attempt there. ATTEMPT_LOG saves every attempt:
+ # its start, size, error ratio and binding component, and whether it was
+ # rejected, thrown or clipped to its target.
+-# LATE_FROM scales every tolerance weight by LATE_FACTOR on steps that start at
+-# or after that time. REGIME runs another record of harness/long_drought.R's
++# WEIGHT scales every tolerance weight on a step by the weight of the last row of
++# its table (columns t and weight, t from 0) at or before the step's start.
++# LATE_FROM is the table of two rows, 1 from 0 and LATE_FACTOR from that time.
++# REGIME runs another record of harness/long_drought.R's
+ # bank; OUT saves the record's rain and knots. TIMES reads the introductions
+ # from a file in place of NODES.
+ # Sourced, it defines the driver and does not run it.
+@@ -165,6 +167,9 @@ TOL_SOIL <- as.numeric(Sys.getenv("TOL_SOIL", "1"))
+ TOL_ACC <- as.numeric(Sys.getenv("TOL_ACC", "1"))
+ LATE_FROM <- as.numeric(Sys.getenv("LATE_FROM", NA))
+ LATE_FACTOR <- as.numeric(Sys.getenv("LATE_FACTOR", "100"))
++WEIGHT <- if (nzchar(Sys.getenv("WEIGHT"))) readRDS(Sys.getenv("WEIGHT")) else
++  if (!is.na(LATE_FROM)) data.frame(t = c(0, LATE_FROM), weight = c(1, LATE_FACTOR))
++stopifnot(is.null(WEIGHT) || (WEIGHT$t[1] == 0 && !is.unsorted(WEIGHT$t)))
+ TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
+ POOL_FLOOR <- if (nzchar(Sys.getenv("POOL_FLOOR"))) as.numeric(Sys.getenv("POOL_FLOOR")) else NA
+ KINK_EST <- nzchar(Sys.getenv("KINK_EST"))
+@@ -489,7 +494,7 @@ adjust <- function(h, y, yerr, dydt, kink = integer()) {
+     ct$ode_tol_abs
+   if (TOL_SOIL != 1) level[soil(y)] <- level[soil(y)] * TOL_SOIL
+   if (TOL_ACC != 1) level[length(y) - 4:0] <- level[length(y) - 4:0] * TOL_ACC
+-  if (!is.na(LATE_FROM) && sv$t >= LATE_FROM) level <- level * LATE_FACTOR
++  if (!is.null(WEIGHT)) level <- level * WEIGHT$weight[findInterval(sv$t, WEIGHT$t)]
+   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
+     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
+     level[pool] <- (level[pool] - ct$ode_tol_abs * (1 - TOL_POOL_ABS)) * TOL_POOL
+@@ -815,7 +820,7 @@ if (sys.nframe() == 0L) {
+   if (nzchar(Sys.getenv("OUT"))) {
+     saveRDS(list(method = method, nodes = nodes, tol = tol, J = J, attempts = att,
+                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
+-                 counts = as.list(n), secs = secs, st = st,
++                 counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
+                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
+                                       fecundity = f, patch_density = pd)),
+             Sys.getenv("OUT"))
+diff --git a/harness/long_drought.R b/harness/long_drought.R
+index fda4791..e0e896a 100644
+--- a/harness/long_drought.R
++++ b/harness/long_drought.R
+@@ -130,6 +130,18 @@ pulse_rows <- function(times) {
+   rainfall_pulse(time = times, depth = rep(0, length(times)))
+ }
+ 
++# One species at the stand's traits, lma = 0.32 and every other at its default,
++# with one trait at a multiple of the stand's, introduced at `times`.
++stand_at <- function(times, trait = "lma", factor = 1) {
++  p <- scm_base_parameters("TF24")
++  p$max_patch_lifetime <- LIFETIME
++  tm <- if (trait == "lma") trait_matrix(LMA0 * factor, "lma") else
++    trait_matrix(c(LMA0, p$strategy_default$pars[[trait]] * factor), c("lma", trait))
++  p <- add_strategies(p, tm)
++  p$node_schedule_times <- list(times)
++  p
++}
++
+ # The nested uniform ladder over [0, 39.63]: each level bisects the one below
+ # it, and 108 nodes are spaced 40/108 apart.
+ uniform_times <- function(n) seq(0, 107 * 40 / 108, length.out = n)
+diff --git a/harness/run_record.R b/harness/run_record.R
+index 1e4c0b5..de3eed0 100644
+--- a/harness/run_record.R
++++ b/harness/run_record.R
+@@ -5,14 +5,18 @@
+ # raises is recorded, and the phases that do not need it still run.
+ #
+ #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
+-#     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] OUT=run.rds \
+-#     Rscript harness/run_record.R
++#     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
++#     OUT=run.rds Rscript harness/run_record.R
+ #
+ # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
+ # decided, and 1 is plant's default. SHIFT moves every introduction after the
+ # first by that fraction of the node spacing. SEED replaces the regime's own.
+ # TIMES reads the introductions from a file in place of NODES and SHIFT, and
+-# FORWARD runs the stand alone, with no gradient and no invader.
++# FORWARD runs the stand alone, with no gradient and no invader. PROGRAM takes
++# the stand's steps from a harness/ark_prototype.R OUT file on the same record and
++# introductions, each at the size the driver accepted, in place of plant's control.
++# INVADERS walks more invaders after the stand's own, each trait=factor (comma-
++# separated) on the stand's introductions, and keeps each one's J and nodes.
+ local({
+   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
+   source(file.path(here, "long_drought.R"))
+@@ -41,6 +45,11 @@ p <- scm_base_parameters("TF24")
+ p$max_patch_lifetime <- LIFETIME
+ p <- add_strategies(p, trait_matrix(LMA0, "lma"))
+ p$node_schedule_times <- list(times)
++program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st
++if (!is.null(program)) {
++  p$ode_times <- c(0, program$time)
++  p$ode_step_sizes <- c(NaN, program$h)
++}
+ ct <- control()
+ ct$ode_tol_rel <- tol
+ ct$ode_tol_abs <- atol * tol
+@@ -55,7 +64,7 @@ peak_mb <- function() {
+ out <- list(
+   setting = list(regime = regime, seed = seed, spec = RAIN_SPECS[[regime]], tol = tol,
+                  tol_abs = ct$ode_tol_abs, nodes = nodes, shift = shift, lma = LMA0,
+-                 lifetime = LIFETIME),
++                 lifetime = LIFETIME, program = Sys.getenv("PROGRAM")),
+   versions = list(plant = as.character(packageVersion("plant")),
+                   odelia = as.character(packageVersion("odelia")),
+                   R = R.version.string, lib = Sys.getenv("PLANT_LIB"),
+@@ -134,6 +143,14 @@ if (!is.null(scm)) {
+     save()
+     gi <- phase("invader_gradient", function() gradient_of(scm, p))
+     if (!is.null(gi)) out$invader <- c(out$invader, gi)
++    for (inv in strsplit(Sys.getenv("INVADERS", ""), ",")[[1]]) {
++      kv <- strsplit(inv, "=")[[1]]
++      q <- stand_at(times, kv[1], as.numeric(kv[2]))
++      if (isTRUE(phase(inv, function() { scm$run_mutant(q); TRUE }))) {
++        out$invaders[[inv]] <- list(J = sum(scm$offspring_production), nodes = per_node(scm))
++      }
++      save()
++    }
+   }
+ }
+ out$finished <- format(Sys.time(), tz = "UTC", usetz = TRUE)

@@ -95,3 +95,42 @@ changes sign within ±5% of `tol`, and falls with `tol` once each crossing is
 split. So the sign changes are the crossings', not the controller's. The
 controller's remaining part is the cycle at the stability limit and the
 first-`δ` transient after knots.
+
+## The window as a rule
+
+Strategy items 2 and 3(a) have been tested together.
+
+**The rule.**
+- *The pilot:* 54 creation times at `tol = 1e-3`. It reads `R(t)` within 10%
+  wherever `R ≥ 1e-3`, on four pulsed records, for 0.25–0.32 of a forward. With
+  27 creation times it misses one record's tail by 25%. Its creation count
+  matters, and its `tol` barely does.
+- *The weight:* every `σ_n` on a step starting at `t` is multiplied by
+  `1/clamp(R̂(t)/0.1, 0.01, 1)`. `R̂` is the pilot's largest `R` over the base run
+  and the probes at the range's ends.
+- *The thinning:* creation times after the window are spaced
+  `⌊√weight⌋` lattice spacings apart.
+
+**What it buys.**
+- 21–23% of a forward from the weight, and 25–28% with the thinning, on three
+  pulsed records. Under constant forcing it buys 3.6%.
+- On full-gradient runs it saves 21–23%.
+- Every quantity of both kinds moves at most 0.016ε under the weight and 0.078ε
+  under the thinning.
+
+**Where it fails.**
+- *A failing probe breaks the walk.* On one record the probe at `θ_A × 2`, with
+  `J′ ≈ 1e-19`, earns its `J′` late. On the weighted steps, 31–38δ long against
+  5–11δ unweighted, its density equation produces a non-finite value.
+- *Protecting that probe too* (adding the range's other ends to `R̂`) saves only
+  10–12%, and the same walk still fails, later.
+- *A probe's share is the wrong guard.* Probes 9–21× outside the protection move
+  at most 0.06ε; what breaks is the probe's stability on the base run's long
+  steps, which no weight on the base run sees.
+
+**What this adds to our questions.**
+- A probe that walks the base run's steps inherits their length. The
+  window-weighted base run wants long steps late; a failing probe needs short
+  ones.
+- That makes strategy item 5, probes on their own steps, a requirement of the
+  window rule rather than an economy.

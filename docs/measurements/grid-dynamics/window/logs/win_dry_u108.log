@@ -1,0 +1,5 @@
+dry, seed 31, 108 nodes at 3e-05: J 1.1896273, 9134 steps, 6.24e+05 member-steps, 64 s
+invader lma=0.5: J' 789.83693, 127 s
+invader lma=2: J' 9.8018486e-21, 61 s
+invader hmat=0.5: J' 71.395546, 57 s
+invader hmat=2: J' 2.4842422e-10, 57 s

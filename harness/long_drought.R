@@ -130,6 +130,18 @@ pulse_rows <- function(times) {
   rainfall_pulse(time = times, depth = rep(0, length(times)))
 }
 
+# One species at the stand's traits, lma = 0.32 and every other at its default,
+# with one trait at a multiple of the stand's, introduced at `times`.
+stand_at <- function(times, trait = "lma", factor = 1) {
+  p <- scm_base_parameters("TF24")
+  p$max_patch_lifetime <- LIFETIME
+  tm <- if (trait == "lma") trait_matrix(LMA0 * factor, "lma") else
+    trait_matrix(c(LMA0, p$strategy_default$pars[[trait]] * factor), c("lma", trait))
+  p <- add_strategies(p, tm)
+  p$node_schedule_times <- list(times)
+  p
+}
+
 # The nested uniform ladder over [0, 39.63]: each level bisects the one below
 # it, and 108 nodes are spaced 40/108 apart.
 uniform_times <- function(n) seq(0, 107 * 40 / 108, length.out = n)

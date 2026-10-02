@@ -5,14 +5,18 @@
 # raises is recorded, and the phases that do not need it still run.
 #
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
-#     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] OUT=run.rds \
-#     Rscript harness/run_record.R
+#     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
+#     OUT=run.rds Rscript harness/run_record.R
 #
 # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
 # decided, and 1 is plant's default. SHIFT moves every introduction after the
 # first by that fraction of the node spacing. SEED replaces the regime's own.
 # TIMES reads the introductions from a file in place of NODES and SHIFT, and
-# FORWARD runs the stand alone, with no gradient and no invader.
+# FORWARD runs the stand alone, with no gradient and no invader. PROGRAM takes
+# the stand's steps from a harness/ark_prototype.R OUT file on the same record and
+# introductions, each at the size the driver accepted, in place of plant's control.
+# INVADERS walks more invaders after the stand's own, each trait=factor (comma-
+# separated) on the stand's introductions, and keeps each one's J and nodes.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -41,6 +45,11 @@ p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 p <- add_strategies(p, trait_matrix(LMA0, "lma"))
 p$node_schedule_times <- list(times)
+program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st
+if (!is.null(program)) {
+  p$ode_times <- c(0, program$time)
+  p$ode_step_sizes <- c(NaN, program$h)
+}
 ct <- control()
 ct$ode_tol_rel <- tol
 ct$ode_tol_abs <- atol * tol
@@ -55,7 +64,7 @@ peak_mb <- function() {
 out <- list(
   setting = list(regime = regime, seed = seed, spec = RAIN_SPECS[[regime]], tol = tol,
                  tol_abs = ct$ode_tol_abs, nodes = nodes, shift = shift, lma = LMA0,
-                 lifetime = LIFETIME),
+                 lifetime = LIFETIME, program = Sys.getenv("PROGRAM")),
   versions = list(plant = as.character(packageVersion("plant")),
                   odelia = as.character(packageVersion("odelia")),
                   R = R.version.string, lib = Sys.getenv("PLANT_LIB"),
@@ -134,6 +143,14 @@ if (!is.null(scm)) {
     save()
     gi <- phase("invader_gradient", function() gradient_of(scm, p))
     if (!is.null(gi)) out$invader <- c(out$invader, gi)
+    for (inv in strsplit(Sys.getenv("INVADERS", ""), ",")[[1]]) {
+      kv <- strsplit(inv, "=")[[1]]
+      q <- stand_at(times, kv[1], as.numeric(kv[2]))
+      if (isTRUE(phase(inv, function() { scm$run_mutant(q); TRUE }))) {
+        out$invaders[[inv]] <- list(J = sum(scm$offspring_production), nodes = per_node(scm))
+      }
+      save()
+    }
   }
 }
 out$finished <- format(Sys.time(), tz = "UTC", usetz = TRUE)

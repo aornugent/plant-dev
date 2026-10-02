@@ -1,0 +1,75 @@
+== The time weight on the driver, tied 3e-5
+long-drought base          17684 accepted, 7.06e+06 member evaluations (+0.0%) | J - J* -1.26e-05 | lma -4.98010 (+0.0000 eps) | J moves +0.00e+00 (0.0000 eps)
+long-drought late25        14730 accepted, 5.13e+06 member evaluations (-27.4%) | J - J* -1.87e-05 | lma -4.98034 (-0.0028 eps) | J moves -6.17e-06 (0.0002 eps)
+long-drought rule A        15297 accepted, 5.45e+06 member evaluations (-22.8%) | J - J* -1.49e-05 | lma -4.97998 (+0.0014 eps) | J moves -2.36e-06 (0.0001 eps) | steps as unweighted to t = 22.500, weight from 22.50
+long-drought rule B        16570 accepted, 6.27e+06 member evaluations (-11.2%) | J - J* -1.25e-05 | lma -4.98010 (+0.0000 eps) | J moves +9.24e-09 (0.0000 eps) | steps as unweighted to t = 30.228, weight from 30.20
+long-drought A, thinned    15238 accepted, 5.11e+06 member evaluations (-27.7%) | J - J* -7.37e-07 | lma NA (NA eps) | J moves +1.18e-05 (0.0005 eps) | steps as unweighted to t = 22.500, weight from 22.50
+long-wet     base          21920 accepted, 8.73e+06 member evaluations (+0.0%) | J - J* -7.83e-06 | lma -4.81518 (+0.0000 eps) | J moves +0.00e+00 (0.0000 eps)
+long-wet     rule A        19161 accepted, 6.94e+06 member evaluations (-20.5%) | J - J* -6.62e-06 | lma -4.81517 (+0.0001 eps) | J moves +1.21e-06 (0.0000 eps) | steps as unweighted to t = 22.473, weight from 22.45
+long-wet     rule B        20699 accepted, 7.86e+06 member evaluations (-10.0%) | J - J* -7.98e-06 | lma NA (NA eps) | J moves -1.50e-07 (0.0000 eps) | steps as unweighted to t = 30.757, weight from 30.75
+long-wet     A, thinned    19091 accepted, 6.53e+06 member evaluations (-25.2%) | J - J* -5.96e-05 | lma NA (NA eps) | J moves -5.18e-05 (0.0021 eps) | steps as unweighted to t = 22.473, weight from 22.45
+episodic     base          11022 accepted, 4.45e+06 member evaluations (+0.0%) | J - J* +2.41e-05 | lma -4.90571 (+0.0000 eps) | J moves +0.00e+00 (0.0000 eps)
+episodic     rule A         9637 accepted, 3.52e+06 member evaluations (-20.8%) | J - J* +2.56e-05 | lma -4.90560 (+0.0013 eps) | J moves +1.51e-06 (0.0001 eps) | steps as unweighted to t = 23.511, weight from 23.50
+episodic     rule B        10260 accepted, 3.9e+06 member evaluations (-12.2%) | J - J* +2.44e-05 | lma -4.90571 (+0.0000 eps) | J moves +2.99e-07 (0.0000 eps) | steps as unweighted to t = 29.154, weight from 29.15
+episodic     A, thinned     9563 accepted, 3.32e+06 member evaluations (-25.4%) | J - J* -0.000156 | lma NA (NA eps) | J moves -1.80e-04 (0.0071 eps) | steps as unweighted to t = 23.511, weight from 23.50
+constant     base           3951 accepted, 3.76e+06 member evaluations (+0.0%) | J - J* +6.09e-09 | lma -4.40100 (+0.0000 eps) | J moves +0.00e+00 (0.0000 eps)
+constant     late25         3883 accepted, 3.63e+06 member evaluations (-3.5%) | J - J* +4.67e-09 | lma -4.40100 (-0.0000 eps) | J moves -1.43e-09 (0.0000 eps)
+constant     rule A         3883 accepted, 3.62e+06 member evaluations (-3.6%) | J - J* +6.04e-09 | lma -4.40100 (-0.0000 eps) | J moves -5.53e-11 (0.0000 eps) | steps as unweighted to t = 21.630, weight from 21.60
+constant     rule B         3939 accepted, 3.73e+06 member evaluations (-0.8%) | J - J* +6.09e-09 | lma NA (NA eps) | J moves +0.00e+00 (0.0000 eps) | steps as unweighted to t = 35.815, weight from 35.80
+
+== Every quantity of both roles, in eps, against the unweighted run: median and
+   largest move by role over all quantities, and the largest over the main ones
+   (outside the small four); cost against the unweighted run's
+   invader lma=0.5   ln J' +7.537, moves 0.0000 eps
+   invader lma=2     ln J' -47.639, moves 0.0000 eps
+   invader hmat=0.5  ln J' +5.102, moves 0.0000 eps
+   invader hmat=2    ln J' -17.685, moves 0.0001 eps
+long-drought, the driver's program against plant's own (noise floor) 98 quantities | cost forward +0.0%, full-gradient +0.0% | ln J +0.0000 eps
+   resident median 0.0000, largest 0.0001 (a_f1); main largest 0.0000 (hmat); over eps/10: 0, over eps/3: 0
+   invader  median 0.0000, largest 0.0001 (a_f1); main largest 0.0000 (rho); over eps/10: 0, over eps/3: 0
+   phase seconds, unweighted / rule: stand_run 117/92, stand_gradient 314/336, invader_run 206/199, invader_gradient 286/294
+   invader lma=0.5   ln J' +7.537, moves 0.0000 eps
+   invader lma=2     ln J' -47.639, moves 0.0000 eps
+   invader hmat=0.5  ln J' +5.102, moves 0.0000 eps
+   invader hmat=2    ln J' -17.686, moves 0.0017 eps
+long-drought, time weight (pinned)   98 quantities | cost forward -22.8%, full-gradient -22.7% | ln J -0.0001 eps
+   resident median 0.0017, largest 0.0106 (recruitment_decay); main largest 0.0040 (a_dG2); over eps/10: 0, over eps/3: 0
+   invader  median 0.0006, largest 0.0035 (a_f1); main largest 0.0013 (stem_P50); over eps/10: 0, over eps/3: 0
+   phase seconds, unweighted / rule: stand_run 92/74, stand_gradient 336/260, invader_run 199/147, invader_gradient 294/234
+episodic, time weight (pinned) rule failures: lma=2 Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log 
+   invader lma=0.5   ln J' +6.294, moves 0.0000 eps
+   invader hmat=0.5  ln J' +4.224, moves 0.0000 eps
+   invader hmat=2    ln J' -20.676, moves 0.0019 eps
+episodic, time weight (pinned)       98 quantities | cost forward -20.9%, full-gradient -21.0% | ln J +0.0001 eps
+   resident median 0.0018, largest 0.0155 (recruitment_decay); main largest 0.0024 (lma); over eps/10: 0, over eps/3: 0
+   invader  median 0.0001, largest 0.0003 (recruitment_decay); main largest 0.0002 (hmat); over eps/10: 0, over eps/3: 0
+   phase seconds, unweighted / rule: stand_run 54/44, stand_gradient 191/155, invader_run 108/86, invader_gradient 167/132
+   invader lma=0.5   ln J' +7.537, moves 0.0003 eps
+   invader lma=2     ln J' -47.639, moves 0.0002 eps
+   invader hmat=0.5  ln J' +5.102, moves 0.0000 eps
+   invader hmat=2    ln J' -17.685, moves 0.0133 eps
+long-drought, nodes thinned          98 quantities | cost forward -9.0%, full-gradient -8.9% | ln J +0.0006 eps
+   resident median 0.0007, largest 0.0256 (omega); main largest 0.0034 (a_dG2); over eps/10: 0, over eps/3: 0
+   invader  median 0.0004, largest 0.0072 (recruitment_decay); main largest 0.0006 (ln J); over eps/10: 0, over eps/3: 0
+   phase seconds, unweighted / rule: stand_run 117/103, stand_gradient 314/299, invader_run 206/182, invader_gradient 286/259
+   invader lma=0.5   ln J' +7.894, moves 0.0010 eps
+   invader lma=2     ln J' -47.585, moves 0.0000 eps
+   invader hmat=0.5  ln J' +5.288, moves 0.0002 eps
+   invader hmat=2    ln J' -16.571, moves 0.0622 eps
+long-wet, nodes thinned              98 quantities | cost forward -7.8%, full-gradient -7.7% | ln J -0.0021 eps
+   resident median 0.0018, largest 0.0776 (a_st3); main largest 0.0029 (a_dG2); over eps/10: 0, over eps/3: 0
+   invader  median 0.0019, largest 0.0199 (recruitment_decay); main largest 0.0029 (rho); over eps/10: 0, over eps/3: 0
+   phase seconds, unweighted / rule: stand_run 146/126, stand_gradient 377/361, invader_run 259/229, invader_gradient 359/323
+   invader lma=0.5   ln J' +7.537, moves 0.0003 eps
+   invader lma=2     ln J' -47.639, moves 0.0002 eps
+   invader hmat=0.5  ln J' +5.102, moves 0.0000 eps
+   invader hmat=2    ln J' -17.685, moves 0.0114 eps
+long-drought, both (pinned)          98 quantities | cost forward -27.7%, full-gradient -27.6% | ln J +0.0005 eps
+   resident median 0.0029, largest 0.0221 (omega); main largest 0.0078 (a_dG2); over eps/10: 0, over eps/3: 0
+   invader  median 0.0007, largest 0.0068 (recruitment_decay); main largest 0.0013 (stem_P50); over eps/10: 0, over eps/3: 0
+   phase seconds, unweighted / rule: stand_run 92/68, stand_gradient 336/241, invader_run 199/133, invader_gradient 294/212
+
+== Rule B's program walked by the invaders at the range's ends (harness/invader_window.R
+   with PROGRAM), against the pinned unweighted run's invaders: ln J' moves in eps
+walks_long-drought_ruleB.rds lma=0.5 0.0000, lma=2 0.0000, hmat=0.5 0.0000, hmat=2 0.0001
+walks_episodic_ruleB.rds     lma=0.5 0.0000, lma=2 raised at t = 36.279452, hmat=0.5 0.0000, hmat=2 0.0005

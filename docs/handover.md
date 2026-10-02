@@ -258,6 +258,12 @@ on disk and a few driver probes:
   plant's default absolute tolerance, 5.7% under the tied one. The soil chain alone's first step after
   each knot, as the seed, removes 85% of them and saves 3.5% of member
   evaluations (§12), for 2.4e-4 of a forward.
+- *The window as a rule* (§8). A 54-node pilot at `1e-3` reads R(t) within 10%
+  on every record. Weighting the tolerance by it, with nodes thinned after the
+  window, saves 21–28% of a forward and 21–23% of a full-gradient run, every
+  quantity of both roles moving at most 0.08ε. But on episodic the lma ×2
+  invader's walk raises a non-finite density on the loosened steps, so the rule
+  needs the invader to sub-step where its density cannot take the stand's step.
 - *The step-size law* (§7). On the soil chain alone a PI law leaves 6 of the
   constant record's 1009 rejections. On the coupled driver, PI with the chain
   seeds saves 5.3–11% at matched error on long drought and 10.6% on the

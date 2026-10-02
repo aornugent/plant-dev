@@ -1,0 +1,9 @@
+== The rule from the u54_1e-3 pilot: R0 0.1, r_min 0.01, union of stand, lma=0.5, lma=2, hmat=0.5, hmat=2
+long-drought the pilot has no window for lma=2: it raised
+long-drought weight first above 1, 2, 10, 100 at t = 30.20, 31.85, 35.45, 39.15 | 98 nodes, the first thinned at b = 33.70
+long-wet     weight first above 1, 2, 10, 100 at t = 30.75, 32.75, 35.45, 39.10 | 98 nodes, the first thinned at b = 34.07
+dry          the pilot has no window for lma=2: it raised
+dry          weight first above 1, 2, 10, 100 at t = 28.00, 29.95, 33.15, 38.40 | 93 nodes, the first thinned at b = 31.48
+episodic     the pilot has no window for lma=2: it raised
+episodic     weight first above 1, 2, 10, 100 at t = 29.15, 30.15, 34.00, 38.75 | 95 nodes, the first thinned at b = 32.59
+constant     weight first above 1, 2, 10, 100 at t = 35.80, 37.25, 39.20, 39.95 | 107 nodes, the first thinned at b = 38.52

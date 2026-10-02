@@ -37,7 +37,7 @@ The scripts:
 | 5 | gradients are a staircase in θ | sign changes sliding past the stages | established earlier; per-member events on a quintic interpolant remove it (§11) |
 | 6 | the invader's node error changes sign under halving on uniform nodes | two opposite errors at the layer's top that shrink at different rates | established; the field part is the soil's for `J` and light's for the invader, and spreading each panel's leaf area removes the light part (`canopy-spread.md`) |
 | 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the step-size law cycles across the limit | established; the implicit soil pays there, and on the chain alone a PI law leaves 6 of 1009 rejections (§7) |
-| 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established on long drought |
+| 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established; a rule from a 54-node pilot saves 21–28% at ≤ 0.08ε on three pulsed records, but a failing invader's walk raises on its loosened steps (§8) |
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not |
 | 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps |
 | 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11) |
@@ -380,6 +380,69 @@ evaluations in time and 12% of member-steps in nodes.
 - Where stability binds the steps, as on the constant record, the time weight
   buys little.
 
+**The window as a rule, set from a pilot** (a pre-registered spike; `window/`,
+`harness/invader_window.R`, `window_rule.R` and `window_test.R`, the driver's
+`WEIGHT`, and `run_record.R`'s `PROGRAM` and `INVADERS`).
+
+*The windows,* as the years by which R falls to 0.1, 0.01 and 1e-3, then `J` or
+`J′`. An invader's walk keeps its states when the run records its trajectory, so
+`R′` comes exactly from one walk:
+
+| record | the stand | lma ×0.5 | lma ×2 | hmat ×0.5 | hmat ×2 |
+|---|---|---|---|---|---|
+| long drought | 22.6/29.2/34.5 · 12.7 | 21.4/28.6/34.1 · 1877 | 5.0/15.7/24.8 · 2e-21 | 17.5/25.3/31.2 · 164 | 30.4/35.9/39.2 · 2e-8 |
+| long-wet | 22.6/29.3/34.4 · 18.4 | 21.2/28.4/33.9 · 2682 | 4.8/15.2/21.3 · 2e-21 | 17.2/24.9/30.9 · 198 | 30.9/35.9/39.2 · 6e-8 |
+| dry | 23.2/29.3/33.7 · 1.19 | 21.3/27.4/33.4 · 790 | 18.2/26.4/31.5 · 1e-20 | 18.8/25.1/32.1 · 71 | 28.1/33.3/38.5 · 2e-10 |
+| episodic | 23.5/29.2/33.6 · 1.98 | 21.5/27.8/32.1 · 541 | 28.0/33.9/38.9 · 1e-19 | 18.4/25.4/30.2 · 68 | 29.2/34.0/38.7 · 1e-9 |
+| constant | 21.6/28.5/34.0 · 289 | 18.4/25.9/32.6 · 6e4 | 4.1/4.3/4.5 · 2e-21 | 6.2/6.5/6.6 · 100 | 35.9/39.2/40.0 · 0.017 |
+
+- *A failing invader earns late:* hmat ×2 on every record, and lma ×2 on episodic.
+- *Residents at ×1.1 earn later:* their R is up to 1.23–1.51× θ₀'s on long
+  drought and 1.39–1.80× on episodic.
+
+*The pilot.* 54 nodes at `1e-3` reads the stand's R within 10% wherever
+R ≥ 1e-3, on every record (4.2–9.8%), for 0.25–0.32 of a forward's member-steps.
+The 27-node pilots miss dry's tail by 25%. The node count matters and the
+tolerance barely does, the reverse of §12's creation gaps. No pilot reads lma ×2,
+which raises on most of them. On the constant record the 53-node causal grid at
+`1e-3` reads R within 1.1%.
+
+*Rule A,* set from the pilot alone:
+- Every tolerance weight of a step starting at t is multiplied by
+  `F(t) = 1/clamp(R̂(t)/R₀, r_min, 1)`, where `R̂` is the pilot's largest R over the
+  stand and lma's range ends, `R₀ = 0.1`, and `r_min = 0.01`, where the soil's
+  stability starts to bind (§10).
+- Nodes after the window are spaced `⌊√F(b)⌋` lattice spacings apart, by the
+  square law.
+- The weight passes 1 from t = 22.5 (long drought, long-wet), 23.5 (episodic) and
+  21.6 (constant), and reaches 100 at t = 33.5–34.5. It keeps 82–84 of 108 nodes.
+
+*What it buys, against the unweighted run* (`window/window_test.log`):
+
+| record | weight alone | weight and nodes | `J` moves | the fixed-step `lma` elasticity moves |
+|---|---|---|---|---|
+| long drought | −22.8% | −27.7% | −2.4e-6 | 0.0014ε |
+| long-wet | −20.5% | −25.2% | +1.2e-6 | 0.0001ε |
+| episodic | −20.8% | −25.4% | +1.5e-6 | 0.0013ε |
+| constant | −3.6% | | −6e-11 | 0.0000ε |
+
+On full-gradient runs the weight saves 22.7% on long drought and 21.0% on
+episodic. Every quantity of both roles moves at most 0.016ε under the weight and
+0.078ε under the thinning (`a_st3`, one of the small four); the noise floor, the
+driver's program against plant's own, is 1e-4ε.
+
+**Not a pass: the walk fails, not the accuracy.** On episodic the lma ×2
+invader, 12× outside rule A's protection, raises a non-finite density on rule A's
+program at t = 32.57. Its steps there are 31–38 days, against 5–11 unweighted.
+Rule B adds hmat's range ends to the protection. It saves only 10.0–12.2%, and
+the same walk raises at t = 36.28, on a 22-day step where the unweighted
+program took 3.4.
+- *Refuted:* the invader's share `R′` as what a shared grid must protect.
+  Invaders 8.7–21× outside rule A's protection move only 0.002–0.06ε.
+- *Root cause:* the invader walks the stand's steps, and a failing invader's
+  density equation cannot take the loosened ones. It needs its own sub-steps
+  there, which no weight on the stand provides.
+
 ## 9. Which crossings carry `J`'s time error
 
 **Hypothesis: the crossings that carry `J`'s time error are the cohort's that
@@ -715,9 +778,13 @@ to high order, which is the coupled step.
 - *Not supported: a cheap accuracy lever in the forcing.* The soil's accuracy
   reaches `J` in proportion, and a naive seed from the record costs more than
   the controller's own probing.
-- *Supported: one window of the goal, on every record, read by a pilot.* On
-  long drought the steps and nodes after it can be coarsened at no measurable
-  cost (§8), and the crossings after it carry none of `J`'s time error (§9).
+- *Supported: one window of the goal, on every record, read by a pilot.* A
+  54-node pilot reads it within 10%, and a rule from it saves 21–28% of a
+  forward on three pulsed records for at most 0.08ε in any quantity of either
+  role (§8). The crossings after it carry none of `J`'s time error (§9).
+- *Not supported: the invader's share as the guard for a shared grid.* A failing
+  invader's walk raises on the loosened steps, though its share says it is safe
+  (§8).
 - *Supported: the error's sources are the members' and the stand's, located by
   a run.* They are the sign changes, the near-empty pools, the layer's top and
   the fronts. The field adjoint map reports the node error's field part by
@@ -762,10 +829,8 @@ to high order, which is the coupled step.
 - PI and the nudge test again with the crossings split, since the crossings set
   the nudge's spread (§7, §11);
 - per-member events in the reverse sweep, and the invader with them (§11);
-- the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at
-  t = 25, on a second pulsed record;
-- the invaders' windows at ×0.5 and ×2 of the resident, which bound a shared
-  grid's;
+- rule A with the invader's walk sub-stepping where its density cannot take the
+  stand's step (§8);
 - §9's window-limited refusal under the tied tolerance, on the gradients'
   continuity in θ;
 - the gradients under the looser soil weight, by the driver's frozen-grid

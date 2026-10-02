@@ -17,7 +17,7 @@
 #     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [CHAIN_SEED=chain.rds] \
 #     [CONTROL=odelia|shrink|pi [PI_BETA=0.04] [PI_ALPHA=0.17] [PI_SAFETY=0.9]] \
 #     [ATTEMPT_LOG=attempts.rds] \
-#     [LATE_FROM=25 [LATE_FACTOR=100]] [REGIME=long-drought] [TIMES=times.rds] \
+#     [LATE_FROM=25 [LATE_FACTOR=100] | WEIGHT=weight.rds] [REGIME=long-drought] [TIMES=times.rds] \
 #     Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
@@ -77,8 +77,10 @@
 # set that proposal, how many members' net production changed sign at a stage or
 # its end and whether the binding member's did, that member's pool fill at its
 # start and end, and the emptiest pool's fill at its start.
-# LATE_FROM scales every tolerance weight by LATE_FACTOR on steps that start at
-# or after that time. REGIME runs another record of harness/long_drought.R's
+# WEIGHT scales every tolerance weight on a step by the weight of the last row of
+# its table (columns t and weight, t from 0) at or before the step's start.
+# LATE_FROM is the table of two rows, 1 from 0 and LATE_FACTOR from that time.
+# REGIME runs another record of harness/long_drought.R's
 # bank; OUT saves the record's rain and knots. TIMES reads the introductions
 # from a file in place of NODES.
 # Sourced, it defines the driver and does not run it.
@@ -181,6 +183,9 @@ TOL_SOIL <- as.numeric(Sys.getenv("TOL_SOIL", "1"))
 TOL_ACC <- as.numeric(Sys.getenv("TOL_ACC", "1"))
 LATE_FROM <- as.numeric(Sys.getenv("LATE_FROM", NA))
 LATE_FACTOR <- as.numeric(Sys.getenv("LATE_FACTOR", "100"))
+WEIGHT <- if (nzchar(Sys.getenv("WEIGHT"))) readRDS(Sys.getenv("WEIGHT")) else
+  if (!is.na(LATE_FROM)) data.frame(t = c(0, LATE_FROM), weight = c(1, LATE_FACTOR))
+stopifnot(is.null(WEIGHT) || (WEIGHT$t[1] == 0 && !is.unsorted(WEIGHT$t)))
 TOL_POOL <- as.numeric(Sys.getenv("TOL_POOL", "1"))
 POOL_FLOOR <- if (nzchar(Sys.getenv("POOL_FLOOR"))) as.numeric(Sys.getenv("POOL_FLOOR")) else NA
 KINK_EST <- nzchar(Sys.getenv("KINK_EST"))
@@ -506,7 +511,7 @@ adjust <- function(h, y, yerr, dydt, kink = integer()) {
     ct$ode_tol_abs
   if (TOL_SOIL != 1) level[soil(y)] <- level[soil(y)] * TOL_SOIL
   if (TOL_ACC != 1) level[length(y) - 4:0] <- level[length(y) - 4:0] * TOL_ACC
-  if (!is.na(LATE_FROM) && sv$t >= LATE_FROM) level <- level * LATE_FACTOR
+  if (!is.null(WEIGHT)) level <- level * WEIGHT$weight[findInterval(sv$t, WEIGHT$t)]
   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
     level[pool] <- (level[pool] - ct$ode_tol_abs * (1 - TOL_POOL_ABS)) * TOL_POOL
@@ -869,7 +874,7 @@ if (sys.nframe() == 0L) {
   if (nzchar(Sys.getenv("OUT"))) {
     saveRDS(list(method = method, control = CONTROL, nodes = nodes, tol = tol, J = J, attempts = att,
                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
-                 counts = as.list(n), secs = secs, st = st,
+                 counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
                                       fecundity = f, patch_density = pd)),
             Sys.getenv("OUT"))

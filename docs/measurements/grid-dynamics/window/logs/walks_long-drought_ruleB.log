@@ -1,0 +1,5 @@
+long-drought, seed 31, 108 nodes at 3e-05: J 12.668555, 16571 steps, NaN member-steps, 82 s
+invader lma=0.5: J' 1876.8916, 160 s
+invader lma=2: J' 2.0444165e-21, 91 s
+invader hmat=0.5: J' 164.36891, 81 s
+invader hmat=2: J' 2.0859017e-08, 81 s

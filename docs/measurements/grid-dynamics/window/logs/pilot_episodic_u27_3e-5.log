@@ -1,0 +1,5 @@
+episodic, seed 31, 27 nodes at 3e-05: J 2.2053517, 10283 steps, 1.71e+05 member-steps, 27 s
+invader lma=0.5: J' 535.32278, 44 s
+invader lma=2: raised: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=860.952347, height=0.337728) at time=32.556527. The density derivative -d(growth)/d(height) - mortality can grow without bound when growth rate falls steeply with size under rapidly changing or extreme environmental forcing, driving density to overflow. Try a shorter max_patch_lifetime or less extreme environmental drivers., 12 s
+invader hmat=0.5: J' 76.209396, 17 s
+invader hmat=2: J' 1.3119961e-09, 15 s

@@ -1,0 +1,5 @@
+constant, seed 31, 53 nodes at 3e-05: J 287.74268, 3864 steps, 1.76e+05 member-steps, 20 s
+invader lma=0.5: J' 60046.62, 37 s
+invader lma=2: J' 2.0751739e-21, 18 s
+invader hmat=0.5: J' 99.679018, 17 s
+invader hmat=2: J' 0.016543445, 17 s
