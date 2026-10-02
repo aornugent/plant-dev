@@ -282,7 +282,9 @@ on disk and a few driver probes:
   record. What remains are the crossings' rejections and 798 soil-bound ones in
   the first day after a knot. Those are the chain's own transient, not class
   switches: the chain alone reproduces 98% of them, and a guard that steps it
-  from the current state before each attempt removes them. On the chain alone the error is proportional to tol under
+  from the current state before each attempt removes them. Under odelia's law
+  the guard saves 10.4% of the forward for 1.9% more rows, so a gradient run
+  comes out even. On the chain alone the error is proportional to tol under
   either law, so the sign changes of `J`'s error are the crossings'.
 - *The window as a rule* (§8). A 54-node pilot at `1e-3` reads R(t) within 10%
   on every record. Weighting the tolerance by it, with nodes thinned after the

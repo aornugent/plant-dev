@@ -2,7 +2,7 @@
 # with CHAIN_GUARD (t3_driver.patch): before each step's first attempt, the soil
 # chain alone takes one Cash-Karp step from the coupled soil state at the
 # proposed size and shrinks it by the rejection law while its ratio exceeds the bar.
-#   nice -n 10 Rscript DEV/rej_class/t3_guard_report.R guard_pics_3e-5 guard_pi_3e-5 > DEV/rej_class/t3_guard_report_all.txt
+#   nice -n 10 Rscript DEV/rej_class/t3_guard_report.R guard_pics_3e-5 guard_pi_3e-5 guard_odelia_3e-5 > DEV/rej_class/t3_guard_report_all.txt
 # (t3_guard_report.txt is an earlier version's output with guard_pics_3e-5 alone.)
 O <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/rej_class"
 D <- dirname(O)

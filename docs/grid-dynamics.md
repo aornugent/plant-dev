@@ -375,8 +375,12 @@ against the chain alone and a log of the members' classes:
   | PI + chain seeds | 1936 | 793 | −3.1% | +7.3% | +5.8% |
   | PI + chain seeds + guard | 1021 | 10 | −6.4% | +8.4% | +6.3% |
   | PI + guard | 1024 | 9 | −7.1% | +7.6% | +5.5% |
+  | odelia's law + guard | 1302 | 27 | −10.4% | +1.9% | +0.2% |
 
-  Under PI it makes the seeds unnecessary, but PI's rows remain.
+  Under PI it makes the seeds unnecessary, but PI's rows remain. Under odelia's
+  law it saves 10.4% of the forward for 1.9% more rows, so a gradient run comes
+  out even; it pays where only a forward runs, as in a pilot. The soil still
+  binds 83% of the accepted steps.
 - *So these are accuracy rejections of the explicit chain,* inside its stability
   region. An implicit chain held to the norm would keep them; out of the norm
   they go (§10).

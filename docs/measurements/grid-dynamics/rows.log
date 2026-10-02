@@ -97,3 +97,17 @@
  gradient_rel
         +0.0%
         -2.1%
+
+## the chain guard (§7; rej_class/): guard_* runs in DEV/rej_class/runs (JSTAR=12.6687135)
+               run   tol accepted    rows forward      err forward_rel rows_rel
+         tied_3e-5 3e-05    17684  962505 7063344 -1.3e-05       +0.0%    +0.0%
+         pics_3e-5 3e-05    18964 1033128 6842048 +8.2e-06       -3.1%    +7.3%
+   guard_pics_3e-5 3e-05    19139 1043627 6609692 +5.4e-06       -6.4%    +8.4%
+     guard_pi_3e-5 3e-05    19029 1035777 6558534 +3.6e-06       -7.1%    +7.6%
+ guard_odelia_3e-5 3e-05    17989  980901 6328416 +2.8e-06      -10.4%    +1.9%
+ gradient_rel
+        +0.0%
+        +5.8%
+        +6.3%
+        +5.5%
+        +0.2%
