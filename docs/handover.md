@@ -258,9 +258,15 @@ on disk and a few driver probes:
   plant's default absolute tolerance, 5.7% under the tied one. The soil chain alone's first step after
   each knot, as the seed, removes 85% of them and saves 3.5% of member
   evaluations (§12), for 2.4e-4 of a forward.
-- *The constant record's rejections are the step-size law's.* On the soil chain
-  alone a PI law leaves 6 of 1009, at the same steps (§7); the driver's test is
-  open.
+- *The step-size law* (§7). On the soil chain alone a PI law leaves 6 of the
+  constant record's 1009 rejections. On the coupled driver, PI with the chain
+  seeds saves 5.3–11% at matched error on long drought and 10.6% on the
+  constant record, but fails its pre-registered bar there (69% of rejections
+  removed, against 90%), where the coupled run cycles at the stability limit.
+  The rejections' cost falls from 18.2% to 9.3% of the run; what remains is the
+  crossings' and the soil's first-day transient after a knot. On the chain alone
+  the error is proportional to tol under either law, so the sign changes of
+  `J`'s error are the crossings'.
 - *The invader's first replay repeats the resident's forward,* about 12% of a
   run with every gradient. Fixed on `PLANT-99` (#99): the first replay halves,
   for 130 MB more held after a recorded forward.

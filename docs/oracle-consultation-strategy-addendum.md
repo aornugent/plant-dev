@@ -1,4 +1,6 @@
-# Addendum: per-member events, at their real cost
+# Addenda to the strategy consult
+
+## Per-member events, at their real cost
 
 The consult reported this test as running. It has finished. The setting is the
 test instance's, at `tol = 1e-4` and `3e-5`.
@@ -52,3 +54,44 @@ tolerances within 5% of `1e-4`, in units of `ε/3`:
   order with two cuts for a dip.
 - The open choice is the pair. One with a free interpolant of the step's order
   would cut the split's cost by about a factor of three.
+
+## The step-size law on the coupled run
+
+The chain-alone result in finding 3 has been tested on the coupled run. The bar
+was set before the runs, and the law fails it narrowly; what it separates
+matters more.
+
+**The runs** (test instance and constant forcing, `tol = 3e-5` unless stated):
+
+| | rejected (at knots) | member evaluations | `J − J*` |
+|---|---|---|---|
+| our law | 3912 (1238) | 7.06e6 | −1.26e-5 |
+| PI | 2905 (1123) | 7.10e6 | −2.3e-6 |
+| PI + the chain's seeds | 1936 (190) | 6.84e6 | +8.2e-6 |
+| constant forcing: our law / PI / PI with Gustafsson's gains | 739 / 229 / 83 | 3.76e6 / 3.36e6 / 3.25e6 | at most 2e-8 |
+
+- *At matched error* PI with the seeds saves 5–11% on the test instance, mostly
+  through the seeds. The elasticity in `θ_A` on fixed steps moves 0.0015ε.
+- *Under constant forcing* the coupled run cycles where the chain alone settles:
+  five accepted steps, then one rejected, near the stability limit. PI leaves 229
+  rejections; Gustafsson's gains leave 83, but they cost 15% more at matched
+  error on the test instance.
+
+**What the rejections are.** Their cost falls from 18.2% of the run's member
+evaluations to 9.3%. What remains:
+- 661 at a crossing inside the attempt, which no step-size law removes and the
+  split does;
+- 798 bound by the chain on the first to fourth step within `δ` after a knot.
+  Their ratio jumps about 8× after a growth of only 1.03. The chain alone's step
+  program, which matches the coupled one within a step in 89% of intervals,
+  could seed them; only its first step is used so far.
+- 199 overshoots after a small ratio, 190 at knots, and 9 at the stability
+  limit.
+
+**The separation.** On the chain alone the global error is nearly proportional
+to `tol` over four decades, under either law on the test record and under PI
+under constant forcing. Its mean never changes sign. The coupled `J`'s error
+changes sign within ±5% of `tol`, and falls with `tol` once each crossing is
+split. So the sign changes are the crossings', not the controller's. The
+controller's remaining part is the cycle at the stability limit and the
+first-`δ` transient after knots.

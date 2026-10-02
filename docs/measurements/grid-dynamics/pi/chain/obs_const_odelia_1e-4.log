@@ -1,0 +1,1 @@
+constant, theta, tol 0.0001: 4888 accepted, 882 rejected (15.3%) | on rain intervals 4888, dry 0 | binding layer 1-5: 5/6/3/5/4869 | final theta 0.3313 0.3313 0.3313 0.3313 0.3313 | h |lambda| / beta at the start >= 0.8: 99.3%, > 1: 62.6%

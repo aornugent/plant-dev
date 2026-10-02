@@ -1,0 +1,2 @@
+g3cs 3e-5: J 12.668698549, elasticity -4.98320
+criterion 3: |E_g3cs - E_base| = 0.00309 against 0.05 eps = 0.00435: holds

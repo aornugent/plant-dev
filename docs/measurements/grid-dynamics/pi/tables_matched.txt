@@ -1,0 +1,32 @@
+monolithic:
+      tol        J    cost       err ratio
+ 1.00e-03 12.66368 4362846 -0.000397 0.397
+ 3.00e-04 12.66876 5098073 +3.29e-06 0.011
+ 1.00e-04 12.66918 5948875 +3.66e-05 0.366
+ 3.15e-05 12.66885 7016586 +1.06e-05 0.337
+ 3.00e-05 12.66855 7063344 -1.26e-05 0.418
+ 2.85e-05 12.66867 7124958 -3.64e-06 0.128
+ 1.00e-05 12.66878 8421474  +5.2e-06 0.520
+pics :
+      tol        J    cost       err  ratio
+ 1.00e-04 12.66815 5731916 -4.42e-05 0.4420
+ 3.15e-05 12.66871 6802076 -3.42e-07 0.0109
+ 3.00e-05 12.66882 6842048 +8.16e-06 0.2720
+ 2.85e-05 12.66879 6908072 +6.19e-06 0.2170
+ 1.00e-05 12.66866 8188208 -4.24e-06 0.4240
+
+(A) bound reading: c_mono 0.520, c_pi 0.442; E0 = c_mono 3e-5 = 1.56e-05; PI reaches it at tol 3.53e-05
+    cost there 6.689e+06 against the monolith's 7.063e+06 at 3e-5: S_A = 5.3%
+    with median ratios (0.366, 0.272): S = 7.2%
+    at equal tol 0.0001: cost 5.732e+06 against 5.949e+06 (3.6%)
+    at equal tol 3e-05: cost 6.842e+06 against 7.063e+06 (3.1%)
+    at equal tol 1e-05: cost 8.188e+06 against 8.421e+06 (2.8%)
+
+(B) direct reading on the monolith's bracket (|err| 3.66e-5 / 1.26e-5 / 5.2e-6):
+    pics tol 0.0001: |err| 4.42e-05, cost 5.732e+06; the monolith at that error 5.771e+06 (extrapolated): S_B = 0.7%
+    pics tol 3.15e-05: |err| 3.42e-07, cost 6.802e+06; the monolith at that error 1.449e+07 (extrapolated): S_B = 53.0%
+    pics tol 3e-05: |err| 8.16e-06, cost 6.842e+06; the monolith at that error 7.697e+06: S_B = 11.1%
+    pics tol 2.85e-05: |err| 6.19e-06, cost 6.908e+06; the monolith at that error 8.133e+06: S_B = 15.1%
+    pics tol 1e-05: |err| 4.24e-06, cost 8.188e+06; the monolith at that error 8.77e+06 (extrapolated): S_B = 6.6%
+mono at 3e-5 x {0.95, 1, 1.05}: RMS error 9.72e-06, mean cost 7.068e+06
+pi at 3e-5 x {0.95, 1, 1.05}: RMS error 5.92e-06, mean cost 6.851e+06

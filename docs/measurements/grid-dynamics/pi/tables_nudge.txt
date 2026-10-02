@@ -1,0 +1,12 @@
+base 3e-5: J 12.668554505, elasticity -4.98010
+     2.85e-5: J 12.668667340, d ln J +8.91e-06 (0.00107 of eps/3), elasticity -4.98159, dE -0.00148 (0.0511 of eps/3)
+     3.15e-5: J 12.668847922, d ln J +2.32e-05 (0.00278 of eps/3), elasticity -4.98359, dE -0.00348 (0.12 of eps/3)
+pics 3e-5: J 12.668816885, elasticity -4.97997
+     2.85e-5: J 12.668791887, d ln J -1.97e-06 (0.000237 of eps/3), elasticity -4.97828, dE +0.00169 (0.0582 of eps/3)
+     3.15e-5: J 12.668709161, d ln J -8.5e-06 (0.00102 of eps/3), elasticity -4.98617, dE -0.0062 (0.214 of eps/3)
+largest |move| over the two nudges:
+  law         dlnJ          dE
+ base 2.316076e-05 0.003483614
+ pics 8.503113e-06 0.006203475
+criterion 4 (nudge no worse): WORSE 
+criterion 3: |E_pics - E_base| = 0.000135 against 0.05 eps = 0.00435: holds

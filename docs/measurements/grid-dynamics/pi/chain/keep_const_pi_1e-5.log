@@ -1,0 +1,2 @@
+constant, theta, tol 1e-05: 4903 accepted, 9 rejected (0.2%) | on rain intervals 4903, dry 0 | binding layer 1-5: 5/8/6/5/4879 | final theta 0.3313 0.3313 0.3313 0.3313 0.3313 | h |lambda| / beta at the start >= 0.8: 99.2%, > 1: 96.4%
+  moisture against ref_const.rds: at 0 knots, relative error median NA, 99% NA, max NA; at the end, max 2e-06

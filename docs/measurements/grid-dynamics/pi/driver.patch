@@ -1,0 +1,161 @@
+diff --git a/harness/ark_prototype.R b/harness/ark_prototype.R
+index 8c90c86..722905e 100644
+--- a/harness/ark_prototype.R
++++ b/harness/ark_prototype.R
+@@ -15,6 +15,7 @@
+ #     [TRANSIT=0.5] [KINK_FIX=1] \
+ #     [PROGRAM=run.rds] [THETA=lma THETA_REL=1e-5] \
+ #     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [CHAIN_SEED=chain.rds] \
++#     [CONTROL=odelia|shrink|pi [PI_BETA=0.04] [PI_ALPHA=0.17] [PI_SAFETY=0.9]] \
+ #     [ATTEMPT_LOG=attempts.rds] \
+ #     [LATE_FROM=25 [LATE_FACTOR=100]] [REGIME=long-drought] [TIMES=times.rds] \
+ #     Rscript harness/ark_prototype.R
+@@ -62,9 +63,20 @@
+ # first attempt after a knot where the rain starts, rises or falls at the size
+ # accepted after the last knot of that kind. CHAIN_SEED, harness/soil_chain.R's
+ # OUT on the same record, makes the soil chain alone's first accepted step after
+-# each knot the first attempt there. ATTEMPT_LOG saves every attempt:
+-# its start, size, error ratio and binding component, and whether it was
+-# rejected, thrown or clipped to its target.
++# each knot the first attempt there. CONTROL picks the step-size law after an
++# accepted step, as harness/soil_chain.R has them: odelia's (adjust below);
++# shrink, the factor 0.9 r^(-1/5) clamped to [0.2, 5]; or pi, shrink with the
++# exponent alpha = 1/5 - 0.75 beta and the previous ratio's term r_prev^beta,
++# beta = PI_BETA; PI_ALPHA and PI_SAFETY replace alpha and the factor 0.9.
++# r_prev is the last accepted step's ratio, floored at 1e-4 and starting at 1. A
++# rejection leaves it; a step clipped to its target sets it, though it leaves the
++# proposal. ATTEMPT_LOG saves every attempt: its start, size, error ratio
++# and binding component, whether it was rejected, thrown or clipped to its
++# target, its try within the step, the member evaluations it spent, h |lambda_soil|
++# / beta at its start, the proposal it carried, the ratio and growth factor that
++# set that proposal, how many members' net production changed sign at a stage or
++# its end and whether the binding member's did, that member's pool fill at its
++# start and end, and the emptiest pool's fill at its start.
+ # LATE_FROM scales every tolerance weight by LATE_FACTOR on steps that start at
+ # or after that time. REGIME runs another record of harness/long_drought.R's
+ # bank; OUT saves the record's rain and knots. TIMES reads the introductions
+@@ -81,6 +93,10 @@ nodes <- as.integer(Sys.getenv("NODES", "108"))
+ tol <- as.numeric(Sys.getenv("TOL", "1e-3"))
+ method <- match.arg(Sys.getenv("METHOD", "ck"), c("ck", "held", "ark"))
+ HELD_MARGIN <- as.numeric(Sys.getenv("HELD_MARGIN", "0.8"))
++CONTROL <- match.arg(Sys.getenv("CONTROL", "odelia"), c("odelia", "shrink", "pi"))
++PI_BETA <- as.numeric(Sys.getenv("PI_BETA", "0.04"))
++PI_ALPHA <- as.numeric(Sys.getenv("PI_ALPHA", NA))
++PI_SAFETY <- as.numeric(Sys.getenv("PI_SAFETY", "0.9"))
+ tb <- if (method == "ark") {
+   with(tab, list(A = AE, AI = AI, b = b, d = d, c = cc, ord = 4))
+ } else {
+@@ -480,6 +496,7 @@ kink_estimate <- function(h, a) {
+ # calls, as the solver's flag does where a step at the minimum cannot shrink.
+ ctl <- new.env()
+ ctl$shrank <- FALSE
++ctl$r_prev <- 1
+ reject <- function(h) {
+   ctl$shrank <- TRUE
+   max(h * 0.2, ct$ode_step_size_min)
+@@ -516,6 +533,11 @@ adjust <- function(h, y, yerr, dydt, kink = integer()) {
+       ctl$shrank <- TRUE
+       h <- hn
+     }
++  } else if (CONTROL != "odelia") {
++    fac <- if (CONTROL == "shrink") 0.9 / rmax^(1 / ord) else
++      PI_SAFETY * rmax^-(if (is.na(PI_ALPHA)) 1 / ord - 0.75 * PI_BETA else PI_ALPHA) * ctl$r_prev^PI_BETA
++    h <- min(h * min(5, max(0.2, fac)), ct$ode_step_size_max)
++    ctl$shrank <- FALSE
+   } else if (rmax < 0.5) {
+     h <- min(h * min(5, max(1, 0.9 / rmax^(1 / (ord + 1)))), ct$ode_step_size_max)
+     ctl$shrank <- FALSE
+@@ -580,7 +602,20 @@ steps$rows <- matrix(NA_real_, 60000, 12,
+                                              paste0("soil_", 1:5), "cap")))
+ attempt_log <- new.env()
+ attempt_log$k <- 0L
+-attempt_log$rows <- matrix(NA_real_, 80000, 7, dimnames = list(NULL, c("t0", "h", "ratio", "index", "rejected", "thrown", "final")))
++attempt_log$rows <- matrix(NA_real_, 80000, 18, dimnames = list(NULL, c(
++  "t0", "h", "ratio", "index", "rejected", "thrown", "final", "try", "members", "x_soil", "proposal",
++  "r_set", "f_set", "crossed", "cross_bind", "fill_start", "fill_end", "fill_min")))
++# For the attempt `a` from sv's state, whose ratio's component is `index`: how many
++# members' net production changed sign at a stage or its end, whether the binding
++# member's did, and that member's pool fill at the start and the end.
++attempt_signs <- function(a, index, fill0) {
++  if (is.null(a)) return(c(NA, NA, NA, NA))
++  P <- do.call(cbind, c(a$Pst[-1], list(a$P)))
++  changed <- rowSums(sign(P) != sign(sv$P)) > 0
++  j <- if (!is.na(index) && index <= 9 * length(sv$P)) (index - 1) %/% 9 + 1 else NA
++  if (is.na(j)) return(c(sum(changed), 0, NA, NA))
++  c(sum(changed), changed[j], fill0[j], a$y[pool_of(a$y)[j]] / capacity(a$y)[j])
++}
+ KNOT_SEED <- Sys.getenv("KNOT_SEED") == "1"
+ knot_memory <- new.env()
+ chain_first <- if (nzchar(Sys.getenv("CHAIN_SEED"))) local({
+@@ -602,9 +637,16 @@ step <- function(target) {
+   cap <- cap_at(t0, h)
+   h <- min(h, cap[1])
+   at_crossing <- FALSE
++  logged <- nzchar(Sys.getenv("ATTEMPT_LOG"))
++  if (logged) {
++    tries <- 0L
++    x_rate <- lambda_soil(sv$y, t0) / BETA
++    fill0 <- sv$y[pool_of(sv$y)] / capacity(sv$y)
++  }
+   repeat {
+     final <- h > remaining
+     if (final) h <- remaining
++    members0 <- n$members
+     a <- attempt(t0, sv$y, sv$dydt, h)
+     if (is.null(a)) {
+       hn <- reject(h)
+@@ -648,8 +690,13 @@ step <- function(target) {
+     }
+     attempt_log$k <- attempt_log$k + 1L
+     if (attempt_log$k > nrow(attempt_log$rows)) attempt_log$rows <- rbind(attempt_log$rows, attempt_log$rows * NA)
+-    attempt_log$rows[attempt_log$k, ] <- c(t0, h, if (is.null(a)) NA else ctl$ratio, if (is.null(a)) NA else ctl$index,
+-                                            as.numeric(isTRUE(ctl$shrank)), as.numeric(is.null(a)), as.numeric(final))
++    index <- if (is.null(a)) NA else ctl$index
++    if (logged) tries <- tries + 1L
++    attempt_log$rows[attempt_log$k, ] <- c(t0, h, if (is.null(a)) NA else ctl$ratio, index,
++                                            as.numeric(isTRUE(ctl$shrank)), as.numeric(is.null(a)), as.numeric(final),
++                                            if (logged) c(tries, n$members - members0, h * x_rate, sv$h_last,
++                                                          sv$r_set, sv$f_set, attempt_signs(a, index, fill0),
++                                                          min(fill0)) else rep(NA, 11))
+     if (ctl$shrank) {
+       if (hn < h && t0 + hn > t0) {
+         h <- hn
+@@ -660,7 +707,12 @@ step <- function(target) {
+     }
+     if (!is.na(kind_here)) knot_memory[[kind_here]] <- h
+     sv$t <- if (final) target else t0 + h
+-    if (!final && !at_crossing) sv$h_last <- hn
++    if (!final && !at_crossing) {
++      sv$r_set <- ctl$ratio
++      sv$f_set <- hn / h
++      sv$h_last <- hn
++    }
++    ctl$r_prev <- max(ctl$ratio, 1e-4)
+     if (at_crossing && !is.na(RESTART)) sv$h_last <- RESTART
+     if (!is.na(CROSS_RESTART) && any(sign(a$P) != sign(sv$P))) sv$h_last <- min(sv$h_last, CROSS_RESTART)
+     if (KINK_FIX && is.null(a <- kink_fix(h, a, sv$t))) stop(sprintf("a corrected step's rates raised at t = %.17g", sv$t))
+@@ -694,6 +746,7 @@ if (sys.nframe() == 0L) {
+   replay <- list(steps = 0L, ratio_max = 0, over = 0, depth = Inf, over_at = character(), over_x = numeric())
+   sv$t <- 0
+   sv$h_last <- ct$ode_step_size_initial
++  sv$r_set <- sv$f_set <- NA_real_
+   sv$zone_until <- -Inf
+   sv$Pdot <- numeric()
+   for (k in seq_along(times)) {
+@@ -775,6 +828,7 @@ if (sys.nframe() == 0L) {
+                   "rejected_zone"),
+                 function(x) n[[x]], 0)
+   st <- as.data.frame(steps$rows[seq_len(steps$k), , drop = FALSE])
++  if (CONTROL != "odelia") cat("control", CONTROL, "\n")
+   cat(sprintf("%s nodes %d tol %g: J %.9f, %d accepted, %.0f s; %s\n", method, nodes, tol,
+               J, att[["accepted"]], secs, paste(names(att), att, sep = "=", collapse = " ")))
+   cat(sprintf("rate evaluations %d, member evaluations %d; evaluated states past the inflow switch %d, the loss clamp %d, the floor %d\n",
+@@ -813,7 +867,7 @@ if (sys.nframe() == 0L) {
+   if (nzchar(Sys.getenv("ATTEMPT_LOG"))) saveRDS(as.data.frame(attempt_log$rows[seq_len(attempt_log$k), , drop = FALSE]), Sys.getenv("ATTEMPT_LOG"))
+   if (!is.null(steps$states)) saveRDS(steps$states, Sys.getenv("STATES"), compress = FALSE)
+   if (nzchar(Sys.getenv("OUT"))) {
+-    saveRDS(list(method = method, nodes = nodes, tol = tol, J = J, attempts = att,
++    saveRDS(list(method = method, control = CONTROL, nodes = nodes, tol = tol, J = J, attempts = att,
+                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
+                  counts = as.list(n), secs = secs, st = st,
+                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],

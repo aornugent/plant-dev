@@ -31,7 +31,7 @@ The scripts:
 | | symptom | root cause | state |
 |---|---|---|---|
 | 1 | steps: 17 683 on long drought, 3637 on the constant record (3951 on its resolved grid) | the soil's accuracy at the norm's tolerance through each rain-rate change | established; on pulsed records no cheap lever, under constant rain the implicit soil saves 66% (§7); the chain alone predicts the steps (§12) |
-| 2 | 17.5–21% of attempts rejected | near knots, the controller's carried proposal; far from them, the members' sign changes and near-empty pools | established; the chain alone's seeds remove 85% of the knots' rejections for 3.5% fewer member evaluations (§12) |
+| 2 | 17.5–21% of attempts rejected | near knots, the controller's carried proposal; within a day after them, the soil's transient; far from them, the members' sign changes and near-empty pools | established; the chain alone's seeds remove 85% of the knots' rejections for 3.5% fewer member evaluations (§12), and with PI the rejections' cost falls from 18.2% to 9.3% of the run (§7) |
 | 3 | the invader's first replay costs about two forwards | `run_mutant` re-runs the resident to keep its field | established; fixed on `PLANT-99` |
 | 4 | `J`'s time error does not follow the tolerance under plant's default absolute tolerance | near-empty pools, and steps across members' sign changes | established earlier; the pools fixed by the tied tolerance, under which the error stays within 0.46·tol but changes sign between tolerances (§13) |
 | 5 | gradients are a staircase in θ | sign changes sliding past the stages | established earlier; per-member events on a quintic interpolant remove it (§11) |
@@ -254,7 +254,48 @@ floors that factor at 0.2 instead of 1 and takes the rejection's exponent, 1/5;
   attempts, interpolating between `3e-5` and `6e-5`. Its rejections stay at
   1910–1960 at every tolerance to `1e-4`; the chain seeds (§12), which remove
   the knots' rejections, are untested with it.
-- *The driver's test is open:* `CONTROL` is in `soil_chain.R` only.
+**On the coupled driver** (a pre-registered test; `pi/`, the driver's `CONTROL`
+with `PI_BETA`, `PI_ALPHA`, `PI_SAFETY`, the chain seeds regenerated at each run's
+tolerance). Tied tolerance throughout:
+
+| run | accepted | rejected or thrown (on knots) | member evaluations | `J − J*`, relative |
+|---|---|---|---|---|
+| long drought, odelia, `3e-5` | 17 684 | 3912 (1238) | 7.06e6 | −1.26e-5 |
+| PI, `3e-5` | 18 815 | 2905 (1123) | 7.10e6 | −2.3e-6 |
+| PI + chain seeds, `1e-4` / `3e-5` / `1e-5` | 15 846 / 18 964 / 22 562 | 1663 / 1936 / 2451 (159 / 190 / 213) | 5.73e6 / 6.84e6 / 8.19e6 | −4.4e-5 / +8.2e-6 / −4.2e-6 |
+| Gustafsson's gains + chain seeds, `3e-5` | 21 411 | 1414 (190) | 7.49e6 | −1.2e-6 |
+| constant, odelia / PI / Gustafsson's, `3e-5` | 3951 / 3974 / 3987 | 739 / 229 / 83 | 3.76e6 / 3.36e6 / 3.25e6 | +6.1e-9 / +2.1e-8 / −5.7e-9 |
+
+- *Killed by its pre-registered bar.* PI removes 69% of the constant record's
+  rejections against the 90% asked, and the ±5% nudge moves its `lma` elasticity
+  by 0.0062 against the baseline's 0.0035, both within 0.21 of ε/3 and two
+  samples each. Gustafsson's gains remove 89% there, but cost 15% more at matched
+  error on long drought.
+- *What it buys.* On long drought PI with the seeds saves 5.3% at matched error
+  by the bound reading (7.2% by medians, 11.1% on the monolith's monotone
+  bracket), mostly the seeds' (PI alone costs 0.6% at `3e-5`). Its fixed-step
+  `lma` elasticity moves 0.0015ε. On the constant record PI saves 10.6% of member
+  evaluations, Gustafsson's 13.4%.
+- *Under constant rain the coupled run cycles where the chain alone settles:*
+  185 of PI's 229 rejections are a cycle of five accepted steps and one rejected
+  at `h|λ|/β` 0.78–1.05, the soil binding, where the chain alone settles on one
+  step at ratio 0.445.
+- *The rejections left with PI and the seeds* cost 9.3% of the run's member
+  evaluations, against the baseline's 18.2% (`pi/tables_taxonomy.txt`):
+  - 661 at a crossing inside the attempt (storage 437, mass 145), which no law
+    removes and the split does (§11);
+  - 798 soil-bound attempts on the first to fourth step within a day after a
+    knot, mostly where rain falls or starts, whose ratio jumps about 8× after a
+    growth of only 1.03;
+  - 199 overshoots after a small ratio, 190 on knots (mostly storage-bound, 124
+    of them at a crossing) and 9 at the stability limit.
+
+**The sign changes of `J`'s error are the crossings'** (`pi/tables_chain.txt`). On
+the chain alone, under either law on long drought and under PI on the constant
+record, the global moisture error is nearly proportional to tol over four
+decades: the median `|err|/tol` drifts at most fourfold (a log-log slope of
+0.66–0.99), and its mean never changes sign. The coupled `J`'s error changes sign
+within ±5% of tol, and falls with tol once each crossing is split (§11).
 
 ## 8. The cost after `J` is earned
 
@@ -698,8 +739,11 @@ to high order, which is the coupled step.
 - *Not supported: a partitioned step.* Holding the collar across a member step
   leaves a first-order error in the dry spells' water budget, and the
   corrections stall at 1e-4 to 5e-4 (§13).
-- *Supported: the constant record's rejections are the step-size law's,* on
-  the chain alone (§7). The driver's test is open.
+- *Partly supported: the constant record's rejections are the step-size law's.*
+  On the chain alone PI leaves 6 of 1009; coupled, it removes 69% and cycles
+  where the chain alone settles (§7).
+- *Supported: the sign changes of `J`'s error under tol are the crossings',* not
+  the controller's (§7, §11).
 - *Supported: the chain alone sets the step program, the knot seeds and the
   soil's bound before the run,* at 2.4e-4 of a forward. Its seeds remove 85% of
   the rejections at knots (§12).
@@ -711,7 +755,12 @@ to high order, which is the coupled step.
 
 ## Next probes, each one variable
 
-- the PI law on the driver, with the chain seeds (§7, §12);
+- the chain alone's whole first-day step program as seeds, for the 798
+  rejections within a day after a knot that PI and the first-step seed leave (§7);
+- the step-size law chosen by regime from the chain alone's stiffness, with
+  Gustafsson's gains where stability binds (§7);
+- PI and the nudge test again with the crossings split, since the crossings set
+  the nudge's spread (§7, §11);
 - per-member events in the reverse sweep, and the invader with them (§11);
 - the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at
   t = 25, on a second pulsed record;

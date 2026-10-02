@@ -1,0 +1,2 @@
+long-drought, theta, tol 0.0001: 17124 accepted, 1438 rejected (7.7%) | on rain intervals 10694, dry 6430 | binding layer 1-5: 3348/4029/2357/1982/5408 | final theta 0.2831 0.2959 0.3036 0.3092 0.3135 | h |lambda| / beta at the start >= 0.8: 2.0%, > 1: 0.1%
+  moisture against ref_ld.rds: at 2931 knots, relative error median 9.4e-07, 99% 5.6e-05, max 0.00018; at the end, max 2.4e-07

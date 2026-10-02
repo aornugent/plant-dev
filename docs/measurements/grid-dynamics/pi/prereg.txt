@@ -1,0 +1,79 @@
+Pre-registration, written before any run (2026-10-02, before R1).
+
+Laws (driver CONTROL, formulas as harness/soil_chain.R; ord = 5 for Cash-Karp):
+  odelia  unchanged adjust(): grow by clamp(0.9 r^-1/6, 1, 5) only for r < 0.5.
+  shrink  on acceptance h <- h * clamp(0.9 r^(-1/ord), 0.2, 5), capped at step_size_max.
+  pi      on acceptance h <- h * clamp(0.9 r^-(1/ord - 0.75*0.04) * r_prev^0.04, 0.2, 5), capped.
+  Rejection unchanged in all three: h * max(0.2, 0.9 r^(-1/ord)).
+  r_prev: max(ratio of the last accepted, unclipped step, 1e-4); starts at 1. A rejection
+  leaves it (DOPRI5's facold; soil_chain.R). A step clipped to its target leaves it, as it
+  leaves the proposal (soil_chain.R instead takes the clipped step's ratio; checked on the
+  chain alone as a side test).
+Seeds: CHAIN_SEED from soil_chain.R CONTROL=odelia at the run's own tolerance (the given
+  soil_chain_ld_theta.rds at 3e-5; regenerated at 1e-4, 1e-5 and the nudged tolerances).
+
+Bit-for-bit: CONTROL=odelia at tied 3e-5 must give J identical to $D/seed/tied_3e-5.rds,
+  17684 accepted, 3908 inaccurate + 4 thrown, 7063344 member evaluations, identical st
+  (time, h, er, ei).
+
+Best variant at 3e-5: PI + CHAIN_SEED, unless PI alone uses fewer member evaluations.
+
+Criterion 1, matched error (long drought). Both ladders tied, uniform 108.
+  Rungs in [1e-5, 1e-4]: monolithic 1e-4, 3e-5, 1e-5 (+ its nudges 2.85e-5, 3.15e-5);
+  PI+seed 1e-4, 3e-5, 1e-5 (+ nudges).
+  (A, primary) bound reading: c = max |J - J*|/tol over the ladder's rungs in that range;
+  cost C(tol) log-log interpolated in member evaluations. E0 = c_mono * 3e-5;
+  S_A = 1 - C_pi(E0 / c_pi) / C_mono(3e-5). Pass if S_A >= 5%.
+  (B, check) direct reading: the PI 3e-5 run's |J - J*| placed on the monolithic rungs'
+  monotone bracket (1e-4: 3.66e-5, 3e-5: 1.26e-5, 1e-5: 5.2e-6), log-log in member
+  evaluations against |error|. Reported; a disagreement with A is stated as fragility.
+Criterion 2, constant record (150-node schedule, tied 3e-5): rejected+thrown <= 73 (90% of
+  739 removed) and member evaluations <= 3757713.
+Criterion 3, elasticity: E = ln(J+/J-)/(log1p(u) - log1p(-u)), u = 1e-5, PROGRAM replays.
+  |E_best - E_base| <= 0.05 * 0.087 = 0.00435.
+Criterion 4, nudges at 3e-5 x 0.95 and x 1.05 for the baseline (odelia, no seed) and the
+  best variant; d ln J and dE against the variant's own 3e-5 run. "Worse" if, for ln J or
+  E, the variant's largest |d| over the two nudges exceeds the baseline's AND exceeds
+  eps/30 (8.3e-4 in ln J, 2.9e-3 in E). The objective's bound eps/3 (8.3e-3, 0.029) is
+  reported for both.
+KILL if S_A < 0 (member evaluations rise at matched error) or criterion 4 worsens.
+
+Rejection taxonomy (each rejected or thrown attempt; first match wins, overlaps reported):
+  a knot          t0 within 0.001 day of a knot, t0 > 0;
+  b overshoot     first attempt of its step, h equal to the carried proposal, and the growth
+                  factor that set that proposal >= 1.5 (needs the ratio then <= 0.047 under
+                  odelia's law);
+  c stability     h |lambda_soil| / beta >= 0.8 at the attempt's start;
+  d crossing      the binding component's member changes the sign of its net production
+                  between the start and any stage or the end of the attempt;
+  e empty pool    the binding component is a member's storage whose fill (S / capacity) is
+                  below 1% at the attempt's start or end;
+  f other.
+  Per class: count and the member evaluations the rejected attempts spent.
+
+Chain alone (task 5): REF = TOL 1e-10 (odelia); tol 1e-3 ... 1e-7 by half decades; laws
+  odelia and pi; long drought (error at the knots: relative, per layer, median and max) and
+  constant (no knots: the error at the end). Proportional = error / tol flat across the
+  ladder (log-log slope ~1) with no reversals.
+
+Amendment, 12:44 (driver edited 12:44:22, queue restarted 12:44:43), after R1 (CONTROL=odelia bit for bit) and the chain-alone side test, before
+any coupled PI run had finished (pics_3e-5 stopped at 1.5 min): r_prev across a clipped step
+switched to soil_chain.R's rule -- the clipped step's ratio becomes r_prev, while the proposal
+is kept. On the chain alone (pi, long drought) holding r_prev across the clip gave 2199 / 2360 /
+2646 rejections at 1e-4 / 3e-5 / 1e-5 against 1960 / 1910 / 2347, +0.8% attempts at 3e-5 and
+a 10% larger median error at the knots; constant identical. Kept as a refuted alternative.
+All criteria unchanged.
+
+Correction, 13:33, chosen before any corrected run. Criterion 2 failed (const PI: 229 rejected,
+69% removed; -10.6% member evaluations). 185 of the 229 are at h|lambda|/beta >= 0.8: a cycle
+of five accepted steps and a rejection (soil binding, h 3.45-4.72 days, x 0.78-1.05) that
+beta = 0.04 does not damp in the coupled run, where the chain alone converges to one step.
+ONE correction: the PI gains (kI, kP) = (alpha - beta, beta) from (0.13, 0.04) to Gustafsson's
+(0.06, 0.08) for explicit RK at the stability boundary, at the tested law's set point
+r* = 0.9^(1/0.13) = 0.445: alpha 0.14, beta 0.08, factor 0.9^(0.06/0.13) = 0.9525
+(PI_ALPHA, PI_BETA, PI_SAFETY). Chain-alone pilot on long drought: +3.6% attempts at matched
+median error; Hairer's beta = 0.08 at factor 0.9 (+2.5-4%) and kP doubled at kI 0.13 (+2.2%)
+were the others piloted, not run coupled. Judged by the same four criteria, with chain seeds.
+
+14:2x: the correction's ladder gives S_A = -14.8% (member evaluations rise at matched error, a
+KILL condition for it); its nudge runs are dropped. Its elasticity replays are kept.

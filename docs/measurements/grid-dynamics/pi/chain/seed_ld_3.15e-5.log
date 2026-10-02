@@ -1,0 +1,1 @@
+long-drought, theta, tol 3.15e-05: 16342 accepted, 2903 rejected (15.1%) | on rain intervals 11079, dry 5263 | binding layer 1-5: 3710/4098/2179/1832/4523 | final theta 0.2831 0.2959 0.3036 0.3092 0.3135 | h |lambda| / beta at the start >= 0.8: 5.1%, > 1: 0.6%

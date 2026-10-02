@@ -1,0 +1,257 @@
+
+== base_3e-5: 3912 rejected or thrown, 1.282e+06 member evaluations in them (18.2% of the run's)
+      class count member_evals share
+       knot  1238       404886 31.6%
+  overshoot   478       159840 12.2%
+  stability    48        15510  1.2%
+   crossing   786       269928 20.1%
+ empty pool     0            0  0.0%
+      other  1362       432264 34.8%
+by binding part within each class:
+            
+             accumulator fecundity log_density mass mortality soil storage
+  knot                 2         0          12   45         5 1092      78
+  overshoot            0         1          38   39        47  268      85
+  stability            0         0           0    0         0   48       0
+  crossing             0        14          64  145         9    0     554
+  empty pool           0         0           0    0         0    0       0
+  other                3         0           7   25        86 1241       0
+            
+             thrown
+  knot            4
+  overshoot       0
+  stability       0
+  crossing        0
+  empty pool      0
+  other           0
+overlaps (rejected attempts meeting each test, any order):
+          on_knot overshoot stability crossing empty
+on_knot      1238        39         6      129    12
+overshoot      39       517         1      161    34
+stability       6         1        55        0     0
+crossing      129       161         0     1072   132
+empty          12        34         0      132   132
+other: at an introduction 18; retries (try > 1) 16; within a day of a knot 1250; 1-10 days 7; over 10 days 105; any member crossing in the attempt 30
+other, by try and part:
+   
+    accumulator log_density mass mortality soil
+  1           3           4   19        85 1235
+  2           0           2    5         1    6
+  3           0           1    1         0    0
+other, first tries: growth factor that set the proposal, 10/50/90%: 1 1.09 1.39 | ratio then: 0.0741 0.311 0.738 
+
+== pi_3e-5: 2905 rejected or thrown, 9.548e+05 member evaluations in them (13.4% of the run's)
+      class count member_evals share
+       knot  1123       369336 38.7%
+  overshoot   225        74892  7.7%
+  stability     9         2694  0.3%
+   crossing   657       222906 22.6%
+ empty pool     0            0  0.0%
+      other   891       284934 30.7%
+by binding part within each class:
+            
+             accumulator fecundity log_density mass mortality soil storage
+  knot                 0         0          10   45         5  981      78
+  overshoot            0         1          37   17        13   96      61
+  stability            0         0           0    0         0    9       0
+  crossing             0        14          63  160         3    0     417
+  empty pool           0         0           0    0         0    0       0
+  other                2         0           4   15        61  809       0
+            
+             thrown
+  knot            4
+  overshoot       0
+  stability       0
+  crossing        0
+  empty pool      0
+  other           0
+overlaps (rejected attempts meeting each test, any order):
+          on_knot overshoot stability crossing empty
+on_knot      1123        39         6      125    10
+overshoot      39       264         1      120    20
+stability       6         1        15        0     0
+crossing      125       120         0      899   106
+empty          10        20         0      106   106
+other: at an introduction 19; retries (try > 1) 4; within a day of a knot 814; 1-10 days 7; over 10 days 70; any member crossing in the attempt 17
+other, by try and part:
+   
+    accumulator log_density mass mortality soil
+  1           2           2   14        60  809
+  2           0           1    1         1    0
+  3           0           1    0         0    0
+other, first tries: growth factor that set the proposal, 10/50/90%: 0.871 1.03 1.3 | ratio then: 0.0507 0.331 0.718 
+
+== pics_3e-5: 1936 rejected or thrown, 6.374e+05 member evaluations in them (9.3% of the run's)
+      class count member_evals share
+       knot   190        66836  9.8%
+  overshoot   199        65514 10.3%
+  stability     9         2826  0.5%
+   crossing   661       220692 34.1%
+ empty pool     0            0  0.0%
+      other   877       281526 45.3%
+by binding part within each class:
+            
+             accumulator fecundity log_density mass mortality soil storage
+  knot                 2         0           7   31        10   25     107
+  overshoot            0         0          31   16         7   97      48
+  stability            0         0           0    0         0    9       0
+  crossing             0        10          66  145         3    0     437
+  empty pool           0         0           0    0         0    0       0
+  other                2         0           4   17        61  793       0
+            
+             thrown
+  knot            8
+  overshoot       0
+  stability       0
+  crossing        0
+  empty pool      0
+  other           0
+overlaps (rejected attempts meeting each test, any order):
+          on_knot overshoot stability crossing empty
+on_knot       190         0         1      124    31
+overshoot       0       199         0       95    21
+stability       1         0        10        0     0
+crossing      124        95         0      880   113
+empty          31        21         0      113   120
+other: at an introduction 18; retries (try > 1) 8; within a day of a knot 798; 1-10 days 5; over 10 days 74; any member crossing in the attempt 19
+other, by try and part:
+   
+    accumulator log_density mass mortality soil
+  1           2           2   13        61  791
+  2           0           1    4         0    2
+  3           0           1    0         0    0
+other, first tries: growth factor that set the proposal, 10/50/90%: 0.862 1.03 1.31 | ratio then: 0.0505 0.342 0.716 
+
+== g3cs_3e-5: 1414 rejected or thrown, 4.67e+05 member evaluations in them (6.2% of the run's)
+      class count member_evals share
+       knot   190        66836 13.4%
+  overshoot    71        24072  5.0%
+  stability     1          606  0.1%
+   crossing   592       202680 41.9%
+ empty pool     0            0  0.0%
+      other   560       172812 39.6%
+by binding part within each class:
+            
+             accumulator fecundity log_density mass mortality soil storage
+  knot                 2         0           7   31        10   25     107
+  overshoot            0         0          30    8         0    8      25
+  stability            0         0           0    0         0    1       0
+  crossing             0        10          58  125         0    0     399
+  empty pool           0         0           0    0         0    0       0
+  other                1         0           6   21        25  507       0
+            
+             thrown
+  knot            8
+  overshoot       0
+  stability       0
+  crossing        0
+  empty pool      0
+  other           0
+overlaps (rejected attempts meeting each test, any order):
+          on_knot overshoot stability crossing empty
+on_knot       190         0         1      124    31
+overshoot       0        71         0       63    12
+stability       1         0         2        0     0
+crossing      124        63         0      779    94
+empty          31        12         0       94   101
+other: at an introduction 15; retries (try > 1) 7; within a day of a knot 512; 1-10 days 2; over 10 days 46; any member crossing in the attempt 27
+other, by try and part:
+   
+    accumulator log_density mass mortality soil
+  1           1           2   19        25  506
+  2           0           3    2         0    1
+  3           0           1    0         0    0
+other, first tries: growth factor that set the proposal, 10/50/90%: 0.844 0.998 1.21 | ratio then: 0.08 0.395 0.805 
+
+== const_base_3e-5: 739 rejected or thrown, 6.009e+05 member evaluations in them (16.0% of the run's)
+      class count member_evals share
+       knot     0            0  0.0%
+  overshoot     4         3444  0.5%
+  stability   700       570294 94.7%
+   crossing     9         8064  1.2%
+ empty pool     0            0  0.0%
+      other    26        19116  3.5%
+by binding part within each class:
+            
+             accumulator mortality soil storage
+  knot                 0         0    0       0
+  overshoot            0         1    1       2
+  stability            0        24  662      14
+  crossing             0         0    0       9
+  empty pool           0         0    0       0
+  other                1        22    3       0
+overlaps (rejected attempts meeting each test, any order):
+          on_knot overshoot stability crossing empty
+on_knot         0         0         0        0     0
+overshoot       0         4         4        2     2
+stability       0         4       704       16    16
+crossing        0         2        16       25    25
+empty           0         2        16       25    25
+other: at an introduction 4; retries (try > 1) 0; within a day of a knot 0; 1-10 days 0; over 10 days 26; any member crossing in the attempt 1
+other, by try and part:
+   
+    accumulator mortality soil
+  1           1        22    3
+other, first tries: growth factor that set the proposal, 10/50/90%: 1.12 1.19 1.27 | ratio then: 0.128 0.185 0.275 
+
+== const_pi_3e-5: 229 rejected or thrown, 1.845e+05 member evaluations in them (5.5% of the run's)
+      class count member_evals share
+       knot     0            0  0.0%
+  overshoot     4         3570  1.7%
+  stability   185       147792 80.8%
+   crossing    12        10728  5.2%
+ empty pool     0            0  0.0%
+      other    28        22452 12.2%
+by binding part within each class:
+            
+             accumulator mortality soil storage
+  knot                 0         0    0       0
+  overshoot            0         0    0       4
+  stability            0        18  156      11
+  crossing             0         0    0      12
+  empty pool           0         0    0       0
+  other                1        26    1       0
+overlaps (rejected attempts meeting each test, any order):
+          on_knot overshoot stability crossing empty
+on_knot         0         0         0        0     0
+overshoot       0         4         4        4     4
+stability       0         4       189       15    15
+crossing        0         4        15       27    27
+empty           0         4        15       27    27
+other: at an introduction 2; retries (try > 1) 0; within a day of a knot 0; 1-10 days 0; over 10 days 28; any member crossing in the attempt 1
+other, by try and part:
+   
+    accumulator mortality soil
+  1           1        26    1
+other, first tries: growth factor that set the proposal, 10/50/90%: 0.866 1.04 1.15 | ratio then: 0.159 0.263 0.413 
+
+== const_g3_3e-5: 83 rejected or thrown, 7.022e+04 member evaluations in them (2.2% of the run's)
+      class count member_evals share
+       knot     0            0  0.0%
+  overshoot     0            0  0.0%
+  stability    50        42324 60.2%
+   crossing     9         8064 10.8%
+ empty pool     0            0  0.0%
+      other    24        19830 28.9%
+by binding part within each class:
+            
+             accumulator mortality soil storage
+  knot                 0         0    0       0
+  overshoot            0         0    0       0
+  stability            0        11   29      10
+  crossing             0         0    0       9
+  empty pool           0         0    0       0
+  other                1        23    0       0
+overlaps (rejected attempts meeting each test, any order):
+          on_knot overshoot stability crossing empty
+on_knot         0         0         0        0     0
+overshoot       0         0         0        0     0
+stability       0         0        50        9    10
+crossing        0         0         9       18    18
+empty           0         0        10       18    19
+other: at an introduction 1; retries (try > 1) 0; within a day of a knot 0; 1-10 days 0; over 10 days 24; any member crossing in the attempt 1
+other, by try and part:
+   
+    accumulator mortality
+  1           1        23
+other, first tries: growth factor that set the proposal, 10/50/90%: 0.909 1.02 1.29 | ratio then: 0.0454 0.212 0.465 
