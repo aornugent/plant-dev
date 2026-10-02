@@ -1,0 +1,192 @@
+--- a/src/RcppExports.cpp
++++ b/src/RcppExports.cpp
+@@ -13029,6 +13029,42 @@
+     return rcpp_result_gen;
+ END_RCPP
+ }
++// split_hold_tf24
++SEXP split_hold_tf24(plant::RcppR6::RcppR6<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_);
++RcppExport SEXP _plant_split_hold_tf24(SEXP obj_SEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    rcpp_result_gen = Rcpp::wrap(split_hold_tf24(obj_));
++    return rcpp_result_gen;
++END_RCPP
++}
++// split_collars_tf24
++std::vector<double> split_collars_tf24(SEXP held_);
++RcppExport SEXP _plant_split_collars_tf24(SEXP held_SEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< SEXP >::type held_(held_SEXP);
++    rcpp_result_gen = Rcpp::wrap(split_collars_tf24(held_));
++    return rcpp_result_gen;
++END_RCPP
++}
++// split_uptake_tf24
++Rcpp::NumericVector split_uptake_tf24(SEXP held_, std::vector<double> theta, std::vector<double> collar, bool by_node);
++RcppExport SEXP _plant_split_uptake_tf24(SEXP held_SEXP, SEXP thetaSEXP, SEXP collarSEXP, SEXP by_nodeSEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< SEXP >::type held_(held_SEXP);
++    Rcpp::traits::input_parameter< std::vector<double> >::type theta(thetaSEXP);
++    Rcpp::traits::input_parameter< std::vector<double> >::type collar(collarSEXP);
++    Rcpp::traits::input_parameter< bool >::type by_node(by_nodeSEXP);
++    rcpp_result_gen = Rcpp::wrap(split_uptake_tf24(held_, theta, collar, by_node));
++    return rcpp_result_gen;
++END_RCPP
++}
+ // test_stem_effective_path_length
+ double test_stem_effective_path_length(double L_top, double L_tip, double beta);
+ RcppExport SEXP _plant_test_stem_effective_path_length(SEXP L_topSEXP, SEXP L_tipSEXP, SEXP betaSEXP) {
+@@ -14359,6 +14395,9 @@
+     {"_plant_node_schedule_default__Parameters___K93__K93_Env", (DL_FUNC) &_plant_node_schedule_default__Parameters___K93__K93_Env, 1},
+     {"_plant_make_node_schedule__Parameters___K93__K93_Env", (DL_FUNC) &_plant_make_node_schedule__Parameters___K93__K93_Env, 1},
+     {"_plant_node_schedule_times_default", (DL_FUNC) &_plant_node_schedule_times_default, 1},
++    {"_plant_split_hold_tf24", (DL_FUNC) &_plant_split_hold_tf24, 1},
++    {"_plant_split_collars_tf24", (DL_FUNC) &_plant_split_collars_tf24, 1},
++    {"_plant_split_uptake_tf24", (DL_FUNC) &_plant_split_uptake_tf24, 4},
+     {"_plant_test_stem_effective_path_length", (DL_FUNC) &_plant_test_stem_effective_path_length, 3},
+     {"_plant_FF16_strategy_expand_allometry", (DL_FUNC) &_plant_FF16_strategy_expand_allometry, 4},
+     {"_plant_TF24_strategy_expand_allometry", (DL_FUNC) &_plant_TF24_strategy_expand_allometry, 4},
+--- a/R/RcppExports.R
++++ b/R/RcppExports.R
+@@ -4652,6 +4652,18 @@
+     .Call('_plant_node_schedule_times_default', PACKAGE = 'plant', max_time)
+ }
+ 
++split_hold_tf24 <- function(obj_) {
++    .Call('_plant_split_hold_tf24', PACKAGE = 'plant', obj_)
++}
++
++split_collars_tf24 <- function(held_) {
++    .Call('_plant_split_collars_tf24', PACKAGE = 'plant', held_)
++}
++
++split_uptake_tf24 <- function(held_, theta, collar, by_node) {
++    .Call('_plant_split_uptake_tf24', PACKAGE = 'plant', held_, theta, collar, by_node)
++}
++
+ test_stem_effective_path_length <- function(L_top, L_tip, beta) {
+     .Call('_plant_test_stem_effective_path_length', PACKAGE = 'plant', L_top, L_tip, beta)
+ }
+--- /dev/null
++++ b/src/split_probe.cpp
+@@ -0,0 +1,113 @@
++#include <plant.h>
++
++// What a TF24 patch's soil reads of its plants, held at the state of the
++// evaluation just made: each node's collar suction, root network, leaf area,
++// density and establishment weight, nodes in order and the boundary node last.
++struct split_held_uptake {
++  phylloptim::MultiLayerRoots roots;
++  plant::TF24_Environment<double> environment;
++  std::vector<double> collar, area_leaf, density, weight;
++  std::vector<phylloptim::RootNetwork> network;
++  double area = 0.0;
++};
++
++// Holds species 0's plants as the last evaluation left them. The root network
++// is TF24_Strategy::net_mass_production_dt's, from each node's height.
++// [[Rcpp::export]]
++SEXP split_hold_tf24(plant::RcppR6::RcppR6<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_) {
++  const auto& sp = obj_->at_species(0);
++  const auto& strategy = *sp.strategy_ptr();
++  Rcpp::XPtr<split_held_uptake> held(new split_held_uptake, true);
++  held->environment = obj_->r_environment();
++  held->roots = strategy.leaf.roots_;
++  held->area = obj_->get_area();
++  const std::vector<double> depths = held->environment.get_soil_depths();
++  const std::vector<double> dz = phylloptim::layer_thicknesses(depths);
++  const std::vector<double> w = sp.establishment_weights();
++  auto hold = [&](const auto& node, double weight) {
++    const double height = node.height();
++    held->collar.push_back(node.individual.aux(strategy.aux_idx_opt_root_psi));
++    held->area_leaf.push_back(node.individual.area_leaf());
++    held->density.push_back(node.get_density());
++    held->weight.push_back(weight);
++    std::vector<double> carbon(depths.size(), 0.0);
++    const double rooting_depth = std::min(height, strategy.pars.rooting_depth_max);
++    const double root_mass_scale = plant::root_mass_carbon_scale * strategy.pars.a_r1;
++    double prev_q = 1.0;
++    for (size_t a = 0; a < depths.size(); ++a) {
++      if (prev_q == 0) {
++        break;
++      }
++      const double q = strategy.Q(depths[a], rooting_depth,
++                                  strategy.pars.root_depth_shape_eta);
++      carbon[a] = root_mass_scale * (prev_q - q);
++      prev_q = q;
++    }
++    phylloptim::RootNetwork network;
++    phylloptim::root_network_from_carbon(carbon, dz, strategy.beta_R_H,
++                                         strategy.beta_R_V, network);
++    held->network.push_back(network);
++  };
++  for (size_t j = 0; j < sp.size(); ++j) {
++    hold(sp.node_at(j), w[j]);
++  }
++  hold(sp.r_new_node(), w[sp.size()]);
++  return held;
++}
++
++// The held collars, nodes then the boundary node.
++// [[Rcpp::export]]
++std::vector<double> split_collars_tf24(SEXP held_) {
++  Rcpp::XPtr<split_held_uptake> held(held_);
++  return held->collar;
++}
++
++// The per-layer uptake Patch::compute_rates hands the soil, at layer moisture
++// `theta`, from each held collar (or `collar` where it is given), summed as
++// Species::consumption_rate sums it. With `by_node`, each node's weighted share
++// instead, nodes by row.
++// [[Rcpp::export]]
++Rcpp::NumericVector split_uptake_tf24(SEXP held_, std::vector<double> theta,
++                                      std::vector<double> collar,
++                                      bool by_node) {
++  Rcpp::XPtr<split_held_uptake> held(held_);
++  const size_t n_layer = theta.size();
++  const size_t n = held->collar.size();
++  const std::vector<double>& at = collar.empty() ? held->collar : collar;
++  if (at.size() != n) {
++    Rcpp::stop("split_uptake_tf24: %d collars for %d nodes",
++               static_cast<int>(at.size()), static_cast<int>(n));
++  }
++  std::vector<double> psi(n_layer);
++  for (size_t i = 0; i < n_layer; ++i) {
++    psi[i] = held->environment.psi_from_soil_moist(theta[i], i);
++  }
++  std::vector<double> tot(n_layer, 0.0), draw(n_layer);
++  Rcpp::NumericMatrix share(by_node ? n : 0, by_node ? n_layer : 0);
++  double E_up = 0.0;
++  for (size_t j = 0; j < n; ++j) {
++    held->roots.set_root_network(held->network[j]);
++    draw.assign(n_layer, 0.0);
++    held->roots.uptake_at(at[j], psi, draw, E_up);
++    for (size_t i = 0; i < n_layer; ++i) {
++      const double rate = draw[i] * held->area_leaf[j] * 60*60*12*365/1000*plant::kg_per_mol_h2o;
++      const double node_rate = rate * held->density[j];
++      if (j + 1 < n) {
++        tot[i] += held->weight[j] * node_rate;
++      } else {
++        tot[i] = tot[i] + held->weight[j] * node_rate;
++      }
++      if (by_node) {
++        share(j, i) = held->weight[j] * node_rate / held->area;
++      }
++    }
++  }
++  if (by_node) {
++    return share;
++  }
++  Rcpp::NumericVector out(n_layer);
++  for (size_t i = 0; i < n_layer; ++i) {
++    out[i] = (0.0 + tot[i]) / held->area;
++  }
++  return out;
++}

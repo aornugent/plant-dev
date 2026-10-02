@@ -5,8 +5,13 @@
 # u = theta^(1 - q), in which a layer draining with nothing above it moves
 # linearly in time. The error is measured in theta either way.
 #
-#   PLANT_LIB=... [REGIME=long-drought] [TOL=3e-5] [VAR=theta] [OUT=chain.rds] \
-#     Rscript harness/soil_chain.R
+#   PLANT_LIB=... [REGIME=long-drought] [TOL=3e-5] [VAR=theta] [CONTROL=odelia] \
+#     [REF=chain.rds] [OUT=chain.rds] Rscript harness/soil_chain.R
+#
+# CONTROL picks the step-size law after an accepted step: odelia's (below);
+# shrink, the same factor floored at 0.2 instead of 1; or pi, shrink with the
+# previous ratio's term at beta = 0.04. REF, another run's OUT on the same
+# record, reports this run's moisture error at each knot against it.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -18,6 +23,7 @@ regime <- Sys.getenv("REGIME", SCEN)
 tol <- as.numeric(Sys.getenv("TOL", "3e-5"))
 atol <- 1e-4 * tol
 VAR <- match.arg(Sys.getenv("VAR", "theta"), c("theta", "u"))
+CONTROL <- match.arg(Sys.getenv("CONTROL", "odelia"), c("odelia", "shrink", "pi"))
 env <- mkenv(regime)
 knots <- sort(unique(active_knots(regime)))
 rain_at <- function(t) max(0, env$extrinsic_drivers_evaluate_range("rainfall", t))
@@ -58,6 +64,7 @@ if (VAR == "u") y <- y^(1 - q)
 t <- 0
 h <- 1e-6
 n_rej <- 0
+r_prev <- 1
 out <- list()
 k1 <- rates(y, t)
 for (target in c(knots[knots > 0 & knots < LIFETIME], LIFETIME)) {
@@ -79,7 +86,12 @@ for (target in c(knots[knots > 0 & knots < LIFETIME], LIFETIME)) {
     t <- if (final) target else t + hh
     y <- s$y
     k1 <- rates(y, t)
-    if (!final) h <- min(hh * min(5, max(1, 0.9 / max(r, 1e-300)^(1 / 6))), 5)
+    fac <- switch(CONTROL,
+                  odelia = min(5, max(1, 0.9 / max(r, 1e-300)^(1 / 6))),
+                  shrink = min(5, max(0.2, 0.9 / max(r, 1e-300)^(1 / 5))),
+                  pi = min(5, max(0.2, 0.9 * max(r, 1e-300)^(-(0.2 - 0.75 * 0.04)) * r_prev^0.04)))
+    r_prev <- max(r, 1e-4)
+    if (!final) h <- min(hh * fac, 5)
   }
 }
 rows <- do.call(rbind, out)
@@ -98,5 +110,15 @@ cat(sprintf("%s, %s, tol %g: %d accepted, %d rejected (%.1f%%) | on rain interva
             paste(tabulate(rows[, "layer"], 5), collapse = "/"), paste(signif(to_theta(y), 4), collapse = " "),
             if (VAR == "theta") sprintf(" | h |lambda| / beta at the start >= 0.8: %.1f%%, > 1: %.1f%%",
                                         100 * mean(stiff >= 0.8), 100 * mean(stiff > 1)) else ""))
+if (nzchar(Sys.getenv("REF"))) {
+  ref <- readRDS(Sys.getenv("REF"))
+  at <- intersect(rows[, "t0"], ref$rows[, "t0"][ref$rows[, "t0"] %in% knots])
+  cols <- paste0("theta_", 1:5)
+  err <- abs(rows[match(at, rows[, "t0"]), cols] / ref$rows[match(at, ref$rows[, "t0"]), cols] - 1)
+  cat(sprintf("  moisture against %s: at %d knots, relative error median %.2g, 99%% %.2g, max %.2g; at the end, max %.2g\n",
+              basename(Sys.getenv("REF")), length(at), if (length(at)) median(err) else NA,
+              if (length(at)) quantile(err, 0.99) else NA, if (length(at)) max(err) else NA,
+              max(abs(to_theta(y) / ref$y - 1))))
+}
 if (nzchar(Sys.getenv("OUT"))) saveRDS(list(rows = rows, rejected = n_rej, wet = wet, y = to_theta(y), VAR = VAR,
                                             tol = tol, regime = regime), Sys.getenv("OUT"))

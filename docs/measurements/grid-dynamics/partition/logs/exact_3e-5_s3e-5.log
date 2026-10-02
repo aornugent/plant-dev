@@ -1,0 +1,5 @@
+split exact nodes 108 tol 3e-05 soil_tol 3e-05: J 12.827430738 (J - J* 0.0125 relative), 6141 accepted, 521 s; accepted=6141 accepted_at_minimum=0 rejected_inaccurate=1464 rejected_thrown=4 rejected_refused=0
+member evaluations 2528315 (rate evaluations 45753) + 17963369 in the soil's exact coupling; uptake_at 0 in 0 uptake sweeps; soil-chain rates 280542; soil sub-steps 45378 accepted, 1379 rejected, 0 thrown; holds 7713
+accumulators at the end: rainfall 120.266849 infiltration 75.1994118 drainage 62.4623475 uptake 12.616032 runoff 0; soil 0.263817 0.290269 0.300558 0.307064 0.311733
+Error: unexpected ')' in "env("OUT"))"
+Execution halted

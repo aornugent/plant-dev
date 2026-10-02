@@ -225,6 +225,33 @@ whose steps are accuracy-bound (`docs/archive/scope-imex-stepper.md` §7, step 4
 A run tells which regime it is in from `h|λ_soil|/β` at its steps' starts: 83%
 at 0.8 or more here, 1.5% on long drought.
 
+**The controller's law, on the chain alone** (`soil_chain.R` with `CONTROL`,
+against the chain at `1e-10`; `soil_chain_control.log`). odelia's law never
+shrinks a step after accepting one. `shrink` floors the factor at 0.2 instead,
+and `pi` adds the previous ratio's term at `β = 0.04`:
+
+| record | law | tol | accepted | rejected | moisture error, at knots median / max, or at the end |
+|---|---|---|---|---|---|
+| constant | odelia | `3e-5` | 4886 | 1009 (17.1%) | 3.3e-5 |
+| | shrink | `3e-5` | 4880 | 760 (13.5%) | 1.4e-5 |
+| | pi | `3e-5` | 4898 | 6 (0.1%) | 1.3e-5 |
+| long drought | odelia | `3e-5` | 16 447 | 2925 (15.1%) | 7.9e-7 / 9.7e-5 |
+| | shrink | `3e-5` | 16 157 | 3166 (16.4%) | 9.0e-7 / 1.2e-4 |
+| | pi | `3e-5` | 17 500 | 1910 (9.8%) | 5.5e-7 / 5.6e-5 |
+| | pi | `6e-5` | 15 877 | 1910 (10.7%) | 1.1e-6 / 1.6e-4 |
+
+- *Under constant rain the rejections are the law's.* An integral law grows each
+  step past the stability limit and is cut back; the PI term damps that cycle,
+  and 6 of 1015 rejections remain at the same accepted count and a smaller
+  error. The tolerance does not move the steps there (4892–4898 accepted from
+  `3e-5` to `1e-4`).
+- *On long drought PI turns a third of the rejections into accepted steps* for
+  the same attempts, with a smaller error. At matched error it saves about 4% of
+  attempts, interpolating between `3e-5` and `6e-5`. Its rejections stay at
+  1910–1960 at every tolerance to `1e-4`; the chain seeds (§12), which remove
+  the knots' rejections, are untested with it.
+- *The driver's test is open:* `CONTROL` is in `soil_chain.R` only.
+
 ## 8. The cost after `J` is earned
 
 **Reproduced** (`j_window.R`, every node). R(t) is the share of `J` still to be
@@ -473,6 +500,84 @@ The dryness is the members' uptake, and the chain alone sees the rain, not the
 stand. A schedule probe for the creation grid must carry the members, and at
 the run's tolerance a quarter of the forward's members places the windows.
 
+## 13. The partitioned step, priced
+
+**The test** (a pre-registered spike; `partition/`). The members take Cash–Karp
+steps under their own error control, with the soil and its accumulators out of
+their norm. Inside each member step the soil chain is sub-stepped by Cash–Karp
+at `SOIL_TOL` and lands on the member stages' times, where the members read it.
+The soil's uptake comes from a coupling:
+- `held`: each node's collar suction, root network, leaf area and density held at
+  the step's start, each layer's draw re-derived from the collar (phylloptim's
+  `uptake_at`);
+- `exact`: every leaf re-solved at each soil stage, the members held; `exactx`,
+  the members carried on their rates at the start instead;
+- corrections of `held`: `stage` (the hold refreshed at each member stage),
+  `stagelin` (each collar extrapolated linearly in time), `defect` (the soil's
+  end corrected by the stages' quadrature of the uptake each member stage
+  evaluated, against the held), and `pc` (a corrector pass on the uptake
+  interpolated between the predictor stages' holds).
+
+It passes at `|J − J*| ≤ 1.26e-5` on at most 4.94e6 leaf solves, or `3.66e-5` on
+4.16e6: the monolithic run's errors at `3e-5` and `1e-4`, for 30% fewer.
+
+**Result: killed** (`partition/frontier.txt`; long drought, uniform 108, tied
+tolerance, the soil at `3e-5` unless stated):
+
+| scheme | member tol | member steps | leaf solves, of the monolith's at `3e-5` | `J − J*`, relative |
+|---|---|---|---|---|
+| monolithic | `1e-3` / `3e-4` / `1e-4` / `3e-5` | 11 001 / 12 759 / 14 845 / 17 684 | 0.62 / 0.72 / 0.84 / 1 | −4.0e-4 / +3.3e-6 / +3.7e-5 / −1.3e-5 |
+| held | `3e-5` / `1e-6` | 6076 / 10 703 | 0.36 / 0.67 | +0.136 / +0.074 |
+| held, on the monolith's steps | | 17 684 | 0.82 | +0.111 |
+| exact, members held | `3e-5` | 6141 | 0.36, and 2.5 in the soil | +1.25e-2 |
+| exact, members carried | `3e-5` / `1e-5` | 6133 / 7163 | 0.36 / 0.42, and 2.5 / 2.9 in the soil | −3.0e-4 / −2.2e-4 |
+| stagelin + defect | `1e-4` / `3e-5` / `1e-5` / `3e-6` / `1e-6` | 5294 … 10 750 | 0.30 / 0.36 / 0.42 / 0.53 / 0.67 | +5.6e-4 / +1.1e-4 / −2.4e-4 / −3.4e-4 / −4.9e-4 |
+| stagelin + defect, soil at `1e-6` | `3e-5` | 6130 | 0.36 | +1.2e-4 |
+| pc + defect | `3e-5` / `1e-5` | 6121 / 7142 | 0.66 / 0.78 | −4.4e-5 / −1.4e-4 |
+
+- *The held collar is first order:* its error falls 1.8-fold for 1.76 times the
+  steps, so `3.7e-5` would take about 10⁷ member steps.
+- *The nearest pass,* `pc + defect` at `3e-5`, is 22% cheaper than the monolith at
+  `1e-4` at 1.2 times its error. Its frozen-step `lma` elasticity is −4.98452,
+  against the monolith's −4.98010: 0.05ε.
+- *At errors near 5e-4, 0.02ε,* `stagelin + defect` at `1e-4` takes half the leaf
+  solves of the monolith at `1e-3`.
+
+**Where the coupling's error is** (`partition/defects.R`, `held` at `3e-5`):
+- *In the soil's water budget.* The held collar draws 2.85% too little water.
+  Correcting only the budget at each step's end removes 91% of `J`'s error; the
+  rest is the members reading too wet a soil inside the step. Taking 0.1% of
+  the uptake out of the monolithic run raises `J` by 0.22%.
+- *In dry spells.* Their steps carry 108% of the deficit and rain steps −8%,
+  since a wetting soil makes the held collar over-draw. 49% of the deficit is
+  10–30 days after rain and 32% later, 95% of it in the top layer. At a step's
+  end the deficit is a median 0.5% on steps of 1–3 days, 2.2% on 3–10 and 5.2%
+  beyond.
+- *The mechanism:* in dry soil the collar sits close to the layer's suction, so
+  the gradient that draws water is small. Held while the soil dries, the collar
+  wipes it out, where the leaf would move its collar to keep drawing.
+- *In the first cohort:* the nodes born at 0 and 0.37 carry 94% of `J`'s excess.
+- *Not in the crossings:* the held collar errs +11.1% on the monolith's own steps,
+  and refusing long steps across a sign change of net production leaves the
+  corrected couplings' residuals in place.
+- *The exact control's own error is the members' change over the step:* held, the
+  members' uptake misses 0.12% on steps over 3 days.
+
+**Not explained: the corrected couplings stall.** Their error stops at 1e-4 to
+5e-4 and does not fall as the members' tolerance tightens; `stagelin + defect`
+moves from +1.1e-4 to −4.9e-4 between `3e-5` and `1e-6`, and `pc + defect` from
+−4.4e-5 to −1.4e-4 between `3e-5` and `1e-5`. The soil's tolerance does not move
+it, nor does the crossing refusal. The residual sits in the first two nodes.
+
+**What it costs:** `uptake_at` is 1/140 of a leaf solve (734 instructions against
+104 640), not the 1/1000 assumed; `held`'s calls add about 5% to the leaf solves.
+
+**Root cause.** In dry spells the soil dries by the members' own uptake, through
+a collar the leaf moves to keep drawing. Holding either side across a member
+step leaves a first-order error in the water budget, which `J` amplifies. A
+partition would have to move both the collar and the members within the step
+to high order, which is the coupled step.
+
 ## What the record supports, and what it does not
 
 - *Supported: the record predicts the cost.* Steps per rain day follow its depth,
@@ -498,6 +603,10 @@ the run's tolerance a quarter of the forward's members places the windows.
 - *Not supported: drainage's tail as the soil's cost.* Integrated where that
   tail is linear, the chain takes more steps.
 - *Supported: per-member events are cheap,* 3.8% counted per member (§11).
+- *Not supported: a partitioned step.* Holding the collar across a member step
+  leaves a first-order error in the dry spells' water budget, and the
+  corrections stall at 1e-4 to 5e-4 (§13).
+- *Supported: the constant record's rejections are the step-size law's* (§7).
 - *Supported: the chain alone sets the step program, the knot seeds and the
   soil's bound before the run,* at 2.4e-4 of a forward. Its seeds remove 85% of
   the rejections at knots (§12).
@@ -509,10 +618,7 @@ the run's tolerance a quarter of the forward's members places the windows.
 
 ## Next probes, each one variable
 
-- a partitioned step: the soil chain sub-stepped on its own, each member's
-  per-layer uptake re-derived from its collar suction held over the members'
-  step (phylloptim's `uptake_at`, about a thousandth of a leaf solve), and the
-  members on their own steps. Does `J` hold at the members' 9176 steps?
+- the PI law on the driver, with the chain seeds (§7, §12);
 - per-member events in plant, with one member evaluated in the step's
   interpolated field, on the gradients' spread under tolerance nudges;
 - the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at

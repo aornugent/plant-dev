@@ -1,0 +1,3 @@
+split defect nodes 108 tol 3e-05 soil_tol 3e-05: J 12.760874314 (J - J* 0.00727 relative), 0 accepted, 282 s; accepted=0 accepted_at_minimum=0 rejected_inaccurate=0 rejected_thrown=0 rejected_refused=0
+member evaluations 5780916 (rate evaluations 106212) + 0 in the soil's exact coupling; uptake_at 35286960 in 636636 uptake sweeps; soil-chain rates 530532; soil sub-steps 88422 accepted, 0 rejected, 0 thrown; holds 17792
+accumulators at the end: rainfall 120.266849 infiltration 75.2024 drainage 62.4645879 uptake 12.6168131 runoff 0; soil 0.263718 0.290259 0.300556 0.307064 0.311734

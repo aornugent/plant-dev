@@ -1,0 +1,20 @@
+odelia: long-drought, theta, tol 3e-05: 16447 accepted, 2925 rejected (15.1%) | on rain intervals 11153, dry 5294 | binding layer 1-5: 3714/4139/2193/1858/4543 | final theta 0.2831 0.2959 0.3036 0.3092 0.3135 | h |lambda| / beta at the start >= 0.8: 4.9%, > 1: 0.6%
+odelia:   moisture against ref_ld.rds: at 2931 knots, relative error median 7.9e-07, 99% 3e-05, max 9.7e-05; at the end, max 7.5e-07
+shrink: long-drought, theta, tol 3e-05: 16157 accepted, 3166 rejected (16.4%) | on rain intervals 11123, dry 5034 | binding layer 1-5: 3794/4116/2114/1775/4358 | final theta 0.2831 0.2959 0.3036 0.3092 0.3135 | h |lambda| / beta at the start >= 0.8: 5.7%, > 1: 1.2%
+shrink:   moisture against ref_ld.rds: at 2931 knots, relative error median 9e-07, 99% 2.9e-05, max 0.00012; at the end, max 8.5e-07
+pi: long-drought, theta, tol 3e-05: 17500 accepted, 1910 rejected (9.8%) | on rain intervals 11692, dry 5808 | binding layer 1-5: 3837/4389/2399/1898/4977 | final theta 0.2831 0.2959 0.3036 0.3092 0.3135 | h |lambda| / beta at the start >= 0.8: 2.5%, > 1: 0.0%
+pi:   moisture against ref_ld.rds: at 2931 knots, relative error median 5.5e-07, 99% 2e-05, max 5.6e-05; at the end, max 4e-07
+pi: long-drought, theta, tol 6e-05: 15877 accepted, 1910 rejected (10.7%) | on rain intervals 10523, dry 5354 | binding layer 1-5: 3417/3859/2152/1830/4619 | final theta 0.2831 0.2959 0.3036 0.3092 0.3135 | h |lambda| / beta at the start >= 0.8: 5.0%, > 1: 0.4%
+pi:   moisture against ref_ld.rds: at 2931 knots, relative error median 1.1e-06, 99% 4.5e-05, max 0.00016; at the end, max 5.9e-07
+pi: long-drought, theta, tol 0.0001: 14822 accepted, 1960 rejected (11.7%) | on rain intervals 9765, dry 5057 | binding layer 1-5: 3107/3510/2045/1700/4460 | final theta 0.2831 0.2959 0.3036 0.3092 0.3135 | h |lambda| / beta at the start >= 0.8: 6.6%, > 1: 0.9%
+pi:   moisture against ref_ld.rds: at 2931 knots, relative error median 1.7e-06, 99% 6.5e-05, max 0.00024; at the end, max 1.2e-06
+odelia: constant, theta, tol 3e-05: 4886 accepted, 1009 rejected (17.1%) | on rain intervals 4886, dry 0 | binding layer 1-5: 5/6/4/5/4866 | final theta 0.3313 0.3313 0.3313 0.3313 0.3313 | h |lambda| / beta at the start >= 0.8: 99.4%, > 1: 58.4%
+odelia:   moisture against ref_constant.rds: at 0 knots, relative error median NA, 99% NA, max NA; at the end, max 3.3e-05
+shrink: constant, theta, tol 3e-05: 4880 accepted, 760 rejected (13.5%) | on rain intervals 4880, dry 0 | binding layer 1-5: 5/6/5/4/4860 | final theta 0.3313 0.3313 0.3313 0.3313 0.3313 | h |lambda| / beta at the start >= 0.8: 99.4%, > 1: 48.7%
+shrink:   moisture against ref_constant.rds: at 0 knots, relative error median NA, 99% NA, max NA; at the end, max 1.4e-05
+pi: constant, theta, tol 3e-05: 4898 accepted, 6 rejected (0.1%) | on rain intervals 4898, dry 0 | binding layer 1-5: 5/7/4/5/4877 | final theta 0.3313 0.3313 0.3313 0.3313 0.3313 | h |lambda| / beta at the start >= 0.8: 99.3%, > 1: 3.3%
+pi:   moisture against ref_constant.rds: at 0 knots, relative error median NA, 99% NA, max NA; at the end, max 1.3e-05
+pi: constant, theta, tol 6e-05: 4895 accepted, 5 rejected (0.1%) | on rain intervals 4895, dry 0 | binding layer 1-5: 5/6/4/5/4875 | final theta 0.3313 0.3313 0.3313 0.3313 0.3313 | h |lambda| / beta at the start >= 0.8: 99.4%, > 1: 97.3%
+pi:   moisture against ref_constant.rds: at 0 knots, relative error median NA, 99% NA, max NA; at the end, max 1.1e-05
+pi: constant, theta, tol 0.0001: 4892 accepted, 7 rejected (0.1%) | on rain intervals 4892, dry 0 | binding layer 1-5: 5/6/3/4/4874 | final theta 0.3313 0.3313 0.3313 0.3313 0.3313 | h |lambda| / beta at the start >= 0.8: 99.4%, > 1: 3.6%
+pi:   moisture against ref_constant.rds: at 0 knots, relative error median NA, 99% NA, max NA; at the end, max 9.7e-06
