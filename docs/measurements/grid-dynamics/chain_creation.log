@@ -1,0 +1,14 @@
+== reference ld_u429_full.rds: 429 nodes at 3e-05, 78 gaps, 6.96 of 40 years shut; the first from 3.5623 to 3.7310; 19 openings before t = 10
+chain alone, full light    no gaps
+coupled soil, full light    71 gaps, 6.31 years shut; the reference's gap time inside its gaps 91%, its own inside the reference's 100%; first gap 3.5620-3.7309
+                           each opening to its nearest, days, 10/50/90%: 0.0029 0.027 2.2; within a day 87%; before t = 10: 0.0 0.0 0.0 1.0 0.2 0.1 0.1 0.1 0.1 0.0 64.8 60.4 0.6 5.9 0.1 0.0 0.0 0.1 0.1
+108 nodes at 3e-05          78 gaps, 6.93 years shut; the reference's gap time inside its gaps 99%, its own inside the reference's 100%; first gap 3.5587-3.7309; 1.18e+06 member-steps
+                           each opening to its nearest, days, 10/50/90%: 0.00016 0.013 0.082; within a day 100%; before t = 10: 0.0 0.1 0.0 0.0 0.0 0.1 0.0 0.1 0.0 0.1 0.0 0.1 0.0 0.1 0.0 0.0 0.0 0.0 0.1
+54 nodes at 3e-05           76 gaps, 6.92 years shut; the reference's gap time inside its gaps 99%, its own inside the reference's 100%; first gap 3.5539-3.7307; 5.75e+05 member-steps
+                           each opening to its nearest, days, 10/50/90%: 0.0045 0.029 0.11; within a day 97%; before t = 10: 0.1 0.0 0.0 0.0 0.0 0.1 0.0 0.1 0.1 0.1 48.1 0.1 0.2 0.1 0.0 0.0 0.0 0.0 0.0
+27 nodes at 3e-05           74 gaps, 6.79 years shut; the reference's gap time inside its gaps 97%, its own inside the reference's 99%; first gap 3.5283-3.7296; 2.82e+05 member-steps
+                           each opening to its nearest, days, 10/50/90%: 0.0032 0.046 0.28; within a day 94%; before t = 10: 0.5 0.0 0.0 0.2 0.1 0.1 0.1 0.1 0.0 0.1 48.1 0.1 0.2 0.0 0.1 0.0 0.0 0.2 0.0
+54 nodes at 0.001           67 gaps, 6.44 years shut; the reference's gap time inside its gaps 92%, its own inside the reference's 100%; first gap 3.5651-3.7305; 3.58e+05 member-steps
+                           each opening to its nearest, days, 10/50/90%: 0.0071 0.23 20; within a day 86%; before t = 10: 0.2 0.3 0.4 0.0 0.0 25.8 0.4 32.5 0.4 0.0 64.8 60.7 0.2 5.5 0.1 0.0 0.0 0.6 0.4
+27 nodes at 0.001           68 gaps, 6.35 years shut; the reference's gap time inside its gaps 91%, its own inside the reference's 99%; first gap 3.5278-3.7305; 1.76e+05 member-steps
+                           each opening to its nearest, days, 10/50/90%: 0.026 0.27 9.3; within a day 85%; before t = 10: 0.2 0.3 0.4 1.0 0.0 25.7 0.4 0.5 0.4 0.0 47.9 0.3 0.2 5.5 0.1 0.0 0.0 0.6 0.4

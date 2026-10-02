@@ -22,10 +22,19 @@ rain_at <- function(t) rain[pmin(pmax(floor(t / DAY + 1e-9) + 1, 1), length(rain
 runs <- list(chain = data.frame(t0 = ch$rows[, 1], h = ch$rows[, 2]),
              coupled = data.frame(t0 = x$st$time - x$st$h, h = x$st$h))
 starts <- c(0, knots)
+runs$chain$ratio <- ch$rows[, 3]
+runs$coupled$ratio <- x$st$er
+ends <- c(knots, Inf)
 per <- lapply(runs, function(d) {
   iv <- findInterval(d$t0 + 1e-12, knots)
   first <- !duplicated(iv) & abs(d$t0 - starts[iv + 1]) < 1e-9
-  list(n = tabulate(iv + 1, length(starts)), first = setNames(d$h[first], iv[first]))
+  # The longest step its error would have passed, from the 5th-order local
+  # error, and never past the next knot; a step clipped to the knot passed.
+  room <- ends[iv + 1] - d$t0
+  clipped <- abs(d$h - room) < 1e-9
+  longest <- ifelse(clipped, room, pmin(room, d$h * (1.1 / pmax(d$ratio, 1e-300))^(1 / 5)))
+  list(n = tabulate(iv + 1, length(starts)), first = setNames(d$h[first], iv[first]),
+       longest = setNames(longest[first], iv[first]))
 })
 n <- lapply(per, `[[`, "n")
 cat(sprintf("== %s and %s: %d and %d accepted steps\n", basename(args[1]), basename(args[2]),
@@ -39,6 +48,12 @@ wet <- rain_at(starts[as.integer(k) + 1] + DAY / 2) > 0
 cat(sprintf("first accepted step after a knot, coupled over chain, 10/25/50/75/90%%: %s; within a factor of 2: %.0f%%; median on rain intervals %.2f, dry %.2f\n",
             paste(signif(quantile(r, c(.1, .25, .5, .75, .9)), 2), collapse = " "),
             100 * mean(r > 0.5 & r < 2), median(r[wet]), median(r[!wet])))
+seed <- pmin(per$chain$first[k], per$coupled$longest[k] / (1 - 1e-12)) / per$coupled$longest[k]
+cat(sprintf("the chain's first step as the coupled run's first attempt: passes at %.0f%% of knots; where it passes, it is 10/50/90%% %s of the longest that would\n",
+            100 * mean(seed <= 1), paste(signif(quantile(seed[seed <= 1], c(.1, .5, .9)), 2), collapse = " ")))
+own <- per$coupled$first[k] / per$coupled$longest[k]
+cat(sprintf("  the coupled run's own first accepted step there, after any rejections, is 10/50/90%% %s of it\n",
+            paste(signif(quantile(own, c(.1, .5, .9)), 2), collapse = " ")))
 
 # One Cash-Karp attempt on the chain, timed in C++: six rate evaluations, each
 # five power laws and the rain's Hermite interpolant, and the stage sums.

@@ -1,4 +1,6 @@
 == soil_chain_ld_theta.rds and tied_3e-5_soil1.rds: 16447 and 17684 accepted steps
 steps per interval: chain 5.61, coupled 6.03; correlation 0.76; intervals within one step 89%
 first accepted step after a knot, coupled over chain, 10/25/50/75/90%: 0.87 0.99 1 1.1 1.3; within a factor of 2: 95%; median on rain intervals 1.01, dry 1.02
-the chain alone in C++: 19372 attempts at 1216 ns each, 23.6 ms, 2.1e-04 of a 114.8 s forward
+the chain's first step as the coupled run's first attempt: passes at 96% of knots; where it passes, it is 10/50/90% 0.38 0.69 0.93 of the longest that would
+  the coupled run's own first accepted step there, after any rejections, is 10/50/90% 0.43 0.73 1 of it
+the chain alone in C++: 19372 attempts at 1409 ns each, 27.3 ms, 2.4e-04 of a 114.8 s forward

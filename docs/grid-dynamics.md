@@ -18,8 +18,9 @@ The scripts:
 - `harness/attempts.R` reads the driver's attempt logs,
   `harness/crossings.R` its crossing logs and refusal runs, and
   `harness/soil_steps.R` what bounds its steps. `harness/soil_chain.R`
-  integrates the soil chain alone, and `harness/warm_start.R` sets its steps
-  against the coupled run's.
+  integrates the soil chain alone, `harness/warm_start.R` sets its steps
+  against the coupled run's, and `harness/chain_creation.R` finds where
+  creation shuts.
 - `harness/replay_timing.R` times the invader's replays on `PLANT-98`.
 - `harness/j_window.R` reads `harness/layer_heights.R`'s every-node runs, and
   `harness/error_structure.R` the thinned schedules.
@@ -390,15 +391,6 @@ change, set 93% of the steps. A monolithic step pays the members' leaf solves
 at each of them, and the chain cannot step at the members' pace, where it is
 unstable.
 
-**The chain alone predicts the coupled step program** (`warm_start.R`, the
-chain-alone run against the tied baseline at `3e-5`):
-- *Steps per interval:* 5.61 against 6.03, correlation 0.76; 89% of intervals
-  differ by at most one step.
-- *The first accepted step after each knot,* coupled over chain alone: median
-  1.00, 10–90% 0.87–1.3, and 95% within a factor of 2.
-- *It costs 2.1e-4 of a forward:* 19 372 attempts at 1.2 µs each in C++, 23.6 ms
-  against plant's 114.8 s (§3). In R it takes 6 s.
-
 ## 11. The crossings' cure, priced
 
 - *The mechanism is the grid reply's* (`docs/oracle-response-grid-controller.md`).
@@ -415,6 +407,57 @@ chain-alone run against the tied baseline at `3e-5`):
 - *Counted per member, the split adds 3.8%,* the reply's estimate of 4%. It
   needs plant to evaluate one member in a step's interpolated field, which it
   cannot do today.
+
+## 12. What the chain alone tells the schedule
+
+The chain alone costs 2.4e-4 of a forward: 19 372 attempts at 1.4 µs each in
+C++, 27 ms against plant's 114.8 s (§3), on a loaded machine. In R it takes 6 s.
+What it can set before the run (`warm_start.R` against the tied baseline at
+`3e-5`, `chain_creation.R`):
+- *The step program: yes.* A record's intervals take 5.61 steps each alone and
+  6.03 coupled, correlation 0.76, and 89% of intervals differ by at most one
+  step. The first accepted step after each knot, coupled over chain alone, has
+  median 1.00 (10–90%: 0.87–1.3).
+- *Each knot's first attempt: likely.* Taken as the coupled run's first attempt,
+  the chain's first step would pass the error test at 96% of knots, by the
+  local error's fifth order. Where it passes it is a median 0.69 of the longest
+  step that would; the coupled run's own first accepted step, after its
+  rejections, is 0.73. §2's seed from the last knot of the same kind was too
+  short. The driver's test is open.
+- *Which bound holds on the soil: yes.* The chain alone starts 4.9% of its steps
+  at `h|λ|/β ≥ 0.8` on long drought and 99.4% under constant rain, against the
+  coupled Cash–Karp runs' 1.5% and 83% (§7).
+- *Where creation shuts: no.* A newborn in full light establishes with
+  probability 0.99 when its top layer is at `θ ≥ 0.15`, and 0 at 0.1; its
+  roots read that layer alone. Without uptake, long drought's top layer never
+  dries that far, so the chain alone shuts creation nowhere.
+
+**Where creation shuts.** The 429-node run has 78 gaps in creation, 6.96 of 40
+years. A newborn in full light on the 108-node run's soil finds 71 of them and
+91% of their time. The members' uptake makes the gaps, and their shade adds the
+rest.
+
+**What finds the gaps:** coarser runs' own creation records, against the
+429-node run's. Cost is member-steps over the 108-node run's 1.18e6.
+
+| run | cost | gaps | the gap time found | openings within a day |
+|---|---|---|---|---|
+| chain alone, newborn in full light | 2e-4 | 0 | 0 | none |
+| 27 nodes at `1e-3` | 0.15 | 68 | 91% | 85% |
+| 27 nodes at `3e-5` | 0.24 | 74 | 97% | 94% |
+| 54 nodes at `1e-3` | 0.30 | 67 | 92% | 86% |
+| 54 nodes at `3e-5` | 0.49 | 76 | 99% | 97% |
+| 108 nodes at `3e-5` | 1 | 78 | 99% | 100% |
+
+- *Tolerance matters more than nodes.* At `1e-3` the runs miss gaps of 3–6 days
+  before t = 10 and put those openings 26–65 days out. At the run's tolerance,
+  27 nodes place 94% of openings within a day.
+- *Every coarse run misses one gap,* a quarter of a day at t = 6.08.
+
+**Root cause.** Creation shuts where the newborn's top layer is dry or shaded.
+The dryness is the members' uptake, and the chain alone sees the rain, not the
+stand. A schedule probe for the creation grid must carry the members, and at
+the run's tolerance a quarter of the forward's members places the windows.
 
 ## What the record supports, and what it does not
 
@@ -441,6 +484,11 @@ chain-alone run against the tied baseline at `3e-5`):
 - *Not supported: drainage's tail as the soil's cost.* Integrated where that
   tail is linear, the chain takes more steps.
 - *Supported: per-member events are cheap,* 3.8% counted per member (§11).
+- *Supported: the chain alone sets the step program, the knot seeds and the
+  soil's bound before the run,* at 2.4e-4 of a forward (§12).
+- *Not supported: the chain alone as a probe for the creation grid.* The members
+  make the gaps; a pilot at the run's tolerance with a quarter of its nodes
+  finds 97% of their time (§12).
 - *One runtime defect is plain:* the invader's first replay repeats the
   resident's forward.
 
@@ -453,7 +501,7 @@ chain-alone run against the tied baseline at `3e-5`):
 - per-member events in plant, with one member evaluated in the step's
   interpolated field, on the gradients' spread under tolerance nudges;
 - each knot's first attempt seeded from the chain alone's first accepted step
-  there (§10), against §2's seed from the last knot of the same kind, which was
+  there (§12), against §2's seed from the last knot of the same kind, which was
   too short;
 - the tolerance scaled by 1/R(t) from a pilot, in place of §8's step at
   t = 25, on a second pulsed record;
