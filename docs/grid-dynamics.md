@@ -28,7 +28,7 @@ The scripts:
 |---|---|---|---|
 | 1 | steps: 17 683 on long drought, 3637 on the constant record (3951 on its resolved grid) | the soil's accuracy at the norm's tolerance through each rain-rate change | established; no cheap lever |
 | 2 | 17.5–21% of attempts rejected | near knots, the controller probing the soil's new time scale; far from them, the members' sign changes and near-empty pools | established; the probing is cheaper than a seed |
-| 3 | the invader's first replay costs about two forwards | `run_mutant` re-runs the resident to keep its field | established |
+| 3 | the invader's first replay costs about two forwards | `run_mutant` re-runs the resident to keep its field | established; fixed on `PLANT-99` |
 | 4 | `J`'s time error does not follow the tolerance under plant's default absolute tolerance | near-empty pools, and steps across members' sign changes | established earlier; the pools fixed by the tied tolerance |
 | 5 | gradients are a staircase in θ | sign changes sliding past the stages | established earlier |
 | 6 | the invader's node error changes sign under halving on uniform nodes | two opposite errors at the layer's top that shrink at different rates | established; the field part is the soil's for `J` and light's for the invader |
@@ -135,6 +135,15 @@ just run with its trajectory recorded.
 **Root cause, confirmed.** The first replay holds a second resident forward. It
 is about 12% of a run with every gradient of both roles, and paid once per
 resident, so it is small across a landscape of invaders.
+
+**Fixed** on `PLANT-99` (aornugent/plant#99). A run that keeps its states also
+keeps the field each evaluation built, where no evaluation reads it, and the
+first invasion walks that.
+- Under the same load, the first replay takes 139 s against 300 s on `PLANT-98`,
+  and the walk itself is unchanged.
+- `J`, the stand's gradient and an invader's at `lma` × 0.95 are bit-identical.
+- A recorded forward holds 130 MB more after it, about 7.4 kB a step, and the
+  peak over a forward and an invasion does not move.
 
 ## 4–6, established earlier
 

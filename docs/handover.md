@@ -256,7 +256,8 @@ on disk and a few driver probes:
 - *The rejections near knots are the controller's cheap probe of the soil.* A
   seed from the last knot of the same kind removes them and costs 7.9% more.
 - *The invader's first replay repeats the resident's forward,* about 12% of a
-  run with every gradient.
+  run with every gradient. Fixed on `PLANT-99` (#99): the first replay halves,
+  for 130 MB more held after a recorded forward.
 - *The constant record's steps are bound by the soil's stability,* not its
   accuracy: 83% start within 0.8 of the explicit limit, and held under it the
   rejections fall from 739 to 52. There the implicit soil pays (ARK, −66% member
@@ -334,10 +335,11 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `PLANT-96` (#96) | `855f64ee` | zero pulses as step targets; 1 commit | `PLANT-95` | `a05f5c2` |
 | `PLANT-97` (#97) | `b4b5febf` | the pool's relaxation offset, TF24 v12; 1 commit | `PLANT-95` | `a05f5c2` |
 | `PLANT-98` (#98) | `7dbd87c3` | the pool's stage guard out; 1 commit | `PLANT-97` | `a05f5c2` |
+| `PLANT-99` (#99) | `457f08bb` | the first invasion walks a recorded run without repeating it; 1 commit | `PLANT-98` | `a05f5c2` |
 
 - odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is
   `378b083`, both unreleased. A branch builds only against its own odelia.
-- No PR is open for `offspring-adjoint` or `PLANT-95` to `PLANT-98`; opening them
+- No PR is open for `offspring-adjoint` or `PLANT-95` to `PLANT-99`; opening them
   is the user's call. #96 is independent of #97 and #98, and all three edit the
   top of `NEWS.md`.
 - `plant-dev`'s pointers (plant `6613dd24`, odelia `be3e2cb`) stay until #94
