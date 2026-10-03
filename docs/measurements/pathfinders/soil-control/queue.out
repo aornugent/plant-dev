@@ -1,0 +1,7 @@
+start smoke 12:25:33 load 3.40
+done smoke status 0 12:25:46
+start q1_ld 12:26:10 load 3.41
+done q1_ld status 0 12:35:54
+start q1_epi 12:35:54 load 3.08
+done q1_epi status 0 12:41:56
+q1 finished 12:41:56

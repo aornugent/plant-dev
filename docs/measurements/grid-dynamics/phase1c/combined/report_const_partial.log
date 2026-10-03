@@ -1,0 +1,24 @@
+== unweighted Cash-Karp with the 15-day cap against the existing no-cap run (creation-grid/const_Gbf16_full)
+   stand J, times, attempts identical: TRUE TRUE TRUE; elasticities identical: TRUE
+
+== Constant rain, 150 nodes (distances from const_ck_1e-5, in eps; J* 289.2738962; sweep clamps moisture floor/potential ceiling/positivity, stand then invader)
+run                      vs CK  vs bnd  steps  max d   J/J* - 1 | resident: median, largest (quantity)   | invader: median, largest (quantity)    | sweeps      | (i) C2, (ii) budget
+unweighted CK            +0.0%   +6.1%   3951  11.05  +6.10e-09 | 0.0001, 0.0034 (d_I             ) | 0.0002, 0.0124 (rooting_depth_max) | 0/0/0 0/0/0 | (i) pass/pass (ii) pass/pass
+CK 1e-5 reference        +4.2%  +10.6%   4111  11.25  +1.02e-08 | 0.0000, 0.0000 (ln J            ) | 0.0000, 0.0000 (ln J            ) | 0/0/0 0/0/0 | 
+bounded CK               -5.7%   +0.0%   3756   6.97  +2.30e-08 | 0.0005, 0.0103 (a_f1            ) | 0.0001, 0.0020 (rooting_depth_max) | 0/0/0 0/0/0 | (i) FAIL/pass (ii) pass/pass
+ARK arm A               -62.1%  -59.8%   1550  15.00  +1.66e-06 | did not finish; failures: none; sweep clamps - -
+
+== Failures and walks: J', and the ln J' move against unweighted Cash-Karp's walk, in eps
+unweighted CK          failures: none
+    lma=0.5 5.995e+04 (0.000); lma=0.7 2.658e+04 (0.000); lma=1.4 4.846e-17 (0.000); lma=2 2.075e-21 (0.000); hmat=0.5 99.68 (0.000); hmat=0.7 78.72 (0.000); hmat=1.4 146.5 (0.000); hmat=2 0.01673 (0.000) 
+CK 1e-5 reference      failures: none
+    lma=0.5 5.995e+04 (0.000); lma=0.7 2.658e+04 (0.000); lma=1.4 4.846e-17 (0.000); lma=2 2.075e-21 (0.000); hmat=0.5 99.68 (0.000); hmat=0.7 78.72 (0.000); hmat=1.4 146.5 (0.000); hmat=2 0.01673 (0.000) 
+bounded CK             failures: none
+    lma=0.5 5.995e+04 (0.000); lma=0.7 2.658e+04 (0.000); lma=1.4 4.846e-17 (0.000); lma=2 2.075e-21 (0.000); hmat=0.5 99.68 (0.000); hmat=0.7 78.72 (0.000); hmat=1.4 146.5 (0.000); hmat=2 0.01673 (0.000) 
+ARK arm A              failures: none
+    lma=0.5 -; lma=0.7 -; lma=1.4 -; lma=2 -; hmat=0.5 -; hmat=0.7 -; hmat=1.4 -; hmat=2 - 
+
+== The decision for ARK
+   arm A at 3e-5: (ii) fails -> run at 1e-5
+   arm B at 3e-5: (ii) fails -> run at 1e-5
+const exit 0

@@ -1,0 +1,58 @@
+Pathfinder: can an invader's walk and sweep drop members by their own share of J'?
+Pre-registered 2026-10-03, before any run or emulation in pf_thin/.
+
+HYPOTHESIS
+H0. A rare invader moves no field: its walk follows the resident's recorded
+    field and steps, and its members interact only with that field. So dropping
+    invader members (a subset of the run's introductions) changes J' only through
+    the dropped members' own contribution and through the birth-date quadrature
+    of the merged intervals; there is no field part (unlike the resident's
+    thinning after b = 10, grid-dynamics.md section 8 test 2).
+
+Testable predictions:
+P1 (no coupling, step 2). On a real thinned walk every kept member's
+    fecundity, and each merged interval's establishment integral and moment,
+    equal the full walk's sums to rounding (relative 1e-12), so J' equals the
+    offline emulation to 1e-12 relative.
+P2 (rule a, step 1). Dropping members born after the cumulative J' share
+    reaches 1 - delta, delta = 1e-3 and 1e-4, moves ln J' by less than eps/3.
+P3 (rule b, step 1). Spacing members as (share density)^(-1/3) (root law),
+    with one constant for every invader and record, moves ln J' by less than
+    eps/3 and saves more rows than rule (a) at matched error.
+
+SETUP
+- Library DEV/lib_sw (odelia state-weights, phylloptim 378b083, plant
+  state-weights 4555ea13). Bounded Cash-Karp: TOL=3e-5 ATOL=1e-4 WEIGHT_SOIL=10
+  HMAX=15 WEIGHT_MAX=100 WEIGHT=window/rule_A/weight_<record>.rds
+  TIMES=window/t/t_u108.rds, records long-drought, long-wet, episodic.
+- Invaders: the stand's own (theta' = theta, the diagonal) and lma, hmat at
+  x0.5, 0.7, 1.4, 2: 9 per record, 27 cases.
+- Step 1 data: re-run each record's stand (record_trajectory) and its 9 walks
+  (no sweeps), keeping per node: birth b_j, establishment weight w_j, the
+  interval's establishment integral E_j and moment M_j (node ODE states
+  interval_establishment, interval_establishment_moment), fecundity, patch
+  density at birth, S_D and birth rate. Check the re-run reproduces
+  phase1c/combined/full/bnd_*.rds (J, each J') bit for bit.
+- Emulation (exact, by construction of species.h for_each_establishment_weight):
+  J'(S) = sum_{j in S} wt_j F_j, F_j = fecundity_j * patch_density_j * S_D * br_j;
+  merged interval a..c: E = sum E_k, M = sum (M_k + (b_k - b_a) E_k); the last
+  kept node's right interval runs to the run's end, with the boundary node's
+  share dropped as plant drops it. Checked: emulated J'(all) = reported J'.
+- Rows: per accepted step, the kept members born at or before its start
+  (bounded_table.R's rows_of). Walk and sweep both scale with rows; report the
+  fraction of the invader's rows saved.
+- eps: ln J 0.025 (eps/3 = 0.0083, OBJECTIVES). Elasticities: invader eps from
+  docs/measurements/eps.csv, floored at 0.01 (OBJECTIVES); S_D, a_f3 take 0.01.
+
+CRITERIA
+- Go to step 2 if one rule setting, fixed across all 27 cases (not tuned per
+  case), saves a median >= 30% of the invader's walk+sweep rows with every
+  case's |d ln J'| < eps/3 on the exact emulation. Otherwise stop and report why.
+- Step 2 (real thinned walks and sweeps on long drought and episodic), pass if:
+  (i) P1 holds; (ii) |d ln J'| < eps/3 for every invader; (iii) every invader
+  elasticity moves < eps/3 (floored eps) against the full walk's; (iv) walk +
+  sweep time falls >= 30% (median over invaders). The diagonal (stand's own
+  invader) is reported separately: the full walk has J' = J to the bit.
+- Refutation of H0: P1 fails (kept members' values move beyond rounding).
+- Refutation of the lever: no fixed setting meets the go criterion, or step 2's
+  gradients move >= eps/3 at the setting that meets it.

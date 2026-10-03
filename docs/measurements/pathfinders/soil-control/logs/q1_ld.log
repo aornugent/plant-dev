@@ -1,0 +1,4 @@
+ck nodes 108 tol 3e-05: J 12.668435953, 12560 accepted, 582 s; accepted=12560 accepted_at_minimum=0 rejected_inaccurate=3002 rejected_thrown=0 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+rate evaluations 93480, member evaluations 4734456; evaluated states past the inflow switch 353, the loss clamp 1258, the floor 409
+soil estimate from the chain alone at 1e-09 (logged only): 140883 substeps
+binding: soil 77.6%  accumulator 0.8%  member 21.6%  storage 9.1% ; h |lambda_soil| / beta at the start >= 0.8: 14.9%  > 1: 5.4% 

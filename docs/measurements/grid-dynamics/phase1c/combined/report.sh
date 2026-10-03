@@ -4,7 +4,8 @@
 #   report_bounded.log  the combined setting with each state's weight at most 100;
 #   report_ark.log      the implicit soil chain (lib_ark), arms A and B;
 #   report_ark_weights.log  ARK's arm B at soil weights 10-100, and the pick;
-#   report_ark_1e-5.log     ARK at 1e-5, the 3e-5 to 1e-5 ratios, and C3.
+#   report_ark_1e-5.log     ARK at 1e-5, the 3e-5 to 1e-5 ratios, and C3;
+#   report_const.log        constant rain: Cash-Karp and ARK against the 1e-5 reference.
 C=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1c/combined
 cd $C || exit 1
 {
@@ -42,4 +43,9 @@ cd $C || exit 1
   Rscript ark_1e5.R
   echo; echo "######## Where an arm stopped, if one did"; grep -E "queue9 lane|stop arm [AB]{1,2} at ark[AB]_1e-5" queue.out || echo "no arm stopped"
 } > report_ark_1e-5.log 2>&1
-cat report_bounded.log report_ark.log report_ark_weights.log report_ark_1e-5.log
+{
+  echo "######## Constant rain on its resolved grid: unweighted and bounded Cash-Karp, ARK arms A and B, the 1e-5 reference"
+  Rscript const_table.R
+  echo; echo "######## Queue notes: loads at each start, stops"; grep -E "const_|queue10" queue.out || echo "not run"
+} > report_const.log 2>&1
+cat report_bounded.log report_ark.log report_ark_weights.log report_ark_1e-5.log report_const.log

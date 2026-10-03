@@ -1,0 +1,318 @@
+--- orig/inst/include/plant/species.h	2026-10-02 00:07:00.266206958 +0000
++++ plant/inst/include/plant/species.h	2026-10-02 02:33:43.446281017 +0000
+@@ -16,6 +16,7 @@
+ #include <plant/census.h>
+ #include <odelia/drivers.hpp>
+ #include <plant/with_slope.h>
++#include <plant/probe.h>
+ 
+ namespace plant {
+ 
+@@ -279,7 +280,23 @@
+   // The prepared strategy this species and its nodes share.
+   strategy_type_ptr strategy_ptr() const {return this->strategy;}
+ 
++  // Each node's panel as the birth-date field holds it, for the self probe.
++  std::vector<probe::twin_panel> twin_panels(double area) const;
++
+ private:
++  // The birth-date field with each panel's leaf area spread over the heights its
++  // members span (the spread probe); the boundary node is closed separately.
++  with_slope<value_type> spread_field(const value_type& height) const;
++  // One half panel of extinction c at node height h, spread toward h_nb.
++  void add_spread(with_slope<value_type>& sum, const value_type& c,
++                  const value_type& h, const value_type& h_nb,
++                  const value_type& height, int M) const;
++  // The spread field at every height of a set from one pass: each interval
++  // between neighbouring nodes holds M point crowns carrying both nodes' hat
++  // shares there, so the field is a prefix of point-crown moments. The
++  // boundary node's half panel is added at the close.
++  void spread_field_splits(const std::vector<value_type>& heights,
++                           std::vector<competition_split>& out) const;
+   // Visit each node with its establishment weight: its shares of the intervals
+   // either side of its birth date. The boundary node's is boundary_weight().
+   template <typename F>
+@@ -543,12 +560,22 @@
+   }
+   const HeightScan& scan = scan_heights();
+   const std::size_t n_moments = strategy->canopy_shape.n_moments();
+-  if (!scan.decreasing || n_moments == 0) {
++  const bool spread = probe::spread_at(new_node.introduction_time()) &&
++                      control().node_density_in_birth_date;
++  // The point crowns are tallest first only while the nodes are, the boundary
++  // node included.
++  const bool ordered = scan.decreasing &&
++                       (!spread || new_node.height() <= nodes.back().height());
++  if (!ordered || n_moments == 0) {
+     for (std::size_t k = 0; k < heights.size(); ++k) {
+       out[k] = compute_competition_and_slope_split(heights[k]);
+     }
+     return;
+   }
++  if (spread) {
++    spread_field_splits(heights, out);
++    return;
++  }
+ 
+   using moments = std::array<value_type, CanopyShape<value_type>::max_moments>;
+   const std::size_t n = size();
+@@ -767,6 +794,11 @@
+     // A weighted sum, so a node below `height` adds an exact zero and the order
+     // of the nodes does not matter.
+     competition_split c;
++    if (probe::spread_at(new_node.introduction_time())) {
++      c.without_boundary = spread_field(height);
++      c.closes = true;
++      return c;
++    }
+     for_each_establishment_weight([&](const node_type& n, const value_type& w) {
+       const with_slope<value_type> fs = n.compute_competition_and_slope(height);
+       if (!util::is_finite(fs.value) || !util::is_finite(fs.slope)) {
+@@ -797,6 +829,13 @@
+     new_node.compute_competition_and_slope(height);
+   if (control().node_density_in_birth_date) {
+     const value_type w = boundary_weight();
++    if (probe::spread_at(new_node.introduction_time()) && !nodes.empty()) {
++      with_slope<value_type> s{value_type(0.0), value_type(0.0)};
++      add_spread(s, w * new_node.compute_competition(0.0), new_node.height(),
++                 nodes.back().height(), height, probe::spread());
++      return {c.without_boundary.value + s.value,
++              c.without_boundary.slope + s.slope};
++    }
+     return {c.without_boundary.value + w * fs0.value,
+             c.without_boundary.slope + w * fs0.slope};
+   }
+@@ -806,10 +845,141 @@
+ }
+ 
+ template <typename T, typename E>
++void Species<T,E>::add_spread(with_slope<value_type>& sum, const value_type& c,
++                              const value_type& h, const value_type& h_nb,
++                              const value_type& height, int M) const {
++  if (!util::is_finite(c)) {
++    util::stop("Detected non-finite contribution");
++  }
++  for (int s = 0; s < M; ++s) {
++    const double lambda = (s + 0.5) / M;
++    const double a = 2.0 * (1.0 - lambda) / M;
++    const value_type h_s = h + lambda * (h_nb - h);
++    if (height <= h_s && h_s > 0.0) {
++      const value_type h_inv = 1.0 / h_s;
++      const value_type u = height * h_inv;
++      const std::pair<value_type, value_type> Qq =
++        strategy->canopy_shape.Q_and_q(u, height, h_inv);
++      sum.value += c * a * Qq.first;
++      sum.slope -= c * a * Qq.second;
++    }
++  }
++}
++
++template <typename T, typename E>
++void Species<T,E>::spread_field_splits(const std::vector<value_type>& heights,
++                                       std::vector<competition_split>& out) const {
++  using moments = std::array<value_type, CanopyShape<value_type>::max_moments>;
++  const std::size_t n_moments = strategy->canopy_shape.n_moments();
++  const int M = probe::spread();
++  const std::size_t n = size();
++  // prefix[p] sums the moments of the first p point crowns, tallest first.
++  std::vector<value_type> crown_top;
++  std::vector<moments> prefix(1);
++  crown_top.reserve(n * M);
++  prefix.reserve(n * M + 1);
++  for (std::size_t j = 0; j < n_moments; ++j) {
++    prefix[0][j] = value_type(0.0);
++  }
++  for (std::size_t i = 0; i < n; ++i) {
++    const node_type& end = i + 1 < n ? nodes[i + 1] : new_node;
++    const auto share = nodes[i].interval_shares(
++      end.introduction_time() - nodes[i].introduction_time());
++    const value_type c_upper = share.first * nodes[i].compute_competition(0.0);
++    const value_type c_lower = i + 1 < n
++      ? value_type(share.second * end.compute_competition(0.0))
++      : value_type(0.0);
++    if (!util::is_finite(c_upper) || !util::is_finite(c_lower)) {
++      util::stop("Detected non-finite contribution");
++    }
++    const value_type h0 = nodes[i].height();
++    const value_type h1 = end.height();
++    for (int s = 0; s < M; ++s) {
++      const double lambda = (s + 0.5) / M;
++      const value_type h_s = h0 + lambda * (h1 - h0);
++      const value_type c = c_upper * (2.0 * (1.0 - lambda) / M) +
++                           c_lower * (2.0 * lambda / M);
++      const value_type h_inv = 1.0 / h_s;
++      moments raw, next;
++      strategy->canopy_shape.crown_moments(h_inv, raw);
++      for (std::size_t j = 0; j < n_moments; ++j) {
++        next[j] = prefix.back()[j] + c * raw[j];
++      }
++      crown_top.push_back(h_s);
++      prefix.push_back(next);
++    }
++  }
++  const HeightScan& scan = scan_heights();
++  moments weight, weight_slope;
++  std::size_t reach = crown_top.size();
++  for (std::size_t k = 0; k < heights.size(); ++k) {
++    const value_type& height = heights[k];
++    if (scan.h_max < height) {
++      continue;
++    }
++    while (reach > 0 && crown_top[reach - 1] < height) {
++      --reach;
++    }
++    strategy->canopy_shape.height_weights(height, weight);
++    strategy->canopy_shape.height_weight_slopes(height, weight_slope);
++    competition_split& c = out[k];
++    for (std::size_t j = 0; j < n_moments; ++j) {
++      c.without_boundary.value += weight[j] * prefix[reach][j];
++      c.without_boundary.slope += weight_slope[j] * prefix[reach][j];
++    }
++    c.closes = true;
++  }
++}
++
++template <typename T, typename E>
++with_slope<typename Species<T,E>::value_type>
++Species<T,E>::spread_field(const value_type& height) const {
++  const int M = probe::spread();
++  with_slope<value_type> sum{value_type(0.0), value_type(0.0)};
++  value_type from_previous(0.0);
++  for (size_t j = 0; j < size(); ++j) {
++    const node_type& end = j + 1 < size() ? nodes[j + 1] : new_node;
++    const auto share = nodes[j].interval_shares(
++      end.introduction_time() - nodes[j].introduction_time());
++    const value_type scale = nodes[j].compute_competition(0.0);
++    const value_type h = nodes[j].height();
++    if (j > 0) {
++      add_spread(sum, from_previous * scale, h, nodes[j - 1].height(), height, M);
++    }
++    add_spread(sum, share.first * scale, h, end.height(), height, M);
++    from_previous = share.second;
++  }
++  return sum;
++}
++
++template <typename T, typename E>
++std::vector<probe::twin_panel> Species<T,E>::twin_panels(double area) const {
++  using odelia::util::to_passive;
++  std::vector<probe::twin_panel> ret;
++  ret.reserve(size());
++  value_type from_previous(0.0);
++  for (size_t j = 0; j < size(); ++j) {
++    const node_type& end = j + 1 < size() ? nodes[j + 1] : new_node;
++    const auto share = nodes[j].interval_shares(
++      end.introduction_time() - nodes[j].introduction_time());
++    const double scale = to_passive(nodes[j].compute_competition(0.0)) / area;
++    const double h = to_passive(nodes[j].height());
++    ret.push_back({to_passive(from_previous) * scale, to_passive(share.first) * scale, h,
++                   j > 0 ? to_passive(nodes[j - 1].height()) : h,
++                   to_passive(end.height())});
++    from_previous = share.second;
++  }
++  return ret;
++}
++
++template <typename T, typename E>
+ void Species<T,E>::compute_rates(const E& environment, double pr_patch_survival, double birth_rate) {
++  long index = 0;
+   for (auto& c : nodes) {
++    probe::current() = index++;
+     c.compute_rates(environment, pr_patch_survival);
+   }
++  probe::current() = -1;
+   // The boundary condition, evaluated in the field the nodes above were just
+   // rated in. This is not the evaluation the field itself reads -- that one is in
+   // a field excluding the boundary interval, and Patch::compute_environment owns
+--- /dev/null	2026-10-01 22:27:27.411691614 +0000
++++ plant/inst/include/plant/probe.h	2026-10-02 00:28:19.502453107 +0000
+@@ -0,0 +1,89 @@
++// -*-c++-*-
++#ifndef PLANT_PLANT_PROBE_H_
++#define PLANT_PLANT_PROBE_H_
++
++// Diagnostic switches for the comb probes, read once from the environment.
++// Unset, every path is the committed one. Double runs only.
++//   PLANT_PROBE_KNOTS     the light field's knot count (65)
++//   PLANT_PROBE_SPREAD    sub-points per half panel in the birth-date field sum,
++//                         each panel's leaf area spread over its members'
++//                         interpolated heights (0: at the node's height)
++//   PLANT_PROBE_SPREAD_FROM, PLANT_PROBE_SPREAD_UNTIL
++//                         spread only fields built at times in [from, until)
++//   PLANT_PROBE_SELF      1: a crown reads the field without its twin's panel;
++//                         2: with its twin's panel spread as SPREAD spreads it
++//   PLANT_PROBE_SELF_SUB  sub-points per half panel for SELF=2 (8)
++// The twin of node j is node j of the run that built the field: the node
++// itself for a stand, the stand's node j for an invader replaying its field.
++
++#include <cstdlib>
++#include <cstddef>
++#include <vector>
++
++namespace plant {
++namespace probe {
++
++inline int env_int(const char* name, int fallback) {
++  const char* v = std::getenv(name);
++  return (v != nullptr && *v != '\0') ? std::atoi(v) : fallback;
++}
++inline std::size_t knots() {
++  static const std::size_t n =
++    static_cast<std::size_t>(env_int("PLANT_PROBE_KNOTS", 65));
++  return n;
++}
++inline int spread() {
++  static const int m = env_int("PLANT_PROBE_SPREAD", 0);
++  return m;
++}
++inline double env_double(const char* name, double fallback) {
++  const char* v = std::getenv(name);
++  return (v != nullptr && *v != '\0') ? std::atof(v) : fallback;
++}
++// The spread applies to fields built at times in [from, until).
++inline bool spread_at(double time) {
++  static const double from = env_double("PLANT_PROBE_SPREAD_FROM", -1.0);
++  static const double until = env_double("PLANT_PROBE_SPREAD_UNTIL", 1e300);
++  return spread() > 0 && time >= from && time < until;
++}
++inline int self() {
++  static const int s = env_int("PLANT_PROBE_SELF", 0);
++  return s;
++}
++inline int self_sub() {
++  static const int s = env_int("PLANT_PROBE_SELF_SUB", 8);
++  return s;
++}
++
++// One node's panel as the field holds it: the extinction at height zero from
++// the interval below its birth date and from the one above (establishment
++// share times density times k_I times leaf area, over the patch area), its
++// height, and the heights of the nodes born before and after it.
++struct twin_panel {
++  double c_lo, c_hi, h, h_up, h_dn;
++};
++inline std::vector<twin_panel>& twins() {
++  static std::vector<twin_panel> t;
++  return t;
++}
++// The node whose rates are being computed; -1 outside a node's rates.
++inline long& current() {
++  static long i = -1;
++  return i;
++}
++
++// sum over M sub-points of weight(s) * f(height(s)) for one half panel: heights
++// h + lambda (h_nb - h) at lambda = (s + 1/2) / M, weights 2 (1 - lambda) / M,
++// the node's hat on that interval, so the weights sum to one.
++template <typename F>
++inline void for_each_sub_point(int M, double h, double h_nb, F f) {
++  for (int s = 0; s < M; ++s) {
++    const double lambda = (s + 0.5) / M;
++    f(h + lambda * (h_nb - h), 2.0 * (1.0 - lambda) / M);
++  }
++}
++
++}
++}
++
++#endif

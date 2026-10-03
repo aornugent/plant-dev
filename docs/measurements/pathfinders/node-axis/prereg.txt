@@ -1,0 +1,103 @@
+Pre-registration: phase 2 pathfinder, the node axis (B graded, D spread, B+D)
+Written 2026-10-03 before any run below. DEV = the scratchpad's dev/; this
+directory is DEV/pf_nodes.
+
+SETTING (every run unless stated)
+- Bounded Cash-Karp, run_record.R (own copy, harness/): TOL=3e-5 ATOL=1e-4
+  WEIGHT_SOIL=10 WEIGHT=DEV/window/rule_A/weight_<record>.rds WEIGHT_MAX=100
+  HMAX=15, TIMES=<schedule>. Stand, its gradient, its own invader (theta'=theta)
+  and the invader's gradient. Records long-wet, then long-drought (seed 31).
+- Library DEV/pf_nodes/lib: odelia a62e97c (state-weights), phylloptim 378b083,
+  plant pf-spread = state-weights 4555ea13 + the canopy-spread probe
+  (probe_active.diff's species.h part, PLANT_PROBE_SPREAD) + an order probe
+  (PLANT_PROBE_ORDER 0 walk / 1 tolerance PLANT_PROBE_ORDER_TOL / 2 sort before
+  the prefix pass) with tallies of every birth-date field build by path.
+- Ladder runs take PLANT_PROBE_ORDER=2 (sort). The sort is exact (the prefix
+  over crowns tallest first is the walk's sum reassociated) and is the
+  identity, so bit-identical to the committed path, wherever heights are
+  ordered. The tallies say how often it engaged.
+- One heavy process at a time, nice -n 10, started only while the 1-min load
+  is under 4.
+
+VERIFICATION (forward only, before the ladders)
+- V1: lumped u108 long-wet bounded, ORDER=0 -> J and steps equal bnd_wet.rds
+  (18.4020919, 15604 steps) bit for bit. If equal, bnd_wet.rds and bnd_ld.rds
+  serve as the lumped u108 rungs.
+- V2: spread u108 long drought, plain 3e-5 tied, no weights, SPREAD=8 ->
+  J = 12.808213678629 and 17679 steps (comb/runs/full_spread_u108.rds).
+  Failing either stops the work until explained.
+
+ARMS (canopy x schedule), long-wet first
+- L, lumped uniform: u54, u108 (bnd_*), u215.
+- B, lumped graded (graded_times.R): G1 125, G2 248, G3 494 nodes.
+- D, spread uniform (SPREAD=8): u54, u108, u215, u429.
+- B+D, spread graded: G1, G2, G3.
+Priority on long-wet: D u108, u215, u429; B G1, G2; B+D G1, G2; L u215;
+L u54, D u54; B G3, B+D G3. Long drought repeats in the same order as time
+allows.
+
+MEASURES, per quantity Q: ln J and each of the 49 elasticities, both roles
+(S_D and a_f3 dropped as structural), in units of eps (docs/measurements/
+eps.csv, every entry but ln J floored at 0.01 per OBJECTIVES.md; the small four
+are reported, not dropped). Groups: main = ln J, lma, a_dG2, hmat, stem_P50,
+rho; other = the rest; by role.
+- Ratio of successive moves r = (Q_n - Q_2n)/(Q_2n - Q_4n) per rung triple.
+  Resolved: |Q_2n - Q_4n| at least 3x the +-5% tol nudge's move at u108
+  (bnd_ld_2.85e-5 / bnd_ld_3.15e-5 against bnd_ld; long drought's nudge serves
+  wet as a proxy unless a wet nudge is run).
+- Companion at rung 2n: estimate (Q_n - Q_2n)/3 over the error Q_2n - ref,
+  where ref is the ladder's finest extrapolation Q_f + (Q_f - Q_f-1)/3.
+  Reported as medians over resolved quantities, by group.
+- Distance from the finest extrapolation, per rung and for the two-rung
+  extrapolations below the finest pair: median and max over quantities.
+- Agreement of the ladders' finest extrapolations with one another.
+- Cost: rows = member-steps of the forward (members alive at each accepted
+  step's start), forward evaluations with rejections, CPU s per phase.
+
+HYPOTHESES AND CALLS (Q1)
+- On the square law for a group: median r over resolved quantities in
+  [3.0, 5.3] and under 10% of them negative. Companions honest: median
+  estimate/error in [0.8, 1.25] (phase 2c's band).
+- H1 (B on wet): B's ladder is NOT on the square law by G3 for J or for the
+  invader's main gradients (record: J's ratio 2.75 over G1-G3 at plain 3e-5).
+  Refuted if both roles' groups are on it over G1-G2-G3.
+- H2 (D on wet): D is on the square law over u108-u215-u429 for every group,
+  with companions at u215 in [0.8, 1.25]. Refuted otherwise.
+- H3 (B+D on wet): B+D's single rungs are the closest to the common reference
+  at matched rows, but its moves G2 -> G3 are under 3x the nudge on most
+  quantities, so its ratio is unresolved. Refuted if B+D G1 is farther from the
+  reference than D's u108+u215 extrapolation at fewer rows.
+- H4 (long drought): bounded Cash-Karp reproduces the record: B's G1-G2-G3
+  ratios in [3, 5.3] with companions 1.0-1.2; D's ratios 3.6-3.9 with
+  companions 0.93-1.09.
+- Decision evidence reported, not decided: for each rule, error against rows
+  of its reported answer (B: G2 with G1 as companion, and G1+G2 extrapolated;
+  D: u108+u215 and u215+u429 extrapolated; B+D: G1, G2), and whether its error
+  estimate covers its error.
+
+Q2: D PLUS THINNING AFTER b = 10 (long-wet first)
+- Runs: L u108_thin10 and D u108_thin10 (every fourth node from b = 10 kept,
+  48 nodes) against L u108 and D u108.
+- H5: the spread does not halve the thinning's field part. The field part at
+  the cohort born before 10 (node_parts.R's split of J's move thin10 -> u108)
+  is under D at least half of L's. Prior: J's field part is mostly soil (the
+  hats' water use), which the spread does not touch.
+- If D's field part is under half of L's: report the member-steps saved while
+  every quantity of both roles moves under eps/3 against its unthinned rung;
+  if thin10 moves any over eps/3, try twofold after 10 (u108_thin10x2) and
+  fourfold after 15 and 20, and report the cheapest passing.
+
+Q3: THE ORDERING (2b)
+- Tallies from the D u215 and u429 ladder runs (forward and sweeps): the share
+  of field builds out of order, node pairs against the boundary node, the
+  largest inversion and its decade histogram, the time span.
+- Cost: forward-only D runs on long-wet at u215 and u429 with ORDER=0 (walk)
+  and ORDER=1 (tolerance 1e-2 m), against the ladder's ORDER=2 forward: CPU s
+  and J. ORDER=1's J against ORDER=2's is the tolerance's error. The sweep's
+  cost under ORDER=2 against the u108 rung's per row. ORDER=0's sweep only
+  where its forward shows the walk rare enough to finish within an hour.
+- H6: the sort costs nothing measurable (forward CPU per row within 5% of
+  ORDER=1's) and changes no quantity beyond rounding; ORDER=0 costs several
+  times more wherever the order breaks.
+
+NOT DONE HERE: commits to plant-dev, pushes, edits to sw_plant.

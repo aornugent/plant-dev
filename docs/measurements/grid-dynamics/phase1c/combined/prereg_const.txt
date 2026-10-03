@@ -1,0 +1,41 @@
+Constant rain: does ARK win where the soil's stability binds? Pre-registration
+Written 2026-10-03 ~12:15 UTC, before any run of this test.
+
+Setting
+- REGIME=constant on its resolved grid, window/t/t_const_Gbf16.rds (150 nodes;
+  uniform 108 fails R1 there), from plant-dev d4e0535's harness (combined/snap4,
+  clamp tallies built in), 3e-5, ATOL=1e-4, the record's knots (none: a constant
+  record has no active knots), HMAX=15, both roles' gradients and the eight walks
+  (lma and hmat at x0.5, x0.7, x1.4, x2).
+- Runs, one R process at a time, each started only when the 1-minute load is
+  under 4:
+  1. unweighted Cash-Karp (lib_sw), for scale and as C2's baseline; checked
+     against the existing no-cap run creation-grid/const_Gbf16_full.rds (the
+     driver's longest step on this grid is 11.05 d, so the cap should not bind);
+  2. the Cash-Karp 1e-5 reference (lib_sw, no weights, no cap), with gradients
+     and walks: none exists for this grid (DEV/const holds driver runs only);
+  3. bounded Cash-Karp (lib_sw): WEIGHT_SOIL=10, rule A's WEIGHT
+     (window/rule_A/weight_constant.rds exists), WEIGHT_MAX=100;
+  4. ARK arm A (lib_ark): METHOD=ark, WEIGHT_SOIL=100;
+  5. ARK arm B: arm A plus rule A's WEIGHT and WEIGHT_MAX=100.
+- Then: an ARK arm that passes (ii) runs its +-5% tolerance nudges (2.85e-5,
+  3.15e-5) with both roles' gradients, for C3; an ARK arm that fails (ii) at
+  3e-5 runs at 1e-5 (same setting, TOL=1e-5) with gradients and walks, so the
+  comparison is at matched error.
+
+Readings, per run and role, against the 1e-5 reference (median and largest over
+the 49 quantities, in eps):
+- (i) C2: median and largest no larger than unweighted Cash-Karp's, and the
+  largest under eps/3;
+- (ii) the budget: the largest under eps/3 and the median under 0.02 eps.
+Reported with them: the gradient run's cost (forward + 6 rows)/7 against
+unweighted and bounded Cash-Karp at 3e-5; J's error against J* (Cash-Karp at
+1e-8 on this grid, 289.2738962); the soil's clamp tallies on each sweep; every
+walk; anything that throws.
+
+Earlier record: phase 1a found ARK at 1e-5 saved 60.3% here (the driver, resident
+only), the x10 weight 4.7%, with 31% of the explicit chain's steps starting
+beyond its stability limit.
+
+Stop rule: a run that refuses a gradient or raises stops its arm, and is
+reported with its tallies.

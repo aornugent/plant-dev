@@ -1,0 +1,90 @@
+diff --git a/inst/include/plant/node_schedule.h b/inst/include/plant/node_schedule.h
+index 6d41fb9..18c975e 100644
+--- a/inst/include/plant/node_schedule.h
++++ b/inst/include/plant/node_schedule.h
+@@ -143,6 +143,9 @@ public:
+   // does not go through the per-species times interface.
+   std::vector<Event> get_events() const;
+   void set_all_events(const std::vector<Event>& events_);
++  // An entry at `time` that introduces nothing and acts on nothing, unless one is
++  // there already.
++  void add_instant(double time);
+   void reset();
+ 
+   // The entries in time order, which a patch applies.
+diff --git a/inst/include/plant/scm.h b/inst/include/plant/scm.h
+index 38dca6f..71635d9 100644
+--- a/inst/include/plant/scm.h
++++ b/inst/include/plant/scm.h
+@@ -790,6 +790,13 @@ void SCM<T, E>::run_mutant(parameters_type p) {
+   node_schedule = NodeSchedule(parameters.size());
+   node_schedule.r_set_max_time(parameters.max_patch_lifetime);
+   node_schedule.set_all_events(events);
++  // A walk applies an entry at every recorded insertion, so an invader introduced
++  // at some of the run's introductions takes an empty entry at the others.
++  for (const odelia::ode::step_record<patch_type>& row : invaded_run) {
++    if (row.insertion) {
++      node_schedule.add_instant(row.time);
++    }
++  }
+   run();
+ }
+ 
+diff --git a/src/node_schedule.cpp b/src/node_schedule.cpp
+index 8548333..6684d08 100644
+--- a/src/node_schedule.cpp
++++ b/src/node_schedule.cpp
+@@ -127,6 +127,11 @@ void NodeSchedule::set_all_events(const std::vector<Event>& events_) {
+   reset();
+ }
+ 
++void NodeSchedule::add_instant(double time) {
++  entry_at(time);
++  reset();
++}
++
+ // Find the instant, or make it. Every entry seeds `times` with its own time, so
+ // time_introduction() and time_end() are answerable the moment it exists.
+ std::vector<schedule_entry>::iterator NodeSchedule::entry_at(double time) {
+diff --git a/tests/testthat/test-mutant.R b/tests/testthat/test-mutant.R
+index 5c687b4..024f23a 100644
+--- a/tests/testthat/test-mutant.R
++++ b/tests/testthat/test-mutant.R
+@@ -274,6 +274,37 @@ test_that("an invader introduced where the run introduced nothing is refused", {
+   expect_error(scm$run_mutant(invader), "past the rows' last insertion")
+ })
+ 
++test_that("an invader introduced at some of the run's introductions keeps each member's fitness, TF24", {
++  # Its members see only the recorded field, so the members it keeps produce what
++  # they produce on the run's whole schedule, and each kept interval takes the
++  # establishment of the intervals it merges.
++  fixture <- tf24_invasion_fixture()
++  ctrl <- Control(node_density_in_birth_date = TRUE)
++  scm <- run_scm(fixture$p, env = fixture$env, ctrl = ctrl)
++  times <- fixture$p$node_schedule_times[[1]]
++  establishment <- function(sp) {
++    state <- matrix(sp$ode_state, ncol = sp$size, dimnames = list(sp$new_node$ode_names))
++    state["interval_establishment", ]
++  }
++
++  scm$run_mutant(fixture$p)
++  full <- scm$patch$species[[1]]
++  keep <- c(1:5, 8, 12, 20)
++  q <- fixture$p
++  q$node_schedule_times <- list(times[keep])
++  scm$run_mutant(q)
++  some <- scm$patch$species[[1]]
++
++  expect_identical(some$node_times, times[keep])
++  expect_identical(some$net_reproduction_ratio_by_node,
++                   full$net_reproduction_ratio_by_node[keep])
++  merged <- vapply(seq_along(keep), function(i) {
++    to <- if (i < length(keep)) keep[i + 1] - 1 else length(times)
++    sum(establishment(full)[keep[i]:to])
++  }, 0)
++  expect_equal(establishment(some), merged, tolerance = 1e-12)
++})
++
+ test_that("two invaders together each have the fitness they have alone, TF24", {
+   # Each invader is evaluated in the recorded field and solves for its own leaf
+   # operating points, so invading beside another invader changes neither of them.

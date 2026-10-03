@@ -1,0 +1,98 @@
+Pathfinder pf_soil pre-registration: can Cash-Karp's members step past the soil?
+Written 2026-10-03, before any pf_soil run.
+
+FIXTURE (every question)
+  Bounded Cash-Karp ("bnd"): TOL=3e-5, ATOL=1e-4 (tied), soil weight 10 (driver TOL_SOIL=10,
+  plant WEIGHT_SOIL=10), rule A's schedule (DEV/window/rule_A/weight_<record>.rds), the 15-day cap
+  (HMAX=15), each state's weight bounded at 100 (WEIGHT_MAX=100), introductions
+  DEV/window/t/t_u108.rds. Records: long drought (seed 31) and episodic.
+  Driver: my copy DEV/pf_soil/harness/ark_prototype.R (from plant-dev's harness), run under
+  nice -n 10, one heavy process at a time, after the 1-minute load is below 4. PLANT_LIB=DEV/lib_sw.
+  Driver additions (each off by default, none moving a default run):
+    WEIGHT_MAX   plant's ode_weight_max: each state's weight is min(base x factor, WEIGHT_MAX), and
+                 the level is multiplied once by it, as Patch::error_weights does;
+    SOIL_DIAG    per attempt: CK's embedded soil estimate, the chain alone's estimate (as
+                 SOIL_EST=chain / odelia's block_error computes it: CK at 1e-9 from the step's soil
+                 state, uptake linear between the step's start and end), each component group's
+                 weighted ratio, and the uptake's share of each layer's budget (below);
+    COUPLED_REF  every k-th accepted step, the coupled system re-integrated over the step by 8
+                 Cash-Karp sub-steps from the step's start: the soil's local error against it;
+    SOIL_EST=chain with METHOD=ck: Cash-Karp with the chain alone's soil estimate (Q2).
+  Gate: the driver's bnd run must reproduce plant's bnd_ld / bnd_epi (DEV/phase1c/combined/full)
+  accepted times and sizes; any difference is reported before anything is read from it, and
+  SOIL_DIAG / COUPLED_REF runs must reproduce the plain driver run's steps and J bit for bit.
+  References: J* 12.6687135 (long drought), 1.978902094 (episodic, window/ref/epi_1e-8_abs.rds).
+  Elasticities against docs/measurements/nudges/ld_1e-5.rds and DEV/phase1c/full/epi_1e-5.rds.
+  Main quantities: ln J and the elasticities of lma, a_dG1, d_I, a_dG2, omega, both roles.
+  eps (docs/measurements/eps.csv): primary bar OBJECTIVES' eps, each elasticity's eps floored
+  at 0.01 (d_I and omega then 0.01); the record's raw eps (no floor, as phase 1c's reports used)
+  reported beside it.
+
+Q1 DIAGNOSTIC (bnd, both records; SOIL_DIAG=1, COUPLED_REF=10)
+  Binding: the state attaining the largest weighted ratio on each accepted step: soil (5 layers),
+  accumulators (5), or members (all 9 node states, storage reported within).
+  Regime of each accepted step, from the rainfall interpolant (rain_at on a 0.05-day grid and at
+  the step's ends):
+    wet-onset  rain > 0 inside the step, the wet spell begun under 1 day before the step's start;
+    wet        rain > 0 inside the step, otherwise;
+    dry<=1d    no rain inside the step, at most 1 day after the rain last fell;
+    dry1-10d   1 to 10 days after;
+    dry>10d    more than 10 days after (quiescent).
+  Uptake share of a layer's budget: s = sum_i b_i |u_i| / sum_i b_i (|q_in,i| + |q_out,i| + |u_i|)
+  over Cash-Karp's six stages with its solution weights b, u the uptake the stage's evaluation
+  returned, q_in the infiltration (layer 1) or the drainage from the layer above, q_out the layer's
+  drainage. Reported for the binding layer of soil-bound steps, chain-wide (sums over layers), and
+  at the step's start alone (stage 1, what a flag can read before the step).
+  Misjudgement: rho = R_emb / R_true, the largest weighted embedded soil ratio over the chain
+  alone's, per accepted step; per regime its median, quartiles, and the share of steps with
+  rho < 1 (under-report). COUPLED_REF validates R_true: |e_true - e_ref| / |e_ref| per regime.
+  Members' headroom on soil-bound steps: R_soil / R_mem, the largest members' ratio against the
+  soil's, per regime.
+  DECISION 1 (Q2 runs): Cash-Karp misjudges the soil if, on the soil-bound accepted steps of
+  either record, the median rho lies outside [0.5, 2], or rho < 0.5 on at least 25% of them.
+  DECISION 2 (Q3 runs): Q3 runs unless a decisive negative: on both records, soil-bound steps
+  whose start-share is below the threshold hold under 15% of the rows, or the members' headroom
+  there (median R_soil / R_mem) is under 2 (the step could grow by under 2^(1/5) = 1.15).
+  THRESHOLD for Q3's flag, chosen from Q1 by this rule before any Q3 run: the largest share s*
+  in {0.5%, 1%, 2%, 5%, 10%} (chain-wide, at the step's start) such that, on long drought, at most
+  5% of the flagged accepted steps lie in dry>10d and the flagged steps' median coupled-reference
+  error ratio |e_true - e_ref| / |e_ref| is under 0.5. The rule and the value are written to
+  prereg_q3.txt with Q1's numbers before Q3's first run.
+
+Q2 CASH-KARP WITH THE CHAIN ALONE'S SOIL ESTIMATE ("ckc"), if DECISION 1 says it misjudges
+  ckc = bnd with SOIL_EST=chain (Cash-Karp's embedded estimate replaced on the five layers only;
+  members and accumulators keep theirs). Soil weights: 10 (bnd's), and the weight that matches
+  bnd's true soil error, 10 / median rho over soil-bound steps, rounded to the nearest of
+  {1, 2, 5, 10, 20, 50, 100}. Both records at 3e-5; the best at 1e-4 and 1e-5 too (convergence).
+  Elasticities: plant replays each driver program (harness/run_record.R PROGRAM=<driver OUT>,
+  lib_sw), both roles by reverse mode, as phase 1a scored explicit variants.
+  PASS: rows <= 0.9 x bnd's on both records; every main quantity's distance from the 1e-5
+  reference under eps/3, both roles, both records; J converging over the three tolerances
+  (phase 1a's R4 rule); then the +-5% nudges (2.85e-5, 3.15e-5) on long drought each under eps/3.
+
+Q3 MULTIRATE WHERE THE COUPLING IS WEAK ("mr"), on the driver
+  A step is flagged if its start-share (chain-wide) is below s*. Unflagged: bnd's monolithic step.
+  Flagged step of size H from t0 (still landing on every knot and introduction):
+    predictor: the soil and the accumulators integrated alone over [t0, t0+H] by Cash-Karp
+      (CHAIN_TOL 1e-9, landing on the member stages' times), the uptake linear from u(t0) to
+      u_hat = u(t0) + H (u(t0) - u_prev) / h_prev; the members' Cash-Karp stages read that soil;
+      the members' end, and one evaluation there (members' end, predicted soil) gives u1P;
+    corrector: the soil and accumulators again, uptake linear from u(t0) to u1P; one evaluation
+      at the corrected end gives the next step's first stage;
+    norm: the members' embedded estimates, and for each layer the coupling's error, the larger of
+      |theta_C - theta_P| at the end and the defect h sum_i b_i |u_i - u_lin(c_i)| / dz (the stage
+      uptakes against the corrector's line), at the soil's weighted level; the soil's own
+      integration error is the sub-stepper's.
+  Replays freeze every member step, flag and soil sub-step. Elasticities: frozen-structure
+  central differences (THETA_AFTER=1, r = 1e-3) on the driver, for mr and for bnd's driver program
+  alike, so the comparison shares its method; plant's reverse-mode bnd gradients check the method.
+  Measures against bnd: rows, member evaluations (each attempt's evaluations, the extra end
+  evaluation included), soil sub-steps, J's error, the main elasticities' distance from the 1e-5
+  reference, and the +-5% tolerance nudges.
+  PASS: rows <= 0.9 x bnd's and member evaluations <= bnd's, on both records; |J/J* - 1| no larger
+  than max(2 x bnd's, 0.01 eps); every main quantity's distance from 1e-5 under eps/3 and no
+  larger than bnd's driver-measured distance + 0.1 eps; each +-5% nudge under eps/3 (long
+  drought); J converging over 1e-4, 3e-5, 1e-5 (phase 1a's R4).
+
+STOP at the first decisive negative: DECISION 2's negative stops Q3; a Q2 that does not pass is
+reported and does not stop Q3 (they test different levers).

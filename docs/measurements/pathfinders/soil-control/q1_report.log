@@ -1,0 +1,131 @@
+
+######## long-drought (q1_ld.rds)
+gate: driver 12560 accepted, plant 12560; times and sizes identical; J 12.668435953 vs plant 12.668435953 (J/J* - 1 -2.19e-05)
+accepted 12560, rows 637131; binding: soil  77.6%, accumulator   0.8%, member  21.6% (storage   9.1% within)
+
+-- binding by regime (share of the regime's accepted steps), and the regime's share of steps and rows
+regime      steps %steps  %rows |   soil    acc member storage | steps/rain-interval-day 
+wet-onset    2923  23.3%  23.5% |  75.7%   0.4%   8.4%  15.5%
+wet          4866  38.7%  38.8% |  96.1%   1.2%   0.5%   2.2%
+dry<=1d      1462  11.6%  12.0% |  90.2%   0.4%   7.4%   2.1%
+dry1-10d     1807  14.4%  14.2% |  79.7%   1.2%  14.1%   5.0%
+dry>10d      1502  12.0%  11.5% |   6.9%   0.0%  62.6%  30.5%
+
+-- the uptake's share of the binding layer's budget on soil-bound steps (stage-weighted), quartiles; chain-wide; at the start
+wet-onset  n  2213 | binding layer 1.31e-03 7.45e-03 3.49e-02 | chain 3.12e-03 9.04e-03 2.53e-02 | start, chain 3.58e-03 1.18e-02 3.32e-02 | layer: 1:1354 2:736 3:85 4:30 5:8
+wet        n  4678 | binding layer 1.30e-05 1.04e-04 7.83e-04 | chain 1.03e-03 2.38e-03 5.35e-03 | start, chain 1.02e-03 2.34e-03 5.39e-03 | layer: 1:550 2:1260 3:755 4:635 5:1478
+dry<=1d    n  1318 | binding layer 3.19e-05 1.42e-04 7.68e-04 | chain 4.71e-03 9.62e-03 2.13e-02 | start, chain 3.92e-03 7.77e-03 1.80e-02 | layer: 1:14 2:19 3:432 4:249 5:604
+dry1-10d   n  1440 | binding layer 8.47e-05 2.08e-04 7.59e-04 | chain 1.78e-02 3.49e-02 6.36e-02 | start, chain 1.39e-02 2.78e-02 5.16e-02 | layer: 1:3 2:3 3:221 4:186 5:1027
+dry>10d    n   103 | binding layer 4.25e-04 6.01e-04 8.96e-04 | chain 8.54e-02 1.21e-01 1.61e-01 | start, chain 7.18e-02 1.04e-01 1.30e-01 | layer: 1:1 3:14 4:4 5:84
+
+-- Cash-Karp's embedded soil estimate against the chain alone's: rho = R_emb / R_true (largest weighted layer ratio each)
+  all accepted:
+  wet-onset  n  2922 | rho p10 0.00 p25 0.13 median 0.80 p75 1.29 p90 2.48 | rho<1  64.1% rho<0.5  33.2% rho>2  13.4% | R_true median 0.097 (R_emb 0.070)
+  wet        n  4863 | rho p10 0.57 p25 0.71 median 1.08 p75 2.15 p90 4.18 | rho<1  46.5% rho<0.5   5.9% rho>2  27.5% | R_true median 0.134 (R_emb 0.181)
+  dry<=1d    n  1462 | rho p10 0.31 p25 1.28 median 2.14 p75 3.58 p90 6.45 | rho<1  16.6% rho<0.5  11.1% rho>2  53.4% | R_true median 0.009 (R_emb 0.020)
+  dry1-10d   n  1807 | rho p10 0.00 p25 0.56 median 1.47 p75 3.11 p90 5.67 | rho<1  38.7% rho<0.5  24.2% rho>2  40.5% | R_true median 0.009 (R_emb 0.013)
+  dry>10d    n  1499 | rho p10 0.00 p25 0.00 median 0.00 p75 0.01 p90 0.03 | rho<1  97.2% rho<0.5  96.1% rho>2   1.7% | R_true median 0.061 (R_emb 0.000)
+  all        n 12553 | rho p10 0.00 p25 0.43 median 0.95 p75 2.08 p90 4.05 | rho<1  52.0% rho<0.5  26.3% rho>2  26.0% | R_true median 0.048 (R_emb 0.034)
+  soil-bound:
+  wet-onset  n  2213 | rho p10 0.40 p25 0.68 median 0.97 p75 1.56 p90 3.01 | rho<1  53.1% rho<0.5  12.6% rho>2  17.5% | R_true median 0.152 (R_emb 0.155)
+  wet        n  4676 | rho p10 0.60 p25 0.73 median 1.11 p75 2.23 p90 4.32 | rho<1  44.9% rho<0.5   3.5% rho>2  28.4% | R_true median 0.140 (R_emb 0.194)
+  dry<=1d    n  1318 | rho p10 1.10 p25 1.45 median 2.33 p75 3.80 p90 6.66 | rho<1   8.3% rho<0.5   2.7% rho>2  58.7% | R_true median 0.010 (R_emb 0.024)
+  dry1-10d   n  1440 | rho p10 0.42 p25 0.90 median 1.91 p75 3.49 p90 6.51 | rho<1  26.9% rho<0.5  11.1% rho>2  48.6% | R_true median 0.008 (R_emb 0.017)
+  dry>10d    n   103 | rho p10 0.01 p25 0.02 median 0.09 p75 0.87 p90 2.73 | rho<1  76.7% rho<0.5  70.9% rho>2  13.6% | R_true median 0.019 (R_emb 0.008)
+  all        n  9750 | rho p10 0.57 p25 0.77 median 1.26 p75 2.56 p90 4.75 | rho<1  39.5% rho<0.5   7.3% rho>2  32.9% | R_true median 0.053 (R_emb 0.088)
+  soil-bound steps whose chain-alone soil ratio would still exceed every other component's:  97.5%
+
+-- the chain alone (linear uptake) against the coupled reference (8 sub-steps), every 10th accepted step (1256)
+  wet-onset  n  299 | |R_true - R_ref| / R_ref median 0.0117 p90 2.33e+03 | R_emb / R_ref median 1.10 p25 0.72 p75 1.97 | members: emb/ref median 1.27
+  wet        n  490 | |R_true - R_ref| / R_ref median 1.78e-05 p90 0.0149 | R_emb / R_ref median 1.18 p25 0.77 p75 2.56 | members: emb/ref median 1.76
+  dry<=1d    n  142 | |R_true - R_ref| / R_ref median 0.000128 p90 8.07 | R_emb / R_ref median 2.46 p25 1.48 p75 4.43 | members: emb/ref median 1.12
+  dry1-10d   n  170 | |R_true - R_ref| / R_ref median 0.00228 p90 608 | R_emb / R_ref median 2.33 p25 1.12 p75 5.09 | members: emb/ref median 1.38
+  dry>10d    n  155 | |R_true - R_ref| / R_ref median 5.68e+03 p90 7.81e+04 | R_emb / R_ref median 2.68 p25 0.97 p75 9.71 | members: emb/ref median 1.53
+  all        n 1256 | |R_true - R_ref| / R_ref median 0.000706 p90 4.97e+03 | R_emb / R_ref median 1.49 p25 0.83 p75 3.30 | members: emb/ref median 1.45
+
+-- the members' headroom on soil-bound steps: R_soil / R_mem (members incl. storage), and the step growth it allows, (.)^(1/5)
+  wet-onset  n  2213 | R_soil / R_mem p25 179 median 2.29e+03 p75 1.48e+04 | growth median 4.70 | step median 0.278 d
+  wet        n  4678 | R_soil / R_mem p25 4.69e+03 median 1.93e+04 p75 7.59e+04 | growth median 7.20 | step median 0.188 d
+  dry<=1d    n  1318 | R_soil / R_mem p25 1.31e+03 median 6.9e+03 p75 4.1e+04 | growth median 5.86 | step median 0.570 d
+  dry1-10d   n  1440 | R_soil / R_mem p25 37.6 median 349 p75 3.17e+03 | growth median 3.23 | step median 1.922 d
+  dry>10d    n   103 | R_soil / R_mem p25 2.54 median 5.28 p75 20.8 | growth median 1.39 | step median 5.727 d
+
+-- candidate flags for Q3: chain-wide uptake share at the step's start below s*
+  s* 0.005 | flagged  38.6% of steps,  34.5% of rows; in dry>10d   1.0%; soil-bound among flagged  97.0% ( 34.4% of rows) | headroom median 2.98e+04 | ref dev median 7.71e-06 (n 482)
+           flagged by regime: wet-onset:712 wet:3477 dry<=1d:441 dry1-10d:170 dry>10d:47
+  s* 0.010 | flagged  50.7% of steps,  47.8% of rows; in dry>10d   0.8%; soil-bound among flagged  97.2% ( 47.6% of rows) | headroom median 2.06e+04 | ref dev median 2.52e-05 (n 637)
+           flagged by regime: wet-onset:1072 wet:4193 dry<=1d:786 dry1-10d:270 dry>10d:52
+  s* 0.020 | flagged  62.0% of steps,  60.0% of rows; in dry>10d   0.7%; soil-bound among flagged  95.7% ( 58.7% of rows) | headroom median 1.43e+04 | ref dev median 5.03e-05 (n 773)
+           flagged by regime: wet-onset:1582 wet:4546 dry<=1d:1027 dry1-10d:576 dry>10d:55
+  s* 0.050 | flagged  74.7% of steps,  73.7% of rows; in dry>10d   0.8%; soil-bound among flagged  92.8% ( 69.8% of rows) | headroom median 1.01e+04 | ref dev median 0.000117 (n 929)
+           flagged by regime: wet-onset:2238 wet:4732 dry<=1d:1211 dry1-10d:1128 dry>10d:73
+  s* 0.100 | flagged  81.1% of steps,  80.7% of rows; in dry>10d   1.4%; soil-bound among flagged  91.4% ( 75.4% of rows) | headroom median 8.56e+03 | ref dev median 0.000171 (n 1013)
+           flagged by regime: wet-onset:2510 wet:4800 dry<=1d:1280 dry1-10d:1450 dry>10d:144
+
+rejected attempts with an estimate: 3002; soil-bound  66.0%; rho median on the soil-bound 0.49
+
+######## episodic (q1_epi.rds)
+gate: driver 8210 accepted, plant 8210; times and sizes identical; J 1.978924870 vs plant 1.978924870 (J/J* - 1 +1.15e-05)
+accepted 8210, rows 415759; binding: soil  70.0%, accumulator   1.4%, member  28.7% (storage  10.9% within)
+
+-- binding by regime (share of the regime's accepted steps), and the regime's share of steps and rows
+regime      steps %steps  %rows |   soil    acc member storage | steps/rain-interval-day 
+wet-onset    2190  26.7%  26.8% |  74.7%   1.3%   7.3%  16.6%
+wet          2610  31.8%  32.2% |  97.8%   1.4%   0.2%   0.7%
+dry<=1d       728   8.9%   8.9% |  92.0%   2.6%   4.5%   0.8%
+dry1-10d      915  11.1%  11.0% |  83.2%   2.8%  10.6%   3.4%
+dry>10d      1767  21.5%  21.0% |   7.1%   0.1%  65.9%  26.9%
+
+-- the uptake's share of the binding layer's budget on soil-bound steps (stage-weighted), quartiles; chain-wide; at the start
+wet-onset  n  1637 | binding layer 5.02e-04 1.36e-03 3.18e-03 | chain 3.33e-04 1.02e-03 3.17e-03 | start, chain 3.72e-04 1.20e-03 4.29e-03 | layer: 1:1343 2:217 3:59 4:13 5:5
+wet        n  2552 | binding layer 4.88e-06 5.30e-05 7.03e-04 | chain 1.66e-04 3.43e-04 7.76e-04 | start, chain 1.65e-04 3.37e-04 7.61e-04 | layer: 1:946 2:318 3:393 4:196 5:699
+dry<=1d    n   670 | binding layer 9.35e-06 3.36e-05 1.50e-04 | chain 1.29e-03 2.41e-03 5.17e-03 | start, chain 1.02e-03 1.93e-03 4.07e-03 | layer: 1:5 2:9 3:232 4:101 5:323
+dry1-10d   n   761 | binding layer 2.67e-05 6.92e-05 1.88e-04 | chain 5.94e-03 1.29e-02 2.78e-02 | start, chain 4.49e-03 1.00e-02 2.16e-02 | layer: 1:2 2:4 3:72 4:77 5:606
+dry>10d    n   125 | binding layer 1.42e-04 3.03e-04 5.19e-04 | chain 3.33e-02 6.09e-02 1.02e-01 | start, chain 2.62e-02 4.78e-02 7.83e-02 | layer: 3:6 4:6 5:113
+
+-- Cash-Karp's embedded soil estimate against the chain alone's: rho = R_emb / R_true (largest weighted layer ratio each)
+  all accepted:
+  wet-onset  n  2190 | rho p10 0.00 p25 0.24 median 0.71 p75 1.09 p90 1.73 | rho<1  70.9% rho<0.5  29.9% rho>2   7.9% | R_true median 0.203 (R_emb 0.172)
+  wet        n  2609 | rho p10 0.58 p25 0.65 median 0.75 p75 1.21 p90 2.67 | rho<1  68.6% rho<0.5   3.2% rho>2  14.1% | R_true median 0.337 (R_emb 0.291)
+  dry<=1d    n   728 | rho p10 1.03 p25 1.45 median 2.30 p75 3.66 p90 6.16 | rho<1   9.5% rho<0.5   5.4% rho>2  57.1% | R_true median 0.008 (R_emb 0.016)
+  dry1-10d   n   915 | rho p10 0.58 p25 0.77 median 1.50 p75 3.30 p90 7.38 | rho<1  39.7% rho<0.5   9.3% rho>2  40.4% | R_true median 0.009 (R_emb 0.016)
+  dry>10d    n  1764 | rho p10 0.00 p25 0.00 median 0.00 p75 0.01 p90 0.39 | rho<1  94.0% rho<0.5  90.5% rho>2   3.5% | R_true median 0.025 (R_emb 0.000)
+  all        n  8206 | rho p10 0.00 p25 0.06 median 0.72 p75 1.35 p90 3.26 | rho<1  66.2% rho<0.5  30.0% rho>2  16.9% | R_true median 0.067 (R_emb 0.035)
+  soil-bound:
+  wet-onset  n  1637 | rho p10 0.53 p25 0.64 median 0.85 p75 1.21 p90 2.02 | rho<1  62.6% rho<0.5   8.7% rho>2  10.1% | R_true median 0.355 (R_emb 0.308)
+  wet        n  2552 | rho p10 0.59 p25 0.65 median 0.75 p75 1.21 p90 2.66 | rho<1  68.8% rho<0.5   2.4% rho>2  14.1% | R_true median 0.343 (R_emb 0.298)
+  dry<=1d    n   670 | rho p10 1.18 p25 1.49 median 2.42 p75 3.72 p90 6.26 | rho<1   5.7% rho<0.5   1.2% rho>2  59.6% | R_true median 0.008 (R_emb 0.018)
+  dry1-10d   n   761 | rho p10 0.70 p25 0.83 median 1.70 p75 3.53 p90 7.74 | rho<1  35.5% rho<0.5   3.5% rho>2  44.2% | R_true median 0.010 (R_emb 0.019)
+  dry>10d    n   125 | rho p10 0.08 p25 0.24 median 1.02 p75 2.47 p90 4.04 | rho<1  49.6% rho<0.5  33.6% rho>2  32.8% | R_true median 0.011 (R_emb 0.012)
+  all        n  5745 | rho p10 0.58 p25 0.68 median 0.90 p75 1.80 p90 3.89 | rho<1  54.9% rho<0.5   4.9% rho>2  22.6% | R_true median 0.170 (R_emb 0.180)
+  soil-bound steps whose chain-alone soil ratio would still exceed every other component's:  96.5%
+
+-- the chain alone (linear uptake) against the coupled reference (8 sub-steps), every 10th accepted step (821)
+  wet-onset  n  212 | |R_true - R_ref| / R_ref median 0.000304 p90 2.4e+03 | R_emb / R_ref median 0.89 p25 0.63 p75 1.36 | members: emb/ref median 0.91
+  wet        n  268 | |R_true - R_ref| / R_ref median 3.34e-07 p90 0.000403 | R_emb / R_ref median 0.75 p25 0.66 p75 1.26 | members: emb/ref median 1.03
+  dry<=1d    n   71 | |R_true - R_ref| / R_ref median 4.43e-05 p90 0.00614 | R_emb / R_ref median 2.39 p25 1.79 p75 3.87 | members: emb/ref median 1.59
+  dry1-10d   n  101 | |R_true - R_ref| / R_ref median 0.000307 p90 8.13 | R_emb / R_ref median 1.80 p25 0.85 p75 3.73 | members: emb/ref median 1.72
+  dry>10d    n  168 | |R_true - R_ref| / R_ref median 7.4e+03 p90 1e+05 | R_emb / R_ref median 3.09 p25 0.69 p75 9.81 | members: emb/ref median 1.34
+  all        n  820 | |R_true - R_ref| / R_ref median 0.000134 p90 1.4e+04 | R_emb / R_ref median 1.05 p25 0.68 p75 2.87 | members: emb/ref median 1.19
+
+-- the members' headroom on soil-bound steps: R_soil / R_mem (members incl. storage), and the step growth it allows, (.)^(1/5)
+  wet-onset  n  1637 | R_soil / R_mem p25 1.1e+03 median 1.83e+04 p75 5.74e+04 | growth median 7.12 | step median 0.102 d
+  wet        n  2552 | R_soil / R_mem p25 1.09e+04 median 4.53e+04 p75 1.08e+05 | growth median 8.54 | step median 0.091 d
+  dry<=1d    n   670 | R_soil / R_mem p25 626 median 6.28e+03 p75 3.24e+04 | growth median 5.75 | step median 0.447 d
+  dry1-10d   n   761 | R_soil / R_mem p25 29.2 median 159 p75 2.03e+03 | growth median 2.76 | step median 2.120 d
+  dry>10d    n   125 | R_soil / R_mem p25 2.5 median 5.53 p75 22 | growth median 1.41 | step median 8.687 d
+
+-- candidate flags for Q3: chain-wide uptake share at the step's start below s*
+  s* 0.005 | flagged  58.5% of steps,  56.7% of rows; in dry>10d   1.3%; soil-bound among flagged  93.2% ( 54.8% of rows) | headroom median 3.45e+04 | ref dev median 1.27e-06 (n 482)
+           flagged by regime: wet-onset:1437 wet:2502 dry<=1d:549 dry1-10d:252 dry>10d:62
+  s* 0.010 | flagged  65.6% of steps,  64.1% of rows; in dry>10d   1.4%; soil-bound among flagged  90.9% ( 60.6% of rows) | headroom median 2.91e+04 | ref dev median 2.35e-06 (n 540)
+           flagged by regime: wet-onset:1713 wet:2555 dry<=1d:614 dry1-10d:424 dry>10d:78
+  s* 0.020 | flagged  71.3% of steps,  70.0% of rows; in dry>10d   1.8%; soil-bound among flagged  89.4% ( 65.2% of rows) | headroom median 2.52e+04 | ref dev median 7.24e-06 (n 590)
+           flagged by regime: wet-onset:1881 wet:2587 dry<=1d:654 dry1-10d:620 dry>10d:108
+  s* 0.050 | flagged  76.6% of steps,  75.8% of rows; in dry>10d   3.5%; soil-bound among flagged  88.0% ( 69.6% of rows) | headroom median 2.11e+04 | ref dev median 1.27e-05 (n 631)
+           flagged by regime: wet-onset:1983 wet:2601 dry<=1d:677 dry1-10d:801 dry>10d:223
+  s* 0.100 | flagged  80.0% of steps,  79.6% of rows; in dry>10d   5.9%; soil-bound among flagged  86.1% ( 71.5% of rows) | headroom median 1.96e+04 | ref dev median 1.98e-05 (n 662)
+           flagged by regime: wet-onset:2029 wet:2603 dry<=1d:694 dry1-10d:852 dry>10d:389
+
+rejected attempts with an estimate: 2131; soil-bound  56.1%; rho median on the soil-bound 0.51
+q1 exit 0

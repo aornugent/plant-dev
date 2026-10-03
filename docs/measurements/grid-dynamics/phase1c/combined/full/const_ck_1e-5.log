@@ -1,0 +1,1 @@
+constant, seed 31, tol 1e-05 (abs 1e-09), 150 nodes, shift 0: J 289.2738991, 4112 steps; 0 failures; 677 s

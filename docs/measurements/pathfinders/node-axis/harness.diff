@@ -1,0 +1,45 @@
+diff -ru /home/user/plant-dev/harness/run_record.R harness/run_record.R
+--- /home/user/plant-dev/harness/run_record.R	2026-10-03 11:28:09.742243427 +0000
++++ harness/run_record.R	2026-10-03 12:22:46.584852255 +0000
+@@ -75,6 +75,11 @@
+ ev <- events(events_default(p), pulse_rows(sort(unique(knots))))
+ 
+ clock <- function() proc.time()[["elapsed"]]
++cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
++# The order probe's cumulative tallies of birth-date field builds, where the
++# library carries them.
++tally <- function() if (exists("probe_order_tally", asNamespace("plant")))
++  plant:::probe_order_tally() else NULL
+ peak_mb <- function() {
+   l <- grep("^VmHWM", readLines("/proc/self/status"), value = TRUE)
+   as.numeric(gsub("[^0-9]", "", l)) / 1024
+@@ -82,7 +87,11 @@
+ out <- list(
+   setting = list(regime = regime, seed = seed, spec = RAIN_SPECS[[regime]], tol = tol,
+                  tol_abs = ct$ode_tol_abs, nodes = nodes, shift = shift, lma = LMA0,
+-                 lifetime = LIFETIME, program = Sys.getenv("PROGRAM")),
++                 lifetime = LIFETIME, program = Sys.getenv("PROGRAM"),
++                 probe = Sys.getenv(c("PLANT_PROBE_SPREAD", "PLANT_PROBE_SPREAD_FROM",
++                                      "PLANT_PROBE_SPREAD_UNTIL", "PLANT_PROBE_ORDER",
++                                      "PLANT_PROBE_ORDER_TOL")),
++                 weights = Sys.getenv(c("WEIGHT_SOIL", "WEIGHT_ACC", "WEIGHT", "WEIGHT_MAX", "HMAX"))),
+   versions = list(plant = as.character(packageVersion("plant")),
+                   odelia = as.character(packageVersion("odelia")),
+                   R = R.version.string, lib = Sys.getenv("PLANT_LIB"),
+@@ -94,12 +103,13 @@
+ # One phase: its time, the process's peak memory after it, and its message if it
+ # raised.
+ phase <- function(name, f) {
+-  t0 <- clock()
++  t0 <- clock(); c0 <- cpu()
+   v <- tryCatch(f(), error = function(e) {
+     out$failures[[name]] <<- conditionMessage(e)
+     NULL
+   })
+-  out$phases[[name]] <<- list(secs = clock() - t0, peak_mb = peak_mb(), ok = !is.null(v))
++  out$phases[[name]] <<- list(secs = clock() - t0, cpu = cpu() - c0, peak_mb = peak_mb(),
++                              ok = !is.null(v), tally = tally())
+   save()
+   v
+ }
+Only in /home/user/plant-dev/harness: tf24_probe.patch
