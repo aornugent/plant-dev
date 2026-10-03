@@ -17,7 +17,7 @@
 #     [ATOL=1e-4] [TOL_SOIL=10] [TOL_ACC=10] [KNOT_SEED=1] [CHAIN_SEED=chain.rds] \
 #     [CONTROL=odelia|shrink|pi [PI_BETA=0.04] [PI_ALPHA=0.17] [PI_SAFETY=0.9]] \
 #     [ATTEMPT_LOG=attempts.rds [CLASS_SIDE=classes.rds]] [CHAIN_GUARD=1.1] \
-#     [LATE_FROM=25 [LATE_FACTOR=100] | WEIGHT=weight.rds] [REGIME=long-drought] [TIMES=times.rds] \
+#     [LATE_FROM=25 [LATE_FACTOR=100] | WEIGHT=weight.rds] [HMAX=15] [REGIME=long-drought] [TIMES=times.rds] \
 #     Rscript harness/ark_prototype.R
 #
 # REF compares the steps with a recording of harness/v12_steps.R at the same
@@ -87,6 +87,8 @@
 # WEIGHT scales every tolerance weight on a step by the weight of the last row of
 # its table (columns t and weight, t from 0) at or before the step's start.
 # LATE_FROM is the table of two rows, 1 from 0 and LATE_FACTOR from that time.
+# HMAX caps every step at that many days: it sets plant's ode_step_size_max, at
+# which the controller clamps every proposal.
 # REGIME runs another record of harness/long_drought.R's
 # bank; OUT saves the record's rain and knots. TIMES reads the introductions
 # from a file in place of NODES.
@@ -146,6 +148,7 @@ p$node_schedule_times <- list(times)
 ct <- control()
 ct$ode_tol_rel <- tol
 ct$ode_tol_abs <- as.numeric(Sys.getenv("ATOL", "1")) * tol
+if (nzchar(Sys.getenv("HMAX"))) ct$ode_step_size_max <- as.numeric(Sys.getenv("HMAX")) / 365
 ct$node_density_in_birth_date <- TRUE
 env <- mkenv(REGIME)
 patch <- plant:::Patch("TF24", "TF24_Env")(p, env, ct)

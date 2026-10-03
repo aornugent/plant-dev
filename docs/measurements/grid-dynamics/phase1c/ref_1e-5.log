@@ -1,0 +1,12 @@
+unweighted (pinned)  resident distance from 1e-5: median 0.0407, largest 0.1414 (TF24_cost_scale), main largest 0.0979 (a_dG2), ln J 0.0010
+unweighted (pinned)  invader  distance from 1e-5: median 0.0045, largest 0.0474 (root_c), main largest 0.0122 (stem_P50), ln J 0.0010
+unweighted, +5% tol  resident distance from 1e-5: median 0.0329, largest 0.1115 (omega), main largest 0.0503 (a_dG2), ln J 0.0007 | farther than the unweighted on 16 of 49, median excess -0.0126
+unweighted, +5% tol  invader  distance from 1e-5: median 0.0030, largest 0.0434 (root_c), main largest 0.0030 (rho), ln J 0.0007 | farther than the unweighted on 18 of 49, median excess -0.0011
+rule A               resident distance from 1e-5: median 0.0401, largest 0.1425 (TF24_cost_scale), main largest 0.0965 (a_dG2), ln J 0.0011 | farther than the unweighted on 34 of 49, median excess +0.0013
+rule A               invader  distance from 1e-5: median 0.0044, largest 0.0472 (root_c), main largest 0.0121 (stem_P50), ln J 0.0011 | farther than the unweighted on 21 of 49, median excess -0.0000
+A, cap 15            resident distance from 1e-5: median 0.0220, largest 0.0743 (root_P50), main largest 0.0272 (lma), ln J 0.0008 | farther than the unweighted on 10 of 49, median excess -0.0161
+A, cap 15            invader  distance from 1e-5: median 0.0034, largest 0.0489 (root_P50), main largest 0.0140 (stem_P50), ln J 0.0008 | farther than the unweighted on 25 of 49, median excess +0.0002
+A, cap 22            resident distance from 1e-5: median 0.0222, largest 0.1308 (a_dG1), main largest 0.0969 (a_dG2), ln J 0.0011 | farther than the unweighted on 9 of 49, median excess -0.0089
+A, cap 22            invader  distance from 1e-5: median 0.0062, largest 0.0676 (root_c), main largest 0.0193 (stem_P50), ln J 0.0011 | farther than the unweighted on 38 of 49, median excess +0.0013
+unweighted, cap 15   resident distance from 1e-5: median 0.0224, largest 0.0770 (root_P50), main largest 0.0263 (lma), ln J 0.0007 | farther than the unweighted on 10 of 49, median excess -0.0143
+unweighted, cap 15   invader  distance from 1e-5: median 0.0036, largest 0.0488 (root_P50), main largest 0.0139 (stem_P50), ln J 0.0007 | farther than the unweighted on 25 of 49, median excess +0.0002

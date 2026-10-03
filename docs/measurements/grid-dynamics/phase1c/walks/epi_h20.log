@@ -1,0 +1,9 @@
+episodic, seed 31, 108 nodes at 3e-05: J 1.9789512, 9641 steps, 4.75e+05 member-steps, 35 s
+invader lma=2: J' 9.7432208e-20, 71 s
+invader lma=0.5: J' 541.07636, 34 s
+invader hmat=2: J' 1.0480402e-09, 34 s
+invader hmat=0.5: J' 68.309811, 34 s
+invader lma=1.4: J' 2.5204522e-05, 34 s
+invader lma=0.7: J' 95.080392, 32 s
+invader hmat=1.4: J' 0.00074453134, 36 s
+invader hmat=0.7: J' 24.602507, 34 s

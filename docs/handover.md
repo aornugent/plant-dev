@@ -109,9 +109,10 @@ picture: spaces, metrics, error and stability.
 
 | the arc | state |
 |---|---|
-| 1a. the chain's weight and treatment | next: the explicit chain at ×10 and ×100, the implicit chain at ×100 and out of the norm, each over three tolerances |
-| 1b. the pair and its interpolant | next: Dormand–Prince with its free fourth-order dense output, then events on it |
-| 1c. invaders under long steps | next: rule A with a 15-day cap, invaders ×0.5–×2 walked |
+| 1a. the chain's weight and treatment | running: the screen is done (`DEV/phase1a/score_stage1.txt`); gradient checks in progress |
+| 1b. the pair and its interpolant | running: Dormand–Prince with its free fourth-order dense output, then events on it; a member-level spike walks invaders under each method |
+| 1c. invaders under long steps | done: keep the 15-day cap, on the floor too; no invader sub-steps under Cash–Karp; the cap under Dormand–Prince is open (`grid-dynamics.md` §8) |
+| 3, brought forward | running: a weight per state in odelia's controller and plant's patch, the mechanism of the chain's weight and the window's |
 | 2. the node axis | B or D is the user's call; the light field's ordering test is a fix in plant; the chosen rule's ladders off long drought not run |
 | 3. the build | waits on phases 1 and 2 |
 | 4. on the bank | the finish line |

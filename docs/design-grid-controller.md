@@ -98,7 +98,8 @@ forward's rejections and its cost per evaluation are paid once, and `J` binds
 nowhere.
 
 **The floor:** Cash–Karp under the tied tolerance at `1e-5`, uniform nodes (215
-where 108 fails), the knots as step targets, and companions as the check.
+where 108 fails), the knots as step targets, steps capped at 15 days (phase
+1c), and companions as the check.
 - It meets R2 on long drought and R5 on the pulsed records.
 - It fails R4 for the invader (companions 0.41 and 0.33), and R1 and R4 on the
   constant record (`J` 0.0008, 1.20 and 200.7 on 54, 108 and 215 nodes).
@@ -156,8 +157,8 @@ Kept true by:
 - events and sub-steps live inside `Step` and have no handle on the global
   step's size.
 
-If phase 1c keeps the 15-day cap, it is the one bound on the global step besides
-the norm, and the kill condition names it.
+Phase 1c keeps the 15-day cap, plant's `ode_step_size_max`. It is the one bound
+on the global step besides the norm, and the kill condition names it.
 
 **Kill question.** The assumption whose falsity makes this unnecessary: that
 every error reaching the objectives can either be weighted in the norm or is
@@ -174,10 +175,10 @@ still converge.
 
 **What survives deletion:**
 - the state weights, the window's and the chain's: R7 and R4;
-- the dense output: R2 and R3 through events, R5 through invader sub-steps;
+- the dense output: R2 and R3 through events;
 - per-member events, with the crossing times differentiated: R2 and R3;
-- invader sub-steps: R5, deleted for the 15-day cap if phase 1c finds the cap
-  cheap;
+- the 15-day cap: R5. Under Cash–Karp it protects every walk for at most 2.4% of
+  the window's saving (phase 1c), so invader sub-steps are deleted;
 - an implicit chain: R7, only if phase 1a finds the explicit chain cannot take
   the weight;
 - the node rule with its companion: R4 and R8;
@@ -189,8 +190,8 @@ stability margin; the held collar and the partition; class-switch events;
 refusals for kinks.
 
 **What this settles:**
-- no partition, and no caps (the 15-day cap aside, if phase 1c keeps it), seeds
-  or margins in plant's controller;
+- no partition, and no caps (the 15-day cap aside), seeds or margins in plant's
+  controller;
 - one input to the controller, a weight per state;
 - an invader's refinements frozen per grid, so `J′(θ′)` is continuous on it;
 - the sweep differentiates the discrete model on the frozen grid, the dense
@@ -208,9 +209,12 @@ refusals for kinks.
   sweep.
 
 **Kill condition:** a component whose error can be neither weighted nor refined
-locally, so the global step must be capped by a reading. Two candidates are in
-view: the 15-day cap, if invader sub-steps cost more than it does, and a chain
-the norm cannot see. Each hands its part to C.
+locally, so the global step must be capped by a reading.
+- One has arrived: the invader's pools, capped at 15 days. The cap is cheap and
+  read off τ_s, not the run, so the design survives it.
+- A second would end it: a chain the norm cannot see, or a cap that costs more
+  than a fifth of the window's saving, as 7 days would under Dormand–Prince on
+  episodic. Each hands its part to C.
 
 ## What the design rests on
 
@@ -376,9 +380,23 @@ pulsed record before the gate.
 - *Pass:* nothing raises. The cap stays if it gives up less than a fifth of the
   window's 21–28%. Otherwise the invaders' members sub-step where `h/τ_eff > 2`,
   frozen per grid.
+- *Result: keep the 15-day cap, on the floor too; no invader sub-steps under
+  Cash–Karp* (`grid-dynamics.md` §8, `phase1c/report.log`).
+  - No walk raises at 15, 20 or 22 days. The lma ×2 invader raises only at 26
+    days, at Cash–Karp's stability limit, so stability matters and a negative
+    stage down to −0.78 does not.
+  - The cap gives up 0.0–2.4% of rule A's saving.
+  - It moves the resident's pool traits by up to 0.187ε, which fails the move
+    test as registered. Post hoc, that is the cap correcting the uncapped run,
+    which is farther from `1e-5`.
+  - *Under Dormand–Prince the cap is open.* Its stages are −4.25 at 15 days and
+    −12.5 at 20, past anything tested. A 10-day cap, inside the tested depth,
+    gives up 1.0% (long drought) and 9.0% (episodic) of the saving. The method
+    spike walks its members directly.
 
 **1d. Invaders refined against the resident's dense output** (R5, R3), only if
-1c rejects the cap or phase 4 finds the invader's curvatures short.
+Dormand–Prince's walks need more than a cap, or phase 4 finds the invader's
+curvatures short. Under Cash–Karp, 1c's cap suffices.
 - *Runs:* an invader walk on the driver that reads the resident's recorded stages
   and dense output, and sub-steps its members where `h/τ_eff > 2` or at a
   crossing.

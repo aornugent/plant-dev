@@ -1,0 +1,14 @@
+reference fields: seed, tol, tol_abs, nodes, knots, steps, attempts, stand, invader 
+reference quantities: 98; ln J 2.539141
+1e-5 nudged to 9.5e-6    resident 49 quantities, distance from 1e-5: median 0.0036, largest 0.0325 (a_dG1), main largest 0.0079 (stem_P50)
+1e-5 nudged to 9.5e-6    invader  49 quantities, distance from 1e-5: median 0.0156, largest 0.0383 (root_c), main largest 0.0278 (stem_P50)
+1e-5 nudged to 1.05e-5   resident 49 quantities, distance from 1e-5: median 0.0145, largest 0.0561 (omega), main largest 0.0197 (lma)
+1e-5 nudged to 1.05e-5   invader  49 quantities, distance from 1e-5: median 0.0171, largest 0.0430 (root_P50), main largest 0.0333 (stem_P50)
+unweighted (pinned)      resident 49 quantities, distance from 1e-5: median 0.0232, largest 0.1874 (a_dG1), main largest 0.1006 (a_dG2)
+unweighted (pinned)      invader  49 quantities, distance from 1e-5: median 0.0036, largest 0.0295 (root_c), main largest 0.0112 (stem_P50)
+rule A                   resident 49 quantities, distance from 1e-5: median 0.0225, largest 0.1894 (a_dG1), main largest 0.1046 (a_dG2) | farther than the unweighted on 30 of 49
+rule A                   invader  49 quantities, distance from 1e-5: median 0.0045, largest 0.0317 (root_c), main largest 0.0126 (stem_P50) | farther than the unweighted on 39 of 49
+A, cap 15                resident 49 quantities, distance from 1e-5: median 0.0142, largest 0.1088 (d_I), main largest 0.0626 (a_dG2) | farther than the unweighted on 9 of 49
+A, cap 15                invader  49 quantities, distance from 1e-5: median 0.0013, largest 0.0144 (root_P50), main largest 0.0035 (stem_P50) | farther than the unweighted on 11 of 49
+A, cap 22                resident 49 quantities, distance from 1e-5: median 0.0144, largest 0.1096 (d_I), main largest 0.0723 (a_dG2) | farther than the unweighted on 12 of 49
+A, cap 22                invader  49 quantities, distance from 1e-5: median 0.0016, largest 0.0142 (root_c), main largest 0.0035 (hmat) | farther than the unweighted on 15 of 49

@@ -1,0 +1,2 @@
+resident +-5% nudge at 3e-5: median 0.0631, largest 0.238 (a_dG1), 0.165 (d_I), 0.159 (storage_relaxation_offset), 0.147 (TF24_cost_scale), 0.146 (a_dG2), 0.118 (a_st2); main largest 0.1460 (a_dG2); over 0.08: 17 of 49
+invader  +-5% nudge at 3e-5: median 0.0259, largest 0.058 (root_c), 0.040 (TF24_cost_scale), 0.037 (stem_P50), 0.036 (a_r1), 0.033 (K_s), 0.033 (TF24_beta2); main largest 0.0366 (stem_P50); over 0.08: 0 of 49

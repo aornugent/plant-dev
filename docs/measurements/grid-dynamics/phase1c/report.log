@@ -1,0 +1,357 @@
+######## P0: HMAX unset against the window phase's episodic rule-A run
+method     identical
+nodes      identical
+tol        identical
+J          identical
+attempts   identical
+regime     identical
+rain       identical
+knots      identical
+st         identical
+weight     identical
+by_node    identical
+counts     24 shared, identical
+only in the new OUT: control | new counts: guarded = 0 
+steps 9637 vs 9637; J 1.97895281676522 vs 1.97895281676522; member evaluations 3522426 vs 3522426
+
+######## The driver's runs (rows, forward, savings, longest step, J)
+
+== long-drought
+run                   acc    rej     rows   forward  S_rows   S_fwd gu_rows  gu_fwd   longest (t)  >15  >26             J    J moves      eps
+unweighted          17684   3912   962505   7063344    0.0%    0.0%     NA%     NA%  19.5 d ( 8.46)    7    0  12.668554505  +0.00e+00   0.0000
+rule A              15297   3349   744188   5450624   22.7%   22.8%     NA%     NA%  22.2 d (38.77)   18    0  12.668524555  -2.36e-06   0.0001
+A, cap 7            15444   3314   753933   5494760   21.7%   22.2%    4.5%    2.7%   7.0 d ( 0.31)    0    0  12.668631750  +6.10e-06   0.0002
+A, cap 10           15327   3331   746281   5458130   22.5%   22.7%    1.0%    0.5%  10.0 d ( 1.05)    0    0  12.668653301  +7.80e-06   0.0003
+A, cap 15           15297   3351   744121   5451028   22.7%   22.8%   -0.0%    0.0%  15.0 d ( 1.41)    0    0  12.668520111  -2.71e-06   0.0001
+A, cap 22           15298   3359   744298   5454302   22.7%   22.8%    0.1%    0.2%  22.0 d (38.76)   18    0  12.668528923  -2.02e-06   0.0001
+A, cap 26           15298   3349   744289   5451452   22.7%   22.8%    0.0%    0.1%  22.2 d (38.77)   18    0  12.668524999  -2.33e-06   0.0001
+A thinned           15238   3335   697329   5107501   27.6%   27.7%     NA%     NA%  21.4 d (36.46)   25    0  12.668704162  +1.18e-05   0.0005
+   A, cap 7           as the uncapped run to t = 0.292, then departs; steps at the cap: 411
+   A, cap 10          as the uncapped run to t = 1.028, then departs; steps at the cap: 146
+   A, cap 15          as the uncapped run to t = 1.365, then departs; steps at the cap: 23
+   A, cap 22          as the uncapped run to t = 8.519, then departs; steps at the cap: 1
+   A, cap 26          as the uncapped run to t = 32.425, then departs; steps at the cap: 0
+
+== long-wet
+run                   acc    rej     rows   forward  S_rows   S_fwd gu_rows  gu_fwd   longest (t)  >15  >26             J    J moves      eps
+unweighted          21920   4785  1192431   8726904    0.0%    0.0%     NA%     NA%  18.3 d ( 8.45)    6    0  18.402060189  +0.00e+00   0.0000
+rule A              19161   4284   939760   6936894   21.2%   20.5%     NA%     NA%  24.0 d (38.77)   20    0  18.402082371  +1.21e-06   0.0000
+A, cap 15           19166   4287   940073   6935928   21.2%   20.5%    0.1%   -0.1%  15.0 d ( 1.39)    0    0  18.402088997  +1.57e-06   0.0001
+A, cap 22           19162   4283   939861   6936894   21.2%   20.5%    0.0%    0.0%  22.0 d (38.77)   20    0  18.402082729  +1.22e-06   0.0000
+A, cap 26           19161   4284   939760   6936894   21.2%   20.5%    0.0%    0.0%  24.0 d (38.77)   20    0  18.402082371  +1.21e-06   0.0000
+A thinned           19091   4244   886336   6526824   25.7%   25.2%     NA%     NA%  26.7 d (38.77)   27    1  18.401107722  -5.18e-05   0.0021
+   A, cap 15          as the uncapped run to t = 1.347, then departs; steps at the cap: 25
+   A, cap 22          as the uncapped run to t = 35.460, then departs; steps at the cap: 1
+   A, cap 26          identical to the uncapped run; steps at the cap: 0
+
+== episodic
+run                   acc    rej     rows   forward  S_rows   S_fwd gu_rows  gu_fwd   longest (t)  >15  >26             J    J moves      eps
+unweighted          11022   2548   600766   4449870    0.0%    0.0%     NA%     NA%  22.1 d (31.48)   63    0   1.978949825  +0.00e+00   0.0000
+rule A               9637   2247   474623   3522426   21.0%   20.8%     NA%     NA%  46.3 d (36.27)  101    8   1.978952817  +1.51e-06   0.0001
+A, cap 7            10065   2162   502442   3659974   16.4%   17.8%   22.1%   14.8%   7.0 d ( 0.10)    0    0   1.978938739  -5.60e-06   0.0002
+A, cap 10            9790   2206   486002   3578950   19.1%   19.6%    9.0%    6.1%  10.0 d ( 0.20)    0    0   1.978952037  +1.12e-06   0.0000
+A, cap 15            9669   2263   477475   3544322   20.5%   20.3%    2.3%    2.4%  15.0 d ( 0.25)    0    0   1.978937593  -6.18e-06   0.0002
+A, cap 20            9640   2231   475093   3522903   20.9%   20.8%    0.4%    0.1%  20.0 d ( 0.69)  113    0   1.978951291  +7.41e-07   0.0000
+A, cap 22            9643   2241   475138   3525091   20.9%   20.8%    0.4%    0.3%  22.0 d (26.26)  109    0   1.978955496  +2.87e-06   0.0001
+A, cap 26            9638   2245   474755   3524386   21.0%   20.8%    0.1%    0.2%  26.0 d (31.43)  109    0   1.978954423  +2.32e-06   0.0001
+unweighted, cap 15  11024   2572   600739   4458606    0.0%   -0.2%     NA%     NA%  15.0 d ( 0.25)    0    0   1.978935167  -7.41e-06   0.0003
+A thinned            9563   2204   449364   3321340   25.2%   25.4%     NA%     NA%  48.3 d (31.70)  125   13   1.978592882  -1.80e-04   0.0071
+   A, cap 7           as the uncapped run to t = 0.078, then departs; steps at the cap: 947
+   A, cap 10          as the uncapped run to t = 0.171, then departs; steps at the cap: 443
+   A, cap 15          as the uncapped run to t = 0.204, then departs; steps at the cap: 154
+   A, cap 20          as the uncapped run to t = 0.639, then departs; steps at the cap: 32
+   A, cap 22          as the uncapped run to t = 0.741, then departs; steps at the cap: 20
+   A, cap 26          as the uncapped run to t = 26.296, then departs; steps at the cap: 6
+   unweighted, cap 15 as the uncapped run to t = 0.204, then departs; steps at the cap: 76
+
+######## Every invader walk on every program
+
+== long-drought
+                  unweighted   rule A       cap 15       cap 22      
+longest h / tau_s 19.5 d, 2.78 22.2 d, 3.17 15.0 d, 2.14 22.0 d, 3.14
+lma=0.5           1877         1877         1877         1877        
+lma=0.7           -            -            450.8        450.8       
+lma=1.4           -            -            2.01e-05     2.01e-05    
+lma=2             2.044e-21    2.044e-21    2.044e-21    2.044e-21   
+hmat=0.5          164.4        164.4        164.4        164.4       
+hmat=0.7          -            -            75.23        75.23       
+hmat=1.4          -            -            0.01869      0.01869     
+hmat=2            2.086e-08    2.086e-08    2.086e-08    2.086e-08   
+                  cap 26      
+longest h / tau_s 22.2 d, 3.17
+lma=0.5           -           
+lma=0.7           -           
+lma=1.4           -           
+lma=2             -           
+hmat=0.5          -           
+hmat=0.7          -           
+hmat=1.4          -           
+hmat=2            -           
+
+== long-wet
+                  unweighted   rule A       cap 15       cap 22      
+longest h / tau_s 18.3 d, 2.62 24.0 d, 3.43 15.0 d, 2.14 22.0 d, 3.14
+lma=0.5           2682         -            2682         -           
+lma=0.7           -            -            658.1        -           
+lma=1.4           -            -            1.447e-05    -           
+lma=2             2.158e-21    -            2.158e-21    -           
+hmat=0.5          198          -            198          -           
+hmat=0.7          -            -            99.02        -           
+hmat=1.4          -            -            0.0589       -           
+hmat=2            6.367e-08    -            6.365e-08    -           
+                  cap 26      
+longest h / tau_s 24.0 d, 3.43
+lma=0.5           -           
+lma=0.7           -           
+lma=1.4           -           
+lma=2             -           
+hmat=0.5          -           
+hmat=0.7          -           
+hmat=1.4          -           
+hmat=2            -           
+
+== episodic
+                  unweighted   rule A             rule B            
+longest h / tau_s 22.1 d, 3.15 46.3 d, 6.61       33.8 d, 4.83      
+lma=0.5           541.1        541.1              541.1             
+lma=0.7           -            -                  -                 
+lma=1.4           -            -                  -                 
+lma=2             9.743e-20    RAISED t=32.568059 RAISED t=36.279452
+hmat=0.5          68.31        68.31              68.31             
+hmat=0.7          -            -                  -                 
+hmat=1.4          -            -                  -                 
+hmat=2            1.048e-09    1.048e-09          1.048e-09         
+                  cap 15       cap 20       cap 22       cap 26            
+longest h / tau_s 15.0 d, 2.14 20.0 d, 2.86 22.0 d, 3.14 26.0 d, 3.71      
+lma=0.5           541.1        541.1        541.1        541.1             
+lma=0.7           95.08        95.08        95.08        95.08             
+lma=1.4           2.521e-05    2.52e-05     2.52e-05     2.521e-05         
+lma=2             9.747e-20    9.743e-20    9.744e-20    RAISED t=32.592593
+hmat=0.5          68.31        68.31        68.31        68.31             
+hmat=0.7          24.6         24.6         24.6         24.6              
+hmat=1.4          0.0007446    0.0007445    0.0007446    0.0007446         
+hmat=2            1.048e-09    1.048e-09    1.048e-09    1.048e-09         
+
+######## Where the raises sit, and episodic's steps there
+episodic_rule                    raise at t = 32.568059: in step 8727; steps (start, days) (32.3797, 30.59) (32.4635, 38.17) (32.5681, 8.95)
+episodic_ruleB                   raise at t = 36.279452: in step 9651; steps (start, days) (36.0629, 23.01) (36.1260, 33.84) (36.2187, 22.17)
+episodic_ruleA_h26               raise at t = 32.592593: in step 8727; steps (start, days) (32.4509, 26.00) (32.5222, 25.71) (32.5926, 9.70)
+
+steps (days) whose span touches [t - 60 d, t + 10 d] around t = 32.568
+unweighted         13.4 15.5 18.1 11.1 5.7 4.8 4.8 2.9 4.1
+rule A             30.6 38.2 9.0 9.7
+rule B             18.5 22.6 17.0 10.2 2.4 5.1
+A, cap 15          15.0 15.0 15.0 15.0 15.0 8.3 9.7
+A, cap 20          20.0 20.0 20.0 18.3 9.7
+A, cap 22          22.0 22.0 22.0 11.7 9.7
+A, cap 26          26.0 26.0 25.7 9.7
+A thinned          44.9 43.1 20.2 8.1
+
+steps (days) whose span touches [t - 60 d, t + 10 d] around t = 36.279
+unweighted         13.5 15.5 18.1 21.2 3.4 0.7 0.3 0.4 0.4 0.1 0.6 1.4 2.2 0.9 1.0 0.2 0.2 0.2 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1
+rule A             29.5 46.3 2.4 1.0 1.0 3.6 0.5 0.9 1.0 0.4 0.3 0.2 0.1 0.2 0.3 0.3 0.3
+rule B             23.0 33.8 22.2 1.0 1.0 2.8 1.3 0.9 1.0 0.3 0.4 0.1 0.2 0.0 0.2 0.2 0.2 0.2 0.2
+A, cap 15          15.0 15.0 15.0 15.0 3.0 1.0 1.0 3.6 0.5 0.9 1.0 0.4 0.3 0.2 0.1 0.2 0.3 0.3 0.3
+A, cap 20          20.0 20.0 20.0 19.2 1.0 1.0 3.6 0.5 0.9 1.0 0.4 0.3 0.2 0.1 0.2 0.3 0.3 0.3
+A, cap 22          22.0 22.0 22.0 12.1 1.0 1.0 3.6 0.5 0.9 1.0 0.4 0.3 0.2 0.1 0.2 0.3 0.3 0.3
+A, cap 26          26.0 26.0 24.4 1.0 1.0 3.6 0.5 0.9 1.0 0.4 0.3 0.2 0.1 0.2 0.3 0.3 0.3
+A thinned          30.1 38.3 1.0 1.0 3.4 1.6 1.0 0.4 0.3 0.2 0.1 0.2 0.3 0.3 0.3
+
+steps over 15 and 26 days after t = 25, and the longest, per program
+unweighted           22 over 15 d,   0 over 26 d, longest 22.1 d; steps after t = 25: 4058
+rule A               60 over 15 d,   8 over 26 d, longest 46.3 d; steps after t = 25: 2701
+rule B               48 over 15 d,   1 over 26 d, longest 33.8 d; steps after t = 25: 3296
+A, cap 15             0 over 15 d,   0 over 26 d, longest 15.0 d; steps after t = 25: 2732
+A, cap 20            72 over 15 d,   0 over 26 d, longest 20.0 d; steps after t = 25: 2708
+A, cap 22            68 over 15 d,   0 over 26 d, longest 22.0 d; steps after t = 25: 2707
+A, cap 26            68 over 15 d,   0 over 26 d, longest 26.0 d; steps after t = 25: 2702
+A thinned            84 over 15 d,  13 over 26 d, longest 48.3 d; steps after t = 25: 2627
+
+######## Both pairs on the pool's test equation
+Cash-Karp       first stage negative past h/tau = 2.159 (stage 4; 15.1 d at tau_s = 7 d); unstable past 3.734 (26.1 d)
+   h =  7 d (h/tau_s 1.00): lowest stage +0.427 (stage 6), R = +0.368
+   h = 10 d (h/tau_s 1.43): lowest stage +0.320 (stage 6), R = +0.241
+   h = 15 d (h/tau_s 2.14): lowest stage +0.009 (stage 4), R = +0.136
+   h = 20 d (h/tau_s 2.86): lowest stage -0.504 (stage 4), R = +0.207
+   h = 22 d (h/tau_s 3.14): lowest stage -0.784 (stage 4), R = +0.337
+   h = 24 d (h/tau_s 3.43): lowest stage -1.118 (stage 4), R = +0.572
+   h = 26 d (h/tau_s 3.71): lowest stage -1.512 (stage 4), R = +0.965
+Dormand-Prince  first stage negative past h/tau = 1.038 (stage 6; 7.3 d at tau_s = 7 d); unstable past 3.307 (23.1 d)
+   h =  7 d (h/tau_s 1.00): lowest stage +0.055 (stage 6), R = +0.368
+   h = 10 d (h/tau_s 1.43): lowest stage -0.809 (stage 6), R = +0.244
+   h = 15 d (h/tau_s 2.14): lowest stage -4.252 (stage 6), R = +0.177
+   h = 20 d (h/tau_s 2.86): lowest stage -12.497 (stage 6), R = +0.434
+   h = 22 d (h/tau_s 3.14): lowest stage -17.927 (stage 6), R = +0.738
+   h = 24 d (h/tau_s 3.43): lowest stage -25.004 (stage 6), R = +1.249
+   h = 26 d (h/tau_s 3.71): lowest stage -34.068 (stage 6), R = +2.059
+Dormand-Prince's lowest stage reaches Cash-Karp's at 20 d (-0.504) at h/tau = 1.308, 9.2 d (R +0.273)
+Dormand-Prince's lowest stage reaches Cash-Karp's at 22 d (-0.784) at h/tau = 1.419, 9.9 d (R +0.246)
+Dormand-Prince's lowest stage reaches Cash-Karp's at 26 d (-1.512) at h/tau = 1.644, 11.5 d (R +0.204)
+
+######## Quantities in eps, and every walk with its J' move
+== Every quantity of both roles, in eps: the second run of each pair against the first
+long-drought rule A             against unweighted         98 quantities | resident ln J -0.0001 | largest 0.0106 (resident recruitment_decay) | over 0.08: 0, over 0.1: 0 | over the 3e-5 nudge's spread: 1 of 98 | failures: none
+   resident median 0.0017, largest 0.0106 (recruitment_decay), 0.0079 (d_I), 0.0056 (a_l1); main largest 0.0040 (a_dG2)
+   invader  median 0.0006, largest 0.0035 (a_f1), 0.0022 (root_c), 0.0018 (D_c); main largest 0.0013 (stem_P50)
+long-drought A, cap 15          against unweighted         98 quantities | resident ln J -0.0001 | largest 0.1074 (resident a_dG1) | over 0.08: 1, over 0.1: 1 | over the 3e-5 nudge's spread: 6 of 98 | failures: none
+   resident median 0.0056, largest 0.1074 (a_dG1), 0.0558 (storage_relaxation_offset), 0.0479 (rooting_depth_max); main largest 0.0380 (a_dG2)
+   invader  median 0.0043, largest 0.0240 (root_c), 0.0229 (stem_c), 0.0209 (root_P50); main largest 0.0147 (stem_P50)
+long-drought A, cap 22          against unweighted         98 quantities | resident ln J -0.0001 | largest 0.0990 (resident a_dG1) | over 0.08: 1, over 0.1: 0 | over the 3e-5 nudge's spread: 3 of 98 | failures: none
+   resident median 0.0054, largest 0.0990 (a_dG1), 0.0463 (storage_relaxation_offset), 0.0383 (rooting_depth_max); main largest 0.0283 (a_dG2)
+   invader  median 0.0039, largest 0.0154 (stem_c), 0.0153 (root_c), 0.0134 (root_P50); main largest 0.0096 (stem_P50)
+long-wet     A, cap 15          against unweighted         98 quantities | resident ln J +0.0001 | largest 0.1137 (resident a_dG1) | over 0.08: 3, over 0.1: 1 | over the 3e-5 nudge's spread: 0 of 98 | failures: none
+   resident median 0.0173, largest 0.1137 (a_dG1), 0.0840 (d_I), 0.0809 (storage_relaxation_offset); main largest 0.0685 (a_dG2)
+   invader  median 0.0012, largest 0.0088 (a_d0), 0.0086 (root_c), 0.0070 (a_f1); main largest 0.0033 (stem_P50)
+episodic     rule A             against unweighted         98 quantities | resident ln J +0.0001 | largest 0.0155 (resident recruitment_decay) | over 0.08: 0, over 0.1: 0 | over the 3e-5 nudge's spread: 0 of 98 | failures: lma=2
+   resident median 0.0018, largest 0.0155 (recruitment_decay), 0.0102 (a_st3), 0.0070 (a_l1); main largest 0.0024 (lma)
+   invader  median 0.0001, largest 0.0003 (recruitment_decay), 0.0002 (hmat), 0.0001 (root_c); main largest 0.0002 (hmat)
+episodic     A, cap 15          against unweighted         98 quantities | resident ln J -0.0002 | largest 0.1873 (resident TF24_cost_scale) | over 0.08: 12, over 0.1: 5 | over the 3e-5 nudge's spread: 25 of 98 | failures: none
+   resident median 0.0507, largest 0.1873 (TF24_cost_scale), 0.1240 (omega), 0.1221 (a_l1); main largest 0.0873 (lma)
+   invader  median 0.0030, largest 0.0514 (root_P50), 0.0435 (root_c), 0.0171 (stem_c); main largest 0.0025 (lma)
+episodic     A, cap 22          against unweighted         98 quantities | resident ln J +0.0001 | largest 0.0662 (resident omega) | over 0.08: 0, over 0.1: 0 | over the 3e-5 nudge's spread: 3 of 98 | failures: none
+   resident median 0.0135, largest 0.0662 (omega), 0.0599 (TF24_cost_scale), 0.0368 (a_l1); main largest 0.0239 (lma)
+   invader  median 0.0020, largest 0.0491 (a_d0), 0.0202 (root_c), 0.0129 (stem_c); main largest 0.0071 (stem_P50)
+episodic     unweighted, cap 15 against unweighted         98 quantities | resident ln J -0.0003 | largest 0.1849 (resident TF24_cost_scale) | over 0.08: 10, over 0.1: 5 | over the 3e-5 nudge's spread: 24 of 98 | failures: none
+   resident median 0.0517, largest 0.1849 (TF24_cost_scale), 0.1250 (omega), 0.1239 (a_l1); main largest 0.0864 (lma)
+   invader  median 0.0032, largest 0.0513 (root_P50), 0.0437 (root_c), 0.0170 (stem_c); main largest 0.0024 (lma)
+episodic     A, cap 15          against unweighted, cap 15 98 quantities | resident ln J +0.0000 | largest 0.0069 (resident a_dG1) | over 0.08: 0, over 0.1: 0 | over the 3e-5 nudge's spread: 0 of 98 | failures: none
+   resident median 0.0012, largest 0.0069 (a_dG1), 0.0053 (a_st3), 0.0051 (rooting_depth_max); main largest 0.0045 (a_dG2)
+   invader  median 0.0001, largest 0.0013 (a_f1), 0.0002 (root_c), 0.0002 (D_c); main largest 0.0002 (stem_P50)
+
+== Every invader walk: J', and its ln J' move against the unweighted run's in eps
+long-drought rule A             (plant's replay with gradients): stand J 12.668525; identical invader J' 12.668525
+   lma=0.5   J' 1876.89      ln J' +7.537, moves 0.0000 eps
+   lma=2     J' 2.04442e-21  ln J' -47.639, moves 0.0000 eps
+   hmat=0.5  J' 164.369      ln J' +5.102, moves 0.0000 eps
+   hmat=2    J' 2.08581e-08  ln J' -17.686, moves 0.0017 eps
+long-drought A, cap 15          (plant's replay with gradients): stand J 12.66852; identical invader J' 12.66852
+   lma=2     J' 2.04441e-21  ln J' -47.639, moves 0.0002 eps
+   lma=0.5   J' 1876.88      ln J' +7.537, moves 0.0002 eps
+   hmat=2    J' 2.08577e-08  ln J' -17.686, moves 0.0023 eps
+   hmat=0.5  J' 164.369      ln J' +5.102, moves 0.0000 eps
+   lma=1.4   J' 2.00973e-05 
+   lma=0.7   J' 450.841     
+   hmat=1.4  J' 0.0186922   
+   hmat=0.7  J' 75.2347     
+long-drought A, cap 22          (plant's replay with gradients): stand J 12.66853; identical invader J' 12.66853
+   lma=2     J' 2.04441e-21  ln J' -47.639, moves 0.0001 eps
+   lma=0.5   J' 1876.88      ln J' +7.537, moves 0.0001 eps
+   hmat=2    J' 2.08582e-08  ln J' -17.686, moves 0.0015 eps
+   hmat=0.5  J' 164.369      ln J' +5.102, moves 0.0000 eps
+   lma=1.4   J' 2.00971e-05 
+   lma=0.7   J' 450.843     
+   hmat=1.4  J' 0.0186922   
+   hmat=0.7  J' 75.2349     
+long-wet     A, cap 15          (plant's replay with gradients): stand J 18.40209; identical invader J' 18.40209
+   lma=2     J' 2.15768e-21  ln J' -47.585, moves 0.0003 eps
+   lma=0.5   J' 2681.84      ln J' +7.894, moves 0.0003 eps
+   hmat=2    J' 6.36549e-08  ln J' -16.570, moves 0.0111 eps
+   hmat=0.5  J' 198.018      ln J' +5.288, moves 0.0000 eps
+   lma=1.4   J' 1.44739e-05 
+   lma=0.7   J' 658.069     
+   hmat=1.4  J' 0.0589047   
+   hmat=0.7  J' 99.0167     
+episodic     rule A             (plant's replay with gradients): stand J 1.9789526; identical invader J' 1.9789526
+   lma=0.5   J' 541.069      ln J' +6.294, moves 0.0000 eps
+   lma=2     RAISED: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=10201.081130, height=0.354329) 
+   hmat=0.5  J' 68.31        ln J' +4.224, moves 0.0000 eps
+   hmat=2    J' 1.04807e-09  ln J' -20.676, moves 0.0019 eps
+episodic     A, cap 15          (plant's replay with gradients): stand J 1.9789375; identical invader J' 1.9789375
+   lma=2     J' 9.74743e-20  ln J' -43.775, moves 0.0167 eps
+   lma=0.5   J' 541.076      ln J' +6.294, moves 0.0005 eps
+   hmat=2    J' 1.04812e-09  ln J' -20.676, moves 0.0038 eps
+   hmat=0.5  J' 68.3098      ln J' +4.224, moves 0.0001 eps
+   lma=1.4   J' 2.52062e-05 
+   lma=0.7   J' 95.0832     
+   hmat=1.4  J' 0.000744612 
+   hmat=0.7  J' 24.6025     
+episodic     A, cap 22          (plant's replay with gradients): stand J 1.9789556; identical invader J' 1.9789556
+episodic     unweighted, cap 15 (plant's replay with gradients): stand J 1.9789351; identical invader J' 1.9789351
+   lma=2     J' 9.74651e-20  ln J' -43.775, moves 0.0130 eps
+   lma=0.5   J' 541.077      ln J' +6.294, moves 0.0005 eps
+   hmat=2    J' 1.04803e-09  ln J' -20.676, moves 0.0003 eps
+   hmat=0.5  J' 68.3098      ln J' +4.224, moves 0.0001 eps
+episodic     walks on h20 (harness/invader_window.R): stand J 1.9789512, 9641 steps
+   lma=2     J' 9.74322e-20  ln J' -43.775, moves 0.0004 eps
+   lma=0.5   J' 541.076      ln J' +6.294, moves 0.0005 eps
+   hmat=2    J' 1.04804e-09  ln J' -20.676, moves 0.0009 eps
+   hmat=0.5  J' 68.3098      ln J' +4.224, moves 0.0001 eps
+   lma=1.4   J' 2.52045e-05 
+   lma=0.7   J' 95.0804     
+   hmat=1.4  J' 0.000744531 
+   hmat=0.7  J' 24.6025     
+episodic     walks on h22 (harness/invader_window.R): stand J 1.9789556, 9644 steps
+   lma=2     J' 9.74419e-20  ln J' -43.775, moves 0.0035 eps
+   lma=0.5   J' 541.093      ln J' +6.294, moves 0.0017 eps
+   hmat=2    J' 1.04806e-09  ln J' -20.676, moves 0.0015 eps
+   hmat=0.5  J' 68.3098      ln J' +4.224, moves 0.0001 eps
+   lma=1.4   J' 2.52049e-05 
+   lma=0.7   J' 95.0835     
+   hmat=1.4  J' 0.000744552 
+   hmat=0.7  J' 24.6025     
+episodic     walks on h26 (harness/invader_window.R): stand J 1.9789542, 9639 steps
+   lma=2     RAISED: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=2862943.363034, height=0.326880
+   lma=0.5   J' 541.069      ln J' +6.294, moves 0.0000 eps
+   hmat=2    J' 1.04807e-09  ln J' -20.676, moves 0.0019 eps
+   hmat=0.5  J' 68.31        ln J' +4.224, moves 0.0000 eps
+   lma=1.4   J' 2.52057e-05 
+   lma=0.7   J' 95.0787     
+   hmat=1.4  J' 0.000744569 
+   hmat=0.7  J' 24.6026     
+
+######## Against each record's tolerance nudge (post hoc)
+== long-drought: the +5% nudge and -5% at 3e-5 (plant's own control)
+   nudge   resident median 0.0631, largest 0.2384 (a_dG1), over 0.08: 17
+   nudge   invader  median 0.0259, largest 0.0576 (root_c), over 0.08: 0
+   rule A             resident median 0.0017, largest 0.0106 (recruitment_decay), over 0.08: 0 | exceeds the nudge's move on 0 of 49 | rank correlation with it +0.41
+   rule A             invader  median 0.0006, largest 0.0035 (a_f1), over 0.08: 0 | exceeds the nudge's move on 1 of 49 | rank correlation with it +0.64
+   A, cap 15          resident median 0.0056, largest 0.1074 (a_dG1), over 0.08: 1 | exceeds the nudge's move on 0 of 49 | rank correlation with it +0.53
+   A, cap 15          invader  median 0.0043, largest 0.0240 (root_c), over 0.08: 0 | exceeds the nudge's move on 6 of 49 | rank correlation with it +0.38
+   A, cap 22          resident median 0.0054, largest 0.0990 (a_dG1), over 0.08: 1 | exceeds the nudge's move on 0 of 49 | rank correlation with it +0.68
+   A, cap 22          invader  median 0.0039, largest 0.0154 (stem_c), over 0.08: 0 | exceeds the nudge's move on 3 of 49 | rank correlation with it +0.34
+== long-wet: the +5% nudge at 3e-5 (plant's own control)
+   nudge   resident median 0.0442, largest 0.2329 (a_dG1), over 0.08: 8
+   nudge   invader  median 0.0034, largest 0.0242 (a_d0), over 0.08: 0
+   A, cap 15          resident median 0.0173, largest 0.1137 (a_dG1), over 0.08: 3 | exceeds the nudge's move on 5 of 49 | rank correlation with it +0.86
+   A, cap 15          invader  median 0.0012, largest 0.0088 (a_d0), over 0.08: 0 | exceeds the nudge's move on 14 of 49 | rank correlation with it +0.25
+== episodic: the +5% nudge at 3e-5 (plant's own control)
+   nudge   resident median 0.0401, largest 0.1361 (a_dG1), over 0.08: 6
+   nudge   invader  median 0.0076, largest 0.0396 (root_P50), over 0.08: 0
+   rule A             resident median 0.0018, largest 0.0155 (recruitment_decay), over 0.08: 0 | exceeds the nudge's move on 0 of 49 | rank correlation with it +0.26
+   rule A             invader  median 0.0001, largest 0.0003 (recruitment_decay), over 0.08: 0 | exceeds the nudge's move on 1 of 49 | rank correlation with it -0.06
+   A, cap 15          resident median 0.0507, largest 0.1873 (TF24_cost_scale), over 0.08: 12 | exceeds the nudge's move on 35 of 49 | rank correlation with it +0.67
+   A, cap 15          invader  median 0.0030, largest 0.0514 (root_P50), over 0.08: 0 | exceeds the nudge's move on 13 of 49 | rank correlation with it +0.66
+   A, cap 22          resident median 0.0135, largest 0.0662 (omega), over 0.08: 0 | exceeds the nudge's move on 4 of 49 | rank correlation with it +0.42
+   A, cap 22          invader  median 0.0020, largest 0.0491 (a_d0), over 0.08: 0 | exceeds the nudge's move on 7 of 49 | rank correlation with it +0.86
+   unweighted, cap 15 resident median 0.0517, largest 0.1849 (TF24_cost_scale), over 0.08: 10 | exceeds the nudge's move on 32 of 49 | rank correlation with it +0.63
+   unweighted, cap 15 invader  median 0.0032, largest 0.0513 (root_P50), over 0.08: 0 | exceeds the nudge's move on 13 of 49 | rank correlation with it +0.65
+
+######## Episodic against plant's run at 1e-5 (post hoc)
+unweighted (pinned)  resident distance from 1e-5: median 0.0407, largest 0.1414 (TF24_cost_scale), main largest 0.0979 (a_dG2), ln J 0.0010
+unweighted (pinned)  invader  distance from 1e-5: median 0.0045, largest 0.0474 (root_c), main largest 0.0122 (stem_P50), ln J 0.0010
+unweighted, +5% tol  resident distance from 1e-5: median 0.0329, largest 0.1115 (omega), main largest 0.0503 (a_dG2), ln J 0.0007 | farther than the unweighted on 16 of 49, median excess -0.0126
+unweighted, +5% tol  invader  distance from 1e-5: median 0.0030, largest 0.0434 (root_c), main largest 0.0030 (rho), ln J 0.0007 | farther than the unweighted on 18 of 49, median excess -0.0011
+rule A               resident distance from 1e-5: median 0.0401, largest 0.1425 (TF24_cost_scale), main largest 0.0965 (a_dG2), ln J 0.0011 | farther than the unweighted on 34 of 49, median excess +0.0013
+rule A               invader  distance from 1e-5: median 0.0044, largest 0.0472 (root_c), main largest 0.0121 (stem_P50), ln J 0.0011 | farther than the unweighted on 21 of 49, median excess -0.0000
+A, cap 15            resident distance from 1e-5: median 0.0220, largest 0.0743 (root_P50), main largest 0.0272 (lma), ln J 0.0008 | farther than the unweighted on 10 of 49, median excess -0.0161
+A, cap 15            invader  distance from 1e-5: median 0.0034, largest 0.0489 (root_P50), main largest 0.0140 (stem_P50), ln J 0.0008 | farther than the unweighted on 25 of 49, median excess +0.0002
+A, cap 22            resident distance from 1e-5: median 0.0222, largest 0.1308 (a_dG1), main largest 0.0969 (a_dG2), ln J 0.0011 | farther than the unweighted on 9 of 49, median excess -0.0089
+A, cap 22            invader  distance from 1e-5: median 0.0062, largest 0.0676 (root_c), main largest 0.0193 (stem_P50), ln J 0.0011 | farther than the unweighted on 38 of 49, median excess +0.0013
+unweighted, cap 15   resident distance from 1e-5: median 0.0224, largest 0.0770 (root_P50), main largest 0.0263 (lma), ln J 0.0007 | farther than the unweighted on 10 of 49, median excess -0.0143
+unweighted, cap 15   invader  distance from 1e-5: median 0.0036, largest 0.0488 (root_P50), main largest 0.0139 (stem_P50), ln J 0.0007 | farther than the unweighted on 25 of 49, median excess +0.0002
+
+######## Long drought against the assessment's run at 1e-5 (post hoc)
+reference fields: seed, tol, tol_abs, nodes, knots, steps, attempts, stand, invader 
+reference quantities: 98; ln J 2.539141
+1e-5 nudged to 9.5e-6    resident 49 quantities, distance from 1e-5: median 0.0036, largest 0.0325 (a_dG1), main largest 0.0079 (stem_P50)
+1e-5 nudged to 9.5e-6    invader  49 quantities, distance from 1e-5: median 0.0156, largest 0.0383 (root_c), main largest 0.0278 (stem_P50)
+1e-5 nudged to 1.05e-5   resident 49 quantities, distance from 1e-5: median 0.0145, largest 0.0561 (omega), main largest 0.0197 (lma)
+1e-5 nudged to 1.05e-5   invader  49 quantities, distance from 1e-5: median 0.0171, largest 0.0430 (root_P50), main largest 0.0333 (stem_P50)
+unweighted (pinned)      resident 49 quantities, distance from 1e-5: median 0.0232, largest 0.1874 (a_dG1), main largest 0.1006 (a_dG2)
+unweighted (pinned)      invader  49 quantities, distance from 1e-5: median 0.0036, largest 0.0295 (root_c), main largest 0.0112 (stem_P50)
+rule A                   resident 49 quantities, distance from 1e-5: median 0.0225, largest 0.1894 (a_dG1), main largest 0.1046 (a_dG2) | farther than the unweighted on 30 of 49
+rule A                   invader  49 quantities, distance from 1e-5: median 0.0045, largest 0.0317 (root_c), main largest 0.0126 (stem_P50) | farther than the unweighted on 39 of 49
+A, cap 15                resident 49 quantities, distance from 1e-5: median 0.0142, largest 0.1088 (d_I), main largest 0.0626 (a_dG2) | farther than the unweighted on 9 of 49
+A, cap 15                invader  49 quantities, distance from 1e-5: median 0.0013, largest 0.0144 (root_P50), main largest 0.0035 (stem_P50) | farther than the unweighted on 11 of 49
+A, cap 22                resident 49 quantities, distance from 1e-5: median 0.0144, largest 0.1096 (d_I), main largest 0.0723 (a_dG2) | farther than the unweighted on 12 of 49
+A, cap 22                invader  49 quantities, distance from 1e-5: median 0.0016, largest 0.0142 (root_c), main largest 0.0035 (hmat) | farther than the unweighted on 15 of 49

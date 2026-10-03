@@ -1,0 +1,4 @@
+episodic 1e-5 (plant's control): 13127 steps, longest 18.5 d at t = 0.69; over 15 d: 32; over 22 d: 0
+episodic_base                    11022 steps, longest 22.1 d; over 15 d: 63; over 22 d: 1
+episodic_ruleA_h15               9669 steps, longest 15.0 d; over 15 d: 0; over 22 d: 0
+episodic_ruleA_h22               9643 steps, longest 22.0 d; over 15 d: 109; over 22 d: 0

@@ -1,0 +1,164 @@
+Phase 1c pre-registration: invaders under long steps (R5, R7)
+Written 2026-10-03 ~03:25 UTC, before any phase-1c run.
+
+Setting
+- Records: long drought, long-wet, episodic. Uniform 108 (window/t/t_u108.rds),
+  Cash-Karp, TOL=3e-5, ATOL=1e-4 (tied), driver harness/ark_prototype.R on
+  DEV/lib_v12t; plant replays (run_record.R, invader_window.R) on DEV/lib_guard,
+  as the window phase's queue scripts ran them.
+- Rule A's weight: docs/measurements/grid-dynamics/window/rule_A/weight_<record>.rds
+  (identical copies in DEV/window/rule_A/).
+- The unweighted runs: driver programs rej/tied_3e-5_soil1 (long drought),
+  window/drv/long-wet_base, window/drv/episodic_base. Full-gradient comparators:
+  window/full/ld_pin_base, window/full/epi_pin_base, and for long-wet plant's own
+  control docs/measurements/spot-check/wet_base.rds (no pinned unweighted run
+  exists; the driver-vs-plant noise floor is 1e-4 eps). Unweighted invaders at
+  the range ends: the pinned runs, and runs/win_long-wet_u108.rds for long-wet.
+- The change: HMAX=<days> sets ct$ode_step_size_max = HMAX/365 (hmax.patch).
+
+P0. The patch is inert when unset (check, before anything else).
+  Episodic under rule A with HMAX unset reproduces window/drv/episodic_rule.rds
+  bit for bit: identical st (every column), J, attempts and member evaluations.
+  If not, stop and fix the patch.
+
+P1. Never fails (R5). On each record's rule-A + HMAX=15 program, plant's replay
+  of the stand, its gradient, the identical invader's walk and gradient, and
+  every invader walk (lma and hmat at x0.5 and x2; x0.7 and x1.4 where run)
+  finish with a finite J'. Any raise fails P1.
+
+P2. Cost (R7). Let S = 1 - X/X_unweighted, X = rows (sum over accepted steps of
+  the members carried) and X = forward member evaluations, from the driver's
+  OUT. The cap stays if it gives up less than a fifth of rule A's saving:
+  (S_A - S_cap) / S_A < 0.2, for rows AND forward, on each record.
+  Rule A's measured savings (rows / forward): long drought 22.7% / 22.8%,
+  long-wet 21.2% / 20.5%, episodic 21.0% / 20.8%. So the capped run must save
+  more than about 18.1% / 18.3%, 17.0% / 16.4%, 16.8% / 16.7%.
+  Prediction, from splitting rule A's long steps evenly with no controller
+  feedback: +0.16%, +0.16% and +1.5% rows over rule A at 15 days, i.e. about 1%,
+  1% and 6% of the saving given up; under 0.2% at 26 days.
+
+P3. Accuracy (R1). On each HMAX=15 program, every quantity of both roles
+  (ln J and every elasticity with an eps in docs/measurements/eps.csv, the
+  window phase's 98) moves at most 0.08 eps against the unweighted run, as rule
+  A did (0.016 eps weight alone, 0.078 eps with thinning). A largest move in
+  (0.08, 0.10] eps is reported as marginal ("about 0.08"); over 0.10 eps fails.
+  Secondary, reported but not pass/fail: the range-end invaders' ln J' moves
+  against the unweighted runs' (expected under 0.08 eps).
+
+P4. Mechanism (HMAX=26, no pass criterion). For y' = -y/tau at tau_s = 7 d,
+  Cash-Karp's fourth stage goes negative past 15 d and the step is unstable
+  past 26 d. Decision rule: if every walk on the HMAX=26 programs runs,
+  stability is what the walk needs and positivity is not; if a walk raises
+  under 26 but not under 15, positivity is needed. Weak expectation: 26 runs,
+  since the unweighted episodic program already takes 63 steps over 15 d (to
+  22 d) and lma x2 runs on it; but rule B's raise followed a 33.8-d step and
+  sits on a 22-d one, so this is uncertain.
+
+P5. Verdict rule.
+  - P1, P2 and P3 pass at HMAX=15: the cap stays, and invader sub-steps are not
+    built (deleted for the cap, as the design's deletion list allows).
+  - P1 fails at 15 days: the cap does not protect invaders; sub-steps (or a
+    pool update that stays non-negative) are needed.
+  - P2 fails on any record: report the cap with the thinned schedule too, and
+    sub-steps are to be built if the cap costs a fifth or more.
+  - P3 fails: the cap's program moves a quantity; report which, and rule A's
+    own move on the same record where it exists.
+
+Addendum, 03:31 UTC, after P0 and the episodic 15-day driver run, before any
+full-gradient replay of a capped program:
+- P0 passed: HMAX unset reproduces episodic_rule.rds in every shared field
+  (st, J, attempts, the 24 shared counts); the new OUT adds only the later
+  driver's `control` field and `guarded` count (0).
+- The 15-day cap binds before the window too: episodic's capped program departs
+  from rule A's at t = 0.204 (154 steps at the cap), so it differs from the
+  unweighted run everywhere, not only after t = 23.5 as rule A does. Its
+  quantities may then move by a program change's incidental noise (R2), which
+  at 3e-5 may exceed 0.08 eps for the resident's pool traits.
+- Interpretation rule, fixed now: P3 is scored as pre-registered. If it fails,
+  each move is also set against the spread of long drought's +-5% tolerance
+  nudges at 3e-5 (spot-check ld_2.85e-5 and ld_3.15e-5 against ld_3e-5), quantity
+  by quantity. Moves inside that spread are read as R2's noise of a changed
+  program, not a loss of accuracy; P3 still stands as failed in the record.
+
+Addendum 2, 03:45 UTC, after episodic's 15-day full replay and 26-day driver,
+before the 26-day walks finish:
+- Seen: at 15 days every episodic walk runs (lma x2 J' 9.7e-20); the cap gives
+  up 2.3% / 2.4% of rule A's saving; P3 fails there as pre-registered (largest
+  0.187 eps, resident TF24_cost_scale; 12 quantities over 0.08, 5 over 0.10).
+  The moves exceed episodic's own +5% nudge on 35 of 49 resident quantities,
+  with rank correlation +0.67 to it.
+- Seen: the 26-day cap keeps rule A's episodic program to t = 26.296 (6 steps at
+  the cap), costing 0.1% / 0.2% of the saving.
+- Added runs (post hoc, not criteria): episodic's unweighted run capped at 15 d
+  (the cap's own move, and the weight's move under the cap); episodic at 1e-5
+  under plant's control, as a tighter reference for the capped and uncapped runs'
+  quantities; episodic's 26-day program replayed with gradients; long-wet's
+  rule-A program replayed with gradients and range-end walks.
+- Reading fixed now for the 1e-5 reference: the cap loses accuracy only if the
+  capped run's quantities sit farther from the 1e-5 run than the unweighted 3e-5
+  run's do (median and largest over each role, in eps).
+
+Addendum 3, 03:52 UTC, after the 26-day walks, before the bracket runs:
+- P4 result: on episodic's 26-day program lma x2 raises at t = 32.593 (steps of
+  26.0, 26.0 and 25.7 d there); the other seven walks run. By P4's rule, a step
+  at the linear stability limit (26 d = 3.71 tau_s) is not enough.
+- Bracket, post hoc: rule A capped at 22 d (3.14 tau_s; the three floors take no
+  step over 22 d before the weight starts, so such a cap leaves their window
+  programs untouched) and at 20 d (2.86 tau_s), on episodic, with eight walks.
+  Reading fixed now: if lma x2 runs at 20 d, which is past the positivity limit
+  (15 d) but 23% inside the stability limit, positivity is not what the walk
+  needs and a stability margin is; if it raises at 20 d, positivity is the
+  better explanation. A 22-d pass would make 22 d a candidate cap that costs the
+  floors nothing before the window.
+
+Addendum 4, 05:03 UTC. Results of the bracket, and the coordinator's question.
+- 22 d (seen 04:52, before the coordinator's message): every episodic walk
+  runs, lma x2 included (J' 9.744e-20), on three 22.0-d steps where rule A
+  (30.6, 38.2 d) and the 26-d cap (26.0, 26.0, 25.7 d) raised.
+- Coordinator's message (received ~04:53): separate positivity from stability,
+  since invader gradients will run under Dormand-Prince (positivity 1.04 tau_s
+  = 7.3 d, stability 3.31 tau_s = 23 d). Their rule: no raise at 26 d means a
+  negative stage does not raise; raises between 15 and 26 d mean positivity
+  matters. Asked: each invader's raise status at 15 and 26 d, the largest
+  h/tau_eff its members met (else h/tau_s), and, if time allows, one record at a
+  7-d cap priced in rows against rule A uncapped.
+- 20 d (seen 05:00, registered at 03:52 with its reading): every walk runs.
+- Test equation (test_equation.R): Cash-Karp's lowest stage is +0.009 at 15 d,
+  -0.504 at 20 d, -0.784 at 22 d, -1.512 at 26 d, where R = 0.965 (unstable
+  past 26.1 d). So stages down to -0.78 of the pool's value walked without a
+  raise; the raise sits at the stability limit. Dormand-Prince reaches -0.78 at
+  9.9 d and -4.25 at 15 d; Cash-Karp cannot test stages below -1.5.
+- Added: rule A capped at 7 d on episodic and long drought (driver), priced
+  against rule A uncapped; rule A capped at 22 d on long drought and long-wet
+  (driver); episodic's 22-d program replayed with gradients.
+
+Addendum 5, 05:40 UTC, before the 1e-5 reference and long drought's 22-d replay.
+- Seen: long drought and long-wet at 15 d run every walk; their largest moves
+  are 0.107 and 0.114 eps (resident a_dG1), so P3 fails narrowly there too.
+- Seen: episodic at 22 d (replay with gradients): largest move 0.066 eps
+  (resident omega), none over 0.08; the 22-d cap departs from rule A at
+  t = 0.741 (episodic), 8.519 (long drought), 35.460 (long-wet).
+- Seen, the decomposition on episodic: the unweighted run capped at 15 d moves
+  every quantity as rule A capped does (largest 0.185 eps, TF24_cost_scale);
+  rule A capped against the unweighted run capped moves at most 0.007 eps.
+- Added: rule A capped at 10 d on episodic and long drought (driver), the step
+  at which Dormand-Prince's lowest stage reaches -0.78; long drought's 22-d
+  program replayed with gradients and eight walks. The 22-d cap is scored on
+  P1-P3 as the 15-d cap was.
+
+Addendum 6, 05:55 UTC, results seen before long drought's 22-d replay and
+long-wet's rule-A replay finish.
+- Against plant's run at 1e-5 (episodic, both roles' gradients; its own longest
+  step is 18.5 d), the resident's distance (median / largest, eps): unweighted
+  0.041 / 0.141, rule A 0.040 / 0.143, rule A capped at 15 d 0.022 / 0.074,
+  unweighted capped at 15 d 0.022 / 0.077, rule A capped at 22 d 0.022 / 0.131,
+  the +5% nudge 0.033 / 0.112. By addendum 2's reading the 15-d cap does not lose
+  accuracy: its run sits closer to 1e-5 than the unweighted run on 39 of 49
+  resident quantities. Invader roles: 0.003-0.006 median in every run.
+- Rule A capped at 10 d gives up 1.0% / 0.5% (long drought) and 9.0% / 6.1%
+  (episodic) of the saving; at 7 d 4.5% / 2.7% and 22.1% / 14.8%.
+
+Closing note, 06:14 UTC. At the coordinator's request the queue stopped after
+long drought's 22-d replay (all eight walks run; largest move 0.099 eps,
+resident a_dG1, marginal by P3's band). Long-wet's rule-A replay was stopped at
+start; the remaining planned runs were not made (see the report).

@@ -1,0 +1,19 @@
+Cash-Karp       first stage negative past h/tau = 2.159 (stage 4; 15.1 d at tau_s = 7 d); unstable past 3.734 (26.1 d)
+   h =  7 d (h/tau_s 1.00): lowest stage +0.427 (stage 6), R = +0.368
+   h = 10 d (h/tau_s 1.43): lowest stage +0.320 (stage 6), R = +0.241
+   h = 15 d (h/tau_s 2.14): lowest stage +0.009 (stage 4), R = +0.136
+   h = 20 d (h/tau_s 2.86): lowest stage -0.504 (stage 4), R = +0.207
+   h = 22 d (h/tau_s 3.14): lowest stage -0.784 (stage 4), R = +0.337
+   h = 24 d (h/tau_s 3.43): lowest stage -1.118 (stage 4), R = +0.572
+   h = 26 d (h/tau_s 3.71): lowest stage -1.512 (stage 4), R = +0.965
+Dormand-Prince  first stage negative past h/tau = 1.038 (stage 6; 7.3 d at tau_s = 7 d); unstable past 3.307 (23.1 d)
+   h =  7 d (h/tau_s 1.00): lowest stage +0.055 (stage 6), R = +0.368
+   h = 10 d (h/tau_s 1.43): lowest stage -0.809 (stage 6), R = +0.244
+   h = 15 d (h/tau_s 2.14): lowest stage -4.252 (stage 6), R = +0.177
+   h = 20 d (h/tau_s 2.86): lowest stage -12.497 (stage 6), R = +0.434
+   h = 22 d (h/tau_s 3.14): lowest stage -17.927 (stage 6), R = +0.738
+   h = 24 d (h/tau_s 3.43): lowest stage -25.004 (stage 6), R = +1.249
+   h = 26 d (h/tau_s 3.71): lowest stage -34.068 (stage 6), R = +2.059
+Dormand-Prince's lowest stage reaches Cash-Karp's at 20 d (-0.504) at h/tau = 1.308, 9.2 d (R +0.273)
+Dormand-Prince's lowest stage reaches Cash-Karp's at 22 d (-0.784) at h/tau = 1.419, 9.9 d (R +0.246)
+Dormand-Prince's lowest stage reaches Cash-Karp's at 26 d (-1.512) at h/tau = 1.644, 11.5 d (R +0.204)

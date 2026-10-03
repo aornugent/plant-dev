@@ -1,0 +1,14 @@
+method     identical
+nodes      identical
+tol        identical
+J          identical
+attempts   identical
+regime     identical
+rain       identical
+knots      identical
+st         identical
+weight     identical
+by_node    identical
+counts     24 shared, identical
+only in the new OUT: control | new counts: guarded = 0 
+steps 9637 vs 9637; J 1.97895281676522 vs 1.97895281676522; member evaluations 3522426 vs 3522426
