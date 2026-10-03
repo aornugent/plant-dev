@@ -113,6 +113,7 @@ picture: spaces, metrics, error and stability.
 | 1b. the pair and its interpolant | done: keep Cash–Karp, with its own free fourth-order extension for events (5.9% of a forward); Dormand–Prince is worse on TF24 and is dropped (`grid-dynamics.md` §11) |
 | 1c. invaders under long steps | done: keep the 15-day cap, on the floor too; no invader sub-steps under Cash–Karp; the cap under Dormand–Prince is open (`grid-dynamics.md` §8) |
 | 3, brought forward | done: a weight per state in odelia's controller and plant's patch, the mechanism of the chain's weight and the window's (`state-weights` on both forks); plant reproduces the driver's weighted runs bit for bit |
+| running now | the soil weight's ceiling (×20–×50) in plant; soil ×10 with rule A and the 15-day cap together, in plant on three pulsed records; ARK's soil estimate from the chain alone, on the driver; the implicit chain built in odelia and plant (`ark-step`, `ark-soil`) |
 | 2. the node axis | B or D is the user's call; the light field's ordering test is a fix in plant; the chosen rule's ladders off long drought not run |
 | 3. the build | waits on phases 1 and 2 |
 | 4. on the bank | the finish line |
