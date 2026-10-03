@@ -105,7 +105,8 @@ The goal is `OBJECTIVES.md`. The design is `docs/design-grid-controller.md`:
 its search under the system-design skill, what it rests on, and the arc from
 here to finished. The assessment that led to it is `docs/assessment.md`, whose
 steps the sections below record. `docs/geometry.md` puts the problem in one
-picture: spaces, metrics, error and stability.
+picture: spaces, metrics, error and stability, the laws that price the mesh,
+and the frontier they draw, with its operating point (§6).
 
 | the arc | state |
 |---|---|
@@ -116,6 +117,7 @@ picture: spaces, metrics, error and stability.
 | 1a, round two | done: the implicit chain with the chain alone's soil estimate passes at `3e-5` for the resident (−44.3%; −67% under constant rain); the explicit weight's ceiling is ×20 (`grid-dynamics.md` §10) |
 | 1c, combined | soil ×10 with rule A and the 15-day cap saves 33–37% of a gradient run and every walk runs, but the product weight (1000) let soil stages reach the potential ceiling in accepted steps, refusing the gradients; each state's weight is now bounded (`ode_weight_max`), and at 100 the episodic gradient is finite (`grid-dynamics.md` §8) |
 | running now | the bounded combined setting on three records with walks and nudges (1c agent); the implicit chain built in odelia and plant (`ark-step`, `ark-soil`; build agent) |
+| the acceptance suite | designed in the spec: the objectives as bounded tests against brute-force references, in tiers; its build is held until the user starts it |
 | 2. the node axis | B or D is the user's call; the light field's ordering test is a fix in plant; the chosen rule's ladders off long drought not run |
 | 3. the build | waits on phases 1 and 2 |
 | 4. on the bank | the finish line |

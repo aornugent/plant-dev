@@ -489,15 +489,85 @@ bit-identical wherever its default is off (AGENTS.md):
 6. the diagnostics R8 asks for: the companions' estimate, θ's distance from θ₀
    against the radius, the failures, and the chain's error.
 
+### The acceptance suite: the objectives as tests
+
+Designed, and its build is held until the user starts it. It lands in plant's
+tests beside the build it accepts, and asserts only what `OBJECTIVES.md`
+asserts, so a better controller passes without a test edited.
+- *Three rules keep it from fixing today's design in place.*
+  1. It asserts the objectives' bounds and nothing else: error ≤ ε, nudges
+     ≤ ε/3, an error estimate within 0.5–2× of the true error, no throws, and
+     rows no more than brute force's at the same error. Never a step count, a
+     binding component, which rule fired, or a pinned `J`.
+  2. Its reference is brute force, not today's controller: one converged answer
+     per fixture, regenerated only when plant's scientific surface changes (its
+     model-version snapshot).
+  3. Each fixture's ε is set as `OBJECTIVES.md` sets it: a tenth of the spread
+     over a few weather seeds of that fixture, computed once with the
+     references, and never under 0.01 for an elasticity.
+- *A fixture* is one record on about 20–27 nodes, with the resident and invaders
+  at ×0.5 and ×2.
+  - The reference script also checks that the fixture still shows what is
+    guarded: crossings, soil-bound steps, a dry spell long enough to reach the
+    15-day cap, and invaders at the range's ends.
+  - Every run takes both roles' full gradients, so one sweep each checks all 48
+    elasticities.
+- *The runs:* the base; `tol` ×1.05 and ×0.95; the introductions shifted by a
+  quarter spacing; and a looser companion, which becomes the controller's own
+  estimate once R8's diagnostic exists.
+
+| objective | compared | bound |
+|---|---|---|
+| R1, accurate | the base against the reference | ≤ ε per quantity |
+| R2, reproducible | each nudged run against the base | ≤ ε/3 |
+| R4 and R8, predictable and diagnosed | the estimated error against the true error | within 0.5–2× where the true error is above noise |
+| R3, continuous | two nearby invaders on one recording: their chord against the mean of their gradients | ≤ ε/3 |
+| R5, never fails | invaders at the range's ends, the resident at ±10% | no throw |
+| the diagonal | the invader's `J′` against `J` at the resident's traits | bit-equal |
+| R7, performant | rows against brute force's at the same achieved error | no more |
+
+- *Tiers.*
+  - Every edit, seconds: each build's own component checks, such as the
+    interpolant's order, the adjoint against differences, weights of one
+    changing nothing, and the implicit stepper's order.
+  - Before a push, under 3 minutes serial: one fixture and the table. That needs
+    a forward of about 5 s, from fewer nodes and a shorter lifetime or a
+    faster-maturing fixture species, with `J` still earned inside the run (on
+    the bank, from about year 11 to 29).
+  - Nightly or before a merge, about 15 minutes: three fixtures (pulsed, wet,
+    constant rain), the node knob at n against 2n, one curvature, and a seeded
+    sweep of invader traits. A trait point that ever fails joins a list rerun
+    every time.
+  - Milestones, hours: the bank, which is phase 4.
+- *An objective not yet met is skipped with its reason, not dropped.* A build is
+  accepted when its skip comes out and the test passes, so the skips list what
+  remains: reproducibility at a loose `tol` until events land, for one.
+- *`tol` stands in for the target.* Until the controller takes an accuracy
+  target, the tests drive it through `tol`. When it takes one, `tol` leaves the
+  tests and nothing else changes. Finding the operating point is phase 4's; the
+  suite checks the bounds wherever the controller lands.
+- *Cost:* about 300 lines in plant's tests (a fixture helper, the property
+  tests and the reference script), with no dependence on plant-dev's harness.
+  The references take 1–3 CPU hours once.
+- *Rejected:* pinned-output snapshots, fast but broken by every controller
+  improvement; and the bank alone, the right checks at hours a run.
+
 ### Phase 4: on the bank
 
 1. *The four tests at ε* for forward runs and both roles' gradients, on every
    record of the bank, with the runtime against the floor's at matched error.
+   *The operating point* splits the error budget about 2:5 between time and
+   nodes (`geometry.md` §6). With events in, `tol` loosens until the gradients'
+   spread under nudges meets ε/3: about `3e-4`, if it grows in proportion from
+   0.06–0.28 of ε/3 at `1e-4`. The saving goes to graded nodes, with a second
+   rung read for their error.
 2. *Local analyses, each on one grid within its radius:* invader landscapes
    over ×0.5–×2, the resident within ±10%, the selection gradient, and
    curvatures. Where a radius falls short, several grids or a finer one,
    whichever costs less, with brute force the fallback. The invader's radius is
-   measured first, at ×0.5, 0.7, 1.4 and 2 against brute force. Once events make
+   measured first, at ×0.5, 0.7, 1.4 and 2 against brute force. The cheaper side
+   should meet it first, since its weight spreads later in b, where the mesh is
+   coarser (`geometry.md` §5). Once events make
    `J` smooth on a grid, curvatures have three routes:
    - chords of gradients, about 68 forwards for five traits in both roles;
    - forward-over-reverse, about 26;
@@ -526,6 +596,8 @@ gain, and each multiplies with the rows the arc saves.
 ## The user's decisions
 
 - *B or D:* evaluated at phase 2a.
+- *The acceptance suite* is part of the design; its build waits for the user's
+  go.
 - *The pair:* Cash–Karp everywhere, invader runs included, with its own
   fourth-order extension as the dense output. Dormand–Prince is dropped.
   - The earlier plan, Dormand–Prince for runs that host invader gradients, rested

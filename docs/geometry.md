@@ -1,10 +1,12 @@
-# The problem as geometry: spaces, metrics, error and stability
+# The problem as geometry: spaces, metrics, error, stability and the frontier
 
 One picture for `OBJECTIVES.md`, the record in `docs/grid-dynamics.md` and
-`docs/measurements/`, and the design in `docs/design-grid-controller.md`. Two
+`docs/measurements/`, and the design in `docs/design-grid-controller.md`. Three
 things here are new:
 - the two pairs' stability and positivity on a pool (`harness/stability.R`);
-- a few ratios taken from the ε table (`docs/measurements/eps-spread.md`).
+- a few ratios taken from the ε table (`docs/measurements/eps-spread.md`);
+- the laws that price the mesh, and the frontier they draw (§3 and §6 here),
+  each checked against the record.
 
 Everything else is cited. Section marks (§) are `grid-dynamics.md`'s.
 
@@ -12,10 +14,17 @@ Everything else is cited. Section marks (§) are `grid-dynamics.md`'s.
 - *Where the answer lives.* On a triangle of birth date b and time t.
 - *The grid* is a mesh on that triangle. Each node is a vertical line, and each
   accepted step a horizontal line across every member alive.
-- *The cost.* A row is one cell of the mesh, and rows are what a gradient run
-  pays.
+- *The cost.* A row is one cell of the mesh. A step costs its row, a node its
+  lifetime, and a gradient run pays every cell about seven times.
 - *The error* of a quantity is the sum, over cells, of each cell's local error
   weighted by the adjoint: how far that cell's states reach into the quantity.
+- *Where cells pay.* For a given weighted error, the fewest cells shrink as the
+  sixth root of their weight in time and the cube root in birth date. So nodes
+  answer to weight and steps hardly do.
+- *The frontier* is runtime against error. A knob moves along it, a lever moves
+  it, and a wall is where a knob stops working. Its cheapest point splits the
+  error budget about 2:5 between time and nodes; today the time axis spends far
+  less than its share.
 - *The objectives' stability* is the regularity of two maps:
   - the answer as a knob moves (accurate, reproducible, predictable);
   - the answer as the traits move on one frozen mesh (continuous, never fails).
@@ -37,9 +46,13 @@ Everything else is cited. Section marks (§) are `grid-dynamics.md`'s.
 - *The grid is a mesh on the triangle.* A node is a vertical line. An accepted
   step is a horizontal line across the whole row, since every member alive
   takes it. A **row** is one cell: one member over one accepted step.
-- *So a step costs the row's width.* Members accumulate, so late steps cost
+- *So a step costs the row's width, and a node its lifetime in steps.* The cells
+  are the total length of the lines. Members accumulate, so late steps cost
   most: 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is
   still to be earned.
+- *A gradient run pays every cell about seven times:* the forward, its sweep
+  (2.6), the invader's walk (0.8) and its sweep (2.6). A rejected attempt is
+  paid once, by the forward alone.
 - *A stiff part anywhere shortens the step for every member.* The soil chain, a
   function of t alone, binds 83–91% of the steps. The members alone would need
   about half as many.
@@ -116,7 +129,11 @@ the cells:
   step's end;
 - the nodes' quadrature error across each row.
 
-Plant's sweep computes ȳ backwards over the recorded steps.
+Plant's sweep computes ȳ backwards over the recorded steps. In one line, with
+w a cell's weight |ȳ|, h its step, Δ_b its node spacing and p the pair's order,
+the error is Σ over cells of w·(C_t·h^{p+1} + C_b·Δ_b²), plus a term for each
+cell that straddles a switch, plus whatever lies in directions the norm cannot
+see. The last two are the kinks and the norm's blind directions below.
 
 *R(t), the share of `J` still to be earned, bounds ȳ in time.* An error made
 at t, in a step or in a node born at t, changes `J` only through what is earned
@@ -135,6 +152,25 @@ saved rows is such a guess:
 The design's commitment is this statement: the global step is set by a norm
 that weighs each state by its reach into the objectives.
 
+**Where cells pay: the root law.** At a fixed weighted error the fewest cells
+come from sizing each cell as (w·C)^{−1/(p+1)} along each axis: the sixth root
+in t for Cash–Karp's fifth order, the cube root in b for the nodes' second
+order. A weight of 100 then lengthens a step about 2× and widens a node spacing
+about 4.6×. The controller itself, holding each step's error to the tolerance,
+answers a weight with the fifth root, 2.5×.
+- *The record agrees.* Every tolerance weighted ×100 after t = 25 on long
+  drought cut the accepted steps from 17 684 to 14 730, and the member
+  evaluations by 27% (§8, test 1). So the steps after 25, 34–38% of the run's,
+  grew 1.8–2.0× longer, short of either root because some sit at walls
+  (section 6).
+- *Nodes take far more.* Nodes born after 25, thinned fourfold, moved every main
+  quantity by at most 0.07ε (§8, test 3).
+- *So nodes answer to weight and steps hardly do.* The window's weight returns
+  21–28% and no more because the time axis saturates. The node axis has the
+  larger lever, but late nodes hold few cells: the fourfold thinning after 25
+  saved 11.7% of member-steps. Its lever is the grading of the early nodes,
+  where the first-mover layers carry the weight.
+
 **An error the norm cannot see does not converge.** Take a direction of error
 that has weight in ȳ but none in the norm. The controller never shortens a step
 for it, so that part of the error stays as the tolerance falls.
@@ -142,6 +178,19 @@ for it, so that part of the error stays as the tolerance falls.
   the members' norm restored convergence.
 - So anything taken out of the norm, the implicit chain included, needs a
   control of its own.
+
+**A stage the norm cannot see can leave the domain.** A weight frees a
+component's stages as well as its error.
+- With the soil ×10 and rule A's factor of 100, the soil's weight late in the
+  run is 1000. The error test then accepts steps with a soil stage at plant's
+  1000 MPa potential ceiling. There the root curve's derivative is refused, and
+  both roles' gradients fail (§8). At a weight of 100 no accepted step reaches
+  the ceiling, though rejected attempts do.
+- R(t) bounds a weighted error's reach into `J`. It says nothing about where a
+  stage goes.
+- So every weight is bounded (plant's `ode_weight_max`), and anything weighted
+  further down needs its stages checked against the domain, not assumed inside
+  it.
 
 **Kinks lie where the model switches.** The model is smooth except where:
 - a member's net production is zero (its positive part);
@@ -325,15 +374,115 @@ two ways to cover it:
 Each new mesh for an invader is a new resident run, since an invader walks its
 resident's recording.
 
-## 6. The design in these terms
+**Covering is a second frontier: radius against cells.** A radius ends where
+moved weight first lands on coarse cells, so where an invader's weight moves
+decides which cover is cheaper.
+- *A costlier invader's weight moves to the window's opening.* Under constant
+  rain the members that earn 90% of `J′` are born before 0.012 years at `lma`
+  ×1.01, 0.12 at ×0.99 and 2.2 at ×0.5. Graded nodes are densest at the
+  opening, so one graded mesh can serve the costlier side.
+- *A cheaper invader's weight spreads later in b,* where the resident's mesh is
+  coarser, so the cheaper side meets the radius first. Its `J′` there runs to
+  hundreds or thousands: 541–2682 at `lma` ×0.5 on the pulsed records. How
+  closely a landscape must hold where the invader could not stay rare is a
+  modelling question.
 
-- *The norm places the global lines,* weighted by reach into the objectives.
-  - Whatever the norm cannot see is refined inside a cell, never by adding a
-    global line.
-  - Events cut a member's cell at its crossing. Sub-steps divide an invader's
-    cell where its pools are fast.
-  - A local refinement costs one member's cell; a global line costs the whole
-    row.
+## 6. The frontier
+
+Runtime and error trade along a frontier. A **knob** moves a run along it:
+`tol`, the node count. A **lever** moves the frontier itself: events, a weight,
+the implicit chain, graded nodes. A **wall** is where a knob stops working.
+
+**Two curves, and the budget's split.**
+- *In `tol`:* the error goes as `tol` and, on a free mesh, the cells as
+  `tol^{−1/5}`: ten times the error for 1.6 times the cells. TF24's steps go as
+  `tol^{−0.15}` (§1), which puts about three quarters of them on that curve and
+  a quarter at walls. The node count barely moves them: 17 338 to 18 807 steps
+  from 54 to 429 nodes (§1), so the two axes price separately.
+- *In the nodes:* the error goes as Δ_b² once each panel holds one regime, so
+  the cells go as ε_b^{−1/2}, or ε_b^{−1/4} with two rungs extrapolated. Uniform
+  nodes on long drought follow no power law (section 3), so this curve needs
+  graded or spread nodes first.
+- *The split.* Cells ∝ ε_t^{−1/5}·ε_b^{−1/2} are fewest when the error budget
+  splits between time and nodes as the exponents do: about 2:5, near even with
+  two rungs.
+
+**Where the run sits today.**
+- For `J` the time axis holds 1/2000 of ε: 1.26e-5 at `3e-5`.
+- For the gradients the floor runs at `1e-5` because of the kinks. At `1e-4` the
+  resident's pool traits move up to 1.65 ε/3 under nudges, 70–85% of it from
+  the crossings (R2).
+- The node axis is at the bar or past it: 1.19ε for wet's invader `lma` on
+  uniform 108.
+- *So once events cut the kinks, loosen `tol` and spend on nodes.* On the cut
+  mesh the four pool traits measured move 0.06–0.28 of ε/3 under nudges at
+  `1e-4` (§11). If that grows in proportion to `tol`, about `3e-4` meets the
+  bar, with about 1.2× fewer steps than `1e-4` and 1.7× fewer than `1e-5` at
+  `tol^{−0.15}`. The saving goes to graded nodes, with a second rung read for
+  their error.
+
+**The walls.**
+
+| wall | where it binds | what it costs | removed by |
+|---|---|---|---|
+| the record's knots | a step ends at each: 2931 on long drought, of 17 684 steps | a floor under the step count as `tol` loosens | nothing; they are the forcing |
+| the soil's stability | constant rain, where 83% of the chain's steps start near the explicit limit; the days after rain | the implicit chain saves 66% there (§7) | the implicit chain, with a control of its own (§10) |
+| the pools' stability | rule A's long steps, and every invader walk | the 15-day cap gives up 0.0–2.4% of rule A's saving (§8) | the cap |
+| kinks, on the gradients | 726 of 14 845 steps hold a crossing | `1e-5` in place of `1e-4`: +41% of leaf solves (§11) | events: +10.2% of a forward on a quintic, +5.9% on Cash–Karp's own extension (§11) |
+| directions out of the norm | the partition's coupling | no convergence (§13) | a control for each |
+| stages out of the domain | the soil ×10 times rule A's 100 | both roles' gradients refused (§8) | a bound on every weight |
+
+- *The soil's accuracy is not a wall.* Its steps answer to `tol`, and its error
+  reaches `J` in proportion (§1). A weight on the soil loosens the time axis
+  where the error is cheapest to give, as `tol` does everywhere (phase 1a).
+- *A kink is a wall on the gradients only.* Across the crossings `J`'s kink
+  error averages out. A gradient's error follows h at the crossings (§11), so
+  its slope in `tol` falls from 1 to about 1/5, and only a cut restores it.
+
+**Levers that give up nothing.** Each moves the frontier, so none is a trade.
+
+| lever | cost at matched error | state |
+|---|---|---|
+| events | about 0.75 of `1e-5`'s (1.059 against 1.41) | measured on the driver (§11) |
+| the window's weight and thinning | 0.72–0.75, at ≤ 0.08ε | measured (§8) |
+| graded nodes, two rungs read | about 0.5 of uniform's, at equal and predictable error | the square law measured; the factor projected |
+| the implicit chain, the soil judged by the chain alone | 0.56 on long drought at `3e-5`, 0.33 under constant rain | measured for the resident (§10); being built |
+| the sweep's cost per cell | about 0.5 of the sweep's | profiled (`measurements/perf-sweep.md`) |
+| the forward's warm start | about 0.9 of a gradient run | projected |
+
+The controller's levers are not on this list. Seeds, PI and the guard turn
+rejections, paid once, into accepted steps, paid seven times: 1.00–1.06 of a
+gradient run (4(b) above).
+
+**What remains to trade, and what is never traded.**
+- *Three trade-offs:*
+  - the `tol` knob, nearly free;
+  - the node count against predictability: a uniform rung can be right by
+    cancellation, off any power law, while a graded one is honest and needs two
+    rungs to read;
+  - a weight against risk: each direction weighted down needs a control of its
+    own, and a bound on where its stages go.
+- *Three constraints:*
+  - nothing fails, for every cell at every θ′ in the box, which no weight on the
+    resident sees;
+  - `J′ = J` on the diagonal;
+  - regularity on a frozen mesh, with the controller frozen, the kinks cut and
+    the cuts frozen with the mesh.
+
+## 7. The design in these terms
+
+- *Whatever one member needs is cut inside its cell; whatever the row needs is
+  drawn as a global line.* A cut costs one member's cell, a global line the
+  whole row.
+  - One member's: its crossings, and an invader's fast pools.
+  - The row's: the soil, the knots and the window. The norm places these lines,
+    weighted by reach into the objectives.
+  - Events cut a member's cell at its crossing. An invader's pools are held by
+    the 15-day cap instead, for at most 2.4% of rule A's saving, so they need no
+    sub-steps under Cash–Karp (phase 1c).
+- *The pair follows.* A cut needs a continuous extension of the step's order.
+  Cash–Karp's own is free, and Dormand–Prince overshoots pools earlier and
+  deeper (4(a) above), so there is nothing to trade.
 - *Refinements are part of the mesh,* and frozen with it. So `J′(θ′)` is smooth
   on it, and the sweep differentiates the discrete map on that mesh.
 - *On the diagonal the refinements vanish:* nothing triggers at θ′ = θ. The
@@ -342,7 +491,7 @@ resident's recording.
   pilot's R(t). They pay where they change the mesh's density, not where they
   only spare the controller rejections.
 
-## 7. What the picture adds
+## 8. What the picture adds
 
 1. *Dormand–Prince's stages overshoot early and deep:* past 1.04τ against
    Cash–Karp's 2.16τ, and to −4.25 on a 15-day step (4(a) above). Most explicit
@@ -367,3 +516,12 @@ resident's recording.
 6. *Two kinds of lever.* Those on the controller's dynamics cut rejections, which
    the forward alone pays. Those on the metric cut accepted cells, which every
    sweep and walk pays.
+7. *Nodes answer to weight; steps hardly do.* The root law prices a weight of 100
+   at about 2× on a step and 4.6× on a node spacing, and the record's ×100 after
+   t = 25 lengthened those steps 1.8–2.0×.
+8. *The budget splits about 2:5 between time and nodes.* Today the time axis
+   holds 1/2000 of `J`'s ε while the nodes sit at the bar. So after events the
+   cheaper point loosens `tol` toward `3e-4` and spends the saving on nodes,
+   which phase 4 confirms or refutes.
+9. *A weight frees stages as well as errors.* Every weight needs a bound, since
+   R(t) bounds a weighted error's reach into `J` but not where a stage goes.
