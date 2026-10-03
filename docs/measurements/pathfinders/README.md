@@ -41,8 +41,20 @@ weak (the partition, revisited).
   - Steps whose uptake is under 1% of the soil's budget are 51–66% of steps
     and 48–64% of rows, 91–97% of them soil-bound, and almost none in long dry
     spells: the weak coupling is the wet regime, where the members' headroom is.
-- *Not run:* Q2 (Cash–Karp with the chain-alone estimate) and Q3 (the
-  multirate step).
+- *Q2 not run:* Cash–Karp judges the soil within [0.5, 2] (Decision 1).
+- *Q3 done* (`q3/`, recorded in `grid-dynamics.md` §15). Steps whose uptake is
+  under 10% of the soil's budget take the soil alone at `1e-9` under an
+  extrapolated uptake, with a corrector and the coupling's error in the norm.
+  - The registered step, the coupling judged at the soil's weight, saves 48–49%
+    of rows but fails its pass on `J` by 2.6% on episodic (+2.6e-4, 22× bounded
+    Cash–Karp's). Its gradients are unaffected.
+  - Judged at the members' weight (exploratory), it passes every criterion on
+    both records: rows −41% and −45%, `J` +2.6e-5 and +7.1e-5, elasticities
+    within 0.11ε of the reference, nudges ±0.0002ε. At bounded Cash–Karp's `J`
+    error it saves 41% and 29% of rows.
+  - Its `J` error stops falling below `3e-5` (about 0.001ε), so its flag must
+    yield as the tolerance tightens. The replays' unfrozen sub-steps add up to
+    0.03ε of noise to finite-difference elasticities.
 
 **The node axis** (`node-axis/`): B, D and B+D on long-wet and long drought, D
 against the thinning the field part refuted, and the light field's ordering.

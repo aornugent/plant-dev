@@ -70,3 +70,56 @@ EXPLORATORY VARIANT mrw, written 21:06 UTC before it ran (not eligible to pass Q
   rows still <= 0.9 x bnd's. Refuted if J's error stays above 0.5 x mr's on either record (the
   bias then lies elsewhere: the extrapolated uptake, or the stage soil itself).
   Runs: mrw_ld, mrw_epi (forward, 3e-5); elasticities only if the hypothesis holds.
+
+CHECK RESULT and follow-up, 21:36 UTC. d_I at r = 1e-4 against r = 1e-3 on mr_ld: +0.019 eps
+  (1.9e-4 in E), over the 0.01 eps registered. The replay noise phase 1a measured on bnd's program
+  is ~1e-8 in ln J, ~1e-4 in E at r = 1e-4 (0.01 of d_I's floored eps), so the check cannot tell
+  the unfrozen sub-steps from that noise at r = 1e-4. Follow-up: the same pair on bnd's program
+  (q1_ld, no sub-steps). If bnd's r = 1e-4 moves d_I by a comparable amount, the shift is the
+  replay's noise amplified by 1/r and r = 1e-3 stands; if bnd's moves under a third of mr's, the
+  unfrozen sub-steps carry it, and mr's d_I is read with a 0.02 eps floor.
+  21:41 lma at r = 1e-4 against 1e-3 on mr_ld: +0.028 eps (2.4e-3 in E); d_I +0.019 eps. One-sided
+  slopes: lma's two sides differ by C r with C = -44 (r = 1e-3) and -42 (r = 1e-4), consistent
+  with eps.csv's -39, so the curvature is clean; only the symmetric part moves. A jump of about
+  +-2.5e-7 in ln J on either side of theta_0 fits it, independent of r: the adaptive chain's step
+  sequence changes with theta, and its global error (1.8e5 sub-steps at ~3e-10 each) moves with
+  it. My registered noise estimate (1e-9..1e-8) was ~50x low. At r = 1e-3 the jump puts ~2.7e-4
+  in E: 0.003 eps (lma), 0.007 (a_dG1), 0.014 (a_dG2), 0.027 (d_I, omega). The verdicts below are
+  read with that floor; reverse mode on a frozen chain would carry none of it.
+  22:05 follow-up: bnd's d_I (q1_ld, no sub-steps) at r = 1e-4 against 1e-3: +0.013 eps, 0.67 of
+  mr's +0.019: comparable, so by the rule above d_I's shift is the replay's own noise (one-sided
+  slopes put it at ~2e-8 in ln J per side, as phase 1a found) and r = 1e-3 stands. lma's shift on
+  mr (2.4e-3 in E, ~2.5e-7 in ln J) is ten times that: the sub-steps carry it where the
+  perturbation moves the uptake. Floor at r = 1e-3: ~3e-4 in E for lma (0.003 eps); for the
+  others no more than lma's jump over r, 0.007-0.027 eps.
+
+mrw RESULT and follow-up, written 22:21 UTC before any mrw replay.
+  mrw_ld: J/J* - 1 = +2.57e-5 (mr +1.72e-4, bnd -2.19e-5), rows 373 188 (-41.4% of bnd's), member
+  evaluations -37.3%. mrw_epi: +7.11e-5 (mr +2.59e-4, bnd +1.15e-5), rows 229 673 (-44.8%), member
+  evaluations -40.1%. The hypothesis holds on both: J within max(2 x bnd's, 0.01 eps) and under
+  half of mr's (0.15, 0.27 of it); rows <= 0.9 x bnd's. The coupling's estimate at the soil's
+  weight carried mr's J bias.
+  Follow-up (exploratory; mrw was not Q3's registered candidate): Q3's pass applied to mrw as it
+  was to mr: elasticities by frozen-structure central differences (r = 1e-3, the five traits,
+  resident) on both records, read against the 1e-5 references and bnd's driver differences (each
+  distance under eps/3 and no larger than bnd's + 0.1 eps); J over 1e-4, 3e-5, 1e-5 on long
+  drought (R4 on e_J); the +-5% nudges (long drought) on J. Pass also needs rows <= 0.9 x bnd's
+  and member evaluations <= bnd's (holds). At matched error: bnd's J error at 3e-5 is level with
+  mrw's on long drought; on episodic, mrw at 3e-5 is read against bnd at 1e-4 (queued).
+
+VERDICTS, written 23:02 UTC from q3_report.log.
+  mr (registered): FAILS Q3's pass on J (episodic +2.59e-4 against 2.52e-4). Everything else holds:
+  rows -47.9% / -49.4%, member evaluations -45%, elasticities within 0.048 eps of the reference and
+  0.065 eps of bnd's (same method), J's nudges +-0.0002 eps, R4 on e_J. Its episodic J barely moves
+  with tol (+2.86e-4 at 1e-4): the coupling's error was not under the tolerance's control.
+  mrw (exploratory): passes every criterion of the follow-up on both records: rows -41.4% / -44.8%,
+  member evaluations -37% / -40%, J +2.57e-5 / +7.11e-5, elasticities within 0.106 / 0.036 eps of the
+  reference and within bnd's + 0.1 eps, nudges +-0.0002 eps, R4 on e_J. At matched J error it saves
+  41% of rows on long drought (against bnd at 3e-5) and 29% on episodic (against bnd at 3e-4).
+  Caveats: below 3e-5 mrw's J error stays at ~2.6e-5 (1e-5: +2.74e-5), a floor the tolerance does
+  not move; its elasticities sit further from the reference than mr's on long drought (a_dG2
+  -0.106 against -0.037), a real bias of the multirate map, not replay noise (one-sided slopes
+  clean); resident role only, five traits, two records.
+  Provenance: mrw_ld and mrw_epi ran from harness_w/ (drv_w.sh, MR_SHARE=0.1 MR_COUPLE=member); the
+  replays and the ladder from w/harness/ (drv_w2.sh, which sets both itself). The two copies are
+  identical (cmp), and drv_w2.sh sets the same two variables.

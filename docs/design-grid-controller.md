@@ -466,6 +466,21 @@ phase 4 finds the invader's curvatures short. For R5, 1c's cap suffices.
   passes the nudge test (largest move 0.32 of ε/3), and its gradient's jumps are
   3e-5 of itself, since its sweep holds the resident's field fixed.
 
+**1e. The soil stepped alone where the plants draw little** (a pathfinder;
+`grid-dynamics.md` §15). Not in the arc as first written; whether it joins
+phase 3 is the user's call.
+- *Mechanism:* a step whose uptake is under 10% of the soil's budget at its
+  start integrates the soil alone under an extrapolated uptake, with a
+  corrector, and puts the coupling's error in the norm at the members' weight.
+- *On the driver:* rows −41% and −45% against bounded Cash–Karp on long drought
+  and episodic, and 41% and 29% at its `J` error; every elasticity of five traits
+  within 0.11ε of the reference. Judged at the soil's weight instead, the
+  coupling's error biased `J` by up to 22× bounded Cash–Karp's.
+- *What a build needs:* the sub-steps frozen in the replay, so that reverse mode
+  runs through the chain; a flag that yields as the tolerance tightens, since
+  its `J` error stops falling below `3e-5`; and the invader's role measured,
+  which the driver cannot do.
+
 ### Phase 2: the node axis
 
 - **2a. B or D,** the user's decision. D changes plant's birth-date competition
@@ -613,6 +628,7 @@ gain, and each multiplies with the rows the arc saves.
 ## The user's decisions
 
 - *B or D:* evaluated at phase 2a.
+- *The multirate soil step (1e):* whether it joins phase 3.
 - *The acceptance suite* is part of the design; its build waits for the user's
   go.
 - *The pair:* Cash–Karp everywhere, invader runs included, with its own

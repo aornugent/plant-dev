@@ -1388,6 +1388,86 @@ to 8.9e-16. Under bounded Cash–Karp, for the stand's invader and eight invader
   run, at ≤ 0.17ε in `ln J′`.* Parked until the schedule rules are built
   (phase 3, item 5), where the invader's rule belongs beside the resident's.
 
+## 15. The soil stepped alone where the plants draw little
+
+**Hypothesis: where the uptake is a small share of the soil's water budget, the
+soil can be integrated alone inside a member step, and the members can take
+their own longer steps.** §13's partition held the collar across the step and
+failed in the dry spells, where the coupling is an algebraic loop. The strategy
+reply put the gain in the rain intervals instead, where the draw is about 1% of
+the budget. ARK took that regime with an implicit chain and lost at matched
+error on the pulsed records (§10). Q1 of the soil pathfinder found the weak
+coupling in the same place: steps whose uptake is under 1% of the soil's budget
+hold 48–64% of rows, 91–97% of them soil-bound, and there the members could step
+4.7–7.2 times longer.
+
+**Test** (pre-registered; `measurements/pathfinders/soil-control/q3/`). On the
+driver, at bounded Cash–Karp's setting (bnd), 108 uniform nodes, long drought
+and episodic. A step is flagged when the uptake at its start is under 10% of
+the soil's budget, the largest threshold the pre-registered rule from Q1
+allowed; 62–67% of steps are flagged. A flagged step:
+- integrates the soil alone by Cash–Karp at `1e-9`, under the uptake
+  extrapolated linearly from the last step, landing on the member stages, where
+  the members read it;
+- evaluates the members' end once against that soil, and integrates the soil
+  again under the line to the uptake found there;
+- puts the coupling's error in the soil's slot of the norm: the larger of the
+  two soils' difference at the end and the stage uptakes' defect against the
+  line.
+
+The other steps are bnd's. The registered step (mr) judges the coupling's error
+at the soil's weight. An exploratory variant (mrw), registered after mr's first
+runs, judges it at the members' weight. Elasticities (resident, five traits)
+are frozen-structure central differences at r = 1e-3 on the driver, for these
+runs and for bnd's alike, and bnd's plant reverse mode checks the method (gap
+under 0.03ε).
+
+**Result** (`q3_report.log`):
+
+| | long drought | episodic |
+|---|---|---|
+| rows against bnd's, mr / mrw | −47.9% / −41.4% | −49.4% / −44.8% |
+| member evaluations, mr / mrw | −45.4% / −37.3% | −45.5% / −40.1% |
+| `J/J* − 1`, bnd / mr / mrw | −2.2e-5 / +1.7e-4 / +2.6e-5 | +1.2e-5 / +2.6e-4 / +7.1e-5 |
+| largest elasticity distance from `1e-5`, bnd / mr / mrw | 0.055 / 0.048 / 0.106ε | 0.041 / 0.028 / 0.036ε |
+| rows saved at bnd's `J` error, mrw | 41% (bnd at `3e-5`) | 29% (bnd at `3e-4`) |
+
+- *mr fails its registered pass on `J`, narrowly.* Episodic's error is 2.6% over
+  the bound max(2× bnd's, 0.01ε), 22× bnd's, and barely moves with the tolerance
+  (+2.9e-4 at `1e-4`). Its gradients are unaffected: every elasticity lies
+  within 0.048ε of the reference, and within 0.065ε of bnd's measured the same
+  way.
+- *The bias was the coupling's estimate at the soil's weight.* The members'
+  stages read the predictor's soil, and the only estimate that sees that soil's
+  error was judged ten times looser than their own. Judged at the members'
+  weight, `J`'s error falls to 0.15 and 0.27 of mr's, level with bnd's on long
+  drought, for 5–7 points of the saving.
+- *mrw passes every criterion of the follow-up on both records:* rows and member
+  evaluations, `J`, each elasticity under ε/3 and within bnd's + 0.1ε, the ±5%
+  nudges (±0.0002ε in `ln J`), and R4 on `J` over `1e-4`, `3e-5`, `1e-5`.
+- *The saving is structural.* Loosening bnd's tolerance tenfold buys 21% of rows
+  on long drought and 23% on episodic. On long drought mrw saves 36–45% at
+  each of three tolerances.
+- *Below `3e-5` mrw's `J` error stops falling:* +2.6e-5 at `3e-5`, +2.7e-5 at
+  `1e-5`, about 0.001ε. The flag does not depend on the tolerance, and part of
+  the coupling's error does not shrink with it. The refinement to brute force
+  needs the flag to yield as the tolerance tightens.
+- *mrw moves some gradients more than mr does:* `a_dG2` on long drought is
+  −0.106ε from the reference against mr's −0.037ε, and −0.063ε from bnd's. The
+  replays are smooth (one-sided slopes give `lma`'s curvature as −43 against
+  mr's −44), so this is the multirate map's own bias, not noise.
+- *The replays carry a noise floor from the adaptive sub-steps.* The chain's step
+  sequence changes with θ, and its global error moves `ln J` by about 2.5e-7
+  where the perturbation moves the uptake (`lma`): 0.003ε in `lma`'s elasticity
+  at r = 1e-3, and at most 0.03ε for the floored traits. Reverse mode through a
+  frozen chain would carry none of it.
+- *Not measured:* the invader's role (plant cannot replay a multirate program),
+  traits beyond these five, other records, and the build's cost per sub-step.
+- *Verdict: a lever of 29–41% of rows at matched `J` error on the pulsed
+  records, in the regime ARK did not win, with gradients within 0.11ε of the
+  reference.* It needs the coupling at the members' weight, sub-steps frozen in
+  the replay, and a flag that yields as the tolerance tightens.
+
 ## What the record supports, and what it does not
 
 - *Supported: a gradient run's cost is its rows and its sweeps.* The walk and
@@ -1440,6 +1520,11 @@ to 8.9e-16. Under bounded Cash–Karp, for the stand's invader and eight invader
   rain intervals, where an implicit chain takes it. The stall was the
   coupling's error, which no norm measured; measured, it converges and costs
   more.
+- *Supported on two pulsed records: the soil stepped alone where the plants draw
+  little,* with the coupling's error in the norm at the members' weight. It
+  saves 29–41% of rows at bnd's `J` error, with every elasticity of five traits
+  within 0.11ε of the reference (§15). Its `J` error stops falling below `3e-5`,
+  so its flag must yield as the tolerance tightens.
 - *Partly supported: the constant record's rejections are the step-size law's.*
   On the chain alone PI leaves 6 of 1009; coupled, it removes 69%, cycles where
   the chain alone settles, and saves 1.0% of a gradient run (§7).

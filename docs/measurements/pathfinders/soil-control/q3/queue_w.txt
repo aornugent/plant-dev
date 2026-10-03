@@ -1,0 +1,24 @@
+el_ld_mrw_lma_p long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=lma THETA_REL=1e-3 THETA_AFTER=1
+el_ld_mrw_lma_m long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=lma THETA_REL=-1e-3 THETA_AFTER=1
+el_ld_mrw_d_I_p long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=d_I THETA_REL=1e-3 THETA_AFTER=1
+el_ld_mrw_d_I_m long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=d_I THETA_REL=-1e-3 THETA_AFTER=1
+el_ld_mrw_a_dG1_p long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=a_dG1 THETA_REL=1e-3 THETA_AFTER=1
+el_ld_mrw_a_dG1_m long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=a_dG1 THETA_REL=-1e-3 THETA_AFTER=1
+el_ld_mrw_a_dG2_p long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=a_dG2 THETA_REL=1e-3 THETA_AFTER=1
+el_ld_mrw_a_dG2_m long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=a_dG2 THETA_REL=-1e-3 THETA_AFTER=1
+el_ld_mrw_omega_p long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=omega THETA_REL=1e-3 THETA_AFTER=1
+el_ld_mrw_omega_m long-drought PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_ld.rds THETA=omega THETA_REL=-1e-3 THETA_AFTER=1
+el_epi_mrw_lma_p episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=lma THETA_REL=1e-3 THETA_AFTER=1
+el_epi_mrw_lma_m episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=lma THETA_REL=-1e-3 THETA_AFTER=1
+el_epi_mrw_d_I_p episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=d_I THETA_REL=1e-3 THETA_AFTER=1
+el_epi_mrw_d_I_m episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=d_I THETA_REL=-1e-3 THETA_AFTER=1
+el_epi_mrw_a_dG1_p episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=a_dG1 THETA_REL=1e-3 THETA_AFTER=1
+el_epi_mrw_a_dG1_m episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=a_dG1 THETA_REL=-1e-3 THETA_AFTER=1
+el_epi_mrw_a_dG2_p episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=a_dG2 THETA_REL=1e-3 THETA_AFTER=1
+el_epi_mrw_a_dG2_m episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=a_dG2 THETA_REL=-1e-3 THETA_AFTER=1
+el_epi_mrw_omega_p episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=omega THETA_REL=1e-3 THETA_AFTER=1
+el_epi_mrw_omega_m episodic PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/pf_soil/mr/runs/mrw_epi.rds THETA=omega THETA_REL=-1e-3 THETA_AFTER=1
+mrw_ld_1e-4 long-drought TOL=1e-4
+mrw_ld_1e-5 long-drought TOL=1e-5
+mrw_ld_2.85e-5 long-drought TOL=2.85e-5
+mrw_ld_3.15e-5 long-drought TOL=3.15e-5

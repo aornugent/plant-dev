@@ -1,5 +1,5 @@
 --- harness/ark_prototype.R	2026-10-03 20:49:27.555706305 +0000
-+++ harness_w/ark_prototype.R	2026-10-03 21:06:14.100002803 +0000
++++ w/harness/ark_prototype.R	2026-10-03 22:21:44.830558463 +0000
 @@ -243,6 +243,8 @@
  # end and the stage uptakes' defect against that line.
  MR_SHARE <- as.numeric(Sys.getenv("MR_SHARE", "0"))

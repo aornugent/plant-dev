@@ -1,0 +1,51 @@
+== long drought
+                       bnd                   mr                 mrw
+   rows             637131     331904 ( -47.9%)    373188 ( -41.4%)
+   accepted          12560       6707 ( -46.6%)      7693 ( -38.7%)
+   rejected           3002       1362 ( -54.6%)      1699 ( -43.4%)
+   evaluations       93480      53376 ( -42.9%)     62482 ( -33.2%)
+   members         4734456    2586771 ( -45.4%)   2970350 ( -37.3%)
+   substeps              0     182794 (    NA%)    192106 (    NA%)
+   flagged               0       4310 (    NA%)      5132 (    NA%)
+   J/J* - 1     bnd -2.191e-05; mr +1.720e-04, mrw +2.572e-05 (bound max(2 x bnd, 0.01 eps) = 2.524e-04)
+
+   resident elasticities; distances in eps (each floored at 0.01)
+   trait    1e-5 ref     bnd fz  bnd plant |  bnd-ref      gap |      mr fz   mr-ref   mr-bnd |     mrw fz  mrw-ref  mrw-bnd
+   lma      -8.27935   -8.27989   -8.28041 |   -0.006   +0.006 |   -8.28031   -0.011   -0.005 |   -8.27561   +0.043   +0.050
+   d_I      -0.01984   -0.01979   -0.01982 |   +0.004   +0.002 |   -0.01978   +0.005   +0.001 |   -0.01979   +0.005   +0.001
+   a_dG1    -0.30648   -0.30447   -0.30444 |   +0.055   -0.001 |   -0.30473   +0.048   -0.007 |   -0.30301   +0.095   +0.040
+   a_dG2     1.05571    1.05490    1.05487 |   -0.043   +0.001 |    1.05501   -0.037   +0.006 |    1.05369   -0.106   -0.063
+   omega    -0.29078   -0.29074   -0.29074 |   +0.004   +0.000 |   -0.29083   -0.006   -0.010 |   -0.29067   +0.011   +0.007
+   mr: largest |E - ref| 0.048 eps (a_dG1); under eps/3: TRUE; within bnd's + 0.1 eps on every trait: TRUE (5 of 5 traits)
+   mrw: largest |E - ref| 0.106 eps (a_dG2); under eps/3: TRUE; within bnd's + 0.1 eps on every trait: TRUE (5 of 5 traits)
+   r = 1e-4 against r = 1e-3 on mr (unfrozen soil sub-steps), in eps: lma +0.0279, d_I +0.0190 
+   r = 1e-4 against r = 1e-3 on bnd (no sub-steps), in eps: d_I +0.0127 
+   bnd  J over tol 3e-4, 1e-4, 3e-5, 1e-5: J/J* - 1 -1.88e-04, -4.41e-05, -2.19e-05, -1.31e-05; rows 501041, 555882, 637131, 735551
+   mr   J over tol 1e-4, 3e-5, 1e-5: J/J* - 1 +3.95e-04, +1.72e-04, +1.10e-04; rows 283517, 331904, 396485
+   mr   +-5% nudges: ln J moves +0.0002, -0.0002 eps
+   mrw  J over tol 1e-4, 3e-5, 1e-5: J/J* - 1 +1.54e-04, +2.57e-05, +2.74e-05; rows 306990, 373188, 472046
+   mrw  +-5% nudges: ln J moves +0.0002, +0.0002 eps
+
+== episodic
+                       bnd                   mr                 mrw
+   rows             415759     210187 ( -49.4%)    229673 ( -44.8%)
+   accepted           8210       4331 ( -47.2%)      4764 ( -42.0%)
+   rejected           2131       1115 ( -47.7%)      1238 ( -41.9%)
+   evaluations       62154      35951 ( -42.2%)     39786 ( -36.0%)
+   members         3146340    1714867 ( -45.5%)   1884945 ( -40.1%)
+   substeps              0     124055 (    NA%)    125608 (    NA%)
+   flagged               0       2677 (    NA%)      3056 (    NA%)
+   J/J* - 1     bnd +1.151e-05; mr +2.585e-04, mrw +7.105e-05 (bound max(2 x bnd, 0.01 eps) = 2.524e-04)
+
+   resident elasticities; distances in eps (each floored at 0.01)
+   trait    1e-5 ref     bnd fz  bnd plant |  bnd-ref      gap |      mr fz   mr-ref   mr-bnd |     mrw fz  mrw-ref  mrw-bnd
+   lma      -8.67079   -8.67367   -8.67284 |   -0.033   -0.010 |   -8.67053   +0.003   +0.036 |   -8.67150   -0.008   +0.025
+   d_I      -0.00942   -0.00942   -0.00944 |   -0.000   +0.002 |   -0.00942   +0.000   +0.001 |   -0.00942   -0.000   +0.000
+   a_dG1    -0.05216   -0.05066   -0.05167 |   +0.041   +0.028 |   -0.05305   -0.024   -0.065 |   -0.05329   -0.031   -0.072
+   a_dG2     1.27447    1.27414    1.27422 |   -0.018   -0.005 |    1.27407   -0.021   -0.004 |    1.27515   +0.036   +0.053
+   omega    -0.39407   -0.39392   -0.39394 |   +0.015   +0.002 |   -0.39435   -0.028   -0.043 |   -0.39418   -0.011   -0.026
+   mr: largest |E - ref| 0.028 eps (omega); under eps/3: TRUE; within bnd's + 0.1 eps on every trait: TRUE (5 of 5 traits)
+   mrw: largest |E - ref| 0.036 eps (a_dG2); under eps/3: TRUE; within bnd's + 0.1 eps on every trait: TRUE (5 of 5 traits)
+   bnd  J over tol 3e-4, 1e-4, 3e-5: J/J* - 1 -7.00e-05, -6.72e-05, +1.15e-05; rows 321558, 365218, 415759
+   mr   J over tol 1e-4, 3e-5: J/J* - 1 +2.86e-04, +2.59e-04; rows 175002, 210187
+
