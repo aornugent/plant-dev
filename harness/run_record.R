@@ -23,7 +23,8 @@
 # t on (harness/ark_prototype.R's), WEIGHT_MAX bounds each state's weight once
 # they multiply, and HMAX caps every step at that many days. They need a plant
 # with the error weights (state-weights). METHOD names plant's stepper, "ark"
-# for the implicit soil chain (ark-soil).
+# for the implicit soil chain (ark-soil). Each run keeps the soil's clamp
+# tallies on the forward run and on each sweep.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -151,6 +152,13 @@ soil_record <- function(scm) {
        theta = t(vapply(rows, function(r) head(tail(r$state, 10), 5), numeric(5))))
 }
 
+# The soil's clamp tallies from one of plant's census readers: the first
+# species' row at plant's clamp_site order, moisture floor, potential ceiling,
+# positivity.
+soil_clamps <- function(reader) tryCatch(
+  setNames(reader(scm)[[1]][3:5], c("moisture_floor", "potential_ceiling", "positivity")),
+  error = function(e) NA)
+
 scm <- phase("stand_run", function() {
   run_scm(p, mkenv(scen), ct, events = ev, record_trajectory = TRUE)
 })
@@ -158,16 +166,19 @@ if (!is.null(scm)) {
   out$stand <- list(J = sum(scm$offspring_production), times = scm$ode_times,
                     sizes = scm$ode_step_sizes, attempts = scm$ode_step_attempts,
                     nodes = per_node(scm), event_log = unclass(scm$event_log),
-                    creation = creation_record(scm), soil = soil_record(scm))
+                    creation = creation_record(scm), soil = soil_record(scm),
+                    forward_clamps = soil_clamps(plant:::census_clamp_counts_tf24))
   save()
   g <- if (!forward) phase("stand_gradient", function() gradient_of(scm, p))
-  if (!is.null(g)) out$stand <- c(out$stand, g)
+  if (!is.null(g)) out$stand <- c(out$stand, g,
+                                  list(swept_clamps = soil_clamps(plant:::census_clamp_counts_differentiated_tf24)))
   save()
   if (!forward && isTRUE(phase("invader_run", function() { scm$run_mutant(p); TRUE }))) {
     out$invader <- list(J = sum(scm$offspring_production), nodes = per_node(scm))
     save()
     gi <- phase("invader_gradient", function() gradient_of(scm, p))
-    if (!is.null(gi)) out$invader <- c(out$invader, gi)
+    if (!is.null(gi)) out$invader <- c(out$invader, gi,
+                                       list(swept_clamps = soil_clamps(plant:::census_clamp_counts_differentiated_tf24)))
     for (inv in strsplit(Sys.getenv("INVADERS", ""), ",")[[1]]) {
       kv <- strsplit(inv, "=")[[1]]
       q <- stand_at(times, kv[1], as.numeric(kv[2]))
