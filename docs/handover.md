@@ -116,7 +116,8 @@ and the frontier they draw, with its operating point (§6).
 | 3, brought forward | done: a weight per state in odelia's controller and plant's patch, the mechanism of the chain's weight and the window's (`state-weights` on both forks); plant reproduces the driver's weighted runs bit for bit |
 | 1a, round two | done: the implicit chain with the chain alone's soil estimate passes at `3e-5` for the resident (−44.3%; −67% under constant rain); the explicit weight's ceiling is ×20 (`grid-dynamics.md` §10) |
 | 1c, combined | soil ×10 with rule A and the 15-day cap saves 33–37% of a gradient run and every walk runs, but the product weight (1000) let soil stages reach the potential ceiling in accepted steps, refusing the gradients; each state's weight is now bounded (`ode_weight_max`), and at 100 the episodic gradient is finite (`grid-dynamics.md` §8) |
-| running now | the bounded combined setting on three records with walks and nudges (1c agent); the implicit chain built in odelia and plant (`ark-step`, `ark-soil`; build agent) |
+| ARK built | the implicit chain in odelia and plant (`ark-step`, `ark-soil`), the driver's arkc bit for bit at three tolerances, both roles' gradients finite; next, arkc on the pulsed records with walks (`grid-dynamics.md` §10) |
+| running now | the bounded combined setting on three records with walks and nudges (1c agent) |
 | the acceptance suite | designed in the spec: the objectives as bounded tests against brute-force references, in tiers; its build is held until the user starts it |
 | 2. the node axis | B or D is the user's call; the light field's ordering test is a fix in plant; the chosen rule's ladders off long drought not run |
 | 3. the build | waits on phases 1 and 2 |
@@ -436,6 +437,7 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `PLANT-98` (#98) | `7dbd87c3` | the pool's stage guard out; 1 commit | `PLANT-97` | `a05f5c2` |
 | `PLANT-99` (#99) | `457f08bb` | the first invasion walks a recorded run without repeating it; 1 commit | `PLANT-98` | `a05f5c2` |
 | `state-weights` (no issue yet) | `4555ea13` | the soil's, the accumulators' and a schedule's weights in the step-size control, and a bound on each state's; 2 commits | `PLANT-99` | odelia `state-weights`, `a62e97c` |
+| `ark-soil` (no issue yet) | `4dc59a40` | TF24's soil drainage and infiltration stepped implicitly under `ode_method = "ark"`; 1 commit | `state-weights` | odelia `ark-step`, `f11e753` |
 
 - odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is
   `378b083`, both unreleased. A branch builds only against its own odelia.
@@ -446,6 +448,9 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
     defaults reproduce every run bit for bit.
   - The private library `$DEV/lib_sw` holds both.
   - The branches await issues and PRs, the user's call.
+- odelia's `ark-step` (`f11e753`, on `state-weights`) adds `Method::ark` and the
+  `HasStiffBlock` concept; plant's `ark-soil` needs it. `$DEV/lib_ark` holds
+  both, with phylloptim `378b083`.
 - No PR is open for `offspring-adjoint` or `PLANT-95` to `PLANT-99`; opening them
   is the user's call. #96 is independent of #97 and #98, and all three edit the
   top of `NEWS.md`.

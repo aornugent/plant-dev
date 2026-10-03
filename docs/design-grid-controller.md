@@ -351,8 +351,10 @@ pulsed record before the gate.
     At `1e-4` it fails R2 on the crossings.
   - The explicit weight's ceiling is ×20 (−25.4%); ×30 and ×50 stop
     converging.
-  - It is being built in odelia and plant (`ark-step`, `ark-soil`), with the
-    chain alone's estimate. Its invader gradients come with the build.
+  - It is built in odelia and plant (`ark-step`, `ark-soil`), with the chain
+    alone's estimate, and repeats the driver's arkc bit for bit at `1e-4`,
+    `3e-5` and `1e-5`. Both roles' gradients are finite on the stand
+    (`grid-dynamics.md` §10).
 - *RODAS on the whole stand: assessed, not run.*
   - Selecting it is one line: odelia's solver takes its method at construction
     (`scm.h:548`).

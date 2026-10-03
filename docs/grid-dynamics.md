@@ -824,6 +824,34 @@ ceiling** (phase 1a; `phase1a/round2/score_t1.txt`, `score_t2.txt` and
 - *Verdict:* the implicit chain with the chain alone's soil estimate, at
   `3e-5`. The ×10 weight stays the explicit fallback.
 
+**Built: the implicit chain in odelia and plant** (odelia `ark-step` `f11e753`,
+plant `ark-soil` `4dc59a40`, each on its `state-weights`).
+- *What it is.* odelia's `Method::ark` steps a System's stiff block with
+  ARK4(3)6L[2]SA, each implicit stage by damped Newton, and estimates the
+  block's error by the block alone, integrated at `1e-9` with the uptake linear
+  over the attempt. plant's `ode_method = "ark"` names TF24's soil layers under
+  drainage and infiltration as the block. The run, the walks, the tangent
+  replays and the sweep all take the run's stepper.
+- *It is the driver's arkc, bit for bit* (long drought, 108 uniform nodes, the
+  soil at 100, the tied tolerance): every step's time, size, error ratio and
+  binding component, and the attempt tallies.
+
+  | tol | accepted | rejected | `J` | plant | driver |
+  |---|---|---|---|---|---|
+  | `1e-4` | 7 248 | 1 799 | 12.5306896533 | 38 s | 251 s |
+  | `3e-5` | 9 786 | 2 652 | 12.6425450956 | 52 s | 325 s |
+  | `1e-5` | 12 321 | 3 172 | 12.6619445650 | 65 s | 409 s |
+
+- *Both roles' gradients are finite on the stand at `3e-5`:* all 50 columns,
+  with the invader's `J′ = J` at the stand's traits. The stand's sweep takes
+  154 s, the invader's walk 42 s and its sweep 138 s.
+- *The sweep lifts each implicit stage by the implicit function theorem* at the
+  stage Newton converged to, so Newton's iterations never reach the recording,
+  and the record holds what Cash–Karp's holds. The stage rates a continuous
+  extension reads are left to events, which will keep what they read.
+- *Next:* arkc on episodic and long-wet with both roles' gradients and the
+  invader walks, and with rule A under the weights' bound.
+
 **Root cause.** Five scalar equations, the soil chain answering each rain
 change, set 93% of the steps. A monolithic step pays the members' leaf solves
 at each of them, and the chain cannot step at the members' pace, where it is
