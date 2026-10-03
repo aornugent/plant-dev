@@ -899,6 +899,26 @@ under the tied tolerance.
 - *Not run:* the nudge test on Dormand–Prince's interpolant, the field test's
   exceedances by member, the reverse sweep with the split, and invaders.
 
+**ARK's continuous extension, by algebra** (`phase1b/stage0/ark_dense.py`,
+`ark_dense2.py` and their outputs). The question is what per-member events would
+read if the resident stepped by ARK4(3)6L[2]SA.
+- *No free fourth-order extension.* Neither the six stages nor the six with the
+  end's rates admit one: the coupled order-4 conditions have rank 6 and 7.
+- *Order 3 is free, and by phase 1b's rule it may be enough.* The rule is that
+  the dense output matches the estimate's local order. ARK4(3)'s embedded
+  estimate is third order, where Cash–Karp's is fourth.
+  - With the end's rates the order-3 family has three parameters.
+  - One C¹ member is fourth order on the members' explicit trees, with weights
+    up to 23.
+  - Kennedy and Carpenter's published dense output is order 3, C⁰, and about
+    3.6 times the estimate's error constant.
+- *Order 4 costs one extra stage, on crossing steps only* (about 0.9% of a
+  replay). The obstruction has rank 1, but the first construction's weights
+  reach 98, and its row needs tuning.
+- *The open risk.* On long implicit steps a polynomial follows the stiff soil
+  only to the implicit stages' order, 2. Phase 1b's field check on an ARK grid
+  decides; it is running.
+
 ## 12. What the chain alone tells the schedule
 
 The chain alone costs 2.4e-4 of a forward: 19 372 attempts at 1.4 µs each in

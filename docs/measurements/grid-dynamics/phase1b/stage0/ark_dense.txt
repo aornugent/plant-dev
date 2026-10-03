@@ -1,0 +1,123 @@
+
+==============================================================================
+ARK4(3)6L[2]SA as parsed from /home/user/plant-dev/.claude/worktrees/agent-a8bbf38e99929db61/harness/ark436.R
+==============================================================================
+coloured trees by order: {1: 1, 2: 2, 3: 7, 4: 26, 5: 107}
+row sums against c, largest deviation: AE 2.48e-26, AI 0.00e+00
+AI's last row equals b (stiffly accurate): True
+b, largest coupled residual by order 1-5: ['0.0e+00', '1.6e-26', '2.5e-26', '3.1e-26', '9.2e-03']
+d, largest coupled residual by order 1-4: ['0.0e+00', '1.7e-26', '2.7e-26', '2.9e-03']
+AE: C(2) residual by stage [0.0, -0.125, 0.0, -4.776691097828965e-27, 2.207607586486294e-27, -8.492273318694511e-27]
+AE: C(3) residual by stage [0.0, -0.041666666666666664, 0.015357877333333334, -0.030560801462084352, -0.060562166473502405, 0.005044948456350747]
+AI: C(2) residual by stage [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+AI: C(3) residual by stage [0.0, 0.020833333333333332, 0.0014138773333333334, 0.010197453093812375, 0.026173786553000195, 0.0]
+order-5 norms of b (all colourings / all-explicit): 2.5288e-02 / 4.4698e-03
+estimate d: order-4 norms (all / explicit): 6.0067e-03 / 1.5405e-03
+
+==============================================================================
+Q1: the six stages alone, one set of weights for both parts
+==============================================================================
+
+six stages, order 4: 14 distinct conditions on 6 weights; rank 6
+  theta^1 part solvable: True; null space 0
+  theta^2 part solvable: False
+  theta^3 part solvable: False
+  theta^4 part solvable: False
+  8 independent solvability polynomials; e.g. (-1.024e-27) th^2 + (-2.389e-27) th^3
+  theta in (0, 1) where all vanish (to 1e-12 on a 1/1000 grid): []
+
+six stages, order 3: 5 distinct conditions on 6 weights; rank 4
+  theta^1 part solvable: True; null space 2
+  theta^2 part solvable: True; null space 2
+  theta^3 part solvable: True; null space 2
+
+==============================================================================
+Q2: the six stages and the step's end (Y7 = y1 in both tableaux, k7 = f(y1))
+==============================================================================
+
+seven stages, order 4: 14 distinct conditions on 7 weights; rank 7
+  theta^1 part solvable: True; null space 0
+  theta^2 part solvable: False
+  theta^3 part solvable: False
+  theta^4 part solvable: False
+  7 independent solvability polynomials; e.g. (-2.127e-26) th^2 + (1.938e-26) th^3
+  theta in (0, 1) where all vanish (to 1e-12 on a 1/1000 grid): []
+
+seven stages, order 3: 5 distinct conditions on 7 weights; rank 4
+  theta^1 part solvable: True; null space 3
+  theta^2 part solvable: True; null space 3
+  theta^3 part solvable: True; null space 3
+
+==============================================================================
+Q3: the families and their C1 members
+==============================================================================
+
+C1 member of order 4, degree 4 in theta, seven stages: exists False
+
+C1 member of order 4, degree 5 in theta, seven stages: exists False
+
+C1 member of order 3, degree 3 in theta, seven stages: exists True; free parameters 0
+  least explicit order-4 norm at 1/2: largest residual, order <= 3: 4.7e-26, order <= 4: 5.0e-01; b(1) - b: 1.6e-26; b'(0) = e1: True; b'(1) - e7: 0.0e+00
+   theta 0.25: order-5 norm all colourings 2.7835e-02, all-explicit 5.6740e-03; order-4 norm all 1.5502e-02, explicit 5.0744e-03
+   theta 0.50: order-5 norm all colourings 5.2949e-02, all-explicit 1.0527e-02; order-4 norm all 2.7560e-02, explicit 9.0211e-03
+   theta 0.75: order-5 norm all colourings 3.0287e-02, all-explicit 4.8788e-03; order-4 norm all 1.5502e-02, explicit 5.0744e-03
+  least all order-4 norm at 1/2: largest residual, order <= 3: 4.7e-26, order <= 4: 5.0e-01; b(1) - b: 1.6e-26; b'(0) = e1: True; b'(1) - e7: 0.0e+00
+   theta 0.25: order-5 norm all colourings 2.7835e-02, all-explicit 5.6740e-03; order-4 norm all 1.5502e-02, explicit 5.0744e-03
+   theta 0.50: order-5 norm all colourings 5.2949e-02, all-explicit 1.0527e-02; order-4 norm all 2.7560e-02, explicit 9.0211e-03
+   theta 0.75: order-5 norm all colourings 3.0287e-02, all-explicit 4.8788e-03; order-4 norm all 1.5502e-02, explicit 5.0744e-03
+
+C1 member of order 3, degree 4 in theta, seven stages: exists True; free parameters 3
+  least explicit order-4 norm at 1/2: largest residual, order <= 3: 1.9e-25, order <= 4: 8.2e-01; b(1) - b: 1.6e-26; b'(0) = e1: True; b'(1) - e7: 0.0e+00
+   theta 0.25: order-5 norm all colourings 4.6559e-02, all-explicit 7.0165e-03; order-4 norm all 2.1024e-02, explicit 1.4912e-27
+   theta 0.50: order-5 norm all colourings 8.0488e-02, all-explicit 1.2516e-02; order-4 norm all 3.7376e-02, explicit 3.0533e-27
+   theta 0.75: order-5 norm all colourings 4.2353e-02, all-explicit 6.4655e-03; order-4 norm all 2.1024e-02, explicit 3.8509e-27
+  least all order-4 norm at 1/2: largest residual, order <= 3: 2.0e-24, order <= 4: 1.4e-01; b(1) - b: 1.6e-26; b'(0) = e1: True; b'(1) - e7: 0.0e+00
+   theta 0.25: order-5 norm all colourings 3.9719e-02, all-explicit 8.8977e-03; order-4 norm all 3.6812e-03, explicit 2.4271e-03
+   theta 0.50: order-5 norm all colourings 6.8540e-02, all-explicit 1.5820e-02; order-4 norm all 6.5444e-03, explicit 4.3149e-03
+   theta 0.75: order-5 norm all colourings 3.6078e-02, all-explicit 9.3497e-03; order-4 norm all 3.6812e-03, explicit 2.4271e-03
+
+==============================================================================
+For scale: the cubic Hermite (any pair), CK's quartic, ARK's own estimate
+==============================================================================
+cubic Hermite on ARK: largest residual, order <= 3: 7.5e-26, order <= 4: 5.0e-01; b(1) - b: 0.0e+00; b'(0) = e1: True; b'(1) - e7: 0.0e+00
+   theta 0.25: order-5 norm all colourings 2.7835e-02, all-explicit 5.6740e-03; order-4 norm all 1.5502e-02, explicit 5.0744e-03
+   theta 0.50: order-5 norm all colourings 5.2949e-02, all-explicit 1.0527e-02; order-4 norm all 2.7560e-02, explicit 9.0211e-03
+   theta 0.75: order-5 norm all colourings 3.0287e-02, all-explicit 4.8788e-03; order-4 norm all 1.5502e-02, explicit 5.0744e-03
+CK quartic: order-5 norm at 1/2 1.2862e-03; CK estimate's order-5 norm 5.3907e-04
+ARK estimate d: order-4 norm all 6.0067e-03, explicit 1.5405e-03 (its leading term; d is order 3)
+
+==============================================================================
+Q4: could one extra stage reach order 4? The order-4 parts' least-squares residuals on the seven stages
+==============================================================================
+residual norms of the theta^2, theta^3, theta^4 parts: 6.937e-02, 1.387e-01, 6.937e-02
+rank of the three residuals (1 would admit a single extra stage): 1
+
+==============================================================================
+Weights for harness/ark436.R (row m: the theta^m coefficient of each stage's weight, stages 1-6 and the end)
+==============================================================================
+
+# order 3, degree 3, C1, least explicit order-4 error at theta = 1/2
+BARK3_3_explicit <- rbind(
+  c(1, 0, 0, 0, 0, 0, 0),
+  c(-1.526251114514986, 0, 0.56027682157200231, 2.0416958859280037, -0.82572159298502013, 0.75, -1),
+  c(0.68416740967665735, 0, -0.37351788104800154, -1.3611305906186693, 0.55048106199001334, -0.5, 1))
+
+# order 3, degree 3, C1, least all order-4 error at theta = 1/2
+BARK3_3_all <- rbind(
+  c(1, 0, 0, 0, 0, 0, 0),
+  c(-1.526251114514986, 0, 0.56027682157200231, 2.0416958859280037, -0.82572159298502013, 0.75, -1),
+  c(0.68416740967665735, 0, -0.37351788104800154, -1.3611305906186693, 0.55048106199001334, -0.5, 1))
+
+# order 3, degree 4, C1, least explicit order-4 error at theta = 1/2
+BARK3_4_explicit <- rbind(
+  c(1, 0, 0, 0, 0, 0, 0),
+  c(-3.4839678255451552, 1.1544109424369468e-24, 8.4045134078518569, -9.974721919052044, 7.7343146555992819, 6.8377050543765074, -9.5178433732304448),
+  c(4.5996008317369963, -2.3088218848738936e-24, -16.061991053607709, 22.671705019341427, -16.569591435178591, -12.675410108753015, 18.03568674646089),
+  c(-1.9577167110301694, 1.1544109424369468e-24, 7.8442365862798535, -12.016417804980048, 8.5600362485843018, 6.0877050543765074, -8.5178433732304448))
+
+# order 3, degree 4, C1, least all order-4 error at theta = 1/2
+BARK3_4_all <- rbind(
+  c(1, 0, 0, 0, 0, 0, 0),
+  c(-2.827343294263684, -4.5760567646125676e-24, 5.0724874678855265, -3.1688856231520588, 0.95398801675956524, -18.443621586103927, 18.413375018874575),
+  c(3.2863517691740536, 9.1521135292251351e-24, -9.3979391736750504, 9.0600324275414561, -3.0089381574991574, 37.887243172207853, -37.82675003774915),
+  c(-1.3010921797486981, -4.5760567646125676e-24, 4.5122106463135241, -5.2105815090800629, 1.7797096097445855, -19.193621586103927, 19.413375018874575))

@@ -461,7 +461,11 @@ bit-identical wherever its default is off (AGENTS.md):
 2. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
    stages and the end's rate;
 3. per-member events, in the forward and the sweep: the invader's structure is
-   frozen per grid, and the crossing times are differentiated;
+   frozen per grid, and the crossing times are differentiated. They read the
+   step's continuous extension through one interface each stepper supplies.
+   For Cash–Karp it is its own quartic. For ARK, order 3 is free, and may be
+   enough by phase 1b's rule; order 4 costs an extra stage on crossing steps.
+   The field check on an ARK grid decides (`grid-dynamics.md` §11);
 4. the window's weight from a pilot, through the same mechanism's schedule, and
    the 15-day cap from 1c, which is plant's `ode_step_size_max`;
 5. the node rule from phase 2, with its companion;

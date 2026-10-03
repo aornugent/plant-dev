@@ -1,0 +1,36 @@
+
+==============================================================================
+(a) Kennedy & Carpenter's dense output for ARK4(3)6L[2]SA (b*_ij as recalled)
+==============================================================================
+sum_j b*_ij - b_i (b(1) = b): 1.60e-26
+largest coupled residual, order <= 2: 3.31e-25, order <= 3: 5.55e-25, order <= 4: 7.77e-01
+b'(1) on the six stages (C1 would need the end's rate, which it does not use): ['0.314', '0.000', '-0.240', '-2.108', '4.312', '-1.279']
+  theta 0.25: order-4 norm all colourings 3.5059e-02, all-explicit 8.4861e-03
+  theta 0.50: order-4 norm all colourings 1.9871e-02, all-explicit 5.5787e-03
+  theta 0.75: order-4 norm all colourings 5.8488e-02, all-explicit 1.4047e-02
+
+==============================================================================
+(b) order 4 with one extra explicit stage (rows over stages 1-7, a_88 = 0 in both parts)
+==============================================================================
+theta^3 residual = -0.138748 v (orthogonal remainder 0.00e+00)
+theta^4 residual = 0.069374 v (orthogonal remainder 9.31e-10)
+c8 = 1/4 : column along v 0.0184, off v 4.4e-03; order-4 residual 2.0e-02 (lsq 2.0e-02); C1 (b'(1) - e7) 3.2e-11; row norms |aE| 0.21 |aI| 0.18; order-5 norm at 1/2: all 8.3626e-02, explicit 2.0718e-02; |b(theta)| coefficients max 44.73
+c8 = 2/5 : column along v 0.0127, off v 3.4e-02; order-4 residual 1.1e-01 (lsq 1.1e-01); C1 (b'(1) - e7) 6.9e-11; row norms |aE| 0.31 |aI| 0.22; order-5 norm at 1/2: all 8.9979e-02, explicit 2.1326e-02; |b(theta)| coefficients max 48.39
+c8 = 1/2 : column along v -0.0182, off v 0.0e+00; order-4 residual 7.8e-12 (lsq 7.8e-12); C1 (b'(1) - e7) 8.2e-11; row norms |aE| 0.63 |aI| 0.32; order-5 norm at 1/2: all 1.8547e-01, explicit 4.5027e-02; |b(theta)| coefficients max 98.08
+c8 = 3/5 : column along v 0.0112, off v 1.0e-04; order-4 residual 8.2e-04 (lsq 8.2e-04); C1 (b'(1) - e7) 1.2e-09; row norms |aE| 0.40 |aI| 0.33; order-5 norm at 1/2: all 5.6131e-01, explicit 1.3762e-01; |b(theta)| coefficients max 285.17
+c8 = 3/4 : column along v 0.00837, off v 9.5e-04; order-4 residual 9.1e-03 (lsq 9.1e-03); C1 (b'(1) - e7) 3.4e-09; row norms |aE| 0.44 |aI| 0.38; order-5 norm at 1/2: all 8.9776e-01, explicit 2.2077e-01; |b(theta)| coefficients max 454.48
+
+for scale, order-5 norms at 1/2: ARK's propagated solution b: all 2.5288e-02, explicit 4.4698e-03; CK's quartic 1.2862e-03; DP's contd5 4.0426e-04
+
+==============================================================================
+The extra stage and the order-4 weights for harness/ark436.R (stages 1-6, the end, the extra stage)
+==============================================================================
+# c8 = 1/2; its rows over stages 1-7 (the end is stage 7), explicit then implicit part
+cARK8 <- 1/2
+aE8 <- c(0.62360190251810999, -0.015710149380381025, -0.0097675559709691495, -0.017878500651222373, -0.024114377779314494, -0.028065659368111479, -0.028065659368111479)
+aI8 <- c(0.31420872296763069, 0.035605663891648209, 0.033461582835360298, 0.041204998185825015, 0.033188056279524591, 0.02116548792000561, 0.02116548792000561)
+BARK4_8 <- rbind(
+  c(1, 0, 0, 0, 0, 0, 0, 0),
+  c(-3.1741592897088005, 6.8110304511812991, 6.1325068556276356, -10.013597763742331, 5.8619973817523343, -48.538941062314514, 46.725169372169979, -3.8040059449653572),
+  c(3.9799837600685137, -13.622060902399349, -11.517977949171486, 22.749456708764583, -12.824956887512862, 98.07788212484563, -94.450338744547082, 7.6080118899515607),
+  c(-1.6479081751973363, 6.81103045121161, 5.5722300340657922, -12.055293649705414, 6.6877189747604504, -49.288941062497514, 47.725169372345235, -3.8040059449825767))
