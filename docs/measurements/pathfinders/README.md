@@ -21,6 +21,8 @@ refuted the resident's thinning (`grid-dynamics.md` §8, test 2) is absent.
   | one schedule from the stand's own shares, 0.03 | 0.011 / 0.151ε | 0 | 40.6% |
   | the cumulative share's tail past 1 − 1e-4 dropped | 0.023 / 0.124ε | 0 | 16.5% |
 
+- *Recorded in `grid-dynamics.md` §14, and parked until the schedule rules are
+  built.*
 - *Not run:* step 2, the real thinned walks and sweeps on the probe
   (`invader_subset.patch`: an invader's schedule a subset of the run's
   introductions), so the selection gradient's error is unmeasured; and the

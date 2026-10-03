@@ -1,0 +1,248 @@
+--- /home/user/plant-dev/harness/ark_prototype.R	2026-10-03 09:29:13.539911311 +0000
++++ harness/ark_prototype.R	2026-10-03 12:24:40.934227379 +0000
+@@ -233,8 +233,22 @@
+ # soil state over the attempt, the uptake linear in time between the step's start and
+ # end, against the attempt's end. The members' and accumulators' estimates are the
+ # pair's. A replay (PROGRAM) skips it, since no estimate steers a replay.
+-CHAIN_EST <- method == "ark" && Sys.getenv("SOIL_EST") == "chain" && !nzchar(Sys.getenv("PROGRAM"))
++CHAIN_EST <- method %in% c("ark", "ck") && Sys.getenv("SOIL_EST") == "chain" && !nzchar(Sys.getenv("PROGRAM"))
+ CHAIN_TOL <- as.numeric(Sys.getenv("CHAIN_TOL", "1e-9"))
++# WEIGHT_MAX bounds each state's weight once the soil's or accumulators' weight and the
++# schedule's factor multiply it, as plant's ode_weight_max: the level is multiplied once by
++# min(base x factor, WEIGHT_MAX).
++WEIGHT_MAX <- as.numeric(Sys.getenv("WEIGHT_MAX", "Inf"))
++# SOIL_DIAG logs, per attempt (DIAG_LOG), the embedded and the chain alone's soil estimates,
++# each component group's weighted ratio and each layer's uptake share of its budget.
++# COUPLED_REF=k re-integrates every k-th accepted step's coupled system by REF_SUB Cash-Karp
++# sub-steps from its start, for the soil's local error against it (REF_LOG).
++SOIL_DIAG <- nzchar(Sys.getenv("SOIL_DIAG")) && method == "ck" && !nzchar(Sys.getenv("PROGRAM"))
++COUPLED_REF <- as.integer(Sys.getenv("COUPLED_REF", "0"))
++REF_SUB <- as.integer(Sys.getenv("REF_SUB", "8"))
++# T_END stops the run at the first step target past it (a smoke test).
++T_END <- as.numeric(Sys.getenv("T_END", "Inf"))
++stopifnot(COUPLED_REF == 0 || SOIL_DIAG)
+ # The knots where rain starts after a dry span.
+ wet <- if (length(pulses) > 1) rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0 else logical()
+ onsets <- if (length(wet) > 1) pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]] else numeric()
+@@ -402,6 +416,10 @@
+     rain <- rain_at(t + tb$c * h)
+     kI <- list(stiff_rates(y[blk], rain[1]))
+   }
++  if (SOIL_DIAG) {
++    ust <- list(sv$uptake)
++    thst <- list(y[blk])
++  }
+   for (i in 2:6) {
+     Y <- combine(y, tb$A[i, ], k, h)
+     if (method == "ark") {
+@@ -418,6 +436,10 @@
+     Pst[[i]] <- production(Y)
+     Kst[[i]] <- klass(Y)
+     if (method == "ark") kI[[i]] <- stiff_rates(Y[blk], rain[i])
++    if (SOIL_DIAG) {
++      ust[[i]] <- tail(patch$ode_aux, 5)
++      thst[[i]] <- Y[blk]
++    }
+   }
+   y1 <- combine(y, tb$b, k, h)
+   if (STAGE_LOG) sr$read(y1, 7)
+@@ -427,12 +449,44 @@
+   yerr <- if (method == "dp") combine(0, c(tb$b, 0) - tb$d, c(k, list(at_end)), h) else combine(0, tb$b - tb$d, k, h)
+   uptake <- tail(patch$ode_aux, 5)
+   soil_est <- c(max(abs(yerr[blk])), NA)
++  e_emb <- yerr[blk]
++  e_true <- NULL
+   if (CHAIN_EST) {
+-    yerr[blk] <- y1[blk] - chain_alone(y[blk], t, h, sv$uptake, uptake)
++    e_true <- y1[blk] - chain_alone(y[blk], t, h, sv$uptake, uptake)
++    yerr[blk] <- e_true
+     soil_est[2] <- max(abs(yerr[blk]))
+   }
++  diag <- if (SOIL_DIAG) {
++    if (is.null(e_true)) e_true <- y1[blk] - chain_alone(y[blk], t, h, sv$uptake, uptake)
++    soil_diag(t, h, thst, ust, uptake, e_emb, e_true)
++  }
+   list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1), Pst = Pst,
+-       Kst = Kst, uptake = uptake, soil_est = soil_est)
++       Kst = Kst, uptake = uptake, soil_est = soil_est, diag = diag)
++}
++
++# Each layer's budget over an attempt from its stage soil states thst and uptakes ust:
++# infiltration or the drainage from above, its own drainage, and the uptake, each summed
++# over the stages at the pair's solution weights. Returns the uptake's share per layer
++# and chain-wide, over the step and at its start; the uptake's defect against the line
++# between the step's ends, h sum_i b_i (u_i - u_lin(c_i)) / dz; and both soil estimates.
++soil_diag <- function(t, h, thst, ust, u_end, e_emb, e_true) {
++  inflow <- outflow <- up <- matrix(0, 6, 5)
++  for (i in 1:6) {
++    th <- thst[[i]]
++    out <- K_sat * (pmin(pmax(th, 0), theta_s) / theta_s)^q
++    inflow[i, ] <- c(rain_at(t + tb$c[i] * h) * max(0, 1 - (th[1] / theta_s)^b_inf), out[-5])
++    outflow[i, ] <- out
++    up[i, ] <- ust[[i]]
++  }
++  bw <- tb$b
++  num <- colSums(bw * abs(up))
++  den <- colSums(bw * (abs(inflow) + abs(outflow) + abs(up)))
++  num0 <- abs(up[1, ]); den0 <- abs(inflow[1, ]) + abs(outflow[1, ]) + abs(up[1, ])
++  lin <- outer(1 - tb$c, ust[[1]]) + outer(tb$c, u_end)
++  defect <- h * colSums(bw * (up - lin)) / dz
++  list(share = num / den, share_chain = sum(num) / sum(den),
++       share0 = num0 / den0, share0_chain = sum(num0) / sum(den0),
++       defect = defect, e_emb = e_emb, e_true = e_true)
+ }
+ 
+ # The size that ends an accepted attempt `a` of size h from t0 just past the
+@@ -646,9 +700,14 @@
+ adjust <- function(h, y, yerr, dydt, kink = integer()) {
+   level <- ct$ode_tol_rel * (ct$ode_a_y * abs(y) + ct$ode_a_dydt * abs(h * dydt)) +
+     ct$ode_tol_abs
+-  if (TOL_SOIL != 1) level[soil(y)] <- level[soil(y)] * TOL_SOIL
+-  if (TOL_ACC != 1) level[length(y) - 4:0] <- level[length(y) - 4:0] * TOL_ACC
+-  if (!is.null(WEIGHT)) level <- level * WEIGHT$weight[findInterval(sv$t, WEIGHT$t)]
++  # Patch::error_weights: each state's weight, min(base x factor, WEIGHT_MAX), multiplied once.
++  if (TOL_SOIL != 1 || TOL_ACC != 1 || !is.null(WEIGHT) || is.finite(WEIGHT_MAX)) {
++    w <- rep(1, length(y))
++    w[soil(y)] <- TOL_SOIL
++    w[length(y) - 4:0] <- TOL_ACC
++    if (!is.null(WEIGHT)) w <- w * WEIGHT$weight[findInterval(sv$t, WEIGHT$t)]
++    level <- level * pmin(w, WEIGHT_MAX)
++  }
+   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
+     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
+     level[pool] <- (level[pool] - ct$ode_tol_abs * (1 - TOL_POOL_ABS)) * TOL_POOL
+@@ -658,6 +717,7 @@
+     level[pool] <- level[pool] - ct$ode_tol_abs + ct$ode_tol_abs * POOL_FLOOR * 0.05 * capacity(y)
+   }
+   r <- abs(yerr) / abs(level)
++  ctl$level <- level
+   bad <- which(!is.finite(r))
+   if (length(bad)) {
+     ctl$index <- bad[1]
+@@ -796,6 +856,81 @@
+   before <- rain_at(t - 0.5 / 365); after <- rain_at(t + 0.5 / 365)
+   if (before == 0 && after > 0) "starts" else if (before > 0 && after == 0) "stops" else if (after > before) "rises" else "falls"
+ }
++# A table that grows by doubling: add() appends one row, rows() returns those added.
++growing <- function(cols) {
++  g <- new.env()
++  g$m <- matrix(NA_real_, 1024, length(cols), dimnames = list(NULL, cols))
++  g$k <- 0L
++  g$add <- function(v) {
++    g$k <- g$k + 1L
++    if (g$k > nrow(g$m)) g$m <- rbind(g$m, g$m * NA)
++    g$m[g$k, ] <- v
++  }
++  g$rows <- function() as.data.frame(g$m[seq_len(g$k), , drop = FALSE])
++  g
++}
++L5 <- function(x) paste0(x, "_", 1:5)
++diag_log <- growing(c("t0", "h", "accepted", "grp", "ratio", "r_emb", "r_true", "r_mem", "r_sto",
++                      "r_acc", "lay_emb", "lay_true", "share_bind", "share_chain", "share0_chain",
++                      L5("share0"), L5("share"), L5("remb"), L5("rtrue"), L5("rdef"), "x_soil",
++                      "rain0", "rainm", "rain1", "M"))
++ref_log <- growing(c("t0", "h", L5("rref"), L5("rtrue"), L5("remb"), "rmem_emb", "rmem_ref",
++                     "rsto_emb", "rsto_ref", "ok"))
++# Each component group's weighted ratio on the attempt `a` of size h from t0, under the level
++# its adjust() just used: grp is 1 soil, 2 accumulator, 3 member, 4 storage.
++diag_row <- function(t0, h, a, accepted) {
++  d <- a$diag
++  lev <- abs(ctl$level)
++  blk <- soil(a$y); acc <- length(a$y) - 4:0
++  m <- 9 * ((length(a$y) - 10) %/% 9)
++  r_all <- abs(a$yerr) / lev
++  r_emb <- abs(d$e_emb) / lev[blk]
++  r_true <- abs(d$e_true) / lev[blk]
++  pool <- pool_of(a$y)
++  i <- ctl$index
++  grp <- if (is.na(i)) NA else if (i %in% blk) 1 else if (i %in% acc) 2 else if (i %in% pool) 4 else 3
++  lb <- which.max(r_emb)
++  c(t0, h, accepted, grp, ctl$ratio, max(r_emb), max(r_true),
++    if (m) max(r_all[seq_len(m)]) else 0, if (m) max(r_all[pool]) else 0, max(r_all[acc]),
++    lb, which.max(r_true), d$share[lb], d$share_chain, d$share0_chain, d$share0, d$share,
++    r_emb, r_true, abs(d$defect) / lev[blk], h * lambda_soil(sv$y, t0) / BETA,
++    rain_at(t0), rain_at(t0 + h / 2), rain_at(t0 + h), m / 9)
++}
++# The coupled system from (t0, y0, f0) over h by n Cash-Karp sub-steps, evaluated directly so
++# the run's counters do not move; NULL where an evaluation raises.
++coupled_ref <- function(t0, y0, f0, h, n) {
++  y <- y0; f <- f0; hs <- h / n; s <- t0
++  ev <- function(Y, tt) tryCatch(patch$derivs(Y, tt), `odelia::util::DomainError` = function(e) NULL)
++  for (m in seq_len(n)) {
++    k <- list(f)
++    for (i in 2:6) {
++      k[[i]] <- ev(combine(y, tab$ACK[i, ], k, hs), s + tab$cCK[i] * hs)
++      if (is.null(k[[i]])) return(NULL)
++    }
++    y <- combine(y, tab$bCK, k, hs)
++    s <- if (m == n) t0 + h else s + hs
++    if (m < n) {
++      f <- ev(y, s)
++      if (is.null(f)) return(NULL)
++    }
++  }
++  y
++}
++# The accepted attempt `a` of size h from sv's state at t0 against the coupled reference;
++# afterwards the Patch is put back on the attempt's end, where the run left it.
++ref_row <- function(t0, h, a) {
++  yref <- coupled_ref(t0, sv$y, sv$dydt, h, REF_SUB)
++  patch$derivs(a$y, t0 + h)
++  lev <- abs(ctl$level)
++  blk <- soil(a$y)
++  m <- 9 * ((length(a$y) - 10) %/% 9)
++  pool <- pool_of(a$y)
++  if (is.null(yref)) return(c(t0, h, rep(NA, 19), 0))
++  e <- abs(a$y - yref) / lev
++  c(t0, h, e[blk], abs(a$diag$e_true) / lev[blk], abs(a$diag$e_emb) / lev[blk],
++    if (m) max(abs(a$yerr[seq_len(m)]) / lev[seq_len(m)]) else 0, if (m) max(e[seq_len(m)]) else 0,
++    if (m) max(abs(a$yerr[pool]) / lev[pool]) else 0, if (m) max(e[pool]) else 0, 1)
++}
+ step <- function(target) {
+   t0 <- sv$t
+   remaining <- target - t0
+@@ -877,6 +1012,7 @@
+                                                           sv$r_set, sv$f_set, attempt_signs(a, index, fill0),
+                                                           min(fill0)) else rep(NA, 11),
+                                             if (logged) attempt_classes(a) else rep(NA, 5))
++    if (SOIL_DIAG && !is.null(a)) diag_log$add(diag_row(t0, h, a, as.numeric(!isTRUE(ctl$shrank))))
+     if (ctl$shrank) {
+       if (hn < h && t0 + hn > t0) {
+         h <- hn
+@@ -905,6 +1041,7 @@
+     steps$uptake[steps$k, ] <- a$uptake
+     if (steps$k > nrow(steps$soil_est)) steps$soil_est <- rbind(steps$soil_est, steps$soil_est * NA)
+     steps$soil_est[steps$k, ] <- a$soil_est
++    if (COUPLED_REF > 0 && steps$k %% COUPLED_REF == 0) ref_log$add(ref_row(t0, h, a))
+     sv$uptake <- a$uptake
+     down <- sv$P > 0 & a$P < 0
+     if (any(down)) {
+@@ -982,7 +1119,9 @@
+     }
+     for (target in c(pulses[pulses > sv$t & pulses < t_end], t_end)) {
+       while (sv$t < target) step(target)
++      if (sv$t >= T_END) break
+     }
++    if (sv$t >= T_END) break
+   }
+   secs <- proc.time()[["elapsed"]] - t_start
+   if (!is.null(program)) {
+@@ -1035,6 +1174,10 @@
+                 n$halvings, n$failures))
+     if (CHAIN_EST) cat(sprintf("soil estimate from the chain alone at %g: %d substeps\n", CHAIN_TOL, n$chain_substeps))
+   }
++  if (method == "ck" && (CHAIN_EST || SOIL_DIAG)) {
++    cat(sprintf("soil estimate from the chain alone at %g (%s): %d substeps\n", CHAIN_TOL,
++                if (CHAIN_EST) "in the norm" else "logged only", n$chain_substeps))
++  }
+   kind <- ifelse(st$ei <= 9 * st$M, NODE[(st$ei - 1) %% 9 + 1], ENV[pmax(1, st$ei - 9 * st$M)])
+   pct <- function(x) sprintf("%.1f%%", 100 * mean(x, na.rm = TRUE))
+   cat("binding: soil", pct(grepl("^soil_", kind)), " accumulator", pct(grepl("^accumulator_", kind)),
+@@ -1072,6 +1215,7 @@
+                  counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
+                  uptake = steps$uptake[seq_len(steps$k), , drop = FALSE], entry_uptake = steps$entry_uptake,
+                  soil_est = steps$soil_est[seq_len(steps$k), , drop = FALSE],
++                 diag = if (SOIL_DIAG) diag_log$rows(), ref = if (COUPLED_REF > 0) ref_log$rows(),
+                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
+                                       fecundity = f, patch_density = pd)),
+             Sys.getenv("OUT"))

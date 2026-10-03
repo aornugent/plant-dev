@@ -1350,6 +1350,44 @@ the members within the step to high order, which is the coupled step.
   §10). The multirate gain was in the rain intervals, where an implicit chain
   takes it more simply (§10).
 
+## 14. The invader's own nodes
+
+**Hypothesis: an invader's members can be thinned by its own share of `J′`.**
+Thinning the resident failed on the field part (§8, test 2): lumping later
+cohorts changes the water and light the cohort that earns `J` sees. A rare
+invader moves no field. Its members see only the recorded field, never one
+another, so dropping one costs only that member's share of `J′`. The invader's
+walk and its sweep are 3.4 of a gradient run's seven forwards, and all of one
+evaluation in an optimising loop over invaders.
+
+**Test: thinned walks emulated exactly** (a pathfinder;
+`measurements/pathfinders/invader-thinning/`, `step1.log`). One full walk's
+per-node data gives any walk on a subset of the run's introductions. plant's
+birth-date quadrature runs over the merged intervals, and each kept member's
+fecundity is unchanged. Emulating the full schedule repeats every walk's `J′`
+to 8.9e-16. Under bounded Cash–Karp, for the stand's invader and eight invaders
+(`lma` and `hmat` at ×0.5, 0.7, 1.4 and 2) on three records, 27 cases:
+
+| rule | `ln J′` error, median / largest | over ε/3 | walk and sweep rows saved, median (range) |
+|---|---|---|---|
+| spacing by the root law, share density^(−1/3), scale 0.1, per invader | 0.046 / 0.165ε | 0 | 46.6% (23.5–64.9%) |
+| the same at scale 0.03 | 0.008 / 0.047ε | 0 | 34.2% (15.9–57.8%) |
+| one schedule per record, from the nine invaders' largest shares, 0.1 | 0.011 / 0.123ε | 0 | 36.5% |
+| one schedule from the stand's own shares, which the forward run gives, 0.03 | 0.011 / 0.151ε | 0 | 40.6% |
+| the cumulative share's tail past 1 − 1e-4 dropped | 0.023 / 0.124ε | 0 | 16.5% |
+
+- *The root law's spacing pays most.* Dropping only the tail saves a third as
+  much, since the late members it removes are few and short-lived.
+- *Not measured:* the selection gradient's error, which needs real thinned walks
+  and sweeps. `invader_subset.patch` lets an invader's schedule be a subset of
+  the run's introductions, with no species at the skipped insertion rows, but it
+  was not run.
+- *The diagonal:* a thinned walk no longer repeats `J` at θ′ = θ. A design keeps
+  the full walk there, or checks the identity on the full schedule.
+- *Verdict: worth 35–47% of an invader's evaluation, and 17–23% of a gradient
+  run, at ≤ 0.17ε in `ln J′`.* Parked until the schedule rules are built
+  (phase 3, item 5), where the invader's rule belongs beside the resident's.
+
 ## What the record supports, and what it does not
 
 - *Supported: a gradient run's cost is its rows and its sweeps.* The walk and

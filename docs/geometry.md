@@ -448,6 +448,7 @@ the implicit chain, graded nodes. A **wall** is where a knob stops working.
 | graded nodes, two rungs read | about 0.5 of uniform's, at equal and predictable error | the square law measured; the factor projected |
 | the implicit chain, the soil judged by the chain alone | 0.56 on long drought at `3e-5`, 0.33 under constant rain | measured for the resident (§10); being built |
 | the sweep's cost per cell | about 0.5 of the sweep's | profiled (`measurements/perf-sweep.md`) |
+| an invader's members thinned by its own share of `J′` | 0.53–0.66 of its walk and sweep, within 0.17ε in `ln J′` | emulated exactly (`grid-dynamics.md` §14); its gradient unmeasured |
 | the forward's warm start | about 0.9 of a gradient run | projected |
 
 The controller's levers are not on this list. Seeds, PI and the guard turn
@@ -525,3 +526,6 @@ gradient run (4(b) above).
    which phase 4 confirms or refutes.
 9. *A weight frees stages as well as errors.* Every weight needs a bound, since
    R(t) bounds a weighted error's reach into `J` but not where a stage goes.
+10. *An invader has no field part.* Its members see only the recorded field, so
+    its own nodes answer to its own weight alone. Thinned by the root law, its
+    walk and sweep keep 53–66% of their rows at ≤ 0.17ε in `ln J′`.

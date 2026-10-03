@@ -497,7 +497,12 @@ bit-identical wherever its default is off (AGENTS.md):
    as Cash–Karp's quartic on its own (`grid-dynamics.md` §11);
 4. the window's weight from a pilot, through the same mechanism's schedule, and
    the 15-day cap from 1c, which is plant's `ode_step_size_max`;
-5. the node rule from phase 2, with its companion;
+5. the node rule from phase 2, with its companion, and the invader's own rule:
+   its members thinned by its own share of `J′` under the root law, which needs
+   no field part. Emulated exactly, that keeps 53–66% of an invader's walk and
+   sweep at ≤ 0.17ε in `ln J′` (`grid-dynamics.md` §14). It needs the invader's
+   schedule as a subset of the run's introductions, and the full walk kept on
+   the diagonal;
 6. the diagnostics R8 asks for: the companions' estimate, θ's distance from θ₀
    against the radius, the failures, and the chain's error.
 
