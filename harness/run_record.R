@@ -6,8 +6,8 @@
 #
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
 #     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
-#     [WEIGHT_SOIL=10] [WEIGHT_ACC=10] [WEIGHT=weight.rds] [HMAX=15] \
-#     OUT=run.rds Rscript harness/run_record.R
+#     [WEIGHT_SOIL=10] [WEIGHT_ACC=10] [WEIGHT=weight.rds] [WEIGHT_MAX=100] \
+#     [HMAX=15] OUT=run.rds Rscript harness/run_record.R
 #
 # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
 # decided, and 1 is plant's default. SHIFT moves every introduction after the
@@ -20,8 +20,9 @@
 # separated) on the stand's introductions, and keeps each one's J and nodes.
 # WEIGHT_SOIL and WEIGHT_ACC multiply the soil layers' and the accumulators'
 # error levels, WEIGHT is a table of t and weight multiplying every state's from
-# t on (harness/ark_prototype.R's), and HMAX caps every step at that many days.
-# They need a plant with the error weights (state-weights).
+# t on (harness/ark_prototype.R's), WEIGHT_MAX bounds each state's weight once
+# they multiply, and HMAX caps every step at that many days. They need a plant
+# with the error weights (state-weights).
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -66,6 +67,7 @@ if (nzchar(Sys.getenv("WEIGHT"))) {
   ct$ode_weight_times <- w$t
   ct$ode_weight_factors <- w$weight
 }
+if (nzchar(Sys.getenv("WEIGHT_MAX"))) ct$ode_weight_max <- as.numeric(Sys.getenv("WEIGHT_MAX"))
 if (nzchar(Sys.getenv("HMAX"))) ct$ode_step_size_max <- as.numeric(Sys.getenv("HMAX")) / 365
 ev <- events(events_default(p), pulse_rows(sort(unique(knots))))
 

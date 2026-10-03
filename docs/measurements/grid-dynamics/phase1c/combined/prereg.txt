@@ -1,0 +1,78 @@
+The combined gains in plant: pre-registration
+Written 2026-10-03 ~08:06 UTC, before any run of this task.
+
+Setting
+- plant's own adaptive runs on DEV/lib_sw (odelia and plant state-weights), via
+  harness/run_record.R at plant-dev 2963fa1 (snapshot in combined/snap):
+  Cash-Karp, TOL=3e-5, ATOL=1e-4 (tied), 108 uniform nodes (window/t/t_u108.rds,
+  identical to uniform_times(108)), the active knots as zero pulses (step targets).
+- The combined setting: WEIGHT_SOIL=10, WEIGHT=rule A's table
+  (window/rule_A/weight_<record>.rds, byte-identical to the docs copies), HMAX=15.
+- Records: long drought, long-wet, episodic. Both roles' gradients, and eight
+  invaders walked: lma and hmat at x0.5, x0.7, x1.4, x2.
+- Baselines (plant's own unweighted adaptive runs, lib_guard, whose arithmetic
+  lib_sw's defaults keep): docs/measurements/spot-check/{ld_3e-5, wet_base,
+  epi_base}.rds; their +-5% nudges ld_2.85e-5/ld_3.15e-5, wet_tol, epi_tol.
+  Checked first: lib_sw with no weights reproduces epi_base's stand run (J and
+  every step time) bit for bit.
+- 1e-5 references: phase1c/full/epi_1e-5.rds (lib_guard, plant's own);
+  docs/measurements/nudges/ld_1e-5.rds (its J, 12.668779336 on 21 106 accepted
+  steps, equals the driver's at 1e-5, so the same arithmetic), with its +-5%
+  nudges; long-wet has none, so wet_1e-5 is run on lib_sw with no weights.
+- J*: long drought 12.6687135; long-wet and episodic window/ref/*_1e-8_abs.rds.
+
+Costs: rows = members carried over accepted steps; forward = rows times
+attempts over accepted steps (harness/window_test.R's cost_of), each against
+the record's unweighted run. Phase 1a's x10 weight alone saved 20.7% of a
+gradient run on long drought; rule A alone 21-23%.
+
+Criteria
+- C1, never fails: no phase and no walk raises, on any record.
+- C2, accuracy: on each record and role, the combined run's distance from the
+  1e-5 reference (median and largest over the 49 quantities, in eps) is no
+  larger than the unweighted run's; and the largest stays under eps/3.
+- C3, reproducible: on long drought the combined setting's +-5% tolerance
+  nudges (2.85e-5, 3.15e-5) move every quantity of both roles by less than
+  eps/3.
+- Reported, not pass/fail: the moves against the unweighted run, expected of
+  R2's size (to about 0.2 eps for the resident's pool traits), since the soil
+  weight and the cap change the program from the first steps.
+
+Addendum, 08:10 UTC: the check passed. lib_sw with no weights repeats
+epi_base's stand run bit for bit (J 1.97895313198793, every step time and size,
+the attempts). Added at the queue's end: lib_sw at 1e-5 on long drought, stand
+alone, to check that the assessment's ld_1e-5 reference has this build's
+trajectory; if its J differs, that reference is reported as another build's.
+
+Addendum, 08:58 UTC, after the container restart (~08:43) and the first results.
+- Seen: comb_epi and comb_ld finished; comb_wet was killed after its hmat=2 walk
+  and is rerunning (the partial kept as full/comb_wet_killed.rds).
+- Seen: every combined run refuses both roles' gradients (all 50 columns NaN):
+  "[phylloptim:infeasible:stem_curve_domain]
+  cumulative_vulnerability_integral_derivatives_at: (psi/b)^c past the
+  vulnerability curve's domain (4.605170)", at 2863022.99 on long drought and
+  episodic alike, 8094.99 on long-wet. No phase raises; every walk so far runs.
+  Phase 1a's replay of the soil-x10 program and phase 1c's replays of rule A
+  capped at 15 d have finite gradients. C2 and C3 cannot be scored while the
+  gradient is refused.
+- Added, before the remaining runs: four episodic probes of the stand's gradient
+  under lib_sw: soil x10 alone; rule A and the 15-d cap; soil x10 and the cap;
+  soil x10 and rule A. Reading: the part (or pair) whose probe refuses is the
+  cause. The combined setting's nudges wait on the probes, since a refused
+  gradient makes R2 unmeasurable.
+
+Addendum, 09:17 UTC, the probes (episodic, lib_sw, stand gradient):
+- soil x10 alone: finite (50 of 50); rule A and the 15-d cap: finite; soil x10
+  and the cap: finite; soil x10 and rule A, no cap: refused, at the same
+  (psi/b)^c = 2863022.99 as the combined runs (longest step 49.6 d).
+- So the refusal needs the soil's weight times the window's (x10 x up to x100 =
+  x1000 on the soil's error level after t = 23.5); the cap neither causes nor
+  prevents it.
+- Also seen: plant's native rule A with the 15-d cap departs from the driver's
+  program (lib_v12t) at t = 3.809, step 1076, inside a run of short steps; the
+  driver's build keeps the pool's stage guard, which throws where plant's does
+  not.
+- Changed: long-wet's 1e-5 reference forward only (ln J is the one combined
+  quantity left); the combined nudges on long drought keep both roles'
+  gradients, to show whether the refusal holds at +-5%. C2 and C3 are scored on
+  ln J only, and reported as unmeasurable for the elasticities.

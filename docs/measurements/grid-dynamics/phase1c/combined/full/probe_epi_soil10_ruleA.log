@@ -1,0 +1,1 @@
+episodic soil 10 weight rule A hmax -: J 1.978906956, 7996 steps (longest 49.6 d, first over 15 d at t = 0.591); gradient finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1; 37 + 99 s

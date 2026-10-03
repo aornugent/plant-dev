@@ -1,0 +1,141 @@
+######## lib_sw with no weights against lib_guard's episodic run
+lib: /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw plant 2.0.0.9002 odelia 0.5.0 
+J         identical
+times     identical
+sizes     identical
+attempts  identical
+J 1.97895313198793 vs 1.97895313198793; 11026 vs 11026 steps
+
+######## lib_sw at 1e-5 against the assessment's long drought reference
+reference: J 12.6687793357803, 21107 steps, attempts accepted=21106 accepted_at_minimum=0 rejected_inaccurate=4624 rejected_thrown=0 rejected_refused=0
+lib_sw:    J 12.6687793357803, 21107 steps, attempts accepted=21106 accepted_at_minimum=0 rejected_inaccurate=4624 rejected_thrown=0 rejected_refused=0
+J identical: TRUE 
+
+######## The long-wet rerun against the run the restart killed
+stand J, times, attempts identical: TRUE TRUE TRUE 
+lma=2     J' identical: TRUE
+lma=0.5   J' identical: TRUE
+hmat=2    J' identical: TRUE
+
+######## The combined setting against plant's own unweighted runs
+
+== long-drought
+unweighted   rows   962470  forward   1175342  accepted 17683  rejected 3911  longest  19.5 d | J 12.668554372, J/J* - 1 -1.26e-05
+combined     rows   608301  forward    759459  accepted 12266  rejected 3048  longest  15.0 d | J 12.668426907, J/J* - 1 -2.26e-05 | saves rows 36.8%, forward 35.4%, a gradient run 36.6%
+gradient, stand   finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the ser
+gradient, invader finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the ser
+moves against the unweighted run, 2 quantities (over 0.08: 0, over eps/3: 0):
+   resident median 0.0004, largest 0.0004 (ln J), main largest 0.0004 (ln J)
+   invader  median 0.0004, largest 0.0004 (ln J), main largest 0.0004 (ln J) 
+distance from 1e-5 (ld_1e-5.rds):
+   unweighted resident median 0.0007, largest 0.0007 (ln J), main largest 0.0007 (ln J)
+   unweighted invader  median 0.0007, largest 0.0007 (ln J), main largest 0.0007 (ln J) 
+   combined   resident median 0.0011, largest 0.0011 (ln J), main largest 0.0011 (ln J)
+   combined   invader  median 0.0011, largest 0.0011 (ln J), main largest 0.0011 (ln J) 
+   resident combined farther than the unweighted on 1 of 1; largest over eps/3: no
+   invader  combined farther than the unweighted on 1 of 1; largest over eps/3: no
+failures: none
+   identical invader J' 12.668427 (stand J 12.668427)
+   lma=2     J' 2.04446e-21  ln J' moves 0.0008 eps against the unweighted walk
+   lma=0.5   J' 1876.8       ln J' moves 0.0019 eps against the unweighted walk
+   hmat=2    J' 2.0852e-08   ln J' moves 0.0133 eps against the unweighted walk
+   hmat=0.5  J' 164.366      ln J' moves 0.0007 eps against the unweighted walk
+   lma=1.4   J' 2.0091e-05  
+   lma=0.7   J' 450.818     
+   hmat=1.4  J' 0.0186865   
+   hmat=0.7  J' 75.2333     
+phase seconds: stand_run 59, stand_gradient 165, invader_run 48, invader_gradient 146, lma=2 52, lma=0.5 46, hmat=2 47, hmat=0.5 47, lma=1.4 47, lma=0.7 43, hmat=1.4 47, hmat=0.7 46
+
+== long-wet
+unweighted   rows  1192455  forward   1452585  accepted 21921  rejected 4782  longest  18.3 d | J 18.402059838, J/J* - 1 -7.85e-06
+combined     rows   759990  forward    958478  accepted 15239  rejected 3980  longest  15.0 d | J 18.402122234, J/J* - 1 -4.46e-06 | saves rows 36.3%, forward 34.0%, a gradient run 35.9%
+gradient, stand   finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 8094.994002 is past the vulnerability curve's domain (4.605170), where the series
+gradient, invader finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 8094.994002 is past the vulnerability curve's domain (4.605170), where the series
+moves against the unweighted run, 2 quantities (over 0.08: 0, over eps/3: 0):
+   resident median 0.0001, largest 0.0001 (ln J), main largest 0.0001 (ln J)
+   invader  median 0.0001, largest 0.0001 (ln J), main largest 0.0001 (ln J) 
+distance from 1e-5 (wet_1e-5_forward.rds, forward only): ln J unweighted 0.0008, combined 0.0007 eps
+failures: none
+   identical invader J' 18.402122 (stand J 18.402122)
+   lma=2     J' 2.15886e-21  ln J' moves 0.0219 eps against the unweighted walk
+   lma=0.5   J' 2681.91      ln J' moves 0.0007 eps against the unweighted walk
+   hmat=2    J' 6.36779e-08  ln J' moves 0.0033 eps against the unweighted walk
+   hmat=0.5  J' 198.017      ln J' moves 0.0003 eps against the unweighted walk
+   lma=1.4   J' 1.4477e-05  
+   lma=0.7   J' 658.079     
+   hmat=1.4  J' 0.0589251   
+   hmat=0.7  J' 99.0152     
+phase seconds: stand_run 76, stand_gradient 209, invader_run 60, invader_gradient 188, lma=2 67, lma=0.5 58, hmat=2 59, hmat=0.5 60, lma=1.4 61, lma=0.7 60, hmat=1.4 62, hmat=0.7 60
+
+== episodic
+unweighted   rows   601180  forward    739792  accepted 11025  rejected 2542  longest  22.1 d | J 1.978953132, J/J* - 1 +2.58e-05
+combined     rows   399679  forward    507661  accepted  8043  rejected 2173  longest  15.0 d | J 1.978923510, J/J* - 1 +1.08e-05 | saves rows 33.5%, forward 31.4%, a gradient run 33.2%
+gradient, stand   finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the ser
+gradient, invader finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the ser
+moves against the unweighted run, 2 quantities (over 0.08: 0, over eps/3: 0):
+   resident median 0.0006, largest 0.0006 (ln J), main largest 0.0006 (ln J)
+   invader  median 0.0006, largest 0.0006 (ln J), main largest 0.0006 (ln J) 
+distance from 1e-5 (epi_1e-5.rds):
+   unweighted resident median 0.0011, largest 0.0011 (ln J), main largest 0.0011 (ln J)
+   unweighted invader  median 0.0011, largest 0.0011 (ln J), main largest 0.0011 (ln J) 
+   combined   resident median 0.0005, largest 0.0005 (ln J), main largest 0.0005 (ln J)
+   combined   invader  median 0.0005, largest 0.0005 (ln J), main largest 0.0005 (ln J) 
+   resident combined farther than the unweighted on 0 of 1; largest over eps/3: no
+   invader  combined farther than the unweighted on 0 of 1; largest over eps/3: no
+failures: none
+   identical invader J' 1.9789235 (stand J 1.9789235)
+   lma=2     J' 9.74527e-20  ln J' moves 0.0084 eps against the unweighted walk
+   lma=0.5   J' 541.064      ln J' moves 0.0011 eps against the unweighted walk
+   hmat=2    J' 1.04813e-09  ln J' moves 0.0045 eps against the unweighted walk
+   hmat=0.5  J' 68.3098      ln J' moves 0.0001 eps against the unweighted walk
+   lma=1.4   J' 2.5208e-05  
+   lma=0.7   J' 95.0824     
+   hmat=1.4  J' 0.000744658 
+   hmat=0.7  J' 24.6024     
+phase seconds: stand_run 37, stand_gradient 98, invader_run 30, invader_gradient 89, lma=2 31, lma=0.5 29, hmat=2 30, hmat=0.5 29, lma=1.4 29, lma=0.7 29, hmat=1.4 30, hmat=0.7 30
+
+== R2 on long drought: the +-5% tolerance nudges, each quantity's larger move, in eps/3
+unweighted resident median 0.189, largest 0.715 (a_dG1), 0.494 (d_I), 0.476 (storage_relaxation_offset); over 1: 0 of 49
+unweighted invader  median 0.078, largest 0.173 (root_c), 0.120 (TF24_cost_scale), 0.110 (stem_P50); over 1: 0 of 49
+combined   resident median 0.001, largest 0.001 (ln J), NA (NA), NA (NA); over 1: 0 of 1
+combined   invader  median 0.001, largest 0.001 (ln J), NA (NA), NA (NA); over 1: 0 of 1
+
+######## Every gradient refusal
+comb_epi.rds           stand   finite 0 of 50 | value 1.9789235 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_epi.rds           invader finite 0 of 50 | value 1.9789235 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_ld.rds            stand   finite 0 of 50 | value 12.668427 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_ld.rds            invader finite 0 of 50 | value 12.668427 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_wet.rds           stand   finite 0 of 50 | value 18.402122 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 8094.994002 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_wet.rds           invader finite 0 of 50 | value 18.402122 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 8094.994002 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_ld_2.85e-5.rds    stand   finite 0 of 50 | value 12.668336 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_ld_2.85e-5.rds    invader finite 0 of 50 | value 12.668336 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_ld_3.15e-5.rds    stand   finite 0 of 50 | value 12.668484 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+comb_ld_3.15e-5.rds    invader finite 0 of 50 | value 12.668484 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1
+epi_h15.rds            stand   finite 50 of 50 | value 1.9789375 | refusal: none
+epi_h15.rds            invader finite 50 of 50 | value 1.9789375 | refusal: none
+ld_h15.rds             stand   finite 50 of 50 | value 12.66852 | refusal: none
+ld_h15.rds             invader finite 50 of 50 | value 12.66852 | refusal: none
+wet_h15.rds            stand   finite 50 of 50 | value 18.40209 | refusal: none
+wet_h15.rds            invader finite 50 of 50 | value 18.40209 | refusal: none
+ck10_3e-5.rds          stand   finite 50 of 50 | value 12.668412 | refusal: none
+ck10_3e-5.rds          invader finite 50 of 50 | value 12.668412 | refusal: none
+ck10_2.85e-5.rds       stand   finite 50 of 50 | value 12.668325 | refusal: none
+ck10_2.85e-5.rds       invader finite 50 of 50 | value 12.668325 | refusal: none
+ck10_3.15e-5.rds       stand   finite 50 of 50 | value 12.668524 | refusal: none
+ck10_3.15e-5.rds       invader finite 50 of 50 | value 12.668524 | refusal: none
+
+######## The episodic probes: which part refuses
+probe_epi_ruleA_h15.rds    J 1.978945209,  9662 steps, longest 15.0 d | gradient finite 50 of 50 | refusal: none
+probe_epi_soil10.rds       J 1.978902765,  9077 steps, longest 22.1 d | gradient finite 50 of 50 | refusal: none
+probe_epi_soil10_h15.rds   J 1.978926495,  9092 steps, longest 15.0 d | gradient finite 50 of 50 | refusal: none
+probe_epi_soil10_ruleA.rds J 1.978906956,  7996 steps, longest 49.6 d | gradient finite  0 of 50 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.60
+
+######## lib_sw's soil x10 and rule-A-capped runs against the driver's programs
+driver: J 12.668411238865, 13937 accepted | replay: J 12.668411602843, 13938 steps | lib_sw adaptive: J 12.668413444285, 13941 steps
+step times identical to the driver's: FALSE ; first differs at step 3397 (t = 10.002886 vs 10.003288) 
+step times identical to the replay's: FALSE 
+plant 9662 times, driver 9670; first difference at index 1076
+t        plant: 3.781948 3.794217 3.808219 3.808853 3.808942 3.808990 3.809033 3.809053 3.809074
+t       driver: 3.781948 3.794217 3.808219 3.808853 3.808966 3.809021 3.809042 3.809059 3.809076
+h (d)    plant: 3.773 4.478 5.111 0.231 0.033 0.017 0.016 0.007 0.008
+h (d)   driver: 3.773 4.478 5.111 0.231 0.041 0.020 0.008 0.006 0.006

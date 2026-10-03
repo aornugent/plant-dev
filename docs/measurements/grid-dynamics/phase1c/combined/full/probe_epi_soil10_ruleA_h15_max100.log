@@ -1,0 +1,2 @@
+soil clamps, forward: soil_moisture_floor 286 soil_potential_ceiling 310 soil_positivity 6; sweep: soil_moisture_floor 0 soil_potential_ceiling 0 soil_positivity 0
+episodic soil 10 weight rule A max 100 hmax 15: J 1.978924870, 8211 steps (longest 15.0 d, first over 15 d at t = -); gradient finite 50 of 50; refusal: none; 38 + 108 s
