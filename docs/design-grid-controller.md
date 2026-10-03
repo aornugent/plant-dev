@@ -217,8 +217,7 @@ locally, so the global step must be capped by a reading.
 - One has arrived: the invader's pools, capped at 15 days. The cap is cheap and
   read off τ_s, not the run, so the design survives it.
 - A second would end it: a chain the norm cannot see, or a cap that costs more
-  than a fifth of the window's saving, as 7 days would under Dormand–Prince on
-  episodic. Each hands its part to C.
+  than a fifth of the window's saving. Each hands its part to C.
 
 ## What the design rests on
 
@@ -419,14 +418,12 @@ pulsed record before the gate.
   - It moves the resident's pool traits by up to 0.187ε, which fails the move
     test as registered. Post hoc, that is the cap correcting the uncapped run,
     which is farther from `1e-5`.
-  - *Under Dormand–Prince the cap is open.* Its stages are −4.25 at 15 days and
-    −12.5 at 20, past anything tested. A 10-day cap, inside the tested depth,
-    gives up 1.0% (long drought) and 9.0% (episodic) of the saving. The method
-    spike walks its members directly.
+  - *Dormand–Prince, since dropped, would have needed about 10 days.* Its stages
+    are −4.25 at 15 days and −12.5 at 20, past anything tested. A 10-day cap
+    gives up 1.0% (long drought) and 9.0% (episodic) of the saving.
 
 **1d. Invaders refined against the resident's dense output** (R5, R3), only if
-Dormand–Prince's walks need more than a cap, or phase 4 finds the invader's
-curvatures short. Under Cash–Karp, 1c's cap suffices.
+phase 4 finds the invader's curvatures short. For R5, 1c's cap suffices.
 - *Runs:* an invader walk on the driver that reads the resident's recorded stages
   and dense output, and sub-steps its members where `h/τ_eff > 2` or at a
   crossing.
@@ -462,7 +459,7 @@ bit-identical wherever its default is off (AGENTS.md):
    controller supplied by plant's patch, is built (`state-weights` on both
    forks), and reproduces the driver's weighted runs bit for bit;
 2. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
-   stages and the end's rate (Dormand–Prince only if the user keeps it, below);
+   stages and the end's rate;
 3. per-member events, in the forward and the sweep: the invader's structure is
    frozen per grid, and the crossing times are differentiated;
 4. the window's weight from a pilot, through the same mechanism's schedule, and
@@ -508,21 +505,13 @@ gain, and each multiplies with the rows the arc saves.
 ## The user's decisions
 
 - *B or D:* evaluated at phase 2a.
-- *The pair:* Cash–Karp stays the default solver. Dormand–Prince is the default
-  for runs that host invader gradients, including the resident run the invaders
-  walk, since an invader steps on its resident's stages. odelia carries both as
-  first-class steppers.
-  - *A caveat found since:* Dormand–Prince's stages turn negative on a pool past
-    1.04τ, half Cash–Karp's 2.16τ (`docs/geometry.md`, 4(a)). An invader walks
-    with no error control, so its pools meet that overshoot on any step past
-    7.3 days.
-  - Whether a negative stage raises is phases 1b and 1c's question. A Cash–Karp
-    interpolant, if 1b finds one good enough, would sidestep it.
-  - *Reopened by phase 1b; the user's call.* Cash–Karp has its own free
-    fourth-order extension, which matches the quintic for 5.9% of a forward.
-    Dormand–Prince is worse on TF24 in rows, error and stage rejections. So the
-    decision's reason is gone. The recommendation is Cash–Karp everywhere,
-    invader runs included.
+- *The pair:* Cash–Karp everywhere, invader runs included, with its own
+  fourth-order extension as the dense output. Dormand–Prince is dropped.
+  - The earlier plan, Dormand–Prince for runs that host invader gradients, rested
+    on its free interpolant.
+  - Phase 1b found Cash–Karp has one that matches the quintic for 5.9% of a
+    forward, and Dormand–Prince worse on TF24 in rows, error and stage
+    rejections.
 - *The local analysis* is invaders over ×0.5–×2 and the resident within ±10%
   (`OBJECTIVES.md`).
 - *Elasticities' ε is at least 0.01* (`OBJECTIVES.md`).
