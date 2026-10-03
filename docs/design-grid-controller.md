@@ -324,6 +324,14 @@ pulsed record before the gate.
 - *Decides* the pair and the interpolant's order. If 1a picks an implicit chain,
   the dense output must come from that method's family, and 1b says what order
   it needs.
+- *What it does not test: an invader refined against the resident's step.*
+  - An invader walks the resident's recorded stages, so it must use the
+    resident's pair. Cash–Karp and Dormand–Prince share only the stage times 0,
+    1/5, 3/10 and 1.
+  - Reading fields between stages also needs the resident's run to keep its
+    dense-output data.
+  - 1b measures the interpolant's accuracy, which an invader shares, since it
+    reads the same fields; 1d tests the plumbing if it is needed.
 
 **1c. Invaders under long steps** (R5, R7).
 - *Runs:* rule A's weight with every step capped at 15 days (2.16τ_s), on the
@@ -332,6 +340,17 @@ pulsed record before the gate.
 - *Pass:* nothing raises. The cap stays if it gives up less than a fifth of the
   window's 21–28%. Otherwise the invaders' members sub-step where `h/τ_eff > 2`,
   frozen per grid.
+
+**1d. Invaders refined against the resident's dense output** (R5, R3), only if
+1c rejects the cap or phase 4 finds the invader's curvatures short.
+- *Runs:* an invader walk on the driver that reads the resident's recorded stages
+  and dense output, and sub-steps its members where `h/τ_eff > 2` or at a
+  crossing.
+- *Pass:* `J′ = J` at θ′ = θ, nothing raises over ×0.5–×2, and a continuous
+  `J′(θ′)` on the frozen refinements.
+- Invader events matter less than the resident's. At `1e-4` the invader already
+  passes the nudge test (largest move 0.32 of ε/3), and its gradient's jumps are
+  3e-5 of itself, since its sweep holds the resident's field fixed.
 
 ### Phase 2: the node axis
 
@@ -350,7 +369,9 @@ pulsed record before the gate.
 Stacked changes on the plant and odelia forks, each with its own tests, and
 bit-identical wherever its default is off (AGENTS.md):
 1. the chain's treatment from 1a;
-2. the pair and its dense output from 1b, with Cash–Karp staying the default;
+2. the pair and its dense output from 1b, odelia carrying both pairs as
+   first-class steppers: Cash–Karp the default, Dormand–Prince for runs that
+   host invader gradients;
 3. per-member events, in the forward and the sweep: the invader's structure is
    frozen per grid, and the crossing times are differentiated;
 4. the window's weight from a pilot, and the invaders' guard from 1c;
@@ -391,13 +412,39 @@ gain, and each multiplies with the rows the arc saves.
 
 ## The user's decisions
 
-- B or D for the node axis (phase 2a).
-- An absolute floor on the small elasticities' ε, in `OBJECTIVES.md`.
-- The local analysis's defaults, invaders over ×0.5–×2 and the resident within
-  ±10%, in `OBJECTIVES.md`.
-- Whether ε and the continuity test apply to the constant record's invader cliff,
-  `J′` 938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}.
-- Whether Dormand–Prince becomes plant's default pair once validated.
+**Decided:**
+- *B or D:* evaluated at phase 2a.
+- *The pair:* Cash–Karp stays the default solver. Dormand–Prince is the default
+  for runs that host invader gradients, including the resident run the invaders
+  walk, since an invader steps on its resident's stages. odelia carries both as
+  first-class steppers.
+- *The local analysis's defaults* stand: invaders over ×0.5–×2, the resident
+  within ±10%. `OBJECTIVES.md` still calls them unconfirmed; that wording is the
+  user's.
+
+**Open:**
+- *An absolute floor on the small elasticities' ε,* sound in principle; whether
+  it holds in practice is open.
+  - An elasticity off by δe moves `ln J`'s prediction over a move Δ ln θ by
+    δe·Δ.
+  - Over the invader range, Δ is up to ln 2. So δe ≤ (ε/3)/ln 2 = 0.012 keeps
+    every prediction inside `ln J`'s own reproducibility bar.
+  - That bounds what an optimising loop loses. It does not resolve the sign of an
+    elasticity under 0.01, which inference about weak selection on that trait
+    would need.
+  - Measured with a floor of 0.01: at 108 nodes three quantities still miss
+    outside wet, each by under 1.6×, and nine of wet's invader's.
+- *The constant record's invader cliff.* With nothing to thin the canopy, a
+  slightly better invader takes it and a slightly worse one is shut out: `J′` is
+  938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}.
+  - The landscape is smooth once the front is resolved, and the invader's
+    elasticity at θ′ = θ meets its ε.
+  - But its own radius, |g|/|g′| = 0.0075 in `ln lma`, is a ninetieth of the
+    analysis's ×0.5–×2. One shared grid cannot cover that range: the cohorts
+    that earn `J′` end at 2.2, 0.12 and 0.012 years at ×0.5, ×0.99 and ×1.01.
+  - The choice: hold the record to the analysis range as written; let a run's
+    reported radius cap its analysis there (R8 already asks for the radius); or
+    keep it for the solver's tests and accuracy at θ only.
 
 ## Running it
 
